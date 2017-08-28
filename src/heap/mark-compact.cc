@@ -4451,6 +4451,10 @@ int MarkCompactCollector::Sweeper::ParallelSweepSpace(AllocationSpace identity,
 
 int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
                                                      AllocationSpace identity) {
+  // Early bailout for pages that are swept outside of the regular sweeping
+  // path. This check here avoids taking the lock first, avoiding deadlocks.
+  if (page->SweepingDone()) return 0;
+
   int max_freed = 0;
   {
     base::LockGuard<base::RecursiveMutex> guard(page->mutex());

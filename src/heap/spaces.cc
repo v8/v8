@@ -1381,7 +1381,10 @@ intptr_t Space::GetNextInlineAllocationStepSize() {
 
 PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
                        Executability executable)
-    : Space(heap, space, executable), anchor_(this), free_list_(this) {
+    : Space(heap, space, executable),
+      anchor_(this),
+      free_list_(this),
+      locked_page_(nullptr) {
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
 
@@ -3166,16 +3169,22 @@ HeapObject* PagedSpace::RawSlowAllocateRaw(int size_in_bytes) {
         free_list_.Allocate(static_cast<size_t>(size_in_bytes));
     if (object != NULL) return object;
 
-    // TODO(v8:6754): Resolve the race with sweeping during scavenge.
-    if (heap()->gc_state() != Heap::SCAVENGE) {
-      // If sweeping is still in progress try to sweep pages on the main thread.
-      int max_freed = collector->sweeper().ParallelSweepSpace(
-          identity(), size_in_bytes, kMaxPagesToSweep);
-      RefillFreeList();
-      if (max_freed >= size_in_bytes) {
-        object = free_list_.Allocate(static_cast<size_t>(size_in_bytes));
-        if (object != nullptr) return object;
-      }
+    if (locked_page_ != nullptr) {
+      DCHECK_EQ(locked_page_->owner()->identity(), identity());
+      collector->sweeper().ParallelSweepPage(locked_page_, identity());
+      locked_page_ = nullptr;
+      HeapObject* object =
+          free_list_.Allocate(static_cast<size_t>(size_in_bytes));
+      if (object != nullptr) return object;
+    }
+
+    // If sweeping is still in progress try to sweep pages.
+    int max_freed = collector->sweeper().ParallelSweepSpace(
+        identity(), size_in_bytes, kMaxPagesToSweep);
+    RefillFreeList();
+    if (max_freed >= size_in_bytes) {
+      object = free_list_.Allocate(static_cast<size_t>(size_in_bytes));
+      if (object != nullptr) return object;
     }
   } else if (is_local()) {
     // Sweeping not in progress and we are on a {CompactionSpace}. This can

@@ -604,7 +604,7 @@ class MemoryChunk {
   void set_prev_chunk(MemoryChunk* prev) { prev_chunk_.SetValue(prev); }
 
   Space* owner() const {
-    uintptr_t owner_value = base::AsAtomicWord::Relaxed_Load(
+    uintptr_t owner_value = base::AsAtomicWord::Acquire_Load(
         reinterpret_cast<const uintptr_t*>(&owner_));
     return ((owner_value & kPageHeaderTagMask) == kPageHeaderTag)
                ? reinterpret_cast<Space*>(owner_value - kPageHeaderTag)
@@ -612,10 +612,13 @@ class MemoryChunk {
   }
 
   void set_owner(Space* space) {
-    DCHECK_EQ(0, reinterpret_cast<intptr_t>(space) & kPageHeaderTagMask);
-    owner_ = reinterpret_cast<Address>(space) + kPageHeaderTag;
-    DCHECK_EQ(kPageHeaderTag,
-              reinterpret_cast<intptr_t>(owner_) & kPageHeaderTagMask);
+    DCHECK_EQ(0, reinterpret_cast<uintptr_t>(space) & kPageHeaderTagMask);
+    base::AsAtomicWord::Release_Store(
+        reinterpret_cast<uintptr_t*>(&owner_),
+        reinterpret_cast<uintptr_t>(space) + kPageHeaderTag);
+    DCHECK_EQ(kPageHeaderTag, base::AsAtomicWord::Relaxed_Load(
+                                  reinterpret_cast<const uintptr_t*>(&owner_)) &
+                                  kPageHeaderTagMask);
   }
 
   bool HasPageHeader() { return owner() != nullptr; }
@@ -2181,6 +2184,11 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
 
+  // Sets the page that is currently locked by the task using the space. This
+  // page will be preferred for sweeping to avoid a potential deadlock where
+  // multiple tasks hold locks on pages while trying to sweep each others pages.
+  void AnnounceLockedPage(Page* page) { locked_page_ = page; }
+
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
   // smaller, initial pages.
@@ -2234,6 +2242,8 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
 
   // Mutex guarding any concurrent access to the space.
   base::Mutex space_mutex_;
+
+  Page* locked_page_;
 
   friend class IncrementalMarking;
   friend class MarkCompactCollector;

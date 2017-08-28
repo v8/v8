@@ -1850,6 +1850,7 @@ class PageScavengingItem final : public ScavengingItem {
 
   void Process(Scavenger* scavenger) final {
     base::LockGuard<base::RecursiveMutex> guard(chunk_->mutex());
+    scavenger->AnnounceLockedPage(chunk_);
     RememberedSet<OLD_TO_NEW>::Iterate(
         chunk_,
         [this, scavenger](Address addr) {
