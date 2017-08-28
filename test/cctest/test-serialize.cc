@@ -41,8 +41,6 @@
 #include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
-#include "src/snapshot/builtin-deserializer.h"
-#include "src/snapshot/builtin-serializer.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/natives.h"
 #include "src/snapshot/partial-deserializer.h"
@@ -97,19 +95,7 @@ static Vector<const byte> WritePayload(const Vector<const byte>& payload) {
   return Vector<const byte>(const_cast<const byte*>(blob), length);
 }
 
-// A convenience struct to simplify management of the two blobs required to
-// deserialize an isolate.
-struct StartupBlobs {
-  Vector<const byte> startup;
-  Vector<const byte> builtin;
-
-  void Dispose() {
-    startup.Dispose();
-    builtin.Dispose();
-  }
-};
-
-static StartupBlobs Serialize(v8::Isolate* isolate) {
+static Vector<const byte> Serialize(v8::Isolate* isolate) {
   // We have to create one context.  One reason for this is so that the builtins
   // can be loaded from v8natives.js and their addresses can be processed.  This
   // will clear the pending fixups array, which would otherwise contain GC roots
@@ -126,15 +112,9 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
   StartupSerializer ser(internal_isolate,
                         v8::SnapshotCreator::FunctionCodeHandling::kClear);
   ser.SerializeStrongReferences();
-
-  i::BuiltinSerializer builtin_serializer(internal_isolate, &ser);
-  builtin_serializer.SerializeBuiltins();
-
   ser.SerializeWeakReferencesAndDeferred();
-  SnapshotData startup_snapshot(&ser);
-  SnapshotData builtin_snapshot(&builtin_serializer);
-  return {WritePayload(startup_snapshot.RawData()),
-          WritePayload(builtin_snapshot.RawData())};
+  SnapshotData snapshot_data(&ser);
+  return WritePayload(snapshot_data.RawData());
 }
 
 
@@ -154,12 +134,11 @@ Vector<const uint8_t> ConstructSource(Vector<const uint8_t> head,
                                source_length);
 }
 
-v8::Isolate* InitializeFromBlob(StartupBlobs& blobs) {
+v8::Isolate* InitializeFromBlob(Vector<const byte> blob) {
   v8::Isolate* v8_isolate = NULL;
   {
-    SnapshotData startup_snapshot(blobs.startup);
-    SnapshotData builtin_snapshot(blobs.builtin);
-    StartupDeserializer deserializer(&startup_snapshot, &builtin_snapshot);
+    SnapshotData snapshot_data(blob);
+    StartupDeserializer deserializer(&snapshot_data);
     TestIsolate* isolate = new TestIsolate(false);
     v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
@@ -169,8 +148,8 @@ v8::Isolate* InitializeFromBlob(StartupBlobs& blobs) {
   return v8_isolate;
 }
 
-static v8::Isolate* Deserialize(StartupBlobs& blobs) {
-  v8::Isolate* isolate = InitializeFromBlob(blobs);
+static v8::Isolate* Deserialize(Vector<const byte> blob) {
+  v8::Isolate* isolate = InitializeFromBlob(blob);
   CHECK(isolate);
   return isolate;
 }
@@ -191,9 +170,9 @@ static void SanityCheck(v8::Isolate* v8_isolate) {
 UNINITIALIZED_TEST(StartupSerializerOnce) {
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
-  StartupBlobs blobs = Serialize(isolate);
-  isolate = Deserialize(blobs);
-  blobs.Dispose();
+  Vector<const byte> blob = Serialize(isolate);
+  isolate = Deserialize(blob);
+  blob.Dispose();
   {
     v8::HandleScope handle_scope(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
@@ -257,11 +236,11 @@ UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {
 UNINITIALIZED_TEST(StartupSerializerTwice) {
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
-  StartupBlobs blobs1 = Serialize(isolate);
-  StartupBlobs blobs2 = Serialize(isolate);
-  blobs1.Dispose();
-  isolate = Deserialize(blobs2);
-  blobs2.Dispose();
+  Vector<const byte> blob1 = Serialize(isolate);
+  Vector<const byte> blob2 = Serialize(isolate);
+  blob1.Dispose();
+  isolate = Deserialize(blob2);
+  blob2.Dispose();
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -277,9 +256,9 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
 UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
-  StartupBlobs blobs = Serialize(isolate);
-  isolate = Deserialize(blobs);
-  blobs.Dispose();
+  Vector<const byte> blob = Serialize(isolate);
+  isolate = Deserialize(blob);
+  blob.Dispose();
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -301,11 +280,11 @@ UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
 UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
-  StartupBlobs blobs1 = Serialize(isolate);
-  StartupBlobs blobs2 = Serialize(isolate);
-  blobs1.Dispose();
-  isolate = Deserialize(blobs2);
-  blobs2.Dispose();
+  Vector<const byte> blob1 = Serialize(isolate);
+  Vector<const byte> blob2 = Serialize(isolate);
+  blob1.Dispose();
+  isolate = Deserialize(blob2);
+  blob2.Dispose();
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -324,7 +303,6 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
 }
 
 static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
-                                      Vector<const byte>* builtin_blob_out,
                                       Vector<const byte>* partial_blob_out) {
   v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
@@ -365,18 +343,12 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
     PartialSerializer partial_serializer(isolate, &startup_serializer,
                                          v8::SerializeInternalFieldsCallback());
     partial_serializer.Serialize(&raw_context, false);
-
-    i::BuiltinSerializer builtin_serializer(isolate, &startup_serializer);
-    builtin_serializer.SerializeBuiltins();
-
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
     SnapshotData startup_snapshot(&startup_serializer);
-    SnapshotData builtin_snapshot(&builtin_serializer);
     SnapshotData partial_snapshot(&partial_serializer);
 
     *partial_blob_out = WritePayload(partial_snapshot.RawData());
-    *builtin_blob_out = WritePayload(builtin_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());
   }
   v8_isolate->Dispose();
@@ -385,14 +357,12 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
 UNINITIALIZED_TEST(PartialSerializerContext) {
   DisableAlwaysOpt();
   Vector<const byte> startup_blob;
-  Vector<const byte> builtin_blob;
   Vector<const byte> partial_blob;
-  PartiallySerializeContext(&startup_blob, &builtin_blob, &partial_blob);
+  PartiallySerializeContext(&startup_blob, &partial_blob);
 
-  StartupBlobs blobs = {startup_blob, builtin_blob};
-  v8::Isolate* v8_isolate = InitializeFromBlob(blobs);
+  v8::Isolate* v8_isolate = InitializeFromBlob(startup_blob);
   CHECK(v8_isolate);
-  blobs.Dispose();
+  startup_blob.Dispose();
   {
     v8::Isolate::Scope isolate_scope(v8_isolate);
 
@@ -428,7 +398,7 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
 }
 
 static void PartiallySerializeCustomContext(
-    Vector<const byte>* startup_blob_out, Vector<const byte>* builtin_blob_out,
+    Vector<const byte>* startup_blob_out,
     Vector<const byte>* partial_blob_out) {
   v8::Isolate* v8_isolate = TestIsolate::NewInitialized(true);
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
@@ -489,18 +459,12 @@ static void PartiallySerializeCustomContext(
     PartialSerializer partial_serializer(isolate, &startup_serializer,
                                          v8::SerializeInternalFieldsCallback());
     partial_serializer.Serialize(&raw_context, false);
-
-    i::BuiltinSerializer builtin_serializer(isolate, &startup_serializer);
-    builtin_serializer.SerializeBuiltins();
-
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
     SnapshotData startup_snapshot(&startup_serializer);
-    SnapshotData builtin_snapshot(&builtin_serializer);
     SnapshotData partial_snapshot(&partial_serializer);
 
     *partial_blob_out = WritePayload(partial_snapshot.RawData());
-    *builtin_blob_out = WritePayload(builtin_snapshot.RawData());
     *startup_blob_out = WritePayload(startup_snapshot.RawData());
   }
   v8_isolate->Dispose();
@@ -509,14 +473,12 @@ static void PartiallySerializeCustomContext(
 UNINITIALIZED_TEST(PartialSerializerCustomContext) {
   DisableAlwaysOpt();
   Vector<const byte> startup_blob;
-  Vector<const byte> builtin_blob;
   Vector<const byte> partial_blob;
-  PartiallySerializeCustomContext(&startup_blob, &builtin_blob, &partial_blob);
+  PartiallySerializeCustomContext(&startup_blob, &partial_blob);
 
-  StartupBlobs blobs = {startup_blob, builtin_blob};
-  v8::Isolate* v8_isolate = InitializeFromBlob(blobs);
+  v8::Isolate* v8_isolate = InitializeFromBlob(startup_blob);
   CHECK(v8_isolate);
-  blobs.Dispose();
+  startup_blob.Dispose();
   {
     v8::Isolate::Scope isolate_scope(v8_isolate);
 
