@@ -84,7 +84,8 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
       case Code::BYTECODE_HANDLER:    // No direct references to handlers.
         CHECK(false);
       case Code::BUILTIN:
-        SerializeBuiltinReference(code_object, how_to_code, where_to_point, 0);
+        SerializeBuiltin(code_object->builtin_index(), how_to_code,
+                         where_to_point);
         return;
       case Code::STUB:
 #define IC_KIND_CASE(KIND) case Code::KIND:
@@ -93,8 +94,8 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
         if (code_object->builtin_index() == -1) {
           SerializeCodeStub(code_object, how_to_code, where_to_point);
         } else {
-          SerializeBuiltinReference(code_object, how_to_code, where_to_point,
-                                    0);
+          SerializeBuiltin(code_object->builtin_index(), how_to_code,
+                           where_to_point);
         }
         return;
       case Code::FUNCTION:
@@ -136,6 +137,22 @@ void CodeSerializer::SerializeGeneric(HeapObject* heap_object,
   ObjectSerializer serializer(this, heap_object, &sink_, how_to_code,
                               where_to_point);
   serializer.Serialize();
+}
+
+void CodeSerializer::SerializeBuiltin(int builtin_index, HowToCode how_to_code,
+                                      WhereToPoint where_to_point) {
+  DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
+         (how_to_code == kFromCode && where_to_point == kInnerPointer));
+  DCHECK_LT(builtin_index, Builtins::builtin_count);
+  DCHECK_LE(0, builtin_index);
+
+  if (FLAG_trace_serializer) {
+    PrintF(" Encoding builtin: %s\n",
+           isolate()->builtins()->name(builtin_index));
+  }
+
+  sink_.Put(kBuiltin + how_to_code + where_to_point, "Builtin");
+  sink_.PutInt(builtin_index, "builtin_index");
 }
 
 void CodeSerializer::SerializeCodeStub(Code* code_stub, HowToCode how_to_code,
@@ -266,8 +283,7 @@ void WasmCompiledModuleSerializer::SerializeCodeObject(
     case Code::WASM_TO_JS_FUNCTION:
       // Serialize the illegal builtin instead. On instantiation of a
       // deserialized module, these will be replaced again.
-      SerializeBuiltinReference(*BUILTIN_CODE(isolate(), Illegal), how_to_code,
-                                where_to_point, 0);
+      SerializeBuiltin(Builtins::kIllegal, how_to_code, where_to_point);
       break;
     default:
       UNREACHABLE();
