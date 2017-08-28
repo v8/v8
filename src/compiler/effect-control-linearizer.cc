@@ -629,6 +629,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckMaps:
       result = LowerCheckMaps(node, frame_state);
       break;
+    case IrOpcode::kCompareMaps:
+      result = LowerCompareMaps(node);
+      break;
     case IrOpcode::kCheckMapValue:
       LowerCheckMapValue(node, frame_state);
       break;
@@ -1285,6 +1288,28 @@ Node* EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
     __ Bind(&done);
   }
   return value;
+}
+
+Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
+  ZoneHandleSet<Map> const& maps = CompareMapsParametersOf(node->op());
+  size_t const map_count = maps.size();
+  Node* value = node->InputAt(0);
+
+  auto done = __ MakeLabelFor(GraphAssemblerLabelType::kNonDeferred,
+                              map_count + 1, MachineRepresentation::kBit);
+
+  // Load the current map of the {value}.
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+
+  for (size_t i = 0; i < map_count; ++i) {
+    Node* map = __ HeapConstant(maps[i]);
+    Node* check = __ WordEqual(value_map, map);
+    __ GotoIf(check, &done, __ Int32Constant(1));
+  }
+  __ Goto(&done, __ Int32Constant(0));
+
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 void EffectControlLinearizer::LowerCheckMapValue(Node* node,

@@ -2770,6 +2770,9 @@ class RepresentationSelector {
         VisitInputs(node);
         return SetOutput(node, MachineRepresentation::kNone);
       }
+      case IrOpcode::kCompareMaps:
+        return VisitUnop(node, UseInfo::AnyTagged(),
+                         MachineRepresentation::kBit);
       case IrOpcode::kEnsureWritableFastElements:
         return VisitBinop(node, UseInfo::AnyTagged(),
                           MachineRepresentation::kTaggedPointer);

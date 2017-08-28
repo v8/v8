@@ -765,12 +765,6 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           access_builder.BuildCheckHeapObject(receiver, &effect, control);
     }
 
-    // Load the {receiver} map. The resulting effect is the dominating effect
-    // for all (polymorphic) branches.
-    Node* receiver_map = effect =
-        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                         receiver, effect, control);
-
     // Generate code for the various different property access patterns.
     Node* fallthrough_control = control;
     for (size_t j = 0; j < access_infos.size(); ++j) {
@@ -787,16 +781,12 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
         // effect to be able to learn from the control flow.
         bool insert_map_guard = true;
 
-        // Emit a (sequence of) map checks for other {receiver}s.
-        ZoneVector<Node*> this_controls(zone());
-        ZoneVector<Node*> this_effects(zone());
+        // Check maps for the {receiver}s.
         if (j == access_infos.size() - 1) {
           // Last map check on the fallthrough control path, do a
           // conditional eager deoptimization exit here.
           access_builder.BuildCheckMaps(receiver, &this_effect, this_control,
                                         receiver_maps);
-          this_effects.push_back(this_effect);
-          this_controls.push_back(fallthrough_control);
           fallthrough_control = nullptr;
 
           // Don't insert a MapGuard in this case, as the CheckMaps
@@ -804,17 +794,18 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           // along the effect chain.
           insert_map_guard = false;
         } else {
-          for (auto map : receiver_maps) {
-            Node* check =
-                graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
-                                 jsgraph()->Constant(map));
-            Node* branch = graph()->NewNode(common()->Branch(), check,
-                                            fallthrough_control);
-            fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
-            this_controls.push_back(
-                graph()->NewNode(common()->IfTrue(), branch));
-            this_effects.push_back(this_effect);
+          // Explicitly branch on the {receiver_maps}.
+          ZoneHandleSet<Map> maps;
+          for (Handle<Map> map : receiver_maps) {
+            maps.insert(map, graph()->zone());
           }
+          Node* check = this_effect =
+              graph()->NewNode(simplified()->CompareMaps(maps), receiver,
+                               this_effect, this_control);
+          Node* branch =
+              graph()->NewNode(common()->Branch(), check, this_control);
+          fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+          this_control = graph()->NewNode(common()->IfTrue(), branch);
         }
 
         // The Number case requires special treatment to also deal with Smis.
@@ -822,28 +813,15 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           // Join this check with the "receiver is smi" check above.
           DCHECK_NOT_NULL(receiverissmi_effect);
           DCHECK_NOT_NULL(receiverissmi_control);
-          this_effects.push_back(receiverissmi_effect);
-          this_controls.push_back(receiverissmi_control);
+          this_control = graph()->NewNode(common()->Merge(2), this_control,
+                                          receiverissmi_control);
+          this_effect = graph()->NewNode(common()->EffectPhi(2), this_effect,
+                                         receiverissmi_effect, this_control);
           receiverissmi_effect = receiverissmi_control = nullptr;
 
           // The {receiver} can also be a Smi in this case, so
           // a MapGuard doesn't make sense for this at all.
           insert_map_guard = false;
-        }
-
-        // Create single chokepoint for the control.
-        int const this_control_count = static_cast<int>(this_controls.size());
-        if (this_control_count == 1) {
-          this_control = this_controls.front();
-          this_effect = this_effects.front();
-        } else {
-          this_control =
-              graph()->NewNode(common()->Merge(this_control_count),
-                               this_control_count, &this_controls.front());
-          this_effects.push_back(this_control);
-          this_effect =
-              graph()->NewNode(common()->EffectPhi(this_control_count),
-                               this_control_count + 1, &this_effects.front());
         }
 
         // Introduce a MapGuard to learn from this on the effect chain.

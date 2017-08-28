@@ -102,6 +102,8 @@ Reduction LoadElimination::Reduce(Node* node) {
       return ReduceMapGuard(node);
     case IrOpcode::kCheckMaps:
       return ReduceCheckMaps(node);
+    case IrOpcode::kCompareMaps:
+      return ReduceCompareMaps(node);
     case IrOpcode::kEnsureWritableFastElements:
       return ReduceEnsureWritableFastElements(node);
     case IrOpcode::kMaybeGrowFastElements:
@@ -692,6 +694,24 @@ Reduction LoadElimination::ReduceCheckMaps(Node* node) {
     // TODO(turbofan): Compute the intersection.
   }
   state = state->AddMaps(object, maps, zone());
+  return UpdateState(node, state);
+}
+
+Reduction LoadElimination::ReduceCompareMaps(Node* node) {
+  ZoneHandleSet<Map> const maps = CompareMapsParametersOf(node->op());
+  Node* const object = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+  ZoneHandleSet<Map> object_maps;
+  if (state->LookupMaps(object, &object_maps)) {
+    if (maps.contains(object_maps)) {
+      Node* value = jsgraph()->TrueConstant();
+      ReplaceWithValue(node, value, effect);
+      return Replace(value);
+    }
+    // TODO(turbofan): Compute the intersection.
+  }
   return UpdateState(node, state);
 }
 

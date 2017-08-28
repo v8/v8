@@ -8,6 +8,8 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
+#include "src/handles-inl.h"
+#include "src/objects-inl.h"
 #include "src/objects/map.h"
 #include "src/objects/name.h"
 
@@ -211,6 +213,11 @@ std::ostream& operator<<(std::ostream& os, CheckMapsParameters const& p) {
 CheckMapsParameters const& CheckMapsParametersOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kCheckMaps, op->opcode());
   return OpParameter<CheckMapsParameters>(op);
+}
+
+ZoneHandleSet<Map> const& CompareMapsParametersOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kCompareMaps, op->opcode());
+  return OpParameter<ZoneHandleSet<Map>>(op);
 }
 
 size_t hash_value(CheckTaggedInputMode mode) {
@@ -858,6 +865,16 @@ const Operator* SimplifiedOperatorBuilder::CheckMaps(CheckMapsFlags flags,
       "CheckMaps",                                     // name
       1, 1, 1, 0, 1, 0,                                // counts
       parameters);                                     // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::CompareMaps(
+    ZoneHandleSet<Map> maps) {
+  return new (zone()) Operator1<ZoneHandleSet<Map>>(  // --
+      IrOpcode::kCompareMaps,                         // opcode
+      Operator::kEliminatable,                        // flags
+      "CompareMaps",                                  // name
+      1, 1, 1, 1, 1, 0,                               // counts
+      maps);                                          // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckFloat64Hole(
