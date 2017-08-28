@@ -563,7 +563,7 @@ struct SnapshotCreatorData {
 
 }  // namespace
 
-SnapshotCreator::SnapshotCreator(intptr_t* external_references,
+SnapshotCreator::SnapshotCreator(const intptr_t* external_references,
                                  StartupData* existing_snapshot) {
   i::Isolate* internal_isolate = new i::Isolate(true);
   Isolate* isolate = reinterpret_cast<Isolate*>(internal_isolate);

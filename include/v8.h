@@ -6830,7 +6830,7 @@ class V8_EXPORT Isolate {
      * deserialization. This array and its content must stay valid for the
      * entire lifetime of the isolate.
      */
-    intptr_t* external_references;
+    const intptr_t* external_references;
 
     /**
      * Whether calling Atomics.wait (a function that may block) is allowed in
@@ -8175,7 +8175,7 @@ class V8_EXPORT SnapshotCreator {
    * \param external_references a null-terminated array of external references
    *        that must be equivalent to CreateParams::external_references.
    */
-  SnapshotCreator(intptr_t* external_references = nullptr,
+  SnapshotCreator(const intptr_t* external_references = nullptr,
                   StartupData* existing_blob = nullptr);
 
   ~SnapshotCreator();

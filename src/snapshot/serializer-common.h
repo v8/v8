@@ -48,7 +48,7 @@ class ExternalReferenceEncoder {
 
 #ifdef DEBUG
   std::vector<int> count_;
-  intptr_t* api_references_;
+  const intptr_t* api_references_;
 #endif  // DEBUG
 
   DISALLOW_COPY_AND_ASSIGN(ExternalReferenceEncoder);

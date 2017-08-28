@@ -430,7 +430,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(DebugObjectCache*, string_stream_debug_object_cache, nullptr)             \
   V(Object*, string_stream_current_security_token, nullptr)                   \
   V(ExternalReferenceTable*, external_reference_table, nullptr)               \
-  V(intptr_t*, api_external_references, nullptr)                              \
+  V(const intptr_t*, api_external_references, nullptr)                        \
   V(AddressToIndexHashMap*, external_reference_map, nullptr)                  \
   V(HeapObjectToIndexHashMap*, root_index_map, nullptr)                       \
   V(int, pending_microtask_count, 0)                                          \

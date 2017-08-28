@@ -33,7 +33,7 @@ ExternalReferenceEncoder::ExternalReferenceEncoder(Isolate* isolate) {
     DCHECK(map_->Get(addr).IsJust());
   }
   // Add external references provided by the embedder.
-  intptr_t* api_references = isolate->api_external_references();
+  const intptr_t* api_references = isolate->api_external_references();
   if (api_references == nullptr) return;
   for (uint32_t i = 0; api_references[i] != 0; ++i) {
     Address addr = reinterpret_cast<Address>(api_references[i]);
