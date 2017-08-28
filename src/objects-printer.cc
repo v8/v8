@@ -1111,6 +1111,9 @@ void SharedFunctionInfo::SharedFunctionInfoPrint(std::ostream& os) {  // NOLINT
   if (HasBytecodeArray()) {
     os << "\n - bytecode_array = " << bytecode_array();
   }
+  if (HasAsmWasmData()) {
+    os << "\n - asm_wasm_data = " << Brief(asm_wasm_data());
+  }
   PrintSourceCode(os);
   // Script files are often large, hard to read.
   // os << "\n - script =";

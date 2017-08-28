@@ -234,6 +234,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   void SetIndirectFunction(uint32_t indirect, uint32_t direct);
   void MarkStartFunction(WasmFunctionBuilder* builder);
   void AddExport(Vector<const char> name, WasmFunctionBuilder* builder);
+  void SetMinMemorySize(uint32_t value);
 
   // Writing methods.
   void WriteTo(ZoneBuffer& buffer) const;
@@ -290,6 +291,7 @@ class V8_EXPORT_PRIVATE WasmModuleBuilder : public ZoneObject {
   ZoneVector<WasmGlobal> globals_;
   SignatureMap signature_map_;
   int start_function_index_;
+  uint32_t min_memory_size_;
 };
 
 inline FunctionSig* WasmFunctionBuilder::signature() {

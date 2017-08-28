@@ -223,7 +223,8 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       indirect_functions_(zone),
       globals_(zone),
       signature_map_(zone),
-      start_function_index_(-1) {}
+      start_function_index_(-1),
+      min_memory_size_(16) {}
 
 WasmFunctionBuilder* WasmModuleBuilder::AddFunction(FunctionSig* sig) {
   functions_.push_back(new (zone_) WasmFunctionBuilder(this));
@@ -313,6 +314,10 @@ uint32_t WasmModuleBuilder::AddGlobal(ValueType type, bool exported,
   return static_cast<uint32_t>(globals_.size() - 1);
 }
 
+void WasmModuleBuilder::SetMinMemorySize(uint32_t value) {
+  min_memory_size_ = value;
+}
+
 void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   // == Emit magic =============================================================
   buffer.write_u32(kWasmMagic);
@@ -383,10 +388,9 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   // == emit memory declaration ================================================
   {
     size_t start = EmitSection(kMemorySectionCode, buffer);
-    buffer.write_u8(1);  // memory count
-    buffer.write_u32v(kResizableMaximumFlag);
-    buffer.write_u32v(16);  // min memory size
-    buffer.write_u32v(32);  // max memory size
+    buffer.write_u8(1);                   // memory count
+    buffer.write_u8(kNoMaximumFlag);      // no max provided
+    buffer.write_u32v(min_memory_size_);  // min memory size
     FixupSection(buffer, start);
   }
 
