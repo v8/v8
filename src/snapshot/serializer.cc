@@ -217,6 +217,37 @@ bool Serializer::SerializeBackReference(HeapObject* obj, HowToCode how_to_code,
   return true;
 }
 
+bool Serializer::SerializeBuiltinReference(
+    HeapObject* obj, HowToCode how_to_code, WhereToPoint where_to_point,
+    int skip, BuiltinReferenceSerializationMode mode) {
+  if (!obj->IsCode()) return false;
+
+  Code* code = Code::cast(obj);
+  int builtin_index = code->builtin_index();
+  if (builtin_index < 0) return false;
+
+  DCHECK((how_to_code == kPlain && where_to_point == kStartOfObject) ||
+         (how_to_code == kFromCode));
+  DCHECK_LT(builtin_index, Builtins::builtin_count);
+  DCHECK_LE(0, builtin_index);
+
+  if (mode == kCanonicalizeCompileLazy &&
+      code->is_interpreter_trampoline_builtin()) {
+    builtin_index = static_cast<int>(Builtins::kCompileLazy);
+  }
+
+  if (FLAG_trace_serializer) {
+    PrintF(" Encoding builtin reference: %s\n",
+           isolate()->builtins()->name(builtin_index));
+  }
+
+  FlushSkip(skip);
+  sink_.Put(kBuiltin + how_to_code + where_to_point, "Builtin");
+  sink_.PutInt(builtin_index, "builtin_index");
+
+  return true;
+}
+
 void Serializer::PutRoot(int root_index, HeapObject* object,
                          SerializerDeserializer::HowToCode how_to_code,
                          SerializerDeserializer::WhereToPoint where_to_point,

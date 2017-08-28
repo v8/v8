@@ -1334,8 +1334,11 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
       if (space == MAP_SPACE) {
         // We allocate each map individually to avoid fragmentation.
         maps->clear();
-        DCHECK_EQ(1, reservation->size());
-        int num_maps = reservation->at(0).size / Map::kSize;
+        DCHECK_LE(reservation->size(), 2);
+        int reserved_size = 0;
+        for (const Chunk& c : *reservation) reserved_size += c.size;
+        DCHECK_EQ(0, reserved_size % Map::kSize);
+        int num_maps = reserved_size / Map::kSize;
         for (int i = 0; i < num_maps; i++) {
           // The deserializer will update the skip list.
           AllocationResult allocation = map_space()->AllocateRawUnaligned(
@@ -1355,8 +1358,10 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
         }
       } else if (space == LO_SPACE) {
         // Just check that we can allocate during deserialization.
-        DCHECK_EQ(1, reservation->size());
-        perform_gc = !CanExpandOldGeneration(reservation->at(0).size);
+        DCHECK_LE(reservation->size(), 2);
+        int reserved_size = 0;
+        for (const Chunk& c : *reservation) reserved_size += c.size;
+        perform_gc = !CanExpandOldGeneration(reserved_size);
       } else {
         for (auto& chunk : *reservation) {
           AllocationResult allocation;

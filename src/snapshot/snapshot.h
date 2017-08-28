@@ -75,11 +75,12 @@ class Snapshot : public AllStatic {
 
   static v8::StartupData CreateSnapshotBlob(
       const SnapshotData* startup_snapshot,
+      const SnapshotData* builtin_snapshot,
       const std::vector<SnapshotData*>& context_snapshots,
       bool can_be_rehashed);
 
 #ifdef DEBUG
-  static bool SnapshotIsValid(v8::StartupData* snapshot_blob);
+  static bool SnapshotIsValid(const v8::StartupData* snapshot_blob);
 #endif  // DEBUG
 
  private:
@@ -88,6 +89,7 @@ class Snapshot : public AllStatic {
                                        uint32_t index);
   static bool ExtractRehashability(const v8::StartupData* data);
   static Vector<const byte> ExtractStartupData(const v8::StartupData* data);
+  static Vector<const byte> ExtractBuiltinData(const v8::StartupData* data);
   static Vector<const byte> ExtractContextData(const v8::StartupData* data,
                                                uint32_t index);
 
@@ -101,11 +103,13 @@ class Snapshot : public AllStatic {
   // Snapshot blob layout:
   // [0] number of contexts N
   // [1] rehashability
-  // [2] offset to context 0
-  // [3] offset to context 1
+  // [2] offset to builtins
+  // [3] offset to context 0
+  // [4] offset to context 1
   // ...
   // ... offset to context N - 1
   // ... startup snapshot data
+  // ... builtin snapshot data
   // ... context 0 snapshot data
   // ... context 1 snapshot data
 
@@ -113,8 +117,9 @@ class Snapshot : public AllStatic {
   // TODO(yangguo): generalize rehashing, and remove this flag.
   static const uint32_t kRehashabilityOffset =
       kNumberOfContextsOffset + kUInt32Size;
+  static const int kBuiltinOffsetOffset = kRehashabilityOffset + kUInt32Size;
   static const uint32_t kFirstContextOffsetOffset =
-      kRehashabilityOffset + kUInt32Size;
+      kBuiltinOffsetOffset + kUInt32Size;
 
   static uint32_t StartupSnapshotOffset(int num_contexts) {
     return kFirstContextOffsetOffset + num_contexts * kInt32Size;

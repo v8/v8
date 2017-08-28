@@ -19,7 +19,7 @@ namespace v8 {
 namespace internal {
 
 #ifdef DEBUG
-bool Snapshot::SnapshotIsValid(v8::StartupData* snapshot_blob) {
+bool Snapshot::SnapshotIsValid(const v8::StartupData* snapshot_blob) {
   return Snapshot::ExtractNumContexts(snapshot_blob) > 0;
 }
 #endif  // DEBUG
@@ -40,8 +40,11 @@ bool Snapshot::Initialize(Isolate* isolate) {
 
   const v8::StartupData* blob = isolate->snapshot_blob();
   Vector<const byte> startup_data = ExtractStartupData(blob);
-  SnapshotData snapshot_data(startup_data);
-  StartupDeserializer deserializer(&snapshot_data);
+  SnapshotData startup_snapshot_data(startup_data);
+  Vector<const byte> builtin_data = ExtractBuiltinData(blob);
+  SnapshotData builtin_snapshot_data(builtin_data);
+  StartupDeserializer deserializer(&startup_snapshot_data,
+                                   &builtin_snapshot_data);
   deserializer.SetRehashability(ExtractRehashability(blob));
   bool success = isolate->Init(&deserializer);
   if (FLAG_profile_deserialization) {
@@ -82,12 +85,15 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
 }
 
 void ProfileDeserialization(
-    const SnapshotData* startup_snapshot,
+    const SnapshotData* startup_snapshot, const SnapshotData* builtin_snapshot,
     const std::vector<SnapshotData*>& context_snapshots) {
   if (FLAG_profile_deserialization) {
     int startup_total = 0;
     PrintF("Deserialization will reserve:\n");
     for (const auto& reservation : startup_snapshot->Reservations()) {
+      startup_total += reservation.chunk_size();
+    }
+    for (const auto& reservation : builtin_snapshot->Reservations()) {
       startup_total += reservation.chunk_size();
     }
     PrintF("%10d bytes per isolate\n", startup_total);
@@ -102,22 +108,25 @@ void ProfileDeserialization(
 }
 
 v8::StartupData Snapshot::CreateSnapshotBlob(
-    const SnapshotData* startup_snapshot,
+    const SnapshotData* startup_snapshot, const SnapshotData* builtin_snapshot,
     const std::vector<SnapshotData*>& context_snapshots, bool can_be_rehashed) {
   uint32_t num_contexts = static_cast<uint32_t>(context_snapshots.size());
   uint32_t startup_snapshot_offset = StartupSnapshotOffset(num_contexts);
   uint32_t total_length = startup_snapshot_offset;
   total_length += static_cast<uint32_t>(startup_snapshot->RawData().length());
+  total_length += static_cast<uint32_t>(builtin_snapshot->RawData().length());
   for (const auto context_snapshot : context_snapshots) {
     total_length += static_cast<uint32_t>(context_snapshot->RawData().length());
   }
 
-  ProfileDeserialization(startup_snapshot, context_snapshots);
+  ProfileDeserialization(startup_snapshot, builtin_snapshot, context_snapshots);
 
   char* data = new char[total_length];
   SetHeaderValue(data, kNumberOfContextsOffset, num_contexts);
   SetHeaderValue(data, kRehashabilityOffset, can_be_rehashed ? 1 : 0);
-  uint32_t payload_offset = StartupSnapshotOffset(num_contexts);
+
+  // Startup snapshot (isolate-specific data).
+  uint32_t payload_offset = startup_snapshot_offset;
   uint32_t payload_length =
       static_cast<uint32_t>(startup_snapshot->RawData().length());
   CopyBytes(data + payload_offset,
@@ -128,6 +137,19 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
            payload_length);
   }
   payload_offset += payload_length;
+
+  // Builtins.
+  SetHeaderValue(data, kBuiltinOffsetOffset, payload_offset);
+  payload_length = builtin_snapshot->RawData().length();
+  CopyBytes(data + payload_offset,
+            reinterpret_cast<const char*>(builtin_snapshot->RawData().start()),
+            payload_length);
+  if (FLAG_profile_deserialization) {
+    PrintF("%10d bytes for builtins\n", payload_length);
+  }
+  payload_offset += payload_length;
+
+  // Partial snapshots (context-specific data).
   for (uint32_t i = 0; i < num_contexts; i++) {
     SetHeaderValue(data, ContextSnapshotOffsetOffset(i), payload_offset);
     SnapshotData* context_snapshot = context_snapshots[i];
@@ -143,6 +165,7 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   }
 
   v8::StartupData result = {data, static_cast<int>(total_length)};
+  DCHECK_EQ(total_length, payload_offset);
   return result;
 }
 
@@ -171,12 +194,29 @@ Vector<const byte> Snapshot::ExtractStartupData(const v8::StartupData* data) {
   uint32_t num_contexts = ExtractNumContexts(data);
   uint32_t startup_offset = StartupSnapshotOffset(num_contexts);
   CHECK_LT(startup_offset, data->raw_size);
-  uint32_t first_context_offset = ExtractContextOffset(data, 0);
-  CHECK_LT(first_context_offset, data->raw_size);
-  uint32_t startup_length = first_context_offset - startup_offset;
+  uint32_t builtin_offset = GetHeaderValue(data, kBuiltinOffsetOffset);
+  CHECK_LT(builtin_offset, data->raw_size);
+  CHECK_GT(builtin_offset, startup_offset);
+  uint32_t startup_length = builtin_offset - startup_offset;
   const byte* startup_data =
       reinterpret_cast<const byte*>(data->data + startup_offset);
   return Vector<const byte>(startup_data, startup_length);
+}
+
+Vector<const byte> Snapshot::ExtractBuiltinData(const v8::StartupData* data) {
+  DCHECK(SnapshotIsValid(data));
+
+  uint32_t from_offset = GetHeaderValue(data, kBuiltinOffsetOffset);
+  CHECK_LT(from_offset, data->raw_size);
+
+  uint32_t to_offset = GetHeaderValue(data, ContextSnapshotOffsetOffset(0));
+  CHECK_LT(to_offset, data->raw_size);
+
+  CHECK_GT(to_offset, from_offset);
+  uint32_t length = to_offset - from_offset;
+  const byte* builtin_data =
+      reinterpret_cast<const byte*>(data->data + from_offset);
+  return Vector<const byte>(builtin_data, length);
 }
 
 Vector<const byte> Snapshot::ExtractContextData(const v8::StartupData* data,

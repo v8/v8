@@ -30,29 +30,24 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
   DCHECK(!obj->IsJSFunction());
 
-  if (clear_function_code_) {
-    if (obj->IsCode()) {
-      Code* code = Code::cast(obj);
-      // If the function code is compiled (either as native code or bytecode),
-      // replace it with lazy-compile builtin. Only exception is when we are
-      // serializing the canonical interpreter-entry-trampoline builtin.
-      if (code->kind() == Code::FUNCTION ||
-          (!serializing_builtins_ &&
-           code->is_interpreter_trampoline_builtin())) {
-        obj = isolate()->builtins()->builtin(Builtins::kCompileLazy);
-      }
-    } else if (obj->IsBytecodeArray()) {
-      obj = isolate()->heap()->undefined_value();
-    }
+  if (clear_function_code() && obj->IsBytecodeArray()) {
+    obj = isolate()->heap()->undefined_value();
   }
 
+  BuiltinReferenceSerializationMode mode =
+      (clear_function_code() && !serializing_builtins_)
+          ? kCanonicalizeCompileLazy
+          : kDefault;
+  if (SerializeBuiltinReference(obj, how_to_code, where_to_point, skip, mode)) {
+    return;
+  }
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
   int root_index = root_index_map_.Lookup(obj);
   // We can only encode roots as such if it has already been serialized.
   // That applies to root indices below the wave front.
   if (root_index != RootIndexMap::kInvalidRootIndex) {
-    if (root_has_been_serialized_.test(root_index)) {
+    if (root_has_been_serialized(root_index)) {
       PutRoot(root_index, obj, how_to_code, where_to_point, skip);
       return;
     }

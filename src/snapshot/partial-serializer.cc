@@ -35,15 +35,13 @@ void PartialSerializer::Serialize(Object** o, bool include_global_proxy) {
   // and it's next context pointer may point to the code-stub context.  Clear
   // it before serializing, it will get re-added to the context list
   // explicitly when it's loaded.
-  context->set(Context::NEXT_CONTEXT_LINK,
-               isolate_->heap()->undefined_value());
+  context->set(Context::NEXT_CONTEXT_LINK, isolate_->heap()->undefined_value());
   DCHECK(!context->global_object()->IsUndefined(context->GetIsolate()));
   // Reset math random cache to get fresh random numbers.
   context->set_math_random_index(Smi::kZero);
   context->set_math_random_cache(isolate_->heap()->undefined_value());
   DCHECK_NULL(rehashable_global_dictionary_);
-  rehashable_global_dictionary_ =
-      context->global_object()->global_dictionary();
+  rehashable_global_dictionary_ = context->global_object()->global_dictionary();
 
   VisitRootPointer(Root::kPartialSnapshotCache, o);
   SerializeDeferredObjects();
@@ -59,6 +57,12 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     DCHECK(Map::cast(obj)->code_cache() == obj->GetHeap()->empty_fixed_array());
   }
 
+  BuiltinReferenceSerializationMode mode =
+      startup_serializer_->clear_function_code() ? kCanonicalizeCompileLazy
+                                                 : kDefault;
+  if (SerializeBuiltinReference(obj, how_to_code, where_to_point, skip, mode)) {
+    return;
+  }
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
   int root_index = root_index_map_.Lookup(obj);
