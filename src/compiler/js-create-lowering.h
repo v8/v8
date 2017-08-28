@@ -67,7 +67,6 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
                            Handle<AllocationSite> site);
   Reduction ReduceNewArray(Node* node, std::vector<Node*> values,
                            Handle<AllocationSite> site);
-  Reduction ReduceNewObject(Node* node);
 
   Node* AllocateArguments(Node* effect, Node* control, Node* frame_state);
   Node* AllocateRestArguments(Node* effect, Node* control, Node* frame_state,

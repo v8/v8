@@ -977,9 +977,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateObjectLiteral(
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEmptyObjectLiteral(
-    int literal_index) {
-  OutputCreateEmptyObjectLiteral(literal_index);
+BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEmptyObjectLiteral() {
+  OutputCreateEmptyObjectLiteral();
   return *this;
 }
 

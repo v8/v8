@@ -2707,12 +2707,10 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
   }
 }
 
-// CreateEmptyObjectLiteral <literal_idx>
+// CreateEmptyObjectLiteral
 //
-// Creates an empty JSObject literal for literal index <literal_idx>.
+// Creates an empty JSObject literal.
 IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
-  // TODO(cbruni): remove literal_index and closure parameter once we know
-  // whether empty object literals work without pretenuring support.
   Node* context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
   Node* result = constructor_assembler.EmitCreateEmptyObjectLiteral(context);

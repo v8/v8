@@ -780,8 +780,6 @@ TF_BUILTIN(FastCloneShallowObject, ConstructorBuiltinsAssembler) {
 // Used by the CreateEmptyObjectLiteral stub and bytecode.
 Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
     Node* context) {
-  // TODO(cbruni): check whether we have to enable pretenuring support again for
-  // the empty object literal.
   Node* native_context = LoadNativeContext(context);
   Node* object_function =
       LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX);
@@ -796,9 +794,6 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
 }
 
 TF_BUILTIN(CreateEmptyObjectLiteral, ConstructorBuiltinsAssembler) {
-  // TODO(cbruni): remove closure and literal_index paramters once it's clear
-  // whether we can live without pretenuring support for the empty object
-  // literal.
   Node* context = Parameter(Descriptor::kContext);
   Node* result = EmitCreateEmptyObjectLiteral(context);
   Return(result);

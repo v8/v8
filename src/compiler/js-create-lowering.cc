@@ -940,7 +940,7 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralArray(Node* node) {
   return NoChange();
 }
 
-Reduction JSCreateLowering::ReduceNewObject(Node* node) {
+Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralObject(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCreateEmptyLiteralObject, node->opcode());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
@@ -969,21 +969,6 @@ Reduction JSCreateLowering::ReduceNewObject(Node* node) {
   RelaxControls(node);
   a.FinishAndChange(node);
   return Changed(node);
-}
-
-Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralObject(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kJSCreateEmptyLiteralObject);
-  int literal_index = OpParameter<int>(node);
-  Handle<FeedbackVector> feedback_vector;
-  if (GetSpecializationFeedbackVector(node).ToHandle(&feedback_vector)) {
-    FeedbackSlot slot(FeedbackVector::ToSlot(literal_index));
-    Handle<Object> raw_site(feedback_vector->Get(slot), isolate());
-    // TODO(cbruni): remove once the empty object literal doesn't rely on the
-    // AllocationSite anymore.
-    DCHECK(!raw_site->IsAllocationSite());
-    return ReduceNewObject(node);
-  }
-  return NoChange();
 }
 
 Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {

@@ -80,7 +80,7 @@ namespace internal {
   TFC(FastCloneShallowArrayTrack, FastCloneShallowArray, 1)                    \
   TFC(FastCloneShallowArrayDontTrack, FastCloneShallowArray, 1)                \
   TFS(CreateEmptyArrayLiteral, kClosure, kLiteralIndex)                        \
-  TFS(CreateEmptyObjectLiteral, kClosure, kLiteralIndex)                       \
+  TFS(CreateEmptyObjectLiteral, kClosure)                                      \
   TFC(FastCloneShallowObject, FastCloneShallowObject, 1)                       \
   /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */           \
   TFC(ConstructProxy, ConstructTrampoline, 1)                                  \

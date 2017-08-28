@@ -1904,16 +1904,15 @@ void BytecodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 }
 
 void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
-  int literal_index = feedback_index(expr->literal_slot());
-
   // Fast path for the empty object literal which doesn't need an
   // AllocationSite.
   if (expr->IsEmptyObjectLiteral()) {
     DCHECK(expr->IsFastCloningSupported());
-    builder()->CreateEmptyObjectLiteral(literal_index);
+    builder()->CreateEmptyObjectLiteral();
     return;
   }
 
+  int literal_index = feedback_index(expr->literal_slot());
   // Deep-copy the literal boilerplate.
   uint8_t flags = CreateObjectLiteralFlags::Encode(
       expr->ComputeFlags(), expr->IsFastCloningSupported());

@@ -225,7 +225,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& CreateObjectLiteral(size_t constant_properties_entry,
                                             int literal_index, int flags,
                                             Register output);
-  BytecodeArrayBuilder& CreateEmptyObjectLiteral(int literal_index);
+  BytecodeArrayBuilder& CreateEmptyObjectLiteral();
 
   // Push the context in accumulator as the new context, and store in register
   // |context|.

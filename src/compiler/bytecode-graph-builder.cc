@@ -1540,9 +1540,8 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
 }
 
 void BytecodeGraphBuilder::VisitCreateEmptyObjectLiteral() {
-  int literal_index = bytecode_iterator().GetIndexOperand(0);
-  Node* literal = NewNode(javascript()->CreateEmptyLiteralObject(literal_index),
-                          GetFunctionClosure());
+  Node* literal =
+      NewNode(javascript()->CreateEmptyLiteralObject(), GetFunctionClosure());
   environment()->BindAccumulator(literal);
 }
 

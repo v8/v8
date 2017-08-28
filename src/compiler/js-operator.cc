@@ -1045,13 +1045,12 @@ const Operator* JSOperatorBuilder::CreateLiteralObject(
       parameters);                                                // parameter
 }
 
-const Operator* JSOperatorBuilder::CreateEmptyLiteralObject(int literal_index) {
-  return new (zone()) Operator1<int>(         // --
+const Operator* JSOperatorBuilder::CreateEmptyLiteralObject() {
+  return new (zone()) Operator(               // --
       IrOpcode::kJSCreateEmptyLiteralObject,  // opcode
       Operator::kNoProperties,                // properties
       "JSCreateEmptyLiteralObject",           // name
-      1, 1, 1, 1, 1, 2,                       // counts
-      literal_index);                         // parameter
+      1, 1, 1, 1, 1, 2);                      // counts
 }
 
 const Operator* JSOperatorBuilder::CreateLiteralRegExp(

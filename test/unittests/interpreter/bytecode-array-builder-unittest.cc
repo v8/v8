@@ -353,7 +353,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .CreateArrayLiteral(0, 0, 0)
       .CreateEmptyArrayLiteral(0)
       .CreateObjectLiteral(0, 0, 0, reg)
-      .CreateEmptyObjectLiteral(0);
+      .CreateEmptyObjectLiteral();
 
   // Emit load and store operations for module variables.
   builder.LoadModuleVariable(-1, 42)
