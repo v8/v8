@@ -504,16 +504,17 @@ class ArrayConcatVisitor {
     return array;
   }
 
-  // Storage is either a FixedArray (if is_fixed_array()) or a JSReciever
-  // (otherwise)
-  Handle<FixedArray> storage_fixed_array() {
-    DCHECK(is_fixed_array());
-    DCHECK(has_simple_elements());
-    return Handle<FixedArray>::cast(storage_);
-  }
-  Handle<JSReceiver> storage_jsreceiver() {
+  MUST_USE_RESULT MaybeHandle<JSReceiver> ToJSReceiver() {
     DCHECK(!is_fixed_array());
-    return Handle<JSReceiver>::cast(storage_);
+    Handle<JSReceiver> result = Handle<JSReceiver>::cast(storage_);
+    Handle<Object> length =
+        isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
+    RETURN_ON_EXCEPTION(
+        isolate_,
+        JSReceiver::SetProperty(result, isolate_->factory()->length_string(),
+                                length, STRICT),
+        JSReceiver);
+    return result;
   }
   bool has_simple_elements() const {
     return HasSimpleElementsField::decode(bit_field_);
@@ -568,6 +569,11 @@ class ArrayConcatVisitor {
     bit_field_ = ExceedsLimitField::update(bit_field_, exceeds);
   }
   bool is_fixed_array() const { return IsFixedArrayField::decode(bit_field_); }
+  Handle<FixedArray> storage_fixed_array() {
+    DCHECK(is_fixed_array());
+    DCHECK(has_simple_elements());
+    return Handle<FixedArray>::cast(storage_);
+  }
 
   Isolate* isolate_;
   Handle<Object> storage_;  // Always a global handle.
@@ -1124,7 +1130,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   if (is_array_species) {
     return *visitor.ToArray();
   } else {
-    return *visitor.storage_jsreceiver();
+    RETURN_RESULT_OR_FAILURE(isolate, visitor.ToJSReceiver());
   }
 }
 
