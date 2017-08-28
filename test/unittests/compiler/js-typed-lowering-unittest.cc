@@ -4,7 +4,6 @@
 
 #include "src/compiler/js-typed-lowering.h"
 #include "src/code-factory.h"
-#include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
@@ -38,8 +37,7 @@ Type* const kJSTypes[] = {Type::Undefined(), Type::Null(),   Type::Boolean(),
 
 class JSTypedLoweringTest : public TypedGraphTest {
  public:
-  JSTypedLoweringTest()
-      : TypedGraphTest(3), javascript_(zone()), deps_(isolate(), zone()) {}
+  JSTypedLoweringTest() : TypedGraphTest(3), javascript_(zone()) {}
   ~JSTypedLoweringTest() override {}
 
  protected:
@@ -50,7 +48,7 @@ class JSTypedLoweringTest : public TypedGraphTest {
                     &machine);
     // TODO(titzer): mock the GraphReducer here for better unit testing.
     GraphReducer graph_reducer(zone(), graph());
-    JSTypedLowering reducer(&graph_reducer, &deps_, &jsgraph, zone());
+    JSTypedLowering reducer(&graph_reducer, &jsgraph, zone());
     return reducer.Reduce(node);
   }
 
@@ -64,7 +62,6 @@ class JSTypedLoweringTest : public TypedGraphTest {
 
  private:
   JSOperatorBuilder javascript_;
-  CompilationDependencies deps_;
 };
 
 

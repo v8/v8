@@ -1033,8 +1033,7 @@ struct TypedLoweringPhase {
     JSCreateLowering create_lowering(
         &graph_reducer, data->info()->dependencies(), data->jsgraph(),
         feedback_vector, data->native_context(), temp_zone);
-    JSTypedLowering typed_lowering(&graph_reducer, data->info()->dependencies(),
-                                   data->jsgraph(), temp_zone);
+    JSTypedLowering typed_lowering(&graph_reducer, data->jsgraph(), temp_zone);
     TypedOptimization typed_optimization(
         &graph_reducer, data->info()->dependencies(), data->jsgraph());
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());

@@ -7,7 +7,6 @@
 #include "src/ast/modules.h"
 #include "src/builtins/builtins-utils.h"
 #include "src/code-factory.h"
-#include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
@@ -399,10 +398,8 @@ class JSBinopReduction final {
 // - relax effects from generic but not-side-effecting operations
 
 JSTypedLowering::JSTypedLowering(Editor* editor,
-                                 CompilationDependencies* dependencies,
                                  JSGraph* jsgraph, Zone* zone)
     : AdvancedReducer(editor),
-      dependencies_(dependencies),
       jsgraph_(jsgraph),
       empty_string_type_(
           Type::HeapConstant(factory()->empty_string(), graph()->zone())),
@@ -566,19 +563,20 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   Node* length =
       graph()->NewNode(simplified()->NumberAdd(), first_length, second_length);
 
-  // Check if we would overflow the allowed maximum string length.
-  Node* check = graph()->NewNode(simplified()->NumberLessThanOrEqual(), length,
-                                 jsgraph()->Constant(String::kMaxLength));
   if (isolate()->IsStringLengthOverflowIntact()) {
-    // Add a code dependency on the string length overflow protector.
-    dependencies()->AssumePropertyCell(factory()->string_length_protector());
-
-    // We can just deoptimize if the {check} fails. Besides generating a
-    // shorter code sequence than the version below, this has the additional
-    // benefit of not holding on to the lazy {frame_state} and thus potentially
-    // reduces the number of live ranges and allows for more truncations.
-    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+    // We can just deoptimize if the {length} is out-of-bounds. Besides
+    // generating a shorter code sequence than the version below, this
+    // has the additional benefit of not holding on to the lazy {frame_state}
+    // and thus potentially reduces the number of live ranges and allows for
+    // more truncations.
+    length = effect = graph()->NewNode(simplified()->CheckBounds(), length,
+                                       jsgraph()->Constant(String::kMaxLength),
+                                       effect, control);
   } else {
+    // Check if we would overflow the allowed maximum string length.
+    Node* check =
+        graph()->NewNode(simplified()->NumberLessThanOrEqual(), length,
+                         jsgraph()->Constant(String::kMaxLength));
     Node* branch =
         graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
     Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
@@ -2194,11 +2192,6 @@ CommonOperatorBuilder* JSTypedLowering::common() const {
 
 SimplifiedOperatorBuilder* JSTypedLowering::simplified() const {
   return jsgraph()->simplified();
-}
-
-
-CompilationDependencies* JSTypedLowering::dependencies() const {
-  return dependencies_;
 }
 
 }  // namespace compiler

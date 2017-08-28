@@ -3147,9 +3147,8 @@ void Isolate::InvalidateArraySpeciesProtector() {
 void Isolate::InvalidateStringLengthOverflowProtector() {
   DCHECK(factory()->string_length_protector()->value()->IsSmi());
   DCHECK(IsStringLengthOverflowIntact());
-  PropertyCell::SetValueWithInvalidation(
-      factory()->string_length_protector(),
-      handle(Smi::FromInt(kProtectorInvalid), this));
+  factory()->string_length_protector()->set_value(
+      Smi::FromInt(kProtectorInvalid));
   DCHECK(!IsStringLengthOverflowIntact());
 }
 

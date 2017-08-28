@@ -150,7 +150,7 @@ bool Isolate::IsArraySpeciesLookupChainIntact() {
 }
 
 bool Isolate::IsStringLengthOverflowIntact() {
-  PropertyCell* string_length_cell = heap()->string_length_protector();
+  Cell* string_length_cell = heap()->string_length_protector();
   return string_length_cell->value() == Smi::FromInt(kProtectorValid);
 }
 

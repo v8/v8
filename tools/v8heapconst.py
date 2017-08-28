@@ -309,12 +309,12 @@ KNOWN_OBJECTS = {
   ("OLD_SPACE", 0x028a1): "IsConcatSpreadableProtector",
   ("OLD_SPACE", 0x028b1): "SpeciesProtector",
   ("OLD_SPACE", 0x028d9): "StringLengthProtector",
-  ("OLD_SPACE", 0x02901): "FastArrayIterationProtector",
-  ("OLD_SPACE", 0x02911): "ArrayIteratorProtector",
-  ("OLD_SPACE", 0x02939): "ArrayBufferNeuteringProtector",
-  ("OLD_SPACE", 0x02961): "InfinityValue",
-  ("OLD_SPACE", 0x02971): "MinusZeroValue",
-  ("OLD_SPACE", 0x02981): "MinusInfinityValue",
+  ("OLD_SPACE", 0x028e9): "FastArrayIterationProtector",
+  ("OLD_SPACE", 0x028f9): "ArrayIteratorProtector",
+  ("OLD_SPACE", 0x02921): "ArrayBufferNeuteringProtector",
+  ("OLD_SPACE", 0x02949): "InfinityValue",
+  ("OLD_SPACE", 0x02959): "MinusZeroValue",
+  ("OLD_SPACE", 0x02969): "MinusInfinityValue",
 }
 
 # List of known V8 Frame Markers.
