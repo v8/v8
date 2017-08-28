@@ -6,6 +6,7 @@
 #define V8_HEAP_HEAP_H_
 
 #include <cmath>
+#include <map>
 #include <unordered_map>
 #include <vector>
 
@@ -15,7 +16,6 @@
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/base/atomic-utils.h"
-#include "src/debug/debug-interface.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/objects.h"
@@ -24,6 +24,11 @@
 #include "src/visitors.h"
 
 namespace v8 {
+
+namespace debug {
+typedef void (*OutOfMemoryCallback)(void* data);
+}  // namespace debug
+
 namespace internal {
 
 namespace heap {
@@ -355,7 +360,6 @@ using v8::MemoryPressureLevel;
     heap->incremental_marking()->RecordWrites(array);                  \
   } while (false)
 
-// Forward declarations.
 class AllocationObserver;
 class ArrayBufferTracker;
 class ConcurrentMarking;

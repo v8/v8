@@ -53,7 +53,6 @@
 #include "src/utils-inl.h"
 #include "src/utils.h"
 #include "src/v8.h"
-#include "src/v8threads.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {

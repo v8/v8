@@ -5,6 +5,7 @@
 #include "src/heap/scavenge-job.h"
 
 #include "src/base/platform/time.h"
+#include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 #include "src/isolate.h"

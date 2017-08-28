@@ -14,8 +14,6 @@
 
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
-#include "src/base/atomicops.h"
-#include "src/base/bits.h"
 #include "src/base/iterator.h"
 #include "src/base/platform/mutex.h"
 #include "src/cancelable-task.h"

@@ -6,43 +6,32 @@
 
 #include <unordered_map>
 
-#include "src/base/atomicops.h"
-#include "src/base/bits.h"
-#include "src/base/sys-info.h"
 #include "src/cancelable-task.h"
 #include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
-#include "src/gdb-jit.h"
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-tracker-inl.h"
-#include "src/heap/array-buffer-tracker.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/invalidated-slots-inl.h"
-#include "src/heap/invalidated-slots.h"
 #include "src/heap/item-parallel-job.h"
 #include "src/heap/local-allocator.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/object-stats.h"
 #include "src/heap/objects-visiting-inl.h"
-#include "src/heap/objects-visiting.h"
 #include "src/heap/spaces-inl.h"
 #include "src/heap/worklist.h"
-#include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
-#include "src/tracing/tracing-category-observer.h"
 #include "src/transitions-inl.h"
 #include "src/utils-inl.h"
 #include "src/v8.h"
-#include "src/v8threads.h"
 
 namespace v8 {
 namespace internal {
-
 
 const char* Marking::kWhiteBitPattern = "00";
 const char* Marking::kBlackBitPattern = "11";

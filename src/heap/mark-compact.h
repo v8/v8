@@ -8,7 +8,6 @@
 #include <deque>
 #include <vector>
 
-#include "src/base/bits.h"
 #include "src/heap/marking.h"
 #include "src/heap/sequential-marking-deque.h"
 #include "src/heap/spaces.h"

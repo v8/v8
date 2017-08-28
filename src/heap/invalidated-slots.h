@@ -10,7 +10,6 @@
 
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
-#include "src/base/bits.h"
 #include "src/utils.h"
 
 namespace v8 {

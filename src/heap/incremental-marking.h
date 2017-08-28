@@ -6,18 +6,17 @@
 #define V8_HEAP_INCREMENTAL_MARKING_H_
 
 #include "src/cancelable-task.h"
-#include "src/execution.h"
 #include "src/heap/heap.h"
 #include "src/heap/incremental-marking-job.h"
 #include "src/heap/mark-compact.h"
-#include "src/heap/spaces.h"
-#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
 
-// Forward declarations.
+class HeapObject;
 class MarkBit;
+class Map;
+class Object;
 class PagedSpace;
 
 enum class StepOrigin { kV8, kTask };

@@ -6,9 +6,10 @@
 #define V8_OBJECTS_VISITING_H_
 
 #include "src/allocation.h"
-#include "src/heap/heap.h"
 #include "src/layout-descriptor.h"
 #include "src/objects-body-descriptors.h"
+#include "src/objects.h"
+#include "src/objects/hash-table.h"
 #include "src/objects/string.h"
 
 namespace v8 {

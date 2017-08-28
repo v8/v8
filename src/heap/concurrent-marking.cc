@@ -16,7 +16,6 @@
 #include "src/heap/objects-visiting.h"
 #include "src/heap/worklist.h"
 #include "src/isolate.h"
-#include "src/locked-queue-inl.h"
 #include "src/utils-inl.h"
 #include "src/utils.h"
 #include "src/v8.h"

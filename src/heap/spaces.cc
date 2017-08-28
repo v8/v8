@@ -16,7 +16,6 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/slot-set.h"
-#include "src/macro-assembler.h"
 #include "src/msan.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/snapshot.h"

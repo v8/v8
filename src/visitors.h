@@ -5,7 +5,7 @@
 #ifndef V8_VISITORS_H_
 #define V8_VISITORS_H_
 
-#include "src/allocation.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
