@@ -727,9 +727,14 @@ void Serializer::ObjectSerializer::VisitExternalReference(Foreign* host,
   int skip = OutputRawData(reinterpret_cast<Address>(p),
                            kCanReturnSkipInsteadOfSkipping);
   Address target = *p;
-  sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
+  auto encoded_reference = serializer_->EncodeExternalReference(target);
+  if (encoded_reference.is_from_api()) {
+    sink_->Put(kApiReference, "ApiRef");
+  } else {
+    sink_->Put(kExternalReference + kPlain + kStartOfObject, "ExternalRef");
+  }
   sink_->PutInt(skip, "SkipB4ExternalRef");
-  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  sink_->PutInt(encoded_reference.index(), "reference index");
   bytes_processed_so_far_ += kPointerSize;
 }
 
@@ -737,12 +742,19 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code* host,
                                                           RelocInfo* rinfo) {
   int skip = OutputRawData(rinfo->target_address_address(),
                            kCanReturnSkipInsteadOfSkipping);
-  HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
   Address target = rinfo->target_external_reference();
-  sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
+  auto encoded_reference = serializer_->EncodeExternalReference(target);
+  if (encoded_reference.is_from_api()) {
+    DCHECK(!rinfo->IsCodedSpecially());
+    sink_->Put(kApiReference, "ApiRef");
+  } else {
+    HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
+    sink_->Put(kExternalReference + how_to_code + kStartOfObject,
+               "ExternalRef");
+  }
   sink_->PutInt(skip, "SkipB4ExternalRef");
   DCHECK_NOT_NULL(target);  // Code does not reference null.
-  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  sink_->PutInt(encoded_reference.index(), "reference index");
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
@@ -777,9 +789,11 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(Code* host,
                            kCanReturnSkipInsteadOfSkipping);
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
   Address target = rinfo->target_address();
+  auto encoded_reference = serializer_->EncodeExternalReference(target);
+  DCHECK(!encoded_reference.is_from_api());
   sink_->Put(kExternalReference + how_to_code + kStartOfObject, "ExternalRef");
   sink_->PutInt(skip, "SkipB4ExternalRef");
-  sink_->PutInt(serializer_->EncodeExternalReference(target), "reference id");
+  sink_->PutInt(encoded_reference.index(), "reference index");
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 

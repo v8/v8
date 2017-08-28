@@ -395,9 +395,6 @@ SerializedCodeData::SanityCheckResult SerializedCodeData::SanityCheck(
   if (this->size_ < kHeaderSize) return INVALID_HEADER;
   uint32_t magic_number = GetMagicNumber();
   if (magic_number != ComputeMagicNumber(isolate)) return MAGIC_NUMBER_MISMATCH;
-  if (GetExtraReferences() > GetExtraReferences(isolate)) {
-    return MAGIC_NUMBER_MISMATCH;
-  }
   uint32_t version_hash = GetHeaderValue(kVersionHashOffset);
   uint32_t source_hash = GetHeaderValue(kSourceHashOffset);
   uint32_t cpu_features = GetHeaderValue(kCpuFeaturesOffset);

@@ -59,12 +59,17 @@ void Deserializer::Initialize(Isolate* isolate) {
   isolate_ = isolate;
   DCHECK_NULL(external_reference_table_);
   external_reference_table_ = ExternalReferenceTable::instance(isolate);
+#ifdef DEBUG
+  // Count the number of external references registered through the API.
+  num_api_references_ = 0;
+  if (isolate_->api_external_references() != nullptr) {
+    while (isolate_->api_external_references()[num_api_references_] != 0) {
+      num_api_references_++;
+    }
+  }
+#endif  // DEBUG
   CHECK_EQ(magic_number_,
            SerializedData::ComputeMagicNumber(external_reference_table_));
-  // The current isolate must have at least as many API-provided external
-  // references as the to-be-deserialized snapshot expects and refers to.
-  CHECK_LE(num_extra_references_,
-           SerializedData::GetExtraReferences(external_reference_table_));
 }
 
 void Deserializer::SortMapDescriptors() {
@@ -561,6 +566,20 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         CHECK_NOT_NULL(backing_store);
         source_.CopyRaw(backing_store, byte_length);
         off_heap_backing_stores_.push_back(backing_store);
+        break;
+      }
+
+      case kApiReference: {
+        int skip = source_.GetInt();
+        current = reinterpret_cast<Object**>(
+            reinterpret_cast<Address>(current) + skip);
+        uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
+        DCHECK_WITH_MSG(reference_id < num_api_references_,
+                        "too few external references provided through the API");
+        Address address = reinterpret_cast<Address>(
+            isolate->api_external_references()[reference_id]);
+        memcpy(current, &address, kPointerSize);
+        current++;
         break;
       }
 

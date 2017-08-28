@@ -195,7 +195,7 @@ class Serializer : public SerializerDeserializer {
   SerializerReference AllocateLargeObject(int size);
   SerializerReference AllocateMap();
   SerializerReference Allocate(AllocationSpace space, int size);
-  int EncodeExternalReference(Address addr) {
+  ExternalReferenceEncoder::Value EncodeExternalReference(Address addr) {
     return external_reference_encoder_.Encode(addr);
   }
 

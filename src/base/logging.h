@@ -103,6 +103,8 @@ V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
     CHECK_WITH_MSG(_cmp, #lhs " " #op " " #rhs);                           \
   } while (0)
 
+#define DCHECK_WITH_MSG(condition, msg) void(0);
+
 #endif
 
 template <typename Op>

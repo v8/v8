@@ -45,22 +45,7 @@ ExternalReferenceTable::ExternalReferenceTable(Isolate* isolate) {
   AddIsolateAddresses(isolate);
   AddAccessors(isolate);
   AddStubCache(isolate);
-  // API references must be added last.
-  AddApiReferences(isolate);
 }
-
-#ifdef DEBUG
-void ExternalReferenceTable::ResetCount() {
-  for (ExternalReferenceEntry& entry : refs_) entry.count = 0;
-}
-
-void ExternalReferenceTable::PrintCount() {
-  for (int i = 0; i < refs_.length(); i++) {
-    v8::base::OS::Print("index=%5d count=%5d  %-60s\n", i, refs_[i].count,
-                        refs_[i].name);
-  }
-}
-#endif  // DEBUG
 
 const char* ExternalReferenceTable::ResolveSymbol(void* address) {
 #ifdef SYMBOLIZE_FUNCTION
@@ -446,20 +431,6 @@ void ExternalReferenceTable::AddStubCache(Isolate* isolate) {
       "Store StubCache::secondary_->value");
   Add(store_stub_cache->map_reference(StubCache::kSecondary).address(),
       "Store StubCache::secondary_->map");
-}
-
-void ExternalReferenceTable::AddApiReferences(Isolate* isolate) {
-  // Add external references provided by the embedder (a null-terminated
-  // array).
-  api_refs_start_ = size();
-  intptr_t* api_external_references = isolate->api_external_references();
-  if (api_external_references != nullptr) {
-    while (*api_external_references != 0) {
-      Address address = reinterpret_cast<Address>(*api_external_references);
-      Add(address, ResolveSymbol(address));
-      api_external_references++;
-    }
-  }
 }
 
 }  // namespace internal

@@ -2172,6 +2172,9 @@ intptr_t replaced_external_references[] = {
     reinterpret_cast<intptr_t>(&serialized_static_field),
     0};
 
+intptr_t short_external_references[] = {
+    reinterpret_cast<intptr_t>(SerializedCallbackReplacement), 0};
+
 TEST(SnapshotCreatorExternalReferences) {
   DisableAlwaysOpt();
   v8::StartupData blob;
@@ -2212,12 +2215,54 @@ TEST(SnapshotCreatorExternalReferences) {
     isolate->Dispose();
   }
 
-  // Deserialize with the some other external reference.
+  // Deserialize with some other external reference.
   {
     v8::Isolate::CreateParams params;
     params.snapshot_blob = &blob;
     params.array_buffer_allocator = CcTest::array_buffer_allocator();
     params.external_references = replaced_external_references;
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("f()", 1337);
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+}
+
+TEST(SnapshotCreatorShortExternalReferences) {
+  DisableAlwaysOpt();
+  v8::StartupData blob;
+  {
+    v8::SnapshotCreator creator(original_external_references);
+    v8::Isolate* isolate = creator.GetIsolate();
+    {
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      v8::Local<v8::FunctionTemplate> callback =
+          v8::FunctionTemplate::New(isolate, SerializedCallback);
+      v8::Local<v8::Value> function =
+          callback->GetFunction(context).ToLocalChecked();
+      CHECK(context->Global()->Set(context, v8_str("f"), function).FromJust());
+      ExpectInt32("f()", 42);
+      creator.SetDefaultContext(context);
+    }
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  // Deserialize with an incomplete list of external references.
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    params.external_references = short_external_references;
     // Test-appropriate equivalent of v8::Isolate::New.
     v8::Isolate* isolate = TestIsolate::New(params);
     {

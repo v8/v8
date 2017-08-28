@@ -700,10 +700,6 @@ StartupData SnapshotCreator::CreateBlob(
     fun->CompleteInobjectSlackTrackingIfActive();
   }
 
-#ifdef DEBUG
-  i::ExternalReferenceTable::instance(isolate)->ResetCount();
-#endif  // DEBUG
-
   i::StartupSerializer startup_serializer(isolate, function_code_handling);
   startup_serializer.SerializeStrongReferences();
 
@@ -735,12 +731,6 @@ StartupData SnapshotCreator::CreateBlob(
 
   startup_serializer.SerializeWeakReferencesAndDeferred();
   can_be_rehashed = can_be_rehashed && startup_serializer.can_be_rehashed();
-
-#ifdef DEBUG
-  if (i::FLAG_external_reference_stats) {
-    i::ExternalReferenceTable::instance(isolate)->PrintCount();
-  }
-#endif  // DEBUG
 
   i::SnapshotData startup_snapshot(&startup_serializer);
   StartupData result = i::Snapshot::CreateSnapshotBlob(
