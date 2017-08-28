@@ -2891,8 +2891,10 @@ HeapObject* FreeList::Allocate(size_t size_in_bytes) {
   // if it is big enough.
   owner_->EmptyAllocationInfo();
 
-  owner_->heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
-      Heap::kNoGCFlags, kGCCallbackScheduleIdleGarbageCollection);
+  if (!owner_->is_local()) {
+    owner_->heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
+        Heap::kNoGCFlags, kGCCallbackScheduleIdleGarbageCollection);
+  }
 
   size_t new_node_size = 0;
   FreeSpace* new_node = FindNodeFor(size_in_bytes, &new_node_size);
