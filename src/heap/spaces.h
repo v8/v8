@@ -10,6 +10,7 @@
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
+#include <vector>
 
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
@@ -885,8 +886,7 @@ class LargePage : public MemoryChunk {
 class Space : public Malloced {
  public:
   Space(Heap* heap, AllocationSpace id, Executability executable)
-      : allocation_observers_(new List<AllocationObserver*>()),
-        allocation_observers_paused_(false),
+      : allocation_observers_paused_(false),
         heap_(heap),
         id_(id),
         executable_(executable),
@@ -966,7 +966,7 @@ class Space : public Malloced {
  protected:
   intptr_t GetNextInlineAllocationStepSize();
 
-  std::unique_ptr<List<AllocationObserver*>> allocation_observers_;
+  std::vector<AllocationObserver*> allocation_observers_;
   bool allocation_observers_paused_;
 
  private:

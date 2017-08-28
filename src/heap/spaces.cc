@@ -1344,13 +1344,14 @@ STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::MAP_SPACE) ==
               ObjectSpace::kObjectSpaceMapSpace);
 
 void Space::AddAllocationObserver(AllocationObserver* observer) {
-  allocation_observers_->Add(observer);
+  allocation_observers_.push_back(observer);
 }
 
 void Space::RemoveAllocationObserver(AllocationObserver* observer) {
-  bool removed = allocation_observers_->RemoveElement(observer);
-  USE(removed);
-  DCHECK(removed);
+  auto it = std::find(allocation_observers_.begin(),
+                      allocation_observers_.end(), observer);
+  DCHECK(allocation_observers_.end() != it);
+  allocation_observers_.erase(it);
 }
 
 void Space::PauseAllocationObservers() { allocation_observers_paused_ = true; }
@@ -1362,21 +1363,19 @@ void Space::ResumeAllocationObservers() {
 void Space::AllocationStep(Address soon_object, int size) {
   if (!allocation_observers_paused_) {
     heap()->CreateFillerObjectAt(soon_object, size, ClearRecordedSlots::kNo);
-    for (int i = 0; i < allocation_observers_->length(); ++i) {
-      AllocationObserver* o = (*allocation_observers_)[i];
-      o->AllocationStep(size, soon_object, size);
+    for (AllocationObserver* observer : allocation_observers_) {
+      observer->AllocationStep(size, soon_object, size);
     }
   }
 }
 
 intptr_t Space::GetNextInlineAllocationStepSize() {
   intptr_t next_step = 0;
-  for (int i = 0; i < allocation_observers_->length(); ++i) {
-    AllocationObserver* o = (*allocation_observers_)[i];
-    next_step = next_step ? Min(next_step, o->bytes_to_next_step())
-                          : o->bytes_to_next_step();
+  for (AllocationObserver* observer : allocation_observers_) {
+    next_step = next_step ? Min(next_step, observer->bytes_to_next_step())
+                          : observer->bytes_to_next_step();
   }
-  DCHECK(allocation_observers_->length() == 0 || next_step != 0);
+  DCHECK(allocation_observers_.size() == 0 || next_step != 0);
   return next_step;
 }
 
@@ -2093,7 +2092,7 @@ bool NewSpace::EnsureAllocation(int size_in_bytes,
 void NewSpace::StartNextInlineAllocationStep() {
   if (!allocation_observers_paused_) {
     top_on_previous_step_ =
-        allocation_observers_->length() ? allocation_info_.top() : 0;
+        !allocation_observers_.empty() ? allocation_info_.top() : 0;
     UpdateInlineAllocationLimit(0);
   }
 }
@@ -2127,9 +2126,8 @@ void NewSpace::InlineAllocationStep(Address top, Address new_top,
                                     Address soon_object, size_t size) {
   if (top_on_previous_step_) {
     int bytes_allocated = static_cast<int>(top - top_on_previous_step_);
-    for (int i = 0; i < allocation_observers_->length(); ++i) {
-      (*allocation_observers_)[i]->AllocationStep(bytes_allocated, soon_object,
-                                                  size);
+    for (AllocationObserver* observer : allocation_observers_) {
+      observer->AllocationStep(bytes_allocated, soon_object, size);
     }
     top_on_previous_step_ = new_top;
   }
