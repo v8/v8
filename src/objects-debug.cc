@@ -470,29 +470,25 @@ void TransitionArray::TransitionArrayVerify() {
 
 void JSArgumentsObject::JSArgumentsObjectVerify() {
   if (IsSloppyArgumentsElementsKind(GetElementsKind())) {
-    JSSloppyArgumentsObject::cast(this)->JSSloppyArgumentsObjectVerify();
+    SloppyArgumentsElements::cast(elements())
+        ->SloppyArgumentsElementsVerify(this);
   }
-  JSObjectVerify();
-}
-
-void JSSloppyArgumentsObject::JSSloppyArgumentsObjectVerify() {
   Isolate* isolate = GetIsolate();
   if (isolate->IsInAnyContext(map(), Context::SLOPPY_ARGUMENTS_MAP_INDEX) ||
       isolate->IsInAnyContext(map(),
                               Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX) ||
       isolate->IsInAnyContext(map(),
                               Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX)) {
-    VerifyObjectField(kLengthOffset);
-    VerifyObjectField(kCalleeOffset);
+    VerifyObjectField(JSSloppyArgumentsObject::kLengthOffset);
+    VerifyObjectField(JSSloppyArgumentsObject::kCalleeOffset);
+  } else if (isolate->IsInAnyContext(map(),
+                                     Context::STRICT_ARGUMENTS_MAP_INDEX)) {
+    VerifyObjectField(JSStrictArgumentsObject::kLengthOffset);
   }
-  ElementsKind kind = GetElementsKind();
-  CHECK(IsSloppyArgumentsElementsKind(kind));
-  SloppyArgumentsElements::cast(elements())
-      ->SloppyArgumentsElementsVerify(this);
+  JSObjectVerify();
 }
 
-void SloppyArgumentsElements::SloppyArgumentsElementsVerify(
-    JSSloppyArgumentsObject* holder) {
+void SloppyArgumentsElements::SloppyArgumentsElementsVerify(JSObject* holder) {
   Isolate* isolate = GetIsolate();
   FixedArrayVerify();
   // Abort verification if only partially initialized (can't use arguments()

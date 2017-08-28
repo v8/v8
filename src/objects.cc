@@ -1385,7 +1385,7 @@ int JSObject::GetHeaderSize(InstanceType type) {
     case JS_MESSAGE_OBJECT_TYPE:
       return JSMessageObject::kSize;
     case JS_ARGUMENTS_TYPE:
-      return JSArgumentsObject::kHeaderSize;
+      return JSObject::kHeaderSize;
     case JS_ERROR_TYPE:
       return JSObject::kHeaderSize;
     case JS_STRING_ITERATOR_TYPE:

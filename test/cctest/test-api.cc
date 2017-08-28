@@ -2699,6 +2699,20 @@ THREADED_TEST(InternalFields) {
   CHECK_EQ(17, obj->GetInternalField(0)->Int32Value(env.local()).FromJust());
 }
 
+THREADED_TEST(InternalFieldsOfRegularObjects) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+
+  const char* sources[] = {"new Object()", "{ a: 'a property' }", "arguments"};
+  for (size_t i = 0; i < arraysize(sources); ++i) {
+    i::ScopedVector<char> source(128);
+    i::SNPrintF(source, "(function() { return %s })()", sources[i]);
+    v8::Local<v8::Object> obj = CompileRun(source.start()).As<v8::Object>();
+    CHECK_EQ(0, obj->InternalFieldCount());
+  }
+}
+
 THREADED_TEST(GlobalObjectInternalFields) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
