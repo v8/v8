@@ -19,16 +19,23 @@ BuiltinSerializer::~BuiltinSerializer() {
 }
 
 void BuiltinSerializer::SerializeBuiltins() {
-  isolate()->builtins()->IterateBuiltins(this);
+  for (int i = 0; i < Builtins::builtin_count; i++) {
+    Code* code = isolate()->builtins()->builtin(static_cast<Builtins::Name>(i));
+    builtin_offsets_[i] = sink()->Position();
+    SerializeBuiltin(code);
+  }
+  Pad();  // Pad with kNop since GetInt() might read too far.
+
+  // Append the offset table. During deserialization, the offset table is
+  // extracted by BuiltinSnapshotData.
+  const byte* data = reinterpret_cast<const byte*>(&builtin_offsets_[0]);
+  int data_length = static_cast<int>(sizeof(builtin_offsets_));
+  sink_.PutRaw(data, data_length, "BuiltinOffsets");
 }
 
 void BuiltinSerializer::VisitRootPointers(Root root, Object** start,
                                           Object** end) {
-  for (Object** current = start; current < end; current++) {
-    Code* code = Code::cast(*current);
-    SerializeBuiltin(code);
-  }
-  Pad();  // Pad with kNop since GetInt() might read too far.
+  UNREACHABLE();  // We iterate manually in SerializeBuiltins.
 }
 
 void BuiltinSerializer::SerializeBuiltin(Code* code) {

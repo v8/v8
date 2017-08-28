@@ -9,6 +9,12 @@
 namespace v8 {
 namespace internal {
 
+BuiltinDeserializer::BuiltinDeserializer(const BuiltinSnapshotData* data)
+    : Deserializer(data, false) {
+  builtin_offsets_ = data->BuiltinOffsets();
+  DCHECK(std::is_sorted(builtin_offsets_.begin(), builtin_offsets_.end()));
+}
+
 void BuiltinDeserializer::DeserializeAllBuiltins() {
   DCHECK(!AllowHeapAllocation::IsAllowed());
 

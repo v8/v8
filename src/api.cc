@@ -740,7 +740,7 @@ StartupData SnapshotCreator::CreateBlob(
   can_be_rehashed = can_be_rehashed && startup_serializer.can_be_rehashed();
 
   i::SnapshotData startup_snapshot(&startup_serializer);
-  i::SnapshotData builtin_snapshot(&builtin_serializer);
+  i::BuiltinSnapshotData builtin_snapshot(&builtin_serializer);
   StartupData result = i::Snapshot::CreateSnapshotBlob(
       &startup_snapshot, &builtin_snapshot, context_snapshots, can_be_rehashed);
 

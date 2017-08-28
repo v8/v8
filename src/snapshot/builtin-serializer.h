@@ -29,7 +29,14 @@ class BuiltinSerializer : public Serializer {
   void SerializeObject(HeapObject* o, HowToCode how_to_code,
                        WhereToPoint where_to_point, int skip) override;
 
+  // The startup serializer is needed for access to the partial snapshot cache,
+  // which is used to serialize things like embedded constants.
   StartupSerializer* startup_serializer_;
+
+  // Stores the starting offset, within the serialized data, of each builtin.
+  // This is later packed into the builtin snapshot, and used by the builtin
+  // deserializer to deserialize individual builtins.
+  uint32_t builtin_offsets_[Builtins::builtin_count];
 
   DISALLOW_COPY_AND_ASSIGN(BuiltinSerializer);
 };

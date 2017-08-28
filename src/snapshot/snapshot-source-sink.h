@@ -95,7 +95,7 @@ class SnapshotByteSink {
 
   void PutInt(uintptr_t integer, const char* description);
   void PutRaw(const byte* data, int number_of_bytes, const char* description);
-  int Position() { return static_cast<int>(data_.size()); }
+  int Position() const { return static_cast<int>(data_.size()); }
 
   const std::vector<byte>* data() const { return &data_; }
 

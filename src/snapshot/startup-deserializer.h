@@ -15,7 +15,7 @@ namespace internal {
 class StartupDeserializer final : public Deserializer {
  public:
   StartupDeserializer(const SnapshotData* startup_data,
-                      const SnapshotData* builtin_data)
+                      const BuiltinSnapshotData* builtin_data)
       : Deserializer(startup_data, false), builtin_data_(builtin_data) {}
 
   // Deserialize the snapshot into an empty heap.
@@ -28,7 +28,7 @@ class StartupDeserializer final : public Deserializer {
   // Rehash after deserializing an isolate.
   void Rehash();
 
-  const SnapshotData* builtin_data_;
+  const BuiltinSnapshotData* builtin_data_;
 };
 
 }  // namespace internal

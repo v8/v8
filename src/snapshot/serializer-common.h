@@ -272,7 +272,7 @@ class SerializedData {
     other.owns_data_ = false;
   }
 
-  ~SerializedData() {
+  virtual ~SerializedData() {
     if (owns_data_) DeleteArray<byte>(data_);
   }
 

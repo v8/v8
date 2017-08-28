@@ -10,13 +10,12 @@
 namespace v8 {
 namespace internal {
 
-class SnapshotData;
+class BuiltinSnapshotData;
 
 // Deserializes the builtins blob.
 class BuiltinDeserializer final : public Deserializer {
  public:
-  explicit BuiltinDeserializer(const SnapshotData* data)
-      : Deserializer(data, false) {}
+  explicit BuiltinDeserializer(const BuiltinSnapshotData* data);
 
   // Expose Deserializer::Initialize.
   using Deserializer::Initialize;
@@ -29,6 +28,11 @@ class BuiltinDeserializer final : public Deserializer {
   // pre-startup deserialization, and builtins must be deserialized at exactly
   // the right point during startup deserialization.
   void DeserializeAllBuiltins();
+
+ private:
+  // The offsets of each builtin within the serialized data. Equivalent to
+  // BuiltinSerializer::builtin_offsets_ but on the deserialization side.
+  Vector<const uint32_t> builtin_offsets_;
 };
 
 }  // namespace internal

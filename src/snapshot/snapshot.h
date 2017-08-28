@@ -15,6 +15,7 @@ namespace internal {
 
 // Forward declarations.
 class Isolate;
+class BuiltinSerializer;
 class PartialSerializer;
 class StartupSerializer;
 
@@ -31,13 +32,13 @@ class SnapshotData : public SerializedData {
   }
 
   Vector<const Reservation> Reservations() const;
-  Vector<const byte> Payload() const;
+  virtual Vector<const byte> Payload() const;
 
   Vector<const byte> RawData() const {
     return Vector<const byte>(data_, size_);
   }
 
- private:
+ protected:
   bool IsSane();
 
   // The data header consists of uint32_t-sized entries:
@@ -53,6 +54,34 @@ class SnapshotData : public SerializedData {
   static const uint32_t kPayloadLengthOffset =
       kNumReservationsOffset + kUInt32Size;
   static const uint32_t kHeaderSize = kPayloadLengthOffset + kUInt32Size;
+};
+
+class BuiltinSnapshotData final : public SnapshotData {
+ public:
+  // Used when producing.
+  // This simply forwards to the SnapshotData constructor.
+  // The BuiltinSerializer appends the builtin offset table to the payload.
+  explicit BuiltinSnapshotData(const BuiltinSerializer* serializer);
+
+  // Used when consuming.
+  explicit BuiltinSnapshotData(const Vector<const byte> snapshot)
+      : SnapshotData(snapshot) {
+    CHECK(IsSane());
+  }
+
+  // Returns the serialized payload without the builtin offsets table.
+  Vector<const byte> Payload() const override;
+
+  // Returns only the builtin offsets table.
+  Vector<const uint32_t> BuiltinOffsets() const;
+
+ private:
+  // In addition to the format specified in SnapshotData, BuiltinsSnapshotData
+  // includes a list of builtin at the end of the serialized payload:
+  //
+  // ...
+  // ... serialized payload
+  // ... list of builtins offsets
 };
 
 class Snapshot : public AllStatic {
@@ -75,7 +104,7 @@ class Snapshot : public AllStatic {
 
   static v8::StartupData CreateSnapshotBlob(
       const SnapshotData* startup_snapshot,
-      const SnapshotData* builtin_snapshot,
+      const BuiltinSnapshotData* builtin_snapshot,
       const std::vector<SnapshotData*>& context_snapshots,
       bool can_be_rehashed);
 

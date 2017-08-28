@@ -9,6 +9,7 @@
 #include "src/api.h"
 #include "src/base/platform/platform.h"
 #include "src/objects-inl.h"
+#include "src/snapshot/builtin-serializer.h"
 #include "src/snapshot/partial-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
 #include "src/snapshot/startup-deserializer.h"
@@ -42,7 +43,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
   Vector<const byte> startup_data = ExtractStartupData(blob);
   SnapshotData startup_snapshot_data(startup_data);
   Vector<const byte> builtin_data = ExtractBuiltinData(blob);
-  SnapshotData builtin_snapshot_data(builtin_data);
+  BuiltinSnapshotData builtin_snapshot_data(builtin_data);
   StartupDeserializer deserializer(&startup_snapshot_data,
                                    &builtin_snapshot_data);
   deserializer.SetRehashability(ExtractRehashability(blob));
@@ -108,7 +109,8 @@ void ProfileDeserialization(
 }
 
 v8::StartupData Snapshot::CreateSnapshotBlob(
-    const SnapshotData* startup_snapshot, const SnapshotData* builtin_snapshot,
+    const SnapshotData* startup_snapshot,
+    const BuiltinSnapshotData* builtin_snapshot,
     const std::vector<SnapshotData*>& context_snapshots, bool can_be_rehashed) {
   uint32_t num_contexts = static_cast<uint32_t>(context_snapshots.size());
   uint32_t startup_snapshot_offset = StartupSnapshotOffset(num_contexts);
@@ -286,6 +288,33 @@ Vector<const byte> SnapshotData::Payload() const {
   uint32_t length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + length);
   return Vector<const byte>(payload, length);
+}
+
+BuiltinSnapshotData::BuiltinSnapshotData(const BuiltinSerializer* serializer)
+    : SnapshotData(serializer) {}
+
+Vector<const byte> BuiltinSnapshotData::Payload() const {
+  uint32_t reservations_size =
+      GetHeaderValue(kNumReservationsOffset) * kUInt32Size;
+  const byte* payload = data_ + kHeaderSize + reservations_size;
+  int builtin_offsets_size = Builtins::builtin_count * kUInt32Size;
+  uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
+  DCHECK_EQ(data_ + size_, payload + payload_length);
+  DCHECK_GT(payload_length, builtin_offsets_size);
+  return Vector<const byte>(payload, payload_length - builtin_offsets_size);
+}
+
+Vector<const uint32_t> BuiltinSnapshotData::BuiltinOffsets() const {
+  uint32_t reservations_size =
+      GetHeaderValue(kNumReservationsOffset) * kUInt32Size;
+  const byte* payload = data_ + kHeaderSize + reservations_size;
+  int builtin_offsets_size = Builtins::builtin_count * kUInt32Size;
+  uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
+  DCHECK_EQ(data_ + size_, payload + payload_length);
+  DCHECK_GT(payload_length, builtin_offsets_size);
+  const uint32_t* data = reinterpret_cast<const uint32_t*>(
+      payload + payload_length - builtin_offsets_size);
+  return Vector<const uint32_t>(data, Builtins::builtin_count);
 }
 
 }  // namespace internal
