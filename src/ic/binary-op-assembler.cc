@@ -122,8 +122,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
 
   BIND(&do_fadd);
   {
-    var_type_feedback.Bind(
-        SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
+    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
     Node* value = Float64Add(var_fadd_lhs.value(), var_fadd_rhs.value());
     Node* result = AllocateHeapNumberWithValue(value);
     var_result.Bind(result);
@@ -294,8 +293,7 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
 
   BIND(&do_float_operation);
   {
-    var_type_feedback.Bind(
-        SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
+    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
     Node* lhs_value = var_float_lhs.value();
     Node* rhs_value = var_float_rhs.value();
     Node* value = floatOperation(lhs_value, rhs_value);
@@ -412,8 +410,7 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
 
     BIND(&if_overflow);
     {
-      var_type_feedback->Bind(
-          SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
+      var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kNumber));
       Node* value = Float64Sub(SmiToFloat64(lhs), SmiToFloat64(rhs));
       var_result.Bind(AllocateHeapNumberWithValue(value));
       Goto(&end);
@@ -439,7 +436,7 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
     Node* result = SmiMul(lhs, rhs);
     var_type_feedback->Bind(SelectSmiConstant(
         TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
-        BinaryOperationFeedback::kNumberOrOddball));
+        BinaryOperationFeedback::kNumber));
     return result;
   };
   auto floatFunction = [=](Node* lhs, Node* rhs) {
@@ -491,7 +488,7 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
     Node* result = SmiMod(lhs, rhs);
     var_type_feedback->Bind(SelectSmiConstant(
         TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
-        BinaryOperationFeedback::kNumberOrOddball));
+        BinaryOperationFeedback::kNumber));
     return result;
   };
   auto floatFunction = [=](Node* lhs, Node* rhs) {
