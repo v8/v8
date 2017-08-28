@@ -2629,8 +2629,13 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
     return {};
   }
 
-  ModuleResult result =
-      DecodeWasmModule(isolate, bytes.start(), bytes.end(), false, kWasmOrigin);
+  // TODO(titzer): only make a copy of the bytes if SharedArrayBuffer
+  std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
+  memcpy(copy.get(), bytes.start(), bytes.length());
+  ModuleWireBytes bytes_copy(copy.get(), copy.get() + bytes.length());
+
+  ModuleResult result = DecodeWasmModule(isolate, bytes_copy.start(),
+                                         bytes_copy.end(), false, kWasmOrigin);
   if (result.failed()) {
     thrower->CompileFailed("Wasm decoding failed", result);
     return {};
@@ -2640,7 +2645,7 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
   // {CompileToModuleObject}.
   constexpr bool is_sync = true;
   CompilationHelper helper(isolate, std::move(result.val), is_sync);
-  return helper.CompileToModuleObject(thrower, bytes, Handle<Script>(),
+  return helper.CompileToModuleObject(thrower, bytes_copy, Handle<Script>(),
                                       Vector<const byte>());
 }
 
