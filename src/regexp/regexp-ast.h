@@ -110,7 +110,7 @@ class CharacterRange {
   uc32 to() const { return to_; }
   void set_to(uc32 value) { to_ = value; }
   bool is_valid() { return from_ <= to_; }
-  bool IsEverything(uc16 max) { return from_ == 0 && to_ >= max; }
+  bool IsEverything(uc32 max) { return from_ == 0 && to_ >= max; }
   bool IsSingleton() { return (from_ == to_); }
   static void AddCaseEquivalents(Isolate* isolate, Zone* zone,
                                  ZoneList<CharacterRange>* ranges,
