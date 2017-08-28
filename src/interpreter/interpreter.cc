@@ -35,32 +35,24 @@ class InterpreterCompilationJob final : public CompilationJob {
  private:
   class TimerScope final {
    public:
-    TimerScope(RuntimeCallStats* stats, RuntimeCallStats::CounterId counter_id)
-        : stats_(stats) {
-      if (V8_UNLIKELY(FLAG_runtime_stats)) {
-        RuntimeCallStats::Enter(stats_, &timer_, counter_id);
-      }
-    }
-
-    explicit TimerScope(RuntimeCallCounter* counter) : stats_(nullptr) {
-      if (V8_UNLIKELY(FLAG_runtime_stats)) {
+    explicit TimerScope(RuntimeCallCounter* counter)
+        : runtime_stats_enabled_(FLAG_runtime_stats) {
+      if (V8_UNLIKELY(runtime_stats_enabled_ && counter != nullptr)) {
         timer_.Start(counter, nullptr);
       }
     }
 
     ~TimerScope() {
-      if (V8_UNLIKELY(FLAG_runtime_stats)) {
-        if (stats_) {
-          RuntimeCallStats::Leave(stats_, &timer_);
-        } else {
-          timer_.Stop();
-        }
+      if (V8_UNLIKELY(runtime_stats_enabled_)) {
+        timer_.Stop();
       }
     }
 
    private:
-    RuntimeCallStats* stats_;
     RuntimeCallTimer timer_;
+    bool runtime_stats_enabled_;
+
+    DISALLOW_COPY_AND_ASSIGN(TimerScope);
   };
 
   BytecodeGenerator* generator() { return &generator_; }
@@ -164,10 +156,12 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl() {
 }
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
-  TimerScope runtimeTimer =
-      executed_on_background_thread()
-          ? TimerScope(&background_execute_counter_)
-          : TimerScope(runtime_call_stats_, &RuntimeCallStats::CompileIgnition);
+  TimerScope runtimeTimer(
+      executed_on_background_thread() ? &background_execute_counter_ : nullptr);
+  RuntimeCallTimerScope runtimeTimerScope(
+      !executed_on_background_thread() ? runtime_call_stats_ : nullptr,
+      &RuntimeCallStats::CompileIgnition);
+
   // TODO(lpy): add support for background compilation RCS trace.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
@@ -186,8 +180,9 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
         &background_execute_counter_);
   }
 
-  RuntimeCallTimerScope runtimeTimer(
-      runtime_call_stats_, &RuntimeCallStats::CompileIgnitionFinalization);
+  RuntimeCallTimerScope runtimeTimerScope(
+      !executed_on_background_thread() ? runtime_call_stats_ : nullptr,
+      &RuntimeCallStats::CompileIgnitionFinalization);
 
   Handle<BytecodeArray> bytecodes = generator()->FinalizeBytecode(isolate());
   if (generator()->HasStackOverflow()) {

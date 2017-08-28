@@ -12,6 +12,7 @@
 #include "src/base/platform/time.h"
 #include "src/globals.h"
 #include "src/heap-symbols.h"
+#include "src/isolate.h"
 #include "src/objects.h"
 #include "src/runtime/runtime.h"
 #include "src/tracing/trace-event.h"
@@ -934,6 +935,7 @@ class RuntimeCallStats final : public ZoneObject {
   V8_EXPORT_PRIVATE void Print(std::ostream& os);
   V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
 
+  ThreadId thread_id() const { return thread_id_; }
   RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
   RuntimeCallCounter* current_counter() { return current_counter_.Value(); }
   bool InUse() { return in_use_; }
@@ -945,6 +947,7 @@ class RuntimeCallStats final : public ZoneObject {
   base::AtomicValue<RuntimeCallCounter*> current_counter_;
   // Used to track nested tracing scopes.
   bool in_use_;
+  ThreadId thread_id_;
 };
 
 #define CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats, counter_name) \
@@ -970,7 +973,11 @@ class RuntimeCallTimerScope {
   inline RuntimeCallTimerScope(HeapObject* heap_object,
                                RuntimeCallStats::CounterId counter_id);
   inline RuntimeCallTimerScope(RuntimeCallStats* stats,
-                               RuntimeCallStats::CounterId counter_id);
+                               RuntimeCallStats::CounterId counter_id) {
+    if (V8_LIKELY(!FLAG_runtime_stats || stats == nullptr)) return;
+    stats_ = stats;
+    RuntimeCallStats::Enter(stats_, &timer_, counter_id);
+  }
 
   inline ~RuntimeCallTimerScope() {
     if (V8_UNLIKELY(stats_ != nullptr)) {
@@ -979,14 +986,10 @@ class RuntimeCallTimerScope {
   }
 
  private:
-  V8_INLINE void Initialize(RuntimeCallStats* stats,
-                            RuntimeCallStats::CounterId counter_id) {
-    stats_ = stats;
-    RuntimeCallStats::Enter(stats_, &timer_, counter_id);
-  }
-
   RuntimeCallStats* stats_ = nullptr;
   RuntimeCallTimer timer_;
+
+  DISALLOW_COPY_AND_ASSIGN(RuntimeCallTimerScope);
 };
 
 #define HISTOGRAM_RANGE_LIST(HR)                                              \
@@ -1478,6 +1481,13 @@ void HistogramTimer::Start() {
 
 void HistogramTimer::Stop() {
   TimedHistogram::Stop(&timer_, counters()->isolate());
+}
+
+RuntimeCallTimerScope::RuntimeCallTimerScope(
+    Isolate* isolate, RuntimeCallStats::CounterId counter_id) {
+  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  stats_ = isolate->counters()->runtime_call_stats();
+  RuntimeCallStats::Enter(stats_, &timer_, counter_id);
 }
 
 }  // namespace internal

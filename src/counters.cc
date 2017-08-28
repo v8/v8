@@ -420,7 +420,8 @@ void RuntimeCallTimer::Snapshot() {
   Resume(now);
 }
 
-RuntimeCallStats::RuntimeCallStats() : in_use_(false) {
+RuntimeCallStats::RuntimeCallStats()
+    : in_use_(false), thread_id_(ThreadId::Current()) {
   static const char* const kNames[] = {
 #define CALL_BUILTIN_COUNTER(name) "GC_" #name,
       FOR_EACH_GC_COUNTER(CALL_BUILTIN_COUNTER)  //
@@ -476,6 +477,7 @@ const int RuntimeCallStats::counters_count =
 // static
 void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
                              CounterId counter_id) {
+  DCHECK(ThreadId::Current().Equals(stats->thread_id()));
   RuntimeCallCounter* counter = &(stats->*counter_id);
   DCHECK(counter->name() != nullptr);
   timer->Start(counter, stats->current_timer_.Value());
@@ -485,26 +487,11 @@ void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
 
 // static
 void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
-  if (stats->current_timer_.Value() == timer) {
-    stats->current_timer_.SetValue(timer->Stop());
-  } else {
-    // Must be a Threading cctest. Walk the chain of Timers to find the
-    // buried one that's leaving. We don't care about keeping nested timings
-    // accurate, just avoid crashing by keeping the chain intact.
-    RuntimeCallTimer* next = stats->current_timer_.Value();
-    while (next && next->parent() != timer) next = next->parent();
-    if (next == nullptr) return;
-    next->set_parent(timer->Stop());
-  }
-
-  {
-    RuntimeCallTimer* cur_timer = stats->current_timer_.Value();
-    if (cur_timer == nullptr) {
-      stats->current_counter_.SetValue(nullptr);
-    } else {
-      stats->current_counter_.SetValue(cur_timer->counter());
-    }
-  }
+  DCHECK(ThreadId::Current().Equals(stats->thread_id()));
+  CHECK(stats->current_timer_.Value() == timer);
+  stats->current_timer_.SetValue(timer->Stop());
+  RuntimeCallTimer* cur_timer = stats->current_timer_.Value();
+  stats->current_counter_.SetValue(cur_timer ? cur_timer->counter() : nullptr);
 }
 
 void RuntimeCallStats::Add(RuntimeCallStats* other) {
