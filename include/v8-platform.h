@@ -226,6 +226,14 @@ class Platform {
    * Returns an instance of a v8::TracingController. This must be non-nullptr.
    */
   virtual TracingController* GetTracingController() = 0;
+
+ protected:
+  /**
+   * Default implementation of current wall-clock time in milliseconds
+   * since epoch. Useful for implementing |CurrentClockTimeMillis| if
+   * nothing special needed.
+   */
+  static double SystemClockTimeMillis();
 };
 
 }  // namespace v8
