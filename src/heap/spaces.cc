@@ -3272,7 +3272,7 @@ HeapObject* LargeObjectIterator::Next() {
 
 LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
     : Space(heap, id, NOT_EXECUTABLE),  // Managed on a per-allocation basis
-      first_page_(NULL),
+      first_page_(nullptr),
       size_(0),
       page_count_(0),
       objects_size_(0),
@@ -3280,16 +3280,9 @@ LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
 
 LargeObjectSpace::~LargeObjectSpace() {}
 
-
 bool LargeObjectSpace::SetUp() {
-  first_page_ = NULL;
-  size_ = 0;
-  page_count_ = 0;
-  objects_size_ = 0;
-  chunk_map_.Clear();
   return true;
 }
-
 
 void LargeObjectSpace::TearDown() {
   while (first_page_ != NULL) {
@@ -3372,18 +3365,16 @@ LargePage* LargeObjectSpace::FindPageThreadSafe(Address a) {
 }
 
 LargePage* LargeObjectSpace::FindPage(Address a) {
-  uintptr_t key = reinterpret_cast<uintptr_t>(a) / MemoryChunk::kAlignment;
-  base::HashMap::Entry* e = chunk_map_.Lookup(reinterpret_cast<void*>(key),
-                                              static_cast<uint32_t>(key));
-  if (e != NULL) {
-    DCHECK(e->value != NULL);
-    LargePage* page = reinterpret_cast<LargePage*>(e->value);
+  const Address key = MemoryChunk::FromAddress(a)->address();
+  auto it = chunk_map_.find(reinterpret_cast<Address>(key));
+  if (it != chunk_map_.end()) {
+    LargePage* page = it->second;
     DCHECK(LargePage::IsValid(page));
     if (page->Contains(a)) {
       return page;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -3403,19 +3394,13 @@ void LargeObjectSpace::ClearMarkingStateOfLiveObjects() {
 }
 
 void LargeObjectSpace::InsertChunkMapEntries(LargePage* page) {
-  // Register all MemoryChunk::kAlignment-aligned chunks covered by
-  // this large page in the chunk map.
-  uintptr_t start = reinterpret_cast<uintptr_t>(page) / MemoryChunk::kAlignment;
-  uintptr_t limit = (reinterpret_cast<uintptr_t>(page) + (page->size() - 1)) /
-                    MemoryChunk::kAlignment;
   // There may be concurrent access on the chunk map. We have to take the lock
   // here.
   base::LockGuard<base::Mutex> guard(&chunk_map_mutex_);
-  for (uintptr_t key = start; key <= limit; key++) {
-    base::HashMap::Entry* entry = chunk_map_.InsertNew(
-        reinterpret_cast<void*>(key), static_cast<uint32_t>(key));
-    DCHECK(entry != NULL);
-    entry->value = page;
+  for (Address current = reinterpret_cast<Address>(page);
+       current < reinterpret_cast<Address>(page) + page->size();
+       current += MemoryChunk::kPageSize) {
+    chunk_map_[current] = page;
   }
 }
 
@@ -3425,13 +3410,11 @@ void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page) {
 
 void LargeObjectSpace::RemoveChunkMapEntries(LargePage* page,
                                              Address free_start) {
-  uintptr_t start = ::RoundUp(reinterpret_cast<uintptr_t>(free_start),
-                              MemoryChunk::kAlignment) /
-                    MemoryChunk::kAlignment;
-  uintptr_t limit = (reinterpret_cast<uintptr_t>(page) + (page->size() - 1)) /
-                    MemoryChunk::kAlignment;
-  for (uintptr_t key = start; key <= limit; key++) {
-    chunk_map_.Remove(reinterpret_cast<void*>(key), static_cast<uint32_t>(key));
+  for (Address current = reinterpret_cast<Address>(::RoundUp(
+           reinterpret_cast<uintptr_t>(free_start), MemoryChunk::kPageSize));
+       current < reinterpret_cast<Address>(page) + page->size();
+       current += MemoryChunk::kPageSize) {
+    chunk_map_.erase(current);
   }
 }
 

@@ -8,13 +8,13 @@
 #include <list>
 #include <map>
 #include <memory>
+#include <unordered_map>
 #include <unordered_set>
 
 #include "src/allocation.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
-#include "src/base/hashmap.h"
 #include "src/base/iterator.h"
 #include "src/base/platform/mutex.h"
 #include "src/cancelable-task.h"
@@ -2954,8 +2954,8 @@ class LargeObjectSpace : public Space {
   // The chunk_map_mutex_ has to be used when the chunk map is accessed
   // concurrently.
   base::Mutex chunk_map_mutex_;
-  // Map MemoryChunk::kAlignment-aligned chunks to large pages covering them
-  base::HashMap chunk_map_;
+  // Page-aligned addresses to their corresponding LargePage.
+  std::unordered_map<Address, LargePage*> chunk_map_;
 
   friend class LargeObjectIterator;
 };
