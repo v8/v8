@@ -533,7 +533,7 @@ void CodeGenerator::AssembleSourcePosition(SourcePosition source_position) {
     if (info->IsStub()) return;
     std::ostringstream buffer;
     buffer << "-- ";
-    if (FLAG_trace_turbo ||
+    if (FLAG_trace_turbo || FLAG_trace_turbo_graph ||
         tasm()->isolate()->concurrent_recompilation_enabled()) {
       buffer << source_position;
     } else {

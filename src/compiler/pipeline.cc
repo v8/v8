@@ -1566,7 +1566,7 @@ struct PrintGraphPhase {
     CompilationInfo* info = data->info();
     Graph* graph = data->graph();
 
-    {  // Print JSON.
+    if (FLAG_trace_turbo) {  // Print JSON.
       AllowHandleDereference allow_deref;
       TurboJsonFile json_of(info, std::ios_base::app);
       json_of << "{\"name\":\"" << phase << "\",\"type\":\"graph\",\"data\":"
@@ -1595,7 +1595,7 @@ struct VerifyGraphPhase {
 };
 
 void PipelineImpl::RunPrintAndVerify(const char* phase, bool untyped) {
-  if (FLAG_trace_turbo) {
+  if (FLAG_trace_turbo || FLAG_trace_turbo_graph) {
     Run<PrintGraphPhase>(phase);
   }
   if (FLAG_turbo_verify) {
@@ -1608,12 +1608,14 @@ bool PipelineImpl::CreateGraph() {
 
   data->BeginPhaseKind("graph creation");
 
-  if (FLAG_trace_turbo) {
+  if (FLAG_trace_turbo || FLAG_trace_turbo_graph) {
     CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Begin compiling method " << info()->GetDebugName().get()
        << " using Turbofan" << std::endl;
+  }
+  if (FLAG_trace_turbo) {
     TurboCfgFile tcf(isolate());
     tcf << AsC1VCompilation(info());
   }
@@ -1778,14 +1780,12 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
   PipelineImpl pipeline(&data);
   DCHECK_NOT_NULL(data.schedule());
 
-  if (FLAG_trace_turbo) {
-    {
-      CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
-      OFStream os(tracing_scope.file());
-      os << "---------------------------------------------------\n"
-         << "Begin compiling " << debug_name << " using Turbofan" << std::endl;
-    }
-    {
+  if (FLAG_trace_turbo || FLAG_trace_turbo_graph) {
+    CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+    os << "---------------------------------------------------\n"
+       << "Begin compiling " << debug_name << " using Turbofan" << std::endl;
+    if (FLAG_trace_turbo) {
       TurboJsonFile json_of(&info, std::ios_base::trunc);
       json_of << "{\"function\":\"" << info.GetDebugName().get()
               << "\", \"source\":\"\",\n\"phases\":[";
@@ -2043,14 +2043,14 @@ Handle<Code> PipelineImpl::FinalizeCode() {
     json_of << "\"nodePositions\":";
     json_of << data->source_position_output();
     json_of << "}";
-
+  }
+  if (FLAG_trace_turbo || FLAG_trace_turbo_graph) {
     CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
     OFStream os(tracing_scope.file());
     os << "---------------------------------------------------\n"
        << "Finished compiling method " << info()->GetDebugName().get()
        << " using Turbofan" << std::endl;
   }
-
   return code;
 }
 
