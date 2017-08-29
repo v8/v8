@@ -202,10 +202,10 @@ class GraphAssembler {
 
   Node* DeoptimizeIf(DeoptimizeReason reason, Node* condition,
                      Node* frame_state);
-  Node* DeoptimizeUnless(DeoptimizeKind kind, DeoptimizeReason reason,
-                         Node* condition, Node* frame_state);
-  Node* DeoptimizeUnless(DeoptimizeReason reason, Node* condition,
-                         Node* frame_state);
+  Node* DeoptimizeIfNot(DeoptimizeKind kind, DeoptimizeReason reason,
+                        Node* condition, Node* frame_state);
+  Node* DeoptimizeIfNot(DeoptimizeReason reason, Node* condition,
+                        Node* frame_state);
   template <typename... Args>
   Node* Call(const CallDescriptor* desc, Args... args);
   template <typename... Args>
@@ -227,10 +227,10 @@ class GraphAssembler {
   void GotoIf(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
               Vars...);
 
-  // {GotoUnless(c, l)} is equivalent to {Branch(c, templ, l);Bind(templ)}.
+  // {GotoIfNot(c, l)} is equivalent to {Branch(c, templ, l);Bind(templ)}.
   template <typename... Vars>
-  void GotoUnless(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
-                  Vars...);
+  void GotoIfNot(Node* condition, GraphAssemblerLabel<sizeof...(Vars)>* label,
+                 Vars...);
 
   // Extractors (should be only used when destructing/resetting the assembler).
   Node* ExtractCurrentControl();
@@ -353,9 +353,9 @@ void GraphAssembler::GotoIf(Node* condition,
 }
 
 template <typename... Vars>
-void GraphAssembler::GotoUnless(Node* condition,
-                                GraphAssemblerLabel<sizeof...(Vars)>* label,
-                                Vars... vars) {
+void GraphAssembler::GotoIfNot(Node* condition,
+                               GraphAssemblerLabel<sizeof...(Vars)>* label,
+                               Vars... vars) {
   BranchHint hint = label->IsDeferred() ? BranchHint::kTrue : BranchHint::kNone;
   Node* branch =
       graph()->NewNode(common()->Branch(hint), condition, current_control_);

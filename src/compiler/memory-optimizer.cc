@@ -215,7 +215,7 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
                     machine()->Is64() ? __ ChangeInt32ToInt64(size) : size),
           limit);
 
-      __ GotoUnless(check, &call_runtime);
+      __ GotoIfNot(check, &call_runtime);
       __ Goto(&done, top);
 
       __ Bind(&call_runtime);
@@ -267,7 +267,7 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
 
     // Check if we can do bump pointer allocation here.
     Node* check = __ UintLessThan(new_top, limit);
-    __ GotoUnless(check, &call_runtime);
+    __ GotoIfNot(check, &call_runtime);
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
              top_address, __ IntPtrConstant(0), new_top);
