@@ -206,12 +206,6 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewRestParameter(Node* context,
   return result.value();
 }
 
-TF_BUILTIN(FastNewRestParameter, ArgumentsBuiltinsAssembler) {
-  Node* function = Parameter(Descriptor::kFunction);
-  Node* context = Parameter(Descriptor::kContext);
-  Return(EmitFastNewRestParameter(context, function));
-}
-
 Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
                                                              Node* function) {
   VARIABLE(result, MachineRepresentation::kTagged);
@@ -260,12 +254,6 @@ Node* ArgumentsBuiltinsAssembler::EmitFastNewStrictArguments(Node* context,
 
   BIND(&done);
   return result.value();
-}
-
-TF_BUILTIN(FastNewStrictArguments, ArgumentsBuiltinsAssembler) {
-  Node* function = Parameter(FastNewArgumentsDescriptor::kFunction);
-  Node* context = Parameter(FastNewArgumentsDescriptor::kContext);
-  Return(EmitFastNewStrictArguments(context, function));
 }
 
 Node* ArgumentsBuiltinsAssembler::EmitFastNewSloppyArguments(Node* context,

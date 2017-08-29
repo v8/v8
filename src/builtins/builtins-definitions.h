@@ -73,9 +73,7 @@ namespace internal {
   TFC(FastNewClosure, FastNewClosure, 1)                                       \
   TFC(FastNewFunctionContextEval, FastNewFunctionContext, 1)                   \
   TFC(FastNewFunctionContextFunction, FastNewFunctionContext, 1)               \
-  TFC(FastNewStrictArguments, FastNewArguments, 1)                             \
   TFC(FastNewSloppyArguments, FastNewArguments, 1)                             \
-  TFC(FastNewRestParameter, FastNewArguments, 1)                               \
   TFC(FastCloneRegExp, FastCloneRegExp, 1)                                     \
   TFC(FastCloneShallowArrayTrack, FastCloneShallowArray, 1)                    \
   TFC(FastCloneShallowArrayDontTrack, FastCloneShallowArray, 1)                \
