@@ -242,14 +242,16 @@
             {
                 "name": "callFunctionOn",
                 "parameters": [
-                    { "name": "objectId", "$ref": "RemoteObjectId", "description": "Identifier of the object to call function on." },
                     { "name": "functionDeclaration", "type": "string", "description": "Declaration of the function to call." },
+                    { "name": "objectId", "$ref": "RemoteObjectId", "optional": true, "description": "Identifier of the object to call function on. Either objectId or executionContextId should be specified." },
                     { "name": "arguments", "type": "array", "items": { "$ref": "CallArgument", "description": "Call argument." }, "optional": true, "description": "Call arguments. All call arguments must belong to the same JavaScript world as the target object." },
                     { "name": "silent", "type": "boolean", "optional": true, "description": "In silent mode exceptions thrown during evaluation are not reported and do not pause execution. Overrides <code>setPauseOnException</code> state." },
                     { "name": "returnByValue", "type": "boolean", "optional": true, "description": "Whether the result is expected to be a JSON object which should be sent by value." },
                     { "name": "generatePreview", "type": "boolean", "optional": true, "experimental": true, "description": "Whether preview should be generated for the result." },
                     { "name": "userGesture", "type": "boolean", "optional": true, "experimental": true, "description": "Whether execution should be treated as initiated by user in the UI." },
-                    { "name": "awaitPromise", "type": "boolean", "optional":true, "description": "Whether execution should <code>await</code> for resulting value and return once awaited promise is resolved." }
+                    { "name": "awaitPromise", "type": "boolean", "optional":true, "description": "Whether execution should <code>await</code> for resulting value and return once awaited promise is resolved." },
+                    { "name": "executionContextId", "$ref": "ExecutionContextId", "optional": true, "description": "Specifies execution context which global object will be used to call function on. Either executionContextId or objectId should be specified." },
+                    { "name": "objectGroup", "type": "string", "optional": true, "description": "Symbolic group name that can be used to release multiple objects. If objectGroup is not specified and objectId is, objectGroup will be inherited from object." }
                 ],
                 "returns": [
                     { "name": "result", "$ref": "RemoteObject", "description": "Call result." },
