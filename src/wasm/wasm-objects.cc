@@ -965,10 +965,8 @@ void WasmCompiledModule::Reset(Isolate* isolate,
     Zone specialization_zone(isolate->allocator(), ZONE_NAME);
     CodeSpecialization code_specialization(isolate, &specialization_zone);
 
-    if (old_mem_size != default_mem_size || old_mem_start != nullptr) {
-      code_specialization.RelocateMemoryReferences(old_mem_start, old_mem_size,
-                                                   nullptr, default_mem_size);
-    }
+    code_specialization.RelocateMemoryReferences(old_mem_start, old_mem_size,
+                                                 nullptr, default_mem_size);
 
     if (compiled_module->has_globals_start()) {
       Address globals_start =
