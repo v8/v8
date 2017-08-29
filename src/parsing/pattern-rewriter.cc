@@ -314,7 +314,7 @@ void PatternRewriter::VisitRewritableExpression(RewritableExpression* node) {
 
   int pos = assign->position();
   Block* old_block = block_;
-  block_ = factory()->NewBlock(nullptr, 8, true, pos);
+  block_ = factory()->NewBlock(8, true, pos);
   Variable* temp = nullptr;
   Expression* pattern = assign->target();
   Expression* old_value = current_value_;
@@ -458,7 +458,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
   // wrap this new block in a try-finally statement, restore block_ to its
   // original value, and add the try-finally statement to block_.
   auto target = block_;
-  block_ = factory()->NewBlock(nullptr, 8, true, nopos);
+  block_ = factory()->NewBlock(8, true);
 
   Spread* spread = nullptr;
   for (Expression* value : *node->values()) {
@@ -503,8 +503,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
           factory()->NewBooleanLiteral(false, kNoSourcePosition),
           kNoSourcePosition);
 
-      auto inner_else =
-          factory()->NewBlock(nullptr, 2, true, kNoSourcePosition);
+      auto inner_else = factory()->NewBlock(2, true);
       inner_else->statements()->Add(
           factory()->NewExpressionStatement(assign_value, nopos), zone());
       inner_else->statements()->Add(
@@ -515,8 +514,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
           factory()->NewExpressionStatement(assign_undefined, nopos),
           inner_else, nopos);
 
-      auto next_block =
-          factory()->NewBlock(nullptr, 3, true, kNoSourcePosition);
+      auto next_block = factory()->NewBlock(3, true);
       next_block->statements()->Add(
           factory()->NewExpressionStatement(
               factory()->NewAssignment(
@@ -636,7 +634,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
                                      ast_value_factory()->done_string(), nopos),
                                  nopos);
 
-      Block* then = factory()->NewBlock(nullptr, 2, true, nopos);
+      Block* then = factory()->NewBlock(2, true);
       then->statements()->Add(append_element, zone());
       then->statements()->Add(unset_done, zone());
 
@@ -654,7 +652,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     {
       Expression* condition = factory()->NewUnaryOperation(
           Token::NOT, factory()->NewVariableProxy(done), nopos);
-      Block* body = factory()->NewBlock(nullptr, 3, true, nopos);
+      Block* body = factory()->NewBlock(3, true);
       body->statements()->Add(set_done, zone());
       body->statements()->Add(get_next, zone());
       body->statements()->Add(maybe_append_and_unset_done, zone());

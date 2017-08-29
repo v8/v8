@@ -3169,8 +3169,9 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) FunctionDeclaration(proxy, fun, pos);
   }
 
-  Block* NewBlock(ZoneList<const AstRawString*>* labels, int capacity,
-                  bool ignore_completion_value, int pos) {
+  Block* NewBlock(int capacity, bool ignore_completion_value,
+                  int pos = kNoSourcePosition,
+                  ZoneList<const AstRawString*>* labels = nullptr) {
     return labels != nullptr ? new (zone_)
                                    LabeledBlock(zone_, labels, capacity,
                                                 ignore_completion_value, pos)

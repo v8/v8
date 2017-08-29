@@ -3729,7 +3729,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
   BlockT init_block = impl()->NullStatement();
   if (var_context != kForStatement) {
     init_block = factory()->NewBlock(
-        nullptr, 1, true, parsing_result->descriptor.declaration_pos);
+        1, true, parsing_result->descriptor.declaration_pos);
   }
 
   switch (peek()) {
@@ -4062,7 +4062,7 @@ void ParserBase<Impl>::ParseFunctionBody(
   if (!parameters.is_simple) {
     inner_scope = NewVarblockScope();
     inner_scope->set_start_position(scanner()->location().beg_pos);
-    inner_block = factory()->NewBlock(NULL, 8, true, kNoSourcePosition);
+    inner_block = factory()->NewBlock(8, true);
     inner_block->set_scope(inner_scope);
     body = inner_block->statements();
   }
@@ -4437,7 +4437,7 @@ void ParserBase<Impl>::ParseSingleExpressionFunctionBody(StatementListT body,
   impl()->RewriteNonPattern(CHECK_OK_VOID);
 
   if (is_async) {
-    BlockT block = factory()->NewBlock(nullptr, 1, true, kNoSourcePosition);
+    BlockT block = factory()->NewBlock(1, true);
     impl()->RewriteAsyncFunctionBody(body, block, expression, CHECK_OK_VOID);
   } else {
     body->Add(BuildReturnStatement(expression, expression->position()), zone());
@@ -4447,7 +4447,7 @@ void ParserBase<Impl>::ParseSingleExpressionFunctionBody(StatementListT body,
 template <typename Impl>
 void ParserBase<Impl>::ParseAsyncFunctionBody(Scope* scope, StatementListT body,
                                               bool* ok) {
-  BlockT block = factory()->NewBlock(nullptr, 8, true, kNoSourcePosition);
+  BlockT block = factory()->NewBlock(8, true);
 
   ParseStatementList(block->statements(), Token::RBRACE, CHECK_OK_VOID);
   impl()->RewriteAsyncFunctionBody(
@@ -4879,7 +4879,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
         return ParseStatementAsUnlabelled(labels, ok);
       } else {
         BlockT result =
-            factory()->NewBlock(labels, 1, false, kNoSourcePosition);
+            factory()->NewBlock(1, false, kNoSourcePosition, labels);
         typename Types::Target target(this, result);
         StatementT statement = ParseStatementAsUnlabelled(labels, CHECK_OK);
         result->statements()->Add(statement, zone());
@@ -4951,7 +4951,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
   //   '{' StatementList '}'
 
   // Construct block expecting 16 statements.
-  BlockT body = factory()->NewBlock(labels, 16, false, kNoSourcePosition);
+  BlockT body = factory()->NewBlock(16, false, kNoSourcePosition, labels);
 
   // Parse the statements and collect escaping labels.
   Expect(Token::LBRACE, CHECK_OK_CUSTOM(NullStatement));
@@ -4986,7 +4986,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseScopedStatement(
     // is introduced by a FunctionDeclaration.
     BlockState block_state(zone(), &scope_);
     scope()->set_start_position(scanner()->location().beg_pos);
-    BlockT block = factory()->NewBlock(NULL, 1, false, kNoSourcePosition);
+    BlockT block = factory()->NewBlock(1, false);
     StatementT body = ParseFunctionDeclaration(CHECK_OK);
     block->statements()->Add(body, zone());
     scope()->set_end_position(scanner()->location().end_pos);
@@ -5482,8 +5482,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseTryStatement(
       {
         BlockState catch_block_state(&scope_, catch_info.scope);
 
-        catch_block =
-            factory()->NewBlock(nullptr, 16, false, kNoSourcePosition);
+        catch_block = factory()->NewBlock(16, false);
 
         // Create a block scope to hold any lexical declarations created
         // as part of destructuring the catch parameter.
@@ -5814,7 +5813,7 @@ ParserBase<Impl>::ParseStandardForLoopWithLexicalDeclarations(
     //   }
     //
     DCHECK(!impl()->IsNull(init));
-    BlockT block = factory()->NewBlock(nullptr, 2, false, kNoSourcePosition);
+    BlockT block = factory()->NewBlock(2, false);
     block->statements()->Add(init, zone());
     block->statements()->Add(loop, zone());
     block->set_scope(for_scope);
