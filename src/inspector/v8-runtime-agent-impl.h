@@ -69,12 +69,11 @@ class V8RuntimeAgentImpl : public protocol::Runtime::Backend {
                     Maybe<bool> generatePreview,
                     std::unique_ptr<AwaitPromiseCallback>) override;
   void callFunctionOn(
-      Maybe<String16> objectId, const String16& expression,
+      const String16& objectId, const String16& expression,
       Maybe<protocol::Array<protocol::Runtime::CallArgument>> optionalArguments,
       Maybe<bool> silent, Maybe<bool> returnByValue,
       Maybe<bool> generatePreview, Maybe<bool> userGesture,
-      Maybe<bool> awaitPromise, Maybe<int> executionContextId,
-      Maybe<String16> objectGroup,
+      Maybe<bool> awaitPromise,
       std::unique_ptr<CallFunctionOnCallback>) override;
   Response releaseObject(const String16& objectId) override;
   Response getProperties(
