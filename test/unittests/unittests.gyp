@@ -49,7 +49,6 @@
       'compiler/dead-code-elimination-unittest.cc',
       'compiler/diamond-unittest.cc',
       'compiler/effect-control-linearizer-unittest.cc',
-      'compiler/escape-analysis-unittest.cc',
       'compiler/graph-reducer-unittest.cc',
       'compiler/graph-reducer-unittest.h',
       'compiler/graph-trimmer-unittest.cc',

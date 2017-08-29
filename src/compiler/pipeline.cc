@@ -49,8 +49,6 @@
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/memory-optimizer.h"
 #include "src/compiler/move-optimizer.h"
-#include "src/compiler/new-escape-analysis-reducer.h"
-#include "src/compiler/new-escape-analysis.h"
 #include "src/compiler/osr.h"
 #include "src/compiler/pipeline-statistics.h"
 #include "src/compiler/redundancy-elimination.h"
@@ -1057,32 +1055,16 @@ struct EscapeAnalysisPhase {
   static const char* phase_name() { return "escape analysis"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    if (FLAG_turbo_new_escape) {
-      NewEscapeAnalysis escape_analysis(data->jsgraph(), temp_zone);
-      escape_analysis.ReduceGraph();
-      JSGraphReducer reducer(data->jsgraph(), temp_zone);
-      NewEscapeAnalysisReducer escape_reducer(&reducer, data->jsgraph(),
-                                              escape_analysis.analysis_result(),
-                                              temp_zone);
-      AddReducer(data, &reducer, &escape_reducer);
-      reducer.ReduceGraph();
-      // TODO(tebbi): Turn this into a debug mode check once we have confidence.
-      escape_reducer.VerifyReplacement();
-    } else {
-      EscapeAnalysis escape_analysis(data->graph(), data->jsgraph()->common(),
-                                     temp_zone);
-      if (!escape_analysis.Run()) return;
-      JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
-      EscapeAnalysisReducer escape_reducer(&graph_reducer, data->jsgraph(),
-                                           &escape_analysis, temp_zone);
-      AddReducer(data, &graph_reducer, &escape_reducer);
-      graph_reducer.ReduceGraph();
-      if (escape_reducer.compilation_failed()) {
-        data->set_compilation_failed();
-        return;
-      }
-      escape_reducer.VerifyReplacement();
-    }
+    EscapeAnalysis escape_analysis(data->jsgraph(), temp_zone);
+    escape_analysis.ReduceGraph();
+    JSGraphReducer reducer(data->jsgraph(), temp_zone);
+    EscapeAnalysisReducer escape_reducer(&reducer, data->jsgraph(),
+                                         escape_analysis.analysis_result(),
+                                         temp_zone);
+    AddReducer(data, &reducer, &escape_reducer);
+    reducer.ReduceGraph();
+    // TODO(tebbi): Turn this into a debug mode check once we have confidence.
+    escape_reducer.VerifyReplacement();
   }
 };
 
