@@ -481,6 +481,11 @@ class RepresentationSelector {
         break;
       }
 
+      case IrOpcode::kConvertTaggedHoleToUndefined:
+        new_type = op_typer_.ConvertTaggedHoleToUndefined(
+            FeedbackTypeOf(node->InputAt(0)));
+        break;
+
       case IrOpcode::kTypeGuard: {
         new_type = op_typer_.TypeTypeGuard(node->op(),
                                            FeedbackTypeOf(node->InputAt(0)));

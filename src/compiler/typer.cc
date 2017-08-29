@@ -1909,12 +1909,7 @@ Type* Typer::Visitor::TypeCheckNotTaggedHole(Node* node) {
 
 Type* Typer::Visitor::TypeConvertTaggedHoleToUndefined(Node* node) {
   Type* type = Operand(node, 0);
-  if (type->Maybe(Type::Hole())) {
-    // Turn "the hole" into undefined.
-    type = Type::Intersect(type, Type::NonInternal(), zone());
-    type = Type::Union(type, Type::Undefined(), zone());
-  }
-  return type;
+  return typer_->operation_typer()->ConvertTaggedHoleToUndefined(type);
 }
 
 Type* Typer::Visitor::TypeAllocate(Node* node) {
