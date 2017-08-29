@@ -1438,8 +1438,7 @@ Variable* Parser::Declare(Declaration* declaration,
 Block* Parser::BuildInitializationBlock(
     DeclarationParsingResult* parsing_result,
     ZoneList<const AstRawString*>* names, bool* ok) {
-  Block* result =
-      factory()->NewBlock(1, true, parsing_result->descriptor.declaration_pos);
+  Block* result = factory()->NewBlock(1, true);
   for (auto declaration : parsing_result->declarations) {
     DeclareAndInitializeVariables(result, &(parsing_result->descriptor),
                                   &declaration, names, CHECK_OK);
@@ -1927,8 +1926,7 @@ Block* Parser::RewriteForVarInLegacy(const ForInfo& for_info) {
     ++use_counts_[v8::Isolate::kForInInitializer];
     const AstRawString* name = decl.pattern->AsVariableProxy()->raw_name();
     VariableProxy* single_var = NewUnresolved(name);
-    Block* init_block = factory()->NewBlock(
-        2, true, for_info.parsing_result.descriptor.declaration_pos);
+    Block* init_block = factory()->NewBlock(2, true);
     init_block->statements()->Add(
         factory()->NewExpressionStatement(
             factory()->NewAssignment(Token::ASSIGN, single_var,
@@ -2256,8 +2254,9 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
           Token::INIT, decl->proxy(), temp_proxy, kNoSourcePosition);
       Statement* assignment_statement =
           factory()->NewExpressionStatement(assignment, kNoSourcePosition);
-      DCHECK(init->position() != kNoSourcePosition);
-      decl->proxy()->var()->set_initializer_position(init->position());
+      int declaration_pos = for_info.parsing_result.descriptor.declaration_pos;
+      DCHECK(declaration_pos != kNoSourcePosition);
+      decl->proxy()->var()->set_initializer_position(declaration_pos);
       ignore_completion_block->statements()->Add(assignment_statement, zone());
     }
 

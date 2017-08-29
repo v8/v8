@@ -314,7 +314,7 @@ void PatternRewriter::VisitRewritableExpression(RewritableExpression* node) {
 
   int pos = assign->position();
   Block* old_block = block_;
-  block_ = factory()->NewBlock(8, true, pos);
+  block_ = factory()->NewBlock(8, true);
   Variable* temp = nullptr;
   Expression* pattern = assign->target();
   Expression* old_value = current_value_;

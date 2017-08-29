@@ -376,8 +376,8 @@ class Block : public BreakableStatement {
 
  protected:
   Block(Zone* zone, ZoneList<const AstRawString*>* labels, int capacity,
-        bool ignore_completion_value, int pos)
-      : BreakableStatement(TARGET_FOR_NAMED_ONLY, pos, kBlock),
+        bool ignore_completion_value)
+      : BreakableStatement(TARGET_FOR_NAMED_ONLY, kNoSourcePosition, kBlock),
         statements_(capacity, zone),
         scope_(NULL) {
     bit_field_ |= IgnoreCompletionField::encode(ignore_completion_value) |
@@ -391,8 +391,8 @@ class LabeledBlock final : public Block {
   friend class Block;
 
   LabeledBlock(Zone* zone, ZoneList<const AstRawString*>* labels, int capacity,
-               bool ignore_completion_value, int pos)
-      : Block(zone, labels, capacity, ignore_completion_value, pos),
+               bool ignore_completion_value)
+      : Block(zone, labels, capacity, ignore_completion_value),
         labels_(labels) {
     DCHECK_NOT_NULL(labels);
     DCHECK_GT(labels->length(), 0);
@@ -3170,13 +3170,12 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   Block* NewBlock(int capacity, bool ignore_completion_value,
-                  int pos = kNoSourcePosition,
                   ZoneList<const AstRawString*>* labels = nullptr) {
-    return labels != nullptr ? new (zone_)
-                                   LabeledBlock(zone_, labels, capacity,
-                                                ignore_completion_value, pos)
-                             : new (zone_) Block(zone_, labels, capacity,
-                                                 ignore_completion_value, pos);
+    return labels != nullptr
+               ? new (zone_) LabeledBlock(zone_, labels, capacity,
+                                          ignore_completion_value)
+               : new (zone_)
+                     Block(zone_, labels, capacity, ignore_completion_value);
   }
 
 #define STATEMENT_WITH_LABELS(NodeType)                                     \

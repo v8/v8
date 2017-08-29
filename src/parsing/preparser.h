@@ -662,7 +662,6 @@ class PreParserFactory {
   }
 
   PreParserStatement NewBlock(int capacity, bool ignore_completion_value,
-                              int pos = kNoSourcePosition,
                               ZoneList<const AstRawString*>* labels = nullptr) {
     return PreParserStatement::Default();
   }

@@ -3728,8 +3728,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
 
   BlockT init_block = impl()->NullStatement();
   if (var_context != kForStatement) {
-    init_block = factory()->NewBlock(
-        1, true, parsing_result->descriptor.declaration_pos);
+    init_block = factory()->NewBlock(1, true);
   }
 
   switch (peek()) {
@@ -4878,8 +4877,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseStatement(
       if (labels == nullptr) {
         return ParseStatementAsUnlabelled(labels, ok);
       } else {
-        BlockT result =
-            factory()->NewBlock(1, false, kNoSourcePosition, labels);
+        BlockT result = factory()->NewBlock(1, false, labels);
         typename Types::Target target(this, result);
         StatementT statement = ParseStatementAsUnlabelled(labels, CHECK_OK);
         result->statements()->Add(statement, zone());
@@ -4951,7 +4949,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseBlock(
   //   '{' StatementList '}'
 
   // Construct block expecting 16 statements.
-  BlockT body = factory()->NewBlock(16, false, kNoSourcePosition, labels);
+  BlockT body = factory()->NewBlock(16, false, labels);
 
   // Parse the statements and collect escaping labels.
   Expect(Token::LBRACE, CHECK_OK_CUSTOM(NullStatement));
