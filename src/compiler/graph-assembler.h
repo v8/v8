@@ -93,7 +93,7 @@ class GraphAssemblerLabel {
 
   template <typename... Reps>
   explicit GraphAssemblerLabel(GraphAssemblerLabelType is_deferred,
-                               size_t merge_count, Reps... reps)
+                               Reps... reps)
       : is_deferred_(is_deferred == GraphAssemblerLabelType::kDeferred) {
     STATIC_ASSERT(VarCount == sizeof...(reps));
     MachineRepresentation reps_array[] = {MachineRepresentation::kNone,
@@ -130,28 +130,23 @@ class GraphAssembler {
 
   void Reset(Node* effect, Node* control);
 
-  // Create non-deferred label with statically known number of incoming
-  // gotos/branches.
-  template <size_t MergeCount, typename... Reps>
-  static GraphAssemblerLabel<sizeof...(Reps)> MakeLabel(Reps... reps) {
-    return GraphAssemblerLabel<sizeof...(Reps)>(
-        GraphAssemblerLabelType::kNonDeferred, MergeCount, reps...);
-  }
-
-  // Create deferred label with statically known number of incoming
-  // gotos/branches.
-  template <size_t MergeCount, typename... Reps>
-  static GraphAssemblerLabel<sizeof...(Reps)> MakeDeferredLabel(Reps... reps) {
-    return GraphAssemblerLabel<sizeof...(Reps)>(
-        GraphAssemblerLabelType::kDeferred, MergeCount, reps...);
-  }
-
-  // Create label with number of incoming branches supplied at runtime.
+  // Create label.
   template <typename... Reps>
-  GraphAssemblerLabel<sizeof...(Reps)> MakeLabelFor(
-      GraphAssemblerLabelType is_deferred, size_t merge_count, Reps... reps) {
-    return GraphAssemblerLabel<sizeof...(Reps)>(is_deferred, merge_count,
-                                                reps...);
+  static GraphAssemblerLabel<sizeof...(Reps)> MakeLabelFor(
+      GraphAssemblerLabelType is_deferred, Reps... reps) {
+    return GraphAssemblerLabel<sizeof...(Reps)>(is_deferred, reps...);
+  }
+
+  // Convenience wrapper for creating non-deferred labels.
+  template <typename... Reps>
+  static GraphAssemblerLabel<sizeof...(Reps)> MakeLabel(Reps... reps) {
+    return MakeLabelFor(GraphAssemblerLabelType::kNonDeferred, reps...);
+  }
+
+  // Convenience wrapper for creating deferred labels.
+  template <typename... Reps>
+  static GraphAssemblerLabel<sizeof...(Reps)> MakeDeferredLabel(Reps... reps) {
+    return MakeLabelFor(GraphAssemblerLabelType::kDeferred, reps...);
   }
 
   // Value creation.

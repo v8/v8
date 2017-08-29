@@ -195,8 +195,8 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
       group->Add(value);
       state = AllocationState::Open(group, state_size, top, zone());
     } else {
-      auto call_runtime = __ MakeDeferredLabel<1>();
-      auto done = __ MakeLabel<2>(MachineType::PointerRepresentation());
+      auto call_runtime = __ MakeDeferredLabel();
+      auto done = __ MakeLabel(MachineType::PointerRepresentation());
 
       // Setup a mutable reservation size node; will be patched as we fold
       // additional allocations into this new group.
@@ -252,8 +252,8 @@ void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
       state = AllocationState::Open(group, object_size, top, zone());
     }
   } else {
-    auto call_runtime = __ MakeDeferredLabel<1>();
-    auto done = __ MakeLabel<2>(MachineRepresentation::kTaggedPointer);
+    auto call_runtime = __ MakeDeferredLabel();
+    auto done = __ MakeLabel(MachineRepresentation::kTaggedPointer);
 
     // Load allocation top and limit.
     Node* top =
