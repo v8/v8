@@ -950,7 +950,8 @@ bool PluralRules::InitializePluralRules(Isolate* isolate, Handle<String> locale,
   icu::Locale icu_locale;
   char locale_name[ULOC_FULLNAME_CAPACITY];
   int icu_length = 0;
-  v8::String::Utf8Value bcp47_locale(v8::Utils::ToLocal(locale));
+  v8::String::Utf8Value bcp47_locale(reinterpret_cast<v8::Isolate*>(isolate),
+                                     v8::Utils::ToLocal(locale));
   if (bcp47_locale.length() != 0) {
     uloc_forLanguageTag(*bcp47_locale, locale_name, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
