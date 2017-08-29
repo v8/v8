@@ -125,6 +125,7 @@ class WasmCallFuzzer : public WasmExecutionFuzzer {
       }
     }
 
+    builder.SetMaxMemorySize(32);
     builder.WriteTo(buffer);
 
     if (!ok) {

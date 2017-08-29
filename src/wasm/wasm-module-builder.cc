@@ -224,7 +224,9 @@ WasmModuleBuilder::WasmModuleBuilder(Zone* zone)
       globals_(zone),
       signature_map_(zone),
       start_function_index_(-1),
-      min_memory_size_(16) {}
+      min_memory_size_(16),
+      max_memory_size_(0),
+      has_max_memory_size_(false) {}
 
 WasmFunctionBuilder* WasmModuleBuilder::AddFunction(FunctionSig* sig) {
   functions_.push_back(new (zone_) WasmFunctionBuilder(this));
@@ -318,6 +320,11 @@ void WasmModuleBuilder::SetMinMemorySize(uint32_t value) {
   min_memory_size_ = value;
 }
 
+void WasmModuleBuilder::SetMaxMemorySize(uint32_t value) {
+  has_max_memory_size_ = true;
+  max_memory_size_ = value;
+}
+
 void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   // == Emit magic =============================================================
   buffer.write_u32(kWasmMagic);
@@ -388,9 +395,13 @@ void WasmModuleBuilder::WriteTo(ZoneBuffer& buffer) const {
   // == emit memory declaration ================================================
   {
     size_t start = EmitSection(kMemorySectionCode, buffer);
-    buffer.write_u8(1);                   // memory count
-    buffer.write_u8(kNoMaximumFlag);      // no max provided
-    buffer.write_u32v(min_memory_size_);  // min memory size
+    buffer.write_u8(1);  // memory count
+    buffer.write_u8(has_max_memory_size_ ? kResizableMaximumFlag
+                                         : kNoMaximumFlag);
+    buffer.write_u32v(min_memory_size_);
+    if (has_max_memory_size_) {
+      buffer.write_u32v(max_memory_size_);
+    }
     FixupSection(buffer, start);
   }
 

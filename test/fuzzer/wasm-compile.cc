@@ -329,6 +329,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     f->EmitCode(&end_opcode, 1);
     builder.AddExport(v8::internal::CStrVector("main"), f);
 
+    builder.SetMaxMemorySize(32);
     builder.WriteTo(buffer);
 
     num_args = 3;

@@ -42,6 +42,7 @@ class WasmCodeFuzzer : public WasmExecutionFuzzer {
     f->EmitCode(&end_opcode, 1);
     builder.AddExport(CStrVector("main"), f);
 
+    builder.SetMaxMemorySize(32);
     builder.WriteTo(buffer);
     num_args = 3;
     interpreter_args.reset(
