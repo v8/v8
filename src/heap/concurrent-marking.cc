@@ -215,29 +215,11 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitTransitionArray(Map* map, TransitionArray* array) {
-    if (!ShouldVisit(array)) return 0;
-    VisitMapPointer(array, array->map_slot());
-    // Visit strong references.
-    if (array->HasPrototypeTransitions()) {
-      VisitPointer(array, array->GetPrototypeTransitionsSlot());
+    if (marking_state_.IsGrey(array)) {
+      // TODO(ulan): process transition arrays.
+      bailout_.Push(array);
     }
-    int num_transitions = array->number_of_entries();
-    for (int i = 0; i < num_transitions; ++i) {
-      VisitPointer(array, array->GetKeySlot(i));
-      // A TransitionArray can hold maps or (transitioning StoreIC) handlers.
-      // Maps have custom weak handling; handlers (which in turn weakly point
-      // to maps) are marked strongly for now, and will be cleared during
-      // compaction when the maps they refer to are dead.
-      Object* target = array->GetRawTarget(i);
-      if (target->IsHeapObject()) {
-        Map* map = HeapObject::cast(target)->synchronized_map();
-        if (map->instance_type() != MAP_TYPE) {
-          VisitPointer(array, array->GetTargetSlot(i));
-        }
-      }
-    }
-    weak_objects_->transition_arrays.Push(task_id_, array);
-    return TransitionArray::BodyDescriptor::SizeOf(map, array);
+    return 0;
   }
 
   int VisitWeakCell(Map* map, WeakCell* object) {
