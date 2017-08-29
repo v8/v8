@@ -4,6 +4,7 @@
 
 #include "src/compiler/code-generator.h"
 
+#include "src/callable.h"
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
@@ -188,6 +189,29 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         must_save_lr_(!gen->frame_access_state()->has_frame()),
         zone_(gen->zone()) {}
 
+  void SaveRegisters(RegList registers) {
+    DCHECK(NumRegs(registers) > 0);
+    RegList regs = 0;
+    for (int i = 0; i < Register::kNumRegisters; ++i) {
+      if ((registers >> i) & 1u) {
+        regs |= Register::from_code(i).bit();
+      }
+    }
+
+    __ MultiPush(regs);
+  }
+
+  void RestoreRegisters(RegList registers) {
+    DCHECK(NumRegs(registers) > 0);
+    RegList regs = 0;
+    for (int i = 0; i < Register::kNumRegisters; ++i) {
+      if ((registers >> i) & 1u) {
+        regs |= Register::from_code(i).bit();
+      }
+    }
+    __ MultiPop(regs);
+  }
+
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
@@ -195,6 +219,42 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
+    if (offset_.is(no_reg)) {
+      __ addi(scratch1_, object_, Operand(offset_immediate_));
+    } else {
+      DCHECK_EQ(0, offset_immediate_);
+      __ add(scratch1_, object_, offset_);
+    }
+#ifdef V8_CSA_WRITE_BARRIER
+    Callable const callable =
+        Builtins::CallableFor(__ isolate(), Builtins::kRecordWrite);
+    RegList registers = callable.descriptor().allocatable_registers();
+
+    SaveRegisters(registers);
+    __ mflr(scratch0_);
+    __ Push(scratch0_);
+
+    Register object_parameter(callable.descriptor().GetRegisterParameter(
+        RecordWriteDescriptor::kObject));
+    Register slot_parameter(callable.descriptor().GetRegisterParameter(
+        RecordWriteDescriptor::kSlot));
+    Register isolate_parameter(callable.descriptor().GetRegisterParameter(
+        RecordWriteDescriptor::kIsolate));
+
+    __ push(object_);
+    __ push(scratch1_);
+
+    __ pop(slot_parameter);
+    __ pop(object_parameter);
+
+    __ mov(isolate_parameter,
+           Operand(ExternalReference::isolate_address(__ isolate())));
+    __ Call(callable.code(), RelocInfo::CODE_TARGET);
+
+    __ Pop(scratch0_);
+    __ mtlr(scratch0_);
+    RestoreRegisters(registers);
+#else
     RememberedSetAction const remembered_set_action =
         mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
                                              : OMIT_REMEMBERED_SET;
@@ -204,12 +264,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       // We need to save and restore lr if the frame was elided.
       __ mflr(scratch1_);
       __ Push(scratch1_);
-    }
-    if (offset_.is(no_reg)) {
-      __ addi(scratch1_, object_, Operand(offset_immediate_));
-    } else {
-      DCHECK_EQ(0, offset_immediate_);
-      __ add(scratch1_, object_, offset_);
     }
     if (must_save_lr_ && FLAG_enable_embedded_constant_pool) {
       ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
@@ -226,6 +280,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ Pop(scratch1_);
       __ mtlr(scratch1_);
     }
+#endif
   }
 
  private:
