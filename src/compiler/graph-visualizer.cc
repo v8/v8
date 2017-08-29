@@ -34,7 +34,7 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(CompilationInfo* info,
                                                  const char* suffix) {
   EmbeddedVector<char, 256> filename(0);
   std::unique_ptr<char[]> debug_name = info->GetDebugName();
-  int optimization_id = info->optimization_id();
+  int optimization_id = info->IsOptimizing() ? info->optimization_id() : 0;
   if (strlen(debug_name.get()) > 0) {
     SNPrintF(filename, "turbo-%s-%i", debug_name.get(), optimization_id);
   } else if (info->has_shared_info()) {
