@@ -121,7 +121,8 @@ MaybeHandle<Object> RegExpImpl::Compile(Handle<JSRegExp> re,
   PostponeInterruptsScope postpone(isolate);
   RegExpCompileData parse_result;
   FlatStringReader reader(isolate, pattern);
-  if (!RegExpParser::ParseRegExp(re->GetIsolate(), &zone, &reader, flags,
+  DCHECK(!isolate->has_pending_exception());
+  if (!RegExpParser::ParseRegExp(isolate, &zone, &reader, flags,
                                  &parse_result)) {
     // Throw an exception if we fail to parse the pattern.
     return ThrowRegExpException(re, pattern, parse_result.error);
