@@ -14,7 +14,6 @@
 #include "src/allocation.h"
 #include "src/base/hashmap.h"
 #include "src/base/platform/time.h"
-#include "src/list.h"
 #include "src/utils.h"
 
 #include "src/base/once.h"
@@ -481,7 +480,7 @@ class Shell : public i::AllStatic {
 
   static base::LazyMutex workers_mutex_;
   static bool allow_new_workers_;
-  static i::List<Worker*> workers_;
+  static std::vector<Worker*> workers_;
   static std::vector<ExternalizedContents> externalized_contents_;
 
   static void WriteIgnitionDispatchCountersFile(v8::Isolate* isolate);

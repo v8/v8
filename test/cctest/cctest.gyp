@@ -132,7 +132,6 @@
       'test-api-accessors.cc',
       'test-api-interceptors.cc',
       'test-array-list.cc',
-      'test-ast.cc',
       'test-atomicops.cc',
       'test-bignum.cc',
       'test-bignum-dtoa.cc',

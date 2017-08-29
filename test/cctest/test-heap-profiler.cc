@@ -66,11 +66,12 @@ class NamedEntriesDetector {
 
   void CheckAllReachables(i::HeapEntry* root) {
     v8::base::HashMap visited;
-    i::List<i::HeapEntry*> list(10);
-    list.Add(root);
+    std::vector<i::HeapEntry*> list;
+    list.push_back(root);
     CheckEntry(root);
-    while (!list.is_empty()) {
-      i::HeapEntry* entry = list.RemoveLast();
+    while (!list.empty()) {
+      i::HeapEntry* entry = list.back();
+      list.pop_back();
       for (int i = 0; i < entry->children_count(); ++i) {
         i::HeapGraphEdge* edge = entry->child(i);
         if (edge->type() == i::HeapGraphEdge::kShortcut) continue;
@@ -81,7 +82,7 @@ class NamedEntriesDetector {
         if (entry->value)
           continue;
         entry->value = reinterpret_cast<void*>(1);
-        list.Add(child);
+        list.push_back(child);
         CheckEntry(child);
       }
     }
@@ -159,14 +160,14 @@ static bool ValidateSnapshot(const v8::HeapSnapshot* snapshot, int depth = 3) {
     entry->value = reinterpret_cast<void*>(ref_count + 1);
   }
   uint32_t unretained_entries_count = 0;
-  i::List<i::HeapEntry>& entries = heap_snapshot->entries();
-  for (int i = 0; i < entries.length(); ++i) {
-    v8::base::HashMap::Entry* entry = visited.Lookup(
-        reinterpret_cast<void*>(&entries[i]),
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&entries[i])));
-    if (!entry && entries[i].id() != 1) {
-        entries[i].Print("entry with no retainer", "", depth, 0);
-        ++unretained_entries_count;
+  std::vector<i::HeapEntry>& entries = heap_snapshot->entries();
+  for (i::HeapEntry& entry : entries) {
+    v8::base::HashMap::Entry* map_entry = visited.Lookup(
+        reinterpret_cast<void*>(&entry),
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(&entry)));
+    if (!map_entry && entry.id() != 1) {
+      entry.Print("entry with no retainer", "", depth, 0);
+      ++unretained_entries_count;
     }
   }
   return unretained_entries_count == 0;
@@ -1424,7 +1425,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
         label_(label),
         element_count_(element_count),
         size_(size) {
-    instances.Add(this);
+    instances.push_back(this);
   }
   virtual ~TestRetainedObjectInfo() {}
   virtual void Dispose() {
@@ -1462,7 +1463,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
     return NULL;
   }
 
-  static i::List<TestRetainedObjectInfo*> instances;
+  static std::vector<TestRetainedObjectInfo*> instances;
 
  private:
   bool disposed_;
@@ -1473,8 +1474,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
   intptr_t size_;
 };
 
-
-i::List<TestRetainedObjectInfo*> TestRetainedObjectInfo::instances;
+std::vector<TestRetainedObjectInfo*> TestRetainedObjectInfo::instances;
 
 }  // namespace
 
@@ -1510,14 +1510,14 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   p_BBB.SetWrapperClassId(1);
   v8::Persistent<v8::String> p_CCC(isolate, v8_str("CCC"));
   p_CCC.SetWrapperClassId(2);
-  CHECK_EQ(0, TestRetainedObjectInfo::instances.length());
+  CHECK(TestRetainedObjectInfo::instances.empty());
   const v8::HeapSnapshot* snapshot = heap_profiler->TakeHeapSnapshot();
   CHECK(ValidateSnapshot(snapshot));
 
-  CHECK_EQ(3, TestRetainedObjectInfo::instances.length());
-  for (int i = 0; i < TestRetainedObjectInfo::instances.length(); ++i) {
-    CHECK(TestRetainedObjectInfo::instances[i]->disposed());
-    delete TestRetainedObjectInfo::instances[i];
+  CHECK_EQ(3, TestRetainedObjectInfo::instances.size());
+  for (TestRetainedObjectInfo* instance : TestRetainedObjectInfo::instances) {
+    CHECK(instance->disposed());
+    delete instance;
   }
 
   const v8::HeapGraphNode* native_group_aaa = GetNode(

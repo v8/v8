@@ -217,7 +217,8 @@ TEST(CodeRange) {
   code_range.SetUp(code_range_size);
   size_t current_allocated = 0;
   size_t total_allocated = 0;
-  List<Block> blocks(1000);
+  std::vector<Block> blocks;
+  blocks.reserve(1000);
 
   while (total_allocated < 5 * code_range_size) {
     if (current_allocated < code_range_size / 10) {
@@ -236,19 +237,18 @@ TEST(CodeRange) {
           requested, requested - (2 * MemoryAllocator::CodePageGuardSize()),
           &allocated);
       CHECK(base != NULL);
-      blocks.Add(Block(base, static_cast<int>(allocated)));
+      blocks.emplace_back(base, static_cast<int>(allocated));
       current_allocated += static_cast<int>(allocated);
       total_allocated += static_cast<int>(allocated);
     } else {
       // Free a block.
-      int index = Pseudorandom() % blocks.length();
+      size_t index = Pseudorandom() % blocks.size();
       code_range.FreeRawMemory(blocks[index].base, blocks[index].size);
       current_allocated -= blocks[index].size;
-      if (index < blocks.length() - 1) {
-        blocks[index] = blocks.RemoveLast();
-      } else {
-        blocks.RemoveLast();
+      if (index < blocks.size() - 1) {
+        blocks[index] = blocks.back();
       }
+      blocks.pop_back();
     }
   }
 }

@@ -10132,7 +10132,8 @@ unsigned CpuProfileNode::GetNodeId() const {
 
 
 int CpuProfileNode::GetChildrenCount() const {
-  return reinterpret_cast<const i::ProfileNode*>(this)->children()->length();
+  return static_cast<int>(
+      reinterpret_cast<const i::ProfileNode*>(this)->children()->size());
 }
 
 
@@ -10356,7 +10357,7 @@ const HeapGraphNode* HeapSnapshot::GetNodeById(SnapshotObjectId id) const {
 
 
 int HeapSnapshot::GetNodesCount() const {
-  return ToInternal(this)->entries().length();
+  return static_cast<int>(ToInternal(this)->entries().size());
 }
 
 

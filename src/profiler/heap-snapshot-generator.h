@@ -107,11 +107,11 @@ class HeapEntry BASE_EMBEDDED {
             unsigned trace_node_id);
 
   HeapSnapshot* snapshot() { return snapshot_; }
-  Type type() { return static_cast<Type>(type_); }
-  const char* name() { return name_; }
+  Type type() const { return static_cast<Type>(type_); }
+  const char* name() const { return name_; }
   void set_name(const char* name) { name_ = name; }
-  SnapshotObjectId id() { return id_; }
-  size_t self_size() { return self_size_; }
+  SnapshotObjectId id() const { return id_; }
+  size_t self_size() const { return self_size_; }
   unsigned trace_node_id() const { return trace_node_id_; }
   INLINE(int index() const);
   int children_count() const { return children_count_; }
@@ -163,7 +163,7 @@ class HeapSnapshot {
   HeapEntry* gc_subroot(int index) {
     return &entries_[gc_subroot_indexes_[index]];
   }
-  List<HeapEntry>& entries() { return entries_; }
+  std::vector<HeapEntry>& entries() { return entries_; }
   std::deque<HeapGraphEdge>& edges() { return edges_; }
   std::deque<HeapGraphEdge*>& children() { return children_; }
   void RememberLastJSObjectId();
@@ -178,7 +178,7 @@ class HeapSnapshot {
                       unsigned trace_node_id);
   void AddSyntheticRootEntries();
   HeapEntry* GetEntryById(SnapshotObjectId id);
-  List<HeapEntry*>* GetSortedEntriesList();
+  std::vector<HeapEntry*>* GetSortedEntriesList();
   void FillChildren();
 
   void Print(int max_depth);
@@ -192,10 +192,10 @@ class HeapSnapshot {
   int root_index_;
   int gc_roots_index_;
   int gc_subroot_indexes_[VisitorSynchronization::kNumberOfSyncTags];
-  List<HeapEntry> entries_;
+  std::vector<HeapEntry> entries_;
   std::deque<HeapGraphEdge> edges_;
   std::deque<HeapGraphEdge*> children_;
-  List<HeapEntry*> sorted_entries_;
+  std::vector<HeapEntry*> sorted_entries_;
   SnapshotObjectId max_snapshot_js_object_id_;
 
   friend class HeapSnapshotTester;
@@ -259,7 +259,7 @@ class HeapObjectsMap {
 
   SnapshotObjectId next_id_;
   base::HashMap entries_map_;
-  List<EntryInfo> entries_;
+  std::vector<EntryInfo> entries_;
   List<TimeInterval> time_intervals_;
   Heap* heap_;
 
@@ -588,11 +588,11 @@ class HeapSnapshotJSONSerializer {
   }
 
   int GetStringId(const char* s);
-  int entry_index(HeapEntry* e) { return e->index() * kNodeFieldsCount; }
+  int entry_index(const HeapEntry* e) { return e->index() * kNodeFieldsCount; }
   void SerializeEdge(HeapGraphEdge* edge, bool first_edge);
   void SerializeEdges();
   void SerializeImpl();
-  void SerializeNode(HeapEntry* entry);
+  void SerializeNode(const HeapEntry* entry);
   void SerializeNodes();
   void SerializeSnapshot();
   void SerializeTraceTree();

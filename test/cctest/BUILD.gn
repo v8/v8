@@ -114,7 +114,6 @@ v8_executable("cctest") {
     "test-api.cc",
     "test-api.h",
     "test-array-list.cc",
-    "test-ast.cc",
     "test-atomicops.cc",
     "test-bignum-dtoa.cc",
     "test-bignum.cc",

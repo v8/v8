@@ -207,7 +207,7 @@ void HeapSnapshot::AddSyntheticRootEntries() {
 
 HeapEntry* HeapSnapshot::AddRootEntry() {
   DCHECK(root_index_ == HeapEntry::kNoEntry);
-  DCHECK(entries_.is_empty());  // Root entry must be the first one.
+  DCHECK(entries_.empty());  // Root entry must be the first one.
   HeapEntry* entry = AddEntry(HeapEntry::kSynthetic,
                               "",
                               HeapObjectsMap::kInternalRootObjectId,
@@ -246,10 +246,9 @@ HeapEntry* HeapSnapshot::AddEntry(HeapEntry::Type type,
                                   SnapshotObjectId id,
                                   size_t size,
                                   unsigned trace_node_id) {
-  HeapEntry entry(this, type, name, id, size, trace_node_id);
-  DCHECK(sorted_entries_.is_empty());
-  entries_.Add(entry);
-  return &entries_.last();
+  DCHECK(sorted_entries_.empty());
+  entries_.emplace_back(this, type, name, id, size, trace_node_id);
+  return &entries_.back();
 }
 
 
@@ -257,20 +256,18 @@ void HeapSnapshot::FillChildren() {
   DCHECK(children().empty());
   children().resize(edges().size());
   int children_index = 0;
-  for (int i = 0; i < entries().length(); ++i) {
-    HeapEntry* entry = &entries()[i];
-    children_index = entry->set_children_index(children_index);
+  for (HeapEntry& entry : entries()) {
+    children_index = entry.set_children_index(children_index);
   }
   DCHECK_EQ(edges().size(), static_cast<size_t>(children_index));
-  for (size_t i = 0; i < edges().size(); ++i) {
-    HeapGraphEdge* edge = &edges()[i];
-    edge->ReplaceToIndexWithEntry(this);
-    edge->from()->add_child(edge);
+  for (HeapGraphEdge& edge : edges()) {
+    edge.ReplaceToIndexWithEntry(this);
+    edge.from()->add_child(&edge);
   }
 }
 
 HeapEntry* HeapSnapshot::GetEntryById(SnapshotObjectId id) {
-  List<HeapEntry*>* entries_by_id = GetSortedEntriesList();
+  std::vector<HeapEntry*>* entries_by_id = GetSortedEntriesList();
 
   auto it = std::lower_bound(
       entries_by_id->begin(), entries_by_id->end(), id,
@@ -280,23 +277,19 @@ HeapEntry* HeapSnapshot::GetEntryById(SnapshotObjectId id) {
   return *it;
 }
 
+struct SortByIds {
+  bool operator()(const HeapEntry* entry1_ptr, const HeapEntry* entry2_ptr) {
+    return entry1_ptr->id() < entry2_ptr->id();
+  }
+};
 
-template<class T>
-static int SortByIds(const T* entry1_ptr,
-                     const T* entry2_ptr) {
-  if ((*entry1_ptr)->id() == (*entry2_ptr)->id()) return 0;
-  return (*entry1_ptr)->id() < (*entry2_ptr)->id() ? -1 : 1;
-}
-
-
-List<HeapEntry*>* HeapSnapshot::GetSortedEntriesList() {
-  if (sorted_entries_.is_empty()) {
-    sorted_entries_.Allocate(entries_.length());
-    for (int i = 0; i < entries_.length(); ++i) {
-      sorted_entries_[i] = &entries_[i];
+std::vector<HeapEntry*>* HeapSnapshot::GetSortedEntriesList() {
+  if (sorted_entries_.empty()) {
+    sorted_entries_.reserve(entries_.size());
+    for (HeapEntry& entry : entries_) {
+      sorted_entries_.push_back(&entry);
     }
-    sorted_entries_.Sort<int (*)(HeapEntry* const*, HeapEntry* const*)>(
-        SortByIds);
+    std::sort(sorted_entries_.begin(), sorted_entries_.end(), SortByIds());
   }
   return &sorted_entries_;
 }
@@ -322,7 +315,7 @@ HeapObjectsMap::HeapObjectsMap(Heap* heap)
   // an entry with zero value. Otherwise it's impossible to tell if
   // LookupOrInsert has added a new item or just returning exisiting one
   // having the value of zero.
-  entries_.Add(EntryInfo(0, nullptr, 0, true));
+  entries_.emplace_back(0, nullptr, 0, true);
 }
 
 bool HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
@@ -382,7 +375,7 @@ SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
   if (entry == NULL) return 0;
   int entry_index = static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
   EntryInfo& entry_info = entries_.at(entry_index);
-  DCHECK(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
+  DCHECK(static_cast<uint32_t>(entries_.size()) > entries_map_.occupancy());
   return entry_info.id;
 }
 
@@ -390,7 +383,7 @@ SnapshotObjectId HeapObjectsMap::FindEntry(Address addr) {
 SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
                                                 unsigned int size,
                                                 bool accessed) {
-  DCHECK(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
+  DCHECK(static_cast<uint32_t>(entries_.size()) > entries_map_.occupancy());
   base::HashMap::Entry* entry =
       entries_map_.LookupOrInsert(addr, ComputePointerHash(addr));
   if (entry->value != NULL) {
@@ -405,11 +398,11 @@ SnapshotObjectId HeapObjectsMap::FindOrAddEntry(Address addr,
     entry_info.size = size;
     return entry_info.id;
   }
-  entry->value = reinterpret_cast<void*>(entries_.length());
+  entry->value = reinterpret_cast<void*>(entries_.size());
   SnapshotObjectId id = next_id_;
   next_id_ += kObjectIdStep;
-  entries_.Add(EntryInfo(id, addr, size, accessed));
-  DCHECK(static_cast<uint32_t>(entries_.length()) > entries_map_.occupancy());
+  entries_.push_back(EntryInfo(id, addr, size, accessed));
+  DCHECK(static_cast<uint32_t>(entries_.size()) > entries_map_.occupancy());
   return id;
 }
 
@@ -450,9 +443,9 @@ SnapshotObjectId HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream,
   time_intervals_.Add(TimeInterval(next_id_));
   int prefered_chunk_size = stream->GetChunkSize();
   List<v8::HeapStatsUpdate> stats_buffer;
-  DCHECK(!entries_.is_empty());
-  EntryInfo* entry_info = &entries_.first();
-  EntryInfo* end_entry_info = &entries_.last() + 1;
+  DCHECK(!entries_.empty());
+  EntryInfo* entry_info = &entries_.front();
+  EntryInfo* end_entry_info = &entries_.back() + 1;
   for (int time_interval_index = 0;
        time_interval_index < time_intervals_.length();
        ++time_interval_index) {
@@ -496,11 +489,10 @@ SnapshotObjectId HeapObjectsMap::PushHeapObjectsStats(OutputStream* stream,
 
 
 void HeapObjectsMap::RemoveDeadEntries() {
-  DCHECK(entries_.length() > 0 &&
-         entries_.at(0).id == 0 &&
+  DCHECK(entries_.size() > 0 && entries_.at(0).id == 0 &&
          entries_.at(0).addr == NULL);
-  int first_free_entry = 1;
-  for (int i = 1; i < entries_.length(); ++i) {
+  size_t first_free_entry = 1;
+  for (size_t i = 1; i < entries_.size(); ++i) {
     EntryInfo& entry_info = entries_.at(i);
     if (entry_info.accessed) {
       if (first_free_entry != i) {
@@ -519,8 +511,9 @@ void HeapObjectsMap::RemoveDeadEntries() {
       }
     }
   }
-  entries_.Rewind(first_free_entry);
-  DCHECK(static_cast<uint32_t>(entries_.length()) - 1 ==
+  entries_.erase(entries_.begin() + first_free_entry, entries_.end());
+
+  DCHECK(static_cast<uint32_t>(entries_.size()) - 1 ==
          entries_map_.occupancy());
 }
 
@@ -2643,8 +2636,7 @@ void HeapSnapshotJSONSerializer::SerializeEdges() {
   }
 }
 
-
-void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
+void HeapSnapshotJSONSerializer::SerializeNode(const HeapEntry* entry) {
   // The buffer needs space for 4 unsigned ints, 1 size_t, 5 commas, \n and \0
   static const int kBufferSize =
       5 * MaxDecimalDigitsIn<sizeof(unsigned)>::kUnsigned  // NOLINT
@@ -2673,9 +2665,9 @@ void HeapSnapshotJSONSerializer::SerializeNode(HeapEntry* entry) {
 
 
 void HeapSnapshotJSONSerializer::SerializeNodes() {
-  List<HeapEntry>& entries = snapshot_->entries();
-  for (int i = 0; i < entries.length(); ++i) {
-    SerializeNode(&entries[i]);
+  std::vector<HeapEntry>& entries = snapshot_->entries();
+  for (const HeapEntry& entry : entries) {
+    SerializeNode(&entry);
     if (writer_->aborted()) return;
   }
 }
@@ -2751,7 +2743,7 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
 #undef JSON_O
 #undef JSON_A
   writer_->AddString(",\"node_count\":");
-  writer_->AddNumber(snapshot_->entries().length());
+  writer_->AddNumber(static_cast<unsigned>(snapshot_->entries().size()));
   writer_->AddString(",\"edge_count\":");
   writer_->AddNumber(static_cast<double>(snapshot_->edges().size()));
   writer_->AddString(",\"trace_function_count\":");

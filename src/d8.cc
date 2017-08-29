@@ -33,7 +33,6 @@
 #include "src/basic-block-profiler.h"
 #include "src/debug/debug-interface.h"
 #include "src/interpreter/interpreter.h"
-#include "src/list-inl.h"
 #include "src/msan.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
@@ -452,7 +451,7 @@ const base::TimeTicks Shell::kInitialTicks =
 Global<Function> Shell::stringify_function_;
 base::LazyMutex Shell::workers_mutex_;
 bool Shell::allow_new_workers_ = true;
-i::List<Worker*> Shell::workers_;
+std::vector<Worker*> Shell::workers_;
 std::vector<ExternalizedContents> Shell::externalized_contents_;
 base::LazyMutex Shell::isolate_status_lock_;
 std::map<v8::Isolate*, bool> Shell::isolate_status_;
@@ -1304,7 +1303,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   {
     base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
-    if (workers_.length() >= kMaxWorkers) {
+    if (workers_.size() >= kMaxWorkers) {
       Throw(args.GetIsolate(), "Too many workers, I won't let you create more");
       return;
     }
@@ -1318,7 +1317,7 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
     Worker* worker = new Worker;
     args.Holder()->SetAlignedPointerInInternalField(0, worker);
-    workers_.Add(worker);
+    workers_.push_back(worker);
 
     String::Utf8Value script(args.GetIsolate(), args[0]);
     if (!*script) {
@@ -3087,16 +3086,14 @@ void Shell::CleanupWorkers() {
   // Make a copy of workers_, because we don't want to call Worker::Terminate
   // while holding the workers_mutex_ lock. Otherwise, if a worker is about to
   // create a new Worker, it would deadlock.
-  i::List<Worker*> workers_copy;
+  std::vector<Worker*> workers_copy;
   {
     base::LockGuard<base::Mutex> lock_guard(workers_mutex_.Pointer());
     allow_new_workers_ = false;
-    workers_copy.AddAll(workers_);
-    workers_.Clear();
+    workers_copy.swap(workers_);
   }
 
-  for (int i = 0; i < workers_copy.length(); ++i) {
-    Worker* worker = workers_copy[i];
+  for (Worker* worker : workers_copy) {
     worker->WaitForThread();
     delete worker;
   }

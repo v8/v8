@@ -407,11 +407,10 @@ TEST(RecordTickSample) {
   delete entry3;
 }
 
-
-static void CheckNodeIds(ProfileNode* node, unsigned* expectedId) {
+static void CheckNodeIds(const ProfileNode* node, unsigned* expectedId) {
   CHECK_EQ((*expectedId)++, node->id());
-  for (int i = 0; i < node->children()->length(); i++) {
-    CheckNodeIds(node->children()->at(i), expectedId);
+  for (const ProfileNode* child : *node->children()) {
+    CheckNodeIds(child, expectedId);
   }
 }
 
@@ -506,8 +505,7 @@ TEST(NoSamples) {
 
 static const ProfileNode* PickChild(const ProfileNode* parent,
                                     const char* name) {
-  for (int i = 0; i < parent->children()->length(); ++i) {
-    const ProfileNode* child = parent->children()->at(i);
+  for (const ProfileNode* child : *parent->children()) {
     if (strcmp(child->entry()->name(), name) == 0) return child;
   }
   return NULL;
@@ -554,11 +552,10 @@ TEST(RecordStackTraceAtStartProfiling) {
   CHECK(const_cast<ProfileNode*>(current));
   current = PickChild(current, "c");
   CHECK(const_cast<ProfileNode*>(current));
-  CHECK(current->children()->length() == 0 ||
-        current->children()->length() == 1);
-  if (current->children()->length() == 1) {
+  CHECK(current->children()->empty() || current->children()->size() == 1);
+  if (current->children()->size() == 1) {
     current = PickChild(current, "startProfiling");
-    CHECK_EQ(0, current->children()->length());
+    CHECK(current->children()->empty());
   }
 }
 
