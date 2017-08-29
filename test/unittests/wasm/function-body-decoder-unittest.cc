@@ -2442,17 +2442,17 @@ class WasmOpcodeLengthTest : public TestWithZone {
 
 TEST_F(WasmOpcodeLengthTest, Statements) {
   EXPECT_LENGTH(1, kExprNop);
-  EXPECT_LENGTH(2, kExprBlock);
-  EXPECT_LENGTH(2, kExprLoop);
-  EXPECT_LENGTH(2, kExprIf);
   EXPECT_LENGTH(1, kExprElse);
   EXPECT_LENGTH(1, kExprEnd);
   EXPECT_LENGTH(1, kExprSelect);
   EXPECT_LENGTH(2, kExprBr);
   EXPECT_LENGTH(2, kExprBrIf);
   EXPECT_LENGTH(2, kExprThrow);
-  EXPECT_LENGTH(2, kExprTry);
   EXPECT_LENGTH(2, kExprCatch);
+  EXPECT_LENGTH_N(2, kExprBlock, kLocalI32);
+  EXPECT_LENGTH_N(2, kExprLoop, kLocalI32);
+  EXPECT_LENGTH_N(2, kExprIf, kLocalI32);
+  EXPECT_LENGTH_N(2, kExprTry, kLocalI32);
 }
 
 TEST_F(WasmOpcodeLengthTest, MiscExpressions) {

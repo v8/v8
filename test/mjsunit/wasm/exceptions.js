@@ -34,6 +34,8 @@ assertFalse(test_throw === 0);
 assertEquals("object", typeof test_throw.exports);
 assertEquals("function", typeof test_throw.exports.throw_if_param_not_zero);
 
+/* TODO(kschimpf) Convert these tests to work for the proposed exceptions.
+
 // Test expected behavior of throws
 assertEquals(1, test_throw.exports.throw_if_param_not_zero(0));
 assertWasmThrows([], function() { test_throw.exports.throw_if_param_not_zero(10) });
@@ -71,8 +73,6 @@ assertEquals("function", typeof test_catch.exports.simple_throw_catch_to_0_1);
 // Test expected behavior of simple catch.
 assertEquals(0, test_catch.exports.simple_throw_catch_to_0_1(0));
 assertEquals(1, test_catch.exports.simple_throw_catch_to_0_1(1));
-
-/* TODO(kschimpf) Convert these tests to work for the proposed exceptions.
 
 // The following methods do not attempt to catch the exception they raise.
 var test_throw = (function () {
