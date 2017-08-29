@@ -240,12 +240,10 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
     return Smi::FromInt(TYPED_ARRAY_SET_NON_TYPED_ARRAY);
   }
 
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target_obj, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, source_obj, 1);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, source, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset_obj, 2);
 
-  Handle<JSTypedArray> target(JSTypedArray::cast(*target_obj));
-  Handle<JSTypedArray> source(JSTypedArray::cast(*source_obj));
   size_t offset = 0;
   CHECK(TryNumberToSize(*offset_obj, &offset));
   size_t target_length = target->length_value();
