@@ -1243,7 +1243,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               break;
             }
 
-            if (c->is_try_catch()) {
+            if (CHECK_ERROR(c->is_try_catch())) {
               OPCODE_ERROR(opcode, "multiple catch blocks not implemented");
               break;
             }

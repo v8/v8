@@ -176,18 +176,10 @@ class WasmGraphBuildingInterface
     SetEnv(c->interface_data.end_env);
   }
 
-  void PopControl(Decoder* decoder, const Control& block) {
+  void PopControl(Decoder* decoder, Control& block) {
     if (block.is_onearmed_if()) {
       Goto(decoder, block.interface_data.false_env,
            block.interface_data.end_env);
-    } else if (block.is_try_catch()) {
-      SsaEnv* fallthru_ssa_env = ssa_env_;
-      DCHECK_NOT_NULL(block.interface_data.try_info->catch_env);
-      SetEnv(block.interface_data.try_info->catch_env);
-      BUILD(Rethrow);
-      // TODO(clemensh): Make this work again.
-      // FallThruTo(decoder, &block);
-      SetEnv(fallthru_ssa_env);
     }
   }
 
@@ -400,8 +392,10 @@ class WasmGraphBuildingInterface
 
   void Catch(Decoder* decoder, const ExceptionIndexOperand<true>& operand,
              Control* block) {
-    DCHECK_NOT_NULL(block->interface_data.try_info);
+    DCHECK(block->is_try_catch());
     current_catch_ = block->interface_data.previous_catch;
+    SsaEnv* catch_env = block->interface_data.try_info->catch_env;
+    SetEnv(catch_env);
 
     // Get the exception and see if wanted exception.
     TFNode* exception_as_i32 = BUILD(
@@ -412,12 +406,18 @@ class WasmGraphBuildingInterface
     TFNode* if_true = nullptr;
     TFNode* if_false = nullptr;
     BUILD(BranchNoHint, compare_i32, &if_true, &if_false);
-    SsaEnv* end_env = ssa_env_;
-    SsaEnv* false_env = Split(decoder, end_env);
+    SsaEnv* false_env = Split(decoder, catch_env);
     false_env->control = if_false;
-    SsaEnv* true_env = Steal(decoder->zone(), ssa_env_);
+    SsaEnv* true_env = Steal(decoder->zone(), catch_env);
     true_env->control = if_true;
     block->interface_data.try_info->catch_env = false_env;
+
+    // Generate code to re-throw the exception.
+    DCHECK_NOT_NULL(block->interface_data.try_info->catch_env);
+    SetEnv(false_env);
+    BUILD(Rethrow);
+    FallThruTo(decoder, block);
+
     SetEnv(true_env);
     // TODO(kschimpf): Add code to pop caught exception from isolate.
   }
