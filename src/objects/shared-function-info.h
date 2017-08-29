@@ -526,13 +526,6 @@ class SharedFunctionInfo : public HeapObject {
   DISALLOW_IMPLICIT_CONSTRUCTORS(SharedFunctionInfo);
 };
 
-// Result of searching in an optimized code map of a SharedFunctionInfo. Note
-// that both {code} and {vector} can be NULL to pass search result status.
-struct CodeAndVector {
-  Code* code;              // Cached optimized code.
-  FeedbackVector* vector;  // Cached feedback vector.
-};
-
 // Printing support.
 struct SourceCodeOf {
   explicit SourceCodeOf(SharedFunctionInfo* v, int max = -1)
