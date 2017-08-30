@@ -888,29 +888,26 @@ class CaseClause final : public ZoneObject {
 
 class SwitchStatement final : public BreakableStatement {
  public:
-  void Initialize(Expression* tag, ZoneList<CaseClause*>* cases) {
-    tag_ = tag;
-    cases_ = cases;
-  }
-
   ZoneList<const AstRawString*>* labels() const { return labels_; }
-  Expression* tag() const { return tag_; }
-  ZoneList<CaseClause*>* cases() const { return cases_; }
 
+  Expression* tag() const { return tag_; }
   void set_tag(Expression* t) { tag_ = t; }
+
+  ZoneList<CaseClause*>* cases() { return &cases_; }
 
  private:
   friend class AstNodeFactory;
 
-  SwitchStatement(ZoneList<const AstRawString*>* labels, int pos)
+  SwitchStatement(Zone* zone, ZoneList<const AstRawString*>* labels,
+                  Expression* tag, int pos)
       : BreakableStatement(TARGET_FOR_ANONYMOUS, pos, kSwitchStatement),
         labels_(labels),
-        tag_(NULL),
-        cases_(NULL) {}
+        tag_(tag),
+        cases_(4, zone) {}
 
   ZoneList<const AstRawString*>* labels_;
   Expression* tag_;
-  ZoneList<CaseClause*>* cases_;
+  ZoneList<CaseClause*> cases_;
 };
 
 
@@ -3181,8 +3178,12 @@ class AstNodeFactory final BASE_EMBEDDED {
   STATEMENT_WITH_LABELS(DoWhileStatement)
   STATEMENT_WITH_LABELS(WhileStatement)
   STATEMENT_WITH_LABELS(ForStatement)
-  STATEMENT_WITH_LABELS(SwitchStatement)
 #undef STATEMENT_WITH_LABELS
+
+  SwitchStatement* NewSwitchStatement(ZoneList<const AstRawString*>* labels,
+                                      Expression* tag, int pos) {
+    return new (zone_) SwitchStatement(zone_, labels, tag, pos);
+  }
 
   ForEachStatement* NewForEachStatement(ForEachStatement::VisitMode visit_mode,
                                         ZoneList<const AstRawString*>* labels,

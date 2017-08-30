@@ -5391,7 +5391,8 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
   ExpressionT tag = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  auto switch_statement = factory()->NewSwitchStatement(labels, switch_pos);
+  auto switch_statement =
+      factory()->NewSwitchStatement(labels, tag, switch_pos);
 
   {
     BlockState cases_block_state(zone(), &scope_);
@@ -5400,7 +5401,6 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
     typename Types::Target target(this, switch_statement);
 
     bool default_seen = false;
-    auto cases = impl()->NewCaseClauseList(4);
     Expect(Token::LBRACE, CHECK_OK);
     while (peek() != Token::RBRACE) {
       // An empty label indicates the default case.
@@ -5427,15 +5427,18 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseSwitchStatement(
       }
       auto clause = factory()->NewCaseClause(label, statements);
       impl()->RecordCaseClauseSourceRange(clause, range_scope.Finalize());
-      cases->Add(clause, zone());
+      switch_statement->cases()->Add(clause, zone());
     }
     Expect(Token::RBRACE, CHECK_OK);
 
     int end_position = scanner()->location().end_pos;
     scope()->set_end_position(end_position);
     impl()->RecordSwitchStatementSourceRange(switch_statement, end_position);
-    return impl()->RewriteSwitchStatement(tag, switch_statement, cases,
-                                          scope()->FinalizeBlockScope());
+    Scope* switch_scope = scope()->FinalizeBlockScope();
+    if (switch_scope != nullptr) {
+      return impl()->RewriteSwitchStatement(switch_statement, switch_scope);
+    }
+    return switch_statement;
   }
 }
 

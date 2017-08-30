@@ -332,9 +332,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool ContainsLabel(ZoneList<const AstRawString*>* labels,
                      const AstRawString* label);
   Expression* RewriteReturn(Expression* return_value, int pos);
-  Statement* RewriteSwitchStatement(Expression* tag,
-                                    SwitchStatement* switch_statement,
-                                    ZoneList<CaseClause*>* cases, Scope* scope);
+  Statement* RewriteSwitchStatement(SwitchStatement* switch_statement,
+                                    Scope* scope);
   void RewriteCatchPattern(CatchInfo* catch_info, bool* ok);
   void ValidateCatchBlock(const CatchInfo& catch_info, bool* ok);
   Statement* RewriteTryStatement(Block* try_block, Block* catch_block,
@@ -915,9 +914,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   }
   V8_INLINE ZoneList<Statement*>* NewStatementList(int size) const {
     return new (zone()) ZoneList<Statement*>(size, zone());
-  }
-  V8_INLINE ZoneList<CaseClause*>* NewCaseClauseList(int size) const {
-    return new (zone()) ZoneList<CaseClause*>(size, zone());
   }
 
   V8_INLINE Expression* NewV8Intrinsic(const AstRawString* name,

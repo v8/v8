@@ -1584,9 +1584,7 @@ Expression* Parser::RewriteDoExpression(Block* body, int pos, bool* ok) {
   return expr;
 }
 
-Statement* Parser::RewriteSwitchStatement(Expression* tag,
-                                          SwitchStatement* switch_statement,
-                                          ZoneList<CaseClause*>* cases,
+Statement* Parser::RewriteSwitchStatement(SwitchStatement* switch_statement,
                                           Scope* scope) {
   // In order to get the CaseClauses to execute in their own lexical scope,
   // but without requiring downstream code to have special scope handling
@@ -1597,35 +1595,29 @@ Statement* Parser::RewriteSwitchStatement(Expression* tag,
   //     switch (.tag_variable) { CaseClause* }
   //   }
   // }
+  DCHECK_NOT_NULL(scope);
+  DCHECK(scope->is_block_scope());
+  DCHECK_GE(switch_statement->position(), scope->start_position());
+  DCHECK_LT(switch_statement->position(), scope->end_position());
 
   Block* switch_block = factory()->NewBlock(2, false);
 
+  Expression* tag = switch_statement->tag();
   Variable* tag_variable =
       NewTemporary(ast_value_factory()->dot_switch_tag_string());
   Assignment* tag_assign = factory()->NewAssignment(
       Token::ASSIGN, factory()->NewVariableProxy(tag_variable), tag,
       tag->position());
-  Statement* tag_statement =
-      factory()->NewExpressionStatement(tag_assign, kNoSourcePosition);
+  // Wrap with IgnoreCompletion so the tag isn't returned as the completion
+  // value, in case the switch statements don't have a value.
+  Statement* tag_statement = IgnoreCompletion(
+      factory()->NewExpressionStatement(tag_assign, kNoSourcePosition));
   switch_block->statements()->Add(tag_statement, zone());
 
-  // make statement: undefined;
-  // This is needed so the tag isn't returned as the value, in case the switch
-  // statements don't have a value.
-  switch_block->statements()->Add(
-      factory()->NewExpressionStatement(
-          factory()->NewUndefinedLiteral(kNoSourcePosition), kNoSourcePosition),
-      zone());
-
-  Expression* tag_read = factory()->NewVariableProxy(tag_variable);
-  switch_statement->Initialize(tag_read, cases);
+  switch_statement->set_tag(factory()->NewVariableProxy(tag_variable));
   Block* cases_block = factory()->NewBlock(1, false);
   cases_block->statements()->Add(switch_statement, zone());
   cases_block->set_scope(scope);
-  DCHECK_IMPLIES(scope != nullptr,
-                 switch_statement->position() >= scope->start_position());
-  DCHECK_IMPLIES(scope != nullptr,
-                 switch_statement->position() < scope->end_position());
   switch_block->statements()->Add(cases_block, zone());
   return switch_block;
 }

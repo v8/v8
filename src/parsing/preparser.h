@@ -464,7 +464,11 @@ class PreParserStatement {
   // and PreParser.
   PreParserStatement* operator->() { return this; }
 
+  // TODO(adamk): These should return something even lighter-weight than
+  // PreParserStatementList.
   PreParserStatementList statements() { return PreParserStatementList(); }
+  PreParserStatementList cases() { return PreParserStatementList(); }
+
   void set_scope(Scope* scope) {}
   void Initialize(const PreParserExpression& cond, PreParserStatement body,
                   const SourceRange& body_range = {}) {}
@@ -713,6 +717,7 @@ class PreParserFactory {
   }
 
   PreParserStatement NewSwitchStatement(ZoneList<const AstRawString*>* labels,
+                                        const PreParserExpression& tag,
                                         int pos) {
     return PreParserStatement::Default();
   }
@@ -996,9 +1001,8 @@ class PreParser : public ParserBase<PreParser> {
   RewriteReturn(const PreParserExpression& return_value, int pos) {
     return return_value;
   }
-  V8_INLINE PreParserStatement RewriteSwitchStatement(
-      const PreParserExpression& tag, PreParserStatement switch_statement,
-      PreParserStatementList cases, Scope* scope) {
+  V8_INLINE PreParserStatement
+  RewriteSwitchStatement(PreParserStatement switch_statement, Scope* scope) {
     return PreParserStatement::Default();
   }
 
@@ -1509,10 +1513,6 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   V8_INLINE PreParserStatementList NewStatementList(int size) const {
-    return PreParserStatementList();
-  }
-
-  PreParserStatementList NewCaseClauseList(int size) {
     return PreParserStatementList();
   }
 
