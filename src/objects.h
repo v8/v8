@@ -146,6 +146,7 @@
 //       - AccessCheckInfo
 //       - InterceptorInfo
 //       - CallHandlerInfo
+//       - EnumCache
 //       - TemplateInfo
 //         - FunctionTemplateInfo
 //         - ObjectTemplateInfo
@@ -920,6 +921,7 @@ class AllocationSite;
 class Cell;
 class ConsString;
 class ElementsAccessor;
+class EnumCache;
 class FindAndReplacePattern;
 class FixedArrayBase;
 class PropertyArray;
@@ -988,6 +990,7 @@ template <class C> inline bool Is(Object* obj);
   V(DeoptimizationInputData)              \
   V(DependentCode)                        \
   V(DescriptorArray)                      \
+  V(EnumCache)                            \
   V(External)                             \
   V(ExternalOneByteString)                \
   V(ExternalString)                       \

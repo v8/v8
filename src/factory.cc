@@ -102,6 +102,11 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   return result;
 }
 
+Handle<EnumCache> Factory::NewEnumCache(Handle<FixedArray> keys,
+                                        Handle<FixedArray> indices) {
+  return Handle<EnumCache>::cast(NewTuple2(keys, indices));
+}
+
 Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1,
                                   Handle<Object> value2) {
   Handle<Tuple2> result = Handle<Tuple2>::cast(NewStruct(TUPLE2_TYPE));

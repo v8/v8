@@ -259,9 +259,9 @@ void FastKeyAccumulator::Prepare() {
 }
 
 namespace {
-static Handle<FixedArray> ReduceFixedArrayTo(Isolate* isolate,
-                                             Handle<FixedArray> array,
-                                             int length) {
+
+Handle<FixedArray> ReduceFixedArrayTo(Isolate* isolate,
+                                      Handle<FixedArray> array, int length) {
   DCHECK_LE(length, array->length());
   if (array->length() == length) return array;
   return isolate->factory()->CopyFixedArrayUpTo(array, length);
@@ -271,76 +271,77 @@ static Handle<FixedArray> ReduceFixedArrayTo(Isolate* isolate,
 // have to make sure to never directly leak the enum cache.
 Handle<FixedArray> GetFastEnumPropertyKeys(Isolate* isolate,
                                            Handle<JSObject> object) {
-  Handle<Map> map(object->map());
-  bool cache_enum_length = map->OnlyHasSimpleProperties();
+  Handle<Map> map(object->map(), isolate);
+  Handle<FixedArray> keys(map->instance_descriptors()->GetEnumCache()->keys(),
+                          isolate);
 
-  Handle<DescriptorArray> descs =
-      Handle<DescriptorArray>(map->instance_descriptors(), isolate);
-  int own_property_count = map->EnumLength();
-  // If the enum length of the given map is set to kInvalidEnumCache, this
-  // means that the map itself has never used the present enum cache. The
-  // first step to using the cache is to set the enum length of the map by
-  // counting the number of own descriptors that are ENUMERABLE_STRINGS.
-  if (own_property_count == kInvalidEnumCacheSentinel) {
-    own_property_count = map->NumberOfEnumerableProperties();
-  } else {
-    DCHECK_EQ(own_property_count, map->NumberOfEnumerableProperties());
-  }
-
-  if (descs->HasEnumCache()) {
-    Handle<FixedArray> keys(descs->GetEnumCache(), isolate);
-    // In case the number of properties required in the enum are actually
-    // present, we can reuse the enum cache. Otherwise, this means that the
-    // enum cache was generated for a previous (smaller) version of the
-    // Descriptor Array. In that case we regenerate the enum cache.
-    if (own_property_count <= keys->length()) {
-      isolate->counters()->enum_cache_hits()->Increment();
-      if (cache_enum_length) map->SetEnumLength(own_property_count);
-      return ReduceFixedArrayTo(isolate, keys, own_property_count);
-    }
-  }
-
-  if (descs->IsEmpty()) {
+  // Check if the {map} has a valid enum length, which implies that it
+  // must have a valid enum cache as well.
+  int enum_length = map->EnumLength();
+  if (enum_length != kInvalidEnumCacheSentinel) {
+    DCHECK(map->OnlyHasSimpleProperties());
+    DCHECK_LE(enum_length, keys->length());
+    DCHECK_EQ(enum_length, map->NumberOfEnumerableProperties());
     isolate->counters()->enum_cache_hits()->Increment();
-    if (cache_enum_length) map->SetEnumLength(0);
-    return isolate->factory()->empty_fixed_array();
+    return ReduceFixedArrayTo(isolate, keys, enum_length);
   }
 
+  // Determine the actual number of enumerable properties of the {map}.
+  enum_length = map->NumberOfEnumerableProperties();
+
+  // Check if there's already a shared enum cache on the {map}s
+  // DescriptorArray with sufficient number of entries.
+  if (enum_length <= keys->length()) {
+    if (map->OnlyHasSimpleProperties()) map->SetEnumLength(enum_length);
+    isolate->counters()->enum_cache_hits()->Increment();
+    return ReduceFixedArrayTo(isolate, keys, enum_length);
+  }
+
+  Handle<DescriptorArray> descriptors =
+      Handle<DescriptorArray>(map->instance_descriptors(), isolate);
   isolate->counters()->enum_cache_misses()->Increment();
+  int nod = map->NumberOfOwnDescriptors();
 
-  Handle<FixedArray> storage =
-      isolate->factory()->NewFixedArray(own_property_count);
-  Handle<FixedArray> indices =
-      isolate->factory()->NewFixedArray(own_property_count);
-
-  int size = map->NumberOfOwnDescriptors();
+  // Create the keys array.
   int index = 0;
-
-  for (int i = 0; i < size; i++) {
-    PropertyDetails details = descs->GetDetails(i);
+  bool fields_only = true;
+  keys = isolate->factory()->NewFixedArray(enum_length);
+  for (int i = 0; i < nod; i++) {
+    DisallowHeapAllocation no_gc;
+    PropertyDetails details = descriptors->GetDetails(i);
     if (details.IsDontEnum()) continue;
-    Object* key = descs->GetKey(i);
+    Object* key = descriptors->GetKey(i);
     if (key->IsSymbol()) continue;
-    storage->set(index, key);
-    if (!indices.is_null()) {
-      if (details.location() == kField) {
-        DCHECK_EQ(kData, details.kind());
-        FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
-        int load_by_field_index = field_index.GetLoadByFieldIndex();
-        indices->set(index, Smi::FromInt(load_by_field_index));
-      } else {
-        indices = Handle<FixedArray>();
-      }
-    }
+    keys->set(index, key);
+    if (details.location() != kField) fields_only = false;
     index++;
   }
-  DCHECK(index == storage->length());
+  DCHECK_EQ(index, keys->length());
 
-  DescriptorArray::SetEnumCache(descs, isolate, storage, indices);
-  if (cache_enum_length) {
-    map->SetEnumLength(own_property_count);
+  // Optionally also create the indices array.
+  Handle<FixedArray> indices = isolate->factory()->empty_fixed_array();
+  if (fields_only) {
+    indices = isolate->factory()->NewFixedArray(enum_length);
+    index = 0;
+    for (int i = 0; i < nod; i++) {
+      DisallowHeapAllocation no_gc;
+      PropertyDetails details = descriptors->GetDetails(i);
+      if (details.IsDontEnum()) continue;
+      Object* key = descriptors->GetKey(i);
+      if (key->IsSymbol()) continue;
+      DCHECK_EQ(kData, details.kind());
+      DCHECK_EQ(kField, details.location());
+      FieldIndex field_index = FieldIndex::ForDescriptor(*map, i);
+      indices->set(index, Smi::FromInt(field_index.GetLoadByFieldIndex()));
+      index++;
+    }
+    DCHECK_EQ(index, indices->length());
   }
-  return storage;
+
+  DescriptorArray::SetEnumCache(descriptors, isolate, keys, indices);
+  if (map->OnlyHasSimpleProperties()) map->SetEnumLength(enum_length);
+
+  return keys;
 }
 
 template <bool fast_properties>

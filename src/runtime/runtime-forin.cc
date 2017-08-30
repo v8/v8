@@ -126,12 +126,7 @@ RUNTIME_FUNCTION_RETURN_TRIPLE(Runtime_ForInPrepare) {
     Handle<DescriptorArray> descriptors(cache_map->instance_descriptors(),
                                         isolate);
     cache_length = cache_map->EnumLength();
-    if (cache_length && descriptors->HasEnumCache()) {
-      cache_array = handle(descriptors->GetEnumCache(), isolate);
-    } else {
-      cache_array = isolate->factory()->empty_fixed_array();
-      cache_length = 0;
-    }
+    cache_array = handle(descriptors->GetEnumCache()->keys(), isolate);
   } else {
     cache_array = Handle<FixedArray>::cast(cache_type);
     cache_length = cache_array->length();

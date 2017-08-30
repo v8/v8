@@ -2426,6 +2426,11 @@ bool Heap::CreateInitialMaps() {
 
     ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel, fixed_array);
     fixed_array_map()->set_elements_kind(HOLEY_ELEMENTS);
+    ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel,
+                         fixed_cow_array)
+    fixed_cow_array_map()->set_elements_kind(HOLEY_ELEMENTS);
+    DCHECK_NE(fixed_array_map(), fixed_cow_array_map());
+
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, undefined);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, null);
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, the_hole);
@@ -2464,21 +2469,48 @@ bool Heap::CreateInitialMaps() {
   // Set preliminary exception sentinel value before actually initializing it.
   set_exception(null_value());
 
+  // Setup the struct maps first (needed for the EnumCache).
+  for (unsigned i = 0; i < arraysize(struct_table); i++) {
+    const StructTable& entry = struct_table[i];
+    Map* map;
+    if (!AllocatePartialMap(entry.type, entry.size).To(&map)) return false;
+    roots_[entry.index] = map;
+  }
+
+  // Allocate the empty enum cache.
+  {
+    AllocationResult allocation = Allocate(tuple2_map(), OLD_SPACE);
+    if (!allocation.To(&obj)) return false;
+  }
+  set_empty_enum_cache(EnumCache::cast(obj));
+  EnumCache::cast(obj)->set_keys(empty_fixed_array());
+  EnumCache::cast(obj)->set_indices(empty_fixed_array());
+
   // Allocate the empty descriptor array.
   {
-    AllocationResult allocation = AllocateEmptyFixedArray();
+    AllocationResult allocation =
+        AllocateUninitializedFixedArray(DescriptorArray::kFirstIndex, TENURED);
     if (!allocation.To(&obj)) return false;
   }
   set_empty_descriptor_array(DescriptorArray::cast(obj));
+  DescriptorArray::cast(obj)->set(DescriptorArray::kDescriptorLengthIndex,
+                                  Smi::kZero);
+  DescriptorArray::cast(obj)->set(DescriptorArray::kEnumCacheIndex,
+                                  empty_enum_cache());
 
   // Fix the instance_descriptors for the existing maps.
   FinalizePartialMap(this, meta_map());
   FinalizePartialMap(this, fixed_array_map());
+  FinalizePartialMap(this, fixed_cow_array_map());
   FinalizePartialMap(this, undefined_map());
   undefined_map()->set_is_undetectable();
   FinalizePartialMap(this, null_map());
   null_map()->set_is_undetectable();
   FinalizePartialMap(this, the_hole_map());
+  for (unsigned i = 0; i < arraysize(struct_table); ++i) {
+    const StructTable& entry = struct_table[i];
+    FinalizePartialMap(this, Map::cast(roots_[entry.index]));
+  }
 
   {  // Map allocation
 #define ALLOCATE_MAP(instance_type, size, field_name)               \
@@ -2498,10 +2530,6 @@ bool Heap::CreateInitialMaps() {
     field_name##_map()->SetConstructorFunctionIndex(            \
         (constructor_function_index));                          \
   }
-
-    ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, fixed_cow_array)
-    fixed_cow_array_map()->set_elements_kind(HOLEY_ELEMENTS);
-    DCHECK_NE(fixed_array_map(), fixed_cow_array_map());
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, scope_info)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, module_info)
@@ -2579,13 +2607,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_MAP(FILLER_TYPE, 2 * kPointerSize, two_pointer_filler)
 
     ALLOCATE_VARSIZE_MAP(TRANSITION_ARRAY_TYPE, transition_array)
-
-    for (unsigned i = 0; i < arraysize(struct_table); i++) {
-      const StructTable& entry = struct_table[i];
-      Map* map;
-      if (!AllocateMap(entry.type, entry.size).To(&map)) return false;
-      roots_[entry.index] = map;
-    }
 
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, hash_table)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, ordered_hash_table)
@@ -4275,12 +4296,13 @@ AllocationResult Heap::AllocatePropertyArray(int length,
   return result;
 }
 
-AllocationResult Heap::AllocateUninitializedFixedArray(int length) {
+AllocationResult Heap::AllocateUninitializedFixedArray(
+    int length, PretenureFlag pretenure) {
   if (length == 0) return empty_fixed_array();
 
   HeapObject* obj = nullptr;
   {
-    AllocationResult allocation = AllocateRawFixedArray(length, NOT_TENURED);
+    AllocationResult allocation = AllocateRawFixedArray(length, pretenure);
     if (!allocation.To(&obj)) return allocation;
   }
 

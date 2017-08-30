@@ -169,11 +169,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to FixedTypedArrayBase::external_pointer() field.
   static FieldAccess ForFixedTypedArrayBaseExternalPointer();
 
-  // Provides access to DescriptorArray::enum_cache_bridge() field.
-  static FieldAccess ForDescriptorArrayEnumCacheBridge();
-
-  // Provides access to DescriptorArray::enum_cache_bridge_cache() field.
-  static FieldAccess ForDescriptorArrayEnumCacheBridgeCache();
+  // Provides access to DescriptorArray::enum_cache() field.
+  static FieldAccess ForDescriptorArrayEnumCache();
 
   // Provides access to Map::bit_field() byte.
   static FieldAccess ForMapBitField();
@@ -285,8 +282,8 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to FixedDoubleArray elements.
   static ElementAccess ForFixedDoubleArrayElement();
 
-  // Provides access to EnumCache elements.
-  static ElementAccess ForDescriptorArrayEnumCacheBridgeCacheElement();
+  // Provides access to EnumCache::keys elements.
+  static ElementAccess ForEnumCacheKeysElement();
 
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,

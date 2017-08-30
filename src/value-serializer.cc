@@ -1754,7 +1754,7 @@ Maybe<uint32_t> ValueDeserializer::ReadJSObjectProperties(
     bool transitioning = true;
     Handle<Map> map(object->map(), isolate_);
     DCHECK(!map->is_dictionary_map());
-    DCHECK(map->instance_descriptors()->IsEmpty());
+    DCHECK_EQ(0, map->instance_descriptors()->number_of_descriptors());
     std::vector<Handle<Object>> properties;
     properties.reserve(8);
 

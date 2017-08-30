@@ -270,7 +270,7 @@ Reduction JSTypeHintLowering::ReduceForInNextOperation(
                                     receiver, cache_type, effect, control);
     Node* node = jsgraph()->graph()->NewNode(
         jsgraph()->simplified()->LoadElement(
-            AccessBuilder::ForDescriptorArrayEnumCacheBridgeCacheElement()),
+            AccessBuilder::ForEnumCacheKeysElement()),
         cache_array, index, effect, control);
     return Reduction(node);
   }

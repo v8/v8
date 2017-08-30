@@ -4683,7 +4683,7 @@ MaybeLocal<Array> v8::Object::GetPropertyNames(Local<Context> context,
   value = accumulator.GetKeys(i::GetKeysConversion::kKeepNumbers);
   DCHECK(self->map()->EnumLength() == i::kInvalidEnumCacheSentinel ||
          self->map()->EnumLength() == 0 ||
-         self->map()->instance_descriptors()->GetEnumCache() != *value);
+         self->map()->instance_descriptors()->GetEnumCache()->keys() != *value);
   auto result = isolate->factory()->NewJSArrayWithElements(value);
   RETURN_ESCAPED(Utils::ToLocal(result));
 }

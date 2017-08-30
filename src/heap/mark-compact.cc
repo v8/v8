@@ -2920,7 +2920,7 @@ void MarkCompactCollector::TrimDescriptorArray(Map* map,
                                to_trim * DescriptorArray::kEntrySize);
     descriptors->SetNumberOfDescriptors(number_of_own_descriptors);
 
-    if (descriptors->HasEnumCache()) TrimEnumCache(map, descriptors);
+    TrimEnumCache(map, descriptors);
     descriptors->Sort();
 
     if (FLAG_unbox_double_fields) {
@@ -2942,16 +2942,17 @@ void MarkCompactCollector::TrimEnumCache(Map* map,
     live_enum = map->NumberOfEnumerableProperties();
   }
   if (live_enum == 0) return descriptors->ClearEnumCache();
+  EnumCache* enum_cache = descriptors->GetEnumCache();
 
-  FixedArray* enum_cache = descriptors->GetEnumCache();
-
-  int to_trim = enum_cache->length() - live_enum;
+  FixedArray* keys = enum_cache->keys();
+  int to_trim = keys->length() - live_enum;
   if (to_trim <= 0) return;
-  heap_->RightTrimFixedArray(descriptors->GetEnumCache(), to_trim);
+  heap_->RightTrimFixedArray(keys, to_trim);
 
-  if (!descriptors->HasEnumIndicesCache()) return;
-  FixedArray* enum_indices_cache = descriptors->GetEnumIndicesCache();
-  heap_->RightTrimFixedArray(enum_indices_cache, to_trim);
+  FixedArray* indices = enum_cache->indices();
+  to_trim = indices->length() - live_enum;
+  if (to_trim <= 0) return;
+  heap_->RightTrimFixedArray(indices, to_trim);
 }
 
 

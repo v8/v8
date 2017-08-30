@@ -509,20 +509,9 @@ FieldAccess AccessBuilder::ForFixedTypedArrayBaseExternalPointer() {
 }
 
 // static
-FieldAccess AccessBuilder::ForDescriptorArrayEnumCacheBridge() {
+FieldAccess AccessBuilder::ForDescriptorArrayEnumCache() {
   FieldAccess access = {
-      kTaggedBase,           DescriptorArray::kEnumCacheBridgeOffset,
-      Handle<Name>(),        MaybeHandle<Map>(),
-      Type::OtherInternal(), MachineType::TaggedPointer(),
-      kPointerWriteBarrier};
-  return access;
-}
-
-
-// static
-FieldAccess AccessBuilder::ForDescriptorArrayEnumCacheBridgeCache() {
-  FieldAccess access = {
-      kTaggedBase,           DescriptorArray::kEnumCacheBridgeCacheOffset,
+      kTaggedBase,           DescriptorArray::kEnumCacheOffset,
       Handle<Name>(),        MaybeHandle<Map>(),
       Type::OtherInternal(), MachineType::TaggedPointer(),
       kPointerWriteBarrier};
@@ -940,7 +929,7 @@ ElementAccess AccessBuilder::ForFixedDoubleArrayElement() {
 }
 
 // static
-ElementAccess AccessBuilder::ForDescriptorArrayEnumCacheBridgeCacheElement() {
+ElementAccess AccessBuilder::ForEnumCacheKeysElement() {
   ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize,
                           Type::InternalizedString(),
                           MachineType::TaggedPointer(), kPointerWriteBarrier};

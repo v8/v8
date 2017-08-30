@@ -48,14 +48,12 @@ std::tuple<Node*, Node*, Node*> ForInBuiltinsAssembler::EmitForInPrepare(
   BIND(&use_cache);
   Node* map = LoadMap(object);
   Node* enum_length = EnumLength(map);
-  GotoIf(WordEqual(enum_length, SmiConstant(0)), nothing_to_iterate);
   Node* descriptors = LoadMapDescriptors(map);
-  Node* cache_offset =
-      LoadObjectField(descriptors, DescriptorArray::kEnumCacheBridgeOffset);
-  Node* enum_cache = LoadObjectField(
-      cache_offset, DescriptorArray::kEnumCacheBridgeCacheOffset);
+  Node* enum_cache =
+      LoadObjectField(descriptors, DescriptorArray::kEnumCacheOffset);
+  Node* enum_keys = LoadObjectField(enum_cache, EnumCache::kKeysOffset);
 
-  return std::make_tuple(map, enum_cache, enum_length);
+  return std::make_tuple(map, enum_keys, enum_length);
 }
 
 Node* ForInBuiltinsAssembler::EnumLength(Node* map) {

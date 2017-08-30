@@ -134,12 +134,12 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   {
     // The {object} has a usable enum cache, use that.
     Node* object_descriptors = LoadMapDescriptors(object_map);
-    Node* object_enum_cache_bridge = LoadObjectField(
-        object_descriptors, DescriptorArray::kEnumCacheBridgeOffset);
-    Node* object_enum_cache = LoadObjectField(
-        object_enum_cache_bridge, DescriptorArray::kEnumCacheBridgeCacheOffset);
+    Node* object_enum_cache =
+        LoadObjectField(object_descriptors, DescriptorArray::kEnumCacheOffset);
+    Node* object_enum_keys =
+        LoadObjectField(object_enum_cache, EnumCache::kKeysOffset);
 
-    // Allocate a JSArray and copy the elements from the {object_enum_cache}.
+    // Allocate a JSArray and copy the elements from the {object_enum_keys}.
     Node* array = nullptr;
     Node* elements = nullptr;
     Node* native_context = LoadNativeContext(context);
@@ -148,7 +148,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
         PACKED_ELEMENTS, array_map, array_length, nullptr, object_enum_length,
         INTPTR_PARAMETERS);
-    CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_cache, elements,
+    CopyFixedArrayElements(PACKED_ELEMENTS, object_enum_keys, elements,
                            object_enum_length, SKIP_WRITE_BARRIER);
     Return(array);
   }

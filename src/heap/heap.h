@@ -162,6 +162,7 @@ using v8::MemoryPressureLevel;
   V(Map, optimized_out_map, OptimizedOutMap)                                   \
   V(Map, stale_register_map, StaleRegisterMap)                                 \
   /* Canonical empty values */                                                 \
+  V(EnumCache, empty_enum_cache, EmptyEnumCache)                               \
   V(PropertyArray, empty_property_array, EmptyPropertyArray)                   \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(FixedTypedArrayBase, empty_fixed_uint8_array, EmptyFixedUint8Array)        \
@@ -2082,7 +2083,8 @@ class Heap {
       T t, int chars, uint32_t hash_field);
 
   // Allocates an uninitialized fixed array. It must be filled by the caller.
-  MUST_USE_RESULT AllocationResult AllocateUninitializedFixedArray(int length);
+  MUST_USE_RESULT AllocationResult AllocateUninitializedFixedArray(
+      int length, PretenureFlag pretenure = NOT_TENURED);
 
   // Make a copy of src and return it.
   MUST_USE_RESULT inline AllocationResult CopyFixedArray(FixedArray* src);

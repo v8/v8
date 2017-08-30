@@ -432,14 +432,10 @@ void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {
   if (map_obj->owns_descriptors() && array != heap_->empty_descriptor_array() &&
       SameLiveness(map_obj, array)) {
     RecordFixedArrayHelper(map_obj, array, DESCRIPTOR_ARRAY_SUB_TYPE, 0);
-    if (array->HasEnumCache()) {
-      RecordFixedArrayHelper(array, array->GetEnumCache(), ENUM_CACHE_SUB_TYPE,
-                             0);
-    }
-    if (array->HasEnumIndicesCache()) {
-      RecordFixedArrayHelper(array, array->GetEnumIndicesCache(),
-                             ENUM_INDICES_CACHE_SUB_TYPE, 0);
-    }
+    EnumCache* enum_cache = array->GetEnumCache();
+    RecordFixedArrayHelper(array, enum_cache->keys(), ENUM_CACHE_SUB_TYPE, 0);
+    RecordFixedArrayHelper(array, enum_cache->indices(),
+                           ENUM_INDICES_CACHE_SUB_TYPE, 0);
   }
 
   FixedArray* code_cache = map_obj->code_cache();
