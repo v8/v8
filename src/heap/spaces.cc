@@ -2856,11 +2856,7 @@ FreeSpace* FreeList::FindNodeFor(size_t size_in_bytes, size_t* node_size) {
   return node;
 }
 
-// Allocation on the old space free list.  If it succeeds then a new linear
-// allocation space has been set up with the top and limit of the space.  If
-// the allocation fails then NULL is returned, and the caller can perform a GC
-// or allocate a new page before retrying.
-HeapObject* FreeList::Allocate(size_t size_in_bytes) {
+bool FreeList::Allocate(size_t size_in_bytes) {
   DCHECK(size_in_bytes <= kMaxBlockSize);
   DCHECK(IsAligned(size_in_bytes, kPointerSize));
   DCHECK_LE(owner_->top(), owner_->limit());
@@ -2886,7 +2882,7 @@ HeapObject* FreeList::Allocate(size_t size_in_bytes) {
 
   size_t new_node_size = 0;
   FreeSpace* new_node = FindNodeFor(size_in_bytes, &new_node_size);
-  if (new_node == nullptr) return nullptr;
+  if (new_node == nullptr) return false;
 
   DCHECK_GE(new_node_size, size_in_bytes);
   size_t bytes_left = new_node_size - size_in_bytes;
@@ -2911,10 +2907,10 @@ HeapObject* FreeList::Allocate(size_t size_in_bytes) {
                                  Page::FromAddress(new_node->address()));
 
   if (owner_->heap()->inline_allocation_disabled()) {
-    // Keep the linear allocation area empty if requested to do so, just
-    // return area back to the free list instead.
+    // Keep the linear allocation area to fit exactly the requested size.
+    // Return the rest to the free list.
     owner_->Free(new_node->address() + size_in_bytes, bytes_left);
-    owner_->SetAllocationInfo(new_node->address() + size_in_bytes,
+    owner_->SetAllocationInfo(new_node->address(),
                               new_node->address() + size_in_bytes);
   } else if (bytes_left > kThreshold &&
              owner_->heap()->incremental_marking()->IsMarkingIncomplete() &&
@@ -2928,16 +2924,14 @@ HeapObject* FreeList::Allocate(size_t size_in_bytes) {
     owner_->Free(new_node->address() + size_in_bytes + linear_size,
                  new_node_size - size_in_bytes - linear_size);
     owner_->SetAllocationInfo(
-        new_node->address() + size_in_bytes,
-        new_node->address() + size_in_bytes + linear_size);
+        new_node->address(), new_node->address() + size_in_bytes + linear_size);
   } else {
     // Normally we give the rest of the node to the allocator as its new
     // linear allocation area.
-    owner_->SetAllocationInfo(new_node->address() + size_in_bytes,
+    owner_->SetAllocationInfo(new_node->address(),
                               new_node->address() + new_node_size);
   }
-
-  return new_node;
+  return true;
 }
 
 size_t FreeList::EvictFreeListItems(Page* page) {
@@ -3103,7 +3097,7 @@ void PagedSpace::RepairFreeListsAfterDeserialization() {
   }
 }
 
-HeapObject* PagedSpace::SweepAndRetryAllocation(int size_in_bytes) {
+bool PagedSpace::SweepAndRetryAllocation(int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     // Wait for the sweeper threads here and complete the sweeping phase.
@@ -3113,30 +3107,30 @@ HeapObject* PagedSpace::SweepAndRetryAllocation(int size_in_bytes) {
     // entries.
     return free_list_.Allocate(size_in_bytes);
   }
-  return nullptr;
+  return false;
 }
 
-HeapObject* CompactionSpace::SweepAndRetryAllocation(int size_in_bytes) {
+bool CompactionSpace::SweepAndRetryAllocation(int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (collector->sweeping_in_progress()) {
     collector->SweepAndRefill(this);
     return free_list_.Allocate(size_in_bytes);
   }
-  return nullptr;
+  return false;
 }
 
-HeapObject* PagedSpace::SlowAllocateRaw(int size_in_bytes) {
+bool PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   VMState<GC> state(heap()->isolate());
   RuntimeCallTimerScope runtime_timer(
       heap()->isolate(), &RuntimeCallStats::GC_Custom_SlowAllocateRaw);
   return RawSlowAllocateRaw(size_in_bytes);
 }
 
-HeapObject* CompactionSpace::SlowAllocateRaw(int size_in_bytes) {
+bool CompactionSpace::SlowAllocateRaw(int size_in_bytes) {
   return RawSlowAllocateRaw(size_in_bytes);
 }
 
-HeapObject* PagedSpace::RawSlowAllocateRaw(int size_in_bytes) {
+bool PagedSpace::RawSlowAllocateRaw(int size_in_bytes) {
   // Allocation in this space has failed.
   DCHECK_GE(size_in_bytes, 0);
   const int kMaxPagesToSweep = 1;
@@ -3154,17 +3148,13 @@ HeapObject* PagedSpace::RawSlowAllocateRaw(int size_in_bytes) {
     RefillFreeList();
 
     // Retry the free list allocation.
-    HeapObject* object =
-        free_list_.Allocate(static_cast<size_t>(size_in_bytes));
-    if (object != NULL) return object;
+    if (free_list_.Allocate(static_cast<size_t>(size_in_bytes))) return true;
 
     if (locked_page_ != nullptr) {
       DCHECK_EQ(locked_page_->owner()->identity(), identity());
       collector->sweeper().ParallelSweepPage(locked_page_, identity());
       locked_page_ = nullptr;
-      HeapObject* object =
-          free_list_.Allocate(static_cast<size_t>(size_in_bytes));
-      if (object != nullptr) return object;
+      if (free_list_.Allocate(static_cast<size_t>(size_in_bytes))) return true;
     }
 
     // If sweeping is still in progress try to sweep pages.
@@ -3172,8 +3162,7 @@ HeapObject* PagedSpace::RawSlowAllocateRaw(int size_in_bytes) {
         identity(), size_in_bytes, kMaxPagesToSweep);
     RefillFreeList();
     if (max_freed >= size_in_bytes) {
-      object = free_list_.Allocate(static_cast<size_t>(size_in_bytes));
-      if (object != nullptr) return object;
+      if (free_list_.Allocate(static_cast<size_t>(size_in_bytes))) return true;
     }
   } else if (is_local()) {
     // Sweeping not in progress and we are on a {CompactionSpace}. This can
@@ -3182,9 +3171,7 @@ HeapObject* PagedSpace::RawSlowAllocateRaw(int size_in_bytes) {
     Page* page = main_space->RemovePageSafe(size_in_bytes);
     if (page != nullptr) {
       AddPage(page);
-      HeapObject* object =
-          free_list_.Allocate(static_cast<size_t>(size_in_bytes));
-      if (object != nullptr) return object;
+      if (free_list_.Allocate(static_cast<size_t>(size_in_bytes))) return true;
     }
   }
 
@@ -3326,14 +3313,15 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
 
   heap()->StartIncrementalMarkingIfAllocationLimitIsReached(
       Heap::kNoGCFlags, kGCCallbackScheduleIdleGarbageCollection);
-  AllocationStep(object->address(), object_size);
-
   heap()->CreateFillerObjectAt(object->address(), object_size,
                                ClearRecordedSlots::kNo);
-
   if (heap()->incremental_marking()->black_allocation()) {
     heap()->incremental_marking()->marking_state()->WhiteToBlack(object);
   }
+  AllocationStep(object->address(), object_size);
+  DCHECK_IMPLIES(
+      heap()->incremental_marking()->black_allocation(),
+      heap()->incremental_marking()->marking_state()->IsBlack(object));
   return object;
 }
 

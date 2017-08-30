@@ -1709,11 +1709,8 @@ TEST(TestAlignedOverAllocation) {
   if (double_misalignment) {
     start = AlignOldSpace(kDoubleAligned, 0);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
-    // The object is aligned, and a filler object is created after.
+    // The object is aligned.
     CHECK(IsAddressAligned(obj->address(), kDoubleAlignment));
-    filler = HeapObject::FromAddress(start + kPointerSize);
-    CHECK(obj != filler && filler->IsFiller() &&
-          filler->Size() == kPointerSize);
     // Try the opposite alignment case.
     start = AlignOldSpace(kDoubleAligned, kPointerSize);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleAligned);
@@ -1728,11 +1725,8 @@ TEST(TestAlignedOverAllocation) {
     // Similarly for kDoubleUnaligned.
     start = AlignOldSpace(kDoubleUnaligned, 0);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);
-    // The object is aligned, and a filler object is created after.
+    // The object is aligned.
     CHECK(IsAddressAligned(obj->address(), kDoubleAlignment, kPointerSize));
-    filler = HeapObject::FromAddress(start + kPointerSize);
-    CHECK(obj != filler && filler->IsFiller() &&
-          filler->Size() == kPointerSize);
     // Try the opposite alignment case.
     start = AlignOldSpace(kDoubleUnaligned, kPointerSize);
     obj = OldSpaceAllocateAligned(kPointerSize, kDoubleUnaligned);

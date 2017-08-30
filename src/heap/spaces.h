@@ -1748,10 +1748,10 @@ class V8_EXPORT_PRIVATE FreeList {
   // and the size should be a non-zero multiple of the word size.
   size_t Free(Address start, size_t size_in_bytes, FreeMode mode);
 
-  // Allocate a block of size {size_in_bytes} from the free list. The block is
-  // unitialized. A failure is returned if no block is available. The size
-  // should be a non-zero multiple of the word size.
-  MUST_USE_RESULT HeapObject* Allocate(size_t size_in_bytes);
+  // Finds a node of size at least size_in_bytes and sets up a linear allocation
+  // area using this node. Returns false if there is no such node and the caller
+  // has to retry allocation after collecting garbage.
+  MUST_USE_RESULT bool Allocate(size_t size_in_bytes);
 
   // Clear the free list.
   void Reset();
@@ -2200,26 +2200,33 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   // size limit has been hit.
   bool Expand();
 
-  // Generic fast case allocation function that tries linear allocation at the
-  // address denoted by top in allocation_info_.
+  // Sets up a linear allocation area that fits the given number of bytes.
+  // Returns false if there is not enough space and the caller has to retry
+  // after collecting garbage.
+  inline bool EnsureLinearAllocationArea(int size_in_bytes);
+  // Allocates an object from the linear allocation area. Assumes that the
+  // linear allocation area is large enought to fit the object.
   inline HeapObject* AllocateLinearly(int size_in_bytes);
-
-  // Generic fast case allocation function that tries aligned linear allocation
-  // at the address denoted by top in allocation_info_. Writes the aligned
-  // allocation size, which includes the filler size, to size_in_bytes.
-  inline HeapObject* AllocateLinearlyAligned(int* size_in_bytes,
-                                             AllocationAlignment alignment);
-
+  // Tries to allocate an aligned object from the linear allocation area.
+  // Returns nullptr if the linear allocation area does not fit the object.
+  // Otherwise, returns the object pointer and writes the allocation size
+  // (object size + alignment filler size) to the size_in_bytes.
+  inline HeapObject* TryAllocateLinearlyAligned(int* size_in_bytes,
+                                                AllocationAlignment alignment);
   // If sweeping is still in progress try to sweep unswept pages. If that is
-  // not successful, wait for the sweeper threads and re-try free-list
-  // allocation.
-  MUST_USE_RESULT virtual HeapObject* SweepAndRetryAllocation(
-      int size_in_bytes);
+  // not successful, wait for the sweeper threads and retry free-list
+  // allocation. Returns false if there is not enough space and the caller
+  // has to retry after collecting garbage.
+  MUST_USE_RESULT virtual bool SweepAndRetryAllocation(int size_in_bytes);
 
-  // Slow path of AllocateRaw.  This function is space-dependent.
-  MUST_USE_RESULT virtual HeapObject* SlowAllocateRaw(int size_in_bytes);
+  // Slow path of AllocateRaw. This function is space-dependent. Returns false
+  // if there is not enough space and the caller has to retry after
+  // collecting garbage.
+  MUST_USE_RESULT virtual bool SlowAllocateRaw(int size_in_bytes);
 
-  MUST_USE_RESULT HeapObject* RawSlowAllocateRaw(int size_in_bytes);
+  // Implementation of SlowAllocateRaw. Returns false if there is not enough
+  // space and the caller has to retry after collecting garbage.
+  MUST_USE_RESULT bool RawSlowAllocateRaw(int size_in_bytes);
 
   size_t area_size_;
 
@@ -2784,10 +2791,9 @@ class V8_EXPORT_PRIVATE CompactionSpace : public PagedSpace {
   // The space is temporary and not included in any snapshots.
   bool snapshotable() override { return false; }
 
-  MUST_USE_RESULT HeapObject* SweepAndRetryAllocation(
-      int size_in_bytes) override;
+  MUST_USE_RESULT bool SweepAndRetryAllocation(int size_in_bytes) override;
 
-  MUST_USE_RESULT HeapObject* SlowAllocateRaw(int size_in_bytes) override;
+  MUST_USE_RESULT bool SlowAllocateRaw(int size_in_bytes) override;
 };
 
 

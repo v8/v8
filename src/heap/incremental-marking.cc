@@ -23,12 +23,26 @@
 namespace v8 {
 namespace internal {
 
-void IncrementalMarking::Observer::Step(int bytes_allocated, Address, size_t) {
-  VMState<GC> state(incremental_marking_.heap()->isolate());
+void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
+                                        size_t size) {
+  Heap* heap = incremental_marking_.heap();
+  VMState<GC> state(heap->isolate());
   RuntimeCallTimerScope runtime_timer(
-      incremental_marking_.heap()->isolate(),
-      &RuntimeCallStats::GC_Custom_IncrementalMarkingObserver);
+      heap->isolate(), &RuntimeCallStats::GC_Custom_IncrementalMarkingObserver);
   incremental_marking_.AdvanceIncrementalMarkingOnAllocation();
+  if (incremental_marking_.black_allocation() && addr != nullptr) {
+    // AdvanceIncrementalMarkingOnAllocation can start black allocation.
+    // Ensure that the new object is marked black.
+    HeapObject* object = HeapObject::FromAddress(addr);
+    if (incremental_marking_.marking_state()->IsWhite(object) &&
+        !heap->InNewSpace(object)) {
+      if (heap->lo_space()->Contains(object)) {
+        incremental_marking_.marking_state()->WhiteToBlack(object);
+      } else {
+        Page::FromAddress(addr)->CreateBlackArea(addr, addr + size);
+      }
+    }
+  }
 }
 
 IncrementalMarking::IncrementalMarking(Heap* heap)
