@@ -310,7 +310,8 @@ InductionVariable* LoopVariableOptimizer::TryGetInductionVariable(Node* phi) {
       arith->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd) {
     arithmeticType = InductionVariable::ArithmeticType::kAddition;
   } else if (arith->opcode() == IrOpcode::kJSSubtract ||
-             arith->opcode() == IrOpcode::kSpeculativeNumberSubtract) {
+             arith->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
+             arith->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract) {
     arithmeticType = InductionVariable::ArithmeticType::kSubtraction;
   } else {
     return nullptr;
