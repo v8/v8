@@ -2171,7 +2171,8 @@ class Heap {
   MUST_USE_RESULT AllocationResult AllocateTransitionArray(int capacity);
 
   // Allocates a new utility object in the old generation.
-  MUST_USE_RESULT AllocationResult AllocateStruct(InstanceType type);
+  MUST_USE_RESULT AllocationResult
+  AllocateStruct(InstanceType type, PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates a new foreign object.
   MUST_USE_RESULT AllocationResult

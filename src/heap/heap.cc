@@ -4411,8 +4411,8 @@ AllocationResult Heap::AllocateSymbol() {
   return result;
 }
 
-
-AllocationResult Heap::AllocateStruct(InstanceType type) {
+AllocationResult Heap::AllocateStruct(InstanceType type,
+                                      PretenureFlag pretenure) {
   Map* map;
   switch (type) {
 #define MAKE_CASE(NAME, Name, name) \
@@ -4427,7 +4427,8 @@ AllocationResult Heap::AllocateStruct(InstanceType type) {
   int size = map->instance_size();
   Struct* result = nullptr;
   {
-    AllocationResult allocation = Allocate(map, OLD_SPACE);
+    AllocationSpace space = SelectSpace(pretenure);
+    AllocationResult allocation = Allocate(map, space);
     if (!allocation.To(&result)) return allocation;
   }
   result->InitializeBody(size);

@@ -131,11 +131,12 @@ class V8_EXPORT_PRIVATE Factory final {
                                  Handle<FixedArray> indices);
 
   // Create a new Tuple2 struct.
-  Handle<Tuple2> NewTuple2(Handle<Object> value1, Handle<Object> value2);
+  Handle<Tuple2> NewTuple2(Handle<Object> value1, Handle<Object> value2,
+                           PretenureFlag pretenure);
 
   // Create a new Tuple3 struct.
   Handle<Tuple3> NewTuple3(Handle<Object> value1, Handle<Object> value2,
-                           Handle<Object> value3);
+                           Handle<Object> value3, PretenureFlag pretenure);
 
   // Create a new ContextExtension struct.
   Handle<ContextExtension> NewContextExtension(Handle<ScopeInfo> scope_info,
@@ -359,9 +360,8 @@ class V8_EXPORT_PRIVATE Factory final {
                                   Handle<Context> previous,
                                   Handle<ScopeInfo> scope_info);
 
-  // Allocate a new struct.  The struct is pretenured (allocated directly in
-  // the old generation).
-  Handle<Struct> NewStruct(InstanceType type);
+  Handle<Struct> NewStruct(InstanceType type,
+                           PretenureFlag pretenure = NOT_TENURED);
 
   Handle<AliasedArgumentsEntry> NewAliasedArgumentsEntry(
       int aliased_context_slot);

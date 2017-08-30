@@ -790,7 +790,7 @@ Handle<Object> LoadIC::LoadFromPrototype(Handle<Map> receiver_map,
 
   if (checks_count == 0) {
     return isolate()->factory()->NewTuple3(holder_cell, smi_handler,
-                                           validity_cell);
+                                           validity_cell, TENURED);
   }
   Handle<FixedArray> handler_array(isolate()->factory()->NewFixedArray(
       LoadHandler::kFirstPrototypeIndex + checks_count, TENURED));
@@ -833,7 +833,7 @@ Handle<Object> LoadIC::LoadFullChain(Handle<Map> receiver_map,
 
   Factory* factory = isolate()->factory();
   if (checks_count == 0) {
-    return factory->NewTuple3(holder, smi_handler, validity_cell);
+    return factory->NewTuple3(holder, smi_handler, validity_cell, TENURED);
   }
   Handle<FixedArray> handler_array(factory->NewFixedArray(
       LoadHandler::kFirstPrototypeIndex + checks_count, TENURED));
@@ -1647,7 +1647,8 @@ Handle<Object> StoreIC::StoreTransition(Handle<Map> receiver_map,
 
   Factory* factory = isolate()->factory();
   if (checks_count == 0) {
-    return factory->NewTuple3(transition_cell, smi_handler, validity_cell);
+    return factory->NewTuple3(transition_cell, smi_handler, validity_cell,
+                              TENURED);
   }
   Handle<FixedArray> handler_array(factory->NewFixedArray(
       StoreHandler::kFirstPrototypeIndex + checks_count, TENURED));
@@ -2028,7 +2029,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
   if (validity_cell.is_null()) return stub;
-  return isolate()->factory()->NewTuple2(validity_cell, stub);
+  return isolate()->factory()->NewTuple2(validity_cell, stub, TENURED);
 }
 
 void KeyedStoreIC::StoreElementPolymorphicHandlers(
@@ -2090,8 +2091,8 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
           validity_cell = handle(Smi::kZero, isolate());
         }
         Handle<WeakCell> transition = Map::WeakCellForMap(transitioned_map);
-        handler =
-            isolate()->factory()->NewTuple3(transition, stub, validity_cell);
+        handler = isolate()->factory()->NewTuple3(transition, stub,
+                                                  validity_cell, TENURED);
       } else {
         handler = StoreElementHandler(receiver_map, store_mode);
       }

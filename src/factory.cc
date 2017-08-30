@@ -94,7 +94,7 @@ Handle<HeapObject> Factory::NewFillerObject(int size,
 
 Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
   Handle<PrototypeInfo> result =
-      Handle<PrototypeInfo>::cast(NewStruct(PROTOTYPE_INFO_TYPE));
+      Handle<PrototypeInfo>::cast(NewStruct(PROTOTYPE_INFO_TYPE, TENURED));
   result->set_prototype_users(WeakFixedArray::Empty());
   result->set_registry_slot(PrototypeInfo::UNREGISTERED);
   result->set_validity_cell(Smi::kZero);
@@ -104,20 +104,23 @@ Handle<PrototypeInfo> Factory::NewPrototypeInfo() {
 
 Handle<EnumCache> Factory::NewEnumCache(Handle<FixedArray> keys,
                                         Handle<FixedArray> indices) {
-  return Handle<EnumCache>::cast(NewTuple2(keys, indices));
+  return Handle<EnumCache>::cast(NewTuple2(keys, indices, TENURED));
 }
 
-Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1,
-                                  Handle<Object> value2) {
-  Handle<Tuple2> result = Handle<Tuple2>::cast(NewStruct(TUPLE2_TYPE));
+Handle<Tuple2> Factory::NewTuple2(Handle<Object> value1, Handle<Object> value2,
+                                  PretenureFlag pretenure) {
+  Handle<Tuple2> result =
+      Handle<Tuple2>::cast(NewStruct(TUPLE2_TYPE, pretenure));
   result->set_value1(*value1);
   result->set_value2(*value2);
   return result;
 }
 
 Handle<Tuple3> Factory::NewTuple3(Handle<Object> value1, Handle<Object> value2,
-                                  Handle<Object> value3) {
-  Handle<Tuple3> result = Handle<Tuple3>::cast(NewStruct(TUPLE3_TYPE));
+                                  Handle<Object> value3,
+                                  PretenureFlag pretenure) {
+  Handle<Tuple3> result =
+      Handle<Tuple3>::cast(NewStruct(TUPLE3_TYPE, pretenure));
   result->set_value1(*value1);
   result->set_value2(*value2);
   result->set_value3(*value3);
@@ -126,8 +129,8 @@ Handle<Tuple3> Factory::NewTuple3(Handle<Object> value1, Handle<Object> value2,
 
 Handle<ContextExtension> Factory::NewContextExtension(
     Handle<ScopeInfo> scope_info, Handle<Object> extension) {
-  Handle<ContextExtension> result =
-      Handle<ContextExtension>::cast(NewStruct(CONTEXT_EXTENSION_TYPE));
+  Handle<ContextExtension> result = Handle<ContextExtension>::cast(
+      NewStruct(CONTEXT_EXTENSION_TYPE, TENURED));
   result->set_scope_info(*scope_info);
   result->set_extension(*extension);
   return result;
@@ -136,7 +139,7 @@ Handle<ContextExtension> Factory::NewContextExtension(
 Handle<ConstantElementsPair> Factory::NewConstantElementsPair(
     ElementsKind elements_kind, Handle<FixedArrayBase> constant_values) {
   Handle<ConstantElementsPair> result =
-      Handle<ConstantElementsPair>::cast(NewStruct(TUPLE2_TYPE));
+      Handle<ConstantElementsPair>::cast(NewStruct(TUPLE2_TYPE, TENURED));
   result->set_elements_kind(elements_kind);
   result->set_constant_values(*constant_values);
   return result;
@@ -293,7 +296,7 @@ Handle<OrderedHashMap> Factory::NewOrderedHashMap() {
 
 Handle<AccessorPair> Factory::NewAccessorPair() {
   Handle<AccessorPair> accessors =
-      Handle<AccessorPair>::cast(NewStruct(ACCESSOR_PAIR_TYPE));
+      Handle<AccessorPair>::cast(NewStruct(ACCESSOR_PAIR_TYPE, TENURED));
   accessors->set_getter(*null_value(), SKIP_WRITE_BARRIER);
   accessors->set_setter(*null_value(), SKIP_WRITE_BARRIER);
   return accessors;
@@ -302,7 +305,7 @@ Handle<AccessorPair> Factory::NewAccessorPair() {
 
 Handle<TypeFeedbackInfo> Factory::NewTypeFeedbackInfo() {
   Handle<TypeFeedbackInfo> info =
-      Handle<TypeFeedbackInfo>::cast(NewStruct(TUPLE3_TYPE));
+      Handle<TypeFeedbackInfo>::cast(NewStruct(TUPLE3_TYPE, TENURED));
   info->initialize_storage();
   return info;
 }
@@ -1109,17 +1112,15 @@ Handle<Context> Factory::NewBlockContext(Handle<JSFunction> function,
   return context;
 }
 
-Handle<Struct> Factory::NewStruct(InstanceType type) {
+Handle<Struct> Factory::NewStruct(InstanceType type, PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateStruct(type),
-      Struct);
+      isolate(), isolate()->heap()->AllocateStruct(type, pretenure), Struct);
 }
 
 Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
     int aliased_context_slot) {
   Handle<AliasedArgumentsEntry> entry = Handle<AliasedArgumentsEntry>::cast(
-      NewStruct(ALIASED_ARGUMENTS_ENTRY_TYPE));
+      NewStruct(ALIASED_ARGUMENTS_ENTRY_TYPE, NOT_TENURED));
   entry->set_aliased_context_slot(aliased_context_slot);
   return entry;
 }
@@ -1127,7 +1128,7 @@ Handle<AliasedArgumentsEntry> Factory::NewAliasedArgumentsEntry(
 
 Handle<AccessorInfo> Factory::NewAccessorInfo() {
   Handle<AccessorInfo> info =
-      Handle<AccessorInfo>::cast(NewStruct(ACCESSOR_INFO_TYPE));
+      Handle<AccessorInfo>::cast(NewStruct(ACCESSOR_INFO_TYPE, TENURED));
   info->set_flag(0);  // Must clear the flag, it was initialized as undefined.
   info->set_is_sloppy(true);
   return info;
@@ -1137,7 +1138,7 @@ Handle<AccessorInfo> Factory::NewAccessorInfo() {
 Handle<Script> Factory::NewScript(Handle<String> source) {
   // Create and initialize script object.
   Heap* heap = isolate()->heap();
-  Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE));
+  Handle<Script> script = Handle<Script>::cast(NewStruct(SCRIPT_TYPE, TENURED));
   script->set_source(*source);
   script->set_name(heap->undefined_value());
   script->set_id(isolate()->heap()->NextScriptId());
@@ -1714,7 +1715,7 @@ Handle<ModuleInfo> Factory::NewModuleInfo() {
 
 Handle<PreParsedScopeData> Factory::NewPreParsedScopeData() {
   Handle<PreParsedScopeData> result =
-      Handle<PreParsedScopeData>::cast(NewStruct(TUPLE2_TYPE));
+      Handle<PreParsedScopeData>::cast(NewStruct(TUPLE2_TYPE, TENURED));
   result->set_scope_data(PodArray<uint32_t>::cast(*empty_byte_array()));
   result->set_child_data(*empty_fixed_array());
   return result;
@@ -2036,7 +2037,7 @@ Handle<Module> Factory::NewModule(Handle<SharedFunctionInfo> code) {
       requested_modules_length > 0 ? NewFixedArray(requested_modules_length)
                                    : empty_fixed_array();
 
-  Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE));
+  Handle<Module> module = Handle<Module>::cast(NewStruct(MODULE_TYPE, TENURED));
   module->set_code(*code);
   module->set_exports(*exports);
   module->set_regular_exports(*regular_exports);
@@ -2645,7 +2646,7 @@ Handle<DebugInfo> Factory::NewDebugInfo(Handle<SharedFunctionInfo> shared) {
   Heap* heap = isolate()->heap();
 
   Handle<DebugInfo> debug_info =
-      Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE));
+      Handle<DebugInfo>::cast(NewStruct(DEBUG_INFO_TYPE, TENURED));
   debug_info->set_flags(DebugInfo::kNone);
   debug_info->set_shared(*shared);
   debug_info->set_debugger_hints(shared->debugger_hints());
@@ -2676,7 +2677,7 @@ Handle<CoverageInfo> Factory::NewCoverageInfo(
 
 Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
   Handle<BreakPointInfo> new_break_point_info =
-      Handle<BreakPointInfo>::cast(NewStruct(TUPLE2_TYPE));
+      Handle<BreakPointInfo>::cast(NewStruct(TUPLE2_TYPE, TENURED));
   new_break_point_info->set_source_position(source_position);
   new_break_point_info->set_break_point_objects(*undefined_value());
   return new_break_point_info;
@@ -2684,15 +2685,15 @@ Handle<BreakPointInfo> Factory::NewBreakPointInfo(int source_position) {
 
 Handle<BreakPoint> Factory::NewBreakPoint(int id, Handle<String> condition) {
   Handle<BreakPoint> new_break_point =
-      Handle<BreakPoint>::cast(NewStruct(TUPLE2_TYPE));
+      Handle<BreakPoint>::cast(NewStruct(TUPLE2_TYPE, TENURED));
   new_break_point->set_id(id);
   new_break_point->set_condition(*condition);
   return new_break_point;
 }
 
 Handle<StackFrameInfo> Factory::NewStackFrameInfo() {
-  Handle<StackFrameInfo> stack_frame_info =
-      Handle<StackFrameInfo>::cast(NewStruct(STACK_FRAME_INFO_TYPE));
+  Handle<StackFrameInfo> stack_frame_info = Handle<StackFrameInfo>::cast(
+      NewStruct(STACK_FRAME_INFO_TYPE, NOT_TENURED));
   stack_frame_info->set_line_number(0);
   stack_frame_info->set_column_number(0);
   stack_frame_info->set_script_id(0);
@@ -2710,7 +2711,7 @@ Factory::NewSourcePositionTableWithFrameCache(
   Handle<SourcePositionTableWithFrameCache>
       source_position_table_with_frame_cache =
           Handle<SourcePositionTableWithFrameCache>::cast(
-              NewStruct(TUPLE2_TYPE));
+              NewStruct(TUPLE2_TYPE, TENURED));
   source_position_table_with_frame_cache->set_source_position_table(
       *source_position_table);
   source_position_table_with_frame_cache->set_stack_frame_cache(
