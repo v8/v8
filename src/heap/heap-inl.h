@@ -686,16 +686,6 @@ void Heap::SetSerializedGlobalProxySizes(FixedArray* sizes) {
   set_serialized_global_proxy_sizes(sizes);
 }
 
-void Heap::CreateObjectStats() {
-  if (V8_LIKELY(FLAG_gc_stats == 0)) return;
-  if (!live_object_stats_) {
-    live_object_stats_ = new ObjectStats(this);
-  }
-  if (!dead_object_stats_) {
-    dead_object_stats_ = new ObjectStats(this);
-  }
-}
-
 AlwaysAllocateScope::AlwaysAllocateScope(Isolate* isolate)
     : heap_(isolate->heap()) {
   heap_->always_allocate_scope_count_.Increment(1);

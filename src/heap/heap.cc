@@ -6884,5 +6884,15 @@ bool Heap::AllowedToBeMigrated(HeapObject* obj, AllocationSpace dst) {
   UNREACHABLE();
 }
 
+void Heap::CreateObjectStats() {
+  if (V8_LIKELY(FLAG_gc_stats == 0)) return;
+  if (!live_object_stats_) {
+    live_object_stats_ = new ObjectStats(this);
+  }
+  if (!dead_object_stats_) {
+    dead_object_stats_ = new ObjectStats(this);
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
