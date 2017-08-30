@@ -215,11 +215,12 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitTransitionArray(Map* map, TransitionArray* array) {
-    if (marking_state_.IsGrey(array)) {
-      // TODO(ulan): process transition arrays.
-      bailout_.Push(array);
-    }
-    return 0;
+    if (!ShouldVisit(array)) return 0;
+    VisitMapPointer(array, array->map_slot());
+    int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
+    TransitionArray::BodyDescriptor::IterateBody(array, size, this);
+    weak_objects_->transition_arrays.Push(task_id_, array);
+    return size;
   }
 
   int VisitWeakCell(Map* map, WeakCell* object) {

@@ -194,23 +194,10 @@ template <typename ConcreteVisitor>
 int MarkingVisitor<ConcreteVisitor>::VisitTransitionArray(
     Map* map, TransitionArray* array) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  // Visit strong references.
-  if (array->HasPrototypeTransitions()) {
-    visitor->VisitPointer(array, array->GetPrototypeTransitionsSlot());
-  }
-  int num_transitions = array->number_of_entries();
-  for (int i = 0; i < num_transitions; ++i) {
-    visitor->VisitPointer(array, array->GetKeySlot(i));
-    // A TransitionArray can hold maps or (transitioning StoreIC) handlers.
-    // Maps have custom weak handling; handlers (which in turn weakly point
-    // to maps) are marked strongly for now, and will be cleared during
-    // compaction when the maps they refer to are dead.
-    if (!array->GetRawTarget(i)->IsMap()) {
-      visitor->VisitPointer(array, array->GetTargetSlot(i));
-    }
-  }
+  int size = TransitionArray::BodyDescriptor::SizeOf(map, array);
+  TransitionArray::BodyDescriptor::IterateBody(array, size, visitor);
   collector_->AddTransitionArray(array);
-  return TransitionArray::BodyDescriptor::SizeOf(map, array);
+  return size;
 }
 
 template <typename ConcreteVisitor>

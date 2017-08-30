@@ -68,12 +68,14 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
                                  SimpleTransitionFlag flag) {
   DCHECK(!map_handle_.is_null());
   Isolate* isolate = map_->GetIsolate();
+  Handle<WeakCell> weak_cell_with_target = Map::WeakCellForMap(target);
+  Reload();
   target->SetBackPointer(map_);
 
   // If the map doesn't have any transitions at all yet, install the new one.
   if (encoding() == kUninitialized) {
     if (flag == SIMPLE_PROPERTY_TRANSITION) {
-      ReplaceTransitions(*Map::WeakCellForMap(target));
+      ReplaceTransitions(*weak_cell_with_target);
       return;
     }
     // If the flag requires a full TransitionArray, allocate one.
@@ -94,7 +96,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     if (flag == SIMPLE_PROPERTY_TRANSITION && key->Equals(*name) &&
         old_details.kind() == new_details.kind() &&
         old_details.attributes() == new_details.attributes()) {
-      ReplaceTransitions(*Map::WeakCellForMap(target));
+      ReplaceTransitions(*weak_cell_with_target);
       return;
     }
     // Otherwise allocate a full TransitionArray with slack for a new entry.
@@ -103,10 +105,8 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     Reload();
     simple_transition = GetSimpleTransition();
     if (simple_transition != nullptr) {
-      Object* value = raw_transitions_->IsWeakCell()
-                          ? WeakCell::cast(raw_transitions_)->value()
-                          : raw_transitions_;
-      result->Set(0, GetSimpleTransitionKey(simple_transition), value);
+      result->Set(0, GetSimpleTransitionKey(simple_transition),
+                  raw_transitions_);
     } else {
       result->SetNumberOfTransitions(0);
     }
@@ -138,7 +138,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
                             &insertion_index);
     // If an existing entry was found, overwrite it and return.
     if (index != kNotFound) {
-      array->SetTarget(index, *target);
+      array->SetTarget(index, *weak_cell_with_target);
       return;
     }
 
@@ -154,7 +154,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
         array->SetTarget(index, array->GetRawTarget(index - 1));
       }
       array->SetKey(index, *name);
-      array->SetTarget(index, *target);
+      array->SetTarget(index, *weak_cell_with_target);
       SLOW_DCHECK(array->IsSortedNoDuplicates());
       return;
     }
@@ -202,7 +202,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
   for (int i = 0; i < insertion_index; ++i) {
     result->Set(i, array->GetKey(i), array->GetRawTarget(i));
   }
-  result->Set(insertion_index, *name, *target);
+  result->Set(insertion_index, *name, *weak_cell_with_target);
   for (int i = insertion_index; i < number_of_transitions; ++i) {
     result->Set(i + 1, array->GetKey(i), array->GetRawTarget(i));
   }
@@ -456,6 +456,7 @@ void TransitionsAccessor::PutPrototypeTransition(Handle<Object> prototype,
   int entry = header + last;
 
   Handle<WeakCell> target_cell = Map::WeakCellForMap(target_map);
+  Reload();  // Reload after possible GC.
   cache->set(entry, *target_cell);
   TransitionArray::SetNumberOfPrototypeTransitions(*cache, last + 1);
 }
@@ -553,18 +554,19 @@ void TransitionsAccessor::EnsureHasFullTransitionArray() {
   int nof = encoding() == kUninitialized ? 0 : 1;
   Handle<TransitionArray> result =
       TransitionArray::Allocate(map_->GetIsolate(), nof);
-  DisallowHeapAllocation no_gc;
   Reload();  // Reload after possible GC.
   if (nof == 1) {
-    Map* target = GetSimpleTransition();
-    if (target == nullptr) {
+    if (encoding() == kUninitialized) {
       // If allocation caused GC and cleared the target, trim the new array.
       result->Shrink(TransitionArray::ToKeyIndex(0));
       result->SetNumberOfTransitions(0);
     } else {
       // Otherwise populate the new array.
-      Name* key = GetSimpleTransitionKey(target);
-      result->Set(0, key, target);
+      Handle<Map> target(GetSimpleTransition());
+      Handle<WeakCell> weak_cell_with_target = Map::WeakCellForMap(target);
+      Reload();  // Reload after possible GC.
+      Name* key = GetSimpleTransitionKey(*target);
+      result->Set(0, key, *weak_cell_with_target);
     }
   }
   ReplaceTransitions(*result);

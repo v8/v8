@@ -2878,12 +2878,8 @@ bool MarkCompactCollector::CompactTransitionArray(
         RecordSlot(transitions, key_slot, key);
         Object* raw_target = transitions->GetRawTarget(i);
         transitions->SetTarget(transition_index, raw_target);
-        // Maps are not compacted, but for cached handlers the target slot
-        // must be recorded.
-        if (!raw_target->IsMap()) {
-          Object** target_slot = transitions->GetTargetSlot(transition_index);
-          RecordSlot(transitions, target_slot, raw_target);
-        }
+        Object** target_slot = transitions->GetTargetSlot(transition_index);
+        RecordSlot(transitions, target_slot, raw_target);
       }
       transition_index++;
     }

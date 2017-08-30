@@ -119,8 +119,9 @@ PropertyDetails TransitionsAccessor::GetTargetDetails(Name* name, Map* target) {
 
 // static
 Map* TransitionsAccessor::GetTargetFromRaw(Object* raw) {
-  if (raw->IsMap()) return Map::cast(raw);
-  if (raw->IsTuple3()) {
+  if (raw->IsWeakCell()) {
+    return Map::cast(WeakCell::cast(raw)->value());
+  } else if (raw->IsTuple3()) {
     return Map::cast(StoreHandler::GetTuple3TransitionCell(raw)->value());
   } else {
     DCHECK(raw->IsFixedArray());
@@ -162,6 +163,7 @@ Map* TransitionsAccessor::GetTarget(int transition_number) {
 }
 
 void TransitionArray::SetTarget(int transition_number, Object* value) {
+  DCHECK(!value->IsMap());
   DCHECK(transition_number < number_of_transitions());
   set(ToTargetIndex(transition_number), value);
 }
