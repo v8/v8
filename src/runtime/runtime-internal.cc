@@ -503,6 +503,37 @@ RUNTIME_FUNCTION(Runtime_CreateListFromArrayLike) {
                                         isolate, object, ElementTypes::kAll));
 }
 
+RUNTIME_FUNCTION(Runtime_DeserializeLazy) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+
+  DCHECK(FLAG_lazy_deserialization);
+
+  // TODO(6624): Lazy-deserialize instead of simply loading from the builtins
+  // list. In fact, this should never be called if the builtin has already
+  // been deserialized.
+
+  Handle<SharedFunctionInfo> shared(function->shared(), isolate);
+  int builtin_id = shared->lazy_deserialization_builtin_id();
+
+  // The DeserializeLazy builtin tail-calls the deserialized builtin. This only
+  // works with JS-linkage.
+  DCHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_id));
+
+  if (FLAG_trace_lazy_deserialization) {
+    PrintF("Lazy-deserializing %s\n", Builtins::name(builtin_id));
+  }
+
+  Code* code =
+      isolate->builtins()->builtin(static_cast<Builtins::Name>(builtin_id));
+  DCHECK_EQ(builtin_id, code->builtin_index());
+  shared->set_code(code);
+  function->set_code(code);
+
+  return isolate->heap()->undefined_value();
+}
+
 RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

@@ -285,6 +285,7 @@ namespace internal {
   F(CheckIsBootstrapping, 0, 1)                                      \
   F(CreateAsyncFromSyncIterator, 1, 1)                               \
   F(CreateListFromArrayLike, 1, 1)                                   \
+  F(DeserializeLazy, 1, 1)                                           \
   F(GetAndResetRuntimeCallStats, -1 /* <= 2 */, 1)                   \
   F(ExportFromRuntime, 1, 1)                                         \
   F(IncrementUseCounter, 1, 1)                                       \

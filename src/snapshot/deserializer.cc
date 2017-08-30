@@ -180,6 +180,7 @@ void Deserializer::VisitRootPointers(Root root, Object** start, Object** end) {
 void Deserializer::Synchronize(VisitorSynchronization::SyncTag tag) {
   static const byte expected = kSynchronize;
   CHECK_EQ(expected, source_.Get());
+  deserializing_builtins_ = (tag == VisitorSynchronization::kHandleScope);
 }
 
 void Deserializer::DeserializeDeferredObjects() {
@@ -351,6 +352,14 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
   // Check alignment.
   DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(), obj->RequiredAlignment()));
   return obj;
+}
+
+int Deserializer::MaybeReplaceWithDeserializeLazy(int builtin_id) {
+  DCHECK(Builtins::IsBuiltinId(builtin_id));
+  return (FLAG_lazy_deserialization && Builtins::IsLazy(builtin_id) &&
+          !deserializing_builtins_)
+             ? Builtins::kDeserializeLazy
+             : builtin_id;
 }
 
 HeapObject* Deserializer::GetBackReferencedObject(int space) {
@@ -827,9 +836,8 @@ Object** Deserializer::ReadDataCase(Isolate* isolate, Object** current,
       emit_write_barrier = isolate->heap()->InNewSpace(new_object);
     } else {
       DCHECK(where == kBuiltin);
-      int builtin_id = source_.GetInt();
-      DCHECK_LE(0, builtin_id);
-      DCHECK_LT(builtin_id, Builtins::builtin_count);
+      int builtin_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());
+      DCHECK(Builtins::IsBuiltinId(builtin_id));
       Builtins::Name name = static_cast<Builtins::Name>(builtin_id);
       new_object = isolate->builtins()->builtin(name);
       // Record the builtin reference for post-processing after builtin

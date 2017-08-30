@@ -12,6 +12,82 @@ namespace v8 {
 namespace internal {
 
 // -----------------------------------------------------------------------------
+// Lazy deserialization.
+
+// DeserializeLazy is very similar to CompileLazy: it is called with the
+// arguments intended for the target function. We load the function from the
+// frame, make sure its code object is deserialized, then tail-call into it,
+// passing along all arguments unmodified.
+TF_BUILTIN(DeserializeLazy, CodeStubAssembler) {
+  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+
+  Node* function = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
+                                 MachineType::TaggedPointer());
+  CSA_ASSERT(this, IsJSFunction(function));
+
+  Node* shared =
+      LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset);
+  CSA_ASSERT(this, IsSharedFunctionInfo(shared));
+
+  Node* shared_code = LoadObjectField(shared, SharedFunctionInfo::kCodeOffset);
+  CSA_ASSERT(this, IsCodeMap(LoadMap(shared_code)));
+
+  Node* shared_code_builtin_id = LoadObjectField(
+      shared_code, Code::kBuiltinIndexOffset, MachineType::Int32());
+
+  // TODO(6624): Once lazy deserialization has been implemented, add a path
+  // here that checks whether the appropriate builtin has already been
+  // deserialized into the builtin table. If so, copy it into the function &
+  // shared function info here instead of going through runtime.
+
+  // It could be that the shared function info already has a deserialized copy
+  // of the builtin. In that case, simply copy the code over to the function and
+  // tail-call into it. Otherwise, we need to call into runtime to deserialize.
+
+  Label copy_from_shared(this), deserialize_in_runtime(this), out(this);
+  Branch(Word32Equal(shared_code_builtin_id,
+                     Int32Constant(Builtins::kDeserializeLazy)),
+         &deserialize_in_runtime, &copy_from_shared);
+
+  BIND(&copy_from_shared);
+  {
+    CSA_ASSERT(this, Int32GreaterThanOrEqual(shared_code_builtin_id,
+                                             Int32Constant(0)));
+    CSA_ASSERT(this, Int32LessThan(shared_code_builtin_id,
+                                   Int32Constant(Builtins::builtin_count)));
+    StoreObjectField(function, JSFunction::kCodeOffset, shared_code);
+    Goto(&out);
+  }
+
+  BIND(&deserialize_in_runtime);
+  {
+    CallRuntime(Runtime::kDeserializeLazy, context, function);
+
+#ifdef DEBUG
+    Node* function_code = LoadObjectField(function, JSFunction::kCodeOffset);
+    CSA_ASSERT(this, IsCodeMap(LoadMap(function_code)));
+
+    Node* function_code_builtin_id = LoadObjectField(
+        function_code, Code::kBuiltinIndexOffset, MachineType::Int32());
+
+    Node* function_builtin_id =
+        LoadObjectField(shared, SharedFunctionInfo::kFunctionDataOffset);
+    CSA_ASSERT(this, TaggedIsSmi(function_builtin_id));
+
+    CSA_ASSERT(this, Word32Equal(function_code_builtin_id,
+                                 SmiToWord32(function_builtin_id)));
+#endif
+
+    Goto(&out);
+  }
+
+  BIND(&out);
+  TailCallStub(CodeFactory::Call(isolate()), context, function, argc);
+}
+
+// -----------------------------------------------------------------------------
 // Interrupt and stack checks.
 
 void Builtins::Generate_InterruptCheck(MacroAssembler* masm) {

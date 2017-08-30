@@ -160,6 +160,10 @@ class Deserializer : public SerializerDeserializer {
   // Special handling for serialized code like hooking up internalized strings.
   HeapObject* PostProcessNewObject(HeapObject* obj, int space);
 
+  // May replace the given builtin_id with the DeserializeLazy builtin for lazy
+  // deserialization.
+  int MaybeReplaceWithDeserializeLazy(int builtin_id);
+
   // Cached current isolate.
   Isolate* isolate_;
 
@@ -191,6 +195,10 @@ class Deserializer : public SerializerDeserializer {
   std::vector<DeferredBuiltinReference> builtin_references_;
 
   const bool deserializing_user_code_;
+
+  // TODO(jgruber): This workaround will no longer be necessary once builtin
+  // reference patching has been removed (through advance allocation).
+  bool deserializing_builtins_ = false;
 
   AllocationAlignment next_alignment_;
 
