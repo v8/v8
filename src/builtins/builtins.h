@@ -48,6 +48,10 @@ class Builtins {
         builtin_count
   };
 
+  static bool IsBuiltinId(int maybe_id) {
+    return 0 <= maybe_id && maybe_id < builtin_count;
+  }
+
   // The different builtin kinds are documented in builtins-definitions.h.
   enum Kind { CPP, API, TFJ, TFC, TFS, TFH, ASM };
 
@@ -94,6 +98,11 @@ class Builtins {
 
   static bool IsCpp(int index);
   static bool HasCppImplementation(int index);
+
+  // Returns true iff the given builtin can be lazy-loaded from the snapshot.
+  // This is true in general for most builtins with the exception of a few
+  // special cases such as CompileLazy and DeserializeLazy.
+  static bool IsLazy(int index);
 
   bool is_initialized() const { return initialized_; }
 

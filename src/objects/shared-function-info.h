@@ -146,6 +146,7 @@ class SharedFunctionInfo : public HeapObject {
   //  - a FunctionTemplateInfo to make benefit the API [IsApiFunction()].
   //  - a BytecodeArray for the interpreter [HasBytecodeArray()].
   //  - a FixedArray with Asm->Wasm conversion [HasAsmWasmData()].
+  //  - a Smi containing the builtin id [HasLazyDeserializationBuiltinId()]
   DECL_ACCESSORS(function_data, Object)
 
   inline bool IsApiFunction();
@@ -159,6 +160,13 @@ class SharedFunctionInfo : public HeapObject {
   inline FixedArray* asm_wasm_data() const;
   inline void set_asm_wasm_data(FixedArray* data);
   inline void ClearAsmWasmData();
+  // A brief note to clear up possible confusion:
+  // lazy_deserialization_builtin_id corresponds to the auto-generated
+  // Builtins::Name id, while builtin_function_id corresponds to
+  // BuiltinFunctionId (a manually maintained list of 'interesting' functions
+  // mainly used during optimization).
+  inline bool HasLazyDeserializationBuiltinId() const;
+  inline int lazy_deserialization_builtin_id() const;
 
   // [function identifier]: This field holds an additional identifier for the
   // function.

@@ -2743,3 +2743,24 @@ TEST(SerializationMemoryStats) {
   v8::StartupData blob = v8::V8::CreateSnapshotDataBlob();
   delete[] blob.data;
 }
+
+TEST(BuiltinsHaveBuiltinIdForLazyDeserialization) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+
+  CHECK(Builtins::IsLazy(Builtins::kRegExpPrototypeExec));
+  CHECK_EQ(Builtins::kRegExpPrototypeExec,
+           isolate->regexp_exec_function()
+               ->shared()
+               ->lazy_deserialization_builtin_id());
+  CHECK(Builtins::IsLazy(Builtins::kAsyncIteratorValueUnwrap));
+  CHECK_EQ(Builtins::kAsyncIteratorValueUnwrap,
+           isolate->async_iterator_value_unwrap_shared_fun()
+               ->lazy_deserialization_builtin_id());
+
+  CHECK(!Builtins::IsLazy(Builtins::kIllegal));
+  CHECK(!isolate->intl_date_time_format_function()
+             ->shared()
+             ->HasLazyDeserializationBuiltinId());
+}

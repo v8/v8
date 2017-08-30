@@ -3697,17 +3697,22 @@ void Code::set_raw_kind_specific_flags2(int value) {
 
 inline bool Code::is_interpreter_trampoline_builtin() const {
   Builtins* builtins = GetIsolate()->builtins();
-  return this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
-         this ==
-             builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance) ||
-         this == builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
+  bool is_interpreter_trampoline =
+      (this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
+       this == builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance) ||
+       this == builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch));
+  DCHECK_IMPLIES(is_interpreter_trampoline, !Builtins::IsLazy(builtin_index()));
+  return is_interpreter_trampoline;
 }
 
 inline bool Code::checks_optimization_marker() const {
   Builtins* builtins = GetIsolate()->builtins();
-  return this == builtins->builtin(Builtins::kCompileLazy) ||
-         this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
-         this == builtins->builtin(Builtins::kCheckOptimizationMarker);
+  bool checks_marker =
+      (this == builtins->builtin(Builtins::kCompileLazy) ||
+       this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
+       this == builtins->builtin(Builtins::kCheckOptimizationMarker));
+  DCHECK_IMPLIES(checks_marker, !Builtins::IsLazy(builtin_index()));
+  return checks_marker;
 }
 
 inline bool Code::has_unwinding_info() const {
@@ -3832,12 +3837,17 @@ void Code::set_allow_osr_at_loop_nesting_level(int level) {
 }
 
 int Code::builtin_index() const {
-  return READ_INT_FIELD(this, kBuiltinIndexOffset);
+  int index = READ_INT_FIELD(this, kBuiltinIndexOffset);
+  DCHECK(index == -1 || Builtins::IsBuiltinId(index));
+  return index;
 }
 
 void Code::set_builtin_index(int index) {
+  DCHECK(index == -1 || Builtins::IsBuiltinId(index));
   WRITE_INT_FIELD(this, kBuiltinIndexOffset, index);
 }
+
+bool Code::is_builtin() const { return builtin_index() != -1; }
 
 unsigned Code::stack_slots() const {
   DCHECK(is_turbofanned());

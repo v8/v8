@@ -2522,11 +2522,15 @@ Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
   share->set_raw_name(has_shared_name
                           ? *shared_name
                           : SharedFunctionInfo::kNoSharedNameSentinel);
-  share->set_function_data(*undefined_value(), SKIP_WRITE_BARRIER);
   Handle<Code> code;
   if (!maybe_code.ToHandle(&code)) {
     code = BUILTIN_CODE(isolate(), Illegal);
   }
+  Object* function_data =
+      (code->is_builtin() && Builtins::IsLazy(code->builtin_index()))
+          ? Smi::FromInt(code->builtin_index())
+          : Object::cast(*undefined_value());
+  share->set_function_data(function_data, SKIP_WRITE_BARRIER);
   share->set_code(*code);
   share->set_scope_info(ScopeInfo::Empty(isolate()));
   share->set_outer_scope_info(*the_hole_value());

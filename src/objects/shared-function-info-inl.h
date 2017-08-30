@@ -325,6 +325,17 @@ void SharedFunctionInfo::ClearAsmWasmData() {
   set_function_data(GetHeap()->undefined_value());
 }
 
+bool SharedFunctionInfo::HasLazyDeserializationBuiltinId() const {
+  return function_data()->IsSmi();
+}
+
+int SharedFunctionInfo::lazy_deserialization_builtin_id() const {
+  DCHECK(HasLazyDeserializationBuiltinId());
+  int id = Smi::ToInt(function_data());
+  DCHECK(Builtins::IsBuiltinId(id));
+  return id;
+}
+
 bool SharedFunctionInfo::HasBuiltinFunctionId() {
   return function_identifier()->IsSmi();
 }

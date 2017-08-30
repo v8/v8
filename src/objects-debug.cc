@@ -732,7 +732,8 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
 
   Isolate* isolate = GetIsolate();
   CHECK(function_data()->IsUndefined(isolate) || IsApiFunction() ||
-        HasBytecodeArray() || HasAsmWasmData());
+        HasBytecodeArray() || HasAsmWasmData() ||
+        HasLazyDeserializationBuiltinId());
 
   CHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId() ||
         HasInferredName());

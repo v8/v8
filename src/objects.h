@@ -3815,6 +3815,7 @@ class Code: public HeapObject {
   // builtin index is a non-negative integer for builtins, and -1 otherwise.
   inline int builtin_index() const;
   inline void set_builtin_index(int id);
+  inline bool is_builtin() const;
 
   // [stack_slots]: For kind OPTIMIZED_FUNCTION, the number of stack slots
   // reserved in the code prologue.

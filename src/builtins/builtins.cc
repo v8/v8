@@ -209,7 +209,7 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
 
 // static
 const char* Builtins::name(int index) {
-  DCHECK(0 <= index && index < builtin_count);
+  DCHECK(IsBuiltinId(index));
   return builtin_metadata[index].name;
 }
 
@@ -220,8 +220,36 @@ Address Builtins::CppEntryOf(int index) {
 }
 
 // static
+bool Builtins::IsLazy(int index) {
+  DCHECK(IsBuiltinId(index));
+  // There are a couple of reasons that builtins can require eager-loading,
+  // i.e. deserialization at isolate creation instead of on-demand. For
+  // instance:
+  // * DeserializeLazy implements lazy loading.
+  // * Immovability requirement. This can only conveniently be guaranteed at
+  //   isolate creation (at runtime, we'd have to allocate in LO space).
+  // * To avoid conflicts in SharedFunctionInfo::function_data (Illegal,
+  //   HandleApiCall, interpreter entry trampolines).
+  // * Frequent use makes lazy loading unnecessary (CompileLazy).
+  switch (index) {
+    case kCheckOptimizationMarker:
+    case kCompileLazy:
+    case kHandleApiCall:
+    case kIllegal:
+    case kInterpreterEnterBytecodeAdvance:
+    case kInterpreterEnterBytecodeDispatch:
+    case kInterpreterEntryTrampoline:
+      return false;
+    default:
+      // TODO(6624): Extend to other kinds.
+      return KindOf(index) == TFJ;
+  }
+  UNREACHABLE();
+}
+
+// static
 Builtins::Kind Builtins::KindOf(int index) {
-  DCHECK(0 <= index && index < builtin_count);
+  DCHECK(IsBuiltinId(index));
   return builtin_metadata[index].kind;
 }
 
