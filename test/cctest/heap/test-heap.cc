@@ -3663,10 +3663,8 @@ TEST(EnsureAllocationSiteDependentCodesProcessed) {
       dependency = dependency->next_link();
       dependency_group_count++;
     }
-
-    // TurboFan respects pretenuring feedback from allocation sites, Crankshaft
-    // does not. Either is fine for the purposes of this test.
-    CHECK(dependency_group_count == 1 || dependency_group_count == 2);
+    // Expect a dependent code object for transitioning and pretenuring.
+    CHECK_EQ(2, dependency_group_count);
   }
 
   // Now make sure that a gc should get rid of the function, even though we
