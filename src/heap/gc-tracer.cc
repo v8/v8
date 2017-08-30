@@ -32,21 +32,18 @@ GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
     : tracer_(tracer), scope_(scope) {
   start_time_ = tracer_->heap_->MonotonicallyIncreasingTimeInMs();
   // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    RuntimeCallStats::Enter(
-        tracer_->heap_->isolate()->counters()->runtime_call_stats(), &timer_,
-        GCTracer::RCSCounterFromScope(scope));
-  }
+  if (V8_LIKELY(!FLAG_runtime_stats)) return;
+  runtime_stats_ = tracer_->heap_->isolate()->counters()->runtime_call_stats();
+  RuntimeCallStats::Enter(runtime_stats_, &timer_,
+                          GCTracer::RCSCounterFromScope(scope));
 }
 
 GCTracer::Scope::~Scope() {
   tracer_->AddScopeSample(
       scope_, tracer_->heap_->MonotonicallyIncreasingTimeInMs() - start_time_);
   // TODO(cbruni): remove once we fully moved to a trace-based system.
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    RuntimeCallStats::Leave(
-        tracer_->heap_->isolate()->counters()->runtime_call_stats(), &timer_);
-  }
+  if (V8_LIKELY(runtime_stats_ == nullptr)) return;
+  RuntimeCallStats::Leave(runtime_stats_, &timer_);
 }
 
 const char* GCTracer::Scope::Name(ScopeId id) {
