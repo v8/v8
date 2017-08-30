@@ -375,9 +375,9 @@ void JSObject::JSObjectVerify() {
       EnumCache* enum_cache = descriptors->GetEnumCache();
       FixedArray* keys = enum_cache->keys();
       FixedArray* indices = enum_cache->indices();
-      DCHECK_LE(map()->EnumLength(), keys->length());
-      DCHECK_IMPLIES(indices != isolate->heap()->empty_fixed_array(),
-                     keys->length() == indices->length());
+      CHECK_LE(map()->EnumLength(), keys->length());
+      CHECK_IMPLIES(indices != isolate->heap()->empty_fixed_array(),
+                    keys->length() == indices->length());
     }
   }
 
