@@ -4,6 +4,7 @@
 
 #include "src/heap/scavenger.h"
 
+#include "src/heap/barrier.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/objects-visiting-inl.h"
@@ -91,7 +92,7 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
   }
 }
 
-void Scavenger::Process(Barrier* barrier) {
+void Scavenger::Process(OneshotBarrier* barrier) {
   // Threshold when to switch processing the promotion list to avoid
   // allocating too much backing store in the worklist.
   const int kProcessPromotionListThreshold = kPromotionListSegmentSize / 2;

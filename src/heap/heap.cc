@@ -24,6 +24,7 @@
 #include "src/feedback-vector.h"
 #include "src/global-handles.h"
 #include "src/heap/array-buffer-tracker-inl.h"
+#include "src/heap/barrier.h"
 #include "src/heap/code-stats.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/embedder-tracing.h"
@@ -1805,7 +1806,7 @@ class ScavengingItem : public ItemParallelJob::Item {
 
 class ScavengingTask final : public ItemParallelJob::Task {
  public:
-  ScavengingTask(Heap* heap, Scavenger* scavenger, Scavenger::Barrier* barrier)
+  ScavengingTask(Heap* heap, Scavenger* scavenger, OneshotBarrier* barrier)
       : ItemParallelJob::Task(heap->isolate()),
         heap_(heap),
         scavenger_(scavenger),
@@ -1821,10 +1822,9 @@ class ScavengingTask final : public ItemParallelJob::Task {
         item->Process(scavenger_);
         item->MarkFinished();
       }
-      while (!barrier_->Done()) {
+      do {
         scavenger_->Process(barrier_);
-        barrier_->Wait();
-      }
+      } while (!barrier_->Wait());
       scavenger_->Process();
     }
     if (FLAG_trace_parallel_scavenge) {
@@ -1838,7 +1838,7 @@ class ScavengingTask final : public ItemParallelJob::Task {
  private:
   Heap* const heap_;
   Scavenger* const scavenger_;
-  Scavenger::Barrier* const barrier_;
+  OneshotBarrier* const barrier_;
 };
 
 class PageScavengingItem final : public ScavengingItem {
@@ -1921,7 +1921,7 @@ void Heap::Scavenge() {
   Scavenger* scavengers[kMaxScavengerTasks];
   const bool is_logging = IsLogging(isolate());
   const int num_scavenge_tasks = NumberOfScavengeTasks();
-  Scavenger::Barrier barrier;
+  OneshotBarrier barrier;
   CopiedList copied_list(num_scavenge_tasks);
   PromotionList promotion_list(num_scavenge_tasks);
   for (int i = 0; i < num_scavenge_tasks; i++) {

@@ -996,6 +996,7 @@
         'heap/array-buffer-tracker-inl.h',
         'heap/array-buffer-tracker.cc',
         'heap/array-buffer-tracker.h',
+        'heap/barrier.h',
         'heap/code-stats.cc',
         'heap/code-stats.h',
         'heap/concurrent-marking.cc',

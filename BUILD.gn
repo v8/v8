@@ -1600,6 +1600,7 @@ v8_source_set("v8_base") {
     "src/heap/array-buffer-tracker-inl.h",
     "src/heap/array-buffer-tracker.cc",
     "src/heap/array-buffer-tracker.h",
+    "src/heap/barrier.h",
     "src/heap/code-stats.cc",
     "src/heap/code-stats.h",
     "src/heap/concurrent-marking.cc",
