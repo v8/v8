@@ -6,12 +6,12 @@
 #define V8_GLOBAL_HANDLES_H_
 
 #include <type_traits>
+#include <vector>
 
 #include "include/v8.h"
 #include "include/v8-profiler.h"
 
 #include "src/handles.h"
-#include "src/list.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -92,7 +92,7 @@ class GlobalHandles {
     number_of_phantom_handle_resets_ = 0;
   }
 
-  size_t NumberOfNewSpaceNodes() { return new_space_nodes_.length(); }
+  size_t NumberOfNewSpaceNodes() { return new_space_nodes_.size(); }
 
   // Clear the weakness of a global handle.
   static void* ClearWeakness(Object** location);
@@ -188,7 +188,7 @@ class GlobalHandles {
 
   // Helpers for PostGarbageCollectionProcessing.
   static void InvokeSecondPassPhantomCallbacks(
-      List<PendingPhantomCallback>* callbacks, Isolate* isolate);
+      std::vector<PendingPhantomCallback>* callbacks, Isolate* isolate);
   int PostScavengeProcessing(int initial_post_gc_processing_count);
   int PostMarkSweepProcessing(int initial_post_gc_processing_count);
   int DispatchPendingPhantomCallbacks(bool synchronous_second_pass);
@@ -212,13 +212,13 @@ class GlobalHandles {
 
   // Contains all nodes holding new space objects. Note: when the list
   // is accessed, some of the objects may have been promoted already.
-  List<Node*> new_space_nodes_;
+  std::vector<Node*> new_space_nodes_;
 
   int post_gc_processing_count_;
 
   size_t number_of_phantom_handle_resets_;
 
-  List<PendingPhantomCallback> pending_phantom_callbacks_;
+  std::vector<PendingPhantomCallback> pending_phantom_callbacks_;
 
   friend class Isolate;
 
@@ -311,8 +311,8 @@ class EternalHandles {
   }
 
   int size_;
-  List<Object**> blocks_;
-  List<int> new_space_indices_;
+  std::vector<Object**> blocks_;
+  std::vector<int> new_space_indices_;
   int singleton_handles_[NUMBER_OF_SINGLETON_HANDLES];
 
   DISALLOW_COPY_AND_ASSIGN(EternalHandles);

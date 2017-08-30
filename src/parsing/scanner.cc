@@ -13,7 +13,6 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/char-predicates-inl.h"
 #include "src/conversions-inl.h"
-#include "src/list-inl.h"
 #include "src/parsing/duplicate-finder.h"  // For Scanner::FindSymbol
 
 namespace v8 {
