@@ -18,7 +18,7 @@
 #include "src/wasm/wasm-external-refs.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone-containers.h"

@@ -16,7 +16,7 @@
 #include "src/version.h"
 #include "src/visitors.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {

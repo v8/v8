@@ -1454,6 +1454,7 @@
         'wasm/wasm-module-builder.h',
         'wasm/wasm-interpreter.cc',
         'wasm/wasm-interpreter.h',
+        'wasm/wasm-objects-inl.h',
         'wasm/wasm-objects.cc',
         'wasm/wasm-objects.h',
         'wasm/wasm-opcodes.cc',

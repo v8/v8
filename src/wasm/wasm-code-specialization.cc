@@ -9,6 +9,7 @@
 #include "src/source-position-table.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-opcodes.h"
 
 #if __clang__

@@ -6,7 +6,7 @@
 
 #include "src/frames-inl.h"
 #include "src/wasm/wasm-interpreter.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -13,7 +13,6 @@
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
 
-#include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
 
 // Has to be the last include (doesn't have include guards)
@@ -119,8 +118,8 @@ class WasmTableObject : public JSObject {
   DEF_OFFSET(MaximumLength)
   DEF_OFFSET(DispatchTables)
 
-  inline uint32_t current_length() { return functions()->length(); }
-  inline bool has_maximum_length() { return maximum_length()->Number() >= 0; }
+  inline uint32_t current_length();
+  inline bool has_maximum_length();
   void grow(Isolate* isolate, uint32_t count);
 
   static Handle<WasmTableObject> New(Isolate* isolate, uint32_t initial,
@@ -160,7 +159,7 @@ class WasmMemoryObject : public JSObject {
   static void RemoveInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
                              Handle<WasmInstanceObject> object);
   uint32_t current_pages();
-  inline bool has_maximum_pages() { return maximum_pages() >= 0; }
+  inline bool has_maximum_pages();
 
   static Handle<WasmMemoryObject> New(Isolate* isolate,
                                       Handle<JSArrayBuffer> buffer,
@@ -327,35 +326,16 @@ class WasmCompiledModule : public FixedArray {
 
 #define WCM_OBJECT_OR_WEAK(TYPE, NAME, ID, TYPE_CHECK, SETTER_MODIFIER) \
  public:                                                                \
-  Handle<TYPE> NAME() const { return handle(ptr_to_##NAME()); }         \
-                                                                        \
-  MaybeHandle<TYPE> maybe_##NAME() const {                              \
-    if (has_##NAME()) return NAME();                                    \
-    return MaybeHandle<TYPE>();                                         \
-  }                                                                     \
-                                                                        \
-  TYPE* maybe_ptr_to_##NAME() const {                                   \
-    Object* obj = get(ID);                                              \
-    if (!(TYPE_CHECK)) return nullptr;                                  \
-    return TYPE::cast(obj);                                             \
-  }                                                                     \
-                                                                        \
-  TYPE* ptr_to_##NAME() const {                                         \
-    Object* obj = get(ID);                                              \
-    DCHECK(TYPE_CHECK);                                                 \
-    return TYPE::cast(obj);                                             \
-  }                                                                     \
-                                                                        \
-  bool has_##NAME() const {                                             \
-    Object* obj = get(ID);                                              \
-    return TYPE_CHECK;                                                  \
-  }                                                                     \
-                                                                        \
-  void reset_##NAME() { set_undefined(ID); }                            \
+  inline Handle<TYPE> NAME() const;                                     \
+  inline MaybeHandle<TYPE> maybe_##NAME() const;                        \
+  inline TYPE* maybe_ptr_to_##NAME() const;                             \
+  inline TYPE* ptr_to_##NAME() const;                                   \
+  inline bool has_##NAME() const;                                       \
+  inline void reset_##NAME();                                           \
                                                                         \
   SETTER_MODIFIER:                                                      \
-  void set_##NAME(Handle<TYPE> value) { set_ptr_to_##NAME(*value); }    \
-  void set_ptr_to_##NAME(TYPE* value) { set(ID, value); }
+  inline void set_##NAME(Handle<TYPE> value);                           \
+  inline void set_ptr_to_##NAME(TYPE* value);
 
 #define WCM_OBJECT(TYPE, NAME) \
   WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, obj->Is##TYPE(), public)
@@ -366,43 +346,27 @@ class WasmCompiledModule : public FixedArray {
 #define WCM_WASM_OBJECT(TYPE, NAME) \
   WCM_OBJECT_OR_WEAK(TYPE, NAME, kID_##NAME, TYPE::Is##TYPE(obj), private)
 
-#define WCM_SMALL_CONST_NUMBER(TYPE, NAME)                                     \
- public:                                                                       \
-  TYPE NAME() const { return static_cast<TYPE>(Smi::ToInt(get(kID_##NAME))); } \
-                                                                               \
- private:                                                                      \
-  void set_##NAME(TYPE value) { set(kID_##NAME, Smi::FromInt(value)); }
+#define WCM_SMALL_CONST_NUMBER(TYPE, NAME) \
+ public:                                   \
+  inline TYPE NAME() const;                \
+                                           \
+ private:                                  \
+  inline void set_##NAME(TYPE value);
 
 #define WCM_WEAK_LINK(TYPE, NAME)                                          \
   WCM_OBJECT_OR_WEAK(WeakCell, weak_##NAME, kID_##NAME, obj->IsWeakCell(), \
                      public)                                               \
                                                                            \
  public:                                                                   \
-  Handle<TYPE> NAME() const {                                              \
-    return handle(TYPE::cast(weak_##NAME()->value()));                     \
-  }
+  inline Handle<TYPE> NAME() const;
 
 #define WCM_LARGE_NUMBER(TYPE, NAME)                                   \
  public:                                                               \
-  TYPE NAME() const {                                                  \
-    Object* value = get(kID_##NAME);                                   \
-    DCHECK(value->IsMutableHeapNumber());                              \
-    return static_cast<TYPE>(HeapNumber::cast(value)->value());        \
-  }                                                                    \
-                                                                       \
-  void set_##NAME(TYPE value) {                                        \
-    Object* number = get(kID_##NAME);                                  \
-    DCHECK(number->IsMutableHeapNumber());                             \
-    HeapNumber::cast(number)->set_value(static_cast<double>(value));   \
-  }                                                                    \
-                                                                       \
-  static void recreate_##NAME(Handle<WasmCompiledModule> obj,          \
-                              Factory* factory, TYPE init_val) {       \
-    Handle<HeapNumber> number = factory->NewHeapNumber(                \
-        static_cast<double>(init_val), MutableMode::MUTABLE, TENURED); \
-    obj->set(kID_##NAME, *number);                                     \
-  }                                                                    \
-  bool has_##NAME() const { return get(kID_##NAME)->IsMutableHeapNumber(); }
+  inline TYPE NAME() const;                                            \
+  inline void set_##NAME(TYPE value);                                  \
+  inline static void recreate_##NAME(Handle<WasmCompiledModule> obj,   \
+                                     Factory* factory, TYPE init_val); \
+  inline bool has_##NAME() const;
 
 // Add values here if they are required for creating new instances or
 // for deserialization, and if they are serializable.
@@ -460,20 +424,9 @@ class WasmCompiledModule : public FixedArray {
   static void Reset(Isolate* isolate, WasmCompiledModule* module,
                     bool clear_global_handles = true);
 
-  Address GetEmbeddedMemStartOrNull() const {
-    return has_embedded_mem_start()
-               ? reinterpret_cast<Address>(embedded_mem_start())
-               : nullptr;
-  }
-
-  Address GetGlobalsStartOrNull() const {
-    return has_globals_start() ? reinterpret_cast<Address>(globals_start())
-                               : nullptr;
-  }
-
-  uint32_t GetEmbeddedMemSizeOrZero() const {
-    return has_embedded_mem_size() ? embedded_mem_size() : 0;
-  }
+  inline Address GetEmbeddedMemStartOrNull() const;
+  inline Address GetGlobalsStartOrNull() const;
+  inline uint32_t GetEmbeddedMemSizeOrZero() const;
 
   uint32_t default_mem_size() const;
 
@@ -491,8 +444,7 @@ class WasmCompiledModule : public FixedArray {
 
  public:
 // Allow to call method on WasmSharedModuleData also on this object.
-#define FORWARD_SHARED(type, name) \
-  type name() { return shared()->name(); }
+#define FORWARD_SHARED(type, name) inline type name();
   FORWARD_SHARED(SeqOneByteString*, module_bytes)
   FORWARD_SHARED(wasm::WasmModule*, module)
   FORWARD_SHARED(Script*, script)
@@ -594,9 +546,7 @@ class WasmCompiledModule : public FixedArray {
                                   Handle<Code> caller, int offset,
                                   int func_index, bool patch_caller);
 
-  void ReplaceCodeTableForTesting(Handle<FixedArray> testing_table) {
-    set_code_table(testing_table);
-  }
+  inline void ReplaceCodeTableForTesting(Handle<FixedArray> testing_table);
 
   static void SetTableValue(Isolate* isolate, Handle<FixedArray> table,
                             int index, Address value);
@@ -707,72 +657,15 @@ class WasmDebugInfo : public FixedArray {
                                           wasm::FunctionSig*);
 };
 
-// TODO(titzer): these should be moved to wasm-objects-inl.h
-CAST_ACCESSOR(WasmInstanceObject)
-CAST_ACCESSOR(WasmMemoryObject)
-CAST_ACCESSOR(WasmModuleObject)
-CAST_ACCESSOR(WasmTableObject)
-
-#define OPTIONAL_ACCESSORS(holder, name, type, offset)           \
-  bool holder::has_##name() {                                    \
-    return !READ_FIELD(this, offset)->IsUndefined(GetIsolate()); \
-  }                                                              \
-  ACCESSORS(holder, name, type, offset)
-
-// WasmModuleObject
-ACCESSORS(WasmModuleObject, compiled_module, WasmCompiledModule,
-          kCompiledModuleOffset)
-
-// WasmTableObject
-ACCESSORS(WasmTableObject, functions, FixedArray, kFunctionsOffset)
-ACCESSORS(WasmTableObject, maximum_length, Object, kMaximumLengthOffset)
-ACCESSORS(WasmTableObject, dispatch_tables, FixedArray, kDispatchTablesOffset)
-
-// WasmMemoryObject
-ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
-SMI_ACCESSORS(WasmMemoryObject, maximum_pages, kMaximumPagesOffset)
-OPTIONAL_ACCESSORS(WasmMemoryObject, instances, WeakFixedArray,
-                   kInstancesOffset)
-
-// WasmInstanceObject
-ACCESSORS(WasmInstanceObject, compiled_module, WasmCompiledModule,
-          kCompiledModuleOffset)
-ACCESSORS(WasmInstanceObject, exports_object, JSObject,
-          kExportsObjectOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
-                   kMemoryObjectOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, memory_buffer, JSArrayBuffer,
-                   kMemoryBufferOffset)
-ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
-          kGlobalsBufferOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
-                   kDebugInfoOffset)
-ACCESSORS(WasmInstanceObject, directly_called_instances, FixedArray,
-          kDirectlyCalledInstancesOffset)
-
-// WasmSharedModuleData
-ACCESSORS(WasmSharedModuleData, module_bytes, SeqOneByteString,
-          kModuleBytesOffset)
-ACCESSORS(WasmSharedModuleData, script, Script, kScriptOffset)
-OPTIONAL_ACCESSORS(WasmSharedModuleData, asm_js_offset_table, ByteArray,
-                   kAsmJsOffsetTableOffset)
-OPTIONAL_ACCESSORS(WasmSharedModuleData, breakpoint_infos, FixedArray,
-                   kBreakPointInfosOffset)
-
-OPTIONAL_ACCESSORS(WasmSharedModuleData, lazy_compilation_orchestrator, Foreign,
-                   kLazyCompilationOrchestratorOffset)
-
-OPTIONAL_ACCESSORS(WasmDebugInfo, locals_names, FixedArray, kLocalsNamesOffset)
-OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entries, FixedArray,
-                   kCWasmEntriesOffset)
-OPTIONAL_ACCESSORS(WasmDebugInfo, c_wasm_entry_map, Managed<wasm::SignatureMap>,
-                   kCWasmEntryMapOffset)
-
-#undef OPTIONAL_ACCESSORS
 #undef DECL_OOL_QUERY
 #undef DECL_OOL_CAST
 #undef DECL_GETTER
 #undef DECL_OPTIONAL_ACCESSORS
+#undef WCM_CONST_OBJECT
+#undef WCM_LARGE_NUMBER
+#undef WCM_OBJECT_OR_WEAK
+#undef WCM_SMALL_CONST_NUMBER
+#undef WCM_WEAK_LINK
 
 #include "src/objects/object-macros-undef.h"
 

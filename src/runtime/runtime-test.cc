@@ -17,7 +17,7 @@
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/natives.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace {
 struct WasmCompileControls {

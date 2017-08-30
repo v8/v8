@@ -17,7 +17,7 @@
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/zone/accounting-allocator.h"
 
 #if __clang__
