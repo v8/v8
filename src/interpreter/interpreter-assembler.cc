@@ -1026,7 +1026,8 @@ Node* InterpreterAssembler::CallRuntimeN(Node* function_id, Node* context,
 }
 
 void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
-  Label ok(this), interrupt_check(this, Label::kDeferred), end(this);
+  Comment("[ UpdateInterruptBudget");
+
   Node* budget_offset =
       IntPtrConstant(BytecodeArray::kInterruptBudgetOffset - kHeapObjectTag);
 
@@ -1041,28 +1042,35 @@ void InterpreterAssembler::UpdateInterruptBudget(Node* weight, bool backward) {
   // Make sure we include the current bytecode in the budget calculation.
   Node* budget_after_bytecode =
       Int32Sub(old_budget, Int32Constant(CurrentBytecodeSize()));
+
   if (backward) {
     new_budget.Bind(Int32Sub(budget_after_bytecode, weight));
-  } else {
-    new_budget.Bind(Int32Add(budget_after_bytecode, weight));
-  }
-  Node* condition =
-      Int32GreaterThanOrEqual(new_budget.value(), Int32Constant(0));
-  Branch(condition, &ok, &interrupt_check);
 
-  // Perform interrupt and reset budget.
-  BIND(&interrupt_check);
-  {
-    CallRuntime(Runtime::kInterrupt, GetContext());
-    new_budget.Bind(Int32Constant(Interpreter::InterruptBudget()));
-    Goto(&ok);
+    Node* condition =
+        Int32GreaterThanOrEqual(new_budget.value(), Int32Constant(0));
+    Label ok(this), interrupt_check(this, Label::kDeferred);
+    Branch(condition, &ok, &interrupt_check);
+
+    // Perform interrupt and reset budget.
+    BIND(&interrupt_check);
+    {
+      CallRuntime(Runtime::kInterrupt, GetContext());
+      new_budget.Bind(Int32Constant(Interpreter::InterruptBudget()));
+      Goto(&ok);
+    }
+
+    BIND(&ok);
+  } else {
+    // For a forward jump, we know we only increase the interrupt budget, so
+    // no need to check if it's below zero.
+    new_budget.Bind(Int32Add(budget_after_bytecode, weight));
   }
 
   // Update budget.
-  BIND(&ok);
   StoreNoWriteBarrier(MachineRepresentation::kWord32,
                       BytecodeArrayTaggedPointer(), budget_offset,
                       new_budget.value());
+  Comment("] UpdateInterruptBudget");
 }
 
 Node* InterpreterAssembler::Advance() { return Advance(CurrentBytecodeSize()); }
