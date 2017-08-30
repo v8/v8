@@ -6562,7 +6562,7 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
   class MarkingVisitor : public ObjectVisitor, public RootVisitor {
    public:
     explicit MarkingVisitor(UnreachableObjectsFilter* filter)
-        : filter_(filter), marking_stack_(10) {}
+        : filter_(filter) {}
 
     void VisitPointers(HeapObject* host, Object** start,
                        Object** end) override {
@@ -6574,8 +6574,9 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
     }
 
     void TransitiveClosure() {
-      while (!marking_stack_.is_empty()) {
-        HeapObject* obj = marking_stack_.RemoveLast();
+      while (!marking_stack_.empty()) {
+        HeapObject* obj = marking_stack_.back();
+        marking_stack_.pop_back();
         obj->Iterate(this);
       }
     }
@@ -6586,12 +6587,12 @@ class UnreachableObjectsFilter : public HeapObjectsFilter {
         if (!(*p)->IsHeapObject()) continue;
         HeapObject* obj = HeapObject::cast(*p);
         if (filter_->MarkAsReachable(obj)) {
-          marking_stack_.Add(obj);
+          marking_stack_.push_back(obj);
         }
       }
     }
     UnreachableObjectsFilter* filter_;
-    List<HeapObject*> marking_stack_;
+    std::vector<HeapObject*> marking_stack_;
   };
 
   friend class MarkingVisitor;

@@ -22,7 +22,6 @@
 #include "src/heap/heap.h"
 #include "src/heap/invalidated-slots.h"
 #include "src/heap/marking.h"
-#include "src/list.h"
 #include "src/objects.h"
 #include "src/objects/map.h"
 #include "src/utils.h"
@@ -1004,7 +1003,9 @@ class MemoryChunkValidator {
 class CodeRange {
  public:
   explicit CodeRange(Isolate* isolate);
-  ~CodeRange() { TearDown(); }
+  ~CodeRange() {
+    if (virtual_memory_.IsReserved()) virtual_memory_.Release();
+  }
 
   // Reserves a range of virtual memory, but does not commit any of it.
   // Can only be called once, at heap initialization time.
@@ -1055,18 +1056,14 @@ class CodeRange {
     size_t size;
   };
 
-  // Frees the range of virtual memory, and frees the data structures used to
-  // manage it.
-  void TearDown();
-
   // Finds a block on the allocation list that contains at least the
   // requested amount of memory.  If none is found, sorts and merges
   // the existing free memory blocks, and searches again.
   // If none can be found, returns false.
   bool GetNextAllocationBlock(size_t requested);
   // Compares the start addresses of two free blocks.
-  static int CompareFreeBlockAddress(const FreeBlock* left,
-                                     const FreeBlock* right);
+  static bool CompareFreeBlockAddress(const FreeBlock& left,
+                                      const FreeBlock& right);
   bool ReserveBlock(const size_t requested_size, FreeBlock* block);
   void ReleaseBlock(const FreeBlock* block);
 
@@ -1082,12 +1079,12 @@ class CodeRange {
   // Freed blocks of memory are added to the free list.  When the allocation
   // list is exhausted, the free list is sorted and merged to make the new
   // allocation list.
-  List<FreeBlock> free_list_;
+  std::vector<FreeBlock> free_list_;
 
   // Memory is allocated from the free blocks on the allocation list.
   // The block at current_allocation_block_index_ is the current block.
-  List<FreeBlock> allocation_list_;
-  int current_allocation_block_index_;
+  std::vector<FreeBlock> allocation_list_;
+  size_t current_allocation_block_index_;
 
   DISALLOW_COPY_AND_ASSIGN(CodeRange);
 };

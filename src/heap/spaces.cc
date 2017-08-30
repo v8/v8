@@ -140,7 +140,7 @@ bool CodeRange::SetUp(size_t requested) {
   }
   Address aligned_base = ::RoundUp(base, MemoryChunk::kAlignment);
   size_t size = reservation.size() - (aligned_base - base) - reserved_area;
-  allocation_list_.Add(FreeBlock(aligned_base, size));
+  allocation_list_.emplace_back(aligned_base, size);
   current_allocation_block_index_ = 0;
 
   LOG(isolate_, NewEvent("CodeRange", reservation.address(), requested));
@@ -148,19 +148,15 @@ bool CodeRange::SetUp(size_t requested) {
   return true;
 }
 
-
-int CodeRange::CompareFreeBlockAddress(const FreeBlock* left,
-                                       const FreeBlock* right) {
-  // The entire point of CodeRange is that the difference between two
-  // addresses in the range can be represented as a signed 32-bit int,
-  // so the cast is semantically correct.
-  return static_cast<int>(left->start - right->start);
+bool CodeRange::CompareFreeBlockAddress(const FreeBlock& left,
+                                        const FreeBlock& right) {
+  return left.start < right.start;
 }
 
 
 bool CodeRange::GetNextAllocationBlock(size_t requested) {
   for (current_allocation_block_index_++;
-       current_allocation_block_index_ < allocation_list_.length();
+       current_allocation_block_index_ < allocation_list_.size();
        current_allocation_block_index_++) {
     if (requested <= allocation_list_[current_allocation_block_index_].size) {
       return true;  // Found a large enough allocation block.
@@ -168,26 +164,27 @@ bool CodeRange::GetNextAllocationBlock(size_t requested) {
   }
 
   // Sort and merge the free blocks on the free list and the allocation list.
-  free_list_.AddAll(allocation_list_);
-  allocation_list_.Clear();
-  free_list_.Sort(&CompareFreeBlockAddress);
-  for (int i = 0; i < free_list_.length();) {
+  free_list_.insert(free_list_.end(), allocation_list_.begin(),
+                    allocation_list_.end());
+  allocation_list_.clear();
+  std::sort(free_list_.begin(), free_list_.end(), &CompareFreeBlockAddress);
+  for (size_t i = 0; i < free_list_.size();) {
     FreeBlock merged = free_list_[i];
     i++;
     // Add adjacent free blocks to the current merged block.
-    while (i < free_list_.length() &&
+    while (i < free_list_.size() &&
            free_list_[i].start == merged.start + merged.size) {
       merged.size += free_list_[i].size;
       i++;
     }
     if (merged.size > 0) {
-      allocation_list_.Add(merged);
+      allocation_list_.push_back(merged);
     }
   }
-  free_list_.Clear();
+  free_list_.clear();
 
   for (current_allocation_block_index_ = 0;
-       current_allocation_block_index_ < allocation_list_.length();
+       current_allocation_block_index_ < allocation_list_.size();
        current_allocation_block_index_++) {
     if (requested <= allocation_list_[current_allocation_block_index_].size) {
       return true;  // Found a large enough allocation block.
@@ -238,24 +235,15 @@ bool CodeRange::UncommitRawMemory(Address start, size_t length) {
 void CodeRange::FreeRawMemory(Address address, size_t length) {
   DCHECK(IsAddressAligned(address, MemoryChunk::kAlignment));
   base::LockGuard<base::Mutex> guard(&code_range_mutex_);
-  free_list_.Add(FreeBlock(address, length));
+  free_list_.emplace_back(address, length);
   virtual_memory_.Uncommit(address, length);
 }
 
-
-void CodeRange::TearDown() {
-  if (virtual_memory_.IsReserved()) virtual_memory_.Release();
-  base::LockGuard<base::Mutex> guard(&code_range_mutex_);
-  free_list_.Free();
-  allocation_list_.Free();
-}
-
-
 bool CodeRange::ReserveBlock(const size_t requested_size, FreeBlock* block) {
   base::LockGuard<base::Mutex> guard(&code_range_mutex_);
-  DCHECK(allocation_list_.length() == 0 ||
-         current_allocation_block_index_ < allocation_list_.length());
-  if (allocation_list_.length() == 0 ||
+  DCHECK(allocation_list_.empty() ||
+         current_allocation_block_index_ < allocation_list_.size());
+  if (allocation_list_.empty() ||
       requested_size > allocation_list_[current_allocation_block_index_].size) {
     // Find an allocation block large enough.
     if (!GetNextAllocationBlock(requested_size)) return false;
@@ -276,7 +264,7 @@ bool CodeRange::ReserveBlock(const size_t requested_size, FreeBlock* block) {
 
 void CodeRange::ReleaseBlock(const FreeBlock* block) {
   base::LockGuard<base::Mutex> guard(&code_range_mutex_);
-  free_list_.Add(*block);
+  free_list_.push_back(*block);
 }
 
 
