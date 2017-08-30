@@ -142,6 +142,7 @@
 //       - AccessorInfo
 //       - PromiseResolveThenableJobInfo
 //       - PromiseReactionJobInfo
+//       - PromiseCapability
 //       - AccessorPair
 //       - AccessCheckInfo
 //       - InterceptorInfo
@@ -358,6 +359,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
   V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
   V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
+  V(PROMISE_CAPABILITY_TYPE)                                    \
   V(DEBUG_INFO_TYPE)                                            \
   V(STACK_FRAME_INFO_TYPE)                                      \
   V(PROTOTYPE_INFO_TYPE)                                        \
@@ -406,7 +408,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(JS_MAP_VALUE_ITERATOR_TYPE)                                 \
   V(JS_WEAK_MAP_TYPE)                                           \
   V(JS_WEAK_SET_TYPE)                                           \
-  V(JS_PROMISE_CAPABILITY_TYPE)                                 \
   V(JS_PROMISE_TYPE)                                            \
   V(JS_REGEXP_TYPE)                                             \
   V(JS_ERROR_TYPE)                                              \
@@ -541,6 +542,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
     promise_resolve_thenable_job_info)                                       \
   V(PROMISE_REACTION_JOB_INFO, PromiseReactionJobInfo,                       \
     promise_reaction_job_info)                                               \
+  V(PROMISE_CAPABILITY, PromiseCapability, promise_capability)               \
   V(DEBUG_INFO, DebugInfo, debug_info)                                       \
   V(STACK_FRAME_INFO, StackFrameInfo, stack_frame_info)                      \
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
@@ -709,6 +711,7 @@ enum InstanceType : uint8_t {
   ALIASED_ARGUMENTS_ENTRY_TYPE,
   PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE,
   PROMISE_REACTION_JOB_INFO_TYPE,
+  PROMISE_CAPABILITY_TYPE,
   DEBUG_INFO_TYPE,
   STACK_FRAME_INFO_TYPE,
   PROTOTYPE_INFO_TYPE,
@@ -764,7 +767,6 @@ enum InstanceType : uint8_t {
   JS_MAP_VALUE_ITERATOR_TYPE,
   JS_WEAK_MAP_TYPE,
   JS_WEAK_SET_TYPE,
-  JS_PROMISE_CAPABILITY_TYPE,
   JS_PROMISE_TYPE,
   JS_REGEXP_TYPE,
   JS_ERROR_TYPE,
@@ -1041,7 +1043,6 @@ template <class C> inline bool Is(Object* obj);
   V(JSModuleNamespace)                    \
   V(JSObject)                             \
   V(JSPromise)                            \
-  V(JSPromiseCapability)                  \
   V(JSProxy)                              \
   V(JSReceiver)                           \
   V(JSRegExp)                             \
@@ -4334,6 +4335,25 @@ class Struct: public HeapObject {
   void BriefPrintDetails(std::ostream& os);
 };
 
+class PromiseCapability : public Struct {
+ public:
+  DECL_CAST(PromiseCapability)
+  DECL_PRINTER(PromiseCapability)
+  DECL_VERIFIER(PromiseCapability)
+
+  DECL_ACCESSORS(promise, Object)
+  DECL_ACCESSORS(resolve, Object)
+  DECL_ACCESSORS(reject, Object)
+
+  static const int kPromiseOffset = Struct::kHeaderSize;
+  static const int kResolveOffset = kPromiseOffset + kPointerSize;
+  static const int kRejectOffset = kResolveOffset + kPointerSize;
+  static const int kSize = kRejectOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseCapability);
+};
+
 // A container struct to hold state required for PromiseResolveThenableJob.
 class PromiseResolveThenableJobInfo : public Struct {
  public:
@@ -5328,36 +5348,6 @@ class JSMessageObject: public JSObject {
                               kSize> BodyDescriptor;
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
-};
-
-class JSPromise;
-
-// TODO(caitp): Make this a Struct once properties are no longer accessed from
-// JS
-class JSPromiseCapability : public JSObject {
- public:
-  DECL_CAST(JSPromiseCapability)
-
-  DECL_VERIFIER(JSPromiseCapability)
-
-  DECL_ACCESSORS(promise, Object)
-  DECL_ACCESSORS(resolve, Object)
-  DECL_ACCESSORS(reject, Object)
-
-  static const int kPromiseOffset = JSObject::kHeaderSize;
-  static const int kResolveOffset = kPromiseOffset + kPointerSize;
-  static const int kRejectOffset = kResolveOffset + kPointerSize;
-  static const int kSize = kRejectOffset + kPointerSize;
-
-  enum InObjectPropertyIndex {
-    kPromiseIndex,
-    kResolveIndex,
-    kRejectIndex,
-    kInObjectPropertyCount  // Dummy.
-  };
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSPromiseCapability);
 };
 
 class JSPromise : public JSObject {

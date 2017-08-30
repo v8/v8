@@ -229,9 +229,6 @@ using v8::MemoryPressureLevel;
   V(FixedArray, serialized_templates, SerializedTemplates)                     \
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)     \
   V(TemplateList, message_listeners, MessageListeners)                         \
-  /* per-Isolate map for JSPromiseCapability. */                               \
-  /* TODO(caitp): Make this a Struct */                                        \
-  V(Map, js_promise_capability_map, JSPromiseCapabilityMap)                    \
   /* JS Entries */                                                             \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)

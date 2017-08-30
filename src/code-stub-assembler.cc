@@ -2303,6 +2303,30 @@ Node* CodeStubAssembler::CopyNameDictionary(Node* dictionary,
   return properties;
 }
 
+Node* CodeStubAssembler::AllocateStruct(Node* map, AllocationFlags flags) {
+  Comment("AllocateStruct");
+  CSA_ASSERT(this, IsMap(map));
+  Node* size = TimesPointerSize(LoadMapInstanceSize(map));
+  Node* object = Allocate(size, flags);
+  StoreMapNoWriteBarrier(object, map);
+  InitializeStructBody(object, map, size, Struct::kHeaderSize);
+  return object;
+}
+
+void CodeStubAssembler::InitializeStructBody(Node* object, Node* map,
+                                             Node* size, int start_offset) {
+  CSA_SLOW_ASSERT(this, IsMap(map));
+  Comment("InitializeStructBody");
+  Node* filler = LoadRoot(Heap::kUndefinedValueRootIndex);
+  // Calculate the untagged field addresses.
+  object = BitcastTaggedToWord(object);
+  Node* start_address =
+      IntPtrAdd(object, IntPtrConstant(start_offset - kHeapObjectTag));
+  Node* end_address =
+      IntPtrSub(IntPtrAdd(object, size), IntPtrConstant(kHeapObjectTag));
+  StoreFieldsNoWriteBarrier(start_address, end_address, filler);
+}
+
 Node* CodeStubAssembler::AllocateJSObjectFromMap(Node* map, Node* properties,
                                                  Node* elements,
                                                  AllocationFlags flags) {

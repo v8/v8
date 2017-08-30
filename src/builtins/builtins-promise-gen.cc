@@ -109,15 +109,8 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
 
   Node* native_context = LoadNativeContext(context);
 
-  Node* map = LoadRoot(Heap::kJSPromiseCapabilityMapRootIndex);
-  Node* capability = AllocateJSObjectFromMap(map);
-
-  StoreObjectFieldNoWriteBarrier(
-      capability, JSPromiseCapability::kPromiseOffset, UndefinedConstant());
-  StoreObjectFieldNoWriteBarrier(
-      capability, JSPromiseCapability::kResolveOffset, UndefinedConstant());
-  StoreObjectFieldNoWriteBarrier(capability, JSPromiseCapability::kRejectOffset,
-                                 UndefinedConstant());
+  Node* map = LoadRoot(Heap::kPromiseCapabilityMapRootIndex);
+  Node* capability = AllocateStruct(map);
 
   VARIABLE(var_result, MachineRepresentation::kTagged);
   var_result.Bind(capability);
@@ -133,15 +126,15 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
   {
     Node* promise = AllocateJSPromise(context);
     PromiseInit(promise);
-    StoreObjectField(capability, JSPromiseCapability::kPromiseOffset, promise);
+    StoreObjectField(capability, PromiseCapability::kPromiseOffset, promise);
 
     Node* resolve = nullptr;
     Node* reject = nullptr;
 
     std::tie(resolve, reject) =
         CreatePromiseResolvingFunctions(promise, debug_event, native_context);
-    StoreObjectField(capability, JSPromiseCapability::kResolveOffset, resolve);
-    StoreObjectField(capability, JSPromiseCapability::kRejectOffset, reject);
+    StoreObjectField(capability, PromiseCapability::kResolveOffset, resolve);
+    StoreObjectField(capability, PromiseCapability::kRejectOffset, reject);
 
     GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &out);
     CallRuntime(Runtime::kPromiseHookInit, context, promise,
@@ -165,25 +158,25 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
                                 constructor, executor);
 
     Node* resolve =
-        LoadObjectField(capability, JSPromiseCapability::kResolveOffset);
+        LoadObjectField(capability, PromiseCapability::kResolveOffset);
     GotoIf(TaggedIsSmi(resolve), &if_notcallable);
     GotoIfNot(IsCallableMap(LoadMap(resolve)), &if_notcallable);
 
     Node* reject =
-        LoadObjectField(capability, JSPromiseCapability::kRejectOffset);
+        LoadObjectField(capability, PromiseCapability::kRejectOffset);
     GotoIf(TaggedIsSmi(reject), &if_notcallable);
     GotoIfNot(IsCallableMap(LoadMap(reject)), &if_notcallable);
 
-    StoreObjectField(capability, JSPromiseCapability::kPromiseOffset, promise);
+    StoreObjectField(capability, PromiseCapability::kPromiseOffset, promise);
 
     Goto(&out);
 
     BIND(&if_notcallable);
-    StoreObjectField(capability, JSPromiseCapability::kPromiseOffset,
+    StoreObjectField(capability, PromiseCapability::kPromiseOffset,
                      UndefinedConstant());
-    StoreObjectField(capability, JSPromiseCapability::kResolveOffset,
+    StoreObjectField(capability, PromiseCapability::kResolveOffset,
                      UndefinedConstant());
-    StoreObjectField(capability, JSPromiseCapability::kRejectOffset,
+    StoreObjectField(capability, PromiseCapability::kRejectOffset,
                      UndefinedConstant());
     ThrowTypeError(context, MessageTemplate::kPromiseNonCallable);
   }
@@ -415,11 +408,11 @@ Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
   {
     Node* const capability = NewPromiseCapability(context, constructor);
     var_deferred_promise.Bind(
-        LoadObjectField(capability, JSPromiseCapability::kPromiseOffset));
+        LoadObjectField(capability, PromiseCapability::kPromiseOffset));
     var_deferred_on_resolve.Bind(
-        LoadObjectField(capability, JSPromiseCapability::kResolveOffset));
+        LoadObjectField(capability, PromiseCapability::kResolveOffset));
     var_deferred_on_reject.Bind(
-        LoadObjectField(capability, JSPromiseCapability::kRejectOffset));
+        LoadObjectField(capability, PromiseCapability::kRejectOffset));
     Goto(&perform_promise_then);
   }
 
@@ -1465,12 +1458,12 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
       // 5. Perform ? Call(promiseCapability.[[Resolve]], undefined, « x »).
       Callable call_callable = CodeFactory::Call(isolate);
       Node* const resolve =
-          LoadObjectField(capability, JSPromiseCapability::kResolveOffset);
+          LoadObjectField(capability, PromiseCapability::kResolveOffset);
       CallJS(call_callable, context, resolve, UndefinedConstant(), value);
 
       // 6. Return promiseCapability.[[Promise]].
       Node* const result =
-          LoadObjectField(capability, JSPromiseCapability::kPromiseOffset);
+          LoadObjectField(capability, PromiseCapability::kPromiseOffset);
       Return(result);
     }
   }
@@ -1486,16 +1479,16 @@ TF_BUILTIN(PromiseGetCapabilitiesExecutor, PromiseBuiltinsAssembler) {
 
   Label if_alreadyinvoked(this, Label::kDeferred);
   GotoIf(WordNotEqual(
-             LoadObjectField(capability, JSPromiseCapability::kResolveOffset),
+             LoadObjectField(capability, PromiseCapability::kResolveOffset),
              UndefinedConstant()),
          &if_alreadyinvoked);
   GotoIf(WordNotEqual(
-             LoadObjectField(capability, JSPromiseCapability::kRejectOffset),
+             LoadObjectField(capability, PromiseCapability::kRejectOffset),
              UndefinedConstant()),
          &if_alreadyinvoked);
 
-  StoreObjectField(capability, JSPromiseCapability::kResolveOffset, resolve);
-  StoreObjectField(capability, JSPromiseCapability::kRejectOffset, reject);
+  StoreObjectField(capability, PromiseCapability::kResolveOffset, resolve);
+  StoreObjectField(capability, PromiseCapability::kRejectOffset, reject);
 
   Return(UndefinedConstant());
 
@@ -1547,13 +1540,13 @@ TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
 
     // 4. Perform ? Call(promiseCapability.[[Reject]], undefined, « r »).
     Node* const reject =
-        LoadObjectField(capability, JSPromiseCapability::kRejectOffset);
+        LoadObjectField(capability, PromiseCapability::kRejectOffset);
     Callable call_callable = CodeFactory::Call(isolate());
     CallJS(call_callable, context, reject, UndefinedConstant(), reason);
 
     // 5. Return promiseCapability.[[Promise]].
     Node* const promise =
-        LoadObjectField(capability, JSPromiseCapability::kPromiseOffset);
+        LoadObjectField(capability, PromiseCapability::kPromiseOffset);
     Return(promise);
   }
 }
@@ -1810,7 +1803,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
   // instead, recurse outwards.
   SetForwardingHandlerIfTrue(
       context, instrumenting,
-      LoadObjectField(capability, JSPromiseCapability::kRejectOffset));
+      LoadObjectField(capability, PromiseCapability::kRejectOffset));
 
   Node* const native_context = LoadNativeContext(context);
   Node* const array_map = LoadContextElement(
@@ -1899,14 +1892,14 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
 
     Node* const then_call = CallJS(
         CodeFactory::Call(isolate()), context, then, next_promise, resolve,
-        LoadObjectField(capability, JSPromiseCapability::kRejectOffset));
+        LoadObjectField(capability, PromiseCapability::kRejectOffset));
     GotoIfException(then_call, &close_iterator, var_exception);
 
     // For catch prediction, mark that rejections here are semantically
     // handled by the combined Promise.
     SetPromiseHandledByIfTrue(context, instrumenting, then_call, [=]() {
       // Load promiseCapability.[[Promise]]
-      return LoadObjectField(capability, JSPromiseCapability::kPromiseOffset);
+      return LoadObjectField(capability, PromiseCapability::kPromiseOffset);
     });
 
     // Set index to index + 1
@@ -1939,7 +1932,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
     BIND(&resolve_promise);
 
     Node* const resolve =
-        LoadObjectField(capability, JSPromiseCapability::kResolveOffset);
+        LoadObjectField(capability, PromiseCapability::kResolveOffset);
     Node* const resolve_call =
         CallJS(CodeFactory::Call(isolate()), context, resolve,
                UndefinedConstant(), values_array);
@@ -1951,7 +1944,7 @@ Node* PromiseBuiltinsAssembler::PerformPromiseAll(
   }
 
   Node* const promise =
-      LoadObjectField(capability, JSPromiseCapability::kPromiseOffset);
+      LoadObjectField(capability, PromiseCapability::kPromiseOffset);
   return promise;
 }
 
@@ -2022,13 +2015,13 @@ TF_BUILTIN(PromiseAll, PromiseBuiltinsAssembler) {
     // Exception must be bound to a JS value.
     CSA_SLOW_ASSERT(this, IsNotTheHole(var_exception.value()));
     Node* const reject =
-        LoadObjectField(capability, JSPromiseCapability::kRejectOffset);
+        LoadObjectField(capability, PromiseCapability::kRejectOffset);
     Callable callable = CodeFactory::Call(isolate());
     CallJS(callable, context, reject, UndefinedConstant(),
            var_exception.value());
 
     Node* const promise =
-        LoadObjectField(capability, JSPromiseCapability::kPromiseOffset);
+        LoadObjectField(capability, PromiseCapability::kPromiseOffset);
     Return(promise);
   }
 }
@@ -2099,7 +2092,7 @@ TF_BUILTIN(PromiseAllResolveElementClosure, PromiseBuiltinsAssembler) {
   Node* const capability =
       LoadContextElement(context, kPromiseAllResolveElementCapabilitySlot);
   Node* const resolve =
-      LoadObjectField(capability, JSPromiseCapability::kResolveOffset);
+      LoadObjectField(capability, PromiseCapability::kResolveOffset);
   CallJS(CodeFactory::Call(isolate()), context, resolve, UndefinedConstant(),
          values_array);
   Return(UndefinedConstant());
@@ -2126,9 +2119,9 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
   Node* const capability = NewPromiseCapability(context, receiver, debug_event);
 
   Node* const resolve =
-      LoadObjectField(capability, JSPromiseCapability::kResolveOffset);
+      LoadObjectField(capability, PromiseCapability::kResolveOffset);
   Node* const reject =
-      LoadObjectField(capability, JSPromiseCapability::kRejectOffset);
+      LoadObjectField(capability, PromiseCapability::kRejectOffset);
 
   Node* const instrumenting = IsDebugActive();
 
@@ -2193,13 +2186,13 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
       // handled by the combined Promise.
       SetPromiseHandledByIfTrue(context, instrumenting, then_call, [=]() {
         // Load promiseCapability.[[Promise]]
-        return LoadObjectField(capability, JSPromiseCapability::kPromiseOffset);
+        return LoadObjectField(capability, PromiseCapability::kPromiseOffset);
       });
       Goto(&loop);
     }
 
     BIND(&break_loop);
-    Return(LoadObjectField(capability, JSPromiseCapability::kPromiseOffset));
+    Return(LoadObjectField(capability, PromiseCapability::kPromiseOffset));
   }
 
   BIND(&close_iterator);
@@ -2212,13 +2205,13 @@ TF_BUILTIN(PromiseRace, PromiseBuiltinsAssembler) {
   BIND(&reject_promise);
   {
     Node* const reject =
-        LoadObjectField(capability, JSPromiseCapability::kRejectOffset);
+        LoadObjectField(capability, PromiseCapability::kRejectOffset);
     Callable callable = CodeFactory::Call(isolate());
     CallJS(callable, context, reject, UndefinedConstant(),
            var_exception.value());
 
     Node* const promise =
-        LoadObjectField(capability, JSPromiseCapability::kPromiseOffset);
+        LoadObjectField(capability, PromiseCapability::kPromiseOffset);
     Return(promise);
   }
 }

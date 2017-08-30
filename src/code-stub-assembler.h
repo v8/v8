@@ -684,6 +684,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* AllocateNameDictionaryWithCapacity(Node* capacity);
   Node* CopyNameDictionary(Node* dictionary, Label* large_object_fallback);
 
+  Node* AllocateStruct(Node* map, AllocationFlags flags = kNone);
+  void InitializeStructBody(Node* object, Node* map, Node* size,
+                            int start_offset = Struct::kHeaderSize);
   Node* AllocateJSObjectFromMap(Node* map, Node* properties = nullptr,
                                 Node* elements = nullptr,
                                 AllocationFlags flags = kNone);

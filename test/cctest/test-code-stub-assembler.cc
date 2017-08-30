@@ -2276,14 +2276,14 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const native_context = m.LoadNativeContext(context);
 
-  Node* const map = m.LoadRoot(Heap::kJSPromiseCapabilityMapRootIndex);
-  Node* const capability = m.AllocateJSObjectFromMap(map);
+  Node* const map = m.LoadRoot(Heap::kPromiseCapabilityMapRootIndex);
+  Node* const capability = m.AllocateStruct(map);
   m.StoreObjectFieldNoWriteBarrier(
-      capability, JSPromiseCapability::kPromiseOffset, m.UndefinedConstant());
+      capability, PromiseCapability::kPromiseOffset, m.UndefinedConstant());
   m.StoreObjectFieldNoWriteBarrier(
-      capability, JSPromiseCapability::kResolveOffset, m.UndefinedConstant());
-  m.StoreObjectFieldNoWriteBarrier(
-      capability, JSPromiseCapability::kRejectOffset, m.UndefinedConstant());
+      capability, PromiseCapability::kResolveOffset, m.UndefinedConstant());
+  m.StoreObjectFieldNoWriteBarrier(capability, PromiseCapability::kRejectOffset,
+                                   m.UndefinedConstant());
   Node* const executor_context =
       m.CreatePromiseGetCapabilitiesExecutorContext(capability, native_context);
   m.Return(executor_context);
@@ -2299,7 +2299,7 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   CHECK_EQ(isolate->heap()->the_hole_value(), context_js->extension());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
   CHECK(context_js->get(PromiseBuiltinsAssembler::kCapabilitySlot)
-            ->IsJSPromiseCapability());
+            ->IsPromiseCapability());
 }
 
 TEST(NewPromiseCapability) {
@@ -2323,9 +2323,9 @@ TEST(NewPromiseCapability) {
 
     Handle<Object> result_obj =
         ft.Call(isolate->factory()->undefined_value()).ToHandleChecked();
-    CHECK(result_obj->IsJSPromiseCapability());
-    Handle<JSPromiseCapability> result =
-        Handle<JSPromiseCapability>::cast(result_obj);
+    CHECK(result_obj->IsPromiseCapability());
+    Handle<PromiseCapability> result =
+        Handle<PromiseCapability>::cast(result_obj);
 
     CHECK(result->promise()->IsJSPromise());
     CHECK(result->resolve()->IsJSFunction());
@@ -2376,9 +2376,9 @@ TEST(NewPromiseCapability) {
     Handle<Object> result_obj =
         ft.Call(isolate->factory()->undefined_value(), constructor_fn)
             .ToHandleChecked();
-    CHECK(result_obj->IsJSPromiseCapability());
-    Handle<JSPromiseCapability> result =
-        Handle<JSPromiseCapability>::cast(result_obj);
+    CHECK(result_obj->IsPromiseCapability());
+    Handle<PromiseCapability> result =
+        Handle<PromiseCapability>::cast(result_obj);
 
     CHECK(result->promise()->IsJSObject());
     Handle<JSObject> promise(JSObject::cast(result->promise()));
@@ -2603,6 +2603,40 @@ TEST(LoadJSArrayElementsMap) {
     Handle<Map> result(
         isolate->native_context()->GetInitialJSArrayMap(elements_kind));
     CHECK_EQ(*csa_result, *result);
+  }
+}
+
+TEST(AllocateStruct) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 3;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  CodeStubAssembler m(asm_tester.state());
+
+  {
+    Node* map = m.Parameter(0);
+    Node* result = m.AllocateStruct(map);
+
+    m.Return(result);
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<Map> maps[] = {
+      handle(isolate->heap()->promise_capability_map(), isolate),
+      handle(isolate->heap()->tuple2_map(), isolate),
+  };
+
+  {
+    for (size_t i = 0; i < 2; i++) {
+      Handle<Map> map = maps[i];
+      Handle<Struct> result =
+          Handle<Struct>::cast(ft.Call(map).ToHandleChecked());
+      CHECK_EQ(result->map(), *map);
+#ifdef VERIFY_HEAP
+      isolate->heap()->Verify();
+#endif
+    }
   }
 }
 

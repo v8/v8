@@ -1374,8 +1374,6 @@ int JSObject::GetHeaderSize(InstanceType type) {
       return JSWeakMap::kSize;
     case JS_WEAK_SET_TYPE:
       return JSWeakSet::kSize;
-    case JS_PROMISE_CAPABILITY_TYPE:
-      return JSPromiseCapability::kSize;
     case JS_PROMISE_TYPE:
       return JSPromise::kSize;
     case JS_REGEXP_TYPE:
@@ -3110,7 +3108,6 @@ VisitorId Map::GetVisitorId(Map* map) {
       ARRAY_ITERATOR_TYPE_LIST(ARRAY_ITERATOR_CASE)
 #undef ARRAY_ITERATOR_CASE
 
-    case JS_PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
     case WASM_INSTANCE_TYPE:
     case WASM_MEMORY_TYPE:

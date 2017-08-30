@@ -236,7 +236,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
 
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
-    case JS_PROMISE_CAPABILITY_TYPE:
+    case PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_INSTANCE_TYPE:
