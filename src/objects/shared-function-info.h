@@ -446,6 +446,7 @@ class SharedFunctionInfo : public HeapObject {
 
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize,
                                 SHARED_FUNCTION_INFO_FIELDS)
+#undef SHARED_FUNCTION_INFO_FIELDS
 
   static const int kAlignedSize = POINTER_SIZE_ALIGN(kSize);
 

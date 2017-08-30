@@ -3357,27 +3357,28 @@ class BytecodeArray : public FixedArrayBase {
   inline void clear_padding();
 
   // Layout description.
-  static const int kConstantPoolOffset = FixedArrayBase::kHeaderSize;
-  static const int kHandlerTableOffset = kConstantPoolOffset + kPointerSize;
-  static const int kSourcePositionTableOffset =
-      kHandlerTableOffset + kPointerSize;
-  static const int kFrameSizeOffset = kSourcePositionTableOffset + kPointerSize;
-  static const int kParameterSizeOffset = kFrameSizeOffset + kIntSize;
-  static const int kIncomingNewTargetOrGeneratorRegisterOffset =
-      kParameterSizeOffset + kIntSize;
-  static const int kInterruptBudgetOffset =
-      kIncomingNewTargetOrGeneratorRegisterOffset + kIntSize;
-  static const int kOSRNestingLevelOffset = kInterruptBudgetOffset + kIntSize;
-  static const int kBytecodeAgeOffset = kOSRNestingLevelOffset + kCharSize;
-  static const int kHeaderSize = kBytecodeAgeOffset + kCharSize;
+#define BYTECODE_ARRAY_FIELDS(V)                           \
+  /* Pointer fields. */                                    \
+  V(kConstantPoolOffset, kPointerSize)                     \
+  V(kHandlerTableOffset, kPointerSize)                     \
+  V(kSourcePositionTableOffset, kPointerSize)              \
+  V(kFrameSizeOffset, kIntSize)                            \
+  V(kParameterSizeOffset, kIntSize)                        \
+  V(kIncomingNewTargetOrGeneratorRegisterOffset, kIntSize) \
+  V(kInterruptBudgetOffset, kIntSize)                      \
+  V(kOSRNestingLevelOffset, kCharSize)                     \
+  V(kBytecodeAgeOffset, kCharSize)                         \
+  /* Total size. */                                        \
+  V(kHeaderSize, 0)
+
+  DEFINE_FIELD_OFFSET_CONSTANTS(FixedArrayBase::kHeaderSize,
+                                BYTECODE_ARRAY_FIELDS)
+#undef BYTECODE_ARRAY_FIELDS
 
   // Maximal memory consumption for a single BytecodeArray.
   static const int kMaxSize = 512 * MB;
   // Maximal length of a single BytecodeArray.
   static const int kMaxLength = kMaxSize - kHeaderSize;
-
-  static const int kPointerFieldsBeginOffset = kConstantPoolOffset;
-  static const int kPointerFieldsEndOffset = kFrameSizeOffset;
 
   class BodyDescriptor;
   // No weak fields.
