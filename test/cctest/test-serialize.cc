@@ -2760,7 +2760,7 @@ TEST(BuiltinsHaveBuiltinIdForLazyDeserialization) {
                ->lazy_deserialization_builtin_id());
 
   CHECK(!Builtins::IsLazy(Builtins::kIllegal));
-  CHECK(!isolate->intl_date_time_format_function()
+  CHECK(!isolate->opaque_reference_function()
              ->shared()
              ->HasLazyDeserializationBuiltinId());
 }
