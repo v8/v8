@@ -295,3 +295,22 @@ function TestSkippableFunctionInForOfHeaderAndBody() {
 }
 
 TestSkippableFunctionInForOfHeaderAndBody();
+
+(function TestSkippableGeneratorInSloppyBlock() {
+  var result = 0;
+
+  function lazy(ctxt_alloc_param) {
+    var ctxt_alloc_var = 10;
+    {
+      function *skip_me() {
+        result = ctxt_alloc_param + ctxt_alloc_var;
+        yield 3;
+      }
+      return skip_me;
+    }
+  }
+  // Test that parameters and variables of the outer function get context
+  // allocated even if we skip the inner function.
+  assertEquals(3, lazy(9)().next().value);
+  assertEquals(19, result);
+})();

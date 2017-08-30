@@ -182,6 +182,14 @@ TEST(PreParserScopeAnalysis) {
       {"let var1 = function() { let var2; }"},
       {"const var1 = function() { let var2; }"},
 
+      {"function *f1() { let var2; }"},
+      {"let var1 = function *f1() { let var2; }"},
+      {"let var1 = function*() { let var2; }"},
+
+      {"async function f1() { let var2; }"},
+      {"let var1 = async function f1() { let var2; }"},
+      {"let var1 = async function() { let var2; }"},
+
       // Redeclarations.
       {"var var1; var var1;"},
       {"var var1; var var1; var1 = 5;"},
@@ -450,6 +458,9 @@ TEST(PreParserScopeAnalysis) {
       {"var f1 = 1; if (true) { function f1() {} } function foo() { f1; }"},
 
       {"if (true) { function f1() {} function f2() { f1(); } }"},
+
+      {"if (true) { function *f1() {} }"},
+      {"if (true) { async function f1() {} }"},
 
       // Simple parameters.
       {"var1", ""},
