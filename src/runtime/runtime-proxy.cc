@@ -78,10 +78,9 @@ RUNTIME_FUNCTION(Runtime_CheckProxyHasTrap) {
   CONVERT_ARG_HANDLE_CHECKED(Name, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, target, 1);
 
-  RETURN_ON_SCHEDULED_EXCEPTION_VALUE(
-      isolate, JSProxy::CheckHasTrap(isolate, name, target),
-      *isolate->factory()->undefined_value());
-  return *isolate->factory()->undefined_value();
+  Maybe<bool> result = JSProxy::CheckHasTrap(isolate, name, target);
+  if (!result.IsJust()) return isolate->heap()->exception();
+  return isolate->heap()->ToBoolean(result.FromJust());
 }
 
 }  // namespace internal
