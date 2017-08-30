@@ -1038,6 +1038,10 @@ v8_source_set("v8_builtins_generators") {
       # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
       "src/builtins/builtins-async-iterator-gen.cc",
       "src/builtins/builtins-async-generator-gen.cc",
+
+      # This source file takes an unusually large amount of time to
+      # compile.  Build it separately to avoid bottlenecks.
+      "src/builtins/builtins-regexp-gen.cc",
     ]
   }
 
@@ -2075,6 +2079,15 @@ v8_source_set("v8_base") {
     jumbo_excluded_sources = [
       # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
       "src/profiler/heap-snapshot-generator.cc",  # Macro clash in mman-linux.h
+
+      # These source files take an unusually large amount of time to
+      # compile.  Build them separately to avoid bottlenecks.
+      "src/api.cc",
+      "src/code-stub-assembler.cc",
+      "src/elements.cc",
+      "src/heap/heap.cc",
+      "src/objects.cc",
+      "src/parsing/parser.cc",
     ]
   }
 
