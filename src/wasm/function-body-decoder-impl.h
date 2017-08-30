@@ -1118,9 +1118,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return &stack_[stack_.size() - depth - 1];
   }
 
-  inline const Value& GetMergeValueFromStack(Control* c, size_t i) {
+  inline Value& GetMergeValueFromStack(Control* c, size_t i) {
     DCHECK_GT(c->merge.arity, i);
-    DCHECK_GE(stack_.size(), c->merge.arity);
+    DCHECK_GE(stack_.size(), c->stack_depth + c->merge.arity);
     return stack_[stack_.size() - c->merge.arity + i];
   }
 
@@ -2037,26 +2037,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   int startrel(const byte* ptr) { return static_cast<int>(ptr - this->start_); }
 
-  bool TypeCheckBreak(unsigned depth) {
-    DCHECK(validate);  // Only call this for validation.
-    Control* c = control_at(depth);
-    if (c->is_loop()) {
-      // This is the inner loop block, which does not have a value.
-      return true;
-    }
-    size_t expected = control_.back().stack_depth + c->merge.arity;
-    if (stack_.size() < expected && !control_.back().unreachable) {
-      this->errorf(
-          this->pc_,
-          "expected at least %u values on the stack for br to @%d, found %d",
-          c->merge.arity, startrel(c->pc),
-          static_cast<int>(stack_.size() - c->stack_depth));
-      return false;
-    }
-
-    return TypeCheckMergeValues(c);
-  }
-
   void FallThruTo(Control* c) {
     DCHECK_EQ(c, &control_.back());
     if (!TypeCheckFallThru(c)) return;
@@ -2066,17 +2046,22 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   bool TypeCheckMergeValues(Control* c) {
-    // Typecheck the values left on the stack.
-    size_t avail = stack_.size() - c->stack_depth;
-    size_t start = avail >= c->merge.arity ? 0 : c->merge.arity - avail;
-    for (size_t i = start; i < c->merge.arity; ++i) {
+    DCHECK_GE(stack_.size(), c->stack_depth + c->merge.arity);
+    // Typecheck the topmost {c->merge.arity} values on the stack.
+    for (size_t i = 0; i < c->merge.arity; ++i) {
       auto& val = GetMergeValueFromStack(c, i);
       auto& old = c->merge[i];
-      if (val.type != old.type && val.type != kWasmVar) {
-        this->errorf(
-            this->pc_, "type error in merge[%zu] (expected %s, got %s)", i,
-            WasmOpcodes::TypeName(old.type), WasmOpcodes::TypeName(val.type));
-        return false;
+      if (val.type != old.type) {
+        if (val.type == kWasmVar) {
+          // if {val.type} is polymorphic, which results from unreachable, make
+          // it more specific by using the merge value's expected type.
+          val.type = old.type;
+        } else {
+          this->errorf(
+              this->pc_, "type error in merge[%zu] (expected %s, got %s)", i,
+              WasmOpcodes::TypeName(old.type), WasmOpcodes::TypeName(val.type));
+          return false;
+        }
       }
     }
 
@@ -2086,10 +2071,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   bool TypeCheckFallThru(Control* c) {
     DCHECK_EQ(c, &control_.back());
     if (!validate) return true;
-    // Fallthru must match arity exactly.
-    size_t expected = c->stack_depth + c->merge.arity;
-    if (stack_.size() != expected &&
-        (stack_.size() > expected || !c->unreachable)) {
+    size_t expected = c->merge.arity;
+    size_t actual = stack_.size() - c->stack_depth;
+    // Fallthrus must match the arity of the control exactly.
+    if (!InsertUnreachablesIfNecessary(expected, actual) || actual > expected) {
       this->errorf(this->pc_,
                    "expected %u elements on the stack for fallthru to @%d",
                    c->merge.arity, startrel(c->pc));
@@ -2097,6 +2082,42 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
 
     return TypeCheckMergeValues(c);
+  }
+
+  bool TypeCheckBreak(unsigned depth) {
+    DCHECK(validate);  // Only call this for validation.
+    Control* c = control_at(depth);
+    if (c->is_loop()) {
+      // This is the inner loop block, which does not have a value.
+      return true;
+    }
+    // Breaks must have at least the number of values expected; can have more.
+    size_t expected = c->merge.arity;
+    size_t actual = stack_.size() - control_.back().stack_depth;
+    if (!InsertUnreachablesIfNecessary(expected, actual)) {
+      this->errorf(this->pc_, "expected %u elements on the stack for br to @%d",
+                   c->merge.arity, startrel(c->pc));
+      return false;
+    }
+    return TypeCheckMergeValues(c);
+  }
+
+  inline bool InsertUnreachablesIfNecessary(size_t expected, size_t actual) {
+    if (actual < expected) {
+      if (control_.back().unreachable) {
+        // A slow path. When the actual number of values on the stack is less
+        // than the expected number of values and the current control is
+        // unreachable, insert unreachable values below the actual values.
+        // This simplifies {TypeCheckMergeValues}.
+        auto pos = stack_.begin() + (stack_.size() - actual);
+        stack_.insert(pos, (expected - actual), Value::Unreachable(this->pc_));
+        return true;
+      } else {
+        // There aren't enough values on the stack.
+        return false;
+      }
+    }
+    return true;  // enough actual values are there.
   }
 
   virtual void onFirstError() {

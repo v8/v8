@@ -1846,6 +1846,14 @@ TEST_F(FunctionBodyDecoderTest, BreakIfBinop_fail) {
       WASM_BLOCK_I(WASM_F32_ABS(WASM_BRV_IF(0, WASM_F32(0.0f), WASM_ZERO))));
 }
 
+TEST_F(FunctionBodyDecoderTest, BreakIfUnrNarrow) {
+  EXPECT_FAILURE_S(
+      sigs.f_ff(),
+      WASM_BLOCK_I(WASM_BRV_IF(0, WASM_UNREACHABLE, WASM_UNREACHABLE),
+                   WASM_RETURN0),
+      WASM_F32(0.0));
+}
+
 TEST_F(FunctionBodyDecoderTest, BreakNesting1) {
   for (int i = 0; i < 5; i++) {
     // (block[2] (loop[2] (if (get p) break[N]) (set p 1)) p)
