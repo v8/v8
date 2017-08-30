@@ -4827,7 +4827,40 @@ Maybe<bool> v8::Object::SetIntegrityLevel(Local<Context> context,
 
 Maybe<bool> v8::Object::Delete(Local<Context> context, Local<Value> key) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  ENTER_V8(isolate, context, Object, Delete, Nothing<bool>(), i::HandleScope);
+  auto self = Utils::OpenHandle(this);
+  auto key_obj = Utils::OpenHandle(*key);
+  if (self->IsJSProxy()) {
+    ENTER_V8(isolate, context, Object, Delete, Nothing<bool>(), i::HandleScope);
+    Maybe<bool> result =
+        i::Runtime::DeleteObjectProperty(isolate, self, key_obj, i::SLOPPY);
+    has_pending_exception = result.IsNothing();
+    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+    return result;
+  } else {
+    // If it's not a JSProxy, i::Runtime::DeleteObjectProperty should never run
+    // a script.
+    ENTER_V8_NO_SCRIPT(isolate, context, Object, Delete, Nothing<bool>(),
+                       i::HandleScope);
+    Maybe<bool> result =
+        i::Runtime::DeleteObjectProperty(isolate, self, key_obj, i::SLOPPY);
+    has_pending_exception = result.IsNothing();
+    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+    return result;
+  }
+}
+
+bool v8::Object::Delete(v8::Local<Value> key) {
+  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
+  return Delete(context, key).FromMaybe(false);
+}
+
+Maybe<bool> v8::Object::DeletePrivate(Local<Context> context,
+                                      Local<Private> key) {
+  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  // In case of private symbols, i::Runtime::DeleteObjectProperty does not run
+  // any author script.
+  ENTER_V8_NO_SCRIPT(isolate, context, Object, Delete, Nothing<bool>(),
+                     i::HandleScope);
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
   Maybe<bool> result =
@@ -4836,19 +4869,6 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, Local<Value> key) {
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
 }
-
-
-bool v8::Object::Delete(v8::Local<Value> key) {
-  auto context = ContextFromHeapObject(Utils::OpenHandle(this));
-  return Delete(context, key).FromMaybe(false);
-}
-
-
-Maybe<bool> v8::Object::DeletePrivate(Local<Context> context,
-                                      Local<Private> key) {
-  return Delete(context, Local<Value>(reinterpret_cast<Value*>(*key)));
-}
-
 
 Maybe<bool> v8::Object::Has(Local<Context> context, Local<Value> key) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
