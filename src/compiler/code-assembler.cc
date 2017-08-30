@@ -1208,8 +1208,8 @@ void CodeAssembler::Switch(Node* index, Label* default_label,
   for (size_t i = 0; i < case_count; ++i) {
     labels[i] = case_labels[i]->label_;
     case_labels[i]->MergeVariables();
-    default_label->MergeVariables();
   }
+  default_label->MergeVariables();
   return raw_assembler()->Switch(index, default_label->label_, case_values,
                                  labels, case_count);
 }
