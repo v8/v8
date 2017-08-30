@@ -1079,7 +1079,23 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     }
     script->set_origin_options(options);
     script->set_compilation_type(Script::COMPILATION_TYPE_EVAL);
-    Script::SetEvalOrigin(script, outer_info, eval_position);
+
+    script->set_eval_from_shared(*outer_info);
+    if (eval_position == kNoSourcePosition) {
+      // If the position is missing, attempt to get the code offset by
+      // walking the stack. Do not translate the code offset into source
+      // position, but store it as negative value for lazy translation.
+      StackTraceFrameIterator it(script->GetIsolate());
+      if (!it.done() && it.is_javascript()) {
+        FrameSummary summary = FrameSummary::GetTop(it.javascript_frame());
+        script->set_eval_from_shared(
+            summary.AsJavaScript().function()->shared());
+        eval_position = -summary.code_offset();
+      } else {
+        eval_position = 0;
+      }
+    }
+    script->set_eval_from_position(eval_position);
 
     ParseInfo parse_info(script);
     parse_info.set_eval();

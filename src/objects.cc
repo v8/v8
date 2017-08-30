@@ -13253,26 +13253,6 @@ void Oddball::Initialize(Isolate* isolate, Handle<Oddball> oddball,
   oddball->set_kind(kind);
 }
 
-void Script::SetEvalOrigin(Handle<Script> script,
-                           Handle<SharedFunctionInfo> outer_info,
-                           int eval_position) {
-  if (eval_position == kNoSourcePosition) {
-    // If the position is missing, attempt to get the code offset from the
-    // current activation.  Do not translate the code offset into source
-    // position, but store it as negative value for lazy translation.
-    StackTraceFrameIterator it(script->GetIsolate());
-    if (!it.done() && it.is_javascript()) {
-      FrameSummary summary = FrameSummary::GetTop(it.javascript_frame());
-      script->set_eval_from_shared(summary.AsJavaScript().function()->shared());
-      script->set_eval_from_position(-summary.code_offset());
-      return;
-    }
-    eval_position = 0;
-  }
-  script->set_eval_from_shared(*outer_info);
-  script->set_eval_from_position(eval_position);
-}
-
 int Script::GetEvalPosition() {
   DisallowHeapAllocation no_gc;
   DCHECK(compilation_type() == Script::COMPILATION_TYPE_EVAL);
