@@ -504,6 +504,31 @@ Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
                                         access.machine_type.representation())));
 }
 
+Node* LowerCompareMapsWithoutLoad(Node* checked_map,
+                                  ZoneHandleSet<Map> const& checked_against,
+                                  JSGraph* jsgraph) {
+  Node* true_node = jsgraph->TrueConstant();
+  Node* false_node = jsgraph->FalseConstant();
+  Node* replacement = false_node;
+  for (Handle<Map> map : checked_against) {
+    Node* map_node = jsgraph->HeapConstant(map);
+    // We cannot create a HeapConstant type here as we are off-thread.
+    NodeProperties::SetType(map_node, Type::Internal());
+    Node* comparison = jsgraph->graph()->NewNode(
+        jsgraph->simplified()->ReferenceEqual(), checked_map, map_node);
+    NodeProperties::SetType(comparison, Type::Boolean());
+    if (replacement == false_node) {
+      replacement = comparison;
+    } else {
+      replacement = jsgraph->graph()->NewNode(
+          jsgraph->common()->Select(MachineRepresentation::kTaggedPointer),
+          comparison, true_node, replacement);
+      NodeProperties::SetType(replacement, Type::Boolean());
+    }
+  }
+  return replacement;
+}
+
 void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
                 JSGraph* jsgraph) {
   switch (op->opcode()) {
@@ -633,8 +658,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       Variable map_field;
       if (vobject && !vobject->HasEscaped() &&
           vobject->FieldAt(HeapObject::kMapOffset).To(&map_field)) {
-        Node* map = current->Get(map_field);
-        if (map) {
+        if (Node* map = current->Get(map_field)) {
           Type* const map_type = NodeProperties::GetType(map);
           if (map_type->IsHeapConstant() &&
               params.maps().contains(ZoneHandleSet<Map>(bit_cast<Handle<Map>>(
@@ -642,9 +666,32 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
             current->MarkForDeletion();
             break;
           }
+        } else {
+          // If the variable has no value, we have not reached the fixed-point
+          // yet.
+          break;
         }
       }
       current->SetEscaped(checked);
+      break;
+    }
+    case IrOpcode::kCompareMaps: {
+      Node* object = current->ValueInput(0);
+      const VirtualObject* vobject = current->GetVirtualObject(object);
+      Variable map_field;
+      if (vobject && !vobject->HasEscaped() &&
+          vobject->FieldAt(HeapObject::kMapOffset).To(&map_field)) {
+        if (Node* object_map = current->Get(map_field)) {
+          current->SetReplacement(LowerCompareMapsWithoutLoad(
+              object_map, CompareMapsParametersOf(op), jsgraph));
+          break;
+        } else {
+          // If the variable has no value, we have not reached the fixed-point
+          // yet.
+          break;
+        }
+      }
+      current->SetEscaped(object);
       break;
     }
     case IrOpcode::kCheckHeapObject: {
