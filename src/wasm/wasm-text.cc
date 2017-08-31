@@ -14,20 +14,9 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone/zone.h"
 
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wheader-hygiene"
-#endif
-
-using namespace v8;
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic pop
-#endif
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 namespace {
 bool IsValidFunctionName(const Vector<const char> &name) {
@@ -43,10 +32,9 @@ bool IsValidFunctionName(const Vector<const char> &name) {
 
 }  // namespace
 
-void wasm::PrintWasmText(const WasmModule *module,
-                         const ModuleWireBytes &wire_bytes, uint32_t func_index,
-                         std::ostream &os,
-                         debug::WasmDisassembly::OffsetTable *offset_table) {
+void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
+                   uint32_t func_index, std::ostream& os,
+                   debug::WasmDisassembly::OffsetTable* offset_table) {
   DCHECK_NOT_NULL(module);
   DCHECK_GT(module->functions.size(), func_index);
   const WasmFunction *fun = &module->functions[func_index];
@@ -225,3 +213,7 @@ void wasm::PrintWasmText(const WasmModule *module,
   DCHECK_EQ(0, control_depth);
   DCHECK(i.ok());
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

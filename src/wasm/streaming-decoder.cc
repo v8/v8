@@ -15,19 +15,9 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-result.h"
 
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wheader-hygiene"
-#endif
-
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic pop
-#endif
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 void StreamingDecoder::OnBytesReceived(Vector<const uint8_t> bytes) {
   size_t current = 0;
@@ -387,3 +377,7 @@ StreamingDecoder::StreamingDecoder(Isolate* isolate)
       decoder_(nullptr, nullptr) {
   USE(isolate_);
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

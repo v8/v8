@@ -67,22 +67,22 @@ V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
 
 // Helper macro for binary operators.
 // Don't use this macro directly in your code, use CHECK_EQ et al below.
-#define CHECK_OP(name, op, lhs, rhs)                                    \
-  do {                                                                  \
-    if (std::string* _msg = ::v8::base::Check##name##Impl<              \
-            typename v8::base::pass_value_or_ref<decltype(lhs)>::type,  \
-            typename v8::base::pass_value_or_ref<decltype(rhs)>::type>( \
-            (lhs), (rhs), #lhs " " #op " " #rhs)) {                     \
-      V8_Fatal(__FILE__, __LINE__, "Check failed: %s.", _msg->c_str()); \
-      delete _msg;                                                      \
-    }                                                                   \
+#define CHECK_OP(name, op, lhs, rhs)                                      \
+  do {                                                                    \
+    if (std::string* _msg = ::v8::base::Check##name##Impl<                \
+            typename ::v8::base::pass_value_or_ref<decltype(lhs)>::type,  \
+            typename ::v8::base::pass_value_or_ref<decltype(rhs)>::type>( \
+            (lhs), (rhs), #lhs " " #op " " #rhs)) {                       \
+      V8_Fatal(__FILE__, __LINE__, "Check failed: %s.", _msg->c_str());   \
+      delete _msg;                                                        \
+    }                                                                     \
   } while (0)
 
 #define DCHECK_OP(name, op, lhs, rhs)                                         \
   do {                                                                        \
     if (std::string* _msg = ::v8::base::Check##name##Impl<                    \
-            typename v8::base::pass_value_or_ref<decltype(lhs)>::type,        \
-            typename v8::base::pass_value_or_ref<decltype(rhs)>::type>(       \
+            typename ::v8::base::pass_value_or_ref<decltype(lhs)>::type,      \
+            typename ::v8::base::pass_value_or_ref<decltype(rhs)>::type>(     \
             (lhs), (rhs), #lhs " " #op " " #rhs)) {                           \
       V8_Fatal(__FILE__, __LINE__, "Debug check failed: %s.", _msg->c_str()); \
       delete _msg;                                                            \
@@ -94,13 +94,13 @@ V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
 // Make all CHECK functions discard their log strings to reduce code
 // bloat for official release builds.
 
-#define CHECK_OP(name, op, lhs, rhs)                                       \
-  do {                                                                     \
-    bool _cmp = ::v8::base::Cmp##name##Impl<                               \
-        typename v8::base::pass_value_or_ref<decltype(lhs)>::type,         \
-        typename v8::base::pass_value_or_ref<decltype(rhs)>::type>((lhs),  \
-                                                                   (rhs)); \
-    CHECK_WITH_MSG(_cmp, #lhs " " #op " " #rhs);                           \
+#define CHECK_OP(name, op, lhs, rhs)                                         \
+  do {                                                                       \
+    bool _cmp = ::v8::base::Cmp##name##Impl<                                 \
+        typename ::v8::base::pass_value_or_ref<decltype(lhs)>::type,         \
+        typename ::v8::base::pass_value_or_ref<decltype(rhs)>::type>((lhs),  \
+                                                                     (rhs)); \
+    CHECK_WITH_MSG(_cmp, #lhs " " #op " " #rhs);                             \
   } while (0)
 
 #define DCHECK_WITH_MSG(condition, msg) void(0);

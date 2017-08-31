@@ -24,20 +24,9 @@
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wheader-hygiene"
-#endif
-
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-namespace base = v8::base;
-
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic pop
-#endif
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 #define TRACE(...)                                      \
   do {                                                  \
@@ -253,12 +242,14 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
 }  // namespace
 
 // static
-const WasmExceptionSig wasm::WasmException::empty_sig_(0, 0, nullptr);
+const WasmExceptionSig WasmException::empty_sig_(0, 0, nullptr);
 
-Handle<JSArrayBuffer> wasm::SetupArrayBuffer(
-    Isolate* isolate, void* allocation_base, size_t allocation_length,
-    void* backing_store, size_t size, bool is_external,
-    bool enable_guard_regions, SharedFlag shared) {
+Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* allocation_base,
+                                       size_t allocation_length,
+                                       void* backing_store, size_t size,
+                                       bool is_external,
+                                       bool enable_guard_regions,
+                                       SharedFlag shared) {
   Handle<JSArrayBuffer> buffer = isolate->factory()->NewJSArrayBuffer(shared);
   DCHECK_GE(kMaxInt, size);
   if (shared == SharedFlag::kShared) DCHECK(FLAG_experimental_wasm_threads);
@@ -271,9 +262,9 @@ Handle<JSArrayBuffer> wasm::SetupArrayBuffer(
   return buffer;
 }
 
-Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
-                                           bool enable_guard_regions,
-                                           SharedFlag shared) {
+Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
+                                     bool enable_guard_regions,
+                                     SharedFlag shared) {
   // Check against kMaxInt, since the byte length is stored as int in the
   // JSArrayBuffer. Note that wasm_max_mem_pages can be raised from the command
   // line, and we don't want to fail a CHECK then.
@@ -310,8 +301,8 @@ Handle<JSArrayBuffer> wasm::NewArrayBuffer(Isolate* isolate, size_t size,
                           size, is_external, enable_guard_regions, shared);
 }
 
-void wasm::UnpackAndRegisterProtectedInstructions(
-    Isolate* isolate, Handle<FixedArray> code_table) {
+void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
+                                            Handle<FixedArray> code_table) {
   for (int i = 0; i < code_table->length(); ++i) {
     Handle<Code> code;
     // This is sometimes undefined when we're called from cctests.
@@ -346,7 +337,7 @@ void wasm::UnpackAndRegisterProtectedInstructions(
   }
 }
 
-std::ostream& wasm::operator<<(std::ostream& os, const WasmFunctionName& name) {
+std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
   os << "#" << name.function_->func_index;
   if (name.function_->name.is_set()) {
     if (name.name_.start()) {
@@ -359,7 +350,7 @@ std::ostream& wasm::operator<<(std::ostream& os, const WasmFunctionName& name) {
   return os;
 }
 
-WasmInstanceObject* wasm::GetOwningWasmInstance(Code* code) {
+WasmInstanceObject* GetOwningWasmInstance(Code* code) {
   DisallowHeapAllocation no_gc;
   DCHECK(code->kind() == Code::WASM_FUNCTION ||
          code->kind() == Code::WASM_INTERPRETER_ENTRY);
@@ -376,8 +367,8 @@ WasmInstanceObject* wasm::GetOwningWasmInstance(Code* code) {
 WasmModule::WasmModule(std::unique_ptr<Zone> owned)
     : signature_zone(std::move(owned)) {}
 
-WasmFunction* wasm::GetWasmFunctionForImportWrapper(Isolate* isolate,
-                                                    Handle<Object> target) {
+WasmFunction* GetWasmFunctionForImportWrapper(Isolate* isolate,
+                                              Handle<Object> target) {
   if (target->IsJSFunction()) {
     Handle<JSFunction> func = Handle<JSFunction>::cast(target);
     if (func->code()->kind() == Code::JS_TO_WASM_FUNCTION) {
@@ -390,7 +381,7 @@ WasmFunction* wasm::GetWasmFunctionForImportWrapper(Isolate* isolate,
   return nullptr;
 }
 
-Handle<Code> wasm::UnwrapImportWrapper(Handle<Object> import_wrapper) {
+Handle<Code> UnwrapImportWrapper(Handle<Object> import_wrapper) {
   Handle<JSFunction> func = Handle<JSFunction>::cast(import_wrapper);
   Handle<Code> export_wrapper_code = handle(func->code());
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
@@ -415,9 +406,9 @@ Handle<Code> wasm::UnwrapImportWrapper(Handle<Object> import_wrapper) {
   UNREACHABLE();
 }
 
-void wasm::UpdateDispatchTables(Isolate* isolate,
-                                Handle<FixedArray> dispatch_tables, int index,
-                                WasmFunction* function, Handle<Code> code) {
+void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
+                          int index, WasmFunction* function,
+                          Handle<Code> code) {
   DCHECK_EQ(0, dispatch_tables->length() % 4);
   for (int i = 0; i < dispatch_tables->length(); i += 4) {
     int table_index = Smi::ToInt(dispatch_tables->get(i + 1));
@@ -441,10 +432,9 @@ void wasm::UpdateDispatchTables(Isolate* isolate,
   }
 }
 
-
-void wasm::TableSet(ErrorThrower* thrower, Isolate* isolate,
-                    Handle<WasmTableObject> table, int64_t index,
-                    Handle<JSFunction> function) {
+void TableSet(ErrorThrower* thrower, Isolate* isolate,
+              Handle<WasmTableObject> table, int64_t index,
+              Handle<JSFunction> function) {
   Handle<FixedArray> array(table->functions(), isolate);
 
   if (index < 0 || index >= array->length()) {
@@ -469,13 +459,13 @@ void wasm::TableSet(ErrorThrower* thrower, Isolate* isolate,
   array->set(index32, *value);
 }
 
-Handle<Script> wasm::GetScript(Handle<JSObject> instance) {
+Handle<Script> GetScript(Handle<JSObject> instance) {
   WasmCompiledModule* compiled_module =
       WasmInstanceObject::cast(*instance)->compiled_module();
   return handle(compiled_module->script());
 }
 
-bool wasm::IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
+bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
   // TODO(wasm): Once wasm has its own CSP policy, we should introduce a
   // separate callback that includes information about the module about to be
   // compiled. For the time being, pass an empty string as placeholder for the
@@ -486,9 +476,9 @@ bool wasm::IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
              v8::Utils::ToLocal(isolate->factory()->empty_string()));
 }
 
-void wasm::DetachWebAssemblyMemoryBuffer(Isolate* isolate,
-                                         Handle<JSArrayBuffer> buffer,
-                                         bool free_memory) {
+void DetachWebAssemblyMemoryBuffer(Isolate* isolate,
+                                   Handle<JSArrayBuffer> buffer,
+                                   bool free_memory) {
   const bool is_external = buffer->is_external();
   DCHECK(!buffer->is_neuterable());
   if (!is_external) {
@@ -507,9 +497,10 @@ void wasm::DetachWebAssemblyMemoryBuffer(Isolate* isolate,
   buffer->Neuter();
 }
 
-void testing::ValidateInstancesChain(Isolate* isolate,
-                                     Handle<WasmModuleObject> module_obj,
-                                     int instance_count) {
+namespace testing {
+void ValidateInstancesChain(Isolate* isolate,
+                            Handle<WasmModuleObject> module_obj,
+                            int instance_count) {
   CHECK_GE(instance_count, 0);
   DisallowHeapAllocation no_gc;
   WasmCompiledModule* compiled_module = module_obj->compiled_module();
@@ -534,8 +525,8 @@ void testing::ValidateInstancesChain(Isolate* isolate,
   CHECK_EQ(found_instances, instance_count);
 }
 
-void testing::ValidateModuleState(Isolate* isolate,
-                                  Handle<WasmModuleObject> module_obj) {
+void ValidateModuleState(Isolate* isolate,
+                         Handle<WasmModuleObject> module_obj) {
   DisallowHeapAllocation no_gc;
   WasmCompiledModule* compiled_module = module_obj->compiled_module();
   CHECK(compiled_module->has_weak_wasm_module());
@@ -545,16 +536,18 @@ void testing::ValidateModuleState(Isolate* isolate,
   CHECK(!compiled_module->has_weak_owning_instance());
 }
 
-void testing::ValidateOrphanedInstance(Isolate* isolate,
-                                       Handle<WasmInstanceObject> instance) {
+void ValidateOrphanedInstance(Isolate* isolate,
+                              Handle<WasmInstanceObject> instance) {
   DisallowHeapAllocation no_gc;
   WasmCompiledModule* compiled_module = instance->compiled_module();
   CHECK(compiled_module->has_weak_wasm_module());
   CHECK(compiled_module->ptr_to_weak_wasm_module()->cleared());
 }
 
-Handle<JSArray> wasm::GetImports(Isolate* isolate,
-                                 Handle<WasmModuleObject> module_object) {
+}  // namespace testing
+
+Handle<JSArray> GetImports(Isolate* isolate,
+                           Handle<WasmModuleObject> module_object) {
   Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
                                              isolate);
   Factory* factory = isolate->factory();
@@ -623,8 +616,8 @@ Handle<JSArray> wasm::GetImports(Isolate* isolate,
   return array_object;
 }
 
-Handle<JSArray> wasm::GetExports(Isolate* isolate,
-                                 Handle<WasmModuleObject> module_object) {
+Handle<JSArray> GetExports(Isolate* isolate,
+                           Handle<WasmModuleObject> module_object) {
   Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
                                              isolate);
   Factory* factory = isolate->factory();
@@ -686,10 +679,9 @@ Handle<JSArray> wasm::GetExports(Isolate* isolate,
   return array_object;
 }
 
-Handle<JSArray> wasm::GetCustomSections(Isolate* isolate,
-                                        Handle<WasmModuleObject> module_object,
-                                        Handle<String> name,
-                                        ErrorThrower* thrower) {
+Handle<JSArray> GetCustomSections(Isolate* isolate,
+                                  Handle<WasmModuleObject> module_object,
+                                  Handle<String> name, ErrorThrower* thrower) {
   Handle<WasmCompiledModule> compiled_module(module_object->compiled_module(),
                                              isolate);
   Factory* factory = isolate->factory();
@@ -751,15 +743,15 @@ Handle<JSArray> wasm::GetCustomSections(Isolate* isolate,
   return array_object;
 }
 
-Handle<FixedArray> wasm::DecodeLocalNames(
+Handle<FixedArray> DecodeLocalNames(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module) {
   Handle<SeqOneByteString> wire_bytes(compiled_module->module_bytes(), isolate);
   LocalNames decoded_locals;
   {
     DisallowHeapAllocation no_gc;
-    wasm::DecodeLocalNames(wire_bytes->GetChars(),
-                           wire_bytes->GetChars() + wire_bytes->length(),
-                           &decoded_locals);
+    DecodeLocalNames(wire_bytes->GetChars(),
+                     wire_bytes->GetChars() + wire_bytes->length(),
+                     &decoded_locals);
   }
   Handle<FixedArray> locals_names =
       isolate->factory()->NewFixedArray(decoded_locals.max_function_index + 1);
@@ -778,14 +770,14 @@ Handle<FixedArray> wasm::DecodeLocalNames(
   return locals_names;
 }
 
-bool wasm::SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes) {
+bool SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes) {
   if (bytes.start() == nullptr || bytes.length() == 0) return false;
   ModuleResult result = SyncDecodeWasmModule(isolate, bytes.start(),
                                              bytes.end(), true, kWasmOrigin);
   return result.ok();
 }
 
-MaybeHandle<WasmModuleObject> wasm::SyncCompileTranslatedAsmJs(
+MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
     Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
@@ -804,9 +796,9 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompileTranslatedAsmJs(
                                         asm_js_offset_table_bytes);
 }
 
-MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
-                                                ErrorThrower* thrower,
-                                                const ModuleWireBytes& bytes) {
+MaybeHandle<WasmModuleObject> SyncCompile(Isolate* isolate,
+                                          ErrorThrower* thrower,
+                                          const ModuleWireBytes& bytes) {
   if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) {
     thrower->CompileError("Wasm code generation disallowed in this context");
     return {};
@@ -832,7 +824,7 @@ MaybeHandle<WasmModuleObject> wasm::SyncCompile(Isolate* isolate,
                                         Vector<const byte>());
 }
 
-MaybeHandle<WasmInstanceObject> wasm::SyncInstantiate(
+MaybeHandle<WasmInstanceObject> SyncInstantiate(
     Isolate* isolate, ErrorThrower* thrower,
     Handle<WasmModuleObject> module_object, MaybeHandle<JSReceiver> imports,
     MaybeHandle<JSArrayBuffer> memory) {
@@ -841,48 +833,39 @@ MaybeHandle<WasmInstanceObject> wasm::SyncInstantiate(
   return builder.Build();
 }
 
-MaybeHandle<WasmInstanceObject> wasm::SyncCompileAndInstantiate(
+MaybeHandle<WasmInstanceObject> SyncCompileAndInstantiate(
     Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& bytes,
     MaybeHandle<JSReceiver> imports, MaybeHandle<JSArrayBuffer> memory) {
-  MaybeHandle<WasmModuleObject> module =
-      wasm::SyncCompile(isolate, thrower, bytes);
+  MaybeHandle<WasmModuleObject> module = SyncCompile(isolate, thrower, bytes);
   DCHECK_EQ(thrower->error(), module.is_null());
   if (module.is_null()) return {};
 
-  return wasm::SyncInstantiate(isolate, thrower, module.ToHandleChecked(),
-                               Handle<JSReceiver>::null(),
-                               Handle<JSArrayBuffer>::null());
+  return SyncInstantiate(isolate, thrower, module.ToHandleChecked(),
+                         Handle<JSReceiver>::null(),
+                         Handle<JSArrayBuffer>::null());
 }
-
-namespace v8 {
-namespace internal {
-namespace wasm {
 
 void RejectPromise(Isolate* isolate, Handle<Context> context,
                    ErrorThrower& thrower, Handle<JSPromise> promise) {
-  v8::Local<v8::Promise::Resolver> resolver =
-      v8::Utils::PromiseToLocal(promise).As<v8::Promise::Resolver>();
-  auto maybe = resolver->Reject(v8::Utils::ToLocal(context),
-                                v8::Utils::ToLocal(thrower.Reify()));
+  Local<Promise::Resolver> resolver =
+      Utils::PromiseToLocal(promise).As<Promise::Resolver>();
+  auto maybe = resolver->Reject(Utils::ToLocal(context),
+                                Utils::ToLocal(thrower.Reify()));
   CHECK_IMPLIES(!maybe.FromMaybe(false), isolate->has_scheduled_exception());
 }
 
 void ResolvePromise(Isolate* isolate, Handle<Context> context,
                     Handle<JSPromise> promise, Handle<Object> result) {
-  v8::Local<v8::Promise::Resolver> resolver =
-      v8::Utils::PromiseToLocal(promise).As<v8::Promise::Resolver>();
-  auto maybe = resolver->Resolve(v8::Utils::ToLocal(context),
-                                 v8::Utils::ToLocal(result));
+  Local<Promise::Resolver> resolver =
+      Utils::PromiseToLocal(promise).As<Promise::Resolver>();
+  auto maybe =
+      resolver->Resolve(Utils::ToLocal(context), Utils::ToLocal(result));
   CHECK_IMPLIES(!maybe.FromMaybe(false), isolate->has_scheduled_exception());
 }
 
-}  // namespace wasm
-}  // namespace internal
-}  // namespace v8
-
-void wasm::AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
-                            Handle<WasmModuleObject> module_object,
-                            MaybeHandle<JSReceiver> imports) {
+void AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
+                      Handle<WasmModuleObject> module_object,
+                      MaybeHandle<JSReceiver> imports) {
   ErrorThrower thrower(isolate, nullptr);
   MaybeHandle<WasmInstanceObject> instance_object = SyncInstantiate(
       isolate, &thrower, module_object, imports, Handle<JSArrayBuffer>::null());
@@ -894,8 +877,8 @@ void wasm::AsyncInstantiate(Isolate* isolate, Handle<JSPromise> promise,
                  instance_object.ToHandleChecked());
 }
 
-void wasm::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
-                        const ModuleWireBytes& bytes) {
+void AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
+                  const ModuleWireBytes& bytes) {
   if (!FLAG_wasm_async_compilation) {
     ErrorThrower thrower(isolate, "WasmCompile");
     // Compile the module.
@@ -919,7 +902,7 @@ void wasm::AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
       promise);
 }
 
-Handle<Code> wasm::CompileLazy(Isolate* isolate) {
+Handle<Code> CompileLazy(Isolate* isolate) {
   HistogramTimerScope lazy_time_scope(
       isolate->counters()->wasm_lazy_compilation_time());
 
@@ -956,7 +939,7 @@ Handle<Code> wasm::CompileLazy(Isolate* isolate) {
     // Then this is a direct call (otherwise we would have attached the instance
     // via deopt data to the lazy compile stub). Just use the instance of the
     // caller.
-    instance = handle(wasm::GetOwningWasmInstance(*caller_code), isolate);
+    instance = handle(GetOwningWasmInstance(*caller_code), isolate);
   }
   int offset =
       static_cast<int>(it.frame()->pc() - caller_code->instruction_start());
@@ -1008,14 +991,14 @@ void LazyCompilationOrchestrator::CompileFunction(
   const uint8_t* module_start = compiled_module->module_bytes()->GetChars();
 
   const WasmFunction* func = &module_env.module->functions[func_index];
-  wasm::FunctionBody body{func->sig, func->code.offset(),
-                          module_start + func->code.offset(),
-                          module_start + func->code.end_offset()};
+  FunctionBody body{func->sig, func->code.offset(),
+                    module_start + func->code.offset(),
+                    module_start + func->code.end_offset()};
   // TODO(wasm): Refactor this to only get the name if it is really needed for
   // tracing / debugging.
   std::string func_name;
   {
-    wasm::WasmName name = Vector<const char>::cast(
+    WasmName name = Vector<const char>::cast(
         compiled_module->GetRawFunctionName(func_index));
     // Copy to std::string, because the underlying string object might move on
     // the heap.
@@ -1067,7 +1050,7 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
   };
   std::vector<NonCompiledFunction> non_compiled_functions;
   int func_to_return_idx = exported_func_index;
-  wasm::Decoder decoder(nullptr, nullptr);
+  Decoder decoder(nullptr, nullptr);
   bool is_js_to_wasm = caller->kind() == Code::JS_TO_WASM_FUNCTION;
   Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
                                              isolate);
@@ -1150,7 +1133,7 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
   return handle(ret, isolate);
 }
 
-const char* wasm::ExternalKindName(WasmExternalKind kind) {
+const char* ExternalKindName(WasmExternalKind kind) {
   switch (kind) {
     case kExternalFunction:
       return "function";
@@ -1163,3 +1146,7 @@ const char* wasm::ExternalKindName(WasmExternalKind kind) {
   }
   return "unknown";
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
