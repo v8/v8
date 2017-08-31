@@ -817,17 +817,17 @@ class Heap {
   inline uint32_t HashSeed();
 
   inline int NextScriptId();
-
-  inline void SetArgumentsAdaptorDeoptPCOffset(int pc_offset);
-  inline void SetConstructStubCreateDeoptPCOffset(int pc_offset);
-  inline void SetConstructStubInvokeDeoptPCOffset(int pc_offset);
-  inline void SetGetterStubDeoptPCOffset(int pc_offset);
-  inline void SetSetterStubDeoptPCOffset(int pc_offset);
-  inline void SetInterpreterEntryReturnPCOffset(int pc_offset);
   inline int GetNextTemplateSerialNumber();
 
-  inline void SetSerializedTemplates(FixedArray* templates);
-  inline void SetSerializedGlobalProxySizes(FixedArray* sizes);
+  void SetArgumentsAdaptorDeoptPCOffset(int pc_offset);
+  void SetConstructStubCreateDeoptPCOffset(int pc_offset);
+  void SetConstructStubInvokeDeoptPCOffset(int pc_offset);
+  void SetGetterStubDeoptPCOffset(int pc_offset);
+  void SetSetterStubDeoptPCOffset(int pc_offset);
+  void SetInterpreterEntryReturnPCOffset(int pc_offset);
+
+  void SetSerializedTemplates(FixedArray* templates);
+  void SetSerializedGlobalProxySizes(FixedArray* sizes);
 
   // For post mortem debugging.
   void RememberUnmappedPage(Address page, bool compacted);
