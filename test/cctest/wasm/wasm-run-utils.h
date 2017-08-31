@@ -406,6 +406,7 @@ class TestingModuleBuilder {
     Handle<FixedArray> weak_exported = isolate_->factory()->NewFixedArray(0);
     compiled_module->set_weak_exported_functions(weak_exported);
     DCHECK(WasmCompiledModule::IsWasmCompiledModule(*compiled_module));
+    script->set_wasm_compiled_module(*compiled_module);
     return WasmInstanceObject::New(isolate_, compiled_module);
   }
 };

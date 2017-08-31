@@ -5315,6 +5315,8 @@ class JSMessageObject: public JSObject {
   inline int end_position() const;
   inline void set_end_position(int value);
 
+  // Returns the line number for the error message (1-based), or
+  // Message::kNoLineNumberInfo if the line cannot be determined.
   int GetLineNumber() const;
 
   // Returns the offset of the given position within the containing line.
