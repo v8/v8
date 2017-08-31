@@ -19,7 +19,6 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
                       bool collect_type_profile = false)
       : zone_(zone),
         eager_literals_(eager_literals),
-        next_id_(BailoutId::FirstUsable().ToInt()),
         suspend_count_(0),
         properties_(zone),
         language_mode_(SLOPPY),
@@ -48,12 +47,6 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
   void VisitDeclarations(Declaration::List* declarations);
   void VisitArguments(ZoneList<Expression*>* arguments);
   void VisitLiteralProperty(LiteralProperty* property);
-
-  int ReserveId() {
-    int tmp = next_id_;
-    next_id_ += 1;
-    return tmp;
-  }
 
   void DisableOptimization(BailoutReason reason) {
     dont_optimize_reason_ = reason;
@@ -84,7 +77,6 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
 
   Zone* zone_;
   Compiler::EagerInnerFunctionLiterals* eager_literals_;
-  int next_id_;
   int suspend_count_;
   AstProperties properties_;
   LanguageMode language_mode_;
@@ -265,7 +257,6 @@ void AstNumberingVisitor::VisitWithStatement(WithStatement* node) {
 
 
 void AstNumberingVisitor::VisitDoWhileStatement(DoWhileStatement* node) {
-  node->set_osr_id(ReserveId());
   node->set_first_suspend_id(suspend_count_);
   Visit(node->body());
   Visit(node->cond());
@@ -274,7 +265,6 @@ void AstNumberingVisitor::VisitDoWhileStatement(DoWhileStatement* node) {
 
 
 void AstNumberingVisitor::VisitWhileStatement(WhileStatement* node) {
-  node->set_osr_id(ReserveId());
   node->set_first_suspend_id(suspend_count_);
   Visit(node->cond());
   Visit(node->body());
@@ -360,7 +350,6 @@ void AstNumberingVisitor::VisitImportCallExpression(
 }
 
 void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
-  node->set_osr_id(ReserveId());
   Visit(node->enumerable());  // Not part of loop.
   node->set_first_suspend_id(suspend_count_);
   Visit(node->each());
@@ -371,7 +360,6 @@ void AstNumberingVisitor::VisitForInStatement(ForInStatement* node) {
 
 
 void AstNumberingVisitor::VisitForOfStatement(ForOfStatement* node) {
-  node->set_osr_id(ReserveId());
   Visit(node->assign_iterator());  // Not part of loop.
   node->set_first_suspend_id(suspend_count_);
   Visit(node->next_result());
@@ -409,7 +397,6 @@ void AstNumberingVisitor::VisitSwitchStatement(SwitchStatement* node) {
 
 
 void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
-  node->set_osr_id(ReserveId());
   if (node->init() != NULL) Visit(node->init());  // Not part of loop.
   node->set_first_suspend_id(suspend_count_);
   if (node->cond() != NULL) Visit(node->cond());

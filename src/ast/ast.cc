@@ -255,9 +255,7 @@ void ForInStatement::AssignFeedbackSlots(FeedbackVectorSpec* spec,
 Assignment::Assignment(NodeType node_type, Token::Value op, Expression* target,
                        Expression* value, int pos)
     : Expression(pos, node_type), target_(target), value_(value) {
-  bit_field_ |= IsUninitializedField::encode(false) |
-                KeyTypeField::encode(ELEMENT) |
-                StoreModeField::encode(STANDARD_STORE) | TokenField::encode(op);
+  bit_field_ |= TokenField::encode(op);
 }
 
 void Assignment::AssignFeedbackSlots(FeedbackVectorSpec* spec,
@@ -956,61 +954,6 @@ bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
 
 // ----------------------------------------------------------------------------
 // Recording of type feedback
-
-Handle<Map> SmallMapList::at(int i) const { return Handle<Map>(list_.at(i)); }
-
-SmallMapList* Expression::GetReceiverTypes() {
-  switch (node_type()) {
-#define NODE_LIST(V)    \
-  PROPERTY_NODE_LIST(V) \
-  V(Call)
-#define GENERATE_CASE(Node) \
-  case k##Node:             \
-    return static_cast<Node*>(this)->GetReceiverTypes();
-    NODE_LIST(GENERATE_CASE)
-#undef NODE_LIST
-#undef GENERATE_CASE
-    default:
-      UNREACHABLE();
-  }
-}
-
-KeyedAccessStoreMode Expression::GetStoreMode() const {
-  switch (node_type()) {
-#define GENERATE_CASE(Node) \
-  case k##Node:             \
-    return static_cast<const Node*>(this)->GetStoreMode();
-    PROPERTY_NODE_LIST(GENERATE_CASE)
-#undef GENERATE_CASE
-    default:
-      UNREACHABLE();
-  }
-}
-
-IcCheckType Expression::GetKeyType() const {
-  switch (node_type()) {
-#define GENERATE_CASE(Node) \
-  case k##Node:             \
-    return static_cast<const Node*>(this)->GetKeyType();
-    PROPERTY_NODE_LIST(GENERATE_CASE)
-#undef GENERATE_CASE
-    default:
-      UNREACHABLE();
-  }
-}
-
-bool Expression::IsMonomorphic() const {
-  switch (node_type()) {
-#define GENERATE_CASE(Node) \
-  case k##Node:             \
-    return static_cast<const Node*>(this)->IsMonomorphic();
-    PROPERTY_NODE_LIST(GENERATE_CASE)
-    CALL_NODE_LIST(GENERATE_CASE)
-#undef GENERATE_CASE
-    default:
-      UNREACHABLE();
-  }
-}
 
 void Call::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                LanguageMode language_mode, FunctionKind kind,

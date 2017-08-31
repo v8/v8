@@ -1330,7 +1330,6 @@
         'setup-isolate.h',
         'signature.h',
         'simulator.h',
-        'small-pointer-list.h',
         'snapshot/builtin-deserializer.cc',
         'snapshot/builtin-deserializer.h',
         'snapshot/builtin-serializer.cc',
