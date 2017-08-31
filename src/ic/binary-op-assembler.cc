@@ -14,7 +14,6 @@ using compiler::Node;
 Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
                                                   Node* rhs, Node* slot_id,
                                                   Node* feedback_vector,
-                                                  Node* function,
                                                   bool rhs_is_smi) {
   // Shared entry for floating point addition.
   Label do_fadd(this), if_lhsisnotnumber(this, Label::kDeferred),
@@ -203,15 +202,14 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
   }
 
   BIND(&end);
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id, function);
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
   return var_result.value();
 }
 
 Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
     Node* context, Node* lhs, Node* rhs, Node* slot_id, Node* feedback_vector,
-    Node* function, const SmiOperation& smiOperation,
-    const FloatOperation& floatOperation, Token::Value opcode,
-    bool rhs_is_smi) {
+    const SmiOperation& smiOperation, const FloatOperation& floatOperation,
+    Token::Value opcode, bool rhs_is_smi) {
   Label do_float_operation(this), end(this), call_stub(this),
       check_rhsisoddball(this, Label::kDeferred), call_with_any_feedback(this),
       if_lhsisnotnumber(this, Label::kDeferred);
@@ -375,14 +373,13 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   }
 
   BIND(&end);
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id, function);
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_id);
   return var_result.value();
 }
 
 Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
                                                        Node* rhs, Node* slot_id,
                                                        Node* feedback_vector,
-                                                       Node* function,
                                                        bool rhs_is_smi) {
   auto smiFunction = [=](Node* lhs, Node* rhs, Variable* var_type_feedback) {
     VARIABLE(var_result, MachineRepresentation::kTagged);
@@ -423,14 +420,13 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
     return Float64Sub(lhs, rhs);
   };
   return Generate_BinaryOperationWithFeedback(
-      context, lhs, rhs, slot_id, feedback_vector, function, smiFunction,
-      floatFunction, Token::SUB, rhs_is_smi);
+      context, lhs, rhs, slot_id, feedback_vector, smiFunction, floatFunction,
+      Token::SUB, rhs_is_smi);
 }
 
 Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
                                                        Node* rhs, Node* slot_id,
                                                        Node* feedback_vector,
-                                                       Node* function,
                                                        bool rhs_is_smi) {
   auto smiFunction = [=](Node* lhs, Node* rhs, Variable* var_type_feedback) {
     Node* result = SmiMul(lhs, rhs);
@@ -443,13 +439,13 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
     return Float64Mul(lhs, rhs);
   };
   return Generate_BinaryOperationWithFeedback(
-      context, lhs, rhs, slot_id, feedback_vector, function, smiFunction,
-      floatFunction, Token::MUL, rhs_is_smi);
+      context, lhs, rhs, slot_id, feedback_vector, smiFunction, floatFunction,
+      Token::MUL, rhs_is_smi);
 }
 
 Node* BinaryOpAssembler::Generate_DivideWithFeedback(
     Node* context, Node* dividend, Node* divisor, Node* slot_id,
-    Node* feedback_vector, Node* function, bool rhs_is_smi) {
+    Node* feedback_vector, bool rhs_is_smi) {
   auto smiFunction = [=](Node* lhs, Node* rhs, Variable* var_type_feedback) {
     VARIABLE(var_result, MachineRepresentation::kTagged);
     // If rhs is known to be an Smi (for DivSmi) we want to fast path Smi
@@ -477,13 +473,13 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(
     return Float64Div(lhs, rhs);
   };
   return Generate_BinaryOperationWithFeedback(
-      context, dividend, divisor, slot_id, feedback_vector, function,
-      smiFunction, floatFunction, Token::DIV, rhs_is_smi);
+      context, dividend, divisor, slot_id, feedback_vector, smiFunction,
+      floatFunction, Token::DIV, rhs_is_smi);
 }
 
 Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
     Node* context, Node* dividend, Node* divisor, Node* slot_id,
-    Node* feedback_vector, Node* function, bool rhs_is_smi) {
+    Node* feedback_vector, bool rhs_is_smi) {
   auto smiFunction = [=](Node* lhs, Node* rhs, Variable* var_type_feedback) {
     Node* result = SmiMod(lhs, rhs);
     var_type_feedback->Bind(SelectSmiConstant(
@@ -495,8 +491,8 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
     return Float64Mod(lhs, rhs);
   };
   return Generate_BinaryOperationWithFeedback(
-      context, dividend, divisor, slot_id, feedback_vector, function,
-      smiFunction, floatFunction, Token::MOD, rhs_is_smi);
+      context, dividend, divisor, slot_id, feedback_vector, smiFunction,
+      floatFunction, Token::MOD, rhs_is_smi);
 }
 
 }  // namespace internal

@@ -6584,7 +6584,7 @@ Node* CodeStubAssembler::LoadFeedbackVectorForStub() {
 }
 
 void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
-                                       Node* slot_id, Node* function) {
+                                       Node* slot_id) {
   // This method is used for binary op and compare feedback. These
   // vector nodes are initialized with a smi 0, so we can simply OR
   // our new feedback in place.

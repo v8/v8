@@ -856,9 +856,11 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
                                OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  typedef Node* (BinaryOpAssembler::*BinaryOpGenerator)(
-      Node* context, Node* left, Node* right, Node* slot, Node* vector,
-      Node* function, bool lhs_is_smi);
+  typedef Node* (BinaryOpAssembler::*BinaryOpGenerator)(Node* context,
+                                                        Node* left, Node* right,
+                                                        Node* slot,
+                                                        Node* vector,
+                                                        bool lhs_is_smi);
 
   void BinaryOpWithFeedback(BinaryOpGenerator generator) {
     Node* reg_index = BytecodeOperandReg(0);
@@ -867,11 +869,10 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
     Node* context = GetContext();
     Node* slot_index = BytecodeOperandIdx(1);
     Node* feedback_vector = LoadFeedbackVector();
-    Node* function = LoadRegister(Register::function_closure());
 
     BinaryOpAssembler binop_asm(state());
     Node* result = (binop_asm.*generator)(context, lhs, rhs, slot_index,
-                                          feedback_vector, function, false);
+                                          feedback_vector, false);
     SetAccumulator(result);
     Dispatch();
   }
@@ -882,11 +883,10 @@ class InterpreterBinaryOpAssembler : public InterpreterAssembler {
     Node* context = GetContext();
     Node* slot_index = BytecodeOperandIdx(1);
     Node* feedback_vector = LoadFeedbackVector();
-    Node* function = LoadRegister(Register::function_closure());
 
     BinaryOpAssembler binop_asm(state());
     Node* result = (binop_asm.*generator)(context, lhs, rhs, slot_index,
-                                          feedback_vector, function, true);
+                                          feedback_vector, true);
     SetAccumulator(result);
     Dispatch();
   }
@@ -1033,9 +1033,8 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
 
     Node* input_feedback =
         SmiOr(var_lhs_type_feedback.value(), var_rhs_type_feedback.value());
-    Node* function = LoadRegister(Register::function_closure());
     UpdateFeedback(SmiOr(result_type, input_feedback), feedback_vector,
-                   slot_index, function);
+                   slot_index);
     SetAccumulator(result);
     Dispatch();
   }
@@ -1111,9 +1110,8 @@ IGNITION_HANDLER(BitwiseOrSmi, InterpreterAssembler) {
   Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
                                         BinaryOperationFeedback::kSignedSmall,
                                         BinaryOperationFeedback::kNumber);
-  Node* function = LoadRegister(Register::function_closure());
   UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
-                 feedback_vector, slot_index, function);
+                 feedback_vector, slot_index);
   SetAccumulator(result);
   Dispatch();
 }
@@ -1137,9 +1135,8 @@ IGNITION_HANDLER(BitwiseXorSmi, InterpreterAssembler) {
   Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
                                         BinaryOperationFeedback::kSignedSmall,
                                         BinaryOperationFeedback::kNumber);
-  Node* function = LoadRegister(Register::function_closure());
   UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
-                 feedback_vector, slot_index, function);
+                 feedback_vector, slot_index);
   SetAccumulator(result);
   Dispatch();
 }
@@ -1163,9 +1160,8 @@ IGNITION_HANDLER(BitwiseAndSmi, InterpreterAssembler) {
   Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
                                         BinaryOperationFeedback::kSignedSmall,
                                         BinaryOperationFeedback::kNumber);
-  Node* function = LoadRegister(Register::function_closure());
   UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
-                 feedback_vector, slot_index, function);
+                 feedback_vector, slot_index);
   SetAccumulator(result);
   Dispatch();
 }
@@ -1192,9 +1188,8 @@ IGNITION_HANDLER(ShiftLeftSmi, InterpreterAssembler) {
   Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
                                         BinaryOperationFeedback::kSignedSmall,
                                         BinaryOperationFeedback::kNumber);
-  Node* function = LoadRegister(Register::function_closure());
   UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
-                 feedback_vector, slot_index, function);
+                 feedback_vector, slot_index);
   SetAccumulator(result);
   Dispatch();
 }
@@ -1221,9 +1216,8 @@ IGNITION_HANDLER(ShiftRightSmi, InterpreterAssembler) {
   Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
                                         BinaryOperationFeedback::kSignedSmall,
                                         BinaryOperationFeedback::kNumber);
-  Node* function = LoadRegister(Register::function_closure());
   UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
-                 feedback_vector, slot_index, function);
+                 feedback_vector, slot_index);
   SetAccumulator(result);
   Dispatch();
 }
@@ -1250,9 +1244,8 @@ IGNITION_HANDLER(ShiftRightLogicalSmi, InterpreterAssembler) {
   Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
                                         BinaryOperationFeedback::kSignedSmall,
                                         BinaryOperationFeedback::kNumber);
-  Node* function = LoadRegister(Register::function_closure());
   UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
-                 feedback_vector, slot_index, function);
+                 feedback_vector, slot_index);
   SetAccumulator(result);
   Dispatch();
 }
@@ -1312,9 +1305,7 @@ IGNITION_HANDLER(ToNumber, InterpreterAssembler) {
   // Record the type feedback collected for {object}.
   Node* slot_index = BytecodeOperandIdx(1);
   Node* feedback_vector = LoadFeedbackVector();
-  Node* function = LoadRegister(Register::function_closure());
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index,
-                 function);
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
 
   Dispatch();
 }
@@ -1449,9 +1440,7 @@ IGNITION_HANDLER(Inc, InterpreterAssembler) {
   }
 
   BIND(&end);
-  Node* function = LoadRegister(Register::function_closure());
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index,
-                 function);
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
 
   SetAccumulator(result_var.value());
   Dispatch();
@@ -1574,9 +1563,7 @@ IGNITION_HANDLER(Dec, InterpreterAssembler) {
   }
 
   BIND(&end);
-  Node* function = LoadRegister(Register::function_closure());
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index,
-                 function);
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
 
   SetAccumulator(result_var.value());
   Dispatch();
@@ -2006,9 +1993,7 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
 
     Node* slot_index = BytecodeOperandIdx(1);
     Node* feedback_vector = LoadFeedbackVector();
-    Node* function = LoadRegister(Register::function_closure());
-    UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index,
-                   function);
+    UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
     SetAccumulator(result);
     Dispatch();
   }
