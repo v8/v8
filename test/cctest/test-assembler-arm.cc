@@ -38,9 +38,10 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::base;
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
+using base::RandomNumberGenerator;
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
@@ -2527,7 +2528,7 @@ TEST(smmla) {
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt(), z = rng->NextInt();
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, z, 0);
-    CHECK_EQ(bits::SignedMulHighAndAdd32(x, y, z), r);
+    CHECK_EQ(base::bits::SignedMulHighAndAdd32(x, y, z), r);
     USE(dummy);
   }
 }
@@ -2553,7 +2554,7 @@ TEST(smmul) {
   for (size_t i = 0; i < 128; ++i) {
     int32_t r, x = rng->NextInt(), y = rng->NextInt();
     Object* dummy = CALL_GENERATED_CODE(isolate, f, &r, x, y, 0, 0);
-    CHECK_EQ(bits::SignedMulHigh32(x, y), r);
+    CHECK_EQ(base::bits::SignedMulHigh32(x, y), r);
     USE(dummy);
   }
 }
@@ -3992,3 +3993,6 @@ TEST(use_scratch_register_scope) {
 }
 
 #undef __
+
+}  // namespace internal
+}  // namespace v8

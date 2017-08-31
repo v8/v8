@@ -16,10 +16,8 @@
 #include "src/feedback-vector-inl.h"
 #include "test/cctest/cctest.h"
 
-namespace {
-
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 TEST(ArrayList) {
   LocalContext context;
@@ -46,4 +44,5 @@ TEST(ArrayList) {
   CHECK_EQ(200, Smi::ToInt(array->Get(1)));
 }
 
-}  // namespace
+}  // namespace internal
+}  // namespace v8

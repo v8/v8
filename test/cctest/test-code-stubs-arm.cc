@@ -38,7 +38,8 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-code-stubs.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 #define __ masm.
 
@@ -188,3 +189,6 @@ TEST(ConvertDToI) {
     }
   }
 }
+
+}  // namespace internal
+}  // namespace v8

@@ -34,7 +34,8 @@
 #include "src/s390/simulator-s390.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
@@ -499,3 +500,6 @@ TEST(10) {
 }
 
 #undef __
+
+}  // namespace internal
+}  // namespace v8

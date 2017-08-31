@@ -13,8 +13,8 @@
 
 #include "test/cctest/cctest.h"
 
-using namespace v8::base;
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 static const int kMaxInobjectProperties = JSObject::kMaxInObjectProperties;
 
@@ -62,15 +62,13 @@ Handle<T> GetLexical(const std::string& name) {
   return GetLexical<T>(name.c_str());
 }
 
-
 template <typename T>
-static inline Handle<T> Run(v8::Local<v8::Script> script) {
+static inline Handle<T> RunI(v8::Local<v8::Script> script) {
   return OpenHandle<T>(Run(script));
 }
 
-
 template <typename T>
-static inline Handle<T> CompileRun(const char* script) {
+static inline Handle<T> CompileRunI(const char* script) {
   return OpenHandle<T>(CompileRun(script));
 }
 
@@ -135,7 +133,7 @@ TEST(JSObjectBasic) {
 
   v8::Local<v8::Script> new_A_script = v8_compile("new A();");
 
-  Handle<JSObject> obj = Run<JSObject>(new_A_script);
+  Handle<JSObject> obj = RunI<JSObject>(new_A_script);
 
   CHECK(func->has_initial_map());
   Handle<Map> initial_map(func->initial_map());
@@ -155,7 +153,7 @@ TEST(JSObjectBasic) {
   // Create several objects to complete the tracking.
   for (int i = 1; i < Map::kGenerousAllocationCount; i++) {
     CHECK(initial_map->IsInobjectSlackTrackingInProgress());
-    Handle<JSObject> tmp = Run<JSObject>(new_A_script);
+    Handle<JSObject> tmp = RunI<JSObject>(new_A_script);
     CHECK_EQ(initial_map->IsInobjectSlackTrackingInProgress(),
              IsObjectShrinkable(*tmp));
   }
@@ -194,9 +192,9 @@ TEST(JSObjectComplex) {
   // Zero instances were created so far.
   CHECK(!func->has_initial_map());
 
-  Handle<JSObject> obj1 = CompileRun<JSObject>("new A(1);");
-  Handle<JSObject> obj3 = CompileRun<JSObject>("new A(3);");
-  Handle<JSObject> obj5 = CompileRun<JSObject>("new A(5);");
+  Handle<JSObject> obj1 = CompileRunI<JSObject>("new A(1);");
+  Handle<JSObject> obj3 = CompileRunI<JSObject>("new A(3);");
+  Handle<JSObject> obj5 = CompileRunI<JSObject>("new A(5);");
 
   CHECK(func->has_initial_map());
   Handle<Map> initial_map(func->initial_map());
@@ -237,9 +235,9 @@ TEST(JSObjectComplex) {
   CHECK_EQ(0, obj5->map()->unused_property_fields());
 
   // Since slack tracking is complete, the new objects should not be shrinkable.
-  obj1 = CompileRun<JSObject>("new A(1);");
-  obj3 = CompileRun<JSObject>("new A(3);");
-  obj5 = CompileRun<JSObject>("new A(5);");
+  obj1 = CompileRunI<JSObject>("new A(1);");
+  obj3 = CompileRunI<JSObject>("new A(3);");
+  obj5 = CompileRunI<JSObject>("new A(5);");
 
   CHECK(!IsObjectShrinkable(*obj1));
   CHECK(!IsObjectShrinkable(*obj3));
@@ -281,7 +279,7 @@ TEST(JSGeneratorObjectBasic) {
 
   v8::Local<v8::Script> new_A_script = v8_compile("CreateGenerator();");
 
-  Handle<JSObject> obj = Run<JSObject>(new_A_script);
+  Handle<JSObject> obj = RunI<JSObject>(new_A_script);
 
   CHECK(func->has_initial_map());
   Handle<Map> initial_map(func->initial_map());
@@ -301,7 +299,7 @@ TEST(JSGeneratorObjectBasic) {
   // Create several objects to complete the tracking.
   for (int i = 1; i < Map::kGenerousAllocationCount; i++) {
     CHECK(initial_map->IsInobjectSlackTrackingInProgress());
-    Handle<JSObject> tmp = Run<JSObject>(new_A_script);
+    Handle<JSObject> tmp = RunI<JSObject>(new_A_script);
     CHECK_EQ(initial_map->IsInobjectSlackTrackingInProgress(),
              IsObjectShrinkable(*tmp));
   }
@@ -357,7 +355,7 @@ TEST(SubclassBasicNoBaseClassInstances) {
 
   v8::Local<v8::Script> new_B_script = v8_compile("new B();");
 
-  Handle<JSObject> obj = Run<JSObject>(new_B_script);
+  Handle<JSObject> obj = RunI<JSObject>(new_B_script);
 
   CHECK(a_func->has_initial_map());
   Handle<Map> a_initial_map(a_func->initial_map());
@@ -388,7 +386,7 @@ TEST(SubclassBasicNoBaseClassInstances) {
   // Create several subclass instances to complete the tracking.
   for (int i = 1; i < Map::kGenerousAllocationCount; i++) {
     CHECK(b_initial_map->IsInobjectSlackTrackingInProgress());
-    Handle<JSObject> tmp = Run<JSObject>(new_B_script);
+    Handle<JSObject> tmp = RunI<JSObject>(new_B_script);
     CHECK_EQ(b_initial_map->IsInobjectSlackTrackingInProgress(),
              IsObjectShrinkable(*tmp));
   }
@@ -451,8 +449,8 @@ TEST(SubclassBasic) {
   v8::Local<v8::Script> new_A_script = v8_compile("new A();");
   v8::Local<v8::Script> new_B_script = v8_compile("new B();");
 
-  Handle<JSObject> a_obj = Run<JSObject>(new_A_script);
-  Handle<JSObject> b_obj = Run<JSObject>(new_B_script);
+  Handle<JSObject> a_obj = RunI<JSObject>(new_A_script);
+  Handle<JSObject> b_obj = RunI<JSObject>(new_B_script);
 
   CHECK(a_func->has_initial_map());
   Handle<Map> a_initial_map(a_func->initial_map());
@@ -473,7 +471,7 @@ TEST(SubclassBasic) {
   // Create several base class instances to complete the tracking.
   for (int i = 1; i < Map::kGenerousAllocationCount; i++) {
     CHECK(a_initial_map->IsInobjectSlackTrackingInProgress());
-    Handle<JSObject> tmp = Run<JSObject>(new_A_script);
+    Handle<JSObject> tmp = RunI<JSObject>(new_A_script);
     CHECK_EQ(a_initial_map->IsInobjectSlackTrackingInProgress(),
              IsObjectShrinkable(*tmp));
   }
@@ -496,7 +494,7 @@ TEST(SubclassBasic) {
   // Create several subclass instances to complete the tracking.
   for (int i = 1; i < Map::kGenerousAllocationCount; i++) {
     CHECK(b_initial_map->IsInobjectSlackTrackingInProgress());
-    Handle<JSObject> tmp = Run<JSObject>(new_B_script);
+    Handle<JSObject> tmp = RunI<JSObject>(new_B_script);
     CHECK_EQ(b_initial_map->IsInobjectSlackTrackingInProgress(),
              IsObjectShrinkable(*tmp));
   }
@@ -575,7 +573,7 @@ static void TestClassHierarchy(const std::vector<int>& hierarchy_desc, int n) {
 
     Handle<JSFunction> func = GetLexical<JSFunction>(class_name);
 
-    Handle<JSObject> obj = Run<JSObject>(new_script);
+    Handle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
     Handle<Map> initial_map(func->initial_map());
@@ -594,7 +592,7 @@ static void TestClassHierarchy(const std::vector<int>& hierarchy_desc, int n) {
     // Create several instances to complete the tracking.
     for (int i = 1; i < Map::kGenerousAllocationCount; i++) {
       CHECK(initial_map->IsInobjectSlackTrackingInProgress());
-      Handle<JSObject> tmp = Run<JSObject>(new_script);
+      Handle<JSObject> tmp = RunI<JSObject>(new_script);
       CHECK_EQ(initial_map->IsInobjectSlackTrackingInProgress(),
                IsObjectShrinkable(*tmp));
       CHECK_EQ(Map::kSlackTrackingCounterStart - i - 1,
@@ -675,7 +673,7 @@ TEST(InobjectPropetiesCountOverflowInSubclass) {
 
     Handle<JSFunction> func = GetLexical<JSFunction>(class_name);
 
-    Handle<JSObject> obj = Run<JSObject>(new_script);
+    Handle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
     Handle<Map> initial_map(func->initial_map());
@@ -692,7 +690,7 @@ TEST(InobjectPropetiesCountOverflowInSubclass) {
     // Create several instances to complete the tracking.
     for (int i = 1; i < Map::kGenerousAllocationCount; i++) {
       CHECK(initial_map->IsInobjectSlackTrackingInProgress());
-      Handle<JSObject> tmp = Run<JSObject>(new_script);
+      Handle<JSObject> tmp = RunI<JSObject>(new_script);
       CHECK(!IsObjectShrinkable(*tmp));
     }
     CHECK(!initial_map->IsInobjectSlackTrackingInProgress());
@@ -859,7 +857,7 @@ TEST(SlowModeSubclass) {
 
     Handle<JSFunction> func = GetLexical<JSFunction>(class_name);
 
-    Handle<JSObject> obj = Run<JSObject>(new_script);
+    Handle<JSObject> obj = RunI<JSObject>(new_script);
 
     CHECK(func->has_initial_map());
     Handle<Map> initial_map(func->initial_map());
@@ -876,7 +874,7 @@ TEST(SlowModeSubclass) {
     // Create several instances to complete the tracking.
     for (int i = 1; i < Map::kGenerousAllocationCount; i++) {
       CHECK(initial_map->IsInobjectSlackTrackingInProgress());
-      Handle<JSObject> tmp = Run<JSObject>(new_script);
+      Handle<JSObject> tmp = RunI<JSObject>(new_script);
       CHECK(!IsObjectShrinkable(*tmp));
     }
     CHECK(!initial_map->IsInobjectSlackTrackingInProgress());
@@ -925,7 +923,7 @@ static void TestSubclassBuiltin(const char* subclass_name,
     new_script = v8_compile(os.str().c_str());
   }
 
-  Run<JSObject>(new_script);
+  RunI<JSObject>(new_script);
 
   CHECK(func->has_initial_map());
   Handle<Map> initial_map(func->initial_map());
@@ -939,7 +937,7 @@ static void TestSubclassBuiltin(const char* subclass_name,
 
   // Create two instances in order to ensure that |obj|.o is a data field
   // in case of Function subclassing.
-  Handle<JSObject> obj = Run<JSObject>(new_script);
+  Handle<JSObject> obj = RunI<JSObject>(new_script);
 
   // Two instances of a subclass created.
   CHECK_EQ(Map::kSlackTrackingCounterStart - 2,
@@ -956,7 +954,7 @@ static void TestSubclassBuiltin(const char* subclass_name,
   // Create several subclass instances to complete the tracking.
   for (int i = 2; i < Map::kGenerousAllocationCount; i++) {
     CHECK(initial_map->IsInobjectSlackTrackingInProgress());
-    Handle<JSObject> tmp = Run<JSObject>(new_script);
+    Handle<JSObject> tmp = RunI<JSObject>(new_script);
     CHECK_EQ(initial_map->IsInobjectSlackTrackingInProgress(),
              IsObjectShrinkable(*tmp));
   }
@@ -1203,3 +1201,6 @@ TEST(SubclassPromiseBuiltinNoInlineNew) {
   FLAG_inline_new = false;
   TestSubclassPromiseBuiltin();
 }
+
+}  // namespace internal
+}  // namespace v8

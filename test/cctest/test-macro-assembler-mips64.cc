@@ -36,10 +36,10 @@
 #include "src/mips64/macro-assembler-mips64.h"
 #include "src/mips64/simulator-mips64.h"
 
+namespace v8 {
+namespace internal {
 
-using namespace v8::internal;
-
-typedef void* (*F)(int64_t x, int64_t y, int p2, int p3, int p4);
+typedef void* (*FV)(int64_t x, int64_t y, int p2, int p3, int p4);
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p, int p1, int p2, int p3, int p4);
 typedef Object* (*F4)(void* p0, void* p1, int p2, int p3, int p4);
@@ -110,7 +110,7 @@ TEST(BYTESWAP) {
   masm->GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-  ::F3 f = FUNCTION_CAST<::F3>(code->entry());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   t.r1 = 0x5612FFCD9D327ACC;
   t.r2 = 0x781A15C3;
   t.r3 = 0xFCDE;
@@ -163,7 +163,7 @@ TEST(LoadConstants) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
-  ::F f = FUNCTION_CAST< ::F>(code->entry());
+  FV f = FUNCTION_CAST<FV>(code->entry());
   (void)CALL_GENERATED_CODE(isolate, f, reinterpret_cast<int64_t>(result), 0, 0,
                             0, 0);
   // Check results.
@@ -208,7 +208,7 @@ TEST(LoadAddress) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
-  ::F f = FUNCTION_CAST< ::F>(code->entry());
+  FV f = FUNCTION_CAST<FV>(code->entry());
   (void)CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0);
   // Check results.
 }
@@ -541,7 +541,7 @@ static uint64_t run_dlsa(uint64_t rt, uint64_t rs, int8_t sa) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
-  ::F f = FUNCTION_CAST<::F>(code->entry());
+  FV f = FUNCTION_CAST<FV>(code->entry());
 
   uint64_t res = reinterpret_cast<uint64_t>(
       CALL_GENERATED_CODE(isolate, f, rt, rs, 0, 0, 0));
@@ -1211,7 +1211,7 @@ TEST(min_max_nan) {
   masm->GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
-  ::F3 f = FUNCTION_CAST<::F3>(code->entry());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
   for (int i = 0; i < kTableLength; i++) {
     test.a = inputsa[i];
     test.b = inputsb[i];
@@ -1641,7 +1641,7 @@ TEST(Sltu) {
 }
 
 template <typename T, typename Inputs, typename Results>
-static ::F4 GenerateMacroFloat32MinMax(MacroAssembler* masm) {
+static F4 GenerateMacroFloat32MinMax(MacroAssembler* masm) {
   T a = T::from_code(4);  // f4
   T b = T::from_code(6);  // f6
   T c = T::from_code(8);  // f8
@@ -1711,7 +1711,7 @@ static ::F4 GenerateMacroFloat32MinMax(MacroAssembler* masm) {
   OFStream os(stdout);
   code->Print(os);
 #endif
-  return FUNCTION_CAST<::F4>(code->entry());
+  return FUNCTION_CAST<F4>(code->entry());
 }
 
 TEST(macro_float_minmax_f32) {
@@ -1740,7 +1740,7 @@ TEST(macro_float_minmax_f32) {
     float max_aba_;
   };
 
-  ::F4 f = GenerateMacroFloat32MinMax<FPURegister, Inputs, Results>(masm);
+  F4 f = GenerateMacroFloat32MinMax<FPURegister, Inputs, Results>(masm);
   Object* dummy = nullptr;
   USE(dummy);
 
@@ -1784,7 +1784,7 @@ TEST(macro_float_minmax_f32) {
 }
 
 template <typename T, typename Inputs, typename Results>
-static ::F4 GenerateMacroFloat64MinMax(MacroAssembler* masm) {
+static F4 GenerateMacroFloat64MinMax(MacroAssembler* masm) {
   T a = T::from_code(4);  // f4
   T b = T::from_code(6);  // f6
   T c = T::from_code(8);  // f8
@@ -1854,7 +1854,7 @@ static ::F4 GenerateMacroFloat64MinMax(MacroAssembler* masm) {
   OFStream os(stdout);
   code->Print(os);
 #endif
-  return FUNCTION_CAST<::F4>(code->entry());
+  return FUNCTION_CAST<F4>(code->entry());
 }
 
 TEST(macro_float_minmax_f64) {
@@ -1883,7 +1883,7 @@ TEST(macro_float_minmax_f64) {
     double max_aba_;
   };
 
-  ::F4 f = GenerateMacroFloat64MinMax<DoubleRegister, Inputs, Results>(masm);
+  F4 f = GenerateMacroFloat64MinMax<DoubleRegister, Inputs, Results>(masm);
   Object* dummy = nullptr;
   USE(dummy);
 
@@ -1927,3 +1927,6 @@ TEST(macro_float_minmax_f64) {
 }
 
 #undef __
+
+}  // namespace internal
+}  // namespace v8

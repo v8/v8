@@ -54,7 +54,8 @@
 #include "test/cctest/heap/heap-utils.h"
 #include "test/cctest/setup-isolate-for-tests.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 void DisableAlwaysOpt() {
   // Isolates prepared for serialization do not optimize. The only exception is
@@ -2765,3 +2766,6 @@ TEST(BuiltinsHaveBuiltinIdForLazyDeserialization) {
              ->shared()
              ->HasLazyDeserializationBuiltinId());
 }
+
+}  // namespace internal
+}  // namespace v8

@@ -33,14 +33,14 @@
 #include "src/macro-assembler-inl.h"
 #include "src/objects-inl.h"
 
+namespace v8 {
+namespace internal {
+
 #if defined(USE_SIMULATOR)
 
 #ifndef V8_TARGET_LITTLE_ENDIAN
 #error Expected ARM to be little-endian
 #endif
-
-using namespace v8::base;
-using namespace v8::internal;
 
 #define __ masm.
 
@@ -382,3 +382,6 @@ TEST(simulator_invalidate_exclusive_access_threaded) {
 #undef __
 
 #endif  // USE_SIMULATOR
+
+}  // namespace internal
+}  // namespace v8

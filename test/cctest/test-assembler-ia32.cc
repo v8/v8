@@ -37,8 +37,8 @@
 #include "src/ostreams.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 typedef int (*F0)();
 typedef int (*F1)(int x);
@@ -1482,3 +1482,6 @@ TEST(Regress621926) {
 }
 
 #undef __
+
+}  // namespace internal
+}  // namespace v8

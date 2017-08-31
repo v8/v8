@@ -34,7 +34,8 @@
 #include "src/v8.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
+namespace v8 {
+namespace internal {
 
 typedef void* (*F)(int x, int y, int p2, int p3, int p4);
 
@@ -404,3 +405,6 @@ TEST(ReplaceLane) {
 }
 
 #undef __
+
+}  // namespace internal
+}  // namespace v8

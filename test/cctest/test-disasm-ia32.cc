@@ -37,8 +37,8 @@
 #include "src/macro-assembler.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 #define __ assm.
 
@@ -859,3 +859,6 @@ TEST(DisasmIa320) {
 }
 
 #undef __
+
+}  // namespace internal
+}  // namespace v8

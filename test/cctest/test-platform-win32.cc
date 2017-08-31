@@ -35,19 +35,16 @@
 #include "src/base/win32-headers.h"
 #include "test/cctest/cctest.h"
 
-using namespace ::v8::internal;
-
-
 TEST(VirtualMemory) {
   v8::base::VirtualMemory* vm =
-      new v8::base::VirtualMemory(1 * MB, v8::base::OS::GetRandomMmapAddr());
+      new v8::base::VirtualMemory(1 * i::MB, v8::base::OS::GetRandomMmapAddr());
   CHECK(vm->IsReserved());
   void* block_addr = vm->address();
-  size_t block_size = 4 * KB;
+  size_t block_size = 4 * i::KB;
   CHECK(vm->Commit(block_addr, block_size, false));
   // Check whether we can write to memory.
   int* addr = static_cast<int*>(block_addr);
-  addr[KB-1] = 2;
+  addr[i::KB - 1] = 2;
   CHECK(vm->Uncommit(block_addr, block_size));
   delete vm;
 }

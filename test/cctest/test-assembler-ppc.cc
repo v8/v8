@@ -33,8 +33,8 @@
 #include "src/ppc/simulator-ppc.h"
 #include "test/cctest/cctest.h"
 
-using namespace v8::internal;
-
+namespace v8 {
+namespace internal {
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
 typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
@@ -1058,3 +1058,6 @@ TEST(12) {
 #endif
 
 #undef __
+
+}  // namespace internal
+}  // namespace v8

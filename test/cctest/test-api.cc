@@ -22167,21 +22167,19 @@ const char* kMegamorphicTestProgram =
     "}\n";
 
 void TestStubCache(bool primary) {
-  using namespace i;
-
-  FLAG_native_code_counters = true;
+  i::FLAG_native_code_counters = true;
   if (primary) {
-    FLAG_test_primary_stub_cache = true;
+    i::FLAG_test_primary_stub_cache = true;
   } else {
-    FLAG_test_secondary_stub_cache = true;
+    i::FLAG_test_secondary_stub_cache = true;
   }
-  FLAG_opt = false;
+  i::FLAG_opt = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
   {
     v8::Isolate::Scope isolate_scope(isolate);
@@ -23117,16 +23115,14 @@ TEST(AccessCheckThrows) {
 }
 
 TEST(AccessCheckInIC) {
-  using namespace i;
-
-  FLAG_native_code_counters = true;
-  FLAG_opt = false;
+  i::FLAG_native_code_counters = true;
+  i::FLAG_opt = false;
 
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   create_params.counter_lookup_callback = LookupCounter;
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
   {
     v8::Isolate::Scope isolate_scope(isolate);
@@ -26888,20 +26884,19 @@ THREADED_TEST(GlobalAccessorInfo) {
 }
 
 UNINITIALIZED_TEST(IncreaseHeapLimitForDebugging) {
-  using namespace i;
   v8::Isolate::CreateParams create_params;
   create_params.constraints.set_max_old_space_size(16);
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   {
     size_t limit_before = i_isolate->heap()->MaxOldGenerationSize();
-    CHECK_EQ(16 * MB, limit_before);
+    CHECK_EQ(16 * i::MB, limit_before);
     CHECK(!isolate->IsHeapLimitIncreasedForDebugging());
     isolate->IncreaseHeapLimitForDebugging();
     CHECK(isolate->IsHeapLimitIncreasedForDebugging());
     size_t limit_after = i_isolate->heap()->MaxOldGenerationSize();
-    CHECK_EQ(4 * 16 * MB, limit_after);
+    CHECK_EQ(4 * 16 * i::MB, limit_after);
     isolate->RestoreOriginalHeapLimit();
     CHECK(!isolate->IsHeapLimitIncreasedForDebugging());
     CHECK_EQ(limit_before, i_isolate->heap()->MaxOldGenerationSize());
@@ -26935,12 +26930,11 @@ TEST(DeterministicRandomNumberGeneration) {
 }
 
 UNINITIALIZED_TEST(AllowAtomicsWait) {
-  using namespace i;
   v8::Isolate::CreateParams create_params;
   create_params.allow_atomics_wait = false;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   {
     CHECK_EQ(false, i_isolate->allow_atomics_wait());
     isolate->SetAllowAtomicsWait(true);

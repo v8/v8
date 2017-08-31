@@ -26,8 +26,6 @@
 #include "src/runtime/runtime.h"
 #include "src/zone/zone.h"
 
-class TestIsolate;
-
 namespace v8 {
 
 namespace base {
@@ -1620,12 +1618,12 @@ class Isolate {
   friend class ThreadManager;
   friend class Simulator;
   friend class StackGuard;
+  friend class TestIsolate;
   friend class ThreadId;
   friend class v8::Isolate;
   friend class v8::Locker;
   friend class v8::Unlocker;
   friend class v8::SnapshotCreator;
-  friend class ::TestIsolate;
   friend v8::StartupData v8::V8::CreateSnapshotDataBlob(const char*);
   friend v8::StartupData v8::V8::WarmUpSnapshotDataBlob(v8::StartupData,
                                                         const char*);
