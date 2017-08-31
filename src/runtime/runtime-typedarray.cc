@@ -100,19 +100,20 @@ RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
   return *holder->GetBuffer();
 }
 
-enum TypedArraySetResultCodes {
+namespace {
+
+enum class TypedArraySetResultCodes {
   // Set from typed array of the same type.
   // This is processed by TypedArraySetFastCases
-  TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE,
+  SAME_TYPE,
   // Set from typed array of the different type, overlapping in memory.
-  TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING,
+  OVERLAPPING,
   // Set from typed array of the different type, non-overlapping.
-  TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING,
+  NONOVERLAPPING,
   // Set from non-typed array.
-  TYPED_ARRAY_SET_NON_TYPED_ARRAY
+  NON_TYPED_ARRAY
 };
 
-namespace {
 MaybeHandle<Object> TypedArraySetFromArrayLike(Isolate* isolate,
                                                Handle<JSTypedArray> target,
                                                Handle<Object> source,
@@ -229,8 +230,8 @@ MaybeHandle<Smi> TypedArraySetFastCases(Isolate* isolate,
                                         Handle<Object> source_obj,
                                         Handle<Object> offset_obj) {
   if (!source_obj->IsJSTypedArray()) {
-    return MaybeHandle<Smi>(Smi::FromEnum(TYPED_ARRAY_SET_NON_TYPED_ARRAY),
-                            isolate);
+    return MaybeHandle<Smi>(
+        Smi::FromEnum(TypedArraySetResultCodes::NON_TYPED_ARRAY), isolate);
   }
 
   Handle<JSTypedArray> source = Handle<JSTypedArray>::cast(source_obj);
@@ -261,8 +262,8 @@ MaybeHandle<Smi> TypedArraySetFastCases(Isolate* isolate,
   if (target->type() == source->type()) {
     memmove(target_base + offset * target->element_size(), source_base,
             source_byte_length);
-    return MaybeHandle<Smi>(
-        Smi::FromEnum(TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE), isolate);
+    return MaybeHandle<Smi>(Smi::FromEnum(TypedArraySetResultCodes::SAME_TYPE),
+                            isolate);
   }
 
   // Typed arrays of different types over the same backing store
@@ -274,10 +275,10 @@ MaybeHandle<Smi> TypedArraySetFastCases(Isolate* isolate,
     DCHECK(target->GetBuffer()->backing_store() ==
            source->GetBuffer()->backing_store());
     return MaybeHandle<Smi>(
-        Smi::FromEnum(TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING), isolate);
+        Smi::FromEnum(TypedArraySetResultCodes::OVERLAPPING), isolate);
   } else {  // Non-overlapping typed arrays
     return MaybeHandle<Smi>(
-        Smi::FromEnum(TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING), isolate);
+        Smi::FromEnum(TypedArraySetResultCodes::NONOVERLAPPING), isolate);
   }
 }
 
@@ -321,17 +322,17 @@ RUNTIME_FUNCTION(Runtime_TypedArrayPrototypeSet) {
                              offset));
 
   switch (static_cast<TypedArraySetResultCodes>(result_code->value())) {
-    case TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE: {
+    case TypedArraySetResultCodes::SAME_TYPE: {
       break;
     }
-    case TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING: {
+    case TypedArraySetResultCodes::OVERLAPPING: {
       RETURN_FAILURE_ON_EXCEPTION(
           isolate, TypedArraySetFromOverlapping(
                        isolate, Handle<JSTypedArray>::cast(target),
                        Handle<JSTypedArray>::cast(obj), int_offset));
       break;
     }
-    case TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING: {
+    case TypedArraySetResultCodes::NONOVERLAPPING: {
       if (int_offset == 0) {
         TypedArrayCopyElements(Handle<JSTypedArray>::cast(target),
                                Handle<JSTypedArray>::cast(obj),
@@ -345,7 +346,7 @@ RUNTIME_FUNCTION(Runtime_TypedArrayPrototypeSet) {
       }
       break;
     }
-    case TYPED_ARRAY_SET_NON_TYPED_ARRAY: {
+    case TypedArraySetResultCodes::NON_TYPED_ARRAY: {
       if (obj->IsNumber()) {
         // For number as a first argument, throw TypeError
         // instead of silently ignoring the call, so that
