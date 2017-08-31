@@ -52,20 +52,25 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   return isolate->heap()->undefined_value();
 }
 
+namespace {
+Object* TypedArrayCopyElements(Handle<JSTypedArray> target,
+                               Handle<JSReceiver> source, Object* length_obj) {
+  size_t length;
+  CHECK(TryNumberToSize(length_obj, &length));
+
+  ElementsAccessor* accessor = target->GetElementsAccessor();
+  return accessor->CopyElements(source, target, length);
+}
+}  // anonymous namespace
+
 RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, destination, 0);
+  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, source, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(length_obj, 2);
 
-  size_t length;
-  CHECK(TryNumberToSize(*length_obj, &length));
-
-  Handle<JSTypedArray> destination_ta = Handle<JSTypedArray>::cast(destination);
-
-  ElementsAccessor* accessor = destination_ta->GetElementsAccessor();
-  return accessor->CopyElements(source, destination, length);
+  return TypedArrayCopyElements(target, source, *length_obj);
 }
 
 #define BUFFER_VIEW_GETTER(Type, getter, accessor)   \
@@ -95,64 +100,50 @@ RUNTIME_FUNCTION(Runtime_TypedArrayGetBuffer) {
   return *holder->GetBuffer();
 }
 
-
-// Return codes for Runtime_TypedArraySetFastCases.
-// Should be synchronized with typedarray.js natives.
 enum TypedArraySetResultCodes {
   // Set from typed array of the same type.
   // This is processed by TypedArraySetFastCases
-  TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE = 0,
+  TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE,
   // Set from typed array of the different type, overlapping in memory.
-  TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING = 1,
+  TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING,
   // Set from typed array of the different type, non-overlapping.
-  TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING = 2,
+  TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING,
   // Set from non-typed array.
-  TYPED_ARRAY_SET_NON_TYPED_ARRAY = 3
+  TYPED_ARRAY_SET_NON_TYPED_ARRAY
 };
 
-// TypedArraySetFromArrayLike(target, source, source_length, offset);
-RUNTIME_FUNCTION(Runtime_TypedArraySetFromArrayLike) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(4, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, source, 1);
-
-  CONVERT_INT32_ARG_CHECKED(source_length, 2);
+namespace {
+MaybeHandle<Object> TypedArraySetFromArrayLike(Isolate* isolate,
+                                               Handle<JSTypedArray> target,
+                                               Handle<Object> source,
+                                               int source_length, int offset) {
   DCHECK_GE(source_length, 0);
-
-  CONVERT_INT32_ARG_CHECKED(offset, 3);
   DCHECK_GE(offset, 0);
 
   for (int i = 0; i < source_length; i++) {
     Handle<Object> value;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                       Object::GetElement(isolate, source, i));
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, value,
-        Object::SetElement(isolate, target, offset + i, value,
-                           LanguageMode::STRICT));
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                               Object::GetElement(isolate, source, i), Object);
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                               Object::SetElement(isolate, target, offset + i,
+                                                  value, LanguageMode::STRICT),
+                               Object);
   }
 
-  return *target;
+  return target;
 }
 
-// TypedArraySetFromOverlappingTypedArray(target, source, offset);
-RUNTIME_FUNCTION(Runtime_TypedArraySetFromOverlapping) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, source, 1);
-
-  CONVERT_INT32_ARG_CHECKED(offset, 2);
+MaybeHandle<Object> TypedArraySetFromOverlapping(Isolate* isolate,
+                                                 Handle<JSTypedArray> target,
+                                                 Handle<JSTypedArray> source,
+                                                 int offset) {
   DCHECK_GE(offset, 0);
 
   size_t sourceElementSize = source->element_size();
   size_t targetElementSize = target->element_size();
 
   uint32_t source_length = source->length_value();
-  if (source_length == 0) return *target;
+  if (source_length == 0) return target;
 
   // Copy left part.
 
@@ -170,12 +161,14 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFromOverlapping) {
   for (left_index = 0; left_index < source_length && target_ptr <= source_ptr;
        left_index++) {
     Handle<Object> value;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, value, Object::GetElement(isolate, source, left_index));
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                               Object::GetElement(isolate, source, left_index),
+                               Object);
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, value,
         Object::SetElement(isolate, target, offset + left_index, value,
-                           LanguageMode::STRICT));
+                           LanguageMode::STRICT),
+        Object);
 
     target_ptr += targetElementSize;
     source_ptr += sourceElementSize;
@@ -196,12 +189,14 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFromOverlapping) {
   for (right_index = source_length - 1;
        right_index > left_index && target_ptr >= source_ptr; right_index--) {
     Handle<Object> value;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, value, Object::GetElement(isolate, source, right_index));
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                               Object::GetElement(isolate, source, right_index),
+                               Object);
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, value,
         Object::SetElement(isolate, target, offset + right_index, value,
-                           LanguageMode::STRICT));
+                           LanguageMode::STRICT),
+        Object);
 
     target_ptr -= targetElementSize;
     source_ptr -= sourceElementSize;
@@ -211,38 +206,34 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFromOverlapping) {
 
   for (uint32_t i = left_index; i <= right_index; i++) {
     Handle<Object> value;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
-                                       Object::GetElement(isolate, source, i));
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
+                               Object::GetElement(isolate, source, i), Object);
     temp[i - left_index] = value;
   }
 
   for (uint32_t i = left_index; i <= right_index; i++) {
     Handle<Object> value;
 
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+    ASSIGN_RETURN_ON_EXCEPTION(
         isolate, value,
         Object::SetElement(isolate, target, offset + i, temp[i - left_index],
-                           LanguageMode::STRICT));
+                           LanguageMode::STRICT),
+        Object);
   }
 
-  return *target;
+  return target;
 }
 
-RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  if (!args[0]->IsJSTypedArray()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNotTypedArray));
+MaybeHandle<Smi> TypedArraySetFastCases(Isolate* isolate,
+                                        Handle<JSTypedArray> target,
+                                        Handle<Object> source_obj,
+                                        Handle<Object> offset_obj) {
+  if (!source_obj->IsJSTypedArray()) {
+    return MaybeHandle<Smi>(Smi::FromEnum(TYPED_ARRAY_SET_NON_TYPED_ARRAY),
+                            isolate);
   }
 
-  if (!args[1]->IsJSTypedArray()) {
-    return Smi::FromInt(TYPED_ARRAY_SET_NON_TYPED_ARRAY);
-  }
-
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, target, 0);
-  CONVERT_ARG_HANDLE_CHECKED(JSTypedArray, source, 1);
-  CONVERT_NUMBER_ARG_HANDLE_CHECKED(offset_obj, 2);
+  Handle<JSTypedArray> source = Handle<JSTypedArray>::cast(source_obj);
 
   size_t offset = 0;
   CHECK(TryNumberToSize(*offset_obj, &offset));
@@ -252,8 +243,9 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
   size_t source_byte_length = NumberToSize(source->byte_length());
   if (offset > target_length || offset + source_length > target_length ||
       offset + source_length < offset) {  // overflow
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
+    THROW_NEW_ERROR(
+        isolate, NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge),
+        Smi);
   }
 
   size_t target_offset = NumberToSize(target->byte_offset());
@@ -269,7 +261,8 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
   if (target->type() == source->type()) {
     memmove(target_base + offset * target->element_size(), source_base,
             source_byte_length);
-    return Smi::FromInt(TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE);
+    return MaybeHandle<Smi>(
+        Smi::FromEnum(TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE), isolate);
   }
 
   // Typed arrays of different types over the same backing store
@@ -280,10 +273,120 @@ RUNTIME_FUNCTION(Runtime_TypedArraySetFastCases) {
     // We do not support overlapping ArrayBuffers
     DCHECK(target->GetBuffer()->backing_store() ==
            source->GetBuffer()->backing_store());
-    return Smi::FromInt(TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING);
+    return MaybeHandle<Smi>(
+        Smi::FromEnum(TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING), isolate);
   } else {  // Non-overlapping typed arrays
-    return Smi::FromInt(TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING);
+    return MaybeHandle<Smi>(
+        Smi::FromEnum(TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING), isolate);
   }
+}
+
+}  // anonymous namespace
+
+// 22.2.3.23%TypedArray%.prototype.set ( overloaded [ , offset ] )
+RUNTIME_FUNCTION(Runtime_TypedArrayPrototypeSet) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Object, target, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, obj, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, offset, 2);
+
+  if (offset->IsUndefined(isolate)) {
+    offset = Handle<Object>(Smi::kZero, isolate);
+  } else {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, offset,
+                                       Object::ToInteger(isolate, offset));
+  }
+
+  if (offset->Number() < 0) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kTypedArraySetNegativeOffset));
+  }
+
+  if (offset->Number() > Smi::kMaxValue) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
+  }
+
+  if (!target->IsJSTypedArray()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotTypedArray));
+  }
+  auto int_offset = static_cast<int>(offset->Number());
+
+  Handle<Smi> result_code;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result_code,
+      TypedArraySetFastCases(isolate, Handle<JSTypedArray>::cast(target), obj,
+                             offset));
+
+  switch (static_cast<TypedArraySetResultCodes>(result_code->value())) {
+    case TYPED_ARRAY_SET_TYPED_ARRAY_SAME_TYPE: {
+      break;
+    }
+    case TYPED_ARRAY_SET_TYPED_ARRAY_OVERLAPPING: {
+      RETURN_FAILURE_ON_EXCEPTION(
+          isolate, TypedArraySetFromOverlapping(
+                       isolate, Handle<JSTypedArray>::cast(target),
+                       Handle<JSTypedArray>::cast(obj), int_offset));
+      break;
+    }
+    case TYPED_ARRAY_SET_TYPED_ARRAY_NONOVERLAPPING: {
+      if (int_offset == 0) {
+        TypedArrayCopyElements(Handle<JSTypedArray>::cast(target),
+                               Handle<JSTypedArray>::cast(obj),
+                               Handle<JSTypedArray>::cast(obj)->length());
+      } else {
+        RETURN_FAILURE_ON_EXCEPTION(
+            isolate,
+            TypedArraySetFromArrayLike(
+                isolate, Handle<JSTypedArray>::cast(target), obj,
+                Handle<JSTypedArray>::cast(obj)->length_value(), int_offset));
+      }
+      break;
+    }
+    case TYPED_ARRAY_SET_NON_TYPED_ARRAY: {
+      if (obj->IsNumber()) {
+        // For number as a first argument, throw TypeError
+        // instead of silently ignoring the call, so that
+        // users know they did something wrong.
+        // (Consistent with Firefox and Blink/WebKit)
+        THROW_NEW_ERROR_RETURN_FAILURE(
+            isolate, NewTypeError(MessageTemplate::kInvalidArgument));
+      }
+
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, obj,
+                                         Object::ToObject(isolate, obj));
+
+      Handle<Object> len;
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, len,
+          Object::GetProperty(obj, isolate->factory()->length_string()));
+      if (len->IsUndefined(isolate)) {
+        break;
+      }
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
+                                         Object::ToLength(isolate, len));
+
+      uint32_t int_l;
+      CHECK(len->ToUint32(&int_l));
+      DCHECK_GE(int_offset, 0);
+      if (static_cast<uint32_t>(int_offset) + int_l >
+          Handle<JSTypedArray>::cast(target)->length_value()) {
+        THROW_NEW_ERROR_RETURN_FAILURE(
+            isolate,
+            NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
+      }
+      RETURN_FAILURE_ON_EXCEPTION(
+          isolate, TypedArraySetFromArrayLike(
+                       isolate, Handle<JSTypedArray>::cast(target), obj, int_l,
+                       int_offset));
+    } break;
+    default:
+      UNREACHABLE();
+  }
+
+  return *target;
 }
 
 namespace {

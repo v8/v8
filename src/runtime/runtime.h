@@ -623,9 +623,7 @@ namespace internal {
   F(ArrayBufferViewWasNeutered, 1, 1)    \
   F(TypedArrayGetLength, 1, 1)           \
   F(TypedArrayGetBuffer, 1, 1)           \
-  F(TypedArraySetFromArrayLike, 4, 1)    \
-  F(TypedArraySetFromOverlapping, 3, 1)  \
-  F(TypedArraySetFastCases, 3, 1)        \
+  F(TypedArrayPrototypeSet, 3, 1)        \
   F(TypedArraySortFast, 1, 1)            \
   F(TypedArrayMaxSizeInHeap, 0, 1)       \
   F(IsTypedArray, 1, 1)                  \
