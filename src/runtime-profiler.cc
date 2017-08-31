@@ -109,9 +109,8 @@ static void GetICCounts(JSFunction* function, int* ic_with_type_info_count,
   // Harvest vector-ics as well
   FeedbackVector* vector = function->feedback_vector();
   int with = 0, gen = 0, type_vector_ic_count = 0;
-  const bool is_interpreted = function->shared()->IsInterpreted();
 
-  vector->ComputeCounts(&with, &gen, &type_vector_ic_count, is_interpreted);
+  vector->ComputeCounts(&with, &gen, &type_vector_ic_count);
   *ic_total_count += type_vector_ic_count;
   *ic_with_type_info_count += with;
   *ic_generic_count += gen;
