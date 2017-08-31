@@ -834,7 +834,9 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
           ? nullptr
           : Page::FromAllocationAreaAddress(space->top());
   for (Page* p : *space) {
-    if (p->NeverEvacuate() || p == owner_of_linear_allocation_area) continue;
+    if (p->NeverEvacuate() || (p == owner_of_linear_allocation_area) ||
+        !p->CanAllocate())
+      continue;
     // Invariant: Evacuation candidates are just created when marking is
     // started. This means that sweeping has finished. Furthermore, at the end
     // of a GC all evacuation candidates are cleared and their slot buffers are
