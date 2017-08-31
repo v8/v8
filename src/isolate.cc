@@ -667,15 +667,15 @@ class CaptureStackTraceHelper {
       const FrameSummary::JavaScriptFrameSummary& summ) {
     int code_offset;
     Handle<ByteArray> source_position_table;
-    Object* maybe_cache;
+    Handle<Object> maybe_cache;
     Handle<UnseededNumberDictionary> cache;
     if (!FLAG_optimize_for_size) {
       code_offset = summ.code_offset();
       source_position_table =
           handle(summ.abstract_code()->source_position_table(), isolate_);
-      maybe_cache = summ.abstract_code()->stack_frame_cache();
+      maybe_cache = handle(summ.abstract_code()->stack_frame_cache(), isolate_);
       if (maybe_cache->IsUnseededNumberDictionary()) {
-        cache = handle(UnseededNumberDictionary::cast(maybe_cache));
+        cache = Handle<UnseededNumberDictionary>::cast(maybe_cache);
       } else {
         cache = UnseededNumberDictionary::New(isolate_, 1);
       }
