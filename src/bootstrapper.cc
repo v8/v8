@@ -2904,6 +2904,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kTypedArrayPrototypeReduce, 1, false);
     SimpleInstallFunction(prototype, "reduceRight",
                           Builtins::kTypedArrayPrototypeReduceRight, 1, false);
+    SimpleInstallFunction(prototype, "set", Builtins::kTypedArrayPrototypeSet,
+                          1, false);
     SimpleInstallFunction(prototype, "slice",
                           Builtins::kTypedArrayPrototypeSlice, 2, false);
     SimpleInstallFunction(prototype, "some", Builtins::kTypedArrayPrototypeSome,

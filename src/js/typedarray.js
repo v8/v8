@@ -250,17 +250,6 @@ TYPED_ARRAYS(TYPED_ARRAY_SUBARRAY_CASE)
 %SetForceInlineFlag(GlobalTypedArray.prototype.subarray);
 
 
-// 22.2.3.23%TypedArray%.prototype.set ( overloaded [ , offset ] )
-DEFINE_METHOD_LEN(
-  GlobalTypedArray.prototype,
-  set(obj, offset) {
-    // TODO(franzih): Migrate this to a proper builtin.
-    %_TypedArrayPrototypeSet(this, obj, offset);
-  },
-  1  /* Set function length. */
-);
-
-
 DEFINE_METHOD(
   GlobalTypedArray.prototype,
   get [toStringTagSymbol]() {
