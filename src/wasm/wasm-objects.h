@@ -27,7 +27,7 @@ class WasmInterpreter;
 // When we compile or instantiate, we need to create global handles
 // for function tables. Normally, these handles get destroyed when the
 // respective objects get GCed. If we fail to construct those objects,
-// we can leak global hanles. The exit path in these cases isn't unique,
+// we can leak global handles. The exit path in these cases isn't unique,
 // and may grow.
 //
 // This type addresses that.
