@@ -2052,6 +2052,21 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
   return string->IsExternalString() ? string : nullptr;
 }
 
+void Heap::ExternalStringTable::Verify() {
+#ifdef DEBUG
+  for (size_t i = 0; i < new_space_strings_.size(); ++i) {
+    Object* obj = Object::cast(new_space_strings_[i]);
+    DCHECK(heap_->InNewSpace(obj));
+    DCHECK(!obj->IsTheHole(heap_->isolate()));
+  }
+  for (size_t i = 0; i < old_space_strings_.size(); ++i) {
+    Object* obj = Object::cast(old_space_strings_[i]);
+    DCHECK(!heap_->InNewSpace(obj));
+    DCHECK(!obj->IsTheHole(heap_->isolate()));
+  }
+#endif
+}
+
 void Heap::ExternalStringTable::UpdateNewSpaceReferences(
     Heap::ExternalStringTableUpdaterCallback updater_func) {
   if (new_space_strings_.empty()) return;
@@ -2068,12 +2083,12 @@ void Heap::ExternalStringTable::UpdateNewSpaceReferences(
     DCHECK(target->IsExternalString());
 
     if (heap_->InNewSpace(target)) {
-      // String is still in new space.  Update the table entry.
+      // String is still in new space. Update the table entry.
       *last = target;
       ++last;
     } else {
-      // String got promoted.  Move it to the old string list.
-      AddOldString(target);
+      // String got promoted. Move it to the old string list.
+      old_space_strings_.push_back(target);
     }
   }
 
@@ -2084,6 +2099,29 @@ void Heap::ExternalStringTable::UpdateNewSpaceReferences(
     Verify();
   }
 #endif
+}
+
+void Heap::ExternalStringTable::PromoteAllNewSpaceStrings() {
+  old_space_strings_.reserve(old_space_strings_.size() +
+                             new_space_strings_.size());
+  std::move(std::begin(new_space_strings_), std::end(new_space_strings_),
+            std::back_inserter(old_space_strings_));
+  new_space_strings_.clear();
+}
+
+void Heap::ExternalStringTable::IterateNewSpaceStrings(RootVisitor* v) {
+  if (!new_space_strings_.empty()) {
+    v->VisitRootPointers(Root::kExternalStringsTable, new_space_strings_.data(),
+                         new_space_strings_.data() + new_space_strings_.size());
+  }
+}
+
+void Heap::ExternalStringTable::IterateAll(RootVisitor* v) {
+  IterateNewSpaceStrings(v);
+  if (!old_space_strings_.empty()) {
+    v->VisitRootPointers(Root::kExternalStringsTable, old_space_strings_.data(),
+                         old_space_strings_.data() + old_space_strings_.size());
+  }
 }
 
 void Heap::UpdateNewSpaceReferencesInExternalStringTable(

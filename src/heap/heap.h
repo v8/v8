@@ -1559,16 +1559,16 @@ class Heap {
     // Registers an external string.
     inline void AddString(String* string);
 
-    inline void IterateAll(RootVisitor* v);
-    inline void IterateNewSpaceStrings(RootVisitor* v);
-    inline void PromoteAllNewSpaceStrings();
+    void IterateAll(RootVisitor* v);
+    void IterateNewSpaceStrings(RootVisitor* v);
+    void PromoteAllNewSpaceStrings();
 
     // Restores internal invariant and gets rid of collected strings. Must be
     // called after each Iterate*() that modified the strings.
     void CleanUpAll();
     void CleanUpNewSpaceStrings();
 
-    // Destroys all allocated memory.
+    // Finalize all registered external strings and clear tables.
     void TearDown();
 
     void UpdateNewSpaceReferences(
@@ -1577,9 +1577,7 @@ class Heap {
         Heap::ExternalStringTableUpdaterCallback updater_func);
 
    private:
-    inline void Verify();
-
-    inline void AddOldString(String* string);
+    void Verify();
 
     Heap* const heap_;
 
