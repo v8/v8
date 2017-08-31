@@ -60,14 +60,12 @@ struct SsaEnv {
 
 constexpr uint32_t kNullCatch = static_cast<uint32_t>(-1);
 
-class WasmGraphBuildingInterface
-    : public InterfaceTemplate<true, WasmGraphBuildingInterface> {
+class WasmGraphBuildingInterface {
  public:
-  struct IValue {
-    TFNode* node;
+  using Decoder = WasmFullDecoder<true, WasmGraphBuildingInterface>;
 
-    static IValue Unreachable() { return {nullptr}; }
-    static IValue New() { return {nullptr}; }
+  struct Value : public ValueWithNamedConstructors<Value> {
+    TFNode* node;
   };
 
   struct TryInfo : public ZoneObject {
@@ -77,16 +75,11 @@ class WasmGraphBuildingInterface
     explicit TryInfo(SsaEnv* c) : catch_env(c), exception(nullptr) {}
   };
 
-  struct IControl {
+  struct Control : public ControlWithNamedConstructors<Control, Value> {
     SsaEnv* end_env;         // end environment for the construct.
     SsaEnv* false_env;       // false environment (only for if).
     TryInfo* try_info;       // information used for compiling try statements.
     int32_t previous_catch;  // previous Control (on the stack) with a catch.
-
-    static IControl Block() { return {}; }
-    static IControl If() { return {}; }
-    static IControl Loop() { return {}; }
-    static IControl Try() { return {}; }
   };
 
   explicit WasmGraphBuildingInterface(TFBuilder* builder) : builder_(builder) {}
@@ -124,7 +117,7 @@ class WasmGraphBuildingInterface
   void StartFunctionBody(Decoder* decoder, Control* block) {
     SsaEnv* break_env = ssa_env_;
     SetEnv(Steal(decoder->zone(), break_env));
-    block->interface_data.end_env = break_env;
+    block->end_env = break_env;
   }
 
   void FinishFunction(Decoder* decoder) {
@@ -133,13 +126,13 @@ class WasmGraphBuildingInterface
 
   void Block(Decoder* decoder, Control* block) {
     // The break environment is the outer environment.
-    block->interface_data.end_env = ssa_env_;
+    block->end_env = ssa_env_;
     SetEnv(Steal(decoder->zone(), ssa_env_));
   }
 
   void Loop(Decoder* decoder, Control* block) {
     SsaEnv* finish_try_env = Steal(decoder->zone(), ssa_env_);
-    block->interface_data.end_env = finish_try_env;
+    block->end_env = finish_try_env;
     // The continue environment is the inner environment.
     SetEnv(PrepareForLoop(decoder, finish_try_env));
     ssa_env_->SetNotMerged();
@@ -151,35 +144,34 @@ class WasmGraphBuildingInterface
     SsaEnv* catch_env = UnreachableEnv(decoder->zone());
     SetEnv(try_env);
     TryInfo* try_info = new (decoder->zone()) TryInfo(catch_env);
-    block->interface_data.end_env = outer_env;
-    block->interface_data.try_info = try_info;
-    block->interface_data.previous_catch = current_catch_;
+    block->end_env = outer_env;
+    block->try_info = try_info;
+    block->previous_catch = current_catch_;
     current_catch_ = static_cast<int32_t>(decoder->control_depth() - 1);
   }
 
   void If(Decoder* decoder, const Value& cond, Control* if_block) {
     TFNode* if_true = nullptr;
     TFNode* if_false = nullptr;
-    BUILD(BranchNoHint, cond.interface_data.node, &if_true, &if_false);
+    BUILD(BranchNoHint, cond.node, &if_true, &if_false);
     SsaEnv* end_env = ssa_env_;
     SsaEnv* false_env = Split(decoder, ssa_env_);
     false_env->control = if_false;
     SsaEnv* true_env = Steal(decoder->zone(), ssa_env_);
     true_env->control = if_true;
-    if_block->interface_data.end_env = end_env;
-    if_block->interface_data.false_env = false_env;
+    if_block->end_env = end_env;
+    if_block->false_env = false_env;
     SetEnv(true_env);
   }
 
   void FallThruTo(Decoder* decoder, Control* c) {
     MergeValuesInto(decoder, c);
-    SetEnv(c->interface_data.end_env);
+    SetEnv(c->end_env);
   }
 
   void PopControl(Decoder* decoder, Control& block) {
     if (block.is_onearmed_if()) {
-      Goto(decoder, block.interface_data.false_env,
-           block.interface_data.end_env);
+      Goto(decoder, block.false_env, block.end_env);
     }
   }
 
@@ -187,38 +179,36 @@ class WasmGraphBuildingInterface
 
   void UnOp(Decoder* decoder, WasmOpcode opcode, FunctionSig* sig,
             const Value& value, Value* result) {
-    result->interface_data.node =
-        BUILD(Unop, opcode, value.interface_data.node, decoder->position());
+    result->node = BUILD(Unop, opcode, value.node, decoder->position());
   }
 
   void BinOp(Decoder* decoder, WasmOpcode opcode, FunctionSig* sig,
              const Value& lhs, const Value& rhs, Value* result) {
-    result->interface_data.node =
-        BUILD(Binop, opcode, lhs.interface_data.node, rhs.interface_data.node,
-              decoder->position());
+    result->node =
+        BUILD(Binop, opcode, lhs.node, rhs.node, decoder->position());
   }
 
   void I32Const(Decoder* decoder, Value* result, int32_t value) {
-    result->interface_data.node = builder_->Int32Constant(value);
+    result->node = builder_->Int32Constant(value);
   }
 
   void I64Const(Decoder* decoder, Value* result, int64_t value) {
-    result->interface_data.node = builder_->Int64Constant(value);
+    result->node = builder_->Int64Constant(value);
   }
 
   void F32Const(Decoder* decoder, Value* result, float value) {
-    result->interface_data.node = builder_->Float32Constant(value);
+    result->node = builder_->Float32Constant(value);
   }
 
   void F64Const(Decoder* decoder, Value* result, double value) {
-    result->interface_data.node = builder_->Float64Constant(value);
+    result->node = builder_->Float64Constant(value);
   }
 
   void DoReturn(Decoder* decoder, Vector<Value> values) {
     size_t num_values = values.size();
     TFNode** buffer = GetNodes(values);
     for (size_t i = 0; i < num_values; ++i) {
-      buffer[i] = values[i].interface_data.node;
+      buffer[i] = values[i].node;
     }
     BUILD(Return, static_cast<unsigned>(values.size()), buffer);
   }
@@ -226,30 +216,30 @@ class WasmGraphBuildingInterface
   void GetLocal(Decoder* decoder, Value* result,
                 const LocalIndexOperand<true>& operand) {
     if (!ssa_env_->locals) return;  // unreachable
-    result->interface_data.node = ssa_env_->locals[operand.index];
+    result->node = ssa_env_->locals[operand.index];
   }
 
   void SetLocal(Decoder* decoder, const Value& value,
                 const LocalIndexOperand<true>& operand) {
     if (!ssa_env_->locals) return;  // unreachable
-    ssa_env_->locals[operand.index] = value.interface_data.node;
+    ssa_env_->locals[operand.index] = value.node;
   }
 
   void TeeLocal(Decoder* decoder, const Value& value, Value* result,
                 const LocalIndexOperand<true>& operand) {
-    result->interface_data.node = value.interface_data.node;
+    result->node = value.node;
     if (!ssa_env_->locals) return;  // unreachable
-    ssa_env_->locals[operand.index] = value.interface_data.node;
+    ssa_env_->locals[operand.index] = value.node;
   }
 
   void GetGlobal(Decoder* decoder, Value* result,
                  const GlobalIndexOperand<true>& operand) {
-    result->interface_data.node = BUILD(GetGlobal, operand.index);
+    result->node = BUILD(GetGlobal, operand.index);
   }
 
   void SetGlobal(Decoder* decoder, const Value& value,
                  const GlobalIndexOperand<true>& operand) {
-    BUILD(SetGlobal, operand.index, value.interface_data.node);
+    BUILD(SetGlobal, operand.index, value.node);
   }
 
   void Unreachable(Decoder* decoder) {
@@ -259,17 +249,17 @@ class WasmGraphBuildingInterface
   void Select(Decoder* decoder, const Value& cond, const Value& fval,
               const Value& tval, Value* result) {
     TFNode* controls[2];
-    BUILD(BranchNoHint, cond.interface_data.node, &controls[0], &controls[1]);
+    BUILD(BranchNoHint, cond.node, &controls[0], &controls[1]);
     TFNode* merge = BUILD(Merge, 2, controls);
-    TFNode* vals[2] = {tval.interface_data.node, fval.interface_data.node};
+    TFNode* vals[2] = {tval.node, fval.node};
     TFNode* phi = BUILD(Phi, tval.type, 2, vals, merge);
-    result->interface_data.node = phi;
+    result->node = phi;
     ssa_env_->control = merge;
   }
 
   void BreakTo(Decoder* decoder, Control* block) {
     if (block->is_loop()) {
-      Goto(decoder, ssa_env_, block->interface_data.end_env);
+      Goto(decoder, ssa_env_, block->end_env);
     } else {
       MergeValuesInto(decoder, block);
     }
@@ -279,8 +269,7 @@ class WasmGraphBuildingInterface
     SsaEnv* fenv = ssa_env_;
     SsaEnv* tenv = Split(decoder, fenv);
     fenv->SetNotMerged();
-    BUILD(BranchNoHint, cond.interface_data.node, &tenv->control,
-          &fenv->control);
+    BUILD(BranchNoHint, cond.node, &tenv->control, &fenv->control);
     ssa_env_ = tenv;
     BreakTo(decoder, block);
     ssa_env_ = fenv;
@@ -290,8 +279,7 @@ class WasmGraphBuildingInterface
                const Value& key) {
     SsaEnv* break_env = ssa_env_;
     // Build branches to the various blocks based on the table.
-    TFNode* sw =
-        BUILD(Switch, operand.table_count + 1, key.interface_data.node);
+    TFNode* sw = BUILD(Switch, operand.table_count + 1, key.node);
 
     SsaEnv* copy = Steal(decoder->zone(), break_env);
     ssa_env_ = copy;
@@ -309,30 +297,29 @@ class WasmGraphBuildingInterface
   }
 
   void Else(Decoder* decoder, Control* if_block) {
-    SetEnv(if_block->interface_data.false_env);
+    SetEnv(if_block->false_env);
   }
 
   void LoadMem(Decoder* decoder, ValueType type, MachineType mem_type,
                const MemoryAccessOperand<true>& operand, const Value& index,
                Value* result) {
-    result->interface_data.node =
-        BUILD(LoadMem, type, mem_type, index.interface_data.node,
-              operand.offset, operand.alignment, decoder->position());
+    result->node = BUILD(LoadMem, type, mem_type, index.node, operand.offset,
+                         operand.alignment, decoder->position());
   }
 
   void StoreMem(Decoder* decoder, ValueType type, MachineType mem_type,
                 const MemoryAccessOperand<true>& operand, const Value& index,
                 const Value& value) {
-    BUILD(StoreMem, mem_type, index.interface_data.node, operand.offset,
-          operand.alignment, value.interface_data.node, decoder->position());
+    BUILD(StoreMem, mem_type, index.node, operand.offset, operand.alignment,
+          value.node, decoder->position());
   }
 
   void CurrentMemoryPages(Decoder* decoder, Value* result) {
-    result->interface_data.node = BUILD(CurrentMemoryPages);
+    result->node = BUILD(CurrentMemoryPages);
   }
 
   void GrowMemory(Decoder* decoder, const Value& value, Value* result) {
-    result->interface_data.node = BUILD(GrowMemory, value.interface_data.node);
+    result->node = BUILD(GrowMemory, value.node);
   }
 
   void CallDirect(Decoder* decoder, const CallFunctionOperand<true>& operand,
@@ -343,40 +330,36 @@ class WasmGraphBuildingInterface
   void CallIndirect(Decoder* decoder, const Value& index,
                     const CallIndirectOperand<true>& operand,
                     const Value args[], Value returns[]) {
-    DoCall(decoder, index.interface_data.node, operand, args, returns, true);
+    DoCall(decoder, index.node, operand, args, returns, true);
   }
 
   void SimdOp(Decoder* decoder, WasmOpcode opcode, Vector<Value> args,
               Value* result) {
     TFNode** inputs = GetNodes(args);
     TFNode* node = BUILD(SimdOp, opcode, inputs);
-    if (result) result->interface_data.node = node;
+    if (result) result->node = node;
   }
 
   void SimdLaneOp(Decoder* decoder, WasmOpcode opcode,
                   const SimdLaneOperand<true> operand, Vector<Value> inputs,
                   Value* result) {
     TFNode** nodes = GetNodes(inputs);
-    result->interface_data.node =
-        BUILD(SimdLaneOp, opcode, operand.lane, nodes);
+    result->node = BUILD(SimdLaneOp, opcode, operand.lane, nodes);
   }
 
   void SimdShiftOp(Decoder* decoder, WasmOpcode opcode,
                    const SimdShiftOperand<true> operand, const Value& input,
                    Value* result) {
-    TFNode* inputs[] = {input.interface_data.node};
-    result->interface_data.node =
-        BUILD(SimdShiftOp, opcode, operand.shift, inputs);
+    TFNode* inputs[] = {input.node};
+    result->node = BUILD(SimdShiftOp, opcode, operand.shift, inputs);
   }
 
   void Simd8x16ShuffleOp(Decoder* decoder,
                          const Simd8x16ShuffleOperand<true>& operand,
                          const Value& input0, const Value& input1,
                          Value* result) {
-    TFNode* input_nodes[] = {input0.interface_data.node,
-                             input1.interface_data.node};
-    result->interface_data.node =
-        BUILD(Simd8x16ShuffleOp, operand.shuffle, input_nodes);
+    TFNode* input_nodes[] = {input0.node, input1.node};
+    result->node = BUILD(Simd8x16ShuffleOp, operand.shuffle, input_nodes);
   }
 
   TFNode* GetExceptionTag(Decoder* decoder,
@@ -393,13 +376,13 @@ class WasmGraphBuildingInterface
   void Catch(Decoder* decoder, const ExceptionIndexOperand<true>& operand,
              Control* block) {
     DCHECK(block->is_try_catch());
-    current_catch_ = block->interface_data.previous_catch;
-    SsaEnv* catch_env = block->interface_data.try_info->catch_env;
+    current_catch_ = block->previous_catch;
+    SsaEnv* catch_env = block->try_info->catch_env;
     SetEnv(catch_env);
 
     // Get the exception and see if wanted exception.
-    TFNode* exception_as_i32 = BUILD(
-        Catch, block->interface_data.try_info->exception, decoder->position());
+    TFNode* exception_as_i32 =
+        BUILD(Catch, block->try_info->exception, decoder->position());
     TFNode* exception_tag = GetExceptionTag(decoder, operand);
     TFNode* compare_i32 = BUILD(Binop, kExprI32Eq, exception_as_i32,
                                 exception_tag, decoder->position());
@@ -410,10 +393,10 @@ class WasmGraphBuildingInterface
     false_env->control = if_false;
     SsaEnv* true_env = Steal(decoder->zone(), catch_env);
     true_env->control = if_true;
-    block->interface_data.try_info->catch_env = false_env;
+    block->try_info->catch_env = false_env;
 
     // Generate code to re-throw the exception.
-    DCHECK_NOT_NULL(block->interface_data.try_info->catch_env);
+    DCHECK_NOT_NULL(block->try_info->catch_env);
     SetEnv(false_env);
     BUILD(Rethrow);
     FallThruTo(decoder, block);
@@ -426,7 +409,7 @@ class WasmGraphBuildingInterface
                 Value* result) {
     TFNode** inputs = GetNodes(args);
     TFNode* node = BUILD(AtomicOp, opcode, inputs, decoder->position());
-    if (result) result->interface_data.node = node;
+    if (result) result->node = node;
   }
 
  private:
@@ -438,13 +421,13 @@ class WasmGraphBuildingInterface
 
   TryInfo* current_try_info(Decoder* decoder) {
     return decoder->control_at(decoder->control_depth() - 1 - current_catch_)
-        ->interface_data.try_info;
+        ->try_info;
   }
 
   TFNode** GetNodes(Value* values, size_t count) {
     TFNode** nodes = builder_->Buffer(count);
     for (size_t i = 0; i < count; ++i) {
-      nodes[i] = values[i].interface_data.node;
+      nodes[i] = values[i].node;
     }
     return nodes;
   }
@@ -541,7 +524,7 @@ class WasmGraphBuildingInterface
   void MergeValuesInto(Decoder* decoder, Control* c) {
     if (!ssa_env_->go()) return;
 
-    SsaEnv* target = c->interface_data.end_env;
+    SsaEnv* target = c->end_env;
     const bool first = target->state == SsaEnv::kUnreachable;
     Goto(decoder, ssa_env_, target);
 
@@ -550,15 +533,11 @@ class WasmGraphBuildingInterface
     for (size_t i = start; i < c->merge.arity; ++i) {
       auto& val = decoder->GetMergeValueFromStack(c, i);
       auto& old = c->merge[i];
-      DCHECK_NOT_NULL(val.interface_data.node);
-      // TODO(clemensh): Remove first.
-      DCHECK_EQ(first, old.interface_data.node == nullptr);
+      DCHECK_NOT_NULL(val.node);
       DCHECK(val.type == old.type || val.type == kWasmVar);
-      old.interface_data.node =
-          first ? val.interface_data.node
-                : CreateOrMergeIntoPhi(old.type, target->control,
-                                       old.interface_data.node,
-                                       val.interface_data.node);
+      old.node = first ? val.node
+                       : CreateOrMergeIntoPhi(old.type, target->control,
+                                              old.node, val.node);
     }
   }
 
@@ -744,7 +723,7 @@ class WasmGraphBuildingInterface
     TFNode** return_nodes = nullptr;
     arg_nodes[0] = index_node;
     for (int i = 0; i < param_count; ++i) {
-      arg_nodes[i + 1] = args[i].interface_data.node;
+      arg_nodes[i + 1] = args[i].node;
     }
     if (is_indirect) {
       builder_->CallIndirect(operand.index, arg_nodes, &return_nodes,
@@ -755,7 +734,7 @@ class WasmGraphBuildingInterface
     }
     int return_count = static_cast<int>(operand.sig->return_count());
     for (int i = 0; i < return_count; ++i) {
-      returns[i].interface_data.node = return_nodes[i];
+      returns[i].node = return_nodes[i];
     }
   }
 };

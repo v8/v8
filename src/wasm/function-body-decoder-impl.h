@@ -375,31 +375,25 @@ struct Simd8x16ShuffleOperand {
 };
 
 // An entry on the value stack.
-template <typename Interface>
-struct AbstractValue {
+struct ValueBase {
   const byte* pc;
   ValueType type;
-  typename Interface::IValue interface_data;
 
   // Named constructors.
-  static AbstractValue Unreachable(const byte* pc) {
-    return {pc, kWasmVar, Interface::IValue::Unreachable()};
-  }
+  static ValueBase Unreachable(const byte* pc) { return {pc, kWasmVar}; }
 
-  static AbstractValue New(const byte* pc, ValueType type) {
-    return {pc, type, Interface::IValue::New()};
-  }
+  static ValueBase New(const byte* pc, ValueType type) { return {pc, type}; }
 };
 
-template <typename Interface>
-struct AbstractMerge {
+template <typename Value>
+struct Merge {
   uint32_t arity;
   union {
-    AbstractValue<Interface>* array;
-    AbstractValue<Interface> first;
+    Value* array;
+    Value first;
   } vals;  // Either multiple values or a single value.
 
-  AbstractValue<Interface>& operator[](size_t i) {
+  Value& operator[](size_t i) {
     DCHECK_GT(arity, i);
     return arity == 1 ? vals.first : vals.array[i];
   }
@@ -415,16 +409,15 @@ enum ControlKind {
 };
 
 // An entry on the control stack (i.e. if, block, loop, or try).
-template <typename Interface>
-struct AbstractControl {
+template <typename Value>
+struct ControlBase {
   const byte* pc;
   ControlKind kind;
   size_t stack_depth;  // stack height at the beginning of the construct.
-  typename Interface::IControl interface_data;
-  bool unreachable;  // The current block has been ended.
+  bool unreachable;    // The current block has been ended.
 
   // Values merged into the end of this control construct.
-  AbstractMerge<Interface> merge;
+  Merge<Value> merge;
 
   inline bool is_if() const { return is_onearmed_if() || is_if_else(); }
   inline bool is_onearmed_if() const { return kind == kControlIf; }
@@ -436,24 +429,57 @@ struct AbstractControl {
   inline bool is_try_catch() const { return kind == kControlTryCatch; }
 
   // Named constructors.
-  static AbstractControl Block(const byte* pc, size_t stack_depth) {
-    return {pc, kControlBlock, stack_depth, Interface::IControl::Block(), false,
-            {}};
+  static ControlBase Block(const byte* pc, size_t stack_depth) {
+    return {pc, kControlBlock, stack_depth, false, {}};
   }
 
-  static AbstractControl If(const byte* pc, size_t stack_depth) {
-    return {pc, kControlIf, stack_depth, Interface::IControl::If(), false, {}};
+  static ControlBase If(const byte* pc, size_t stack_depth) {
+    return {pc, kControlIf, stack_depth, false, {}};
   }
 
-  static AbstractControl Loop(const byte* pc, size_t stack_depth) {
-    return {pc, kControlLoop, stack_depth, Interface::IControl::Loop(), false,
-            {}};
+  static ControlBase Loop(const byte* pc, size_t stack_depth) {
+    return {pc, kControlLoop, stack_depth, false, {}};
   }
 
-  static AbstractControl Try(const byte* pc, size_t stack_depth) {
-    return {pc,    kControlTry, stack_depth, Interface::IControl::Try(),
-            false, {}};
+  static ControlBase Try(const byte* pc, size_t stack_depth) {
+    return {pc, kControlTry, stack_depth, false, {}};
   }
+};
+
+#define CONCRETE_NAMED_CONSTRUCTOR(concrete_type, abstract_type, name) \
+  template <typename... Args>                                          \
+  static concrete_type name(Args&&... args) {                          \
+    concrete_type val;                                                 \
+    static_cast<abstract_type&>(val) =                                 \
+        abstract_type::name(std::forward<Args>(args)...);              \
+    return val;                                                        \
+  }
+
+// Provide the default named constructors, which default-initialize the
+// ConcreteType and the initialize the fields of ValueBase correctly.
+// Use like this:
+// struct Value : public ValueWithNamedConstructors<Value> { int new_field; };
+template <typename ConcreteType>
+struct ValueWithNamedConstructors : public ValueBase {
+  // Named constructors.
+  CONCRETE_NAMED_CONSTRUCTOR(ConcreteType, ValueBase, Unreachable)
+  CONCRETE_NAMED_CONSTRUCTOR(ConcreteType, ValueBase, New)
+};
+
+// Provide the default named constructors, which default-initialize the
+// ConcreteType and the initialize the fields of ControlBase correctly.
+// Use like this:
+// struct Control : public ControlWithNamedConstructors<Control, Value> {
+//   int my_uninitialized_field;
+//   char* other_field = nullptr;
+// };
+template <typename ConcreteType, typename Value>
+struct ControlWithNamedConstructors : public ControlBase<Value> {
+  // Named constructors.
+  CONCRETE_NAMED_CONSTRUCTOR(ConcreteType, ControlBase<Value>, Block)
+  CONCRETE_NAMED_CONSTRUCTOR(ConcreteType, ControlBase<Value>, If)
+  CONCRETE_NAMED_CONSTRUCTOR(ConcreteType, ControlBase<Value>, Loop)
+  CONCRETE_NAMED_CONSTRUCTOR(ConcreteType, ControlBase<Value>, Try)
 };
 
 // This is the list of callback functions that an interface for the
@@ -972,9 +998,9 @@ class WasmDecoder : public Decoder {
 
 template <bool validate, typename Interface>
 class WasmFullDecoder : public WasmDecoder<validate> {
-  using Value = AbstractValue<Interface>;
-  using Control = AbstractControl<Interface>;
-  using MergeValues = AbstractMerge<Interface>;
+  using Value = typename Interface::Value;
+  using Control = typename Interface::Control;
+  using MergeValues = Merge<Value>;
 
   // All Value and Control types should be trivially copyable for
   // performance. We push and pop them, and store them in local variables.
@@ -2125,28 +2151,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 };
 
-template <bool decoder_validate, typename Interface>
-class InterfaceTemplate {
+class EmptyInterface {
  public:
-  constexpr static bool validate = decoder_validate;
-  using Decoder = WasmFullDecoder<validate, Interface>;
-  using Control = AbstractControl<Interface>;
-  using Value = AbstractValue<Interface>;
-  using MergeValues = AbstractMerge<Interface>;
-};
-
-class EmptyInterface : public InterfaceTemplate<true, EmptyInterface> {
- public:
-  struct IValue {
-    static IValue Unreachable() { return {}; }
-    static IValue New() { return {}; }
-  };
-  struct IControl {
-    static IControl Block() { return {}; }
-    static IControl If() { return {}; }
-    static IControl Loop() { return {}; }
-    static IControl Try() { return {}; }
-  };
+  constexpr static bool validate = true;
+  using Value = ValueBase;
+  using Control = ControlBase<Value>;
+  using Decoder = WasmFullDecoder<validate, EmptyInterface>;
 
 #define DEFINE_EMPTY_CALLBACK(name, ...) \
   void name(Decoder* decoder, ##__VA_ARGS__) {}
