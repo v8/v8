@@ -386,8 +386,9 @@ void GrowArrayElementsDescriptor::InitializePlatformSpecific(
 
 void NewArgumentsElementsDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kFrame, kLength
+  // kFrame, kLength, kMappedCount
   MachineType const kMachineTypes[] = {MachineType::Pointer(),
+                                       MachineType::TaggedSigned(),
                                        MachineType::TaggedSigned()};
   data->InitializePlatformIndependent(arraysize(kMachineTypes), 0,
                                       kMachineTypes);
@@ -395,7 +396,7 @@ void NewArgumentsElementsDescriptor::InitializePlatformIndependent(
 
 void NewArgumentsElementsDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
-  DefaultInitializePlatformSpecific(data, 2);
+  DefaultInitializePlatformSpecific(data, 3);
 }
 
 void FastCloneRegExpDescriptor::InitializePlatformIndependent(

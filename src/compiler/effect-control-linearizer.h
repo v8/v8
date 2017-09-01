@@ -97,6 +97,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerObjectIsUndetectable(Node* node);
   Node* LowerArgumentsFrame(Node* node);
   Node* LowerArgumentsLength(Node* node);
+  Node* LowerNewMappedArgumentsElements(Node* node);
   Node* LowerNewUnmappedArgumentsElements(Node* node);
   Node* LowerArrayBufferWasNeutered(Node* node);
   Node* LowerStringCharAt(Node* node);

@@ -1029,6 +1029,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kArgumentsFrame:
       CheckTypeIs(node, Type::ExternalPointer());
       break;
+    case IrOpcode::kNewMappedArgumentsElements:
     case IrOpcode::kNewUnmappedArgumentsElements:
       CheckValueInputIs(node, 0, Type::ExternalPointer());
       CheckValueInputIs(node, 1, Type::Range(-Code::kMaxArguments,

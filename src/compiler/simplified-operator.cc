@@ -976,6 +976,16 @@ bool IsRestLengthOf(const Operator* op) {
   return OpParameter<ArgumentsLengthParameters>(op).is_rest_length;
 }
 
+const Operator* SimplifiedOperatorBuilder::NewMappedArgumentsElements(
+    int mapped_count) {
+  return new (zone()) Operator1<int>(         // --
+      IrOpcode::kNewMappedArgumentsElements,  // opcode
+      Operator::kEliminatable,                // flags
+      "NewMappedArgumentsElements",           // name
+      2, 1, 0, 1, 1, 0,                       // counts
+      mapped_count);                          // parameter
+}
+
 const Operator* SimplifiedOperatorBuilder::Allocate(Type* type,
                                                     PretenureFlag pretenure) {
   return new (zone()) Operator1<AllocateParameters>(

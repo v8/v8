@@ -751,6 +751,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kArgumentsLength:
       result = LowerArgumentsLength(node);
       break;
+    case IrOpcode::kNewMappedArgumentsElements:
+      result = LowerNewMappedArgumentsElements(node);
+      break;
     case IrOpcode::kNewUnmappedArgumentsElements:
       result = LowerNewUnmappedArgumentsElements(node);
       break;
@@ -2169,18 +2172,33 @@ Node* EffectControlLinearizer::LowerArgumentsFrame(Node* node) {
   return done.PhiAt(0);
 }
 
-Node* EffectControlLinearizer::LowerNewUnmappedArgumentsElements(Node* node) {
+Node* EffectControlLinearizer::LowerNewMappedArgumentsElements(Node* node) {
   Node* frame = NodeProperties::GetValueInput(node, 0);
   Node* length = NodeProperties::GetValueInput(node, 1);
+  int mapped_count = OpParameter<int>(node);
 
   Callable const callable =
-      Builtins::CallableFor(isolate(), Builtins::kNewUnmappedArgumentsElements);
+      Builtins::CallableFor(isolate(), Builtins::kNewArgumentsElements);
   Operator::Properties const properties = node->op()->properties();
   CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
   return __ Call(desc, __ HeapConstant(callable.code()), frame, length,
-                 __ NoContextConstant());
+                 __ SmiConstant(mapped_count), __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::LowerNewUnmappedArgumentsElements(Node* node) {
+  Node* frame = NodeProperties::GetValueInput(node, 0);
+  Node* length = NodeProperties::GetValueInput(node, 1);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtins::kNewArgumentsElements);
+  Operator::Properties const properties = node->op()->properties();
+  CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
+  return __ Call(desc, __ HeapConstant(callable.code()), frame, length,
+                 __ SmiConstant(0), __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerArrayBufferWasNeutered(Node* node) {

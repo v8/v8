@@ -157,8 +157,8 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       Handle<StringSet> non_locals = it.GetNonLocals();
       MaterializeReceiver(materialized, local_context, local_function,
                           non_locals);
-      frame_inspector.MaterializeStackLocals(materialized, local_function);
-      MaterializeArgumentsObject(materialized, local_function);
+      frame_inspector.MaterializeStackLocals(materialized, local_function,
+                                             true);
       ContextChainElement context_chain_element;
       context_chain_element.scope_info = it.CurrentScopeInfo();
       context_chain_element.materialized_object = materialized;
@@ -222,24 +222,6 @@ void DebugEvaluate::ContextBuilder::UpdateValues() {
   }
 }
 
-
-void DebugEvaluate::ContextBuilder::MaterializeArgumentsObject(
-    Handle<JSObject> target, Handle<JSFunction> function) {
-  // Do not materialize the arguments object for eval or top-level code.
-  // Skip if "arguments" is already taken.
-  if (function->shared()->is_toplevel()) return;
-  Maybe<bool> maybe = JSReceiver::HasOwnProperty(
-      target, isolate_->factory()->arguments_string());
-  DCHECK(maybe.IsJust());
-  if (maybe.FromJust()) return;
-
-  // FunctionGetArguments can't throw an exception.
-  Handle<JSObject> arguments = Accessors::FunctionGetArguments(function);
-  Handle<String> arguments_str = isolate_->factory()->arguments_string();
-  JSObject::SetOwnPropertyIgnoreAttributes(target, arguments_str, arguments,
-                                           NONE)
-      .Check();
-}
 
 void DebugEvaluate::ContextBuilder::MaterializeReceiver(
     Handle<JSObject> target, Handle<Context> local_context,

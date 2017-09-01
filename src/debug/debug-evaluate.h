@@ -66,11 +66,6 @@ class DebugEvaluate : public AllStatic {
       Handle<StringSet> whitelist;
     };
 
-    // Helper function to find or create the arguments object for
-    // Runtime_DebugEvaluate.
-    void MaterializeArgumentsObject(Handle<JSObject> target,
-                                    Handle<JSFunction> function);
-
     void MaterializeReceiver(Handle<JSObject> target,
                              Handle<Context> local_context,
                              Handle<JSFunction> local_function,

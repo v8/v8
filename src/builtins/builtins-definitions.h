@@ -73,7 +73,6 @@ namespace internal {
   TFC(FastNewClosure, FastNewClosure, 1)                                       \
   TFC(FastNewFunctionContextEval, FastNewFunctionContext, 1)                   \
   TFC(FastNewFunctionContextFunction, FastNewFunctionContext, 1)               \
-  TFC(FastNewSloppyArguments, FastNewArguments, 1)                             \
   TFC(FastCloneRegExp, FastCloneRegExp, 1)                                     \
   TFC(FastCloneShallowArrayTrack, FastCloneShallowArray, 1)                    \
   TFC(FastCloneShallowArrayDontTrack, FastCloneShallowArray, 1)                \
@@ -170,7 +169,7 @@ namespace internal {
   TFS(CopyFastSmiOrObjectElements, kObject)                                    \
   TFC(GrowFastDoubleElements, GrowArrayElements, 1)                            \
   TFC(GrowFastSmiOrObjectElements, GrowArrayElements, 1)                       \
-  TFC(NewUnmappedArgumentsElements, NewArgumentsElements, 1)                   \
+  TFC(NewArgumentsElements, NewArgumentsElements, 1)                           \
                                                                                \
   /* Debugger */                                                               \
   ASM(FrameDropperTrampoline)                                                  \

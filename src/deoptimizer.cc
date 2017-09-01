@@ -2361,7 +2361,7 @@ Handle<Object> GetValueForDebugger(TranslatedFrame::iterator it,
                                    Isolate* isolate) {
   if (it->GetRawValue() == isolate->heap()->arguments_marker()) {
     if (!it->IsMaterializableByDebugger()) {
-      return isolate->factory()->undefined_value();
+      return isolate->factory()->optimized_out();
     }
   }
   return it->GetValue();

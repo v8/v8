@@ -497,7 +497,7 @@ namespace internal {
   F(NewStrictArguments, 1, 1)             \
   F(NewRestParameter, 1, 1)               \
   F(NewSloppyArguments, 3, 1)             \
-  F(NewArgumentsElements, 2, 1)           \
+  F(NewArgumentsElements, 3, 1)           \
   F(NewClosure, 3, 1)                     \
   F(NewClosure_Tenured, 3, 1)             \
   F(NewScriptContext, 2, 1)               \
