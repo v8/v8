@@ -64,19 +64,13 @@ static const intptr_t kBreakpointHintMaxSearchOffset = 80 * 10;
 
 namespace {
 
-void TranslateWasmStackTraceLocations(Array<CallFrame>* stackTrace,
-                                      WasmTranslation* wasmTranslation) {
-  for (size_t i = 0, e = stackTrace->length(); i != e; ++i) {
-    protocol::Debugger::Location* location = stackTrace->get(i)->getLocation();
-    String16 scriptId = location->getScriptId();
-    int lineNumber = location->getLineNumber();
-    int columnNumber = location->getColumnNumber(-1);
-
-    if (!wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
-            &scriptId, &lineNumber, &columnNumber)) {
-      continue;
-    }
-
+void TranslateLocation(protocol::Debugger::Location* location,
+                       WasmTranslation* wasmTranslation) {
+  String16 scriptId = location->getScriptId();
+  int lineNumber = location->getLineNumber();
+  int columnNumber = location->getColumnNumber(-1);
+  if (wasmTranslation->TranslateWasmScriptLocationToProtocolLocation(
+          &scriptId, &lineNumber, &columnNumber)) {
     location->setScriptId(std::move(scriptId));
     location->setLineNumber(lineNumber);
     location->setColumnNumber(columnNumber);
@@ -1107,8 +1101,6 @@ Response V8DebuggerAgentImpl::currentCallFrames(
     String16 callFrameId =
         RemoteCallFrameId::serialize(contextId, frameOrdinal);
 
-    v8::Local<v8::debug::Script> script = iterator->GetScript();
-    DCHECK(!script.IsEmpty());
     v8::debug::Location loc = iterator->GetSourceLocation();
 
     std::unique_ptr<Array<Scope>> scopes;
@@ -1128,15 +1120,29 @@ Response V8DebuggerAgentImpl::currentCallFrames(
                      .build();
     }
 
+    v8::Local<v8::debug::Script> script = iterator->GetScript();
+    DCHECK(!script.IsEmpty());
+    std::unique_ptr<protocol::Debugger::Location> location =
+        protocol::Debugger::Location::create()
+            .setScriptId(String16::fromInteger(script->Id()))
+            .setLineNumber(loc.GetLineNumber())
+            .setColumnNumber(loc.GetColumnNumber())
+            .build();
+    TranslateLocation(location.get(), m_debugger->wasmTranslation());
+    String16 scriptId = String16::fromInteger(script->Id());
+    ScriptsMap::iterator scriptIterator =
+        m_scripts.find(location->getScriptId());
+    String16 url;
+    if (scriptIterator != m_scripts.end()) {
+      url = scriptIterator->second->sourceURL();
+    }
+
     auto frame =
         CallFrame::create()
             .setCallFrameId(callFrameId)
             .setFunctionName(toProtocolString(iterator->GetFunctionName()))
-            .setLocation(protocol::Debugger::Location::create()
-                             .setScriptId(String16::fromInteger(script->Id()))
-                             .setLineNumber(loc.GetLineNumber())
-                             .setColumnNumber(loc.GetColumnNumber())
-                             .build())
+            .setLocation(std::move(location))
+            .setUrl(url)
             .setScopeChain(std::move(scopes))
             .setThis(std::move(receiver))
             .build();
@@ -1161,8 +1167,6 @@ Response V8DebuggerAgentImpl::currentCallFrames(
     }
     (*result)->addItem(std::move(frame));
   }
-  TranslateWasmStackTraceLocations(result->get(),
-                                   m_debugger->wasmTranslation());
   return Response::OK();
 }
 
