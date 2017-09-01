@@ -6916,6 +6916,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
                                          ElementsKind elements_kind,
                                          KeyedAccessStoreMode store_mode,
                                          Label* bailout) {
+  CSA_ASSERT(this, Word32BinaryNot(IsJSProxy(object)));
   Node* elements = LoadElements(object);
   if (IsSmiOrObjectElementsKind(elements_kind) &&
       store_mode != STORE_NO_TRANSITION_HANDLE_COW) {

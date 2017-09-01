@@ -841,7 +841,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       BIND(&found_handler);
       {
         Comment("KeyedStoreGeneric found transition handler");
-        HandleStoreICHandlerCase(p, var_handler.value(), notfound);
+        HandleStoreICHandlerCase(p, var_handler.value(), notfound,
+                                 language_mode);
       }
     }
   }
@@ -949,7 +950,8 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
     BIND(&found_handler);
     {
       Comment("KeyedStoreGeneric found handler");
-      HandleStoreICHandlerCase(p, var_handler.value(), &stub_cache_miss);
+      HandleStoreICHandlerCase(p, var_handler.value(), &stub_cache_miss,
+                               language_mode);
     }
     BIND(&stub_cache_miss);
     {
@@ -1020,13 +1022,14 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized(
   Node* vector = Parameter(Descriptor::kVector);
   Node* context = Parameter(Descriptor::kContext);
 
-  Label miss(this);
+  Label miss(this), if_proxy(this, Label::kDeferred);
 
   GotoIf(TaggedIsSmi(receiver), &miss);
   Node* receiver_map = LoadMap(receiver);
   Node* instance_type = LoadMapInstanceType(receiver_map);
+  GotoIf(Word32Equal(instance_type, Int32Constant(JS_PROXY_TYPE)), &if_proxy);
   // Receivers requiring non-standard element accesses (interceptors, access
-  // checks, strings and string wrappers, proxies) are handled in the runtime.
+  // checks, strings and string wrappers) are handled in the runtime.
   GotoIf(Int32LessThanOrEqual(instance_type,
                               Int32Constant(LAST_SPECIAL_RECEIVER_TYPE)),
          &miss);
@@ -1040,6 +1043,12 @@ void KeyedStoreGenericAssembler::StoreIC_Uninitialized(
   EmitGenericPropertyStore(receiver, receiver_map, &p, &miss, language_mode,
                            kDontUseStubCache);
 
+  BIND(&if_proxy);
+  {
+    CallBuiltin(Builtins::kProxySetProperty, context, receiver, name, value,
+                receiver, SmiConstant(language_mode));
+    Return(value);
+  }
   BIND(&miss);
   {
     // Undo the optimistic state transition.

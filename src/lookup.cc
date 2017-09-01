@@ -14,11 +14,41 @@ namespace v8 {
 namespace internal {
 
 // static
+LookupIterator LookupIterator::PropertyOrElement(
+    Isolate* isolate, Handle<Object> receiver, Handle<Object> key,
+    bool* success, Handle<JSReceiver> holder, Configuration configuration) {
+  uint32_t index = 0;
+  if (key->ToArrayIndex(&index)) {
+    *success = true;
+    return LookupIterator(isolate, receiver, index, holder, configuration);
+  }
+
+  Handle<Name> name;
+  *success = Object::ToName(isolate, key).ToHandle(&name);
+  if (!*success) {
+    DCHECK(isolate->has_pending_exception());
+    // Return an unusable dummy.
+    return LookupIterator(receiver, isolate->factory()->empty_string());
+  }
+
+  if (name->AsArrayIndex(&index)) {
+    LookupIterator it(isolate, receiver, index, holder, configuration);
+    // Here we try to avoid having to rebuild the string later
+    // by storing it on the indexed LookupIterator.
+    it.name_ = name;
+    return it;
+  }
+
+  return LookupIterator(receiver, name, holder, configuration);
+}
+
+// static
 LookupIterator LookupIterator::PropertyOrElement(Isolate* isolate,
                                                  Handle<Object> receiver,
                                                  Handle<Object> key,
                                                  bool* success,
                                                  Configuration configuration) {
+  // TODO(mslekova): come up with better way to avoid duplication
   uint32_t index = 0;
   if (key->ToArrayIndex(&index)) {
     *success = true;

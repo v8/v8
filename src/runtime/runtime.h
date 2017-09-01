@@ -469,8 +469,9 @@ namespace internal {
   F(JSProxyGetHandler, 1, 1)        \
   F(JSProxyRevoke, 1, 1)            \
   F(GetPropertyWithReceiver, 2, 1)  \
-  F(CheckProxyGetTrapResult, 2, 1)  \
-  F(CheckProxyHasTrap, 2, 1)
+  F(CheckProxyHasTrap, 2, 1)        \
+  F(SetPropertyWithReceiver, 5, 1)  \
+  F(CheckProxyGetSetTrapResult, 2, 1)
 
 #define FOR_EACH_INTRINSIC_REGEXP(F)                \
   F(IsRegExp, 1, 1)                                 \

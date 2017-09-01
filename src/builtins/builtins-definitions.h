@@ -780,6 +780,7 @@ namespace internal {
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   TFS(ProxyGetProperty, kProxy, kName, kReceiverValue)                         \
   TFS(ProxyHasProperty, kProxy, kName)                                         \
+  TFS(ProxySetProperty, kProxy, kName, kValue, kReceiverValue, kLanguageMode)  \
                                                                                \
   /* Reflect */                                                                \
   ASM(ReflectApply)                                                            \
