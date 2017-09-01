@@ -178,6 +178,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IntPtrOrSmiConstant(int value, ParameterMode mode);
 
   bool IsIntPtrOrSmiConstantZero(Node* test);
+  bool TryGetIntPtrOrSmiConstantValue(Node* maybe_constant, int* value);
 
   // Round the 32bits payload of the provided word up to the next power of two.
   Node* IntPtrRoundUpToPowerOfTwo32(Node* value);

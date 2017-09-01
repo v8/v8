@@ -75,18 +75,18 @@ Node* ProxiesCodeStubAssembler::AllocateProxy(Node* target, Node* handler,
 
 Node* ProxiesCodeStubAssembler::AllocateJSArrayForCodeStubArguments(
     Node* context, CodeStubArguments& args, Node* argc, ParameterMode mode) {
-  Node* array = nullptr;
-  Node* elements = nullptr;
   Node* native_context = LoadNativeContext(context);
   Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
   Node* argc_smi = ParameterToTagged(argc, mode);
-  std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-      PACKED_ELEMENTS, array_map, argc_smi, nullptr, argc, INTPTR_PARAMETERS);
 
-  VARIABLE(index, MachineType::PointerRepresentation());
-  index.Bind(IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
+  Node* array = AllocateJSArray(PACKED_ELEMENTS, array_map, argc, argc_smi,
+                                nullptr, mode);
+  Node* elements = LoadElements(array);
+
+  VARIABLE(index, MachineType::PointerRepresentation(),
+           IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));
   VariableList list({&index}, zone());
-  args.ForEach(list, [this, elements, &index](Node* arg) {
+  args.ForEach(list, [=, &index](Node* arg) {
     StoreNoWriteBarrier(MachineRepresentation::kTagged, elements, index.value(),
                         arg);
     Increment(&index, kPointerSize);

@@ -227,6 +227,21 @@ bool CodeStubAssembler::IsIntPtrOrSmiConstantZero(Node* test) {
   return false;
 }
 
+bool CodeStubAssembler::TryGetIntPtrOrSmiConstantValue(Node* maybe_constant,
+                                                       int* value) {
+  int32_t int32_constant;
+  if (ToInt32Constant(maybe_constant, int32_constant)) {
+    *value = int32_constant;
+    return true;
+  }
+  Smi* smi_constant;
+  if (ToSmiConstant(maybe_constant, smi_constant)) {
+    *value = Smi::ToInt(smi_constant);
+    return true;
+  }
+  return false;
+}
+
 Node* CodeStubAssembler::IntPtrRoundUpToPowerOfTwo32(Node* value) {
   Comment("IntPtrRoundUpToPowerOfTwo32");
   CSA_ASSERT(this, UintPtrLessThanOrEqual(value, IntPtrConstant(0x80000000u)));
@@ -2447,8 +2462,10 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
                                  : Heap::kFixedArrayMapRootIndex;
   DCHECK(Heap::RootIsImmortalImmovable(elements_map_index));
   StoreMapNoWriteBarrier(elements, elements_map_index);
+  Node* capacity_smi = ParameterToTagged(capacity, capacity_mode);
+  CSA_ASSERT(this, SmiGreaterThan(capacity_smi, SmiConstant(0)));
   StoreObjectFieldNoWriteBarrier(elements, FixedArray::kLengthOffset,
-                                 ParameterToTagged(capacity, capacity_mode));
+                                 capacity_smi);
   return {array, elements};
 }
 
@@ -2486,6 +2503,7 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(capacity, capacity_mode));
 
+  int capacity_as_constant;
   Node *array = nullptr, *elements = nullptr;
   if (IsIntPtrOrSmiConstantZero(capacity)) {
     // Array is empty. Use the shared empty fixed array instead of allocating a
@@ -2494,7 +2512,8 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
                                                         allocation_site);
     StoreObjectFieldRoot(array, JSArray::kElementsOffset,
                          Heap::kEmptyFixedArrayRootIndex);
-  } else {
+  } else if (TryGetIntPtrOrSmiConstantValue(capacity, &capacity_as_constant) &&
+             capacity_as_constant > 0) {
     // Allocate both array and elements object, and initialize the JSArray.
     std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
         kind, array_map, length, allocation_site, capacity, capacity_mode);
@@ -2502,6 +2521,40 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
     FillFixedArrayWithValue(kind, elements,
                             IntPtrOrSmiConstant(0, capacity_mode), capacity,
                             Heap::kTheHoleValueRootIndex, capacity_mode);
+  } else {
+    Label out(this), empty(this), nonempty(this);
+    VARIABLE(var_array, MachineRepresentation::kTagged);
+
+    Branch(SmiEqual(ParameterToTagged(capacity, capacity_mode), SmiConstant(0)),
+           &empty, &nonempty);
+
+    BIND(&empty);
+    {
+      // Array is empty. Use the shared empty fixed array instead of allocating
+      // a new one.
+      var_array.Bind(AllocateUninitializedJSArrayWithoutElements(
+          kind, array_map, length, allocation_site));
+      StoreObjectFieldRoot(var_array.value(), JSArray::kElementsOffset,
+                           Heap::kEmptyFixedArrayRootIndex);
+      Goto(&out);
+    }
+
+    BIND(&nonempty);
+    {
+      // Allocate both array and elements object, and initialize the JSArray.
+      Node* array;
+      std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
+          kind, array_map, length, allocation_site, capacity, capacity_mode);
+      var_array.Bind(array);
+      // Fill in the elements with holes.
+      FillFixedArrayWithValue(kind, elements,
+                              IntPtrOrSmiConstant(0, capacity_mode), capacity,
+                              Heap::kTheHoleValueRootIndex, capacity_mode);
+      Goto(&out);
+    }
+
+    BIND(&out);
+    array = var_array.value();
   }
 
   return array;
@@ -7101,17 +7154,16 @@ void CodeStubAssembler::TransitionElementsKind(Node* object, Node* map,
     Comment("Non-simple map transition");
     Node* elements = LoadElements(object);
 
-    Node* empty_fixed_array =
-        HeapConstant(isolate()->factory()->empty_fixed_array());
-
     Label done(this);
-    GotoIf(WordEqual(elements, empty_fixed_array), &done);
+    GotoIf(WordEqual(elements, EmptyFixedArrayConstant()), &done);
 
     // TODO(ishell): Use OptimalParameterMode().
     ParameterMode mode = INTPTR_PARAMETERS;
     Node* elements_length = SmiUntag(LoadFixedArrayBaseLength(elements));
     Node* array_length =
         is_jsarray ? SmiUntag(LoadFastJSArrayLength(object)) : elements_length;
+
+    CSA_ASSERT(this, WordNotEqual(elements_length, IntPtrConstant(0)));
 
     GrowElementsCapacity(object, elements, from_kind, to_kind, array_length,
                          elements_length, mode, bailout);
