@@ -101,25 +101,6 @@ class LinkageLocation {
     return caller_location;
   }
 
- private:
-  friend class CallDescriptor;
-  friend class OperandGenerator;
-
-  enum LocationType { REGISTER, STACK_SLOT };
-
-  class TypeField : public BitField<LocationType, 0, 1> {};
-  class LocationField : public BitField<int32_t, TypeField::kNext, 31> {};
-
-  static const int32_t ANY_REGISTER = -1;
-  static const int32_t MAX_STACK_SLOT = 32767;
-
-  LinkageLocation(LocationType type, int32_t location,
-                  MachineType machine_type) {
-    bit_field_ = TypeField::encode(type) |
-                 ((location << LocationField::kShift) & LocationField::kMask);
-    machine_type_ = machine_type;
-  }
-
   MachineType GetType() const { return machine_type_; }
 
   int GetSize() const {
@@ -154,6 +135,22 @@ class LinkageLocation {
   int32_t AsCalleeFrameSlot() const {
     DCHECK(IsCalleeFrameSlot());
     return GetLocation();
+  }
+
+ private:
+  enum LocationType { REGISTER, STACK_SLOT };
+
+  class TypeField : public BitField<LocationType, 0, 1> {};
+  class LocationField : public BitField<int32_t, TypeField::kNext, 31> {};
+
+  static constexpr int32_t ANY_REGISTER = -1;
+  static constexpr int32_t MAX_STACK_SLOT = 32767;
+
+  LinkageLocation(LocationType type, int32_t location,
+                  MachineType machine_type) {
+    bit_field_ = TypeField::encode(type) |
+                 ((location << LocationField::kShift) & LocationField::kMask);
+    machine_type_ = machine_type;
   }
 
   int32_t bit_field_;
