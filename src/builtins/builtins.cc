@@ -231,14 +231,28 @@ bool Builtins::IsLazy(int index) {
   // * To avoid conflicts in SharedFunctionInfo::function_data (Illegal,
   //   HandleApiCall, interpreter entry trampolines).
   // * Frequent use makes lazy loading unnecessary (CompileLazy).
+  // TODO(wasm): Remove wasm builtins once immovability is no longer required.
   switch (index) {
+    case kAbort:  // Required by wasm.
     case kCheckOptimizationMarker:
     case kCompileLazy:
+    case kDeserializeLazy:
     case kHandleApiCall:
     case kIllegal:
     case kInterpreterEnterBytecodeAdvance:
     case kInterpreterEnterBytecodeDispatch:
     case kInterpreterEntryTrampoline:
+    case kThrowWasmTrapDivByZero:             // Required by wasm.
+    case kThrowWasmTrapDivUnrepresentable:    // Required by wasm.
+    case kThrowWasmTrapFloatUnrepresentable:  // Required by wasm.
+    case kThrowWasmTrapFuncInvalid:           // Required by wasm.
+    case kThrowWasmTrapFuncSigMismatch:       // Required by wasm.
+    case kThrowWasmTrapMemOutOfBounds:        // Required by wasm.
+    case kThrowWasmTrapRemByZero:             // Required by wasm.
+    case kThrowWasmTrapUnreachable:           // Required by wasm.
+    case kToNumber:                           // Required by wasm.
+    case kWasmCompileLazy:                    // Required by wasm.
+    case kWasmStackGuard:                     // Required by wasm.
       return false;
     default:
       // TODO(6624): Extend to other kinds.
