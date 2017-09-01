@@ -216,13 +216,30 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
     const Operator* op, Node* left, Node* right, Node* effect, Node* control,
     FeedbackSlot slot) const {
   switch (op->opcode()) {
-    case IrOpcode::kJSStrictEqual:
+    case IrOpcode::kJSStrictEqual: {
+      DCHECK(!slot.IsInvalid());
+      CompareICNexus nexus(feedback_vector(), slot);
+      if (Node* node = TryBuildSoftDeopt(
+              nexus, effect, control,
+              DeoptimizeReason::kInsufficientTypeFeedbackForCompareOperation)) {
+        return LoweringResult::Exit(node);
+      }
+      // TODO(turbofan): Should we generally support early lowering of
+      // JSStrictEqual operators here?
       break;
+    }
     case IrOpcode::kJSEqual:
     case IrOpcode::kJSLessThan:
     case IrOpcode::kJSGreaterThan:
     case IrOpcode::kJSLessThanOrEqual:
     case IrOpcode::kJSGreaterThanOrEqual: {
+      DCHECK(!slot.IsInvalid());
+      CompareICNexus nexus(feedback_vector(), slot);
+      if (Node* node = TryBuildSoftDeopt(
+              nexus, effect, control,
+              DeoptimizeReason::kInsufficientTypeFeedbackForCompareOperation)) {
+        return LoweringResult::Exit(node);
+      }
       JSSpeculativeBinopBuilder b(this, op, left, right, effect, control, slot);
       if (Node* node = b.TryBuildNumberCompare()) {
         return LoweringResult::SideEffectFree(node, node, control);
@@ -240,6 +257,13 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
     case IrOpcode::kJSMultiply:
     case IrOpcode::kJSDivide:
     case IrOpcode::kJSModulus: {
+      DCHECK(!slot.IsInvalid());
+      BinaryOpICNexus nexus(feedback_vector(), slot);
+      if (Node* node = TryBuildSoftDeopt(
+              nexus, effect, control,
+              DeoptimizeReason::kInsufficientTypeFeedbackForBinaryOperation)) {
+        return LoweringResult::Exit(node);
+      }
       JSSpeculativeBinopBuilder b(this, op, left, right, effect, control, slot);
       if (Node* node = b.TryBuildNumberBinop()) {
         return LoweringResult::SideEffectFree(node, node, control);

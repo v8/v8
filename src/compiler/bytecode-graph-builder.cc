@@ -2005,6 +2005,7 @@ void BytecodeGraphBuilder::BuildBinaryOp(const Operator* op) {
       bytecode_iterator().GetIndexOperand(kBinaryOperationHintIndex));
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedBinaryOp(op, left, right, slot);
+  if (lowering.IsExit()) return;
 
   Node* node = nullptr;
   if (lowering.IsSideEffectFree()) {
@@ -2114,6 +2115,8 @@ void BytecodeGraphBuilder::BuildBinaryOpWithImmediate(const Operator* op) {
       bytecode_iterator().GetIndexOperand(kBinaryOperationSmiHintIndex));
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedBinaryOp(op, left, right, slot);
+  if (lowering.IsExit()) return;
+
   Node* node = nullptr;
   if (lowering.IsSideEffectFree()) {
     node = lowering.value();
@@ -2181,6 +2184,8 @@ void BytecodeGraphBuilder::VisitInc() {
       bytecode_iterator().GetIndexOperand(kCountOperationHintIndex));
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedBinaryOp(op, left, right, slot);
+  if (lowering.IsExit()) return;
+
   Node* node = nullptr;
   if (lowering.IsSideEffectFree()) {
     node = lowering.value();
@@ -2201,6 +2206,8 @@ void BytecodeGraphBuilder::VisitDec() {
       bytecode_iterator().GetIndexOperand(kCountOperationHintIndex));
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedBinaryOp(op, left, right, slot);
+  if (lowering.IsExit()) return;
+
   Node* node = nullptr;
   if (lowering.IsSideEffectFree()) {
     node = lowering.value();
@@ -2265,6 +2272,8 @@ void BytecodeGraphBuilder::BuildCompareOp(const Operator* op) {
   FeedbackSlot slot = feedback_vector()->ToSlot(slot_index);
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedBinaryOp(op, left, right, slot);
+  if (lowering.IsExit()) return;
+
   Node* node = nullptr;
   if (lowering.IsSideEffectFree()) {
     node = lowering.value();
