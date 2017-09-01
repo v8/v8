@@ -368,13 +368,11 @@ void Isolate::PushCodeObjectsAndDie(unsigned int magic1, void* ptr1, void* ptr2,
 
 namespace {
 
-class StackTraceHelper {
+class FrameArrayBuilder {
  public:
-  StackTraceHelper(Isolate* isolate, FrameSkipMode mode, Handle<Object> caller)
-      : isolate_(isolate),
-        mode_(mode),
-        caller_(caller),
-        skip_next_frame_(true) {
+  FrameArrayBuilder(Isolate* isolate, FrameSkipMode mode, int limit,
+                    Handle<Object> caller)
+      : isolate_(isolate), mode_(mode), limit_(limit), caller_(caller) {
     switch (mode_) {
       case SKIP_FIRST:
         skip_next_frame_ = true;
@@ -387,33 +385,133 @@ class StackTraceHelper {
         skip_next_frame_ = false;
         break;
     }
-    encountered_strict_function_ = false;
+
+    elements_ = isolate->factory()->NewFrameArray(Min(limit, 10));
   }
 
+  void AppendStandardFrame(StandardFrame* frame) {
+    std::vector<FrameSummary> frames;
+    frames.reserve(FLAG_max_inlining_levels + 1);
+    frame->Summarize(&frames);
+    // A standard frame may include many summarized frames (due to inlining).
+    for (size_t i = frames.size(); i != 0 && !full(); i--) {
+      const auto& summ = frames[i - 1];
+      if (summ.IsJavaScript()) {
+        //====================================================================
+        // Handle a JavaScript frame.
+        //====================================================================
+        const auto& summary = summ.AsJavaScript();
+
+        // Filter out internal frames that we do not want to show.
+        if (!IsVisibleInStackTrace(summary.function())) continue;
+
+        Handle<AbstractCode> abstract_code = summary.abstract_code();
+        const int offset = summary.code_offset();
+
+        bool is_constructor = summary.is_constructor();
+        if (frame->type() == StackFrame::BUILTIN) {
+          // Help CallSite::IsConstructor correctly detect hand-written
+          // construct stubs.
+          if (Code::cast(*abstract_code)->is_construct_stub()) {
+            is_constructor = true;
+          }
+        }
+
+        int flags = 0;
+        Handle<JSFunction> function = summary.function();
+        if (IsStrictFrame(function)) flags |= FrameArray::kIsStrict;
+        if (is_constructor) flags |= FrameArray::kIsConstructor;
+
+        elements_ = FrameArray::AppendJSFrame(
+            elements_, TheHoleToUndefined(isolate_, summary.receiver()),
+            function, abstract_code, offset, flags);
+      } else if (summ.IsWasmCompiled()) {
+        //====================================================================
+        // Handle a WASM compiled frame.
+        //====================================================================
+        const auto& summary = summ.AsWasmCompiled();
+        Handle<WasmInstanceObject> instance = summary.wasm_instance();
+        int flags = 0;
+        if (instance->compiled_module()->is_asm_js()) {
+          flags |= FrameArray::kIsAsmJsWasmFrame;
+          if (WasmCompiledFrame::cast(frame)->at_to_number_conversion()) {
+            flags |= FrameArray::kAsmJsAtNumberConversion;
+          }
+        } else {
+          flags |= FrameArray::kIsWasmFrame;
+        }
+
+        elements_ = FrameArray::AppendWasmFrame(
+            elements_, instance, summary.function_index(),
+            Handle<AbstractCode>::cast(summary.code()), summary.code_offset(),
+            flags);
+      } else if (summ.IsWasmInterpreted()) {
+        //====================================================================
+        // Handle a WASM interpreted frame.
+        //====================================================================
+        const auto& summary = summ.AsWasmInterpreted();
+        Handle<WasmInstanceObject> instance = summary.wasm_instance();
+        int flags = FrameArray::kIsWasmInterpretedFrame;
+        DCHECK(!instance->compiled_module()->is_asm_js());
+        elements_ = FrameArray::AppendWasmFrame(
+            elements_, instance, summary.function_index(),
+            Handle<AbstractCode>::null(), summary.byte_offset(), flags);
+      }
+    }
+  }
+
+  void AppendBuiltinExitFrame(BuiltinExitFrame* exit_frame) {
+    Handle<JSFunction> function = handle(exit_frame->function(), isolate_);
+
+    // Filter out internal frames that we do not want to show.
+    if (!IsVisibleInStackTrace(function)) return;
+
+    Handle<Object> receiver(exit_frame->receiver(), isolate_);
+    Handle<Code> code(exit_frame->LookupCode(), isolate_);
+    const int offset =
+        static_cast<int>(exit_frame->pc() - code->instruction_start());
+
+    int flags = 0;
+    if (IsStrictFrame(function)) flags |= FrameArray::kIsStrict;
+    if (exit_frame->IsConstructor()) flags |= FrameArray::kIsConstructor;
+
+    elements_ = FrameArray::AppendJSFrame(elements_, receiver, function,
+                                          Handle<AbstractCode>::cast(code),
+                                          offset, flags);
+  }
+
+  bool full() { return elements_->FrameCount() >= limit_; }
+
+  Handle<FrameArray> GetElements() {
+    elements_->ShrinkToFit();
+    return elements_;
+  }
+
+ private:
   // Poison stack frames below the first strict mode frame.
   // The stack trace API should not expose receivers and function
   // objects on frames deeper than the top-most one with a strict mode
   // function.
-  bool IsStrictFrame(JSFunction* fun) {
+  bool IsStrictFrame(Handle<JSFunction> function) {
     if (!encountered_strict_function_) {
-      encountered_strict_function_ = is_strict(fun->shared()->language_mode());
+      encountered_strict_function_ =
+          is_strict(function->shared()->language_mode());
     }
     return encountered_strict_function_;
   }
 
   // Determines whether the given stack frame should be displayed in a stack
   // trace.
-  bool IsVisibleInStackTrace(JSFunction* fun) {
-    return ShouldIncludeFrame(fun) && IsNotHidden(fun) &&
-           IsInSameSecurityContext(fun);
+  bool IsVisibleInStackTrace(Handle<JSFunction> function) {
+    return ShouldIncludeFrame(function) && IsNotHidden(function) &&
+           IsInSameSecurityContext(function);
   }
 
- private:
   // This mechanism excludes a number of uninteresting frames from the stack
   // trace. This can be be the first frame (which will be a builtin-exit frame
   // for the error constructor builtin) or every frame until encountering a
   // user-specified function.
-  bool ShouldIncludeFrame(JSFunction* fun) {
+  bool ShouldIncludeFrame(Handle<JSFunction> function) {
     switch (mode_) {
       case SKIP_NONE:
         return true;
@@ -422,7 +520,7 @@ class StackTraceHelper {
         skip_next_frame_ = false;
         return false;
       case SKIP_UNTIL_SEEN:
-        if (skip_next_frame_ && (fun == *caller_)) {
+        if (skip_next_frame_ && (*function == *caller_)) {
           skip_next_frame_ = false;
           return false;
         }
@@ -431,37 +529,38 @@ class StackTraceHelper {
     UNREACHABLE();
   }
 
-  bool IsNotHidden(JSFunction* fun) {
+  bool IsNotHidden(Handle<JSFunction> function) {
     // Functions defined not in user scripts are not visible unless directly
     // exposed, in which case the native flag is set.
     // The --builtins-in-stack-traces command line flag allows including
     // internal call sites in the stack trace for debugging purposes.
-    if (!FLAG_builtins_in_stack_traces && !fun->shared()->IsUserJavaScript()) {
-      return fun->shared()->native();
+    if (!FLAG_builtins_in_stack_traces &&
+        !function->shared()->IsUserJavaScript()) {
+      return function->shared()->native();
     }
     return true;
   }
 
-  bool IsInSameSecurityContext(JSFunction* fun) {
-    return isolate_->context()->HasSameSecurityTokenAs(fun->context());
+  bool IsInSameSecurityContext(Handle<JSFunction> function) {
+    return isolate_->context()->HasSameSecurityTokenAs(function->context());
+  }
+
+  // TODO(jgruber): Fix all cases in which frames give us a hole value (e.g. the
+  // receiver in RegExp constructor frames.
+  Handle<Object> TheHoleToUndefined(Isolate* isolate, Handle<Object> in) {
+    return (in->IsTheHole(isolate))
+               ? Handle<Object>::cast(isolate->factory()->undefined_value())
+               : in;
   }
 
   Isolate* isolate_;
-
   const FrameSkipMode mode_;
+  int limit_;
   const Handle<Object> caller_;
-  bool skip_next_frame_;
-
-  bool encountered_strict_function_;
+  bool skip_next_frame_ = true;
+  bool encountered_strict_function_ = false;
+  Handle<FrameArray> elements_;
 };
-
-// TODO(jgruber): Fix all cases in which frames give us a hole value (e.g. the
-// receiver in RegExp constructor frames.
-Handle<Object> TheHoleToUndefined(Isolate* isolate, Handle<Object> in) {
-  return (in->IsTheHole(isolate))
-             ? Handle<Object>::cast(isolate->factory()->undefined_value())
-             : in;
-}
 
 bool GetStackTraceLimit(Isolate* isolate, int* result) {
   Handle<JSObject> error = isolate->error_function();
@@ -486,13 +585,10 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
   int limit;
   if (!GetStackTraceLimit(this, &limit)) return factory()->undefined_value();
 
-  const int initial_size = Min(limit, 10);
-  Handle<FrameArray> elements = factory()->NewFrameArray(initial_size);
+  FrameArrayBuilder builder(this, mode, limit, caller);
 
-  StackTraceHelper helper(this, mode, caller);
-
-  for (StackFrameIterator iter(this);
-       !iter.done() && elements->FrameCount() < limit; iter.Advance()) {
+  for (StackFrameIterator iter(this); !iter.done() && !builder.full();
+       iter.Advance()) {
     StackFrame* frame = iter.frame();
 
     switch (frame->type()) {
@@ -500,119 +596,28 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION:
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
-      case StackFrame::BUILTIN: {
-        JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
-        // Set initial size to the maximum inlining level + 1 for the outermost
-        // function.
-        std::vector<FrameSummary> frames;
-        frames.reserve(FLAG_max_inlining_levels + 1);
-        js_frame->Summarize(&frames);
-        for (size_t i = frames.size(); i != 0 && elements->FrameCount() < limit;
-             i--) {
-          const FrameSummary& summary = frames[i - 1];
-          const auto& summ = summary.AsJavaScript();
-          Handle<JSFunction> fun = summ.function();
-
-          // Filter out internal frames that we do not want to show.
-          if (!helper.IsVisibleInStackTrace(*fun)) continue;
-
-          Handle<Object> recv = summary.receiver();
-          Handle<AbstractCode> abstract_code = summ.abstract_code();
-          const int offset = summary.code_offset();
-
-          bool is_constructor = summary.is_constructor();
-          if (frame->type() == StackFrame::BUILTIN) {
-            // Help CallSite::IsConstructor correctly detect hand-written
-            // construct stubs.
-            if (Code::cast(*abstract_code)->is_construct_stub()) {
-              is_constructor = true;
-            }
-          }
-
-          int flags = 0;
-          if (helper.IsStrictFrame(*fun)) flags |= FrameArray::kIsStrict;
-          if (is_constructor) flags |= FrameArray::kIsConstructor;
-
-          elements = FrameArray::AppendJSFrame(
-              elements, TheHoleToUndefined(this, recv), fun, abstract_code,
-              offset, flags);
-        }
-      } break;
-
-      case StackFrame::BUILTIN_EXIT: {
-        BuiltinExitFrame* exit_frame = BuiltinExitFrame::cast(frame);
-        Handle<JSFunction> fun = handle(exit_frame->function(), this);
-
-        // Filter out internal frames that we do not want to show.
-        if (!helper.IsVisibleInStackTrace(*fun)) continue;
-
-        Handle<Object> recv(exit_frame->receiver(), this);
-        Handle<Code> code(exit_frame->LookupCode(), this);
-        const int offset =
-            static_cast<int>(exit_frame->pc() - code->instruction_start());
-
-        int flags = 0;
-        if (helper.IsStrictFrame(*fun)) flags |= FrameArray::kIsStrict;
-        if (exit_frame->IsConstructor()) flags |= FrameArray::kIsConstructor;
-
-        elements = FrameArray::AppendJSFrame(elements, recv, fun,
-                                             Handle<AbstractCode>::cast(code),
-                                             offset, flags);
-      } break;
-
-      case StackFrame::WASM_COMPILED: {
-        WasmCompiledFrame* wasm_frame = WasmCompiledFrame::cast(frame);
-        Handle<WasmInstanceObject> instance(wasm_frame->wasm_instance(), this);
-        const int wasm_function_index = wasm_frame->function_index();
-        Code* code = wasm_frame->unchecked_code();
-        Handle<AbstractCode> abstract_code(AbstractCode::cast(code), this);
-        const int offset =
-            static_cast<int>(wasm_frame->pc() - code->instruction_start());
-
-        int flags = 0;
-        if (instance->compiled_module()->is_asm_js()) {
-          flags |= FrameArray::kIsAsmJsWasmFrame;
-          if (wasm_frame->at_to_number_conversion()) {
-            flags |= FrameArray::kAsmJsAtNumberConversion;
-          }
-        } else {
-          flags |= FrameArray::kIsWasmFrame;
-        }
-
-        elements =
-            FrameArray::AppendWasmFrame(elements, instance, wasm_function_index,
-                                        abstract_code, offset, flags);
-      } break;
-
-      case StackFrame::WASM_INTERPRETER_ENTRY: {
-        WasmInterpreterEntryFrame* interpreter_frame =
-            WasmInterpreterEntryFrame::cast(frame);
-        Handle<WasmInstanceObject> instance(interpreter_frame->wasm_instance(),
-                                            this);
-        // Get the interpreted stack (<func_index, offset> pairs).
-        std::vector<std::pair<uint32_t, int>> interpreted_stack =
-            instance->debug_info()->GetInterpretedStack(
-                interpreter_frame->fp());
-
-        // interpreted_stack is bottom-up, i.e. caller before callee. We need it
-        // the other way around.
-        for (auto pair : base::Reversed(interpreted_stack)) {
-          elements = FrameArray::AppendWasmFrame(
-              elements, instance, pair.first, Handle<AbstractCode>::null(),
-              pair.second, FrameArray::kIsWasmInterpretedFrame);
-          if (elements->FrameCount() >= limit) break;
-        }
-      } break;
+      case StackFrame::BUILTIN:
+        builder.AppendStandardFrame(JavaScriptFrame::cast(frame));
+        break;
+      case StackFrame::BUILTIN_EXIT:
+        // BuiltinExitFrames are not standard frames, so they do not have
+        // Summarize(). However, they may have one JS frame worth showing.
+        builder.AppendBuiltinExitFrame(BuiltinExitFrame::cast(frame));
+        break;
+      case StackFrame::WASM_COMPILED:
+        builder.AppendStandardFrame(WasmCompiledFrame::cast(frame));
+        break;
+      case StackFrame::WASM_INTERPRETER_ENTRY:
+        builder.AppendStandardFrame(WasmInterpreterEntryFrame::cast(frame));
+        break;
 
       default:
         break;
     }
   }
 
-  elements->ShrinkToFit();
-
   // TODO(yangguo): Queue this structured stack trace for preprocessing on GC.
-  return factory()->NewJSArrayWithElements(elements);
+  return factory()->NewJSArrayWithElements(builder.GetElements());
 }
 
 MaybeHandle<JSReceiver> Isolate::CaptureAndSetDetailedStackTrace(
