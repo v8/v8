@@ -6046,13 +6046,10 @@ class JSProxy: public JSReceiver {
       Isolate* isolate, Handle<JSProxy> proxy, Handle<Name> name,
       Handle<Object> receiver, bool* was_found);
 
-  enum AccessKind { kGet, kSet };
-
-  static MaybeHandle<Object> CheckGetSetTrapResult(Isolate* isolate,
-                                                   Handle<Name> name,
-                                                   Handle<JSReceiver> target,
-                                                   Handle<Object> trap_result,
-                                                   AccessKind access_kind);
+  static MaybeHandle<Object> CheckGetTrapResult(Isolate* isolate,
+                                                Handle<Name> name,
+                                                Handle<JSReceiver> target,
+                                                Handle<Object> trap_result);
 
   // ES6 9.5.9
   MUST_USE_RESULT static Maybe<bool> SetProperty(Handle<JSProxy> proxy,

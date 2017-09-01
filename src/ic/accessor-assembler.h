@@ -93,7 +93,6 @@ class AccessorAssembler : public CodeStubAssembler {
   enum ElementSupport { kOnlyProperties, kSupportElements };
   void HandleStoreICHandlerCase(
       const StoreICParameters* p, Node* handler, Label* miss,
-      LanguageMode language_mode,
       ElementSupport support_elements = kOnlyProperties);
   void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
 
@@ -165,8 +164,7 @@ class AccessorAssembler : public CodeStubAssembler {
                                        Node* handler, Label* miss);
 
   void HandleStoreICProtoHandler(const StoreICParameters* p, Node* handler,
-                                 Label* miss, ElementSupport support_elements,
-                                 LanguageMode language_mode);
+                                 Label* miss, ElementSupport support_elements);
   // If |transition| is nullptr then the normal field store is generated or
   // transitioning store otherwise.
   void HandleStoreICSmiHandlerCase(Node* handler_word, Node* holder,
@@ -176,10 +174,6 @@ class AccessorAssembler : public CodeStubAssembler {
   void HandleStoreFieldAndReturn(Node* handler_word, Node* holder,
                                  Representation representation, Node* value,
                                  Node* transition, Label* miss);
-
-  void HandleStoreToProxy(const StoreICParameters* p, Node* proxy, Label* miss,
-                          ElementSupport support_elements,
-                          LanguageMode language_mode);
 
   // KeyedLoadIC_Generic implementation.
 

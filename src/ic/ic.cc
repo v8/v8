@@ -1223,7 +1223,8 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
 
 void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver) {
   Handle<Map> receiver_map(receiver->map(), isolate());
-  DCHECK(receiver_map->instance_type() != JS_VALUE_TYPE);  // Checked by caller.
+  DCHECK(receiver_map->instance_type() != JS_VALUE_TYPE &&
+         receiver_map->instance_type() != JS_PROXY_TYPE);  // Checked by caller.
   MapHandles target_receiver_maps;
   TargetMaps(&target_receiver_maps);
 
@@ -1305,9 +1306,6 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_SlowStub);
     return BUILTIN_CODE(isolate(), KeyedLoadIC_Slow);
   }
-  if (instance_type == JS_PROXY_TYPE) {
-    return LoadHandler::LoadProxy(isolate());
-  }
 
   ElementsKind elements_kind = receiver_map->elements_kind();
   if (IsSloppyArgumentsElementsKind(elements_kind)) {
@@ -1380,7 +1378,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
                                Object);
   } else if (FLAG_use_ic && !object->IsAccessCheckNeeded() &&
              !object->IsJSValue()) {
-    if ((object->IsJSReceiver() && key->IsSmi()) ||
+    if ((object->IsJSObject() && key->IsSmi()) ||
         (object->IsString() && key->IsNumber())) {
       UpdateLoadElement(Handle<HeapObject>::cast(object));
       if (is_vector_set()) {
@@ -1408,7 +1406,6 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
                              JSReceiver::StoreFromKeyed store_mode) {
   // Disable ICs for non-JSObjects for now.
   Handle<Object> object = it->GetReceiver();
-  if (object->IsJSProxy()) return true;
   if (!object->IsJSObject()) return false;
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
   DCHECK(!receiver->map()->is_deprecated());
@@ -1419,7 +1416,7 @@ bool StoreIC::LookupForWrite(LookupIterator* it, Handle<Object> value,
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY:
-        return true;
+        return false;
       case LookupIterator::INTERCEPTOR: {
         Handle<JSObject> holder = it->GetHolder<JSObject>();
         InterceptorInfo* info = holder->GetNamedInterceptor();
@@ -1521,7 +1518,7 @@ MaybeHandle<Object> StoreIC::Store(Handle<Object> object, Handle<Name> name,
                                    JSReceiver::StoreFromKeyed store_mode) {
   // TODO(verwaest): Let SetProperty do the migration, since storing a property
   // might deprecate the current map again, if value does not fit.
-  if (MigrateDeprecated(object)) {
+  if (MigrateDeprecated(object) || object->IsJSProxy()) {
     Handle<Object> result;
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate(), result,
@@ -1665,45 +1662,6 @@ Handle<Object> StoreIC::StoreTransition(Handle<Map> receiver_map,
   return handler_array;
 }
 
-Handle<Object> StoreIC::StoreProxy(Handle<Map> receiver_map,
-                                   Handle<JSProxy> proxy,
-                                   Handle<JSReceiver> receiver,
-                                   Handle<Name> name) {
-  Handle<Object> smi_handler = StoreHandler::StoreProxy(isolate());
-
-  if (receiver.is_identical_to(proxy)) {
-    return smi_handler;
-  }
-
-  int checks_count =
-      GetPrototypeCheckCount(isolate(), receiver_map, proxy, name);
-
-  DCHECK_LE(0, checks_count);
-  DCHECK(!receiver_map->IsJSGlobalObjectMap());
-
-  Handle<Object> validity_cell =
-      Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
-  if (validity_cell.is_null()) {
-    DCHECK_EQ(0, checks_count);
-    validity_cell = handle(Smi::kZero, isolate());
-  }
-
-  Factory* factory = isolate()->factory();
-  Handle<WeakCell> holder_cell = factory->NewWeakCell(proxy);
-
-  if (checks_count == 0) {
-    return factory->NewTuple3(holder_cell, smi_handler, validity_cell, TENURED);
-  }
-  Handle<FixedArray> handler_array(factory->NewFixedArray(
-      StoreHandler::kFirstPrototypeIndex + checks_count, TENURED));
-  handler_array->set(StoreHandler::kSmiHandlerIndex, *smi_handler);
-  handler_array->set(StoreHandler::kValidityCellIndex, *validity_cell);
-  handler_array->set(StoreHandler::kTransitionCellIndex, *holder_cell);
-  InitPrototypeChecks(isolate(), receiver_map, proxy, name, handler_array,
-                      StoreHandler::kFirstPrototypeIndex);
-  return handler_array;
-}
-
 namespace {
 
 Handle<Object> StoreGlobal(Isolate* isolate, Handle<PropertyCell> cell) {
@@ -1713,10 +1671,15 @@ Handle<Object> StoreGlobal(Isolate* isolate, Handle<PropertyCell> cell) {
 }  // namespace
 
 Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
+  DCHECK_NE(LookupIterator::JSPROXY, lookup->state());
+
+  // This is currently guaranteed by checks in StoreIC::Store.
+  Handle<JSObject> receiver = Handle<JSObject>::cast(lookup->GetReceiver());
+  Handle<JSObject> holder = lookup->GetHolder<JSObject>();
+  DCHECK(!receiver->IsAccessCheckNeeded() || lookup->name()->IsPrivate());
+
   switch (lookup->state()) {
     case LookupIterator::TRANSITION: {
-      Handle<JSObject> holder = lookup->GetHolder<JSObject>();
-
       auto store_target = lookup->GetStoreTarget();
       if (store_target->IsJSGlobalObject()) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransitionDH);
@@ -1740,9 +1703,6 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
     }
 
     case LookupIterator::INTERCEPTOR: {
-      Handle<JSObject> holder = lookup->GetHolder<JSObject>();
-      USE(holder);
-
       DCHECK(!holder->GetNamedInterceptor()->setter()->IsUndefined(isolate()));
       TRACE_HANDLER_STATS(isolate(), StoreIC_StoreInterceptorStub);
       StoreInterceptorStub stub(isolate());
@@ -1750,11 +1710,6 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
     }
 
     case LookupIterator::ACCESSOR: {
-      // This is currently guaranteed by checks in StoreIC::Store.
-      Handle<JSObject> receiver = Handle<JSObject>::cast(lookup->GetReceiver());
-      Handle<JSObject> holder = lookup->GetHolder<JSObject>();
-      DCHECK(!receiver->IsAccessCheckNeeded() || lookup->name()->IsPrivate());
-
       if (!holder->HasFastProperties()) {
         TRACE_GENERIC_IC("accessor on slow map");
         TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
@@ -1805,12 +1760,6 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
     }
 
     case LookupIterator::DATA: {
-      // This is currently guaranteed by checks in StoreIC::Store.
-      Handle<JSObject> receiver = Handle<JSObject>::cast(lookup->GetReceiver());
-      USE(receiver);
-      Handle<JSObject> holder = lookup->GetHolder<JSObject>();
-      DCHECK(!receiver->IsAccessCheckNeeded() || lookup->name()->IsPrivate());
-
       DCHECK_EQ(kData, lookup->property_details().kind());
       if (lookup->is_dictionary_holder()) {
         if (holder->IsJSGlobalObject()) {
@@ -1843,16 +1792,10 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
       TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
       return slow_stub();
     }
-    case LookupIterator::JSPROXY: {
-      Handle<JSReceiver> receiver =
-          Handle<JSReceiver>::cast(lookup->GetReceiver());
-      Handle<JSProxy> holder = lookup->GetHolder<JSProxy>();
-      return StoreIC::StoreProxy(receiver_map(), holder, receiver,
-                                 lookup->name());
-    }
 
     case LookupIterator::INTEGER_INDEXED_EXOTIC:
     case LookupIterator::ACCESS_CHECK:
+    case LookupIterator::JSPROXY:
     case LookupIterator::NOT_FOUND:
       UNREACHABLE();
   }
@@ -1933,8 +1876,7 @@ void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,
   // transition to a different GetNonTransitioningStoreMode IC that handles a
   // superset of the original IC. Handle those here if the receiver map hasn't
   // changed or it has transitioned to a more general kind.
-  KeyedAccessStoreMode old_store_mode;
-  old_store_mode = GetKeyedAccessStoreMode();
+  KeyedAccessStoreMode old_store_mode = GetKeyedAccessStoreMode();
   Handle<Map> previous_receiver_map = target_receiver_maps.at(0);
   if (state() == MONOMORPHIC) {
     Handle<Map> transitioned_receiver_map = receiver_map;
@@ -2068,10 +2010,6 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
          store_mode == STORE_NO_TRANSITION_IGNORE_OUT_OF_BOUNDS ||
          store_mode == STORE_NO_TRANSITION_HANDLE_COW);
   DCHECK(!receiver_map->DictionaryElementsInPrototypeChainOnly());
-
-  if (receiver_map->IsJSProxyMap()) {
-    return StoreHandler::StoreProxy(isolate());
-  }
 
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
@@ -2284,17 +2222,15 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
   bool is_arguments = false;
   bool key_is_valid_index = false;
   KeyedAccessStoreMode store_mode = STANDARD_STORE;
-  if (use_ic && object->IsJSReceiver()) {
-    Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(object);
+  if (use_ic && object->IsJSObject()) {
+    Handle<JSObject> receiver = Handle<JSObject>::cast(object);
     old_receiver_map = handle(receiver->map(), isolate());
     is_arguments = receiver->IsJSArgumentsObject();
-    bool is_proxy = receiver->IsJSProxy();
-    key_is_valid_index = key->IsSmi() && Smi::ToInt(*key) >= 0;
-    if (!is_arguments && !is_proxy) {
+    if (!is_arguments) {
+      key_is_valid_index = key->IsSmi() && Smi::ToInt(*key) >= 0;
       if (key_is_valid_index) {
         uint32_t index = static_cast<uint32_t>(Smi::ToInt(*key));
-        Handle<JSObject> receiver_object = Handle<JSObject>::cast(object);
-        store_mode = GetStoreMode(receiver_object, index, value);
+        store_mode = GetStoreMode(receiver, index, value);
       }
     }
   }
