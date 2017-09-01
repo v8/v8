@@ -175,6 +175,7 @@
   V(JSCallWithSpread)               \
   V(JSCallRuntime)                  \
   V(JSConvertReceiver)              \
+  V(JSForInEnumerate)               \
   V(JSForInNext)                    \
   V(JSForInPrepare)                 \
   V(JSLoadMessage)                  \
@@ -330,7 +331,6 @@
   V(CheckBounds)                    \
   V(CheckIf)                        \
   V(CheckMaps)                      \
-  V(CheckMapValue)                  \
   V(CheckNumber)                    \
   V(CheckInternalizedString)        \
   V(CheckReceiver)                  \
@@ -344,6 +344,7 @@
   V(CompareMaps)                    \
   V(ConvertTaggedHoleToUndefined)   \
   V(Allocate)                       \
+  V(LoadFieldByIndex)               \
   V(LoadField)                      \
   V(LoadElement)                    \
   V(LoadTypedElement)               \

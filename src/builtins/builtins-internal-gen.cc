@@ -597,5 +597,38 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
   }
 }
 
+TF_BUILTIN(ForInEnumerate, CodeStubAssembler) {
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* context = Parameter(Descriptor::kContext);
+
+  Label if_empty(this), if_runtime(this, Label::kDeferred);
+  Node* receiver_map = CheckEnumCache(receiver, &if_empty, &if_runtime);
+  Return(receiver_map);
+
+  BIND(&if_empty);
+  Return(EmptyFixedArrayConstant());
+
+  BIND(&if_runtime);
+  TailCallRuntime(Runtime::kForInEnumerate, context, receiver);
+}
+
+TF_BUILTIN(ForInFilter, CodeStubAssembler) {
+  Node* key = Parameter(Descriptor::kKey);
+  Node* object = Parameter(Descriptor::kObject);
+  Node* context = Parameter(Descriptor::kContext);
+
+  CSA_ASSERT(this, IsString(key));
+
+  Label if_true(this), if_false(this);
+  Node* result = HasProperty(object, key, context, kForInHasProperty);
+  Branch(IsTrue(result), &if_true, &if_false);
+
+  BIND(&if_true);
+  Return(key);
+
+  BIND(&if_false);
+  Return(UndefinedConstant());
+}
+
 }  // namespace internal
 }  // namespace v8

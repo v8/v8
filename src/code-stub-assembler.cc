@@ -1361,6 +1361,12 @@ TNode<Object> CodeStubAssembler::LoadMapConstructor(SloppyTNode<Map> map) {
   return result;
 }
 
+Node* CodeStubAssembler::LoadMapEnumLength(SloppyTNode<Map> map) {
+  CSA_SLOW_ASSERT(this, IsMap(map));
+  Node* bit_field3 = LoadMapBitField3(map);
+  return DecodeWordFromWord32<Map::EnumLengthBits>(bit_field3);
+}
+
 Node* CodeStubAssembler::LoadNameHashField(Node* name) {
   CSA_ASSERT(this, IsName(name));
   return LoadObjectField(name, Name::kHashFieldOffset, MachineType::Uint32());
@@ -9831,6 +9837,86 @@ Node* CodeStubAssembler::MarkerIsNotFrameType(Node* marker_or_function,
                                               StackFrame::Type frame_type) {
   return WordNotEqual(marker_or_function,
                       IntPtrConstant(StackFrame::TypeToMarker(frame_type)));
+}
+
+void CodeStubAssembler::CheckPrototypeEnumCache(Node* receiver,
+                                                Node* receiver_map,
+                                                Label* if_fast,
+                                                Label* if_slow) {
+  VARIABLE(var_object, MachineRepresentation::kTagged, receiver);
+  VARIABLE(var_object_map, MachineRepresentation::kTagged, receiver_map);
+
+  Label loop(this, {&var_object, &var_object_map}), done_loop(this);
+  Goto(&loop);
+  BIND(&loop);
+  {
+    // Check that there are no elements on the current {object}.
+    Label if_no_elements(this);
+    Node* object = var_object.value();
+    Node* object_map = var_object_map.value();
+
+    // The following relies on the elements only aliasing with JSProxy::target,
+    // which is a Javascript value and hence cannot be confused with an elements
+    // backing store.
+    STATIC_ASSERT(JSObject::kElementsOffset == JSProxy::kTargetOffset);
+    Node* object_elements = LoadObjectField(object, JSObject::kElementsOffset);
+    GotoIf(IsEmptyFixedArray(object_elements), &if_no_elements);
+    GotoIf(IsEmptySlowElementDictionary(object_elements), &if_no_elements);
+
+    // It might still be an empty JSArray.
+    GotoIfNot(IsJSArrayMap(object_map), if_slow);
+    Node* object_length = LoadObjectField(object, JSArray::kLengthOffset);
+    Branch(WordEqual(object_length, SmiConstant(Smi::kZero)), &if_no_elements,
+           if_slow);
+
+    // Continue with the {object}s prototype.
+    BIND(&if_no_elements);
+    object = LoadMapPrototype(object_map);
+    GotoIf(IsNull(object), if_fast);
+
+    // For all {object}s but the {receiver}, check that the cache is empty.
+    var_object.Bind(object);
+    object_map = LoadMap(object);
+    var_object_map.Bind(object_map);
+    Node* object_enum_length = LoadMapEnumLength(object_map);
+    Branch(WordEqual(object_enum_length, IntPtrConstant(0)), &loop, if_slow);
+  }
+}
+
+Node* CodeStubAssembler::CheckEnumCache(Node* receiver, Label* if_empty,
+                                        Label* if_runtime) {
+  Label if_fast(this), if_cache(this), if_no_cache(this, Label::kDeferred);
+  Node* receiver_map = LoadMap(receiver);
+
+  // Check if the enum length field of the {receiver} is properly initialized,
+  // indicating that there is an enum cache.
+  Node* receiver_enum_length = LoadMapEnumLength(receiver_map);
+  Branch(WordEqual(receiver_enum_length,
+                   IntPtrConstant(kInvalidEnumCacheSentinel)),
+         &if_no_cache, &if_cache);
+
+  BIND(&if_no_cache);
+  {
+    // Avoid runtime-call for empty dictionary receivers.
+    GotoIfNot(IsDictionaryMap(receiver_map), if_runtime);
+    Node* properties = LoadSlowProperties(receiver);
+    Node* length = LoadFixedArrayElement(
+        properties, NameDictionary::kNumberOfElementsIndex);
+    GotoIfNot(WordEqual(length, SmiConstant(Smi::kZero)), if_runtime);
+    // Check that there are no elements on the {receiver} and its prototype
+    // chain. Given that we do not create an EnumCache for dict-mode objects,
+    // directly jump to {if_empty} if there are no elements and no properties
+    // on the {receiver}.
+    CheckPrototypeEnumCache(receiver, receiver_map, if_empty, if_runtime);
+  }
+
+  // Check that there are no elements on the fast {receiver} and its
+  // prototype chain.
+  BIND(&if_cache);
+  CheckPrototypeEnumCache(receiver, receiver_map, &if_fast, if_runtime);
+
+  BIND(&if_fast);
+  return receiver_map;
 }
 
 void CodeStubAssembler::Print(const char* s) {

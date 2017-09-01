@@ -396,8 +396,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   BytecodeArrayBuilder& IncBlockCounter(int slot);
 
   // Complex flow control.
-  BytecodeArrayBuilder& ForInPrepare(Register receiver,
-                                     RegisterList cache_info_triple);
+  BytecodeArrayBuilder& ForInEnumerate(Register receiver);
+  BytecodeArrayBuilder& ForInPrepare(RegisterList cache_info_triple,
+                                     int feedback_slot);
   BytecodeArrayBuilder& ForInContinue(Register index, Register cache_length);
   BytecodeArrayBuilder& ForInNext(Register receiver, Register index,
                                   RegisterList cache_type_array_pair,

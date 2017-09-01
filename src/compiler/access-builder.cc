@@ -929,10 +929,20 @@ ElementAccess AccessBuilder::ForFixedDoubleArrayElement() {
 }
 
 // static
-ElementAccess AccessBuilder::ForEnumCacheKeysElement() {
-  ElementAccess access = {kTaggedBase, FixedArray::kHeaderSize,
-                          Type::InternalizedString(),
-                          MachineType::TaggedPointer(), kPointerWriteBarrier};
+FieldAccess AccessBuilder::ForEnumCacheKeys() {
+  FieldAccess access = {kTaggedBase,           EnumCache::kKeysOffset,
+                        MaybeHandle<Name>(),   MaybeHandle<Map>(),
+                        Type::OtherInternal(), MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForEnumCacheIndices() {
+  FieldAccess access = {kTaggedBase,           EnumCache::kIndicesOffset,
+                        MaybeHandle<Name>(),   MaybeHandle<Map>(),
+                        Type::OtherInternal(), MachineType::TaggedPointer(),
+                        kPointerWriteBarrier};
   return access;
 }
 

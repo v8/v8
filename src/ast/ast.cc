@@ -249,7 +249,7 @@ void ForInStatement::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                          FunctionKind kind,
                                          FeedbackSlotCache* cache) {
   AssignVectorSlots(each(), spec, language_mode, &each_slot_);
-  for_in_feedback_slot_ = spec->AddGeneralSlot();
+  for_in_feedback_slot_ = spec->AddForInSlot();
 }
 
 Assignment::Assignment(NodeType node_type, Token::Value op, Expression* target,

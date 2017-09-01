@@ -1297,6 +1297,27 @@ class CompareOperationFeedback {
   };
 };
 
+// Type feedback is encoded in such a way that, we can combine the feedback
+// at different points by performing an 'OR' operation. Type feedback moves
+// to a more generic type when we combine feedback.
+// kNone -> kEnumCacheKeysAndIndices -> kEnumCacheKeys -> kAny
+class ForInFeedback {
+ public:
+  enum {
+    kNone = 0x0,
+    kEnumCacheKeysAndIndices = 0x1,
+    kEnumCacheKeys = 0x3,
+    kAny = 0x7
+  };
+};
+STATIC_ASSERT((ForInFeedback::kNone |
+               ForInFeedback::kEnumCacheKeysAndIndices) ==
+              ForInFeedback::kEnumCacheKeysAndIndices);
+STATIC_ASSERT((ForInFeedback::kEnumCacheKeysAndIndices |
+               ForInFeedback::kEnumCacheKeys) == ForInFeedback::kEnumCacheKeys);
+STATIC_ASSERT((ForInFeedback::kEnumCacheKeys | ForInFeedback::kAny) ==
+              ForInFeedback::kAny);
+
 enum class UnicodeEncoding : uint8_t {
   // Different unicode encodings in a |word32|:
   UTF16,  // hi 16bits -> trailing surrogate or 0, low 16bits -> lead surrogate

@@ -2491,6 +2491,12 @@ class RepresentationSelector {
         SetOutput(node, MachineRepresentation::kTaggedPointer);
         return;
       }
+      case IrOpcode::kLoadFieldByIndex: {
+        if (truncation.IsUnused()) return VisitUnused(node);
+        VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
+                   MachineRepresentation::kTagged);
+        return;
+      }
       case IrOpcode::kLoadField: {
         if (truncation.IsUnused()) return VisitUnused(node);
         FieldAccess access = FieldAccessOf(node->op());
@@ -2804,7 +2810,6 @@ class RepresentationSelector {
         // Eliminate MapGuard nodes here.
         return VisitUnused(node);
       case IrOpcode::kCheckMaps:
-      case IrOpcode::kCheckMapValue:
       case IrOpcode::kTransitionElementsKind: {
         VisitInputs(node);
         return SetOutput(node, MachineRepresentation::kNone);

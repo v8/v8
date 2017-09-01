@@ -726,15 +726,18 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::Any());
       break;
 
-    case IrOpcode::kJSForInPrepare: {
+    case IrOpcode::kJSForInEnumerate:
+      // Any -> OtherInternal.
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::OtherInternal());
+      break;
+    case IrOpcode::kJSForInPrepare:
       // TODO(bmeurer): What are the constraints on thse?
       CheckTypeIs(node, Type::Any());
       break;
-    }
-    case IrOpcode::kJSForInNext: {
+    case IrOpcode::kJSForInNext:
       CheckTypeIs(node, Type::Union(Type::Name(), Type::Undefined(), zone));
       break;
-    }
 
     case IrOpcode::kJSLoadMessage:
     case IrOpcode::kJSStoreMessage:
@@ -1197,11 +1200,6 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Boolean());
       break;
-    case IrOpcode::kCheckMapValue:
-      CheckValueInputIs(node, 0, Type::Any());
-      CheckValueInputIs(node, 1, Type::Any());
-      CheckNotTyped(node);
-      break;
     case IrOpcode::kCheckNumber:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Number());
@@ -1257,6 +1255,11 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::NonInternal());
       break;
 
+    case IrOpcode::kLoadFieldByIndex:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::SignedSmall());
+      CheckTypeIs(node, Type::NonInternal());
+      break;
     case IrOpcode::kLoadField:
       // Object -> fieldtype
       // TODO(rossberg): activate once machine ops are typed.

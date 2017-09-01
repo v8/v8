@@ -586,6 +586,19 @@ std::ostream& operator<<(std::ostream&, CreateLiteralParameters const&);
 
 const CreateLiteralParameters& CreateLiteralParametersOf(const Operator* op);
 
+// Descriptor used by the JSForInPrepare and JSForInNext opcodes.
+enum class ForInMode : uint8_t {
+  kUseEnumCacheKeysAndIndices,
+  kUseEnumCacheKeys,
+  kGeneric
+};
+
+size_t hash_value(ForInMode);
+
+std::ostream& operator<<(std::ostream&, ForInMode);
+
+ForInMode ForInModeOf(Operator const* op) WARN_UNUSED_RESULT;
+
 BinaryOperationHint BinaryOperationHintOf(const Operator* op);
 
 CompareOperationHint CompareOperationHintOf(const Operator* op);
@@ -708,8 +721,9 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* InstanceOf();
   const Operator* OrdinaryHasInstance();
 
-  const Operator* ForInNext();
-  const Operator* ForInPrepare();
+  const Operator* ForInEnumerate();
+  const Operator* ForInNext(ForInMode);
+  const Operator* ForInPrepare(ForInMode);
 
   const Operator* LoadMessage();
   const Operator* StoreMessage();

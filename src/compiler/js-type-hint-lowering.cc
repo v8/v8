@@ -263,15 +263,19 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceForInNextOperation(
           DeoptimizeReason::kInsufficientTypeFeedbackForForIn)) {
     return LoweringResult::Exit(node);
   }
-  if (!nexus.IsGeneric()) {
-    effect =
-        jsgraph()->graph()->NewNode(jsgraph()->simplified()->CheckMapValue(),
-                                    receiver, cache_type, effect, control);
-    Node* node = jsgraph()->graph()->NewNode(
-        jsgraph()->simplified()->LoadElement(
-            AccessBuilder::ForEnumCacheKeysElement()),
-        cache_array, index, effect, control);
-    return LoweringResult::SideEffectFree(node, node, control);
+  return LoweringResult::NoChange();
+}
+
+JSTypeHintLowering::LoweringResult
+JSTypeHintLowering::ReduceForInPrepareOperation(Node* enumerator, Node* effect,
+                                                Node* control,
+                                                FeedbackSlot slot) const {
+  DCHECK(!slot.IsInvalid());
+  ForInICNexus nexus(feedback_vector(), slot);
+  if (Node* node = TryBuildSoftDeopt(
+          nexus, effect, control,
+          DeoptimizeReason::kInsufficientTypeFeedbackForForIn)) {
+    return LoweringResult::Exit(node);
   }
   return LoweringResult::NoChange();
 }

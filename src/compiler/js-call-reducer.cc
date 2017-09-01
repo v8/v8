@@ -454,55 +454,37 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
   //  |    +-+
   //  |      |
   //  |   JSToObject
-  //  |    ^     ^
-  //  |    |     |
-  //  |    |     +--- JSForInPrepare
-  //  |    |                ^ ^
-  //  |    |                | |
-  //  |    |           +----+ +------+
-  //  |    |           |             |
-  //  |    |      Projection[0]  Projection[1]
-  //  |    |      (cache_type)   (cache_array)
-  //  |    |           ^             ^
-  //  |    |           |             |
-  //  |    |  +--------+             |
-  //  |    |  |                      |
-  //  |  CheckMapValue               |
-  //  |      ^                       |
-  //  |      :    +------------------+
-  //  |      :    |
-  //  |     LoadElement
-  //  |         ^
-  //  +----+    |
-  //       |    |
+  //  |      ^
+  //  |      |
+  //  |   JSForInNext
+  //  |      ^
+  //  +----+ |
+  //       | |
   //  JSCall[hasOwnProperty]
 
-  // We can constant-fold the {node} to True in this case, and insert a
-  // (potentially redundant) CheckMapValue to guard the fact that the
-  // {receiver} map didn't change since the initial CheckMapValue, which
-  // was inserted by the BytecodeGraphBuilder for the ForInNext bytecode.
+  // We can constant-fold the {node} to True in this case, and insert
+  // a (potentially redundant) map check to guard the fact that the
+  // {receiver} map didn't change since the dominating JSForInNext.
   //
   // Also note that it's safe to look through the {JSToObject}, since the
   // Object.prototype.hasOwnProperty does an implicit ToObject anyway, and
   // these operations are not observable.
-  if (name->opcode() == IrOpcode::kLoadElement) {
-    Node* cache_array = NodeProperties::GetValueInput(name, 0);
-    Node* check_map = NodeProperties::GetEffectInput(name);
-    if (cache_array->opcode() == IrOpcode::kProjection &&
-        ProjectionIndexOf(cache_array->op()) == 1 &&
-        check_map->opcode() == IrOpcode::kCheckMapValue) {
-      Node* prepare = NodeProperties::GetValueInput(cache_array, 0);
-      Node* object = NodeProperties::GetValueInput(check_map, 0);
-      Node* cache_type = NodeProperties::GetValueInput(check_map, 1);
-      if (cache_type->opcode() == IrOpcode::kProjection &&
-          prepare->opcode() == IrOpcode::kJSForInPrepare &&
-          ProjectionIndexOf(cache_type->op()) == 0 &&
-          NodeProperties::GetValueInput(cache_type, 0) == prepare &&
-          (object == receiver ||
-           (object->opcode() == IrOpcode::kJSToObject &&
-            receiver == NodeProperties::GetValueInput(object, 0)))) {
-        effect = graph()->NewNode(check_map->op(), object, cache_type, effect,
-                                  control);
+  if (name->opcode() == IrOpcode::kJSForInNext) {
+    ForInMode const mode = ForInModeOf(name->op());
+    if (mode != ForInMode::kGeneric) {
+      Node* object = NodeProperties::GetValueInput(name, 0);
+      Node* cache_type = NodeProperties::GetValueInput(name, 2);
+      if (object->opcode() == IrOpcode::kJSToObject) {
+        object = NodeProperties::GetValueInput(object, 0);
+      }
+      if (object == receiver) {
+        Node* receiver_map = effect =
+            graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                             receiver, effect, control);
+        Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
+                                       receiver_map, cache_type);
+        effect =
+            graph()->NewNode(simplified()->CheckIf(), check, effect, control);
         Node* value = jsgraph()->TrueConstant();
         ReplaceWithValue(node, value, effect, control);
         return Replace(value);

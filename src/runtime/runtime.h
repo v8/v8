@@ -195,7 +195,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_FORIN(F) \
   F(ForInEnumerate, 1, 1)           \
-  F(ForInFilter, 2, 1)              \
   F(ForInHasProperty, 2, 1)
 
 #ifdef V8_TRACE_IGNITION
@@ -652,9 +651,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \
   F(LoadLookupSlotForCall, 1, 2)
 
-#define FOR_EACH_INTRINSIC_RETURN_TRIPLE(F) \
-  F(ForInPrepare, 1, 3)
-
 // Most intrinsics are implemented in the runtime/ directory, but ICs are
 // implemented in ic.cc for now.
 #define FOR_EACH_INTRINSIC_IC(F)             \
@@ -708,7 +704,6 @@ namespace internal {
 // FOR_EACH_INTRINSIC defines the list of all intrinsics, coming in 2 flavors,
 // either returning an object or a pair.
 #define FOR_EACH_INTRINSIC(F)         \
-  FOR_EACH_INTRINSIC_RETURN_TRIPLE(F) \
   FOR_EACH_INTRINSIC_RETURN_PAIR(F)   \
   FOR_EACH_INTRINSIC_RETURN_OBJECT(F)
 

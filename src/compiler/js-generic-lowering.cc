@@ -79,6 +79,7 @@ REPLACE_STUB_CALL(ToNumber)
 REPLACE_STUB_CALL(ToName)
 REPLACE_STUB_CALL(ToObject)
 REPLACE_STUB_CALL(ToString)
+REPLACE_STUB_CALL(ForInEnumerate)
 #undef REPLACE_STUB_CALL
 
 void JSGenericLowering::ReplaceWithStubCall(Node* node, Callable callable,
@@ -705,15 +706,11 @@ void JSGenericLowering::LowerJSConvertReceiver(Node* node) {
 }
 
 void JSGenericLowering::LowerJSForInNext(Node* node) {
-  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kForInNext);
-  ReplaceWithStubCall(node, callable, flags);
+  UNREACHABLE();  // Eliminated in typed lowering.
 }
 
 void JSGenericLowering::LowerJSForInPrepare(Node* node) {
-  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kForInPrepare);
-  ReplaceWithStubCall(node, callable, flags, node->op()->properties(), 3);
+  UNREACHABLE();  // Eliminated in typed lowering.
 }
 
 void JSGenericLowering::LowerJSLoadMessage(Node* node) {

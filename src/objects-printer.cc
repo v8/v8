@@ -786,6 +786,11 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
         os << Code::ICState2String(nexus.StateFromFeedback());
         break;
       }
+      case FeedbackSlotKind::kForIn: {
+        ForInICNexus nexus(this, slot);
+        os << Code::ICState2String(nexus.StateFromFeedback());
+        break;
+      }
       case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
         StoreDataPropertyInLiteralICNexus nexus(this, slot);
         os << Code::ICState2String(nexus.StateFromFeedback());
@@ -793,7 +798,6 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
       }
       case FeedbackSlotKind::kCreateClosure:
       case FeedbackSlotKind::kLiteral:
-      case FeedbackSlotKind::kGeneral:
       case FeedbackSlotKind::kTypeProfile:
         break;
       case FeedbackSlotKind::kInvalid:

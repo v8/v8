@@ -163,6 +163,11 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
   Node* BuildExtendPropertiesBackingStore(Handle<Map> map, Node* properties,
                                           Node* effect, Node* control);
 
+  // Construct appropriate subgraph to read the next value in a fast for-in
+  // iteration.
+  Node* BuildForInNextValue(Node* receiver, Node* enumerator, Node* index,
+                            Node* effect, Node* control);
+
   // Checks if we can turn the hole into undefined when loading an element
   // from an object with one of the {receiver_maps}; sets up appropriate
   // code dependencies and might use the array protector cell.

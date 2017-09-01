@@ -295,7 +295,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   BytecodeLabel after_rethrow;
   builder.ReThrow().Bind(&after_rethrow);
 
-  builder.ForInPrepare(reg, triple)
+  builder.ForInEnumerate(reg)
+      .ForInPrepare(triple, 1)
       .ForInContinue(reg, reg)
       .ForInNext(reg, reg, pair, 1)
       .ForInStep(reg);

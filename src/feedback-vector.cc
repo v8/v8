@@ -162,8 +162,8 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "Literal";
     case FeedbackSlotKind::kTypeProfile:
       return "TypeProfile";
-    case FeedbackSlotKind::kGeneral:
-      return "General";
+    case FeedbackSlotKind::kForIn:
+      return "ForIn";
     case FeedbackSlotKind::kKindsNumber:
       break;
   }
@@ -224,6 +224,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
         vector->set(index, isolate->heap()->empty_weak_cell(),
                     SKIP_WRITE_BARRIER);
         break;
+      case FeedbackSlotKind::kForIn:
       case FeedbackSlotKind::kCompareOp:
       case FeedbackSlotKind::kBinaryOp:
         vector->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
@@ -250,7 +251,6 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kStoreKeyedSloppy:
       case FeedbackSlotKind::kStoreKeyedStrict:
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
-      case FeedbackSlotKind::kGeneral:
       case FeedbackSlotKind::kTypeProfile:
         vector->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         break;
@@ -410,6 +410,7 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
           }
           break;
         }
+        case FeedbackSlotKind::kForIn:
         case FeedbackSlotKind::kBinaryOp:
         case FeedbackSlotKind::kCompareOp: {
           DCHECK(Get(slot)->IsSmi());
@@ -420,20 +421,6 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
         case FeedbackSlotKind::kCreateClosure: {
           case FeedbackSlotKind::kTypeProfile:
             break;
-        }
-        case FeedbackSlotKind::kGeneral: {
-          if (obj->IsHeapObject()) {
-            InstanceType instance_type =
-                HeapObject::cast(obj)->map()->instance_type();
-            // AllocationSites are exempt from clearing. They don't store Maps
-            // or Code pointers which can cause memory leaks if not cleared
-            // regularly.
-            if (instance_type != ALLOCATION_SITE_TYPE) {
-              Set(slot, uninitialized_sentinel, SKIP_WRITE_BARRIER);
-              feedback_updated = true;
-            }
-          }
-          break;
         }
         case FeedbackSlotKind::kLiteral: {
           Set(slot, Smi::kZero, SKIP_WRITE_BARRIER);
@@ -921,13 +908,18 @@ CompareOperationHint CompareICNexus::GetCompareOperationFeedback() const {
 }
 
 InlineCacheState ForInICNexus::StateFromFeedback() const {
-  Object* feedback = GetFeedback();
-  if (feedback == *FeedbackVector::UninitializedSentinel(GetIsolate())) {
+  ForInHint hint = GetForInFeedback();
+  if (hint == ForInHint::kNone) {
     return UNINITIALIZED;
-  } else if (feedback == *FeedbackVector::MegamorphicSentinel(GetIsolate())) {
-    return MEGAMORPHIC;
+  } else if (hint == ForInHint::kAny) {
+    return GENERIC;
   }
-  return GENERIC;
+  return MONOMORPHIC;
+}
+
+ForInHint ForInICNexus::GetForInFeedback() const {
+  int feedback = Smi::ToInt(GetFeedback());
+  return ForInHintFromFeedback(feedback);
 }
 
 InlineCacheState StoreDataPropertyInLiteralICNexus::StateFromFeedback() const {

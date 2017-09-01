@@ -63,7 +63,7 @@ FeedbackVector* FeedbackVector::cast(Object* obj) {
 
 int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   switch (kind) {
-    case FeedbackSlotKind::kGeneral:
+    case FeedbackSlotKind::kForIn:
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kLiteral:
@@ -221,6 +221,21 @@ CompareOperationHint CompareOperationHintFromFeedback(int type_feedback) {
   UNREACHABLE();
 }
 
+// Helper function to transform the feedback to ForInHint.
+ForInHint ForInHintFromFeedback(int type_feedback) {
+  switch (type_feedback) {
+    case ForInFeedback::kNone:
+      return ForInHint::kNone;
+    case ForInFeedback::kEnumCacheKeys:
+      return ForInHint::kEnumCacheKeys;
+    case ForInFeedback::kEnumCacheKeysAndIndices:
+      return ForInHint::kEnumCacheKeysAndIndices;
+    default:
+      return ForInHint::kAny;
+  }
+  UNREACHABLE();
+}
+
 void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
                                    int* vector_ic_count) {
   Object* megamorphic_sentinel =
@@ -283,8 +298,19 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
           total++;
         break;
       }
+      case FeedbackSlotKind::kForIn: {
+        int const feedback = Smi::ToInt(obj);
+        ForInHint hint = ForInHintFromFeedback(feedback);
+        if (hint == ForInHint::kAny) {
+          gen++;
+        }
+        if (hint != ForInHint::kNone) {
+          with++;
+        }
+        total++;
+        break;
+      }
       case FeedbackSlotKind::kCreateClosure:
-      case FeedbackSlotKind::kGeneral:
       case FeedbackSlotKind::kLiteral:
         break;
       case FeedbackSlotKind::kInvalid:

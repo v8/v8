@@ -282,8 +282,11 @@ class V8_EXPORT_PRIVATE AccessBuilder final
   // Provides access to FixedDoubleArray elements.
   static ElementAccess ForFixedDoubleArrayElement();
 
-  // Provides access to EnumCache::keys elements.
-  static ElementAccess ForEnumCacheKeysElement();
+  // Provides access to EnumCache::keys() field.
+  static FieldAccess ForEnumCacheKeys();
+
+  // Provides access to EnumCache::indices() field.
+  static FieldAccess ForEnumCacheIndices();
 
   // Provides access to Fixed{type}TypedArray and External{type}Array elements.
   static ElementAccess ForTypedArrayElement(ExternalArrayType type,

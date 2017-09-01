@@ -1672,6 +1672,9 @@ Type* Typer::Visitor::TypeJSConvertReceiver(Node* node) {
   return Type::Receiver();
 }
 
+Type* Typer::Visitor::TypeJSForInEnumerate(Node* node) {
+  return Type::OtherInternal();
+}
 
 Type* Typer::Visitor::TypeJSForInNext(Node* node) {
   return Type::Union(Type::String(), Type::Undefined(), zone());
@@ -1864,10 +1867,6 @@ Type* Typer::Visitor::TypeCheckMaps(Node* node) {
 
 Type* Typer::Visitor::TypeCompareMaps(Node* node) { return Type::Boolean(); }
 
-Type* Typer::Visitor::TypeCheckMapValue(Node* node) {
-  UNREACHABLE();
-}
-
 Type* Typer::Visitor::TypeCheckNumber(Node* node) {
   return typer_->operation_typer_.CheckNumber(Operand(node, 0));
 }
@@ -1914,6 +1913,10 @@ Type* Typer::Visitor::TypeConvertTaggedHoleToUndefined(Node* node) {
 
 Type* Typer::Visitor::TypeAllocate(Node* node) {
   return AllocateTypeOf(node->op());
+}
+
+Type* Typer::Visitor::TypeLoadFieldByIndex(Node* node) {
+  return Type::NonInternal();
 }
 
 Type* Typer::Visitor::TypeLoadField(Node* node) {

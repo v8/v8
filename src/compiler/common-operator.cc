@@ -1358,7 +1358,6 @@ const Operator* CommonOperatorBuilder::TailCall(
   return new (zone()) TailCallOperator(descriptor);
 }
 
-
 const Operator* CommonOperatorBuilder::Projection(size_t index) {
   switch (index) {
 #define CACHED_PROJECTION(index) \

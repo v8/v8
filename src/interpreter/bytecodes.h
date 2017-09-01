@@ -287,8 +287,9 @@ namespace interpreter {
     OperandType::kUImm, OperandType::kImm)                                     \
                                                                                \
   /* Complex flow control For..in */                                           \
-  V(ForInPrepare, AccumulatorUse::kNone, OperandType::kReg,                    \
-    OperandType::kRegOutTriple)                                                \
+  V(ForInEnumerate, AccumulatorUse::kWrite, OperandType::kReg)                 \
+  V(ForInPrepare, AccumulatorUse::kRead, OperandType::kRegOutTriple,           \
+    OperandType::kIdx)                                                         \
   V(ForInContinue, AccumulatorUse::kWrite, OperandType::kReg,                  \
     OperandType::kReg)                                                         \
   V(ForInNext, AccumulatorUse::kWrite, OperandType::kReg, OperandType::kReg,   \

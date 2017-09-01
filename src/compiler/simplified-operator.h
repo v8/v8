@@ -402,7 +402,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckIf();
   const Operator* CheckBounds();
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>);
-  const Operator* CheckMapValue();
   const Operator* CompareMaps(ZoneHandleSet<Map>);
 
   const Operator* CheckHeapObject();
@@ -471,6 +470,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* Allocate(Type* type, PretenureFlag pretenure = NOT_TENURED);
 
+  const Operator* LoadFieldByIndex();
   const Operator* LoadField(FieldAccess const&);
   const Operator* StoreField(FieldAccess const&);
 

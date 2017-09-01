@@ -31,6 +31,8 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
   V(EmptyPropertyDictionary, empty_property_dictionary,                  \
     EmptyPropertyDictionary)                                             \
   V(EmptyFixedArray, empty_fixed_array, EmptyFixedArray)                 \
+  V(EmptySlowElementDictionary, empty_slow_element_dictionary,           \
+    EmptySlowElementDictionary)                                          \
   V(empty_string, empty_string, EmptyString)                             \
   V(EmptyWeakCell, empty_weak_cell, EmptyWeakCell)                       \
   V(FalseValue, false_value, False)                                      \
@@ -486,6 +488,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<IntPtrT> LoadMapConstructorFunctionIndex(SloppyTNode<Map> map);
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).
   TNode<Object> LoadMapConstructor(SloppyTNode<Map> map);
+  // Load the EnumLength of a Map.
+  Node* LoadMapEnumLength(SloppyTNode<Map> map);
 
   // This is only used on a newly allocated PropertyArray which
   // doesn't have an existing hash.
@@ -1609,6 +1613,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                           StackFrame::Type frame_type);
   Node* MarkerIsNotFrameType(Node* marker_or_function,
                              StackFrame::Type frame_type);
+
+  // for..in helpers
+  void CheckPrototypeEnumCache(Node* receiver, Node* receiver_map,
+                               Label* if_fast, Label* if_slow);
+  Node* CheckEnumCache(Node* receiver, Label* if_empty, Label* if_runtime);
 
   // Support for printf-style debugging
   void Print(const char* s);

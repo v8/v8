@@ -43,8 +43,7 @@ enum class FeedbackSlotKind {
   kTypeProfile,
   kCreateClosure,
   kLiteral,
-  // This is a general purpose slot that occupies one feedback vector element.
-  kGeneral,
+  kForIn,
 
   kKindsNumber  // Last value indicating number of kinds.
 };
@@ -334,7 +333,7 @@ class FeedbackVectorSpecBase {
     return AddSlot(FeedbackSlotKind::kCompareOp);
   }
 
-  FeedbackSlot AddGeneralSlot() { return AddSlot(FeedbackSlotKind::kGeneral); }
+  FeedbackSlot AddForInSlot() { return AddSlot(FeedbackSlotKind::kForIn); }
 
   FeedbackSlot AddLiteralSlot() { return AddSlot(FeedbackSlotKind::kLiteral); }
 
@@ -793,10 +792,15 @@ class ForInICNexus final : public FeedbackNexus {
  public:
   ForInICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
       : FeedbackNexus(vector, slot) {
-    DCHECK_EQ(FeedbackSlotKind::kGeneral, vector->GetKind(slot));
+    DCHECK_EQ(FeedbackSlotKind::kForIn, vector->GetKind(slot));
+  }
+  ForInICNexus(FeedbackVector* vector, FeedbackSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackSlotKind::kForIn, vector->GetKind(slot));
   }
 
   InlineCacheState StateFromFeedback() const final;
+  ForInHint GetForInFeedback() const;
 
   int ExtractMaps(MapHandles* maps) const final { return 0; }
   MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
@@ -848,6 +852,7 @@ class CollectTypeProfileNexus : public FeedbackNexus {
 
 inline BinaryOperationHint BinaryOperationHintFromFeedback(int type_feedback);
 inline CompareOperationHint CompareOperationHintFromFeedback(int type_feedback);
+inline ForInHint ForInHintFromFeedback(int type_feedback);
 
 }  // namespace internal
 }  // namespace v8

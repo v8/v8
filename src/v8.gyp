@@ -189,8 +189,6 @@
         'builtins/builtins-conversion-gen.cc',
         'builtins/builtins-date-gen.cc',
         'builtins/builtins-debug-gen.cc',
-        'builtins/builtins-forin-gen.cc',
-        'builtins/builtins-forin-gen.h',
         'builtins/builtins-function-gen.cc',
         'builtins/builtins-generator-gen.cc',
         'builtins/builtins-global-gen.cc',

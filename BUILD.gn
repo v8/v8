@@ -986,8 +986,6 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-conversion-gen.cc",
     "src/builtins/builtins-date-gen.cc",
     "src/builtins/builtins-debug-gen.cc",
-    "src/builtins/builtins-forin-gen.cc",
-    "src/builtins/builtins-forin-gen.h",
     "src/builtins/builtins-function-gen.cc",
     "src/builtins/builtins-generator-gen.cc",
     "src/builtins/builtins-global-gen.cc",

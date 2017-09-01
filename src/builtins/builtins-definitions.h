@@ -731,9 +731,8 @@ namespace internal {
   TFC(InstanceOf, Compare, 1)                                                  \
                                                                                \
   /* for-in */                                                                 \
+  TFS(ForInEnumerate, kReceiver)                                               \
   TFS(ForInFilter, kKey, kObject)                                              \
-  TFS(ForInNext, kObject, kCacheArray, kCacheType, kIndex)                     \
-  TFC(ForInPrepare, ForInPrepare, 3)                                           \
                                                                                \
   /* Promise */                                                                \
   /* ES6 #sec-getcapabilitiesexecutor-functions */                             \

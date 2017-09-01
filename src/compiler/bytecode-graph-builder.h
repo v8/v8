@@ -186,6 +186,8 @@ class BytecodeGraphBuilder {
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedForInNext(
       Node* receiver, Node* cache_array, Node* cache_type, Node* index,
       FeedbackSlot slot);
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedForInPrepare(
+      Node* receiver, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedToNumber(
       Node* input, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedCall(const Operator* op,
@@ -217,6 +219,9 @@ class BytecodeGraphBuilder {
   // Helper function to create compare operation hint from the recorded
   // type feedback.
   CompareOperationHint GetCompareOperationHint();
+
+  // Helper function to create for-in mode from the recorded type feedback.
+  ForInMode GetForInMode(int operand_index);
 
   // Helper function to compute call frequency from the recorded type
   // feedback.

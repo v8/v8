@@ -1520,6 +1520,7 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   }
 
   BytecodeLabel subject_null_label, subject_undefined_label;
+  FeedbackSlot slot = stmt->ForInFeedbackSlot();
 
   // Prepare the state for executing ForIn.
   builder()->SetExpressionAsStatementPosition(stmt->subject());
@@ -1532,7 +1533,8 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Used as kRegTriple and kRegPair in ForInPrepare and ForInNext.
   RegisterList triple = register_allocator()->NewRegisterList(3);
   Register cache_length = triple[2];
-  builder()->ForInPrepare(receiver, triple);
+  builder()->ForInEnumerate(receiver);
+  builder()->ForInPrepare(triple, feedback_index(slot));
 
   // Set up loop counter
   Register index = register_allocator()->NewRegister();
@@ -1546,7 +1548,6 @@ void BytecodeGenerator::VisitForInStatement(ForInStatement* stmt) {
     builder()->SetExpressionAsStatementPosition(stmt->each());
     builder()->ForInContinue(index, cache_length);
     loop_builder.BreakIfFalse(ToBooleanMode::kAlreadyBoolean);
-    FeedbackSlot slot = stmt->ForInFeedbackSlot();
     builder()->ForInNext(receiver, index, triple.Truncate(2),
                          feedback_index(slot));
     loop_builder.ContinueIfUndefined();

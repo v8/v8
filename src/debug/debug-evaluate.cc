@@ -315,7 +315,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowInvalidHint)                \
   V(ThrowNotDateError)               \
   /* Misc. */                        \
-  V(ForInPrepare)                    \
   V(Call)                            \
   V(MaxSmi)                          \
   V(NewObject)                       \
@@ -419,6 +418,7 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kToNumber:
     case Bytecode::kToName:
     // Misc.
+    case Bytecode::kForInEnumerate:
     case Bytecode::kForInPrepare:
     case Bytecode::kForInContinue:
     case Bytecode::kForInNext:

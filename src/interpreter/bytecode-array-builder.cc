@@ -1214,10 +1214,15 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::IncBlockCounter(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::ForInEnumerate(Register receiver) {
+  OutputForInEnumerate(receiver);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::ForInPrepare(
-    Register receiver, RegisterList cache_info_triple) {
+    RegisterList cache_info_triple, int feedback_slot) {
   DCHECK_EQ(3, cache_info_triple.register_count());
-  OutputForInPrepare(receiver, cache_info_triple);
+  OutputForInPrepare(cache_info_triple, feedback_slot);
   return *this;
 }
 

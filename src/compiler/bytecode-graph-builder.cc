@@ -2038,6 +2038,23 @@ CompareOperationHint BytecodeGraphBuilder::GetCompareOperationHint() {
   return nexus.GetCompareOperationFeedback();
 }
 
+// Helper function to create for-in mode from the recorded type feedback.
+ForInMode BytecodeGraphBuilder::GetForInMode(int operand_index) {
+  FeedbackSlot slot = feedback_vector()->ToSlot(
+      bytecode_iterator().GetIndexOperand(operand_index));
+  ForInICNexus nexus(feedback_vector(), slot);
+  switch (nexus.GetForInFeedback()) {
+    case ForInHint::kNone:
+    case ForInHint::kEnumCacheKeysAndIndices:
+      return ForInMode::kUseEnumCacheKeysAndIndices;
+    case ForInHint::kEnumCacheKeys:
+      return ForInMode::kUseEnumCacheKeys;
+    case ForInHint::kAny:
+      return ForInMode::kGeneric;
+  }
+  UNREACHABLE();
+}
+
 CallFrequency BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
   if (invocation_frequency_.IsUnknown()) return CallFrequency();
   CallICNexus nexus(feedback_vector(), feedback_vector()->ToSlot(slot_id));
@@ -2554,14 +2571,26 @@ void BytecodeGraphBuilder::VisitIncBlockCounter() {
   NewNode(op, closure, coverage_array_slot);
 }
 
-void BytecodeGraphBuilder::VisitForInPrepare() {
-  PrepareEagerCheckpoint();
+void BytecodeGraphBuilder::VisitForInEnumerate() {
   Node* receiver =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
-  Node* prepare = NewNode(javascript()->ForInPrepare(), receiver);
+  Node* enumerator = NewNode(javascript()->ForInEnumerate(), receiver);
+  environment()->BindAccumulator(enumerator, Environment::kAttachFrameState);
+}
+
+void BytecodeGraphBuilder::VisitForInPrepare() {
+  PrepareEagerCheckpoint();
+  Node* enumerator = environment()->LookupAccumulator();
+
+  FeedbackSlot slot =
+      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedForInPrepare(enumerator, slot);
+  if (lowering.IsExit()) return;
+  DCHECK(!lowering.Changed());
+  Node* node = NewNode(javascript()->ForInPrepare(GetForInMode(1)), enumerator);
   environment()->BindRegistersToProjections(
-      bytecode_iterator().GetRegisterOperand(1), prepare,
-      Environment::kAttachFrameState);
+      bytecode_iterator().GetRegisterOperand(0), node);
 }
 
 void BytecodeGraphBuilder::VisitForInContinue() {
@@ -2570,10 +2599,10 @@ void BytecodeGraphBuilder::VisitForInContinue() {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(0));
   Node* cache_length =
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
-  Node* exit_cond =
-      NewNode(javascript()->LessThan(CompareOperationHint::kSignedSmall), index,
-              cache_length);
-  environment()->BindAccumulator(exit_cond, Environment::kAttachFrameState);
+  Node* exit_cond = NewNode(simplified()->SpeculativeNumberLessThan(
+                                NumberOperationHint::kSignedSmall),
+                            index, cache_length);
+  environment()->BindAccumulator(exit_cond);
 }
 
 void BytecodeGraphBuilder::VisitForInNext() {
@@ -2599,14 +2628,9 @@ void BytecodeGraphBuilder::VisitForInNext() {
       receiver, cache_array, cache_type, index, slot);
   if (lowering.IsExit()) return;
 
-  Node* node = nullptr;
-  if (lowering.IsSideEffectFree()) {
-    node = lowering.value();
-  } else {
-    DCHECK(!lowering.Changed());
-    node = NewNode(javascript()->ForInNext(), receiver, cache_array, cache_type,
-                   index);
-  }
+  DCHECK(!lowering.Changed());
+  Node* node = NewNode(javascript()->ForInNext(GetForInMode(3)), receiver,
+                       cache_array, cache_type, index);
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
@@ -2892,6 +2916,18 @@ BytecodeGraphBuilder::TryBuildSimplifiedForInNext(Node* receiver,
   JSTypeHintLowering::LoweringResult result =
       type_hint_lowering().ReduceForInNextOperation(
           receiver, cache_array, cache_type, index, effect, control, slot);
+  ApplyEarlyReduction(result);
+  return result;
+}
+
+JSTypeHintLowering::LoweringResult
+BytecodeGraphBuilder::TryBuildSimplifiedForInPrepare(Node* enumerator,
+                                                     FeedbackSlot slot) {
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+  JSTypeHintLowering::LoweringResult result =
+      type_hint_lowering().ReduceForInPrepareOperation(enumerator, effect,
+                                                       control, slot);
   ApplyEarlyReduction(result);
   return result;
 }

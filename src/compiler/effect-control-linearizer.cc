@@ -632,9 +632,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCompareMaps:
       result = LowerCompareMaps(node);
       break;
-    case IrOpcode::kCheckMapValue:
-      LowerCheckMapValue(node, frame_state);
-      break;
     case IrOpcode::kCheckNumber:
       result = LowerCheckNumber(node, frame_state);
       break;
@@ -819,6 +816,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       break;
     case IrOpcode::kTransitionElementsKind:
       LowerTransitionElementsKind(node);
+      break;
+    case IrOpcode::kLoadFieldByIndex:
+      result = LowerLoadFieldByIndex(node);
       break;
     case IrOpcode::kLoadTypedElement:
       result = LowerLoadTypedElement(node);
@@ -1307,19 +1307,6 @@ Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
 
   __ Bind(&done);
   return done.PhiAt(0);
-}
-
-void EffectControlLinearizer::LowerCheckMapValue(Node* node,
-                                                 Node* frame_state) {
-  Node* value = node->InputAt(0);
-  Node* map = node->InputAt(1);
-
-  // Load the current map of the {value}.
-  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-
-  // Check if the {value}s map matches the expected {map}.
-  Node* check = __ WordEqual(value_map, map);
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongMap, check, frame_state);
 }
 
 Node* EffectControlLinearizer::LowerCheckNumber(Node* node, Node* frame_state) {
@@ -2819,6 +2806,107 @@ void EffectControlLinearizer::LowerTransitionElementsKind(Node* node) {
   __ Goto(&done);
 
   __ Bind(&done);
+}
+
+Node* EffectControlLinearizer::LowerLoadFieldByIndex(Node* node) {
+  Node* object = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* zero = __ IntPtrConstant(0);
+  Node* one = __ IntPtrConstant(1);
+
+  // Sign-extend the {index} on 64-bit architectures.
+  if (machine()->Is64()) {
+    index = __ ChangeInt32ToInt64(index);
+  }
+
+  auto if_double = __ MakeDeferredLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kTagged);
+
+  // Check if field is a mutable double field.
+  __ GotoIfNot(__ WordEqual(__ WordAnd(index, one), zero), &if_double);
+
+  // The field is a proper Tagged field on {object}. The {index} is shifted
+  // to the left by one in the code below.
+  {
+    // Check if field is in-object or out-of-object.
+    auto if_outofobject = __ MakeLabel();
+    __ GotoIf(__ IntLessThan(index, zero), &if_outofobject);
+
+    // The field is located in the {object} itself.
+    {
+      Node* offset =
+          __ IntAdd(__ WordShl(index, __ IntPtrConstant(kPointerSizeLog2 - 1)),
+                    __ IntPtrConstant(JSObject::kHeaderSize - kHeapObjectTag));
+      Node* result = __ Load(MachineType::AnyTagged(), object, offset);
+      __ Goto(&done, result);
+    }
+
+    // The field is located in the properties backing store of {object}.
+    // The {index} is equal to the negated out of property index plus 1.
+    __ Bind(&if_outofobject);
+    {
+      Node* properties =
+          __ LoadField(AccessBuilder::ForJSObjectPropertiesOrHash(), object);
+      Node* offset =
+          __ IntAdd(__ WordShl(__ IntSub(zero, index),
+                               __ IntPtrConstant(kPointerSizeLog2 - 1)),
+                    __ IntPtrConstant((FixedArray::kHeaderSize - kPointerSize) -
+                                      kHeapObjectTag));
+      Node* result = __ Load(MachineType::AnyTagged(), properties, offset);
+      __ Goto(&done, result);
+    }
+  }
+
+  // The field is a Double field, either unboxed in the object on 64-bit
+  // architectures, or as MutableHeapNumber.
+  __ Bind(&if_double);
+  {
+    auto done_double = __ MakeLabel(MachineRepresentation::kFloat64);
+
+    index = __ WordSar(index, one);
+
+    // Check if field is in-object or out-of-object.
+    auto if_outofobject = __ MakeLabel();
+    __ GotoIf(__ IntLessThan(index, zero), &if_outofobject);
+
+    // The field is located in the {object} itself.
+    {
+      Node* offset =
+          __ IntAdd(__ WordShl(index, __ IntPtrConstant(kPointerSizeLog2)),
+                    __ IntPtrConstant(JSObject::kHeaderSize - kHeapObjectTag));
+      if (FLAG_unbox_double_fields) {
+        Node* result = __ Load(MachineType::Float64(), object, offset);
+        __ Goto(&done_double, result);
+      } else {
+        Node* result = __ Load(MachineType::AnyTagged(), object, offset);
+        result = __ LoadField(AccessBuilder::ForHeapNumberValue(), result);
+        __ Goto(&done_double, result);
+      }
+    }
+
+    __ Bind(&if_outofobject);
+    {
+      Node* properties =
+          __ LoadField(AccessBuilder::ForJSObjectPropertiesOrHash(), object);
+      Node* offset =
+          __ IntAdd(__ WordShl(__ IntSub(zero, index),
+                               __ IntPtrConstant(kPointerSizeLog2)),
+                    __ IntPtrConstant((FixedArray::kHeaderSize - kPointerSize) -
+                                      kHeapObjectTag));
+      Node* result = __ Load(MachineType::AnyTagged(), properties, offset);
+      result = __ LoadField(AccessBuilder::ForHeapNumberValue(), result);
+      __ Goto(&done_double, result);
+    }
+
+    __ Bind(&done_double);
+    {
+      Node* result = AllocateHeapNumberWithValue(done_double.PhiAt(0));
+      __ Goto(&done, result);
+    }
+  }
+
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerLoadTypedElement(Node* node) {
