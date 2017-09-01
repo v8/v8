@@ -1262,78 +1262,77 @@ class RepresentationSelector {
 
   void VisitSpeculativeIntegerAdditiveOp(Node* node, Truncation truncation,
                                          SimplifiedLowering* lowering) {
+    Type* left_upper = GetUpperBound(node->InputAt(0));
+    Type* right_upper = GetUpperBound(node->InputAt(1));
     // Only eliminate eliminate the node if the ToNumber conversion cannot
     // cause any observable side-effect and if we know for sure that it
     // is a number addition (we must exclude strings).
-    if (BothInputsAre(node, Type::NumberOrOddball())) {
+    if (left_upper->Is(Type::NumberOrOddball()) &&
+        right_upper->Is(Type::NumberOrOddball())) {
       if (truncation.IsUnused()) return VisitUnused(node);
     }
 
-    if (BothInputsAre(node, type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
-        (GetUpperBound(node)->Is(Type::Signed32()) ||
-         GetUpperBound(node)->Is(Type::Unsigned32()) ||
-         truncation.IsUsedAsWord32())) {
-      // => Int32Add/Sub
-      VisitWord32TruncatingBinop(node);
-      if (lower()) ChangeToPureOp(node, Int32Op(node));
-      return;
+    if (left_upper->Is(type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
+        right_upper->Is(type_cache_.kAdditiveSafeIntegerOrMinusZero)) {
+      // If we know how to interpret the result or if the users only care
+      // about the low 32-bits, we can truncate to Word32 do a wrapping
+      // addition.
+      if (GetUpperBound(node)->Is(Type::Signed32()) ||
+          GetUpperBound(node)->Is(Type::Unsigned32()) ||
+          truncation.IsUsedAsWord32()) {
+        // => Int32Add/Sub
+        VisitWord32TruncatingBinop(node);
+        if (lower()) ChangeToPureOp(node, Int32Op(node));
+        return;
+      }
     }
 
     // Try to use type feedback.
     NumberOperationHint hint = NumberOperationHintOf(node->op());
 
-    if (hint == NumberOperationHint::kSignedSmall ||
-        hint == NumberOperationHint::kSigned32) {
-      Type* left_feedback_type = TypeOf(node->InputAt(0));
-      Type* right_feedback_type = TypeOf(node->InputAt(1));
-      // Handle the case when no int32 checks on inputs are necessary (but
-      // an overflow check is needed on the output).
-      // TODO(jarin) We should not look at the upper bound because the typer
-      // could have already baked in some feedback into the upper bound.
-      if (BothInputsAre(node, Type::Signed32()) ||
-          (BothInputsAre(node, Type::Signed32OrMinusZero()) &&
-           GetUpperBound(node)->Is(type_cache_.kSafeInteger))) {
-        VisitBinop(node, UseInfo::TruncatingWord32(),
-                   MachineRepresentation::kWord32, Type::Signed32());
-      } else {
-        // If the output's truncation is identify-zeros, we can pass it
-        // along. Moreover, if the operation is addition and we know the
-        // right-hand side is not minus zero, we do not have to distinguish
-        // between 0 and -0.
-        IdentifyZeros left_identify_zeros = truncation.identify_zeros();
-        if (node->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd &&
-            !right_feedback_type->Maybe(Type::MinusZero())) {
-          left_identify_zeros = kIdentifyZeros;
-        }
-        UseInfo left_use =
-            CheckedUseInfoAsWord32FromHint(hint, left_identify_zeros);
-        // For CheckedInt32Add and CheckedInt32Sub, we don't need to do
-        // a minus zero check for the right hand side, since we already
-        // know that the left hand side is a proper Signed32 value,
-        // potentially guarded by a check.
-        UseInfo right_use =
-            CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros);
-        VisitBinop(node, left_use, right_use, MachineRepresentation::kWord32,
-                   Type::Signed32());
-      }
-      if (lower()) {
-        if (truncation.IsUsedAsWord32() ||
-            !CanOverflowSigned32(node->op(), left_feedback_type,
-                                 right_feedback_type, graph_zone())) {
-          ChangeToPureOp(node, Int32Op(node));
+    DCHECK(hint == NumberOperationHint::kSignedSmall ||
+           hint == NumberOperationHint::kSigned32);
 
-        } else {
-          ChangeToInt32OverflowOp(node);
-        }
+    Type* left_feedback_type = TypeOf(node->InputAt(0));
+    Type* right_feedback_type = TypeOf(node->InputAt(1));
+    // Handle the case when no int32 checks on inputs are necessary (but
+    // an overflow check is needed on the output). Note that we do not
+    // have to do any check if at most one side can be minus zero.
+    if (left_upper->Is(Type::Signed32OrMinusZero()) &&
+        right_upper->Is(Type::Signed32OrMinusZero()) &&
+        (left_upper->Is(Type::Signed32()) ||
+         right_upper->Is(Type::Signed32()))) {
+      VisitBinop(node, UseInfo::TruncatingWord32(),
+                 MachineRepresentation::kWord32, Type::Signed32());
+    } else {
+      // If the output's truncation is identify-zeros, we can pass it
+      // along. Moreover, if the operation is addition and we know the
+      // right-hand side is not minus zero, we do not have to distinguish
+      // between 0 and -0.
+      IdentifyZeros left_identify_zeros = truncation.identify_zeros();
+      if (node->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd &&
+          !right_feedback_type->Maybe(Type::MinusZero())) {
+        left_identify_zeros = kIdentifyZeros;
       }
-      return;
+      UseInfo left_use =
+          CheckedUseInfoAsWord32FromHint(hint, left_identify_zeros);
+      // For CheckedInt32Add and CheckedInt32Sub, we don't need to do
+      // a minus zero check for the right hand side, since we already
+      // know that the left hand side is a proper Signed32 value,
+      // potentially guarded by a check.
+      UseInfo right_use = CheckedUseInfoAsWord32FromHint(hint, kIdentifyZeros);
+      VisitBinop(node, left_use, right_use, MachineRepresentation::kWord32,
+                 Type::Signed32());
     }
-
-    // default case => Float64Add/Sub
-    VisitBinop(node, UseInfo::CheckedNumberOrOddballAsFloat64(),
-               MachineRepresentation::kFloat64, Type::Number());
     if (lower()) {
-      ChangeToPureOp(node, Float64Op(node));
+      if (truncation.IsUsedAsWord32() ||
+          !CanOverflowSigned32(node->op(), left_feedback_type,
+                               right_feedback_type, graph_zone())) {
+        ChangeToPureOp(node, Int32Op(node));
+
+      } else {
+        ChangeToInt32OverflowOp(node);
+      }
     }
     return;
   }
