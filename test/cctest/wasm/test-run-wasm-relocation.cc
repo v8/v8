@@ -12,8 +12,9 @@
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 #define FOREACH_TYPE(TEST_BODY)    \
   TEST_BODY(int32_t, WASM_I32_ADD) \
@@ -60,3 +61,7 @@ using namespace v8::internal::compiler;
   }
 
 FOREACH_TYPE(LOAD_SET_GLOBAL_TEST_BODY)
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

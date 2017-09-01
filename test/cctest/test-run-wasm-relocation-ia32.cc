@@ -16,8 +16,9 @@
 #include "test/cctest/compiler/c-signature.h"
 #include "test/cctest/compiler/call-tester.h"
 
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 #define __ assm.
 
@@ -37,14 +38,14 @@ TEST(WasmRelocationIa32MemoryReference) {
   __ nop();
   __ ret(0);
 
-  CSignature0<int32_t> csig;
+  compiler::CSignature0<int32_t> csig;
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   USE(code);
 
-  CodeRunner<int32_t> runnable(isolate, code, &csig);
+  compiler::CodeRunner<int32_t> runnable(isolate, code, &csig);
   int32_t ret_value = runnable.Call();
   CHECK_EQ(ret_value, imm);
 
@@ -100,14 +101,14 @@ TEST(WasmRelocationIa32MemorySizeReference) {
   __ mov(eax, 0xdeadbeef);
   __ ret(0);
 
-  CSignature0<int32_t> csig;
+  compiler::CSignature0<int32_t> csig;
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
   USE(code);
 
-  CodeRunner<int32_t> runnable(isolate, code, &csig);
+  compiler::CodeRunner<int32_t> runnable(isolate, code, &csig);
   int32_t ret_value = runnable.Call();
   CHECK_NE(ret_value, bit_cast<int32_t>(0xdeadbeef));
 
@@ -139,4 +140,9 @@ TEST(WasmRelocationIa32MemorySizeReference) {
   disasm::Disassembler::Disassemble(stdout, begin, end);
 #endif
 }
+
 #undef __
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

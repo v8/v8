@@ -16,6 +16,10 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
+namespace v8 {
+namespace internal {
+namespace wasm {
+
 // If the target architecture is 64-bit, enable all tests.
 #if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
 #define WASM_64 1
@@ -1476,7 +1480,7 @@ WASM_EXEC_TEST(I64Ror) {
 
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      int64_t expected = bits::RotateRight64(*i, *j & 0x3f);
+      int64_t expected = base::bits::RotateRight64(*i, *j & 0x3f);
       CHECK_EQ(expected, r.Call(*i, *j));
     }
   }
@@ -1489,7 +1493,7 @@ WASM_EXEC_TEST(I64Rol) {
 
   FOR_UINT64_INPUTS(i) {
     FOR_UINT64_INPUTS(j) {
-      int64_t expected = bits::RotateLeft64(*i, *j & 0x3f);
+      int64_t expected = base::bits::RotateLeft64(*i, *j & 0x3f);
       CHECK_EQ(expected, r.Call(*i, *j));
     }
   }
@@ -1668,3 +1672,11 @@ WASM_EXEC_TEST(Regress5874) {
 
   r.Call();
 }
+
+// clang-format gets confused about these closing parentheses (wants to change
+// the first comment to "// namespace v8". Disable it.
+// clang-format off
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
+// clang-format on

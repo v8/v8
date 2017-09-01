@@ -14,10 +14,9 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-using namespace v8::internal::wasm;
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 #define BUILD(r, ...)                      \
   do {                                     \
@@ -84,7 +83,7 @@ void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc,
     CHECK_EQ(expected, Smi::ToInt(*result));
   } else {
     CHECK(result->IsHeapNumber());
-    CheckFloatEq(expected, HeapNumber::cast(*result)->value());
+    CHECK_FLOAT_EQ(expected, HeapNumber::cast(*result)->value());
   }
 }
 
@@ -504,3 +503,7 @@ TEST(Run_JSSelectAlign_10) {
   RunJSSelectAlignTest(10, 9);
   RunJSSelectAlignTest(10, 10);
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

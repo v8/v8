@@ -19,9 +19,9 @@
 #include "test/cctest/compiler/c-signature.h"
 #include "test/cctest/compiler/call-tester.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 #define __ masm.
 
@@ -45,8 +45,8 @@ TEST(WasmRelocationArm64MemoryReference) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
-  CSignature0<int64_t> csig;
-  CodeRunner<int64_t> runnable(isolate, code, &csig);
+  compiler::CSignature0<int64_t> csig;
+  compiler::CodeRunner<int64_t> runnable(isolate, code, &csig);
   int64_t ret_value = runnable.Call();
   CHECK_EQ(ret_value, imm);
 
@@ -101,8 +101,8 @@ TEST(WasmRelocationArm64MemorySizeReference) {
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
 
-  CSignature0<int64_t> csig;
-  CodeRunner<int64_t> runnable(isolate, code, &csig);
+  compiler::CSignature0<int64_t> csig;
+  compiler::CodeRunner<int64_t> runnable(isolate, code, &csig);
   int64_t ret_value = runnable.Call();
   CHECK_NE(ret_value, 0xdeadbeef);
 
@@ -131,3 +131,7 @@ TEST(WasmRelocationArm64MemorySizeReference) {
 }
 
 #undef __
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

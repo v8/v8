@@ -15,10 +15,9 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-using namespace v8::internal::wasm;
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 // for even shorter tests.
 #define B2(a, b) kExprBlock, a, b, kExprEnd
@@ -298,3 +297,7 @@ TEST(RunWasm_AsmCheckedStoreFloat64RelocInfo) {
   CHECK_NE(0, GetMatchingRelocInfoCount(r.builder().GetFunctionCode(0),
                                         RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

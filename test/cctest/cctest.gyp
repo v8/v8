@@ -222,6 +222,7 @@
       'wasm/test-wasm-interpreter-entry.cc',
       'wasm/test-wasm-stack.cc',
       'wasm/test-wasm-trap-position.cc',
+      'wasm/wasm-run-utils.cc',
       'wasm/wasm-run-utils.h',
     ],
     'cctest_sources_ia32': [  ### gcmole(arch:ia32) ###

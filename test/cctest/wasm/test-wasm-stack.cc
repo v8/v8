@@ -9,10 +9,9 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-using namespace v8::internal::wasm;
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 using v8::Local;
 using v8::Utils;
@@ -191,3 +190,7 @@ TEST(CollectDetailedWasmStack_WasmError) {
     CheckExceptionInfos(isolate, exception, expected_exceptions);
   }
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

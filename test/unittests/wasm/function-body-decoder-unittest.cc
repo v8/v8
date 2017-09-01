@@ -19,9 +19,9 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-using namespace v8::internal::wasm::testing;
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 #define B1(a) WASM_BLOCK(a)
 #define B2(a, b) WASM_BLOCK(a, b)
@@ -2853,3 +2853,7 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
   iter.next();
   EXPECT_FALSE(iter.has_next());
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

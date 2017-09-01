@@ -7,6 +7,10 @@
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
+namespace v8 {
+namespace internal {
+namespace wasm {
+
 #define WASM_ATOMICS_OP(op) kAtomicPrefix, static_cast<byte>(op)
 #define WASM_ATOMICS_BINOP(op, x, y) x, y, WASM_ATOMICS_OP(op)
 #define WASM_ATOMICS_TERNARY_OP(op, x, y, z) x, y, z, WASM_ATOMICS_OP(op)
@@ -186,3 +190,7 @@ WASM_EXEC_TEST(I32CompareExchange8U) {
     }
   }
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

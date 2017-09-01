@@ -8,10 +8,9 @@
 #include "test/cctest/wasm/wasm-run-utils.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-using namespace v8::internal::wasm;
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 namespace {
 
@@ -2199,3 +2198,7 @@ WASM_SIMD_TEST(SimdLoadStoreLoad) {
 }
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || SIMD_LOWERING_TARGET ||
         // V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

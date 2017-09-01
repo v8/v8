@@ -19,10 +19,9 @@
 #include "test/common/wasm/wasm-macro-gen.h"
 #include "test/common/wasm/wasm-module-runner.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-using namespace v8::internal::wasm;
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 namespace {
 void Cleanup(Isolate* isolate = nullptr) {
@@ -1170,3 +1169,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
   }
   Cleanup();
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8

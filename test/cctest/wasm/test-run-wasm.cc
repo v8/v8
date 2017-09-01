@@ -15,10 +15,9 @@
 #include "test/common/wasm/test-signatures.h"
 #include "test/common/wasm/wasm-macro-gen.h"
 
-using namespace v8::base;
-using namespace v8::internal;
-using namespace v8::internal::compiler;
-using namespace v8::internal::wasm;
+namespace v8 {
+namespace internal {
+namespace wasm {
 
 // for even shorter tests.
 #define B1(a) WASM_BLOCK(a)
@@ -1941,11 +1940,13 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
   Zone zone(isolate->allocator(), ZONE_NAME);
   HandleScope scope(isolate);
   // Enable all optional operators.
-  CommonOperatorBuilder common(&zone);
-  MachineOperatorBuilder machine(&zone, MachineType::PointerRepresentation(),
-                                 MachineOperatorBuilder::kAllOptionalOps);
-  Graph graph(&zone);
-  JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr, &machine);
+  compiler::CommonOperatorBuilder common(&zone);
+  compiler::MachineOperatorBuilder machine(
+      &zone, MachineType::PointerRepresentation(),
+      compiler::MachineOperatorBuilder::kAllOptionalOps);
+  compiler::Graph graph(&zone);
+  compiler::JSGraph jsgraph(isolate, &graph, &common, nullptr, nullptr,
+                            &machine);
   FunctionSig* sig = WasmOpcodes::Signature(opcode);
 
   if (sig->parameter_count() == 1) {
@@ -3091,3 +3092,7 @@ WASM_EXEC_TEST(IfInsideUnreachable) {
       WASM_IF_ELSE_I(WASM_ONE, WASM_BRV(0, WASM_ONE), WASM_RETURN1(WASM_ONE)));
   CHECK_EQ(17, r.Call());
 }
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
