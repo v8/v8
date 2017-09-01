@@ -40,7 +40,7 @@ class EnumCache : public Tuple2 {
 //   [1]: Enum cache.
 //   [2]: first key (and internalized String)
 //   [3]: first descriptor details (see PropertyDetails)
-//   [4]: first value for constants | Smi(1) when not usedA
+//   [4]: first value for constants | Smi(1) when not used
 //
 //   [2 + number of descriptors * 3]: start of slack
 class DescriptorArray : public FixedArray {
