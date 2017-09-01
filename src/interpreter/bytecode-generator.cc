@@ -2464,7 +2464,9 @@ void BytecodeGenerator::BuildVariableAssignment(
 }
 
 void BytecodeGenerator::VisitAssignment(Assignment* expr) {
-  DCHECK(expr->target()->IsValidReferenceExpressionOrThis());
+  DCHECK(expr->target()->IsValidReferenceExpression() ||
+         (expr->op() == Token::INIT && expr->target()->IsVariableProxy() &&
+          expr->target()->AsVariableProxy()->is_this()));
   Register object, key;
   RegisterList super_property_args;
   const AstRawString* name;
@@ -3522,7 +3524,7 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
 }
 
 void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
-  DCHECK(expr->expression()->IsValidReferenceExpressionOrThis());
+  DCHECK(expr->expression()->IsValidReferenceExpression());
 
   // Left-hand side can only be a property, a global or a variable slot.
   Property* property = expr->expression()->AsProperty();

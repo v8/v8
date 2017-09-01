@@ -267,9 +267,6 @@ class Expression : public AstNode {
   // that this also checks for loads of the global "undefined" variable.
   bool IsUndefinedLiteral() const;
 
-  // True iff the expression is a valid target for an assignment.
-  bool IsValidReferenceExpressionOrThis() const;
-
  protected:
   Expression(int pos, NodeType type) : AstNode(pos, type) {}
 

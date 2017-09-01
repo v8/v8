@@ -139,11 +139,6 @@ bool Expression::IsValidReferenceExpression() const {
          (IsVariableProxy() && AsVariableProxy()->IsValidReferenceExpression());
 }
 
-bool Expression::IsValidReferenceExpressionOrThis() const {
-  return IsValidReferenceExpression() ||
-         (IsVariableProxy() && AsVariableProxy()->is_this());
-}
-
 bool Expression::IsAnonymousFunctionDefinition() const {
   return (IsFunctionLiteral() &&
           AsFunctionLiteral()->IsAnonymousFunctionDefinition()) ||
