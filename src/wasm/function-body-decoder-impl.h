@@ -1315,7 +1315,6 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (c->is_loop()) {
               // A loop just leaves the values on the stack.
               TypeCheckFallThru(c);
-              if (c->unreachable) PushEndValues(c);
               PopControl(c);
               break;
             }
@@ -1343,16 +1342,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                 break;
               }
               last_end_found_ = true;
-              if (c->unreachable) {
-                TypeCheckFallThru(c);
-              } else {
-                // The result of the block is the return value.
-                TRACE("  @%-8d #xx:%-20s|", startrel(this->pc_),
-                      "(implicit) return");
-                DoReturn();
-                TRACE("\n");
-              }
+              // The result of the block is the return value.
+              TRACE("  @%-8d #xx:%-20s|", startrel(this->pc_),
+                    "(implicit) return");
+              DoReturn();
+              TRACE("\n");
             }
+
             PopControl(c);
             break;
           }

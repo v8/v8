@@ -3037,6 +3037,47 @@ WASM_EXEC_TEST(BranchOverUnreachableCode) {
   CHECK_EQ(18, r.Call());
 }
 
+WASM_EXEC_TEST(BranchOverUnreachableCodeInLoop0) {
+  WasmRunner<int32_t> r(execution_mode);
+  BUILD(r,
+        WASM_BLOCK_I(
+            // Start a loop which breaks in the middle (hence unreachable code
+            // afterwards) and continue execution after this loop.
+            // This should validate even though there is no value on the stack
+            // at the end of the loop.
+            WASM_LOOP_I(WASM_BRV(1, WASM_I32V_1(17)))),
+        // Add one to the 17 returned from the block.
+        WASM_ONE, kExprI32Add);
+  CHECK_EQ(18, r.Call());
+}
+
+WASM_EXEC_TEST(BranchOverUnreachableCodeInLoop1) {
+  WasmRunner<int32_t> r(execution_mode);
+  BUILD(r,
+        WASM_BLOCK_I(
+            // Start a loop which breaks in the middle (hence unreachable code
+            // afterwards) and continue execution after this loop.
+            // Even though unreachable, the loop leaves one value on the stack.
+            WASM_LOOP_I(WASM_BRV(1, WASM_I32V_1(17)), WASM_ONE)),
+        // Add one to the 17 returned from the block.
+        WASM_ONE, kExprI32Add);
+  CHECK_EQ(18, r.Call());
+}
+
+WASM_EXEC_TEST(BranchOverUnreachableCodeInLoop2) {
+  WasmRunner<int32_t> r(execution_mode);
+  BUILD(r,
+        WASM_BLOCK_I(
+            // Start a loop which breaks in the middle (hence unreachable code
+            // afterwards) and continue execution after this loop.
+            // The unreachable code is allowed to pop non-existing values off
+            // the stack and push back the result.
+            WASM_LOOP_I(WASM_BRV(1, WASM_I32V_1(17)), kExprI32Add)),
+        // Add one to the 17 returned from the block.
+        WASM_ONE, kExprI32Add);
+  CHECK_EQ(18, r.Call());
+}
+
 WASM_EXEC_TEST(BlockInsideUnreachable) {
   WasmRunner<int32_t> r(execution_mode);
   BUILD(r, WASM_RETURN1(WASM_I32V_1(17)), WASM_BLOCK(WASM_BR(0)));
