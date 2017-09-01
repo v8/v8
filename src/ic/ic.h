@@ -359,6 +359,9 @@ class StoreIC : public IC {
                                  Handle<JSObject> holder,
                                  Handle<Map> transition, Handle<Name> name);
 
+  Handle<Object> StoreProxy(Handle<Map> receiver_map, Handle<JSProxy> proxy,
+                            Handle<JSReceiver> receiver, Handle<Name> name);
+
   friend class IC;
 
   bool created_new_transition_ = false;

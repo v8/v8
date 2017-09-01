@@ -128,6 +128,11 @@ class V8_EXPORT_PRIVATE LookupIterator final BASE_EMBEDDED {
 
   static LookupIterator PropertyOrElement(
       Isolate* isolate, Handle<Object> receiver, Handle<Object> key,
+      bool* success, Handle<JSReceiver> holder,
+      Configuration configuration = DEFAULT);
+
+  static LookupIterator PropertyOrElement(
+      Isolate* isolate, Handle<Object> receiver, Handle<Object> key,
       bool* success, Configuration configuration = DEFAULT);
 
   static LookupIterator ForTransitionHandler(Isolate* isolate,

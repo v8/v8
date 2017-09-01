@@ -160,8 +160,10 @@ class StoreHandler {
     kStoreElement,
     kStoreField,
     kStoreConstField,
-    kStoreNormal,
     kTransitionToField,
+    kStoreNormal,
+    kProxy,
+    kKindsNumber,  // Keep last
     // TODO(ishell): remove once constant field tracking is done.
     kTransitionToConstant = kStoreConstField
   };
@@ -226,6 +228,9 @@ class StoreHandler {
 
   // Creates a Smi-handler for storing a property to a slow object.
   static inline Handle<Smi> StoreNormal(Isolate* isolate);
+
+  // Creates a Smi-handler for storing a property on a proxy.
+  static inline Handle<Smi> StoreProxy(Isolate* isolate);
 
   // Creates a Smi-handler for transitioning store to a field.
   static inline Handle<Smi> TransitionToField(Isolate* isolate, int descriptor,

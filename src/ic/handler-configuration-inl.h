@@ -113,6 +113,11 @@ Handle<Smi> StoreHandler::StoreNormal(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> StoreHandler::StoreProxy(Isolate* isolate) {
+  int config = KindBits::encode(kProxy);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> StoreHandler::StoreField(Isolate* isolate, Kind kind,
                                      int descriptor, FieldIndex field_index,
                                      Representation representation,

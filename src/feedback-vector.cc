@@ -839,6 +839,10 @@ KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
       // Element store with prototype chain check.
       Handle<Tuple2> data_handler = Handle<Tuple2>::cast(maybe_code_handler);
       handler = handle(Code::cast(data_handler->value2()));
+    } else if (maybe_code_handler->IsSmi()) {
+      // Skip proxy handlers.
+      DCHECK_EQ(*maybe_code_handler, *StoreHandler::StoreProxy(GetIsolate()));
+      continue;
     } else {
       // Element store without prototype chain check.
       handler = Handle<Code>::cast(maybe_code_handler);
