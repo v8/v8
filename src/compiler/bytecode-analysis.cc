@@ -159,6 +159,7 @@ void UpdateInLiveness(Bytecode bytecode, BytecodeLivenessState& in_liveness,
             in_liveness.MarkRegisterLive(r.index() + j);
           }
         }
+        break;
       }
       default:
         DCHECK(!Bytecodes::IsRegisterInputOperandType(operand_types[i]));
