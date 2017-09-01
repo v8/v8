@@ -201,8 +201,6 @@ const int kSafepointRegisterStackIndexMap[kNumRegs] = {kUndefIndex,  // zero_reg
 // Implementation of Register and FPURegister.
 
 struct Register {
-  static constexpr int kCpRegister = 23;  // cp (s7) is the 23rd register.
-
   enum Code {
 #define REGISTER_CODE(R) kCode_##R,
     GENERAL_REGISTERS(REGISTER_CODE)

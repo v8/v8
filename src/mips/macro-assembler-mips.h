@@ -13,20 +13,20 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-constexpr Register kReturnRegister0 = {Register::kCode_v0};
-constexpr Register kReturnRegister1 = {Register::kCode_v1};
-constexpr Register kReturnRegister2 = {Register::kCode_a0};
-constexpr Register kJSFunctionRegister = {Register::kCode_a1};
-constexpr Register kContextRegister = {Register::kCpRegister};
-constexpr Register kAllocateSizeRegister = {Register::kCode_a0};
-constexpr Register kInterpreterAccumulatorRegister = {Register::kCode_v0};
-constexpr Register kInterpreterBytecodeOffsetRegister = {Register::kCode_t4};
-constexpr Register kInterpreterBytecodeArrayRegister = {Register::kCode_t5};
-constexpr Register kInterpreterDispatchTableRegister = {Register::kCode_t6};
-constexpr Register kJavaScriptCallArgCountRegister = {Register::kCode_a0};
-constexpr Register kJavaScriptCallNewTargetRegister = {Register::kCode_a3};
-constexpr Register kRuntimeCallFunctionRegister = {Register::kCode_a1};
-constexpr Register kRuntimeCallArgCountRegister = {Register::kCode_a0};
+constexpr Register kReturnRegister0 = v0;
+constexpr Register kReturnRegister1 = v1;
+constexpr Register kReturnRegister2 = a0;
+constexpr Register kJSFunctionRegister = a1;
+constexpr Register kContextRegister = s7;
+constexpr Register kAllocateSizeRegister = a0;
+constexpr Register kInterpreterAccumulatorRegister = v0;
+constexpr Register kInterpreterBytecodeOffsetRegister = t4;
+constexpr Register kInterpreterBytecodeArrayRegister = t5;
+constexpr Register kInterpreterDispatchTableRegister = t6;
+constexpr Register kJavaScriptCallArgCountRegister = a0;
+constexpr Register kJavaScriptCallNewTargetRegister = a3;
+constexpr Register kRuntimeCallFunctionRegister = a1;
+constexpr Register kRuntimeCallArgCountRegister = a0;
 
 // Forward declaration.
 class JumpTarget;

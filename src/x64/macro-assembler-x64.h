@@ -14,30 +14,30 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {Register::kCode_rax};
-const Register kReturnRegister1 = {Register::kCode_rdx};
-const Register kReturnRegister2 = {Register::kCode_r8};
-const Register kJSFunctionRegister = {Register::kCode_rdi};
-const Register kContextRegister = {Register::kCode_rsi};
-const Register kAllocateSizeRegister = {Register::kCode_rdx};
-const Register kInterpreterAccumulatorRegister = {Register::kCode_rax};
-const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r12};
-const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r14};
-const Register kInterpreterDispatchTableRegister = {Register::kCode_r15};
-const Register kJavaScriptCallArgCountRegister = {Register::kCode_rax};
-const Register kJavaScriptCallNewTargetRegister = {Register::kCode_rdx};
-const Register kRuntimeCallFunctionRegister = {Register::kCode_rbx};
-const Register kRuntimeCallArgCountRegister = {Register::kCode_rax};
+constexpr Register kReturnRegister0 = rax;
+constexpr Register kReturnRegister1 = rdx;
+constexpr Register kReturnRegister2 = r8;
+constexpr Register kJSFunctionRegister = rdi;
+constexpr Register kContextRegister = rsi;
+constexpr Register kAllocateSizeRegister = rdx;
+constexpr Register kInterpreterAccumulatorRegister = rax;
+constexpr Register kInterpreterBytecodeOffsetRegister = r12;
+constexpr Register kInterpreterBytecodeArrayRegister = r14;
+constexpr Register kInterpreterDispatchTableRegister = r15;
+constexpr Register kJavaScriptCallArgCountRegister = rax;
+constexpr Register kJavaScriptCallNewTargetRegister = rdx;
+constexpr Register kRuntimeCallFunctionRegister = rbx;
+constexpr Register kRuntimeCallArgCountRegister = rax;
 
 // Default scratch register used by MacroAssembler (and other code that needs
 // a spare register). The register isn't callee save, and not used by the
 // function calling convention.
-const Register kScratchRegister = {10};      // r10.
-const XMMRegister kScratchDoubleReg = {15};  // xmm15.
-const Register kRootRegister = {13};         // r13 (callee save).
+constexpr Register kScratchRegister = r10;
+constexpr XMMRegister kScratchDoubleReg = xmm15;
+constexpr Register kRootRegister = r13;  // callee save
 // Actual value of root register is offset from the root array's start
 // to take advantage of negitive 8-bit displacement values.
-const int kRootRegisterBias = 128;
+constexpr int kRootRegisterBias = 128;
 
 // Convenience for platform-independent signatures.
 typedef Operand MemOperand;

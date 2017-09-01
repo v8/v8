@@ -13,20 +13,20 @@ namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {Register::kCode_eax};
-const Register kReturnRegister1 = {Register::kCode_edx};
-const Register kReturnRegister2 = {Register::kCode_edi};
-const Register kJSFunctionRegister = {Register::kCode_edi};
-const Register kContextRegister = {Register::kCode_esi};
-const Register kAllocateSizeRegister = {Register::kCode_edx};
-const Register kInterpreterAccumulatorRegister = {Register::kCode_eax};
-const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_ecx};
-const Register kInterpreterBytecodeArrayRegister = {Register::kCode_edi};
-const Register kInterpreterDispatchTableRegister = {Register::kCode_esi};
-const Register kJavaScriptCallArgCountRegister = {Register::kCode_eax};
-const Register kJavaScriptCallNewTargetRegister = {Register::kCode_edx};
-const Register kRuntimeCallFunctionRegister = {Register::kCode_ebx};
-const Register kRuntimeCallArgCountRegister = {Register::kCode_eax};
+constexpr Register kReturnRegister0 = eax;
+constexpr Register kReturnRegister1 = edx;
+constexpr Register kReturnRegister2 = edi;
+constexpr Register kJSFunctionRegister = edi;
+constexpr Register kContextRegister = esi;
+constexpr Register kAllocateSizeRegister = edx;
+constexpr Register kInterpreterAccumulatorRegister = eax;
+constexpr Register kInterpreterBytecodeOffsetRegister = ecx;
+constexpr Register kInterpreterBytecodeArrayRegister = edi;
+constexpr Register kInterpreterDispatchTableRegister = esi;
+constexpr Register kJavaScriptCallArgCountRegister = eax;
+constexpr Register kJavaScriptCallNewTargetRegister = edx;
+constexpr Register kRuntimeCallFunctionRegister = ebx;
+constexpr Register kRuntimeCallArgCountRegister = eax;
 
 // Convenience for platform-independent signatures.  We do not normally
 // distinguish memory operands from other operands on ia32.

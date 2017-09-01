@@ -200,8 +200,6 @@ const int kSafepointRegisterStackIndexMap[kNumRegs] = {kUndefIndex,  // zero_reg
 // Implementation of Register and FPURegister.
 
 struct Register {
-  static constexpr int kCpRegister = 23;  // cp (s7) is the 23rd register.
-
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   static constexpr int kMantissaOffset = 0;
   static constexpr int kExponentOffset = 4;
