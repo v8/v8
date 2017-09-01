@@ -393,7 +393,7 @@ struct Merge {
     Value first;
   } vals;  // Either multiple values or a single value.
 
-  Value& operator[](size_t i) {
+  Value& operator[](uint32_t i) {
     DCHECK_GT(arity, i);
     return arity == 1 ? vals.first : vals.array[i];
   }
@@ -413,7 +413,7 @@ template <typename Value>
 struct ControlBase {
   const byte* pc;
   ControlKind kind;
-  size_t stack_depth;  // stack height at the beginning of the construct.
+  uint32_t stack_depth;  // stack height at the beginning of the construct.
   bool unreachable;    // The current block has been ended.
 
   // Values merged into the end of this control construct.
@@ -430,19 +430,19 @@ struct ControlBase {
 
   // Named constructors.
   static ControlBase Block(const byte* pc, size_t stack_depth) {
-    return {pc, kControlBlock, stack_depth, false, {}};
+    return {pc, kControlBlock, static_cast<uint32_t>(stack_depth), false, {}};
   }
 
   static ControlBase If(const byte* pc, size_t stack_depth) {
-    return {pc, kControlIf, stack_depth, false, {}};
+    return {pc, kControlIf, static_cast<uint32_t>(stack_depth), false, {}};
   }
 
   static ControlBase Loop(const byte* pc, size_t stack_depth) {
-    return {pc, kControlLoop, stack_depth, false, {}};
+    return {pc, kControlLoop, static_cast<uint32_t>(stack_depth), false, {}};
   }
 
   static ControlBase Try(const byte* pc, size_t stack_depth) {
-    return {pc, kControlTry, stack_depth, false, {}};
+    return {pc, kControlTry, static_cast<uint32_t>(stack_depth), false, {}};
   }
 };
 
@@ -561,8 +561,10 @@ class WasmDecoder : public Decoder {
 
   ZoneVector<ValueType>* local_types_;
 
-  size_t total_locals() const {
-    return local_types_ == nullptr ? 0 : local_types_->size();
+  uint32_t total_locals() const {
+    return local_types_ == nullptr
+               ? 0
+               : static_cast<uint32_t>(local_types_->size());
   }
 
   static bool DecodeLocals(Decoder* decoder, const FunctionSig* sig,
@@ -617,7 +619,7 @@ class WasmDecoder : public Decoder {
   }
 
   static BitVector* AnalyzeLoopAssignment(Decoder* decoder, const byte* pc,
-                                          int locals_count, Zone* zone) {
+                                          uint32_t locals_count, Zone* zone) {
     if (pc >= decoder->end()) return nullptr;
     if (*pc != kExprLoop) return nullptr;
 
@@ -1123,7 +1125,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return &stack_[stack_.size() - depth - 1];
   }
 
-  inline Value& GetMergeValueFromStack(Control* c, size_t i) {
+  inline Value& GetMergeValueFromStack(Control* c, uint32_t i) {
     DCHECK_GT(c->merge.arity, i);
     DCHECK_GE(stack_.size(), c->stack_depth + c->merge.arity);
     return stack_[stack_.size() - c->merge.arity + i];
@@ -2022,7 +2024,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   Value Pop() {
     DCHECK(!control_.empty());
-    size_t limit = control_.back().stack_depth;
+    uint32_t limit = control_.back().stack_depth;
     if (stack_.size() <= limit) {
       // Popping past the current control start in reachable code.
       if (!VALIDATE(control_.back().unreachable)) {
@@ -2049,7 +2051,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   bool TypeCheckMergeValues(Control* c) {
     DCHECK_GE(stack_.size(), c->stack_depth + c->merge.arity);
     // Typecheck the topmost {c->merge.arity} values on the stack.
-    for (size_t i = 0; i < c->merge.arity; ++i) {
+    for (uint32_t i = 0; i < c->merge.arity; ++i) {
       auto& val = GetMergeValueFromStack(c, i);
       auto& old = c->merge[i];
       if (val.type != old.type) {
@@ -2058,7 +2060,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         // If it is not polymorphic, this is a type error.
         if (!VALIDATE(val.type == kWasmVar)) {
           this->errorf(
-              this->pc_, "type error in merge[%zu] (expected %s, got %s)", i,
+              this->pc_, "type error in merge[%u] (expected %s, got %s)", i,
               WasmOpcodes::TypeName(old.type), WasmOpcodes::TypeName(val.type));
           return false;
         }
@@ -2072,13 +2074,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   bool TypeCheckFallThru(Control* c) {
     DCHECK_EQ(c, &control_.back());
     if (!validate) return true;
-    size_t expected = c->merge.arity;
-    size_t actual = stack_.size() - c->stack_depth;
+    uint32_t expected = c->merge.arity;
+    DCHECK_GE(stack_.size(), c->stack_depth);
+    uint32_t actual = static_cast<uint32_t>(stack_.size()) - c->stack_depth;
     // Fallthrus must match the arity of the control exactly.
     if (!InsertUnreachablesIfNecessary(expected, actual) || actual > expected) {
-      this->errorf(this->pc_,
-                   "expected %u elements on the stack for fallthru to @%d",
-                   c->merge.arity, startrel(c->pc));
+      this->errorf(
+          this->pc_,
+          "expected %u elements on the stack for fallthru to @%d, found %u",
+          expected, startrel(c->pc), actual);
       return false;
     }
 
@@ -2092,17 +2096,21 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       return true;
     }
     // Breaks must have at least the number of values expected; can have more.
-    size_t expected = c->merge.arity;
-    size_t actual = stack_.size() - control_.back().stack_depth;
+    uint32_t expected = c->merge.arity;
+    DCHECK_GE(stack_.size(), control_.back().stack_depth);
+    uint32_t actual =
+        static_cast<uint32_t>(stack_.size()) - control_.back().stack_depth;
     if (!InsertUnreachablesIfNecessary(expected, actual)) {
-      this->errorf(this->pc_, "expected %u elements on the stack for br to @%d",
-                   c->merge.arity, startrel(c->pc));
+      this->errorf(this->pc_,
+                   "expected %u elements on the stack for br to @%d, found %u",
+                   expected, startrel(c->pc), actual);
       return false;
     }
     return TypeCheckMergeValues(c);
   }
 
-  inline bool InsertUnreachablesIfNecessary(size_t expected, size_t actual) {
+  inline bool InsertUnreachablesIfNecessary(uint32_t expected,
+                                            uint32_t actual) {
     if (V8_LIKELY(actual >= expected)) {
       return true;  // enough actual values are there.
     }

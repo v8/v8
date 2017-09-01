@@ -528,9 +528,10 @@ class WasmGraphBuildingInterface {
     const bool first = target->state == SsaEnv::kUnreachable;
     Goto(decoder, ssa_env_, target);
 
-    size_t avail = decoder->stack_size() - decoder->control_at(0)->stack_depth;
-    size_t start = avail >= c->merge.arity ? 0 : c->merge.arity - avail;
-    for (size_t i = start; i < c->merge.arity; ++i) {
+    uint32_t avail =
+        decoder->stack_size() - decoder->control_at(0)->stack_depth;
+    uint32_t start = avail >= c->merge.arity ? 0 : c->merge.arity - avail;
+    for (uint32_t i = start; i < c->merge.arity; ++i) {
       auto& val = decoder->GetMergeValueFromStack(c, i);
       auto& old = c->merge[i];
       DCHECK_NOT_NULL(val.node);
@@ -638,8 +639,7 @@ class WasmGraphBuildingInterface {
     env->effect = builder_->EffectPhi(1, &env->effect, env->control);
     builder_->Terminate(env->effect, env->control);
     BitVector* assigned = WasmDecoder<true>::AnalyzeLoopAssignment(
-        decoder, decoder->pc(), static_cast<int>(decoder->total_locals()),
-        decoder->zone());
+        decoder, decoder->pc(), decoder->total_locals(), decoder->zone());
     if (decoder->failed()) return env;
     if (assigned != nullptr) {
       // Only introduce phis for variables assigned in this loop.
@@ -887,7 +887,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 
     os << RawOpcodeName(opcode) << ",";
 
-    for (size_t j = 1; j < length; ++j) {
+    for (unsigned j = 1; j < length; ++j) {
       os << " 0x" << AsHex(i.pc()[j], 2) << ",";
     }
 
@@ -957,7 +957,7 @@ BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
                                            const byte* start, const byte* end) {
   Decoder decoder(start, end);
   return WasmDecoder<true>::AnalyzeLoopAssignment(
-      &decoder, start, static_cast<int>(num_locals), zone);
+      &decoder, start, static_cast<uint32_t>(num_locals), zone);
 }
 
 #undef TRACE
