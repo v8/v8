@@ -848,7 +848,7 @@ class Heap {
 
   void DeoptMarkedAllocationSites();
 
-  inline bool DeoptMaybeTenuredAllocationSites();
+  bool DeoptMaybeTenuredAllocationSites();
 
   void AddWeakNewSpaceObjectToCodeDependency(Handle<HeapObject> obj,
                                              Handle<WeakCell> code);
@@ -1481,9 +1481,6 @@ class Heap {
       Map* map, HeapObject* object,
       PretenuringFeedbackMap* pretenuring_feedback);
 
-  // Removes an entry from the global pretenuring storage.
-  inline void RemoveAllocationSitePretenuringFeedback(AllocationSite* site);
-
   // Merges local pretenuring feedback into the global one. Note that this
   // method needs to be called after evacuation, as allocation sites may be
   // evacuated and this method resolves forward pointers accordingly.
@@ -1813,6 +1810,9 @@ class Heap {
   // evacuation. Note that between feedback collection and calling this method
   // object in old space must not move.
   void ProcessPretenuringFeedback();
+
+  // Removes an entry from the global pretenuring storage.
+  void RemoveAllocationSitePretenuringFeedback(AllocationSite* site);
 
   // ===========================================================================
   // Actual GC. ================================================================

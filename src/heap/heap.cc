@@ -751,6 +751,14 @@ inline bool DigestPretenuringFeedback(Isolate* isolate, AllocationSite* site,
 }
 }  // namespace
 
+void Heap::RemoveAllocationSitePretenuringFeedback(AllocationSite* site) {
+  global_pretenuring_feedback_.erase(site);
+}
+
+bool Heap::DeoptMaybeTenuredAllocationSites() {
+  return new_space_->IsAtMaximumCapacity() && maximum_size_scavenges_ == 0;
+}
+
 void Heap::ProcessPretenuringFeedback() {
   bool trigger_deoptimization = false;
   if (FLAG_allocation_site_pretenuring) {

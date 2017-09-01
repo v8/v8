@@ -381,10 +381,6 @@ void Heap::FinalizeExternalString(String* string) {
 
 Address Heap::NewSpaceTop() { return new_space_->top(); }
 
-bool Heap::DeoptMaybeTenuredAllocationSites() {
-  return new_space_->IsAtMaximumCapacity() && maximum_size_scavenges_ == 0;
-}
-
 bool Heap::InNewSpace(Object* object) {
   // Inlined check from NewSpace::Contains.
   bool result =
@@ -540,11 +536,6 @@ void Heap::UpdateAllocationSite(Map* map, HeapObject* object,
   // till actually merging the data.
   Address key = memento_candidate->GetAllocationSiteUnchecked();
   (*pretenuring_feedback)[reinterpret_cast<AllocationSite*>(key)]++;
-}
-
-
-void Heap::RemoveAllocationSitePretenuringFeedback(AllocationSite* site) {
-  global_pretenuring_feedback_.erase(site);
 }
 
 Isolate* Heap::isolate() {
