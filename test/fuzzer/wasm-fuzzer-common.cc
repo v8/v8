@@ -16,30 +16,18 @@
 
 #define WASM_CODE_FUZZER_HASH_SEED 83
 
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wheader-hygiene"
-#endif
-
-using namespace v8::internal;
-using namespace v8::internal::wasm;
-using namespace v8::internal::wasm::fuzzer;
-
-#if __clang__
-// TODO(mostynb@opera.com): remove the using statements and these pragmas.
-#pragma clang diagnostic pop
-#endif
+namespace v8 {
+namespace internal {
+namespace wasm {
+namespace fuzzer {
 
 static const char* kNameString = "name";
 static const size_t kNameStringLength = 4;
 
-int v8::internal::wasm::fuzzer::FuzzWasmSection(SectionCode section,
-                                                const uint8_t* data,
-                                                size_t size) {
+int FuzzWasmSection(SectionCode section, const uint8_t* data, size_t size) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
-  v8::internal::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   // Clear any pending exceptions from a prior run.
   if (i_isolate->has_pending_exception()) {
@@ -79,7 +67,6 @@ int v8::internal::wasm::fuzzer::FuzzWasmSection(SectionCode section,
 }
 
 int WasmExecutionFuzzer::FuzzWasmModule(
-
     const uint8_t* data, size_t size) {
   // Save the flag so that we can change it and restore it later.
   bool generate_test = FLAG_wasm_code_fuzzer_gen_test;
@@ -104,7 +91,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(
   }
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
   v8::Isolate* isolate = support->GetIsolate();
-  Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   // Clear any pending exceptions from a prior run.
   if (i_isolate->has_pending_exception()) {
@@ -129,7 +116,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(
     return 0;
   }
 
-  v8::internal::wasm::testing::SetupIsolateForWasmModule(i_isolate);
+  testing::SetupIsolateForWasmModule(i_isolate);
 
   ErrorThrower interpreter_thrower(i_isolate, "Interpreter");
   ModuleWireBytes wire_bytes(buffer.begin(), buffer.end());
@@ -155,7 +142,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(
     os << "})();" << std::endl;
   }
 
-  bool validates = wasm::SyncValidate(i_isolate, wire_bytes);
+  bool validates = SyncValidate(i_isolate, wire_bytes);
 
   if (compiles != validates) {
     uint32_t hash = StringHasher::HashSequentialString(
@@ -220,3 +207,8 @@ int WasmExecutionFuzzer::FuzzWasmModule(
   }
   return 0;
 }
+
+}  // namespace fuzzer
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
