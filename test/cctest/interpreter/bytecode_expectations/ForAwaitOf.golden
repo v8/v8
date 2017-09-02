@@ -984,7 +984,7 @@ bytecodes: [
                 B(LdaSmi), I8(2),
                 B(Star), R(4),
                 B(Ldar), R(5),
-                B(StaNamedPropertySloppy), R(1), U8(6), U8(14),
+                B(StaNamedProperty), R(1), U8(6), U8(14),
   /*   53 E> */ B(StackCheck),
   /*   87 S> */ B(LdaNamedProperty), R(1), U8(6), U8(16),
                 B(Star), R(14),

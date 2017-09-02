@@ -56,22 +56,12 @@ TF_BUILTIN(KeyedLoadIC_Slow, CodeStubAssembler) {
 
 void Builtins::Generate_KeyedStoreIC_Megamorphic(
     compiler::CodeAssemblerState* state) {
-  KeyedStoreGenericGenerator::Generate(state, SLOPPY);
-}
-
-void Builtins::Generate_KeyedStoreIC_Megamorphic_Strict(
-    compiler::CodeAssemblerState* state) {
-  KeyedStoreGenericGenerator::Generate(state, STRICT);
+  KeyedStoreGenericGenerator::Generate(state);
 }
 
 void Builtins::Generate_StoreIC_Uninitialized(
     compiler::CodeAssemblerState* state) {
-  StoreICUninitializedGenerator::Generate(state, SLOPPY);
-}
-
-void Builtins::Generate_StoreICStrict_Uninitialized(
-    compiler::CodeAssemblerState* state) {
-  StoreICUninitializedGenerator::Generate(state, STRICT);
+  StoreICUninitializedGenerator::Generate(state);
 }
 
 TF_BUILTIN(KeyedStoreIC_Miss, CodeStubAssembler) {

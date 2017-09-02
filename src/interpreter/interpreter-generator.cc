@@ -635,25 +635,13 @@ class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
   }
 };
 
-// StaNamedPropertySloppy <object> <name_index> <slot>
+// StaNamedProperty <object> <name_index> <slot>
 //
-// Calls the sloppy mode StoreIC at FeedBackVector slot <slot> for <object> and
+// Calls the StoreIC at FeedBackVector slot <slot> for <object> and
 // the name in constant pool entry <name_index> with the value in the
 // accumulator.
-IGNITION_HANDLER(StaNamedPropertySloppy,
-                 InterpreterStoreNamedPropertyAssembler) {
-  Callable ic = CodeFactory::StoreICInOptimizedCode(isolate(), SLOPPY);
-  StaNamedProperty(ic);
-}
-
-// StaNamedPropertyStrict <object> <name_index> <slot>
-//
-// Calls the strict mode StoreIC at FeedBackVector slot <slot> for <object> and
-// the name in constant pool entry <name_index> with the value in the
-// accumulator.
-IGNITION_HANDLER(StaNamedPropertyStrict,
-                 InterpreterStoreNamedPropertyAssembler) {
-  Callable ic = CodeFactory::StoreICInOptimizedCode(isolate(), STRICT);
+IGNITION_HANDLER(StaNamedProperty, InterpreterStoreNamedPropertyAssembler) {
+  Callable ic = Builtins::CallableFor(isolate(), Builtins::kStoreIC);
   StaNamedProperty(ic);
 }
 
@@ -667,48 +655,25 @@ IGNITION_HANDLER(StaNamedOwnProperty, InterpreterStoreNamedPropertyAssembler) {
   StaNamedProperty(ic);
 }
 
-class InterpreterStoreKeyedPropertyAssembler : public InterpreterAssembler {
- public:
-  InterpreterStoreKeyedPropertyAssembler(CodeAssemblerState* state,
-                                         Bytecode bytecode,
-                                         OperandScale operand_scale)
-      : InterpreterAssembler(state, bytecode, operand_scale) {}
-
-  void StaKeyedProperty(Callable ic) {
-    Node* code_target = HeapConstant(ic.code());
-    Node* object_reg_index = BytecodeOperandReg(0);
-    Node* object = LoadRegister(object_reg_index);
-    Node* name_reg_index = BytecodeOperandReg(1);
-    Node* name = LoadRegister(name_reg_index);
-    Node* value = GetAccumulator();
-    Node* raw_slot = BytecodeOperandIdx(2);
-    Node* smi_slot = SmiTag(raw_slot);
-    Node* feedback_vector = LoadFeedbackVector();
-    Node* context = GetContext();
-    CallStub(ic.descriptor(), code_target, context, object, name, value,
-             smi_slot, feedback_vector);
-    Dispatch();
-  }
-};
-
-// StaKeyedPropertySloppy <object> <key> <slot>
+// StaKeyedProperty <object> <key> <slot>
 //
-// Calls the sloppy mode KeyStoreIC at FeedBackVector slot <slot> for <object>
-// and the key <key> with the value in the accumulator.
-IGNITION_HANDLER(StaKeyedPropertySloppy,
-                 InterpreterStoreKeyedPropertyAssembler) {
-  Callable ic = CodeFactory::KeyedStoreICInOptimizedCode(isolate(), SLOPPY);
-  StaKeyedProperty(ic);
-}
-
-// StaKeyedPropertyStrict <object> <key> <slot>
-//
-// Calls the strict mode KeyStoreIC at FeedBackVector slot <slot> for <object>
-// and the key <key> with the value in the accumulator.
-IGNITION_HANDLER(StaKeyedPropertyStrict,
-                 InterpreterStoreKeyedPropertyAssembler) {
-  Callable ic = CodeFactory::KeyedStoreICInOptimizedCode(isolate(), STRICT);
-  StaKeyedProperty(ic);
+// Calls the KeyedStoreIC at FeedbackVector slot <slot> for <object> and
+// the key <key> with the value in the accumulator.
+IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
+  Callable ic = Builtins::CallableFor(isolate(), Builtins::kKeyedStoreIC);
+  Node* code_target = HeapConstant(ic.code());
+  Node* object_reg_index = BytecodeOperandReg(0);
+  Node* object = LoadRegister(object_reg_index);
+  Node* name_reg_index = BytecodeOperandReg(1);
+  Node* name = LoadRegister(name_reg_index);
+  Node* value = GetAccumulator();
+  Node* raw_slot = BytecodeOperandIdx(2);
+  Node* smi_slot = SmiTag(raw_slot);
+  Node* feedback_vector = LoadFeedbackVector();
+  Node* context = GetContext();
+  CallStub(ic.descriptor(), code_target, context, object, name, value, smi_slot,
+           feedback_vector);
+  Dispatch();
 }
 
 // StaDataPropertyInLiteral <object> <name> <flags>

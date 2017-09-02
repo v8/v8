@@ -157,8 +157,7 @@ class BytecodeGraphBuilder {
     // Store value to the receiver without checking the prototype chain.
     kOwn,
   };
-  void BuildNamedStore(LanguageMode language_mode, StoreMode store_mode);
-  void BuildKeyedStore(LanguageMode language_mode);
+  void BuildNamedStore(StoreMode store_mode);
   void BuildLdaLookupSlot(TypeofMode typeof_mode);
   void BuildLdaLookupContextSlot(TypeofMode typeof_mode);
   void BuildLdaLookupGlobalSlot(TypeofMode typeof_mode);

@@ -93,15 +93,11 @@ namespace interpreter {
     OperandType::kUImm)                                                        \
                                                                                \
   /* Propery stores (StoreIC) operations */                                    \
-  V(StaNamedPropertySloppy, AccumulatorUse::kRead, OperandType::kReg,          \
-    OperandType::kIdx, OperandType::kIdx)                                      \
-  V(StaNamedPropertyStrict, AccumulatorUse::kRead, OperandType::kReg,          \
+  V(StaNamedProperty, AccumulatorUse::kRead, OperandType::kReg,                \
     OperandType::kIdx, OperandType::kIdx)                                      \
   V(StaNamedOwnProperty, AccumulatorUse::kRead, OperandType::kReg,             \
     OperandType::kIdx, OperandType::kIdx)                                      \
-  V(StaKeyedPropertySloppy, AccumulatorUse::kRead, OperandType::kReg,          \
-    OperandType::kReg, OperandType::kIdx)                                      \
-  V(StaKeyedPropertyStrict, AccumulatorUse::kRead, OperandType::kReg,          \
+  V(StaKeyedProperty, AccumulatorUse::kRead, OperandType::kReg,                \
     OperandType::kReg, OperandType::kIdx)                                      \
   V(StaDataPropertyInLiteral, AccumulatorUse::kRead, OperandType::kReg,        \
     OperandType::kReg, OperandType::kFlag8, OperandType::kIdx)                 \

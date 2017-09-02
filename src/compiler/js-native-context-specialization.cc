@@ -652,7 +652,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreGlobal(Node* node) {
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     Node* node, Node* value, MapHandles const& receiver_maps, Handle<Name> name,
-    AccessMode access_mode, LanguageMode language_mode, Node* index) {
+    AccessMode access_mode, Node* index) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSLoadProperty ||
@@ -731,7 +731,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     // Generate the actual property access.
     ValueEffectControl continuation = BuildPropertyAccess(
         receiver, value, context, frame_state, effect, control, name,
-        if_exceptions, access_info, access_mode, language_mode);
+        if_exceptions, access_info, access_mode);
     value = continuation.value();
     effect = continuation.effect();
     control = continuation.control();
@@ -836,10 +836,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
       }
 
       // Generate the actual property access.
-      ValueEffectControl continuation =
-          BuildPropertyAccess(this_receiver, this_value, context, frame_state,
-                              this_effect, this_control, name, if_exceptions,
-                              access_info, access_mode, language_mode);
+      ValueEffectControl continuation = BuildPropertyAccess(
+          this_receiver, this_value, context, frame_state, this_effect,
+          this_control, name, if_exceptions, access_info, access_mode);
       values.push_back(continuation.value());
       effects.push_back(continuation.effect());
       controls.push_back(continuation.control());
@@ -891,7 +890,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
 Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
     Node* node, Node* value, FeedbackNexus const& nexus, Handle<Name> name,
-    AccessMode access_mode, LanguageMode language_mode) {
+    AccessMode access_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadNamed ||
          node->opcode() == IrOpcode::kJSStoreNamed ||
          node->opcode() == IrOpcode::kJSStoreNamedOwn);
@@ -929,8 +928,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccessFromNexus(
   }
 
   // Try to lower the named access based on the {receiver_maps}.
-  return ReduceNamedAccess(node, value, receiver_maps, name, access_mode,
-                           language_mode);
+  return ReduceNamedAccess(node, value, receiver_maps, name, access_mode);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
@@ -974,7 +972,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccessFromNexus(node, value, nexus, p.name(),
-                                    AccessMode::kLoad, p.language_mode());
+                                    AccessMode::kLoad);
 }
 
 
@@ -989,7 +987,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
 
   // Try to lower the named access based on the {receiver_maps}.
   return ReduceNamedAccessFromNexus(node, value, nexus, p.name(),
-                                    AccessMode::kStore, p.language_mode());
+                                    AccessMode::kStore);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreNamedOwn(Node* node) {
@@ -1003,13 +1001,12 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamedOwn(Node* node) {
 
   // Try to lower the creation of a named property based on the {receiver_maps}.
   return ReduceNamedAccessFromNexus(node, value, nexus, p.name(),
-                                    AccessMode::kStoreInLiteral, STRICT);
+                                    AccessMode::kStoreInLiteral);
 }
 
 Reduction JSNativeContextSpecialization::ReduceElementAccess(
     Node* node, Node* index, Node* value, MapHandles const& receiver_maps,
-    AccessMode access_mode, LanguageMode language_mode,
-    KeyedAccessStoreMode store_mode) {
+    AccessMode access_mode, KeyedAccessStoreMode store_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
@@ -1250,8 +1247,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
 template <typename KeyedICNexus>
 Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
     Node* node, Node* index, Node* value, KeyedICNexus const& nexus,
-    AccessMode access_mode, LanguageMode language_mode,
-    KeyedAccessStoreMode store_mode) {
+    AccessMode access_mode, KeyedAccessStoreMode store_mode) {
   DCHECK(node->opcode() == IrOpcode::kJSLoadProperty ||
          node->opcode() == IrOpcode::kJSStoreProperty);
   Node* receiver = NodeProperties::GetValueInput(node, 0);
@@ -1332,8 +1328,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
         index = jsgraph()->Constant(static_cast<double>(array_index));
       } else {
         name = factory()->InternalizeName(name);
-        return ReduceNamedAccess(node, value, receiver_maps, name, access_mode,
-                                 language_mode);
+        return ReduceNamedAccess(node, value, receiver_maps, name, access_mode);
       }
     }
   }
@@ -1341,8 +1336,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   // Check if we have feedback for a named access.
   if (Name* name = nexus.FindFirstName()) {
     return ReduceNamedAccess(node, value, receiver_maps,
-                             handle(name, isolate()), access_mode,
-                             language_mode, index);
+                             handle(name, isolate()), access_mode, index);
   } else if (nexus.GetKeyType() != ELEMENT) {
     // The KeyedLoad/StoreIC has seen non-element accesses, so we cannot assume
     // that the {index} is a valid array index, thus we just let the IC continue
@@ -1358,7 +1352,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
 
   // Try to lower the element access based on the {receiver_maps}.
   return ReduceElementAccess(node, index, value, receiver_maps, access_mode,
-                             language_mode, store_mode);
+                             store_mode);
 }
 
 Reduction JSNativeContextSpecialization::ReduceSoftDeoptimize(
@@ -1447,7 +1441,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
 
   // Try to lower the keyed access based on the {nexus}.
   return ReduceKeyedAccess(node, name, value, nexus, AccessMode::kLoad,
-                           p.language_mode(), STANDARD_STORE);
+                           STANDARD_STORE);
 }
 
 Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
@@ -1465,7 +1459,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
 
   // Try to lower the keyed access based on the {nexus}.
   return ReduceKeyedAccess(node, index, value, nexus, AccessMode::kStore,
-                           p.language_mode(), store_mode);
+                           store_mode);
 }
 
 Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
@@ -1626,7 +1620,7 @@ JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildPropertyLoad(
     Node* receiver, Node* context, Node* frame_state, Node* effect,
     Node* control, Handle<Name> name, ZoneVector<Node*>* if_exceptions,
-    PropertyAccessInfo const& access_info, LanguageMode language_mode) {
+    PropertyAccessInfo const& access_info) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
   PropertyAccessBuilder access_builder(jsgraph(), dependencies());
@@ -1658,17 +1652,16 @@ JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildPropertyAccess(
     Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
     Node* control, Handle<Name> name, ZoneVector<Node*>* if_exceptions,
-    PropertyAccessInfo const& access_info, AccessMode access_mode,
-    LanguageMode language_mode) {
+    PropertyAccessInfo const& access_info, AccessMode access_mode) {
   switch (access_mode) {
     case AccessMode::kLoad:
       return BuildPropertyLoad(receiver, context, frame_state, effect, control,
-                               name, if_exceptions, access_info, language_mode);
+                               name, if_exceptions, access_info);
     case AccessMode::kStore:
     case AccessMode::kStoreInLiteral:
       return BuildPropertyStore(receiver, value, context, frame_state, effect,
                                 control, name, if_exceptions, access_info,
-                                access_mode, language_mode);
+                                access_mode);
   }
   UNREACHABLE();
   return ValueEffectControl();
@@ -1678,8 +1671,7 @@ JSNativeContextSpecialization::ValueEffectControl
 JSNativeContextSpecialization::BuildPropertyStore(
     Node* receiver, Node* value, Node* context, Node* frame_state, Node* effect,
     Node* control, Handle<Name> name, ZoneVector<Node*>* if_exceptions,
-    PropertyAccessInfo const& access_info, AccessMode access_mode,
-    LanguageMode language_mode) {
+    PropertyAccessInfo const& access_info, AccessMode access_mode) {
   // Determine actual holder and perform prototype chain checks.
   Handle<JSObject> holder;
   PropertyAccessBuilder access_builder(jsgraph(), dependencies());
@@ -1945,7 +1937,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   // Generate the actual property access.
   ValueEffectControl continuation = BuildPropertyAccess(
       receiver, value, context, frame_state_lazy, effect, control, cached_name,
-      nullptr, access_info, AccessMode::kStoreInLiteral, LanguageMode::SLOPPY);
+      nullptr, access_info, AccessMode::kStoreInLiteral);
   value = continuation.value();
   effect = continuation.effect();
   control = continuation.control();

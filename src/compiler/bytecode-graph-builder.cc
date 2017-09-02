@@ -1291,8 +1291,7 @@ void BytecodeGraphBuilder::VisitLdaKeyedProperty() {
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::BuildNamedStore(LanguageMode language_mode,
-                                           StoreMode store_mode) {
+void BytecodeGraphBuilder::BuildNamedStore(StoreMode store_mode) {
   PrepareEagerCheckpoint();
   Node* value = environment()->LookupAccumulator();
   Node* object =
@@ -1309,8 +1308,8 @@ void BytecodeGraphBuilder::BuildNamedStore(LanguageMode language_mode,
     op = javascript()->StoreNamedOwn(name, feedback);
   } else {
     DCHECK(store_mode == StoreMode::kNormal);
-    DCHECK_EQ(feedback.vector()->GetLanguageMode(feedback.slot()),
-              language_mode);
+    LanguageMode language_mode =
+        feedback.vector()->GetLanguageMode(feedback.slot());
     op = javascript()->StoreNamed(language_mode, name, feedback);
   }
 
@@ -1328,19 +1327,15 @@ void BytecodeGraphBuilder::BuildNamedStore(LanguageMode language_mode,
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
 }
 
-void BytecodeGraphBuilder::VisitStaNamedPropertySloppy() {
-  BuildNamedStore(LanguageMode::SLOPPY, StoreMode::kNormal);
-}
-
-void BytecodeGraphBuilder::VisitStaNamedPropertyStrict() {
-  BuildNamedStore(LanguageMode::STRICT, StoreMode::kNormal);
+void BytecodeGraphBuilder::VisitStaNamedProperty() {
+  BuildNamedStore(StoreMode::kNormal);
 }
 
 void BytecodeGraphBuilder::VisitStaNamedOwnProperty() {
-  BuildNamedStore(LanguageMode::STRICT, StoreMode::kOwn);
+  BuildNamedStore(StoreMode::kOwn);
 }
 
-void BytecodeGraphBuilder::BuildKeyedStore(LanguageMode language_mode) {
+void BytecodeGraphBuilder::VisitStaKeyedProperty() {
   PrepareEagerCheckpoint();
   Node* value = environment()->LookupAccumulator();
   Node* object =
@@ -1349,7 +1344,8 @@ void BytecodeGraphBuilder::BuildKeyedStore(LanguageMode language_mode) {
       environment()->LookupRegister(bytecode_iterator().GetRegisterOperand(1));
   VectorSlotPair feedback =
       CreateVectorSlotPair(bytecode_iterator().GetIndexOperand(2));
-  DCHECK_EQ(feedback.vector()->GetLanguageMode(feedback.slot()), language_mode);
+  LanguageMode language_mode =
+      feedback.vector()->GetLanguageMode(feedback.slot());
   const Operator* op = javascript()->StoreProperty(language_mode, feedback);
 
   JSTypeHintLowering::LoweringResult lowering =
@@ -1365,14 +1361,6 @@ void BytecodeGraphBuilder::BuildKeyedStore(LanguageMode language_mode) {
   }
 
   environment()->RecordAfterState(node, Environment::kAttachFrameState);
-}
-
-void BytecodeGraphBuilder::VisitStaKeyedPropertySloppy() {
-  BuildKeyedStore(LanguageMode::SLOPPY);
-}
-
-void BytecodeGraphBuilder::VisitStaKeyedPropertyStrict() {
-  BuildKeyedStore(LanguageMode::STRICT);
 }
 
 void BytecodeGraphBuilder::VisitLdaModuleVariable() {

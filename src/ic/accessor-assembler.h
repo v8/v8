@@ -31,16 +31,16 @@ class AccessorAssembler : public CodeStubAssembler {
   void GenerateKeyedLoadIC();
   void GenerateKeyedLoadICTrampoline();
   void GenerateKeyedLoadIC_Megamorphic();
-  void GenerateStoreIC(LanguageMode language_mode);
-  void GenerateStoreICTrampoline(LanguageMode language_mode);
+  void GenerateStoreIC();
+  void GenerateStoreICTrampoline();
 
   void GenerateLoadICProtoArray(bool throw_reference_error_if_nonexistent);
 
   void GenerateLoadGlobalIC(TypeofMode typeof_mode);
   void GenerateLoadGlobalICTrampoline(TypeofMode typeof_mode);
 
-  void GenerateKeyedStoreIC(LanguageMode language_mode);
-  void GenerateKeyedStoreICTrampoline(LanguageMode language_mode);
+  void GenerateKeyedStoreIC();
+  void GenerateKeyedStoreICTrampoline();
 
   void TryProbeStubCache(StubCache* stub_cache, Node* receiver, Node* name,
                          Label* if_handler, Variable* var_handler,
@@ -93,9 +93,10 @@ class AccessorAssembler : public CodeStubAssembler {
   enum ElementSupport { kOnlyProperties, kSupportElements };
   void HandleStoreICHandlerCase(
       const StoreICParameters* p, Node* handler, Label* miss,
-      LanguageMode language_mode,
       ElementSupport support_elements = kOnlyProperties);
   void JumpIfDataProperty(Node* details, Label* writable, Label* readonly);
+
+  void BranchIfStrictMode(Node* vector, Node* slot, Label* if_strict);
 
  private:
   // Stub generation entry points.
@@ -113,8 +114,8 @@ class AccessorAssembler : public CodeStubAssembler {
   void LoadGlobalIC(const LoadICParameters* p, TypeofMode typeof_mode);
   void KeyedLoadIC(const LoadICParameters* p);
   void KeyedLoadICGeneric(const LoadICParameters* p);
-  void StoreIC(const StoreICParameters* p, LanguageMode language_mode);
-  void KeyedStoreIC(const StoreICParameters* p, LanguageMode language_mode);
+  void StoreIC(const StoreICParameters* p);
+  void KeyedStoreIC(const StoreICParameters* p);
 
   // IC dispatcher behavior.
 
@@ -165,8 +166,7 @@ class AccessorAssembler : public CodeStubAssembler {
                                        Node* handler, Label* miss);
 
   void HandleStoreICProtoHandler(const StoreICParameters* p, Node* handler,
-                                 Label* miss, ElementSupport support_elements,
-                                 LanguageMode language_mode);
+                                 Label* miss, ElementSupport support_elements);
   // If |transition| is nullptr then the normal field store is generated or
   // transitioning store otherwise.
   void HandleStoreICSmiHandlerCase(Node* handler_word, Node* holder,
@@ -178,8 +178,7 @@ class AccessorAssembler : public CodeStubAssembler {
                                  Node* transition, Label* miss);
 
   void HandleStoreToProxy(const StoreICParameters* p, Node* proxy, Label* miss,
-                          ElementSupport support_elements,
-                          LanguageMode language_mode);
+                          ElementSupport support_elements);
 
   // KeyedLoadIC_Generic implementation.
 

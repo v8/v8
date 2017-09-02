@@ -220,11 +220,12 @@ void JSGenericLowering::LowerJSStoreProperty(Node* node) {
   Node* outer_state = frame_state->InputAt(kFrameStateOuterStateInput);
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
-    Callable callable = CodeFactory::KeyedStoreIC(isolate(), p.language_mode());
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kKeyedStoreICTrampoline);
     ReplaceWithStubCall(node, callable, flags);
   } else {
     Callable callable =
-        CodeFactory::KeyedStoreICInOptimizedCode(isolate(), p.language_mode());
+        Builtins::CallableFor(isolate(), Builtins::kKeyedStoreIC);
     Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
     node->InsertInput(zone(), 4, vector);
     ReplaceWithStubCall(node, callable, flags);
@@ -239,11 +240,11 @@ void JSGenericLowering::LowerJSStoreNamed(Node* node) {
   node->InsertInput(zone(), 1, jsgraph()->HeapConstant(p.name()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.feedback().index()));
   if (outer_state->opcode() != IrOpcode::kFrameState) {
-    Callable callable = CodeFactory::StoreIC(isolate(), p.language_mode());
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kStoreICTrampoline);
     ReplaceWithStubCall(node, callable, flags);
   } else {
-    Callable callable =
-        CodeFactory::StoreICInOptimizedCode(isolate(), p.language_mode());
+    Callable callable = Builtins::CallableFor(isolate(), Builtins::kStoreIC);
     Node* vector = jsgraph()->HeapConstant(p.feedback().vector());
     node->InsertInput(zone(), 4, vector);
     ReplaceWithStubCall(node, callable, flags);

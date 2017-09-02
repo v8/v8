@@ -25,17 +25,21 @@ enum class FeedbackSlotKind {
   // There must be no such slots in the system.
   kInvalid,
 
+  // Sloppy kinds come first, for easy language mode testing.
+  kStoreGlobalSloppy,
+  kStoreNamedSloppy,
+  kStoreKeyedSloppy,
+  kLastSloppyKind = kStoreKeyedSloppy,
+
+  // Strict and language mode unaware kinds.
   kCall,
   kLoadProperty,
   kLoadGlobalNotInsideTypeof,
   kLoadGlobalInsideTypeof,
   kLoadKeyed,
-  kStoreGlobalSloppy,
   kStoreGlobalStrict,
-  kStoreNamedSloppy,
   kStoreNamedStrict,
   kStoreOwnNamed,
-  kStoreKeyedSloppy,
   kStoreKeyedStrict,
   kBinaryOp,
   kCompareOp,
@@ -98,11 +102,13 @@ inline TypeofMode GetTypeofModeFromSlotKind(FeedbackSlotKind kind) {
 inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
   DCHECK(IsStoreICKind(kind) || IsStoreOwnICKind(kind) ||
          IsStoreGlobalICKind(kind) || IsKeyedStoreICKind(kind));
-  return (kind == FeedbackSlotKind::kStoreNamedSloppy ||
-          kind == FeedbackSlotKind::kStoreGlobalSloppy ||
-          kind == FeedbackSlotKind::kStoreKeyedSloppy)
-             ? SLOPPY
-             : STRICT;
+  STATIC_ASSERT(FeedbackSlotKind::kStoreGlobalSloppy <=
+                FeedbackSlotKind::kLastSloppyKind);
+  STATIC_ASSERT(FeedbackSlotKind::kStoreKeyedSloppy <=
+                FeedbackSlotKind::kLastSloppyKind);
+  STATIC_ASSERT(FeedbackSlotKind::kStoreNamedSloppy <=
+                FeedbackSlotKind::kLastSloppyKind);
+  return (kind <= FeedbackSlotKind::kLastSloppyKind) ? SLOPPY : STRICT;
 }
 
 std::ostream& operator<<(std::ostream& os, FeedbackSlotKind kind);
@@ -452,6 +458,8 @@ class FeedbackMetadata : public FixedArray {
   bool HasTypeProfileSlot() const;
 
  private:
+  friend class AccessorAssembler;
+
   static const int kFeedbackSlotKindBits = 5;
   STATIC_ASSERT(static_cast<int>(FeedbackSlotKind::kKindsNumber) <
                 (1 << kFeedbackSlotKindBits));

@@ -638,7 +638,7 @@ void AccessorAssembler::JumpIfDataProperty(Node* details, Label* writable,
 
 void AccessorAssembler::HandleStoreICHandlerCase(
     const StoreICParameters* p, Node* handler, Label* miss,
-    LanguageMode language_mode, ElementSupport support_elements) {
+    ElementSupport support_elements) {
   Label if_smi_handler(this), if_nonsmi_handler(this);
   Label if_proto_handler(this), if_element_handler(this), call_handler(this),
       store_global(this);
@@ -690,7 +690,7 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     HandleStoreICSmiHandlerCase(handler_word, holder, p->value, nullptr, miss);
 
     BIND(&if_proxy);
-    HandleStoreToProxy(p, holder, miss, support_elements, language_mode);
+    HandleStoreToProxy(p, holder, miss, support_elements);
   }
 
   BIND(&if_nonsmi_handler);
@@ -705,14 +705,11 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
   if (support_elements == kSupportElements) {
     BIND(&if_element_handler);
-    { HandleStoreICElementHandlerCase(p, handler, miss); }
+    HandleStoreICElementHandlerCase(p, handler, miss);
   }
 
   BIND(&if_proto_handler);
-  {
-    HandleStoreICProtoHandler(p, handler, miss, support_elements,
-                              language_mode);
-  }
+  HandleStoreICProtoHandler(p, handler, miss, support_elements);
 
   // |handler| is a heap object. Must be code, call it.
   BIND(&call_handler);
@@ -801,7 +798,7 @@ void AccessorAssembler::HandleStoreICElementHandlerCase(
 
 void AccessorAssembler::HandleStoreICProtoHandler(
     const StoreICParameters* p, Node* handler, Label* miss,
-    ElementSupport support_elements, LanguageMode language_mode) {
+    ElementSupport support_elements) {
   // IC dispatchers rely on these assumptions to be held.
   STATIC_ASSERT(FixedArray::kLengthOffset ==
                 StoreHandler::kTransitionCellOffset);
@@ -866,7 +863,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   BIND(&if_proxy);
   {
     Node* proxy = var_transition.value();
-    HandleStoreToProxy(p, proxy, miss, support_elements, language_mode);
+    HandleStoreToProxy(p, proxy, miss, support_elements);
   }
 
   BIND(&if_transition);
@@ -967,13 +964,18 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
 void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
                                            Node* proxy, Label* miss,
-                                           ElementSupport support_elements,
-                                           LanguageMode language_mode) {
+                                           ElementSupport support_elements) {
   VARIABLE(var_index, MachineType::PointerRepresentation());
   VARIABLE(var_unique, MachineRepresentation::kTagged);
+  VARIABLE(var_language_mode, MachineRepresentation::kTaggedSigned,
+           SmiConstant(STRICT));
 
-  Label if_index(this), if_unique_name(this),
+  Label if_index(this), if_unique_name(this), language_mode_determined(this),
       to_name_failed(this, Label::kDeferred);
+  BranchIfStrictMode(p->vector, p->slot, &language_mode_determined);
+  var_language_mode.Bind(SmiConstant(SLOPPY));
+  Goto(&language_mode_determined);
+  BIND(&language_mode_determined);
 
   if (support_elements == kSupportElements) {
     TryToName(p->name, &if_index, &var_index, &if_unique_name, &var_unique,
@@ -982,7 +984,7 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
     BIND(&if_unique_name);
     CallBuiltin(Builtins::kProxySetProperty, p->context, proxy,
                 var_unique.value(), p->value, p->receiver,
-                SmiConstant(language_mode));
+                var_language_mode.value());
     Return(p->value);
 
     // The index case is handled earlier by the runtime.
@@ -993,11 +995,11 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
 
     BIND(&to_name_failed);
     TailCallRuntime(Runtime::kSetPropertyWithReceiver, p->context, proxy,
-                    p->name, p->value, p->receiver, SmiConstant(language_mode));
+                    p->name, p->value, p->receiver, var_language_mode.value());
   } else {
     Node* name = ToName(p->context, p->name);
     TailCallBuiltin(Builtins::kProxySetProperty, p->context, proxy, name,
-                    p->value, p->receiver, SmiConstant(language_mode));
+                    p->value, p->receiver, var_language_mode.value());
   }
 }
 
@@ -1573,6 +1575,38 @@ void AccessorAssembler::NameDictionaryNegativeLookup(Node* object, Node* name,
   NameDictionaryLookup<NameDictionary>(properties, name, miss, &var_name_index,
                                        &done);
   BIND(&done);
+}
+
+void AccessorAssembler::BranchIfStrictMode(Node* vector, Node* slot,
+                                           Label* if_strict) {
+  Node* sfi =
+      LoadObjectField(vector, FeedbackVector::kSharedFunctionInfoOffset);
+  Node* metadata =
+      LoadObjectField(sfi, SharedFunctionInfo::kFeedbackMetadataOffset);
+  Node* slot_int = SmiToWord32(slot);
+
+  // See VectorICComputer::index().
+  const int kItemsPerWord = FeedbackMetadata::VectorICComputer::kItemsPerWord;
+  Node* word_index = Int32Div(slot_int, Int32Constant(kItemsPerWord));
+  Node* word_offset = Int32Mod(slot_int, Int32Constant(kItemsPerWord));
+  Node* data = SmiToWord32(LoadFixedArrayElement(
+      metadata, ChangeInt32ToIntPtr(word_index),
+      FeedbackMetadata::kReservedIndexCount * kPointerSize, INTPTR_PARAMETERS));
+  // See VectorICComputer::decode().
+  const int kBitsPerItem = FeedbackMetadata::kFeedbackSlotKindBits;
+  Node* shift = Int32Mul(word_offset, Int32Constant(kBitsPerItem));
+  const int kMask = FeedbackMetadata::VectorICComputer::kMask;
+  Node* kind = Word32And(Word32Shr(data, shift), Int32Constant(kMask));
+
+  STATIC_ASSERT(FeedbackSlotKind::kStoreGlobalSloppy <=
+                FeedbackSlotKind::kLastSloppyKind);
+  STATIC_ASSERT(FeedbackSlotKind::kStoreKeyedSloppy <=
+                FeedbackSlotKind::kLastSloppyKind);
+  STATIC_ASSERT(FeedbackSlotKind::kStoreNamedSloppy <=
+                FeedbackSlotKind::kLastSloppyKind);
+  GotoIfNot(Int32LessThanOrEqual(kind, Int32Constant(static_cast<int>(
+                                           FeedbackSlotKind::kLastSloppyKind))),
+            if_strict);
 }
 
 void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
@@ -2306,8 +2340,7 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   }
 }
 
-void AccessorAssembler::StoreIC(const StoreICParameters* p,
-                                LanguageMode language_mode) {
+void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   VARIABLE(var_handler, MachineRepresentation::kTagged);
   Label if_handler(this, &var_handler), try_polymorphic(this, Label::kDeferred),
       try_megamorphic(this, Label::kDeferred),
@@ -2323,7 +2356,7 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p,
   BIND(&if_handler);
   {
     Comment("StoreIC_if_handler");
-    HandleStoreICHandlerCase(p, var_handler.value(), &miss, language_mode);
+    HandleStoreICHandlerCase(p, var_handler.value(), &miss);
   }
 
   BIND(&try_polymorphic);
@@ -2352,8 +2385,9 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p,
     GotoIfNot(
         WordEqual(feedback, LoadRoot(Heap::kuninitialized_symbolRootIndex)),
         &miss);
-    TailCallStub(CodeFactory::StoreIC_Uninitialized(isolate(), language_mode),
-                 p->context, p->receiver, p->name, p->value, p->slot,
+    Callable stub =
+        Builtins::CallableFor(isolate(), Builtins::kStoreIC_Uninitialized);
+    TailCallStub(stub, p->context, p->receiver, p->name, p->value, p->slot,
                  p->vector);
   }
   BIND(&miss);
@@ -2363,8 +2397,7 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p,
   }
 }
 
-void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
-                                     LanguageMode language_mode) {
+void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p) {
   Label miss(this, Label::kDeferred);
   {
     VARIABLE(var_handler, MachineRepresentation::kTagged);
@@ -2384,8 +2417,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
     BIND(&if_handler);
     {
       Comment("KeyedStoreIC_if_handler");
-      HandleStoreICHandlerCase(p, var_handler.value(), &miss, language_mode,
-                               kSupportElements);
+      HandleStoreICHandlerCase(p, var_handler.value(), &miss, kSupportElements);
     }
 
     BIND(&try_polymorphic);
@@ -2407,7 +2439,7 @@ void AccessorAssembler::KeyedStoreIC(const StoreICParameters* p,
           WordEqual(feedback, LoadRoot(Heap::kmegamorphic_symbolRootIndex)),
           &try_polymorphic_name);
       TailCallStub(
-          CodeFactory::KeyedStoreIC_Megamorphic(isolate(), language_mode),
+          Builtins::CallableFor(isolate(), Builtins::kKeyedStoreIC_Megamorphic),
           p->context, p->receiver, p->name, p->value, p->slot, p->vector);
     }
 
@@ -2603,7 +2635,7 @@ void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
   KeyedLoadICGeneric(&p);
 }
 
-void AccessorAssembler::GenerateStoreIC(LanguageMode language_mode) {
+void AccessorAssembler::GenerateStoreIC() {
   typedef StoreWithVectorDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -2614,10 +2646,10 @@ void AccessorAssembler::GenerateStoreIC(LanguageMode language_mode) {
   Node* context = Parameter(Descriptor::kContext);
 
   StoreICParameters p(context, receiver, name, value, slot, vector);
-  StoreIC(&p, language_mode);
+  StoreIC(&p);
 }
 
-void AccessorAssembler::GenerateStoreICTrampoline(LanguageMode language_mode) {
+void AccessorAssembler::GenerateStoreICTrampoline() {
   typedef StoreDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -2627,12 +2659,11 @@ void AccessorAssembler::GenerateStoreICTrampoline(LanguageMode language_mode) {
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  Callable callable =
-      CodeFactory::StoreICInOptimizedCode(isolate(), language_mode);
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kStoreIC);
   TailCallStub(callable, context, receiver, name, value, slot, vector);
 }
 
-void AccessorAssembler::GenerateKeyedStoreIC(LanguageMode language_mode) {
+void AccessorAssembler::GenerateKeyedStoreIC() {
   typedef StoreWithVectorDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -2643,11 +2674,10 @@ void AccessorAssembler::GenerateKeyedStoreIC(LanguageMode language_mode) {
   Node* context = Parameter(Descriptor::kContext);
 
   StoreICParameters p(context, receiver, name, value, slot, vector);
-  KeyedStoreIC(&p, language_mode);
+  KeyedStoreIC(&p);
 }
 
-void AccessorAssembler::GenerateKeyedStoreICTrampoline(
-    LanguageMode language_mode) {
+void AccessorAssembler::GenerateKeyedStoreICTrampoline() {
   typedef StoreDescriptor Descriptor;
 
   Node* receiver = Parameter(Descriptor::kReceiver);
@@ -2657,8 +2687,7 @@ void AccessorAssembler::GenerateKeyedStoreICTrampoline(
   Node* context = Parameter(Descriptor::kContext);
   Node* vector = LoadFeedbackVectorForStub();
 
-  Callable callable =
-      CodeFactory::KeyedStoreICInOptimizedCode(isolate(), language_mode);
+  Callable callable = Builtins::CallableFor(isolate(), Builtins::kKeyedStoreIC);
   TailCallStub(callable, context, receiver, name, value, slot, vector);
 }
 
