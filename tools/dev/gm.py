@@ -23,6 +23,7 @@ import errno
 import multiprocessing
 import os
 import pty
+import re
 import subprocess
 import sys
 
@@ -253,12 +254,16 @@ class Config(object):
     return_code, output = _CallWithOutput("ninja -C %s %s %s" %
                                           (path, build_opts, targets))
     if return_code != 0 and "FAILED: gen/snapshot.cc" in output:
+      csa_trap = re.compile("Specify option( --csa-trap-on-node=[^ ]*)")
+      match = csa_trap.search(output)
+      extra_opt = match.group(1) if match else ""
       _Notify("V8 build requires your attention",
               "Detected mksnapshot failure, re-running in GDB...")
       _Call("gdb -args %(path)s/mksnapshot "
             "--startup_src %(path)s/gen/snapshot.cc "
             "--random-seed 314159265 "
-            "--startup-blob %(path)s/snapshot_blob.bin" % {"path": path})
+            "--startup-blob %(path)s/snapshot_blob.bin"
+            "%(extra)s"% {"path": path, "extra": extra_opt})
     return return_code
 
   def RunTests(self):
