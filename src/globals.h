@@ -1438,10 +1438,6 @@ enum IsolateAddressId {
 }  // namespace internal
 }  // namespace v8
 
-// Used by js-builtin-reducer to identify whether ReduceArrayIterator() is
-// reducing a JSArray method, or a JSTypedArray method.
-enum class ArrayIteratorKind { kArray, kTypedArray };
-
 namespace i = v8::internal;
 
 #endif  // V8_GLOBALS_H_

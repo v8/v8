@@ -39,6 +39,8 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction Reduce(Node* node) final;
 
  private:
+  enum class ArrayIteratorKind { kArray, kTypedArray };
+
   Reduction ReduceArrayIterator(Node* node, IterationKind kind);
   Reduction ReduceTypedArrayIterator(Node* node, IterationKind kind);
   Reduction ReduceArrayIterator(Handle<Map> receiver_map, Node* node,
