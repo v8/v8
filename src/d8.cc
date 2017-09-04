@@ -395,7 +395,6 @@ static platform::tracing::TraceConfig* CreateTraceConfigFromJSON(
 class PerIsolateData {
  public:
   explicit PerIsolateData(Isolate* isolate) : isolate_(isolate), realms_(NULL) {
-    HandleScope scope(isolate);
     isolate->SetData(0, this);
   }
 
@@ -415,6 +414,25 @@ class PerIsolateData {
     PerIsolateData* data_;
   };
 
+  inline void SetTimeout(Local<Function> callback, Local<Context> context) {
+    set_timeout_callbacks_.emplace(isolate_, callback);
+    set_timeout_contexts_.emplace(isolate_, context);
+  }
+
+  inline MaybeLocal<Function> GetTimeoutCallback() {
+    if (set_timeout_callbacks_.empty()) return MaybeLocal<Function>();
+    Local<Function> result = set_timeout_callbacks_.front().Get(isolate_);
+    set_timeout_callbacks_.pop();
+    return result;
+  }
+
+  inline MaybeLocal<Context> GetTimeoutContext() {
+    if (set_timeout_contexts_.empty()) return MaybeLocal<Context>();
+    Local<Context> result = set_timeout_contexts_.front().Get(isolate_);
+    set_timeout_contexts_.pop();
+    return result;
+  }
+
  private:
   friend class Shell;
   friend class RealmScope;
@@ -424,6 +442,8 @@ class PerIsolateData {
   int realm_switch_;
   Global<Context>* realms_;
   Global<Value> realm_shared_;
+  std::queue<Global<Function>> set_timeout_callbacks_;
+  std::queue<Global<Context>> set_timeout_contexts_;
 
   int RealmIndexOrThrow(const v8::FunctionCallbackInfo<v8::Value>& args,
                         int arg_offset);
@@ -1293,6 +1313,14 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
   }
 }
 
+void Shell::SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  args.GetReturnValue().Set(v8::Number::New(isolate, 0));
+  if (args.Length() == 0 || !args[0]->IsFunction()) return;
+  Local<Function> callback = Local<Function>::Cast(args[0]);
+  Local<Context> context = isolate->GetCurrentContext();
+  PerIsolateData::Get(isolate)->SetTimeout(callback, context);
+}
 
 void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
@@ -1644,6 +1672,10 @@ Local<ObjectTemplate> Shell::CreateGlobalTemplate(Isolate* isolate) {
       String::NewFromUtf8(isolate, "load", NewStringType::kNormal)
           .ToLocalChecked(),
       FunctionTemplate::New(isolate, Load));
+  global_template->Set(
+      String::NewFromUtf8(isolate, "setTimeout", NewStringType::kNormal)
+          .ToLocalChecked(),
+      FunctionTemplate::New(isolate, SetTimeout));
   // Some Emscripten-generated code tries to call 'quit', which in turn would
   // call C's exit(). This would lead to memory leaks, because there is no way
   // we can terminate cleanly then, so we need a way to hide 'quit'.
@@ -2396,9 +2428,9 @@ void SourceGroup::ExecuteInThread() {
     next_semaphore_.Wait();
     {
       Isolate::Scope iscope(isolate);
+      PerIsolateData data(isolate);
       {
         HandleScope scope(isolate);
-        PerIsolateData data(isolate);
         Local<Context> context = Shell::CreateEvaluationContext(isolate);
         {
           Context::Scope cscope(context);
@@ -2847,39 +2879,48 @@ void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
   }
 }
 
-bool Shell::IsWaitUntilDone(Isolate* isolate) {
-  base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
-  DCHECK_GT(isolate_status_.count(isolate), 0);
-  return isolate_status_[isolate];
+namespace {
+void ProcessMessages(Isolate* isolate,
+                     std::function<platform::MessageLoopBehavior()> behavior) {
+  Platform* platform = GetDefaultPlatform();
+  while (true) {
+    while (v8::platform::PumpMessageLoop(platform, isolate, behavior())) {
+      isolate->RunMicrotasks();
+    }
+    if (platform->IdleTasksEnabled(isolate)) {
+      v8::platform::RunIdleTasks(platform, isolate,
+                                 50.0 / base::Time::kMillisecondsPerSecond);
+    }
+    HandleScope handle_scope(isolate);
+    PerIsolateData* data = PerIsolateData::Get(isolate);
+    Local<Function> callback;
+    if (!data->GetTimeoutCallback().ToLocal(&callback)) break;
+    Local<Context> context;
+    if (!data->GetTimeoutContext().ToLocal(&context)) break;
+    TryCatch try_catch(isolate);
+    try_catch.SetVerbose(true);
+    Context::Scope context_scope(context);
+    if (callback->Call(context, Undefined(isolate), 0, nullptr).IsEmpty()) {
+      Shell::ReportException(isolate, &try_catch);
+      return;
+    }
+  }
 }
+}  // anonymous namespace
 
 void Shell::CompleteMessageLoop(Isolate* isolate) {
-  Platform* platform = GetDefaultPlatform();
-  while (v8::platform::PumpMessageLoop(
-      platform, isolate,
-      Shell::IsWaitUntilDone(isolate)
-          ? platform::MessageLoopBehavior::kWaitForWork
-          : platform::MessageLoopBehavior::kDoNotWait)) {
-    isolate->RunMicrotasks();
-  }
-  if (platform->IdleTasksEnabled(isolate)) {
-    v8::platform::RunIdleTasks(platform, isolate,
-                               50.0 / base::Time::kMillisecondsPerSecond);
-  }
+  ProcessMessages(isolate, [isolate]() {
+    base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
+    DCHECK_GT(isolate_status_.count(isolate), 0);
+    return isolate_status_[isolate]
+               ? platform::MessageLoopBehavior::kWaitForWork
+               : platform::MessageLoopBehavior::kDoNotWait;
+  });
 }
 
 void Shell::EmptyMessageQueues(Isolate* isolate) {
-  Platform* platform = GetDefaultPlatform();
-  // Pump the message loop until it is empty.
-  while (v8::platform::PumpMessageLoop(
-      platform, isolate, platform::MessageLoopBehavior::kDoNotWait)) {
-    isolate->RunMicrotasks();
-  }
-  // Run the idle tasks.
-  if (platform->IdleTasksEnabled(isolate)) {
-    v8::platform::RunIdleTasks(platform, isolate,
-                               50.0 / base::Time::kMillisecondsPerSecond);
-  }
+  ProcessMessages(isolate,
+                  []() { return platform::MessageLoopBehavior::kDoNotWait; });
 }
 
 class Serializer : public ValueSerializer::Delegate {
