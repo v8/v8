@@ -1678,7 +1678,6 @@ Handle<Object> StoreIC::StoreProxy(Handle<Map> receiver_map,
       GetPrototypeCheckCount(isolate(), receiver_map, proxy, name);
 
   DCHECK_LE(0, checks_count);
-  DCHECK(!receiver_map->IsJSGlobalObjectMap());
 
   Handle<Object> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
