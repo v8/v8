@@ -2121,15 +2121,14 @@ void Translation::BeginInterpretedFrame(BailoutId bytecode_offset,
   buffer_->Add(height);
 }
 
-
-void Translation::ArgumentsElements(bool is_rest) {
+void Translation::ArgumentsElements(CreateArgumentsType type) {
   buffer_->Add(ARGUMENTS_ELEMENTS);
-  buffer_->Add(is_rest);
+  buffer_->Add(static_cast<uint8_t>(type));
 }
 
-void Translation::ArgumentsLength(bool is_rest) {
+void Translation::ArgumentsLength(CreateArgumentsType type) {
   buffer_->Add(ARGUMENTS_LENGTH);
-  buffer_->Add(is_rest);
+  buffer_->Add(static_cast<uint8_t>(type));
 }
 
 void Translation::BeginCapturedObject(int length) {
@@ -2229,6 +2228,8 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case GETTER_STUB_FRAME:
     case SETTER_STUB_FRAME:
     case DUPLICATED_OBJECT:
+    case ARGUMENTS_ELEMENTS:
+    case ARGUMENTS_LENGTH:
     case CAPTURED_OBJECT:
     case REGISTER:
     case INT32_REGISTER:
@@ -2252,9 +2253,6 @@ int Translation::NumberOfOperandsFor(Opcode opcode) {
     case BUILTIN_CONTINUATION_FRAME:
     case JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
       return 3;
-    case ARGUMENTS_ELEMENTS:
-    case ARGUMENTS_LENGTH:
-      return 1;
   }
   FATAL("Unexpected translation type");
   return -1;
@@ -3014,7 +3012,8 @@ void TranslatedFrame::AdvanceIterator(
 }
 
 Address TranslatedState::ComputeArgumentsPosition(Address input_frame_pointer,
-                                                  bool is_rest, int* length) {
+                                                  CreateArgumentsType type,
+                                                  int* length) {
   Address parent_frame_pointer = *reinterpret_cast<Address*>(
       input_frame_pointer + StandardFrameConstants::kCallerFPOffset);
   intptr_t parent_frame_type = Memory::intptr_at(
@@ -3034,7 +3033,7 @@ Address TranslatedState::ComputeArgumentsPosition(Address input_frame_pointer,
     arguments_frame = input_frame_pointer;
   }
 
-  if (is_rest) {
+  if (type == CreateArgumentsType::kRestParameter) {
     // If the actual number of arguments is less than the number of formal
     // parameters, we have zero rest parameters.
     if (length) *length = std::max(0, *length - formal_parameter_count_);
@@ -3044,24 +3043,23 @@ Address TranslatedState::ComputeArgumentsPosition(Address input_frame_pointer,
 }
 
 // Creates translated values for an arguments backing store, or the backing
-// store for the rest parameters if {is_rest} is true. The TranslatedValue
+// store for rest parameters depending on the given {type}. The TranslatedValue
 // objects for the fields are not read from the TranslationIterator, but instead
 // created on-the-fly based on dynamic information in the optimized frame.
 void TranslatedState::CreateArgumentsElementsTranslatedValues(
-    int frame_index, Address input_frame_pointer, bool is_rest,
+    int frame_index, Address input_frame_pointer, CreateArgumentsType type,
     FILE* trace_file) {
   TranslatedFrame& frame = frames_[frame_index];
 
   int length;
   Address arguments_frame =
-      ComputeArgumentsPosition(input_frame_pointer, is_rest, &length);
+      ComputeArgumentsPosition(input_frame_pointer, type, &length);
 
   int object_index = static_cast<int>(object_positions_.size());
   int value_index = static_cast<int>(frame.values_.size());
   if (trace_file != nullptr) {
-    PrintF(trace_file,
-           "arguments elements object #%d (is_rest = %d, length = %d)",
-           object_index, is_rest, length);
+    PrintF(trace_file, "arguments elements object #%d (type = %d, length = %d)",
+           object_index, static_cast<uint8_t>(type), length);
   }
   object_positions_.push_back({frame_index, value_index});
   frame.Add(TranslatedValue::NewDeferredObject(
@@ -3071,7 +3069,17 @@ void TranslatedState::CreateArgumentsElementsTranslatedValues(
       TranslatedValue::NewTagged(this, isolate_->heap()->fixed_array_map()));
   frame.Add(TranslatedValue::NewInt32(this, length));
 
-  for (int i = length - 1; i >= 0; --i) {
+  int number_of_holes = 0;
+  if (type == CreateArgumentsType::kMappedArguments) {
+    // If the actual number of arguments is less than the number of formal
+    // parameters, we have fewer holes to fill to not overshoot the length.
+    number_of_holes = Min(formal_parameter_count_, length);
+  }
+  for (int i = 0; i < number_of_holes; ++i) {
+    frame.Add(
+        TranslatedValue::NewTagged(this, isolate_->heap()->the_hole_value()));
+  }
+  for (int i = length - number_of_holes - 1; i >= 0; --i) {
     Address argument_slot = arguments_frame +
                             CommonFrameConstants::kFixedFrameSizeAboveFp +
                             i * kPointerSize;
@@ -3124,19 +3132,21 @@ int TranslatedState::CreateNextTranslatedValue(
     }
 
     case Translation::ARGUMENTS_ELEMENTS: {
-      bool is_rest = iterator->Next();
-      CreateArgumentsElementsTranslatedValues(frame_index, fp, is_rest,
+      CreateArgumentsType arguments_type =
+          static_cast<CreateArgumentsType>(iterator->Next());
+      CreateArgumentsElementsTranslatedValues(frame_index, fp, arguments_type,
                                               trace_file);
       return 0;
     }
 
     case Translation::ARGUMENTS_LENGTH: {
-      bool is_rest = iterator->Next();
+      CreateArgumentsType arguments_type =
+          static_cast<CreateArgumentsType>(iterator->Next());
       int length;
-      ComputeArgumentsPosition(fp, is_rest, &length);
+      ComputeArgumentsPosition(fp, arguments_type, &length);
       if (trace_file != nullptr) {
-        PrintF(trace_file, "arguments length field (is_rest = %d, length = %d)",
-               is_rest, length);
+        PrintF(trace_file, "arguments length field (type = %d, length = %d)",
+               static_cast<uint8_t>(arguments_type), length);
       }
       frame.Add(TranslatedValue::NewInt32(this, length));
       return 0;

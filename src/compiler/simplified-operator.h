@@ -450,11 +450,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ArgumentsLength(int formal_parameter_count,
                                   bool is_rest_length);
 
-  // new-mapped-arguments-elements arguments-frame, arguments-length
-  const Operator* NewMappedArgumentsElements(int mapped_count);
-
-  // new-unmapped-arguments-elements arguments-frame, arguments-length
-  const Operator* NewUnmappedArgumentsElements();
+  // new-arguments-elements arguments-frame, arguments-length
+  const Operator* NewArgumentsElements(int mapped_count);
 
   // array-buffer-was-neutered buffer
   const Operator* ArrayBufferWasNeutered();

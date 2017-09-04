@@ -97,7 +97,7 @@ Reduction EscapeAnalysisReducer::Reduce(Node* node) {
       }
       return NoChange();
     }
-    case IrOpcode::kNewUnmappedArgumentsElements:
+    case IrOpcode::kNewArgumentsElements:
       arguments_elements_.insert(node);
       return NoChange();
     default: {
@@ -212,12 +212,26 @@ void EscapeAnalysisReducer::VerifyReplacement() const {
 
 void EscapeAnalysisReducer::Finalize() {
   for (Node* node : arguments_elements_) {
-    DCHECK(node->opcode() == IrOpcode::kNewUnmappedArgumentsElements);
+    DCHECK(node->opcode() == IrOpcode::kNewArgumentsElements);
+    int mapped_count = OpParameter<int>(node);
 
     Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
     if (arguments_frame->opcode() != IrOpcode::kArgumentsFrame) continue;
     Node* arguments_length = NodeProperties::GetValueInput(node, 1);
     if (arguments_length->opcode() != IrOpcode::kArgumentsLength) continue;
+
+    // If mapped arguments are specified, then their number is always equal to
+    // the number of formal parameters. This allows to use just the three-value
+    // {ArgumentsStateType} enum because the deoptimizer can reconstruct the
+    // value of {mapped_count} from the number of formal parameters.
+    DCHECK_IMPLIES(
+        mapped_count != 0,
+        mapped_count == FormalParameterCountOf(arguments_length->op()));
+    ArgumentsStateType type = IsRestLengthOf(arguments_length->op())
+                                  ? ArgumentsStateType::kRestParameter
+                                  : (mapped_count == 0)
+                                        ? ArgumentsStateType::kUnmappedArguments
+                                        : ArgumentsStateType::kMappedArguments;
 
     Node* arguments_length_state = nullptr;
     for (Edge edge : arguments_length->use_edges()) {
@@ -229,8 +243,7 @@ void EscapeAnalysisReducer::Finalize() {
         case IrOpcode::kTypedStateValues:
           if (!arguments_length_state) {
             arguments_length_state = jsgraph()->graph()->NewNode(
-                jsgraph()->common()->ArgumentsLengthState(
-                    IsRestLengthOf(arguments_length->op())));
+                jsgraph()->common()->ArgumentsLengthState(type));
             NodeProperties::SetType(arguments_length_state,
                                     Type::OtherInternal());
           }
@@ -257,7 +270,11 @@ void EscapeAnalysisReducer::Finalize() {
         case IrOpcode::kTypedObjectState:
           break;
         case IrOpcode::kLoadElement:
-          loads.push_back(use);
+          if (mapped_count == 0) {
+            loads.push_back(use);
+          } else {
+            escaping_use = true;
+          }
           break;
         case IrOpcode::kLoadField:
           if (FieldAccessOf(use->op()).offset == FixedArray::kLengthOffset) {
@@ -276,8 +293,7 @@ void EscapeAnalysisReducer::Finalize() {
     }
     if (!escaping_use) {
       Node* arguments_elements_state = jsgraph()->graph()->NewNode(
-          jsgraph()->common()->ArgumentsElementsState(
-              IsRestLengthOf(arguments_length->op())));
+          jsgraph()->common()->ArgumentsElementsState(type));
       NodeProperties::SetType(arguments_elements_state, Type::OtherInternal());
       ReplaceWithValue(node, arguments_elements_state);
 

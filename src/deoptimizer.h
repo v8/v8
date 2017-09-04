@@ -281,11 +281,12 @@ class TranslatedState {
   int CreateNextTranslatedValue(int frame_index, TranslationIterator* iterator,
                                 FixedArray* literal_array, Address fp,
                                 RegisterValues* registers, FILE* trace_file);
-  Address ComputeArgumentsPosition(Address input_frame_pointer, bool is_rest,
-                                   int* length);
+  Address ComputeArgumentsPosition(Address input_frame_pointer,
+                                   CreateArgumentsType type, int* length);
   void CreateArgumentsElementsTranslatedValues(int frame_index,
                                                Address input_frame_pointer,
-                                               bool is_rest, FILE* trace_file);
+                                               CreateArgumentsType type,
+                                               FILE* trace_file);
 
   void UpdateFromPreviouslyMaterializedObjects();
   Handle<Object> MaterializeAt(int frame_index, int* value_index);
@@ -906,8 +907,8 @@ class Translation BASE_EMBEDDED {
                                                int literal_id, unsigned height);
   void BeginGetterStubFrame(int literal_id);
   void BeginSetterStubFrame(int literal_id);
-  void ArgumentsElements(bool is_rest);
-  void ArgumentsLength(bool is_rest);
+  void ArgumentsElements(CreateArgumentsType type);
+  void ArgumentsLength(CreateArgumentsType type);
   void BeginCapturedObject(int length);
   void DuplicateObject(int object_index);
   void StoreRegister(Register reg);

@@ -355,7 +355,7 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
             arguments_frame);
         // Allocate the elements backing store.
         Node* const elements = effect =
-            graph()->NewNode(simplified()->NewUnmappedArgumentsElements(),
+            graph()->NewNode(simplified()->NewArgumentsElements(0),
                              arguments_frame, arguments_length, effect);
         // Load the arguments object map.
         Node* const arguments_map = jsgraph()->HeapConstant(
@@ -381,11 +381,11 @@ Reduction JSCreateLowering::ReduceJSCreateArguments(Node* node) {
             simplified()->ArgumentsLength(
                 shared->internal_formal_parameter_count(), true),
             arguments_frame);
-        // Allocate the elements backing store. Since
-        // NewUnmappedArgumentsElements copies from the end of the arguments
-        // adapter frame, this is a suffix of the actual arguments.
+        // Allocate the elements backing store. Since NewArgumentsElements
+        // copies from the end of the arguments adapter frame, this is a suffix
+        // of the actual arguments.
         Node* const elements = effect =
-            graph()->NewNode(simplified()->NewUnmappedArgumentsElements(),
+            graph()->NewNode(simplified()->NewArgumentsElements(0),
                              arguments_frame, rest_length, effect);
         // Load the JSArray object map.
         Node* const jsarray_map = jsgraph()->HeapConstant(handle(
@@ -1204,7 +1204,7 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   // special in any way, we can just return an unmapped backing store.
   int parameter_count = shared->internal_formal_parameter_count();
   if (parameter_count == 0) {
-    return graph()->NewNode(simplified()->NewUnmappedArgumentsElements(),
+    return graph()->NewNode(simplified()->NewArgumentsElements(0),
                             arguments_frame, arguments_length, effect);
   }
 
@@ -1219,7 +1219,7 @@ Node* JSCreateLowering::AllocateAliasedArguments(
   // then linked into the parameter map below, whereas mapped argument values
   // (i.e. the first {mapped_count} elements) are replaced with a hole instead.
   Node* arguments =
-      graph()->NewNode(simplified()->NewMappedArgumentsElements(mapped_count),
+      graph()->NewNode(simplified()->NewArgumentsElements(mapped_count),
                        arguments_frame, arguments_length, effect);
 
   // Actually allocate the backing store.

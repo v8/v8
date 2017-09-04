@@ -1235,24 +1235,28 @@ const Operator* CommonOperatorBuilder::TypedStateValues(
       TypedStateValueInfo(types, bitmask));            // parameters
 }
 
-const Operator* CommonOperatorBuilder::ArgumentsElementsState(bool is_rest) {
-  return new (zone()) Operator1<bool>(                     // --
+const Operator* CommonOperatorBuilder::ArgumentsElementsState(
+    ArgumentsStateType type) {
+  return new (zone()) Operator1<ArgumentsStateType>(       // --
       IrOpcode::kArgumentsElementsState, Operator::kPure,  // opcode
       "ArgumentsElementsState",                            // name
-      0, 0, 0, 1, 0, 0, is_rest);                          // counts
+      0, 0, 0, 1, 0, 0,                                    // counts
+      type);                                               // parameter
 }
 
-const Operator* CommonOperatorBuilder::ArgumentsLengthState(bool is_rest) {
-  return new (zone()) Operator1<bool>(                   // --
+const Operator* CommonOperatorBuilder::ArgumentsLengthState(
+    ArgumentsStateType type) {
+  return new (zone()) Operator1<ArgumentsStateType>(     // --
       IrOpcode::kArgumentsLengthState, Operator::kPure,  // opcode
       "ArgumentsLengthState",                            // name
-      0, 0, 0, 1, 0, 0, is_rest);                        // counts
+      0, 0, 0, 1, 0, 0,                                  // counts
+      type);                                             // parameter
 }
 
-bool IsRestOf(Operator const* op) {
+ArgumentsStateType ArgumentsStateTypeOf(Operator const* op) {
   DCHECK(op->opcode() == IrOpcode::kArgumentsElementsState ||
          op->opcode() == IrOpcode::kArgumentsLengthState);
-  return OpParameter<bool>(op);
+  return OpParameter<ArgumentsStateType>(op);
 }
 
 const Operator* CommonOperatorBuilder::ObjectState(int object_id,

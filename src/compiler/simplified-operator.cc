@@ -609,14 +609,6 @@ struct SimplifiedOperatorGlobalCache final {
   };
   ArgumentsFrameOperator kArgumentsFrame;
 
-  struct NewUnmappedArgumentsElementsOperator final : public Operator {
-    NewUnmappedArgumentsElementsOperator()
-        : Operator(IrOpcode::kNewUnmappedArgumentsElements,
-                   Operator::kEliminatable, "NewUnmappedArgumentsElements", 2,
-                   1, 0, 1, 1, 0) {}
-  };
-  NewUnmappedArgumentsElementsOperator kNewUnmappedArgumentsElements;
-
   template <CheckForMinusZeroMode kMode>
   struct ChangeFloat64ToTaggedOperator final
       : public Operator1<CheckForMinusZeroMode> {
@@ -789,7 +781,6 @@ GET_FROM_CACHE(ArgumentsFrame)
 GET_FROM_CACHE(LookupHashStorageIndex)
 GET_FROM_CACHE(LoadHashMapValue)
 GET_FROM_CACHE(LoadFieldByIndex)
-GET_FROM_CACHE(NewUnmappedArgumentsElements)
 #undef GET_FROM_CACHE
 
 const Operator* SimplifiedOperatorBuilder::ChangeFloat64ToTagged(
@@ -976,14 +967,14 @@ bool IsRestLengthOf(const Operator* op) {
   return OpParameter<ArgumentsLengthParameters>(op).is_rest_length;
 }
 
-const Operator* SimplifiedOperatorBuilder::NewMappedArgumentsElements(
+const Operator* SimplifiedOperatorBuilder::NewArgumentsElements(
     int mapped_count) {
-  return new (zone()) Operator1<int>(         // --
-      IrOpcode::kNewMappedArgumentsElements,  // opcode
-      Operator::kEliminatable,                // flags
-      "NewMappedArgumentsElements",           // name
-      2, 1, 0, 1, 1, 0,                       // counts
-      mapped_count);                          // parameter
+  return new (zone()) Operator1<int>(   // --
+      IrOpcode::kNewArgumentsElements,  // opcode
+      Operator::kEliminatable,          // flags
+      "NewArgumentsElements",           // name
+      2, 1, 0, 1, 1, 0,                 // counts
+      mapped_count);                    // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::Allocate(Type* type,

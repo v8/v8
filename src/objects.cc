@@ -14460,8 +14460,9 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(
 
         case Translation::ARGUMENTS_ELEMENTS:
         case Translation::ARGUMENTS_LENGTH: {
-          bool is_rest = iterator.Next();
-          os << "{is_rest=" << (is_rest ? "true" : "false") << "}";
+          CreateArgumentsType arguments_type =
+              static_cast<CreateArgumentsType>(iterator.Next());
+          os << "{arguments_type=" << arguments_type << "}";
           break;
         }
 

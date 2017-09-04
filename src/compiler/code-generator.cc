@@ -730,11 +730,11 @@ void CodeGenerator::TranslateStateValueDescriptor(
     }
   } else if (desc->IsArgumentsElements()) {
     if (translation != nullptr) {
-      translation->ArgumentsElements(desc->is_rest());
+      translation->ArgumentsElements(desc->arguments_type());
     }
   } else if (desc->IsArgumentsLength()) {
     if (translation != nullptr) {
-      translation->ArgumentsLength(desc->is_rest());
+      translation->ArgumentsLength(desc->arguments_type());
     }
   } else if (desc->IsDuplicate()) {
     if (translation != nullptr) {
