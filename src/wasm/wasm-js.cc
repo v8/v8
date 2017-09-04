@@ -843,7 +843,7 @@ void InstallGetter(Isolate* isolate, Handle<JSObject> object,
                                               Local<Function>(), attributes);
 }
 
-void WasmJs::Install(Isolate* isolate) {
+void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   Handle<JSGlobalObject> global = isolate->global_object();
   Handle<Context> context(global->native_context(), isolate);
   // Install the JS API once only.
@@ -863,11 +863,11 @@ void WasmJs::Install(Isolate* isolate) {
   cons->shared()->set_instance_class_name(*name);
   Handle<JSObject> webassembly = factory->NewJSObject(cons, TENURED);
   PropertyAttributes attributes = static_cast<PropertyAttributes>(DONT_ENUM);
-  JSObject::AddProperty(global, name, webassembly, attributes);
+
   PropertyAttributes ro_attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
-  JSObject::AddProperty(webassembly, factory->to_string_tag_symbol(),
-                        v8_str(isolate, "WebAssembly"), ro_attributes);
+  JSObject::AddProperty(webassembly, factory->to_string_tag_symbol(), name,
+                        ro_attributes);
   InstallFunc(isolate, webassembly, "compile", WebAssemblyCompile, 1);
   InstallFunc(isolate, webassembly, "validate", WebAssemblyValidate, 1);
   InstallFunc(isolate, webassembly, "instantiate", WebAssemblyInstantiate, 1);
@@ -877,6 +877,11 @@ void WasmJs::Install(Isolate* isolate) {
                 WebAssemblyCompileStreaming, 1);
     InstallFunc(isolate, webassembly, "instantiateStreaming",
                 WebAssemblyInstantiateStreaming, 1);
+  }
+
+  // Expose the API on the global object if configured to do so.
+  if (exposed_on_global_object) {
+    JSObject::AddProperty(global, name, webassembly, attributes);
   }
 
   // Setup Module

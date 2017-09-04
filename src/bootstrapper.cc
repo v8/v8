@@ -4830,8 +4830,14 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
   Handle<Smi> stack_trace_limit(Smi::FromInt(FLAG_stack_trace_limit), isolate);
   JSObject::AddProperty(Error, name, stack_trace_limit, NONE);
 
-  if (FLAG_expose_wasm || FLAG_validate_asm) {
-    WasmJs::Install(isolate);
+  if (FLAG_expose_wasm) {
+    // Install the internal data structures into the isolate and expose on
+    // the global object.
+    WasmJs::Install(isolate, true);
+  } else if (FLAG_validate_asm) {
+    // Install the internal data structures only; these are needed for asm.js
+    // translated to WASM to work correctly.
+    WasmJs::Install(isolate, false);
   }
 
   InstallFFIMap(isolate);

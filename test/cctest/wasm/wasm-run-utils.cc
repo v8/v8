@@ -15,7 +15,7 @@ TestingModuleBuilder::TestingModuleBuilder(Zone* zone, WasmExecutionMode mode)
       mem_start_(nullptr),
       mem_size_(0),
       interpreter_(nullptr) {
-  WasmJs::Install(isolate_);
+  WasmJs::Install(isolate_, true);
   test_module_.globals_size = kMaxGlobalsSize;
   memset(globals_data_, 0, sizeof(globals_data_));
   instance_object_ = InitInstanceObject();

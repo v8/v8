@@ -152,7 +152,7 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
 }
 
 void SetupIsolateForWasmModule(Isolate* isolate) {
-  WasmJs::Install(isolate);
+  WasmJs::Install(isolate, true);
 }
 
 }  // namespace testing
