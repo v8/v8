@@ -569,8 +569,8 @@ wasm::InterpreterHandle* GetOrCreateInterpreterHandle(
   Handle<Object> handle(debug_info->get(WasmDebugInfo::kInterpreterHandleIndex),
                         isolate);
   if (handle->IsUndefined(isolate)) {
-    auto* cpp_handle = new wasm::InterpreterHandle(isolate, *debug_info);
-    handle = Managed<wasm::InterpreterHandle>::New(isolate, cpp_handle);
+    handle = Managed<wasm::InterpreterHandle>::Allocate(isolate, isolate,
+                                                        *debug_info);
     debug_info->set(WasmDebugInfo::kInterpreterHandleIndex, *handle);
   }
 
@@ -660,11 +660,10 @@ wasm::WasmInterpreter* WasmDebugInfo::SetupForTesting(
     Handle<WasmInstanceObject> instance_obj) {
   Handle<WasmDebugInfo> debug_info = WasmDebugInfo::New(instance_obj);
   Isolate* isolate = instance_obj->GetIsolate();
-  auto* cpp_handle = new wasm::InterpreterHandle(isolate, *debug_info);
-  Handle<Object> handle =
-      Managed<wasm::InterpreterHandle>::New(isolate, cpp_handle);
-  debug_info->set(kInterpreterHandleIndex, *handle);
-  return cpp_handle->interpreter();
+  auto interp_handle =
+      Managed<wasm::InterpreterHandle>::Allocate(isolate, isolate, *debug_info);
+  debug_info->set(kInterpreterHandleIndex, *interp_handle);
+  return interp_handle->get()->interpreter();
 }
 
 bool WasmDebugInfo::IsWasmDebugInfo(Object* object) {
@@ -795,8 +794,7 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
   if (!debug_info->has_c_wasm_entries()) {
     auto entries = isolate->factory()->NewFixedArray(4, TENURED);
     debug_info->set_c_wasm_entries(*entries);
-    auto managed_map =
-        Managed<wasm::SignatureMap>::New(isolate, new wasm::SignatureMap());
+    auto managed_map = Managed<wasm::SignatureMap>::Allocate(isolate);
     debug_info->set_c_wasm_entry_map(*managed_map);
   }
   Handle<FixedArray> entries(debug_info->c_wasm_entries(), isolate);

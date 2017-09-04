@@ -672,7 +672,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   // The {module_wrapper} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
   Handle<WasmModuleWrapper> module_wrapper =
-      WasmModuleWrapper::New(isolate_, module_.release());
+      WasmModuleWrapper::From(isolate_, module_.release());
   WasmModule* module = module_wrapper->get();
 
   // Create the shared module data.
@@ -2304,7 +2304,7 @@ class AsyncCompileJob::FinishCompile : public CompileStep {
 
     // The {module_wrapper} will take ownership of the {WasmModule} object,
     // and it will be destroyed when the GC reclaims the wrapper object.
-    Handle<WasmModuleWrapper> module_wrapper = WasmModuleWrapper::New(
+    Handle<WasmModuleWrapper> module_wrapper = WasmModuleWrapper::From(
         job_->isolate_, job_->compiler_->ReleaseModule().release());
 
     // Create the shared module data.
