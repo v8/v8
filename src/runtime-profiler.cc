@@ -25,14 +25,9 @@ static const int kProfilerTicksBeforeOptimization = 2;
 // but the function is hot and has been seen on the stack this number of times,
 // then we try to reenable optimization for this function.
 static const int kProfilerTicksBeforeReenablingOptimization = 250;
-// If a function does not have enough type info (according to
-// FLAG_type_info_threshold), but has seen a huge number of ticks,
-// optimize it as it is.
-static const int kTicksWhenNotEnoughTypeInfo = 100;
 // We only have one byte to store the number of ticks.
 STATIC_ASSERT(kProfilerTicksBeforeOptimization < 256);
 STATIC_ASSERT(kProfilerTicksBeforeReenablingOptimization < 256);
-STATIC_ASSERT(kTicksWhenNotEnoughTypeInfo < 256);
 
 // The number of ticks required for optimizing a function increases with
 // the size of the bytecode. This is in addition to the
@@ -60,7 +55,6 @@ static const int kMaxSizeOpt = 60 * KB;
 #define OPTIMIZATION_REASON_LIST(V)                            \
   V(DoNotOptimize, "do not optimize")                          \
   V(HotAndStable, "hot and stable")                            \
-  V(HotWithoutMuchTypeInfo, "not much type info but very hot") \
   V(SmallFunction, "small function")
 
 enum class OptimizationReason : uint8_t {
@@ -247,42 +241,11 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction* function,
       kProfilerTicksBeforeOptimization +
       (shared->bytecode_array()->Size() / kCodeSizeAllowancePerTick);
   if (ticks >= ticks_for_optimization) {
-    int typeinfo, generic, total, type_percentage, generic_percentage;
-    GetICCounts(function, &typeinfo, &generic, &total, &type_percentage,
-                &generic_percentage);
-    if (type_percentage >= FLAG_type_info_threshold) {
-      // If this particular function hasn't had any ICs patched for enough
-      // ticks, optimize it now.
-      return OptimizationReason::kHotAndStable;
-    } else if (ticks >= kTicksWhenNotEnoughTypeInfo) {
-      return OptimizationReason::kHotWithoutMuchTypeInfo;
-    } else {
-      if (FLAG_trace_opt_verbose) {
-        PrintF("[not yet optimizing ");
-        function->PrintName();
-        PrintF(", not enough type info: %d/%d (%d%%)]\n", typeinfo, total,
-               type_percentage);
-      }
-      return OptimizationReason::kDoNotOptimize;
-    }
+    return OptimizationReason::kHotAndStable;
   } else if (!any_ic_changed_ &&
              shared->bytecode_array()->Size() < kMaxSizeEarlyOpt) {
     // If no IC was patched since the last tick and this function is very
     // small, optimistically optimize it now.
-    int typeinfo, generic, total, type_percentage, generic_percentage;
-    GetICCounts(function, &typeinfo, &generic, &total, &type_percentage,
-                &generic_percentage);
-    if (type_percentage < FLAG_type_info_threshold) {
-      if (FLAG_trace_opt_verbose) {
-        PrintF("[not yet optimizing ");
-        function->PrintName();
-        PrintF(
-            ", not enough type info for small function optimization: %d/%d "
-            "(%d%%)]\n",
-            typeinfo, total, type_percentage);
-      }
-      return OptimizationReason::kDoNotOptimize;
-    }
     return OptimizationReason::kSmallFunction;
   } else if (FLAG_trace_opt_verbose) {
     PrintF("[not yet optimizing ");
