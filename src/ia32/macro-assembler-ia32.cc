@@ -99,45 +99,77 @@ static const Register saved_regs[] = {REG(eax), REG(ecx), REG(edx)};
 
 static const int kNumberOfSavedRegs = sizeof(saved_regs) / sizeof(Register);
 
-void TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
-                                     Register exclusion1, Register exclusion2,
-                                     Register exclusion3) {
+int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
+                                                    Register exclusion1,
+                                                    Register exclusion2,
+                                                    Register exclusion3) const {
+  int bytes = 0;
+  for (int i = 0; i < kNumberOfSavedRegs; i++) {
+    Register reg = saved_regs[i];
+    if (!reg.is(exclusion1) && !reg.is(exclusion2) && !reg.is(exclusion3)) {
+      bytes += kPointerSize;
+    }
+  }
+
+  if (fp_mode == kSaveFPRegs) {
+    // Count all XMM registers except XMM0.
+    bytes += kDoubleSize * (XMMRegister::kMaxNumRegisters - 1);
+  }
+
+  return bytes;
+}
+
+int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
+                                    Register exclusion2, Register exclusion3) {
   // We don't allow a GC during a store buffer overflow so there is no need to
   // store the registers in any particular way, but we do have to store and
   // restore them.
+  int bytes = 0;
   for (int i = 0; i < kNumberOfSavedRegs; i++) {
     Register reg = saved_regs[i];
     if (!reg.is(exclusion1) && !reg.is(exclusion2) && !reg.is(exclusion3)) {
       push(reg);
+      bytes += kPointerSize;
     }
   }
+
   if (fp_mode == kSaveFPRegs) {
-    sub(esp, Immediate(kDoubleSize * (XMMRegister::kMaxNumRegisters - 1)));
     // Save all XMM registers except XMM0.
+    int delta = kDoubleSize * (XMMRegister::kMaxNumRegisters - 1);
+    sub(esp, Immediate(delta));
     for (int i = XMMRegister::kMaxNumRegisters - 1; i > 0; i--) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(Operand(esp, (i - 1) * kDoubleSize), reg);
     }
+    bytes += delta;
   }
+
+  return bytes;
 }
 
-void TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
-                                    Register exclusion2, Register exclusion3) {
+int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
+                                   Register exclusion2, Register exclusion3) {
+  int bytes = 0;
   if (fp_mode == kSaveFPRegs) {
     // Restore all XMM registers except XMM0.
+    int delta = kDoubleSize * (XMMRegister::kMaxNumRegisters - 1);
     for (int i = XMMRegister::kMaxNumRegisters - 1; i > 0; i--) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(reg, Operand(esp, (i - 1) * kDoubleSize));
     }
-    add(esp, Immediate(kDoubleSize * (XMMRegister::kMaxNumRegisters - 1)));
+    add(esp, Immediate(delta));
+    bytes += delta;
   }
 
   for (int i = kNumberOfSavedRegs - 1; i >= 0; i--) {
     Register reg = saved_regs[i];
     if (!reg.is(exclusion1) && !reg.is(exclusion2) && !reg.is(exclusion3)) {
       pop(reg);
+      bytes += kPointerSize;
     }
   }
+
+  return bytes;
 }
 
 void MacroAssembler::InNewSpace(Register object, Register scratch, Condition cc,

@@ -26,9 +26,11 @@ MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
     : TurboAssembler(isolate, buffer, size, create_code_object) {}
 
-void TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
-                                     Register exclusion1, Register exclusion2,
-                                     Register exclusion3) {
+int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
+                                                    Register exclusion1,
+                                                    Register exclusion2,
+                                                    Register exclusion3) const {
+  int bytes = 0;
   RegList exclusions = 0;
   if (!exclusion1.is(no_reg)) {
     exclusions |= exclusion1.bit();
@@ -40,17 +42,48 @@ void TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
     }
   }
 
-  MultiPush(kJSCallerSaved & ~exclusions);
+  RegList list = kJSCallerSaved & ~exclusions;
+  bytes += NumRegs(list) * kPointerSize;
+
+  if (fp_mode == kSaveFPRegs) {
+    bytes += NumRegs(kCallerSavedDoubles) * kDoubleSize;
+  }
+
+  return bytes;
+}
+
+int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
+                                    Register exclusion2, Register exclusion3) {
+  int bytes = 0;
+  RegList exclusions = 0;
+  if (!exclusion1.is(no_reg)) {
+    exclusions |= exclusion1.bit();
+    if (!exclusion2.is(no_reg)) {
+      exclusions |= exclusion2.bit();
+      if (!exclusion3.is(no_reg)) {
+        exclusions |= exclusion3.bit();
+      }
+    }
+  }
+
+  RegList list = kJSCallerSaved & ~exclusions;
+  MultiPush(list);
+  bytes += NumRegs(list) * kPointerSize;
 
   if (fp_mode == kSaveFPRegs) {
     MultiPushDoubles(kCallerSavedDoubles);
+    bytes += NumRegs(kCallerSavedDoubles) * kDoubleSize;
   }
+
+  return bytes;
 }
 
-void TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
-                                    Register exclusion2, Register exclusion3) {
+int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
+                                   Register exclusion2, Register exclusion3) {
+  int bytes = 0;
   if (fp_mode == kSaveFPRegs) {
     MultiPopDoubles(kCallerSavedDoubles);
+    bytes += NumRegs(kCallerSavedDoubles) * kDoubleSize;
   }
 
   RegList exclusions = 0;
@@ -64,7 +97,11 @@ void TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
     }
   }
 
-  MultiPop(kJSCallerSaved & ~exclusions);
+  RegList list = kJSCallerSaved & ~exclusions;
+  MultiPop(list);
+  bytes += NumRegs(list) * kPointerSize;
+
+  return bytes;
 }
 
 void TurboAssembler::Jump(Register target) { b(target); }

@@ -328,6 +328,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   size_t inlined_function_count_;
   TranslationBuffer translations_;
   int last_lazy_deopt_pc_;
+  bool caller_registers_saved_;
   JumpTable* jump_tables_;
   OutOfLineCode* ools_;
   base::Optional<OsrHelper> osr_helper_;
