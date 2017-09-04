@@ -117,11 +117,6 @@ void Interpreter::IterateDispatchTable(RootVisitor* v) {
   }
 }
 
-// static
-int Interpreter::InterruptBudget() {
-  return FLAG_interrupt_budget * kCodeSizeMultiplier;
-}
-
 namespace {
 
 bool ShouldPrintBytecode(Handle<SharedFunctionInfo> shared) {
