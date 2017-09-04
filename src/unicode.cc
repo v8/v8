@@ -1163,14 +1163,6 @@ bool WhiteSpace::Is(uchar c) {
 }
 #endif  // !V8_INTL_SUPPORT
 
-// LineTerminator:       'JS_Line_Terminator' in point.properties
-// ES#sec-line-terminators lists exactly 4 code points:
-// LF (U+000A), CR (U+000D), LS(U+2028), PS(U+2029)
-
-bool LineTerminator::Is(uchar c) {
-  return c == 0xA || c == 0xD || c == 0x2028 || c == 0x2029;
-}
-
 #ifndef V8_INTL_SUPPORT
 static const MultiCharacterSpecialCase<2> kToLowercaseMultiStrings0[2] = {  // NOLINT
   {{105, 775}}, {{kSentinel}} }; // NOLINT
