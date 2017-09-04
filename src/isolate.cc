@@ -2030,10 +2030,24 @@ void Isolate::SetAbortOnUncaughtExceptionCallback(
   abort_on_uncaught_exception_callback_ = callback;
 }
 
+namespace {
+void AdvanceWhileDebugContext(JavaScriptFrameIterator& it, Debug* debug) {
+  if (!debug->in_debug_scope()) return;
+
+  while (!it.done()) {
+    Context* context = Context::cast(it.frame()->context());
+    if (context->native_context() == *debug->debug_context()) {
+      it.Advance();
+    } else {
+      break;
+    }
+  }
+}
+}  // namespace
 
 Handle<Context> Isolate::GetCallingNativeContext() {
   JavaScriptFrameIterator it(this);
-  it.AdvanceWhileDebugContext(debug_);
+  AdvanceWhileDebugContext(it, debug_);
   if (it.done()) return Handle<Context>::null();
   JavaScriptFrame* frame = it.frame();
   Context* context = Context::cast(frame->context());
@@ -2042,7 +2056,7 @@ Handle<Context> Isolate::GetCallingNativeContext() {
 
 Handle<Context> Isolate::GetIncumbentContext() {
   JavaScriptFrameIterator it(this);
-  it.AdvanceWhileDebugContext(debug_);
+  AdvanceWhileDebugContext(it, debug_);
 
   // 1st candidate: most-recently-entered author function's context
   // if it's newer than the last Context::BackupIncumbentScope entry.

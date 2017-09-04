@@ -137,25 +137,6 @@ void JavaScriptFrameIterator::Advance() {
   } while (!iterator_.done() && !iterator_.frame()->is_java_script());
 }
 
-void JavaScriptFrameIterator::AdvanceToArgumentsFrame() {
-  if (!frame()->has_adapted_arguments()) return;
-  iterator_.Advance();
-  DCHECK(iterator_.frame()->is_arguments_adaptor());
-}
-
-void JavaScriptFrameIterator::AdvanceWhileDebugContext(Debug* debug) {
-  if (!debug->in_debug_scope()) return;
-
-  while (!done()) {
-    Context* context = Context::cast(frame()->context());
-    if (context->native_context() == *debug->debug_context()) {
-      Advance();
-    } else {
-      break;
-    }
-  }
-}
-
 // -------------------------------------------------------------------------
 
 StackTraceFrameIterator::StackTraceFrameIterator(Isolate* isolate)
@@ -183,12 +164,6 @@ bool StackTraceFrameIterator::IsValidFrame(StackFrame* frame) const {
   }
   // apart from javascript, only wasm is valid
   return frame->is_wasm();
-}
-
-void StackTraceFrameIterator::AdvanceToArgumentsFrame() {
-  if (!is_javascript() || !javascript_frame()->has_adapted_arguments()) return;
-  iterator_.Advance();
-  DCHECK(iterator_.frame()->is_arguments_adaptor());
 }
 
 // -------------------------------------------------------------------------
@@ -2032,23 +2007,7 @@ void InternalFrame::Iterate(RootVisitor* v) const {
   if (code->has_tagged_params()) IterateExpressions(v);
 }
 
-
 // -------------------------------------------------------------------------
-
-
-JavaScriptFrame* StackFrameLocator::FindJavaScriptFrame(int n) {
-  DCHECK(n >= 0);
-  for (int i = 0; i <= n; i++) {
-    while (!iterator_.frame()->is_java_script()) iterator_.Advance();
-    if (i == n) return JavaScriptFrame::cast(iterator_.frame());
-    iterator_.Advance();
-  }
-  UNREACHABLE();
-}
-
-
-// -------------------------------------------------------------------------
-
 
 static Map* GcSafeMapOfCodeSpaceObject(HeapObject* object) {
   MapWord map_word = object->map_word();

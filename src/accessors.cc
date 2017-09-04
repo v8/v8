@@ -851,7 +851,10 @@ Handle<Object> GetFunctionArguments(Isolate* isolate,
     }
 
     // Find the frame that holds the actual arguments passed to the function.
-    it.AdvanceToArgumentsFrame();
+    if (it.frame()->has_adapted_arguments()) {
+      it.AdvanceOneFrame();
+      DCHECK(it.frame()->is_arguments_adaptor());
+    }
     frame = it.frame();
 
     // Get the number of arguments and construct an arguments object

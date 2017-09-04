@@ -635,7 +635,8 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
   // information (except for what is collected above) is the same.
   if ((inlined_frame_index == 0) &&
       it.javascript_frame()->has_adapted_arguments()) {
-    it.AdvanceToArgumentsFrame();
+    it.AdvanceOneFrame();
+    DCHECK(it.frame()->is_arguments_adaptor());
     frame_inspector.SetArgumentsFrame(it.frame());
   }
 
@@ -1022,12 +1023,13 @@ RUNTIME_FUNCTION(Runtime_DebugPrintScopes) {
 
 #ifdef DEBUG
   // Print the scopes for the top frame.
-  StackFrameLocator locator(isolate);
-  JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-  FrameInspector frame_inspector(frame, 0, isolate);
-
-  for (ScopeIterator it(isolate, &frame_inspector); !it.Done(); it.Next()) {
-    it.DebugPrint();
+  JavaScriptFrameIterator it(isolate);
+  if (!it.done()) {
+    JavaScriptFrame* frame = it.frame();
+    FrameInspector frame_inspector(frame, 0, isolate);
+    for (ScopeIterator si(isolate, &frame_inspector); !si.Done(); si.Next()) {
+      si.DebugPrint();
+    }
   }
 #endif
   return isolate->heap()->undefined_value();

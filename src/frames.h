@@ -1205,14 +1205,7 @@ class JavaScriptFrameIterator BASE_EMBEDDED {
 
   bool done() const { return iterator_.done(); }
   void Advance();
-
-  // Advance to the frame holding the arguments for the current
-  // frame. This only affects the current frame if it has adapted
-  // arguments.
-  void AdvanceToArgumentsFrame();
-
-  // Skips the frames that point to the debug context.
-  void AdvanceWhileDebugContext(Debug* debug);
+  void AdvanceOneFrame() { iterator_.Advance(); }
 
  private:
   StackFrameIterator iterator_;
@@ -1228,17 +1221,13 @@ class StackTraceFrameIterator BASE_EMBEDDED {
   StackTraceFrameIterator(Isolate* isolate, StackFrame::Id id);
   bool done() const { return iterator_.done(); }
   void Advance();
+  void AdvanceOneFrame() { iterator_.Advance(); }
 
   inline StandardFrame* frame() const;
 
   inline bool is_javascript() const;
   inline bool is_wasm() const;
   inline JavaScriptFrame* javascript_frame() const;
-
-  // Advance to the frame holding the arguments for the current
-  // frame. This only affects the current frame if it is a javascript frame and
-  // has adapted arguments.
-  void AdvanceToArgumentsFrame();
 
  private:
   StackFrameIterator iterator_;
@@ -1273,20 +1262,6 @@ class SafeStackFrameIterator: public StackFrameIteratorBase {
   StackFrame::Type top_frame_type_;
   ExternalCallbackScope* external_callback_scope_;
 };
-
-
-class StackFrameLocator BASE_EMBEDDED {
- public:
-  explicit StackFrameLocator(Isolate* isolate) : iterator_(isolate) {}
-
-  // Find the nth JavaScript frame on the stack. The caller must
-  // guarantee that such a frame exists.
-  JavaScriptFrame* FindJavaScriptFrame(int n);
-
- private:
-  StackFrameIterator iterator_;
-};
-
 
 // Reads all frames on the current stack and copies them into the current
 // zone memory.
