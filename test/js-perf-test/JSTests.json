@@ -617,6 +617,7 @@
       "name": "Parsing",
       "path": ["Parsing"],
       "main": "run.js",
+      "flags": ["--no-compilation-cache", "--allow-natives-syntax"],
       "resources": [ "comments.js"],
       "results_regexp": "^%s\\-Parsing\\(Score\\): (.+)$",
       "tests": [
