@@ -3711,7 +3711,8 @@ inline bool Code::checks_optimization_marker() const {
        this == builtins->builtin(Builtins::kInterpreterEntryTrampoline) ||
        this == builtins->builtin(Builtins::kCheckOptimizationMarker));
   DCHECK_IMPLIES(checks_marker, !Builtins::IsLazy(builtin_index()));
-  return checks_marker;
+  return checks_marker ||
+         (kind() == OPTIMIZED_FUNCTION && marked_for_deoptimization());
 }
 
 inline bool Code::has_unwinding_info() const {
@@ -4575,13 +4576,21 @@ FeedbackVector* JSFunction::feedback_vector() const {
   return FeedbackVector::cast(feedback_vector_cell()->value());
 }
 
+// Code objects that are marked for deoptimization are not considered to be
+// optimized. This is because the JSFunction might have been already
+// deoptimized but its code() still needs to be unlinked, which will happen on
+// its next activation.
+// TODO(jupvfranco): rename this function. Maybe RunOptimizedCode,
+// or IsValidOptimizedCode.
 bool JSFunction::IsOptimized() {
-  return code()->kind() == Code::OPTIMIZED_FUNCTION;
+  return code()->kind() == Code::OPTIMIZED_FUNCTION &&
+         !code()->marked_for_deoptimization();
 }
 
 bool JSFunction::HasOptimizedCode() {
   return IsOptimized() ||
-         (has_feedback_vector() && feedback_vector()->has_optimized_code());
+         (has_feedback_vector() && feedback_vector()->has_optimized_code() &&
+          !feedback_vector()->optimized_code()->marked_for_deoptimization());
 }
 
 bool JSFunction::HasOptimizationMarker() {
@@ -4684,20 +4693,9 @@ void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
   feedback_vector()->SetOptimizationMarker(marker);
 }
 
+// TODO(jupvfranco): Get rid of this function and use set_code instead.
 void JSFunction::ReplaceCode(Code* code) {
-  bool was_optimized = this->code()->kind() == Code::OPTIMIZED_FUNCTION;
-  bool is_optimized = code->kind() == Code::OPTIMIZED_FUNCTION;
-
   set_code(code);
-
-  // Add/remove the function from the list of optimized functions for this
-  // context based on the state change.
-  if (!was_optimized && is_optimized) {
-    context()->native_context()->AddOptimizedFunction(this);
-  } else if (was_optimized && !is_optimized) {
-    // TODO(titzer): linear in the number of optimized functions; fix!
-    context()->native_context()->RemoveOptimizedFunction(this);
-  }
 }
 
 bool JSFunction::has_feedback_vector() const {

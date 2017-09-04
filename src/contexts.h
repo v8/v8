@@ -541,14 +541,13 @@ class Context: public FixedArray {
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.
-    OPTIMIZED_FUNCTIONS_LIST,  // Weak.
-    OPTIMIZED_CODE_LIST,       // Weak.
-    DEOPTIMIZED_CODE_LIST,     // Weak.
-    NEXT_CONTEXT_LINK,         // Weak.
+    OPTIMIZED_CODE_LIST,    // Weak.
+    DEOPTIMIZED_CODE_LIST,  // Weak.
+    NEXT_CONTEXT_LINK,      // Weak.
 
     // Total number of slots.
     NATIVE_CONTEXT_SLOTS,
-    FIRST_WEAK_SLOT = OPTIMIZED_FUNCTIONS_LIST,
+    FIRST_WEAK_SLOT = OPTIMIZED_CODE_LIST,
     FIRST_JS_ARRAY_MAP_SLOT = JS_ARRAY_PACKED_SMI_ELEMENTS_MAP_INDEX,
 
     MIN_CONTEXT_SLOTS = GLOBAL_PROXY_INDEX,
@@ -626,12 +625,6 @@ class Context: public FixedArray {
   inline bool IsScriptContext() const;
 
   inline bool HasSameSecurityTokenAs(Context* that) const;
-
-  // A native context holds a list of all functions with optimized code.
-  void AddOptimizedFunction(JSFunction* function);
-  void RemoveOptimizedFunction(JSFunction* function);
-  void SetOptimizedFunctionsListHead(Object* head);
-  Object* OptimizedFunctionsListHead();
 
   // The native context also stores a list of all optimized code and a
   // list of all deoptimized code, which are needed by the deoptimizer.

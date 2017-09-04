@@ -1509,32 +1509,6 @@ static void AddFunctionAndCode(SharedFunctionInfo* sfi,
   }
 }
 
-class EnumerateOptimizedFunctionsVisitor: public OptimizedFunctionVisitor {
- public:
-  EnumerateOptimizedFunctionsVisitor(Handle<SharedFunctionInfo>* sfis,
-                                     Handle<AbstractCode>* code_objects,
-                                     int* count)
-      : sfis_(sfis), code_objects_(code_objects), count_(count) {}
-
-  virtual void VisitFunction(JSFunction* function) {
-    SharedFunctionInfo* sfi = SharedFunctionInfo::cast(function->shared());
-    Object* maybe_script = sfi->script();
-    if (maybe_script->IsScript()
-        && !Script::cast(maybe_script)->HasValidSource()) return;
-
-    DCHECK(function->abstract_code()->kind() ==
-           AbstractCode::OPTIMIZED_FUNCTION);
-    AddFunctionAndCode(sfi, function->abstract_code(), sfis_, code_objects_,
-                       *count_);
-    *count_ = *count_ + 1;
-  }
-
- private:
-  Handle<SharedFunctionInfo>* sfis_;
-  Handle<AbstractCode>* code_objects_;
-  int* count_;
-};
-
 static int EnumerateCompiledFunctions(Heap* heap,
                                       Handle<SharedFunctionInfo>* sfis,
                                       Handle<AbstractCode>* code_objects) {
@@ -1545,33 +1519,42 @@ static int EnumerateCompiledFunctions(Heap* heap,
   // Iterate the heap to find shared function info objects and record
   // the unoptimized code for them.
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
-    if (!obj->IsSharedFunctionInfo()) continue;
-    SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
-    if (sfi->is_compiled()
-        && (!sfi->script()->IsScript()
-            || Script::cast(sfi->script())->HasValidSource())) {
-      // In some cases, an SFI might have (and have executing!) both bytecode
-      // and baseline code, so check for both and add them both if needed.
-      if (sfi->HasBytecodeArray()) {
-        AddFunctionAndCode(sfi, AbstractCode::cast(sfi->bytecode_array()), sfis,
-                           code_objects, compiled_funcs_count);
-        ++compiled_funcs_count;
-      }
+    if (obj->IsSharedFunctionInfo()) {
+      SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
+      if (sfi->is_compiled() &&
+          (!sfi->script()->IsScript() ||
+           Script::cast(sfi->script())->HasValidSource())) {
+        // In some cases, an SFI might have (and have executing!) both bytecode
+        // and baseline code, so check for both and add them both if needed.
+        if (sfi->HasBytecodeArray()) {
+          AddFunctionAndCode(sfi, AbstractCode::cast(sfi->bytecode_array()),
+                             sfis, code_objects, compiled_funcs_count);
+          ++compiled_funcs_count;
+        }
 
-      if (!sfi->IsInterpreted()) {
-        AddFunctionAndCode(sfi, AbstractCode::cast(sfi->code()), sfis,
+        if (!sfi->IsInterpreted()) {
+          AddFunctionAndCode(sfi, AbstractCode::cast(sfi->code()), sfis,
+                             code_objects, compiled_funcs_count);
+          ++compiled_funcs_count;
+        }
+      }
+    } else if (obj->IsJSFunction()) {
+      // Given that we no longer iterate over all optimized JSFunctions, we need
+      // to take care of this here.
+      JSFunction* function = JSFunction::cast(obj);
+      SharedFunctionInfo* sfi = SharedFunctionInfo::cast(function->shared());
+      Object* maybe_script = sfi->script();
+      if (maybe_script->IsScript() &&
+          !Script::cast(maybe_script)->HasValidSource()) {
+        continue;
+      }
+      if (function->HasOptimizedCode()) {
+        AddFunctionAndCode(sfi, AbstractCode::cast(function->code()), sfis,
                            code_objects, compiled_funcs_count);
         ++compiled_funcs_count;
       }
     }
   }
-
-  // Iterate all optimized functions in all contexts.
-  EnumerateOptimizedFunctionsVisitor visitor(sfis,
-                                             code_objects,
-                                             &compiled_funcs_count);
-  Deoptimizer::VisitAllOptimizedFunctions(heap->isolate(), &visitor);
-
   return compiled_funcs_count;
 }
 
