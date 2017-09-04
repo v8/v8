@@ -1555,7 +1555,20 @@ struct PrintGraphPhase {
               << AsJSON(*graph, data->source_positions()) << "},\n";
     }
 
-    if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
+    if (FLAG_trace_turbo_scheduled) {  // Scheduled textual output.
+      AccountingAllocator allocator;
+      Schedule* schedule = data->schedule();
+      if (schedule == nullptr) {
+        schedule = Scheduler::ComputeSchedule(temp_zone, data->graph(),
+                                              Scheduler::kNoFlags);
+      }
+
+      AllowHandleDereference allow_deref;
+      CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
+      OFStream os(tracing_scope.file());
+      os << "-- Graph after " << phase << " -- " << std::endl;
+      os << AsScheduledGraph(schedule);
+    } else if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
       AllowHandleDereference allow_deref;
       CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
       OFStream os(tracing_scope.file());
