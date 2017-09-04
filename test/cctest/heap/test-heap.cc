@@ -1367,22 +1367,6 @@ int CountNativeContexts() {
   return count;
 }
 
-
-// Count the number of user functions in the weak list of optimized
-// functions attached to a native context.
-static int CountOptimizedUserFunctions(v8::Local<v8::Context> context) {
-  int count = 0;
-  Handle<Context> icontext = v8::Utils::OpenHandle(*context);
-  Object* object = icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST);
-  while (object->IsJSFunction() &&
-         JSFunction::cast(object)->shared()->IsUserJavaScript()) {
-    count++;
-    object = JSFunction::cast(object)->next_function_link();
-  }
-  return count;
-}
-
-
 TEST(TestInternalWeakLists) {
   FLAG_always_opt = false;
   FLAG_allow_natives_syntax = true;
@@ -1420,17 +1404,11 @@ TEST(TestInternalWeakLists) {
     // Create a handle scope so no function objects get stuck in the outer
     // handle scope.
     HandleScope scope(isolate);
-    CHECK_EQ(0, CountOptimizedUserFunctions(ctx[i]));
     OptimizeEmptyFunction("f1");
-    CHECK_EQ(1, CountOptimizedUserFunctions(ctx[i]));
     OptimizeEmptyFunction("f2");
-    CHECK_EQ(2, CountOptimizedUserFunctions(ctx[i]));
     OptimizeEmptyFunction("f3");
-    CHECK_EQ(3, CountOptimizedUserFunctions(ctx[i]));
     OptimizeEmptyFunction("f4");
-    CHECK_EQ(4, CountOptimizedUserFunctions(ctx[i]));
     OptimizeEmptyFunction("f5");
-    CHECK_EQ(5, CountOptimizedUserFunctions(ctx[i]));
 
     // Remove function f1, and
     CompileRun("f1=null");
@@ -1438,29 +1416,23 @@ TEST(TestInternalWeakLists) {
     // Scavenge treats these references as strong.
     for (int j = 0; j < 10; j++) {
       CcTest::CollectGarbage(NEW_SPACE);
-      CHECK_EQ(5, CountOptimizedUserFunctions(ctx[i]));
     }
 
     // Mark compact handles the weak references.
     isolate->compilation_cache()->Clear();
     CcTest::CollectAllGarbage();
-    CHECK_EQ(4, CountOptimizedUserFunctions(ctx[i]));
 
     // Get rid of f3 and f5 in the same way.
     CompileRun("f3=null");
     for (int j = 0; j < 10; j++) {
       CcTest::CollectGarbage(NEW_SPACE);
-      CHECK_EQ(4, CountOptimizedUserFunctions(ctx[i]));
     }
     CcTest::CollectAllGarbage();
-    CHECK_EQ(3, CountOptimizedUserFunctions(ctx[i]));
     CompileRun("f5=null");
     for (int j = 0; j < 10; j++) {
       CcTest::CollectGarbage(NEW_SPACE);
-      CHECK_EQ(3, CountOptimizedUserFunctions(ctx[i]));
     }
     CcTest::CollectAllGarbage();
-    CHECK_EQ(2, CountOptimizedUserFunctions(ctx[i]));
 
     ctx[i]->Exit();
   }
@@ -1488,94 +1460,6 @@ TEST(TestInternalWeakLists) {
   }
 
   CHECK_EQ(0, CountNativeContexts());
-}
-
-
-// Count the number of native contexts in the weak list of native contexts
-// causing a GC after the specified number of elements.
-static int CountNativeContextsWithGC(Isolate* isolate, int n) {
-  Heap* heap = isolate->heap();
-  int count = 0;
-  Handle<Object> object(heap->native_contexts_list(), isolate);
-  while (!object->IsUndefined(isolate)) {
-    count++;
-    if (count == n) CcTest::CollectAllGarbage();
-    object =
-        Handle<Object>(Context::cast(*object)->next_context_link(), isolate);
-  }
-  return count;
-}
-
-
-// Count the number of user functions in the weak list of optimized
-// functions attached to a native context causing a GC after the
-// specified number of elements.
-static int CountOptimizedUserFunctionsWithGC(v8::Local<v8::Context> context,
-                                             int n) {
-  int count = 0;
-  Handle<Context> icontext = v8::Utils::OpenHandle(*context);
-  Isolate* isolate = icontext->GetIsolate();
-  Handle<Object> object(icontext->get(Context::OPTIMIZED_FUNCTIONS_LIST),
-                        isolate);
-  while (object->IsJSFunction() &&
-         Handle<JSFunction>::cast(object)->shared()->IsUserJavaScript()) {
-    count++;
-    if (count == n)
-      isolate->heap()->CollectAllGarbage(
-          i::Heap::kFinalizeIncrementalMarkingMask,
-          i::GarbageCollectionReason::kTesting);
-    object = Handle<Object>(
-        Object::cast(JSFunction::cast(*object)->next_function_link()),
-        isolate);
-  }
-  return count;
-}
-
-
-TEST(TestInternalWeakListsTraverseWithGC) {
-  FLAG_always_opt = false;
-  FLAG_allow_natives_syntax = true;
-  v8::V8::Initialize();
-
-  static const int kNumTestContexts = 10;
-
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-  v8::Local<v8::Context> ctx[kNumTestContexts];
-  if (!isolate->use_optimizer()) return;
-
-  CHECK_EQ(0, CountNativeContexts());
-
-  // Create an number of contexts and check the length of the weak list both
-  // with and without GCs while iterating the list.
-  for (int i = 0; i < kNumTestContexts; i++) {
-    ctx[i] = v8::Context::New(CcTest::isolate());
-    CHECK_EQ(i + 1, CountNativeContexts());
-    CHECK_EQ(i + 1, CountNativeContextsWithGC(isolate, i / 2 + 1));
-  }
-
-  ctx[0]->Enter();
-
-  // Compile a number of functions the length of the weak list of optimized
-  // functions both with and without GCs while iterating the list.
-  CHECK_EQ(0, CountOptimizedUserFunctions(ctx[0]));
-  OptimizeEmptyFunction("f1");
-  CHECK_EQ(1, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(1, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
-  OptimizeEmptyFunction("f2");
-  CHECK_EQ(2, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(2, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
-  OptimizeEmptyFunction("f3");
-  CHECK_EQ(3, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(3, CountOptimizedUserFunctionsWithGC(ctx[0], 1));
-  OptimizeEmptyFunction("f4");
-  CHECK_EQ(4, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(4, CountOptimizedUserFunctionsWithGC(ctx[0], 2));
-  OptimizeEmptyFunction("f5");
-  CHECK_EQ(5, CountOptimizedUserFunctions(ctx[0]));
-  CHECK_EQ(5, CountOptimizedUserFunctionsWithGC(ctx[0], 4));
-
-  ctx[0]->Exit();
 }
 
 

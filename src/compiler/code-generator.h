@@ -157,8 +157,6 @@ class CodeGenerator final : public GapResolver::Assembler {
   // ============= Architecture-specific code generation methods. ==============
   // ===========================================================================
 
-  CodeGenResult FinalizeAssembleDeoptimizerCall(Address deoptimization_entry);
-
   CodeGenResult AssembleArchInstruction(Instruction* instr);
   void AssembleArchJump(RpoNumber target);
   void AssembleArchBranch(Instruction* instr, BranchInfo* branch);
@@ -166,6 +164,12 @@ class CodeGenerator final : public GapResolver::Assembler {
   void AssembleArchTrap(Instruction* instr, FlagsCondition condition);
   void AssembleArchLookupSwitch(Instruction* instr);
   void AssembleArchTableSwitch(Instruction* instr);
+
+  // When entering a code that is marked for deoptimization, rather continuing
+  // with its execution, we jump to a lazy compiled code. We need to do this
+  // because this code has already been deoptimized and needs to be unlinked
+  // from the JS functions referring it.
+  void BailoutIfDeoptimized();
 
   // Generates an architecture-specific, descriptor-specific prologue
   // to set up a stack frame.

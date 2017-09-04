@@ -1070,16 +1070,13 @@ void V8HeapExplorer::ExtractContextReferences(int entry, Context* context) {
     TagObject(context->normalized_map_cache(), "(context norm. map cache)");
     TagObject(context->embedder_data(), "(context data)");
     NATIVE_CONTEXT_FIELDS(EXTRACT_CONTEXT_FIELD)
-    EXTRACT_CONTEXT_FIELD(OPTIMIZED_FUNCTIONS_LIST, unused,
-                          optimized_functions_list);
     EXTRACT_CONTEXT_FIELD(OPTIMIZED_CODE_LIST, unused, optimized_code_list);
     EXTRACT_CONTEXT_FIELD(DEOPTIMIZED_CODE_LIST, unused, deoptimized_code_list);
 #undef EXTRACT_CONTEXT_FIELD
-    STATIC_ASSERT(Context::OPTIMIZED_FUNCTIONS_LIST ==
-                  Context::FIRST_WEAK_SLOT);
+    STATIC_ASSERT(Context::OPTIMIZED_CODE_LIST == Context::FIRST_WEAK_SLOT);
     STATIC_ASSERT(Context::NEXT_CONTEXT_LINK + 1 ==
                   Context::NATIVE_CONTEXT_SLOTS);
-    STATIC_ASSERT(Context::FIRST_WEAK_SLOT + 4 ==
+    STATIC_ASSERT(Context::FIRST_WEAK_SLOT + 3 ==
                   Context::NATIVE_CONTEXT_SLOTS);
   }
 }

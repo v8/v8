@@ -805,38 +805,49 @@ class FeedbackVectorFixer {
   };
 };
 
-
-// Marks code that shares the same shared function info or has inlined
-// code that shares the same function info.
-class DependentFunctionMarker: public OptimizedFunctionVisitor {
- public:
-  SharedFunctionInfo* shared_info_;
-  bool found_;
-
-  explicit DependentFunctionMarker(SharedFunctionInfo* shared_info)
-    : shared_info_(shared_info), found_(false) { }
-
-  virtual void VisitFunction(JSFunction* function) {
-    // It should be guaranteed by the iterator that everything is optimized.
-    DCHECK(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
-    if (function->Inlines(shared_info_)) {
-      // Mark the code for deoptimization.
-      function->code()->set_marked_for_deoptimization(true);
-      found_ = true;
+namespace {
+bool NeedsDeoptimization(SharedFunctionInfo* function_info, Code* code) {
+  DeoptimizationInputData* table =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  SharedFunctionInfo* sfi =
+      SharedFunctionInfo::cast(table->SharedFunctionInfo());
+  if (sfi == function_info) return true;
+  DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(table->length() != 0);
+  FixedArray* const literals = table->LiteralArray();
+  int const inlined_count = table->InlinedFunctionCount()->value();
+  for (int i = 0; i < inlined_count; i++) {
+    if (SharedFunctionInfo::cast(literals->get(i)) == function_info) {
+      return true;
     }
   }
-};
-
+  return false;
+}
+}  // namespace
 
 static void DeoptimizeDependentFunctions(SharedFunctionInfo* function_info) {
   DisallowHeapAllocation no_allocation;
-  DependentFunctionMarker marker(function_info);
-  // TODO(titzer): need to traverse all optimized code to find OSR code here.
-  Deoptimizer::VisitAllOptimizedFunctions(function_info->GetIsolate(), &marker);
+  bool found_something = false;
+  Isolate* isolate = function_info->GetIsolate();
+  Object* context_link = isolate->heap()->native_contexts_list();
+  while (!context_link->IsUndefined(isolate)) {
+    Context* context = Context::cast(context_link);
+    Object* element = context->OptimizedCodeListHead();
+    while (!element->IsUndefined(isolate)) {
+      Code* code = Code::cast(element);
+      DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
+      if (NeedsDeoptimization(function_info, code)) {
+        code->set_marked_for_deoptimization(true);
+        found_something = true;
+      }
+      element = code->next_code_link();
+    }
+    context_link = context->next_context_link();
+  }
 
-  if (marker.found_) {
+  if (found_something) {
     // Only go through with the deoptimization if something was found.
-    Deoptimizer::DeoptimizeMarkedCode(function_info->GetIsolate());
+    Deoptimizer::DeoptimizeMarkedCode(isolate);
   }
 }
 

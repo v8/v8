@@ -171,20 +171,17 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
 
   Handle<JSFunction> function = deoptimizer->function();
-  Handle<Code> optimized_code = deoptimizer->compiled_code();
 
-  DCHECK(optimized_code->kind() == Code::OPTIMIZED_FUNCTION);
-  DCHECK(optimized_code->is_turbofanned());
+  DCHECK(deoptimizer->compiled_code()->kind() == Code::OPTIMIZED_FUNCTION);
+  DCHECK(deoptimizer->compiled_code()->is_turbofanned());
   DCHECK(type == deoptimizer->bailout_type());
   DCHECK_NULL(isolate->context());
-
   // TODO(turbofan): We currently need the native context to materialize
   // the arguments object, but only to get to its map.
   isolate->set_context(function->native_context());
 
   // Make sure to materialize objects before causing any allocation.
-  JavaScriptFrameIterator it(isolate);
-  deoptimizer->MaterializeHeapObjects(&it);
+  deoptimizer->MaterializeHeapObjects();
   delete deoptimizer;
 
   // Ensure the context register is updated for materialized objects.
@@ -196,29 +193,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
     return isolate->heap()->undefined_value();
   }
 
-  // Search for other activations of the same optimized code.
-  // At this point {it} is at the topmost frame of all the frames materialized
-  // by the deoptimizer. Note that this frame does not necessarily represent
-  // an activation of {function} because of potential inlined tail-calls.
-  ActivationsFinder activations_finder(*optimized_code);
-  activations_finder.VisitFrames(&it);
-  isolate->thread_manager()->IterateArchivedThreads(&activations_finder);
-
-  if (!activations_finder.has_code_activations_) {
-    Deoptimizer::UnlinkOptimizedCode(*optimized_code,
-                                     function->context()->native_context());
-
-    // Evict optimized code for this function from the cache so that it
-    // doesn't get used for new closures.
-    if (function->feedback_vector()->optimized_code() == *optimized_code) {
-      function->ClearOptimizedCodeSlot("notify deoptimized");
-    }
-  } else {
-    // TODO(titzer): we should probably do DeoptimizeCodeList(code)
-    // unconditionally if the code is not already marked for deoptimization.
-    // If there is an index by shared function info, all the better.
-    Deoptimizer::DeoptimizeFunction(*function);
-  }
+  Deoptimizer::DeoptimizeFunction(*function);
 
   return isolate->heap()->undefined_value();
 }
