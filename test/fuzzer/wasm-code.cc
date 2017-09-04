@@ -19,7 +19,7 @@ namespace wasm {
 namespace fuzzer {
 
 class WasmCodeFuzzer : public WasmExecutionFuzzer {
-  virtual bool GenerateModule(
+  bool GenerateModule(
       Isolate* isolate, Zone* zone, const uint8_t* data, size_t size,
       ZoneBuffer& buffer, int32_t& num_args,
       std::unique_ptr<WasmValue[]>& interpreter_args,

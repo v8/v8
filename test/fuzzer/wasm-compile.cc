@@ -113,7 +113,7 @@ class WasmGenerator {
   }
 
  public:
-  WasmGenerator(WasmFunctionBuilder* fn) : builder_(fn) {}
+  explicit WasmGenerator(WasmFunctionBuilder* fn) : builder_(fn) {}
 
   void Generate(ValueType type, DataRange data);
 
@@ -297,10 +297,10 @@ void WasmGenerator::Generate(ValueType type, DataRange data) {
       UNREACHABLE();
   }
 }
-}
+}  // namespace
 
 class WasmCompileFuzzer : public WasmExecutionFuzzer {
-  virtual bool GenerateModule(
+  bool GenerateModule(
       Isolate* isolate, Zone* zone, const uint8_t* data, size_t size,
       ZoneBuffer& buffer, int32_t& num_args,
       std::unique_ptr<WasmValue[]>& interpreter_args,
