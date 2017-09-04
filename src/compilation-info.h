@@ -180,12 +180,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     osr_frame_ = osr_frame;
   }
 
-  // Deoptimization support.
-  bool ShouldEnsureSpaceForLazyDeopt() { return !IsStub(); }
-
-  // Determines whether or not to insert a self-optimization header.
-  bool ShouldSelfOptimize();
-
   void set_deferred_handles(std::shared_ptr<DeferredHandles> deferred_handles);
   void set_deferred_handles(DeferredHandles* deferred_handles);
   std::shared_ptr<DeferredHandles> deferred_handles() {

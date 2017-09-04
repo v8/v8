@@ -105,12 +105,6 @@ int CompilationInfo::num_parameters_including_this() const {
 
 bool CompilationInfo::is_this_defined() const { return !IsStub(); }
 
-// Primitive functions are unlikely to be picked up by the stack-walking
-// profiler, so they trigger their own optimization when they're called
-// for the SharedFunctionInfo::kCallsUntilPrimitiveOptimization-th time.
-// TODO(6409) Remove when Full-Codegen dies.
-bool CompilationInfo::ShouldSelfOptimize() { return false; }
-
 void CompilationInfo::set_deferred_handles(
     std::shared_ptr<DeferredHandles> deferred_handles) {
   DCHECK(deferred_handles_.get() == nullptr);
