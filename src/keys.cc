@@ -4,7 +4,7 @@
 
 #include "src/keys.h"
 
-#include "src/api-arguments.h"
+#include "src/api-arguments-inl.h"
 #include "src/elements.h"
 #include "src/factory.h"
 #include "src/identity-map.h"
@@ -393,7 +393,7 @@ MaybeHandle<FixedArray> FastKeyAccumulator::GetKeysFast(
     return MaybeHandle<FixedArray>();
   }
 
-  // From this point on we are certiain to only collect own keys.
+  // From this point on we are certain to only collect own keys.
   DCHECK(receiver_->IsJSObject());
   Handle<JSObject> object = Handle<JSObject>::cast(receiver_);
 
@@ -457,6 +457,44 @@ namespace {
 
 enum IndexedOrNamed { kIndexed, kNamed };
 
+template <IndexedOrNamed type>
+void FilterForEnumerableProperties(PropertyCallbackArguments* args,
+                                   Handle<InterceptorInfo> interceptor,
+                                   Handle<JSObject> result,
+                                   KeyAccumulator* accumulator) {
+  DCHECK(result->IsJSArray() || result->HasSloppyArgumentsElements());
+
+  ElementsAccessor* accessor = result->GetElementsAccessor();
+
+  uint32_t length = accessor->GetCapacity(*result, result->elements());
+  for (uint32_t i = 0; i < length; i++) {
+    if (!accessor->HasEntry(*result, i)) continue;
+    Handle<Object> element = accessor->Get(result, i);
+    Handle<Object> attributes;
+    if (type == kIndexed) {
+      uint32_t number;
+      CHECK(element->ToUint32(&number));
+      attributes = args->Call(
+          v8::ToCData<v8::IndexedPropertyQueryCallback>(interceptor->query()),
+          number);
+    } else {
+      CHECK(element->IsName());
+      attributes =
+          args->Call(v8::ToCData<v8::GenericNamedPropertyQueryCallback>(
+                         interceptor->query()),
+                     Handle<Name>::cast(element));
+    }
+
+    if (!attributes.is_null()) {
+      int32_t value;
+      CHECK(attributes->ToInt32(&value));
+      if ((value & DONT_ENUM) == 0) {
+        accumulator->AddKey(element, DO_NOT_CONVERT);
+      }
+    }
+  }
+}
+
 // Returns |true| on success, |nothing| on exception.
 template <class Callback, IndexedOrNamed type>
 Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
@@ -464,20 +502,31 @@ Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
                                            Handle<InterceptorInfo> interceptor,
                                            KeyAccumulator* accumulator) {
   Isolate* isolate = accumulator->isolate();
-  PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                 *object, Object::DONT_THROW);
+  PropertyCallbackArguments enum_args(isolate, interceptor->data(), *receiver,
+                                      *object, Object::DONT_THROW);
+
   Handle<JSObject> result;
   if (!interceptor->enumerator()->IsUndefined(isolate)) {
     Callback enum_fun = v8::ToCData<Callback>(interceptor->enumerator());
     const char* log_tag = type == kIndexed ? "interceptor-indexed-enum"
                                            : "interceptor-named-enum";
     LOG(isolate, ApiObjectAccess(log_tag, *object));
-    result = args.Call(enum_fun);
+    result = enum_args.Call(enum_fun);
   }
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
   if (result.is_null()) return Just(true);
-  accumulator->AddKeys(
-      result, type == kIndexed ? CONVERT_TO_ARRAY_INDEX : DO_NOT_CONVERT);
+
+  if ((accumulator->filter() & ONLY_ENUMERABLE) &&
+      !interceptor->query()->IsUndefined(isolate)) {
+    PropertyCallbackArguments query_args(
+        isolate, interceptor->data(), *receiver, *object, Object::DONT_THROW);
+
+    FilterForEnumerableProperties<type>(&query_args, interceptor, result,
+                                        accumulator);
+  } else {
+    accumulator->AddKeys(
+        result, type == kIndexed ? CONVERT_TO_ARRAY_INDEX : DO_NOT_CONVERT);
+  }
   return Just(true);
 }
 

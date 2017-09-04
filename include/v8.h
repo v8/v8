@@ -5171,6 +5171,8 @@ typedef void (*NamedPropertyDeleterCallback)(
 /**
  * Returns an array containing the names of the properties the named
  * property getter intercepts.
+ *
+ * Note: The values in the array must be of type v8::Name.
  */
 typedef void (*NamedPropertyEnumeratorCallback)(
     const PropertyCallbackInfo<Array>& info);
@@ -5294,6 +5296,8 @@ typedef void (*GenericNamedPropertyDeleterCallback)(
 /**
  * Returns an array containing the names of the properties the named
  * property getter intercepts.
+ *
+ * Note: The values in the array must be of type v8::Name.
  */
 typedef void (*GenericNamedPropertyEnumeratorCallback)(
     const PropertyCallbackInfo<Array>& info);
@@ -5374,7 +5378,10 @@ typedef void (*IndexedPropertyDeleterCallback)(
     const PropertyCallbackInfo<Boolean>& info);
 
 /**
- * See `v8::GenericNamedPropertyEnumeratorCallback`.
+ * Returns an array containing the indices of the properties the indexed
+ * property getter intercepts.
+ *
+ * Note: The values in the array must be uint32_t.
  */
 typedef void (*IndexedPropertyEnumeratorCallback)(
     const PropertyCallbackInfo<Array>& info);

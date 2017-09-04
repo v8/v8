@@ -50,6 +50,10 @@ class ElementsAccessor {
     return HasElement(holder, index, holder->elements(), filter);
   }
 
+  // Note: this is currently not implemented for string wrapper and
+  // typed array elements.
+  virtual bool HasEntry(JSObject* holder, uint32_t entry) = 0;
+
   virtual Handle<Object> Get(Handle<JSObject> holder, uint32_t entry) = 0;
 
   virtual PropertyDetails GetDetails(JSObject* holder, uint32_t entry) = 0;
