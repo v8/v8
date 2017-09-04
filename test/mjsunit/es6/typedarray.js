@@ -885,3 +885,12 @@ for(i = 0; i < typedArrayConstructors.length; i++) {
                  e.message);
   }
 })();
+
+// Regression test 761654
+assertThrows(function LargeSourceArray() {
+  let v0 = {};
+  v0.length =  2 ** 32; // too large for uint32
+  let a = new Int8Array();
+
+  a.set(v0);
+});

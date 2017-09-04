@@ -554,15 +554,15 @@ BUILTIN(TypedArrayPrototypeSet) {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
                                          Object::ToLength(isolate, len));
 
-      uint32_t int_l;
-      CHECK(len->ToUint32(&int_l));
       DCHECK_GE(int_offset, 0);
-      if (static_cast<uint32_t>(int_offset) + int_l >
+      if (int_offset + len->Number() >
           Handle<JSTypedArray>::cast(target)->length_value()) {
         THROW_NEW_ERROR_RETURN_FAILURE(
             isolate,
             NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
       }
+      uint32_t int_l;
+      CHECK(DoubleToUint32IfEqualToSelf(len->Number(), &int_l));
       RETURN_FAILURE_ON_EXCEPTION(
           isolate, TypedArraySetFromArrayLike(
                        isolate, Handle<JSTypedArray>::cast(target), obj, int_l,
