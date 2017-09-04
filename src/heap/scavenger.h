@@ -93,6 +93,8 @@ class Scavenger {
 
   void RecordCopiedObject(HeapObject* obj);
 
+  static inline bool ContainsOnlyData(VisitorId visitor_id);
+
   Heap* const heap_;
   PromotionList::View promotion_list_;
   CopiedList::View copied_list_;

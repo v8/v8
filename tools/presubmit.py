@@ -60,7 +60,6 @@ from testrunner.local import utils
 LINT_RULES = """
 -build/header_guard
 -build/include_what_you_use
--build/namespaces
 -readability/check
 -readability/fn_size
 +readability/streams

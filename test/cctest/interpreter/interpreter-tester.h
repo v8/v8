@@ -46,10 +46,6 @@ class InterpreterCallable {
   Handle<JSFunction> function_;
 };
 
-namespace {
-const char kFunctionName[] = "f";
-}  // namespace
-
 class InterpreterTester {
  public:
   InterpreterTester(Isolate* isolate, const char* source,
@@ -81,6 +77,8 @@ class InterpreterTester {
   static std::string SourceForBody(const char* body);
 
   static std::string function_name();
+
+  static const char kFunctionName[];
 
  private:
   Isolate* isolate_;
