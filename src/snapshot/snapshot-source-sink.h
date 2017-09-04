@@ -64,6 +64,7 @@ class SnapshotByteSource final {
   int GetBlob(const byte** data);
 
   int position() { return position_; }
+  void set_position(int position) { position_ = position; }
 
  private:
   const byte* data_;

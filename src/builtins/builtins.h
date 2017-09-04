@@ -71,6 +71,9 @@ class Builtins {
   Handle<Code> NewCloneShallowArray(AllocationSiteMode allocation_mode);
   Handle<Code> JSConstructStubGeneric();
 
+  // Used by BuiltinDeserializer.
+  void set_builtin(int index, HeapObject* builtin);
+
   Code* builtin(Name name) {
     // Code::cast cannot be used here since we access builtins
     // during the marking phase of mark sweep. See IC::Clear.

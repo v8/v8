@@ -56,73 +56,78 @@ bool Deserializer::ReserveSpace() {
 }
 
 // static
-bool Deserializer::ReserveSpace(StartupDeserializer* lhs,
-                                BuiltinDeserializer* rhs) {
+bool Deserializer::ReserveSpace(StartupDeserializer* startup_deserializer,
+                                BuiltinDeserializer* builtin_deserializer) {
   const int first_space = NEW_SPACE;
   const int last_space = SerializerDeserializer::kNumberOfSpaces;
-  Isolate* isolate = lhs->isolate();
+  Isolate* isolate = startup_deserializer->isolate();
 
-  // Merge reservations to reserve space in one go.
+  // Create a set of merged reservations to reserve space in one go.
+  // The BuiltinDeserializer's reservations are ignored, since our actual
+  // requirements vary based on whether lazy deserialization is enabled.
+  // Instead, we manually determine the required code-space.
 
+  DCHECK(builtin_deserializer->ReservesOnlyCodeSpace());
   Heap::Reservation merged_reservations[kNumberOfSpaces];
   for (int i = first_space; i < last_space; i++) {
-    Heap::Reservation& r = merged_reservations[i];
-    Heap::Reservation& lhs_r = lhs->reservations_[i];
-    Heap::Reservation& rhs_r = rhs->reservations_[i];
-    DCHECK(!lhs_r.empty());
-    DCHECK(!rhs_r.empty());
-    r.insert(r.end(), lhs_r.begin(), lhs_r.end());
-    r.insert(r.end(), rhs_r.begin(), rhs_r.end());
+    merged_reservations[i] = startup_deserializer->reservations_[i];
   }
 
-  std::vector<Address> merged_allocated_maps;
+  Heap::Reservation builtin_reservations =
+      builtin_deserializer->CreateReservationsForEagerBuiltins();
+  DCHECK(!builtin_reservations.empty());
+
+  for (const auto& c : builtin_reservations) {
+    merged_reservations[CODE_SPACE].push_back(c);
+  }
 
   if (!isolate->heap()->ReserveSpace(merged_reservations,
-                                     &merged_allocated_maps)) {
+                                     &startup_deserializer->allocated_maps_)) {
     return false;
   }
 
+  DisallowHeapAllocation no_allocation;
+
   // Distribute the successful allocations between both deserializers.
-  // There's nothing to be done here except for map space.
+  // There's nothing to be done here except for code space.
 
   {
-    Heap::Reservation& lhs_r = lhs->reservations_[MAP_SPACE];
-    Heap::Reservation& rhs_r = rhs->reservations_[MAP_SPACE];
-    DCHECK_EQ(1, lhs_r.size());
-    DCHECK_EQ(1, rhs_r.size());
-    const int lhs_num_maps = lhs_r[0].size / Map::kSize;
-    const int rhs_num_maps = rhs_r[0].size / Map::kSize;
-    DCHECK_EQ(merged_allocated_maps.size(), lhs_num_maps + rhs_num_maps);
-    {
-      std::vector<Address>& dst = lhs->allocated_maps_;
-      DCHECK(dst.empty());
-      auto it = merged_allocated_maps.begin();
-      dst.insert(dst.end(), it, it + lhs_num_maps);
+    const int num_builtin_reservations =
+        static_cast<int>(builtin_reservations.size());
+    for (int i = num_builtin_reservations - 1; i >= 0; i--) {
+      const auto& c = merged_reservations[CODE_SPACE].back();
+      DCHECK_EQ(c.size, builtin_reservations[i].size);
+      DCHECK_EQ(c.size, c.end - c.start);
+      builtin_reservations[i].start = c.start;
+      builtin_reservations[i].end = c.end;
+      merged_reservations[CODE_SPACE].pop_back();
     }
-    {
-      std::vector<Address>& dst = rhs->allocated_maps_;
-      DCHECK(dst.empty());
-      auto it = merged_allocated_maps.begin() + lhs_num_maps;
-      dst.insert(dst.end(), it, it + rhs_num_maps);
-    }
+
+    builtin_deserializer->InitializeBuiltinsTable(builtin_reservations);
   }
 
+  // Write back startup reservations.
+
   for (int i = first_space; i < last_space; i++) {
-    Heap::Reservation& r = merged_reservations[i];
-    Heap::Reservation& lhs_r = lhs->reservations_[i];
-    Heap::Reservation& rhs_r = rhs->reservations_[i];
-    const int lhs_num_reservations = static_cast<int>(lhs_r.size());
-    lhs_r.clear();
-    lhs_r.insert(lhs_r.end(), r.begin(), r.begin() + lhs_num_reservations);
-    rhs_r.clear();
-    rhs_r.insert(rhs_r.end(), r.begin() + lhs_num_reservations, r.end());
+    startup_deserializer->reservations_[i].swap(merged_reservations[i]);
   }
 
   for (int i = first_space; i < kNumberOfPreallocatedSpaces; i++) {
-    lhs->high_water_[i] = lhs->reservations_[i][0].start;
-    rhs->high_water_[i] = rhs->reservations_[i][0].start;
+    startup_deserializer->high_water_[i] =
+        startup_deserializer->reservations_[i][0].start;
+    builtin_deserializer->high_water_[i] = nullptr;
   }
 
+  return true;
+}
+
+bool Deserializer::ReservesOnlyCodeSpace() const {
+  for (int space = NEW_SPACE; space < kNumberOfSpaces; space++) {
+    if (space == CODE_SPACE) continue;
+    const auto& r = reservations_[space];
+    for (const Heap::Chunk& c : r)
+      if (c.size != 0) return false;
+  }
   return true;
 }
 
@@ -230,35 +235,6 @@ uint32_t StringTableInsertionKey::ComputeHashField(String* string) {
   // Make sure hash_field() is computed.
   string->Hash();
   return string->hash_field();
-}
-
-void Deserializer::PostProcessDeferredBuiltinReferences() {
-  for (const DeferredBuiltinReference& ref : builtin_references_) {
-    DCHECK((ref.bytecode & kWhereMask) == kBuiltin);
-    const byte how = ref.bytecode & kHowToCodeMask;
-    const byte within = ref.bytecode & kWhereToPointMask;
-
-    Object* new_object = isolate()->builtins()->builtin(ref.builtin_name);
-    DCHECK(new_object->IsCode());
-
-    if (within == kInnerPointer) {
-      DCHECK(how == kFromCode);
-      Code* new_code_object = Code::cast(new_object);
-      new_object =
-          reinterpret_cast<Object*>(new_code_object->instruction_start());
-    }
-
-    if (how == kFromCode) {
-      Code* code = Code::cast(HeapObject::FromAddress(ref.current_object));
-      Assembler::deserialization_set_special_target_at(
-          isolate(), reinterpret_cast<Address>(ref.target_addr), code,
-          reinterpret_cast<Address>(new_object));
-    } else {
-      // TODO(jgruber): We could save one ptr-size per kPlain entry by using
-      // a separate struct for kPlain and kFromCode deferred references.
-      UnalignedCopy(ref.target_addr, &new_object);
-    }
-  }
 }
 
 HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
@@ -480,6 +456,18 @@ Address Deserializer::Allocate(int space_index, int size) {
     if (space_index == CODE_SPACE) SkipList::Update(address, size);
     return address;
   }
+}
+
+Object* Deserializer::ReadDataSingle() {
+  Object* o;
+  Object** start = &o;
+  Object** end = start + 1;
+  int source_space = NEW_SPACE;
+  Address current_object = nullptr;
+
+  CHECK(ReadData(start, end, source_space, current_object));
+
+  return o;
 }
 
 bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
@@ -780,15 +768,6 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
   return true;
 }
 
-namespace {
-Object* MagicPointer() {
-  // Returns a pointer to this static variable to mark builtin references that
-  // have not yet been post-processed.
-  static uint64_t magic = 0xfefefefefefefefe;
-  return reinterpret_cast<Object*>(&magic);
-}
-}  // namespace
-
 template <int where, int how, int within, int space_number_if_any>
 Object** Deserializer::ReadDataCase(Isolate* isolate, Object** current,
                                     Address current_object_address, byte data,
@@ -840,21 +819,18 @@ Object** Deserializer::ReadDataCase(Isolate* isolate, Object** current,
       DCHECK(Builtins::IsBuiltinId(builtin_id));
       Builtins::Name name = static_cast<Builtins::Name>(builtin_id);
       new_object = isolate->builtins()->builtin(name);
-      // Record the builtin reference for post-processing after builtin
-      // deserialization, and replace new_object with a magic byte marker.
-      builtin_references_.emplace_back(data, name, current,
-                                       current_object_address);
-      if (new_object == nullptr) new_object = MagicPointer();
       emit_write_barrier = false;
     }
     if (within == kInnerPointer) {
       DCHECK(how == kFromCode);
-      if (new_object == MagicPointer()) {
-        DCHECK(where == kBuiltin);
+      if (where == kBuiltin) {
+        // At this point, new_object may still be uninitialized, thus the
+        // unchecked Code cast.
+        new_object = reinterpret_cast<Object*>(
+            reinterpret_cast<Code*>(new_object)->instruction_start());
       } else if (new_object->IsCode()) {
-        Code* new_code_object = Code::cast(new_object);
-        new_object =
-            reinterpret_cast<Object*>(new_code_object->instruction_start());
+        new_object = reinterpret_cast<Object*>(
+            Code::cast(new_object)->instruction_start());
       } else {
         Cell* cell = Cell::cast(new_object);
         new_object = reinterpret_cast<Object*>(cell->ValueAddress());

@@ -43,10 +43,8 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
     FlushICacheForNewIsolate();
     RestoreExternalReferenceRedirectors(accessor_infos());
 
-    // Eagerly deserialize all builtins from the builtin snapshot.
-    // TODO(6624): Deserialize lazily.
-    builtin_deserializer.DeserializeAllBuiltins();
-    PostProcessDeferredBuiltinReferences();
+    // Deserialize eager builtins from the builtin snapshot.
+    builtin_deserializer.DeserializeEagerBuiltins();
   }
 
   isolate->heap()->set_native_contexts_list(isolate->heap()->undefined_value());
