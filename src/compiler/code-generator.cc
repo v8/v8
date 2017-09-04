@@ -117,13 +117,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleDeoptimizerCall(
 void CodeGenerator::AssembleCode() {
   CompilationInfo* info = this->info();
 
-  // We want to bailout only from JS functions, which are the only ones
-  // that are optimized.
-  if (info->IsOptimizing()) {
-    DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
-    BailoutIfDeoptimized();
-  }
-
   // Open a frame scope to indicate that there is a frame on the stack.  The
   // MANUAL indicates that the scope shouldn't actually generate code to set up
   // the frame (that is done in AssemblePrologue).
