@@ -61,12 +61,8 @@ class Interpreter {
     return reinterpret_cast<Address>(bytecode_dispatch_counters_table_.get());
   }
 
-  // TODO(ignition): Tune code size multiplier.
-  static const int kCodeSizeMultiplier = 24;
-
   // The interrupt budget which should be used for the profiler counter.
-  // TODO(ignition): Tune interrupt budget.
-  static const int kInterruptBudget = kCodeSizeMultiplier * 0x1800;
+  static const int kInterruptBudget = 144 * KB;
 
  private:
   friend class SetupInterpreter;

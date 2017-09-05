@@ -21,36 +21,23 @@ namespace internal {
 // Number of times a function has to be seen on the stack before it is
 // optimized.
 static const int kProfilerTicksBeforeOptimization = 2;
-// If the function optimization was disabled due to high deoptimization count,
-// but the function is hot and has been seen on the stack this number of times,
-// then we try to reenable optimization for this function.
-static const int kProfilerTicksBeforeReenablingOptimization = 250;
-// We only have one byte to store the number of ticks.
-STATIC_ASSERT(kProfilerTicksBeforeOptimization < 256);
-STATIC_ASSERT(kProfilerTicksBeforeReenablingOptimization < 256);
 
 // The number of ticks required for optimizing a function increases with
 // the size of the bytecode. This is in addition to the
 // kProfilerTicksBeforeOptimization required for any function.
-static const int kCodeSizeAllowancePerTick =
-    50 * interpreter::Interpreter::kCodeSizeMultiplier;
+static const int kBytecodeSizeAllowancePerTick = 1200;
 
 // Maximum size in bytes of generate code for a function to allow OSR.
-static const int kOSRCodeSizeAllowanceBase =
-    10 * interpreter::Interpreter::kCodeSizeMultiplier;
+static const int kOSRBytecodeSizeAllowanceBase = 240;
 
-static const int kOSRCodeSizeAllowancePerTick =
-    2 * interpreter::Interpreter::kCodeSizeMultiplier;
+static const int kOSRBytecodeSizeAllowancePerTick = 48;
 
 // Maximum size in bytes of generated code for a function to be optimized
 // the very first time it is seen on the stack.
-static const int kMaxSizeEarlyOpt =
-    5 * interpreter::Interpreter::kCodeSizeMultiplier;
+static const int kMaxBytecodeSizeForEarlyOpt = 120;
 
 // Certain functions are simply too big to be worth optimizing.
-// We aren't using the code size multiplier here because there is no
-// "kMaxSizeOpt" with which we would need to normalize.
-static const int kMaxSizeOpt = 60 * KB;
+static const int kMaxBytecodeSizeForOpt = 60 * KB;
 
 #define OPTIMIZATION_REASON_LIST(V)                            \
   V(DoNotOptimize, "do not optimize")                          \
@@ -218,8 +205,8 @@ bool RuntimeProfiler::MaybeOSR(JSFunction* function, JavaScriptFrame* frame) {
     // Attempt OSR if we are still running interpreted code even though the
     // the function has long been marked or even already been optimized.
     int64_t allowance =
-        kOSRCodeSizeAllowanceBase +
-        static_cast<int64_t>(ticks) * kOSRCodeSizeAllowancePerTick;
+        kOSRBytecodeSizeAllowanceBase +
+        static_cast<int64_t>(ticks) * kOSRBytecodeSizeAllowancePerTick;
     if (shared->bytecode_array()->Size() <= allowance) {
       AttemptOnStackReplacement(frame);
     }
@@ -233,17 +220,17 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction* function,
   SharedFunctionInfo* shared = function->shared();
   int ticks = function->feedback_vector()->profiler_ticks();
 
-  if (shared->bytecode_array()->Size() > kMaxSizeOpt) {
+  if (shared->bytecode_array()->Size() > kMaxBytecodeSizeForOpt) {
     return OptimizationReason::kDoNotOptimize;
   }
 
   int ticks_for_optimization =
       kProfilerTicksBeforeOptimization +
-      (shared->bytecode_array()->Size() / kCodeSizeAllowancePerTick);
+      (shared->bytecode_array()->Size() / kBytecodeSizeAllowancePerTick);
   if (ticks >= ticks_for_optimization) {
     return OptimizationReason::kHotAndStable;
   } else if (!any_ic_changed_ &&
-             shared->bytecode_array()->Size() < kMaxSizeEarlyOpt) {
+             shared->bytecode_array()->Size() < kMaxBytecodeSizeForEarlyOpt) {
     // If no IC was patched since the last tick and this function is very
     // small, optimistically optimize it now.
     return OptimizationReason::kSmallFunction;
@@ -256,7 +243,7 @@ OptimizationReason RuntimeProfiler::ShouldOptimize(JSFunction* function,
       PrintF("ICs changed]\n");
     } else {
       PrintF(" too large for small function optimization: %d/%d]\n",
-             shared->bytecode_array()->Size(), kMaxSizeEarlyOpt);
+             shared->bytecode_array()->Size(), kMaxBytecodeSizeForEarlyOpt);
     }
   }
   return OptimizationReason::kDoNotOptimize;
