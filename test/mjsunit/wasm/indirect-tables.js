@@ -49,7 +49,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   f.add.exportAs("blarg");
 
-  builder.setFunctionTableLength(10);
+  builder.setFunctionTableBounds(10, 10);
   let g = builder.addImportedGlobal("q", "base", kWasmI32);
   builder.addFunctionTableInit(g, true, [f.mul.index, f.add.index,
                                          f.sub.index,
@@ -109,7 +109,7 @@ function js_div(a, b) { return (a / b) | 0; }
 
   let d = builder.addImport("q", "js_div", kSig_i_ii);
   let f = AddFunctions(builder);
-  builder.setFunctionTableLength(kTableSize);
+  builder.setFunctionTableBounds(kTableSize, kTableSize);
   let g = builder.addImportedGlobal("q", "base", kWasmI32);
   builder.addFunctionTableInit(g, true, [f.mul.index, f.add.index,
                                          f.sub.index,
@@ -300,7 +300,7 @@ function js_div(a, b) { return (a / b) | 0; }
       kExprCallIndirect, sig_index1, kTableZero])  // --
     .exportAs("main");
 
-  builder.setFunctionTableLength(kTableSize);
+  builder.setFunctionTableBounds(kTableSize, kTableSize);
   builder.addFunctionTableInit(0, false, [f1.index]);
   builder.addExportOfKind("table", kExternalTable, 0);
 
@@ -349,7 +349,7 @@ function js_div(a, b) { return (a / b) | 0; }
     for (var impsize = 1; impsize < 4; impsize++) {
       print(" expsize = " + expsize + ", impsize = " + impsize);
       var builder = new WasmModuleBuilder();
-      builder.setFunctionTableLength(expsize);
+      builder.setFunctionTableBounds(expsize, expsize);
       builder.addExportOfKind("expfoo", kExternalTable, 0);
 
       let m1 = new WebAssembly.Module(builder.toBuffer());
@@ -538,7 +538,7 @@ function js_div(a, b) { return (a / b) | 0; }
   for (let num_segments = 1; num_segments < 4; ++num_segments) {
     var builder = new WasmModuleBuilder();
 
-    builder.setFunctionTableLength(kTableSize);
+    builder.setFunctionTableBounds(kTableSize, kTableSize);
     builder.addExportOfKind("table", kExternalTable, 0);
     let f = AddFunctions(builder);
     let indexes = [f.mul.index, f.add.index, f.sub.index];
@@ -580,7 +580,7 @@ function js_div(a, b) { return (a / b) | 0; }
         kExprCallIndirect, sig_index, kTableZero
       ])
       .exportAs('main');
-  builder0.setFunctionTableLength(3);
+  builder0.setFunctionTableBounds(3, 3);
   builder0.addExportOfKind('table', kExternalTable);
   let module0 = new WebAssembly.Module(builder0.toBuffer());
   let instance0 = new WebAssembly.Instance(module0);
@@ -600,68 +600,4 @@ function js_div(a, b) { return (a / b) | 0; }
   assertThrows(
       () => instance0.exports.main(0), WebAssembly.RuntimeError,
       /signature mismatch/);
-})();
-
-(function ModulesInstancesSharedTableBoundsCheck() {
-  print("ModulesInstancesSharedTableBoundsCheck");
-  let table = new WebAssembly.Table({element: "anyfunc",
-    initial: 1, maximum:1000000});
-
-  function CallModuleBuilder() {
-    var builder = new WasmModuleBuilder();
-    builder.addType(kSig_i_v);
-    builder.addType(kSig_v_v);
-    let index_i_ii = builder.addType(kSig_i_ii);
-    let index_i_i = builder.addType(kSig_i_i);
-    builder.addImportedTable("x", "table", 1, 10000000);
-    builder.addFunction("add", index_i_ii)
-      .addBody([
-        kExprGetLocal, 0,
-        kExprGetLocal, 1,
-        kExprI32Add]);
-    builder.addFunction("main", index_i_i)
-      .addBody([
-        kExprI32Const, 5,
-        kExprI32Const, 5,
-        kExprGetLocal, 0,
-        kExprCallIndirect, index_i_ii, kTableZero])
-      .exportAs("main");
-    builder.addFunctionTableInit(0, false, [0], true);
-    return new WebAssembly.Module(builder.toBuffer());
-  }
-
-  var instances = [], modules = [];
-  modules[0] = CallModuleBuilder();
-  modules[1] = CallModuleBuilder();
-
-  // Modules[0] shared by instances[0..2], modules[1] shared by instances[3, 4]
-  instances[0] = new WebAssembly.Instance(modules[0], {x: {table:table}});
-  instances[1] = new WebAssembly.Instance(modules[0], {x: {table:table}});
-  instances[2] = new WebAssembly.Instance(modules[0], {x: {table:table}});
-  instances[3] = new WebAssembly.Instance(modules[1], {x: {table:table}});
-  instances[4] = new WebAssembly.Instance(modules[1], {x: {table:table}});
-
-  function VerifyTableBoundsCheck(size) {
-    print("Verifying bounds for size = " + size);
-    assertEquals(size, table.length);
-    for (let i = 0; i < 5; i++) {
-      // Sanity check for indirect call
-      assertEquals(10, instances[i].exports.main(0));
-      // Bounds check at different out of bounds indices
-      assertInvalidFunction = function(s) {
-        assertThrows(
-            () => instances[i].exports.main(s), WebAssembly.RuntimeError,
-            /invalid function/);
-      }
-      assertInvalidFunction(size);
-      assertInvalidFunction(size + 1);
-      assertInvalidFunction(size + 1000);
-      assertInvalidFunction(2 * size);
-    }
-  }
-
-  for (let i = 0; i < 4; i++) {
-    VerifyTableBoundsCheck(99900 * i + 1);
-    table.grow(99900);
-  }
 })();
