@@ -16,16 +16,16 @@ class BuiltinSnapshotData;
 // Deserializes the builtins blob.
 class BuiltinDeserializer final : public Deserializer {
  public:
-  explicit BuiltinDeserializer(const BuiltinSnapshotData* data);
-
-  // Expose Deserializer::Initialize.
-  using Deserializer::Initialize;
+  BuiltinDeserializer(Isolate* isolate, const BuiltinSnapshotData* data);
 
   // Builtins deserialization is tightly integrated with deserialization of the
   // startup blob. In particular, we need to ensure that no GC can occur
   // between startup- and builtins deserialization, as all builtins have been
   // pre-allocated and their pointers may not be invalidated.
   void DeserializeEagerBuiltins();
+
+  // Deserializes the single given builtin. Assumes that reservations have
+  // already been allocated.
   Code* DeserializeBuiltin(int builtin_id);
 
   // These methods are used to pre-allocate builtin objects prior to
@@ -35,10 +35,18 @@ class BuiltinDeserializer final : public Deserializer {
   Heap::Reservation CreateReservationsForEagerBuiltins();
   void InitializeBuiltinsTable(const Heap::Reservation& reservation);
 
+  // Creates reservations and initializes the builtins table in preparation for
+  // lazily deserializing a single builtin.
+  void ReserveAndInitializeBuiltinsTableForBuiltin(int builtin_id);
+
  private:
   // Extracts the size builtin Code objects (baked into the snapshot).
   uint32_t ExtractBuiltinSize(int builtin_id);
-  std::vector<uint32_t> ExtractBuiltinSizes();
+
+  // Used after memory allocation prior to isolate initialization, to register
+  // the newly created object in code space and add it to the builtins table.
+  void InitializeBuiltinFromReservation(const Heap::Chunk& chunk,
+                                        int builtin_id);
 
   // Allocation works differently here than in other deserializers. Instead of
   // a statically-known memory area determined at serialization-time, our
@@ -61,10 +69,6 @@ class BuiltinDeserializer final : public Deserializer {
   // where to 'allocate' from during deserialization.
   static const int kNoBuiltinId = -1;
   int current_builtin_id_ = kNoBuiltinId;
-
-  // The sizes of each builtin Code object in its deserialized state. This list
-  // is used to determine required space prior to deserialization.
-  std::vector<uint32_t> builtin_sizes_;
 
   // The offsets of each builtin within the serialized data. Equivalent to
   // BuiltinSerializer::builtin_offsets_ but on the deserialization side.

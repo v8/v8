@@ -15,8 +15,7 @@ namespace internal {
 void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   Initialize(isolate);
 
-  BuiltinDeserializer builtin_deserializer(builtin_data_);
-  builtin_deserializer.Initialize(isolate);
+  BuiltinDeserializer builtin_deserializer(isolate, builtin_data_);
 
   if (!Deserializer::ReserveSpace(this, &builtin_deserializer)) {
     V8::FatalProcessOutOfMemory("StartupDeserializer");

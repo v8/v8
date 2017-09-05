@@ -9,6 +9,7 @@
 #include "src/api.h"
 #include "src/base/platform/platform.h"
 #include "src/objects-inl.h"
+#include "src/snapshot/builtin-deserializer.h"
 #include "src/snapshot/builtin-serializer.h"
 #include "src/snapshot/partial-deserializer.h"
 #include "src/snapshot/snapshot-source-sink.h"
@@ -83,6 +84,34 @@ MaybeHandle<Context> Snapshot::NewContextFromSnapshot(
            context_index, bytes, ms);
   }
   return result;
+}
+
+// static
+Code* Snapshot::DeserializeBuiltin(Isolate* isolate, int builtin_id) {
+  base::ElapsedTimer timer;
+  if (FLAG_profile_deserialization) timer.Start();
+
+  const v8::StartupData* blob = isolate->snapshot_blob();
+  Vector<const byte> builtin_data = Snapshot::ExtractBuiltinData(blob);
+  BuiltinSnapshotData builtin_snapshot_data(builtin_data);
+
+  BuiltinDeserializer builtin_deserializer(isolate, &builtin_snapshot_data);
+  builtin_deserializer.ReserveAndInitializeBuiltinsTableForBuiltin(builtin_id);
+
+  DisallowHeapAllocation no_gc;
+
+  Code* code = builtin_deserializer.DeserializeBuiltin(builtin_id);
+  DCHECK_EQ(code, isolate->builtins()->builtin(
+                      static_cast<Builtins::Name>(builtin_id)));
+
+  if (FLAG_profile_deserialization) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    int bytes = code->Size();
+    PrintF("[Deserializing builtin %s (%d bytes) took %0.3f ms]\n",
+           Builtins::name(builtin_id), bytes, ms);
+  }
+
+  return code;
 }
 
 void ProfileDeserialization(

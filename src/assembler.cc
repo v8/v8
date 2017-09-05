@@ -813,6 +813,10 @@ ExternalReference ExternalReference::isolate_address(Isolate* isolate) {
   return ExternalReference(isolate);
 }
 
+ExternalReference ExternalReference::builtins_address(Isolate* isolate) {
+  return ExternalReference(isolate->builtins()->builtins_table_address());
+}
+
 ExternalReference ExternalReference::interpreter_dispatch_table_address(
     Isolate* isolate) {
   return ExternalReference(isolate->interpreter()->dispatch_table_address());

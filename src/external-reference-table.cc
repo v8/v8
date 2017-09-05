@@ -89,6 +89,7 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   Add(ExternalReference::address_of_one_half().address(),
       "LDoubleConstant::one_half");
   Add(ExternalReference::isolate_address(isolate).address(), "isolate");
+  Add(ExternalReference::builtins_address(isolate).address(), "builtins");
   Add(ExternalReference::interpreter_dispatch_table_address(isolate).address(),
       "Interpreter::dispatch_table_address");
   Add(ExternalReference::bytecode_size_table_address(isolate).address(),

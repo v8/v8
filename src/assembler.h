@@ -830,6 +830,9 @@ class ExternalReference BASE_EMBEDDED {
   // Isolate as an external reference.
   static ExternalReference isolate_address(Isolate* isolate);
 
+  // The builtins table as an external reference, used by lazy deserialization.
+  static ExternalReference builtins_address(Isolate* isolate);
+
   // One-of-a-kind references. These references are not part of a general
   // pattern. This means that they have to be added to the
   // ExternalReferenceTable in serialize.cc manually.

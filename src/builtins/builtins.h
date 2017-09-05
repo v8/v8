@@ -86,6 +86,10 @@ class Builtins {
 
   V8_EXPORT_PRIVATE Handle<Code> builtin_handle(Name name);
 
+  // Used by lazy deserialization to determine whether a given builtin has been
+  // deserialized. See the DeserializeLazy builtin.
+  Object** builtins_table_address() { return &builtins_[0]; }
+
   V8_EXPORT_PRIVATE static Callable CallableFor(Isolate* isolate, Name name);
 
   static int GetStackParameterCount(Name name);

@@ -31,33 +31,50 @@ TF_BUILTIN(DeserializeLazy, CodeStubAssembler) {
       LoadObjectField(function, JSFunction::kSharedFunctionInfoOffset);
   CSA_ASSERT(this, IsSharedFunctionInfo(shared));
 
-  Node* shared_code = LoadObjectField(shared, SharedFunctionInfo::kCodeOffset);
-  CSA_ASSERT(this, IsCodeMap(LoadMap(shared_code)));
+  // The shared function info stores the target builtin id that needs to be
+  // deserialized (originally set by Factory::NewSharedFunctionInfo).
+  Node* target_builtin_id =
+      LoadObjectField(shared, SharedFunctionInfo::kFunctionDataOffset);
+  CSA_ASSERT(this, TaggedIsSmi(target_builtin_id));
+  CSA_ASSERT(this, SmiNotEqual(target_builtin_id,
+                               SmiConstant(Builtins::kDeserializeLazy)));
 
-  Node* shared_code_builtin_id = LoadObjectField(
-      shared_code, Code::kBuiltinIndexOffset, MachineType::Int32());
+  // The builtin may already have been deserialized. If that is the case, it is
+  // stored in the builtins table, and we can copy to correct code object to
+  // both the shared function info and function without calling into runtime.
+  //
+  // Otherwise, we need to call into runtime to deserialize.
 
-  // TODO(6624): Once lazy deserialization has been implemented, add a path
-  // here that checks whether the appropriate builtin has already been
-  // deserialized into the builtin table. If so, copy it into the function &
-  // shared function info here instead of going through runtime.
+  Label copy_from_builtins_table(this), deserialize_in_runtime(this), out(this);
+  Node* code_object_in_table;
 
-  // It could be that the shared function info already has a deserialized copy
-  // of the builtin. In that case, simply copy the code over to the function and
-  // tail-call into it. Otherwise, we need to call into runtime to deserialize.
-
-  Label copy_from_shared(this), deserialize_in_runtime(this), out(this);
-  Branch(Word32Equal(shared_code_builtin_id,
-                     Int32Constant(Builtins::kDeserializeLazy)),
-         &deserialize_in_runtime, &copy_from_shared);
-
-  BIND(&copy_from_shared);
+  // Check what's in the builtins table.
   {
-    CSA_ASSERT(this, Int32GreaterThanOrEqual(shared_code_builtin_id,
-                                             Int32Constant(0)));
-    CSA_ASSERT(this, Int32LessThan(shared_code_builtin_id,
-                                   Int32Constant(Builtins::builtin_count)));
-    StoreObjectField(function, JSFunction::kCodeOffset, shared_code);
+    Node* builtins_table =
+        ExternalConstant(ExternalReference::builtins_address(isolate()));
+    Node* builtin_ptr =
+        IntPtrAdd(UncheckedCast<IntPtrT>(builtins_table),
+                  SmiUntag(SmiShl(target_builtin_id, kPointerSizeLog2)));
+
+    code_object_in_table = Load(MachineType::AnyTagged(), builtin_ptr);
+    CSA_ASSERT(this, IsCodeMap(LoadMap(code_object_in_table)));
+
+    Node* maybe_deserialized_builtin_id = LoadObjectField(
+        code_object_in_table, Code::kBuiltinIndexOffset, MachineType::Int32());
+
+    Branch(Word32Equal(maybe_deserialized_builtin_id,
+                       Int32Constant(Builtins::kDeserializeLazy)),
+           &deserialize_in_runtime, &copy_from_builtins_table);
+  }
+
+  BIND(&copy_from_builtins_table);
+  {
+    CSA_ASSERT(this, SmiGreaterThanOrEqual(target_builtin_id, SmiConstant(0)));
+    CSA_ASSERT(this, SmiLessThan(target_builtin_id,
+                                 SmiConstant(Builtins::builtin_count)));
+    StoreObjectField(shared, SharedFunctionInfo::kCodeOffset,
+                     code_object_in_table);
+    StoreObjectField(function, JSFunction::kCodeOffset, code_object_in_table);
     Goto(&out);
   }
 
@@ -72,16 +89,15 @@ TF_BUILTIN(DeserializeLazy, CodeStubAssembler) {
     Node* function_code_builtin_id = LoadObjectField(
         function_code, Code::kBuiltinIndexOffset, MachineType::Int32());
 
-    Node* function_builtin_id =
-        LoadObjectField(shared, SharedFunctionInfo::kFunctionDataOffset);
-    CSA_ASSERT(this, TaggedIsSmi(function_builtin_id));
-
     CSA_ASSERT(this, Word32Equal(function_code_builtin_id,
-                                 SmiToWord32(function_builtin_id)));
+                                 SmiToWord32(target_builtin_id)));
 #endif
 
     Goto(&out);
   }
+
+  // Finally, tail-call into the deserialized code, passing along any existing
+  // arguments on the stack unmodified.
 
   BIND(&out);
   TailCallStub(CodeFactory::Call(isolate()), context, function, argc);

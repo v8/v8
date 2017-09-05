@@ -17,6 +17,7 @@
 #include "src/messages.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
+#include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {
@@ -510,24 +511,33 @@ RUNTIME_FUNCTION(Runtime_DeserializeLazy) {
 
   DCHECK(FLAG_lazy_deserialization);
 
-  // TODO(6624): Lazy-deserialize instead of simply loading from the builtins
-  // list. In fact, this should never be called if the builtin has already
-  // been deserialized.
-
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   int builtin_id = shared->lazy_deserialization_builtin_id();
 
+#ifdef DEBUG
+  Builtins::Name builtin_name = static_cast<Builtins::Name>(builtin_id);
+
+  // At this point, the builtins table should definitely have DeserializeLazy
+  // set at the position of the target builtin. Also, we should never lazily
+  // deserialize DeserializeLazy.
+
+  DCHECK_NE(Builtins::kDeserializeLazy, builtin_name);
+  DCHECK_EQ(Builtins::kDeserializeLazy,
+            isolate->builtins()->builtin(builtin_name)->builtin_index());
+
   // The DeserializeLazy builtin tail-calls the deserialized builtin. This only
   // works with JS-linkage.
+  DCHECK(Builtins::IsLazy(builtin_id));
   DCHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_id));
+#endif  // DEBUG
 
   if (FLAG_trace_lazy_deserialization) {
     PrintF("Lazy-deserializing %s\n", Builtins::name(builtin_id));
   }
 
-  Code* code =
-      isolate->builtins()->builtin(static_cast<Builtins::Name>(builtin_id));
+  Code* code = Snapshot::DeserializeBuiltin(isolate, builtin_id);
   DCHECK_EQ(builtin_id, code->builtin_index());
+  DCHECK_EQ(code, isolate->builtins()->builtin(builtin_name));
   shared->set_code(code);
   function->set_code(code);
 

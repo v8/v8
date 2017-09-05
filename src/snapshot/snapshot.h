@@ -86,21 +86,32 @@ class BuiltinSnapshotData final : public SnapshotData {
 
 class Snapshot : public AllStatic {
  public:
+  // ---------------- Deserialization ----------------
+
   // Initialize the Isolate from the internal snapshot. Returns false if no
   // snapshot could be found.
   static bool Initialize(Isolate* isolate);
+
   // Create a new context using the internal partial snapshot.
   static MaybeHandle<Context> NewContextFromSnapshot(
       Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
       size_t context_index,
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
 
-  static bool HasContextSnapshot(Isolate* isolate, size_t index);
+  // Deserializes a single given builtin code object. Intended to be called at
+  // runtime after the isolate (and the builtins table) has been fully
+  // initialized.
+  static Code* DeserializeBuiltin(Isolate* isolate, int builtin_id);
 
+  // ---------------- Helper methods ----------------
+
+  static bool HasContextSnapshot(Isolate* isolate, size_t index);
   static bool EmbedsScript(Isolate* isolate);
 
   // To be implemented by the snapshot source.
   static const v8::StartupData* DefaultSnapshotBlob();
+
+  // ---------------- Serialization ----------------
 
   static v8::StartupData CreateSnapshotBlob(
       const SnapshotData* startup_snapshot,
