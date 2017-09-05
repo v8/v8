@@ -339,12 +339,14 @@ void DetachWebAssemblyMemoryBuffer(Isolate* isolate,
                                    Handle<JSArrayBuffer> buffer,
                                    bool free_memory);
 
+// If the target is an export wrapper, return the {WasmFunction*} corresponding
+// to the wrapped wasm function; in all other cases, return nullptr.
 // The returned pointer is owned by the wasm instance target belongs to. The
 // result is alive as long as the instance exists.
-WasmFunction* GetWasmFunctionForImportWrapper(Isolate* isolate,
-                                              Handle<Object> target);
+WasmFunction* GetWasmFunctionForExport(Isolate* isolate, Handle<Object> target);
 
-Handle<Code> UnwrapImportWrapper(Handle<Object> import_wrapper);
+// {export_wrapper} is known to be an export.
+Handle<Code> UnwrapExportWrapper(Handle<JSFunction> export_wrapper);
 
 void TableSet(ErrorThrower* thrower, Isolate* isolate,
               Handle<WasmTableObject> table, int64_t index,
