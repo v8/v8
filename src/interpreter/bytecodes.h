@@ -183,7 +183,7 @@ namespace interpreter {
     OperandType::kRegList, OperandType::kRegCount)                             \
   V(CallRuntimeForPair, AccumulatorUse::kNone, OperandType::kRuntimeId,        \
     OperandType::kRegList, OperandType::kRegCount, OperandType::kRegOutPair)   \
-  V(CallJSRuntime, AccumulatorUse::kWrite, OperandType::kIdx,                  \
+  V(CallJSRuntime, AccumulatorUse::kWrite, OperandType::kNativeContextIndex,   \
     OperandType::kRegList, OperandType::kRegCount)                             \
                                                                                \
   /* Intrinsics */                                                             \

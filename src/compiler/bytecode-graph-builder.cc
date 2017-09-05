@@ -1773,8 +1773,8 @@ void BytecodeGraphBuilder::VisitCallWithSpread() {
 
 void BytecodeGraphBuilder::VisitCallJSRuntime() {
   PrepareEagerCheckpoint();
-  Node* callee =
-      BuildLoadNativeContextField(bytecode_iterator().GetIndexOperand(0));
+  Node* callee = BuildLoadNativeContextField(
+      bytecode_iterator().GetNativeContextIndexOperand(0));
   interpreter::Register receiver = bytecode_iterator().GetRegisterOperand(1);
   size_t reg_count = bytecode_iterator().GetRegisterCountOperand(2);
 

@@ -516,6 +516,16 @@ Node* InterpreterAssembler::BytecodeOperandRuntimeId(int operand_index) {
   return BytecodeUnsignedOperand(operand_index, operand_size);
 }
 
+Node* InterpreterAssembler::BytecodeOperandNativeContextIndex(
+    int operand_index) {
+  DCHECK(OperandType::kNativeContextIndex ==
+         Bytecodes::GetOperandType(bytecode_, operand_index));
+  OperandSize operand_size =
+      Bytecodes::GetOperandSize(bytecode_, operand_index, operand_scale());
+  return ChangeUint32ToWord(
+      BytecodeUnsignedOperand(operand_index, operand_size));
+}
+
 Node* InterpreterAssembler::BytecodeOperandIntrinsicId(int operand_index) {
   DCHECK(OperandType::kIntrinsicId ==
          Bytecodes::GetOperandType(bytecode_, operand_index));

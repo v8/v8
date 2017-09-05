@@ -386,6 +386,11 @@ TARGET_TEST_F(InterpreterAssemblerTest, BytecodeOperand) {
                         IsChangeUint32ToWord(
                             m.IsUnsignedOperand(offset, operand_size)));
             break;
+          case interpreter::OperandType::kNativeContextIndex:
+            EXPECT_THAT(m.BytecodeOperandNativeContextIndex(i),
+                        IsChangeUint32ToWord(
+                            m.IsUnsignedOperand(offset, operand_size)));
+            break;
           case interpreter::OperandType::kUImm:
             EXPECT_THAT(m.BytecodeOperandUImm(i),
                         m.IsUnsignedOperand(offset, operand_size));

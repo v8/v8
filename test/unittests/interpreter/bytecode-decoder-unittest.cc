@@ -6,6 +6,7 @@
 
 #include "src/v8.h"
 
+#include "src/contexts.h"
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/runtime/runtime.h"
 #include "test/unittests/interpreter/bytecode-utils.h"
@@ -64,7 +65,10 @@ TEST(BytecodeDecoder, DecodeBytecodeAndOperands) {
        6,
        0,
        "JumpIfNull.ExtraWide [123456789]"},
-  };
+      {{B(CallJSRuntime), U8(Context::BOOLEAN_FUNCTION_INDEX), R8(0), U8(0)},
+       4,
+       0,
+       "      CallJSRuntime [boolean_function], r0-r0"}};
 
   for (size_t i = 0; i < arraysize(cases); ++i) {
     // Generate reference string by prepending formatted bytes.

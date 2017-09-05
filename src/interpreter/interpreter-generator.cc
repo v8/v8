@@ -1864,7 +1864,7 @@ IGNITION_HANDLER(CallRuntimeForPair, InterpreterAssembler) {
 // Call the JS runtime function that has the |context_index| with the receiver
 // in register |receiver| and |arg_count| arguments in subsequent registers.
 IGNITION_HANDLER(CallJSRuntime, InterpreterAssembler) {
-  Node* context_index = BytecodeOperandIdx(0);
+  Node* context_index = BytecodeOperandNativeContextIndex(0);
   Node* receiver_reg = BytecodeOperandReg(1);
   Node* first_arg = RegisterLocation(receiver_reg);
   Node* receiver_args_count = BytecodeOperandCount(2);
