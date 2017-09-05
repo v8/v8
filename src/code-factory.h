@@ -92,7 +92,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable ConstructForwardVarargs(Isolate* isolate);
   static Callable ConstructFunctionForwardVarargs(Isolate* isolate);
 
-  static Callable InterpreterExitTrampoline(Isolate* isolate);
   static Callable InterpreterPushArgsThenCall(Isolate* isolate,
                                               ConvertReceiverMode receiver_mode,
                                               InterpreterPushArgsMode mode);

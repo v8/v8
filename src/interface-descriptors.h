@@ -76,7 +76,6 @@ class PlatformInterfaceDescriptor;
   V(MathPowInteger)                   \
   V(GrowArrayElements)                \
   V(NewArgumentsElements)             \
-  V(InterpreterExitTrampoline)        \
   V(InterpreterDispatch)              \
   V(InterpreterPushArgsThenCall)      \
   V(InterpreterPushArgsThenConstruct) \
@@ -838,14 +837,6 @@ class NewArgumentsElementsDescriptor final : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kFrame, kLength, kMappedCount)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(NewArgumentsElementsDescriptor,
                                                CallInterfaceDescriptor)
-};
-
-class V8_EXPORT_PRIVATE InterpreterExitTrampolineDescriptor
-    : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kAccumulator)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(
-      InterpreterExitTrampolineDescriptor, CallInterfaceDescriptor)
 };
 
 class V8_EXPORT_PRIVATE InterpreterDispatchDescriptor

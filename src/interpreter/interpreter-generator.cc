@@ -2943,10 +2943,8 @@ IGNITION_HANDLER(ReThrow, InterpreterAssembler) {
 // Return the value in the accumulator.
 IGNITION_HANDLER(Return, InterpreterAssembler) {
   UpdateInterruptBudgetOnReturn();
-  Callable exit_trampoline = CodeFactory::InterpreterExitTrampoline(isolate());
-  Node* context = GetContext();
   Node* accumulator = GetAccumulator();
-  TailCallStub(exit_trampoline, context, accumulator);
+  Return(accumulator);
 }
 
 // ThrowReferenceErrorIfHole <variable_name>
