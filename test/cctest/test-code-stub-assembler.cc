@@ -7,6 +7,8 @@
 #include "src/api.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/builtins-promise-gen.h"
+#include "src/builtins/builtins-string-gen.h"
+#include "src/char-predicates.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
 #include "src/compiler/node.h"
@@ -2637,6 +2639,35 @@ TEST(AllocateStruct) {
       isolate->heap()->Verify();
 #endif
     }
+  }
+}
+
+TEST(GotoIfNotWhiteSpaceOrLineTerminator) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  StringTrimAssembler m(asm_tester.state());
+
+  {  // Returns true if whitespace, false otherwise.
+    Label if_not_whitespace(&m);
+
+    m.GotoIfNotWhiteSpaceOrLineTerminator(m.SmiToWord32(m.Parameter(0)),
+                                          &if_not_whitespace);
+    m.Return(m.TrueConstant());
+
+    m.BIND(&if_not_whitespace);
+    m.Return(m.FalseConstant());
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<Object> true_value = ft.true_value();
+  Handle<Object> false_value = ft.false_value();
+
+  for (uc16 c = 0; c < 0xFFFF; c++) {
+    Handle<Object> expected_value =
+        WhiteSpaceOrLineTerminator::Is(c) ? true_value : false_value;
+    ft.CheckCall(expected_value, handle(Smi::FromInt(c), isolate));
   }
 }
 

@@ -70,12 +70,24 @@ test(function() {
 
 // kCalledOnNullOrUndefined
 test(function() {
+  String.prototype.includes.call(null);
+}, "String.prototype.includes called on null or undefined", TypeError);
+
+test(function() {
   Array.prototype.shift.call(null);
 }, "Array.prototype.shift called on null or undefined", TypeError);
 
 test(function() {
-  String.prototype.includes.call(null);
-}, "String.prototype.includes called on null or undefined", TypeError);
+  String.prototype.trim.call(null);
+}, "String.prototype.trim called on null or undefined", TypeError);
+
+test(function() {
+  String.prototype.trimLeft.call(null);
+}, "String.prototype.trimLeft called on null or undefined", TypeError);
+
+test(function() {
+  String.prototype.trimRight.call(null);
+}, "String.prototype.trimRight called on null or undefined", TypeError);
 
 // kCannotFreezeArrayBufferView
 test(function() {

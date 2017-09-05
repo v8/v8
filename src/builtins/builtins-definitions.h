@@ -918,9 +918,11 @@ namespace internal {
   CPP(StringPrototypeStartsWith)                                               \
   /* ES6 #sec-string.prototype.tostring */                                     \
   TFJ(StringPrototypeToString, 0)                                              \
-  CPP(StringPrototypeTrim)                                                     \
-  CPP(StringPrototypeTrimLeft)                                                 \
-  CPP(StringPrototypeTrimRight)                                                \
+  TFJ(StringPrototypeTrim, SharedFunctionInfo::kDontAdaptArgumentsSentinel)    \
+  TFJ(StringPrototypeTrimLeft,                                                 \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
+  TFJ(StringPrototypeTrimRight,                                                \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-string.prototype.valueof */                                      \
   TFJ(StringPrototypeValueOf, 0)                                               \
   /* ES6 #sec-string.prototype-@@iterator */                                   \

@@ -284,6 +284,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(StringIndexOf)                   \
   V(StringIncludes)                  \
   V(StringReplaceOneCharWithString)  \
+  V(StringTrim)                      \
   V(SubString)                       \
   V(RegExpInternalReplace)           \
   /* Literals */                     \

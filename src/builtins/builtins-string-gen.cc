@@ -1719,6 +1719,167 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
   }
 }
 
+// ES6 #sec-string.prototype.trim
+TF_BUILTIN(StringPrototypeTrim, StringTrimAssembler) {
+  Generate(String::kTrim, "String.prototype.trim");
+}
+
+// Non-standard WebKit extension
+TF_BUILTIN(StringPrototypeTrimLeft, StringTrimAssembler) {
+  Generate(String::kTrimLeft, "String.prototype.trimLeft");
+}
+
+// Non-standard WebKit extension
+TF_BUILTIN(StringPrototypeTrimRight, StringTrimAssembler) {
+  Generate(String::kTrimRight, "String.prototype.trimRight");
+}
+
+void StringTrimAssembler::Generate(String::TrimMode mode,
+                                   const char* method_name) {
+  Label return_emptystring(this), if_runtime(this);
+
+  Node* const argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
+  CodeStubArguments arguments(this, ChangeInt32ToIntPtr(argc));
+  Node* const receiver = arguments.GetReceiver();
+
+  // Check that {receiver} is coercible to Object and convert it to a String.
+  Node* const string = ToThisString(context, receiver, method_name);
+  Node* const string_length = SmiUntag(LoadStringLength(string));
+
+  ToDirectStringAssembler to_direct(state(), string);
+  to_direct.TryToDirect(&if_runtime);
+  Node* const string_data = to_direct.PointerToData(&if_runtime);
+  Node* const instance_type = to_direct.instance_type();
+  Node* const is_stringonebyte = IsOneByteStringInstanceType(instance_type);
+  Node* const string_data_offset = to_direct.offset();
+
+  VARIABLE(var_start, MachineType::PointerRepresentation(), IntPtrConstant(0));
+  VARIABLE(var_end, MachineType::PointerRepresentation(),
+           IntPtrSub(string_length, IntPtrConstant(1)));
+
+  if (mode == String::kTrimLeft || mode == String::kTrim) {
+    ScanForNonWhiteSpaceOrLineTerminator(string_data, string_data_offset,
+                                         is_stringonebyte, &var_start,
+                                         string_length, 1, &return_emptystring);
+  }
+  if (mode == String::kTrimRight || mode == String::kTrim) {
+    ScanForNonWhiteSpaceOrLineTerminator(
+        string_data, string_data_offset, is_stringonebyte, &var_end,
+        IntPtrConstant(-1), -1, &return_emptystring);
+  }
+
+  arguments.PopAndReturn(
+      SubString(context, string, SmiTag(var_start.value()),
+                SmiAdd(SmiTag(var_end.value()), SmiConstant(1)),
+                SubStringFlags::FROM_TO_ARE_BOUNDED));
+
+  BIND(&if_runtime);
+  arguments.PopAndReturn(CallRuntime(Runtime::kStringTrim, context, string,
+                                     SmiConstant(static_cast<int>(mode))));
+
+  BIND(&return_emptystring);
+  arguments.PopAndReturn(EmptyStringConstant());
+}
+
+void StringTrimAssembler::ScanForNonWhiteSpaceOrLineTerminator(
+    Node* const string_data, Node* const string_data_offset,
+    Node* const is_stringonebyte, Variable* const var_index, Node* const end,
+    int increment, Label* const if_none_found) {
+  Label if_stringisonebyte(this), out(this);
+
+  GotoIf(is_stringonebyte, &if_stringisonebyte);
+
+  // Two Byte String
+  BuildLoop(
+      var_index, end, increment, if_none_found, &out, [&](Node* const index) {
+        return Load(
+            MachineType::Uint16(), string_data,
+            WordShl(IntPtrAdd(index, string_data_offset), IntPtrConstant(1)));
+      });
+
+  BIND(&if_stringisonebyte);
+  BuildLoop(var_index, end, increment, if_none_found, &out,
+            [&](Node* const index) {
+              return Load(MachineType::Uint8(), string_data,
+                          IntPtrAdd(index, string_data_offset));
+            });
+
+  BIND(&out);
+}
+
+void StringTrimAssembler::BuildLoop(Variable* const var_index, Node* const end,
+                                    int increment, Label* const if_none_found,
+                                    Label* const out,
+                                    std::function<Node*(Node*)> get_character) {
+  Label loop(this, var_index);
+  Goto(&loop);
+  BIND(&loop);
+  {
+    Node* const index = var_index->value();
+    GotoIf(IntPtrEqual(index, end), if_none_found);
+    GotoIfNotWhiteSpaceOrLineTerminator(
+        UncheckedCast<Uint32T>(get_character(index)), out);
+    Increment(var_index, increment);
+    Goto(&loop);
+  }
+}
+
+void StringTrimAssembler::GotoIfNotWhiteSpaceOrLineTerminator(
+    Node* const char_code, Label* const if_not_whitespace) {
+  Label out(this);
+
+  // 0x0020 - SPACE (Intentionally out of order to fast path a commmon case)
+  GotoIf(Word32Equal(char_code, Int32Constant(0x0020)), &out);
+
+  // 0x0009 - HORIZONTAL TAB
+  GotoIf(Uint32LessThan(char_code, Int32Constant(0x0009)), if_not_whitespace);
+  // 0x000A - LINE FEED OR NEW LINE
+  // 0x000B - VERTICAL TAB
+  // 0x000C - FORMFEED
+  // 0x000D - HORIZONTAL TAB
+  GotoIf(Uint32LessThanOrEqual(char_code, Int32Constant(0x000D)), &out);
+
+  // Common Non-whitespace characters
+  GotoIf(Uint32LessThan(char_code, Int32Constant(0x00A0)), if_not_whitespace);
+
+  // 0x00A0 - NO-BREAK SPACE
+  GotoIf(Word32Equal(char_code, Int32Constant(0x00A0)), &out);
+
+  // 0x1680 - Ogham Space Mark
+  GotoIf(Word32Equal(char_code, Int32Constant(0x1680)), &out);
+
+  // 0x2000 - EN QUAD
+  GotoIf(Uint32LessThan(char_code, Int32Constant(0x2000)), if_not_whitespace);
+  // 0x2001 - EM QUAD
+  // 0x2002 - EN SPACE
+  // 0x2003 - EM SPACE
+  // 0x2004 - THREE-PER-EM SPACE
+  // 0x2005 - FOUR-PER-EM SPACE
+  // 0x2006 - SIX-PER-EM SPACE
+  // 0x2007 - FIGURE SPACE
+  // 0x2008 - PUNCTUATION SPACE
+  // 0x2009 - THIN SPACE
+  // 0x200A - HAIR SPACE
+  GotoIf(Uint32LessThanOrEqual(char_code, Int32Constant(0x200A)), &out);
+
+  // 0x2028 - LINE SEPARATOR
+  GotoIf(Word32Equal(char_code, Int32Constant(0x2028)), &out);
+  // 0x2029 - PARAGRAPH SEPARATOR
+  GotoIf(Word32Equal(char_code, Int32Constant(0x2029)), &out);
+  // 0x202F - NARROW NO-BREAK SPACE
+  GotoIf(Word32Equal(char_code, Int32Constant(0x202F)), &out);
+  // 0x205F - MEDIUM MATHEMATICAL SPACE
+  GotoIf(Word32Equal(char_code, Int32Constant(0x205F)), &out);
+  // 0xFEFF - BYTE ORDER MARK
+  GotoIf(Word32Equal(char_code, Int32Constant(0xFEFF)), &out);
+  // 0x3000 - IDEOGRAPHIC SPACE
+  Branch(Word32Equal(char_code, Int32Constant(0x3000)), &out,
+         if_not_whitespace);
+
+  BIND(&out);
+}
+
 // ES6 #sec-string.prototype.tostring
 TF_BUILTIN(StringPrototypeToString, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
