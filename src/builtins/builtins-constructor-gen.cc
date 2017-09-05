@@ -151,33 +151,6 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
     BIND(&cell_done);
   }
-  {
-    // If the feedback vector has optimized code, check whether it is marked
-    // for deopt and, if so, clear the slot.
-    Label optimized_code_ok(this), clear_optimized_code(this);
-    Node* literals = LoadObjectField(literals_cell, Cell::kValueOffset);
-    GotoIfNot(IsFeedbackVector(literals), &optimized_code_ok);
-    Node* optimized_code_cell_slot =
-        LoadObjectField(literals, FeedbackVector::kOptimizedCodeOffset);
-    GotoIf(TaggedIsSmi(optimized_code_cell_slot), &optimized_code_ok);
-
-    Node* optimized_code =
-        LoadWeakCellValue(optimized_code_cell_slot, &clear_optimized_code);
-    Node* code_flags = LoadObjectField(
-        optimized_code, Code::kKindSpecificFlags1Offset, MachineType::Uint32());
-    Node* marked_for_deopt =
-        DecodeWord32<Code::MarkedForDeoptimizationField>(code_flags);
-    Branch(Word32Equal(marked_for_deopt, Int32Constant(0)), &optimized_code_ok,
-           &clear_optimized_code);
-
-    // Cell is empty or code is marked for deopt, clear the optimized code slot.
-    BIND(&clear_optimized_code);
-    StoreObjectFieldNoWriteBarrier(
-        literals, FeedbackVector::kOptimizedCodeOffset, SmiConstant(0));
-    Goto(&optimized_code_ok);
-
-    BIND(&optimized_code_ok);
-  }
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackVectorOffset,
                                  literals_cell);
   StoreObjectFieldNoWriteBarrier(
