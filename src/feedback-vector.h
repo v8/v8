@@ -224,8 +224,8 @@ class FeedbackVector : public HeapObject {
   DECL_PRINTER(FeedbackVector)
   DECL_VERIFIER(FeedbackVector)
 
-  // Clears the vector slots.
-  void ClearSlots(JSFunction* host_function);
+  // Clears the vector slots. Return true if feedback has changed.
+  bool ClearSlots(Isolate* isolate);
 
   // The object that indicates an uninitialized cache.
   static inline Handle<Symbol> UninitializedSentinel(Isolate* isolate);

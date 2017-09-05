@@ -341,9 +341,7 @@ void FeedbackVector::EvictOptimizedCodeMarkedForDeoptimization(
   }
 }
 
-void FeedbackVector::ClearSlots(JSFunction* host_function) {
-  Isolate* isolate = GetIsolate();
-
+bool FeedbackVector::ClearSlots(Isolate* isolate) {
   Object* uninitialized_sentinel =
       FeedbackVector::RawUninitializedSentinel(isolate);
 
@@ -442,9 +440,7 @@ void FeedbackVector::ClearSlots(JSFunction* host_function) {
       }
     }
   }
-  if (feedback_updated) {
-    IC::OnFeedbackChanged(isolate, this, host_function);
-  }
+  return feedback_updated;
 }
 
 Handle<FixedArray> FeedbackNexus::EnsureArrayOfSize(int length) {

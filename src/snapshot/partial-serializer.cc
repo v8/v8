@@ -95,11 +95,8 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 
   FlushSkip(skip);
 
-  // Clear literal boilerplates.
-  if (obj->IsJSFunction()) {
-    JSFunction* function = JSFunction::cast(obj);
-    function->ClearTypeFeedbackInfo();
-  }
+  // Clear literal boilerplates and feedback.
+  if (obj->IsFeedbackVector()) FeedbackVector::cast(obj)->ClearSlots(isolate_);
 
   if (obj->IsJSObject()) {
     JSObject* jsobj = JSObject::cast(obj);
