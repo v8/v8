@@ -323,16 +323,15 @@ void ModuleCompiler::ValidateSequentially(const ModuleWireBytes& wire_bytes,
   }
 }
 
+// static
 MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObject(
-    ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
-    Handle<Script> asm_js_script,
+    Isolate* isolate, ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
+    const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
-
-  TimedHistogramScope wasm_compile_module_time_scope(
-      module_->is_wasm() ? counters()->wasm_compile_wasm_module_time()
-                         : counters()->wasm_compile_asm_module_time());
-  return CompileToModuleObjectInternal(
-      isolate_, thrower, wire_bytes, asm_js_script, asm_js_offset_table_bytes);
+  Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
+  ModuleCompiler compiler(isolate, std::move(module), centry_stub);
+  return compiler.CompileToModuleObjectInternal(
+      thrower, wire_bytes, asm_js_script, asm_js_offset_table_bytes);
 }
 
 namespace {
@@ -576,10 +575,14 @@ void ReopenHandles(Isolate* isolate, const std::vector<Handle<T>>& vec) {
 }  // namespace
 
 MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
-    Isolate* isolate, ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
+    ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
     Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
-  Factory* factory = isolate->factory();
+  TimedHistogramScope wasm_compile_module_time_scope(
+      module_->is_wasm() ? counters()->wasm_compile_wasm_module_time()
+                         : counters()->wasm_compile_asm_module_time());
+
+  Factory* factory = isolate_->factory();
   // Check whether lazy compilation is enabled for this module.
   bool lazy_compile = compile_lazy(module_.get());
 
@@ -591,7 +594,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
                                   : BUILTIN_CODE(isolate_, Illegal);
 
   GlobalHandleLifetimeManager globals_manager;
-  auto env = CreateDefaultModuleEnv(isolate, module_.get(), init_builtin,
+  auto env = CreateDefaultModuleEnv(isolate_, module_.get(), init_builtin,
                                     &globals_manager);
 
   // The {code_table} array contains import wrappers and functions (which

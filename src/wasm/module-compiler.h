@@ -155,8 +155,9 @@ class ModuleCompiler {
                             compiler::ModuleEnv* module_env,
                             ErrorThrower* thrower);
 
-  MaybeHandle<WasmModuleObject> CompileToModuleObject(
-      ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
+  static MaybeHandle<WasmModuleObject> CompileToModuleObject(
+      Isolate* isolate, ErrorThrower* thrower,
+      std::unique_ptr<WasmModule> module, const ModuleWireBytes& wire_bytes,
       Handle<Script> asm_js_script,
       Vector<const byte> asm_js_offset_table_bytes);
 
@@ -164,8 +165,8 @@ class ModuleCompiler {
 
  private:
   MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
-      Isolate* isolate, ErrorThrower* thrower,
-      const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
+      ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
+      Handle<Script> asm_js_script,
       Vector<const byte> asm_js_offset_table_bytes);
 
   Isolate* isolate_;

@@ -791,12 +791,11 @@ MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
     return {};
   }
 
-  // Transfer ownership to the {WasmModuleWrapper} generated in
-  // {CompileToModuleObject}.
-  Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
-  ModuleCompiler compiler(isolate, std::move(result.val), centry_stub);
-  return compiler.CompileToModuleObject(thrower, bytes, asm_js_script,
-                                        asm_js_offset_table_bytes);
+  // Transfer ownership of the WasmModule to the {WasmModuleWrapper} generated
+  // in {CompileToModuleObject}.
+  return ModuleCompiler::CompileToModuleObject(
+      isolate, thrower, std::move(result.val), bytes, asm_js_script,
+      asm_js_offset_table_bytes);
 }
 
 MaybeHandle<WasmModuleObject> SyncCompile(Isolate* isolate,
@@ -819,12 +818,11 @@ MaybeHandle<WasmModuleObject> SyncCompile(Isolate* isolate,
     return {};
   }
 
-  // Transfer ownership to the {WasmModuleWrapper} generated in
-  // {CompileToModuleObject}.
-  Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
-  ModuleCompiler compiler(isolate, std::move(result.val), centry_stub);
-  return compiler.CompileToModuleObject(thrower, bytes_copy, Handle<Script>(),
-                                        Vector<const byte>());
+  // Transfer ownership of the WasmModule to the {WasmModuleWrapper} generated
+  // in {CompileToModuleObject}.
+  return ModuleCompiler::CompileToModuleObject(
+      isolate, thrower, std::move(result.val), bytes_copy, Handle<Script>(),
+      Vector<const byte>());
 }
 
 MaybeHandle<WasmInstanceObject> SyncInstantiate(
