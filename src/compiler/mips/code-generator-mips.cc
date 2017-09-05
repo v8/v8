@@ -594,6 +594,78 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
     __ sync();                                                                 \
   } while (0)
 
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER()                                \
+  do {                                                                    \
+    Label exchange;                                                       \
+    __ sync();                                                            \
+    __ bind(&exchange);                                                   \
+    __ addu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));   \
+    __ Ll(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));         \
+    __ Sc(i.InputRegister(2), MemOperand(i.TempRegister(0), 0));          \
+    __ BranchShort(&exchange, eq, i.InputRegister(2), Operand(zero_reg)); \
+    __ sync();                                                            \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(sign_extend, size)                \
+  do {                                                                         \
+    Label exchange;                                                            \
+    __ addu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));        \
+    __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                        \
+    __ Subu(i.TempRegister(0), i.TempRegister(0), Operand(i.TempRegister(1))); \
+    __ sll(i.TempRegister(1), i.TempRegister(1), 3);                           \
+    __ sync();                                                                 \
+    __ bind(&exchange);                                                        \
+    __ Ll(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));                \
+    __ ExtractBits(i.OutputRegister(0), i.TempRegister(2), i.TempRegister(1),  \
+                   size, sign_extend);                                         \
+    __ InsertBits(i.TempRegister(2), i.InputRegister(2), i.TempRegister(1),    \
+                  size);                                                       \
+    __ Sc(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));                \
+    __ BranchShort(&exchange, eq, i.TempRegister(2), Operand(zero_reg));       \
+    __ sync();                                                                 \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER()                      \
+  do {                                                                  \
+    Label compareExchange;                                              \
+    Label exit;                                                         \
+    __ addu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ sync();                                                          \
+    __ bind(&compareExchange);                                          \
+    __ Ll(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));       \
+    __ BranchShort(&exit, ne, i.InputRegister(2),                       \
+                   Operand(i.OutputRegister(0)));                       \
+    __ Sc(i.InputRegister(3), MemOperand(i.TempRegister(0), 0));        \
+    __ BranchShort(&compareExchange, eq, i.InputRegister(3),            \
+                   Operand(zero_reg));                                  \
+    __ bind(&exit);                                                     \
+    __ sync();                                                          \
+  } while (0)
+
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(sign_extend, size)        \
+  do {                                                                         \
+    Label compareExchange;                                                     \
+    Label exit;                                                                \
+    __ addu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));        \
+    __ andi(i.TempRegister(1), i.TempRegister(0), 0x3);                        \
+    __ Subu(i.TempRegister(0), i.TempRegister(0), Operand(i.TempRegister(1))); \
+    __ sll(i.TempRegister(1), i.TempRegister(1), 3);                           \
+    __ sync();                                                                 \
+    __ bind(&compareExchange);                                                 \
+    __ Ll(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));                \
+    __ ExtractBits(i.OutputRegister(0), i.TempRegister(2), i.TempRegister(1),  \
+                   size, sign_extend);                                         \
+    __ BranchShort(&exit, ne, i.InputRegister(2),                              \
+                   Operand(i.OutputRegister(0)));                              \
+    __ InsertBits(i.TempRegister(2), i.InputRegister(3), i.TempRegister(1),    \
+                  size);                                                       \
+    __ Sc(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));                \
+    __ BranchShort(&compareExchange, eq, i.TempRegister(2),                    \
+                   Operand(zero_reg));                                         \
+    __ bind(&exit);                                                            \
+    __ sync();                                                                 \
+  } while (0)
+
 #define ASSEMBLE_IEEE754_BINOP(name)                                          \
   do {                                                                        \
     FrameScope scope(tasm(), StackFrame::MANUAL);                             \
@@ -1754,16 +1826,34 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_STORE_INTEGER(sw);
       break;
     case kAtomicExchangeInt8:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(true, 8);
+      break;
     case kAtomicExchangeUint8:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(false, 8);
+      break;
     case kAtomicExchangeInt16:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(true, 16);
+      break;
     case kAtomicExchangeUint16:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(false, 16);
+      break;
     case kAtomicExchangeWord32:
+      ASSEMBLE_ATOMIC_EXCHANGE_INTEGER();
+      break;
     case kAtomicCompareExchangeInt8:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(true, 8);
+      break;
     case kAtomicCompareExchangeUint8:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(false, 8);
+      break;
     case kAtomicCompareExchangeInt16:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(true, 16);
+      break;
     case kAtomicCompareExchangeUint16:
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER_EXT(false, 16);
+      break;
     case kAtomicCompareExchangeWord32:
-      UNREACHABLE();
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER();
       break;
 #define ATOMIC_BINOP_CASE(op, inst)             \
   case kAtomic##op##Int8:                       \
