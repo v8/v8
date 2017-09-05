@@ -20,9 +20,8 @@ BuiltinSerializer::~BuiltinSerializer() {
 
 void BuiltinSerializer::SerializeBuiltins() {
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    Code* code = isolate()->builtins()->builtin(static_cast<Builtins::Name>(i));
     builtin_offsets_[i] = sink()->Position();
-    SerializeBuiltin(code);
+    SerializeBuiltin(isolate()->builtins()->builtin(i));
   }
   Pad();  // Pad with kNop since GetInt() might read too far.
 

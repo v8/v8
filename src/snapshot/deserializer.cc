@@ -816,9 +816,7 @@ Object** Deserializer::ReadDataCase(Isolate* isolate, Object** current,
     } else {
       DCHECK(where == kBuiltin);
       int builtin_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());
-      DCHECK(Builtins::IsBuiltinId(builtin_id));
-      Builtins::Name name = static_cast<Builtins::Name>(builtin_id);
-      new_object = isolate->builtins()->builtin(name);
+      new_object = isolate->builtins()->builtin(builtin_id);
       emit_write_barrier = false;
     }
     if (within == kInnerPointer) {

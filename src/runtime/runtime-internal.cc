@@ -514,22 +514,18 @@ RUNTIME_FUNCTION(Runtime_DeserializeLazy) {
   Handle<SharedFunctionInfo> shared(function->shared(), isolate);
   int builtin_id = shared->lazy_deserialization_builtin_id();
 
-#ifdef DEBUG
-  Builtins::Name builtin_name = static_cast<Builtins::Name>(builtin_id);
-
   // At this point, the builtins table should definitely have DeserializeLazy
   // set at the position of the target builtin. Also, we should never lazily
   // deserialize DeserializeLazy.
 
-  DCHECK_NE(Builtins::kDeserializeLazy, builtin_name);
+  DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
   DCHECK_EQ(Builtins::kDeserializeLazy,
-            isolate->builtins()->builtin(builtin_name)->builtin_index());
+            isolate->builtins()->builtin(builtin_id)->builtin_index());
 
   // The DeserializeLazy builtin tail-calls the deserialized builtin. This only
   // works with JS-linkage.
   DCHECK(Builtins::IsLazy(builtin_id));
   DCHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_id));
-#endif  // DEBUG
 
   if (FLAG_trace_lazy_deserialization) {
     PrintF("Lazy-deserializing %s\n", Builtins::name(builtin_id));
@@ -537,7 +533,7 @@ RUNTIME_FUNCTION(Runtime_DeserializeLazy) {
 
   Code* code = Snapshot::DeserializeBuiltin(isolate, builtin_id);
   DCHECK_EQ(builtin_id, code->builtin_index());
-  DCHECK_EQ(code, isolate->builtins()->builtin(builtin_name));
+  DCHECK_EQ(code, isolate->builtins()->builtin(builtin_id));
   shared->set_code(code);
   function->set_code(code);
 

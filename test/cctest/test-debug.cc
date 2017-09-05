@@ -6530,7 +6530,7 @@ TEST(BuiltinsExceptionPrediction) {
   i::Builtins* builtins = CcTest::i_isolate()->builtins();
   bool fail = false;
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
-    Code* builtin = builtins->builtin(static_cast<i::Builtins::Name>(i));
+    Code* builtin = builtins->builtin(i);
 
     if (builtin->kind() != Code::BUILTIN) continue;
     if (whitelist.find(i) != whitelist.end()) continue;

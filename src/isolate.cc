@@ -2682,7 +2682,7 @@ void PrintBuiltinSizes(Isolate* isolate) {
   for (int i = 0; i < Builtins::builtin_count; i++) {
     const char* name = builtins->name(i);
     const char* kind = Builtins::KindNameOf(i);
-    Code* code = builtins->builtin(static_cast<Builtins::Name>(i));
+    Code* code = builtins->builtin(i);
     PrintF(stdout, "%s Builtin, %s, %d\n", kind, name,
            code->instruction_size());
   }

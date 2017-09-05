@@ -155,8 +155,9 @@ void Builtins::set_builtin(int index, HeapObject* builtin) {
   builtins_[index] = builtin;
 }
 
-Handle<Code> Builtins::builtin_handle(Name name) {
-  return Handle<Code>(reinterpret_cast<Code**>(builtin_address(name)));
+Handle<Code> Builtins::builtin_handle(int index) {
+  DCHECK(IsBuiltinId(index));
+  return Handle<Code>(reinterpret_cast<Code**>(builtin_address(index)));
 }
 
 // static

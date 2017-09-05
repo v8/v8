@@ -101,8 +101,7 @@ Code* Snapshot::DeserializeBuiltin(Isolate* isolate, int builtin_id) {
   DisallowHeapAllocation no_gc;
 
   Code* code = builtin_deserializer.DeserializeBuiltin(builtin_id);
-  DCHECK_EQ(code, isolate->builtins()->builtin(
-                      static_cast<Builtins::Name>(builtin_id)));
+  DCHECK_EQ(code, isolate->builtins()->builtin(builtin_id));
 
   if (FLAG_profile_deserialization) {
     double ms = timer.Elapsed().InMillisecondsF();

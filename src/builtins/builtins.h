@@ -74,17 +74,19 @@ class Builtins {
   // Used by BuiltinDeserializer.
   void set_builtin(int index, HeapObject* builtin);
 
-  Code* builtin(Name name) {
+  Code* builtin(int index) {
+    DCHECK(IsBuiltinId(index));
     // Code::cast cannot be used here since we access builtins
     // during the marking phase of mark sweep. See IC::Clear.
-    return reinterpret_cast<Code*>(builtins_[name]);
+    return reinterpret_cast<Code*>(builtins_[index]);
   }
 
-  Address builtin_address(Name name) {
-    return reinterpret_cast<Address>(&builtins_[name]);
+  Address builtin_address(int index) {
+    DCHECK(IsBuiltinId(index));
+    return reinterpret_cast<Address>(&builtins_[index]);
   }
 
-  V8_EXPORT_PRIVATE Handle<Code> builtin_handle(Name name);
+  V8_EXPORT_PRIVATE Handle<Code> builtin_handle(int index);
 
   // Used by lazy deserialization to determine whether a given builtin has been
   // deserialized. See the DeserializeLazy builtin.

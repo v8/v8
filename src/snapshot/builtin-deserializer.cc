@@ -56,7 +56,7 @@ void BuiltinDeserializer::DeserializeEagerBuiltins() {
       // Do nothing. These builtins have been replaced by DeserializeLazy in
       // InitializeBuiltinsTable.
       DCHECK_EQ(builtins->builtin(Builtins::kDeserializeLazy),
-                builtins->builtin(static_cast<Builtins::Name>(i)));
+                builtins->builtin(i));
     } else {
       builtins->set_builtin(i, DeserializeBuiltin(i));
     }
@@ -64,7 +64,7 @@ void BuiltinDeserializer::DeserializeEagerBuiltins() {
 
 #ifdef DEBUG
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    Object* o = builtins->builtin(static_cast<Builtins::Name>(i));
+    Object* o = builtins->builtin(i);
     DCHECK(o->IsCode() && Code::cast(o)->is_builtin());
   }
 #endif
@@ -197,10 +197,7 @@ void BuiltinDeserializer::ReserveAndInitializeBuiltinsTableForBuiltin(
   DCHECK(Builtins::IsBuiltinId(builtin_id));
   DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
   DCHECK_EQ(Builtins::kDeserializeLazy,
-            isolate()
-                ->builtins()
-                ->builtin(static_cast<Builtins::Name>(builtin_id))
-                ->builtin_index());
+            isolate()->builtins()->builtin(builtin_id)->builtin_index());
 
   const uint32_t builtin_size = ExtractBuiltinSize(builtin_id);
   DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
@@ -221,8 +218,7 @@ void BuiltinDeserializer::ReserveAndInitializeBuiltinsTableForBuiltin(
 Address BuiltinDeserializer::Allocate(int space_index, int size) {
   DCHECK_EQ(CODE_SPACE, space_index);
   DCHECK_EQ(ExtractBuiltinSize(current_builtin_id_), size);
-  Object* obj = isolate()->builtins()->builtin(
-      static_cast<Builtins::Name>(current_builtin_id_));
+  Object* obj = isolate()->builtins()->builtin(current_builtin_id_);
   DCHECK(Internals::HasHeapObjectTag(obj));
   return HeapObject::cast(obj)->address();
 }
