@@ -610,9 +610,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ bind(&invoke);
   __ PushStackHandler();
 
-  // Fake a receiver (NULL).
-  __ Push(Immediate(0));  // receiver
-
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return. We load the address from an
   // external reference instead of inlining the call target address directly

@@ -483,7 +483,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // context and the function left on the stack by the code
     // invocation.
   }
-  __ ret(kPointerSize);  // Remove receiver.
+  __ ret(0);
 }
 
 void Builtins::Generate_JSEntryTrampoline(MacroAssembler* masm) {

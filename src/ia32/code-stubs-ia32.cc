@@ -672,9 +672,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ bind(&invoke);
   __ PushStackHandler();
 
-  // Fake a receiver (NULL).
-  __ push(Immediate(0));  // receiver
-
   // Invoke the function by calling through JS entry trampoline builtin and
   // pop the faked function when we return. Notice that we cannot store a
   // reference to the trampoline code directly in this stub, because the
