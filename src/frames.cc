@@ -743,8 +743,7 @@ void StandardFrame::ComputeCallerState(State* state) const {
 
 bool StandardFrame::IsConstructor() const { return false; }
 
-void StandardFrame::Summarize(std::vector<FrameSummary>* functions,
-                              FrameSummary::Mode mode) const {
+void StandardFrame::Summarize(std::vector<FrameSummary>* functions) const {
   // This should only be called on frames which override this method.
   UNREACHABLE();
 }
@@ -968,15 +967,14 @@ void JavaScriptFrame::GetFunctions(
   }
 }
 
-void JavaScriptFrame::Summarize(std::vector<FrameSummary>* functions,
-                                FrameSummary::Mode mode) const {
+void JavaScriptFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   Code* code = LookupCode();
   int offset = static_cast<int>(pc() - code->instruction_start());
   AbstractCode* abstract_code = AbstractCode::cast(code);
   FrameSummary::JavaScriptFrameSummary summary(isolate(), receiver(),
                                                function(), abstract_code,
-                                               offset, IsConstructor(), mode);
+                                               offset, IsConstructor());
   functions->push_back(summary);
 }
 
@@ -1141,8 +1139,7 @@ bool IsNonDeoptimizingAsmCode(Code* code, JSFunction* function) {
 
 FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
     Isolate* isolate, Object* receiver, JSFunction* function,
-    AbstractCode* abstract_code, int code_offset, bool is_constructor,
-    Mode mode)
+    AbstractCode* abstract_code, int code_offset, bool is_constructor)
     : FrameSummaryBase(isolate, JAVA_SCRIPT),
       receiver_(receiver, isolate),
       function_(function, isolate),
@@ -1151,8 +1148,7 @@ FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
       is_constructor_(is_constructor) {
   DCHECK(abstract_code->IsBytecodeArray() ||
          Code::cast(abstract_code)->kind() != Code::OPTIMIZED_FUNCTION ||
-         IsNonDeoptimizingAsmCode(Code::cast(abstract_code), function) ||
-         mode == kApproximateSummary);
+         IsNonDeoptimizingAsmCode(Code::cast(abstract_code), function));
 }
 
 bool FrameSummary::JavaScriptFrameSummary::is_subject_to_debugging() const {
@@ -1323,8 +1319,7 @@ FRAME_SUMMARY_DISPATCH(Handle<Context>, native_context)
 
 #undef FRAME_SUMMARY_DISPATCH
 
-void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames,
-                               FrameSummary::Mode mode) const {
+void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
   DCHECK(frames->empty());
   DCHECK(is_optimized());
 
@@ -1340,9 +1335,6 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames,
   DeoptimizationInputData* const data = GetDeoptimizationData(&deopt_index);
   if (deopt_index == Safepoint::kNoDeoptimizationIndex) {
     CHECK_NULL(data);
-    if (mode == FrameSummary::kApproximateSummary) {
-      return JavaScriptFrame::Summarize(frames, mode);
-    }
     FATAL("Missing deoptimization information for OptimizedFrame::Summarize.");
   }
 
@@ -1601,8 +1593,7 @@ void InterpretedFrame::WriteInterpreterRegister(int register_index,
   return SetExpression(index + register_index, value);
 }
 
-void InterpretedFrame::Summarize(std::vector<FrameSummary>* functions,
-                                 FrameSummary::Mode mode) const {
+void InterpretedFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   AbstractCode* abstract_code =
       AbstractCode::cast(function()->shared()->bytecode_array());
@@ -1700,8 +1691,7 @@ int WasmCompiledFrame::position() const {
   return FrameSummary::GetSingle(this).SourcePosition();
 }
 
-void WasmCompiledFrame::Summarize(std::vector<FrameSummary>* functions,
-                                  FrameSummary::Mode mode) const {
+void WasmCompiledFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
   Handle<Code> code(LookupCode(), isolate());
   int offset = static_cast<int>(pc() - code->instruction_start());
@@ -1747,8 +1737,8 @@ void WasmInterpreterEntryFrame::Print(StringStream* accumulator, PrintMode mode,
   if (mode != OVERVIEW) accumulator->Add("\n");
 }
 
-void WasmInterpreterEntryFrame::Summarize(std::vector<FrameSummary>* functions,
-                                          FrameSummary::Mode mode) const {
+void WasmInterpreterEntryFrame::Summarize(
+    std::vector<FrameSummary>* functions) const {
   Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
   std::vector<std::pair<uint32_t, int>> interpreted_stack =
       instance->debug_info()->GetInterpretedStack(fp());

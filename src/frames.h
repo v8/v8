@@ -453,13 +453,6 @@ class StandardFrame;
 
 class FrameSummary BASE_EMBEDDED {
  public:
-  // Mode for JavaScriptFrame::Summarize. Exact summary is required to produce
-  // an exact stack trace. It will trigger an assertion failure if that is not
-  // possible, e.g., because of missing deoptimization information. The
-  // approximate mode should produce a summary even without deoptimization
-  // information, but it might miss frames.
-  enum Mode { kExactSummary, kApproximateSummary };
-
 // Subclasses for the different summary kinds:
 #define FRAME_SUMMARY_VARIANTS(F)                                             \
   F(JAVA_SCRIPT, JavaScriptFrameSummary, java_script_summary_, JavaScript)    \
@@ -488,8 +481,7 @@ class FrameSummary BASE_EMBEDDED {
    public:
     JavaScriptFrameSummary(Isolate* isolate, Object* receiver,
                            JSFunction* function, AbstractCode* abstract_code,
-                           int code_offset, bool is_constructor,
-                           Mode mode = kExactSummary);
+                           int code_offset, bool is_constructor);
 
     Handle<Object> receiver() const { return receiver_; }
     Handle<JSFunction> function() const { return function_; }
@@ -635,9 +627,7 @@ class StandardFrame : public StackFrame {
   // Build a list with summaries for this frame including all inlined frames.
   // The functions are ordered bottom-to-top (i.e. summaries.last() is the
   // top-most activation; caller comes before callee).
-  virtual void Summarize(
-      std::vector<FrameSummary>* frames,
-      FrameSummary::Mode mode = FrameSummary::kExactSummary) const;
+  virtual void Summarize(std::vector<FrameSummary>* frames) const;
 
   static StandardFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_standard());
@@ -688,9 +678,7 @@ class JavaScriptFrame : public StandardFrame {
  public:
   Type type() const override { return JAVA_SCRIPT; }
 
-  void Summarize(
-      std::vector<FrameSummary>* frames,
-      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
+  void Summarize(std::vector<FrameSummary>* frames) const override;
 
   // Accessors.
   virtual JSFunction* function() const;
@@ -829,9 +817,7 @@ class OptimizedFrame : public JavaScriptFrame {
   // is the top-most activation)
   void GetFunctions(std::vector<SharedFunctionInfo*>* functions) const override;
 
-  void Summarize(
-      std::vector<FrameSummary>* frames,
-      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
+  void Summarize(std::vector<FrameSummary>* frames) const override;
 
   // Lookup exception handler for current {pc}, returns -1 if none found.
   int LookupExceptionHandlerInTable(
@@ -883,9 +869,7 @@ class InterpretedFrame : public JavaScriptFrame {
   void WriteInterpreterRegister(int register_index, Object* value);
 
   // Build a list with summaries for this frame including all inlined frames.
-  void Summarize(
-      std::vector<FrameSummary>* frames,
-      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
+  void Summarize(std::vector<FrameSummary>* frames) const override;
 
   static int GetBytecodeOffset(Address fp);
 
@@ -975,8 +959,7 @@ class WasmCompiledFrame final : public StandardFrame {
   int position() const override;
   bool at_to_number_conversion() const;
 
-  void Summarize(std::vector<FrameSummary>* frames,
-                 FrameSummary::Mode mode) const override;
+  void Summarize(std::vector<FrameSummary>* frames) const override;
 
   static WasmCompiledFrame* cast(StackFrame* frame) {
     DCHECK(frame->is_wasm_compiled());
@@ -1003,9 +986,7 @@ class WasmInterpreterEntryFrame final : public StandardFrame {
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
 
-  void Summarize(
-      std::vector<FrameSummary>* frames,
-      FrameSummary::Mode mode = FrameSummary::kExactSummary) const override;
+  void Summarize(std::vector<FrameSummary>* frames) const override;
 
   // Determine the code for the frame.
   Code* unchecked_code() const override;
