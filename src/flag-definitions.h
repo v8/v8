@@ -546,9 +546,6 @@ DEFINE_INT(generic_ic_threshold, 30,
            "max percentage of megamorphic/generic ICs to allow optimization")
 DEFINE_INT(self_opt_count, 130, "call count before self-optimization")
 
-DEFINE_BOOL(trace_opt_verbose, false, "extra verbose compilation tracing")
-DEFINE_IMPLICATION(trace_opt_verbose, trace_opt)
-
 // Garbage collections flags.
 DEFINE_INT(min_semi_space_size, 0,
            "min size of a semi-space (in MBytes), the new space consists of two"
@@ -745,14 +742,17 @@ DEFINE_BOOL(trace, false, "trace function calls")
 // codegen.cc
 DEFINE_BOOL(lazy, true, "use lazy compilation")
 DEFINE_BOOL(trace_opt, false, "trace lazy optimization")
+DEFINE_BOOL(trace_opt_verbose, false, "extra verbose compilation tracing")
+DEFINE_IMPLICATION(trace_opt_verbose, trace_opt)
 DEFINE_BOOL(trace_opt_stats, false, "trace lazy optimization statistics")
+DEFINE_BOOL(trace_deopt, false, "trace optimize function deoptimization")
 DEFINE_BOOL(trace_file_names, false,
             "include file names in trace-opt/trace-deopt output")
+DEFINE_BOOL(trace_interrupts, false, "trace interrupts when they are handled")
 DEFINE_BOOL(opt, true, "use adaptive optimizations")
 DEFINE_BOOL(always_opt, false, "always try to optimize functions")
 DEFINE_BOOL(always_osr, false, "always try to OSR functions")
 DEFINE_BOOL(prepare_always_opt, false, "prepare for turning on always opt")
-DEFINE_BOOL(trace_deopt, false, "trace optimize function deoptimization")
 
 DEFINE_BOOL(serialize_toplevel, true, "enable caching of toplevel scripts")
 DEFINE_BOOL(serialize_eager, false, "compile eagerly when caching scripts")
