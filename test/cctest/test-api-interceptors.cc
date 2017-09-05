@@ -5094,6 +5094,47 @@ THREADED_TEST(EnumeratorsAndUnenumerableNamedProperties) {
   ExpectString("Object.values(obj)[0]", "foofoo");
 }
 
+namespace {
+void QueryInterceptorForFoo(Local<Name> property,
+                            const v8::PropertyCallbackInfo<v8::Integer>& info) {
+  // Don't intercept anything except "foo."
+  if (!v8_str("foo")
+           ->Equals(info.GetIsolate()->GetCurrentContext(), property)
+           .FromJust()) {
+    return;
+  }
+  // "foo" is enumerable.
+  info.GetReturnValue().Set(v8::PropertyAttribute::None);
+}
+}  // namespace
+
+// Test that calls to the query interceptor are independent of each
+// other.
+THREADED_TEST(EnumeratorsAndUnenumerableNamedPropertiesWithoutSet) {
+  // The enumerator interceptor returns a list
+  // of items which are filtered according to the
+  // properties defined in the query interceptor.
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::ObjectTemplate> obj = ObjectTemplate::New(isolate);
+  obj->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      ConcatNamedPropertyGetter, NULL, QueryInterceptorForFoo, NULL,
+      EnumCallbackWithNames));
+  LocalContext context;
+  context->Global()
+      ->Set(context.local(), v8_str("obj"),
+            obj->NewInstance(context.local()).ToLocalChecked())
+      .FromJust();
+
+  ExpectInt32("Object.getOwnPropertyNames(obj).length", 3);
+  ExpectString("Object.getOwnPropertyNames(obj)[0]", "foo");
+  ExpectString("Object.getOwnPropertyNames(obj)[1]", "baz");
+  ExpectString("Object.getOwnPropertyNames(obj)[2]", "10");
+
+  ExpectTrue("Object.getOwnPropertyDescriptor(obj, 'foo').enumerable");
+  ExpectInt32("Object.keys(obj).length", 1);
+}
+
 THREADED_TEST(EnumeratorsAndUnenumerableIndexedPropertiesArgumentsElements) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);

@@ -63,6 +63,8 @@ Handle<V> CustomArguments<T>::GetReturnValue(Isolate* isolate) {
   return result;
 }
 
+// Note: Calling args.Call() sets the return value on args. For multiple
+// Call()'s, a new args should be used every time.
 class PropertyCallbackArguments
     : public CustomArguments<PropertyCallbackInfo<Value> > {
  public:

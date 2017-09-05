@@ -458,31 +458,35 @@ namespace {
 enum IndexedOrNamed { kIndexed, kNamed };
 
 template <IndexedOrNamed type>
-void FilterForEnumerableProperties(PropertyCallbackArguments* args,
+void FilterForEnumerableProperties(Handle<JSReceiver> receiver,
+                                   Handle<JSObject> object,
                                    Handle<InterceptorInfo> interceptor,
-                                   Handle<JSObject> result,
-                                   KeyAccumulator* accumulator) {
+                                   KeyAccumulator* accumulator,
+                                   Handle<JSObject> result) {
   DCHECK(result->IsJSArray() || result->HasSloppyArgumentsElements());
-
   ElementsAccessor* accessor = result->GetElementsAccessor();
 
   uint32_t length = accessor->GetCapacity(*result, result->elements());
   for (uint32_t i = 0; i < length; i++) {
     if (!accessor->HasEntry(*result, i)) continue;
+
+    // args are invalid after args.Call(), create a new one in every iteration.
+    PropertyCallbackArguments args(accumulator->isolate(), interceptor->data(),
+                                   *receiver, *object, Object::DONT_THROW);
+
     Handle<Object> element = accessor->Get(result, i);
     Handle<Object> attributes;
     if (type == kIndexed) {
       uint32_t number;
       CHECK(element->ToUint32(&number));
-      attributes = args->Call(
+      attributes = args.Call(
           v8::ToCData<v8::IndexedPropertyQueryCallback>(interceptor->query()),
           number);
     } else {
       CHECK(element->IsName());
-      attributes =
-          args->Call(v8::ToCData<v8::GenericNamedPropertyQueryCallback>(
-                         interceptor->query()),
-                     Handle<Name>::cast(element));
+      attributes = args.Call(v8::ToCData<v8::GenericNamedPropertyQueryCallback>(
+                                 interceptor->query()),
+                             Handle<Name>::cast(element));
     }
 
     if (!attributes.is_null()) {
@@ -518,11 +522,8 @@ Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
 
   if ((accumulator->filter() & ONLY_ENUMERABLE) &&
       !interceptor->query()->IsUndefined(isolate)) {
-    PropertyCallbackArguments query_args(
-        isolate, interceptor->data(), *receiver, *object, Object::DONT_THROW);
-
-    FilterForEnumerableProperties<type>(&query_args, interceptor, result,
-                                        accumulator);
+    FilterForEnumerableProperties<type>(receiver, object, interceptor,
+                                        accumulator, result);
   } else {
     accumulator->AddKeys(
         result, type == kIndexed ? CONVERT_TO_ARRAY_INDEX : DO_NOT_CONVERT);
