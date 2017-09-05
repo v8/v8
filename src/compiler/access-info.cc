@@ -96,6 +96,13 @@ PropertyAccessInfo PropertyAccessInfo::AccessorConstant(
   return PropertyAccessInfo(kAccessorConstant, holder, constant, receiver_maps);
 }
 
+// static
+PropertyAccessInfo PropertyAccessInfo::ModuleExport(
+    MapHandles const& receiver_maps, Handle<Cell> cell) {
+  return PropertyAccessInfo(kModuleExport, MaybeHandle<JSObject>(), cell,
+                            receiver_maps);
+}
+
 PropertyAccessInfo::PropertyAccessInfo()
     : kind_(kInvalid),
       field_representation_(MachineRepresentation::kNone),
@@ -208,6 +215,9 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
                                   that->receiver_maps_.begin(),
                                   that->receiver_maps_.end());
       return true;
+    }
+    case kModuleExport: {
+      return false;
     }
   }
 
@@ -400,6 +410,26 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
           return true;
         } else {
           DCHECK_EQ(kAccessor, details.kind());
+          if (map->instance_type() == JS_MODULE_NAMESPACE_TYPE) {
+            DCHECK(map->is_prototype_map());
+            Handle<PrototypeInfo> proto_info =
+                Map::GetOrCreatePrototypeInfo(map, isolate());
+            DCHECK(proto_info->weak_cell()->IsWeakCell());
+            Object* obj = WeakCell::cast(proto_info->weak_cell())->value();
+            DCHECK(obj->IsJSModuleNamespace());
+            ObjectHashTable* exports =
+                JSModuleNamespace::cast(obj)->module()->exports();
+            Object* value =
+                exports->Lookup(isolate(), name, Smi::ToInt(name->GetHash()));
+            DCHECK(value->IsCell());
+            if (Cell::cast(value)->value()->IsTheHole(isolate())) {
+              // This module has not been fully initialized yet.
+              return false;
+            }
+            *access_info = PropertyAccessInfo::ModuleExport(
+                MapHandles{receiver_map}, handle(Cell::cast(value), isolate()));
+            return true;
+          }
           Handle<Object> accessors(descriptors->GetValue(number), isolate());
           if (!accessors->IsAccessorPair()) return false;
           Handle<Object> accessor(

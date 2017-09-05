@@ -1639,6 +1639,11 @@ JSNativeContextSpecialization::BuildPropertyLoad(
   } else if (access_info.IsAccessorConstant()) {
     value = InlinePropertyGetterCall(receiver, context, frame_state, &effect,
                                      &control, if_exceptions, access_info);
+  } else if (access_info.IsModuleExport()) {
+    Node* cell = jsgraph()->Constant(access_info.export_cell());
+    value = effect =
+        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForCellValue()),
+                         cell, effect, control);
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsDataConstantField());
     value = access_builder.BuildLoadDataField(name, access_info, receiver,
