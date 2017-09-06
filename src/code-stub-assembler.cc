@@ -9241,6 +9241,15 @@ Node* CodeStubAssembler::InstanceOf(Node* object, Node* callable,
   GotoIfNot(WordEqual(inst_of_handler, function_has_instance),
             &if_otherhandler);
   {
+    // TODO(6786): A direct call to a TFJ builtin breaks the lazy
+    // deserialization mechanism in two ways: first, we always pass in a
+    // callable containing the DeserializeLazy code object (assuming that
+    // FunctionPrototypeHasInstance is lazy). Second, a direct call (without
+    // going through CodeFactory::Call) to DeserializeLazy will not initialize
+    // new_target properly. For now we can avoid this by marking
+    // FunctionPrototypeHasInstance as eager, but this should be fixed at some
+    // point.
+    //
     // Call to Function.prototype[@@hasInstance] directly.
     Callable builtin(BUILTIN_CODE(isolate(), FunctionPrototypeHasInstance),
                      CallTrampolineDescriptor(isolate()));

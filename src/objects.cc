@@ -13908,6 +13908,16 @@ void SharedFunctionInfo::SetExpectedNofPropertiesFromEstimate(
 
 void SharedFunctionInfo::SetConstructStub(Code* code) {
   if (code->kind() == Code::BUILTIN) code->set_is_construct_stub(true);
+#ifdef DEBUG
+  if (code->is_builtin()) {
+    // See https://crbug.com/v8/6787. Lazy deserialization currently cannot
+    // handle lazy construct stubs that differ from the code object.
+    int builtin_id = code->builtin_index();
+    DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
+    DCHECK(builtin_id == Builtins::kJSBuiltinsConstructStub ||
+           this->code() == code || !Builtins::IsLazy(builtin_id));
+  }
+#endif
   set_construct_stub(code);
 }
 
