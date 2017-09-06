@@ -1151,6 +1151,10 @@ const char* ExternalKindName(WasmExternalKind kind) {
   return "unknown";
 }
 
+#undef TRACE
+#undef TRACE_CHAIN
+#undef TRACE_COMPILE
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

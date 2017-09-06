@@ -22,6 +22,7 @@
     if (FLAG_trace_wasm_instances) PrintF(__VA_ARGS__); \
   } while (false)
 
+// TODO(mostynb@opera.com): this is never used, remove it?
 #define TRACE_CHAIN(instance)        \
   do {                               \
     instance->PrintInstancesChain(); \
@@ -1147,7 +1148,15 @@ bool WasmCompiledModule::IsWasmCompiledModule(Object* obj) {
 #define WCM_CHECK_LARGE_NUMBER(TYPE, NAME) \
   WCM_CHECK_TYPE(NAME, obj->IsUndefined(isolate) || obj->IsMutableHeapNumber())
   WCM_PROPERTY_TABLE(WCM_CHECK)
+#undef WCM_CHECK_TYPE
+#undef WCM_CHECK_OBJECT
+#undef WCM_CHECK_CONST_OBJECT
+#undef WCM_CHECK_WASM_OBJECT
+#undef WCM_CHECK_WEAK_LINK
+#undef WCM_CHECK_SMALL_NUMBER
 #undef WCM_CHECK
+#undef WCM_CHECK_SMALL_CONST_NUMBER
+#undef WCM_CHECK_LARGE_NUMBER
 
   // All checks passed.
   return true;
@@ -1568,6 +1577,9 @@ Handle<Code> WasmCompiledModule::CompileLazy(
   return orch->CompileLazy(isolate, instance, caller, offset, func_index,
                            patch_caller);
 }
+
+#undef TRACE
+#undef TRACE_CHAIN
 
 }  // namespace internal
 }  // namespace v8

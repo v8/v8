@@ -2369,6 +2369,14 @@ InstructionSelector::AlignmentRequirements() {
   }
 }
 
+#undef SIMD_BINOP_LIST
+#undef SIMD_SHIFT_OP_LIST
+#undef SIMD_UNOP_LIST
+#undef SIMD_TYPE_LIST
+#undef SIMD_FORMAT_LIST
+#undef TRACE_UNIMPL
+#undef TRACE
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
