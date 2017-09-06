@@ -24,6 +24,7 @@
 #include "src/globals.h"
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
+#include "src/list.h"
 #include "src/log.h"
 #include "src/messages.h"
 #include "src/objects/debug-objects-inl.h"
@@ -63,9 +64,9 @@ BreakLocation BreakLocation::FromFrame(Handle<DebugInfo> debug_info,
   return it.GetBreakLocation();
 }
 
-void BreakLocation::AllAtCurrentStatement(
-    Handle<DebugInfo> debug_info, JavaScriptFrame* frame,
-    std::vector<BreakLocation>* result_out) {
+void BreakLocation::AllAtCurrentStatement(Handle<DebugInfo> debug_info,
+                                          JavaScriptFrame* frame,
+                                          List<BreakLocation>* result_out) {
   auto summary = FrameSummary::GetTop(frame).AsJavaScript();
   int offset = summary.code_offset();
   Handle<AbstractCode> abstract_code = summary.abstract_code();
@@ -78,7 +79,7 @@ void BreakLocation::AllAtCurrentStatement(
   }
   for (BreakIterator it(debug_info); !it.Done(); it.Next()) {
     if (it.statement_position() == statement_position) {
-      result_out->push_back(it.GetBreakLocation());
+      result_out->Add(it.GetBreakLocation());
     }
   }
 }
@@ -469,10 +470,10 @@ bool Debug::IsMutedAtCurrentLocation(JavaScriptFrame* frame) {
   // Enter the debugger.
   DebugScope debug_scope(this);
   if (debug_scope.failed()) return false;
-  std::vector<BreakLocation> break_locations;
+  List<BreakLocation> break_locations;
   BreakLocation::AllAtCurrentStatement(debug_info, frame, &break_locations);
   bool has_break_points_at_all = false;
-  for (size_t i = 0; i < break_locations.size(); i++) {
+  for (int i = 0; i < break_locations.length(); i++) {
     bool has_break_points;
     MaybeHandle<FixedArray> check_result =
         CheckBreakPoints(debug_info, &break_locations[i], &has_break_points);

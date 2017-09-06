@@ -1294,7 +1294,7 @@ class PreParser : public ParserBase<PreParser> {
       ForInfo* for_info, PreParserStatement* body_block,
       PreParserExpression* each_variable, bool* ok) {
     if (track_unresolved_variables_) {
-      DCHECK_EQ(1, for_info->parsing_result.declarations.size());
+      DCHECK(for_info->parsing_result.declarations.length() == 1);
       bool is_for_var_of =
           for_info->mode == ForEachStatement::ITERATE &&
           for_info->parsing_result.descriptor.mode == VariableMode::VAR;

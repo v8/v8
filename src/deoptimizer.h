@@ -5,8 +5,6 @@
 #ifndef V8_DEOPTIMIZER_H_
 #define V8_DEOPTIMIZER_H_
 
-#include <vector>
-
 #include "src/allocation.h"
 #include "src/boxed-float.h"
 #include "src/deoptimize-reason.h"
@@ -950,7 +948,7 @@ class MaterializedObjectStore {
   int StackIdToIndex(Address fp);
 
   Isolate* isolate_;
-  std::vector<Address> frame_fps_;
+  List<Address> frame_fps_;
 };
 
 

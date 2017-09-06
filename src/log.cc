@@ -739,6 +739,7 @@ Logger::Logger(Isolate* isolate)
       perf_jit_logger_(NULL),
       ll_logger_(NULL),
       jit_logger_(NULL),
+      listeners_(5),
       is_initialized_(false) {}
 
 Logger::~Logger() {

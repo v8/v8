@@ -5,8 +5,6 @@
 #ifndef V8_PARSING_PARSER_BASE_H
 #define V8_PARSING_PARSER_BASE_H
 
-#include <vector>
-
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
@@ -509,11 +507,12 @@ class ParserBase {
     };
 
     DeclarationParsingResult()
-        : first_initializer_loc(Scanner::Location::invalid()),
+        : declarations(4),
+          first_initializer_loc(Scanner::Location::invalid()),
           bindings_loc(Scanner::Location::invalid()) {}
 
     DeclarationDescriptor descriptor;
-    std::vector<Declaration> declarations;
+    List<Declaration> declarations;
     Scanner::Location first_initializer_loc;
     Scanner::Location bindings_loc;
   };
@@ -3834,7 +3833,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
     decl.value_beg_position = value_beg_position;
     if (var_context == kForStatement) {
       // Save the declaration for further handling in ParseForStatement.
-      parsing_result->declarations.push_back(decl);
+      parsing_result->declarations.Add(decl);
     } else {
       // Immediately declare the variable otherwise. This avoids O(N^2)
       // behavior (where N is the number of variables in a single
@@ -5646,7 +5645,7 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     int stmt_pos, ForInfo* for_info, ZoneList<const AstRawString*>* labels,
     Scope* inner_block_scope, bool* ok) {
   // Just one declaration followed by in/of.
-  if (for_info->parsing_result.declarations.size() != 1) {
+  if (for_info->parsing_result.declarations.length() != 1) {
     impl()->ReportMessageAt(for_info->parsing_result.bindings_loc,
                             MessageTemplate::kForInOfLoopMultiBindings,
                             ForEachStatement::VisitModeString(for_info->mode));
@@ -5906,7 +5905,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
     for_info.position = scanner()->location().beg_pos;
 
     // Only a single declaration is allowed in for-await-of loops
-    if (for_info.parsing_result.declarations.size() != 1) {
+    if (for_info.parsing_result.declarations.length() != 1) {
       impl()->ReportMessageAt(for_info.parsing_result.bindings_loc,
                               MessageTemplate::kForInOfLoopMultiBindings,
                               "for-await-of");
