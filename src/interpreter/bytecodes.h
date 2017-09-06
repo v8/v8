@@ -770,13 +770,13 @@ class V8_EXPORT_PRIVATE Bytecodes final {
       case Bytecode::kCallUndefinedReceiver0:
       case Bytecode::kCallUndefinedReceiver1:
       case Bytecode::kCallUndefinedReceiver2:
+      case Bytecode::kCallJSRuntime:
         return ConvertReceiverMode::kNullOrUndefined;
       case Bytecode::kCallAnyReceiver:
       case Bytecode::kConstruct:
       case Bytecode::kCallWithSpread:
       case Bytecode::kConstructWithSpread:
       case Bytecode::kInvokeIntrinsic:
-      case Bytecode::kCallJSRuntime:
         return ConvertReceiverMode::kAny;
       default:
         UNREACHABLE();

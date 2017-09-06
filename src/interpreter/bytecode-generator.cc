@@ -2299,10 +2299,9 @@ void BytecodeGenerator::BuildAsyncReturn(int source_position) {
         .CallRuntime(Runtime::kInlineAsyncGeneratorResolve, args);
   } else {
     DCHECK(IsAsyncFunction(info()->literal()->kind()));
-    RegisterList args = register_allocator()->NewRegisterList(3);
-    Register receiver = args[0];
-    Register promise = args[1];
-    Register return_value = args[2];
+    RegisterList args = register_allocator()->NewRegisterList(2);
+    Register promise = args[0];
+    Register return_value = args[1];
     builder()->StoreAccumulatorInRegister(return_value);
 
     Variable* var_promise = closure_scope()->promise_var();
@@ -2311,8 +2310,6 @@ void BytecodeGenerator::BuildAsyncReturn(int source_position) {
                       HoleCheckMode::kElided);
     builder()
         ->StoreAccumulatorInRegister(promise)
-        .LoadUndefined()
-        .StoreAccumulatorInRegister(receiver)
         .CallJSRuntime(Context::PROMISE_RESOLVE_INDEX, args)
         .LoadAccumulatorWithRegister(promise);
   }
@@ -3390,10 +3387,6 @@ void BytecodeGenerator::VisitCallNew(CallNew* expr) {
 void BytecodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   if (expr->is_jsruntime()) {
     RegisterList args = register_allocator()->NewGrowableRegisterList();
-    // Allocate a register for the receiver and load it with undefined.
-    // TODO(leszeks): If CallJSRuntime always has an undefined receiver, use the
-    // same mechanism as CallUndefinedReceiver.
-    BuildPushUndefinedIntoRegisterList(&args);
     VisitArguments(expr->arguments(), &args);
     builder()->CallJSRuntime(expr->context_index(), args);
   } else {

@@ -304,7 +304,8 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
                                            Register arg,
                                            RegisterList return_pair);
 
-  // Call the JS runtime function with |context_index| and arguments |args|.
+  // Call the JS runtime function with |context_index| and arguments |args|,
+  // with no receiver as it is implicitly set to undefined.
   BytecodeArrayBuilder& CallJSRuntime(int context_index, RegisterList args);
 
   // Operators (register holds the lhs value, accumulator holds the rhs value).

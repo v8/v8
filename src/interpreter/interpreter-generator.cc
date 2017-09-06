@@ -1832,9 +1832,7 @@ IGNITION_HANDLER(CallJSRuntime, InterpreterAssembler) {
   Node* context_index = BytecodeOperandNativeContextIndex(0);
   Node* receiver_reg = BytecodeOperandReg(1);
   Node* first_arg = RegisterLocation(receiver_reg);
-  Node* receiver_args_count = BytecodeOperandCount(2);
-  Node* receiver_count = Int32Constant(1);
-  Node* args_count = Int32Sub(receiver_args_count, receiver_count);
+  Node* args_count = BytecodeOperandCount(2);
 
   // Get the function to call from the native context.
   Node* context = GetContext();
@@ -1843,7 +1841,7 @@ IGNITION_HANDLER(CallJSRuntime, InterpreterAssembler) {
 
   // Call the function.
   CallJSAndDispatch(function, context, first_arg, args_count,
-                    ConvertReceiverMode::kAny);
+                    ConvertReceiverMode::kNullOrUndefined);
 }
 
 // CallWithSpread <callable> <first_arg> <arg_count>

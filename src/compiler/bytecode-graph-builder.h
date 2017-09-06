@@ -120,9 +120,12 @@ class BytecodeGraphBuilder {
 
   Node** EnsureInputBufferSize(int size);
 
-  Node* const* GetCallArgumentsFromRegister(Node* callee, Node* receiver,
-                                            interpreter::Register first_arg,
-                                            int arg_count);
+  Node* const* GetCallArgumentsFromRegisters(Node* callee, Node* receiver,
+                                             interpreter::Register first_arg,
+                                             int arg_count);
+  Node* const* ProcessCallVarArgs(ConvertReceiverMode receiver_mode,
+                                  Node* callee, interpreter::Register first_reg,
+                                  int arg_count);
   Node* ProcessCallArguments(const Operator* call_op, Node* const* args,
                              int arg_count);
   Node* ProcessCallArguments(const Operator* call_op, Node* callee,
