@@ -1204,7 +1204,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   __ bind(&current);
   int offset =
       Code::kKindSpecificFlags1Offset - (Code::kHeaderSize + pc_offset);
-  __ LoadP(ip, MemOperand(r1, offset));
+  __ LoadW(ip, MemOperand(r1, offset));
   __ TestBit(ip, Code::kMarkedForDeoptimizationBit);
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
