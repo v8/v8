@@ -199,6 +199,8 @@ class TurboAssembler : public Assembler {
   // These exist to provide portability between 32 and 64bit
   void LoadP(Register dst, const MemOperand& mem, Register scratch = no_reg);
   void LoadPU(Register dst, const MemOperand& mem, Register scratch = no_reg);
+  void LoadWordArith(Register dst, const MemOperand& mem,
+                     Register scratch = no_reg);
   void StoreP(Register src, const MemOperand& mem, Register scratch = no_reg);
   void StorePU(Register src, const MemOperand& mem, Register scratch = no_reg);
 
@@ -415,7 +417,8 @@ class TurboAssembler : public Assembler {
   void Jump(Register target);
   void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al,
             CRegister cr = cr7);
-  void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
+  void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al,
+            CRegister cr = cr7);
   void Call(Register target);
   void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
   int CallSize(Handle<Code> code,
@@ -789,8 +792,6 @@ class MacroAssembler : public TurboAssembler {
 
   // load a literal double value <value> to FPR <result>
   void LoadWord(Register dst, const MemOperand& mem, Register scratch);
-  void LoadWordArith(Register dst, const MemOperand& mem,
-                     Register scratch = no_reg);
   void StoreWord(Register src, const MemOperand& mem, Register scratch);
 
   void LoadHalfWord(Register dst, const MemOperand& mem, Register scratch);

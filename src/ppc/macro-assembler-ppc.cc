@@ -136,10 +136,10 @@ void TurboAssembler::Jump(Address target, RelocInfo::Mode rmode, Condition cond,
 }
 
 void TurboAssembler::Jump(Handle<Code> code, RelocInfo::Mode rmode,
-                          Condition cond) {
+                          Condition cond, CRegister cr) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   // 'code' is always generated ppc code, never THUMB code
-  Jump(reinterpret_cast<intptr_t>(code.address()), rmode, cond);
+  Jump(reinterpret_cast<intptr_t>(code.address()), rmode, cond, cr);
 }
 
 int TurboAssembler::CallSize(Register target) { return 2 * kInstrSize; }
@@ -2923,7 +2923,7 @@ void TurboAssembler::StorePU(Register src, const MemOperand& mem,
   }
 }
 
-void MacroAssembler::LoadWordArith(Register dst, const MemOperand& mem,
+void TurboAssembler::LoadWordArith(Register dst, const MemOperand& mem,
                                    Register scratch) {
   int offset = mem.offset();
 

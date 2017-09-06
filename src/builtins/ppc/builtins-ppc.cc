@@ -977,7 +977,6 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 static void ReplaceClosureCodeWithOptimizedCode(
     MacroAssembler* masm, Register optimized_code, Register closure,
     Register scratch1, Register scratch2, Register scratch3) {
-  Register native_context = scratch1;
   // Store code entry in the closure.
   __ StoreP(optimized_code, FieldMemOperand(closure, JSFunction::kCodeOffset),
             r0);
@@ -985,29 +984,6 @@ static void ReplaceClosureCodeWithOptimizedCode(
   __ RecordWriteField(closure, JSFunction::kCodeOffset, scratch1, scratch2,
                       kLRHasNotBeenSaved, kDontSaveFPRegs, OMIT_REMEMBERED_SET,
                       OMIT_SMI_CHECK);
-
-  // Link the closure into the optimized function list.
-  // r7 : code entry
-  // r10: native context
-  // r4 : closure
-  __ LoadP(native_context, NativeContextMemOperand());
-  __ LoadP(scratch2, ContextMemOperand(native_context,
-                                       Context::OPTIMIZED_FUNCTIONS_LIST));
-  __ StoreP(scratch2,
-            FieldMemOperand(closure, JSFunction::kNextFunctionLinkOffset), r0);
-  __ RecordWriteField(closure, JSFunction::kNextFunctionLinkOffset, scratch2,
-                      scratch3, kLRHasNotBeenSaved, kDontSaveFPRegs,
-                      EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  const int function_list_offset =
-      Context::SlotOffset(Context::OPTIMIZED_FUNCTIONS_LIST);
-  __ StoreP(
-      closure,
-      ContextMemOperand(native_context, Context::OPTIMIZED_FUNCTIONS_LIST), r0);
-  // Save closure before the write barrier.
-  __ mr(scratch2, closure);
-  __ RecordWriteContextSlot(native_context, function_list_offset, closure,
-                            scratch3, kLRHasNotBeenSaved, kDontSaveFPRegs);
-  __ mr(closure, scratch2);
 }
 
 static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch) {
@@ -1590,6 +1566,18 @@ void Builtins::Generate_CheckOptimizationMarker(MacroAssembler* masm) {
 
   // Otherwise, tail call the SFI code.
   GenerateTailCallToSharedCode(masm);
+}
+
+void Builtins::Generate_CompileLazyDeoptimizedCode(MacroAssembler* masm) {
+  // Set the code slot inside the JSFunction to the trampoline to the
+  // interpreter entry.
+  __ LoadP(r5, FieldMemOperand(r4, JSFunction::kSharedFunctionInfoOffset));
+  __ LoadP(r5, FieldMemOperand(r5, SharedFunctionInfo::kCodeOffset));
+  __ StoreP(r5, FieldMemOperand(r4, JSFunction::kCodeOffset), r0);
+  __ RecordWriteField(r4, JSFunction::kCodeOffset, r5, r7, kLRHasNotBeenSaved,
+                      kDontSaveFPRegs, OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  // Jump to compile lazy.
+  Generate_CompileLazy(masm);
 }
 
 void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
