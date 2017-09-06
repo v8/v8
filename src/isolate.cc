@@ -2775,7 +2775,11 @@ bool Isolate::Init(StartupDeserializer* des) {
   deoptimizer_data_ = new DeoptimizerData(heap()->memory_allocator());
 
   const bool create_heap_objects = (des == NULL);
-  if (create_heap_objects && !heap_.CreateHeapObjects()) {
+  if (setup_delegate_ == nullptr) {
+    setup_delegate_ = new SetupIsolateDelegate(create_heap_objects);
+  }
+
+  if (!setup_delegate_->SetupHeap(&heap_)) {
     V8::FatalProcessOutOfMemory("heap object creation");
     return false;
   }
@@ -2788,10 +2792,7 @@ bool Isolate::Init(StartupDeserializer* des) {
   InitializeThreadLocal();
 
   bootstrapper_->Initialize(create_heap_objects);
-  if (setup_delegate_ == nullptr) {
-    setup_delegate_ = new SetupIsolateDelegate();
-  }
-  setup_delegate_->SetupBuiltins(this, create_heap_objects);
+  setup_delegate_->SetupBuiltins(this);
   if (create_heap_objects) heap_.CreateFixedStubs();
 
   if (FLAG_log_internal_timer_events) {
@@ -2815,7 +2816,7 @@ bool Isolate::Init(StartupDeserializer* des) {
     if (!create_heap_objects) des->DeserializeInto(this);
     load_stub_cache_->Initialize();
     store_stub_cache_->Initialize();
-    setup_delegate_->SetupInterpreter(interpreter_, create_heap_objects);
+    setup_delegate_->SetupInterpreter(interpreter_);
 
     heap_.NotifyDeserializationComplete();
   }

@@ -99,7 +99,7 @@
           # The dependency on v8_base should come from a transitive
           # dependency however the Android toolchain requires libv8_base.a
           # to appear before libv8_snapshot.a so it's listed explicitly.
-          'dependencies': ['v8_base', 'v8_builtins_setup', 'v8_nosnapshot'],
+          'dependencies': ['v8_base', 'v8_init', 'v8_nosnapshot'],
         }],
         ['v8_use_snapshot=="true" and v8_use_external_startup_data==0', {
           # The dependency on v8_base should come from a transitive
@@ -133,10 +133,10 @@
       ]
     },
     {
-      'target_name': 'v8_builtins_setup',
+      'target_name': 'v8_init',
       'type': 'static_library',
       'dependencies': [
-        'v8_builtins_generators',
+        'v8_initializers',
       ],
       'variables': {
         'optimize': 'max',
@@ -157,7 +157,7 @@
       ],
     },
     {
-      'target_name': 'v8_builtins_generators',
+      'target_name': 'v8_initializers',
       'type': 'static_library',
       'dependencies': [
         'v8_base',
@@ -216,6 +216,7 @@
         'builtins/builtins-utils-gen.h',
         'builtins/builtins-wasm-gen.cc',
         'builtins/setup-builtins-internal.cc',
+        'heap/setup-heap-internal.cc',
         'ic/accessor-assembler.cc',
         'ic/accessor-assembler.h',
         'ic/binary-op-assembler.cc',
@@ -2469,7 +2470,7 @@
       'type': 'executable',
       'dependencies': [
         'v8_base',
-        'v8_builtins_setup',
+        'v8_init',
         'v8_libbase',
         'v8_libplatform',
         'v8_nosnapshot',

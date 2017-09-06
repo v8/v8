@@ -854,7 +854,7 @@ source_set("v8_maybe_snapshot") {
   } else {
     # Ignore v8_use_external_startup_data setting if no snapshot is used.
     public_deps = [
-      ":v8_builtins_setup",
+      ":v8_init",
       ":v8_nosnapshot",
     ]
   }
@@ -954,7 +954,7 @@ if (v8_use_external_startup_data) {
   }
 }
 
-v8_source_set("v8_builtins_generators") {
+v8_source_set("v8_initializers") {
   visibility = [
     ":*",
     "test/cctest:*",
@@ -1012,6 +1012,7 @@ v8_source_set("v8_builtins_generators") {
     "src/builtins/builtins-utils-gen.h",
     "src/builtins/builtins-wasm-gen.cc",
     "src/builtins/setup-builtins-internal.cc",
+    "src/heap/setup-heap-internal.cc",
     "src/ic/accessor-assembler.cc",
     "src/ic/accessor-assembler.h",
     "src/ic/binary-op-assembler.cc",
@@ -1089,11 +1090,11 @@ v8_source_set("v8_builtins_generators") {
   configs = [ ":internal_config" ]
 }
 
-v8_source_set("v8_builtins_setup") {
+v8_source_set("v8_init") {
   visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
   deps = [
-    ":v8_builtins_generators",
+    ":v8_initializers",
   ]
 
   sources = [
@@ -2641,7 +2642,7 @@ if (current_toolchain == v8_snapshot_toolchain) {
 
     deps = [
       ":v8_base",
-      ":v8_builtins_setup",
+      ":v8_init",
       ":v8_libbase",
       ":v8_libplatform",
       ":v8_nosnapshot",
@@ -2754,7 +2755,7 @@ if (is_component_build) {
     ]
 
     if (v8_use_snapshot) {
-      public_deps += [ ":v8_builtins_generators" ]
+      public_deps += [ ":v8_initializers" ]
     }
 
     configs = [ ":internal_config" ]
@@ -2780,7 +2781,7 @@ if (is_component_build) {
     ]
 
     if (v8_use_snapshot) {
-      public_deps += [ ":v8_builtins_generators" ]
+      public_deps += [ ":v8_initializers" ]
     }
 
     public_configs = [ ":external_config" ]

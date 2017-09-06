@@ -433,7 +433,7 @@
           'dependencies': ['../../src/v8.gyp:v8'],
         }],
         ['v8_use_snapshot=="true"', {
-          'dependencies': ['../../src/v8.gyp:v8_builtins_generators'],
+          'dependencies': ['../../src/v8.gyp:v8_initializers'],
         }],
       ],
     },

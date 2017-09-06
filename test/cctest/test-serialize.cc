@@ -69,7 +69,7 @@ class TestIsolate : public Isolate {
  public:
   static v8::Isolate* NewInitialized(bool enable_serializer) {
     i::Isolate* isolate = new TestIsolate(enable_serializer);
-    isolate->setup_delegate_ = new SetupIsolateDelegateForTests();
+    isolate->setup_delegate_ = new SetupIsolateDelegateForTests(true);
     v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
     isolate->Init(NULL);
@@ -80,14 +80,16 @@ class TestIsolate : public Isolate {
   // the production Isolate class has one or the other behavior baked in.
   static v8::Isolate* New(const v8::Isolate::CreateParams& params) {
     i::Isolate* isolate = new TestIsolate(false);
-    isolate->setup_delegate_ = new SetupIsolateDelegateForTests();
+    bool create_heap_objects = params.snapshot_blob == nullptr;
+    isolate->setup_delegate_ =
+        new SetupIsolateDelegateForTests(create_heap_objects);
     return v8::IsolateNewImpl(isolate, params);
   }
   explicit TestIsolate(bool enable_serializer) : Isolate(enable_serializer) {
     set_array_buffer_allocator(CcTest::array_buffer_allocator());
   }
-  void CreateSetupDelegateForTests() {
-    setup_delegate_ = new SetupIsolateDelegateForTests();
+  void SetDeserializeFromSnapshot() {
+    setup_delegate_ = new SetupIsolateDelegateForTests(false);
   }
 };
 
@@ -164,7 +166,7 @@ v8::Isolate* InitializeFromBlob(StartupBlobs& blobs) {
     TestIsolate* isolate = new TestIsolate(false);
     v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
     v8::Isolate::Scope isolate_scope(v8_isolate);
-    isolate->CreateSetupDelegateForTests();
+    isolate->SetDeserializeFromSnapshot();
     isolate->Init(&deserializer);
   }
   return v8_isolate;
