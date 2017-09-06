@@ -389,7 +389,7 @@
                 "description": "Issued when unhandled exception was revoked.",
                 "parameters": [
                     { "name": "reason", "type": "string", "description": "Reason describing why exception was revoked." },
-                    { "name": "exceptionId", "type": "integer", "description": "The id of revoked exception, as reported in <code>exceptionUnhandled</code>." }
+                    { "name": "exceptionId", "type": "integer", "description": "The id of revoked exception, as reported in <code>exceptionThrown</code>." }
                 ]
             },
             {
