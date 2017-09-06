@@ -986,7 +986,7 @@ class V8_EXPORT Data {
  * A container type that holds relevant metadata for module loading.
  *
  * This is passed back to the embedder as part of
- * HostImportDynamicallyCallback for module loading.
+ * HostImportModuleDynamicallyCallback for module loading.
  */
 class V8_EXPORT ScriptOrModule {
  public:
@@ -1011,7 +1011,7 @@ class V8_EXPORT ScriptOrModule {
  * pass host defined options to the ScriptOptions during compilation.
  *
  * This is passed back to the embedder as part of
- * HostImportDynamicallyCallback for module loading.
+ * HostImportModuleDynamicallyCallback for module loading.
  *
  */
 class V8_EXPORT PrimitiveArray {
@@ -6254,7 +6254,7 @@ typedef void (*CallCompletedCallback)(Isolate*);
 typedef void (*DeprecatedCallCompletedCallback)();
 
 /**
- * HostImportDynamicallyCallback is called when we require the
+ * HostImportModuleDynamicallyCallback is called when we require the
  * embedder to load a module. This is used as part of the dynamic
  * import syntax.
  *
