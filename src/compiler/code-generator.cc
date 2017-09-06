@@ -142,9 +142,6 @@ void CodeGenerator::AssembleCode() {
     BailoutIfDeoptimized();
   }
 
-  // Architecture-specific, linkage-specific prologue.
-  info->set_prologue_offset(tasm()->pc_offset());
-
   // Define deoptimization literals for all inlined functions.
   DCHECK_EQ(0u, deoptimization_literals_.size());
   for (CompilationInfo::InlinedFunctionHolder& inlined :

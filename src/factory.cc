@@ -1735,8 +1735,7 @@ Handle<Code> Factory::NewCodeRaw(int object_size, bool immovable) {
 }
 
 Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Flags flags,
-                              Handle<Object> self_ref, bool immovable,
-                              int prologue_offset) {
+                              Handle<Object> self_ref, bool immovable) {
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
 
   bool has_unwinding_info = desc.unwinding_info != nullptr;
@@ -1773,7 +1772,6 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Flags flags,
   code->set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
   code->set_handler_table(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_source_position_table(*empty_byte_array(), SKIP_WRITE_BARRIER);
-  code->set_prologue_offset(prologue_offset);
   code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
   code->set_builtin_index(-1);
   code->set_trap_handler_index(Smi::FromInt(-1));

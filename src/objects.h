@@ -3683,8 +3683,6 @@ class Code: public HeapObject {
 
   static const char* Kind2String(Kind kind);
 
-  static const int kPrologueOffsetNotSet = -1;
-
 #if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
   // Printing
   static const char* ICState2String(InlineCacheState state);
@@ -3735,11 +3733,6 @@ class Code: public HeapObject {
   // [next_code_link]: Link for lists of optimized or deoptimized code.
   // Note that storage for this field is overlapped with typefeedback_info.
   DECL_ACCESSORS(next_code_link, Object)
-
-  // [prologue_offset]: Offset of the function prologue, used for aging
-  // FUNCTIONs and OPTIMIZED_FUNCTIONs.
-  inline int prologue_offset() const;
-  inline void set_prologue_offset(int offset);
 
   // [constant_pool offset]: Offset of the constant pool.
   // Valid for FLAG_enable_embedded_constant_pool only
@@ -4013,9 +4006,7 @@ class Code: public HeapObject {
   static const int kKindSpecificFlags1Offset = kFlagsOffset + kIntSize;
   static const int kKindSpecificFlags2Offset =
       kKindSpecificFlags1Offset + kIntSize;
-  // Note: We might be able to squeeze this into the flags above.
-  static const int kPrologueOffset = kKindSpecificFlags2Offset + kIntSize;
-  static const int kConstantPoolOffset = kPrologueOffset + kIntSize;
+  static const int kConstantPoolOffset = kKindSpecificFlags2Offset + kIntSize;
   static const int kBuiltinIndexOffset =
       kConstantPoolOffset + kConstantPoolSize;
   static const int kTrapHandlerIndex = kBuiltinIndexOffset + kIntSize;

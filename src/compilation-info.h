@@ -202,16 +202,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   BailoutReason bailout_reason() const { return bailout_reason_; }
 
-  int prologue_offset() const {
-    DCHECK_NE(Code::kPrologueOffsetNotSet, prologue_offset_);
-    return prologue_offset_;
-  }
-
-  void set_prologue_offset(int prologue_offset) {
-    DCHECK_EQ(Code::kPrologueOffsetNotSet, prologue_offset_);
-    prologue_offset_ = prologue_offset;
-  }
-
   CompilationDependencies* dependencies() { return &dependencies_; }
 
   int optimization_id() const {
@@ -330,8 +320,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   CompilationDependencies dependencies_;
 
   BailoutReason bailout_reason_;
-
-  int prologue_offset_;
 
   InlinedFunctionList inlined_functions_;
 

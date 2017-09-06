@@ -657,8 +657,7 @@ class V8_EXPORT_PRIVATE Factory final {
   // This allows generated code to reference its own Code object
   // by containing this handle.
   Handle<Code> NewCode(const CodeDesc& desc, Code::Flags flags,
-                       Handle<Object> self_reference, bool immovable = false,
-                       int prologue_offset = Code::kPrologueOffsetNotSet);
+                       Handle<Object> self_reference, bool immovable = false);
 
   Handle<Code> CopyCode(Handle<Code> code);
 
