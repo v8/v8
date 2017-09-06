@@ -377,7 +377,9 @@ MaybeHandle<Object> AsmJs::InstantiateAsmWasm(Isolate* isolate,
   MaybeHandle<Object> maybe_module_object =
       wasm::SyncInstantiate(isolate, &thrower, module, foreign, memory);
   if (maybe_module_object.is_null()) {
-    DCHECK(!isolate->has_pending_exception());
+    // An exception caused by the module start function will be set as pending
+    // and bypass the {ErrorThrower}, this happens in case of a stack overflow.
+    if (isolate->has_pending_exception()) isolate->clear_pending_exception();
     thrower.Reset();  // Ensure exceptions do not propagate.
     ReportInstantiationFailure(script, position, "Internal wasm failure");
     return MaybeHandle<Object>();
