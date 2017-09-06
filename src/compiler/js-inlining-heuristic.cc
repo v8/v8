@@ -236,287 +236,6 @@ void JSInliningHeuristic::Finalize() {
   }
 }
 
-namespace {
-
-struct NodeAndIndex {
-  Node* node;
-  int index;
-};
-
-bool CollectStateValuesOwnedUses(Node* node, Node* state_values,
-                                 NodeAndIndex* uses_buffer, size_t* use_count,
-                                 size_t max_uses) {
-  // Only accumulate states that are not shared with other users.
-  if (state_values->UseCount() > 1) return true;
-  for (int i = 0; i < state_values->InputCount(); i++) {
-    Node* input = state_values->InputAt(i);
-    if (input->opcode() == IrOpcode::kStateValues) {
-      if (!CollectStateValuesOwnedUses(node, input, uses_buffer, use_count,
-                                       max_uses)) {
-        return false;
-      }
-    } else if (input == node) {
-      if (*use_count >= max_uses) return false;
-      uses_buffer[*use_count] = {state_values, i};
-      (*use_count)++;
-    }
-  }
-  return true;
-}
-
-}  // namespace
-
-Node* JSInliningHeuristic::DuplicateStateValuesAndRename(Node* state_values,
-                                                         Node* from, Node* to,
-                                                         StateCloneMode mode) {
-  // Only rename in states that are not shared with other users. This needs to
-  // be in sync with the condition in {CollectStateValuesOwnedUses}.
-  if (state_values->UseCount() > 1) return state_values;
-  Node* copy = mode == kChangeInPlace ? state_values : nullptr;
-  for (int i = 0; i < state_values->InputCount(); i++) {
-    Node* input = state_values->InputAt(i);
-    Node* processed;
-    if (input->opcode() == IrOpcode::kStateValues) {
-      processed = DuplicateStateValuesAndRename(input, from, to, mode);
-    } else if (input == from) {
-      processed = to;
-    } else {
-      processed = input;
-    }
-    if (processed != input) {
-      if (!copy) {
-        copy = graph()->CloneNode(state_values);
-      }
-      copy->ReplaceInput(i, processed);
-    }
-  }
-  return copy ? copy : state_values;
-}
-
-namespace {
-
-bool CollectFrameStateUniqueUses(Node* node, Node* frame_state,
-                                 NodeAndIndex* uses_buffer, size_t* use_count,
-                                 size_t max_uses) {
-  // Only accumulate states that are not shared with other users.
-  if (frame_state->UseCount() > 1) return true;
-  if (frame_state->InputAt(kFrameStateStackInput) == node) {
-    if (*use_count >= max_uses) return false;
-    uses_buffer[*use_count] = {frame_state, kFrameStateStackInput};
-    (*use_count)++;
-  }
-  if (!CollectStateValuesOwnedUses(node,
-                                   frame_state->InputAt(kFrameStateLocalsInput),
-                                   uses_buffer, use_count, max_uses)) {
-    return false;
-  }
-  return true;
-}
-
-}  // namespace
-
-Node* JSInliningHeuristic::DuplicateFrameStateAndRename(Node* frame_state,
-                                                        Node* from, Node* to,
-                                                        StateCloneMode mode) {
-  // Only rename in states that are not shared with other users. This needs to
-  // be in sync with the condition in {DuplicateFrameStateAndRename}.
-  if (frame_state->UseCount() > 1) return frame_state;
-  Node* copy = mode == kChangeInPlace ? frame_state : nullptr;
-  if (frame_state->InputAt(kFrameStateStackInput) == from) {
-    if (!copy) {
-      copy = graph()->CloneNode(frame_state);
-    }
-    copy->ReplaceInput(kFrameStateStackInput, to);
-  }
-  Node* locals = frame_state->InputAt(kFrameStateLocalsInput);
-  Node* new_locals = DuplicateStateValuesAndRename(locals, from, to, mode);
-  if (new_locals != locals) {
-    if (!copy) {
-      copy = graph()->CloneNode(frame_state);
-    }
-    copy->ReplaceInput(kFrameStateLocalsInput, new_locals);
-  }
-  return copy ? copy : frame_state;
-}
-
-bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
-                                           Candidate const& candidate,
-                                           Node** if_successes, Node** calls,
-                                           Node** inputs, int input_count) {
-  // We will try to reuse the control flow branch created for computing
-  // the {callee} target of the call. We only reuse the branch if there
-  // is no side-effect between the call and the branch, and if the callee is
-  // only used as the target (and possibly also in the related frame states).
-
-  int const num_calls = candidate.num_functions;
-
-  DCHECK_EQ(IrOpcode::kPhi, callee->opcode());
-  DCHECK_EQ(num_calls, callee->op()->ValueInputCount());
-
-  // If there is a control node between the callee computation
-  // and the call, bail out.
-  Node* merge = NodeProperties::GetControlInput(callee);
-  if (NodeProperties::GetControlInput(node) != merge) return false;
-
-  // If there is a non-checkpoint effect node between the callee computation
-  // and the call, bail out. We will drop any checkpoint between the call and
-  // the callee phi because the callee computation should have its own
-  // checkpoint that the call can fall back to.
-  Node* checkpoint = nullptr;
-  Node* effect = NodeProperties::GetEffectInput(node);
-  if (effect->opcode() == IrOpcode::kCheckpoint) {
-    checkpoint = effect;
-    if (NodeProperties::GetControlInput(checkpoint) != merge) return false;
-    effect = NodeProperties::GetEffectInput(effect);
-  }
-  if (effect->opcode() != IrOpcode::kEffectPhi) return false;
-  if (NodeProperties::GetControlInput(effect) != merge) return false;
-  Node* effect_phi = effect;
-
-  // We must replace the callee phi with the appropriate constant in
-  // the entire subgraph reachable by inputs from the call (terminating
-  // at phis and merges). Since we do not want to walk (and later duplicate)
-  // the subgraph here, we limit the possible uses to this set:
-  //
-  // 1. In the call (as a target).
-  // 2. The checkpoint between the call and the callee computation merge.
-  // 3. The lazy deoptimization frame state.
-  //
-  // This corresponds to the most common pattern, where the function is
-  // called with only local variables or constants as arguments.
-  //
-  // To check the uses, we first collect all the occurrences of callee in 1, 2
-  // and 3, and then we check that all uses of callee are in the collected
-  // occurrences. If there is an unaccounted use, we do not try to rewire
-  // the control flow.
-  //
-  // Note: With CFG, this would be much easier and more robust - we would just
-  // duplicate all the nodes between the merge and the call, replacing all
-  // occurrences of the {callee} phi with the appropriate constant.
-
-  // First compute the set of uses that are only reachable from 2 and 3.
-  const size_t kMaxUses = 8;
-  NodeAndIndex replaceable_uses[kMaxUses];
-  size_t replaceable_uses_count = 0;
-
-  // Collect the uses to check case 2.
-  Node* checkpoint_state = nullptr;
-  if (checkpoint) {
-    checkpoint_state = checkpoint->InputAt(0);
-    if (!CollectFrameStateUniqueUses(callee, checkpoint_state, replaceable_uses,
-                                     &replaceable_uses_count, kMaxUses)) {
-      return false;
-    }
-  }
-
-  // Collect the uses to check case 3.
-  Node* frame_state = NodeProperties::GetFrameStateInput(node);
-  if (!CollectFrameStateUniqueUses(callee, frame_state, replaceable_uses,
-                                   &replaceable_uses_count, kMaxUses)) {
-    return false;
-  }
-
-  // Bail out if there is a use of {callee} that is not reachable from 1, 2
-  // and 3.
-  for (Edge edge : callee->use_edges()) {
-    // Case 1 (use by the call as a target).
-    if (edge.from() == node && edge.index() == 0) continue;
-    // Case 2 and 3 - used in checkpoint and/or lazy deopt frame states.
-    bool found = false;
-    for (size_t i = 0; i < replaceable_uses_count; i++) {
-      if (replaceable_uses[i].node == edge.from() &&
-          replaceable_uses[i].index == edge.index()) {
-        found = true;
-        break;
-      }
-    }
-    if (!found) return false;
-  }
-
-  // Clone the call and the framestate, including the uniquely reachable
-  // state values, making sure that we replace the phi with the constant.
-  for (int i = 0; i < num_calls; ++i) {
-    // Clone the calls for each branch.
-    // We need to specialize the calls to the correct target, effect, and
-    // control. We also need to duplicate the checkpoint and the lazy
-    // frame state, and change all the uses of the callee to the constant
-    // callee.
-    Node* target = callee->InputAt(i);
-    Node* effect = effect_phi->InputAt(i);
-    Node* control = merge->InputAt(i);
-
-    if (checkpoint) {
-      // Duplicate the checkpoint.
-      Node* new_checkpoint_state = DuplicateFrameStateAndRename(
-          checkpoint_state, callee, target,
-          (i == num_calls - 1) ? kChangeInPlace : kCloneState);
-      effect = graph()->NewNode(checkpoint->op(), new_checkpoint_state, effect,
-                                control);
-    }
-
-    // Duplicate the call.
-    Node* new_lazy_frame_state = DuplicateFrameStateAndRename(
-        frame_state, callee, target,
-        (i == num_calls - 1) ? kChangeInPlace : kCloneState);
-    inputs[0] = target;
-    inputs[input_count - 3] = new_lazy_frame_state;
-    inputs[input_count - 2] = effect;
-    inputs[input_count - 1] = control;
-    calls[i] = if_successes[i] =
-        graph()->NewNode(node->op(), input_count, inputs);
-  }
-
-  // Mark the control inputs dead, so that we can kill the merge.
-  node->ReplaceInput(input_count - 1, jsgraph()->Dead());
-  callee->ReplaceInput(num_calls, jsgraph()->Dead());
-  effect_phi->ReplaceInput(num_calls, jsgraph()->Dead());
-  if (checkpoint) {
-    checkpoint->ReplaceInput(2, jsgraph()->Dead());
-  }
-
-  merge->Kill();
-  return true;
-}
-
-void JSInliningHeuristic::CreateOrReuseDispatch(Node* node, Node* callee,
-                                                Candidate const& candidate,
-                                                Node** if_successes,
-                                                Node** calls, Node** inputs,
-                                                int input_count) {
-  if (TryReuseDispatch(node, callee, candidate, if_successes, calls, inputs,
-                       input_count)) {
-    return;
-  }
-
-  Node* fallthrough_control = NodeProperties::GetControlInput(node);
-  int const num_calls = candidate.num_functions;
-
-  // Create the appropriate control flow to dispatch to the cloned calls.
-  for (int i = 0; i < num_calls; ++i) {
-    // TODO(2206): Make comparison be based on underlying SharedFunctionInfo
-    // instead of the target JSFunction reference directly.
-    Node* target = jsgraph()->HeapConstant(candidate.functions[i]);
-    if (i != (num_calls - 1)) {
-      Node* check =
-          graph()->NewNode(simplified()->ReferenceEqual(), callee, target);
-      Node* branch =
-          graph()->NewNode(common()->Branch(), check, fallthrough_control);
-      fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
-      if_successes[i] = graph()->NewNode(common()->IfTrue(), branch);
-    } else {
-      if_successes[i] = fallthrough_control;
-    }
-
-    // Clone the calls for each branch.
-    // The first input to the call is the actual target (which we specialize
-    // to the known {target}); the last input is the control dependency.
-    inputs[0] = target;
-    inputs[input_count - 1] = if_successes[i];
-    calls[i] = if_successes[i] =
-        graph()->NewNode(node->op(), input_count, inputs);
-  }
-}
-
 Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
                                                bool force_inline) {
   int const num_calls = candidate.num_functions;
@@ -539,6 +258,7 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
   Node* calls[kMaxCallPolymorphism + 1];
   Node* if_successes[kMaxCallPolymorphism];
   Node* callee = NodeProperties::GetValueInput(node, 0);
+  Node* fallthrough_control = NodeProperties::GetControlInput(node);
 
   // Setup the inputs for the cloned call nodes.
   int const input_count = node->InputCount();
@@ -548,8 +268,28 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
   }
 
   // Create the appropriate control flow to dispatch to the cloned calls.
-  CreateOrReuseDispatch(node, callee, candidate, if_successes, calls, inputs,
-                        input_count);
+  for (int i = 0; i < num_calls; ++i) {
+    // TODO(2206): Make comparison be based on underlying SharedFunctionInfo
+    // instead of the target JSFunction reference directly.
+    Node* target = jsgraph()->HeapConstant(candidate.functions[i]);
+    if (i != (num_calls - 1)) {
+      Node* check =
+          graph()->NewNode(simplified()->ReferenceEqual(), callee, target);
+      Node* branch =
+          graph()->NewNode(common()->Branch(), check, fallthrough_control);
+      fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+      if_successes[i] = graph()->NewNode(common()->IfTrue(), branch);
+    } else {
+      if_successes[i] = fallthrough_control;
+    }
+
+    // The first input to the call is the actual target (which we specialize
+    // to the known {target}); the last input is the control dependency.
+    inputs[0] = target;
+    inputs[input_count - 1] = if_successes[i];
+    calls[i] = if_successes[i] =
+        graph()->NewNode(node->op(), input_count, inputs);
+  }
 
   // Check if we have an exception projection for the call {node}.
   Node* if_exception = nullptr;
