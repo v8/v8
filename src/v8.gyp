@@ -2305,7 +2305,6 @@
           'js/macros.py',
           'messages.h',
           'js/prologue.js',
-          'js/max-min.js',
           'js/v8natives.js',
           'js/array.js',
           'js/string.js',

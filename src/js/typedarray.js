@@ -25,8 +25,6 @@ var InnerArrayJoin;
 var InnerArraySort;
 var InnerArrayToLocaleString;
 var InternalArray = utils.InternalArray;
-var MaxSimple;
-var MinSimple;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
 var speciesSymbol = utils.ImportNow("species_symbol");
 var toStringTagSymbol = utils.ImportNow("to_string_tag_symbol");
@@ -59,8 +57,6 @@ utils.Import(function(from) {
   InnerArrayJoin = from.InnerArrayJoin;
   InnerArraySort = from.InnerArraySort;
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
-  MaxSimple = from.MaxSimple;
-  MinSimple = from.MinSimple;
 });
 
 // ES2015 7.3.20
@@ -208,15 +204,15 @@ function NAMESubArray(begin, end) {
   }
 
   if (beginInt < 0) {
-    beginInt = MaxSimple(0, srcLength + beginInt);
+    beginInt = MAXSIMPLE(0, srcLength + beginInt);
   } else {
-    beginInt = MinSimple(beginInt, srcLength);
+    beginInt = MINSIMPLE(beginInt, srcLength);
   }
 
   if (endInt < 0) {
-    endInt = MaxSimple(0, srcLength + endInt);
+    endInt = MAXSIMPLE(0, srcLength + endInt);
   } else {
-    endInt = MinSimple(endInt, srcLength);
+    endInt = MINSIMPLE(endInt, srcLength);
   }
 
   if (endInt < beginInt) {

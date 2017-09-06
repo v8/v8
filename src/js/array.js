@@ -15,8 +15,6 @@ var GetIterator;
 var GetMethod;
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
-var MaxSimple;
-var MinSimple;
 var ObjectHasOwnProperty = global.Object.prototype.hasOwnProperty;
 var ObjectToString = global.Object.prototype.toString;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
@@ -25,8 +23,6 @@ var unscopablesSymbol = utils.ImportNow("unscopables_symbol");
 utils.Import(function(from) {
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
-  MaxSimple = from.MaxSimple;
-  MinSimple = from.MinSimple;
 });
 
 // -------------------------------------------------------------------
@@ -226,7 +222,7 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
   // Move data to new array.
   var new_array = new InternalArray(
       // Clamp array length to 2^32-1 to avoid early RangeError.
-      MinSimple(len - del_count + num_additional_args, 0xffffffff));
+      MINSIMPLE(len - del_count + num_additional_args, 0xffffffff));
   var big_indices;
   var indices = %GetArrayKeys(array, len);
   if (IS_NUMBER(indices)) {
@@ -616,7 +612,7 @@ function ArraySliceFallback(start, end) {
     if (end_i > len) end_i = len;
   }
 
-  var result = ArraySpeciesCreate(array, MaxSimple(end_i - start_i, 0));
+  var result = ArraySpeciesCreate(array, MAXSIMPLE(end_i - start_i, 0));
 
   if (end_i < start_i) return result;
 
@@ -1085,28 +1081,28 @@ DEFINE_METHOD_LEN(
     target = TO_INTEGER(target);
     var to;
     if (target < 0) {
-      to = MaxSimple(length + target, 0);
+      to = MAXSIMPLE(length + target, 0);
     } else {
-      to = MinSimple(target, length);
+      to = MINSIMPLE(target, length);
     }
 
     start = TO_INTEGER(start);
     var from;
     if (start < 0) {
-      from = MaxSimple(length + start, 0);
+      from = MAXSIMPLE(length + start, 0);
     } else {
-      from = MinSimple(start, length);
+      from = MINSIMPLE(start, length);
     }
 
     end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
     var final;
     if (end < 0) {
-      final = MaxSimple(length + end, 0);
+      final = MAXSIMPLE(length + end, 0);
     } else {
-      final = MinSimple(end, length);
+      final = MINSIMPLE(end, length);
     }
 
-    var count = MinSimple(final - from, length - to);
+    var count = MINSIMPLE(final - from, length - to);
     var direction = 1;
     if (from < to && to < (from + count)) {
       direction = -1;
