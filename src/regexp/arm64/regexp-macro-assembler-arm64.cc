@@ -154,7 +154,6 @@ void RegExpMacroAssemblerARM64::AdvanceCurrentPosition(int by) {
 void RegExpMacroAssemblerARM64::AdvanceRegister(int reg, int by) {
   DCHECK((reg >= 0) && (reg < num_registers_));
   if (by != 0) {
-    Register to_advance;
     RegisterState register_state = GetRegisterState(reg);
     switch (register_state) {
       case STACKED:
@@ -162,15 +161,17 @@ void RegExpMacroAssemblerARM64::AdvanceRegister(int reg, int by) {
         __ Add(w10, w10, by);
         __ Str(w10, register_location(reg));
         break;
-      case CACHED_LSW:
-        to_advance = GetCachedRegister(reg);
+      case CACHED_LSW: {
+        Register to_advance = GetCachedRegister(reg);
         __ Add(to_advance, to_advance, by);
         break;
-      case CACHED_MSW:
-        to_advance = GetCachedRegister(reg);
+      }
+      case CACHED_MSW: {
+        Register to_advance = GetCachedRegister(reg);
         __ Add(to_advance, to_advance,
                static_cast<int64_t>(by) << kWRegSizeInBits);
         break;
+      }
       default:
         UNREACHABLE();
         break;
@@ -1179,19 +1180,17 @@ void RegExpMacroAssemblerARM64::PushRegister(int register_index,
 
 
 void RegExpMacroAssemblerARM64::ReadCurrentPositionFromRegister(int reg) {
-  Register cached_register;
   RegisterState register_state = GetRegisterState(reg);
   switch (register_state) {
     case STACKED:
       __ Ldr(current_input_offset(), register_location(reg));
       break;
     case CACHED_LSW:
-      cached_register = GetCachedRegister(reg);
-      __ Mov(current_input_offset(), cached_register.W());
+      __ Mov(current_input_offset(), GetCachedRegister(reg).W());
       break;
     case CACHED_MSW:
-      cached_register = GetCachedRegister(reg);
-      __ Lsr(current_input_offset().X(), cached_register, kWRegSizeInBits);
+      __ Lsr(current_input_offset().X(), GetCachedRegister(reg),
+             kWRegSizeInBits);
       break;
     default:
       UNREACHABLE();
@@ -1495,7 +1494,7 @@ Register RegExpMacroAssemblerARM64::GetRegister(int register_index,
   if (num_registers_ <= register_index) {
     num_registers_ = register_index + 1;
   }
-  Register result;
+  Register result = NoReg;
   RegisterState register_state = GetRegisterState(register_index);
   switch (register_state) {
     case STACKED:
@@ -1527,22 +1526,23 @@ void RegExpMacroAssemblerARM64::StoreRegister(int register_index,
     num_registers_ = register_index + 1;
   }
 
-  Register cached_register;
   RegisterState register_state = GetRegisterState(register_index);
   switch (register_state) {
     case STACKED:
       __ Str(source, register_location(register_index));
       break;
-    case CACHED_LSW:
-      cached_register = GetCachedRegister(register_index);
+    case CACHED_LSW: {
+      Register cached_register = GetCachedRegister(register_index);
       if (!source.Is(cached_register.W())) {
         __ Bfi(cached_register, source.X(), 0, kWRegSizeInBits);
       }
       break;
-    case CACHED_MSW:
-      cached_register = GetCachedRegister(register_index);
+    }
+    case CACHED_MSW: {
+      Register cached_register = GetCachedRegister(register_index);
       __ Bfi(cached_register, source.X(), kWRegSizeInBits, kWRegSizeInBits);
       break;
+    }
     default:
       UNREACHABLE();
       break;

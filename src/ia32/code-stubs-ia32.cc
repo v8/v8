@@ -43,8 +43,8 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   // restore them.
   __ pushad();
   if (save_doubles()) {
-    __ sub(esp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
-    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    __ sub(esp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       __ movsd(Operand(esp, i * kDoubleSize), reg);
     }
@@ -59,11 +59,11 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
       ExternalReference::store_buffer_overflow_function(isolate()),
       argument_count);
   if (save_doubles()) {
-    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       __ movsd(reg, Operand(esp, i * kDoubleSize));
     }
-    __ add(esp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
+    __ add(esp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
   }
   __ popad();
   __ ret(0);
@@ -114,7 +114,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   MemOperand exponent_operand(MemOperand(input_reg,
                                          double_offset + kDoubleSize / 2));
 
-  Register scratch1;
+  Register scratch1 = no_reg;
   {
     Register scratch_candidates[3] = { ebx, edx, edi };
     for (int i = 0; i < 3; i++) {

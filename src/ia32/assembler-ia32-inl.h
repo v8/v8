@@ -390,7 +390,7 @@ Operand::Operand(Register reg) {
 
 
 Operand::Operand(XMMRegister xmm_reg) {
-  Register reg = { xmm_reg.code() };
+  Register reg = Register::from_code(xmm_reg.code());
   set_modrm(3, reg);
 }
 

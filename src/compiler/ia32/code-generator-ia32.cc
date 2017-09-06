@@ -375,7 +375,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                            RelocInfo::Mode rmode_buffer)                      \
             : OutOfLineCode(gen),                                             \
               result_(result),                                                \
-              buffer_reg_({-1}),                                              \
+              buffer_reg_(no_reg),                                            \
               buffer_int_(buffer),                                            \
               index1_(index1),                                                \
               index2_(index2),                                                \
@@ -479,7 +479,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                              RelocInfo::Mode rmode_buffer)                     \
             : OutOfLineCode(gen),                                              \
               result_(result),                                                 \
-              buffer_reg_({-1}),                                               \
+              buffer_reg_(no_reg),                                             \
               buffer_int_(buffer),                                             \
               index1_(index1),                                                 \
               index2_(index2),                                                 \
@@ -582,7 +582,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                             XMMRegister value, RelocInfo::Mode rmode_length,  \
                             RelocInfo::Mode rmode_buffer)                     \
             : OutOfLineCode(gen),                                             \
-              buffer_reg_({-1}),                                              \
+              buffer_reg_(no_reg),                                            \
               buffer_int_(buffer),                                            \
               index1_(index1),                                                \
               index2_(index2),                                                \
@@ -681,7 +681,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                               Value value, RelocInfo::Mode rmode_length,       \
                               RelocInfo::Mode rmode_buffer)                    \
             : OutOfLineCode(gen),                                              \
-              buffer_reg_({-1}),                                               \
+              buffer_reg_(no_reg),                                             \
               buffer_int_(buffer),                                             \
               index1_(index1),                                                 \
               index2_(index2),                                                 \
@@ -1173,12 +1173,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchStackSlot: {
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
-      Register base;
-      if (offset.from_stack_pointer()) {
-        base = esp;
-      } else {
-        base = ebp;
-      }
+      Register base = offset.from_stack_pointer() ? esp : ebp;
       __ lea(i.OutputRegister(), Operand(base, offset.offset()));
       break;
     }
@@ -2020,7 +2015,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32I32x4Neg: {
       XMMRegister dst = i.OutputSimd128Register();
       Operand src = i.InputOperand(0);
-      Register ireg = {dst.code()};
+      Register ireg = Register::from_code(dst.code());
       if (src.is_reg(ireg)) {
         __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
         __ Psignd(dst, kScratchDoubleReg);

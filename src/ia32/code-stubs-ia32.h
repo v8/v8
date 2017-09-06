@@ -176,15 +176,14 @@ class RecordWriteStub: public PlatformCodeStub {
   // that must be preserved and one scratch register provided by the caller.
   class RegisterAllocation {
    public:
-    RegisterAllocation(Register object,
-                       Register address,
-                       Register scratch0)
+    RegisterAllocation(Register object, Register address, Register scratch0)
         : object_orig_(object),
           address_orig_(address),
           scratch0_orig_(scratch0),
           object_(object),
           address_(address),
-          scratch0_(scratch0) {
+          scratch0_(scratch0),
+          scratch1_(no_reg) {
       DCHECK(!AreAliased(scratch0, object, address, no_reg));
       scratch1_ = GetRegThatIsNotEcxOr(object_, address_, scratch0_);
       if (scratch0.is(ecx)) {

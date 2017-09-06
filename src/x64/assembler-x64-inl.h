@@ -234,9 +234,9 @@ void Assembler::emit_vex_prefix(XMMRegister reg, XMMRegister vreg,
 void Assembler::emit_vex_prefix(Register reg, Register vreg, Register rm,
                                 VectorLength l, SIMDPrefix pp, LeadingOpcode mm,
                                 VexW w) {
-  XMMRegister ireg = {reg.code()};
-  XMMRegister ivreg = {vreg.code()};
-  XMMRegister irm = {rm.code()};
+  XMMRegister ireg = XMMRegister::from_code(reg.code());
+  XMMRegister ivreg = XMMRegister::from_code(vreg.code());
+  XMMRegister irm = XMMRegister::from_code(rm.code());
   emit_vex_prefix(ireg, ivreg, irm, l, pp, mm, w);
 }
 
@@ -258,8 +258,8 @@ void Assembler::emit_vex_prefix(XMMRegister reg, XMMRegister vreg,
 void Assembler::emit_vex_prefix(Register reg, Register vreg, const Operand& rm,
                                 VectorLength l, SIMDPrefix pp, LeadingOpcode mm,
                                 VexW w) {
-  XMMRegister ireg = {reg.code()};
-  XMMRegister ivreg = {vreg.code()};
+  XMMRegister ireg = XMMRegister::from_code(reg.code());
+  XMMRegister ivreg = XMMRegister::from_code(vreg.code());
   emit_vex_prefix(ireg, ivreg, rm, l, pp, mm, w);
 }
 

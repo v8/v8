@@ -103,95 +103,45 @@ const int kNumJSCallerSaved = 5;
 // Number of registers for which space is reserved in safepoints.
 const int kNumSafepointRegisters = 8;
 
-// CPU Registers.
-//
-// 1) We would prefer to use an enum, but enum values are assignment-
-// compatible with int, which has caused code-generation bugs.
-//
-// 2) We would prefer to use a class instead of a struct but we don't like
-// the register initialization to depend on the particular initialization
-// order (which appears to be different on OS X, Linux, and Windows for the
-// installed versions of C++ we tried). Using a struct permits C-style
-// "initialization". Also, the Register objects cannot be const as this
-// forces initialization stubs in MSVC, making us dependent on initialization
-// order.
-//
-// 3) By not using an enum, we are possibly preventing the compiler from
-// doing certain constant folds, which may significantly reduce the
-// code generated for some assembly instructions (because they boil down
-// to a few constants). If this is a problem, we could change the code
-// such that we use an enum in optimized mode, and the struct in debug
-// mode. This way we get the compile-time error checking in debug mode
-// and best performance in optimized code.
-//
-struct Register {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    GENERAL_REGISTERS(REGISTER_CODE)
+enum RegisterCode {
+#define REGISTER_CODE(R) kRegCode_##R,
+  GENERAL_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
-
-  static constexpr int kNumRegisters = Code::kAfterLast;
-
-  static Register from_code(int code) {
-    DCHECK(code >= 0);
-    DCHECK(code < kNumRegisters);
-    Register r = {code};
-    return r;
-  }
-  bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
-  bool is(Register reg) const { return reg_code == reg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-
-  bool is_byte_register() const { return reg_code <= 3; }
-
-  // Unfortunately we can't make this private in a struct.
-  int reg_code;
+      kRegAfterLast
 };
 
-#define DEFINE_REGISTER(R) constexpr Register R = {Register::kCode_##R};
+class Register : public RegisterBase<Register, kRegAfterLast> {
+ public:
+  bool is_byte_register() const { return reg_code_ <= 3; }
+
+ private:
+  friend class RegisterBase<Register, kRegAfterLast>;
+  explicit constexpr Register(int code) : RegisterBase(code) {}
+};
+
+static_assert(IS_TRIVIALLY_COPYABLE(Register) &&
+                  sizeof(Register) == sizeof(int),
+              "Register can efficiently be passed by value");
+
+#define DEFINE_REGISTER(R) \
+  constexpr Register R = Register::from_code<kRegCode_##R>();
 GENERAL_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
-constexpr Register no_reg = {Register::kCode_no_reg};
+constexpr Register no_reg = Register::no_reg();
 
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
-struct XMMRegister {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    DOUBLE_REGISTERS(REGISTER_CODE)
+enum DoubleCode {
+#define REGISTER_CODE(R) kDoubleCode_##R,
+  DOUBLE_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
+      kDoubleAfterLast
+};
 
-  static constexpr int kMaxNumRegisters = Code::kAfterLast;
-
-  static XMMRegister from_code(int code) {
-    XMMRegister result = {code};
-    return result;
-  }
-
-  bool is_valid() const { return 0 <= reg_code && reg_code < kMaxNumRegisters; }
-
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-
-  bool is(XMMRegister reg) const { return reg_code == reg.reg_code; }
-
-  int reg_code;
+class XMMRegister : public RegisterBase<XMMRegister, kDoubleAfterLast> {
+  friend class RegisterBase<XMMRegister, kDoubleAfterLast>;
+  explicit constexpr XMMRegister(int code) : RegisterBase(code) {}
 };
 
 typedef XMMRegister FloatRegister;
@@ -201,10 +151,10 @@ typedef XMMRegister DoubleRegister;
 typedef XMMRegister Simd128Register;
 
 #define DEFINE_REGISTER(R) \
-  constexpr DoubleRegister R = {DoubleRegister::kCode_##R};
+  constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
 DOUBLE_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
-constexpr DoubleRegister no_double_reg = {DoubleRegister::kCode_no_reg};
+constexpr DoubleRegister no_double_reg = DoubleRegister::no_reg();
 
 enum Condition {
   // any value < 0 is considered no_condition
@@ -1490,20 +1440,11 @@ class Assembler : public AssemblerBase {
     bmi1(0xf7, dst, src2, src1);
   }
   void blsi(Register dst, Register src) { blsi(dst, Operand(src)); }
-  void blsi(Register dst, const Operand& src) {
-    Register ireg = {3};
-    bmi1(0xf3, ireg, dst, src);
-  }
+  void blsi(Register dst, const Operand& src) { bmi1(0xf3, ebx, dst, src); }
   void blsmsk(Register dst, Register src) { blsmsk(dst, Operand(src)); }
-  void blsmsk(Register dst, const Operand& src) {
-    Register ireg = {2};
-    bmi1(0xf3, ireg, dst, src);
-  }
+  void blsmsk(Register dst, const Operand& src) { bmi1(0xf3, edx, dst, src); }
   void blsr(Register dst, Register src) { blsr(dst, Operand(src)); }
-  void blsr(Register dst, const Operand& src) {
-    Register ireg = {1};
-    bmi1(0xf3, ireg, dst, src);
-  }
+  void blsr(Register dst, const Operand& src) { bmi1(0xf3, ecx, dst, src); }
   void tzcnt(Register dst, Register src) { tzcnt(dst, Operand(src)); }
   void tzcnt(Register dst, const Operand& src);
 

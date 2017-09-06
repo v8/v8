@@ -634,8 +634,8 @@ class RegisterValues {
   static_assert(sizeof(Float64) == kDoubleSize, "size mismatch");
 
   intptr_t registers_[Register::kNumRegisters];
-  Float32 float_registers_[FloatRegister::kMaxNumRegisters];
-  Float64 double_registers_[DoubleRegister::kMaxNumRegisters];
+  Float32 float_registers_[FloatRegister::kNumRegisters];
+  Float64 double_registers_[DoubleRegister::kNumRegisters];
 };
 
 

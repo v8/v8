@@ -563,17 +563,10 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
   jmp(ces.GetCode(), RelocInfo::CODE_TARGET);
 }
 
-#define REG(Name) \
-  { Register::kCode_##Name }
+static constexpr Register saved_regs[] = {rax, rcx, rdx, rbx, rbp, rsi,
+                                          rdi, r8,  r9,  r10, r11};
 
-static const Register saved_regs[] = {
-  REG(rax), REG(rcx), REG(rdx), REG(rbx), REG(rbp), REG(rsi), REG(rdi), REG(r8),
-  REG(r9), REG(r10), REG(r11)
-};
-
-#undef REG
-
-static const int kNumberOfSavedRegs = sizeof(saved_regs) / sizeof(Register);
+static constexpr int kNumberOfSavedRegs = sizeof(saved_regs) / sizeof(Register);
 
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion1,
@@ -589,7 +582,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
 
   // R12 to r15 are callee save on all platforms.
   if (fp_mode == kSaveFPRegs) {
-    bytes += kDoubleSize * XMMRegister::kMaxNumRegisters;
+    bytes += kDoubleSize * XMMRegister::kNumRegisters;
   }
 
   return bytes;
@@ -611,9 +604,9 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 
   // R12 to r15 are callee save on all platforms.
   if (fp_mode == kSaveFPRegs) {
-    int delta = kDoubleSize * XMMRegister::kMaxNumRegisters;
+    int delta = kDoubleSize * XMMRegister::kNumRegisters;
     subp(rsp, Immediate(delta));
-    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       Movsd(Operand(rsp, i * kDoubleSize), reg);
     }
@@ -627,12 +620,12 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
                                    Register exclusion2, Register exclusion3) {
   int bytes = 0;
   if (fp_mode == kSaveFPRegs) {
-    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       Movsd(reg, Operand(rsp, i * kDoubleSize));
     }
-    int delta = kDoubleSize * XMMRegister::kMaxNumRegisters;
-    addp(rsp, Immediate(kDoubleSize * XMMRegister::kMaxNumRegisters));
+    int delta = kDoubleSize * XMMRegister::kNumRegisters;
+    addp(rsp, Immediate(kDoubleSize * XMMRegister::kNumRegisters));
     bytes += delta;
   }
 
@@ -3063,7 +3056,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int arg_stack_space,
 #endif
   // Optionally save all XMM registers.
   if (save_doubles) {
-    int space = XMMRegister::kMaxNumRegisters * kDoubleSize +
+    int space = XMMRegister::kNumRegisters * kDoubleSize +
                 arg_stack_space * kRegisterSize;
     subp(rsp, Immediate(space));
     int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;

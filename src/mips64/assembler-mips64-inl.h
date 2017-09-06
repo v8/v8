@@ -54,31 +54,21 @@ bool CpuFeatures::SupportsWasmSimd128() { return IsSupported(MIPS_SIMD); }
 // -----------------------------------------------------------------------------
 // Operand and MemOperand.
 
-Operand::Operand(int64_t immediate, RelocInfo::Mode rmode)  {
-  rm_ = no_reg;
+Operand::Operand(int64_t immediate, RelocInfo::Mode rmode)
+    : rm_(no_reg), rmode_(rmode) {
   value_.immediate = immediate;
-  rmode_ = rmode;
 }
 
-
-Operand::Operand(const ExternalReference& f)  {
-  rm_ = no_reg;
+Operand::Operand(const ExternalReference& f)
+    : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
   value_.immediate = reinterpret_cast<int64_t>(f.address());
-  rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
-
-Operand::Operand(Smi* value) {
-  rm_ = no_reg;
+Operand::Operand(Smi* value) : rm_(no_reg), rmode_(RelocInfo::NONE32) {
   value_.immediate = reinterpret_cast<intptr_t>(value);
-  rmode_ = RelocInfo::NONE32;
 }
 
-
-Operand::Operand(Register rm) {
-  rm_ = rm;
-}
-
+Operand::Operand(Register rm) : rm_(rm) {}
 
 bool Operand::is_reg() const {
   return rm_.is_valid();

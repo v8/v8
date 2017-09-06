@@ -23,7 +23,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
 
-  const int kDoubleRegsSize = kDoubleSize * XMMRegister::kMaxNumRegisters;
+  const int kDoubleRegsSize = kDoubleSize * XMMRegister::kNumRegisters;
   __ sub(esp, Immediate(kDoubleRegsSize));
   const RegisterConfiguration* config = RegisterConfiguration::Default();
   for (int i = 0; i < config->num_allocatable_double_registers(); ++i) {
@@ -34,7 +34,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   }
 
   STATIC_ASSERT(kFloatSize == kPointerSize);
-  const int kFloatRegsSize = kFloatSize * XMMRegister::kMaxNumRegisters;
+  const int kFloatRegsSize = kFloatSize * XMMRegister::kNumRegisters;
   __ sub(esp, Immediate(kFloatRegsSize));
   for (int i = 0; i < config->num_allocatable_float_registers(); ++i) {
     int code = config->GetAllocatableFloatCode(i);
@@ -95,7 +95,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
 
   int float_regs_offset = FrameDescription::float_registers_offset();
   // Fill in the float input registers.
-  for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+  for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
     int dst_offset = i * kFloatSize + float_regs_offset;
     __ pop(Operand(ebx, dst_offset));
   }

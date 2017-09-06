@@ -413,12 +413,8 @@ Operand Operand::EmbeddedCode(CodeStub* stub) {
   return result;
 }
 
-MemOperand::MemOperand(Register rn, int32_t offset, AddrMode am) {
-  rn_ = rn;
-  rm_ = no_reg;
-  offset_ = offset;
-  am_ = am;
-
+MemOperand::MemOperand(Register rn, int32_t offset, AddrMode am)
+    : rn_(rn), rm_(no_reg), offset_(offset), am_(am) {
   // Accesses below the stack pointer are not safe, and are prohibited by the
   // ABI. We can check obvious violations here.
   if (rn.is(sp)) {
@@ -427,38 +423,27 @@ MemOperand::MemOperand(Register rn, int32_t offset, AddrMode am) {
   }
 }
 
+MemOperand::MemOperand(Register rn, Register rm, AddrMode am)
+    : rn_(rn), rm_(rm), shift_op_(LSL), shift_imm_(0), am_(am) {}
 
-MemOperand::MemOperand(Register rn, Register rm, AddrMode am) {
-  rn_ = rn;
-  rm_ = rm;
-  shift_op_ = LSL;
-  shift_imm_ = 0;
-  am_ = am;
-}
-
-
-MemOperand::MemOperand(Register rn, Register rm,
-                       ShiftOp shift_op, int shift_imm, AddrMode am) {
+MemOperand::MemOperand(Register rn, Register rm, ShiftOp shift_op,
+                       int shift_imm, AddrMode am)
+    : rn_(rn),
+      rm_(rm),
+      shift_op_(shift_op),
+      shift_imm_(shift_imm & 31),
+      am_(am) {
   DCHECK(is_uint5(shift_imm));
-  rn_ = rn;
-  rm_ = rm;
-  shift_op_ = shift_op;
-  shift_imm_ = shift_imm & 31;
-  am_ = am;
 }
 
-
-NeonMemOperand::NeonMemOperand(Register rn, AddrMode am, int align) {
+NeonMemOperand::NeonMemOperand(Register rn, AddrMode am, int align)
+    : rn_(rn), rm_(am == Offset ? pc : sp) {
   DCHECK((am == Offset) || (am == PostIndex));
-  rn_ = rn;
-  rm_ = (am == Offset) ? pc : sp;
   SetAlignment(align);
 }
 
-
-NeonMemOperand::NeonMemOperand(Register rn, Register rm, int align) {
-  rn_ = rn;
-  rm_ = rm;
+NeonMemOperand::NeonMemOperand(Register rn, Register rm, int align)
+    : rn_(rn), rm_(rm) {
   SetAlignment(align);
 }
 
@@ -507,18 +492,16 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 
 // str(r, MemOperand(sp, 4, NegPreIndex), al) instruction (aka push(r))
 // register r is not encoded.
-const Instr kPushRegPattern =
-    al | B26 | 4 | NegPreIndex | Register::kCode_sp * B16;
+const Instr kPushRegPattern = al | B26 | 4 | NegPreIndex | sp.code() * B16;
 // ldr(r, MemOperand(sp, 4, PostIndex), al) instruction (aka pop(r))
 // register r is not encoded.
-const Instr kPopRegPattern =
-    al | B26 | L | 4 | PostIndex | Register::kCode_sp * B16;
+const Instr kPopRegPattern = al | B26 | L | 4 | PostIndex | sp.code() * B16;
 // ldr rd, [pc, #offset]
 const Instr kLdrPCImmedMask = 15 * B24 | 7 * B20 | 15 * B16;
-const Instr kLdrPCImmedPattern = 5 * B24 | L | Register::kCode_pc * B16;
+const Instr kLdrPCImmedPattern = 5 * B24 | L | pc.code() * B16;
 // vldr dd, [pc, #offset]
 const Instr kVldrDPCMask = 15 * B24 | 3 * B20 | 15 * B16 | 15 * B8;
-const Instr kVldrDPCPattern = 13 * B24 | L | Register::kCode_pc * B16 | 11 * B8;
+const Instr kVldrDPCPattern = 13 * B24 | L | pc.code() * B16 | 11 * B8;
 // blxcc rm
 const Instr kBlxRegMask =
     15 * B24 | 15 * B20 | 15 * B16 | 15 * B12 | 15 * B8 | 15 * B4;
@@ -544,14 +527,11 @@ const Instr kAddSubFlip = 0x6 * B21;
 const Instr kAndBicFlip = 0xe * B21;
 
 // A mask for the Rd register for push, pop, ldr, str instructions.
-const Instr kLdrRegFpOffsetPattern =
-    al | B26 | L | Offset | Register::kCode_fp * B16;
-const Instr kStrRegFpOffsetPattern =
-    al | B26 | Offset | Register::kCode_fp * B16;
+const Instr kLdrRegFpOffsetPattern = al | B26 | L | Offset | fp.code() * B16;
+const Instr kStrRegFpOffsetPattern = al | B26 | Offset | fp.code() * B16;
 const Instr kLdrRegFpNegOffsetPattern =
-    al | B26 | L | NegOffset | Register::kCode_fp * B16;
-const Instr kStrRegFpNegOffsetPattern =
-    al | B26 | NegOffset | Register::kCode_fp * B16;
+    al | B26 | L | NegOffset | fp.code() * B16;
+const Instr kStrRegFpNegOffsetPattern = al | B26 | NegOffset | fp.code() * B16;
 const Instr kLdrStrInstrTypeMask = 0xffff0000;
 
 Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
@@ -722,23 +702,17 @@ Instr Assembler::SetAddRegisterImmediateOffset(Instr instr, int offset) {
 
 
 Register Assembler::GetRd(Instr instr) {
-  Register reg;
-  reg.reg_code = Instruction::RdValue(instr);
-  return reg;
+  return Register::from_code(Instruction::RdValue(instr));
 }
 
 
 Register Assembler::GetRn(Instr instr) {
-  Register reg;
-  reg.reg_code = Instruction::RnValue(instr);
-  return reg;
+  return Register::from_code(Instruction::RnValue(instr));
 }
 
 
 Register Assembler::GetRm(Instr instr) {
-  Register reg;
-  reg.reg_code = Instruction::RmValue(instr);
-  return reg;
+  return Register::from_code(Instruction::RmValue(instr));
 }
 
 

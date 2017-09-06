@@ -643,7 +643,7 @@ void FlushPendingPushRegisters(TurboAssembler* tasm,
       break;
   }
   frame_access_state->IncreaseSPDelta(pending_pushes->size());
-  pending_pushes->resize(0);
+  pending_pushes->clear();
 }
 
 void AdjustStackPointerForTailCall(
@@ -966,12 +966,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchStackSlot: {
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
-      Register base;
-      if (offset.from_stack_pointer()) {
-        base = sp;
-      } else {
-        base = fp;
-      }
+      Register base = offset.from_stack_pointer() ? sp : fp;
       __ add(i.OutputRegister(0), base, Operand(offset.offset()));
       break;
     }
@@ -2811,7 +2806,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 
   if (saves_fp != 0) {
     // Save callee-saved FP registers.
-    STATIC_ASSERT(DwVfpRegister::kMaxNumRegisters == 32);
+    STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
     uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
     uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
     DCHECK_EQ((last - first + 1), base::bits::CountPopulation32(saves_fp));
@@ -2908,7 +2903,7 @@ void CodeGenerator::AssembleConstructFrame() {
 
   if (saves_fp != 0) {
     // Save callee-saved FP registers.
-    STATIC_ASSERT(DwVfpRegister::kMaxNumRegisters == 32);
+    STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
     uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
     uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
     DCHECK_EQ((last - first + 1), base::bits::CountPopulation32(saves_fp));
@@ -2935,7 +2930,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   // Restore FP registers.
   const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
   if (saves_fp != 0) {
-    STATIC_ASSERT(DwVfpRegister::kMaxNumRegisters == 32);
+    STATIC_ASSERT(DwVfpRegister::kNumRegisters == 32);
     uint32_t last = base::bits::CountLeadingZeros32(saves_fp) - 1;
     uint32_t first = base::bits::CountTrailingZeros32(saves_fp);
     __ vldm(ia_w, sp, DwVfpRegister::from_code(first),

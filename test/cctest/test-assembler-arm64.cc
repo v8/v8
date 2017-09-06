@@ -12366,10 +12366,10 @@ static void PushPopJsspSimpleHelper(int reg_count,
     reg_count = CountSetBits(allowed, kNumberOfRegisters);
   }
   // Work out which registers to use, based on reg_size.
-  Register r[kNumberOfRegisters];
-  Register x[kNumberOfRegisters];
-  RegList list = PopulateRegisterArray(NULL, x, r, reg_size, reg_count,
-                                       allowed);
+  auto r = CreateRegisterArray<Register, kNumberOfRegisters>();
+  auto x = CreateRegisterArray<Register, kNumberOfRegisters>();
+  RegList list = PopulateRegisterArray(NULL, x.data(), r.data(), reg_size,
+                                       reg_count, allowed);
 
   // The literal base is chosen to have two useful properties:
   //  * When multiplied by small values (such as a register index), this value
@@ -12550,10 +12550,10 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
     reg_count = CountSetBits(allowed, kNumberOfVRegisters);
   }
   // Work out which registers to use, based on reg_size.
-  VRegister v[kNumberOfRegisters];
-  VRegister d[kNumberOfRegisters];
-  RegList list =
-      PopulateVRegisterArray(NULL, d, v, reg_size, reg_count, allowed);
+  auto v = CreateRegisterArray<VRegister, kNumberOfRegisters>();
+  auto d = CreateRegisterArray<VRegister, kNumberOfRegisters>();
+  RegList list = PopulateVRegisterArray(NULL, d.data(), v.data(), reg_size,
+                                        reg_count, allowed);
 
   // The literal base is chosen to have two useful properties:
   //  * When multiplied (using an integer) by small values (such as a register
@@ -12719,9 +12719,9 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
   static RegList const allowed =
       ~(x8.bit() | x9.bit() | jssp.bit() | xzr.bit());
   // Work out which registers to use, based on reg_size.
-  Register r[10];
-  Register x[10];
-  PopulateRegisterArray(NULL, x, r, reg_size, 10, allowed);
+  auto r = CreateRegisterArray<Register, 10>();
+  auto x = CreateRegisterArray<Register, 10>();
+  PopulateRegisterArray(NULL, x.data(), r.data(), reg_size, 10, allowed);
 
   // Calculate some handy register lists.
   RegList r0_to_r3 = 0;
@@ -12824,9 +12824,10 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
   if (reg_count == kPushPopJsspMaxRegCount) {
     reg_count = CountSetBits(allowed, kNumberOfRegisters);
   }
-  Register w[kNumberOfRegisters];
-  Register x[kNumberOfRegisters];
-  RegList list = PopulateRegisterArray(w, x, NULL, 0, reg_count, allowed);
+  auto w = CreateRegisterArray<Register, kNumberOfRegisters>();
+  auto x = CreateRegisterArray<Register, kNumberOfRegisters>();
+  RegList list =
+      PopulateRegisterArray(w.data(), x.data(), NULL, 0, reg_count, allowed);
 
   // The number of W-sized slots we expect to pop. When we pop, we alternate
   // between W and X registers, so we need reg_count*1.5 W-sized slots.
@@ -13904,23 +13905,23 @@ TEST(isvalid) {
   CHECK(d31.IsValid());
   CHECK(s31.IsValid());
 
-  CHECK(x0.IsValidRegister());
-  CHECK(w0.IsValidRegister());
-  CHECK(xzr.IsValidRegister());
-  CHECK(wzr.IsValidRegister());
-  CHECK(csp.IsValidRegister());
-  CHECK(wcsp.IsValidRegister());
-  CHECK(!x0.IsValidVRegister());
-  CHECK(!w0.IsValidVRegister());
-  CHECK(!xzr.IsValidVRegister());
-  CHECK(!wzr.IsValidVRegister());
-  CHECK(!csp.IsValidVRegister());
-  CHECK(!wcsp.IsValidVRegister());
+  CHECK(x0.IsRegister());
+  CHECK(w0.IsRegister());
+  CHECK(xzr.IsRegister());
+  CHECK(wzr.IsRegister());
+  CHECK(csp.IsRegister());
+  CHECK(wcsp.IsRegister());
+  CHECK(!x0.IsVRegister());
+  CHECK(!w0.IsVRegister());
+  CHECK(!xzr.IsVRegister());
+  CHECK(!wzr.IsVRegister());
+  CHECK(!csp.IsVRegister());
+  CHECK(!wcsp.IsVRegister());
 
-  CHECK(d0.IsValidVRegister());
-  CHECK(s0.IsValidVRegister());
-  CHECK(!d0.IsValidRegister());
-  CHECK(!s0.IsValidRegister());
+  CHECK(d0.IsVRegister());
+  CHECK(s0.IsVRegister());
+  CHECK(!d0.IsRegister());
+  CHECK(!s0.IsRegister());
 
   // Test the same as before, but using CPURegister types. This shouldn't make
   // any difference.
@@ -13939,23 +13940,23 @@ TEST(isvalid) {
   CHECK(static_cast<CPURegister>(d31).IsValid());
   CHECK(static_cast<CPURegister>(s31).IsValid());
 
-  CHECK(static_cast<CPURegister>(x0).IsValidRegister());
-  CHECK(static_cast<CPURegister>(w0).IsValidRegister());
-  CHECK(static_cast<CPURegister>(xzr).IsValidRegister());
-  CHECK(static_cast<CPURegister>(wzr).IsValidRegister());
-  CHECK(static_cast<CPURegister>(csp).IsValidRegister());
-  CHECK(static_cast<CPURegister>(wcsp).IsValidRegister());
-  CHECK(!static_cast<CPURegister>(x0).IsValidVRegister());
-  CHECK(!static_cast<CPURegister>(w0).IsValidVRegister());
-  CHECK(!static_cast<CPURegister>(xzr).IsValidVRegister());
-  CHECK(!static_cast<CPURegister>(wzr).IsValidVRegister());
-  CHECK(!static_cast<CPURegister>(csp).IsValidVRegister());
-  CHECK(!static_cast<CPURegister>(wcsp).IsValidVRegister());
+  CHECK(static_cast<CPURegister>(x0).IsRegister());
+  CHECK(static_cast<CPURegister>(w0).IsRegister());
+  CHECK(static_cast<CPURegister>(xzr).IsRegister());
+  CHECK(static_cast<CPURegister>(wzr).IsRegister());
+  CHECK(static_cast<CPURegister>(csp).IsRegister());
+  CHECK(static_cast<CPURegister>(wcsp).IsRegister());
+  CHECK(!static_cast<CPURegister>(x0).IsVRegister());
+  CHECK(!static_cast<CPURegister>(w0).IsVRegister());
+  CHECK(!static_cast<CPURegister>(xzr).IsVRegister());
+  CHECK(!static_cast<CPURegister>(wzr).IsVRegister());
+  CHECK(!static_cast<CPURegister>(csp).IsVRegister());
+  CHECK(!static_cast<CPURegister>(wcsp).IsVRegister());
 
-  CHECK(static_cast<CPURegister>(d0).IsValidVRegister());
-  CHECK(static_cast<CPURegister>(s0).IsValidVRegister());
-  CHECK(!static_cast<CPURegister>(d0).IsValidRegister());
-  CHECK(!static_cast<CPURegister>(s0).IsValidRegister());
+  CHECK(static_cast<CPURegister>(d0).IsVRegister());
+  CHECK(static_cast<CPURegister>(s0).IsVRegister());
+  CHECK(!static_cast<CPURegister>(d0).IsRegister());
+  CHECK(!static_cast<CPURegister>(s0).IsRegister());
 }
 
 TEST(areconsecutive) {

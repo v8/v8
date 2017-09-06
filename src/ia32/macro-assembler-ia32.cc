@@ -90,14 +90,9 @@ void MacroAssembler::PushRoot(Heap::RootListIndex index) {
   }
 }
 
-#define REG(Name) \
-  { Register::kCode_##Name }
+static constexpr Register saved_regs[] = {eax, ecx, edx};
 
-static const Register saved_regs[] = {REG(eax), REG(ecx), REG(edx)};
-
-#undef REG
-
-static const int kNumberOfSavedRegs = sizeof(saved_regs) / sizeof(Register);
+static constexpr int kNumberOfSavedRegs = sizeof(saved_regs) / sizeof(Register);
 
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion1,
@@ -113,7 +108,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
 
   if (fp_mode == kSaveFPRegs) {
     // Count all XMM registers except XMM0.
-    bytes += kDoubleSize * (XMMRegister::kMaxNumRegisters - 1);
+    bytes += kDoubleSize * (XMMRegister::kNumRegisters - 1);
   }
 
   return bytes;
@@ -135,9 +130,9 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 
   if (fp_mode == kSaveFPRegs) {
     // Save all XMM registers except XMM0.
-    int delta = kDoubleSize * (XMMRegister::kMaxNumRegisters - 1);
+    int delta = kDoubleSize * (XMMRegister::kNumRegisters - 1);
     sub(esp, Immediate(delta));
-    for (int i = XMMRegister::kMaxNumRegisters - 1; i > 0; i--) {
+    for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(Operand(esp, (i - 1) * kDoubleSize), reg);
     }
@@ -152,8 +147,8 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   int bytes = 0;
   if (fp_mode == kSaveFPRegs) {
     // Restore all XMM registers except XMM0.
-    int delta = kDoubleSize * (XMMRegister::kMaxNumRegisters - 1);
-    for (int i = XMMRegister::kMaxNumRegisters - 1; i > 0; i--) {
+    int delta = kDoubleSize * (XMMRegister::kNumRegisters - 1);
+    for (int i = XMMRegister::kNumRegisters - 1; i > 0; i--) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(reg, Operand(esp, (i - 1) * kDoubleSize));
     }
@@ -748,11 +743,10 @@ void MacroAssembler::EnterExitFramePrologue(StackFrame::Type frame_type) {
 void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
   // Optionally save all XMM registers.
   if (save_doubles) {
-    int space = XMMRegister::kMaxNumRegisters * kDoubleSize +
-                argc * kPointerSize;
+    int space = XMMRegister::kNumRegisters * kDoubleSize + argc * kPointerSize;
     sub(esp, Immediate(space));
     const int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
-    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(Operand(ebp, offset - ((i + 1) * kDoubleSize)), reg);
     }
@@ -795,7 +789,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
   // Optionally restore all XMM registers.
   if (save_doubles) {
     const int offset = -ExitFrameConstants::kFixedFrameSizeFromFp;
-    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       XMMRegister reg = XMMRegister::from_code(i);
       movsd(reg, Operand(ebp, offset - ((i + 1) * kDoubleSize)));
     }

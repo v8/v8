@@ -181,8 +181,8 @@ class RecordWriteStub: public PlatformCodeStub {
     Register object_;
     Register address_;
     Register scratch0_;
-    Register scratch1_;
-    Register scratch2_;
+    Register scratch1_ = NoReg;
+    Register scratch2_ = NoReg;
     CPURegList saved_regs_;
     CPURegList saved_fp_regs_;
 

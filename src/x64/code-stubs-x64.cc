@@ -88,7 +88,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     MemOperand exponent_operand(MemOperand(input_reg,
                                            double_offset + kDoubleSize / 2));
 
-    Register scratch1;
+    Register scratch1 = no_reg;
     Register scratch_candidates[3] = { rbx, rdx, rdi };
     for (int i = 0; i < 3; i++) {
       scratch1 = scratch_candidates[i];

@@ -1104,12 +1104,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchStackSlot: {
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
-      Register base;
-      if (offset.from_stack_pointer()) {
-        base = rsp;
-      } else {
-        base = rbp;
-      }
+      Register base = offset.from_stack_pointer() ? rsp : rbp;
       __ leaq(i.OutputRegister(), Operand(base, offset.offset()));
       break;
     }
@@ -3123,7 +3118,7 @@ void CodeGenerator::AssembleConstructFrame() {
     __ subp(rsp, Immediate(stack_size));
     // Store the registers on the stack.
     int slot_idx = 0;
-    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       if (!((1 << i) & saves_fp)) continue;
       __ movdqu(Operand(rsp, kQuadWordSize * slot_idx),
                 XMMRegister::from_code(i));
@@ -3157,7 +3152,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     const int stack_size = saves_fp_count * kQuadWordSize;
     // Load the registers from the stack.
     int slot_idx = 0;
-    for (int i = 0; i < XMMRegister::kMaxNumRegisters; i++) {
+    for (int i = 0; i < XMMRegister::kNumRegisters; i++) {
       if (!((1 << i) & saves_fp)) continue;
       __ movdqu(XMMRegister::from_code(i),
                 Operand(rsp, kQuadWordSize * slot_idx));

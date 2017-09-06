@@ -1254,6 +1254,60 @@ class HeapObjectRequest {
   int offset_;
 };
 
+// Base type for CPU Registers.
+//
+// 1) We would prefer to use an enum for registers, but enum values are
+// assignment-compatible with int, which has caused code-generation bugs.
+//
+// 2) By not using an enum, we are possibly preventing the compiler from
+// doing certain constant folds, which may significantly reduce the
+// code generated for some assembly instructions (because they boil down
+// to a few constants). If this is a problem, we could change the code
+// such that we use an enum in optimized mode, and the class in debug
+// mode. This way we get the compile-time error checking in debug mode
+// and best performance in optimized code.
+template <typename SubType, int kAfterLastRegister>
+class RegisterBase {
+ public:
+  static constexpr int kCode_no_reg = -1;
+  static constexpr int kNumRegisters = kAfterLastRegister;
+
+  static constexpr SubType no_reg() { return SubType{kCode_no_reg}; }
+
+  template <int code>
+  static constexpr SubType from_code() {
+    static_assert(code >= 0 && code < kNumRegisters, "must be valid reg code");
+    return SubType{code};
+  }
+
+  static SubType from_code(int code) {
+    DCHECK_LE(0, code);
+    DCHECK_GT(kNumRegisters, code);
+    return SubType{code};
+  }
+
+  bool is_valid() const { return reg_code_ != kCode_no_reg; }
+
+  // TODO(clemensh): Remove this, use operator== and operator!=.
+  bool is(SubType reg) const { return reg_code_ == reg.reg_code_; }
+
+  int code() const {
+    DCHECK(is_valid());
+    return reg_code_;
+  }
+
+  int bit() const { return 1 << code(); }
+
+  inline bool operator==(SubType other) const {
+    return reg_code_ == other.reg_code_;
+  }
+  inline bool operator!=(SubType other) const { return !(*this == other); }
+
+ protected:
+  explicit constexpr RegisterBase(int code) : reg_code_(code) {}
+  int reg_code_;
+};
+
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_ASSEMBLER_H_

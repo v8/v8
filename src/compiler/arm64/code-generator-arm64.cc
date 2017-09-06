@@ -977,12 +977,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArchStackSlot: {
       FrameOffset offset =
           frame_access_state()->GetFrameOffset(i.InputInt32(0));
-      Register base;
-      if (offset.from_stack_pointer()) {
-        base = __ StackPointer();
-      } else {
-        base = fp;
-      }
+      Register base = offset.from_stack_pointer() ? __ StackPointer() : fp;
       __ Add(i.OutputRegister(0), base, Operand(offset.offset()));
       break;
     }

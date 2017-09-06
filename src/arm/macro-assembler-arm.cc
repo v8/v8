@@ -894,8 +894,8 @@ void TurboAssembler::VmovLow(DwVfpRegister dst, Register src) {
 }
 
 void TurboAssembler::VmovExtended(Register dst, int src_code) {
-  DCHECK_LE(SwVfpRegister::kMaxNumRegisters, src_code);
-  DCHECK_GT(SwVfpRegister::kMaxNumRegisters * 2, src_code);
+  DCHECK_LE(SwVfpRegister::kNumRegisters, src_code);
+  DCHECK_GT(SwVfpRegister::kNumRegisters * 2, src_code);
   if (src_code & 0x1) {
     VmovHigh(dst, DwVfpRegister::from_code(src_code / 2));
   } else {
@@ -904,8 +904,8 @@ void TurboAssembler::VmovExtended(Register dst, int src_code) {
 }
 
 void TurboAssembler::VmovExtended(int dst_code, Register src) {
-  DCHECK_LE(SwVfpRegister::kMaxNumRegisters, dst_code);
-  DCHECK_GT(SwVfpRegister::kMaxNumRegisters * 2, dst_code);
+  DCHECK_LE(SwVfpRegister::kNumRegisters, dst_code);
+  DCHECK_GT(SwVfpRegister::kNumRegisters * 2, dst_code);
   if (dst_code & 0x1) {
     VmovHigh(DwVfpRegister::from_code(dst_code / 2), src);
   } else {
@@ -916,8 +916,8 @@ void TurboAssembler::VmovExtended(int dst_code, Register src) {
 void TurboAssembler::VmovExtended(int dst_code, int src_code) {
   if (src_code == dst_code) return;
 
-  if (src_code < SwVfpRegister::kMaxNumRegisters &&
-      dst_code < SwVfpRegister::kMaxNumRegisters) {
+  if (src_code < SwVfpRegister::kNumRegisters &&
+      dst_code < SwVfpRegister::kNumRegisters) {
     // src and dst are both s-registers.
     vmov(SwVfpRegister::from_code(dst_code),
          SwVfpRegister::from_code(src_code));
@@ -955,13 +955,13 @@ void TurboAssembler::VmovExtended(int dst_code, int src_code) {
   // s-registers.
   int scratchSCode = kScratchDoubleReg.low().code();
   int scratchSCode2 = kScratchDoubleReg2.low().code();
-  if (src_code < SwVfpRegister::kMaxNumRegisters) {
+  if (src_code < SwVfpRegister::kNumRegisters) {
     // src is an s-register, dst is not.
     vmov(kScratchDoubleReg, dst_d_reg);
     vmov(SwVfpRegister::from_code(scratchSCode + dst_offset),
          SwVfpRegister::from_code(src_code));
     vmov(dst_d_reg, kScratchDoubleReg);
-  } else if (dst_code < SwVfpRegister::kMaxNumRegisters) {
+  } else if (dst_code < SwVfpRegister::kNumRegisters) {
     // dst is an s-register, src is not.
     vmov(kScratchDoubleReg, src_d_reg);
     vmov(SwVfpRegister::from_code(dst_code),
@@ -978,7 +978,7 @@ void TurboAssembler::VmovExtended(int dst_code, int src_code) {
 }
 
 void TurboAssembler::VmovExtended(int dst_code, const MemOperand& src) {
-  if (dst_code < SwVfpRegister::kMaxNumRegisters) {
+  if (dst_code < SwVfpRegister::kNumRegisters) {
     vldr(SwVfpRegister::from_code(dst_code), src);
   } else {
     // TODO(bbudge) If Neon supported, use load single lane form of vld1.
@@ -990,7 +990,7 @@ void TurboAssembler::VmovExtended(int dst_code, const MemOperand& src) {
 }
 
 void TurboAssembler::VmovExtended(const MemOperand& dst, int src_code) {
-  if (src_code < SwVfpRegister::kMaxNumRegisters) {
+  if (src_code < SwVfpRegister::kNumRegisters) {
     vstr(SwVfpRegister::from_code(src_code), dst);
   } else {
     // TODO(bbudge) If Neon supported, use store single lane form of vst1.
@@ -1269,7 +1269,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
     SaveFPRegs(sp, scratch);
     // Note that d0 will be accessible at
     //   fp - ExitFrameConstants::kFrameSize -
-    //   DwVfpRegister::kMaxNumRegisters * kDoubleSize,
+    //   DwVfpRegister::kNumRegisters * kDoubleSize,
     // since the sp slot and code slot were pushed after the fp.
   }
 
@@ -1316,8 +1316,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   if (save_doubles) {
     // Calculate the stack location of the saved doubles and restore them.
     const int offset = ExitFrameConstants::kFixedFrameSizeFromFp;
-    sub(r3, fp,
-        Operand(offset + DwVfpRegister::kMaxNumRegisters * kDoubleSize));
+    sub(r3, fp, Operand(offset + DwVfpRegister::kNumRegisters * kDoubleSize));
     RestoreFPRegs(r3, scratch);
   }
 

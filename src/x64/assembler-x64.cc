@@ -4110,7 +4110,7 @@ void Assembler::vfmass(byte op, XMMRegister dst, XMMRegister src1,
 void Assembler::vmovd(XMMRegister dst, Register src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  XMMRegister isrc = {src.code()};
+  XMMRegister isrc = XMMRegister::from_code(src.code());
   emit_vex_prefix(dst, xmm0, isrc, kL128, k66, k0F, kW0);
   emit(0x6e);
   emit_sse_operand(dst, src);
@@ -4129,7 +4129,7 @@ void Assembler::vmovd(XMMRegister dst, const Operand& src) {
 void Assembler::vmovd(Register dst, XMMRegister src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  XMMRegister idst = {dst.code()};
+  XMMRegister idst = XMMRegister::from_code(dst.code());
   emit_vex_prefix(src, xmm0, idst, kL128, k66, k0F, kW0);
   emit(0x7e);
   emit_sse_operand(src, dst);
@@ -4139,7 +4139,7 @@ void Assembler::vmovd(Register dst, XMMRegister src) {
 void Assembler::vmovq(XMMRegister dst, Register src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  XMMRegister isrc = {src.code()};
+  XMMRegister isrc = XMMRegister::from_code(src.code());
   emit_vex_prefix(dst, xmm0, isrc, kL128, k66, k0F, kW1);
   emit(0x6e);
   emit_sse_operand(dst, src);
@@ -4158,7 +4158,7 @@ void Assembler::vmovq(XMMRegister dst, const Operand& src) {
 void Assembler::vmovq(Register dst, XMMRegister src) {
   DCHECK(IsEnabled(AVX));
   EnsureSpace ensure_space(this);
-  XMMRegister idst = {dst.code()};
+  XMMRegister idst = XMMRegister::from_code(dst.code());
   emit_vex_prefix(src, xmm0, idst, kL128, k66, k0F, kW1);
   emit(0x7e);
   emit_sse_operand(src, dst);
@@ -4474,7 +4474,7 @@ void Assembler::bmi2l(SIMDPrefix pp, byte op, Register reg, Register vreg,
 void Assembler::rorxq(Register dst, Register src, byte imm8) {
   DCHECK(IsEnabled(BMI2));
   DCHECK(is_uint8(imm8));
-  Register vreg = {0};  // VEX.vvvv unused
+  Register vreg = Register::from_code<0>();  // VEX.vvvv unused
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, vreg, src, kLZ, kF2, k0F3A, kW1);
   emit(0xF0);
@@ -4486,7 +4486,7 @@ void Assembler::rorxq(Register dst, Register src, byte imm8) {
 void Assembler::rorxq(Register dst, const Operand& src, byte imm8) {
   DCHECK(IsEnabled(BMI2));
   DCHECK(is_uint8(imm8));
-  Register vreg = {0};  // VEX.vvvv unused
+  Register vreg = Register::from_code<0>();  // VEX.vvvv unused
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, vreg, src, kLZ, kF2, k0F3A, kW1);
   emit(0xF0);
@@ -4498,7 +4498,7 @@ void Assembler::rorxq(Register dst, const Operand& src, byte imm8) {
 void Assembler::rorxl(Register dst, Register src, byte imm8) {
   DCHECK(IsEnabled(BMI2));
   DCHECK(is_uint8(imm8));
-  Register vreg = {0};  // VEX.vvvv unused
+  Register vreg = Register::from_code<0>();  // VEX.vvvv unused
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, vreg, src, kLZ, kF2, k0F3A, kW0);
   emit(0xF0);
@@ -4510,7 +4510,7 @@ void Assembler::rorxl(Register dst, Register src, byte imm8) {
 void Assembler::rorxl(Register dst, const Operand& src, byte imm8) {
   DCHECK(IsEnabled(BMI2));
   DCHECK(is_uint8(imm8));
-  Register vreg = {0};  // VEX.vvvv unused
+  Register vreg = Register::from_code<0>();  // VEX.vvvv unused
   EnsureSpace ensure_space(this);
   emit_vex_prefix(dst, vreg, src, kLZ, kF2, k0F3A, kW0);
   emit(0xF0);
@@ -4775,14 +4775,13 @@ void Assembler::pshufd(XMMRegister dst, const Operand& src, uint8_t shuffle) {
 }
 
 void Assembler::emit_sse_operand(XMMRegister reg, const Operand& adr) {
-  Register ireg = { reg.code() };
+  Register ireg = Register::from_code(reg.code());
   emit_operand(ireg, adr);
 }
 
 
 void Assembler::emit_sse_operand(Register reg, const Operand& adr) {
-  Register ireg = {reg.code()};
-  emit_operand(ireg, adr);
+  emit_operand(reg, adr);
 }
 
 

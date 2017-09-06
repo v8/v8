@@ -25,8 +25,8 @@ void Deoptimizer::TableEntryGenerator::Generate() {
   RegList restored_regs = kJSCallerSaved | kCalleeSaved;
   RegList saved_regs = restored_regs | sp.bit() | ra.bit();
 
-  const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kMaxNumRegisters;
-  const int kFloatRegsSize = kFloatSize * FloatRegister::kMaxNumRegisters;
+  const int kDoubleRegsSize = kDoubleSize * DoubleRegister::kNumRegisters;
+  const int kFloatRegsSize = kFloatSize * FloatRegister::kNumRegisters;
 
   // Save all double FPU registers before messing with them.
   __ Dsubu(sp, sp, Operand(kDoubleRegsSize));

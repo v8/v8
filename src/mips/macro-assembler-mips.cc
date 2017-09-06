@@ -544,7 +544,7 @@ void TurboAssembler::Mul(Register rd_hi, Register rd_lo, Register rs,
 
 void TurboAssembler::Mulu(Register rd_hi, Register rd_lo, Register rs,
                           const Operand& rt) {
-  Register reg;
+  Register reg = no_reg;
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
   if (rt.is_reg()) {
@@ -1246,8 +1246,7 @@ void TurboAssembler::Ldc1(FPURegister fd, const MemOperand& src) {
   AdjustBaseAndOffset(tmp, OffsetAccessType::TWO_ACCESSES);
   lwc1(fd, MemOperand(tmp.rm(), tmp.offset() + Register::kMantissaOffset));
   if (IsFp32Mode()) {  // fp32 mode.
-    FPURegister nextfpreg;
-    nextfpreg.setcode(fd.code() + 1);
+    FPURegister nextfpreg = FPURegister::from_code(fd.code() + 1);
     lwc1(nextfpreg,
          MemOperand(tmp.rm(), tmp.offset() + Register::kExponentOffset));
   } else {
@@ -1270,8 +1269,7 @@ void TurboAssembler::Sdc1(FPURegister fd, const MemOperand& src) {
   AdjustBaseAndOffset(tmp, OffsetAccessType::TWO_ACCESSES);
   swc1(fd, MemOperand(tmp.rm(), tmp.offset() + Register::kMantissaOffset));
   if (IsFp32Mode()) {  // fp32 mode.
-    FPURegister nextfpreg;
-    nextfpreg.setcode(fd.code() + 1);
+    FPURegister nextfpreg = FPURegister::from_code(fd.code() + 1);
     swc1(nextfpreg,
          MemOperand(tmp.rm(), tmp.offset() + Register::kExponentOffset));
   } else {
@@ -2673,7 +2671,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         bc(offset);
         break;
       case eq:
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           // Pre R6 beq is used here to make the code patchable. Otherwise bc
           // should be used which has no condition field so is not patchable.
           if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
@@ -2691,7 +2689,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         }
         break;
       case ne:
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           // Pre R6 bne is used here to make the code patchable. Otherwise we
           // should not generate any instruction.
           if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
@@ -2712,7 +2710,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
       // Signed comparison.
       case greater:
         // rs > rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           break;  // No code needs to be emitted.
         } else if (rs.is(zero_reg)) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
@@ -2730,7 +2728,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         break;
       case greater_equal:
         // rs >= rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs.is(zero_reg)) {
@@ -2749,7 +2747,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         break;
       case less:
         // rs < rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           break;  // No code needs to be emitted.
         } else if (rs.is(zero_reg)) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
@@ -2767,7 +2765,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         break;
       case less_equal:
         // rs <= rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs.is(zero_reg)) {
@@ -2788,7 +2786,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
       // Unsigned comparison.
       case Ugreater:
         // rs > rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           break;  // No code needs to be emitted.
         } else if (rs.is(zero_reg)) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset21, scratch, rt))
@@ -2806,7 +2804,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         break;
       case Ugreater_equal:
         // rs >= rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs.is(zero_reg)) {
@@ -2825,7 +2823,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         break;
       case Uless:
         // rs < rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           break;  // No code needs to be emitted.
         } else if (rs.is(zero_reg)) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset21, scratch, rt))
@@ -2842,7 +2840,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         break;
       case Uless_equal:
         // rs <= rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs.is(zero_reg)) {
@@ -3153,7 +3151,7 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
     // Signed comparison.
     case greater:
       // rs > rt
-      if (rs.code() == rt.rm().reg_code) {
+      if (rs.code() == rt.rm().code()) {
         break;  // No code needs to be emitted.
       } else if (rs.is(zero_reg)) {
         if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
@@ -3171,7 +3169,7 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
       break;
     case greater_equal:
       // rs >= rt
-      if (rs.code() == rt.rm().reg_code) {
+      if (rs.code() == rt.rm().code()) {
         if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
         balc(offset);
       } else if (rs.is(zero_reg)) {
@@ -3190,7 +3188,7 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
       break;
     case less:
       // rs < rt
-      if (rs.code() == rt.rm().reg_code) {
+      if (rs.code() == rt.rm().code()) {
         break;  // No code needs to be emitted.
       } else if (rs.is(zero_reg)) {
         if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
@@ -3208,7 +3206,7 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
       break;
     case less_equal:
       // rs <= r2
-      if (rs.code() == rt.rm().reg_code) {
+      if (rs.code() == rt.rm().code()) {
         if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
         balc(offset);
       } else if (rs.is(zero_reg)) {
@@ -4964,10 +4962,10 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
       DCHECK(base::bits::IsPowerOfTwo(frame_alignment));
       And(sp, sp, Operand(-frame_alignment));  // Align stack.
     }
-    int space = FPURegister::kMaxNumRegisters * kDoubleSize;
+    int space = FPURegister::kNumRegisters * kDoubleSize;
     Subu(sp, sp, Operand(space));
     // Remember: we only need to save every 2nd double FPU value.
-    for (int i = 0; i < FPURegister::kMaxNumRegisters; i+=2) {
+    for (int i = 0; i < FPURegister::kNumRegisters; i += 2) {
       FPURegister reg = FPURegister::from_code(i);
       Sdc1(reg, MemOperand(sp, i * kDoubleSize));
     }
@@ -4999,7 +4997,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   if (save_doubles) {
     // Remember: we only need to restore every 2nd double FPU value.
     lw(t8, MemOperand(fp, ExitFrameConstants::kSPOffset));
-    for (int i = 0; i < FPURegister::kMaxNumRegisters; i+=2) {
+    for (int i = 0; i < FPURegister::kNumRegisters; i += 2) {
       FPURegister reg = FPURegister::from_code(i);
       Ldc1(reg, MemOperand(t8, i * kDoubleSize + kPointerSize));
     }

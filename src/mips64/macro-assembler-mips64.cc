@@ -3136,7 +3136,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         bc(offset);
         break;
       case eq:
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           // Pre R6 beq is used here to make the code patchable. Otherwise bc
           // should be used which has no condition field so is not patchable.
           if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
@@ -3154,7 +3154,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         }
         break;
       case ne:
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           // Pre R6 bne is used here to make the code patchable. Otherwise we
           // should not generate any instruction.
           if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
@@ -3175,7 +3175,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
       // Signed comparison.
       case greater:
         // rs > rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           break;  // No code needs to be emitted.
         } else if (rs.is(zero_reg)) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
@@ -3193,7 +3193,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         break;
       case greater_equal:
         // rs >= rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs.is(zero_reg)) {
@@ -3212,7 +3212,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         break;
       case less:
         // rs < rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           break;  // No code needs to be emitted.
         } else if (rs.is(zero_reg)) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
@@ -3230,7 +3230,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         break;
       case less_equal:
         // rs <= rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs.is(zero_reg)) {
@@ -3251,7 +3251,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
       // Unsigned comparison.
       case Ugreater:
         // rs > rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           break;  // No code needs to be emitted.
         } else if (rs.is(zero_reg)) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset21, scratch, rt))
@@ -3269,7 +3269,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         break;
       case Ugreater_equal:
         // rs >= rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs.is(zero_reg)) {
@@ -3288,7 +3288,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         break;
       case Uless:
         // rs < rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           break;  // No code needs to be emitted.
         } else if (rs.is(zero_reg)) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset21, scratch, rt))
@@ -3305,7 +3305,7 @@ bool TurboAssembler::BranchShortHelperR6(int32_t offset, Label* L,
         break;
       case Uless_equal:
         // rs <= rt
-        if (rs.code() == rt.rm().reg_code) {
+        if (rs.code() == rt.rm().code()) {
           if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
           bc(offset);
         } else if (rs.is(zero_reg)) {
@@ -3618,7 +3618,7 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
     // Signed comparison.
     case greater:
       // rs > rt
-      if (rs.code() == rt.rm().reg_code) {
+      if (rs.code() == rt.rm().code()) {
         break;  // No code needs to be emitted.
       } else if (rs.is(zero_reg)) {
         if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
@@ -3636,7 +3636,7 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
       break;
     case greater_equal:
       // rs >= rt
-      if (rs.code() == rt.rm().reg_code) {
+      if (rs.code() == rt.rm().code()) {
         if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
         balc(offset);
       } else if (rs.is(zero_reg)) {
@@ -3655,7 +3655,7 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
       break;
     case less:
       // rs < rt
-      if (rs.code() == rt.rm().reg_code) {
+      if (rs.code() == rt.rm().code()) {
         break;  // No code needs to be emitted.
       } else if (rs.is(zero_reg)) {
         if (!CalculateOffset(L, offset, OffsetSize::kOffset16, scratch, rt))
@@ -3673,7 +3673,7 @@ bool TurboAssembler::BranchAndLinkShortHelperR6(int32_t offset, Label* L,
       break;
     case less_equal:
       // rs <= r2
-      if (rs.code() == rt.rm().reg_code) {
+      if (rs.code() == rt.rm().code()) {
         if (!CalculateOffset(L, offset, OffsetSize::kOffset26)) return false;
         balc(offset);
       } else if (rs.is(zero_reg)) {
@@ -5207,7 +5207,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
   if (save_doubles) {
     // The stack is already aligned to 0 modulo 8 for stores with sdc1.
-    int kNumOfSavedRegisters = FPURegister::kMaxNumRegisters / 2;
+    int kNumOfSavedRegisters = FPURegister::kNumRegisters / 2;
     int space = kNumOfSavedRegisters * kDoubleSize;
     Dsubu(sp, sp, Operand(space));
     // Remember: we only need to save every 2nd double FPU value.
@@ -5242,7 +5242,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   // Optionally restore all double registers.
   if (save_doubles) {
     // Remember: we only need to restore every 2nd double FPU value.
-    int kNumOfSavedRegisters = FPURegister::kMaxNumRegisters / 2;
+    int kNumOfSavedRegisters = FPURegister::kNumRegisters / 2;
     Dsubu(t8, fp, Operand(ExitFrameConstants::kFixedFrameSizeFromFp +
                           kNumOfSavedRegisters * kDoubleSize));
     for (int i = 0; i < kNumOfSavedRegisters; i++) {

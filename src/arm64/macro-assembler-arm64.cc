@@ -3610,12 +3610,12 @@ void MacroAssembler::PrintfNoPreserve(const char * format,
     if (kPCSVarargs.IncludesAliasOf(args[i]) ||
         kPCSVarargsFP.IncludesAliasOf(args[i])) {
       if (args[i].IsRegister()) {
-        Register old_arg = Register(args[i]);
+        Register old_arg = args[i].Reg();
         Register new_arg = temps.AcquireSameSizeAs(old_arg);
         Mov(new_arg, old_arg);
         args[i] = new_arg;
       } else {
-        VRegister old_arg = VRegister(args[i]);
+        VRegister old_arg = args[i].VReg();
         VRegister new_arg = temps.AcquireSameSizeAs(old_arg);
         Fmov(new_arg, old_arg);
         args[i] = new_arg;
@@ -3628,13 +3628,13 @@ void MacroAssembler::PrintfNoPreserve(const char * format,
   for (int i = 0; i < arg_count; i++) {
     DCHECK(pcs[i].type() == args[i].type());
     if (pcs[i].IsRegister()) {
-      Mov(Register(pcs[i]), Register(args[i]), kDiscardForSameWReg);
+      Mov(pcs[i].Reg(), args[i].Reg(), kDiscardForSameWReg);
     } else {
       DCHECK(pcs[i].IsVRegister());
       if (pcs[i].SizeInBytes() == args[i].SizeInBytes()) {
-        Fmov(VRegister(pcs[i]), VRegister(args[i]));
+        Fmov(pcs[i].VReg(), args[i].VReg());
       } else {
-        Fcvt(VRegister(pcs[i]), VRegister(args[i]));
+        Fcvt(pcs[i].VReg(), args[i].VReg());
       }
     }
   }
