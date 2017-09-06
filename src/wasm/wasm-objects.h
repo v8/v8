@@ -421,8 +421,9 @@ class WasmCompiledModule : public FixedArray {
 
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module);
-  static void Reset(Isolate* isolate, WasmCompiledModule* module,
-                    bool clear_global_handles = true);
+  static void Reset(Isolate* isolate, WasmCompiledModule* module);
+  static void DestroyGlobalHandles(Isolate* isolate,
+                                   WasmCompiledModule* compiled_module);
 
   inline Address GetEmbeddedMemStartOrNull() const;
   inline Address GetGlobalsStartOrNull() const;
