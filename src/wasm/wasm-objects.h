@@ -223,9 +223,9 @@ class WasmInstanceObject : public JSObject {
 class WasmExportedFunction : public JSFunction {
  public:
   WasmInstanceObject* instance();
-  int function_index();
+  V8_EXPORT_PRIVATE int function_index();
 
-  static WasmExportedFunction* cast(Object* object);
+  V8_EXPORT_PRIVATE static WasmExportedFunction* cast(Object* object);
   static bool IsWasmExportedFunction(Object* object);
 
   static Handle<WasmExportedFunction> New(Isolate* isolate,

@@ -17,6 +17,7 @@
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
+#include "test/fuzzer/wasm-fuzzer-common.h"
 
 namespace v8 {
 namespace internal {
@@ -57,19 +58,9 @@ void InstantiateCallback(const FunctionCallbackInfo<Value>& args) {
 
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
 
-  ScheduledErrorThrower thrower(i_isolate, "WebAssembly Instantiation");
-
   Handle<WasmModuleObject> module_obj =
       ToWasmModuleObjectUnchecked(Utils::OpenHandle(v8::Object::Cast(*module)));
-  MaybeHandle<WasmInstanceObject> maybe_instance =
-      SyncInstantiate(i_isolate, &thrower, module_obj,
-                      Handle<JSReceiver>::null(),     // imports
-                      MaybeHandle<JSArrayBuffer>());  // memory
-  Handle<WasmInstanceObject> instance;
-  if (!maybe_instance.ToHandle(&instance)) {
-    return;
-  }
-  testing::RunWasmModuleForTesting(i_isolate, instance, 0, nullptr);
+  InterpretAndExecuteModule(i_isolate, module_obj);
 }
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {

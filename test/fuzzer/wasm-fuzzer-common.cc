@@ -7,6 +7,7 @@
 #include "include/v8.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/wasm/wasm-api.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/zone/accounting-allocator.h"
@@ -64,6 +65,30 @@ int FuzzWasmSection(SectionCode section, const uint8_t* data, size_t size) {
       i_isolate, &thrower, buffer.begin(), buffer.end(), kWasmOrigin));
 
   return 0;
+}
+
+void InterpretAndExecuteModule(i::Isolate* isolate,
+                               Handle<WasmModuleObject> module_object) {
+  ScheduledErrorThrower thrower(isolate, "WebAssembly Instantiation");
+  // Try to instantiate and interpret the module_object.
+  MaybeHandle<WasmInstanceObject> maybe_instance =
+      SyncInstantiate(isolate, &thrower, module_object,
+                      Handle<JSReceiver>::null(),     // imports
+                      MaybeHandle<JSArrayBuffer>());  // memory
+  Handle<WasmInstanceObject> instance;
+  if (!maybe_instance.ToHandle(&instance)) return;
+  if (!testing::InterpretWasmModuleForTesting(isolate, instance, "main", 0,
+                                              nullptr)) {
+    return;
+  }
+
+  // Instantiate and execute the module_object.
+  maybe_instance = SyncInstantiate(isolate, &thrower, module_object,
+                                   Handle<JSReceiver>::null(),     // imports
+                                   MaybeHandle<JSArrayBuffer>());  // memory
+  if (!maybe_instance.ToHandle(&instance)) return;
+
+  testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
 }
 
 int WasmExecutionFuzzer::FuzzWasmModule(
