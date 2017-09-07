@@ -1412,7 +1412,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
   // If the for..in has only seen maps with enum cache consisting of keys
   // and indices so far, we can turn the {JSLoadProperty} into a map check
   // on the {receiver} and then just load the field value dynamically via
-  // the {LoadFieldByIndex} operator.
+  // the {LoadFieldByIndex} operator. The map check is only necessary when
+  // TurboFan cannot prove that there is no observable side effect between
+  // the {JSForInNext} and the {JSLoadProperty} node.
   //
   // Also note that it's safe to look through the {JSToObject}, since the
   // [[Get]] operation does an implicit ToObject anyway, and these operations
@@ -1427,8 +1429,48 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
         object = NodeProperties::GetValueInput(object, 0);
       }
       if (object == receiver) {
-        Node* value = effect =
-            BuildForInNextValue(receiver, enumerator, index, effect, control);
+        // No need to repeat the map check if we can prove that there's no
+        // observable side effect between {effect} and {name].
+        if (!NodeProperties::NoObservableSideEffectBetween(effect, name)) {
+          // Check that the {receiver} map is still valid.
+          Node* receiver_map = effect =
+              graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                               receiver, effect, control);
+          Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
+                                         receiver_map, enumerator);
+          effect =
+              graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+        }
+
+        // Load the enum cache indices from the {cache_type}.
+        Node* descriptor_array = effect = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForMapDescriptors()),
+            enumerator, effect, control);
+        Node* enum_cache = effect =
+            graph()->NewNode(simplified()->LoadField(
+                                 AccessBuilder::ForDescriptorArrayEnumCache()),
+                             descriptor_array, effect, control);
+        Node* enum_indices = effect = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForEnumCacheIndices()),
+            enum_cache, effect, control);
+
+        // Ensure that the {enum_indices} are valid.
+        Node* check = graph()->NewNode(
+            simplified()->BooleanNot(),
+            graph()->NewNode(simplified()->ReferenceEqual(), enum_indices,
+                             jsgraph()->EmptyFixedArrayConstant()));
+        effect =
+            graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+
+        // Determine the index from the {enum_indices}.
+        index = effect = graph()->NewNode(
+            simplified()->LoadElement(
+                AccessBuilder::ForFixedArrayElement(PACKED_SMI_ELEMENTS)),
+            enum_indices, index, effect, control);
+
+        // Load the actual field value.
+        Node* value = effect = graph()->NewNode(
+            simplified()->LoadFieldByIndex(), receiver, index, effect, control);
         ReplaceWithValue(node, value, effect, control);
         return Replace(value);
       }
@@ -2335,48 +2377,6 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
         new_properties, values[i], effect, control);
   }
   return graph()->NewNode(common()->FinishRegion(), new_properties, effect);
-}
-
-Node* JSNativeContextSpecialization::BuildForInNextValue(Node* receiver,
-                                                         Node* enumerator,
-                                                         Node* index,
-                                                         Node* effect,
-                                                         Node* control) {
-  // Check that the {receiver} map is still valid.
-  Node* receiver_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       receiver, effect, control);
-  Node* check = graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
-                                 enumerator);
-  effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
-
-  // Load the enum cache indices from the {cache_type}.
-  Node* descriptor_array = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForMapDescriptors()), enumerator,
-      effect, control);
-  Node* enum_cache = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForDescriptorArrayEnumCache()),
-      descriptor_array, effect, control);
-  Node* enum_indices = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForEnumCacheIndices()), enum_cache,
-      effect, control);
-
-  // Ensure that the {enum_indices} are valid.
-  check = graph()->NewNode(
-      simplified()->BooleanNot(),
-      graph()->NewNode(simplified()->ReferenceEqual(), enum_indices,
-                       jsgraph()->EmptyFixedArrayConstant()));
-  effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
-
-  // Determine the index from the {enum_indices}.
-  index = effect = graph()->NewNode(
-      simplified()->LoadElement(
-          AccessBuilder::ForFixedArrayElement(PACKED_SMI_ELEMENTS)),
-      enum_indices, index, effect, control);
-
-  // Load the actual field value.
-  return graph()->NewNode(simplified()->LoadFieldByIndex(), receiver, index,
-                          effect, control);
 }
 
 bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(

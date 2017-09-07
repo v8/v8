@@ -457,6 +457,20 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
 }
 
 // static
+bool NodeProperties::NoObservableSideEffectBetween(Node* effect,
+                                                   Node* dominator) {
+  while (effect != dominator) {
+    if (effect->op()->EffectInputCount() == 1 &&
+        effect->op()->properties() & Operator::kNoWrite) {
+      effect = NodeProperties::GetEffectInput(effect);
+    } else {
+      return false;
+    }
+  }
+  return true;
+}
+
+// static
 Node* NodeProperties::GetOuterContext(Node* node, size_t* depth) {
   Node* context = NodeProperties::GetContextInput(node);
   while (*depth > 0 &&

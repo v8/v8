@@ -464,7 +464,10 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
 
   // We can constant-fold the {node} to True in this case, and insert
   // a (potentially redundant) map check to guard the fact that the
-  // {receiver} map didn't change since the dominating JSForInNext.
+  // {receiver} map didn't change since the dominating JSForInNext. This
+  // map check is only necessary when TurboFan cannot prove that there
+  // is no observable side effect between the {JSForInNext} and the
+  // {JSCall} to Object.prototype.hasOwnProperty.
   //
   // Also note that it's safe to look through the {JSToObject}, since the
   // Object.prototype.hasOwnProperty does an implicit ToObject anyway, and
@@ -478,13 +481,17 @@ Reduction JSCallReducer::ReduceObjectPrototypeHasOwnProperty(Node* node) {
         object = NodeProperties::GetValueInput(object, 0);
       }
       if (object == receiver) {
-        Node* receiver_map = effect =
-            graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                             receiver, effect, control);
-        Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
-                                       receiver_map, cache_type);
-        effect =
-            graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+        // No need to repeat the map check if we can prove that there's no
+        // observable side effect between {effect} and {name].
+        if (!NodeProperties::NoObservableSideEffectBetween(effect, name)) {
+          Node* receiver_map = effect =
+              graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                               receiver, effect, control);
+          Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
+                                         receiver_map, cache_type);
+          effect =
+              graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+        }
         Node* value = jsgraph()->TrueConstant();
         ReplaceWithValue(node, value, effect, control);
         return Replace(value);
@@ -1212,12 +1219,9 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
     // TODO(turbofan): Further relax this constraint.
     if (formal_parameter_count != 0) {
       Node* effect = NodeProperties::GetEffectInput(node);
-      while (effect != arguments_list) {
-        if (effect->op()->EffectInputCount() != 1 ||
-            !(effect->op()->properties() & Operator::kNoWrite)) {
-          return NoChange();
-        }
-        effect = NodeProperties::GetEffectInput(effect);
+      if (!NodeProperties::NoObservableSideEffectBetween(effect,
+                                                         arguments_list)) {
+        return NoChange();
       }
     }
   } else if (type == CreateArgumentsType::kRestParameter) {
