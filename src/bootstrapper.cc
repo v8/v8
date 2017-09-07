@@ -696,7 +696,7 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
       factory->null_value(), Builtins::kObjectConstructor);
   object_fun->shared()->set_length(1);
   object_fun->shared()->DontAdaptArguments();
-  object_fun->shared()->set_construct_stub(
+  object_fun->shared()->SetConstructStub(
       *BUILTIN_CODE(isolate_, ObjectConstructor_ConstructStub));
   native_context()->set_object_function(*object_fun);
 
@@ -1240,7 +1240,7 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
       factory->the_hole_value(), Builtins::kErrorConstructor, DONT_ENUM);
   error_fun->shared()->set_instance_class_name(*factory->Error_string());
   error_fun->shared()->DontAdaptArguments();
-  error_fun->shared()->set_construct_stub(
+  error_fun->shared()->SetConstructStub(
       *BUILTIN_CODE(isolate, ErrorConstructor));
   error_fun->shared()->set_length(1);
 
