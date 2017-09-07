@@ -4,6 +4,8 @@
 
 #include "src/runtime/runtime-utils.h"
 
+#include <vector>
+
 #include "src/arguments.h"
 #include "src/compiler.h"
 #include "src/debug/debug-coverage.h"
@@ -586,13 +588,13 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     }
   }
 
-  List<Handle<Object>> locals;
+  std::vector<Handle<Object>> locals;
   // Fill in the values of the locals.
   int i = 0;
   for (; i < scope_info->StackLocalCount(); ++i) {
     // Use the value from the stack.
     if (ScopeInfo::VariableIsSynthetic(scope_info->LocalName(i))) continue;
-    locals.Add(Handle<String>(scope_info->LocalName(i), isolate));
+    locals.emplace_back(scope_info->LocalName(i), isolate);
     Handle<Object> value =
         frame_inspector.GetExpression(scope_info->StackLocalIndex(i));
     // TODO(yangguo): We convert optimized out values to {undefined} when they
@@ -600,9 +602,9 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
     if (value->IsOptimizedOut(isolate)) {
       value = isolate->factory()->undefined_value();
     }
-    locals.Add(value);
+    locals.push_back(value);
   }
-  if (locals.length() < local_count * 2) {
+  if (static_cast<int>(locals.size()) < local_count * 2) {
     // Get the context containing declarations.
     DCHECK(maybe_context->IsContext());
     Handle<Context> context(Context::cast(*maybe_context)->closure_context());
@@ -613,11 +615,11 @@ RUNTIME_FUNCTION(Runtime_GetFrameDetails) {
       VariableMode mode;
       InitializationFlag init_flag;
       MaybeAssignedFlag maybe_assigned_flag;
-      locals.Add(name);
+      locals.push_back(name);
       int context_slot_index = ScopeInfo::ContextSlotIndex(
           scope_info, name, &mode, &init_flag, &maybe_assigned_flag);
       Object* value = context->get(context_slot_index);
-      locals.Add(Handle<Object>(value, isolate));
+      locals.emplace_back(value, isolate);
     }
   }
 
@@ -850,17 +852,18 @@ RUNTIME_FUNCTION(Runtime_GetAllScopesDetails) {
   }
 
   FrameInspector frame_inspector(frame, inlined_frame_index, isolate);
-  List<Handle<JSObject>> result(4);
+  std::vector<Handle<JSObject>> result;
   ScopeIterator it(isolate, &frame_inspector, option);
   for (; !it.Done(); it.Next()) {
     Handle<JSObject> details;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, details,
                                        it.MaterializeScopeDetails());
-    result.Add(details);
+    result.push_back(details);
   }
 
-  Handle<FixedArray> array = isolate->factory()->NewFixedArray(result.length());
-  for (int i = 0; i < result.length(); ++i) {
+  int result_size = static_cast<int>(result.size());
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(result_size);
+  for (int i = 0; i < result_size; ++i) {
     array->set(i, *result[i]);
   }
   return *isolate->factory()->NewJSArrayWithElements(array);
@@ -1300,7 +1303,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[2]);
   CHECK(max_references >= 0);
 
-  List<Handle<JSObject> > instances;
+  std::vector<Handle<JSObject>> instances;
   Heap* heap = isolate->heap();
   {
     HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
@@ -1322,8 +1325,8 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
       if (obj->IsJSGlobalObject()) {
         obj = JSGlobalObject::cast(obj)->global_proxy();
       }
-      instances.Add(Handle<JSObject>(obj));
-      if (instances.length() == max_references) break;
+      instances.emplace_back(obj);
+      if (static_cast<int32_t>(instances.size()) == max_references) break;
     }
     // Iterate the rest of the heap to satisfy HeapIterator constraints.
     while (iterator.next()) {
@@ -1331,15 +1334,16 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   }
 
   Handle<FixedArray> result;
-  if (instances.length() == 1 && instances.last().is_identical_to(target)) {
+  if (instances.size() == 1 && instances.back().is_identical_to(target)) {
     // Check for circular reference only. This can happen when the object is
     // only referenced from mirrors and has a circular reference in which case
     // the object is not really alive and would have been garbage collected if
     // not referenced from the mirror.
     result = isolate->factory()->empty_fixed_array();
   } else {
-    result = isolate->factory()->NewFixedArray(instances.length());
-    for (int i = 0; i < instances.length(); ++i) result->set(i, *instances[i]);
+    int instances_size = static_cast<int>(instances.size());
+    result = isolate->factory()->NewFixedArray(instances_size);
+    for (int i = 0; i < instances_size; ++i) result->set(i, *instances[i]);
   }
   return *isolate->factory()->NewJSArrayWithElements(result);
 }
@@ -1355,7 +1359,7 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[1]);
   CHECK(max_references >= 0);
 
-  List<Handle<JSObject> > instances;
+  std::vector<Handle<JSObject>> instances;
   Heap* heap = isolate->heap();
   {
     HeapIterator iterator(heap, HeapIterator::kFilterUnreachable);
@@ -1364,17 +1368,17 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
       if (!heap_obj->IsJSObject()) continue;
       JSObject* obj = JSObject::cast(heap_obj);
       if (obj->map()->GetConstructor() != *constructor) continue;
-      instances.Add(Handle<JSObject>(obj));
-      if (instances.length() == max_references) break;
+      instances.emplace_back(obj);
+      if (static_cast<int32_t>(instances.size()) == max_references) break;
     }
     // Iterate the rest of the heap to satisfy HeapIterator constraints.
     while (iterator.next()) {
     }
   }
 
-  Handle<FixedArray> result =
-      isolate->factory()->NewFixedArray(instances.length());
-  for (int i = 0; i < instances.length(); ++i) result->set(i, *instances[i]);
+  int instances_size = static_cast<int>(instances.size());
+  Handle<FixedArray> result = isolate->factory()->NewFixedArray(instances_size);
+  for (int i = 0; i < instances_size; ++i) result->set(i, *instances[i]);
   return *isolate->factory()->NewJSArrayWithElements(result);
 }
 

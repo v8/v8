@@ -300,7 +300,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
 // Implementation of Assembler.
 
 Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
-    : AssemblerBase(isolate_data, buffer, buffer_size), code_targets_(100) {
+    : AssemblerBase(isolate_data, buffer, buffer_size) {
 // Clear the buffer in debug mode unless it was provided by the
 // caller in which case we can't be sure it's okay to overwrite
 // existing code in it.
@@ -310,6 +310,7 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
   }
 #endif
 
+  code_targets_.reserve(100);
   reloc_info_writer.Reposition(buffer_ + buffer_size_, pc_);
 }
 

@@ -39,6 +39,7 @@
 
 #include <deque>
 #include <forward_list>
+#include <vector>
 
 #include "src/assembler.h"
 #include "src/x64/sse-instr.h"
@@ -2422,7 +2423,7 @@ class Assembler : public AssemblerBase {
   // are already bound.
   std::deque<int> internal_reference_positions_;
 
-  List< Handle<Code> > code_targets_;
+  std::vector<Handle<Code>> code_targets_;
 
   // The following functions help with avoiding allocations of embedded heap
   // objects during the code assembly phase. {RequestHeapObject} records the

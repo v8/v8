@@ -48,6 +48,8 @@
 
 #include <fcntl.h>
 #include <unistd.h>
+#include <vector>
+
 #include "src/assembler.h"
 #include "src/s390/constants-s390.h"
 
@@ -1595,7 +1597,7 @@ class Assembler : public AssemblerBase {
   friend class RelocInfo;
   friend class CodePatcher;
 
-  List<Handle<Code> > code_targets_;
+  std::vector<Handle<Code>> code_targets_;
   friend class EnsureSpace;
 };
 

@@ -2433,14 +2433,14 @@ static AllocationTraceNode* FindNode(
   AllocationTraceNode* node = tracker->trace_tree()->root();
   for (int i = 0; node != NULL && i < names.length(); i++) {
     const char* name = names[i];
-    Vector<AllocationTraceNode*> children = node->children();
+    const std::vector<AllocationTraceNode*>& children = node->children();
     node = NULL;
-    for (int j = 0; j < children.length(); j++) {
-      unsigned index = children[j]->function_info_index();
+    for (AllocationTraceNode* child : children) {
+      unsigned index = child->function_info_index();
       AllocationTracker::FunctionInfo* info =
           tracker->function_info_list()[index];
       if (info && strcmp(info->name, name) == 0) {
-        node = children[j];
+        node = child;
         break;
       }
     }

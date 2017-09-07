@@ -5,6 +5,8 @@
 #ifndef V8_DEBUG_DEBUG_EVALUATE_H_
 #define V8_DEBUG_DEBUG_EVALUATE_H_
 
+#include <vector>
+
 #include "src/frames.h"
 #include "src/objects.h"
 #include "src/objects/string-table.h"
@@ -73,7 +75,7 @@ class DebugEvaluate : public AllStatic {
 
     Handle<SharedFunctionInfo> outer_info_;
     Handle<Context> evaluation_context_;
-    List<ContextChainElement> context_chain_;
+    std::vector<ContextChainElement> context_chain_;
     Isolate* isolate_;
     JavaScriptFrame* frame_;
     int inlined_jsframe_index_;
