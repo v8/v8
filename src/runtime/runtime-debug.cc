@@ -46,6 +46,12 @@ RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
   int bytecode_offset = interpreted_frame->GetBytecodeOffset();
   interpreter::Bytecode bytecode =
       interpreter::Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
+  if (bytecode == interpreter::Bytecode::kReturn) {
+    // If we are returning, reset the bytecode array on the interpreted stack
+    // frame to the non-debug variant so that the interpreter entry trampoline
+    // sees the return bytecode rather than the DebugBreak.
+    interpreted_frame->PatchBytecodeArray(bytecode_array);
+  }
   return isolate->interpreter()->GetBytecodeHandler(
       bytecode, interpreter::OperandScale::kSingle);
 }

@@ -57,8 +57,9 @@ InterpreterAssembler::InterpreterAssembler(CodeAssemblerState* state,
                                   [this] { CallEpilogue(); });
 
   // Save the bytecode offset immediately if bytecode will make a call along the
-  // critical path.
-  if (Bytecodes::MakesCallAlongCriticalPath(bytecode)) {
+  // critical path, or it is a return bytecode.
+  if (Bytecodes::MakesCallAlongCriticalPath(bytecode) ||
+      bytecode_ == Bytecode::kReturn) {
     SaveBytecodeOffset();
   }
 }
