@@ -1385,60 +1385,68 @@ TF_BUILTIN(PromiseCatch, PromiseBuiltinsAssembler) {
   }
 }
 
-TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
+TF_BUILTIN(PromiseResolveWrapper, PromiseBuiltinsAssembler) {
   //  1. Let C be the this value.
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* value = Parameter(Descriptor::kValue);
   Node* context = Parameter(Descriptor::kContext);
-  Isolate* isolate = this->isolate();
 
   // 2. If Type(C) is not Object, throw a TypeError exception.
   ThrowIfNotJSReceiver(context, receiver, MessageTemplate::kCalledOnNonObject,
                        "PromiseResolve");
 
+  // 3. Return ? PromiseResolve(C, x).
+  Return(CallBuiltin(Builtins::kPromiseResolve, context, receiver, value));
+}
+
+TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
+  Node* constructor = Parameter(Descriptor::kConstructor);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* context = Parameter(Descriptor::kContext);
+  Isolate* isolate = this->isolate();
+
   Node* const native_context = LoadNativeContext(context);
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
 
-  Label if_valueisnativepromise(this), if_valueisnotnativepromise(this),
-      if_valueisnotpromise(this);
+  Label if_value_is_native_promise(this),
+      if_value_or_constructor_are_not_native_promise(this),
+      if_need_to_allocate(this);
 
-  // 3.If IsPromise(x) is true, then
-  GotoIf(TaggedIsSmi(value), &if_valueisnotpromise);
+  GotoIf(TaggedIsSmi(value), &if_need_to_allocate);
 
   // This shortcircuits the constructor lookups.
-  GotoIfNot(HasInstanceType(value, JS_PROMISE_TYPE), &if_valueisnotpromise);
+  GotoIfNot(HasInstanceType(value, JS_PROMISE_TYPE), &if_need_to_allocate);
 
   // This adds a fast path as non-subclassed native promises don't have
   // an observable constructor lookup.
-  BranchIfFastPath(native_context, promise_fun, value, &if_valueisnativepromise,
-                   &if_valueisnotnativepromise);
+  BranchIfFastPath(native_context, promise_fun, value,
+                   &if_value_is_native_promise,
+                   &if_value_or_constructor_are_not_native_promise);
 
-  BIND(&if_valueisnativepromise);
+  BIND(&if_value_is_native_promise);
   {
-    GotoIfNot(WordEqual(promise_fun, receiver), &if_valueisnotnativepromise);
+    GotoIfNot(WordEqual(promise_fun, constructor),
+              &if_value_or_constructor_are_not_native_promise);
     Return(value);
   }
 
-  // At this point, value or/and receiver are not native promises, but
+  // At this point, value or/and constructor are not native promises, but
   // they could be of the same subclass.
-  BIND(&if_valueisnotnativepromise);
+  BIND(&if_value_or_constructor_are_not_native_promise);
   {
-    // 3.a Let xConstructor be ? Get(x, "constructor").
-    // The constructor lookup is observable.
-    Node* const constructor =
+    Node* const xConstructor =
         GetProperty(context, value, isolate->factory()->constructor_string());
 
-    // 3.b If SameValue(xConstructor, C) is true, return x.
-    GotoIfNot(SameValue(constructor, receiver), &if_valueisnotpromise);
+    GotoIfNot(SameValue(xConstructor, constructor), &if_need_to_allocate);
 
     Return(value);
   }
 
-  BIND(&if_valueisnotpromise);
+  BIND(&if_need_to_allocate);
   {
     Label if_nativepromise(this), if_notnativepromise(this);
-    Branch(WordEqual(promise_fun, receiver), &if_nativepromise,
+    Branch(WordEqual(promise_fun, constructor), &if_nativepromise,
            &if_notnativepromise);
 
     // This adds a fast path for native promises that don't need to
@@ -1452,16 +1460,13 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
 
     BIND(&if_notnativepromise);
     {
-      // 4. Let promiseCapability be ? NewPromiseCapability(C).
-      Node* const capability = NewPromiseCapability(context, receiver);
+      Node* const capability = NewPromiseCapability(context, constructor);
 
-      // 5. Perform ? Call(promiseCapability.[[Resolve]], undefined, « x »).
       Callable call_callable = CodeFactory::Call(isolate);
       Node* const resolve =
           LoadObjectField(capability, PromiseCapability::kResolveOffset);
       CallJS(call_callable, context, resolve, UndefinedConstant(), value);
 
-      // 6. Return promiseCapability.[[Promise]].
       Node* const result =
           LoadObjectField(capability, PromiseCapability::kPromiseOffset);
       Return(result);
@@ -1562,11 +1567,13 @@ TF_BUILTIN(InternalPromiseReject, PromiseBuiltinsAssembler) {
 }
 
 std::pair<Node*, Node*> PromiseBuiltinsAssembler::CreatePromiseFinallyFunctions(
-    Node* on_finally, Node* native_context) {
+    Node* on_finally, Node* constructor, Node* native_context) {
   Node* const promise_context =
       CreatePromiseContext(native_context, kPromiseFinallyContextLength);
   StoreContextElementNoWriteBarrier(promise_context, kOnFinallySlot,
                                     on_finally);
+  StoreContextElementNoWriteBarrier(promise_context, kConstructorSlot,
+                                    constructor);
   Node* const map = LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   Node* const then_finally_info = LoadContextElement(
@@ -1607,30 +1614,37 @@ TF_BUILTIN(PromiseThenFinally, PromiseBuiltinsAssembler) {
   Node* const value = Parameter(Descriptor::kValue);
   Node* const context = Parameter(Descriptor::kContext);
 
+  // 1. Let onFinally be F.[[OnFinally]].
   Node* const on_finally = LoadContextElement(context, kOnFinallySlot);
 
-  // 2.a Let result be ?  Call(onFinally, undefined).
+  // 2.  Assert: IsCallable(onFinally) is true.
+  CSA_ASSERT(this, IsCallable(on_finally));
+
+  // 3. Let result be ?  Call(onFinally).
   Callable call_callable = CodeFactory::Call(isolate());
-  Node* result =
+  Node* const result =
       CallJS(call_callable, context, on_finally, UndefinedConstant());
 
-  // 2.b Let promise be !  PromiseResolve( %Promise%, result).
-  Node* const promise = AllocateAndInitJSPromise(context);
-  InternalResolvePromise(context, promise, result);
+  // 4. Let C be F.[[Constructor]].
+  Node* const constructor = LoadContextElement(context, kConstructorSlot);
 
-  // 2.c Let valueThunk be equivalent to a function that returns value.
+  // 5. Assert: IsConstructor(C) is true.
+  CSA_ASSERT(this, IsConstructor(constructor));
+
+  // 6. Let promise be ? PromiseResolve(C, result).
+  Node* const promise =
+    CallBuiltin(Builtins::kPromiseResolve, context, constructor, result);
+
+  // 7. Let valueThunk be equivalent to a function that returns value.
   Node* native_context = LoadNativeContext(context);
   Node* const value_thunk = CreateValueThunkFunction(value, native_context);
 
-  // 2.d Let promiseCapability be !  NewPromiseCapability( %Promise%).
-  Node* const promise_capability = AllocateAndInitJSPromise(context, promise);
-
-  // 2.e Return PerformPromiseThen(promise, valueThunk, undefined,
-  // promiseCapability).
-  InternalPerformPromiseThen(context, promise, value_thunk, UndefinedConstant(),
-                             promise_capability, UndefinedConstant(),
-                             UndefinedConstant());
-  Return(promise_capability);
+  // 8. Return ? Invoke(promise, "then", « valueThunk »).
+  Node* const promise_then =
+    GetProperty(context, promise, factory()->then_string());
+  Node* const result_promise = CallJS(call_callable, context,
+                                      promise_then, promise, value_thunk);
+  Return(result_promise);
 }
 
 TF_BUILTIN(PromiseThrowerFinally, PromiseBuiltinsAssembler) {
@@ -1661,30 +1675,37 @@ TF_BUILTIN(PromiseCatchFinally, PromiseBuiltinsAssembler) {
   Node* const reason = Parameter(Descriptor::kReason);
   Node* const context = Parameter(Descriptor::kContext);
 
+  // 1. Let onFinally be F.[[OnFinally]].
   Node* const on_finally = LoadContextElement(context, kOnFinallySlot);
 
-  // 2.a Let result be ?  Call(onFinally, undefined).
+  // 2. Assert: IsCallable(onFinally) is true.
+  CSA_ASSERT(this, IsCallable(on_finally));
+
+  // 3. Let result be ? Call(onFinally).
   Callable call_callable = CodeFactory::Call(isolate());
   Node* result =
-      CallJS(call_callable, context, on_finally, UndefinedConstant());
+    CallJS(call_callable, context, on_finally, UndefinedConstant());
 
-  // 2.b Let promise be !  PromiseResolve( %Promise%, result).
-  Node* const promise = AllocateAndInitJSPromise(context);
-  InternalResolvePromise(context, promise, result);
+  // 4. Let C be F.[[Constructor]].
+  Node* const constructor = LoadContextElement(context, kConstructorSlot);
 
-  // 2.c Let thrower be equivalent to a function that throws reason.
+  // 5. Assert: IsConstructor(C) is true.
+  CSA_ASSERT(this, IsConstructor(constructor));
+
+  // 6. Let promise be ? PromiseResolve(C, result).
+  Node* const promise =
+    CallBuiltin(Builtins::kPromiseResolve, context, constructor, result);
+
+  // 7. Let thrower be equivalent to a function that throws reason.
   Node* native_context = LoadNativeContext(context);
   Node* const thrower = CreateThrowerFunction(reason, native_context);
 
-  // 2.d Let promiseCapability be !  NewPromiseCapability( %Promise%).
-  Node* const promise_capability = AllocateAndInitJSPromise(context, promise);
-
-  // 2.e Return PerformPromiseThen(promise, thrower, undefined,
-  // promiseCapability).
-  InternalPerformPromiseThen(context, promise, thrower, UndefinedConstant(),
-                             promise_capability, UndefinedConstant(),
-                             UndefinedConstant());
-  Return(promise_capability);
+  // 8. Return ? Invoke(promise, "then", « thrower »).
+  Node* const promise_then =
+    GetProperty(context, promise, factory()->then_string());
+  Node* const result_promise = CallJS(call_callable, context,
+                                      promise_then, promise, thrower);
+  Return(result_promise);
 }
 
 TF_BUILTIN(PromiseFinally, PromiseBuiltinsAssembler) {
@@ -1699,26 +1720,43 @@ TF_BUILTIN(PromiseFinally, PromiseBuiltinsAssembler) {
   ThrowIfNotInstanceType(context, promise, JS_PROMISE_TYPE,
                          "Promise.prototype.finally");
 
+  // 3. Let C be ? SpeciesConstructor(promise, %Promise%).
+  Node* const native_context = LoadNativeContext(context);
+  Node* const promise_fun =
+      LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  Node* const constructor = SpeciesConstructor(context, promise, promise_fun);
+
+  // 4. Assert: IsConstructor(C) is true.
+  CSA_ASSERT(this, IsConstructor(constructor));
+
   VARIABLE(var_then_finally, MachineRepresentation::kTagged);
   VARIABLE(var_catch_finally, MachineRepresentation::kTagged);
 
   Label if_notcallable(this, Label::kDeferred), perform_finally(this);
 
-  // 3. Let thenFinally be !  CreateThenFinally(onFinally).
-  // 4. Let catchFinally be !  CreateCatchFinally(onFinally).
   GotoIf(TaggedIsSmi(on_finally), &if_notcallable);
-  Node* const on_finally_map = LoadMap(on_finally);
-  GotoIfNot(IsCallableMap(on_finally_map), &if_notcallable);
+  GotoIfNot(IsCallable(on_finally), &if_notcallable);
 
-  Node* const native_context = LoadNativeContext(context);
+  // 6. Else,
+  //   a. Let thenFinally be a new built-in function object as defined
+  //   in ThenFinally Function.
+  //   b. Let catchFinally be a new built-in function object as
+  //   defined in CatchFinally Function.
+  //   c. Set thenFinally and catchFinally's [[Constructor]] internal
+  //   slots to C.
+  //   d. Set thenFinally and catchFinally's [[OnFinally]] internal
+  //   slots to onFinally.
   Node* then_finally = nullptr;
   Node* catch_finally = nullptr;
   std::tie(then_finally, catch_finally) =
-      CreatePromiseFinallyFunctions(on_finally, native_context);
+    CreatePromiseFinallyFunctions(on_finally, constructor, native_context);
   var_then_finally.Bind(then_finally);
   var_catch_finally.Bind(catch_finally);
   Goto(&perform_finally);
 
+  // 5. If IsCallable(onFinally) is not true,
+  //    a. Let thenFinally be onFinally.
+  //    b. Let catchFinally be onFinally.
   BIND(&if_notcallable);
   {
     var_then_finally.Bind(on_finally);
@@ -1726,32 +1764,14 @@ TF_BUILTIN(PromiseFinally, PromiseBuiltinsAssembler) {
     Goto(&perform_finally);
   }
 
-  // 5. Return PerformPromiseThen(promise, valueThunk, undefined,
-  // promiseCapability).
+  // 7. Return ? Invoke(promise, "then", « thenFinally, catchFinally »).
   BIND(&perform_finally);
-  Label if_nativepromise(this), if_custompromise(this, Label::kDeferred);
-  BranchIfFastPath(context, promise, &if_nativepromise, &if_custompromise);
-
-  BIND(&if_nativepromise);
-  {
-    Node* deferred_promise = AllocateAndInitJSPromise(context, promise);
-    InternalPerformPromiseThen(context, promise, var_then_finally.value(),
-                               var_catch_finally.value(), deferred_promise,
-                               UndefinedConstant(), UndefinedConstant());
-    Return(deferred_promise);
-  }
-
-  BIND(&if_custompromise);
-  {
-    Node* const then =
-        GetProperty(context, promise, isolate()->factory()->then_string());
-    Callable call_callable = CodeFactory::Call(isolate());
-    // 5. Return ?  Invoke(promise, "then", « thenFinally, catchFinally »).
-    Node* const result =
-        CallJS(call_callable, context, then, promise, var_then_finally.value(),
-               var_catch_finally.value());
-    Return(result);
-  }
+  Node* const promise_then =
+    GetProperty(context, promise, factory()->then_string());
+  Node* const result_promise =
+    CallJS(CodeFactory::Call(isolate()), context, promise_then, promise,
+           var_then_finally.value(), var_catch_finally.value());
+  Return(result_promise);
 }
 
 TF_BUILTIN(ResolveNativePromise, PromiseBuiltinsAssembler) {

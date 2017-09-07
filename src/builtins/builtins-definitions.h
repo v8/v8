@@ -754,7 +754,8 @@ namespace internal {
   TFJ(PromiseHandle, 5, kValue, kHandler, kDeferredPromise,                    \
       kDeferredOnResolve, kDeferredOnReject)                                   \
   /* ES #sec-promise.resolve */                                                \
-  TFJ(PromiseResolve, 1, kValue)                                               \
+  TFJ(PromiseResolveWrapper, 1, kValue)                                        \
+  TFS(PromiseResolve, kConstructor, kValue)                                    \
   /* ES #sec-promise.reject */                                                 \
   TFJ(PromiseReject, 1, kReason)                                               \
   TFJ(InternalPromiseReject, 3, kPromise, kReason, kDebugEvent)                \
