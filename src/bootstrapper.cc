@@ -308,6 +308,35 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 
 namespace {
 
+// Non-construct case.
+Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(Isolate* isolate,
+                                                          Builtins::Name call,
+                                                          Handle<String> name,
+                                                          int len) {
+  Handle<Code> code = isolate->builtins()->builtin_handle(call);
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfo(name, code, false);
+  shared->set_lazy_deserialization_builtin_id(call);
+  shared->set_internal_formal_parameter_count(len);
+  shared->set_length(len);
+  return shared;
+}
+
+// Construct case.
+Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
+    Isolate* isolate, Builtins::Name call, Handle<String> name,
+    Handle<String> instance_class_name, int len) {
+  Handle<Code> code = isolate->builtins()->builtin_handle(call);
+  Handle<SharedFunctionInfo> shared =
+      isolate->factory()->NewSharedFunctionInfo(name, code, false);
+  shared->SetConstructStub(*BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
+  shared->set_instance_class_name(*instance_class_name);
+  if (Builtins::IsLazy(call)) shared->set_lazy_deserialization_builtin_id(call);
+  shared->set_internal_formal_parameter_count(len);
+  shared->set_length(len);
+  return shared;
+}
+
 void InstallFunction(Handle<JSObject> target, Handle<Name> property_name,
                      Handle<JSFunction> function, Handle<String> function_name,
                      PropertyAttributes attributes = DONT_ENUM) {
@@ -336,6 +365,9 @@ Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
           ? factory->NewFunction(name, call_code, prototype, type,
                                  instance_size, STRICT, IMMUTABLE)
           : factory->NewFunctionWithoutPrototype(name, call_code, STRICT);
+  if (Builtins::IsLazy(call)) {
+    result->shared()->set_lazy_deserialization_builtin_id(call);
+  }
   result->shared()->set_native(true);
   return result;
 }
@@ -1456,11 +1488,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // --- A s y n c F r o m S y n c I t e r a t o r
-    Handle<Code> code(BUILTIN_CODE(isolate, AsyncIteratorValueUnwrap));
-    Handle<SharedFunctionInfo> info =
-        factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-    info->set_internal_formal_parameter_count(1);
-    info->set_length(1);
+    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+        isolate, Builtins::kAsyncIteratorValueUnwrap, factory->empty_string(),
+        1);
     native_context()->set_async_iterator_value_unwrap_shared_fun(*info);
   }
 
@@ -1475,42 +1505,35 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                              Builtins::kAsyncGeneratorAwaitUncaught, 1, false);
     native_context()->set_async_generator_await_uncaught(*await_uncaught);
 
-    Handle<Code> code(BUILTIN_CODE(isolate, AsyncGeneratorAwaitResolveClosure));
-    Handle<SharedFunctionInfo> info =
-        factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-    info->set_internal_formal_parameter_count(1);
-    info->set_length(1);
+    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+        isolate, Builtins::kAsyncGeneratorAwaitResolveClosure,
+        factory->empty_string(), 1);
     native_context()->set_async_generator_await_resolve_shared_fun(*info);
 
-    code = BUILTIN_CODE(isolate, AsyncGeneratorAwaitRejectClosure);
-    info = factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-    info->set_internal_formal_parameter_count(1);
-    info->set_length(1);
+    info = SimpleCreateSharedFunctionInfo(
+        isolate, Builtins::kAsyncGeneratorAwaitRejectClosure,
+        factory->empty_string(), 1);
     native_context()->set_async_generator_await_reject_shared_fun(*info);
 
-    code = BUILTIN_CODE(isolate, AsyncGeneratorYieldResolveClosure);
-    info = factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-    info->set_internal_formal_parameter_count(1);
-    info->set_length(1);
+    info = SimpleCreateSharedFunctionInfo(
+        isolate, Builtins::kAsyncGeneratorYieldResolveClosure,
+        factory->empty_string(), 1);
     native_context()->set_async_generator_yield_resolve_shared_fun(*info);
 
-    code = BUILTIN_CODE(isolate, AsyncGeneratorReturnResolveClosure);
-    info = factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-    info->set_internal_formal_parameter_count(1);
-    info->set_length(1);
+    info = SimpleCreateSharedFunctionInfo(
+        isolate, Builtins::kAsyncGeneratorReturnResolveClosure,
+        factory->empty_string(), 1);
     native_context()->set_async_generator_return_resolve_shared_fun(*info);
 
-    code = BUILTIN_CODE(isolate, AsyncGeneratorReturnClosedResolveClosure);
-    info = factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-    info->set_internal_formal_parameter_count(1);
-    info->set_length(1);
+    info = SimpleCreateSharedFunctionInfo(
+        isolate, Builtins::kAsyncGeneratorReturnClosedResolveClosure,
+        factory->empty_string(), 1);
     native_context()->set_async_generator_return_closed_resolve_shared_fun(
         *info);
 
-    code = BUILTIN_CODE(isolate, AsyncGeneratorReturnClosedRejectClosure);
-    info = factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-    info->set_internal_formal_parameter_count(1);
-    info->set_length(1);
+    info = SimpleCreateSharedFunctionInfo(
+        isolate, Builtins::kAsyncGeneratorReturnClosedRejectClosure,
+        factory->empty_string(), 1);
     native_context()->set_async_generator_return_closed_reject_shared_fun(
         *info);
   }
@@ -2163,13 +2186,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {
-    Handle<Code> code(BUILTIN_CODE(isolate, PromiseGetCapabilitiesExecutor));
-    Handle<SharedFunctionInfo> info =
-        factory->NewSharedFunctionInfo(factory->empty_string(), code, true);
-    info->SetConstructStub(*BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
-    info->set_instance_class_name(isolate->heap()->Object_string());
-    info->set_internal_formal_parameter_count(2);
-    info->set_length(2);
+    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+        isolate, Builtins::kPromiseGetCapabilitiesExecutor,
+        factory->empty_string(), factory->Object_string(), 2);
     native_context()->set_promise_get_capabilities_executor_shared_fun(*info);
 
     // %new_promise_capability(C, debugEvent)
@@ -2284,27 +2303,20 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     }
 
     {
-      Handle<Code> code(BUILTIN_CODE(isolate, PromiseResolveClosure));
-      Handle<SharedFunctionInfo> info =
-          factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-      info->set_internal_formal_parameter_count(1);
-      info->set_length(1);
+      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+          isolate, Builtins::kPromiseResolveClosure, factory->empty_string(),
+          1);
       native_context()->set_promise_resolve_shared_fun(*info);
 
-      code = BUILTIN_CODE(isolate, PromiseRejectClosure);
-      info =
-          factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-      info->set_internal_formal_parameter_count(1);
-      info->set_length(1);
+      info = SimpleCreateSharedFunctionInfo(
+          isolate, Builtins::kPromiseRejectClosure, factory->empty_string(), 1);
       native_context()->set_promise_reject_shared_fun(*info);
     }
 
     {
-      Handle<Code> code(BUILTIN_CODE(isolate, PromiseAllResolveElementClosure));
-      Handle<SharedFunctionInfo> info =
-          factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-      info->set_internal_formal_parameter_count(1);
-      info->set_length(1);
+      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+          isolate, Builtins::kPromiseAllResolveElementClosure,
+          factory->empty_string(), 1);
       native_context()->set_promise_all_resolve_element_shared_fun(*info);
     }
 
@@ -4019,21 +4031,16 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     }
 
     {
-      Handle<Code> code(BUILTIN_CODE(isolate, AsyncFunctionAwaitRejectClosure));
-      Handle<SharedFunctionInfo> info =
-          factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-      info->set_internal_formal_parameter_count(1);
-      info->set_length(1);
+      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+          isolate, Builtins::kAsyncFunctionAwaitRejectClosure,
+          factory->empty_string(), 1);
       native_context->set_async_function_await_reject_shared_fun(*info);
     }
 
     {
-      Handle<Code> code(
-          BUILTIN_CODE(isolate, AsyncFunctionAwaitResolveClosure));
-      Handle<SharedFunctionInfo> info =
-          factory->NewSharedFunctionInfo(factory->empty_string(), code, false);
-      info->set_internal_formal_parameter_count(1);
-      info->set_length(1);
+      Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+          isolate, Builtins::kAsyncFunctionAwaitResolveClosure,
+          factory->empty_string(), 1);
       native_context->set_async_function_await_resolve_shared_fun(*info);
     }
 
@@ -4219,40 +4226,31 @@ void Genesis::InitializeGlobal_harmony_promise_finally() {
   native_context()->set_promise_prototype_map(*prototype_map);
 
   {
-    Handle<Code> code = BUILTIN_CODE(isolate(), PromiseThenFinally);
-    Handle<SharedFunctionInfo> info = factory()->NewSharedFunctionInfo(
-        factory()->empty_string(), code, false);
-    info->set_internal_formal_parameter_count(1);
-    info->set_length(1);
+    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+        isolate(), Builtins::kPromiseThenFinally, factory()->empty_string(), 1);
     info->set_native(true);
     native_context()->set_promise_then_finally_shared_fun(*info);
   }
 
   {
-    Handle<Code> code = BUILTIN_CODE(isolate(), PromiseCatchFinally);
-    Handle<SharedFunctionInfo> info = factory()->NewSharedFunctionInfo(
-        factory()->empty_string(), code, false);
-    info->set_internal_formal_parameter_count(1);
-    info->set_length(1);
+    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+        isolate(), Builtins::kPromiseCatchFinally, factory()->empty_string(),
+        1);
     info->set_native(true);
     native_context()->set_promise_catch_finally_shared_fun(*info);
   }
 
   {
-    Handle<Code> code = BUILTIN_CODE(isolate(), PromiseValueThunkFinally);
-    Handle<SharedFunctionInfo> info = factory()->NewSharedFunctionInfo(
-        factory()->empty_string(), code, false);
-    info->set_internal_formal_parameter_count(0);
-    info->set_length(0);
+    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+        isolate(), Builtins::kPromiseValueThunkFinally,
+        factory()->empty_string(), 0);
     native_context()->set_promise_value_thunk_finally_shared_fun(*info);
   }
 
   {
-    Handle<Code> code = BUILTIN_CODE(isolate(), PromiseThrowerFinally);
-    Handle<SharedFunctionInfo> info = factory()->NewSharedFunctionInfo(
-        factory()->empty_string(), code, false);
-    info->set_internal_formal_parameter_count(0);
-    info->set_length(0);
+    Handle<SharedFunctionInfo> info = SimpleCreateSharedFunctionInfo(
+        isolate(), Builtins::kPromiseThrowerFinally, factory()->empty_string(),
+        0);
     native_context()->set_promise_thrower_finally_shared_fun(*info);
   }
 }
