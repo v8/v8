@@ -10011,6 +10011,9 @@ Local<Function> debug::GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
   i::Handle<i::JSFunction> fun =
       isolate->factory()->NewFunctionWithoutPrototype(
           isolate->factory()->empty_string(), call_code, i::SLOPPY);
+  if (i::Builtins::IsLazy(name)) {
+    fun->shared()->set_lazy_deserialization_builtin_id(name);
+  }
   fun->shared()->DontAdaptArguments();
   return Utils::ToLocal(handle_scope.CloseAndEscape(fun));
 }
