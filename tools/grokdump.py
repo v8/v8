@@ -1966,7 +1966,9 @@ class InspectionPadawan(object):
     # Frame markers only occur directly after a frame pointer and only on the
     # stack.
     if not self.reader.IsExceptionStackAddress(slot): return False
-    next_address = self.reader.ReadUIntPtr(slot + self.reader.PointerSize())
+    next_slot = slot + self.reader.PointerSize()
+    if not self.reader.IsValidAddress(next_slot): return False
+    next_address = self.reader.ReadUIntPtr(next_slot)
     return self.reader.IsExceptionStackAddress(next_address)
 
   def FormatSmi(self, address):
@@ -2058,10 +2060,12 @@ class InspectionPadawan(object):
     ptr_size = self.reader.PointerSize()
     if start is None:
       start = self.reader.ExceptionSP()
+    if not self.reader.IsValidAddress(start): return start
     end = start + ptr_size * 1024
     message_start = 0
     magic1 = None
     for slot in xrange(start, end, ptr_size):
+      if not self.reader.IsValidAddress(slot + ptr_size): break
       magic1 = self.reader.ReadUIntPtr(slot)
       magic2 = self.reader.ReadUIntPtr(slot + ptr_size)
       pair = (magic1 & 0xFFFFFFFF, magic2 & 0xFFFFFFFF)
@@ -3623,6 +3627,12 @@ class InspectionShell(cmd.Cmd):
           self.reader.FormatIntPtr(self.u_start))
       return
     lines = self.reader.GetDisasmLines(self.u_start, self.u_size)
+    if len(lines) == 0:
+      print "Address %s could not be disassembled!" % (
+          self.reader.FormatIntPtr(self.u_start))
+      print "    Could not disassemble using %s." % OBJDUMP_BIN
+      print "    Pass path to architecture specific objdump via --objdump?"
+      return
     for line in lines:
       if skip:
         skip = False
