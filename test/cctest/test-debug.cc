@@ -6523,17 +6523,12 @@ TEST(BuiltinsExceptionPrediction) {
   v8::HandleScope handle_scope(isolate);
   v8::Context::New(isolate);
 
-  // TODO(gsathya): Fix catch prediction for the following.
-  std::set<int> whitelist(
-      {i::Builtins::kPromiseThenFinally, i::Builtins::kPromiseCatchFinally});
-
   i::Builtins* builtins = CcTest::i_isolate()->builtins();
   bool fail = false;
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
     Code* builtin = builtins->builtin(i);
 
     if (builtin->kind() != Code::BUILTIN) continue;
-    if (whitelist.find(i) != whitelist.end()) continue;
 
     auto prediction = builtin->GetBuiltinCatchPrediction();
     USE(prediction);
