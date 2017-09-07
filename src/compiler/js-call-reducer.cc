@@ -1341,12 +1341,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       // Don't inline cross native context.
       if (function->native_context() != *native_context()) return NoChange();
 
-      // TODO(turbofan): Merge this into the switch below once the
-      // Object constructor is a proper TFJ builtin.
-      if (*function == native_context()->object_function()) {
-        return ReduceObjectConstructor(node);
-      }
-
       // Check for known builtin functions.
       switch (shared->code()->builtin_index()) {
         case Builtins::kArrayConstructor:
@@ -1361,6 +1355,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceFunctionPrototypeHasInstance(node);
         case Builtins::kNumberConstructor:
           return ReduceNumberConstructor(node);
+        case Builtins::kObjectConstructor:
+          return ReduceObjectConstructor(node);
         case Builtins::kObjectGetPrototypeOf:
           return ReduceObjectGetPrototypeOf(node);
         case Builtins::kObjectPrototypeGetProto:
