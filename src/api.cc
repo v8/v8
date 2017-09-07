@@ -4500,8 +4500,6 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
                                           v8::Local<Value> value,
                                           v8::PropertyAttribute attributes) {
   auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
-  ENTER_V8(isolate, context, Object, DefineOwnProperty, Nothing<bool>(),
-           i::HandleScope);
   i::Handle<i::JSReceiver> self = Utils::OpenHandle(this);
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
@@ -4511,11 +4509,25 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
   desc.set_enumerable(!(attributes & v8::DontEnum));
   desc.set_configurable(!(attributes & v8::DontDelete));
   desc.set_value(value_obj);
-  Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
-      isolate, self, key_obj, &desc, i::Object::DONT_THROW);
-  // Even though we said DONT_THROW, there might be accessors that do throw.
-  RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
-  return success;
+
+  if (self->IsJSProxy()) {
+    ENTER_V8(isolate, context, Object, DefineOwnProperty, Nothing<bool>(),
+             i::HandleScope);
+    Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
+        isolate, self, key_obj, &desc, i::Object::DONT_THROW);
+    // Even though we said DONT_THROW, there might be accessors that do throw.
+    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+    return success;
+  } else {
+    // If it's not a JSProxy, i::JSReceiver::DefineOwnProperty should never run
+    // a script.
+    ENTER_V8_NO_SCRIPT(isolate, context, Object, DefineOwnProperty,
+                       Nothing<bool>(), i::HandleScope);
+    Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
+        isolate, self, key_obj, &desc, i::Object::DONT_THROW);
+    RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
+    return success;
+  }
 }
 
 Maybe<bool> v8::Object::DefineProperty(v8::Local<v8::Context> context,
