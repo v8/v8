@@ -377,7 +377,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE Block* IgnoreCompletion(Statement* statement);
 
-  V8_INLINE Scope* NewHiddenCatchScopeWithParent(Scope* parent);
+  V8_INLINE Scope* NewHiddenCatchScope();
 
   // PatternRewriter and associated methods defined in pattern-rewriter.cc.
   friend class PatternRewriter;
@@ -385,7 +385,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       Block* block, const DeclarationDescriptor* declaration_descriptor,
       const DeclarationParsingResult::Declaration* declaration,
       ZoneList<const AstRawString*>* names, bool* ok);
-  void RewriteDestructuringAssignment(RewritableExpression* expr, Scope* Scope);
+  void RewriteDestructuringAssignment(RewritableExpression* expr);
   Expression* RewriteDestructuringAssignment(Assignment* assignment);
 
   // [if (IteratorType == kAsync)]
@@ -583,17 +583,15 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                             MessageTemplate::Template message,
                             const AstRawString* arg, int pos);
 
-  void FinalizeIteratorUse(Scope* use_scope, Variable* completion,
-                           Expression* condition, Variable* iter,
-                           Block* iterator_use, Block* result,
+  void FinalizeIteratorUse(Variable* completion, Expression* condition,
+                           Variable* iter, Block* iterator_use, Block* result,
                            IteratorType type);
 
   Statement* FinalizeForOfStatement(ForOfStatement* loop, Variable* completion,
                                     IteratorType type, int pos);
   void BuildIteratorClose(ZoneList<Statement*>* statements, Variable* iterator,
                           Variable* input, Variable* output, IteratorType type);
-  void BuildIteratorCloseForCompletion(Scope* scope,
-                                       ZoneList<Statement*>* statements,
+  void BuildIteratorCloseForCompletion(ZoneList<Statement*>* statements,
                                        Variable* iterator,
                                        Expression* completion,
                                        IteratorType type);
