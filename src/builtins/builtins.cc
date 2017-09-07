@@ -244,6 +244,10 @@ bool Builtins::IsLazy(int index) {
   // TODO(wasm): Remove wasm builtins once immovability is no longer required.
   switch (index) {
     case kAbort:  // Required by wasm.
+    case kArrayForEachLoopEagerDeoptContinuation:  // https://crbug.com/v8/6786.
+    case kArrayForEachLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
+    case kArrayMapLoopEagerDeoptContinuation:      // https://crbug.com/v8/6786.
+    case kArrayMapLoopLazyDeoptContinuation:       // https://crbug.com/v8/6786.
     case kCheckOptimizationMarker:
     case kCompileLazy:
     case kDeserializeLazy:
@@ -253,8 +257,8 @@ bool Builtins::IsLazy(int index) {
     case kInterpreterEnterBytecodeAdvance:
     case kInterpreterEnterBytecodeDispatch:
     case kInterpreterEntryTrampoline:
-    case kProxyConstructor:                   // https://crbug.com/v8/6787.
     case kProxyConstructor_ConstructStub:     // https://crbug.com/v8/6787.
+    case kProxyConstructor:                   // https://crbug.com/v8/6787.
     case kThrowWasmTrapDivByZero:             // Required by wasm.
     case kThrowWasmTrapDivUnrepresentable:    // Required by wasm.
     case kThrowWasmTrapFloatUnrepresentable:  // Required by wasm.
