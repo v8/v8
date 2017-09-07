@@ -189,9 +189,6 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
       isolate->builtins()->builtin(Builtins::kCompileLazy));
   Node* lazy_builtin = HeapConstant(lazy_builtin_handle);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kCodeOffset, lazy_builtin);
-  StoreObjectFieldNoWriteBarrier(result, JSFunction::kNextFunctionLinkOffset,
-                                 UndefinedConstant());
-
   return result;
 }
 

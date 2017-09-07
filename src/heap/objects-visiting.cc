@@ -83,25 +83,6 @@ static void ClearWeakList(Heap* heap, Object* list) {
   }
 }
 
-
-template <>
-struct WeakListVisitor<JSFunction> {
-  static void SetWeakNext(JSFunction* function, Object* next) {
-    function->set_next_function_link(next, UPDATE_WEAK_WRITE_BARRIER);
-  }
-
-  static Object* WeakNext(JSFunction* function) {
-    return function->next_function_link();
-  }
-
-  static int WeakNextOffset() { return JSFunction::kNextFunctionLinkOffset; }
-
-  static void VisitLiveObject(Heap*, JSFunction*, WeakObjectRetainer*) {}
-
-  static void VisitPhantomObject(Heap*, JSFunction*) {}
-};
-
-
 template <>
 struct WeakListVisitor<Code> {
   static void SetWeakNext(Code* code, Object* next) {

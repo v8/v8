@@ -702,11 +702,7 @@ void JSBoundFunction::JSBoundFunctionVerify() {
 void JSFunction::JSFunctionVerify() {
   CHECK(IsJSFunction());
   VerifyObjectField(kPrototypeOrInitialMapOffset);
-  VerifyObjectField(kNextFunctionLinkOffset);
   CHECK(code()->IsCode());
-  CHECK(next_function_link() == NULL ||
-        next_function_link()->IsUndefined(GetIsolate()) ||
-        next_function_link()->IsJSFunction());
   CHECK(map()->is_callable());
 }
 

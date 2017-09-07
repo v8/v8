@@ -2265,7 +2265,6 @@ TEST(AllocateFunctionWithMapAndContext) {
   CHECK_EQ(isolate->heap()->the_hole_value(), fun->prototype_or_initial_map());
   CHECK_EQ(*isolate->promise_resolve_shared_fun(), fun->shared());
   CHECK_EQ(isolate->promise_resolve_shared_fun()->code(), fun->code());
-  CHECK_EQ(isolate->heap()->undefined_value(), fun->next_function_link());
 }
 
 TEST(CreatePromiseGetCapabilitiesExecutorContext) {

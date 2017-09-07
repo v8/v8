@@ -4994,11 +4994,6 @@ class JSFunction: public JSObject {
   // Returns if this function has been compiled to native code yet.
   inline bool is_compiled();
 
-  // [next_function_link]: Links functions into various lists, e.g. the list
-  // of optimized functions hanging off the native_context. Treated weakly
-  // by the garbage collector.
-  DECL_ACCESSORS(next_function_link, Object)
-
   // Prints the name of the function using PrintF.
   void PrintName(FILE* out = stdout);
 
@@ -5014,13 +5009,8 @@ class JSFunction: public JSObject {
                                           int requested_in_object_properties,
                                           int* instance_size,
                                           int* in_object_properties);
-  enum BodyVisitingPolicy { kIgnoreWeakness, kRespectWeakness };
-  // Iterates the function object according to the visiting policy.
-  template <BodyVisitingPolicy>
-  class BodyDescriptorImpl;
 
-  typedef BodyDescriptorImpl<kIgnoreWeakness> BodyDescriptor;
-  typedef BodyDescriptorImpl<kRespectWeakness> BodyDescriptorWeak;
+  class BodyDescriptor;
 
   // Dispatched behavior.
   DECL_PRINTER(JSFunction)
@@ -5054,9 +5044,7 @@ class JSFunction: public JSObject {
   static const int kContextOffset = kSharedFunctionInfoOffset + kPointerSize;
   static const int kFeedbackVectorOffset = kContextOffset + kPointerSize;
   static const int kCodeOffset = kFeedbackVectorOffset + kPointerSize;
-  static const int kNonWeakFieldsEndOffset = kCodeOffset + kPointerSize;
-  static const int kNextFunctionLinkOffset = kNonWeakFieldsEndOffset;
-  static const int kSize = kNextFunctionLinkOffset + kPointerSize;
+  static const int kSize = kCodeOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunction);

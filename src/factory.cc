@@ -1488,7 +1488,6 @@ Handle<JSFunction> Factory::NewFunction(Handle<Map> map,
   function->set_context(*context_or_undefined);
   function->set_prototype_or_initial_map(*the_hole_value());
   function->set_feedback_vector_cell(*undefined_cell());
-  function->set_next_function_link(*undefined_value(), SKIP_WRITE_BARRIER);
   isolate()->heap()->InitializeJSObjectBody(*function, *map, JSFunction::kSize);
   return function;
 }

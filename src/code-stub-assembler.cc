@@ -9861,9 +9861,6 @@ Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
                                  shared_info);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kCodeOffset, code);
-  StoreObjectFieldRoot(fun, JSFunction::kNextFunctionLinkOffset,
-                       Heap::kUndefinedValueRootIndex);
-
   return fun;
 }
 

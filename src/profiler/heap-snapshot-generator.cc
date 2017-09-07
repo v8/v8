@@ -957,11 +957,6 @@ void V8HeapExplorer::ExtractJSObjectReferences(
     TagCodeObject(js_fun->code());
     SetInternalReference(js_fun, entry, "code", js_fun->code(),
                          JSFunction::kCodeOffset);
-    // Ensure no new weak references appeared in JSFunction.
-    STATIC_ASSERT(JSFunction::kNonWeakFieldsEndOffset ==
-                  JSFunction::kNextFunctionLinkOffset);
-    STATIC_ASSERT(JSFunction::kNextFunctionLinkOffset + kPointerSize
-                 == JSFunction::kSize);
   } else if (obj->IsJSGlobalObject()) {
     JSGlobalObject* global_obj = JSGlobalObject::cast(obj);
     SetInternalReference(global_obj, entry, "native_context",
@@ -1680,9 +1675,6 @@ bool V8HeapExplorer::IsEssentialHiddenReference(Object* parent,
                                                 int field_offset) {
   if (parent->IsAllocationSite() &&
       field_offset == AllocationSite::kWeakNextOffset)
-    return false;
-  if (parent->IsJSFunction() &&
-      field_offset == JSFunction::kNextFunctionLinkOffset)
     return false;
   if (parent->IsCode() && field_offset == Code::kNextCodeLinkOffset)
     return false;

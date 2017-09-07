@@ -195,8 +195,6 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
   Node* const code =
       LoadObjectField(shared_info, SharedFunctionInfo::kCodeOffset);
   StoreObjectFieldNoWriteBarrier(function, JSFunction::kCodeOffset, code);
-  StoreObjectFieldRoot(function, JSFunction::kNextFunctionLinkOffset,
-                       Heap::kUndefinedValueRootIndex);
 }
 
 Node* AsyncBuiltinsAssembler::CreateUnwrapClosure(Node* native_context,

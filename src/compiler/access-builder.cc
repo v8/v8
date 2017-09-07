@@ -174,16 +174,6 @@ FieldAccess AccessBuilder::ForJSFunctionCode() {
 }
 
 // static
-FieldAccess AccessBuilder::ForJSFunctionNextFunctionLink() {
-  FieldAccess access = {
-      kTaggedBase,         JSFunction::kNextFunctionLinkOffset,
-      Handle<Name>(),      MaybeHandle<Map>(),
-      Type::Any(),         MachineType::AnyTagged(),
-      kPointerWriteBarrier};
-  return access;
-}
-
-// static
 FieldAccess AccessBuilder::ForJSBoundFunctionBoundTargetFunction() {
   FieldAccess access = {
       kTaggedBase,         JSBoundFunction::kBoundTargetFunctionOffset,
