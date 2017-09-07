@@ -269,7 +269,7 @@ int32_t Assembler::emit_code_target(Handle<Code> target,
 
   size_t current = code_targets_.size();
   if (current > 0 && !target.is_null() &&
-      code_targets_.back().is_identical_to(target)) {
+      code_targets_.back().address() == target.address()) {
     // Optimization if we keep jumping to the same code target.
     current--;
   } else {
