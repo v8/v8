@@ -5,7 +5,6 @@
 #include "src/assembler-inl.h"
 #include "src/base/lazy-instance.h"
 #include "src/macro-assembler.h"
-#include "src/objects-inl.h"
 #include "src/register-configuration.h"
 
 #include "src/compiler/linkage.h"

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/compiler/int64-lowering.h"
+
 #include "src/compiler/common-operator.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph.h"
@@ -10,10 +11,8 @@
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-
 #include "src/compiler/node.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/objects-inl.h"
 #include "src/wasm/wasm-module.h"
 #include "src/zone/zone.h"
 

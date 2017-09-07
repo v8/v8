@@ -10,7 +10,6 @@
 #include "src/code-factory.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
-#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

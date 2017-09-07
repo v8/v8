@@ -11,7 +11,6 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
 #include "src/handles-inl.h"
-#include "src/objects-inl.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

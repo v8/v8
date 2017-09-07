@@ -3,14 +3,13 @@
 // found in the LICENSE file.
 
 #include "src/compiler/simd-scalar-lowering.h"
+
 #include "src/compiler/diamond.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-
 #include "src/compiler/node.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/objects-inl.h"
 #include "src/wasm/wasm-module.h"
 
 namespace v8 {

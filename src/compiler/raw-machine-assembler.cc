@@ -7,7 +7,6 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/scheduler.h"
-#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
