@@ -448,6 +448,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
   switch (id) {
     // Whitelist for builtins.
     // Object builtins.
+    case Builtins::kObjectConstructor:
     case Builtins::kObjectCreate:
     case Builtins::kObjectEntries:
     case Builtins::kObjectGetOwnPropertyDescriptor:

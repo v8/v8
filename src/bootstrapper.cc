@@ -691,9 +691,13 @@ void Genesis::CreateObjectFunction(Handle<JSFunction> empty_function) {
   int unused = JSObject::kInitialGlobalObjectUnusedPropertiesCount;
   int instance_size = JSObject::kHeaderSize + kPointerSize * unused;
 
-  Handle<JSFunction> object_fun =
-      CreateFunction(isolate_, factory->Object_string(), JS_OBJECT_TYPE,
-                     instance_size, factory->null_value(), Builtins::kIllegal);
+  Handle<JSFunction> object_fun = CreateFunction(
+      isolate_, factory->Object_string(), JS_OBJECT_TYPE, instance_size,
+      factory->null_value(), Builtins::kObjectConstructor);
+  object_fun->shared()->set_length(1);
+  object_fun->shared()->DontAdaptArguments();
+  object_fun->shared()->set_construct_stub(
+      *BUILTIN_CODE(isolate_, ObjectConstructor_ConstructStub));
   native_context()->set_object_function(*object_fun);
 
   {

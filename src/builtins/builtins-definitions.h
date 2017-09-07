@@ -683,6 +683,9 @@ namespace internal {
   TFC(StrictEqual, Compare, 1)                                                 \
                                                                                \
   /* Object */                                                                 \
+  TFJ(ObjectConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)      \
+  TFJ(ObjectConstructor_ConstructStub,                                         \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   CPP(ObjectAssign)                                                            \
   /* ES #sec-object.create */                                                  \
   TFJ(ObjectCreate, SharedFunctionInfo::kDontAdaptArgumentsSentinel)           \

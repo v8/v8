@@ -795,5 +795,51 @@ TF_BUILTIN(CreateEmptyObjectLiteral, ConstructorBuiltinsAssembler) {
   Node* result = EmitCreateEmptyObjectLiteral(context);
   Return(result);
 }
+
+TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {
+  int const kValueArg = 0;
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+  Node* value = args.GetOptionalArgumentValue(kValueArg);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+
+  CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
+
+  Label return_to_object(this);
+
+  GotoIf(Word32And(IsNotUndefined(value), IsNotNull(value)), &return_to_object);
+
+  args.PopAndReturn(EmitCreateEmptyObjectLiteral(context));
+
+  BIND(&return_to_object);
+  args.PopAndReturn(CallBuiltin(Builtins::kToObject, context, value));
+}
+
+TF_BUILTIN(ObjectConstructor_ConstructStub, ConstructorBuiltinsAssembler) {
+  int const kValueArg = 0;
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+  Node* value = args.GetOptionalArgumentValue(kValueArg);
+
+  Node* target = LoadFromFrame(StandardFrameConstants::kFunctionOffset,
+                               MachineType::TaggedPointer());
+  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+
+  CSA_ASSERT(this, IsNotUndefined(new_target));
+
+  Label return_to_object(this);
+
+  GotoIf(Word32And(WordEqual(target, new_target),
+                   Word32And(IsNotUndefined(value), IsNotNull(value))),
+         &return_to_object);
+  args.PopAndReturn(EmitFastNewObject(context, target, new_target));
+
+  BIND(&return_to_object);
+  args.PopAndReturn(CallBuiltin(Builtins::kToObject, context, value));
+}
+
 }  // namespace internal
 }  // namespace v8
