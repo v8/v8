@@ -196,7 +196,7 @@ class ParameterCount BASE_EMBEDDED {
   explicit ParameterCount(Register reg) : reg_(reg), immediate_(0) {}
   explicit ParameterCount(int imm) : reg_(no_reg), immediate_(imm) {}
 
-  bool is_reg() const { return !reg_.is(no_reg); }
+  bool is_reg() const { return reg_.is_valid(); }
   bool is_immediate() const { return !is_reg(); }
 
   Register reg() const {

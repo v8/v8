@@ -101,7 +101,7 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
   int bytes = 0;
   for (int i = 0; i < kNumberOfSavedRegs; i++) {
     Register reg = saved_regs[i];
-    if (!reg.is(exclusion1) && !reg.is(exclusion2) && !reg.is(exclusion3)) {
+    if (reg != exclusion1 && reg != exclusion2 && reg != exclusion3) {
       bytes += kPointerSize;
     }
   }
@@ -122,7 +122,7 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   int bytes = 0;
   for (int i = 0; i < kNumberOfSavedRegs; i++) {
     Register reg = saved_regs[i];
-    if (!reg.is(exclusion1) && !reg.is(exclusion2) && !reg.is(exclusion3)) {
+    if (reg != exclusion1 && reg != exclusion2 && reg != exclusion3) {
       push(reg);
       bytes += kPointerSize;
     }
@@ -158,7 +158,7 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
 
   for (int i = kNumberOfSavedRegs - 1; i >= 0; i--) {
     Register reg = saved_regs[i];
-    if (!reg.is(exclusion1) && !reg.is(exclusion2) && !reg.is(exclusion3)) {
+    if (reg != exclusion1 && reg != exclusion2 && reg != exclusion3) {
       pop(reg);
       bytes += kPointerSize;
     }
@@ -231,7 +231,7 @@ void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,
                                MinusZeroMode minus_zero_mode,
                                Label* lost_precision, Label* is_nan,
                                Label* minus_zero, Label::Distance dst) {
-  DCHECK(!input_reg.is(scratch));
+  DCHECK(input_reg != scratch);
   cvttsd2si(result_reg, Operand(input_reg));
   Cvtsi2sd(scratch, Operand(result_reg));
   ucomisd(scratch, input_reg);
@@ -328,9 +328,9 @@ void MacroAssembler::RecordWriteForMap(
     bind(&ok);
   }
 
-  DCHECK(!object.is(value));
-  DCHECK(!object.is(address));
-  DCHECK(!value.is(address));
+  DCHECK(object != value);
+  DCHECK(object != address);
+  DCHECK(value != address);
   AssertNotSmi(object);
 
   if (!FLAG_incremental_marking) {
@@ -379,9 +379,9 @@ void MacroAssembler::RecordWrite(
     RememberedSetAction remembered_set_action,
     SmiCheck smi_check,
     PointersToHereCheck pointers_to_here_check_for_value) {
-  DCHECK(!object.is(value));
-  DCHECK(!object.is(address));
-  DCHECK(!value.is(address));
+  DCHECK(object != value);
+  DCHECK(object != address);
+  DCHECK(value != address);
   AssertNotSmi(object);
 
   if (remembered_set_action == OMIT_REMEMBERED_SET &&
@@ -873,7 +873,7 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
   // Just return if allocation top is already known.
   if ((flags & RESULT_CONTAINS_TOP) != 0) {
     // No use of scratch if allocation top is provided.
-    DCHECK(scratch.is(no_reg));
+    DCHECK(scratch == no_reg);
 #ifdef DEBUG
     // Assert that result actually contains top on entry.
     cmp(result, Operand::StaticVariable(allocation_top));
@@ -883,7 +883,7 @@ void MacroAssembler::LoadAllocationTopHelper(Register result,
   }
 
   // Move address of new object to result. Use scratch register if available.
-  if (scratch.is(no_reg)) {
+  if (scratch == no_reg) {
     mov(result, Operand::StaticVariable(allocation_top));
   } else {
     mov(scratch, Immediate(allocation_top));
@@ -904,7 +904,7 @@ void MacroAssembler::UpdateAllocationTopHelper(Register result_end,
       AllocationUtils::GetAllocationTopReference(isolate(), flags);
 
   // Update new top. Use scratch if available.
-  if (scratch.is(no_reg)) {
+  if (scratch == no_reg) {
     mov(Operand::StaticVariable(allocation_top), result_end);
   } else {
     mov(Operand(scratch, 0), result_end);
@@ -934,7 +934,7 @@ void MacroAssembler::Allocate(int object_size,
     jmp(gc_required);
     return;
   }
-  DCHECK(!result.is(result_end));
+  DCHECK(result != result_end);
 
   // Load address of new object into result.
   LoadAllocationTopHelper(result, scratch, flags);
@@ -962,7 +962,7 @@ void MacroAssembler::Allocate(int object_size,
   // Calculate new top and bail out if space is exhausted.
   Register top_reg = result_end.is_valid() ? result_end : result;
 
-  if (!top_reg.is(result)) {
+  if (top_reg != result) {
     mov(top_reg, result);
   }
   add(top_reg, Immediate(object_size));
@@ -971,7 +971,7 @@ void MacroAssembler::Allocate(int object_size,
 
   UpdateAllocationTopHelper(top_reg, scratch, flags);
 
-  if (top_reg.is(result)) {
+  if (top_reg == result) {
     sub(result, Immediate(object_size - kHeapObjectTag));
   } else {
     // Tag the result.
@@ -983,9 +983,9 @@ void MacroAssembler::Allocate(int object_size,
 void MacroAssembler::AllocateJSValue(Register result, Register constructor,
                                      Register value, Register scratch,
                                      Label* gc_required) {
-  DCHECK(!result.is(constructor));
-  DCHECK(!result.is(scratch));
-  DCHECK(!result.is(value));
+  DCHECK(result != constructor);
+  DCHECK(result != scratch);
+  DCHECK(result != value);
 
   // Allocate JSValue in new space.
   Allocate(JSValue::kSize, result, scratch, no_reg, gc_required,
@@ -1210,14 +1210,14 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       mov(eax, actual.immediate());
       cmp(expected.reg(), actual.immediate());
       j(equal, &invoke);
-      DCHECK(expected.reg().is(ebx));
-    } else if (!expected.reg().is(actual.reg())) {
+      DCHECK(expected.reg() == ebx);
+    } else if (expected.reg() != actual.reg()) {
       // Both expected and actual are in (different) registers. This
       // is the case when we invoke functions using call and apply.
       cmp(expected.reg(), actual.reg());
       j(equal, &invoke);
-      DCHECK(actual.reg().is(eax));
-      DCHECK(expected.reg().is(ebx));
+      DCHECK(actual.reg() == eax);
+      DCHECK(expected.reg() == ebx);
     } else {
       definitely_matches = true;
       Move(eax, actual.reg());
@@ -1285,8 +1285,8 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
                                         InvokeFlag flag) {
   // You can't call a function without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
-  DCHECK(function.is(edi));
-  DCHECK_IMPLIES(new_target.is_valid(), new_target.is(edx));
+  DCHECK(function == edi);
+  DCHECK_IMPLIES(new_target.is_valid(), new_target == edx);
 
   // On function call, call into the debugger if necessary.
   CheckDebugHook(function, new_target, expected, actual);
@@ -1322,7 +1322,7 @@ void MacroAssembler::InvokeFunction(Register fun, Register new_target,
   // You can't call a function without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
-  DCHECK(fun.is(edi));
+  DCHECK(fun == edi);
   mov(ebx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
   mov(ebx, FieldOperand(ebx, SharedFunctionInfo::kFormalParameterCountOffset));
@@ -1338,7 +1338,7 @@ void MacroAssembler::InvokeFunction(Register fun,
   // You can't call a function without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
-  DCHECK(fun.is(edi));
+  DCHECK(fun == edi);
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   InvokeFunctionCode(edi, no_reg, expected, actual, flag);
@@ -1419,7 +1419,7 @@ void MacroAssembler::Drop(int stack_elements) {
 }
 
 void TurboAssembler::Move(Register dst, Register src) {
-  if (!dst.is(src)) {
+  if (dst != src) {
     mov(dst, src);
   }
 }
@@ -1939,7 +1939,7 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Condition cc, Label* condition_met,
                                    Label::Distance condition_met_distance) {
   DCHECK(cc == zero || cc == not_zero);
-  if (scratch.is(object)) {
+  if (scratch == object) {
     and_(scratch, Immediate(~Page::kPageAlignmentMask));
   } else {
     mov(scratch, Immediate(~Page::kPageAlignmentMask));

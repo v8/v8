@@ -108,7 +108,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   int double_offset = offset();
 
   // Account for return address and saved regs if input is esp.
-  if (input_reg.is(esp)) double_offset += 3 * kPointerSize;
+  if (input_reg == esp) double_offset += 3 * kPointerSize;
 
   MemOperand mantissa_operand(MemOperand(input_reg, double_offset));
   MemOperand exponent_operand(MemOperand(input_reg,
@@ -119,20 +119,20 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     Register scratch_candidates[3] = { ebx, edx, edi };
     for (int i = 0; i < 3; i++) {
       scratch1 = scratch_candidates[i];
-      if (!final_result_reg.is(scratch1) && !input_reg.is(scratch1)) break;
+      if (final_result_reg != scratch1 && input_reg != scratch1) break;
     }
   }
   // Since we must use ecx for shifts below, use some other register (eax)
   // to calculate the result if ecx is the requested return register.
-  Register result_reg = final_result_reg.is(ecx) ? eax : final_result_reg;
+  Register result_reg = final_result_reg == ecx ? eax : final_result_reg;
   // Save ecx if it isn't the return register and therefore volatile, or if it
   // is the return register, then save the temp register we use in its stead for
   // the result.
-  Register save_reg = final_result_reg.is(ecx) ? eax : ecx;
+  Register save_reg = final_result_reg == ecx ? eax : ecx;
   __ push(scratch1);
   __ push(save_reg);
 
-  bool stash_exponent_copy = !input_reg.is(esp);
+  bool stash_exponent_copy = input_reg != esp;
   __ mov(scratch1, mantissa_operand);
   if (CpuFeatures::IsSupported(SSE3)) {
     CpuFeatureScope scope(masm, SSE3);
@@ -212,8 +212,8 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     __ add(esp, Immediate(kDoubleSize / 2));
   }
   __ bind(&done_no_stash);
-  if (!final_result_reg.is(result_reg)) {
-    DCHECK(final_result_reg.is(ecx));
+  if (final_result_reg != result_reg) {
+    DCHECK(final_result_reg == ecx);
     __ mov(final_result_reg, result_reg);
   }
   __ pop(save_reg);
@@ -296,7 +296,7 @@ void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
 
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = MathPowTaggedDescriptor::exponent();
-  DCHECK(exponent.is(eax));
+  DCHECK(exponent == eax);
   const Register scratch = ecx;
   const XMMRegister double_result = xmm3;
   const XMMRegister double_base = xmm2;
@@ -1544,7 +1544,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   ExternalReference level_address =
       ExternalReference::handle_scope_level_address(isolate);
 
-  DCHECK(edx.is(function_address));
+  DCHECK(edx == function_address);
   // Allocate HandleScope in callee-save registers.
   __ mov(ebx, Operand::StaticVariable(next_address));
   __ mov(edi, Operand::StaticVariable(limit_address));

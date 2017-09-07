@@ -951,7 +951,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
   for (int i = 0; i < 8; i++) {
     __ Move(rcx, Smi::FromInt(x));
     SmiIndex index = masm->SmiToIndex(rdx, rcx, i);
-    CHECK(index.reg.is(rcx) || index.reg.is(rdx));
+    CHECK(index.reg == rcx || index.reg == rdx);
     __ shlq(index.reg, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(x) << i);
     __ cmpq(index.reg, r8);
@@ -959,7 +959,7 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
     __ incq(rax);
     __ Move(rcx, Smi::FromInt(x));
     index = masm->SmiToIndex(rcx, rcx, i);
-    CHECK(index.reg.is(rcx));
+    CHECK(index.reg == rcx);
     __ shlq(rcx, Immediate(index.scale));
     __ Set(r8, static_cast<intptr_t>(x) << i);
     __ cmpq(rcx, r8);

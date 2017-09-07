@@ -48,7 +48,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
     MacroAssembler* masm, Label* miss_label, Register receiver,
     Handle<Name> name, Register scratch0, Register scratch1) {
   DCHECK(name->IsUniqueName());
-  DCHECK(!receiver.is(scratch0));
+  DCHECK(receiver != scratch0);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->negative_lookups(), 1);
   __ IncrementCounter(counters->negative_lookups_miss(), 1);
@@ -90,7 +90,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
     Handle<Map> receiver_map, Register receiver, Register scratch,
     bool is_store, Register store_parameter, Register accessor_holder,
     int accessor_index) {
-  DCHECK(!accessor_holder.is(scratch));
+  DCHECK(accessor_holder != scratch);
   DCHECK(optimization.is_simple_api_call());
 
   __ PopReturnAddressTo(scratch);
@@ -100,8 +100,8 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ Push(receiver);
   // Write the arguments to stack frame.
   if (is_store) {
-    DCHECK(!receiver.is(store_parameter));
-    DCHECK(!scratch.is(store_parameter));
+    DCHECK(receiver != store_parameter);
+    DCHECK(scratch != store_parameter);
     __ Push(store_parameter);
   }
   __ PushReturnAddressFrom(scratch);
@@ -194,9 +194,9 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     __ Push(value());
 
     if (accessor_index >= 0) {
-      DCHECK(!holder.is(scratch));
-      DCHECK(!receiver.is(scratch));
-      DCHECK(!value().is(scratch));
+      DCHECK(holder != scratch);
+      DCHECK(receiver != scratch);
+      DCHECK(value() != scratch);
       // Call the JavaScript setter with receiver and value on the stack.
       if (map->IsJSGlobalObjectMap()) {
         // Swap in the global receiver.
@@ -279,9 +279,9 @@ Register PropertyHandlerCompiler::CheckPrototypes(
   Handle<Map> receiver_map = map();
 
   // Make sure there's no overlap between holder and object registers.
-  DCHECK(!scratch1.is(object_reg) && !scratch1.is(holder_reg));
-  DCHECK(!scratch2.is(object_reg) && !scratch2.is(holder_reg) &&
-         !scratch2.is(scratch1));
+  DCHECK(scratch1 != object_reg && scratch1 != holder_reg);
+  DCHECK(scratch2 != object_reg && scratch2 != holder_reg &&
+         scratch2 != scratch1);
 
   Handle<Cell> validity_cell =
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());

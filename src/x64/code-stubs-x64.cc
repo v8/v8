@@ -82,7 +82,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     int double_offset = offset();
 
     // Account for return address and saved regs if input is rsp.
-    if (input_reg.is(rsp)) double_offset += 3 * kRegisterSize;
+    if (input_reg == rsp) double_offset += 3 * kRegisterSize;
 
     MemOperand mantissa_operand(MemOperand(input_reg, double_offset));
     MemOperand exponent_operand(MemOperand(input_reg,
@@ -92,20 +92,20 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     Register scratch_candidates[3] = { rbx, rdx, rdi };
     for (int i = 0; i < 3; i++) {
       scratch1 = scratch_candidates[i];
-      if (!final_result_reg.is(scratch1) && !input_reg.is(scratch1)) break;
+      if (final_result_reg != scratch1 && input_reg != scratch1) break;
     }
 
     // Since we must use rcx for shifts below, use some other register (rax)
     // to calculate the result if ecx is the requested return register.
-    Register result_reg = final_result_reg.is(rcx) ? rax : final_result_reg;
+    Register result_reg = final_result_reg == rcx ? rax : final_result_reg;
     // Save ecx if it isn't the return register and therefore volatile, or if it
     // is the return register, then save the temp register we use in its stead
     // for the result.
-    Register save_reg = final_result_reg.is(rcx) ? rax : rcx;
+    Register save_reg = final_result_reg == rcx ? rax : rcx;
     __ pushq(scratch1);
     __ pushq(save_reg);
 
-    bool stash_exponent_copy = !input_reg.is(rsp);
+    bool stash_exponent_copy = input_reg != rsp;
     __ movl(scratch1, mantissa_operand);
     __ Movsd(kScratchDoubleReg, mantissa_operand);
     __ movl(rcx, exponent_operand);
@@ -146,9 +146,9 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     if (stash_exponent_copy) {
         __ addp(rsp, Immediate(kDoubleSize));
     }
-    if (!final_result_reg.is(result_reg)) {
-        DCHECK(final_result_reg.is(rcx));
-        __ movl(final_result_reg, result_reg);
+    if (final_result_reg != result_reg) {
+      DCHECK(final_result_reg == rcx);
+      __ movl(final_result_reg, result_reg);
     }
     __ popq(save_reg);
     __ popq(scratch1);
@@ -188,7 +188,7 @@ void FloatingPointHelper::LoadSSE2UnknownOperands(MacroAssembler* masm,
 
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = MathPowTaggedDescriptor::exponent();
-  DCHECK(exponent.is(rdx));
+  DCHECK(exponent == rdx);
   const Register scratch = rcx;
   const XMMRegister double_result = xmm3;
   const XMMRegister double_base = xmm2;
@@ -316,7 +316,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ bind(&call_runtime);
   // Move base to the correct argument register.  Exponent is already in xmm1.
   __ Movsd(xmm0, double_base);
-  DCHECK(double_exponent.is(xmm1));
+  DCHECK(double_exponent == xmm1);
   {
     AllowExternalCallThatCantCauseGC scope(masm);
     __ PrepareCallCFunction(2);
@@ -1040,9 +1040,9 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm,
 void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode());
   Register address =
-      arg_reg_1.is(regs_.address()) ? kScratchRegister : regs_.address();
-  DCHECK(!address.is(regs_.object()));
-  DCHECK(!address.is(arg_reg_1));
+      arg_reg_1 == regs_.address() ? kScratchRegister : regs_.address();
+  DCHECK(address != regs_.object());
+  DCHECK(address != arg_reg_1);
   __ Move(address, regs_.address());
   __ Move(arg_reg_1, regs_.object());
   // TODO(gc) Can we just set address arg2 in the beginning?
@@ -1530,7 +1530,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   ExternalReference scheduled_exception_address =
       ExternalReference::scheduled_exception_address(isolate);
 
-  DCHECK(rdx.is(function_address) || r8.is(function_address));
+  DCHECK(rdx == function_address || r8 == function_address);
   // Allocate HandleScope in callee-save registers.
   Register prev_next_address_reg = r14;
   Register prev_limit_reg = rbx;
@@ -1788,7 +1788,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   // It's okay if api_function_address == callback_arg
   // but not arguments_arg
-  DCHECK(!api_function_address.is(arguments_arg));
+  DCHECK(api_function_address != arguments_arg);
 
   // v8::InvocationCallback's argument.
   __ leap(arguments_arg, StackSpaceOperand(0));
@@ -1877,8 +1877,8 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
 
   // It's okay if api_function_address == getter_arg
   // but not accessor_info_arg or name_arg
-  DCHECK(!api_function_address.is(accessor_info_arg));
-  DCHECK(!api_function_address.is(name_arg));
+  DCHECK(api_function_address != accessor_info_arg);
+  DCHECK(api_function_address != name_arg);
   __ movp(scratch, FieldOperand(callback, AccessorInfo::kJsGetterOffset));
   __ movp(api_function_address,
           FieldOperand(scratch, Foreign::kForeignAddressOffset));

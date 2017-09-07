@@ -209,7 +209,7 @@ class TurboAssembler : public Assembler {
 
   // Pop two registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2, Condition cond = al) {
-    DCHECK(!src1.is(src2));
+    DCHECK(src1 != src2);
     if (src1.code() > src2.code()) {
       ldm(ia_w, sp, src1.bit() | src2.bit(), cond);
     } else {
@@ -433,7 +433,7 @@ class TurboAssembler : public Assembler {
   // NaNs or +/-0.0, are expected to be rare and are handled in out-of-line
   // code. The specific behaviour depends on supported instructions.
   //
-  // These functions assume (and assert) that !left.is(right). It is permitted
+  // These functions assume (and assert) that left!=right. It is permitted
   // for the result to alias either input register.
   void FloatMax(SwVfpRegister result, SwVfpRegister left, SwVfpRegister right,
                 Label* out_of_line);
@@ -468,7 +468,7 @@ class TurboAssembler : public Assembler {
   void Move(Register dst, Register src, Condition cond = al);
   void Move(Register dst, const Operand& src, SBit sbit = LeaveCC,
             Condition cond = al) {
-    if (!src.IsRegister() || !src.rm().is(dst) || sbit != LeaveCC) {
+    if (!src.IsRegister() || src.rm() != dst || sbit != LeaveCC) {
       mov(dst, src, sbit, cond);
     }
   }

@@ -2058,8 +2058,8 @@ void LiveRangeBuilder::ProcessInstructions(const InstructionBlock* block,
       }
       if (block->IsHandler() && index == block_start && output->IsAllocated() &&
           output->IsRegister() &&
-          AllocatedOperand::cast(output)->GetRegister().is(
-              v8::internal::kReturnRegister0)) {
+          AllocatedOperand::cast(output)->GetRegister() ==
+              v8::internal::kReturnRegister0) {
         // The register defined here is blocked from gap start - it is the
         // exception value.
         // TODO(mtrofin): should we explore an explicit opcode for

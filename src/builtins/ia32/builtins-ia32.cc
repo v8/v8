@@ -1405,9 +1405,9 @@ void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
   Register scratch0 = ebx;
   Register scratch1 = ecx;
 
-  CHECK(!scratch0.is(eax) && !scratch0.is(edx) && !scratch0.is(edi));
-  CHECK(!scratch1.is(eax) && !scratch1.is(edx) && !scratch1.is(edi));
-  CHECK(!scratch0.is(scratch1));
+  CHECK(scratch0 != eax && scratch0 != edx && scratch0 != edi);
+  CHECK(scratch1 != eax && scratch1 != edx && scratch1 != edi);
+  CHECK(scratch0 != scratch1);
 
   // Load the builtin id for lazy deserialization from SharedFunctionInfo.
 

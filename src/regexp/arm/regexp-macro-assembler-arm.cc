@@ -1165,14 +1165,14 @@ void RegExpMacroAssemblerARM::SafeCallTarget(Label* name) {
 
 
 void RegExpMacroAssemblerARM::Push(Register source) {
-  DCHECK(!source.is(backtrack_stackpointer()));
+  DCHECK(source != backtrack_stackpointer());
   __ str(source,
          MemOperand(backtrack_stackpointer(), kPointerSize, NegPreIndex));
 }
 
 
 void RegExpMacroAssemblerARM::Pop(Register target) {
-  DCHECK(!target.is(backtrack_stackpointer()));
+  DCHECK(target != backtrack_stackpointer());
   __ ldr(target,
          MemOperand(backtrack_stackpointer(), kPointerSize, PostIndex));
 }

@@ -36,11 +36,11 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion3) const {
   int bytes = 0;
   RegList exclusions = 0;
-  if (!exclusion1.is(no_reg)) {
+  if (exclusion1 != no_reg) {
     exclusions |= exclusion1.bit();
-    if (!exclusion2.is(no_reg)) {
+    if (exclusion2 != no_reg) {
       exclusions |= exclusion2.bit();
-      if (!exclusion3.is(no_reg)) {
+      if (exclusion3 != no_reg) {
         exclusions |= exclusion3.bit();
       }
     }
@@ -61,11 +61,11 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
                                     Register exclusion2, Register exclusion3) {
   int bytes = 0;
   RegList exclusions = 0;
-  if (!exclusion1.is(no_reg)) {
+  if (exclusion1 != no_reg) {
     exclusions |= exclusion1.bit();
-    if (!exclusion2.is(no_reg)) {
+    if (exclusion2 != no_reg) {
       exclusions |= exclusion2.bit();
-      if (!exclusion3.is(no_reg)) {
+      if (exclusion3 != no_reg) {
         exclusions |= exclusion3.bit();
       }
     }
@@ -93,11 +93,11 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   }
 
   RegList exclusions = 0;
-  if (!exclusion1.is(no_reg)) {
+  if (exclusion1 != no_reg) {
     exclusions |= exclusion1.bit();
-    if (!exclusion2.is(no_reg)) {
+    if (exclusion2 != no_reg) {
       exclusions |= exclusion2.bit();
-      if (!exclusion3.is(no_reg)) {
+      if (exclusion3 != no_reg) {
         exclusions |= exclusion3.bit();
       }
     }
@@ -274,7 +274,7 @@ void MacroAssembler::Swap(Register reg1,
                           Register reg2,
                           Register scratch,
                           Condition cond) {
-  if (scratch.is(no_reg)) {
+  if (scratch == no_reg) {
     eor(reg1, reg1, Operand(reg2), LeaveCC, cond);
     eor(reg2, reg2, Operand(reg1), LeaveCC, cond);
     eor(reg1, reg1, Operand(reg2), LeaveCC, cond);
@@ -308,33 +308,33 @@ void TurboAssembler::Move(Register dst, Handle<HeapObject> value) {
 }
 
 void TurboAssembler::Move(Register dst, Register src, Condition cond) {
-  if (!dst.is(src)) {
+  if (dst != src) {
     mov(dst, src, LeaveCC, cond);
   }
 }
 
 void TurboAssembler::Move(SwVfpRegister dst, SwVfpRegister src,
                           Condition cond) {
-  if (!dst.is(src)) {
+  if (dst != src) {
     vmov(dst, src, cond);
   }
 }
 
 void TurboAssembler::Move(DwVfpRegister dst, DwVfpRegister src,
                           Condition cond) {
-  if (!dst.is(src)) {
+  if (dst != src) {
     vmov(dst, src, cond);
   }
 }
 
 void TurboAssembler::Move(QwNeonRegister dst, QwNeonRegister src) {
-  if (!dst.is(src)) {
+  if (dst != src) {
     vmov(dst, src);
   }
 }
 
 void TurboAssembler::Swap(DwVfpRegister srcdst0, DwVfpRegister srcdst1) {
-  if (srcdst0.is(srcdst1)) return;  // Swapping aliased registers emits nothing.
+  if (srcdst0 == srcdst1) return;  // Swapping aliased registers emits nothing.
 
   DCHECK(VfpRegisterIsAvailable(srcdst0));
   DCHECK(VfpRegisterIsAvailable(srcdst1));
@@ -342,8 +342,8 @@ void TurboAssembler::Swap(DwVfpRegister srcdst0, DwVfpRegister srcdst1) {
   if (CpuFeatures::IsSupported(NEON)) {
     vswp(srcdst0, srcdst1);
   } else {
-    DCHECK(!srcdst0.is(kScratchDoubleReg));
-    DCHECK(!srcdst1.is(kScratchDoubleReg));
+    DCHECK(srcdst0 != kScratchDoubleReg);
+    DCHECK(srcdst1 != kScratchDoubleReg);
     vmov(kScratchDoubleReg, srcdst0);
     vmov(srcdst0, srcdst1);
     vmov(srcdst1, kScratchDoubleReg);
@@ -351,7 +351,7 @@ void TurboAssembler::Swap(DwVfpRegister srcdst0, DwVfpRegister srcdst1) {
 }
 
 void TurboAssembler::Swap(QwNeonRegister srcdst0, QwNeonRegister srcdst1) {
-  if (!srcdst0.is(srcdst1)) {
+  if (srcdst0 != srcdst1) {
     vswp(srcdst0, srcdst1);
   }
 }
@@ -364,7 +364,7 @@ void MacroAssembler::Mls(Register dst, Register src1, Register src2,
   } else {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
-    DCHECK(!srcA.is(scratch));
+    DCHECK(srcA != scratch);
     mul(scratch, src1, src2, LeaveCC, cond);
     sub(dst, srcA, scratch, LeaveCC, cond);
   }
@@ -627,7 +627,7 @@ void MacroAssembler::RecordWrite(
     RememberedSetAction remembered_set_action,
     SmiCheck smi_check,
     PointersToHereCheck pointers_to_here_check_for_value) {
-  DCHECK(!object.is(value));
+  DCHECK(object != value);
   if (emit_debug_code()) {
     UseScratchRegisterScope temps(this);
     Register scratch = temps.Acquire();
@@ -936,13 +936,13 @@ void TurboAssembler::VmovExtended(int dst_code, int src_code) {
       src_offset = dst_offset ^ 1;
     }
     if (dst_offset) {
-      if (dst_d_reg.is(src_d_reg)) {
+      if (dst_d_reg == src_d_reg) {
         vdup(Neon32, dst_d_reg, src_d_reg, 0);
       } else {
         vsli(Neon64, dst_d_reg, src_d_reg, 32);
       }
     } else {
-      if (dst_d_reg.is(src_d_reg)) {
+      if (dst_d_reg == src_d_reg) {
         vdup(Neon32, dst_d_reg, src_d_reg, 1);
       } else {
         vsri(Neon64, dst_d_reg, src_d_reg, 32);
@@ -1440,8 +1440,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   // The code below is made a lot easier because the calling code already sets
   // up actual and expected registers according to the contract if values are
   // passed in registers.
-  DCHECK(actual.is_immediate() || actual.reg().is(r0));
-  DCHECK(expected.is_immediate() || expected.reg().is(r2));
+  DCHECK(actual.is_immediate() || actual.reg() == r0);
+  DCHECK(expected.is_immediate() || expected.reg() == r2);
 
   if (expected.is_immediate()) {
     DCHECK(actual.is_immediate());
@@ -1535,8 +1535,8 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
                                         InvokeFlag flag) {
   // You can't call a function without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
-  DCHECK(function.is(r1));
-  DCHECK_IMPLIES(new_target.is_valid(), new_target.is(r3));
+  DCHECK(function == r1);
+  DCHECK_IMPLIES(new_target.is_valid(), new_target == r3);
 
   // On function call, call into the debugger if necessary.
   CheckDebugHook(function, new_target, expected, actual);
@@ -1576,7 +1576,7 @@ void MacroAssembler::InvokeFunction(Register fun, Register new_target,
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
   // Contract with called JS functions requires that function is passed in r1.
-  DCHECK(fun.is(r1));
+  DCHECK(fun == r1);
 
   Register expected_reg = r2;
   Register temp_reg = r4;
@@ -1599,7 +1599,7 @@ void MacroAssembler::InvokeFunction(Register function,
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
   // Contract with called JS functions requires that function is passed in r1.
-  DCHECK(function.is(r1));
+  DCHECK(function == r1);
 
   // Get the function and setup the context.
   ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
@@ -1765,7 +1765,7 @@ void MacroAssembler::CompareObjectType(Register object,
                                        Register type_reg,
                                        InstanceType type) {
   UseScratchRegisterScope temps(this);
-  const Register temp = type_reg.is(no_reg) ? temps.Acquire() : type_reg;
+  const Register temp = type_reg == no_reg ? temps.Acquire() : type_reg;
 
   ldr(map, FieldMemOperand(object, HeapObject::kMapOffset));
   CompareInstanceType(map, temp, type);
@@ -1784,7 +1784,7 @@ void MacroAssembler::CompareRoot(Register obj,
                                  Heap::RootListIndex index) {
   UseScratchRegisterScope temps(this);
   Register scratch = temps.Acquire();
-  DCHECK(!obj.is(scratch));
+  DCHECK(obj != scratch);
   LoadRoot(scratch, index);
   cmp(obj, scratch);
 }
@@ -1923,7 +1923,7 @@ void MacroAssembler::SmiToDouble(LowDwVfpRegister value, Register smi) {
 void MacroAssembler::TryDoubleToInt32Exact(Register result,
                                            DwVfpRegister double_input,
                                            LowDwVfpRegister double_scratch) {
-  DCHECK(!double_input.is(double_scratch));
+  DCHECK(double_input != double_scratch);
   vcvt_s32_f64(double_scratch.low(), double_input);
   vmov(result, double_scratch.low());
   vcvt_f64_s32(double_scratch, double_scratch.low());
@@ -2287,10 +2287,10 @@ void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register reg,
 void MacroAssembler::AllocateJSValue(Register result, Register constructor,
                                      Register value, Register scratch1,
                                      Register scratch2, Label* gc_required) {
-  DCHECK(!result.is(constructor));
-  DCHECK(!result.is(scratch1));
-  DCHECK(!result.is(scratch2));
-  DCHECK(!result.is(value));
+  DCHECK(result != constructor);
+  DCHECK(result != scratch1);
+  DCHECK(result != scratch2);
+  DCHECK(result != value);
 
   // Allocate JSValue in new space.
   Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required,
@@ -2333,7 +2333,7 @@ void TurboAssembler::FloatMaxHelper(T result, T left, T right,
                                     Label* out_of_line) {
   // This trivial case is caught sooner, so that the out-of-line code can be
   // completely avoided.
-  DCHECK(!left.is(right));
+  DCHECK(left != right);
 
   if (CpuFeatures::IsSupported(ARMv8)) {
     CpuFeatureScope scope(this, ARMv8);
@@ -2345,7 +2345,7 @@ void TurboAssembler::FloatMaxHelper(T result, T left, T right,
     VFPCompareAndSetFlags(left, right);
     b(vs, out_of_line);
     // Avoid a conditional instruction if the result register is unique.
-    bool aliased_result_reg = result.is(left) || result.is(right);
+    bool aliased_result_reg = result == left || result == right;
     Move(result, right, aliased_result_reg ? mi : al);
     Move(result, left, gt);
     b(ne, &done);
@@ -2361,7 +2361,7 @@ void TurboAssembler::FloatMaxHelper(T result, T left, T right,
 
 template <typename T>
 void TurboAssembler::FloatMaxOutOfLineHelper(T result, T left, T right) {
-  DCHECK(!left.is(right));
+  DCHECK(left != right);
 
   // ARMv8: At least one of left and right is a NaN.
   // Anything else: At least one of left and right is a NaN, or both left and
@@ -2377,7 +2377,7 @@ void TurboAssembler::FloatMinHelper(T result, T left, T right,
                                     Label* out_of_line) {
   // This trivial case is caught sooner, so that the out-of-line code can be
   // completely avoided.
-  DCHECK(!left.is(right));
+  DCHECK(left != right);
 
   if (CpuFeatures::IsSupported(ARMv8)) {
     CpuFeatureScope scope(this, ARMv8);
@@ -2389,7 +2389,7 @@ void TurboAssembler::FloatMinHelper(T result, T left, T right,
     VFPCompareAndSetFlags(left, right);
     b(vs, out_of_line);
     // Avoid a conditional instruction if the result register is unique.
-    bool aliased_result_reg = result.is(left) || result.is(right);
+    bool aliased_result_reg = result == left || result == right;
     Move(result, left, aliased_result_reg ? mi : al);
     Move(result, right, gt);
     b(ne, &done);
@@ -2403,13 +2403,13 @@ void TurboAssembler::FloatMinHelper(T result, T left, T right,
     // We could use a single 'vorr' instruction here if we had NEON support.
     // The algorithm used is -((-L) + (-R)), which is most efficiently expressed
     // as -((-L) - R).
-    if (left.is(result)) {
-      DCHECK(!right.is(result));
+    if (left == result) {
+      DCHECK(right != result);
       vneg(result, left);
       vsub(result, result, right);
       vneg(result, result);
     } else {
-      DCHECK(!left.is(result));
+      DCHECK(left != result);
       vneg(result, right);
       vsub(result, result, left);
       vneg(result, result);
@@ -2420,7 +2420,7 @@ void TurboAssembler::FloatMinHelper(T result, T left, T right,
 
 template <typename T>
 void TurboAssembler::FloatMinOutOfLineHelper(T result, T left, T right) {
-  DCHECK(!left.is(right));
+  DCHECK(left != right);
 
   // At least one of left and right is a NaN. Use vadd to propagate the NaN
   // appropriately. +/-0 is handled inline.
@@ -2527,7 +2527,7 @@ void TurboAssembler::PrepareCallCFunction(int num_reg_arguments,
 }
 
 void TurboAssembler::MovToFloatParameter(DwVfpRegister src) {
-  DCHECK(src.is(d0));
+  DCHECK(src == d0);
   if (!use_eabi_hardfloat()) {
     vmov(r0, r1, src);
   }
@@ -2541,8 +2541,8 @@ void TurboAssembler::MovToFloatResult(DwVfpRegister src) {
 
 void TurboAssembler::MovToFloatParameters(DwVfpRegister src1,
                                           DwVfpRegister src2) {
-  DCHECK(src1.is(d0));
-  DCHECK(src2.is(d1));
+  DCHECK(src1 == d0);
+  DCHECK(src2 == d1);
   if (!use_eabi_hardfloat()) {
     vmov(r0, r1, src1);
     vmov(r2, r3, src2);

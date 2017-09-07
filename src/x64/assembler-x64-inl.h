@@ -462,7 +462,7 @@ void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
   DCHECK(is_uint2(scale));
   // Use SIB with no index register only for base rsp or r12. Otherwise we
   // would skip the SIB byte entirely.
-  DCHECK(!index.is(rsp) || base.is(rsp) || base.is(r12));
+  DCHECK(index != rsp || base == rsp || base == r12);
   buf_[1] = (scale << 6) | (index.low_bits() << 3) | base.low_bits();
   rex_ |= index.high_bit() << 1 | base.high_bit();
   len_ = 2;

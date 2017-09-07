@@ -406,10 +406,8 @@ class Operand BASE_EMBEDDED {
 
   // Return true if this is a register operand.
   bool IsRegister() const {
-    return rm_.is_valid() &&
-        rs_.is(no_reg) &&
-        shift_op_ == LSL &&
-        shift_imm_ == 0;
+    return rm_.is_valid() && rs_ == no_reg && shift_op_ == LSL &&
+           shift_imm_ == 0;
   }
   // Return true if this is a register operand shifted with an immediate.
   bool IsImmediateShiftedRegister() const {
@@ -506,13 +504,13 @@ class MemOperand BASE_EMBEDDED {
   }
 
   void set_offset(int32_t offset) {
-      DCHECK(rm_.is(no_reg));
-      offset_ = offset;
+    DCHECK(rm_ == no_reg);
+    offset_ = offset;
   }
 
   uint32_t offset() const {
-      DCHECK(rm_.is(no_reg));
-      return offset_;
+    DCHECK(rm_ == no_reg);
+    return offset_;
   }
 
   Register rn() const { return rn_; }

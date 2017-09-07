@@ -489,7 +489,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                                                                                \
         void Generate() final {                                                \
           Label oob;                                                           \
-          bool need_cache = !result_.is(index1_);                              \
+          bool need_cache = result_ != index1_;                                \
           if (need_cache) __ push(index1_);                                    \
           __ lea(index1_, Operand(index1_, index2_));                          \
           __ cmp(index1_, Immediate(reinterpret_cast<Address>(length_),        \
@@ -1098,7 +1098,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchDebugAbort:
-      DCHECK(i.InputRegister(0).is(edx));
+      DCHECK(i.InputRegister(0) == edx);
       if (!frame_access_state()->has_frame()) {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
@@ -1227,7 +1227,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     case kIeee754Float64Pow: {
       // TODO(bmeurer): Improve integration of the stub.
-      if (!i.InputDoubleRegister(1).is(xmm2)) {
+      if (i.InputDoubleRegister(1) != xmm2) {
         __ movaps(xmm2, i.InputDoubleRegister(0));
         __ movaps(xmm1, i.InputDoubleRegister(1));
       } else {
@@ -1899,7 +1899,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // in these cases are faster based on measurements.
       if (mode == kMode_MI) {
         __ Move(i.OutputRegister(), Immediate(i.InputInt32(0)));
-      } else if (i.InputRegister(0).is(i.OutputRegister())) {
+      } else if (i.InputRegister(0) == i.OutputRegister()) {
         if (mode == kMode_MRI) {
           int32_t constant_summand = i.InputInt32(1);
           if (constant_summand > 0) {
@@ -1908,7 +1908,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             __ sub(i.OutputRegister(), Immediate(-constant_summand));
           }
         } else if (mode == kMode_MR1) {
-          if (i.InputRegister(1).is(i.OutputRegister())) {
+          if (i.InputRegister(1) == i.OutputRegister()) {
             __ shl(i.OutputRegister(), 1);
           } else {
             __ add(i.OutputRegister(), i.InputRegister(1));
@@ -1923,7 +1923,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ lea(i.OutputRegister(), i.MemoryOperand());
         }
       } else if (mode == kMode_MR1 &&
-                 i.InputRegister(1).is(i.OutputRegister())) {
+                 i.InputRegister(1) == i.OutputRegister()) {
         __ add(i.OutputRegister(), i.InputRegister(0));
       } else {
         __ lea(i.OutputRegister(), i.MemoryOperand());
@@ -2874,7 +2874,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     __ Ret(static_cast<int>(pop_size), ecx);
   } else {
     Register pop_reg = g.ToRegister(pop);
-    Register scratch_reg = pop_reg.is(ecx) ? edx : ecx;
+    Register scratch_reg = pop_reg == ecx ? edx : ecx;
     __ pop(scratch_reg);
     __ lea(esp, Operand(esp, pop_reg, times_4, static_cast<int>(pop_size)));
     __ jmp(scratch_reg);

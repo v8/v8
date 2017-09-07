@@ -186,39 +186,38 @@ class RecordWriteStub: public PlatformCodeStub {
           scratch1_(no_reg) {
       DCHECK(!AreAliased(scratch0, object, address, no_reg));
       scratch1_ = GetRegThatIsNotEcxOr(object_, address_, scratch0_);
-      if (scratch0.is(ecx)) {
+      if (scratch0 == ecx) {
         scratch0_ = GetRegThatIsNotEcxOr(object_, address_, scratch1_);
       }
-      if (object.is(ecx)) {
+      if (object == ecx) {
         object_ = GetRegThatIsNotEcxOr(address_, scratch0_, scratch1_);
       }
-      if (address.is(ecx)) {
+      if (address == ecx) {
         address_ = GetRegThatIsNotEcxOr(object_, scratch0_, scratch1_);
       }
       DCHECK(!AreAliased(scratch0_, object_, address_, ecx));
     }
 
     void Save(MacroAssembler* masm) {
-      DCHECK(!address_orig_.is(object_));
-      DCHECK(object_.is(object_orig_) || address_.is(address_orig_));
+      DCHECK(address_orig_ != object_);
+      DCHECK(object_ == object_orig_ || address_ == address_orig_);
       DCHECK(!AreAliased(object_, address_, scratch1_, scratch0_));
       DCHECK(!AreAliased(object_orig_, address_, scratch1_, scratch0_));
       DCHECK(!AreAliased(object_, address_orig_, scratch1_, scratch0_));
       // We don't have to save scratch0_orig_ because it was given to us as
       // a scratch register.  But if we had to switch to a different reg then
       // we should save the new scratch0_.
-      if (!scratch0_.is(scratch0_orig_)) masm->push(scratch0_);
-      if (!ecx.is(scratch0_orig_) &&
-          !ecx.is(object_orig_) &&
-          !ecx.is(address_orig_)) {
+      if (scratch0_ != scratch0_orig_) masm->push(scratch0_);
+      if (ecx != scratch0_orig_ && ecx != object_orig_ &&
+          ecx != address_orig_) {
         masm->push(ecx);
       }
       masm->push(scratch1_);
-      if (!address_.is(address_orig_)) {
+      if (address_ != address_orig_) {
         masm->push(address_);
         masm->mov(address_, address_orig_);
       }
-      if (!object_.is(object_orig_)) {
+      if (object_ != object_orig_) {
         masm->push(object_);
         masm->mov(object_, object_orig_);
       }
@@ -228,21 +227,20 @@ class RecordWriteStub: public PlatformCodeStub {
       // These will have been preserved the entire time, so we just need to move
       // them back.  Only in one case is the orig_ reg different from the plain
       // one, since only one of them can alias with ecx.
-      if (!object_.is(object_orig_)) {
+      if (object_ != object_orig_) {
         masm->mov(object_orig_, object_);
         masm->pop(object_);
       }
-      if (!address_.is(address_orig_)) {
+      if (address_ != address_orig_) {
         masm->mov(address_orig_, address_);
         masm->pop(address_);
       }
       masm->pop(scratch1_);
-      if (!ecx.is(scratch0_orig_) &&
-          !ecx.is(object_orig_) &&
-          !ecx.is(address_orig_)) {
+      if (ecx != scratch0_orig_ && ecx != object_orig_ &&
+          ecx != address_orig_) {
         masm->pop(ecx);
       }
-      if (!scratch0_.is(scratch0_orig_)) masm->pop(scratch0_);
+      if (scratch0_ != scratch0_orig_) masm->pop(scratch0_);
     }
 
     // If we have to call into C then we need to save and restore all caller-
@@ -279,11 +277,10 @@ class RecordWriteStub: public PlatformCodeStub {
       for (int i = 0; i < Register::kNumRegisters; i++) {
         if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(i)) {
           Register candidate = Register::from_code(i);
-          if (candidate.is(ecx)) continue;
-          if (candidate.is(r1)) continue;
-          if (candidate.is(r2)) continue;
-          if (candidate.is(r3)) continue;
-          return candidate;
+          if (candidate != ecx && candidate != r1 && candidate != r2 &&
+              candidate != r3) {
+            return candidate;
+          }
         }
       }
       UNREACHABLE();

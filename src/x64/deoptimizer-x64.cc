@@ -212,7 +212,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     Register r = Register::from_code(i);
     // Do not restore rsp, simply pop the value into the next register
     // and overwrite this afterwards.
-    if (r.is(rsp)) {
+    if (r == rsp) {
       DCHECK(i > 0);
       r = Register::from_code(i - 1);
     }

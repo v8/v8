@@ -363,7 +363,7 @@ void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
   DCHECK(len_ == 1);
   DCHECK((scale & -4) == 0);
   // Use SIB with no index register only for base esp.
-  DCHECK(!index.is(esp) || base.is(esp));
+  DCHECK(index != esp || base == esp);
   buf_[1] = scale << 6 | index.code() << 3 | base.code();
   len_ = 2;
 }

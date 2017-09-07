@@ -1288,9 +1288,6 @@ class RegisterBase {
 
   bool is_valid() const { return reg_code_ != kCode_no_reg; }
 
-  // TODO(clemensh): Remove this, use operator== and operator!=.
-  bool is(SubType reg) const { return reg_code_ == reg.reg_code_; }
-
   int code() const {
     DCHECK(is_valid());
     return reg_code_;

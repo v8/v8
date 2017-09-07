@@ -1025,7 +1025,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchDebugAbort:
-      DCHECK(i.InputRegister(0).is(rdx));
+      DCHECK(i.InputRegister(0) == rdx);
       if (!frame_access_state()->has_frame()) {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
@@ -2148,7 +2148,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Shorten "leal" to "addl", "subl" or "shll" if the register allocation
       // and addressing mode just happens to work out. The "addl"/"subl" forms
       // in these cases are faster based on measurements.
-      if (i.InputRegister(0).is(i.OutputRegister())) {
+      if (i.InputRegister(0) == i.OutputRegister()) {
         if (mode == kMode_MRI) {
           int32_t constant_summand = i.InputInt32(1);
           if (constant_summand > 0) {
@@ -2157,7 +2157,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             __ subl(i.OutputRegister(), Immediate(-constant_summand));
           }
         } else if (mode == kMode_MR1) {
-          if (i.InputRegister(1).is(i.OutputRegister())) {
+          if (i.InputRegister(1) == i.OutputRegister()) {
             __ shll(i.OutputRegister(), Immediate(1));
           } else {
             __ addl(i.OutputRegister(), i.InputRegister(1));
@@ -2172,7 +2172,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ leal(i.OutputRegister(), i.MemoryOperand());
         }
       } else if (mode == kMode_MR1 &&
-                 i.InputRegister(1).is(i.OutputRegister())) {
+                 i.InputRegister(1) == i.OutputRegister()) {
         __ addl(i.OutputRegister(), i.InputRegister(0));
       } else {
         __ leal(i.OutputRegister(), i.MemoryOperand());
@@ -2185,7 +2185,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Shorten "leaq" to "addq", "subq" or "shlq" if the register allocation
       // and addressing mode just happens to work out. The "addq"/"subq" forms
       // in these cases are faster based on measurements.
-      if (i.InputRegister(0).is(i.OutputRegister())) {
+      if (i.InputRegister(0) == i.OutputRegister()) {
         if (mode == kMode_MRI) {
           int32_t constant_summand = i.InputInt32(1);
           if (constant_summand > 0) {
@@ -2194,7 +2194,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
             __ subq(i.OutputRegister(), Immediate(-constant_summand));
           }
         } else if (mode == kMode_MR1) {
-          if (i.InputRegister(1).is(i.OutputRegister())) {
+          if (i.InputRegister(1) == i.OutputRegister()) {
             __ shlq(i.OutputRegister(), Immediate(1));
           } else {
             __ addq(i.OutputRegister(), i.InputRegister(1));
@@ -2209,7 +2209,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
           __ leaq(i.OutputRegister(), i.MemoryOperand());
         }
       } else if (mode == kMode_MR1 &&
-                 i.InputRegister(1).is(i.OutputRegister())) {
+                 i.InputRegister(1) == i.OutputRegister()) {
         __ addq(i.OutputRegister(), i.InputRegister(0));
       } else {
         __ leaq(i.OutputRegister(), i.MemoryOperand());
@@ -2288,7 +2288,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSSE3);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
-      if (dst.is(src)) {
+      if (dst == src) {
         __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
         __ psignd(dst, kScratchDoubleReg);
       } else {
@@ -2421,7 +2421,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSSE3);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
-      if (dst.is(src)) {
+      if (dst == src) {
         __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
         __ psignw(dst, kScratchDoubleReg);
       } else {
@@ -2565,7 +2565,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope sse_scope(tasm(), SSSE3);
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
-      if (dst.is(src)) {
+      if (dst == src) {
         __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
         __ psignb(dst, kScratchDoubleReg);
       } else {
@@ -2673,7 +2673,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kX64S128Not: {
       XMMRegister dst = i.OutputSimd128Register();
       XMMRegister src = i.InputSimd128Register(0);
-      if (dst.is(src)) {
+      if (dst == src) {
         __ movaps(kScratchDoubleReg, dst);
         __ pcmpeqd(dst, dst);
         __ pxor(dst, kScratchDoubleReg);
@@ -3194,7 +3194,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
     __ Ret(static_cast<int>(pop_size), rcx);
   } else {
     Register pop_reg = g.ToRegister(pop);
-    Register scratch_reg = pop_reg.is(rcx) ? rdx : rcx;
+    Register scratch_reg = pop_reg == rcx ? rdx : rcx;
     __ popq(scratch_reg);
     __ leaq(rsp, Operand(rsp, pop_reg, times_8, static_cast<int>(pop_size)));
     __ jmp(scratch_reg);

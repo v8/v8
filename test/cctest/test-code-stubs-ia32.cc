@@ -54,8 +54,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   HandleScope handles(isolate);
   MacroAssembler assm(isolate, buffer, static_cast<int>(actual_size),
                       v8::internal::CodeObjectRequired::kYes);
-  int offset =
-    source_reg.is(esp) ? 0 : (HeapNumber::kValueOffset - kSmiTagSize);
+  int offset = source_reg == esp ? 0 : (HeapNumber::kValueOffset - kSmiTagSize);
   DoubleToIStub stub(isolate, source_reg, destination_reg, offset, true);
   byte* start = stub.GetCode()->instruction_start();
 
@@ -65,7 +64,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ push(esi);
   __ push(edi);
 
-  if (!source_reg.is(esp)) {
+  if (source_reg != esp) {
     __ lea(source_reg, MemOperand(esp, 6 * kPointerSize - offset));
   }
 
@@ -75,7 +74,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   for (; reg_num < Register::kNumRegisters; ++reg_num) {
     if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
       Register reg = Register::from_code(reg_num);
-      if (!reg.is(esp) && !reg.is(ebp) && !reg.is(destination_reg)) {
+      if (reg != esp && reg != ebp && reg != destination_reg) {
         __ push(reg);
         param_offset += kPointerSize;
       }
@@ -95,7 +94,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   for (--reg_num; reg_num >= 0; --reg_num) {
     if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
       Register reg = Register::from_code(reg_num);
-      if (!reg.is(esp) && !reg.is(ebp) && !reg.is(destination_reg)) {
+      if (reg != esp && reg != ebp && reg != destination_reg) {
         __ cmp(reg, MemOperand(esp, 0));
         __ Assert(equal, kRegisterWasClobbered);
         __ add(esp, Immediate(kPointerSize));

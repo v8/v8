@@ -246,7 +246,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
-    if (index_.is(no_reg)) {
+    if (index_ == no_reg) {
       __ add(scratch1_, object_, Operand(index_immediate_));
     } else {
       DCHECK_EQ(0, index_immediate_);
@@ -303,7 +303,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  private:
   Register const object_;
   Register const index_;
-  int32_t const index_immediate_;  // Valid if index_.is(no_reg).
+  int32_t const index_immediate_;  // Valid if index_==no_reg.
   Register const value_;
   Register const scratch0_;
   Register const scratch1_;
@@ -551,10 +551,10 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     Simd128Register dst = i.OutputSimd128Register(),  \
                     src0 = i.InputSimd128Register(0), \
                     src1 = i.InputSimd128Register(1); \
-    if (dst.is(src0) && dst.is(src1)) {               \
+    if (dst == src0 && dst == src1) {                 \
       __ vqmovn(dt, dst.low(), src0);                 \
       __ vmov(dst.high(), dst.low());                 \
-    } else if (dst.is(src0)) {                        \
+    } else if (dst == src0) {                         \
       __ vqmovn(dt, dst.low(), src0);                 \
       __ vqmovn(dt, dst.high(), src1);                \
     } else {                                          \
@@ -568,9 +568,9 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
     Simd128Register dst = i.OutputSimd128Register(),      \
                     src0 = i.InputSimd128Register(0),     \
                     src1 = i.InputSimd128Register(1);     \
-    if (dst.is(src0)) {                                   \
+    if (dst == src0) {                                    \
       __ op(size, dst.low(), src0.low(), src0.high());    \
-      if (dst.is(src1)) {                                 \
+      if (dst == src1) {                                  \
         __ vmov(dst.high(), dst.low());                   \
       } else {                                            \
         __ op(size, dst.high(), src1.low(), src1.high()); \
@@ -874,7 +874,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       break;
     case kArchDebugAbort:
-      DCHECK(i.InputRegister(0).is(r1));
+      DCHECK(i.InputRegister(0) == r1);
       if (!frame_access_state()->has_frame()) {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.
@@ -1604,7 +1604,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SwVfpRegister result = i.OutputFloatRegister();
       SwVfpRegister left = i.InputFloatRegister(0);
       SwVfpRegister right = i.InputFloatRegister(1);
-      if (left.is(right)) {
+      if (left == right) {
         __ Move(result, left);
       } else {
         auto ool = new (zone()) OutOfLineFloat32Max(this, result, left, right);
@@ -1618,7 +1618,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DwVfpRegister result = i.OutputDoubleRegister();
       DwVfpRegister left = i.InputDoubleRegister(0);
       DwVfpRegister right = i.InputDoubleRegister(1);
-      if (left.is(right)) {
+      if (left == right) {
         __ Move(result, left);
       } else {
         auto ool = new (zone()) OutOfLineFloat64Max(this, result, left, right);
@@ -1632,7 +1632,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       SwVfpRegister result = i.OutputFloatRegister();
       SwVfpRegister left = i.InputFloatRegister(0);
       SwVfpRegister right = i.InputFloatRegister(1);
-      if (left.is(right)) {
+      if (left == right) {
         __ Move(result, left);
       } else {
         auto ool = new (zone()) OutOfLineFloat32Min(this, result, left, right);
@@ -1646,7 +1646,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DwVfpRegister result = i.OutputDoubleRegister();
       DwVfpRegister left = i.InputDoubleRegister(0);
       DwVfpRegister right = i.InputDoubleRegister(1);
-      if (left.is(right)) {
+      if (left == right) {
         __ Move(result, left);
       } else {
         auto ool = new (zone()) OutOfLineFloat64Min(this, result, left, right);
@@ -1735,9 +1735,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       src0 = i.InputSimd128Register(0),
                       src1 = i.InputSimd128Register(1);
       // Make sure we don't overwrite source data before it's used.
-      if (dst.is(src0)) {
+      if (dst == src0) {
         __ vpadd(dst.low(), src0.low(), src0.high());
-        if (dst.is(src1)) {
+        if (dst == src1) {
           __ vmov(dst.high(), dst.low());
         } else {
           __ vpadd(dst.high(), src1.low(), src1.high());
@@ -2232,14 +2232,14 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     }
     case kArmS128Select: {
       Simd128Register dst = i.OutputSimd128Register();
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       __ vbsl(dst, i.InputSimd128Register(1), i.InputSimd128Register(2));
       break;
     }
     case kArmS32x4ZipLeft: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [0, 1, 2, 3], src1 = [4, 5, 6, 7]
       __ vmov(dst.high(), src1.low());         // dst = [0, 1, 4, 5]
       __ vtrn(Neon32, dst.low(), dst.high());  // dst = [0, 4, 1, 5]
@@ -2248,7 +2248,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS32x4ZipRight: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [4, 5, 6, 7], src1 = [0, 1, 2, 3] (flipped from ZipLeft).
       __ vmov(dst.low(), src1.high());         // dst = [2, 3, 6, 7]
       __ vtrn(Neon32, dst.low(), dst.high());  // dst = [2, 6, 3, 7]
@@ -2257,7 +2257,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS32x4UnzipLeft: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [0, 1, 2, 3], src1 = [4, 5, 6, 7]
       __ vmov(kScratchQuadReg, src1);
       __ vuzp(Neon32, dst, kScratchQuadReg);  // dst = [0, 2, 4, 6]
@@ -2266,7 +2266,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS32x4UnzipRight: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [4, 5, 6, 7], src1 = [0, 1, 2, 3] (flipped from UnzipLeft).
       __ vmov(kScratchQuadReg, src1);
       __ vuzp(Neon32, kScratchQuadReg, dst);  // dst = [1, 3, 5, 7]
@@ -2275,7 +2275,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS32x4TransposeLeft: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [0, 1, 2, 3], src1 = [4, 5, 6, 7]
       __ vmov(kScratchQuadReg, src1);
       __ vtrn(Neon32, dst, kScratchQuadReg);  // dst = [0, 4, 2, 6]
@@ -2287,10 +2287,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                       src1 = i.InputSimd128Register(1);
       // Check for in-place shuffles.
       // If dst == src0 == src1, then the shuffle is unary and we only use src0.
-      if (dst.is(src0)) {
+      if (dst == src0) {
         __ vmov(kScratchQuadReg, src0);
         src0 = kScratchQuadReg;
-      } else if (dst.is(src1)) {
+      } else if (dst == src1) {
         __ vmov(kScratchQuadReg, src1);
         src1 = kScratchQuadReg;
       }
@@ -2314,7 +2314,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS32x4TransposeRight: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [4, 5, 6, 7], src1 = [0, 1, 2, 3] (flipped from TransposeLeft).
       __ vmov(kScratchQuadReg, src1);
       __ vtrn(Neon32, kScratchQuadReg, dst);  // dst = [1, 5, 3, 7]
@@ -2324,7 +2324,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
       // src0 = [0, 1, 2, 3, ... 7], src1 = [8, 9, 10, 11, ... 15]
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       __ vmov(dst.high(), src1.low());         // dst = [0, 1, 2, 3, 8, ... 11]
       __ vzip(Neon16, dst.low(), dst.high());  // dst = [0, 8, 1, 9, ... 11]
       break;
@@ -2332,7 +2332,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS16x8ZipRight: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [8, 9, 10, 11, ... 15], src1 = [0, 1, 2, 3, ... 7] (flipped).
       __ vmov(dst.low(), src1.high());
       __ vzip(Neon16, dst.low(), dst.high());  // dst = [4, 12, 5, 13, ... 15]
@@ -2341,7 +2341,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS16x8UnzipLeft: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [0, 1, 2, 3, ... 7], src1 = [8, 9, 10, 11, ... 15]
       __ vmov(kScratchQuadReg, src1);
       __ vuzp(Neon16, dst, kScratchQuadReg);  // dst = [0, 2, 4, 6, ... 14]
@@ -2350,7 +2350,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS16x8UnzipRight: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [8, 9, 10, 11, ... 15], src1 = [0, 1, 2, 3, ... 7] (flipped).
       __ vmov(kScratchQuadReg, src1);
       __ vuzp(Neon16, kScratchQuadReg, dst);  // dst = [1, 3, 5, 7, ... 15]
@@ -2359,7 +2359,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS16x8TransposeLeft: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [0, 1, 2, 3, ... 7], src1 = [8, 9, 10, 11, ... 15]
       __ vmov(kScratchQuadReg, src1);
       __ vtrn(Neon16, dst, kScratchQuadReg);  // dst = [0, 8, 2, 10, ... 14]
@@ -2368,7 +2368,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS16x8TransposeRight: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [8, 9, 10, 11, ... 15], src1 = [0, 1, 2, 3, ... 7] (flipped).
       __ vmov(kScratchQuadReg, src1);
       __ vtrn(Neon16, kScratchQuadReg, dst);  // dst = [1, 9, 3, 11, ... 15]
@@ -2377,7 +2377,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS8x16ZipLeft: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [0, 1, 2, 3, ... 15], src1 = [16, 17, 18, 19, ... 31]
       __ vmov(dst.high(), src1.low());
       __ vzip(Neon8, dst.low(), dst.high());  // dst = [0, 16, 1, 17, ... 23]
@@ -2386,7 +2386,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS8x16ZipRight: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [16, 17, 18, 19, ... 31], src1 = [0, 1, 2, 3, ... 15] (flipped).
       __ vmov(dst.low(), src1.high());
       __ vzip(Neon8, dst.low(), dst.high());  // dst = [8, 24, 9, 25, ... 31]
@@ -2395,7 +2395,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS8x16UnzipLeft: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [0, 1, 2, 3, ... 15], src1 = [16, 17, 18, 19, ... 31]
       __ vmov(kScratchQuadReg, src1);
       __ vuzp(Neon8, dst, kScratchQuadReg);  // dst = [0, 2, 4, 6, ... 30]
@@ -2404,7 +2404,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS8x16UnzipRight: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [16, 17, 18, 19, ... 31], src1 = [0, 1, 2, 3, ... 15] (flipped).
       __ vmov(kScratchQuadReg, src1);
       __ vuzp(Neon8, kScratchQuadReg, dst);  // dst = [1, 3, 5, 7, ... 31]
@@ -2413,7 +2413,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS8x16TransposeLeft: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [0, 1, 2, 3, ... 15], src1 = [16, 17, 18, 19, ... 31]
       __ vmov(kScratchQuadReg, src1);
       __ vtrn(Neon8, dst, kScratchQuadReg);  // dst = [0, 16, 2, 18, ... 30]
@@ -2422,7 +2422,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kArmS8x16TransposeRight: {
       Simd128Register dst = i.OutputSimd128Register(),
                       src1 = i.InputSimd128Register(1);
-      DCHECK(dst.is(i.InputSimd128Register(0)));
+      DCHECK(dst == i.InputSimd128Register(0));
       // src0 = [16, 17, 18, 19, ... 31], src1 = [0, 1, 2, 3, ... 15] (flipped).
       __ vmov(kScratchQuadReg, src1);
       __ vtrn(Neon8, kScratchQuadReg, dst);  // dst = [1, 17, 3, 19, ... 31]
@@ -2440,8 +2440,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DwVfpRegister table_base = src0.low();
       // If unary shuffle, table is src0 (2 d-registers), otherwise src0 and
       // src1. They must be consecutive.
-      int table_size = src0.is(src1) ? 2 : 4;
-      DCHECK_IMPLIES(!src0.is(src1), src0.code() + 1 == src1.code());
+      int table_size = src0 == src1 ? 2 : 4;
+      DCHECK_IMPLIES(src0 != src1, src0.code() + 1 == src1.code());
       // The shuffle lane mask is a byte mask, materialize in kScratchQuadReg.
       int scratch_s_base = kScratchQuadReg.code() * 4;
       for (int j = 0; j < 4; j++) {
@@ -2452,7 +2452,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                 Float32(four_lanes));
       }
       NeonListOperand table(table_base, table_size);
-      if (!dst.is(src0) && !dst.is(src1)) {
+      if (dst != src0 && dst != src1) {
         __ vtbl(dst.low(), table, kScratchQuadReg.low());
         __ vtbl(dst.high(), table, kScratchQuadReg.high());
       } else {

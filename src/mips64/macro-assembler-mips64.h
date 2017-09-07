@@ -430,7 +430,7 @@ class TurboAssembler : public Assembler {
 
   // Pop two registers. Pops rightmost register first (from lower address).
   void Pop(Register src1, Register src2) {
-    DCHECK(!src1.is(src2));
+    DCHECK(src1 != src2);
     Ld(src2, MemOperand(sp, 0 * kPointerSize));
     Ld(src1, MemOperand(sp, 1 * kPointerSize));
     Daddu(sp, sp, 2 * kPointerSize);
@@ -677,7 +677,7 @@ class TurboAssembler : public Assembler {
   // handled in out-of-line code. The specific behaviour depends on supported
   // instructions.
   //
-  // These functions assume (and assert) that !src1.is(src2). It is permitted
+  // These functions assume (and assert) that src1!=src2. It is permitted
   // for the result to alias either input register.
   void Float32Max(FPURegister dst, FPURegister src1, FPURegister src2,
                   Label* out_of_line);
@@ -702,7 +702,7 @@ class TurboAssembler : public Assembler {
   inline void Move(Register dst, Smi* smi) { li(dst, Operand(smi)); }
 
   inline void Move(Register dst, Register src) {
-    if (!dst.is(src)) {
+    if (dst != src) {
       mov(dst, src);
     }
   }
@@ -738,13 +738,13 @@ class TurboAssembler : public Assembler {
   }
 
   inline void Move_d(FPURegister dst, FPURegister src) {
-    if (!dst.is(src)) {
+    if (dst != src) {
       mov_d(dst, src);
     }
   }
 
   inline void Move_s(FPURegister dst, FPURegister src) {
-    if (!dst.is(src)) {
+    if (dst != src) {
       mov_s(dst, src);
     }
   }

@@ -312,8 +312,8 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
     //   size_t byte_length - length of capture in bytes(!)
 //   Isolate* isolate or 0 if unicode flag.
 #ifdef _WIN64
-    DCHECK(rcx.is(arg_reg_1));
-    DCHECK(rdx.is(arg_reg_2));
+    DCHECK(rcx == arg_reg_1);
+    DCHECK(rdx == arg_reg_2);
     // Compute and set byte_offset1 (start of capture).
     __ leap(rcx, Operand(rsi, rdx, times_1, 0));
     // Set byte_offset2.
@@ -322,8 +322,8 @@ void RegExpMacroAssemblerX64::CheckNotBackReferenceIgnoreCase(
       __ subq(rdx, rbx);
     }
 #else  // AMD64 calling convention
-    DCHECK(rdi.is(arg_reg_1));
-    DCHECK(rsi.is(arg_reg_2));
+    DCHECK(rdi == arg_reg_1);
+    DCHECK(rsi == arg_reg_2);
     // Compute byte_offset2 (current position = rsi+rdi).
     __ leap(rax, Operand(rsi, rdi, times_1, 0));
     // Compute and set byte_offset1 (start of capture).
@@ -1290,7 +1290,7 @@ void RegExpMacroAssemblerX64::SafeReturn() {
 
 
 void RegExpMacroAssemblerX64::Push(Register source) {
-  DCHECK(!source.is(backtrack_stackpointer()));
+  DCHECK(source != backtrack_stackpointer());
   // Notice: This updates flags, unlike normal Push.
   __ subp(backtrack_stackpointer(), Immediate(kIntSize));
   __ movl(Operand(backtrack_stackpointer(), 0), source);
@@ -1330,7 +1330,7 @@ void RegExpMacroAssemblerX64::Push(Label* backtrack_target) {
 
 
 void RegExpMacroAssemblerX64::Pop(Register target) {
-  DCHECK(!target.is(backtrack_stackpointer()));
+  DCHECK(target != backtrack_stackpointer());
   __ movsxlq(target, Operand(backtrack_stackpointer(), 0));
   // Notice: This updates flags, unlike normal Pop.
   __ addp(backtrack_stackpointer(), Immediate(kIntSize));

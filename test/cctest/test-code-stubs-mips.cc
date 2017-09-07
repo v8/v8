@@ -85,7 +85,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   for (; reg_num < Register::kNumRegisters; ++reg_num) {
     if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
       Register reg = Register::from_code(reg_num);
-      if (!reg.is(destination_reg)) {
+      if (reg != destination_reg) {
         __ push(reg);
         source_reg_offset += kPointerSize;
       }
@@ -100,7 +100,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   if (inline_fastpath) {
     __ Ldc1(f12, MemOperand(source_reg));
     __ TryInlineTruncateDoubleToI(destination_reg, f12, &done);
-    if (destination_reg.is(source_reg) && !source_reg.is(sp)) {
+    if (destination_reg == source_reg && source_reg != sp) {
       // Restore clobbered source_reg.
       __ Addu(source_reg, sp, Operand(source_reg_offset));
     }
@@ -114,7 +114,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   for (--reg_num; reg_num >= 2; --reg_num) {
     if (RegisterConfiguration::Default()->IsAllocatableGeneralCode(reg_num)) {
       Register reg = Register::from_code(reg_num);
-      if (!reg.is(destination_reg)) {
+      if (reg != destination_reg) {
         __ lw(at, MemOperand(sp, 0));
         __ Assert(eq, kRegisterWasClobbered, reg, Operand(at));
         __ Addu(sp, sp, Operand(kPointerSize));

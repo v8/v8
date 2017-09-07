@@ -148,12 +148,12 @@ void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
 
 Operand::Operand(Register base, int32_t disp) : rex_(0) {
   len_ = 1;
-  if (base.is(rsp) || base.is(r12)) {
+  if (base == rsp || base == r12) {
     // SIB byte is needed to encode (rsp + offset) or (r12 + offset).
     set_sib(times_1, rsp, base);
   }
 
-  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
+  if (disp == 0 && base != rbp && base != r13) {
     set_modrm(0, base);
   } else if (is_int8(disp)) {
     set_modrm(1, base);
@@ -169,10 +169,10 @@ Operand::Operand(Register base,
                  Register index,
                  ScaleFactor scale,
                  int32_t disp) : rex_(0) {
-  DCHECK(!index.is(rsp));
+  DCHECK(index != rsp);
   len_ = 1;
   set_sib(scale, index, base);
-  if (disp == 0 && !base.is(rbp) && !base.is(r13)) {
+  if (disp == 0 && base != rbp && base != r13) {
     // This call to set_modrm doesn't overwrite the REX.B (or REX.X) bits
     // possibly set by set_sib.
     set_modrm(0, rsp);
@@ -189,7 +189,7 @@ Operand::Operand(Register base,
 Operand::Operand(Register index,
                  ScaleFactor scale,
                  int32_t disp) : rex_(0) {
-  DCHECK(!index.is(rsp));
+  DCHECK(index != rsp);
   len_ = 1;
   set_modrm(0, rsp);
   set_sib(scale, index, rbp);
@@ -654,7 +654,7 @@ void Assembler::immediate_arithmetic_op(byte subcode,
     emit(0x83);
     emit_modrm(subcode, dst);
     emit(src.value_);
-  } else if (dst.is(rax)) {
+  } else if (dst == rax) {
     emit(0x05 | (subcode << 3));
     emit(src);
   } else {
@@ -692,7 +692,7 @@ void Assembler::immediate_arithmetic_op_16(byte subcode,
     emit(0x83);
     emit_modrm(subcode, dst);
     emit(src.value_);
-  } else if (dst.is(rax)) {
+  } else if (dst == rax) {
     emit(0x05 | (subcode << 3));
     emitw(src.value_);
   } else {
@@ -2111,8 +2111,8 @@ void Assembler::xchgw(Register reg, const Operand& op) {
 
 void Assembler::emit_xchg(Register dst, Register src, int size) {
   EnsureSpace ensure_space(this);
-  if (src.is(rax) || dst.is(rax)) {  // Single-byte encoding
-    Register other = src.is(rax) ? dst : src;
+  if (src == rax || dst == rax) {  // Single-byte encoding
+    Register other = src == rax ? dst : src;
     emit_rex(other, size);
     emit(0x90 | other.low_bits());
   } else if (dst.low_bits() == 4) {
@@ -2234,7 +2234,7 @@ void Assembler::emit_test(Register reg, Immediate mask, int size) {
   } else {
     emit_rex(reg, size);
   }
-  if (reg.is(rax)) {
+  if (reg == rax) {
     emit(byte_operand ? 0xA8 : 0xA9);
   } else {
     emit(byte_operand ? 0xF6 : 0xF7);
