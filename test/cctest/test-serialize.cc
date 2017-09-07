@@ -57,6 +57,13 @@
 namespace v8 {
 namespace internal {
 
+void DisableLazyDeserialization() {
+  // UNINITIALIZED tests do not set up the isolate sufficiently for lazy
+  // deserialization to work.
+  // TODO(jgruber): Fix this. It may just be enough to set the snapshot_blob.
+  FLAG_lazy_deserialization = false;
+}
+
 void DisableAlwaysOpt() {
   // Isolates prepared for serialization do not optimize. The only exception is
   // with the flag --always-opt.
@@ -192,6 +199,7 @@ static void SanityCheck(v8::Isolate* v8_isolate) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnce) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   StartupBlobs blobs = Serialize(isolate);
@@ -258,6 +266,7 @@ UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerTwice) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   StartupBlobs blobs1 = Serialize(isolate);
@@ -278,6 +287,7 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   StartupBlobs blobs = Serialize(isolate);
@@ -302,6 +312,7 @@ UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
 }
 
 UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   StartupBlobs blobs1 = Serialize(isolate);
@@ -386,6 +397,7 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
 }
 
 UNINITIALIZED_TEST(PartialSerializerContext) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   Vector<const byte> startup_blob;
   Vector<const byte> builtin_blob;
@@ -510,6 +522,7 @@ static void PartiallySerializeCustomContext(
 }
 
 UNINITIALIZED_TEST(PartialSerializerCustomContext) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   Vector<const byte> startup_blob;
   Vector<const byte> builtin_blob;
@@ -761,6 +774,7 @@ TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
   Int32Expectations expectations = {std::make_tuple("x.buffer.byteLength", 0),
                                     std::make_tuple("x.length", 0)};
 
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   i::FLAG_allow_natives_syntax = true;
   v8::StartupData blob;
@@ -1050,6 +1064,7 @@ bool IsCompiled(const char* name) {
 }
 
 TEST(SnapshotDataBlobWithWarmup) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   const char* warmup = "Math.abs(1); Math.random = 1;";
 
@@ -1079,6 +1094,7 @@ TEST(SnapshotDataBlobWithWarmup) {
 }
 
 TEST(CustomSnapshotDataBlobWithWarmup) {
+  DisableLazyDeserialization();
   DisableAlwaysOpt();
   const char* source =
       "function f() { return Math.abs(1); }\n"
