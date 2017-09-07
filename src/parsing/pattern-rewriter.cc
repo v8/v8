@@ -124,16 +124,15 @@ void Parser::DeclareAndInitializeVariables(
       this, block, declaration_descriptor, declaration, names, ok);
 }
 
-void Parser::RewriteDestructuringAssignment(RewritableExpression* to_rewrite,
-                                            Scope* scope) {
-  PatternRewriter::RewriteDestructuringAssignment(this, to_rewrite, scope);
+void Parser::RewriteDestructuringAssignment(RewritableExpression* to_rewrite) {
+  PatternRewriter::RewriteDestructuringAssignment(this, to_rewrite, scope());
 }
 
 Expression* Parser::RewriteDestructuringAssignment(Assignment* assignment) {
   DCHECK_NOT_NULL(assignment);
   DCHECK_EQ(Token::ASSIGN, assignment->op());
   auto to_rewrite = factory()->NewRewritableExpression(assignment);
-  RewriteDestructuringAssignment(to_rewrite, scope());
+  RewriteDestructuringAssignment(to_rewrite);
   return to_rewrite->expression();
 }
 
@@ -667,8 +666,8 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
   Expression* closing_condition = factory()->NewUnaryOperation(
       Token::NOT, factory()->NewVariableProxy(done), nopos);
 
-  parser_->FinalizeIteratorUse(scope(), completion, closing_condition, iterator,
-                               block_, target, IteratorType::kNormal);
+  parser_->FinalizeIteratorUse(completion, closing_condition, iterator, block_,
+                               target, IteratorType::kNormal);
   block_ = target;
 }
 

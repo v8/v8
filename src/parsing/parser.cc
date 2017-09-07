@@ -1759,7 +1759,7 @@ void Parser::ParseAndRewriteAsyncGeneratorFunctionBody(
   try_block->statements()->Add(final_return, zone());
 
   // For AsyncGenerators, a top-level catch block will reject the Promise.
-  Scope* catch_scope = NewHiddenCatchScopeWithParent(scope());
+  Scope* catch_scope = NewHiddenCatchScope();
 
   ZoneList<Expression*>* reject_args =
       new (zone()) ZoneList<Expression*>(2, zone());
@@ -2864,7 +2864,7 @@ class InitializerRewriter final
   // Just rewrite destructuring assignments wrapped in RewritableExpressions.
   void VisitRewritableExpression(RewritableExpression* to_rewrite) {
     if (to_rewrite->is_rewritten()) return;
-    parser_->RewriteDestructuringAssignment(to_rewrite, parser_->scope());
+    parser_->RewriteDestructuringAssignment(to_rewrite);
     AstTraversalVisitor::VisitRewritableExpression(to_rewrite);
   }
 
@@ -2952,8 +2952,8 @@ Block* Parser::BuildParameterInitializationBlock(
   return init_block;
 }
 
-Scope* Parser::NewHiddenCatchScopeWithParent(Scope* parent) {
-  Scope* catch_scope = NewScopeWithParent(parent, CATCH_SCOPE);
+Scope* Parser::NewHiddenCatchScope() {
+  Scope* catch_scope = NewScopeWithParent(scope(), CATCH_SCOPE);
   catch_scope->DeclareLocal(ast_value_factory()->dot_catch_string(), VAR);
   catch_scope->set_is_hidden();
   return catch_scope;
@@ -2986,7 +2986,7 @@ Block* Parser::BuildRejectPromiseOnException(Block* inner_block) {
   result->statements()->Add(set_promise, zone());
 
   // catch (.catch) { return %RejectPromise(.promise, .catch), .promise }
-  Scope* catch_scope = NewHiddenCatchScopeWithParent(scope());
+  Scope* catch_scope = NewHiddenCatchScope();
 
   Expression* promise_reject = BuildRejectPromise(
       factory()->NewVariableProxy(catch_scope->catch_variable()),
@@ -3781,7 +3781,8 @@ void Parser::RewriteDestructuringAssignments() {
       // pair.scope may already have been removed by FinalizeBlockScope in the
       // meantime.
       Scope* scope = pair.scope->GetUnremovedScope();
-      RewriteDestructuringAssignment(to_rewrite, scope);
+      BlockState block_state(&scope_, scope);
+      RewriteDestructuringAssignment(to_rewrite);
     }
   }
 }
@@ -4124,10 +4125,9 @@ void Parser::BuildIteratorClose(ZoneList<Statement*>* statements,
   statements->Add(validate_output, zone());
 }
 
-void Parser::FinalizeIteratorUse(Scope* use_scope, Variable* completion,
-                                 Expression* condition, Variable* iter,
-                                 Block* iterator_use, Block* target,
-                                 IteratorType type) {
+void Parser::FinalizeIteratorUse(Variable* completion, Expression* condition,
+                                 Variable* iter, Block* iterator_use,
+                                 Block* target, IteratorType type) {
   //
   // This function adds two statements to [target], corresponding to the
   // following code:
@@ -4183,8 +4183,7 @@ void Parser::FinalizeIteratorUse(Scope* use_scope, Variable* completion,
   {
     Block* block = factory()->NewBlock(2, true);
     Expression* proxy = factory()->NewVariableProxy(completion);
-    BuildIteratorCloseForCompletion(use_scope, block->statements(), iter, proxy,
-                                    type);
+    BuildIteratorCloseForCompletion(block->statements(), iter, proxy, type);
     DCHECK(block->statements()->length() == 2);
 
     maybe_close = IgnoreCompletion(factory()->NewIfStatement(
@@ -4198,7 +4197,7 @@ void Parser::FinalizeIteratorUse(Scope* use_scope, Variable* completion,
   // }
   Statement* try_catch;
   {
-    Scope* catch_scope = NewHiddenCatchScopeWithParent(use_scope);
+    Scope* catch_scope = NewHiddenCatchScope();
 
     Statement* rethrow;
     // We use %ReThrow rather than the ordinary throw because we want to
@@ -4235,8 +4234,7 @@ void Parser::FinalizeIteratorUse(Scope* use_scope, Variable* completion,
   target->statements()->Add(try_finally, zone());
 }
 
-void Parser::BuildIteratorCloseForCompletion(Scope* scope,
-                                             ZoneList<Statement*>* statements,
+void Parser::BuildIteratorCloseForCompletion(ZoneList<Statement*>* statements,
                                              Variable* iterator,
                                              Expression* completion,
                                              IteratorType type) {
@@ -4314,7 +4312,7 @@ void Parser::BuildIteratorCloseForCompletion(Scope* scope,
                                  zone());
 
     Block* catch_block = factory()->NewBlock(0, false);
-    Scope* catch_scope = NewHiddenCatchScopeWithParent(scope);
+    Scope* catch_scope = NewHiddenCatchScope();
     try_call_return = factory()->NewTryCatchStatement(try_block, catch_scope,
                                                       catch_block, nopos);
   }
@@ -4445,8 +4443,8 @@ Statement* Parser::FinalizeForOfStatement(ForOfStatement* loop,
     Block* try_block = factory()->NewBlock(1, false);
     try_block->statements()->Add(loop, zone());
 
-    FinalizeIteratorUse(scope(), var_completion, closing_condition,
-                        loop->iterator(), try_block, final_loop, type);
+    FinalizeIteratorUse(var_completion, closing_condition, loop->iterator(),
+                        try_block, final_loop, type);
   }
 
   return final_loop;
