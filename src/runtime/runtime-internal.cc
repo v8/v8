@@ -537,7 +537,7 @@ RUNTIME_FUNCTION(Runtime_DeserializeLazy) {
   shared->set_code(code);
   function->set_code(code);
 
-  return isolate->heap()->undefined_value();
+  return code;
 }
 
 RUNTIME_FUNCTION(Runtime_IncrementUseCounter) {

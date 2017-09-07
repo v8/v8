@@ -1371,6 +1371,91 @@ void Builtins::Generate_CompileLazy(MacroAssembler* masm) {
   GenerateTailCallToReturnedCode(masm, Runtime::kCompileLazy);
 }
 
+// Lazy deserialization design doc: http://goo.gl/dxkYDZ.
+void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax : argument count (preserved for callee)
+  //  -- rdx : new target (preserved for callee)
+  //  -- rdi : target function (preserved for callee)
+  // -----------------------------------
+
+  Label deserialize_in_runtime;
+
+  Register target = rdi;  // Must be preserved
+  Register scratch0 = rbx;
+  Register scratch1 = kScratchRegister;
+
+  CHECK(!scratch0.is(rax) && !scratch0.is(rdx) && !scratch0.is(rdi));
+  CHECK(!scratch1.is(rax) && !scratch1.is(rdx) && !scratch1.is(rdi));
+  CHECK(!scratch0.is(scratch1));
+
+  // Load the builtin id for lazy deserialization from SharedFunctionInfo.
+
+  __ AssertFunction(target);
+  __ movp(scratch0,
+          FieldOperand(target, JSFunction::kSharedFunctionInfoOffset));
+
+  __ movp(scratch1,
+          FieldOperand(scratch0, SharedFunctionInfo::kFunctionDataOffset));
+  __ AssertSmi(scratch1);
+
+  // The builtin may already have been deserialized. If that is the case, it is
+  // stored in the builtins table, and we can copy to correct code object to
+  // both the shared function info and function without calling into runtime.
+  //
+  // Otherwise, we need to call into runtime to deserialize.
+
+  {
+    // Load the code object at builtins_table[builtin_id] into scratch1.
+
+    __ SmiToInteger32(scratch1, scratch1);
+    __ Move(scratch0, ExternalReference::builtins_address(masm->isolate()));
+    __ movp(scratch1, Operand(scratch0, scratch1, times_pointer_size, 0));
+
+    // Check if the loaded code object has already been deserialized. This is
+    // the case iff it does not equal DeserializeLazy.
+
+    __ Move(scratch0, masm->CodeObject());
+    __ cmpp(scratch1, scratch0);
+    __ j(equal, &deserialize_in_runtime);
+  }
+
+  {
+    // If we've reached this spot, the target builtin has been deserialized and
+    // we simply need to copy it over. First to the shared function info.
+
+    Register target_builtin = scratch1;
+    Register shared = scratch0;
+
+    __ movp(shared,
+            FieldOperand(target, JSFunction::kSharedFunctionInfoOffset));
+
+    CHECK(!r14.is(target) && !r14.is(scratch0) && !r14.is(scratch1));
+    CHECK(!r15.is(target) && !r15.is(scratch0) && !r15.is(scratch1));
+
+    __ movp(FieldOperand(shared, SharedFunctionInfo::kCodeOffset),
+            target_builtin);
+    __ movp(r14, target_builtin);  // Write barrier clobbers r14 below.
+    __ RecordWriteField(shared, SharedFunctionInfo::kCodeOffset, r14, r15,
+                        kDontSaveFPRegs, OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+
+    // And second to the target function.
+
+    __ movp(FieldOperand(target, JSFunction::kCodeOffset), target_builtin);
+    __ movp(r14, target_builtin);  // Write barrier clobbers r14 below.
+    __ RecordWriteField(target, JSFunction::kCodeOffset, r14, r15,
+                        kDontSaveFPRegs, OMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+
+    // All copying is done. Jump to the deserialized code object.
+
+    __ leap(target_builtin, FieldOperand(target_builtin, Code::kHeaderSize));
+    __ jmp(target_builtin);
+  }
+
+  __ bind(&deserialize_in_runtime);
+  GenerateTailCallToReturnedCode(masm, Runtime::kDeserializeLazy);
+}
+
 void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : argument count (preserved for callee)

@@ -122,7 +122,7 @@ namespace internal {
   ASM(CompileLazy)                                                             \
   ASM(CompileLazyDeoptimizedCode)                                              \
   ASM(CheckOptimizationMarker)                                                 \
-  TFJ(DeserializeLazy, SharedFunctionInfo::kDontAdaptArgumentsSentinel)        \
+  ASM(DeserializeLazy)                                                         \
   ASM(InstantiateAsmJs)                                                        \
   ASM(NotifyDeoptimized)                                                       \
   ASM(NotifySoftDeoptimized)                                                   \
