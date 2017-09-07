@@ -12,7 +12,6 @@
 #include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-types.h"
 #include "src/base/optional.h"
-#include "src/objects-inl.h"  // TODO(mstarzinger): Temporary cycle breaker.
 #include "src/parsing/scanner.h"
 #include "src/wasm/wasm-opcodes.h"
 

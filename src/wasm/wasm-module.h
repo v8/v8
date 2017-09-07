@@ -7,7 +7,6 @@
 
 #include <memory>
 
-#include "src/api.h"
 #include "src/debug/debug-interface.h"
 #include "src/globals.h"
 #include "src/handles.h"
@@ -394,14 +393,6 @@ const bool kGuardRegionsSupported = false;
 inline bool EnableGuardRegions() {
   return FLAG_wasm_guard_pages && kGuardRegionsSupported &&
          !FLAG_experimental_wasm_threads;
-}
-
-inline SharedFlag IsShared(Handle<JSArrayBuffer> buffer) {
-  if (!buffer.is_null() && buffer->is_shared()) {
-    DCHECK(FLAG_experimental_wasm_threads);
-    return SharedFlag::kShared;
-  }
-  return SharedFlag::kNotShared;
 }
 
 void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
