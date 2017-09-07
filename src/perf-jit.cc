@@ -37,6 +37,7 @@
 #if V8_OS_LINUX
 #include <fcntl.h>
 #include <sys/mman.h>
+#undef MAP_TYPE  // jumbo: conflicts with v8::internal::InstanceType::MAP_TYPE
 #include <unistd.h>
 #endif  // V8_OS_LINUX
 
