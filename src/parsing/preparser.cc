@@ -374,8 +374,8 @@ PreParserStatement PreParser::BuildParameterInitializationBlock(
   DCHECK(!parameters.is_simple);
   DCHECK(scope()->is_function_scope());
   if (FLAG_preparser_scope_analysis &&
-      scope()->AsDeclarationScope()->calls_sloppy_eval()) {
-    DCHECK_NOT_NULL(produced_preparsed_scope_data_);
+      scope()->AsDeclarationScope()->calls_sloppy_eval() &&
+      produced_preparsed_scope_data_ != nullptr) {
     // We cannot replicate the Scope structure constructed by the Parser,
     // because we've lost information whether each individual parameter was
     // simple or not. Give up trying to produce data to skip inner functions.
