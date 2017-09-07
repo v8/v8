@@ -40,6 +40,9 @@ class BuiltinDeserializer final : public Deserializer {
   void ReserveAndInitializeBuiltinsTableForBuiltin(int builtin_id);
 
  private:
+  // TODO(jgruber): Remove once allocations have been refactored.
+  void SetPositionToBuiltin(int builtin_id);
+
   // Extracts the size builtin Code objects (baked into the snapshot).
   uint32_t ExtractBuiltinSize(int builtin_id);
 
