@@ -14032,58 +14032,6 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 }
 
 
-Object* Code::FindNthObject(int n, Map* match_map) {
-  DCHECK(is_inline_cache_stub());
-  DisallowHeapAllocation no_allocation;
-  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    Object* object = info->target_object();
-    if (object->IsWeakCell()) object = WeakCell::cast(object)->value();
-    if (object->IsHeapObject()) {
-      if (HeapObject::cast(object)->map() == match_map) {
-        if (--n == 0) return object;
-      }
-    }
-  }
-  return NULL;
-}
-
-
-AllocationSite* Code::FindFirstAllocationSite() {
-  Object* result = FindNthObject(1, GetHeap()->allocation_site_map());
-  return (result != NULL) ? AllocationSite::cast(result) : NULL;
-}
-
-
-Map* Code::FindFirstMap() {
-  Object* result = FindNthObject(1, GetHeap()->meta_map());
-  return (result != NULL) ? Map::cast(result) : NULL;
-}
-
-
-void Code::FindAndReplace(const FindAndReplacePattern& pattern) {
-  DCHECK(is_inline_cache_stub() || is_handler());
-  DisallowHeapAllocation no_allocation;
-  int mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  STATIC_ASSERT(FindAndReplacePattern::kMaxCount < 32);
-  int current_pattern = 0;
-  for (RelocIterator it(this, mask); !it.done(); it.next()) {
-    RelocInfo* info = it.rinfo();
-    HeapObject* object = info->target_object();
-    if (object->IsWeakCell()) {
-      object = HeapObject::cast(WeakCell::cast(object)->value());
-    }
-    Map* map = object->map();
-    if (map == *pattern.find_[current_pattern]) {
-      info->set_target_object(*pattern.replace_[current_pattern]);
-      if (++current_pattern == pattern.count_) return;
-    }
-  }
-  UNREACHABLE();
-}
-
-
 namespace {
 template <typename Code>
 void SetStackFrameCacheCommon(Handle<Code> code,

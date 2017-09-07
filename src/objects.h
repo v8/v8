@@ -924,7 +924,6 @@ class Cell;
 class ConsString;
 class ElementsAccessor;
 class EnumCache;
-class FindAndReplacePattern;
 class FixedArrayBase;
 class PropertyArray;
 class FunctionLiteral;
@@ -3849,23 +3848,6 @@ class Code: public HeapObject {
 
   // Get the safepoint entry for the given pc.
   SafepointEntry GetSafepointEntry(Address pc);
-
-  // Find an object in a stub with a specified map
-  Object* FindNthObject(int n, Map* match_map);
-
-  // Find the first allocation site in an IC stub.
-  AllocationSite* FindFirstAllocationSite();
-
-  // Find the first map in an IC stub.
-  Map* FindFirstMap();
-
-  // For each (map-to-find, object-to-replace) pair in the pattern, this
-  // function replaces the corresponding placeholder in the code with the
-  // object-to-replace. The function assumes that pairs in the pattern come in
-  // the same order as the placeholders in the code.
-  // If the placeholder is a weak cell, then the value of weak cell is matched
-  // against the map-to-find.
-  void FindAndReplace(const FindAndReplacePattern& pattern);
 
   // The entire code object including its header is copied verbatim to the
   // snapshot so that it can be written in one, fast, memcpy during

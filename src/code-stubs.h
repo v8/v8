@@ -9,7 +9,6 @@
 #include "src/assembler.h"
 #include "src/codegen.h"
 #include "src/factory.h"
-#include "src/find-and-replace-pattern.h"
 #include "src/globals.h"
 #include "src/interface-descriptors.h"
 #include "src/macro-assembler.h"
@@ -142,9 +141,6 @@ class CodeStub : public ZoneObject {
 
   // Retrieve the code for the stub. Generate the code if needed.
   Handle<Code> GetCode();
-
-  // Retrieve the code for the stub, make and return a copy of the code.
-  Handle<Code> GetCodeCopy(const FindAndReplacePattern& pattern);
 
   static Major MajorKeyFromKey(uint32_t key) {
     return static_cast<Major>(MajorKeyBits::decode(key));

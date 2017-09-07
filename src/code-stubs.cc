@@ -109,14 +109,6 @@ Code::Flags CodeStub::GetCodeFlags() const {
   return Code::ComputeFlags(GetCodeKind(), GetExtraICState());
 }
 
-Handle<Code> CodeStub::GetCodeCopy(const FindAndReplacePattern& pattern) {
-  Handle<Code> ic = GetCode();
-  ic = isolate()->factory()->CopyCode(ic);
-  ic->FindAndReplace(pattern);
-  RecordCodeGeneration(ic);
-  return ic;
-}
-
 void CodeStub::DeleteStubFromCacheForTesting() {
   Heap* heap = isolate_->heap();
   Handle<UnseededNumberDictionary> dict(heap->code_stubs());
