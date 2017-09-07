@@ -2194,8 +2194,8 @@ void MaterializedObjectStore::Set(Address fp,
                                   Handle<FixedArray> materialized_objects) {
   int index = StackIdToIndex(fp);
   if (index == -1) {
-    index = frame_fps_.length();
-    frame_fps_.Add(fp);
+    index = static_cast<int>(frame_fps_.size());
+    frame_fps_.push_back(fp);
   }
 
   Handle<FixedArray> array = EnsureStackEntries(index + 1);
@@ -2204,30 +2204,28 @@ void MaterializedObjectStore::Set(Address fp,
 
 
 bool MaterializedObjectStore::Remove(Address fp) {
-  int index = StackIdToIndex(fp);
-  if (index == -1) {
-    return false;
-  }
-  CHECK_GE(index, 0);
+  auto it = std::find(frame_fps_.begin(), frame_fps_.end(), fp);
+  if (it == frame_fps_.end()) return false;
+  int index = static_cast<int>(std::distance(frame_fps_.begin(), it));
 
-  frame_fps_.Remove(index);
+  frame_fps_.erase(it);
   FixedArray* array = isolate()->heap()->materialized_objects();
+
   CHECK_LT(index, array->length());
-  for (int i = index; i < frame_fps_.length(); i++) {
+  int fps_size = static_cast<int>(frame_fps_.size());
+  for (int i = index; i < fps_size; i++) {
     array->set(i, array->get(i + 1));
   }
-  array->set(frame_fps_.length(), isolate()->heap()->undefined_value());
+  array->set(fps_size, isolate()->heap()->undefined_value());
   return true;
 }
 
 
 int MaterializedObjectStore::StackIdToIndex(Address fp) {
-  for (int i = 0; i < frame_fps_.length(); i++) {
-    if (frame_fps_[i] == fp) {
-      return i;
-    }
-  }
-  return -1;
+  auto it = std::find(frame_fps_.begin(), frame_fps_.end(), fp);
+  return it == frame_fps_.end()
+             ? -1
+             : static_cast<int>(std::distance(frame_fps_.begin(), it));
 }
 
 

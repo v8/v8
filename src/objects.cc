@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 #include "src/objects-inl.h"
 
@@ -47,7 +48,6 @@
 #include "src/interpreter/interpreter.h"
 #include "src/isolate-inl.h"
 #include "src/keys.h"
-#include "src/list.h"
 #include "src/log.h"
 #include "src/lookup.h"
 #include "src/macro-assembler.h"
@@ -11224,11 +11224,8 @@ void String::WriteToFlat(String* src,
   }
 }
 
-
-
 template <typename SourceChar>
-static void CalculateLineEndsImpl(Isolate* isolate,
-                                  List<int>* line_ends,
+static void CalculateLineEndsImpl(Isolate* isolate, std::vector<int>* line_ends,
                                   Vector<const SourceChar> src,
                                   bool include_ending_line) {
   const int src_len = src.length();
@@ -11236,16 +11233,16 @@ static void CalculateLineEndsImpl(Isolate* isolate,
   for (int i = 0; i < src_len - 1; i++) {
     SourceChar current = src[i];
     SourceChar next = src[i + 1];
-    if (cache->IsLineTerminatorSequence(current, next)) line_ends->Add(i);
+    if (cache->IsLineTerminatorSequence(current, next)) line_ends->push_back(i);
   }
 
   if (src_len > 0 && cache->IsLineTerminatorSequence(src[src_len - 1], 0)) {
-    line_ends->Add(src_len - 1);
+    line_ends->push_back(src_len - 1);
   }
   if (include_ending_line) {
     // Include one character beyond the end of script. The rewriter uses that
     // position for the implicit return statement.
-    line_ends->Add(src_len);
+    line_ends->push_back(src_len);
   }
 }
 
@@ -11256,7 +11253,8 @@ Handle<FixedArray> String::CalculateLineEnds(Handle<String> src,
   // Rough estimate of line count based on a roughly estimated average
   // length of (unpacked) code.
   int line_count_estimate = src->length() >> 4;
-  List<int> line_ends(line_count_estimate);
+  std::vector<int> line_ends;
+  line_ends.reserve(line_count_estimate);
   Isolate* isolate = src->GetIsolate();
   { DisallowHeapAllocation no_allocation;  // ensure vectors stay valid.
     // Dispatch on type of strings.
@@ -11274,7 +11272,7 @@ Handle<FixedArray> String::CalculateLineEnds(Handle<String> src,
                             include_ending_line);
     }
   }
-  int line_count = line_ends.length();
+  int line_count = static_cast<int>(line_ends.size());
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(line_count);
   for (int i = 0; i < line_count; i++) {
     array->set(i, Smi::FromInt(line_ends[i]));

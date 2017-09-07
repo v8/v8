@@ -3267,39 +3267,49 @@ Handle<Symbol> Isolate::SymbolFor(Heap::RootListIndex dictionary_index,
 }
 
 void Isolate::AddBeforeCallEnteredCallback(BeforeCallEnteredCallback callback) {
-  for (int i = 0; i < before_call_entered_callbacks_.length(); i++) {
-    if (callback == before_call_entered_callbacks_.at(i)) return;
-  }
-  before_call_entered_callbacks_.Add(callback);
+  auto pos = std::find(before_call_entered_callbacks_.begin(),
+                       before_call_entered_callbacks_.end(), callback);
+  if (pos != before_call_entered_callbacks_.end()) return;
+  before_call_entered_callbacks_.push_back(callback);
 }
-
 
 void Isolate::RemoveBeforeCallEnteredCallback(
     BeforeCallEnteredCallback callback) {
-  for (int i = 0; i < before_call_entered_callbacks_.length(); i++) {
-    if (callback == before_call_entered_callbacks_.at(i)) {
-      before_call_entered_callbacks_.Remove(i);
-    }
-  }
+  auto pos = std::find(before_call_entered_callbacks_.begin(),
+                       before_call_entered_callbacks_.end(), callback);
+  if (pos == before_call_entered_callbacks_.end()) return;
+  before_call_entered_callbacks_.erase(pos);
 }
-
 
 void Isolate::AddCallCompletedCallback(CallCompletedCallback callback) {
-  for (int i = 0; i < call_completed_callbacks_.length(); i++) {
-    if (callback == call_completed_callbacks_.at(i)) return;
-  }
-  call_completed_callbacks_.Add(callback);
+  auto pos = std::find(call_completed_callbacks_.begin(),
+                       call_completed_callbacks_.end(), callback);
+  if (pos != call_completed_callbacks_.end()) return;
+  call_completed_callbacks_.push_back(callback);
 }
-
 
 void Isolate::RemoveCallCompletedCallback(CallCompletedCallback callback) {
-  for (int i = 0; i < call_completed_callbacks_.length(); i++) {
-    if (callback == call_completed_callbacks_.at(i)) {
-      call_completed_callbacks_.Remove(i);
-    }
-  }
+  auto pos = std::find(call_completed_callbacks_.begin(),
+                       call_completed_callbacks_.end(), callback);
+  if (pos == call_completed_callbacks_.end()) return;
+  call_completed_callbacks_.erase(pos);
 }
 
+void Isolate::AddMicrotasksCompletedCallback(
+    MicrotasksCompletedCallback callback) {
+  auto pos = std::find(microtasks_completed_callbacks_.begin(),
+                       microtasks_completed_callbacks_.end(), callback);
+  if (pos != microtasks_completed_callbacks_.end()) return;
+  microtasks_completed_callbacks_.push_back(callback);
+}
+
+void Isolate::RemoveMicrotasksCompletedCallback(
+    MicrotasksCompletedCallback callback) {
+  auto pos = std::find(microtasks_completed_callbacks_.begin(),
+                       microtasks_completed_callbacks_.end(), callback);
+  if (pos == microtasks_completed_callbacks_.end()) return;
+  microtasks_completed_callbacks_.erase(pos);
+}
 
 void Isolate::FireCallCompletedCallback() {
   if (!handle_scope_implementer()->CallDepthIsZero()) return;
@@ -3312,12 +3322,12 @@ void Isolate::FireCallCompletedCallback() {
 
   if (run_microtasks) RunMicrotasks();
 
-  if (call_completed_callbacks_.is_empty()) return;
+  if (call_completed_callbacks_.empty()) return;
   // Fire callbacks.  Increase call depth to prevent recursive callbacks.
   v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this);
   v8::Isolate::SuppressMicrotaskExecutionScope suppress(isolate);
-  for (int i = 0; i < call_completed_callbacks_.length(); i++) {
-    call_completed_callbacks_.at(i)(isolate);
+  for (auto& callback : call_completed_callbacks_) {
+    callback(reinterpret_cast<v8::Isolate*>(this));
   }
 }
 
@@ -3576,33 +3586,6 @@ void Isolate::RunMicrotasksInternal() {
     });
   }
 }
-
-
-void Isolate::AddMicrotasksCompletedCallback(
-    MicrotasksCompletedCallback callback) {
-  for (int i = 0; i < microtasks_completed_callbacks_.length(); i++) {
-    if (callback == microtasks_completed_callbacks_.at(i)) return;
-  }
-  microtasks_completed_callbacks_.Add(callback);
-}
-
-
-void Isolate::RemoveMicrotasksCompletedCallback(
-    MicrotasksCompletedCallback callback) {
-  for (int i = 0; i < microtasks_completed_callbacks_.length(); i++) {
-    if (callback == microtasks_completed_callbacks_.at(i)) {
-      microtasks_completed_callbacks_.Remove(i);
-    }
-  }
-}
-
-
-void Isolate::FireMicrotasksCompletedCallback() {
-  for (int i = 0; i < microtasks_completed_callbacks_.length(); i++) {
-    microtasks_completed_callbacks_.at(i)(reinterpret_cast<v8::Isolate*>(this));
-  }
-}
-
 
 void Isolate::SetUseCounterCallback(v8::Isolate::UseCounterCallback callback) {
   DCHECK(!use_counter_callback_);

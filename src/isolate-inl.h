@@ -98,8 +98,14 @@ bool Isolate::is_catchable_by_wasm(Object* exception) {
 }
 
 void Isolate::FireBeforeCallEnteredCallback() {
-  for (int i = 0; i < before_call_entered_callbacks_.length(); i++) {
-    before_call_entered_callbacks_.at(i)(reinterpret_cast<v8::Isolate*>(this));
+  for (auto& callback : before_call_entered_callbacks_) {
+    callback(reinterpret_cast<v8::Isolate*>(this));
+  }
+}
+
+void Isolate::FireMicrotasksCompletedCallback() {
+  for (auto& callback : microtasks_completed_callbacks_) {
+    callback(reinterpret_cast<v8::Isolate*>(this));
   }
 }
 
