@@ -52,6 +52,10 @@ ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
           kGlobalsBufferOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,
                    kDebugInfoOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, function_tables, FixedArray,
+                   kFunctionTablesOffset)
+OPTIONAL_ACCESSORS(WasmInstanceObject, signature_tables, FixedArray,
+                   kSignatureTablesOffset)
 ACCESSORS(WasmInstanceObject, directly_called_instances, FixedArray,
           kDirectlyCalledInstancesOffset)
 

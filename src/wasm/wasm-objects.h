@@ -23,33 +23,7 @@ namespace internal {
 namespace wasm {
 class InterpretedFrame;
 class WasmInterpreter;
-
-// When we compile or instantiate, we need to create global handles
-// for function tables. Normally, these handles get destroyed when the
-// respective objects get GCed. If we fail to construct those objects,
-// we can leak global handles. The exit path in these cases isn't unique,
-// and may grow.
-//
-// This type addresses that.
-
 typedef Address GlobalHandleAddress;
-
-class GlobalHandleLifetimeManager final {
- public:
-  void Add(GlobalHandleAddress addr) { handles_.push_back(addr); }
-  // Call this when compilation or instantiation has succeeded, and we've
-  // passed the control to a JS object with a finalizer that'll destroy
-  // the handles.
-  void ReleaseWithoutDestroying() { handles_.clear(); }
-  ~GlobalHandleLifetimeManager() {
-    for (auto& addr : handles_) {
-      GlobalHandles::Destroy(reinterpret_cast<Object**>(addr));
-    }
-  }
-
- private:
-  std::vector<Address> handles_;
-};
 }  // namespace wasm
 
 class WasmCompiledModule;
@@ -91,9 +65,6 @@ class WasmModuleObject : public JSObject {
 
   static Handle<WasmModuleObject> New(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
-
- private:
-  static void Finalizer(const v8::WeakCallbackInfo<void>& data);
 };
 
 // Representation of a WebAssembly.Table JavaScript-level object.
@@ -179,6 +150,9 @@ class WasmInstanceObject : public JSObject {
   DECL_OPTIONAL_ACCESSORS(memory_buffer, JSArrayBuffer)
   DECL_OPTIONAL_ACCESSORS(globals_buffer, JSArrayBuffer)
   DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
+  DECL_OPTIONAL_ACCESSORS(function_tables, FixedArray)
+  DECL_OPTIONAL_ACCESSORS(signature_tables, FixedArray)
+
   // FixedArray of all instances whose code was imported
   DECL_OPTIONAL_ACCESSORS(directly_called_instances, FixedArray)
 
@@ -189,6 +163,8 @@ class WasmInstanceObject : public JSObject {
     kMemoryBufferIndex,
     kGlobalsBufferIndex,
     kDebugInfoIndex,
+    kFunctionTablesIndex,
+    kSignatureTablesIndex,
     kDirectlyCalledInstancesIndex,
     kFieldCount
   };
@@ -200,6 +176,8 @@ class WasmInstanceObject : public JSObject {
   DEF_OFFSET(MemoryBuffer)
   DEF_OFFSET(GlobalsBuffer)
   DEF_OFFSET(DebugInfo)
+  DEF_OFFSET(FunctionTables)
+  DEF_OFFSET(SignatureTables)
   DEF_OFFSET(DirectlyCalledInstances)
 
   WasmModuleObject* module_object();
@@ -422,8 +400,6 @@ class WasmCompiledModule : public FixedArray {
   static Handle<WasmCompiledModule> Clone(Isolate* isolate,
                                           Handle<WasmCompiledModule> module);
   static void Reset(Isolate* isolate, WasmCompiledModule* module);
-  static void DestroyGlobalHandles(Isolate* isolate,
-                                   WasmCompiledModule* compiled_module);
 
   inline Address GetEmbeddedMemStartOrNull() const;
   inline Address GetGlobalsStartOrNull() const;

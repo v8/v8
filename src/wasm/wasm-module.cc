@@ -124,9 +124,6 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
     WasmMemoryObject::RemoveInstance(isolate, memory, instance);
   }
 
-  // In all cases, release the global handles held to tables by this instance
-  WasmCompiledModule::DestroyGlobalHandles(isolate, compiled_module);
-
   // weak_wasm_module may have been cleared, meaning the module object
   // was GC-ed. In that case, there won't be any new instances created,
   // and we don't need to maintain the links between instances.
