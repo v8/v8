@@ -3805,13 +3805,6 @@ class Code: public HeapObject {
   inline bool has_reloc_info_for_serialization() const;
   inline void set_has_reloc_info_for_serialization(bool value);
 
-  // [allow_osr_at_loop_nesting_level]: For FUNCTION kind, tells for
-  // how long the function has been marked for OSR and therefore which
-  // level of loop nesting we are willing to do on-stack replacement
-  // for.
-  inline void set_allow_osr_at_loop_nesting_level(int level);
-  inline int allow_osr_at_loop_nesting_level() const;
-
   // [builtin_index]: For builtins, tells which builtin index the code object
   // has. Note that builtins can have a code kind other than BUILTIN. The
   // builtin index is a non-negative integer for builtins, and -1 otherwise.
@@ -3828,13 +3821,6 @@ class Code: public HeapObject {
   // the instruction stream where the safepoint table starts.
   inline unsigned safepoint_table_offset() const;
   inline void set_safepoint_table_offset(unsigned offset);
-
-  // [back_edge_table_start]: For kind FUNCTION, the offset in the
-  // instruction stream where the back edge table starts.
-  inline unsigned back_edge_table_offset() const;
-  inline void set_back_edge_table_offset(unsigned offset);
-
-  inline bool back_edges_patched_for_osr() const;
 
   // [marked_for_deoptimization]: For kind OPTIMIZED_FUNCTION tells whether
   // the code is going to be deoptimized because of dead embedded maps.
@@ -4053,9 +4039,6 @@ class Code: public HeapObject {
   static const int kTrapHandlerIndex = kBuiltinIndexOffset + kIntSize;
   static const int kHeaderPaddingStart = kTrapHandlerIndex + kPointerSize;
 
-  enum TrapFields { kTrapCodeOffset, kTrapLandingOffset, kTrapDataSize };
-
-
   // Add padding to align the instruction start following right after
   // the Code object header.
   static const int kHeaderSize =
@@ -4129,12 +4112,6 @@ class Code: public HeapObject {
       kSafepointTableOffsetFirstBit,
       kSafepointTableOffsetBitCount> {};  // NOLINT
 
-  // KindSpecificFlags2 layout (FUNCTION)
-  class BackEdgeTableOffsetField
-      : public BitField<int, kHasTaggedStackBit + 1, 27> {};  // NOLINT
-  class AllowOSRAtLoopNestingLevelField
-      : public BitField<int, kHasTaggedStackBit + 1 + 27, 4> {};  // NOLINT
-
   static const int kArgumentsBits = 16;
   static const int kMaxArguments = (1 << kArgumentsBits) - 1;
 
@@ -4203,8 +4180,6 @@ class AbstractCode : public HeapObject {
   // Max loop nesting marker used to postpose OSR. We don't take loop
   // nesting that is deeper than 5 levels into account.
   static const int kMaxLoopNestingMarker = 6;
-  STATIC_ASSERT(Code::AllowOSRAtLoopNestingLevelField::kMax >=
-                kMaxLoopNestingMarker);
 };
 
 // Dependent code is a singly linked list of fixed arrays. Each array contains

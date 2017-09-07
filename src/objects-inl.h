@@ -3821,20 +3821,6 @@ void Code::set_has_reloc_info_for_serialization(bool value) {
   WRITE_UINT32_FIELD(this, kFullCodeFlags, flags);
 }
 
-int Code::allow_osr_at_loop_nesting_level() const {
-  DCHECK_EQ(FUNCTION, kind());
-  int fields = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
-  return AllowOSRAtLoopNestingLevelField::decode(fields);
-}
-
-
-void Code::set_allow_osr_at_loop_nesting_level(int level) {
-  DCHECK_EQ(FUNCTION, kind());
-  DCHECK(level >= 0 && level <= AbstractCode::kMaxLoopNestingMarker);
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
-  int updated = AllowOSRAtLoopNestingLevelField::update(previous, level);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
-}
 
 int Code::builtin_index() const {
   int index = READ_INT_FIELD(this, kBuiltinIndexOffset);
@@ -3878,27 +3864,6 @@ void Code::set_safepoint_table_offset(unsigned offset) {
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
   int updated = SafepointTableOffsetField::update(previous, offset);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
-}
-
-unsigned Code::back_edge_table_offset() const {
-  DCHECK_EQ(FUNCTION, kind());
-  return BackEdgeTableOffsetField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset)) << kPointerSizeLog2;
-}
-
-
-void Code::set_back_edge_table_offset(unsigned offset) {
-  DCHECK_EQ(FUNCTION, kind());
-  DCHECK(IsAligned(offset, static_cast<unsigned>(kPointerSize)));
-  offset = offset >> kPointerSizeLog2;
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
-  int updated = BackEdgeTableOffsetField::update(previous, offset);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
-}
-
-bool Code::back_edges_patched_for_osr() const {
-  DCHECK_EQ(FUNCTION, kind());
-  return allow_osr_at_loop_nesting_level() > 0;
 }
 
 

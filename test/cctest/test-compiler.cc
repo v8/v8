@@ -649,9 +649,7 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
 
   if (f->code()->kind() == Code::FUNCTION) {
     Address pc = f->code()->instruction_start();
-    int decode_size =
-        Min(f->code()->instruction_size(),
-            static_cast<int>(f->code()->back_edge_table_offset()));
+    int decode_size = f->code()->instruction_size();
     if (FLAG_enable_embedded_constant_pool) {
       decode_size = Min(decode_size, f->code()->constant_pool_offset());
     }

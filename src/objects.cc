@@ -14565,16 +14565,12 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     int size = instruction_size();
     int safepoint_offset =
         is_turbofanned() ? static_cast<int>(safepoint_table_offset()) : size;
-    int back_edge_offset = (kind() == Code::FUNCTION)
-                               ? static_cast<int>(back_edge_table_offset())
-                               : size;
     int constant_pool_offset = FLAG_enable_embedded_constant_pool
                                    ? this->constant_pool_offset()
                                    : size;
 
     // Stop before reaching any embedded tables
-    int code_size = Min(safepoint_offset, back_edge_offset);
-    code_size = Min(code_size, constant_pool_offset);
+    int code_size = Min(safepoint_offset, constant_pool_offset);
     byte* begin = instruction_start();
     byte* end = begin + code_size;
     Disassembler::Decode(isolate, &os, begin, end, this);
