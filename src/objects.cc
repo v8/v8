@@ -2315,13 +2315,11 @@ Map* Map::GetPrototypeChainRootMap(Isolate* isolate) const {
 
 namespace {
 
-// Returns a non-SMI for JSObjects, but returns the hash code for simple
+// Returns a non-SMI for JSReceivers, but returns the hash code for simple
 // objects.  This avoids a double lookup in the cases where we know we will
-// add the hash to the JSObject if it does not already exist.
+// add the hash to the JSReceiver if it does not already exist.
 Object* GetSimpleHash(Object* object) {
   DisallowHeapAllocation no_gc;
-  // The object is either a Smi, a HeapNumber, a name, an odd-ball, a real JS
-  // object, or a Harmony proxy.
   if (object->IsSmi()) {
     uint32_t hash = ComputeIntegerHash(Smi::ToInt(object));
     return Smi::FromInt(hash & Smi::kMaxValue);

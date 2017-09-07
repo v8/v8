@@ -8606,8 +8606,7 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
 
 Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
                                      Variable* var_type_feedback) {
-  // Here's pseudo-code for the algorithm below in case of kDontNegateResult
-  // mode; for kNegateResult mode we properly negate the result.
+  // Pseudo-code for the algorithm below:
   //
   // if (lhs == rhs) {
   //   if (lhs->IsHeapNumber()) return HeapNumber::cast(lhs)->value() != NaN;

@@ -611,7 +611,6 @@ void CollectionsBuiltinsAssembler::SameValueZeroHeapNumber(Node* key_float,
                                                            Label* if_not_same) {
   Label if_smi(this), if_keyisnan(this);
 
-  // If the candidate is not a string, the keys are not equal.
   GotoIf(TaggedIsSmi(candidate_key), &if_smi);
   GotoIfNot(IsHeapNumber(candidate_key), if_not_same);
 
