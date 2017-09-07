@@ -244,6 +244,8 @@ class GeneratorObject {
  */
 class V8_EXPORT_PRIVATE Coverage {
  public:
+  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(Coverage);
+
   enum Mode {
     // Make use of existing information in feedback vectors on the heap.
     // Only return a yes/no result. Optimization and GC are not affected.
@@ -269,6 +271,8 @@ class V8_EXPORT_PRIVATE Coverage {
 
   class V8_EXPORT_PRIVATE BlockData {
    public:
+    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(BlockData);
+
     int StartOffset() const;
     int EndOffset() const;
     uint32_t Count() const;
@@ -282,6 +286,8 @@ class V8_EXPORT_PRIVATE Coverage {
 
   class V8_EXPORT_PRIVATE FunctionData {
    public:
+    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(FunctionData);
+
     int StartOffset() const;
     int EndOffset() const;
     uint32_t Count() const;
@@ -300,6 +306,8 @@ class V8_EXPORT_PRIVATE Coverage {
 
   class V8_EXPORT_PRIVATE ScriptData {
    public:
+    MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(ScriptData);
+
     Local<debug::Script> GetScript() const;
     size_t FunctionCount() const;
     FunctionData GetFunctionData(size_t i) const;
