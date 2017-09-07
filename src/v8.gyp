@@ -956,6 +956,7 @@
         'extensions/trigger-failure-extension.h',
         'external-reference-table.cc',
         'external-reference-table.h',
+        'factory-inl.h',
         'factory.cc',
         'factory.h',
         'fast-dtoa.cc',

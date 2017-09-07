@@ -5,7 +5,7 @@
 #ifndef V8_FEEDBACK_VECTOR_INL_H_
 #define V8_FEEDBACK_VECTOR_INL_H_
 
-#include "src/factory.h"
+#include "src/factory-inl.h"
 #include "src/feedback-vector.h"
 #include "src/globals.h"
 #include "src/heap/heap-inl.h"

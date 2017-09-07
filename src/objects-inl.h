@@ -5779,6 +5779,10 @@ void GlobalDictionary::SetEntry(int entry, Object* key, Object* value,
   DetailsAtPut(entry, details);
 }
 
+void GlobalDictionary::ValueAtPut(int entry, Object* value) {
+  set(EntryToIndex(entry), value);
+}
+
 bool NumberDictionaryShape::IsMatch(uint32_t key, Object* other) {
   DCHECK(other->IsNumber());
   return key == static_cast<uint32_t>(other->Number());
@@ -6148,6 +6152,24 @@ ACCESSORS(JSAsyncFromSyncIterator, sync_iterator, JSReceiver,
 
 ACCESSORS(JSStringIterator, string, String, kStringOffset)
 SMI_ACCESSORS(JSStringIterator, index, kNextIndexOffset)
+
+bool ScopeInfo::IsAsmModule() { return AsmModuleField::decode(Flags()); }
+
+bool ScopeInfo::HasSimpleParameters() {
+  return HasSimpleParametersField::decode(Flags());
+}
+
+#define FIELD_ACCESSORS(name)                                                 \
+  void ScopeInfo::Set##name(int value) { set(k##name, Smi::FromInt(value)); } \
+  int ScopeInfo::name() {                                                     \
+    if (length() > 0) {                                                       \
+      return Smi::ToInt(get(k##name));                                        \
+    } else {                                                                  \
+      return 0;                                                               \
+    }                                                                         \
+  }
+FOR_EACH_SCOPE_INFO_NUMERIC_FIELD(FIELD_ACCESSORS)
+#undef FIELD_ACCESSORS
 
 }  // namespace internal
 }  // namespace v8

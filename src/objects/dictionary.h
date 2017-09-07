@@ -217,7 +217,7 @@ class GlobalDictionary
   inline void SetEntry(int entry, Object* key, Object* value,
                        PropertyDetails details);
   inline Name* NameAt(int entry);
-  void ValueAtPut(int entry, Object* value) { set(EntryToIndex(entry), value); }
+  inline void ValueAtPut(int entry, Object* value);
 };
 
 class NumberDictionaryShape : public BaseDictionaryShape<uint32_t> {

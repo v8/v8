@@ -169,15 +169,9 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<String> InternalizeStringWithKey(StringTableKey* key);
 
   // Internalized strings are created in the old generation (data space).
-  Handle<String> InternalizeString(Handle<String> string) {
-    if (string->IsInternalizedString()) return string;
-    return StringTable::LookupString(isolate(), string);
-  }
+  inline Handle<String> InternalizeString(Handle<String> string);
 
-  Handle<Name> InternalizeName(Handle<Name> name) {
-    if (name->IsUniqueName()) return name;
-    return StringTable::LookupString(isolate(), Handle<String>::cast(name));
-  }
+  inline Handle<Name> InternalizeName(Handle<Name> name);
 
   // String creation functions.  Most of the string creation functions take
   // a Heap::PretenureFlag argument to optionally request that they be
@@ -294,10 +288,7 @@ class V8_EXPORT_PRIVATE Factory final {
                                     int end);
 
   // Create a new string object which holds a substring of a string.
-  Handle<String> NewSubString(Handle<String> str, int begin, int end) {
-    if (begin == 0 && end == str->length()) return str;
-    return NewProperSubString(str, begin, end);
-  }
+  inline Handle<String> NewSubString(Handle<String> str, int begin, int end);
 
   // Creates a new external String object.  There are two String encodings
   // in the system: one-byte and two-byte.  Unlike other String types, it does
@@ -464,44 +455,19 @@ class V8_EXPORT_PRIVATE Factory final {
                                   PretenureFlag pretenure = NOT_TENURED);
   Handle<Object> NewNumberFromUint(uint32_t value,
                                   PretenureFlag pretenure = NOT_TENURED);
-  Handle<Object> NewNumberFromSize(size_t value,
-                                   PretenureFlag pretenure = NOT_TENURED) {
-    // We can't use Smi::IsValid() here because that operates on a signed
-    // intptr_t, and casting from size_t could create a bogus sign bit.
-    if (value <= static_cast<size_t>(Smi::kMaxValue)) {
-      return Handle<Object>(Smi::FromIntptr(static_cast<intptr_t>(value)),
-                            isolate());
-    }
-    return NewNumber(static_cast<double>(value), pretenure);
-  }
-  Handle<Object> NewNumberFromInt64(int64_t value,
-                                    PretenureFlag pretenure = NOT_TENURED) {
-    if (value <= std::numeric_limits<int32_t>::max() &&
-        value >= std::numeric_limits<int32_t>::min() &&
-        Smi::IsValid(static_cast<int32_t>(value))) {
-      return Handle<Object>(Smi::FromInt(static_cast<int32_t>(value)),
-                            isolate());
-    }
-    return NewNumber(static_cast<double>(value), pretenure);
-  }
-  Handle<HeapNumber> NewHeapNumber(double value, MutableMode mode = IMMUTABLE,
-                                   PretenureFlag pretenure = NOT_TENURED) {
-    Handle<HeapNumber> heap_number = NewHeapNumber(mode, pretenure);
-    heap_number->set_value(value);
-    return heap_number;
-  }
-  Handle<HeapNumber> NewHeapNumberFromBits(
+  inline Handle<Object> NewNumberFromSize(
+      size_t value, PretenureFlag pretenure = NOT_TENURED);
+  inline Handle<Object> NewNumberFromInt64(
+      int64_t value, PretenureFlag pretenure = NOT_TENURED);
+  inline Handle<HeapNumber> NewHeapNumber(
+      double value, MutableMode mode = IMMUTABLE,
+      PretenureFlag pretenure = NOT_TENURED);
+  inline Handle<HeapNumber> NewHeapNumberFromBits(
       uint64_t bits, MutableMode mode = IMMUTABLE,
-      PretenureFlag pretenure = NOT_TENURED) {
-    Handle<HeapNumber> heap_number = NewHeapNumber(mode, pretenure);
-    heap_number->set_value_as_bits(bits);
-    return heap_number;
-  }
+      PretenureFlag pretenure = NOT_TENURED);
   // Creates mutable heap number object with value field set to hole NaN.
-  Handle<HeapNumber> NewMutableHeapNumber(
-      PretenureFlag pretenure = NOT_TENURED) {
-    return NewHeapNumberFromBits(kHoleNanInt64, MUTABLE, pretenure);
-  }
+  inline Handle<HeapNumber> NewMutableHeapNumber(
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Creates heap number object with not yet set value field.
   Handle<HeapNumber> NewHeapNumber(MutableMode mode,
@@ -557,13 +523,10 @@ class V8_EXPORT_PRIVATE Factory final {
                                          ElementsKind elements_kind, int length,
                                          PretenureFlag pretenure = NOT_TENURED);
 
-  Handle<JSArray> NewJSArrayWithElements(
+  inline Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArrayBase> elements,
       ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
-      PretenureFlag pretenure = NOT_TENURED) {
-    return NewJSArrayWithElements(elements, elements_kind, elements->length(),
-                                  pretenure);
-  }
+      PretenureFlag pretenure = NOT_TENURED);
 
   void NewJSArrayStorage(
       Handle<JSArray> array,
@@ -707,10 +670,7 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<Object> NewInvalidStringLengthError();
 
-  Handle<Object> NewURIError() {
-    return NewError(isolate()->uri_error_function(),
-                    MessageTemplate::kURIMalformed);
-  }
+  inline Handle<Object> NewURIError();
 
   Handle<Object> NewError(Handle<JSFunction> constructor,
                           MessageTemplate::Template template_index,
@@ -737,56 +697,27 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<String> NumberToString(Handle<Object> number,
                                 bool check_number_string_cache = true);
 
-  Handle<String> Uint32ToString(uint32_t value) {
-    Handle<String> result = NumberToString(NewNumberFromUint(value));
-
-    if (result->length() <= String::kMaxArrayIndexSize) {
-      uint32_t field =
-          StringHasher::MakeArrayIndexHash(value, result->length());
-      result->set_hash_field(field);
-    }
-    return result;
-  }
+  inline Handle<String> Uint32ToString(uint32_t value);
 
   Handle<JSFunction> InstallMembers(Handle<JSFunction> function);
 
-#define ROOT_ACCESSOR(type, name, camel_name)                         \
-  inline Handle<type> name() {                                        \
-    return Handle<type>(bit_cast<type**>(                             \
-        &isolate()->heap()->roots_[Heap::k##camel_name##RootIndex])); \
-  }
+#define ROOT_ACCESSOR(type, name, camel_name) inline Handle<type> name();
   ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-#define STRUCT_MAP_ACCESSOR(NAME, Name, name)                      \
-  inline Handle<Map> name##_map() {                                \
-    return Handle<Map>(bit_cast<Map**>(                            \
-        &isolate()->heap()->roots_[Heap::k##Name##MapRootIndex])); \
-  }
+#define STRUCT_MAP_ACCESSOR(NAME, Name, name) inline Handle<Map> name##_map();
   STRUCT_LIST(STRUCT_MAP_ACCESSOR)
 #undef STRUCT_MAP_ACCESSOR
 
-#define STRING_ACCESSOR(name, str)                              \
-  inline Handle<String> name() {                                \
-    return Handle<String>(bit_cast<String**>(                   \
-        &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \
-  }
+#define STRING_ACCESSOR(name, str) inline Handle<String> name();
   INTERNALIZED_STRING_LIST(STRING_ACCESSOR)
 #undef STRING_ACCESSOR
 
-#define SYMBOL_ACCESSOR(name)                                   \
-  inline Handle<Symbol> name() {                                \
-    return Handle<Symbol>(bit_cast<Symbol**>(                   \
-        &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \
-  }
+#define SYMBOL_ACCESSOR(name) inline Handle<Symbol> name();
   PRIVATE_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
 
-#define SYMBOL_ACCESSOR(name, description)                      \
-  inline Handle<Symbol> name() {                                \
-    return Handle<Symbol>(bit_cast<Symbol**>(                   \
-        &isolate()->heap()->roots_[Heap::k##name##RootIndex])); \
-  }
+#define SYMBOL_ACCESSOR(name, description) inline Handle<Symbol> name();
   PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
   WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
