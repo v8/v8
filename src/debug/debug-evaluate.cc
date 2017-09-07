@@ -678,10 +678,16 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
     return true;
   } else {
     // Check built-ins against whitelist.
-    int builtin_index = info->code()->builtin_index();
+    int builtin_index = info->HasLazyDeserializationBuiltinId()
+                            ? info->lazy_deserialization_builtin_id()
+                            : info->code()->builtin_index();
+    DCHECK_NE(Builtins::kDeserializeLazy, builtin_index);
     if (builtin_index >= 0 && builtin_index < Builtins::builtin_count &&
         BuiltinHasNoSideEffect(static_cast<Builtins::Name>(builtin_index))) {
 #ifdef DEBUG
+      if (info->code()->builtin_index() == Builtins::kDeserializeLazy) {
+        return true;  // Target builtin is not yet deserialized.
+      }
       // TODO(yangguo): Check builtin-to-builtin calls too.
       int mode = RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE);
       bool failed = false;
