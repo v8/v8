@@ -1356,7 +1356,9 @@ static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register num_args, Register index,
                                          Register count, Register scratch) {
-  Label loop;
+  Label loop, skip;
+  __ CmpP(count, Operand::Zero());
+  __ beq(&skip);
   __ AddP(index, index, Operand(kPointerSize));  // Bias up for LoadPU
   __ LoadRR(r0, count);
   __ bind(&loop);
@@ -1365,6 +1367,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
   __ push(scratch);
   __ SubP(r0, Operand(1));
   __ bne(&loop);
+  __ bind(&skip);
 }
 
 // static
