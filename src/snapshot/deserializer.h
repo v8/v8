@@ -105,6 +105,8 @@ class Deserializer : public SerializerDeserializer {
   bool deserializing_user_code() const { return deserializing_user_code_; }
   bool can_rehash() const { return can_rehash_; }
 
+  bool IsLazyDeserializationEnabled() const;
+
  private:
   void VisitRootPointers(Root root, Object** start, Object** end) override;
 

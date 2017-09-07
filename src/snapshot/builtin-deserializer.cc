@@ -52,7 +52,7 @@ void BuiltinDeserializer::DeserializeEagerBuiltins() {
 
   Builtins* builtins = isolate()->builtins();
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (FLAG_lazy_deserialization && Builtins::IsLazy(i)) {
+    if (IsLazyDeserializationEnabled() && Builtins::IsLazy(i)) {
       // Do nothing. These builtins have been replaced by DeserializeLazy in
       // InitializeBuiltinsTable.
       DCHECK_EQ(builtins->builtin(Builtins::kDeserializeLazy),
@@ -148,7 +148,7 @@ Heap::Reservation BuiltinDeserializer::CreateReservationsForEagerBuiltins() {
 
     // Skip lazy builtins. These will be replaced by the DeserializeLazy code
     // object in InitializeBuiltinsTable and thus require no reserved space.
-    if (FLAG_lazy_deserialization && Builtins::IsLazy(i)) continue;
+    if (IsLazyDeserializationEnabled() && Builtins::IsLazy(i)) continue;
 
     uint32_t builtin_size = ExtractBuiltinSize(i);
     DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
@@ -189,7 +189,7 @@ void BuiltinDeserializer::InitializeBuiltinsTable(
   for (int i = 0; i < Builtins::builtin_count; i++) {
     if (i == Builtins::kDeserializeLazy) continue;
 
-    if (FLAG_lazy_deserialization && Builtins::IsLazy(i)) {
+    if (IsLazyDeserializationEnabled() && Builtins::IsLazy(i)) {
       builtins->set_builtin(i, deserialize_lazy);
     } else {
       InitializeBuiltinFromReservation(reservation[reservation_index], i);

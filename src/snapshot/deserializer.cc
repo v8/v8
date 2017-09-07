@@ -159,6 +159,10 @@ void Deserializer::SortMapDescriptors() {
   }
 }
 
+bool Deserializer::IsLazyDeserializationEnabled() const {
+  return FLAG_lazy_deserialization && !isolate()->serializer_enabled();
+}
+
 Deserializer::~Deserializer() {
 #ifdef DEBUG
   // Do not perform checks if we aborted deserialization.
@@ -332,7 +336,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
 
 int Deserializer::MaybeReplaceWithDeserializeLazy(int builtin_id) {
   DCHECK(Builtins::IsBuiltinId(builtin_id));
-  return (FLAG_lazy_deserialization && Builtins::IsLazy(builtin_id) &&
+  return (IsLazyDeserializationEnabled() && Builtins::IsLazy(builtin_id) &&
           !deserializing_builtins_)
              ? Builtins::kDeserializeLazy
              : builtin_id;
