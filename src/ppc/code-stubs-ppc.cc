@@ -1775,7 +1775,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
     __ LoadP(scratch, FieldMemOperand(accessor_holder, HeapObject::kMapOffset));
     __ LoadP(scratch2, FieldMemOperand(scratch, Map::kBitFieldOffset));
     __ andi(r0, scratch2, Operand(1 << Map::kIsConstructor));
-    __ bne(&skip_looking_for_constructor);
+    __ bne(&skip_looking_for_constructor, cr0);
     __ GetMapConstructor(context, scratch, scratch, scratch2);
     __ bind(&skip_looking_for_constructor);
     __ LoadP(context, FieldMemOperand(context, JSFunction::kContextOffset));
