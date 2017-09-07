@@ -195,6 +195,9 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildTest(ToBooleanMode mode, BytecodeLabels* then_labels,
                  BytecodeLabels* else_labels, TestFallthrough fallthrough);
 
+  void BuildBinaryOperationForUnaryOperation(UnaryOperation* expr,
+                                             Token::Value binop, int rhs);
+
   // Visitors for obtaining expression result in the accumulator, in a
   // register, or just getting the effect. Some visitors return a TypeHint which
   // specifies the type of the result of the visited expression.

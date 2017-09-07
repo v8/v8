@@ -1803,6 +1803,11 @@ class UnaryOperation final : public Expression {
   Expression* expression() const { return expression_; }
   void set_expression(Expression* e) { expression_ = e; }
 
+  void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
+                           FunctionKind kind, FeedbackSlotCache* cache);
+
+  FeedbackSlot UnaryOperationFeedbackSlot() const { return feedback_slot_; }
+
  private:
   friend class AstNodeFactory;
 
@@ -1812,6 +1817,7 @@ class UnaryOperation final : public Expression {
     DCHECK(Token::IsUnaryOp(op));
   }
 
+  FeedbackSlot feedback_slot_;
   Expression* expression_;
 
   class OperatorField

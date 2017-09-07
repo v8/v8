@@ -815,6 +815,24 @@ void MaterializedLiteral::BuildConstants(Isolate* isolate) {
   DCHECK(IsRegExpLiteral());
 }
 
+void UnaryOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
+                                         LanguageMode language_mode,
+                                         FunctionKind kind,
+                                         FeedbackSlotCache* cache) {
+  switch (op()) {
+    // Only unary plus, minus, and bitwise-not currently collect feedback.
+    case Token::ADD:
+    case Token::SUB:
+    case Token::BIT_NOT:
+      // Note that the slot kind remains "BinaryOp", as the operation
+      // is transformed into a binary operation in the BytecodeGenerator.
+      feedback_slot_ = spec->AddInterpreterBinaryOpICSlot();
+      return;
+    default:
+      return;
+  }
+}
+
 void BinaryOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                           LanguageMode language_mode,
                                           FunctionKind kind,

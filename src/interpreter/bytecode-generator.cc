@@ -3439,6 +3439,15 @@ void BytecodeGenerator::VisitNot(UnaryOperation* expr) {
   }
 }
 
+void BytecodeGenerator::BuildBinaryOperationForUnaryOperation(
+    UnaryOperation* expr, Token::Value binop, int rhs) {
+  VisitForAccumulatorValue(expr->expression());
+  builder()->SetExpressionPosition(expr);
+  builder()->BinaryOperationSmiLiteral(
+      binop, Smi::FromInt(rhs),
+      feedback_index(expr->UnaryOperationFeedbackSlot()));
+}
+
 void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
   switch (expr->op()) {
     case Token::Value::NOT:
@@ -3453,12 +3462,17 @@ void BytecodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
     case Token::Value::DELETE:
       VisitDelete(expr);
       break;
-    case Token::Value::BIT_NOT:
+    // TODO(adamk): Output specific bytecodes for ADD, SUB, and BIT_NOT
+    // instead of transforming them to binary operations.
     case Token::Value::ADD:
+      BuildBinaryOperationForUnaryOperation(expr, Token::Value::MUL, 1);
+      break;
     case Token::Value::SUB:
-      // These operators are converted to an equivalent binary operators in
-      // the parser. These operators are not expected to be visited here.
-      UNREACHABLE();
+      BuildBinaryOperationForUnaryOperation(expr, Token::Value::MUL, -1);
+      break;
+    case Token::Value::BIT_NOT:
+      BuildBinaryOperationForUnaryOperation(expr, Token::Value::BIT_XOR, -1);
+      break;
     default:
       UNREACHABLE();
   }
@@ -3713,8 +3727,6 @@ void BytecodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 }
 
 void BytecodeGenerator::VisitArithmeticExpression(BinaryOperation* expr) {
-  // TODO(rmcilroy): Special case "x * 1.0" and "x * -1" which are generated for
-  // +x and -x by the parser.
   FeedbackSlot slot = expr->BinaryOperationFeedbackSlot();
   Expression* subexpr;
   Smi* literal;

@@ -312,6 +312,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Type feedback will be recorded in the |feedback_slot|
   BytecodeArrayBuilder& BinaryOperation(Token::Value binop, Register reg,
                                         int feedback_slot);
+  // Same as above, but lhs in the accumulator and rhs in |literal|.
   BytecodeArrayBuilder& BinaryOperationSmiLiteral(Token::Value binop,
                                                   Smi* literal,
                                                   int feedback_slot);

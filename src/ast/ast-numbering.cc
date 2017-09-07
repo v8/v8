@@ -213,6 +213,7 @@ void AstNumberingVisitor::VisitUnaryOperation(UnaryOperation* node) {
   } else {
     Visit(node->expression());
   }
+  ReserveFeedbackSlots(node);
 }
 
 

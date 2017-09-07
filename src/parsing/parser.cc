@@ -332,21 +332,6 @@ Expression* Parser::BuildUnaryExpression(Expression* expression,
       }
     }
   }
-  // Desugar '+foo' => 'foo*1'
-  if (op == Token::ADD) {
-    return factory()->NewBinaryOperation(
-        Token::MUL, expression, factory()->NewNumberLiteral(1, pos), pos);
-  }
-  // The same idea for '-foo' => 'foo*(-1)'.
-  if (op == Token::SUB) {
-    return factory()->NewBinaryOperation(
-        Token::MUL, expression, factory()->NewNumberLiteral(-1, pos), pos);
-  }
-  // ...and one more time for '~foo' => 'foo^(~0)'.
-  if (op == Token::BIT_NOT) {
-    return factory()->NewBinaryOperation(
-        Token::BIT_XOR, expression, factory()->NewNumberLiteral(~0, pos), pos);
-  }
   return factory()->NewUnaryOperation(op, expression, pos);
 }
 
