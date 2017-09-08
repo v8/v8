@@ -872,26 +872,40 @@ MaybeHandle<Object> Object::GetMethod(Handle<JSReceiver> receiver,
 }
 
 namespace {
+
 MaybeHandle<FixedArray> CreateListFromArrayLikeFastPath(
     Isolate* isolate, Handle<Object> object, ElementTypes element_types) {
-  if (element_types != ElementTypes::kAll || !object->IsJSArray()) {
-    return MaybeHandle<FixedArray>();
+  if (element_types == ElementTypes::kAll) {
+    if (object->IsJSArray()) {
+      Handle<JSArray> array = Handle<JSArray>::cast(object);
+      uint32_t length;
+      if (!array->HasArrayPrototype(isolate) ||
+          !array->length()->ToUint32(&length) || !array->HasFastElements() ||
+          !JSObject::PrototypeHasNoElements(isolate, *array)) {
+        return MaybeHandle<FixedArray>();
+      }
+      return array->GetElementsAccessor()->CreateListFromArrayLike(
+          isolate, array, length);
+    } else if (object->IsJSTypedArray()) {
+      Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(object);
+      uint32_t length = array->length_value();
+      if (array->WasNeutered() ||
+          length > static_cast<uint32_t>(FixedArray::kMaxLength)) {
+        return MaybeHandle<FixedArray>();
+      }
+      return array->GetElementsAccessor()->CreateListFromArrayLike(
+          isolate, array, length);
+    }
   }
-  Handle<JSArray> array = Handle<JSArray>::cast(object);
-  uint32_t length;
-  if (!array->HasArrayPrototype(isolate) ||
-      !array->length()->ToUint32(&length) || !array->HasFastElements() ||
-      !JSObject::PrototypeHasNoElements(isolate, *array)) {
-    return MaybeHandle<FixedArray>();
-  }
-  return array->GetElementsAccessor()->CreateListFromArray(isolate, array);
+  return MaybeHandle<FixedArray>();
 }
+
 }  // namespace
 
 // static
 MaybeHandle<FixedArray> Object::CreateListFromArrayLike(
     Isolate* isolate, Handle<Object> object, ElementTypes element_types) {
-  // Fast-path for JS_ARRAY_TYPE.
+  // Fast-path for JSArray and JSTypedArray.
   MaybeHandle<FixedArray> fast_result =
       CreateListFromArrayLikeFastPath(isolate, object, element_types);
   if (!fast_result.is_null()) return fast_result;
