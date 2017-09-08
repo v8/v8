@@ -720,7 +720,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                   AllocationFlags flags = kNone);
 
   // Allocate an appropriate one- or two-byte ConsString with the first and
-  // second parts specified by |first| and |second|.
+  // second parts specified by |left| and |right|.
   Node* NewConsString(Node* context, Node* length, Node* left, Node* right,
                       AllocationFlags flags = kNone);
 
