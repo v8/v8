@@ -159,7 +159,8 @@ class TestingModuleBuilder {
 
   uint32_t AddFunction(FunctionSig* sig, Handle<Code> code, const char* name);
 
-  uint32_t AddJsFunction(FunctionSig* sig, const char* source);
+  uint32_t AddJsFunction(FunctionSig* sig, const char* source,
+                         Handle<FixedArray> js_imports_table);
 
   Handle<JSFunction> WrapCode(uint32_t index);
 

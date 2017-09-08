@@ -81,14 +81,14 @@ uint32_t TestingModuleBuilder::AddFunction(FunctionSig* sig, Handle<Code> code,
   return index;
 }
 
-uint32_t TestingModuleBuilder::AddJsFunction(FunctionSig* sig,
-                                             const char* source) {
+uint32_t TestingModuleBuilder::AddJsFunction(
+    FunctionSig* sig, const char* source, Handle<FixedArray> js_imports_table) {
   Handle<JSFunction> jsfunc = Handle<JSFunction>::cast(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
   uint32_t index = AddFunction(sig, Handle<Code>::null(), nullptr);
   Handle<Code> code = compiler::CompileWasmToJSWrapper(
       isolate_, jsfunc, sig, index, Handle<String>::null(),
-      Handle<String>::null(), test_module_.origin());
+      Handle<String>::null(), test_module_.origin(), js_imports_table);
   function_code_[index] = code;
   return index;
 }

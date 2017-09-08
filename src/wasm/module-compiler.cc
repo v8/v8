@@ -493,7 +493,8 @@ using WasmInstanceMap =
 Handle<Code> UnwrapExportOrCompileImportWrapper(
     Isolate* isolate, int index, FunctionSig* sig, Handle<JSReceiver> target,
     Handle<String> module_name, MaybeHandle<String> import_name,
-    ModuleOrigin origin, WasmInstanceMap* imported_instances) {
+    ModuleOrigin origin, WasmInstanceMap* imported_instances,
+    Handle<FixedArray> js_imports_table) {
   WasmFunction* other_func = GetWasmFunctionForExport(isolate, target);
   if (other_func) {
     if (!sig->Equals(other_func->sig)) return Handle<Code>::null();
@@ -508,7 +509,8 @@ Handle<Code> UnwrapExportOrCompileImportWrapper(
   // No wasm function or being debugged. Compile a new wrapper for the new
   // signature.
   return compiler::CompileWasmToJSWrapper(isolate, target, sig, index,
-                                          module_name, import_name, origin);
+                                          module_name, import_name, origin,
+                                          js_imports_table);
 }
 
 double MonotonicallyIncreasingTimeInMs() {
@@ -1303,6 +1305,15 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
                                     Handle<WasmInstanceObject> instance) {
   int num_imported_functions = 0;
   int num_imported_tables = 0;
+  Handle<FixedArray> func_table = isolate_->factory()->NewFixedArray(
+      static_cast<int>(module_->import_table.size()), TENURED);
+  Handle<FixedArray> js_imports_table =
+      isolate_->global_handles()->Create(*func_table);
+  GlobalHandles::MakeWeak(
+      reinterpret_cast<Object**>(js_imports_table.location()),
+      js_imports_table.location(), &FunctionTableFinalizer,
+      v8::WeakCallbackType::kFinalizer);
+  instance->set_js_imports_table(*func_table);
   WasmInstanceMap imported_wasm_instances(isolate_->heap());
   for (int index = 0; index < static_cast<int>(module_->import_table.size());
        ++index) {
@@ -1338,7 +1349,7 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
         Handle<Code> import_code = UnwrapExportOrCompileImportWrapper(
             isolate_, index, module_->functions[import.index].sig,
             Handle<JSReceiver>::cast(value), module_name, import_name,
-            module_->origin(), &imported_wasm_instances);
+            module_->origin(), &imported_wasm_instances, js_imports_table);
         if (import_code.is_null()) {
           ReportLinkError("imported function does not match the expected type",
                           index, module_name, import_name);

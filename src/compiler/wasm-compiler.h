@@ -139,11 +139,15 @@ class WasmCompilationUnit final {
 };
 
 // Wraps a JS function, producing a code object that can be called from wasm.
+// The global_js_imports_table is a global handle to a fixed array of target
+// JSReceiver with the lifetime tied to the module. We store it's location (non
+// GCable) in the generated code so that it can reside outside of GCed heap.
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::FunctionSig* sig, uint32_t index,
                                     Handle<String> module_name,
                                     MaybeHandle<String> import_name,
-                                    wasm::ModuleOrigin origin);
+                                    wasm::ModuleOrigin origin,
+                                    Handle<FixedArray> global_js_imports_table);
 
 // Wraps a given wasm code object, producing a code object.
 Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
@@ -262,7 +266,9 @@ class WasmGraphBuilder {
                      wasm::WasmCodePosition position);
 
   void BuildJSToWasmWrapper(Handle<Code> wasm_code);
-  void BuildWasmToJSWrapper(Handle<JSReceiver> target);
+  bool BuildWasmToJSWrapper(Handle<JSReceiver> target,
+                            Handle<FixedArray> global_js_imports_table,
+                            int index);
   void BuildWasmInterpreterEntry(uint32_t func_index,
                                  Handle<WasmInstanceObject> instance);
   void BuildCWasmEntry();

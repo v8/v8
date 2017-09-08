@@ -58,6 +58,8 @@ OPTIONAL_ACCESSORS(WasmInstanceObject, signature_tables, FixedArray,
                    kSignatureTablesOffset)
 ACCESSORS(WasmInstanceObject, directly_called_instances, FixedArray,
           kDirectlyCalledInstancesOffset)
+ACCESSORS(WasmInstanceObject, js_imports_table, FixedArray,
+          kJsImportsTableOffset)
 
 // WasmSharedModuleData
 ACCESSORS(WasmSharedModuleData, module_bytes, SeqOneByteString,

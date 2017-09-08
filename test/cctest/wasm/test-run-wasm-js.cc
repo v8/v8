@@ -46,7 +46,7 @@ class PredictableInputValues {
 };
 
 uint32_t AddJSSelector(TestingModuleBuilder* builder, FunctionSig* sig,
-                       int which) {
+                       int which, Handle<FixedArray> js_imports_table) {
   const int kMaxParams = 11;
   static const char* formals[kMaxParams] = {"",
                                             "a",
@@ -67,7 +67,7 @@ uint32_t AddJSSelector(TestingModuleBuilder* builder, FunctionSig* sig,
   SNPrintF(source, "(function(%s) { return %c; })",
            formals[sig->parameter_count()], param);
 
-  return builder->AddJsFunction(sig, source.start());
+  return builder->AddJsFunction(sig, source.start(), js_imports_table);
 }
 
 void EXPECT_CALL(double expected, Handle<JSFunction> jsfunc,
@@ -136,8 +136,10 @@ TEST(Run_I32Popcount_jswrapped) {
 TEST(Run_CallJS_Add_jswrapped) {
   WasmRunner<int, int> r(kExecuteCompiled);
   TestSignatures sigs;
-  uint32_t js_index =
-      r.builder().AddJsFunction(sigs.i_i(), "(function(a) { return a + 99; })");
+  Handle<FixedArray> js_imports_table =
+      r.main_isolate()->factory()->NewFixedArray(2, TENURED);
+  uint32_t js_index = r.builder().AddJsFunction(
+      sigs.i_i(), "(function(a) { return a + 99; })", js_imports_table);
   BUILD(r, WASM_CALL_FUNCTION(js_index, WASM_GET_LOCAL(0)));
 
   Handle<JSFunction> jsfunc = r.builder().WrapCode(r.function()->func_index);
@@ -158,7 +160,11 @@ void RunJSSelectTest(int which) {
     FunctionSig sig(1, num_params, types);
 
     WasmRunner<void> r(kExecuteCompiled);
-    uint32_t js_index = AddJSSelector(&r.builder(), &sig, which);
+    Handle<FixedArray> js_imports_table =
+        scope.isolate()->factory()->NewFixedArray(2, TENURED);
+    uint32_t js_index =
+        AddJSSelector(&r.builder(), &sig, which, js_imports_table);
+
     WasmFunctionCompiler& t = r.NewFunction(&sig);
 
     {
@@ -416,7 +422,9 @@ void RunJSSelectAlignTest(int num_args, int num_params) {
   // Call different select JS functions.
   for (int which = 0; which < num_params; which++) {
     WasmRunner<void> r(kExecuteCompiled);
-    uint32_t js_index = AddJSSelector(&r.builder(), &sig, which);
+    Handle<FixedArray> js_imports_table = factory->NewFixedArray(2, TENURED);
+    uint32_t js_index =
+        AddJSSelector(&r.builder(), &sig, which, js_imports_table);
     CHECK_EQ(predicted_js_index, js_index);
     WasmFunctionCompiler& t = r.NewFunction(&sig);
     t.Build(&code[0], &code[end]);
