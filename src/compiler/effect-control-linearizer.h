@@ -124,6 +124,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerLookupHashStorageIndex(Node* node);
   Node* LowerLoadHashMapValue(Node* node);
   void LowerTransitionAndStoreElement(Node* node);
+  void LowerRuntimeAbort(Node* node);
 
   // Lowering of optional operators.
   Maybe<Node*> LowerFloat64RoundUp(Node* node);

@@ -2020,6 +2020,8 @@ Type* Typer::Visitor::TypeLoadHashMapValue(Node* node) {
   return Type::NonInternal();
 }
 
+Type* Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }
+
 // Heap constants.
 
 Type* Typer::Visitor::TypeConstant(Handle<Object> value) {

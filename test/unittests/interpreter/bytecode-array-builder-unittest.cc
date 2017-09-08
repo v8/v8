@@ -375,6 +375,12 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit debugger bytecode.
   builder.Debugger();
 
+  // Emit abort bytecode.
+  {
+    BytecodeLabel after;
+    builder.Abort(kGenerator).Bind(&after);
+  }
+
   // Insert dummy ops to force longer jumps.
   for (int i = 0; i < 256; i++) {
     builder.Debugger();

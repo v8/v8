@@ -421,6 +421,11 @@ UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
   return OpParameter<UnicodeEncoding>(op);
 }
 
+BailoutReason BailoutReasonOf(const Operator* op) {
+  DCHECK(op->opcode() == IrOpcode::kRuntimeAbort);
+  return OpParameter<BailoutReason>(op);
+}
+
 #define PURE_OP_LIST(V)                                          \
   V(BooleanNot, Operator::kNoProperties, 1, 0)                   \
   V(NumberEqual, Operator::kCommutative, 2, 0)                   \
@@ -782,6 +787,15 @@ GET_FROM_CACHE(LookupHashStorageIndex)
 GET_FROM_CACHE(LoadHashMapValue)
 GET_FROM_CACHE(LoadFieldByIndex)
 #undef GET_FROM_CACHE
+
+const Operator* SimplifiedOperatorBuilder::RuntimeAbort(BailoutReason reason) {
+  return new (zone()) Operator1<BailoutReason>(  // --
+      IrOpcode::kRuntimeAbort,                   // opcode
+      Operator::kNoThrow | Operator::kNoDeopt,   // flags
+      "RuntimeAbort",                            // name
+      0, 1, 1, 0, 1, 0,                          // counts
+      reason);                                   // parameter
+}
 
 const Operator* SimplifiedOperatorBuilder::ChangeFloat64ToTagged(
     CheckForMinusZeroMode mode) {

@@ -2901,6 +2901,15 @@ IGNITION_HANDLER(ReThrow, InterpreterAssembler) {
   Abort(kUnexpectedReturnFromThrow);
 }
 
+// Abort <bailout_reason>
+//
+// Aborts execution (via a call to the runtime function).
+IGNITION_HANDLER(Abort, InterpreterAssembler) {
+  Node* reason = BytecodeOperandIdx(0);
+  CallRuntime(Runtime::kAbort, NoContextConstant(), SmiTag(reason));
+  Unreachable();
+}
+
 // Return
 //
 // Return the value in the accumulator.

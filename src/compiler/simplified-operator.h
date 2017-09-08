@@ -257,6 +257,8 @@ Type* AllocateTypeOf(const Operator* op) WARN_UNUSED_RESULT;
 
 UnicodeEncoding UnicodeEncodingOf(const Operator*) WARN_UNUSED_RESULT;
 
+BailoutReason BailoutReasonOf(const Operator* op) WARN_UNUSED_RESULT;
+
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
 // indexing into objects and arrays, etc.
@@ -486,6 +488,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   // store-typed-element buffer, [base + external + index], value
   const Operator* StoreTypedElement(ExternalArrayType const&);
+
+  // Abort (for terminating execution on internal error).
+  const Operator* RuntimeAbort(BailoutReason reason);
 
  private:
   Zone* zone() const { return zone_; }

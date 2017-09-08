@@ -830,6 +830,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kTransitionAndStoreElement:
       LowerTransitionAndStoreElement(node);
       break;
+    case IrOpcode::kRuntimeAbort:
+      LowerRuntimeAbort(node);
+      break;
     case IrOpcode::kFloat64RoundUp:
       if (!LowerFloat64RoundUp(node).To(&result)) {
         return false;
@@ -3099,6 +3102,17 @@ void EffectControlLinearizer::LowerTransitionAndStoreElement(Node* node) {
     }
   }
   __ Bind(&done);
+}
+
+void EffectControlLinearizer::LowerRuntimeAbort(Node* node) {
+  BailoutReason reason = BailoutReasonOf(node->op());
+  Operator::Properties properties = Operator::kNoDeopt | Operator::kNoThrow;
+  Runtime::FunctionId id = Runtime::kAbort;
+  CallDescriptor const* desc = Linkage::GetRuntimeCallDescriptor(
+      graph()->zone(), id, 1, properties, CallDescriptor::kNoFlags);
+  __ Call(desc, __ CEntryStubConstant(1), jsgraph()->SmiConstant(reason),
+          __ ExternalConstant(ExternalReference(id, isolate())),
+          __ Int32Constant(1), __ NoContextConstant());
 }
 
 Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundUp(Node* node) {

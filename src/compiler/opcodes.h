@@ -370,7 +370,8 @@
   V(MaybeGrowFastElements)          \
   V(TransitionElementsKind)         \
   V(LookupHashStorageIndex)         \
-  V(LoadHashMapValue)
+  V(LoadHashMapValue)               \
+  V(RuntimeAbort)
 
 #define SIMPLIFIED_OP_LIST(V)                 \
   SIMPLIFIED_CHANGE_OP_LIST(V)                \

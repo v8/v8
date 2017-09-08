@@ -335,7 +335,10 @@ namespace interpreter {
   /* Block Coverage */                                                         \
   V(IncBlockCounter, AccumulatorUse::kNone, OperandType::kIdx)                 \
                                                                                \
-  /* Illegal bytecode (terminates execution) */                                \
+  /* Execution Abort (internal error) */                                       \
+  V(Abort, AccumulatorUse::kNone, OperandType::kIdx)                           \
+                                                                               \
+  /* Illegal bytecode  */                                                      \
   V(Illegal, AccumulatorUse::kNone)
 
 // List of debug break bytecodes.

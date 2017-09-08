@@ -1025,7 +1025,7 @@ void BytecodeGenerator::VisitIterationHeader(int first_suspend_id,
         .JumpIfTrue(ToBooleanMode::kAlreadyBoolean, &not_resuming);
 
     // Otherwise this is an error.
-    BuildAbort(BailoutReason::kInvalidJumpTableIndex);
+    builder()->Abort(BailoutReason::kInvalidJumpTableIndex);
 
     builder()->Bind(&not_resuming);
   }
@@ -1057,7 +1057,7 @@ void BytecodeGenerator::BuildGeneratorPrologue() {
   }
   // We fall through when the generator state is not in the jump table.
   // TODO(leszeks): Only generate this for debug builds.
-  BuildAbort(BailoutReason::kInvalidJumpTableIndex);
+  builder()->Abort(BailoutReason::kInvalidJumpTableIndex);
 
   // This is a regular call.
   builder()
@@ -2318,16 +2318,6 @@ void BytecodeGenerator::BuildAsyncReturn(int source_position) {
 }
 
 void BytecodeGenerator::BuildReThrow() { builder()->ReThrow(); }
-
-void BytecodeGenerator::BuildAbort(BailoutReason bailout_reason) {
-  RegisterAllocationScope register_scope(this);
-  Register reason = register_allocator()->NewRegister();
-  builder()
-      ->LoadLiteral(Smi::FromInt(static_cast<int>(bailout_reason)))
-      .StoreAccumulatorInRegister(reason)
-      .CallRuntime(Runtime::kAbort, reason);
-}
-
 
 void BytecodeGenerator::BuildThrowIfHole(Variable* variable) {
   if (variable->is_this()) {

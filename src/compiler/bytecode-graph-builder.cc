@@ -1932,6 +1932,16 @@ void BytecodeGraphBuilder::VisitThrow() {
   MergeControlToLeaveFunction(control);
 }
 
+void BytecodeGraphBuilder::VisitAbort() {
+  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetOutLivenessFor(
+      bytecode_iterator().current_offset()));
+  BailoutReason reason =
+      static_cast<BailoutReason>(bytecode_iterator().GetIndexOperand(0));
+  NewNode(simplified()->RuntimeAbort(reason));
+  Node* control = NewNode(common()->Throw());
+  MergeControlToLeaveFunction(control);
+}
+
 void BytecodeGraphBuilder::VisitReThrow() {
   BuildLoopExitsForFunctionExit(bytecode_analysis()->GetOutLivenessFor(
       bytecode_iterator().current_offset()));
