@@ -38,6 +38,10 @@
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-text.h"
 
+namespace v8 {
+namespace internal {
+namespace compiler {
+
 // TODO(titzer): pull WASM_64 up to a common header.
 #if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
 #define WASM_64 1
@@ -48,10 +52,6 @@
 #define FATAL_UNSUPPORTED_OPCODE(opcode)                              \
   V8_Fatal(__FILE__, __LINE__, "Unsupported opcode #%d:%s", (opcode), \
            wasm::WasmOpcodes::OpcodeName(opcode));
-
-namespace v8 {
-namespace internal {
-namespace compiler {
 
 namespace {
 
@@ -4417,6 +4417,11 @@ MaybeHandle<Code> WasmCompilationUnit::CompileWasmFunction(
   unit.ExecuteCompilation();
   return unit.FinishCompilation(thrower);
 }
+
+#undef WASM_64
+#undef FATAL_UNSUPPORTED_OPCODE
+#undef ATOMIC_BINOP_LIST
+#undef ATOMIC_TERNARY_LIST
 
 }  // namespace compiler
 }  // namespace internal

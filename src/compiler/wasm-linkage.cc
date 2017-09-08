@@ -338,6 +338,11 @@ CallDescriptor* GetI32WasmCallDescriptorForSimd(Zone* zone,
                                          MachineRepresentation::kWord32);
 }
 
+#undef GP_PARAM_REGISTERS
+#undef GP_RETURN_REGISTERS
+#undef FP_PARAM_REGISTERS
+#undef FP_RETURN_REGISTERS
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

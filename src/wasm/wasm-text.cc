@@ -169,6 +169,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         CASE_CONST(I64, i64, int64_t)
         CASE_CONST(F32, f32, float)
         CASE_CONST(F64, f64, double)
+#undef CASE_CONST
 
 #define CASE_OPCODE(opcode, _, __) case kExpr##opcode:
         FOREACH_LOAD_MEM_OPCODE(CASE_OPCODE)
@@ -202,6 +203,7 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         FOREACH_ATOMIC_OPCODE(CASE_OPCODE)
         os << WasmOpcodes::OpcodeName(opcode);
         break;
+#undef CASE_OPCODE
 
       default:
         UNREACHABLE();

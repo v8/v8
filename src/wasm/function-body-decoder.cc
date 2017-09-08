@@ -960,7 +960,7 @@ BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
       &decoder, start, static_cast<uint32_t>(num_locals), zone);
 }
 
-#undef TRACE
+#undef BUILD
 
 }  // namespace wasm
 }  // namespace internal

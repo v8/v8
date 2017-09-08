@@ -22,12 +22,6 @@
     if (FLAG_trace_wasm_instances) PrintF(__VA_ARGS__); \
   } while (false)
 
-// TODO(mostynb@opera.com): this is never used, remove it?
-#define TRACE_CHAIN(instance)        \
-  do {                               \
-    instance->PrintInstancesChain(); \
-  } while (false)
-
 namespace v8 {
 namespace internal {
 
@@ -1525,7 +1519,6 @@ Handle<Code> WasmCompiledModule::CompileLazy(
 }
 
 #undef TRACE
-#undef TRACE_CHAIN
 
 }  // namespace internal
 }  // namespace v8

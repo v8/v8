@@ -2005,6 +2005,7 @@ class ThreadImpl {
           return;
         PAUSE_IF_BREAK_FLAG(AfterReturn);
       }
+#undef PAUSE_IF_BREAK_FLAG
     }
 
     state_ = WasmInterpreter::PAUSED;
@@ -2702,6 +2703,11 @@ WasmInterpreter::HeapObjectsScope::~HeapObjectsScope() {
 }
 
 #undef TRACE
+#undef FOREACH_INTERNAL_OPCODE
+#undef WASM_CTYPES
+#undef FOREACH_SIMPLE_BINOP
+#undef FOREACH_OTHER_BINOP
+#undef FOREACH_OTHER_UNOP
 
 }  // namespace wasm
 }  // namespace internal

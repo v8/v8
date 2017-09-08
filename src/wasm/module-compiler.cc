@@ -2415,6 +2415,8 @@ class AsyncCompileJob::FinishModule : public CompileStep {
 };
 
 #undef TRACE
+#undef TRACE_CHAIN
+#undef TRACE_COMPILE
 
 }  // namespace wasm
 }  // namespace internal

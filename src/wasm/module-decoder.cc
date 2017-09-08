@@ -265,13 +265,9 @@ class ModuleDecoder : public Decoder {
     }
     // File are named `HASH.{ok,failed}.wasm`.
     size_t hash = base::hash_range(start_, end_);
-    char buf[32] = {'\0'};
-#if V8_OS_WIN && _MSC_VER < 1900
-#define snprintf sprintf_s
-#endif
-    snprintf(buf, sizeof(buf) - 1, "%016zx.%s.wasm", hash,
-             result.ok() ? "ok" : "failed");
-    std::string name(buf);
+    EmbeddedVector<char, 32> buf;
+    SNPrintF(buf, "%016zx.%s.wasm", hash, result.ok() ? "ok" : "failed");
+    std::string name(buf.start());
     if (FILE* wasm_file = base::OS::FOpen((path + name).c_str(), "wb")) {
       if (fwrite(start_, end_ - start_, 1, wasm_file) != 1) {
         OFStream os(stderr);
@@ -316,6 +312,7 @@ class ModuleDecoder : public Decoder {
                BYTES(kWasmVersion), BYTES(magic_version));
       }
     }
+#undef BYTES
   }
 
   void DecodeSection(SectionCode section_code, Vector<const uint8_t> bytes,

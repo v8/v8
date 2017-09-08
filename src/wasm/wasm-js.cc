@@ -590,17 +590,16 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(Utils::ToLocal(memory_obj));
 }
 
-#define NAME_OF_WasmMemoryObject "WebAssembly.Memory"
-#define NAME_OF_WasmModuleObject "WebAssembly.Module"
-#define NAME_OF_WasmInstanceObject "WebAssembly.Instance"
-#define NAME_OF_WasmTableObject "WebAssembly.Table"
+constexpr const char* kName_WasmMemoryObject = "WebAssembly.Memory";
+constexpr const char* kName_WasmInstanceObject = "WebAssembly.Instance";
+constexpr const char* kName_WasmTableObject = "WebAssembly.Table";
 
 #define EXTRACT_THIS(var, WasmType)                                  \
   i::Handle<i::WasmType> var;                                        \
   {                                                                  \
     i::Handle<i::Object> this_arg = Utils::OpenHandle(*args.This()); \
     if (!this_arg->Is##WasmType()) {                                 \
-      thrower.TypeError("Receiver is not a " NAME_OF_##WasmType);    \
+      thrower.TypeError("Receiver is not a %s", kName_##WasmType);   \
       return;                                                        \
     }                                                                \
     var = i::Handle<i::WasmType>::cast(this_arg);                    \
@@ -966,5 +965,9 @@ void WasmJs::Install(Isolate* isolate, bool exposed_on_global_object) {
   JSObject::AddProperty(webassembly, isolate->factory()->RuntimeError_string(),
                         runtime_error, attributes);
 }
+
+#undef ASSIGN
+#undef EXTRACT_THIS
+
 }  // namespace internal
 }  // namespace v8
