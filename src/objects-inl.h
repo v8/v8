@@ -14,6 +14,7 @@
 
 #include "src/base/atomicops.h"
 #include "src/base/bits.h"
+#include "src/base/tsan.h"
 #include "src/builtins/builtins.h"
 #include "src/contexts-inl.h"
 #include "src/conversions-inl.h"
@@ -2994,20 +2995,34 @@ double Float64ArrayTraits::defaultValue() {
   return std::numeric_limits<double>::quiet_NaN();
 }
 
-
 template <class Traits>
 typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
   DCHECK((index >= 0) && (index < this->length()));
-  ElementType* ptr = reinterpret_cast<ElementType*>(DataPtr());
-  return ptr[index];
+  // The JavaScript memory model allows for racy reads and writes to a
+  // SharedArrayBuffer's backing store, which will always be a FixedTypedArray.
+  // ThreadSanitizer will catch these racy accesses and warn about them, so we
+  // disable TSAN for these reads and writes using annotations.
+  //
+  // The access is marked as volatile so the reads/writes will not be elided or
+  // duplicated. We don't use relaxed atomics here, as it is not a requirement
+  // of the JavaScript memory model to have tear-free reads of overlapping
+  // accesses, and using relaxed atomics may introduce overhead.
+  auto* ptr = reinterpret_cast<volatile ElementType*>(DataPtr());
+  TSAN_ANNOTATE_IGNORE_READS_BEGIN;
+  auto result = ptr[index];
+  TSAN_ANNOTATE_IGNORE_READS_END;
+  return result;
 }
 
 
 template <class Traits>
 void FixedTypedArray<Traits>::set(int index, ElementType value) {
   CHECK((index >= 0) && (index < this->length()));
-  ElementType* ptr = reinterpret_cast<ElementType*>(DataPtr());
+  // See the comment in FixedTypedArray<Traits>::get_scalar.
+  auto* ptr = reinterpret_cast<volatile ElementType*>(DataPtr());
+  TSAN_ANNOTATE_IGNORE_WRITES_BEGIN;
   ptr[index] = value;
+  TSAN_ANNOTATE_IGNORE_WRITES_END;
 }
 
 template <class Traits>
