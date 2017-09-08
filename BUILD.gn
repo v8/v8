@@ -202,8 +202,12 @@ config("libsampler_config") {
 # This config should only be applied to code using V8 and not any V8 code
 # itself.
 config("external_config") {
+  defines = []
   if (is_component_build) {
-    defines = [ "USING_V8_SHARED" ]
+    defines += [ "USING_V8_SHARED" ]
+  }
+  if (v8_enable_v8_checks) {
+    defines += [ "V8_ENABLE_CHECKS" ]  # Used in "include/v8.h".
   }
   include_dirs = [
     "include",
