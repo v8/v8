@@ -203,12 +203,10 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::CONSTRUCT);
 
+    __ LoadRoot(x10, Heap::kTheHoleValueRootIndex);
     // Preserve the incoming parameters on the stack.
-    __ SmiTag(x0);
-    __ Push(cp, x0);
-    __ SmiUntag(x0);
-
-    __ PushRoot(Heap::kTheHoleValueRootIndex);
+    __ SmiTag(x11, x0);
+    __ Push(cp, x11, x10);
 
     // Set up pointer to last argument.
     __ Add(x2, fp, StandardFrameConstants::kCallerSPOffset);
@@ -1111,14 +1109,15 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   Label stack_overflow;
 
   // Add one for the receiver.
-  __ add(x3, x0, Operand(1));
+  __ Add(x3, x0, 1);
 
   // Add a stack check before pushing arguments.
   Generate_StackOverflowCheck(masm, x3, x6, &stack_overflow);
 
   // Push "undefined" as the receiver arg if we need to.
   if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    __ PushRoot(Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
+    __ Push(x10);
     __ Mov(x3, x0);  // Argument count is correct.
   }
 
@@ -1451,62 +1450,88 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
   //  -- x1 : new target (preserved for callee)
   //  -- x3 : target function (preserved for callee)
   // -----------------------------------
+  Register argc = x0;
+  Register new_target = x1;
+  Register target = x3;
+
   Label failed;
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Preserve argument count for later compare.
-    __ Move(x4, x0);
-    // Push a copy of the target function and the new target.
-    __ SmiTag(x0);
-    // Push another copy as a parameter to the runtime call.
-    __ Push(x0, x1, x3, x1);
 
-    // Copy arguments from caller (stdlib, foreign, heap).
+    // Push argument count, a copy of the target function and the new target,
+    // together with some padding to maintain 16-byte alignment.
+    __ SmiTag(argc);
+    __ Push(argc, new_target, target, padreg);
+
+    // Push another copy of new target as a parameter to the runtime call and
+    // copy the rest of the arguments from caller (stdlib, foreign, heap).
     Label args_done;
-    for (int j = 0; j < 4; ++j) {
-      Label over;
-      if (j < 3) {
-        __ cmp(x4, Operand(j));
-        __ B(ne, &over);
-      }
-      for (int i = j - 1; i >= 0; --i) {
-        __ ldr(x4, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
-                                      i * kPointerSize));
-        __ push(x4);
-      }
-      for (int i = 0; i < 3 - j; ++i) {
-        __ PushRoot(Heap::kUndefinedValueRootIndex);
-      }
-      if (j < 3) {
-        __ jmp(&args_done);
-        __ bind(&over);
-      }
-    }
-    __ bind(&args_done);
+    Register undef = x10;
+    Register scratch1 = x12;
+    Register scratch2 = x13;
+    Register scratch3 = x14;
+    __ LoadRoot(undef, Heap::kUndefinedValueRootIndex);
+
+    Label at_least_one_arg;
+    Label three_args;
+    DCHECK(Smi::kZero == 0);
+    __ Cbnz(argc, &at_least_one_arg);
+
+    // No arguments.
+    __ Push(new_target, undef, undef, undef);
+    __ B(&args_done);
+
+    __ Bind(&at_least_one_arg);
+    // Load two arguments, though we may only use one (for the one arg case).
+    __ Ldp(scratch2, scratch1,
+           MemOperand(fp, StandardFrameConstants::kCallerSPOffset));
+
+    // Set flags for determining the value of smi-tagged argc.
+    //  lt => 1, eq => 2, gt => 3.
+    __ Cmp(argc, Smi::FromInt(2));
+    __ B(gt, &three_args);
+
+    // One or two arguments.
+    // If there is one argument (flags are lt), scratch2 contains that argument,
+    // and scratch1 must be undefined.
+    __ CmovX(scratch1, scratch2, lt);
+    __ CmovX(scratch2, undef, lt);
+    __ Push(new_target, scratch1, scratch2, undef);
+    __ B(&args_done);
+
+    // Three arguments.
+    __ Bind(&three_args);
+    __ Ldr(scratch3, MemOperand(fp, StandardFrameConstants::kCallerSPOffset +
+                                        2 * kPointerSize));
+    __ Push(new_target, scratch3, scratch1, scratch2);
+
+    __ Bind(&args_done);
 
     // Call runtime, on success unwind frame, and parent frame.
     __ CallRuntime(Runtime::kInstantiateAsmJs, 4);
+
     // A smi 0 is returned on failure, an object on success.
     __ JumpIfSmi(x0, &failed);
 
-    __ Drop(2);
-    __ pop(x4);
-    __ SmiUntag(x4);
+    // Peek the argument count from the stack, untagging at the same time.
+    __ Ldr(w4, UntagSmiMemOperand(__ StackPointer(), 3 * kPointerSize));
+    __ Drop(4);
     scope.GenerateLeaveFrame();
 
-    __ add(x4, x4, Operand(1));
-    __ Drop(x4);
+    // Drop arguments and receiver.
+    __ Add(x4, x4, 1);
+    __ DropArguments(x4);
     __ Ret();
 
-    __ bind(&failed);
+    __ Bind(&failed);
     // Restore target function and new target.
-    __ Pop(x3, x1, x0);
-    __ SmiUntag(x0);
+    __ Pop(padreg, target, new_target, argc);
+    __ SmiUntag(argc);
   }
   // On failure, tail call back to regular js by re-calling the function
   // which has be reset to the compile lazy builtin.
-  __ Ldr(x4, FieldMemOperand(x1, JSFunction::kCodeOffset));
-  __ Add(x4, x4, Operand(Code::kHeaderSize - kHeapObjectTag));
+  __ Ldr(x4, FieldMemOperand(new_target, JSFunction::kCodeOffset));
+  __ Add(x4, x4, Code::kHeaderSize - kHeapObjectTag);
   __ Jump(x4);
 }
 
@@ -2164,14 +2189,12 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
         // in the fast case? (fall back to AllocateInNewSpace?)
         FrameScope scope(masm, StackFrame::INTERNAL);
         __ SmiTag(x0);
-        __ Push(x0, x1);
+        __ Push(padreg, x0, x1, cp);
         __ Mov(x0, x3);
-        __ Push(cp);
         __ Call(BUILTIN_CODE(masm->isolate(), ToObject),
                 RelocInfo::CODE_TARGET);
-        __ Pop(cp);
         __ Mov(x3, x0);
-        __ Pop(x1, x0);
+        __ Pop(cp, x1, x0, padreg);
         __ SmiUntag(x0);
       }
       __ Ldr(x2, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
@@ -2195,10 +2218,10 @@ void Builtins::Generate_CallFunction(MacroAssembler* masm,
   __ InvokeFunctionCode(x1, no_reg, expected, actual, JUMP_FUNCTION);
 
   // The function is a "classConstructor", need to raise an exception.
-  __ bind(&class_constructor);
+  __ Bind(&class_constructor);
   {
     FrameScope frame(masm, StackFrame::INTERNAL);
-    __ Push(x1);
+    __ Push(padreg, x1);
     __ CallRuntime(Runtime::kThrowConstructorNonCallableError);
   }
 }

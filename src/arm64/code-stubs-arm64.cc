@@ -33,8 +33,7 @@ namespace internal {
 void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
   __ Mov(x5, Operand(x0, LSL, kPointerSizeLog2));
   __ Str(x1, MemOperand(jssp, x5));
-  __ Push(x1);
-  __ Push(x2);
+  __ Push(x1, x2);
   __ Add(x0, x0, Operand(3));
   __ TailCallRuntime(Runtime::kNewArray);
 }
@@ -620,24 +619,25 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   ExternalReference js_entry_sp(IsolateAddressId::kJSEntrySPAddress, isolate());
   __ Mov(x10, ExternalReference(js_entry_sp));
   __ Ldr(x11, MemOperand(x10));
-  __ Cbnz(x11, &non_outermost_js);
-  __ Str(fp, MemOperand(x10));
-  __ Mov(x12, StackFrame::OUTERMOST_JSENTRY_FRAME);
-  __ Push(x12);
-  __ B(&done);
-  __ Bind(&non_outermost_js);
-  // We spare one instruction by pushing xzr since the marker is 0.
+
+  // Select between the inner and outermost frame marker, based on the JS entry
+  // sp. We assert that the inner marker is zero, so we can use xzr to save a
+  // move instruction.
   DCHECK(StackFrame::INNER_JSENTRY_FRAME == 0);
-  __ Push(xzr);
+  __ Cmp(x11, 0);  // If x11 is zero, this is the outermost frame.
+  __ Csel(x12, xzr, StackFrame::OUTERMOST_JSENTRY_FRAME, ne);
+  __ B(ne, &done);
+  __ Str(fp, MemOperand(x10));
+
   __ Bind(&done);
+  __ Push(x12);
 
   // The frame set up looks like this:
   // jssp[0] : JS entry frame marker.
   // jssp[1] : C entry FP.
   // jssp[2] : stack frame marker.
-  // jssp[3] : stack frmae marker.
+  // jssp[3] : stack frame marker.
   // jssp[4] : bad frame pointer 0xfff...ff   <- fp points here.
-
 
   // Jump to a faked try block that does the invoke, with a faked catch
   // block that sets the pending exception.
@@ -665,7 +665,22 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   // Invoke: Link this frame into the handler chain.
   __ Bind(&invoke);
-  __ PushStackHandler();
+
+  // Push new stack handler.
+  DCHECK(jssp.Is(__ StackPointer()));
+  static_assert(StackHandlerConstants::kSize == 1 * kPointerSize,
+                "Unexpected offset for StackHandlerConstants::kSize");
+  static_assert(StackHandlerConstants::kNextOffset == 0 * kPointerSize,
+                "Unexpected offset for StackHandlerConstants::kNextOffset");
+
+  // Link the current handler as the next handler.
+  __ Mov(x11, ExternalReference(IsolateAddressId::kHandlerAddress, isolate()));
+  __ Ldr(x10, MemOperand(x11));
+  __ Push(x10);
+
+  // Set this new handler as the current one.
+  __ Str(jssp, MemOperand(x11));
+
   // If an exception not caught by another handler occurs, this handler
   // returns control to the code after the B(&invoke) above, which
   // restores all callee-saved registers (including cp and fp) to their
@@ -689,9 +704,13 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
     __ Call(BUILTIN_CODE(isolate(), JSEntryTrampoline), RelocInfo::CODE_TARGET);
   }
 
-  // Unlink this frame from the handler chain.
-  __ PopStackHandler();
-
+  // Pop the stack handler and unlink this frame from the handler chain.
+  static_assert(StackHandlerConstants::kNextOffset == 0 * kPointerSize,
+                "Unexpected offset for StackHandlerConstants::kNextOffset");
+  __ Pop(x10);
+  __ Mov(x11, ExternalReference(IsolateAddressId::kHandlerAddress, isolate()));
+  __ Drop(StackHandlerConstants::kSize - kXRegSize, kByteSizeInBytes);
+  __ Str(x10, MemOperand(x11));
 
   __ Bind(&exit);
   // x0 holds the result.
@@ -705,17 +724,20 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
 
   // Check if the current stack frame is marked as the outermost JS frame.
   Label non_outermost_js_2;
-  __ Pop(x10);
-  __ Cmp(x10, StackFrame::OUTERMOST_JSENTRY_FRAME);
-  __ B(ne, &non_outermost_js_2);
-  __ Mov(x11, ExternalReference(js_entry_sp));
-  __ Str(xzr, MemOperand(x11));
-  __ Bind(&non_outermost_js_2);
+  {
+    Register c_entry_fp = x11;
+    __ Pop(x10, c_entry_fp);
+    __ Cmp(x10, StackFrame::OUTERMOST_JSENTRY_FRAME);
+    __ B(ne, &non_outermost_js_2);
+    __ Mov(x12, ExternalReference(js_entry_sp));
+    __ Str(xzr, MemOperand(x12));
+    __ Bind(&non_outermost_js_2);
 
-  // Restore the top frame descriptors from the stack.
-  __ Pop(x10);
-  __ Mov(x11, ExternalReference(IsolateAddressId::kCEntryFPAddress, isolate()));
-  __ Str(x10, MemOperand(x11));
+    // Restore the top frame descriptors from the stack.
+    __ Mov(x12,
+           ExternalReference(IsolateAddressId::kCEntryFPAddress, isolate()));
+    __ Str(c_entry_fp, MemOperand(x12));
+  }
 
   // Reset the stack to the callee saved registers.
   __ Drop(-EntryFrameConstants::kCallerFPOffset, kByteSizeInBytes);
@@ -1195,8 +1217,10 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
   }
 
   CPURegList spill_list(CPURegister::kRegister, kXRegSizeInBits, 0, 6);
-  spill_list.Combine(lr);
   spill_list.Remove(scratch0);  // Scratch registers don't need to be preserved.
+  spill_list.Combine(lr);
+  spill_list.Combine(padreg);  // Add padreg to make the list of even length.
+  DCHECK_EQ(spill_list.Count() % 2, 0);
 
   __ PushCPURegList(spill_list);
 
@@ -1811,22 +1835,20 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(FCA::kIsolateIndex == 1);
   STATIC_ASSERT(FCA::kHolderIndex == 0);
 
-  // new target
-  __ PushRoot(Heap::kUndefinedValueRootIndex);
+  Register undef = x7;
+  __ LoadRoot(undef, Heap::kUndefinedValueRootIndex);
 
-  // context, callee and call data.
-  __ Push(context, callee, call_data);
+  // Push new target, context, callee and call data.
+  __ Push(undef, context, callee, call_data);
 
-  Register scratch = call_data;
-  __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
   Register isolate_reg = x5;
   __ Mov(isolate_reg, ExternalReference::isolate_address(masm->isolate()));
 
   // FunctionCallbackArguments:
   //    return value, return value default, isolate, holder.
-  __ Push(scratch, scratch, isolate_reg, holder);
+  __ Push(undef, undef, isolate_reg, holder);
 
-  // Enter a new context
+  // Enter a new context.
   if (is_lazy()) {
     // ----------- S t a t e -------------------------------------
     //  -- sp[0]                                 : holder
@@ -1839,8 +1861,9 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
     //  -- sp[(FCA::kArgsLength + argc + 1) * 8] : accessor_holder
     // -----------------------------------------------------------
 
-    // Load context from accessor_holder
+    // Load context from accessor_holder.
     Register accessor_holder = context;
+    Register scratch = undef;
     Register scratch2 = callee;
     __ Ldr(accessor_holder,
            MemOperand(__ StackPointer(),
@@ -1852,10 +1875,10 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
     __ Tst(scratch2, Operand(1 << Map::kIsConstructor));
     __ B(ne, &skip_looking_for_constructor);
     __ GetMapConstructor(context, scratch, scratch, scratch2);
-    __ bind(&skip_looking_for_constructor);
+    __ Bind(&skip_looking_for_constructor);
     __ Ldr(context, FieldMemOperand(context, JSFunction::kContextOffset));
   } else {
-    // Load context from callee
+    // Load context from callee.
     __ Ldr(context, FieldMemOperand(callee, JSFunction::kContextOffset));
   }
 

@@ -2440,10 +2440,8 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
   if (type == StackFrame::INTERNAL) {
     DCHECK(jssp.Is(StackPointer()));
     Mov(type_reg, StackFrame::TypeToMarker(type));
-    Push(lr, fp);
-    Push(type_reg);
     Mov(code_reg, Operand(CodeObject()));
-    Push(code_reg);
+    Push(lr, fp, type_reg, code_reg);
     Add(fp, jssp, InternalFrameConstants::kFixedFrameSizeFromFp);
     // jssp[4] : lr
     // jssp[3] : fp
@@ -2454,7 +2452,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     Mov(type_reg, StackFrame::TypeToMarker(type));
     Push(lr, fp);
     Mov(fp, csp);
-    Push(type_reg, xzr);
+    Push(type_reg, padreg);
     // csp[3] : lr
     // csp[2] : fp
     // csp[1] : type
@@ -2462,8 +2460,7 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
   } else {
     DCHECK(jssp.Is(StackPointer()));
     Mov(type_reg, StackFrame::TypeToMarker(type));
-    Push(lr, fp);
-    Push(type_reg);
+    Push(lr, fp, type_reg);
     Add(fp, jssp, TypedFrameConstants::kFixedFrameSizeFromFp);
     // jssp[2] : lr
     // jssp[1] : fp
@@ -2662,34 +2659,6 @@ void MacroAssembler::MaybeDropFrames() {
   Jump(BUILTIN_CODE(isolate(), FrameDropperTrampoline), RelocInfo::CODE_TARGET,
        ne);
 }
-
-void MacroAssembler::PushStackHandler() {
-  DCHECK(jssp.Is(StackPointer()));
-  // Adjust this code if the asserts don't hold.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 1 * kPointerSize);
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
-
-  // For the JSEntry handler, we must preserve the live registers x0-x4.
-  // (See JSEntryStub::GenerateBody().)
-
-  // Link the current handler as the next handler.
-  Mov(x11, ExternalReference(IsolateAddressId::kHandlerAddress, isolate()));
-  Ldr(x10, MemOperand(x11));
-  Push(x10);
-
-  // Set this new handler as the current one.
-  Str(jssp, MemOperand(x11));
-}
-
-
-void MacroAssembler::PopStackHandler() {
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  Pop(x10);
-  Mov(x11, ExternalReference(IsolateAddressId::kHandlerAddress, isolate()));
-  Drop(StackHandlerConstants::kSize - kXRegSize, kByteSizeInBytes);
-  Str(x10, MemOperand(x11));
-}
-
 
 void MacroAssembler::Allocate(int object_size,
                               Register result,
@@ -2922,14 +2891,6 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   Bind(&done);
 }
 
-void MacroAssembler::PushRoot(Heap::RootListIndex index) {
-  UseScratchRegisterScope temps(this);
-  Register temp = temps.AcquireX();
-  LoadRoot(temp, index);
-  Push(temp);
-}
-
-
 void MacroAssembler::CompareRoot(const Register& obj,
                                  Heap::RootListIndex index) {
   UseScratchRegisterScope temps(this);
@@ -3049,6 +3010,9 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
 
 void MacroAssembler::PopSafepointRegisters() {
   const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
+  DCHECK_GE(num_unsaved, 0);
+  DCHECK_EQ(num_unsaved % 2, 0);
+  DCHECK_EQ(kSafepointSavedRegisters % 2, 0);
   PopXRegList(kSafepointSavedRegisters);
   Drop(num_unsaved);
 }
@@ -3058,7 +3022,9 @@ void MacroAssembler::PushSafepointRegisters() {
   // Safepoints expect a block of kNumSafepointRegisters values on the stack, so
   // adjust the stack for unsaved registers.
   const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
-  DCHECK(num_unsaved >= 0);
+  DCHECK_GE(num_unsaved, 0);
+  DCHECK_EQ(num_unsaved % 2, 0);
+  DCHECK_EQ(kSafepointSavedRegisters % 2, 0);
   Claim(num_unsaved);
   PushXRegList(kSafepointSavedRegisters);
 }
@@ -3219,14 +3185,14 @@ void MacroAssembler::RecordWriteForMap(Register object,
 
   // Record the actual write.
   if (lr_status == kLRHasNotBeenSaved) {
-    Push(lr);
+    Push(padreg, lr);
   }
   Add(dst, object, HeapObject::kMapOffset - kHeapObjectTag);
   RecordWriteStub stub(isolate(), object, map, dst, OMIT_REMEMBERED_SET,
                        fp_mode);
   CallStub(&stub);
   if (lr_status == kLRHasNotBeenSaved) {
-    Pop(lr);
+    Pop(lr, padreg);
   }
 
   Bind(&done);
@@ -3293,13 +3259,13 @@ void MacroAssembler::RecordWrite(
 
   // Record the actual write.
   if (lr_status == kLRHasNotBeenSaved) {
-    Push(lr);
+    Push(padreg, lr);
   }
   RecordWriteStub stub(isolate(), object, value, address, remembered_set_action,
                        fp_mode);
   CallStub(&stub);
   if (lr_status == kLRHasNotBeenSaved) {
-    Pop(lr);
+    Pop(lr, padreg);
   }
 
   Bind(&done);

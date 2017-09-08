@@ -84,7 +84,7 @@ const int kNumSafepointRegisters = 32;
 // space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
 #define kSafepointSavedRegisters CPURegList::GetSafepointSavedRegisters().list()
 #define kNumSafepointSavedRegisters \
-  CPURegList::GetSafepointSavedRegisters().Count();
+  CPURegList::GetSafepointSavedRegisters().Count()
 
 // Some CPURegister methods can return Register and VRegister types, so we
 // need to declare them in advance.
@@ -455,6 +455,9 @@ ALIAS_REGISTER(Register, fp, x29);
 ALIAS_REGISTER(Register, lr, x30);
 ALIAS_REGISTER(Register, xzr, x31);
 ALIAS_REGISTER(Register, wzr, w31);
+
+// Register used for padding stack slots.
+ALIAS_REGISTER(Register, padreg, x31);
 
 // Keeps the 0 double value.
 ALIAS_REGISTER(VRegister, fp_zero, d15);
