@@ -34,6 +34,7 @@
 #include "src/conversions-inl.h"
 #include "src/counters.h"
 #include "src/debug/debug-coverage.h"
+#include "src/debug/debug-type-profile.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/execution.h"

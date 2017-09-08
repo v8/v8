@@ -917,6 +917,8 @@
         'debug/debug-scopes.h',
         'debug/debug-stack-trace-iterator.cc',
         'debug/debug-stack-trace-iterator.h',
+        'debug/debug-type-profile.cc',
+        'debug/debug-type-profile.h',
         'debug/debug.cc',
         'debug/debug.h',
         'debug/interface-types.h',
