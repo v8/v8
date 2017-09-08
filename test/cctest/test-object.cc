@@ -60,8 +60,8 @@ TEST(NoSideEffectsToString) {
   CheckObject(isolate, factory->null_value(), "null");
 
   CheckObject(isolate, factory->error_to_string(), "[object Error]");
-  CheckObject(isolate, factory->stack_trace_symbol(),
-              "Symbol(stack_trace_symbol)");
+  CheckObject(isolate, factory->unscopables_symbol(),
+              "Symbol(Symbol.unscopables)");
   CheckObject(isolate, factory->NewError(isolate->error_function(),
                                          factory->empty_string()),
               "Error");

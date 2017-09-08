@@ -1704,7 +1704,7 @@ Node* RegExpBuiltinsAssembler::RegExpExec(Node* context, Node* regexp,
     GotoIf(WordEqual(result, NullConstant()), &out);
 
     ThrowIfNotJSReceiver(context, result,
-                         MessageTemplate::kInvalidRegExpExecResult, "unused");
+                         MessageTemplate::kInvalidRegExpExecResult, "");
 
     Goto(&out);
   }

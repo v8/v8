@@ -66,6 +66,12 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   } else if (obj->IsScript() && Script::cast(obj)->IsUserJavaScript()) {
     Script::cast(obj)->set_context_data(
         isolate_->heap()->uninitialized_symbol());
+  } else if (obj->IsSharedFunctionInfo()) {
+    // Clear inferred name for native functions.
+    SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
+    if (!shared->IsSubjectToDebugging() && shared->HasInferredName()) {
+      shared->set_inferred_name(isolate()->heap()->empty_string());
+    }
   }
 
   if (obj->IsHashTable()) CheckRehashability(obj);
