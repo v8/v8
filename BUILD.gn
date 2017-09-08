@@ -205,9 +205,6 @@ config("external_config") {
   if (is_component_build) {
     defines = [ "USING_V8_SHARED" ]
   }
-  if (v8_enable_v8_checks) {
-    defines += [ "V8_ENABLE_CHECKS" ]  # Used in "include/v8.h".
-  }
   include_dirs = [
     "include",
     "$target_gen_dir/include",
