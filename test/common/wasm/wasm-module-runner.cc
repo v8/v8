@@ -88,7 +88,8 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
   WasmInterpreter::HeapObjectsScope heap_objects_scope(interpreter, instance);
   WasmInterpreter::Thread* thread = interpreter->GetThread(0);
   thread->Reset();
-  thread->InitFrame(&(instance->module()->functions[function_index]), args);
+  thread->InitFrame(&instance->module()->functions[function_index],
+                    arguments.get());
   WasmInterpreter::State interpreter_result = thread->Run(kMaxNumSteps);
 
   return interpreter_result != WasmInterpreter::PAUSED;
