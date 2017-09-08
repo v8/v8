@@ -1671,7 +1671,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
     // Look for the constructor if |accessor_holder| is not a function.
     Label skip_looking_for_constructor;
     __ ldr(scratch0, FieldMemOperand(accessor_holder, HeapObject::kMapOffset));
-    __ ldr(scratch1, FieldMemOperand(scratch0, Map::kBitFieldOffset));
+    __ ldrb(scratch1, FieldMemOperand(scratch0, Map::kBitFieldOffset));
     __ tst(scratch1, Operand(1 << Map::kIsConstructor));
     __ b(ne, &skip_looking_for_constructor);
     __ GetMapConstructor(context, scratch0, scratch0, scratch1);
