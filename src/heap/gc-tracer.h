@@ -81,6 +81,7 @@ class V8_EXPORT_PRIVATE GCTracer {
     ScopeId scope_;
     double start_time_;
     RuntimeCallTimer timer_;
+    RuntimeCallStats* runtime_stats_ = nullptr;
 
     DISALLOW_COPY_AND_ASSIGN(Scope);
   };
