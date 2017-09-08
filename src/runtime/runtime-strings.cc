@@ -267,7 +267,7 @@ RUNTIME_FUNCTION(Runtime_InternalizeString) {
   return *isolate->factory()->InternalizeString(string);
 }
 
-RUNTIME_FUNCTION(Runtime_StringCharCodeAtRT) {
+RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   HandleScope handle_scope(isolate);
   DCHECK_EQ(2, args.length());
 
@@ -778,15 +778,6 @@ RUNTIME_FUNCTION(Runtime_StringCharFromCode) {
     return *isolate->factory()->LookupSingleCharacterStringFromCode(code);
   }
   return isolate->heap()->empty_string();
-}
-
-RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(2, args.length());
-  if (!args[0]->IsString()) return isolate->heap()->undefined_value();
-  if (!args[1]->IsNumber()) return isolate->heap()->undefined_value();
-  if (std::isinf(args.number_at(1))) return isolate->heap()->nan_value();
-  return __RT_impl_Runtime_StringCharCodeAtRT(args, isolate);
 }
 
 RUNTIME_FUNCTION(Runtime_StringMaxLength) {

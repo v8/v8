@@ -3963,8 +3963,8 @@ TNode<Uint32T> CodeStubAssembler::StringCharCodeAt(
 
   BIND(&if_runtime);
   {
-    Node* result = CallRuntime(Runtime::kStringCharCodeAtRT,
-                               NoContextConstant(), string, SmiTag(index));
+    Node* result = CallRuntime(Runtime::kStringCharCodeAt, NoContextConstant(),
+                               string, SmiTag(index));
     var_result.Bind(SmiToWord32(result));
     Goto(&return_result);
   }

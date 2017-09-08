@@ -523,7 +523,7 @@ namespace internal {
   F(SubString, 3, 1)                      \
   F(StringAdd, 2, 1)                      \
   F(InternalizeString, 1, 1)              \
-  F(StringCharCodeAtRT, 2, 1)             \
+  F(StringCharCodeAt, 2, 1)               \
   F(StringCompare, 2, 1)                  \
   F(StringBuilderConcat, 3, 1)            \
   F(StringBuilderJoin, 3, 1)              \
@@ -537,7 +537,6 @@ namespace internal {
   F(StringNotEqual, 2, 1)                 \
   F(FlattenString, 1, 1)                  \
   F(StringCharFromCode, 1, 1)             \
-  F(StringCharCodeAt, 2, 1)               \
   F(StringMaxLength, 0, 1)
 
 #define FOR_EACH_INTRINSIC_SYMBOL(F) \

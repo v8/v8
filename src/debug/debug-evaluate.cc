@@ -281,7 +281,6 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(NewTypeError)                    \
   V(ThrowInvalidStringLength)        \
   /* Strings */                      \
-  V(StringCharCodeAt)                \
   V(StringIndexOf)                   \
   V(StringIncludes)                  \
   V(StringReplaceOneCharWithString)  \
@@ -297,7 +296,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   /* Called from builtins */         \
   V(StringParseFloat)                \
   V(StringParseInt)                  \
-  V(StringCharCodeAtRT)              \
+  V(StringCharCodeAt)                \
   V(StringIndexOfUnchecked)          \
   V(StringEqual)                     \
   V(SymbolDescriptiveString)         \
