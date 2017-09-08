@@ -277,6 +277,25 @@ InspectorTest.Session = class {
     }
   }
 
+  async logTypeProfile(typeProfile, source) {
+    let entries = typeProfile.entries;
+
+    // Sort in reverse order so we can replace entries without invalidating
+    // the other offsets.
+    entries = entries.sort((a, b) => b.offset - a.offset);
+
+    for (let entry of entries) {
+      source = source.slice(0, entry.offset) + typeAnnotation(entry.types) +
+        source.slice(entry.offset);
+    }
+    InspectorTest.log(source);
+    return typeProfile;
+
+    function typeAnnotation(types) {
+      return `/*${types.map(t => t.name).join(', ')}*/`;
+    }
+  }
+
   logAsyncStackTrace(asyncStackTrace) {
     while (asyncStackTrace) {
       if (asyncStackTrace.promiseCreationFrame) {

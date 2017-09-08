@@ -10175,6 +10175,51 @@ void debug::Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
   i::Coverage::SelectMode(reinterpret_cast<i::Isolate*>(isolate), mode);
 }
 
+int debug::TypeProfile::Entry::SourcePosition() const {
+  return entry_->position;
+}
+
+std::vector<MaybeLocal<String>> debug::TypeProfile::Entry::Types() const {
+  std::vector<MaybeLocal<String>> result;
+  for (const internal::Handle<internal::String>& type : entry_->types) {
+    result.push_back(ToApiHandle<String>(type));
+  }
+  return result;
+}
+
+Local<debug::Script> debug::TypeProfile::ScriptData::GetScript() const {
+  return ToApiHandle<debug::Script>(script_->script);
+}
+
+std::vector<debug::TypeProfile::Entry> debug::TypeProfile::ScriptData::Entries()
+    const {
+  std::vector<debug::TypeProfile::Entry> result;
+  for (const internal::TypeProfileEntry& entry : script_->entries) {
+    result.push_back(debug::TypeProfile::Entry(&entry));
+  }
+  return result;
+}
+
+debug::TypeProfile debug::TypeProfile::Collect(Isolate* isolate) {
+  return TypeProfile(
+      i::TypeProfile::Collect(reinterpret_cast<i::Isolate*>(isolate)));
+}
+
+void debug::TypeProfile::SelectMode(Isolate* isolate,
+                                    debug::TypeProfile::Mode mode) {
+  i::TypeProfile::SelectMode(reinterpret_cast<i::Isolate*>(isolate), mode);
+}
+
+size_t debug::TypeProfile::ScriptCount() const { return type_profile_->size(); }
+
+debug::TypeProfile::ScriptData debug::TypeProfile::GetScriptData(
+    size_t i) const {
+  // TODO(franzih): ScriptData is invalid after ~TypeProfile. Same in Coverage.
+  return ScriptData(&type_profile_->at(i));
+}
+
+debug::TypeProfile::~TypeProfile() { delete type_profile_; }
+
 const char* CpuProfileNode::GetFunctionNameStr() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   return node->entry()->name();

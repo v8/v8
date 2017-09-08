@@ -855,6 +855,11 @@ class CollectTypeProfileNexus : public FeedbackNexus {
   void Collect(Handle<String> type, int position);
   JSObject* GetTypeProfile() const;
 
+  std::vector<int> GetSourcePositions() const;
+  std::vector<Handle<String>> GetTypesForSourcePositions(uint32_t pos) const;
+
+  void Clear() override;
+
   InlineCacheState StateFromFeedback() const override;
 };
 

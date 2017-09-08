@@ -185,10 +185,6 @@ RUNTIME_FUNCTION(Runtime_TypeProfile) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 
-  if (!FLAG_type_profile) {
-    return isolate->heap()->undefined_value();
-  }
-
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
   if (function->has_feedback_vector()) {
     FeedbackVector* vector = function->feedback_vector();

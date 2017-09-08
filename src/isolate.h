@@ -448,6 +448,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(bool, needs_side_effect_check, false)                                     \
   /* Current code coverage mode */                                            \
   V(debug::Coverage::Mode, code_coverage_mode, debug::Coverage::kBestEffort)  \
+  V(debug::TypeProfile::Mode, type_profile_mode, debug::TypeProfile::kNone)   \
   V(int, last_stack_frame_info_id, 0)                                         \
   V(int, last_console_context_id, 0)                                          \
   ISOLATE_INIT_SIMULATOR_LIST(V)
@@ -1039,6 +1040,10 @@ class Isolate {
 
   bool is_block_code_coverage() const {
     return is_block_count_code_coverage() || is_block_binary_code_coverage();
+  }
+
+  bool is_collecting_type_profile() const {
+    return type_profile_mode() == debug::TypeProfile::kCollect;
   }
 
   void SetCodeCoverageList(Object* value);

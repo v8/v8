@@ -66,6 +66,29 @@ class Coverage : public std::vector<CoverageScript> {
   Coverage() {}
 };
 
+struct TypeProfileEntry {
+  explicit TypeProfileEntry(
+      int pos, std::vector<v8::internal::Handle<internal::String>> t)
+      : position(pos), types(std::move(t)) {}
+  int position;
+  std::vector<v8::internal::Handle<internal::String>> types;
+};
+
+struct TypeProfileScript {
+  explicit TypeProfileScript(Handle<Script> s) : script(s) {}
+  Handle<Script> script;
+  std::vector<TypeProfileEntry> entries;
+};
+
+class TypeProfile : public std::vector<TypeProfileScript> {
+ public:
+  static TypeProfile* Collect(Isolate* isolate);
+  static void SelectMode(Isolate* isolate, debug::TypeProfile::Mode mode);
+
+ private:
+  TypeProfile() {}
+};
+
 }  // namespace internal
 }  // namespace v8
 

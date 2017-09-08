@@ -811,12 +811,14 @@ RUNTIME_FUNCTION(Runtime_CollectTypeProfile) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   CONVERT_ARG_HANDLE_CHECKED(FeedbackVector, vector, 2);
 
-  DCHECK(FLAG_type_profile);
-
   Handle<String> type = Object::TypeOf(isolate, value);
   if (value->IsJSReceiver()) {
     Handle<JSReceiver> object = Handle<JSReceiver>::cast(value);
     type = JSReceiver::GetConstructorName(object);
+  } else if (value->IsNull(isolate)) {
+    // typeof(null) is object. But it's more user-friendly to annotate
+    // null as type "null".
+    type = Handle<String>(isolate->heap()->null_string());
   }
 
   DCHECK(vector->metadata()->HasTypeProfileSlot());

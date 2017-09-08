@@ -31,7 +31,6 @@ FeedbackSlot FeedbackVectorSpecBase<Derived>::AddSlot(FeedbackSlotKind kind) {
 
 template <typename Derived>
 FeedbackSlot FeedbackVectorSpecBase<Derived>::AddTypeProfileSlot() {
-  DCHECK(FLAG_type_profile);
   FeedbackSlot slot = AddSlot(FeedbackSlotKind::kTypeProfile);
   CHECK_EQ(FeedbackVectorSpec::kTypeProfileSlotIndex,
            FeedbackVector::GetIndex(slot));

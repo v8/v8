@@ -173,7 +173,8 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
 bool FeedbackMetadata::HasTypeProfileSlot() const {
   FeedbackSlot slot =
       FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);
-  return GetKind(slot) == FeedbackSlotKind::kTypeProfile;
+  return slot.ToInt() < this->length() &&
+         GetKind(slot) == FeedbackSlotKind::kTypeProfile;
 }
 
 FeedbackSlotKind FeedbackVector::GetKind(FeedbackSlot slot) const {
@@ -954,6 +955,19 @@ InlineCacheState CollectTypeProfileNexus::StateFromFeedback() const {
   return MONOMORPHIC;
 }
 
+namespace {
+
+bool InList(Handle<ArrayList> types, Handle<String> type) {
+  for (int i = 0; i < types->Length(); i++) {
+    Object* obj = types->Get(i);
+    if (String::cast(obj)->Equals(*type)) {
+      return true;
+    }
+  }
+  return false;
+}
+}  // anonymous namespace
+
 void CollectTypeProfileNexus::Collect(Handle<String> type, int position) {
   DCHECK_GE(position, 0);
   Isolate* isolate = GetIsolate();
@@ -974,14 +988,74 @@ void CollectTypeProfileNexus::Collect(Handle<String> type, int position) {
   int entry = types->FindEntry(position);
   if (entry == UnseededNumberDictionary::kNotFound) {
     position_specific_types = ArrayList::New(isolate, 1);
+    types = UnseededNumberDictionary::Set(
+        types, position, ArrayList::Add(position_specific_types, type));
   } else {
     DCHECK(types->ValueAt(entry)->IsArrayList());
     position_specific_types = handle(ArrayList::cast(types->ValueAt(entry)));
+    if (!InList(position_specific_types, type)) {  // Add type
+      types = UnseededNumberDictionary::Set(
+          types, position, ArrayList::Add(position_specific_types, type));
+    }
+  }
+  SetFeedback(*types);
+}
+
+void CollectTypeProfileNexus::Clear() {
+  SetFeedback(*FeedbackVector::UninitializedSentinel(GetIsolate()));
+}
+
+std::vector<int> CollectTypeProfileNexus::GetSourcePositions() const {
+  std::vector<int> source_positions;
+  Isolate* isolate = GetIsolate();
+
+  Object* const feedback = GetFeedback();
+
+  if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+    return source_positions;
   }
 
-  types = UnseededNumberDictionary::Set(
-      types, position, ArrayList::Add(position_specific_types, type));
-  SetFeedback(*types);
+  Handle<UnseededNumberDictionary> types = Handle<UnseededNumberDictionary>(
+      UnseededNumberDictionary::cast(feedback), isolate);
+
+  for (int index = UnseededNumberDictionary::kElementsStartIndex;
+       index < types->length(); index += UnseededNumberDictionary::kEntrySize) {
+    int key_index = index + UnseededNumberDictionary::kEntryKeyIndex;
+    Object* key = types->get(key_index);
+    if (key->IsSmi()) {
+      int position = Smi::cast(key)->value();
+      source_positions.push_back(position);
+    }
+  }
+  return source_positions;
+}
+
+std::vector<Handle<String>> CollectTypeProfileNexus::GetTypesForSourcePositions(
+    uint32_t position) const {
+  Isolate* isolate = GetIsolate();
+
+  Object* const feedback = GetFeedback();
+  std::vector<Handle<String>> types_for_position;
+  if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+    return types_for_position;
+  }
+
+  Handle<UnseededNumberDictionary> types = Handle<UnseededNumberDictionary>(
+      UnseededNumberDictionary::cast(feedback), isolate);
+
+  int entry = types->FindEntry(position);
+  if (entry == UnseededNumberDictionary::kNotFound) {
+    return types_for_position;
+  }
+  DCHECK(types->ValueAt(entry)->IsArrayList());
+  Handle<ArrayList> position_specific_types =
+      Handle<ArrayList>(ArrayList::cast(types->ValueAt(entry)));
+  for (int i = 0; i < position_specific_types->Length(); i++) {
+    Object* t = position_specific_types->Get(i);
+    types_for_position.push_back(Handle<String>(String::cast(t), isolate));
+  }
+
+  return types_for_position;
 }
 
 namespace {
