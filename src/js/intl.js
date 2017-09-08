@@ -272,7 +272,7 @@ function supportedLocalesOf(service, locales, options) {
 
   // Provide defaults if matcher was not specified.
   if (IS_UNDEFINED(options)) {
-    options = {};
+    options = {__proto__: null};
   } else {
     options = TO_OBJECT(options);
   }
@@ -483,12 +483,12 @@ function parseExtension(extension) {
   // Assume ['', 'u', ...] input, but don't throw.
   if (extensionSplit.length <= 2 ||
       (extensionSplit[0] !== '' && extensionSplit[1] !== 'u')) {
-    return {};
+    return {__proto__: null};
   }
 
   // Key is {2}alphanum, value is {3,8}alphanum.
   // Some keys may not have explicit values (booleans).
-  var extensionMap = {};
+  var extensionMap = {__proto__: null};
   var key = UNDEFINED;
   var value = UNDEFINED;
   for (var i = 2; i < extensionSplit.length; ++i) {
@@ -510,7 +510,7 @@ function parseExtension(extension) {
       }
     } else {
       // There is a value that's too long, or that doesn't have a key.
-      return {};
+      return {__proto__: null};
     }
   }
   if (!IS_UNDEFINED(key) && !(key in extensionMap)) {
@@ -915,12 +915,12 @@ DEFINE_METHOD(
  */
 function CreateCollator(locales, options) {
   if (IS_UNDEFINED(options)) {
-    options = {};
+    options = {__proto__: null};
   }
 
   var getOption = getGetOption(options, 'collator');
 
-  var internalOptions = {};
+  var internalOptions = {__proto__: null};
 
   defineWEProperty(internalOptions, 'usage', getOption(
     'usage', 'string', ['sort', 'search'], 'sort'));
@@ -988,7 +988,7 @@ function CreateCollator(locales, options) {
   // problems. If malicious user decides to redefine Object.prototype.locale
   // we can't just use plain x.locale = 'us' or in C++ Set("locale", "us").
   // %object_define_properties will either succeed defining or throw an error.
-  var resolved = %object_define_properties({}, {
+  var resolved = %object_define_properties({__proto__: null}, {
     caseFirst: {writable: true},
     collation: {value: internalOptions.collation, writable: true},
     ignorePunctuation: {writable: true},
@@ -1083,21 +1083,21 @@ function PluralRulesConstructor() {
   var options = arguments[1];
 
   if (IS_UNDEFINED(options)) {
-    options = {};
+    options = {__proto__: null};
   }
 
   var getOption = getGetOption(options, 'pluralrules');
 
   var locale = resolveLocale('pluralrules', locales, options);
 
-  var internalOptions = {};
+  var internalOptions = {__proto__: null};
   defineWEProperty(internalOptions, 'type', getOption(
     'type', 'string', ['cardinal', 'ordinal'], 'cardinal'));
 
   SetNumberFormatDigitOptions(internalOptions, options, 0, 3);
 
   var requestedLocale = locale.locale;
-  var resolved = %object_define_properties({}, {
+  var resolved = %object_define_properties({__proto__: null}, {
     type: {value: internalOptions.type, writable: true},
     locale: {writable: true},
     maximumFractionDigits: {writable: true},
@@ -1244,14 +1244,14 @@ function SetNumberFormatDigitOptions(internalOptions, options,
  */
 function CreateNumberFormat(locales, options) {
   if (IS_UNDEFINED(options)) {
-    options = {};
+    options = {__proto__: null};
   }
 
   var getOption = getGetOption(options, 'numberformat');
 
   var locale = resolveLocale('numberformat', locales, options);
 
-  var internalOptions = {};
+  var internalOptions = {__proto__: null};
   defineWEProperty(internalOptions, 'style', getOption(
     'style', 'string', ['decimal', 'percent', 'currency'], 'decimal'));
 
@@ -1301,7 +1301,7 @@ function CreateNumberFormat(locales, options) {
                              getOption, internalOptions);
 
   var requestedLocale = locale.locale + extension;
-  var resolved = %object_define_properties({}, {
+  var resolved = %object_define_properties({__proto__: null}, {
     currency: {writable: true},
     currencyDisplay: {writable: true},
     locale: {writable: true},
@@ -1486,7 +1486,7 @@ function fromLDMLString(ldmlString) {
   // First remove '' quoted text, so we lose 'Uhr' strings.
   ldmlString = %RegExpInternalReplace(GetQuotedStringRE(), ldmlString, '');
 
-  var options = {};
+  var options = {__proto__: null};
   var match = %regexp_internal_match(/E{3,5}/, ldmlString);
   options = appendToDateTimeObject(
       options, 'weekday', match, {EEEEE: 'narrow', EEE: 'short', EEEE: 'long'});
@@ -1562,7 +1562,7 @@ function appendToDateTimeObject(options, option, match, pairs) {
  */
 function toDateTimeOptions(options, required, defaults) {
   if (IS_UNDEFINED(options)) {
-    options = {};
+    options = {__proto__: null};
   } else {
     options = TO_OBJECT(options);
   }
@@ -1622,7 +1622,7 @@ function toDateTimeOptions(options, required, defaults) {
  */
 function CreateDateTimeFormat(locales, options) {
   if (IS_UNDEFINED(options)) {
-    options = {};
+    options = {__proto__: null};
   }
 
   var locale = resolveLocale('dateformat', locales, options);
@@ -1646,7 +1646,7 @@ function CreateDateTimeFormat(locales, options) {
 
   // ICU prefers options to be passed using -u- extension key/values, so
   // we need to build that.
-  var internalOptions = {};
+  var internalOptions = {__proto__: null};
   var extensionMap = parseExtension(locale.extension);
 
   /**
@@ -1662,7 +1662,7 @@ function CreateDateTimeFormat(locales, options) {
                              getOption, internalOptions);
 
   var requestedLocale = locale.locale + extension;
-  var resolved = %object_define_properties({}, {
+  var resolved = %object_define_properties({__proto__: null}, {
     calendar: {writable: true},
     day: {writable: true},
     era: {writable: true},
@@ -1869,18 +1869,18 @@ function canonicalizeTimeZoneID(tzID) {
  */
 function CreateBreakIterator(locales, options) {
   if (IS_UNDEFINED(options)) {
-    options = {};
+    options = {__proto__: null};
   }
 
   var getOption = getGetOption(options, 'breakiterator');
 
-  var internalOptions = {};
+  var internalOptions = {__proto__: null};
 
   defineWEProperty(internalOptions, 'type', getOption(
     'type', 'string', ['character', 'word', 'sentence', 'line'], 'word'));
 
   var locale = resolveLocale('breakiterator', locales, options);
-  var resolved = %object_define_properties({}, {
+  var resolved = %object_define_properties({__proto__: null}, {
     requestedLocale: {value: locale.locale, writable: true},
     type: {value: internalOptions.type, writable: true},
     locale: {writable: true}
@@ -2093,7 +2093,6 @@ DEFINE_METHOD(
   }
 );
 
-var StringPrototypeMethods = {};
 DEFINE_METHODS_LEN(
   GlobalString.prototype,
   {
