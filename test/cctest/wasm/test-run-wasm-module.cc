@@ -1170,6 +1170,8 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
   Cleanup();
 }
 
+#undef EMIT_CODE_WITH_END
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

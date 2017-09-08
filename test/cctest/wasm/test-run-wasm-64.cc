@@ -31,13 +31,6 @@ namespace wasm {
   CHECK_EQ(0xdeadbeef, (bit_cast<uint32_t>(x)) & 0xFFFFFFFF)
 #define CHECK_TRAP64(x) \
   CHECK_EQ(0xdeadbeefdeadbeef, (bit_cast<uint64_t>(x)) & 0xFFFFFFFFFFFFFFFF)
-#define CHECK_TRAP(x) CHECK_TRAP32(x)
-
-#define asi64(x) static_cast<int64_t>(x)
-
-#define asu64(x) static_cast<uint64_t>(x)
-
-#define B2(a, b) kExprBlock, a, b, kExprEnd
 
 // Can't bridge macro land with nested macros.
 #if V8_TARGET_ARCH_MIPS
@@ -98,6 +91,8 @@ namespace wasm {
 #define DECLARE_CONST(name, cond) static const bool kSupported_##name = cond;
 FOREACH_I64_OPERATOR(DECLARE_CONST)
 #undef DECLARE_CONST
+
+#undef FOREACH_I64_OPERATOR
 
 #define REQUIRE(name) \
   if (!WASM_64 && !kSupported_##name) return
@@ -278,11 +273,11 @@ WASM_EXEC_TEST(I64DivS_Trap) {
   REQUIRE(I64DivS);
   WasmRunner<int64_t, int64_t, int64_t> r(execution_mode);
   BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(0, r.Call(asi64(0), asi64(100)));
-  CHECK_TRAP64(r.Call(asi64(100), asi64(0)));
-  CHECK_TRAP64(r.Call(asi64(-1001), asi64(0)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), asi64(-1)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), asi64(0)));
+  CHECK_EQ(0, r.Call(int64_t{0}, int64_t{100}));
+  CHECK_TRAP64(r.Call(int64_t{100}, int64_t{0}));
+  CHECK_TRAP64(r.Call(int64_t{-1001}, int64_t{0}));
+  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), int64_t{-1}));
+  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), int64_t{0}));
 }
 
 WASM_EXEC_TEST(I64DivS_Byzero_Const) {
@@ -319,10 +314,10 @@ WASM_EXEC_TEST(I64DivU_Trap) {
   REQUIRE(I64DivU);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_mode);
   BUILD(r, WASM_I64_DIVU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(0, r.Call(asu64(0), asu64(100)));
-  CHECK_TRAP64(r.Call(asu64(100), asu64(0)));
-  CHECK_TRAP64(r.Call(asu64(1001), asu64(0)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<uint64_t>::max(), asu64(0)));
+  CHECK_EQ(0, r.Call(uint64_t{0}, uint64_t{100}));
+  CHECK_TRAP64(r.Call(uint64_t{100}, uint64_t{0}));
+  CHECK_TRAP64(r.Call(uint64_t{1001}, uint64_t{0}));
+  CHECK_TRAP64(r.Call(std::numeric_limits<uint64_t>::max(), uint64_t{0}));
 }
 
 WASM_EXEC_TEST(I64DivU_Byzero_Const) {
@@ -360,11 +355,11 @@ WASM_EXEC_TEST(I64RemS_Trap) {
   REQUIRE(I64RemS);
   WasmRunner<int64_t, int64_t, int64_t> r(execution_mode);
   BUILD(r, WASM_I64_REMS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(33, r.Call(asi64(133), asi64(100)));
-  CHECK_EQ(0, r.Call(std::numeric_limits<int64_t>::min(), asi64(-1)));
-  CHECK_TRAP64(r.Call(asi64(100), asi64(0)));
-  CHECK_TRAP64(r.Call(asi64(-1001), asi64(0)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), asi64(0)));
+  CHECK_EQ(33, r.Call(int64_t{133}, int64_t{100}));
+  CHECK_EQ(0, r.Call(std::numeric_limits<int64_t>::min(), int64_t{-1}));
+  CHECK_TRAP64(r.Call(int64_t{100}, int64_t{0}));
+  CHECK_TRAP64(r.Call(int64_t{-1001}, int64_t{0}));
+  CHECK_TRAP64(r.Call(std::numeric_limits<int64_t>::min(), int64_t{0}));
 }
 
 WASM_EXEC_TEST(I64RemU) {
@@ -386,10 +381,10 @@ WASM_EXEC_TEST(I64RemU_Trap) {
   REQUIRE(I64RemU);
   WasmRunner<uint64_t, uint64_t, uint64_t> r(execution_mode);
   BUILD(r, WASM_I64_REMU(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
-  CHECK_EQ(17, r.Call(asu64(217), asu64(100)));
-  CHECK_TRAP64(r.Call(asu64(100), asu64(0)));
-  CHECK_TRAP64(r.Call(asu64(1001), asu64(0)));
-  CHECK_TRAP64(r.Call(std::numeric_limits<uint64_t>::max(), asu64(0)));
+  CHECK_EQ(17, r.Call(uint64_t{217}, uint64_t{100}));
+  CHECK_TRAP64(r.Call(uint64_t{100}, uint64_t{0}));
+  CHECK_TRAP64(r.Call(uint64_t{1001}, uint64_t{0}));
+  CHECK_TRAP64(r.Call(std::numeric_limits<uint64_t>::max(), uint64_t{0}));
 }
 
 WASM_EXEC_TEST(I64And) {
@@ -1002,6 +997,8 @@ WASM_EXEC_TEST(I64Binops) {
   TEST_I64_BINOP(I64Rol, 8728493013947314237, 0xe07af243ac4d219d, 15);
 }
 
+#undef TEST_I64_BINOP
+
 #define TEST_I64_CMP(name, expected, a, b)                     \
   do {                                                         \
     if (WASM_64 || kSupported_##name)                          \
@@ -1020,6 +1017,8 @@ WASM_EXEC_TEST(I64Compare) {
   TEST_I64_CMP(I64GtU, 0, 0x8F691284E44F7DA9, 0xD5EA9BC1EE149192);
   TEST_I64_CMP(I64GeU, 0, 0x0886A0C58C7AA224, 0x5DDBE5A81FD7EE47);
 }
+
+#undef TEST_I64_CMP
 
 WASM_EXEC_TEST(I64Clz) {
   REQUIRE(I64Clz);
@@ -1523,7 +1522,7 @@ WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
     CHECK_EQ(0, memcmp(&memory[0], &memory[8 + boundary], memsize));
 
     for (uint32_t offset = boundary + 1; offset < boundary + 19; offset++) {
-      CHECK_TRAP(r.Call(offset));  // out of bounds.
+      CHECK_TRAP32(r.Call(offset));  // out of bounds.
     }
   }
 }
@@ -1672,6 +1671,13 @@ WASM_EXEC_TEST(Regress5874) {
 
   r.Call();
 }
+
+#undef WASM_64
+#undef CHECK_TRAP32
+#undef CHECK_TRAP64
+#undef MIPS
+#undef REQUIRE
+#undef ADD_CODE
 
 // clang-format gets confused about these closing parentheses (wants to change
 // the first comment to "// namespace v8". Disable it.

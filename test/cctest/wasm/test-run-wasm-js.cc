@@ -512,6 +512,9 @@ TEST(Run_JSSelectAlign_10) {
   RunJSSelectAlignTest(10, 10);
 }
 
+#undef BUILD
+#undef ADD_CODE
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

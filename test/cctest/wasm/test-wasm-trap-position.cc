@@ -60,6 +60,8 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   }
 }
 
+#undef CHECK_CSTREQ
+
 }  // namespace
 
 // Trigger a trap for executing unreachable.

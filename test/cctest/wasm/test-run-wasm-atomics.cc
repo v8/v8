@@ -191,6 +191,10 @@ WASM_EXEC_TEST(I32CompareExchange8U) {
   }
 }
 
+#undef WASM_ATOMICS_OP
+#undef WASM_ATOMICS_BINOP
+#undef WASM_ATOMICS_TERNARY_OP
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

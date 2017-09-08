@@ -523,6 +523,8 @@ TEST_F(FunctionBodyDecoderTest, Block0_end) {
   EXPECT_FAILURE(v_v, WASM_EMPTY_BLOCK, kExprEnd);
 }
 
+#undef WASM_EMPTY_BLOCK
+
 TEST_F(FunctionBodyDecoderTest, Block1) {
   byte code[] = {WASM_BLOCK_I(WASM_GET_LOCAL(0))};
   EXPECT_VERIFIES_C(i_i, code);
@@ -1340,6 +1342,16 @@ TEST_F(FunctionBodyDecoderTest, StoreMemOffset_varint) {
   EXPECT_VERIFIES(v_i, WASM_ZERO, WASM_ZERO, kExprI32StoreMem, ZERO_ALIGNMENT,
                   VARINT4(0x44444444));
 }
+
+#undef BYTE0
+#undef BYTE1
+#undef BYTE2
+#undef BYTE3
+
+#undef VARINT1
+#undef VARINT2
+#undef VARINT3
+#undef VARINT4
 
 TEST_F(FunctionBodyDecoderTest, AllLoadMemCombinations) {
   TestModuleBuilder builder;
@@ -2283,7 +2295,6 @@ TEST_F(FunctionBodyDecoderTest, ThrowUnreachable) {
 }
 
 #define WASM_TRY_OP kExprTry, kLocalVoid
-
 #define WASM_CATCH(index) kExprCatch, static_cast<byte>(index)
 
 TEST_F(FunctionBodyDecoderTest, TryCatch) {
@@ -2307,6 +2318,9 @@ TEST_F(FunctionBodyDecoderTest, TryCatch) {
   // TODO(kschimpf): Fix this to verify.
   EXPECT_FAILURE(v_i, WASM_TRY_OP, WASM_CATCH(0), WASM_CATCH(1), kExprEnd);
 }
+
+#undef WASM_TRY_OP
+#undef WASM_CATCH
 
 TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
   EXPERIMENTAL_FLAG_SCOPE(mv);
@@ -2428,6 +2442,9 @@ TEST_F(BranchTableIteratorTest, error0) {
   CHECK_BR_TABLE_ERROR(0);
   CHECK_BR_TABLE_ERROR(1, U32V_1(33));
 }
+
+#undef CHECK_BR_TABLE_LENGTH
+#undef CHECK_BR_TABLE_ERROR
 
 class WasmOpcodeLengthTest : public TestWithZone {
  public:
@@ -2665,10 +2682,12 @@ TEST_F(WasmOpcodeLengthTest, SimdExpressions) {
   FOREACH_SIMD_1_OPERAND_OPCODE(TEST_SIMD)
 #undef TEST_SIMD
   EXPECT_LENGTH_N(18, kSimdPrefix, static_cast<byte>(kExprS8x16Shuffle & 0xff));
-#undef TEST_SIMD
   // test for bad simd opcode
   EXPECT_LENGTH_N(2, kSimdPrefix, 0xff);
 }
+
+#undef EXPECT_LENGTH
+#undef EXPECT_LENGTH_N
 
 typedef ZoneVector<ValueType> TypesOfLocals;
 
@@ -2853,6 +2872,21 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
   iter.next();
   EXPECT_FALSE(iter.has_next());
 }
+
+#undef B1
+#undef B2
+#undef B3
+#undef WASM_IF_OP
+#undef WASM_LOOP_OP
+#undef WASM_BRV_IF_ZERO
+#undef EXPECT_VERIFIES_C
+#undef EXPECT_FAILURE_C
+#undef EXPECT_VERIFIES_SC
+#undef EXPECT_FAILURE_SC
+#undef EXPECT_VERIFIES_S
+#undef EXPECT_FAILURE_S
+#undef EXPECT_VERIFIES
+#undef EXPECT_FAILURE
 
 }  // namespace wasm
 }  // namespace internal

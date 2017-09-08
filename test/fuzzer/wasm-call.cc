@@ -18,13 +18,13 @@
 #include "test/fuzzer/fuzzer-support.h"
 #include "test/fuzzer/wasm-fuzzer-common.h"
 
-#define MAX_NUM_FUNCTIONS 3
-#define MAX_NUM_PARAMS 3
-
 namespace v8 {
 namespace internal {
 namespace wasm {
 namespace fuzzer {
+
+static constexpr uint32_t kMaxNumFunctions = 3;
+static constexpr uint32_t kMaxNumParams = 3;
 
 class WasmCallFuzzer : public WasmExecutionFuzzer {
   template <typename V>
@@ -78,7 +78,7 @@ class WasmCallFuzzer : public WasmExecutionFuzzer {
       std::unique_ptr<Handle<Object>[]>& compiler_args) override {
     bool ok = true;
     uint8_t num_functions =
-        (read_value<uint8_t>(&data, &size, &ok) % MAX_NUM_FUNCTIONS) + 1;
+        (read_value<uint8_t>(&data, &size, &ok) % kMaxNumFunctions) + 1;
 
     ValueType types[] = {kWasmF32, kWasmF64, kWasmI32, kWasmI64};
 
@@ -88,7 +88,7 @@ class WasmCallFuzzer : public WasmExecutionFuzzer {
     WasmModuleBuilder builder(zone);
     for (int fun = 0; fun < num_functions; fun++) {
       size_t num_params = static_cast<size_t>(
-          (read_value<uint8_t>(&data, &size, &ok) % MAX_NUM_PARAMS) + 1);
+          (read_value<uint8_t>(&data, &size, &ok) % kMaxNumParams) + 1);
       FunctionSig::Builder sig_builder(zone, 1, num_params);
       sig_builder.AddReturn(kWasmI32);
       for (size_t param = 0; param < num_params; param++) {

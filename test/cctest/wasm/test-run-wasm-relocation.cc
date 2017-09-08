@@ -62,6 +62,9 @@ namespace wasm {
 
 FOREACH_TYPE(LOAD_SET_GLOBAL_TEST_BODY)
 
+#undef FOREACH_TYPE
+#undef LOAD_SET_GLOBAL_TEST_BODY
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

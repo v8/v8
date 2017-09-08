@@ -94,6 +94,8 @@ void CheckComputeLocation(v8::internal::Isolate* i_isolate, Handle<Object> exc,
   CHECK_EQ(topLocation.column - 1, message->GetColumnNumber());
 }
 
+#undef CHECK_CSTREQ
+
 }  // namespace
 
 // Call from JS to wasm to JS and throw an Error from JS.

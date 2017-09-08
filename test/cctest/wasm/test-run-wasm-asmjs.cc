@@ -19,12 +19,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-// for even shorter tests.
-#define B2(a, b) kExprBlock, a, b, kExprEnd
-#define B1(a) kExprBlock, a, kExprEnd
-#define RET(x) x, kExprReturn, 1
-#define RET_I8(x) kExprI8Const, x, kExprReturn, 1
-
 namespace {
 uint32_t GetMatchingRelocInfoCount(Handle<Code> code, RelocInfo::Mode rmode) {
   int filter = 1 << rmode;
@@ -238,6 +232,8 @@ WASM_EXEC_TEST(StoreMemI32_oob_asm) {
 
 FOREACH_INT_CHECKED_LOAD_OP(INT_LOAD_TEST)
 
+#undef INT_LOAD_TEST
+
 #define INT_STORE_TEST(OP_TYPE)                                               \
   TEST(RunWasm_AsmCheckedRelocInfo##OP_TYPE) {                                \
     WasmRunner<int32_t, uint32_t, uint32_t> r(kExecuteCompiled);              \
@@ -251,6 +247,11 @@ FOREACH_INT_CHECKED_LOAD_OP(INT_LOAD_TEST)
   }
 
 FOREACH_INT_CHECKED_STORE_OP(INT_STORE_TEST)
+
+#undef INT_STORE_TEST
+
+#undef FOREACH_INT_CHECKED_LOAD_OP
+#undef FOREACH_INT_CHECKED_STORE_OP
 
 TEST(RunWasm_AsmCheckedLoadFloat32RelocInfo) {
   WasmRunner<float, uint32_t> r(kExecuteCompiled);

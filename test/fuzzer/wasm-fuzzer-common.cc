@@ -15,15 +15,15 @@
 #include "test/common/wasm/wasm-module-runner.h"
 #include "test/fuzzer/fuzzer-support.h"
 
-#define WASM_CODE_FUZZER_HASH_SEED 83
-
 namespace v8 {
 namespace internal {
 namespace wasm {
 namespace fuzzer {
 
-static const char* kNameString = "name";
-static const size_t kNameStringLength = 4;
+static constexpr uint32_t kWasmCodeFuzzerHashSeed = 83;
+
+static constexpr const char* kNameString = "name";
+static constexpr size_t kNameStringLength = 4;
 
 int FuzzWasmSection(SectionCode section, const uint8_t* data, size_t size) {
   v8_fuzzer::FuzzerSupport* support = v8_fuzzer::FuzzerSupport::Get();
@@ -171,7 +171,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(
 
   if (compiles != validates) {
     uint32_t hash = StringHasher::HashSequentialString(
-        data, static_cast<int>(size), WASM_CODE_FUZZER_HASH_SEED);
+        data, static_cast<int>(size), kWasmCodeFuzzerHashSeed);
     V8_Fatal(__FILE__, __LINE__,
              "compiles != validates (%d vs %d); WasmCodeFuzzerHash=%x",
              compiles, validates, hash);
@@ -227,7 +227,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(
     if (result_interpreted != result_compiled) {
       V8_Fatal(__FILE__, __LINE__, "WasmCodeFuzzerHash=%x",
                StringHasher::HashSequentialString(data, static_cast<int>(size),
-                                                  WASM_CODE_FUZZER_HASH_SEED));
+                                                  kWasmCodeFuzzerHashSeed));
     }
   }
   return 0;

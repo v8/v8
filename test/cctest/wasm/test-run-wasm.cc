@@ -22,7 +22,6 @@ namespace wasm {
 // for even shorter tests.
 #define B1(a) WASM_BLOCK(a)
 #define B2(a, b) WASM_BLOCK(a, b)
-#define B3(a, b, c) WASM_BLOCK(a, b, c)
 #define RET(x) x, kExprReturn
 #define RET_I8(x) WASM_I32V_2(x), kExprReturn
 
@@ -649,7 +648,6 @@ WASM_EXEC_TEST(IfElse_P) {
     CHECK_EQ(expected, r.Call(*i));
   }
 }
-#define EMPTY
 
 WASM_EXEC_TEST(If_empty1) {
   WasmRunner<uint32_t, uint32_t, uint32_t> r(execution_mode);
@@ -3092,6 +3090,12 @@ WASM_EXEC_TEST(IfInsideUnreachable) {
       WASM_IF_ELSE_I(WASM_ONE, WASM_BRV(0, WASM_ONE), WASM_RETURN1(WASM_ONE)));
   CHECK_EQ(17, r.Call());
 }
+
+#undef B1
+#undef B2
+#undef RET
+#undef RET_I8
+#undef ADD_CODE
 
 }  // namespace wasm
 }  // namespace internal
