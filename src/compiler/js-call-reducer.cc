@@ -1593,6 +1593,27 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
         NodeProperties::ChangeOp(node, javascript()->CreateArray(arity, site));
         return Changed(node);
       }
+
+      // Check for the ObjectConstructor.
+      if (*function == function->native_context()->object_function()) {
+        // If no value is passed, we can immediately lower to a simple
+        // JSCreate and don't need to do any massaging of the {node}.
+        if (arity == 0) {
+          NodeProperties::ChangeOp(node, javascript()->Create());
+          return Changed(node);
+        }
+
+        // Otherwise we can only lower to JSCreate if we know that
+        // the value parameter is ignored, which is only the case if
+        // the {new_target} and {target} are definitely not identical.
+        HeapObjectMatcher mnew_target(new_target);
+        if (mnew_target.HasValue() && *mnew_target.Value() != *function) {
+          // Drop the value inputs.
+          for (int i = arity; i > 0; --i) node->RemoveInput(i);
+          NodeProperties::ChangeOp(node, javascript()->Create());
+          return Changed(node);
+        }
+      }
     }
 
     // TODO(bmeurer): Also support optimizing bound functions and proxies here.

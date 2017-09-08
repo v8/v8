@@ -30,3 +30,22 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals('object', typeof foo());
 })();
+
+// Object constructor subclassing via Class Factories, see
+// https://twitter.com/FremyCompany/status/905977048006402048
+// for the hint.
+(function ObjectConstructorSubClassing() {
+  "use strict";
+  const Factory = Base => class A extends Base {};
+  const A = Factory(Object);
+  function foo() {
+    return new A(1, 2, 3);
+  }
+  assertInstanceof(foo(), A);
+  assertInstanceof(foo(), Object);
+  assertInstanceof(foo(), A);
+  assertInstanceof(foo(), Object);
+  %OptimizeFunctionOnNextCall(foo);
+  assertInstanceof(foo(), A);
+  assertInstanceof(foo(), Object);
+})();
