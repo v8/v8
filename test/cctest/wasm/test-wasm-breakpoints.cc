@@ -7,7 +7,7 @@
 #include "src/frames-inl.h"
 #include "src/property-descriptor.h"
 #include "src/utils.h"
-#include "src/wasm/wasm-objects.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 #include "test/cctest/cctest.h"
 #include "test/cctest/compiler/value-helper.h"

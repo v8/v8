@@ -4,6 +4,8 @@
 
 #include "test/cctest/wasm/wasm-run-utils.h"
 
+#include "src/wasm/wasm-objects-inl.h"
+
 namespace v8 {
 namespace internal {
 namespace wasm {
