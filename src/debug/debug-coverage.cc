@@ -380,9 +380,10 @@ void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
 }
 }  // anonymous namespace
 
-Coverage* Coverage::CollectPrecise(Isolate* isolate) {
+std::unique_ptr<Coverage> Coverage::CollectPrecise(Isolate* isolate) {
   DCHECK(!isolate->is_best_effort_code_coverage());
-  Coverage* result = Collect(isolate, isolate->code_coverage_mode());
+  std::unique_ptr<Coverage> result =
+      Collect(isolate, isolate->code_coverage_mode());
   if (isolate->is_precise_binary_code_coverage() ||
       isolate->is_block_binary_code_coverage()) {
     // We do not have to hold onto feedback vectors for invocations we already
@@ -392,12 +393,12 @@ Coverage* Coverage::CollectPrecise(Isolate* isolate) {
   return result;
 }
 
-Coverage* Coverage::CollectBestEffort(Isolate* isolate) {
+std::unique_ptr<Coverage> Coverage::CollectBestEffort(Isolate* isolate) {
   return Collect(isolate, v8::debug::Coverage::kBestEffort);
 }
 
-Coverage* Coverage::Collect(Isolate* isolate,
-                            v8::debug::Coverage::Mode collectionMode) {
+std::unique_ptr<Coverage> Coverage::Collect(
+    Isolate* isolate, v8::debug::Coverage::Mode collectionMode) {
   SharedToCounterMap counter_map;
 
   const bool reset_count = collectionMode != v8::debug::Coverage::kBestEffort;
@@ -439,7 +440,7 @@ Coverage* Coverage::Collect(Isolate* isolate,
 
   // Iterate shared function infos of every script and build a mapping
   // between source ranges and invocation counts.
-  Coverage* result = new Coverage();
+  std::unique_ptr<Coverage> result(new Coverage());
   Script::Iterator scripts(isolate);
   while (Script* script = scripts.Next()) {
     if (!script->IsUserJavaScript()) continue;

@@ -1925,9 +1925,9 @@ RUNTIME_FUNCTION(Runtime_DebugCollectCoverage) {
   // Collect coverage data.
   std::unique_ptr<Coverage> coverage;
   if (isolate->is_best_effort_code_coverage()) {
-    coverage.reset(Coverage::CollectBestEffort(isolate));
+    coverage = Coverage::CollectBestEffort(isolate);
   } else {
-    coverage.reset(Coverage::CollectPrecise(isolate));
+    coverage = Coverage::CollectPrecise(isolate);
   }
   Factory* factory = isolate->factory();
   // Turn the returned data structure into JavaScript.

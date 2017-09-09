@@ -10167,7 +10167,7 @@ bool debug::Coverage::FunctionData::HasBlockCoverage() const {
 
 debug::Coverage::BlockData debug::Coverage::FunctionData::GetBlockData(
     size_t i) const {
-  return BlockData(&function_->blocks.at(i));
+  return BlockData(&function_->blocks.at(i), coverage_);
 }
 
 Local<debug::Script> debug::Coverage::ScriptData::GetScript() const {
@@ -10180,15 +10180,20 @@ size_t debug::Coverage::ScriptData::FunctionCount() const {
 
 debug::Coverage::FunctionData debug::Coverage::ScriptData::GetFunctionData(
     size_t i) const {
-  return FunctionData(&script_->functions.at(i));
+  return FunctionData(&script_->functions.at(i), coverage_);
 }
 
-debug::Coverage::~Coverage() { delete coverage_; }
+debug::Coverage::Coverage(std::shared_ptr<i::Coverage> coverage)
+    : coverage_(std::move(coverage)) {}
+
+debug::Coverage::ScriptData::ScriptData(size_t index,
+                                        std::shared_ptr<i::Coverage> coverage)
+    : script_(&coverage->at(index)), coverage_(std::move(coverage)) {}
 
 size_t debug::Coverage::ScriptCount() const { return coverage_->size(); }
 
 debug::Coverage::ScriptData debug::Coverage::GetScriptData(size_t i) const {
-  return ScriptData(&coverage_->at(i));
+  return ScriptData(i, coverage_);
 }
 
 debug::Coverage debug::Coverage::CollectPrecise(Isolate* isolate) {

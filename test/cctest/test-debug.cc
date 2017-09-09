@@ -6518,6 +6518,104 @@ TEST(DebugCoverage) {
   CHECK_EQ(2, function_data.Count());
 }
 
+namespace {
+v8::debug::Coverage::ScriptData GetScriptDataAndDeleteCoverage(
+    v8::Isolate* isolate) {
+  v8::debug::Coverage coverage = v8::debug::Coverage::CollectPrecise(isolate);
+  CHECK_EQ(1u, coverage.ScriptCount());
+  return coverage.GetScriptData(0);
+}
+}  // namespace
+
+TEST(DebugCoverageWithCoverageOutOfScope) {
+  i::FLAG_always_opt = false;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::debug::Coverage::SelectMode(isolate, v8::debug::Coverage::kPreciseCount);
+  v8::Local<v8::String> source = v8_str(
+      "function f() {\n"
+      "}\n"
+      "f();\n"
+      "f();");
+  CompileRun(source);
+  v8::debug::Coverage::ScriptData script_data =
+      GetScriptDataAndDeleteCoverage(isolate);
+  v8::Local<v8::debug::Script> script = script_data.GetScript();
+  CHECK(script->Source()
+            .ToLocalChecked()
+            ->Equals(env.local(), source)
+            .FromMaybe(false));
+
+  CHECK_EQ(2u, script_data.FunctionCount());
+  v8::debug::Coverage::FunctionData function_data =
+      script_data.GetFunctionData(0);
+
+  CHECK_EQ(0, function_data.StartOffset());
+  CHECK_EQ(26, function_data.EndOffset());
+
+  v8::debug::Location start =
+      script->GetSourceLocation(function_data.StartOffset());
+  v8::debug::Location end =
+      script->GetSourceLocation(function_data.EndOffset());
+  CHECK_EQ(0, start.GetLineNumber());
+  CHECK_EQ(0, start.GetColumnNumber());
+  CHECK_EQ(3, end.GetLineNumber());
+  CHECK_EQ(4, end.GetColumnNumber());
+  CHECK_EQ(1, function_data.Count());
+
+  function_data = script_data.GetFunctionData(1);
+  start = script->GetSourceLocation(function_data.StartOffset());
+  end = script->GetSourceLocation(function_data.EndOffset());
+
+  CHECK_EQ(0, function_data.StartOffset());
+  CHECK_EQ(16, function_data.EndOffset());
+
+  CHECK_EQ(0, start.GetLineNumber());
+  CHECK_EQ(0, start.GetColumnNumber());
+  CHECK_EQ(1, end.GetLineNumber());
+  CHECK_EQ(1, end.GetColumnNumber());
+  CHECK_EQ(2, function_data.Count());
+}
+
+namespace {
+v8::debug::Coverage::FunctionData GetFunctionDataAndDeleteCoverage(
+    v8::Isolate* isolate) {
+  v8::debug::Coverage coverage = v8::debug::Coverage::CollectPrecise(isolate);
+  CHECK_EQ(1u, coverage.ScriptCount());
+
+  v8::debug::Coverage::ScriptData script_data = coverage.GetScriptData(0);
+
+  CHECK_EQ(2u, script_data.FunctionCount());
+  v8::debug::Coverage::FunctionData function_data =
+      script_data.GetFunctionData(0);
+  CHECK_EQ(1, function_data.Count());
+  CHECK_EQ(0, function_data.StartOffset());
+  CHECK_EQ(26, function_data.EndOffset());
+  return function_data;
+}
+}  // namespace
+
+TEST(DebugCoverageWithScriptDataOutOfScope) {
+  i::FLAG_always_opt = false;
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::HandleScope scope(isolate);
+  v8::debug::Coverage::SelectMode(isolate, v8::debug::Coverage::kPreciseCount);
+  v8::Local<v8::String> source = v8_str(
+      "function f() {\n"
+      "}\n"
+      "f();\n"
+      "f();");
+  CompileRun(source);
+
+  v8::debug::Coverage::FunctionData function_data =
+      GetFunctionDataAndDeleteCoverage(isolate);
+  CHECK_EQ(1, function_data.Count());
+  CHECK_EQ(0, function_data.StartOffset());
+  CHECK_EQ(26, function_data.EndOffset());
+}
+
 TEST(BuiltinsExceptionPrediction) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);

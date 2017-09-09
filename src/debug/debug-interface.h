@@ -281,8 +281,12 @@ class V8_EXPORT_PRIVATE Coverage {
     uint32_t Count() const;
 
    private:
-    explicit BlockData(i::CoverageBlock* block) : block_(block) {}
+    explicit BlockData(i::CoverageBlock* block,
+                       std::shared_ptr<i::Coverage> coverage)
+        : block_(block), coverage_(std::move(coverage)) {}
+
     i::CoverageBlock* block_;
+    std::shared_ptr<i::Coverage> coverage_;
 
     friend class v8::debug::Coverage::FunctionData;
   };
@@ -300,9 +304,12 @@ class V8_EXPORT_PRIVATE Coverage {
     BlockData GetBlockData(size_t i) const;
 
    private:
-    explicit FunctionData(i::CoverageFunction* function)
-        : function_(function) {}
+    explicit FunctionData(i::CoverageFunction* function,
+                          std::shared_ptr<i::Coverage> coverage)
+        : function_(function), coverage_(std::move(coverage)) {}
+
     i::CoverageFunction* function_;
+    std::shared_ptr<i::Coverage> coverage_;
 
     friend class v8::debug::Coverage::ScriptData;
   };
@@ -316,8 +323,10 @@ class V8_EXPORT_PRIVATE Coverage {
     FunctionData GetFunctionData(size_t i) const;
 
    private:
-    explicit ScriptData(i::CoverageScript* script) : script_(script) {}
+    explicit ScriptData(size_t index, std::shared_ptr<i::Coverage> c);
+
     i::CoverageScript* script_;
+    std::shared_ptr<i::Coverage> coverage_;
 
     friend class v8::debug::Coverage;
   };
@@ -331,11 +340,11 @@ class V8_EXPORT_PRIVATE Coverage {
   ScriptData GetScriptData(size_t i) const;
   bool IsEmpty() const { return coverage_ == nullptr; }
 
-  ~Coverage();
+  ~Coverage() = default;
 
  private:
-  explicit Coverage(i::Coverage* coverage) : coverage_(coverage) {}
-  i::Coverage* coverage_;
+  explicit Coverage(std::shared_ptr<i::Coverage> coverage);
+  std::shared_ptr<i::Coverage> coverage_;
 };
 
 /*
