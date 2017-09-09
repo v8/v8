@@ -32,11 +32,11 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion3) const {
   int bytes = 0;
   RegList exclusions = 0;
-  if (!exclusion1.is(no_reg)) {
+  if (exclusion1 != no_reg) {
     exclusions |= exclusion1.bit();
-    if (!exclusion2.is(no_reg)) {
+    if (exclusion2 != no_reg) {
       exclusions |= exclusion2.bit();
-      if (!exclusion3.is(no_reg)) {
+      if (exclusion3 != no_reg) {
         exclusions |= exclusion3.bit();
       }
     }
@@ -56,11 +56,11 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
                                     Register exclusion2, Register exclusion3) {
   int bytes = 0;
   RegList exclusions = 0;
-  if (!exclusion1.is(no_reg)) {
+  if (exclusion1 != no_reg) {
     exclusions |= exclusion1.bit();
-    if (!exclusion2.is(no_reg)) {
+    if (exclusion2 != no_reg) {
       exclusions |= exclusion2.bit();
-      if (!exclusion3.is(no_reg)) {
+      if (exclusion3 != no_reg) {
         exclusions |= exclusion3.bit();
       }
     }
@@ -87,11 +87,11 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   }
 
   RegList exclusions = 0;
-  if (!exclusion1.is(no_reg)) {
+  if (exclusion1 != no_reg) {
     exclusions |= exclusion1.bit();
-    if (!exclusion2.is(no_reg)) {
+    if (exclusion2 != no_reg) {
       exclusions |= exclusion2.bit();
-      if (!exclusion3.is(no_reg)) {
+      if (exclusion3 != no_reg) {
         exclusions |= exclusion3.bit();
       }
     }
@@ -157,7 +157,7 @@ void TurboAssembler::Call(Register target) {
 }
 
 void MacroAssembler::CallJSEntry(Register target) {
-  DCHECK(target.is(ip));
+  DCHECK(target == ip);
   Call(target);
 }
 
@@ -250,13 +250,13 @@ void TurboAssembler::Move(Register dst, Handle<HeapObject> value) {
 
 void TurboAssembler::Move(Register dst, Register src, Condition cond) {
   DCHECK(cond == al);
-  if (!dst.is(src)) {
+  if (dst != src) {
     mr(dst, src);
   }
 }
 
 void TurboAssembler::Move(DoubleRegister dst, DoubleRegister src) {
-  if (!dst.is(src)) {
+  if (dst != src) {
     fmr(dst, src);
   }
 }
@@ -444,7 +444,7 @@ void MacroAssembler::RecordWrite(
     LinkRegisterStatus lr_status, SaveFPRegsMode fp_mode,
     RememberedSetAction remembered_set_action, SmiCheck smi_check,
     PointersToHereCheck pointers_to_here_check_for_value) {
-  DCHECK(!object.is(value));
+  DCHECK(object != value);
   if (emit_debug_code()) {
     LoadP(r0, MemOperand(address));
     cmp(r0, value);
@@ -600,10 +600,6 @@ void TurboAssembler::RestoreFrameStateForTailCall() {
   LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
   mtlr(r0);
 }
-
-const RegList MacroAssembler::kSafepointSavedRegisters = Register::kAllocatable;
-const int MacroAssembler::kNumSafepointSavedRegisters =
-    Register::kNumAllocatable;
 
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {
@@ -904,7 +900,7 @@ void TurboAssembler::StubPrologue(StackFrame::Type type, Register base,
     PushCommonFrame(r11);
   }
   if (FLAG_enable_embedded_constant_pool) {
-    if (!base.is(no_reg)) {
+    if (base != no_reg) {
       // base contains prologue address
       LoadConstantPoolPointerRegister(base, -prologue_offset);
     } else {
@@ -915,7 +911,7 @@ void TurboAssembler::StubPrologue(StackFrame::Type type, Register base,
 }
 
 void TurboAssembler::Prologue(Register base, int prologue_offset) {
-  DCHECK(!base.is(no_reg));
+  DCHECK(base != no_reg);
   PushStandardFrame(r4);
   if (FLAG_enable_embedded_constant_pool) {
     // base contains prologue address
@@ -1239,8 +1235,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   // passed in registers.
 
   // ARM has some sanity checks as per below, considering add them for PPC
-  //  DCHECK(actual.is_immediate() || actual.reg().is(r3));
-  //  DCHECK(expected.is_immediate() || expected.reg().is(r5));
+  //  DCHECK(actual.is_immediate() || actual.reg() == r3);
+  //  DCHECK(expected.is_immediate() || expected.reg() == r5);
 
   if (expected.is_immediate()) {
     DCHECK(actual.is_immediate());
@@ -1334,8 +1330,8 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
                                         InvokeFlag flag) {
   // You can't call a function without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
-  DCHECK(function.is(r4));
-  DCHECK_IMPLIES(new_target.is_valid(), new_target.is(r6));
+  DCHECK(function == r4);
+  DCHECK_IMPLIES(new_target.is_valid(), new_target == r6);
 
   // On function call, call into the debugger if necessary.
   CheckDebugHook(function, new_target, expected, actual);
@@ -1375,7 +1371,7 @@ void MacroAssembler::InvokeFunction(Register fun, Register new_target,
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
   // Contract with called JS functions requires that function is passed in r4.
-  DCHECK(fun.is(r4));
+  DCHECK(fun == r4);
 
   Register expected_reg = r5;
   Register temp_reg = r7;
@@ -1398,7 +1394,7 @@ void MacroAssembler::InvokeFunction(Register function,
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
   // Contract with called JS functions requires that function is passed in r4.
-  DCHECK(function.is(r4));
+  DCHECK(function == r4);
 
   // Get the function and setup the context.
   LoadP(cp, FieldMemOperand(r4, JSFunction::kContextOffset));
@@ -1551,7 +1547,7 @@ void MacroAssembler::Allocate(int object_size, Register result,
 
 void MacroAssembler::CompareObjectType(Register object, Register map,
                                        Register type_reg, InstanceType type) {
-  const Register temp = type_reg.is(no_reg) ? r0 : type_reg;
+  const Register temp = type_reg == no_reg ? r0 : type_reg;
 
   LoadP(map, FieldMemOperand(object, HeapObject::kMapOffset));
   CompareInstanceType(map, temp, type);
@@ -1568,7 +1564,7 @@ void MacroAssembler::CompareInstanceType(Register map, Register type_reg,
 
 
 void MacroAssembler::CompareRoot(Register obj, Heap::RootListIndex index) {
-  DCHECK(!obj.is(r0));
+  DCHECK(obj != r0);
   LoadRoot(r0, index);
   cmp(obj, r0);
 }
@@ -1577,22 +1573,22 @@ void TurboAssembler::AddAndCheckForOverflow(Register dst, Register left,
                                             Register right,
                                             Register overflow_dst,
                                             Register scratch) {
-  DCHECK(!dst.is(overflow_dst));
-  DCHECK(!dst.is(scratch));
-  DCHECK(!overflow_dst.is(scratch));
-  DCHECK(!overflow_dst.is(left));
-  DCHECK(!overflow_dst.is(right));
+  DCHECK(dst != overflow_dst);
+  DCHECK(dst != scratch);
+  DCHECK(overflow_dst != scratch);
+  DCHECK(overflow_dst != left);
+  DCHECK(overflow_dst != right);
 
-  bool left_is_right = left.is(right);
+  bool left_is_right = left == right;
   RCBit xorRC = left_is_right ? SetRC : LeaveRC;
 
   // C = A+B; C overflows if A/B have same sign and C has diff sign than A
-  if (dst.is(left)) {
+  if (dst == left) {
     mr(scratch, left);            // Preserve left.
     add(dst, left, right);        // Left is overwritten.
     xor_(overflow_dst, dst, scratch, xorRC);  // Original left.
     if (!left_is_right) xor_(scratch, dst, right);
-  } else if (dst.is(right)) {
+  } else if (dst == right) {
     mr(scratch, right);           // Preserve right.
     add(dst, left, right);        // Right is overwritten.
     xor_(overflow_dst, dst, left, xorRC);
@@ -1610,13 +1606,13 @@ void TurboAssembler::AddAndCheckForOverflow(Register dst, Register left,
                                             Register overflow_dst,
                                             Register scratch) {
   Register original_left = left;
-  DCHECK(!dst.is(overflow_dst));
-  DCHECK(!dst.is(scratch));
-  DCHECK(!overflow_dst.is(scratch));
-  DCHECK(!overflow_dst.is(left));
+  DCHECK(dst != overflow_dst);
+  DCHECK(dst != scratch);
+  DCHECK(overflow_dst != scratch);
+  DCHECK(overflow_dst != left);
 
   // C = A+B; C overflows if A/B have same sign and C has diff sign than A
-  if (dst.is(left)) {
+  if (dst == left) {
     // Preserve left.
     original_left = overflow_dst;
     mr(original_left, left);
@@ -1634,20 +1630,20 @@ void TurboAssembler::SubAndCheckForOverflow(Register dst, Register left,
                                             Register right,
                                             Register overflow_dst,
                                             Register scratch) {
-  DCHECK(!dst.is(overflow_dst));
-  DCHECK(!dst.is(scratch));
-  DCHECK(!overflow_dst.is(scratch));
-  DCHECK(!overflow_dst.is(left));
-  DCHECK(!overflow_dst.is(right));
+  DCHECK(dst != overflow_dst);
+  DCHECK(dst != scratch);
+  DCHECK(overflow_dst != scratch);
+  DCHECK(overflow_dst != left);
+  DCHECK(overflow_dst != right);
 
   // C = A-B; C overflows if A/B have diff signs and C has diff sign than A
-  if (dst.is(left)) {
+  if (dst == left) {
     mr(scratch, left);      // Preserve left.
     sub(dst, left, right);  // Left is overwritten.
     xor_(overflow_dst, dst, scratch);
     xor_(scratch, scratch, right);
     and_(overflow_dst, overflow_dst, scratch, SetRC);
-  } else if (dst.is(right)) {
+  } else if (dst == right) {
     mr(scratch, right);     // Preserve right.
     sub(dst, left, right);  // Right is overwritten.
     xor_(overflow_dst, dst, left);
@@ -1761,7 +1757,7 @@ void MacroAssembler::TryDoubleToInt32Exact(Register result,
                                            Register scratch,
                                            DoubleRegister double_scratch) {
   Label done;
-  DCHECK(!double_input.is(double_scratch));
+  DCHECK(double_input != double_scratch);
 
   ConvertDoubleToInt64(double_input,
 #if !V8_TARGET_ARCH_PPC64
@@ -2124,10 +2120,10 @@ void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register reg,
 void MacroAssembler::AllocateJSValue(Register result, Register constructor,
                                      Register value, Register scratch1,
                                      Register scratch2, Label* gc_required) {
-  DCHECK(!result.is(constructor));
-  DCHECK(!result.is(scratch1));
-  DCHECK(!result.is(scratch2));
-  DCHECK(!result.is(value));
+  DCHECK(result != constructor);
+  DCHECK(result != scratch1);
+  DCHECK(result != scratch2);
+  DCHECK(result != value);
 
   // Allocate JSValue in new space.
   Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required,
@@ -2212,8 +2208,8 @@ void TurboAssembler::MovToFloatResult(DoubleRegister src) { Move(d1, src); }
 
 void TurboAssembler::MovToFloatParameters(DoubleRegister src1,
                                           DoubleRegister src2) {
-  if (src2.is(d1)) {
-    DCHECK(!src1.is(d2));
+  if (src2 == d1) {
+    DCHECK(src1 != d2);
     Move(d2, src2);
     Move(d1, src1);
   } else {
@@ -2410,7 +2406,7 @@ void TurboAssembler::LoadSmiLiteral(Register dst, Smi* smi) {
 void TurboAssembler::LoadDoubleLiteral(DoubleRegister result, Double value,
                                        Register scratch) {
   if (FLAG_enable_embedded_constant_pool && is_constant_pool_available() &&
-      !(scratch.is(r0) && ConstantPoolAccessIsInOverflow())) {
+      !(scratch == r0 && ConstantPoolAccessIsInOverflow())) {
     ConstantPoolEntry::Access access = ConstantPoolAddEntry(value);
     if (access == ConstantPoolEntry::OVERFLOWED) {
       addis(scratch, kConstantPoolRegister, Operand::Zero());
@@ -2466,7 +2462,7 @@ void TurboAssembler::MovIntToDouble(DoubleRegister dst, Register src,
   }
 #endif
 
-  DCHECK(!src.is(scratch));
+  DCHECK(src != scratch);
   subi(sp, sp, Operand(kDoubleSize));
 #if V8_TARGET_ARCH_PPC64
   extsw(scratch, src);
@@ -2491,7 +2487,7 @@ void TurboAssembler::MovUnsignedIntToDouble(DoubleRegister dst, Register src,
   }
 #endif
 
-  DCHECK(!src.is(scratch));
+  DCHECK(src != scratch);
   subi(sp, sp, Operand(kDoubleSize));
 #if V8_TARGET_ARCH_PPC64
   clrldi(scratch, src, Operand(32));
@@ -2728,7 +2724,7 @@ void MacroAssembler::And(Register ra, Register rs, const Operand& rb,
       andi(ra, rs, rb);
     } else {
       // mov handles the relocation.
-      DCHECK(!rs.is(r0));
+      DCHECK(rs != r0);
       mov(r0, rb);
       and_(ra, rs, r0, rc);
     }
@@ -2745,7 +2741,7 @@ void MacroAssembler::Or(Register ra, Register rs, const Operand& rb, RCBit rc) {
       ori(ra, rs, rb);
     } else {
       // mov handles the relocation.
-      DCHECK(!rs.is(r0));
+      DCHECK(rs != r0);
       mov(r0, rb);
       orx(ra, rs, r0, rc);
     }
@@ -2763,7 +2759,7 @@ void MacroAssembler::Xor(Register ra, Register rs, const Operand& rb,
       xori(ra, rs, rb);
     } else {
       // mov handles the relocation.
-      DCHECK(!rs.is(r0));
+      DCHECK(rs != r0);
       mov(r0, rb);
       xor_(ra, rs, r0, rc);
     }
@@ -2833,7 +2829,7 @@ void TurboAssembler::LoadP(Register dst, const MemOperand& mem,
 
   if (!is_int16(offset)) {
     /* cannot use d-form */
-    DCHECK(!scratch.is(no_reg));
+    DCHECK(scratch != no_reg);
     mov(scratch, Operand(offset));
     LoadPX(dst, MemOperand(mem.ra(), scratch));
   } else {
@@ -2842,7 +2838,7 @@ void TurboAssembler::LoadP(Register dst, const MemOperand& mem,
     if (misaligned) {
       // adjust base to conform to offset alignment requirements
       // Todo: enhance to use scratch if dst is unsuitable
-      DCHECK(!dst.is(r0));
+      DCHECK(dst != r0);
       addi(dst, mem.ra(), Operand((offset & 3) - 4));
       ld(dst, MemOperand(dst, (offset & ~3) + 4));
     } else {
@@ -2860,7 +2856,7 @@ void TurboAssembler::LoadPU(Register dst, const MemOperand& mem,
 
   if (!is_int16(offset)) {
     /* cannot use d-form */
-    DCHECK(!scratch.is(no_reg));
+    DCHECK(scratch != no_reg);
     mov(scratch, Operand(offset));
     LoadPUX(dst, MemOperand(mem.ra(), scratch));
   } else {
@@ -2879,7 +2875,7 @@ void TurboAssembler::StoreP(Register src, const MemOperand& mem,
 
   if (!is_int16(offset)) {
     /* cannot use d-form */
-    DCHECK(!scratch.is(no_reg));
+    DCHECK(scratch != no_reg);
     mov(scratch, Operand(offset));
     StorePX(src, MemOperand(mem.ra(), scratch));
   } else {
@@ -2888,8 +2884,8 @@ void TurboAssembler::StoreP(Register src, const MemOperand& mem,
     if (misaligned) {
       // adjust base to conform to offset alignment requirements
       // a suitable scratch is required here
-      DCHECK(!scratch.is(no_reg));
-      if (scratch.is(r0)) {
+      DCHECK(scratch != no_reg);
+      if (scratch == r0) {
         LoadIntLiteral(scratch, offset);
         stdx(src, MemOperand(mem.ra(), scratch));
       } else {
@@ -2911,7 +2907,7 @@ void TurboAssembler::StorePU(Register src, const MemOperand& mem,
 
   if (!is_int16(offset)) {
     /* cannot use d-form */
-    DCHECK(!scratch.is(no_reg));
+    DCHECK(scratch != no_reg);
     mov(scratch, Operand(offset));
     StorePUX(src, MemOperand(mem.ra(), scratch));
   } else {
@@ -2928,7 +2924,7 @@ void TurboAssembler::LoadWordArith(Register dst, const MemOperand& mem,
   int offset = mem.offset();
 
   if (!is_int16(offset)) {
-    DCHECK(!scratch.is(no_reg));
+    DCHECK(scratch != no_reg);
     mov(scratch, Operand(offset));
     lwax(dst, MemOperand(mem.ra(), scratch));
   } else {
@@ -2937,7 +2933,7 @@ void TurboAssembler::LoadWordArith(Register dst, const MemOperand& mem,
     if (misaligned) {
       // adjust base to conform to offset alignment requirements
       // Todo: enhance to use scratch if dst is unsuitable
-      DCHECK(!dst.is(r0));
+      DCHECK(dst != r0);
       addi(dst, mem.ra(), Operand((offset & 3) - 4));
       lwa(dst, MemOperand(dst, (offset & ~3) + 4));
     } else {
@@ -2987,7 +2983,7 @@ void MacroAssembler::LoadHalfWordArith(Register dst, const MemOperand& mem,
   int offset = mem.offset();
 
   if (!is_int16(offset)) {
-    DCHECK(!scratch.is(no_reg));
+    DCHECK(scratch != no_reg);
     mov(scratch, Operand(offset));
     lhax(dst, MemOperand(mem.ra(), scratch));
   } else {

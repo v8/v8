@@ -1654,9 +1654,9 @@ void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
   Register scratch0 = r5;
   Register scratch1 = r7;
 
-  CHECK(!scratch0.is(r3) && !scratch0.is(r6) && !scratch0.is(r4));
-  CHECK(!scratch1.is(r3) && !scratch1.is(r6) && !scratch1.is(r4));
-  CHECK(!scratch0.is(scratch1));
+  CHECK(scratch0 != r3 && scratch0 != r6 && scratch0 != r4);
+  CHECK(scratch1 != r3 && scratch1 != r6 && scratch1 != r4);
+  CHECK(scratch0 != scratch1);
 
   // Load the builtin id for lazy deserialization from SharedFunctionInfo.
 
@@ -1700,8 +1700,8 @@ void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
     __ LoadP(shared,
              FieldMemOperand(target, JSFunction::kSharedFunctionInfoOffset));
 
-    CHECK(!r8.is(target) && !r8.is(scratch0) && !r8.is(scratch1));
-    CHECK(!r9.is(target) && !r9.is(scratch0) && !r9.is(scratch1));
+    CHECK(r8 != target && r8 != scratch0 && r8 != scratch1);
+    CHECK(r9 != target && r9 != scratch0 && r9 != scratch1);
 
     __ StoreP(target_builtin,
               FieldMemOperand(shared, SharedFunctionInfo::kCodeOffset), r0);

@@ -253,7 +253,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
     __ CheckPageFlag(value_, scratch0_,
                      MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
-    if (offset_.is(no_reg)) {
+    if (offset_ == no_reg) {
       __ AddP(scratch1_, object_, Operand(offset_immediate_));
     } else {
       DCHECK_EQ(0, offset_immediate_);
@@ -306,7 +306,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
  private:
   Register const object_;
   Register const offset_;
-  int32_t const offset_immediate_;  // Valid if offset_.is(no_reg).
+  int32_t const offset_immediate_;  // Valid if offset_ == no_reg.
   Register const value_;
   Register const scratch0_;
   Register const scratch1_;
@@ -412,24 +412,24 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
     return mem;                                                         \
   })(ret)
 
-#define RRInstr(instr)                                 \
-  [&]() {                                              \
-    DCHECK(i.OutputRegister().is(i.InputRegister(0))); \
-    __ instr(i.OutputRegister(), i.InputRegister(1));  \
-    return 2;                                          \
+#define RRInstr(instr)                                \
+  [&]() {                                             \
+    DCHECK(i.OutputRegister() == i.InputRegister(0)); \
+    __ instr(i.OutputRegister(), i.InputRegister(1)); \
+    return 2;                                         \
   }
 #define RIInstr(instr)                                 \
   [&]() {                                              \
-    DCHECK(i.OutputRegister().is(i.InputRegister(0))); \
+    DCHECK(i.OutputRegister() == i.InputRegister(0));  \
     __ instr(i.OutputRegister(), i.InputImmediate(1)); \
     return 2;                                          \
   }
-#define RMInstr(instr, GETMEM)                         \
-  [&]() {                                              \
-    DCHECK(i.OutputRegister().is(i.InputRegister(0))); \
-    int ret = 2;                                       \
-    __ instr(i.OutputRegister(), GETMEM(ret, 1));      \
-    return ret;                                        \
+#define RMInstr(instr, GETMEM)                        \
+  [&]() {                                             \
+    DCHECK(i.OutputRegister() == i.InputRegister(0)); \
+    int ret = 2;                                      \
+    __ instr(i.OutputRegister(), GETMEM(ret, 1));     \
+    return ret;                                       \
   }
 #define RM32Instr(instr) RMInstr(instr, GET_MEMOPERAND32)
 #define RM64Instr(instr) RMInstr(instr, GET_MEMOPERAND)
@@ -453,28 +453,28 @@ Condition FlagsConditionToCondition(FlagsCondition condition, ArchOpcode op) {
 #define RRM32Instr(instr) RRMInstr(instr, GET_MEMOPERAND32)
 #define RRM64Instr(instr) RRMInstr(instr, GET_MEMOPERAND)
 
-#define DDInstr(instr)                                             \
-  [&]() {                                                          \
-    DCHECK(i.OutputDoubleRegister().is(i.InputDoubleRegister(0))); \
-    __ instr(i.OutputDoubleRegister(), i.InputDoubleRegister(1));  \
-    return 2;                                                      \
+#define DDInstr(instr)                                            \
+  [&]() {                                                         \
+    DCHECK(i.OutputDoubleRegister() == i.InputDoubleRegister(0)); \
+    __ instr(i.OutputDoubleRegister(), i.InputDoubleRegister(1)); \
+    return 2;                                                     \
   }
 
-#define DMInstr(instr)                                             \
-  [&]() {                                                          \
-    DCHECK(i.OutputDoubleRegister().is(i.InputDoubleRegister(0))); \
-    int ret = 2;                                                   \
-    __ instr(i.OutputDoubleRegister(), GET_MEMOPERAND(ret, 1));    \
-    return ret;                                                    \
+#define DMInstr(instr)                                            \
+  [&]() {                                                         \
+    DCHECK(i.OutputDoubleRegister() == i.InputDoubleRegister(0)); \
+    int ret = 2;                                                  \
+    __ instr(i.OutputDoubleRegister(), GET_MEMOPERAND(ret, 1));   \
+    return ret;                                                   \
   }
 
-#define DMTInstr(instr)                                            \
-  [&]() {                                                          \
-    DCHECK(i.OutputDoubleRegister().is(i.InputDoubleRegister(0))); \
-    int ret = 2;                                                   \
-    __ instr(i.OutputDoubleRegister(), GET_MEMOPERAND(ret, 1),     \
-             kScratchDoubleReg);                                   \
-    return ret;                                                    \
+#define DMTInstr(instr)                                           \
+  [&]() {                                                         \
+    DCHECK(i.OutputDoubleRegister() == i.InputDoubleRegister(0)); \
+    int ret = 2;                                                  \
+    __ instr(i.OutputDoubleRegister(), GET_MEMOPERAND(ret, 1),    \
+             kScratchDoubleReg);                                  \
+    return ret;                                                   \
   }
 
 #define R_MInstr(instr)                                   \
@@ -738,13 +738,13 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ bunordered(&return_left, Label::kNear);                         \
                                                                        \
     __ bind(&return_right);                                            \
-    if (!right_reg.is(result_reg)) {                                   \
+    if (right_reg != result_reg) {                                     \
       __ ldr(result_reg, right_reg);                                   \
     }                                                                  \
     __ b(&done, Label::kNear);                                         \
                                                                        \
     __ bind(&return_left);                                             \
-    if (!left_reg.is(result_reg)) {                                    \
+    if (left_reg != result_reg) {                                      \
       __ ldr(result_reg, left_reg);                                    \
     }                                                                  \
     __ bind(&done);                                                    \
@@ -772,7 +772,7 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     /* For min we want logical-or of sign bit: -(-L + -R) */           \
     __ lcdbr(left_reg, left_reg);                                      \
     __ ldr(result_reg, left_reg);                                      \
-    if (left_reg.is(right_reg)) {                                      \
+    if (left_reg == right_reg) {                                       \
       __ adbr(result_reg, right_reg);                                  \
     } else {                                                           \
       __ sdbr(result_reg, right_reg);                                  \
@@ -786,13 +786,13 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ bunordered(&return_left, Label::kNear);                         \
                                                                        \
     __ bind(&return_right);                                            \
-    if (!right_reg.is(result_reg)) {                                   \
+    if (right_reg != result_reg) {                                     \
       __ ldr(result_reg, right_reg);                                   \
     }                                                                  \
     __ b(&done, Label::kNear);                                         \
                                                                        \
     __ bind(&return_left);                                             \
-    if (!left_reg.is(result_reg)) {                                    \
+    if (left_reg != result_reg) {                                      \
       __ ldr(result_reg, left_reg);                                    \
     }                                                                  \
     __ bind(&done);                                                    \
@@ -828,13 +828,13 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ bunordered(&return_left, Label::kNear);                         \
                                                                        \
     __ bind(&return_right);                                            \
-    if (!right_reg.is(result_reg)) {                                   \
+    if (right_reg != result_reg) {                                     \
       __ ldr(result_reg, right_reg);                                   \
     }                                                                  \
     __ b(&done, Label::kNear);                                         \
                                                                        \
     __ bind(&return_left);                                             \
-    if (!left_reg.is(result_reg)) {                                    \
+    if (left_reg != result_reg) {                                      \
       __ ldr(result_reg, left_reg);                                    \
     }                                                                  \
     __ bind(&done);                                                    \
@@ -862,7 +862,7 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     /* For min we want logical-or of sign bit: -(-L + -R) */           \
     __ lcebr(left_reg, left_reg);                                      \
     __ ldr(result_reg, left_reg);                                      \
-    if (left_reg.is(right_reg)) {                                      \
+    if (left_reg == right_reg) {                                       \
       __ aebr(result_reg, right_reg);                                  \
     } else {                                                           \
       __ sebr(result_reg, right_reg);                                  \
@@ -876,13 +876,13 @@ static inline int AssembleUnaryOp(Instruction* instr, _R _r, _M _m, _I _i) {
     __ bunordered(&return_left, Label::kNear);                         \
                                                                        \
     __ bind(&return_right);                                            \
-    if (!right_reg.is(result_reg)) {                                   \
+    if (right_reg != result_reg) {                                     \
       __ ldr(result_reg, right_reg);                                   \
     }                                                                  \
     __ b(&done, Label::kNear);                                         \
                                                                        \
     __ bind(&return_left);                                             \
-    if (!left_reg.is(result_reg)) {                                    \
+    if (left_reg != result_reg) {                                      \
       __ ldr(result_reg, left_reg);                                    \
     }                                                                  \
     __ bind(&done);                                                    \
@@ -1120,7 +1120,7 @@ void FlushPendingPushRegisters(TurboAssembler* tasm,
       break;
   }
   frame_access_state->IncreaseSPDelta(pending_pushes->size());
-  pending_pushes->resize(0);
+  pending_pushes->clear();
 }
 
 void AdjustStackPointerForTailCall(
@@ -1342,7 +1342,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       AssembleArchTableSwitch(instr);
       break;
     case kArchDebugAbort:
-      DCHECK(i.InputRegister(0).is(r3));
+      DCHECK(i.InputRegister(0) == r3);
       if (!frame_access_state()->has_frame()) {
         // We don't actually want to generate a pile of code for this, so just
         // claim there is a stack frame, without generating one.

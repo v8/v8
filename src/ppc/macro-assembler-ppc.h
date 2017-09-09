@@ -9,25 +9,26 @@
 #include "src/bailout-reason.h"
 #include "src/double.h"
 #include "src/globals.h"
+#include "src/ppc/assembler-ppc.h"
 
 namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {Register::kCode_r3};
-const Register kReturnRegister1 = {Register::kCode_r4};
-const Register kReturnRegister2 = {Register::kCode_r5};
-const Register kJSFunctionRegister = {Register::kCode_r4};
-const Register kContextRegister = {Register::kCode_r30};
-const Register kAllocateSizeRegister = {Register::kCode_r4};
-const Register kInterpreterAccumulatorRegister = {Register::kCode_r3};
-const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r15};
-const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r16};
-const Register kInterpreterDispatchTableRegister = {Register::kCode_r17};
-const Register kJavaScriptCallArgCountRegister = {Register::kCode_r3};
-const Register kJavaScriptCallNewTargetRegister = {Register::kCode_r6};
-const Register kRuntimeCallFunctionRegister = {Register::kCode_r4};
-const Register kRuntimeCallArgCountRegister = {Register::kCode_r3};
+const Register kReturnRegister0 = r3;
+const Register kReturnRegister1 = r4;
+const Register kReturnRegister2 = r5;
+const Register kJSFunctionRegister = r4;
+const Register kContextRegister = r30;
+const Register kAllocateSizeRegister = r4;
+const Register kInterpreterAccumulatorRegister = r3;
+const Register kInterpreterBytecodeOffsetRegister = r15;
+const Register kInterpreterBytecodeArrayRegister = r16;
+const Register kInterpreterDispatchTableRegister = r17;
+const Register kJavaScriptCallArgCountRegister = r3;
+const Register kJavaScriptCallNewTargetRegister = r6;
+const Register kRuntimeCallFunctionRegister = r4;
+const Register kRuntimeCallArgCountRegister = r3;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -1148,9 +1149,6 @@ class MacroAssembler : public TurboAssembler {
   // the position of the first bit.  Leaves addr_reg unchanged.
   inline void GetMarkBits(Register addr_reg, Register bitmap_reg,
                           Register mask_reg);
-
-  static const RegList kSafepointSavedRegisters;
-  static const int kNumSafepointSavedRegisters;
 
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);

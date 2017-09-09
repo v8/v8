@@ -55,7 +55,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
   __ push(scratch);
   // Account for saved regs if input is sp.
-  if (input_reg.is(sp)) double_offset += kPointerSize;
+  if (input_reg == sp) double_offset += kPointerSize;
 
   if (!skip_fastpath()) {
     // Load double input.
@@ -79,7 +79,7 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 
   __ Push(scratch_high, scratch_low);
   // Account for saved regs if input is sp.
-  if (input_reg.is(sp)) double_offset += 2 * kPointerSize;
+  if (input_reg == sp) double_offset += 2 * kPointerSize;
 
   __ lwz(scratch_high,
          MemOperand(input_reg, double_offset + Register::kExponentOffset));
@@ -198,7 +198,7 @@ void RestoreRegistersStateStub::Generate(MacroAssembler* masm) {
 
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = MathPowTaggedDescriptor::exponent();
-  DCHECK(exponent.is(r5));
+  DCHECK(exponent == r5);
   const DoubleRegister double_base = d1;
   const DoubleRegister double_exponent = d2;
   const DoubleRegister double_result = d3;
@@ -466,14 +466,11 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // r3:r4: result
   // sp: stack pointer
   // fp: frame pointer
-  Register argc;
-  if (argv_in_register()) {
-    // We don't want to pop arguments so set argc to no_reg.
-    argc = no_reg;
-  } else {
-    // r14: still holds argc (callee-saved).
-    argc = r14;
-  }
+  Register argc = argv_in_register()
+                      // We don't want to pop arguments so set argc to no_reg.
+                      ? no_reg
+                      // r14: still holds argc (callee-saved).
+                      : r14;
   __ LeaveExitFrame(save_doubles(), argc, true);
   __ blr();
 
@@ -862,7 +859,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(
     __ add(tmp, properties, ip);
     __ LoadP(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
 
-    DCHECK(!tmp.is(entity_name));
+    DCHECK(tmp != entity_name);
     __ LoadRoot(tmp, Heap::kUndefinedValueRootIndex);
     __ cmp(entity_name, tmp);
     __ beq(done);
@@ -1085,10 +1082,9 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode());
   int argument_count = 3;
   __ PrepareCallCFunction(argument_count, regs_.scratch0());
-  Register address =
-      r3.is(regs_.address()) ? regs_.scratch0() : regs_.address();
-  DCHECK(!address.is(regs_.object()));
-  DCHECK(!address.is(r3));
+  Register address = r3 == regs_.address() ? regs_.scratch0() : regs_.address();
+  DCHECK(address != regs_.object());
+  DCHECK(address != r3);
   __ mr(address, regs_.address());
   __ mr(r3, regs_.object());
   __ mr(r4, address);
@@ -1575,7 +1571,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
       ExternalReference::handle_scope_level_address(isolate), next_address);
 
   // Additional parameter is the address of the actual callback.
-  DCHECK(function_address.is(r4) || function_address.is(r5));
+  DCHECK(function_address == r4 || function_address == r5);
   Register scratch = r6;
 
   __ mov(scratch, Operand(ExternalReference::is_profiling_address(isolate)));
@@ -1801,7 +1797,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
-  DCHECK(!api_function_address.is(r3) && !scratch.is(r3));
+  DCHECK(api_function_address != r3 && scratch != r3);
   // r3 = FunctionCallbackInfo&
   // Arguments is after the return address.
   __ addi(r3, sp, Operand(kFunctionCallbackInfoOffset));

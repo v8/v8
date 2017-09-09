@@ -254,28 +254,20 @@ void RelocInfo::Visit(Isolate* isolate, ObjectVisitor* visitor) {
   }
 }
 
-Operand::Operand(intptr_t immediate, RelocInfo::Mode rmode) {
-  rm_ = no_reg;
+Operand::Operand(intptr_t immediate, RelocInfo::Mode rmode) : rmode_(rmode) {
   value_.immediate = immediate;
-  rmode_ = rmode;
 }
 
-Operand::Operand(const ExternalReference& f) {
-  rm_ = no_reg;
+Operand::Operand(const ExternalReference& f)
+    : rmode_(RelocInfo::EXTERNAL_REFERENCE) {
   value_.immediate = reinterpret_cast<intptr_t>(f.address());
-  rmode_ = RelocInfo::EXTERNAL_REFERENCE;
 }
 
-Operand::Operand(Smi* value) {
-  rm_ = no_reg;
+Operand::Operand(Smi* value) : rmode_(kRelocInfo_NONEPTR) {
   value_.immediate = reinterpret_cast<intptr_t>(value);
-  rmode_ = kRelocInfo_NONEPTR;
 }
 
-Operand::Operand(Register rm) {
-  rm_ = rm;
-  rmode_ = kRelocInfo_NONEPTR;  // PPC -why doesn't ARM do this?
-}
+Operand::Operand(Register rm) : rm_(rm), rmode_(kRelocInfo_NONEPTR) {}
 
 void Assembler::CheckBuffer() {
   if (buffer_space() <= kGap) {
@@ -374,7 +366,7 @@ bool Assembler::IsConstantPoolLoadStart(Address pc,
                                         ConstantPoolEntry::Access* access) {
   Instr instr = instr_at(pc);
   uint32_t opcode = instr & kOpcodeMask;
-  if (!GetRA(instr).is(kConstantPoolRegister)) return false;
+  if (GetRA(instr) != kConstantPoolRegister) return false;
   bool overflowed = (opcode == ADDIS);
 #ifdef DEBUG
   if (overflowed) {
@@ -396,10 +388,10 @@ bool Assembler::IsConstantPoolLoadEnd(Address pc,
   uint32_t opcode = instr & kOpcodeMask;
   bool overflowed = false;
   if (!(opcode == kLoadIntptrOpcode || opcode == LFD)) return false;
-  if (!GetRA(instr).is(kConstantPoolRegister)) {
+  if (GetRA(instr) != kConstantPoolRegister) {
     instr = instr_at(pc - kInstrSize);
     opcode = instr & kOpcodeMask;
-    if ((opcode != ADDIS) || !GetRA(instr).is(kConstantPoolRegister)) {
+    if ((opcode != ADDIS) || GetRA(instr) != kConstantPoolRegister) {
       return false;
     }
     overflowed = true;

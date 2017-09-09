@@ -32,11 +32,11 @@ int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion3) const {
   int bytes = 0;
   RegList exclusions = 0;
-  if (!exclusion1.is(no_reg)) {
+  if (exclusion1 != no_reg) {
     exclusions |= exclusion1.bit();
-    if (!exclusion2.is(no_reg)) {
+    if (exclusion2 != no_reg) {
       exclusions |= exclusion2.bit();
-      if (!exclusion3.is(no_reg)) {
+      if (exclusion3 != no_reg) {
         exclusions |= exclusion3.bit();
       }
     }
@@ -56,11 +56,11 @@ int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
                                     Register exclusion2, Register exclusion3) {
   int bytes = 0;
   RegList exclusions = 0;
-  if (!exclusion1.is(no_reg)) {
+  if (exclusion1 != no_reg) {
     exclusions |= exclusion1.bit();
-    if (!exclusion2.is(no_reg)) {
+    if (exclusion2 != no_reg) {
       exclusions |= exclusion2.bit();
-      if (!exclusion3.is(no_reg)) {
+      if (exclusion3 != no_reg) {
         exclusions |= exclusion3.bit();
       }
     }
@@ -87,11 +87,11 @@ int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
   }
 
   RegList exclusions = 0;
-  if (!exclusion1.is(no_reg)) {
+  if (exclusion1 != no_reg) {
     exclusions |= exclusion1.bit();
-    if (!exclusion2.is(no_reg)) {
+    if (exclusion2 != no_reg) {
       exclusions |= exclusion2.bit();
-      if (!exclusion3.is(no_reg)) {
+      if (exclusion3 != no_reg) {
         exclusions |= exclusion3.bit();
       }
     }
@@ -150,7 +150,7 @@ void TurboAssembler::Call(Register target) {
 }
 
 void MacroAssembler::CallJSEntry(Register target) {
-  DCHECK(target.is(ip));
+  DCHECK(target == ip);
   Call(target);
 }
 
@@ -252,13 +252,13 @@ void TurboAssembler::Move(Register dst, Handle<HeapObject> value) {
 }
 
 void TurboAssembler::Move(Register dst, Register src, Condition cond) {
-  if (!dst.is(src)) {
+  if (dst != src) {
     LoadRR(dst, src);
   }
 }
 
 void TurboAssembler::Move(DoubleRegister dst, DoubleRegister src) {
-  if (!dst.is(src)) {
+  if (dst != src) {
     ldr(dst, src);
   }
 }
@@ -439,7 +439,7 @@ void MacroAssembler::RecordWrite(
     LinkRegisterStatus lr_status, SaveFPRegsMode fp_mode,
     RememberedSetAction remembered_set_action, SmiCheck smi_check,
     PointersToHereCheck pointers_to_here_check_for_value) {
-  DCHECK(!object.is(value));
+  DCHECK(object != value);
   if (emit_debug_code()) {
     CmpP(value, MemOperand(address));
     Check(eq, kWrongAddressOrValuePassedToRecordWrite);
@@ -578,10 +578,6 @@ void TurboAssembler::RestoreFrameStateForTailCall() {
   LoadP(fp, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
 }
 
-const RegList MacroAssembler::kSafepointSavedRegisters = Register::kAllocatable;
-const int MacroAssembler::kNumSafepointSavedRegisters =
-    Register::kNumAllocatable;
-
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {
   // Safepoints expect a block of kNumSafepointRegisters values on the
@@ -622,7 +618,7 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 void TurboAssembler::CanonicalizeNaN(const DoubleRegister dst,
                                      const DoubleRegister src) {
   // Turn potential sNaN into qNaN
-  if (!dst.is(src)) ldr(dst, src);
+  if (dst != src) ldr(dst, src);
   lzdr(kDoubleRegZero);
   sdbr(dst, kDoubleRegZero);
 }
@@ -944,7 +940,7 @@ void TurboAssembler::StubPrologue(StackFrame::Type type, Register base,
 }
 
 void TurboAssembler::Prologue(Register base, int prologue_offset) {
-  DCHECK(!base.is(no_reg));
+  DCHECK(base != no_reg);
   PushStandardFrame(r3);
 }
 
@@ -1229,8 +1225,8 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
   // passed in registers.
 
   // ARM has some sanity checks as per below, considering add them for S390
-  //  DCHECK(actual.is_immediate() || actual.reg().is(r2));
-  //  DCHECK(expected.is_immediate() || expected.reg().is(r4));
+  //  DCHECK(actual.is_immediate() || actual.reg() == r2);
+  //  DCHECK(expected.is_immediate() || expected.reg() == r4);
 
   if (expected.is_immediate()) {
     DCHECK(actual.is_immediate());
@@ -1324,8 +1320,8 @@ void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
   // You can't call a function without a valid frame.
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
-  DCHECK(function.is(r3));
-  DCHECK_IMPLIES(new_target.is_valid(), new_target.is(r5));
+  DCHECK(function == r3);
+  DCHECK_IMPLIES(new_target.is_valid(), new_target == r5);
 
   // On function call, call into the debugger if necessary.
   CheckDebugHook(function, new_target, expected, actual);
@@ -1365,7 +1361,7 @@ void MacroAssembler::InvokeFunction(Register fun, Register new_target,
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
   // Contract with called JS functions requires that function is passed in r3.
-  DCHECK(fun.is(r3));
+  DCHECK(fun == r3);
 
   Register expected_reg = r4;
   Register temp_reg = r6;
@@ -1387,7 +1383,7 @@ void MacroAssembler::InvokeFunction(Register function,
   DCHECK(flag == JUMP_FUNCTION || has_frame());
 
   // Contract with called JS functions requires that function is passed in r3.
-  DCHECK(function.is(r3));
+  DCHECK(function == r3);
 
   // Get the function and setup the context.
   LoadP(cp, FieldMemOperand(r3, JSFunction::kContextOffset));
@@ -1536,7 +1532,7 @@ void MacroAssembler::Allocate(int object_size, Register result,
 
 void MacroAssembler::CompareObjectType(Register object, Register map,
                                        Register type_reg, InstanceType type) {
-  const Register temp = type_reg.is(no_reg) ? r0 : type_reg;
+  const Register temp = type_reg == no_reg ? r0 : type_reg;
 
   LoadP(map, FieldMemOperand(object, HeapObject::kMapOffset));
   CompareInstanceType(map, temp, type);
@@ -1641,7 +1637,7 @@ void MacroAssembler::TryDoubleToInt32Exact(Register result,
                                            Register scratch,
                                            DoubleRegister double_scratch) {
   Label done;
-  DCHECK(!double_input.is(double_scratch));
+  DCHECK(double_input != double_scratch);
 
   ConvertDoubleToInt64(result, double_input);
 
@@ -1975,10 +1971,10 @@ void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register reg,
 void MacroAssembler::AllocateJSValue(Register result, Register constructor,
                                      Register value, Register scratch1,
                                      Register scratch2, Label* gc_required) {
-  DCHECK(!result.is(constructor));
-  DCHECK(!result.is(scratch1));
-  DCHECK(!result.is(scratch2));
-  DCHECK(!result.is(value));
+  DCHECK(result != constructor);
+  DCHECK(result != scratch1);
+  DCHECK(result != scratch2);
+  DCHECK(result != value);
 
   // Allocate JSValue in new space.
   Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required,
@@ -2002,8 +1998,8 @@ void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialOneByte(
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
   const int kFlatOneByteStringTag =
       kStringTag | kOneByteStringTag | kSeqStringTag;
-  if (!scratch1.is(first)) LoadRR(scratch1, first);
-  if (!scratch2.is(second)) LoadRR(scratch2, second);
+  if (scratch1 != first) LoadRR(scratch1, first);
+  if (scratch2 != second) LoadRR(scratch2, second);
   nilf(scratch1, Operand(kFlatOneByteStringMask));
   CmpP(scratch1, Operand(kFlatOneByteStringTag));
   bne(failure);
@@ -2060,8 +2056,8 @@ void TurboAssembler::MovToFloatResult(DoubleRegister src) { Move(d0, src); }
 
 void TurboAssembler::MovToFloatParameters(DoubleRegister src1,
                                           DoubleRegister src2) {
-  if (src2.is(d0)) {
-    DCHECK(!src1.is(d2));
+  if (src2 == d0) {
+    DCHECK(src1 != d2);
     Move(d2, src2);
     Move(d0, src1);
   } else {
@@ -2384,7 +2380,7 @@ void TurboAssembler::MulHigh32(Register dst, Register src1,
 }
 
 void TurboAssembler::MulHigh32(Register dst, Register src1, Register src2) {
-  if (dst.is(src2)) {
+  if (dst == src2) {
     std::swap(src1, src2);
   }
   Generate_MulHigh32(msgfr);
@@ -2433,14 +2429,14 @@ void TurboAssembler::MulHighU32(Register dst, Register src1,
 void TurboAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
                                                   const MemOperand& src2) {
   Register result = dst;
-  if (src2.rx().is(dst) || src2.rb().is(dst)) dst = r0;
+  if (src2.rx() == dst || src2.rb() == dst) dst = r0;
   Generate_Mul32WithOverflowIfCCUnequal(msgf);
-  if (!result.is(dst)) llgfr(result, dst);
+  if (result != dst) llgfr(result, dst);
 }
 
 void TurboAssembler::Mul32WithOverflowIfCCUnequal(Register dst, Register src1,
                                                   Register src2) {
-  if (dst.is(src2)) {
+  if (dst == src2) {
     std::swap(src1, src2);
   }
   Generate_Mul32WithOverflowIfCCUnequal(msgfr);
@@ -2471,9 +2467,9 @@ void TurboAssembler::Mul(Register dst, Register src1, Register src2) {
   if (CpuFeatures::IsSupported(MISC_INSTR_EXT2)) {
     MulPWithCondition(dst, src1, src2);
   } else {
-    if (dst.is(src2)) {
+    if (dst == src2) {
       MulP(dst, src1);
-    } else if (dst.is(src1)) {
+    } else if (dst == src1) {
       MulP(dst, src2);
     } else {
       Move(dst, src1);
@@ -2727,7 +2723,7 @@ void TurboAssembler::AddP(Register dst, const Operand& opnd) {
 
 // Add 32-bit (Register dst = Register src + Immediate opnd)
 void TurboAssembler::Add32(Register dst, Register src, const Operand& opnd) {
-  if (!dst.is(src)) {
+  if (dst != src) {
     if (CpuFeatures::IsSupported(DISTINCT_OPS) && is_int16(opnd.immediate())) {
       ahik(dst, src, opnd);
       return;
@@ -2746,7 +2742,7 @@ void TurboAssembler::Add32_RRI(Register dst, Register src,
 
 // Add Pointer Size (Register dst = Register src + Immediate opnd)
 void TurboAssembler::AddP(Register dst, Register src, const Operand& opnd) {
-  if (!dst.is(src)) {
+  if (dst != src) {
     if (CpuFeatures::IsSupported(DISTINCT_OPS) && is_int16(opnd.immediate())) {
       AddPImm_RRI(dst, src, opnd);
       return;
@@ -2776,7 +2772,7 @@ void TurboAssembler::AddP_ExtendSrc(Register dst, Register src) {
 
 // Add 32-bit (Register dst = Register src1 + Register src2)
 void TurboAssembler::Add32(Register dst, Register src1, Register src2) {
-  if (!dst.is(src1) && !dst.is(src2)) {
+  if (dst != src1 && dst != src2) {
     // We prefer to generate AR/AGR, over the non clobbering ARK/AGRK
     // as AR is a smaller instruction
     if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
@@ -2785,7 +2781,7 @@ void TurboAssembler::Add32(Register dst, Register src1, Register src2) {
     } else {
       lr(dst, src1);
     }
-  } else if (dst.is(src2)) {
+  } else if (dst == src2) {
     src2 = src1;
   }
   ar(dst, src2);
@@ -2793,7 +2789,7 @@ void TurboAssembler::Add32(Register dst, Register src1, Register src2) {
 
 // Add Pointer Size (Register dst = Register src1 + Register src2)
 void TurboAssembler::AddP(Register dst, Register src1, Register src2) {
-  if (!dst.is(src1) && !dst.is(src2)) {
+  if (dst != src1 && dst != src2) {
     // We prefer to generate AR/AGR, over the non clobbering ARK/AGRK
     // as AR is a smaller instruction
     if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
@@ -2802,7 +2798,7 @@ void TurboAssembler::AddP(Register dst, Register src1, Register src2) {
     } else {
       LoadRR(dst, src1);
     }
-  } else if (dst.is(src2)) {
+  } else if (dst == src2) {
     src2 = src1;
   }
   AddRR(dst, src2);
@@ -2816,12 +2812,12 @@ void TurboAssembler::AddP(Register dst, Register src1, Register src2) {
 void TurboAssembler::AddP_ExtendSrc(Register dst, Register src1,
                                     Register src2) {
 #if V8_TARGET_ARCH_S390X
-  if (dst.is(src2)) {
+  if (dst == src2) {
     // The source we need to sign extend is the same as result.
     lgfr(dst, src2);
     agr(dst, src1);
   } else {
-    if (!dst.is(src1)) LoadRR(dst, src1);
+    if (dst != src1) LoadRR(dst, src1);
     agfr(dst, src2);
   }
 #else
@@ -2888,32 +2884,32 @@ void TurboAssembler::AddP(const MemOperand& opnd, const Operand& imm) {
 // Add Logical With Carry 32-bit (Register dst = Register src1 + Register src2)
 void TurboAssembler::AddLogicalWithCarry32(Register dst, Register src1,
                                            Register src2) {
-  if (!dst.is(src2) && !dst.is(src1)) {
+  if (dst != src2 && dst != src1) {
     lr(dst, src1);
     alcr(dst, src2);
-  } else if (!dst.is(src2)) {
+  } else if (dst != src2) {
     // dst == src1
-    DCHECK(dst.is(src1));
+    DCHECK(dst == src1);
     alcr(dst, src2);
   } else {
     // dst == src2
-    DCHECK(dst.is(src2));
+    DCHECK(dst == src2);
     alcr(dst, src1);
   }
 }
 
 // Add Logical 32-bit (Register dst = Register src1 + Register src2)
 void TurboAssembler::AddLogical32(Register dst, Register src1, Register src2) {
-  if (!dst.is(src2) && !dst.is(src1)) {
+  if (dst != src2 && dst != src1) {
     lr(dst, src1);
     alr(dst, src2);
-  } else if (!dst.is(src2)) {
+  } else if (dst != src2) {
     // dst == src1
-    DCHECK(dst.is(src1));
+    DCHECK(dst == src1);
     alr(dst, src2);
   } else {
     // dst == src2
-    DCHECK(dst.is(src2));
+    DCHECK(dst == src2);
     alr(dst, src1);
   }
 }
@@ -2959,16 +2955,16 @@ void TurboAssembler::AddLogicalP(Register dst, const MemOperand& opnd) {
 // src2)
 void TurboAssembler::SubLogicalWithBorrow32(Register dst, Register src1,
                                             Register src2) {
-  if (!dst.is(src2) && !dst.is(src1)) {
+  if (dst != src2 && dst != src1) {
     lr(dst, src1);
     slbr(dst, src2);
-  } else if (!dst.is(src2)) {
+  } else if (dst != src2) {
     // dst == src1
-    DCHECK(dst.is(src1));
+    DCHECK(dst == src1);
     slbr(dst, src2);
   } else {
     // dst == src2
-    DCHECK(dst.is(src2));
+    DCHECK(dst == src2);
     lr(r0, dst);
     SubLogicalWithBorrow32(dst, src1, r0);
   }
@@ -2976,16 +2972,16 @@ void TurboAssembler::SubLogicalWithBorrow32(Register dst, Register src1,
 
 // Subtract Logical 32-bit (Register dst = Register src1 - Register src2)
 void TurboAssembler::SubLogical32(Register dst, Register src1, Register src2) {
-  if (!dst.is(src2) && !dst.is(src1)) {
+  if (dst != src2 && dst != src1) {
     lr(dst, src1);
     slr(dst, src2);
-  } else if (!dst.is(src2)) {
+  } else if (dst != src2) {
     // dst == src1
-    DCHECK(dst.is(src1));
+    DCHECK(dst == src1);
     slr(dst, src2);
   } else {
     // dst == src2
-    DCHECK(dst.is(src2));
+    DCHECK(dst == src2);
     lr(r0, dst);
     SubLogical32(dst, src1, r0);
   }
@@ -3036,9 +3032,9 @@ void TurboAssembler::Sub32(Register dst, Register src1, Register src2) {
     srk(dst, src1, src2);
     return;
   }
-  if (!dst.is(src1) && !dst.is(src2)) lr(dst, src1);
+  if (dst != src1 && dst != src2) lr(dst, src1);
   // In scenario where we have dst = src - dst, we need to swap and negate
-  if (!dst.is(src1) && dst.is(src2)) {
+  if (dst != src1 && dst == src2) {
     Label done;
     lcr(dst, dst);  // dst = -dst
     b(overflow, &done);
@@ -3056,9 +3052,9 @@ void TurboAssembler::SubP(Register dst, Register src1, Register src2) {
     SubP_RRR(dst, src1, src2);
     return;
   }
-  if (!dst.is(src1) && !dst.is(src2)) LoadRR(dst, src1);
+  if (dst != src1 && dst != src2) LoadRR(dst, src1);
   // In scenario where we have dst = src - dst, we need to swap and negate
-  if (!dst.is(src1) && dst.is(src2)) {
+  if (dst != src1 && dst == src2) {
     Label done;
     LoadComplementRR(dst, dst);  // dst = -dst
     b(overflow, &done);
@@ -3076,10 +3072,10 @@ void TurboAssembler::SubP(Register dst, Register src1, Register src2) {
 void TurboAssembler::SubP_ExtendSrc(Register dst, Register src1,
                                     Register src2) {
 #if V8_TARGET_ARCH_S390X
-  if (!dst.is(src1) && !dst.is(src2)) LoadRR(dst, src1);
+  if (dst != src1 && dst != src2) LoadRR(dst, src1);
 
   // In scenario where we have dst = src - dst, we need to swap and negate
-  if (!dst.is(src1) && dst.is(src2)) {
+  if (dst != src1 && dst == src2) {
     lgfr(dst, dst);              // Sign extend this operand first.
     LoadComplementRR(dst, dst);  // dst = -dst
     AddP(dst, src1);             // dst = -dst + src
@@ -3177,7 +3173,7 @@ void TurboAssembler::AndP(Register dst, Register src) { AndRR(dst, src); }
 
 // Non-clobbering AND 32-bit - dst = src1 & src1
 void TurboAssembler::And(Register dst, Register src1, Register src2) {
-  if (!dst.is(src1) && !dst.is(src2)) {
+  if (dst != src1 && dst != src2) {
     // We prefer to generate XR/XGR, over the non clobbering XRK/XRK
     // as XR is a smaller instruction
     if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
@@ -3186,7 +3182,7 @@ void TurboAssembler::And(Register dst, Register src1, Register src2) {
     } else {
       lr(dst, src1);
     }
-  } else if (dst.is(src2)) {
+  } else if (dst == src2) {
     src2 = src1;
   }
   And(dst, src2);
@@ -3194,7 +3190,7 @@ void TurboAssembler::And(Register dst, Register src1, Register src2) {
 
 // Non-clobbering AND pointer size - dst = src1 & src1
 void TurboAssembler::AndP(Register dst, Register src1, Register src2) {
-  if (!dst.is(src1) && !dst.is(src2)) {
+  if (dst != src1 && dst != src2) {
     // We prefer to generate XR/XGR, over the non clobbering XRK/XRK
     // as XR is a smaller instruction
     if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
@@ -3203,7 +3199,7 @@ void TurboAssembler::AndP(Register dst, Register src1, Register src2) {
     } else {
       LoadRR(dst, src1);
     }
-  } else if (dst.is(src2)) {
+  } else if (dst == src2) {
     src2 = src1;
   }
   AndP(dst, src2);
@@ -3247,7 +3243,7 @@ void TurboAssembler::AndP(Register dst, const Operand& opnd) {
 
 // AND 32-bit - dst = src & imm
 void TurboAssembler::And(Register dst, Register src, const Operand& opnd) {
-  if (!dst.is(src)) lr(dst, src);
+  if (dst != src) lr(dst, src);
   nilf(dst, opnd);
 }
 
@@ -3287,7 +3283,7 @@ void TurboAssembler::AndP(Register dst, Register src, const Operand& opnd) {
   }
 
   // If we are &'ing zero, we can just whack the dst register and skip copy
-  if (!dst.is(src) && (0 != value)) LoadRR(dst, src);
+  if (dst != src && (0 != value)) LoadRR(dst, src);
   AndP(dst, opnd);
 }
 
@@ -3299,7 +3295,7 @@ void TurboAssembler::OrP(Register dst, Register src) { OrRR(dst, src); }
 
 // Non-clobbering OR 32-bit - dst = src1 & src1
 void TurboAssembler::Or(Register dst, Register src1, Register src2) {
-  if (!dst.is(src1) && !dst.is(src2)) {
+  if (dst != src1 && dst != src2) {
     // We prefer to generate XR/XGR, over the non clobbering XRK/XRK
     // as XR is a smaller instruction
     if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
@@ -3308,7 +3304,7 @@ void TurboAssembler::Or(Register dst, Register src1, Register src2) {
     } else {
       lr(dst, src1);
     }
-  } else if (dst.is(src2)) {
+  } else if (dst == src2) {
     src2 = src1;
   }
   Or(dst, src2);
@@ -3316,7 +3312,7 @@ void TurboAssembler::Or(Register dst, Register src1, Register src2) {
 
 // Non-clobbering OR pointer size - dst = src1 & src1
 void TurboAssembler::OrP(Register dst, Register src1, Register src2) {
-  if (!dst.is(src1) && !dst.is(src2)) {
+  if (dst != src1 && dst != src2) {
     // We prefer to generate XR/XGR, over the non clobbering XRK/XRK
     // as XR is a smaller instruction
     if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
@@ -3325,7 +3321,7 @@ void TurboAssembler::OrP(Register dst, Register src1, Register src2) {
     } else {
       LoadRR(dst, src1);
     }
-  } else if (dst.is(src2)) {
+  } else if (dst == src2) {
     src2 = src1;
   }
   OrP(dst, src2);
@@ -3369,13 +3365,13 @@ void TurboAssembler::OrP(Register dst, const Operand& opnd) {
 
 // OR 32-bit - dst = src & imm
 void TurboAssembler::Or(Register dst, Register src, const Operand& opnd) {
-  if (!dst.is(src)) lr(dst, src);
+  if (dst != src) lr(dst, src);
   oilf(dst, opnd);
 }
 
 // OR Pointer Size - dst = src & imm
 void TurboAssembler::OrP(Register dst, Register src, const Operand& opnd) {
-  if (!dst.is(src)) LoadRR(dst, src);
+  if (dst != src) LoadRR(dst, src);
   OrP(dst, opnd);
 }
 
@@ -3387,7 +3383,7 @@ void TurboAssembler::XorP(Register dst, Register src) { XorRR(dst, src); }
 
 // Non-clobbering XOR 32-bit - dst = src1 & src1
 void TurboAssembler::Xor(Register dst, Register src1, Register src2) {
-  if (!dst.is(src1) && !dst.is(src2)) {
+  if (dst != src1 && dst != src2) {
     // We prefer to generate XR/XGR, over the non clobbering XRK/XRK
     // as XR is a smaller instruction
     if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
@@ -3396,7 +3392,7 @@ void TurboAssembler::Xor(Register dst, Register src1, Register src2) {
     } else {
       lr(dst, src1);
     }
-  } else if (dst.is(src2)) {
+  } else if (dst == src2) {
     src2 = src1;
   }
   Xor(dst, src2);
@@ -3404,7 +3400,7 @@ void TurboAssembler::Xor(Register dst, Register src1, Register src2) {
 
 // Non-clobbering XOR pointer size - dst = src1 & src1
 void TurboAssembler::XorP(Register dst, Register src1, Register src2) {
-  if (!dst.is(src1) && !dst.is(src2)) {
+  if (dst != src1 && dst != src2) {
     // We prefer to generate XR/XGR, over the non clobbering XRK/XRK
     // as XR is a smaller instruction
     if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
@@ -3413,7 +3409,7 @@ void TurboAssembler::XorP(Register dst, Register src1, Register src2) {
     } else {
       LoadRR(dst, src1);
     }
-  } else if (dst.is(src2)) {
+  } else if (dst == src2) {
     src2 = src1;
   }
   XorP(dst, src2);
@@ -3454,23 +3450,23 @@ void TurboAssembler::XorP(Register dst, const Operand& opnd) {
 
 // XOR 32-bit - dst = src & imm
 void TurboAssembler::Xor(Register dst, Register src, const Operand& opnd) {
-  if (!dst.is(src)) lr(dst, src);
+  if (dst != src) lr(dst, src);
   xilf(dst, opnd);
 }
 
 // XOR Pointer Size - dst = src & imm
 void TurboAssembler::XorP(Register dst, Register src, const Operand& opnd) {
-  if (!dst.is(src)) LoadRR(dst, src);
+  if (dst != src) LoadRR(dst, src);
   XorP(dst, opnd);
 }
 
 void TurboAssembler::Not32(Register dst, Register src) {
-  if (!src.is(no_reg) && !src.is(dst)) lr(dst, src);
+  if (src != no_reg && src != dst) lr(dst, src);
   xilf(dst, Operand(0xFFFFFFFF));
 }
 
 void TurboAssembler::Not64(Register dst, Register src) {
-  if (!src.is(no_reg) && !src.is(dst)) lgr(dst, src);
+  if (src != no_reg && src != dst) lgr(dst, src);
   xihf(dst, Operand(0xFFFFFFFF));
   xilf(dst, Operand(0xFFFFFFFF));
 }
@@ -3770,7 +3766,7 @@ void TurboAssembler::AddSmiLiteral(Register dst, Register src, Smi* smi,
                                    Register scratch) {
 #if V8_TARGET_ARCH_S390X
   if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-    if (!dst.is(src)) LoadRR(dst, src);
+    if (dst != src) LoadRR(dst, src);
     aih(dst, Operand(reinterpret_cast<intptr_t>(smi) >> 32));
   } else {
     LoadSmiLiteral(scratch, smi);
@@ -3785,7 +3781,7 @@ void TurboAssembler::SubSmiLiteral(Register dst, Register src, Smi* smi,
                                    Register scratch) {
 #if V8_TARGET_ARCH_S390X
   if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
-    if (!dst.is(src)) LoadRR(dst, src);
+    if (dst != src) LoadRR(dst, src);
     aih(dst, Operand((-reinterpret_cast<intptr_t>(smi)) >> 32));
   } else {
     LoadSmiLiteral(scratch, smi);
@@ -3797,7 +3793,7 @@ void TurboAssembler::SubSmiLiteral(Register dst, Register src, Smi* smi,
 }
 
 void TurboAssembler::AndSmiLiteral(Register dst, Register src, Smi* smi) {
-  if (!dst.is(src)) LoadRR(dst, src);
+  if (dst != src) LoadRR(dst, src);
 #if V8_TARGET_ARCH_S390X
   DCHECK((reinterpret_cast<intptr_t>(smi) & 0xffffffff) == 0);
   int value = static_cast<int>(reinterpret_cast<intptr_t>(smi) >> 32);
@@ -3812,7 +3808,7 @@ void TurboAssembler::LoadP(Register dst, const MemOperand& mem,
                            Register scratch) {
   int offset = mem.offset();
 
-  if (!scratch.is(no_reg) && !is_int20(offset)) {
+  if (scratch != no_reg && !is_int20(offset)) {
     /* cannot use d-form */
     LoadIntLiteral(scratch, offset);
 #if V8_TARGET_ARCH_S390X
@@ -3837,8 +3833,8 @@ void TurboAssembler::LoadP(Register dst, const MemOperand& mem,
 void TurboAssembler::StoreP(Register src, const MemOperand& mem,
                             Register scratch) {
   if (!is_int20(mem.offset())) {
-    DCHECK(!scratch.is(no_reg));
-    DCHECK(!scratch.is(r0));
+    DCHECK(scratch != no_reg);
+    DCHECK(scratch != r0);
     LoadIntLiteral(scratch, mem.offset());
 #if V8_TARGET_ARCH_S390X
     stg(src, MemOperand(mem.rb(), scratch));
@@ -3864,7 +3860,7 @@ void TurboAssembler::StoreP(const MemOperand& mem, const Operand& opnd,
 
   // Try to use MVGHI/MVHI
   if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT) && is_uint12(mem.offset()) &&
-      mem.getIndexRegister().is(r0) && is_int16(opnd.immediate())) {
+      mem.getIndexRegister() == r0 && is_int16(opnd.immediate())) {
 #if V8_TARGET_ARCH_S390X
     mvghi(mem, opnd);
 #else
@@ -3931,7 +3927,7 @@ void TurboAssembler::LoadW(Register dst, Register src) {
 #if V8_TARGET_ARCH_S390X
   lgfr(dst, src);
 #else
-  if (!dst.is(src)) lr(dst, src);
+  if (dst != src) lr(dst, src);
 #endif
 }
 
@@ -3941,7 +3937,7 @@ void TurboAssembler::LoadW(Register dst, const MemOperand& mem,
   int offset = mem.offset();
 
   if (!is_int20(offset)) {
-    DCHECK(!scratch.is(no_reg));
+    DCHECK(scratch != no_reg);
     LoadIntLiteral(scratch, offset);
 #if V8_TARGET_ARCH_S390X
     lgf(dst, MemOperand(mem.rb(), scratch));
@@ -3966,7 +3962,7 @@ void TurboAssembler::LoadlW(Register dst, Register src) {
 #if V8_TARGET_ARCH_S390X
   llgfr(dst, src);
 #else
-  if (!dst.is(src)) lr(dst, src);
+  if (dst != src) lr(dst, src);
 #endif
 }
 
@@ -3980,7 +3976,7 @@ void TurboAssembler::LoadlW(Register dst, const MemOperand& mem,
 #if V8_TARGET_ARCH_S390X
   if (is_int20(offset)) {
     llgf(dst, mem);
-  } else if (!scratch.is(no_reg)) {
+  } else if (scratch != no_reg) {
     // Materialize offset into scratch register.
     LoadIntLiteral(scratch, offset);
     llgf(dst, MemOperand(base, scratch));
@@ -3996,7 +3992,7 @@ void TurboAssembler::LoadlW(Register dst, const MemOperand& mem,
   } else if (is_int20(offset)) {
     // RXY-format supports signed 20-bits offset.
     use_RXYform = true;
-  } else if (!scratch.is(no_reg)) {
+  } else if (scratch != no_reg) {
     // Materialize offset into scratch register.
     LoadIntLiteral(scratch, offset);
   } else {
@@ -4286,7 +4282,7 @@ void TurboAssembler::StoreW(Register src, const MemOperand& mem,
   } else if (is_int20(offset)) {
     // RXY-format supports signed 20-bits offset.
     use_RXYform = true;
-  } else if (!scratch.is(no_reg)) {
+  } else if (scratch != no_reg) {
     // Materialize offset into scratch register.
     LoadIntLiteral(scratch, offset);
   } else {
@@ -4311,7 +4307,7 @@ void TurboAssembler::LoadHalfWordP(Register dst, const MemOperand& mem,
   int offset = mem.offset();
 
   if (!is_int20(offset)) {
-    DCHECK(!scratch.is(no_reg));
+    DCHECK(scratch != no_reg);
     LoadIntLiteral(scratch, offset);
 #if V8_TARGET_ARCH_S390X
     lgh(dst, MemOperand(base, scratch));
@@ -4343,7 +4339,7 @@ void TurboAssembler::StoreHalfWord(Register src, const MemOperand& mem,
   } else if (is_int20(offset)) {
     sthy(src, mem);
   } else {
-    DCHECK(!scratch.is(no_reg));
+    DCHECK(scratch != no_reg);
     LoadIntLiteral(scratch, offset);
     sth(src, MemOperand(base, scratch));
   }
@@ -4361,7 +4357,7 @@ void TurboAssembler::StoreByte(Register src, const MemOperand& mem,
   } else if (is_int20(offset)) {
     stcy(src, mem);
   } else {
-    DCHECK(!scratch.is(no_reg));
+    DCHECK(scratch != no_reg);
     LoadIntLiteral(scratch, offset);
     stc(src, MemOperand(base, scratch));
   }
@@ -4369,7 +4365,7 @@ void TurboAssembler::StoreByte(Register src, const MemOperand& mem,
 
 // Shift left logical for 32-bit integer types.
 void TurboAssembler::ShiftLeft(Register dst, Register src, const Operand& val) {
-  if (dst.is(src)) {
+  if (dst == src) {
     sll(dst, val);
   } else if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     sllk(dst, src, val);
@@ -4381,12 +4377,12 @@ void TurboAssembler::ShiftLeft(Register dst, Register src, const Operand& val) {
 
 // Shift left logical for 32-bit integer types.
 void TurboAssembler::ShiftLeft(Register dst, Register src, Register val) {
-  if (dst.is(src)) {
+  if (dst == src) {
     sll(dst, val);
   } else if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     sllk(dst, src, val);
   } else {
-    DCHECK(!dst.is(val));  // The lr/sll path clobbers val.
+    DCHECK(dst != val);  // The lr/sll path clobbers val.
     lr(dst, src);
     sll(dst, val);
   }
@@ -4395,7 +4391,7 @@ void TurboAssembler::ShiftLeft(Register dst, Register src, Register val) {
 // Shift right logical for 32-bit integer types.
 void TurboAssembler::ShiftRight(Register dst, Register src,
                                 const Operand& val) {
-  if (dst.is(src)) {
+  if (dst == src) {
     srl(dst, val);
   } else if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     srlk(dst, src, val);
@@ -4407,12 +4403,12 @@ void TurboAssembler::ShiftRight(Register dst, Register src,
 
 // Shift right logical for 32-bit integer types.
 void TurboAssembler::ShiftRight(Register dst, Register src, Register val) {
-  if (dst.is(src)) {
+  if (dst == src) {
     srl(dst, val);
   } else if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     srlk(dst, src, val);
   } else {
-    DCHECK(!dst.is(val));  // The lr/srl path clobbers val.
+    DCHECK(dst != val);  // The lr/srl path clobbers val.
     lr(dst, src);
     srl(dst, val);
   }
@@ -4421,7 +4417,7 @@ void TurboAssembler::ShiftRight(Register dst, Register src, Register val) {
 // Shift left arithmetic for 32-bit integer types.
 void TurboAssembler::ShiftLeftArith(Register dst, Register src,
                                     const Operand& val) {
-  if (dst.is(src)) {
+  if (dst == src) {
     sla(dst, val);
   } else if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     slak(dst, src, val);
@@ -4433,12 +4429,12 @@ void TurboAssembler::ShiftLeftArith(Register dst, Register src,
 
 // Shift left arithmetic for 32-bit integer types.
 void TurboAssembler::ShiftLeftArith(Register dst, Register src, Register val) {
-  if (dst.is(src)) {
+  if (dst == src) {
     sla(dst, val);
   } else if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     slak(dst, src, val);
   } else {
-    DCHECK(!dst.is(val));  // The lr/sla path clobbers val.
+    DCHECK(dst != val);  // The lr/sla path clobbers val.
     lr(dst, src);
     sla(dst, val);
   }
@@ -4447,7 +4443,7 @@ void TurboAssembler::ShiftLeftArith(Register dst, Register src, Register val) {
 // Shift right arithmetic for 32-bit integer types.
 void TurboAssembler::ShiftRightArith(Register dst, Register src,
                                      const Operand& val) {
-  if (dst.is(src)) {
+  if (dst == src) {
     sra(dst, val);
   } else if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     srak(dst, src, val);
@@ -4459,12 +4455,12 @@ void TurboAssembler::ShiftRightArith(Register dst, Register src,
 
 // Shift right arithmetic for 32-bit integer types.
 void TurboAssembler::ShiftRightArith(Register dst, Register src, Register val) {
-  if (dst.is(src)) {
+  if (dst == src) {
     sra(dst, val);
   } else if (CpuFeatures::IsSupported(DISTINCT_OPS)) {
     srak(dst, src, val);
   } else {
-    DCHECK(!dst.is(val));  // The lr/sra path clobbers val.
+    DCHECK(dst != val);  // The lr/sra path clobbers val.
     lr(dst, src);
     sra(dst, val);
   }
@@ -4485,7 +4481,7 @@ void TurboAssembler::ClearRightImm(Register dst, Register src,
   uint64_t hexMask = ~((1L << numBitsToClear) - 1);
 
   // S390 AND instr clobbers source.  Make a copy if necessary
-  if (!dst.is(src)) LoadRR(dst, src);
+  if (dst != src) LoadRR(dst, src);
 
   if (numBitsToClear <= 16) {
     nill(dst, Operand(static_cast<uint16_t>(hexMask)));
@@ -4498,8 +4494,8 @@ void TurboAssembler::ClearRightImm(Register dst, Register src,
 }
 
 void TurboAssembler::Popcnt32(Register dst, Register src) {
-  DCHECK(!src.is(r0));
-  DCHECK(!dst.is(r0));
+  DCHECK(src != r0);
+  DCHECK(dst != r0);
 
   popcnt(dst, src);
   ShiftRight(r0, dst, Operand(16));
@@ -4511,8 +4507,8 @@ void TurboAssembler::Popcnt32(Register dst, Register src) {
 
 #ifdef V8_TARGET_ARCH_S390X
 void TurboAssembler::Popcnt64(Register dst, Register src) {
-  DCHECK(!src.is(r0));
-  DCHECK(!dst.is(r0));
+  DCHECK(src != r0);
+  DCHECK(dst != r0);
 
   popcnt(dst, src);
   ShiftRightP(r0, dst, Operand(32));

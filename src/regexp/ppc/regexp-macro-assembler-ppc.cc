@@ -1231,13 +1231,13 @@ void RegExpMacroAssemblerPPC::SafeCallTarget(Label* name) {
 
 
 void RegExpMacroAssemblerPPC::Push(Register source) {
-  DCHECK(!source.is(backtrack_stackpointer()));
+  DCHECK(source != backtrack_stackpointer());
   __ StorePU(source, MemOperand(backtrack_stackpointer(), -kPointerSize));
 }
 
 
 void RegExpMacroAssemblerPPC::Pop(Register target) {
-  DCHECK(!target.is(backtrack_stackpointer()));
+  DCHECK(target != backtrack_stackpointer());
   __ LoadP(target, MemOperand(backtrack_stackpointer()));
   __ addi(backtrack_stackpointer(), backtrack_stackpointer(),
           Operand(kPointerSize));

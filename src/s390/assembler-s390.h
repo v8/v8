@@ -98,6 +98,10 @@ namespace internal {
 #define ALLOCATABLE_DOUBLE_REGISTERS(V)                   \
   V(d1)  V(d2)  V(d3)  V(d4)  V(d5)  V(d6)  V(d7)         \
   V(d8)  V(d9)  V(d10) V(d11) V(d12) V(d15) V(d0)
+
+#define C_REGISTERS(V)                                            \
+  V(cr0)  V(cr1)  V(cr2)  V(cr3)  V(cr4)  V(cr5)  V(cr6)  V(cr7)  \
+  V(cr8)  V(cr9)  V(cr10) V(cr11) V(cr12) V(cr15)
 // clang-format on
 
 // Register list in load/store instructions
@@ -187,8 +191,8 @@ const int kNumSafepointRegisters = 16;
 // Define the list of registers actually saved at safepoints.
 // Note that the number of saved registers may be smaller than the reserved
 // space, i.e. kNumSafepointSavedRegisters <= kNumSafepointRegisters.
-// const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
-// const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
+const RegList kSafepointSavedRegisters = kJSCallerSaved | kCalleeSaved;
+const int kNumSafepointSavedRegisters = kNumJSCallerSaved + kNumCalleeSaved;
 
 // The following constants describe the stack frame linkage area as
 // defined by the ABI.
@@ -235,70 +239,15 @@ const int kCalleeRegisterSaveAreaSize = 96;
 const int kCalleeRegisterSaveAreaSize = 0;
 #endif
 
-// CPU Registers.
-//
-// 1) We would prefer to use an enum, but enum values are assignment-
-// compatible with int, which has caused code-generation bugs.
-//
-// 2) We would prefer to use a class instead of a struct but we don't like
-// the register initialization to depend on the particular initialization
-// order (which appears to be different on OS X, Linux, and Windows for the
-// installed versions of C++ we tried). Using a struct permits C-style
-// "initialization". Also, the Register objects cannot be const as this
-// forces initialization stubs in MSVC, making us dependent on initialization
-// order.
-//
-// 3) By not using an enum, we are possibly preventing the compiler from
-// doing certain constant folds, which may significantly reduce the
-// code generated for some assembly instructions (because they boil down
-// to a few constants). If this is a problem, we could change the code
-// such that we use an enum in optimized mode, and the struct in debug
-// mode. This way we get the compile-time error checking in debug mode
-// and best performance in optimized code.
-
-struct Register {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    GENERAL_REGISTERS(REGISTER_CODE)
+enum RegisterCode {
+#define REGISTER_CODE(R) kRegCode_##R,
+  GENERAL_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
-  static constexpr int kNumRegisters = Code::kAfterLast;
+      kRegAfterLast
+};
 
-#define REGISTER_COUNT(R) 1 +
-  static constexpr int kNumAllocatable =
-      ALLOCATABLE_GENERAL_REGISTERS(REGISTER_COUNT) 0;
-#undef REGISTER_COUNT
-
-#define REGISTER_BIT(R) 1 << kCode_##R |
-  static constexpr RegList kAllocatable =
-      ALLOCATABLE_GENERAL_REGISTERS(REGISTER_BIT) 0;
-#undef REGISTER_BIT
-
-  static Register from_code(int code) {
-    DCHECK(code >= 0);
-    DCHECK(code < kNumRegisters);
-    Register r = {code};
-    return r;
-  }
-
-  bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
-  bool is(Register reg) const { return reg_code == reg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-
-  void set_code(int code) {
-    reg_code = code;
-    DCHECK(is_valid());
-  }
-
+class Register : public RegisterBase<Register, kRegAfterLast> {
+ public:
 #if V8_TARGET_LITTLE_ENDIAN
   static constexpr int kMantissaOffset = 0;
   static constexpr int kExponentOffset = 4;
@@ -307,16 +256,20 @@ struct Register {
   static constexpr int kExponentOffset = 0;
 #endif
 
-  // Unfortunately we can't make this private in a struct.
-  int reg_code;
+ private:
+  friend class RegisterBase;
+  explicit constexpr Register(int code) : RegisterBase(code) {}
 };
 
-typedef struct Register Register;
+static_assert(IS_TRIVIALLY_COPYABLE(Register) &&
+                  sizeof(Register) == sizeof(int),
+              "Register can efficiently be passed by value");
 
-#define DEFINE_REGISTER(R) constexpr Register R = {Register::kCode_##R};
+#define DEFINE_REGISTER(R) \
+  constexpr Register R = Register::from_code<kRegCode_##R>();
 GENERAL_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
-constexpr Register no_reg = {Register::kCode_no_reg};
+constexpr Register no_reg = Register::no_reg();
 
 // Register aliases
 constexpr Register kLithiumScratch = r1;  // lithium scratch.
@@ -326,39 +279,32 @@ constexpr Register cp = r13;              // JavaScript context pointer.
 constexpr bool kSimpleFPAliasing = true;
 constexpr bool kSimdMaskRegisters = false;
 
-// Double word FP register.
-struct DoubleRegister {
-  enum Code {
-#define REGISTER_CODE(R) kCode_##R,
-    DOUBLE_REGISTERS(REGISTER_CODE)
+enum DoubleRegisterCode {
+#define REGISTER_CODE(R) kDoubleCode_##R,
+  DOUBLE_REGISTERS(REGISTER_CODE)
 #undef REGISTER_CODE
-        kAfterLast,
-    kCode_no_reg = -1
-  };
-
-  static constexpr int kNumRegisters = Code::kAfterLast;
-  static constexpr int kMaxNumRegisters = kNumRegisters;
-
-  bool is_valid() const { return 0 <= reg_code && reg_code < kNumRegisters; }
-  bool is(DoubleRegister reg) const { return reg_code == reg.reg_code; }
-
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-
-  static DoubleRegister from_code(int code) {
-    DoubleRegister r = {code};
-    return r;
-  }
-
-  int reg_code;
+      kDoubleAfterLast
 };
+
+// Double word VFP register.
+class DoubleRegister : public RegisterBase<DoubleRegister, kDoubleAfterLast> {
+ public:
+  // A few double registers are reserved: one as a scratch register and one to
+  // hold 0.0, that does not fit in the immediate field of vmov instructions.
+  // d14: 0.0
+  // d15: scratch register.
+  static constexpr int kSizeInBytes = 8;
+  inline static int NumRegisters();
+
+ private:
+  friend class RegisterBase;
+
+  explicit constexpr DoubleRegister(int code) : RegisterBase(code) {}
+};
+
+static_assert(IS_TRIVIALLY_COPYABLE(DoubleRegister) &&
+                  sizeof(DoubleRegister) == sizeof(int),
+              "DoubleRegister can efficiently be passed by value");
 
 typedef DoubleRegister FloatRegister;
 
@@ -366,43 +312,34 @@ typedef DoubleRegister FloatRegister;
 typedef DoubleRegister Simd128Register;
 
 #define DEFINE_REGISTER(R) \
-  constexpr DoubleRegister R = {DoubleRegister::kCode_##R};
+  constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
 DOUBLE_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
-constexpr Register no_dreg = {Register::kCode_no_reg};
+constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
 
 constexpr DoubleRegister kDoubleRegZero = d14;
 constexpr DoubleRegister kScratchDoubleReg = d13;
 
 Register ToRegister(int num);
 
-// Coprocessor register
-struct CRegister {
-  bool is_valid() const { return 0 <= reg_code && reg_code < 8; }
-  bool is(CRegister creg) const { return reg_code == creg.reg_code; }
-  int code() const {
-    DCHECK(is_valid());
-    return reg_code;
-  }
-  int bit() const {
-    DCHECK(is_valid());
-    return 1 << reg_code;
-  }
-
-  // Unfortunately we can't make this private in a struct.
-  int reg_code;
+enum CRegisterCode {
+#define REGISTER_CODE(R) kCCode_##R,
+  C_REGISTERS(REGISTER_CODE)
+#undef REGISTER_CODE
+      kCAfterLast
 };
 
-constexpr CRegister no_creg = {-1};
+// Coprocessor register
+class CRegister : public RegisterBase<CRegister, kCAfterLast> {
+  friend class RegisterBase;
+  explicit constexpr CRegister(int code) : RegisterBase(code) {}
+};
 
-constexpr CRegister cr0 = {0};
-constexpr CRegister cr1 = {1};
-constexpr CRegister cr2 = {2};
-constexpr CRegister cr3 = {3};
-constexpr CRegister cr4 = {4};
-constexpr CRegister cr5 = {5};
-constexpr CRegister cr6 = {6};
-constexpr CRegister cr7 = {7};
+constexpr CRegister no_creg = CRegister::no_reg();
+#define DECLARE_C_REGISTER(R) \
+  constexpr CRegister R = CRegister::from_code<kCCode_##R>();
+C_REGISTERS(DECLARE_C_REGISTER)
+#undef DECLARE_C_REGISTER
 
 // -----------------------------------------------------------------------------
 // Machine instruction Operands
@@ -476,7 +413,7 @@ class Operand BASE_EMBEDDED {
   RelocInfo::Mode rmode() const { return rmode_; }
 
  private:
-  Register rm_;
+  Register rm_ = no_reg;
   union Value {
     Value() {}
     HeapObjectRequest heap_object_request;  // if is_heap_object_request_
@@ -507,7 +444,7 @@ class MemOperand BASE_EMBEDDED {
 
   // Base register
   Register rb() const {
-    DCHECK(!baseRegister.is(no_reg));
+    DCHECK(baseRegister != no_reg);
     return baseRegister;
   }
 
@@ -515,7 +452,7 @@ class MemOperand BASE_EMBEDDED {
 
   // Index Register
   Register rx() const {
-    DCHECK(!indexRegister.is(no_reg));
+    DCHECK(indexRegister != no_reg);
     return indexRegister;
   }
   Register getIndexRegister() const { return rx(); }

@@ -147,7 +147,10 @@ class RecordWriteStub : public PlatformCodeStub {
   class RegisterAllocation {
    public:
     RegisterAllocation(Register object, Register address, Register scratch0)
-        : object_(object), address_(address), scratch0_(scratch0) {
+        : object_(object),
+          address_(address),
+          scratch0_(scratch0),
+          scratch1_(no_reg) {
       DCHECK(!AreAliased(scratch0, object, address, no_reg));
       scratch1_ = GetRegisterThatIsNotOneOf(object_, address_, scratch0_);
     }

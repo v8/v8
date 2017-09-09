@@ -8,25 +8,26 @@
 #include "src/assembler.h"
 #include "src/bailout-reason.h"
 #include "src/globals.h"
+#include "src/s390/assembler-s390.h"
 
 namespace v8 {
 namespace internal {
 
 // Give alias names to registers for calling conventions.
-const Register kReturnRegister0 = {Register::kCode_r2};
-const Register kReturnRegister1 = {Register::kCode_r3};
-const Register kReturnRegister2 = {Register::kCode_r4};
-const Register kJSFunctionRegister = {Register::kCode_r3};
-const Register kContextRegister = {Register::kCode_r13};
-const Register kAllocateSizeRegister = {Register::kCode_r3};
-const Register kInterpreterAccumulatorRegister = {Register::kCode_r2};
-const Register kInterpreterBytecodeOffsetRegister = {Register::kCode_r6};
-const Register kInterpreterBytecodeArrayRegister = {Register::kCode_r7};
-const Register kInterpreterDispatchTableRegister = {Register::kCode_r8};
-const Register kJavaScriptCallArgCountRegister = {Register::kCode_r2};
-const Register kJavaScriptCallNewTargetRegister = {Register::kCode_r5};
-const Register kRuntimeCallFunctionRegister = {Register::kCode_r3};
-const Register kRuntimeCallArgCountRegister = {Register::kCode_r2};
+const Register kReturnRegister0 = r2;
+const Register kReturnRegister1 = r3;
+const Register kReturnRegister2 = r4;
+const Register kJSFunctionRegister = r3;
+const Register kContextRegister = r13;
+const Register kAllocateSizeRegister = r3;
+const Register kInterpreterAccumulatorRegister = r2;
+const Register kInterpreterBytecodeOffsetRegister = r6;
+const Register kInterpreterBytecodeArrayRegister = r7;
+const Register kInterpreterDispatchTableRegister = r8;
+const Register kJavaScriptCallArgCountRegister = r2;
+const Register kJavaScriptCallNewTargetRegister = r5;
+const Register kRuntimeCallFunctionRegister = r3;
+const Register kRuntimeCallArgCountRegister = r2;
 
 // ----------------------------------------------------------------------------
 // Static helper functions
@@ -567,16 +568,16 @@ class TurboAssembler : public Assembler {
   // Push five registers.  Pushes leftmost register first (to highest address).
   void Push(Register src1, Register src2, Register src3, Register src4,
             Register src5) {
-    DCHECK(!src1.is(src2));
-    DCHECK(!src1.is(src3));
-    DCHECK(!src2.is(src3));
-    DCHECK(!src1.is(src4));
-    DCHECK(!src2.is(src4));
-    DCHECK(!src3.is(src4));
-    DCHECK(!src1.is(src5));
-    DCHECK(!src2.is(src5));
-    DCHECK(!src3.is(src5));
-    DCHECK(!src4.is(src5));
+    DCHECK(src1 != src2);
+    DCHECK(src1 != src3);
+    DCHECK(src2 != src3);
+    DCHECK(src1 != src4);
+    DCHECK(src2 != src4);
+    DCHECK(src3 != src4);
+    DCHECK(src1 != src5);
+    DCHECK(src2 != src5);
+    DCHECK(src3 != src5);
+    DCHECK(src4 != src5);
 
     lay(sp, MemOperand(sp, -kPointerSize * 5));
     StoreP(src1, MemOperand(sp, kPointerSize * 4));
@@ -889,7 +890,7 @@ class TurboAssembler : public Assembler {
     } else {
       if (rangeEnd > 0)  // Don't need to shift if rangeEnd is zero.
         ShiftRightP(dst, src, Operand(rangeEnd));
-      else if (!dst.is(src))  // If we didn't shift, we might need to copy
+      else if (dst != src)  // If we didn't shift, we might need to copy
         LoadRR(dst, src);
       int width = rangeStart - rangeEnd + 1;
 #if V8_TARGET_ARCH_S390X
@@ -1450,9 +1451,6 @@ class MacroAssembler : public TurboAssembler {
   // the position of the first bit.  Leaves addr_reg unchanged.
   inline void GetMarkBits(Register addr_reg, Register bitmap_reg,
                           Register mask_reg);
-
-  static const RegList kSafepointSavedRegisters;
-  static const int kNumSafepointSavedRegisters;
 
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);
