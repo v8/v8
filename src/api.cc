@@ -3275,7 +3275,7 @@ Local<Value> JSON::Parse(Local<String> json_string) {
 }
 
 MaybeLocal<String> JSON::Stringify(Local<Context> context,
-                                   Local<Object> json_object,
+                                   Local<Value> json_object,
                                    Local<String> gap) {
   PREPARE_FOR_EXECUTION(context, JSON, Stringify, String);
   i::Handle<i::Object> object = Utils::OpenHandle(*json_object);
