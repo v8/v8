@@ -162,20 +162,18 @@ ZoneHandleSet<Map> const& CompareMapsParametersOf(Operator const*)
     WARN_UNUSED_RESULT;
 
 // A descriptor for growing elements backing stores.
-enum class GrowFastElementsFlag : uint8_t {
-  kNone = 0u,
-  kArrayObject = 1u << 0,     // Update JSArray::length field.
-  kHoleyElements = 1u << 1,   // Backing store is holey.
-  kDoubleElements = 1u << 2,  // Backing store contains doubles.
+enum class GrowFastElementsMode : uint8_t {
+  kDoubleElements,
+  kSmiOrObjectElements
 };
-typedef base::Flags<GrowFastElementsFlag> GrowFastElementsFlags;
 
-DEFINE_OPERATORS_FOR_FLAGS(GrowFastElementsFlags)
+inline size_t hash_value(GrowFastElementsMode mode) {
+  return static_cast<uint8_t>(mode);
+}
 
-std::ostream& operator<<(std::ostream&, GrowFastElementsFlags);
+std::ostream& operator<<(std::ostream&, GrowFastElementsMode);
 
-GrowFastElementsFlags GrowFastElementsFlagsOf(const Operator*)
-    WARN_UNUSED_RESULT;
+GrowFastElementsMode GrowFastElementsModeOf(const Operator*) WARN_UNUSED_RESULT;
 
 // A descriptor for elements kind transitions.
 class ElementsTransition final {
@@ -462,7 +460,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* EnsureWritableFastElements();
 
   // maybe-grow-fast-elements object, elements, index, length
-  const Operator* MaybeGrowFastElements(GrowFastElementsFlags flags);
+  const Operator* MaybeGrowFastElements(GrowFastElementsMode mode);
 
   // transition-elements-kind object, from-map, to-map
   const Operator* TransitionElementsKind(ElementsTransition transition);

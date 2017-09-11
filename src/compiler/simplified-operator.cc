@@ -240,29 +240,19 @@ CheckTaggedInputMode CheckTaggedInputModeOf(const Operator* op) {
   return OpParameter<CheckTaggedInputMode>(op);
 }
 
-std::ostream& operator<<(std::ostream& os, GrowFastElementsFlags flags) {
-  bool empty = true;
-  if (flags & GrowFastElementsFlag::kArrayObject) {
-    os << "ArrayObject";
-    empty = false;
+std::ostream& operator<<(std::ostream& os, GrowFastElementsMode mode) {
+  switch (mode) {
+    case GrowFastElementsMode::kDoubleElements:
+      return os << "DoubleElements";
+    case GrowFastElementsMode::kSmiOrObjectElements:
+      return os << "SmiOrObjectElements";
   }
-  if (flags & GrowFastElementsFlag::kDoubleElements) {
-    if (!empty) os << "|";
-    os << "DoubleElements";
-    empty = false;
-  }
-  if (flags & GrowFastElementsFlag::kHoleyElements) {
-    if (!empty) os << "|";
-    os << "HoleyElements";
-    empty = false;
-  }
-  if (empty) os << "None";
-  return os;
+  UNREACHABLE();
 }
 
-GrowFastElementsFlags GrowFastElementsFlagsOf(const Operator* op) {
+GrowFastElementsMode GrowFastElementsModeOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kMaybeGrowFastElements, op->opcode());
-  return OpParameter<GrowFastElementsFlags>(op);
+  return OpParameter<GrowFastElementsMode>(op);
 }
 
 bool operator==(ElementsTransition const& lhs, ElementsTransition const& rhs) {
@@ -917,13 +907,13 @@ const Operator* SimplifiedOperatorBuilder::EnsureWritableFastElements() {
 }
 
 const Operator* SimplifiedOperatorBuilder::MaybeGrowFastElements(
-    GrowFastElementsFlags flags) {
-  return new (zone()) Operator1<GrowFastElementsFlags>(  // --
-      IrOpcode::kMaybeGrowFastElements,                  // opcode
-      Operator::kNoThrow,                                // flags
-      "MaybeGrowFastElements",                           // name
-      4, 1, 1, 1, 1, 0,                                  // counts
-      flags);                                            // parameter
+    GrowFastElementsMode mode) {
+  return new (zone()) Operator1<GrowFastElementsMode>(  // --
+      IrOpcode::kMaybeGrowFastElements,                 // opcode
+      Operator::kNoThrow,                               // flags
+      "MaybeGrowFastElements",                          // name
+      4, 1, 1, 1, 1, 0,                                 // counts
+      mode);                                            // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(

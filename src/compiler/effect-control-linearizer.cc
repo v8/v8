@@ -2673,81 +2673,43 @@ Node* EffectControlLinearizer::LowerEnsureWritableFastElements(Node* node) {
 
 Node* EffectControlLinearizer::LowerMaybeGrowFastElements(Node* node,
                                                           Node* frame_state) {
-  GrowFastElementsFlags flags = GrowFastElementsFlagsOf(node->op());
+  GrowFastElementsMode mode = GrowFastElementsModeOf(node->op());
   Node* object = node->InputAt(0);
   Node* elements = node->InputAt(1);
   Node* index = node->InputAt(2);
-  Node* length = node->InputAt(3);
+  Node* elements_length = node->InputAt(3);
 
   auto done = __ MakeLabel(MachineRepresentation::kTagged);
-  auto done_grow = __ MakeLabel(MachineRepresentation::kTagged);
   auto if_grow = __ MakeDeferredLabel();
   auto if_not_grow = __ MakeLabel();
 
-  Node* check0 = (flags & GrowFastElementsFlag::kHoleyElements)
-                     ? __ Uint32LessThanOrEqual(length, index)
-                     : __ Word32Equal(length, index);
-  __ GotoIfNot(check0, &if_not_grow);
-  {
-    // Load the length of the {elements} backing store.
-    Node* elements_length =
-        __ LoadField(AccessBuilder::ForFixedArrayLength(), elements);
-    elements_length = ChangeSmiToInt32(elements_length);
+  // Check if we need to grow the {elements} backing store.
+  Node* check = __ Uint32LessThan(index, elements_length);
+  __ GotoIfNot(check, &if_grow);
+  __ Goto(&done, elements);
 
-    // Check if we need to grow the {elements} backing store.
-    Node* check1 = __ Uint32LessThan(index, elements_length);
-    __ GotoIfNot(check1, &if_grow);
-    __ Goto(&done_grow, elements);
-
-    __ Bind(&if_grow);
-    // We need to grow the {elements} for {object}.
-    Operator::Properties properties = Operator::kEliminatable;
-    Callable callable =
-        (flags & GrowFastElementsFlag::kDoubleElements)
-            ? Builtins::CallableFor(isolate(),
-                                    Builtins::kGrowFastDoubleElements)
-            : Builtins::CallableFor(isolate(),
-                                    Builtins::kGrowFastSmiOrObjectElements);
-    CallDescriptor::Flags call_flags = CallDescriptor::kNoFlags;
-    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), callable.descriptor(), 0, call_flags,
-        properties);
-    Node* new_object = __ Call(desc, __ HeapConstant(callable.code()), object,
+  __ Bind(&if_grow);
+  // We need to grow the {elements} for {object}.
+  Operator::Properties properties = Operator::kEliminatable;
+  Callable callable =
+      (mode == GrowFastElementsMode::kDoubleElements)
+          ? Builtins::CallableFor(isolate(), Builtins::kGrowFastDoubleElements)
+          : Builtins::CallableFor(isolate(),
+                                  Builtins::kGrowFastSmiOrObjectElements);
+  CallDescriptor::Flags call_flags = CallDescriptor::kNoFlags;
+  CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0, call_flags,
+      properties);
+  Node* new_elements = __ Call(desc, __ HeapConstant(callable.code()), object,
                                ChangeInt32ToSmi(index), __ NoContextConstant());
 
-    // Ensure that we were able to grow the {elements}.
-    // TODO(turbofan): We use kSmi as reason here similar to Crankshaft,
-    // but maybe we should just introduce a reason that makes sense.
-    __ DeoptimizeIf(DeoptimizeReason::kSmi, ObjectIsSmi(new_object),
-                    frame_state);
-    __ Goto(&done_grow, new_object);
+  // Ensure that we were able to grow the {elements}.
+  // TODO(turbofan): We use kSmi as reason here similar to Crankshaft,
+  // but maybe we should just introduce a reason that makes sense.
+  __ DeoptimizeIf(DeoptimizeReason::kSmi, ObjectIsSmi(new_elements),
+                  frame_state);
+  __ Goto(&done, new_elements);
 
-    __ Bind(&done_grow);
-
-    // For JSArray {object}s we also need to update the "length".
-    if (flags & GrowFastElementsFlag::kArrayObject) {
-      // Compute the new {length}.
-      Node* object_length =
-          ChangeInt32ToSmi(__ Int32Add(index, __ Int32Constant(1)));
-
-      // Update the "length" property of the {object}.
-      __ StoreField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS), object,
-                    object_length);
-    }
-    __ Goto(&done, done_grow.PhiAt(0));
-  }
-
-  __ Bind(&if_not_grow);
-  {
-    // In case of non-holey {elements}, we need to verify that the {index} is
-    // in-bounds, otherwise for holey {elements}, the check above already
-    // guards the index (and the operator forces {index} to be unsigned).
-    if (!(flags & GrowFastElementsFlag::kHoleyElements)) {
-      Node* check1 = __ Uint32LessThan(index, length);
-      __ DeoptimizeIfNot(DeoptimizeReason::kOutOfBounds, check1, frame_state);
-    }
-    __ Goto(&done, elements);
-  }
   __ Bind(&done);
   return done.PhiAt(0);
 }

@@ -930,12 +930,11 @@ Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
 
 // ES6 section 22.1.3.18 Array.prototype.push ( )
 Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
-  // We need exactly target, receiver and value parameters.
-  if (node->op()->ValueInputCount() != 3) return NoChange();
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  int const num_values = node->op()->ValueInputCount() - 2;
   Node* receiver = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
-  Node* value = NodeProperties::GetValueInput(node, 2);
   ZoneHandleSet<Map> receiver_maps;
   NodeProperties::InferReceiverMapsResult result =
       NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
@@ -945,6 +944,12 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
   // TODO(turbofan): Relax this to deal with multiple {receiver} maps.
   Handle<Map> receiver_map = receiver_maps[0];
   if (CanInlineArrayResizeOperation(receiver_map)) {
+    // Collect the value inputs to push.
+    std::vector<Node*> values(num_values);
+    for (int i = 0; i < num_values; ++i) {
+      values[i] = NodeProperties::GetValueInput(node, 2 + i);
+    }
+
     // Install code dependencies on the {receiver} prototype maps and the
     // global array protector cell.
     dependencies()->AssumePropertyCell(factory()->array_protector());
@@ -966,22 +971,24 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
       }
     }
 
-    // TODO(turbofan): Perform type checks on the {value}. We are not guaranteed
-    // to learn from these checks in case they fail, as the witness (i.e. the
-    // map check from the LoadIC for a.push) might not be executed in baseline
-    // code (after we stored the value in the builtin and thereby changed the
-    // elements kind of a) before be decide to optimize this function again. We
-    // currently don't have a proper way to deal with this; the proper solution
-    // here is to learn on deopt, i.e. disable Array.prototype.push inlining
-    // for this function.
-    if (IsSmiElementsKind(receiver_map->elements_kind())) {
-      value = effect =
-          graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
-    } else if (IsDoubleElementsKind(receiver_map->elements_kind())) {
-      value = effect =
-          graph()->NewNode(simplified()->CheckNumber(), value, effect, control);
-      // Make sure we do not store signaling NaNs into double arrays.
-      value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+    // TODO(turbofan): Perform type checks on the {values}. We are not
+    // guaranteed to learn from these checks in case they fail, as the witness
+    // (i.e. the map check from the LoadIC for a.push) might not be executed in
+    // baseline code (after we stored the value in the builtin and thereby
+    // changed the elements kind of a) before be decide to optimize this
+    // function again. We currently don't have a proper way to deal with this;
+    // the proper solution here is to learn on deopt, i.e. disable
+    // Array.prototype.push inlining for this function.
+    for (auto& value : values) {
+      if (IsSmiElementsKind(receiver_map->elements_kind())) {
+        value = effect =
+            graph()->NewNode(simplified()->CheckSmi(), value, effect, control);
+      } else if (IsDoubleElementsKind(receiver_map->elements_kind())) {
+        value = effect = graph()->NewNode(simplified()->CheckNumber(), value,
+                                          effect, control);
+        // Make sure we do not store signaling NaNs into double arrays.
+        value = graph()->NewNode(simplified()->NumberSilenceNaN(), value);
+      }
     }
 
     // Load the "length" property of the {receiver}.
@@ -989,33 +996,54 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
         simplified()->LoadField(
             AccessBuilder::ForJSArrayLength(receiver_map->elements_kind())),
         receiver, effect, control);
+    Node* value = length;
 
-    // Load the elements backing store of the {receiver}.
-    Node* elements = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
-        effect, control);
+    // Check if we have any {values} to push.
+    if (num_values > 0) {
+      // Compute the resulting "length" of the {receiver}.
+      Node* new_length = value = graph()->NewNode(
+          simplified()->NumberAdd(), length, jsgraph()->Constant(num_values));
 
-    // TODO(turbofan): Check if we need to grow the {elements} backing store.
-    // This will deopt if we cannot grow the array further, and we currently
-    // don't necessarily learn from it. See the comment on the value type check
-    // above.
-    GrowFastElementsFlags flags = GrowFastElementsFlag::kArrayObject;
-    if (IsDoubleElementsKind(receiver_map->elements_kind())) {
-      flags |= GrowFastElementsFlag::kDoubleElements;
+      // Load the elements backing store of the {receiver}.
+      Node* elements = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForJSObjectElements()),
+          receiver, effect, control);
+      Node* elements_length = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+          elements, effect, control);
+
+      // TODO(turbofan): Check if we need to grow the {elements} backing store.
+      // This will deopt if we cannot grow the array further, and we currently
+      // don't necessarily learn from it. See the comment on the value type
+      // check above.
+      GrowFastElementsMode mode =
+          IsDoubleElementsKind(receiver_map->elements_kind())
+              ? GrowFastElementsMode::kDoubleElements
+              : GrowFastElementsMode::kSmiOrObjectElements;
+      elements = effect = graph()->NewNode(
+          simplified()->MaybeGrowFastElements(mode), receiver, elements,
+          graph()->NewNode(simplified()->NumberAdd(), length,
+                           jsgraph()->Constant(num_values - 1)),
+          elements_length, effect, control);
+
+      // Update the JSArray::length field. Since this is observable,
+      // there must be no other check after this.
+      effect = graph()->NewNode(
+          simplified()->StoreField(
+              AccessBuilder::ForJSArrayLength(receiver_map->elements_kind())),
+          receiver, new_length, effect, control);
+
+      // Append the {values} to the {elements}.
+      for (int i = 0; i < num_values; ++i) {
+        Node* value = values[i];
+        Node* index = graph()->NewNode(simplified()->NumberAdd(), length,
+                                       jsgraph()->Constant(i));
+        effect = graph()->NewNode(
+            simplified()->StoreElement(AccessBuilder::ForFixedArrayElement(
+                receiver_map->elements_kind())),
+            elements, index, value, effect, control);
+      }
     }
-    elements = effect =
-        graph()->NewNode(simplified()->MaybeGrowFastElements(flags), receiver,
-                         elements, length, length, effect, control);
-
-    // Append the value to the {elements}.
-    effect = graph()->NewNode(
-        simplified()->StoreElement(
-            AccessBuilder::ForFixedArrayElement(receiver_map->elements_kind())),
-        elements, length, value, effect, control);
-
-    // Return the new length of the {receiver}.
-    value = graph()->NewNode(simplified()->NumberAdd(), length,
-                             jsgraph()->OneConstant());
 
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);

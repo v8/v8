@@ -2195,13 +2195,8 @@ JSNativeContextSpecialization::BuildElementAccess(
 
     // Check if we might need to grow the {elements} backing store.
     if (IsGrowStoreMode(store_mode)) {
+      // For growing stores we validate the {index} below.
       DCHECK_EQ(AccessMode::kStore, access_mode);
-
-      // Check that the {index} is a valid array index; the actual checking
-      // happens below right before the element store.
-      index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
-                                        jsgraph()->Constant(Smi::kMaxValue),
-                                        effect, control);
     } else {
       // Check that the {index} is in the valid range for the {receiver}.
       index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
@@ -2282,23 +2277,69 @@ JSNativeContextSpecialization::BuildElementAccess(
             graph()->NewNode(simplified()->EnsureWritableFastElements(),
                              receiver, elements, effect, control);
       } else if (IsGrowStoreMode(store_mode)) {
-        // Grow {elements} backing store if necessary. Also updates the
-        // "length" property for JSArray {receiver}s, hence there must
-        // not be any other check after this operation, as the write
-        // to the "length" property is observable.
-        GrowFastElementsFlags flags = GrowFastElementsFlag::kNone;
-        if (receiver_is_jsarray) {
-          flags |= GrowFastElementsFlag::kArrayObject;
-        }
-        if (IsHoleyOrDictionaryElementsKind(elements_kind)) {
-          flags |= GrowFastElementsFlag::kHoleyElements;
-        }
-        if (IsDoubleElementsKind(elements_kind)) {
-          flags |= GrowFastElementsFlag::kDoubleElements;
-        }
+        // Determine the length of the {elements} backing store.
+        Node* elements_length = effect = graph()->NewNode(
+            simplified()->LoadField(AccessBuilder::ForFixedArrayLength()),
+            elements, effect, control);
+
+        // Validate the {index} depending on holeyness:
+        //
+        // For HOLEY_*_ELEMENTS the {index} must not exceed the {elements}
+        // backing store capacity plus the maximum allowed gap, as otherwise
+        // the (potential) backing store growth would normalize and thus
+        // the elements kind of the {receiver} would change to slow mode.
+        //
+        // For PACKED_*_ELEMENTS the {index} must be within the range
+        // [0,length+1[ to be valid. In case {index} equals {length},
+        // the {receiver} will be extended, but kept packed.
+        Node* limit =
+            IsHoleyElementsKind(elements_kind)
+                ? graph()->NewNode(simplified()->NumberAdd(), elements_length,
+                                   jsgraph()->Constant(JSObject::kMaxGap))
+                : graph()->NewNode(simplified()->NumberAdd(), length,
+                                   jsgraph()->OneConstant());
+        index = effect = graph()->NewNode(simplified()->CheckBounds(), index,
+                                          limit, effect, control);
+
+        // Grow {elements} backing store if necessary.
+        GrowFastElementsMode mode =
+            IsDoubleElementsKind(elements_kind)
+                ? GrowFastElementsMode::kDoubleElements
+                : GrowFastElementsMode::kSmiOrObjectElements;
         elements = effect = graph()->NewNode(
-            simplified()->MaybeGrowFastElements(flags), receiver, elements,
-            index, length, effect, control);
+            simplified()->MaybeGrowFastElements(mode), receiver, elements,
+            index, elements_length, effect, control);
+
+        // Also update the "length" property if {receiver} is a JSArray.
+        if (receiver_is_jsarray) {
+          Node* check =
+              graph()->NewNode(simplified()->NumberLessThan(), index, length);
+          Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+          Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+          Node* etrue = effect;
+          {
+            // We don't need to do anything, the {index} is within
+            // the valid bounds for the JSArray {receiver}.
+          }
+
+          Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+          Node* efalse = effect;
+          {
+            // Update the JSArray::length field. Since this is observable,
+            // there must be no other check after this.
+            Node* new_length = graph()->NewNode(
+                simplified()->NumberAdd(), index, jsgraph()->OneConstant());
+            efalse = graph()->NewNode(
+                simplified()->StoreField(
+                    AccessBuilder::ForJSArrayLength(elements_kind)),
+                receiver, new_length, efalse, if_false);
+          }
+
+          control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+          effect =
+              graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+        }
       }
 
       // Perform the actual element access.

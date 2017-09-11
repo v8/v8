@@ -741,12 +741,12 @@ Reduction LoadElimination::ReduceEnsureWritableFastElements(Node* node) {
 }
 
 Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
-  GrowFastElementsFlags flags = GrowFastElementsFlagsOf(node->op());
+  GrowFastElementsMode mode = GrowFastElementsModeOf(node->op());
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  if (flags & GrowFastElementsFlag::kDoubleElements) {
+  if (mode == GrowFastElementsMode::kDoubleElements) {
     // We know that the resulting elements have the fixed double array map.
     state = state->AddMaps(
         node, ZoneHandleSet<Map>(factory()->fixed_double_array_map()), zone());
@@ -754,11 +754,6 @@ Reduction LoadElimination::ReduceMaybeGrowFastElements(Node* node) {
     // We know that the resulting elements have the fixed array map.
     state = state->AddMaps(
         node, ZoneHandleSet<Map>(factory()->fixed_array_map()), zone());
-  }
-  if (flags & GrowFastElementsFlag::kArrayObject) {
-    // Kill the previous Array::length on {object}.
-    state = state->KillField(object, FieldIndexOf(JSArray::kLengthOffset),
-                             factory()->length_string(), zone());
   }
   // Kill the previous elements on {object}.
   state = state->KillField(object, FieldIndexOf(JSObject::kElementsOffset),
@@ -1130,17 +1125,10 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             break;
           }
           case IrOpcode::kMaybeGrowFastElements: {
-            GrowFastElementsFlags flags =
-                GrowFastElementsFlagsOf(current->op());
             Node* const object = NodeProperties::GetValueInput(current, 0);
             state = state->KillField(object,
                                      FieldIndexOf(JSObject::kElementsOffset),
                                      MaybeHandle<Name>(), zone());
-            if (flags & GrowFastElementsFlag::kArrayObject) {
-              state =
-                  state->KillField(object, FieldIndexOf(JSArray::kLengthOffset),
-                                   factory()->length_string(), zone());
-            }
             break;
           }
           case IrOpcode::kTransitionElementsKind: {
