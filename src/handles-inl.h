@@ -5,7 +5,6 @@
 #ifndef V8_HANDLES_INL_H_
 #define V8_HANDLES_INL_H_
 
-#include "src/api.h"
 #include "src/handles.h"
 #include "src/isolate.h"
 

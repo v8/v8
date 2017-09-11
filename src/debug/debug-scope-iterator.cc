@@ -4,6 +4,7 @@
 
 #include "src/debug/debug-scope-iterator.h"
 
+#include "src/api.h"
 #include "src/debug/debug.h"
 #include "src/debug/liveedit.h"
 #include "src/frames-inl.h"

@@ -4,6 +4,7 @@
 
 #include "src/compiler/js-call-reducer.h"
 
+#include "src/api.h"
 #include "src/code-factory.h"
 #include "src/code-stubs.h"
 #include "src/compilation-dependencies.h"

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <memory>
 
+#include "src/api.h"
 #include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
 #include "src/ast/ast-numbering.h"

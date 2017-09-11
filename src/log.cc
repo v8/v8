@@ -8,6 +8,7 @@
 #include <memory>
 #include <sstream>
 
+#include "src/api.h"
 #include "src/bailout-reason.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"

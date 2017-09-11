@@ -7,6 +7,7 @@
 #include <stdint.h>
 
 #include "include/v8.h"
+#include "src/api.h"
 #include "src/factory.h"
 #include "src/isolate-inl.h"
 #include "src/isolate.h"

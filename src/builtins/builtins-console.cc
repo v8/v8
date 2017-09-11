@@ -5,6 +5,7 @@
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
 
+#include "src/api.h"
 #include "src/debug/interface-types.h"
 #include "src/objects-inl.h"
 

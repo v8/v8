@@ -7,6 +7,7 @@
 #include <type_traits>
 
 #include "include/v8-value-serializer-version.h"
+#include "src/api.h"
 #include "src/base/logging.h"
 #include "src/conversions.h"
 #include "src/factory.h"

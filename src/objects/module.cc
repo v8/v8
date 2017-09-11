@@ -8,6 +8,7 @@
 #include "src/objects/module.h"
 
 #include "src/accessors.h"
+#include "src/api.h"
 #include "src/ast/modules.h"
 #include "src/objects-inl.h"
 

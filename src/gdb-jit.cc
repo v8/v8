@@ -7,6 +7,7 @@
 #include <memory>
 #include <vector>
 
+#include "src/api.h"
 #include "src/base/bits.h"
 #include "src/base/platform/platform.h"
 #include "src/bootstrapper.h"

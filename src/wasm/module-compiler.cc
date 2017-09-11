@@ -6,6 +6,7 @@
 
 #include <atomic>
 
+#include "src/api.h"
 #include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
 #include "src/code-stubs.h"

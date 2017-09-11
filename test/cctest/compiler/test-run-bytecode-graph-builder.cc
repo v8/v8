@@ -4,6 +4,7 @@
 
 #include <utility>
 
+#include "src/api.h"
 #include "src/compilation-info.h"
 #include "src/compiler/pipeline.h"
 #include "src/debug/debug-interface.h"

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "src/api.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/version.h"

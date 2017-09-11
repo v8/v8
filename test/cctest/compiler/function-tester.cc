@@ -4,6 +4,7 @@
 
 #include "test/cctest/compiler/function-tester.h"
 
+#include "src/api.h"
 #include "src/ast/ast-numbering.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"

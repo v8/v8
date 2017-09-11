@@ -5,6 +5,7 @@
 #include "src/compiler/js-native-context-specialization.h"
 
 #include "src/accessors.h"
+#include "src/api.h"
 #include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
