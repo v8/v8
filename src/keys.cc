@@ -457,12 +457,12 @@ namespace {
 
 enum IndexedOrNamed { kIndexed, kNamed };
 
-template <IndexedOrNamed type>
 void FilterForEnumerableProperties(Handle<JSReceiver> receiver,
                                    Handle<JSObject> object,
                                    Handle<InterceptorInfo> interceptor,
                                    KeyAccumulator* accumulator,
-                                   Handle<JSObject> result) {
+                                   Handle<JSObject> result,
+                                   IndexedOrNamed type) {
   DCHECK(result->IsJSArray() || result->HasSloppyArgumentsElements());
   ElementsAccessor* accessor = result->GetElementsAccessor();
 
@@ -500,30 +500,41 @@ void FilterForEnumerableProperties(Handle<JSReceiver> receiver,
 }
 
 // Returns |true| on success, |nothing| on exception.
-template <class Callback, IndexedOrNamed type>
 Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
                                            Handle<JSObject> object,
                                            Handle<InterceptorInfo> interceptor,
-                                           KeyAccumulator* accumulator) {
+                                           KeyAccumulator* accumulator,
+                                           IndexedOrNamed type) {
   Isolate* isolate = accumulator->isolate();
   PropertyCallbackArguments enum_args(isolate, interceptor->data(), *receiver,
                                       *object, Object::DONT_THROW);
 
   Handle<JSObject> result;
   if (!interceptor->enumerator()->IsUndefined(isolate)) {
-    Callback enum_fun = v8::ToCData<Callback>(interceptor->enumerator());
-    const char* log_tag = type == kIndexed ? "interceptor-indexed-enum"
-                                           : "interceptor-named-enum";
-    LOG(isolate, ApiObjectAccess(log_tag, *object));
-    result = enum_args.Call(enum_fun);
+    if (type == kIndexed) {
+      v8::IndexedPropertyEnumeratorCallback enum_fun =
+          v8::ToCData<v8::IndexedPropertyEnumeratorCallback>(
+              interceptor->enumerator());
+      const char* log_tag = "interceptor-indexed-enum";
+      LOG(isolate, ApiObjectAccess(log_tag, *object));
+      result = enum_args.Call(enum_fun);
+    } else {
+      DCHECK(type == kNamed);
+      v8::GenericNamedPropertyEnumeratorCallback enum_fun =
+          v8::ToCData<v8::GenericNamedPropertyEnumeratorCallback>(
+              interceptor->enumerator());
+      const char* log_tag = "interceptor-named-enum";
+      LOG(isolate, ApiObjectAccess(log_tag, *object));
+      result = enum_args.Call(enum_fun);
+    }
   }
   RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
   if (result.is_null()) return Just(true);
 
   if ((accumulator->filter() & ONLY_ENUMERABLE) &&
       !interceptor->query()->IsUndefined(isolate)) {
-    FilterForEnumerableProperties<type>(receiver, object, interceptor,
-                                        accumulator, result);
+    FilterForEnumerableProperties(receiver, object, interceptor, accumulator,
+                                  result, type);
   } else {
     accumulator->AddKeys(
         result, type == kIndexed ? CONVERT_TO_ARRAY_INDEX : DO_NOT_CONVERT);
@@ -531,10 +542,10 @@ Maybe<bool> CollectInterceptorKeysInternal(Handle<JSReceiver> receiver,
   return Just(true);
 }
 
-template <class Callback, IndexedOrNamed type>
 Maybe<bool> CollectInterceptorKeys(Handle<JSReceiver> receiver,
                                    Handle<JSObject> object,
-                                   KeyAccumulator* accumulator) {
+                                   KeyAccumulator* accumulator,
+                                   IndexedOrNamed type) {
   Isolate* isolate = accumulator->isolate();
   if (type == kIndexed) {
     if (!object->HasIndexedInterceptor()) return Just(true);
@@ -549,8 +560,8 @@ Maybe<bool> CollectInterceptorKeys(Handle<JSReceiver> receiver,
       !interceptor->all_can_read()) {
     return Just(true);
   }
-  return CollectInterceptorKeysInternal<Callback, type>(
-      receiver, object, interceptor, accumulator);
+  return CollectInterceptorKeysInternal(receiver, object, interceptor,
+                                        accumulator, type);
 }
 
 }  // namespace
@@ -562,8 +573,7 @@ Maybe<bool> KeyAccumulator::CollectOwnElementIndices(
   ElementsAccessor* accessor = object->GetElementsAccessor();
   accessor->CollectElementIndices(object, this);
 
-  return CollectInterceptorKeys<v8::IndexedPropertyEnumeratorCallback,
-                                kIndexed>(receiver, object, this);
+  return CollectInterceptorKeys(receiver, object, this, kIndexed);
 }
 
 namespace {
@@ -680,29 +690,25 @@ Maybe<bool> KeyAccumulator::CollectOwnPropertyNames(Handle<JSReceiver> receiver,
     }
   }
   // Add the property keys from the interceptor.
-  return CollectInterceptorKeys<v8::GenericNamedPropertyEnumeratorCallback,
-                                kNamed>(receiver, object, this);
+  return CollectInterceptorKeys(receiver, object, this, kNamed);
 }
 
 Maybe<bool> KeyAccumulator::CollectAccessCheckInterceptorKeys(
     Handle<AccessCheckInfo> access_check_info, Handle<JSReceiver> receiver,
     Handle<JSObject> object) {
+  MAYBE_RETURN((CollectInterceptorKeysInternal(
+                   receiver, object,
+                   handle(InterceptorInfo::cast(
+                              access_check_info->indexed_interceptor()),
+                          isolate_),
+                   this, kIndexed)),
+               Nothing<bool>());
   MAYBE_RETURN(
-      (CollectInterceptorKeysInternal<v8::IndexedPropertyEnumeratorCallback,
-                                      kIndexed>(
-          receiver, object,
-          handle(
-              InterceptorInfo::cast(access_check_info->indexed_interceptor()),
-              isolate_),
-          this)),
-      Nothing<bool>());
-  MAYBE_RETURN(
-      (CollectInterceptorKeysInternal<
-          v8::GenericNamedPropertyEnumeratorCallback, kNamed>(
+      (CollectInterceptorKeysInternal(
           receiver, object,
           handle(InterceptorInfo::cast(access_check_info->named_interceptor()),
                  isolate_),
-          this)),
+          this, kNamed)),
       Nothing<bool>());
   return Just(true);
 }
