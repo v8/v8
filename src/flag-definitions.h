@@ -193,7 +193,8 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_array_prototype_values, "harmony Array.prototype.values") \
   V(harmony_function_sent, "harmony function.sent")                   \
   V(harmony_do_expressions, "harmony do-expressions")                 \
-  V(harmony_class_fields, "harmony public fields in class literals")
+  V(harmony_class_fields, "harmony public fields in class literals")  \
+  V(harmony_bigint, "harmony arbitrary precision integers")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_INPROGRESS(V)                    \

@@ -2468,6 +2468,19 @@ AllocationResult Heap::AllocateHeapNumber(MutableMode mode,
   return result;
 }
 
+AllocationResult Heap::AllocateBigInt(PretenureFlag pretenure) {
+  STATIC_ASSERT(BigInt::kSize <= kMaxRegularHeapObjectSize);
+
+  HeapObject* result = nullptr;
+  {
+    AllocationSpace space = SelectSpace(pretenure);
+    AllocationResult allocation = AllocateRaw(BigInt::kSize, space);
+    if (!allocation.To(&result)) return allocation;
+  }
+  result->set_map_after_allocation(bigint_map(), SKIP_WRITE_BARRIER);
+  return result;
+}
+
 AllocationResult Heap::AllocateCell(Object* value) {
   int size = Cell::kSize;
   STATIC_ASSERT(Cell::kSize <= kMaxRegularHeapObjectSize);

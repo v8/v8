@@ -13,6 +13,7 @@
 #include "src/layout-descriptor.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
+#include "src/objects/bigint-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module.h"
@@ -71,6 +72,9 @@ void HeapObject::HeapObjectVerify() {
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberVerify();
+      break;
+    case BIGINT_TYPE:
+      BigInt::cast(this)->BigIntVerify();
       break;
     case HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE:
@@ -1208,6 +1212,8 @@ void AsyncGeneratorRequest::AsyncGeneratorRequestVerify() {
   VerifyPointer(next());
   next()->ObjectVerify();
 }
+
+void BigInt::BigIntVerify() { CHECK(IsBigInt()); }
 
 void JSModuleNamespace::JSModuleNamespaceVerify() {
   CHECK(IsJSModuleNamespace());

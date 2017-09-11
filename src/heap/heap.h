@@ -111,6 +111,7 @@ using v8::MemoryPressureLevel;
   V(Map, one_closure_cell_map, OneClosureCellMap)                              \
   V(Map, many_closures_cell_map, ManyClosuresCellMap)                          \
   V(Map, property_array_map, PropertyArrayMap)                                 \
+  V(Map, bigint_map, BigIntMap)                                                \
   /* String maps */                                                            \
   V(Map, native_source_string_map, NativeSourceStringMap)                      \
   V(Map, string_map, StringMap)                                                \
@@ -265,6 +266,7 @@ using v8::MemoryPressureLevel;
   V(ArrayBufferNeuteringProtector)      \
   V(ArrayIteratorProtector)             \
   V(ArrayProtector)                     \
+  V(BigIntMap)                          \
   V(BlockContextMap)                    \
   V(BooleanMap)                         \
   V(ByteArrayMap)                       \
@@ -1979,6 +1981,8 @@ class Heap {
   // Allocates a HeapNumber from value.
   MUST_USE_RESULT AllocationResult AllocateHeapNumber(
       MutableMode mode = IMMUTABLE, PretenureFlag pretenure = NOT_TENURED);
+
+  MUST_USE_RESULT AllocationResult AllocateBigInt(PretenureFlag pretenure);
 
   // Allocates a byte array of the specified length
   MUST_USE_RESULT AllocationResult

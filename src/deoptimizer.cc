@@ -3752,6 +3752,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case SCRIPT_TYPE:
     case CODE_TYPE:
     case PROPERTY_CELL_TYPE:
+    case BIGINT_TYPE:
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
     case FREE_SPACE_TYPE:

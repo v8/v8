@@ -126,6 +126,7 @@
 //             - ExternalTwoByteInternalizedString
 //       - Symbol
 //     - HeapNumber
+//     - BigInt
 //     - Cell
 //     - PropertyCell
 //     - PropertyArray
@@ -324,6 +325,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
                                                                 \
   V(SYMBOL_TYPE)                                                \
   V(HEAP_NUMBER_TYPE)                                           \
+  V(BIGINT_TYPE)                                                \
   V(ODDBALL_TYPE)                                               \
                                                                 \
   V(MAP_TYPE)                                                   \
@@ -673,6 +675,7 @@ enum InstanceType : uint8_t {
 
   // Other primitives (cannot contain non-map-word pointers to heap objects).
   HEAP_NUMBER_TYPE,
+  BIGINT_TYPE,
   ODDBALL_TYPE,  // LAST_PRIMITIVE_TYPE
 
   // Objects allocated in their own spaces (never in new space).
@@ -971,6 +974,7 @@ template <class C> inline bool Is(Object* obj);
   V(AbstractCode)                         \
   V(AccessCheckNeeded)                    \
   V(ArrayList)                            \
+  V(BigInt)                               \
   V(BoilerplateDescription)               \
   V(Boolean)                              \
   V(BreakPoint)                           \

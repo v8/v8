@@ -936,6 +936,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsString(Node* object);
   Node* IsSymbolInstanceType(Node* instance_type);
   Node* IsSymbol(Node* object);
+  Node* IsBigIntInstanceType(Node* instance_type);
+  Node* IsBigInt(Node* object);
   Node* IsUnseededNumberDictionary(Node* object);
   Node* IsWeakCell(Node* object);
   Node* IsUndetectableMap(Node* map);

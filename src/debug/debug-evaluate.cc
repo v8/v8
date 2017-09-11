@@ -289,6 +289,9 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(StringTrim)                      \
   V(SubString)                       \
   V(RegExpInternalReplace)           \
+  /* BigInts */                      \
+  V(BigIntEqual)                     \
+  V(BigIntToBoolean)                 \
   /* Literals */                     \
   V(CreateArrayLiteral)              \
   V(CreateObjectLiteral)             \

@@ -255,6 +255,9 @@ MaybeHandle<String> Object::ConvertToString(Isolate* isolate,
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kSymbolToString),
                       String);
     }
+    if (input->IsBigInt()) {
+      return BigInt::ToString(Handle<BigInt>::cast(input));
+    }
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, input, JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
                                                 ToPrimitiveHint::kString),
@@ -2306,8 +2309,6 @@ Map* Object::GetPrototypeChainRootMap(Isolate* isolate) const {
     return native_context->number_function()->initial_map();
   }
 
-  // The object is either a number, a string, a symbol, a boolean, a real JS
-  // object, or a Harmony proxy.
   const HeapObject* heap_object = HeapObject::cast(this);
   return heap_object->map()->GetPrototypeChainRootMap(isolate);
 }
@@ -2356,8 +2357,11 @@ Object* GetSimpleHash(Object* object) {
     uint32_t hash = Oddball::cast(object)->to_string()->Hash();
     return Smi::FromInt(hash);
   }
+  if (object->IsBigInt()) {
+    uint32_t hash = ComputeIntegerHash(BigInt::cast(object)->value());
+    return Smi::FromInt(hash & Smi::kMaxValue);
+  }
   DCHECK(object->IsJSReceiver());
-  // Simply return the receiver as it is guaranteed to not be a SMI.
   return object;
 }
 
@@ -2407,6 +2411,9 @@ bool Object::SameValue(Object* other) {
   }
   if (IsString() && other->IsString()) {
     return String::cast(this)->Equals(String::cast(other));
+  }
+  if (IsBigInt() && other->IsBigInt()) {
+    return BigInt::cast(this)->Equals(BigInt::cast(other));
   }
   return false;
 }
@@ -3161,6 +3168,7 @@ VisitorId Map::GetVisitorId(Map* map) {
     case FOREIGN_TYPE:
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
+    case BIGINT_TYPE:
       return kVisitDataObject;
 
     case FIXED_UINT8_ARRAY_TYPE:
@@ -12923,6 +12931,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
     case JS_WEAK_SET_TYPE:
       return true;
 
+    case BIGINT_TYPE:
     case BYTECODE_ARRAY_TYPE:
     case BYTE_ARRAY_TYPE:
     case CELL_TYPE:

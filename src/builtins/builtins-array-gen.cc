@@ -1819,8 +1819,8 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
   {
     VARIABLE(search_num, MachineRepresentation::kFloat64);
     Label ident_loop(this, &index_var), heap_num_loop(this, &search_num),
-        string_loop(this), undef_loop(this, &index_var), not_smi(this),
-        not_heap_num(this);
+        string_loop(this), bigint_loop(this, &index_var),
+        undef_loop(this, &index_var), not_smi(this), not_heap_num(this);
 
     GotoIfNot(TaggedIsSmi(search_element), &not_smi);
     search_num.Bind(SmiToFloat64(CAST(search_element)));
@@ -1838,6 +1838,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
     BIND(&not_heap_num);
     Node* search_type = LoadMapInstanceType(map);
     GotoIf(IsStringInstanceType(search_type), &string_loop);
+    GotoIf(IsBigIntInstanceType(search_type), &bigint_loop);
     Goto(&ident_loop);
 
     BIND(&ident_loop);
@@ -1941,6 +1942,18 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
       BIND(&continue_loop);
       Increment(&index_var);
       Goto(&next_iteration);
+    }
+
+    BIND(&bigint_loop);
+    {
+      GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
+                &return_not_found);
+      Node* element_k = LoadFixedArrayElement(elements, index_var.value());
+      TNode<Object> result = CallRuntime(Runtime::kBigIntEqual, context,
+                                         search_element, element_k);
+      GotoIf(WordEqual(result, TrueConstant()), &return_found);
+      Increment(&index_var);
+      Goto(&bigint_loop);
     }
   }
 

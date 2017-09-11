@@ -19,6 +19,7 @@ namespace v8 {
 namespace internal {
 
 class AliasedArgumentsEntry;
+class BigInt;
 class BreakPointInfo;
 class BreakPoint;
 class BoilerplateDescription;
@@ -472,6 +473,8 @@ class V8_EXPORT_PRIVATE Factory final {
   // Creates heap number object with not yet set value field.
   Handle<HeapNumber> NewHeapNumber(MutableMode mode,
                                    PretenureFlag pretenure = NOT_TENURED);
+
+  Handle<BigInt> NewBigInt(PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSWeakMap> NewJSWeakMap();
 

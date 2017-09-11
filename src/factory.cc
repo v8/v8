@@ -14,6 +14,7 @@
 #include "src/conversions.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
+#include "src/objects/bigint-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/module.h"
@@ -1393,6 +1394,11 @@ Handle<HeapNumber> Factory::NewHeapNumber(MutableMode mode,
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateHeapNumber(mode, pretenure),
                      HeapNumber);
+}
+
+Handle<BigInt> Factory::NewBigInt(PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateBigInt(pretenure),
+                     BigInt);
 }
 
 Handle<Object> Factory::NewError(Handle<JSFunction> constructor,

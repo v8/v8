@@ -84,6 +84,17 @@ class CollectionsBuiltinsAssembler : public CodeStubAssembler {
                                                  Label* entry_found,
                                                  Label* not_found);
 
+  // Specialization for bigints.
+  // The {result} variable will contain the entry index if the key was found,
+  // or the hash code otherwise.
+  void SameValueZeroBigInt(Node* key, Node* candidate_key, Label* if_same,
+                           Label* if_not_same);
+  template <typename CollectionType>
+  void FindOrderedHashTableEntryForBigIntKey(Node* context, Node* table,
+                                             Node* key, Variable* result,
+                                             Label* entry_found,
+                                             Label* not_found);
+
   // Specialization for string.
   // The {result} variable will contain the entry index if the key was found,
   // or the hash code otherwise.
@@ -559,6 +570,21 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForHeapNumberKey(
 }
 
 template <typename CollectionType>
+void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForBigIntKey(
+    Node* context, Node* table, Node* key, Variable* result, Label* entry_found,
+    Label* not_found) {
+  Node* hash = CallGetHashRaw(key);
+  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
+  result->Bind(hash);
+  FindOrderedHashTableEntry<CollectionType>(
+      table, hash,
+      [&](Node* other_key, Label* if_same, Label* if_not_same) {
+        SameValueZeroBigInt(key, other_key, if_same, if_not_same);
+      },
+      result, entry_found, not_found);
+}
+
+template <typename CollectionType>
 void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForOtherKey(
     Node* context, Node* table, Node* key, Variable* result, Label* entry_found,
     Label* not_found) {
@@ -600,6 +626,20 @@ void CollectionsBuiltinsAssembler::SameValueZeroString(Node* context,
   GotoIfNot(IsString(candidate_key), if_not_same);
 
   Branch(WordEqual(CallBuiltin(Builtins::kStringEqual, context, key_string,
+                               candidate_key),
+                   TrueConstant()),
+         if_same, if_not_same);
+}
+
+void CollectionsBuiltinsAssembler::SameValueZeroBigInt(Node* key,
+                                                       Node* candidate_key,
+                                                       Label* if_same,
+                                                       Label* if_not_same) {
+  CSA_ASSERT(this, IsBigInt(key));
+  GotoIf(TaggedIsSmi(candidate_key), if_not_same);
+  GotoIfNot(IsBigInt(candidate_key), if_not_same);
+
+  Branch(WordEqual(CallRuntime(Runtime::kBigIntEqual, NoContextConstant(), key,
                                candidate_key),
                    TrueConstant()),
          if_same, if_not_same);
@@ -1409,11 +1449,12 @@ TF_BUILTIN(SetHas, CollectionsBuiltinsAssembler) {
            IntPtrConstant(0));
   VARIABLE(result, MachineRepresentation::kTaggedSigned, IntPtrConstant(0));
   Label if_key_smi(this), if_key_string(this), if_key_heap_number(this),
-      entry_found(this), not_found(this), done(this);
+      if_key_bigint(this), entry_found(this), not_found(this), done(this);
 
   GotoIf(TaggedIsSmi(key), &if_key_smi);
   GotoIf(IsString(key), &if_key_string);
   GotoIf(IsHeapNumber(key), &if_key_heap_number);
+  GotoIf(IsBigInt(key), &if_key_bigint);
 
   FindOrderedHashTableEntryForOtherKey<OrderedHashSet>(
       context, table, key, &entry_start_position, &entry_found, &not_found);
@@ -1433,6 +1474,12 @@ TF_BUILTIN(SetHas, CollectionsBuiltinsAssembler) {
   BIND(&if_key_heap_number);
   {
     FindOrderedHashTableEntryForHeapNumberKey<OrderedHashSet>(
+        context, table, key, &entry_start_position, &entry_found, &not_found);
+  }
+
+  BIND(&if_key_bigint);
+  {
+    FindOrderedHashTableEntryForBigIntKey<OrderedHashSet>(
         context, table, key, &entry_start_position, &entry_found, &not_found);
   }
 
@@ -1596,11 +1643,13 @@ template <typename CollectionType>
 void CollectionsBuiltinsAssembler::TryLookupOrderedHashTableIndex(
     Node* const table, Node* const key, Node* const context, Variable* result,
     Label* if_entry_found, Label* if_not_found) {
-  Label if_key_smi(this), if_key_string(this), if_key_heap_number(this);
+  Label if_key_smi(this), if_key_string(this), if_key_heap_number(this),
+      if_key_bigint(this);
 
   GotoIf(TaggedIsSmi(key), &if_key_smi);
   GotoIf(IsString(key), &if_key_string);
   GotoIf(IsHeapNumber(key), &if_key_heap_number);
+  GotoIf(IsBigInt(key), &if_key_bigint);
 
   FindOrderedHashTableEntryForOtherKey<CollectionType>(
       context, table, key, result, if_entry_found, if_not_found);
@@ -1620,6 +1669,12 @@ void CollectionsBuiltinsAssembler::TryLookupOrderedHashTableIndex(
   BIND(&if_key_heap_number);
   {
     FindOrderedHashTableEntryForHeapNumberKey<CollectionType>(
+        context, table, key, result, if_entry_found, if_not_found);
+  }
+
+  BIND(&if_key_bigint);
+  {
+    FindOrderedHashTableEntryForBigIntKey<CollectionType>(
         context, table, key, result, if_entry_found, if_not_found);
   }
 }

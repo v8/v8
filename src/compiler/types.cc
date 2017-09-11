@@ -276,6 +276,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
     case CELL_TYPE:
+    case BIGINT_TYPE:
       return kOtherInternal;
 
     // Remaining instance types are unsupported for now. If any of them do

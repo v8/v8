@@ -522,6 +522,7 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
     case FREE_SPACE_TYPE:
+    case BIGINT_TYPE:
       return ReturnType();
 
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
