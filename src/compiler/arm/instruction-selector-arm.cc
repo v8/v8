@@ -866,11 +866,18 @@ void InstructionSelector::VisitWord32And(Node* node) {
         uint32_t const shift = mshr.right().Value();
 
         if (((shift == 8) || (shift == 16) || (shift == 24)) &&
-            ((value == 0xff) || (value == 0xffff))) {
-          // Merge SHR into AND by emitting a UXTB or UXTH instruction with a
+            (value == 0xff)) {
+          // Merge SHR into AND by emitting a UXTB instruction with a
           // bytewise rotation.
-          Emit((value == 0xff) ? kArmUxtb : kArmUxth,
-               g.DefineAsRegister(m.node()), g.UseRegister(mshr.left().node()),
+          Emit(kArmUxtb, g.DefineAsRegister(m.node()),
+               g.UseRegister(mshr.left().node()),
+               g.TempImmediate(mshr.right().Value()));
+          return;
+        } else if (((shift == 8) || (shift == 16)) && (value == 0xffff)) {
+          // Merge SHR into AND by emitting a UXTH instruction with a
+          // bytewise rotation.
+          Emit(kArmUxth, g.DefineAsRegister(m.node()),
+               g.UseRegister(mshr.left().node()),
                g.TempImmediate(mshr.right().Value()));
           return;
         } else if (IsSupported(ARMv7) && (width != 0) &&
