@@ -286,7 +286,6 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
   // The call descriptor is initialized when the function is compiled.
   CallDescriptor* descriptor_;
   TestingModuleBuilder* builder_;
-  Vector<const char> debug_name_;
   WasmFunction* function_;
   LocalDeclEncoder local_decls;
   compiler::SourcePositionTable source_position_table_;
