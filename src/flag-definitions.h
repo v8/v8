@@ -197,17 +197,17 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_bigint, "harmony arbitrary precision integers")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V)                    \
-  HARMONY_INPROGRESS_BASE(V)                     \
-  V(harmony_number_format_to_parts,              \
-    "Intl.NumberFormat.prototype.formatToParts") \
-  V(harmony_plural_rules, "Intl.PluralRules")
+#define HARMONY_INPROGRESS(V)       \
+  HARMONY_INPROGRESS_BASE(V)        \
+  V(harmony_number_format_to_parts, \
+    "Intl.NumberFormat.prototype."  \
+    "formatToParts")
 #else
 #define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
 #endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED(V)                                               \
+#define HARMONY_STAGED_BASE(V)                                          \
   V(harmony_function_tostring, "harmony Function.prototype.toString")   \
   V(harmony_regexp_named_captures, "harmony regexp named captures")     \
   V(harmony_regexp_property, "harmony Unicode regexp property classes") \
@@ -217,6 +217,14 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_dynamic_import, "harmony dynamic import")                   \
   V(harmony_async_iteration, "harmony async iteration")                 \
   V(harmony_promise_finally, "harmony Promise.prototype.finally")
+
+#ifdef V8_INTL_SUPPORT
+#define HARMONY_STAGED(V) \
+  HARMONY_STAGED_BASE(V)  \
+  V(harmony_plural_rules, "Intl.PluralRules")
+#else
+#define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
+#endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING(V)                                              \
