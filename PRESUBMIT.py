@@ -279,6 +279,7 @@ def _CommonChecks(input_api, output_api):
       _CheckNoInlineHeaderIncludesInNormalHeaders(input_api, output_api))
   results.extend(_CheckMissingFiles(input_api, output_api))
   results.extend(_CheckJSONFiles(input_api, output_api))
+  results.extend(_CheckMacroUndefs(input_api, output_api))
   return results
 
 
@@ -335,6 +336,66 @@ def _CheckJSONFiles(input_api, output_api):
             'JSON validation failed for %s. Error:\n%s' % (f.LocalPath(), e))
 
   return [output_api.PresubmitError(r) for r in results]
+
+
+def _CheckMacroUndefs(input_api, output_api):
+  """
+  Checks that each #define in a .cc file is eventually followed by an #undef.
+
+  TODO(clemensh): This check should eventually be enabled for all cc files via
+  tools/presubmit.py (https://crbug.com/v8/6811).
+  """
+  def FilterFile(affected_file):
+    # Skip header files, as they often define type lists which are used in
+    # other files.
+    white_list = (r'.+\.cc',r'.+\.cpp',r'.+\.c')
+    return input_api.FilterSourceFile(affected_file, white_list=white_list)
+
+  def TouchesMacros(f):
+    for line in f.GenerateScmDiff().splitlines():
+      if not line.startswith('+') and not line.startswith('-'):
+        continue
+      if define_pattern.match(line[1:]) or undef_pattern.match(line[1:]):
+        return True
+    return False
+
+  define_pattern = input_api.re.compile(r'#define (\w+)')
+  undef_pattern = input_api.re.compile(r'#undef (\w+)')
+  errors = []
+  for f in input_api.AffectedFiles(
+      file_filter=FilterFile, include_deletes=False):
+    if not TouchesMacros(f):
+      continue
+
+    defined_macros = dict()
+    with open(f.LocalPath()) as fh:
+      line_nr = 0
+      for line in fh:
+        line_nr += 1
+
+        define_match = define_pattern.match(line)
+        if define_match:
+          name = define_match.group(1)
+          defined_macros[name] = line_nr
+
+        undef_match = undef_pattern.match(line)
+        if undef_match:
+          name = undef_match.group(1)
+          if not name in defined_macros:
+            errors.append('{}:{}: Macro named \'{}\' was not defined before.'
+                          .format(f.LocalPath(), line_nr, name))
+          else:
+            del defined_macros[name]
+    for name, line_nr in sorted(defined_macros.items(), key=lambda e: e[1]):
+      errors.append('{}:{}: Macro missing #undef: {}'
+                    .format(f.LocalPath(), line_nr, name))
+
+  if errors:
+    return [output_api.PresubmitPromptOrNotify(
+        'Detected mismatches in #define / #undef in the file(s) where you '
+        'modified preprocessor macros.',
+        errors)]
+  return []
 
 
 def CheckChangeOnUpload(input_api, output_api):
