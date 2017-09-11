@@ -3005,11 +3005,10 @@ typename Traits::ElementType FixedTypedArray<Traits>::get_scalar(int index) {
   // ThreadSanitizer will catch these racy accesses and warn about them, so we
   // disable TSAN for these reads and writes using annotations.
   //
-  // The access is marked as volatile so the reads/writes will not be elided or
-  // duplicated. We don't use relaxed atomics here, as it is not a requirement
-  // of the JavaScript memory model to have tear-free reads of overlapping
-  // accesses, and using relaxed atomics may introduce overhead.
-  auto* ptr = reinterpret_cast<volatile ElementType*>(DataPtr());
+  // We don't use relaxed atomics here, as it is not a requirement of the
+  // JavaScript memory model to have tear-free reads of overlapping accesses,
+  // and using relaxed atomics may introduce overhead.
+  auto* ptr = reinterpret_cast<ElementType*>(DataPtr());
   TSAN_ANNOTATE_IGNORE_READS_BEGIN;
   auto result = ptr[index];
   TSAN_ANNOTATE_IGNORE_READS_END;
@@ -3021,7 +3020,7 @@ template <class Traits>
 void FixedTypedArray<Traits>::set(int index, ElementType value) {
   CHECK((index >= 0) && (index < this->length()));
   // See the comment in FixedTypedArray<Traits>::get_scalar.
-  auto* ptr = reinterpret_cast<volatile ElementType*>(DataPtr());
+  auto* ptr = reinterpret_cast<ElementType*>(DataPtr());
   TSAN_ANNOTATE_IGNORE_WRITES_BEGIN;
   ptr[index] = value;
   TSAN_ANNOTATE_IGNORE_WRITES_END;
