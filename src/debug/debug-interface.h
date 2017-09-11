@@ -340,8 +340,6 @@ class V8_EXPORT_PRIVATE Coverage {
   ScriptData GetScriptData(size_t i) const;
   bool IsEmpty() const { return coverage_ == nullptr; }
 
-  ~Coverage() = default;
-
  private:
   explicit Coverage(std::shared_ptr<i::Coverage> coverage);
   std::shared_ptr<i::Coverage> coverage_;
