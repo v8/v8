@@ -756,10 +756,13 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
   Node* map = LoadObjectField(object_function,
                               JSFunction::kPrototypeOrInitialMapOffset);
   CSA_ASSERT(this, IsMap(map));
+  // Ensure that slack tracking is disabled for the map.
+  STATIC_ASSERT(Map::kNoSlackTracking == 0);
+  CSA_ASSERT(this,
+             IsClearWord32<Map::ConstructionCounter>(LoadMapBitField3(map)));
   Node* empty_fixed_array = EmptyFixedArrayConstant();
   Node* result =
       AllocateJSObjectFromMap(map, empty_fixed_array, empty_fixed_array);
-  HandleSlackTracking(context, result, map, JSObject::kHeaderSize);
   return result;
 }
 

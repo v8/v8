@@ -7327,6 +7327,7 @@ void CodeStubAssembler::HandleSlackTracking(Node* context, Node* object,
   // Perform in-object slack tracking if requested.
   Node* bit_field3 = LoadMapBitField3(initial_map);
   Label end(this), slack_tracking(this), finalize(this, Label::kDeferred);
+  STATIC_ASSERT(Map::kNoSlackTracking == 0);
   GotoIf(IsSetWord32<Map::ConstructionCounter>(bit_field3), &slack_tracking);
 
   // Initialize remaining fields.
