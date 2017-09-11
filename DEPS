@@ -34,7 +34,7 @@ deps = {
   "v8/test/mozilla/data":
     Var("chromium_url") + "/v8/deps/third_party/mozilla-tests.git" + "@" + "f6c578a10ea707b1a8ab0b88943fe5115ce2b9be",
   "v8/test/test262/data":
-    Var("chromium_url") + "/external/github.com/tc39/test262.git" + "@" + "1b911a8f8abf4cb63882cfbe72dcd4c82bb8ad91",
+    Var("chromium_url") + "/external/github.com/tc39/test262.git" + "@" + "290799bbeeba86245a355894b6ff2bb33d946d9e",
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
