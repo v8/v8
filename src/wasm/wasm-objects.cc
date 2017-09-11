@@ -292,20 +292,33 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
   if (old_pages > maximum_pages || pages > maximum_pages - old_pages) {
     return Handle<JSArrayBuffer>::null();
   }
-
-  // TODO(gdeepti): Change the protection here instead of allocating a new
-  // buffer before guard regions are turned on, see issue #5886.
   const bool enable_guard_regions = old_buffer.is_null()
                                         ? wasm::EnableGuardRegions()
                                         : old_buffer->has_guard_region();
   size_t new_size =
       static_cast<size_t>(old_pages + pages) * WasmModule::kPageSize;
-  Handle<JSArrayBuffer> new_buffer =
-      wasm::NewArrayBuffer(isolate, new_size, enable_guard_regions);
-  if (new_buffer.is_null()) return new_buffer;
-  Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
-  memcpy(new_mem_start, old_mem_start, old_size);
-  return new_buffer;
+  if (enable_guard_regions && old_size != 0) {
+    DCHECK(old_buffer->backing_store() != nullptr);
+    if (new_size > FLAG_wasm_max_mem_pages * WasmModule::kPageSize ||
+        new_size > kMaxInt) {
+      return Handle<JSArrayBuffer>::null();
+    }
+    isolate->array_buffer_allocator()->SetProtection(
+        old_mem_start, new_size,
+        v8::ArrayBuffer::Allocator::Protection::kReadWrite);
+    reinterpret_cast<v8::Isolate*>(isolate)
+        ->AdjustAmountOfExternalAllocatedMemory(pages * WasmModule::kPageSize);
+    Handle<Object> length_obj = isolate->factory()->NewNumberFromSize(new_size);
+    old_buffer->set_byte_length(*length_obj);
+    return old_buffer;
+  } else {
+    Handle<JSArrayBuffer> new_buffer;
+    new_buffer = wasm::NewArrayBuffer(isolate, new_size, enable_guard_regions);
+    if (new_buffer.is_null() || old_size == 0) return new_buffer;
+    Address new_mem_start = static_cast<Address>(new_buffer->backing_store());
+    memcpy(new_mem_start, old_mem_start, old_size);
+    return new_buffer;
+  }
 }
 
 // May GC, because SetSpecializationMemInfoFrom may GC
@@ -379,6 +392,32 @@ void WasmMemoryObject::RemoveInstance(Isolate* isolate,
   }
 }
 
+void WasmMemoryObject::SetupNewBufferWithSameBackingStore(
+    Isolate* isolate, Handle<WasmMemoryObject> memory_object, uint32_t size) {
+  // In case of Memory.Grow(0), or Memory.Grow(delta) with guard pages enabled,
+  // Setup a new buffer, update memory object, and instances associated with the
+  // memory object, as the current buffer will be detached.
+  Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer());
+  Handle<JSArrayBuffer> new_buffer;
+
+  constexpr bool is_external = false;
+  new_buffer = wasm::SetupArrayBuffer(
+      isolate, old_buffer->allocation_base(), old_buffer->allocation_length(),
+      old_buffer->backing_store(), size * WasmModule::kPageSize, is_external,
+      old_buffer->has_guard_region());
+  if (memory_object->has_instances()) {
+    Handle<WeakFixedArray> instances(memory_object->instances(), isolate);
+    for (int i = 0; i < instances->Length(); i++) {
+      Object* elem = instances->Get(i);
+      if (!elem->IsWasmInstanceObject()) continue;
+      Handle<WasmInstanceObject> instance(WasmInstanceObject::cast(elem),
+                                          isolate);
+      SetInstanceMemory(isolate, instance, new_buffer);
+    }
+  }
+  memory_object->set_array_buffer(*new_buffer);
+}
+
 // static
 int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                Handle<WasmMemoryObject> memory_object,
@@ -389,13 +428,6 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   Handle<JSArrayBuffer> new_buffer;
   // Return current size if grow by 0.
   if (pages == 0) {
-    // Even for pages == 0, we need to attach a new JSArrayBuffer with the same
-    // backing store and neuter the old one to be spec compliant.
-    new_buffer = wasm::SetupArrayBuffer(
-        isolate, old_buffer->allocation_base(), old_buffer->allocation_length(),
-        old_buffer->backing_store(), old_size, old_buffer->is_external(),
-        old_buffer->has_guard_region());
-    memory_object->set_array_buffer(*new_buffer);
     DCHECK_EQ(0, old_size % WasmModule::kPageSize);
     return old_size / WasmModule::kPageSize;
   }
@@ -422,7 +454,6 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
       UncheckedUpdateInstanceMemory(isolate, instance, old_mem_start, old_size);
     }
   }
-
   memory_object->set_array_buffer(*new_buffer);
   DCHECK_EQ(0, old_size % WasmModule::kPageSize);
   return old_size / WasmModule::kPageSize;

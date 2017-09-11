@@ -828,7 +828,6 @@ void OS::Guard(void* address, const size_t size) {
 
 void OS::Unprotect(void* address, const size_t size) {
   LPVOID result = VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE);
-  DCHECK_IMPLIES(result != nullptr, GetLastError() == 0);
   USE(result);
 }
 

@@ -504,12 +504,11 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
       v8::ArrayBuffer::Allocator::Protection protection) {
     switch (protection) {
       case v8::ArrayBuffer::Allocator::Protection::kNoAccess: {
-        base::VirtualMemory::UncommitRegion(data, length);
+        base::OS::Guard(data, length);
         return;
       }
       case v8::ArrayBuffer::Allocator::Protection::kReadWrite: {
-        const bool is_executable = false;
-        base::VirtualMemory::CommitRegion(data, length, is_executable);
+        base::OS::Unprotect(data, length);
         return;
       }
     }

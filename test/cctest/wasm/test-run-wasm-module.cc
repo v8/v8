@@ -1105,7 +1105,13 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     v8::Utils::ToLocal(memory)->Externalize();
 
     uint32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 4);
-    const bool free_memory = true;
+    bool free_memory = !memory->has_guard_region();
+    if (!free_memory) {
+      // current_pages = Initial memory size(16) + GrowWebAssemblyMemory(4)
+      const uint32_t current_pages = 20;
+      i::WasmMemoryObject::SetupNewBufferWithSameBackingStore(isolate, mem_obj,
+                                                              current_pages);
+    }
     wasm::DetachWebAssemblyMemoryBuffer(isolate, memory, free_memory);
     CHECK_EQ(16, result);
     memory = handle(mem_obj->array_buffer());
@@ -1122,8 +1128,12 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     isolate->array_buffer_allocator()->Free(memory->allocation_base(),
                                             memory->allocation_length(),
                                             allocation_mode);
-    isolate->array_buffer_allocator()->Free(
-        old_allocation_base, old_allocation_length, allocation_mode);
+    if (free_memory) {
+      // GrowMemory without guard pages enabled allocates an extra buffer,
+      // that needs to be freed as well
+      isolate->array_buffer_allocator()->Free(
+          old_allocation_base, old_allocation_length, allocation_mode);
+    }
     memory->set_allocation_base(nullptr);
     memory->set_allocation_length(0);
   }
