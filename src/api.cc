@@ -10182,9 +10182,6 @@ debug::Coverage::FunctionData debug::Coverage::ScriptData::GetFunctionData(
   return FunctionData(&script_->functions.at(i), coverage_);
 }
 
-debug::Coverage::Coverage(std::shared_ptr<i::Coverage> coverage)
-    : coverage_(std::move(coverage)) {}
-
 debug::Coverage::ScriptData::ScriptData(size_t index,
                                         std::shared_ptr<i::Coverage> coverage)
     : script_(&coverage->at(index)), coverage_(std::move(coverage)) {}
@@ -10216,10 +10213,15 @@ int debug::TypeProfile::Entry::SourcePosition() const {
 std::vector<MaybeLocal<String>> debug::TypeProfile::Entry::Types() const {
   std::vector<MaybeLocal<String>> result;
   for (const internal::Handle<internal::String>& type : entry_->types) {
-    result.push_back(ToApiHandle<String>(type));
+    result.emplace_back(ToApiHandle<String>(type));
   }
   return result;
 }
+
+debug::TypeProfile::ScriptData::ScriptData(
+    size_t index, std::shared_ptr<i::TypeProfile> type_profile)
+    : script_(&type_profile->at(index)),
+      type_profile_(std::move(type_profile)) {}
 
 Local<debug::Script> debug::TypeProfile::ScriptData::GetScript() const {
   return ToApiHandle<debug::Script>(script_->script);
@@ -10229,7 +10231,7 @@ std::vector<debug::TypeProfile::Entry> debug::TypeProfile::ScriptData::Entries()
     const {
   std::vector<debug::TypeProfile::Entry> result;
   for (const internal::TypeProfileEntry& entry : script_->entries) {
-    result.push_back(debug::TypeProfile::Entry(&entry));
+    result.push_back(debug::TypeProfile::Entry(&entry, type_profile_));
   }
   return result;
 }
@@ -10248,11 +10250,8 @@ size_t debug::TypeProfile::ScriptCount() const { return type_profile_->size(); }
 
 debug::TypeProfile::ScriptData debug::TypeProfile::GetScriptData(
     size_t i) const {
-  // TODO(franzih): ScriptData is invalid after ~TypeProfile. Same in Coverage.
-  return ScriptData(&type_profile_->at(i));
+  return ScriptData(i, type_profile_);
 }
-
-debug::TypeProfile::~TypeProfile() { delete type_profile_; }
 
 const char* CpuProfileNode::GetFunctionNameStr() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);

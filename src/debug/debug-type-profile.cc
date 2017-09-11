@@ -12,8 +12,8 @@
 namespace v8 {
 namespace internal {
 
-TypeProfile* TypeProfile::Collect(Isolate* isolate) {
-  TypeProfile* result = new TypeProfile();
+std::unique_ptr<TypeProfile> TypeProfile::Collect(Isolate* isolate) {
+  std::unique_ptr<TypeProfile> result(new TypeProfile());
 
   // Collect existing feedback vectors.
   std::vector<Handle<FeedbackVector>> feedback_vectors;

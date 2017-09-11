@@ -341,7 +341,8 @@ class V8_EXPORT_PRIVATE Coverage {
   bool IsEmpty() const { return coverage_ == nullptr; }
 
  private:
-  explicit Coverage(std::shared_ptr<i::Coverage> coverage);
+  explicit Coverage(std::shared_ptr<i::Coverage> coverage)
+      : coverage_(std::move(coverage)) {}
   std::shared_ptr<i::Coverage> coverage_;
 };
 
@@ -366,8 +367,12 @@ class V8_EXPORT_PRIVATE TypeProfile {
     std::vector<MaybeLocal<String>> Types() const;
 
    private:
-    explicit Entry(const i::TypeProfileEntry* entry) : entry_(entry) {}
+    explicit Entry(const i::TypeProfileEntry* entry,
+                   std::shared_ptr<i::TypeProfile> type_profile)
+        : entry_(entry), type_profile_(std::move(type_profile)) {}
+
     const i::TypeProfileEntry* entry_;
+    std::shared_ptr<i::TypeProfile> type_profile_;
 
     friend class v8::debug::TypeProfile::ScriptData;
   };
@@ -380,8 +385,11 @@ class V8_EXPORT_PRIVATE TypeProfile {
     std::vector<Entry> Entries() const;
 
    private:
-    explicit ScriptData(i::TypeProfileScript* script) : script_(script) {}
+    explicit ScriptData(size_t index,
+                        std::shared_ptr<i::TypeProfile> type_profile);
+
     i::TypeProfileScript* script_;
+    std::shared_ptr<i::TypeProfile> type_profile_;
 
     friend class v8::debug::TypeProfile;
   };
@@ -393,12 +401,11 @@ class V8_EXPORT_PRIVATE TypeProfile {
   size_t ScriptCount() const;
   ScriptData GetScriptData(size_t i) const;
 
-  ~TypeProfile();
-
  private:
-  explicit TypeProfile(i::TypeProfile* type_profile)
-      : type_profile_(type_profile) {}
-  i::TypeProfile* type_profile_;
+  explicit TypeProfile(std::shared_ptr<i::TypeProfile> type_profile)
+      : type_profile_(std::move(type_profile)) {}
+
+  std::shared_ptr<i::TypeProfile> type_profile_;
 };
 
 class ScopeIterator {
