@@ -177,6 +177,7 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(Isolate* isolate,
   Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(
       isolate, exports_object, main_name, &desc);
   if (!property_found.FromMaybe(false)) return {};
+  if (!desc.value()->IsJSFunction()) return {};
 
   return Handle<WasmExportedFunction>::cast(desc.value());
 }
