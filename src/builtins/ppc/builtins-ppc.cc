@@ -931,10 +931,12 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&bytecode_array_loaded);
 
   // Increment invocation count for the function.
-  __ LoadP(r8, FieldMemOperand(feedback_vector,
-                               FeedbackVector::kInvocationCountOffset));
+  __ LoadWord(
+      r8,
+      FieldMemOperand(feedback_vector, FeedbackVector::kInvocationCountOffset),
+      r0);
   __ addi(r8, r8, Operand(1));
-  __ StoreP(
+  __ StoreWord(
       r8,
       FieldMemOperand(feedback_vector, FeedbackVector::kInvocationCountOffset),
       r0);

@@ -931,10 +931,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&bytecode_array_loaded);
 
   // Increment invocation count for the function.
-  __ LoadP(r1, FieldMemOperand(feedback_vector,
+  __ LoadW(r1, FieldMemOperand(feedback_vector,
                                FeedbackVector::kInvocationCountOffset));
   __ AddP(r1, r1, Operand(1));
-  __ StoreP(r1, FieldMemOperand(feedback_vector,
+  __ StoreW(r1, FieldMemOperand(feedback_vector,
                                 FeedbackVector::kInvocationCountOffset));
 
   // Check function data field is actually a BytecodeArray object.
