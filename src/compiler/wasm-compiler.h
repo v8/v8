@@ -80,22 +80,13 @@ struct ModuleEnv {
 
 class WasmCompilationUnit final {
  public:
-  // Use the following constructors if you know you are running on the
-  // foreground thread.
-  WasmCompilationUnit(Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes,
-                      ModuleEnv* env, const wasm::WasmFunction* function,
-                      Handle<Code> centry_stub);
-  WasmCompilationUnit(Isolate* isolate, ModuleEnv* env, wasm::FunctionBody body,
-                      wasm::WasmName name, int index, Handle<Code> centry_stub);
-  // Use the following constructors if the compilation may run on a background
-  // thread.
-  WasmCompilationUnit(Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes,
-                      ModuleEnv* env, const wasm::WasmFunction* function,
-                      Handle<Code> centry_stub,
-                      const std::shared_ptr<Counters>& async_counters);
-  WasmCompilationUnit(Isolate* isolate, ModuleEnv* env, wasm::FunctionBody body,
-                      wasm::WasmName name, int index, Handle<Code> centry_stub,
-                      const std::shared_ptr<Counters>& async_counters);
+  // If constructing from a background thread, pass in a Counters*, and ensure
+  // that the Counters live at least as long as this compilation unit (which
+  // typically means to hold a std::shared_ptr<Counters>).
+  // If no such pointer is passed, Isolate::counters() will be called. This is
+  // only allowed to happen on the foreground thread.
+  WasmCompilationUnit(Isolate*, ModuleEnv*, wasm::FunctionBody, wasm::WasmName,
+                      int index, Handle<Code> centry_stub, Counters* = nullptr);
 
   int func_index() const { return func_index_; }
 

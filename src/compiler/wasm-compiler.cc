@@ -4232,50 +4232,16 @@ Vector<const char> GetDebugName(Zone* zone, wasm::WasmName name, int index) {
 }
 }  // namespace
 
-WasmCompilationUnit::WasmCompilationUnit(
-    Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
-    const wasm::WasmFunction* function, Handle<Code> centry_stub)
-    : WasmCompilationUnit(
-          isolate, env,
-          wasm::FunctionBody{function->sig, function->code.offset(),
-                             wire_bytes.start() + function->code.offset(),
-                             wire_bytes.start() + function->code.end_offset()},
-          wire_bytes.GetNameOrNull(function), function->func_index,
-          centry_stub) {}
-
 WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate, ModuleEnv* env,
                                          wasm::FunctionBody body,
                                          wasm::WasmName name, int index,
-                                         Handle<Code> centry_stub)
+                                         Handle<Code> centry_stub,
+                                         Counters* counters)
     : isolate_(isolate),
       env_(env),
       func_body_(body),
       func_name_(name),
-      counters_(isolate->counters()),
-      centry_stub_(centry_stub),
-      func_index_(index) {}
-
-WasmCompilationUnit::WasmCompilationUnit(
-    Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
-    const wasm::WasmFunction* function, Handle<Code> centry_stub,
-    const std::shared_ptr<Counters>& async_counters)
-    : WasmCompilationUnit(
-          isolate, env,
-          wasm::FunctionBody{function->sig, function->code.offset(),
-                             wire_bytes.start() + function->code.offset(),
-                             wire_bytes.start() + function->code.end_offset()},
-          wire_bytes.GetNameOrNull(function), function->func_index, centry_stub,
-          async_counters) {}
-
-WasmCompilationUnit::WasmCompilationUnit(
-    Isolate* isolate, ModuleEnv* env, wasm::FunctionBody body,
-    wasm::WasmName name, int index, Handle<Code> centry_stub,
-    const std::shared_ptr<Counters>& async_counters)
-    : isolate_(isolate),
-      env_(env),
-      func_body_(body),
-      func_name_(name),
-      counters_(async_counters.get()),
+      counters_(counters ? counters : isolate->counters()),
       centry_stub_(centry_stub),
       func_index_(index) {}
 
@@ -4412,8 +4378,13 @@ MaybeHandle<Code> WasmCompilationUnit::CompileWasmFunction(
     wasm::ErrorThrower* thrower, Isolate* isolate,
     const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
     const wasm::WasmFunction* function) {
-  WasmCompilationUnit unit(isolate, wire_bytes, env, function,
-                           CEntryStub(isolate, 1).GetCode());
+  wasm::FunctionBody function_body{
+      function->sig, function->code.offset(),
+      wire_bytes.start() + function->code.offset(),
+      wire_bytes.start() + function->code.end_offset()};
+  WasmCompilationUnit unit(
+      isolate, env, function_body, wire_bytes.GetNameOrNull(function),
+      function->func_index, CEntryStub(isolate, 1).GetCode());
   unit.ExecuteCompilation();
   return unit.FinishCompilation(thrower);
 }

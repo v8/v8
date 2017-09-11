@@ -57,7 +57,7 @@ class ModuleCompiler {
           wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
                              bytes.end()},
           name, function->func_index, compiler_->centry_stub_,
-          compiler_->async_counters()));
+          compiler_->counters()));
     }
 
     void Commit() {
@@ -105,10 +105,7 @@ class ModuleCompiler {
     base::AtomicNumber<size_t> allocated_memory_{0};
   };
 
-  const std::shared_ptr<Counters>& async_counters() const {
-    return async_counters_;
-  }
-  Counters* counters() const { return async_counters().get(); }
+  Counters* counters() const { return async_counters_.get(); }
 
   // Run by each compilation task and by the main thread (i.e. in both
   // foreground and background threads). The no_finisher_callback is called
