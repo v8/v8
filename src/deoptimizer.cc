@@ -398,12 +398,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
 
   DCHECK(from != nullptr);
   compiled_code_ = FindOptimizedCode();
-#if DEBUG
   DCHECK(compiled_code_ != NULL);
-  if (type == EAGER || type == SOFT || type == LAZY) {
-    DCHECK(compiled_code_->kind() != Code::FUNCTION);
-  }
-#endif
 
   DCHECK(function->IsJSFunction());
   trace_scope_ =

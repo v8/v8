@@ -3822,21 +3822,6 @@ inline HandlerTable::CatchPrediction Code::GetBuiltinCatchPrediction() {
   return HandlerTable::UNCAUGHT;
 }
 
-bool Code::has_reloc_info_for_serialization() const {
-  DCHECK_EQ(FUNCTION, kind());
-  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
-  return FullCodeFlagsHasRelocInfoForSerialization::decode(flags);
-}
-
-
-void Code::set_has_reloc_info_for_serialization(bool value) {
-  DCHECK_EQ(FUNCTION, kind());
-  unsigned flags = READ_UINT32_FIELD(this, kFullCodeFlags);
-  flags = FullCodeFlagsHasRelocInfoForSerialization::update(flags, value);
-  WRITE_UINT32_FIELD(this, kFullCodeFlags, flags);
-}
-
-
 int Code::builtin_index() const {
   int index = READ_INT_FIELD(this, kBuiltinIndexOffset);
   DCHECK(index == -1 || Builtins::IsBuiltinId(index));
@@ -4080,8 +4065,6 @@ bool AbstractCode::contains(byte* inner_pointer) {
 
 AbstractCode::Kind AbstractCode::kind() {
   if (IsCode()) {
-    STATIC_ASSERT(AbstractCode::FUNCTION ==
-                  static_cast<AbstractCode::Kind>(Code::FUNCTION));
     return static_cast<AbstractCode::Kind>(GetCode()->kind());
   } else {
     return INTERPRETED_FUNCTION;
@@ -4893,19 +4876,6 @@ void Code::clear_padding() {
   memset(data_end, 0, CodeSize() - (data_end - address()));
 }
 
-Object* Code::type_feedback_info() const {
-  DCHECK(kind() == FUNCTION);
-  return raw_type_feedback_info();
-}
-
-
-void Code::set_type_feedback_info(Object* value, WriteBarrierMode mode) {
-  DCHECK(kind() == FUNCTION);
-  set_raw_type_feedback_info(value, mode);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kTypeFeedbackInfoOffset,
-                            value, mode);
-}
-
 ByteArray* Code::SourcePositionTable() const {
   Object* maybe_table = source_position_table();
   if (maybe_table->IsByteArray()) return ByteArray::cast(maybe_table);
@@ -4975,9 +4945,6 @@ int Code::SizeIncludingMetadata() const {
   size += relocation_info()->Size();
   size += deoptimization_data()->Size();
   size += handler_table()->Size();
-  if (kind() == FUNCTION) {
-    size += SourcePositionTable()->Size();
-  }
   return size;
 }
 

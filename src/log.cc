@@ -42,7 +42,6 @@ static const char* kLogEventsNames[CodeEventListener::NUMBER_OF_LOG_EVENTS] = {
 static const char* ComputeMarker(SharedFunctionInfo* shared,
                                  AbstractCode* code) {
   switch (code->kind()) {
-    case AbstractCode::FUNCTION:
     case AbstractCode::INTERPRETED_FUNCTION:
       return shared->optimization_disabled() ? "" : "~";
     case AbstractCode::OPTIMIZED_FUNCTION:
@@ -263,8 +262,7 @@ PerfBasicLogger::~PerfBasicLogger() {
 void PerfBasicLogger::LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo*,
                                         const char* name, int length) {
   if (FLAG_perf_basic_prof_only_functions &&
-      (code->kind() != AbstractCode::FUNCTION &&
-       code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
+      (code->kind() != AbstractCode::INTERPRETED_FUNCTION &&
        code->kind() != AbstractCode::OPTIMIZED_FUNCTION)) {
     return;
   }
@@ -1564,7 +1562,6 @@ void Logger::LogCodeObject(Object* object) {
   CodeEventListener::LogEventsAndTags tag = CodeEventListener::STUB_TAG;
   const char* description = "Unknown code from the snapshot";
   switch (code_object->kind()) {
-    case AbstractCode::FUNCTION:
     case AbstractCode::INTERPRETED_FUNCTION:
     case AbstractCode::OPTIMIZED_FUNCTION:
       return;  // We log this later using LogCompiledFunctions.

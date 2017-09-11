@@ -970,7 +970,7 @@ class CodeDescription BASE_EMBEDDED {
 
   bool is_function() const {
     Code::Kind kind = code_->kind();
-    return kind == Code::FUNCTION || kind == Code::OPTIMIZED_FUNCTION;
+    return kind == Code::OPTIMIZED_FUNCTION;
   }
 
   bool has_scope_info() const { return shared_info_ != NULL; }

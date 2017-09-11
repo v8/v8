@@ -1033,11 +1033,6 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
         Handle<AbstractCode>(AbstractCode::cast(info->bytecode_array())),
         position_change_array);
   }
-  if (info->code()->kind() == Code::FUNCTION) {
-    TranslateSourcePositionTable(
-        Handle<AbstractCode>(AbstractCode::cast(info->code())),
-        position_change_array);
-  }
   if (info->HasBreakInfo()) {
     // Existing break points will be re-applied. Reset the debug info here.
     info->GetIsolate()->debug()->RemoveBreakInfoAndMaybeFree(

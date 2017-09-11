@@ -97,10 +97,6 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                     0);
         }
         return;
-      case Code::FUNCTION:
-        DCHECK(code_object->has_reloc_info_for_serialization());
-        SerializeGeneric(code_object, how_to_code, where_to_point);
-        return;
       default:
         return SerializeCodeObject(code_object, how_to_code, where_to_point);
     }

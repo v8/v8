@@ -1264,11 +1264,6 @@ void V8HeapExplorer::ExtractCodeReferences(int entry, Code* code) {
   SetInternalReference(code, entry, "source_position_table",
                        code->source_position_table(),
                        Code::kSourcePositionTableOffset);
-  if (code->kind() == Code::FUNCTION) {
-    SetInternalReference(code, entry, "type_feedback_info",
-                         code->type_feedback_info(),
-                         Code::kTypeFeedbackInfoOffset);
-  }
 }
 
 void V8HeapExplorer::ExtractCellReferences(int entry, Cell* cell) {

@@ -76,16 +76,6 @@ static void GetICCounts(JSFunction* function, int* ic_with_type_info_count,
   *ic_total_count = 0;
   *ic_generic_count = 0;
   *ic_with_type_info_count = 0;
-  if (function->code()->kind() == Code::FUNCTION) {
-    Code* shared_code = function->shared()->code();
-    Object* raw_info = shared_code->type_feedback_info();
-    if (raw_info->IsTypeFeedbackInfo()) {
-      TypeFeedbackInfo* info = TypeFeedbackInfo::cast(raw_info);
-      *ic_with_type_info_count = info->ic_with_type_info_count();
-      *ic_generic_count = info->ic_generic_count();
-      *ic_total_count = info->ic_total_count();
-    }
-  }
 
   // Harvest vector-ics as well
   FeedbackVector* vector = function->feedback_vector();

@@ -452,8 +452,6 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
             return OPTIMIZED;
           }
           return BUILTIN;
-        case Code::FUNCTION:
-          return JAVA_SCRIPT;
         case Code::OPTIMIZED_FUNCTION:
           return OPTIMIZED;
         case Code::WASM_FUNCTION:
@@ -1822,13 +1820,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
     accumulator->PrintName(script->name());
 
     Address pc = this->pc();
-    if (code != NULL && code->kind() == Code::FUNCTION &&
-        pc >= code->instruction_start() && pc < code->instruction_end()) {
-      int offset = static_cast<int>(pc - code->instruction_start());
-      int source_pos = AbstractCode::cast(code)->SourcePosition(offset);
-      int line = script->GetLineNumber(source_pos) + 1;
-      accumulator->Add(":%d] [pc=%p]", line, pc);
-    } else if (is_interpreted()) {
+    if (is_interpreted()) {
       const InterpretedFrame* iframe =
           reinterpret_cast<const InterpretedFrame*>(this);
       BytecodeArray* bytecodes = iframe->GetBytecodeArray();

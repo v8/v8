@@ -59,7 +59,6 @@ class SharedFunctionInfo : public HeapObject {
   inline bool IsInterpreted() const;
 
   inline void ReplaceCode(Code* code);
-  inline bool HasBaselineCode() const;
 
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.

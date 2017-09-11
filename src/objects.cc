@@ -13835,9 +13835,8 @@ void SharedFunctionInfo::DisableOptimization(BailoutReason reason) {
 
   set_compiler_hints(
       DisabledOptimizationReasonBits::update(compiler_hints(), reason));
-  // Code should be the lazy compilation stub or else unoptimized.
-  DCHECK(abstract_code()->kind() == AbstractCode::FUNCTION ||
-         abstract_code()->kind() == AbstractCode::INTERPRETED_FUNCTION ||
+  // Code should be the lazy compilation stub or else interpreted.
+  DCHECK(abstract_code()->kind() == AbstractCode::INTERPRETED_FUNCTION ||
          abstract_code()->kind() == AbstractCode::BUILTIN);
   PROFILE(GetIsolate(), CodeDisableOptEvent(abstract_code(), this));
   if (FLAG_trace_opt) {
@@ -14511,11 +14510,7 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   if (kind() == OPTIMIZED_FUNCTION) {
     os << "stack_slots = " << stack_slots() << "\n";
   }
-  os << "compiler = "
-     << (is_turbofanned()
-             ? "turbofan"
-             : kind() == Code::FUNCTION ? "full-codegen" : "unknown")
-     << "\n";
+  os << "compiler = " << (is_turbofanned() ? "turbofan" : "unknown") << "\n";
 
   os << "Instructions (size = " << instruction_size() << ")\n";
   {
@@ -14593,9 +14588,7 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
 
   if (handler_table()->length() > 0) {
     os << "Handler Table (size = " << handler_table()->Size() << ")\n";
-    if (kind() == FUNCTION) {
-      HandlerTable::cast(handler_table())->HandlerTableRangePrint(os);
-    } else if (kind() == OPTIMIZED_FUNCTION) {
+    if (kind() == OPTIMIZED_FUNCTION) {
       HandlerTable::cast(handler_table())->HandlerTableReturnPrint(os);
     }
     os << "\n";
@@ -19205,7 +19198,6 @@ void PropertyCell::SetValueWithInvalidation(Handle<PropertyCell> cell,
 int JSGeneratorObject::source_position() const {
   CHECK(is_suspended());
   DCHECK(function()->shared()->HasBytecodeArray());
-  DCHECK(!function()->shared()->HasBaselineCode());
 
   int code_offset = Smi::ToInt(input_or_debug_pos());
 

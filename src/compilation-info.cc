@@ -16,11 +16,15 @@
 namespace v8 {
 namespace internal {
 
+// TODO(mvstanton): the Code::OPTIMIZED_FUNCTION constant below is
+// bogus, it's just that I've eliminated Code::FUNCTION and there isn't
+// a "better" value to put in this place.
 CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
                                  ParseInfo* parse_info,
                                  FunctionLiteral* literal)
     : CompilationInfo(parse_info->script(), {},
-                      Code::ComputeFlags(Code::FUNCTION), BASE, isolate, zone) {
+                      Code::ComputeFlags(Code::OPTIMIZED_FUNCTION), BASE,
+                      isolate, zone) {
   // NOTE: The parse_info passed here represents the global information gathered
   // during parsing, but does not represent specific details of the actual
   // function literal being compiled for this CompilationInfo. As such,
