@@ -1807,6 +1807,10 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Flags flags,
   return code;
 }
 
+Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {
+  const bool kNotImmovable = false;
+  return NewCodeRaw(size, kNotImmovable);
+}
 
 Handle<Code> Factory::CopyCode(Handle<Code> code) {
   CALL_HEAP_FUNCTION(isolate(),

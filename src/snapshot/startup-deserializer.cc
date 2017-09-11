@@ -40,11 +40,15 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
     isolate->heap()->RepairFreeListsAfterDeserialization();
     isolate->heap()->IterateWeakRoots(this, VISIT_ALL);
     DeserializeDeferredObjects();
-    FlushICacheForNewIsolate();
     RestoreExternalReferenceRedirectors(accessor_infos());
 
-    // Deserialize eager builtins from the builtin snapshot.
+    // Deserialize eager builtins from the builtin snapshot. Note that deferred
+    // objects must have been deserialized prior to this.
     builtin_deserializer.DeserializeEagerBuiltins();
+
+    // Flush the instruction cache for the entire code-space. Must happen after
+    // builtins deserialization.
+    FlushICacheForNewIsolate();
   }
 
   isolate->heap()->set_native_contexts_list(isolate->heap()->undefined_value());

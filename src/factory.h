@@ -659,6 +659,10 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<Code> NewCode(const CodeDesc& desc, Code::Flags flags,
                        Handle<Object> self_reference, bool immovable = false);
 
+  // Allocates a new, empty code object for use by builtin deserialization. The
+  // given {size} argument specifies the size of the entire code object.
+  Handle<Code> NewCodeForDeserialization(uint32_t size);
+
   Handle<Code> CopyCode(Handle<Code> code);
 
   Handle<BytecodeArray> CopyBytecodeArray(Handle<BytecodeArray>);
@@ -820,7 +824,7 @@ class V8_EXPORT_PRIVATE Factory final {
                                            PretenureFlag pretenure);
 
   // Creates a code object that is not yet fully initialized yet.
-  inline Handle<Code> NewCodeRaw(int object_size, bool immovable);
+  Handle<Code> NewCodeRaw(int object_size, bool immovable);
 
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.

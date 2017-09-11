@@ -4,6 +4,7 @@
 
 #include "src/snapshot/builtin-deserializer.h"
 
+#include "src/assembler-inl.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/snapshot.h"
 
@@ -85,7 +86,12 @@ Code* BuiltinDeserializer::DeserializeBuiltin(int builtin_id) {
   // Rewind.
   source()->set_position(initial_position);
 
-  return Code::cast(o);
+  // Flush the instruction cache.
+  Code* code = Code::cast(o);
+  Assembler::FlushICache(isolate(), code->instruction_start(),
+                         code->instruction_size());
+
+  return code;
 }
 
 void BuiltinDeserializer::SetPositionToBuiltin(int builtin_id) {
@@ -213,7 +219,7 @@ void BuiltinDeserializer::ReserveAndInitializeBuiltinsTableForBuiltin(
   DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
 
   Handle<HeapObject> o =
-      isolate()->factory()->NewFillerObject(builtin_size, false, CODE_SPACE);
+      isolate()->factory()->NewCodeForDeserialization(builtin_size);
 
   // Note: After this point and until deserialization finishes, heap allocation
   // is disallowed. We currently can't safely assert this since we'd need to

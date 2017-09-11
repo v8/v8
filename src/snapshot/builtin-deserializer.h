@@ -22,6 +22,9 @@ class BuiltinDeserializer final : public Deserializer {
   // startup blob. In particular, we need to ensure that no GC can occur
   // between startup- and builtins deserialization, as all builtins have been
   // pre-allocated and their pointers may not be invalidated.
+  //
+  // After this, the instruction cache must be flushed by the caller (we don't
+  // do it ourselves since the startup serializer batch-flushes all code pages).
   void DeserializeEagerBuiltins();
 
   // Deserializes the single given builtin. Assumes that reservations have
