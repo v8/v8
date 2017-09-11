@@ -189,22 +189,12 @@ DEFINE_BOOL(harmony_shipping, true, "enable all shipped harmony features")
 DEFINE_IMPLICATION(es_staging, harmony)
 
 // Features that are still work in progress (behind individual flags).
-#define HARMONY_INPROGRESS_BASE(V)                                    \
+#define HARMONY_INPROGRESS(V)                                         \
   V(harmony_array_prototype_values, "harmony Array.prototype.values") \
   V(harmony_function_sent, "harmony function.sent")                   \
   V(harmony_do_expressions, "harmony do-expressions")                 \
   V(harmony_class_fields, "harmony public fields in class literals")  \
   V(harmony_bigint, "harmony arbitrary precision integers")
-
-#ifdef V8_INTL_SUPPORT
-#define HARMONY_INPROGRESS(V)       \
-  HARMONY_INPROGRESS_BASE(V)        \
-  V(harmony_number_format_to_parts, \
-    "Intl.NumberFormat.prototype."  \
-    "formatToParts")
-#else
-#define HARMONY_INPROGRESS(V) HARMONY_INPROGRESS_BASE(V)
-#endif
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                                          \
@@ -219,8 +209,10 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_promise_finally, "harmony Promise.prototype.finally")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V) \
-  HARMONY_STAGED_BASE(V)  \
+#define HARMONY_STAGED(V)                        \
+  HARMONY_STAGED_BASE(V)                         \
+  V(harmony_number_format_to_parts,              \
+    "Intl.NumberFormat.prototype.formatToParts") \
   V(harmony_plural_rules, "Intl.PluralRules")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
