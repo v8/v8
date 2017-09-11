@@ -60,6 +60,10 @@ const char* ExternalReferenceTable::ResolveSymbol(void* address) {
 #endif  // SYMBOLIZE_FUNCTION
 }
 
+void ExternalReferenceTable::Add(Address address, const char* name) {
+  refs_.emplace_back(address, name);
+}
+
 void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   // Miscellaneous
   Add(ExternalReference::roots_array_start(isolate).address(),

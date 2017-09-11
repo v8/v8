@@ -32,14 +32,14 @@ class ExternalReferenceTable {
   struct ExternalReferenceEntry {
     Address address;
     const char* name;
+
+    ExternalReferenceEntry(Address address, const char* name)
+        : address(address), name(name) {}
   };
 
   explicit ExternalReferenceTable(Isolate* isolate);
 
-  void Add(Address address, const char* name) {
-    ExternalReferenceEntry entry = {address, name};
-    refs_.push_back(entry);
-  }
+  void Add(Address address, const char* name);
 
   void AddReferences(Isolate* isolate);
   void AddBuiltins(Isolate* isolate);
