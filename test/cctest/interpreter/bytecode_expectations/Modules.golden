@@ -209,7 +209,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 138
+bytecode array length: 137
 bytecodes: [
                 B(Ldar), R(1),
                 B(JumpIfUndefined), U8(18),
@@ -259,8 +259,8 @@ bytecodes: [
   /*   34 S> */ B(LdaUndefined),
   /*   34 E> */ B(StaCurrentContextSlot), U8(4),
   /*   39 S> */ B(LdaModuleVariable), I8(1), U8(1),
-                B(ToNumber), R(4), U8(1),
-                B(Ldar), R(4),
+                B(ToNumber), U8(1),
+                B(Star), R(4),
                 B(Inc), U8(1),
   /*   42 E> */ B(StaModuleVariable), I8(1), U8(1),
                 B(Ldar), R(4),
@@ -287,7 +287,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 142
+bytecode array length: 141
 bytecodes: [
                 B(Ldar), R(1),
                 B(JumpIfUndefined), U8(18),
@@ -339,8 +339,8 @@ bytecodes: [
   /*   34 S> */ B(LdaUndefined),
   /*   34 E> */ B(StaCurrentContextSlot), U8(4),
   /*   39 S> */ B(LdaModuleVariable), I8(1), U8(1),
-                B(ToNumber), R(4), U8(1),
-                B(Ldar), R(4),
+                B(ToNumber), U8(1),
+                B(Star), R(4),
                 B(Inc), U8(1),
   /*   42 E> */ B(StaModuleVariable), I8(1), U8(1),
                 B(Ldar), R(4),
@@ -367,7 +367,7 @@ snippet: "
 "
 frame size: 5
 parameter count: 2
-bytecode array length: 146
+bytecode array length: 145
 bytecodes: [
                 B(Ldar), R(1),
                 B(JumpIfUndefined), U8(18),
@@ -419,8 +419,8 @@ bytecodes: [
   /*   36 S> */ B(LdaUndefined),
   /*   36 E> */ B(StaCurrentContextSlot), U8(4),
   /*   41 S> */ B(LdaModuleVariable), I8(1), U8(1),
-                B(ToNumber), R(4), U8(1),
-                B(Ldar), R(4),
+                B(ToNumber), U8(1),
+                B(Star), R(4),
                 B(Inc), U8(1),
   /*   44 E> */ B(CallRuntime), U16(Runtime::kThrowConstAssignError), R(0), U8(0),
                 B(Ldar), R(4),

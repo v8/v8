@@ -353,7 +353,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Converts accumulator and stores result in register |out|.
   BytecodeArrayBuilder& ToObject(Register out);
   BytecodeArrayBuilder& ToName(Register out);
-  BytecodeArrayBuilder& ToNumber(Register out, int feedback_slot);
+
+  // Converts accumulator and stores result back in accumulator.
+  BytecodeArrayBuilder& ToNumber(int feedback_slot);
 
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);

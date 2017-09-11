@@ -2438,7 +2438,7 @@ void BytecodeGraphBuilder::VisitToNumber() {
   Node* object = environment()->LookupAccumulator();
 
   FeedbackSlot slot =
-      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(1));
+      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(0));
   JSTypeHintLowering::LoweringResult lowering =
       TryBuildSimplifiedToNumber(object, slot);
 
@@ -2450,8 +2450,7 @@ void BytecodeGraphBuilder::VisitToNumber() {
     node = NewNode(javascript()->ToNumber(), object);
   }
 
-  environment()->BindRegister(bytecode_iterator().GetRegisterOperand(0), node,
-                              Environment::kAttachFrameState);
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitJump() { BuildJump(); }

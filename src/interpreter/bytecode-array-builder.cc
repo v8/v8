@@ -994,9 +994,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ToName(Register out) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::ToNumber(Register out,
-                                                     int feedback_slot) {
-  OutputToNumber(out, feedback_slot);
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToNumber(int feedback_slot) {
+  OutputToNumber(feedback_slot);
   return *this;
 }
 

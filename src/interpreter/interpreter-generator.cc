@@ -1225,7 +1225,7 @@ IGNITION_HANDLER(ToName, InterpreterAssembler) {
   Dispatch();
 }
 
-// ToNumber <dst> <slot>
+// ToNumber <slot>
 //
 // Convert the object referenced by the accumulator to a number.
 IGNITION_HANDLER(ToNumber, InterpreterAssembler) {
@@ -1264,13 +1264,13 @@ IGNITION_HANDLER(ToNumber, InterpreterAssembler) {
   }
 
   BIND(&if_done);
-  StoreRegister(var_result.value(), BytecodeOperandReg(0));
 
   // Record the type feedback collected for {object}.
-  Node* slot_index = BytecodeOperandIdx(1);
+  Node* slot_index = BytecodeOperandIdx(0);
   Node* feedback_vector = LoadFeedbackVector();
   UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
 
+  SetAccumulator(var_result.value());
   Dispatch();
 }
 
