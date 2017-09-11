@@ -40,9 +40,7 @@ struct WasmException;
   }())
 
 #define CHECK_PROTOTYPE_OPCODE(flag)                                           \
-  if (this->module_ != nullptr && this->module_->is_asm_js()) {                \
-    this->error("Opcode not supported for asmjs modules");                     \
-  }                                                                            \
+  DCHECK(!this->module_ || !this->module_->is_asm_js());                       \
   if (!FLAG_experimental_wasm_##flag) {                                        \
     this->error("Invalid opcode (enable with --experimental-wasm-" #flag ")"); \
     break;                                                                     \
