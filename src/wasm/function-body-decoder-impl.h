@@ -606,8 +606,11 @@ class WasmDecoder : public Decoder {
           type = kWasmF64;
           break;
         case kLocalS128:
-          type = kWasmS128;
-          break;
+          if (FLAG_experimental_wasm_simd) {
+            type = kWasmS128;
+            break;
+          }
+        // else fall through to default.
         default:
           decoder->error(decoder->pc() - 1, "invalid local type");
           return false;

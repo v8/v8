@@ -541,6 +541,9 @@ class WasmModuleBuilder {
             if (l.f64_count > 0) {
               local_decls.push({count: l.f64_count, type: kWasmF64});
             }
+            if (l.s128_count > 0) {
+              local_decls.push({count: l.s128_count, type: kWasmS128});
+            }
           }
 
           let header = new Binary;
