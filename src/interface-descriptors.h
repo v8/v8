@@ -343,7 +343,7 @@ static const int kMaxBuiltinRegisterParams = 5;
     kStackParameterCount = kArity + 1                                   \
   };
 
-class VoidDescriptor : public CallInterfaceDescriptor {
+class V8_EXPORT_PRIVATE VoidDescriptor : public CallInterfaceDescriptor {
  public:
   DECLARE_DESCRIPTOR(VoidDescriptor, CallInterfaceDescriptor)
 };

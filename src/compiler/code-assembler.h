@@ -268,7 +268,6 @@ class SloppyTNode : public TNode<A> {
   V(Float64InsertHighWord32, Float64T, Float64T, Word32T) \
   V(IntPtrAddWithOverflow, IntPtrT, IntPtrT, IntPtrT)     \
   V(IntPtrSubWithOverflow, IntPtrT, IntPtrT, IntPtrT)     \
-  V(IntPtrMul, IntPtrT, IntPtrT, IntPtrT)                 \
   V(Int32Add, Word32T, Word32T, Word32T)                  \
   V(Int32AddWithOverflow, Int32T, Int32T, Int32T)         \
   V(Int32Sub, Word32T, Word32T, Word32T)                  \
@@ -276,25 +275,8 @@ class SloppyTNode : public TNode<A> {
   V(Int32MulWithOverflow, Int32T, Int32T, Int32T)         \
   V(Int32Div, Int32T, Int32T, Int32T)                     \
   V(Int32Mod, Int32T, Int32T, Int32T)                     \
-  V(WordOr, WordT, WordT, WordT)                          \
-  V(WordAnd, WordT, WordT, WordT)                         \
-  V(WordXor, WordT, WordT, WordT)                         \
-  V(WordShl, WordT, WordT, IntegralT)                     \
-  V(WordShr, WordT, WordT, IntegralT)                     \
-  V(WordSar, WordT, WordT, IntegralT)                     \
   V(WordRor, WordT, WordT, IntegralT)                     \
-  V(Word32Or, Word32T, Word32T, Word32T)                  \
-  V(Word32And, Word32T, Word32T, Word32T)                 \
-  V(Word32Xor, Word32T, Word32T, Word32T)                 \
-  V(Word32Shl, Word32T, Word32T, Word32T)                 \
-  V(Word32Shr, Word32T, Word32T, Word32T)                 \
-  V(Word32Sar, Word32T, Word32T, Word32T)                 \
   V(Word32Ror, Word32T, Word32T, Word32T)                 \
-  V(Word64Or, Word64T, Word64T, Word64T)                  \
-  V(Word64And, Word64T, Word64T, Word64T)                 \
-  V(Word64Xor, Word64T, Word64T, Word64T)                 \
-  V(Word64Shr, Word64T, Word64T, Word64T)                 \
-  V(Word64Sar, Word64T, Word64T, Word64T)                 \
   V(Word64Ror, Word64T, Word64T, Word64T)
 
 TNode<Float64T> Float64Add(TNode<Float64T> a, TNode<Float64T> b);
@@ -625,6 +607,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   TNode<WordT> IntPtrAdd(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
   TNode<WordT> IntPtrSub(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
+  TNode<WordT> IntPtrMul(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
   TNode<IntPtrT> IntPtrAdd(TNode<IntPtrT> left, TNode<IntPtrT> right) {
     return Signed(
         IntPtrAdd(static_cast<Node*>(left), static_cast<Node*>(right)));
@@ -633,6 +616,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return Signed(
         IntPtrSub(static_cast<Node*>(left), static_cast<Node*>(right)));
   }
+  TNode<IntPtrT> IntPtrMul(TNode<IntPtrT> left, TNode<IntPtrT> right) {
+    return Signed(
+        IntPtrMul(static_cast<Node*>(left), static_cast<Node*>(right)));
+  }
 
   TNode<WordT> WordShl(SloppyTNode<WordT> value, int shift);
   TNode<WordT> WordShr(SloppyTNode<WordT> value, int shift);
@@ -640,6 +627,37 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     return UncheckedCast<IntPtrT>(WordShr(static_cast<Node*>(value), shift));
   }
   TNode<Word32T> Word32Shr(SloppyTNode<Word32T> value, int shift);
+
+  TNode<WordT> WordOr(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
+  TNode<WordT> WordAnd(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
+  TNode<WordT> WordXor(SloppyTNode<WordT> left, SloppyTNode<WordT> right);
+  TNode<WordT> WordShl(SloppyTNode<WordT> left, SloppyTNode<IntegralT> right);
+  TNode<WordT> WordShr(SloppyTNode<WordT> left, SloppyTNode<IntegralT> right);
+  TNode<WordT> WordSar(SloppyTNode<WordT> left, SloppyTNode<IntegralT> right);
+  TNode<Word32T> Word32Or(SloppyTNode<Word32T> left,
+                          SloppyTNode<Word32T> right);
+  TNode<Word32T> Word32And(SloppyTNode<Word32T> left,
+                           SloppyTNode<Word32T> right);
+  TNode<Word32T> Word32Xor(SloppyTNode<Word32T> left,
+                           SloppyTNode<Word32T> right);
+  TNode<Word32T> Word32Shl(SloppyTNode<Word32T> left,
+                           SloppyTNode<Word32T> right);
+  TNode<Word32T> Word32Shr(SloppyTNode<Word32T> left,
+                           SloppyTNode<Word32T> right);
+  TNode<Word32T> Word32Sar(SloppyTNode<Word32T> left,
+                           SloppyTNode<Word32T> right);
+  TNode<Word64T> Word64Or(SloppyTNode<Word64T> left,
+                          SloppyTNode<Word64T> right);
+  TNode<Word64T> Word64And(SloppyTNode<Word64T> left,
+                           SloppyTNode<Word64T> right);
+  TNode<Word64T> Word64Xor(SloppyTNode<Word64T> left,
+                           SloppyTNode<Word64T> right);
+  TNode<Word64T> Word64Shl(SloppyTNode<Word64T> left,
+                           SloppyTNode<Word64T> right);
+  TNode<Word64T> Word64Shr(SloppyTNode<Word64T> left,
+                           SloppyTNode<Word64T> right);
+  TNode<Word64T> Word64Sar(SloppyTNode<Word64T> left,
+                           SloppyTNode<Word64T> right);
 
 // Unary
 #define DECLARE_CODE_ASSEMBLER_UNARY_OP(name, ResType, ArgType) \

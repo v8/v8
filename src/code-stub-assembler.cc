@@ -504,6 +504,10 @@ TNode<Smi> CodeStubAssembler::SmiTag(SloppyTNode<IntPtrT> value) {
 }
 
 TNode<IntPtrT> CodeStubAssembler::SmiUntag(SloppyTNode<Smi> value) {
+  intptr_t constant_value;
+  if (ToIntPtrConstant(value, constant_value)) {
+    return IntPtrConstant(constant_value >> (kSmiShiftSize + kSmiTagSize));
+  }
   return UncheckedCast<IntPtrT>(
       WordSar(BitcastTaggedToWord(value), SmiShiftBitsConstant()));
 }
@@ -5374,12 +5378,24 @@ TNode<IntPtrT> CodeStubAssembler::HashTableComputeCapacity(
 
 TNode<IntPtrT> CodeStubAssembler::IntPtrMax(SloppyTNode<IntPtrT> left,
                                             SloppyTNode<IntPtrT> right) {
+  intptr_t left_constant;
+  intptr_t right_constant;
+  if (ToIntPtrConstant(left, left_constant) &&
+      ToIntPtrConstant(right, right_constant)) {
+    return IntPtrConstant(std::max(left_constant, right_constant));
+  }
   return SelectConstant(IntPtrGreaterThanOrEqual(left, right), left, right,
                         MachineType::PointerRepresentation());
 }
 
 TNode<IntPtrT> CodeStubAssembler::IntPtrMin(SloppyTNode<IntPtrT> left,
                                             SloppyTNode<IntPtrT> right) {
+  intptr_t left_constant;
+  intptr_t right_constant;
+  if (ToIntPtrConstant(left, left_constant) &&
+      ToIntPtrConstant(right, right_constant)) {
+    return IntPtrConstant(std::min(left_constant, right_constant));
+  }
   return SelectConstant(IntPtrLessThanOrEqual(left, right), left, right,
                         MachineType::PointerRepresentation());
 }
