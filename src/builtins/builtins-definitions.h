@@ -642,9 +642,10 @@ namespace internal {
                                                                                \
   /* Number */                                                                 \
   /* ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Call]] case */        \
-  ASM(NumberConstructor)                                                       \
+  TFJ(NumberConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)      \
   /* ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case */   \
-  ASM(NumberConstructor_ConstructStub)                                         \
+  TFJ(NumberConstructor_ConstructStub,                                         \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-number.isfinite */                                               \
   TFJ(NumberIsFinite, 1, kNumber)                                              \
   /* ES6 #sec-number.isinteger */                                              \
@@ -883,8 +884,9 @@ namespace internal {
   CPP(AtomicsWake)                                                             \
                                                                                \
   /* String */                                                                 \
-  ASM(StringConstructor)                                                       \
-  ASM(StringConstructor_ConstructStub)                                         \
+  TFJ(StringConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)      \
+  TFJ(StringConstructor_ConstructStub,                                         \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   CPP(StringFromCodePoint)                                                     \
   /* ES6 #sec-string.fromcharcode */                                           \
   TFJ(StringFromCharCode, SharedFunctionInfo::kDontAdaptArgumentsSentinel)     \

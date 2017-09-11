@@ -40,6 +40,9 @@ class ConstructorBuiltinsAssembler : public CodeStubAssembler {
   Node* EmitFastNewObject(Node* context, Node* target, Node* new_target,
                           Label* call_runtime);
 
+  Node* EmitConstructString(Node* argc, CodeStubArguments& args, Node* context,
+                            bool convert_symbol);
+
  private:
   Node* NonEmptyShallowClone(Node* boilerplate, Node* boilerplate_map,
                              Node* boilerplate_elements, Node* allocation_site,

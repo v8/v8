@@ -410,12 +410,11 @@ class FrameArrayBuilder {
         const int offset = summary.code_offset();
 
         bool is_constructor = summary.is_constructor();
-        if (frame->type() == StackFrame::BUILTIN) {
-          // Help CallSite::IsConstructor correctly detect hand-written
-          // construct stubs.
-          if (Code::cast(*abstract_code)->is_construct_stub()) {
-            is_constructor = true;
-          }
+        // Help CallSite::IsConstructor correctly detect hand-written
+        // construct stubs.
+        if (abstract_code->IsCode() &&
+            Code::cast(*abstract_code)->is_construct_stub()) {
+          is_constructor = true;
         }
 
         int flags = 0;

@@ -251,6 +251,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ToString)                        \
   V(ToLength)                        \
   V(ToNumber)                        \
+  V(NumberToString)                  \
   /* Type checks */                  \
   V(IsJSReceiver)                    \
   V(IsSmi)                           \
@@ -284,6 +285,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(StringIndexOf)                   \
   V(StringIncludes)                  \
   V(StringReplaceOneCharWithString)  \
+  V(StringToNumber)                  \
   V(StringTrim)                      \
   V(SubString)                       \
   V(RegExpInternalReplace)           \
@@ -599,6 +601,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeTrimLeft:
     case Builtins::kStringPrototypeTrimRight:
     case Builtins::kStringPrototypeValueOf:
+    case Builtins::kStringToNumber:
     // Symbol builtins.
     case Builtins::kSymbolConstructor:
     case Builtins::kSymbolKeyFor:

@@ -259,6 +259,8 @@ bool Builtins::IsLazy(int index) {
     case kInterpreterEntryTrampoline:
     case kObjectConstructor_ConstructStub:    // https://crbug.com/v8/6787.
     case kProxyConstructor_ConstructStub:     // https://crbug.com/v8/6787.
+    case kNumberConstructor_ConstructStub:    // https://crbug.com/v8/6787.
+    case kStringConstructor_ConstructStub:    // https://crbug.com/v8/6787.
     case kProxyConstructor:                   // https://crbug.com/v8/6787.
     case kThrowWasmTrapDivByZero:             // Required by wasm.
     case kThrowWasmTrapDivUnrepresentable:    // Required by wasm.
