@@ -1388,7 +1388,7 @@ MaybeHandle<Object> KeyedLoadIC::Load(Handle<Object> object,
     }
   }
 
-  if (!is_vector_set()) {
+  if (vector_needs_update()) {
     ConfigureVectorState(MEGAMORPHIC, key);
     TRACE_IC("LoadIC", key);
   }
@@ -2253,7 +2253,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
         StoreIC::Store(object, Handle<Name>::cast(key), value,
                        JSReceiver::MAY_BE_STORE_FROM_KEYED),
         Object);
-    if (!is_vector_set()) {
+    if (vector_needs_update()) {
       ConfigureVectorState(MEGAMORPHIC, key);
       TRACE_GENERIC_IC("unhandled internalized string key");
       TRACE_IC("StoreIC", key);
@@ -2328,7 +2328,7 @@ MaybeHandle<Object> KeyedStoreIC::Store(Handle<Object> object,
     }
   }
 
-  if (!is_vector_set()) {
+  if (vector_needs_update()) {
     ConfigureVectorState(MEGAMORPHIC, key);
   }
   TRACE_IC("StoreIC", key);
