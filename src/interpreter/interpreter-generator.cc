@@ -1254,22 +1254,33 @@ IGNITION_HANDLER(Negate, InterpreterAssembler) {
 
   BIND(&if_smi);
   {
-    // TODO(adamk): Use something more efficient than multiplication for this
-    // operation, being careful to maintain float behavior regarding -0.
-    Node* result = SmiMul(operand, SmiConstant(-1));
-    var_type_feedback.Bind(SelectSmiConstant(
-        TaggedIsSmi(result), BinaryOperationFeedback::kSignedSmall,
-        BinaryOperationFeedback::kNumber));
-    var_result.Bind(result);
+    Label if_zero(this), if_min_smi(this);
+    // Return -0 if operand is 0.
+    GotoIf(SmiEqual(operand, SmiConstant(0)), &if_zero);
+
+    // Special-case the minimum smi to avoid overflow.
+    GotoIf(SmiEqual(operand, SmiConstant(Smi::kMinValue)), &if_min_smi);
+
+    // Else simply subtract operand from 0.
+    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kSignedSmall));
+    var_result.Bind(SmiSub(SmiConstant(0), operand));
+    Goto(&end);
+
+    BIND(&if_zero);
+    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
+    var_result.Bind(MinusZeroConstant());
+    Goto(&end);
+
+    BIND(&if_min_smi);
+    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
+    var_result.Bind(AllocateHeapNumberWithValue(
+        Float64Constant(-static_cast<double>(Smi::kMinValue))));
     Goto(&end);
   }
 
   BIND(&if_heapnumber);
   {
-    // TODO(adamk): Use something more efficient than multiplication for this
-    // operation, being careful to maintain float behavior regarding -0.
-    Node* result =
-        Float64Mul(LoadHeapNumberValue(operand), Float64Constant(-1.0));
+    Node* result = Float64Neg(LoadHeapNumberValue(operand));
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
     var_result.Bind(AllocateHeapNumberWithValue(result));
     Goto(&end);
