@@ -582,7 +582,7 @@ v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
           m_isolate, v8::Local<v8::Object>::Cast(value));
       break;
   }
-
+  if (!iterator) return v8::MaybeLocal<v8::Value>();
   v8::Local<v8::Array> result = v8::Array::New(m_isolate);
   if (!result->SetPrototype(context, v8::Null(m_isolate)).FromMaybe(false)) {
     return v8::MaybeLocal<v8::Value>();
