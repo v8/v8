@@ -439,6 +439,36 @@ Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
     return r.ChangeToPureOperator(simplified()->NumberAdd(), Type::Number());
   }
   if (r.OneInputIs(Type::String())) {
+    // We know that (at least) one input is already a String,
+    // so try to strength-reduce the non-String input.
+    if (r.LeftInputIs(Type::String())) {
+      Reduction const reduction = ReduceJSToStringInput(r.right());
+      if (reduction.Changed()) {
+        NodeProperties::ReplaceValueInput(node, reduction.replacement(), 1);
+      }
+    } else if (r.RightInputIs(Type::String())) {
+      Reduction const reduction = ReduceJSToStringInput(r.left());
+      if (reduction.Changed()) {
+        NodeProperties::ReplaceValueInput(node, reduction.replacement(), 0);
+      }
+    }
+    // We might be able to constant-fold the String concatenation now.
+    if (r.BothInputsAre(Type::String())) {
+      HeapObjectBinopMatcher m(node);
+      if (m.IsFoldable()) {
+        Handle<String> left = Handle<String>::cast(m.left().Value());
+        Handle<String> right = Handle<String>::cast(m.right().Value());
+        if (left->length() + right->length() > String::kMaxLength) {
+          // No point in trying to optimize this, as it will just throw.
+          return NoChange();
+        }
+        Node* value = jsgraph()->HeapConstant(
+            factory()->NewConsString(left, right).ToHandleChecked());
+        ReplaceWithValue(node, value);
+        return Replace(value);
+      }
+    }
+    // We might know for sure that we're creating a ConsString here.
     if (r.ShouldCreateConsString()) {
       return ReduceCreateConsString(node);
     }
