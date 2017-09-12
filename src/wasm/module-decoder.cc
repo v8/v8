@@ -1083,8 +1083,11 @@ class ModuleDecoder : public Decoder {
                                 uint32_t max_initial, uint32_t* initial,
                                 bool* has_max, uint32_t max_maximum,
                                 uint32_t* maximum) {
-    uint32_t flags = consume_u32v("resizable limits flags");
+    uint8_t flags = consume_u8("resizable limits flags");
     const byte* pos = pc();
+    if (flags & 0xfe) {
+      errorf(pos - 1, "invalid %s limits flags", name);
+    }
     *initial = consume_u32v("initial size");
     *has_max = false;
     if (*initial > max_initial) {
