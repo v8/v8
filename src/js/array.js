@@ -15,6 +15,8 @@ var GetIterator;
 var GetMethod;
 var GlobalArray = global.Array;
 var InternalArray = utils.InternalArray;
+var MathMax = global.Math.max;
+var MathMin = global.Math.min;
 var ObjectHasOwnProperty = global.Object.prototype.hasOwnProperty;
 var ObjectToString = global.Object.prototype.toString;
 var iteratorSymbol = utils.ImportNow("iterator_symbol");
@@ -222,7 +224,7 @@ function SparseMove(array, start_i, del_count, len, num_additional_args) {
   // Move data to new array.
   var new_array = new InternalArray(
       // Clamp array length to 2^32-1 to avoid early RangeError.
-      MINSIMPLE(len - del_count + num_additional_args, 0xffffffff));
+      MathMin(len - del_count + num_additional_args, 0xffffffff));
   var big_indices;
   var indices = %GetArrayKeys(array, len);
   if (IS_NUMBER(indices)) {
@@ -612,7 +614,7 @@ function ArraySliceFallback(start, end) {
     if (end_i > len) end_i = len;
   }
 
-  var result = ArraySpeciesCreate(array, MAXSIMPLE(end_i - start_i, 0));
+  var result = ArraySpeciesCreate(array, MathMax(end_i - start_i, 0));
 
   if (end_i < start_i) return result;
 
@@ -1081,28 +1083,28 @@ DEFINE_METHOD_LEN(
     target = TO_INTEGER(target);
     var to;
     if (target < 0) {
-      to = MAXSIMPLE(length + target, 0);
+      to = MathMax(length + target, 0);
     } else {
-      to = MINSIMPLE(target, length);
+      to = MathMin(target, length);
     }
 
     start = TO_INTEGER(start);
     var from;
     if (start < 0) {
-      from = MAXSIMPLE(length + start, 0);
+      from = MathMax(length + start, 0);
     } else {
-      from = MINSIMPLE(start, length);
+      from = MathMin(start, length);
     }
 
     end = IS_UNDEFINED(end) ? length : TO_INTEGER(end);
     var final;
     if (end < 0) {
-      final = MAXSIMPLE(length + end, 0);
+      final = MathMax(length + end, 0);
     } else {
-      final = MINSIMPLE(end, length);
+      final = MathMin(end, length);
     }
 
-    var count = MINSIMPLE(final - from, length - to);
+    var count = MathMin(final - from, length - to);
     var direction = 1;
     if (from < to && to < (from + count)) {
       direction = -1;

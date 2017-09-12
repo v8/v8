@@ -112,7 +112,3 @@ define PROPERTY_FILTER_NONE = 0;
 
 # Check whether debug is active.
 define DEBUG_IS_ACTIVE = (%_DebugIsActive() != 0);
-
-# Min and max
-macro MAXSIMPLE(a, b) = ((a) > (b) ? (a) : (b));
-macro MINSIMPLE(a, b) = ((a) > (b) ? (b) : (a));
