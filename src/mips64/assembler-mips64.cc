@@ -1969,7 +1969,7 @@ void Assembler::sll(Register rd,
   // Don't allow nop instructions in the form sll zero_reg, zero_reg to be
   // generated using the sll instruction. They must be generated using
   // nop(int/NopMarkerTypes).
-  DCHECK(coming_from_nop || rd != zero_reg && rt != zero_reg);
+  DCHECK(coming_from_nop || (rd != zero_reg && rt != zero_reg));
   GenInstrRegister(SPECIAL, zero_reg, rt, rd, sa & 0x1F, SLL);
 }
 
