@@ -111,8 +111,8 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
 
   VARIABLE(var_length, MachineRepresentation::kTagged);
   VARIABLE(var_elements, MachineRepresentation::kTagged);
-  Label if_empty(this, Label::kDeferred), if_fast(this),
-      if_slow(this, Label::kDeferred), if_join(this);
+  Label if_empty(this, Label::kDeferred), if_empty_elements(this),
+      if_fast(this), if_slow(this, Label::kDeferred), if_join(this);
 
   // Check if the {object} has a usable enum cache.
   GotoIf(TaggedIsSmi(object), &if_slow);
@@ -127,7 +127,12 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
   // Ensure that the {object} doesn't have any elements.
   CSA_ASSERT(this, IsJSObjectMap(object_map));
   Node* object_elements = LoadObjectField(object, JSObject::kElementsOffset);
-  GotoIfNot(IsEmptyFixedArray(object_elements), &if_slow);
+  GotoIf(IsEmptyFixedArray(object_elements), &if_empty_elements);
+  Branch(IsEmptySlowElementDictionary(object_elements), &if_empty_elements,
+         &if_slow);
+
+  // Check whether there are enumerable properties.
+  BIND(&if_empty_elements);
   Branch(WordEqual(object_enum_length, IntPtrConstant(0)), &if_empty, &if_fast);
 
   BIND(&if_fast);
