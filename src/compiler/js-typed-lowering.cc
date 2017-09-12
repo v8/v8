@@ -1030,6 +1030,16 @@ Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
   if (input_type->Is(Type::Null())) {
     return Replace(jsgraph()->HeapConstant(factory()->null_string()));
   }
+  if (input_type->Is(Type::NaN())) {
+    return Replace(jsgraph()->HeapConstant(factory()->NaN_string()));
+  }
+  if (input_type->Is(Type::OrderedNumber()) &&
+      input_type->Min() == input_type->Max()) {
+    // Note that we can use Type::OrderedNumber(), since
+    // both 0 and -0 map to the String "0" in JavaScript.
+    return Replace(jsgraph()->HeapConstant(
+        factory()->NumberToString(factory()->NewNumber(input_type->Min()))));
+  }
   // TODO(turbofan): js-typed-lowering of ToString(x:number)
   return NoChange();
 }
