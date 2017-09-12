@@ -2047,8 +2047,11 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
 void AsyncCompileJob::StartForegroundTask() {
   DCHECK_EQ(0, num_pending_foreground_tasks_++);
 
-  V8::GetCurrentPlatform()->CallOnForegroundThread(
-      reinterpret_cast<v8::Isolate*>(isolate_), new CompileTask(this, true));
+  v8::Platform* platform = V8::GetCurrentPlatform();
+  // TODO(ahaas): This is a CHECK to debug issue 764313.
+  CHECK(platform);
+  platform->CallOnForegroundThread(reinterpret_cast<v8::Isolate*>(isolate_),
+                                   new CompileTask(this, true));
 }
 
 template <typename State, typename... Args>
