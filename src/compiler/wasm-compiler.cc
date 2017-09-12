@@ -69,7 +69,8 @@ void MergeControlToEnd(JSGraph* jsgraph, Node* node) {
 WasmGraphBuilder::WasmGraphBuilder(
     ModuleEnv* env, Zone* zone, JSGraph* jsgraph, Handle<Code> centry_stub,
     wasm::FunctionSig* sig,
-    compiler::SourcePositionTable* source_position_table)
+    compiler::SourcePositionTable* source_position_table,
+    RuntimeExceptionSupport exception_support)
     : zone_(zone),
       jsgraph_(jsgraph),
       centry_stub_node_(jsgraph_->HeapConstant(centry_stub)),
@@ -79,6 +80,7 @@ WasmGraphBuilder::WasmGraphBuilder(
       function_table_sizes_(zone),
       cur_buffer_(def_buffer_),
       cur_bufsize_(kDefaultBufferSize),
+      runtime_exception_support_(exception_support),
       sig_(sig),
       source_position_table_(source_position_table) {
   for (size_t i = sig->parameter_count(); i > 0 && !has_simd_; --i) {
@@ -4183,7 +4185,8 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   SourcePositionTable* source_position_table =
       new (jsgraph_->zone()) SourcePositionTable(jsgraph_->graph());
   WasmGraphBuilder builder(env_, jsgraph_->zone(), jsgraph_, centry_stub_,
-                           func_body_.sig, source_position_table);
+                           func_body_.sig, source_position_table,
+                           runtime_exception_support_);
   graph_construction_result_ =
       wasm::BuildTFGraph(isolate_->allocator(), &builder, func_body_);
 
@@ -4232,18 +4235,18 @@ Vector<const char> GetDebugName(Zone* zone, wasm::WasmName name, int index) {
 }
 }  // namespace
 
-WasmCompilationUnit::WasmCompilationUnit(Isolate* isolate, ModuleEnv* env,
-                                         wasm::FunctionBody body,
-                                         wasm::WasmName name, int index,
-                                         Handle<Code> centry_stub,
-                                         Counters* counters)
+WasmCompilationUnit::WasmCompilationUnit(
+    Isolate* isolate, ModuleEnv* env, wasm::FunctionBody body,
+    wasm::WasmName name, int index, Handle<Code> centry_stub,
+    Counters* counters, RuntimeExceptionSupport exception_support)
     : isolate_(isolate),
       env_(env),
       func_body_(body),
       func_name_(name),
       counters_(counters ? counters : isolate->counters()),
       centry_stub_(centry_stub),
-      func_index_(index) {}
+      func_index_(index),
+      runtime_exception_support_(exception_support) {}
 
 void WasmCompilationUnit::ExecuteCompilation() {
   auto timed_histogram = env_->module->is_wasm()

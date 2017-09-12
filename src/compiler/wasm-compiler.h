@@ -91,7 +91,8 @@ class WasmCompilationUnit final {
   // If no such pointer is passed, Isolate::counters() will be called. This is
   // only allowed to happen on the foreground thread.
   WasmCompilationUnit(Isolate*, ModuleEnv*, wasm::FunctionBody, wasm::WasmName,
-                      int index, Handle<Code> centry_stub, Counters* = nullptr);
+                      int index, Handle<Code> centry_stub, Counters* = nullptr,
+                      RuntimeExceptionSupport = kRuntimeExceptionSupport);
 
   int func_index() const { return func_index_; }
 
@@ -126,6 +127,8 @@ class WasmCompilationUnit final {
   Handle<Code> centry_stub_;
   int func_index_;
   wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
+  // See WasmGraphBuilder::runtime_exception_support_.
+  RuntimeExceptionSupport runtime_exception_support_;
   bool ok_ = true;
   size_t memory_cost_ = 0;
 
@@ -172,10 +175,9 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig);
 typedef ZoneVector<Node*> NodeVector;
 class WasmGraphBuilder {
  public:
-  WasmGraphBuilder(
-      ModuleEnv* env, Zone* z, JSGraph* g, Handle<Code> centry_stub_,
-      wasm::FunctionSig* sig,
-      compiler::SourcePositionTable* source_position_table = nullptr);
+  WasmGraphBuilder(ModuleEnv*, Zone*, JSGraph*, Handle<Code> centry_stub_,
+                   wasm::FunctionSig*, compiler::SourcePositionTable* = nullptr,
+                   RuntimeExceptionSupport = kRuntimeExceptionSupport);
 
   Node** Buffer(size_t count) {
     if (count > cur_bufsize_) {
@@ -322,10 +324,6 @@ class WasmGraphBuilder {
 
   bool has_simd() const { return has_simd_; }
 
-  void set_runtime_exception_support(RuntimeExceptionSupport value) {
-    runtime_exception_support_ = value;
-  }
-
   const wasm::WasmModule* module() { return env_ ? env_->module : nullptr; }
 
  private:
@@ -350,7 +348,7 @@ class WasmGraphBuilder {
   // If the runtime doesn't support exception propagation,
   // we won't generate stack checks, and trap handling will also
   // be generated differently.
-  RuntimeExceptionSupport runtime_exception_support_ = kRuntimeExceptionSupport;
+  RuntimeExceptionSupport runtime_exception_support_;
 
   wasm::FunctionSig* sig_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;

@@ -11,13 +11,16 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-TestingModuleBuilder::TestingModuleBuilder(Zone* zone, WasmExecutionMode mode)
+TestingModuleBuilder::TestingModuleBuilder(
+    Zone* zone, WasmExecutionMode mode,
+    compiler::RuntimeExceptionSupport exception_support)
     : test_module_ptr_(&test_module_),
       isolate_(CcTest::InitIsolateOnce()),
       global_offset(0),
       mem_start_(nullptr),
       mem_size_(0),
-      interpreter_(nullptr) {
+      interpreter_(nullptr),
+      runtime_exception_support_(exception_support) {
   WasmJs::Install(isolate_, true);
   test_module_.globals_size = kMaxGlobalsSize;
   memset(globals_data_, 0, sizeof(globals_data_));
@@ -246,8 +249,7 @@ void TestBuildingGraph(
     compiler::RuntimeExceptionSupport runtime_exception_support) {
   compiler::WasmGraphBuilder builder(
       module, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(), sig,
-      source_position_table);
-  builder.set_runtime_exception_support(runtime_exception_support);
+      source_position_table, runtime_exception_support);
 
   DecodeResult result =
       BuildTFGraph(zone->allocator(), &builder, sig, start, end);
@@ -394,16 +396,47 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
     interpreter_->SetFunctionCodeForTesting(function_, start, end);
   }
 
-  // Build the TurboFan graph.
+  Handle<WasmCompiledModule> compiled_module(
+      builder_->instance_object()->compiled_module(), isolate());
+  Handle<SeqOneByteString> wire_bytes(compiled_module->module_bytes(),
+                                      isolate());
+
   compiler::ModuleEnv module_env = builder_->CreateModuleEnv();
-  TestBuildingGraph(zone(), &jsgraph, &module_env, sig, &source_position_table_,
-                    start, end, runtime_exception_support_);
-  Handle<Code> code = Compile();
+  ErrorThrower thrower(isolate(), "WasmFunctionCompiler::Build");
+  ScopedVector<uint8_t> func_wire_bytes(function_->code.length());
+  memcpy(func_wire_bytes.start(),
+         wire_bytes->GetChars() + function_->code.offset(),
+         func_wire_bytes.length());
+  ScopedVector<char> func_name(function_->name.length());
+  memcpy(func_name.start(), wire_bytes->GetChars() + function_->name.offset(),
+         func_name.length());
+
+  FunctionBody func_body{function_->sig, function_->code.offset(),
+                         func_wire_bytes.start(), func_wire_bytes.end()};
+  compiler::WasmCompilationUnit unit(
+      isolate(), &module_env, func_body, func_name, function_->func_index,
+      CEntryStub(isolate(), 1).GetCode(), isolate()->counters(),
+      builder_->runtime_exception_support());
+  unit.ExecuteCompilation();
+  Handle<Code> code = unit.FinishCompilation(&thrower).ToHandleChecked();
+  CHECK(!thrower.error());
+
+  // Manually add the deoptimization info that would otherwise be added
+  // during instantiation. Deopt data holds <WeakCell<wasm_instance>,
+  // func_index>.
+  DCHECK(code->deoptimization_data()->length() == 0);
+  Handle<FixedArray> deopt_data =
+      isolate()->factory()->NewFixedArray(2, TENURED);
+  Handle<Object> weak_instance =
+      isolate()->factory()->NewWeakCell(builder_->instance_object());
+  deopt_data->set(0, *weak_instance);
+  deopt_data->set(1, Smi::FromInt(static_cast<int>(function_index())));
+  code->set_deoptimization_data(*deopt_data);
+
+  // Build the TurboFan graph.
   builder_->SetFunctionCode(function_index(), code);
 
   // Add to code table.
-  Handle<WasmCompiledModule> compiled_module(
-      builder_->instance_object()->compiled_module(), isolate());
   Handle<FixedArray> code_table = compiled_module->code_table();
   if (static_cast<int>(function_index()) >= code_table->length()) {
     Handle<FixedArray> new_arr = isolate()->factory()->NewFixedArray(
@@ -420,10 +453,9 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   }
 }
 
-WasmFunctionCompiler::WasmFunctionCompiler(
-    Zone* zone, FunctionSig* sig, TestingModuleBuilder* builder,
-    const char* name,
-    compiler::RuntimeExceptionSupport runtime_exception_support)
+WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
+                                           TestingModuleBuilder* builder,
+                                           const char* name)
     : GraphAndBuilders(zone),
       jsgraph(builder->isolate(), this->graph(), this->common(), nullptr,
               nullptr, this->machine()),
@@ -432,51 +464,10 @@ WasmFunctionCompiler::WasmFunctionCompiler(
       builder_(builder),
       local_decls(zone, sig),
       source_position_table_(this->graph()),
-      interpreter_(builder->interpreter()),
-      runtime_exception_support_(runtime_exception_support) {
+      interpreter_(builder->interpreter()) {
   // Get a new function from the testing module.
   int index = builder->AddFunction(sig, Handle<Code>::null(), name);
   function_ = builder_->GetFunctionAt(index);
-}
-
-Handle<Code> WasmFunctionCompiler::Compile() {
-  CallDescriptor* desc = descriptor();
-  if (kPointerSize == 4) {
-    desc = compiler::GetI32WasmCallDescriptor(this->zone(), desc);
-  }
-  EmbeddedVector<char, 16> comp_name;
-  int comp_name_len = SNPrintF(comp_name, "wasm#%u", this->function_index());
-  comp_name.Truncate(comp_name_len);
-  CompilationInfo info(comp_name, this->isolate(), this->zone(),
-                       Code::ComputeFlags(Code::WASM_FUNCTION));
-  std::unique_ptr<CompilationJob> job(compiler::Pipeline::NewWasmCompilationJob(
-      &info, &jsgraph, desc, &source_position_table_, nullptr,
-      ModuleOrigin::kAsmJsOrigin));
-  if (job->ExecuteJob() != CompilationJob::SUCCEEDED ||
-      job->FinalizeJob() != CompilationJob::SUCCEEDED)
-    return Handle<Code>::null();
-
-  Handle<Code> code = info.code();
-
-  // Deopt data holds <WeakCell<wasm_instance>, func_index>.
-  DCHECK(code->deoptimization_data() == nullptr ||
-         code->deoptimization_data()->length() == 0);
-  Handle<FixedArray> deopt_data =
-      isolate()->factory()->NewFixedArray(2, TENURED);
-  Handle<Object> weak_instance =
-      isolate()->factory()->NewWeakCell(builder_->instance_object());
-  deopt_data->set(0, *weak_instance);
-  deopt_data->set(1, Smi::FromInt(static_cast<int>(function_index())));
-  code->set_deoptimization_data(*deopt_data);
-
-#ifdef ENABLE_DISASSEMBLER
-  if (FLAG_print_opt_code) {
-    OFStream os(stdout);
-    code->Disassemble("wasm code", os);
-  }
-#endif
-
-  return code;
 }
 
 FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
