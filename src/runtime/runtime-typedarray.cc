@@ -52,17 +52,6 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   return isolate->heap()->undefined_value();
 }
 
-namespace {
-Object* TypedArrayCopyElements(Handle<JSTypedArray> target,
-                               Handle<JSReceiver> source, Object* length_obj) {
-  size_t length;
-  CHECK(TryNumberToSize(length_obj, &length));
-
-  ElementsAccessor* accessor = target->GetElementsAccessor();
-  return accessor->CopyElements(source, target, length);
-}
-}  // anonymous namespace
-
 RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
@@ -70,7 +59,11 @@ RUNTIME_FUNCTION(Runtime_TypedArrayCopyElements) {
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, source, 1);
   CONVERT_NUMBER_ARG_HANDLE_CHECKED(length_obj, 2);
 
-  return TypedArrayCopyElements(target, source, *length_obj);
+  size_t length;
+  CHECK(TryNumberToSize(*length_obj, &length));
+
+  ElementsAccessor* accessor = target->GetElementsAccessor();
+  return accessor->CopyElements(source, target, length);
 }
 
 #define BUFFER_VIEW_GETTER(Type, getter, accessor)   \

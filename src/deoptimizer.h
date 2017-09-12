@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "src/allocation.h"
+#include "src/base/macros.h"
 #include "src/boxed-float.h"
 #include "src/deoptimize-reason.h"
 #include "src/frame-constants.h"
@@ -660,6 +661,7 @@ class FrameDescription {
   }
 
   uint32_t GetFrameSize() const {
+    USE(frame_content_);
     DCHECK(static_cast<uint32_t>(frame_size_) == frame_size_);
     return static_cast<uint32_t>(frame_size_);
   }
