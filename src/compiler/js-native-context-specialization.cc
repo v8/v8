@@ -2169,6 +2169,43 @@ JSNativeContextSpecialization::BuildElementAccess(
         simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
         effect, control);
 
+    // Check if the {receiver} is a known constant with a copy-on-write
+    // backing store, and whether {index} is within the appropriate
+    // bounds. In that case we can constant-fold the access and only
+    // check that the {elements} didn't change. This is sufficient as
+    // the backing store of a copy-on-write JSArray is defensively copied
+    // whenever the length or the elements (might) change.
+    if (access_mode == AccessMode::kLoad) {
+      HeapObjectMatcher mreceiver(receiver);
+      if (mreceiver.HasValue() && mreceiver.Value()->IsJSArray()) {
+        Handle<JSArray> array = Handle<JSArray>::cast(mreceiver.Value());
+        if (std::find_if(receiver_maps.begin(), receiver_maps.end(),
+                         [array](Handle<Map> map) {
+                           return *map == array->map();
+                         }) != receiver_maps.end()) {
+          uint32_t length;
+          if (array->length()->ToUint32(&length) &&
+              array->elements()->IsCowArray()) {
+            NumberMatcher mindex(index);
+            if (mindex.IsInteger() && mindex.IsInRange(0, length - 1)) {
+              Handle<FixedArray> array_elements(
+                  FixedArray::cast(array->elements()), isolate());
+              Handle<Object> array_element(
+                  array_elements->get(static_cast<int>(mindex.Value())),
+                  isolate());
+              Node* check =
+                  graph()->NewNode(simplified()->ReferenceEqual(), elements,
+                                   jsgraph()->HeapConstant(array_elements));
+              effect = graph()->NewNode(simplified()->CheckIf(), check, effect,
+                                        control);
+              Node* value = jsgraph()->Constant(array_element);
+              return ValueEffectControl(value, effect, control);
+            }
+          }
+        }
+      }
+    }
+
     // Don't try to store to a copy-on-write backing store.
     if (access_mode == AccessMode::kStore &&
         IsSmiOrObjectElementsKind(elements_kind) &&
