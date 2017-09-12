@@ -57,6 +57,10 @@ RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
   bool success;
   LookupIterator it = LookupIterator::PropertyOrElement(isolate, receiver, name,
                                                         &success, holder);
+  if (!success) {
+    DCHECK(isolate->has_pending_exception());
+    return isolate->heap()->exception();
+  }
   RETURN_RESULT_OR_FAILURE(isolate, Object::GetProperty(&it));
 }
 
