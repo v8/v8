@@ -935,7 +935,7 @@ DEFINE_INT(runtime_stats, 0,
 DEFINE_VALUE_IMPLICATION(runtime_call_stats, runtime_stats, 1)
 
 // snapshot-common.cc
-DEFINE_BOOL(lazy_deserialization, true,
+DEFINE_BOOL(lazy_deserialization, false,
             "Deserialize code lazily from the snapshot.")
 DEFINE_BOOL(trace_lazy_deserialization, false, "Trace lazy deserialization.")
 DEFINE_BOOL(profile_deserialization, false,
