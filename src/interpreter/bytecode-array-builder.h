@@ -317,9 +317,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
                                                   Smi* literal,
                                                   int feedback_slot);
 
-  // Count Operators (value stored in accumulator).
+  // Unary and Count Operators (value stored in accumulator).
   // Type feedback will be recorded in the |feedback_slot|
-  BytecodeArrayBuilder& CountOperation(Token::Value op, int feedback_slot);
+  BytecodeArrayBuilder& UnaryOperation(Token::Value op, int feedback_slot);
 
   enum class ToBooleanMode {
     kConvertToBoolean,  // Perform ToBoolean conversion on accumulator.

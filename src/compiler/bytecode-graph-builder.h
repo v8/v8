@@ -400,6 +400,7 @@ class BytecodeGraphBuilder {
   static int const kBinaryOperationHintIndex = 1;
   static int const kCountOperationHintIndex = 0;
   static int const kBinaryOperationSmiHintIndex = 1;
+  static int const kUnaryOperationHintIndex = 0;
 
   DISALLOW_COPY_AND_ASSIGN(BytecodeGraphBuilder);
 };

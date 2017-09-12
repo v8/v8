@@ -1866,9 +1866,6 @@ class CountOperation final : public Expression {
   bool is_postfix() const { return !is_prefix(); }
 
   Token::Value op() const { return TokenField::decode(bit_field_); }
-  Token::Value binary_op() {
-    return (op() == Token::INC) ? Token::ADD : Token::SUB;
-  }
 
   Expression* expression() const { return expression_; }
   void set_expression(Expression* e) { expression_ = e; }

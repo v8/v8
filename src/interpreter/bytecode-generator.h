@@ -78,7 +78,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitTypeOf(UnaryOperation* expr);
   void VisitNot(UnaryOperation* expr);
   void VisitDelete(UnaryOperation* expr);
-  void VisitPlus(UnaryOperation* expr);
 
   // Visits a typeof expression for the value on which to perform the typeof.
   void VisitForTypeOfValue(Expression* expr);
@@ -194,9 +193,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   void BuildTest(ToBooleanMode mode, BytecodeLabels* then_labels,
                  BytecodeLabels* else_labels, TestFallthrough fallthrough);
-
-  void BuildBinaryOperationForUnaryOperation(UnaryOperation* expr,
-                                             Token::Value binop, int rhs);
 
   // Visitors for obtaining expression result in the accumulator, in a
   // register, or just getting the effect. Some visitors return a TypeHint which
