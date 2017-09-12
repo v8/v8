@@ -194,7 +194,7 @@ void WasmGraphBuilder::StackCheck(wasm::WasmCodePosition position,
                                   Node** effect, Node** control) {
   // TODO(mtrofin): "!env_" happens when we generate a wrapper.
   // We should factor wrappers separately from wasm codegen.
-  if (FLAG_wasm_no_stack_checks || !env_ || !has_runtime_exception_support_) {
+  if (FLAG_wasm_no_stack_checks || !env_ || !runtime_exception_support_) {
     return;
   }
   if (effect == nullptr) effect = effect_;
@@ -830,7 +830,7 @@ Node* WasmGraphBuilder::BranchExpectFalse(Node* cond, Node** true_node,
 }
 
 Builtins::Name WasmGraphBuilder::GetBuiltinIdForTrap(wasm::TrapReason reason) {
-  if (!has_runtime_exception_support_) {
+  if (runtime_exception_support_ == kNoRuntimeExceptionSupport) {
     // We use Builtins::builtin_count as a marker to tell the code generator
     // to generate a call to a testing c-function instead of a runtime
     // function. This code should only be called from a cctest.

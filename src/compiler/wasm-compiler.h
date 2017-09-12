@@ -78,6 +78,11 @@ struct ModuleEnv {
   const uintptr_t globals_start;
 };
 
+enum RuntimeExceptionSupport : bool {
+  kRuntimeExceptionSupport = true,
+  kNoRuntimeExceptionSupport = false
+};
+
 class WasmCompilationUnit final {
  public:
   // If constructing from a background thread, pass in a Counters*, and ensure
@@ -317,8 +322,8 @@ class WasmGraphBuilder {
 
   bool has_simd() const { return has_simd_; }
 
-  void SetRuntimeExceptionSupport(bool value) {
-    has_runtime_exception_support_ = value;
+  void set_runtime_exception_support(RuntimeExceptionSupport value) {
+    runtime_exception_support_ = value;
   }
 
   const wasm::WasmModule* module() { return env_ ? env_->module : nullptr; }
@@ -345,7 +350,7 @@ class WasmGraphBuilder {
   // If the runtime doesn't support exception propagation,
   // we won't generate stack checks, and trap handling will also
   // be generated differently.
-  bool has_runtime_exception_support_ = true;
+  RuntimeExceptionSupport runtime_exception_support_ = kRuntimeExceptionSupport;
 
   wasm::FunctionSig* sig_;
   SetOncePointer<const Operator> allocate_heap_number_operator_;

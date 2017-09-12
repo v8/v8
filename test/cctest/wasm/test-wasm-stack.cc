@@ -155,7 +155,8 @@ TEST(CollectDetailedWasmStack_WasmError) {
     int unreachable_pos = 1 << (8 * pos_shift);
     TestSignatures sigs;
     // Create a WasmRunner with stack checks and traps enabled.
-    WasmRunner<int> r(kExecuteCompiled, "main", true);
+    WasmRunner<int> r(kExecuteCompiled, "main",
+                      compiler::kRuntimeExceptionSupport);
 
     std::vector<byte> code(unreachable_pos + 1, kExprNop);
     code[unreachable_pos] = kExprUnreachable;

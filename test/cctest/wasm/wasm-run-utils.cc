@@ -239,15 +239,15 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   return WasmInstanceObject::New(isolate_, compiled_module);
 }
 
-void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       compiler::ModuleEnv* module, FunctionSig* sig,
-                       compiler::SourcePositionTable* source_position_table,
-                       const byte* start, const byte* end,
-                       bool runtime_exception_support) {
+void TestBuildingGraph(
+    Zone* zone, compiler::JSGraph* jsgraph, compiler::ModuleEnv* module,
+    FunctionSig* sig, compiler::SourcePositionTable* source_position_table,
+    const byte* start, const byte* end,
+    compiler::RuntimeExceptionSupport runtime_exception_support) {
   compiler::WasmGraphBuilder builder(
       module, zone, jsgraph, CEntryStub(jsgraph->isolate(), 1).GetCode(), sig,
       source_position_table);
-  builder.SetRuntimeExceptionSupport(runtime_exception_support);
+  builder.set_runtime_exception_support(runtime_exception_support);
 
   DecodeResult result =
       BuildTFGraph(zone->allocator(), &builder, sig, start, end);
@@ -420,10 +420,10 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   }
 }
 
-WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
-                                           TestingModuleBuilder* builder,
-                                           const char* name,
-                                           bool runtime_exception_support)
+WasmFunctionCompiler::WasmFunctionCompiler(
+    Zone* zone, FunctionSig* sig, TestingModuleBuilder* builder,
+    const char* name,
+    compiler::RuntimeExceptionSupport runtime_exception_support)
     : GraphAndBuilders(zone),
       jsgraph(builder->isolate(), this->graph(), this->common(), nullptr,
               nullptr, this->machine()),

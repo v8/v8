@@ -210,11 +210,11 @@ class TestingModuleBuilder {
   Handle<WasmInstanceObject> InitInstanceObject();
 };
 
-void TestBuildingGraph(Zone* zone, compiler::JSGraph* jsgraph,
-                       compiler::ModuleEnv* module, FunctionSig* sig,
-                       compiler::SourcePositionTable* source_position_table,
-                       const byte* start, const byte* end,
-                       bool runtime_exception_support = false);
+void TestBuildingGraph(
+    Zone* zone, compiler::JSGraph* jsgraph, compiler::ModuleEnv* module,
+    FunctionSig* sig, compiler::SourcePositionTable* source_position_table,
+    const byte* start, const byte* end,
+    compiler::RuntimeExceptionSupport runtime_exception_support);
 
 class WasmFunctionWrapper : private compiler::GraphAndBuilders {
  public:
@@ -275,9 +275,8 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
  private:
   friend class WasmRunnerBase;
 
-  WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
-                       TestingModuleBuilder* builder, const char* name,
-                       bool runtime_exception_support);
+  WasmFunctionCompiler(Zone*, FunctionSig*, TestingModuleBuilder*,
+                       const char* name, compiler::RuntimeExceptionSupport);
 
   Handle<Code> Compile();
 
@@ -290,7 +289,8 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
   LocalDeclEncoder local_decls;
   compiler::SourcePositionTable source_position_table_;
   WasmInterpreter* interpreter_;
-  bool runtime_exception_support_ = false;
+  compiler::RuntimeExceptionSupport runtime_exception_support_ =
+      compiler::kNoRuntimeExceptionSupport;
 };
 
 // A helper class to build a module around Wasm bytecode, generate machine
@@ -298,7 +298,7 @@ class WasmFunctionCompiler : public compiler::GraphAndBuilders {
 class WasmRunnerBase : public HandleAndZoneScope {
  public:
   WasmRunnerBase(WasmExecutionMode execution_mode, int num_params,
-                 bool runtime_exception_support)
+                 compiler::RuntimeExceptionSupport runtime_exception_support)
       : zone_(&allocator_, ZONE_NAME),
         builder_(&zone_, execution_mode),
         wrapper_(&zone_, num_params),
@@ -367,7 +367,8 @@ class WasmRunnerBase : public HandleAndZoneScope {
   WasmFunctionWrapper wrapper_;
   bool compiled_ = false;
   bool possible_nondeterminism_ = false;
-  bool runtime_exception_support_ = false;
+  compiler::RuntimeExceptionSupport runtime_exception_support_ =
+      compiler::kNoRuntimeExceptionSupport;
 
  public:
   // This field has to be static. Otherwise, gcc complains about the use in
@@ -380,7 +381,8 @@ class WasmRunner : public WasmRunnerBase {
  public:
   WasmRunner(WasmExecutionMode execution_mode,
              const char* main_fn_name = "main",
-             bool runtime_exception_support = false)
+             compiler::RuntimeExceptionSupport runtime_exception_support =
+                 compiler::kNoRuntimeExceptionSupport)
       : WasmRunnerBase(execution_mode, sizeof...(ParamTypes),
                        runtime_exception_support) {
     NewFunction<ReturnType, ParamTypes...>(main_fn_name);

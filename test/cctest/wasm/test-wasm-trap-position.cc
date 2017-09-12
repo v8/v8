@@ -68,7 +68,8 @@ void CheckExceptionInfos(v8::internal::Isolate* i_isolate, Handle<Object> exc,
 // Trigger a trap for executing unreachable.
 TEST(Unreachable) {
   // Create a WasmRunner with stack checks and traps enabled.
-  WasmRunner<void> r(kExecuteCompiled, "main", true);
+  WasmRunner<void> r(kExecuteCompiled, "main",
+                     compiler::kRuntimeExceptionSupport);
   TestSignatures sigs;
 
   BUILD(r, WASM_UNREACHABLE);
@@ -102,7 +103,8 @@ TEST(Unreachable) {
 
 // Trigger a trap for loading from out-of-bounds.
 TEST(IllegalLoad) {
-  WasmRunner<void> r(kExecuteCompiled, "main", true);
+  WasmRunner<void> r(kExecuteCompiled, "main",
+                     compiler::kRuntimeExceptionSupport);
   TestSignatures sigs;
 
   r.builder().AddMemory(0L);

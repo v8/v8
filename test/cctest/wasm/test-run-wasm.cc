@@ -1951,7 +1951,8 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
     byte code[] = {WASM_NO_LOCALS, kExprGetLocal, 0, static_cast<byte>(opcode),
                    WASM_END};
     TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
-                      code + arraysize(code));
+                      code + arraysize(code),
+                      compiler::kNoRuntimeExceptionSupport);
   } else {
     CHECK_EQ(2, sig->parameter_count());
     byte code[] = {WASM_NO_LOCALS,
@@ -1962,7 +1963,8 @@ static void TestBuildGraphForSimpleExpression(WasmOpcode opcode) {
                    static_cast<byte>(opcode),
                    WASM_END};
     TestBuildingGraph(&zone, &jsgraph, nullptr, sig, nullptr, code,
-                      code + arraysize(code));
+                      code + arraysize(code),
+                      compiler::kNoRuntimeExceptionSupport);
   }
 }
 
