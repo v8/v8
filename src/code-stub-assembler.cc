@@ -2300,7 +2300,7 @@ Node* CodeStubAssembler::AllocateNameDictionaryWithCapacity(Node* capacity) {
   StoreFixedArrayElement(result, NameDictionary::kCapacityIndex,
                          SmiTag(capacity), SKIP_WRITE_BARRIER);
   // Initialize Dictionary fields.
-  Node* filler = LoadRoot(Heap::kUndefinedValueRootIndex);
+  Node* filler = UndefinedConstant();
   StoreFixedArrayElement(result, NameDictionary::kNextEnumerationIndexIndex,
                          SmiConstant(PropertyDetails::kInitialIndex),
                          SKIP_WRITE_BARRIER);
@@ -2350,7 +2350,7 @@ void CodeStubAssembler::InitializeStructBody(Node* object, Node* map,
                                              Node* size, int start_offset) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   Comment("InitializeStructBody");
-  Node* filler = LoadRoot(Heap::kUndefinedValueRootIndex);
+  Node* filler = UndefinedConstant();
   // Calculate the untagged field addresses.
   object = BitcastTaggedToWord(object);
   Node* start_address =
@@ -2403,7 +2403,7 @@ void CodeStubAssembler::InitializeJSObjectBody(Node* object, Node* map,
   CSA_SLOW_ASSERT(this, IsMap(map));
   // TODO(cbruni): activate in-object slack tracking machinery.
   Comment("InitializeJSObjectBody");
-  Node* filler = LoadRoot(Heap::kUndefinedValueRootIndex);
+  Node* filler = UndefinedConstant();
   // Calculate the untagged field addresses.
   object = BitcastTaggedToWord(object);
   Node* start_address =
@@ -2634,8 +2634,7 @@ void CodeStubAssembler::FillPropertyArrayWithUndefined(Node* array,
   CSA_SLOW_ASSERT(this, IsPropertyArray(array));
   STATIC_ASSERT(kHoleNanLower32 == kHoleNanUpper32);
   ElementsKind kind = PACKED_ELEMENTS;
-  Node* value = LoadRoot(Heap::kUndefinedValueRootIndex);
-
+  Node* value = UndefinedConstant();
   BuildFastFixedArrayForEach(array, kind, from_node, to_node,
                              [this, value](Node* array, Node* offset) {
                                StoreNoWriteBarrier(
