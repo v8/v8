@@ -417,6 +417,16 @@ DEFINE_INT(max_inlined_bytecode_size_small, 30,
            "maximum size of bytecode considered for small function inlining")
 DEFINE_FLOAT(min_inlining_frequency, 0.15, "minimum frequency for inlining")
 DEFINE_BOOL(polymorphic_inlining, true, "polymorphic inlining")
+DEFINE_BOOL(stress_inline, false,
+            "set high thresholds for inlining to inline as much as possible")
+DEFINE_VALUE_IMPLICATION(stress_inline, max_inlining_levels, 999999)
+DEFINE_VALUE_IMPLICATION(stress_inline, max_inlined_bytecode_size, 999999)
+DEFINE_VALUE_IMPLICATION(stress_inline, max_inlined_bytecode_size_absolute,
+                         999999)
+DEFINE_VALUE_IMPLICATION(stress_inline, max_inlined_bytecode_size_cumulative,
+                         999999)
+DEFINE_VALUE_IMPLICATION(stress_inline, min_inlining_frequency, 0)
+DEFINE_VALUE_IMPLICATION(stress_inline, polymorphic_inlining, true)
 DEFINE_BOOL(trace_turbo_inlining, false, "trace TurboFan inlining")
 DEFINE_BOOL(inline_accessors, true, "inline JavaScript accessors")
 DEFINE_BOOL(inline_into_try, true, "inline into try blocks")
