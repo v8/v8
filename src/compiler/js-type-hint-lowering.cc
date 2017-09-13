@@ -5,10 +5,13 @@
 #include "src/compiler/js-type-hint-lowering.h"
 
 #include "src/compiler/access-builder.h"
+#include "src/compiler/access-info.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/operator-properties.h"
+#include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/feedback-vector.h"
+#include "src/handles-inl.h"
 #include "src/type-hints.h"
 
 namespace v8 {
@@ -209,8 +212,17 @@ class JSSpeculativeBinopBuilder final {
 
 JSTypeHintLowering::JSTypeHintLowering(JSGraph* jsgraph,
                                        Handle<FeedbackVector> feedback_vector,
-                                       Flags flags)
-    : jsgraph_(jsgraph), flags_(flags), feedback_vector_(feedback_vector) {}
+                                       Handle<Context> native_context,
+                                       CompilationDependencies* dependencies,
+                                       Flags flags, Zone* local_zone)
+    : jsgraph_(jsgraph),
+      flags_(flags),
+      feedback_vector_(feedback_vector),
+      native_context_(native_context),
+      dependencies_(dependencies),
+      local_zone_(local_zone) {}
+
+Graph* JSTypeHintLowering::graph() const { return jsgraph_->graph(); }
 
 JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
     const Operator* op, Node* left, Node* right, Node* effect, Node* control,
@@ -360,7 +372,59 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceLoadNamedOperation(
           DeoptimizeReason::kInsufficientTypeFeedbackForGenericNamedAccess)) {
     return LoweringResult::Exit(node);
   }
-  return LoweringResult::NoChange();
+
+  // Try to extract maps from the feedback vector. Give up if the IC
+  // is megamorphic or unitialized.
+  MapHandles receiver_maps;
+  if (nexus.ExtractMaps(&receiver_maps) == 0) {
+    return LoweringResult::NoChange();
+  }
+
+  // Extract information about accesses from the maps.
+  NamedAccess const& p = NamedAccessOf(op);
+  AccessInfoFactory access_info_factory(dependencies(), native_context(),
+                                        graph()->zone());
+
+  ZoneVector<PropertyAccessInfo> access_infos(local_zone());
+  if (!access_info_factory.ComputePropertyAccessInfos(
+          receiver_maps, p.name(), AccessMode::kLoad, &access_infos)) {
+    return LoweringResult::NoChange();
+  }
+
+  // Bail out if not monomorphic.
+  if (access_infos.size() != 1) return LoweringResult::NoChange();
+
+  // We only lower data fields and data constants.
+  PropertyAccessInfo const& access_info = access_infos[0];
+  if (!access_info.IsDataField() && !access_info.IsDataConstant()) {
+    return LoweringResult::NoChange();
+  }
+
+  PropertyAccessBuilder access_builder(jsgraph(), dependencies());
+  if (!access_builder.TryBuildStringCheck(access_info.receiver_maps(),
+                                          &receiver, &effect, control) &&
+      !access_builder.TryBuildNumberCheck(access_info.receiver_maps(),
+                                          &receiver, &effect, control)) {
+    receiver = access_builder.BuildCheckHeapObject(receiver, &effect, control);
+    access_builder.BuildCheckMaps(receiver, &effect, control,
+                                  access_info.receiver_maps());
+  }
+
+  Handle<JSObject> holder;
+  if (access_info.holder().ToHandle(&holder)) {
+    access_builder.AssumePrototypesStable(native_context(),
+                                          access_info.receiver_maps(), holder);
+  }
+
+  Node* value = nullptr;
+  if (access_info.IsDataConstant()) {
+    value = jsgraph()->Constant(access_info.constant());
+  } else {
+    DCHECK(access_info.IsDataField());
+    value = access_builder.BuildLoadDataField(p.name(), access_info, receiver,
+                                              &effect, &control);
+  }
+  return LoweringResult::SideEffectFree(value, effect, control);
 }
 
 JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceLoadKeyedOperation(

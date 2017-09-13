@@ -350,8 +350,7 @@ bool JSInliner::DetermineCallTarget(
     // TODO(turbofan): We might want to revisit this restriction later when we
     // have a need for this, and we know how to model different native contexts
     // in the same graph in a compositional way.
-    if (function->context()->native_context() !=
-        info_->context()->native_context()) {
+    if (function->context()->native_context() != *native_context()) {
       return false;
     }
 
@@ -428,6 +427,10 @@ void JSInliner::DetermineCallContext(
 Reduction JSInliner::Reduce(Node* node) {
   if (!IrOpcode::IsInlineeOpcode(node->opcode())) return NoChange();
   return ReduceJSCall(node);
+}
+
+Handle<Context> JSInliner::native_context() const {
+  return handle(info_->context()->native_context());
 }
 
 Reduction JSInliner::ReduceJSCall(Node* node) {
@@ -541,7 +544,8 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
     }
     BytecodeGraphBuilder graph_builder(
         zone(), shared_info, feedback_vector, BailoutId::None(), jsgraph(),
-        call.frequency(), source_positions_, inlining_id, flags, false);
+        call.frequency(), source_positions_, native_context(),
+        info_->dependencies(), inlining_id, flags, false);
     graph_builder.CreateGraph();
 
     // Extract the inlinee start/end nodes.

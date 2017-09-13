@@ -14,6 +14,7 @@ namespace v8 {
 namespace internal {
 
 // Forward declarations.
+class CompilationDependencies;
 class FeedbackNexus;
 class FeedbackSlot;
 
@@ -42,7 +43,9 @@ class JSTypeHintLowering {
   typedef base::Flags<Flag> Flags;
 
   JSTypeHintLowering(JSGraph* jsgraph, Handle<FeedbackVector> feedback_vector,
-                     Flags flags);
+                     Handle<Context> native_context,
+                     CompilationDependencies* dependencies, Flags flags,
+                     Zone* local_zone);
 
   // {LoweringResult} describes the result of lowering. The following outcomes
   // are possible:
@@ -156,10 +159,20 @@ class JSTypeHintLowering {
   const Handle<FeedbackVector>& feedback_vector() const {
     return feedback_vector_;
   }
+  Graph* graph() const;
+  Zone* local_zone() const { return local_zone_; }
+
+  Handle<Context> native_context() const { return native_context_; }
+  CompilationDependencies* dependencies() const { return dependencies_; }
 
   JSGraph* jsgraph_;
   Flags const flags_;
   Handle<FeedbackVector> feedback_vector_;
+
+  Handle<Context> native_context_;
+  CompilationDependencies* dependencies_;
+
+  Zone* local_zone_;
 
   DISALLOW_COPY_AND_ASSIGN(JSTypeHintLowering);
 };
