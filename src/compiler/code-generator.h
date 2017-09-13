@@ -67,9 +67,7 @@ class DeoptimizationLiteral {
            bit_cast<uint64_t>(number_) == bit_cast<uint64_t>(other.number_);
   }
 
-  Handle<Object> Reify(Isolate* isolate) const {
-    return object_.is_null() ? isolate->factory()->NewNumber(number_) : object_;
-  }
+  Handle<Object> Reify(Isolate* isolate) const;
 
  private:
   Handle<Object> object_;

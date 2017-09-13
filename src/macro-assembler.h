@@ -5,7 +5,8 @@
 #ifndef V8_MACRO_ASSEMBLER_H_
 #define V8_MACRO_ASSEMBLER_H_
 
-#include "src/assembler-inl.h"
+#include "src/assembler.h"
+#include "src/frames.h"
 
 // Helper types to make boolean flag easier to read at call-site.
 enum InvokeFlag {

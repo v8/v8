@@ -34,6 +34,23 @@ CPURegList TurboAssembler::DefaultFPTmpList() {
   return CPURegList(fp_scratch1, fp_scratch2);
 }
 
+TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
+                               CodeObjectRequired create_code_object)
+    : Assembler(isolate, buffer, buffer_size),
+      isolate_(isolate),
+#if DEBUG
+      allow_macro_instructions_(true),
+#endif
+      tmp_list_(DefaultTmpList()),
+      fptmp_list_(DefaultFPTmpList()),
+      sp_(jssp),
+      use_real_aborts_(true) {
+  if (create_code_object == CodeObjectRequired::kYes) {
+    code_object_ =
+        Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
+  }
+}
+
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion1,
                                                     Register exclusion2,

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/assembler-inl.h"
 #include "src/callable.h"
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
@@ -9,6 +10,7 @@
 #include "src/compiler/gap-resolver.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/osr.h"
+#include "src/heap/heap-inl.h"
 #include "src/mips/macro-assembler-mips.h"
 
 namespace v8 {

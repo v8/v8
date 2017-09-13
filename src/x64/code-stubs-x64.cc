@@ -966,6 +966,46 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
   stub2.GetCode();
 }
 
+RecordWriteStub::Mode RecordWriteStub::GetMode(Code* stub) {
+  byte first_instruction = stub->instruction_start()[0];
+  byte second_instruction = stub->instruction_start()[2];
+
+  if (first_instruction == kTwoByteJumpInstruction) {
+    return INCREMENTAL;
+  }
+
+  DCHECK(first_instruction == kTwoByteNopInstruction);
+
+  if (second_instruction == kTwoByteJumpInstruction) {
+    return INCREMENTAL_COMPACTION;
+  }
+
+  DCHECK(second_instruction == kTwoByteNopInstruction);
+
+  return STORE_BUFFER_ONLY;
+}
+
+void RecordWriteStub::Patch(Code* stub, Mode mode) {
+  switch (mode) {
+    case STORE_BUFFER_ONLY:
+      DCHECK(GetMode(stub) == INCREMENTAL ||
+             GetMode(stub) == INCREMENTAL_COMPACTION);
+      stub->instruction_start()[0] = kTwoByteNopInstruction;
+      stub->instruction_start()[2] = kTwoByteNopInstruction;
+      break;
+    case INCREMENTAL:
+      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
+      stub->instruction_start()[0] = kTwoByteJumpInstruction;
+      break;
+    case INCREMENTAL_COMPACTION:
+      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
+      stub->instruction_start()[0] = kTwoByteNopInstruction;
+      stub->instruction_start()[2] = kTwoByteJumpInstruction;
+      break;
+  }
+  DCHECK(GetMode(stub) == mode);
+  Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(), 7);
+}
 
 // Takes the input in 3 registers: address_ value_ and object_.  A pointer to
 // the value has just been written into the object, now this stub makes sure

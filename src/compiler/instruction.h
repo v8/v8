@@ -19,13 +19,11 @@
 #include "src/globals.h"
 #include "src/macro-assembler.h"
 #include "src/register-configuration.h"
+#include "src/source-position.h"
 #include "src/zone/zone-allocator.h"
 
 namespace v8 {
 namespace internal {
-
-class SourcePosition;
-
 namespace compiler {
 
 class Schedule;

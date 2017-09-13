@@ -11,6 +11,7 @@
 #include "src/builtins/builtins-constructor-gen.h"
 #include "src/code-events.h"
 #include "src/code-factory.h"
+#include "src/debug/debug.h"
 #include "src/factory.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/binary-op-assembler.h"

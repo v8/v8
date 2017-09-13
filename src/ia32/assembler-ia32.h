@@ -233,12 +233,30 @@ enum RoundingMode {
 
 class Immediate BASE_EMBEDDED {
  public:
-  inline explicit Immediate(int x);
-  inline explicit Immediate(const ExternalReference& ext);
-  inline explicit Immediate(Handle<HeapObject> handle);
-  inline explicit Immediate(Smi* value);
-  inline explicit Immediate(Address addr);
-  inline explicit Immediate(Address x, RelocInfo::Mode rmode);
+  inline explicit Immediate(int x) {
+    value_.immediate = x;
+    rmode_ = RelocInfo::NONE32;
+  }
+  inline explicit Immediate(const ExternalReference& ext) {
+    value_.immediate = reinterpret_cast<int32_t>(ext.address());
+    rmode_ = RelocInfo::EXTERNAL_REFERENCE;
+  }
+  inline explicit Immediate(Handle<HeapObject> handle) {
+    value_.immediate = reinterpret_cast<intptr_t>(handle.address());
+    rmode_ = RelocInfo::EMBEDDED_OBJECT;
+  }
+  inline explicit Immediate(Smi* value) {
+    value_.immediate = reinterpret_cast<intptr_t>(value);
+    rmode_ = RelocInfo::NONE32;
+  }
+  inline explicit Immediate(Address addr) {
+    value_.immediate = reinterpret_cast<int32_t>(addr);
+    rmode_ = RelocInfo::NONE32;
+  }
+  inline explicit Immediate(Address x, RelocInfo::Mode rmode) {
+    value_.immediate = reinterpret_cast<int32_t>(x);
+    rmode_ = rmode;
+  }
 
   static Immediate EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Immediate EmbeddedCode(CodeStub* code);
@@ -282,7 +300,10 @@ class Immediate BASE_EMBEDDED {
   RelocInfo::Mode rmode() const { return rmode_; }
 
  private:
-  inline explicit Immediate(Label* value);
+  inline explicit Immediate(Label* value) {
+    value_.immediate = reinterpret_cast<int32_t>(value);
+    rmode_ = RelocInfo::INTERNAL_REFERENCE;
+  }
 
   union Value {
     Value() {}
@@ -316,13 +337,19 @@ enum ScaleFactor {
 class Operand BASE_EMBEDDED {
  public:
   // reg
-  INLINE(explicit Operand(Register reg));
+  INLINE(explicit Operand(Register reg)) { set_modrm(3, reg); }
 
   // XMM reg
-  INLINE(explicit Operand(XMMRegister xmm_reg));
+  INLINE(explicit Operand(XMMRegister xmm_reg)) {
+    Register reg = Register::from_code(xmm_reg.code());
+    set_modrm(3, reg);
+  }
 
   // [disp/r]
-  INLINE(explicit Operand(int32_t disp, RelocInfo::Mode rmode));
+  INLINE(explicit Operand(int32_t disp, RelocInfo::Mode rmode)) {
+    set_modrm(0, ebp);
+    set_dispr(disp, rmode);
+  }
 
   // [disp/r]
   INLINE(explicit Operand(Immediate imm));
@@ -378,11 +405,21 @@ class Operand BASE_EMBEDDED {
  private:
   // Set the ModRM byte without an encoded 'reg' register. The
   // register is encoded later as part of the emit_operand operation.
-  inline void set_modrm(int mod, Register rm);
+  inline void set_modrm(int mod, Register rm) {
+    DCHECK((mod & -4) == 0);
+    buf_[0] = mod << 6 | rm.code();
+    len_ = 1;
+  }
 
   inline void set_sib(ScaleFactor scale, Register index, Register base);
   inline void set_disp8(int8_t disp);
-  inline void set_dispr(int32_t disp, RelocInfo::Mode rmode);
+  inline void set_dispr(int32_t disp, RelocInfo::Mode rmode) {
+    DCHECK(len_ == 1 || len_ == 2);
+    int32_t* p = reinterpret_cast<int32_t*>(&buf_[len_]);
+    *p = disp;
+    len_ += sizeof(int32_t);
+    rmode_ = rmode;
+  }
 
   byte buf_[6];
   // The number of bytes in buf_.
@@ -500,9 +537,7 @@ class Assembler : public AssemblerBase {
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
       Isolate* isolate, Address instruction_payload, Code* code,
-      Address target) {
-    set_target_address_at(isolate, instruction_payload, code, target);
-  }
+      Address target);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(

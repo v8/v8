@@ -8,6 +8,7 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/code-stub-assembler.h"
+#include "src/list-inl.h"  // TODO(mstarzinger): Temporary cycle breaker.
 
 namespace v8 {
 namespace internal {

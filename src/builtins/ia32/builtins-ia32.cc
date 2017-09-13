@@ -6,9 +6,11 @@
 
 #include "src/code-factory.h"
 #include "src/codegen.h"
+#include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {

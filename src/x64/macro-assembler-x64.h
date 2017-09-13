@@ -86,13 +86,7 @@ struct SmiIndex {
 class TurboAssembler : public Assembler {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object)
-      : Assembler(isolate, buffer, buffer_size), isolate_(isolate) {
-    if (create_code_object == CodeObjectRequired::kYes) {
-      code_object_ =
-          Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
-    }
-  }
+                 CodeObjectRequired create_code_object);
 
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() const { return has_frame_; }

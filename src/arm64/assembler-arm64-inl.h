@@ -27,68 +27,6 @@ void RelocInfo::apply(intptr_t delta) {
   *p += delta;  // Relocate entry.
 }
 
-inline CPURegister::RegisterType CPURegister::type() const { return reg_type_; }
-
-inline RegList CPURegister::bit() const {
-  DCHECK(static_cast<size_t>(reg_code_) < (sizeof(RegList) * kBitsPerByte));
-  return IsValid() ? 1UL << reg_code_ : 0;
-}
-
-
-inline int CPURegister::SizeInBits() const {
-  DCHECK(IsValid());
-  return reg_size_;
-}
-
-
-inline int CPURegister::SizeInBytes() const {
-  DCHECK(IsValid());
-  DCHECK(SizeInBits() % 8 == 0);
-  return reg_size_ / 8;
-}
-
-inline bool CPURegister::Is8Bits() const {
-  DCHECK(IsValid());
-  return reg_size_ == 8;
-}
-
-inline bool CPURegister::Is16Bits() const {
-  DCHECK(IsValid());
-  return reg_size_ == 16;
-}
-
-inline bool CPURegister::Is32Bits() const {
-  DCHECK(IsValid());
-  return reg_size_ == 32;
-}
-
-
-inline bool CPURegister::Is64Bits() const {
-  DCHECK(IsValid());
-  return reg_size_ == 64;
-}
-
-inline bool CPURegister::Is128Bits() const {
-  DCHECK(IsValid());
-  return reg_size_ == 128;
-}
-
-inline bool CPURegister::IsValid() const { return reg_type_ != kNoRegister; }
-
-inline bool CPURegister::IsNone() const { return reg_type_ == kNoRegister; }
-
-inline bool CPURegister::Is(const CPURegister& other) const {
-  return Aliases(other) && (reg_size_ == other.reg_size_);
-}
-
-
-inline bool CPURegister::Aliases(const CPURegister& other) const {
-  return (reg_code_ == other.reg_code_) && (reg_type_ == other.reg_type_);
-}
-
-inline bool CPURegister::IsRegister() const { return reg_type_ == kRegister; }
-
-inline bool CPURegister::IsVRegister() const { return reg_type_ == kVRegister; }
 
 inline bool CPURegister::IsSameSizeAndType(const CPURegister& other) const {
   return (reg_size_ == other.reg_size_) && (reg_type_ == other.reg_type_);

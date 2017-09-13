@@ -121,25 +121,54 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
     return CPURegister{code, size, type};
   }
 
-  RegisterType type() const;
-  RegList bit() const;
-  int SizeInBits() const;
-  int SizeInBytes() const;
-  bool Is8Bits() const;
-  bool Is16Bits() const;
-  bool Is32Bits() const;
-  bool Is64Bits() const;
-  bool Is128Bits() const;
-  bool IsValid() const;
-  bool IsNone() const;
-  bool Is(const CPURegister& other) const;
-  bool Aliases(const CPURegister& other) const;
+  RegisterType type() const { return reg_type_; }
+  RegList bit() const {
+    DCHECK(static_cast<size_t>(reg_code_) < (sizeof(RegList) * kBitsPerByte));
+    return IsValid() ? 1UL << reg_code_ : 0;
+  }
+  int SizeInBits() const {
+    DCHECK(IsValid());
+    return reg_size_;
+  }
+  int SizeInBytes() const {
+    DCHECK(IsValid());
+    DCHECK(SizeInBits() % 8 == 0);
+    return reg_size_ / 8;
+  }
+  bool Is8Bits() const {
+    DCHECK(IsValid());
+    return reg_size_ == 8;
+  }
+  bool Is16Bits() const {
+    DCHECK(IsValid());
+    return reg_size_ == 16;
+  }
+  bool Is32Bits() const {
+    DCHECK(IsValid());
+    return reg_size_ == 32;
+  }
+  bool Is64Bits() const {
+    DCHECK(IsValid());
+    return reg_size_ == 64;
+  }
+  bool Is128Bits() const {
+    DCHECK(IsValid());
+    return reg_size_ == 128;
+  }
+  bool IsValid() const { return reg_type_ != kNoRegister; }
+  bool IsNone() const { return reg_type_ == kNoRegister; }
+  bool Is(const CPURegister& other) const {
+    return Aliases(other) && (reg_size_ == other.reg_size_);
+  }
+  bool Aliases(const CPURegister& other) const {
+    return (reg_code_ == other.reg_code_) && (reg_type_ == other.reg_type_);
+  }
 
   bool IsZero() const;
   bool IsSP() const;
 
-  bool IsRegister() const;
-  bool IsVRegister() const;
+  bool IsRegister() const { return reg_type_ == kRegister; }
+  bool IsVRegister() const { return reg_type_ == kVRegister; }
 
   bool IsFPRegister() const { return IsS() || IsD(); }
 

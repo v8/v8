@@ -194,6 +194,9 @@ Handle<Code> CodeStub::GetCode() {
   return Handle<Code>(code, isolate());
 }
 
+CodeStub::Major CodeStub::GetMajorKey(Code* code_stub) {
+  return MajorKeyFromKey(code_stub->stub_key());
+}
 
 const char* CodeStub::MajorName(CodeStub::Major major_key) {
   switch (major_key) {
@@ -782,6 +785,19 @@ ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
 
 InternalArrayConstructorStub::InternalArrayConstructorStub(Isolate* isolate)
     : PlatformCodeStub(isolate) {}
+
+CommonArrayConstructorStub::CommonArrayConstructorStub(
+    Isolate* isolate, ElementsKind kind,
+    AllocationSiteOverrideMode override_mode)
+    : TurboFanCodeStub(isolate) {
+  // It only makes sense to override local allocation site behavior
+  // if there is a difference between the global allocation site policy
+  // for an ElementsKind and the desired usage of the stub.
+  DCHECK(override_mode != DISABLE_ALLOCATION_SITES ||
+         AllocationSite::ShouldTrack(kind));
+  set_sub_minor_key(ElementsKindBits::encode(kind) |
+                    AllocationSiteOverrideModeBits::encode(override_mode));
+}
 
 }  // namespace internal
 }  // namespace v8

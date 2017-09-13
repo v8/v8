@@ -9,6 +9,7 @@
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
+#include "src/list-inl.h"  // TODO(mstarzinger): Fix zone-handle-set.h instead!
 
 #ifdef DEBUG
 #define TRACE(...)                                    \

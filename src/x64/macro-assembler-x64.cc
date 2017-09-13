@@ -27,6 +27,15 @@ MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
     : TurboAssembler(isolate, buffer, size, create_code_object) {}
 
+TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
+                               CodeObjectRequired create_code_object)
+    : Assembler(isolate, buffer, buffer_size), isolate_(isolate) {
+  if (create_code_object == CodeObjectRequired::kYes) {
+    code_object_ =
+        Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
+  }
+}
+
 static const int64_t kInvalidRootRegisterDelta = -1;
 
 int64_t TurboAssembler::RootRegisterDelta(ExternalReference other) {

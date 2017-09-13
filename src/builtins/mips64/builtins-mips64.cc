@@ -5,10 +5,12 @@
 #if V8_TARGET_ARCH_MIPS64
 
 #include "src/codegen.h"
+#include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
+#include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

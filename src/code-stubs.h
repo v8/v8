@@ -150,9 +150,7 @@ class CodeStub : public ZoneObject {
   }
 
   // Gets the major key from a code object that is a code stub or binary op IC.
-  static Major GetMajorKey(Code* code_stub) {
-    return MajorKeyFromKey(code_stub->stub_key());
-  }
+  static Major GetMajorKey(Code* code_stub);
 
   static uint32_t NoCacheKey() { return MajorKeyBits::encode(NoCache); }
 
@@ -989,16 +987,7 @@ class AllocateHeapNumberStub : public TurboFanCodeStub {
 class CommonArrayConstructorStub : public TurboFanCodeStub {
  protected:
   CommonArrayConstructorStub(Isolate* isolate, ElementsKind kind,
-                             AllocationSiteOverrideMode override_mode)
-      : TurboFanCodeStub(isolate) {
-    // It only makes sense to override local allocation site behavior
-    // if there is a difference between the global allocation site policy
-    // for an ElementsKind and the desired usage of the stub.
-    DCHECK(override_mode != DISABLE_ALLOCATION_SITES ||
-           AllocationSite::ShouldTrack(kind));
-    set_sub_minor_key(ElementsKindBits::encode(kind) |
-                      AllocationSiteOverrideModeBits::encode(override_mode));
-  }
+                             AllocationSiteOverrideMode override_mode);
 
   void set_sub_minor_key(uint32_t key) { minor_key_ = key; }
 

@@ -8,6 +8,7 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
+#include "src/factory-inl.h"
 #include "src/objects.h"
 
 namespace v8 {

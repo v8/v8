@@ -7,6 +7,7 @@
 
 #include "src/handles.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -30,6 +31,9 @@ HandleScope::HandleScope(Isolate* isolate) {
   prev_limit_ = data->limit;
   data->level++;
 }
+
+template <typename T>
+Handle<T>::Handle(T* object) : Handle(object, object->GetIsolate()) {}
 
 template <typename T>
 Handle<T>::Handle(T* object, Isolate* isolate) : HandleBase(object, isolate) {}

@@ -4,11 +4,15 @@
 
 #include "src/setup-isolate.h"
 
+#include "src/assembler-inl.h"
 #include "src/builtins/builtins.h"
 #include "src/code-events.h"
 #include "src/compiler/code-assembler.h"
+#include "src/handles-inl.h"
 #include "src/interface-descriptors.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
+#include "src/objects/shared-function-info.h"
 
 namespace v8 {
 namespace internal {

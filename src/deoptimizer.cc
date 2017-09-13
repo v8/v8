@@ -450,6 +450,12 @@ void Deoptimizer::PrintFunctionName() {
   }
 }
 
+Handle<JSFunction> Deoptimizer::function() const {
+  return Handle<JSFunction>(function_);
+}
+Handle<Code> Deoptimizer::compiled_code() const {
+  return Handle<Code>(compiled_code_);
+}
 
 Deoptimizer::~Deoptimizer() {
   DCHECK(input_ == NULL && output_ == NULL);
@@ -1945,6 +1951,10 @@ void TranslationBuffer::Add(int32_t value) {
   } while (bits != 0);
 }
 
+TranslationIterator::TranslationIterator(ByteArray* buffer, int index)
+    : buffer_(buffer), index_(index) {
+  DCHECK(index >= 0 && index < buffer->length());
+}
 
 int32_t TranslationIterator::Next() {
   // Run through the bytes until we reach one with a least significant
@@ -1962,6 +1972,7 @@ int32_t TranslationIterator::Next() {
   return is_negative ? -result : result;
 }
 
+bool TranslationIterator::HasNext() const { return index_ < buffer_->length(); }
 
 Handle<ByteArray> TranslationBuffer::CreateByteArray(Factory* factory) {
   Handle<ByteArray> result = factory->NewByteArray(CurrentIndex(), TENURED);

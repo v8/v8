@@ -13,6 +13,7 @@
 #include "src/debug/debug.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
+#include "src/mips/assembler-mips-inl.h"
 #include "src/mips/macro-assembler-mips.h"
 #include "src/register-configuration.h"
 #include "src/runtime/runtime.h"
@@ -23,6 +24,17 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
     : TurboAssembler(isolate, buffer, size, create_code_object) {}
+
+TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
+                               CodeObjectRequired create_code_object)
+    : Assembler(isolate, buffer, buffer_size),
+      isolate_(isolate),
+      has_double_zero_reg_set_(false) {
+  if (create_code_object == CodeObjectRequired::kYes) {
+    code_object_ =
+        Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
+  }
+}
 
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
                                                     Register exclusion1,

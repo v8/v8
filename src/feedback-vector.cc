@@ -12,6 +12,35 @@
 namespace v8 {
 namespace internal {
 
+template <typename Derived>
+FeedbackSlot FeedbackVectorSpecBase<Derived>::AddSlot(FeedbackSlotKind kind) {
+  int slot = This()->slots();
+  int entries_per_slot = FeedbackMetadata::GetSlotSize(kind);
+  This()->append(kind);
+  for (int i = 1; i < entries_per_slot; i++) {
+    This()->append(FeedbackSlotKind::kInvalid);
+  }
+  return FeedbackSlot(slot);
+}
+
+template FeedbackSlot FeedbackVectorSpecBase<FeedbackVectorSpec>::AddSlot(
+    FeedbackSlotKind kind);
+template FeedbackSlot FeedbackVectorSpecBase<StaticFeedbackVectorSpec>::AddSlot(
+    FeedbackSlotKind kind);
+
+template <typename Derived>
+FeedbackSlot FeedbackVectorSpecBase<Derived>::AddTypeProfileSlot() {
+  FeedbackSlot slot = AddSlot(FeedbackSlotKind::kTypeProfile);
+  CHECK_EQ(FeedbackVectorSpec::kTypeProfileSlotIndex,
+           FeedbackVector::GetIndex(slot));
+  return slot;
+}
+
+template FeedbackSlot
+FeedbackVectorSpecBase<FeedbackVectorSpec>::AddTypeProfileSlot();
+template FeedbackSlot
+FeedbackVectorSpecBase<StaticFeedbackVectorSpec>::AddTypeProfileSlot();
+
 bool FeedbackVectorSpec::HasTypeProfileSlot() const {
   FeedbackSlot slot =
       FeedbackVector::ToSlot(FeedbackVectorSpec::kTypeProfileSlotIndex);

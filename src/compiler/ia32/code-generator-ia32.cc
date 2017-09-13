@@ -4,6 +4,7 @@
 
 #include "src/compiler/code-generator.h"
 
+#include "src/assembler-inl.h"
 #include "src/callable.h"
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
@@ -12,6 +13,7 @@
 #include "src/compiler/osr.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
+#include "src/heap/heap-inl.h"
 #include "src/ia32/assembler-ia32.h"
 #include "src/ia32/macro-assembler-ia32.h"
 

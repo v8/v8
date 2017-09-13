@@ -17,6 +17,7 @@
 #include "src/interpreter/bytecode-register-allocator.h"
 #include "src/interpreter/control-flow-builders.h"
 #include "src/objects-inl.h"
+#include "src/objects/debug-objects.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/token.h"
 

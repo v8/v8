@@ -10,7 +10,7 @@
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
-#include "src/contexts.h"
+#include "src/contexts-inl.h"
 
 namespace v8 {
 namespace internal {

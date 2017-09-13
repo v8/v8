@@ -7,8 +7,10 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/globals.h"
+#include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/macro-assembler.h"
+#include "src/objects/arguments.h"
 
 namespace v8 {
 namespace internal {

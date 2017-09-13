@@ -15,6 +15,7 @@
 #include "src/frames-inl.h"
 #include "src/runtime/runtime.h"
 
+#include "src/ia32/assembler-ia32-inl.h"
 #include "src/ia32/macro-assembler-ia32.h"
 
 namespace v8 {
@@ -26,6 +27,15 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
     : TurboAssembler(isolate, buffer, size, create_code_object) {}
+
+TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
+                               CodeObjectRequired create_code_object)
+    : Assembler(isolate, buffer, buffer_size), isolate_(isolate) {
+  if (create_code_object == CodeObjectRequired::kYes) {
+    code_object_ =
+        Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
+  }
+}
 
 void MacroAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
   if (isolate()->heap()->RootCanBeTreatedAsConstant(index)) {

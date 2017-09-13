@@ -8,6 +8,7 @@
 #include "src/compiler/instruction.h"
 #include "src/compiler/linkage.h"
 #include "src/isolate.h"
+#include "src/objects-inl.h"
 
 #include "test/cctest/cctest.h"
 

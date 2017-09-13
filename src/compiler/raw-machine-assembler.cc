@@ -7,6 +7,7 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/pipeline.h"
 #include "src/compiler/scheduler.h"
+#include "src/factory-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -32,6 +33,14 @@ RawMachineAssembler::RawMachineAssembler(
         AddNode(common()->Parameter(static_cast<int>(i)), graph->start());
   }
   graph->SetEnd(graph->NewNode(common_.End(0)));
+}
+
+Node* RawMachineAssembler::NullConstant() {
+  return HeapConstant(isolate()->factory()->null_value());
+}
+
+Node* RawMachineAssembler::UndefinedConstant() {
+  return HeapConstant(isolate()->factory()->undefined_value());
 }
 
 Node* RawMachineAssembler::RelocatableIntPtrConstant(intptr_t value,

@@ -146,7 +146,7 @@ class List {
   // Halve the capacity if fill level is less than a quarter.
   INLINE(void Trim(AllocationPolicy allocator = AllocationPolicy()));
 
-  bool Contains(const T& elm) const;
+  inline bool Contains(const T& elm) const;
   int CountOccurrences(const T& elm, int start, int end) const;
 
   // Iterate through all list entries, starting at index 0.

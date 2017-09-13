@@ -5,12 +5,14 @@
 #if V8_TARGET_ARCH_IA32
 
 #include "src/api-arguments.h"
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
 #include "src/codegen.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
+#include "src/heap/heap-inl.h"
 #include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
@@ -994,6 +996,46 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
   stub2.GetCode();
 }
 
+RecordWriteStub::Mode RecordWriteStub::GetMode(Code* stub) {
+  byte first_instruction = stub->instruction_start()[0];
+  byte second_instruction = stub->instruction_start()[2];
+
+  if (first_instruction == kTwoByteJumpInstruction) {
+    return INCREMENTAL;
+  }
+
+  DCHECK(first_instruction == kTwoByteNopInstruction);
+
+  if (second_instruction == kFiveByteJumpInstruction) {
+    return INCREMENTAL_COMPACTION;
+  }
+
+  DCHECK(second_instruction == kFiveByteNopInstruction);
+
+  return STORE_BUFFER_ONLY;
+}
+
+void RecordWriteStub::Patch(Code* stub, Mode mode) {
+  switch (mode) {
+    case STORE_BUFFER_ONLY:
+      DCHECK(GetMode(stub) == INCREMENTAL ||
+             GetMode(stub) == INCREMENTAL_COMPACTION);
+      stub->instruction_start()[0] = kTwoByteNopInstruction;
+      stub->instruction_start()[2] = kFiveByteNopInstruction;
+      break;
+    case INCREMENTAL:
+      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
+      stub->instruction_start()[0] = kTwoByteJumpInstruction;
+      break;
+    case INCREMENTAL_COMPACTION:
+      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
+      stub->instruction_start()[0] = kTwoByteNopInstruction;
+      stub->instruction_start()[2] = kFiveByteJumpInstruction;
+      break;
+  }
+  DCHECK(GetMode(stub) == mode);
+  Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(), 7);
+}
 
 // Takes the input in 3 registers: address_ value_ and object_.  A pointer to
 // the value has just been written into the object, now this stub makes sure
@@ -1085,6 +1127,9 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
   regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode());
 }
 
+void RecordWriteStub::Activate(Code* code) {
+  code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
+}
 
 void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
     MacroAssembler* masm,

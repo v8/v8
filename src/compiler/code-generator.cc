@@ -1035,6 +1035,10 @@ OutOfLineCode::OutOfLineCode(CodeGenerator* gen)
 
 OutOfLineCode::~OutOfLineCode() {}
 
+Handle<Object> DeoptimizationLiteral::Reify(Isolate* isolate) const {
+  return object_.is_null() ? isolate->factory()->NewNumber(number_) : object_;
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

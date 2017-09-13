@@ -9,7 +9,7 @@
 
 #if V8_TARGET_ARCH_MIPS
 
-#include "src/assembler.h"
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/codegen.h"
 #include "src/disasm.h"

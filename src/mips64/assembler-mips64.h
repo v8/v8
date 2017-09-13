@@ -394,28 +394,33 @@ class Operand BASE_EMBEDDED {
  public:
   // Immediate.
   INLINE(explicit Operand(int64_t immediate,
-         RelocInfo::Mode rmode = RelocInfo::NONE64));
-  INLINE(explicit Operand(const ExternalReference& f));
+                          RelocInfo::Mode rmode = RelocInfo::NONE64))
+      : rm_(no_reg), rmode_(rmode) {
+    value_.immediate = immediate;
+  }
+  INLINE(explicit Operand(const ExternalReference& f))
+      : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
+    value_.immediate = reinterpret_cast<int64_t>(f.address());
+  }
   INLINE(explicit Operand(const char* s));
   INLINE(explicit Operand(Object** opp));
   INLINE(explicit Operand(Context** cpp));
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value));
+  INLINE(explicit Operand(Smi* value))
+      : rm_(no_reg), rmode_(RelocInfo::NONE32) {
+    value_.immediate = reinterpret_cast<intptr_t>(value);
+  }
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
   static Operand EmbeddedCode(CodeStub* stub);
 
   // Register.
-  INLINE(explicit Operand(Register rm));
+  INLINE(explicit Operand(Register rm)) : rm_(rm) {}
 
   // Return true if this is a register operand.
   INLINE(bool is_reg() const);
 
-  inline int64_t immediate() const {
-    DCHECK(!is_reg());
-    DCHECK(!IsHeapObjectRequest());
-    return value_.immediate;
-  }
+  inline int64_t immediate() const;
 
   bool IsImmediate() const { return !rm_.is_valid(); }
 
@@ -605,12 +610,7 @@ class Assembler : public AssemblerBase {
   // has already deserialized the lui/ori instructions etc.
   inline static void deserialization_set_special_target_at(
       Isolate* isolate, Address instruction_payload, Code* code,
-      Address target) {
-    set_target_address_at(
-        isolate,
-        instruction_payload - kInstructionsFor64BitConstant * kInstrSize, code,
-        target);
-  }
+      Address target);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
@@ -2300,9 +2300,7 @@ class Assembler : public AssemblerBase {
 
 class EnsureSpace BASE_EMBEDDED {
  public:
-  explicit EnsureSpace(Assembler* assembler) {
-    assembler->CheckBuffer();
-  }
+  explicit inline EnsureSpace(Assembler* assembler);
 };
 
 class UseScratchRegisterScope {

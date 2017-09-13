@@ -6,6 +6,7 @@
 #include <memory>
 
 #include "src/api.h"
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/debug/interface-types.h"
 #include "src/frames-inl.h"

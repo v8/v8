@@ -184,21 +184,7 @@ enum PreShiftImmMode {
 class TurboAssembler : public Assembler {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object)
-      : Assembler(isolate, buffer, buffer_size),
-        isolate_(isolate),
-#if DEBUG
-        allow_macro_instructions_(true),
-#endif
-        tmp_list_(DefaultTmpList()),
-        fptmp_list_(DefaultFPTmpList()),
-        sp_(jssp),
-        use_real_aborts_(true) {
-    if (create_code_object == CodeObjectRequired::kYes) {
-      code_object_ =
-          Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
-    }
-  }
+                 CodeObjectRequired create_code_object);
 
   // The Abort method should call a V8 runtime function, but the CallRuntime
   // mechanism depends on CEntryStub. If use_real_aborts is false, Abort will

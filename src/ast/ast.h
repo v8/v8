@@ -1039,11 +1039,6 @@ class Literal final : public Expression {
   // as array indices).
   bool IsPropertyName() const { return value_->IsPropertyName(); }
 
-  Handle<String> AsPropertyName() {
-    DCHECK(IsPropertyName());
-    return Handle<String>::cast(value());
-  }
-
   const AstRawString* AsRawPropertyName() {
     DCHECK(IsPropertyName());
     return value_->AsString();
@@ -1437,11 +1432,7 @@ class ArrayLiteral final : public AggregateLiteral {
 
   ZoneList<Expression*>* values() const { return values_; }
 
-  bool is_empty() const {
-    DCHECK(is_initialized());
-    return values()->is_empty() &&
-           (constant_elements().is_null() || constant_elements()->is_empty());
-  }
+  bool is_empty() const;
 
   // Populate the depth field and flags, returns the depth.
   int InitDepthAndFlags();
@@ -2301,9 +2292,7 @@ class FunctionLiteral final : public Expression {
   MaybeHandle<String> name() const {
     return raw_name_ ? raw_name_->string() : MaybeHandle<String>();
   }
-  Handle<String> name(Isolate* isolate) const {
-    return raw_name_ ? raw_name_->string() : isolate->factory()->empty_string();
-  }
+  Handle<String> name(Isolate* isolate) const;
   bool has_shared_name() const { return raw_name_ != nullptr; }
   const AstConsString* raw_name() const { return raw_name_; }
   void set_raw_name(const AstConsString* name) { raw_name_ = name; }

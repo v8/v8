@@ -157,15 +157,7 @@ inline MemOperand CFunctionArgumentOperand(int index) {
 class TurboAssembler : public Assembler {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object)
-      : Assembler(isolate, buffer, buffer_size),
-        isolate_(isolate),
-        has_double_zero_reg_set_(false) {
-    if (create_code_object == CodeObjectRequired::kYes) {
-      code_object_ =
-          Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
-    }
-  }
+                 CodeObjectRequired create_code_object);
 
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() const { return has_frame_; }
@@ -1251,11 +1243,6 @@ class MacroAssembler : public TurboAssembler {
   void GetObjectType(Register function,
                      Register map,
                      Register type_reg);
-
-  void GetInstanceType(Register object_map, Register object_instance_type) {
-    Lbu(object_instance_type,
-        FieldMemOperand(object_map, Map::kInstanceTypeOffset));
-  }
 
   // Compare an object's map with the specified map and its transitioned
   // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. Jumps to

@@ -47,9 +47,11 @@
 #include <sys/sysctl.h>
 #endif
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/base/cpu.h"
 #include "src/code-stubs.h"
+#include "src/conversions-inl.h"
 #include "src/disassembler.h"
 #include "src/macro-assembler.h"
 #include "src/v8.h"

@@ -6,8 +6,10 @@
 
 #include "src/regexp/ia32/regexp-macro-assembler-ia32.h"
 
+#include "src/assembler-inl.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/unicode.h"

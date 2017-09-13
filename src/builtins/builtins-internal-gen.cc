@@ -5,7 +5,9 @@
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
+#include "src/heap/heap-inl.h"
 #include "src/macro-assembler.h"
+#include "src/objects/shared-function-info.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

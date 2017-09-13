@@ -6,6 +6,7 @@
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/code-stub-assembler.h"
+#include "src/factory-inl.h"
 #include "src/objects/hash-table.h"
 
 namespace v8 {

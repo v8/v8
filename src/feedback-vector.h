@@ -357,7 +357,7 @@ class FeedbackVectorSpecBase {
   DECL_PRINTER(FeedbackVectorSpec)
 
  private:
-  inline FeedbackSlot AddSlot(FeedbackSlotKind kind);
+  FeedbackSlot AddSlot(FeedbackSlotKind kind);
 
   Derived* This() { return static_cast<Derived*>(this); }
 };

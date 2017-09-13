@@ -4,6 +4,8 @@
 
 #include "src/external-reference-table.h"
 
+#include "src/objects/name-inl.h"  // TODO(mstarzinger): For stub-cache.h only!
+
 #include "src/accessors.h"
 #include "src/assembler.h"
 #include "src/counters.h"

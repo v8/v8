@@ -6,9 +6,11 @@
 
 #include "src/regexp/mips/regexp-macro-assembler-mips.h"
 
+#include "src/assembler-inl.h"
 #include "src/code-stubs.h"
 #include "src/log.h"
 #include "src/macro-assembler.h"
+#include "src/objects-inl.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/unicode.h"

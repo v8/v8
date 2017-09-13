@@ -8,6 +8,7 @@
 #include "src/assembler.h"
 #include "src/bailout-reason.h"
 #include "src/globals.h"
+#include "src/ia32/assembler-ia32.h"
 
 namespace v8 {
 namespace internal {
@@ -53,13 +54,7 @@ bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
 class TurboAssembler : public Assembler {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
-                 CodeObjectRequired create_code_object)
-      : Assembler(isolate, buffer, buffer_size), isolate_(isolate) {
-    if (create_code_object == CodeObjectRequired::kYes) {
-      code_object_ =
-          Handle<HeapObject>::New(isolate->heap()->undefined_value(), isolate);
-    }
-  }
+                 CodeObjectRequired create_code_object);
 
   void set_has_frame(bool value) { has_frame_ = value; }
   bool has_frame() const { return has_frame_; }
@@ -513,15 +508,6 @@ class MacroAssembler : public TurboAssembler {
   // Push and pop the registers that can hold pointers.
   void PushSafepointRegisters() { pushad(); }
   void PopSafepointRegisters() { popad(); }
-
-  void CmpObject(Register reg, Handle<Object> object) {
-    AllowDeferredHandleDereference heap_object_check;
-    if (object->IsHeapObject()) {
-      cmp(reg, Handle<HeapObject>::cast(object));
-    } else {
-      cmp(reg, Immediate(Smi::cast(*object)));
-    }
-  }
 
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 

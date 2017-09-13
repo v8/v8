@@ -9,6 +9,8 @@
 #include "src/builtins/builtins.h"
 #include "src/code-factory.h"
 #include "src/code-stub-assembler.h"
+#include "src/counters.h"
+#include "src/factory-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/regexp/regexp-macro-assembler.h"
 

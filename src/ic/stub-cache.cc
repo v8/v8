@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/objects/name-inl.h"  // TODO(mstarzinger): For stub-cache.h only!
+
 #include "src/ic/stub-cache.h"
 
 #include "src/ast/ast.h"
