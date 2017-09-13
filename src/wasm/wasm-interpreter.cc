@@ -639,8 +639,8 @@ inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
           ? reinterpret_cast<byte*>(
                 instance->compiled_module()->embedded_mem_start())
           : nullptr;
-  CHECK_EQ(cached_size, instance_size);
-  CHECK_EQ(cached_start, instance_start);
+  DCHECK_EQ(cached_size, instance_size);
+  DCHECK_EQ(cached_start, instance_start);
 #endif
   return ret;
 }

@@ -4221,8 +4221,8 @@ void Assembler::set_target_value_at(Isolate* isolate, Address pc,
   // Check we have the result from a li macro-instruction.
   Instr instr0 = instr_at(pc);
   Instr instr3 = instr_at(pc + kInstrSize * 3);
-  CHECK((GetOpcodeField(instr0) == LUI && GetOpcodeField(instr1) == ORI &&
-         GetOpcodeField(instr3) == ORI));
+  DCHECK((GetOpcodeField(instr0) == LUI && GetOpcodeField(instr1) == ORI &&
+          GetOpcodeField(instr3) == ORI));
 #endif
 
   // Must use 4 instructions to insure patchable code.

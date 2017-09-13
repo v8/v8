@@ -119,7 +119,7 @@ bool JumpThreading::ComputeForwarding(Zone* local_zone,
 
 #ifdef DEBUG
   for (RpoNumber num : result) {
-    CHECK(num.IsValid());
+    DCHECK(num.IsValid());
   }
 #endif
 

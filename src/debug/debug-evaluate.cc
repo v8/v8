@@ -711,7 +711,7 @@ bool DebugEvaluate::FunctionHasNoSideEffect(Handle<SharedFunctionInfo> info) {
                  Builtins::name(builtin_index), function->name);
           failed = true;
         }
-        CHECK(!failed);
+        DCHECK(!failed);
       }
 #endif  // DEBUG
       return true;

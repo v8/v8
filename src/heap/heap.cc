@@ -5522,7 +5522,7 @@ void Heap::NotifyDeserializationComplete() {
 #ifdef DEBUG
     // All pages right after bootstrapping must be marked as never-evacuate.
     for (Page* p : *s) {
-      CHECK(p->NeverEvacuate());
+      DCHECK(p->NeverEvacuate());
     }
 #endif  // DEBUG
   }

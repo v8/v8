@@ -43,7 +43,7 @@ void Deserializer::RegisterDeserializedObjectsForBlackAllocation() {
 bool Deserializer::ReserveSpace() {
 #ifdef DEBUG
   for (int i = NEW_SPACE; i < kNumberOfSpaces; ++i) {
-    CHECK(reservations_[i].size() > 0);
+    DCHECK(reservations_[i].size() > 0);
   }
 #endif  // DEBUG
   DCHECK(allocated_maps_.empty());
@@ -168,13 +168,13 @@ Deserializer::~Deserializer() {
   // Do not perform checks if we aborted deserialization.
   if (source_.position() == 0) return;
   // Check that we only have padding bytes remaining.
-  while (source_.HasMore()) CHECK_EQ(kNop, source_.Get());
+  while (source_.HasMore()) DCHECK_EQ(kNop, source_.Get());
   for (int space = 0; space < kNumberOfPreallocatedSpaces; space++) {
     int chunk_index = current_chunk_[space];
-    CHECK_EQ(reservations_[space].size(), chunk_index + 1);
-    CHECK_EQ(reservations_[space][chunk_index].end, high_water_[space]);
+    DCHECK_EQ(reservations_[space].size(), chunk_index + 1);
+    DCHECK_EQ(reservations_[space][chunk_index].end, high_water_[space]);
   }
-  CHECK_EQ(allocated_maps_.size(), next_map_index_);
+  DCHECK_EQ(allocated_maps_.size(), next_map_index_);
 #endif  // DEBUG
 }
 
@@ -455,7 +455,7 @@ Address Deserializer::Allocate(int space_index, int size) {
     // Assert that the current reserved chunk is still big enough.
     const Heap::Reservation& reservation = reservations_[space_index];
     int chunk_index = current_chunk_[space_index];
-    CHECK_LE(high_water_[space_index], reservation[chunk_index].end);
+    DCHECK_LE(high_water_[space_index], reservation[chunk_index].end);
 #endif
     if (space_index == CODE_SPACE) SkipList::Update(address, size);
     return address;

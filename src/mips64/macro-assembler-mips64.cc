@@ -4014,8 +4014,8 @@ void TurboAssembler::Call(Register target, Condition cond, Register rs,
   }
 
 #ifdef DEBUG
-  CHECK_EQ(size + CallSize(target, cond, rs, rt, bd),
-           SizeOfCodeGeneratedSince(&start));
+  DCHECK_EQ(size + CallSize(target, cond, rs, rt, bd),
+            SizeOfCodeGeneratedSince(&start));
 #endif
 }
 

@@ -2221,7 +2221,7 @@ void TurboAssembler::Call(ExternalReference ext) {
   LoadAddress(kScratchRegister, ext);
   call(kScratchRegister);
 #ifdef DEBUG
-  CHECK_EQ(end_position, pc_offset());
+  DCHECK_EQ(end_position, pc_offset());
 #endif
 }
 
@@ -2241,7 +2241,7 @@ void TurboAssembler::Call(Address destination, RelocInfo::Mode rmode) {
   Move(kScratchRegister, destination, rmode);
   call(kScratchRegister);
 #ifdef DEBUG
-  CHECK_EQ(pc_offset(), end_position);
+  DCHECK_EQ(pc_offset(), end_position);
 #endif
 }
 
@@ -2252,7 +2252,7 @@ void TurboAssembler::Call(Handle<Code> code_object, RelocInfo::Mode rmode) {
   DCHECK(RelocInfo::IsCodeTarget(rmode));
   call(code_object, rmode);
 #ifdef DEBUG
-  CHECK_EQ(end_position, pc_offset());
+  DCHECK_EQ(end_position, pc_offset());
 #endif
 }
 

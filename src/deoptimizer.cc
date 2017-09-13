@@ -180,8 +180,8 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
           deopt_index != Safepoint::kNoDeoptimizationIndex ||
           is_non_deoptimizing_asm_code;
       bool is_builtin_code = code->kind() == Code::BUILTIN;
-      CHECK(topmost_optimized_code == NULL || safe_if_deopt_triggered ||
-            is_non_deoptimizing_asm_code || is_builtin_code);
+      DCHECK(topmost_optimized_code == NULL || safe_if_deopt_triggered ||
+             is_non_deoptimizing_asm_code || is_builtin_code);
       if (topmost_optimized_code == NULL) {
         topmost_optimized_code = code;
         safe_to_deopt_topmost_optimized_code = safe_if_deopt_triggered;
@@ -404,7 +404,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
   trace_scope_ =
       FLAG_trace_deopt ? new CodeTracer::Scope(isolate->GetCodeTracer()) : NULL;
 #ifdef DEBUG
-  CHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK(AllowHeapAllocation::IsAllowed());
   disallow_heap_allocation_ = new DisallowHeapAllocation();
 #endif  // DEBUG
   if (compiled_code_->kind() != Code::OPTIMIZED_FUNCTION ||
@@ -473,8 +473,8 @@ void Deoptimizer::DeleteFrameDescriptions() {
   input_ = NULL;
   output_ = NULL;
 #ifdef DEBUG
-  CHECK(!AllowHeapAllocation::IsAllowed());
-  CHECK(disallow_heap_allocation_ != NULL);
+  DCHECK(!AllowHeapAllocation::IsAllowed());
+  DCHECK(disallow_heap_allocation_ != NULL);
   delete disallow_heap_allocation_;
   disallow_heap_allocation_ = NULL;
 #endif  // DEBUG

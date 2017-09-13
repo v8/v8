@@ -192,7 +192,7 @@ class InputUseInfos {
     }
     // Check that the new use informatin is a super-type of the old
     // one.
-    CHECK(IsUseLessGeneral(input_use_infos_[index], use_info));
+    DCHECK(IsUseLessGeneral(input_use_infos_[index], use_info));
     input_use_infos_[index] = use_info;
   }
 

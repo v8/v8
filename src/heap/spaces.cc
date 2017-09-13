@@ -1749,7 +1749,7 @@ void PagedSpace::VerifyCountersAfterSweeping() {
   size_t total_capacity = 0;
   size_t total_allocated = 0;
   for (Page* page : *this) {
-    CHECK(page->SweepingDone());
+    DCHECK(page->SweepingDone());
     total_capacity += page->area_size();
     HeapObjectIterator it(page);
     size_t real_allocated = 0;
@@ -2446,16 +2446,16 @@ void SemiSpace::AssertValidRange(Address start, Address end) {
   Page* page = Page::FromAllocationAreaAddress(start);
   Page* end_page = Page::FromAllocationAreaAddress(end);
   SemiSpace* space = reinterpret_cast<SemiSpace*>(page->owner());
-  CHECK_EQ(space, end_page->owner());
+  DCHECK_EQ(space, end_page->owner());
   // Start address is before end address, either on same page,
   // or end address is on a later page in the linked list of
   // semi-space pages.
   if (page == end_page) {
-    CHECK_LE(start, end);
+    DCHECK_LE(start, end);
   } else {
     while (page != end_page) {
       page = page->next_page();
-      CHECK_NE(page, space->anchor());
+      DCHECK_NE(page, space->anchor());
     }
   }
 }

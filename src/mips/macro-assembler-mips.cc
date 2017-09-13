@@ -3635,8 +3635,8 @@ void TurboAssembler::Call(Register target, int16_t offset, Condition cond,
   }
 
 #ifdef DEBUG
-  CHECK_EQ(size + CallSize(target, offset, cond, rs, rt, bd),
-           SizeOfCodeGeneratedSince(&start));
+  DCHECK_EQ(size + CallSize(target, offset, cond, rs, rt, bd),
+            SizeOfCodeGeneratedSince(&start));
 #endif
 }
 
@@ -3678,8 +3678,8 @@ void TurboAssembler::Call(Register target, Register base, int16_t offset,
   }
 
 #ifdef DEBUG
-  CHECK_EQ(size + CallSize(target, offset, cond, rs, rt, bd),
-           SizeOfCodeGeneratedSince(&start));
+  DCHECK_EQ(size + CallSize(target, offset, cond, rs, rt, bd),
+            SizeOfCodeGeneratedSince(&start));
 #endif
 }
 

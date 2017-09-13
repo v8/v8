@@ -231,8 +231,8 @@ void Simulator::CheckPCSComplianceAndRun() {
   isolate_->stack_guard()->AdjustStackLimitForSimulator();
 
 #ifdef DEBUG
-  CHECK_EQ(kNumberOfCalleeSavedRegisters, kCalleeSaved.Count());
-  CHECK_EQ(kNumberOfCalleeSavedVRegisters, kCalleeSavedV.Count());
+  DCHECK_EQ(kNumberOfCalleeSavedRegisters, kCalleeSaved.Count());
+  DCHECK_EQ(kNumberOfCalleeSavedVRegisters, kCalleeSavedV.Count());
 
   int64_t saved_registers[kNumberOfCalleeSavedRegisters];
   uint64_t saved_fpregisters[kNumberOfCalleeSavedVRegisters];
@@ -254,12 +254,12 @@ void Simulator::CheckPCSComplianceAndRun() {
   // Start the simulation!
   Run();
 #ifdef DEBUG
-  CHECK_EQ(original_stack, sp());
+  DCHECK_EQ(original_stack, sp());
   // Check that callee-saved registers have been preserved.
   register_list = kCalleeSaved;
   fpregister_list = kCalleeSavedV;
   for (int i = 0; i < kNumberOfCalleeSavedRegisters; i++) {
-    CHECK_EQ(saved_registers[i], xreg(register_list.PopLowestIndex().code()));
+    DCHECK_EQ(saved_registers[i], xreg(register_list.PopLowestIndex().code()));
   }
   for (int i = 0; i < kNumberOfCalleeSavedVRegisters; i++) {
     DCHECK(saved_fpregisters[i] ==

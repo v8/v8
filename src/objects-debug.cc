@@ -1582,7 +1582,7 @@ bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
       attributes = details.attributes();
     } else {
       // Duplicate entries are not allowed for non-property transitions.
-      CHECK_NE(prev_key, key);
+      DCHECK_NE(prev_key, key);
     }
 
     int cmp = CompareKeys(prev_key, prev_hash, prev_kind, prev_attributes, key,
@@ -1654,7 +1654,7 @@ void Code::VerifyEmbeddedObjects(VerifyMode mode) {
   bool skip_weak_cell = (mode == kNoContextSpecificPointers) ? false : true;
   for (RelocIterator it(this, mask); !it.done(); it.next()) {
     Object* target = it.rinfo()->target_object();
-    CHECK(!CanLeak(target, heap, skip_weak_cell));
+    DCHECK(!CanLeak(target, heap, skip_weak_cell));
   }
 }
 

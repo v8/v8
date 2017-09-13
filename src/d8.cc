@@ -2264,7 +2264,7 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
                                     v8::NewStringType::kNormal)
                 .ToLocalChecked();
         Local<Value> value = exception->Get(context, key).ToLocalChecked();
-        CHECK(value->StrictEquals(expected));
+        DCHECK(value->StrictEquals(expected));
       }
 #endif
     }

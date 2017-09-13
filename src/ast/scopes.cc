@@ -1795,8 +1795,8 @@ void Scope::Print(int n) {
 void Scope::CheckScopePositions() {
   // Visible leaf scopes must have real positions.
   if (!is_hidden() && inner_scope_ == nullptr) {
-    CHECK_NE(kNoSourcePosition, start_position());
-    CHECK_NE(kNoSourcePosition, end_position());
+    DCHECK_NE(kNoSourcePosition, start_position());
+    DCHECK_NE(kNoSourcePosition, end_position());
   }
   for (Scope* scope = inner_scope_; scope != nullptr; scope = scope->sibling_) {
     scope->CheckScopePositions();
@@ -1992,7 +1992,7 @@ void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
   if (info->is_native()) {
     // To avoid polluting the global object in native scripts
     //  - Variables must not be allocated to the global scope.
-    CHECK_NOT_NULL(outer_scope());
+    DCHECK_NOT_NULL(outer_scope());
     //  - Variables must be bound locally or unallocated.
     if (var->IsGlobalObjectProperty()) {
       // The following variable name may be minified. If so, disable
@@ -2002,10 +2002,10 @@ void Scope::ResolveTo(ParseInfo* info, VariableProxy* proxy, Variable* var) {
                name->ToCString().get());
     }
     VariableLocation location = var->location();
-    CHECK(location == VariableLocation::LOCAL ||
-          location == VariableLocation::CONTEXT ||
-          location == VariableLocation::PARAMETER ||
-          location == VariableLocation::UNALLOCATED);
+    DCHECK(location == VariableLocation::LOCAL ||
+           location == VariableLocation::CONTEXT ||
+           location == VariableLocation::PARAMETER ||
+           location == VariableLocation::UNALLOCATED);
   }
 #endif
 

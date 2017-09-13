@@ -3888,7 +3888,7 @@ void Assembler::set_target_value_at(Isolate* isolate, Address pc,
 #ifdef DEBUG
   // Check we have the result from a li macro-instruction, using instr pair.
   Instr instr1 = instr_at(pc);
-  CHECK(IsLui(instr1) && (IsOri(instr2) || IsJicOrJialc(instr2)));
+  DCHECK(IsLui(instr1) && (IsOri(instr2) || IsJicOrJialc(instr2)));
 #endif
 
   if (IsJicOrJialc(instr2)) {

@@ -467,7 +467,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
-  CHECK(!it.IsFound());
+  DCHECK(!it.IsFound());
 #endif
 
   RETURN_RESULT_OR_FAILURE(isolate, JSObject::SetOwnPropertyIgnoreAttributes(
@@ -493,11 +493,11 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
   if (!maybe.IsJust()) return isolate->heap()->exception();
-  CHECK(!it.IsFound());
+  DCHECK(!it.IsFound());
 
   if (object->IsJSArray()) {
     Handle<JSArray> array = Handle<JSArray>::cast(object);
-    CHECK(!JSArray::WouldChangeReadOnlyLength(array, index));
+    DCHECK(!JSArray::WouldChangeReadOnlyLength(array, index));
   }
 #endif
 

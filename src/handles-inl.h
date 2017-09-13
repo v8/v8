@@ -125,7 +125,7 @@ Object** HandleScope::GetHandle(Isolate* isolate, Object* value) {
 #ifdef DEBUG
 inline SealHandleScope::SealHandleScope(Isolate* isolate) : isolate_(isolate) {
   // Make sure the current thread is allowed to create handles to begin with.
-  CHECK(AllowHandleAllocation::IsAllowed());
+  DCHECK(AllowHandleAllocation::IsAllowed());
   HandleScopeData* current = isolate_->handle_scope_data();
   // Shrink the current handle scope to make it impossible to do
   // handle allocations without an explicit handle scope.

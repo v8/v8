@@ -1137,7 +1137,7 @@ void WasmCompiledModule::PrintInstancesChain() {
   for (WasmCompiledModule* current = this; current != nullptr;) {
     PrintF("->%d", current->instance_id());
     if (!current->has_weak_next_instance()) break;
-    CHECK(!current->ptr_to_weak_next_instance()->cleared());
+    DCHECK(!current->ptr_to_weak_next_instance()->cleared());
     current =
         WasmCompiledModule::cast(current->ptr_to_weak_next_instance()->value());
   }

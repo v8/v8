@@ -4183,7 +4183,7 @@ void Map::AppendDescriptor(Descriptor* desc) {
 // it should never try to (otherwise, layout descriptor must be updated too).
 #ifdef DEBUG
   PropertyDetails details = desc->GetDetails();
-  CHECK(details.location() != kField || !details.representation().IsDouble());
+  DCHECK(details.location() != kField || !details.representation().IsDouble());
 #endif
 }
 

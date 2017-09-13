@@ -232,7 +232,7 @@ namespace {
 
 void CheckTreeContainsValues(Node* tree, Node** values, size_t count,
                              const BitVector* liveness, int liveness_offset) {
-  CHECK_EQ(count, StateValuesAccess(tree).size());
+  DCHECK_EQ(count, StateValuesAccess(tree).size());
 
   int i;
   auto access = StateValuesAccess(tree);
@@ -240,12 +240,12 @@ void CheckTreeContainsValues(Node* tree, Node** values, size_t count,
   auto itend = access.end();
   for (i = 0; it != itend; ++it, ++i) {
     if (liveness == nullptr || liveness->Contains(liveness_offset + i)) {
-      CHECK((*it).node == values[i]);
+      DCHECK((*it).node == values[i]);
     } else {
-      CHECK((*it).node == nullptr);
+      DCHECK((*it).node == nullptr);
     }
   }
-  CHECK_EQ(static_cast<size_t>(i), count);
+  DCHECK_EQ(static_cast<size_t>(i), count);
 }
 
 }  // namespace
