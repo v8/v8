@@ -111,10 +111,7 @@ class PropertyAccessInfo final {
   }
   MaybeHandle<Map> field_map() const { return field_map_; }
   MapHandles const& receiver_maps() const { return receiver_maps_; }
-  Handle<Cell> export_cell() const {
-    DCHECK_EQ(kModuleExport, kind_);
-    return Handle<Cell>::cast(constant_);
-  }
+  Handle<Cell> export_cell() const;
 
  private:
   PropertyAccessInfo(MaybeHandle<JSObject> holder,

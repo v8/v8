@@ -11,7 +11,6 @@
 #include "src/compiler/property-access-builder.h"
 #include "src/compiler/simplified-operator.h"
 #include "src/feedback-vector.h"
-#include "src/handles-inl.h"
 #include "src/type-hints.h"
 
 namespace v8 {

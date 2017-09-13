@@ -224,6 +224,11 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
   UNREACHABLE();
 }
 
+Handle<Cell> PropertyAccessInfo::export_cell() const {
+  DCHECK_EQ(kModuleExport, kind_);
+  return Handle<Cell>::cast(constant_);
+}
+
 AccessInfoFactory::AccessInfoFactory(CompilationDependencies* dependencies,
                                      Handle<Context> native_context, Zone* zone)
     : dependencies_(dependencies),
