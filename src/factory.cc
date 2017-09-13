@@ -1396,9 +1396,16 @@ Handle<HeapNumber> Factory::NewHeapNumber(MutableMode mode,
                      HeapNumber);
 }
 
-Handle<BigInt> Factory::NewBigInt(PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateBigInt(pretenure),
+Handle<BigInt> Factory::NewBigInt(int length, PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateBigInt(length, true, pretenure),
                      BigInt);
+}
+
+Handle<BigInt> Factory::NewBigIntRaw(int length, PretenureFlag pretenure) {
+  CALL_HEAP_FUNCTION(
+      isolate(), isolate()->heap()->AllocateBigInt(length, false, pretenure),
+      BigInt);
 }
 
 Handle<Object> Factory::NewError(Handle<JSFunction> constructor,

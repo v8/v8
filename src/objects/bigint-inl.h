@@ -15,7 +15,35 @@
 namespace v8 {
 namespace internal {
 
-SMI_ACCESSORS(BigInt, value, kValueOffset)
+int BigInt::length() const {
+  intptr_t bitfield = READ_INTPTR_FIELD(this, kBitfieldOffset);
+  return LengthBits::decode(static_cast<uint32_t>(bitfield));
+}
+void BigInt::set_length(int new_length) {
+  intptr_t bitfield = READ_INTPTR_FIELD(this, kBitfieldOffset);
+  bitfield = LengthBits::update(static_cast<uint32_t>(bitfield), new_length);
+  WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
+}
+
+bool BigInt::sign() const {
+  intptr_t bitfield = READ_INTPTR_FIELD(this, kBitfieldOffset);
+  return SignBits::decode(static_cast<uint32_t>(bitfield));
+}
+void BigInt::set_sign(bool new_sign) {
+  intptr_t bitfield = READ_INTPTR_FIELD(this, kBitfieldOffset);
+  bitfield = SignBits::update(static_cast<uint32_t>(bitfield), new_sign);
+  WRITE_INTPTR_FIELD(this, kBitfieldOffset, bitfield);
+}
+
+BigInt::digit_t BigInt::digit(int n) const {
+  const byte* address = FIELD_ADDR_CONST(this, kDigitsOffset + n * kDigitSize);
+  return *reinterpret_cast<digit_t*>(reinterpret_cast<intptr_t>(address));
+}
+void BigInt::set_digit(int n, digit_t value) {
+  byte* address = FIELD_ADDR(this, kDigitsOffset + n * kDigitSize);
+  (*reinterpret_cast<digit_t*>(reinterpret_cast<intptr_t>(address))) = value;
+}
+
 TYPE_CHECKER(BigInt, BIGINT_TYPE)
 
 }  // namespace internal

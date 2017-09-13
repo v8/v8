@@ -3264,6 +3264,9 @@ int HeapObject::SizeFromMap(Map* map) const {
     return FeedbackVector::SizeFor(
         reinterpret_cast<const FeedbackVector*>(this)->length());
   }
+  if (instance_type == BIGINT_TYPE) {
+    return BigInt::SizeFor(reinterpret_cast<const BigInt*>(this)->length());
+  }
   DCHECK(instance_type == CODE_TYPE);
   return reinterpret_cast<const Code*>(this)->CodeSize();
 }

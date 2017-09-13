@@ -7,6 +7,7 @@
 #include "src/arguments.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
+#include "src/objects/bigint.h"
 
 namespace v8 {
 namespace internal {
@@ -26,7 +27,9 @@ RUNTIME_FUNCTION(Runtime_BigInt) {
                                    NewTypeError(MessageTemplate::kUnsupported));
   }
 
-  Handle<BigInt> result = isolate->factory()->NewBigInt();
+  if (value == 0) return *isolate->factory()->NewBigInt(0);
+
+  Handle<BigInt> result = isolate->factory()->NewBigInt(1);
   result->set_value(value);
   return *result;
 }
@@ -37,7 +40,7 @@ RUNTIME_FUNCTION(Runtime_BigIntEqual) {
   CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
   bool result = lhs->IsBigInt() && rhs->IsBigInt() &&
-                BigInt::cast(*lhs)->Equals(BigInt::cast(*rhs));
+                BigInt::Equal(BigInt::cast(*lhs), BigInt::cast(*rhs));
   return *isolate->factory()->ToBoolean(result);
 }
 
@@ -45,7 +48,7 @@ RUNTIME_FUNCTION(Runtime_BigIntToBoolean) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(BigInt, bigint, 0);
-  return *isolate->factory()->ToBoolean(bigint->value());
+  return *isolate->factory()->ToBoolean(bigint->ToBoolean());
 }
 
 }  // namespace internal

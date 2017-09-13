@@ -256,7 +256,7 @@ MaybeHandle<String> Object::ConvertToString(Isolate* isolate,
                       String);
     }
     if (input->IsBigInt()) {
-      return BigInt::ToString(Handle<BigInt>::cast(input));
+      return BigInt::ToString(Handle<BigInt>::cast(input), 10);
     }
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, input, JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
@@ -2358,7 +2358,7 @@ Object* GetSimpleHash(Object* object) {
     return Smi::FromInt(hash);
   }
   if (object->IsBigInt()) {
-    uint32_t hash = ComputeIntegerHash(BigInt::cast(object)->value());
+    uint32_t hash = BigInt::cast(object)->Hash();
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   DCHECK(object->IsJSReceiver());
@@ -2413,7 +2413,7 @@ bool Object::SameValue(Object* other) {
     return String::cast(this)->Equals(String::cast(other));
   }
   if (IsBigInt() && other->IsBigInt()) {
-    return BigInt::cast(this)->Equals(BigInt::cast(other));
+    return BigInt::Equal(BigInt::cast(this), BigInt::cast(other));
   }
   return false;
 }
@@ -3168,8 +3168,10 @@ VisitorId Map::GetVisitorId(Map* map) {
     case FOREIGN_TYPE:
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
-    case BIGINT_TYPE:
       return kVisitDataObject;
+
+    case BIGINT_TYPE:
+      return kVisitBigInt;
 
     case FIXED_UINT8_ARRAY_TYPE:
     case FIXED_INT8_ARRAY_TYPE:

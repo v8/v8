@@ -474,7 +474,11 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<HeapNumber> NewHeapNumber(MutableMode mode,
                                    PretenureFlag pretenure = NOT_TENURED);
 
-  Handle<BigInt> NewBigInt(PretenureFlag pretenure = NOT_TENURED);
+  // Allocates a new BigInt with {length} digits and zero-initializes them.
+  Handle<BigInt> NewBigInt(int length, PretenureFlag pretenure = NOT_TENURED);
+  // Initializes length and sign fields, but leaves digits uninitialized.
+  Handle<BigInt> NewBigIntRaw(int length,
+                              PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSWeakMap> NewJSWeakMap();
 

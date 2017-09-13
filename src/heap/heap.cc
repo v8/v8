@@ -2468,16 +2468,20 @@ AllocationResult Heap::AllocateHeapNumber(MutableMode mode,
   return result;
 }
 
-AllocationResult Heap::AllocateBigInt(PretenureFlag pretenure) {
-  STATIC_ASSERT(BigInt::kSize <= kMaxRegularHeapObjectSize);
-
+AllocationResult Heap::AllocateBigInt(int length, bool zero_initialize,
+                                      PretenureFlag pretenure) {
+  if (length < 0 || length > BigInt::kMaxLength) {
+    v8::internal::Heap::FatalProcessOutOfMemory("invalid BigInt length", true);
+  }
+  int size = BigInt::SizeFor(length);
+  AllocationSpace space = SelectSpace(pretenure);
   HeapObject* result = nullptr;
   {
-    AllocationSpace space = SelectSpace(pretenure);
-    AllocationResult allocation = AllocateRaw(BigInt::kSize, space);
+    AllocationResult allocation = AllocateRaw(size, space);
     if (!allocation.To(&result)) return allocation;
   }
   result->set_map_after_allocation(bigint_map(), SKIP_WRITE_BARRIER);
+  BigInt::cast(result)->Initialize(length, zero_initialize);
   return result;
 }
 

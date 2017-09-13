@@ -214,6 +214,19 @@ class BytecodeArray::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
+class BigInt::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(HeapObject* obj, int offset) { return false; }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {}
+
+  static inline int SizeOf(Map* map, HeapObject* obj) {
+    return BigInt::SizeFor(BigInt::cast(obj)->length());
+  }
+};
+
 class FixedDoubleArray::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(HeapObject* obj, int offset) { return false; }

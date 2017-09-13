@@ -19,19 +19,91 @@ namespace internal {
 // Arbitrary precision integers in JavaScript.
 class BigInt : public HeapObject {
  public:
+  // Implementation of the Spec methods, see:
+  // https://tc39.github.io/proposal-bigint/#sec-numeric-types
+  // Sections 1.1.1 through 1.1.19.
+  static Handle<BigInt> UnaryMinus(Handle<BigInt> x);
+  static Handle<BigInt> BitwiseNot(Handle<BigInt> x);
+  static MaybeHandle<BigInt> Exponentiate(Handle<BigInt> base,
+                                          Handle<BigInt> exponent);
+  static Handle<BigInt> Multiply(Handle<BigInt> x, Handle<BigInt> y);
+  static MaybeHandle<BigInt> Divide(Handle<BigInt> x, Handle<BigInt> y);
+  static MaybeHandle<BigInt> Remainder(Handle<BigInt> x, Handle<BigInt> y);
+  static Handle<BigInt> Add(Handle<BigInt> x, Handle<BigInt> y);
+  static Handle<BigInt> Subtract(Handle<BigInt> x, Handle<BigInt> y);
+  static Handle<BigInt> LeftShift(Handle<BigInt> x, Handle<BigInt> y);
+  static Handle<BigInt> SignedRightShift(Handle<BigInt> x, Handle<BigInt> y);
+  static MaybeHandle<BigInt> UnsignedRightShift(Handle<BigInt> x,
+                                                Handle<BigInt> y);
+  static bool LessThan(Handle<BigInt> x, Handle<BigInt> y);
+  static bool Equal(BigInt* x, BigInt* y);
+  static Handle<BigInt> BitwiseAnd(Handle<BigInt> x, Handle<BigInt> y);
+  static Handle<BigInt> BitwiseXor(Handle<BigInt> x, Handle<BigInt> y);
+  static Handle<BigInt> BitwiseOr(Handle<BigInt> x, Handle<BigInt> y);
+
+  // Other parts of the public interface.
+  bool ToBoolean() { return !is_zero(); }
+  uint32_t Hash() {
+    // TODO(jkummerow): Improve this. At least use length and sign.
+    return is_zero() ? 0 : ComputeIntegerHash(static_cast<uint32_t>(digit(0)));
+  }
+
   DECL_CAST(BigInt)
   DECL_VERIFIER(BigInt)
   DECL_PRINTER(BigInt)
 
-  DECL_INT_ACCESSORS(value)
+  // TODO(jkummerow): Do we need {synchronized_length} for GC purposes?
+  DECL_INT_ACCESSORS(length)
 
-  static const int kValueOffset = HeapObject::kHeaderSize;
-  static const int kSize = kValueOffset + kPointerSize;
+  inline static int SizeFor(int length) {
+    return kHeaderSize + length * kDigitSize;
+  }
+  void Initialize(int length, bool zero_initialize);
 
-  bool Equals(BigInt* other) const;
-  static Handle<String> ToString(Handle<BigInt> bigint);
+  static Handle<String> ToString(Handle<BigInt> bigint, int radix);
+
+  // Temporarily exposed helper, pending proper initialization.
+  void set_value(int value) {
+    DCHECK(length() == 1);
+    if (value > 0) {
+      set_digit(0, value);
+    } else {
+      set_digit(0, -value);  // This can overflow. We don't care.
+      set_sign(true);
+    }
+  }
+
+  // The maximum length that the current implementation supports would be
+  // kMaxInt / kDigitBits. However, we use a lower limit for now, because
+  // raising it later is easier than lowering it.
+  static const int kMaxLengthBits = 20;
+  static const int kMaxLength = (1 << kMaxLengthBits) - 1;
+
+  class BodyDescriptor;
 
  private:
+  typedef uintptr_t digit_t;
+  static const int kDigitSize = sizeof(digit_t);
+  static const int kDigitBits = kDigitSize * kBitsPerByte;
+  static const int kHalfDigitBits = kDigitBits / 2;
+  static const digit_t kHalfDigitMask = (1ull << kHalfDigitBits) - 1;
+
+  class LengthBits : public BitField<int, 0, kMaxLengthBits> {};
+  class SignBits : public BitField<bool, LengthBits::kNext, 1> {};
+
+  // Low-level accessors.
+  // sign() == true means negative.
+  DECL_BOOLEAN_ACCESSORS(sign)
+  inline digit_t digit(int n) const;
+  inline void set_digit(int n, digit_t value);
+
+  bool is_zero() {
+    DCHECK(length() > 0 || !sign());  // There is no -0n.
+    return length() == 0;
+  }
+  static const int kBitfieldOffset = HeapObject::kHeaderSize;
+  static const int kDigitsOffset = kBitfieldOffset + kPointerSize;
+  static const int kHeaderSize = kDigitsOffset;
   DISALLOW_IMPLICIT_CONSTRUCTORS(BigInt);
 };
 

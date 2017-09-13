@@ -17,6 +17,7 @@ namespace internal {
 
 #define VISITOR_ID_LIST(V) \
   V(AllocationSite)        \
+  V(BigInt)                \
   V(ByteArray)             \
   V(BytecodeArray)         \
   V(Cell)                  \
