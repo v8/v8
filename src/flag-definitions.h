@@ -268,6 +268,7 @@ DEFINE_BOOL(future, FUTURE_BOOL,
             "not-too-far future")
 
 DEFINE_IMPLICATION(future, preparser_scope_analysis)
+DEFINE_IMPLICATION(future, lazy_deserialization)
 
 // Flags for experimental implementation features.
 DEFINE_BOOL(allocation_site_pretenuring, true,
