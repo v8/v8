@@ -26,6 +26,9 @@ namespace {
 
 constexpr int kInvalidExceptionTag = -1;
 
+constexpr const char* WasmExceptionRuntimeIdStr = "WasmExceptionRuntimeId";
+constexpr const char* WasmExceptionValuesStr = "WasmExceptionValues";
+
 WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   DisallowHeapAllocation no_allocation;
   const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
@@ -144,55 +147,134 @@ RUNTIME_FUNCTION(Runtime_WasmThrowTypeError) {
       isolate, NewTypeError(MessageTemplate::kWasmTrapTypeError));
 }
 
+RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
+  HandleScope scope(isolate);
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(GetWasmContextOnStackTop(isolate));
+  DCHECK_EQ(2, args.length());
+  Handle<Object> exception = isolate->factory()->NewWasmRuntimeError(
+      static_cast<MessageTemplate::Template>(
+          MessageTemplate::kWasmExceptionError));
+  CONVERT_ARG_HANDLE_CHECKED(Smi, id, 0);
+  CHECK(!JSReceiver::SetProperty(exception,
+                                 isolate->factory()->InternalizeUtf8String(
+                                     WasmExceptionRuntimeIdStr),
+                                 id, STRICT)
+             .is_null());
+  CONVERT_SMI_ARG_CHECKED(size, 1);
+  Handle<JSTypedArray> values =
+      isolate->factory()->NewJSTypedArray(ElementsKind::UINT16_ELEMENTS, size);
+  CHECK(!JSReceiver::SetProperty(
+             exception,
+             isolate->factory()->InternalizeUtf8String(WasmExceptionValuesStr),
+             values, STRICT)
+             .is_null());
+  return *exception;
+}
+
 RUNTIME_FUNCTION(Runtime_WasmThrow) {
   HandleScope scope(isolate);
   DCHECK_NULL(isolate->context());
   isolate->set_context(GetWasmContextOnStackTop(isolate));
-
   DCHECK_EQ(1, args.length());
-  Handle<Object> tag = args.at(0);
-  Handle<Object> except = isolate->factory()->NewWasmRuntimeError(
-      static_cast<MessageTemplate::Template>(
-          MessageTemplate::kWasmExceptionError));
-  DCHECK(tag->IsSmi());
-  CHECK(!JSReceiver::SetProperty(
-             except, isolate->factory()->WasmExceptionTag_string(), tag, STRICT)
-             .is_null());
-  return isolate->Throw(*except);
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, exception, 0);
+  return isolate->Throw(*exception);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmRethrow) {
   HandleScope scope(isolate);
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(GetWasmContextOnStackTop(isolate));
   DCHECK_EQ(0, args.length());
-  Object* exception = isolate->get_wasm_caught_exception();
+  Handle<Object> exception(isolate->get_wasm_caught_exception(), isolate);
   isolate->clear_wasm_caught_exception();
-  return isolate->Throw(exception);
+  return isolate->Throw(*exception);
 }
 
-RUNTIME_FUNCTION(Runtime_WasmGetExceptionTag) {
+RUNTIME_FUNCTION(Runtime_WasmGetExceptionRuntimeId) {
   HandleScope scope(isolate);
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(GetWasmContextOnStackTop(isolate));
   DCHECK_EQ(1, args.length());
-  Object* exception = args[0];
-  DCHECK(isolate->is_catchable_by_wasm(exception));
-  Handle<Object> exception_handle(exception, isolate);
-  Handle<Object> tag_handle;
-  if (JSReceiver::GetProperty(Handle<JSReceiver>::cast(exception_handle),
-                              isolate->factory()->WasmExceptionTag_string())
-          .ToHandle(&tag_handle)) {
-    if (tag_handle->IsSmi()) return *tag_handle;
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, exception, 0);
+  DCHECK(isolate->is_catchable_by_wasm(*exception));
+  Handle<Object> tag;
+  if (JSReceiver::GetProperty(
+          exception,
+          isolate->factory()->InternalizeUtf8String(WasmExceptionRuntimeIdStr))
+          .ToHandle(&tag)) {
+    if (tag->IsSmi()) {
+      return *tag;
+    }
   }
   return Smi::FromInt(kInvalidExceptionTag);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmGetExceptionValuesArray) {
+  HandleScope scope(isolate);
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(GetWasmContextOnStackTop(isolate));
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, exception, 0);
+  Handle<Object> values;
+  if (JSReceiver::GetProperty(
+          exception,
+          isolate->factory()->InternalizeUtf8String(WasmExceptionValuesStr))
+          .ToHandle(&values)) {
+    return *values;
+  }
+  return *isolate->factory()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_WasmExceptionGetElement) {
+  // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
+  HandleScope scope(isolate);
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(GetWasmContextOnStackTop(isolate));
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_CHECKED(JSTypedArray, values, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CHECK_LT(index, Smi::ToInt(values->length()));
+  CHECK_EQ(values->type(), kExternalUint16Array);
+  auto* vals =
+      reinterpret_cast<uint16_t*>(values->GetBuffer()->allocation_base());
+  return Smi::FromInt(vals[index]);
+}
+
+RUNTIME_FUNCTION(Runtime_WasmExceptionSetElement) {
+  // TODO(kschimpf): Can this be replaced with equivalent TurboFan code/calls.
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(GetWasmContextOnStackTop(isolate));
+  CONVERT_ARG_HANDLE_CHECKED(JSObject, exception, 0);
+  CONVERT_SMI_ARG_CHECKED(index, 1);
+  CONVERT_SMI_ARG_CHECKED(value, 2);
+  Handle<Object> values_obj;
+  CHECK(JSReceiver::GetProperty(
+            exception,
+            isolate->factory()->InternalizeUtf8String(WasmExceptionValuesStr))
+            .ToHandle(&values_obj));
+  Handle<JSTypedArray> values = Handle<JSTypedArray>::cast(values_obj);
+  CHECK_LT(index, Smi::ToInt(values->length()));
+  CHECK_EQ(values->type(), kExternalUint16Array);
+  auto* vals =
+      reinterpret_cast<uint16_t*>(values->GetBuffer()->allocation_base());
+  vals[index] = static_cast<uint16_t>(value);
+  return *exception;
 }
 
 RUNTIME_FUNCTION(Runtime_WasmSetCaughtExceptionValue) {
   // TODO(kschimpf): Implement stack of caught exceptions, rather than
   // just innermost.
   HandleScope scope(isolate);
+  DCHECK_NULL(isolate->context());
+  isolate->set_context(GetWasmContextOnStackTop(isolate));
   DCHECK_EQ(1, args.length());
-  Object* exception = args[0];
-  DCHECK(isolate->is_catchable_by_wasm(exception));
-  isolate->set_wasm_caught_exception(exception);
-  return exception;
+  CONVERT_ARG_HANDLE_CHECKED(Object, exception, 0);
+  DCHECK(isolate->is_catchable_by_wasm(*exception));
+  isolate->set_wasm_caught_exception(*exception);
+  return *exception;
 }
 
 RUNTIME_FUNCTION(Runtime_SetThreadInWasm) {

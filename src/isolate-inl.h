@@ -92,8 +92,9 @@ bool Isolate::is_catchable_by_wasm(Object* exception) {
     return false;
   HandleScope scope(this);
   Handle<Object> exception_handle(exception, this);
-  return JSReceiver::HasProperty(Handle<JSReceiver>::cast(exception_handle),
-                                 factory()->WasmExceptionTag_string())
+  return JSReceiver::HasProperty(
+             Handle<JSReceiver>::cast(exception_handle),
+             factory()->InternalizeUtf8String("WasmExceptionRuntimeId"))
       .IsJust();
 }
 
