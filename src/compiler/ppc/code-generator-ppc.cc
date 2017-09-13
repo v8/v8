@@ -4,7 +4,6 @@
 
 #include "src/compiler/code-generator.h"
 
-#include "src/callable.h"
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
@@ -225,39 +224,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       DCHECK_EQ(0, offset_immediate_);
       __ add(scratch1_, object_, offset_);
     }
-#ifdef V8_CSA_WRITE_BARRIER
-    Callable const callable =
-        Builtins::CallableFor(__ isolate(), Builtins::kRecordWrite);
-    RegList registers = callable.descriptor().allocatable_registers();
-
-    if (FLAG_enable_embedded_constant_pool) {
-      registers |= kConstantPoolRegister.bit();
-    }
-    SaveRegisters(registers);
-    __ mflr(scratch0_);
-    __ Push(scratch0_);
-
-    Register object_parameter(callable.descriptor().GetRegisterParameter(
-        RecordWriteDescriptor::kObject));
-    Register slot_parameter(callable.descriptor().GetRegisterParameter(
-        RecordWriteDescriptor::kSlot));
-    Register isolate_parameter(callable.descriptor().GetRegisterParameter(
-        RecordWriteDescriptor::kIsolate));
-
-    __ push(object_);
-    __ push(scratch1_);
-
-    __ pop(slot_parameter);
-    __ pop(object_parameter);
-
-    __ mov(isolate_parameter,
-           Operand(ExternalReference::isolate_address(__ isolate())));
-    __ Call(callable.code(), RelocInfo::CODE_TARGET);
-
-    __ Pop(scratch0_);
-    __ mtlr(scratch0_);
-    RestoreRegisters(registers);
-#else
     RememberedSetAction const remembered_set_action =
         mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
                                              : OMIT_REMEMBERED_SET;
@@ -268,6 +234,10 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ mflr(scratch0_);
       __ Push(scratch0_);
     }
+#ifdef V8_CSA_WRITE_BARRIER
+    __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+                           save_fp_mode);
+#else
     if (must_save_lr_ && FLAG_enable_embedded_constant_pool) {
       ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
       __ CallStubDelayed(
@@ -278,12 +248,12 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
           new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
                                       remembered_set_action, save_fp_mode));
     }
+#endif
     if (must_save_lr_) {
       // We need to save and restore lr if the frame was elided.
       __ Pop(scratch0_);
       __ mtlr(scratch0_);
     }
-#endif
   }
 
  private:

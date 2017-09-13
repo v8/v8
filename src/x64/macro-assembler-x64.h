@@ -408,6 +408,13 @@ class TurboAssembler : public Assembler {
     addp(kRootRegister, Immediate(kRootRegisterBias));
   }
 
+  void SaveRegisters(RegList registers);
+  void RestoreRegisters(RegList registers);
+
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode);
+
   void MoveNumber(Register dst, double value);
   void MoveNonSmi(Register dst, double value);
 

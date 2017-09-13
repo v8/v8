@@ -264,31 +264,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                      MemoryChunk::kPointersToHereAreInterestingMask, eq,
                      exit());
     __ Addu(scratch1_, object_, index_);
-#ifdef V8_CSA_WRITE_BARRIER
-    Callable const callable =
-        Builtins::CallableFor(__ isolate(), Builtins::kRecordWrite);
-    RegList registers = callable.descriptor().allocatable_registers();
-
-    SaveRegisters(registers);
-    Register object_parameter(callable.descriptor().GetRegisterParameter(
-        RecordWriteDescriptor::kObject));
-    Register slot_parameter(callable.descriptor().GetRegisterParameter(
-        RecordWriteDescriptor::kSlot));
-    Register isolate_parameter(callable.descriptor().GetRegisterParameter(
-        RecordWriteDescriptor::kIsolate));
-
-    __ Push(object_);
-    __ Push(scratch1_);
-
-    __ Pop(slot_parameter);
-    __ Pop(object_parameter);
-
-    __ li(isolate_parameter,
-          Operand(ExternalReference::isolate_address(__ isolate())));
-    __ Call(callable.code(), RelocInfo::CODE_TARGET);
-
-    RestoreRegisters(registers);
-#else
     RememberedSetAction const remembered_set_action =
         mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
                                              : OMIT_REMEMBERED_SET;
@@ -298,13 +273,17 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       // We need to save and restore ra if the frame was elided.
       __ Push(ra);
     }
+#ifdef V8_CSA_WRITE_BARRIER
+    __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+                           save_fp_mode);
+#else
     __ CallStubDelayed(
         new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
                                     remembered_set_action, save_fp_mode));
+#endif
     if (must_save_lr_) {
       __ Pop(ra);
     }
-#endif
   }
 
  private:

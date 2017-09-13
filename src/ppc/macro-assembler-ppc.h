@@ -312,6 +312,14 @@ class TurboAssembler : public Assembler {
     LoadP(src1, MemOperand(sp, 4 * kPointerSize));
     addi(sp, sp, Operand(5 * kPointerSize));
   }
+
+  void SaveRegisters(RegList registers);
+  void RestoreRegisters(RegList registers);
+
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode);
+
   void MultiPush(RegList regs, Register location = sp);
   void MultiPop(RegList regs, Register location = sp);
 

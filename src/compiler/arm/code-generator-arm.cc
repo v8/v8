@@ -7,7 +7,6 @@
 #include "src/arm/macro-assembler-arm.h"
 #include "src/assembler-inl.h"
 #include "src/boxed-float.h"
-#include "src/callable.h"
 #include "src/compilation-info.h"
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/gap-resolver.h"
@@ -216,29 +215,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
         unwinding_info_writer_(unwinding_info_writer),
         zone_(gen->zone()) {}
 
-  void SaveRegisters(RegList registers) {
-    DCHECK(NumRegs(registers) > 0);
-    RegList regs = 0;
-    for (int i = 0; i < Register::kNumRegisters; ++i) {
-      if ((registers >> i) & 1u) {
-        regs |= Register::from_code(i).bit();
-      }
-    }
-
-    __ stm(db_w, sp, regs | lr.bit());
-  }
-
-  void RestoreRegisters(RegList registers) {
-    DCHECK(NumRegs(registers) > 0);
-    RegList regs = 0;
-    for (int i = 0; i < Register::kNumRegisters; ++i) {
-      if ((registers >> i) & 1u) {
-        regs |= Register::from_code(i).bit();
-      }
-    }
-    __ ldm(ia_w, sp, regs | lr.bit());
-  }
-
   void Generate() final {
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
@@ -252,34 +228,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       DCHECK_EQ(0, index_immediate_);
       __ add(scratch1_, object_, Operand(index_));
     }
-#ifdef V8_CSA_WRITE_BARRIER
-    Callable const callable =
-        Builtins::CallableFor(__ isolate(), Builtins::kRecordWrite);
-    RegList registers = callable.descriptor().allocatable_registers();
-
-    unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset());
-    SaveRegisters(registers);
-
-    Register object_parameter(callable.descriptor().GetRegisterParameter(
-        RecordWriteDescriptor::kObject));
-    Register slot_parameter(callable.descriptor().GetRegisterParameter(
-        RecordWriteDescriptor::kSlot));
-    Register isolate_parameter(callable.descriptor().GetRegisterParameter(
-        RecordWriteDescriptor::kIsolate));
-
-    __ Push(object_);
-    __ Push(scratch1_);
-
-    __ Pop(slot_parameter);
-    __ Pop(object_parameter);
-
-    __ Move(isolate_parameter,
-            Operand(ExternalReference::isolate_address(__ isolate())));
-    __ Call(callable.code(), RelocInfo::CODE_TARGET);
-
-    RestoreRegisters(registers);
-    unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
-#else
     RememberedSetAction const remembered_set_action =
         mode_ > RecordWriteMode::kValueIsMap ? EMIT_REMEMBERED_SET
                                              : OMIT_REMEMBERED_SET;
@@ -290,14 +238,18 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ Push(lr);
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset());
     }
+#ifdef V8_CSA_WRITE_BARRIER
+    __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
+                           save_fp_mode);
+#else
     __ CallStubDelayed(
         new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
                                     remembered_set_action, save_fp_mode));
+#endif
     if (must_save_lr_) {
       __ Pop(lr);
       unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());
     }
-#endif
   }
 
  private:

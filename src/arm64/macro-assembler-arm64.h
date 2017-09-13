@@ -781,6 +781,13 @@ class TurboAssembler : public Assembler {
   inline void push(Register src) { Push(src); }
   inline void pop(Register dst) { Pop(dst); }
 
+  void SaveRegisters(RegList registers);
+  void RestoreRegisters(RegList registers);
+
+  void CallRecordWriteStub(Register object, Register address,
+                           RememberedSetAction remembered_set_action,
+                           SaveFPRegsMode fp_mode);
+
   // Alternative forms of Push and Pop, taking a RegList or CPURegList that
   // specifies the registers that are to be pushed or popped. Higher-numbered
   // registers are associated with higher memory addresses (as in the A32 push
