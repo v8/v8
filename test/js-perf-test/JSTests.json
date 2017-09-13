@@ -30,7 +30,8 @@
         {"name": "SetIndexWithoutTrap"},
         {"name": "SetIndexWithTrap"},
         {"name": "SetSymbolWithoutTrap"},
-        {"name": "SetSymbolWithTrap"}
+        {"name": "SetSymbolWithTrap"},
+        {"name": "HasInIdiom"}
       ]
     },
     {
