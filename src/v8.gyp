@@ -1540,6 +1540,7 @@
             'arm64/disasm-arm64.h',
             'arm64/frame-constants-arm64.cc',
             'arm64/frame-constants-arm64.h',
+            'arm64/instructions-arm64-constants.cc',
             'arm64/instructions-arm64.cc',
             'arm64/instructions-arm64.h',
             'arm64/instrument-arm64.cc',

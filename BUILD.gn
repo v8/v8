@@ -2224,6 +2224,7 @@ v8_source_set("v8_base") {
       "src/arm64/eh-frame-arm64.cc",
       "src/arm64/frame-constants-arm64.cc",
       "src/arm64/frame-constants-arm64.h",
+      "src/arm64/instructions-arm64-constants.cc",
       "src/arm64/instructions-arm64.cc",
       "src/arm64/instructions-arm64.h",
       "src/arm64/instrument-arm64.cc",
@@ -2250,6 +2251,13 @@ v8_source_set("v8_base") {
       "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.h",
     ]
+    if (use_jumbo_build) {
+      jumbo_excluded_sources += [
+        # TODO(mostynb@opera.com): fix this code so it doesn't need
+        # to be excluded, see the comments inside.
+        "src/arm64/instructions-arm64-constants.cc",
+      ]
+    }
   } else if (v8_current_cpu == "mips" || v8_current_cpu == "mipsel") {
     sources += [  ### gcmole(arch:mipsel) ###
       "src/compiler/mips/code-generator-mips.cc",
