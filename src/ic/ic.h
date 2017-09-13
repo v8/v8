@@ -271,19 +271,6 @@ class LoadIC : public IC {
   // Creates a data handler that represents a load of a field by given index.
   static Handle<Smi> SimpleFieldLoad(Isolate* isolate, FieldIndex index);
 
-  // Creates a data handler that represents a prototype chain check followed
-  // by given Smi-handler that encoded a load from the holder.
-  // Can be used only if GetPrototypeCheckCount() returns non negative value.
-  Handle<Object> LoadFromPrototype(Handle<Map> receiver_map,
-                                   Handle<JSReceiver> holder, Handle<Name> name,
-                                   Handle<Smi> smi_handler);
-
-  // Creates a data handler that represents a load of a non-existent property.
-  // {holder} is the object from which the property is loaded. If no holder is
-  // needed (e.g., for "nonexistent"), null_value() may be passed in.
-  Handle<Object> LoadFullChain(Handle<Map> receiver_map, Handle<Object> holder,
-                               Handle<Name> name, Handle<Smi> smi_handler);
-
   friend class IC;
   friend class NamedLoadHandlerCompiler;
 };
@@ -360,13 +347,6 @@ class StoreIC : public IC {
   Handle<Code> CompileHandler(LookupIterator* lookup) override;
 
  private:
-  Handle<Object> StoreTransition(Handle<Map> receiver_map,
-                                 Handle<JSObject> holder,
-                                 Handle<Map> transition, Handle<Name> name);
-
-  Handle<Object> StoreProxy(Handle<Map> receiver_map, Handle<JSProxy> proxy,
-                            Handle<JSReceiver> receiver, Handle<Name> name);
-
   friend class IC;
 
   bool created_new_transition_ = false;
