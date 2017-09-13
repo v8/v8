@@ -4011,6 +4011,11 @@ class Code: public HeapObject {
   static const int kHeaderSize =
       (kHeaderPaddingStart + kCodeAlignmentMask) & ~kCodeAlignmentMask;
 
+  // Data or code not directly visited by GC directly starts here.
+  // The serializer needs to copy bytes starting from here verbatim.
+  // Objects embedded into code is visited via reloc info.
+  static const int kDataStart = kInstructionSizeOffset;
+
   inline int GetUnwindingInfoSizeOffset() const;
 
   class BodyDescriptor;

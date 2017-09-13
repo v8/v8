@@ -310,8 +310,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
         object_(obj),
         sink_(sink),
         reference_representation_(how_to_code + where_to_point),
-        bytes_processed_so_far_(0),
-        code_has_been_output_(false) {
+        bytes_processed_so_far_(0) {
 #ifdef DEBUG
     serializer_->PushStack(obj);
 #endif  // DEBUG
@@ -322,7 +321,7 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
 #endif  // DEBUG
   }
   void Serialize();
-  void SerializeContent();
+  void SerializeObject();
   void SerializeDeferred();
   void VisitPointers(HeapObject* host, Object** start, Object** end) override;
   void VisitEmbeddedPointer(Code* host, RelocInfo* target) override;
@@ -335,13 +334,12 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
  private:
   void SerializePrologue(AllocationSpace space, int size, Map* map);
 
-
-  enum ReturnSkip { kCanReturnSkipInsteadOfSkipping, kIgnoringReturn };
   // This function outputs or skips the raw data between the last pointer and
-  // up to the current position.  It optionally can just return the number of
-  // bytes to skip instead of performing a skip instruction, in case the skip
-  // can be merged into the next instruction.
-  int OutputRawData(Address up_to, ReturnSkip return_skip = kIgnoringReturn);
+  // up to the current position.
+  void SerializeContent(Map* map, int size);
+  void OutputRawData(Address up_to);
+  void OutputCode(int size);
+  int SkipTo(Address to);
   int32_t SerializeBackingStore(void* backing_store, int32_t byte_length);
   void FixupIfNeutered();
   void SerializeJSArrayBuffer();
@@ -349,15 +347,12 @@ class Serializer::ObjectSerializer : public ObjectVisitor {
   void SerializeExternalString();
   void SerializeExternalStringAsSequentialString();
 
-  Address PrepareCode();
-
   Serializer* serializer_;
   HeapObject* object_;
   SnapshotByteSink* sink_;
   std::map<void*, Smi*> backing_stores;
   int reference_representation_;
   int bytes_processed_so_far_;
-  bool code_has_been_output_;
 };
 
 }  // namespace internal

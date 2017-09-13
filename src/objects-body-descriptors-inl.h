@@ -373,6 +373,9 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
     v->VisitNextCodeLink(Code::cast(obj),
                          HeapObject::RawField(obj, kNextCodeLinkOffset));
 
+    // GC does not visit data/code in the header and in the body directly.
+    STATIC_ASSERT(Code::kNextCodeLinkOffset + kPointerSize == kDataStart);
+
     RelocIterator it(Code::cast(obj), mode_mask);
     Isolate* isolate = obj->GetIsolate();
     for (; !it.done(); it.next()) {

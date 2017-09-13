@@ -653,6 +653,17 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
         int size_in_bytes = source_.GetInt();
         byte* raw_data_out = reinterpret_cast<byte*>(current);
         source_.CopyRaw(raw_data_out, size_in_bytes);
+        current = reinterpret_cast<Object**>(
+            reinterpret_cast<intptr_t>(current) + size_in_bytes);
+        break;
+      }
+
+      // Deserialize raw code directly into the body of the code object.
+      // Do not move current.
+      case kVariableRawCode: {
+        int size_in_bytes = source_.GetInt();
+        source_.CopyRaw(current_object_address + Code::kDataStart,
+                        size_in_bytes);
         break;
       }
 

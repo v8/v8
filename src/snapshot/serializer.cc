@@ -476,7 +476,7 @@ void Serializer::ObjectSerializer::SerializeJSArrayBuffer() {
     int32_t ref = SerializeBackingStore(backing_store, byte_length);
     buffer->set_backing_store(Smi::FromInt(ref));
   }
-  SerializeContent();
+  SerializeObject();
 }
 
 void Serializer::ObjectSerializer::SerializeFixedTypedArray() {
@@ -495,7 +495,7 @@ void Serializer::ObjectSerializer::SerializeFixedTypedArray() {
     int32_t ref = SerializeBackingStore(backing_store, byte_length);
     fta->set_external_pointer(Smi::FromInt(ref));
   }
-  SerializeContent();
+  SerializeObject();
 }
 
 void Serializer::ObjectSerializer::SerializeExternalString() {
@@ -515,7 +515,7 @@ void Serializer::ObjectSerializer::SerializeExternalString() {
             string->resource());
     // Replace the resource field with the type and index of the native source.
     string->set_resource(resource->EncodeForSerialization());
-    SerializeContent();
+    SerializeObject();
     // Restore the resource field.
     string->set_resource(resource);
   }
@@ -576,9 +576,6 @@ void Serializer::ObjectSerializer::SerializeExternalStringAsSequentialString() {
   int padding_size = allocation_size - SeqString::kHeaderSize - content_size;
   DCHECK(0 <= padding_size && padding_size < kObjectAlignment);
   for (int i = 0; i < padding_size; i++) sink_->PutSection(0, "StringPadding");
-
-  sink_->Put(kSkip, "SkipAfterString");
-  sink_->PutInt(bytes_to_output, "SkipDistance");
 }
 
 // Clear and later restore the next link in the weak cell or allocation site.
@@ -645,10 +642,10 @@ void Serializer::ObjectSerializer::Serialize() {
     Script::cast(object_)->set_line_ends(undefined);
   }
 
-  SerializeContent();
+  SerializeObject();
 }
 
-void Serializer::ObjectSerializer::SerializeContent() {
+void Serializer::ObjectSerializer::SerializeObject() {
   int size = object_->Size();
   Map* map = object_->map();
   AllocationSpace space =
@@ -669,10 +666,7 @@ void Serializer::ObjectSerializer::SerializeContent() {
     return;
   }
 
-  UnlinkWeakNextScope unlink_weak_next(object_);
-
-  object_->IterateBody(map->instance_type(), size, this);
-  OutputRawData(object_->address() + size);
+  SerializeContent(map, size);
 }
 
 void Serializer::ObjectSerializer::SerializeDeferred() {
@@ -697,10 +691,24 @@ void Serializer::ObjectSerializer::SerializeDeferred() {
   serializer_->PutBackReference(object_, back_reference);
   sink_->PutInt(size >> kPointerSizeLog2, "deferred object size");
 
-  UnlinkWeakNextScope unlink_weak_next(object_);
+  SerializeContent(map, size);
+}
 
-  object_->IterateBody(map->instance_type(), size, this);
-  OutputRawData(object_->address() + size);
+void Serializer::ObjectSerializer::SerializeContent(Map* map, int size) {
+  UnlinkWeakNextScope unlink_weak_next(object_);
+  if (object_->IsCode()) {
+    // For code objects, output raw bytes first.
+    OutputCode(size);
+    // Then iterate references via reloc info.
+    object_->IterateBody(map->instance_type(), size, this);
+    // Finally skip to the end.
+    serializer_->FlushSkip(SkipTo(object_->address() + size));
+  } else {
+    // For other objects, iterate references first.
+    object_->IterateBody(map->instance_type(), size, this);
+    // Then output data payload, if any.
+    OutputRawData(object_->address() + size);
+  }
 }
 
 void Serializer::ObjectSerializer::VisitPointers(HeapObject* host,
@@ -744,8 +752,7 @@ void Serializer::ObjectSerializer::VisitPointers(HeapObject* host,
 
 void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code* host,
                                                         RelocInfo* rinfo) {
-  int skip = OutputRawData(rinfo->target_address_address(),
-                           kCanReturnSkipInsteadOfSkipping);
+  int skip = SkipTo(rinfo->target_address_address());
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
   Object* object = rinfo->target_object();
   serializer_->SerializeObject(HeapObject::cast(object), how_to_code,
@@ -755,8 +762,7 @@ void Serializer::ObjectSerializer::VisitEmbeddedPointer(Code* host,
 
 void Serializer::ObjectSerializer::VisitExternalReference(Foreign* host,
                                                           Address* p) {
-  int skip = OutputRawData(reinterpret_cast<Address>(p),
-                           kCanReturnSkipInsteadOfSkipping);
+  int skip = SkipTo(reinterpret_cast<Address>(p));
   Address target = *p;
   auto encoded_reference = serializer_->EncodeExternalReference(target);
   if (encoded_reference.is_from_api()) {
@@ -771,8 +777,7 @@ void Serializer::ObjectSerializer::VisitExternalReference(Foreign* host,
 
 void Serializer::ObjectSerializer::VisitExternalReference(Code* host,
                                                           RelocInfo* rinfo) {
-  int skip = OutputRawData(rinfo->target_address_address(),
-                           kCanReturnSkipInsteadOfSkipping);
+  int skip = SkipTo(rinfo->target_address_address());
   Address target = rinfo->target_external_reference();
   auto encoded_reference = serializer_->EncodeExternalReference(target);
   if (encoded_reference.is_from_api()) {
@@ -791,8 +796,6 @@ void Serializer::ObjectSerializer::VisitExternalReference(Code* host,
 
 void Serializer::ObjectSerializer::VisitInternalReference(Code* host,
                                                           RelocInfo* rinfo) {
-  // We can only reference to internal references of code that has been output.
-  DCHECK(object_->IsCode() && code_has_been_output_);
   // We do not use skip from last patched pc to find the pc to patch, since
   // target_address_address may not return addresses in ascending order when
   // used for internal references. External references may be stored at the
@@ -816,8 +819,7 @@ void Serializer::ObjectSerializer::VisitInternalReference(Code* host,
 
 void Serializer::ObjectSerializer::VisitRuntimeEntry(Code* host,
                                                      RelocInfo* rinfo) {
-  int skip = OutputRawData(rinfo->target_address_address(),
-                           kCanReturnSkipInsteadOfSkipping);
+  int skip = SkipTo(rinfo->target_address_address());
   HowToCode how_to_code = rinfo->IsCodedSpecially() ? kFromCode : kPlain;
   Address target = rinfo->target_address();
   auto encoded_reference = serializer_->EncodeExternalReference(target);
@@ -830,14 +832,51 @@ void Serializer::ObjectSerializer::VisitRuntimeEntry(Code* host,
 
 void Serializer::ObjectSerializer::VisitCodeTarget(Code* host,
                                                    RelocInfo* rinfo) {
-  int skip = OutputRawData(rinfo->target_address_address(),
-                           kCanReturnSkipInsteadOfSkipping);
+  int skip = SkipTo(rinfo->target_address_address());
   Code* object = Code::GetCodeFromTargetAddress(rinfo->target_address());
   serializer_->SerializeObject(object, kFromCode, kInnerPointer, skip);
   bytes_processed_so_far_ += rinfo->target_address_size();
 }
 
-Address Serializer::ObjectSerializer::PrepareCode() {
+void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
+  Address object_start = object_->address();
+  int base = bytes_processed_so_far_;
+  int up_to_offset = static_cast<int>(up_to - object_start);
+  int to_skip = up_to_offset - bytes_processed_so_far_;
+  int bytes_to_output = to_skip;
+  bytes_processed_so_far_ += to_skip;
+  DCHECK(to_skip >= 0);
+  if (bytes_to_output != 0) {
+    DCHECK(to_skip == bytes_to_output);
+    if (IsAligned(bytes_to_output, kPointerAlignment) &&
+        bytes_to_output <= kNumberOfFixedRawData * kPointerSize) {
+      int size_in_words = bytes_to_output >> kPointerSizeLog2;
+      sink_->PutSection(kFixedRawDataStart + size_in_words, "FixedRawData");
+    } else {
+      sink_->Put(kVariableRawData, "VariableRawData");
+      sink_->PutInt(bytes_to_output, "length");
+    }
+#ifdef MEMORY_SANITIZER
+    // Check that we do not serialize uninitialized memory.
+    __msan_check_mem_is_initialized(object_start + base, bytes_to_output);
+#endif  // MEMORY_SANITIZER
+    sink_->PutRaw(object_start + base, bytes_to_output, "Bytes");
+  }
+}
+
+int Serializer::ObjectSerializer::SkipTo(Address to) {
+  Address object_start = object_->address();
+  int up_to_offset = static_cast<int>(to - object_start);
+  int to_skip = up_to_offset - bytes_processed_so_far_;
+  bytes_processed_so_far_ += to_skip;
+  // This assert will fail if the reloc info gives us the target_address_address
+  // locations in a non-ascending order.  Luckily that doesn't happen.
+  DCHECK(to_skip >= 0);
+  return to_skip;
+}
+
+void Serializer::ObjectSerializer::OutputCode(int size) {
+  DCHECK_EQ(kPointerSize, bytes_processed_so_far_);
   Code* code = Code::cast(object_);
   if (FLAG_predictable) {
     // To make snapshots reproducible, we make a copy of the code object
@@ -857,56 +896,18 @@ Address Serializer::ObjectSerializer::PrepareCode() {
     // relocations, because some of these fields are needed for the latter.
     code->WipeOutHeader();
   }
-  return code->address();
-}
 
-int Serializer::ObjectSerializer::OutputRawData(
-    Address up_to, Serializer::ObjectSerializer::ReturnSkip return_skip) {
-  Address object_start = object_->address();
-  int base = bytes_processed_so_far_;
-  int up_to_offset = static_cast<int>(up_to - object_start);
-  int to_skip = up_to_offset - bytes_processed_so_far_;
-  int bytes_to_output = to_skip;
-  bytes_processed_so_far_ += to_skip;
-  // This assert will fail if the reloc info gives us the target_address_address
-  // locations in a non-ascending order.  Luckily that doesn't happen.
-  DCHECK(to_skip >= 0);
-  bool outputting_code = false;
-  bool is_code_object = object_->IsCode();
-  if (to_skip != 0 && is_code_object && !code_has_been_output_) {
-    // Output the code all at once and fix later.
-    bytes_to_output = object_->Size() + to_skip - bytes_processed_so_far_;
-    outputting_code = true;
-    code_has_been_output_ = true;
-  }
-  if (bytes_to_output != 0 && (!is_code_object || outputting_code)) {
-    if (!outputting_code && bytes_to_output == to_skip &&
-        IsAligned(bytes_to_output, kPointerAlignment) &&
-        bytes_to_output <= kNumberOfFixedRawData * kPointerSize) {
-      int size_in_words = bytes_to_output >> kPointerSizeLog2;
-      sink_->PutSection(kFixedRawDataStart + size_in_words, "FixedRawData");
-      to_skip = 0;  // This instruction includes skip.
-    } else {
-      // We always end up here if we are outputting the code of a code object.
-      sink_->Put(kVariableRawData, "VariableRawData");
-      sink_->PutInt(bytes_to_output, "length");
-    }
+  Address start = code->address() + Code::kDataStart;
+  int bytes_to_output = size - Code::kDataStart;
 
-    if (is_code_object) object_start = PrepareCode();
+  sink_->Put(kVariableRawCode, "VariableRawCode");
+  sink_->PutInt(bytes_to_output, "length");
 
-    const char* description = is_code_object ? "Code" : "Byte";
 #ifdef MEMORY_SANITIZER
-    // Check that we do not serialize uninitialized memory.
-    __msan_check_mem_is_initialized(object_start + base, bytes_to_output);
+  // Check that we do not serialize uninitialized memory.
+  __msan_check_mem_is_initialized(start, bytes_to_output);
 #endif  // MEMORY_SANITIZER
-    sink_->PutRaw(object_start + base, bytes_to_output, description);
-  }
-  if (to_skip != 0 && return_skip == kIgnoringReturn) {
-    sink_->Put(kSkip, "Skip");
-    sink_->PutInt(to_skip, "SkipDistance");
-    to_skip = 0;
-  }
-  return to_skip;
+  sink_->PutRaw(start, bytes_to_output, "Code");
 }
 
 }  // namespace internal
