@@ -76,6 +76,8 @@
 #include "src/value-serializer.h"
 #include "src/version.h"
 #include "src/vm-state-inl.h"
+#include "src/wasm/compilation-manager.h"
+#include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
@@ -7912,13 +7914,17 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
 WasmModuleObjectBuilderStreaming::WasmModuleObjectBuilderStreaming(
     Isolate* isolate)
     : isolate_(isolate) {
-  MaybeLocal<Promise::Resolver> maybe_promise =
+  MaybeLocal<Promise::Resolver> maybe_resolver =
       Promise::Resolver::New(isolate->GetCurrentContext());
-  Local<Promise::Resolver> promise;
-  if (maybe_promise.ToLocal(&promise)) {
-    promise_.Reset(isolate, promise->GetPromise());
-  } else {
-    UNREACHABLE();
+  Local<Promise::Resolver> resolver = maybe_resolver.ToLocalChecked();
+  promise_.Reset(isolate, resolver->GetPromise());
+
+  if (i::FLAG_wasm_stream_compilation) {
+    i::Handle<i::JSPromise> promise = Utils::OpenHandle(*GetPromise());
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    streaming_decoder_ =
+        i_isolate->wasm_compilation_manager()->StartStreamingCompilation(
+            i_isolate, handle(i_isolate->context()), promise);
   }
 }
 
@@ -7928,6 +7934,10 @@ Local<Promise> WasmModuleObjectBuilderStreaming::GetPromise() {
 
 void WasmModuleObjectBuilderStreaming::OnBytesReceived(const uint8_t* bytes,
                                                        size_t size) {
+  if (i::FLAG_wasm_stream_compilation) {
+    streaming_decoder_->OnBytesReceived(i::Vector<const uint8_t>(bytes, size));
+    return;
+  }
   std::unique_ptr<uint8_t[]> cloned_bytes(new uint8_t[size]);
   memcpy(cloned_bytes.get(), bytes, size);
   received_buffers_.push_back(
@@ -7938,6 +7948,10 @@ void WasmModuleObjectBuilderStreaming::OnBytesReceived(const uint8_t* bytes,
 }
 
 void WasmModuleObjectBuilderStreaming::Finish() {
+  if (i::FLAG_wasm_stream_compilation) {
+    streaming_decoder_->Finish();
+    return;
+  }
   std::unique_ptr<uint8_t[]> wire_bytes(new uint8_t[total_size_]);
   uint8_t* insert_at = wire_bytes.get();
 
@@ -7954,8 +7968,13 @@ void WasmModuleObjectBuilderStreaming::Finish() {
 }
 
 void WasmModuleObjectBuilderStreaming::Abort(Local<Value> exception) {
-  Local<Promise::Resolver> resolver =
-      promise_.Get(isolate_).As<Promise::Resolver>();
+  Local<Promise> promise = GetPromise();
+  // The promise has already been resolved, e.g. because of a compilation
+  // error.
+  if (promise->State() != v8::Promise::kPending) return;
+  if (i::FLAG_wasm_stream_compilation) streaming_decoder_->Abort();
+
+  Local<Promise::Resolver> resolver = promise.As<Promise::Resolver>();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
   i::HandleScope scope(i_isolate);
   Local<Context> context = Utils::ToLocal(handle(i_isolate->context()));

@@ -897,6 +897,14 @@ void AsyncCompile(Isolate* isolate, Handle<JSPromise> promise,
     return;
   }
 
+  if (FLAG_wasm_test_streaming) {
+    std::shared_ptr<StreamingDecoder> streaming_decoder =
+        isolate->wasm_compilation_manager()->StartStreamingCompilation(
+            isolate, handle(isolate->context()), promise);
+    streaming_decoder->OnBytesReceived(bytes.module_bytes());
+    streaming_decoder->Finish();
+    return;
+  }
   // Make a copy of the wire bytes in case the user program changes them
   // during asynchronous compilation.
   std::unique_ptr<byte[]> copy(new byte[bytes.length()]);

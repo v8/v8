@@ -12,6 +12,7 @@
 #include "src/asmjs/asm-js.h"
 #include "src/asmjs/asm-types.h"
 #include "src/base/optional.h"
+#include "src/flags.h"
 #include "src/parsing/scanner.h"
 #include "src/wasm/wasm-opcodes.h"
 

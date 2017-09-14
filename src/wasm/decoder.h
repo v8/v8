@@ -33,6 +33,12 @@ namespace wasm {
 #define TRACE_IF(...)
 #endif
 
+// A {DecodeResult} only stores the failure / success status, but no data. Thus
+// we use {nullptr_t} as data value, such that the only valid data stored in
+// this type is a nullptr.
+// Storing {void} would require template specialization.
+using DecodeResult = Result<std::nullptr_t>;
+
 // A helper utility to decode bytes, integers, fields, varints, etc, from
 // a buffer of bytes.
 class Decoder {

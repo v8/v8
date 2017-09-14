@@ -475,6 +475,12 @@ DEFINE_INT(wasm_num_compilation_tasks, 10,
            "number of parallel compilation tasks for wasm")
 DEFINE_BOOL(wasm_async_compilation, true,
             "enable actual asynchronous compilation for WebAssembly.compile")
+DEFINE_BOOL(wasm_stream_compilation, false,
+            "enable streaming compilation for WebAssembly")
+DEFINE_IMPLICATION(wasm_stream_compilation, wasm_async_compilation)
+DEFINE_BOOL(wasm_test_streaming, false,
+            "use streaming compilation instead of async compilation for tests")
+DEFINE_IMPLICATION(wasm_test_streaming, wasm_stream_compilation)
 // Parallel compilation confuses turbo_stats, force single threaded.
 DEFINE_VALUE_IMPLICATION(turbo_stats, wasm_num_compilation_tasks, 0)
 DEFINE_UINT(wasm_max_mem_pages, v8::internal::wasm::kV8MaxWasmMemoryPages,
@@ -485,6 +491,8 @@ DEFINE_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
 DEFINE_BOOL(trace_wasm_decode_time, false, "trace decoding time of wasm code")
 DEFINE_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
 DEFINE_BOOL(trace_wasm_interpreter, false, "trace interpretation of wasm code")
+DEFINE_BOOL(trace_wasm_streaming, false,
+            "trace streaming compilation of wasm code")
 DEFINE_INT(trace_wasm_ast_start, 0,
            "start function for wasm AST trace (inclusive)")
 DEFINE_INT(trace_wasm_ast_end, 0, "end function for wasm AST trace (exclusive)")

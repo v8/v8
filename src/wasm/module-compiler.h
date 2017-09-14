@@ -13,6 +13,8 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/isolate.h"
 
+#include "src/wasm/module-decoder.h"
+#include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-code-specialization.h"
 #include "src/wasm/wasm-objects.h"
 
@@ -23,18 +25,14 @@ namespace wasm {
 // A class compiling an entire module.
 class ModuleCompiler {
  public:
-  // The ModuleCompiler takes ownership of the {WasmModule}.
-  // In {CompileToModuleObject}, it will transfer ownership to the generated
-  // {WasmModuleWrapper}. If this method is not called, ownership may be
-  // reclaimed by explicitely releasing the {module_} field.
-  ModuleCompiler(Isolate* isolate, std::unique_ptr<WasmModule> module,
+  ModuleCompiler(Isolate* isolate, WasmModule* module,
                  Handle<Code> centry_stub);
 
   // The actual runnable task that performs compilations in the background.
   class CompilationTask : public CancelableTask {
    public:
     ModuleCompiler* compiler_;
-    explicit CompilationTask(ModuleCompiler* helper);
+    explicit CompilationTask(ModuleCompiler*);
 
     void RunInternal() override;
   };
@@ -71,6 +69,8 @@ class ModuleCompiler {
       }
       units_.clear();
     }
+
+    void Clear() { units_.clear(); }
 
    private:
     ModuleCompiler* compiler_;
@@ -133,6 +133,8 @@ class ModuleCompiler {
   size_t FinishCompilationUnits(std::vector<Handle<Code>>& results,
                                 ErrorThrower* thrower);
 
+  bool IsFinisherRunning() const { return finisher_is_running_; }
+
   void SetFinisherIsRunning(bool value);
 
   MaybeHandle<Code> FinishCompilationUnit(ErrorThrower* thrower,
@@ -158,16 +160,14 @@ class ModuleCompiler {
       Handle<Script> asm_js_script,
       Vector<const byte> asm_js_offset_table_bytes);
 
-  std::unique_ptr<WasmModule> ReleaseModule() { return std::move(module_); }
-
  private:
   MaybeHandle<WasmModuleObject> CompileToModuleObjectInternal(
-      ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
-      Handle<Script> asm_js_script,
+      ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
+      const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
       Vector<const byte> asm_js_offset_table_bytes);
 
   Isolate* isolate_;
-  std::unique_ptr<WasmModule> module_;
+  WasmModule* module_;
   const std::shared_ptr<Counters> async_counters_;
   std::vector<std::unique_ptr<compiler::WasmCompilationUnit>>
       compilation_units_;
@@ -319,6 +319,10 @@ class AsyncCompileJob {
 
   void Start();
 
+  std::shared_ptr<StreamingDecoder> CreateStreamingDecoder();
+
+  void Abort();
+
   ~AsyncCompileJob();
 
  private:
@@ -335,28 +339,7 @@ class AsyncCompileJob {
   class FinishCompile;
   class CompileWrappers;
   class FinishModule;
-
-  Isolate* isolate_;
-  const std::shared_ptr<Counters> async_counters_;
-  std::unique_ptr<byte[]> bytes_copy_;
-  ModuleWireBytes wire_bytes_;
-  Handle<Context> context_;
-  Handle<JSPromise> module_promise_;
-  std::unique_ptr<ModuleCompiler> compiler_;
-  std::unique_ptr<compiler::ModuleEnv> module_env_;
-
-  std::vector<DeferredHandles*> deferred_handles_;
-  Handle<WasmModuleObject> module_object_;
-  Handle<WasmCompiledModule> compiled_module_;
-  Handle<FixedArray> code_table_;
-  Handle<FixedArray> export_wrappers_;
-  size_t outstanding_units_ = 0;
-  std::unique_ptr<CompileStep> step_;
-  CancelableTaskManager background_task_manager_;
-#if DEBUG
-  // Counts the number of pending foreground tasks.
-  int32_t num_pending_foreground_tasks_ = 0;
-#endif
+  class AbortCompilation;
 
   const std::shared_ptr<Counters>& async_counters() const {
     return async_counters_;
@@ -367,15 +350,108 @@ class AsyncCompileJob {
 
   void AsyncCompileSucceeded(Handle<Object> result);
 
-  template <typename Task, typename... Args>
-  void DoSync(Args&&... args);
-
   void StartForegroundTask();
 
   void StartBackgroundTask();
 
-  template <typename Task, typename... Args>
+  void RestartBackgroundTasks();
+
+  // Switches to the compilation step {Step} and starts a foreground task to
+  // execute it.
+  template <typename Step, typename... Args>
+  void DoSync(Args&&... args);
+
+  // Switches to the compilation step {Step} and starts a background task to
+  // execute it.
+  template <typename Step, typename... Args>
   void DoAsync(Args&&... args);
+
+  // Switches to the compilation step {Step} but does not start a task to
+  // execute it.
+  template <typename Step, typename... Args>
+  void NextStep(Args&&... args);
+
+  Isolate* isolate() { return isolate_; }
+
+  friend class AsyncStreamingProcessor;
+
+  Isolate* isolate_;
+  const std::shared_ptr<Counters> async_counters_;
+  std::unique_ptr<byte[]> bytes_copy_;
+  ModuleWireBytes wire_bytes_;
+  Handle<Context> context_;
+  Handle<JSPromise> module_promise_;
+  std::unique_ptr<ModuleCompiler> compiler_;
+  std::unique_ptr<compiler::ModuleEnv> module_env_;
+  std::unique_ptr<WasmModule> module_;
+
+  std::vector<DeferredHandles*> deferred_handles_;
+  Handle<WasmModuleObject> module_object_;
+  Handle<WasmCompiledModule> compiled_module_;
+  Handle<FixedArray> code_table_;
+  Handle<FixedArray> export_wrappers_;
+  size_t outstanding_units_ = 0;
+  std::unique_ptr<CompileStep> step_;
+  CancelableTaskManager background_task_manager_;
+  // The number of background tasks which stopped executing within a step.
+  base::AtomicNumber<size_t> stopped_tasks_{0};
+
+  // For async compilation the AsyncCompileJob is the only finisher. For
+  // streaming compilation also the AsyncStreamingProcessor has to finish before
+  // compilation can be finished.
+  base::AtomicNumber<int32_t> outstanding_finishers_{1};
+
+  // Decrements the number of outstanding finishers. The last caller of this
+  // function should finish the asynchronous compilation, see the comment on
+  // {outstanding_finishers_}.
+  V8_WARN_UNUSED_RESULT bool DecrementAndCheckFinisherCount() {
+    return outstanding_finishers_.Decrement(1) == 0;
+  }
+
+  // Counts the number of pending foreground tasks.
+  int32_t num_pending_foreground_tasks_ = 0;
+
+  // The AsyncCompileJob owns the StreamingDecoder because the StreamingDecoder
+  // contains data which is needed by the AsyncCompileJob for streaming
+  // compilation. The AsyncCompileJob does not actively use the
+  // StreamingDecoder.
+  std::shared_ptr<StreamingDecoder> stream_;
+};
+
+class AsyncStreamingProcessor final : public StreamingProcessor {
+ public:
+  explicit AsyncStreamingProcessor(AsyncCompileJob* job);
+
+  bool ProcessModuleHeader(Vector<const uint8_t> bytes,
+                           uint32_t offset) override;
+
+  bool ProcessSection(SectionCode section_code, Vector<const uint8_t> bytes,
+                      uint32_t offset) override;
+
+  bool ProcessCodeSectionHeader(size_t functions_count,
+                                uint32_t offset) override;
+
+  bool ProcessFunctionBody(Vector<const uint8_t> bytes,
+                           uint32_t offset) override;
+
+  void OnFinishedChunk() override;
+
+  void OnFinishedStream(std::unique_ptr<uint8_t[]> bytes,
+                        size_t length) override;
+
+  void OnError(DecodeResult result) override;
+
+  void OnAbort() override;
+
+ private:
+  // Finishes the AsyncCOmpileJob with an error.
+  void FinishAsyncCompileJobWithError(ResultBase result);
+
+  ModuleDecoder decoder_;
+  AsyncCompileJob* job_;
+  std::unique_ptr<ModuleCompiler::CompilationUnitBuilder>
+      compilation_unit_builder_;
+  uint32_t next_function_ = 0;
 };
 
 }  // namespace wasm

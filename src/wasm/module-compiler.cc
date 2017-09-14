@@ -9,6 +9,7 @@
 #include "src/api.h"
 #include "src/asmjs/asm-js.h"
 #include "src/assembler-inl.h"
+#include "src/base/template-utils.h"
 #include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/property-descriptor.h"
@@ -34,6 +35,10 @@
     if (FLAG_trace_wasm_compiler) PrintF(__VA_ARGS__); \
   } while (false)
 
+#define TRACE_STREAMING(...)                            \
+  do {                                                  \
+    if (FLAG_trace_wasm_streaming) PrintF(__VA_ARGS__); \
+  } while (false)
 static const int kInvalidSigIndex = -1;
 
 namespace v8 {
@@ -83,11 +88,10 @@ size_t ModuleCompiler::CodeGenerationSchedule::GetRandomIndexInSchedule() {
   return index;
 }
 
-ModuleCompiler::ModuleCompiler(Isolate* isolate,
-                               std::unique_ptr<WasmModule> module,
+ModuleCompiler::ModuleCompiler(Isolate* isolate, WasmModule* module,
                                Handle<Code> centry_stub)
     : isolate_(isolate),
-      module_(std::move(module)),
+      module_(module),
       async_counters_(isolate->async_counters()),
       executed_units_(
           isolate->random_number_generator(),
@@ -330,9 +334,10 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObject(
     const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
   Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
-  ModuleCompiler compiler(isolate, std::move(module), centry_stub);
-  return compiler.CompileToModuleObjectInternal(
-      thrower, wire_bytes, asm_js_script, asm_js_offset_table_bytes);
+  ModuleCompiler compiler(isolate, module.get(), centry_stub);
+  return compiler.CompileToModuleObjectInternal(thrower, std::move(module),
+                                                wire_bytes, asm_js_script,
+                                                asm_js_offset_table_bytes);
 }
 
 namespace {
@@ -583,16 +588,21 @@ void ReopenHandles(Isolate* isolate, const std::vector<Handle<T>>& vec) {
 }  // namespace
 
 MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
-    ErrorThrower* thrower, const ModuleWireBytes& wire_bytes,
-    Handle<Script> asm_js_script,
+    ErrorThrower* thrower, std::unique_ptr<WasmModule> module,
+    const ModuleWireBytes& wire_bytes, Handle<Script> asm_js_script,
     Vector<const byte> asm_js_offset_table_bytes) {
   TimedHistogramScope wasm_compile_module_time_scope(
       module_->is_wasm() ? counters()->wasm_compile_wasm_module_time()
                          : counters()->wasm_compile_asm_module_time());
+  // The {module> parameter is passed in to transfer ownership of the WasmModule
+  // to this function. The WasmModule itself existed already as an instance
+  // variable of the ModuleCompiler. We check here that the parameter and the
+  // instance variable actually point to the same object.
+  DCHECK_EQ(module.get(), module_);
+  // Check whether lazy compilation is enabled for this module.
+  bool lazy_compile = compile_lazy(module_);
 
   Factory* factory = isolate_->factory();
-  // Check whether lazy compilation is enabled for this module.
-  bool lazy_compile = compile_lazy(module_.get());
 
   // If lazy compile: Initialize the code table with the lazy compile builtin.
   // Otherwise: Initialize with the illegal builtin. All call sites will be
@@ -601,7 +611,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
                                   ? BUILTIN_CODE(isolate_, WasmCompileLazy)
                                   : BUILTIN_CODE(isolate_, Illegal);
 
-  auto env = CreateDefaultModuleEnv(isolate_, module_.get(), init_builtin);
+  auto env = CreateDefaultModuleEnv(isolate_, module_, init_builtin);
 
   // The {code_table} array contains import wrappers and functions (which
   // are both included in {functions.size()}, and export wrappers).
@@ -681,8 +691,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   // The {module_wrapper} will take ownership of the {WasmModule} object,
   // and it will be destroyed when the GC reclaims the wrapper object.
   Handle<WasmModuleWrapper> module_wrapper =
-      WasmModuleWrapper::From(isolate_, module_.release());
-  WasmModule* module = module_wrapper->get();
+      WasmModuleWrapper::From(isolate_, module.release());
 
   // Create the shared module data.
   // TODO(clemensh): For the same module (same bytes / same hash), we should
@@ -711,12 +720,12 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   // Compile JS->wasm wrappers for exported functions.
   JSToWasmWrapperCache js_to_wasm_cache;
   int wrapper_index = 0;
-  for (auto exp : module->export_table) {
+  for (auto exp : module_->export_table) {
     if (exp.kind != kExternalFunction) continue;
     Handle<Code> wasm_code = EnsureExportedLazyDeoptData(
         isolate_, Handle<WasmInstanceObject>::null(), code_table, exp.index);
     Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
-        isolate_, module, wasm_code, exp.index);
+        isolate_, module_, wasm_code, exp.index);
     export_wrappers->set(wrapper_index, *wrapper_code);
     RecordStats(*wrapper_code, counters());
     ++wrapper_index;
@@ -1989,19 +1998,44 @@ void AsyncCompileJob::Start() {
   DoAsync<DecodeModule>();  // --
 }
 
+void AsyncCompileJob::Abort() {
+  background_task_manager_.CancelAndWait();
+  if (num_pending_foreground_tasks_ == 0) {
+    // No task is pending, we can just remove the AsyncCompileJob.
+    isolate_->wasm_compilation_manager()->RemoveJob(this);
+  } else {
+    // There is still a compilation task in the task queue. We enter the
+    // AbortCompilation state and wait for this compilation task to abort the
+    // AsyncCompileJob.
+    NextStep<AbortCompilation>();
+  }
+}
+
+std::shared_ptr<StreamingDecoder> AsyncCompileJob::CreateStreamingDecoder() {
+  DCHECK_NULL(stream_);
+  stream_.reset(
+      new StreamingDecoder(base::make_unique<AsyncStreamingProcessor>(this)));
+  return stream_;
+}
+
 AsyncCompileJob::~AsyncCompileJob() {
   background_task_manager_.CancelAndWait();
   for (auto d : deferred_handles_) delete d;
 }
 
 void AsyncCompileJob::AsyncCompileFailed(ErrorThrower& thrower) {
+  if (stream_) stream_->NotifyError();
+  // {job} keeps the {this} pointer alive.
+  std::shared_ptr<AsyncCompileJob> job =
+      isolate_->wasm_compilation_manager()->RemoveJob(this);
   RejectPromise(isolate_, context_, thrower, module_promise_);
-  isolate_->wasm_compilation_manager()->RemoveJob(this);
 }
 
 void AsyncCompileJob::AsyncCompileSucceeded(Handle<Object> result) {
+  // {job} keeps the {this} pointer alive.
+  std::shared_ptr<AsyncCompileJob> job =
+      isolate_->wasm_compilation_manager()->RemoveJob(this);
   ResolvePromise(isolate_, context_, module_promise_, result);
-  isolate_->wasm_compilation_manager()->RemoveJob(this);
 }
 
 // A closure to run a compilation step (either as foreground or background
@@ -2015,7 +2049,8 @@ class AsyncCompileJob::CompileStep {
 
   void Run(bool on_foreground) {
     if (on_foreground) {
-      DCHECK_EQ(1, job_->num_pending_foreground_tasks_--);
+      --job_->num_pending_foreground_tasks_;
+      DCHECK_EQ(0, job_->num_pending_foreground_tasks_);
       SaveContext saved_context(job_->isolate_);
       job_->isolate_->set_context(*job_->context_);
       RunInForeground();
@@ -2053,7 +2088,8 @@ class AsyncCompileJob::CompileTask : public CancelableTask {
 };
 
 void AsyncCompileJob::StartForegroundTask() {
-  DCHECK_EQ(0, num_pending_foreground_tasks_++);
+  ++num_pending_foreground_tasks_;
+  DCHECK_EQ(1, num_pending_foreground_tasks_);
 
   v8::Platform* platform = V8::GetCurrentPlatform();
   // TODO(ahaas): This is a CHECK to debug issue 764313.
@@ -2062,10 +2098,9 @@ void AsyncCompileJob::StartForegroundTask() {
                                    new CompileTask(this, true));
 }
 
-template <typename State, typename... Args>
+template <typename Step, typename... Args>
 void AsyncCompileJob::DoSync(Args&&... args) {
-  step_.reset(new State(std::forward<Args>(args)...));
-  step_->job_ = this;
+  NextStep<Step>(std::forward<Args>(args)...);
   StartForegroundTask();
 }
 
@@ -2074,14 +2109,28 @@ void AsyncCompileJob::StartBackgroundTask() {
       new CompileTask(this, false), v8::Platform::kShortRunningTask);
 }
 
-template <typename State, typename... Args>
+void AsyncCompileJob::RestartBackgroundTasks() {
+  size_t num_restarts = stopped_tasks_.Value();
+  stopped_tasks_.Decrement(num_restarts);
+
+  for (size_t i = 0; i < num_restarts; ++i) {
+    StartBackgroundTask();
+  }
+}
+
+template <typename Step, typename... Args>
 void AsyncCompileJob::DoAsync(Args&&... args) {
-  step_.reset(new State(std::forward<Args>(args)...));
-  step_->job_ = this;
+  NextStep<Step>(std::forward<Args>(args)...);
   size_t end = step_->NumberOfBackgroundTasks();
   for (size_t i = 0; i < end; ++i) {
     StartBackgroundTask();
   }
+}
+
+template <typename Step, typename... Args>
+void AsyncCompileJob::NextStep(Args&&... args) {
+  step_.reset(new Step(std::forward<Args>(args)...));
+  step_->job_ = this;
 }
 
 //==========================================================================
@@ -2107,7 +2156,8 @@ class AsyncCompileJob::DecodeModule : public AsyncCompileJob::CompileStep {
       job_->DoSync<DecodeFail>(std::move(result));
     } else {
       // Decode passed.
-      job_->DoSync<PrepareAndStartCompile>(std::move(result.val));
+      job_->module_ = std::move(result.val);
+      job_->DoSync<PrepareAndStartCompile>(job_->module_.get(), true);
     }
   }
 };
@@ -2136,11 +2186,13 @@ class AsyncCompileJob::DecodeFail : public CompileStep {
 //==========================================================================
 class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
  public:
-  explicit PrepareAndStartCompile(std::unique_ptr<WasmModule> module)
-      : module_(std::move(module)) {}
+  explicit PrepareAndStartCompile(WasmModule* module, bool start_compilation)
+      : module_(module), start_compilation_(start_compilation) {}
 
  private:
-  std::unique_ptr<WasmModule> module_;
+  WasmModule* module_;
+  bool start_compilation_;
+
   void RunInForeground() override {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
     Isolate* isolate = job_->isolate_;
@@ -2149,7 +2201,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     Factory* factory = isolate->factory();
     Handle<Code> illegal_builtin = BUILTIN_CODE(isolate, Illegal);
     job_->module_env_ =
-        CreateDefaultModuleEnv(isolate, module_.get(), illegal_builtin);
+        CreateDefaultModuleEnv(isolate, module_, illegal_builtin);
 
     // The {code_table} array contains import wrappers and functions (which
     // are both included in {functions.size()}.
@@ -2167,9 +2219,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     }
     // Transfer ownership of the {WasmModule} to the {ModuleCompiler}, but
     // keep a pointer.
-    WasmModule* module = module_.get();
     Handle<Code> centry_stub = CEntryStub(isolate, 1).GetCode();
-
     {
       // Now reopen the handles in a deferred scope in order to use
       // them in the concurrent steps.
@@ -2188,13 +2238,12 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
       job_->deferred_handles_.push_back(deferred.Detach());
     }
 
-    job_->compiler_.reset(
-        new ModuleCompiler(isolate, std::move(module_), centry_stub));
+    job_->compiler_.reset(new ModuleCompiler(isolate, module_, centry_stub));
     job_->compiler_->EnableThrottling();
 
-    DCHECK_LE(module->num_imported_functions, module->functions.size());
+    DCHECK_LE(module_->num_imported_functions, module_->functions.size());
     size_t num_functions =
-        module->functions.size() - module->num_imported_functions;
+        module_->functions.size() - module_->num_imported_functions;
     if (num_functions == 0) {
       // Degenerate case of an empty module.
       job_->DoSync<FinishCompile>();
@@ -2208,10 +2257,20 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
                 Min(static_cast<size_t>(FLAG_wasm_num_compilation_tasks),
                     V8::GetCurrentPlatform()
                         ->NumberOfAvailableBackgroundThreads())));
-    job_->outstanding_units_ = job_->compiler_->InitializeCompilationUnits(
-        module->functions, job_->wire_bytes_, job_->module_env_.get());
 
-    job_->DoAsync<ExecuteAndFinishCompilationUnits>(num_background_tasks);
+    if (start_compilation_) {
+      // TODO(ahaas): Try to remove the {start_compilation_} check when
+      // streaming decoding is done in the background. If
+      // InitializeCompilationUnits always returns 0 for streaming compilation,
+      // then DoAsync would do the same as NextStep already.
+      job_->outstanding_units_ = job_->compiler_->InitializeCompilationUnits(
+          module_->functions, job_->wire_bytes_, job_->module_env_.get());
+
+      job_->DoAsync<ExecuteAndFinishCompilationUnits>(num_background_tasks);
+    } else {
+      job_->stopped_tasks_ = num_background_tasks;
+      job_->NextStep<ExecuteAndFinishCompilationUnits>(num_background_tasks);
+    }
   }
 };
 
@@ -2239,16 +2298,7 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
         break;
       }
     }
-    stopped_tasks_.Increment(1);
-  }
-
-  void RestartCompilationTasks() {
-    size_t num_restarts = stopped_tasks_.Value();
-    stopped_tasks_.Decrement(num_restarts);
-
-    for (size_t i = 0; i < num_restarts; ++i) {
-      job_->StartBackgroundTask();
-    }
+    job_->stopped_tasks_.Increment(1);
   }
 
   void RunInForeground() override {
@@ -2266,7 +2316,7 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
 
     while (true) {
       if (!finished_ && job_->compiler_->ShouldIncreaseWorkload()) {
-        RestartCompilationTasks();
+        job_->RestartBackgroundTasks();
       }
 
       int func_index = -1;
@@ -2309,14 +2359,13 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
     if (job_->outstanding_units_ == 0) {
       // Make sure all compilation tasks stopped running.
       job_->background_task_manager_.CancelAndWait();
-      job_->DoSync<FinishCompile>();
+      if (job_->DecrementAndCheckFinisherCount()) job_->DoSync<FinishCompile>();
     }
   }
 
  private:
   std::atomic<bool> failed_{false};
   std::atomic<bool> finished_{false};
-  base::AtomicNumber<size_t> stopped_tasks_{0};
 };
 
 //==========================================================================
@@ -2353,8 +2402,8 @@ class AsyncCompileJob::FinishCompile : public CompileStep {
 
     // The {module_wrapper} will take ownership of the {WasmModule} object,
     // and it will be destroyed when the GC reclaims the wrapper object.
-    Handle<WasmModuleWrapper> module_wrapper = WasmModuleWrapper::From(
-        job_->isolate_, job_->compiler_->ReleaseModule().release());
+    Handle<WasmModuleWrapper> module_wrapper =
+        WasmModuleWrapper::From(job_->isolate_, job_->module_.release());
 
     // Create the shared module data.
     // TODO(clemensh): For the same module (same bytes / same hash), we should
@@ -2426,10 +2475,165 @@ class AsyncCompileJob::FinishModule : public CompileStep {
   }
 };
 
-#undef TRACE
-#undef TRACE_CHAIN
-#undef TRACE_COMPILE
+class AsyncCompileJob::AbortCompilation : public CompileStep {
+  void RunInForeground() override {
+    TRACE_COMPILE("Abort asynchronous compilation ...\n");
+    job_->isolate_->wasm_compilation_manager()->RemoveJob(job_);
+  }
+};
+
+AsyncStreamingProcessor::AsyncStreamingProcessor(AsyncCompileJob* job)
+    : job_(job), compilation_unit_builder_(nullptr) {}
+
+void AsyncStreamingProcessor::FinishAsyncCompileJobWithError(ResultBase error) {
+  // Make sure all background tasks stopped executing before we change the state
+  // of the AsyncCompileJob to DecodeFail.
+  job_->background_task_manager_.CancelAndWait();
+
+  // Create a ModuleResult from the result we got as parameter. Since there was
+  // no error, we don't have to provide a real wasm module to the ModuleResult.
+  ModuleResult result(nullptr);
+  result.MoveErrorFrom(error);
+
+  // Check if there is already a ModuleCompiler, in which case we have to clean
+  // it up as well.
+  if (job_->compiler_) {
+    // If {IsFinisherRunning} is true, then there is already a foreground task
+    // in the task queue to execute the DecodeFail step. We do not have to start
+    // a new task ourselves with DoSync.
+    if (job_->compiler_->IsFinisherRunning()) {
+      job_->NextStep<AsyncCompileJob::DecodeFail>(std::move(result));
+    } else {
+      job_->DoSync<AsyncCompileJob::DecodeFail>(std::move(result));
+    }
+
+    compilation_unit_builder_->Clear();
+  } else {
+    job_->DoSync<AsyncCompileJob::DecodeFail>(std::move(result));
+  }
+}
+
+// Process the module header.
+bool AsyncStreamingProcessor::ProcessModuleHeader(Vector<const uint8_t> bytes,
+                                                  uint32_t offset) {
+  TRACE_STREAMING("Process module header...\n");
+  decoder_.StartDecoding(job_->isolate());
+  decoder_.DecodeModuleHeader(bytes, offset);
+  if (!decoder_.ok()) {
+    FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false));
+    return false;
+  }
+  return true;
+}
+
+// Process all sections except for the code section.
+bool AsyncStreamingProcessor::ProcessSection(SectionCode section_code,
+                                             Vector<const uint8_t> bytes,
+                                             uint32_t offset) {
+  TRACE_STREAMING("Process section %d ...\n", section_code);
+  if (section_code == SectionCode::kUnknownSectionCode) {
+    // No need to decode unknown sections, even the names section. If decoding
+    // of the unknown section fails, compilation should succeed anyways, and
+    // even decoding the names section is unnecessary because the result comes
+    // too late for streaming compilation.
+    return true;
+  }
+  constexpr bool verify_functions = false;
+  decoder_.DecodeSection(section_code, bytes, offset, verify_functions);
+  if (!decoder_.ok()) {
+    FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false));
+    return false;
+  }
+  return true;
+}
+
+// Start the code section.
+bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
+                                                       uint32_t offset) {
+  TRACE_STREAMING("Start the code section with %zu functions...\n",
+                  functions_count);
+  if (!decoder_.CheckFunctionsCount(static_cast<uint32_t>(functions_count),
+                                    offset)) {
+    FinishAsyncCompileJobWithError(decoder_.FinishDecoding(false));
+    return false;
+  }
+  job_->NextStep<AsyncCompileJob::PrepareAndStartCompile>(decoder_.module(),
+                                                          false);
+  // Execute the PrepareAndStartCompile step immediately and not in a separate
+  // task. The step expects to be run on a separate foreground thread though, so
+  // we to increment {num_pending_foreground_tasks_} to look like one.
+  ++job_->num_pending_foreground_tasks_;
+  DCHECK_EQ(1, job_->num_pending_foreground_tasks_);
+  constexpr bool on_foreground = true;
+  job_->step_->Run(on_foreground);
+
+  job_->outstanding_units_ = functions_count;
+  // Set outstanding_finishers_ to 2, because both the AsyncCompileJob and the
+  // AsyncStreamingProcessor have to finish.
+  job_->outstanding_finishers_.SetValue(2);
+  next_function_ = decoder_.module()->num_imported_functions +
+                   FLAG_skip_compiling_wasm_funcs;
+  compilation_unit_builder_.reset(
+      new ModuleCompiler::CompilationUnitBuilder(job_->compiler_.get()));
+  return true;
+}
+
+// Process a function body.
+bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
+                                                  uint32_t offset) {
+  TRACE_STREAMING("Process function body %d ...\n", next_function_);
+
+  decoder_.DecodeFunctionBody(
+      next_function_, static_cast<uint32_t>(bytes.length()), offset, false);
+  if (next_function_ >= decoder_.module()->num_imported_functions +
+                            FLAG_skip_compiling_wasm_funcs) {
+    const WasmFunction* func = &decoder_.module()->functions[next_function_];
+    WasmName name = {nullptr, 0};
+    compilation_unit_builder_->AddUnit(job_->module_env_.get(), func, offset,
+                                       bytes, name);
+  }
+  ++next_function_;
+  return true;
+}
+
+void AsyncStreamingProcessor::OnFinishedChunk() {
+  // TRACE_STREAMING("FinishChunk...\n");
+  if (compilation_unit_builder_) {
+    compilation_unit_builder_->Commit();
+    job_->RestartBackgroundTasks();
+  }
+}
+
+// Finish the processing of the stream.
+void AsyncStreamingProcessor::OnFinishedStream(std::unique_ptr<uint8_t[]> bytes,
+                                               size_t length) {
+  TRACE_STREAMING("Finish stream...\n");
+  job_->bytes_copy_ = std::move(bytes);
+  job_->wire_bytes_ = ModuleWireBytes(job_->bytes_copy_.get(),
+                                      job_->bytes_copy_.get() + length);
+  ModuleResult result = decoder_.FinishDecoding(false);
+  DCHECK(result.ok());
+  job_->module_ = std::move(result.val);
+  if (job_->DecrementAndCheckFinisherCount())
+    job_->DoSync<AsyncCompileJob::FinishCompile>();
+}
+
+// Report an error detected in the StreamingDecoder.
+void AsyncStreamingProcessor::OnError(DecodeResult result) {
+  TRACE_STREAMING("Stream error...\n");
+  FinishAsyncCompileJobWithError(std::move(result));
+}
+
+void AsyncStreamingProcessor::OnAbort() {
+  TRACE_STREAMING("Abort stream...\n");
+  job_->Abort();
+}
 
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
+
+#undef TRACE
+#undef TRACE_COMPILE
+#undef TRACE_STREAMING
+#undef TRACE_CHAIN

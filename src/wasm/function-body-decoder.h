@@ -41,12 +41,6 @@ static inline FunctionBody FunctionBodyForTesting(const byte* start,
   return {nullptr, 0, start, end};
 }
 
-// A {DecodeResult} only stores the failure / success status, but no data. Thus
-// we use {nullptr_t} as data value, such that the only valid data stored in
-// this type is a nullptr.
-// Storing {void} would require template specialization.
-using DecodeResult = Result<std::nullptr_t>;
-
 V8_EXPORT_PRIVATE DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                                               const wasm::WasmModule* module,
                                               FunctionBody& body);

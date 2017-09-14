@@ -209,6 +209,7 @@
       'types-fuzz.h',
       'unicode-helpers.h',
       'wasm/test-c-wasm-entry.cc',
+      'wasm/test-streaming-compilation.cc',
       'wasm/test-run-wasm.cc',
       'wasm/test-run-wasm-64.cc',
       'wasm/test-run-wasm-asmjs.cc',

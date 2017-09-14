@@ -150,6 +150,10 @@ template<typename T> class CustomArguments;
 class PropertyCallbackArguments;
 class FunctionCallbackArguments;
 class GlobalHandles;
+
+namespace wasm {
+class StreamingDecoder;
+}  // namespace wasm
 }  // namespace internal
 
 namespace debug {
@@ -4264,6 +4268,7 @@ class V8_EXPORT WasmModuleObjectBuilderStreaming final {
 #endif
   std::vector<Buffer> received_buffers_;
   size_t total_size_ = 0;
+  std::shared_ptr<internal::wasm::StreamingDecoder> streaming_decoder_;
 };
 
 class V8_EXPORT WasmModuleObjectBuilder final {
