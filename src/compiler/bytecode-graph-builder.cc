@@ -476,8 +476,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     Zone* local_zone, Handle<SharedFunctionInfo> shared_info,
     Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
     JSGraph* jsgraph, CallFrequency invocation_frequency,
-    SourcePositionTable* source_positions, Handle<Context> native_context,
-    CompilationDependencies* dependencies, int inlining_id,
+    SourcePositionTable* source_positions, int inlining_id,
     JSTypeHintLowering::Flags flags, bool stack_check)
     : local_zone_(local_zone),
       jsgraph_(jsgraph),
@@ -486,8 +485,7 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       exception_handler_table_(
           handle(HandlerTable::cast(bytecode_array()->handler_table()))),
       feedback_vector_(feedback_vector),
-      type_hint_lowering_(jsgraph, feedback_vector, native_context,
-                          dependencies, flags, local_zone),
+      type_hint_lowering_(jsgraph, feedback_vector, flags),
       frame_state_function_info_(common()->CreateFrameStateFunctionInfo(
           FrameStateType::kInterpretedFunction,
           bytecode_array()->parameter_count(),

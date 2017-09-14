@@ -16,9 +16,6 @@
 
 namespace v8 {
 namespace internal {
-
-class CompilationDependencies;
-
 namespace compiler {
 
 class Reduction;
@@ -32,8 +29,7 @@ class BytecodeGraphBuilder {
       Zone* local_zone, Handle<SharedFunctionInfo> shared,
       Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
       JSGraph* jsgraph, CallFrequency invocation_frequency,
-      SourcePositionTable* source_positions, Handle<Context> native_context,
-      CompilationDependencies* dependencies,
+      SourcePositionTable* source_positions,
       int inlining_id = SourcePosition::kNotInlined,
       JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags,
       bool stack_check = true);
