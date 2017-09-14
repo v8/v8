@@ -909,6 +909,8 @@ namespace internal {
   CPP(StringPrototypeLastIndexOf)                                              \
   /* ES6 #sec-string.prototype.localecompare */                                \
   CPP(StringPrototypeLocaleCompare)                                            \
+  /* ES6 #sec-string.prototype.repeat */                                       \
+  TFJ(StringPrototypeRepeat, 1, kCount)                                        \
   /* ES6 #sec-string.prototype.replace */                                      \
   TFJ(StringPrototypeReplace, 2, kSearch, kReplace)                            \
   /* ES6 #sec-string.prototype.slice */                                        \

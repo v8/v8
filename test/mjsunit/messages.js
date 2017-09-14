@@ -440,6 +440,11 @@ test(function() {
   new Uint16Array(-1);
 }, "Invalid typed array length: -1", RangeError);
 
+// kThrowInvalidStringLength
+test(function() {
+  "a".repeat(1 << 30);
+}, "Invalid string length", RangeError);
+
 // kNormalizationForm
 test(function() {
   "".normalize("ABC");

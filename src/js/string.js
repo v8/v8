@@ -142,31 +142,6 @@ DEFINE_METHODS(
       CHECK_OBJECT_COERCIBLE(this, "String.prototype.sup");
       return "<sup>" + TO_STRING(this) + "</sup>";
     }
-
-    /* ES#sec-string.prototype.repeat */
-    repeat(count) {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.repeat");
-
-      var s = TO_STRING(this);
-      var n = TO_INTEGER(count);
-
-      if (n < 0 || n === INFINITY) throw %make_range_error(kInvalidCountValue);
-
-      // Early return to allow an arbitrarily-large repeat of the empty string.
-      if (s.length === 0) return "";
-
-      // The maximum string length is stored in a smi, so a longer repeat
-      // must result in a range error.
-      if (n > %_StringMaxLength()) %ThrowInvalidStringLength();
-
-      var r = "";
-      while (true) {
-        if (n & 1) r += s;
-        n >>= 1;
-        if (n === 0) return r;
-        s += s;
-      }
-    }
   }
 );
 
