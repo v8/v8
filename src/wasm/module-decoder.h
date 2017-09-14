@@ -26,6 +26,13 @@ const uint8_t kWasmAnyFunctionTypeForm = 0x70;
 const uint8_t kResizableMaximumFlag = 1;
 const uint8_t kNoMaximumFlag = 0;
 
+enum MemoryFlags : uint8_t {
+  kNoMaximum = 0,
+  kMaximum = 1,
+  kSharedNoMaximum = 2,
+  kSharedAndMaximum = 3
+};
+
 enum SectionCode : int8_t {
   kUnknownSectionCode = 0,     // code for unknown sections
   kTypeSectionCode = 1,        // Function signature declarations

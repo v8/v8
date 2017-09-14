@@ -157,6 +157,8 @@ class TestingModuleBuilder {
     test_module_.maximum_pages = maximum_pages;
   }
 
+  void SetHasSharedMemory() { test_module_.has_shared_memory = true; }
+
   uint32_t AddFunction(FunctionSig* sig, Handle<Code> code, const char* name);
 
   uint32_t AddJsFunction(FunctionSig* sig, const char* source,

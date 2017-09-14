@@ -1155,6 +1155,14 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return true;
   }
 
+  bool CheckHasSharedMemory() {
+    if (!VALIDATE(this->module_->has_shared_memory)) {
+      this->error(this->pc_ - 1, "Atomic opcodes used without shared memory");
+      return false;
+    }
+    return true;
+  }
+
   // Decodes the body of a function.
   void DecodeFunctionBody() {
     TRACE("wasm-decode %p...%p (module+%u, %d bytes)\n",
@@ -1655,6 +1663,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           case kAtomicPrefix: {
             CHECK_PROTOTYPE_OPCODE(threads);
+            if (!CheckHasSharedMemory()) break;
             len++;
             byte atomic_index =
                 this->template read_u8<validate>(this->pc_ + 1, "atomic index");

@@ -187,10 +187,11 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::unique_ptr<Zone> signature_zone;
   uint32_t initial_pages = 0;      // initial size of the memory in 64k pages
   uint32_t maximum_pages = 0;      // maximum size of the memory in 64k pages
+  bool has_shared_memory = false;  // true if memory is a SharedArrayBuffer
   bool has_maximum_pages = false;  // true if there is a maximum memory size
-  bool has_memory = false;        // true if the memory was defined or imported
-  bool mem_export = false;        // true if the memory is exported
-  int start_function_index = -1;  // start function, >= 0 if any
+  bool has_memory = false;         // true if the memory was defined or imported
+  bool mem_export = false;         // true if the memory is exported
+  int start_function_index = -1;   // start function, >= 0 if any
 
   std::vector<WasmGlobal> globals;
   uint32_t globals_size = 0;

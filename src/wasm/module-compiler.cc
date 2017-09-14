@@ -1467,6 +1467,14 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
             return -1;
           }
         }
+        if (module_->has_shared_memory != buffer->is_shared()) {
+          thrower_->LinkError(
+              "mismatch in shared state of memory, declared = %d, imported = "
+              "%d",
+              module_->has_shared_memory, buffer->is_shared());
+          return -1;
+        }
+
         break;
       }
       case kExternalGlobal: {

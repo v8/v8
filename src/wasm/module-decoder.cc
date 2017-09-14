@@ -474,7 +474,8 @@ class ModuleDecoder : public Decoder {
           consume_resizable_limits(
               "memory", "pages", FLAG_wasm_max_mem_pages,
               &module_->initial_pages, &module_->has_maximum_pages,
-              kSpecMaxWasmMemoryPages, &module_->maximum_pages);
+              kSpecMaxWasmMemoryPages, &module_->maximum_pages,
+              &module_->has_shared_memory);
           break;
         }
         case kExternalGlobal: {
@@ -542,7 +543,7 @@ class ModuleDecoder : public Decoder {
       consume_resizable_limits(
           "memory", "pages", FLAG_wasm_max_mem_pages, &module_->initial_pages,
           &module_->has_maximum_pages, kSpecMaxWasmMemoryPages,
-          &module_->maximum_pages);
+          &module_->maximum_pages, &module_->has_shared_memory);
     }
   }
 
@@ -1082,12 +1083,30 @@ class ModuleDecoder : public Decoder {
   void consume_resizable_limits(const char* name, const char* units,
                                 uint32_t max_initial, uint32_t* initial,
                                 bool* has_max, uint32_t max_maximum,
-                                uint32_t* maximum) {
+                                uint32_t* maximum,
+                                bool* has_shared_memory = nullptr) {
     uint8_t flags = consume_u8("resizable limits flags");
     const byte* pos = pc();
-    if (flags & 0xfe) {
-      errorf(pos - 1, "invalid %s limits flags", name);
+
+    if (FLAG_experimental_wasm_threads) {
+      bool is_memory = (strcmp(name, "memory") == 0);
+      if (flags & 0xfc || (!is_memory && (flags & 0xfe))) {
+        errorf(pos - 1, "invalid %s limits flags", name);
+      }
+      if (flags == 3) {
+        DCHECK(has_shared_memory != nullptr);
+        *has_shared_memory = true;
+      } else if (flags == 2) {
+        errorf(pos - 1,
+               "%s limits flags should have maximum defined if shared is true",
+               name);
+      }
+    } else {
+      if (flags & 0xfe) {
+        errorf(pos - 1, "invalid %s limits flags", name);
+      }
     }
+
     *initial = consume_u32v("initial size");
     *has_max = false;
     if (*initial > max_initial) {

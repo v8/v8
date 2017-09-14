@@ -23,7 +23,7 @@ let memory = new WebAssembly.Memory({initial: 1, maximum: maxSize, shared: true}
 
 function GetAtomicBinOpFunction(wasmExpression) {
   let builder = new WasmModuleBuilder();
-  builder.addImportedMemory("m", "imported_mem");
+  builder.addImportedMemory("m", "imported_mem", 0, maxSize, "shared");
   builder.addFunction("main", kSig_i_ii)
     .addBody([
       kExprGetLocal, 0,
@@ -41,7 +41,7 @@ function GetAtomicBinOpFunction(wasmExpression) {
 
 function GetAtomicCmpExchangeFunction(wasmExpression) {
   let builder = new WasmModuleBuilder();
-  builder.addImportedMemory("m", "imported_mem");
+  builder.addImportedMemory("m", "imported_mem", 0, maxSize, "shared");
   builder.addFunction("main", kSig_i_iii)
     .addBody([
       kExprGetLocal, 0,
