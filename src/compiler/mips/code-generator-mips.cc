@@ -575,16 +575,17 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
     __ sync();                                                                 \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER()                                \
-  do {                                                                    \
-    Label exchange;                                                       \
-    __ sync();                                                            \
-    __ bind(&exchange);                                                   \
-    __ addu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));   \
-    __ Ll(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));         \
-    __ Sc(i.InputRegister(2), MemOperand(i.TempRegister(0), 0));          \
-    __ BranchShort(&exchange, eq, i.InputRegister(2), Operand(zero_reg)); \
-    __ sync();                                                            \
+#define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER()                               \
+  do {                                                                   \
+    Label exchange;                                                      \
+    __ sync();                                                           \
+    __ bind(&exchange);                                                  \
+    __ addu(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));  \
+    __ Ll(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));        \
+    __ mov(i.TempRegister(1), i.InputRegister(2));                       \
+    __ Sc(i.TempRegister(1), MemOperand(i.TempRegister(0), 0));          \
+    __ BranchShort(&exchange, eq, i.TempRegister(1), Operand(zero_reg)); \
+    __ sync();                                                           \
   } while (0)
 
 #define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER_EXT(sign_extend, size)                \
@@ -616,8 +617,9 @@ FPUCondition FlagsConditionToConditionCmpFPU(bool& predicate,
     __ Ll(i.OutputRegister(0), MemOperand(i.TempRegister(0), 0));       \
     __ BranchShort(&exit, ne, i.InputRegister(2),                       \
                    Operand(i.OutputRegister(0)));                       \
-    __ Sc(i.InputRegister(3), MemOperand(i.TempRegister(0), 0));        \
-    __ BranchShort(&compareExchange, eq, i.InputRegister(3),            \
+    __ mov(i.TempRegister(2), i.InputRegister(3));                      \
+    __ Sc(i.TempRegister(2), MemOperand(i.TempRegister(0), 0));         \
+    __ BranchShort(&compareExchange, eq, i.TempRegister(2),             \
                    Operand(zero_reg));                                  \
     __ bind(&exit);                                                     \
     __ sync();                                                          \

@@ -979,7 +979,7 @@ void TurboAssembler::Ror(Register rd, Register rs, const Operand& rt) {
   } else {
     if (rt.is_reg()) {
       UseScratchRegisterScope temps(this);
-      Register scratch = temps.Acquire();
+      Register scratch = temps.hasAvailable() ? temps.Acquire() : t8;
       subu(scratch, zero_reg, rt.rm());
       sllv(scratch, rs, scratch);
       srlv(rd, rs, rt.rm());
