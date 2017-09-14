@@ -747,10 +747,22 @@ TEST(CustomSnapshotDataBlobSharedArrayBuffer) {
       "var x = new Int32Array([12, 24, 48, 96]);"
       "var y = new Uint8Array(x.buffer)";
   Int32Expectations expectations = {
-      std::make_tuple("x[0]", 12), std::make_tuple("x[1]", 24),
-      std::make_tuple("y[0]", 12), std::make_tuple("y[1]", 0),
-      std::make_tuple("y[2]", 0),  std::make_tuple("y[3]", 0),
-      std::make_tuple("y[4]", 24)};
+    std::make_tuple("x[0]", 12),
+    std::make_tuple("x[1]", 24),
+#if !V8_TARGET_BIG_ENDIAN
+    std::make_tuple("y[0]", 12),
+    std::make_tuple("y[1]", 0),
+    std::make_tuple("y[2]", 0),
+    std::make_tuple("y[3]", 0),
+    std::make_tuple("y[4]", 24)
+#else
+    std::make_tuple("y[3]", 12),
+    std::make_tuple("y[2]", 0),
+    std::make_tuple("y[1]", 0),
+    std::make_tuple("y[0]", 0),
+    std::make_tuple("y[7]", 24)
+#endif
+  };
 
   TypedArrayTestHelper(code, expectations);
 }
