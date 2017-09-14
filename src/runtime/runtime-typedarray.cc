@@ -156,14 +156,6 @@ RUNTIME_FUNCTION(Runtime_TypedArraySortFast) {
   return *array;
 }
 
-RUNTIME_FUNCTION(Runtime_TypedArrayMaxSizeInHeap) {
-  DCHECK_EQ(0, args.length());
-  DCHECK_OBJECT_SIZE(FLAG_typed_array_max_size_in_heap +
-                     FixedTypedArrayBase::kDataOffset);
-  return Smi::FromInt(FLAG_typed_array_max_size_in_heap);
-}
-
-
 RUNTIME_FUNCTION(Runtime_IsTypedArray) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

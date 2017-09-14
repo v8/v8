@@ -107,6 +107,9 @@ declare_args() {
   # Similar to the ARM hard float ABI but on MIPS.
   v8_use_mips_abi_hardfloat = true
 
+  # Controls the threshold for on-heap/off-heap Typed Arrays.
+  v8_typed_array_max_size_in_heap = 64
+
   # List of extra files to snapshot. They will be snapshotted in order so
   # if files export symbols used by later files, they should go first.
   #
@@ -235,6 +238,8 @@ config("features") {
     defines +=
         [ "V8_PROMISE_INTERNAL_FIELD_COUNT=${v8_promise_internal_field_count}" ]
   }
+  defines +=
+      [ "V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP=${v8_typed_array_max_size_in_heap}" ]
   if (v8_enable_future) {
     defines += [ "V8_ENABLE_FUTURE" ]
   }

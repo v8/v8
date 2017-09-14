@@ -10,6 +10,12 @@
 namespace v8 {
 namespace internal {
 
+// This is needed for gc_mole which will compile this file without the full set
+// of GN defined macros.
+#ifndef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP
+#define V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP 64
+#endif
+
 // -----------------------------------------------------------------------------
 // ES6 section 22.2 TypedArray Objects
 
@@ -200,9 +206,9 @@ TF_BUILTIN(TypedArrayInitialize, TypedArrayBuiltinsAssembler) {
 
   Node* fixed_typed_map = LoadMapForType(holder);
   GotoIf(TaggedIsNotSmi(byte_length), &allocate_off_heap);
-  GotoIf(SmiGreaterThan(byte_length,
-                        SmiConstant(FLAG_typed_array_max_size_in_heap)),
-         &allocate_off_heap);
+  GotoIf(
+      SmiGreaterThan(byte_length, SmiConstant(V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP)),
+      &allocate_off_heap);
   Goto(&allocate_on_heap);
 
   BIND(&allocate_on_heap);
@@ -733,6 +739,8 @@ TF_BUILTIN(TypedArrayPrototypeKeys, TypedArrayBuiltinsAssembler) {
   GenerateTypedArrayPrototypeIterationMethod(
       context, receiver, "%TypedArray%.prototype.keys()", IterationKind::kKeys);
 }
+
+#undef V8_TYPED_ARRAY_MAX_SIZE_IN_HEAP
 
 }  // namespace internal
 }  // namespace v8
