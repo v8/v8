@@ -88,6 +88,9 @@ class BigInt : public HeapObject {
   static const int kHalfDigitBits = kDigitBits / 2;
   static const digit_t kHalfDigitMask = (1ull << kHalfDigitBits) - 1;
 
+  // Private helpers for public methods.
+  Handle<String> ToStringBasePowerOfTwo(Handle<BigInt> x, int radix);
+
   class LengthBits : public BitField<int, 0, kMaxLengthBits> {};
   class SignBits : public BitField<bool, LengthBits::kNext, 1> {};
 
