@@ -91,6 +91,10 @@
   'regress/regress-crbug-482998': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
   'regress/regress-740784': [PASS, NO_VARIANTS, ['arch == arm or arch == arm64 or arch == android_arm or arch == android_arm64 or arch == mipsel or arch == mips64el or arch == mips', SKIP]],
 
+  # This test allocates a 2G block of memory and if there are multiple
+  # variants this can lead to OOM.
+  'regress/regress-crbug-514081': [PASS, NO_VARIANTS],
+
   ##############################################################################
   # Skip long running tests that time out in debug mode.
   'generated-transition-stub': [PASS, ['mode == debug', SKIP]],
