@@ -4,6 +4,7 @@
 
 #if V8_TARGET_ARCH_PPC
 
+#include "src/assembler-inl.h"
 #include "src/codegen.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
@@ -1405,7 +1406,7 @@ void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
     __ mov(scratch0,
            Operand(ExternalReference::builtins_address(masm->isolate())));
     __ ShiftLeftImm(scratch1, scratch1, Operand(kPointerSizeLog2));
-    __ LoadP(scratch1, MemOperand(scratch0, scratch1));
+    __ LoadPX(scratch1, MemOperand(scratch0, scratch1));
 
     // Check if the loaded code object has already been deserialized. This is
     // the case iff it does not equal DeserializeLazy.

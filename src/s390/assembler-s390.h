@@ -368,11 +368,19 @@ class Operand BASE_EMBEDDED {
  public:
   // immediate
   INLINE(explicit Operand(intptr_t immediate,
-                          RelocInfo::Mode rmode = kRelocInfo_NONEPTR));
+                          RelocInfo::Mode rmode = kRelocInfo_NONEPTR)
+         : rmode_(rmode)) {
+    value_.immediate = immediate;
+  }
   INLINE(static Operand Zero()) { return Operand(static_cast<intptr_t>(0)); }
-  INLINE(explicit Operand(const ExternalReference& f));
+  INLINE(explicit Operand(const ExternalReference& f)
+         : rmode_(RelocInfo::EXTERNAL_REFERENCE)) {
+    value_.immediate = reinterpret_cast<intptr_t>(f.address());
+  }
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value));
+  INLINE(explicit Operand(Smi* value) : rmode_(kRelocInfo_NONEPTR)) {
+    value_.immediate = reinterpret_cast<intptr_t>(value);
+  }
 
   // rm
   INLINE(explicit Operand(Register rm));
@@ -380,7 +388,7 @@ class Operand BASE_EMBEDDED {
   static Operand EmbeddedNumber(double value);  // Smi or HeapNumber
 
   // Return true if this is a register operand.
-  INLINE(bool is_reg() const);
+  INLINE(bool is_reg() const) { return rm_.is_valid(); }
 
   bool must_output_reloc_info(const Assembler* assembler) const;
 
@@ -1438,7 +1446,11 @@ class Assembler : public AssemblerBase {
   int last_bound_pos_;
 
   // Code emission
-  inline void CheckBuffer();
+  void CheckBuffer() {
+    if (buffer_space() <= kGap) {
+      GrowBuffer();
+    }
+  }
   void GrowBuffer(int needed = 0);
   inline void TrackBranch();
   inline void UntrackBranch();
@@ -1446,10 +1458,58 @@ class Assembler : public AssemblerBase {
   inline int32_t emit_code_target(
       Handle<Code> target, RelocInfo::Mode rmode);
 
-  // Helpers to emit binary encoding of 2/4/6 byte instructions.
-  inline void emit2bytes(uint16_t x);
-  inline void emit4bytes(uint32_t x);
-  inline void emit6bytes(uint64_t x);
+  // Helper to emit the binary encoding of a 2 byte instruction
+  void emit2bytes(uint16_t x) {
+    CheckBuffer();
+#if V8_TARGET_LITTLE_ENDIAN
+    // We need to emit instructions in big endian format as disassembler /
+    // simulator require the first byte of the instruction in order to decode
+    // the instruction length.  Swap the bytes.
+    x = ((x & 0x00FF) << 8) | ((x & 0xFF00) >> 8);
+#endif
+    *reinterpret_cast<uint16_t*>(pc_) = x;
+    pc_ += 2;
+  }
+
+  // Helper to emit the binary encoding of a 4 byte instruction
+  void emit4bytes(uint32_t x) {
+    CheckBuffer();
+#if V8_TARGET_LITTLE_ENDIAN
+    // We need to emit instructions in big endian format as disassembler /
+    // simulator require the first byte of the instruction in order to decode
+    // the instruction length.  Swap the bytes.
+    x = ((x & 0x000000FF) << 24) | ((x & 0x0000FF00) << 8) |
+        ((x & 0x00FF0000) >> 8) | ((x & 0xFF000000) >> 24);
+#endif
+    *reinterpret_cast<uint32_t*>(pc_) = x;
+    pc_ += 4;
+  }
+
+  // Helper to emit the binary encoding of a 6 byte instruction
+  void emit6bytes(uint64_t x) {
+    CheckBuffer();
+#if V8_TARGET_LITTLE_ENDIAN
+    // We need to emit instructions in big endian format as disassembler /
+    // simulator require the first byte of the instruction in order to decode
+    // the instruction length.  Swap the bytes.
+    x = (static_cast<uint64_t>(x & 0xFF) << 40) |
+        (static_cast<uint64_t>((x >> 8) & 0xFF) << 32) |
+        (static_cast<uint64_t>((x >> 16) & 0xFF) << 24) |
+        (static_cast<uint64_t>((x >> 24) & 0xFF) << 16) |
+        (static_cast<uint64_t>((x >> 32) & 0xFF) << 8) |
+        (static_cast<uint64_t>((x >> 40) & 0xFF));
+    x |= (*reinterpret_cast<uint64_t*>(pc_) >> 48) << 48;
+#else
+    // We need to pad two bytes of zeros in order to get the 6-bytes
+    // stored from low address.
+    x = x << 16;
+    x |= *reinterpret_cast<uint64_t*>(pc_) & 0xFFFF;
+#endif
+    // It is safe to store 8-bytes, as CheckBuffer() guarantees we have kGap
+    // space left over.
+    *reinterpret_cast<uint64_t*>(pc_) = x;
+    pc_ += 6;
+  }
 
   // Helpers to emit binary encoding for various instruction formats.
 

@@ -4,6 +4,7 @@
 
 #if V8_TARGET_ARCH_S390
 
+#include "src/assembler-inl.h"
 #include "src/codegen.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"

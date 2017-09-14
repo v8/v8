@@ -5,6 +5,7 @@
 #if V8_TARGET_ARCH_S390
 
 #include "src/api-arguments.h"
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
@@ -986,6 +987,64 @@ void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
   StoreBufferOverflowStub stub2(isolate, kSaveFPRegs);
   stub2.GetCode();
 }
+RecordWriteStub::Mode RecordWriteStub::GetMode(Code* stub) {
+  int32_t first_instr_length =
+      Instruction::InstructionLength(stub->instruction_start());
+  int32_t second_instr_length = Instruction::InstructionLength(
+      stub->instruction_start() + first_instr_length);
+
+  uint64_t first_instr = Assembler::instr_at(stub->instruction_start());
+  uint64_t second_instr =
+      Assembler::instr_at(stub->instruction_start() + first_instr_length);
+
+  DCHECK(first_instr_length == 4 || first_instr_length == 6);
+  DCHECK(second_instr_length == 4 || second_instr_length == 6);
+
+  bool isFirstInstrNOP = isBranchNop(first_instr, first_instr_length);
+  bool isSecondInstrNOP = isBranchNop(second_instr, second_instr_length);
+
+  // STORE_BUFFER_ONLY has NOP on both branches
+  if (isSecondInstrNOP && isFirstInstrNOP) return STORE_BUFFER_ONLY;
+  // INCREMENTAL_COMPACTION has NOP on second branch.
+  else if (isFirstInstrNOP && !isSecondInstrNOP)
+    return INCREMENTAL_COMPACTION;
+  // INCREMENTAL has NOP on first branch.
+  else if (!isFirstInstrNOP && isSecondInstrNOP)
+    return INCREMENTAL;
+
+  DCHECK(false);
+  return STORE_BUFFER_ONLY;
+}
+
+void RecordWriteStub::Patch(Code* stub, Mode mode) {
+  MacroAssembler masm(stub->GetIsolate(), stub->instruction_start(),
+                      stub->instruction_size(), CodeObjectRequired::kNo);
+
+  // Get instruction lengths of two branches
+  int32_t first_instr_length = masm.instr_length_at(0);
+  int32_t second_instr_length = masm.instr_length_at(first_instr_length);
+
+  switch (mode) {
+    case STORE_BUFFER_ONLY:
+      DCHECK(GetMode(stub) == INCREMENTAL ||
+             GetMode(stub) == INCREMENTAL_COMPACTION);
+
+      PatchBranchCondMask(&masm, 0, CC_NOP);
+      PatchBranchCondMask(&masm, first_instr_length, CC_NOP);
+      break;
+    case INCREMENTAL:
+      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
+      PatchBranchCondMask(&masm, 0, CC_ALWAYS);
+      break;
+    case INCREMENTAL_COMPACTION:
+      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
+      PatchBranchCondMask(&masm, first_instr_length, CC_ALWAYS);
+      break;
+  }
+  DCHECK(GetMode(stub) == mode);
+  Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(),
+                         first_instr_length + second_instr_length);
+}
 
 // Takes the input in 3 registers: address_ value_ and object_.  A pointer to
 // the value has just been written into the object, now this stub makes sure
@@ -1071,6 +1130,10 @@ void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
       ExternalReference::incremental_marking_record_write_function(isolate()),
       argument_count);
   regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode());
+}
+
+void RecordWriteStub::Activate(Code* code) {
+  code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
 }
 
 void RecordWriteStub::CheckNeedsToInformIncrementalMarker(

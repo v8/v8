@@ -6,6 +6,7 @@
 
 #include "src/regexp/ppc/regexp-macro-assembler-ppc.h"
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/code-stubs.h"
 #include "src/log.h"

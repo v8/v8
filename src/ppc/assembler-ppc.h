@@ -383,12 +383,19 @@ class Operand BASE_EMBEDDED {
  public:
   // immediate
   INLINE(explicit Operand(intptr_t immediate,
-                          RelocInfo::Mode rmode = kRelocInfo_NONEPTR));
+                          RelocInfo::Mode rmode = kRelocInfo_NONEPTR)
+         : rmode_(rmode)) {
+    value_.immediate = immediate;
+  }
   INLINE(static Operand Zero()) { return Operand(static_cast<intptr_t>(0)); }
-  INLINE(explicit Operand(const ExternalReference& f));
+  INLINE(explicit Operand(const ExternalReference& f)
+         : rmode_(RelocInfo::EXTERNAL_REFERENCE)) {
+    value_.immediate = reinterpret_cast<intptr_t>(f.address());
+  }
   explicit Operand(Handle<HeapObject> handle);
-  INLINE(explicit Operand(Smi* value));
-
+  INLINE(explicit Operand(Smi* value) : rmode_(kRelocInfo_NONEPTR)) {
+    value_.immediate = reinterpret_cast<intptr_t>(value);
+  }
   // rm
   INLINE(explicit Operand(Register rm));
 
@@ -396,7 +403,7 @@ class Operand BASE_EMBEDDED {
   static Operand EmbeddedCode(CodeStub* stub);
 
   // Return true if this is a register operand.
-  INLINE(bool is_reg() const);
+  INLINE(bool is_reg() const) { return rm_.is_valid(); }
 
   bool must_output_reloc_info(const Assembler* assembler) const;
 
@@ -1533,13 +1540,39 @@ class Assembler : public AssemblerBase {
 
   ConstantPoolBuilder constant_pool_builder_;
 
-  // Code emission
-  inline void CheckBuffer();
+  void CheckBuffer() {
+    if (buffer_space() <= kGap) {
+      GrowBuffer();
+    }
+  }
+
   void GrowBuffer(int needed = 0);
-  inline void emit(Instr x);
-  inline void TrackBranch();
+  // Code emission
+  void emit(Instr x) {
+    CheckBuffer();
+    *reinterpret_cast<Instr*>(pc_) = x;
+    pc_ += kInstrSize;
+    CheckTrampolinePoolQuick();
+  }
+  void TrackBranch() {
+    DCHECK(!trampoline_emitted_);
+    int count = tracked_branch_count_++;
+    if (count == 0) {
+      // We leave space (kMaxBlockTrampolineSectionSize)
+      // for BlockTrampolinePoolScope buffer.
+      next_trampoline_check_ =
+          pc_offset() + kMaxCondBranchReach - kMaxBlockTrampolineSectionSize;
+    } else {
+      next_trampoline_check_ -= kTrampolineSlotsSize;
+    }
+  }
+
   inline void UntrackBranch();
-  inline void CheckTrampolinePoolQuick();
+  void CheckTrampolinePoolQuick() {
+    if (pc_offset() >= next_trampoline_check_) {
+      CheckTrampolinePool();
+    }
+  }
 
   // Instruction generation
   void a_form(Instr instr, DoubleRegister frt, DoubleRegister fra,

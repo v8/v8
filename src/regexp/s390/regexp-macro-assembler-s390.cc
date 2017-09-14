@@ -6,6 +6,7 @@
 
 #if V8_TARGET_ARCH_S390
 
+#include "src/assembler-inl.h"
 #include "src/base/bits.h"
 #include "src/code-stubs.h"
 #include "src/log.h"
