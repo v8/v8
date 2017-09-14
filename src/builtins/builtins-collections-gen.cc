@@ -1453,9 +1453,13 @@ TF_BUILTIN(SetHas, CollectionsBuiltinsAssembler) {
       if_key_bigint(this), entry_found(this), not_found(this), done(this);
 
   GotoIf(TaggedIsSmi(key), &if_key_smi);
-  GotoIf(IsString(key), &if_key_string);
-  GotoIf(IsHeapNumber(key), &if_key_heap_number);
-  GotoIf(IsBigInt(key), &if_key_bigint);
+
+  Node* key_map = LoadMap(key);
+  Node* key_instance_type = LoadMapInstanceType(key_map);
+
+  GotoIf(IsStringInstanceType(key_instance_type), &if_key_string);
+  GotoIf(IsHeapNumberMap(key_map), &if_key_heap_number);
+  GotoIf(IsBigIntInstanceType(key_instance_type), &if_key_bigint);
 
   FindOrderedHashTableEntryForOtherKey<OrderedHashSet>(
       context, table, key, &entry_start_position, &entry_found, &not_found);
@@ -1648,9 +1652,13 @@ void CollectionsBuiltinsAssembler::TryLookupOrderedHashTableIndex(
       if_key_bigint(this);
 
   GotoIf(TaggedIsSmi(key), &if_key_smi);
-  GotoIf(IsString(key), &if_key_string);
-  GotoIf(IsHeapNumber(key), &if_key_heap_number);
-  GotoIf(IsBigInt(key), &if_key_bigint);
+
+  Node* key_map = LoadMap(key);
+  Node* key_instance_type = LoadMapInstanceType(key_map);
+
+  GotoIf(IsStringInstanceType(key_instance_type), &if_key_string);
+  GotoIf(IsHeapNumberMap(key_map), &if_key_heap_number);
+  GotoIf(IsBigIntInstanceType(key_instance_type), &if_key_bigint);
 
   FindOrderedHashTableEntryForOtherKey<CollectionType>(
       context, table, key, result, if_entry_found, if_not_found);

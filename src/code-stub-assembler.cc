@@ -3809,8 +3809,7 @@ Node* CodeStubAssembler::IsName(Node* object) {
 }
 
 Node* CodeStubAssembler::IsString(Node* object) {
-  return Int32LessThan(LoadInstanceType(object),
-                       Int32Constant(FIRST_NONSTRING_TYPE));
+  return IsStringInstanceType(LoadInstanceType(object));
 }
 
 Node* CodeStubAssembler::IsSymbolInstanceType(Node* instance_type) {
