@@ -6194,6 +6194,9 @@ typedef void (*FatalErrorCallback)(const char* location, const char* message);
 
 typedef void (*OOMErrorCallback)(const char* location, bool is_heap_oom);
 
+typedef void (*DcheckErrorCallback)(const char* file, int line,
+                                    const char* message);
+
 typedef void (*MessageCallback)(Local<Message> message, Local<Value> data);
 
 // --- Tracing ---
@@ -7898,6 +7901,9 @@ class V8_EXPORT V8 {
    */
   static StartupData WarmUpSnapshotDataBlob(StartupData cold_startup_blob,
                                             const char* warmup_source);
+
+  /** Set the callback to invoke in case of Dcheck failures. */
+  static void SetDcheckErrorHandler(DcheckErrorCallback that);
 
   /**
    * Adds a message listener.

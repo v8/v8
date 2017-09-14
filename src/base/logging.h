@@ -17,6 +17,9 @@
 [[noreturn]] PRINTF_FORMAT(3, 4) V8_BASE_EXPORT V8_NOINLINE
     void V8_Fatal(const char* file, int line, const char* format, ...);
 
+V8_BASE_EXPORT V8_NOINLINE void V8_Dcheck(const char* file, int line,
+                                          const char* message);
+
 // The FATAL, UNREACHABLE and UNIMPLEMENTED macros are useful during
 // development, but they should not be relied on in the final product.
 #ifdef DEBUG
@@ -41,6 +44,10 @@ namespace base {
 // Overwrite the default function that prints a stack trace.
 V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
 
+// Override the default function that handles DCHECKs.
+V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
+                                                              const char*));
+
 // CHECK dies with a fatal error if condition is not true.  It is *not*
 // controlled by DEBUG, so the check will be executed regardless of
 // compilation mode.
@@ -57,11 +64,11 @@ V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
 
 #ifdef DEBUG
 
-#define DCHECK_WITH_MSG(condition, message)                             \
-  do {                                                                  \
-    if (V8_UNLIKELY(!(condition))) {                                    \
-      V8_Fatal(__FILE__, __LINE__, "Debug check failed: %s.", message); \
-    }                                                                   \
+#define DCHECK_WITH_MSG(condition, message)   \
+  do {                                        \
+    if (V8_UNLIKELY(!(condition))) {          \
+      V8_Dcheck(__FILE__, __LINE__, message); \
+    }                                         \
   } while (0)
 #define DCHECK(condition) DCHECK_WITH_MSG(condition, #condition)
 
@@ -78,15 +85,15 @@ V8_BASE_EXPORT void SetPrintStackTrace(void (*print_stack_trace_)());
     }                                                                     \
   } while (0)
 
-#define DCHECK_OP(name, op, lhs, rhs)                                         \
-  do {                                                                        \
-    if (std::string* _msg = ::v8::base::Check##name##Impl<                    \
-            typename ::v8::base::pass_value_or_ref<decltype(lhs)>::type,      \
-            typename ::v8::base::pass_value_or_ref<decltype(rhs)>::type>(     \
-            (lhs), (rhs), #lhs " " #op " " #rhs)) {                           \
-      V8_Fatal(__FILE__, __LINE__, "Debug check failed: %s.", _msg->c_str()); \
-      delete _msg;                                                            \
-    }                                                                         \
+#define DCHECK_OP(name, op, lhs, rhs)                                     \
+  do {                                                                    \
+    if (std::string* _msg = ::v8::base::Check##name##Impl<                \
+            typename ::v8::base::pass_value_or_ref<decltype(lhs)>::type,  \
+            typename ::v8::base::pass_value_or_ref<decltype(rhs)>::type>( \
+            (lhs), (rhs), #lhs " " #op " " #rhs)) {                       \
+      V8_Dcheck(__FILE__, __LINE__, _msg->c_str());                       \
+      delete _msg;                                                        \
+    }                                                                     \
   } while (0)
 
 #else

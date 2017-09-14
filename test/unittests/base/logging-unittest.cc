@@ -95,5 +95,40 @@ TEST(LoggingTest, CompareWithReferenceType) {
   CHECK_BOTH(IMPLIES, *&i32, u64);
 }
 
+TEST(LoggingDeathTest, FatalKills) {
+  ASSERT_DEATH_IF_SUPPORTED(FATAL("Dread pirate"), "Dread pirate");
+}
+
+TEST(LoggingDeathTest, DcheckIsOnlyFatalInDebug) {
+#ifdef DEBUG
+  ASSERT_DEATH_IF_SUPPORTED(DCHECK(false && "Dread pirate"), "Dread pirate");
+#else
+  // DCHECK should be non-fatal if DEBUG is undefined.
+  DCHECK(false && "I'm a benign teapot");
+#endif
+}
+
+namespace {
+void DcheckOverrideFunction(const char*, int, const char*) {}
+}  // namespace
+
+TEST(LoggingDeathTest, V8_DcheckCanBeOverridden) {
+  // Default DCHECK state should be fatal.
+  ASSERT_DEATH_IF_SUPPORTED(V8_Dcheck(__FILE__, __LINE__, "Dread pirate"),
+                            "Dread pirate");
+
+  ASSERT_DEATH_IF_SUPPORTED(
+      {
+        v8::base::SetDcheckFunction(&DcheckOverrideFunction);
+        // This should be non-fatal.
+        V8_Dcheck(__FILE__, __LINE__, "I'm a benign teapot.");
+
+        // Restore default behavior, and assert on lethality.
+        v8::base::SetDcheckFunction(nullptr);
+        V8_Dcheck(__FILE__, __LINE__, "Dread pirate");
+      },
+      "Dread pirate");
+}
+
 }  // namespace base
 }  // namespace v8
