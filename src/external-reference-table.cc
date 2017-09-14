@@ -4,14 +4,10 @@
 
 #include "src/external-reference-table.h"
 
-#include "src/objects/name-inl.h"  // TODO(mstarzinger): For stub-cache.h only!
-
 #include "src/accessors.h"
 #include "src/assembler.h"
 #include "src/counters.h"
-#include "src/deoptimizer.h"
 #include "src/ic/stub-cache.h"
-#include "src/objects-inl.h"
 
 #if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
 #define SYMBOLIZE_FUNCTION

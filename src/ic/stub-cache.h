@@ -6,6 +6,7 @@
 #define V8_STUB_CACHE_H_
 
 #include "src/macro-assembler.h"
+#include "src/objects/name.h"
 
 namespace v8 {
 namespace internal {
@@ -110,31 +111,12 @@ class StubCache {
   // Hash algorithm for the primary table.  This algorithm is replicated in
   // assembler for every architecture.  Returns an index into the table that
   // is scaled by 1 << kCacheIndexShift.
-  static int PrimaryOffset(Name* name, Map* map) {
-    STATIC_ASSERT(kCacheIndexShift == Name::kHashShift);
-    // Compute the hash of the name (use entire hash field).
-    DCHECK(name->HasHashCode());
-    uint32_t field = name->hash_field();
-    // Using only the low bits in 64-bit mode is unlikely to increase the
-    // risk of collision even if the heap is spread over an area larger than
-    // 4Gb (and not at all if it isn't).
-    uint32_t map_low32bits =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(map));
-    // Base the offset on a simple combination of name and map.
-    uint32_t key = (map_low32bits + field) ^ kPrimaryMagic;
-    return key & ((kPrimaryTableSize - 1) << kCacheIndexShift);
-  }
+  static int PrimaryOffset(Name* name, Map* map);
 
   // Hash algorithm for the secondary table.  This algorithm is replicated in
   // assembler for every architecture.  Returns an index into the table that
   // is scaled by 1 << kCacheIndexShift.
-  static int SecondaryOffset(Name* name, int seed) {
-    // Use the seed from the primary cache in the secondary cache.
-    uint32_t name_low32bits =
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name));
-    uint32_t key = (seed - name_low32bits) + kSecondaryMagic;
-    return key & ((kSecondaryTableSize - 1) << kCacheIndexShift);
-  }
+  static int SecondaryOffset(Name* name, int seed);
 
   // Compute the entry for a given offset in exactly the same way as
   // we do in generated code.  We generate an hash code that already
