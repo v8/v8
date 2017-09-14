@@ -406,9 +406,6 @@ DEFINE_BOOL(turbo_inlining, true, "enable inlining in TurboFan")
 DEFINE_INT(max_inlining_levels, 5, "maximum number of inlining levels")
 DEFINE_INT(max_inlined_bytecode_size, 500,
            "maximum size of bytecode for a single inlining")
-DEFINE_INT(max_inlined_bytecode_size_absolute, 4000,
-           "maximum absolute size of bytecode considered for inlining "
-           "(incl. small functions)")
 DEFINE_INT(max_inlined_bytecode_size_cumulative, 1000,
            "maximum cumulative size of bytecode considered for inlining")
 DEFINE_FLOAT(reserve_inline_budget_scale_factor, 1.2,
@@ -421,8 +418,6 @@ DEFINE_BOOL(stress_inline, false,
             "set high thresholds for inlining to inline as much as possible")
 DEFINE_VALUE_IMPLICATION(stress_inline, max_inlining_levels, 999999)
 DEFINE_VALUE_IMPLICATION(stress_inline, max_inlined_bytecode_size, 999999)
-DEFINE_VALUE_IMPLICATION(stress_inline, max_inlined_bytecode_size_absolute,
-                         999999)
 DEFINE_VALUE_IMPLICATION(stress_inline, max_inlined_bytecode_size_cumulative,
                          999999)
 DEFINE_VALUE_IMPLICATION(stress_inline, min_inlining_frequency, 0)

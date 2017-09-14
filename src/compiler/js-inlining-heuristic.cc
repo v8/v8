@@ -193,8 +193,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
 
   // Forcibly inline small functions here. In the case of polymorphic inlining
   // small_inline is set only when all functions are small.
-  if (small_inline &&
-      cumulative_count_ <= FLAG_max_inlined_bytecode_size_absolute) {
+  if (small_inline) {
     TRACE("Inlining small function(s) at call site #%d:%s\n", node->id(),
           node->op()->mnemonic());
     return InlineCandidate(candidate, true);
