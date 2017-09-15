@@ -21,10 +21,8 @@ class FlagScope {
   T previous_value_;
 };
 
-#define FLAG_SCOPE(flag) \
-  FlagScope<bool> __scope_##flag##__LINE__(&FLAG_##flag, true)
-
-#define EXPERIMENTAL_FLAG_SCOPE(flag) FLAG_SCOPE(experimental_wasm_##flag)
+#define EXPERIMENTAL_FLAG_SCOPE(flag) \
+  FlagScope<bool> __scope_##__LINE__(&FLAG_experimental_wasm_##flag, true)
 
 }  // namespace internal
 }  // namespace v8

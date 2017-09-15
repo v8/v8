@@ -89,7 +89,6 @@ typedef FunctionSig WasmExceptionSig;
 struct WasmException {
   explicit WasmException(const WasmExceptionSig* sig = &empty_sig_)
       : sig(sig) {}
-  FunctionSig* ToFunctionSig() const { return const_cast<FunctionSig*>(sig); }
 
   const WasmExceptionSig* sig;  // type signature of the exception.
 

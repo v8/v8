@@ -523,7 +523,7 @@ class WasmModuleBuilder {
         for (let type of wasm.exceptions) {
           section.emit_u32v(type.params.length);
           for (let param of type.params) {
-            section.emit_u8(param);
+            section.enit_u8(param);
           }
         }
       });

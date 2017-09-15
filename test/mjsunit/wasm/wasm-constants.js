@@ -124,10 +124,6 @@ let kSig_v_d = makeSig([kWasmF64], []);
 let kSig_v_dd = makeSig([kWasmF64, kWasmF64], []);
 let kSig_v_ddi = makeSig([kWasmF64, kWasmF64, kWasmI32], []);
 
-let kSig_v_f = makeSig([kWasmF32], []);
-let kSig_f_f = makeSig([kWasmF32], [kWasmF32]);
-let kSig_d_d = makeSig([kWasmF64], [kWasmF64]);
-
 function makeSig(params, results) {
   return {params: params, results: results};
 }
@@ -392,7 +388,7 @@ function assertTraps(trap, code) {
   throw new MjsUnitAssertionError('Did not trap, expected: ' + kTrapMsgs[trap]);
 }
 
-function assertWasmThrows(runtime_id, values, code) {
+function assertWasmThrows(values, code) {
   try {
     if (typeof code === 'function') {
       code();
@@ -401,16 +397,13 @@ function assertWasmThrows(runtime_id, values, code) {
     }
   } catch (e) {
     assertTrue(e instanceof WebAssembly.RuntimeError);
-    var e_runtime_id = e['WasmExceptionRuntimeId'];
-    assertEquals(e_runtime_id, runtime_id);
-    assertTrue(Number.isInteger(e_runtime_id));
-    var e_values = e['WasmExceptionValues'];
-    assertEquals(values.length, e_values.length);
-    for (i = 0; i < values.length; ++i) {
-      assertEquals(values[i], e_values[i]);
-    }
+    assertNotEquals(e['WasmExceptionTag'], undefined);
+    assertTrue(Number.isInteger(e['WasmExceptionTag']));
+    // TODO(kschimpf): Extract values from the exception.
+    let e_values = [];
+    assertEquals(values, e_values);
     // Success.
     return;
   }
-  throw new MjsUnitAssertionError('Did not throw expected: ' + runtime_id + values);
+  throw new MjsUnitAssertionError('Did not throw, expected: ' + values);
 }
