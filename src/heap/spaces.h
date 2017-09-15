@@ -2232,7 +2232,9 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   }
   void DecreaseLimit(Address new_limit);
   void StartNextInlineAllocationStep() override;
-  bool SupportsInlineAllocation() { return identity() == OLD_SPACE; }
+  bool SupportsInlineAllocation() {
+    return identity() == OLD_SPACE && !is_local();
+  }
 
  protected:
   // PagedSpaces that should be included in snapshots have different, i.e.,
