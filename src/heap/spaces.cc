@@ -1622,7 +1622,7 @@ Address PagedSpace::ComputeLimit(Address start, Address end,
     // Keep the linear allocation area to fit exactly the requested size.
     return start + size_in_bytes;
   } else if (!allocation_observers_paused_ && !allocation_observers_.empty() &&
-             SupportsInlineAllocation()) {
+             identity() == OLD_SPACE && !is_local()) {
     // Generated code may allocate inline from the linear allocation area for
     // Old Space. To make sure we can observe these allocations, we use a lower
     // limit.
