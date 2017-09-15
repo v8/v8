@@ -345,10 +345,8 @@ void Bootstrapper::DetachGlobal(Handle<Context> env) {
 namespace {
 
 // Non-construct case.
-Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(Isolate* isolate,
-                                                          Builtins::Name call,
-                                                          Handle<String> name,
-                                                          int len) {
+V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
+    Isolate* isolate, Builtins::Name call, Handle<String> name, int len) {
   Handle<Code> code = isolate->builtins()->builtin_handle(call);
   Handle<SharedFunctionInfo> shared =
       isolate->factory()->NewSharedFunctionInfo(name, code, false);
@@ -359,7 +357,7 @@ Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(Isolate* isolate,
 }
 
 // Construct case.
-Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
+V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
     Isolate* isolate, Builtins::Name call, Handle<String> name,
     Handle<String> instance_class_name, int len) {
   Handle<Code> code = isolate->builtins()->builtin_handle(call);
@@ -373,26 +371,27 @@ Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
   return shared;
 }
 
-void InstallFunction(Handle<JSObject> target, Handle<Name> property_name,
-                     Handle<JSFunction> function, Handle<String> function_name,
-                     PropertyAttributes attributes = DONT_ENUM) {
+V8_NOINLINE void InstallFunction(Handle<JSObject> target,
+                                 Handle<Name> property_name,
+                                 Handle<JSFunction> function,
+                                 Handle<String> function_name,
+                                 PropertyAttributes attributes = DONT_ENUM) {
   JSObject::AddProperty(target, property_name, function, attributes);
   if (target->IsJSGlobalObject()) {
     function->shared()->set_instance_class_name(*function_name);
   }
 }
 
-void InstallFunction(Handle<JSObject> target, Handle<JSFunction> function,
-                     Handle<Name> name,
-                     PropertyAttributes attributes = DONT_ENUM) {
+V8_NOINLINE void InstallFunction(Handle<JSObject> target,
+                                 Handle<JSFunction> function, Handle<Name> name,
+                                 PropertyAttributes attributes = DONT_ENUM) {
   Handle<String> name_string = Name::ToFunctionName(name).ToHandleChecked();
   InstallFunction(target, name, function, name_string, attributes);
 }
 
-Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
-                                  InstanceType type, int instance_size,
-                                  MaybeHandle<Object> maybe_prototype,
-                                  Builtins::Name call) {
+V8_NOINLINE Handle<JSFunction> CreateFunction(
+    Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
+    MaybeHandle<Object> maybe_prototype, Builtins::Name call) {
   Factory* factory = isolate->factory();
   Handle<Code> call_code(isolate->builtins()->builtin(call));
   Handle<Object> prototype;
@@ -408,11 +407,10 @@ Handle<JSFunction> CreateFunction(Isolate* isolate, Handle<String> name,
   return result;
 }
 
-Handle<JSFunction> InstallFunction(Handle<JSObject> target, Handle<Name> name,
-                                   InstanceType type, int instance_size,
-                                   MaybeHandle<Object> maybe_prototype,
-                                   Builtins::Name call,
-                                   PropertyAttributes attributes) {
+V8_NOINLINE Handle<JSFunction> InstallFunction(
+    Handle<JSObject> target, Handle<Name> name, InstanceType type,
+    int instance_size, MaybeHandle<Object> maybe_prototype, Builtins::Name call,
+    PropertyAttributes attributes) {
   Handle<String> name_string = Name::ToFunctionName(name).ToHandleChecked();
   Handle<JSFunction> function =
       CreateFunction(target->GetIsolate(), name_string, type, instance_size,
@@ -421,19 +419,20 @@ Handle<JSFunction> InstallFunction(Handle<JSObject> target, Handle<Name> name,
   return function;
 }
 
-Handle<JSFunction> InstallFunction(Handle<JSObject> target, const char* name,
-                                   InstanceType type, int instance_size,
-                                   MaybeHandle<Object> maybe_prototype,
-                                   Builtins::Name call) {
+V8_NOINLINE Handle<JSFunction> InstallFunction(
+    Handle<JSObject> target, const char* name, InstanceType type,
+    int instance_size, MaybeHandle<Object> maybe_prototype,
+    Builtins::Name call) {
   Factory* const factory = target->GetIsolate()->factory();
   PropertyAttributes attributes = DONT_ENUM;
   return InstallFunction(target, factory->InternalizeUtf8String(name), type,
                          instance_size, maybe_prototype, call, attributes);
 }
 
-Handle<JSFunction> SimpleCreateFunction(Isolate* isolate, Handle<String> name,
-                                        Builtins::Name call, int len,
-                                        bool adapt) {
+V8_NOINLINE Handle<JSFunction> SimpleCreateFunction(Isolate* isolate,
+                                                    Handle<String> name,
+                                                    Builtins::Name call,
+                                                    int len, bool adapt) {
   Handle<JSFunction> fun =
       CreateFunction(isolate, name, JS_OBJECT_TYPE, JSObject::kHeaderSize,
                      MaybeHandle<JSObject>(), call);
@@ -446,7 +445,7 @@ Handle<JSFunction> SimpleCreateFunction(Isolate* isolate, Handle<String> name,
   return fun;
 }
 
-Handle<JSFunction> SimpleInstallFunction(
+V8_NOINLINE Handle<JSFunction> SimpleInstallFunction(
     Handle<JSObject> base, Handle<Name> property_name,
     Handle<String> function_name, Builtins::Name call, int len, bool adapt,
     PropertyAttributes attrs = DONT_ENUM,
@@ -460,14 +459,14 @@ Handle<JSFunction> SimpleInstallFunction(
   return fun;
 }
 
-Handle<JSFunction> SimpleInstallFunction(
+V8_NOINLINE Handle<JSFunction> SimpleInstallFunction(
     Handle<JSObject> base, Handle<String> name, Builtins::Name call, int len,
     bool adapt, PropertyAttributes attrs = DONT_ENUM,
     BuiltinFunctionId id = kInvalidBuiltinFunctionId) {
   return SimpleInstallFunction(base, name, name, call, len, adapt, attrs, id);
 }
 
-Handle<JSFunction> SimpleInstallFunction(
+V8_NOINLINE Handle<JSFunction> SimpleInstallFunction(
     Handle<JSObject> base, Handle<Name> property_name,
     const char* function_name, Builtins::Name call, int len, bool adapt,
     PropertyAttributes attrs = DONT_ENUM,
@@ -479,7 +478,7 @@ Handle<JSFunction> SimpleInstallFunction(
       call, len, adapt, attrs, id);
 }
 
-Handle<JSFunction> SimpleInstallFunction(
+V8_NOINLINE Handle<JSFunction> SimpleInstallFunction(
     Handle<JSObject> base, const char* name, Builtins::Name call, int len,
     bool adapt, PropertyAttributes attrs = DONT_ENUM,
     BuiltinFunctionId id = kInvalidBuiltinFunctionId) {
@@ -490,17 +489,19 @@ Handle<JSFunction> SimpleInstallFunction(
                                len, adapt, attrs, id);
 }
 
-Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
-                                         const char* name, Builtins::Name call,
-                                         int len, bool adapt,
-                                         BuiltinFunctionId id) {
+V8_NOINLINE Handle<JSFunction> SimpleInstallFunction(Handle<JSObject> base,
+                                                     const char* name,
+                                                     Builtins::Name call,
+                                                     int len, bool adapt,
+                                                     BuiltinFunctionId id) {
   return SimpleInstallFunction(base, name, call, len, adapt, DONT_ENUM, id);
 }
 
-void SimpleInstallGetterSetter(Handle<JSObject> base, Handle<String> name,
-                               Builtins::Name call_getter,
-                               Builtins::Name call_setter,
-                               PropertyAttributes attribs) {
+V8_NOINLINE void SimpleInstallGetterSetter(Handle<JSObject> base,
+                                           Handle<String> name,
+                                           Builtins::Name call_getter,
+                                           Builtins::Name call_setter,
+                                           PropertyAttributes attribs) {
   Isolate* const isolate = base->GetIsolate();
 
   Handle<String> getter_name =
@@ -518,10 +519,11 @@ void SimpleInstallGetterSetter(Handle<JSObject> base, Handle<String> name,
   JSObject::DefineAccessor(base, name, getter, setter, attribs).Check();
 }
 
-Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
-                                       Handle<String> name,
-                                       Handle<Name> property_name,
-                                       Builtins::Name call, bool adapt) {
+V8_NOINLINE Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
+                                                   Handle<String> name,
+                                                   Handle<Name> property_name,
+                                                   Builtins::Name call,
+                                                   bool adapt) {
   Isolate* const isolate = base->GetIsolate();
 
   Handle<String> getter_name =
@@ -538,28 +540,31 @@ Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
   return getter;
 }
 
-Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
-                                       Handle<String> name, Builtins::Name call,
-                                       bool adapt) {
+V8_NOINLINE Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
+                                                   Handle<String> name,
+                                                   Builtins::Name call,
+                                                   bool adapt) {
   return SimpleInstallGetter(base, name, name, call, adapt);
 }
 
-Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
-                                       Handle<String> name, Builtins::Name call,
-                                       bool adapt, BuiltinFunctionId id) {
+V8_NOINLINE Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
+                                                   Handle<String> name,
+                                                   Builtins::Name call,
+                                                   bool adapt,
+                                                   BuiltinFunctionId id) {
   Handle<JSFunction> fun = SimpleInstallGetter(base, name, call, adapt);
   fun->shared()->set_builtin_function_id(id);
   return fun;
 }
 
-void InstallConstant(Isolate* isolate, Handle<JSObject> holder,
-                     const char* name, Handle<Object> value) {
+V8_NOINLINE void InstallConstant(Isolate* isolate, Handle<JSObject> holder,
+                                 const char* name, Handle<Object> value) {
   JSObject::AddProperty(
       holder, isolate->factory()->NewStringFromAsciiChecked(name), value,
       static_cast<PropertyAttributes>(DONT_DELETE | DONT_ENUM | READ_ONLY));
 }
 
-void InstallSpeciesGetter(Handle<JSFunction> constructor) {
+V8_NOINLINE void InstallSpeciesGetter(Handle<JSFunction> constructor) {
   Factory* factory = constructor->GetIsolate()->factory();
   // TODO(adamk): We should be able to share a SharedFunctionInfo
   // between all these JSFunctins.
