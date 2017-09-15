@@ -144,59 +144,15 @@ void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
   generator.Generate();
 }
 
-namespace {
-class ActivationsFinder : public ThreadVisitor {
- public:
-  explicit ActivationsFinder(std::set<Code*>* codes,
-                             Code* topmost_optimized_code,
-                             bool safe_to_deopt_topmost_optimized_code)
-      : codes_(codes) {
-#ifdef DEBUG
-    topmost_ = topmost_optimized_code;
-    safe_to_deopt_ = safe_to_deopt_topmost_optimized_code;
-#endif
-  }
-
-  // Find the frames with activations of codes marked for deoptimization, search
-  // for the trampoline to the deoptimizer call respective to each code, and use
-  // it to replace the current pc on the stack.
-  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
-    for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
-      if (it.frame()->type() == StackFrame::OPTIMIZED) {
-        Code* code = it.frame()->LookupCode();
-        if (code->kind() == Code::OPTIMIZED_FUNCTION &&
-            code->marked_for_deoptimization()) {
-          codes_->erase(code);
-          // Obtain the trampoline to the deoptimizer call.
-          SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
-          int trampoline_pc = safepoint.trampoline_pc();
-          DCHECK_IMPLIES(code == topmost_, safe_to_deopt_);
-          // Replace the current pc on the stack with the trampoline.
-          it.frame()->set_pc(code->instruction_start() + trampoline_pc);
-        }
-      }
-    }
-  }
-
- private:
-  std::set<Code*>* codes_;
-
-#ifdef DEBUG
-  Code* topmost_;
-  bool safe_to_deopt_;
-#endif
-};
-}  // namespace
-
 // Move marked code from the optimized code list to the deoptimized code list,
 // and replace pc on the stack for codes marked for deoptimization.
 void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   DisallowHeapAllocation no_allocation;
 
   Isolate* isolate = context->GetHeap()->isolate();
+#ifdef DEBUG
   Code* topmost_optimized_code = NULL;
   bool safe_to_deopt_topmost_optimized_code = false;
-#ifdef DEBUG
   // Make sure all activations of optimized code can deopt at their current PC.
   // The topmost optimized code has special handling because it cannot be
   // deoptimized due to weak object dependency.
@@ -271,16 +227,28 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
     element = next;
   }
 
-  ActivationsFinder visitor(&codes, topmost_optimized_code,
-                            safe_to_deopt_topmost_optimized_code);
-  // Iterate over the stack of this thread.
-  visitor.VisitThread(isolate, isolate->thread_local_top());
-  // In addition to iterate over the stack of this thread, we also
-  // need to consider all the other threads as they may also use
-  // the code currently beings deoptimized.
-  isolate->thread_manager()->IterateArchivedThreads(&visitor);
+  // Find the frames with activations of codes marked for deoptimization, search
+  // for the trampoline to the deoptimizer call respective to each code, and use
+  // it to replace the current pc on the stack.
+  for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
+       it.Advance()) {
+    if (it.frame()->type() == StackFrame::OPTIMIZED) {
+      Code* code = it.frame()->LookupCode();
+      if (code->kind() == Code::OPTIMIZED_FUNCTION &&
+          code->marked_for_deoptimization()) {
+        codes.erase(code);
+        // Obtain the trampoline to the deoptimizer call.
+        SafepointEntry safepoint = code->GetSafepointEntry(it.frame()->pc());
+        int trampoline_pc = safepoint.trampoline_pc();
+        DCHECK_IMPLIES(code == topmost_optimized_code,
+                       safe_to_deopt_topmost_optimized_code);
+        // Replace the current pc on the stack with the trampoline.
+        it.frame()->set_pc(code->instruction_start() + trampoline_pc);
+      }
+    }
+  }
 
-  // If there's no activation of a code in any stack then we can remove its
+  // If there's no activation of a code in the stack then we can remove its
   // deoptimization data. We do this to ensure that Code objects that will be
   // unlinked won't be kept alive.
   std::set<Code*>::iterator it;
