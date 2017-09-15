@@ -2670,6 +2670,83 @@ TEST(GotoIfNotWhiteSpaceOrLineTerminator) {
   }
 }
 
+TEST(BranchIfNumericRelationalComparison) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  Factory* f = isolate->factory();
+  const int kNumParams = 2;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    Label return_true(&m), return_false(&m);
+    m.BranchIfNumericRelationalComparison(
+        CodeStubAssembler::kGreaterThanOrEqual, m.Parameter(0), m.Parameter(1),
+        &return_true, &return_false);
+    m.BIND(&return_true);
+    m.Return(m.BooleanConstant(true));
+    m.BIND(&return_false);
+    m.Return(m.BooleanConstant(false));
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  ft.CheckTrue(f->NewNumber(0), f->NewNumber(0));
+  ft.CheckTrue(f->NewNumber(1), f->NewNumber(0));
+  ft.CheckTrue(f->NewNumber(1), f->NewNumber(1));
+  ft.CheckFalse(f->NewNumber(0), f->NewNumber(1));
+  ft.CheckFalse(f->NewNumber(-1), f->NewNumber(0));
+  ft.CheckTrue(f->NewNumber(-1), f->NewNumber(-1));
+
+  ft.CheckTrue(f->NewNumber(-1), f->NewNumber(-1.5));
+  ft.CheckFalse(f->NewNumber(-1.5), f->NewNumber(-1));
+  ft.CheckTrue(f->NewNumber(-1.5), f->NewNumber(-1.5));
+}
+
+TEST(IsNumberArrayIndex) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    m.Return(m.SmiFromWord32(m.IsNumberArrayIndex(m.Parameter(0))));
+  }
+
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  double indices[] = {Smi::kMinValue,
+                      -11,
+                      -1,
+                      0,
+                      1,
+                      2,
+                      Smi::kMaxValue,
+                      -11.0,
+                      -11.1,
+                      -2.0,
+                      -1.0,
+                      -0.0,
+                      0.0,
+                      0.00001,
+                      0.1,
+                      1,
+                      2,
+                      Smi::kMinValue - 1.0,
+                      Smi::kMinValue + 1.0,
+                      Smi::kMinValue + 1.2,
+                      kMaxInt + 1.2,
+                      kMaxInt - 10.0,
+                      kMaxInt - 1.0,
+                      kMaxInt,
+                      kMaxInt + 1.0,
+                      kMaxInt + 10.0};
+
+  for (size_t i = 0; i < arraysize(indices); i++) {
+    Handle<Object> index = isolate->factory()->NewNumber(indices[i]);
+    uint32_t array_index;
+    CHECK_EQ(index->ToArrayIndex(&array_index),
+             (ft.CallChecked<Smi>(index)->value() == 1));
+  }
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

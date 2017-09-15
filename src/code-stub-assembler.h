@@ -950,6 +950,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // within Smi range.
   Node* IsNumberNormalized(Node* number);
   Node* IsNumberPositive(Node* number);
+  // True iff {number} is a positive number and a valid array index in the range
+  // [0, 2^32-1).
+  Node* IsNumberArrayIndex(Node* number);
 
   // ElementsKind helpers:
   Node* IsFastElementsKind(Node* elements_kind);
@@ -1563,7 +1566,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                            Node* lhs, Node* rhs, Label* if_true,
                                            Label* if_false);
 
-  void GotoUnlessNumberLessThan(Node* lhs, Node* rhs, Label* if_false);
+  void GotoIfNumberGreaterThanOrEqual(Node* lhs, Node* rhs, Label* if_false);
 
   Node* Equal(Node* lhs, Node* rhs, Node* context,
               Variable* var_type_feedback = nullptr);
