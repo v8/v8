@@ -727,12 +727,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     timer.Start();
   }
   DeserializeScopeChain(info, info->maybe_outer_scope_info());
-  if (info->asm_function_scope()) {
-    original_scope_ = info->asm_function_scope();
-    factory()->set_zone(info->zone());
-  } else {
-    DCHECK_EQ(factory()->zone(), info->zone());
-  }
+  DCHECK_EQ(factory()->zone(), info->zone());
 
   // Initialize parser state.
   Handle<String> name(shared_info->name());

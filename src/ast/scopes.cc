@@ -668,11 +668,9 @@ void DeclarationScope::Analyze(ParseInfo* info) {
   // 1) top-level code,
   // 2) a function/eval/module on the top-level
   // 3) a function/eval in a scope that was already resolved.
-  // 4) an asm.js function
   DCHECK(scope->scope_type() == SCRIPT_SCOPE ||
          scope->outer_scope()->scope_type() == SCRIPT_SCOPE ||
-         scope->outer_scope()->already_resolved_ ||
-         (info->asm_function_scope() && scope->is_function_scope()));
+         scope->outer_scope()->already_resolved_);
 
   // The outer scope is never lazy.
   scope->set_should_eager_compile();
