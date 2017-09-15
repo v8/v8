@@ -210,6 +210,16 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
           BUILTIN_CODE(isolate, ArrayMapLoopLazyDeoptContinuation);
       return Callable(code, BuiltinDescriptor(isolate));
     }
+    case kArrayFilterLoopEagerDeoptContinuation: {
+      Handle<Code> code =
+          BUILTIN_CODE(isolate, ArrayFilterLoopEagerDeoptContinuation);
+      return Callable(code, BuiltinDescriptor(isolate));
+    }
+    case kArrayFilterLoopLazyDeoptContinuation: {
+      Handle<Code> code =
+          BUILTIN_CODE(isolate, ArrayFilterLoopLazyDeoptContinuation);
+      return Callable(code, BuiltinDescriptor(isolate));
+    }
     default:
       UNREACHABLE();
   }

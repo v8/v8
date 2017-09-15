@@ -71,6 +71,7 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceReflectGetPrototypeOf(Node* node);
   Reduction ReduceArrayForEach(Handle<JSFunction> function, Node* node);
   Reduction ReduceArrayMap(Handle<JSFunction> function, Node* node);
+  Reduction ReduceArrayFilter(Handle<JSFunction> function, Node* node);
   Reduction ReduceCallOrConstructWithArrayLikeOrSpread(
       Node* node, int arity, CallFrequency const& frequency,
       VectorSlotPair const& feedback);
@@ -83,6 +84,33 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceReturnReceiver(Node* node);
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
+
+  // Returns the updated {to} node, and updates control and effect along the
+  // way.
+  Node* DoFilterPostCallbackWork(ElementsKind kind, Node* context,
+                                 Node** control, Node** effect, Node* a,
+                                 Node* to, Node* element, Node* callback_value);
+
+  // If {fncallback} is not callable, throw via %ThrowCalledNonCallable.
+  // {control} is altered, and new nodes {check_fail} and {check_throw} are
+  // returned. {check_fail} is the control branch where IsCallable failed,
+  // and {check_throw} is the call to %ThrowCalledNonCallable in that
+  // branch.
+  void WireInCallbackIsCallableCheck(Node* fncallback, Node* context,
+                                     Node* check_frame_state, Node* effect,
+                                     Node** control, Node** check_fail,
+                                     Node** check_throw);
+  void RewirePostCallbackExceptionEdges(Node* check_throw, Node* on_exception,
+                                        Node* effect, Node** check_fail,
+                                        Node** control);
+
+  // Creates a map check for {receiver} against {orig_map}.  Updates {effect}.
+  void WireInMapCheck(Node* orig_map, Node* receiver, Node** effect,
+                      Node* control);
+
+  // Load receiver[k], first bounding k by receiver array length.
+  // k is thusly changed, and the effect is changed as well.
+  Node* SafeLoadElement(Node* receiver, Node* control, Node** effect, Node** k);
 
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
