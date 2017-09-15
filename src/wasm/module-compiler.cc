@@ -2049,6 +2049,7 @@ class AsyncCompileJob::CompileStep {
 
   void Run(bool on_foreground) {
     if (on_foreground) {
+      HandleScope scope(job_->isolate_);
       --job_->num_pending_foreground_tasks_;
       DCHECK_EQ(0, job_->num_pending_foreground_tasks_);
       SaveContext saved_context(job_->isolate_);
@@ -2173,7 +2174,6 @@ class AsyncCompileJob::DecodeFail : public CompileStep {
   ModuleResult result_;
   void RunInForeground() override {
     TRACE_COMPILE("(1b) Decoding failed.\n");
-    HandleScope scope(job_->isolate_);
     ErrorThrower thrower(job_->isolate_, "AsyncCompile");
     thrower.CompileFailed("Wasm decoding failed", result_);
     // {job_} is deleted in AsyncCompileFailed, therefore the {return}.
@@ -2196,7 +2196,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
   void RunInForeground() override {
     TRACE_COMPILE("(2) Prepare and start compile...\n");
     Isolate* isolate = job_->isolate_;
-    HandleScope scope(isolate);
 
     Factory* factory = isolate->factory();
     Handle<Code> illegal_builtin = BUILTIN_CODE(isolate, Illegal);
@@ -2308,7 +2307,6 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
       job_->compiler_->SetFinisherIsRunning(false);
       return;
     }
-    HandleScope scope(job_->isolate_);
     ErrorThrower thrower(job_->isolate_, "AsyncCompile");
 
     // We execute for 1 ms and then reschedule the task, same as the GC.
@@ -2374,7 +2372,6 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
 class AsyncCompileJob::FinishCompile : public CompileStep {
   void RunInForeground() override {
     TRACE_COMPILE("(5b) Finish compile...\n");
-    HandleScope scope(job_->isolate_);
     // At this point, compilation has completed. Update the code table.
     for (int i = FLAG_skip_compiling_wasm_funcs,
              e = job_->code_table_->length();
@@ -2441,7 +2438,6 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
   void RunInForeground() override {
     TRACE_COMPILE("(6) Compile wrappers...\n");
     // Compile JS->wasm wrappers for exported functions.
-    HandleScope scope(job_->isolate_);
     JSToWasmWrapperCache js_to_wasm_cache;
     int wrapper_index = 0;
     WasmModule* module = job_->compiled_module_->module();
@@ -2467,7 +2463,6 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
 class AsyncCompileJob::FinishModule : public CompileStep {
   void RunInForeground() override {
     TRACE_COMPILE("(7) Finish module...\n");
-    HandleScope scope(job_->isolate_);
     Handle<WasmModuleObject> result =
         WasmModuleObject::New(job_->isolate_, job_->compiled_module_);
     // {job_} is deleted in AsyncCompileSucceeded, therefore the {return}.
