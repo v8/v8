@@ -689,7 +689,6 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
       break;
     default:
       UNREACHABLE();
-      type = JS_OBJECT_TYPE;  // Keep the compiler happy.
       break;
   }
 

@@ -2465,7 +2465,6 @@ void BytecodeGraphBuilder::VisitTestTypeOf() {
       break;
     case interpreter::TestTypeOfFlags::LiteralFlag::kOther:
       UNREACHABLE();  // Should never be emitted.
-      result = nullptr;
       break;
   }
   environment()->BindAccumulator(result);

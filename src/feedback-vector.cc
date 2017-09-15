@@ -288,7 +288,6 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kInvalid:
       case FeedbackSlotKind::kKindsNumber:
         UNREACHABLE();
-        vector->set(index, Smi::kZero, SKIP_WRITE_BARRIER);
         break;
     }
     for (int j = 1; j < entry_size; j++) {

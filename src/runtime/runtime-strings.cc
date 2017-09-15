@@ -45,8 +45,6 @@ RUNTIME_FUNCTION(Runtime_GetSubstitution) {
     MaybeHandle<String> GetNamedCapture(Handle<String> name,
                                         CaptureState* state) override {
       UNREACHABLE();
-      *state = INVALID;
-      return MaybeHandle<String>();
     }
 
    private:

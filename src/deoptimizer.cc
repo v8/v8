@@ -3318,10 +3318,6 @@ int TranslatedState::CreateNextTranslatedValue(
   }
 
   FATAL("We should never get here - unexpected deopt info.");
-  TranslatedValue translated_value =
-      TranslatedValue(nullptr, TranslatedValue::kInvalid);
-  frame.Add(translated_value);
-  return translated_value.GetChildrenCount();
 }
 
 TranslatedState::TranslatedState(const JavaScriptFrame* frame)

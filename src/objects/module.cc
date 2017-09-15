@@ -158,7 +158,6 @@ Cell* Module::GetCell(int cell_index) {
       break;
     case ModuleDescriptor::kInvalid:
       UNREACHABLE();
-      cell = nullptr;
       break;
   }
   return Cell::cast(cell);

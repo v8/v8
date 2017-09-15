@@ -985,9 +985,6 @@ ElementAccess AccessBuilder::ForTypedArrayElement(ExternalArrayType type,
     }
   }
   UNREACHABLE();
-  ElementAccess access = {kUntaggedBase, 0, Type::None(), MachineType::None(),
-                          kNoWriteBarrier};
-  return access;
 }
 
 // static
