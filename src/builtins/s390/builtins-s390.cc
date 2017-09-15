@@ -1230,10 +1230,10 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ bind(&bytecode_array_loaded);
 
   // Increment invocation count for the function.
-  __ LoadP(r1, FieldMemOperand(feedback_vector,
+  __ LoadW(r1, FieldMemOperand(feedback_vector,
                                FeedbackVector::kInvocationCountOffset));
   __ AddP(r1, r1, Operand(1));
-  __ StoreP(r1, FieldMemOperand(feedback_vector,
+  __ StoreW(r1, FieldMemOperand(feedback_vector,
                                 FeedbackVector::kInvocationCountOffset));
 
   // Check function data field is actually a BytecodeArray object.
@@ -1380,7 +1380,9 @@ static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register num_args, Register index,
                                          Register count, Register scratch) {
-  Label loop;
+  Label loop, skip;
+  __ CmpP(count, Operand::Zero());
+  __ beq(&skip);
   __ AddP(index, index, Operand(kPointerSize));  // Bias up for LoadPU
   __ LoadRR(r0, count);
   __ bind(&loop);
@@ -1389,6 +1391,7 @@ static void Generate_InterpreterPushArgs(MacroAssembler* masm,
   __ push(scratch);
   __ SubP(r0, Operand(1));
   __ bne(&loop);
+  __ bind(&skip);
 }
 
 // static
