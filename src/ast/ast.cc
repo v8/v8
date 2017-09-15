@@ -393,6 +393,9 @@ void ObjectLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                         LanguageMode language_mode,
                                         FunctionKind kind,
                                         FeedbackSlotCache* cache) {
+  // The empty object literal doesn't need any feedback vector slot.
+  if (this->IsEmptyObjectLiteral()) return;
+
   MaterializedLiteral::AssignFeedbackSlots(spec, language_mode, kind, cache);
 
   // This logic that computes the number of slots needed for vector store
