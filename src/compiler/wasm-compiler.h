@@ -283,7 +283,7 @@ class WasmGraphBuilder {
                 wasm::WasmCodePosition position);
   Node* StoreMem(MachineType memtype, Node* index, uint32_t offset,
                  uint32_t alignment, Node* val, wasm::WasmCodePosition position,
-                 wasm::ValueType type = wasm::kWasmStmt);
+                 wasm::ValueType type);
   static void PrintDebugName(Node* node);
 
   Node* Control() { return *control_; }

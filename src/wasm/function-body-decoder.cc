@@ -324,7 +324,7 @@ class WasmGraphBuildingInterface
                 const MemoryAccessOperand<true>& operand, const Value& index,
                 const Value& value) {
     BUILD(StoreMem, mem_type, index.interface_data.node, operand.offset,
-          operand.alignment, value.interface_data.node, decoder->position());
+          operand.alignment, value.interface_data.node, decoder->position(), type);
   }
 
   void CurrentMemoryPages(Decoder* decoder, Value* result) {
