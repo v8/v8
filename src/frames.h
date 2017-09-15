@@ -88,7 +88,6 @@ class StackHandler BASE_EMBEDDED {
   V(ENTRY, EntryFrame)                                                    \
   V(CONSTRUCT_ENTRY, ConstructEntryFrame)                                 \
   V(EXIT, ExitFrame)                                                      \
-  V(JAVA_SCRIPT, JavaScriptFrame)                                         \
   V(OPTIMIZED, OptimizedFrame)                                            \
   V(WASM_COMPILED, WasmCompiledFrame)                                     \
   V(WASM_TO_JS, WasmToJsFrame)                                            \
@@ -218,8 +217,7 @@ class StackFrame BASE_EMBEDDED {
 
   bool is_java_script() const {
     Type type = this->type();
-    return (type == JAVA_SCRIPT) || (type == OPTIMIZED) ||
-           (type == INTERPRETED) || (type == BUILTIN) ||
+    return (type == OPTIMIZED) || (type == INTERPRETED) || (type == BUILTIN) ||
            (type == JAVA_SCRIPT_BUILTIN_CONTINUATION);
   }
   bool is_wasm() const {
@@ -676,7 +674,7 @@ class StandardFrame : public StackFrame {
 
 class JavaScriptFrame : public StandardFrame {
  public:
-  Type type() const override { return JAVA_SCRIPT; }
+  Type type() const override = 0;
 
   void Summarize(std::vector<FrameSummary>* frames) const override;
 
@@ -692,11 +690,6 @@ class JavaScriptFrame : public StandardFrame {
   inline Address GetParameterSlot(int index) const;
   Object* GetParameter(int index) const override;
   int ComputeParametersCount() const override;
-
-  // Access the operand stack.
-  inline Address GetOperandSlot(int index) const;
-  inline Object* GetOperand(int index) const;
-  inline int ComputeOperandsCount() const;
 
   // Debugger access.
   void SetParameterValue(int index, Object* value) const;

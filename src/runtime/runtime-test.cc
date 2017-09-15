@@ -297,8 +297,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeOsr) {
   }
 
   // Make the profiler arm all back edges in unoptimized code.
-  if (it.frame()->type() == StackFrame::JAVA_SCRIPT ||
-      it.frame()->type() == StackFrame::INTERPRETED) {
+  if (it.frame()->type() == StackFrame::INTERPRETED) {
     isolate->runtime_profiler()->AttemptOnStackReplacement(
         it.frame(), AbstractCode::kMaxLoopNestingMarker);
   }

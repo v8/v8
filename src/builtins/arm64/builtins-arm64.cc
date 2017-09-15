@@ -727,7 +727,7 @@ static void LeaveInterpreterFrame(MacroAssembler* masm, Register scratch) {
          FieldMemOperand(args_count, BytecodeArray::kParameterSizeOffset));
 
   // Leave the frame (also dropping the register file).
-  __ LeaveFrame(StackFrame::JAVA_SCRIPT);
+  __ LeaveFrame(StackFrame::INTERPRETED);
 
   // Drop receiver + arguments.
   __ Drop(args_count, 1);

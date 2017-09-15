@@ -1961,7 +1961,7 @@ void MarkCompactCollector::ProcessEphemeralMarking(
 void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
   for (StackFrameIterator it(isolate(), isolate()->thread_local_top());
        !it.done(); it.Advance()) {
-    if (it.frame()->type() == StackFrame::JAVA_SCRIPT) {
+    if (it.frame()->type() == StackFrame::INTERPRETED) {
       return;
     }
     if (it.frame()->type() == StackFrame::OPTIMIZED) {

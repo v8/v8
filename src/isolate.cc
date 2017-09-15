@@ -592,7 +592,6 @@ Handle<Object> Isolate::CaptureSimpleStackTrace(Handle<JSReceiver> error_object,
     StackFrame* frame = iter.frame();
 
     switch (frame->type()) {
-      case StackFrame::JAVA_SCRIPT:
       case StackFrame::JAVA_SCRIPT_BUILTIN_CONTINUATION:
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
@@ -1338,9 +1337,8 @@ Object* Isolate::UnwindAndFindHandler() {
         return FoundHandler(context, code, 0, return_sp, frame->fp());
       }
 
-      case StackFrame::JAVA_SCRIPT:
       case StackFrame::BUILTIN:
-        // For JavaScript frames we are guaranteed not to find a handler.
+        // For builtin frames we are guaranteed not to find a handler.
         if (catchable_by_js) {
           CHECK_EQ(-1,
                    JavaScriptFrame::cast(frame)->LookupExceptionHandlerInTable(
@@ -1452,7 +1450,6 @@ Isolate::CatchType Isolate::PredictExceptionCatcher() {
       } break;
 
       // For JavaScript frames we perform a lookup in the handler table.
-      case StackFrame::JAVA_SCRIPT:
       case StackFrame::OPTIMIZED:
       case StackFrame::INTERPRETED:
       case StackFrame::BUILTIN: {

@@ -241,9 +241,9 @@ SafeStackFrameIterator::SafeStackFrameIterator(
         advance_frame = true;
       }
     } else {
-      // Mark the frame as JAVA_SCRIPT if we cannot determine its type.
+      // Mark the frame as OPTIMIZED if we cannot determine its type.
       // The frame anyways will be skipped.
-      type = StackFrame::JAVA_SCRIPT;
+      type = StackFrame::OPTIMIZED;
       // Top frame is incomplete so we cannot reliably determine its type.
       top_frame_type_ = StackFrame::NONE;
     }
@@ -430,7 +430,7 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
                                       *(state->pc_address))) {
         return INTERPRETED;
       } else {
-        return JAVA_SCRIPT;
+        return OPTIMIZED;
       }
     }
   } else {
@@ -490,7 +490,6 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
     case WASM_COMPILED:
       return candidate;
     case JS_TO_WASM:
-    case JAVA_SCRIPT:
     case OPTIMIZED:
     case INTERPRETED:
     default:
@@ -792,7 +791,6 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       case C_WASM_ENTRY:
         frame_header_size = TypedFrameConstants::kFixedFrameSizeFromFp;
         break;
-      case JAVA_SCRIPT:
       case OPTIMIZED:
       case INTERPRETED:
       case BUILTIN:
@@ -1138,7 +1136,7 @@ bool IsNonDeoptimizingAsmCode(Code* code, JSFunction* function) {
 FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
     Isolate* isolate, Object* receiver, JSFunction* function,
     AbstractCode* abstract_code, int code_offset, bool is_constructor)
-    : FrameSummaryBase(isolate, JAVA_SCRIPT),
+    : FrameSummaryBase(isolate, FrameSummary::JAVA_SCRIPT),
       receiver_(receiver, isolate),
       function_(function, isolate),
       abstract_code_(abstract_code, isolate),
