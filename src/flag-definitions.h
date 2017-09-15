@@ -207,17 +207,17 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_dynamic_import, "harmony dynamic import")                   \
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V)                        \
-  HARMONY_STAGED_BASE(V)                         \
-  V(harmony_number_format_to_parts,              \
-    "Intl.NumberFormat.prototype.formatToParts") \
-  V(harmony_plural_rules, "Intl.PluralRules")
+#define HARMONY_STAGED(V)           \
+  HARMONY_STAGED_BASE(V)            \
+  V(harmony_number_format_to_parts, \
+    "Intl.NumberFormat.prototype."  \
+    "formatToParts")
 #else
 #define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
 #endif
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING(V)                                              \
+#define HARMONY_SHIPPING_BASE(V)                                         \
   V(harmony_strict_legacy_accessor_builtins,                             \
     "treat __defineGetter__ and related functions as strict")            \
   V(harmony_restrictive_generators,                                      \
@@ -230,6 +230,14 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_template_escapes,                                            \
     "harmony invalid escapes in tagged template literals")               \
   V(harmony_promise_finally, "harmony Promise.prototype.finally")
+
+#ifdef V8_INTL_SUPPORT
+#define HARMONY_SHIPPING(V) \
+  HARMONY_SHIPPING_BASE(V)  \
+  V(harmony_plural_rules, "Intl.PluralRules")
+#else
+#define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
+#endif
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
