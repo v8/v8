@@ -4,6 +4,7 @@
 
 #include "src/ic/handler-configuration.h"
 
+#include "src/code-stubs.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/transitions.h"
 
@@ -234,6 +235,25 @@ Object* StoreHandler::ValidTuple3HandlerOrNull(Object* handler, Name* name,
   if (transition->is_deprecated()) return nullptr;
   *out_transition = handle(transition);
   return handler;
+}
+
+// static
+Handle<Object> StoreHandler::StoreElementTransition(
+    Isolate* isolate, Handle<Map> receiver_map, Handle<Map> transition,
+    KeyedAccessStoreMode store_mode) {
+  bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
+  ElementsKind elements_kind = receiver_map->elements_kind();
+  Handle<Code> stub = ElementsTransitionAndStoreStub(
+                          isolate, elements_kind, transition->elements_kind(),
+                          is_js_array, store_mode)
+                          .GetCode();
+  Handle<Object> validity_cell =
+      Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
+  if (validity_cell.is_null()) {
+    validity_cell = handle(Smi::kZero, isolate);
+  }
+  Handle<WeakCell> cell = Map::WeakCellForMap(transition);
+  return isolate->factory()->NewTuple3(cell, stub, validity_cell, TENURED);
 }
 
 // static

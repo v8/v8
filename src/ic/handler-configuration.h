@@ -250,6 +250,11 @@ class StoreHandler {
                                         Handle<Map> transition,
                                         Handle<Name> name);
 
+  static Handle<Object> StoreElementTransition(Isolate* isolate,
+                                               Handle<Map> receiver_map,
+                                               Handle<Map> transition,
+                                               KeyedAccessStoreMode store_mode);
+
   static Handle<Object> StoreProxy(Isolate* isolate, Handle<Map> receiver_map,
                                    Handle<JSProxy> proxy,
                                    Handle<JSReceiver> receiver,

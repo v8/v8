@@ -1815,7 +1815,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
 
   for (Handle<Map> receiver_map : *receiver_maps) {
     Handle<Object> handler;
-    Handle<Map> transitioned_map;
+    Handle<Map> transition;
 
     if (receiver_map->instance_type() < FIRST_JS_RECEIVER_TYPE ||
         receiver_map->DictionaryElementsInPrototypeChainOnly()) {
@@ -1832,7 +1832,7 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
           if (receiver_map->is_stable()) {
             receiver_map->NotifyLeafMapLayoutChange();
           }
-          transitioned_map = handle(tmap);
+          transition = handle(tmap);
         }
       }
 
@@ -1841,24 +1841,11 @@ void KeyedStoreIC::StoreElementPolymorphicHandlers(
       // Site Tracking to do a better job of ensuring the data types are what
       // they need to be. Not all the elements are in place yet, pessimistic
       // elements transitions are still important for performance.
-      if (!transitioned_map.is_null()) {
-        bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-        ElementsKind elements_kind = receiver_map->elements_kind();
+      if (!transition.is_null()) {
         TRACE_HANDLER_STATS(isolate(),
                             KeyedStoreIC_ElementsTransitionAndStoreStub);
-        Handle<Code> stub =
-            ElementsTransitionAndStoreStub(isolate(), elements_kind,
-                                           transitioned_map->elements_kind(),
-                                           is_js_array, store_mode)
-                .GetCode();
-        Handle<Object> validity_cell =
-            Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate());
-        if (validity_cell.is_null()) {
-          validity_cell = handle(Smi::kZero, isolate());
-        }
-        Handle<WeakCell> transition = Map::WeakCellForMap(transitioned_map);
-        handler = isolate()->factory()->NewTuple3(transition, stub,
-                                                  validity_cell, TENURED);
+        handler = StoreHandler::StoreElementTransition(isolate(), receiver_map,
+                                                       transition, store_mode);
       } else {
         handler = StoreElementHandler(receiver_map, store_mode);
       }
