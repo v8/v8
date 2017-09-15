@@ -330,6 +330,10 @@ DEFINE_METHOD(
   sort(comparefn) {
     ValidateTypedArray(this, "%TypedArray%.prototype.sort");
 
+    if (!IS_UNDEFINED(comparefn) && !IS_CALLABLE(comparefn)) {
+      throw %make_type_error(kBadSortComparisonFunction, comparefn);
+    }
+
     var length = %_TypedArrayGetLength(this);
 
     if (IS_UNDEFINED(comparefn)) {

@@ -271,6 +271,8 @@ class ErrorUtils : public AllStatic {
   T(ArrayFunctionsOnSealed, "Cannot add/remove sealed array elements")         \
   T(AwaitNotInAsyncFunction, "await is only valid in async function")          \
   T(AtomicsWaitNotAllowed, "Atomics.wait cannot be called in this context")    \
+  T(BadSortComparisonFunction,                                                 \
+    "The comparison function must be either a function or undefined")          \
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \

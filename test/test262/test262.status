@@ -513,10 +513,6 @@
   'language/statements/for-await-of/escaped-of': [FAIL],
   'language/statements/for-of/escaped-of': [FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=6542
-  'built-ins/Array/prototype/sort/comparefn-nonfunction-call-throws': [FAIL],
-  'built-ins/TypedArray/prototype/sort/comparefn-nonfunction-call-throws': [FAIL],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6543
   'language/statements/labeled/value-await-non-module-escaped': [FAIL],
   'language/statements/labeled/value-yield-non-strict-escaped': [FAIL],
