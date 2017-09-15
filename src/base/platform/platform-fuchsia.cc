@@ -37,28 +37,35 @@ TimezoneCache* OS::CreateTimezoneCache() {
   return new PosixDefaultTimezoneCache();
 }
 
+// static
 void* OS::Allocate(const size_t requested, size_t* allocated,
                    OS::MemoryPermission access, void* hint) {
   CHECK(false);  // TODO(scottmg): Port, https://crbug.com/731217.
   return nullptr;
 }
 
-std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
-  CHECK(false);  // TODO(scottmg): Port, https://crbug.com/731217.
-  return std::vector<SharedLibraryAddress>();
+// static
+bool OS::Guard(void* address, size_t size) {
+  return mx_vmar_protect(mx_vmar_root_self(),
+                         reinterpret_cast<uintptr_t>(address), size,
+                         0 /*no permissions*/) == MX_OK;
 }
 
-void OS::SignalCodeMovingGC() {
-  CHECK(false);  // TODO(scottmg): Port, https://crbug.com/731217.
+// static
+void* OS::ReserveRegion(size_t size, void* hint) {
+  mx_handle_t vmo;
+  if (mx_vmo_create(size, 0, &vmo) != MX_OK) return nullptr;
+  uintptr_t result;
+  mx_status_t status = mx_vmar_map(mx_vmar_root_self(), 0, vmo, 0, size,
+                                   0 /*no permissions*/, &result);
+  mx_handle_close(vmo);
+  if (status != MX_OK) return nullptr;
+  return reinterpret_cast<void*>(result);
 }
 
-VirtualMemory::VirtualMemory() : address_(nullptr), size_(0) {}
-
-VirtualMemory::VirtualMemory(size_t size, void* hint)
-    : address_(ReserveRegion(size, hint)), size_(size) {}
-
-VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
-    : address_(nullptr), size_(0) {
+// static
+void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
+                               size_t* allocated) {
   DCHECK((alignment % OS::AllocateAlignment()) == 0);
   hint = AlignedAddress(hint, alignment);
   size_t request_size =
@@ -75,7 +82,10 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
   // Either the vmo is now referenced by the vmar, or we failed and are bailing,
   // so close the vmo either way.
   mx_handle_close(vmo);
-  if (status != MX_OK) return;
+  if (status != MX_OK) {
+    *allocated = 0;
+    return nullptr;
+  }
 
   uint8_t* base = reinterpret_cast<uint8_t*>(reservation);
   uint8_t* aligned_base = RoundUp(base, alignment);
@@ -102,82 +112,53 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
 
   DCHECK(aligned_size == request_size);
 
-  address_ = static_cast<void*>(aligned_base);
-  size_ = aligned_size;
-}
-
-VirtualMemory::~VirtualMemory() {
-  if (IsReserved()) {
-    bool result = ReleaseRegion(address(), size());
-    DCHECK(result);
-    USE(result);
-  }
-}
-
-void VirtualMemory::Reset() {
-  address_ = nullptr;
-  size_ = 0;
-}
-
-bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  CHECK(InVM(address, size));
-  return CommitRegion(address, size, is_executable);
-}
-
-bool VirtualMemory::Uncommit(void* address, size_t size) {
-  return UncommitRegion(address, size);
-}
-
-bool VirtualMemory::Guard(void* address) {
-  return mx_vmar_protect(mx_vmar_root_self(),
-                         reinterpret_cast<uintptr_t>(address),
-                         OS::CommitPageSize(), 0 /*no permissions*/) == MX_OK;
+  *allocated = aligned_size;
+  return static_cast<void*>(aligned_base);
 }
 
 // static
-void* VirtualMemory::ReserveRegion(size_t size, void* hint) {
-  mx_handle_t vmo;
-  if (mx_vmo_create(size, 0, &vmo) != MX_OK) return nullptr;
-  uintptr_t result;
-  mx_status_t status = mx_vmar_map(mx_vmar_root_self(), 0, vmo, 0, size,
-                                   0 /*no permissions*/, &result);
-  mx_handle_close(vmo);
-  if (status != MX_OK) return nullptr;
-  return reinterpret_cast<void*>(result);
-}
-
-// static
-bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
+bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
   uint32_t prot = MX_VM_FLAG_PERM_READ | MX_VM_FLAG_PERM_WRITE |
                   (is_executable ? MX_VM_FLAG_PERM_EXECUTE : 0);
-  return mx_vmar_protect(mx_vmar_root_self(), reinterpret_cast<uintptr_t>(base),
-                         size, prot) == MX_OK;
+  return mx_vmar_protect(mx_vmar_root_self(),
+                         reinterpret_cast<uintptr_t>(address), size,
+                         prot) == MX_OK;
 }
 
 // static
-bool VirtualMemory::UncommitRegion(void* base, size_t size) {
-  return mx_vmar_protect(mx_vmar_root_self(), reinterpret_cast<uintptr_t>(base),
-                         size, 0 /*no permissions*/) == MX_OK;
+bool OS::UncommitRegion(void* address, size_t size) {
+  return mx_vmar_protect(mx_vmar_root_self(),
+                         reinterpret_cast<uintptr_t>(address), size,
+                         0 /*no permissions*/) == MX_OK;
 }
 
 // static
-bool VirtualMemory::ReleasePartialRegion(void* base, size_t size,
-                                         void* free_start, size_t free_size) {
+bool OS::ReleasePartialRegion(void* address, size_t size, void* free_start,
+                              size_t free_size) {
   return mx_vmar_unmap(mx_vmar_root_self(),
                        reinterpret_cast<uintptr_t>(free_start),
                        free_size) == MX_OK;
 }
 
 // static
-bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
-  return mx_vmar_unmap(mx_vmar_root_self(), reinterpret_cast<uintptr_t>(base),
-                       size) == MX_OK;
+bool OS::ReleaseRegion(void* address, size_t size) {
+  return mx_vmar_unmap(mx_vmar_root_self(),
+                       reinterpret_cast<uintptr_t>(address), size) == MX_OK;
 }
 
 // static
-bool VirtualMemory::HasLazyCommits() {
+bool OS::HasLazyCommits() {
   // TODO(scottmg): Port, https://crbug.com/731217.
   return false;
+}
+
+std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
+  CHECK(false);  // TODO(scottmg): Port, https://crbug.com/731217.
+  return std::vector<SharedLibraryAddress>();
+}
+
+void OS::SignalCodeMovingGC() {
+  CHECK(false);  // TODO(scottmg): Port, https://crbug.com/731217.
 }
 
 }  // namespace base
