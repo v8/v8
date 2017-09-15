@@ -1939,6 +1939,14 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           DONT_ENUM);
 
     // Install the String.prototype methods.
+    SimpleInstallFunction(prototype, "anchor", Builtins::kStringPrototypeAnchor,
+                          1, true);
+    SimpleInstallFunction(prototype, "big", Builtins::kStringPrototypeBig, 0,
+                          true);
+    SimpleInstallFunction(prototype, "blink", Builtins::kStringPrototypeBlink,
+                          0, true);
+    SimpleInstallFunction(prototype, "bold", Builtins::kStringPrototypeBold, 0,
+                          true);
     SimpleInstallFunction(prototype, "charAt", Builtins::kStringPrototypeCharAt,
                           1, true);
     SimpleInstallFunction(prototype, "charCodeAt",
@@ -1949,12 +1957,22 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           1, false);
     SimpleInstallFunction(prototype, "endsWith",
                           Builtins::kStringPrototypeEndsWith, 1, false);
+    SimpleInstallFunction(prototype, "fontcolor",
+                          Builtins::kStringPrototypeFontcolor, 1, true);
+    SimpleInstallFunction(prototype, "fontsize",
+                          Builtins::kStringPrototypeFontsize, 1, true);
+    SimpleInstallFunction(prototype, "fixed", Builtins::kStringPrototypeFixed,
+                          0, true);
     SimpleInstallFunction(prototype, "includes",
                           Builtins::kStringPrototypeIncludes, 1, false);
     SimpleInstallFunction(prototype, "indexOf",
                           Builtins::kStringPrototypeIndexOf, 1, false);
+    SimpleInstallFunction(prototype, "italics",
+                          Builtins::kStringPrototypeItalics, 0, true);
     SimpleInstallFunction(prototype, "lastIndexOf",
                           Builtins::kStringPrototypeLastIndexOf, 1, false);
+    SimpleInstallFunction(prototype, "link", Builtins::kStringPrototypeLink, 1,
+                          true);
     SimpleInstallFunction(prototype, "localeCompare",
                           Builtins::kStringPrototypeLocaleCompare, 1, true);
 #ifdef V8_INTL_SUPPORT
@@ -1970,12 +1988,20 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
                           Builtins::kStringPrototypeReplace, 2, true);
     SimpleInstallFunction(prototype, "slice", Builtins::kStringPrototypeSlice,
                           2, false);
+    SimpleInstallFunction(prototype, "small", Builtins::kStringPrototypeSmall,
+                          0, true);
     SimpleInstallFunction(prototype, "split", Builtins::kStringPrototypeSplit,
                           2, false);
+    SimpleInstallFunction(prototype, "strike", Builtins::kStringPrototypeStrike,
+                          0, true);
+    SimpleInstallFunction(prototype, "sub", Builtins::kStringPrototypeSub, 0,
+                          true);
     SimpleInstallFunction(prototype, "substr", Builtins::kStringPrototypeSubstr,
                           2, false);
     SimpleInstallFunction(prototype, "substring",
                           Builtins::kStringPrototypeSubstring, 2, false);
+    SimpleInstallFunction(prototype, "sup", Builtins::kStringPrototypeSup, 0,
+                          true);
     SimpleInstallFunction(prototype, "startsWith",
                           Builtins::kStringPrototypeStartsWith, 1, false);
     SimpleInstallFunction(prototype, "toString",

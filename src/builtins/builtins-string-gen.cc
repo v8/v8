@@ -2154,5 +2154,166 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   }
 }
 
+// -----------------------------------------------------------------------------
+// ES6 section B.2.3 Additional Properties of the String.prototype object
+
+class StringHtmlAssembler : public StringBuiltinsAssembler {
+ public:
+  explicit StringHtmlAssembler(compiler::CodeAssemblerState* state)
+      : StringBuiltinsAssembler(state) {}
+
+ protected:
+  void Generate(Node* const context, Node* const receiver,
+                const char* method_name, const char* tag_name) {
+    Node* const string = ToThisString(context, receiver, method_name);
+    std::string open_tag = "<" + std::string(tag_name) + ">";
+    std::string close_tag = "</" + std::string(tag_name) + ">";
+
+    Node* strings[] = {StringConstant(open_tag.c_str()), string,
+                       StringConstant(close_tag.c_str())};
+    Return(ConcatStrings(context, strings, arraysize(strings)));
+  }
+
+  void GenerateWithAttribute(Node* const context, Node* const receiver,
+                             const char* method_name, const char* tag_name,
+                             const char* attr, Node* const value) {
+    Node* const string = ToThisString(context, receiver, method_name);
+    Node* const value_string =
+        EscapeQuotes(context, ToString_Inline(context, value));
+    std::string open_tag_attr =
+        "<" + std::string(tag_name) + " " + std::string(attr) + "=\"";
+    std::string close_tag = "</" + std::string(tag_name) + ">";
+
+    Node* strings[] = {StringConstant(open_tag_attr.c_str()), value_string,
+                       StringConstant("\">"), string,
+                       StringConstant(close_tag.c_str())};
+    Return(ConcatStrings(context, strings, arraysize(strings)));
+  }
+
+  Node* ConcatStrings(Node* const context, Node** strings, int len) {
+    VARIABLE(var_result, MachineRepresentation::kTagged, strings[0]);
+    for (int i = 1; i < len; i++) {
+      var_result.Bind(CallStub(CodeFactory::StringAdd(isolate()), context,
+                               var_result.value(), strings[i]));
+    }
+    return var_result.value();
+  }
+
+  Node* EscapeQuotes(Node* const context, Node* const string) {
+    CSA_ASSERT(this, IsString(string));
+    Node* const regexp_function = LoadContextElement(
+        LoadNativeContext(context), Context::REGEXP_FUNCTION_INDEX);
+    Node* const initial_map = LoadObjectField(
+        regexp_function, JSFunction::kPrototypeOrInitialMapOffset);
+    // TODO(pwong): Refactor to not allocate RegExp
+    Node* const regexp =
+        CallRuntime(Runtime::kRegExpInitializeAndCompile, context,
+                    AllocateJSObjectFromMap(initial_map), StringConstant("\""),
+                    StringConstant("g"));
+
+    return CallRuntime(Runtime::kRegExpInternalReplace, context, regexp, string,
+                       StringConstant("&quot;"));
+  }
+};
+
+// ES6 #sec-string.prototype.anchor
+TF_BUILTIN(StringPrototypeAnchor, StringHtmlAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const value = Parameter(Descriptor::kValue);
+  GenerateWithAttribute(context, receiver, "String.prototype.anchor", "a",
+                        "name", value);
+}
+
+// ES6 #sec-string.prototype.big
+TF_BUILTIN(StringPrototypeBig, StringHtmlAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Generate(context, receiver, "String.prototype.big", "big");
+}
+
+// ES6 #sec-string.prototype.blink
+TF_BUILTIN(StringPrototypeBlink, StringHtmlAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Generate(context, receiver, "String.prototype.blink", "blink");
+}
+
+// ES6 #sec-string.prototype.bold
+TF_BUILTIN(StringPrototypeBold, StringHtmlAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Generate(context, receiver, "String.prototype.bold", "b");
+}
+
+// ES6 #sec-string.prototype.fontcolor
+TF_BUILTIN(StringPrototypeFontcolor, StringHtmlAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const value = Parameter(Descriptor::kValue);
+  GenerateWithAttribute(context, receiver, "String.prototype.fontcolor", "font",
+                        "color", value);
+}
+
+// ES6 #sec-string.prototype.fontsize
+TF_BUILTIN(StringPrototypeFontsize, StringHtmlAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const value = Parameter(Descriptor::kValue);
+  GenerateWithAttribute(context, receiver, "String.prototype.fontsize", "font",
+                        "size", value);
+}
+
+// ES6 #sec-string.prototype.fixed
+TF_BUILTIN(StringPrototypeFixed, StringHtmlAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Generate(context, receiver, "String.prototype.fixed", "tt");
+}
+
+// ES6 #sec-string.prototype.italics
+TF_BUILTIN(StringPrototypeItalics, StringHtmlAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Generate(context, receiver, "String.prototype.italics", "i");
+}
+
+// ES6 #sec-string.prototype.link
+TF_BUILTIN(StringPrototypeLink, StringHtmlAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const value = Parameter(Descriptor::kValue);
+  GenerateWithAttribute(context, receiver, "String.prototype.link", "a", "href",
+                        value);
+}
+
+// ES6 #sec-string.prototype.small
+TF_BUILTIN(StringPrototypeSmall, StringHtmlAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Generate(context, receiver, "String.prototype.small", "small");
+}
+
+// ES6 #sec-string.prototype.strike
+TF_BUILTIN(StringPrototypeStrike, StringHtmlAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Generate(context, receiver, "String.prototype.strike", "strike");
+}
+
+// ES6 #sec-string.prototype.sub
+TF_BUILTIN(StringPrototypeSub, StringHtmlAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Generate(context, receiver, "String.prototype.sub", "sub");
+}
+
+// ES6 #sec-string.prototype.sup
+TF_BUILTIN(StringPrototypeSup, StringHtmlAssembler) {
+  Node* const context = Parameter(Descriptor::kContext);
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Generate(context, receiver, "String.prototype.sup", "sup");
+}
+
 }  // namespace internal
 }  // namespace v8
