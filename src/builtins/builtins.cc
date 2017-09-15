@@ -272,6 +272,7 @@ bool Builtins::IsLazy(int index) {
     case kNumberConstructor_ConstructStub:    // https://crbug.com/v8/6787.
     case kStringConstructor_ConstructStub:    // https://crbug.com/v8/6787.
     case kProxyConstructor:                   // https://crbug.com/v8/6787.
+    case kRecordWrite:  // https://crbug.com/chromium/765301.
     case kThrowWasmTrapDivByZero:             // Required by wasm.
     case kThrowWasmTrapDivUnrepresentable:    // Required by wasm.
     case kThrowWasmTrapFloatUnrepresentable:  // Required by wasm.
