@@ -238,6 +238,11 @@ SafeStackFrameIterator::SafeStackFrameIterator(
       }
     } else {
       // Mark the frame as OPTIMIZED if we cannot determine its type.
+      // We chose OPTIMIZED rather than INTERPRETED because it's closer to
+      // the original value of StackFrame::JAVA_SCRIPT here, in that JAVA_SCRIPT
+      // referred to full-codegen frames (now removed from the tree), and
+      // OPTIMIZED refers to turbofan frames, both of which are generated
+      // code. INTERPRETED frames refer to bytecode.
       // The frame anyways will be skipped.
       type = StackFrame::OPTIMIZED;
       // Top frame is incomplete so we cannot reliably determine its type.
