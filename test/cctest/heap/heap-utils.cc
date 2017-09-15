@@ -203,7 +203,7 @@ void ForceEvacuationCandidate(Page* page) {
     int remaining = static_cast<int>(limit - top);
     space->heap()->CreateFillerObjectAt(top, remaining,
                                         ClearRecordedSlots::kNo);
-    space->SetTopAndLimit(nullptr, nullptr);
+    space->EmptyAllocationInfo();
   }
 }
 

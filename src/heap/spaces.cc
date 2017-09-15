@@ -1332,6 +1332,7 @@ STATIC_ASSERT(static_cast<ObjectSpace>(1 << AllocationSpace::MAP_SPACE) ==
 
 void Space::AddAllocationObserver(AllocationObserver* observer) {
   allocation_observers_.push_back(observer);
+  StartNextInlineAllocationStep();
 }
 
 void Space::RemoveAllocationObserver(AllocationObserver* observer) {
@@ -1339,6 +1340,7 @@ void Space::RemoveAllocationObserver(AllocationObserver* observer) {
                       allocation_observers_.end(), observer);
   DCHECK(allocation_observers_.end() != it);
   allocation_observers_.erase(it);
+  StartNextInlineAllocationStep();
 }
 
 void Space::PauseAllocationObservers() { allocation_observers_paused_ = true; }
@@ -1347,11 +1349,12 @@ void Space::ResumeAllocationObservers() {
   allocation_observers_paused_ = false;
 }
 
-void Space::AllocationStep(Address soon_object, int size) {
+void Space::AllocationStep(int bytes_since_last, Address soon_object,
+                           int size) {
   if (!allocation_observers_paused_) {
     heap()->CreateFillerObjectAt(soon_object, size, ClearRecordedSlots::kNo);
     for (AllocationObserver* observer : allocation_observers_) {
-      observer->AllocationStep(size, soon_object, size);
+      observer->AllocationStep(bytes_since_last, soon_object, size);
     }
   }
 }
@@ -1371,7 +1374,8 @@ PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
     : Space(heap, space, executable),
       anchor_(this),
       free_list_(this),
-      locked_page_(nullptr) {
+      locked_page_(nullptr),
+      top_on_previous_step_(0) {
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
 
@@ -1600,6 +1604,48 @@ void PagedSpace::SetAllocationInfo(Address top, Address limit) {
   }
 }
 
+void PagedSpace::DecreaseLimit(Address new_limit) {
+  Address old_limit = limit();
+  DCHECK_LE(top(), new_limit);
+  DCHECK_GE(old_limit, new_limit);
+  if (new_limit != old_limit) {
+    SetTopAndLimit(top(), new_limit);
+    Free(new_limit, old_limit - new_limit);
+    if (heap()->incremental_marking()->black_allocation()) {
+      Page::FromAllocationAreaAddress(new_limit)->DestroyBlackArea(new_limit,
+                                                                   old_limit);
+    }
+  }
+}
+
+Address PagedSpace::ComputeLimit(Address start, Address end,
+                                 size_t size_in_bytes) {
+  DCHECK_GE(end - start, size_in_bytes);
+
+  if (heap()->inline_allocation_disabled()) {
+    // Keep the linear allocation area to fit exactly the requested size.
+    return start + size_in_bytes;
+  } else if (!allocation_observers_paused_ && !allocation_observers_.empty() &&
+             identity() == OLD_SPACE && !is_local()) {
+    // Generated code may allocate inline from the linear allocation area for
+    // Old Space. To make sure we can observe these allocations, we use a lower
+    // limit.
+    size_t step = RoundSizeDownToObjectAlignment(
+        static_cast<int>(GetNextInlineAllocationStepSize()));
+    return Max(start + size_in_bytes, Min(start + step, end));
+  } else {
+    // The entire node can be used as the linear allocation area.
+    return end;
+  }
+}
+
+void PagedSpace::StartNextInlineAllocationStep() {
+  if (!allocation_observers_paused_ && SupportsInlineAllocation()) {
+    top_on_previous_step_ = allocation_observers_.empty() ? 0 : top();
+    DecreaseLimit(ComputeLimit(top(), limit(), 0));
+  }
+}
+
 void PagedSpace::MarkAllocationInfoBlack() {
   DCHECK(heap()->incremental_marking()->black_allocation());
   Address current_top = top();
@@ -1645,6 +1691,12 @@ void PagedSpace::EmptyAllocationInfo() {
     }
   }
 
+  if (top_on_previous_step_) {
+    DCHECK(current_top >= top_on_previous_step_);
+    AllocationStep(static_cast<int>(current_top - top_on_previous_step_),
+                   nullptr, 0);
+    top_on_previous_step_ = 0;
+  }
   SetTopAndLimit(NULL, NULL);
   DCHECK_GE(current_limit, current_top);
   Free(current_top, current_limit - current_top);
@@ -2087,16 +2139,6 @@ void NewSpace::StartNextInlineAllocationStep() {
   }
 }
 
-void NewSpace::AddAllocationObserver(AllocationObserver* observer) {
-  Space::AddAllocationObserver(observer);
-  StartNextInlineAllocationStep();
-}
-
-void NewSpace::RemoveAllocationObserver(AllocationObserver* observer) {
-  Space::RemoveAllocationObserver(observer);
-  StartNextInlineAllocationStep();
-}
-
 void NewSpace::PauseAllocationObservers() {
   // Do a step to account for memory allocated so far.
   InlineAllocationStep(top(), top(), nullptr, 0);
@@ -2105,12 +2147,28 @@ void NewSpace::PauseAllocationObservers() {
   UpdateInlineAllocationLimit(0);
 }
 
+void PagedSpace::PauseAllocationObservers() {
+  // Do a step to account for memory allocated so far.
+  if (top_on_previous_step_) {
+    int bytes_allocated = static_cast<int>(top() - top_on_previous_step_);
+    AllocationStep(bytes_allocated, nullptr, 0);
+  }
+  Space::PauseAllocationObservers();
+  top_on_previous_step_ = 0;
+}
+
 void NewSpace::ResumeAllocationObservers() {
   DCHECK(top_on_previous_step_ == 0);
   Space::ResumeAllocationObservers();
   StartNextInlineAllocationStep();
 }
 
+// TODO(ofrobots): refactor into SpaceWithLinearArea
+void PagedSpace::ResumeAllocationObservers() {
+  DCHECK(top_on_previous_step_ == 0);
+  Space::ResumeAllocationObservers();
+  StartNextInlineAllocationStep();
+}
 
 void NewSpace::InlineAllocationStep(Address top, Address new_top,
                                     Address soon_object, size_t size) {
@@ -2885,7 +2943,6 @@ bool FreeList::Allocate(size_t size_in_bytes) {
   if (new_node == nullptr) return false;
 
   DCHECK_GE(new_node_size, size_in_bytes);
-  size_t bytes_left = new_node_size - size_in_bytes;
 
 #ifdef DEBUG
   for (size_t i = 0; i < size_in_bytes / kPointerSize; i++) {
@@ -2899,38 +2956,21 @@ bool FreeList::Allocate(size_t size_in_bytes) {
   // candidate.
   DCHECK(!MarkCompactCollector::IsOnEvacuationCandidate(new_node));
 
-  const size_t kThreshold = IncrementalMarking::kAllocatedThreshold;
-
   // Memory in the linear allocation area is counted as allocated.  We may free
   // a little of this again immediately - see below.
   owner_->IncreaseAllocatedBytes(new_node_size,
                                  Page::FromAddress(new_node->address()));
 
-  if (owner_->heap()->inline_allocation_disabled()) {
-    // Keep the linear allocation area to fit exactly the requested size.
-    // Return the rest to the free list.
-    owner_->Free(new_node->address() + size_in_bytes, bytes_left);
-    owner_->SetAllocationInfo(new_node->address(),
-                              new_node->address() + size_in_bytes);
-  } else if (bytes_left > kThreshold &&
-             owner_->heap()->incremental_marking()->IsMarkingIncomplete() &&
-             FLAG_incremental_marking &&
-             !owner_->is_local()) {  // Not needed on CompactionSpaces.
-    size_t linear_size = owner_->RoundSizeDownToObjectAlignment(kThreshold);
-    // We don't want to give too large linear areas to the allocator while
-    // incremental marking is going on, because we won't check again whether
-    // we want to do another increment until the linear area is used up.
-    DCHECK_GE(new_node_size, size_in_bytes + linear_size);
-    owner_->Free(new_node->address() + size_in_bytes + linear_size,
-                 new_node_size - size_in_bytes - linear_size);
-    owner_->SetAllocationInfo(
-        new_node->address(), new_node->address() + size_in_bytes + linear_size);
-  } else {
-    // Normally we give the rest of the node to the allocator as its new
-    // linear allocation area.
-    owner_->SetAllocationInfo(new_node->address(),
-                              new_node->address() + new_node_size);
+  Address start = new_node->address();
+  Address end = new_node->address() + new_node_size;
+  Address limit = owner_->ComputeLimit(start, end, size_in_bytes);
+  DCHECK_LE(limit, end);
+  DCHECK_LE(size_in_bytes, limit - start);
+  if (limit != end) {
+    owner_->Free(limit, end - limit);
   }
+  owner_->SetAllocationInfo(start, limit);
+
   return true;
 }
 
@@ -3318,7 +3358,7 @@ AllocationResult LargeObjectSpace::AllocateRaw(int object_size,
   if (heap()->incremental_marking()->black_allocation()) {
     heap()->incremental_marking()->marking_state()->WhiteToBlack(object);
   }
-  AllocationStep(object->address(), object_size);
+  AllocationStep(object_size, object->address(), object_size);
   DCHECK_IMPLIES(
       heap()->incremental_marking()->black_allocation(),
       heap()->incremental_marking()->marking_state()->IsBlack(object));
