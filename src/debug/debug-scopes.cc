@@ -408,7 +408,7 @@ Handle<Context> ScopeIterator::CurrentContext() {
   } else if (LastNestedScopeChain().scope_info->HasContext()) {
     return context_;
   } else {
-    return Handle<Context>();
+    return Handle<Context>::null();
   }
 }
 
