@@ -103,8 +103,7 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
     return NoChange();
   }
 
-  // Functions marked with %SetForceInlineFlag are immediately inlined.
-  bool can_inline = false, force_inline = true, small_inline = true;
+  bool can_inline = false, small_inline = true;
   candidate.total_size = 0;
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
@@ -114,9 +113,6 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
         candidate.functions[i].is_null()
             ? candidate.shared_info
             : handle(candidate.functions[i]->shared());
-    if (!shared->force_inline()) {
-      force_inline = false;
-    }
     candidate.can_inline_function[i] = CanInlineFunction(shared);
     // Do not allow direct recursion i.e. f() -> f(). We still allow indirect
     // recurion like f() -> g() -> f(). The indirect recursion is helpful in
@@ -141,7 +137,6 @@ Reduction JSInliningHeuristic::Reduce(Node* node) {
       small_inline = false;
     }
   }
-  if (force_inline) return InlineCandidate(candidate, true);
   if (!can_inline) return NoChange();
 
   // Stop inlining once the maximum allowed level is reached.
@@ -613,7 +608,7 @@ void JSInliningHeuristic::CreateOrReuseDispatch(Node* node, Node* callee,
 }
 
 Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
-                                               bool force_inline) {
+                                               bool small_function) {
   int const num_calls = candidate.num_functions;
   Node* const node = candidate.node;
   if (num_calls == 1) {
@@ -684,7 +679,7 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
   for (int i = 0; i < num_calls; ++i) {
     Handle<JSFunction> function = candidate.functions[i];
     Node* node = calls[i];
-    if (force_inline ||
+    if (small_function ||
         (candidate.can_inline_function[i] &&
          cumulative_count_ < FLAG_max_inlined_bytecode_size_cumulative)) {
       Reduction const reduction = inliner_.ReduceJSCall(node);

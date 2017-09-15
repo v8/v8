@@ -227,7 +227,6 @@ namespace internal {
   F(SetCode, 2, 1)                         \
   F(SetNativeFlag, 1, 1)                   \
   F(IsConstructor, 1, 1)                   \
-  F(SetForceInlineFlag, 1, 1)              \
   F(Call, -1 /* >= 2 */, 1)                \
   F(ConvertReceiver, 1, 1)                 \
   F(IsFunction, 1, 1)                      \

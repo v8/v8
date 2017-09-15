@@ -63,7 +63,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
 
   // Dumps candidates to console.
   void PrintCandidates();
-  Reduction InlineCandidate(Candidate const& candidate, bool force_inline);
+  Reduction InlineCandidate(Candidate const& candidate, bool small_function);
   void CreateOrReuseDispatch(Node* node, Node* callee,
                              Candidate const& candidate, Node** if_successes,
                              Node** calls, Node** inputs, int input_count);

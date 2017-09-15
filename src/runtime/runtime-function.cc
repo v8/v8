@@ -205,18 +205,6 @@ RUNTIME_FUNCTION(Runtime_IsConstructor) {
   return isolate->heap()->ToBoolean(object->IsConstructor());
 }
 
-RUNTIME_FUNCTION(Runtime_SetForceInlineFlag) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_CHECKED(Object, object, 0);
-
-  if (object->IsJSFunction()) {
-    JSFunction* func = JSFunction::cast(object);
-    func->shared()->set_force_inline(true);
-  }
-  return isolate->heap()->undefined_value();
-}
-
 
 RUNTIME_FUNCTION(Runtime_Call) {
   HandleScope scope(isolate);

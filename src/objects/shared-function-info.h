@@ -302,9 +302,6 @@ class SharedFunctionInfo : public HeapObject {
   // global object.
   DECL_BOOLEAN_ACCESSORS(native)
 
-  // Indicate that this function should always be inlined in optimized code.
-  DECL_BOOLEAN_ACCESSORS(force_inline)
-
   // Whether this function was created from a FunctionDeclaration.
   DECL_BOOLEAN_ACCESSORS(is_declaration)
 
@@ -473,7 +470,6 @@ class SharedFunctionInfo : public HeapObject {
   V(AllowLazyCompilationBit, bool, 1, _)   \
   V(UsesArgumentsBit, bool, 1, _)          \
   V(NeedsHomeObjectBit, bool, 1, _)        \
-  V(ForceInlineBit, bool, 1, _)            \
   V(IsDeclarationBit, bool, 1, _)          \
   V(IsAsmWasmBrokenBit, bool, 1, _)        \
   V(FunctionMapIndexBits, int, 5, _)       \
