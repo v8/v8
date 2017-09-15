@@ -2512,7 +2512,7 @@ class ClassLiteral final : public Expression {
   typedef ClassLiteralProperty Property;
 
   Scope* scope() const { return scope_; }
-  VariableProxy* class_variable_proxy() const { return class_variable_proxy_; }
+  Variable* class_variable() const { return class_variable_; }
   Expression* extends() const { return extends_; }
   void set_extends(Expression* e) { extends_ = e; }
   FunctionLiteral* constructor() const { return constructor_; }
@@ -2539,26 +2539,20 @@ class ClassLiteral final : public Expression {
   void AssignFeedbackSlots(FeedbackVectorSpec* spec, LanguageMode language_mode,
                            FunctionKind kind, FeedbackSlotCache* cache);
 
-  bool NeedsProxySlot() const {
-    return class_variable_proxy() != nullptr &&
-           class_variable_proxy()->var()->IsUnallocated();
-  }
-
   FeedbackSlot HomeObjectSlot() const { return home_object_slot_; }
-  FeedbackSlot ProxySlot() const { return proxy_slot_; }
 
  private:
   friend class AstNodeFactory;
 
-  ClassLiteral(Scope* scope, VariableProxy* class_variable_proxy,
-               Expression* extends, FunctionLiteral* constructor,
-               ZoneList<Property*>* properties, int start_position,
-               int end_position, bool has_name_static_property,
-               bool has_static_computed_names, bool is_anonymous)
+  ClassLiteral(Scope* scope, Variable* class_variable, Expression* extends,
+               FunctionLiteral* constructor, ZoneList<Property*>* properties,
+               int start_position, int end_position,
+               bool has_name_static_property, bool has_static_computed_names,
+               bool is_anonymous)
       : Expression(start_position, kClassLiteral),
         end_position_(end_position),
         scope_(scope),
-        class_variable_proxy_(class_variable_proxy),
+        class_variable_(class_variable),
         extends_(extends),
         constructor_(constructor),
         properties_(properties) {
@@ -2569,9 +2563,8 @@ class ClassLiteral final : public Expression {
 
   int end_position_;
   FeedbackSlot home_object_slot_;
-  FeedbackSlot proxy_slot_;
   Scope* scope_;
-  VariableProxy* class_variable_proxy_;
+  Variable* class_variable_;
   Expression* extends_;
   FunctionLiteral* constructor_;
   ZoneList<Property*>* properties_;
@@ -3324,7 +3317,7 @@ class AstNodeFactory final BASE_EMBEDDED {
         ClassLiteral::Property(key, value, kind, is_static, is_computed_name);
   }
 
-  ClassLiteral* NewClassLiteral(Scope* scope, VariableProxy* proxy,
+  ClassLiteral* NewClassLiteral(Scope* scope, Variable* variable,
                                 Expression* extends,
                                 FunctionLiteral* constructor,
                                 ZoneList<ClassLiteral::Property*>* properties,
@@ -3333,7 +3326,7 @@ class AstNodeFactory final BASE_EMBEDDED {
                                 bool has_static_computed_names,
                                 bool is_anonymous) {
     return new (zone_)
-        ClassLiteral(scope, proxy, extends, constructor, properties,
+        ClassLiteral(scope, variable, extends, constructor, properties,
                      start_position, end_position, has_name_static_property,
                      has_static_computed_names, is_anonymous);
   }

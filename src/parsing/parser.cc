@@ -3127,11 +3127,12 @@ void Parser::DeclareClassVariable(const AstRawString* name,
 #endif
 
   if (name != nullptr) {
-    class_info->proxy = factory()->NewVariableProxy(name, NORMAL_VARIABLE);
+    VariableProxy* proxy = factory()->NewVariableProxy(name, NORMAL_VARIABLE);
     Declaration* declaration =
-        factory()->NewVariableDeclaration(class_info->proxy, class_token_pos);
-    Declare(declaration, DeclarationDescriptor::NORMAL, CONST,
-            Variable::DefaultInitializationFlag(CONST), ok);
+        factory()->NewVariableDeclaration(proxy, class_token_pos);
+    class_info->variable =
+        Declare(declaration, DeclarationDescriptor::NORMAL, CONST,
+                Variable::DefaultInitializationFlag(CONST), ok);
   }
 }
 
@@ -3185,12 +3186,12 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
   }
 
   if (name != nullptr) {
-    DCHECK_NOT_NULL(class_info->proxy);
-    class_info->proxy->var()->set_initializer_position(end_pos);
+    DCHECK_NOT_NULL(class_info->variable);
+    class_info->variable->set_initializer_position(end_pos);
   }
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
-      block_scope, class_info->proxy, class_info->extends,
+      block_scope, class_info->variable, class_info->extends,
       class_info->constructor, class_info->properties, pos, end_pos,
       class_info->has_name_static_property,
       class_info->has_static_computed_names, class_info->is_anonymous);

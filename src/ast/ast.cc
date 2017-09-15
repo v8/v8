@@ -365,10 +365,6 @@ void ClassLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
     home_object_slot_ = spec->AddStoreICSlot(language_mode);
   }
 
-  if (NeedsProxySlot()) {
-    proxy_slot_ = spec->AddStoreICSlot(language_mode);
-  }
-
   for (int i = 0; i < properties()->length(); i++) {
     ClassLiteral::Property* property = properties()->at(i);
     Expression* value = property->value();

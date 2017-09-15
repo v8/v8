@@ -411,9 +411,6 @@ void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
   LanguageModeScope language_mode_scope(this, STRICT);
   if (node->extends()) Visit(node->extends());
   if (node->constructor()) Visit(node->constructor());
-  if (node->class_variable_proxy()) {
-    VisitVariableProxy(node->class_variable_proxy());
-  }
   for (int i = 0; i < node->properties()->length(); i++) {
     VisitLiteralProperty(node->properties()->at(i));
   }

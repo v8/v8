@@ -551,7 +551,7 @@ class ParserBase {
   struct ClassInfo {
    public:
     explicit ClassInfo(ParserBase* parser)
-        : proxy(nullptr),
+        : variable(nullptr),
           extends(parser->impl()->NullExpression()),
           properties(parser->impl()->NewClassPropertyList(4)),
           constructor(parser->impl()->NullExpression()),
@@ -559,7 +559,7 @@ class ParserBase {
           has_name_static_property(false),
           has_static_computed_names(false),
           is_anonymous(false) {}
-    VariableProxy* proxy;
+    Variable* variable;
     ExpressionT extends;
     typename Types::ClassPropertyList properties;
     FunctionLiteralT constructor;

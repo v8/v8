@@ -1735,12 +1735,11 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
   BuildClassLiteralNameProperty(expr, constructor);
   builder()->CallRuntime(Runtime::kToFastProperties, constructor);
   // Assign to class variable.
-  if (expr->class_variable_proxy() != nullptr) {
-    VariableProxy* proxy = expr->class_variable_proxy();
-    FeedbackSlot slot =
-        expr->NeedsProxySlot() ? expr->ProxySlot() : FeedbackSlot::Invalid();
-    BuildVariableAssignment(proxy->var(), Token::INIT, slot,
-                            HoleCheckMode::kElided);
+  if (expr->class_variable() != nullptr) {
+    DCHECK(expr->class_variable()->IsStackLocal() ||
+           expr->class_variable()->IsContextSlot());
+    BuildVariableAssignment(expr->class_variable(), Token::INIT,
+                            FeedbackSlot::Invalid(), HoleCheckMode::kElided);
   }
 }
 
