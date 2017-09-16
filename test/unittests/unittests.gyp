@@ -154,7 +154,6 @@
       'wasm/control-transfer-unittest.cc',
       'wasm/decoder-unittest.cc',
       'wasm/function-body-decoder-unittest.cc',
-      'wasm/wasm-heap-unittest.cc',
       'wasm/leb-helper-unittest.cc',
       'wasm/loop-assignment-analysis-unittest.cc',
       'wasm/module-decoder-unittest.cc',

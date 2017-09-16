@@ -1447,8 +1447,6 @@
         'wasm/wasm-debug.cc',
         'wasm/wasm-external-refs.cc',
         'wasm/wasm-external-refs.h',
-        'wasm/wasm-heap.cc',
-        'wasm/wasm-heap.h',
         'wasm/wasm-js.cc',
         'wasm/wasm-js.h',
         'wasm/wasm-limits.h',
