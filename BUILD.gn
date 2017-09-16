@@ -2059,6 +2059,8 @@ v8_source_set("v8_base") {
     "src/wasm/wasm-debug.cc",
     "src/wasm/wasm-external-refs.cc",
     "src/wasm/wasm-external-refs.h",
+    "src/wasm/wasm-heap.cc",
+    "src/wasm/wasm-heap.h",
     "src/wasm/wasm-interpreter.cc",
     "src/wasm/wasm-interpreter.h",
     "src/wasm/wasm-js.cc",
