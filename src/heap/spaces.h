@@ -354,7 +354,7 @@ class MemoryChunk {
       + kUIntptrSize      // uintptr_t flags_
       + kPointerSize      // Address area_start_
       + kPointerSize      // Address area_end_
-      + 2 * kPointerSize  // base::VirtualMemory reservation_
+      + 2 * kPointerSize  // VirtualMemory reservation_
       + kPointerSize      // Address owner_
       + kPointerSize      // Heap* heap_
       + kIntptrSize       // intptr_t progress_bar_
@@ -631,12 +631,12 @@ class MemoryChunk {
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
                                  Executability executable, Space* owner,
-                                 base::VirtualMemory* reservation);
+                                 VirtualMemory* reservation);
 
   // Should be called when memory chunk is about to be freed.
   void ReleaseAllocatedMemory();
 
-  base::VirtualMemory* reserved_memory() { return &reservation_; }
+  VirtualMemory* reserved_memory() { return &reservation_; }
 
   size_t size_;
   uintptr_t flags_;
@@ -646,7 +646,7 @@ class MemoryChunk {
   Address area_end_;
 
   // If the chunk needs to remember its memory reservation, it is stored here.
-  base::VirtualMemory reservation_;
+  VirtualMemory reservation_;
 
   // The identity of the owning space.  This is tagged as a failure pointer, but
   // no failure can be in an object, so this can be distinguished from any entry
@@ -1070,7 +1070,7 @@ class CodeRange {
   Isolate* isolate_;
 
   // The reserved range of virtual memory that all code objects are put in.
-  base::VirtualMemory virtual_memory_;
+  VirtualMemory virtual_memory_;
 
   // The global mutex guards free_list_ and allocation_list_ as GC threads may
   // access both lists concurrently to the main thread.
@@ -1338,14 +1338,14 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
                              Executability executable, Space* space);
 
   Address ReserveAlignedMemory(size_t requested, size_t alignment, void* hint,
-                               base::VirtualMemory* controller);
+                               VirtualMemory* controller);
   Address AllocateAlignedMemory(size_t reserve_size, size_t commit_size,
                                 size_t alignment, Executability executable,
-                                void* hint, base::VirtualMemory* controller);
+                                void* hint, VirtualMemory* controller);
 
   bool CommitMemory(Address addr, size_t size, Executability executable);
 
-  void FreeMemory(base::VirtualMemory* reservation, Executability executable);
+  void FreeMemory(VirtualMemory* reservation, Executability executable);
   void FreeMemory(Address addr, size_t size, Executability executable);
 
   // Partially release |bytes_to_free| bytes starting at |start_free|. Note that
@@ -1371,8 +1371,8 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   // filling it up with a recognizable non-NULL bit pattern.
   void ZapBlock(Address start, size_t size);
 
-  MUST_USE_RESULT bool CommitExecutableMemory(base::VirtualMemory* vm,
-                                              Address start, size_t commit_size,
+  MUST_USE_RESULT bool CommitExecutableMemory(VirtualMemory* vm, Address start,
+                                              size_t commit_size,
                                               size_t reserved_size);
 
   CodeRange* code_range() { return code_range_; }
@@ -1435,7 +1435,7 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
   base::AtomicValue<void*> lowest_ever_allocated_;
   base::AtomicValue<void*> highest_ever_allocated_;
 
-  base::VirtualMemory last_chunk_;
+  VirtualMemory last_chunk_;
   Unmapper unmapper_;
 
   friend class heap::TestCodeRangeScope;
@@ -2746,8 +2746,7 @@ class NewSpace : public Space {
   // The semispaces.
   SemiSpace to_space_;
   SemiSpace from_space_;
-  base::VirtualMemory reservation_;
-
+  VirtualMemory reservation_;
 
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
