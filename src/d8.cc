@@ -949,6 +949,7 @@ PerIsolateData::RealmScope::~RealmScope() {
     // TODO(adamk): No need to reset manually, Globals reset when destructed.
     realm.Reset();
   }
+  data_->realm_count_ = 0;
   delete[] data_->realms_;
   // TODO(adamk): No need to reset manually, Globals reset when destructed.
   if (!data_->realm_shared_.IsEmpty())
