@@ -2565,6 +2565,8 @@ void MinorMarkCompactCollector::EvacuatePrologue() {
 
 void MinorMarkCompactCollector::EvacuateEpilogue() {
   heap()->new_space()->set_age_mark(heap()->new_space()->top());
+  // Give pages that are queued to be freed back to the OS.
+  heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 }
 
 void MinorMarkCompactCollector::Evacuate() {
@@ -2589,9 +2591,6 @@ void MinorMarkCompactCollector::Evacuate() {
       FatalProcessOutOfMemory("NewSpace::Rebalance");
     }
   }
-
-  // Give pages that are queued to be freed back to the OS.
-  heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_EVACUATE_CLEAN_UP);
@@ -3193,8 +3192,12 @@ void MarkCompactCollector::EvacuatePrologue() {
 void MarkCompactCollector::EvacuateEpilogue() {
   // New space.
   heap()->new_space()->set_age_mark(heap()->new_space()->top());
+  // Deallocate unmarked large objects.
+  heap()->lo_space()->FreeUnmarkedObjects();
   // Old space. Deallocate evacuated candidate pages.
   ReleaseEvacuationCandidates();
+  // Give pages that are queued to be freed back to the OS.
+  heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 #ifdef DEBUG
   // Old-to-old slot sets must be empty after evacuation.
   for (Page* p : *heap()->old_space()) {
@@ -4416,7 +4419,6 @@ void MarkCompactCollector::ReleaseEvacuationCandidates() {
   }
   old_space_evacuation_pages_.clear();
   compacting_ = false;
-  heap()->memory_allocator()->unmapper()->FreeQueuedChunks();
 }
 
 int MarkCompactCollector::Sweeper::ParallelSweepSpace(AllocationSpace identity,
@@ -4585,9 +4587,6 @@ void MarkCompactCollector::StartSweepSpaces() {
     }
     sweeper().StartSweeping();
   }
-
-  // Deallocate unmarked large objects.
-  heap_->lo_space()->FreeUnmarkedObjects();
 }
 
 }  // namespace internal
