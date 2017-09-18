@@ -485,7 +485,8 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   virtual void Free(void* data, size_t) { free(data); }
 
   virtual void* Reserve(size_t length) {
-    return base::OS::ReserveRegion(length, base::OS::GetRandomMmapAddr());
+    return base::VirtualMemory::ReserveRegion(length,
+                                              base::OS::GetRandomMmapAddr());
   }
 
   virtual void Free(void* data, size_t length,
@@ -495,7 +496,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
         return Free(data, length);
       }
       case v8::ArrayBuffer::Allocator::AllocationMode::kReservation: {
-        base::OS::ReleaseRegion(data, length);
+        base::VirtualMemory::ReleaseRegion(data, length);
         return;
       }
     }
