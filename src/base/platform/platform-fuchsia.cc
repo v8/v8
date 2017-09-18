@@ -2,28 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(scottmg): Temporary during 3-sided roll, see https://crbug.com/765754.
-#if defined(CHROMIUM_ROLLING_MAGENTA_TO_ZIRCON)
-#include <zircon/process.h>
-#include <zircon/syscalls.h>
-#define MX_OK ZX_OK
-#define MX_PROP_NAME ZX_PROP_NAME
-#define MX_VM_FLAG_PERM_EXECUTE ZX_VM_FLAG_PERM_EXECUTE
-#define MX_VM_FLAG_PERM_READ ZX_VM_FLAG_PERM_READ
-#define MX_VM_FLAG_PERM_WRITE ZX_VM_FLAG_PERM_WRITE
-#define mx_handle_close zx_handle_close
-#define mx_handle_t zx_handle_t
-#define mx_object_set_property zx_object_set_property
-#define mx_status_t zx_status_t
-#define mx_vmar_map zx_vmar_map
-#define mx_vmar_protect zx_vmar_protect
-#define mx_vmar_root_self zx_vmar_root_self
-#define mx_vmar_unmap zx_vmar_unmap
-#define mx_vmo_create zx_vmo_create
-#else
 #include <magenta/process.h>
 #include <magenta/syscalls.h>
-#endif
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform-posix-time.h"
@@ -163,20 +143,3 @@ void OS::SignalCodeMovingGC() {
 
 }  // namespace base
 }  // namespace v8
-
-#if defined(CHROMIUM_ROLLING_MAGENTA_TO_ZIRCON)
-#undef MX_OK ZX_OK
-#undef MX_PROP_NAME ZX_PROP_NAME
-#undef MX_VM_FLAG_PERM_EXECUTE ZX_VM_FLAG_PERM_EXECUTE
-#undef MX_VM_FLAG_PERM_READ ZX_VM_FLAG_PERM_READ
-#undef MX_VM_FLAG_PERM_WRITE ZX_VM_FLAG_PERM_WRITE
-#undef mx_handle_close zx_handle_close
-#undef mx_handle_t zx_handle_t
-#undef mx_object_set_property zx_object_set_property
-#undef mx_status_t zx_status_t
-#undef mx_vmar_map zx_vmar_map
-#undef mx_vmar_protect zx_vmar_protect
-#undef mx_vmar_root_self zx_vmar_root_self
-#undef mx_vmar_unmap zx_vmar_unmap
-#undef mx_vmo_create zx_vmo_create
-#endif
