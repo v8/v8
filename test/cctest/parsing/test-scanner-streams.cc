@@ -461,6 +461,25 @@ TEST(Regress651333) {
   }
 }
 
+void TestChunkStreamAgainstReference(
+    const char* cases[],
+    const std::vector<std::vector<uint16_t>>& unicode_expected) {
+  for (size_t c = 0; c < unicode_expected.size(); ++c) {
+    ChunkSource chunk_source(cases[c]);
+    std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
+        &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
+    for (size_t i = 0; i < unicode_expected[c].size(); i++) {
+      CHECK_EQ(unicode_expected[c][i], stream->Advance());
+    }
+    CHECK_EQ(i::Utf16CharacterStream::kEndOfInput, stream->Advance());
+    stream->Seek(0);
+    for (size_t i = 0; i < unicode_expected[c].size(); i++) {
+      CHECK_EQ(unicode_expected[c][i], stream->Advance());
+    }
+    CHECK_EQ(i::Utf16CharacterStream::kEndOfInput, stream->Advance());
+  }
+}
+
 TEST(Regress6377) {
   const char* cases[] = {
       "\xf0\x90\0"  // first chunk - start of 4-byte seq
@@ -480,22 +499,27 @@ TEST(Regress6377) {
       "a\xc3\0"         // and an 'a' + start of 2-byte seq
       "\xbf\0",         // third chunk - end of 2-byte seq
   };
-  const std::vector<std::vector<uint16_t>> unicode = {
+  const std::vector<std::vector<uint16_t>> unicode_expected = {
       {0xd800, 0xdc00, 97}, {0xfff, 97}, {0xff, 97}, {0xd800, 0xdc00, 97, 0xff},
   };
-  CHECK_EQ(unicode.size(), sizeof(cases) / sizeof(cases[0]));
-  for (size_t c = 0; c < unicode.size(); ++c) {
-    ChunkSource chunk_source(cases[c]);
-    std::unique_ptr<i::Utf16CharacterStream> stream(i::ScannerStream::For(
-        &chunk_source, v8::ScriptCompiler::StreamedSource::UTF8, nullptr));
-    for (size_t i = 0; i < unicode[c].size(); i++) {
-      CHECK_EQ(unicode[c][i], stream->Advance());
-    }
-    CHECK_EQ(i::Utf16CharacterStream::kEndOfInput, stream->Advance());
-    stream->Seek(0);
-    for (size_t i = 0; i < unicode[c].size(); i++) {
-      CHECK_EQ(unicode[c][i], stream->Advance());
-    }
-    CHECK_EQ(i::Utf16CharacterStream::kEndOfInput, stream->Advance());
-  }
+  CHECK_EQ(unicode_expected.size(), arraysize(cases));
+  TestChunkStreamAgainstReference(cases, unicode_expected);
+}
+
+TEST(Regress6836) {
+  const char* cases[] = {
+      // 0xc2 is a lead byte, but there's no continuation. The bug occurs when
+      // this happens near the chunk end.
+      "X\xc2Y\0",
+      // Last chunk ends with a 2-byte char lead.
+      "X\xc2\0",
+      // Last chunk ends with a 3-byte char lead and only one continuation
+      // character.
+      "X\xe0\xbf\0",
+  };
+  const std::vector<std::vector<uint16_t>> unicode_expected = {
+      {0x58, 0xfffd, 0x59}, {0x58, 0xfffd}, {0x58, 0xfffd},
+  };
+  CHECK_EQ(unicode_expected.size(), arraysize(cases));
+  TestChunkStreamAgainstReference(cases, unicode_expected);
 }
