@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 void SequentialMarkingDeque::SetUp() {
-  VirtualMemory reservation;
+  base::VirtualMemory reservation;
   if (!AllocVirtualMemory(kMaxSize, heap_->GetRandomMmapAddr(), &reservation)) {
     V8::FatalProcessOutOfMemory("SequentialMarkingDeque::SetUp");
   }
