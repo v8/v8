@@ -7,7 +7,6 @@
 
 #include <deque>
 
-#include "src/allocation.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 #include "src/cancelable-task.h"
@@ -132,7 +131,7 @@ class SequentialMarkingDeque {
 
   base::Mutex mutex_;
 
-  VirtualMemory backing_store_;
+  base::VirtualMemory backing_store_;
   size_t backing_store_committed_size_;
   HeapObject** array_;
   // array_[(top - 1) & mask_] is the top element in the deque.  The Deque is
