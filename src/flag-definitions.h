@@ -205,7 +205,6 @@ DEFINE_IMPLICATION(es_staging, harmony)
     "harmony disallow non undefined primitive return value from class " \
     "constructor")                                                      \
   V(harmony_dynamic_import, "harmony dynamic import")                   \
-  V(harmony_async_iteration, "harmony async iteration")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                        \
@@ -227,6 +226,7 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")              \
   V(harmony_regexp_dotall, "harmony regexp dotAll flag")                 \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")              \
+  V(harmony_async_iteration, "harmony async iteration")                  \
   V(harmony_template_escapes,                                            \
     "harmony invalid escapes in tagged template literals")               \
   V(harmony_promise_finally, "harmony Promise.prototype.finally")
