@@ -512,9 +512,6 @@ DEFINE_BOOL(stress_validate_asm, false, "try to validate everything as asm.js")
 DEFINE_BOOL(dump_wasm_module, false, "dump wasm module bytes")
 DEFINE_STRING(dump_wasm_module_path, NULL, "directory to dump wasm modules to")
 
-DEFINE_INT(typed_array_max_size_in_heap, 64,
-           "threshold for in-heap typed array")
-
 DEFINE_BOOL(experimental_wasm_simd, false,
             "enable prototype simd opcodes for wasm")
 DEFINE_BOOL(experimental_wasm_eh, false,
