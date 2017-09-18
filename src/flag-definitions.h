@@ -205,8 +205,7 @@ DEFINE_IMPLICATION(es_staging, harmony)
     "harmony disallow non undefined primitive return value from class " \
     "constructor")                                                      \
   V(harmony_dynamic_import, "harmony dynamic import")                   \
-  V(harmony_async_iteration, "harmony async iteration")                 \
-  V(harmony_promise_finally, "harmony Promise.prototype.finally")
+  V(harmony_async_iteration, "harmony async iteration")
 
 #ifdef V8_INTL_SUPPORT
 #define HARMONY_STAGED(V)                        \
@@ -229,7 +228,8 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_regexp_dotall, "harmony regexp dotAll flag")                 \
   V(harmony_regexp_lookbehind, "harmony regexp lookbehind")              \
   V(harmony_template_escapes,                                            \
-    "harmony invalid escapes in tagged template literals")
+    "harmony invalid escapes in tagged template literals")               \
+  V(harmony_promise_finally, "harmony Promise.prototype.finally")
 
 // Once a shipping feature has proved stable in the wild, it will be dropped
 // from HARMONY_SHIPPING, all occurrences of the FLAG_ variable are removed,
