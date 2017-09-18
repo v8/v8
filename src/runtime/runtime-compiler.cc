@@ -137,28 +137,6 @@ RUNTIME_FUNCTION(Runtime_NotifyStubFailure) {
   return isolate->heap()->undefined_value();
 }
 
-class ActivationsFinder : public ThreadVisitor {
- public:
-  Code* code_;
-  bool has_code_activations_;
-
-  explicit ActivationsFinder(Code* code)
-      : code_(code), has_code_activations_(false) {}
-
-  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
-    JavaScriptFrameIterator it(isolate, top);
-    VisitFrames(&it);
-  }
-
-  void VisitFrames(JavaScriptFrameIterator* it) {
-    for (; !it->done(); it->Advance()) {
-      JavaScriptFrame* frame = it->frame();
-      if (code_->contains(frame->pc())) has_code_activations_ = true;
-    }
-  }
-};
-
-
 RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
