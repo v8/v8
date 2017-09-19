@@ -269,11 +269,11 @@ Vector<const byte> Snapshot::ExtractContextData(const v8::StartupData* data,
   return Vector<const byte>(context_data, context_length);
 }
 
-SnapshotData::SnapshotData(const Serializer* serializer) {
+template <class AllocatorT>
+SnapshotData::SnapshotData(const Serializer<AllocatorT>* serializer) {
   DisallowHeapAllocation no_gc;
-  std::vector<Reservation> reservations;
-  serializer->EncodeReservations(&reservations);
-  const std::vector<byte>* payload = serializer->sink()->data();
+  std::vector<Reservation> reservations = serializer->EncodeReservations();
+  const std::vector<byte>* payload = serializer->Payload();
 
   // Calculate sizes.
   uint32_t reservation_size =
@@ -298,6 +298,10 @@ SnapshotData::SnapshotData(const Serializer* serializer) {
   CopyBytes(data_ + kHeaderSize + reservation_size, payload->data(),
             static_cast<size_t>(payload->size()));
 }
+
+// Explicit instantiation.
+template SnapshotData::SnapshotData(
+    const Serializer<DefaultSerializerAllocator>* serializer);
 
 bool SnapshotData::IsSane() {
   return GetHeaderValue(kVersionHashOffset) == Version::Hash();

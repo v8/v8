@@ -10,6 +10,7 @@
 #include "src/isolate.h"
 #include "src/log.h"
 #include "src/objects.h"
+#include "src/snapshot/default-serializer-allocator.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot-source-sink.h"
 
@@ -119,24 +120,23 @@ class CodeAddressMap : public CodeEventLogger {
   Isolate* isolate_;
 };
 
-// There can be only one serializer per V8 process.
+template <class AllocatorT = DefaultSerializerAllocator>
 class Serializer : public SerializerDeserializer {
  public:
   explicit Serializer(Isolate* isolate);
   ~Serializer() override;
 
-  void EncodeReservations(std::vector<SerializedData::Reservation>* out) const;
+  std::vector<SerializedData::Reservation> EncodeReservations() const {
+    return allocator_.EncodeReservations();
+  }
 
-  void SerializeDeferredObjects();
+  const std::vector<byte>* Payload() const { return sink_.data(); }
+
+  bool ReferenceMapContains(HeapObject* o) {
+    return reference_map()->Lookup(o).is_valid();
+  }
 
   Isolate* isolate() const { return isolate_; }
-
-  SerializerReferenceMap* reference_map() { return &reference_map_; }
-  RootIndexMap* root_index_map() { return &root_index_map_; }
-
-#ifdef OBJECT_PRINT
-  void CountInstanceType(Map* map, int size);
-#endif  // OBJECT_PRINT
 
  protected:
   class ObjectSerializer;
@@ -155,6 +155,7 @@ class Serializer : public SerializerDeserializer {
     Serializer* serializer_;
   };
 
+  void SerializeDeferredObjects();
   virtual void SerializeObject(HeapObject* o, HowToCode how_to_code,
                                WhereToPoint where_to_point, int skip) = 0;
 
@@ -164,16 +165,13 @@ class Serializer : public SerializerDeserializer {
 
   void PutRoot(int index, HeapObject* object, HowToCode how, WhereToPoint where,
                int skip);
-
   void PutSmi(Smi* smi);
-
   void PutBackReference(HeapObject* object, SerializerReference reference);
-
   void PutAttachedReference(SerializerReference reference,
                             HowToCode how_to_code, WhereToPoint where_to_point);
-
   // Emit alignment prefix if necessary, return required padding space in bytes.
   int PutAlignmentPrefix(HeapObject* object);
+  void PutNextChunk(int space);
 
   // Returns true if the object was successfully serialized as hot object.
   bool SerializeHotObject(HeapObject* obj, HowToCode how_to_code,
@@ -202,16 +200,9 @@ class Serializer : public SerializerDeserializer {
     }
   }
 
-  // This will return the space for an object.
-  SerializerReference AllocateOffHeapBackingStore();
-  SerializerReference AllocateLargeObject(int size);
-  SerializerReference AllocateMap();
-  SerializerReference Allocate(AllocationSpace space, int size);
   ExternalReferenceEncoder::Value EncodeExternalReference(Address addr) {
     return external_reference_encoder_.Encode(addr);
   }
-
-  bool HasNotExceededFirstPageOfEachSpace();
 
   // GetInt reads 4 bytes at once, requiring padding at the end.
   void Pad();
@@ -222,14 +213,6 @@ class Serializer : public SerializerDeserializer {
 
   Code* CopyCode(Code* code);
 
-  inline uint32_t max_chunk_size(int space) const {
-    DCHECK_LE(0, space);
-    DCHECK_LT(space, kNumberOfSpaces);
-    return max_chunk_size_[space];
-  }
-
-  const SnapshotByteSink* sink() const { return &sink_; }
-
   void QueueDeferredObject(HeapObject* obj) {
     DCHECK(reference_map_.Lookup(obj).is_back_reference());
     deferred_objects_.push_back(obj);
@@ -237,56 +220,32 @@ class Serializer : public SerializerDeserializer {
 
   void OutputStatistics(const char* name);
 
+#ifdef OBJECT_PRINT
+  void CountInstanceType(Map* map, int size);
+#endif  // OBJECT_PRINT
+
 #ifdef DEBUG
   void PushStack(HeapObject* o) { stack_.push_back(o); }
   void PopStack() { stack_.pop_back(); }
   void PrintStack();
-
-  bool BackReferenceIsAlreadyAllocated(SerializerReference back_reference);
 #endif  // DEBUG
 
-  Isolate* isolate_;
+  SerializerReferenceMap* reference_map() { return &reference_map_; }
+  RootIndexMap* root_index_map() { return &root_index_map_; }
+  AllocatorT* allocator() { return &allocator_; }
 
-  SnapshotByteSink sink_;
-  ExternalReferenceEncoder external_reference_encoder_;
-
-  SerializerReferenceMap reference_map_;
-  RootIndexMap root_index_map_;
-
-  int recursion_depth_;
-
-  friend class Deserializer;
-  friend class ObjectSerializer;
-  friend class RecursionScope;
-  friend class SnapshotData;
+  SnapshotByteSink sink_;  // Used directly by subclasses.
 
  private:
-  CodeAddressMap* code_address_map_;
-  // Objects from the same space are put into chunks for bulk-allocation
-  // when deserializing. We have to make sure that each chunk fits into a
-  // page. So we track the chunk size in pending_chunk_ of a space, but
-  // when it exceeds a page, we complete the current chunk and start a new one.
-  uint32_t pending_chunk_[kNumberOfPreallocatedSpaces];
-  std::vector<uint32_t> completed_chunks_[kNumberOfPreallocatedSpaces];
-  uint32_t max_chunk_size_[kNumberOfPreallocatedSpaces];
-  // Number of maps that we need to allocate.
-  uint32_t num_maps_;
-
-  // We map serialized large objects to indexes for back-referencing.
-  uint32_t large_objects_total_size_;
-  uint32_t seen_large_objects_index_;
-
-  // Used to keep track of the off-heap backing stores used by TypedArrays/
-  // ArrayBuffers. Note that the index begins at 1 and not 0, because when a
-  // TypedArray has an on-heap backing store, the backing_store pointer in the
-  // corresponding ArrayBuffer will be null, which makes it indistinguishable
-  // from index 0.
-  uint32_t seen_backing_stores_index_;
-
+  Isolate* isolate_;
+  SerializerReferenceMap reference_map_;
+  ExternalReferenceEncoder external_reference_encoder_;
+  RootIndexMap root_index_map_;
+  CodeAddressMap* code_address_map_ = nullptr;
   std::vector<byte> code_buffer_;
-
-  // To handle stack overflow.
-  std::vector<HeapObject*> deferred_objects_;
+  std::vector<HeapObject*> deferred_objects_;  // To handle stack overflow.
+  int recursion_depth_ = 0;
+  AllocatorT allocator_;
 
 #ifdef OBJECT_PRINT
   static const int kInstanceTypes = 256;
@@ -298,10 +257,13 @@ class Serializer : public SerializerDeserializer {
   std::vector<HeapObject*> stack_;
 #endif  // DEBUG
 
+  friend class DefaultSerializerAllocator;
+
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 
-class Serializer::ObjectSerializer : public ObjectVisitor {
+template <class AllocatorT>
+class Serializer<AllocatorT>::ObjectSerializer : public ObjectVisitor {
  public:
   ObjectSerializer(Serializer* serializer, HeapObject* obj,
                    SnapshotByteSink* sink, HowToCode how_to_code,

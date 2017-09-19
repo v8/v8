@@ -15,7 +15,7 @@ class StartupSerializer;
 // Responsible for serializing all builtin objects during startup snapshot
 // creation.  Builtins are serialized into a dedicated area of the snapshot.
 // See snapshot.h for documentation of the snapshot layout.
-class BuiltinSerializer : public Serializer {
+class BuiltinSerializer : public Serializer<> {
  public:
   BuiltinSerializer(Isolate* isolate, StartupSerializer* startup_serializer);
   ~BuiltinSerializer() override;

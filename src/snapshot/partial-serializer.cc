@@ -36,11 +36,12 @@ void PartialSerializer::Serialize(Object** o, bool include_global_proxy) {
   // and it's next context pointer may point to the code-stub context.  Clear
   // it before serializing, it will get re-added to the context list
   // explicitly when it's loaded.
-  context->set(Context::NEXT_CONTEXT_LINK, isolate_->heap()->undefined_value());
+  context->set(Context::NEXT_CONTEXT_LINK,
+               isolate()->heap()->undefined_value());
   DCHECK(!context->global_object()->IsUndefined(context->GetIsolate()));
   // Reset math random cache to get fresh random numbers.
   context->set_math_random_index(Smi::kZero);
-  context->set_math_random_cache(isolate_->heap()->undefined_value());
+  context->set_math_random_cache(isolate()->heap()->undefined_value());
   DCHECK_NULL(rehashable_global_dictionary_);
   rehashable_global_dictionary_ = context->global_object()->global_dictionary();
 
@@ -66,7 +67,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
-  int root_index = root_index_map_.Lookup(obj);
+  int root_index = root_index_map()->Lookup(obj);
   if (root_index != RootIndexMap::kInvalidRootIndex) {
     PutRoot(root_index, obj, how_to_code, where_to_point, skip);
     return;
@@ -87,7 +88,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   // Pointers from the partial snapshot to the objects in the startup snapshot
   // should go through the root array or through the partial snapshot cache.
   // If this is not the case you may have to add something to the root array.
-  DCHECK(!startup_serializer_->reference_map()->Lookup(obj).is_valid());
+  DCHECK(!startup_serializer_->ReferenceMapContains(obj));
   // All the internalized strings that the partial snapshot needs should be
   // either in the root table or in the partial snapshot cache.
   DCHECK(!obj->IsInternalizedString());
@@ -97,7 +98,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   FlushSkip(skip);
 
   // Clear literal boilerplates and feedback.
-  if (obj->IsFeedbackVector()) FeedbackVector::cast(obj)->ClearSlots(isolate_);
+  if (obj->IsFeedbackVector()) FeedbackVector::cast(obj)->ClearSlots(isolate());
 
   if (obj->IsJSObject()) {
     JSObject* jsobj = JSObject::cast(obj);
@@ -138,7 +139,7 @@ void PartialSerializer::SerializeEmbedderFields() {
     HandleScope scope(isolate());
     Handle<JSObject> obj(embedder_field_holders_.back(), isolate());
     embedder_field_holders_.pop_back();
-    SerializerReference reference = reference_map_.Lookup(*obj);
+    SerializerReference reference = reference_map()->Lookup(*obj);
     DCHECK(reference.is_back_reference());
     int embedder_fields_count = obj->GetEmbedderFieldCount();
     for (int i = 0; i < embedder_fields_count; i++) {

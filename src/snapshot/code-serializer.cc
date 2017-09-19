@@ -55,7 +55,7 @@ ScriptData* CodeSerializer::Serialize(Handle<HeapObject> obj) {
   SerializeDeferredObjects();
   Pad();
 
-  SerializedCodeData data(sink()->data(), this);
+  SerializedCodeData data(sink_.data(), this);
 
   return data.GetScriptData();
 }
@@ -64,7 +64,7 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                      WhereToPoint where_to_point, int skip) {
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
-  int root_index = root_index_map_.Lookup(obj);
+  int root_index = root_index_map()->Lookup(obj);
   if (root_index != RootIndexMap::kInvalidRootIndex) {
     PutRoot(root_index, obj, how_to_code, where_to_point, skip);
     return;
@@ -317,9 +317,7 @@ SerializedCodeData::SerializedCodeData(const std::vector<byte>* payload,
                                        const CodeSerializer* cs) {
   DisallowHeapAllocation no_gc;
   const std::vector<uint32_t>* stub_keys = cs->stub_keys();
-
-  std::vector<Reservation> reservations;
-  cs->EncodeReservations(&reservations);
+  std::vector<Reservation> reservations = cs->EncodeReservations();
 
   // Calculate sizes.
   uint32_t reservation_size =

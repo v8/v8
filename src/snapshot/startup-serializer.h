@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-class StartupSerializer : public Serializer {
+class StartupSerializer : public Serializer<> {
  public:
   StartupSerializer(
       Isolate* isolate,

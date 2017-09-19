@@ -23,7 +23,8 @@ class StartupSerializer;
 class SnapshotData : public SerializedData {
  public:
   // Used when producing.
-  explicit SnapshotData(const Serializer* serializer);
+  template <class AllocatorT>
+  explicit SnapshotData(const Serializer<AllocatorT>* serializer);
 
   // Used when consuming.
   explicit SnapshotData(const Vector<const byte> snapshot)

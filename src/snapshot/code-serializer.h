@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-class CodeSerializer : public Serializer {
+class CodeSerializer : public Serializer<> {
  public:
   static ScriptData* Serialize(Isolate* isolate,
                                Handle<SharedFunctionInfo> info,

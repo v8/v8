@@ -20,7 +20,7 @@ BuiltinSerializer::~BuiltinSerializer() {
 
 void BuiltinSerializer::SerializeBuiltins() {
   for (int i = 0; i < Builtins::builtin_count; i++) {
-    builtin_offsets_[i] = sink()->Position();
+    builtin_offsets_[i] = sink_.Position();
     SerializeBuiltin(isolate()->builtins()->builtin(i));
   }
   Pad();  // Pad with kNop since GetInt() might read too far.
@@ -55,7 +55,7 @@ void BuiltinSerializer::SerializeObject(HeapObject* o, HowToCode how_to_code,
   DCHECK(!o->IsSmi());
 
   // Roots can simply be serialized as root references.
-  int root_index = root_index_map_.Lookup(o);
+  int root_index = root_index_map()->Lookup(o);
   if (root_index != RootIndexMap::kInvalidRootIndex) {
     DCHECK(startup_serializer_->root_has_been_serialized(root_index));
     PutRoot(root_index, o, how_to_code, where_to_point, skip);

@@ -44,7 +44,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
   if (SerializeHotObject(obj, how_to_code, where_to_point, skip)) return;
 
-  int root_index = root_index_map_.Lookup(obj);
+  int root_index = root_index_map()->Lookup(obj);
   // We can only encode roots as such if it has already been serialized.
   // That applies to root indices below the wave front.
   if (root_index != RootIndexMap::kInvalidRootIndex) {
@@ -58,7 +58,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
 
   FlushSkip(skip);
 
-  if (isolate_->external_reference_redirector() && obj->IsAccessorInfo()) {
+  if (isolate()->external_reference_redirector() && obj->IsAccessorInfo()) {
     // Wipe external reference redirects in the accessor info.
     AccessorInfo* info = AccessorInfo::cast(obj);
     Address original_address = Foreign::cast(info->getter())->foreign_address();
@@ -66,7 +66,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     accessor_infos_.push_back(info);
   } else if (obj->IsScript() && Script::cast(obj)->IsUserJavaScript()) {
     Script::cast(obj)->set_context_data(
-        isolate_->heap()->uninitialized_symbol());
+        isolate()->heap()->uninitialized_symbol());
   } else if (obj->IsSharedFunctionInfo()) {
     // Clear inferred name for native functions.
     SharedFunctionInfo* shared = SharedFunctionInfo::cast(obj);
@@ -125,7 +125,7 @@ void StartupSerializer::SerializeStrongReferences() {
   serializing_immortal_immovables_roots_ = true;
   isolate->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG_ROOT_LIST);
   // Check that immortal immovable roots are allocated on the first page.
-  CHECK(HasNotExceededFirstPageOfEachSpace());
+  DCHECK(allocator()->HasNotExceededFirstPageOfEachSpace());
   serializing_immortal_immovables_roots_ = false;
   // Visit the rest of the strong roots.
   // Clear the stack limits to make the snapshot reproducible.
@@ -185,11 +185,11 @@ void StartupSerializer::CheckRehashability(HeapObject* table) {
   // We can only correctly rehash if the four hash tables below are the only
   // ones that we deserialize.
   if (table->IsUnseededNumberDictionary()) return;
-  if (table == isolate_->heap()->empty_ordered_hash_table()) return;
-  if (table == isolate_->heap()->empty_slow_element_dictionary()) return;
-  if (table == isolate_->heap()->empty_property_dictionary()) return;
-  if (table == isolate_->heap()->weak_object_to_code_table()) return;
-  if (table == isolate_->heap()->string_table()) return;
+  if (table == isolate()->heap()->empty_ordered_hash_table()) return;
+  if (table == isolate()->heap()->empty_slow_element_dictionary()) return;
+  if (table == isolate()->heap()->empty_property_dictionary()) return;
+  if (table == isolate()->heap()->weak_object_to_code_table()) return;
+  if (table == isolate()->heap()->string_table()) return;
   can_be_rehashed_ = false;
 }
 
