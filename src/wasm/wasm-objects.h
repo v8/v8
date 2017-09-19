@@ -498,6 +498,9 @@ class WasmCompiledModule : public FixedArray {
   static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
       wasm::WireBytesRef ref);
+  static MaybeHandle<String> ExtractUtf8StringFromModuleBytes(
+      Isolate* isolate, Handle<SeqOneByteString> module_bytes,
+      wasm::WireBytesRef ref);
 
   // Get a list of all possible breakpoints within a given range of this module.
   bool GetPossibleBreakpoints(const debug::Location& start,

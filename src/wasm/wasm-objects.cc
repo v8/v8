@@ -1074,6 +1074,13 @@ MaybeHandle<String> WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
   // TODO(wasm): cache strings from modules if it's a performance win.
   Handle<SeqOneByteString> module_bytes(compiled_module->module_bytes(),
                                         isolate);
+  return WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+      isolate, module_bytes, ref);
+}
+
+MaybeHandle<String> WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+    Isolate* isolate, Handle<SeqOneByteString> module_bytes,
+    wasm::WireBytesRef ref) {
   DCHECK_GE(module_bytes->length(), ref.end_offset());
   // UTF8 validation happens at decode time.
   DCHECK(unibrow::Utf8::ValidateEncoding(

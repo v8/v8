@@ -777,7 +777,9 @@ InstanceBuilder::InstanceBuilder(
       module_object_(module_object),
       ffi_(ffi),
       memory_(memory),
-      instance_finalizer_callback_(instance_finalizer_callback) {}
+      instance_finalizer_callback_(instance_finalizer_callback) {
+  sanitized_imports_.reserve(module_->import_table.size());
+}
 
 // Build an instance, in all of its glory.
 MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
@@ -789,6 +791,12 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     return {};
   }
 
+  SanitizeImports();
+  if (thrower_->error()) return {};
+
+  // From here on, we expect the build pipeline to run without exiting to JS.
+  // Exception is when we run the startup function.
+  DisallowJavascriptExecution no_js(isolate_);
   // Record build time into correct bucket, then build instance.
   TimedHistogramScope wasm_instantiate_module_time_scope(
       module_->is_wasm() ? counters()->wasm_instantiate_wasm_module_time()
@@ -1163,16 +1171,20 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     RecordStats(*startup_code, counters());
     // Call the JS function.
     Handle<Object> undefined = factory->undefined_value();
-    MaybeHandle<Object> retval =
-        Execution::Call(isolate_, startup_fct, undefined, 0, nullptr);
+    {
+      // We're OK with JS execution here. The instance is fully setup.
+      AllowJavascriptExecution allow_js(isolate_);
+      MaybeHandle<Object> retval =
+          Execution::Call(isolate_, startup_fct, undefined, 0, nullptr);
 
-    if (retval.is_null()) {
-      DCHECK(isolate_->has_pending_exception());
-      // It's unfortunate that the new instance is already linked in the
-      // chain. However, we need to set up everything before executing the
-      // start function, such that stack trace information can be generated
-      // correctly already in the start function.
-      return {};
+      if (retval.is_null()) {
+        DCHECK(isolate_->has_pending_exception());
+        // It's unfortunate that the new instance is already linked in the
+        // chain. However, we need to set up everything before executing the
+        // startup unction, such that stack trace information can be generated
+        // correctly already in the start function.
+        return {};
+      }
     }
   }
 
@@ -1308,6 +1320,46 @@ void InstanceBuilder::WriteGlobalValue(WasmGlobal& global,
   }
 }
 
+void InstanceBuilder::SanitizeImports() {
+  Handle<SeqOneByteString> module_bytes(
+      module_object_->compiled_module()->module_bytes());
+  for (size_t index = 0; index < module_->import_table.size(); ++index) {
+    WasmImport& import = module_->import_table[index];
+
+    Handle<String> module_name;
+    MaybeHandle<String> maybe_module_name =
+        WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+            isolate_, module_bytes, import.module_name);
+    if (!maybe_module_name.ToHandle(&module_name)) {
+      thrower_->LinkError("Could not resolve module name for import %zu",
+                          index);
+      return;
+    }
+
+    Handle<String> import_name;
+    MaybeHandle<String> maybe_import_name =
+        WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
+            isolate_, module_bytes, import.field_name);
+    if (!maybe_import_name.ToHandle(&import_name)) {
+      thrower_->LinkError("Could not resolve import name for import %zu",
+                          index);
+      return;
+    }
+
+    int int_index = static_cast<int>(index);
+    MaybeHandle<Object> result =
+        module_->is_asm_js()
+            ? LookupImportAsm(int_index, import_name)
+            : LookupImport(int_index, module_name, import_name);
+    if (thrower_->error()) {
+      thrower_->LinkError("Could not find value for import %zu", index);
+      return;
+    }
+    Handle<Object> value = result.ToHandleChecked();
+    sanitized_imports_.push_back({module_name, import_name, value});
+  }
+}
+
 // Process the imports, including functions, tables, globals, and memory, in
 // order, loading them from the {ffi_} object. Returns the number of imported
 // functions.
@@ -1325,27 +1377,14 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
       v8::WeakCallbackType::kFinalizer);
   instance->set_js_imports_table(*func_table);
   WasmInstanceMap imported_wasm_instances(isolate_->heap());
+  DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
   for (int index = 0; index < static_cast<int>(module_->import_table.size());
        ++index) {
     WasmImport& import = module_->import_table[index];
 
-    Handle<String> module_name;
-    MaybeHandle<String> maybe_module_name =
-        WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-            isolate_, compiled_module_, import.module_name);
-    if (!maybe_module_name.ToHandle(&module_name)) return -1;
-
-    Handle<String> import_name;
-    MaybeHandle<String> maybe_import_name =
-        WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
-            isolate_, compiled_module_, import.field_name);
-    if (!maybe_import_name.ToHandle(&import_name)) return -1;
-
-    MaybeHandle<Object> result =
-        module_->is_asm_js() ? LookupImportAsm(index, import_name)
-                             : LookupImport(index, module_name, import_name);
-    if (thrower_->error()) return -1;
-    Handle<Object> value = result.ToHandleChecked();
+    Handle<String> module_name = sanitized_imports_[index].module_name;
+    Handle<String> import_name = sanitized_imports_[index].import_name;
+    Handle<Object> value = sanitized_imports_[index].value;
 
     switch (import.kind) {
       case kExternalFunction: {

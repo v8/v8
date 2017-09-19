@@ -219,6 +219,13 @@ class InstanceBuilder {
     Handle<FixedArray> signature_table;    // internal sig array
   };
 
+  // A pre-evaluated value to use in import binding.
+  struct SanitizedImport {
+    Handle<String> module_name;
+    Handle<String> import_name;
+    Handle<Object> value;
+  };
+
   Isolate* isolate_;
   WasmModule* const module_;
   const std::shared_ptr<Counters> async_counters_;
@@ -232,6 +239,7 @@ class InstanceBuilder {
   std::vector<Handle<JSFunction>> js_wrappers_;
   JSToWasmWrapperCache js_to_wasm_cache_;
   WeakCallbackInfo<void>::Callback instance_finalizer_callback_;
+  std::vector<SanitizedImport> sanitized_imports_;
 
   const std::shared_ptr<Counters>& async_counters() const {
     return async_counters_;
@@ -275,6 +283,7 @@ class InstanceBuilder {
 
   void WriteGlobalValue(WasmGlobal& global, Handle<Object> value);
 
+  void SanitizeImports();
   // Process the imports, including functions, tables, globals, and memory, in
   // order, loading them from the {ffi_} object. Returns the number of imported
   // functions.
