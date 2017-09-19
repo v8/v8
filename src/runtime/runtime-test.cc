@@ -866,6 +866,20 @@ RUNTIME_FUNCTION(Runtime_IsWasmCode) {
   return isolate->heap()->ToBoolean(is_js_to_wasm);
 }
 
+RUNTIME_FUNCTION(Runtime_IsWasmTrapHandlerEnabled) {
+  DisallowHeapAllocation no_gc;
+  DCHECK_EQ(0, args.length());
+  bool is_enabled = trap_handler::UseTrapHandler();
+  return isolate->heap()->ToBoolean(is_enabled);
+}
+
+RUNTIME_FUNCTION(Runtime_GetWasmRecoveredTrapCount) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(0, args.length());
+  size_t trap_count = trap_handler::GetRecoveredTrapCount();
+  return *isolate->factory()->NewNumberFromSize(trap_count);
+}
+
 #define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)       \
   RUNTIME_FUNCTION(Runtime_Has##Name) {                  \
     CONVERT_ARG_CHECKED(JSObject, obj, 0);               \

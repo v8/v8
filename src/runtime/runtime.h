@@ -609,6 +609,8 @@ namespace internal {
   F(DeserializeWasmModule, 2, 1)              \
   F(IsAsmWasmCode, 1, 1)                      \
   F(IsWasmCode, 1, 1)                         \
+  F(IsWasmTrapHandlerEnabled, 0, 1)           \
+  F(GetWasmRecoveredTrapCount, 0, 1)          \
   F(DisallowCodegenFromStrings, 0, 1)         \
   F(ValidateWasmInstancesChain, 2, 1)         \
   F(ValidateWasmModuleState, 1, 1)            \

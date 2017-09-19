@@ -126,6 +126,11 @@ bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context) {
             // return to the landing pad.
             context->uc_mcontext.gregs[REG_RIP] =
                 data->instructions[i].landing_offset + base;
+
+            gRecoveredTrapCount.store(
+                gRecoveredTrapCount.load(std::memory_order_relaxed) + 1,
+                std::memory_order_relaxed);
+
             return true;
           }
         }

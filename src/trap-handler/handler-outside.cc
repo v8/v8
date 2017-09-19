@@ -186,6 +186,10 @@ bool RegisterDefaultSignalHandler() {
 #endif
 }
 
+size_t GetRecoveredTrapCount() {
+  return gRecoveredTrapCount.load(std::memory_order_relaxed);
+}
+
 }  // namespace trap_handler
 }  // namespace internal
 }  // namespace v8

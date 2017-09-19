@@ -89,6 +89,8 @@ bool RegisterDefaultSignalHandler();
 bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context);
 #endif  // V8_OS_LINUX
 
+size_t GetRecoveredTrapCount();
+
 }  // namespace trap_handler
 }  // namespace internal
 }  // namespace v8

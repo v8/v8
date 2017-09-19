@@ -60,6 +60,8 @@ struct CodeProtectionInfoListEntry {
 extern size_t gNumCodeObjects;
 extern CodeProtectionInfoListEntry* gCodeObjects;
 
+extern std::atomic_size_t gRecoveredTrapCount;
+
 }  // namespace trap_handler
 }  // namespace internal
 }  // namespace v8
