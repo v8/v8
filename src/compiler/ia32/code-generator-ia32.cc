@@ -60,11 +60,6 @@ class IA32OperandConverter : public InstructionOperandConverter {
                    offset.offset() + extra);
   }
 
-  Operand OffsetOperand(InstructionOperand* op, int offset) {
-    DCHECK(op->IsFPStackSlot());
-    return ToOperand(op, offset);
-  }
-
   Immediate ToImmediate(InstructionOperand* operand) {
     Constant constant = ToConstant(operand);
     if (constant.type() == Constant::kInt32 &&
@@ -2924,7 +2919,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
       } else {
         DCHECK(destination->IsFPStackSlot());
         Operand dst0 = g.ToOperand(destination);
-        Operand dst1 = g.OffsetOperand(destination, kPointerSize);
+        Operand dst1 = g.ToOperand(destination, kPointerSize);
         __ Move(dst0, Immediate(lower));
         __ Move(dst1, Immediate(upper));
       }
@@ -3051,8 +3046,8 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ movsd(kScratchDoubleReg, dst0);  // Save dst in scratch register.
       __ push(src0);  // Then use stack to copy src to destination.
       __ pop(dst0);
-      __ push(g.OffsetOperand(source, kPointerSize));
-      __ pop(g.OffsetOperand(destination, kPointerSize));
+      __ push(g.ToOperand(source, kPointerSize));
+      __ pop(g.ToOperand(destination, kPointerSize));
       __ movsd(src0, kScratchDoubleReg);
     } else if (rep == MachineRepresentation::kFloat32) {
       __ movss(kScratchDoubleReg, dst0);  // Save dst in scratch register.
@@ -3064,12 +3059,12 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
       __ movups(kScratchDoubleReg, dst0);  // Save dst in scratch register.
       __ push(src0);  // Then use stack to copy src to destination.
       __ pop(dst0);
-      __ push(g.OffsetOperand(source, kPointerSize));
-      __ pop(g.OffsetOperand(destination, kPointerSize));
-      __ push(g.OffsetOperand(source, 2 * kPointerSize));
-      __ pop(g.OffsetOperand(destination, 2 * kPointerSize));
-      __ push(g.OffsetOperand(source, 3 * kPointerSize));
-      __ pop(g.OffsetOperand(destination, 3 * kPointerSize));
+      __ push(g.ToOperand(source, kPointerSize));
+      __ pop(g.ToOperand(destination, kPointerSize));
+      __ push(g.ToOperand(source, 2 * kPointerSize));
+      __ pop(g.ToOperand(destination, 2 * kPointerSize));
+      __ push(g.ToOperand(source, 3 * kPointerSize));
+      __ pop(g.ToOperand(destination, 3 * kPointerSize));
       __ movups(src0, kScratchDoubleReg);
     }
   } else {

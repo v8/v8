@@ -3344,28 +3344,30 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
     if (rep != MachineRepresentation::kSimd128) {
       Register tmp = kScratchRegister;
       __ movq(tmp, dst);
-      __ pushq(src);
+      __ pushq(src);  // Then use stack to copy src to destination.
       unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                        kPointerSize);
-      frame_access_state()->IncreaseSPDelta(1);
-      src = g.ToOperand(source);
-      __ movq(src, tmp);
-      frame_access_state()->IncreaseSPDelta(-1);
-      dst = g.ToOperand(destination);
       __ popq(dst);
       unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                        -kPointerSize);
+      __ movq(src, tmp);
     } else {
-      // Use the XOR trick to swap without a temporary. The xorps may read
-      // from or write to an unaligned address, causing a slowdown, but swaps
-      // between slots should be rare.
-      __ Movups(kScratchDoubleReg, src);
-      __ Xorps(kScratchDoubleReg, dst);  // scratch contains src ^ dst.
-      __ Movups(src, kScratchDoubleReg);
-      __ Xorps(kScratchDoubleReg, dst);  // scratch contains src.
-      __ Movups(dst, kScratchDoubleReg);
-      __ Xorps(kScratchDoubleReg, src);  // scratch contains dst.
-      __ Movups(src, kScratchDoubleReg);
+      // Without AVX, misaligned reads and writes will trap. Move using the
+      // stack, in two parts.
+      __ movups(kScratchDoubleReg, dst);  // Save dst in scratch register.
+      __ pushq(src);  // Then use stack to copy src to destination.
+      unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                       kPointerSize);
+      __ popq(dst);
+      unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                       -kPointerSize);
+      __ pushq(g.ToOperand(source, kPointerSize));
+      unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                       kPointerSize);
+      __ popq(g.ToOperand(destination, kPointerSize));
+      unwinding_info_writer_.MaybeIncreaseBaseOffsetAt(__ pc_offset(),
+                                                       -kPointerSize);
+      __ movups(src, kScratchDoubleReg);
     }
   } else if (source->IsFPRegister() && destination->IsFPRegister()) {
     // XMM register-register swap.
