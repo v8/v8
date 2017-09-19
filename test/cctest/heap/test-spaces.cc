@@ -243,7 +243,7 @@ TEST(MemoryAllocator) {
   Heap* heap = isolate->heap();
 
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
-  CHECK(memory_allocator != nullptr);
+  CHECK_NOT_NULL(memory_allocator);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(), 0));
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 

@@ -234,7 +234,7 @@ void GCTracer::Stop(GarbageCollector collector) {
     return;
   }
 
-  DCHECK(start_counter_ >= 0);
+  DCHECK_LE(0, start_counter_);
   DCHECK((collector == SCAVENGER && current_.type == Event::SCAVENGER) ||
          (collector == MINOR_MARK_COMPACTOR &&
           current_.type == Event::MINOR_MARK_COMPACTOR) ||

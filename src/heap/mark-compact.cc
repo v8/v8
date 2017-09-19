@@ -459,10 +459,10 @@ MarkCompactCollector::MarkCompactCollector(Heap* heap)
 }
 
 void MarkCompactCollector::SetUp() {
-  DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
-  DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
-  DCHECK(strcmp(Marking::kGreyBitPattern, "10") == 0);
-  DCHECK(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
+  DCHECK_EQ(0, strcmp(Marking::kWhiteBitPattern, "00"));
+  DCHECK_EQ(0, strcmp(Marking::kBlackBitPattern, "11"));
+  DCHECK_EQ(0, strcmp(Marking::kGreyBitPattern, "10"));
+  DCHECK_EQ(0, strcmp(Marking::kImpossibleBitPattern, "01"));
 }
 
 void MinorMarkCompactCollector::SetUp() {}
@@ -2201,12 +2201,12 @@ class GlobalHandlesMarkingItem : public MarkingItem {
         : task_(task) {}
 
     void VisitRootPointer(Root root, Object** p) override {
-      DCHECK(Root::kGlobalHandles == root);
+      DCHECK_EQ(Root::kGlobalHandles, root);
       task_->MarkObject(*p);
     }
 
     void VisitRootPointers(Root root, Object** start, Object** end) override {
-      DCHECK(Root::kGlobalHandles == root);
+      DCHECK_EQ(Root::kGlobalHandles, root);
       for (Object** p = start; p < end; p++) {
         task_->MarkObject(*p);
       }
@@ -2392,7 +2392,7 @@ void MinorMarkCompactCollector::MakeIterable(
   // remove here.
   MarkCompactCollector* full_collector = heap()->mark_compact_collector();
   Address free_start = p->area_start();
-  DCHECK(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
+  DCHECK_EQ(0, reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize));
 
   for (auto object_and_size :
        LiveObjectRange<kGreyObjects>(p, marking_state()->bitmap(p))) {
@@ -3547,7 +3547,7 @@ int MarkCompactCollector::Sweeper::RawSweep(
   ArrayBufferTracker::FreeDead(p, marking_state_);
 
   Address free_start = p->area_start();
-  DCHECK(reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize) == 0);
+  DCHECK_EQ(0, reinterpret_cast<intptr_t>(free_start) % (32 * kPointerSize));
 
   // If we use the skip list for code space pages, we have to lock the skip
   // list because it could be accessed concurrently by the runtime or the

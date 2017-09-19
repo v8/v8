@@ -1718,7 +1718,7 @@ TEST(TestAlignedOverAllocation) {
     filler = HeapObject::FromAddress(start);
     CHECK(obj != filler);
     CHECK(filler->IsFiller());
-    CHECK(filler->Size() == kPointerSize);
+    CHECK_EQ(kPointerSize, filler->Size());
     CHECK(obj != filler && filler->IsFiller() &&
           filler->Size() == kPointerSize);
 
@@ -3371,7 +3371,7 @@ TEST(LargeObjectSlotRecording) {
 
   // Allocate a large object.
   int size = Max(1000000, kMaxRegularHeapObjectSize + KB);
-  CHECK(size > kMaxRegularHeapObjectSize);
+  CHECK_LT(kMaxRegularHeapObjectSize, size);
   Handle<FixedArray> lo = isolate->factory()->NewFixedArray(size, TENURED);
   CHECK(heap->lo_space()->Contains(*lo));
 
@@ -4513,7 +4513,7 @@ TEST(Regress507979) {
 
   for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
     // Let's not optimize the loop away.
-    CHECK(obj->address() != nullptr);
+    CHECK_NOT_NULL(obj->address());
   }
 }
 
@@ -4915,8 +4915,8 @@ TEST(Regress1878) {
 
 
 void AllocateInSpace(Isolate* isolate, size_t bytes, AllocationSpace space) {
-  CHECK(bytes >= FixedArray::kHeaderSize);
-  CHECK(bytes % kPointerSize == 0);
+  CHECK_LE(FixedArray::kHeaderSize, bytes);
+  CHECK_EQ(0, bytes % kPointerSize);
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
   AlwaysAllocateScope always_allocate(isolate);
@@ -5870,7 +5870,7 @@ HEAP_TEST(Regress5831) {
 
   // Generate the code.
   Handle<Code> code = GenerateDummyImmovableCode(isolate);
-  CHECK(code->Size() <= i::kMaxRegularHeapObjectSize);
+  CHECK_GE(i::kMaxRegularHeapObjectSize, code->Size());
   CHECK(!heap->code_space()->FirstPage()->Contains(code->address()));
 
   // Ensure it's not in large object space.

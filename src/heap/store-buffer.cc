@@ -53,7 +53,7 @@ void StoreBuffer::SetUp() {
     DCHECK(reinterpret_cast<Address>(limit_[i]) >= reservation.address());
     DCHECK(start_[i] <= vm_limit);
     DCHECK(limit_[i] <= vm_limit);
-    DCHECK((reinterpret_cast<uintptr_t>(limit_[i]) & kStoreBufferMask) == 0);
+    DCHECK_EQ(0, reinterpret_cast<uintptr_t>(limit_[i]) & kStoreBufferMask);
   }
 
   if (!reservation.Commit(reinterpret_cast<Address>(start_[0]),

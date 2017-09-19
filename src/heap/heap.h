@@ -2643,7 +2643,7 @@ class AllocationObserver {
  public:
   explicit AllocationObserver(intptr_t step_size)
       : step_size_(step_size), bytes_to_next_step_(step_size) {
-    DCHECK(step_size >= kPointerSize);
+    DCHECK_LE(kPointerSize, step_size);
   }
   virtual ~AllocationObserver() {}
 

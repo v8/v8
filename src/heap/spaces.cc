@@ -300,7 +300,7 @@ void MemoryAllocator::TearDown() {
   // Check that spaces were torn down before MemoryAllocator.
   DCHECK_EQ(size_.Value(), 0u);
   // TODO(gc) this will be true again when we fix FreeMemory.
-  // DCHECK(size_executable_ == 0);
+  // DCHECK_EQ(0, size_executable_);
   capacity_ = 0;
 
   if (last_chunk_.IsReserved()) {
@@ -555,7 +555,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
 
   heap->incremental_marking()->non_atomic_marking_state()->ClearLiveness(chunk);
 
-  DCHECK(OFFSET_OF(MemoryChunk, flags_) == kFlagsOffset);
+  DCHECK_EQ(kFlagsOffset, OFFSET_OF(MemoryChunk, flags_));
 
   if (executable == EXECUTABLE) {
     chunk->SetFlag(IS_EXECUTABLE);
@@ -569,7 +569,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
 
 Page* PagedSpace::InitializePage(MemoryChunk* chunk, Executability executable) {
   Page* page = static_cast<Page*>(chunk);
-  DCHECK(page->area_size() <= Page::kAllocatableMemory);
+  DCHECK_GE(Page::kAllocatableMemory, page->area_size());
   // Make sure that categories are initialized before freeing the area.
   page->InitializeFreeListCategories();
   page->ResetAllocatedBytes();
@@ -665,7 +665,7 @@ bool MemoryChunk::CommitArea(size_t requested) {
       heap_->memory_allocator()->ZapBlock(start, length);
     }
   } else if (commit_size < committed_size) {
-    DCHECK(commit_size > 0);
+    DCHECK_LT(0, commit_size);
     // Shrink the committed area.
     size_t length = committed_size - commit_size;
     Address start = address() + committed_size + guard_size - length;
@@ -1204,7 +1204,7 @@ void MemoryChunk::ReleaseAllocatedMemory() {
 
 static SlotSet* AllocateAndInitializeSlotSet(size_t size, Address page_start) {
   size_t pages = (size + Page::kPageSize - 1) / Page::kPageSize;
-  DCHECK(pages > 0);
+  DCHECK_LT(0, pages);
   SlotSet* slot_set = new SlotSet[pages];
   for (size_t i = 0; i < pages; i++) {
     slot_set[i].SetPageStart(page_start + i * Page::kPageSize);
@@ -1437,8 +1437,8 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
   other->EmptyAllocationInfo();
 
   // The linear allocation area of {other} should be destroyed now.
-  DCHECK(other->top() == nullptr);
-  DCHECK(other->limit() == nullptr);
+  DCHECK_NULL(other->top());
+  DCHECK_NULL(other->limit());
 
   // Move over pages.
   for (auto it = other->begin(); it != other->end();) {
@@ -1622,7 +1622,7 @@ void PagedSpace::EmptyAllocationInfo() {
   Address current_top = top();
   Address current_limit = limit();
   if (current_top == nullptr) {
-    DCHECK(current_limit == nullptr);
+    DCHECK_NULL(current_limit);
     return;
   }
 
@@ -2107,7 +2107,7 @@ void NewSpace::PauseAllocationObservers() {
 }
 
 void NewSpace::ResumeAllocationObservers() {
-  DCHECK(top_on_previous_step_ == 0);
+  DCHECK_NULL(top_on_previous_step_);
   Space::ResumeAllocationObservers();
   StartNextInlineAllocationStep();
 }
@@ -2858,7 +2858,7 @@ FreeSpace* FreeList::FindNodeFor(size_t size_in_bytes, size_t* node_size) {
 }
 
 bool FreeList::Allocate(size_t size_in_bytes) {
-  DCHECK(size_in_bytes <= kMaxBlockSize);
+  DCHECK_GE(kMaxBlockSize, size_in_bytes);
   DCHECK(IsAligned(size_in_bytes, kPointerSize));
   DCHECK_LE(owner_->top(), owner_->limit());
 #ifdef DEBUG

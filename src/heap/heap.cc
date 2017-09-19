@@ -60,7 +60,7 @@ namespace v8 {
 namespace internal {
 
 void Heap::SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
-  DCHECK(arguments_adaptor_deopt_pc_offset() == Smi::kZero);
+  DCHECK_EQ(Smi::kZero, arguments_adaptor_deopt_pc_offset());
   set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
@@ -81,17 +81,17 @@ void Heap::SetConstructStubInvokeDeoptPCOffset(int pc_offset) {
 }
 
 void Heap::SetGetterStubDeoptPCOffset(int pc_offset) {
-  DCHECK(getter_stub_deopt_pc_offset() == Smi::kZero);
+  DCHECK_EQ(Smi::kZero, getter_stub_deopt_pc_offset());
   set_getter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetSetterStubDeoptPCOffset(int pc_offset) {
-  DCHECK(setter_stub_deopt_pc_offset() == Smi::kZero);
+  DCHECK_EQ(Smi::kZero, setter_stub_deopt_pc_offset());
   set_setter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
 void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
-  DCHECK(interpreter_entry_return_pc_offset() == Smi::kZero);
+  DCHECK_EQ(Smi::kZero, interpreter_entry_return_pc_offset());
   set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));
 }
 
@@ -232,7 +232,7 @@ Heap::Heap()
       delay_sweeper_tasks_for_testing_(false),
       pending_layout_change_object_(nullptr) {
   // Ensure old_generation_size_ is a multiple of kPageSize.
-  DCHECK((max_old_generation_size_ & (Page::kPageSize - 1)) == 0);
+  DCHECK_EQ(0, max_old_generation_size_ & (Page::kPageSize - 1));
 
   memset(roots_, 0, sizeof(roots_[0]) * kRootListLength);
   set_native_contexts_list(NULL);
@@ -1429,7 +1429,8 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
             Address free_space_address = free_space->address();
             CreateFillerObjectAt(free_space_address, size,
                                  ClearRecordedSlots::kNo);
-            DCHECK(space < SerializerDeserializer::kNumberOfPreallocatedSpaces);
+            DCHECK_GT(SerializerDeserializer::kNumberOfPreallocatedSpaces,
+                      space);
             chunk.start = free_space_address;
             chunk.end = free_space_address + size;
           } else {
@@ -2317,7 +2318,7 @@ HeapObject* Heap::AlignWithFiller(HeapObject* object, int object_size,
                                   int allocation_size,
                                   AllocationAlignment alignment) {
   int filler_size = allocation_size - object_size;
-  DCHECK(filler_size > 0);
+  DCHECK_LT(0, filler_size);
   int pre_filler = GetFillToAlign(object->address(), alignment);
   if (pre_filler) {
     object = PrecedeWithFiller(object, pre_filler);
@@ -2525,7 +2526,7 @@ AllocationResult Heap::AllocateWeakCell(HeapObject* value) {
 
 
 AllocationResult Heap::AllocateTransitionArray(int capacity) {
-  DCHECK(capacity > 0);
+  DCHECK_LT(0, capacity);
   HeapObject* raw_array = nullptr;
   {
     AllocationResult allocation = AllocateRawFixedArray(capacity, TENURED);
@@ -3364,7 +3365,7 @@ static inline void WriteTwoByteData(Vector<const char> vector, uint16_t* chars,
   while (stream_length != 0) {
     size_t consumed = 0;
     uint32_t c = unibrow::Utf8::ValueOf(stream, stream_length, &consumed);
-    DCHECK(c != unibrow::Utf8::kBadChar);
+    DCHECK_NE(unibrow::Utf8::kBadChar, c);
     DCHECK(consumed <= stream_length);
     stream_length -= consumed;
     stream += consumed;
@@ -3379,8 +3380,8 @@ static inline void WriteTwoByteData(Vector<const char> vector, uint16_t* chars,
       *chars++ = c;
     }
   }
-  DCHECK(stream_length == 0);
-  DCHECK(len == 0);
+  DCHECK_EQ(0, stream_length);
+  DCHECK_EQ(0, len);
 }
 
 
@@ -3399,7 +3400,7 @@ static inline void WriteTwoByteData(String* s, uint16_t* chars, int len) {
 template <bool is_one_byte, typename T>
 AllocationResult Heap::AllocateInternalizedStringImpl(T t, int chars,
                                                       uint32_t hash_field) {
-  DCHECK(chars >= 0);
+  DCHECK_LE(0, chars);
   // Compute map and object size.
   int size;
   Map* map;
@@ -3454,7 +3455,7 @@ AllocationResult Heap::AllocateRawOneByteString(int length,
   DCHECK_LE(0, length);
   DCHECK_GE(String::kMaxLength, length);
   int size = SeqOneByteString::SizeFor(length);
-  DCHECK(size <= SeqOneByteString::kMaxSize);
+  DCHECK_GE(SeqOneByteString::kMaxSize, size);
   AllocationSpace space = SelectSpace(pretenure);
 
   HeapObject* result = nullptr;
@@ -3478,7 +3479,7 @@ AllocationResult Heap::AllocateRawTwoByteString(int length,
   DCHECK_LE(0, length);
   DCHECK_GE(String::kMaxLength, length);
   int size = SeqTwoByteString::SizeFor(length);
-  DCHECK(size <= SeqTwoByteString::kMaxSize);
+  DCHECK_GE(SeqTwoByteString::kMaxSize, size);
   AllocationSpace space = SelectSpace(pretenure);
 
   HeapObject* result = nullptr;
@@ -3729,7 +3730,7 @@ AllocationResult Heap::AllocateRawFixedArray(int length,
 AllocationResult Heap::AllocateFixedArrayWithFiller(int length,
                                                     PretenureFlag pretenure,
                                                     Object* filler) {
-  DCHECK(length >= 0);
+  DCHECK_LE(0, length);
   DCHECK(empty_fixed_array()->IsFixedArray());
   if (length == 0) return empty_fixed_array();
 
@@ -3749,7 +3750,7 @@ AllocationResult Heap::AllocateFixedArrayWithFiller(int length,
 
 AllocationResult Heap::AllocatePropertyArray(int length,
                                              PretenureFlag pretenure) {
-  DCHECK(length >= 0);
+  DCHECK_LE(0, length);
   DCHECK(!InNewSpace(undefined_value()));
   HeapObject* result = nullptr;
   {
@@ -3814,7 +3815,7 @@ AllocationResult Heap::AllocateRawFixedDoubleArray(int length,
 
 AllocationResult Heap::AllocateRawFeedbackVector(int length,
                                                  PretenureFlag pretenure) {
-  DCHECK(length >= 0);
+  DCHECK_LE(0, length);
 
   int size = FeedbackVector::SizeFor(length);
   AllocationSpace space = SelectSpace(pretenure);
@@ -4094,7 +4095,7 @@ void Heap::NotifyObjectLayoutChange(HeapObject* object, int size,
     }
   }
 #ifdef VERIFY_HEAP
-  DCHECK(pending_layout_change_object_ == nullptr);
+  DCHECK_NULL(pending_layout_change_object_);
   pending_layout_change_object_ = object;
 #endif
 }
@@ -4180,7 +4181,7 @@ bool Heap::PerformIdleTimeAction(GCIdleTimeAction action,
       break;
     }
     case DO_FULL_GC: {
-      DCHECK(contexts_disposed_ > 0);
+      DCHECK_LT(0, contexts_disposed_);
       HistogramTimerScope scope(isolate_->counters()->gc_context());
       TRACE_EVENT0("v8", "V8.GCContext");
       CollectAllGarbage(kNoGCFlags, GarbageCollectionReason::kContextDisposal);
@@ -5143,8 +5144,8 @@ const double Heap::kTargetMutatorUtilization = 0.97;
 //   F = R * (1 - MU) / (R * (1 - MU) - MU)
 double Heap::HeapGrowingFactor(double gc_speed, double mutator_speed,
                                double max_factor) {
-  DCHECK(max_factor >= kMinHeapGrowingFactor);
-  DCHECK(max_factor <= kMaxHeapGrowingFactor);
+  DCHECK_LE(kMinHeapGrowingFactor, max_factor);
+  DCHECK_GE(kMaxHeapGrowingFactor, max_factor);
   if (gc_speed == 0 || mutator_speed == 0) return max_factor;
 
   const double speed_ratio = gc_speed / mutator_speed;
@@ -5189,8 +5190,8 @@ double Heap::MaxHeapGrowingFactor(size_t max_old_generation_size) {
 
 size_t Heap::CalculateOldGenerationAllocationLimit(double factor,
                                                    size_t old_gen_size) {
-  CHECK(factor > 1.0);
-  CHECK(old_gen_size > 0);
+  CHECK_LT(1.0, factor);
+  CHECK_LT(0, old_gen_size);
   uint64_t limit = static_cast<uint64_t>(old_gen_size * factor);
   limit = Max(limit, static_cast<uint64_t>(old_gen_size) +
                          MinimumAllocationLimitGrowingStep());
@@ -5432,7 +5433,7 @@ bool Heap::SetUp() {
   if (!lo_space_->SetUp()) return false;
 
   // Set up the seed that is used to randomize the string hash function.
-  DCHECK(hash_seed() == 0);
+  DCHECK_EQ(Smi::kZero, hash_seed());
   if (FLAG_randomize_hashes) InitializeHashSeed();
 
   for (int i = 0; i < static_cast<int>(v8::Isolate::kUseCounterFeatureCount);
@@ -5531,7 +5532,8 @@ void Heap::TracePossibleWrapper(JSObject* js_object) {
       js_object->GetEmbedderField(0) &&
       js_object->GetEmbedderField(0) != undefined_value() &&
       js_object->GetEmbedderField(1) != undefined_value()) {
-    DCHECK(reinterpret_cast<intptr_t>(js_object->GetEmbedderField(0)) % 2 == 0);
+    DCHECK_EQ(0,
+              reinterpret_cast<intptr_t>(js_object->GetEmbedderField(0)) % 2);
     local_embedder_heap_tracer()->AddWrapperToTrace(std::pair<void*, void*>(
         reinterpret_cast<void*>(js_object->GetEmbedderField(0)),
         reinterpret_cast<void*>(js_object->GetEmbedderField(1))));
@@ -5837,7 +5839,7 @@ class CheckHandleCountVisitor : public RootVisitor {
  public:
   CheckHandleCountVisitor() : handle_count_(0) {}
   ~CheckHandleCountVisitor() override {
-    CHECK(handle_count_ < HandleScope::kCheckHandleThreshold);
+    CHECK_GT(HandleScope::kCheckHandleThreshold, handle_count_);
   }
   void VisitRootPointers(Root root, Object** start, Object** end) override {
     handle_count_ += end - start;
@@ -6085,7 +6087,7 @@ HeapIterator::~HeapIterator() {
   // Assert that in filtering mode we have iterated through all
   // objects. Otherwise, heap will be left in an inconsistent state.
   if (filtering_ != kNoFiltering) {
-    DCHECK(object_iterator_ == nullptr);
+    DCHECK_NULL(object_iterator_);
   }
 #endif
   delete space_iterator_;
