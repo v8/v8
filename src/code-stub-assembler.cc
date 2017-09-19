@@ -8824,9 +8824,6 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
           // Load the instance type of {lhs}.
           Node* lhs_instance_type = LoadMapInstanceType(lhs_map);
 
-          // Load the instance type of {rhs}.
-          Node* rhs_instance_type = LoadInstanceType(rhs);
-
           // Check if {lhs} is a String.
           Label if_lhsisstring(this), if_lhsisnotstring(this);
           Branch(IsStringInstanceType(lhs_instance_type), &if_lhsisstring,
@@ -8834,6 +8831,9 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
 
           BIND(&if_lhsisstring);
           {
+            // Load the instance type of {rhs}.
+            Node* rhs_instance_type = LoadInstanceType(rhs);
+
             // Check if {rhs} is also a String.
             Label if_rhsisstring(this, Label::kDeferred),
                 if_rhsisnotstring(this);
@@ -8867,6 +8867,9 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
 
           BIND(&if_lhsisbigint);
           {
+            // Load the instance type of {rhs}.
+            Node* rhs_instance_type = LoadInstanceType(rhs);
+
             // Check if {rhs} is also a BigInt.
             Label if_rhsisbigint(this, Label::kDeferred),
                 if_rhsisnotbigint(this);
@@ -8892,6 +8895,9 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
 
           BIND(&if_lhsisnotbigint);
           if (var_type_feedback != nullptr) {
+            // Load the instance type of {rhs}.
+            Node* rhs_instance_type = LoadInstanceType(rhs);
+
             Label if_lhsissymbol(this), if_lhsisreceiver(this);
             GotoIf(IsJSReceiverInstanceType(lhs_instance_type),
                    &if_lhsisreceiver);
