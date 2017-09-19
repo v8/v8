@@ -198,6 +198,15 @@
 }],  # 'no_snap == True and system == windows'
 
 ##############################################################################
+['byteorder == big', {
+  # Skip WASM atomic tests on big-endian machines.
+  # There is no support to emulate atomic WASM operations on big-endian
+  # platforms, since this would require bit swapping as a part of atomic
+  # operations.
+  'test-run-wasm-atomics/*': [SKIP],
+}],  # 'byteorder == big'
+
+##############################################################################
 ['system == windows', {
 
   # BUG(3331). Fails on windows.
