@@ -420,19 +420,20 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
             Handle<PrototypeInfo> proto_info =
                 Map::GetOrCreatePrototypeInfo(map, isolate());
             DCHECK(proto_info->weak_cell()->IsWeakCell());
-            Object* obj = WeakCell::cast(proto_info->weak_cell())->value();
-            DCHECK(obj->IsJSModuleNamespace());
-            ObjectHashTable* exports =
-                JSModuleNamespace::cast(obj)->module()->exports();
-            Object* value =
-                exports->Lookup(isolate(), name, Smi::ToInt(name->GetHash()));
-            DCHECK(value->IsCell());
-            if (Cell::cast(value)->value()->IsTheHole(isolate())) {
+            Handle<JSModuleNamespace> module_namespace(
+                JSModuleNamespace::cast(
+                    WeakCell::cast(proto_info->weak_cell())->value()),
+                isolate());
+            Handle<Cell> cell(
+                Cell::cast(module_namespace->module()->exports()->Lookup(
+                    isolate(), name, Smi::ToInt(name->GetHash()))),
+                isolate());
+            if (cell->value()->IsTheHole(isolate())) {
               // This module has not been fully initialized yet.
               return false;
             }
             *access_info = PropertyAccessInfo::ModuleExport(
-                MapHandles{receiver_map}, handle(Cell::cast(value), isolate()));
+                MapHandles{receiver_map}, cell);
             return true;
           }
           Handle<Object> accessors(descriptors->GetValue(number), isolate());
