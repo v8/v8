@@ -2443,6 +2443,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   int saved_count = saves_fp.Count();
   if (saved_count != 0) {
     DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedV().list());
+    DCHECK_EQ(saved_count % 2, 0);
     frame->AllocateSavedCalleeRegisterSlots(saved_count *
                                             (kDoubleSize / kPointerSize));
   }
@@ -2451,6 +2452,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
                                 descriptor->CalleeSavedRegisters());
   saved_count = saves.Count();
   if (saved_count != 0) {
+    DCHECK_EQ(saved_count % 2, 0);
     frame->AllocateSavedCalleeRegisterSlots(saved_count);
   }
 }
@@ -2461,7 +2463,6 @@ void CodeGenerator::AssembleConstructFrame() {
     __ AssertCspAligned();
   }
 
-  int fixed_frame_size = descriptor->CalculateFixedFrameSize();
   int shrink_slots =
       frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
 
@@ -2482,12 +2483,9 @@ void CodeGenerator::AssembleConstructFrame() {
       __ Abort(kShouldNotDirectlyEnterOsrFunction);
 
       // Unoptimized code jumps directly to this entrypoint while the
-      // unoptimized
-      // frame is still on the stack. Optimized code uses OSR values directly
-      // from
-      // the unoptimized frame. Thus, all that needs to be done is to allocate
-      // the
-      // remaining stack slots.
+      // unoptimized frame is still on the stack. Optimized code uses OSR values
+      // directly from the unoptimized frame. Thus, all that needs to be done is
+      // to allocate the remaining stack slots.
       if (FLAG_code_comments) __ RecordComment("-- OSR entrypoint --");
       osr_pc_offset_ = __ pc_offset();
       shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
@@ -2508,9 +2506,9 @@ void CodeGenerator::AssembleConstructFrame() {
         __ Mov(scratch, Operand(ExternalReference::address_of_real_stack_limit(
                             __ isolate())));
         __ Ldr(scratch, MemOperand(scratch));
-        __ Add(scratch, scratch, Operand(shrink_slots * kPointerSize));
+        __ Add(scratch, scratch, shrink_slots * kPointerSize);
         __ Cmp(__ StackPointer(), scratch);
-        __ B(cs, &done);
+        __ B(hs, &done);
       }
 
       if (!frame_access_state()->has_frame()) {
@@ -2524,7 +2522,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ AssertStackConsistency();
       // Initialize the jssp because it is required for the runtime call.
       __ Mov(jssp, csp);
-      __ Move(cp, Smi::kZero);
+      __ Mov(cp, Smi::kZero);
       __ CallRuntimeDelayed(zone(), Runtime::kThrowWasmStackOverflow);
       // We come from WebAssembly, there are no references for the GC.
       ReferenceMap* reference_map = new (zone()) ReferenceMap(zone());
@@ -2535,46 +2533,53 @@ void CodeGenerator::AssembleConstructFrame() {
       }
       __ SetStackPointer(csp);
       __ AssertStackConsistency();
-      __ bind(&done);
+      __ Bind(&done);
     }
 
     // Build remainder of frame, including accounting for and filling-in
-    // frame-specific header information, e.g. claiming the extra slot that
-    // other platforms explicitly push for STUB frames and frames recording
-    // their argument count.
-    __ Claim(shrink_slots + (fixed_frame_size & 1));
-    if (descriptor->PushArgumentCount()) {
-      __ Str(kJavaScriptCallArgCountRegister,
-             MemOperand(fp, OptimizedBuiltinFrameConstants::kArgCOffset));
-    }
-    bool is_stub_frame =
-        !descriptor->IsJSFunctionCall() && !descriptor->IsCFunctionCall();
-    if (is_stub_frame) {
-      UseScratchRegisterScope temps(tasm());
-      Register temp = temps.AcquireX();
-      __ Mov(temp, StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
-      __ Str(temp, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+    // frame-specific header information, i.e. claiming the extra slot that
+    // other platforms explicitly push for STUB (code object) frames and frames
+    // recording their argument count.
+    switch (descriptor->kind()) {
+      case CallDescriptor::kCallJSFunction:
+        if (descriptor->PushArgumentCount()) {
+          __ Claim(shrink_slots + 1);  // Claim extra slot for argc.
+          __ Str(kJavaScriptCallArgCountRegister,
+                 MemOperand(fp, OptimizedBuiltinFrameConstants::kArgCOffset));
+        } else {
+          __ Claim(shrink_slots);
+        }
+        break;
+      case CallDescriptor::kCallCodeObject: {
+        UseScratchRegisterScope temps(tasm());
+        __ Claim(shrink_slots + 1);  // Claim extra slot for frame type marker.
+        Register scratch = temps.AcquireX();
+        __ Mov(scratch,
+               StackFrame::TypeToMarker(info()->GetOutputStackFrameType()));
+        __ Str(scratch, MemOperand(fp, TypedFrameConstants::kFrameTypeOffset));
+      } break;
+      case CallDescriptor::kCallAddress:
+        __ Claim(shrink_slots);
+        break;
+      default:
+        UNREACHABLE();
     }
   }
 
   // Save FP registers.
   CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
                                    descriptor->CalleeSavedFPRegisters());
-  int saved_count = saves_fp.Count();
-  if (saved_count != 0) {
-    DCHECK(saves_fp.list() == CPURegList::GetCalleeSavedV().list());
-    __ PushCPURegList(saves_fp);
-  }
+  DCHECK_IMPLIES(saves_fp.Count() != 0,
+                 saves_fp.list() == CPURegList::GetCalleeSavedV().list());
+  __ PushCPURegList(saves_fp);
+
   // Save registers.
   // TODO(palfia): TF save list is not in sync with
   // CPURegList::GetCalleeSaved(): x30 is missing.
   // DCHECK(saves.list() == CPURegList::GetCalleeSaved().list());
   CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
                                 descriptor->CalleeSavedRegisters());
-  saved_count = saves.Count();
-  if (saved_count != 0) {
-    __ PushCPURegList(saves);
-  }
+  __ PushCPURegList(saves);
 }
 
 void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
@@ -2583,16 +2588,12 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   // Restore registers.
   CPURegList saves = CPURegList(CPURegister::kRegister, kXRegSizeInBits,
                                 descriptor->CalleeSavedRegisters());
-  if (saves.Count() != 0) {
-    __ PopCPURegList(saves);
-  }
+  __ PopCPURegList(saves);
 
   // Restore fp registers.
   CPURegList saves_fp = CPURegList(CPURegister::kVRegister, kDRegSizeInBits,
                                    descriptor->CalleeSavedFPRegisters());
-  if (saves_fp.Count() != 0) {
-    __ PopCPURegList(saves_fp);
-  }
+  __ PopCPURegList(saves_fp);
 
   unwinding_info_writer_.MarkBlockWillExit();
 

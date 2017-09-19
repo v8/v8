@@ -1345,6 +1345,8 @@ void TurboAssembler::PopHelper(int count, int size, const CPURegister& dst0,
 }
 
 void TurboAssembler::PushPreamble(Operand total_size) {
+  if (total_size.IsZero()) return;
+
   if (csp.Is(StackPointer())) {
     // If the current stack pointer is csp, then it must be aligned to 16 bytes
     // on entry and the total size of the specified registers must also be a
@@ -1364,6 +1366,8 @@ void TurboAssembler::PushPreamble(Operand total_size) {
 }
 
 void TurboAssembler::PopPostamble(Operand total_size) {
+  if (total_size.IsZero()) return;
+
   if (csp.Is(StackPointer())) {
     // If the current stack pointer is csp, then it must be aligned to 16 bytes
     // on entry and the total size of the specified registers must also be a
