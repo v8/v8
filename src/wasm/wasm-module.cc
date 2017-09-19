@@ -334,7 +334,7 @@ void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
       const int index = RegisterHandlerData(reinterpret_cast<void*>(base), size,
                                             unpacked.size(), &unpacked[0]);
       // TODO(eholk): if index is negative, fail.
-      DCHECK(index >= 0);
+      DCHECK_LE(0, index);
       code->set_trap_handler_index(Smi::FromInt(index));
     }
   }

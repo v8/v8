@@ -101,7 +101,7 @@ class TestingModuleBuilder {
   byte AddSignature(FunctionSig* sig) {
     test_module_.signatures.push_back(sig);
     size_t size = test_module_.signatures.size();
-    CHECK(size < 127);
+    CHECK_GT(127, size);
     return static_cast<byte>(size - 1);
   }
 

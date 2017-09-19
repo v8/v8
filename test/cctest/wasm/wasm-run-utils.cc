@@ -425,7 +425,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   // Manually add the deoptimization info that would otherwise be added
   // during instantiation. Deopt data holds <WeakCell<wasm_instance>,
   // func_index>.
-  DCHECK(code->deoptimization_data()->length() == 0);
+  DCHECK_EQ(0, code->deoptimization_data()->length());
   Handle<FixedArray> deopt_data =
       isolate()->factory()->NewFixedArray(2, TENURED);
   Handle<Object> weak_instance =

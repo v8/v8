@@ -298,7 +298,7 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
   size_t new_size =
       static_cast<size_t>(old_pages + pages) * WasmModule::kPageSize;
   if (enable_guard_regions && old_size != 0) {
-    DCHECK(old_buffer->backing_store() != nullptr);
+    DCHECK_NOT_NULL(old_buffer->backing_store());
     if (new_size > FLAG_wasm_max_mem_pages * WasmModule::kPageSize ||
         new_size > kMaxInt) {
       return Handle<JSArrayBuffer>::null();

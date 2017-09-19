@@ -94,7 +94,7 @@ Object* ThrowRuntimeError(Isolate* isolate, int message_id, int byte_offset,
     Handle<FrameArray> stack_elements(
         FrameArray::cast(JSArray::cast(*stack_trace_obj)->elements()));
     DCHECK(stack_elements->Code(0)->kind() == AbstractCode::WASM_FUNCTION);
-    DCHECK(stack_elements->Offset(0)->value() >= 0);
+    DCHECK_LE(0, stack_elements->Offset(0)->value());
     stack_elements->SetOffset(0, Smi::FromInt(-1 - byte_offset));
   }
 
@@ -268,7 +268,7 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
-  DCHECK(args.length() == 0);
+  DCHECK_EQ(0, args.length());
   HandleScope scope(isolate);
 
   return *wasm::CompileLazy(isolate);

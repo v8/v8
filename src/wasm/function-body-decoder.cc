@@ -779,7 +779,7 @@ DecodeResult VerifyWasmCodeWithStats(AccountingAllocator* allocator,
   auto size_histogram = is_wasm ? counters->wasm_wasm_function_size_bytes()
                                 : counters->wasm_asm_function_size_bytes();
   // TODO(bradnelson): Improve histogram handling of ptrdiff_t.
-  CHECK((body.end - body.start) >= 0);
+  CHECK_LE(0, body.end - body.start);
   size_histogram->AddSample(static_cast<int>(body.end - body.start));
   auto time_counter = is_wasm ? counters->wasm_decode_wasm_function_time()
                               : counters->wasm_decode_asm_function_time();

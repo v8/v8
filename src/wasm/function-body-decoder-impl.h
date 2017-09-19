@@ -1992,7 +1992,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   inline Value* Push(ValueType type) {
-    DCHECK(type != kWasmStmt);
+    DCHECK_NE(kWasmStmt, type);
     stack_.push_back(Value::New(this->pc_, type));
     return &stack_.back();
   }

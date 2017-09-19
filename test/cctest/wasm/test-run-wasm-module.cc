@@ -287,7 +287,7 @@ class WasmSerializationTest {
         Handle<Object>(Smi::FromInt(41), current_isolate())};
     int32_t result = testing::CallWasmFunctionForTesting(
         current_isolate(), instance, &thrower, kFunctionName, 1, params);
-    CHECK(result == 42);
+    CHECK_EQ(42, result);
   }
 
   Isolate* current_isolate() {
@@ -452,7 +452,7 @@ TEST(ModuleBuilder) {
   size_t third = buffer.size() / 3;
   size_t first_mark = third - 2;
   size_t second_mark = buffer.size() - 2 - third;
-  CHECK(0 < first_mark);
+  CHECK_LT(0, first_mark);
   CHECK(first_mark < second_mark);
   CHECK(second_mark < buffer.size());
   Isolate* i_isolate = CcTest::InitIsolateOnce();
@@ -482,7 +482,7 @@ TEST(FailingModuleBuilder) {
   size_t third = buffer.size() / 3;
   size_t first_mark = third - 2;
   size_t second_mark = buffer.size() - 2 - third;
-  CHECK(0 < first_mark);
+  CHECK_LT(0, first_mark);
   CHECK(first_mark < second_mark);
   CHECK(second_mark < buffer.size());
   Isolate* i_isolate = CcTest::InitIsolateOnce();
@@ -795,7 +795,7 @@ TEST(Run_WasmModule_GrowMemOobFixedIndex) {
     Handle<Object> params[1] = {Handle<Object>(Smi::FromInt(1), isolate)};
     int32_t result =
         testing::RunWasmModuleForTesting(isolate, instance, 1, params);
-    CHECK(result == 0xaced);
+    CHECK_EQ(0xaced, result);
   }
   Cleanup();
 }
@@ -846,7 +846,7 @@ TEST(Run_WasmModule_GrowMemOobVariableIndex) {
           Handle<Object>(Smi::FromInt((20 + i) * kPageSize - 4), isolate)};
       int32_t result =
           testing::RunWasmModuleForTesting(isolate, instance, 1, params);
-      CHECK(result == 0xaced);
+      CHECK_EQ(0xaced, result);
     }
 
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));

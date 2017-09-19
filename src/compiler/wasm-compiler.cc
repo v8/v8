@@ -1100,8 +1100,8 @@ Node* WasmGraphBuilder::BuildChangeEndiannessStore(Node* node,
       Node* lowerByte;
       Node* higherByte;
 
-      DCHECK(shiftCount > 0);
-      DCHECK((shiftCount + 8) % 16 == 0);
+      DCHECK_LT(0, shiftCount);
+      DCHECK_EQ(0, (shiftCount + 8) % 16);
 
       if (valueSizeInBits > 32) {
         shiftLower = graph()->NewNode(m->Word64Shl(), value,
@@ -1237,8 +1237,8 @@ Node* WasmGraphBuilder::BuildChangeEndiannessLoad(Node* node,
       Node* lowerByte;
       Node* higherByte;
 
-      DCHECK(shiftCount > 0);
-      DCHECK((shiftCount + 8) % 16 == 0);
+      DCHECK_LT(0, shiftCount);
+      DCHECK_EQ(0, (shiftCount + 8) % 16);
 
       if (valueSizeInBits > 32) {
         shiftLower = graph()->NewNode(m->Word64Shl(), value,

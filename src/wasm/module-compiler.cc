@@ -2372,7 +2372,7 @@ class AsyncCompileJob::ExecuteAndFinishCompilationUnits : public CompileStep {
         // FinishCompilationUnits task again.
         break;
       } else {
-        DCHECK(func_index >= 0);
+        DCHECK_LE(0, func_index);
         job_->code_table_->set(func_index, *result.ToHandleChecked());
         --job_->outstanding_units_;
       }

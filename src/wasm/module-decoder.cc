@@ -1118,7 +1118,7 @@ class ModuleDecoderImpl : public Decoder {
         errorf(pos - 1, "invalid %s limits flags", name);
       }
       if (flags == 3) {
-        DCHECK(has_shared_memory != nullptr);
+        DCHECK_NOT_NULL(has_shared_memory);
         *has_shared_memory = true;
       } else if (flags == 2) {
         errorf(pos - 1,
