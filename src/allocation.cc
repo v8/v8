@@ -99,29 +99,106 @@ void AlignedFree(void *ptr) {
 #endif
 }
 
-bool AllocVirtualMemory(size_t size, void* hint, base::VirtualMemory* result) {
-  base::VirtualMemory first_try(size, hint);
+VirtualMemory::VirtualMemory() : address_(nullptr), size_(0) {}
+
+VirtualMemory::VirtualMemory(size_t size, void* hint)
+    : address_(base::OS::ReserveRegion(size, hint)), size_(size) {}
+
+VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
+    : address_(nullptr), size_(0) {
+  address_ = base::OS::ReserveAlignedRegion(size, alignment, hint, &size_);
+}
+
+VirtualMemory::~VirtualMemory() {
+  if (IsReserved()) {
+    bool result = base::OS::ReleaseRegion(address(), size());
+    DCHECK(result);
+    USE(result);
+  }
+}
+
+void VirtualMemory::Reset() {
+  address_ = nullptr;
+  size_ = 0;
+}
+
+bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
+  CHECK(InVM(address, size));
+  return base::OS::CommitRegion(address, size, is_executable);
+}
+
+bool VirtualMemory::Uncommit(void* address, size_t size) {
+  CHECK(InVM(address, size));
+  return base::OS::UncommitRegion(address, size);
+}
+
+bool VirtualMemory::Guard(void* address) {
+  CHECK(InVM(address, base::OS::CommitPageSize()));
+  base::OS::Guard(address, base::OS::CommitPageSize());
+  return true;
+}
+
+size_t VirtualMemory::ReleasePartial(void* free_start) {
+  DCHECK(IsReserved());
+  // Notice: Order is important here. The VirtualMemory object might live
+  // inside the allocated region.
+  const size_t size = size_ - (reinterpret_cast<size_t>(free_start) -
+                               reinterpret_cast<size_t>(address_));
+  CHECK(InVM(free_start, size));
+  DCHECK_LT(address_, free_start);
+  DCHECK_LT(free_start, reinterpret_cast<void*>(
+                            reinterpret_cast<size_t>(address_) + size_));
+  const bool result =
+      base::OS::ReleasePartialRegion(address_, size_, free_start, size);
+  USE(result);
+  DCHECK(result);
+  size_ -= size;
+  return size;
+}
+
+void VirtualMemory::Release() {
+  DCHECK(IsReserved());
+  // Notice: Order is important here. The VirtualMemory object might live
+  // inside the allocated region.
+  void* address = address_;
+  size_t size = size_;
+  CHECK(InVM(address, size));
+  Reset();
+  bool result = base::OS::ReleaseRegion(address, size);
+  USE(result);
+  DCHECK(result);
+}
+
+void VirtualMemory::TakeControl(VirtualMemory* from) {
+  DCHECK(!IsReserved());
+  address_ = from->address_;
+  size_ = from->size_;
+  from->Reset();
+}
+
+bool AllocVirtualMemory(size_t size, void* hint, VirtualMemory* result) {
+  VirtualMemory first_try(size, hint);
   if (first_try.IsReserved()) {
     result->TakeControl(&first_try);
     return true;
   }
 
   V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
-  base::VirtualMemory second_try(size, hint);
+  VirtualMemory second_try(size, hint);
   result->TakeControl(&second_try);
   return result->IsReserved();
 }
 
 bool AlignedAllocVirtualMemory(size_t size, size_t alignment, void* hint,
-                               base::VirtualMemory* result) {
-  base::VirtualMemory first_try(size, alignment, hint);
+                               VirtualMemory* result) {
+  VirtualMemory first_try(size, alignment, hint);
   if (first_try.IsReserved()) {
     result->TakeControl(&first_try);
     return true;
   }
 
   V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
-  base::VirtualMemory second_try(size, alignment, hint);
+  VirtualMemory second_try(size, alignment, hint);
   result->TakeControl(&second_try);
   return result->IsReserved();
 }
