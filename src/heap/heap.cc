@@ -1729,8 +1729,6 @@ void Heap::MarkCompactEpilogue() {
 
   PreprocessStackTraces();
   DCHECK(incremental_marking()->IsStopped());
-
-  mark_compact_collector()->marking_worklist()->StopUsing();
 }
 
 

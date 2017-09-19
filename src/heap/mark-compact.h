@@ -9,7 +9,6 @@
 #include <vector>
 
 #include "src/heap/marking.h"
-#include "src/heap/sequential-marking-deque.h"
 #include "src/heap/spaces.h"
 #include "src/heap/worklist.h"
 
@@ -60,14 +59,6 @@ class MarkingStateBase {
 
   V8_INLINE bool IsBlackOrGrey(HeapObject* obj) {
     return Marking::IsBlackOrGrey<access_mode>(MarkBitFrom(obj));
-  }
-
-  V8_INLINE bool BlackToGrey(HeapObject* obj) {
-    MemoryChunk* p = MemoryChunk::FromAddress(obj->address());
-    MarkBit markbit = MarkBitFrom(p, obj->address());
-    if (!Marking::BlackToGrey<access_mode>(markbit)) return false;
-    static_cast<ConcreteState*>(this)->IncrementLiveBytes(p, -obj->Size());
-    return true;
   }
 
   V8_INLINE bool WhiteToGrey(HeapObject* obj) {
@@ -496,10 +487,16 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     // The heap parameter is not used but needed to match the sequential case.
     explicit MarkingWorklist(Heap* heap) {}
 
-    bool Push(HeapObject* object) { return shared_.Push(kMainThread, object); }
+    void Push(HeapObject* object) {
+      bool success = shared_.Push(kMainThread, object);
+      USE(success);
+      DCHECK(success);
+    }
 
-    bool PushBailout(HeapObject* object) {
-      return bailout_.Push(kMainThread, object);
+    void PushBailout(HeapObject* object) {
+      bool success = bailout_.Push(kMainThread, object);
+      USE(success);
+      DCHECK(success);
     }
 
     HeapObject* Pop() {
@@ -515,8 +512,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       bailout_.Clear();
       shared_.Clear();
     }
-
-    bool IsFull() { return false; }
 
     bool IsEmpty() {
       return bailout_.IsLocalEmpty(kMainThread) &&
@@ -542,15 +537,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     ConcurrentMarkingWorklist* shared() { return &shared_; }
     ConcurrentMarkingWorklist* bailout() { return &bailout_; }
 
-    // These empty functions are needed to match the interface
-    // of the sequential marking deque.
-    void SetUp() {}
     void TearDown() { Clear(); }
-    void StartUsing() {}
-    void StopUsing() {}
-    void ClearOverflowed() {}
-    void SetOverflowed() {}
-    bool overflowed() const { return false; }
 
     void Print() {
       PrintWorklist("shared", &shared_);
@@ -772,9 +759,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   void MarkLiveObjects() override;
 
-  // Pushes a black object onto the marking work list.
-  V8_INLINE void PushBlack(HeapObject* obj);
-
   // Marks the object black and adds it to the marking work list.
   // This is for non-incremental marking only.
   V8_INLINE void MarkObject(HeapObject* host, HeapObject* obj);
@@ -815,19 +799,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // This function empties the marking stack, but may leave overflowed objects
   // in the heap, in which case the marking stack's overflow flag will be set.
   void EmptyMarkingWorklist() override;
-
-  // Refill the marking stack with overflowed objects from the heap.  This
-  // function either leaves the marking stack full or clears the overflow
-  // flag on the marking stack.
-  void RefillMarkingWorklist();
-
-  // Helper methods for refilling the marking stack by discovering grey objects
-  // on various pages of the heap. Used by {RefillMarkingWorklist} only.
-  template <class T>
-  void DiscoverGreyObjectsWithIterator(T* it);
-  void DiscoverGreyObjectsOnPage(MemoryChunk* p);
-  void DiscoverGreyObjectsInSpace(PagedSpace* space);
-  void DiscoverGreyObjectsInNewSpace();
 
   // Callback function for telling whether the object *p is an unmarked
   // heap object.

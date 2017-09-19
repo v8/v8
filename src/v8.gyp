@@ -1037,8 +1037,6 @@
         'heap/scavenger-inl.h',
         'heap/scavenger.cc',
         'heap/scavenger.h',
-        'heap/sequential-marking-deque.cc',
-        'heap/sequential-marking-deque.h',
         'heap/slot-set.h',
         'heap/spaces-inl.h',
         'heap/spaces.cc',

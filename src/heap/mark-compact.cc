@@ -463,7 +463,6 @@ void MarkCompactCollector::SetUp() {
   DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
   DCHECK(strcmp(Marking::kGreyBitPattern, "10") == 0);
   DCHECK(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
-  marking_worklist()->SetUp();
 }
 
 void MinorMarkCompactCollector::SetUp() {}
@@ -1372,39 +1371,6 @@ class MarkCompactWeakObjectRetainer : public WeakObjectRetainer {
   MarkCompactCollector::NonAtomicMarkingState* marking_state_;
 };
 
-
-// Fill the marking stack with overflowed objects returned by the given
-// iterator.  Stop when the marking stack is filled or the end of the space
-// is reached, whichever comes first.
-template <class T>
-void MarkCompactCollector::DiscoverGreyObjectsWithIterator(T* it) {
-  // The caller should ensure that the marking stack is initially not full,
-  // so that we don't waste effort pointlessly scanning for objects.
-  DCHECK(!marking_worklist()->IsFull());
-
-  Map* filler_map = heap()->one_pointer_filler_map();
-  for (HeapObject* object = it->Next(); object != NULL; object = it->Next()) {
-    if ((object->map() != filler_map) &&
-        non_atomic_marking_state()->GreyToBlack(object)) {
-      PushBlack(object);
-      if (marking_worklist()->IsFull()) return;
-    }
-  }
-}
-
-void MarkCompactCollector::DiscoverGreyObjectsOnPage(MemoryChunk* p) {
-  DCHECK(!marking_worklist()->IsFull());
-  for (auto object_and_size : LiveObjectRange<kGreyObjects>(
-           p, non_atomic_marking_state()->bitmap(p))) {
-    HeapObject* const object = object_and_size.first;
-    bool success = non_atomic_marking_state()->GreyToBlack(object);
-    DCHECK(success);
-    USE(success);
-    PushBlack(object);
-    if (marking_worklist()->IsFull()) return;
-  }
-}
-
 class RecordMigratedSlotVisitor : public ObjectVisitor {
  public:
   explicit RecordMigratedSlotVisitor(MarkCompactCollector* collector)
@@ -1813,23 +1779,6 @@ class EvacuateRecordOnlyVisitor final : public HeapObjectVisitor {
   Heap* heap_;
 };
 
-void MarkCompactCollector::DiscoverGreyObjectsInSpace(PagedSpace* space) {
-  for (Page* p : *space) {
-    DiscoverGreyObjectsOnPage(p);
-    if (marking_worklist()->IsFull()) return;
-  }
-}
-
-
-void MarkCompactCollector::DiscoverGreyObjectsInNewSpace() {
-  NewSpace* space = heap()->new_space();
-  for (Page* page : PageRange(space->bottom(), space->top())) {
-    DiscoverGreyObjectsOnPage(page);
-    if (marking_worklist()->IsFull()) return;
-  }
-}
-
-
 bool MarkCompactCollector::IsUnmarkedHeapObject(Object** p) {
   Object* o = *p;
   if (!o->IsHeapObject()) return false;
@@ -1860,12 +1809,6 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
   // Custom marking for string table and top optimized frame.
   MarkStringTable(custom_root_body_visitor);
   ProcessTopOptimizedFrame(custom_root_body_visitor);
-
-  // There may be overflowed objects in the heap.  Visit them now.
-  while (marking_worklist()->overflowed()) {
-    RefillMarkingWorklist();
-    EmptyMarkingWorklist();
-  }
 }
 
 // Mark all objects reachable from the objects on the marking stack.
@@ -1888,42 +1831,12 @@ void MarkCompactCollector::EmptyMarkingWorklist() {
   DCHECK(marking_worklist()->IsEmpty());
 }
 
-
-// Sweep the heap for overflowed objects, clear their overflow bits, and
-// push them on the marking stack.  Stop early if the marking stack fills
-// before sweeping completes.  If sweeping completes, there are no remaining
-// overflowed objects in the heap so the overflow flag on the markings stack
-// is cleared.
-void MarkCompactCollector::RefillMarkingWorklist() {
-  isolate()->CountUsage(v8::Isolate::UseCounterFeature::kMarkDequeOverflow);
-  DCHECK(marking_worklist()->overflowed());
-
-  DiscoverGreyObjectsInNewSpace();
-  if (marking_worklist()->IsFull()) return;
-
-  DiscoverGreyObjectsInSpace(heap()->old_space());
-  if (marking_worklist()->IsFull()) return;
-  DiscoverGreyObjectsInSpace(heap()->code_space());
-  if (marking_worklist()->IsFull()) return;
-  DiscoverGreyObjectsInSpace(heap()->map_space());
-  if (marking_worklist()->IsFull()) return;
-  LargeObjectIterator lo_it(heap()->lo_space());
-  DiscoverGreyObjectsWithIterator(&lo_it);
-  if (marking_worklist()->IsFull()) return;
-
-  marking_worklist()->ClearOverflowed();
-}
-
 // Mark all objects reachable (transitively) from objects on the marking
 // stack.  Before: the marking stack contains zero or more heap object
 // pointers.  After: the marking stack is empty and there are no overflowed
 // objects in the heap.
 void MarkCompactCollector::ProcessMarkingWorklist() {
   EmptyMarkingWorklist();
-  while (marking_worklist()->overflowed()) {
-    RefillMarkingWorklist();
-    EmptyMarkingWorklist();
-  }
   DCHECK(marking_worklist()->IsEmpty());
 }
 
@@ -1931,7 +1844,7 @@ void MarkCompactCollector::ProcessMarkingWorklist() {
 // stack including references only considered in the atomic marking pause.
 void MarkCompactCollector::ProcessEphemeralMarking(
     bool only_process_harmony_weak_collections) {
-  DCHECK(marking_worklist()->IsEmpty() && !marking_worklist()->overflowed());
+  DCHECK(marking_worklist()->IsEmpty());
   bool work_to_do = true;
   while (work_to_do) {
     if (!only_process_harmony_weak_collections) {
@@ -2633,8 +2546,6 @@ void MarkCompactCollector::MarkLiveObjects() {
   DCHECK(state_ == PREPARE_GC);
   state_ = MARK_LIVE_OBJECTS;
 #endif
-
-  marking_worklist()->StartUsing();
 
   heap_->local_embedder_heap_tracer()->EnterFinalPause();
 
