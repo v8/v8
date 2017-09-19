@@ -95,8 +95,8 @@ class CompiledReplacement {
       return ReplacementPart(REPLACEMENT_STRING, 0);
     }
     static inline ReplacementPart ReplacementSubString(int from, int to) {
-      DCHECK(from >= 0);
-      DCHECK(to > from);
+      DCHECK_LE(0, from);
+      DCHECK_GT(to, from);
       return ReplacementPart(-from, to);
     }
 
@@ -388,7 +388,7 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
 
 void FindOneByteStringIndices(Vector<const uint8_t> subject, uint8_t pattern,
                               std::vector<int>* indices, unsigned int limit) {
-  DCHECK(limit > 0);
+  DCHECK_LT(0, limit);
   // Collect indices of pattern in subject using memchr.
   // Stop after finding at most limit values.
   const uint8_t* subject_start = subject.start();
@@ -406,7 +406,7 @@ void FindOneByteStringIndices(Vector<const uint8_t> subject, uint8_t pattern,
 
 void FindTwoByteStringIndices(const Vector<const uc16> subject, uc16 pattern,
                               std::vector<int>* indices, unsigned int limit) {
-  DCHECK(limit > 0);
+  DCHECK_LT(0, limit);
   const uc16* subject_start = subject.start();
   const uc16* subject_end = subject_start + subject.length();
   for (const uc16* pos = subject_start; pos < subject_end && limit > 0; pos++) {
@@ -421,7 +421,7 @@ template <typename SubjectChar, typename PatternChar>
 void FindStringIndices(Isolate* isolate, Vector<const SubjectChar> subject,
                        Vector<const PatternChar> pattern,
                        std::vector<int>* indices, unsigned int limit) {
-  DCHECK(limit > 0);
+  DCHECK_LT(0, limit);
   // Collect indices of pattern in subject.
   // Stop after finding at most limit values.
   int pattern_length = pattern.length();
@@ -827,11 +827,11 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   CONVERT_ARG_HANDLE_CHECKED(String, subject, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, pattern, 1);
   CONVERT_NUMBER_CHECKED(uint32_t, limit, Uint32, args[2]);
-  CHECK(limit > 0);
+  CHECK_LT(0, limit);
 
   int subject_length = subject->length();
   int pattern_length = pattern->length();
-  CHECK(pattern_length > 0);
+  CHECK_LT(0, pattern_length);
 
   if (limit == 0xffffffffu) {
     FixedArray* last_match_cache_unused;
@@ -938,8 +938,8 @@ RUNTIME_FUNCTION(Runtime_RegExpExec) {
   CONVERT_ARG_HANDLE_CHECKED(RegExpMatchInfo, last_match_info, 3);
   // Due to the way the JS calls are constructed this must be less than the
   // length of a string, i.e. it is always a Smi.  We check anyway for security.
-  CHECK(index >= 0);
-  CHECK(index <= subject->length());
+  CHECK_LE(0, index);
+  CHECK_GE(subject->length(), index);
   isolate->counters()->regexp_entry_runtime()->Increment();
   RETURN_RESULT_OR_FAILURE(
       isolate, RegExpImpl::Exec(regexp, subject, index, last_match_info));
@@ -1262,7 +1262,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
                 isolate->factory()->NewSubString(subject, start, end);
             elements->set(cursor++, *substring);
           } else {
-            DCHECK(current_match[i * 2 + 1] < 0);
+            DCHECK_GT(0, current_match[i * 2 + 1]);
             elements->set(cursor++, isolate->heap()->undefined_value());
           }
         }

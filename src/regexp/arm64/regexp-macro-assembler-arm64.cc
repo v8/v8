@@ -248,7 +248,7 @@ void RegExpMacroAssemblerARM64::CheckCharacters(Vector<const uc16> str,
   for (int i = 0; i < str.length(); i++) {
     if (mode_ == LATIN1) {
       __ Ldrb(w10, MemOperand(characters_address, 1, PostIndex));
-      DCHECK(str[i] <= String::kMaxOneByteCharCode);
+      DCHECK_GE(String::kMaxOneByteCharCode, str[i]);
     } else {
       __ Ldrh(w10, MemOperand(characters_address, 2, PostIndex));
     }
@@ -278,7 +278,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
   DCHECK(kCalleeSaved.IncludesAliasOf(capture_length));
 
   // Find length of back-referenced capture.
-  DCHECK((start_reg % 2) == 0);
+  DCHECK_EQ(0, start_reg % 2);
   if (start_reg < kNumCachedRegisters) {
     __ Mov(capture_start_offset.X(), GetCachedRegister(start_reg));
     __ Lsr(x11, GetCachedRegister(start_reg), kWRegSizeInBits);
@@ -374,7 +374,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReferenceIgnoreCase(
 
     // The cached registers need to be retained.
     CPURegList cached_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 7);
-    DCHECK((cached_registers.Count() * 2) == kNumCachedRegisters);
+    DCHECK_EQ(kNumCachedRegisters, cached_registers.Count() * 2);
     __ PushCPURegList(cached_registers);
 
     // Put arguments into arguments registers.
@@ -439,7 +439,7 @@ void RegExpMacroAssemblerARM64::CheckNotBackReference(int start_reg,
   Register capture_length = w15;
 
   // Find length of back-referenced capture.
-  DCHECK((start_reg % 2) == 0);
+  DCHECK_EQ(0, start_reg % 2);
   if (start_reg < kNumCachedRegisters) {
     __ Mov(x10, GetCachedRegister(start_reg));
     __ Lsr(x11, GetCachedRegister(start_reg), kWRegSizeInBits);
@@ -536,7 +536,7 @@ void RegExpMacroAssemblerARM64::CheckNotCharacterAfterMinusAnd(
     uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  DCHECK(minus < String::kMaxUtf16CodeUnit);
+  DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ Sub(w10, current_character(), minus);
   __ And(w10, w10, mask);
   CompareAndBranchOrBacktrack(w10, c, ne, on_not_equal);
@@ -718,7 +718,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   CPURegList argument_registers(x0, x5, x6, x7);
 
   CPURegList registers_to_retain = kCalleeSaved;
-  DCHECK(kCalleeSaved.Count() == 11);
+  DCHECK_EQ(11, kCalleeSaved.Count());
   registers_to_retain.Combine(lr);
 
   DCHECK(csp.Is(__ StackPointer()));
@@ -1030,7 +1030,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   // Registers x0 to x7 are used to store the first captures, they need to be
   // retained over calls to C++ code.
   CPURegList cached_registers(CPURegister::kRegister, kXRegSizeInBits, 0, 7);
-  DCHECK((cached_registers.Count() * 2) == kNumCachedRegisters);
+  DCHECK_EQ(kNumCachedRegisters, cached_registers.Count() * 2);
 
   if (check_preempt_label_.is_linked()) {
     __ Bind(&check_preempt_label_);
@@ -1275,7 +1275,7 @@ void RegExpMacroAssemblerARM64::ClearRegisters(int reg_from, int reg_to) {
 
   if (num_registers > 0) {
     // If there are some remaining registers, they are stored on the stack.
-    DCHECK(reg_from >= kNumCachedRegisters);
+    DCHECK_LE(kNumCachedRegisters, reg_from);
 
     // Move down the indexes of the registers on stack to get the correct offset
     // in memory.
@@ -1482,7 +1482,7 @@ void RegExpMacroAssemblerARM64::Pop(Register target) {
 
 
 Register RegExpMacroAssemblerARM64::GetCachedRegister(int register_index) {
-  DCHECK(register_index < kNumCachedRegisters);
+  DCHECK_GT(kNumCachedRegisters, register_index);
   return Register::Create(register_index / 2, kXRegSizeInBits);
 }
 
@@ -1490,7 +1490,7 @@ Register RegExpMacroAssemblerARM64::GetCachedRegister(int register_index) {
 Register RegExpMacroAssemblerARM64::GetRegister(int register_index,
                                                 Register maybe_result) {
   DCHECK(maybe_result.Is32Bits());
-  DCHECK(register_index >= 0);
+  DCHECK_LE(0, register_index);
   if (num_registers_ <= register_index) {
     num_registers_ = register_index + 1;
   }
@@ -1521,7 +1521,7 @@ Register RegExpMacroAssemblerARM64::GetRegister(int register_index,
 void RegExpMacroAssemblerARM64::StoreRegister(int register_index,
                                               Register source) {
   DCHECK(source.Is32Bits());
-  DCHECK(register_index >= 0);
+  DCHECK_LE(0, register_index);
   if (num_registers_ <= register_index) {
     num_registers_ = register_index + 1;
   }
@@ -1574,7 +1574,7 @@ void RegExpMacroAssemblerARM64::SaveLinkRegister() {
 
 MemOperand RegExpMacroAssemblerARM64::register_location(int register_index) {
   DCHECK(register_index < (1<<30));
-  DCHECK(register_index >= kNumCachedRegisters);
+  DCHECK_LE(kNumCachedRegisters, register_index);
   if (num_registers_ <= register_index) {
     num_registers_ = register_index + 1;
   }
@@ -1587,7 +1587,7 @@ MemOperand RegExpMacroAssemblerARM64::capture_location(int register_index,
                                                      Register scratch) {
   DCHECK(register_index < (1<<30));
   DCHECK(register_index < num_saved_registers_);
-  DCHECK(register_index >= kNumCachedRegisters);
+  DCHECK_LE(kNumCachedRegisters, register_index);
   DCHECK_EQ(register_index % 2, 0);
   register_index -= kNumCachedRegisters;
   int offset = kFirstCaptureOnStack - register_index * kWRegSize;
@@ -1614,7 +1614,7 @@ void RegExpMacroAssemblerARM64::LoadCurrentCharacterUnchecked(int cp_offset,
   // disable it.
   // TODO(pielan): See whether or not we should disable unaligned accesses.
   if (!CanReadUnaligned()) {
-    DCHECK(characters == 1);
+    DCHECK_EQ(1, characters);
   }
 
   if (cp_offset != 0) {
@@ -1636,7 +1636,7 @@ void RegExpMacroAssemblerARM64::LoadCurrentCharacterUnchecked(int cp_offset,
     } else if (characters == 2) {
       __ Ldrh(current_character(), MemOperand(input_end(), offset, SXTW));
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ Ldrb(current_character(), MemOperand(input_end(), offset, SXTW));
     }
   } else {
@@ -1644,7 +1644,7 @@ void RegExpMacroAssemblerARM64::LoadCurrentCharacterUnchecked(int cp_offset,
     if (characters == 2) {
       __ Ldr(current_character(), MemOperand(input_end(), offset, SXTW));
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ Ldrh(current_character(), MemOperand(input_end(), offset, SXTW));
     }
   }

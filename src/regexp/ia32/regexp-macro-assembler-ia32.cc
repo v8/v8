@@ -125,8 +125,8 @@ void RegExpMacroAssemblerIA32::AdvanceCurrentPosition(int by) {
 
 
 void RegExpMacroAssemblerIA32::AdvanceRegister(int reg, int by) {
-  DCHECK(reg >= 0);
-  DCHECK(reg < num_registers_);
+  DCHECK_LE(0, reg);
+  DCHECK_GT(num_registers_, reg);
   if (by != 0) {
     __ add(register_location(reg), Immediate(by));
   }
@@ -471,7 +471,7 @@ void RegExpMacroAssemblerIA32::CheckNotCharacterAfterMinusAnd(
     uc16 minus,
     uc16 mask,
     Label* on_not_equal) {
-  DCHECK(minus < String::kMaxUtf16CodeUnit);
+  DCHECK_GT(String::kMaxUtf16CodeUnit, minus);
   __ lea(eax, Operand(current_character(), -minus));
   if (c == 0) {
     __ test(eax, Immediate(mask));
@@ -1249,7 +1249,7 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
     } else if (characters == 2) {
       __ movzx_w(current_character(), Operand(esi, edi, times_1, cp_offset));
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ movzx_b(current_character(), Operand(esi, edi, times_1, cp_offset));
     }
   } else {
@@ -1258,7 +1258,7 @@ void RegExpMacroAssemblerIA32::LoadCurrentCharacterUnchecked(int cp_offset,
       __ mov(current_character(),
              Operand(esi, edi, times_1, cp_offset * sizeof(uc16)));
     } else {
-      DCHECK(characters == 1);
+      DCHECK_EQ(1, characters);
       __ movzx_w(current_character(),
                  Operand(esi, edi, times_1, cp_offset * sizeof(uc16)));
     }

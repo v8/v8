@@ -832,7 +832,7 @@ bool RegExpParser::CreateNamedCaptureAtIndex(const ZoneVector<uc16>* name,
   }
 
   RegExpCapture* capture = GetCapture(index);
-  DCHECK(capture->name() == nullptr);
+  DCHECK_NULL(capture->name());
 
   capture->set_name(name);
   named_captures_->Add(capture, zone());
@@ -1364,7 +1364,7 @@ bool RegExpParser::ParseUnlimitedLengthHexNumber(int max_value, uc32* value) {
 
 
 uc32 RegExpParser::ParseClassCharacterEscape() {
-  DCHECK(current() == '\\');
+  DCHECK_EQ('\\', current());
   DCHECK(has_next() && !IsSpecialClassEscape(Next()));
   Advance();
   switch (current()) {
