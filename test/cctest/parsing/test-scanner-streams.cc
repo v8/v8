@@ -523,3 +523,30 @@ TEST(Regress6836) {
   CHECK_EQ(unicode_expected.size(), arraysize(cases));
   TestChunkStreamAgainstReference(cases, unicode_expected);
 }
+
+TEST(TestOverlongAndInvalidSequences) {
+  const char* cases[] = {
+      // Overlong 2-byte sequence.
+      "X\xc0\xbfY\0",
+      // Another overlong 2-byte sequence.
+      "X\xc1\xbfY\0",
+      // Overlong 3-byte sequence.
+      "X\xe0\x9f\xbfY\0",
+      // Overlong 4-byte sequence.
+      "X\xf0\x89\xbf\xbfY\0",
+      // Invalid 3-byte sequence (reserved for surrogates).
+      "X\xed\xa0\x80Y\0",
+      // Invalid 4-bytes sequence (value out of range).
+      "X\xf4\x90\x80\x80Y\0",
+  };
+  const std::vector<std::vector<uint16_t>> unicode_expected = {
+      {0x58, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0xfffd, 0x59},
+  };
+  CHECK_EQ(unicode_expected.size(), arraysize(cases));
+  TestChunkStreamAgainstReference(cases, unicode_expected);
+}

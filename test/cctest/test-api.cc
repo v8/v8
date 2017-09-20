@@ -8511,6 +8511,51 @@ static void Utf16Helper(
   }
 }
 
+void TestUtf8DecodingAgainstReference(
+    const char* cases[],
+    const std::vector<std::vector<uint16_t>>& unicode_expected) {
+  for (size_t test_ix = 0; test_ix < unicode_expected.size(); ++test_ix) {
+    v8::Local<String> str = v8_str(cases[test_ix]);
+    CHECK_EQ(unicode_expected[test_ix].size(), str->Length());
+
+    std::unique_ptr<uint16_t[]> buffer(new uint16_t[str->Length()]);
+    str->Write(buffer.get(), 0, -1, String::NO_NULL_TERMINATION);
+
+    for (size_t i = 0; i < unicode_expected[test_ix].size(); ++i) {
+      CHECK_EQ(unicode_expected[test_ix][i], buffer[i]);
+    }
+  }
+}
+
+THREADED_TEST(OverlongSequencesAndSurrogates) {
+  LocalContext context;
+  v8::HandleScope scope(context->GetIsolate());
+
+  const char* cases[] = {
+      // Overlong 2-byte sequence.
+      "X\xc0\xbfY\0",
+      // Another overlong 2-byte sequence.
+      "X\xc1\xbfY\0",
+      // Overlong 3-byte sequence.
+      "X\xe0\x9f\xbfY\0",
+      // Overlong 4-byte sequence.
+      "X\xf0\x89\xbf\xbfY\0",
+      // Invalid 3-byte sequence (reserved for surrogates).
+      "X\xed\xa0\x80Y\0",
+      // Invalid 4-bytes sequence (value out of range).
+      "X\xf4\x90\x80\x80Y\0",
+  };
+  const std::vector<std::vector<uint16_t>> unicode_expected = {
+      {0x58, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0xfffd, 0x59},
+  };
+  CHECK_EQ(unicode_expected.size(), arraysize(cases));
+  TestUtf8DecodingAgainstReference(cases, unicode_expected);
+}
 
 THREADED_TEST(Utf16) {
   LocalContext context;
