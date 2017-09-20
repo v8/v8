@@ -1396,7 +1396,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             BranchTableIterator<validate> iterator(this, operand);
             if (!this->Validate(this->pc_, operand, control_.size())) break;
             auto key = Pop(0, kWasmI32);
-            MergeValues* merge = nullptr;
+            uint32_t br_arity = 0;
             while (iterator.has_next()) {
               const uint32_t i = iterator.cur_index();
               const byte* pos = iterator.pc();
@@ -1406,27 +1406,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                 break;
               }
               // Check that label types match up.
-              static MergeValues loop_dummy = {0, {nullptr}};
               Control* c = control_at(target);
-              MergeValues* current = c->is_loop() ? &loop_dummy : &c->merge;
+              uint32_t arity = c->is_loop() ? 0 : c->merge.arity;
               if (i == 0) {
-                merge = current;
-              } else if (!VALIDATE(merge->arity == current->arity)) {
+                br_arity = arity;
+              } else if (!VALIDATE(br_arity == arity)) {
                 this->errorf(pos,
                              "inconsistent arity in br_table target %d"
                              " (previous was %u, this one %u)",
-                             i, merge->arity, current->arity);
-              } else if (control_at(0)->unreachable) {
-                for (uint32_t j = 0; j < merge->arity; ++j) {
-                  if (!VALIDATE((*merge)[j].type == (*current)[j].type)) {
-                    this->errorf(pos,
-                                 "type error in br_table target %d operand %d"
-                                 " (previous expected %s, this one %s)",
-                                 i, j, WasmOpcodes::TypeName((*merge)[j].type),
-                                 WasmOpcodes::TypeName((*current)[j].type));
-                    break;
-                  }
-                }
+                             i, br_arity, arity);
               }
               if (!VALIDATE(TypeCheckBreak(target))) break;
             }

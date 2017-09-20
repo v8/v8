@@ -2165,6 +2165,69 @@ TEST_F(FunctionBodyDecoderTest, BrTable_invalid_br2) {
   }
 }
 
+TEST_F(FunctionBodyDecoderTest, BrTable_arity_mismatch1) {
+  EXPECT_FAILURE(
+      v_v,
+      WASM_BLOCK(WASM_BLOCK_I(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_arity_mismatch2) {
+  EXPECT_FAILURE(
+      v_v,
+      WASM_BLOCK_I(WASM_BLOCK(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_arity_mismatch_loop1) {
+  EXPECT_FAILURE(
+      v_v,
+      WASM_LOOP(WASM_BLOCK_I(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_arity_mismatch_loop2) {
+  EXPECT_FAILURE(
+      v_v,
+      WASM_BLOCK_I(WASM_LOOP(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_loop_block) {
+  EXPECT_VERIFIES(
+      v_v,
+      WASM_LOOP(WASM_BLOCK(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_block_loop) {
+  EXPECT_VERIFIES(
+      v_v,
+      WASM_LOOP(WASM_BLOCK(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_type_mismatch1) {
+  EXPECT_FAILURE(
+      v_v,
+      WASM_BLOCK_I(WASM_BLOCK_F(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_type_mismatch2) {
+  EXPECT_FAILURE(
+      v_v,
+      WASM_BLOCK_F(WASM_BLOCK_I(
+          WASM_ONE, WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
+TEST_F(FunctionBodyDecoderTest, BrTable_type_mismatch_unreachable) {
+  EXPECT_FAILURE(v_v,
+                 WASM_BLOCK_F(WASM_BLOCK_I(
+                     WASM_UNREACHABLE,
+                     WASM_BR_TABLE(WASM_ONE, 1, BR_TARGET(0), BR_TARGET(1)))));
+}
+
 TEST_F(FunctionBodyDecoderTest, BrUnreachable1) {
   EXPECT_VERIFIES(v_i, WASM_GET_LOCAL(0), kExprBrTable, 0, BR_TARGET(0));
 }
