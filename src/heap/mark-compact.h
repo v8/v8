@@ -537,8 +537,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     ConcurrentMarkingWorklist* shared() { return &shared_; }
     ConcurrentMarkingWorklist* bailout() { return &bailout_; }
 
-    void TearDown() { Clear(); }
-
     void Print() {
       PrintWorklist("shared", &shared_);
       PrintWorklist("bailout", &bailout_);
