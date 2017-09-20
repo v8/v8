@@ -23,8 +23,8 @@ namespace wasm {
   TEST_BODY(double, WASM_F64_ADD)
 
 #define LOAD_SET_GLOBAL_TEST_BODY(C_TYPE, ADD)                                 \
-  TEST(WasmRelocateGlobal_##C_TYPE) {                                          \
-    WasmRunner<C_TYPE, C_TYPE> r(kExecuteCompiled);                            \
+  WASM_EXEC_TEST(WasmRelocateGlobal_##C_TYPE) {                                \
+    WasmRunner<C_TYPE, C_TYPE> r(execution_mode);                              \
     Isolate* isolate = CcTest::i_isolate();                                    \
                                                                                \
     r.builder().AddGlobal<C_TYPE>();                                           \

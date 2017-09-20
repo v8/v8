@@ -2382,7 +2382,7 @@ WASM_EXEC_TEST(MixedCall_2) { Run_WasmMixedCall_N(execution_mode, 2); }
 WASM_EXEC_TEST(MixedCall_3) { Run_WasmMixedCall_N(execution_mode, 3); }
 
 WASM_EXEC_TEST(AddCall) {
-  WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
+  WasmRunner<int32_t, int32_t> r(execution_mode);
   WasmFunctionCompiler& t1 = r.NewFunction<int32_t, int32_t, int32_t>();
   BUILD(t1, WASM_I32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
 
