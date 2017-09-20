@@ -2525,7 +2525,7 @@ void Assembler::movaps(XMMRegister dst, XMMRegister src) {
 void Assembler::movups(XMMRegister dst, XMMRegister src) {
   EnsureSpace ensure_space(this);
   EMIT(0x0F);
-  EMIT(0x11);
+  EMIT(0x10);
   emit_sse_operand(dst, src);
 }
 
