@@ -4220,7 +4220,6 @@ EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_dynamic_import)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_template_escapes)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_restrict_constructor_return)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_strict_legacy_accessor_builtins)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_bigint)
 
 void InstallPublicSymbol(Factory* factory, Handle<Context> native_context,
                          const char* name, Handle<Symbol> value) {
@@ -4343,6 +4342,50 @@ void Genesis::InitializeGlobal_harmony_regexp_dotall() {
   Handle<Map> prototype_map(prototype->map());
   Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate());
   native_context()->set_regexp_prototype_map(*prototype_map);
+}
+
+void Genesis::InitializeGlobal_harmony_bigint() {
+  if (!FLAG_harmony_bigint) return;
+
+  Handle<JSGlobalObject> global(native_context()->global_object());
+  Handle<JSFunction> bigint_fun = InstallFunction(
+      global, "BigInt", JS_VALUE_TYPE, JSValue::kSize,
+      isolate()->factory()->the_hole_value(), Builtins::kBigIntConstructor);
+  bigint_fun->shared()->DontAdaptArguments();
+  bigint_fun->shared()->SetConstructStub(
+      *BUILTIN_CODE(isolate(), BigIntConstructor_ConstructStub));
+  bigint_fun->shared()->set_length(1);
+  InstallWithIntrinsicDefaultProto(isolate(), bigint_fun,
+                                   Context::BIGINT_FUNCTION_INDEX);
+  heap()->bigint_map()->SetConstructorFunctionIndex(
+      Context::BIGINT_FUNCTION_INDEX);
+
+  // Install the properties of the BigInt constructor.
+  // parseInt(string, radix)
+  SimpleInstallFunction(bigint_fun, "parseInt", Builtins::kBigIntParseInt, 2,
+                        false);
+  // asUintN(bits, bigint)
+  SimpleInstallFunction(bigint_fun, "asUintN", Builtins::kBigIntAsUintN, 2,
+                        false);
+  // asIntN(bits, bigint)
+  SimpleInstallFunction(bigint_fun, "asIntN", Builtins::kBigIntAsIntN, 2,
+                        false);
+
+  // Set up the %BigIntPrototype%.
+  Handle<JSObject> prototype(JSObject::cast(bigint_fun->instance_prototype()));
+  JSFunction::SetPrototype(bigint_fun, prototype);
+
+  // Install the properties of the BigInt.prototype.
+  // "constructor" is created implicitly by InstallFunction() above.
+  // toLocaleString([reserved1 [, reserved2]])
+  SimpleInstallFunction(prototype, "toLocaleString",
+                        Builtins::kBigIntPrototypeToLocaleString, 0, false);
+  // toString([radix])
+  SimpleInstallFunction(prototype, "toString",
+                        Builtins::kBigIntPrototypeToString, 0, false);
+  // valueOf()
+  SimpleInstallFunction(prototype, "valueOf", Builtins::kBigIntPrototypeValueOf,
+                        0, false);
 }
 
 #ifdef V8_INTL_SUPPORT

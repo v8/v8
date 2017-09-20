@@ -622,6 +622,7 @@
         'builtins/builtins-api.cc',
         'builtins/builtins-arraybuffer.cc',
         'builtins/builtins-array.cc',
+        'builtins/builtins-bigint.cc',
         'builtins/builtins-boolean.cc',
         'builtins/builtins-call.cc',
         'builtins/builtins-callsite.cc',

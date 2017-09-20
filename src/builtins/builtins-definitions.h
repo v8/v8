@@ -328,6 +328,16 @@ namespace internal {
   TFJ(AsyncFunctionPromiseCreate, 0)                                           \
   TFJ(AsyncFunctionPromiseRelease, 1, kPromise)                                \
                                                                                \
+  /* BigInt */                                                                 \
+  CPP(BigIntConstructor)                                                       \
+  CPP(BigIntConstructor_ConstructStub)                                         \
+  CPP(BigIntParseInt)                                                          \
+  CPP(BigIntAsUintN)                                                           \
+  CPP(BigIntAsIntN)                                                            \
+  CPP(BigIntPrototypeToLocaleString)                                           \
+  CPP(BigIntPrototypeToString)                                                 \
+  CPP(BigIntPrototypeValueOf)                                                  \
+                                                                               \
   /* Boolean */                                                                \
   CPP(BooleanConstructor)                                                      \
   CPP(BooleanConstructor_ConstructStub)                                        \

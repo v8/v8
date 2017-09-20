@@ -226,6 +226,7 @@ enum ContextLookupFlags {
   V(ASYNC_GENERATOR_RETURN_CLOSED_REJECT_SHARED_FUN, SharedFunctionInfo,       \
     async_generator_return_closed_reject_shared_fun)                           \
   V(ATOMICS_OBJECT, JSObject, atomics_object)                                  \
+  V(BIGINT_FUNCTION_INDEX, JSFunction, bigint_function)                        \
   V(BOOLEAN_FUNCTION_INDEX, JSFunction, boolean_function)                      \
   V(BOUND_FUNCTION_WITH_CONSTRUCTOR_MAP_INDEX, Map,                            \
     bound_function_with_constructor_map)                                       \

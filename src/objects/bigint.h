@@ -60,7 +60,7 @@ class BigInt : public HeapObject {
   }
   void Initialize(int length, bool zero_initialize);
 
-  static Handle<String> ToString(Handle<BigInt> bigint, int radix);
+  static MaybeHandle<String> ToString(Handle<BigInt> bigint, int radix);
 
   // Temporarily exposed helper, pending proper initialization.
   void set_value(int value) {
@@ -100,7 +100,8 @@ class BigInt : public HeapObject {
   // abs(x) < abs(y), or zero if abs(x) == abs(y).
   static int AbsoluteCompare(Handle<BigInt> x, Handle<BigInt> y);
 
-  static Handle<String> ToStringBasePowerOfTwo(Handle<BigInt> x, int radix);
+  static MaybeHandle<String> ToStringBasePowerOfTwo(Handle<BigInt> x,
+                                                    int radix);
 
   // Digit arithmetic helpers.
   static inline digit_t digit_add(digit_t a, digit_t b, digit_t* carry);
