@@ -8,6 +8,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/macros.h"
+#include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
 #include "src/counters.h"
 #include "src/heap/array-buffer-tracker.h"
@@ -117,7 +118,7 @@ bool CodeRange::SetUp(size_t requested) {
 
   DCHECK(!kRequiresCodeRange || requested <= kMaximalCodeRangeSize);
 
-  VirtualMemory reservation;
+  base::VirtualMemory reservation;
   if (!AlignedAllocVirtualMemory(
           requested,
           Max(kCodeRangeAreaAlignment,
@@ -407,14 +408,16 @@ bool MemoryAllocator::CanFreeMemoryChunk(MemoryChunk* chunk) {
 
 bool MemoryAllocator::CommitMemory(Address base, size_t size,
                                    Executability executable) {
-  if (!base::OS::CommitRegion(base, size, executable == EXECUTABLE)) {
+  if (!base::VirtualMemory::CommitRegion(base, size,
+                                         executable == EXECUTABLE)) {
     return false;
   }
   UpdateAllocatedSpaceLimits(base, base + size);
   return true;
 }
 
-void MemoryAllocator::FreeMemory(VirtualMemory* reservation,
+
+void MemoryAllocator::FreeMemory(base::VirtualMemory* reservation,
                                  Executability executable) {
   // TODO(gc) make code_range part of memory allocator?
   // Code which is part of the code-range does not have its own VirtualMemory.
@@ -436,7 +439,7 @@ void MemoryAllocator::FreeMemory(Address base, size_t size,
     code_range()->FreeRawMemory(base, size);
   } else {
     DCHECK(executable == NOT_EXECUTABLE || !code_range()->valid());
-    bool result = base::OS::ReleaseRegion(base, size);
+    bool result = base::VirtualMemory::ReleaseRegion(base, size);
     USE(result);
     DCHECK(result);
   }
@@ -444,8 +447,8 @@ void MemoryAllocator::FreeMemory(Address base, size_t size,
 
 Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
                                               void* hint,
-                                              VirtualMemory* controller) {
-  VirtualMemory reservation;
+                                              base::VirtualMemory* controller) {
+  base::VirtualMemory reservation;
   if (!AlignedAllocVirtualMemory(size, alignment, hint, &reservation))
     return nullptr;
 
@@ -462,9 +465,9 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
 
 Address MemoryAllocator::AllocateAlignedMemory(
     size_t reserve_size, size_t commit_size, size_t alignment,
-    Executability executable, void* hint, VirtualMemory* controller) {
+    Executability executable, void* hint, base::VirtualMemory* controller) {
   DCHECK(commit_size <= reserve_size);
-  VirtualMemory reservation;
+  base::VirtualMemory reservation;
   Address base =
       ReserveAlignedMemory(reserve_size, alignment, hint, &reservation);
   if (base == NULL) return NULL;
@@ -522,7 +525,7 @@ void MemoryChunk::InitializationMemoryFence() {
 MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      Address area_start, Address area_end,
                                      Executability executable, Space* owner,
-                                     VirtualMemory* reservation) {
+                                     base::VirtualMemory* reservation) {
   MemoryChunk* chunk = FromAddress(base);
 
   DCHECK(base == chunk->address());
@@ -683,7 +686,7 @@ bool MemoryChunk::CommitArea(size_t requested) {
 }
 
 size_t MemoryChunk::CommittedPhysicalMemory() {
-  if (!base::OS::HasLazyCommits() || owner()->identity() == LO_SPACE)
+  if (!base::VirtualMemory::HasLazyCommits() || owner()->identity() == LO_SPACE)
     return size();
   return high_water_mark_.Value();
 }
@@ -716,7 +719,7 @@ MemoryChunk* MemoryAllocator::AllocateChunk(size_t reserve_area_size,
   size_t chunk_size;
   Heap* heap = isolate_->heap();
   Address base = nullptr;
-  VirtualMemory reservation;
+  base::VirtualMemory reservation;
   Address area_start = nullptr;
   Address area_end = nullptr;
   void* address_hint = heap->GetRandomMmapAddr();
@@ -857,7 +860,7 @@ size_t Page::AvailableInFreeList() {
 size_t Page::ShrinkToHighWaterMark() {
   // Shrinking only makes sense outside of the CodeRange, where we don't care
   // about address space fragmentation.
-  VirtualMemory* reservation = reserved_memory();
+  base::VirtualMemory* reservation = reserved_memory();
   if (!reservation->IsReserved()) return 0;
 
   // Shrink pages to high water mark. The water mark points either to a filler
@@ -935,7 +938,7 @@ void Page::DestroyBlackArea(Address start, Address end) {
 void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
                                         size_t bytes_to_free,
                                         Address new_area_end) {
-  VirtualMemory* reservation = chunk->reserved_memory();
+  base::VirtualMemory* reservation = chunk->reserved_memory();
   DCHECK(reservation->IsReserved());
   chunk->size_ -= bytes_to_free;
   chunk->area_end_ = new_area_end;
@@ -963,7 +966,7 @@ void MemoryAllocator::PreFreeMemory(MemoryChunk* chunk) {
   isolate_->heap()->RememberUnmappedPage(reinterpret_cast<Address>(chunk),
                                          chunk->IsEvacuationCandidate());
 
-  VirtualMemory* reservation = chunk->reserved_memory();
+  base::VirtualMemory* reservation = chunk->reserved_memory();
   const size_t size =
       reservation->IsReserved() ? reservation->size() : chunk->size();
   DCHECK_GE(size_.Value(), static_cast<size_t>(size));
@@ -982,7 +985,7 @@ void MemoryAllocator::PerformFreeMemory(MemoryChunk* chunk) {
   DCHECK(chunk->IsFlagSet(MemoryChunk::PRE_FREED));
   chunk->ReleaseAllocatedMemory();
 
-  VirtualMemory* reservation = chunk->reserved_memory();
+  base::VirtualMemory* reservation = chunk->reserved_memory();
   if (chunk->IsFlagSet(MemoryChunk::POOLED)) {
     UncommitBlock(reinterpret_cast<Address>(chunk), MemoryChunk::kPageSize);
   } else {
@@ -1075,7 +1078,7 @@ MemoryChunk* MemoryAllocator::AllocatePagePooled(SpaceType* owner) {
   if (!CommitBlock(reinterpret_cast<Address>(chunk), size, NOT_EXECUTABLE)) {
     return nullptr;
   }
-  VirtualMemory reservation(start, size);
+  base::VirtualMemory reservation(start, size);
   MemoryChunk::Initialize(isolate_->heap(), start, size, area_start, area_end,
                           NOT_EXECUTABLE, owner, &reservation);
   size_.Increment(size);
@@ -1096,7 +1099,7 @@ bool MemoryAllocator::CommitBlock(Address start, size_t size,
 
 
 bool MemoryAllocator::UncommitBlock(Address start, size_t size) {
-  if (!base::OS::UncommitRegion(start, size)) return false;
+  if (!base::VirtualMemory::UncommitRegion(start, size)) return false;
   isolate_->counters()->memory_allocated()->Decrement(static_cast<int>(size));
   return true;
 }
@@ -1148,8 +1151,9 @@ intptr_t MemoryAllocator::GetCommitPageSize() {
   }
 }
 
-bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm, Address start,
-                                             size_t commit_size,
+
+bool MemoryAllocator::CommitExecutableMemory(base::VirtualMemory* vm,
+                                             Address start, size_t commit_size,
                                              size_t reserved_size) {
   // Commit page header (not executable).
   Address header = start;
@@ -1459,7 +1463,7 @@ void PagedSpace::MergeCompactionSpace(CompactionSpace* other) {
 
 
 size_t PagedSpace::CommittedPhysicalMemory() {
-  if (!base::OS::HasLazyCommits()) return CommittedMemory();
+  if (!base::VirtualMemory::HasLazyCommits()) return CommittedMemory();
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   size_t size = 0;
   for (Page* page : *this) {
@@ -2684,7 +2688,7 @@ void NewSpace::RecordPromotion(HeapObject* obj) {
 
 
 size_t NewSpace::CommittedPhysicalMemory() {
-  if (!base::OS::HasLazyCommits()) return CommittedMemory();
+  if (!base::VirtualMemory::HasLazyCommits()) return CommittedMemory();
   MemoryChunk::UpdateHighWaterMark(allocation_info_.top());
   size_t size = to_space_.CommittedPhysicalMemory();
   if (from_space_.is_committed()) {
