@@ -478,6 +478,13 @@ void ConsumedPreParsedScopeData::RestoreData(Scope* scope,
     return;
   }
 
+  if (scope_data->length() < index_ + 1) {
+    // Temporary debugging code for detecting inconsistent data. Write debug
+    // information on the stack, then crash.
+    scope_data->GetIsolate()->PushStackTraceAndDie(0xc0defee, nullptr, nullptr,
+                                                   0xc0defee);
+  }
+
   // scope_type is stored only in debug mode.
   CHECK_GE(scope_data->length(), index_ + 1);
   DCHECK_GE(scope_data->length(), index_ + 2);
