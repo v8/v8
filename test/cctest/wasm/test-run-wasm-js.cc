@@ -18,12 +18,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define BUILD(r, ...)                      \
-  do {                                     \
-    byte code[] = {__VA_ARGS__};           \
-    r.Build(code, code + arraysize(code)); \
-  } while (false)
-
 #define ADD_CODE(vec, ...)                                              \
   do {                                                                  \
     byte __buf[] = {__VA_ARGS__};                                       \
@@ -515,7 +509,6 @@ WASM_EXEC_TEST(Run_JSSelectAlign_10) {
   RunJSSelectAlignTest(execution_mode, 10, 10);
 }
 
-#undef BUILD
 #undef ADD_CODE
 
 }  // namespace wasm
