@@ -41,19 +41,6 @@
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 
-using ::v8::Context;
-using ::v8::Extension;
-using ::v8::Function;
-using ::v8::HandleScope;
-using ::v8::Local;
-using ::v8::Object;
-using ::v8::ObjectTemplate;
-using ::v8::Persistent;
-using ::v8::Script;
-using ::v8::String;
-using ::v8::Value;
-using ::v8::V8;
-
 namespace {
 
 class DeoptimizeCodeThread : public v8::base::Thread {
@@ -81,7 +68,7 @@ class DeoptimizeCodeThread : public v8::base::Thread {
 
  private:
   v8::Isolate* isolate_;
-  Persistent<v8::Context> context_;
+  v8::Persistent<v8::Context> context_;
   // The code that triggers the deoptimization.
   const char* source_;
 };
@@ -132,6 +119,10 @@ void UnlockForDeoptimizationIfReady(
   }
 }
 }  // namespace
+
+namespace v8 {
+namespace internal {
+namespace test_lockers {
 
 TEST(LazyDeoptimizationMultithread) {
   i::FLAG_allow_natives_syntax = true;
@@ -329,7 +320,7 @@ class KangarooThread : public v8::base::Thread {
 
  private:
   v8::Isolate* isolate_;
-  Persistent<v8::Context> context_;
+  v8::Persistent<v8::Context> context_;
 };
 
 
@@ -569,7 +560,7 @@ class LockIsolateAndCalculateFibSharedContextThread : public JoinableThread {
   virtual void Run() {
     v8::Locker lock(isolate_);
     v8::Isolate::Scope isolate_scope(isolate_);
-    HandleScope handle_scope(isolate_);
+    v8::HandleScope handle_scope(isolate_);
     v8::Local<v8::Context> context =
         v8::Local<v8::Context>::New(isolate_, context_);
     v8::Context::Scope context_scope(context);
@@ -577,7 +568,7 @@ class LockIsolateAndCalculateFibSharedContextThread : public JoinableThread {
   }
  private:
   v8::Isolate* isolate_;
-  Persistent<v8::Context> context_;
+  v8::Persistent<v8::Context> context_;
 };
 
 class LockerUnlockerThread : public JoinableThread {
@@ -898,12 +889,12 @@ TEST(Regress1433) {
       v8::Locker lock(isolate);
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
-      v8::Local<Context> context = v8::Context::New(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
-      v8::Local<String> source = v8_str("1+1");
-      v8::Local<Script> script =
+      v8::Local<v8::String> source = v8_str("1+1");
+      v8::Local<v8::Script> script =
           v8::Script::Compile(context, source).ToLocalChecked();
-      v8::Local<Value> result = script->Run(context).ToLocalChecked();
+      v8::Local<v8::Value> result = script->Run(context).ToLocalChecked();
       v8::String::Utf8Value utf8(isolate, result);
     }
     isolate->Dispose();
@@ -981,3 +972,7 @@ TEST(ExtensionsRegistration) {
   }
   StartJoinAndDeleteThreads(threads);
 }
+
+}  // namespace test_lockers
+}  // namespace internal
+}  // namespace v8

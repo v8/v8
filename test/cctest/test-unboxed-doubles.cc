@@ -26,6 +26,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_unboxed_doubles {
 
 #if V8_DOUBLE_FIELDS_UNBOXING
 
@@ -1598,5 +1599,6 @@ TEST(IncrementalWriteBarrierObjectShiftFieldsRight) {
 
 #endif
 
+}  // namespace test_unboxed_doubles
 }  // namespace internal
 }  // namespace v8

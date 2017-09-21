@@ -83,6 +83,7 @@ class TestCodeRangeScope {
   DISALLOW_COPY_AND_ASSIGN(TestCodeRangeScope);
 };
 
+namespace test_spaces {
 
 static void VerifyMemoryChunk(Isolate* isolate,
                               Heap* heap,
@@ -706,6 +707,7 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   CHECK_EQ(0u, shrunk);
 }
 
+}  // namespace test_spaces
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

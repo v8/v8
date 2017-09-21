@@ -19,6 +19,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace test_run_wasm_interpreter {
 
 TEST(Run_WasmInt8Const_i) {
   WasmRunner<int32_t> r(kExecuteInterpreted);
@@ -423,6 +424,7 @@ TEST(InterpreterLoadWithoutMemory) {
   CHECK_TRAP32(r.Call(0));
 }
 
+}  // namespace test_run_wasm_interpreter
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

@@ -19,6 +19,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace test_run_wasm_64 {
 
 // If the target architecture is 64-bit, enable all tests.
 #if !V8_TARGET_ARCH_32_BIT || V8_TARGET_ARCH_X64
@@ -26,11 +27,6 @@ namespace wasm {
 #else
 #define WASM_64 0
 #endif
-
-#define CHECK_TRAP32(x) \
-  CHECK_EQ(0xdeadbeef, (bit_cast<uint32_t>(x)) & 0xFFFFFFFF)
-#define CHECK_TRAP64(x) \
-  CHECK_EQ(0xdeadbeefdeadbeef, (bit_cast<uint64_t>(x)) & 0xFFFFFFFFFFFFFFFF)
 
 // Can't bridge macro land with nested macros.
 #if V8_TARGET_ARCH_MIPS
@@ -1673,8 +1669,6 @@ WASM_EXEC_TEST(Regress5874) {
 }
 
 #undef WASM_64
-#undef CHECK_TRAP32
-#undef CHECK_TRAP64
 #undef MIPS
 #undef REQUIRE
 #undef ADD_CODE
@@ -1682,6 +1676,7 @@ WASM_EXEC_TEST(Regress5874) {
 // clang-format gets confused about these closing parentheses (wants to change
 // the first comment to "// namespace v8". Disable it.
 // clang-format off
+}  // namespace test_run_wasm_64
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

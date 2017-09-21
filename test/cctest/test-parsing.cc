@@ -57,6 +57,10 @@
 #include "test/cctest/scope-test-helper.h"
 #include "test/cctest/unicode-helpers.h"
 
+namespace v8 {
+namespace internal {
+namespace test_parsing {
+
 TEST(ScanKeywords) {
   struct KeywordToken {
     const char* keyword;
@@ -10405,3 +10409,7 @@ TEST(LexicalLoopVariable) {
     });
   }
 }
+
+}  // namespace test_parsing
+}  // namespace internal
+}  // namespace v8

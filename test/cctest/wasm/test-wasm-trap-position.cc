@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace test_wasm_trap_position {
 
 using v8::Local;
 using v8::Utils;
@@ -146,6 +147,7 @@ WASM_EXEC_TEST(IllegalLoad) {
                       expected_exceptions);
 }
 
+}  // namespace test_wasm_trap_position
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

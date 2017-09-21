@@ -92,6 +92,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_regexp {
 
 static bool CheckParse(const char* input) {
   v8::HandleScope scope(CcTest::isolate());
@@ -2034,5 +2035,6 @@ TEST(UncachedExternalString) {
   ExpectString("external.substring(1).match(re)[1]", "z");
 }
 
+}  // namespace test_regexp
 }  // namespace internal
 }  // namespace v8

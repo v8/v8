@@ -35,71 +35,9 @@
 #include "src/objects-inl.h"
 #include "test/cctest/cctest.h"
 
-namespace i = v8::internal;
-using i::Address;
-using i::Assembler;
-using i::CodeDesc;
-using i::Condition;
-using i::FUNCTION_CAST;
-using i::HandleScope;
-using i::Immediate;
-using i::Isolate;
-using i::Label;
-using i::MacroAssembler;
-using i::Operand;
-using i::RelocInfo;
-using i::Representation;
-using i::Smi;
-using i::SmiIndex;
-using i::byte;
-using i::carry;
-using i::greater;
-using i::greater_equal;
-using i::kIntSize;
-using i::kFloatSize;
-using i::kDoubleSize;
-using i::kPointerSize;
-using i::kSimd128Size;
-using i::kSmiTagMask;
-using i::kSmiValueSize;
-using i::less_equal;
-using i::negative;
-using i::not_carry;
-using i::not_equal;
-using i::equal;
-using i::not_zero;
-using i::positive;
-using i::r11;
-using i::r13;
-using i::r14;
-using i::r15;
-using i::r8;
-using i::r9;
-using i::rax;
-using i::rbp;
-using i::rbx;
-using i::rcx;
-using i::rdi;
-using i::rdx;
-using i::rsi;
-using i::rsp;
-using i::xmm0;
-using i::xmm1;
-using i::xmm2;
-using i::xmm3;
-using i::xmm4;
-using i::xmm5;
-using i::xmm6;
-using i::xmm7;
-using i::xmm8;
-using i::xmm9;
-using i::xmm10;
-using i::xmm11;
-using i::xmm12;
-using i::xmm13;
-using i::xmm14;
-using i::xmm15;
-using i::times_pointer_size;
+namespace v8 {
+namespace internal {
+namespace test_macro_assembler_x64 {
 
 // Test the x64 assembler by compiling some simple functions into
 // a buffer and executing them.  These tests do not initialize the
@@ -117,15 +55,11 @@ typedef int (*F0)();
 
 static void EntryCode(MacroAssembler* masm) {
   // Smi constant register is callee save.
-  __ pushq(i::kRootRegister);
+  __ pushq(kRootRegister);
   __ InitializeRootRegister();
 }
 
-
-static void ExitCode(MacroAssembler* masm) {
-  __ popq(i::kRootRegister);
-}
-
+static void ExitCode(MacroAssembler* masm) { __ popq(kRootRegister); }
 
 TEST(Smi) {
   // Check that C++ Smi operations work as expected.
@@ -545,9 +479,9 @@ static void SmiAddTest(MacroAssembler* masm,
   __ movl(rcx, Immediate(first));
   __ Integer32ToSmi(rcx, rcx);
 
-  i::SmiOperationConstraints constraints =
-      i::SmiOperationConstraint::kPreserveSourceRegister |
-      i::SmiOperationConstraint::kBailoutOnOverflow;
+  SmiOperationConstraints constraints =
+      SmiOperationConstraint::kPreserveSourceRegister |
+      SmiOperationConstraint::kBailoutOnOverflow;
   __ incq(rax);
   __ SmiAddConstant(r9, rcx, Smi::FromInt(second), constraints, exit);
   __ cmpq(r9, r8);
@@ -561,8 +495,8 @@ static void SmiAddTest(MacroAssembler* masm,
   __ movl(rcx, Immediate(first));
   __ Integer32ToSmi(rcx, rcx);
 
-  constraints = i::SmiOperationConstraint::kPreserveSourceRegister |
-                i::SmiOperationConstraint::kBailoutOnNoOverflow;
+  constraints = SmiOperationConstraint::kPreserveSourceRegister |
+                SmiOperationConstraint::kBailoutOnNoOverflow;
   Label done;
   __ incq(rax);
   __ SmiAddConstant(rcx, rcx, Smi::FromInt(second), constraints, &done);
@@ -607,9 +541,9 @@ static void SmiAddOverflowTest(MacroAssembler* masm,
     __ j(not_equal, exit);
   }
 
-  i::SmiOperationConstraints constraints =
-      i::SmiOperationConstraint::kPreserveSourceRegister |
-      i::SmiOperationConstraint::kBailoutOnOverflow;
+  SmiOperationConstraints constraints =
+      SmiOperationConstraint::kPreserveSourceRegister |
+      SmiOperationConstraint::kBailoutOnOverflow;
   __ movq(rcx, r11);
   {
     Label overflow_ok;
@@ -669,7 +603,7 @@ static void SmiAddOverflowTest(MacroAssembler* masm,
     __ j(not_equal, exit);
   }
 
-  constraints = i::SmiOperationConstraint::kBailoutOnOverflow;
+  constraints = SmiOperationConstraint::kBailoutOnOverflow;
   {
     Label overflow_ok;
     __ incq(rax);
@@ -760,9 +694,9 @@ static void SmiSubTest(MacroAssembler* masm,
   __ cmpq(rcx, r8);
   __ j(not_equal, exit);
 
-  i::SmiOperationConstraints constraints =
-      i::SmiOperationConstraint::kPreserveSourceRegister |
-      i::SmiOperationConstraint::kBailoutOnOverflow;
+  SmiOperationConstraints constraints =
+      SmiOperationConstraint::kPreserveSourceRegister |
+      SmiOperationConstraint::kBailoutOnOverflow;
   __ Move(rcx, Smi::FromInt(first));
   __ incq(rax);  // Test 4.
   __ SmiSubConstant(rcx, rcx, Smi::FromInt(second), constraints, exit);
@@ -775,8 +709,8 @@ static void SmiSubTest(MacroAssembler* masm,
   __ cmpq(r9, r8);
   __ j(not_equal, exit);
 
-  constraints = i::SmiOperationConstraint::kPreserveSourceRegister |
-                i::SmiOperationConstraint::kBailoutOnNoOverflow;
+  constraints = SmiOperationConstraint::kPreserveSourceRegister |
+                SmiOperationConstraint::kBailoutOnNoOverflow;
   __ Move(rcx, Smi::FromInt(first));
   Label done;
   __ incq(rax);  // Test 6.
@@ -822,9 +756,9 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
     __ j(not_equal, exit);
   }
 
-  i::SmiOperationConstraints constraints =
-      i::SmiOperationConstraint::kPreserveSourceRegister |
-      i::SmiOperationConstraint::kBailoutOnOverflow;
+  SmiOperationConstraints constraints =
+      SmiOperationConstraint::kPreserveSourceRegister |
+      SmiOperationConstraint::kBailoutOnOverflow;
 
   __ movq(rcx, r11);
   {
@@ -885,7 +819,7 @@ static void SmiSubOverflowTest(MacroAssembler* masm,
     __ j(not_equal, exit);
   }
 
-  constraints = i::SmiOperationConstraint::kBailoutOnOverflow;
+  constraints = SmiOperationConstraint::kBailoutOnOverflow;
   __ movq(rcx, r11);
   {
     Label overflow_ok;
@@ -1791,3 +1725,7 @@ TEST(SIMDMacros) {
 }
 
 #undef __
+
+}  // namespace test_macro_assembler_x64
+}  // namespace internal
+}  // namespace v8

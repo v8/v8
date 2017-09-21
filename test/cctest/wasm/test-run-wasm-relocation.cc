@@ -15,6 +15,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace test_run_wasm_relocation {
 
 #define FOREACH_TYPE(TEST_BODY)    \
   TEST_BODY(int32_t, WASM_I32_ADD) \
@@ -65,6 +66,7 @@ FOREACH_TYPE(LOAD_SET_GLOBAL_TEST_BODY)
 #undef FOREACH_TYPE
 #undef LOAD_SET_GLOBAL_TEST_BODY
 
+}  // namespace test_run_wasm_relocation
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

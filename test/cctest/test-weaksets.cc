@@ -44,6 +44,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_weaksets {
 
 static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
@@ -244,5 +245,6 @@ TEST(WeakSet_Regress2060b) {
   CcTest::CollectAllGarbage();
 }
 
+}  // namespace test_weaksets
 }  // namespace internal
 }  // namespace v8

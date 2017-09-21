@@ -11,6 +11,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace test_run_wasm_simd {
 
 namespace {
 
@@ -2240,6 +2241,7 @@ WASM_SIMD_TEST(SimdLoadStoreLoad) {
 #undef WASM_SIMD_NON_CANONICAL_SELECT_TEST
 #undef WASM_SIMD_BOOL_REDUCTION_TEST
 
+}  // namespace test_run_wasm_simd
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

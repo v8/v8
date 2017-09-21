@@ -97,6 +97,7 @@ class MyRandomNumberGenerator {
 
 namespace v8 {
 namespace internal {
+namespace test_strings {
 
 static const int DEEP_DEPTH = 8 * 1024;
 static const int SUPER_DEEP_DEPTH = 80 * 1024;
@@ -1669,5 +1670,6 @@ TEST(ExternalStringIndexOf) {
                    .FromJust());
 }
 
+}  // namespace test_strings
 }  // namespace internal
 }  // namespace v8

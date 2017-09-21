@@ -13,6 +13,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace test_wasm_stack {
 
 using v8::Local;
 using v8::Utils;
@@ -198,6 +199,7 @@ TEST(CollectDetailedWasmStack_WasmError) {
   }
 }
 
+}  // namespace test_wasm_stack
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

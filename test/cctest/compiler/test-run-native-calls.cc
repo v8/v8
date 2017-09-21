@@ -18,6 +18,7 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace test_run_native_calls {
 
 const auto GetRegConfig = RegisterConfiguration::Default;
 
@@ -1225,6 +1226,8 @@ TEST(RunStackSlotFloat64) {
   double magic = 3456.375;
   TestStackSlot(MachineType::Float64(), magic);
 }
+
+}  // namespace test_run_native_calls
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

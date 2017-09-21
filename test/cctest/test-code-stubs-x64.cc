@@ -40,6 +40,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_code_stubs_x64 {
 
 #define __ assm.
 
@@ -156,5 +157,6 @@ TEST(ConvertDToI) {
   }
 }
 
+}  // namespace test_code_stubs_x64
 }  // namespace internal
 }  // namespace v8

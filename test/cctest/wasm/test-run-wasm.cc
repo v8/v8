@@ -18,6 +18,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace test_run_wasm {
 
 // for even shorter tests.
 #define B1(a) WASM_BLOCK(a)
@@ -3099,6 +3100,7 @@ WASM_EXEC_TEST(IfInsideUnreachable) {
 #undef RET_I8
 #undef ADD_CODE
 
+}  // namespace test_run_wasm
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

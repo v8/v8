@@ -15,6 +15,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_inobject_slack_tracking {
 
 static const int kMaxInobjectProperties = JSObject::kMaxInObjectProperties;
 
@@ -1202,5 +1203,6 @@ TEST(SubclassPromiseBuiltinNoInlineNew) {
   TestSubclassPromiseBuiltin();
 }
 
+}  // namespace test_inobject_slack_tracking
 }  // namespace internal
 }  // namespace v8
