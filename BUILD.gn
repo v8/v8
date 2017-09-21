@@ -81,7 +81,7 @@ declare_args() {
   v8_enable_trace_ignition = false
 
   # Sets -dV8_CONCURRENT_MARKING
-  v8_enable_concurrent_marking = ""
+  v8_enable_concurrent_marking = false
 
   # Sets -dV8_CSA_WRITE_BARRIER
   v8_enable_csa_write_barrier = true
@@ -149,13 +149,6 @@ if (v8_enable_v8_checks == "") {
 }
 if (v8_check_microtasks_scopes_consistency == "") {
   v8_check_microtasks_scopes_consistency = is_debug || dcheck_always_on
-}
-if (v8_enable_concurrent_marking == "") {
-  if (v8_target_cpu == "x86" || v8_target_cpu == "x64") {
-    v8_enable_concurrent_marking = true
-  } else {
-    v8_enable_concurrent_marking = false
-  }
 }
 
 # Specifies if the target build is a simulator build. Comparing target cpu
