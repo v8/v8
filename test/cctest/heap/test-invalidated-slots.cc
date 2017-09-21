@@ -20,7 +20,6 @@ namespace heap {
 
 Page* HeapTester::AllocateByteArraysOnPage(
     Heap* heap, std::vector<ByteArray*>* byte_arrays) {
-  PauseAllocationObserversScope pause_observers(heap);
   const int kLength = 256 - ByteArray::kHeaderSize;
   const int kSize = ByteArray::SizeFor(kLength);
   CHECK_EQ(kSize, 256);

@@ -32,7 +32,6 @@ int FixedArrayLenFromSize(int size) {
 
 std::vector<Handle<FixedArray>> FillOldSpacePageWithFixedArrays(Heap* heap,
                                                                 int remainder) {
-  PauseAllocationObserversScope pause_observers(heap);
   std::vector<Handle<FixedArray>> handles;
   Isolate* isolate = heap->isolate();
   const int kArraySize = 128;
@@ -204,7 +203,7 @@ void ForceEvacuationCandidate(Page* page) {
     int remaining = static_cast<int>(limit - top);
     space->heap()->CreateFillerObjectAt(top, remaining,
                                         ClearRecordedSlots::kNo);
-    space->EmptyAllocationInfo();
+    space->SetTopAndLimit(nullptr, nullptr);
   }
 }
 
