@@ -122,7 +122,7 @@ bool CodeRange::SetUp(size_t requested) {
           requested,
           Max(kCodeRangeAreaAlignment,
               static_cast<size_t>(base::OS::AllocateAlignment())),
-          base::OS::GetRandomMmapAddr(), &reservation)) {
+          v8::internal::GetRandomMmapAddr(), &reservation)) {
     return false;
   }
 

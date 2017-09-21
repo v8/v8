@@ -220,8 +220,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   return result;
 }
 
-
-void OS::SignalCodeMovingGC() {
+void OS::SignalCodeMovingGC(void* hint) {
   // Nothing to do on Cygwin.
 }
 

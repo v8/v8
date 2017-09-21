@@ -159,6 +159,9 @@ bool AllocVirtualMemory(size_t size, void* hint, VirtualMemory* result);
 bool AlignedAllocVirtualMemory(size_t size, size_t alignment, void* hint,
                                VirtualMemory* result);
 
+// Generate a random address to be used for hinting mmap().
+void* GetRandomMmapAddr();
+
 }  // namespace internal
 }  // namespace v8
 

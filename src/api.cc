@@ -485,7 +485,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   virtual void Free(void* data, size_t) { free(data); }
 
   virtual void* Reserve(size_t length) {
-    return base::OS::ReserveRegion(length, base::OS::GetRandomMmapAddr());
+    return base::OS::ReserveRegion(length, i::GetRandomMmapAddr());
   }
 
   virtual void Free(void* data, size_t length,
