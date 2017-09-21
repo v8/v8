@@ -1769,6 +1769,11 @@ void PagedSpace::VerifyCountersAfterSweeping() {
 }
 
 void PagedSpace::VerifyCountersBeforeConcurrentSweeping() {
+  // We need to refine the counters on pages that are already swept and have
+  // not been moved over to the actual space. Otherwise, the AccountingStats
+  // are just an over approximation.
+  RefillFreeList();
+
   size_t total_capacity = 0;
   size_t total_allocated = 0;
   auto marking_state =
