@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
+#define V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
+
 #include "src/compiler/code-assembler.h"
 #include "src/handles.h"
 #include "src/interface-descriptors.h"
@@ -54,3 +57,5 @@ class CodeAssemblerTester {
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
+
+#endif  // V8_TEST_CCTEST_COMPILER_CODE_ASSEMBLER_TESTER_H_
