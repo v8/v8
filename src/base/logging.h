@@ -114,9 +114,33 @@ V8_BASE_EXPORT void SetDcheckFunction(void (*dcheck_Function)(const char*, int,
 
 #endif
 
-template <typename Op>
-void PrintCheckOperand(std::ostream& os, Op op) {
-  os << op;
+// Define PrintCheckOperand<T> for each T which defines operator<< for ostream.
+template <typename T>
+typename std::enable_if<has_output_operator<T>::value>::type PrintCheckOperand(
+    std::ostream& os, T val) {
+  os << std::forward<T>(val);
+}
+
+// Define PrintCheckOperand<T> for enums which have no operator<<.
+template <typename T>
+typename std::enable_if<std::is_enum<T>::value &&
+                        !has_output_operator<T>::value>::type
+PrintCheckOperand(std::ostream& os, T val) {
+  using underlying_t = typename std::underlying_type<T>::type;
+  // 8-bit types are not printed as number, so extend them to 16 bit.
+  using int_t = typename std::conditional<
+      std::is_same<underlying_t, uint8_t>::value, uint16_t,
+      typename std::conditional<std::is_same<underlying_t, int8_t>::value,
+                                int16_t, underlying_t>::type>::type;
+  PrintCheckOperand(os, static_cast<int_t>(static_cast<underlying_t>(val)));
+}
+
+// Define default PrintCheckOperand<T> for non-printable types.
+template <typename T>
+typename std::enable_if<!has_output_operator<T>::value &&
+                        !std::is_enum<T>::value>::type
+PrintCheckOperand(std::ostream& os, T val) {
+  os << "<unprintable>";
 }
 
 // Define specializations for character types, defined in logging.cc.
@@ -143,9 +167,9 @@ template <typename Lhs, typename Rhs>
 std::string* MakeCheckOpString(Lhs lhs, Rhs rhs, char const* msg) {
   std::ostringstream ss;
   ss << msg << " (";
-  PrintCheckOperand(ss, lhs);
+  PrintCheckOperand<Lhs>(ss, lhs);
   ss << " vs. ";
-  PrintCheckOperand(ss, rhs);
+  PrintCheckOperand<Rhs>(ss, rhs);
   ss << ")";
   return new std::string(ss.str());
 }
