@@ -7649,6 +7649,799 @@ TEST(MSA_load_store_vector) {
 #undef LDI_DF
 }
 
+struct TestCaseMsa3R {
+  uint64_t ws_lo;
+  uint64_t ws_hi;
+  uint64_t wt_lo;
+  uint64_t wt_hi;
+  uint64_t wd_lo;
+  uint64_t wd_hi;
+};
+
+static const uint64_t Unpredictable = 0x312014017725ll;
+
+template <typename InstFunc, typename OperFunc>
+void run_msa_3r(struct TestCaseMsa3R* input, InstFunc GenerateI5InstructionFunc,
+                OperFunc GenerateOperationFunc) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+  uint64_t expected;
+
+#define LOAD_MSA_REG(reg, low, high)                                  \
+  __ li(t0, static_cast<uint32_t>(input->low & 0xffffffff));          \
+  __ li(t1, static_cast<uint32_t>((input->low >> 32) & 0xffffffff));  \
+  __ insert_w(reg, 0, t0);                                            \
+  __ insert_w(reg, 1, t1);                                            \
+  __ li(t0, static_cast<uint32_t>(input->high & 0xffffffff));         \
+  __ li(t1, static_cast<uint32_t>((input->high >> 32) & 0xffffffff)); \
+  __ insert_w(reg, 2, t0);                                            \
+  __ insert_w(reg, 3, t1);
+
+  LOAD_MSA_REG(w0, wt_lo, wt_hi);
+  LOAD_MSA_REG(w1, ws_lo, ws_hi);
+  LOAD_MSA_REG(w2, wd_lo, wd_hi);
+
+  GenerateI5InstructionFunc(assm);
+
+  __ copy_u_w(t2, w2, 0);
+  __ sw(t2, MemOperand(a0, 0));
+  __ copy_u_w(t2, w2, 1);
+  __ sw(t2, MemOperand(a0, 4));
+  __ copy_u_w(t2, w2, 2);
+  __ sw(t2, MemOperand(a0, 8));
+  __ copy_u_w(t2, w2, 3);
+  __ sw(t2, MemOperand(a0, 12));
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  expected = GenerateOperationFunc(input->ws_lo, input->wt_lo, input->wd_lo);
+  if (expected != Unpredictable) {
+    CHECK_EQ(expected, res.d[0]);
+  }
+
+  expected = GenerateOperationFunc(input->ws_hi, input->wt_hi, input->wd_hi);
+  if (expected != Unpredictable) {
+    CHECK_EQ(expected, res.d[1]);
+  }
+}
+
+TEST(MSA_3R_instructions) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsa3R tc[] = {
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x1169751bb9a7d9c3,
+       0xf7a594aec8ef8a9c, 0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x2b665362c4e812df,
+       0x3a0d80d68b3f8bc8, 0x2b665362c4e812df, 0x3a0d80d68b3f8bc8},
+      {0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c, 0x1169751bb9a7d9c3,
+       0xf7a594aec8ef8a9c, 0x1169751bb9a7d9c3, 0xf7a594aec8ef8a9c},
+      {0x2b665362c4e812df, 0x3a0d80d68b3f8bc8, 0x2b665362c4e812df,
+       0x3a0d80d68b3f8bc8, 0x2b665362c4e812df, 0x3a0d80d68b3f8bc8},
+      {0xffab807f807fffcd, 0x7f23ff80ff567f80, 0xffab807f807fffcd,
+       0x7f23ff80ff567f80, 0xffab807f807fffcd, 0x7f23ff80ff567f80},
+      {0x80ffefff7f12807f, 0x807f80ff7fdeff78, 0x80ffefff7f12807f,
+       0x807f80ff7fdeff78, 0x80ffefff7f12807f, 0x807f80ff7fdeff78},
+      {0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff,
+       0xffffffffffffffff, 0xffffffffffffffff, 0xffffffffffffffff},
+      {0x0000000000000000, 0xffffffffffffffff, 0xffffffffffffffff,
+       0x0000000000000000, 0x0000000000000000, 0xffffffffffffffff},
+      {0xffff0000ffff0000, 0xffff0000ffff0000, 0xffff0000ffff0000,
+       0xffff0000ffff0000, 0xffff0000ffff0000, 0xffff0000ffff0000},
+      {0xff00ff00ff00ff00, 0xff00ff00ff00ff00, 0xff00ff00ff00ff00,
+       0xff00ff00ff00ff00, 0xff00ff00ff00ff00, 0xff00ff00ff00ff00},
+      {0xf0f0f0f0f0f0f0f0, 0xf0f0f0f0f0f0f0f0, 0xf0f0f0f0f0f0f0f0,
+       0xf0f0f0f0f0f0f0f0, 0xf0f0f0f0f0f0f0f0, 0xf0f0f0f0f0f0f0f0},
+      {0xff0000ffff0000ff, 0xff0000ffff0000ff, 0xff0000ffff0000ff,
+       0xff0000ffff0000ff, 0xff0000ffff0000ff, 0xff0000ffff0000ff},
+      {0xffff00000000ffff, 0xffff00000000ffff, 0xffff00000000ffff,
+       0xffff00000000ffff, 0xffff00000000ffff, 0xffff00000000ffff}};
+
+#define SLL_DF(T, lanes, mask)                                          \
+  uint64_t res = 0;                                                     \
+  int size_in_bits = kMSARegSize / lanes;                               \
+  for (int i = 0; i < lanes / 2; ++i) {                                 \
+    uint64_t shift = size_in_bits * i;                                  \
+    T src_op = static_cast<T>((ws >> shift) & mask);                    \
+    T shift_op = static_cast<T>((wt >> shift) & mask) % size_in_bits;   \
+    res |= (static_cast<uint64_t>(src_op << shift_op) & mask) << shift; \
+  }                                                                     \
+  return res
+
+#define SRA_DF(T, lanes, mask)                                                 \
+  uint64_t res = 0;                                                            \
+  int size_in_bits = kMSARegSize / lanes;                                      \
+  for (int i = 0; i < lanes / 2; ++i) {                                        \
+    uint64_t shift = size_in_bits * i;                                         \
+    T src_op = static_cast<T>((ws >> shift) & mask);                           \
+    T shift_op = ((wt >> shift) & mask) % size_in_bits;                        \
+    res |=                                                                     \
+        (static_cast<uint64_t>(ArithmeticShiftRight(src_op, shift_op) & mask)) \
+        << shift;                                                              \
+  }                                                                            \
+  return res
+
+#define SRL_DF(T, lanes, mask)                                          \
+  uint64_t res = 0;                                                     \
+  int size_in_bits = kMSARegSize / lanes;                               \
+  for (int i = 0; i < lanes / 2; ++i) {                                 \
+    uint64_t shift = size_in_bits * i;                                  \
+    T src_op = static_cast<T>((ws >> shift) & mask);                    \
+    T shift_op = static_cast<T>(((wt >> shift) & mask) % size_in_bits); \
+    res |= (static_cast<uint64_t>(src_op >> shift_op) & mask) << shift; \
+  }                                                                     \
+  return res
+
+#define BCRL_DF(T, lanes, mask)                                         \
+  uint64_t res = 0;                                                     \
+  int size_in_bits = kMSARegSize / lanes;                               \
+  for (int i = 0; i < lanes / 2; ++i) {                                 \
+    uint64_t shift = size_in_bits * i;                                  \
+    T src_op = static_cast<T>((ws >> shift) & mask);                    \
+    T shift_op = static_cast<T>(((wt >> shift) & mask) % size_in_bits); \
+    T r = (static_cast<T>(~(1ull << shift_op)) & src_op) & mask;        \
+    res |= static_cast<uint64_t>(r) << shift;                           \
+  }                                                                     \
+  return res
+
+#define BSET_DF(T, lanes, mask)                                         \
+  uint64_t res = 0;                                                     \
+  int size_in_bits = kMSARegSize / lanes;                               \
+  for (int i = 0; i < lanes / 2; ++i) {                                 \
+    uint64_t shift = size_in_bits * i;                                  \
+    T src_op = static_cast<T>((ws >> shift) & mask);                    \
+    T shift_op = static_cast<T>(((wt >> shift) & mask) % size_in_bits); \
+    T r = (static_cast<T>(1ull << shift_op) | src_op) & mask;           \
+    res |= static_cast<uint64_t>(r) << shift;                           \
+  }                                                                     \
+  return res
+
+#define BNEG_DF(T, lanes, mask)                                         \
+  uint64_t res = 0;                                                     \
+  int size_in_bits = kMSARegSize / lanes;                               \
+  for (int i = 0; i < lanes / 2; ++i) {                                 \
+    uint64_t shift = size_in_bits * i;                                  \
+    T src_op = static_cast<T>((ws >> shift) & mask);                    \
+    T shift_op = static_cast<T>(((wt >> shift) & mask) % size_in_bits); \
+    T r = (static_cast<T>(1ull << shift_op) ^ src_op) & mask;           \
+    res |= static_cast<uint64_t>(r) << shift;                           \
+  }                                                                     \
+  return res
+
+#define BINSL_DF(T, lanes, mask)                                        \
+  uint64_t res = 0;                                                     \
+  int size_in_bits = kMSARegSize / lanes;                               \
+  for (int i = 0; i < lanes / 2; ++i) {                                 \
+    uint64_t shift = size_in_bits * i;                                  \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                     \
+    T wd_op = static_cast<T>((wd >> shift) & mask);                     \
+    T shift_op = static_cast<T>(((wt >> shift) & mask) % size_in_bits); \
+    int bits = shift_op + 1;                                            \
+    T r;                                                                \
+    if (bits == size_in_bits) {                                         \
+      r = static_cast<T>(ws_op);                                        \
+    } else {                                                            \
+      uint64_t mask2 = ((1ull << bits) - 1) << (size_in_bits - bits);   \
+      r = static_cast<T>((static_cast<T>(mask2) & ws_op) |              \
+                         (static_cast<T>(~mask2) & wd_op));             \
+    }                                                                   \
+    res |= static_cast<uint64_t>(r) << shift;                           \
+  }                                                                     \
+  return res
+
+#define BINSR_DF(T, lanes, mask)                                        \
+  uint64_t res = 0;                                                     \
+  int size_in_bits = kMSARegSize / lanes;                               \
+  for (int i = 0; i < lanes / 2; ++i) {                                 \
+    uint64_t shift = size_in_bits * i;                                  \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                     \
+    T wd_op = static_cast<T>((wd >> shift) & mask);                     \
+    T shift_op = static_cast<T>(((wt >> shift) & mask) % size_in_bits); \
+    int bits = shift_op + 1;                                            \
+    T r;                                                                \
+    if (bits == size_in_bits) {                                         \
+      r = static_cast<T>(ws_op);                                        \
+    } else {                                                            \
+      uint64_t mask2 = (1ull << bits) - 1;                              \
+      r = static_cast<T>((static_cast<T>(mask2) & ws_op) |              \
+                         (static_cast<T>(~mask2) & wd_op));             \
+    }                                                                   \
+    res |= static_cast<uint64_t>(r) << shift;                           \
+  }                                                                     \
+  return res
+
+#define ADDV_DF(T, lanes, mask)                                    \
+  uint64_t res = 0;                                                \
+  int size_in_bits = kMSARegSize / lanes;                          \
+  for (int i = 0; i < lanes / 2; ++i) {                            \
+    uint64_t shift = size_in_bits * i;                             \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                \
+    res |= (static_cast<uint64_t>(ws_op + wt_op) & mask) << shift; \
+  }                                                                \
+  return res
+
+#define SUBV_DF(T, lanes, mask)                                    \
+  uint64_t res = 0;                                                \
+  int size_in_bits = kMSARegSize / lanes;                          \
+  for (int i = 0; i < lanes / 2; ++i) {                            \
+    uint64_t shift = size_in_bits * i;                             \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                \
+    res |= (static_cast<uint64_t>(ws_op - wt_op) & mask) << shift; \
+  }                                                                \
+  return res
+
+#define MAX_DF(T, lanes, mask)                                            \
+  uint64_t res = 0;                                                       \
+  int size_in_bits = kMSARegSize / lanes;                                 \
+  for (int i = 0; i < lanes / 2; ++i) {                                   \
+    uint64_t shift = size_in_bits * i;                                    \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                       \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                       \
+    res |= (static_cast<uint64_t>(Max<T>(ws_op, wt_op)) & mask) << shift; \
+  }                                                                       \
+  return res
+
+#define MIN_DF(T, lanes, mask)                                            \
+  uint64_t res = 0;                                                       \
+  int size_in_bits = kMSARegSize / lanes;                                 \
+  for (int i = 0; i < lanes / 2; ++i) {                                   \
+    uint64_t shift = size_in_bits * i;                                    \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                       \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                       \
+    res |= (static_cast<uint64_t>(Min<T>(ws_op, wt_op)) & mask) << shift; \
+  }                                                                       \
+  return res
+
+#define MAXA_DF(T, lanes, mask)                                                \
+  uint64_t res = 0;                                                            \
+  int size_in_bits = kMSARegSize / lanes;                                      \
+  for (int i = 0; i < lanes / 2; ++i) {                                        \
+    uint64_t shift = size_in_bits * i;                                         \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                            \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                            \
+    res |= (static_cast<uint64_t>(Nabs(ws_op) < Nabs(wt_op) ? ws_op : wt_op) & \
+            mask)                                                              \
+           << shift;                                                           \
+  }                                                                            \
+  return res
+
+#define MINA_DF(T, lanes, mask)                                                \
+  uint64_t res = 0;                                                            \
+  int size_in_bits = kMSARegSize / lanes;                                      \
+  for (int i = 0; i < lanes / 2; ++i) {                                        \
+    uint64_t shift = size_in_bits * i;                                         \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                            \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                            \
+    res |= (static_cast<uint64_t>(Nabs(ws_op) > Nabs(wt_op) ? ws_op : wt_op) & \
+            mask)                                                              \
+           << shift;                                                           \
+  }                                                                            \
+  return res
+
+#define CEQ_DF(T, lanes, mask)                                                \
+  uint64_t res = 0;                                                           \
+  int size_in_bits = kMSARegSize / lanes;                                     \
+  for (int i = 0; i < lanes / 2; ++i) {                                       \
+    uint64_t shift = size_in_bits * i;                                        \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                           \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                           \
+    res |=                                                                    \
+        (static_cast<uint64_t>(!Compare(ws_op, wt_op) ? -1ull : 0ull) & mask) \
+        << shift;                                                             \
+  }                                                                           \
+  return res
+
+#define CLT_DF(T, lanes, mask)                                                 \
+  uint64_t res = 0;                                                            \
+  int size_in_bits = kMSARegSize / lanes;                                      \
+  for (int i = 0; i < lanes / 2; ++i) {                                        \
+    uint64_t shift = size_in_bits * i;                                         \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                            \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                            \
+    res |=                                                                     \
+        (static_cast<uint64_t>((Compare(ws_op, wt_op) == -1) ? -1ull : 0ull) & \
+         mask)                                                                 \
+        << shift;                                                              \
+  }                                                                            \
+  return res
+
+#define CLE_DF(T, lanes, mask)                                                \
+  uint64_t res = 0;                                                           \
+  int size_in_bits = kMSARegSize / lanes;                                     \
+  for (int i = 0; i < lanes / 2; ++i) {                                       \
+    uint64_t shift = size_in_bits * i;                                        \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                           \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                           \
+    res |=                                                                    \
+        (static_cast<uint64_t>((Compare(ws_op, wt_op) != 1) ? -1ull : 0ull) & \
+         mask)                                                                \
+        << shift;                                                             \
+  }                                                                           \
+  return res
+
+#define ADD_A_DF(T, lanes, mask)                                             \
+  uint64_t res = 0;                                                          \
+  int size_in_bits = kMSARegSize / lanes;                                    \
+  for (int i = 0; i < lanes / 2; ++i) {                                      \
+    uint64_t shift = size_in_bits * i;                                       \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                          \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                          \
+    res |= (static_cast<uint64_t>(Abs(ws_op) + Abs(wt_op)) & mask) << shift; \
+  }                                                                          \
+  return res
+
+#define ADDS_A_DF(T, lanes, mask)                         \
+  uint64_t res = 0;                                       \
+  int size_in_bits = kMSARegSize / lanes;                 \
+  for (int i = 0; i < lanes / 2; ++i) {                   \
+    uint64_t shift = size_in_bits * i;                    \
+    T ws_op = Nabs(static_cast<T>((ws >> shift) & mask)); \
+    T wt_op = Nabs(static_cast<T>((wt >> shift) & mask)); \
+    T r;                                                  \
+    if (ws_op < -std::numeric_limits<T>::max() - wt_op) { \
+      r = std::numeric_limits<T>::max();                  \
+    } else {                                              \
+      r = -(ws_op + wt_op);                               \
+    }                                                     \
+    res |= (static_cast<uint64_t>(r) & mask) << shift;    \
+  }                                                       \
+  return res
+
+#define ADDS_DF(T, lanes, mask)                                                \
+  uint64_t res = 0;                                                            \
+  int size_in_bits = kMSARegSize / lanes;                                      \
+  for (int i = 0; i < lanes / 2; ++i) {                                        \
+    uint64_t shift = size_in_bits * i;                                         \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                            \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                            \
+    res |= (static_cast<uint64_t>(SaturateAdd(ws_op, wt_op)) & mask) << shift; \
+  }                                                                            \
+  return res
+
+#define AVE_DF(T, lanes, mask)                                                 \
+  uint64_t res = 0;                                                            \
+  int size_in_bits = kMSARegSize / lanes;                                      \
+  for (int i = 0; i < lanes / 2; ++i) {                                        \
+    uint64_t shift = size_in_bits * i;                                         \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                            \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                            \
+    res |= (static_cast<uint64_t>(((wt_op & ws_op) + ((ws_op ^ wt_op) >> 1)) & \
+                                  mask))                                       \
+           << shift;                                                           \
+  }                                                                            \
+  return res
+
+#define AVER_DF(T, lanes, mask)                                                \
+  uint64_t res = 0;                                                            \
+  int size_in_bits = kMSARegSize / lanes;                                      \
+  for (int i = 0; i < lanes / 2; ++i) {                                        \
+    uint64_t shift = size_in_bits * i;                                         \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                            \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                            \
+    res |= (static_cast<uint64_t>(((wt_op | ws_op) - ((ws_op ^ wt_op) >> 1)) & \
+                                  mask))                                       \
+           << shift;                                                           \
+  }                                                                            \
+  return res
+
+#define SUBS_DF(T, lanes, mask)                                                \
+  uint64_t res = 0;                                                            \
+  int size_in_bits = kMSARegSize / lanes;                                      \
+  for (int i = 0; i < lanes / 2; ++i) {                                        \
+    uint64_t shift = size_in_bits * i;                                         \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                            \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                            \
+    res |= (static_cast<uint64_t>(SaturateSub(ws_op, wt_op)) & mask) << shift; \
+  }                                                                            \
+  return res
+
+#define SUBSUS_U_DF(T, lanes, mask)                         \
+  typedef typename std::make_unsigned<T>::type uT;          \
+  uint64_t res = 0;                                         \
+  int size_in_bits = kMSARegSize / lanes;                   \
+  for (int i = 0; i < lanes / 2; ++i) {                     \
+    uint64_t shift = size_in_bits * i;                      \
+    uT ws_op = static_cast<uT>((ws >> shift) & mask);       \
+    T wt_op = static_cast<T>((wt >> shift) & mask);         \
+    T r;                                                    \
+    if (wt_op > 0) {                                        \
+      uT wtu = static_cast<uT>(wt_op);                      \
+      if (wtu > ws_op) {                                    \
+        r = 0;                                              \
+      } else {                                              \
+        r = static_cast<T>(ws_op - wtu);                    \
+      }                                                     \
+    } else {                                                \
+      if (ws_op > std::numeric_limits<uT>::max() + wt_op) { \
+        r = static_cast<T>(std::numeric_limits<uT>::max()); \
+      } else {                                              \
+        r = static_cast<T>(ws_op - wt_op);                  \
+      }                                                     \
+    }                                                       \
+    res |= (static_cast<uint64_t>(r) & mask) << shift;      \
+  }                                                         \
+  return res
+
+#define SUBSUU_S_DF(T, lanes, mask)                    \
+  typedef typename std::make_unsigned<T>::type uT;     \
+  uint64_t res = 0;                                    \
+  int size_in_bits = kMSARegSize / lanes;              \
+  for (int i = 0; i < lanes / 2; ++i) {                \
+    uint64_t shift = size_in_bits * i;                 \
+    uT ws_op = static_cast<uT>((ws >> shift) & mask);  \
+    uT wt_op = static_cast<uT>((wt >> shift) & mask);  \
+    uT wdu;                                            \
+    T r;                                               \
+    if (ws_op > wt_op) {                               \
+      wdu = ws_op - wt_op;                             \
+      if (wdu > std::numeric_limits<T>::max()) {       \
+        r = std::numeric_limits<T>::max();             \
+      } else {                                         \
+        r = static_cast<T>(wdu);                       \
+      }                                                \
+    } else {                                           \
+      wdu = wt_op - ws_op;                             \
+      CHECK(-std::numeric_limits<T>::max() ==          \
+            std::numeric_limits<T>::min() + 1);        \
+      if (wdu <= std::numeric_limits<T>::max()) {      \
+        r = -static_cast<T>(wdu);                      \
+      } else {                                         \
+        r = std::numeric_limits<T>::min();             \
+      }                                                \
+    }                                                  \
+    res |= (static_cast<uint64_t>(r) & mask) << shift; \
+  }                                                    \
+  return res
+
+#define ASUB_S_DF(T, lanes, mask)                                       \
+  uint64_t res = 0;                                                     \
+  int size_in_bits = kMSARegSize / lanes;                               \
+  for (int i = 0; i < lanes / 2; ++i) {                                 \
+    uint64_t shift = size_in_bits * i;                                  \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                     \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                     \
+    res |= (static_cast<uint64_t>(Abs(ws_op - wt_op)) & mask) << shift; \
+  }                                                                     \
+  return res
+
+#define ASUB_U_DF(T, lanes, mask)                                  \
+  uint64_t res = 0;                                                \
+  int size_in_bits = kMSARegSize / lanes;                          \
+  for (int i = 0; i < lanes / 2; ++i) {                            \
+    uint64_t shift = size_in_bits * i;                             \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                \
+    res |= (static_cast<uint64_t>(ws_op > wt_op ? ws_op - wt_op    \
+                                                : wt_op - ws_op) & \
+            mask)                                                  \
+           << shift;                                               \
+  }                                                                \
+  return res
+
+#define MULV_DF(T, lanes, mask)                                    \
+  uint64_t res = 0;                                                \
+  int size_in_bits = kMSARegSize / lanes;                          \
+  for (int i = 0; i < lanes / 2; ++i) {                            \
+    uint64_t shift = size_in_bits * i;                             \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                \
+    res |= (static_cast<uint64_t>(ws_op * wt_op) & mask) << shift; \
+  }                                                                \
+  return res
+
+#define MADDV_DF(T, lanes, mask)                                           \
+  uint64_t res = 0;                                                        \
+  int size_in_bits = kMSARegSize / lanes;                                  \
+  for (int i = 0; i < lanes / 2; ++i) {                                    \
+    uint64_t shift = size_in_bits * i;                                     \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                        \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                        \
+    T wd_op = static_cast<T>((wd >> shift) & mask);                        \
+    res |= (static_cast<uint64_t>(wd_op + ws_op * wt_op) & mask) << shift; \
+  }                                                                        \
+  return res
+
+#define MSUBV_DF(T, lanes, mask)                                           \
+  uint64_t res = 0;                                                        \
+  int size_in_bits = kMSARegSize / lanes;                                  \
+  for (int i = 0; i < lanes / 2; ++i) {                                    \
+    uint64_t shift = size_in_bits * i;                                     \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                        \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                        \
+    T wd_op = static_cast<T>((wd >> shift) & mask);                        \
+    res |= (static_cast<uint64_t>(wd_op - ws_op * wt_op) & mask) << shift; \
+  }                                                                        \
+  return res
+
+#define DIV_DF(T, lanes, mask)                                     \
+  uint64_t res = 0;                                                \
+  int size_in_bits = kMSARegSize / lanes;                          \
+  for (int i = 0; i < lanes / 2; ++i) {                            \
+    uint64_t shift = size_in_bits * i;                             \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                \
+    if (wt_op == 0) {                                              \
+      res = Unpredictable;                                         \
+      break;                                                       \
+    }                                                              \
+    res |= (static_cast<uint64_t>(ws_op / wt_op) & mask) << shift; \
+  }                                                                \
+  return res
+
+#define MOD_DF(T, lanes, mask)                                            \
+  uint64_t res = 0;                                                       \
+  int size_in_bits = kMSARegSize / lanes;                                 \
+  for (int i = 0; i < lanes / 2; ++i) {                                   \
+    uint64_t shift = size_in_bits * i;                                    \
+    T ws_op = static_cast<T>((ws >> shift) & mask);                       \
+    T wt_op = static_cast<T>((wt >> shift) & mask);                       \
+    if (wt_op == 0) {                                                     \
+      res = Unpredictable;                                                \
+      break;                                                              \
+    }                                                                     \
+    res |= (static_cast<uint64_t>(wt_op != 0 ? ws_op % wt_op : 0) & mask) \
+           << shift;                                                      \
+  }                                                                       \
+  return res
+
+#define SRAR_DF(T, lanes, mask)                                                \
+  uint64_t res = 0;                                                            \
+  int size_in_bits = kMSARegSize / lanes;                                      \
+  for (int i = 0; i < lanes / 2; ++i) {                                        \
+    uint64_t shift = size_in_bits * i;                                         \
+    T src_op = static_cast<T>((ws >> shift) & mask);                           \
+    T shift_op = ((wt >> shift) & mask) % size_in_bits;                        \
+    uint32_t bit = shift_op == 0 ? 0 : src_op >> (shift_op - 1) & 1;           \
+    res |=                                                                     \
+        (static_cast<uint64_t>(ArithmeticShiftRight(src_op, shift_op) + bit) & \
+         mask)                                                                 \
+        << shift;                                                              \
+  }                                                                            \
+  return res
+
+#define TEST_CASE(V)                                              \
+  V(sll_b, SLL_DF, uint8_t, kMSALanesByte, UINT8_MAX)             \
+  V(sll_h, SLL_DF, uint16_t, kMSALanesHalf, UINT16_MAX)           \
+  V(sll_w, SLL_DF, uint32_t, kMSALanesWord, UINT32_MAX)           \
+  V(sll_d, SLL_DF, uint64_t, kMSALanesDword, UINT64_MAX)          \
+  V(sra_b, SRA_DF, int8_t, kMSALanesByte, UINT8_MAX)              \
+  V(sra_h, SRA_DF, int16_t, kMSALanesHalf, UINT16_MAX)            \
+  V(sra_w, SRA_DF, int32_t, kMSALanesWord, UINT32_MAX)            \
+  V(sra_d, SRA_DF, int64_t, kMSALanesDword, UINT64_MAX)           \
+  V(srl_b, SRL_DF, uint8_t, kMSALanesByte, UINT8_MAX)             \
+  V(srl_h, SRL_DF, uint16_t, kMSALanesHalf, UINT16_MAX)           \
+  V(srl_w, SRL_DF, uint32_t, kMSALanesWord, UINT32_MAX)           \
+  V(srl_d, SRL_DF, uint64_t, kMSALanesDword, UINT64_MAX)          \
+  V(bclr_b, BCRL_DF, uint8_t, kMSALanesByte, UINT8_MAX)           \
+  V(bclr_h, BCRL_DF, uint16_t, kMSALanesHalf, UINT16_MAX)         \
+  V(bclr_w, BCRL_DF, uint32_t, kMSALanesWord, UINT32_MAX)         \
+  V(bclr_d, BCRL_DF, uint64_t, kMSALanesDword, UINT64_MAX)        \
+  V(bset_b, BSET_DF, uint8_t, kMSALanesByte, UINT8_MAX)           \
+  V(bset_h, BSET_DF, uint16_t, kMSALanesHalf, UINT16_MAX)         \
+  V(bset_w, BSET_DF, uint32_t, kMSALanesWord, UINT32_MAX)         \
+  V(bset_d, BSET_DF, uint64_t, kMSALanesDword, UINT64_MAX)        \
+  V(bneg_b, BNEG_DF, uint8_t, kMSALanesByte, UINT8_MAX)           \
+  V(bneg_h, BNEG_DF, uint16_t, kMSALanesHalf, UINT16_MAX)         \
+  V(bneg_w, BNEG_DF, uint32_t, kMSALanesWord, UINT32_MAX)         \
+  V(bneg_d, BNEG_DF, uint64_t, kMSALanesDword, UINT64_MAX)        \
+  V(binsl_b, BINSL_DF, uint8_t, kMSALanesByte, UINT8_MAX)         \
+  V(binsl_h, BINSL_DF, uint16_t, kMSALanesHalf, UINT16_MAX)       \
+  V(binsl_w, BINSL_DF, uint32_t, kMSALanesWord, UINT32_MAX)       \
+  V(binsl_d, BINSL_DF, uint64_t, kMSALanesDword, UINT64_MAX)      \
+  V(binsr_b, BINSR_DF, uint8_t, kMSALanesByte, UINT8_MAX)         \
+  V(binsr_h, BINSR_DF, uint16_t, kMSALanesHalf, UINT16_MAX)       \
+  V(binsr_w, BINSR_DF, uint32_t, kMSALanesWord, UINT32_MAX)       \
+  V(binsr_d, BINSR_DF, uint64_t, kMSALanesDword, UINT64_MAX)      \
+  V(addv_b, ADDV_DF, int8_t, kMSALanesByte, UINT8_MAX)            \
+  V(addv_h, ADDV_DF, int16_t, kMSALanesHalf, UINT16_MAX)          \
+  V(addv_w, ADDV_DF, int32_t, kMSALanesWord, UINT32_MAX)          \
+  V(addv_d, ADDV_DF, int64_t, kMSALanesDword, UINT64_MAX)         \
+  V(subv_b, SUBV_DF, int8_t, kMSALanesByte, UINT8_MAX)            \
+  V(subv_h, SUBV_DF, int16_t, kMSALanesHalf, UINT16_MAX)          \
+  V(subv_w, SUBV_DF, int32_t, kMSALanesWord, UINT32_MAX)          \
+  V(subv_d, SUBV_DF, int64_t, kMSALanesDword, UINT64_MAX)         \
+  V(max_s_b, MAX_DF, int8_t, kMSALanesByte, UINT8_MAX)            \
+  V(max_s_h, MAX_DF, int16_t, kMSALanesHalf, UINT16_MAX)          \
+  V(max_s_w, MAX_DF, int32_t, kMSALanesWord, UINT32_MAX)          \
+  V(max_s_d, MAX_DF, int64_t, kMSALanesDword, UINT64_MAX)         \
+  V(max_u_b, MAX_DF, uint8_t, kMSALanesByte, UINT8_MAX)           \
+  V(max_u_h, MAX_DF, uint16_t, kMSALanesHalf, UINT16_MAX)         \
+  V(max_u_w, MAX_DF, uint32_t, kMSALanesWord, UINT32_MAX)         \
+  V(max_u_d, MAX_DF, uint64_t, kMSALanesDword, UINT64_MAX)        \
+  V(min_s_b, MIN_DF, int8_t, kMSALanesByte, UINT8_MAX)            \
+  V(min_s_h, MIN_DF, int16_t, kMSALanesHalf, UINT16_MAX)          \
+  V(min_s_w, MIN_DF, int32_t, kMSALanesWord, UINT32_MAX)          \
+  V(min_s_d, MIN_DF, int64_t, kMSALanesDword, UINT64_MAX)         \
+  V(min_u_b, MIN_DF, uint8_t, kMSALanesByte, UINT8_MAX)           \
+  V(min_u_h, MIN_DF, uint16_t, kMSALanesHalf, UINT16_MAX)         \
+  V(min_u_w, MIN_DF, uint32_t, kMSALanesWord, UINT32_MAX)         \
+  V(min_u_d, MIN_DF, uint64_t, kMSALanesDword, UINT64_MAX)        \
+  V(max_a_b, MAXA_DF, int8_t, kMSALanesByte, UINT8_MAX)           \
+  V(max_a_h, MAXA_DF, int16_t, kMSALanesHalf, UINT16_MAX)         \
+  V(max_a_w, MAXA_DF, int32_t, kMSALanesWord, UINT32_MAX)         \
+  V(max_a_d, MAXA_DF, int64_t, kMSALanesDword, UINT64_MAX)        \
+  V(min_a_b, MINA_DF, int8_t, kMSALanesByte, UINT8_MAX)           \
+  V(min_a_h, MINA_DF, int16_t, kMSALanesHalf, UINT16_MAX)         \
+  V(min_a_w, MINA_DF, int32_t, kMSALanesWord, UINT32_MAX)         \
+  V(min_a_d, MINA_DF, int64_t, kMSALanesDword, UINT64_MAX)        \
+  V(ceq_b, CEQ_DF, uint8_t, kMSALanesByte, UINT8_MAX)             \
+  V(ceq_h, CEQ_DF, uint16_t, kMSALanesHalf, UINT16_MAX)           \
+  V(ceq_w, CEQ_DF, uint32_t, kMSALanesWord, UINT32_MAX)           \
+  V(ceq_d, CEQ_DF, uint64_t, kMSALanesDword, UINT64_MAX)          \
+  V(clt_s_b, CLT_DF, int8_t, kMSALanesByte, UINT8_MAX)            \
+  V(clt_s_h, CLT_DF, int16_t, kMSALanesHalf, UINT16_MAX)          \
+  V(clt_s_w, CLT_DF, int32_t, kMSALanesWord, UINT32_MAX)          \
+  V(clt_s_d, CLT_DF, int64_t, kMSALanesDword, UINT64_MAX)         \
+  V(clt_u_b, CLT_DF, uint8_t, kMSALanesByte, UINT8_MAX)           \
+  V(clt_u_h, CLT_DF, uint16_t, kMSALanesHalf, UINT16_MAX)         \
+  V(clt_u_w, CLT_DF, uint32_t, kMSALanesWord, UINT32_MAX)         \
+  V(clt_u_d, CLT_DF, uint64_t, kMSALanesDword, UINT64_MAX)        \
+  V(cle_s_b, CLE_DF, int8_t, kMSALanesByte, UINT8_MAX)            \
+  V(cle_s_h, CLE_DF, int16_t, kMSALanesHalf, UINT16_MAX)          \
+  V(cle_s_w, CLE_DF, int32_t, kMSALanesWord, UINT32_MAX)          \
+  V(cle_s_d, CLE_DF, int64_t, kMSALanesDword, UINT64_MAX)         \
+  V(cle_u_b, CLE_DF, uint8_t, kMSALanesByte, UINT8_MAX)           \
+  V(cle_u_h, CLE_DF, uint16_t, kMSALanesHalf, UINT16_MAX)         \
+  V(cle_u_w, CLE_DF, uint32_t, kMSALanesWord, UINT32_MAX)         \
+  V(cle_u_d, CLE_DF, uint64_t, kMSALanesDword, UINT64_MAX)        \
+  V(add_a_b, ADD_A_DF, int8_t, kMSALanesByte, UINT8_MAX)          \
+  V(add_a_h, ADD_A_DF, int16_t, kMSALanesHalf, UINT16_MAX)        \
+  V(add_a_w, ADD_A_DF, int32_t, kMSALanesWord, UINT32_MAX)        \
+  V(add_a_d, ADD_A_DF, int64_t, kMSALanesDword, UINT64_MAX)       \
+  V(adds_a_b, ADDS_A_DF, int8_t, kMSALanesByte, UINT8_MAX)        \
+  V(adds_a_h, ADDS_A_DF, int16_t, kMSALanesHalf, UINT16_MAX)      \
+  V(adds_a_w, ADDS_A_DF, int32_t, kMSALanesWord, UINT32_MAX)      \
+  V(adds_a_d, ADDS_A_DF, int64_t, kMSALanesDword, UINT64_MAX)     \
+  V(adds_s_b, ADDS_DF, int8_t, kMSALanesByte, UINT8_MAX)          \
+  V(adds_s_h, ADDS_DF, int16_t, kMSALanesHalf, UINT16_MAX)        \
+  V(adds_s_w, ADDS_DF, int32_t, kMSALanesWord, UINT32_MAX)        \
+  V(adds_s_d, ADDS_DF, int64_t, kMSALanesDword, UINT64_MAX)       \
+  V(adds_u_b, ADDS_DF, uint8_t, kMSALanesByte, UINT8_MAX)         \
+  V(adds_u_h, ADDS_DF, uint16_t, kMSALanesHalf, UINT16_MAX)       \
+  V(adds_u_w, ADDS_DF, uint32_t, kMSALanesWord, UINT32_MAX)       \
+  V(adds_u_d, ADDS_DF, uint64_t, kMSALanesDword, UINT64_MAX)      \
+  V(ave_s_b, AVE_DF, int8_t, kMSALanesByte, UINT8_MAX)            \
+  V(ave_s_h, AVE_DF, int16_t, kMSALanesHalf, UINT16_MAX)          \
+  V(ave_s_w, AVE_DF, int32_t, kMSALanesWord, UINT32_MAX)          \
+  V(ave_s_d, AVE_DF, int64_t, kMSALanesDword, UINT64_MAX)         \
+  V(ave_u_b, AVE_DF, uint8_t, kMSALanesByte, UINT8_MAX)           \
+  V(ave_u_h, AVE_DF, uint16_t, kMSALanesHalf, UINT16_MAX)         \
+  V(ave_u_w, AVE_DF, uint32_t, kMSALanesWord, UINT32_MAX)         \
+  V(ave_u_d, AVE_DF, uint64_t, kMSALanesDword, UINT64_MAX)        \
+  V(aver_s_b, AVER_DF, int8_t, kMSALanesByte, UINT8_MAX)          \
+  V(aver_s_h, AVER_DF, int16_t, kMSALanesHalf, UINT16_MAX)        \
+  V(aver_s_w, AVER_DF, int32_t, kMSALanesWord, UINT32_MAX)        \
+  V(aver_s_d, AVER_DF, int64_t, kMSALanesDword, UINT64_MAX)       \
+  V(aver_u_b, AVER_DF, uint8_t, kMSALanesByte, UINT8_MAX)         \
+  V(aver_u_h, AVER_DF, uint16_t, kMSALanesHalf, UINT16_MAX)       \
+  V(aver_u_w, AVER_DF, uint32_t, kMSALanesWord, UINT32_MAX)       \
+  V(aver_u_d, AVER_DF, uint64_t, kMSALanesDword, UINT64_MAX)      \
+  V(subs_s_b, SUBS_DF, int8_t, kMSALanesByte, UINT8_MAX)          \
+  V(subs_s_h, SUBS_DF, int16_t, kMSALanesHalf, UINT16_MAX)        \
+  V(subs_s_w, SUBS_DF, int32_t, kMSALanesWord, UINT32_MAX)        \
+  V(subs_s_d, SUBS_DF, int64_t, kMSALanesDword, UINT64_MAX)       \
+  V(subs_u_b, SUBS_DF, uint8_t, kMSALanesByte, UINT8_MAX)         \
+  V(subs_u_h, SUBS_DF, uint16_t, kMSALanesHalf, UINT16_MAX)       \
+  V(subs_u_w, SUBS_DF, uint32_t, kMSALanesWord, UINT32_MAX)       \
+  V(subs_u_d, SUBS_DF, uint64_t, kMSALanesDword, UINT64_MAX)      \
+  V(subsus_u_b, SUBSUS_U_DF, int8_t, kMSALanesByte, UINT8_MAX)    \
+  V(subsus_u_h, SUBSUS_U_DF, int16_t, kMSALanesHalf, UINT16_MAX)  \
+  V(subsus_u_w, SUBSUS_U_DF, int32_t, kMSALanesWord, UINT32_MAX)  \
+  V(subsus_u_d, SUBSUS_U_DF, int64_t, kMSALanesDword, UINT64_MAX) \
+  V(subsuu_s_b, SUBSUU_S_DF, int8_t, kMSALanesByte, UINT8_MAX)    \
+  V(subsuu_s_h, SUBSUU_S_DF, int16_t, kMSALanesHalf, UINT16_MAX)  \
+  V(subsuu_s_w, SUBSUU_S_DF, int32_t, kMSALanesWord, UINT32_MAX)  \
+  V(subsuu_s_d, SUBSUU_S_DF, int64_t, kMSALanesDword, UINT64_MAX) \
+  V(asub_s_b, ASUB_S_DF, int8_t, kMSALanesByte, UINT8_MAX)        \
+  V(asub_s_h, ASUB_S_DF, int16_t, kMSALanesHalf, UINT16_MAX)      \
+  V(asub_s_w, ASUB_S_DF, int32_t, kMSALanesWord, UINT32_MAX)      \
+  V(asub_s_d, ASUB_S_DF, int64_t, kMSALanesDword, UINT64_MAX)     \
+  V(asub_u_b, ASUB_U_DF, uint8_t, kMSALanesByte, UINT8_MAX)       \
+  V(asub_u_h, ASUB_U_DF, uint16_t, kMSALanesHalf, UINT16_MAX)     \
+  V(asub_u_w, ASUB_U_DF, uint32_t, kMSALanesWord, UINT32_MAX)     \
+  V(asub_u_d, ASUB_U_DF, uint64_t, kMSALanesDword, UINT64_MAX)    \
+  V(mulv_b, MULV_DF, int8_t, kMSALanesByte, UINT8_MAX)            \
+  V(mulv_h, MULV_DF, int16_t, kMSALanesHalf, UINT16_MAX)          \
+  V(mulv_w, MULV_DF, int32_t, kMSALanesWord, UINT32_MAX)          \
+  V(mulv_d, MULV_DF, int64_t, kMSALanesDword, UINT64_MAX)         \
+  V(maddv_b, MADDV_DF, int8_t, kMSALanesByte, UINT8_MAX)          \
+  V(maddv_h, MADDV_DF, int16_t, kMSALanesHalf, UINT16_MAX)        \
+  V(maddv_w, MADDV_DF, int32_t, kMSALanesWord, UINT32_MAX)        \
+  V(maddv_d, MADDV_DF, int64_t, kMSALanesDword, UINT64_MAX)       \
+  V(msubv_b, MSUBV_DF, int8_t, kMSALanesByte, UINT8_MAX)          \
+  V(msubv_h, MSUBV_DF, int16_t, kMSALanesHalf, UINT16_MAX)        \
+  V(msubv_w, MSUBV_DF, int32_t, kMSALanesWord, UINT32_MAX)        \
+  V(msubv_d, MSUBV_DF, int64_t, kMSALanesDword, UINT64_MAX)       \
+  V(div_s_b, DIV_DF, int8_t, kMSALanesByte, UINT8_MAX)            \
+  V(div_s_h, DIV_DF, int16_t, kMSALanesHalf, UINT16_MAX)          \
+  V(div_s_w, DIV_DF, int32_t, kMSALanesWord, UINT32_MAX)          \
+  V(div_s_d, DIV_DF, int64_t, kMSALanesDword, UINT64_MAX)         \
+  V(div_u_b, DIV_DF, uint8_t, kMSALanesByte, UINT8_MAX)           \
+  V(div_u_h, DIV_DF, uint16_t, kMSALanesHalf, UINT16_MAX)         \
+  V(div_u_w, DIV_DF, uint32_t, kMSALanesWord, UINT32_MAX)         \
+  V(div_u_d, DIV_DF, uint64_t, kMSALanesDword, UINT64_MAX)        \
+  V(mod_s_b, MOD_DF, int8_t, kMSALanesByte, UINT8_MAX)            \
+  V(mod_s_h, MOD_DF, int16_t, kMSALanesHalf, UINT16_MAX)          \
+  V(mod_s_w, MOD_DF, int32_t, kMSALanesWord, UINT32_MAX)          \
+  V(mod_s_d, MOD_DF, int64_t, kMSALanesDword, UINT64_MAX)         \
+  V(mod_u_b, MOD_DF, uint8_t, kMSALanesByte, UINT8_MAX)           \
+  V(mod_u_h, MOD_DF, uint16_t, kMSALanesHalf, UINT16_MAX)         \
+  V(mod_u_w, MOD_DF, uint32_t, kMSALanesWord, UINT32_MAX)         \
+  V(mod_u_d, MOD_DF, uint64_t, kMSALanesDword, UINT64_MAX)        \
+  V(srar_b, SRAR_DF, int8_t, kMSALanesByte, UINT8_MAX)            \
+  V(srar_h, SRAR_DF, int16_t, kMSALanesHalf, UINT16_MAX)          \
+  V(srar_w, SRAR_DF, int32_t, kMSALanesWord, UINT32_MAX)          \
+  V(srar_d, SRAR_DF, int64_t, kMSALanesDword, UINT64_MAX)         \
+  V(srlr_b, SRAR_DF, uint8_t, kMSALanesByte, UINT8_MAX)           \
+  V(srlr_h, SRAR_DF, uint16_t, kMSALanesHalf, UINT16_MAX)         \
+  V(srlr_w, SRAR_DF, uint32_t, kMSALanesWord, UINT32_MAX)         \
+  V(srlr_d, SRAR_DF, uint64_t, kMSALanesDword, UINT64_MAX)
+
+#define RUN_TEST(instr, verify, type, lanes, mask)                       \
+  run_msa_3r(&tc[i], [](MacroAssembler& assm) { __ instr(w2, w1, w0); }, \
+             [](uint64_t ws, uint64_t wt, uint64_t wd) {                 \
+               verify(type, lanes, mask);                                \
+             });
+
+  for (size_t i = 0; i < arraysize(tc); ++i) {
+    TEST_CASE(RUN_TEST)
+  }
+
+#undef RUN_TEST
+#undef SLL_DF
+#undef SRL_DF
+#undef BCRL_DF
+#undef BSET_DF
+#undef BNEG_DF
+#undef BINSL_DF
+#undef BINSR_DF
+#undef ADDV_DF
+#undef SUBV_DF
+#undef MAX_DF
+#undef MIN_DF
+#undef MAXA_DF
+#undef MINA_DF
+#undef CEQ_DF
+#undef CLT_DF
+#undef CLE_DF
+#undef ADD_A_DF
+#undef ADDS_A_DF
+#undef ADDS_DF
+#undef AVE_DF
+#undef AVER_DF
+#undef SUBS_DF
+#undef SUBSUS_U_DF
+#undef SUBSUU_S_DF
+#undef ASUB_S_DF
+#undef ASUB_U_DF
+#undef MULV_DF
+#undef MADDV_DF
+#undef MSUBV_DF
+#undef DIV_DF
+#undef MOD_DF
+#undef SRAR_DF
+}  // namespace internal
+
 #undef __
 
 }  // namespace internal

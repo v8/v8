@@ -452,6 +452,8 @@ class Simulator {
   T MsaI5InstrHelper(uint32_t opcode, T ws, int32_t i5);
   template <typename T>
   T MsaBitInstrHelper(uint32_t opcode, T wd, T ws, int32_t m);
+  template <typename T>
+  T Msa3RInstrHelper(uint32_t opcode, T wd, T ws, T wt);
 
   // Executing is handled based on the instruction type.
   void DecodeTypeRegister();

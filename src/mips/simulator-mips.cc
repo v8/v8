@@ -4897,53 +4897,213 @@ void Simulator::DecodeTypeMsaMI10() {
 #undef MSA_MI10_STORE
 }
 
-void Simulator::DecodeTypeMsa3R() {
-  DCHECK(IsMipsArchVariant(kMips32r6));
-  DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
-  uint32_t opcode = instr_.InstructionBits() & kMsa3RMask;
+template <typename T>
+T Simulator::Msa3RInstrHelper(uint32_t opcode, T wd, T ws, T wt) {
+  typedef typename std::make_unsigned<T>::type uT;
+  T res;
+  T wt_modulo = wt % (sizeof(T) * 8);
   switch (opcode) {
     case SLL_MSA:
+      res = static_cast<T>(ws << wt_modulo);
+      break;
     case SRA_MSA:
+      res = static_cast<T>(ArithmeticShiftRight(ws, wt_modulo));
+      break;
     case SRL_MSA:
+      res = static_cast<T>(static_cast<uT>(ws) >> wt_modulo);
+      break;
     case BCLR:
+      res = static_cast<T>(static_cast<T>(~(1ull << wt_modulo)) & ws);
+      break;
     case BSET:
+      res = static_cast<T>(static_cast<T>(1ull << wt_modulo) | ws);
+      break;
     case BNEG:
-    case BINSL:
-    case BINSR:
+      res = static_cast<T>(static_cast<T>(1ull << wt_modulo) ^ ws);
+      break;
+    case BINSL: {
+      int elem_size = 8 * sizeof(T);
+      int bits = wt_modulo + 1;
+      if (bits == elem_size) {
+        res = static_cast<T>(ws);
+      } else {
+        uint64_t mask = ((1ull << bits) - 1) << (elem_size - bits);
+        res = static_cast<T>((static_cast<T>(mask) & ws) |
+                             (static_cast<T>(~mask) & wd));
+      }
+    } break;
+    case BINSR: {
+      int elem_size = 8 * sizeof(T);
+      int bits = wt_modulo + 1;
+      if (bits == elem_size) {
+        res = static_cast<T>(ws);
+      } else {
+        uint64_t mask = (1ull << bits) - 1;
+        res = static_cast<T>((static_cast<T>(mask) & ws) |
+                             (static_cast<T>(~mask) & wd));
+      }
+    } break;
     case ADDV:
+      res = ws + wt;
+      break;
     case SUBV:
+      res = ws - wt;
+      break;
     case MAX_S:
+      res = Max(ws, wt);
+      break;
     case MAX_U:
+      res = static_cast<T>(Max(static_cast<uT>(ws), static_cast<uT>(wt)));
+      break;
     case MIN_S:
+      res = Min(ws, wt);
+      break;
     case MIN_U:
+      res = static_cast<T>(Min(static_cast<uT>(ws), static_cast<uT>(wt)));
+      break;
     case MAX_A:
+      // We use negative abs in order to avoid problems
+      // with corner case for MIN_INT
+      res = Nabs(ws) < Nabs(wt) ? ws : wt;
+      break;
     case MIN_A:
+      // We use negative abs in order to avoid problems
+      // with corner case for MIN_INT
+      res = Nabs(ws) > Nabs(wt) ? ws : wt;
+      break;
     case CEQ:
+      res = static_cast<T>(!Compare(ws, wt) ? -1ull : 0ull);
+      break;
     case CLT_S:
+      res = static_cast<T>((Compare(ws, wt) == -1) ? -1ull : 0ull);
+      break;
     case CLT_U:
+      res = static_cast<T>(
+          (Compare(static_cast<uT>(ws), static_cast<uT>(wt)) == -1) ? -1ull
+                                                                    : 0ull);
+      break;
     case CLE_S:
+      res = static_cast<T>((Compare(ws, wt) != 1) ? -1ull : 0ull);
+      break;
     case CLE_U:
+      res = static_cast<T>(
+          (Compare(static_cast<uT>(ws), static_cast<uT>(wt)) != 1) ? -1ull
+                                                                   : 0ull);
+      break;
     case ADD_A:
-    case ADDS_A:
+      res = static_cast<T>(Abs(ws) + Abs(wt));
+      break;
+    case ADDS_A: {
+      T ws_nabs = Nabs(ws);
+      T wt_nabs = Nabs(wt);
+      if (ws_nabs < -std::numeric_limits<T>::max() - wt_nabs) {
+        res = std::numeric_limits<T>::max();
+      } else {
+        res = -(ws_nabs + wt_nabs);
+      }
+    } break;
     case ADDS_S:
-    case ADDS_U:
+      res = SaturateAdd(ws, wt);
+      break;
+    case ADDS_U: {
+      uT ws_u = static_cast<uT>(ws);
+      uT wt_u = static_cast<uT>(wt);
+      res = static_cast<T>(SaturateAdd(ws_u, wt_u));
+    } break;
     case AVE_S:
-    case AVE_U:
+      res = static_cast<T>((wt & ws) + ((wt ^ ws) >> 1));
+      break;
+    case AVE_U: {
+      uT ws_u = static_cast<uT>(ws);
+      uT wt_u = static_cast<uT>(wt);
+      res = static_cast<T>((wt_u & ws_u) + ((wt_u ^ ws_u) >> 1));
+    } break;
     case AVER_S:
-    case AVER_U:
+      res = static_cast<T>((wt | ws) - ((wt ^ ws) >> 1));
+      break;
+    case AVER_U: {
+      uT ws_u = static_cast<uT>(ws);
+      uT wt_u = static_cast<uT>(wt);
+      res = static_cast<T>((wt_u | ws_u) - ((wt_u ^ ws_u) >> 1));
+    } break;
     case SUBS_S:
-    case SUBS_U:
-    case SUBSUS_U:
-    case SUBSUU_S:
+      res = SaturateSub(ws, wt);
+      break;
+    case SUBS_U: {
+      uT ws_u = static_cast<uT>(ws);
+      uT wt_u = static_cast<uT>(wt);
+      res = static_cast<T>(SaturateSub(ws_u, wt_u));
+    } break;
+    case SUBSUS_U: {
+      uT wsu = static_cast<uT>(ws);
+      if (wt > 0) {
+        uT wtu = static_cast<uT>(wt);
+        if (wtu > wsu) {
+          res = 0;
+        } else {
+          res = static_cast<T>(wsu - wtu);
+        }
+      } else {
+        if (wsu > std::numeric_limits<uT>::max() + wt) {
+          res = static_cast<T>(std::numeric_limits<uT>::max());
+        } else {
+          res = static_cast<T>(wsu - wt);
+        }
+      }
+    } break;
+    case SUBSUU_S: {
+      uT wsu = static_cast<uT>(ws);
+      uT wtu = static_cast<uT>(wt);
+      uT wdu;
+      if (wsu > wtu) {
+        wdu = wsu - wtu;
+        if (wdu > std::numeric_limits<T>::max()) {
+          res = std::numeric_limits<T>::max();
+        } else {
+          res = static_cast<T>(wdu);
+        }
+      } else {
+        wdu = wtu - wsu;
+        CHECK(-std::numeric_limits<T>::max() ==
+              std::numeric_limits<T>::min() + 1);
+        if (wdu <= std::numeric_limits<T>::max()) {
+          res = -static_cast<T>(wdu);
+        } else {
+          res = std::numeric_limits<T>::min();
+        }
+      }
+    } break;
     case ASUB_S:
-    case ASUB_U:
+      res = static_cast<T>(Abs(ws - wt));
+      break;
+    case ASUB_U: {
+      uT wsu = static_cast<uT>(ws);
+      uT wtu = static_cast<uT>(wt);
+      res = static_cast<T>(wsu > wtu ? wsu - wtu : wtu - wsu);
+    } break;
     case MULV:
+      res = ws * wt;
+      break;
     case MADDV:
+      res = wd + ws * wt;
+      break;
     case MSUBV:
+      res = wd - ws * wt;
+      break;
     case DIV_S_MSA:
+      res = wt != 0 ? ws / wt : static_cast<T>(Unpredictable);
+      break;
     case DIV_U:
+      res = wt != 0 ? static_cast<T>(static_cast<uT>(ws) / static_cast<uT>(wt))
+                    : static_cast<T>(Unpredictable);
+      break;
     case MOD_S:
+      res = wt != 0 ? ws % wt : static_cast<T>(Unpredictable);
+      break;
     case MOD_U:
+      res = wt != 0 ? static_cast<T>(static_cast<uT>(ws) % static_cast<uT>(wt))
+                    : static_cast<T>(Unpredictable);
+      break;
     case DOTP_S:
     case DOTP_U:
     case DPADD_S:
@@ -4959,8 +5119,17 @@ void Simulator::DecodeTypeMsa3R() {
     case ILVEV:
     case ILVOD:
     case VSHF:
-    case SRAR:
-    case SRLR:
+      UNIMPLEMENTED();
+      break;
+    case SRAR: {
+      int bit = wt_modulo == 0 ? 0 : (ws >> (wt_modulo - 1)) & 1;
+      res = static_cast<T>(ArithmeticShiftRight(ws, wt_modulo) + bit);
+    } break;
+    case SRLR: {
+      uT wsu = static_cast<uT>(ws);
+      int bit = wt_modulo == 0 ? 0 : (wsu >> (wt_modulo - 1)) & 1;
+      res = static_cast<T>((wsu >> wt_modulo) + bit);
+    } break;
     case HADD_S:
     case HADD_U:
     case HSUB_S:
@@ -4970,144 +5139,180 @@ void Simulator::DecodeTypeMsa3R() {
     default:
       UNREACHABLE();
   }
-}
-
-void Simulator::DecodeTypeMsa3RF() {
-  DCHECK(IsMipsArchVariant(kMips32r6));
-  DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
-  uint32_t opcode = instr_.InstructionBits() & kMsa3RFMask;
-  switch (opcode) {
-    case FCAF:
-    case FCUN:
-    case FCEQ:
-    case FCUEQ:
-    case FCLT:
-    case FCULT:
-    case FCLE:
-    case FCULE:
-    case FSAF:
-    case FSUN:
-    case FSEQ:
-    case FSUEQ:
-    case FSLT:
-    case FSULT:
-    case FSLE:
-    case FSULE:
-    case FADD:
-    case FSUB:
-    case FMUL:
-    case FDIV:
-    case FMADD:
-    case FMSUB:
-    case FEXP2:
-    case FEXDO:
-    case FTQ:
-    case FMIN:
-    case FMIN_A:
-    case FMAX:
-    case FMAX_A:
-    case FCOR:
-    case FCUNE:
-    case FCNE:
-    case MUL_Q:
-    case MADD_Q:
-    case MSUB_Q:
-    case FSOR:
-    case FSUNE:
-    case FSNE:
-    case MULR_Q:
-    case MADDR_Q:
-    case MSUBR_Q:
-      UNIMPLEMENTED();
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-void Simulator::DecodeTypeMsaVec() {
-  DCHECK(IsMipsArchVariant(kMips32r6));
-  DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
-  uint32_t opcode = instr_.InstructionBits() & kMsaVECMask;
-  msa_reg_t wd, ws, wt;
-
-  get_msa_register(instr_.WsValue(), ws.w);
-  get_msa_register(instr_.WtValue(), wt.w);
-  if (opcode == BMNZ_V || opcode == BMZ_V || opcode == BSEL_V) {
-    get_msa_register(instr_.WdValue(), wd.w);
+  return res;
   }
 
-  for (int i = 0; i < kMSALanesWord; i++) {
+  void Simulator::DecodeTypeMsa3R() {
+    DCHECK(IsMipsArchVariant(kMips32r6));
+    DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
+    uint32_t opcode = instr_.InstructionBits() & kMsa3RMask;
+    msa_reg_t ws, wd, wt;
+
+#define MSA_3R_DF(elem, num_of_lanes)                                          \
+  get_msa_register(instr_.WdValue(), wd.elem);                                 \
+  get_msa_register(instr_.WsValue(), ws.elem);                                 \
+  get_msa_register(instr_.WtValue(), wt.elem);                                 \
+  for (int i = 0; i < num_of_lanes; i++) {                                     \
+    wd.elem[i] = Msa3RInstrHelper(opcode, wd.elem[i], ws.elem[i], wt.elem[i]); \
+  }                                                                            \
+  set_msa_register(instr_.WdValue(), wd.elem);                                 \
+  TraceMSARegWr(wd.elem);
+
+    switch (DecodeMsaDataFormat()) {
+      case MSA_BYTE:
+        MSA_3R_DF(b, kMSALanesByte);
+        break;
+      case MSA_HALF:
+        MSA_3R_DF(h, kMSALanesHalf);
+        break;
+      case MSA_WORD:
+        MSA_3R_DF(w, kMSALanesWord);
+        break;
+      case MSA_DWORD:
+        MSA_3R_DF(d, kMSALanesDword);
+        break;
+      default:
+        UNREACHABLE();
+    }
+#undef MSA_3R_DF
+  }
+
+  void Simulator::DecodeTypeMsa3RF() {
+    DCHECK(IsMipsArchVariant(kMips32r6));
+    DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
+    uint32_t opcode = instr_.InstructionBits() & kMsa3RFMask;
     switch (opcode) {
-      case AND_V:
-        wd.w[i] = ws.w[i] & wt.w[i];
-        break;
-      case OR_V:
-        wd.w[i] = ws.w[i] | wt.w[i];
-        break;
-      case NOR_V:
-        wd.w[i] = ~(ws.w[i] | wt.w[i]);
-        break;
-      case XOR_V:
-        wd.w[i] = ws.w[i] ^ wt.w[i];
-        break;
-      case BMNZ_V:
-        wd.w[i] = (wt.w[i] & ws.w[i]) | (~wt.w[i] & wd.w[i]);
-        break;
-      case BMZ_V:
-        wd.w[i] = (~wt.w[i] & ws.w[i]) | (wt.w[i] & wd.w[i]);
-        break;
-      case BSEL_V:
-        wd.w[i] = (~wd.w[i] & ws.w[i]) | (wd.w[i] & wt.w[i]);
+      case FCAF:
+      case FCUN:
+      case FCEQ:
+      case FCUEQ:
+      case FCLT:
+      case FCULT:
+      case FCLE:
+      case FCULE:
+      case FSAF:
+      case FSUN:
+      case FSEQ:
+      case FSUEQ:
+      case FSLT:
+      case FSULT:
+      case FSLE:
+      case FSULE:
+      case FADD:
+      case FSUB:
+      case FMUL:
+      case FDIV:
+      case FMADD:
+      case FMSUB:
+      case FEXP2:
+      case FEXDO:
+      case FTQ:
+      case FMIN:
+      case FMIN_A:
+      case FMAX:
+      case FMAX_A:
+      case FCOR:
+      case FCUNE:
+      case FCNE:
+      case MUL_Q:
+      case MADD_Q:
+      case MSUB_Q:
+      case FSOR:
+      case FSUNE:
+      case FSNE:
+      case MULR_Q:
+      case MADDR_Q:
+      case MSUBR_Q:
+        UNIMPLEMENTED();
         break;
       default:
         UNREACHABLE();
     }
   }
-  set_msa_register(instr_.WdValue(), wd.w);
-  TraceMSARegWr(wd.d);
-}
 
-void Simulator::DecodeTypeMsa2R() {
-  DCHECK(IsMipsArchVariant(kMips32r6));
-  DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
-  uint32_t opcode = instr_.InstructionBits() & kMsa2RMask;
-  msa_reg_t wd, ws;
-  switch (opcode) {
-    case FILL:
-      switch (DecodeMsaDataFormat()) {
-        case MSA_BYTE: {
-          int32_t rs = get_register(instr_.WsValue());
-          for (int i = 0; i < kMSALanesByte; i++) {
-            wd.b[i] = rs & 0xFFu;
-          }
-          set_msa_register(instr_.WdValue(), wd.b);
-          TraceMSARegWr(wd.b);
+  void Simulator::DecodeTypeMsaVec() {
+    DCHECK(IsMipsArchVariant(kMips32r6));
+    DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
+    uint32_t opcode = instr_.InstructionBits() & kMsaVECMask;
+    msa_reg_t wd, ws, wt;
+
+    get_msa_register(instr_.WsValue(), ws.w);
+    get_msa_register(instr_.WtValue(), wt.w);
+    if (opcode == BMNZ_V || opcode == BMZ_V || opcode == BSEL_V) {
+      get_msa_register(instr_.WdValue(), wd.w);
+    }
+
+    for (int i = 0; i < kMSALanesWord; i++) {
+      switch (opcode) {
+        case AND_V:
+          wd.w[i] = ws.w[i] & wt.w[i];
           break;
-        }
-        case MSA_HALF: {
-          int32_t rs = get_register(instr_.WsValue());
-          for (int i = 0; i < kMSALanesHalf; i++) {
-            wd.h[i] = rs & 0xFFFFu;
-          }
-          set_msa_register(instr_.WdValue(), wd.h);
-          TraceMSARegWr(wd.h);
+        case OR_V:
+          wd.w[i] = ws.w[i] | wt.w[i];
           break;
-        }
-        case MSA_WORD: {
-          int32_t rs = get_register(instr_.WsValue());
-          for (int i = 0; i < kMSALanesWord; i++) {
-            wd.w[i] = rs;
-          }
-          set_msa_register(instr_.WdValue(), wd.w);
-          TraceMSARegWr(wd.w);
+        case NOR_V:
+          wd.w[i] = ~(ws.w[i] | wt.w[i]);
           break;
-        }
+        case XOR_V:
+          wd.w[i] = ws.w[i] ^ wt.w[i];
+          break;
+        case BMNZ_V:
+          wd.w[i] = (wt.w[i] & ws.w[i]) | (~wt.w[i] & wd.w[i]);
+          break;
+        case BMZ_V:
+          wd.w[i] = (~wt.w[i] & ws.w[i]) | (wt.w[i] & wd.w[i]);
+          break;
+        case BSEL_V:
+          wd.w[i] = (~wd.w[i] & ws.w[i]) | (wd.w[i] & wt.w[i]);
+          break;
         default:
           UNREACHABLE();
       }
-      break;
-    case PCNT:
+    }
+    set_msa_register(instr_.WdValue(), wd.w);
+    TraceMSARegWr(wd.d);
+  }
+
+  void Simulator::DecodeTypeMsa2R() {
+    DCHECK(IsMipsArchVariant(kMips32r6));
+    DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
+    uint32_t opcode = instr_.InstructionBits() & kMsa2RMask;
+    msa_reg_t wd, ws;
+    switch (opcode) {
+      case FILL:
+        switch (DecodeMsaDataFormat()) {
+          case MSA_BYTE: {
+            int32_t rs = get_register(instr_.WsValue());
+            for (int i = 0; i < kMSALanesByte; i++) {
+              wd.b[i] = rs & 0xFFu;
+            }
+            set_msa_register(instr_.WdValue(), wd.b);
+            TraceMSARegWr(wd.b);
+            break;
+          }
+          case MSA_HALF: {
+            int32_t rs = get_register(instr_.WsValue());
+            for (int i = 0; i < kMSALanesHalf; i++) {
+              wd.h[i] = rs & 0xFFFFu;
+            }
+            set_msa_register(instr_.WdValue(), wd.h);
+            TraceMSARegWr(wd.h);
+            break;
+          }
+          case MSA_WORD: {
+            int32_t rs = get_register(instr_.WsValue());
+            for (int i = 0; i < kMSALanesWord; i++) {
+              wd.w[i] = rs;
+            }
+            set_msa_register(instr_.WdValue(), wd.w);
+            TraceMSARegWr(wd.w);
+            break;
+          }
+          default:
+            UNREACHABLE();
+        }
+        break;
+      case PCNT:
 #define PCNT_DF(elem, num_of_lanes)                       \
   get_msa_register(instr_.WsValue(), ws.elem);            \
   for (int i = 0; i < num_of_lanes; i++) {                \
