@@ -2707,6 +2707,33 @@ int WasmGraphBuilder::AddParameterNodes(Node** args, int pos, int param_count,
   return pos;
 }
 
+Node* WasmGraphBuilder::LoadImportDataAtOffset(int offset, Node* table) {
+  offset = FixedArray::OffsetOfElementAt(offset) - kHeapObjectTag;
+  Node* offset_node = jsgraph()->Int32Constant(offset);
+  Node* import_data = graph()->NewNode(
+      jsgraph()->machine()->Load(LoadRepresentation::TaggedPointer()), table,
+      offset_node, *effect_, *control_);
+  *effect_ = import_data;
+  return import_data;
+}
+
+Node* WasmGraphBuilder::LoadNativeContext(Node* table) {
+  // The js_imports_table is set up so that index 0 has isolate->native_context
+  return LoadImportDataAtOffset(0, table);
+}
+
+int OffsetForImportData(int index, WasmGraphBuilder::ImportDataType type) {
+  // The js_imports_table is set up so that index 0 has isolate->native_context
+  // and for every index, 3*index+1 has the JSReceiver, 3*index+2 has function's
+  // global proxy and 3*index+3 has function's context.
+  return 3 * index + type;
+}
+
+Node* WasmGraphBuilder::LoadImportData(int index, ImportDataType type,
+                                       Node* table) {
+  return LoadImportDataAtOffset(OffsetForImportData(index, type), table);
+}
+
 bool WasmGraphBuilder::BuildWasmToJSWrapper(
     Handle<JSReceiver> target, Handle<FixedArray> global_js_imports_table,
     int index) {
@@ -2721,12 +2748,23 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
   *effect_ = start;
   *control_ = start;
 
+  // We add the target function to a table and look it up during runtime. This
+  // ensures that if the GC kicks in, it doesn't need to patch the code for the
+  // JS function.
+  // js_imports_table is fixed array with global handle scope whose lifetime is
+  // tied to the instance.
+  // TODO(aseemgarg): explore using per-import global handle instead of a table
+  Node* table_ptr = jsgraph()->IntPtrConstant(
+      reinterpret_cast<intptr_t>(global_js_imports_table.location()));
+  Node* table = graph()->NewNode(
+      jsgraph()->machine()->Load(LoadRepresentation::TaggedPointer()),
+      table_ptr, jsgraph()->IntPtrConstant(0), *effect_, *control_);
+  *effect_ = table;
+
   if (!wasm::IsJSCompatibleSignature(sig_)) {
-    // Throw a TypeError. Embedding the context is ok here, since this code is
-    // regenerated at instantiation time.
-    Node* context =
-        jsgraph()->HeapConstant(jsgraph()->isolate()->native_context());
-    BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, context,
+    // Throw a TypeError.
+    Node* native_context = LoadNativeContext(table);
+    BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, native_context,
                                   nullptr, 0);
     // We don't need to return a value here, as the runtime call will not return
     // anyway (the c entry stub will trigger stack unwinding).
@@ -2740,36 +2778,16 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
 
   BuildModifyThreadInWasmFlag(false);
 
-  // We add the target function to a table and look it up during runtime. This
-  // ensures that if the GC kicks in, it doesn't need to patch the code for the
-  // JS function.
-  // js_imports_table is fixed array with global handle scope whose lifetime is
-  // tied to the instance.
-  // TODO(aseemgarg): explore using per-import global handle instead of a table
-  Node* js_table = jsgraph()->IntPtrConstant(
-      reinterpret_cast<intptr_t>(global_js_imports_table.location()));
-  Node* load_table = graph()->NewNode(
-      jsgraph()->machine()->Load(LoadRepresentation::TaggedPointer()), js_table,
-      jsgraph()->IntPtrConstant(0), *effect_, *control_);
-  *effect_ = load_table;
-  int offset =
-      global_js_imports_table->OffsetOfElementAt(index) - kHeapObjectTag;
-  Node* offset_node = jsgraph()->Int32Constant(offset);
-  Node* target_address = graph()->NewNode(
-      jsgraph()->machine()->Load(LoadRepresentation::TaggedPointer()),
-      load_table, offset_node, *effect_, *control_);
-  *effect_ = target_address;
-
   if (target->IsJSFunction()) {
     Handle<JSFunction> function = Handle<JSFunction>::cast(target);
     if (function->shared()->internal_formal_parameter_count() == wasm_count) {
       int pos = 0;
-      args[pos++] = target_address;  // target callable.
+      args[pos++] =
+          LoadImportData(index, kFunction, table);  // target callable.
       // Receiver.
       if (is_sloppy(function->shared()->language_mode()) &&
           !function->shared()->native()) {
-        args[pos++] =
-            HeapConstant(handle(function->context()->global_proxy(), isolate));
+        args[pos++] = LoadImportData(index, kGlobalProxy, table);
       } else {
         args[pos++] = jsgraph()->Constant(
             handle(isolate->heap()->undefined_value(), isolate));
@@ -2783,7 +2801,7 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
 
       args[pos++] = jsgraph()->UndefinedConstant();        // new target
       args[pos++] = jsgraph()->Int32Constant(wasm_count);  // argument count
-      args[pos++] = HeapConstant(handle(function->context()));
+      args[pos++] = LoadImportData(index, kFunctionContext, table);
       args[pos++] = *effect_;
       args[pos++] = *control_;
 
@@ -2792,11 +2810,12 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
   }
 
   // We cannot call the target directly, we have to use the Call builtin.
+  Node* native_context = nullptr;
   if (!call) {
     int pos = 0;
     Callable callable = CodeFactory::Call(isolate);
     args[pos++] = jsgraph()->HeapConstant(callable.code());
-    args[pos++] = target_address;                        // target callable
+    args[pos++] = LoadImportData(index, kFunction, table);  // target callable.
     args[pos++] = jsgraph()->Int32Constant(wasm_count);  // argument count
     args[pos++] = jsgraph()->Constant(
         handle(isolate->heap()->undefined_value(), isolate));  // receiver
@@ -2813,7 +2832,8 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
     // is only needed if the target is a constructor to throw a TypeError, if
     // the target is a native function, or if the target is a callable JSObject,
     // which can only be constructed by the runtime.
-    args[pos++] = HeapConstant(isolate->native_context());
+    native_context = LoadNativeContext(table);
+    args[pos++] = native_context;
     args[pos++] = *effect_;
     args[pos++] = *control_;
 
@@ -2828,7 +2848,9 @@ bool WasmGraphBuilder::BuildWasmToJSWrapper(
   // Convert the return value back.
   Node* val = sig_->return_count() == 0
                   ? jsgraph()->Int32Constant(0)
-                  : FromJS(call, HeapConstant(isolate->native_context()),
+                  : FromJS(call,
+                           native_context != nullptr ? native_context
+                                                     : LoadNativeContext(table),
                            sig_->GetReturn());
   Return(val);
   return true;
@@ -3941,6 +3963,37 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   return code;
 }
 
+void ValidateImportWrapperReferencesImmovables(Handle<Code> wrapper) {
+#if !DEBUG
+  return;
+#endif
+  // We expect the only embedded objects to be those originating from
+  // a snapshot, which are immovable.
+  DisallowHeapAllocation no_gc;
+  if (wrapper.is_null()) return;
+  static constexpr int kAllGCRefs = (1 << (RelocInfo::LAST_GCED_ENUM + 1)) - 1;
+  for (RelocIterator it(*wrapper, kAllGCRefs); !it.done(); it.next()) {
+    RelocInfo::Mode mode = it.rinfo()->rmode();
+    Object* target = nullptr;
+    switch (mode) {
+      case RelocInfo::CODE_TARGET:
+        // this would be either one of the stubs or builtins, because
+        // we didn't link yet.
+        target = reinterpret_cast<Object*>(it.rinfo()->target_address());
+        break;
+      case RelocInfo::EMBEDDED_OBJECT:
+        target = it.rinfo()->target_object();
+        break;
+      default:
+        UNREACHABLE();
+    }
+    CHECK_NOT_NULL(target);
+    bool is_immovable =
+        target->IsSmi() || Heap::IsImmovable(HeapObject::cast(target));
+    CHECK(is_immovable);
+  }
+}
+
 Handle<Code> CompileWasmToJSWrapper(
     Isolate* isolate, Handle<JSReceiver> target, wasm::FunctionSig* sig,
     uint32_t index, Handle<String> module_name, MaybeHandle<String> import_name,
@@ -3967,7 +4020,17 @@ Handle<Code> CompileWasmToJSWrapper(
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
   if (builder.BuildWasmToJSWrapper(target, global_js_imports_table, index)) {
-    global_js_imports_table->set(index, *target);
+    global_js_imports_table->set(
+        OffsetForImportData(index, WasmGraphBuilder::kFunction), *target);
+    if (target->IsJSFunction()) {
+      Handle<JSFunction> function = Handle<JSFunction>::cast(target);
+      global_js_imports_table->set(
+          OffsetForImportData(index, WasmGraphBuilder::kFunctionContext),
+          function->context());
+      global_js_imports_table->set(
+          OffsetForImportData(index, WasmGraphBuilder::kGlobalProxy),
+          function->context()->global_proxy());
+    }
   }
 
   Handle<Code> code = Handle<Code>::null();
@@ -4002,13 +4065,15 @@ Handle<Code> CompileWasmToJSWrapper(
     CompilationInfo info(func_name, isolate, &zone, flags);
     code = Pipeline::GenerateCodeForTesting(&info, incoming, &graph, nullptr,
                                             source_position_table);
+    ValidateImportWrapperReferencesImmovables(code);
     Handle<FixedArray> deopt_data =
         isolate->factory()->NewFixedArray(2, TENURED);
     intptr_t loc =
         reinterpret_cast<intptr_t>(global_js_imports_table.location());
     Handle<Object> loc_handle = isolate->factory()->NewHeapNumberFromBits(loc);
     deopt_data->set(0, *loc_handle);
-    Handle<Object> index_handle = isolate->factory()->NewNumberFromInt(index);
+    Handle<Object> index_handle = isolate->factory()->NewNumberFromInt(
+        OffsetForImportData(index, WasmGraphBuilder::kFunction));
     deopt_data->set(1, *index_handle);
     code->set_deoptimization_data(*deopt_data);
 #ifdef ENABLE_DISASSEMBLER

@@ -1362,15 +1362,16 @@ void InstanceBuilder::SanitizeImports() {
   }
 }
 
-// Process the imports, including functions, tables, globals, and memory, in
-// order, loading them from the {ffi_} object. Returns the number of imported
-// functions.
-int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
-                                    Handle<WasmInstanceObject> instance) {
-  int num_imported_functions = 0;
-  int num_imported_tables = 0;
-  Handle<FixedArray> func_table = isolate_->factory()->NewFixedArray(
-      static_cast<int>(module_->import_table.size()), TENURED);
+Handle<FixedArray> InstanceBuilder::SetupWasmToJSImportsTable(
+    Handle<WasmInstanceObject> instance) {
+  // The js_imports_table is set up so that index 0 has isolate->native_context
+  // and for every index, 3*index+1 has the JSReceiver, 3*index+2 has function's
+  // global proxy and 3*index+3 has function's context. Hence, the fixed array's
+  // size is 3*import_table.size+1.
+  int size = static_cast<int>(module_->import_table.size());
+  CHECK_LE(size, (kMaxInt - 1) / 3);
+  Handle<FixedArray> func_table =
+      isolate_->factory()->NewFixedArray(3 * size + 1, TENURED);
   Handle<FixedArray> js_imports_table =
       isolate_->global_handles()->Create(*func_table);
   GlobalHandles::MakeWeak(
@@ -1378,6 +1379,18 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
       js_imports_table.location(), &FunctionTableFinalizer,
       v8::WeakCallbackType::kFinalizer);
   instance->set_js_imports_table(*func_table);
+  js_imports_table->set(0, *isolate_->native_context());
+  return js_imports_table;
+}
+
+// Process the imports, including functions, tables, globals, and memory, in
+// order, loading them from the {ffi_} object. Returns the number of imported
+// functions.
+int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
+                                    Handle<WasmInstanceObject> instance) {
+  int num_imported_functions = 0;
+  int num_imported_tables = 0;
+  Handle<FixedArray> js_imports_table = SetupWasmToJSImportsTable(instance);
   WasmInstanceMap imported_wasm_instances(isolate_->heap());
   DCHECK_EQ(module_->import_table.size(), sanitized_imports_.size());
   for (int index = 0; index < static_cast<int>(module_->import_table.size());

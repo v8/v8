@@ -284,6 +284,10 @@ class InstanceBuilder {
   void WriteGlobalValue(WasmGlobal& global, Handle<Object> value);
 
   void SanitizeImports();
+
+  Handle<FixedArray> SetupWasmToJSImportsTable(
+      Handle<WasmInstanceObject> instance);
+
   // Process the imports, including functions, tables, globals, and memory, in
   // order, loading them from the {ffi_} object. Returns the number of imported
   // functions.
