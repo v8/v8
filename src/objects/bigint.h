@@ -100,12 +100,17 @@ class BigInt : public HeapObject {
   // abs(x) < abs(y), or zero if abs(x) == abs(y).
   static int AbsoluteCompare(Handle<BigInt> x, Handle<BigInt> y);
 
+  static void MultiplyAccumulate(Handle<BigInt> multiplicand,
+                                 digit_t multiplier, Handle<BigInt> accumulator,
+                                 int accumulator_index);
+
   static MaybeHandle<String> ToStringBasePowerOfTwo(Handle<BigInt> x,
                                                     int radix);
 
   // Digit arithmetic helpers.
   static inline digit_t digit_add(digit_t a, digit_t b, digit_t* carry);
   static inline digit_t digit_sub(digit_t a, digit_t b, digit_t* borrow);
+  static inline digit_t digit_mul(digit_t a, digit_t b, digit_t* high);
 
   class LengthBits : public BitField<int, 0, kMaxLengthBits> {};
   class SignBits : public BitField<bool, LengthBits::kNext, 1> {};

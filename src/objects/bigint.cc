@@ -44,7 +44,16 @@ MaybeHandle<BigInt> BigInt::Exponentiate(Handle<BigInt> base,
 }
 
 Handle<BigInt> BigInt::Multiply(Handle<BigInt> x, Handle<BigInt> y) {
-  UNIMPLEMENTED();  // TODO(jkummerow): Implement.
+  if (x->is_zero()) return x;
+  if (y->is_zero()) return y;
+  Handle<BigInt> result =
+      x->GetIsolate()->factory()->NewBigInt(x->length() + y->length());
+  for (int i = 0; i < x->length(); i++) {
+    MultiplyAccumulate(y, x->digit(i), result, i);
+  }
+  result->set_sign(x->sign() != y->sign());
+  result->RightTrim();
+  return result;
 }
 
 MaybeHandle<BigInt> BigInt::Divide(Handle<BigInt> x, Handle<BigInt> y) {
@@ -222,6 +231,45 @@ int BigInt::AbsoluteCompare(Handle<BigInt> x, Handle<BigInt> y) {
   return x->digit(i) > y->digit(i) ? 1 : -1;
 }
 
+// Multiplies {multiplicand} with {multiplier} and adds the result to
+// {accumulator}, starting at {accumulator_index} for the least-significant
+// digit.
+// Callers must ensure that {accumulator} is big enough to hold the result.
+void BigInt::MultiplyAccumulate(Handle<BigInt> multiplicand, digit_t multiplier,
+                                Handle<BigInt> accumulator,
+                                int accumulator_index) {
+  // This is a minimum requirement; the DCHECK in the second loop below
+  // will enforce more as needed.
+  DCHECK(accumulator->length() > multiplicand->length() + accumulator_index);
+  if (multiplier == 0L) return;
+  digit_t carry = 0;
+  digit_t high = 0;
+  for (int i = 0; i < multiplicand->length(); i++, accumulator_index++) {
+    digit_t acc = accumulator->digit(accumulator_index);
+    digit_t new_carry = 0;
+    // Add last round's carryovers.
+    acc = digit_add(acc, high, &new_carry);
+    acc = digit_add(acc, carry, &new_carry);
+    // Compute this round's multiplication.
+    digit_t m_digit = multiplicand->digit(i);
+    digit_t low = digit_mul(multiplier, m_digit, &high);
+    acc = digit_add(acc, low, &new_carry);
+    // Store result and prepare for next round.
+    accumulator->set_digit(accumulator_index, acc);
+    carry = new_carry;
+  }
+  for (; carry != 0 || high != 0; accumulator_index++) {
+    DCHECK(accumulator_index < accumulator->length());
+    digit_t acc = accumulator->digit(accumulator_index);
+    digit_t new_carry = 0;
+    acc = digit_add(acc, high, &new_carry);
+    high = 0;
+    acc = digit_add(acc, carry, &new_carry);
+    accumulator->set_digit(accumulator_index, acc);
+    carry = new_carry;
+  }
+}
+
 Handle<BigInt> BigInt::Copy(Handle<BigInt> source) {
   int length = source->length();
   Handle<BigInt> result = source->GetIsolate()->factory()->NewBigIntRaw(length);
@@ -334,6 +382,42 @@ inline BigInt::digit_t BigInt::digit_sub(digit_t a, digit_t b,
   digit_t result = a - b;
   if (result > a) *borrow += 1;
   return static_cast<digit_t>(result);
+#endif
+}
+
+// Returns the low half of the result. High half is in {high}.
+inline BigInt::digit_t BigInt::digit_mul(digit_t a, digit_t b, digit_t* high) {
+#if HAVE_TWODIGIT_T
+  twodigit_t result = static_cast<twodigit_t>(a) * static_cast<twodigit_t>(b);
+  *high = result >> kDigitBits;
+  return static_cast<digit_t>(result);
+#else
+  // Multiply in half-pointer-sized chunks.
+  // For inputs [AH AL]*[BH BL], the result is:
+  //
+  //            [AL*BL]  // r_low
+  //    +    [AL*BH]     // r_mid1
+  //    +    [AH*BL]     // r_mid2
+  //    + [AH*BH]        // r_high
+  //    = [R4 R3 R2 R1]  // high = [R4 R3], low = [R2 R1]
+  //
+  // Where of course we must be careful with carries between the columns.
+  digit_t a_low = a & kHalfDigitMask;
+  digit_t a_high = a >> kHalfDigitBits;
+  digit_t b_low = b & kHalfDigitMask;
+  digit_t b_high = b >> kHalfDigitBits;
+
+  digit_t r_low = a_low * b_low;
+  digit_t r_mid1 = a_low * b_high;
+  digit_t r_mid2 = a_high * b_low;
+  digit_t r_high = a_high * b_high;
+
+  digit_t carry = 0;
+  digit_t low = digit_add(r_low, r_mid1 & kHalfDigitMask, &carry);
+  low = digit_add(low, r_mid2 & kHalfDigitMask, &carry);
+  *high =
+      (r_mid1 >> kHalfDigitBits) + (r_mid2 >> kHalfDigitBits) + r_high + carry;
+  return low;
 #endif
 }
 
