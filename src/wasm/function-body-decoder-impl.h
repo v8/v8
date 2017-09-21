@@ -515,8 +515,8 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(Unreachable)                                                               \
   F(Select, const Value& cond, const Value& fval, const Value& tval,           \
     Value* result)                                                             \
-  F(BreakTo, Control* block)                                                   \
-  F(BrIf, const Value& cond, Control* block)                                   \
+  F(BreakTo, uint32_t depth)                                                   \
+  F(BrIf, const Value& cond, uint32_t depth)                                   \
   F(BrTable, const BranchTableOperand<validate>& operand, const Value& key)    \
   F(Else, Control* if_block)                                                   \
   F(LoadMem, ValueType type, MachineType mem_type,                             \
@@ -1375,7 +1375,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             BreakDepthOperand<validate> operand(this, this->pc_);
             if (this->Validate(this->pc_, operand, control_.size()) &&
                 TypeCheckBreak(operand.depth)) {
-              interface_.BreakTo(this, control_at(operand.depth));
+              interface_.BreakTo(this, operand.depth);
             }
             len = 1 + operand.length;
             EndControl();
@@ -1386,7 +1386,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             auto cond = Pop(0, kWasmI32);
             if (this->Validate(this->pc_, operand, control_.size()) &&
                 TypeCheckBreak(operand.depth)) {
-              interface_.BrIf(this, cond, control_at(operand.depth));
+              interface_.BrIf(this, cond, operand.depth);
             }
             len = 1 + operand.length;
             break;
@@ -1431,7 +1431,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                 this->error(pos, "improper branch in br_table");
                 break;
               }
-              interface_.BreakTo(this, control_at(target));
+              interface_.BreakTo(this, target);
             }
             len = 1 + iterator.length();
             EndControl();

@@ -257,21 +257,22 @@ class WasmGraphBuildingInterface {
     ssa_env_->control = merge;
   }
 
-  void BreakTo(Decoder* decoder, Control* block) {
-    if (block->is_loop()) {
-      Goto(decoder, ssa_env_, block->end_env);
+  void BreakTo(Decoder* decoder, uint32_t depth) {
+    Control* target = decoder->control_at(depth);
+    if (target->is_loop()) {
+      Goto(decoder, ssa_env_, target->end_env);
     } else {
-      MergeValuesInto(decoder, block);
+      MergeValuesInto(decoder, target);
     }
   }
 
-  void BrIf(Decoder* decoder, const Value& cond, Control* block) {
+  void BrIf(Decoder* decoder, const Value& cond, uint32_t depth) {
     SsaEnv* fenv = ssa_env_;
     SsaEnv* tenv = Split(decoder, fenv);
     fenv->SetNotMerged();
     BUILD(BranchNoHint, cond.node, &tenv->control, &fenv->control);
     ssa_env_ = tenv;
-    BreakTo(decoder, block);
+    BreakTo(decoder, depth);
     ssa_env_ = fenv;
   }
 
@@ -290,7 +291,7 @@ class WasmGraphBuildingInterface {
       ssa_env_ = Split(decoder, copy);
       ssa_env_->control = (i == operand.table_count) ? BUILD(IfDefault, sw)
                                                      : BUILD(IfValue, i, sw);
-      BreakTo(decoder, decoder->control_at(target));
+      BreakTo(decoder, target);
     }
     DCHECK(decoder->ok());
     ssa_env_ = break_env;
