@@ -989,6 +989,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CreateEmptyObjectLiteral() {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::GetTemplateObject(
+    size_t template_object_description_entry) {
+  OutputGetTemplateObject(template_object_description_entry);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::PushContext(Register context) {
   OutputPushContext(context);
   return *this;

@@ -146,6 +146,19 @@ Handle<ConstantElementsPair> Factory::NewConstantElementsPair(
   return result;
 }
 
+Handle<TemplateObjectDescription> Factory::NewTemplateObjectDescription(
+    int hash, Handle<FixedArray> raw_strings,
+    Handle<FixedArray> cooked_strings) {
+  DCHECK_EQ(raw_strings->length(), cooked_strings->length());
+  DCHECK_LT(0, raw_strings->length());
+  Handle<TemplateObjectDescription> result =
+      Handle<TemplateObjectDescription>::cast(NewStruct(TUPLE3_TYPE, TENURED));
+  result->set_hash(hash);
+  result->set_raw_strings(*raw_strings);
+  result->set_cooked_strings(*cooked_strings);
+  return result;
+}
+
 Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
                                     Handle<Object> to_number,
                                     const char* type_of, byte kind) {

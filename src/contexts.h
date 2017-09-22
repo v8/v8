@@ -43,7 +43,6 @@ enum ContextLookupFlags {
     async_function_promise_release)                                         \
   V(IS_ARRAYLIKE, JSFunction, is_arraylike)                                 \
   V(GENERATOR_NEXT_INTERNAL, JSFunction, generator_next_internal)           \
-  V(GET_TEMPLATE_CALL_SITE_INDEX, JSFunction, get_template_call_site)       \
   V(MAKE_ERROR_INDEX, JSFunction, make_error)                               \
   V(MAKE_RANGE_ERROR_INDEX, JSFunction, make_range_error)                   \
   V(MAKE_SYNTAX_ERROR_INDEX, JSFunction, make_syntax_error)                 \
@@ -52,7 +51,6 @@ enum ContextLookupFlags {
   V(OBJECT_CREATE, JSFunction, object_create)                               \
   V(OBJECT_DEFINE_PROPERTIES, JSFunction, object_define_properties)         \
   V(OBJECT_DEFINE_PROPERTY, JSFunction, object_define_property)             \
-  V(OBJECT_FREEZE, JSFunction, object_freeze)                               \
   V(OBJECT_GET_PROTOTYPE_OF, JSFunction, object_get_prototype_of)           \
   V(OBJECT_IS_EXTENSIBLE, JSFunction, object_is_extensible)                 \
   V(OBJECT_IS_FROZEN, JSFunction, object_is_frozen)                         \
@@ -403,6 +401,7 @@ enum ContextLookupFlags {
   V(WASM_MEMORY_CONSTRUCTOR_INDEX, JSFunction, wasm_memory_constructor)        \
   V(WASM_MODULE_CONSTRUCTOR_INDEX, JSFunction, wasm_module_constructor)        \
   V(WASM_TABLE_CONSTRUCTOR_INDEX, JSFunction, wasm_table_constructor)          \
+  V(TEMPLATE_MAP_INDEX, HeapObject, template_map)                              \
   V(TYPED_ARRAY_FUN_INDEX, JSFunction, typed_array_function)                   \
   V(TYPED_ARRAY_PROTOTYPE_INDEX, JSObject, typed_array_prototype)              \
   V(UINT16_ARRAY_FUN_INDEX, JSFunction, uint16_array_fun)                      \

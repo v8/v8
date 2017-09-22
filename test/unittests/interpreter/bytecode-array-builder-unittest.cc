@@ -145,6 +145,9 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.CreateArrayLiteral(0, 0, 0);
   builder.CreateObjectLiteral(0, 0, 0, reg);
 
+  // Emit tagged template operations.
+  builder.GetTemplateObject(0);
+
   // Call operations.
   builder.CallAnyReceiver(reg, reg_list, 1)
       .CallProperty(reg, reg_list, 1)

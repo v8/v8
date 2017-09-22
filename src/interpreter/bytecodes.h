@@ -230,6 +230,9 @@ namespace interpreter {
     OperandType::kIdx, OperandType::kFlag8, OperandType::kRegOut)              \
   V(CreateEmptyObjectLiteral, AccumulatorUse::kWrite)                          \
                                                                                \
+  /* Tagged templates */                                                       \
+  V(GetTemplateObject, AccumulatorUse::kWrite, OperandType::kIdx)              \
+                                                                               \
   /* Closure allocation */                                                     \
   V(CreateClosure, AccumulatorUse::kWrite, OperandType::kIdx,                  \
     OperandType::kIdx, OperandType::kFlag8)                                    \

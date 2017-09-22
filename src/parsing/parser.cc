@@ -3423,8 +3423,8 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
                                          Expression* tag) {
   TemplateLiteral* lit = *state;
   int pos = lit->position();
-  const ZoneList<Expression*>* cooked_strings = lit->cooked();
-  const ZoneList<Expression*>* raw_strings = lit->raw();
+  const ZoneList<Literal*>* cooked_strings = lit->cooked();
+  const ZoneList<Literal*>* raw_strings = lit->raw();
   const ZoneList<Expression*>* expressions = lit->expressions();
   DCHECK_EQ(cooked_strings->length(), raw_strings->length());
   DCHECK_EQ(cooked_strings->length(), expressions->length() + 1);
@@ -3451,38 +3451,39 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
     }
     return expr;
   } else {
-    uint32_t hash = ComputeTemplateLiteralHash(lit);
-
-    // $getTemplateCallSite
-    ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(4, zone());
-    args->Add(factory()->NewArrayLiteral(
-                  const_cast<ZoneList<Expression*>*>(cooked_strings), pos),
-              zone());
-    args->Add(factory()->NewArrayLiteral(
-                  const_cast<ZoneList<Expression*>*>(raw_strings), pos),
-              zone());
-
-    // Truncate hash to Smi-range.
-    Smi* hash_obj = Smi::cast(Internals::IntToSmi(static_cast<int>(hash)));
-    args->Add(factory()->NewNumberLiteral(hash_obj->value(), pos), zone());
-
-    Expression* call_site = factory()->NewCallRuntime(
-        Context::GET_TEMPLATE_CALL_SITE_INDEX, args, start);
+    // GetTemplateObject
+    const int32_t hash = ComputeTemplateLiteralHash(lit);
+    Expression* template_object = factory()->NewGetTemplateObject(
+        const_cast<ZoneList<Literal*>*>(cooked_strings),
+        const_cast<ZoneList<Literal*>*>(raw_strings), hash, pos);
 
     // Call TagFn
     ZoneList<Expression*>* call_args =
         new (zone()) ZoneList<Expression*>(expressions->length() + 1, zone());
-    call_args->Add(call_site, zone());
+    call_args->Add(template_object, zone());
     call_args->AddAll(*expressions, zone());
     return factory()->NewCall(tag, call_args, pos);
   }
 }
 
+namespace {
 
-uint32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
-  const ZoneList<Expression*>* raw_strings = lit->raw();
+// http://burtleburtle.net/bob/hash/integer.html
+uint32_t HalfAvalance(uint32_t a) {
+  a = (a + 0x479ab41d) + (a << 8);
+  a = (a ^ 0xe4aa10ce) ^ (a >> 5);
+  a = (a + 0x9942f0a6) - (a << 14);
+  a = (a ^ 0x5aedd67d) ^ (a >> 3);
+  a = (a + 0x17bea992) + (a << 7);
+  return a;
+}
+
+}  // namespace
+
+int32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
+  const ZoneList<Literal*>* raw_strings = lit->raw();
   int total = raw_strings->length();
-  DCHECK(total);
+  DCHECK_GT(total, 0);
 
   uint32_t running_hash = 0;
 
@@ -3505,7 +3506,10 @@ uint32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
     }
   }
 
-  return running_hash;
+  // Pass {running_hash} throught a decent 'half avalance' hash function
+  // and take the most significant bits (in Smi range).
+  return static_cast<int32_t>(HalfAvalance(running_hash)) >>
+         (sizeof(int32_t) * CHAR_BIT - kSmiValueSize);
 }
 
 namespace {

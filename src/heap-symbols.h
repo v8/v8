@@ -148,6 +148,7 @@
   V(Proxy_string, "Proxy")                                         \
   V(query_colon_string, "(?:)")                                    \
   V(RangeError_string, "RangeError")                               \
+  V(raw_string, "raw")                                             \
   V(ReferenceError_string, "ReferenceError")                       \
   V(RegExp_string, "RegExp")                                       \
   V(reject_string, "reject")                                       \

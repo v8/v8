@@ -227,6 +227,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
                                             Register output);
   BytecodeArrayBuilder& CreateEmptyObjectLiteral();
 
+  // Gets or creates the template for a TemplateObjectDescription which will
+  // be inserted at constant pool index |template_object_description_entry|.
+  BytecodeArrayBuilder& GetTemplateObject(
+      size_t template_object_description_entry);
+
   // Push the context in accumulator as the new context, and store in register
   // |context|.
   BytecodeArrayBuilder& PushContext(Register context);

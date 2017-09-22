@@ -40,6 +40,7 @@
 #include "src/objects/module-inl.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/objects/scope-info.h"
+#include "src/objects/template-objects.h"
 #include "src/property.h"
 #include "src/prototype.h"
 #include "src/transitions-inl.h"
@@ -115,6 +116,8 @@ TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
 TYPE_CHECKER(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)
 TYPE_CHECKER(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)
 TYPE_CHECKER(SourcePositionTableWithFrameCache, TUPLE2_TYPE)
+TYPE_CHECKER(TemplateMap, HASH_TABLE_TYPE)
+TYPE_CHECKER(TemplateObjectDescription, TUPLE3_TYPE)
 TYPE_CHECKER(TransitionArray, TRANSITION_ARRAY_TYPE)
 TYPE_CHECKER(TypeFeedbackInfo, TUPLE3_TYPE)
 TYPE_CHECKER(WasmInstanceObject, WASM_INSTANCE_TYPE)
@@ -624,6 +627,8 @@ CAST_ACCESSOR(StringTable)
 CAST_ACCESSOR(Struct)
 CAST_ACCESSOR(TemplateInfo)
 CAST_ACCESSOR(TemplateList)
+CAST_ACCESSOR(TemplateMap)
+CAST_ACCESSOR(TemplateObjectDescription)
 CAST_ACCESSOR(Tuple2)
 CAST_ACCESSOR(Tuple3)
 CAST_ACCESSOR(TypeFeedbackInfo)
@@ -4377,6 +4382,11 @@ ACCESSORS(ConstantElementsPair, constant_values, FixedArrayBase,
 bool ConstantElementsPair::is_empty() const {
   return constant_values()->length() == 0;
 }
+
+SMI_ACCESSORS(TemplateObjectDescription, hash, kHashOffset)
+ACCESSORS(TemplateObjectDescription, raw_strings, FixedArray, kRawStringsOffset)
+ACCESSORS(TemplateObjectDescription, cooked_strings, FixedArray,
+          kCookedStringsOffset)
 
 ACCESSORS(AccessorPair, getter, Object, kGetterOffset)
 ACCESSORS(AccessorPair, setter, Object, kSetterOffset)

@@ -85,6 +85,7 @@ namespace internal {
   V(EmptyParentheses)           \
   V(FunctionLiteral)            \
   V(GetIterator)                \
+  V(GetTemplateObject)          \
   V(ImportCallExpression)       \
   V(Literal)                    \
   V(NativeFunctionLiteral)      \
@@ -2763,6 +2764,31 @@ class GetIterator final : public Expression {
   FeedbackSlot async_iterator_call_feedback_slot_;
 };
 
+// Represents the spec operation `GetTemplateObject(templateLiteral)`
+// (defined at https://tc39.github.io/ecma262/#sec-gettemplateobject).
+class GetTemplateObject final : public Expression {
+ public:
+  ZoneList<Literal*>* cooked_strings() const { return cooked_strings_; }
+  ZoneList<Literal*>* raw_strings() const { return raw_strings_; }
+  int hash() const { return hash_; }
+
+  Handle<TemplateObjectDescription> GetOrBuildDescription(Isolate* isolate);
+
+ private:
+  friend class AstNodeFactory;
+
+  GetTemplateObject(ZoneList<Literal*>* cooked_strings,
+                    ZoneList<Literal*>* raw_strings, int hash, int pos)
+      : Expression(pos, kGetTemplateObject),
+        cooked_strings_(cooked_strings),
+        raw_strings_(raw_strings),
+        hash_(hash) {}
+
+  ZoneList<Literal*>* cooked_strings_;
+  ZoneList<Literal*>* raw_strings_;
+  int hash_;
+};
+
 // ----------------------------------------------------------------------------
 // Basic visitor
 // Sub-class should parametrize AstVisitor with itself, e.g.:
@@ -3373,6 +3399,13 @@ class AstNodeFactory final BASE_EMBEDDED {
   GetIterator* NewGetIterator(Expression* iterable, IteratorType hint,
                               int pos) {
     return new (zone_) GetIterator(iterable, hint, pos);
+  }
+
+  GetTemplateObject* NewGetTemplateObject(ZoneList<Literal*>* cooked_strings,
+                                          ZoneList<Literal*>* raw_strings,
+                                          int hash, int pos) {
+    return new (zone_)
+        GetTemplateObject(cooked_strings, raw_strings, hash, pos);
   }
 
   ImportCallExpression* NewImportCallExpression(Expression* args, int pos) {

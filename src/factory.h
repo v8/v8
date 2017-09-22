@@ -18,6 +18,7 @@
 namespace v8 {
 namespace internal {
 
+// Forward declarations.
 class AliasedArgumentsEntry;
 class BigInt;
 class BreakPointInfo;
@@ -29,6 +30,7 @@ class DebugInfo;
 class JSModuleNamespace;
 struct SourceRange;
 class PreParsedScopeData;
+class TemplateObjectDescription;
 
 enum FunctionMode {
   kWithNameBit = 1 << 0,
@@ -146,6 +148,11 @@ class V8_EXPORT_PRIVATE Factory final {
   // Create a new ConstantElementsPair struct.
   Handle<ConstantElementsPair> NewConstantElementsPair(
       ElementsKind elements_kind, Handle<FixedArrayBase> constant_values);
+
+  // Create a new TemplateObjectDescription struct.
+  Handle<TemplateObjectDescription> NewTemplateObjectDescription(
+      int hash, Handle<FixedArray> raw_strings,
+      Handle<FixedArray> cooked_strings);
 
   // Create a pre-tenured empty AccessorPair.
   Handle<AccessorPair> NewAccessorPair();

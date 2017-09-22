@@ -2763,6 +2763,21 @@ IGNITION_HANDLER(CreateEmptyObjectLiteral, InterpreterAssembler) {
   Dispatch();
 }
 
+// GetTemplateObject
+//
+// Creates the template to pass for tagged templates and returns it in the
+// accumulator, creating and caching the site object on-demand as per the
+// specification.
+IGNITION_HANDLER(GetTemplateObject, InterpreterAssembler) {
+  Node* description_index = BytecodeOperandIdx(0);
+  Node* description = LoadConstantPoolEntry(description_index);
+  Node* context = GetContext();
+
+  Node* result = CallRuntime(Runtime::kGetTemplateObject, context, description);
+  SetAccumulator(result);
+  Dispatch();
+}
+
 // CreateClosure <index> <slot> <tenured>
 //
 // Creates a new closure for SharedFunctionInfo at position |index| in the

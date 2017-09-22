@@ -382,6 +382,10 @@ void AstExpressionRewriter::VisitGetIterator(GetIterator* node) {
   AST_REWRITE_PROPERTY(Expression, node, iterable);
 }
 
+void AstExpressionRewriter::VisitGetTemplateObject(GetTemplateObject* node) {
+  NOTHING();
+}
+
 void AstExpressionRewriter::VisitImportCallExpression(
     ImportCallExpression* node) {
   REWRITE_THIS(node);

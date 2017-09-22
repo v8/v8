@@ -786,6 +786,7 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       native_function_literals_(0, info->zone()),
       object_literals_(0, info->zone()),
       array_literals_(0, info->zone()),
+      template_objects_(0, info->zone()),
       execution_control_(nullptr),
       execution_context_(nullptr),
       execution_result_(nullptr),
@@ -876,6 +877,14 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate) {
     Handle<ConstantElementsPair> constant_elements =
         array_literal->GetOrBuildConstantElements(isolate);
     builder()->SetDeferredConstantPoolEntry(literal.second, constant_elements);
+  }
+
+  // Build template literals.
+  for (std::pair<GetTemplateObject*, size_t> literal : template_objects_) {
+    GetTemplateObject* get_template_object = literal.first;
+    Handle<TemplateObjectDescription> description =
+        get_template_object->GetOrBuildDescription(isolate);
+    builder()->SetDeferredConstantPoolEntry(literal.second, description);
   }
 }
 
@@ -3808,6 +3817,13 @@ void BytecodeGenerator::VisitGetIterator(GetIterator* expr) {
                    expr->IteratorCallFeedbackSlot(),
                    expr->AsyncIteratorPropertyFeedbackSlot(),
                    expr->AsyncIteratorCallFeedbackSlot());
+}
+
+void BytecodeGenerator::VisitGetTemplateObject(GetTemplateObject* expr) {
+  builder()->SetExpressionPosition(expr);
+  size_t entry = builder()->AllocateDeferredConstantPoolEntry();
+  template_objects_.push_back(std::make_pair(expr, entry));
+  builder()->GetTemplateObject(entry);
 }
 
 void BytecodeGenerator::VisitThisFunction(ThisFunction* expr) {

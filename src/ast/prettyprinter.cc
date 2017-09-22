@@ -417,6 +417,8 @@ void CallPrinter::VisitGetIterator(GetIterator* node) {
   }
 }
 
+void CallPrinter::VisitGetTemplateObject(GetTemplateObject* node) {}
+
 void CallPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   Print("ImportCall(");
   Find(node->argument(), true);
@@ -1248,6 +1250,10 @@ void AstPrinter::VisitEmptyParentheses(EmptyParentheses* node) {
 void AstPrinter::VisitGetIterator(GetIterator* node) {
   IndentedScope indent(this, "GET-ITERATOR", node->position());
   Visit(node->iterable());
+}
+
+void AstPrinter::VisitGetTemplateObject(GetTemplateObject* node) {
+  IndentedScope indent(this, "GET-TEMPLATE-OBJECT", node->position());
 }
 
 void AstPrinter::VisitImportCallExpression(ImportCallExpression* node) {

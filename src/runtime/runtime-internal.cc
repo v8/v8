@@ -643,5 +643,14 @@ RUNTIME_FUNCTION(Runtime_CreateAsyncFromSyncIterator) {
       Handle<JSReceiver>::cast(sync_iterator));
 }
 
+RUNTIME_FUNCTION(Runtime_GetTemplateObject) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(TemplateObjectDescription, description, 0);
+
+  return *TemplateObjectDescription::GetTemplateObject(
+      description, isolate->native_context());
+}
+
 }  // namespace internal
 }  // namespace v8

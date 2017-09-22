@@ -345,6 +345,8 @@ void AstNumberingVisitor::VisitGetIterator(GetIterator* node) {
   ReserveFeedbackSlots(node);
 }
 
+void AstNumberingVisitor::VisitGetTemplateObject(GetTemplateObject* node) {}
+
 void AstNumberingVisitor::VisitImportCallExpression(
     ImportCallExpression* node) {
   Visit(node->argument());

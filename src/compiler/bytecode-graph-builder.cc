@@ -476,8 +476,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
     Zone* local_zone, Handle<SharedFunctionInfo> shared_info,
     Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
     JSGraph* jsgraph, CallFrequency invocation_frequency,
-    SourcePositionTable* source_positions, int inlining_id,
-    JSTypeHintLowering::Flags flags, bool stack_check)
+    SourcePositionTable* source_positions, Handle<Context> native_context,
+    int inlining_id, JSTypeHintLowering::Flags flags, bool stack_check)
     : local_zone_(local_zone),
       jsgraph_(jsgraph),
       invocation_frequency_(invocation_frequency),
@@ -505,7 +505,8 @@ BytecodeGraphBuilder::BytecodeGraphBuilder(
       exit_controls_(local_zone),
       state_values_cache_(jsgraph),
       source_positions_(source_positions),
-      start_position_(shared_info->start_position(), inlining_id) {}
+      start_position_(shared_info->start_position(), inlining_id),
+      native_context_(native_context) {}
 
 Node* BytecodeGraphBuilder::GetFunctionClosure() {
   if (!function_closure_.is_set()) {
@@ -1540,6 +1541,19 @@ void BytecodeGraphBuilder::VisitCreateEmptyObjectLiteral() {
   Node* literal =
       NewNode(javascript()->CreateEmptyLiteralObject(), GetFunctionClosure());
   environment()->BindAccumulator(literal);
+}
+
+void BytecodeGraphBuilder::VisitGetTemplateObject() {
+  Handle<TemplateObjectDescription> description =
+      Handle<TemplateObjectDescription>::cast(
+          bytecode_iterator().GetConstantForIndexOperand(0));
+  // It's not observable when the template object is created, so we
+  // can just create it eagerly during graph building and bake in
+  // the JSArray constant here.
+  Node* template_object =
+      jsgraph()->HeapConstant(TemplateObjectDescription::GetTemplateObject(
+          description, native_context()));
+  environment()->BindAccumulator(template_object);
 }
 
 Node* const* BytecodeGraphBuilder::GetCallArgumentsFromRegisters(

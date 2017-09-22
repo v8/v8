@@ -29,7 +29,7 @@ class BytecodeGraphBuilder {
       Zone* local_zone, Handle<SharedFunctionInfo> shared,
       Handle<FeedbackVector> feedback_vector, BailoutId osr_offset,
       JSGraph* jsgraph, CallFrequency invocation_frequency,
-      SourcePositionTable* source_positions,
+      SourcePositionTable* source_positions, Handle<Context> native_context,
       int inlining_id = SourcePosition::kNotInlined,
       JSTypeHintLowering::Flags flags = JSTypeHintLowering::kNoFlags,
       bool stack_check = true);
@@ -347,6 +347,8 @@ class BytecodeGraphBuilder {
     needs_eager_checkpoint_ = value;
   }
 
+  Handle<Context> native_context() const { return native_context_; }
+
 #define DECLARE_VISIT_BYTECODE(name, ...) void Visit##name();
   BYTECODE_LIST(DECLARE_VISIT_BYTECODE)
 #undef DECLARE_VISIT_BYTECODE
@@ -396,6 +398,9 @@ class BytecodeGraphBuilder {
   SourcePositionTable* source_positions_;
 
   SourcePosition const start_position_;
+
+  // The native context for which we optimize.
+  Handle<Context> const native_context_;
 
   static int const kBinaryOperationHintIndex = 1;
   static int const kCountOperationHintIndex = 0;

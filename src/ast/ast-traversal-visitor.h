@@ -492,6 +492,12 @@ void AstTraversalVisitor<Subclass>::VisitGetIterator(GetIterator* expr) {
 }
 
 template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitGetTemplateObject(
+    GetTemplateObject* expr) {
+  PROCESS_EXPRESSION(expr);
+}
+
+template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitImportCallExpression(
     ImportCallExpression* expr) {
   PROCESS_EXPRESSION(expr);

@@ -16398,6 +16398,8 @@ template class HashTable<ObjectHashTable, ObjectHashTableShape>;
 
 template class HashTable<WeakHashTable, WeakHashTableShape<2>>;
 
+template class HashTable<TemplateMap, TemplateMapShape>;
+
 template class Dictionary<NameDictionary, NameDictionaryShape>;
 
 template class Dictionary<GlobalDictionary, GlobalDictionaryShape>;

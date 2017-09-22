@@ -820,6 +820,30 @@ void MaterializedLiteral::BuildConstants(Isolate* isolate) {
   DCHECK(IsRegExpLiteral());
 }
 
+Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
+    Isolate* isolate) {
+  Handle<FixedArray> raw_strings =
+      isolate->factory()->NewFixedArray(this->raw_strings()->length(), TENURED);
+  bool raw_and_cooked_match = true;
+  for (int i = 0; i < raw_strings->length(); ++i) {
+    if (*this->raw_strings()->at(i)->value() !=
+        *this->cooked_strings()->at(i)->value()) {
+      raw_and_cooked_match = false;
+    }
+    raw_strings->set(i, *this->raw_strings()->at(i)->value());
+  }
+  Handle<FixedArray> cooked_strings = raw_strings;
+  if (!raw_and_cooked_match) {
+    cooked_strings = isolate->factory()->NewFixedArray(
+        this->cooked_strings()->length(), TENURED);
+    for (int i = 0; i < cooked_strings->length(); ++i) {
+      cooked_strings->set(i, *this->cooked_strings()->at(i)->value());
+    }
+  }
+  return isolate->factory()->NewTemplateObjectDescription(
+      this->hash(), raw_strings, cooked_strings);
+}
+
 void UnaryOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
                                          LanguageMode language_mode,
                                          FunctionKind kind,

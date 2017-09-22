@@ -279,6 +279,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
       native_function_literals_;
   ZoneVector<std::pair<ObjectLiteral*, size_t>> object_literals_;
   ZoneVector<std::pair<ArrayLiteral*, size_t>> array_literals_;
+  ZoneVector<std::pair<GetTemplateObject*, size_t>> template_objects_;
 
   ControlScope* execution_control_;
   ContextScope* execution_context_;

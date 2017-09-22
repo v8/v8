@@ -498,8 +498,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     TemplateLiteral(Zone* zone, int pos)
         : cooked_(8, zone), raw_(8, zone), expressions_(8, zone), pos_(pos) {}
 
-    const ZoneList<Expression*>* cooked() const { return &cooked_; }
-    const ZoneList<Expression*>* raw() const { return &raw_; }
+    const ZoneList<Literal*>* cooked() const { return &cooked_; }
+    const ZoneList<Literal*>* raw() const { return &raw_; }
     const ZoneList<Expression*>* expressions() const { return &expressions_; }
     int position() const { return pos_; }
 
@@ -516,8 +516,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     }
 
    private:
-    ZoneList<Expression*> cooked_;
-    ZoneList<Expression*> raw_;
+    ZoneList<Literal*> cooked_;
+    ZoneList<Literal*> raw_;
     ZoneList<Expression*> expressions_;
     int pos_;
   };
@@ -538,7 +538,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                              Expression* expression);
   Expression* CloseTemplateLiteral(TemplateLiteralState* state, int start,
                                    Expression* tag);
-  uint32_t ComputeTemplateLiteralHash(const TemplateLiteral* lit);
+  int32_t ComputeTemplateLiteralHash(const TemplateLiteral* lit);
 
   ZoneList<Expression*>* PrepareSpreadArguments(ZoneList<Expression*>* list);
   Expression* SpreadCall(Expression* function, ZoneList<Expression*>* args,
