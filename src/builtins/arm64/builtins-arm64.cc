@@ -981,9 +981,11 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
     // register in the register file.
     Label loop_header;
     __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
-    // TODO(rmcilroy): Ensure we always have an even number of registers to
-    // allow stack to be 16 bit aligned (and remove need for jssp).
     __ Lsr(x11, x11, kPointerSizeLog2);
+    // Round up the number of registers to a multiple of 2, to align the stack
+    // to 16 bytes.
+    __ Add(x11, x11, 1);
+    __ Bic(x11, x11, 1);
     __ PushMultipleTimes(x10, x11);
     __ Bind(&loop_header);
   }

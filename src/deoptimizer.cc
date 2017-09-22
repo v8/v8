@@ -736,14 +736,16 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   int input_index = 0;
 
   int bytecode_offset = translated_frame->node_id().ToInt();
-  unsigned height = translated_frame->height();
-  unsigned height_in_bytes = height * kPointerSize;
+  int height = translated_frame->height();
+  int register_count = height - 1;  // Exclude accumulator.
+  int register_stack_slot_count =
+      InterpreterFrameConstants::RegisterStackSlotCount(register_count);
+  int height_in_bytes = register_stack_slot_count * kPointerSize;
 
-  // All tranlations for interpreted frames contain the accumulator and hence
-  // are assumed to be in bailout state {BailoutState::TOS_REGISTER}. However
-  // such a state is only supported for the topmost frame. We need to skip
-  // pushing the accumulator for any non-topmost frame.
-  if (!is_topmost) height_in_bytes -= kPointerSize;
+  // The topmost frame is assumed to be in bailout state
+  // {BailoutState::TOS_REGISTER} and will contain the accumulator, which we
+  // add to the frame height here.
+  if (is_topmost) height_in_bytes += kPointerSize;
 
   JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
   value_iterator++;
@@ -912,10 +914,21 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   }
 
   // Translate the rest of the interpreter registers in the frame.
-  for (unsigned i = 0; i < height - 1; ++i) {
+  for (int i = 0; i < register_count; ++i) {
     output_offset -= kPointerSize;
     WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
                                  output_offset);
+  }
+
+  int register_slots_written = register_count;
+  DCHECK_LE(register_slots_written, register_stack_slot_count);
+  // Some architectures must pad the stack frame with extra stack slots
+  // to ensure the stack frame is aligned. Do this now.
+  while (register_slots_written < register_stack_slot_count) {
+    register_slots_written++;
+    output_offset -= kPointerSize;
+    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                       output_offset, "padding ");
   }
 
   // Translate the accumulator register (depending on frame position).

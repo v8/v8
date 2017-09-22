@@ -1310,7 +1310,8 @@ Object* Isolate::UnwindAndFindHandler() {
         // For interpreted frame we perform a range lookup in the handler table.
         if (!catchable_by_js) break;
         InterpretedFrame* js_frame = static_cast<InterpretedFrame*>(frame);
-        int register_slots = js_frame->GetBytecodeArray()->register_count();
+        int register_slots = InterpreterFrameConstants::RegisterStackSlotCount(
+            js_frame->GetBytecodeArray()->register_count());
         int context_reg = 0;  // Will contain register index holding context.
         int offset =
             js_frame->LookupExceptionHandlerInTable(&context_reg, nullptr);
