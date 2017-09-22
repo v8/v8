@@ -733,6 +733,10 @@ class ModuleDecoderImpl : public Decoder {
 
   void DecodeFunctionBody(uint32_t index, uint32_t length, uint32_t offset,
                           bool verify_functions) {
+    auto size_histogram = module_->is_wasm()
+                              ? GetCounters()->wasm_wasm_function_size_bytes()
+                              : GetCounters()->wasm_asm_function_size_bytes();
+    size_histogram->AddSample(length);
     WasmFunction* function =
         &module_->functions[index + module_->num_imported_functions];
     function->code = {offset, length};
@@ -1437,6 +1441,11 @@ FunctionResult DecodeWasmFunction(Isolate* isolate, Zone* zone,
   size_t size = function_end - function_start;
   if (function_start > function_end)
     return FunctionResult::Error("start > end");
+  auto size_histogram = module->is_wasm()
+                            ? counters->wasm_wasm_function_size_bytes()
+                            : counters->wasm_asm_function_size_bytes();
+  // TODO(bradnelson): Improve histogram handling of ptrdiff_t.
+  size_histogram->AddSample(static_cast<int>(size));
   if (size > kV8MaxWasmFunctionSize)
     return FunctionResult::Error("size > maximum function size: %zu", size);
   ModuleDecoderImpl decoder(function_start, function_end, kWasmOrigin);
