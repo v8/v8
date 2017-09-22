@@ -73,23 +73,17 @@ Scavenger::Scavenger(Heap* heap, bool is_logging, CopiedList* copied_list,
       is_compacting_(heap->incremental_marking()->IsCompacting()) {}
 
 void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
-  // We are not collecting slots on new space objects during mutation
-  // thus we have to scan for pointers to evacuation candidates when we
-  // promote objects. But we should not record any slots in non-black
-  // objects. Grey object's slots would be rescanned.
-  // White object might not survive until the end of collection
-  // it would be a violation of the invariant to record it's slots.
+  // We are not collecting slots on new space objects during mutation thus we
+  // have to scan for pointers to evacuation candidates when we promote
+  // objects. But we should not record any slots in non-black objects. Grey
+  // object's slots would be rescanned. White object might not survive until
+  // the end of collection it would be a violation of the invariant to record
+  // its slots.
   const bool record_slots =
       is_compacting_ &&
       heap()->incremental_marking()->atomic_marking_state()->IsBlack(target);
   IterateAndScavengePromotedObjectsVisitor visitor(heap(), this, record_slots);
-  if (target->IsJSFunction()) {
-    // JSFunctions reachable through kNextFunctionLinkOffset are weak. Slots for
-    // this links are recorded during processing of weak lists.
-    JSFunction::BodyDescriptorWeak::IterateBody(target, size, &visitor);
-  } else {
-    target->IterateBody(target->map()->instance_type(), size, &visitor);
-  }
+  target->IterateBody(target->map()->instance_type(), size, &visitor);
 }
 
 void Scavenger::Process(OneshotBarrier* barrier) {
