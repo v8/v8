@@ -151,7 +151,7 @@ if (v8_check_microtasks_scopes_consistency == "") {
   v8_check_microtasks_scopes_consistency = is_debug || dcheck_always_on
 }
 if (v8_enable_concurrent_marking == "") {
-  if (v8_target_cpu == "x86" || v8_target_cpu == "x64") {
+  if (target_cpu == "x86" || target_cpu == "x64") {
     v8_enable_concurrent_marking = true
   } else {
     v8_enable_concurrent_marking = false

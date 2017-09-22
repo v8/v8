@@ -83,7 +83,7 @@
 
     # Enable concurrent marking.
     'conditions': [
-      ['v8_target_arch=="x64" or v8_target_arch=="ia32"', {
+      ['target_arch=="x64" or target_arch=="ia32"', {
         'v8_enable_concurrent_marking%': 1,
       },{
         'v8_enable_concurrent_marking%': 0,
