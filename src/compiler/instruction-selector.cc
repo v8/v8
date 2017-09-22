@@ -2597,10 +2597,13 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
 void InstructionSelector::VisitCallWithCallerSavedRegisters(
     Node* node, BasicBlock* handler) {
   OperandGenerator g(this);
-
-  Emit(kArchSaveCallerRegisters, g.NoOutput());
+  const auto fp_mode = CallDescriptorOf(node->op())->get_save_fp_mode();
+  Emit(kArchSaveCallerRegisters | MiscField::encode(static_cast<int>(fp_mode)),
+       g.NoOutput());
   VisitCall(node, handler);
-  Emit(kArchRestoreCallerRegisters, g.NoOutput());
+  Emit(kArchRestoreCallerRegisters |
+           MiscField::encode(static_cast<int>(fp_mode)),
+       g.NoOutput());
 }
 
 void InstructionSelector::VisitTailCall(Node* node) {

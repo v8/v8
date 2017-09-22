@@ -80,7 +80,8 @@ TEST(CallCFunction3WithCallerSavedRegisters) {
 
     Node* const result = m.CallCFunction3WithCallerSavedRegisters(
         type_intptr, type_intptr, type_intptr, type_intptr, fun_constant,
-        m.IntPtrConstant(0), m.IntPtrConstant(1), m.IntPtrConstant(2));
+        m.IntPtrConstant(0), m.IntPtrConstant(1), m.IntPtrConstant(2),
+        kSaveFPRegs);
     m.Return(m.SmiTag(result));
   }
 

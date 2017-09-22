@@ -1116,11 +1116,11 @@ Node* CodeAssembler::CallCFunction1(MachineType return_type,
 }
 
 Node* CodeAssembler::CallCFunction1WithCallerSavedRegisters(
-    MachineType return_type, MachineType arg0_type, Node* function,
-    Node* arg0) {
+    MachineType return_type, MachineType arg0_type, Node* function, Node* arg0,
+    SaveFPRegsMode mode) {
   DCHECK(return_type.LessThanOrEqualPointerSize());
   return raw_assembler()->CallCFunction1WithCallerSavedRegisters(
-      return_type, arg0_type, function, arg0);
+      return_type, arg0_type, function, arg0, mode);
 }
 
 Node* CodeAssembler::CallCFunction2(MachineType return_type,
@@ -1142,10 +1142,12 @@ Node* CodeAssembler::CallCFunction3(MachineType return_type,
 
 Node* CodeAssembler::CallCFunction3WithCallerSavedRegisters(
     MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2) {
+    MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
+    SaveFPRegsMode mode) {
   DCHECK(return_type.LessThanOrEqualPointerSize());
   return raw_assembler()->CallCFunction3WithCallerSavedRegisters(
-      return_type, arg0_type, arg1_type, arg2_type, function, arg0, arg1, arg2);
+      return_type, arg0_type, arg1_type, arg2_type, function, arg0, arg1, arg2,
+      mode);
 }
 
 Node* CodeAssembler::CallCFunction6(

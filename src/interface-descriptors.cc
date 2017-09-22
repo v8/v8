@@ -101,8 +101,9 @@ const Register FastNewArgumentsDescriptor::TargetRegister() {
 void RecordWriteDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   MachineType machine_types[] = {MachineType::TaggedPointer(),
-                                 MachineType::Pointer(),
-                                 MachineType::Pointer()};
+                                 MachineType::Pointer(), MachineType::Pointer(),
+                                 MachineType::TaggedSigned(),
+                                 MachineType::TaggedSigned()};
   data->InitializePlatformIndependent(arraysize(machine_types), 0,
                                       machine_types);
 }

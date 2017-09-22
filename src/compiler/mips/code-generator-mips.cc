@@ -832,8 +832,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchSaveCallerRegisters: {
+      fp_mode_ =
+          static_cast<SaveFPRegsMode>(MiscField::decode(instr->opcode()));
+      DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
       // kReturnRegister0 should have been saved before entering the stub.
-      int bytes = __ PushCallerSaved(kSaveFPRegs, kReturnRegister0);
+      int bytes = __ PushCallerSaved(fp_mode_, kReturnRegister0);
       DCHECK(bytes % kPointerSize == 0);
       DCHECK(frame_access_state()->sp_delta() == 0);
       frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
@@ -842,8 +845,11 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kArchRestoreCallerRegisters: {
+      DCHECK(fp_mode_ ==
+             static_cast<SaveFPRegsMode>(MiscField::decode(instr->opcode())));
+      DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
       // Don't overwrite the returned value.
-      int bytes = __ PopCallerSaved(kSaveFPRegs, kReturnRegister0);
+      int bytes = __ PopCallerSaved(fp_mode_, kReturnRegister0);
       frame_access_state()->IncreaseSPDelta(-(bytes / kPointerSize));
       DCHECK(frame_access_state()->sp_delta() == 0);
       DCHECK(caller_registers_saved_);
@@ -871,8 +877,12 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       if (caller_registers_saved_) {
         // Need to re-sync SP delta introduced in kArchSaveCallerRegisters.
+        // Here, we assume the sequence to be:
+        //   kArchSaveCallerRegisters;
+        //   kArchCallCFunction;
+        //   kArchRestoreCallerRegisters;
         int bytes =
-            __ RequiredStackSizeForCallerSaved(kSaveFPRegs, kReturnRegister0);
+            __ RequiredStackSizeForCallerSaved(fp_mode_, kReturnRegister0);
         frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
       }
       break;

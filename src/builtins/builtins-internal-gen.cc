@@ -294,7 +294,60 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     }
   }
 
-  void InsertToStoreBufferAndGoto(Node* isolate, Node* slot, Label* next) {
+  Node* ShouldSkipFPRegs(Node* mode) {
+    return WordEqual(mode, SmiConstant(kDontSaveFPRegs));
+  }
+
+  Node* ShouldEmitRememberSet(Node* remembered_set) {
+    return WordEqual(remembered_set, SmiConstant(EMIT_REMEMBERED_SET));
+  }
+
+  void CallCFunction1WithCallerSavedRegistersMode(MachineType return_type,
+                                                  MachineType arg0_type,
+                                                  Node* function, Node* arg0,
+                                                  Node* mode, Label* next) {
+    Label dont_save_fp(this), save_fp(this);
+    Branch(ShouldSkipFPRegs(mode), &dont_save_fp, &save_fp);
+    BIND(&dont_save_fp);
+    {
+      CallCFunction1WithCallerSavedRegisters(return_type, arg0_type, function,
+                                             arg0, kDontSaveFPRegs);
+      Goto(next);
+    }
+
+    BIND(&save_fp);
+    {
+      CallCFunction1WithCallerSavedRegisters(return_type, arg0_type, function,
+                                             arg0, kSaveFPRegs);
+      Goto(next);
+    }
+  }
+
+  void CallCFunction3WithCallerSavedRegistersMode(
+      MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+      MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
+      Node* mode, Label* next) {
+    Label dont_save_fp(this), save_fp(this);
+    Branch(ShouldSkipFPRegs(mode), &dont_save_fp, &save_fp);
+    BIND(&dont_save_fp);
+    {
+      CallCFunction3WithCallerSavedRegisters(return_type, arg0_type, arg1_type,
+                                             arg2_type, function, arg0, arg1,
+                                             arg2, kDontSaveFPRegs);
+      Goto(next);
+    }
+
+    BIND(&save_fp);
+    {
+      CallCFunction3WithCallerSavedRegisters(return_type, arg0_type, arg1_type,
+                                             arg2_type, function, arg0, arg1,
+                                             arg2, kSaveFPRegs);
+      Goto(next);
+    }
+  }
+
+  void InsertToStoreBufferAndGoto(Node* isolate, Node* slot, Node* mode,
+                                  Label* next) {
     Node* store_buffer_top_addr =
         ExternalConstant(ExternalReference::store_buffer_top(this->isolate()));
     Node* store_buffer_top =
@@ -316,9 +369,9 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     {
       Node* function = ExternalConstant(
           ExternalReference::store_buffer_overflow_function(this->isolate()));
-      CallCFunction1WithCallerSavedRegisters(
-          MachineType::Int32(), MachineType::Pointer(), function, isolate);
-      Goto(next);
+      CallCFunction1WithCallerSavedRegistersMode(MachineType::Int32(),
+                                                 MachineType::Pointer(),
+                                                 function, isolate, mode, next);
     }
   }
 };
@@ -327,42 +380,51 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
   Node* object = BitcastTaggedToWord(Parameter(Descriptor::kObject));
   Node* slot = Parameter(Descriptor::kSlot);
   Node* isolate = Parameter(Descriptor::kIsolate);
-  Node* value;
+  Node* remembered_set = Parameter(Descriptor::kRememberedSet);
+  Node* fp_mode = Parameter(Descriptor::kFPMode);
 
-  Label test_old_to_new_flags(this);
-  Label store_buffer_exit(this), store_buffer_incremental_wb(this);
+  Node* value = Load(MachineType::Pointer(), slot);
+
+  Label generational_wb(this);
   Label incremental_wb(this);
   Label exit(this);
 
-  // When incremental marking is not on, we skip cross generation pointer
-  // checking here, because there are checks for
-  // `kPointersFromHereAreInterestingMask` and
-  // `kPointersToHereAreInterestingMask` in
-  // `src/compiler/<arch>/code-generator-<arch>.cc` before calling this stub,
-  // which serves as the cross generation checking.
-  Branch(IsMarking(), &test_old_to_new_flags, &store_buffer_exit);
+  Branch(ShouldEmitRememberSet(remembered_set), &generational_wb,
+         &incremental_wb);
 
-  BIND(&test_old_to_new_flags);
+  BIND(&generational_wb);
   {
-    value = Load(MachineType::Pointer(), slot);
-    // TODO(albertnetymk): Try to cache the page flag for value and object,
-    // instead of calling IsPageFlagSet each time.
-    Node* value_in_new_space =
-        IsPageFlagSet(value, MemoryChunk::kIsInNewSpaceMask);
-    GotoIfNot(value_in_new_space, &incremental_wb);
+    Label test_old_to_new_flags(this);
+    Label store_buffer_exit(this), store_buffer_incremental_wb(this);
+    // When incremental marking is not on, we skip cross generation pointer
+    // checking here, because there are checks for
+    // `kPointersFromHereAreInterestingMask` and
+    // `kPointersToHereAreInterestingMask` in
+    // `src/compiler/<arch>/code-generator-<arch>.cc` before calling this stub,
+    // which serves as the cross generation checking.
+    Branch(IsMarking(), &test_old_to_new_flags, &store_buffer_exit);
 
-    Node* object_in_new_space =
-        IsPageFlagSet(object, MemoryChunk::kIsInNewSpaceMask);
-    GotoIf(object_in_new_space, &incremental_wb);
+    BIND(&test_old_to_new_flags);
+    {
+      // TODO(albertnetymk): Try to cache the page flag for value and object,
+      // instead of calling IsPageFlagSet each time.
+      Node* value_in_new_space =
+          IsPageFlagSet(value, MemoryChunk::kIsInNewSpaceMask);
+      GotoIfNot(value_in_new_space, &incremental_wb);
 
-    Goto(&store_buffer_incremental_wb);
+      Node* object_in_new_space =
+          IsPageFlagSet(object, MemoryChunk::kIsInNewSpaceMask);
+      GotoIf(object_in_new_space, &incremental_wb);
+
+      Goto(&store_buffer_incremental_wb);
+    }
+
+    BIND(&store_buffer_exit);
+    { InsertToStoreBufferAndGoto(isolate, slot, fp_mode, &exit); }
+
+    BIND(&store_buffer_incremental_wb);
+    { InsertToStoreBufferAndGoto(isolate, slot, fp_mode, &incremental_wb); }
   }
-
-  BIND(&store_buffer_exit);
-  { InsertToStoreBufferAndGoto(isolate, slot, &exit); }
-
-  BIND(&store_buffer_incremental_wb);
-  { InsertToStoreBufferAndGoto(isolate, slot, &incremental_wb); }
 
   BIND(&incremental_wb);
   {
@@ -391,10 +453,10 @@ TF_BUILTIN(RecordWrite, RecordWriteCodeStubAssembler) {
       Node* function = ExternalConstant(
           ExternalReference::incremental_marking_record_write_function(
               this->isolate()));
-      CallCFunction3WithCallerSavedRegisters(
+      CallCFunction3WithCallerSavedRegistersMode(
           MachineType::Int32(), MachineType::Pointer(), MachineType::Pointer(),
-          MachineType::Pointer(), function, object, slot, isolate);
-      Goto(&exit);
+          MachineType::Pointer(), function, object, slot, isolate, fp_mode,
+          &exit);
     }
   }
 

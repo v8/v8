@@ -239,13 +239,15 @@ Node* RawMachineAssembler::CallCFunction1(MachineType return_type,
 }
 
 Node* RawMachineAssembler::CallCFunction1WithCallerSavedRegisters(
-    MachineType return_type, MachineType arg0_type, Node* function,
-    Node* arg0) {
+    MachineType return_type, MachineType arg0_type, Node* function, Node* arg0,
+    SaveFPRegsMode mode) {
   MachineSignature::Builder builder(zone(), 1, 1);
   builder.AddReturn(return_type);
   builder.AddParam(arg0_type);
-  const CallDescriptor* descriptor =
+  CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+
+  descriptor->set_save_fp_mode(mode);
 
   return AddNode(common()->CallWithCallerSavedRegisters(descriptor), function,
                  arg0);
@@ -283,14 +285,17 @@ Node* RawMachineAssembler::CallCFunction3(MachineType return_type,
 
 Node* RawMachineAssembler::CallCFunction3WithCallerSavedRegisters(
     MachineType return_type, MachineType arg0_type, MachineType arg1_type,
-    MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2) {
+    MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
+    SaveFPRegsMode mode) {
   MachineSignature::Builder builder(zone(), 1, 3);
   builder.AddReturn(return_type);
   builder.AddParam(arg0_type);
   builder.AddParam(arg1_type);
   builder.AddParam(arg2_type);
-  const CallDescriptor* descriptor =
+  CallDescriptor* descriptor =
       Linkage::GetSimplifiedCDescriptor(zone(), builder.Build());
+
+  descriptor->set_save_fp_mode(mode);
 
   return AddNode(common()->CallWithCallerSavedRegisters(descriptor), function,
                  arg0, arg1, arg2);

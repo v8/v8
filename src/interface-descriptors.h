@@ -519,7 +519,7 @@ class FastNewArgumentsDescriptor : public CallInterfaceDescriptor {
 
 class RecordWriteDescriptor final : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kObject, kSlot, kIsolate)
+  DEFINE_PARAMETERS(kObject, kSlot, kIsolate, kRememberedSet, kFPMode)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(RecordWriteDescriptor,
                                                CallInterfaceDescriptor)
 };

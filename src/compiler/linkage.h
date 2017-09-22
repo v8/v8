@@ -306,8 +306,13 @@ class V8_EXPORT_PRIVATE CallDescriptor final
     return allocatable_registers_ != 0;
   }
 
+  void set_save_fp_mode(SaveFPRegsMode mode) { save_fp_mode_ = mode; }
+
+  SaveFPRegsMode get_save_fp_mode() const { return save_fp_mode_; }
+
  private:
   friend class Linkage;
+  SaveFPRegsMode save_fp_mode_ = kSaveFPRegs;
 
   const Kind kind_;
   const MachineType target_type_;

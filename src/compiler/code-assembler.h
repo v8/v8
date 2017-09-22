@@ -786,7 +786,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   // registers except the register used for return value.
   Node* CallCFunction1WithCallerSavedRegisters(MachineType return_type,
                                                MachineType arg0_type,
-                                               Node* function, Node* arg0);
+                                               Node* function, Node* arg0,
+                                               SaveFPRegsMode mode);
 
   // Call to a C function with two arguments.
   Node* CallCFunction2(MachineType return_type, MachineType arg0_type,
@@ -800,12 +801,10 @@ class V8_EXPORT_PRIVATE CodeAssembler {
 
   // Call to a C function with three arguments, while saving/restoring caller
   // registers except the register used for return value.
-  Node* CallCFunction3WithCallerSavedRegisters(MachineType return_type,
-                                               MachineType arg0_type,
-                                               MachineType arg1_type,
-                                               MachineType arg2_type,
-                                               Node* function, Node* arg0,
-                                               Node* arg1, Node* arg2);
+  Node* CallCFunction3WithCallerSavedRegisters(
+      MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+      MachineType arg2_type, Node* function, Node* arg0, Node* arg1, Node* arg2,
+      SaveFPRegsMode mode);
 
   // Call to a C function with six arguments.
   Node* CallCFunction6(MachineType return_type, MachineType arg0_type,

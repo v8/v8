@@ -330,7 +330,19 @@ class CodeGenerator final : public GapResolver::Assembler {
   size_t inlined_function_count_;
   TranslationBuffer translations_;
   int last_lazy_deopt_pc_;
+
+  // kArchCallCFunction could be reached either:
+  //   kArchCallCFunction;
+  // or:
+  //   kArchSaveCallerRegisters;
+  //   kArchCallCFunction;
+  //   kArchRestoreCallerRegisters;
+  // The boolean is used to distinguish the two cases. In the latter case, we
+  // also need to decide if FP registers need to be saved, which is controlled
+  // by fp_mode_.
   bool caller_registers_saved_;
+  SaveFPRegsMode fp_mode_;
+
   JumpTable* jump_tables_;
   OutOfLineCode* ools_;
   base::Optional<OsrHelper> osr_helper_;
