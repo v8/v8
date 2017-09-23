@@ -13,8 +13,12 @@ namespace internal {
 namespace wasm {
 
 #define WASM_ATOMICS_OP(op) kAtomicPrefix, static_cast<byte>(op)
-#define WASM_ATOMICS_BINOP(op, x, y) x, y, WASM_ATOMICS_OP(op)
-#define WASM_ATOMICS_TERNARY_OP(op, x, y, z) x, y, z, WASM_ATOMICS_OP(op)
+#define WASM_ATOMICS_BINOP(op, x, y, representation) \
+  x, y, WASM_ATOMICS_OP(op),                         \
+      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
+#define WASM_ATOMICS_TERNARY_OP(op, x, y, z, representation) \
+  x, y, z, WASM_ATOMICS_OP(op),                              \
+      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
 
 typedef uint32_t (*Uint32BinOp)(uint32_t, uint32_t);
 typedef uint16_t (*Uint16BinOp)(uint16_t, uint16_t);
@@ -62,7 +66,8 @@ void RunU32BinOp(WasmOpcode wasm_op, Uint32BinOp expected_op) {
   uint32_t* memory = r.builder().AddMemoryElems<uint32_t>(8);
   r.builder().SetHasSharedMemory();
 
-  BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_GET_LOCAL(0)));
+  BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_GET_LOCAL(0),
+                              MachineRepresentation::kWord32));
 
   FOR_UINT32_INPUTS(i) {
     uint32_t initial = *i;
@@ -88,7 +93,8 @@ void RunU16BinOp(WasmOpcode wasm_op, Uint16BinOp expected_op) {
   r.builder().SetHasSharedMemory();
   uint16_t* memory = r.builder().AddMemoryElems<uint16_t>(8);
 
-  BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_GET_LOCAL(0)));
+  BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_GET_LOCAL(0),
+                              MachineRepresentation::kWord16));
 
   FOR_UINT16_INPUTS(i) {
     uint16_t initial = *i;
@@ -114,7 +120,8 @@ void RunU8BinOp(WasmOpcode wasm_op, Uint8BinOp expected_op) {
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(8);
 
-  BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_GET_LOCAL(0)));
+  BUILD(r, WASM_ATOMICS_BINOP(wasm_op, WASM_I32V_1(0), WASM_GET_LOCAL(0),
+                              MachineRepresentation::kWord8));
 
   FOR_UINT8_INPUTS(i) {
     uint8_t initial = *i;
@@ -139,9 +146,9 @@ TEST(I32AtomicCompareExchange) {
   WasmRunner<uint32_t, uint32_t, uint32_t> r(kExecuteCompiled);
   r.builder().SetHasSharedMemory();
   uint32_t* memory = r.builder().AddMemoryElems<uint32_t>(8);
-  BUILD(r,
-        WASM_ATOMICS_TERNARY_OP(kExprI32AtomicCompareExchange, WASM_I32V_1(0),
-                                WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  BUILD(r, WASM_ATOMICS_TERNARY_OP(
+               kExprI32AtomicCompareExchange, WASM_I32V_1(0), WASM_GET_LOCAL(0),
+               WASM_GET_LOCAL(1), MachineRepresentation::kWord32));
 
   FOR_UINT32_INPUTS(i) {
     uint32_t initial = *i;
@@ -161,7 +168,8 @@ TEST(I32AtomicCompareExchange16U) {
   uint16_t* memory = r.builder().AddMemoryElems<uint16_t>(8);
   BUILD(r, WASM_ATOMICS_TERNARY_OP(kExprI32AtomicCompareExchange16U,
                                    WASM_I32V_1(0), WASM_GET_LOCAL(0),
-                                   WASM_GET_LOCAL(1)));
+                                   WASM_GET_LOCAL(1),
+                                   MachineRepresentation::kWord16));
 
   FOR_UINT16_INPUTS(i) {
     uint16_t initial = *i;
@@ -181,7 +189,8 @@ TEST(I32AtomicCompareExchange8U) {
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(8);
   BUILD(r,
         WASM_ATOMICS_TERNARY_OP(kExprI32AtomicCompareExchange8U, WASM_I32V_1(0),
-                                WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+                                WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                                MachineRepresentation::kWord8));
 
   FOR_UINT8_INPUTS(i) {
     uint8_t initial = *i;

@@ -21,7 +21,7 @@ function Exchange(a, b) { return b; }
 let maxSize = 10;
 let memory = new WebAssembly.Memory({initial: 1, maximum: maxSize, shared: true});
 
-function GetAtomicBinOpFunction(wasmExpression) {
+function GetAtomicBinOpFunction(wasmExpression, alignment, offset) {
   let builder = new WasmModuleBuilder();
   builder.addImportedMemory("m", "imported_mem", 0, maxSize, "shared");
   builder.addFunction("main", kSig_i_ii)
@@ -29,7 +29,7 @@ function GetAtomicBinOpFunction(wasmExpression) {
       kExprGetLocal, 0,
       kExprGetLocal, 1,
       kAtomicPrefix,
-      wasmExpression])
+      wasmExpression, alignment, offset])
     .exportAs("main");
 
   // Instantiate module, get function exports
@@ -39,7 +39,7 @@ function GetAtomicBinOpFunction(wasmExpression) {
   return instance.exports.main;
 }
 
-function GetAtomicCmpExchangeFunction(wasmExpression) {
+function GetAtomicCmpExchangeFunction(wasmExpression, alignment, offset) {
   let builder = new WasmModuleBuilder();
   builder.addImportedMemory("m", "imported_mem", 0, maxSize, "shared");
   builder.addFunction("main", kSig_i_iii)
@@ -48,7 +48,7 @@ function GetAtomicCmpExchangeFunction(wasmExpression) {
       kExprGetLocal, 1,
       kExprGetLocal, 2,
       kAtomicPrefix,
-      wasmExpression])
+      wasmExpression, alignment, offset])
     .exportAs("main");
 
   // Instantiate module, get function exports
@@ -108,109 +108,109 @@ function Test8Op(operation, func) {
 
 (function TestAtomicAdd() {
   print("TestAtomicAdd");
-  let wasmAdd = GetAtomicBinOpFunction(kExprI32AtomicAdd);
+  let wasmAdd = GetAtomicBinOpFunction(kExprI32AtomicAdd, 2, 0);
   Test32Op(Add, wasmAdd);
 })();
 
 (function TestAtomicAdd16U() {
   print("TestAtomicAdd16U");
-  let wasmAdd = GetAtomicBinOpFunction(kExprI32AtomicAdd16U);
+  let wasmAdd = GetAtomicBinOpFunction(kExprI32AtomicAdd16U, 1, 0);
   Test16Op(Add, wasmAdd);
 })();
 
 (function TestAtomicAdd8U() {
   print("TestAtomicAdd8U");
-  let wasmAdd = GetAtomicBinOpFunction(kExprI32AtomicAdd8U);
+  let wasmAdd = GetAtomicBinOpFunction(kExprI32AtomicAdd8U, 0, 0);
   Test8Op(Add, wasmAdd);
 })();
 
 (function TestAtomicSub() {
   print("TestAtomicSub");
-  let wasmSub = GetAtomicBinOpFunction(kExprI32AtomicSub);
+  let wasmSub = GetAtomicBinOpFunction(kExprI32AtomicSub, 2, 0);
   Test32Op(Sub, wasmSub);
 })();
 
 (function TestAtomicSub16U() {
   print("TestAtomicSub16U");
-  let wasmSub = GetAtomicBinOpFunction(kExprI32AtomicSub16U);
+  let wasmSub = GetAtomicBinOpFunction(kExprI32AtomicSub16U, 1, 0);
   Test16Op(Sub, wasmSub);
 })();
 
 (function TestAtomicSub8U() {
   print("TestAtomicSub8U");
-  let wasmSub = GetAtomicBinOpFunction(kExprI32AtomicSub8U);
+  let wasmSub = GetAtomicBinOpFunction(kExprI32AtomicSub8U, 0, 0);
   Test8Op(Sub, wasmSub);
 })();
 
 (function TestAtomicAnd() {
   print("TestAtomicAnd");
-  let wasmAnd = GetAtomicBinOpFunction(kExprI32AtomicAnd);
+  let wasmAnd = GetAtomicBinOpFunction(kExprI32AtomicAnd, 2, 0);
   Test32Op(And, wasmAnd);
 })();
 
 (function TestAtomicAnd16U() {
   print("TestAtomicAnd16U");
-  let wasmAnd = GetAtomicBinOpFunction(kExprI32AtomicAnd16U);
+  let wasmAnd = GetAtomicBinOpFunction(kExprI32AtomicAnd16U, 1, 0);
   Test16Op(And, wasmAnd);
 })();
 
 (function TestAtomicAnd8U() {
   print("TestAtomicAnd8U");
-  let wasmAnd = GetAtomicBinOpFunction(kExprI32AtomicAnd8U);
+  let wasmAnd = GetAtomicBinOpFunction(kExprI32AtomicAnd8U, 0, 0);
   Test8Op(And, wasmAnd);
 })();
 
 (function TestAtomicOr() {
   print("TestAtomicOr");
-  let wasmOr = GetAtomicBinOpFunction(kExprI32AtomicOr);
+  let wasmOr = GetAtomicBinOpFunction(kExprI32AtomicOr, 2, 0);
   Test32Op(Or, wasmOr);
 })();
 
 (function TestAtomicOr16U() {
   print("TestAtomicOr16U");
-  let wasmOr = GetAtomicBinOpFunction(kExprI32AtomicOr16U);
+  let wasmOr = GetAtomicBinOpFunction(kExprI32AtomicOr16U, 1, 0);
   Test16Op(Or, wasmOr);
 })();
 
 (function TestAtomicOr8U() {
   print("TestAtomicOr8U");
-  let wasmOr = GetAtomicBinOpFunction(kExprI32AtomicOr8U);
+  let wasmOr = GetAtomicBinOpFunction(kExprI32AtomicOr8U, 0, 0);
   Test8Op(Or, wasmOr);
 })();
 
 (function TestAtomicXor() {
   print("TestAtomicXor");
-  let wasmXor = GetAtomicBinOpFunction(kExprI32AtomicXor);
+  let wasmXor = GetAtomicBinOpFunction(kExprI32AtomicXor, 2, 0);
   Test32Op(Xor, wasmXor);
 })();
 
 (function TestAtomicXor16U() {
   print("TestAtomicXor16U");
-  let wasmXor = GetAtomicBinOpFunction(kExprI32AtomicXor16U);
+  let wasmXor = GetAtomicBinOpFunction(kExprI32AtomicXor16U, 1, 0);
   Test16Op(Xor, wasmXor);
 })();
 
 (function TestAtomicXor8U() {
   print("TestAtomicXor8U");
-  let wasmXor = GetAtomicBinOpFunction(kExprI32AtomicXor8U);
+  let wasmXor = GetAtomicBinOpFunction(kExprI32AtomicXor8U, 0, 0);
   Test8Op(Xor, wasmXor);
 })();
 
 (function TestAtomicExchange() {
   print("TestAtomicExchange");
-  let wasmExchange = GetAtomicBinOpFunction(kExprI32AtomicExchange);
+  let wasmExchange = GetAtomicBinOpFunction(kExprI32AtomicExchange, 2, 0);
   Test32Op(Exchange, wasmExchange);
 })();
 
 (function TestAtomicExchange16U() {
   print("TestAtomicExchange16U");
-  let wasmExchange = GetAtomicBinOpFunction(kExprI32AtomicExchange16U);
+  let wasmExchange = GetAtomicBinOpFunction(kExprI32AtomicExchange16U, 1, 0);
   Test16Op(Exchange, wasmExchange);
 })();
 
 (function TestAtomicExchange8U() {
   print("TestAtomicExchange8U");
-  let wasmExchange = GetAtomicBinOpFunction(kExprI32AtomicExchange8U);
+  let wasmExchange = GetAtomicBinOpFunction(kExprI32AtomicExchange8U, 0, 0);
   Test8Op(Exchange, wasmExchange);
 })();
 
@@ -232,7 +232,7 @@ function TestCmpExchange(func, buffer, params, size) {
 (function TestAtomicCompareExchange() {
   print("TestAtomicCompareExchange");
   let wasmCmpExchange =
-      GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange);
+      GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange, 2, 0);
   let i32 = new Uint32Array(memory.buffer);
   let params = [0x00000001, 0x00000555, 0x00099999, 0xffffffff];
   TestCmpExchange(wasmCmpExchange, i32, params, kMemtypeSize32);
@@ -241,7 +241,7 @@ function TestCmpExchange(func, buffer, params, size) {
 (function TestAtomicCompareExchange16U() {
   print("TestAtomicCompareExchange16U");
   let wasmCmpExchange =
-      GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange16U);
+      GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange16U, 1, 0);
   let i16 = new Uint16Array(memory.buffer);
   let params = [0x0001, 0x0555, 0x9999];
   TestCmpExchange(wasmCmpExchange, i16, params, kMemtypeSize16);
@@ -250,7 +250,7 @@ function TestCmpExchange(func, buffer, params, size) {
 (function TestAtomicCompareExchange8U() {
   print("TestAtomicCompareExchange8U");
   let wasmCmpExchange =
-      GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange8U);
+      GetAtomicCmpExchangeFunction(kExprI32AtomicCompareExchange8U, 0, 0);
   let i8 = new Uint8Array(memory.buffer);
   let params = [0x01, 0x0d, 0xf9];
   TestCmpExchange(wasmCmpExchange, i8, params, kMemtypeSize8);

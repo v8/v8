@@ -50,6 +50,29 @@ struct WasmException;
   (this->errorf(this->pc_, "%s: %s", WasmOpcodes::OpcodeName(opcode), \
                 (message)))
 
+#define ATOMIC_OP_LIST(V)              \
+  V(I32AtomicAdd, Uint32)              \
+  V(I32AtomicSub, Uint32)              \
+  V(I32AtomicAnd, Uint32)              \
+  V(I32AtomicOr, Uint32)               \
+  V(I32AtomicXor, Uint32)              \
+  V(I32AtomicExchange, Uint32)         \
+  V(I32AtomicAdd8U, Uint8)             \
+  V(I32AtomicSub8U, Uint8)             \
+  V(I32AtomicAnd8U, Uint8)             \
+  V(I32AtomicOr8U, Uint8)              \
+  V(I32AtomicXor8U, Uint8)             \
+  V(I32AtomicExchange8U, Uint8)        \
+  V(I32AtomicAdd16U, Uint16)           \
+  V(I32AtomicSub16U, Uint16)           \
+  V(I32AtomicAnd16U, Uint16)           \
+  V(I32AtomicOr16U, Uint16)            \
+  V(I32AtomicXor16U, Uint16)           \
+  V(I32AtomicExchange16U, Uint16)      \
+  V(I32AtomicCompareExchange, Uint32)  \
+  V(I32AtomicCompareExchange8U, Uint8) \
+  V(I32AtomicCompareExchange16U, Uint16)
+
 template <typename T>
 Vector<T> vec2vec(std::vector<T>& vec) {
   return Vector<T>(vec.data(), vec.size());
@@ -541,7 +564,8 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
     const Value& input0, const Value& input1, Value* result)                   \
   F(Throw, const ExceptionIndexOperand<validate>&)                             \
   F(Catch, const ExceptionIndexOperand<validate>& operand, Control* block)     \
-  F(AtomicOp, WasmOpcode opcode, Vector<Value> args, Value* result)
+  F(AtomicOp, WasmOpcode opcode, Vector<Value> args,                           \
+    const MemoryAccessOperand<validate>& operand, Value* result)
 
 // Generic Wasm bytecode decoder with utilities for decoding operands,
 // lengths, etc.
@@ -1658,7 +1682,17 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             opcode = static_cast<WasmOpcode>(opcode << 8 | atomic_index);
             TRACE("  @%-4d #%-20s|", startrel(this->pc_),
                   WasmOpcodes::OpcodeName(opcode));
-            len += DecodeAtomicOpcode(opcode);
+            switch (opcode) {
+#define DECODE_ATOMIC_BINOP(Name, Type)                     \
+  case kExpr##Name: {                                       \
+    len += DecodeAtomicOpcode(opcode, MachineType::Type()); \
+    break;                                                  \
+  }
+              ATOMIC_OP_LIST(DECODE_ATOMIC_BINOP)
+#undef DECODE_ATOMIC_BINOP
+              default:
+                this->error("Invalid opcode");
+            }
             break;
           }
           default: {
@@ -1947,17 +1981,20 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return len;
   }
 
-  unsigned DecodeAtomicOpcode(WasmOpcode opcode) {
+  unsigned DecodeAtomicOpcode(WasmOpcode opcode, MachineType mem_type) {
     unsigned len = 0;
     FunctionSig* sig = WasmOpcodes::AtomicSignature(opcode);
     if (sig != nullptr) {
       // TODO(clemensh): Better memory management here.
       std::vector<Value> args(sig->parameter_count());
+      MemoryAccessOperand<validate> operand(
+          this, this->pc_ + 1, ElementSizeLog2Of(mem_type.representation()));
+      len += operand.length;
       for (int i = static_cast<int>(sig->parameter_count() - 1); i >= 0; --i) {
         args[i] = Pop(i, sig->GetParam(i));
       }
       auto* result = Push(GetReturnType(sig));
-      interface_.AtomicOp(this, opcode, vec2vec(args), result);
+      interface_.AtomicOp(this, opcode, vec2vec(args), operand, result);
     } else {
       this->error("invalid atomic opcode");
     }

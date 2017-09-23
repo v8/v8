@@ -407,9 +407,10 @@ class WasmGraphBuildingInterface {
   }
 
   void AtomicOp(Decoder* decoder, WasmOpcode opcode, Vector<Value> args,
-                Value* result) {
+                const MemoryAccessOperand<true>& operand, Value* result) {
     TFNode** inputs = GetNodes(args);
-    TFNode* node = BUILD(AtomicOp, opcode, inputs, decoder->position());
+    TFNode* node = BUILD(AtomicOp, opcode, inputs, operand.alignment,
+                         operand.offset, decoder->position());
     if (result) result->node = node;
   }
 
