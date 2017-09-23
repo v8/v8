@@ -369,6 +369,16 @@ AllocationResult PagedSpace::AllocateRawAligned(int size_in_bytes,
 
 AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
                                          AllocationAlignment alignment) {
+  if (top() < top_on_previous_step_) {
+    // Generated code decreased the top() pointer to do folded allocations
+    DCHECK_EQ(Page::FromAddress(top()),
+              Page::FromAddress(top_on_previous_step_));
+    top_on_previous_step_ = top();
+  }
+  size_t bytes_since_last =
+      top_on_previous_step_ ? top() - top_on_previous_step_ : 0;
+
+  DCHECK_IMPLIES(!SupportsInlineAllocation(), bytes_since_last == 0);
 #ifdef V8_HOST_ARCH_32_BIT
   AllocationResult result =
       alignment == kDoubleAligned
@@ -378,11 +388,13 @@ AllocationResult PagedSpace::AllocateRaw(int size_in_bytes,
   AllocationResult result = AllocateRawUnaligned(size_in_bytes);
 #endif
   HeapObject* heap_obj = nullptr;
-  if (!result.IsRetry() && result.To(&heap_obj)) {
-    AllocationStep(heap_obj->address(), size_in_bytes);
+  if (!result.IsRetry() && result.To(&heap_obj) && !is_local()) {
+    AllocationStep(static_cast<int>(size_in_bytes + bytes_since_last),
+                   heap_obj->address(), size_in_bytes);
     DCHECK_IMPLIES(
         heap()->incremental_marking()->black_allocation(),
         heap()->incremental_marking()->marking_state()->IsBlack(heap_obj));
+    StartNextInlineAllocationStep();
   }
   return result;
 }
