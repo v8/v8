@@ -34,6 +34,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_hashmap {
 
 typedef uint32_t (*IntKeyHash)(uint32_t key);
 
@@ -173,5 +174,6 @@ TEST(HashSet) {
   TestSet(CollisionHash, 50);
 }
 
+}  // namespace test_hashmap
 }  // namespace internal
 }  // namespace v8
