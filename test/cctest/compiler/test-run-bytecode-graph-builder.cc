@@ -2995,6 +2995,19 @@ TEST(BytecodeGraphBuilderDebuggerStatement) {
   CHECK_EQ(2, delegate.debug_break_count);
 }
 
+#undef SHARD_TEST_BY_2
+#undef SHARD_TEST_BY_4
+#undef SPACE
+#undef REPEAT_2
+#undef REPEAT_4
+#undef REPEAT_8
+#undef REPEAT_16
+#undef REPEAT_32
+#undef REPEAT_64
+#undef REPEAT_128
+#undef REPEAT_256
+#undef REPEAT_127
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
