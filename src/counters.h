@@ -1100,13 +1100,7 @@ class RuntimeCallTimerScope {
   HP(external_fragmentation_code_space,                                        \
      V8.MemoryExternalFragmentationCodeSpace)                                  \
   HP(external_fragmentation_map_space, V8.MemoryExternalFragmentationMapSpace) \
-  HP(external_fragmentation_lo_space, V8.MemoryExternalFragmentationLoSpace)   \
-  /* Percentages of heap committed to each space. */                           \
-  HP(heap_fraction_new_space, V8.MemoryHeapFractionNewSpace)                   \
-  HP(heap_fraction_old_space, V8.MemoryHeapFractionOldSpace)                   \
-  HP(heap_fraction_code_space, V8.MemoryHeapFractionCodeSpace)                 \
-  HP(heap_fraction_map_space, V8.MemoryHeapFractionMapSpace)                   \
-  HP(heap_fraction_lo_space, V8.MemoryHeapFractionLoSpace)
+  HP(external_fragmentation_lo_space, V8.MemoryExternalFragmentationLoSpace)
 
 // Note: These use Histogram with options (min=1000, max=500000, buckets=50).
 #define HISTOGRAM_LEGACY_MEMORY_LIST(HM)                                      \
