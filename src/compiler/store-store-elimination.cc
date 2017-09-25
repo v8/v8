@@ -172,7 +172,7 @@ class RedundantStoreFinder final {
 // To safely cast an offset from a FieldAccess, which has a potentially wider
 // range (namely int).
 StoreOffset ToOffset(int offset) {
-  CHECK(0 <= offset);
+  CHECK_LE(0, offset);
   return static_cast<StoreOffset>(offset);
 }
 

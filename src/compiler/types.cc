@@ -581,7 +581,7 @@ bool UnionType::Wellformed() {
   // 5. No element (except the bitset) is a subtype of any other.
   // 6. If there is a range, then the bitset type does not contain
   //    plain number bits.
-  DCHECK(this->Length() >= 2);       // (1)
+  DCHECK_LE(2, this->Length());      // (1)
   DCHECK(this->Get(0)->IsBitset());  // (2a)
 
   for (int i = 0; i < this->Length(); ++i) {
@@ -891,7 +891,7 @@ int Type::AddToUnion(Type* type, UnionType* result, int size, Zone* zone) {
 
 Type* Type::NormalizeUnion(Type* union_type, int size, Zone* zone) {
   UnionType* unioned = union_type->AsUnion();
-  DCHECK(size >= 1);
+  DCHECK_LE(1, size);
   DCHECK(unioned->Get(0)->IsBitset());
   // If the union has just one element, return it.
   if (size == 1) {
@@ -971,7 +971,7 @@ void BitsetType::Print(std::ostream& os,  // NOLINT
       bits -= subset;
     }
   }
-  DCHECK(bits == 0);
+  DCHECK_EQ(0, bits);
   os << ")";
 }
 

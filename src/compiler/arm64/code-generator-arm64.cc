@@ -40,7 +40,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 
   CPURegister InputFloat32OrZeroRegister(size_t index) {
     if (instr_->InputAt(index)->IsImmediate()) {
-      DCHECK(bit_cast<int32_t>(InputFloat32(index)) == 0);
+      DCHECK_EQ(0, bit_cast<int32_t>(InputFloat32(index)));
       return wzr;
     }
     DCHECK(instr_->InputAt(index)->IsFPRegister());
@@ -49,7 +49,7 @@ class Arm64OperandConverter final : public InstructionOperandConverter {
 
   CPURegister InputFloat64OrZeroRegister(size_t index) {
     if (instr_->InputAt(index)->IsImmediate()) {
-      DCHECK(bit_cast<int64_t>(InputDouble(index)) == 0);
+      DCHECK_EQ(0, bit_cast<int64_t>(InputDouble(index)));
       return xzr;
     }
     DCHECK(instr_->InputAt(index)->IsDoubleRegister());
@@ -796,8 +796,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
       // kReturnRegister0 should have been saved before entering the stub.
       int bytes = __ PushCallerSaved(fp_mode_, kReturnRegister0);
-      DCHECK(bytes % kPointerSize == 0);
-      DCHECK(frame_access_state()->sp_delta() == 0);
+      DCHECK_EQ(0, bytes % kPointerSize);
+      DCHECK_EQ(0, frame_access_state()->sp_delta());
       frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
       DCHECK(!caller_registers_saved_);
       caller_registers_saved_ = true;
@@ -810,7 +810,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Don't overwrite the returned value.
       int bytes = __ PopCallerSaved(fp_mode_, kReturnRegister0);
       frame_access_state()->IncreaseSPDelta(-(bytes / kPointerSize));
-      DCHECK(frame_access_state()->sp_delta() == 0);
+      DCHECK_EQ(0, frame_access_state()->sp_delta());
       DCHECK(caller_registers_saved_);
       caller_registers_saved_ = false;
       break;
@@ -1404,7 +1404,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         DCHECK(instr->InputAt(1)->IsImmediate());
         // 0.0 is the only immediate supported by fcmp instructions.
-        DCHECK(i.InputFloat32(1) == 0.0f);
+        DCHECK_EQ(0.0f, i.InputFloat32(1));
         __ Fcmp(i.InputFloat32Register(0), i.InputFloat32(1));
       }
       break;
@@ -1439,7 +1439,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         DCHECK(instr->InputAt(1)->IsImmediate());
         // 0.0 is the only immediate supported by fcmp instructions.
-        DCHECK(i.InputDouble(1) == 0.0);
+        DCHECK_EQ(0.0, i.InputDouble(1));
         __ Fcmp(i.InputDoubleRegister(0), i.InputDouble(1));
       }
       break;

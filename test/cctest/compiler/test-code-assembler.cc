@@ -289,7 +289,7 @@ TEST(VariableMergeBindFirst) {
   m.Goto(&merge);
   m.Bind(&merge);
   CHECK(var1.value() != temp);
-  CHECK(var1.value() != nullptr);
+  CHECK_NOT_NULL(var1.value());
   m.Goto(&end);
   m.Bind(&l2);
   Node* temp2 = m.Int32Constant(2);
@@ -298,7 +298,7 @@ TEST(VariableMergeBindFirst) {
   m.Goto(&merge);
   m.Bind(&end);
   CHECK(var1.value() != temp);
-  CHECK(var1.value() != nullptr);
+  CHECK_NOT_NULL(var1.value());
 }
 
 TEST(VariableMergeSwitch) {

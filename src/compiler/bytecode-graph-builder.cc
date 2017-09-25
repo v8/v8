@@ -1308,7 +1308,7 @@ void BytecodeGraphBuilder::BuildNamedStore(StoreMode store_mode) {
               feedback.vector()->GetKind(feedback.slot()));
     op = javascript()->StoreNamedOwn(name, feedback);
   } else {
-    DCHECK(store_mode == StoreMode::kNormal);
+    DCHECK_EQ(StoreMode::kNormal, store_mode);
     LanguageMode language_mode =
         feedback.vector()->GetLanguageMode(feedback.slot());
     op = javascript()->StoreNamed(language_mode, name, feedback);
@@ -1976,7 +1976,7 @@ void BytecodeGraphBuilder::BuildHoleCheckAndThrow(
     Node* node;
     const Operator* op = javascript()->CallRuntime(runtime_id);
     if (runtime_id == Runtime::kThrowReferenceError) {
-      DCHECK(name != nullptr);
+      DCHECK_NOT_NULL(name);
       node = NewNode(op, name);
     } else {
       DCHECK(runtime_id == Runtime::kThrowSuperAlreadyCalledError ||

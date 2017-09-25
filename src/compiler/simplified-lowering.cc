@@ -3130,7 +3130,7 @@ void SimplifiedLowering::DoJSToNumberTruncatesToFloat64(
         edge.from()->ReplaceUses(control);
         edge.from()->Kill();
       } else {
-        DCHECK(edge.from()->opcode() != IrOpcode::kIfException);
+        DCHECK_NE(IrOpcode::kIfException, edge.from()->opcode());
         edge.UpdateTo(control);
       }
     } else if (NodeProperties::IsEffectEdge(edge)) {
@@ -3213,7 +3213,7 @@ void SimplifiedLowering::DoJSToNumberTruncatesToWord32(
         edge.from()->ReplaceUses(control);
         edge.from()->Kill();
       } else {
-        DCHECK(edge.from()->opcode() != IrOpcode::kIfException);
+        DCHECK_NE(IrOpcode::kIfException, edge.from()->opcode());
         edge.UpdateTo(control);
       }
     } else if (NodeProperties::IsEffectEdge(edge)) {

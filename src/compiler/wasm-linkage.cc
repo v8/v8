@@ -169,7 +169,7 @@ struct Allocator {
         // TODO(bbudge) Modify wasm linkage to allow use of all float regs.
         if (type == wasm::kWasmF32) {
           int float_reg_code = reg.code() * 2;
-          DCHECK(float_reg_code < RegisterConfiguration::kMaxFPRegisters);
+          DCHECK_GT(RegisterConfiguration::kMaxFPRegisters, float_reg_code);
           return LinkageLocation::ForRegister(
               DoubleRegister::from_code(float_reg_code).code(),
               MachineTypeFor(type));

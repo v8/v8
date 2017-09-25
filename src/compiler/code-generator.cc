@@ -325,7 +325,7 @@ void CodeGenerator::RecordSafepoint(ReferenceMap* references,
   for (const InstructionOperand& operand : references->reference_operands()) {
     if (operand.IsStackSlot()) {
       int index = LocationOperand::cast(operand).index();
-      DCHECK(index >= 0);
+      DCHECK_LE(0, index);
       // We might index values in the fixed part of the frame (i.e. the
       // closure pointer or the context pointer); these are not spill slots
       // and therefore don't work with the SafepointTable currently, but
@@ -631,7 +631,7 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   data->SetInliningPositions(*inl_pos);
 
   if (info->is_osr()) {
-    DCHECK(osr_pc_offset_ >= 0);
+    DCHECK_LE(0, osr_pc_offset_);
     data->SetOsrBytecodeOffset(Smi::FromInt(info_->osr_offset().ToInt()));
     data->SetOsrPcOffset(Smi::FromInt(osr_pc_offset_));
   } else {

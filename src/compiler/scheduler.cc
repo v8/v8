@@ -216,7 +216,7 @@ void Scheduler::DecrementUnscheduledUseCount(Node* node, int index,
     return DecrementUnscheduledUseCount(control, index, from);
   }
 
-  DCHECK(GetData(node)->unscheduled_count_ > 0);
+  DCHECK_LT(0, GetData(node)->unscheduled_count_);
   --(GetData(node)->unscheduled_count_);
   if (FLAG_trace_turbo_scheduler) {
     TRACE("  Use count of #%d:%s (used by #%d:%s)-- = %d\n", node->id(),
@@ -651,7 +651,7 @@ class SpecialRPONumberer : public ZoneObject {
   // Computes the special reverse-post-order for the main control flow graph,
   // that is for the graph spanned between the schedule's start and end blocks.
   void ComputeSpecialRPO() {
-    DCHECK(schedule_->end()->SuccessorCount() == 0);
+    DCHECK_EQ(0, schedule_->end()->SuccessorCount());
     DCHECK(!order_);  // Main order does not exist yet.
     ComputeAndInsertSpecialRPO(schedule_->start(), schedule_->end());
   }
@@ -796,7 +796,7 @@ class SpecialRPONumberer : public ZoneObject {
           }
         } else {
           // Push the successor onto the stack.
-          DCHECK(succ->rpo_number() == kBlockUnvisited1);
+          DCHECK_EQ(kBlockUnvisited1, succ->rpo_number());
           stack_depth = Push(stack_, stack_depth, succ, kBlockUnvisited1);
         }
       } else {
@@ -862,7 +862,7 @@ class SpecialRPONumberer : public ZoneObject {
           // Process the next successor.
           if (succ->rpo_number() == kBlockOnStack) continue;
           if (succ->rpo_number() == kBlockVisited2) continue;
-          DCHECK(succ->rpo_number() == kBlockUnvisited2);
+          DCHECK_EQ(kBlockUnvisited2, succ->rpo_number());
           if (loop != nullptr && !loop->members->Contains(succ->id().ToInt())) {
             // The successor is not in the current loop or any nested loop.
             // Add it to the outgoing edges of this loop and visit it later.
@@ -1043,8 +1043,8 @@ class SpecialRPONumberer : public ZoneObject {
 
   void VerifySpecialRPO() {
     BasicBlockVector* order = schedule_->rpo_order();
-    DCHECK(order->size() > 0);
-    DCHECK((*order)[0]->id().ToInt() == 0);  // entry should be first.
+    DCHECK_LT(0, order->size());
+    DCHECK_EQ(0, (*order)[0]->id().ToInt());  // entry should be first.
 
     for (size_t i = 0; i < loops_.size(); i++) {
       LoopInfo* loop = &loops_[i];
@@ -1052,12 +1052,12 @@ class SpecialRPONumberer : public ZoneObject {
       BasicBlock* end = header->loop_end();
 
       DCHECK_NOT_NULL(header);
-      DCHECK(header->rpo_number() >= 0);
-      DCHECK(header->rpo_number() < static_cast<int>(order->size()));
+      DCHECK_LE(0, header->rpo_number());
+      DCHECK_LT(header->rpo_number(), order->size());
       DCHECK_NOT_NULL(end);
-      DCHECK(end->rpo_number() <= static_cast<int>(order->size()));
-      DCHECK(end->rpo_number() > header->rpo_number());
-      DCHECK(header->loop_header() != header);
+      DCHECK_LE(end->rpo_number(), order->size());
+      DCHECK_GT(end->rpo_number(), header->rpo_number());
+      DCHECK_NE(header->loop_header(), header);
 
       // Verify the start ... end list relationship.
       int links = 0;
@@ -1075,8 +1075,8 @@ class SpecialRPONumberer : public ZoneObject {
         block = block->rpo_next();
         DCHECK_LT(links, static_cast<int>(2 * order->size()));  // cycle?
       }
-      DCHECK(links > 0);
-      DCHECK(links == end->rpo_number() - header->rpo_number());
+      DCHECK_LT(0, links);
+      DCHECK_EQ(links, end->rpo_number() - header->rpo_number());
       DCHECK(end_found);
 
       // Check loop depth of the header.
@@ -1090,7 +1090,7 @@ class SpecialRPONumberer : public ZoneObject {
       int count = 0;
       for (int j = 0; j < static_cast<int>(order->size()); j++) {
         BasicBlock* block = order->at(j);
-        DCHECK(block->rpo_number() == j);
+        DCHECK_EQ(block->rpo_number(), j);
         if (j < header->rpo_number() || j >= end->rpo_number()) {
           DCHECK(!header->LoopContains(block));
         } else {
@@ -1099,7 +1099,7 @@ class SpecialRPONumberer : public ZoneObject {
           count++;
         }
       }
-      DCHECK(links == count);
+      DCHECK_EQ(links, count);
     }
   }
 #endif  // DEBUG

@@ -414,7 +414,7 @@ Type* Typer::Visitor::FalsifyUndefined(ComparisonOutcome outcome, Typer* t) {
                                             : t->singleton_false_;
   }
   // Type should be non empty, so we know it should be true.
-  DCHECK((outcome & kComparisonTrue) != 0);
+  DCHECK_NE(0, outcome & kComparisonTrue);
   return t->singleton_true_;
 }
 
@@ -720,7 +720,7 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
     increment_min = increment_type->Min();
     increment_max = increment_type->Max();
   } else {
-    DCHECK(arithmetic_type == InductionVariable::ArithmeticType::kSubtraction);
+    DCHECK_EQ(InductionVariable::ArithmeticType::kSubtraction, arithmetic_type);
     increment_min = -increment_type->Max();
     increment_max = -increment_type->Min();
   }

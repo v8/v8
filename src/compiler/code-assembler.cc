@@ -1437,7 +1437,7 @@ void CodeAssemblerLabel::UpdateVariablesAfterBind() {
     auto i = variable_merges_.find(var);
     if (i != variable_merges_.end()) {
       for (auto value : i->second) {
-        DCHECK(value != nullptr);
+        DCHECK_NOT_NULL(value);
         if (value != shared_value) {
           if (shared_value == nullptr) {
             shared_value = value;

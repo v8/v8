@@ -294,7 +294,7 @@ class PipelineData {
   }
 
   void InitializeInstructionSequence(const CallDescriptor* descriptor) {
-    DCHECK(sequence_ == nullptr);
+    DCHECK_NULL(sequence_);
     InstructionBlocks* instruction_blocks =
         InstructionSequence::InstructionBlocksFor(instruction_zone(),
                                                   schedule());
@@ -309,7 +309,7 @@ class PipelineData {
   }
 
   void InitializeFrameData(CallDescriptor* descriptor) {
-    DCHECK(frame_ == nullptr);
+    DCHECK_NULL(frame_);
     int fixed_frame_size = 0;
     if (descriptor != nullptr) {
       fixed_frame_size = descriptor->CalculateFixedFrameSize();
@@ -319,7 +319,7 @@ class PipelineData {
 
   void InitializeRegisterAllocationData(const RegisterConfiguration* config,
                                         CallDescriptor* descriptor) {
-    DCHECK(register_allocation_data_ == nullptr);
+    DCHECK_NULL(register_allocation_data_);
     register_allocation_data_ = new (register_allocation_zone())
         RegisterAllocationData(config, register_allocation_zone(), frame(),
                                sequence(), debug_name());
@@ -1972,7 +1972,7 @@ bool PipelineImpl::ScheduleAndSelectInstructions(Linkage* linkage,
   // Allocate registers.
   if (call_descriptor->HasRestrictedAllocatableRegisters()) {
     auto registers = call_descriptor->AllocatableRegisters();
-    DCHECK(NumRegs(registers) > 0);
+    DCHECK_LT(0, NumRegs(registers));
     std::unique_ptr<const RegisterConfiguration> config;
     config.reset(RegisterConfiguration::RestrictGeneralRegisters(registers));
     AllocateRegisters(config.get(), call_descriptor, run_verifier);

@@ -925,7 +925,7 @@ Reduction JSCreateLowering::ReduceJSCreateEmptyLiteralObject(Node* node) {
 }
 
 Reduction JSCreateLowering::ReduceJSCreateLiteralRegExp(Node* node) {
-  DCHECK(node->opcode() == IrOpcode::kJSCreateLiteralRegExp);
+  DCHECK_EQ(IrOpcode::kJSCreateLiteralRegExp, node->opcode());
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);

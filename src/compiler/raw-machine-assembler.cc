@@ -380,7 +380,7 @@ BasicBlock* RawMachineAssembler::EnsureBlock(RawMachineLabel* label) {
 }
 
 void RawMachineAssembler::Bind(RawMachineLabel* label) {
-  DCHECK(current_block_ == nullptr);
+  DCHECK_NULL(current_block_);
   DCHECK(!label->bound_);
   label->bound_ = true;
   current_block_ = EnsureBlock(label);

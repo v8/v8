@@ -47,7 +47,7 @@ class MipsOperandGenerator final : public OperandGenerator {
   }
 
   int64_t GetIntegerConstantValue(Node* node) {
-    DCHECK(node->opcode() == IrOpcode::kInt32Constant);
+    DCHECK_EQ(IrOpcode::kInt32Constant, node->opcode());
     return OpParameter<int32_t>(node);
   }
 

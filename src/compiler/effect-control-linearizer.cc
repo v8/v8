@@ -354,7 +354,7 @@ void EffectControlLinearizer::Run() {
       } else if (node->opcode() == IrOpcode::kPhi) {
         // Just skip phis.
       } else if (node->opcode() == IrOpcode::kTerminate) {
-        DCHECK(terminate == nullptr);
+        DCHECK_NULL(terminate);
         terminate = node;
       } else {
         break;
@@ -2089,7 +2089,7 @@ Node* EffectControlLinearizer::LowerArgumentsLength(Node* node) {
   Node* arguments_frame = NodeProperties::GetValueInput(node, 0);
   int formal_parameter_count = FormalParameterCountOf(node->op());
   bool is_rest_length = IsRestLengthOf(node->op());
-  DCHECK(formal_parameter_count >= 0);
+  DCHECK_LE(0, formal_parameter_count);
 
   if (is_rest_length) {
     // The ArgumentsLength node is computing the number of rest parameters,

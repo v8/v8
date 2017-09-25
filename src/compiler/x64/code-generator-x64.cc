@@ -929,8 +929,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
       // kReturnRegister0 should have been saved before entering the stub.
       int bytes = __ PushCallerSaved(fp_mode_, kReturnRegister0);
-      DCHECK(bytes % kPointerSize == 0);
-      DCHECK(frame_access_state()->sp_delta() == 0);
+      DCHECK_EQ(0, bytes % kPointerSize);
+      DCHECK_EQ(0, frame_access_state()->sp_delta());
       frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
       DCHECK(!caller_registers_saved_);
       caller_registers_saved_ = true;
@@ -943,7 +943,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Don't overwrite the returned value.
       int bytes = __ PopCallerSaved(fp_mode_, kReturnRegister0);
       frame_access_state()->IncreaseSPDelta(-(bytes / kPointerSize));
-      DCHECK(frame_access_state()->sp_delta() == 0);
+      DCHECK_EQ(0, frame_access_state()->sp_delta());
       DCHECK(caller_registers_saved_);
       caller_registers_saved_ = false;
       break;

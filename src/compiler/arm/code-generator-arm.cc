@@ -773,8 +773,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       DCHECK(fp_mode_ == kDontSaveFPRegs || fp_mode_ == kSaveFPRegs);
       // kReturnRegister0 should have been saved before entering the stub.
       int bytes = __ PushCallerSaved(fp_mode_, kReturnRegister0);
-      DCHECK(bytes % kPointerSize == 0);
-      DCHECK(frame_access_state()->sp_delta() == 0);
+      DCHECK_EQ(0, bytes % kPointerSize);
+      DCHECK_EQ(0, frame_access_state()->sp_delta());
       frame_access_state()->IncreaseSPDelta(bytes / kPointerSize);
       DCHECK(!caller_registers_saved_);
       caller_registers_saved_ = true;
@@ -787,7 +787,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       // Don't overwrite the returned value.
       int bytes = __ PopCallerSaved(fp_mode_, kReturnRegister0);
       frame_access_state()->IncreaseSPDelta(-(bytes / kPointerSize));
-      DCHECK(frame_access_state()->sp_delta() == 0);
+      DCHECK_EQ(0, frame_access_state()->sp_delta());
       DCHECK(caller_registers_saved_);
       caller_registers_saved_ = false;
       break;
@@ -1235,7 +1235,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         DCHECK(instr->InputAt(1)->IsImmediate());
         // 0.0 is the only immediate supported by vcmp instructions.
-        DCHECK(i.InputFloat32(1) == 0.0f);
+        DCHECK_EQ(0.0f, i.InputFloat32(1));
         __ VFPCompareAndSetFlags(i.InputFloatRegister(0), i.InputFloat32(1));
       }
       DCHECK_EQ(SetCC, i.OutputSBit());
@@ -1286,7 +1286,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         DCHECK(instr->InputAt(1)->IsImmediate());
         // 0.0 is the only immediate supported by vcmp instructions.
-        DCHECK(i.InputDouble(1) == 0.0);
+        DCHECK_EQ(0.0, i.InputDouble(1));
         __ VFPCompareAndSetFlags(i.InputDoubleRegister(0), i.InputDouble(1));
       }
       DCHECK_EQ(SetCC, i.OutputSBit());

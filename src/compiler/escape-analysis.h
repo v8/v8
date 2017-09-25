@@ -48,7 +48,7 @@ class EffectGraphReducer {
   // adds nodes that are not yet reachable, but should already be considered
   // part of the graph.
   void AddRoot(Node* node) {
-    DCHECK(state_.Get(node) == State::kUnvisited);
+    DCHECK_EQ(State::kUnvisited, state_.Get(node));
     state_.Set(node, State::kRevisit);
     revisit_.push(node);
   }
@@ -120,7 +120,7 @@ class VirtualObject : public Dependable {
   typedef ZoneVector<Variable>::const_iterator const_iterator;
   VirtualObject(VariableTracker* var_states, Id id, int size);
   Maybe<Variable> FieldAt(int offset) const {
-    DCHECK(offset % kPointerSize == 0);
+    DCHECK_EQ(0, offset % kPointerSize);
     CHECK(!HasEscaped());
     if (offset >= size()) {
       // This can only happen in unreachable code.

@@ -191,7 +191,7 @@ class TNode {
   TNode() : node_(nullptr) {}
 
   TNode operator=(TNode other) {
-    DCHECK(node_ == nullptr);
+    DCHECK_NULL(node_);
     node_ = other.node_;
     return *this;
   }

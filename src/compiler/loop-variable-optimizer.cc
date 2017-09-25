@@ -129,7 +129,7 @@ class LoopVariableOptimizer::VariableLimits : public ZoneObject {
     // Then we go through both lists in lock-step until we find
     // the common tail.
     while (head_ != other_limit) {
-      DCHECK(limit_count_ > 0);
+      DCHECK_LT(0, limit_count_);
       limit_count_--;
       other_limit = other_limit->next();
       head_ = head_->next();

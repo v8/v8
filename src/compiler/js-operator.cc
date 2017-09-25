@@ -290,7 +290,7 @@ std::ostream& operator<<(std::ostream& os, FeedbackParameter const& p) {
 }
 
 FeedbackParameter const& FeedbackParameterOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral);
+  DCHECK_EQ(IrOpcode::kJSStoreDataPropertyInLiteral, op->opcode());
   return OpParameter<FeedbackParameter>(op);
 }
 

@@ -248,7 +248,7 @@ class Int32Signature : public MachineSignature {
  public:
   explicit Int32Signature(int param_count)
       : MachineSignature(1, param_count, kIntTypes) {
-    CHECK(param_count <= kMaxParamCount);
+    CHECK_GE(kMaxParamCount, param_count);
   }
 };
 
@@ -324,7 +324,7 @@ class ArgsBuffer {
    public:
     explicit Sig(int param_count)
         : MachineSignature(1, param_count, MachTypes()) {
-      CHECK(param_count <= kMaxParamCount);
+      CHECK_GE(kMaxParamCount, param_count);
     }
   };
 

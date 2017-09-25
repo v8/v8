@@ -47,12 +47,12 @@ class LinkageLocation {
 
   static LinkageLocation ForRegister(int32_t reg,
                                      MachineType type = MachineType::None()) {
-    DCHECK(reg >= 0);
+    DCHECK_LE(0, reg);
     return LinkageLocation(REGISTER, reg, type);
   }
 
   static LinkageLocation ForCallerFrameSlot(int32_t slot, MachineType type) {
-    DCHECK(slot < 0);
+    DCHECK_GT(0, slot);
     return LinkageLocation(STACK_SLOT, slot, type);
   }
 

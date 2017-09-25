@@ -343,7 +343,7 @@ Node::Node(NodeId id, const Operator* op, int inline_count, int inline_capacity)
                  InlineCapacityField::encode(inline_capacity)),
       first_use_(nullptr) {
   // Inputs must either be out of line or within the inline capacity.
-  DCHECK(inline_capacity <= kMaxInlineCapacity);
+  DCHECK_GE(kMaxInlineCapacity, inline_capacity);
   DCHECK(inline_count == kOutlineMarker || inline_count <= inline_capacity);
 }
 

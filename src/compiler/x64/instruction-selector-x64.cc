@@ -1590,7 +1590,7 @@ void VisitCompareWithMemoryOperand(InstructionSelector* selector,
                                    InstructionCode opcode, Node* left,
                                    InstructionOperand right,
                                    FlagsContinuation* cont) {
-  DCHECK(left->opcode() == IrOpcode::kLoad);
+  DCHECK_EQ(IrOpcode::kLoad, left->opcode());
   X64OperandGenerator g(selector);
   size_t input_count = 0;
   InstructionOperand inputs[6];

@@ -328,12 +328,12 @@ std::ostream& operator<<(std::ostream& os,
 }  // namespace
 
 Handle<Map> DoubleMapParameterOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kTransitionAndStoreElement);
+  DCHECK_EQ(IrOpcode::kTransitionAndStoreElement, op->opcode());
   return OpParameter<TransitionAndStoreElementParameters>(op).double_map();
 }
 
 Handle<Map> FastMapParameterOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kTransitionAndStoreElement);
+  DCHECK_EQ(IrOpcode::kTransitionAndStoreElement, op->opcode());
   return OpParameter<TransitionAndStoreElementParameters>(op).fast_map();
 }
 
@@ -407,12 +407,12 @@ Type* AllocateTypeOf(const Operator* op) {
 }
 
 UnicodeEncoding UnicodeEncodingOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kStringFromCodePoint);
+  DCHECK_EQ(IrOpcode::kStringFromCodePoint, op->opcode());
   return OpParameter<UnicodeEncoding>(op);
 }
 
 BailoutReason BailoutReasonOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kRuntimeAbort);
+  DCHECK_EQ(IrOpcode::kRuntimeAbort, op->opcode());
   return OpParameter<BailoutReason>(op);
 }
 
@@ -962,12 +962,12 @@ const Operator* SimplifiedOperatorBuilder::ArgumentsLength(
 }
 
 int FormalParameterCountOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kArgumentsLength);
+  DCHECK_EQ(IrOpcode::kArgumentsLength, op->opcode());
   return OpParameter<ArgumentsLengthParameters>(op).formal_parameter_count;
 }
 
 bool IsRestLengthOf(const Operator* op) {
-  DCHECK(op->opcode() == IrOpcode::kArgumentsLength);
+  DCHECK_EQ(IrOpcode::kArgumentsLength, op->opcode());
   return OpParameter<ArgumentsLengthParameters>(op).is_rest_length;
 }
 

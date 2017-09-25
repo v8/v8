@@ -133,7 +133,7 @@ namespace {
 // There must be at least one non-NaN element.
 // Any -0 is converted to 0.
 double array_min(double a[], size_t n) {
-  DCHECK(n != 0);
+  DCHECK_NE(0, n);
   double x = +V8_INFINITY;
   for (size_t i = 0; i < n; ++i) {
     if (!std::isnan(a[i])) {
@@ -148,7 +148,7 @@ double array_min(double a[], size_t n) {
 // There must be at least one non-NaN element.
 // Any -0 is converted to 0.
 double array_max(double a[], size_t n) {
-  DCHECK(n != 0);
+  DCHECK_NE(0, n);
   double x = -V8_INFINITY;
   for (size_t i = 0; i < n; ++i) {
     if (!std::isnan(a[i])) {
@@ -1042,7 +1042,7 @@ Type* OperationTyper::FalsifyUndefined(ComparisonOutcome outcome) {
                                             : singleton_false();
   }
   // Type should be non empty, so we know it should be true.
-  DCHECK((outcome & kComparisonTrue) != 0);
+  DCHECK_NE(0, outcome & kComparisonTrue);
   return singleton_true();
 }
 

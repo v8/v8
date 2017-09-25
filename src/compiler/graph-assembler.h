@@ -312,9 +312,9 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
 
 template <size_t VarCount>
 void GraphAssembler::Bind(GraphAssemblerLabel<VarCount>* label) {
-  DCHECK(current_control_ == nullptr);
-  DCHECK(current_effect_ == nullptr);
-  DCHECK(label->merged_count_ > 0);
+  DCHECK_NULL(current_control_);
+  DCHECK_NULL(current_effect_);
+  DCHECK_LT(0, label->merged_count_);
 
   current_control_ = label->control_;
   current_effect_ = label->effect_;

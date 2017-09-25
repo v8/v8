@@ -171,7 +171,7 @@ class EscapeAnalysisTracker : public ZoneObject {
     }
     // Create or retrieve a virtual object for the current node.
     const VirtualObject* InitVirtualObject(int size) {
-      DCHECK(current_node()->opcode() == IrOpcode::kAllocate);
+      DCHECK_EQ(IrOpcode::kAllocate, current_node()->opcode());
       VirtualObject* vobject = tracker_->virtual_objects_.Get(current_node());
       if (vobject) {
         CHECK(vobject->size() == size);
@@ -384,7 +384,7 @@ VariableTracker::State VariableTracker::MergeInputs(Node* effect_phi) {
   // as long as the first input of the loop has nullptr for this variable. For
   // non-loop effect phis, we can even keep it nullptr as long as any input has
   // nullptr.
-  DCHECK(effect_phi->opcode() == IrOpcode::kEffectPhi);
+  DCHECK_EQ(IrOpcode::kEffectPhi, effect_phi->opcode());
   int arity = effect_phi->op()->EffectInputCount();
   Node* control = NodeProperties::GetControlInput(effect_phi, 0);
   TRACE("control: %s#%d\n", control->op()->mnemonic(), control->id());
@@ -770,7 +770,7 @@ const VirtualObject* EscapeAnalysisResult::GetVirtualObject(Node* node) {
 VirtualObject::VirtualObject(VariableTracker* var_states, VirtualObject::Id id,
                              int size)
     : Dependable(var_states->zone()), id_(id), fields_(var_states->zone()) {
-  DCHECK(size % kPointerSize == 0);
+  DCHECK_EQ(0, size % kPointerSize);
   TRACE("Creating VirtualObject id:%d size:%d\n", id, size);
   int num_fields = size / kPointerSize;
   fields_.reserve(num_fields);

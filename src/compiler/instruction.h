@@ -773,7 +773,7 @@ class ReferenceMap final : public ZoneObject {
   int instruction_position() const { return instruction_position_; }
 
   void set_instruction_position(int pos) {
-    DCHECK(instruction_position_ == -1);
+    DCHECK_EQ(-1, instruction_position_);
     instruction_position_ = pos;
   }
 
@@ -844,7 +844,7 @@ class V8_EXPORT_PRIVATE Instruction final {
                           size_t output_count, InstructionOperand* outputs,
                           size_t input_count, InstructionOperand* inputs,
                           size_t temp_count, InstructionOperand* temps) {
-    DCHECK(opcode >= 0);
+    DCHECK_LE(0, opcode);
     DCHECK(output_count == 0 || outputs != nullptr);
     DCHECK(input_count == 0 || inputs != nullptr);
     DCHECK(temp_count == 0 || temps != nullptr);
@@ -1365,15 +1365,15 @@ class V8_EXPORT_PRIVATE InstructionBlock final
 
   // Instruction indexes (used by the register allocator).
   int first_instruction_index() const {
-    DCHECK(code_start_ >= 0);
-    DCHECK(code_end_ > 0);
-    DCHECK(code_end_ >= code_start_);
+    DCHECK_LE(0, code_start_);
+    DCHECK_LT(0, code_end_);
+    DCHECK_GE(code_end_, code_start_);
     return code_start_;
   }
   int last_instruction_index() const {
-    DCHECK(code_start_ >= 0);
-    DCHECK(code_end_ > 0);
-    DCHECK(code_end_ >= code_start_);
+    DCHECK_LE(0, code_start_);
+    DCHECK_LT(0, code_end_);
+    DCHECK_GE(code_end_, code_start_);
     return code_end_ - 1;
   }
 
@@ -1528,8 +1528,8 @@ class V8_EXPORT_PRIVATE InstructionSequence final
   }
 
   Instruction* InstructionAt(int index) const {
-    DCHECK(index >= 0);
-    DCHECK(index < static_cast<int>(instructions_.size()));
+    DCHECK_LE(0, index);
+    DCHECK_GT(instructions_.size(), index);
     return instructions_[index];
   }
 
@@ -1544,7 +1544,7 @@ class V8_EXPORT_PRIVATE InstructionSequence final
 
   int AddConstant(int virtual_register, Constant constant) {
     // TODO(titzer): allow RPO numbers as constants?
-    DCHECK(constant.type() != Constant::kRpoNumber);
+    DCHECK_NE(Constant::kRpoNumber, constant.type());
     DCHECK(virtual_register >= 0 && virtual_register < next_virtual_register_);
     DCHECK(constants_.find(virtual_register) == constants_.end());
     constants_.insert(std::make_pair(virtual_register, constant));
@@ -1576,8 +1576,8 @@ class V8_EXPORT_PRIVATE InstructionSequence final
         return Constant(op->inline_value());
       case ImmediateOperand::INDEXED: {
         int index = op->indexed_value();
-        DCHECK(index >= 0);
-        DCHECK(index < static_cast<int>(immediates_.size()));
+        DCHECK_LE(0, index);
+        DCHECK_GT(immediates_.size(), index);
         return immediates_[index];
       }
     }

@@ -205,9 +205,9 @@ void Verifier::Visitor::Check(Node* node) {
       break;
     case IrOpcode::kEnd:
       // End has no outputs.
-      CHECK(node->op()->ValueOutputCount() == 0);
-      CHECK(node->op()->EffectOutputCount() == 0);
-      CHECK(node->op()->ControlOutputCount() == 0);
+      CHECK_EQ(0, node->op()->ValueOutputCount());
+      CHECK_EQ(0, node->op()->EffectOutputCount());
+      CHECK_EQ(0, node->op()->ControlOutputCount());
       // All inputs are graph terminators.
       for (const Node* input : node->inputs()) {
         CHECK(IrOpcode::IsGraphTerminator(input->opcode()));

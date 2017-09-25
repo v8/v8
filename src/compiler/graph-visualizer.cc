@@ -291,7 +291,7 @@ class GraphC1Visualizer {
       visualizer_->indent_--;
       visualizer_->PrintIndent();
       visualizer_->os_ << "end_" << name_ << "\n";
-      DCHECK(visualizer_->indent_ >= 0);
+      DCHECK_LE(0, visualizer_->indent_);
     }
 
    private:
@@ -789,7 +789,7 @@ void PrintScheduledGraph(std::ostream& os, const Schedule* schedule) {
       }
       os << std::endl;
     } else {
-      DCHECK(current->control_input() == nullptr);
+      DCHECK_NULL(current->control_input());
     }
   }
 }

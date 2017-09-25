@@ -36,7 +36,7 @@ BranchHint BranchHintOf(const Operator* const op) {
 }
 
 int ValueInputCountOfReturn(Operator const* const op) {
-  DCHECK(op->opcode() == IrOpcode::kReturn);
+  DCHECK_EQ(IrOpcode::kReturn, op->opcode());
   // Return nodes have a hidden input at index 0 which we ignore in the value
   // input count.
   return op->ValueInputCount() - 1;
@@ -1114,7 +1114,7 @@ const Operator* CommonOperatorBuilder::Select(MachineRepresentation rep,
 
 const Operator* CommonOperatorBuilder::Phi(MachineRepresentation rep,
                                            int value_input_count) {
-  DCHECK(value_input_count > 0);  // Disallow empty phis.
+  DCHECK_LT(0, value_input_count);  // Disallow empty phis.
 #define CACHED_PHI(kRep, kValueInputCount)                 \
   if (MachineRepresentation::kRep == rep &&                \
       kValueInputCount == value_input_count) {             \
@@ -1147,7 +1147,7 @@ const Operator* CommonOperatorBuilder::TypeGuard(Type* type) {
 }
 
 const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {
-  DCHECK(effect_input_count > 0);  // Disallow empty effect phis.
+  DCHECK_LT(0, effect_input_count);  // Disallow empty effect phis.
   switch (effect_input_count) {
 #define CACHED_EFFECT_PHI(input_count) \
   case input_count:                    \
@@ -1165,8 +1165,8 @@ const Operator* CommonOperatorBuilder::EffectPhi(int effect_input_count) {
 }
 
 const Operator* CommonOperatorBuilder::InductionVariablePhi(int input_count) {
-  DCHECK(input_count >= 4);  // There must be always the entry, backedge,
-                             // increment and at least one bound.
+  DCHECK_LE(4, input_count);  // There must be always the entry, backedge,
+                              // increment and at least one bound.
   switch (input_count) {
 #define CACHED_INDUCTION_VARIABLE_PHI(input_count) \
   case input_count:                                \

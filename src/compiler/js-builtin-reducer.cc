@@ -608,7 +608,7 @@ Reduction JSBuiltinReducer::ReduceTypedArrayIteratorNext(
               graph()->NewNode(javascript()->CreateKeyValueArray(), index,
                                value, context, etrue2);
         } else {
-          DCHECK(kind == IterationKind::kValues);
+          DCHECK_EQ(IterationKind::kValues, kind);
           vtrue2 = value;
         }
       }

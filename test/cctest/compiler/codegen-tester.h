@@ -100,7 +100,7 @@ class BufferedRawMachineAssemblerTester
   // parameters from memory. Thereby it is possible to pass 64 bit parameters
   // to the IR graph.
   Node* Parameter(size_t index) {
-    CHECK(index < 4);
+    CHECK_GT(4, index);
     return parameter_nodes_[index];
   }
 
@@ -260,7 +260,7 @@ class BufferedRawMachineAssemblerTester<void>
   // parameters from memory. Thereby it is possible to pass 64 bit parameters
   // to the IR graph.
   Node* Parameter(size_t index) {
-    CHECK(index < 4);
+    CHECK_GT(4, index);
     return parameter_nodes_[index];
   }
 
