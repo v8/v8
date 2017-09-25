@@ -169,8 +169,8 @@ void BreakIterator::Next() {
     if (source_position_iterator_.is_statement()) {
       statement_position_ = position_;
     }
-    DCHECK(position_ >= 0);
-    DCHECK(statement_position_ >= 0);
+    DCHECK_LE(0, position_);
+    DCHECK_LE(0, statement_position_);
 
     DebugBreakType type = GetDebugBreakType();
     if (type != NOT_DEBUG_BREAK) break;
@@ -559,13 +559,13 @@ bool Debug::SetBreakPoint(Handle<JSFunction> function,
   CHECK(PrepareFunctionForBreakPoints(shared));
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
   // Source positions starts with zero.
-  DCHECK(*source_position >= 0);
+  DCHECK_LE(0, *source_position);
 
   // Find the break point and change it.
   *source_position = FindBreakablePosition(debug_info, *source_position);
   DebugInfo::SetBreakPoint(debug_info, *source_position, break_point_object);
   // At least one active break point now.
-  DCHECK(debug_info->GetBreakPointCount() > 0);
+  DCHECK_LT(0, debug_info->GetBreakPointCount());
 
   ClearBreakPoints(debug_info);
   ApplyBreakPoints(debug_info);
@@ -608,7 +608,7 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
   *source_position = FindBreakablePosition(debug_info, *source_position);
   DebugInfo::SetBreakPoint(debug_info, *source_position, break_point_object);
   // At least one active break point now.
-  DCHECK(debug_info->GetBreakPointCount() > 0);
+  DCHECK_LT(0, debug_info->GetBreakPointCount());
 
   ClearBreakPoints(debug_info);
   ApplyBreakPoints(debug_info);

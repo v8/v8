@@ -61,8 +61,8 @@ bool CompareSharedFunctionInfo(SharedFunctionInfo* a, SharedFunctionInfo* b) {
 }
 
 bool CompareCoverageBlock(const CoverageBlock& a, const CoverageBlock& b) {
-  DCHECK(a.start != kNoSourcePosition);
-  DCHECK(b.start != kNoSourcePosition);
+  DCHECK_NE(kNoSourcePosition, a.start);
+  DCHECK_NE(kNoSourcePosition, b.start);
   if (a.start == b.start) return a.end > b.end;
   return a.start < b.start;
 }
@@ -83,7 +83,7 @@ std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
     const int until_pos = coverage_info->EndSourcePosition(i);
     const int count = coverage_info->BlockCount(i);
 
-    DCHECK(start_pos != kNoSourcePosition);
+    DCHECK_NE(kNoSourcePosition, start_pos);
     result.emplace_back(start_pos, until_pos, count);
   }
 

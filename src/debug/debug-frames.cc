@@ -38,7 +38,7 @@ FrameInspector::FrameInspector(StandardFrame* frame, int inlined_frame_index,
 
   // Calculate the deoptimized frame.
   if (is_optimized_) {
-    DCHECK(js_frame != nullptr);
+    DCHECK_NOT_NULL(js_frame);
     // TODO(turbofan): Deoptimization from AstGraphBuilder is not supported.
     if (js_frame->LookupCode()->is_turbofanned() &&
         !js_frame->function()->shared()->HasBytecodeArray()) {

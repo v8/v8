@@ -163,7 +163,7 @@ class Differencer {
 
   // Each cell keeps a value plus direction. Value is multiplied by 4.
   void set_value4_and_dir(int i1, int i2, int value4, Direction dir) {
-    DCHECK((value4 & kDirectionMask) == 0);
+    DCHECK_EQ(0, value4 & kDirectionMask);
     get_cell(i1, i2) = value4 | dir;
   }
 
@@ -813,7 +813,7 @@ bool NeedsDeoptimization(SharedFunctionInfo* function_info, Code* code) {
       SharedFunctionInfo::cast(table->SharedFunctionInfo());
   if (sfi == function_info) return true;
   DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
-  DCHECK(table->length() != 0);
+  DCHECK_NE(0, table->length());
   FixedArray* const literals = table->LiteralArray();
   int const inlined_count = table->InlinedFunctionCount()->value();
   for (int i = 0; i < inlined_count; i++) {
