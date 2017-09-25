@@ -314,3 +314,27 @@ TestSkippableFunctionInForOfHeaderAndBody();
   assertEquals(3, lazy(9)().next().value);
   assertEquals(19, result);
 })();
+
+(function TestRestoringDataToAsyncArrowFunctionWithNonSimpleParams_1() {
+  // Regression test for
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=765532
+  function lazy() {
+    // The arrow function is not skippable, but we need to traverse its scopes
+    // and restore data to them.
+    async(a=0) => { const d = 0; }
+    function skippable() {}
+  }
+  lazy();
+})();
+
+(function TestRestoringDataToAsyncArrowFunctionWithNonSimpleParams_2() {
+  // Regression test for
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=765532
+  function lazy() {
+    // The arrow function is not skippable, but we need to traverse its scopes
+    // and restore data to them.
+    async(...a) => { const d = 0; }
+    function skippable() {}
+  }
+  lazy();
+})();

@@ -2389,9 +2389,8 @@ void Parser::AddArrowFunctionFormalParameters(
     expr = expr->AsSpread()->expression();
     parameters->has_rest = true;
   }
-  if (parameters->is_simple) {
-    parameters->is_simple = !is_rest && expr->IsVariableProxy();
-  }
+  DCHECK_IMPLIES(parameters->is_simple, !is_rest);
+  DCHECK_IMPLIES(parameters->is_simple, expr->IsVariableProxy());
 
   Expression* initializer = nullptr;
   if (expr->IsAssignment()) {

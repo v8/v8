@@ -1088,10 +1088,11 @@ class ParserBase {
       ObjectLiteralChecker* checker, bool* is_computed_name,
       bool* is_rest_property, bool* ok);
   ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
-                                 bool maybe_arrow, bool* ok);
+                                 bool maybe_arrow,
+                                 bool* is_simple_parameter_list, bool* ok);
   ExpressionListT ParseArguments(Scanner::Location* first_spread_pos,
                                  bool* ok) {
-    return ParseArguments(first_spread_pos, false, ok);
+    return ParseArguments(first_spread_pos, false, nullptr, ok);
   }
 
   ExpressionT ParseAssignmentExpression(bool accept_IN, bool* ok);
@@ -2660,7 +2661,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseObjectLiteral(
 
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
-    Scanner::Location* first_spread_arg_loc, bool maybe_arrow, bool* ok) {
+    Scanner::Location* first_spread_arg_loc, bool maybe_arrow,
+    bool* is_simple_parameter_list, bool* ok) {
   // Arguments ::
   //   '(' (AssignmentExpression)*[','] ')'
 
@@ -2675,10 +2677,17 @@ typename ParserBase<Impl>::ExpressionListT ParserBase<Impl>::ParseArguments(
 
     ExpressionT argument =
         ParseAssignmentExpression(true, CHECK_OK_CUSTOM(NullExpressionList));
+    if (!impl()->IsIdentifier(argument) &&
+        is_simple_parameter_list != nullptr) {
+      *is_simple_parameter_list = false;
+    }
     if (!maybe_arrow) {
       impl()->RewriteNonPattern(CHECK_OK_CUSTOM(NullExpressionList));
     }
     if (is_spread) {
+      if (is_simple_parameter_list != nullptr) {
+        *is_simple_parameter_list = false;
+      }
       if (!spread_arg.IsValid()) {
         spread_arg.beg_pos = start_pos;
         spread_arg.end_pos = peek_position();
@@ -3238,7 +3247,9 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
         ExpressionListT args;
         if (V8_UNLIKELY(is_async && impl()->IsIdentifier(result))) {
           ExpressionClassifier async_classifier(this);
-          args = ParseArguments(&spread_pos, true, CHECK_OK);
+          bool is_simple_parameter_list = true;
+          args = ParseArguments(&spread_pos, true, &is_simple_parameter_list,
+                                CHECK_OK);
           if (peek() == Token::ARROW) {
             if (fni_) {
               fni_->RemoveAsyncKeywordFromEnd();
@@ -3253,6 +3264,9 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
             }
             if (args->length()) {
               // async ( Arguments ) => ...
+              if (!is_simple_parameter_list) {
+                async_classifier.previous()->RecordNonSimpleParameter();
+              }
               return impl()->ExpressionListToExpression(args);
             }
             // async () => ...
@@ -3261,7 +3275,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
             AccumulateFormalParameterContainmentErrors();
           }
         } else {
-          args = ParseArguments(&spread_pos, false, CHECK_OK);
+          args = ParseArguments(&spread_pos, CHECK_OK);
         }
 
         ArrowFormalParametersUnexpectedToken();
