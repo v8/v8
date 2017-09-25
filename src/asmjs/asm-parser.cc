@@ -103,9 +103,10 @@ void AsmJsParser::InitializeStdlibTypes() {
   stdlib_dqdq2d_->AsFunctionType()->AddArgument(dq);
 
   auto* f = AsmType::Float();
+  auto* fh = AsmType::Floatish();
   auto* fq = AsmType::FloatQ();
-  stdlib_fq2f_ = AsmType::Function(zone(), f);
-  stdlib_fq2f_->AsFunctionType()->AddArgument(fq);
+  auto* fq2fh = AsmType::Function(zone(), fh);
+  fq2fh->AsFunctionType()->AddArgument(fq);
 
   auto* s = AsmType::Signed();
   auto* s2s = AsmType::Function(zone(), s);
@@ -132,14 +133,24 @@ void AsmJsParser::InitializeStdlibTypes() {
   stdlib_minmax_->AsOverloadedFunctionType()->AddOverload(minmax_f);
   stdlib_minmax_->AsOverloadedFunctionType()->AddOverload(minmax_d);
 
+  // The signatures in "9 Standard Library" of the spec draft are outdated and
+  // have been superseded with the following by an errata:
+  // TODO(mstarzinger): Actually fix Math.abs to return unsigned!
+  //  - Math.abs : (signed) -> unsigned
+  //               (double?) -> double
+  //               (float?) -> floatish
   stdlib_abs_ = AsmType::OverloadedFunction(zone());
   stdlib_abs_->AsOverloadedFunctionType()->AddOverload(s2s);
   stdlib_abs_->AsOverloadedFunctionType()->AddOverload(stdlib_dq2d_);
-  stdlib_abs_->AsOverloadedFunctionType()->AddOverload(stdlib_fq2f_);
+  stdlib_abs_->AsOverloadedFunctionType()->AddOverload(fq2fh);
 
+  // The signatures in "9 Standard Library" of the spec draft are outdated and
+  // have been superseded with the following by an errata:
+  //  - Math.ceil/floor/sqrt : (double?) -> double
+  //                           (float?) -> floatish
   stdlib_ceil_like_ = AsmType::OverloadedFunction(zone());
   stdlib_ceil_like_->AsOverloadedFunctionType()->AddOverload(stdlib_dq2d_);
-  stdlib_ceil_like_->AsOverloadedFunctionType()->AddOverload(stdlib_fq2f_);
+  stdlib_ceil_like_->AsOverloadedFunctionType()->AddOverload(fq2fh);
 
   stdlib_fround_ = AsmType::FroundType(zone());
 }
@@ -2203,6 +2214,9 @@ AsmType* AsmJsParser::ValidateCall() {
     } else if (callable->CanBeInvokedWith(AsmType::Float(),
                                           param_specific_types)) {
       return_type = AsmType::Float();
+    } else if (callable->CanBeInvokedWith(AsmType::Floatish(),
+                                          param_specific_types)) {
+      return_type = AsmType::Floatish();
     } else if (callable->CanBeInvokedWith(AsmType::Double(),
                                           param_specific_types)) {
       return_type = AsmType::Double();
