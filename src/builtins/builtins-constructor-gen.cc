@@ -334,17 +334,14 @@ TF_BUILTIN(FastNewFunctionContextFunction, ConstructorBuiltinsAssembler) {
                                     ScopeType::FUNCTION_SCOPE));
 }
 
-Node* ConstructorBuiltinsAssembler::EmitFastCloneRegExp(Node* closure,
-                                                        Node* literal_index,
-                                                        Node* pattern,
-                                                        Node* flags,
-                                                        Node* context) {
+Node* ConstructorBuiltinsAssembler::EmitCreateRegExpLiteral(
+    Node* feedback_vector, Node* slot, Node* pattern, Node* flags,
+    Node* context) {
   Label call_runtime(this, Label::kDeferred), end(this);
 
   VARIABLE(result, MachineRepresentation::kTagged);
-  Node* feedback_vector = LoadFeedbackVector(closure);
   Node* literal_site =
-      LoadFeedbackVectorSlot(feedback_vector, literal_index, 0, SMI_PARAMETERS);
+      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS);
   GotoIf(NotHasBoilerplate(literal_site), &call_runtime);
   {
     Node* boilerplate = literal_site;
@@ -361,8 +358,8 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneRegExp(Node* closure,
 
   BIND(&call_runtime);
   {
-    result.Bind(CallRuntime(Runtime::kCreateRegExpLiteral, context, closure,
-                            literal_index, pattern, flags));
+    result.Bind(CallRuntime(Runtime::kCreateRegExpLiteral, context,
+                            feedback_vector, SmiTag(slot), pattern, flags));
     Goto(&end);
   }
 
@@ -370,14 +367,15 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneRegExp(Node* closure,
   return result.value();
 }
 
-TF_BUILTIN(FastCloneRegExp, ConstructorBuiltinsAssembler) {
-  Node* closure = Parameter(FastCloneRegExpDescriptor::kClosure);
-  Node* literal_index = Parameter(FastCloneRegExpDescriptor::kLiteralIndex);
-  Node* pattern = Parameter(FastCloneRegExpDescriptor::kPattern);
-  Node* flags = Parameter(FastCloneRegExpDescriptor::kFlags);
-  Node* context = Parameter(FastCloneRegExpDescriptor::kContext);
-
-  Return(EmitFastCloneRegExp(closure, literal_index, pattern, flags, context));
+TF_BUILTIN(CreateRegExpLiteral, ConstructorBuiltinsAssembler) {
+  Node* feedback_vector = Parameter(Descriptor::kFeedbackVector);
+  Node* slot = SmiUntag(Parameter(Descriptor::kSlot));
+  Node* pattern = Parameter(Descriptor::kPattern);
+  Node* flags = Parameter(Descriptor::kFlags);
+  Node* context = Parameter(Descriptor::kContext);
+  Node* result =
+      EmitCreateRegExpLiteral(feedback_vector, slot, pattern, flags, context);
+  Return(result);
 }
 
 Node* ConstructorBuiltinsAssembler::NonEmptyShallowClone(
@@ -402,16 +400,15 @@ Node* ConstructorBuiltinsAssembler::NonEmptyShallowClone(
   return array;
 }
 
-Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
-    Node* closure, Node* literal_index, Node* context, Label* call_runtime,
+Node* ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
+    Node* feedback_vector, Node* slot, Node* context, Label* call_runtime,
     AllocationSiteMode allocation_site_mode) {
   Label zero_capacity(this), cow_elements(this), fast_elements(this),
       return_result(this);
   VARIABLE(result, MachineRepresentation::kTagged);
 
-  Node* feedback_vector = LoadFeedbackVector(closure);
   Node* allocation_site =
-      LoadFeedbackVectorSlot(feedback_vector, literal_index, 0, SMI_PARAMETERS);
+      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS);
   GotoIf(NotHasBoilerplate(allocation_site), call_runtime);
 
   Node* boilerplate = LoadAllocationSiteBoilerplate(allocation_site);
@@ -484,49 +481,32 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowArray(
   return result.value();
 }
 
-void ConstructorBuiltinsAssembler::CreateFastCloneShallowArrayBuiltin(
-    AllocationSiteMode allocation_site_mode) {
-  Node* closure = Parameter(FastCloneShallowArrayDescriptor::kClosure);
-  Node* literal_index =
-      Parameter(FastCloneShallowArrayDescriptor::kLiteralIndex);
-  Node* constant_elements =
-      Parameter(FastCloneShallowArrayDescriptor::kConstantElements);
-  Node* context = Parameter(FastCloneShallowArrayDescriptor::kContext);
+TF_BUILTIN(CreateShallowArrayLiteral, ConstructorBuiltinsAssembler) {
+  Node* feedback_vector = Parameter(Descriptor::kFeedbackVector);
+  Node* slot = SmiUntag(Parameter(Descriptor::kSlot));
+  Node* constant_elements = Parameter(Descriptor::kConstantElements);
+  Node* context = Parameter(Descriptor::kContext);
   Label call_runtime(this, Label::kDeferred);
-  Return(EmitFastCloneShallowArray(closure, literal_index, context,
-                                   &call_runtime, allocation_site_mode));
+  Return(EmitCreateShallowArrayLiteral(feedback_vector, slot, context,
+                                       &call_runtime,
+                                       DONT_TRACK_ALLOCATION_SITE));
 
   BIND(&call_runtime);
   {
     Comment("call runtime");
-    int flags = AggregateLiteral::kIsShallow;
-    if (allocation_site_mode == TRACK_ALLOCATION_SITE) {
-      // Force initial allocation sites on the initial literal setup step.
-      flags |= AggregateLiteral::kNeedsInitialAllocationSite;
-    } else {
-      flags |= AggregateLiteral::kDisableMementos;
-    }
-    Return(CallRuntime(Runtime::kCreateArrayLiteral, context, closure,
-                       literal_index, constant_elements, SmiConstant(flags)));
+    int const flags =
+        AggregateLiteral::kDisableMementos | AggregateLiteral::kIsShallow;
+    Return(CallRuntime(Runtime::kCreateArrayLiteral, context, feedback_vector,
+                       SmiTag(slot), constant_elements, SmiConstant(flags)));
   }
 }
 
-TF_BUILTIN(FastCloneShallowArrayTrack, ConstructorBuiltinsAssembler) {
-  CreateFastCloneShallowArrayBuiltin(TRACK_ALLOCATION_SITE);
-}
-
-TF_BUILTIN(FastCloneShallowArrayDontTrack, ConstructorBuiltinsAssembler) {
-  CreateFastCloneShallowArrayBuiltin(DONT_TRACK_ALLOCATION_SITE);
-}
-
 Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
-    Node* closure, Node* literal_index, Node* context) {
+    Node* feedback_vector, Node* slot, Node* context) {
   // Array literals always have a valid AllocationSite to properly track
   // elements transitions.
-  Node* feedback_vector = LoadFeedbackVector(closure);
   VARIABLE(allocation_site, MachineRepresentation::kTagged,
-           LoadFeedbackVectorSlot(feedback_vector, literal_index, 0,
-                                  SMI_PARAMETERS));
+           LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS));
 
   Label create_empty_array(this),
       initialize_allocation_site(this, Label::kDeferred), done(this);
@@ -537,7 +517,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
   BIND(&initialize_allocation_site);
   {
     allocation_site.Bind(
-        CreateAllocationSiteInFeedbackVector(feedback_vector, literal_index));
+        CreateAllocationSiteInFeedbackVector(feedback_vector, SmiTag(slot)));
     Goto(&create_empty_array);
   }
 
@@ -563,18 +543,17 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyArrayLiteral(
 }
 
 TF_BUILTIN(CreateEmptyArrayLiteral, ConstructorBuiltinsAssembler) {
-  Node* closure = Parameter(Descriptor::kClosure);
-  Node* literal_index = Parameter(Descriptor::kLiteralIndex);
+  Node* feedback_vector = Parameter(Descriptor::kFeedbackVector);
+  Node* slot = SmiUntag(Parameter(Descriptor::kSlot));
   Node* context = Parameter(Descriptor::kContext);
-  Node* result = EmitCreateEmptyArrayLiteral(closure, literal_index, context);
+  Node* result = EmitCreateEmptyArrayLiteral(feedback_vector, slot, context);
   Return(result);
 }
 
-Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
-    Label* call_runtime, Node* closure, Node* literals_index) {
-  Node* feedback_vector = LoadFeedbackVector(closure);
-  Node* allocation_site = LoadFeedbackVectorSlot(
-      feedback_vector, literals_index, 0, SMI_PARAMETERS);
+Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
+    Node* feedback_vector, Node* slot, Label* call_runtime) {
+  Node* allocation_site =
+      LoadFeedbackVectorSlot(feedback_vector, slot, 0, INTPTR_PARAMETERS);
   GotoIf(NotHasBoilerplate(allocation_site), call_runtime);
 
   Node* boilerplate = LoadAllocationSiteBoilerplate(allocation_site);
@@ -730,12 +709,12 @@ Node* ConstructorBuiltinsAssembler::EmitFastCloneShallowObject(
   return copy;
 }
 
-TF_BUILTIN(FastCloneShallowObject, ConstructorBuiltinsAssembler) {
+TF_BUILTIN(CreateShallowObjectLiteral, ConstructorBuiltinsAssembler) {
   Label call_runtime(this);
-  Node* closure = Parameter(Descriptor::kClosure);
-  Node* literals_index = Parameter(Descriptor::kLiteralIndex);
+  Node* feedback_vector = Parameter(Descriptor::kFeedbackVector);
+  Node* slot = SmiUntag(Parameter(Descriptor::kSlot));
   Node* copy =
-      EmitFastCloneShallowObject(&call_runtime, closure, literals_index);
+      EmitCreateShallowObjectLiteral(feedback_vector, slot, &call_runtime);
   Return(copy);
 
   BIND(&call_runtime);
@@ -743,11 +722,11 @@ TF_BUILTIN(FastCloneShallowObject, ConstructorBuiltinsAssembler) {
       Parameter(Descriptor::kBoilerplateDescription);
   Node* flags = Parameter(Descriptor::kFlags);
   Node* context = Parameter(Descriptor::kContext);
-  TailCallRuntime(Runtime::kCreateObjectLiteral, context, closure,
-                  literals_index, boilerplate_description, flags);
+  TailCallRuntime(Runtime::kCreateObjectLiteral, context, feedback_vector,
+                  SmiTag(slot), boilerplate_description, flags);
 }
 
-// Used by the CreateEmptyObjectLiteral stub and bytecode.
+// Used by the CreateEmptyObjectLiteral bytecode and the Object constructor.
 Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
     Node* context) {
   Node* native_context = LoadNativeContext(context);
@@ -764,12 +743,6 @@ Node* ConstructorBuiltinsAssembler::EmitCreateEmptyObjectLiteral(
   Node* result =
       AllocateJSObjectFromMap(map, empty_fixed_array, empty_fixed_array);
   return result;
-}
-
-TF_BUILTIN(CreateEmptyObjectLiteral, ConstructorBuiltinsAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* result = EmitCreateEmptyObjectLiteral(context);
-  Return(result);
 }
 
 TF_BUILTIN(ObjectConstructor, ConstructorBuiltinsAssembler) {

@@ -68,7 +68,6 @@ class Builtins {
                                            InterpreterPushArgsMode mode);
   Handle<Code> InterpreterPushArgsThenConstruct(InterpreterPushArgsMode mode);
   Handle<Code> NewFunctionContext(ScopeType scope_type);
-  Handle<Code> NewCloneShallowArray(AllocationSiteMode allocation_mode);
   Handle<Code> JSConstructStubGeneric();
 
   // Used by BuiltinDeserializer.

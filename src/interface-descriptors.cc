@@ -400,26 +400,6 @@ void NewArgumentsElementsDescriptor::InitializePlatformSpecific(
   DefaultInitializePlatformSpecific(data, 3);
 }
 
-void FastCloneRegExpDescriptor::InitializePlatformIndependent(
-    CallInterfaceDescriptorData* data) {
-  // kClosure, kLiteralIndex, kPattern, kFlags
-  MachineType machine_types[] = {
-      MachineType::AnyTagged(), MachineType::TaggedSigned(),
-      MachineType::AnyTagged(), MachineType::AnyTagged()};
-  data->InitializePlatformIndependent(arraysize(machine_types), 0,
-                                      machine_types);
-}
-
-void FastCloneShallowArrayDescriptor::InitializePlatformIndependent(
-    CallInterfaceDescriptorData* data) {
-  // kClosure, kLiteralIndex, kConstantElements
-  MachineType machine_types[] = {MachineType::AnyTagged(),
-                                 MachineType::TaggedSigned(),
-                                 MachineType::AnyTagged()};
-  data->InitializePlatformIndependent(arraysize(machine_types), 0,
-                                      machine_types);
-}
-
 void CallTrampolineDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
   // kFunction, kActualArgumentsCount

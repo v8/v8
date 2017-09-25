@@ -37,9 +37,6 @@ class PlatformInterfaceDescriptor;
   V(TypeConversion)                   \
   V(TypeConversionStackParameter)     \
   V(Typeof)                           \
-  V(FastCloneRegExp)                  \
-  V(FastCloneShallowArray)            \
-  V(FastCloneShallowObject)           \
   V(CallFunction)                     \
   V(CallVarargs)                      \
   V(CallForwardVarargs)               \
@@ -558,29 +555,6 @@ class TypeofDescriptor : public CallInterfaceDescriptor {
  public:
   DEFINE_PARAMETERS(kObject)
   DECLARE_DESCRIPTOR(TypeofDescriptor, CallInterfaceDescriptor)
-};
-
-
-class FastCloneRegExpDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kClosure, kLiteralIndex, kPattern, kFlags)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastCloneRegExpDescriptor,
-                                               CallInterfaceDescriptor)
-};
-
-
-class FastCloneShallowArrayDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kClosure, kLiteralIndex, kConstantElements)
-  DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(FastCloneShallowArrayDescriptor,
-                                               CallInterfaceDescriptor)
-};
-
-
-class FastCloneShallowObjectDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kClosure, kLiteralIndex, kBoilerplateDescription, kFlags)
-  DECLARE_DESCRIPTOR(FastCloneShallowObjectDescriptor, CallInterfaceDescriptor)
 };
 
 class CallTrampolineDescriptor : public CallInterfaceDescriptor {

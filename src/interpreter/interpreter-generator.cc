@@ -2643,15 +2643,15 @@ IGNITION_HANDLER(SwitchOnSmiNoFeedback, InterpreterAssembler) {
 // Creates a regular expression literal for literal index <literal_idx> with
 // <flags> and the pattern in <pattern_idx>.
 IGNITION_HANDLER(CreateRegExpLiteral, InterpreterAssembler) {
-  Node* index = BytecodeOperandIdx(0);
-  Node* pattern = LoadConstantPoolEntry(index);
-  Node* literal_index = BytecodeOperandIdxSmi(1);
+  Node* pattern_index = BytecodeOperandIdx(0);
+  Node* pattern = LoadConstantPoolEntry(pattern_index);
+  Node* feedback_vector = LoadFeedbackVector();
+  Node* slot_id = BytecodeOperandIdx(1);
   Node* flags = SmiFromWord32(BytecodeOperandFlag(2));
-  Node* closure = LoadRegister(Register::function_closure());
   Node* context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
-  Node* result = constructor_assembler.EmitFastCloneRegExp(
-      closure, literal_index, pattern, flags, context);
+  Node* result = constructor_assembler.EmitCreateRegExpLiteral(
+      feedback_vector, slot_id, pattern, flags, context);
   SetAccumulator(result);
   Dispatch();
 }
@@ -2661,8 +2661,8 @@ IGNITION_HANDLER(CreateRegExpLiteral, InterpreterAssembler) {
 // Creates an array literal for literal index <literal_idx> with
 // CreateArrayLiteral flags <flags> and constant elements in <element_idx>.
 IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
-  Node* literal_index = BytecodeOperandIdxSmi(1);
-  Node* closure = LoadRegister(Register::function_closure());
+  Node* feedback_vector = LoadFeedbackVector();
+  Node* slot_id = BytecodeOperandIdx(1);
   Node* context = GetContext();
   Node* bytecode_flags = BytecodeOperandFlag(2);
 
@@ -2674,8 +2674,9 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
   BIND(&fast_shallow_clone);
   {
     ConstructorBuiltinsAssembler constructor_assembler(state());
-    Node* result = constructor_assembler.EmitFastCloneShallowArray(
-        closure, literal_index, context, &call_runtime, TRACK_ALLOCATION_SITE);
+    Node* result = constructor_assembler.EmitCreateShallowArrayLiteral(
+        feedback_vector, slot_id, context, &call_runtime,
+        TRACK_ALLOCATION_SITE);
     SetAccumulator(result);
     Dispatch();
   }
@@ -2687,8 +2688,9 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
     Node* flags = SmiTag(flags_raw);
     Node* index = BytecodeOperandIdx(0);
     Node* constant_elements = LoadConstantPoolEntry(index);
-    Node* result = CallRuntime(Runtime::kCreateArrayLiteral, context, closure,
-                               literal_index, constant_elements, flags);
+    Node* result =
+        CallRuntime(Runtime::kCreateArrayLiteral, context, feedback_vector,
+                    SmiTag(slot_id), constant_elements, flags);
     SetAccumulator(result);
     Dispatch();
   }
@@ -2698,12 +2700,12 @@ IGNITION_HANDLER(CreateArrayLiteral, InterpreterAssembler) {
 //
 // Creates an empty JSArray literal for literal index <literal_idx>.
 IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
-  Node* literal_index = BytecodeOperandIdxSmi(0);
-  Node* closure = LoadRegister(Register::function_closure());
+  Node* feedback_vector = LoadFeedbackVector();
+  Node* slot_id = BytecodeOperandIdx(0);
   Node* context = GetContext();
   ConstructorBuiltinsAssembler constructor_assembler(state());
   Node* result = constructor_assembler.EmitCreateEmptyArrayLiteral(
-      closure, literal_index, context);
+      feedback_vector, slot_id, context);
   SetAccumulator(result);
   Dispatch();
 }
@@ -2713,9 +2715,9 @@ IGNITION_HANDLER(CreateEmptyArrayLiteral, InterpreterAssembler) {
 // Creates an object literal for literal index <literal_idx> with
 // CreateObjectLiteralFlags <flags> and constant elements in <element_idx>.
 IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
-  Node* literal_index = BytecodeOperandIdxSmi(1);
+  Node* feedback_vector = LoadFeedbackVector();
+  Node* slot_id = BytecodeOperandIdx(1);
   Node* bytecode_flags = BytecodeOperandFlag(2);
-  Node* closure = LoadRegister(Register::function_closure());
 
   // Check if we can do a fast clone or have to call the runtime.
   Label if_fast_clone(this), if_not_fast_clone(this, Label::kDeferred);
@@ -2725,10 +2727,10 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
 
   BIND(&if_fast_clone);
   {
-    // If we can do a fast clone do the fast-path in FastCloneShallowObjectStub.
+    // If we can do a fast clone do the fast-path in CreateShallowObjectLiteral.
     ConstructorBuiltinsAssembler constructor_assembler(state());
-    Node* result = constructor_assembler.EmitFastCloneShallowObject(
-        &if_not_fast_clone, closure, literal_index);
+    Node* result = constructor_assembler.EmitCreateShallowObjectLiteral(
+        feedback_vector, slot_id, &if_not_fast_clone);
     StoreRegister(result, BytecodeOperandReg(3));
     Dispatch();
   }
@@ -2744,8 +2746,9 @@ IGNITION_HANDLER(CreateObjectLiteral, InterpreterAssembler) {
         bytecode_flags);
     Node* flags = SmiTag(flags_raw);
 
-    Node* result = CallRuntime(Runtime::kCreateObjectLiteral, context, closure,
-                               literal_index, boilerplate_description, flags);
+    Node* result =
+        CallRuntime(Runtime::kCreateObjectLiteral, context, feedback_vector,
+                    SmiTag(slot_id), boilerplate_description, flags);
     StoreRegister(result, BytecodeOperandReg(3));
     // TODO(klaasb) build a single dispatch once the call is inlined
     Dispatch();

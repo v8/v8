@@ -1933,7 +1933,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
     object_literals_.push_back(std::make_pair(expr, entry));
   }
   // TODO(cbruni): Directly generate runtime call for literals we cannot
-  // optimize once the FastCloneShallowObject stub is in sync with the TF
+  // optimize once the CreateShallowObjectLiteral stub is in sync with the TF
   // optimizations.
   builder()->CreateObjectLiteral(entry, literal_index, flags, literal);
 

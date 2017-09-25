@@ -73,12 +73,11 @@ namespace internal {
   TFC(FastNewClosure, FastNewClosure, 1)                                       \
   TFC(FastNewFunctionContextEval, FastNewFunctionContext, 1)                   \
   TFC(FastNewFunctionContextFunction, FastNewFunctionContext, 1)               \
-  TFC(FastCloneRegExp, FastCloneRegExp, 1)                                     \
-  TFC(FastCloneShallowArrayTrack, FastCloneShallowArray, 1)                    \
-  TFC(FastCloneShallowArrayDontTrack, FastCloneShallowArray, 1)                \
-  TFS(CreateEmptyArrayLiteral, kClosure, kLiteralIndex)                        \
-  TFS(CreateEmptyObjectLiteral, kClosure)                                      \
-  TFC(FastCloneShallowObject, FastCloneShallowObject, 1)                       \
+  TFS(CreateRegExpLiteral, kFeedbackVector, kSlot, kPattern, kFlags)           \
+  TFS(CreateEmptyArrayLiteral, kFeedbackVector, kSlot)                         \
+  TFS(CreateShallowArrayLiteral, kFeedbackVector, kSlot, kConstantElements)    \
+  TFS(CreateShallowObjectLiteral, kFeedbackVector, kSlot,                      \
+      kBoilerplateDescription, kFlags)                                         \
   /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */           \
   TFC(ConstructProxy, ConstructTrampoline, 1)                                  \
                                                                                \

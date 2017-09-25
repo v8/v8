@@ -1321,7 +1321,7 @@ class ObjectLiteral final : public AggregateLiteral {
   // marked expressions, no store code is emitted.
   void CalculateEmitStore(Zone* zone);
 
-  // Determines whether the {FastCloneShallowObject} builtin can be used.
+  // Determines whether the {CreateShallowObjectLiteratal} builtin can be used.
   bool IsFastCloningSupported() const;
 
   // Assemble bitfield of flags for the CreateObjectLiteral helper.
@@ -1449,7 +1449,7 @@ class ArrayLiteral final : public AggregateLiteral {
   // Populate the constant elements fixed array.
   void BuildConstantElements(Isolate* isolate);
 
-  // Determines whether the {FastCloneShallowArray} builtin can be used.
+  // Determines whether the {CreateShallowArrayLiteral} builtin can be used.
   bool IsFastCloningSupported() const;
 
   // Assemble bitfield of flags for the CreateArrayLiteral helper.

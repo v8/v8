@@ -290,7 +290,8 @@ std::ostream& operator<<(std::ostream& os, FeedbackParameter const& p) {
 }
 
 FeedbackParameter const& FeedbackParameterOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kJSStoreDataPropertyInLiteral, op->opcode());
+  DCHECK(op->opcode() == IrOpcode::kJSCreateEmptyLiteralArray ||
+         op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral);
   return OpParameter<FeedbackParameter>(op);
 }
 
@@ -484,8 +485,8 @@ const CreateClosureParameters& CreateClosureParametersOf(const Operator* op) {
 bool operator==(CreateLiteralParameters const& lhs,
                 CreateLiteralParameters const& rhs) {
   return lhs.constant().location() == rhs.constant().location() &&
-         lhs.length() == rhs.length() && lhs.flags() == rhs.flags() &&
-         lhs.index() == rhs.index();
+         lhs.feedback() == rhs.feedback() && lhs.length() == rhs.length() &&
+         lhs.flags() == rhs.flags();
 }
 
 
@@ -496,14 +497,13 @@ bool operator!=(CreateLiteralParameters const& lhs,
 
 
 size_t hash_value(CreateLiteralParameters const& p) {
-  return base::hash_combine(p.constant().location(), p.length(), p.flags(),
-                            p.index());
+  return base::hash_combine(p.constant().location(), p.feedback(), p.length(),
+                            p.flags());
 }
 
 
 std::ostream& operator<<(std::ostream& os, CreateLiteralParameters const& p) {
-  return os << Brief(*p.constant()) << ", " << p.length() << ", " << p.flags()
-            << ", " << p.index();
+  return os << Brief(*p.constant()) << ", " << p.length() << ", " << p.flags();
 }
 
 
@@ -1049,36 +1049,41 @@ const Operator* JSOperatorBuilder::CreateClosure(
 }
 
 const Operator* JSOperatorBuilder::CreateLiteralArray(
-    Handle<ConstantElementsPair> constant_elements, int literal_flags,
-    int literal_index, int number_of_elements) {
-  CreateLiteralParameters parameters(constant_elements, number_of_elements,
-                                     literal_flags, literal_index);
-  return new (zone()) Operator1<CreateLiteralParameters>(        // --
-      IrOpcode::kJSCreateLiteralArray, Operator::kNoProperties,  // opcode
-      "JSCreateLiteralArray",                                    // name
-      1, 1, 1, 1, 1, 2,                                          // counts
-      parameters);                                               // parameter
+    Handle<ConstantElementsPair> constant_elements,
+    VectorSlotPair const& feedback, int literal_flags, int number_of_elements) {
+  CreateLiteralParameters parameters(constant_elements, feedback,
+                                     number_of_elements, literal_flags);
+  return new (zone()) Operator1<CreateLiteralParameters>(  // --
+      IrOpcode::kJSCreateLiteralArray,                     // opcode
+      Operator::kNoProperties,                             // properties
+      "JSCreateLiteralArray",                              // name
+      0, 1, 1, 1, 1, 2,                                    // counts
+      parameters);                                         // parameter
 }
 
-const Operator* JSOperatorBuilder::CreateEmptyLiteralArray(int literal_index) {
-  return new (zone()) Operator1<int>(        // --
-      IrOpcode::kJSCreateEmptyLiteralArray,  // opcode
-      Operator::kNoProperties,               // properties
-      "JSCreateEmptyLiteralArray",           // name
-      1, 1, 1, 1, 1, 2,                      // counts
-      literal_index);                        // parameter
+const Operator* JSOperatorBuilder::CreateEmptyLiteralArray(
+    VectorSlotPair const& feedback) {
+  FeedbackParameter parameters(feedback);
+  return new (zone()) Operator1<FeedbackParameter>(  // --
+      IrOpcode::kJSCreateEmptyLiteralArray,          // opcode
+      Operator::kEliminatable,                       // properties
+      "JSCreateEmptyLiteralArray",                   // name
+      0, 1, 1, 1, 1, 0,                              // counts
+      parameters);                                   // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateLiteralObject(
-    Handle<BoilerplateDescription> constant_properties, int literal_flags,
-    int literal_index, int number_of_properties) {
-  CreateLiteralParameters parameters(constant_properties, number_of_properties,
-                                     literal_flags, literal_index);
-  return new (zone()) Operator1<CreateLiteralParameters>(         // --
-      IrOpcode::kJSCreateLiteralObject, Operator::kNoProperties,  // opcode
-      "JSCreateLiteralObject",                                    // name
-      1, 1, 1, 1, 1, 2,                                           // counts
-      parameters);                                                // parameter
+    Handle<BoilerplateDescription> constant_properties,
+    VectorSlotPair const& feedback, int literal_flags,
+    int number_of_properties) {
+  CreateLiteralParameters parameters(constant_properties, feedback,
+                                     number_of_properties, literal_flags);
+  return new (zone()) Operator1<CreateLiteralParameters>(  // --
+      IrOpcode::kJSCreateLiteralObject,                    // opcode
+      Operator::kNoProperties,                             // properties
+      "JSCreateLiteralObject",                             // name
+      0, 1, 1, 1, 1, 2,                                    // counts
+      parameters);                                         // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateEmptyLiteralObject() {
@@ -1090,14 +1095,16 @@ const Operator* JSOperatorBuilder::CreateEmptyLiteralObject() {
 }
 
 const Operator* JSOperatorBuilder::CreateLiteralRegExp(
-    Handle<String> constant_pattern, int literal_flags, int literal_index) {
-  CreateLiteralParameters parameters(constant_pattern, -1, literal_flags,
-                                     literal_index);
-  return new (zone()) Operator1<CreateLiteralParameters>(         // --
-      IrOpcode::kJSCreateLiteralRegExp, Operator::kNoProperties,  // opcode
-      "JSCreateLiteralRegExp",                                    // name
-      1, 1, 1, 1, 1, 2,                                           // counts
-      parameters);                                                // parameter
+    Handle<String> constant_pattern, VectorSlotPair const& feedback,
+    int literal_flags) {
+  CreateLiteralParameters parameters(constant_pattern, feedback, -1,
+                                     literal_flags);
+  return new (zone()) Operator1<CreateLiteralParameters>(  // --
+      IrOpcode::kJSCreateLiteralRegExp,                    // opcode
+      Operator::kNoProperties,                             // properties
+      "JSCreateLiteralRegExp",                             // name
+      0, 1, 1, 1, 1, 2,                                    // counts
+      parameters);                                         // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateFunctionContext(int slot_count,

@@ -60,9 +60,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable StringCompare(Isolate* isolate, Token::Value token);
   static Callable SubString(Isolate* isolate);
 
-  static Callable FastCloneShallowArray(Isolate* isolate,
-                                        AllocationSiteMode allocation_mode);
-
   static Callable FastNewFunctionContext(Isolate* isolate,
                                          ScopeType scope_type);
 

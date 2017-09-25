@@ -34,12 +34,10 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
  public:
   JSCreateLowering(Editor* editor, CompilationDependencies* dependencies,
                    JSGraph* jsgraph,
-                   MaybeHandle<FeedbackVector> feedback_vector,
                    Handle<Context> native_context, Zone* zone)
       : AdvancedReducer(editor),
         dependencies_(dependencies),
         jsgraph_(jsgraph),
-        feedback_vector_(feedback_vector),
         native_context_(native_context),
         zone_(zone) {}
   ~JSCreateLowering() final {}
@@ -99,9 +97,6 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
 
   Reduction ReduceNewArrayToStubCall(Node* node, Handle<AllocationSite> site);
 
-  // Infers the FeedbackVector to use for a given {node}.
-  MaybeHandle<FeedbackVector> GetSpecializationFeedbackVector(Node* node);
-
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
@@ -114,7 +109,6 @@ class V8_EXPORT_PRIVATE JSCreateLowering final
 
   CompilationDependencies* const dependencies_;
   JSGraph* const jsgraph_;
-  MaybeHandle<FeedbackVector> const feedback_vector_;
   Handle<Context> const native_context_;
   Zone* const zone_;
 };

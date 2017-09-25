@@ -461,15 +461,16 @@ void JSGenericLowering::LowerJSCreateKeyValueArray(Node* node) {
 void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector()));
+  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
 
-  // Use the FastCloneShallowArray builtin only for shallow boilerplates without
-  // properties up to the number of elements that the stubs can handle.
+  // Use the CreateShallowArrayLiteratlr builtin only for shallow boilerplates
+  // without properties up to the number of elements that the stubs can handle.
   if ((p.flags() & AggregateLiteral::kIsShallow) != 0 &&
       p.length() < ConstructorBuiltins::kMaximumClonedShallowArrayElements) {
-    Callable callable = CodeFactory::FastCloneShallowArray(
-        isolate(), DONT_TRACK_ALLOCATION_SITE);
+    Callable callable =
+        Builtins::CallableFor(isolate(), Builtins::kCreateShallowArrayLiteral);
     ReplaceWithStubCall(node, callable, flags);
   } else {
     node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
@@ -479,8 +480,10 @@ void JSGenericLowering::LowerJSCreateLiteralArray(Node* node) {
 
 void JSGenericLowering::LowerJSCreateEmptyLiteralArray(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  int literal_index = OpParameter<int>(node->op());
-  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(literal_index));
+  FeedbackParameter const& p = FeedbackParameterOf(node->op());
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector()));
+  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
+  node->RemoveInput(4);  // control
   Callable callable =
       Builtins::CallableFor(isolate(), Builtins::kCreateEmptyArrayLiteral);
   ReplaceWithStubCall(node, callable, flags);
@@ -489,17 +492,18 @@ void JSGenericLowering::LowerJSCreateEmptyLiteralArray(Node* node) {
 void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.index()));
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector()));
+  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
   node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
   node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
 
-  // Use the FastCloneShallowObject builtin only for shallow boilerplates
+  // Use the CreateShallowObjectLiteratal builtin only for shallow boilerplates
   // without elements up to the number of properties that the stubs can handle.
   if ((p.flags() & AggregateLiteral::kIsShallow) != 0 &&
       p.length() <=
           ConstructorBuiltins::kMaximumClonedShallowObjectProperties) {
     Callable callable =
-        Builtins::CallableFor(isolate(), Builtins::kFastCloneShallowObject);
+        Builtins::CallableFor(isolate(), Builtins::kCreateShallowObjectLiteral);
     ReplaceWithStubCall(node, callable, flags);
   } else {
     ReplaceWithRuntimeCall(node, Runtime::kCreateObjectLiteral);
@@ -507,23 +511,18 @@ void JSGenericLowering::LowerJSCreateLiteralObject(Node* node) {
 }
 
 void JSGenericLowering::LowerJSCreateEmptyLiteralObject(Node* node) {
-  CallDescriptor::Flags flags = FrameStateFlagForCall(node);
-  Callable callable =
-      Builtins::CallableFor(isolate(), Builtins::kCreateEmptyObjectLiteral);
-  ReplaceWithStubCall(node, callable, flags);
+  UNREACHABLE();  // Eliminated in typed lowering.
 }
 
 void JSGenericLowering::LowerJSCreateLiteralRegExp(Node* node) {
   CreateLiteralParameters const& p = CreateLiteralParametersOf(node->op());
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   Callable callable =
-      Builtins::CallableFor(isolate(), Builtins::kFastCloneRegExp);
-  Node* literal_index = jsgraph()->SmiConstant(p.index());
-  Node* literal_flags = jsgraph()->SmiConstant(p.flags());
-  Node* pattern = jsgraph()->HeapConstant(p.constant());
-  node->InsertInput(graph()->zone(), 1, literal_index);
-  node->InsertInput(graph()->zone(), 2, pattern);
-  node->InsertInput(graph()->zone(), 3, literal_flags);
+      Builtins::CallableFor(isolate(), Builtins::kCreateRegExpLiteral);
+  node->InsertInput(zone(), 0, jsgraph()->HeapConstant(p.feedback().vector()));
+  node->InsertInput(zone(), 1, jsgraph()->SmiConstant(p.feedback().index()));
+  node->InsertInput(zone(), 2, jsgraph()->HeapConstant(p.constant()));
+  node->InsertInput(zone(), 3, jsgraph()->SmiConstant(p.flags()));
   ReplaceWithStubCall(node, callable, flags);
 }
 

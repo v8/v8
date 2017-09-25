@@ -634,7 +634,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
 }
 
 bool ObjectLiteral::IsFastCloningSupported() const {
-  // The FastCloneShallowObject builtin doesn't copy elements, and object
+  // The CreateShallowObjectLiteratal builtin doesn't copy elements, and object
   // literals don't support copy-on-write (COW) elements for now.
   // TODO(mvstanton): make object literals support COW elements.
   return fast_elements() && is_shallow() &&

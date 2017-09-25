@@ -113,19 +113,6 @@ Handle<Code> Builtins::NewFunctionContext(ScopeType scope_type) {
   return Handle<Code>::null();
 }
 
-Handle<Code> Builtins::NewCloneShallowArray(
-    AllocationSiteMode allocation_mode) {
-  switch (allocation_mode) {
-    case TRACK_ALLOCATION_SITE:
-      return builtin_handle(kFastCloneShallowArrayTrack);
-    case DONT_TRACK_ALLOCATION_SITE:
-      return builtin_handle(kFastCloneShallowArrayDontTrack);
-    default:
-      UNREACHABLE();
-  }
-  return Handle<Code>::null();
-}
-
 Handle<Code> Builtins::NonPrimitiveToPrimitive(ToPrimitiveHint hint) {
   switch (hint) {
     case ToPrimitiveHint::kDefault:

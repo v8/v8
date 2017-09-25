@@ -1480,11 +1480,11 @@ void BytecodeGraphBuilder::VisitCreateRestParameter() {
 void BytecodeGraphBuilder::VisitCreateRegExpLiteral() {
   Handle<String> constant_pattern =
       Handle<String>::cast(bytecode_iterator().GetConstantForIndexOperand(0));
-  int literal_index = bytecode_iterator().GetIndexOperand(1);
+  int const slot_id = bytecode_iterator().GetIndexOperand(1);
+  VectorSlotPair pair = CreateVectorSlotPair(slot_id);
   int literal_flags = bytecode_iterator().GetFlagOperand(2);
-  Node* literal = NewNode(javascript()->CreateLiteralRegExp(
-                              constant_pattern, literal_flags, literal_index),
-                          GetFunctionClosure());
+  Node* literal = NewNode(
+      javascript()->CreateLiteralRegExp(constant_pattern, pair, literal_flags));
   environment()->BindAccumulator(literal, Environment::kAttachFrameState);
 }
 
@@ -1492,7 +1492,8 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   Handle<ConstantElementsPair> constant_elements =
       Handle<ConstantElementsPair>::cast(
           bytecode_iterator().GetConstantForIndexOperand(0));
-  int literal_index = bytecode_iterator().GetIndexOperand(1);
+  int const slot_id = bytecode_iterator().GetIndexOperand(1);
+  VectorSlotPair pair = CreateVectorSlotPair(slot_id);
   int bytecode_flags = bytecode_iterator().GetFlagOperand(2);
   int literal_flags =
       interpreter::CreateArrayLiteralFlags::FlagsBits::decode(bytecode_flags);
@@ -1504,17 +1505,15 @@ void BytecodeGraphBuilder::VisitCreateArrayLiteral() {
   // TODO(mstarzinger): Thread through number of elements. The below number is
   // only an estimate and does not match {ArrayLiteral::values::length}.
   int number_of_elements = constant_elements->constant_values()->length();
-  Node* literal = NewNode(
-      javascript()->CreateLiteralArray(constant_elements, literal_flags,
-                                       literal_index, number_of_elements),
-      GetFunctionClosure());
+  Node* literal = NewNode(javascript()->CreateLiteralArray(
+      constant_elements, pair, literal_flags, number_of_elements));
   environment()->BindAccumulator(literal, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitCreateEmptyArrayLiteral() {
-  int literal_index = bytecode_iterator().GetIndexOperand(0);
-  Node* literal = NewNode(javascript()->CreateEmptyLiteralArray(literal_index),
-                          GetFunctionClosure());
+  int const slot_id = bytecode_iterator().GetIndexOperand(0);
+  VectorSlotPair pair = CreateVectorSlotPair(slot_id);
+  Node* literal = NewNode(javascript()->CreateEmptyLiteralArray(pair));
   environment()->BindAccumulator(literal);
 }
 
@@ -1522,17 +1521,16 @@ void BytecodeGraphBuilder::VisitCreateObjectLiteral() {
   Handle<BoilerplateDescription> constant_properties =
       Handle<BoilerplateDescription>::cast(
           bytecode_iterator().GetConstantForIndexOperand(0));
-  int literal_index = bytecode_iterator().GetIndexOperand(1);
+  int const slot_id = bytecode_iterator().GetIndexOperand(1);
+  VectorSlotPair pair = CreateVectorSlotPair(slot_id);
   int bytecode_flags = bytecode_iterator().GetFlagOperand(2);
   int literal_flags =
       interpreter::CreateObjectLiteralFlags::FlagsBits::decode(bytecode_flags);
   // TODO(mstarzinger): Thread through number of properties. The below number is
   // only an estimate and does not match {ObjectLiteral::properties_count}.
   int number_of_properties = constant_properties->size();
-  Node* literal = NewNode(
-      javascript()->CreateLiteralObject(constant_properties, literal_flags,
-                                        literal_index, number_of_properties),
-      GetFunctionClosure());
+  Node* literal = NewNode(javascript()->CreateLiteralObject(
+      constant_properties, pair, literal_flags, number_of_properties));
   environment()->BindRegister(bytecode_iterator().GetRegisterOperand(3),
                               literal, Environment::kAttachFrameState);
 }

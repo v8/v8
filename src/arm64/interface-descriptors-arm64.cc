@@ -92,38 +92,6 @@ void TypeofDescriptor::InitializePlatformSpecific(
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
 
-
-void FastCloneRegExpDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  // x3: closure
-  // x2: object literal index
-  // x1: constant properties
-  // x0: object literal flags
-  Register registers[] = {x3, x2, x1, x0};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void FastCloneShallowArrayDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  // x3: closure
-  // x2: array literal index
-  // x1: constant elements
-  Register registers[] = {x3, x2, x1};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
-
-void FastCloneShallowObjectDescriptor::InitializePlatformSpecific(
-    CallInterfaceDescriptorData* data) {
-  // x3: closure
-  // x2: object literal index
-  // x1: constant properties
-  // x0: object literal flags
-  Register registers[] = {x3, x2, x1, x0};
-  data->InitializePlatformSpecific(arraysize(registers), registers);
-}
-
 void CallFunctionDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // x1  function    the function to call
