@@ -243,6 +243,7 @@ v8_source_set("cctest_sources") {
       # files, and include them in jumbo compilation units.
       "interpreter/bytecode-expectations-printer.cc",
       "interpreter/bytecode-expectations-printer.h",
+      "interpreter/test-bytecode-generator.cc",
       "test-api.cc",
       "test-api.h",
     ]
