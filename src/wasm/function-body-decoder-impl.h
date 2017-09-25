@@ -562,8 +562,11 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
     const Value& input, Value* result)                                         \
   F(Simd8x16ShuffleOp, const Simd8x16ShuffleOperand<validate>& operand,        \
     const Value& input0, const Value& input1, Value* result)                   \
-  F(Throw, const ExceptionIndexOperand<validate>&)                             \
-  F(Catch, const ExceptionIndexOperand<validate>& operand, Control* block)     \
+  F(Throw, const ExceptionIndexOperand<validate>&, Control* block,             \
+    const Vector<Value>& args)                                                 \
+  F(CatchException, const ExceptionIndexOperand<validate>& operand,            \
+    Control* block, void** caught_values)                                      \
+  F(SetCaughtValue, void* caught_values, Value* value, size_t index)           \
   F(AtomicOp, WasmOpcode opcode, Vector<Value> args,                           \
     const MemoryAccessOperand<validate>& operand, Value* result)
 
@@ -1245,16 +1248,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             ExceptionIndexOperand<true> operand(this, this->pc_);
             len = 1 + operand.length;
             if (!this->Validate(this->pc_, operand)) break;
-            if (operand.exception->sig->parameter_count() > 0) {
-              // TODO(kschimpf): Fix to pull values off stack and build throw.
-              OPCODE_ERROR(opcode, "can't handle exceptions with values yet");
-              break;
-            }
-            interface_.Throw(this, operand);
-            // TODO(titzer): Throw should end control, but currently we build a
-            // (reachable) runtime call instead of connecting it directly to
-            // end.
-            //            EndControl();
+            std::vector<Value> args;
+            PopArgs(operand.exception->ToFunctionSig(), &args);
+            interface_.Throw(this, operand, &control_.back(), vec2vec(args));
             break;
           }
           case kExprTry: {
@@ -1292,8 +1288,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             c->kind = kControlTryCatch;
             FallThruTo(c);
             stack_.resize(c->stack_depth);
-
-            interface_.Catch(this, operand, c);
+            void* caught_values = nullptr;
+            interface_.CatchException(this, operand, c, &caught_values);
+            const WasmExceptionSig* sig = operand.exception->sig;
+            for (size_t i = 0, e = sig->parameter_count(); i < e; ++i) {
+              auto* value = Push(sig->GetParam(i));
+              interface_.SetCaughtValue(this, caught_values, value, i);
+            }
             break;
           }
           case kExprCatchAll: {

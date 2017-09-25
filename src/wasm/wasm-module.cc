@@ -246,6 +246,12 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
 // static
 const WasmExceptionSig WasmException::empty_sig_(0, 0, nullptr);
 
+// static
+constexpr const char* WasmException::kRuntimeIdStr;
+
+// static
+constexpr const char* WasmException::kRuntimeValuesStr;
+
 Handle<JSArrayBuffer> SetupArrayBuffer(Isolate* isolate, void* allocation_base,
                                        size_t allocation_length,
                                        void* backing_store, size_t size,

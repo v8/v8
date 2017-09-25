@@ -55,6 +55,8 @@ namespace compiler {
 
 namespace {
 
+constexpr uint32_t kBytesPerExceptionValuesArrayElement = 2;
+
 void MergeControlToEnd(JSGraph* jsgraph, Node* node) {
   Graph* g = jsgraph->graph();
   if (g->end()) {
@@ -1808,28 +1810,161 @@ Node* WasmGraphBuilder::GrowMemory(Node* input) {
   return result;
 }
 
-Node* WasmGraphBuilder::Throw(Node* input) {
+uint32_t WasmGraphBuilder::GetExceptionEncodedSize(
+    const wasm::WasmException* exception) const {
+  const wasm::WasmExceptionSig* sig = exception->sig;
+  uint32_t encoded_size = 0;
+  for (size_t i = 0; i < sig->parameter_count(); ++i) {
+    size_t byte_size = size_t(1) << ElementSizeLog2Of(sig->GetParam(i));
+    DCHECK_EQ(byte_size % kBytesPerExceptionValuesArrayElement, 0);
+    DCHECK_LE(1, byte_size / kBytesPerExceptionValuesArrayElement);
+    encoded_size += byte_size / kBytesPerExceptionValuesArrayElement;
+  }
+  return encoded_size;
+}
+
+Node* WasmGraphBuilder::Throw(uint32_t tag,
+                              const wasm::WasmException* exception,
+                              const Vector<Node*> values) {
   SetNeedsStackCheck();
-  Node* parameters[] = {BuildChangeInt32ToSmi(input)};
-  return BuildCallToRuntime(Runtime::kWasmThrow, parameters,
-                            arraysize(parameters));
+  uint32_t encoded_size = GetExceptionEncodedSize(exception);
+  Node* create_parameters[] = {
+      BuildChangeUint32ToSmi(ConvertExceptionTagToRuntimeId(tag)),
+      BuildChangeUint32ToSmi(Uint32Constant(encoded_size))};
+  BuildCallToRuntime(Runtime::kWasmThrowCreate, create_parameters,
+                     arraysize(create_parameters));
+  uint32_t index = 0;
+  const wasm::WasmExceptionSig* sig = exception->sig;
+  MachineOperatorBuilder* m = jsgraph()->machine();
+  for (size_t i = 0; i < sig->parameter_count(); ++i) {
+    Node* value = values[i];
+    switch (sig->GetParam(i)) {
+      case wasm::kWasmF32:
+        value = graph()->NewNode(m->BitcastFloat32ToInt32(), value);
+      // Intentionally fall to next case.
+      case wasm::kWasmI32:
+        BuildEncodeException32BitValue(&index, value);
+        break;
+      case wasm::kWasmF64:
+        value = graph()->NewNode(m->BitcastFloat64ToInt64(), value);
+      // Intentionally fall to next case.
+      case wasm::kWasmI64: {
+        Node* upper32 = graph()->NewNode(
+            m->TruncateInt64ToInt32(),
+            Binop(wasm::kExprI64ShrU, value, Int64Constant(32)));
+        BuildEncodeException32BitValue(&index, upper32);
+        Node* lower32 = graph()->NewNode(m->TruncateInt64ToInt32(), value);
+        BuildEncodeException32BitValue(&index, lower32);
+        break;
+      }
+      default:
+        CHECK(false);
+        break;
+    }
+  }
+  DCHECK_EQ(encoded_size, index);
+  return BuildCallToRuntime(Runtime::kWasmThrow, nullptr, 0);
+}
+
+void WasmGraphBuilder::BuildEncodeException32BitValue(uint32_t* index,
+                                                      Node* value) {
+  MachineOperatorBuilder* machine = jsgraph()->machine();
+  Node* upper_parameters[] = {
+      BuildChangeUint32ToSmi(Int32Constant(*index)),
+      BuildChangeUint32ToSmi(
+          graph()->NewNode(machine->Word32Shr(), value, Int32Constant(16))),
+  };
+  BuildCallToRuntime(Runtime::kWasmExceptionSetElement, upper_parameters,
+                     arraysize(upper_parameters));
+  ++(*index);
+  Node* lower_parameters[] = {
+      BuildChangeUint32ToSmi(Int32Constant(*index)),
+      BuildChangeUint32ToSmi(graph()->NewNode(machine->Word32And(), value,
+                                              Int32Constant(0xFFFFu))),
+  };
+  BuildCallToRuntime(Runtime::kWasmExceptionSetElement, lower_parameters,
+                     arraysize(lower_parameters));
+  ++(*index);
+}
+
+Node* WasmGraphBuilder::BuildDecodeException32BitValue(Node* const* values,
+                                                       uint32_t* index) {
+  MachineOperatorBuilder* machine = jsgraph()->machine();
+  Node* upper = BuildChangeSmiToInt32(values[*index]);
+  (*index)++;
+  upper = graph()->NewNode(machine->Word32Shl(), upper, Int32Constant(16));
+  Node* lower = BuildChangeSmiToInt32(values[*index]);
+  (*index)++;
+  Node* value = graph()->NewNode(machine->Word32Or(), upper, lower);
+  return value;
 }
 
 Node* WasmGraphBuilder::Rethrow() {
   SetNeedsStackCheck();
-  Node* result = BuildCallToRuntime(Runtime::kWasmRethrow, nullptr, 0);
+  Node* result = BuildCallToRuntime(Runtime::kWasmThrow, nullptr, 0);
   return result;
 }
 
-Node* WasmGraphBuilder::Catch(Node* input, wasm::WasmCodePosition position) {
+Node* WasmGraphBuilder::ConvertExceptionTagToRuntimeId(uint32_t tag) {
+  // TODO(kschimpf): Handle exceptions from different modules, when they are
+  // linked at runtime.
+  return Uint32Constant(tag);
+}
+
+Node* WasmGraphBuilder::GetExceptionRuntimeId() {
   SetNeedsStackCheck();
-  Node* parameters[] = {input};  // caught value
-  Node* value = BuildCallToRuntime(Runtime::kWasmSetCaughtExceptionValue,
+  return BuildChangeSmiToInt32(
+      BuildCallToRuntime(Runtime::kWasmGetExceptionRuntimeId, nullptr, 0));
+}
+
+Node** WasmGraphBuilder::GetExceptionValues(
+    const wasm::WasmException* except_decl) {
+  // TODO(kschimpf): We need to move this code to the function-body-decoder.cc
+  // in order to build landing-pad (exception) edges in case the runtime
+  // call causes an exception.
+
+  // Start by getting the encoded values from the exception.
+  uint32_t encoded_size = GetExceptionEncodedSize(except_decl);
+  Node** values = Buffer(encoded_size);
+  for (uint32_t i = 0; i < encoded_size; ++i) {
+    Node* parameters[] = {BuildChangeUint32ToSmi(Uint32Constant(i))};
+    values[i] = BuildCallToRuntime(Runtime::kWasmExceptionGetElement,
                                    parameters, arraysize(parameters));
-  parameters[0] = value;
-  value = BuildCallToRuntime(Runtime::kWasmGetExceptionTag, parameters,
-                             arraysize(parameters));
-  return BuildChangeSmiToInt32(value);
+  }
+
+  // Now convert the leading entries to the corresponding parameter values.
+  uint32_t index = 0;
+  const wasm::WasmExceptionSig* sig = except_decl->sig;
+  for (size_t i = 0; i < sig->parameter_count(); ++i) {
+    Node* value = BuildDecodeException32BitValue(values, &index);
+    switch (wasm::ValueType type = sig->GetParam(i)) {
+      case wasm::kWasmF32: {
+        value = Unop(wasm::kExprF32ReinterpretI32, value);
+        break;
+      }
+      case wasm::kWasmI32:
+        break;
+      case wasm::kWasmF64:
+      case wasm::kWasmI64: {
+        Node* upper =
+            Binop(wasm::kExprI64Shl, Unop(wasm::kExprI64UConvertI32, value),
+                  Int64Constant(32));
+        Node* lower = Unop(wasm::kExprI64UConvertI32,
+                           BuildDecodeException32BitValue(values, &index));
+        value = Binop(wasm::kExprI64Ior, upper, lower);
+        if (type == wasm::kWasmF64) {
+          value = Unop(wasm::kExprF64ReinterpretI64, value);
+        }
+        break;
+      }
+      default:
+        CHECK(false);
+        break;
+    }
+    values[i] = value;
+  }
+  DCHECK_EQ(index, encoded_size);
+  return values;
 }
 
 Node* WasmGraphBuilder::BuildI32DivS(Node* left, Node* right,

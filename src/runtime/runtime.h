@@ -638,21 +638,22 @@ namespace internal {
   F(IsSharedInteger32TypedArray, 1, 1)   \
   F(TypedArraySpeciesCreateByLength, 2, 1)
 
-#define FOR_EACH_INTRINSIC_WASM(F)     \
-  F(WasmGrowMemory, 1, 1)              \
-  F(WasmMemorySize, 0, 1)              \
-  F(ThrowWasmError, 2, 1)              \
-  F(ThrowWasmErrorFromTrapIf, 1, 1)    \
-  F(ThrowWasmStackOverflow, 0, 1)      \
-  F(WasmThrowTypeError, 0, 1)          \
-  F(WasmThrow, 1, 1)                   \
-  F(WasmRethrow, 0, 1)                 \
-  F(WasmGetExceptionTag, 1, 1)         \
-  F(WasmSetCaughtExceptionValue, 1, 1) \
-  F(WasmRunInterpreter, 3, 1)          \
-  F(WasmStackGuard, 0, 1)              \
-  F(SetThreadInWasm, 0, 1)             \
-  F(ClearThreadInWasm, 0, 1)           \
+#define FOR_EACH_INTRINSIC_WASM(F)   \
+  F(WasmGrowMemory, 1, 1)            \
+  F(WasmMemorySize, 0, 1)            \
+  F(ThrowWasmError, 2, 1)            \
+  F(ThrowWasmErrorFromTrapIf, 1, 1)  \
+  F(ThrowWasmStackOverflow, 0, 1)    \
+  F(WasmThrowTypeError, 0, 1)        \
+  F(WasmThrowCreate, 2, 1)           \
+  F(WasmThrow, 0, 1)                 \
+  F(WasmGetExceptionRuntimeId, 0, 1) \
+  F(WasmExceptionSetElement, 2, 1)   \
+  F(WasmExceptionGetElement, 1, 1)   \
+  F(WasmRunInterpreter, 3, 1)        \
+  F(WasmStackGuard, 0, 1)            \
+  F(SetThreadInWasm, 0, 1)           \
+  F(ClearThreadInWasm, 0, 1)         \
   F(WasmCompileLazy, 0, 1)
 
 #define FOR_EACH_INTRINSIC_RETURN_PAIR(F) \

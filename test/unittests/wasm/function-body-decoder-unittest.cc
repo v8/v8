@@ -2336,8 +2336,7 @@ TEST_F(FunctionBodyDecoderTest, Throw) {
   // exception index out of range.
   EXPECT_FAILURE(v_v, kExprThrow, 2);
 
-  // TODO(kschimpf): Fix when we can create exceptions with values.
-  EXPECT_FAILURE(v_v, WASM_I32V(0), kExprThrow, 1);
+  EXPECT_VERIFIES(v_v, WASM_I32V(0), kExprThrow, 1);
 
   // TODO(kschimpf): Add more tests.
 }

@@ -608,8 +608,8 @@ class Isolate {
   inline void clear_pending_exception();
 
   // Interface to wasm caught exception.
-  inline Object* get_wasm_caught_exception() const;
-  inline void set_wasm_caught_exception(Object* exception_obj);
+  inline Object* get_wasm_caught_exception();
+  inline void set_wasm_caught_exception(Object* exception);
   inline void clear_wasm_caught_exception();
 
   THREAD_LOCAL_TOP_ADDRESS(Object*, pending_exception)
@@ -646,7 +646,7 @@ class Isolate {
   bool IsExternalHandlerOnTop(Object* exception);
 
   inline bool is_catchable_by_javascript(Object* exception);
-  inline bool is_catchable_by_wasm(Object* exception);
+  bool is_catchable_by_wasm(Object* exception);
 
   // JS execution stack (see frames.h).
   static Address c_entry_fp(ThreadLocalTop* thread) {

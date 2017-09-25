@@ -121,6 +121,7 @@ void ThreadLocalTop::Initialize() {
 
 
 void ThreadLocalTop::Free() {
+  wasm_caught_exception_ = nullptr;
   // Match unmatched PopPromise calls.
   while (promise_on_stack_) isolate_->PopPromise();
 }
@@ -1064,6 +1065,16 @@ void ReportBootstrappingException(Handle<Object> exception,
 #endif
 }
 
+bool Isolate::is_catchable_by_wasm(Object* exception) {
+  if (!is_catchable_by_javascript(exception) || !exception->IsJSError())
+    return false;
+  HandleScope scope(this);
+  Handle<Object> exception_handle(exception, this);
+  return JSReceiver::HasProperty(Handle<JSReceiver>::cast(exception_handle),
+                                 factory()->InternalizeUtf8String(
+                                     wasm::WasmException::kRuntimeIdStr))
+      .IsJust();
+}
 
 Object* Isolate::Throw(Object* exception, MessageLocation* location) {
   DCHECK(!has_pending_exception());
@@ -1248,6 +1259,7 @@ Object* Isolate::UnwindAndFindHandler() {
         // again.
         trap_handler::SetThreadInWasm();
 
+        set_wasm_caught_exception(exception);
         return FoundHandler(nullptr, frame->LookupCode(), offset, return_sp,
                             frame->fp());
       }

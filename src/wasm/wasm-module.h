@@ -89,8 +89,13 @@ typedef FunctionSig WasmExceptionSig;
 struct WasmException {
   explicit WasmException(const WasmExceptionSig* sig = &empty_sig_)
       : sig(sig) {}
+  FunctionSig* ToFunctionSig() const { return const_cast<FunctionSig*>(sig); }
 
   const WasmExceptionSig* sig;  // type signature of the exception.
+
+  // Used to hold data on runtime exceptions.
+  static constexpr const char* kRuntimeIdStr = "WasmExceptionRuntimeId";
+  static constexpr const char* kRuntimeValuesStr = "WasmExceptionValues";
 
  private:
   static const WasmExceptionSig empty_sig_;
@@ -153,6 +158,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
 
   static const uint32_t kPageSize = 0x10000;    // Page size, 64kb.
   static const uint32_t kMinMemPages = 1;       // Minimum memory size = 64kb
+
+  static constexpr int kInvalidExceptionTag = -1;
 
   std::unique_ptr<Zone> signature_zone;
   uint32_t initial_pages = 0;      // initial size of the memory in 64k pages

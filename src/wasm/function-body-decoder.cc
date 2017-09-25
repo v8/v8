@@ -27,6 +27,11 @@ namespace wasm {
 
 namespace {
 
+template <typename T>
+Vector<T> vec2vec(ZoneVector<T>& vec) {
+  return Vector<T>(vec.data(), vec.size());
+}
+
 // An SsaEnv environment carries the current local variable renaming
 // as well as the current effect and control dependency in the TF graph.
 // It maintains a control state that tracks whether the environment
@@ -140,8 +145,11 @@ class WasmGraphBuildingInterface {
 
   void Try(Decoder* decoder, Control* block) {
     SsaEnv* outer_env = ssa_env_;
+    SsaEnv* catch_env = Split(decoder, outer_env);
+    // Mark catch environment as unreachable, since only accessable
+    // through catch unwinding (i.e. landing pads).
+    catch_env->state = SsaEnv::kUnreachable;
     SsaEnv* try_env = Steal(decoder->zone(), outer_env);
-    SsaEnv* catch_env = UnreachableEnv(decoder->zone());
     SetEnv(try_env);
     TryInfo* try_info = new (decoder->zone()) TryInfo(catch_env);
     block->end_env = outer_env;
@@ -370,40 +378,81 @@ class WasmGraphBuildingInterface {
     return BUILD(Int32Constant, operand.index);
   }
 
-  void Throw(Decoder* decoder, const ExceptionIndexOperand<true>& operand) {
-    BUILD(Throw, GetExceptionTag(decoder, operand));
+  void Throw(Decoder* decoder, const ExceptionIndexOperand<true>& operand,
+             Control* block, const Vector<Value>& value_args) {
+    int count = value_args.length();
+    ZoneVector<TFNode*> args(count, decoder->zone());
+    for (int i = 0; i < count; ++i) {
+      args[i] = value_args[i].node;
+    }
+    BUILD(Throw, operand.index, operand.exception, vec2vec(args));
+    Unreachable(decoder);
+    EndControl(decoder, block);
   }
 
-  void Catch(Decoder* decoder, const ExceptionIndexOperand<true>& operand,
-             Control* block) {
+  void CatchException(Decoder* decoder,
+                      const ExceptionIndexOperand<true>& operand,
+                      Control* block, void** caught_values_ptr) {
     DCHECK(block->is_try_catch());
     current_catch_ = block->previous_catch;
     SsaEnv* catch_env = block->try_info->catch_env;
     SetEnv(catch_env);
 
-    // Get the exception and see if wanted exception.
-    TFNode* exception_as_i32 =
-        BUILD(Catch, block->try_info->exception, decoder->position());
-    TFNode* exception_tag = GetExceptionTag(decoder, operand);
-    TFNode* compare_i32 = BUILD(Binop, kExprI32Eq, exception_as_i32,
-                                exception_tag, decoder->position());
-    TFNode* if_true = nullptr;
-    TFNode* if_false = nullptr;
-    BUILD(BranchNoHint, compare_i32, &if_true, &if_false);
-    SsaEnv* false_env = Split(decoder, catch_env);
-    false_env->control = if_false;
-    SsaEnv* true_env = Steal(decoder->zone(), catch_env);
-    true_env->control = if_true;
-    block->try_info->catch_env = false_env;
+    TFNode*** caught_values = reinterpret_cast<TFNode***>(caught_values_ptr);
+    TFNode* compare_i32 = nullptr;
+    if (block->try_info->exception == nullptr) {
+      // Catch not applicable, no possible throws in the try
+      // block. Create dummy code so that body of catch still
+      // compiles. Note: This only happens because the current
+      // implementation only builds a landing pad if some node in the
+      // try block can (possibly) throw.
+      //
+      // TODO(kschimpf): Always generate a landing pad for a try block.
+      compare_i32 = BUILD(Int32Constant, 0);
+    } else {
+      // Get the exception and see if wanted exception.
+      TFNode* caught_tag = BUILD(GetExceptionRuntimeId);
+      TFNode* exception_tag =
+          BUILD(ConvertExceptionTagToRuntimeId, operand.index);
+      compare_i32 = BUILD(Binop, kExprI32Eq, caught_tag, exception_tag);
+    }
 
-    // Generate code to re-throw the exception.
-    DCHECK_NOT_NULL(block->try_info->catch_env);
-    SetEnv(false_env);
+    TFNode* if_catch = nullptr;
+    TFNode* if_no_catch = nullptr;
+    BUILD(BranchNoHint, compare_i32, &if_catch, &if_no_catch);
+
+    SsaEnv* if_no_catch_env = Split(decoder, ssa_env_);
+    if_no_catch_env->control = if_no_catch;
+    SsaEnv* if_catch_env = Steal(decoder->zone(), ssa_env_);
+    if_catch_env->control = if_catch;
+
+    // TODO(kschimpf): Generalize to allow more catches. Will force
+    // moving no_catch code to END opcode.
+    SetEnv(if_no_catch_env);
     BUILD(Rethrow);
-    FallThruTo(decoder, block);
+    Unreachable(decoder);
+    EndControl(decoder, block);
 
-    SetEnv(true_env);
-    // TODO(kschimpf): Add code to pop caught exception from isolate.
+    SetEnv(if_catch_env);
+
+    if (block->try_info->exception == nullptr) {
+      *caught_values = nullptr;
+    } else {
+      // TODO(kschimpf): Can't use BUILD() here, GetExceptionValues() returns
+      // TFNode** rather than TFNode*. Fix to add landing pads.
+      *caught_values = builder_->GetExceptionValues(operand.exception);
+    }
+  }
+
+  void SetCaughtValue(Decoder* decoder, void* caught_values_ptr, Value* value,
+                      size_t index) {
+    if (caught_values_ptr) {
+      TFNode** caught_values = reinterpret_cast<TFNode**>(caught_values_ptr);
+      value->node = caught_values[index];
+      return;
+    }
+    // No caught value, make up filler node so that catch block still compiles.
+    value->node = DefaultValue(value->type);
   }
 
   void AtomicOp(Decoder* decoder, WasmOpcode opcode, Vector<Value> args,

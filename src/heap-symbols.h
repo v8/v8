@@ -203,8 +203,7 @@
   V(will_handle_string, "willHandle")                              \
   V(writable_string, "writable")                                   \
   V(year_string, "year")                                           \
-  V(zero_string, "0")                                              \
-  V(WasmExceptionTag_string, "WasmExceptionTag")
+  V(zero_string, "0")
 
 #define PRIVATE_SYMBOL_LIST(V)              \
   V(array_iteration_kind_symbol)            \
