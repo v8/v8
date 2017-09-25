@@ -331,12 +331,13 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
       shared_(shared),
       bailout_(bailout),
       weak_objects_(weak_objects),
-      pending_task_count_(0) {
+      pending_task_count_(0),
+      task_count_(0) {
 // The runtime flag should be set only if the compile time flag was set.
 #ifndef V8_CONCURRENT_MARKING
   CHECK(!FLAG_concurrent_marking);
 #endif
-  for (int i = 0; i <= kTasks; i++) {
+  for (int i = 0; i <= kMaxTasks; i++) {
     is_pending_[i] = false;
   }
 }
@@ -412,21 +413,26 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
 void ConcurrentMarking::ScheduleTasks() {
   if (!FLAG_concurrent_marking) return;
   base::LockGuard<base::Mutex> guard(&pending_lock_);
-  if (pending_task_count_ < kTasks) {
-    // Task id 0 is for the main thread.
-    for (int i = 1; i <= kTasks; i++) {
-      if (!is_pending_[i]) {
-        if (FLAG_trace_concurrent_marking) {
-          heap_->isolate()->PrintWithTimestamp(
-              "Scheduling concurrent marking task %d\n", i);
-        }
-        task_state_[i].interrupt_request.SetValue(false);
-        is_pending_[i] = true;
-        ++pending_task_count_;
-        V8::GetCurrentPlatform()->CallOnBackgroundThread(
-            new Task(heap_->isolate(), this, &task_state_[i], i),
-            v8::Platform::kShortRunningTask);
+  if (task_count_ == 0) {
+    // TODO(ulan): Increase the number of tasks for platforms that benefit
+    // from it.
+    task_count_ = static_cast<int>(
+        V8::GetCurrentPlatform()->NumberOfAvailableBackgroundThreads() / 2);
+    task_count_ = Max(Min(task_count_, kMaxTasks), 1);
+  }
+  // Task id 0 is for the main thread.
+  for (int i = 1; i <= task_count_ && pending_task_count_ < task_count_; i++) {
+    if (!is_pending_[i]) {
+      if (FLAG_trace_concurrent_marking) {
+        heap_->isolate()->PrintWithTimestamp(
+            "Scheduling concurrent marking task %d\n", i);
       }
+      task_state_[i].interrupt_request.SetValue(false);
+      is_pending_[i] = true;
+      ++pending_task_count_;
+      V8::GetCurrentPlatform()->CallOnBackgroundThread(
+          new Task(heap_->isolate(), this, &task_state_[i], i),
+          v8::Platform::kShortRunningTask);
     }
   }
 }
@@ -453,7 +459,7 @@ void ConcurrentMarking::EnsureCompleted() {
 void ConcurrentMarking::FlushLiveBytes(
     MajorNonAtomicMarkingState* marking_state) {
   DCHECK_EQ(pending_task_count_, 0);
-  for (int i = 1; i <= kTasks; i++) {
+  for (int i = 1; i <= task_count_; i++) {
     LiveBytesMap& live_bytes = task_state_[i].live_bytes;
     for (auto pair : live_bytes) {
       // ClearLiveness sets the live bytes to zero.
@@ -467,7 +473,7 @@ void ConcurrentMarking::FlushLiveBytes(
 }
 
 void ConcurrentMarking::ClearLiveness(MemoryChunk* chunk) {
-  for (int i = 1; i <= kTasks; i++) {
+  for (int i = 1; i <= task_count_; i++) {
     if (task_state_[i].live_bytes.count(chunk)) {
       task_state_[i].live_bytes[chunk] = 0;
     }
@@ -478,18 +484,18 @@ ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
     : concurrent_marking_(concurrent_marking) {
   if (!FLAG_concurrent_marking) return;
   // Request task_state for all tasks.
-  for (int i = 1; i <= kTasks; i++) {
+  for (int i = 1; i <= kMaxTasks; i++) {
     concurrent_marking_->task_state_[i].interrupt_request.SetValue(true);
   }
   // Now take a lock to ensure that the tasks are waiting.
-  for (int i = 1; i <= kTasks; i++) {
+  for (int i = 1; i <= kMaxTasks; i++) {
     concurrent_marking_->task_state_[i].lock.Lock();
   }
 }
 
 ConcurrentMarking::PauseScope::~PauseScope() {
   if (!FLAG_concurrent_marking) return;
-  for (int i = kTasks; i >= 1; i--) {
+  for (int i = kMaxTasks; i >= 1; i--) {
     concurrent_marking_->task_state_[i].interrupt_request.SetValue(false);
     concurrent_marking_->task_state_[i].interrupt_condition.NotifyAll();
     concurrent_marking_->task_state_[i].lock.Unlock();
