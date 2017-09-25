@@ -64,6 +64,7 @@
 /testing/gtest
 /third_party/*
 !/third_party/binutils
+!/third_party/eu-strip
 !/third_party/inspector_protocol
 /tools/clang
 /tools/gcmole/gcmole-tools
