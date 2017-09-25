@@ -103,6 +103,26 @@ class BigInt : public HeapObject {
   static void MultiplyAccumulate(Handle<BigInt> multiplicand,
                                  digit_t multiplier, Handle<BigInt> accumulator,
                                  int accumulator_index);
+  static void InternalMultiplyAdd(BigInt* source, digit_t factor,
+                                  digit_t summand, int n, BigInt* result);
+
+  // Specialized helpers for Divide/Remainder.
+  static void AbsoluteDivSmall(Handle<BigInt> x, digit_t divisor,
+                               Handle<BigInt>* quotient, digit_t* remainder);
+  static void AbsoluteDivLarge(Handle<BigInt> dividend, Handle<BigInt> divisor,
+                               Handle<BigInt>* quotient,
+                               Handle<BigInt>* remainder);
+  static bool DoubleDigitGreaterThan(digit_t x_high, digit_t x_low,
+                                     digit_t y_high, digit_t y_low);
+  digit_t InplaceAdd(BigInt* summand, int start_index);
+  digit_t InplaceSub(BigInt* subtrahend, int start_index);
+  void InplaceRightShift(int shift);
+  enum SpecialLeftShiftMode {
+    kSameSizeResult,
+    kAlwaysAddOneDigit,
+  };
+  static Handle<BigInt> SpecialLeftShift(Handle<BigInt> x, int shift,
+                                         SpecialLeftShiftMode mode);
 
   static MaybeHandle<String> ToStringBasePowerOfTwo(Handle<BigInt> x,
                                                     int radix);
@@ -111,6 +131,8 @@ class BigInt : public HeapObject {
   static inline digit_t digit_add(digit_t a, digit_t b, digit_t* carry);
   static inline digit_t digit_sub(digit_t a, digit_t b, digit_t* borrow);
   static inline digit_t digit_mul(digit_t a, digit_t b, digit_t* high);
+  static inline digit_t digit_div(digit_t high, digit_t low, digit_t divisor,
+                                  digit_t* remainder);
 
   class LengthBits : public BitField<int, 0, kMaxLengthBits> {};
   class SignBits : public BitField<bool, LengthBits::kNext, 1> {};
