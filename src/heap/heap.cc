@@ -4808,8 +4808,8 @@ class FixStaleLeftTrimmedHandlesVisitor : public RootVisitor {
 
  private:
   inline void FixHandle(Object** p) {
+    if (!(*p)->IsHeapObject()) return;
     HeapObject* current = reinterpret_cast<HeapObject*>(*p);
-    if (!current->IsHeapObject()) return;
     const MapWord map_word = current->map_word();
     if (!map_word.IsForwardingAddress() && current->IsFiller()) {
 #ifdef DEBUG
