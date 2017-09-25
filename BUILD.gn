@@ -1808,6 +1808,8 @@ v8_source_set("v8_base") {
     "src/objects/name.h",
     "src/objects/object-macros-undef.h",
     "src/objects/object-macros.h",
+    "src/objects/property-descriptor-object-inl.h",
+    "src/objects/property-descriptor-object.h",
     "src/objects/regexp-match-info.h",
     "src/objects/scope-info.cc",
     "src/objects/scope-info.h",

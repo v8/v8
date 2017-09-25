@@ -324,6 +324,8 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ThrowInvalidHint)                \
   V(ThrowNotDateError)               \
   V(ThrowRangeError)                 \
+  V(ToName)                          \
+  V(GetOwnPropertyDescriptor)        \
   /* Misc. */                        \
   V(Call)                            \
   V(MaxSmi)                          \

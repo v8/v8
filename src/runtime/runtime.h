@@ -427,7 +427,8 @@ namespace internal {
   F(HasInPrototypeChain, 2, 1)                                  \
   F(CreateIterResultObject, 2, 1)                               \
   F(CreateDataProperty, 3, 1)                                   \
-  F(IterableToListCanBeElided, 1, 1)
+  F(IterableToListCanBeElided, 1, 1)                            \
+  F(GetOwnPropertyDescriptor, 2, 1)
 
 #define FOR_EACH_INTRINSIC_OPERATORS(F) \
   F(Multiply, 2, 1)                     \

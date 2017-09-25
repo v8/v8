@@ -9,6 +9,7 @@
 #include "src/debug/debug.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
+#include "src/objects/property-descriptor-object.h"
 #include "src/property-descriptor.h"
 #include "src/runtime/runtime.h"
 
@@ -1198,6 +1199,22 @@ RUNTIME_FUNCTION(Runtime_IterableToListCanBeElided) {
   if (!IsFastNumberElementsKind(kind)) return isolate->heap()->ToBoolean(false);
 
   return isolate->heap()->ToBoolean(!obj->IterationHasObservableEffects());
+}
+
+RUNTIME_FUNCTION(Runtime_GetOwnPropertyDescriptor) {
+  HandleScope scope(isolate);
+
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, object, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Name, name, 1);
+
+  PropertyDescriptor desc;
+  Maybe<bool> found =
+      JSReceiver::GetOwnPropertyDescriptor(isolate, object, name, &desc);
+  MAYBE_RETURN(found, isolate->heap()->exception());
+
+  if (!found.FromJust()) return isolate->heap()->undefined_value();
+  return *desc.ToPropertyDescriptorObject(isolate);
 }
 
 }  // namespace internal

@@ -1188,6 +1188,8 @@
         'objects/module.h',
         'objects/object-macros.h',
         'objects/object-macros-undef.h',
+        'objects/property-descriptor-object.h',
+        'objects/property-descriptor-object-inl.h',
         'objects/regexp-match-info.h',
         'objects/scope-info.cc',
         'objects/scope-info.h',

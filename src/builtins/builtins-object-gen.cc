@@ -6,6 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/factory-inl.h"
+#include "src/objects/property-descriptor-object.h"
 #include "src/objects/shared-function-info.h"
 
 namespace v8 {
@@ -23,6 +24,9 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   void ReturnToStringFormat(Node* context, Node* string);
+  void AddToDictionaryIf(Node* condition, Node* name_dictionary,
+                         Handle<Name> name, Node* value, Label* bailout);
+  Node* FromPropertyDescriptor(Node* context, Node* desc);
 };
 
 void ObjectBuiltinsAssembler::ReturnToStringFormat(Node* context,
@@ -689,5 +693,181 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   }
 }
 
+// ES6 section 19.1.2.7 Object.getOwnPropertyDescriptor ( O, P )
+TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
+  Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+  CSA_ASSERT(this, WordEqual(Parameter(BuiltinDescriptor::kNewTarget),
+                             UndefinedConstant()));
+
+  CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
+  Node* obj = args.GetOptionalArgumentValue(0);
+  Node* key = args.GetOptionalArgumentValue(1);
+
+  // 1. Let obj be ? ToObject(O).
+  Node* object = CallBuiltin(Builtins::kToObject, context, obj);
+
+  // 2. Let key be ? ToPropertyKey(P).
+  Node* name = ToName(context, key);
+
+  // 3. Let desc be ? obj.[[GetOwnProperty]](key).
+  Node* desc =
+      CallRuntime(Runtime::kGetOwnPropertyDescriptor, context, object, name);
+
+  Label return_undefined(this, Label::kDeferred);
+  GotoIf(IsUndefined(desc), &return_undefined);
+
+  CSA_ASSERT(this, IsFixedArray(desc));
+
+  // 4. Return FromPropertyDescriptor(desc).
+  args.PopAndReturn(FromPropertyDescriptor(context, desc));
+
+  BIND(&return_undefined);
+  args.PopAndReturn(UndefinedConstant());
+}
+
+void ObjectBuiltinsAssembler::AddToDictionaryIf(Node* condition,
+                                                Node* name_dictionary,
+                                                Handle<Name> name, Node* value,
+                                                Label* bailout) {
+  Label done(this);
+  GotoIfNot(condition, &done);
+
+  Add<NameDictionary>(name_dictionary, HeapConstant(name), value, bailout);
+  Goto(&done);
+
+  BIND(&done);
+}
+
+Node* ObjectBuiltinsAssembler::FromPropertyDescriptor(Node* context,
+                                                      Node* desc) {
+  VARIABLE(js_descriptor, MachineRepresentation::kTagged);
+
+  Node* flags = LoadAndUntagToWord32ObjectField(
+      desc, PropertyDescriptorObject::kFlagsOffset);
+
+  Node* has_flags =
+      Word32And(flags, Int32Constant(PropertyDescriptorObject::kHasMask));
+
+  Label if_accessor_desc(this), if_data_desc(this), if_generic_desc(this),
+      return_desc(this);
+  GotoIf(
+      Word32Equal(has_flags,
+                  Int32Constant(
+                      PropertyDescriptorObject::kRegularAccessorPropertyBits)),
+      &if_accessor_desc);
+  GotoIf(Word32Equal(
+             has_flags,
+             Int32Constant(PropertyDescriptorObject::kRegularDataPropertyBits)),
+         &if_data_desc);
+  Goto(&if_generic_desc);
+
+  BIND(&if_accessor_desc);
+  {
+    Node* native_context = LoadNativeContext(context);
+    Node* map = LoadContextElement(
+        native_context, Context::ACCESSOR_PROPERTY_DESCRIPTOR_MAP_INDEX);
+    Node* js_desc = AllocateJSObjectFromMap(map);
+
+    StoreObjectFieldNoWriteBarrier(
+        js_desc, JSAccessorPropertyDescriptor::kGetOffset,
+        LoadObjectField(desc, PropertyDescriptorObject::kGetOffset));
+    StoreObjectFieldNoWriteBarrier(
+        js_desc, JSAccessorPropertyDescriptor::kSetOffset,
+        LoadObjectField(desc, PropertyDescriptorObject::kSetOffset));
+    StoreObjectFieldNoWriteBarrier(
+        js_desc, JSAccessorPropertyDescriptor::kEnumerableOffset,
+        SelectBooleanConstant(
+            IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags)));
+    StoreObjectFieldNoWriteBarrier(
+        js_desc, JSAccessorPropertyDescriptor::kConfigurableOffset,
+        SelectBooleanConstant(
+            IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags)));
+
+    js_descriptor.Bind(js_desc);
+    Goto(&return_desc);
+  }
+
+  BIND(&if_data_desc);
+  {
+    Node* native_context = LoadNativeContext(context);
+    Node* map = LoadContextElement(native_context,
+                                   Context::DATA_PROPERTY_DESCRIPTOR_MAP_INDEX);
+    Node* js_desc = AllocateJSObjectFromMap(map);
+
+    StoreObjectFieldNoWriteBarrier(
+        js_desc, JSDataPropertyDescriptor::kValueOffset,
+        LoadObjectField(desc, PropertyDescriptorObject::kValueOffset));
+    StoreObjectFieldNoWriteBarrier(
+        js_desc, JSDataPropertyDescriptor::kWritableOffset,
+        SelectBooleanConstant(
+            IsSetWord32<PropertyDescriptorObject::IsWritableBit>(flags)));
+    StoreObjectFieldNoWriteBarrier(
+        js_desc, JSDataPropertyDescriptor::kEnumerableOffset,
+        SelectBooleanConstant(
+            IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags)));
+    StoreObjectFieldNoWriteBarrier(
+        js_desc, JSDataPropertyDescriptor::kConfigurableOffset,
+        SelectBooleanConstant(
+            IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags)));
+
+    js_descriptor.Bind(js_desc);
+    Goto(&return_desc);
+  }
+
+  BIND(&if_generic_desc);
+  {
+    Node* native_context = LoadNativeContext(context);
+    Node* map = LoadContextElement(
+        native_context, Context::SLOW_OBJECT_WITH_OBJECT_PROTOTYPE_MAP);
+    // We want to preallocate the slots for value, writable, get, set,
+    // enumerable and configurable - a total of 6
+    Node* properties = AllocateNameDictionary(6);
+    Node* js_desc = AllocateJSObjectFromMap(map, properties);
+
+    Label bailout(this, Label::kDeferred);
+
+    Factory* factory = isolate()->factory();
+    Node* value = LoadObjectField(desc, PropertyDescriptorObject::kValueOffset);
+    AddToDictionaryIf(IsNotTheHole(value), properties, factory->value_string(),
+                      value, &bailout);
+    AddToDictionaryIf(
+        IsSetWord32<PropertyDescriptorObject::HasWritableBit>(flags),
+        properties, factory->writable_string(),
+        SelectBooleanConstant(
+            IsSetWord32<PropertyDescriptorObject::IsWritableBit>(flags)),
+        &bailout);
+
+    Node* get = LoadObjectField(desc, PropertyDescriptorObject::kGetOffset);
+    AddToDictionaryIf(IsNotTheHole(get), properties, factory->get_string(), get,
+                      &bailout);
+    Node* set = LoadObjectField(desc, PropertyDescriptorObject::kSetOffset);
+    AddToDictionaryIf(IsNotTheHole(set), properties, factory->set_string(), set,
+                      &bailout);
+
+    AddToDictionaryIf(
+        IsSetWord32<PropertyDescriptorObject::HasEnumerableBit>(flags),
+        properties, factory->enumerable_string(),
+        SelectBooleanConstant(
+            IsSetWord32<PropertyDescriptorObject::IsEnumerableBit>(flags)),
+        &bailout);
+    AddToDictionaryIf(
+        IsSetWord32<PropertyDescriptorObject::HasConfigurableBit>(flags),
+        properties, factory->configurable_string(),
+        SelectBooleanConstant(
+            IsSetWord32<PropertyDescriptorObject::IsConfigurableBit>(flags)),
+        &bailout);
+
+    js_descriptor.Bind(js_desc);
+    Goto(&return_desc);
+
+    BIND(&bailout);
+    CSA_ASSERT(this, Int32Constant(0));
+    Unreachable();
+  }
+
+  BIND(&return_desc);
+  return js_descriptor.value();
+}
 }  // namespace internal
 }  // namespace v8

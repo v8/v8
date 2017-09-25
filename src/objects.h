@@ -174,6 +174,7 @@ namespace v8 {
 namespace internal {
 
 struct InliningPosition;
+class PropertyDescriptorObject;
 
 enum KeyedAccessStoreMode {
   STANDARD_STORE,
@@ -1072,6 +1073,7 @@ template <class C> inline bool Is(Object* obj);
   V(PreParsedScopeData)                   \
   V(PropertyArray)                        \
   V(PropertyCell)                         \
+  V(PropertyDescriptorObject)             \
   V(RegExpMatchInfo)                      \
   V(ScopeInfo)                            \
   V(ScriptContextTable)                   \

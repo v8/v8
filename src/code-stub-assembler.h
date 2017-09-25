@@ -365,6 +365,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> WordIsWordAligned(SloppyTNode<WordT> word);
   TNode<BoolT> WordIsPowerOfTwo(SloppyTNode<IntPtrT> value);
 
+  Node* IsNotTheHole(Node* value) { return Word32BinaryNot(IsTheHole(value)); }
+
 #if DEBUG
   void Bind(Label* label, AssemblerDebugInfo debug_info);
 #else

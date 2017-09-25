@@ -706,7 +706,8 @@ namespace internal {
   CPP(ObjectDefineSetter)                                                      \
   CPP(ObjectEntries)                                                           \
   CPP(ObjectFreeze)                                                            \
-  CPP(ObjectGetOwnPropertyDescriptor)                                          \
+  TFJ(ObjectGetOwnPropertyDescriptor,                                          \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   CPP(ObjectGetOwnPropertyDescriptors)                                         \
   CPP(ObjectGetOwnPropertyNames)                                               \
   CPP(ObjectGetOwnPropertySymbols)                                             \

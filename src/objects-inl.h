@@ -318,6 +318,8 @@ bool HeapObject::IsJSCollection() const { return IsJSMap() || IsJSSet(); }
 
 bool HeapObject::IsDescriptorArray() const { return IsFixedArray(); }
 
+bool HeapObject::IsPropertyDescriptorObject() const { return IsFixedArray(); }
+
 bool HeapObject::IsEnumCache() const { return IsTuple2(); }
 
 bool HeapObject::IsFrameArray() const { return IsFixedArray(); }
