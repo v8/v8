@@ -111,7 +111,7 @@ int RegisterHandlerData(void* base, size_t size,
       new_size = int_max;
     }
     if (new_size == gNumCodeObjects) {
-      return -1;
+      return kInvalidIndex;
     }
 
     // Now that we know our new size is valid, we can go ahead and realloc the
@@ -145,11 +145,16 @@ int RegisterHandlerData(void* base, size_t size,
     gCodeObjects[i].code_info = data;
     return static_cast<int>(i);
   } else {
-    return -1;
+    return kInvalidIndex;
   }
 }
 
 void ReleaseHandlerData(int index) {
+  if (index == kInvalidIndex) {
+    return;
+  }
+  DCHECK_GE(index, 0);
+
   // Remove the data from the global list if it's there.
   CodeProtectionInfo* data = nullptr;
   {

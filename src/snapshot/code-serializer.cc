@@ -254,10 +254,21 @@ void WasmCompiledModuleSerializer::SerializeCodeObject(
   Code::Kind kind = code_object->kind();
   switch (kind) {
     case Code::WASM_FUNCTION:
-    case Code::JS_TO_WASM_FUNCTION:
+    case Code::JS_TO_WASM_FUNCTION: {
+      // Because the trap handler index is not meaningful across copies and
+      // serializations, we need to serialize it as kInvalidIndex. We do this by
+      // saving the old value, setting the index to kInvalidIndex and then
+      // restoring the old value.
+      const int old_trap_handler_index =
+          code_object->trap_handler_index()->value();
+      code_object->set_trap_handler_index(
+          Smi::FromInt(trap_handler::kInvalidIndex));
+
       // Just serialize the code_object.
       SerializeGeneric(code_object, how_to_code, where_to_point);
+      code_object->set_trap_handler_index(Smi::FromInt(old_trap_handler_index));
       break;
+    }
     case Code::WASM_INTERPRETER_ENTRY:
     case Code::WASM_TO_JS_FUNCTION:
       // Serialize the illegal builtin instead. On instantiation of a

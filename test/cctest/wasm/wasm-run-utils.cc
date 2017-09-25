@@ -472,6 +472,16 @@ WasmFunctionCompiler::WasmFunctionCompiler(Zone* zone, FunctionSig* sig,
   function_ = builder_->GetFunctionAt(index);
 }
 
+WasmFunctionCompiler::~WasmFunctionCompiler() {
+  if (trap_handler::UseTrapHandler() &&
+      !builder_->GetFunctionCode(function_index()).is_null()) {
+    const int handler_index = builder_->GetFunctionCode(function_index())
+                                  ->trap_handler_index()
+                                  ->value();
+    trap_handler::ReleaseHandlerData(handler_index);
+  }
+}
+
 FunctionSig* WasmRunnerBase::CreateSig(MachineType return_type,
                                        Vector<MachineType> param_types) {
   int return_count = return_type.IsNone() ? 0 : 1;

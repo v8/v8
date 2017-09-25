@@ -51,6 +51,7 @@
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot.h"
 #include "src/tracing/trace-event.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/utils-inl.h"
 #include "src/utils.h"
 #include "src/v8.h"
@@ -3110,6 +3111,12 @@ AllocationResult Heap::CopyCode(Code* code) {
   DCHECK(!memory_allocator()->code_range()->valid() ||
          memory_allocator()->code_range()->contains(code->address()) ||
          obj_size <= code_space()->AreaSize());
+
+  // Clear the trap handler index since they can't be shared between code. We
+  // have to do this before calling Relocate becauase relocate would adjust the
+  // base pointer for the old code.
+  new_code->set_trap_handler_index(Smi::FromInt(trap_handler::kInvalidIndex));
+
   new_code->Relocate(new_addr - old_addr);
   // We have to iterate over the object and process its pointers when black
   // allocation is on.

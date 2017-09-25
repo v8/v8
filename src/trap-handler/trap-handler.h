@@ -38,6 +38,8 @@ struct ProtectedInstructionData {
   intptr_t landing_offset;
 };
 
+const int kInvalidIndex = -1;
+
 /// Adjusts the base code pointer.
 void UpdateHandlerDataCodePointer(int index, void* base);
 

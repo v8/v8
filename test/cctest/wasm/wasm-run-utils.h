@@ -259,6 +259,8 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
 // interpretation (by adding to the interpreter manually).
 class WasmFunctionCompiler : public compiler::GraphAndBuilders {
  public:
+  ~WasmFunctionCompiler();
+
   Isolate* isolate() { return builder_->isolate(); }
   CallDescriptor* descriptor() {
     if (descriptor_ == nullptr) {

@@ -109,7 +109,7 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
       int index = code->trap_handler_index()->value();
       if (index >= 0) {
         trap_handler::ReleaseHandlerData(index);
-        code->set_trap_handler_index(Smi::FromInt(-1));
+        code->set_trap_handler_index(Smi::FromInt(trap_handler::kInvalidIndex));
       }
     }
   }
@@ -314,6 +314,11 @@ void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
     }
 
     if (code->kind() != Code::WASM_FUNCTION) {
+      continue;
+    }
+
+    if (code->trap_handler_index()->value() != trap_handler::kInvalidIndex) {
+      // This function has already been registered.
       continue;
     }
 
