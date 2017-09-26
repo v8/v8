@@ -102,6 +102,7 @@ class SerializedCodeData : public SerializedData {
   // ...  reservations
   // ...  code stub keys
   // ...  serialized payload
+  static const uint32_t kVersionHashOffset = kMagicNumberOffset + kUInt32Size;
   static const uint32_t kSourceHashOffset = kVersionHashOffset + kUInt32Size;
   static const uint32_t kCpuFeaturesOffset = kSourceHashOffset + kUInt32Size;
   static const uint32_t kFlagHashOffset = kCpuFeaturesOffset + kUInt32Size;

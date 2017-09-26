@@ -41,6 +41,7 @@ bool Snapshot::Initialize(Isolate* isolate) {
   if (FLAG_profile_deserialization) timer.Start();
 
   const v8::StartupData* blob = isolate->snapshot_blob();
+  CheckVersion(blob);
   Vector<const byte> startup_data = ExtractStartupData(blob);
   SnapshotData startup_snapshot_data(startup_data);
   Vector<const byte> builtin_data = ExtractBuiltinData(blob);
@@ -154,6 +155,11 @@ v8::StartupData Snapshot::CreateSnapshotBlob(
   char* data = new char[total_length];
   SetHeaderValue(data, kNumberOfContextsOffset, num_contexts);
   SetHeaderValue(data, kRehashabilityOffset, can_be_rehashed ? 1 : 0);
+
+  // Write version string into snapshot data.
+  memset(data + kVersionStringOffset, 0, kVersionStringLength);
+  Version::GetString(
+      Vector<char>(data + kVersionStringOffset, kVersionStringLength));
 
   // Startup snapshot (isolate-specific data).
   uint32_t payload_offset = startup_snapshot_offset;
@@ -269,6 +275,25 @@ Vector<const byte> Snapshot::ExtractContextData(const v8::StartupData* data,
   return Vector<const byte>(context_data, context_length);
 }
 
+void Snapshot::CheckVersion(const v8::StartupData* data) {
+  char version[kVersionStringLength];
+  memset(version, 0, kVersionStringLength);
+  CHECK_LT(kVersionStringOffset + kVersionStringLength,
+           static_cast<uint32_t>(data->raw_size));
+  Version::GetString(Vector<char>(version, kVersionStringLength));
+  if (memcmp(version, data->data + kVersionStringOffset,
+             kVersionStringLength) != 0) {
+    V8_Fatal(__FILE__, __LINE__,
+             "Version mismatch between V8 binary and snapshot.\n"
+             "#   V8 binary version: %.*s\n"
+             "#    Snapshot version: %.*s\n"
+             "# The snapshot consists of %d bytes and contains %d context(s).",
+             kVersionStringLength, version, kVersionStringLength,
+             data->data + kVersionStringOffset, data->raw_size,
+             ExtractNumContexts(data));
+  }
+}
+
 template <class AllocatorT>
 SnapshotData::SnapshotData(const Serializer<AllocatorT>* serializer) {
   DisallowHeapAllocation no_gc;
@@ -286,7 +311,6 @@ SnapshotData::SnapshotData(const Serializer<AllocatorT>* serializer) {
 
   // Set header values.
   SetMagicNumber(serializer->isolate());
-  SetHeaderValue(kVersionHashOffset, Version::Hash());
   SetHeaderValue(kNumReservationsOffset, static_cast<int>(reservations.size()));
   SetHeaderValue(kPayloadLengthOffset, static_cast<int>(payload->size()));
 
@@ -302,10 +326,6 @@ SnapshotData::SnapshotData(const Serializer<AllocatorT>* serializer) {
 // Explicit instantiation.
 template SnapshotData::SnapshotData(
     const Serializer<DefaultSerializerAllocator>* serializer);
-
-bool SnapshotData::IsSane() {
-  return GetHeaderValue(kVersionHashOffset) == Version::Hash();
-}
 
 Vector<const SerializedData::Reservation> SnapshotData::Reservations() const {
   return Vector<const Reservation>(

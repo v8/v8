@@ -29,7 +29,6 @@ class SnapshotData : public SerializedData {
   // Used when consuming.
   explicit SnapshotData(const Vector<const byte> snapshot)
       : SerializedData(const_cast<byte*>(snapshot.begin()), snapshot.length()) {
-    CHECK(IsSane());
   }
 
   Vector<const Reservation> Reservations() const;
@@ -40,18 +39,14 @@ class SnapshotData : public SerializedData {
   }
 
  protected:
-  bool IsSane();
-
   // The data header consists of uint32_t-sized entries:
   // [0] magic number and (internal) external reference count
-  // [1] API-provided external reference count
-  // [2] version hash
-  // [3] number of reservation size entries
-  // [4] payload length
+  // [1] number of reservation size entries
+  // [2] payload length
   // ... reservations
   // ... serialized payload
   static const uint32_t kNumReservationsOffset =
-      kVersionHashOffset + kUInt32Size;
+      kMagicNumberOffset + kUInt32Size;
   static const uint32_t kPayloadLengthOffset =
       kNumReservationsOffset + kUInt32Size;
   static const uint32_t kHeaderSize = kPayloadLengthOffset + kUInt32Size;
@@ -67,7 +62,6 @@ class BuiltinSnapshotData final : public SnapshotData {
   // Used when consuming.
   explicit BuiltinSnapshotData(const Vector<const byte> snapshot)
       : SnapshotData(snapshot) {
-    CHECK(IsSane());
   }
 
   // Returns the serialized payload without the builtin offsets table.
@@ -141,12 +135,15 @@ class Snapshot : public AllStatic {
     WriteLittleEndianValue(data + offset, value);
   }
 
+  static void CheckVersion(const v8::StartupData* data);
+
   // Snapshot blob layout:
   // [0] number of contexts N
   // [1] rehashability
-  // [2] offset to builtins
-  // [3] offset to context 0
-  // [4] offset to context 1
+  // [2] (128 bytes) version string
+  // [3] offset to builtins
+  // [4] offset to context 0
+  // [5] offset to context 1
   // ...
   // ... offset to context N - 1
   // ... startup snapshot data
@@ -158,7 +155,11 @@ class Snapshot : public AllStatic {
   // TODO(yangguo): generalize rehashing, and remove this flag.
   static const uint32_t kRehashabilityOffset =
       kNumberOfContextsOffset + kUInt32Size;
-  static const int kBuiltinOffsetOffset = kRehashabilityOffset + kUInt32Size;
+  static const uint32_t kVersionStringOffset =
+      kRehashabilityOffset + kUInt32Size;
+  static const uint32_t kVersionStringLength = 64;
+  static const uint32_t kBuiltinOffsetOffset =
+      kVersionStringOffset + kVersionStringLength;
   static const uint32_t kFirstContextOffsetOffset =
       kBuiltinOffsetOffset + kUInt32Size;
 
