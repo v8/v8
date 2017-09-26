@@ -1264,7 +1264,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
       // that is non-configurable, non-writable (i.e. the {receiver} was
       // frozen using Object.freeze).
       NumberMatcher mindex(index);
-      if (mindex.IsInteger() && mindex.IsInRange(0.0, kMaxUInt32)) {
+      if (mindex.IsInteger() && mindex.IsInRange(0.0, kMaxUInt32 - 1.0)) {
         LookupIterator it(isolate(), mreceiver.Value(),
                           static_cast<uint32_t>(mindex.Value()),
                           LookupIterator::OWN);
