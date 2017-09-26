@@ -26,6 +26,7 @@
 #include "src/splay-tree-inl.h"
 #include "src/string-search.h"
 #include "src/unicode-decoder.h"
+#include "src/unicode-inl.h"
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uniset.h"

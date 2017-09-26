@@ -43,6 +43,8 @@
 #include "src/regexp/regexp-parser.h"
 #include "src/splay-tree-inl.h"
 #include "src/string-stream.h"
+#include "src/unicode-inl.h"
+
 #ifdef V8_INTERPRETED_REGEXP
 #include "src/regexp/interpreter-irregexp.h"
 #else  // V8_INTERPRETED_REGEXP

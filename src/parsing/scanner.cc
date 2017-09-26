@@ -14,6 +14,7 @@
 #include "src/char-predicates-inl.h"
 #include "src/conversions-inl.h"
 #include "src/parsing/duplicate-finder.h"  // For Scanner::FindSymbol
+#include "src/unicode-cache-inl.h"
 
 namespace v8 {
 namespace internal {

@@ -19,6 +19,8 @@
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/module.h"
 #include "src/objects/scope-info.h"
+#include "src/unicode-cache.h"
+#include "src/unicode-decoder.h"
 
 namespace v8 {
 namespace internal {

@@ -29,6 +29,7 @@
 #include "src/source-position-table.h"
 #include "src/string-stream.h"
 #include "src/tracing/tracing-category-observer.h"
+#include "src/unicode-inl.h"
 #include "src/vm-state-inl.h"
 
 namespace v8 {

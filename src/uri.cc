@@ -10,6 +10,7 @@
 #include "src/handles.h"
 #include "src/isolate-inl.h"
 #include "src/string-search.h"
+#include "src/unicode-inl.h"
 
 namespace v8 {
 namespace internal {
