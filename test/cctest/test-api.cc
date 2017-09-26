@@ -8544,6 +8544,17 @@ THREADED_TEST(OverlongSequencesAndSurrogates) {
       "X\xed\xa0\x80Y\0",
       // Invalid 4-bytes sequence (value out of range).
       "X\xf4\x90\x80\x80Y\0",
+
+      // Start of an overlong 3-byte sequence but not enough continuation bytes.
+      "X\xe0\x9fY\0",
+      // Start of an overlong 4-byte sequence but not enough continuation bytes.
+      "X\xf0\x89\xbfY\0",
+      // Start of an invalid 3-byte sequence (reserved for surrogates) but not
+      // enough continuation bytes.
+      "X\xed\xa0Y\0",
+      // Start of an invalid 4-bytes sequence (value out of range) but not
+      // enough continuation bytes.
+      "X\xf4\x90\x80Y\0",
   };
   const std::vector<std::vector<uint16_t>> unicode_expected = {
       {0x58, 0xfffd, 0xfffd, 0x59},
@@ -8552,6 +8563,10 @@ THREADED_TEST(OverlongSequencesAndSurrogates) {
       {0x58, 0xfffd, 0xfffd, 0xfffd, 0xfffd, 0x59},
       {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
       {0x58, 0xfffd, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0x59},
+      {0x58, 0xfffd, 0xfffd, 0xfffd, 0x59},
   };
   CHECK_EQ(unicode_expected.size(), arraysize(cases));
   TestUtf8DecodingAgainstReference(cases, unicode_expected);

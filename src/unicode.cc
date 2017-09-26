@@ -230,6 +230,8 @@ static inline bool IsContinuationCharacter(byte chr) {
 // This method decodes an UTF-8 value according to RFC 3629 and
 // https://encoding.spec.whatwg.org/#utf-8-decoder .
 uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
+  DCHECK_GT(str[0], kMaxOneByteChar);
+
   size_t length = NonASCIISequenceLength(str[0]);
 
   // Check continuation characters.
@@ -238,39 +240,46 @@ uchar Utf8::CalculateValue(const byte* str, size_t max_length, size_t* cursor) {
   while (count < max_count && IsContinuationCharacter(str[count])) {
     count++;
   }
-  *cursor += count;
 
-  // There must be enough continuation characters.
-  if (count != length) return kBadChar;
+  if (length >= 3 && count < 2) {
+    // Not enough continuation bytes to check overlong sequences.
+    *cursor += 1;
+    return kBadChar;
+  }
 
   // Check overly long sequences & other conditions.
   if (length == 3) {
     if (str[0] == 0xE0 && (str[1] < 0xA0 || str[1] > 0xBF)) {
       // Overlong three-byte sequence? The first byte generates a kBadChar.
-      *cursor -= 2;
+      *cursor += 1;
       return kBadChar;
     } else if (str[0] == 0xED && (str[1] < 0x80 || str[1] > 0x9F)) {
       // High and low surrogate halves? The first byte generates a kBadChar.
-      *cursor -= 2;
+      *cursor += 1;
       return kBadChar;
     }
   } else if (length == 4) {
     if (str[0] == 0xF0 && (str[1] < 0x90 || str[1] > 0xBF)) {
       // Overlong four-byte sequence. The first byte generates a kBadChar.
-      *cursor -= 3;
+      *cursor += 1;
       return kBadChar;
     } else if (str[0] == 0xF4 && (str[1] < 0x80 || str[1] > 0x8F)) {
       // Code points outside of the unicode range. The first byte generates a
       // kBadChar.
-      *cursor -= 3;
+      *cursor += 1;
       return kBadChar;
     }
   }
 
+  *cursor += count;
+
+  if (count != length) {
+    // Not enough continuation characters.
+    return kBadChar;
+  }
+
   // All errors have been handled, so we only have to assemble the result.
   switch (length) {
-    case 1:
-      return str[0];
     case 2:
       return ((str[0] << 6) + str[1]) - 0x00003080;
     case 3:
