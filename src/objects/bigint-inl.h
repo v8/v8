@@ -36,10 +36,12 @@ void BigInt::set_sign(bool new_sign) {
 }
 
 BigInt::digit_t BigInt::digit(int n) const {
+  SLOW_DCHECK(0 <= n && n < length());
   const byte* address = FIELD_ADDR_CONST(this, kDigitsOffset + n * kDigitSize);
   return *reinterpret_cast<digit_t*>(reinterpret_cast<intptr_t>(address));
 }
 void BigInt::set_digit(int n, digit_t value) {
+  SLOW_DCHECK(0 <= n && n < length());
   byte* address = FIELD_ADDR(this, kDigitsOffset + n * kDigitSize);
   (*reinterpret_cast<digit_t*>(reinterpret_cast<intptr_t>(address))) = value;
 }

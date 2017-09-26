@@ -573,7 +573,7 @@ Handle<BigInt> BigInt::Copy(Handle<BigInt> source) {
 void BigInt::RightTrim() {
   int old_length = length();
   int new_length = old_length;
-  while (digit(new_length - 1) == 0) new_length--;
+  while (new_length > 0 && digit(new_length - 1) == 0) new_length--;
   int to_trim = old_length - new_length;
   if (to_trim == 0) return;
   int size_delta = to_trim * kDigitSize;
@@ -704,8 +704,8 @@ inline BigInt::digit_t BigInt::digit_mul(digit_t a, digit_t b, digit_t* high) {
   digit_t r_high = a_high * b_high;
 
   digit_t carry = 0;
-  digit_t low = digit_add(r_low, r_mid1 & kHalfDigitMask, &carry);
-  low = digit_add(low, r_mid2 & kHalfDigitMask, &carry);
+  digit_t low = digit_add(r_low, r_mid1 << kHalfDigitBits, &carry);
+  low = digit_add(low, r_mid2 << kHalfDigitBits, &carry);
   *high =
       (r_mid1 >> kHalfDigitBits) + (r_mid2 >> kHalfDigitBits) + r_high + carry;
   return low;
