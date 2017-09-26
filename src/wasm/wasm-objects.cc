@@ -219,7 +219,7 @@ Handle<FixedArray> WasmTableObject::AddDispatchTable(
   return new_dispatch_tables;
 }
 
-void WasmTableObject::grow(Isolate* isolate, uint32_t count) {
+void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
   Handle<FixedArray> dispatch_tables(this->dispatch_tables());
   DCHECK_EQ(0, dispatch_tables->length() % 4);
   uint32_t old_size = functions()->length();
@@ -272,6 +272,29 @@ void WasmTableObject::grow(Isolate* isolate, uint32_t count) {
           new_signature_table_addr);
     }
   }
+}
+
+void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
+                          int32_t index, Handle<JSFunction> function) {
+  Handle<FixedArray> array(table->functions(), isolate);
+
+  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
+
+  WasmFunction* wasm_function = nullptr;
+  Handle<Code> code = Handle<Code>::null();
+  Handle<Object> value = isolate->factory()->null_value();
+
+  if (!function.is_null()) {
+    wasm_function = wasm::GetWasmFunctionForExport(isolate, function);
+    // The verification that {function} is an export was done
+    // by the caller.
+    DCHECK_NOT_NULL(wasm_function);
+    code = wasm::UnwrapExportWrapper(function);
+    value = Handle<Object>::cast(function);
+  }
+
+  UpdateDispatchTables(isolate, dispatch_tables, index, wasm_function, code);
+  array->set(index, *value);
 }
 
 namespace {
@@ -537,6 +560,20 @@ uint32_t WasmInstanceObject::GetMaxMemoryPages() {
       compiled_maximum_pages);
   if (compiled_maximum_pages != 0) return compiled_maximum_pages;
   return FLAG_wasm_max_mem_pages;
+}
+
+WasmInstanceObject* WasmInstanceObject::GetOwningInstance(Code* code) {
+  DisallowHeapAllocation no_gc;
+  DCHECK(code->kind() == Code::WASM_FUNCTION ||
+         code->kind() == Code::WASM_INTERPRETER_ENTRY);
+  FixedArray* deopt_data = code->deoptimization_data();
+  DCHECK_EQ(code->kind() == Code::WASM_INTERPRETER_ENTRY ? 1 : 2,
+            deopt_data->length());
+  Object* weak_link = deopt_data->get(0);
+  DCHECK(weak_link->IsWeakCell());
+  WeakCell* cell = WeakCell::cast(weak_link);
+  if (cell->cleared()) return nullptr;
+  return WasmInstanceObject::cast(cell->value());
 }
 
 bool WasmExportedFunction::IsWasmExportedFunction(Object* object) {

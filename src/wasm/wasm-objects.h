@@ -91,7 +91,7 @@ class WasmTableObject : public JSObject {
 
   inline uint32_t current_length();
   inline bool has_maximum_length();
-  void grow(Isolate* isolate, uint32_t count);
+  void Grow(Isolate* isolate, uint32_t count);
 
   static Handle<WasmTableObject> New(Isolate* isolate, uint32_t initial,
                                      int64_t maximum,
@@ -100,6 +100,9 @@ class WasmTableObject : public JSObject {
       Isolate* isolate, Handle<WasmTableObject> table,
       Handle<WasmInstanceObject> instance, int table_index,
       Handle<FixedArray> function_table, Handle<FixedArray> signature_table);
+
+  static void Set(Isolate* isolate, Handle<WasmTableObject> table,
+                  int32_t index, Handle<JSFunction> function);
 };
 
 // Representation of a WebAssembly.Memory JavaScript-level object.
@@ -200,6 +203,11 @@ class WasmInstanceObject : public JSObject {
                             uint32_t pages);
 
   uint32_t GetMaxMemoryPages();
+
+  // Assumed to be called with a code object associated to a wasm module
+  // instance. Intended to be called from runtime functions. Returns nullptr on
+  // failing to get owning instance.
+  static WasmInstanceObject* GetOwningInstance(Code* code);
 };
 
 // A WASM function that is wrapped and exported to JavaScript.
@@ -216,6 +224,8 @@ class WasmExportedFunction : public JSFunction {
                                           MaybeHandle<String> maybe_name,
                                           int func_index, int arity,
                                           Handle<Code> export_wrapper);
+
+  Handle<Code> GetWasmCode();
 };
 
 // Information shared by all WasmCompiledModule objects for the same module.

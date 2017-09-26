@@ -364,20 +364,6 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
   return os;
 }
 
-WasmInstanceObject* GetOwningWasmInstance(Code* code) {
-  DisallowHeapAllocation no_gc;
-  DCHECK(code->kind() == Code::WASM_FUNCTION ||
-         code->kind() == Code::WASM_INTERPRETER_ENTRY);
-  FixedArray* deopt_data = code->deoptimization_data();
-  DCHECK_EQ(code->kind() == Code::WASM_INTERPRETER_ENTRY ? 1 : 2,
-            deopt_data->length());
-  Object* weak_link = deopt_data->get(0);
-  DCHECK(weak_link->IsWeakCell());
-  WeakCell* cell = WeakCell::cast(weak_link);
-  if (cell->cleared()) return nullptr;
-  return WasmInstanceObject::cast(cell->value());
-}
-
 WasmModule::WasmModule(std::unique_ptr<Zone> owned)
     : signature_zone(std::move(owned)) {}
 
@@ -444,42 +430,6 @@ void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
       function_table->set(index, Smi::kZero);
     }
   }
-}
-
-void TableSet(ErrorThrower* thrower, Isolate* isolate,
-              Handle<WasmTableObject> table, int64_t index,
-              Handle<JSFunction> function) {
-  Handle<FixedArray> array(table->functions(), isolate);
-
-  if (index < 0 || index >= array->length()) {
-    thrower->RangeError("index out of bounds");
-    return;
-  }
-  int index32 = static_cast<int>(index);
-
-  Handle<FixedArray> dispatch_tables(table->dispatch_tables(), isolate);
-
-  WasmFunction* wasm_function = nullptr;
-  Handle<Code> code = Handle<Code>::null();
-  Handle<Object> value = isolate->factory()->null_value();
-
-  if (!function.is_null()) {
-    wasm_function = GetWasmFunctionForExport(isolate, function);
-    // The verification that {function} is an export was done
-    // by the caller.
-    DCHECK_NOT_NULL(wasm_function);
-    code = UnwrapExportWrapper(function);
-    value = Handle<Object>::cast(function);
-  }
-
-  UpdateDispatchTables(isolate, dispatch_tables, index32, wasm_function, code);
-  array->set(index32, *value);
-}
-
-Handle<Script> GetScript(Handle<JSObject> instance) {
-  WasmCompiledModule* compiled_module =
-      WasmInstanceObject::cast(*instance)->compiled_module();
-  return handle(compiled_module->script());
 }
 
 bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
@@ -962,7 +912,8 @@ Handle<Code> CompileLazy(Isolate* isolate) {
     // Then this is a direct call (otherwise we would have attached the instance
     // via deopt data to the lazy compile stub). Just use the instance of the
     // caller.
-    instance = handle(GetOwningWasmInstance(*caller_code), isolate);
+    instance =
+        handle(WasmInstanceObject::GetOwningInstance(*caller_code), isolate);
   }
   int offset =
       static_cast<int>(it.frame()->pc() - caller_code->instruction_start());

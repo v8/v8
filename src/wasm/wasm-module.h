@@ -274,11 +274,6 @@ std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name);
 // If no debug info exists yet, it is created automatically.
 Handle<WasmDebugInfo> GetDebugInfo(Handle<JSObject> wasm);
 
-// Get the script of the wasm module. If the origin of the module is asm.js, the
-// returned Script will be a JavaScript Script of Script::TYPE_NORMAL, otherwise
-// it's of type TYPE_WASM.
-Handle<Script> GetScript(Handle<JSObject> instance);
-
 V8_EXPORT_PRIVATE MaybeHandle<WasmModuleObject> CreateModuleObjectFromBytes(
     Isolate* isolate, const byte* start, const byte* end, ErrorThrower* thrower,
     ModuleOrigin origin, Handle<Script> asm_js_script,
@@ -299,11 +294,6 @@ V8_EXPORT_PRIVATE Handle<JSArray> GetCustomSections(
 // FixedArray of <undefined|String>. The outer fixed array is indexed by the
 // function index, the inner one by the local index.
 Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmCompiledModule>);
-
-// Assumed to be called with a code object associated to a wasm module instance.
-// Intended to be called from runtime functions.
-// Returns nullptr on failing to get owning instance.
-WasmInstanceObject* GetOwningWasmInstance(Code* code);
 
 Handle<JSArrayBuffer> NewArrayBuffer(
     Isolate*, size_t size, bool enable_guard_regions,
@@ -326,10 +316,6 @@ WasmFunction* GetWasmFunctionForExport(Isolate* isolate, Handle<Object> target);
 
 // {export_wrapper} is known to be an export.
 Handle<Code> UnwrapExportWrapper(Handle<JSFunction> export_wrapper);
-
-void TableSet(ErrorThrower* thrower, Isolate* isolate,
-              Handle<WasmTableObject> table, int64_t index,
-              Handle<JSFunction> function);
 
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
                           int index, WasmFunction* function, Handle<Code> code);

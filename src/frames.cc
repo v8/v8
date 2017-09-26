@@ -1669,7 +1669,7 @@ Address WasmCompiledFrame::GetCallerStackPointer() const {
 }
 
 WasmInstanceObject* WasmCompiledFrame::wasm_instance() const {
-  WasmInstanceObject* obj = wasm::GetOwningWasmInstance(LookupCode());
+  WasmInstanceObject* obj = WasmInstanceObject::GetOwningInstance(LookupCode());
   // This is a live stack frame; it must have a live instance.
   DCHECK_NOT_NULL(obj);
   return obj;
@@ -1751,7 +1751,7 @@ Code* WasmInterpreterEntryFrame::unchecked_code() const {
 }
 
 WasmInstanceObject* WasmInterpreterEntryFrame::wasm_instance() const {
-  WasmInstanceObject* ret = wasm::GetOwningWasmInstance(LookupCode());
+  WasmInstanceObject* ret = WasmInstanceObject::GetOwningInstance(LookupCode());
   // This is a live stack frame, there must be a live wasm instance available.
   DCHECK_NOT_NULL(ret);
   return ret;

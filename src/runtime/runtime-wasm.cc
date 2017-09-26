@@ -31,7 +31,8 @@ WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
       Memory::Address_at(entry + StandardFrameConstants::kCallerPCOffset);
   Code* code = isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
   DCHECK_EQ(Code::WASM_FUNCTION, code->kind());
-  WasmInstanceObject* owning_instance = wasm::GetOwningWasmInstance(code);
+  WasmInstanceObject* owning_instance =
+      WasmInstanceObject::GetOwningInstance(code);
   CHECK_NOT_NULL(owning_instance);
   return owning_instance;
 }

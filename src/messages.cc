@@ -722,9 +722,7 @@ Handle<Object> WasmStackFrame::Null() const {
 bool WasmStackFrame::HasScript() const { return true; }
 
 Handle<Script> WasmStackFrame::GetScript() const {
-  return handle(
-      WasmInstanceObject::cast(*wasm_instance_)->compiled_module()->script(),
-      isolate_);
+  return handle(wasm_instance_->compiled_module()->script(), isolate_);
 }
 
 AsmJsWasmStackFrame::AsmJsWasmStackFrame() {}
@@ -748,15 +746,13 @@ Handle<Object> AsmJsWasmStackFrame::GetFunction() const {
 }
 
 Handle<Object> AsmJsWasmStackFrame::GetFileName() {
-  Handle<Script> script =
-      wasm::GetScript(Handle<JSObject>::cast(wasm_instance_));
+  Handle<Script> script(wasm_instance_->compiled_module()->script(), isolate_);
   DCHECK(script->IsUserJavaScript());
   return handle(script->name(), isolate_);
 }
 
 Handle<Object> AsmJsWasmStackFrame::GetScriptNameOrSourceUrl() {
-  Handle<Script> script =
-      wasm::GetScript(Handle<JSObject>::cast(wasm_instance_));
+  Handle<Script> script(wasm_instance_->compiled_module()->script(), isolate_);
   DCHECK_EQ(Script::TYPE_NORMAL, script->type());
   return ScriptNameOrSourceUrl(script, isolate_);
 }
@@ -764,8 +760,8 @@ Handle<Object> AsmJsWasmStackFrame::GetScriptNameOrSourceUrl() {
 int AsmJsWasmStackFrame::GetPosition() const {
   DCHECK_LE(0, offset_);
   int byte_offset = code_->SourcePosition(offset_);
-  Handle<WasmCompiledModule> compiled_module(
-      WasmInstanceObject::cast(*wasm_instance_)->compiled_module(), isolate_);
+  Handle<WasmCompiledModule> compiled_module(wasm_instance_->compiled_module(),
+                                             isolate_);
   DCHECK_LE(0, byte_offset);
   return WasmCompiledModule::GetSourcePosition(
       compiled_module, wasm_func_index_, static_cast<uint32_t>(byte_offset),
@@ -774,16 +770,14 @@ int AsmJsWasmStackFrame::GetPosition() const {
 
 int AsmJsWasmStackFrame::GetLineNumber() {
   DCHECK_LE(0, GetPosition());
-  Handle<Script> script =
-      wasm::GetScript(Handle<JSObject>::cast(wasm_instance_));
+  Handle<Script> script(wasm_instance_->compiled_module()->script(), isolate_);
   DCHECK(script->IsUserJavaScript());
   return Script::GetLineNumber(script, GetPosition()) + 1;
 }
 
 int AsmJsWasmStackFrame::GetColumnNumber() {
   DCHECK_LE(0, GetPosition());
-  Handle<Script> script =
-      wasm::GetScript(Handle<JSObject>::cast(wasm_instance_));
+  Handle<Script> script(wasm_instance_->compiled_module()->script(), isolate_);
   DCHECK(script->IsUserJavaScript());
   return Script::GetColumnNumber(script, GetPosition()) + 1;
 }
