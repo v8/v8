@@ -342,6 +342,8 @@ class PropertyDetails BASE_EMBEDDED {
       (READ_ONLY << AttributesField::kShift);
   static const int kAttributesDontDeleteMask =
       (DONT_DELETE << AttributesField::kShift);
+  static const int kAttributesDontEnumMask =
+      (DONT_ENUM << AttributesField::kShift);
 
   // Bit fields for normalized objects.
   class PropertyCellTypeField
