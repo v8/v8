@@ -1206,7 +1206,6 @@ static Handle<SharedFunctionInfo> CompileScript(
 }
 
 TEST(CodeSerializerOnePlusOne) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1256,7 +1255,6 @@ TEST(CodeSerializerOnePlusOne) {
 }
 
 TEST(CodeSerializerPromotedToCompilationCache) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
 
@@ -1286,7 +1284,6 @@ TEST(CodeSerializerPromotedToCompilationCache) {
 }
 
 TEST(CodeSerializerInternalizedString) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1345,7 +1342,6 @@ TEST(CodeSerializerInternalizedString) {
 }
 
 TEST(CodeSerializerLargeCodeObject) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1398,7 +1394,6 @@ TEST(CodeSerializerLargeCodeObject) {
 TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   if (FLAG_never_compact) return;
   ManualGCScope manual_gc_scope;
-  FLAG_serialize_toplevel = true;
   FLAG_always_opt = false;
   const char* filter_flag = "--turbo-filter=NOTHING";
   FlagList::SetFlagsFromString(filter_flag, StrLength(filter_flag));
@@ -1475,7 +1470,6 @@ TEST(CodeSerializerLargeCodeObjectWithIncrementalMarking) {
   source.Dispose();
 }
 TEST(CodeSerializerLargeStrings) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   Factory* f = isolate->factory();
@@ -1532,7 +1526,6 @@ TEST(CodeSerializerLargeStrings) {
 }
 
 TEST(CodeSerializerThreeBigStrings) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   Factory* f = isolate->factory();
@@ -1642,7 +1635,6 @@ class SerializerTwoByteResource : public v8::String::ExternalStringResource {
 };
 
 TEST(CodeSerializerExternalString) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1704,7 +1696,6 @@ TEST(CodeSerializerExternalString) {
 }
 
 TEST(CodeSerializerLargeExternalString) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1762,7 +1753,6 @@ TEST(CodeSerializerLargeExternalString) {
 }
 
 TEST(CodeSerializerExternalScriptName) {
-  FLAG_serialize_toplevel = true;
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   isolate->compilation_cache()->Disable();  // Disable same-isolate code cache.
@@ -1821,8 +1811,8 @@ static void SerializerCodeEventListener(const v8::JitCodeEvent* event) {
   }
 }
 
-
-v8::ScriptCompiler::CachedData* ProduceCache(const char* source) {
+v8::ScriptCompiler::CachedData* ProduceCache(const char* source,
+                                             bool eager = false) {
   v8::ScriptCompiler::CachedData* cache;
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -1836,9 +1826,11 @@ v8::ScriptCompiler::CachedData* ProduceCache(const char* source) {
     v8::Local<v8::String> source_str = v8_str(source);
     v8::ScriptOrigin origin(v8_str("test"));
     v8::ScriptCompiler::Source source(source_str, origin);
+    v8::ScriptCompiler::CompileOptions options =
+        eager ? v8::ScriptCompiler::kProduceFullCodeCache
+              : v8::ScriptCompiler::kProduceCodeCache;
     v8::Local<v8::UnboundScript> script =
-        v8::ScriptCompiler::CompileUnboundScript(
-            isolate1, &source, v8::ScriptCompiler::kProduceCodeCache)
+        v8::ScriptCompiler::CompileUnboundScript(isolate1, &source, options)
             .ToLocalChecked();
     const v8::ScriptCompiler::CachedData* data = source.GetCachedData();
     CHECK(data);
@@ -1861,8 +1853,6 @@ v8::ScriptCompiler::CachedData* ProduceCache(const char* source) {
 }
 
 TEST(CodeSerializerIsolates) {
-  FLAG_serialize_toplevel = true;
-
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
@@ -1901,9 +1891,52 @@ TEST(CodeSerializerIsolates) {
   isolate2->Dispose();
 }
 
-TEST(CodeSerializerFlagChange) {
-  FLAG_serialize_toplevel = true;
+TEST(CodeSerializerIsolatesEager) {
+  const char* source =
+      "function f() {"
+      "  return function g() {"
+      "    return 'abc';"
+      "  }"
+      "}"
+      "f()() + 'def'";
+  v8::ScriptCompiler::CachedData* cache = ProduceCache(source, true);
 
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate2 = v8::Isolate::New(create_params);
+  isolate2->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
+                                   SerializerCodeEventListener);
+  toplevel_test_code_event_found = false;
+  {
+    v8::Isolate::Scope iscope(isolate2);
+    v8::HandleScope scope(isolate2);
+    v8::Local<v8::Context> context = v8::Context::New(isolate2);
+    v8::Context::Scope context_scope(context);
+
+    v8::Local<v8::String> source_str = v8_str(source);
+    v8::ScriptOrigin origin(v8_str("test"));
+    v8::ScriptCompiler::Source source(source_str, origin, cache);
+    v8::Local<v8::UnboundScript> script;
+    {
+      DisallowCompilation no_compile(reinterpret_cast<Isolate*>(isolate2));
+      script = v8::ScriptCompiler::CompileUnboundScript(
+                   isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
+                   .ToLocalChecked();
+    }
+    CHECK(!cache->rejected);
+    v8::Local<v8::Value> result = script->BindToCurrentContext()
+                                      ->Run(isolate2->GetCurrentContext())
+                                      .ToLocalChecked();
+    CHECK(result->ToString(isolate2->GetCurrentContext())
+              .ToLocalChecked()
+              ->Equals(isolate2->GetCurrentContext(), v8_str("abcdef"))
+              .FromJust());
+  }
+  CHECK(toplevel_test_code_event_found);
+  isolate2->Dispose();
+}
+
+TEST(CodeSerializerFlagChange) {
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
@@ -1931,8 +1964,6 @@ TEST(CodeSerializerFlagChange) {
 }
 
 TEST(CodeSerializerBitFlip) {
-  FLAG_serialize_toplevel = true;
-
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
 
@@ -1960,8 +1991,6 @@ TEST(CodeSerializerBitFlip) {
 }
 
 TEST(CodeSerializerWithHarmonyScoping) {
-  FLAG_serialize_toplevel = true;
-
   const char* source1 = "'use strict'; let x = 'X'";
   const char* source2 = "'use strict'; let y = 'Y'";
   const char* source3 = "'use strict'; x + y";

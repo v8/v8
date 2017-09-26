@@ -1436,6 +1436,7 @@ class V8_EXPORT ScriptCompiler {
     kProduceParserCache,
     kConsumeParserCache,
     kProduceCodeCache,
+    kProduceFullCodeCache,
     kConsumeCodeCache
   };
 

@@ -1006,7 +1006,7 @@ MaybeHandle<JSArray> Compiler::CompileForLiveEdit(Handle<Script> script) {
 
   // Start a compilation.
   ParseInfo parse_info(script);
-  parse_info.set_is_debug();
+  parse_info.set_eager();
 
   // TODO(635): support extensions.
   Handle<JSArray> infos;
@@ -1159,6 +1159,11 @@ bool ContainsAsmModule(Handle<Script> script) {
   return false;
 }
 
+bool ShouldProduceCodeCache(ScriptCompiler::CompileOptions options) {
+  return options == ScriptCompiler::kProduceCodeCache ||
+         options == ScriptCompiler::kProduceFullCodeCache;
+}
+
 }  // namespace
 
 bool Compiler::CodeGenerationFromStringsAllowed(Isolate* isolate,
@@ -1215,7 +1220,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   if (compile_options == ScriptCompiler::kNoCompileOptions) {
     cached_data = NULL;
   } else if (compile_options == ScriptCompiler::kProduceParserCache ||
-             compile_options == ScriptCompiler::kProduceCodeCache) {
+             ShouldProduceCodeCache(compile_options)) {
     DCHECK(cached_data && !*cached_data);
     DCHECK(extension == NULL);
     DCHECK(!isolate->debug()->is_loaded());
@@ -1240,7 +1245,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     InfoVectorPair pair = compilation_cache->LookupScript(
         source, script_name, line_offset, column_offset, resource_options,
         context, language_mode);
-    if (!pair.has_shared() && FLAG_serialize_toplevel &&
+    if (!pair.has_shared() &&
         compile_options == ScriptCompiler::kConsumeCodeCache &&
         !isolate->debug()->is_loaded()) {
       // Then check cached code provided by embedder.
@@ -1275,14 +1280,11 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   }
 
   base::ElapsedTimer timer;
-  if (FLAG_profile_deserialization && FLAG_serialize_toplevel &&
-      compile_options == ScriptCompiler::kProduceCodeCache) {
+  if (FLAG_profile_deserialization && ShouldProduceCodeCache(compile_options)) {
     timer.Start();
   }
 
-  if (result.is_null() ||
-      (FLAG_serialize_toplevel &&
-       compile_options == ScriptCompiler::kProduceCodeCache)) {
+  if (result.is_null() || ShouldProduceCodeCache(compile_options)) {
     // No cache entry found, or embedder wants a code cache. Compile the script.
 
     // Create a script object describing the script to be compiled.
@@ -1322,9 +1324,10 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     if (!context->IsNativeContext()) {
       parse_info.set_outer_scope_info(handle(context->scope_info()));
     }
-    if (FLAG_serialize_toplevel &&
-        compile_options == ScriptCompiler::kProduceCodeCache) {
+    if (ShouldProduceCodeCache(compile_options)) {
       parse_info.set_will_serialize();
+      parse_info.set_eager(compile_options ==
+                           ScriptCompiler::kProduceFullCodeCache);
     }
 
     parse_info.set_language_mode(
@@ -1338,8 +1341,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       vector = isolate->factory()->NewCell(feedback_vector);
       compilation_cache->PutScript(source, context, language_mode, result,
                                    vector);
-      if (FLAG_serialize_toplevel &&
-          compile_options == ScriptCompiler::kProduceCodeCache &&
+      if (ShouldProduceCodeCache(compile_options) &&
           !ContainsAsmModule(script)) {
         HistogramTimerScope histogram_timer(
             isolate->counters()->compile_serialize());

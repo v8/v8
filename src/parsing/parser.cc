@@ -489,10 +489,8 @@ Parser::Parser(ParseInfo* info)
   // aggressive about lazy compilation, because it might trigger compilation
   // of functions without an outer context when setting a breakpoint through
   // Debug::FindSharedFunctionInfoInScript
-  bool can_compile_lazily = FLAG_lazy && !info->is_debug();
-
-  // Consider compiling eagerly when targeting the code cache.
-  can_compile_lazily &= !(FLAG_serialize_eager && info->will_serialize());
+  // We also compile eagerly for kProduceExhaustiveCodeCache.
+  bool can_compile_lazily = FLAG_lazy && !info->is_eager();
 
   set_default_eager_compile_hint(can_compile_lazily
                                      ? FunctionLiteral::kShouldLazyCompile

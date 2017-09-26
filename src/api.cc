@@ -2274,10 +2274,12 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   ENTER_V8_NO_SCRIPT(isolate, v8_isolate->GetCurrentContext(), ScriptCompiler,
                      CompileUnbound, MaybeLocal<UnboundScript>(),
                      InternalEscapableScope);
+  bool produce_cache = options == kProduceParserCache ||
+                       options == kProduceCodeCache ||
+                       options == kProduceFullCodeCache;
 
   // Don't try to produce any kind of cache when the debugger is loaded.
-  if (isolate->debug()->is_loaded() &&
-      (options == kProduceParserCache || options == kProduceCodeCache)) {
+  if (isolate->debug()->is_loaded() && produce_cache) {
     options = kNoCompileOptions;
   }
 
@@ -2330,8 +2332,7 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     }
     RETURN_ON_FAILED_EXECUTION(UnboundScript);
 
-    if ((options == kProduceParserCache || options == kProduceCodeCache) &&
-        script_data != NULL) {
+    if (produce_cache && script_data != NULL) {
       // script_data now contains the data that was generated. source will
       // take the ownership.
       source->cached_data = new CachedData(
