@@ -109,8 +109,9 @@ void AsmJsParser::InitializeStdlibTypes() {
   fq2fh->AsFunctionType()->AddArgument(fq);
 
   auto* s = AsmType::Signed();
-  auto* s2s = AsmType::Function(zone(), s);
-  s2s->AsFunctionType()->AddArgument(s);
+  auto* u = AsmType::Unsigned();
+  auto* s2u = AsmType::Function(zone(), u);
+  s2u->AsFunctionType()->AddArgument(s);
 
   auto* i = AsmType::Int();
   stdlib_i2s_ = AsmType::Function(zone_, s);
@@ -135,12 +136,11 @@ void AsmJsParser::InitializeStdlibTypes() {
 
   // The signatures in "9 Standard Library" of the spec draft are outdated and
   // have been superseded with the following by an errata:
-  // TODO(mstarzinger): Actually fix Math.abs to return unsigned!
   //  - Math.abs : (signed) -> unsigned
   //               (double?) -> double
   //               (float?) -> floatish
   stdlib_abs_ = AsmType::OverloadedFunction(zone());
-  stdlib_abs_->AsOverloadedFunctionType()->AddOverload(s2s);
+  stdlib_abs_->AsOverloadedFunctionType()->AddOverload(s2u);
   stdlib_abs_->AsOverloadedFunctionType()->AddOverload(stdlib_dq2d_);
   stdlib_abs_->AsOverloadedFunctionType()->AddOverload(fq2fh);
 
@@ -2223,6 +2223,9 @@ AsmType* AsmJsParser::ValidateCall() {
     } else if (callable->CanBeInvokedWith(AsmType::Signed(),
                                           param_specific_types)) {
       return_type = AsmType::Signed();
+    } else if (callable->CanBeInvokedWith(AsmType::Unsigned(),
+                                          param_specific_types)) {
+      return_type = AsmType::Unsigned();
     } else {
       FAILn("Function use doesn't match definition");
     }
@@ -2292,14 +2295,13 @@ AsmType* AsmJsParser::ValidateCall() {
         if (param_specific_types[0]->IsA(AsmType::Signed())) {
           TemporaryVariableScope tmp(this);
           current_function_builder_->EmitTeeLocal(tmp.get());
-          current_function_builder_->Emit(kExprI32Clz);
-          current_function_builder_->EmitWithU8(kExprIf, kLocalI32);
           current_function_builder_->EmitGetLocal(tmp.get());
-          current_function_builder_->Emit(kExprElse);
-          current_function_builder_->EmitI32Const(0);
+          current_function_builder_->EmitI32Const(31);
+          current_function_builder_->Emit(kExprI32ShrS);
+          current_function_builder_->EmitTeeLocal(tmp.get());
+          current_function_builder_->Emit(kExprI32Xor);
           current_function_builder_->EmitGetLocal(tmp.get());
           current_function_builder_->Emit(kExprI32Sub);
-          current_function_builder_->Emit(kExprEnd);
         } else if (param_specific_types[0]->IsA(AsmType::DoubleQ())) {
           current_function_builder_->Emit(kExprF64Abs);
         } else if (param_specific_types[0]->IsA(AsmType::FloatQ())) {
