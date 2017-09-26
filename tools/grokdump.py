@@ -2061,7 +2061,7 @@ class InspectionPadawan(object):
     if start is None:
       start = self.reader.ExceptionSP()
     if not self.reader.IsValidAddress(start): return start
-    end = start + ptr_size * 1024
+    end = start + ptr_size * 1024 * 4
     message_start = 0
     magic1 = None
     for slot in xrange(start, end, ptr_size):
@@ -2078,7 +2078,9 @@ class InspectionPadawan(object):
       On Mac we don't always get proper magic markers, so just try printing
       the first long ascii string found on the stack.
       """
-      message_start, message = self.FindFirstAsciiString(start)
+      magic1 = None
+      magic2 = None
+      message_start, message = self.FindFirstAsciiString(start, end, 128)
       if message_start is None: return start
     else:
       message = self.reader.ReadAsciiString(message_start)
