@@ -242,6 +242,7 @@ class InstanceBuilder {
   JSToWasmWrapperCache js_to_wasm_cache_;
   WeakCallbackInfo<void>::Callback instance_finalizer_callback_;
   std::vector<SanitizedImport> sanitized_imports_;
+  GlobalHandleLifetimeManager globals_manager_;
 
   const std::shared_ptr<Counters>& async_counters() const {
     return async_counters_;
@@ -355,6 +356,7 @@ class AsyncCompileJob {
   Handle<JSPromise> module_promise_;
   std::unique_ptr<ModuleCompiler> compiler_;
   std::unique_ptr<compiler::ModuleEnv> module_env_;
+  GlobalHandleLifetimeManager globals_manager_;
 
   std::vector<DeferredHandles*> deferred_handles_;
   Handle<WasmModuleObject> module_object_;
