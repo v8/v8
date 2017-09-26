@@ -177,31 +177,7 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   Handle<WeakCell> link_to_module =
       isolate->factory()->NewWeakCell(module_object);
   compiled_module->set_weak_wasm_module(link_to_module);
-  Handle<Object> global_handle =
-      isolate->global_handles()->Create(*module_object);
-  GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
-                          &Finalizer, v8::WeakCallbackType::kFinalizer);
   return module_object;
-}
-
-void WasmModuleObject::Finalizer(const v8::WeakCallbackInfo<void>& data) {
-  DisallowHeapAllocation no_gc;
-  JSObject** p = reinterpret_cast<JSObject**>(data.GetParameter());
-  WasmModuleObject* module = reinterpret_cast<WasmModuleObject*>(*p);
-  WasmCompiledModule* compiled_module = module->compiled_module();
-  if (compiled_module->has_empty_function_tables()) {
-    DCHECK(compiled_module->has_empty_signature_tables());
-    for (int i = 0, e = compiled_module->empty_function_tables()->length();
-         i < e; ++i) {
-      GlobalHandles::Destroy(
-          reinterpret_cast<Object**>(WasmCompiledModule::GetTableValue(
-              compiled_module->ptr_to_empty_function_tables(), i)));
-      GlobalHandles::Destroy(
-          reinterpret_cast<Object**>(WasmCompiledModule::GetTableValue(
-              compiled_module->ptr_to_empty_signature_tables(), i)));
-    }
-  }
-  GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
 }
 
 Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
@@ -302,12 +278,6 @@ void WasmTableObject::grow(Isolate* isolate, uint32_t count) {
       WasmCompiledModule::UpdateTableValue(
           compiled_module->ptr_to_signature_tables(), table_index,
           new_signature_table_addr);
-      // We need to destroy the global handles this instance held to the
-      // old tables now, otherwise we'd leak global handles.
-      GlobalHandles::Destroy(
-          reinterpret_cast<Object**>(old_function_table_addr));
-      GlobalHandles::Destroy(
-          reinterpret_cast<Object**>(old_signature_table_addr));
     }
   }
 }
@@ -946,8 +916,7 @@ Address WasmCompiledModule::GetTableValue(FixedArray* table, int index) {
 }
 
 void WasmCompiledModule::Reset(Isolate* isolate,
-                               WasmCompiledModule* compiled_module,
-                               bool clear_global_handles) {
+                               WasmCompiledModule* compiled_module) {
   DisallowHeapAllocation no_gc;
   TRACE("Resetting %d\n", compiled_module->instance_id());
   Object* undefined = *isolate->factory()->undefined_value();
@@ -996,15 +965,6 @@ void WasmCompiledModule::Reset(Isolate* isolate,
           code_specialization.RelocatePointer(
               sig_addr,
               WasmCompiledModule::GetTableValue(empty_signature_tables, i));
-          // We create a global handle per table per instance. When sharing
-          // tables, to avoid accummulating global handles until the last
-          // instance sharing the table is GC-ed, destroy the handles here.
-          // Except if we call this post-deserialize - because maybe the
-          // instance that originated the {WasmCompiledModule} is still alive.
-          if (clear_global_handles) {
-            GlobalHandles::Destroy(reinterpret_cast<Object**>(func_addr));
-            GlobalHandles::Destroy(reinterpret_cast<Object**>(sig_addr));
-          }
         }
         compiled_module->set_ptr_to_function_tables(empty_function_tables);
         compiled_module->set_ptr_to_signature_tables(empty_signature_tables);
@@ -1200,7 +1160,7 @@ void WasmCompiledModule::ReinitializeAfterDeserialization(
 
   // Reset, but don't delete any global handles, because their owning instance
   // may still be active.
-  WasmCompiledModule::Reset(isolate, *compiled_module, false);
+  WasmCompiledModule::Reset(isolate, *compiled_module);
   DCHECK(WasmSharedModuleData::IsWasmSharedModuleData(*shared));
 }
 
