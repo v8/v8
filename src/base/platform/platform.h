@@ -200,10 +200,10 @@ class V8_BASE_EXPORT OS {
 
   static bool UncommitRegion(void* address, size_t size);
 
-  static bool ReleasePartialRegion(void* base, size_t size, void* free_start,
-                                   size_t free_size);
-
   static bool ReleaseRegion(void* address, size_t size);
+
+  // Release part of a reserved address range.
+  static bool ReleasePartialRegion(void* address, size_t size);
 
   static bool HasLazyCommits();
 

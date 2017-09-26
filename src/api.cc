@@ -8,6 +8,9 @@
 #ifdef V8_USE_ADDRESS_SANITIZER
 #include <sanitizer/asan_interface.h>
 #endif  // V8_USE_ADDRESS_SANITIZER
+#if defined(LEAK_SANITIZER)
+#include <sanitizer/lsan_interface.h>
+#endif            // defined(LEAK_SANITIZER)
 #include <cmath>  // For isnan.
 #include <limits>
 #include <vector>
@@ -486,7 +489,11 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   virtual void Free(void* data, size_t) { free(data); }
 
   virtual void* Reserve(size_t length) {
-    return base::OS::ReserveRegion(length, i::GetRandomMmapAddr());
+    void* address = base::OS::ReserveRegion(length, i::GetRandomMmapAddr());
+#if defined(LEAK_SANITIZER)
+    __lsan_register_root_region(address, length);
+#endif
+    return address;
   }
 
   virtual void Free(void* data, size_t length,

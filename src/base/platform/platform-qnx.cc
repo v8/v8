@@ -174,13 +174,12 @@ bool OS::UncommitRegion(void* address, size_t size) {
 }
 
 // static
-bool OS::ReleasePartialRegion(void* address, size_t size, void* free_start,
-                              size_t free_size) {
-  return munmap(free_start, free_size) == 0;
+bool OS::ReleaseRegion(void* address, size_t size) {
+  return munmap(address, size) == 0;
 }
 
 // static
-bool OS::ReleaseRegion(void* address, size_t size) {
+bool OS::ReleasePartialRegion(void* address, size_t size) {
   return munmap(address, size) == 0;
 }
 

@@ -41,6 +41,10 @@
 #include "src/utils.h"
 #include "src/v8.h"
 
+#if defined(LEAK_SANITIZER)
+#include <sanitizer/lsan_interface.h>
+#endif
+
 #if !defined(_WIN32) && !defined(_WIN64)
 #include <unistd.h>  // NOLINT
 #else
@@ -161,6 +165,9 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
       base::OS::ReleaseRegion(data, length);
       return nullptr;
     }
+#if defined(LEAK_SANITIZER)
+    __lsan_register_root_region(data, length);
+#endif
     MSAN_MEMORY_IS_INITIALIZED(data, length);
     return data;
   }

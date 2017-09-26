@@ -799,7 +799,6 @@ void OS::Unprotect(void* address, const size_t size) {
 }
 
 // static
-// static
 void* OS::ReserveRegion(size_t size, void* hint) {
   return RandomizedVirtualAlloc(size, MEM_RESERVE, PAGE_NOACCESS, hint);
 }
@@ -852,14 +851,13 @@ bool OS::UncommitRegion(void* address, size_t size) {
 }
 
 // static
-bool OS::ReleasePartialRegion(void* address, size_t size, void* free_start,
-                              size_t free_size) {
-  return VirtualFree(free_start, free_size, MEM_DECOMMIT) != 0;
+bool OS::ReleaseRegion(void* address, size_t size) {
+  return VirtualFree(address, 0, MEM_RELEASE) != 0;
 }
 
 // static
-bool OS::ReleaseRegion(void* address, size_t size) {
-  return VirtualFree(address, 0, MEM_RELEASE) != 0;
+bool OS::ReleasePartialRegion(void* address, size_t size) {
+  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
 }
 
 // static

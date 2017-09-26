@@ -18,6 +18,10 @@
 #include <malloc.h>  // NOLINT
 #endif
 
+#if defined(LEAK_SANITIZER)
+#include <sanitizer/lsan_interface.h>
+#endif
+
 namespace v8 {
 namespace internal {
 
@@ -105,11 +109,18 @@ void AlignedFree(void *ptr) {
 VirtualMemory::VirtualMemory() : address_(nullptr), size_(0) {}
 
 VirtualMemory::VirtualMemory(size_t size, void* hint)
-    : address_(base::OS::ReserveRegion(size, hint)), size_(size) {}
+    : address_(base::OS::ReserveRegion(size, hint)), size_(size) {
+#if defined(LEAK_SANITIZER)
+  __lsan_register_root_region(address_, size_);
+#endif
+}
 
 VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
     : address_(nullptr), size_(0) {
   address_ = base::OS::ReserveAlignedRegion(size, alignment, hint, &size_);
+#if defined(LEAK_SANITIZER)
+  __lsan_register_root_region(address_, size_);
+#endif
 }
 
 VirtualMemory::~VirtualMemory() {
@@ -145,18 +156,21 @@ size_t VirtualMemory::ReleasePartial(void* free_start) {
   DCHECK(IsReserved());
   // Notice: Order is important here. The VirtualMemory object might live
   // inside the allocated region.
-  const size_t size = size_ - (reinterpret_cast<size_t>(free_start) -
-                               reinterpret_cast<size_t>(address_));
-  CHECK(InVM(free_start, size));
+  const size_t free_size = size_ - (reinterpret_cast<size_t>(free_start) -
+                                    reinterpret_cast<size_t>(address_));
+  CHECK(InVM(free_start, free_size));
   DCHECK_LT(address_, free_start);
   DCHECK_LT(free_start, reinterpret_cast<void*>(
                             reinterpret_cast<size_t>(address_) + size_));
-  const bool result =
-      base::OS::ReleasePartialRegion(address_, size_, free_start, size);
+#if defined(LEAK_SANITIZER)
+  __lsan_unregister_root_region(address_, size_);
+  __lsan_register_root_region(address_, size_ - free_size);
+#endif
+  const bool result = base::OS::ReleasePartialRegion(free_start, free_size);
   USE(result);
   DCHECK(result);
-  size_ -= size;
-  return size;
+  size_ -= free_size;
+  return free_size;
 }
 
 void VirtualMemory::Release() {

@@ -116,15 +116,13 @@ bool OS::UncommitRegion(void* address, size_t size) {
 }
 
 // static
-bool OS::ReleasePartialRegion(void* address, size_t size, void* free_start,
-                              size_t free_size) {
+bool OS::ReleaseRegion(void* address, size_t size) {
   return zx_vmar_unmap(zx_vmar_root_self(),
-                       reinterpret_cast<uintptr_t>(free_start),
-                       free_size) == ZX_OK;
+                       reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
 }
 
 // static
-bool OS::ReleaseRegion(void* address, size_t size) {
+bool OS::ReleasePartialRegion(void* address, size_t size) {
   return zx_vmar_unmap(zx_vmar_root_self(),
                        reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
 }
