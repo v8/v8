@@ -317,7 +317,6 @@ DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, 1)
 
 // Flags for data representation optimizations
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
-DEFINE_BOOL(string_slices, true, "use string slices")
 
 // Flags for Ignition.
 DEFINE_BOOL(ignition_elide_noneffectful_bytecodes, true,
@@ -772,7 +771,6 @@ DEFINE_BOOL(always_opt, false, "always try to optimize functions")
 DEFINE_BOOL(always_osr, false, "always try to OSR functions")
 DEFINE_BOOL(prepare_always_opt, false, "prepare for turning on always opt")
 
-DEFINE_BOOL(serialize_eager, false, "compile eagerly when caching scripts")
 DEFINE_BOOL(trace_serializer, false, "print code serializer trace")
 #ifdef DEBUG
 DEFINE_BOOL(external_reference_stats, false,
