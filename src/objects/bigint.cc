@@ -446,18 +446,14 @@ void BigInt::AbsoluteDivLarge(Handle<BigInt> dividend, Handle<BigInt> divisor,
       // Decrement the quotient estimate as needed by looking at the next
       // digit, i.e. by testing whether
       // qhat * v_{n-2} > (rhat << kDigitBits) + u_{j+n-2}.
-      // x1 | x2 = qhat * v_{n-2}.
       digit_t vn2 = divisor->digit(n - 2);
-      digit_t x1;
-      digit_t x2 = digit_mul(qhat, vn2, &x1);
       digit_t ujn2 = u->digit(j + n - 2);
-      while (DoubleDigitGreaterThan(x1, x2, rhat, ujn2)) {
+      while (ProductGreaterThan(qhat, vn2, rhat, ujn2)) {
         qhat--;
         digit_t prev_rhat = rhat;
         rhat += vn1;
         // v[n-1] >= 0, so this tests for overflow.
         if (rhat < prev_rhat) break;
-        x2 = digit_mul(qhat, vn2, &x1);
       }
     }
 
@@ -485,10 +481,12 @@ void BigInt::AbsoluteDivLarge(Handle<BigInt> dividend, Handle<BigInt> divisor,
   }
 }
 
-// Returns (x_high << kDigitBits + x_low) > (y_high << kDigitBits + y_low).
-bool BigInt::DoubleDigitGreaterThan(digit_t x_high, digit_t x_low,
-                                    digit_t y_high, digit_t y_low) {
-  return x_high > y_high || (x_high == y_high && x_low > y_low);
+// Returns whether (factor1 * factor2) > (high << kDigitBits) + low.
+bool BigInt::ProductGreaterThan(digit_t factor1, digit_t factor2, digit_t high,
+                                digit_t low) {
+  digit_t result_high;
+  digit_t result_low = digit_mul(factor1, factor2, &result_high);
+  return result_high > high || (result_high == high && result_low > low);
 }
 
 // Adds {summand} onto {this}, starting with {summand}'s 0th digit

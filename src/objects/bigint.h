@@ -117,8 +117,8 @@ class BigInt : public HeapObject {
   static void AbsoluteDivLarge(Handle<BigInt> dividend, Handle<BigInt> divisor,
                                Handle<BigInt>* quotient,
                                Handle<BigInt>* remainder);
-  static bool DoubleDigitGreaterThan(digit_t x_high, digit_t x_low,
-                                     digit_t y_high, digit_t y_low);
+  static bool ProductGreaterThan(digit_t factor1, digit_t factor2, digit_t high,
+                                 digit_t low);
   digit_t InplaceAdd(BigInt* summand, int start_index);
   digit_t InplaceSub(BigInt* subtrahend, int start_index);
   void InplaceRightShift(int shift);
