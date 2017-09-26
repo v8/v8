@@ -2363,6 +2363,10 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
                              __ isolate()),
                          0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
+        CallDescriptor* descriptor = gen_->linkage()->GetIncomingDescriptor();
+        int pop_count = static_cast<int>(descriptor->StackParameterCount());
+        pop_count += (pop_count & 1);  // align
+        __ Drop(pop_count);
         __ Ret();
       } else {
         DCHECK(csp.Is(__ StackPointer()));

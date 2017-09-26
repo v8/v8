@@ -1668,6 +1668,17 @@ WASM_EXEC_TEST(Regress5874) {
   r.Call();
 }
 
+WASM_EXEC_TEST(Regression_6858) {
+  REQUIRE(I64DivS);
+  // WasmRunner with 5 params and returns, which is the maximum.
+  WasmRunner<int64_t, int64_t, int64_t, int64_t, int64_t> r(execution_mode);
+  BUILD(r, WASM_I64_DIVS(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)));
+  int64_t dividend = 15;
+  int64_t divisor = 0;
+  int64_t filler = 34;
+  CHECK_TRAP64(r.Call(dividend, divisor, filler, filler));
+}
+
 #undef WASM_64
 #undef MIPS
 #undef REQUIRE

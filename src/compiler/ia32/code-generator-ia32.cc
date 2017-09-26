@@ -2498,7 +2498,10 @@ void CodeGenerator::AssembleArchTrap(Instruction* instr,
                              __ isolate()),
                          0);
         __ LeaveFrame(StackFrame::WASM_COMPILED);
-        __ Ret();
+        CallDescriptor* descriptor = gen_->linkage()->GetIncomingDescriptor();
+        size_t pop_size = descriptor->StackParameterCount() * kPointerSize;
+        // Use ecx as a scratch register, we return anyways immediately.
+        __ Ret(static_cast<int>(pop_size), ecx);
       } else {
         gen_->AssembleSourcePosition(instr_);
         __ Call(__ isolate()->builtins()->builtin_handle(trap_id),
