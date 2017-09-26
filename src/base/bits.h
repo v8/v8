@@ -117,7 +117,6 @@ inline unsigned CountLeadingZeros64(uint64_t value) {
 #endif
 }
 
-DEFINE_32_64_OVERLOADS(CountLeadingZeros)
 
 // ReverseBits(value) returns |value| in reverse bit order.
 template <typename T>

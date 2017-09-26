@@ -503,7 +503,6 @@ class ErrorUtils : public AllStatic {
   T(SuperAlreadyCalled, "Super constructor may only be called once")           \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
-  T(BigIntDivZero, "Division by zero")                                         \
   T(DateRange, "Provided date is not in valid range.")                         \
   T(ExpectedTimezoneID,                                                        \
     "Expected Area/Location(/Location)* for time zone, got %")                 \
