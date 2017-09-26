@@ -862,7 +862,9 @@ bool InstructionSelector::IsSourcePositionUsed(Node* node) {
           node->opcode() == IrOpcode::kCall ||
           node->opcode() == IrOpcode::kCallWithCallerSavedRegisters ||
           node->opcode() == IrOpcode::kTrapIf ||
-          node->opcode() == IrOpcode::kTrapUnless);
+          node->opcode() == IrOpcode::kTrapUnless ||
+          node->opcode() == IrOpcode::kProtectedLoad ||
+          node->opcode() == IrOpcode::kProtectedStore);
 }
 
 void InstructionSelector::VisitBlock(BasicBlock* block) {
