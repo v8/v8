@@ -1751,14 +1751,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               PrintF("[%d]", operand.value);
               break;
             }
-            case kExprGetLocal: {
+            case kExprGetLocal:
+            case kExprSetLocal:
+            case kExprTeeLocal: {
               LocalIndexOperand<validate> operand(this, val.pc);
               PrintF("[%u]", operand.index);
               break;
             }
-            case kExprSetLocal:  // fallthru
-            case kExprTeeLocal: {
-              LocalIndexOperand<validate> operand(this, val.pc);
+            case kExprGetGlobal:
+            case kExprSetGlobal: {
+              GlobalIndexOperand<validate> operand(this, val.pc);
               PrintF("[%u]", operand.index);
               break;
             }
