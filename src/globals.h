@@ -1256,6 +1256,7 @@ inline uint32_t ObjectHash(Address address) {
 // to a more generic type when we combine feedback.
 // kSignedSmall -> kSignedSmallInputs -> kNumber  -> kNumberOrOddball -> kAny
 //                                                   kString          -> kAny
+// kBigInt -> kAny
 // TODO(mythria): Remove kNumber type when crankshaft can handle Oddballs
 // similar to Numbers. We don't need kNumber feedback for Turbofan. Extra
 // information about Number might reduce few instructions but causes more
@@ -1270,7 +1271,8 @@ class BinaryOperationFeedback {
     kNumber = 0x7,
     kNumberOrOddball = 0xF,
     kString = 0x10,
-    kAny = 0x3F
+    kBigInt = 0x20,
+    kAny = 0x7F
   };
 };
 

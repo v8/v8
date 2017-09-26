@@ -10,6 +10,9 @@ const zero = BigInt(0);
 const another_zero = BigInt(0);
 const one = BigInt(1);
 const another_one = BigInt(1);
+const two = BigInt(2);
+const three = BigInt(3);
+const six = BigInt(6);
 
 // BigInt
 {
@@ -142,4 +145,45 @@ const another_one = BigInt(1);
 
   assertTrue(new Map([[one, 42]]).has(one));
   assertTrue(new Map([[one, 42]]).has(another_one));
+}
+
+// Binary ops.
+{
+  assertTrue(one + two === three);
+  assertEquals("hello1", "hello" + one);
+  assertEquals("2hello", two + "hello");
+  assertThrows("one + 2", TypeError);
+  assertThrows("2 + one", TypeError);
+  assertThrows("one + 0.5", TypeError);
+  assertThrows("0.5 + one", TypeError);
+  assertThrows("one + null", TypeError);
+  assertThrows("null + one", TypeError);
+
+  assertTrue(three - two === one);
+  assertThrows("two - 1", TypeError);
+  assertThrows("2 - one", TypeError);
+  assertThrows("two - 0.5", TypeError);
+  assertThrows("2.5 - one", TypeError);
+
+  assertTrue(two * three === six);
+  assertThrows("two * 1", TypeError);
+  assertThrows("1 * two", TypeError);
+  assertThrows("two * 1.5", TypeError);
+  assertThrows("1.5 * two", TypeError);
+
+  assertTrue(six / three === two);
+  assertThrows("six / 3", TypeError);
+  assertThrows("3 / three", TypeError);
+  assertThrows("six / 0.5", TypeError);
+  assertThrows("0.5 / six", TypeError);
+  assertThrows("zero / zero", RangeError);
+  assertThrows("zero / 0", TypeError);
+
+  assertTrue(three % two === one);
+  assertThrows("three % 2", TypeError);
+  assertThrows("3 % two", TypeError);
+  assertThrows("three % 2.5", TypeError);
+  assertThrows("3.5 % two", TypeError);
+  assertThrows("three % zero", RangeError);
+  assertThrows("three % 0", TypeError);
 }
