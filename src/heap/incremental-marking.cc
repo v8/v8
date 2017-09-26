@@ -60,8 +60,8 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       finalize_marking_completed_(false),
       trace_wrappers_toggle_(false),
       request_type_(NONE),
-      new_generation_observer_(*this, kAllocatedThreshold),
-      old_generation_observer_(*this, kAllocatedThreshold) {
+      new_generation_observer_(*this, kYoungGenerationAllocatedThreshold),
+      old_generation_observer_(*this, kOldGenerationAllocatedThreshold) {
   SetState(STOPPED);
 }
 
@@ -1057,8 +1057,8 @@ size_t IncrementalMarking::StepSizeToMakeProgress() {
   // leave marking work to standalone tasks. The ramp up duration and the
   // target step count are chosen based on benchmarks.
   const int kRampUpIntervalMs = 300;
-  const size_t kTargetStepCount = 128;
-  const size_t kTargetStepCountAtOOM = 16;
+  const size_t kTargetStepCount = 256;
+  const size_t kTargetStepCountAtOOM = 32;
   size_t oom_slack = heap()->new_space()->Capacity() + 64 * MB;
 
   if (heap()->IsCloseToOutOfMemory(oom_slack)) {
@@ -1066,7 +1066,7 @@ size_t IncrementalMarking::StepSizeToMakeProgress() {
   }
 
   size_t step_size = Max(initial_old_generation_size_ / kTargetStepCount,
-                         IncrementalMarking::kAllocatedThreshold);
+                         IncrementalMarking::kMinStepSizeInBytes);
   double time_passed_ms =
       heap_->MonotonicallyIncreasingTimeInMs() - start_time_ms_;
   double factor = Min(time_passed_ms / kRampUpIntervalMs, 1.0);
@@ -1084,13 +1084,20 @@ void IncrementalMarking::AdvanceIncrementalMarkingOnAllocation() {
   size_t bytes_to_process =
       StepSizeToKeepUpWithAllocations() + StepSizeToMakeProgress();
 
-  if (bytes_to_process >= IncrementalMarking::kAllocatedThreshold) {
+  if (bytes_to_process >= IncrementalMarking::kMinStepSizeInBytes) {
     // The first step after Scavenge will see many allocated bytes.
     // Cap the step size to distribute the marking work more uniformly.
     size_t max_step_size = GCIdleTimeHandler::EstimateMarkingStepSize(
         kMaxStepSizeInMs,
         heap()->tracer()->IncrementalMarkingSpeedInBytesPerMillisecond());
     bytes_to_process = Min(bytes_to_process, max_step_size);
+
+    if (FLAG_concurrent_marking && marking_worklist()->IsBailoutEmpty()) {
+      // The number of background tasks + the main thread.
+      size_t tasks = heap()->concurrent_marking()->TaskCount() + 1;
+      bytes_to_process = Max(IncrementalMarking::kMinStepSizeInBytes,
+                             bytes_to_process / tasks);
+    }
 
     size_t bytes_processed = 0;
     if (bytes_marked_ahead_of_schedule_ >= bytes_to_process) {

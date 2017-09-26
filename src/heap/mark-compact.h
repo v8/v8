@@ -511,6 +511,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       shared_.Clear();
     }
 
+    bool IsBailoutEmpty() { return bailout_.IsLocalEmpty(kMainThread); }
+
     bool IsEmpty() {
       return bailout_.IsLocalEmpty(kMainThread) &&
              shared_.IsLocalEmpty(kMainThread) &&

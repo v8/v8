@@ -51,6 +51,8 @@ class ConcurrentMarking {
   // scavenge and is going to be re-used.
   void ClearLiveness(MemoryChunk* chunk);
 
+  int TaskCount() { return task_count_; }
+
  private:
   struct TaskState {
     // When the concurrent marking task has this lock, then objects in the

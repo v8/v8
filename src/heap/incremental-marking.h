@@ -188,7 +188,9 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   // incremental marker until it completes.
   // Do some marking every time this much memory has been allocated or that many
   // heavy (color-checking) write barriers have been invoked.
-  static const size_t kAllocatedThreshold = 64 * KB;
+  static const size_t kYoungGenerationAllocatedThreshold = 64 * KB;
+  static const size_t kOldGenerationAllocatedThreshold = 256 * KB;
+  static const size_t kMinStepSizeInBytes = 64 * KB;
 
   static const int kStepSizeInMs = 1;
   static const int kMaxStepSizeInMs = 5;
