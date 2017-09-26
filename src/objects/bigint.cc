@@ -57,11 +57,53 @@ Handle<BigInt> BigInt::Multiply(Handle<BigInt> x, Handle<BigInt> y) {
 }
 
 MaybeHandle<BigInt> BigInt::Divide(Handle<BigInt> x, Handle<BigInt> y) {
-  UNIMPLEMENTED();  // TODO(jkummerow): Implement.
+  // 1. If y is 0n, throw a RangeError exception.
+  if (y->is_zero()) {
+    THROW_NEW_ERROR(y->GetIsolate(),
+                    NewRangeError(MessageTemplate::kBigIntDivZero), BigInt);
+  }
+  // 2. Let quotient be the mathematical value of x divided by y.
+  // 3. Return a BigInt representing quotient rounded towards 0 to the next
+  //    integral value.
+  if (AbsoluteCompare(x, y) < 0) {
+    // TODO(jkummerow): Consider caching a canonical zero-BigInt.
+    return x->GetIsolate()->factory()->NewBigInt(0);
+  }
+  Handle<BigInt> quotient;
+  if (y->length() == 1) {
+    digit_t remainder;
+    AbsoluteDivSmall(x, y->digit(0), &quotient, &remainder);
+  } else {
+    AbsoluteDivLarge(x, y, &quotient, nullptr);
+  }
+  quotient->set_sign(x->sign() != y->sign());
+  quotient->RightTrim();
+  return quotient;
 }
 
 MaybeHandle<BigInt> BigInt::Remainder(Handle<BigInt> x, Handle<BigInt> y) {
-  UNIMPLEMENTED();  // TODO(jkummerow): Implement.
+  // 1. If y is 0n, throw a RangeError exception.
+  if (y->is_zero()) {
+    THROW_NEW_ERROR(y->GetIsolate(),
+                    NewRangeError(MessageTemplate::kBigIntDivZero), BigInt);
+  }
+  // 2. Return the BigInt representing x modulo y.
+  // See https://github.com/tc39/proposal-bigint/issues/84 though.
+  if (AbsoluteCompare(x, y) < 0) return x;
+  Handle<BigInt> remainder;
+  if (y->length() == 1) {
+    digit_t remainder_digit;
+    AbsoluteDivSmall(x, y->digit(0), nullptr, &remainder_digit);
+    if (remainder_digit == 0) {
+      return x->GetIsolate()->factory()->NewBigInt(0);
+    }
+    remainder = x->GetIsolate()->factory()->NewBigIntRaw(1);
+    remainder->set_digit(0, remainder_digit);
+  } else {
+    AbsoluteDivLarge(x, y, nullptr, &remainder);
+  }
+  remainder->set_sign(x->sign());
+  return remainder;
 }
 
 Handle<BigInt> BigInt::Add(Handle<BigInt> x, Handle<BigInt> y) {
@@ -270,6 +312,255 @@ void BigInt::MultiplyAccumulate(Handle<BigInt> multiplicand, digit_t multiplier,
   }
 }
 
+// Multiplies {source} with {factor} and adds {summand} to the result.
+// {result} and {source} may be the same BigInt for inplace modification.
+void BigInt::InternalMultiplyAdd(BigInt* source, digit_t factor,
+                                 digit_t summand, int n, BigInt* result) {
+  DCHECK(source->length() >= n);
+  DCHECK(result->length() >= n);
+  digit_t carry = summand;
+  digit_t high = 0;
+  for (int i = 0; i < n; i++) {
+    digit_t current = source->digit(i);
+    digit_t new_carry = 0;
+    // Compute this round's multiplication.
+    digit_t new_high = 0;
+    current = digit_mul(current, factor, &new_high);
+    // Add last round's carryovers.
+    current = digit_add(current, high, &new_carry);
+    current = digit_add(current, carry, &new_carry);
+    // Store result and prepare for next round.
+    result->set_digit(i, current);
+    carry = new_carry;
+    high = new_high;
+  }
+  if (result->length() > n) {
+    result->set_digit(n++, carry + high);
+    // Current callers don't pass in such large results, but let's be robust.
+    while (n < result->length()) {
+      result->set_digit(n++, 0);
+    }
+  } else {
+    CHECK((carry + high) == 0);
+  }
+}
+
+// Divides {x} by {divisor}, returning the result in {quotient} and {remainder}.
+// Mathematically, the contract is:
+// quotient = (x - remainder) / divisor, with 0 <= remainder < divisor.
+// If {quotient} is an empty handle, an appropriately sized BigInt will be
+// allocated for it; otherwise the caller must ensure that it is big enough.
+// {quotient} can be the same as {x} for an in-place division. {quotient} can
+// also be nullptr if the caller is only interested in the remainder.
+void BigInt::AbsoluteDivSmall(Handle<BigInt> x, digit_t divisor,
+                              Handle<BigInt>* quotient, digit_t* remainder) {
+  DCHECK(divisor != 0);
+  DCHECK(!x->is_zero());  // Callers check anyway, no need to handle this.
+  *remainder = 0;
+  if (divisor == 1) {
+    if (quotient != nullptr) *quotient = x;
+    return;
+  }
+
+  int length = x->length();
+  if (quotient != nullptr) {
+    if ((*quotient).is_null()) {
+      *quotient = x->GetIsolate()->factory()->NewBigIntRaw(length);
+    }
+    for (int i = length - 1; i >= 0; i--) {
+      digit_t q = digit_div(*remainder, x->digit(i), divisor, remainder);
+      (*quotient)->set_digit(i, q);
+    }
+  } else {
+    for (int i = length - 1; i >= 0; i--) {
+      digit_div(*remainder, x->digit(i), divisor, remainder);
+    }
+  }
+}
+
+// Divides {dividend} by {divisor}, returning the result in {quotient} and
+// {remainder}. Mathematically, the contract is:
+// quotient = (dividend - remainder) / divisor, with 0 <= remainder < divisor.
+// Both {quotient} and {remainder} are optional, for callers that are only
+// interested in one of them.
+// See Knuth, Volume 2, section 4.3.1, Algorithm D.
+void BigInt::AbsoluteDivLarge(Handle<BigInt> dividend, Handle<BigInt> divisor,
+                              Handle<BigInt>* quotient,
+                              Handle<BigInt>* remainder) {
+  DCHECK(divisor->length() >= 2);
+  DCHECK(dividend->length() >= divisor->length());
+  Factory* factory = dividend->GetIsolate()->factory();
+  // The unusual variable names inside this function are consistent with
+  // Knuth's book, as well as with Go's implementation of this algorithm.
+  // Maintaining this consistency is probably more useful than trying to
+  // come up with more descriptive names for them.
+  int n = divisor->length();
+  int m = dividend->length() - n;
+
+  // The quotient to be computed.
+  Handle<BigInt> q;
+  if (quotient != nullptr) q = factory->NewBigIntRaw(m + 1);
+  // In each iteration, {qhatv} holds {divisor} * {current quotient digit}.
+  // "v" is the book's name for {divisor}, "qhat" the current quotient digit.
+  Handle<BigInt> qhatv = factory->NewBigIntRaw(n + 1);
+
+  // D1.
+  // Left-shift inputs so that the divisor's MSB is set. This is necessary
+  // to prevent the digit-wise divisions (see digit_div call below) from
+  // overflowing (they take a two digits wide input, and return a one digit
+  // result).
+  int shift = base::bits::CountLeadingZeros(divisor->digit(n - 1));
+  if (shift > 0) {
+    divisor = SpecialLeftShift(divisor, shift, kSameSizeResult);
+  }
+  // Holds the (continuously updated) remaining part of the dividend, which
+  // eventually becomes the remainder.
+  Handle<BigInt> u = SpecialLeftShift(dividend, shift, kAlwaysAddOneDigit);
+
+  // D2.
+  // Iterate over the dividend's digit (like the "grad school" algorithm).
+  // {vn1} is the divisor's most significant digit.
+  digit_t vn1 = divisor->digit(n - 1);
+  for (int j = m; j >= 0; j--) {
+    // D3.
+    // Estimate the current iteration's quotient digit (see Knuth for details).
+    // {qhat} is the current quotient digit.
+    digit_t qhat = std::numeric_limits<digit_t>::max();
+    // {ujn} is the dividend's most significant remaining digit.
+    digit_t ujn = u->digit(j + n);
+    if (ujn != vn1) {
+      // {rhat} is the current iteration's remainder.
+      digit_t rhat = 0;
+      // Estimate the current quotient digit by dividing the most significant
+      // digits of dividend and divisor. The result will not be too small,
+      // but could be a bit too large.
+      qhat = digit_div(ujn, u->digit(j + n - 1), vn1, &rhat);
+
+      // Decrement the quotient estimate as needed by looking at the next
+      // digit, i.e. by testing whether
+      // qhat * v_{n-2} > (rhat << kDigitBits) + u_{j+n-2}.
+      // x1 | x2 = qhat * v_{n-2}.
+      digit_t vn2 = divisor->digit(n - 2);
+      digit_t x1;
+      digit_t x2 = digit_mul(qhat, vn2, &x1);
+      digit_t ujn2 = u->digit(j + n - 2);
+      while (DoubleDigitGreaterThan(x1, x2, rhat, ujn2)) {
+        qhat--;
+        digit_t prev_rhat = rhat;
+        rhat += vn1;
+        // v[n-1] >= 0, so this tests for overflow.
+        if (rhat < prev_rhat) break;
+        x2 = digit_mul(qhat, vn2, &x1);
+      }
+    }
+
+    // D4.
+    // Multiply the divisor with the current quotient digit, and subtract
+    // it from the dividend. If there was "borrow", then the quotient digit
+    // was one too high, so we must correct it and undo one subtraction of
+    // the (shifted) divisor.
+    InternalMultiplyAdd(*divisor, qhat, 0, n, *qhatv);
+    digit_t c = u->InplaceSub(*qhatv, j);
+    if (c != 0) {
+      c = u->InplaceAdd(*divisor, j);
+      u->set_digit(j + n, u->digit(j + n) + c);
+      qhat--;
+    }
+
+    if (quotient != nullptr) q->set_digit(j, qhat);
+  }
+  if (quotient != nullptr) {
+    *quotient = q;  // Caller will right-trim.
+  }
+  if (remainder != nullptr) {
+    u->InplaceRightShift(shift);
+    *remainder = u;
+  }
+}
+
+// Returns (x_high << kDigitBits + x_low) > (y_high << kDigitBits + y_low).
+bool BigInt::DoubleDigitGreaterThan(digit_t x_high, digit_t x_low,
+                                    digit_t y_high, digit_t y_low) {
+  return x_high > y_high || (x_high == y_high && x_low > y_low);
+}
+
+// Adds {summand} onto {this}, starting with {summand}'s 0th digit
+// at {this}'s {start_index}'th digit. Returns the "carry" (0 or 1).
+BigInt::digit_t BigInt::InplaceAdd(BigInt* summand, int start_index) {
+  digit_t carry = 0;
+  int n = summand->length();
+  DCHECK(length() >= start_index + n);
+  for (int i = 0; i < n; i++) {
+    digit_t new_carry = 0;
+    digit_t sum =
+        digit_add(digit(start_index + i), summand->digit(i), &new_carry);
+    sum = digit_add(sum, carry, &new_carry);
+    set_digit(start_index + i, sum);
+    carry = new_carry;
+  }
+  return carry;
+}
+
+// Subtracts {subtrahend} from {this}, starting with {subtrahend}'s 0th digit
+// at {this}'s {start_index}-th digit. Returns the "borrow" (0 or 1).
+BigInt::digit_t BigInt::InplaceSub(BigInt* subtrahend, int start_index) {
+  digit_t borrow = 0;
+  int n = subtrahend->length();
+  DCHECK(length() >= start_index + n);
+  for (int i = 0; i < n; i++) {
+    digit_t new_borrow = 0;
+    digit_t difference =
+        digit_sub(digit(start_index + i), subtrahend->digit(i), &new_borrow);
+    difference = digit_sub(difference, borrow, &new_borrow);
+    set_digit(start_index + i, difference);
+    borrow = new_borrow;
+  }
+  return borrow;
+}
+
+void BigInt::InplaceRightShift(int shift) {
+  DCHECK(shift >= 0);
+  DCHECK(shift < kDigitBits);
+  DCHECK(length() > 0);
+  DCHECK((digit(0) & ((1 << shift) - 1)) == 0);
+  if (shift == 0) return;
+  digit_t carry = digit(0) >> shift;
+  int last = length() - 1;
+  for (int i = 0; i < last; i++) {
+    digit_t d = digit(i + 1);
+    set_digit(i, (d << (kDigitBits - shift)) | carry);
+    carry = d >> shift;
+  }
+  set_digit(last, carry);
+  RightTrim();
+}
+
+// Always copies the input, even when {shift} == 0.
+// {shift} must be less than kDigitBits, {x} must be non-zero.
+Handle<BigInt> BigInt::SpecialLeftShift(Handle<BigInt> x, int shift,
+                                        SpecialLeftShiftMode mode) {
+  DCHECK(shift >= 0);
+  DCHECK(shift < kDigitBits);
+  DCHECK(x->length() > 0);
+  int n = x->length();
+  int result_length = mode == kAlwaysAddOneDigit ? n + 1 : n;
+  Handle<BigInt> result =
+      x->GetIsolate()->factory()->NewBigIntRaw(result_length);
+  digit_t carry = 0;
+  for (int i = 0; i < n; i++) {
+    digit_t d = x->digit(i);
+    result->set_digit(i, (d << shift) | carry);
+    carry = d >> (kDigitBits - shift);
+  }
+  if (mode == kAlwaysAddOneDigit) {
+    result->set_digit(n, carry);
+  } else {
+    DCHECK(mode == kSameSizeResult);
+    DCHECK(carry == 0);
+  }
+  return result;
+}
+
 Handle<BigInt> BigInt::Copy(Handle<BigInt> source) {
   int length = source->length();
   Handle<BigInt> result = source->GetIsolate()->factory()->NewBigIntRaw(length);
@@ -418,6 +709,55 @@ inline BigInt::digit_t BigInt::digit_mul(digit_t a, digit_t b, digit_t* high) {
   *high =
       (r_mid1 >> kHalfDigitBits) + (r_mid2 >> kHalfDigitBits) + r_high + carry;
   return low;
+#endif
+}
+
+// Returns the quotient.
+// quotient = (high << kDigitBits + low - remainder) / divisor
+BigInt::digit_t BigInt::digit_div(digit_t high, digit_t low, digit_t divisor,
+                                  digit_t* remainder) {
+  DCHECK(high < divisor);
+// Clang on Windows defines __SIZEOF_INT128__, but does not support division
+// of __uint128_t variables. See https://bugs.llvm.org/show_bug.cgi?id=25305.
+#if HAVE_TWODIGIT_T && !(defined(_MSC_VER) && defined(__clang__))
+  twodigit_t dividend = (static_cast<twodigit_t>(high) << kDigitBits) |
+                        static_cast<twodigit_t>(low);
+  digit_t result = dividend / divisor;
+  *remainder = dividend % divisor;
+  return result;
+#else
+  static const digit_t kHalfDigitBase = 1ull << kHalfDigitBits;
+  // Adapted from Warren, Hacker's Delight, p. 152.
+  int s = base::bits::CountLeadingZeros(divisor);
+  divisor <<= s;
+
+  digit_t vn1 = divisor >> kHalfDigitBits;
+  digit_t vn0 = divisor & kHalfDigitMask;
+  digit_t un32 = (high << s) | (low >> (kDigitBits - s));
+  digit_t un10 = low << s;
+  digit_t un1 = un10 >> kHalfDigitBits;
+  digit_t un0 = un10 & kHalfDigitMask;
+  digit_t q1 = un32 / vn1;
+  digit_t rhat = un32 - q1 * vn1;
+
+  while (q1 >= kHalfDigitBase || q1 * vn0 > rhat * kHalfDigitBase + un1) {
+    q1--;
+    rhat += vn1;
+    if (rhat >= kHalfDigitBase) break;
+  }
+
+  digit_t un21 = un32 * kHalfDigitBase + un1 - q1 * divisor;
+  digit_t q0 = un21 / vn1;
+  rhat = un21 - q0 * vn1;
+
+  while (q0 >= kHalfDigitBase || q0 * vn0 > rhat * kHalfDigitBase + un0) {
+    q0--;
+    rhat += vn1;
+    if (rhat >= kHalfDigitBase) break;
+  }
+
+  *remainder = (un21 * kHalfDigitBase + un0 - q0 * divisor) >> s;
+  return q1 * kHalfDigitBase + q0;
 #endif
 }
 
