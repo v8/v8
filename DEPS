@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "57716b379e9bbe0b7b6792046a3dd387001e1643",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "e7d7f7845a87885e02e316501e6b09f7793db672",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "d61a9397e668fa9843c4aa7da9e79460fe590bfb",
   "v8/third_party/icu":
@@ -48,7 +48,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "aadb2fed04af8606545b0afe4e3060bc1a15fad7",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "9a255f51046c55ea3c209acd64e36d8a5bd46fa4",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "852ba7672ce02911e9f8f2a22363283adc80940e",
   },
 }
 
