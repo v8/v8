@@ -290,6 +290,7 @@ class SerializedData {
   }
 
   static const uint32_t kMagicNumberOffset = 0;
+  static const uint32_t kVersionHashOffset = kMagicNumberOffset + kUInt32Size;
 
  protected:
   void SetHeaderValue(uint32_t offset, uint32_t value) {
