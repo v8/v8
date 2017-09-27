@@ -1359,6 +1359,10 @@ void TurboAssembler::DropArguments(const Register& count, uint64_t unit_size) {
   Drop(count, unit_size);
 }
 
+void TurboAssembler::DropSlots(int64_t count, uint64_t unit_size) {
+  Drop(count, unit_size);
+}
+
 void MacroAssembler::DropBySMI(const Register& count_smi, uint64_t unit_size) {
   DCHECK(unit_size == 0 || base::bits::IsPowerOfTwo(unit_size));
   const int shift = CountTrailingZeros(unit_size, kXRegSizeInBits) - kSmiShift;

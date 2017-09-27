@@ -710,6 +710,12 @@ class TurboAssembler : public Assembler {
   inline void DropArguments(const Register& count,
                             uint64_t unit_size = kXRegSize);
 
+  // Drop slots from stack without actually accessing memory.
+  // This will currently drop 'count' slots of the given size from the stack.
+  // TODO(arm64): Update this to round up the number of bytes dropped to
+  // a multiple of 16, so that we can remove jssp.
+  inline void DropSlots(int64_t count, uint64_t unit_size = kXRegSize);
+
   // Re-synchronizes the system stack pointer (csp) with the current stack
   // pointer (according to StackPointer()).
   //
