@@ -129,6 +129,8 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
   // We don't care if MacroAssembler scratch registers are corrupted.
   saved_regs.Remove(*(masm->TmpList()));
   saved_fp_regs.Remove(*(masm->FPTmpList()));
+  DCHECK_EQ(saved_regs.Count() % 2, 0);
+  DCHECK_EQ(saved_fp_regs.Count() % 2, 0);
 
   __ PushCPURegList(saved_regs);
   if (save_doubles()) {
@@ -1128,11 +1130,11 @@ void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
     DontEmitDebugCodeScope no_debug_code(tasm);
     Label entry_hook_call_start;
     tasm->Bind(&entry_hook_call_start);
-    tasm->Push(lr);
+    tasm->Push(padreg, lr);
     tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
     DCHECK(tasm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
            kProfileEntryHookCallSize);
-    tasm->Pop(lr);
+    tasm->Pop(lr, padreg);
   }
 }
 
@@ -1143,11 +1145,11 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
     DontEmitDebugCodeScope no_debug_code(masm);
     Label entry_hook_call_start;
     __ Bind(&entry_hook_call_start);
-    __ Push(lr);
+    __ Push(padreg, lr);
     __ CallStub(&stub);
     DCHECK(masm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
            kProfileEntryHookCallSize);
-    __ Pop(lr);
+    __ Pop(lr, padreg);
   }
 }
 
@@ -1161,6 +1163,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   __ PushCPURegList(kCallerSaved);
   DCHECK(kCallerSaved.IncludesAliasOf(lr));
   const int kNumSavedRegs = kCallerSaved.Count();
+  DCHECK_EQ(kNumSavedRegs % 2, 0);
 
   // Compute the function's address as the first argument.
   __ Sub(x0, lr, kProfileEntryHookCallSize);

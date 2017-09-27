@@ -12907,13 +12907,9 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
       int times = i % 4 + 1;
       if (i & 1) {
         // Push odd-numbered registers as W registers.
-        if (i & 2) {
-          __ PushMultipleTimes(w[i], times);
-        } else {
-          // Use a register to specify the count.
-          __ Mov(tmp.W(), times);
-          __ PushMultipleTimes(w[i], tmp.W());
-        }
+        __ Mov(tmp.W(), times);
+        __ PushMultipleTimes(w[i], tmp.W());
+
         // Fill in the expected stack slots.
         for (int j = 0; j < times; j++) {
           if (w[i].Is(wzr)) {
@@ -12925,13 +12921,9 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
         }
       } else {
         // Push even-numbered registers as X registers.
-        if (i & 2) {
-          __ PushMultipleTimes(x[i], times);
-        } else {
-          // Use a register to specify the count.
-          __ Mov(tmp, times);
-          __ PushMultipleTimes(x[i], tmp);
-        }
+        __ Mov(tmp, times);
+        __ PushMultipleTimes(x[i], tmp);
+
         // Fill in the expected stack slots.
         for (int j = 0; j < times; j++) {
           if (x[i].IsZero()) {

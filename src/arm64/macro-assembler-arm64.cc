@@ -1184,45 +1184,6 @@ void TurboAssembler::PopCPURegList(CPURegList registers) {
   PopPostamble(registers.Count(), size);
 }
 
-
-void MacroAssembler::PushMultipleTimes(CPURegister src, int count) {
-  int size = src.SizeInBytes();
-
-  PushPreamble(count, size);
-
-  if (FLAG_optimize_for_size && count > 8) {
-    UseScratchRegisterScope temps(this);
-    Register temp = temps.AcquireX();
-
-    Label loop;
-    Mov(temp, count / 2);
-    Bind(&loop);
-    PushHelper(2, size, src, src, NoReg, NoReg);
-    Subs(temp, temp, 1);
-    B(ne, &loop);
-
-    count %= 2;
-  }
-
-  // Push up to four registers at a time if possible because if the current
-  // stack pointer is csp and the register size is 32, registers must be pushed
-  // in blocks of four in order to maintain the 16-byte alignment for csp.
-  while (count >= 4) {
-    PushHelper(4, size, src, src, src, src);
-    count -= 4;
-  }
-  if (count >= 2) {
-    PushHelper(2, size, src, src, NoReg, NoReg);
-    count -= 2;
-  }
-  if (count == 1) {
-    PushHelper(1, size, src, NoReg, NoReg, NoReg);
-    count -= 1;
-  }
-  DCHECK(count == 0);
-}
-
-
 void MacroAssembler::PushMultipleTimes(CPURegister src, Register count) {
   PushPreamble(Operand(count, UXTW, WhichPowerOf2(src.SizeInBytes())));
 
@@ -2581,19 +2542,6 @@ void MacroAssembler::ExitFrameRestoreFPRegs() {
     offset -= 2 * kDRegSize;
     Ldp(dst1, dst0, MemOperand(fp, offset));
   }
-}
-
-void MacroAssembler::EnterBuiltinFrame(Register context, Register target,
-                                       Register argc) {
-  Push(lr, fp, context, target);
-  add(fp, jssp, Operand(2 * kPointerSize));
-  Push(argc);
-}
-
-void MacroAssembler::LeaveBuiltinFrame(Register context, Register target,
-                                       Register argc) {
-  Pop(argc);
-  Pop(target, context, fp, lr);
 }
 
 void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
