@@ -1852,6 +1852,15 @@ v8::ScriptCompiler::CachedData* ProduceCache(const char* source,
   return cache;
 }
 
+void CheckDeserializedFlag(v8::Local<v8::UnboundScript> script) {
+  i::Handle<i::SharedFunctionInfo> sfi = v8::Utils::OpenHandle(*script);
+  i::Handle<i::Script> i_script(Script::cast(sfi->script()));
+  i::SharedFunctionInfo::ScriptIterator iterator(i_script);
+  while (SharedFunctionInfo* next = iterator.Next()) {
+    CHECK_EQ(next->is_compiled(), next->deserialized());
+  }
+}
+
 TEST(CodeSerializerIsolates) {
   const char* source = "function f() { return 'abc'; }; f() + 'def'";
   v8::ScriptCompiler::CachedData* cache = ProduceCache(source);
@@ -1879,6 +1888,7 @@ TEST(CodeSerializerIsolates) {
                    .ToLocalChecked();
     }
     CHECK(!cache->rejected);
+    CheckDeserializedFlag(script);
     v8::Local<v8::Value> result = script->BindToCurrentContext()
                                       ->Run(isolate2->GetCurrentContext())
                                       .ToLocalChecked();
@@ -1924,6 +1934,7 @@ TEST(CodeSerializerIsolatesEager) {
                    .ToLocalChecked();
     }
     CHECK(!cache->rejected);
+    CheckDeserializedFlag(script);
     v8::Local<v8::Value> result = script->BindToCurrentContext()
                                       ->Run(isolate2->GetCurrentContext())
                                       .ToLocalChecked();
@@ -2055,6 +2066,7 @@ TEST(CodeSerializerWithHarmonyScoping) {
                    isolate2, &source, v8::ScriptCompiler::kConsumeCodeCache)
                    .ToLocalChecked();
     }
+    CheckDeserializedFlag(script);
     v8::Local<v8::Value> result = script->BindToCurrentContext()
                                       ->Run(isolate2->GetCurrentContext())
                                       .ToLocalChecked();

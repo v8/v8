@@ -113,6 +113,16 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     Script::cast(obj)->set_wrapper(isolate()->heap()->undefined_value());
   }
 
+  if (obj->IsSharedFunctionInfo()) {
+    SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
+    // Mark SFI to indicate whether the code is cached.
+    bool was_deserialized = sfi->deserialized();
+    sfi->set_deserialized(sfi->is_compiled());
+    SerializeGeneric(obj, how_to_code, where_to_point);
+    sfi->set_deserialized(was_deserialized);
+    return;
+  }
+
   // Past this point we should not see any (context-specific) maps anymore.
   CHECK(!obj->IsMap());
   // There should be no references to the global object embedded.
@@ -189,7 +199,6 @@ MaybeHandle<SharedFunctionInfo> CodeSerializer::Deserialize(
     int length = cached_data->length();
     PrintF("[Deserializing from %d bytes took %0.3f ms]\n", length, ms);
   }
-  result->set_deserialized(true);
 
   if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
     String* name = isolate->heap()->empty_string();
