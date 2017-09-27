@@ -594,42 +594,57 @@ MaybeHandle<String> BigInt::ToStringBasePowerOfTwo(Handle<BigInt> x,
   STATIC_ASSERT(base::bits::IsPowerOfTwo(kDigitBits));
   DCHECK(base::bits::IsPowerOfTwo(radix));
   DCHECK(radix >= 2 && radix <= 32);
-  Factory* factory = x->GetIsolate()->factory();
+  Isolate* isolate = x->GetIsolate();
   // TODO(jkummerow): check in caller?
-  if (x->is_zero()) return factory->NewStringFromStaticChars("0");
+  if (x->is_zero()) return isolate->factory()->NewStringFromStaticChars("0");
 
-  const int len = x->length();
+  const int length = x->length();
   const bool sign = x->sign();
   const int bits_per_char = base::bits::CountTrailingZeros32(radix);
   const int char_mask = radix - 1;
-  const int chars_per_digit = kDigitBits / bits_per_char;
-  // Compute the number of chars needed to represent the most significant
-  // bigint digit.
-  int chars_for_msd = 0;
-  for (digit_t msd = x->digit(len - 1); msd != 0; msd >>= bits_per_char) {
-    chars_for_msd++;
+  // Compute the length of the resulting string: divide the bit length of the
+  // BigInt by the number of bits representable per character (rounding up).
+  const digit_t msd = x->digit(length - 1);
+  const int msd_leading_zeros = base::bits::CountLeadingZeros(msd);
+  const size_t bit_length = length * kDigitBits - msd_leading_zeros;
+  const size_t chars_required =
+      (bit_length + bits_per_char - 1) / bits_per_char + sign;
+
+  if (chars_required > String::kMaxLength) {
+    THROW_NEW_ERROR(isolate, NewInvalidStringLengthError(), String);
   }
-  // All other digits need chars_per_digit characters; a leading "-" needs one.
-  if ((String::kMaxLength - chars_for_msd - sign) / chars_per_digit < len - 1) {
-    CHECK(false);  // TODO(jkummerow): Throw instead of crashing.
-  }
-  const int chars = chars_for_msd + (len - 1) * chars_per_digit + sign;
 
   Handle<SeqOneByteString> result =
-      factory->NewRawOneByteString(chars).ToHandleChecked();
+      isolate->factory()
+          ->NewRawOneByteString(static_cast<int>(chars_required))
+          .ToHandleChecked();
   uint8_t* buffer = result->GetChars();
   // Print the number into the string, starting from the last position.
-  int pos = chars - 1;
-  for (int i = 0; i < len - 1; i++) {
-    digit_t digit = x->digit(i);
-    for (int j = 0; j < chars_per_digit; j++) {
+  int pos = static_cast<int>(chars_required - 1);
+  digit_t digit = 0;
+  // Keeps track of how many unprocessed bits there are in {digit}.
+  int available_bits = 0;
+  for (int i = 0; i < length - 1; i++) {
+    digit_t new_digit = x->digit(i);
+    // Take any leftover bits from the last iteration into account.
+    int current = (digit | (new_digit << available_bits)) & char_mask;
+    buffer[pos--] = kConversionChars[current];
+    int consumed_bits = bits_per_char - available_bits;
+    digit = new_digit >> consumed_bits;
+    available_bits = kDigitBits - consumed_bits;
+    while (available_bits >= bits_per_char) {
       buffer[pos--] = kConversionChars[digit & char_mask];
       digit >>= bits_per_char;
+      available_bits -= bits_per_char;
     }
   }
-  // Print the most significant digit.
-  for (digit_t msd = x->digit(len - 1); msd != 0; msd >>= bits_per_char) {
-    buffer[pos--] = kConversionChars[msd & char_mask];
+  // Take any leftover bits from the last iteration into account.
+  int current = (digit | (msd << available_bits)) & char_mask;
+  buffer[pos--] = kConversionChars[current];
+  digit = msd >> (bits_per_char - available_bits);
+  while (digit != 0) {
+    buffer[pos--] = kConversionChars[digit & char_mask];
+    digit >>= bits_per_char;
   }
   if (sign) buffer[pos--] = '-';
   DCHECK(pos == -1);
