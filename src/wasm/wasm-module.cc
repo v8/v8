@@ -330,14 +330,17 @@ void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
       continue;
     }
 
-    const intptr_t base = reinterpret_cast<intptr_t>(code->entry());
+    byte* base = code->entry();
 
     const int mode_mask =
         RelocInfo::ModeMask(RelocInfo::WASM_PROTECTED_INSTRUCTION_LANDING);
     for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
       trap_handler::ProtectedInstructionData data;
-      data.instr_offset = it.rinfo()->data();
-      data.landing_offset = reinterpret_cast<intptr_t>(it.rinfo()->pc()) - base;
+      data.instr_offset = static_cast<uint32_t>(it.rinfo()->data());
+      data.landing_offset = static_cast<uint32_t>(it.rinfo()->pc() - base);
+      // Check that now over-/underflow happened.
+      DCHECK_EQ(it.rinfo()->data(), data.instr_offset);
+      DCHECK_EQ(it.rinfo()->pc() - base, data.landing_offset);
       unpacked.emplace_back(data);
     }
     if (unpacked.empty()) continue;
