@@ -2469,6 +2469,7 @@ void TurboAssembler::LeaveFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::ExitFramePreserveFPRegs() {
+  DCHECK_EQ(kCallerSavedV.Count() % 2, 0);
   PushCPURegList(kCallerSavedV);
 }
 
@@ -2499,20 +2500,21 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
   Push(lr, fp);
   Mov(fp, StackPointer());
   Mov(scratch, StackFrame::TypeToMarker(frame_type));
-  Push(scratch);
-  Push(xzr);
+  Push(scratch, xzr);
   Mov(scratch, Operand(CodeObject()));
-  Push(scratch);
+  Push(scratch, padreg);
   //          fp[8]: CallerPC (lr)
   //    fp -> fp[0]: CallerFP (old fp)
   //          fp[-8]: STUB marker
   //          fp[-16]: Space reserved for SPOffset.
-  //  jssp -> fp[-24]: CodeObject()
+  //          fp[-24]: CodeObject()
+  //  jssp -> fp[-32]: padding
   STATIC_ASSERT((2 * kPointerSize) == ExitFrameConstants::kCallerSPOffset);
   STATIC_ASSERT((1 * kPointerSize) == ExitFrameConstants::kCallerPCOffset);
   STATIC_ASSERT((0 * kPointerSize) == ExitFrameConstants::kCallerFPOffset);
   STATIC_ASSERT((-2 * kPointerSize) == ExitFrameConstants::kSPOffset);
   STATIC_ASSERT((-3 * kPointerSize) == ExitFrameConstants::kCodeOffset);
+  STATIC_ASSERT((-4 * kPointerSize) == ExitFrameConstants::kPaddingOffset);
 
   // Save the frame pointer and context pointer in the top frame.
   Mov(scratch, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,
@@ -2522,15 +2524,18 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
       Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   Str(cp, MemOperand(scratch));
 
-  STATIC_ASSERT((-3 * kPointerSize) == ExitFrameConstants::kLastExitFrameField);
+  STATIC_ASSERT((-4 * kPointerSize) == ExitFrameConstants::kLastExitFrameField);
   if (save_doubles) {
     ExitFramePreserveFPRegs();
   }
 
+  // Round the number of space we need to claim to a multiple of two.
+  int slots_to_claim = RoundUp(extra_space + 1, 2);
+
   // Reserve space for the return address and for user requested memory.
   // We do this before aligning to make sure that we end up correctly
   // aligned with the minimum of wasted space.
-  Claim(extra_space + 1, kXRegSize);
+  Claim(slots_to_claim, kXRegSize);
   //         fp[8]: CallerPC (lr)
   //   fp -> fp[0]: CallerFP (old fp)
   //         fp[-8]: STUB marker
