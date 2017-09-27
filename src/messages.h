@@ -506,6 +506,7 @@ class ErrorUtils : public AllStatic {
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   /* RangeError */                                                             \
   T(BigIntDivZero, "Division by zero")                                         \
+  T(BigIntTooBig, "Maximum BigInt size exceeded")                              \
   T(DateRange, "Provided date is not in valid range.")                         \
   T(ExpectedTimezoneID,                                                        \
     "Expected Area/Location(/Location)* for time zone, got %")                 \
@@ -550,6 +551,7 @@ class ErrorUtils : public AllStatic {
     "The requested module contains conflicting star exports for name '%'")     \
   T(BadGetterArity, "Getter must not have any formal parameters.")             \
   T(BadSetterArity, "Setter must have exactly one formal parameter.")          \
+  T(BigIntInvalidString, "Invalid BigInt string")                              \
   T(ConstructorIsAccessor, "Class constructor may not be an accessor")         \
   T(ConstructorIsGenerator, "Class constructor may not be a generator")        \
   T(ConstructorIsAsync, "Class constructor may not be an async method")        \

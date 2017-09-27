@@ -4,6 +4,7 @@
 
 #include "src/builtins/builtins-utils.h"
 #include "src/builtins/builtins.h"
+#include "src/conversions.h"
 #include "src/counters.h"
 #include "src/objects-inl.h"
 
@@ -44,14 +45,33 @@ BUILTIN(BigIntConstructor_ConstructStub) {
 
 BUILTIN(BigIntParseInt) {
   HandleScope scope(isolate);
-  Handle<Object> string_obj = args.atOrUndefined(isolate, 1);
-  Handle<Object> radix_obj = args.atOrUndefined(isolate, 2);
+  Handle<Object> string = args.atOrUndefined(isolate, 1);
+  Handle<Object> radix = args.atOrUndefined(isolate, 2);
 
-  // TODO(jkummerow): Implement.
-  USE(string_obj);
-  USE(radix_obj);
+  // Convert {string} to a String and flatten it.
+  // Fast path: avoid back-and-forth conversion for Smi inputs.
+  if (string->IsSmi() && radix->IsUndefined(isolate)) {
+    int number = Smi::ToInt(*string);
+    if (number == 0) return *isolate->factory()->NewBigInt(0);
+    Handle<BigInt> result = isolate->factory()->NewBigIntRaw(1);
+    result->set_value(number);
+    return *result;
+  }
+  Handle<String> subject;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, subject,
+                                     Object::ToString(isolate, string));
+  subject = String::Flatten(subject);
 
-  UNIMPLEMENTED();
+  // Convert {radix} to Int32.
+  if (!radix->IsNumber()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, radix, Object::ToNumber(radix));
+  }
+  int radix32 = DoubleToInt32(radix->Number());
+  if (radix32 != 0 && (radix32 < 2 || radix32 > 36)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewSyntaxError(MessageTemplate::kToRadixFormatRange));
+  }
+  RETURN_RESULT_OR_FAILURE(isolate, StringToBigInt(isolate, subject, radix32));
 }
 
 BUILTIN(BigIntAsUintN) {

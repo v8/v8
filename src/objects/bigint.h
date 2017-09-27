@@ -82,6 +82,8 @@ class BigInt : public HeapObject {
   class BodyDescriptor;
 
  private:
+  friend class BigIntParseIntHelper;
+
   typedef uintptr_t digit_t;
   static const int kDigitSize = sizeof(digit_t);
   static const int kDigitBits = kDigitSize * kBitsPerByte;
@@ -90,6 +92,8 @@ class BigInt : public HeapObject {
 
   // Private helpers for public methods.
   static Handle<BigInt> Copy(Handle<BigInt> source);
+  static MaybeHandle<BigInt> AllocateFor(Isolate* isolate, int radix,
+                                         int charcount);
   void RightTrim();
 
   static Handle<BigInt> AbsoluteAdd(Handle<BigInt> x, Handle<BigInt> y,
@@ -105,6 +109,7 @@ class BigInt : public HeapObject {
                                  int accumulator_index);
   static void InternalMultiplyAdd(BigInt* source, digit_t factor,
                                   digit_t summand, int n, BigInt* result);
+  void InplaceMultiplyAdd(uintptr_t factor, uintptr_t summand);
 
   // Specialized helpers for Divide/Remainder.
   static void AbsoluteDivSmall(Handle<BigInt> x, digit_t divisor,

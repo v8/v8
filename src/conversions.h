@@ -13,6 +13,7 @@
 namespace v8 {
 namespace internal {
 
+class BigInt;
 template <typename T>
 class Handle;
 class UnicodeCache;
@@ -103,6 +104,9 @@ double StringToDouble(UnicodeCache* unicode_cache,
                       double empty_string_val = 0);
 
 double StringToInt(Isolate* isolate, Handle<String> string, int radix);
+
+MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string,
+                                   int radix);
 
 const int kDoubleToCStringMinBufferSize = 100;
 

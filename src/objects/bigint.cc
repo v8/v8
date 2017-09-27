@@ -345,6 +345,13 @@ void BigInt::InternalMultiplyAdd(BigInt* source, digit_t factor,
   }
 }
 
+// Multiplies {this} with {factor} and adds {summand} to the result.
+void BigInt::InplaceMultiplyAdd(uintptr_t factor, uintptr_t summand) {
+  STATIC_ASSERT(sizeof(factor) == sizeof(digit_t));
+  STATIC_ASSERT(sizeof(summand) == sizeof(digit_t));
+  InternalMultiplyAdd(this, factor, summand, length(), this);
+}
+
 // Divides {x} by {divisor}, returning the result in {quotient} and {remainder}.
 // Mathematically, the contract is:
 // quotient = (x - remainder) / divisor, with 0 <= remainder < divisor.
@@ -568,6 +575,57 @@ Handle<BigInt> BigInt::Copy(Handle<BigInt> source) {
          source->address() + HeapObject::kHeaderSize,
          SizeFor(length) - HeapObject::kHeaderSize);
   return result;
+}
+
+// Lookup table for the maximum number of bits required per character of a
+// base-N string representation of a number. To increase accuracy, the array
+// value is the actual value multiplied by 32. To generate this table:
+// for (var i = 0; i <= 36; i++) { print(Math.ceil(Math.log2(i) * 32) + ","); }
+uint8_t kMaxBitsPerChar[] = {
+    0,   0,   32,  51,  64,  75,  83,  90,  96,  // 0..8
+    102, 107, 111, 115, 119, 122, 126, 128,      // 9..16
+    131, 134, 136, 139, 141, 143, 145, 147,      // 17..24
+    149, 151, 153, 154, 156, 158, 159, 160,      // 25..32
+    162, 163, 165, 166,                          // 33..36
+};
+
+static const int kBitsPerCharTableShift = 5;
+static const size_t kBitsPerCharTableMultiplier = 1u << kBitsPerCharTableShift;
+
+MaybeHandle<BigInt> BigInt::AllocateFor(Isolate* isolate, int radix,
+                                        int charcount) {
+  DCHECK(2 <= radix && radix <= 36);
+  DCHECK(charcount >= 0);
+  size_t bits_min;
+  size_t bits_per_char = kMaxBitsPerChar[radix];
+  size_t chars = static_cast<size_t>(charcount);
+  const int roundup = kBitsPerCharTableMultiplier - 1;
+  if (chars <= 1000000) {
+    // More precise path: multiply first, then divide.
+    bits_min = bits_per_char * chars;
+    // Divide by 32 (see table), rounding up.
+    bits_min = (bits_min + roundup) >> kBitsPerCharTableShift;
+  } else {
+    // Overflow avoidance path: divide first, then multiply.
+    // The addition can't overflow because of the int -> size_t cast.
+    bits_min = ((chars + roundup) >> kBitsPerCharTableShift) * bits_per_char;
+    // Check if overflow happened.
+    if (bits_min < chars) {
+      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
+                      BigInt);
+    }
+  }
+  if (bits_min > static_cast<size_t>(kMaxInt)) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
+                    BigInt);
+  }
+  // Divide by kDigitsBits, rounding up.
+  int length = (static_cast<int>(bits_min) + kDigitBits - 1) / kDigitBits;
+  if (length > BigInt::kMaxLength) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
+                    BigInt);
+  }
+  return isolate->factory()->NewBigInt(length);
 }
 
 void BigInt::RightTrim() {

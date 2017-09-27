@@ -56,6 +56,22 @@ const six = BigInt(6);
   assertEquals("-1011001110001", BigInt(-5745).toString(2));
 }
 
+// .parseInt
+{
+  assertEquals("hellobigint", BigInt.parseInt("hellobigint", 32).toString(32));
+  assertEquals("abc", BigInt.parseInt("101010111100", 2).toString(16));
+  // Detect "0x" prefix.
+  assertEquals("f00dcafe", BigInt.parseInt("0xf00dcafe").toString(16));
+  // Default base is 10, trailing junk is skipped.
+  assertEquals("abc", BigInt.parseInt("2748junk").toString(16));
+  // Objects are converted to string.
+  let obj = {toString: () => "0x12345"};
+  assertEquals("12345", BigInt.parseInt(obj).toString(16));
+  // Empty and invalid strings throw.
+  assertThrows("BigInt.parseInt('')", SyntaxError);
+  assertThrows("BigInt.parseInt('nope', 2)", SyntaxError);
+}
+
 // .valueOf
 {
   assertEquals(Object(zero).valueOf(), another_zero);

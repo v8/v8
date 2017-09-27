@@ -16,6 +16,7 @@
 #include "src/factory.h"
 #include "src/handles.h"
 #include "src/objects-inl.h"
+#include "src/objects/bigint.h"
 #include "src/strtod.h"
 #include "src/unicode-cache-inl.h"
 #include "src/utils.h"
@@ -799,7 +800,60 @@ double StringToInt(Isolate* isolate, Handle<String> string, int radix) {
   return helper.GetResult();
 }
 
+class BigIntParseIntHelper : public StringToIntHelper {
+ public:
+  BigIntParseIntHelper(Isolate* isolate, Handle<String> string, int radix)
+      : StringToIntHelper(isolate, string, radix) {}
 
+  MaybeHandle<BigInt> GetResult() {
+    ParseInt();
+    switch (state()) {
+      case kJunk:
+        THROW_NEW_ERROR(isolate(),
+                        NewSyntaxError(MessageTemplate::kBigIntInvalidString),
+                        BigInt);
+      case kZero:
+        return isolate()->factory()->NewBigInt(0);
+      case kError:
+        return MaybeHandle<BigInt>();
+      case kDone:
+        result_->set_sign(negative());
+        result_->RightTrim();
+        return result_;
+      case kRunning:
+        break;
+    }
+    UNREACHABLE();
+  }
+
+ protected:
+  virtual void AllocateResult() {
+    // We have to allocate a BigInt that's big enough to fit the result.
+    // Conseratively assume that all remaining digits are significant.
+    // Optimization opportunity: Would it makes sense to scan for trailing
+    // junk before allocating the result?
+    int charcount = length() - cursor();
+    MaybeHandle<BigInt> maybe =
+        BigInt::AllocateFor(isolate(), radix(), charcount);
+    if (!maybe.ToHandle(&result_)) {
+      set_state(kError);
+    }
+  }
+
+  virtual void ResultMultiplyAdd(uint32_t multiplier, uint32_t part) {
+    result_->InplaceMultiplyAdd(static_cast<uintptr_t>(multiplier),
+                                static_cast<uintptr_t>(part));
+  }
+
+ private:
+  Handle<BigInt> result_;
+};
+
+MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string,
+                                   int radix) {
+  BigIntParseIntHelper helper(isolate, string, radix);
+  return helper.GetResult();
+}
 
 const char* DoubleToCString(double v, Vector<char> buffer) {
   switch (FPCLASSIFY_NAMESPACE::fpclassify(v)) {
