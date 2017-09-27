@@ -573,9 +573,8 @@ int LookupCatchHandler(TranslatedFrame* translated_frame, int* data_out) {
   switch (translated_frame->kind()) {
     case TranslatedFrame::kInterpretedFunction: {
       int bytecode_offset = translated_frame->node_id().ToInt();
-      JSFunction* function =
-          JSFunction::cast(translated_frame->begin()->GetRawValue());
-      BytecodeArray* bytecode = function->shared()->bytecode_array();
+      BytecodeArray* bytecode =
+          translated_frame->raw_shared_info()->bytecode_array();
       HandlerTable* table = HandlerTable::cast(bytecode->handler_table());
       return table->LookupRange(bytecode_offset, data_out, nullptr);
     }
@@ -747,7 +746,8 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   // add to the frame height here.
   if (is_topmost) height_in_bytes += kPointerSize;
 
-  JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
+  TranslatedFrame::iterator function_iterator = value_iterator;
+  Object* function = value_iterator->GetRawValue();
   value_iterator++;
   input_index++;
   if (trace_scope_ != NULL) {
@@ -887,6 +887,12 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   output_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(function);
   WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
+  if (function == isolate_->heap()->arguments_marker()) {
+    Address output_address =
+        reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
+        output_offset;
+    values_to_materialize_.push_back({output_address, function_iterator});
+  }
 
   // Set the bytecode array pointer.
   output_offset -= kPointerSize;
@@ -1013,7 +1019,8 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
 
   unsigned height = translated_frame->height();
   unsigned height_in_bytes = height * kPointerSize;
-  JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
+  TranslatedFrame::iterator function_iterator = value_iterator;
+  Object* function = value_iterator->GetRawValue();
   value_iterator++;
   input_index++;
   if (trace_scope_ != NULL) {
@@ -1099,6 +1106,12 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   output_offset -= kPointerSize;
   value = reinterpret_cast<intptr_t>(function);
   WriteValueToOutput(function, 0, frame_index, output_offset, "function    ");
+  if (function == isolate_->heap()->arguments_marker()) {
+    Address output_address =
+        reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
+        output_offset;
+    values_to_materialize_.push_back({output_address, function_iterator});
+  }
 
   // Number of incoming arguments.
   output_offset -= kPointerSize;
@@ -3613,6 +3626,32 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_bound_arguments(FixedArray::cast(*bound_arguments));
       return object;
     }
+    case JS_FUNCTION_TYPE: {
+      Handle<JSFunction> object =
+          isolate_->factory()->NewFunctionFromSharedFunctionInfo(
+              handle(isolate_->object_function()->shared()),
+              handle(isolate_->context()), NOT_TENURED);
+      slot->value_ = object;
+      // We temporarily allocated a JSFunction for the {Object} function
+      // within the current context, to break cycles in the object graph.
+      // The correct function and context will be set below once available.
+      Handle<Object> properties = materializer.FieldAt(value_index);
+      Handle<Object> elements = materializer.FieldAt(value_index);
+      Handle<Object> prototype = materializer.FieldAt(value_index);
+      Handle<Object> shared = materializer.FieldAt(value_index);
+      Handle<Object> context = materializer.FieldAt(value_index);
+      Handle<Object> vector_cell = materializer.FieldAt(value_index);
+      Handle<Object> code = materializer.FieldAt(value_index);
+      object->set_map(*map);
+      object->set_raw_properties_or_hash(*properties);
+      object->set_elements(FixedArrayBase::cast(*elements));
+      object->set_prototype_or_initial_map(*prototype);
+      object->set_shared(SharedFunctionInfo::cast(*shared));
+      object->set_context(Context::cast(*context));
+      object->set_feedback_vector_cell(Cell::cast(*vector_cell));
+      object->ReplaceCode(Code::cast(*code));
+      return object;
+    }
     case JS_GENERATOR_OBJECT_TYPE: {
       Handle<JSGeneratorObject> object = Handle<JSGeneratorObject>::cast(
           isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
@@ -3774,7 +3813,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case JS_API_OBJECT_TYPE:
     case JS_SPECIAL_API_OBJECT_TYPE:
     case JS_VALUE_TYPE:
-    case JS_FUNCTION_TYPE:
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -3906,6 +3944,19 @@ Handle<Object> TranslatedState::MaterializeObjectAt(int object_index) {
   CHECK_LT(static_cast<size_t>(object_index), object_positions_.size());
   TranslatedState::ObjectPosition pos = object_positions_[object_index];
   return MaterializeAt(pos.frame_index_, &(pos.value_index_));
+}
+
+TranslatedFrame* TranslatedState::GetFrameFromJSFrameIndex(int jsframe_index) {
+  for (size_t i = 0; i < frames_.size(); i++) {
+    if (frames_[i].kind() == TranslatedFrame::kInterpretedFunction) {
+      if (jsframe_index > 0) {
+        jsframe_index--;
+      } else {
+        return &(frames_[i]);
+      }
+    }
+  }
+  return nullptr;
 }
 
 TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
