@@ -214,6 +214,8 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateArguments(node);
     case IrOpcode::kJSCreateArray:
       return ReduceJSCreateArray(node);
+    case IrOpcode::kJSCreateClosure:
+      return ReduceJSCreateClosure(node);
     case IrOpcode::kJSCreateIterResultObject:
       return ReduceJSCreateIterResultObject(node);
     case IrOpcode::kJSCreateKeyValueArray:
@@ -791,6 +793,54 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   }
 
   return ReduceNewArrayToStubCall(node, site);
+}
+
+Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateClosure, node->opcode());
+  CreateClosureParameters const& p = CreateClosureParametersOf(node->op());
+  Handle<SharedFunctionInfo> shared = p.shared_info();
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+
+  // Use inline allocation of closures only for instantiation sites that have
+  // seen more than one instantiation, this simplifies the generated code and
+  // also serves as a heuristic of which allocation sites benefit from it.
+  FeedbackSlot slot(FeedbackVector::ToSlot(p.feedback().index()));
+  Handle<Cell> vector_cell(Cell::cast(p.feedback().vector()->Get(slot)));
+  if (vector_cell->map() == isolate()->heap()->many_closures_cell_map()) {
+    Handle<Map> function_map(
+        Map::cast(native_context()->get(shared->function_map_index())));
+    Node* lazy_compile_builtin = jsgraph()->HeapConstant(
+        handle(isolate()->builtins()->builtin(Builtins::kCompileLazy)));
+    DCHECK(!function_map->IsInobjectSlackTrackingInProgress());
+    DCHECK(!function_map->is_dictionary_map());
+
+    // Emit code to allocate the JSFunction instance.
+    AllocationBuilder a(jsgraph(), effect, control);
+    a.Allocate(function_map->instance_size());
+    a.Store(AccessBuilder::ForMap(), function_map);
+    a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+            jsgraph()->EmptyFixedArrayConstant());
+    a.Store(AccessBuilder::ForJSObjectElements(),
+            jsgraph()->EmptyFixedArrayConstant());
+    a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),
+            jsgraph()->TheHoleConstant());
+    a.Store(AccessBuilder::ForJSFunctionSharedFunctionInfo(), shared);
+    a.Store(AccessBuilder::ForJSFunctionContext(), context);
+    a.Store(AccessBuilder::ForJSFunctionFeedbackVector(), vector_cell);
+    a.Store(AccessBuilder::ForJSFunctionCode(), lazy_compile_builtin);
+    STATIC_ASSERT(JSFunction::kSize == 8 * kPointerSize);
+    for (int i = 0; i < function_map->GetInObjectProperties(); i++) {
+      a.Store(AccessBuilder::ForJSObjectInObjectProperty(function_map, i),
+              jsgraph()->UndefinedConstant());
+    }
+    RelaxControls(node);
+    a.FinishAndChange(node);
+    return Changed(node);
+  }
+
+  return NoChange();
 }
 
 Reduction JSCreateLowering::ReduceJSCreateIterResultObject(Node* node) {
