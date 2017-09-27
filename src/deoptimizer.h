@@ -265,7 +265,6 @@ class TranslatedState {
 
   std::vector<TranslatedFrame>& frames() { return frames_; }
 
-  TranslatedFrame* GetFrameFromJSFrameIndex(int jsframe_index);
   TranslatedFrame* GetArgumentsInfoFromJSFrameIndex(int jsframe_index,
                                                     int* arguments_count);
 
