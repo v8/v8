@@ -1113,6 +1113,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                           Int32Constant(0));
   }
 
+  // Returns true if none of the mask's bits in given |word32| are set.
+  TNode<BoolT> IsNotSetWord32(SloppyTNode<Word32T> word32, uint32_t mask) {
+    return Word32Equal(Word32And(word32, Int32Constant(mask)),
+                       Int32Constant(0));
+  }
+
   // Returns true if any of the |T|'s bits in given |word| are set.
   template <typename T>
   Node* IsSetWord(Node* word) {
@@ -1325,6 +1331,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                          Node* unique_name, Label* if_found,
                          Label* if_not_found, Label* if_bailout);
 
+  // Operating mode for TryGetOwnProperty and CallGetterIfAccessor
+  // kReturnAccessorPair is used when we're only getting the property descriptor
+  enum GetOwnPropertyMode { kCallJSGetter, kReturnAccessorPair };
   // Tries to get {object}'s own {unique_name} property value. If the property
   // is an accessor then it also calls a getter. If the property is a double
   // field it re-wraps value in an immutable heap number.
@@ -1336,7 +1345,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                          Node* instance_type, Node* unique_name,
                          Label* if_found, Variable* var_value,
                          Variable* var_details, Variable* var_raw_value,
-                         Label* if_not_found, Label* if_bailout);
+                         Label* if_not_found, Label* if_bailout,
+                         GetOwnPropertyMode mode = kCallJSGetter);
 
   Node* GetProperty(Node* context, Node* receiver, Handle<Name> name) {
     return GetProperty(context, receiver, HeapConstant(name));
@@ -1579,6 +1589,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                            Node* lhs, Node* rhs, Label* if_true,
                                            Label* if_false);
 
+  void BranchIfAccessorPair(Node* value, Label* if_accessor_pair,
+                            Label* if_not_accessor_pair) {
+    GotoIf(TaggedIsSmi(value), if_not_accessor_pair);
+    Branch(IsAccessorPair(value), if_accessor_pair, if_not_accessor_pair);
+  }
+
   void GotoIfNumberGreaterThanOrEqual(Node* lhs, Node* rhs, Label* if_false);
 
   Node* Equal(Node* lhs, Node* rhs, Node* context,
@@ -1673,7 +1689,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* DescriptorArrayGetKey(Node* descriptors, Node* descriptor_number);
 
   Node* CallGetterIfAccessor(Node* value, Node* details, Node* context,
-                             Node* receiver, Label* if_bailout);
+                             Node* receiver, Label* if_bailout,
+                             GetOwnPropertyMode mode = kCallJSGetter);
 
   Node* TryToIntptr(Node* key, Label* miss);
 
