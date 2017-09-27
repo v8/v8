@@ -406,3 +406,20 @@ function assertWasmThrows(values, code) {
   }
   throw new MjsUnitAssertionError('Did not throw, expected: ' + values);
 }
+
+function wasmI32Const(val) {
+  let bytes = [kExprI32Const];
+  for (let i = 0; i < 4; ++i) {
+    bytes.push(0x80 | ((val >> (7 * i)) & 0x7f));
+  }
+  bytes.push((val >> (7 * 4)) & 0x7f);
+  return bytes;
+}
+
+function wasmF32Const(f) {
+  return [kExprF32Const].concat(Array.from(new Uint8Array((new Float32Array([f])).buffer)));
+}
+
+function wasmF64Const(f) {
+  return [kExprF64Const].concat(Array.from(new Uint8Array((new Float64Array([f])).buffer)));
+}
