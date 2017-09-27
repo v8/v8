@@ -312,12 +312,14 @@ Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
 
 void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
                                             Handle<FixedArray> code_table) {
+  DisallowHeapAllocation no_gc;
+  std::vector<trap_handler::ProtectedInstructionData> unpacked;
+
   for (int i = 0; i < code_table->length(); ++i) {
-    Handle<Code> code;
+    Object* maybe_code = code_table->get(i);
     // This is sometimes undefined when we're called from cctests.
-    if (!code_table->GetValue<Code>(isolate, i).ToHandle(&code)) {
-      continue;
-    }
+    if (maybe_code->IsUndefined(isolate)) continue;
+    Code* code = Code::cast(maybe_code);
 
     if (code->kind() != Code::WASM_FUNCTION) {
       continue;
@@ -330,24 +332,23 @@ void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
 
     const intptr_t base = reinterpret_cast<intptr_t>(code->entry());
 
-    Zone zone(isolate->allocator(), "Wasm Module");
-    ZoneVector<trap_handler::ProtectedInstructionData> unpacked(&zone);
     const int mode_mask =
         RelocInfo::ModeMask(RelocInfo::WASM_PROTECTED_INSTRUCTION_LANDING);
-    for (RelocIterator it(*code, mode_mask); !it.done(); it.next()) {
+    for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
       trap_handler::ProtectedInstructionData data;
       data.instr_offset = it.rinfo()->data();
       data.landing_offset = reinterpret_cast<intptr_t>(it.rinfo()->pc()) - base;
       unpacked.emplace_back(data);
     }
-    if (unpacked.size() > 0) {
-      int size = code->CodeSize();
-      const int index = RegisterHandlerData(reinterpret_cast<void*>(base), size,
-                                            unpacked.size(), &unpacked[0]);
-      // TODO(eholk): if index is negative, fail.
-      DCHECK_LE(0, index);
-      code->set_trap_handler_index(Smi::FromInt(index));
-    }
+    if (unpacked.empty()) continue;
+
+    int size = code->CodeSize();
+    const int index = RegisterHandlerData(reinterpret_cast<void*>(base), size,
+                                          unpacked.size(), &unpacked[0]);
+    unpacked.clear();
+    // TODO(eholk): if index is negative, fail.
+    DCHECK_LE(0, index);
+    code->set_trap_handler_index(Smi::FromInt(index));
   }
 }
 
