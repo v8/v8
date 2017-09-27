@@ -2312,12 +2312,9 @@ AsmType* AsmJsParser::ValidateCall() {
         break;
 
       case VarKind::kMathFround:
-        if (param_specific_types[0]->IsA(AsmType::DoubleQ())) {
-          current_function_builder_->Emit(kExprF32ConvertF64);
-        } else {
-          DCHECK(param_specific_types[0]->IsA(AsmType::FloatQ()));
-        }
-        break;
+        // NOTE: Handled in {AsmJsParser::CallExpression} specially and treated
+        // as a coercion to "float" type. Cannot be reached as a call here.
+        UNREACHABLE();
 
       default:
         UNREACHABLE();
