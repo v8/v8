@@ -5587,6 +5587,65 @@ TEST(Subu) {
   }
 }
 
+void load_uint64_elements_of_vector(MacroAssembler& assm,
+                                    const uint64_t elements[], MSARegister w,
+                                    Register t0, Register t1) {
+  __ li(t0, static_cast<uint32_t>(elements[0] & 0xffffffff));
+  __ li(t1, static_cast<uint32_t>((elements[0] >> 32) & 0xffffffff));
+  __ insert_w(w, 0, t0);
+  __ insert_w(w, 1, t1);
+  __ li(t0, static_cast<uint32_t>(elements[1] & 0xffffffff));
+  __ li(t1, static_cast<uint32_t>((elements[1] >> 32) & 0xffffffff));
+  __ insert_w(w, 2, t0);
+  __ insert_w(w, 3, t1);
+}
+
+void load_uint32_elements_of_vector(MacroAssembler& assm,
+                                    const uint64_t elements[], MSARegister w,
+                                    Register t0, Register t1) {
+  const uint32_t* const element = reinterpret_cast<const uint32_t*>(elements);
+  __ li(t0, element[0]);
+  __ li(t1, element[1]);
+  __ insert_w(w, 0, t0);
+  __ insert_w(w, 1, t1);
+  __ li(t0, element[2]);
+  __ li(t1, element[3]);
+  __ insert_w(w, 2, t0);
+  __ insert_w(w, 3, t1);
+}
+
+void load_uint16_elements_of_vector(MacroAssembler& assm,
+                                    const uint64_t elements[], MSARegister w,
+                                    Register t0, Register t1) {
+  const uint16_t* const element = reinterpret_cast<const uint16_t*>(elements);
+  __ li(t0, element[0]);
+  __ li(t1, element[1]);
+  __ insert_h(w, 0, t0);
+  __ insert_h(w, 1, t1);
+  __ li(t0, element[2]);
+  __ li(t1, element[3]);
+  __ insert_h(w, 2, t0);
+  __ insert_h(w, 3, t1);
+  __ li(t0, element[4]);
+  __ li(t1, element[5]);
+  __ insert_h(w, 4, t0);
+  __ insert_h(w, 5, t1);
+  __ li(t0, element[6]);
+  __ li(t1, element[7]);
+  __ insert_h(w, 6, t0);
+  __ insert_h(w, 7, t1);
+}
+
+inline void store_uint64_elements_of_vector(MacroAssembler& assm, MSARegister w,
+                                            Register a, Register t) {
+  __ st_d(w, MemOperand(a, 0));
+}
+
+inline void store_uint32_elements_of_vector(MacroAssembler& assm, MSARegister w,
+                                            Register a, Register t) {
+  __ st_w(w, MemOperand(a, 0));
+}
+
 TEST(MSA_fill_copy) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -5807,14 +5866,7 @@ void run_msa_insert(int32_t rs_value, int n, msa_reg_t* w) {
     UNREACHABLE();
   }
 
-  __ copy_u_w(t2, w0, 0);
-  __ sw(t2, MemOperand(a0, 0));
-  __ copy_u_w(t2, w0, 1);
-  __ sw(t2, MemOperand(a0, 4));
-  __ copy_u_w(t2, w0, 2);
-  __ sw(t2, MemOperand(a0, 8));
-  __ copy_u_w(t2, w0, 3);
-  __ sw(t2, MemOperand(a0, 12));
+  store_uint64_elements_of_vector(assm, w0, a0, t2);
 
   __ jr(ra);
   __ nop();
@@ -5887,6 +5939,60 @@ TEST(MSA_insert) {
   }
 }
 
+void run_msa_ctc_cfc(uint32_t value) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+
+  MSAControlRegister msareg = {kMSACSRRegister};
+  __ li(t0, value);
+  __ li(t2, 0);
+  __ cfcmsa(t1, msareg);
+  __ ctcmsa(msareg, t0);
+  __ cfcmsa(t2, msareg);
+  __ ctcmsa(msareg, t1);
+  __ sw(t2, MemOperand(a0, 0));
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  uint32_t res;
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  CHECK_EQ(value & 0x0167ffff, res);
+}
+
+TEST(MSA_cfc_ctc) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const uint32_t mask_without_cause = 0xff9c0fff;
+  const uint32_t mask_always_zero = 0x0167ffff;
+  const uint32_t mask_enables = 0x00000f80;
+  uint32_t test_case[] = {0x2d5ede31, 0x07955425, 0x15b7dbe3, 0x2bf8bc37,
+                          0xe6aae923, 0x24d0f68d, 0x41afa84c, 0x2d6bf64f,
+                          0x925014bd, 0x4dba7e61};
+  for (unsigned i = 0; i < arraysize(test_case); i++) {
+    // Setting enable bits and corresponding cause bits could result in
+    // exception raised and this prevents that from happening
+    test_case[i] = (~test_case[i] & mask_enables) << 5 |
+                   (test_case[i] & mask_without_cause);
+    run_msa_ctc_cfc(test_case[i] & mask_always_zero);
+  }
+}
+
 struct ExpResShf {
   uint8_t i8;
   uint64_t lo;
@@ -5954,14 +6060,7 @@ void run_msa_i8(SecondaryField opcode, uint64_t ws_lo, uint64_t ws_hi,
       UNREACHABLE();
   }
 
-  __ copy_u_w(t2, w2, 0);
-  __ sw(t2, MemOperand(a0, 0));
-  __ copy_u_w(t2, w2, 1);
-  __ sw(t2, MemOperand(a0, 4));
-  __ copy_u_w(t2, w2, 2);
-  __ sw(t2, MemOperand(a0, 8));
-  __ copy_u_w(t2, w2, 3);
-  __ sw(t2, MemOperand(a0, 12));
+  store_uint64_elements_of_vector(assm, w2, a0, t2);
 
   __ jr(ra);
   __ nop();
@@ -6251,25 +6350,11 @@ void run_msa_i5(struct TestCaseMsaI5* input, bool i5_sign_ext,
   int32_t i5 =
       i5_sign_ext ? static_cast<int32_t>(input->i5 << 27) >> 27 : input->i5;
 
-  __ li(t0, static_cast<uint32_t>(input->ws_lo & 0xffffffff));
-  __ li(t1, static_cast<uint32_t>((input->ws_lo >> 32) & 0xffffffff));
-  __ insert_w(w0, 0, t0);
-  __ insert_w(w0, 1, t1);
-  __ li(t0, static_cast<uint32_t>(input->ws_hi & 0xffffffff));
-  __ li(t1, static_cast<uint32_t>((input->ws_hi >> 32) & 0xffffffff));
-  __ insert_w(w0, 2, t0);
-  __ insert_w(w0, 3, t1);
+  load_uint64_elements_of_vector(assm, &(input->ws_lo), w0, t0, t1);
 
   GenerateI5InstructionFunc(assm, i5);
 
-  __ copy_u_w(t2, w2, 0);
-  __ sw(t2, MemOperand(a0, 0));
-  __ copy_u_w(t2, w2, 1);
-  __ sw(t2, MemOperand(a0, 4));
-  __ copy_u_w(t2, w2, 2);
-  __ sw(t2, MemOperand(a0, 8));
-  __ copy_u_w(t2, w2, 3);
-  __ sw(t2, MemOperand(a0, 12));
+  store_uint64_elements_of_vector(assm, w2, a0, t2);
 
   __ jr(ra);
   __ nop();
@@ -6676,8 +6761,11 @@ struct TestCaseMsa2R {
   uint64_t exp_res_hi;
 };
 
-template <typename Func>
-void run_msa_2r(struct TestCaseMsa2R* input, Func Generate2RInstructionFunc) {
+template <typename Func, typename FuncLoad, typename FuncStore>
+void run_msa_2r(const struct TestCaseMsa2R* input,
+                Func Generate2RInstructionFunc,
+                FuncLoad load_elements_of_vector,
+                FuncStore store_elements_of_vector) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
@@ -6685,25 +6773,10 @@ void run_msa_2r(struct TestCaseMsa2R* input, Func Generate2RInstructionFunc) {
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
 
-  __ li(t0, static_cast<uint32_t>(input->ws_lo & 0xffffffff));
-  __ li(t1, static_cast<uint32_t>((input->ws_lo >> 32) & 0xffffffff));
-  __ insert_w(w0, 0, t0);
-  __ insert_w(w0, 1, t1);
-  __ li(t0, static_cast<uint32_t>(input->ws_hi & 0xffffffff));
-  __ li(t1, static_cast<uint32_t>((input->ws_hi >> 32) & 0xffffffff));
-  __ insert_w(w0, 2, t0);
-  __ insert_w(w0, 3, t1);
-
+  load_elements_of_vector(assm, reinterpret_cast<const uint64_t*>(input), w0,
+                          t0, t1);
   Generate2RInstructionFunc(assm);
-
-  __ copy_u_w(t2, w2, 0);
-  __ sw(t2, MemOperand(a0, 0));
-  __ copy_u_w(t2, w2, 1);
-  __ sw(t2, MemOperand(a0, 4));
-  __ copy_u_w(t2, w2, 2);
-  __ sw(t2, MemOperand(a0, 8));
-  __ copy_u_w(t2, w2, 3);
-  __ sw(t2, MemOperand(a0, 12));
+  store_elements_of_vector(assm, w2, a0, t2);
 
   __ jr(ra);
   __ nop();
@@ -6719,8 +6792,17 @@ void run_msa_2r(struct TestCaseMsa2R* input, Func Generate2RInstructionFunc) {
 
   (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
 
-  CHECK_EQ(input->exp_res_lo, res.d[0]);
-  CHECK_EQ(input->exp_res_hi, res.d[1]);
+  if (store_elements_of_vector == store_uint64_elements_of_vector) {
+    CHECK_EQ(input->exp_res_lo, res.d[0]);
+    CHECK_EQ(input->exp_res_hi, res.d[1]);
+  } else if (store_elements_of_vector == store_uint32_elements_of_vector) {
+    const uint32_t* exp_res =
+        reinterpret_cast<const uint32_t*>(&input->exp_res_lo);
+    CHECK_EQ(exp_res[0], res.w[0]);
+    CHECK_EQ(exp_res[1], res.w[1]);
+    CHECK_EQ(exp_res[2], res.w[2]);
+    CHECK_EQ(exp_res[3], res.w[3]);
+  }
 }
 
 TEST(MSA_pcnt) {
@@ -6771,10 +6853,14 @@ TEST(MSA_pcnt) {
       {0xf35862e13e38f8b0, 0x4f41ffdef2bfe636, 0x20, 0x2a}};
 
   for (size_t i = 0; i < sizeof(tc_b) / sizeof(TestCaseMsa2R); ++i) {
-    run_msa_2r(&tc_b[i], [](MacroAssembler& assm) { __ pcnt_b(w2, w0); });
-    run_msa_2r(&tc_h[i], [](MacroAssembler& assm) { __ pcnt_h(w2, w0); });
-    run_msa_2r(&tc_w[i], [](MacroAssembler& assm) { __ pcnt_w(w2, w0); });
-    run_msa_2r(&tc_d[i], [](MacroAssembler& assm) { __ pcnt_d(w2, w0); });
+    run_msa_2r(&tc_b[i], [](MacroAssembler& assm) { __ pcnt_b(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+    run_msa_2r(&tc_h[i], [](MacroAssembler& assm) { __ pcnt_h(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+    run_msa_2r(&tc_w[i], [](MacroAssembler& assm) { __ pcnt_w(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+    run_msa_2r(&tc_d[i], [](MacroAssembler& assm) { __ pcnt_d(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
   }
 }
 
@@ -6826,10 +6912,14 @@ TEST(MSA_nlzc) {
       {0x00000000e338f8b0, 0x0754534acab32654, 0x20, 0x5}};
 
   for (size_t i = 0; i < sizeof(tc_b) / sizeof(TestCaseMsa2R); ++i) {
-    run_msa_2r(&tc_b[i], [](MacroAssembler& assm) { __ nlzc_b(w2, w0); });
-    run_msa_2r(&tc_h[i], [](MacroAssembler& assm) { __ nlzc_h(w2, w0); });
-    run_msa_2r(&tc_w[i], [](MacroAssembler& assm) { __ nlzc_w(w2, w0); });
-    run_msa_2r(&tc_d[i], [](MacroAssembler& assm) { __ nlzc_d(w2, w0); });
+    run_msa_2r(&tc_b[i], [](MacroAssembler& assm) { __ nlzc_b(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+    run_msa_2r(&tc_h[i], [](MacroAssembler& assm) { __ nlzc_h(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+    run_msa_2r(&tc_w[i], [](MacroAssembler& assm) { __ nlzc_w(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+    run_msa_2r(&tc_d[i], [](MacroAssembler& assm) { __ nlzc_d(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
   }
 }
 
@@ -6881,10 +6971,885 @@ TEST(MSA_nloc) {
       {0xFFFFFFFF1CC7074F, 0xF8ABACB5354CD9AB, 0x20, 0x5}};
 
   for (size_t i = 0; i < sizeof(tc_b) / sizeof(TestCaseMsa2R); ++i) {
-    run_msa_2r(&tc_b[i], [](MacroAssembler& assm) { __ nloc_b(w2, w0); });
-    run_msa_2r(&tc_h[i], [](MacroAssembler& assm) { __ nloc_h(w2, w0); });
-    run_msa_2r(&tc_w[i], [](MacroAssembler& assm) { __ nloc_w(w2, w0); });
-    run_msa_2r(&tc_d[i], [](MacroAssembler& assm) { __ nloc_d(w2, w0); });
+    run_msa_2r(&tc_b[i], [](MacroAssembler& assm) { __ nloc_b(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+    run_msa_2r(&tc_h[i], [](MacroAssembler& assm) { __ nloc_h(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+    run_msa_2r(&tc_w[i], [](MacroAssembler& assm) { __ nloc_w(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+    run_msa_2r(&tc_d[i], [](MacroAssembler& assm) { __ nloc_d(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+struct TestCaseMsa2RF_F_U {
+  float ws1;
+  float ws2;
+  float ws3;
+  float ws4;
+  uint32_t exp_res_1;
+  uint32_t exp_res_2;
+  uint32_t exp_res_3;
+  uint32_t exp_res_4;
+};
+
+struct TestCaseMsa2RF_D_U {
+  double ws1;
+  double ws2;
+  uint64_t exp_res_1;
+  uint64_t exp_res_2;
+};
+
+TEST(MSA_fclass) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+#define BIT(n) (0x1 << n)
+#define SNAN BIT(0)
+#define QNAN BIT(1)
+#define NEG_INFINITY BIT((2))
+#define NEG_NORMAL BIT(3)
+#define NEG_SUBNORMAL BIT(4)
+#define NEG_ZERO BIT(5)
+#define POS_INFINITY BIT(6)
+#define POS_NORMAL BIT(7)
+#define POS_SUBNORMAL BIT(8)
+#define POS_ZERO BIT(9)
+
+  const float inf_float = std::numeric_limits<float>::infinity();
+  const double inf_double = std::numeric_limits<double>::infinity();
+
+  const struct TestCaseMsa2RF_F_U tc_s[] = {
+      {1.f, -0.00001, 208e10f, -34.8e-30f, POS_NORMAL, NEG_NORMAL, POS_NORMAL,
+       NEG_NORMAL},
+      {inf_float, -inf_float, 0, -0.f, POS_INFINITY, NEG_INFINITY, POS_ZERO,
+       NEG_ZERO},
+      {3.036e-40f, -6.392e-43f, 1.41e-45f, -1.17e-38f, POS_SUBNORMAL,
+       NEG_SUBNORMAL, POS_SUBNORMAL, NEG_SUBNORMAL}};
+
+  const struct TestCaseMsa2RF_D_U tc_d[] = {
+      {1., -0.00000001, POS_NORMAL, NEG_NORMAL},
+      {208e10, -34.8e-300, POS_NORMAL, NEG_NORMAL},
+      {inf_double, -inf_double, POS_INFINITY, NEG_INFINITY},
+      {0, -0., POS_ZERO, NEG_ZERO},
+      {1.036e-308, -6.392e-309, POS_SUBNORMAL, NEG_SUBNORMAL},
+      {1.41e-323, -3.17e208, POS_SUBNORMAL, NEG_NORMAL}};
+
+  for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_F_U); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
+               [](MacroAssembler& assm) { __ fclass_w(w2, w0); },
+               load_uint32_elements_of_vector, store_uint32_elements_of_vector);
+  }
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseMsa2RF_D_U); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [](MacroAssembler& assm) { __ fclass_d(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+  }
+
+#undef BIT
+#undef SNAN
+#undef QNAN
+#undef NEG_INFINITY
+#undef NEG_NORMAL
+#undef NEG_SUBNORMAL
+#undef NEG_ZERO
+#undef POS_INFINITY
+#undef POS_NORMAL
+#undef POS_SUBNORMAL
+#undef POS_ZERO
+}
+
+struct TestCaseMsa2RF_F_I {
+  float ws1;
+  float ws2;
+  float ws3;
+  float ws4;
+  int32_t exp_res_1;
+  int32_t exp_res_2;
+  int32_t exp_res_3;
+  int32_t exp_res_4;
+};
+
+struct TestCaseMsa2RF_D_I {
+  double ws1;
+  double ws2;
+  int64_t exp_res_1;
+  int64_t exp_res_2;
+};
+
+TEST(MSA_ftrunc_s) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float inf_float = std::numeric_limits<float>::infinity();
+  const float qNaN_float = std::numeric_limits<float>::quiet_NaN();
+  const double inf_double = std::numeric_limits<double>::infinity();
+  const double qNaN_double = std::numeric_limits<double>::quiet_NaN();
+  const int32_t max_int32 = std::numeric_limits<int32_t>::max();
+  const int32_t min_int32 = std::numeric_limits<int32_t>::min();
+  const int64_t max_int64 = std::numeric_limits<int64_t>::max();
+  const int64_t min_int64 = std::numeric_limits<int64_t>::min();
+
+  const struct TestCaseMsa2RF_F_I tc_s[] = {
+      {inf_float, 2.345f, -324.9235f, 30004.51f, max_int32, 2, -324, 30004},
+      {-inf_float, -0.983f, 0.0832f, static_cast<float>(max_int32) * 3.f,
+       min_int32, 0, 0, max_int32},
+      {-23.125f, qNaN_float, 2 * static_cast<float>(min_int32), -0.f, -23, 0,
+       min_int32, 0}};
+
+  const struct TestCaseMsa2RF_D_I tc_d[] = {
+      {inf_double, 2.345, max_int64, 2},
+      {-324.9235, 246569139.51, -324, 246569139},
+      {-inf_double, -0.983, min_int64, 0},
+      {0.0832, 6 * static_cast<double>(max_int64), 0, max_int64},
+      {-21453889872.94, qNaN_double, -21453889872, 0},
+      {2 * static_cast<double>(min_int64), -0., min_int64, 0}};
+
+  for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_F_I); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
+               [](MacroAssembler& assm) { __ ftrunc_s_w(w2, w0); },
+               load_uint32_elements_of_vector, store_uint32_elements_of_vector);
+  }
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseMsa2RF_D_I); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [](MacroAssembler& assm) { __ ftrunc_s_d(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+TEST(MSA_ftrunc_u) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float inf_float = std::numeric_limits<float>::infinity();
+  const float qNaN_float = std::numeric_limits<float>::quiet_NaN();
+  const double inf_double = std::numeric_limits<double>::infinity();
+  const double qNaN_double = std::numeric_limits<double>::quiet_NaN();
+  const uint32_t max_uint32 = std::numeric_limits<uint32_t>::max();
+  const uint64_t max_uint64 = std::numeric_limits<uint64_t>::max();
+
+  const struct TestCaseMsa2RF_F_U tc_s[] = {
+      {inf_float, 2.345f, -324.9235f, 30004.51f, max_uint32, 2, 0, 30004},
+      {-inf_float, 0.983f, 0.0832f, static_cast<float>(max_uint32) * 3., 0, 0,
+       0, max_uint32},
+      {23.125f, qNaN_float, -0.982, -0.f, 23, 0, 0, 0}};
+
+  const struct TestCaseMsa2RF_D_U tc_d[] = {
+      {inf_double, 2.345, max_uint64, 2},
+      {-324.9235, 246569139.51, 0, 246569139},
+      {-inf_double, -0.983, 0, 0},
+      {0.0832, 6 * static_cast<double>(max_uint64), 0, max_uint64},
+      {21453889872.94, qNaN_double, 21453889872, 0},
+      {0.9889, -0., 0, 0}};
+
+  for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_F_U); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
+               [](MacroAssembler& assm) { __ ftrunc_u_w(w2, w0); },
+               load_uint32_elements_of_vector, store_uint32_elements_of_vector);
+  }
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseMsa2RF_D_U); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [](MacroAssembler& assm) { __ ftrunc_u_d(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+struct TestCaseMsa2RF_F_F {
+  float ws1;
+  float ws2;
+  float ws3;
+  float ws4;
+  float exp_res_1;
+  float exp_res_2;
+  float exp_res_3;
+  float exp_res_4;
+};
+
+struct TestCaseMsa2RF_D_D {
+  double ws1;
+  double ws2;
+  double exp_res_1;
+  double exp_res_2;
+};
+
+TEST(MSA_fsqrt) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float inf_float = std::numeric_limits<float>::infinity();
+  const double inf_double = std::numeric_limits<double>::infinity();
+
+  const struct TestCaseMsa2RF_F_F tc_s[] = {
+      {81.f, 576.f, inf_float, -0.f, 9.f, 24.f, inf_float, -0.f}};
+
+  const struct TestCaseMsa2RF_D_D tc_d[] = {{81., inf_double, 9., inf_double},
+                                            {331776., -0., 576, -0.}};
+
+  for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_F_F); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
+               [](MacroAssembler& assm) { __ fsqrt_w(w2, w0); },
+               load_uint32_elements_of_vector, store_uint32_elements_of_vector);
+  }
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseMsa2RF_D_D); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [](MacroAssembler& assm) { __ fsqrt_d(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+TEST(MSA_frsqrt) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float inf_float = std::numeric_limits<float>::infinity();
+  const double inf_double = std::numeric_limits<double>::infinity();
+
+  const struct TestCaseMsa2RF_F_F tc_s[] = {
+      {81.f, 576.f, inf_float, -0.f, 1.f / 9.f, 1.f / 24.f, 0.f, -inf_float},
+      {0.f, 1.f / 576.f, 1.f / 81.f, 1.f / 4.f, inf_float, 24.f, 9.f, 2.f}};
+
+  const struct TestCaseMsa2RF_D_D tc_d[] = {
+      {81., inf_double, 1. / 9., 0.},
+      {331776., -0., 1. / 576., -inf_double},
+      {0., 1. / 81, inf_double, 9.}};
+
+  for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_F_F); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
+               [](MacroAssembler& assm) { __ frsqrt_w(w2, w0); },
+               load_uint32_elements_of_vector, store_uint32_elements_of_vector);
+  }
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseMsa2RF_D_D); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [](MacroAssembler& assm) { __ frsqrt_d(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+TEST(MSA_frcp) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float inf_float = std::numeric_limits<float>::infinity();
+  const double inf_double = std::numeric_limits<double>::infinity();
+
+  const struct TestCaseMsa2RF_F_F tc_s[] = {
+      {12.f, 576.f, inf_float, -0.f, 1.f / 12.f, 1.f / 576.f, 0.f, -inf_float},
+      {0.f, 1.f / 576.f, -inf_float, 1.f / 400.f, inf_float, 576.f, -0.f,
+       400.f}};
+
+  const struct TestCaseMsa2RF_D_D tc_d[] = {
+      {81., inf_double, 1. / 81., 0.},
+      {331777., -0., 1. / 331777., -inf_double},
+      {0., 1. / 80, inf_double, 80.},
+      {1. / 40000., -inf_double, 40000., -0.}};
+
+  for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_F_F); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
+               [](MacroAssembler& assm) { __ frcp_w(w2, w0); },
+               load_uint32_elements_of_vector, store_uint32_elements_of_vector);
+  }
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseMsa2RF_D_D); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [](MacroAssembler& assm) { __ frcp_d(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+void test_frint_s(size_t data_size, TestCaseMsa2RF_F_F tc_d[],
+                  int rounding_mode) {
+  for (size_t i = 0; i < data_size / sizeof(TestCaseMsa2RF_F_F); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [&rounding_mode](MacroAssembler& assm) {
+                 MSAControlRegister msareg = {kMSACSRRegister};
+                 __ li(t0, static_cast<uint32_t>(rounding_mode));
+                 __ cfcmsa(t1, msareg);
+                 __ ctcmsa(msareg, t0);
+                 __ frint_w(w2, w0);
+                 __ ctcmsa(msareg, t1);
+               },
+               load_uint32_elements_of_vector, store_uint32_elements_of_vector);
+  }
+}
+
+void test_frint_d(size_t data_size, TestCaseMsa2RF_D_D tc_d[],
+                  int rounding_mode) {
+  for (size_t i = 0; i < data_size / sizeof(TestCaseMsa2RF_D_D); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [&rounding_mode](MacroAssembler& assm) {
+                 MSAControlRegister msareg = {kMSACSRRegister};
+                 __ li(t0, static_cast<uint32_t>(rounding_mode));
+                 __ cfcmsa(t1, msareg);
+                 __ ctcmsa(msareg, t0);
+                 __ frint_d(w2, w0);
+                 __ ctcmsa(msareg, t1);
+               },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+TEST(MSA_frint) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsa2RF_F_F tc_s1[] = {
+      {0.f, 4.51f, 1.49f, -12.51f, 0.f, 5.f, 1.f, -13.f},
+      {-1.32f, -23.38f, 2.8f, -32.5f, -1.f, -23.f, 3.f, -32.f}};
+
+  struct TestCaseMsa2RF_D_D tc_d1[] = {{0., 4.51, 0., 5.},
+                                       {1.49, -12.51, 1., -13.},
+                                       {-1.32, -23.38, -1., -23.},
+                                       {2.8, -32.6, 3., -33.}};
+
+  test_frint_s(sizeof(tc_s1), tc_s1, kRoundToNearest);
+  test_frint_d(sizeof(tc_d1), tc_d1, kRoundToNearest);
+
+  struct TestCaseMsa2RF_F_F tc_s2[] = {
+      {0.f, 4.5f, 1.49f, -12.51f, 0.f, 4.f, 1.f, -12.f},
+      {-1.f, -23.38f, 2.8f, -32.6f, -1.f, -23.f, 2.f, -32.f}};
+
+  struct TestCaseMsa2RF_D_D tc_d2[] = {{0., 4.5, 0., 4.},
+                                       {1.49, -12.51, 1., -12.},
+                                       {-1., -23.38, -1., -23.},
+                                       {2.8, -32.6, 2., -32.}};
+
+  test_frint_s(sizeof(tc_s2), tc_s2, kRoundToZero);
+  test_frint_d(sizeof(tc_d2), tc_d2, kRoundToZero);
+
+  struct TestCaseMsa2RF_F_F tc_s3[] = {
+      {0.f, 4.5f, 1.49f, -12.51f, 0.f, 5.f, 2.f, -12.f},
+      {-1.f, -23.38f, 2.8f, -32.6f, -1.f, -23.f, 3.f, -32.f}};
+
+  struct TestCaseMsa2RF_D_D tc_d3[] = {{0., 4.5, 0., 5.},
+                                       {1.49, -12.51, 2., -12.},
+                                       {-1., -23.38, -1., -23.},
+                                       {2.8, -32.6, 3., -32.}};
+
+  test_frint_s(sizeof(tc_s3), tc_s3, kRoundToPlusInf);
+  test_frint_d(sizeof(tc_d3), tc_d3, kRoundToPlusInf);
+
+  struct TestCaseMsa2RF_F_F tc_s4[] = {
+      {0.f, 4.5f, 1.49f, -12.51f, 0.f, 4.f, 1.f, -13.f},
+      {-1.f, -23.38f, 2.8f, -32.6f, -1.f, -24.f, 2.f, -33.f}};
+
+  struct TestCaseMsa2RF_D_D tc_d4[] = {{0., 4.5, 0., 4.},
+                                       {1.49, -12.51, 1., -13.},
+                                       {-1., -23.38, -1., -24.},
+                                       {2.8, -32.6, 2., -33.}};
+
+  test_frint_s(sizeof(tc_s4), tc_s4, kRoundToMinusInf);
+  test_frint_d(sizeof(tc_d4), tc_d4, kRoundToMinusInf);
+}
+
+TEST(MSA_flog2) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float inf_float = std::numeric_limits<float>::infinity();
+  const double inf_double = std::numeric_limits<double>::infinity();
+
+  struct TestCaseMsa2RF_F_F tc_s[] = {
+      {std::ldexp(0.58f, -48), std::ldexp(0.5f, 110), std::ldexp(1.11f, -130),
+       inf_float, -49.f, 109.f, -130.f, inf_float},
+      {0.f, -0.f, std::ldexp(0.89f, -12), std::ldexp(0.32f, 126), -inf_float,
+       -inf_float, -13.f, 124.f}};
+
+  struct TestCaseMsa2RF_D_D tc_d[] = {
+      {std::ldexp(0.58, -48), std::ldexp(0.5, 110), -49., 109.},
+      {std::ldexp(1.11, -1050), inf_double, -1050., inf_double},
+      {0., -0., -inf_double, -inf_double},
+      {std::ldexp(0.32, 1021), std::ldexp(1.23, -123), 1019., -123.}};
+
+  for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_F_F); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
+               [](MacroAssembler& assm) { __ flog2_w(w2, w0); },
+               load_uint32_elements_of_vector, store_uint32_elements_of_vector);
+  }
+
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseMsa2RF_D_D); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [](MacroAssembler& assm) { __ flog2_d(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+void test_ftint_s_s(size_t data_size, TestCaseMsa2RF_F_I tc_d[],
+                    int rounding_mode) {
+  for (size_t i = 0; i < data_size / sizeof(TestCaseMsa2RF_F_I); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [&rounding_mode](MacroAssembler& assm) {
+                 MSAControlRegister msareg = {kMSACSRRegister};
+                 __ li(t0, static_cast<uint32_t>(rounding_mode));
+                 __ cfcmsa(t1, msareg);
+                 __ ctcmsa(msareg, t0);
+                 __ ftint_s_w(w2, w0);
+                 __ ctcmsa(msareg, t1);
+               },
+               load_uint32_elements_of_vector, store_uint32_elements_of_vector);
+  }
+}
+
+void test_ftint_s_d(size_t data_size, TestCaseMsa2RF_D_I tc_d[],
+                    int rounding_mode) {
+  for (size_t i = 0; i < data_size / sizeof(TestCaseMsa2RF_D_I); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [&rounding_mode](MacroAssembler& assm) {
+                 MSAControlRegister msareg = {kMSACSRRegister};
+                 __ li(t0, static_cast<uint32_t>(rounding_mode));
+                 __ cfcmsa(t1, msareg);
+                 __ ctcmsa(msareg, t0);
+                 __ ftint_s_d(w2, w0);
+                 __ ctcmsa(msareg, t1);
+               },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+TEST(MSA_ftint_s) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float inf_float = std::numeric_limits<float>::infinity();
+  const double inf_double = std::numeric_limits<double>::infinity();
+  const int32_t int32_max = std::numeric_limits<int32_t>::max();
+  const int32_t int32_min = std::numeric_limits<int32_t>::min();
+  const int64_t int64_max = std::numeric_limits<int64_t>::max();
+  const int64_t int64_min = std::numeric_limits<int64_t>::min();
+
+  struct TestCaseMsa2RF_F_I tc_s1[] = {
+      {0.f, 4.51f, 1.49f, -12.51f, 0, 5, 1, -13},
+      {-0.32f, -23.38f, 2.8f, -32.6f, 0, -23, 3, -33},
+      {inf_float, -inf_float, 3.f * int32_min, 4.f * int32_max, int32_max,
+       int32_min, int32_min, int32_max}};
+
+  struct TestCaseMsa2RF_D_I tc_d1[] = {
+      {0., 4.51, 0, 5},
+      {1.49, -12.51, 1, -13},
+      {-0.32, -23.38, 0, -23},
+      {2.8, -32.6, 3, -33},
+      {inf_double, -inf_double, int64_max, int64_min},
+      {33.23 * int64_min, 4000. * int64_max, int64_min, int64_max}};
+
+  test_ftint_s_s(sizeof(tc_s1), tc_s1, kRoundToNearest);
+  test_ftint_s_d(sizeof(tc_d1), tc_d1, kRoundToNearest);
+
+  struct TestCaseMsa2RF_F_I tc_s2[] = {
+      {0.f, 4.5f, 1.49f, -12.51f, 0, 4, 1, -12},
+      {-0.f, -23.38f, 2.8f, -32.6f, -0, -23, 2, -32},
+      {inf_float, -inf_float, 3.f * int32_min, 4.f * int32_max, int32_max,
+       int32_min, int32_min, int32_max}};
+
+  struct TestCaseMsa2RF_D_I tc_d2[] = {
+      {0., 4.5, 0, 4},
+      {1.49, -12.51, 1, -12},
+      {-0., -23.38, -0, -23},
+      {2.8, -32.6, 2, -32},
+      {inf_double, -inf_double, int64_max, int64_min},
+      {33.23 * int64_min, 4000. * int64_max, int64_min, int64_max}};
+
+  test_ftint_s_s(sizeof(tc_s2), tc_s2, kRoundToZero);
+  test_ftint_s_d(sizeof(tc_d2), tc_d2, kRoundToZero);
+
+  struct TestCaseMsa2RF_F_I tc_s3[] = {
+      {0.f, 4.5f, 1.49f, -12.51f, 0, 5, 2, -12},
+      {-0.f, -23.38f, 2.8f, -32.6f, -0, -23, 3, -32},
+      {inf_float, -inf_float, 3.f * int32_min, 4.f * int32_max, int32_max,
+       int32_min, int32_min, int32_max}};
+
+  struct TestCaseMsa2RF_D_I tc_d3[] = {
+      {0., 4.5, 0, 5},
+      {1.49, -12.51, 2, -12},
+      {-0., -23.38, -0, -23},
+      {2.8, -32.6, 3, -32},
+      {inf_double, -inf_double, int64_max, int64_min},
+      {33.23 * int64_min, 4000. * int64_max, int64_min, int64_max}};
+
+  test_ftint_s_s(sizeof(tc_s3), tc_s3, kRoundToPlusInf);
+  test_ftint_s_d(sizeof(tc_d3), tc_d3, kRoundToPlusInf);
+
+  struct TestCaseMsa2RF_F_I tc_s4[] = {
+      {0.f, 4.5f, 1.49f, -12.51f, 0, 4, 1, -13},
+      {-0.f, -23.38f, 2.8f, -32.6f, -0, -24, 2, -33},
+      {inf_float, -inf_float, 3.f * int32_min, 4.f * int32_max, int32_max,
+       int32_min, int32_min, int32_max}};
+
+  struct TestCaseMsa2RF_D_I tc_d4[] = {
+      {0., 4.5, 0, 4},
+      {1.49, -12.51, 1, -13},
+      {-0., -23.38, -0, -24},
+      {2.8, -32.6, 2, -33},
+      {inf_double, -inf_double, int64_max, int64_min},
+      {33.23 * int64_min, 4000. * int64_max, int64_min, int64_max}};
+
+  test_ftint_s_s(sizeof(tc_s4), tc_s4, kRoundToMinusInf);
+  test_ftint_s_d(sizeof(tc_d4), tc_d4, kRoundToMinusInf);
+}
+
+void test_ftint_u_s(size_t data_size, TestCaseMsa2RF_F_U tc_d[],
+                    int rounding_mode) {
+  for (size_t i = 0; i < data_size / sizeof(TestCaseMsa2RF_F_U); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [&rounding_mode](MacroAssembler& assm) {
+                 MSAControlRegister msareg = {kMSACSRRegister};
+                 __ li(t0, static_cast<uint32_t>(rounding_mode));
+                 __ cfcmsa(t1, msareg);
+                 __ ctcmsa(msareg, t0);
+                 __ ftint_u_w(w2, w0);
+                 __ ctcmsa(msareg, t1);
+               },
+               load_uint32_elements_of_vector, store_uint32_elements_of_vector);
+  }
+}
+
+void test_ftint_u_d(size_t data_size, TestCaseMsa2RF_D_U tc_d[],
+                    int rounding_mode) {
+  for (size_t i = 0; i < data_size / sizeof(TestCaseMsa2RF_D_U); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [&rounding_mode](MacroAssembler& assm) {
+                 MSAControlRegister msareg = {kMSACSRRegister};
+                 __ li(t0, static_cast<uint32_t>(rounding_mode));
+                 __ cfcmsa(t1, msareg);
+                 __ ctcmsa(msareg, t0);
+                 __ ftint_u_d(w2, w0);
+                 __ ctcmsa(msareg, t1);
+               },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+TEST(MSA_ftint_u) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float inf_float = std::numeric_limits<float>::infinity();
+  const double inf_double = std::numeric_limits<double>::infinity();
+  const uint32_t uint32_max = std::numeric_limits<uint32_t>::max();
+  const uint64_t uint64_max = std::numeric_limits<uint64_t>::max();
+
+  struct TestCaseMsa2RF_F_U tc_s1[] = {
+      {0.f, 4.51f, 1.49f, -12.51f, 0, 5, 1, 0},
+      {-0.32f, 23.38f, 2.8f, 32.6f, 0, 23, 3, 33},
+      {inf_float, -inf_float, 0, 4.f * uint32_max, uint32_max, 0, 0,
+       uint32_max}};
+
+  struct TestCaseMsa2RF_D_U tc_d1[] = {
+      {0., 4.51, 0, 5},
+      {1.49, -12.51, 1, 0},
+      {-0.32, 23.38, 0, 23},
+      {2.8, 32.6, 3, 33},
+      {inf_double, -inf_double, uint64_max, 0},
+      {-0., 4000. * uint64_max, 0, uint64_max}};
+
+  test_ftint_u_s(sizeof(tc_s1), tc_s1, kRoundToNearest);
+  test_ftint_u_d(sizeof(tc_d1), tc_d1, kRoundToNearest);
+
+  struct TestCaseMsa2RF_F_U tc_s2[] = {
+      {0.f, 4.5f, 1.49f, -12.51f, 0, 4, 1, 0},
+      {-0.f, 23.38f, 2.8f, 32.6f, 0, 23, 2, 32},
+      {inf_float, -inf_float, 0., 4.f * uint32_max, uint32_max, 0, 0,
+       uint32_max}};
+
+  struct TestCaseMsa2RF_D_U tc_d2[] = {
+      {0., 4.5, 0, 4},
+      {1.49, -12.51, 1, 0},
+      {-0., 23.38, 0, 23},
+      {2.8, 32.6, 2, 32},
+      {inf_double, -inf_double, uint64_max, 0},
+      {-0.2345, 4000. * uint64_max, 0, uint64_max}};
+
+  test_ftint_u_s(sizeof(tc_s2), tc_s2, kRoundToZero);
+  test_ftint_u_d(sizeof(tc_d2), tc_d2, kRoundToZero);
+
+  struct TestCaseMsa2RF_F_U tc_s3[] = {
+      {0.f, 4.5f, 1.49f, -12.51f, 0, 5, 2, 0},
+      {-0.f, 23.38f, 2.8f, 32.6f, 0, 24, 3, 33},
+      {inf_float, -inf_float, 0, 4.f * uint32_max, uint32_max, 0, 0,
+       uint32_max}};
+
+  struct TestCaseMsa2RF_D_U tc_d3[] = {
+      {0., 4.5, 0, 5},
+      {1.49, -12.51, 2, 0},
+      {-0., 23.38, -0, 24},
+      {2.8, 32.6, 3, 33},
+      {inf_double, -inf_double, uint64_max, 0},
+      {-0.5252, 4000. * uint64_max, 0, uint64_max}};
+
+  test_ftint_u_s(sizeof(tc_s3), tc_s3, kRoundToPlusInf);
+  test_ftint_u_d(sizeof(tc_d3), tc_d3, kRoundToPlusInf);
+
+  struct TestCaseMsa2RF_F_U tc_s4[] = {
+      {0.f, 4.5f, 1.49f, -12.51f, 0, 4, 1, 0},
+      {-0.f, 23.38f, 2.8f, 32.6f, 0, 23, 2, 32},
+      {inf_float, -inf_float, 0, 4.f * uint32_max, uint32_max, 0, 0,
+       uint32_max}};
+
+  struct TestCaseMsa2RF_D_U tc_d4[] = {
+      {0., 4.5, 0, 4},
+      {1.49, -12.51, 1, 0},
+      {-0., 23.38, -0, 23},
+      {2.8, 32.6, 2, 32},
+      {inf_double, -inf_double, uint64_max, 0},
+      {-0.098797, 4000. * uint64_max, 0, uint64_max}};
+
+  test_ftint_u_s(sizeof(tc_s4), tc_s4, kRoundToMinusInf);
+  test_ftint_u_d(sizeof(tc_d4), tc_d4, kRoundToMinusInf);
+}
+
+struct TestCaseMsa2RF_U_F {
+  uint32_t ws1;
+  uint32_t ws2;
+  uint32_t ws3;
+  uint32_t ws4;
+  float exp_res_1;
+  float exp_res_2;
+  float exp_res_3;
+  float exp_res_4;
+};
+
+struct TestCaseMsa2RF_U_D {
+  uint64_t ws1;
+  uint64_t ws2;
+  double exp_res_1;
+  double exp_res_2;
+};
+
+TEST(MSA_ffint_u) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsa2RF_U_F tc_s[] = {
+      {0, 345, 234, 1000, 0.f, 345.f, 234.f, 1000.f}};
+
+  struct TestCaseMsa2RF_U_D tc_d[] = {{0, 345, 0., 345.},
+                                      {234, 1000, 234., 1000.}};
+
+  for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_U_F); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
+               [](MacroAssembler& assm) { __ ffint_u_w(w2, w0); },
+               load_uint32_elements_of_vector, store_uint32_elements_of_vector);
+  }
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseMsa2RF_U_D); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [](MacroAssembler& assm) { __ ffint_u_d(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+struct TestCaseMsa2RF_I_F {
+  int32_t ws1;
+  int32_t ws2;
+  int32_t ws3;
+  int32_t ws4;
+  float exp_res_1;
+  float exp_res_2;
+  float exp_res_3;
+  float exp_res_4;
+};
+
+struct TestCaseMsa2RF_I_D {
+  int64_t ws1;
+  int64_t ws2;
+  double exp_res_1;
+  double exp_res_2;
+};
+
+TEST(MSA_ffint_s) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsa2RF_I_F tc_s[] = {
+      {0, 345, -234, 1000, 0.f, 345.f, -234.f, 1000.f}};
+
+  struct TestCaseMsa2RF_I_D tc_d[] = {{0, 345, 0., 345.},
+                                      {-234, 1000, -234., 1000.}};
+
+  for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_I_F); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
+               [](MacroAssembler& assm) { __ ffint_s_w(w2, w0); },
+               load_uint32_elements_of_vector, store_uint32_elements_of_vector);
+  }
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseMsa2RF_I_D); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [](MacroAssembler& assm) { __ ffint_s_d(w2, w0); },
+               load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+struct TestCaseMsa2RF_U16_F {
+  uint16_t ws1;
+  uint16_t ws2;
+  uint16_t ws3;
+  uint16_t ws4;
+  uint16_t ws5;
+  uint16_t ws6;
+  uint16_t ws7;
+  uint16_t ws8;
+  float exp_res_1;
+  float exp_res_2;
+  float exp_res_3;
+  float exp_res_4;
+};
+
+struct TestCaseMsa2RF_F_D {
+  float ws1;
+  float ws2;
+  float ws3;
+  float ws4;
+  double exp_res_1;
+  double exp_res_2;
+};
+
+TEST(MSA_fexupl) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float inf_float = std::numeric_limits<float>::infinity();
+  const double inf_double = std::numeric_limits<double>::infinity();
+
+  struct TestCaseMsa2RF_U16_F tc_s[] = {
+      {1, 2, 0x7c00, 0x0c00, 0, 0x7c00, 0xfc00, 0x8000, 0.f, inf_float,
+       -inf_float, -0.f},
+      {0xfc00, 0xffff, 0x00ff, 0x8000, 0x81fe, 0x8000, 0x0345, 0xaaaa,
+       -3.0398368835e-5f, -0.f, 4.9889088e-5f, -5.2062988281e-2f},
+      {3, 4, 0x5555, 6, 0x2aaa, 0x8700, 0x7777, 0x6a8b, 5.2062988281e-2f,
+       -1.06811523458e-4f, 3.0576e4f, 3.35e3f}};
+
+  struct TestCaseMsa2RF_F_D tc_d[] = {
+      {0.f, 123.456f, inf_float, -0.f, inf_double, -0.},
+      {-inf_float, -3.f, 0.f, -inf_float, 0., -inf_double},
+      {2.3f, 3., 1.37747639043129518071e-41f, -3.22084585277826e35f,
+       1.37747639043129518071e-41, -3.22084585277826e35}};
+
+  for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_U16_F); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
+               [](MacroAssembler& assm) { __ fexupl_w(w2, w0); },
+               load_uint16_elements_of_vector, store_uint32_elements_of_vector);
+  }
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseMsa2RF_F_D); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [](MacroAssembler& assm) { __ fexupl_d(w2, w0); },
+               load_uint32_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+TEST(MSA_fexupr) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float inf_float = std::numeric_limits<float>::infinity();
+  const double inf_double = std::numeric_limits<double>::infinity();
+
+  struct TestCaseMsa2RF_U16_F tc_s[] = {
+      {0, 0x7c00, 0xfc00, 0x8000, 1, 2, 0x7c00, 0x0c00, 0.f, inf_float,
+       -inf_float, -0.f},
+      {0x81fe, 0x8000, 0x0345, 0xaaaa, 0xfc00, 0xffff, 0x00ff, 0x8000,
+       -3.0398368835e-5f, -0.f, 4.9889088e-5f, -5.2062988281e-2f},
+      {0x2aaa, 0x8700, 0x7777, 0x6a8b, 3, 4, 0x5555, 6, 5.2062988281e-2f,
+       -1.06811523458e-4f, 3.0576e4f, 3.35e3f}};
+
+  struct TestCaseMsa2RF_F_D tc_d[] = {
+      {inf_float, -0.f, 0.f, 123.456f, inf_double, -0.},
+      {0.f, -inf_float, -inf_float, -3.f, 0., -inf_double},
+      {1.37747639043129518071e-41f, -3.22084585277826e35f, 2.3f, 3.,
+       1.37747639043129518071e-41, -3.22084585277826e35}};
+
+  for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_U16_F); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
+               [](MacroAssembler& assm) { __ fexupr_w(w2, w0); },
+               load_uint16_elements_of_vector, store_uint32_elements_of_vector);
+  }
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseMsa2RF_F_D); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [](MacroAssembler& assm) { __ fexupr_d(w2, w0); },
+               load_uint32_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+struct TestCaseMsa2RF_U32_D {
+  uint32_t ws1;
+  uint32_t ws2;
+  uint32_t ws3;
+  uint32_t ws4;
+  double exp_res_1;
+  double exp_res_2;
+};
+
+TEST(MSA_ffql) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsa2RF_U16_F tc_s[] = {{0, 3, 0xffff, 0x8000, 0x8000, 0xe000,
+                                         0x0FF0, 0, -1.f, -0.25f,
+                                         0.12451171875f, 0.f}};
+
+  struct TestCaseMsa2RF_U32_D tc_d[] = {
+      {0, 45, 0x80000000, 0xe0000000, -1., -0.25},
+      {0x28379, 0xaaaa5555, 0x024903d3, 0, 17.853239085525274277e-3, 0.}};
+
+  for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_U16_F); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
+               [](MacroAssembler& assm) { __ ffql_w(w2, w0); },
+               load_uint16_elements_of_vector, store_uint32_elements_of_vector);
+  }
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseMsa2RF_U32_D); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [](MacroAssembler& assm) { __ ffql_d(w2, w0); },
+               load_uint32_elements_of_vector, store_uint64_elements_of_vector);
+  }
+}
+
+TEST(MSA_ffqr) {
+  if (!IsMipsArchVariant(kMips32r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  struct TestCaseMsa2RF_U16_F tc_s[] = {{0x8000, 0xe000, 0x0FF0, 0, 0, 3,
+                                         0xffff, 0x8000, -1.f, -0.25f,
+                                         0.12451171875f, 0.f}};
+
+  struct TestCaseMsa2RF_U32_D tc_d[] = {
+      {0x80000000, 0xe0000000, 0, 45, -1., -0.25},
+      {0x024903d3, 0, 0x28379, 0xaaaa5555, 17.853239085525274277e-3, 0.}};
+
+  for (size_t i = 0; i < sizeof(tc_s) / sizeof(TestCaseMsa2RF_U16_F); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_s[i]),
+               [](MacroAssembler& assm) { __ ffqr_w(w2, w0); },
+               load_uint16_elements_of_vector, store_uint32_elements_of_vector);
+  }
+  for (size_t i = 0; i < sizeof(tc_d) / sizeof(TestCaseMsa2RF_U32_D); ++i) {
+    run_msa_2r(reinterpret_cast<const TestCaseMsa2R*>(&tc_d[i]),
+               [](MacroAssembler& assm) { __ ffqr_d(w2, w0); },
+               load_uint32_elements_of_vector, store_uint64_elements_of_vector);
   }
 }
 
@@ -6908,31 +7873,13 @@ void run_msa_vector(struct TestCaseMsaVector* input,
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
 
-#define LOAD_W_REG(lo, hi, w_reg)                            \
-  __ li(t0, static_cast<uint32_t>(lo & 0xffffffff));         \
-  __ li(t1, static_cast<uint32_t>((lo >> 32) & 0xffffffff)); \
-  __ insert_w(w_reg, 0, t0);                                 \
-  __ insert_w(w_reg, 1, t1);                                 \
-  __ li(t0, static_cast<uint32_t>(hi & 0xffffffff));         \
-  __ li(t1, static_cast<uint32_t>((hi >> 32) & 0xffffffff)); \
-  __ insert_w(w_reg, 2, t0);                                 \
-  __ insert_w(w_reg, 3, t1)
-
-  LOAD_W_REG(input->ws_lo, input->ws_hi, w0);
-  LOAD_W_REG(input->wt_lo, input->wt_hi, w2);
-  LOAD_W_REG(input->wd_lo, input->wd_hi, w4);
-#undef LOAD_W_REG
+  load_uint64_elements_of_vector(assm, &(input->ws_lo), w0, t0, t1);
+  load_uint64_elements_of_vector(assm, &(input->wt_lo), w2, t0, t1);
+  load_uint64_elements_of_vector(assm, &(input->wd_lo), w4, t0, t1);
 
   GenerateVectorInstructionFunc(assm);
 
-  __ copy_u_w(t2, w4, 0);
-  __ sw(t2, MemOperand(a0, 0));
-  __ copy_u_w(t2, w4, 1);
-  __ sw(t2, MemOperand(a0, 4));
-  __ copy_u_w(t2, w4, 2);
-  __ sw(t2, MemOperand(a0, 8));
-  __ copy_u_w(t2, w4, 3);
-  __ sw(t2, MemOperand(a0, 12));
+  store_uint64_elements_of_vector(assm, w4, a0, t2);
 
   __ jr(ra);
   __ nop();
@@ -7015,30 +7962,12 @@ void run_msa_bit(struct TestCaseMsaBit* input, InstFunc GenerateInstructionFunc,
   CpuFeatureScope fscope(&assm, MIPS_SIMD);
   msa_reg_t res;
 
-#define LOAD_W_REG(lo, hi, w_reg)                            \
-  __ li(t0, static_cast<uint32_t>(lo & 0xffffffff));         \
-  __ li(t1, static_cast<uint32_t>((lo >> 32) & 0xffffffff)); \
-  __ insert_w(w_reg, 0, t0);                                 \
-  __ insert_w(w_reg, 1, t1);                                 \
-  __ li(t0, static_cast<uint32_t>(hi & 0xffffffff));         \
-  __ li(t1, static_cast<uint32_t>((hi >> 32) & 0xffffffff)); \
-  __ insert_w(w_reg, 2, t0);                                 \
-  __ insert_w(w_reg, 3, t1)
-
-  LOAD_W_REG(input->ws_lo, input->ws_hi, w0);
-  LOAD_W_REG(input->wd_lo, input->wd_hi, w2);
-#undef LOAD_W_REG
+  load_uint64_elements_of_vector(assm, &(input->ws_lo), w0, t0, t1);
+  load_uint64_elements_of_vector(assm, &(input->wd_lo), w2, t0, t1);
 
   GenerateInstructionFunc(assm, input->m);
 
-  __ copy_u_w(t2, w2, 0);
-  __ sw(t2, MemOperand(a0, 0));
-  __ copy_u_w(t2, w2, 1);
-  __ sw(t2, MemOperand(a0, 4));
-  __ copy_u_w(t2, w2, 2);
-  __ sw(t2, MemOperand(a0, 8));
-  __ copy_u_w(t2, w2, 3);
-  __ sw(t2, MemOperand(a0, 12));
+  store_uint64_elements_of_vector(assm, w2, a0, t2);
 
   __ jr(ra);
   __ nop();
@@ -7511,14 +8440,7 @@ void run_msa_i10(int32_t input, InstFunc GenerateVectorInstructionFunc,
 
   GenerateVectorInstructionFunc(assm, input);
 
-  __ copy_u_w(t2, w0, 0);
-  __ sw(t2, MemOperand(a0, 0));
-  __ copy_u_w(t2, w0, 1);
-  __ sw(t2, MemOperand(a0, 4));
-  __ copy_u_w(t2, w0, 2);
-  __ sw(t2, MemOperand(a0, 8));
-  __ copy_u_w(t2, w0, 3);
-  __ sw(t2, MemOperand(a0, 12));
+  store_uint64_elements_of_vector(assm, w0, a0, t2);
 
   __ jr(ra);
   __ nop();
@@ -7671,30 +8593,13 @@ void run_msa_3r(struct TestCaseMsa3R* input, InstFunc GenerateI5InstructionFunc,
   msa_reg_t res;
   uint64_t expected;
 
-#define LOAD_MSA_REG(reg, low, high)                                  \
-  __ li(t0, static_cast<uint32_t>(input->low & 0xffffffff));          \
-  __ li(t1, static_cast<uint32_t>((input->low >> 32) & 0xffffffff));  \
-  __ insert_w(reg, 0, t0);                                            \
-  __ insert_w(reg, 1, t1);                                            \
-  __ li(t0, static_cast<uint32_t>(input->high & 0xffffffff));         \
-  __ li(t1, static_cast<uint32_t>((input->high >> 32) & 0xffffffff)); \
-  __ insert_w(reg, 2, t0);                                            \
-  __ insert_w(reg, 3, t1);
-
-  LOAD_MSA_REG(w0, wt_lo, wt_hi);
-  LOAD_MSA_REG(w1, ws_lo, ws_hi);
-  LOAD_MSA_REG(w2, wd_lo, wd_hi);
+  load_uint64_elements_of_vector(assm, &(input->wt_lo), w0, t0, t1);
+  load_uint64_elements_of_vector(assm, &(input->ws_lo), w1, t0, t1);
+  load_uint64_elements_of_vector(assm, &(input->wd_lo), w2, t0, t1);
 
   GenerateI5InstructionFunc(assm);
 
-  __ copy_u_w(t2, w2, 0);
-  __ sw(t2, MemOperand(a0, 0));
-  __ copy_u_w(t2, w2, 1);
-  __ sw(t2, MemOperand(a0, 4));
-  __ copy_u_w(t2, w2, 2);
-  __ sw(t2, MemOperand(a0, 8));
-  __ copy_u_w(t2, w2, 3);
-  __ sw(t2, MemOperand(a0, 12));
+  store_uint64_elements_of_vector(assm, w2, a0, t2);
 
   __ jr(ra);
   __ nop();

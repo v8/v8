@@ -277,8 +277,13 @@ class Simulator {
                                int32_t& rounded_int, float fs);
   void round64_according_to_fcsr(float toRound, float& rounded,
                                  int64_t& rounded_int, float fs);
+  template <typename T_fp, typename T_int>
+  void round_according_to_msacsr(T_fp toRound, T_fp& rounded,
+                                 T_int& rounded_int);
   void set_fcsr_rounding_mode(FPURoundingMode mode);
+  void set_msacsr_rounding_mode(FPURoundingMode mode);
   unsigned int get_fcsr_rounding_mode();
+  unsigned int get_msacsr_rounding_mode();
   // Special case of set_register and get_register to access the raw PC value.
   void set_pc(int64_t value);
   int64_t get_pc() const;
@@ -602,6 +607,8 @@ class Simulator {
   int64_t FPUregisters_[kNumFPURegisters * 2];
   // FPU control register.
   uint32_t FCSR_;
+  // MSA control register.
+  uint32_t MSACSR_;
 
   // Simulator support.
   // Allocate 1MB for stack.

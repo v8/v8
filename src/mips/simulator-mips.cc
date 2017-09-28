@@ -912,6 +912,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   }
   if (IsMipsArchVariant(kMips32r6)) {
     FCSR_ = kFCSRNaN2008FlagMask;
+    MSACSR_ = 0;
   } else {
     DCHECK(IsMipsArchVariant(kMips32r1) || IsMipsArchVariant(kMips32r2));
     FCSR_ = 0;
@@ -1258,11 +1259,17 @@ void Simulator::set_fcsr_rounding_mode(FPURoundingMode mode) {
   FCSR_ |= mode & kFPURoundingModeMask;
 }
 
+void Simulator::set_msacsr_rounding_mode(FPURoundingMode mode) {
+  MSACSR_ |= mode & kFPURoundingModeMask;
+}
 
 unsigned int Simulator::get_fcsr_rounding_mode() {
   return FCSR_ & kFPURoundingModeMask;
 }
 
+unsigned int Simulator::get_msacsr_rounding_mode() {
+  return MSACSR_ & kFPURoundingModeMask;
+}
 
 void Simulator::set_fpu_register_word_invalid_result(float original,
                                                      float rounded) {
@@ -1542,6 +1549,7 @@ void Simulator::round_according_to_fcsr(double toRound, double& rounded,
         // If the number is halfway between two integers,
         // round to the even one.
         rounded_int--;
+        rounded -= 1.;
       }
       break;
     case kRoundToZero:
@@ -1583,6 +1591,7 @@ void Simulator::round_according_to_fcsr(float toRound, float& rounded,
         // If the number is halfway between two integers,
         // round to the even one.
         rounded_int--;
+        rounded -= 1.f;
       }
       break;
     case kRoundToZero:
@@ -1600,6 +1609,47 @@ void Simulator::round_according_to_fcsr(float toRound, float& rounded,
   }
 }
 
+template <typename T_fp, typename T_int>
+void Simulator::round_according_to_msacsr(T_fp toRound, T_fp& rounded,
+                                          T_int& rounded_int) {
+  // 0 RN (round to nearest): Round a result to the nearest
+  // representable value; if the result is exactly halfway between
+  // two representable values, round to zero. Behave like round_w_d.
+
+  // 1 RZ (round toward zero): Round a result to the closest
+  // representable value whose absolute value is less than or
+  // equal to the infinitely accurate result. Behave like trunc_w_d.
+
+  // 2 RP (round up, or toward  infinity): Round a result to the
+  // next representable value up. Behave like ceil_w_d.
+
+  // 3 RD (round down, or toward −infinity): Round a result to
+  // the next representable value down. Behave like floor_w_d.
+  switch (get_msacsr_rounding_mode()) {
+    case kRoundToNearest:
+      rounded = std::floor(toRound + 0.5);
+      rounded_int = static_cast<T_int>(rounded);
+      if ((rounded_int & 1) != 0 && rounded_int - toRound == 0.5) {
+        // If the number is halfway between two integers,
+        // round to the even one.
+        rounded_int--;
+        rounded -= 1;
+      }
+      break;
+    case kRoundToZero:
+      rounded = trunc(toRound);
+      rounded_int = static_cast<T_int>(rounded);
+      break;
+    case kRoundToPlusInf:
+      rounded = std::ceil(toRound);
+      rounded_int = static_cast<T_int>(rounded);
+      break;
+    case kRoundToMinusInf:
+      rounded = std::floor(toRound);
+      rounded_int = static_cast<T_int>(rounded);
+      break;
+  }
+}
 
 void Simulator::round64_according_to_fcsr(double toRound, double& rounded,
                                           int64_t& rounded_int, double fs) {
@@ -1624,6 +1674,7 @@ void Simulator::round64_according_to_fcsr(double toRound, double& rounded,
         // If the number is halfway between two integers,
         // round to the even one.
         rounded_int--;
+        rounded -= 1.;
       }
       break;
     case kRoundToZero:
@@ -1665,6 +1716,7 @@ void Simulator::round64_according_to_fcsr(float toRound, float& rounded,
         // If the number is halfway between two integers,
         // round to the even one.
         rounded_int--;
+        rounded -= 1.f;
       }
       break;
     case kRoundToZero:
@@ -4628,80 +4680,99 @@ void Simulator::DecodeTypeMsaI10() {
 void Simulator::DecodeTypeMsaELM() {
   DCHECK(IsMipsArchVariant(kMips32r6));
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
-  uint32_t opcode = instr_.InstructionBits() & kMsaELMMask;
+  uint32_t opcode = instr_.InstructionBits() & kMsaLongerELMMask;
   int32_t n = instr_.MsaElmNValue();
   int32_t alu_out;
   switch (opcode) {
-    case COPY_S:
-    case COPY_U: {
-      msa_reg_t ws;
-      switch (DecodeMsaDataFormat()) {
-        case MSA_BYTE: {
-          DCHECK(n < kMSALanesByte);
-          get_msa_register(instr_.WsValue(), ws.b);
-          alu_out = static_cast<int32_t>(ws.b[n]);
-          SetResult(wd_reg(), (opcode == COPY_U) ? alu_out & 0xFFu : alu_out);
-          break;
-        }
-        case MSA_HALF: {
-          DCHECK(n < kMSALanesHalf);
-          get_msa_register(instr_.WsValue(), ws.h);
-          alu_out = static_cast<int32_t>(ws.h[n]);
-          SetResult(wd_reg(), (opcode == COPY_U) ? alu_out & 0xFFFFu : alu_out);
-          break;
-        }
-        case MSA_WORD: {
-          DCHECK(n < kMSALanesWord);
-          get_msa_register(instr_.WsValue(), ws.w);
-          alu_out = static_cast<int32_t>(ws.w[n]);
-          SetResult(wd_reg(), alu_out);
-          break;
-        }
-        default:
-          UNREACHABLE();
-      }
-    } break;
-    case INSERT: {
-      msa_reg_t wd;
-      switch (DecodeMsaDataFormat()) {
-        case MSA_BYTE: {
-          DCHECK(n < kMSALanesByte);
-          int32_t rs = get_register(instr_.WsValue());
-          get_msa_register(instr_.WdValue(), wd.b);
-          wd.b[n] = rs & 0xFFu;
-          set_msa_register(instr_.WdValue(), wd.b);
-          TraceMSARegWr(wd.b);
-          break;
-        }
-        case MSA_HALF: {
-          DCHECK(n < kMSALanesHalf);
-          int32_t rs = get_register(instr_.WsValue());
-          get_msa_register(instr_.WdValue(), wd.h);
-          wd.h[n] = rs & 0xFFFFu;
-          set_msa_register(instr_.WdValue(), wd.h);
-          TraceMSARegWr(wd.h);
-          break;
-        }
-        case MSA_WORD: {
-          DCHECK(n < kMSALanesWord);
-          int32_t rs = get_register(instr_.WsValue());
-          get_msa_register(instr_.WdValue(), wd.w);
-          wd.w[n] = rs;
-          set_msa_register(instr_.WdValue(), wd.w);
-          TraceMSARegWr(wd.w);
-          break;
-        }
-        default:
-          UNREACHABLE();
-      }
-    } break;
-    case SLDI:
-    case SPLATI:
-    case INSVE:
+    case CTCMSA:
+      DCHECK(sa() == kMSACSRRegister);
+      MSACSR_ = bit_cast<uint32_t>(registers_[rd_reg()]);
+      TraceRegWr(static_cast<int32_t>(MSACSR_));
+      break;
+    case CFCMSA:
+      DCHECK(rd_reg() == kMSACSRRegister);
+      SetResult(sa(), bit_cast<int32_t>(MSACSR_));
+      break;
+    case MOVE_V:
       UNIMPLEMENTED();
       break;
     default:
-      UNREACHABLE();
+      opcode &= kMsaELMMask;
+      switch (opcode) {
+        case COPY_S:
+        case COPY_U: {
+          msa_reg_t ws;
+          switch (DecodeMsaDataFormat()) {
+            case MSA_BYTE: {
+              DCHECK(n < kMSALanesByte);
+              get_msa_register(instr_.WsValue(), ws.b);
+              alu_out = static_cast<int32_t>(ws.b[n]);
+              SetResult(wd_reg(),
+                        (opcode == COPY_U) ? alu_out & 0xFFu : alu_out);
+              break;
+            }
+            case MSA_HALF: {
+              DCHECK(n < kMSALanesHalf);
+              get_msa_register(instr_.WsValue(), ws.h);
+              alu_out = static_cast<int32_t>(ws.h[n]);
+              SetResult(wd_reg(),
+                        (opcode == COPY_U) ? alu_out & 0xFFFFu : alu_out);
+              break;
+            }
+            case MSA_WORD: {
+              DCHECK(n < kMSALanesWord);
+              get_msa_register(instr_.WsValue(), ws.w);
+              alu_out = static_cast<int32_t>(ws.w[n]);
+              SetResult(wd_reg(), alu_out);
+              break;
+            }
+            default:
+              UNREACHABLE();
+          }
+        } break;
+        case INSERT: {
+          msa_reg_t wd;
+          switch (DecodeMsaDataFormat()) {
+            case MSA_BYTE: {
+              DCHECK(n < kMSALanesByte);
+              int32_t rs = get_register(instr_.WsValue());
+              get_msa_register(instr_.WdValue(), wd.b);
+              wd.b[n] = rs & 0xFFu;
+              set_msa_register(instr_.WdValue(), wd.b);
+              TraceMSARegWr(wd.b);
+              break;
+            }
+            case MSA_HALF: {
+              DCHECK(n < kMSALanesHalf);
+              int32_t rs = get_register(instr_.WsValue());
+              get_msa_register(instr_.WdValue(), wd.h);
+              wd.h[n] = rs & 0xFFFFu;
+              set_msa_register(instr_.WdValue(), wd.h);
+              TraceMSARegWr(wd.h);
+              break;
+            }
+            case MSA_WORD: {
+              DCHECK(n < kMSALanesWord);
+              int32_t rs = get_register(instr_.WsValue());
+              get_msa_register(instr_.WdValue(), wd.w);
+              wd.w[n] = rs;
+              set_msa_register(instr_.WdValue(), wd.w);
+              TraceMSARegWr(wd.w);
+              break;
+            }
+            default:
+              UNREACHABLE();
+          }
+        } break;
+        case SLDI:
+        case SPLATI:
+        case INSVE:
+          UNIMPLEMENTED();
+          break;
+        default:
+          UNREACHABLE();
+      }
+      break;
   }
 }
 
@@ -5406,32 +5477,327 @@ T Simulator::Msa3RInstrHelper(uint32_t opcode, T wd, T ws, T wt) {
   }
 }
 
-void Simulator::DecodeTypeMsa2RF() {
-  DCHECK(IsMipsArchVariant(kMips32r6));
-  DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
-  uint32_t opcode = instr_.InstructionBits() & kMsa2RFMask;
+#define BIT(n) (0x1LL << n)
+#define QUIET_BIT_S(nan) (bit_cast<int32_t>(nan) & BIT(22))
+#define QUIET_BIT_D(nan) (bit_cast<int64_t>(nan) & BIT(51))
+static inline bool isSnan(float fp) { return !QUIET_BIT_S(fp); }
+static inline bool isSnan(double fp) { return !QUIET_BIT_D(fp); }
+#undef QUIET_BIT_S
+#undef QUIET_BIT_D
+
+template <typename T_int, typename T_fp, typename T_src, typename T_dst>
+T_int Msa2RFInstrHelper(uint32_t opcode, T_src src, T_dst& dst,
+                        Simulator* sim) {
+  typedef typename std::make_unsigned<T_int>::type T_uint;
   switch (opcode) {
-    case FCLASS:
-    case FTRUNC_S:
-    case FTRUNC_U:
-    case FSQRT:
-    case FRSQRT:
-    case FRCP:
-    case FRINT:
-    case FLOG2:
-    case FEXUPL:
-    case FEXUPR:
-    case FFQL:
-    case FFQR:
-    case FTINT_S:
-    case FTINT_U:
+    case FCLASS: {
+#define SNAN_BIT BIT(0)
+#define QNAN_BIT BIT(1)
+#define NEG_INFINITY_BIT BIT(2)
+#define NEG_NORMAL_BIT BIT(3)
+#define NEG_SUBNORMAL_BIT BIT(4)
+#define NEG_ZERO_BIT BIT(5)
+#define POS_INFINITY_BIT BIT(6)
+#define POS_NORMAL_BIT BIT(7)
+#define POS_SUBNORMAL_BIT BIT(8)
+#define POS_ZERO_BIT BIT(9)
+      T_fp element = *reinterpret_cast<T_fp*>(&src);
+      switch (std::fpclassify(element)) {
+        case FP_INFINITE:
+          if (std::signbit(element)) {
+            dst = NEG_INFINITY_BIT;
+          } else {
+            dst = POS_INFINITY_BIT;
+          }
+          break;
+        case FP_NAN:
+          if (isSnan(element)) {
+            dst = SNAN_BIT;
+          } else {
+            dst = QNAN_BIT;
+          }
+          break;
+        case FP_NORMAL:
+          if (std::signbit(element)) {
+            dst = NEG_NORMAL_BIT;
+          } else {
+            dst = POS_NORMAL_BIT;
+          }
+          break;
+        case FP_SUBNORMAL:
+          if (std::signbit(element)) {
+            dst = NEG_SUBNORMAL_BIT;
+          } else {
+            dst = POS_SUBNORMAL_BIT;
+          }
+          break;
+        case FP_ZERO:
+          if (std::signbit(element)) {
+            dst = NEG_ZERO_BIT;
+          } else {
+            dst = POS_ZERO_BIT;
+          }
+          break;
+        default:
+          UNREACHABLE();
+      }
+      break;
+    }
+#undef BIT
+#undef SNAN_BIT
+#undef QNAN_BIT
+#undef NEG_INFINITY_BIT
+#undef NEG_NORMAL_BIT
+#undef NEG_SUBNORMAL_BIT
+#undef NEG_ZERO_BIT
+#undef POS_INFINITY_BIT
+#undef POS_NORMAL_BIT
+#undef POS_SUBNORMAL_BIT
+#undef POS_ZERO_BIT
+    case FTRUNC_S: {
+      T_fp element = bit_cast<T_fp>(src);
+      const T_int max_int = std::numeric_limits<T_int>::max();
+      const T_int min_int = std::numeric_limits<T_int>::min();
+      if (std::isnan(element)) {
+        dst = 0;
+      } else if (element > max_int || element < min_int) {
+        dst = element > max_int ? max_int : min_int;
+      } else {
+        dst = static_cast<T_int>(std::trunc(element));
+      }
+      break;
+    }
+    case FTRUNC_U: {
+      T_fp element = bit_cast<T_fp>(src);
+      const T_uint max_int = std::numeric_limits<T_uint>::max();
+      if (std::isnan(element)) {
+        dst = 0;
+      } else if (element > max_int || element < 0) {
+        dst = element > max_int ? max_int : 0;
+      } else {
+        dst = static_cast<T_uint>(std::trunc(element));
+      }
+      break;
+    }
+    case FSQRT: {
+      T_fp element = bit_cast<T_fp>(src);
+      if (element < 0 || std::isnan(element)) {
+        dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+      } else {
+        dst = bit_cast<T_int>(std::sqrt(element));
+      }
+      break;
+    }
+    case FRSQRT: {
+      T_fp element = bit_cast<T_fp>(src);
+      if (element < 0 || std::isnan(element)) {
+        dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+      } else {
+        dst = bit_cast<T_int>(1 / std::sqrt(element));
+      }
+      break;
+    }
+    case FRCP: {
+      T_fp element = bit_cast<T_fp>(src);
+      if (std::isnan(element)) {
+        dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+      } else {
+        dst = bit_cast<T_int>(1 / element);
+      }
+      break;
+    }
+    case FRINT: {
+      T_fp element = bit_cast<T_fp>(src);
+      if (std::isnan(element)) {
+        dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+      } else {
+        T_int dummy;
+        sim->round_according_to_msacsr<T_fp, T_int>(element, element, dummy);
+        dst = bit_cast<T_int>(element);
+      }
+      break;
+    }
+    case FLOG2: {
+      T_fp element = bit_cast<T_fp>(src);
+      switch (std::fpclassify(element)) {
+        case FP_NORMAL:
+        case FP_SUBNORMAL:
+          dst = bit_cast<T_int>(std::logb(element));
+          break;
+        case FP_ZERO:
+          dst = bit_cast<T_int>(-std::numeric_limits<T_fp>::infinity());
+          break;
+        case FP_NAN:
+          dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+          break;
+        case FP_INFINITE:
+          if (element < 0) {
+            dst = bit_cast<T_int>(std::numeric_limits<T_fp>::quiet_NaN());
+          } else {
+            dst = bit_cast<T_int>(std::numeric_limits<T_fp>::infinity());
+          }
+          break;
+        default:
+          UNREACHABLE();
+      }
+      break;
+    }
+    case FTINT_S: {
+      T_fp element = bit_cast<T_fp>(src);
+      const T_int max_int = std::numeric_limits<T_int>::max();
+      const T_int min_int = std::numeric_limits<T_int>::min();
+      if (std::isnan(element)) {
+        dst = 0;
+      } else if (element < min_int || element > max_int) {
+        dst = element > max_int ? max_int : min_int;
+      } else {
+        sim->round_according_to_msacsr<T_fp, T_int>(element, element, dst);
+      }
+      break;
+    }
+    case FTINT_U: {
+      T_fp element = bit_cast<T_fp>(src);
+      const T_uint max_uint = std::numeric_limits<T_uint>::max();
+      if (std::isnan(element)) {
+        dst = 0;
+      } else if (element < 0 || element > max_uint) {
+        dst = element > max_uint ? max_uint : 0;
+      } else {
+        T_uint res;
+        sim->round_according_to_msacsr<T_fp, T_uint>(element, element, res);
+        dst = *reinterpret_cast<T_int*>(&res);
+      }
+      break;
+    }
     case FFINT_S:
+      dst = bit_cast<T_int>(static_cast<T_fp>(src));
+      break;
     case FFINT_U:
-      UNIMPLEMENTED();
+      typedef typename std::make_unsigned<T_src>::type uT_src;
+      dst = bit_cast<T_int>(static_cast<T_fp>(bit_cast<uT_src>(src)));
       break;
     default:
       UNREACHABLE();
   }
+  return 0;
+}
+
+template <typename T_int, typename T_fp, typename T_reg, typename T_i>
+T_int Msa2RFInstrHelper2(uint32_t opcode, T_reg ws, T_i i) {
+  switch (opcode) {
+#define EXTRACT_FLOAT16_SIGN(fp16) (fp16 >> 15)
+#define EXTRACT_FLOAT16_EXP(fp16) (fp16 >> 10 & 0x1f)
+#define EXTRACT_FLOAT16_FRAC(fp16) (fp16 & 0x3ff)
+#define PACK_FLOAT32(sign, exp, frac) \
+  static_cast<uint32_t>(((sign) << 31) + ((exp) << 23) + (frac))
+#define FEXUP_DF(src_index)                                                   \
+  uint_fast16_t element = ws.uh[src_index];                                   \
+  uint_fast32_t aSign, aFrac;                                                 \
+  int_fast32_t aExp;                                                          \
+  aSign = EXTRACT_FLOAT16_SIGN(element);                                      \
+  aExp = EXTRACT_FLOAT16_EXP(element);                                        \
+  aFrac = EXTRACT_FLOAT16_FRAC(element);                                      \
+  if (V8_LIKELY(aExp && aExp != 0x1f)) {                                      \
+    return PACK_FLOAT32(aSign, aExp + 0x70, aFrac << 13);                     \
+  } else if (aExp == 0x1f) {                                                  \
+    if (aFrac) {                                                              \
+      return bit_cast<int32_t>(std::numeric_limits<float>::quiet_NaN());      \
+    } else {                                                                  \
+      return bit_cast<uint32_t>(std::numeric_limits<float>::infinity()) |     \
+             static_cast<uint32_t>(aSign) << 31;                              \
+    }                                                                         \
+  } else {                                                                    \
+    if (aFrac == 0) {                                                         \
+      return PACK_FLOAT32(aSign, 0, 0);                                       \
+    } else {                                                                  \
+      int_fast16_t shiftCount =                                               \
+          base::bits::CountLeadingZeros32(static_cast<uint32_t>(aFrac)) - 21; \
+      aFrac <<= shiftCount;                                                   \
+      aExp = -shiftCount;                                                     \
+      return PACK_FLOAT32(aSign, aExp + 0x70, aFrac << 13);                   \
+    }                                                                         \
+  }
+    case FEXUPL:
+      if (std::is_same<int32_t, T_int>::value) {
+        FEXUP_DF(i + kMSALanesWord)
+      } else {
+        return bit_cast<int64_t>(
+            static_cast<double>(bit_cast<float>(ws.w[i + kMSALanesDword])));
+      }
+    case FEXUPR:
+      if (std::is_same<int32_t, T_int>::value) {
+        FEXUP_DF(i)
+      } else {
+        return bit_cast<int64_t>(static_cast<double>(bit_cast<float>(ws.w[i])));
+      }
+    case FFQL: {
+      if (std::is_same<int32_t, T_int>::value) {
+        return bit_cast<int32_t>(static_cast<float>(ws.h[i + kMSALanesWord]) /
+                                 (1U << 15));
+      } else {
+        return bit_cast<int64_t>(static_cast<double>(ws.w[i + kMSALanesDword]) /
+                                 (1U << 31));
+      }
+      break;
+    }
+    case FFQR: {
+      if (std::is_same<int32_t, T_int>::value) {
+        return bit_cast<int32_t>(static_cast<float>(ws.h[i]) / (1U << 15));
+      } else {
+        return bit_cast<int64_t>(static_cast<double>(ws.w[i]) / (1U << 31));
+      }
+      break;
+      default:
+        UNREACHABLE();
+    }
+  }
+#undef EXTRACT_FLOAT16_SIGN
+#undef EXTRACT_FLOAT16_EXP
+#undef EXTRACT_FLOAT16_FRAC
+#undef PACK_FLOAT32
+#undef FEXUP_DF
+}
+
+void Simulator::DecodeTypeMsa2RF() {
+  DCHECK(IsMipsArchVariant(kMips32r6));
+  DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
+  uint32_t opcode = instr_.InstructionBits() & kMsa2RFMask;
+  msa_reg_t wd, ws;
+  get_msa_register(ws_reg(), &ws);
+  if (opcode == FEXUPL || opcode == FEXUPR || opcode == FFQL ||
+      opcode == FFQR) {
+    switch (DecodeMsaDataFormat()) {
+      case MSA_WORD:
+        for (int i = 0; i < kMSALanesWord; i++) {
+          wd.w[i] = Msa2RFInstrHelper2<int32_t, float>(opcode, ws, i);
+        }
+        break;
+      case MSA_DWORD:
+        for (int i = 0; i < kMSALanesDword; i++) {
+          wd.d[i] = Msa2RFInstrHelper2<int64_t, double>(opcode, ws, i);
+        }
+        break;
+      default:
+        UNREACHABLE();
+    }
+  } else {
+    switch (DecodeMsaDataFormat()) {
+      case MSA_WORD:
+        for (int i = 0; i < kMSALanesWord; i++) {
+          Msa2RFInstrHelper<int32_t, float>(opcode, ws.w[i], wd.w[i], this);
+        }
+        break;
+      case MSA_DWORD:
+        for (int i = 0; i < kMSALanesDword; i++) {
+          Msa2RFInstrHelper<int64_t, double>(opcode, ws.d[i], wd.d[i], this);
+        }
+        break;
+      default:
+        UNREACHABLE();
+    }
+  }
+  set_msa_register(wd_reg(), &wd);
+  TraceMSARegWr(&wd);
 }
 
 void Simulator::DecodeTypeRegister() {
@@ -5468,6 +5834,9 @@ void Simulator::DecodeTypeRegister() {
           break;
         case kMsaMinor2RF:
           DecodeTypeMsa2RF();
+          break;
+        case kMsaMinorELM:
+          DecodeTypeMsaELM();
           break;
         default:
           UNREACHABLE();
