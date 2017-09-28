@@ -12,6 +12,7 @@
 #include "src/isolate.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-module.h"
 #include "test/common/wasm/flag-utils.h"
 #include "test/common/wasm/wasm-module-runner.h"

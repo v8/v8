@@ -21,6 +21,7 @@
 #include "src/parsing/scanner-character-streams.h"
 #include "src/parsing/scanner.h"
 
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module-builder.h"

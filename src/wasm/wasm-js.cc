@@ -14,6 +14,7 @@
 #include "src/objects.h"
 #include "src/parsing/parse-info.h"
 
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-api.h"
 #include "src/wasm/wasm-js.h"

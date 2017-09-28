@@ -9,7 +9,6 @@
 #include "src/compiler.h"
 #include "src/isolate-inl.h"
 #include "src/messages.h"
-#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {

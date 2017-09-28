@@ -18,7 +18,7 @@
 #include "src/objects.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/transitions.h"
-#include "src/wasm/wasm-module.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 

@@ -81,7 +81,6 @@
 #include "src/vm-state-inl.h"
 #include "src/wasm/compilation-manager.h"
 #include "src/wasm/streaming-decoder.h"
-#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 

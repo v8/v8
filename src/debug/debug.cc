@@ -28,7 +28,6 @@
 #include "src/messages.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/snapshot/natives.h"
-#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 #include "include/v8-debug.h"

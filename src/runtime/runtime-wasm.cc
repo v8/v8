@@ -15,7 +15,7 @@
 #include "src/objects/frame-array-inl.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/v8memory.h"
-#include "src/wasm/wasm-module.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 

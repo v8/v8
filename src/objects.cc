@@ -71,7 +71,6 @@
 #include "src/string-stream.h"
 #include "src/unicode-cache-inl.h"
 #include "src/utils-inl.h"
-#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/zone.h"
 

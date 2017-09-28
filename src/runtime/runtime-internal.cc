@@ -18,7 +18,6 @@
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "src/snapshot/snapshot.h"
-#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {

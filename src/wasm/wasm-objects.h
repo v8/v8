@@ -7,11 +7,12 @@
 
 #include "src/debug/debug.h"
 #include "src/debug/interface-types.h"
+#include "src/managed.h"
 #include "src/objects.h"
 #include "src/objects/script.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/decoder.h"
 #include "src/wasm/wasm-limits.h"
-#include "src/wasm/wasm-module.h"
 
 #include "src/heap/heap.h"
 
@@ -23,7 +24,11 @@ namespace internal {
 namespace wasm {
 class InterpretedFrame;
 class WasmInterpreter;
+struct WasmModule;
+class SignatureMap;
 typedef Address GlobalHandleAddress;
+using ValueType = MachineRepresentation;
+using FunctionSig = Signature<ValueType>;
 }  // namespace wasm
 
 class WasmCompiledModule;

@@ -7,6 +7,7 @@
 #include "include/v8.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-api.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
