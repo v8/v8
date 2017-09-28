@@ -18,7 +18,6 @@
 #include "src/heap/spaces-inl.h"
 #include "src/heap/store-buffer.h"
 #include "src/isolate.h"
-#include "src/list-inl.h"
 #include "src/log.h"
 #include "src/msan.h"
 #include "src/objects-inl.h"
@@ -26,6 +25,7 @@
 #include "src/objects/script-inl.h"
 #include "src/profiler/heap-profiler.h"
 #include "src/string-hasher.h"
+#include "src/zone/zone-list-inl.h"
 
 namespace v8 {
 namespace internal {

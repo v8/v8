@@ -1127,8 +1127,6 @@
         'layout-descriptor-inl.h',
         'layout-descriptor.cc',
         'layout-descriptor.h',
-        'list-inl.h',
-        'list.h',
         'locked-queue-inl.h',
         'locked-queue.h',
         'log-inl.h',
@@ -1486,6 +1484,7 @@
         'zone/zone-allocator.h',
         'zone/zone-containers.h',
         'zone/zone-handle-set.h',
+        'zone/zone-list-inl.h',
       ],
       'conditions': [
         ['want_separate_host_toolset==1', {

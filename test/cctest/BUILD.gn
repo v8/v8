@@ -178,7 +178,6 @@ v8_source_set("cctest_sources") {
     "test-identity-map.cc",
     "test-inobject-slack-tracking.cc",
     "test-intl.cc",
-    "test-list.cc",
     "test-liveedit.cc",
     "test-lockers.cc",
     "test-log.cc",

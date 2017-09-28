@@ -6667,19 +6667,19 @@ TEST(DebugEvaluateNoSideEffect) {
   LocalContext env;
   i::Isolate* isolate = CcTest::i_isolate();
   i::HandleScope scope(isolate);
-  i::List<i::Handle<i::JSFunction>> list;
+  std::vector<i::Handle<i::JSFunction>> all_functions;
   {
     i::HeapIterator iterator(isolate->heap());
     while (i::HeapObject* obj = iterator.next()) {
       if (!obj->IsJSFunction()) continue;
       i::JSFunction* fun = i::JSFunction::cast(obj);
-      list.Add(i::Handle<i::JSFunction>(fun));
+      all_functions.emplace_back(fun);
     }
   }
 
   // Perform side effect check on all built-in functions. The side effect check
   // itself contains additional sanity checks.
-  for (i::Handle<i::JSFunction> fun : list) {
+  for (i::Handle<i::JSFunction> fun : all_functions) {
     bool failed = false;
     {
       i::NoSideEffectScope scope(isolate, true);

@@ -168,7 +168,6 @@
       'test-identity-map.cc',
       'test-intl.cc',
       'test-inobject-slack-tracking.cc',
-      'test-list.cc',
       'test-liveedit.cc',
       'test-lockers.cc',
       'test-log.cc',
