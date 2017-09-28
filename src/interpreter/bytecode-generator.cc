@@ -678,7 +678,8 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
     declarations_.push_back(Declaration(name, slot, nullptr));
   }
 
-  Handle<FixedArray> AllocateDeclarations(CompilationInfo* info) {
+  Handle<FixedArray> AllocateDeclarations(CompilationInfo* info,
+                                          Handle<Script> script) {
     DCHECK(has_constant_pool_entry_);
     int array_index = 0;
     Handle<FixedArray> data = info->isolate()->factory()->NewFixedArray(
@@ -689,8 +690,8 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
       if (func == nullptr) {
         initial_value = info->isolate()->factory()->undefined_value();
       } else {
-        initial_value = Compiler::GetSharedFunctionInfo(func, info->script(),
-                                                        info->isolate());
+        initial_value =
+            Compiler::GetSharedFunctionInfo(func, script, info->isolate());
       }
 
       // Return a null handle if any initial values can't be created. Caller
@@ -803,10 +804,11 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
   }
 }
 
-Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
+Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(
+    Isolate* isolate, Handle<Script> script) {
   DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
 
-  AllocateDeferredConstants(isolate);
+  AllocateDeferredConstants(isolate, script);
 
   if (block_coverage_builder_) {
     info()->set_coverage_info(
@@ -827,11 +829,12 @@ Handle<BytecodeArray> BytecodeGenerator::FinalizeBytecode(Isolate* isolate) {
   return bytecode_array;
 }
 
-void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate) {
+void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
+                                                  Handle<Script> script) {
   // Build global declaration pair arrays.
   for (GlobalDeclarationsBuilder* globals_builder : global_declarations_) {
     Handle<FixedArray> declarations =
-        globals_builder->AllocateDeclarations(info());
+        globals_builder->AllocateDeclarations(info(), script);
     if (declarations.is_null()) return SetStackOverflow();
     builder()->SetDeferredConstantPoolEntry(
         globals_builder->constant_pool_entry(), declarations);
@@ -841,7 +844,7 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate) {
   for (std::pair<FunctionLiteral*, size_t> literal : function_literals_) {
     FunctionLiteral* expr = literal.first;
     Handle<SharedFunctionInfo> shared_info =
-        Compiler::GetSharedFunctionInfo(expr, info()->script(), isolate);
+        Compiler::GetSharedFunctionInfo(expr, script, isolate);
     if (shared_info.is_null()) return SetStackOverflow();
     builder()->SetDeferredConstantPoolEntry(literal.second, shared_info);
   }

@@ -202,6 +202,7 @@ Isolate* CompilationJob::isolate() const {
 namespace {
 
 void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
+                               Handle<Script> script,
                                CompilationInfo* compilation_info) {
   // Log the code generation. If source information is available include
   // script name and line number. Check explicitly whether logging is
@@ -209,7 +210,6 @@ void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
   if (compilation_info->isolate()->logger()->is_logging_code_events() ||
       compilation_info->isolate()->is_profiling()) {
     Handle<SharedFunctionInfo> shared = compilation_info->shared_info();
-    Handle<Script> script = compilation_info->script();
     Handle<AbstractCode> abstract_code =
         compilation_info->has_bytecode_array()
             ? Handle<AbstractCode>::cast(compilation_info->bytecode_array())
@@ -352,7 +352,7 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
       log_tag = parse_info->lazy_compile() ? CodeEventListener::LAZY_COMPILE_TAG
                                            : CodeEventListener::FUNCTION_TAG;
     }
-    RecordFunctionCompilation(log_tag, compilation_info);
+    RecordFunctionCompilation(log_tag, parse_info->script(), compilation_info);
     job->RecordUnoptimizedCompilationStats();
   }
   return status;
@@ -550,7 +550,7 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   DCHECK(!isolate->has_pending_exception());
   InsertCodeIntoOptimizedCodeCache(compilation_info);
   RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
-                            compilation_info);
+                            job->parse_info()->script(), compilation_info);
   return true;
 }
 
@@ -727,7 +727,7 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
     } else if (job->FinalizeJob() == CompilationJob::SUCCEEDED) {
       job->RecordOptimizedCompilationStats();
       RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
-                                compilation_info);
+                                job->parse_info()->script(), compilation_info);
       InsertCodeIntoOptimizedCodeCache(compilation_info);
       if (FLAG_trace_opt) {
         PrintF("[completed optimizing ");

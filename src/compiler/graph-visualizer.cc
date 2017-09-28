@@ -46,8 +46,9 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(CompilationInfo* info,
   }
   EmbeddedVector<char, 256> source_file(0);
   bool source_available = false;
-  if (FLAG_trace_file_names && !info->script().is_null()) {
-    Object* source_name = info->script()->name();
+  if (FLAG_trace_file_names && info->has_shared_info() &&
+      info->shared_info()->script()->IsScript()) {
+    Object* source_name = Script::cast(info->shared_info()->script())->name();
     if (source_name->IsString()) {
       String* str = String::cast(source_name);
       if (str->length() > 0) {

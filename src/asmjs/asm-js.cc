@@ -249,8 +249,7 @@ CompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
     allow_deref.emplace();
 
     DCHECK(!compilation_info()->isolate()->has_pending_exception());
-    ReportCompilationFailure(compilation_info()->script(),
-                             parser.failure_location(),
+    ReportCompilationFailure(parse_info()->script(), parser.failure_location(),
                              parser.failure_message());
     return FAILED;
   }
@@ -292,7 +291,7 @@ CompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl() {
       SyncCompileTranslatedAsmJs(
           compilation_info()->isolate(), &thrower,
           wasm::ModuleWireBytes(module_->begin(), module_->end()),
-          compilation_info()->script(),
+          parse_info()->script(),
           Vector<const byte>(asm_offsets_->begin(), asm_offsets_->size()))
           .ToHandleChecked();
   DCHECK(!thrower.error());
@@ -308,7 +307,7 @@ CompilationJob::Status AsmJsCompilationJob::FinalizeJobImpl() {
   compilation_info()->SetCode(
       BUILTIN_CODE(compilation_info()->isolate(), InstantiateAsmJs));
 
-  ReportCompilationSuccess(compilation_info()->script(),
+  ReportCompilationSuccess(parse_info()->script(),
                            compilation_info()->literal()->position(),
                            translate_time_, compile_time_, module_->size());
   return SUCCEEDED;

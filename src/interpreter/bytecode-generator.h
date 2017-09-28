@@ -31,7 +31,8 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   explicit BytecodeGenerator(CompilationInfo* info);
 
   void GenerateBytecode(uintptr_t stack_limit);
-  Handle<BytecodeArray> FinalizeBytecode(Isolate* isolate);
+  Handle<BytecodeArray> FinalizeBytecode(Isolate* isolate,
+                                         Handle<Script> script);
 
 #define DECLARE_VISIT(type) void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
@@ -63,7 +64,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   enum class TypeHint { kAny, kBoolean };
 
   void GenerateBytecodeBody();
-  void AllocateDeferredConstants(Isolate* isolate);
+  void AllocateDeferredConstants(Isolate* isolate, Handle<Script> script);
 
   DEFINE_AST_VISITOR_SUBCLASS_MEMBERS();
 

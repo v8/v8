@@ -22,8 +22,7 @@ namespace internal {
 CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
                                  ParseInfo* parse_info,
                                  FunctionLiteral* literal)
-    : CompilationInfo(parse_info->script(), {},
-                      Code::ComputeFlags(Code::OPTIMIZED_FUNCTION), BASE,
+    : CompilationInfo({}, Code::ComputeFlags(Code::OPTIMIZED_FUNCTION), BASE,
                       isolate, zone) {
   // NOTE: The parse_info passed here represents the global information gathered
   // during parsing, but does not represent specific details of the actual
@@ -40,10 +39,9 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
 }
 
 CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
-                                 Handle<Script> script,
                                  Handle<SharedFunctionInfo> shared,
                                  Handle<JSFunction> closure)
-    : CompilationInfo(script, {}, Code::ComputeFlags(Code::OPTIMIZED_FUNCTION),
+    : CompilationInfo({}, Code::ComputeFlags(Code::OPTIMIZED_FUNCTION),
                       OPTIMIZE, isolate, zone) {
   shared_info_ = shared;
   closure_ = closure;
@@ -63,15 +61,12 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
 CompilationInfo::CompilationInfo(Vector<const char> debug_name,
                                  Isolate* isolate, Zone* zone,
                                  Code::Flags code_flags)
-    : CompilationInfo(Handle<Script>::null(), debug_name, code_flags, STUB,
-                      isolate, zone) {}
+    : CompilationInfo(debug_name, code_flags, STUB, isolate, zone) {}
 
-CompilationInfo::CompilationInfo(Handle<Script> script,
-                                 Vector<const char> debug_name,
+CompilationInfo::CompilationInfo(Vector<const char> debug_name,
                                  Code::Flags code_flags, Mode mode,
                                  Isolate* isolate, Zone* zone)
     : isolate_(isolate),
-      script_(script),
       literal_(nullptr),
       flags_(0),
       code_flags_(code_flags),
@@ -120,9 +115,6 @@ void CompilationInfo::set_deferred_handles(DeferredHandles* deferred_handles) {
 }
 
 void CompilationInfo::ReopenHandlesInNewHandleScope() {
-  if (!script_.is_null()) {
-    script_ = Handle<Script>(*script_);
-  }
   if (!shared_info_.is_null()) {
     shared_info_ = Handle<SharedFunctionInfo>(*shared_info_);
   }

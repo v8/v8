@@ -119,9 +119,8 @@ class BytecodeGraphTester {
 
     Zone zone(function->GetIsolate()->allocator(), ZONE_NAME);
     Handle<SharedFunctionInfo> shared(function->shared());
-    Handle<Script> script(Script::cast(shared->script()));
-    CompilationInfo compilation_info(&zone, function->GetIsolate(), script,
-                                     shared, function);
+    CompilationInfo compilation_info(&zone, function->GetIsolate(), shared,
+                                     function);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(&compilation_info);
     function->set_code(*code);
 

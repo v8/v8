@@ -550,7 +550,8 @@ class PipelineRunScope {
   ZoneStats::Scope zone_scope_;
 };
 
-PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
+PipelineStatistics* CreatePipelineStatistics(Handle<Script> script,
+                                             CompilationInfo* info,
                                              ZoneStats* zone_stats) {
   PipelineStatistics* pipeline_statistics = nullptr;
 
@@ -566,7 +567,6 @@ PipelineStatistics* CreatePipelineStatistics(CompilationInfo* info,
     json_of << "{\"function\":\"" << function_name.get()
             << "\", \"sourcePosition\":" << pos << ", \"source\":\"";
     Isolate* isolate = info->isolate();
-    Handle<Script> script = info->script();
     if (!script.is_null() && !script->source()->IsUndefined(isolate)) {
       DisallowHeapAllocation no_allocation;
       int start = info->shared_info()->start_position();
@@ -596,9 +596,9 @@ class PipelineCompilationJob final : public CompilationJob {
         parse_info_(parse_info),
         zone_stats_(function->GetIsolate()->allocator()),
         compilation_info_(parse_info_.get()->zone(), function->GetIsolate(),
-                          parse_info_->script(), shared_info, function),
-        pipeline_statistics_(
-            CreatePipelineStatistics(compilation_info(), &zone_stats_)),
+                          shared_info, function),
+        pipeline_statistics_(CreatePipelineStatistics(
+            parse_info_->script(), compilation_info(), &zone_stats_)),
         data_(&zone_stats_, compilation_info(), pipeline_statistics_.get()),
         pipeline_(&data_),
         linkage_(nullptr) {}
@@ -746,7 +746,8 @@ class PipelineWasmCompilationJob final : public CompilationJob {
       : CompilationJob(info->isolate(), nullptr, info, "TurboFan",
                        State::kReadyToExecute),
         zone_stats_(info->isolate()->allocator()),
-        pipeline_statistics_(CreatePipelineStatistics(info, &zone_stats_)),
+        pipeline_statistics_(CreatePipelineStatistics(Handle<Script>::null(),
+                                                      info, &zone_stats_)),
         data_(&zone_stats_, info, jsgraph, pipeline_statistics_.get(),
               source_positions, protected_insts),
         pipeline_(&data_),
@@ -1796,7 +1797,7 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
 Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info) {
   ZoneStats zone_stats(info->isolate()->allocator());
   std::unique_ptr<PipelineStatistics> pipeline_statistics(
-      CreatePipelineStatistics(info, &zone_stats));
+      CreatePipelineStatistics(Handle<Script>::null(), info, &zone_stats));
   PipelineData data(&zone_stats, info, pipeline_statistics.get());
   PipelineImpl pipeline(&data);
 

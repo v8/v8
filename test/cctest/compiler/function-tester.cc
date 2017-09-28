@@ -140,8 +140,8 @@ Handle<JSFunction> FunctionTester::ForMachineGraph(Graph* graph,
 Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   Handle<SharedFunctionInfo> shared(function->shared());
   ParseInfo parse_info(shared);
-  CompilationInfo info(parse_info.zone(), function->GetIsolate(),
-                       parse_info.script(), shared, function);
+  CompilationInfo info(parse_info.zone(), function->GetIsolate(), shared,
+                       function);
 
   if (flags_ & CompilationInfo::kInliningEnabled) {
     info.MarkAsInliningEnabled();
@@ -165,8 +165,8 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
 Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
   Handle<SharedFunctionInfo> shared(function->shared());
   ParseInfo parse_info(shared);
-  CompilationInfo info(parse_info.zone(), function->GetIsolate(),
-                       parse_info.script(), shared, function);
+  CompilationInfo info(parse_info.zone(), function->GetIsolate(), shared,
+                       function);
 
   Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, graph);
   CHECK(!code.is_null());
