@@ -1738,11 +1738,8 @@ void TransitionsAccessor::PrintTransitions(std::ostream& os) {  // NOLINT
     case kWeakCell:
       cell = GetTargetCell<kWeakCell>();
       break;
-    case kTuple3Handler:
-      cell = GetTargetCell<kTuple3Handler>();
-      break;
-    case kFixedArrayHandler:
-      cell = GetTargetCell<kFixedArrayHandler>();
+    case kHandler:
+      cell = GetTargetCell<kHandler>();
       break;
     case kFullTransitionArray:
       return transitions()->Print(os);

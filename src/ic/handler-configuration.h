@@ -189,6 +189,8 @@ class StoreHandler {
 
   enum FieldRepresentation { kSmi, kDouble, kHeapObject, kTagged };
 
+  static inline bool IsHandler(Object* maybe_handler);
+
   // Applicable to kStoreField, kTransitionToField and kTransitionToConstant
   // kinds.
 
@@ -223,9 +225,9 @@ class StoreHandler {
   static const int kSmiHandlerOffset = Tuple3::kValue2Offset;
   static const int kValidityCellOffset = Tuple3::kValue3Offset;
 
-  static inline WeakCell* GetTuple3TransitionCell(Object* tuple3_handler);
-  static Object* ValidTuple3HandlerOrNull(Object* handler, Name* name,
-                                          Handle<Map>* out_transition);
+  static inline WeakCell* GetTransitionCell(Object* handler);
+  static Object* ValidHandlerOrNull(Object* handler, Name* name,
+                                    Handle<Map>* out_transition);
 
   // The layout of an array handler representing a transitioning store
   // when prototype chain checks include non-existing lookups and access checks.
@@ -233,10 +235,6 @@ class StoreHandler {
   static const int kValidityCellIndex = 1;
   static const int kTransitionCellIndex = 2;
   static const int kFirstPrototypeIndex = 3;
-
-  static inline WeakCell* GetArrayTransitionCell(Object* array_handler);
-  static Object* ValidFixedArrayHandlerOrNull(Object* raw_handler, Name* name,
-                                              Handle<Map>* out_transition);
 
   // Creates a Smi-handler for storing a field to fast object.
   static inline Handle<Smi> StoreField(Isolate* isolate, int descriptor,

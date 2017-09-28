@@ -17,10 +17,8 @@ void TransitionsAccessor::Initialize() {
     encoding_ = kUninitialized;
   } else if (HeapObject::cast(raw_transitions_)->IsWeakCell()) {
     encoding_ = kWeakCell;
-  } else if (HeapObject::cast(raw_transitions_)->IsTuple3()) {
-    encoding_ = kTuple3Handler;
-  } else if (HeapObject::cast(raw_transitions_)->IsFixedArray()) {
-    encoding_ = kFixedArrayHandler;
+  } else if (StoreHandler::IsHandler(raw_transitions_)) {
+    encoding_ = kHandler;
   } else if (HeapObject::cast(raw_transitions_)->IsTransitionArray()) {
     encoding_ = kFullTransitionArray;
   } else {
@@ -37,10 +35,8 @@ Map* TransitionsAccessor::GetSimpleTransition() {
   switch (encoding()) {
     case kWeakCell:
       return Map::cast(GetTargetCell<kWeakCell>()->value());
-    case kTuple3Handler:
-      return Map::cast(GetTargetCell<kTuple3Handler>()->value());
-    case kFixedArrayHandler:
-      return Map::cast(GetTargetCell<kFixedArrayHandler>()->value());
+    case kHandler:
+      return Map::cast(GetTargetCell<kHandler>()->value());
     default:
       return nullptr;
   }
@@ -51,10 +47,8 @@ bool TransitionsAccessor::HasSimpleTransitionTo(WeakCell* cell) {
   switch (encoding()) {
     case kWeakCell:
       return raw_transitions_ == cell;
-    case kTuple3Handler:
-      return StoreHandler::GetTuple3TransitionCell(raw_transitions_) == cell;
-    case kFixedArrayHandler:
-      return StoreHandler::GetArrayTransitionCell(raw_transitions_) == cell;
+    case kHandler:
+      return StoreHandler::GetTransitionCell(raw_transitions_) == cell;
     case kPrototypeInfo:
     case kUninitialized:
     case kFullTransitionArray:
@@ -219,8 +213,7 @@ void TransitionsAccessor::UpdateHandler(Name* name, Object* handler) {
       UNREACHABLE();
       return;
     case kWeakCell:
-    case kTuple3Handler:
-    case kFixedArrayHandler:
+    case kHandler:
       DCHECK_EQ(GetSimpleTransition(), GetTargetFromRaw(handler));
       ReplaceTransitions(handler);
       return;
@@ -243,23 +236,23 @@ Object* TransitionsAccessor::SearchHandler(Name* name,
     case kUninitialized:
     case kWeakCell:
       return nullptr;
-    case kTuple3Handler:
-      return StoreHandler::ValidTuple3HandlerOrNull(raw_transitions_, name,
-                                                    out_transition);
-    case kFixedArrayHandler:
-      return StoreHandler::ValidFixedArrayHandlerOrNull(raw_transitions_, name,
-                                                        out_transition);
+    case kHandler: {
+      Object* raw_handler = StoreHandler::ValidHandlerOrNull(
+          raw_transitions_, name, out_transition);
+      if (raw_handler == nullptr) return raw_handler;
+      // Check transition key.
+      WeakCell* target_cell = StoreHandler::GetTransitionCell(raw_handler);
+      if (!IsMatchingMap(target_cell, name, kData, NONE)) return nullptr;
+      return raw_handler;
+    }
+
     case kFullTransitionArray: {
       int transition = transitions()->Search(kData, name, NONE);
       if (transition == kNotFound) return nullptr;
       Object* raw_handler = transitions()->GetRawTarget(transition);
-      if (raw_handler->IsTuple3()) {
-        return StoreHandler::ValidTuple3HandlerOrNull(raw_handler, nullptr,
-                                                      out_transition);
-      }
-      if (raw_handler->IsFixedArray()) {
-        return StoreHandler::ValidFixedArrayHandlerOrNull(raw_handler, nullptr,
-                                                          out_transition);
+      if (StoreHandler::IsHandler(raw_handler)) {
+        return StoreHandler::ValidHandlerOrNull(raw_handler, name,
+                                                out_transition);
       }
       return nullptr;
     }
@@ -279,11 +272,8 @@ Map* TransitionsAccessor::SearchTransition(Name* name, PropertyKind kind,
     case kWeakCell:
       cell = GetTargetCell<kWeakCell>();
       break;
-    case kTuple3Handler:
-      cell = GetTargetCell<kTuple3Handler>();
-      break;
-    case kFixedArrayHandler:
-      cell = GetTargetCell<kFixedArrayHandler>();
+    case kHandler:
+      cell = GetTargetCell<kHandler>();
       break;
     case kFullTransitionArray: {
       int transition = transitions()->Search(kind, name, attributes);
@@ -336,11 +326,8 @@ Handle<String> TransitionsAccessor::ExpectedTransitionKey() {
     case kWeakCell:
       cell = GetTargetCell<kWeakCell>();
       break;
-    case kTuple3Handler:
-      cell = GetTargetCell<kTuple3Handler>();
-      break;
-    case kFixedArrayHandler:
-      cell = GetTargetCell<kFixedArrayHandler>();
+    case kHandler:
+      cell = GetTargetCell<kHandler>();
       break;
   }
   DCHECK(!cell->cleared());
@@ -499,8 +486,7 @@ int TransitionsAccessor::NumberOfTransitions() {
     case kUninitialized:
       return 0;
     case kWeakCell:
-    case kTuple3Handler:
-    case kFixedArrayHandler:
+    case kHandler:
       return 1;
     case kFullTransitionArray:
       return transitions()->number_of_transitions();
@@ -583,11 +569,8 @@ void TransitionsAccessor::TraverseTransitionTreeInternal(
     case kWeakCell:
       simple_target = Map::cast(GetTargetCell<kWeakCell>()->value());
       break;
-    case kTuple3Handler:
-      simple_target = Map::cast(GetTargetCell<kTuple3Handler>()->value());
-      break;
-    case kFixedArrayHandler:
-      simple_target = Map::cast(GetTargetCell<kFixedArrayHandler>()->value());
+    case kHandler:
+      simple_target = Map::cast(GetTargetCell<kHandler>()->value());
       break;
     case kFullTransitionArray: {
       if (transitions()->HasPrototypeTransitions()) {
