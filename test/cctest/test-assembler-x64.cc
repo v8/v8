@@ -186,7 +186,7 @@ TEST(Regression684407) {
   Assembler assm(CcTest::i_isolate(), buffer, static_cast<int>(actual_size));
   Address before = assm.pc();
   __ cmpl(Operand(arg1, 0),
-          Immediate(0, RelocInfo::WASM_MEMORY_SIZE_REFERENCE));
+          Immediate(0, RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE));
   Address after = assm.pc();
   size_t instruction_size = static_cast<size_t>(after - before);
   // Check that the immediate is not encoded as uint8.

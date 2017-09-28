@@ -70,10 +70,6 @@ struct ModuleEnv {
   const std::vector<Handle<Code>> function_code;
   // If the default code is not a null handle, always use it for direct calls.
   const Handle<Code> default_function_code;
-  // Address of the start of memory.
-  const uintptr_t mem_start;
-  // Size of memory in bytes.
-  const uint32_t mem_size;
   // Address of the start of the globals region.
   const uintptr_t globals_start;
 };
@@ -150,7 +146,16 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
 
 // Wraps a given wasm code object, producing a code object.
 Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
-                                    Handle<Code> wasm_code, uint32_t index);
+                                    Handle<Code> wasm_code, uint32_t index,
+                                    Address wasm_context_address);
+
+// Wraps a wasm function, producing a code object that can be called from other
+// wasm instances (the WasmContext address must be changed).
+Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, Handle<Code> target,
+                                      wasm::FunctionSig* sig, uint32_t index,
+                                      Handle<String> module_name,
+                                      MaybeHandle<String> import_name,
+                                      Address new_wasm_context_address);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
 // interpreter. It's ABI compatible with the compiled wasm function.
@@ -168,7 +173,8 @@ enum CWasmEntryParameters {
 // Compiles a stub with JS linkage, taking parameters as described by
 // {CWasmEntryParameters}. It loads the wasm parameters from the argument
 // buffer and calls the wasm function given as first parameter.
-Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig);
+Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
+                               Address wasm_context_address);
 
 // Abstracts details of building TurboFan graph nodes for wasm to separate
 // the wasm decoder from the internal details of TurboFan.
@@ -204,6 +210,7 @@ class WasmGraphBuilder {
   Node* Uint32Constant(uint32_t value);
   Node* Int32Constant(int32_t value);
   Node* Int64Constant(int64_t value);
+  Node* IntPtrConstant(intptr_t value);
   Node* Float32Constant(float value);
   Node* Float64Constant(double value);
   Node* HeapConstant(Handle<HeapObject> value);
@@ -266,7 +273,8 @@ class WasmGraphBuilder {
   Node* CallIndirect(uint32_t index, Node** args, Node*** rets,
                      wasm::WasmCodePosition position);
 
-  void BuildJSToWasmWrapper(Handle<Code> wasm_code);
+  void BuildJSToWasmWrapper(Handle<Code> wasm_code,
+                            Address wasm_context_address);
   enum ImportDataType {
     kFunction = 1,
     kGlobalProxy = 2,
@@ -278,12 +286,14 @@ class WasmGraphBuilder {
   bool BuildWasmToJSWrapper(Handle<JSReceiver> target,
                             Handle<FixedArray> global_js_imports_table,
                             int index);
+  void BuildWasmToWasmWrapper(Handle<Code> target,
+                              Address new_wasm_context_address);
   void BuildWasmInterpreterEntry(uint32_t func_index,
                                  Handle<WasmInstanceObject> instance);
-  void BuildCWasmEntry();
+  void BuildCWasmEntry(Address wasm_context_address);
 
   Node* ToJS(Node* node, wasm::ValueType type);
-  Node* FromJS(Node* node, Node* context, wasm::ValueType type);
+  Node* FromJS(Node* node, Node* js_context, wasm::ValueType type);
   Node* Invert(Node* node);
   void EnsureFunctionTableNodes();
 
@@ -301,12 +311,23 @@ class WasmGraphBuilder {
                  wasm::ValueType type);
   static void PrintDebugName(Node* node);
 
+  void set_wasm_context(Node* wasm_context) {
+    this->wasm_context_ = wasm_context;
+  }
+
   Node* Control() { return *control_; }
   Node* Effect() { return *effect_; }
 
   void set_control_ptr(Node** control) { this->control_ = control; }
 
   void set_effect_ptr(Node** effect) { this->effect_ = effect; }
+
+  Node* LoadMemSize();
+  Node* LoadMemStart();
+
+  void set_mem_size(Node** mem_size) { this->mem_size_ = mem_size; }
+
+  void set_mem_start(Node** mem_start) { this->mem_start_ = mem_start; }
 
   wasm::FunctionSig* GetFunctionSignature() { return sig_; }
 
@@ -345,13 +366,14 @@ class WasmGraphBuilder {
   JSGraph* jsgraph_;
   Node* centry_stub_node_;
   ModuleEnv* env_ = nullptr;
-  Node* mem_buffer_ = nullptr;
-  Node* mem_size_ = nullptr;
+  Node* wasm_context_ = nullptr;
   NodeVector signature_tables_;
   NodeVector function_tables_;
   NodeVector function_table_sizes_;
   Node** control_ = nullptr;
   Node** effect_ = nullptr;
+  Node** mem_size_ = nullptr;
+  Node** mem_start_ = nullptr;
   Node** cur_buffer_;
   size_t cur_bufsize_;
   Node* def_buffer_[kDefaultBufferSize];
@@ -372,7 +394,6 @@ class WasmGraphBuilder {
   Graph* graph();
 
   Node* String(const char* string);
-  Node* MemSize();
   Node* MemBuffer(uint32_t offset);
   void BoundsCheckMem(MachineType memtype, Node* index, uint32_t offset,
                       wasm::WasmCodePosition position);
@@ -452,7 +473,7 @@ class WasmGraphBuilder {
                        MachineType result_type, int trap_zero,
                        wasm::WasmCodePosition position);
 
-  Node* BuildJavaScriptToNumber(Node* node, Node* context);
+  Node* BuildJavaScriptToNumber(Node* node, Node* js_context);
 
   Node* BuildChangeInt32ToTagged(Node* value);
   Node* BuildChangeFloat64ToTagged(Node* value);
@@ -503,12 +524,16 @@ class WasmGraphBuilder {
   Node* BuildCallToRuntime(Runtime::FunctionId f, Node** parameters,
                            int parameter_count);
 
-  Node* BuildCallToRuntimeWithContext(Runtime::FunctionId f, Node* context,
+  Node* BuildCallToRuntimeWithContext(Runtime::FunctionId f, Node* js_context,
                                       Node** parameters, int parameter_count);
 
   Node* BuildModifyThreadInWasmFlag(bool new_value);
   Builtins::Name GetBuiltinIdForTrap(wasm::TrapReason reason);
 };
+
+// The parameter index where the wasm_context paramter should be placed in wasm
+// call descriptors. This is used by the Int64Lowering::LowerNode method.
+constexpr int kWasmContextParameterIndex = 0;
 
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(Zone* zone,
                                                         wasm::FunctionSig* sig);

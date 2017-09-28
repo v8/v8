@@ -39,6 +39,8 @@ ACCESSORS(WasmMemoryObject, array_buffer, JSArrayBuffer, kArrayBufferOffset)
 SMI_ACCESSORS(WasmMemoryObject, maximum_pages, kMaximumPagesOffset)
 OPTIONAL_ACCESSORS(WasmMemoryObject, instances, WeakFixedArray,
                    kInstancesOffset)
+ACCESSORS(WasmMemoryObject, wasm_context, Managed<WasmContext>,
+          kWasmContextOffset)
 
 // WasmInstanceObject
 ACCESSORS(WasmInstanceObject, compiled_module, WasmCompiledModule,
@@ -190,19 +192,9 @@ bool WasmTableObject::has_maximum_length() {
 
 bool WasmMemoryObject::has_maximum_pages() { return maximum_pages() >= 0; }
 
-Address WasmCompiledModule::GetEmbeddedMemStartOrNull() const {
-  return has_embedded_mem_start()
-             ? reinterpret_cast<Address>(embedded_mem_start())
-             : nullptr;
-}
-
 Address WasmCompiledModule::GetGlobalsStartOrNull() const {
   return has_globals_start() ? reinterpret_cast<Address>(globals_start())
                              : nullptr;
-}
-
-uint32_t WasmCompiledModule::GetEmbeddedMemSizeOrZero() const {
-  return has_embedded_mem_size() ? embedded_mem_size() : 0;
 }
 
 void WasmCompiledModule::ReplaceCodeTableForTesting(

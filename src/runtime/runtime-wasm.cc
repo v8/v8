@@ -43,14 +43,6 @@ Context* GetWasmContextOnStackTop(Isolate* isolate) {
 }
 }  // namespace
 
-RUNTIME_FUNCTION(Runtime_WasmMemorySize) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(0, args.length());
-
-  int32_t mem_size = GetWasmInstanceOnStackTop(isolate)->GetMemorySize();
-  return *isolate->factory()->NewNumberFromInt(mem_size);
-}
-
 RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());

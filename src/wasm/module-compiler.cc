@@ -218,6 +218,12 @@ class ModuleCompiler {
 
 class JSToWasmWrapperCache {
  public:
+  void SetContextAddress(Address context_address) {
+    // Prevent to have different context addresses in the cache.
+    DCHECK(code_cache_.empty());
+    context_address_ = context_address;
+  }
+
   Handle<Code> CloneOrCompileJSToWasmWrapper(Isolate* isolate,
                                              wasm::WasmModule* module,
                                              Handle<Code> wasm_code,
@@ -243,8 +249,8 @@ class JSToWasmWrapperCache {
       return code;
     }
 
-    Handle<Code> code =
-        compiler::CompileJSToWasmWrapper(isolate, module, wasm_code, index);
+    Handle<Code> code = compiler::CompileJSToWasmWrapper(
+        isolate, module, wasm_code, index, context_address_);
     uint32_t new_cache_idx = sig_map_.FindOrInsert(func->sig);
     DCHECK_EQ(code_cache_.size(), new_cache_idx);
     USE(new_cache_idx);
@@ -256,6 +262,7 @@ class JSToWasmWrapperCache {
   // sig_map_ maps signatures to an index in code_cache_.
   wasm::SignatureMap sig_map_;
   std::vector<Handle<Code>> code_cache_;
+  Address context_address_ = nullptr;
 };
 
 // A helper class to simplify instantiating a module from a compiled module.
@@ -718,9 +725,6 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
       signature_maps,                                     // --
       empty_code,                                         // --
       BUILTIN_CODE(isolate, WasmCompileLazy),             // --
-      reinterpret_cast<uintptr_t>(                        // --
-          compiled_module->GetEmbeddedMemStartOrNull()),  // --
-      compiled_module->GetEmbeddedMemSizeOrZero(),        // --
       reinterpret_cast<uintptr_t>(                        // --
           compiled_module->GetGlobalsStartOrNull())       // --
   };
@@ -1341,7 +1345,7 @@ Handle<Code> UnwrapExportOrCompileImportWrapper(
     Isolate* isolate, int index, FunctionSig* sig, Handle<JSReceiver> target,
     Handle<String> module_name, MaybeHandle<String> import_name,
     ModuleOrigin origin, WasmInstanceMap* imported_instances,
-    Handle<FixedArray> js_imports_table) {
+    Handle<FixedArray> js_imports_table, Handle<WasmInstanceObject> instance) {
   WasmFunction* other_func = GetWasmFunctionForExport(isolate, target);
   if (other_func) {
     if (!sig->Equals(other_func->sig)) return Handle<Code>::null();
@@ -1351,7 +1355,30 @@ Handle<Code> UnwrapExportOrCompileImportWrapper(
     Handle<WasmInstanceObject> imported_instance(
         Handle<WasmExportedFunction>::cast(target)->instance(), isolate);
     imported_instances->Set(imported_instance, imported_instance);
-    return UnwrapExportWrapper(Handle<JSFunction>::cast(target));
+    Handle<Code> wasm_code =
+        UnwrapExportWrapper(Handle<JSFunction>::cast(target));
+    // Create a WasmToWasm wrapper to replace the current wasm context with
+    // the imported_instance one, in order to access the right memory.
+    // If the imported instance does not have memory, avoid the wrapper.
+    // TODO(wasm): Avoid the wrapper also if instance memory and imported
+    // instance share the same memory object.
+    bool needs_wasm_to_wasm_wrapper = imported_instance->has_memory_object();
+    if (!needs_wasm_to_wasm_wrapper) return wasm_code;
+    Address new_wasm_context =
+        reinterpret_cast<Address>(imported_instance->wasm_context());
+    Handle<Code> wrapper_code = compiler::CompileWasmToWasmWrapper(
+        isolate, wasm_code, sig, index, module_name, import_name,
+        new_wasm_context);
+    // Set the deoptimization data for the WasmToWasm wrapper.
+    // TODO(wasm): Remove the deoptimization data when we will use tail calls
+    // for WasmToWasm wrappers.
+    Factory* factory = isolate->factory();
+    Handle<WeakCell> weak_link = factory->NewWeakCell(instance);
+    Handle<FixedArray> deopt_data = factory->NewFixedArray(2, TENURED);
+    deopt_data->set(0, *weak_link);
+    deopt_data->set(1, Smi::FromInt(index));
+    wrapper_code->set_deoptimization_data(*deopt_data);
+    return wrapper_code;
   }
   // No wasm function or being debugged. Compile a new wrapper for the new
   // signature.
@@ -1401,8 +1428,6 @@ std::unique_ptr<compiler::ModuleEnv> CreateDefaultModuleEnv(
       signature_maps,    // --
       empty_code,        // --
       illegal_builtin,   // --
-      0,                 // --
-      0,                 // --
       0                  // --
   };
   return std::unique_ptr<compiler::ModuleEnv>(new compiler::ModuleEnv(result));
@@ -1822,29 +1847,38 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   // Initialize memory.
   //--------------------------------------------------------------------------
-  uint32_t mem_size = 0;
   Address mem_start = nullptr;
-
-  // Stash old values of mem_start, and mem_size before
-  // SetSpecializationMemInfoFrom, to patch memory references
-  uint32_t old_mem_size = compiled_module_->GetEmbeddedMemSizeOrZero();
-  Address old_mem_start = compiled_module_->GetEmbeddedMemStartOrNull();
+  uint32_t mem_size = 0;
   if (!memory_.is_null()) {
     Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
     mem_start = static_cast<Address>(memory->backing_store());
     CHECK(memory->byte_length()->ToUint32(&mem_size));
     LoadDataSegments(mem_start, mem_size);
-
     // Just like with globals, we need to keep both the JSArrayBuffer
     // and save the start pointer.
     instance->set_memory_buffer(*memory);
-    WasmCompiledModule::SetSpecializationMemInfoFrom(factory, compiled_module_,
-                                                     memory);
   }
-  // We might get instantiated again with the same memory. No patching
-  // needed in this case.
-  code_specialization.RelocateMemoryReferences(old_mem_start, old_mem_size,
-                                               mem_start, mem_size);
+
+  //--------------------------------------------------------------------------
+  // Create a memory object to have a WasmContext.
+  //--------------------------------------------------------------------------
+  if (module_->has_memory) {
+    if (!instance->has_memory_object()) {
+      Handle<WasmMemoryObject> memory_object = WasmMemoryObject::New(
+          isolate_,
+          instance->has_memory_buffer() ? handle(instance->memory_buffer())
+                                        : Handle<JSArrayBuffer>::null(),
+          module_->maximum_pages != 0 ? module_->maximum_pages : -1);
+      instance->set_memory_object(*memory_object);
+    }
+
+    code_specialization.RelocateWasmContextReferences(
+        reinterpret_cast<Address>(instance->wasm_context()));
+    // Store the wasm_context address in the JSToWasmWrapperCache so that it can
+    // be used to compile JSToWasmWrappers.
+    js_to_wasm_cache_.SetContextAddress(
+        reinterpret_cast<Address>(instance->wasm_context()));
+  }
 
   //--------------------------------------------------------------------------
   // Set up the runtime support for the new instance.
@@ -2222,7 +2256,8 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
         Handle<Code> import_code = UnwrapExportOrCompileImportWrapper(
             isolate_, index, module_->functions[import.index].sig,
             Handle<JSReceiver>::cast(value), module_name, import_name,
-            module_->origin(), &imported_wasm_instances, js_imports_table);
+            module_->origin(), &imported_wasm_instances, js_imports_table,
+            instance);
         if (import_code.is_null()) {
           ReportLinkError("imported function does not match the expected type",
                           index, module_name, import_name);
@@ -2577,23 +2612,12 @@ void InstanceBuilder::ProcessExports(
         break;
       }
       case kExternalMemory: {
-        // Export the memory as a WebAssembly.Memory object.
-        Handle<WasmMemoryObject> memory_object;
-        if (!instance->has_memory_object()) {
-          // If there was no imported WebAssembly.Memory object, create one.
-          memory_object = WasmMemoryObject::New(
-              isolate_,
-              (instance->has_memory_buffer())
-                  ? handle(instance->memory_buffer())
-                  : Handle<JSArrayBuffer>::null(),
-              (module_->maximum_pages != 0) ? module_->maximum_pages : -1);
-          instance->set_memory_object(*memory_object);
-        } else {
-          memory_object =
-              Handle<WasmMemoryObject>(instance->memory_object(), isolate_);
-        }
-
-        desc.set_value(memory_object);
+        // Export the memory as a WebAssembly.Memory object. A WasmMemoryObject
+        // should already be available if the module has memory, since we always
+        // create or import it when building an WasmInstanceObject.
+        DCHECK(instance->has_memory_object());
+        desc.set_value(
+            Handle<WasmMemoryObject>(instance->memory_object(), isolate_));
         break;
       }
       case kExternalGlobal: {
@@ -3334,6 +3358,8 @@ class AsyncCompileJob::FinishCompile : public CompileStep {
 // Step 6 (sync): Compile JS->wasm wrappers.
 //==========================================================================
 class AsyncCompileJob::CompileWrappers : public CompileStep {
+  // TODO(wasm): Compile all wrappers here, including the start function wrapper
+  // and the wrappers for the function table elements.
   void RunInForeground() override {
     TRACE_COMPILE("(6) Compile wrappers...\n");
     // Compile JS->wasm wrappers for exported functions.

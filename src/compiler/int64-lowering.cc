@@ -264,7 +264,17 @@ void Int64Lowering::LowerNode(Node* node) {
       if (GetParameterCountAfterLowering(signature()) !=
           static_cast<int>(signature()->parameter_count())) {
         int old_index = ParameterIndexOf(node->op());
+        // TODO(wasm): Make this part not wasm specific.
+        // Prevent special lowering of the WasmContext parameter.
+        if (old_index == kWasmContextParameterIndex) {
+          DefaultLowering(node);
+          break;
+        }
+        // Adjust old_index to be compliant with the signature.
+        --old_index;
         int new_index = GetParameterIndexAfterLowering(signature(), old_index);
+        // Adjust new_index to consider the WasmContext parameter.
+        ++new_index;
         NodeProperties::ChangeOp(node, common()->Parameter(new_index));
 
         Node* high_node = nullptr;

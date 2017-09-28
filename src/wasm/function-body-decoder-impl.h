@@ -651,6 +651,8 @@ class WasmDecoder : public Decoder {
     if (pc >= decoder->end()) return nullptr;
     if (*pc != kExprLoop) return nullptr;
 
+    // The number of locals_count is augmented by 2 so that 'locals_count - 2'
+    // can be used to track mem_size, and 'locals_count - 1' to track mem_start.
     BitVector* assigned = new (zone) BitVector(locals_count, zone);
     int depth = 0;
     // Iteratively process all AST nodes nested inside the loop.
@@ -676,6 +678,14 @@ class WasmDecoder : public Decoder {
           length = 1 + operand.length;
           break;
         }
+        case kExprGrowMemory:
+        case kExprCallFunction:
+        case kExprCallIndirect:
+          // Add mem_size and mem_start to the assigned set.
+          assigned->Add(locals_count - 2);  // mem_size
+          assigned->Add(locals_count - 1);  // mem_start
+          length = OpcodeLength(decoder, pc);
+          break;
         case kExprEnd:
           depth--;
           break;

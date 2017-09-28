@@ -1096,13 +1096,11 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
                                   {}, {})
             .ToHandleChecked();
     Handle<JSArrayBuffer> memory(instance->memory_buffer(), isolate);
+    Handle<WasmMemoryObject> mem_obj(instance->memory_object(), isolate);
     void* const old_allocation_base = memory->allocation_base();
     size_t const old_allocation_length = memory->allocation_length();
 
-    // Fake the Embedder flow by creating a memory object, externalize and grow.
-    Handle<WasmMemoryObject> mem_obj =
-        WasmMemoryObject::New(isolate, memory, 100);
-
+    // Fake the Embedder flow by externalizing the memory object, and grow.
     v8::Utils::ToLocal(memory)->Externalize();
 
     uint32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 4);

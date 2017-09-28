@@ -138,20 +138,16 @@ class InterpreterHandle {
 
   static uint32_t GetMemSize(WasmDebugInfo* debug_info) {
     DisallowHeapAllocation no_gc;
-    WasmCompiledModule* compiled_module =
-        debug_info->wasm_instance()->compiled_module();
-    return compiled_module->has_embedded_mem_size()
-               ? compiled_module->embedded_mem_size()
+    return debug_info->wasm_instance()->has_memory_object()
+               ? debug_info->wasm_instance()->wasm_context()->mem_size
                : 0;
   }
 
   static byte* GetMemStart(WasmDebugInfo* debug_info) {
     DisallowHeapAllocation no_gc;
-    WasmCompiledModule* compiled_module =
-        debug_info->wasm_instance()->compiled_module();
-    return reinterpret_cast<byte*>(compiled_module->has_embedded_mem_start()
-                                       ? compiled_module->embedded_mem_start()
-                                       : 0);
+    return debug_info->wasm_instance()->has_memory_object()
+               ? debug_info->wasm_instance()->wasm_context()->mem_start
+               : nullptr;
   }
 
   static byte* GetGlobalsStart(WasmDebugInfo* debug_info) {
@@ -808,7 +804,12 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
       debug_info->set_c_wasm_entries(*entries);
     }
     DCHECK(entries->get(index)->IsUndefined(isolate));
-    Handle<Code> new_entry_code = compiler::CompileCWasmEntry(isolate, sig);
+    Address context_address = reinterpret_cast<Address>(
+        debug_info->wasm_instance()->has_memory_object()
+            ? debug_info->wasm_instance()->wasm_context()
+            : nullptr);
+    Handle<Code> new_entry_code =
+        compiler::CompileCWasmEntry(isolate, sig, context_address);
     Handle<String> name = isolate->factory()->InternalizeOneByteString(
         STATIC_CHAR_VECTOR("c-wasm-entry"));
     Handle<SharedFunctionInfo> shared =

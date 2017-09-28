@@ -52,6 +52,17 @@ class WasmInstanceObject;
   static const int k##name##Offset = \
       kSize + (k##name##Index - kFieldCount) * kPointerSize;
 
+// Wasm context used to store the mem_size and mem_start address of the linear
+// memory. These variables can be accessed at C++ level at graph build time
+// (e.g., initialized during instance building / changed at runtime by
+// grow_memory). The address of the WasmContext is provided to the wasm entry
+// functions using a RelocatableIntPtrConstant, then the address is passed as
+// parameter to the other wasm functions.
+struct WasmContext {
+  byte* mem_start;
+  uint32_t mem_size;
+};
+
 // Representation of a WebAssembly.Module JavaScript-level object.
 class WasmModuleObject : public JSObject {
  public:
@@ -118,11 +129,13 @@ class WasmMemoryObject : public JSObject {
   DECL_ACCESSORS(array_buffer, JSArrayBuffer)
   DECL_INT_ACCESSORS(maximum_pages)
   DECL_OPTIONAL_ACCESSORS(instances, WeakFixedArray)
+  DECL_ACCESSORS(wasm_context, Managed<WasmContext>)
 
   enum {  // --
     kArrayBufferIndex,
     kMaximumPagesIndex,
     kInstancesIndex,
+    kWasmContextIndex,
     kFieldCount
   };
 
@@ -130,6 +143,7 @@ class WasmMemoryObject : public JSObject {
   DEF_OFFSET(ArrayBuffer)
   DEF_OFFSET(MaximumPages)
   DEF_OFFSET(Instances)
+  DEF_OFFSET(WasmContext)
 
   // Add an instance to the internal (weak) list. amortized O(n).
   static void AddInstance(Isolate* isolate, Handle<WasmMemoryObject> memory,
@@ -194,6 +208,7 @@ class WasmInstanceObject : public JSObject {
   DEF_OFFSET(JsImportsTable)
 
   WasmModuleObject* module_object();
+  WasmContext* wasm_context();
   V8_EXPORT_PRIVATE wasm::WasmModule* module();
 
   // Get the debug info associated with the given wasm object.
@@ -291,8 +306,11 @@ class WasmSharedModuleData : public FixedArray {
 // with all the information necessary for re-specializing them.
 //
 // We specialize wasm functions to their instance by embedding:
-//   - raw interior pointers into the backing store of the array buffer
-//     used as memory of a particular WebAssembly.Instance object.
+//   - raw pointer to the wasm_context, that contains the size of the
+//     memory and the pointer to the backing store of the array buffer
+//     used as memory of a particular WebAssembly.Instance object. This
+//     information are then used at runtime to access memory / verify bounds
+//     check limits.
 //   - bounds check limits, computed at compile time, relative to the
 //     size of the memory.
 //   - the objects representing the function tables and signature tables
@@ -381,9 +399,7 @@ class WasmCompiledModule : public FixedArray {
   MACRO(OBJECT, FixedArray, signature_tables)                 \
   MACRO(CONST_OBJECT, FixedArray, empty_function_tables)      \
   MACRO(CONST_OBJECT, FixedArray, empty_signature_tables)     \
-  MACRO(LARGE_NUMBER, size_t, embedded_mem_start)             \
   MACRO(LARGE_NUMBER, size_t, globals_start)                  \
-  MACRO(LARGE_NUMBER, uint32_t, embedded_mem_size)            \
   MACRO(SMALL_CONST_NUMBER, uint32_t, initial_pages)          \
   MACRO(WEAK_LINK, WasmCompiledModule, next_instance)         \
   MACRO(WEAK_LINK, WasmCompiledModule, prev_instance)         \
@@ -421,16 +437,10 @@ class WasmCompiledModule : public FixedArray {
                                           Handle<WasmCompiledModule> module);
   static void Reset(Isolate* isolate, WasmCompiledModule* module);
 
-  inline Address GetEmbeddedMemStartOrNull() const;
   inline Address GetGlobalsStartOrNull() const;
-  inline uint32_t GetEmbeddedMemSizeOrZero() const;
 
   uint32_t default_mem_size() const;
 
-  void ResetSpecializationMemInfoIfNeeded();
-  static void SetSpecializationMemInfoFrom(
-      Factory* factory, Handle<WasmCompiledModule> compiled_module,
-      Handle<JSArrayBuffer> buffer);
   static void SetGlobalsStartAddressFrom(
       Factory* factory, Handle<WasmCompiledModule> compiled_module,
       Handle<JSArrayBuffer> buffer);

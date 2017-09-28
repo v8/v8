@@ -29,6 +29,7 @@
 #include "src/wasm/wasm-interpreter.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
+#include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/zone/accounting-allocator.h"
@@ -155,6 +156,9 @@ class TestingModuleBuilder {
 
   void SetMaxMemPages(uint32_t maximum_pages) {
     test_module_.maximum_pages = maximum_pages;
+    if (instance_object()->has_memory_object()) {
+      instance_object()->memory_object()->set_maximum_pages(maximum_pages);
+    }
   }
 
   void SetHasSharedMemory() { test_module_.has_shared_memory = true; }
@@ -244,12 +248,24 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
                                        common()->HeapConstant(code_handle));
   }
 
+  const compiler::Operator* IntPtrConstant(intptr_t value) {
+    return machine()->Is32()
+               ? common()->Int32Constant(static_cast<int32_t>(value))
+               : common()->Int64Constant(static_cast<int64_t>(value));
+  }
+
+  void SetContextAddress(Address value) {
+    compiler::NodeProperties::ChangeOp(
+        context_address_, IntPtrConstant(reinterpret_cast<uintptr_t>(value)));
+  }
+
   Handle<Code> GetWrapperCode();
 
   Signature<MachineType>* signature() const { return signature_; }
 
  private:
   Node* inner_code_node_;
+  Node* context_address_;
   Handle<Code> code_;
   Signature<MachineType>* signature_;
 };
@@ -406,6 +422,10 @@ class WasmRunner : public WasmRunnerBase {
     set_trap_callback_for_testing(trap_callback);
 
     wrapper_.SetInnerCode(builder_.GetFunctionCode(0));
+    if (builder().instance_object()->has_memory_object()) {
+      wrapper_.SetContextAddress(reinterpret_cast<Address>(
+          builder().instance_object()->wasm_context()));
+    }
     compiler::CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
                                          wrapper_.GetWrapperCode(),
                                          wrapper_.signature());

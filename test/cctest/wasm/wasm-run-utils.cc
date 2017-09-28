@@ -36,6 +36,7 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   CHECK_NULL(mem_start_);
   CHECK_EQ(0, mem_size_);
   DCHECK(!instance_object_->has_memory_buffer());
+  DCHECK(!instance_object_->has_memory_object());
   test_module_.has_memory = true;
   bool enable_guard_regions = EnableGuardRegions() && test_module_.is_wasm();
   uint32_t alloc_size =
@@ -48,20 +49,21 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   mem_size_ = size;
   CHECK(size == 0 || mem_start_);
   memset(mem_start_, 0, size);
-  Handle<WasmCompiledModule> compiled_module =
-      handle(instance_object_->compiled_module());
-  Factory* factory = CcTest::i_isolate()->factory();
-  // It's not really necessary we recreate the Number objects,
-  // if we happened to have one, but this is a reasonable inefficiencly,
-  // given this is test.
-  WasmCompiledModule::recreate_embedded_mem_size(compiled_module, factory,
-                                                 mem_size_);
-  WasmCompiledModule::recreate_embedded_mem_start(
-      compiled_module, factory, reinterpret_cast<size_t>(mem_start_));
 
   if (interpreter_) {
     interpreter_->UpdateMemory(mem_start_, mem_size_);
   }
+  // Create the WasmMemoryObject.
+  Handle<WasmMemoryObject> memory_object = WasmMemoryObject::New(
+      isolate_, new_buffer,
+      (test_module_.maximum_pages != 0) ? test_module_.maximum_pages : -1);
+  instance_object_->set_memory_object(*memory_object);
+  WasmMemoryObject::AddInstance(isolate_, memory_object, instance_object_);
+  // TODO(wasm): Delete the following two lines when test-run-wasm will use a
+  // multiple of kPageSize as memory size. At the moment, the effect of these
+  // two lines is used to shrink the memory for testing purposes.
+  instance_object_->wasm_context()->mem_start = mem_start_;
+  instance_object_->wasm_context()->mem_size = mem_size_;
   return mem_start_;
 }
 
@@ -104,8 +106,12 @@ uint32_t TestingModuleBuilder::AddJsFunction(
 Handle<JSFunction> TestingModuleBuilder::WrapCode(uint32_t index) {
   // Wrap the code so it can be called as a JS function.
   Handle<Code> code = function_code_[index];
-  Handle<Code> ret_code =
-      compiler::CompileJSToWasmWrapper(isolate_, &test_module_, code, index);
+  byte* context_address =
+      test_module_.has_memory
+          ? reinterpret_cast<byte*>(instance_object_->wasm_context())
+          : nullptr;
+  Handle<Code> ret_code = compiler::CompileJSToWasmWrapper(
+      isolate_, &test_module_, code, index, context_address);
   Handle<JSFunction> ret = WasmExportedFunction::New(
       isolate_, instance_object(), MaybeHandle<String>(),
       static_cast<int>(index),
@@ -196,8 +202,6 @@ compiler::ModuleEnv TestingModuleBuilder::CreateModuleEnv() {
       signature_maps,
       function_code_,
       Handle<Code>::null(),
-      reinterpret_cast<uintptr_t>(mem_start_),
-      mem_size_,
       reinterpret_cast<uintptr_t>(globals_data_),
   };
 }
@@ -275,7 +279,10 @@ void TestBuildingGraph(
 }
 
 WasmFunctionWrapper::WasmFunctionWrapper(Zone* zone, int num_params)
-    : GraphAndBuilders(zone), inner_code_node_(nullptr), signature_(nullptr) {
+    : GraphAndBuilders(zone),
+      inner_code_node_(nullptr),
+      context_address_(nullptr),
+      signature_(nullptr) {
   // One additional parameter for the pointer to the return value memory.
   Signature<MachineType>::Builder sig_builder(zone, 1, num_params + 1);
 
@@ -294,15 +301,19 @@ void WasmFunctionWrapper::Init(CallDescriptor* descriptor,
 
   // Create the TF graph for the wrapper.
 
-  // Function, effect, and control.
-  Node** parameters = zone()->NewArray<Node*>(param_types.length() + 3);
-  graph()->SetStart(graph()->NewNode(common()->Start(6)));
+  // Function, context_address, effect, and control.
+  Node** parameters = zone()->NewArray<Node*>(param_types.length() + 4);
+  graph()->SetStart(graph()->NewNode(common()->Start(7)));
   Node* effect = graph()->start();
   int parameter_count = 0;
 
   // Dummy node which gets replaced in SetInnerCode.
   inner_code_node_ = graph()->NewNode(common()->Int32Constant(0));
   parameters[parameter_count++] = inner_code_node_;
+
+  // Dummy node that gets replaced in SetContextAddress.
+  context_address_ = graph()->NewNode(IntPtrConstant(0));
+  parameters[parameter_count++] = context_address_;
 
   int param_idx = 0;
   for (MachineType t : param_types) {
