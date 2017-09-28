@@ -89,7 +89,6 @@
 //           - StringTable
 //           - StringSet
 //           - CompilationCacheTable
-//           - CodeCacheHashTable
 //           - MapCache
 //         - OrderedHashTable
 //           - OrderedHashSet
@@ -263,11 +262,6 @@ enum DescriptorFlag {
   ALL_DESCRIPTORS,
   OWN_DESCRIPTORS
 };
-
-// ICs store extra state in a Code object. The default extra state is
-// kNoExtraICState.
-typedef int ExtraICState;
-static const ExtraICState kNoExtraICState = 0;
 
 // Instance size sentinel for objects of variable size.
 const int kVariableSizeSentinel = 0;
@@ -872,7 +866,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
   V(HANDLER_TABLE_SUB_TYPE)                      \
   V(JS_COLLECTION_SUB_TYPE)                      \
   V(JS_WEAK_COLLECTION_SUB_TYPE)                 \
-  V(MAP_CODE_CACHE_SUB_TYPE)                     \
   V(NOSCRIPT_SHARED_FUNCTION_INFOS_SUB_TYPE)     \
   V(NUMBER_STRING_CACHE_SUB_TYPE)                \
   V(OBJECT_TO_CODE_SUB_TYPE)                     \
@@ -987,7 +980,6 @@ template <class C> inline bool Is(Object* obj);
   V(CallHandlerInfo)                      \
   V(Cell)                                 \
   V(Code)                                 \
-  V(CodeCacheHashTable)                   \
   V(CompilationCacheTable)                \
   V(ConsString)                           \
   V(ConstantElementsPair)                 \
@@ -1792,13 +1784,6 @@ class HeapObject: public Object {
   // Does not invoke write barrier, so should only be assigned to
   // during marking GC.
   static inline Object** RawField(HeapObject* obj, int offset);
-
-  // Adds the |code| object related to |name| to the code cache of this map. If
-  // this map is a dictionary map that is shared, the map copied and installed
-  // onto the object.
-  static void UpdateMapCodeCache(Handle<HeapObject> object,
-                                 Handle<Name> name,
-                                 Handle<Code> code);
 
   DECL_CAST(HeapObject)
 
@@ -3694,8 +3679,6 @@ class Code: public HeapObject {
 #if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
   // Printing
   static const char* ICState2String(InlineCacheState state);
-  static void PrintExtraICState(std::ostream& os,  // NOLINT
-                                Kind kind, ExtraICState extra);
 #endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
 
 #ifdef ENABLE_DISASSEMBLER
@@ -3856,13 +3839,9 @@ class Code: public HeapObject {
   inline void clear_padding();
 
   // Flags operations.
-  static inline Flags ComputeFlags(
-      Kind kind, ExtraICState extra_ic_state = kNoExtraICState);
-
-  static inline Flags ComputeHandlerFlags(Kind handler_kind);
+  static inline Flags ComputeFlags(Kind kind);
 
   static inline Kind ExtractKindFromFlags(Flags flags);
-  static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
 
   // Convert a target address into a code object.
   static inline Code* GetCodeFromTargetAddress(Address address);
@@ -4029,10 +4008,6 @@ class Code: public HeapObject {
   class HasUnwindingInfoField : public BitField<bool, 0, 1> {};
   class KindField : public BitField<Kind, HasUnwindingInfoField::kNext, 5> {};
   STATIC_ASSERT(NUMBER_OF_KINDS <= KindField::kMax);
-  class ExtraICStateField
-      : public BitField<ExtraICState, KindField::kNext,
-                        PlatformSmiTagging::kSmiValueSize - KindField::kNext> {
-  };
 
   // KindSpecificFlags1 layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
   static const int kStackSlotsFirstBit = 0;

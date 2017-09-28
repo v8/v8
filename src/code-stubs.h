@@ -193,8 +193,6 @@ class CodeStub : public ZoneObject {
   // BinaryOpStub needs to override this.
   virtual Code::Kind GetCodeKind() const;
 
-  virtual ExtraICState GetExtraICState() const { return kNoExtraICState; }
-
   Code::Flags GetCodeFlags() const;
 
   friend std::ostream& operator<<(std::ostream& os, const CodeStub& s) {
@@ -488,7 +486,6 @@ class StringLengthStub : public TurboFanCodeStub {
   explicit StringLengthStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StringLength, TurboFanCodeStub);
@@ -499,7 +496,6 @@ class StoreInterceptorStub : public TurboFanCodeStub {
   explicit StoreInterceptorStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
   DEFINE_TURBOFAN_CODE_STUB(StoreInterceptor, TurboFanCodeStub);
@@ -542,7 +538,6 @@ class LoadIndexedInterceptorStub : public TurboFanCodeStub {
       : TurboFanCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::KEYED_LOAD_IC; }
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_TURBOFAN_CODE_STUB(LoadIndexedInterceptor, TurboFanCodeStub);
@@ -652,7 +647,6 @@ class KeyedLoadSloppyArgumentsStub : public TurboFanCodeStub {
       : TurboFanCodeStub(isolate) {}
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
 
  protected:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
@@ -671,7 +665,6 @@ class KeyedStoreSloppyArgumentsStub : public TurboFanCodeStub {
   }
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
 
  protected:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
@@ -917,8 +910,6 @@ class LoadScriptContextFieldStub : public ScriptContextFieldStub {
       Isolate* isolate, const ScriptContextTable::LookupResult* lookup_result)
       : ScriptContextFieldStub(isolate, lookup_result) {}
 
-  ExtraICState GetExtraICState() const override { return Code::LOAD_IC; }
-
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
   DEFINE_TURBOFAN_CODE_STUB(LoadScriptContextField, ScriptContextFieldStub);
@@ -930,8 +921,6 @@ class StoreScriptContextFieldStub : public ScriptContextFieldStub {
   StoreScriptContextFieldStub(
       Isolate* isolate, const ScriptContextTable::LookupResult* lookup_result)
       : ScriptContextFieldStub(isolate, lookup_result) {}
-
-  ExtraICState GetExtraICState() const override { return Code::STORE_IC; }
 
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
@@ -961,7 +950,6 @@ class StoreFastElementStub : public TurboFanCodeStub {
   }
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::KEYED_STORE_IC; }
 
  private:
   class ElementsKindBits
@@ -1104,7 +1092,6 @@ class StoreSlowElementStub : public TurboFanCodeStub {
   }
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::KEYED_STORE_IC; }
 
  private:
   DEFINE_CALL_INTERFACE_DESCRIPTOR(StoreWithVector);
@@ -1130,7 +1117,6 @@ class ElementsTransitionAndStoreStub : public TurboFanCodeStub {
   }
 
   Code::Kind GetCodeKind() const override { return Code::HANDLER; }
-  ExtraICState GetExtraICState() const override { return Code::KEYED_STORE_IC; }
 
  private:
   class FromBits

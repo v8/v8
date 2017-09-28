@@ -13,9 +13,6 @@ namespace internal {
 class CallOptimization;
 
 class PropertyHandlerCompiler : public PropertyAccessCompiler {
- public:
-  static Handle<Code> Find(Handle<Name> name, Handle<Map> map, Code::Kind kind);
-
  protected:
   PropertyHandlerCompiler(Isolate* isolate, Code::Kind kind, Handle<Map> map,
                           Handle<JSObject> holder)
@@ -99,7 +96,7 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
                            Register scratch1, Register scratch2,
                            Handle<Name> name, Label* miss);
 
-  Handle<Code> GetCode(Code::Kind kind, Handle<Name> name);
+  Handle<Code> GetCode(Handle<Name> name);
   Handle<Map> map() const { return map_; }
   Handle<JSObject> holder() const { return holder_; }
 

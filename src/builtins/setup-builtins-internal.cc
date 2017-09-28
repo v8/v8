@@ -42,8 +42,6 @@ void PostBuildProfileAndTracing(Isolate* isolate, Code* code,
 typedef void (*MacroAssemblerGenerator)(MacroAssembler*);
 typedef void (*CodeAssemblerGenerator)(compiler::CodeAssemblerState*);
 
-static const ExtraICState kPlaceholderState = 1;
-
 Handle<Code> BuildPlaceholder(Isolate* isolate) {
   HandleScope scope(isolate);
   const size_t buffer_size = 1 * KB;
@@ -56,10 +54,9 @@ Handle<Code> BuildPlaceholder(Isolate* isolate) {
   }
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  const Code::Flags kPlaceholderFlags =
-      Code::ComputeFlags(Code::BUILTIN, kPlaceholderState);
+  const Code::Flags kBuiltinFlags = Code::ComputeFlags(Code::BUILTIN);
   Handle<Code> code =
-      isolate->factory()->NewCode(desc, kPlaceholderFlags, masm.CodeObject());
+      isolate->factory()->NewCode(desc, kBuiltinFlags, masm.CodeObject());
   return scope.CloseAndEscape(code);
 }
 
@@ -172,8 +169,6 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   DisallowHeapAllocation no_gc;
   static const int kRelocMask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                                 RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);
-  const Code::Flags kPlaceholderFlags =
-      Code::ComputeFlags(Code::BUILTIN, kPlaceholderState);
   HeapIterator iterator(isolate->heap());
   while (HeapObject* obj = iterator.next()) {
     if (!obj->IsCode()) continue;
@@ -183,7 +178,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
       RelocInfo* rinfo = it.rinfo();
       if (RelocInfo::IsCodeTarget(rinfo->rmode())) {
         Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-        if (target->flags() != kPlaceholderFlags) continue;
+        if (target->kind() != Code::BUILTIN) continue;
         Code* new_target =
             Code::cast(builtins->builtins_[target->builtin_index()]);
         rinfo->set_target_address(isolate, new_target->instruction_start(),
@@ -193,7 +188,7 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
         Object* object = rinfo->target_object();
         if (!object->IsCode()) continue;
         Code* target = Code::cast(object);
-        if (target->flags() != kPlaceholderFlags) continue;
+        if (target->kind() != Code::BUILTIN) continue;
         Code* new_target =
             Code::cast(builtins->builtins_[target->builtin_index()]);
         rinfo->set_target_object(new_target, UPDATE_WRITE_BARRIER,
@@ -206,16 +201,6 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
                              code->instruction_size());
     }
   }
-#ifdef DEBUG
-  // Verify that references to all placeholder builtins have been replaced.
-  // Skip this check for non-snapshot builds.
-  if (isolate->serializer_enabled()) {
-    HeapIterator iterator(isolate->heap(), HeapIterator::kFilterUnreachable);
-    while (HeapObject* obj = iterator.next()) {
-      if (obj->IsCode()) CHECK_NE(kPlaceholderFlags, Code::cast(obj)->flags());
-    }
-  }
-#endif
 }
 
 void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
@@ -254,13 +239,13 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
                                       CallDescriptors::Name, kBuiltinFlags, \
                                       #Name, 1);                            \
   AddBuiltin(builtins, index++, code);
-#define BUILD_TFH(Name, Kind, Extra, InterfaceDescriptor)                    \
-  { InterfaceDescriptor##Descriptor descriptor(isolate); }                   \
-  /* Return size for IC builtins/handlers is always 1. */                    \
-  code = BuildWithCodeStubAssemblerCS(isolate, &Builtins::Generate_##Name,   \
-                                      CallDescriptors::InterfaceDescriptor,  \
-                                      Code::ComputeFlags(Code::Kind, Extra), \
-                                      #Name, 1);                             \
+#define BUILD_TFH(Name, Kind, InterfaceDescriptor)                            \
+  { InterfaceDescriptor##Descriptor descriptor(isolate); }                    \
+  /* Return size for IC builtins/handlers is always 1. */                     \
+  code =                                                                      \
+      BuildWithCodeStubAssemblerCS(isolate, &Builtins::Generate_##Name,       \
+                                   CallDescriptors::InterfaceDescriptor,      \
+                                   Code::ComputeFlags(Code::Kind), #Name, 1); \
   AddBuiltin(builtins, index++, code);
 #define BUILD_ASM(Name)                                              \
   code = BuildWithMacroAssembler(isolate, Builtins::Generate_##Name, \

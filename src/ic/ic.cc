@@ -225,7 +225,6 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
   DCHECK_NOT_NULL(nexus);
   kind_ = nexus->kind();
   state_ = nexus->StateFromFeedback();
-  extra_ic_state_ = kNoExtraICState;
   old_state_ = state_;
 }
 
@@ -720,39 +719,7 @@ Handle<Object> IC::ComputeHandler(LookupIterator* lookup) {
     return shared_handler;
   }
 
-  Handle<Code> handler = PropertyHandlerCompiler::Find(
-      lookup->name(), receiver_map(), handler_kind());
-  // Use the cached value if it exists, and if it is different from the
-  // handler that just missed.
-  if (!handler.is_null()) {
-    Handle<Object> current_handler;
-    if (maybe_handler_.ToHandle(&current_handler)) {
-      if (!current_handler.is_identical_to(handler)) {
-        TraceHandlerCacheHitStats(lookup);
-        return handler;
-      }
-    } else {
-      // maybe_handler_ is only populated for MONOMORPHIC and POLYMORPHIC ICs.
-      // In MEGAMORPHIC case, check if the handler in the megamorphic stub
-      // cache (which just missed) is different from the cached handler.
-      if (state() == MEGAMORPHIC && lookup->GetReceiver()->IsHeapObject()) {
-        Map* map = Handle<HeapObject>::cast(lookup->GetReceiver())->map();
-        Object* megamorphic_cached_handler =
-            stub_cache()->Get(*lookup->name(), map);
-        if (megamorphic_cached_handler != *handler) {
-          TraceHandlerCacheHitStats(lookup);
-          return handler;
-        }
-      } else {
-        TraceHandlerCacheHitStats(lookup);
-        return handler;
-      }
-    }
-  }
-
-  handler = CompileHandler(lookup);
-  Map::UpdateCodeCache(receiver_map(), lookup->name(), handler);
-  return handler;
+  return CompileHandler(lookup);
 }
 
 Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {

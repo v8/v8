@@ -147,8 +147,6 @@ class IC {
   }
   bool ShouldRecomputeHandler(Handle<String> name);
 
-  ExtraICState extra_ic_state() const { return extra_ic_state_; }
-
   Handle<Map> receiver_map() { return receiver_map_; }
   void update_receiver_map(Handle<Object> receiver) {
     if (receiver->IsSmi()) {
@@ -214,7 +212,6 @@ class IC {
   Handle<Map> receiver_map_;
   MaybeHandle<Object> maybe_handler_;
 
-  ExtraICState extra_ic_state_;
   MapHandles target_maps_;
   bool target_maps_set_;
 

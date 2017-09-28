@@ -54,7 +54,6 @@
 #include "src/map-updater.h"
 #include "src/messages.h"
 #include "src/objects-body-descriptors-inl.h"
-#include "src/objects/code-cache-inl.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
@@ -6040,14 +6039,6 @@ void NormalizedMapCache::Clear() {
 }
 
 
-void HeapObject::UpdateMapCodeCache(Handle<HeapObject> object,
-                                    Handle<Name> name,
-                                    Handle<Code> code) {
-  Handle<Map> map(object->map());
-  Map::UpdateCodeCache(map, name, code);
-}
-
-
 void JSObject::NormalizeProperties(Handle<JSObject> object,
                                    PropertyNormalizationMode mode,
                                    int expected_additional_properties,
@@ -8932,13 +8923,11 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
                       kTransitionsOrPrototypeInfoOffset + kPointerSize);
         DCHECK(memcmp(HeapObject::RawField(*fresh, kDescriptorsOffset),
                       HeapObject::RawField(*new_map, kDescriptorsOffset),
-                      kCodeCacheOffset - kDescriptorsOffset) == 0);
+                      kDependentCodeOffset - kDescriptorsOffset) == 0);
       } else {
         DCHECK(memcmp(fresh->address(), new_map->address(),
-                      Map::kCodeCacheOffset) == 0);
+                      Map::kDependentCodeOffset) == 0);
       }
-      STATIC_ASSERT(Map::kDependentCodeOffset ==
-                    Map::kCodeCacheOffset + kPointerSize);
       STATIC_ASSERT(Map::kWeakCellCacheOffset ==
                     Map::kDependentCodeOffset + kPointerSize);
       int offset = Map::kWeakCellCacheOffset + kPointerSize;
@@ -9073,7 +9062,6 @@ Handle<Map> Map::CopyDropDescriptors(Handle<Map> map) {
     result->SetInObjectProperties(map->GetInObjectProperties());
     result->set_unused_property_fields(map->unused_property_fields());
   }
-  result->ClearCodeCache(map->GetHeap());
   map->NotifyLeafMapLayoutChange();
   return result;
 }
@@ -9906,211 +9894,6 @@ Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
   return CopyReplaceDescriptors(map, new_descriptors, new_layout_descriptor,
                                 flag, key, "CopyReplaceDescriptor",
                                 simple_flag);
-}
-
-// Helper class to manage a Map's code cache. The layout depends on the number
-// of entries; this is worthwhile because most code caches are very small,
-// but some are huge (thousands of entries).
-// For zero entries, the EmptyFixedArray is used.
-// For one entry, we use a 2-element FixedArray containing [name, code].
-// For 2..100 entries, we use a FixedArray with linear lookups, the layout is:
-//   [0] - number of slots that are currently in use
-//   [1] - first name
-//   [2] - first code
-//   [3] - second name
-//   [4] - second code
-//   etc.
-// For more than 128 entries, we use a CodeCacheHashTable.
-class CodeCache : public AllStatic {
- public:
-  // Returns the new cache, to be stored on the map.
-  static Handle<FixedArray> Put(Isolate* isolate, Handle<FixedArray> cache,
-                                Handle<Name> name, Handle<Code> code) {
-    int length = cache->length();
-    if (length == 0) return PutFirstElement(isolate, name, code);
-    if (length == kEntrySize) {
-      return PutSecondElement(isolate, cache, name, code);
-    }
-    if (length <= kLinearMaxSize) {
-      Handle<FixedArray> result = PutLinearElement(isolate, cache, name, code);
-      if (!result.is_null()) return result;
-      // Fall through if linear storage is getting too large.
-    }
-    return PutHashTableElement(isolate, cache, name, code);
-  }
-
-  static Code* Lookup(FixedArray* cache, Name* name, Code::Flags flags) {
-    int length = cache->length();
-    if (length == 0) return nullptr;
-    if (length == kEntrySize) return OneElementLookup(cache, name, flags);
-    if (!cache->IsCodeCacheHashTable()) {
-      return LinearLookup(cache, name, flags);
-    } else {
-      return CodeCacheHashTable::cast(cache)->Lookup(name, flags);
-    }
-  }
-
- private:
-  static const int kNameIndex = 0;
-  static const int kCodeIndex = 1;
-  static const int kEntrySize = 2;
-
-  static const int kLinearUsageIndex = 0;
-  static const int kLinearReservedSlots = 1;
-  static const int kLinearInitialCapacity = 2;
-  static const int kLinearMaxSize = 257;  // == LinearSizeFor(128);
-
-  static const int kHashTableInitialCapacity = 200;  // Number of entries.
-
-  static int LinearSizeFor(int entries) {
-    return kLinearReservedSlots + kEntrySize * entries;
-  }
-
-  static int LinearNewSize(int old_size) {
-    int old_entries = (old_size - kLinearReservedSlots) / kEntrySize;
-    return LinearSizeFor(old_entries * 2);
-  }
-
-  static Code* OneElementLookup(FixedArray* cache, Name* name,
-                                Code::Flags flags) {
-    DCHECK_EQ(cache->length(), kEntrySize);
-    if (cache->get(kNameIndex) != name) return nullptr;
-    Code* maybe_code = Code::cast(cache->get(kCodeIndex));
-    if (maybe_code->flags() != flags) return nullptr;
-    return maybe_code;
-  }
-
-  static Code* LinearLookup(FixedArray* cache, Name* name, Code::Flags flags) {
-    DCHECK_GE(cache->length(), kEntrySize);
-    DCHECK(!cache->IsCodeCacheHashTable());
-    int usage = GetLinearUsage(cache);
-    for (int i = kLinearReservedSlots; i < usage; i += kEntrySize) {
-      if (cache->get(i + kNameIndex) != name) continue;
-      Code* code = Code::cast(cache->get(i + kCodeIndex));
-      if (code->flags() == flags) return code;
-    }
-    return nullptr;
-  }
-
-  static Handle<FixedArray> PutFirstElement(Isolate* isolate, Handle<Name> name,
-                                            Handle<Code> code) {
-    Handle<FixedArray> cache = isolate->factory()->NewFixedArray(kEntrySize);
-    cache->set(kNameIndex, *name);
-    cache->set(kCodeIndex, *code);
-    return cache;
-  }
-
-  static Handle<FixedArray> PutSecondElement(Isolate* isolate,
-                                             Handle<FixedArray> cache,
-                                             Handle<Name> name,
-                                             Handle<Code> code) {
-    DCHECK_EQ(cache->length(), kEntrySize);
-    Handle<FixedArray> new_cache = isolate->factory()->NewFixedArray(
-        LinearSizeFor(kLinearInitialCapacity));
-    new_cache->set(kLinearReservedSlots + kNameIndex, cache->get(kNameIndex));
-    new_cache->set(kLinearReservedSlots + kCodeIndex, cache->get(kCodeIndex));
-    new_cache->set(LinearSizeFor(1) + kNameIndex, *name);
-    new_cache->set(LinearSizeFor(1) + kCodeIndex, *code);
-    new_cache->set(kLinearUsageIndex, Smi::FromInt(LinearSizeFor(2)));
-    return new_cache;
-  }
-
-  static Handle<FixedArray> PutLinearElement(Isolate* isolate,
-                                             Handle<FixedArray> cache,
-                                             Handle<Name> name,
-                                             Handle<Code> code) {
-    int length = cache->length();
-    int usage = GetLinearUsage(*cache);
-    DCHECK_LE(usage, length);
-    // Check if we need to grow.
-    if (usage == length) {
-      int new_length = LinearNewSize(length);
-      if (new_length > kLinearMaxSize) return Handle<FixedArray>::null();
-      Handle<FixedArray> new_cache =
-          isolate->factory()->NewFixedArray(new_length);
-      for (int i = kLinearReservedSlots; i < length; i++) {
-        new_cache->set(i, cache->get(i));
-      }
-      cache = new_cache;
-    }
-    // Store new entry.
-    DCHECK_GE(cache->length(), usage + kEntrySize);
-    cache->set(usage + kNameIndex, *name);
-    cache->set(usage + kCodeIndex, *code);
-    cache->set(kLinearUsageIndex, Smi::FromInt(usage + kEntrySize));
-    return cache;
-  }
-
-  static Handle<FixedArray> PutHashTableElement(Isolate* isolate,
-                                                Handle<FixedArray> cache,
-                                                Handle<Name> name,
-                                                Handle<Code> code) {
-    // Check if we need to transition from linear to hash table storage.
-    if (!cache->IsCodeCacheHashTable()) {
-      // Check that the initial hash table capacity is large enough.
-      DCHECK_EQ(kLinearMaxSize, LinearSizeFor(128));
-      STATIC_ASSERT(kHashTableInitialCapacity > 128);
-
-      int length = cache->length();
-      // Only migrate from linear storage when it's full.
-      DCHECK_EQ(length, GetLinearUsage(*cache));
-      DCHECK_EQ(length, kLinearMaxSize);
-      Handle<CodeCacheHashTable> table =
-          CodeCacheHashTable::New(isolate, kHashTableInitialCapacity);
-      HandleScope scope(isolate);
-      for (int i = kLinearReservedSlots; i < length; i += kEntrySize) {
-        Handle<Name> old_name(Name::cast(cache->get(i + kNameIndex)), isolate);
-        Handle<Code> old_code(Code::cast(cache->get(i + kCodeIndex)), isolate);
-        CodeCacheHashTable::Put(table, old_name, old_code);
-      }
-      cache = table;
-    }
-    // Store new entry.
-    DCHECK(cache->IsCodeCacheHashTable());
-    return CodeCacheHashTable::Put(Handle<CodeCacheHashTable>::cast(cache),
-                                   name, code);
-  }
-
-  static inline int GetLinearUsage(FixedArray* linear_cache) {
-    DCHECK_GT(linear_cache->length(), kEntrySize);
-    return Smi::ToInt(linear_cache->get(kLinearUsageIndex));
-  }
-};
-
-void Map::UpdateCodeCache(Handle<Map> map,
-                          Handle<Name> name,
-                          Handle<Code> code) {
-  Isolate* isolate = map->GetIsolate();
-  Handle<FixedArray> cache(map->code_cache(), isolate);
-  Handle<FixedArray> new_cache = CodeCache::Put(isolate, cache, name, code);
-  map->set_code_cache(*new_cache);
-}
-
-Code* Map::LookupInCodeCache(Name* name, Code::Flags flags) {
-  return CodeCache::Lookup(code_cache(), name, flags);
-}
-
-
-Handle<CodeCacheHashTable> CodeCacheHashTable::Put(
-    Handle<CodeCacheHashTable> cache, Handle<Name> name, Handle<Code> code) {
-  CodeCacheHashTableKey key(name, code);
-
-  Handle<CodeCacheHashTable> new_cache = EnsureCapacity(cache, 1);
-
-  int entry = new_cache->FindInsertionEntry(key.Hash());
-  Handle<Object> k = key.AsHandle(cache->GetIsolate());
-
-  new_cache->set(EntryToIndex(entry), *k);
-  new_cache->ElementAdded();
-  return new_cache;
-}
-
-Code* CodeCacheHashTable::Lookup(Name* name, Code::Flags flags) {
-  DisallowHeapAllocation no_alloc;
-  CodeCacheHashTableKey key(handle(name), flags);
-  int entry = FindEntry(&key);
-  if (entry == kNotFound) return nullptr;
-  return Code::cast(FixedArray::cast(get(EntryToIndex(entry)))->get(1));
 }
 
 Handle<FixedArray> FixedArray::SetAndGrow(Handle<FixedArray> array, int index,
@@ -14231,17 +14014,6 @@ const char* Code::ICState2String(InlineCacheState state) {
       return "GENERIC";
   }
   UNREACHABLE();
-}
-
-void Code::PrintExtraICState(std::ostream& os,  // NOLINT
-                             Kind kind, ExtraICState extra) {
-  os << "extra_ic_state = ";
-  if ((kind == STORE_IC || kind == KEYED_STORE_IC) &&
-      is_strict(static_cast<LanguageMode>(extra))) {
-    os << "STRICT\n";
-  } else {
-    os << extra << "\n";
-  }
 }
 
 #endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)

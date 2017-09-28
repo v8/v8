@@ -15,18 +15,8 @@
 namespace v8 {
 namespace internal {
 
-Handle<Code> PropertyHandlerCompiler::Find(Handle<Name> name,
-                                           Handle<Map> stub_holder,
-                                           Code::Kind kind) {
-  Code::Flags flags = Code::ComputeHandlerFlags(kind);
-  Code* code = stub_holder->LookupInCodeCache(*name, flags);
-  if (code == nullptr) return Handle<Code>();
-  return handle(code);
-}
-
-Handle<Code> PropertyHandlerCompiler::GetCode(Code::Kind kind,
-                                              Handle<Name> name) {
-  Code::Flags flags = Code::ComputeHandlerFlags(kind);
+Handle<Code> PropertyHandlerCompiler::GetCode(Handle<Name> name) {
+  Code::Flags flags = Code::ComputeFlags(Code::HANDLER);
 
   // Create code object in the heap.
   CodeDesc desc;
@@ -119,7 +109,7 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
   Register holder = Frontend(name);
   GenerateApiAccessorCall(masm(), call_optimization, map(), receiver(),
                           scratch2(), false, no_reg, holder, accessor_index);
-  return GetCode(kind(), name);
+  return GetCode(name);
 }
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
@@ -129,7 +119,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
   GenerateStoreViaSetter(masm(), map(), receiver(), holder, accessor_index,
                          expected_arguments, scratch2());
 
-  return GetCode(kind(), name);
+  return GetCode(name);
 }
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
@@ -146,7 +136,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
                           receiver(), scratch2(), true, value(), holder,
                           accessor_index);
-  return GetCode(kind(), name);
+  return GetCode(name);
 }
 
 

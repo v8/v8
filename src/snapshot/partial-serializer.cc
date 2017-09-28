@@ -53,12 +53,6 @@ void PartialSerializer::Serialize(Object** o, bool include_global_proxy) {
 
 void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
-  if (obj->IsMap()) {
-    // The code-caches link to context-specific code objects, which
-    // the startup and context serializes cannot currently handle.
-    DCHECK(Map::cast(obj)->code_cache() == obj->GetHeap()->empty_fixed_array());
-  }
-
   BuiltinReferenceSerializationMode mode =
       startup_serializer_->clear_function_code() ? kCanonicalizeCompileLazy
                                                  : kDefault;

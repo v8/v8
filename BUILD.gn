@@ -1781,8 +1781,6 @@ v8_source_set("v8_base") {
     "src/objects/bigint-inl.h",
     "src/objects/bigint.cc",
     "src/objects/bigint.h",
-    "src/objects/code-cache-inl.h",
-    "src/objects/code-cache.h",
     "src/objects/compilation-cache-inl.h",
     "src/objects/compilation-cache.h",
     "src/objects/debug-objects-inl.h",

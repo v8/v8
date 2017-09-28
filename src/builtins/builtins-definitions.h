@@ -19,7 +19,7 @@ namespace internal {
 // TFC: Builtin in Turbofan, with CodeStub linkage and custom descriptor.
 //      Args: name, interface descriptor, return_size
 // TFH: Handlers in Turbofan, with CodeStub linkage.
-//      Args: name, code kind, extra IC state, interface descriptor
+//      Args: name, code kind, interface descriptor
 // ASM: Builtin in platform-dependent assembly.
 //      Args: name
 
@@ -197,27 +197,26 @@ namespace internal {
   TFC(ToBooleanLazyDeoptContinuation, TypeConversionStackParameter, 1)         \
                                                                                \
   /* Handlers */                                                               \
-  TFH(LoadICProtoArray, BUILTIN, kNoExtraICState, LoadICProtoArray)            \
-  TFH(LoadICProtoArrayThrowIfNonexistent, BUILTIN, kNoExtraICState,            \
-      LoadICProtoArray)                                                        \
-  TFH(KeyedLoadIC_Megamorphic, BUILTIN, kNoExtraICState, LoadWithVector)       \
-  TFH(KeyedLoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)              \
-  TFH(KeyedLoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                \
-  TFH(KeyedLoadIC_IndexedString, HANDLER, Code::LOAD_IC, LoadWithVector)       \
-  TFH(KeyedStoreIC_Megamorphic, BUILTIN, kNoExtraICState, StoreWithVector)     \
-  TFH(KeyedStoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)            \
-  TFH(KeyedStoreIC_Slow, HANDLER, Code::STORE_IC, StoreWithVector)             \
-  TFH(LoadGlobalIC_Miss, BUILTIN, kNoExtraICState, LoadGlobalWithVector)       \
-  TFH(LoadGlobalIC_Slow, HANDLER, Code::LOAD_GLOBAL_IC, LoadGlobalWithVector)  \
-  TFH(LoadField, BUILTIN, kNoExtraICState, LoadField)                          \
-  TFH(LoadIC_FunctionPrototype, HANDLER, Code::LOAD_IC, LoadWithVector)        \
+  TFH(LoadICProtoArray, BUILTIN, LoadICProtoArray)                             \
+  TFH(LoadICProtoArrayThrowIfNonexistent, BUILTIN, LoadICProtoArray)           \
+  TFH(KeyedLoadIC_Megamorphic, BUILTIN, LoadWithVector)                        \
+  TFH(KeyedLoadIC_Miss, BUILTIN, LoadWithVector)                               \
+  TFH(KeyedLoadIC_Slow, HANDLER, LoadWithVector)                               \
+  TFH(KeyedLoadIC_IndexedString, HANDLER, LoadWithVector)                      \
+  TFH(KeyedStoreIC_Megamorphic, BUILTIN, StoreWithVector)                      \
+  TFH(KeyedStoreIC_Miss, BUILTIN, StoreWithVector)                             \
+  TFH(KeyedStoreIC_Slow, HANDLER, StoreWithVector)                             \
+  TFH(LoadGlobalIC_Miss, BUILTIN, LoadGlobalWithVector)                        \
+  TFH(LoadGlobalIC_Slow, HANDLER, LoadGlobalWithVector)                        \
+  TFH(LoadField, BUILTIN, LoadField)                                           \
+  TFH(LoadIC_FunctionPrototype, HANDLER, LoadWithVector)                       \
   ASM(LoadIC_Getter_ForDeopt)                                                  \
-  TFH(LoadIC_Miss, BUILTIN, kNoExtraICState, LoadWithVector)                   \
-  TFH(LoadIC_Slow, HANDLER, Code::LOAD_IC, LoadWithVector)                     \
-  TFH(LoadIC_Uninitialized, BUILTIN, kNoExtraICState, LoadWithVector)          \
-  TFH(StoreIC_Miss, BUILTIN, kNoExtraICState, StoreWithVector)                 \
+  TFH(LoadIC_Miss, BUILTIN, LoadWithVector)                                    \
+  TFH(LoadIC_Slow, HANDLER, LoadWithVector)                                    \
+  TFH(LoadIC_Uninitialized, BUILTIN, LoadWithVector)                           \
+  TFH(StoreIC_Miss, BUILTIN, StoreWithVector)                                  \
   ASM(StoreIC_Setter_ForDeopt)                                                 \
-  TFH(StoreIC_Uninitialized, BUILTIN, kNoExtraICState, StoreWithVector)        \
+  TFH(StoreIC_Uninitialized, BUILTIN, StoreWithVector)                         \
                                                                                \
   /* Promise helpers */                                                        \
   TFS(ResolveNativePromise, kPromise, kValue)                                  \
@@ -540,21 +539,19 @@ namespace internal {
   CPP(JsonStringify)                                                           \
                                                                                \
   /* ICs */                                                                    \
-  TFH(LoadIC, LOAD_IC, kNoExtraICState, LoadWithVector)                        \
-  TFH(LoadIC_Noninlined, BUILTIN, kNoExtraICState, LoadWithVector)             \
-  TFH(LoadICTrampoline, LOAD_IC, kNoExtraICState, Load)                        \
-  TFH(KeyedLoadIC, KEYED_LOAD_IC, kNoExtraICState, LoadWithVector)             \
-  TFH(KeyedLoadICTrampoline, KEYED_LOAD_IC, kNoExtraICState, Load)             \
-  TFH(StoreIC, STORE_IC, kNoExtraICState, StoreWithVector)                     \
-  TFH(StoreICTrampoline, STORE_IC, kNoExtraICState, Store)                     \
-  TFH(KeyedStoreIC, KEYED_STORE_IC, kNoExtraICState, StoreWithVector)          \
-  TFH(KeyedStoreICTrampoline, KEYED_STORE_IC, kNoExtraICState, Store)          \
-  TFH(LoadGlobalIC, LOAD_GLOBAL_IC, kNoExtraICState, LoadGlobalWithVector)     \
-  TFH(LoadGlobalICInsideTypeof, LOAD_GLOBAL_IC, kNoExtraICState,               \
-      LoadGlobalWithVector)                                                    \
-  TFH(LoadGlobalICTrampoline, LOAD_GLOBAL_IC, kNoExtraICState, LoadGlobal)     \
-  TFH(LoadGlobalICInsideTypeofTrampoline, LOAD_GLOBAL_IC, kNoExtraICState,     \
-      LoadGlobal)                                                              \
+  TFH(LoadIC, LOAD_IC, LoadWithVector)                                         \
+  TFH(LoadIC_Noninlined, BUILTIN, LoadWithVector)                              \
+  TFH(LoadICTrampoline, LOAD_IC, Load)                                         \
+  TFH(KeyedLoadIC, KEYED_LOAD_IC, LoadWithVector)                              \
+  TFH(KeyedLoadICTrampoline, KEYED_LOAD_IC, Load)                              \
+  TFH(StoreIC, STORE_IC, StoreWithVector)                                      \
+  TFH(StoreICTrampoline, STORE_IC, Store)                                      \
+  TFH(KeyedStoreIC, KEYED_STORE_IC, StoreWithVector)                           \
+  TFH(KeyedStoreICTrampoline, KEYED_STORE_IC, Store)                           \
+  TFH(LoadGlobalIC, LOAD_GLOBAL_IC, LoadGlobalWithVector)                      \
+  TFH(LoadGlobalICInsideTypeof, LOAD_GLOBAL_IC, LoadGlobalWithVector)          \
+  TFH(LoadGlobalICTrampoline, LOAD_GLOBAL_IC, LoadGlobal)                      \
+  TFH(LoadGlobalICInsideTypeofTrampoline, LOAD_GLOBAL_IC, LoadGlobal)          \
                                                                                \
   /* Map */                                                                    \
   TFS(MapLookupHashIndex, kTable, kKey)                                        \

@@ -9,7 +9,6 @@
 #include "src/counters.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
-#include "src/objects/code-cache-inl.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/utils.h"
 
@@ -436,16 +435,6 @@ void ObjectStatsCollector::RecordMapDetails(Map* map_obj) {
     RecordFixedArrayHelper(array, enum_cache->keys(), ENUM_CACHE_SUB_TYPE, 0);
     RecordFixedArrayHelper(array, enum_cache->indices(),
                            ENUM_INDICES_CACHE_SUB_TYPE, 0);
-  }
-
-  FixedArray* code_cache = map_obj->code_cache();
-  if (code_cache->length() > 0) {
-    if (code_cache->IsCodeCacheHashTable()) {
-      RecordHashTableHelper(map_obj, CodeCacheHashTable::cast(code_cache),
-                            MAP_CODE_CACHE_SUB_TYPE);
-    } else {
-      RecordFixedArrayHelper(map_obj, code_cache, MAP_CODE_CACHE_SUB_TYPE, 0);
-    }
   }
 
   for (DependentCode* cur_dependent_code = map_obj->dependent_code();

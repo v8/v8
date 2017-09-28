@@ -316,11 +316,6 @@ template <typename ConcreteVisitor>
 int MarkingVisitor<ConcreteVisitor>::VisitMap(Map* map, Map* object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
 
-  // Clears the cache of ICs related to this map.
-  if (FLAG_cleanup_code_caches_at_gc) {
-    object->ClearCodeCache(heap_);
-  }
-
   // When map collection is enabled we have to mark through map's transitions
   // and back pointers in a special way to make these links weak.
   if (object->CanTransition()) {

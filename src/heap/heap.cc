@@ -2398,7 +2398,6 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   map->set_instance_size(instance_size);
   map->clear_unused();
   map->set_inobject_properties_or_constructor_function_index(0);
-  map->set_code_cache(empty_fixed_array(), SKIP_WRITE_BARRIER);
   map->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                           SKIP_WRITE_BARRIER);
   map->set_weak_cell_cache(Smi::kZero);

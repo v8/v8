@@ -1102,8 +1102,6 @@ void V8HeapExplorer::ExtractMapReferences(int entry, Map* map) {
   TagObject(descriptors, "(map descriptors)");
   SetInternalReference(map, entry, "descriptors", descriptors,
                        Map::kDescriptorsOffset);
-  SetInternalReference(map, entry, "code_cache", map->code_cache(),
-                       Map::kCodeCacheOffset);
   SetInternalReference(map, entry, "prototype", map->prototype(),
                        Map::kPrototypeOffset);
 #if V8_DOUBLE_FIELDS_UNBOXING

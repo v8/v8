@@ -431,9 +431,6 @@ class Map : public HeapObject {
   inline void InitializeDescriptors(DescriptorArray* descriptors,
                                     LayoutDescriptor* layout_descriptor);
 
-  // [stub cache]: contains stubs compiled for this map.
-  DECL_ACCESSORS(code_cache, FixedArray)
-
   // [dependent code]: list of optimized codes that weakly embed this map.
   DECL_ACCESSORS(dependent_code, DependentCode)
 
@@ -562,15 +559,6 @@ class Map : public HeapObject {
 
   DECL_CAST(Map)
 
-  // Code cache operations.
-
-  // Clears the code cache.
-  inline void ClearCodeCache(Heap* heap);
-
-  // Update code cache.
-  static void UpdateCodeCache(Handle<Map> map, Handle<Name> name,
-                              Handle<Code> code);
-
   // Extend the descriptor array of the map with the list of descriptors.
   // In case of duplicates, the latest descriptor is used.
   static void AppendCallbackDescriptors(Handle<Map> map,
@@ -579,8 +567,6 @@ class Map : public HeapObject {
   static inline int SlackForArraySize(int old_size, int size_limit);
 
   static void EnsureDescriptorSlack(Handle<Map> map, int slack);
-
-  Code* LookupInCodeCache(Name* name, Code::Flags code);
 
   static Handle<Map> GetObjectCreateMap(Handle<HeapObject> prototype);
 
@@ -653,12 +639,12 @@ class Map : public HeapObject {
       kTransitionsOrPrototypeInfoOffset + kPointerSize;
 #if V8_DOUBLE_FIELDS_UNBOXING
   static const int kLayoutDescriptorOffset = kDescriptorsOffset + kPointerSize;
-  static const int kCodeCacheOffset = kLayoutDescriptorOffset + kPointerSize;
+  static const int kDependentCodeOffset =
+      kLayoutDescriptorOffset + kPointerSize;
 #else
   static const int kLayoutDescriptorOffset = 1;  // Must not be ever accessed.
-  static const int kCodeCacheOffset = kDescriptorsOffset + kPointerSize;
+  static const int kDependentCodeOffset = kDescriptorsOffset + kPointerSize;
 #endif
-  static const int kDependentCodeOffset = kCodeCacheOffset + kPointerSize;
   static const int kWeakCellCacheOffset = kDependentCodeOffset + kPointerSize;
   static const int kSize = kWeakCellCacheOffset + kPointerSize;
 

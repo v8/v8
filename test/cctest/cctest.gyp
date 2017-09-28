@@ -137,7 +137,6 @@
       'test-bignum-dtoa.cc',
       'test-bit-vector.cc',
       'test-circular-queue.cc',
-      'test-code-cache.cc',
       'test-code-layout.cc',
       'test-code-stub-assembler.cc',
       'test-compiler.cc',

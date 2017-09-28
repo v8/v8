@@ -204,7 +204,7 @@ TEST(TryProbeStubCache) {
 
   // Generate some number of handlers.
   for (int i = 0; i < 30; i++) {
-    Code::Flags flags = Code::ComputeHandlerFlags(ic_kind);
+    Code::Flags flags = Code::ComputeFlags(Code::HANDLER);
     handlers.push_back(CreateCodeWithFlags(flags));
   }
 
