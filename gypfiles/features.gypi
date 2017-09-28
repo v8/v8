@@ -82,13 +82,8 @@
     'v8_check_microtasks_scopes_consistency%': 'false',
 
     # Enable concurrent marking.
-    'conditions': [
-      ['target_arch=="x64" or target_arch=="ia32"', {
-        'v8_enable_concurrent_marking%': 1,
-      },{
-        'v8_enable_concurrent_marking%': 0,
-      }]
-    ],
+    'v8_enable_concurrent_marking%': 1,
+
     # Controls the threshold for on-heap/off-heap Typed Arrays.
     'v8_typed_array_max_size_in_heap%': 64,
   },
