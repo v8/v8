@@ -1547,6 +1547,7 @@ v8_source_set("v8_base") {
     "src/deoptimize-reason.h",
     "src/deoptimizer.cc",
     "src/deoptimizer.h",
+    "src/detachable-vector.h",
     "src/disasm.h",
     "src/disassembler.cc",
     "src/disassembler.h",

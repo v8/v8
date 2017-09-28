@@ -101,6 +101,7 @@
       'compiler-dispatcher/optimizing-compile-dispatcher-unittest.cc',
       'compiler-dispatcher/unoptimized-compile-job-unittest.cc',
       'counters-unittest.cc',
+      'detachable-vector-unittest.cc',
       'eh-frame-iterator-unittest.cc',
       'eh-frame-writer-unittest.cc',
       'heap/barrier-unittest.cc',

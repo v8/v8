@@ -929,6 +929,7 @@
         'deoptimize-reason.h',
         'deoptimizer.cc',
         'deoptimizer.h',
+        'detachable-vector.h',
         'disasm.h',
         'disassembler.cc',
         'disassembler.h',

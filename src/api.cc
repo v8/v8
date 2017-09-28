@@ -38,6 +38,7 @@
 #include "src/debug/debug-type-profile.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
+#include "src/detachable-vector.h"
 #include "src/execution.h"
 #include "src/frames-inl.h"
 #include "src/gdb-jit.h"
@@ -684,7 +685,8 @@ StartupData SnapshotCreator::CreateBlob(
 
   i::DisallowHeapAllocation no_gc_from_here_on;
 
-  i::List<i::Object*> contexts(num_additional_contexts);
+  std::vector<i::Object*> contexts;
+  contexts.reserve(num_additional_contexts);
   i::Object* default_context;
   {
     i::HandleScope scope(isolate);
@@ -694,7 +696,7 @@ StartupData SnapshotCreator::CreateBlob(
     for (int i = 0; i < num_additional_contexts; i++) {
       i::Handle<i::Context> context =
           v8::Utils::OpenHandle(*data->contexts_.Get(i));
-      contexts.Add(*context);
+      contexts.push_back(*context);
     }
     data->contexts_.Clear();
   }
@@ -10763,7 +10765,6 @@ void Testing::DeoptimizeAll(Isolate* isolate) {
 
 namespace internal {
 
-
 void HandleScopeImplementer::FreeThreadResources() {
   Free();
 }
@@ -10797,7 +10798,7 @@ void HandleScopeImplementer::IterateThis(RootVisitor* v) {
   bool found_block_before_deferred = false;
 #endif
   // Iterate over all handles in the blocks except for the last.
-  for (int i = blocks()->length() - 2; i >= 0; --i) {
+  for (int i = static_cast<int>(blocks()->size()) - 2; i >= 0; --i) {
     Object** block = blocks()->at(i);
     if (last_handle_before_deferred_block_ != NULL &&
         (last_handle_before_deferred_block_ <= &block[kHandleBlockSize]) &&
@@ -10817,17 +10818,18 @@ void HandleScopeImplementer::IterateThis(RootVisitor* v) {
          found_block_before_deferred);
 
   // Iterate over live handles in the last block (if any).
-  if (!blocks()->is_empty()) {
-    v->VisitRootPointers(Root::kHandleScope, blocks()->last(),
+  if (!blocks()->empty()) {
+    v->VisitRootPointers(Root::kHandleScope, blocks()->back(),
                          handle_scope_data_.next);
   }
 
-  List<Context*>* context_lists[2] = { &saved_contexts_, &entered_contexts_};
+  DetachableVector<Context*>* context_lists[2] = {&saved_contexts_,
+                                                  &entered_contexts_};
   for (unsigned i = 0; i < arraysize(context_lists); i++) {
-    if (context_lists[i]->is_empty()) continue;
-    Object** start = reinterpret_cast<Object**>(&context_lists[i]->first());
+    if (context_lists[i]->empty()) continue;
+    Object** start = reinterpret_cast<Object**>(&context_lists[i]->front());
     v->VisitRootPointers(Root::kHandleScope, start,
-                         start + context_lists[i]->length());
+                         start + context_lists[i]->size());
   }
   if (microtask_context_) {
     v->VisitRootPointer(Root::kHandleScope,
@@ -10853,24 +10855,24 @@ DeferredHandles* HandleScopeImplementer::Detach(Object** prev_limit) {
   DeferredHandles* deferred =
       new DeferredHandles(isolate()->handle_scope_data()->next, isolate());
 
-  while (!blocks_.is_empty()) {
-    Object** block_start = blocks_.last();
+  while (!blocks_.empty()) {
+    Object** block_start = blocks_.back();
     Object** block_limit = &block_start[kHandleBlockSize];
     // We should not need to check for SealHandleScope here. Assert this.
     DCHECK(prev_limit == block_limit ||
            !(block_start <= prev_limit && prev_limit <= block_limit));
     if (prev_limit == block_limit) break;
-    deferred->blocks_.Add(blocks_.last());
-    blocks_.RemoveLast();
+    deferred->blocks_.push_back(blocks_.back());
+    blocks_.pop_back();
   }
 
   // deferred->blocks_ now contains the blocks installed on the
   // HandleScope stack since BeginDeferredScope was called, but in
   // reverse order.
 
-  DCHECK(prev_limit == NULL || !blocks_.is_empty());
+  DCHECK(prev_limit == NULL || !blocks_.empty());
 
-  DCHECK(!blocks_.is_empty() && prev_limit != NULL);
+  DCHECK(!blocks_.empty() && prev_limit != NULL);
   DCHECK(last_handle_before_deferred_block_ != NULL);
   last_handle_before_deferred_block_ = NULL;
   return deferred;
@@ -10886,7 +10888,7 @@ void HandleScopeImplementer::BeginDeferredScope() {
 DeferredHandles::~DeferredHandles() {
   isolate_->UnlinkDeferredHandles(this);
 
-  for (int i = 0; i < blocks_.length(); i++) {
+  for (size_t i = 0; i < blocks_.size(); i++) {
 #ifdef ENABLE_HANDLE_ZAPPING
     HandleScope::ZapRange(blocks_[i], &blocks_[i][kHandleBlockSize]);
 #endif
@@ -10895,14 +10897,14 @@ DeferredHandles::~DeferredHandles() {
 }
 
 void DeferredHandles::Iterate(RootVisitor* v) {
-  DCHECK(!blocks_.is_empty());
+  DCHECK(!blocks_.empty());
 
-  DCHECK((first_block_limit_ >= blocks_.first()) &&
-         (first_block_limit_ <= &(blocks_.first())[kHandleBlockSize]));
+  DCHECK((first_block_limit_ >= blocks_.front()) &&
+         (first_block_limit_ <= &(blocks_.front())[kHandleBlockSize]));
 
-  v->VisitRootPointers(Root::kHandleScope, blocks_.first(), first_block_limit_);
+  v->VisitRootPointers(Root::kHandleScope, blocks_.front(), first_block_limit_);
 
-  for (int i = 1; i < blocks_.length(); i++) {
+  for (size_t i = 1; i < blocks_.size(); i++) {
     v->VisitRootPointers(Root::kHandleScope, blocks_[i],
                          &blocks_[i][kHandleBlockSize]);
   }

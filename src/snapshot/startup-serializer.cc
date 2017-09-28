@@ -118,7 +118,7 @@ void StartupSerializer::SerializeStrongReferences() {
   // No active threads.
   CHECK_NULL(isolate->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
-  CHECK(isolate->handle_scope_implementer()->blocks()->is_empty());
+  CHECK(isolate->handle_scope_implementer()->blocks()->empty());
   CHECK_EQ(0, isolate->global_handles()->global_handles_count());
   CHECK_EQ(0, isolate->eternal_handles()->NumberOfHandles());
   // First visit immortal immovables to make sure they end up in the first page.
