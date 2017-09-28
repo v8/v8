@@ -3698,9 +3698,6 @@ bool Code::IsCodeStubOrIC() const {
   switch (kind()) {
     case STUB:
     case HANDLER:
-#define CASE_KIND(kind) case kind:
-      IC_KIND_LIST(CASE_KIND)
-#undef CASE_KIND
       return true;
     default:
       return false;
@@ -3903,16 +3900,6 @@ void Code::set_deopt_already_counted(bool flag) {
   int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
   int updated = DeoptAlreadyCountedField::update(previous, flag);
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
-}
-
-bool Code::is_inline_cache_stub() const {
-  Kind kind = this->kind();
-  switch (kind) {
-#define CASE(name) case name: return true;
-    IC_KIND_LIST(CASE)
-#undef CASE
-    default: return false;
-  }
 }
 
 bool Code::is_handler() const { return kind() == HANDLER; }

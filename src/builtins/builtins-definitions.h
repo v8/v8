@@ -539,19 +539,19 @@ namespace internal {
   CPP(JsonStringify)                                                           \
                                                                                \
   /* ICs */                                                                    \
-  TFH(LoadIC, LOAD_IC, LoadWithVector)                                         \
+  TFH(LoadIC, STUB, LoadWithVector)                                            \
   TFH(LoadIC_Noninlined, BUILTIN, LoadWithVector)                              \
-  TFH(LoadICTrampoline, LOAD_IC, Load)                                         \
-  TFH(KeyedLoadIC, KEYED_LOAD_IC, LoadWithVector)                              \
-  TFH(KeyedLoadICTrampoline, KEYED_LOAD_IC, Load)                              \
-  TFH(StoreIC, STORE_IC, StoreWithVector)                                      \
-  TFH(StoreICTrampoline, STORE_IC, Store)                                      \
-  TFH(KeyedStoreIC, KEYED_STORE_IC, StoreWithVector)                           \
-  TFH(KeyedStoreICTrampoline, KEYED_STORE_IC, Store)                           \
-  TFH(LoadGlobalIC, LOAD_GLOBAL_IC, LoadGlobalWithVector)                      \
-  TFH(LoadGlobalICInsideTypeof, LOAD_GLOBAL_IC, LoadGlobalWithVector)          \
-  TFH(LoadGlobalICTrampoline, LOAD_GLOBAL_IC, LoadGlobal)                      \
-  TFH(LoadGlobalICInsideTypeofTrampoline, LOAD_GLOBAL_IC, LoadGlobal)          \
+  TFH(LoadICTrampoline, STUB, Load)                                            \
+  TFH(KeyedLoadIC, STUB, LoadWithVector)                                       \
+  TFH(KeyedLoadICTrampoline, STUB, Load)                                       \
+  TFH(StoreIC, STUB, StoreWithVector)                                          \
+  TFH(StoreICTrampoline, STUB, Store)                                          \
+  TFH(KeyedStoreIC, STUB, StoreWithVector)                                     \
+  TFH(KeyedStoreICTrampoline, STUB, Store)                                     \
+  TFH(LoadGlobalIC, STUB, LoadGlobalWithVector)                                \
+  TFH(LoadGlobalICInsideTypeof, STUB, LoadGlobalWithVector)                    \
+  TFH(LoadGlobalICTrampoline, STUB, LoadGlobal)                                \
+  TFH(LoadGlobalICInsideTypeofTrampoline, STUB, LoadGlobal)                    \
                                                                                \
   /* Map */                                                                    \
   TFS(MapLookupHashIndex, kTable, kKey)                                        \

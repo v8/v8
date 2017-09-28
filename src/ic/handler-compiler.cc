@@ -84,18 +84,26 @@ Register NamedStoreHandlerCompiler::FrontendHeader(Register object_reg,
                          miss);
 }
 
+// The ICs that don't pass slot and vector through the stack have to
+// save/restore them in the dispatcher.
+bool PropertyHandlerCompiler::ShouldPushPopSlotAndVector() {
+  switch (type()) {
+    case LOAD:
+      return true;
+    case STORE:
+      return !StoreWithVectorDescriptor::kPassLastArgsOnStack;
+  }
+  UNREACHABLE();
+  return false;
+}
 
 Register PropertyHandlerCompiler::Frontend(Handle<Name> name) {
   Label miss;
-  if (IC::ShouldPushPopSlotAndVector(kind())) {
-    PushVectorAndSlot();
-  }
+  if (ShouldPushPopSlotAndVector()) PushVectorAndSlot();
   Register reg = FrontendHeader(receiver(), name, &miss);
   FrontendFooter(name, &miss);
   // The footer consumes the vector and slot from the stack if miss occurs.
-  if (IC::ShouldPushPopSlotAndVector(kind())) {
-    DiscardVectorAndSlot();
-  }
+  if (ShouldPushPopSlotAndVector()) DiscardVectorAndSlot();
   return reg;
 }
 

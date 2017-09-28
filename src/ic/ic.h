@@ -60,10 +60,6 @@ class IC {
            IsKeyedStoreIC();
   }
 
-  // The ICs that don't pass slot and vector through the stack have to
-  // save/restore them in the dispatcher.
-  static bool ShouldPushPopSlotAndVector(Code::Kind kind);
-
   static inline bool IsHandler(Object* object);
 
   // Nofity the IC system that a feedback has changed.
@@ -140,11 +136,6 @@ class IC {
   bool IsStoreOwnIC() const { return IsStoreOwnICKind(kind_); }
   bool IsKeyedStoreIC() const { return IsKeyedStoreICKind(kind_); }
   bool is_keyed() const { return IsKeyedLoadIC() || IsKeyedStoreIC(); }
-  Code::Kind handler_kind() const {
-    if (IsAnyLoad()) return Code::LOAD_IC;
-    DCHECK(IsAnyStore());
-    return Code::STORE_IC;
-  }
   bool ShouldRecomputeHandler(Handle<String> name);
 
   Handle<Map> receiver_map() { return receiver_map_; }

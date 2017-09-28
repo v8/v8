@@ -124,8 +124,7 @@ TEST(TryProbeStubCache) {
   CodeAssemblerTester data(isolate, kNumParams);
   AccessorAssembler m(data.state());
 
-  Code::Kind ic_kind = Code::LOAD_IC;
-  StubCache stub_cache(isolate, ic_kind);
+  StubCache stub_cache(isolate);
   stub_cache.Clear();
 
   {

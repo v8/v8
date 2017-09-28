@@ -367,9 +367,8 @@ void NamedLoadHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     Label success;
     __ b(&success);
     __ bind(miss);
-    DCHECK(kind() == Code::LOAD_IC);
     PopVectorAndSlot();
-    TailCallBuiltin(masm(), MissBuiltin(kind()));
+    TailCallBuiltin(masm(), Builtins::kLoadIC_Miss);
     __ bind(&success);
   }
 }
@@ -381,7 +380,7 @@ void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
     __ b(&success);
     GenerateRestoreName(miss, name);
     PopVectorAndSlot();
-    TailCallBuiltin(masm(), MissBuiltin(kind()));
+    TailCallBuiltin(masm(), Builtins::kStoreIC_Miss);
     __ bind(&success);
   }
 }

@@ -4202,20 +4202,13 @@ Handle<JSFunction> GetFunctionByName(Isolate* isolate, const char* name) {
   return Handle<JSFunction>::cast(obj);
 }
 
-void CheckIC(Handle<JSFunction> function, Code::Kind kind, int slot_index,
+void CheckIC(Handle<JSFunction> function, int slot_index,
              InlineCacheState state) {
-  CHECK(kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC);
   FeedbackVector* vector = function->feedback_vector();
   FeedbackSlot slot(slot_index);
-  if (kind == Code::LOAD_IC) {
-    LoadICNexus nexus(vector, slot);
-    CHECK_EQ(nexus.StateFromFeedback(), state);
-  } else if (kind == Code::KEYED_LOAD_IC) {
-    KeyedLoadICNexus nexus(vector, slot);
-    CHECK_EQ(nexus.StateFromFeedback(), state);
-  }
+  LoadICNexus nexus(vector, slot);
+  CHECK_EQ(nexus.StateFromFeedback(), state);
 }
-
 
 TEST(MonomorphicStaysMonomorphicAfterGC) {
   if (FLAG_always_opt) return;
@@ -4241,12 +4234,12 @@ TEST(MonomorphicStaysMonomorphicAfterGC) {
     CompileRun("(testIC())");
   }
   CcTest::CollectAllGarbage();
-  CheckIC(loadIC, Code::LOAD_IC, 0, MONOMORPHIC);
+  CheckIC(loadIC, 0, MONOMORPHIC);
   {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  CheckIC(loadIC, Code::LOAD_IC, 0, MONOMORPHIC);
+  CheckIC(loadIC, 0, MONOMORPHIC);
 }
 
 
@@ -4277,12 +4270,12 @@ TEST(PolymorphicStaysPolymorphicAfterGC) {
     CompileRun("(testIC())");
   }
   CcTest::CollectAllGarbage();
-  CheckIC(loadIC, Code::LOAD_IC, 0, POLYMORPHIC);
+  CheckIC(loadIC, 0, POLYMORPHIC);
   {
     v8::HandleScope scope(CcTest::isolate());
     CompileRun("(testIC())");
   }
-  CheckIC(loadIC, Code::LOAD_IC, 0, POLYMORPHIC);
+  CheckIC(loadIC, 0, POLYMORPHIC);
 }
 
 

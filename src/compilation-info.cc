@@ -157,9 +157,6 @@ StackFrame::Type CompilationInfo::GetOutputStackFrameType() const {
     case Code::BYTECODE_HANDLER:
     case Code::HANDLER:
     case Code::BUILTIN:
-#define CASE_KIND(kind) case Code::kind:
-      IC_KIND_LIST(CASE_KIND)
-#undef CASE_KIND
       return StackFrame::STUB;
     case Code::WASM_FUNCTION:
       return StackFrame::WASM_COMPILED;

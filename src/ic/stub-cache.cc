@@ -13,8 +13,7 @@
 namespace v8 {
 namespace internal {
 
-StubCache::StubCache(Isolate* isolate, Code::Kind ic_kind)
-    : isolate_(isolate), ic_kind_(ic_kind) {
+StubCache::StubCache(Isolate* isolate) : isolate_(isolate) {
   // Ensure the nullptr (aka Smi::kZero) which StubCache::Get() returns
   // when the entry is not found is not considered as a handler.
   DCHECK(!IC::IsHandler(nullptr));

@@ -73,7 +73,6 @@ class StubCache {
   }
 
   Isolate* isolate() { return isolate_; }
-  Code::Kind ic_kind() const { return ic_kind_; }
 
   // Setting the entry size such that the index is shifted by Name::kHashShift
   // is convenient; shifting down the length field (to extract the hash code)
@@ -98,7 +97,7 @@ class StubCache {
   }
 
   // The constructor is made public only for the purposes of testing.
-  StubCache(Isolate* isolate, Code::Kind ic_kind);
+  explicit StubCache(Isolate* isolate);
 
  private:
   // The stub cache has a primary and secondary level.  The two levels have
@@ -133,7 +132,6 @@ class StubCache {
   Entry primary_[kPrimaryTableSize];
   Entry secondary_[kSecondaryTableSize];
   Isolate* isolate_;
-  Code::Kind ic_kind_;
 
   friend class Isolate;
   friend class SCTableReference;

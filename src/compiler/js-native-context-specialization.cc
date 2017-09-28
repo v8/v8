@@ -967,7 +967,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
     }
   }
 
-  // Extract receiver maps from the LOAD_IC using the LoadICNexus.
+  // Extract receiver maps from the load IC using the LoadICNexus.
   if (!p.feedback().IsValid()) return NoChange();
   LoadICNexus nexus(p.feedback().vector(), p.feedback().slot());
 
@@ -982,7 +982,7 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreNamed(Node* node) {
   NamedAccess const& p = NamedAccessOf(node->op());
   Node* const value = NodeProperties::GetValueInput(node, 1);
 
-  // Extract receiver maps from the STORE_IC using the StoreICNexus.
+  // Extract receiver maps from the store IC using the StoreICNexus.
   if (!p.feedback().IsValid()) return NoChange();
   StoreICNexus nexus(p.feedback().vector(), p.feedback().slot());
 
@@ -1491,7 +1491,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
     }
   }
 
-  // Extract receiver maps from the KEYED_LOAD_IC using the KeyedLoadICNexus.
+  // Extract receiver maps from the keyed load IC using the KeyedLoadICNexus.
   if (!p.feedback().IsValid()) return NoChange();
   KeyedLoadICNexus nexus(p.feedback().vector(), p.feedback().slot());
 
@@ -1506,11 +1506,11 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreProperty(Node* node) {
   Node* const index = NodeProperties::GetValueInput(node, 1);
   Node* const value = NodeProperties::GetValueInput(node, 2);
 
-  // Extract receiver maps from the KEYED_STORE_IC using the KeyedStoreICNexus.
+  // Extract receiver maps from the keyed store IC using the KeyedStoreICNexus.
   if (!p.feedback().IsValid()) return NoChange();
   KeyedStoreICNexus nexus(p.feedback().vector(), p.feedback().slot());
 
-  // Extract the keyed access store mode from the KEYED_STORE_IC.
+  // Extract the keyed access store mode from the keyed store IC.
   KeyedAccessStoreMode store_mode = nexus.GetKeyedAccessStoreMode();
 
   // Try to lower the keyed access based on the {nexus}.

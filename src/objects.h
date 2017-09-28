@@ -3642,7 +3642,7 @@ class Code: public HeapObject {
   // cache state, and arguments count.
   typedef uint32_t Flags;
 
-#define NON_IC_KIND_LIST(V) \
+#define CODE_KIND_LIST(V)   \
   V(OPTIMIZED_FUNCTION)     \
   V(BYTECODE_HANDLER)       \
   V(STUB)                   \
@@ -3654,18 +3654,6 @@ class Code: public HeapObject {
   V(JS_TO_WASM_FUNCTION)    \
   V(WASM_INTERPRETER_ENTRY) \
   V(C_WASM_ENTRY)
-
-#define IC_KIND_LIST(V) \
-  V(LOAD_IC)            \
-  V(LOAD_GLOBAL_IC)     \
-  V(KEYED_LOAD_IC)      \
-  V(STORE_IC)           \
-  V(STORE_GLOBAL_IC)    \
-  V(KEYED_STORE_IC)
-
-#define CODE_KIND_LIST(V) \
-  NON_IC_KIND_LIST(V)     \
-  IC_KIND_LIST(V)
 
   enum Kind {
 #define DEFINE_CODE_KIND_ENUM(name) name,
@@ -3741,7 +3729,6 @@ class Code: public HeapObject {
   inline Kind kind() const;
 
   // Testers for IC stub kinds.
-  inline bool is_inline_cache_stub() const;
   inline bool is_handler() const;
   inline bool is_stub() const;
   inline bool is_optimized_code() const;

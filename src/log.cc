@@ -1588,30 +1588,6 @@ void Logger::LogCodeObject(Object* object) {
       description = "An IC handler from the snapshot";
       tag = CodeEventListener::HANDLER_TAG;
       break;
-    case AbstractCode::KEYED_LOAD_IC:
-      description = "A keyed load IC from the snapshot";
-      tag = CodeEventListener::KEYED_LOAD_IC_TAG;
-      break;
-    case AbstractCode::LOAD_IC:
-      description = "A load IC from the snapshot";
-      tag = CodeEventListener::LOAD_IC_TAG;
-      break;
-    case AbstractCode::LOAD_GLOBAL_IC:
-      description = "A load global IC from the snapshot";
-      tag = Logger::LOAD_GLOBAL_IC_TAG;
-      break;
-    case AbstractCode::STORE_IC:
-      description = "A store IC from the snapshot";
-      tag = CodeEventListener::STORE_IC_TAG;
-      break;
-    case AbstractCode::STORE_GLOBAL_IC:
-      description = "A store global IC from the snapshot";
-      tag = CodeEventListener::STORE_GLOBAL_IC_TAG;
-      break;
-    case AbstractCode::KEYED_STORE_IC:
-      description = "A keyed store IC from the snapshot";
-      tag = CodeEventListener::KEYED_STORE_IC_TAG;
-      break;
     case AbstractCode::WASM_FUNCTION:
       description = "A Wasm function";
       tag = CodeEventListener::STUB_TAG;

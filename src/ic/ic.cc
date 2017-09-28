@@ -228,19 +228,6 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
   old_state_ = state_;
 }
 
-// The ICs that don't pass slot and vector through the stack have to
-// save/restore them in the dispatcher.
-bool IC::ShouldPushPopSlotAndVector(Code::Kind kind) {
-  if (kind == Code::LOAD_IC || kind == Code::LOAD_GLOBAL_IC ||
-      kind == Code::KEYED_LOAD_IC) {
-    return true;
-  }
-  if (kind == Code::STORE_IC || kind == Code::KEYED_STORE_IC) {
-    return !StoreWithVectorDescriptor::kPassLastArgsOnStack;
-  }
-  return false;
-}
-
 JSFunction* IC::GetHostFunction() const {
   // Compute the JavaScript frame for the frame pointer of this IC
   // structure. We need this to be able to find the function

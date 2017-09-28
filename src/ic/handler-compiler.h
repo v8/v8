@@ -14,11 +14,15 @@ class CallOptimization;
 
 class PropertyHandlerCompiler : public PropertyAccessCompiler {
  protected:
-  PropertyHandlerCompiler(Isolate* isolate, Code::Kind kind, Handle<Map> map,
+  PropertyHandlerCompiler(Isolate* isolate, Type type, Handle<Map> map,
                           Handle<JSObject> holder)
-      : PropertyAccessCompiler(isolate, kind), map_(map), holder_(holder) {}
+      : PropertyAccessCompiler(isolate, type), map_(map), holder_(holder) {}
 
   virtual ~PropertyHandlerCompiler() {}
+
+  // The ICs that don't pass slot and vector through the stack have to
+  // save/restore them in the dispatcher.
+  bool ShouldPushPopSlotAndVector();
 
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
                                   Label* miss) {
@@ -110,7 +114,7 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
  public:
   NamedLoadHandlerCompiler(Isolate* isolate, Handle<Map> map,
                            Handle<JSObject> holder)
-      : PropertyHandlerCompiler(isolate, Code::LOAD_IC, map, holder) {}
+      : PropertyHandlerCompiler(isolate, LOAD, map, holder) {}
 
   virtual ~NamedLoadHandlerCompiler() {}
 
@@ -138,7 +142,7 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
 
   explicit NamedStoreHandlerCompiler(Isolate* isolate, Handle<Map> map,
                                      Handle<JSObject> holder)
-      : PropertyHandlerCompiler(isolate, Code::STORE_IC, map, holder) {
+      : PropertyHandlerCompiler(isolate, STORE, map, holder) {
 #ifdef DEBUG
     if (Descriptor::kPassLastArgsOnStack) {
       ZapStackArgumentsRegisterAliases();
