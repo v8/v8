@@ -152,6 +152,19 @@ class RememberedSet : public AllStatic {
     }
   }
 
+  static int NumberOfPreFreedEmptyBuckets(MemoryChunk* chunk) {
+    DCHECK(type == OLD_TO_NEW);
+    int result = 0;
+    SlotSet* slots = chunk->slot_set<type>();
+    if (slots != nullptr) {
+      size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
+      for (size_t page = 0; page < pages; page++) {
+        result += slots[page].NumberOfPreFreedEmptyBuckets();
+      }
+    }
+    return result;
+  }
+
   static void PreFreeEmptyBuckets(MemoryChunk* chunk) {
     DCHECK(type == OLD_TO_NEW);
     SlotSet* slots = chunk->slot_set<type>();
@@ -159,6 +172,18 @@ class RememberedSet : public AllStatic {
       size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
       for (size_t page = 0; page < pages; page++) {
         slots[page].PreFreeEmptyBuckets();
+      }
+    }
+  }
+
+  static void FreeEmptyBuckets(MemoryChunk* chunk) {
+    DCHECK(type == OLD_TO_NEW);
+    SlotSet* slots = chunk->slot_set<type>();
+    if (slots != nullptr) {
+      size_t pages = (chunk->size() + Page::kPageSize - 1) / Page::kPageSize;
+      for (size_t page = 0; page < pages; page++) {
+        slots[page].FreeEmptyBuckets();
+        slots[page].FreeToBeFreedBuckets();
       }
     }
   }
