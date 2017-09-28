@@ -10,6 +10,7 @@
 
 namespace v8 {
 namespace base {
+namespace logging_unittest {
 
 namespace {
 
@@ -243,5 +244,6 @@ TEST(LoggingDeathTest, V8_DcheckCanBeOverridden) {
       "Dread pirate");
 }
 
+}  // namespace logging_unittest
 }  // namespace base
 }  // namespace v8

@@ -10,8 +10,9 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace wasm_heap_unittest {
 
-class DisjointAllocationPoolTest : public testing::Test {
+class DisjointAllocationPoolTest : public ::testing::Test {
  public:
   Address A(size_t n) { return reinterpret_cast<Address>(n); }
   void CheckLooksLike(const DisjointAllocationPool& mem,
@@ -150,6 +151,7 @@ TEST_F(DisjointAllocationPoolTest, MergingSkipLargerSrcWithGap) {
   CheckLooksLike(a, {{10, 15}, {20, 35}, {36, 40}});
 }
 
+}  // namespace wasm_heap_unittest
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

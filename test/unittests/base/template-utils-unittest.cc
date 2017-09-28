@@ -8,6 +8,7 @@
 
 namespace v8 {
 namespace base {
+namespace template_utils_unittest {
 
 ////////////////////////////
 // Test make_array.
@@ -100,5 +101,6 @@ static_assert(has_output_operator<TestClass2>::value,
 static_assert(!has_output_operator<const TestClass2>::value,
               "const TestClass2 can not be output");
 
+}  // namespace template_utils_unittest
 }  // namespace base
 }  // namespace v8

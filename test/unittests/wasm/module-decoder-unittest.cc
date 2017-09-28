@@ -15,6 +15,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace module_decoder_unittest {
 
 #define WASM_INIT_EXPR_I32V_1(val) WASM_I32V_1(val), kExprEnd
 #define WASM_INIT_EXPR_I32V_2(val) WASM_I32V_2(val), kExprEnd
@@ -1812,6 +1813,7 @@ TEST_F(WasmModuleCustomSectionTest, TwoKnownTwoUnknownSections) {
 #undef EXPECT_OFF_END_FAILURE
 #undef EXPECT_OK
 
+}  // namespace module_decoder_unittest
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

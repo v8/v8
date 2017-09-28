@@ -22,6 +22,7 @@
 namespace v8 {
 namespace internal {
 namespace wasm {
+namespace function_body_decoder_unittest {
 
 #define B1(a) WASM_BLOCK(a)
 #define B2(a, b) WASM_BLOCK(a, b)
@@ -2950,6 +2951,7 @@ TEST_F(BytecodeIteratorTest, WithLocalDecls) {
 #undef EXPECT_VERIFIES
 #undef EXPECT_FAILURE
 
+}  // namespace function_body_decoder_unittest
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

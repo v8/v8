@@ -11,6 +11,7 @@ using testing::StrictMock;
 
 namespace v8 {
 namespace platform {
+namespace default_platform_unittest {
 
 namespace {
 
@@ -166,5 +167,6 @@ TEST(DefaultPlatformTest, PendingIdleTasksAreDestroyedOnShutdown) {
   }
 }
 
+}  // namespace default_platform_unittest
 }  // namespace platform
 }  // namespace v8
