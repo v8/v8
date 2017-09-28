@@ -12,7 +12,7 @@ DisjointAllocationPool::DisjointAllocationPool(Address start, Address end) {
   ranges_.push_back({start, end});
 }
 
-void DisjointAllocationPool::Release(DisjointAllocationPool&& other) {
+void DisjointAllocationPool::Merge(DisjointAllocationPool&& other) {
   auto dest_it = ranges_.begin();
   auto dest_end = ranges_.end();
 
@@ -90,7 +90,7 @@ DisjointAllocationPool DisjointAllocationPool::Extract(size_t size,
     }
   }
   if (size > 0) {
-    Release(std::move(ret));
+    Merge(std::move(ret));
     return {};
   }
   return ret;

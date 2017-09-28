@@ -32,7 +32,7 @@ class V8_EXPORT_PRIVATE DisjointAllocationPool final {
   // preserved. The assumption is that the passed parameter is
   // not intersecting this object - for example, it was obtained
   // from a previous Allocate{Pool}.
-  void Release(DisjointAllocationPool&&);
+  void Merge(DisjointAllocationPool&&);
 
   // Allocate a contiguous range of size {size}. Return an empty pool on
   // failure.
