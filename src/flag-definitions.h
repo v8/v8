@@ -298,10 +298,8 @@ DEFINE_IMPLICATION(track_computed_fields, track_fields)
 DEFINE_BOOL(track_field_types, true, "track field types")
 DEFINE_IMPLICATION(track_field_types, track_fields)
 DEFINE_IMPLICATION(track_field_types, track_heap_object_fields)
-DEFINE_BOOL(block_coverage, true, "enable block code coverage")
 DEFINE_BOOL(trace_block_coverage, false,
             "trace collected block coverage information")
-DEFINE_IMPLICATION(trace_block_coverage, block_coverage)
 DEFINE_BOOL(feedback_normalization, false,
             "feed back normalization to constructors")
 // TODO(jkummerow): This currently adds too much load on the stub cache.

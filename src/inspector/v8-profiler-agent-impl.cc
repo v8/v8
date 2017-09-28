@@ -245,9 +245,8 @@ void V8ProfilerAgentImpl::restore() {
                                false)) {
     bool callCount = m_state->booleanProperty(
         ProfilerAgentState::preciseCoverageCallCount, false);
-    bool detailed =
-        m_state->booleanProperty(ProfilerAgentState::preciseCoverageDetailed,
-                                 v8::internal::FLAG_block_coverage);
+    bool detailed = m_state->booleanProperty(
+        ProfilerAgentState::preciseCoverageDetailed, false);
     startPreciseCoverage(Maybe<bool>(callCount), Maybe<bool>(detailed));
   }
 }
@@ -283,7 +282,7 @@ Response V8ProfilerAgentImpl::startPreciseCoverage(Maybe<bool> callCount,
                                                    Maybe<bool> detailed) {
   if (!m_enabled) return Response::Error("Profiler is not enabled");
   bool callCountValue = callCount.fromMaybe(false);
-  bool detailedValue = detailed.fromMaybe(v8::internal::FLAG_block_coverage);
+  bool detailedValue = detailed.fromMaybe(false);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageStarted, true);
   m_state->setBoolean(ProfilerAgentState::preciseCoverageCallCount,
                       callCountValue);

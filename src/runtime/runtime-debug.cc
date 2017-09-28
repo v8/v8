@@ -1989,8 +1989,6 @@ RUNTIME_FUNCTION(Runtime_IncBlockCounter) {
   CONVERT_ARG_CHECKED(JSFunction, function, 0);
   CONVERT_SMI_ARG_CHECKED(coverage_array_slot_index, 1);
 
-  DCHECK(FLAG_block_coverage);
-
   // It's quite possible that a function contains IncBlockCounter bytecodes, but
   // no coverage info exists. This happens e.g. by selecting the best-effort
   // coverage collection mode, which triggers deletion of all coverage infos in

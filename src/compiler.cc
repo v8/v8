@@ -299,8 +299,7 @@ void InstallUnoptimizedCode(CompilationInfo* compilation_info) {
 
   // Install coverage info on the shared function info.
   if (compilation_info->has_coverage_info()) {
-    DCHECK(FLAG_block_coverage &&
-           compilation_info->isolate()->is_block_code_coverage());
+    DCHECK(compilation_info->isolate()->is_block_code_coverage());
     compilation_info->isolate()->debug()->InstallCoverageInfo(
         compilation_info->shared_info(), compilation_info->coverage_info());
   }

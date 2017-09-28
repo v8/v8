@@ -798,7 +798,6 @@ BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
       catch_prediction_(HandlerTable::UNCAUGHT) {
   DCHECK_EQ(closure_scope(), closure_scope()->GetClosureScope());
   if (info->has_source_range_map()) {
-    DCHECK(FLAG_block_coverage);
     block_coverage_builder_ = new (zone())
         BlockCoverageBuilder(zone(), builder(), info->source_range_map());
   }

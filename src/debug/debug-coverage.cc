@@ -69,7 +69,6 @@ bool CompareCoverageBlock(const CoverageBlock& a, const CoverageBlock& b) {
 
 std::vector<CoverageBlock> GetSortedBlockData(Isolate* isolate,
                                               SharedFunctionInfo* shared) {
-  DCHECK(FLAG_block_coverage);
   DCHECK(shared->HasCoverageInfo());
 
   CoverageInfo* coverage_info =
@@ -325,7 +324,6 @@ void ClampToBinary(CoverageFunction* function) {
 }
 
 void ResetAllBlockCounts(SharedFunctionInfo* shared) {
-  DCHECK(FLAG_block_coverage);
   DCHECK(shared->HasCoverageInfo());
 
   CoverageInfo* coverage_info =
@@ -349,7 +347,6 @@ bool IsBlockMode(debug::Coverage::Mode mode) {
 void CollectBlockCoverage(Isolate* isolate, CoverageFunction* function,
                           SharedFunctionInfo* info,
                           debug::Coverage::Mode mode) {
-  DCHECK(FLAG_block_coverage);
   DCHECK(IsBlockMode(mode));
 
   function->has_block_coverage = true;
@@ -493,8 +490,7 @@ std::unique_ptr<Coverage> Coverage::Collect(
       Handle<String> name(info->DebugName(), isolate);
       CoverageFunction function(start, end, count, name);
 
-      if (FLAG_block_coverage && IsBlockMode(collectionMode) &&
-          info->HasCoverageInfo()) {
+      if (IsBlockMode(collectionMode) && info->HasCoverageInfo()) {
         CollectBlockCoverage(isolate, &function, info, collectionMode);
       }
 
@@ -523,7 +519,7 @@ void Coverage::SelectMode(Isolate* isolate, debug::Coverage::Mode mode) {
       // recording is stopped. Since we delete coverage infos at that point, any
       // following coverage recording (without reloads) will be at function
       // granularity.
-      if (FLAG_block_coverage) isolate->debug()->RemoveAllCoverageInfos();
+      isolate->debug()->RemoveAllCoverageInfos();
       isolate->SetCodeCoverageList(isolate->heap()->undefined_value());
       break;
     case debug::Coverage::kBlockBinary:

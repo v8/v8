@@ -336,7 +336,7 @@ bool Debug::Load() {
 void Debug::Unload() {
   ClearAllBreakPoints();
   ClearStepping();
-  if (FLAG_block_coverage) RemoveAllCoverageInfos();
+  RemoveAllCoverageInfos();
   RemoveDebugDelegate();
 
   // Return debugger is not loaded.
@@ -1344,7 +1344,6 @@ Handle<DebugInfo> Debug::GetOrCreateDebugInfo(
 
 void Debug::InstallCoverageInfo(Handle<SharedFunctionInfo> shared,
                                 Handle<CoverageInfo> coverage_info) {
-  DCHECK(FLAG_block_coverage);
   DCHECK(!coverage_info.is_null());
 
   Handle<DebugInfo> debug_info = GetOrCreateDebugInfo(shared);
@@ -1356,7 +1355,6 @@ void Debug::InstallCoverageInfo(Handle<SharedFunctionInfo> shared,
 }
 
 void Debug::RemoveAllCoverageInfos() {
-  DCHECK(FLAG_block_coverage);
   ClearAllDebugInfos(
       [=](Handle<DebugInfo> info) { return info->ClearCoverageInfo(); });
 }

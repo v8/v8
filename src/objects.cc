@@ -13408,7 +13408,6 @@ bool SharedFunctionInfo::HasCoverageInfo() const {
   if (!HasDebugInfo()) return false;
   DebugInfo* info = DebugInfo::cast(debug_info());
   bool has_coverage_info = info->HasCoverageInfo();
-  DCHECK_IMPLIES(has_coverage_info, FLAG_block_coverage);
   return has_coverage_info;
 }
 
