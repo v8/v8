@@ -4657,11 +4657,6 @@ void JSFunction::SetOptimizationMarker(OptimizationMarker marker) {
   feedback_vector()->SetOptimizationMarker(marker);
 }
 
-// TODO(jupvfranco): Get rid of this function and use set_code instead.
-void JSFunction::ReplaceCode(Code* code) {
-  set_code(code);
-}
-
 bool JSFunction::has_feedback_vector() const {
   return !feedback_vector_cell()->value()->IsUndefined(GetIsolate());
 }

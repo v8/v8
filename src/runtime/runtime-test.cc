@@ -236,7 +236,7 @@ RUNTIME_FUNCTION(Runtime_OptimizeFunctionOnNextCall) {
   if (function->HasOptimizedCode()) {
     if (!function->IsInterpreted()) {
       // For non I+TF path, install a shim which checks the optimization marker.
-      function->ReplaceCode(
+      function->set_code(
           isolate->builtins()->builtin(Builtins::kCheckOptimizationMarker));
     }
     DCHECK(function->ChecksOptimizationMarker());

@@ -5048,8 +5048,8 @@ static void RemoveCodeAndGC(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Handle<Object> obj = v8::Utils::OpenHandle(*args[0]);
   Handle<JSFunction> fun = Handle<JSFunction>::cast(obj);
   fun->shared()->ClearBytecodeArray();  // Bytecode is code too.
-  fun->ReplaceCode(*BUILTIN_CODE(isolate, CompileLazy));
-  fun->shared()->ReplaceCode(*BUILTIN_CODE(isolate, CompileLazy));
+  fun->set_code(*BUILTIN_CODE(isolate, CompileLazy));
+  fun->shared()->set_code(*BUILTIN_CODE(isolate, CompileLazy));
   CcTest::CollectAllAvailableGarbage();
 }
 

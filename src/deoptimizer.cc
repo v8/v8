@@ -3649,7 +3649,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_shared(SharedFunctionInfo::cast(*shared));
       object->set_context(Context::cast(*context));
       object->set_feedback_vector_cell(Cell::cast(*vector_cell));
-      object->ReplaceCode(Code::cast(*code));
+      object->set_code(Code::cast(*code));
       int in_object_properties = map->GetInObjectProperties();
       for (int i = 0; i < in_object_properties; ++i) {
         Handle<Object> value = materializer.FieldAt(value_index);

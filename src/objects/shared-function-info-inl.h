@@ -214,12 +214,6 @@ void SharedFunctionInfo::set_code(Code* value, WriteBarrierMode mode) {
   CONDITIONAL_WRITE_BARRIER(value->GetHeap(), this, kCodeOffset, value, mode);
 }
 
-void SharedFunctionInfo::ReplaceCode(Code* value) {
-  // TODO(mvstanton): just use set_code() directly everywhere, since ReplaceCode
-  // offers nothing extra.
-  set_code(value);
-}
-
 bool SharedFunctionInfo::IsInterpreted() const {
   return code()->is_interpreter_trampoline_builtin();
 }

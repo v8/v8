@@ -288,7 +288,7 @@ void InstallUnoptimizedCode(CompilationInfo* compilation_info) {
   }
 
   DCHECK(!compilation_info->code().is_null());
-  shared->ReplaceCode(*compilation_info->code());
+  shared->set_code(*compilation_info->code());
   if (compilation_info->has_bytecode_array()) {
     DCHECK(!shared->HasBytecodeArray());  // Only compiled once.
     DCHECK(!compilation_info->has_asm_wasm_data());
@@ -734,7 +734,7 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
         compilation_info->closure()->ShortPrint();
         PrintF("]\n");
       }
-      compilation_info->closure()->ReplaceCode(*compilation_info->code());
+      compilation_info->closure()->set_code(*compilation_info->code());
       return CompilationJob::SUCCEEDED;
     }
   }
@@ -746,7 +746,7 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
     PrintF(" because: %s]\n",
            GetBailoutReason(compilation_info->bailout_reason()));
   }
-  compilation_info->closure()->ReplaceCode(shared->code());
+  compilation_info->closure()->set_code(shared->code());
   // Clear the InOptimizationQueue marker, if it exists.
   if (compilation_info->closure()->IsInOptimizationQueue()) {
     compilation_info->closure()->ClearOptimizationMarker();
@@ -952,7 +952,7 @@ bool Compiler::Compile(Handle<JSFunction> function, ClearExceptionFlag flag) {
   }
 
   // Install code on closure.
-  function->ReplaceCode(*code);
+  function->set_code(*code);
 
   // Check postconditions on success.
   DCHECK(!isolate->has_pending_exception());
@@ -978,7 +978,7 @@ bool Compiler::CompileOptimized(Handle<JSFunction> function,
   }
 
   // Install code on closure.
-  function->ReplaceCode(*code);
+  function->set_code(*code);
 
   // Check postconditions on success.
   DCHECK(!isolate->has_pending_exception());
@@ -1507,7 +1507,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
       // Caching of optimized code enabled and optimized code found.
       DCHECK(!code->marked_for_deoptimization());
       DCHECK(function->shared()->is_compiled());
-      function->ReplaceCode(code);
+      function->set_code(code);
     }
   }
 }

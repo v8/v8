@@ -119,10 +119,10 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   function->shared()->set_is_asm_wasm_broken(true);
   DCHECK(function->code() ==
          isolate->builtins()->builtin(Builtins::kInstantiateAsmJs));
-  function->ReplaceCode(isolate->builtins()->builtin(Builtins::kCompileLazy));
+  function->set_code(isolate->builtins()->builtin(Builtins::kCompileLazy));
   if (function->shared()->code() ==
       isolate->builtins()->builtin(Builtins::kInstantiateAsmJs)) {
-    function->shared()->ReplaceCode(
+    function->shared()->set_code(
         isolate->builtins()->builtin(Builtins::kCompileLazy));
   }
   return Smi::kZero;
@@ -288,7 +288,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   }
 
   if (!function->IsOptimized()) {
-    function->ReplaceCode(function->shared()->code());
+    function->set_code(function->shared()->code());
   }
   return NULL;
 }

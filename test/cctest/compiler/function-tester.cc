@@ -43,7 +43,7 @@ FunctionTester::FunctionTester(Handle<Code> code, int param_count)
       flags_(0) {
   CHECK(!code.is_null());
   Compile(function);
-  function->ReplaceCode(*code);
+  function->set_code(*code);
 }
 
 FunctionTester::FunctionTester(Handle<Code> code) : FunctionTester(code, 0) {}
@@ -156,7 +156,7 @@ Handle<JSFunction> FunctionTester::Compile(Handle<JSFunction> function) {
   CHECK(!code.is_null());
   info.dependencies()->Commit(code);
   info.context()->native_context()->AddOptimizedCode(*code);
-  function->ReplaceCode(*code);
+  function->set_code(*code);
   return function;
 }
 
@@ -170,7 +170,7 @@ Handle<JSFunction> FunctionTester::CompileGraph(Graph* graph) {
 
   Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, graph);
   CHECK(!code.is_null());
-  function->ReplaceCode(*code);
+  function->set_code(*code);
   return function;
 }
 

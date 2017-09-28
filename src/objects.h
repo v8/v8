@@ -4836,7 +4836,6 @@ class JSFunction: public JSObject {
   inline Code* code();
   inline void set_code(Code* code);
   inline void set_code_no_write_barrier(Code* code);
-  inline void ReplaceCode(Code* code);
 
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.

@@ -58,8 +58,6 @@ class SharedFunctionInfo : public HeapObject {
   // optimized.
   inline bool IsInterpreted() const;
 
-  inline void ReplaceCode(Code* code);
-
   // Set up the link between shared function info and the script. The shared
   // function info is added to the list on the script.
   V8_EXPORT_PRIVATE static void SetScript(

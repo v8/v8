@@ -123,7 +123,7 @@ class BytecodeGraphTester {
     CompilationInfo compilation_info(&zone, function->GetIsolate(), script,
                                      shared, function);
     Handle<Code> code = Pipeline::GenerateCodeForTesting(&compilation_info);
-    function->ReplaceCode(*code);
+    function->set_code(*code);
 
     return function;
   }

@@ -136,7 +136,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
 
   // Set the code, scope info, formal parameter count, and the length
   // of the target shared function info.
-  target_shared->ReplaceCode(source_shared->code());
+  target_shared->set_code(source_shared->code());
   if (source_shared->HasBytecodeArray()) {
     target_shared->set_bytecode_array(source_shared->bytecode_array());
   }
@@ -162,7 +162,7 @@ RUNTIME_FUNCTION(Runtime_SetCode) {
   SharedFunctionInfo::SetScript(target_shared, source_script);
 
   // Set the code of the target function.
-  target->ReplaceCode(source_shared->code());
+  target->set_code(source_shared->code());
 
   Handle<Context> context(source->context());
   target->set_context(*context);
