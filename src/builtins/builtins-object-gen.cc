@@ -187,7 +187,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
     Node* native_context = LoadNativeContext(context);
     Node* array_map = LoadJSArrayElementsMap(PACKED_ELEMENTS, native_context);
     Node* array = AllocateUninitializedJSArrayWithoutElements(
-        PACKED_ELEMENTS, array_map, var_length.value(), nullptr);
+        array_map, var_length.value(), nullptr);
     StoreObjectFieldNoWriteBarrier(array, JSArray::kElementsOffset,
                                    var_elements.value());
     Return(array);

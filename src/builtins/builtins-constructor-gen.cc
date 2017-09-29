@@ -471,7 +471,7 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
   BIND(&allocate_without_elements);
   {
     Node* array = AllocateUninitializedJSArrayWithoutElements(
-        PACKED_ELEMENTS, boilerplate_map, length.value(), allocation_site);
+        boilerplate_map, length.value(), allocation_site);
     StoreObjectField(array, JSObject::kElementsOffset, elements.value());
     result.Bind(array);
     Goto(&return_result);

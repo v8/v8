@@ -1906,7 +1906,7 @@ class GrowableFixedArray {
 
     Node* const result_length = a->SmiTag(length());
     Node* const result = a->AllocateUninitializedJSArrayWithoutElements(
-        kind, array_map, result_length, nullptr);
+        array_map, result_length, nullptr);
 
     // Note: We do not currently shrink the fixed array.
 

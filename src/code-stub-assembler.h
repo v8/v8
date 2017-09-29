@@ -706,8 +706,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                               int start_offset = JSObject::kHeaderSize);
 
   // Allocate a JSArray without elements and initialize the header fields.
-  Node* AllocateUninitializedJSArrayWithoutElements(ElementsKind kind,
-                                                    Node* array_map,
+  Node* AllocateUninitializedJSArrayWithoutElements(Node* array_map,
                                                     Node* length,
                                                     Node* allocation_site);
   // Allocate and return a JSArray with initialized header fields and its
@@ -1685,8 +1684,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                     Node* top_address, Node* limit_address);
   // Allocate and return a JSArray of given total size in bytes with header
   // fields initialized.
-  Node* AllocateUninitializedJSArray(ElementsKind kind, Node* array_map,
-                                     Node* length, Node* allocation_site,
+  Node* AllocateUninitializedJSArray(Node* array_map, Node* length,
+                                     Node* allocation_site,
                                      Node* size_in_bytes);
 
   Node* SmiShiftBitsConstant();

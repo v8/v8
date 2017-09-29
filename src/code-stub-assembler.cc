@@ -2431,7 +2431,7 @@ void CodeStubAssembler::StoreFieldsNoWriteBarrier(Node* start_address,
 }
 
 Node* CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
-    ElementsKind kind, Node* array_map, Node* length, Node* allocation_site) {
+    Node* array_map, Node* length, Node* allocation_site) {
   Comment("begin allocation of JSArray without elements");
   CSA_SLOW_ASSERT(this, TaggedIsPositiveSmi(length));
   CSA_SLOW_ASSERT(this, IsMap(array_map));
@@ -2441,8 +2441,8 @@ Node* CodeStubAssembler::AllocateUninitializedJSArrayWithoutElements(
   }
 
   Node* size = IntPtrConstant(base_size);
-  Node* array = AllocateUninitializedJSArray(kind, array_map, length,
-                                             allocation_site, size);
+  Node* array =
+      AllocateUninitializedJSArray(array_map, length, allocation_site, size);
   return array;
 }
 
@@ -2465,8 +2465,8 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   base_size += FixedArray::kHeaderSize;
   Node* size = ElementOffsetFromIndex(capacity, kind, capacity_mode, base_size);
 
-  Node* array = AllocateUninitializedJSArray(kind, array_map, length,
-                                             allocation_site, size);
+  Node* array =
+      AllocateUninitializedJSArray(array_map, length, allocation_site, size);
 
   Node* elements = InnerAllocate(array, elements_offset);
   StoreObjectFieldNoWriteBarrier(array, JSObject::kElementsOffset, elements);
@@ -2484,8 +2484,7 @@ CodeStubAssembler::AllocateUninitializedJSArrayWithElements(
   return {array, elements};
 }
 
-Node* CodeStubAssembler::AllocateUninitializedJSArray(ElementsKind kind,
-                                                      Node* array_map,
+Node* CodeStubAssembler::AllocateUninitializedJSArray(Node* array_map,
                                                       Node* length,
                                                       Node* allocation_site,
                                                       Node* size_in_bytes) {
@@ -2523,7 +2522,7 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
   if (IsIntPtrOrSmiConstantZero(capacity)) {
     // Array is empty. Use the shared empty fixed array instead of allocating a
     // new one.
-    array = AllocateUninitializedJSArrayWithoutElements(kind, array_map, length,
+    array = AllocateUninitializedJSArrayWithoutElements(array_map, length,
                                                         allocation_site);
     StoreObjectFieldRoot(array, JSArray::kElementsOffset,
                          Heap::kEmptyFixedArrayRootIndex);
@@ -2548,7 +2547,7 @@ Node* CodeStubAssembler::AllocateJSArray(ElementsKind kind, Node* array_map,
       // Array is empty. Use the shared empty fixed array instead of allocating
       // a new one.
       var_array.Bind(AllocateUninitializedJSArrayWithoutElements(
-          kind, array_map, length, allocation_site));
+          array_map, length, allocation_site));
       StoreObjectFieldRoot(var_array.value(), JSArray::kElementsOffset,
                            Heap::kEmptyFixedArrayRootIndex);
       Goto(&out);
