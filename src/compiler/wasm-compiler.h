@@ -139,8 +139,6 @@ class WasmCompilationUnit final {
 // GCable) in the generated code so that it can reside outside of GCed heap.
 Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     wasm::FunctionSig* sig, uint32_t index,
-                                    Handle<String> module_name,
-                                    MaybeHandle<String> import_name,
                                     wasm::ModuleOrigin origin,
                                     Handle<FixedArray> global_js_imports_table);
 
@@ -153,8 +151,6 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
 // wasm instances (the WasmContext address must be changed).
 Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, Handle<Code> target,
                                       wasm::FunctionSig* sig, uint32_t index,
-                                      Handle<String> module_name,
-                                      MaybeHandle<String> import_name,
                                       Address new_wasm_context_address);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm

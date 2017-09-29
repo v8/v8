@@ -4068,17 +4068,23 @@ Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
   return node;
 }
 
-static void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
-                                      Isolate* isolate, Handle<Code> code,
-                                      const char* message, uint32_t index,
-                                      const wasm::WasmName& module_name,
-                                      const wasm::WasmName& func_name) {
-  DCHECK(isolate->logger()->is_logging_code_events() ||
-         isolate->is_profiling());
+namespace {
+bool must_record_function_compilation(Isolate* isolate) {
+  return isolate->logger()->is_logging_code_events() || isolate->is_profiling();
+}
+
+PRINTF_FORMAT(4, 5)
+void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
+                               Isolate* isolate, Handle<Code> code,
+                               const char* format, ...) {
+  DCHECK(must_record_function_compilation(isolate));
 
   ScopedVector<char> buffer(128);
-  SNPrintF(buffer, "%s#%d:%.*s:%.*s", message, index, module_name.length(),
-           module_name.start(), func_name.length(), func_name.start());
+  va_list arguments;
+  va_start(arguments, format);
+  int len = VSNPrintF(buffer, format, arguments);
+  CHECK_LT(0, len);
+  va_end(arguments);
   Handle<String> name_str =
       isolate->factory()->NewStringFromAsciiChecked(buffer.start());
   Handle<String> script_str =
@@ -4088,6 +4094,7 @@ static void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
   PROFILE(isolate, CodeCreateEvent(tag, AbstractCode::cast(*code), *shared,
                                    *script_str, 0, 0));
 }
+}  // namespace
 
 Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
                                     Handle<Code> wasm_code, uint32_t index,
@@ -4164,13 +4171,12 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
     buffer.Dispose();
   }
 
-  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
-    char func_name[32];
-    SNPrintF(ArrayVector(func_name), "js-to-wasm#%d", func->func_index);
+  if (must_record_function_compilation(isolate)) {
     RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate, code,
-                              "js-to-wasm", index, wasm::WasmName("export"),
-                              CStrVector(func_name));
+                              "js-to-wasm#%d:%.*s", func->func_index,
+                              func_name.length(), func_name.start());
   }
+
   return code;
 }
 
@@ -4207,8 +4213,8 @@ void ValidateImportWrapperReferencesImmovables(Handle<Code> wrapper) {
 
 Handle<Code> CompileWasmToJSWrapper(
     Isolate* isolate, Handle<JSReceiver> target, wasm::FunctionSig* sig,
-    uint32_t index, Handle<String> module_name, MaybeHandle<String> import_name,
-    wasm::ModuleOrigin origin, Handle<FixedArray> global_js_imports_table) {
+    uint32_t index, wasm::ModuleOrigin origin,
+    Handle<FixedArray> global_js_imports_table) {
   //----------------------------------------------------------------------------
   // Create the Graph
   //----------------------------------------------------------------------------
@@ -4297,19 +4303,9 @@ Handle<Code> CompileWasmToJSWrapper(
       buffer.Dispose();
     }
   }
-  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
-    const char* function_name = nullptr;
-    size_t function_name_size = 0;
-    if (!import_name.is_null()) {
-      Handle<String> handle = import_name.ToHandleChecked();
-      function_name = handle->ToCString().get();
-      function_name_size = static_cast<size_t>(handle->length());
-    }
+  if (must_record_function_compilation(isolate)) {
     RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate, code,
-                              "wasm-to-js", index,
-                              {module_name->ToCString().get(),
-                               static_cast<size_t>(module_name->length())},
-                              {function_name, function_name_size});
+                              "wasm-to-js#%d", index);
   }
 
   return code;
@@ -4317,8 +4313,6 @@ Handle<Code> CompileWasmToJSWrapper(
 
 Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, Handle<Code> target,
                                       wasm::FunctionSig* sig, uint32_t index,
-                                      Handle<String> module_name,
-                                      MaybeHandle<String> import_name,
                                       Address new_wasm_context_address) {
   //----------------------------------------------------------------------------
   // Create the Graph
@@ -4377,18 +4371,8 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, Handle<Code> target,
     buffer.Dispose();
   }
   if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
-    std::unique_ptr<char[]> function_name;
-    size_t function_name_size = 0;
-    if (!import_name.is_null()) {
-      Handle<String> handle = import_name.ToHandleChecked();
-      function_name = handle->ToCString();
-      function_name_size = static_cast<size_t>(handle->length());
-    }
     RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate, code,
-                              "wasm-to-wasm", index,
-                              {module_name->ToCString().get(),
-                               static_cast<size_t>(module_name->length())},
-                              {function_name.get(), function_name_size});
+                              "wasm-to-wasm#%d", index);
   }
 
   return code;
@@ -4422,7 +4406,7 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
   {
     if (FLAG_trace_turbo_graph) {  // Simple textual RPO.
       OFStream os(stdout);
-      os << "-- Wasm to interpreter graph -- " << std::endl;
+      os << "-- Wasm interpreter entry graph -- " << std::endl;
       os << AsRPO(graph);
     }
 
@@ -4433,7 +4417,8 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
     }
     Code::Flags flags = Code::ComputeFlags(Code::WASM_INTERPRETER_ENTRY);
     EmbeddedVector<char, 32> debug_name;
-    int name_len = SNPrintF(debug_name, "wasm-to-interpreter#%d", func_index);
+    int name_len =
+        SNPrintF(debug_name, "wasm-interpreter-entry#%d", func_index);
     DCHECK(name_len > 0 && name_len < debug_name.length());
     debug_name.Truncate(name_len);
     DCHECK_EQ('\0', debug_name.start()[debug_name.length()]);
@@ -4447,11 +4432,9 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
     }
 #endif
 
-    if (isolate->logger()->is_logging_code_events() ||
-        isolate->is_profiling()) {
+    if (must_record_function_compilation(isolate)) {
       RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate, code,
-                                "wasm-to-interpreter", func_index,
-                                wasm::WasmName("module"), debug_name);
+                                "%s", debug_name.start());
     }
   }
 
@@ -4715,11 +4698,10 @@ MaybeHandle<Code> WasmCompilationUnit::FinishCompilation(
   Handle<Code> code = info_->code();
   DCHECK(!code.is_null());
 
-  if (isolate_->logger()->is_logging_code_events() ||
-      isolate_->is_profiling()) {
+  if (must_record_function_compilation(isolate_)) {
     RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate_, code,
-                              "WASM_function", func_index_,
-                              wasm::WasmName("module"), func_name_);
+                              "wasm_function#%d:%.*s", func_index_,
+                              func_name_.length(), func_name_.start());
   }
 
   if (FLAG_trace_wasm_decode_time) {

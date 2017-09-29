@@ -1343,7 +1343,6 @@ using WasmInstanceMap =
 
 Handle<Code> UnwrapExportOrCompileImportWrapper(
     Isolate* isolate, int index, FunctionSig* sig, Handle<JSReceiver> target,
-    Handle<String> module_name, MaybeHandle<String> import_name,
     ModuleOrigin origin, WasmInstanceMap* imported_instances,
     Handle<FixedArray> js_imports_table, Handle<WasmInstanceObject> instance) {
   WasmFunction* other_func = GetWasmFunctionForExport(isolate, target);
@@ -1367,8 +1366,7 @@ Handle<Code> UnwrapExportOrCompileImportWrapper(
     Address new_wasm_context =
         reinterpret_cast<Address>(imported_instance->wasm_context());
     Handle<Code> wrapper_code = compiler::CompileWasmToWasmWrapper(
-        isolate, wasm_code, sig, index, module_name, import_name,
-        new_wasm_context);
+        isolate, wasm_code, sig, index, new_wasm_context);
     // Set the deoptimization data for the WasmToWasm wrapper.
     // TODO(wasm): Remove the deoptimization data when we will use tail calls
     // for WasmToWasm wrappers.
@@ -1382,8 +1380,7 @@ Handle<Code> UnwrapExportOrCompileImportWrapper(
   }
   // No wasm function or being debugged. Compile a new wrapper for the new
   // signature.
-  return compiler::CompileWasmToJSWrapper(isolate, target, sig, index,
-                                          module_name, import_name, origin,
+  return compiler::CompileWasmToJSWrapper(isolate, target, sig, index, origin,
                                           js_imports_table);
 }
 
@@ -2255,9 +2252,8 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
 
         Handle<Code> import_code = UnwrapExportOrCompileImportWrapper(
             isolate_, index, module_->functions[import.index].sig,
-            Handle<JSReceiver>::cast(value), module_name, import_name,
-            module_->origin(), &imported_wasm_instances, js_imports_table,
-            instance);
+            Handle<JSReceiver>::cast(value), module_->origin(),
+            &imported_wasm_instances, js_imports_table, instance);
         if (import_code.is_null()) {
           ReportLinkError("imported function does not match the expected type",
                           index, module_name, import_name);

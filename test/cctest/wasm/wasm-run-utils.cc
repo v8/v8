@@ -97,8 +97,7 @@ uint32_t TestingModuleBuilder::AddJsFunction(
   uint32_t index = AddFunction(sig, Handle<Code>::null(), nullptr);
   js_imports_table->set(0, *isolate_->native_context());
   Handle<Code> code = compiler::CompileWasmToJSWrapper(
-      isolate_, jsfunc, sig, index, Handle<String>::null(),
-      Handle<String>::null(), test_module_.origin(), js_imports_table);
+      isolate_, jsfunc, sig, index, test_module_.origin(), js_imports_table);
   function_code_[index] = code;
   return index;
 }
