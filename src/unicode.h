@@ -127,8 +127,7 @@ class Utf16 {
   }
 };
 
-
-class Utf8 {
+class V8_EXPORT_PRIVATE Utf8 {
  public:
   static inline uchar Length(uchar chr, int previous);
   static inline unsigned EncodeOneByte(char* out, uint8_t c);

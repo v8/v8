@@ -197,27 +197,27 @@ static inline uint8_t NonASCIISequenceLength(byte first) {
   // clang-format off
   static const uint8_t lengths[256] = {
       // The first 128 entries correspond to ASCII characters.
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* OO - Of */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 10 - 1f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 20 - 2f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 30 - 3f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 40 - 4f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 50 - 5f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 60 - 6f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 70 - 7f */
       // The following 64 entries correspond to continuation bytes.
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 80 - 8f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* 90 - 9f */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* a0 - af */
+      0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  /* b0 - bf */
       // The next are two invalid overlong encodings and 30 two-byte sequences.
-      0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
-      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+      0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,  /* c0-c1 + c2-cf */
+      2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,  /* d0-df */
       // 16 three-byte sequences.
-      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,
+      3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,  /* e0-ef */
       // 5 four-byte sequences, followed by sequences that could only encode
       // code points outside of the unicode range.
-      4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+      4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}; /* f0-f4 + f5-ff */
   // clang-format on
   return lengths[first];
 }
@@ -322,7 +322,8 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
   if (*buffer == 0) {
     // We're at the start of a new character.
     uint32_t kind = NonASCIISequenceLength(next);
-    if (kind >= 2 && kind <= 4) {
+    CHECK_LE(kind, 4);
+    if (kind >= 2) {
       // Start of 2..4 byte character, and no buffer.
 
       // The mask for the lower bits depends on the kind, and is
@@ -333,7 +334,9 @@ uchar Utf8::ValueOfIncremental(byte next, Utf8IncrementalBuffer* buffer) {
       // Store the kind in the top nibble, and kind - 1 (i.e., remaining bytes)
       // in 2nd nibble, and the value  in the bottom three. The 2nd nibble is
       // intended as a counter about how many bytes are still needed.
-      *buffer = kind << 28 | (kind - 1) << 24 | (next & mask);
+      uint32_t character_info = kind << 28 | (kind - 1) << 24;
+      DCHECK_EQ(character_info & mask, 0);
+      *buffer = character_info | (next & mask);
       return kIncomplete;
     } else {
       // No buffer, and not the start of a 1-byte char (handled at the
