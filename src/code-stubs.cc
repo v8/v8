@@ -95,15 +95,6 @@ void CodeStub::RecordCodeGeneration(Handle<Code> code) {
 }
 
 
-Code::Kind CodeStub::GetCodeKind() const {
-  return Code::STUB;
-}
-
-
-Code::Flags CodeStub::GetCodeFlags() const {
-  return Code::ComputeFlags(GetCodeKind());
-}
-
 void CodeStub::DeleteStubFromCacheForTesting() {
   Heap* heap = isolate_->heap();
   Handle<UnseededNumberDictionary> dict(heap->code_stubs());
@@ -134,7 +125,7 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   CodeDesc desc;
   masm.GetCode(isolate(), &desc);
   // Copy the generated code into a heap object.
-  Code::Flags flags = Code::ComputeFlags(GetCodeKind());
+  Code::Flags flags = Code::ComputeFlags(Code::STUB);
   Handle<Code> new_object = factory->NewCode(
       desc, flags, masm.CodeObject(), NeedsImmovableCode());
   return new_object;
@@ -144,10 +135,9 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
 Handle<Code> CodeStub::GetCode() {
   Heap* heap = isolate()->heap();
   Code* code;
-  if (UseSpecialCache() ? FindCodeInSpecialCache(&code)
-                        : FindCodeInCache(&code)) {
-    DCHECK(GetCodeKind() == code->kind());
-    return Handle<Code>(code);
+  if (FindCodeInCache(&code)) {
+    DCHECK(code->is_stub());
+    return handle(code);
   }
 
   {
@@ -172,14 +162,10 @@ Handle<Code> CodeStub::GetCode() {
     }
 #endif
 
-    if (UseSpecialCache()) {
-      AddToSpecialCache(new_object);
-    } else {
-      // Update the dictionary and the root in Heap.
-      Handle<UnseededNumberDictionary> dict = UnseededNumberDictionary::Set(
-          handle(heap->code_stubs()), GetKey(), new_object);
-      heap->SetRootCodeStubs(*dict);
-    }
+    // Update the dictionary and the root in Heap.
+    Handle<UnseededNumberDictionary> dict = UnseededNumberDictionary::Set(
+        handle(heap->code_stubs()), GetKey(), new_object);
+    heap->SetRootCodeStubs(*dict);
     code = *new_object;
   }
 
@@ -256,8 +242,7 @@ void CodeStub::InitializeDescriptor(Isolate* isolate, uint32_t key,
 
 void CodeStub::GetCodeDispatchCall(CodeStub* stub, void** value_out) {
   Handle<Code>* code_out = reinterpret_cast<Handle<Code>*>(value_out);
-  // Code stubs with special cache cannot be recreated from stub key.
-  *code_out = stub->UseSpecialCache() ? Handle<Code>() : stub->GetCode();
+  *code_out = stub->GetCode();
 }
 
 
@@ -312,7 +297,7 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
   compiler::CodeAssemblerState state(isolate(), &zone, descriptor,
-                                     GetCodeFlags(), name);
+                                     Code::ComputeFlags(Code::STUB), name);
   GenerateAssembly(&state);
   return compiler::CodeAssembler::GenerateCode(&state);
 }

@@ -3646,7 +3646,6 @@ class Code: public HeapObject {
   V(OPTIMIZED_FUNCTION)     \
   V(BYTECODE_HANDLER)       \
   V(STUB)                   \
-  V(HANDLER)                \
   V(BUILTIN)                \
   V(REGEXP)                 \
   V(WASM_FUNCTION)          \
@@ -3728,13 +3727,9 @@ class Code: public HeapObject {
   // [flags]: Access to specific code flags.
   inline Kind kind() const;
 
-  // Testers for IC stub kinds.
-  inline bool is_handler() const;
   inline bool is_stub() const;
   inline bool is_optimized_code() const;
   inline bool is_wasm_code() const;
-
-  inline bool IsCodeStubOrIC() const;
 
   inline void set_raw_kind_specific_flags1(int value);
   inline void set_raw_kind_specific_flags2(int value);

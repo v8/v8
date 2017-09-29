@@ -871,6 +871,7 @@ KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
     } else {
       // Element store without prototype chain check.
       handler = Handle<Code>::cast(maybe_code_handler);
+      if (handler->is_builtin()) continue;
     }
     CodeStub::Major major_key = CodeStub::MajorKeyFromKey(handler->stub_key());
     uint32_t minor_key = CodeStub::MinorKeyFromKey(handler->stub_key());

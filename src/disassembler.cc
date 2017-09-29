@@ -117,7 +117,7 @@ static void PrintRelocInfo(StringBuilder* out, Isolate* isolate,
     out->AddFormatted("    ;; code:");
     Code* code = Code::GetCodeFromTargetAddress(relocinfo->target_address());
     Code::Kind kind = code->kind();
-    if (kind == Code::STUB || kind == Code::HANDLER) {
+    if (kind == Code::STUB) {
       // Get the STUB key and extract major and minor key.
       uint32_t key = code->stub_key();
       uint32_t minor_key = CodeStub::MinorKeyFromKey(key);

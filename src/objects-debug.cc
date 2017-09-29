@@ -847,7 +847,7 @@ void Code::CodeVerify() {
     }
   }
   CHECK(raw_type_feedback_info() == Smi::kZero ||
-        raw_type_feedback_info()->IsSmi() == IsCodeStubOrIC());
+        raw_type_feedback_info()->IsSmi() == is_stub());
 }
 
 

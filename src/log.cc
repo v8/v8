@@ -1584,10 +1584,6 @@ void Logger::LogCodeObject(Object* object) {
           isolate_->builtins()->name(code_object->GetCode()->builtin_index());
       tag = CodeEventListener::BUILTIN_TAG;
       break;
-    case AbstractCode::HANDLER:
-      description = "An IC handler from the snapshot";
-      tag = CodeEventListener::HANDLER_TAG;
-      break;
     case AbstractCode::WASM_FUNCTION:
       description = "A Wasm function";
       tag = CodeEventListener::STUB_TAG;

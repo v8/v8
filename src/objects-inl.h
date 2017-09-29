@@ -3694,17 +3694,6 @@ void Code::set_flags(Code::Flags flags) {
 
 Code::Kind Code::kind() const { return ExtractKindFromFlags(flags()); }
 
-bool Code::IsCodeStubOrIC() const {
-  switch (kind()) {
-    case STUB:
-    case HANDLER:
-      return true;
-    default:
-      return false;
-  }
-}
-
-
 // For initialization.
 void Code::set_raw_kind_specific_flags1(int value) {
   WRITE_INT_FIELD(this, kKindSpecificFlags1Offset, value);
@@ -3902,7 +3891,6 @@ void Code::set_deopt_already_counted(bool flag) {
   WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
 }
 
-bool Code::is_handler() const { return kind() == HANDLER; }
 bool Code::is_stub() const { return kind() == STUB; }
 bool Code::is_optimized_code() const { return kind() == OPTIMIZED_FUNCTION; }
 bool Code::is_wasm_code() const { return kind() == WASM_FUNCTION; }
@@ -4869,14 +4857,14 @@ ByteArray* Code::SourcePositionTable() const {
 }
 
 uint32_t Code::stub_key() const {
-  DCHECK(IsCodeStubOrIC());
+  DCHECK(is_stub());
   Smi* smi_key = Smi::cast(raw_type_feedback_info());
   return static_cast<uint32_t>(smi_key->value());
 }
 
 
 void Code::set_stub_key(uint32_t key) {
-  DCHECK(IsCodeStubOrIC());
+  DCHECK(is_stub());
   set_raw_type_feedback_info(Smi::FromInt(key));
 }
 

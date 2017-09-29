@@ -239,13 +239,12 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
                                       CallDescriptors::Name, kBuiltinFlags, \
                                       #Name, 1);                            \
   AddBuiltin(builtins, index++, code);
-#define BUILD_TFH(Name, Kind, InterfaceDescriptor)                            \
-  { InterfaceDescriptor##Descriptor descriptor(isolate); }                    \
-  /* Return size for IC builtins/handlers is always 1. */                     \
-  code =                                                                      \
-      BuildWithCodeStubAssemblerCS(isolate, &Builtins::Generate_##Name,       \
-                                   CallDescriptors::InterfaceDescriptor,      \
-                                   Code::ComputeFlags(Code::Kind), #Name, 1); \
+#define BUILD_TFH(Name, InterfaceDescriptor)                                \
+  { InterfaceDescriptor##Descriptor descriptor(isolate); }                  \
+  /* Return size for IC builtins/handlers is always 1. */                   \
+  code = BuildWithCodeStubAssemblerCS(isolate, &Builtins::Generate_##Name,  \
+                                      CallDescriptors::InterfaceDescriptor, \
+                                      kBuiltinFlags, #Name, 1);             \
   AddBuiltin(builtins, index++, code);
 #define BUILD_ASM(Name)                                              \
   code = BuildWithMacroAssembler(isolate, Builtins::Generate_##Name, \
