@@ -1954,8 +1954,8 @@ void Heap::Scavenge() {
   const bool is_logging = IsLogging(isolate());
   const int num_scavenge_tasks = NumberOfScavengeTasks();
   OneshotBarrier barrier;
-  CopiedList copied_list(num_scavenge_tasks);
-  PromotionList promotion_list(num_scavenge_tasks);
+  Scavenger::CopiedList copied_list(num_scavenge_tasks);
+  Scavenger::PromotionList promotion_list(num_scavenge_tasks);
   for (int i = 0; i < num_scavenge_tasks; i++) {
     scavengers[i] =
         new Scavenger(this, is_logging, &copied_list, &promotion_list, i);

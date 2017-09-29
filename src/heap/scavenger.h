@@ -16,16 +16,15 @@ namespace internal {
 
 class OneshotBarrier;
 
-static const int kCopiedListSegmentSize = 256;
-static const int kPromotionListSegmentSize = 256;
-
-using AddressRange = std::pair<Address, Address>;
-using ObjectAndSize = std::pair<HeapObject*, int>;
-using CopiedList = Worklist<ObjectAndSize, kCopiedListSegmentSize>;
-using PromotionList = Worklist<ObjectAndSize, kPromotionListSegmentSize>;
-
 class Scavenger {
  public:
+  static const int kCopiedListSegmentSize = 256;
+  static const int kPromotionListSegmentSize = 256;
+
+  using ObjectAndSize = std::pair<HeapObject*, int>;
+  using CopiedList = Worklist<ObjectAndSize, kCopiedListSegmentSize>;
+  using PromotionList = Worklist<ObjectAndSize, kPromotionListSegmentSize>;
+
   Scavenger(Heap* heap, bool is_logging, CopiedList* copied_list,
             PromotionList* promotion_list, int task_id);
 
