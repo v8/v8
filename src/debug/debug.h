@@ -252,7 +252,8 @@ class Debug {
   void ClearStepping();
   void ClearStepOut();
 
-  bool PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
+  void DeoptimizeFunction(Handle<SharedFunctionInfo> shared);
+  void PrepareFunctionForBreakPoints(Handle<SharedFunctionInfo> shared);
   bool GetPossibleBreakpoints(Handle<Script> script, int start_position,
                               int end_position, bool restrict_to_function,
                               std::vector<BreakLocation>* locations);

@@ -805,52 +805,6 @@ class FeedbackVectorFixer {
   };
 };
 
-namespace {
-bool NeedsDeoptimization(SharedFunctionInfo* function_info, Code* code) {
-  DeoptimizationInputData* table =
-      DeoptimizationInputData::cast(code->deoptimization_data());
-  SharedFunctionInfo* sfi =
-      SharedFunctionInfo::cast(table->SharedFunctionInfo());
-  if (sfi == function_info) return true;
-  DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
-  DCHECK_NE(0, table->length());
-  FixedArray* const literals = table->LiteralArray();
-  int const inlined_count = table->InlinedFunctionCount()->value();
-  for (int i = 0; i < inlined_count; i++) {
-    if (SharedFunctionInfo::cast(literals->get(i)) == function_info) {
-      return true;
-    }
-  }
-  return false;
-}
-}  // namespace
-
-static void DeoptimizeDependentFunctions(SharedFunctionInfo* function_info) {
-  DisallowHeapAllocation no_allocation;
-  bool found_something = false;
-  Isolate* isolate = function_info->GetIsolate();
-  Object* context_link = isolate->heap()->native_contexts_list();
-  while (!context_link->IsUndefined(isolate)) {
-    Context* context = Context::cast(context_link);
-    Object* element = context->OptimizedCodeListHead();
-    while (!element->IsUndefined(isolate)) {
-      Code* code = Code::cast(element);
-      DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
-      if (NeedsDeoptimization(function_info, code)) {
-        code->set_marked_for_deoptimization(true);
-        found_something = true;
-      }
-      element = code->next_code_link();
-    }
-    context_link = context->next_context_link();
-  }
-
-  if (found_something) {
-    // Only go through with the deoptimization if something was found.
-    Deoptimizer::DeoptimizeMarkedCode(isolate);
-  }
-}
-
 
 void LiveEdit::ReplaceFunctionCode(
     Handle<JSArray> new_compile_info_array,
@@ -900,8 +854,7 @@ void LiveEdit::ReplaceFunctionCode(
   FeedbackVectorFixer::PatchFeedbackVector(&compile_info_wrapper, shared_info,
                                            isolate);
 
-  DeoptimizeDependentFunctions(*shared_info);
-  isolate->compilation_cache()->Remove(shared_info);
+  isolate->debug()->DeoptimizeFunction(shared_info);
 }
 
 void LiveEdit::FunctionSourceUpdated(Handle<JSArray> shared_info_array,
@@ -910,8 +863,7 @@ void LiveEdit::FunctionSourceUpdated(Handle<JSArray> shared_info_array,
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
   shared_info->set_function_literal_id(new_function_literal_id);
-  DeoptimizeDependentFunctions(*shared_info);
-  shared_info_array->GetIsolate()->compilation_cache()->Remove(shared_info);
+  shared_info_array->GetIsolate()->debug()->DeoptimizeFunction(shared_info);
 }
 
 void LiveEdit::FixupScript(Handle<Script> script, int max_function_literal_id) {
@@ -1132,7 +1084,9 @@ static bool CheckActivation(Handle<JSArray> shared_info_array,
     Handle<SharedFunctionInfo> shared =
         UnwrapSharedFunctionInfoFromJSValue(jsvalue);
 
-    if (function->Inlines(*shared)) {
+    if (function->shared() == *shared ||
+        (function->code()->is_optimized_code() &&
+         function->code()->Inlines(*shared))) {
       SetElementSloppy(result, i, Handle<Smi>(Smi::FromInt(status), isolate));
       return true;
     }

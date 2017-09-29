@@ -3947,6 +3947,23 @@ class Code: public HeapObject {
   static Handle<WeakCell> WeakCellFor(Handle<Code> code);
   WeakCell* CachedWeakCell();
 
+  // Return true if the function is inlined in the code.
+  bool Inlines(SharedFunctionInfo* sfi);
+
+  class OptimizedCodeIterator {
+   public:
+    explicit OptimizedCodeIterator(Isolate* isolate);
+    Code* Next();
+
+   private:
+    Context* next_context_;
+    Code* current_code_;
+    Isolate* isolate_;
+
+    DisallowHeapAllocation no_gc;
+    DISALLOW_COPY_AND_ASSIGN(OptimizedCodeIterator)
+  };
+
   static const int kConstantPoolSize =
       FLAG_enable_embedded_constant_pool ? kIntSize : 0;
 
@@ -4822,9 +4839,6 @@ class JSFunction: public JSObject {
   // Get the abstract code associated with the function, which will either be
   // a Code object or a BytecodeArray.
   inline AbstractCode* abstract_code();
-
-  // Tells whether this function inlines the given shared function info.
-  bool Inlines(SharedFunctionInfo* candidate);
 
   // Tells whether or not this function is interpreted.
   //

@@ -12104,23 +12104,6 @@ bool Map::EquivalentToForNormalization(const Map* other,
 }
 
 
-bool JSFunction::Inlines(SharedFunctionInfo* candidate) {
-  DisallowHeapAllocation no_gc;
-  if (shared() == candidate) return true;
-  if (code()->kind() != Code::OPTIMIZED_FUNCTION) return false;
-  DeoptimizationInputData* const data =
-      DeoptimizationInputData::cast(code()->deoptimization_data());
-  if (data->length() == 0) return false;
-  FixedArray* const literals = data->LiteralArray();
-  int const inlined_count = data->InlinedFunctionCount()->value();
-  for (int i = 0; i < inlined_count; ++i) {
-    if (SharedFunctionInfo::cast(literals->get(i)) == candidate) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void JSFunction::MarkForOptimization(ConcurrencyMode mode) {
   Isolate* isolate = GetIsolate();
   if (!isolate->concurrent_recompilation_enabled() ||
@@ -13981,7 +13964,6 @@ Handle<WeakCell> Code::WeakCellFor(Handle<Code> code) {
   return cell;
 }
 
-
 WeakCell* Code::CachedWeakCell() {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   Object* weak_cell_cache =
@@ -13991,6 +13973,53 @@ WeakCell* Code::CachedWeakCell() {
     return WeakCell::cast(weak_cell_cache);
   }
   return NULL;
+}
+
+bool Code::Inlines(SharedFunctionInfo* sfi) {
+  // We can only check for inlining for optimized code.
+  DCHECK(is_optimized_code());
+  DisallowHeapAllocation no_gc;
+  DeoptimizationInputData* const data =
+      DeoptimizationInputData::cast(deoptimization_data());
+  if (data->length() == 0) return false;
+  if (data->SharedFunctionInfo() == sfi) return true;
+  FixedArray* const literals = data->LiteralArray();
+  int const inlined_count = data->InlinedFunctionCount()->value();
+  for (int i = 0; i < inlined_count; ++i) {
+    if (SharedFunctionInfo::cast(literals->get(i)) == sfi) return true;
+  }
+  return false;
+}
+
+Code::OptimizedCodeIterator::OptimizedCodeIterator(Isolate* isolate) {
+  isolate_ = isolate;
+  Object* list = isolate->heap()->native_contexts_list();
+  next_context_ = list->IsUndefined(isolate_) ? nullptr : Context::cast(list);
+  current_code_ = nullptr;
+}
+
+Code* Code::OptimizedCodeIterator::Next() {
+  do {
+    Object* next;
+    if (current_code_ != nullptr) {
+      // Get next code in the linked list.
+      next = Code::cast(current_code_)->next_code_link();
+    } else if (next_context_ != nullptr) {
+      // Linked list of code exhausted. Get list of next context.
+      next = next_context_->OptimizedCodeListHead();
+      Object* next_context = next_context_->next_context_link();
+      next_context_ = next_context->IsUndefined(isolate_)
+                          ? nullptr
+                          : Context::cast(next_context);
+    } else {
+      // Exhausted contexts.
+      return nullptr;
+    }
+    current_code_ = next->IsUndefined(isolate_) ? nullptr : Code::cast(next);
+  } while (current_code_ == nullptr);
+  Code* code = Code::cast(current_code_);
+  DCHECK_EQ(Code::OPTIMIZED_FUNCTION, code->kind());
+  return code;
 }
 
 #if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
