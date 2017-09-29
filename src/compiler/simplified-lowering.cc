@@ -2664,6 +2664,11 @@ class RepresentationSelector {
         if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
       }
+      case IrOpcode::kObjectIsArrayBufferView: {
+        // TODO(turbofan): Introduce a Type::ArrayBufferView?
+        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
+        return;
+      }
       case IrOpcode::kObjectIsCallable: {
         VisitObjectIs(node, Type::Callable(), lowering);
         return;

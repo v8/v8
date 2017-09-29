@@ -4636,6 +4636,7 @@ enum BuiltinFunctionId {
   kMathPowHalf,
   // These are manually assigned to special getters during bootstrapping.
   kArrayBufferByteLength,
+  kArrayBufferIsView,
   kArrayEntries,
   kArrayKeys,
   kArrayValues,

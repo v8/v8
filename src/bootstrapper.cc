@@ -4445,7 +4445,8 @@ Handle<JSFunction> Genesis::CreateArrayBuffer(Handle<String> name,
                         array_buffer_fun, DONT_ENUM);
 
   SimpleInstallFunction(array_buffer_fun, factory()->isView_string(),
-                        Builtins::kArrayBufferIsView, 1, true);
+                        Builtins::kArrayBufferIsView, 1, true, DONT_ENUM,
+                        kArrayBufferIsView);
 
   // Install the "byteLength" getter on the {prototype}.
   SimpleInstallGetter(prototype, factory()->byte_length_string(),

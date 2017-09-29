@@ -2835,6 +2835,17 @@ Reduction JSBuiltinReducer::ReduceStringToUpperCaseIntl(Node* node) {
   return NoChange();
 }
 
+Reduction JSBuiltinReducer::ReduceArrayBufferIsView(Node* node) {
+  Node* value = node->op()->ValueInputCount() >= 3
+                    ? NodeProperties::GetValueInput(node, 2)
+                    : jsgraph()->UndefinedConstant();
+  RelaxEffectsAndControls(node);
+  node->ReplaceInput(0, value);
+  node->TrimInputCount(1);
+  NodeProperties::ChangeOp(node, simplified()->ObjectIsArrayBufferView());
+  return Changed(node);
+}
+
 Reduction JSBuiltinReducer::ReduceArrayBufferViewAccessor(
     Node* node, InstanceType instance_type, FieldAccess const& access) {
   Node* receiver = NodeProperties::GetValueInput(node, 1);
@@ -3076,6 +3087,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringToLowerCaseIntl(node);
     case kStringToUpperCaseIntl:
       return ReduceStringToUpperCaseIntl(node);
+    case kArrayBufferIsView:
+      return ReduceArrayBufferIsView(node);
     case kDataViewByteLength:
       return ReduceArrayBufferViewAccessor(
           node, JS_DATA_VIEW_TYPE,
