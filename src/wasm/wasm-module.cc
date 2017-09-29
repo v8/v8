@@ -138,11 +138,11 @@ Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
 
   void* allocation_base = nullptr;  // Set by TryAllocateBackingStore
   size_t allocation_length = 0;     // Set by TryAllocateBackingStore
-  // Do not reserve memory till non zero memory is encountered.
-  void* memory =
-      (size == 0) ? nullptr
-                  : TryAllocateBackingStore(isolate, size, enable_guard_regions,
-                                            allocation_base, allocation_length);
+  // Normally we would avoid calling TryAllocateBackingStore at all for
+  // zero-sized memories. This is tricky with guard pages. Instead, this logic
+  // for when to allocate lives inside TryAllocateBackingStore.
+  void* memory = TryAllocateBackingStore(isolate, size, enable_guard_regions,
+                                         allocation_base, allocation_length);
 
   if (size > 0 && memory == nullptr) {
     return Handle<JSArrayBuffer>::null();
