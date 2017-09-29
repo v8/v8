@@ -1781,6 +1781,15 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     }
   }
 
+  // Clear the context register. The context might be a de-materialized object
+  // and will be materialized by {Runtime_NotifyStubFailure}. For additional
+  // safety we use Smi(0) instead of the potential {arguments_marker} here.
+  if (is_topmost) {
+    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
+    Register context_reg = JavaScriptFrame::context_register();
+    output_frame->SetRegister(context_reg.code(), context_value);
+  }
+
   // Ensure the frame pointer register points to the callee's frame. The builtin
   // will build its own frame once we continue to it.
   Register fp_reg = JavaScriptFrame::fp_register();
