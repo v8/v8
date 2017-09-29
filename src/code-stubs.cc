@@ -28,11 +28,6 @@ namespace internal {
 
 using compiler::CodeAssemblerState;
 
-RUNTIME_FUNCTION(UnexpectedStubMiss) {
-  FATAL("Unexpected deopt of a stub");
-  return Smi::kZero;
-}
-
 CodeStubDescriptor::CodeStubDescriptor(CodeStub* stub)
     : isolate_(stub->isolate()),
       call_descriptor_(stub->GetCallInterfaceDescriptor()),
