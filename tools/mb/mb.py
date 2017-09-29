@@ -781,7 +781,7 @@ class MetaBuildWrapper(object):
     # TODO(machenbach): Remove after GYP_MSVS_VERSION is removed on infra side.
     env = {}
     env.update(os.environ)
-    env['GYP_MSVS_VERSION'] = '2015'
+    env['GYP_MSVS_VERSION'] = '2017'
 
     ret, _, _ = self.Run(cmd, env=env)
     if ret:

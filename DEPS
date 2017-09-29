@@ -8,7 +8,7 @@ vars = {
 
 deps = {
   "v8/build":
-    Var("chromium_url") + "/chromium/src/build.git" + "@" + "898597f665820182fc979b13c1b2e6de06a608c4",
+    Var("chromium_url") + "/chromium/src/build.git" + "@" + "57716b379e9bbe0b7b6792046a3dd387001e1643",
   "v8/tools/gyp":
     Var("chromium_url") + "/external/gyp.git" + "@" + "d61a9397e668fa9843c4aa7da9e79460fe590bfb",
   "v8/third_party/icu":
@@ -16,7 +16,7 @@ deps = {
   "v8/third_party/instrumented_libraries":
     Var("chromium_url") + "/chromium/src/third_party/instrumented_libraries.git" + "@" + "644afd349826cb68204226a16c38bde13abe9c3c",
   "v8/buildtools":
-    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "cbc33b9c0a9d1bb913895a4319a742c504a2d541",
+    Var("chromium_url") + "/chromium/buildtools.git" + "@" + "f6d165d9d842ddd29056c127a5f3a3c5d8e0d2e3",
   "v8/base/trace_event/common":
     Var("chromium_url") + "/chromium/src/base/trace_event/common.git" + "@" + "65d1d42a5df6c0a563a6fdfa58a135679185e5d9",
   "v8/third_party/jinja2":
@@ -38,7 +38,7 @@ deps = {
   "v8/test/test262/harness":
     Var("chromium_url") + "/external/github.com/test262-utils/test262-harness-py.git" + "@" + "0f2acdd882c84cff43b9d60df7574a1901e2cdcd",
   "v8/tools/clang":
-    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "cf5e2ed6a9fe35e792587a111a4b2a515deff772",
+    Var("chromium_url") + "/chromium/src/tools/clang.git" + "@" + "66be66dcb7169e736d56d6fc2b53a7d6dac87ac4",
   "v8/test/wasm-js":
     Var("chromium_url") + "/external/github.com/WebAssembly/spec.git" + "@" + "4f1d3114157e6459d8a06e7d8fcc8fc90288cd85",
 }
@@ -48,7 +48,7 @@ deps_os = {
     "v8/third_party/android_tools":
       Var("chromium_url") + "/android_tools.git" + "@" + "aadb2fed04af8606545b0afe4e3060bc1a15fad7",
     "v8/third_party/catapult":
-      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "e3fe21f5029c7d2cd2a83f012375ea9d877733d5",
+      Var('chromium_url') + "/external/github.com/catapult-project/catapult.git" + "@" + "9a255f51046c55ea3c209acd64e36d8a5bd46fa4",
   },
 }
 
