@@ -799,3 +799,35 @@ TEST(Regress753896) {
   // error is not detected inside lazy functions, but it might be in the future.
   i::parsing::ParseProgram(&info, isolate);
 }
+
+TEST(ProducingAndConsumingByteData) {
+  i::Isolate* isolate = CcTest::i_isolate();
+  i::HandleScope scope(isolate);
+  LocalContext env;
+
+  i::Zone zone(isolate->allocator(), ZONE_NAME);
+  i::ProducedPreParsedScopeData::ByteData bytes(&zone);
+  // Write some data.
+  bytes.WriteUint32(1983);  // This will be overwritten.
+  bytes.WriteUint32(2147483647);
+  bytes.WriteUint8(4);
+  bytes.WriteUint8(255);
+  bytes.WriteUint32(0);
+  bytes.WriteUint8(0);
+  bytes.OverwriteFirstUint32(2017);
+  bytes.WriteUint8(100);
+
+  i::Handle<i::PodArray<uint8_t>> data_on_heap = bytes.Serialize(isolate);
+  i::ConsumedPreParsedScopeData::ByteData bytes_for_reading;
+  i::ConsumedPreParsedScopeData::ByteData::ReadingScope reading_scope(
+      &bytes_for_reading, *data_on_heap);
+
+  // Read the data back.
+  CHECK_EQ(bytes_for_reading.ReadUint32(), 2017);
+  CHECK_EQ(bytes_for_reading.ReadUint32(), 2147483647);
+  CHECK_EQ(bytes_for_reading.ReadUint8(), 4);
+  CHECK_EQ(bytes_for_reading.ReadUint8(), 255);
+  CHECK_EQ(bytes_for_reading.ReadUint32(), 0);
+  CHECK_EQ(bytes_for_reading.ReadUint8(), 0);
+  CHECK_EQ(bytes_for_reading.ReadUint8(), 100);
+}

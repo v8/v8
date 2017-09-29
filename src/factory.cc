@@ -1743,7 +1743,7 @@ Handle<ModuleInfo> Factory::NewModuleInfo() {
 Handle<PreParsedScopeData> Factory::NewPreParsedScopeData() {
   Handle<PreParsedScopeData> result =
       Handle<PreParsedScopeData>::cast(NewStruct(TUPLE2_TYPE, TENURED));
-  result->set_scope_data(PodArray<uint32_t>::cast(*empty_byte_array()));
+  result->set_scope_data(PodArray<uint8_t>::cast(*empty_byte_array()));
   result->set_child_data(*empty_fixed_array());
   return result;
 }

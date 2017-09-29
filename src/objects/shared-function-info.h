@@ -19,7 +19,7 @@ class DebugInfo;
 
 class PreParsedScopeData : public Struct {
  public:
-  DECL_ACCESSORS(scope_data, PodArray<uint32_t>)
+  DECL_ACCESSORS(scope_data, PodArray<uint8_t>)
   DECL_ACCESSORS(child_data, FixedArray)
 
   static const int kScopeDataOffset = Struct::kHeaderSize;

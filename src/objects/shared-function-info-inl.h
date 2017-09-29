@@ -16,7 +16,7 @@ namespace v8 {
 namespace internal {
 
 CAST_ACCESSOR(PreParsedScopeData)
-ACCESSORS(PreParsedScopeData, scope_data, PodArray<uint32_t>, kScopeDataOffset)
+ACCESSORS(PreParsedScopeData, scope_data, PodArray<uint8_t>, kScopeDataOffset)
 ACCESSORS(PreParsedScopeData, child_data, FixedArray, kChildDataOffset)
 
 TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
