@@ -16,12 +16,11 @@ namespace v8 {
 namespace internal {
 
 Handle<Code> PropertyHandlerCompiler::GetCode(Handle<Name> name) {
-  Code::Flags flags = Code::ComputeFlags(Code::STUB);
-
   // Create code object in the heap.
   CodeDesc desc;
   masm()->GetCode(isolate(), &desc);
-  Handle<Code> code = factory()->NewCode(desc, flags, masm()->CodeObject());
+  Handle<Code> code =
+      factory()->NewCode(desc, Code::STUB, masm()->CodeObject());
   DCHECK(code->is_stub());
   code->set_stub_key(CodeStub::NoCacheKey());
 #ifdef ENABLE_DISASSEMBLER

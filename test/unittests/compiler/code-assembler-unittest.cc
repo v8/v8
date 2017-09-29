@@ -20,8 +20,7 @@ namespace compiler {
 
 CodeAssemblerTestState::CodeAssemblerTestState(CodeAssemblerTest* test)
     : CodeAssemblerState(test->isolate(), test->zone(),
-                         VoidDescriptor(test->isolate()),
-                         Code::ComputeFlags(Code::STUB), "test") {}
+                         VoidDescriptor(test->isolate()), Code::STUB, "test") {}
 
 TARGET_TEST_F(CodeAssemblerTest, IntPtrAdd) {
   CodeAssemblerTestState state(this);

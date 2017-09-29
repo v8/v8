@@ -104,8 +104,8 @@ Handle<JSFunction> CompileJSToNativeWrapper(Isolate* isolate,
                                             NativeFunction func) {
   int params = static_cast<int>(func.sig->parameter_count());
   Zone zone(isolate->allocator(), ZONE_NAME);
-  CodeAssemblerState state(isolate, &zone, params,
-                           Code::ComputeFlags(Code::BUILTIN), "js-to-native");
+  CodeAssemblerState state(isolate, &zone, params, Code::BUILTIN,
+                           "js-to-native");
   FFIAssembler assembler(&state);
   assembler.GenerateJSToNativeWrapper(&func);
   Handle<Code> code = assembler.GenerateCode(&state);

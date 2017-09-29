@@ -39,7 +39,7 @@ TEST(CodeLayoutWithoutUnwindingInfo) {
   code_desc.unwinding_info_size = 0;
 
   Handle<Code> code = CcTest::i_isolate()->factory()->NewCode(
-      code_desc, 0, Handle<Object>::null());
+      code_desc, Code::STUB, Handle<Object>::null());
 
   CHECK(!code->has_unwinding_info());
   CHECK_EQ(code->instruction_size(), buffer_size);
@@ -76,7 +76,7 @@ TEST(CodeLayoutWithUnwindingInfo) {
   code_desc.unwinding_info_size = unwinding_info_size;
 
   Handle<Code> code = CcTest::i_isolate()->factory()->NewCode(
-      code_desc, 0, Handle<Object>::null());
+      code_desc, Code::STUB, Handle<Object>::null());
 
   CHECK(code->has_unwinding_info());
   CHECK_EQ(code->instruction_size(), buffer_size);

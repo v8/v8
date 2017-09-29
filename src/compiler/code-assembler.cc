@@ -43,35 +43,35 @@ namespace compiler {
 
 CodeAssemblerState::CodeAssemblerState(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
-    Code::Flags flags, const char* name, size_t result_size)
+    Code::Kind kind, const char* name, size_t result_size)
     : CodeAssemblerState(
           isolate, zone,
           Linkage::GetStubCallDescriptor(
               isolate, zone, descriptor, descriptor.GetStackParameterCount(),
               CallDescriptor::kNoFlags, Operator::kNoProperties,
               MachineType::AnyTagged(), result_size),
-          flags, name) {}
+          kind, name) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
-                                       int parameter_count, Code::Flags flags,
+                                       int parameter_count, Code::Kind kind,
                                        const char* name)
-    : CodeAssemblerState(isolate, zone,
-                         Linkage::GetJSCallDescriptor(
-                             zone, false, parameter_count,
-                             Code::ExtractKindFromFlags(flags) == Code::BUILTIN
-                                 ? CallDescriptor::kPushArgumentCount
-                                 : CallDescriptor::kNoFlags),
-                         flags, name) {}
+    : CodeAssemblerState(
+          isolate, zone,
+          Linkage::GetJSCallDescriptor(zone, false, parameter_count,
+                                       kind == Code::BUILTIN
+                                           ? CallDescriptor::kPushArgumentCount
+                                           : CallDescriptor::kNoFlags),
+          kind, name) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        CallDescriptor* call_descriptor,
-                                       Code::Flags flags, const char* name)
+                                       Code::Kind kind, const char* name)
     : raw_assembler_(new RawMachineAssembler(
           isolate, new (zone) Graph(zone), call_descriptor,
           MachineType::PointerRepresentation(),
           InstructionSelector::SupportedMachineOperatorFlags(),
           InstructionSelector::AlignmentRequirements())),
-      flags_(flags),
+      kind_(kind),
       name_(name),
       code_generated_(false),
       variables_(zone) {}
@@ -161,7 +161,7 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
 
   Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
       rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-      state->flags_, state->name_, should_optimize_jumps ? &jump_opt : nullptr);
+      state->kind_, state->name_, should_optimize_jumps ? &jump_opt : nullptr);
 
   if (jump_opt.is_optimizable()) {
     jump_opt.set_optimizing();
@@ -169,7 +169,7 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
     // Regenerate machine code
     code = Pipeline::GenerateCodeForCodeStub(
         rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-        state->flags_, state->name_, &jump_opt);
+        state->kind_, state->name_, &jump_opt);
   }
 
   state->code_generated_ = true;

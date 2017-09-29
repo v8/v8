@@ -988,13 +988,12 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   // |result_size| specifies the number of results returned by the stub.
   // TODO(rmcilroy): move result_size to the CallInterfaceDescriptor.
   CodeAssemblerState(Isolate* isolate, Zone* zone,
-                     const CallInterfaceDescriptor& descriptor,
-                     Code::Flags flags, const char* name,
-                     size_t result_size = 1);
+                     const CallInterfaceDescriptor& descriptor, Code::Kind kind,
+                     const char* name, size_t result_size = 1);
 
   // Create with JSCall linkage.
   CodeAssemblerState(Isolate* isolate, Zone* zone, int parameter_count,
-                     Code::Flags flags, const char* name);
+                     Code::Kind kind, const char* name);
 
   ~CodeAssemblerState();
 
@@ -1012,11 +1011,11 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   friend class CodeAssemblerVariable;
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
-                     CallDescriptor* call_descriptor, Code::Flags flags,
+                     CallDescriptor* call_descriptor, Code::Kind kind,
                      const char* name);
 
   std::unique_ptr<RawMachineAssembler> raw_assembler_;
-  Code::Flags flags_;
+  Code::Kind kind_;
   const char* name_;
   bool code_generated_;
   ZoneSet<CodeAssemblerVariable::Impl*> variables_;

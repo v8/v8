@@ -75,12 +75,11 @@ Handle<Code> CodeGenerator::MakeCodeEpilogue(TurboAssembler* tasm,
 
   // Allocate and install the code.
   CodeDesc desc;
-  Code::Flags flags = info->code_flags();
   tasm->GetCode(isolate, &desc);
   if (eh_frame_writer) eh_frame_writer->GetEhFrame(&desc);
 
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, flags, self_reference, false);
+  Handle<Code> code = isolate->factory()->NewCode(desc, info->code_kind(),
+                                                  self_reference, false);
   isolate->counters()->total_compiled_code_size()->Increment(
       code->instruction_size());
   return code;

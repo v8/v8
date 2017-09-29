@@ -37,8 +37,8 @@ TEST(WasmRelocationArmContextReference) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   compiler::CSignature0<int32_t> csig;
   compiler::CodeRunner<int32_t> runnable(isolate, code, &csig);

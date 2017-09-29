@@ -26,8 +26,8 @@ InterpreterAssemblerTestState::InterpreterAssemblerTestState(
     : compiler::CodeAssemblerState(
           test->isolate(), test->zone(),
           InterpreterDispatchDescriptor(test->isolate()),
-          Code::ComputeFlags(Code::BYTECODE_HANDLER),
-          Bytecodes::ToString(bytecode), Bytecodes::ReturnCount(bytecode)) {}
+          Code::BYTECODE_HANDLER, Bytecodes::ToString(bytecode),
+          Bytecodes::ReturnCount(bytecode)) {}
 
 const interpreter::Bytecode kBytecodes[] = {
 #define DEFINE_BYTECODE(Name, ...) interpreter::Bytecode::k##Name,

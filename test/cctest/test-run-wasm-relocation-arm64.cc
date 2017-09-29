@@ -42,8 +42,8 @@ TEST(WasmRelocationArm64ContextReference) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   compiler::CSignature0<int64_t> csig;
   compiler::CodeRunner<int64_t> runnable(isolate, code, &csig);

@@ -670,7 +670,7 @@ class V8_EXPORT_PRIVATE Factory final {
   // The reference to the Code object is stored in self_reference.
   // This allows generated code to reference its own Code object
   // by containing this handle.
-  Handle<Code> NewCode(const CodeDesc& desc, Code::Flags flags,
+  Handle<Code> NewCode(const CodeDesc& desc, Code::Kind kind,
                        Handle<Object> self_reference, bool immovable = false);
 
   // Allocates a new, empty code object for use by builtin deserialization. The

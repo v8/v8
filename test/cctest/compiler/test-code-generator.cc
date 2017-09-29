@@ -56,8 +56,7 @@ class CodeGeneratorTester : public HandleAndZoneScope {
   CodeGeneratorTester(std::map<MachineRepresentation, int> slots =
                           std::map<MachineRepresentation, int>{},
                       std::initializer_list<Constant> constants = {})
-      : info_(ArrayVector("test"), main_isolate(), main_zone(),
-              Code::ComputeFlags(Code::STUB)),
+      : info_(ArrayVector("test"), main_isolate(), main_zone(), Code::STUB),
         descriptor_(Linkage::GetStubCallDescriptor(
             main_isolate(), main_zone(), VoidDescriptor(main_isolate()), 0,
             CallDescriptor::kNoFlags, Operator::kNoProperties,

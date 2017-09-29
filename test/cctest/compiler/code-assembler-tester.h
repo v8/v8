@@ -21,23 +21,21 @@ class CodeAssemblerTester {
   explicit CodeAssemblerTester(Isolate* isolate)
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, VoidDescriptor(isolate),
-               Code::ComputeFlags(Code::STUB), "test") {}
+        state_(isolate, &zone_, VoidDescriptor(isolate), Code::STUB, "test") {}
 
   // Test generating code for a JS function (e.g. builtins).
   CodeAssemblerTester(Isolate* isolate, int parameter_count,
                       Code::Kind kind = Code::BUILTIN)
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, parameter_count, Code::ComputeFlags(kind),
-               "test") {}
+        state_(isolate, &zone_, parameter_count, kind, "test") {}
 
   // This constructor is intended to be used for creating code objects with
   // specific flags.
-  CodeAssemblerTester(Isolate* isolate, Code::Flags flags)
+  CodeAssemblerTester(Isolate* isolate, Code::Kind kind)
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, 0, flags, "test") {}
+        state_(isolate, &zone_, 0, kind, "test") {}
 
   CodeAssemblerState* state() { return &state_; }
 

@@ -257,7 +257,7 @@ Handle<Code> CompileGraph(const char* name, CallDescriptor* desc, Graph* graph,
                           Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   CompilationInfo info(ArrayVector("testing"), isolate, graph->zone(),
-                       Code::ComputeFlags(Code::STUB));
+                       Code::STUB);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, desc, graph, schedule);
   CHECK(!code.is_null());

@@ -3446,7 +3446,7 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
   Zone zone(isolate->allocator(), ZONE_NAME);
   InterpreterDispatchDescriptor descriptor(isolate);
   compiler::CodeAssemblerState state(
-      isolate, &zone, descriptor, Code::ComputeFlags(Code::BYTECODE_HANDLER),
+      isolate, &zone, descriptor, Code::BYTECODE_HANDLER,
       Bytecodes::ToString(bytecode), Bytecodes::ReturnCount(bytecode));
 
   switch (bytecode) {

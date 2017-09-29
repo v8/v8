@@ -196,8 +196,8 @@ static void TestInvalidateExclusiveAccess(
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
   TestData t = initial_data;
 
@@ -264,8 +264,8 @@ static int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   F3 f = FUNCTION_CAST<F3>(code->entry());
 
   return reinterpret_cast<int>(

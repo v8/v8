@@ -197,8 +197,8 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
   Code* tmp = nullptr;
   heap->CopyCode(*code).To(&tmp);
@@ -219,8 +219,8 @@ static void CheckFindCodeObject(Isolate* isolate) {
 
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   CHECK(code->IsCode());
 
   HeapObject* obj = HeapObject::cast(*code);
@@ -231,8 +231,8 @@ static void CheckFindCodeObject(Isolate* isolate) {
     CHECK_EQ(*code, found);
   }
 
-  Handle<Code> copy = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> copy =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   HeapObject* obj_copy = HeapObject::cast(*copy);
   Object* not_right = isolate->FindCodeObject(obj_copy->address() +
                                               obj_copy->Size() / 2);
@@ -3915,8 +3915,8 @@ static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   masm.Drop(1);
   masm.GetCode(isolate, &desc);
   Handle<Object> undefined(isolate->heap()->undefined_value(), isolate);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::OPTIMIZED_FUNCTION), undefined);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::OPTIMIZED_FUNCTION, undefined);
   CHECK(code->IsCode());
   return code;
 }
@@ -5823,8 +5823,8 @@ Handle<Code> GenerateDummyImmovableCode(Isolate* isolate) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   const bool kImmovable = true;
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>(), kImmovable);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>(), kImmovable);
   CHECK(code->IsCode());
 
   return code;

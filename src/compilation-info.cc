@@ -22,8 +22,7 @@ namespace internal {
 CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
                                  ParseInfo* parse_info,
                                  FunctionLiteral* literal)
-    : CompilationInfo({}, Code::ComputeFlags(Code::OPTIMIZED_FUNCTION), BASE,
-                      isolate, zone) {
+    : CompilationInfo({}, Code::OPTIMIZED_FUNCTION, BASE, isolate, zone) {
   // NOTE: The parse_info passed here represents the global information gathered
   // during parsing, but does not represent specific details of the actual
   // function literal being compiled for this CompilationInfo. As such,
@@ -41,8 +40,7 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
 CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
                                  Handle<SharedFunctionInfo> shared,
                                  Handle<JSFunction> closure)
-    : CompilationInfo({}, Code::ComputeFlags(Code::OPTIMIZED_FUNCTION),
-                      OPTIMIZE, isolate, zone) {
+    : CompilationInfo({}, Code::OPTIMIZED_FUNCTION, OPTIMIZE, isolate, zone) {
   shared_info_ = shared;
   closure_ = closure;
   optimization_id_ = isolate->NextOptimizationId();
@@ -60,16 +58,16 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
 
 CompilationInfo::CompilationInfo(Vector<const char> debug_name,
                                  Isolate* isolate, Zone* zone,
-                                 Code::Flags code_flags)
-    : CompilationInfo(debug_name, code_flags, STUB, isolate, zone) {}
+                                 Code::Kind code_kind)
+    : CompilationInfo(debug_name, code_kind, STUB, isolate, zone) {}
 
 CompilationInfo::CompilationInfo(Vector<const char> debug_name,
-                                 Code::Flags code_flags, Mode mode,
+                                 Code::Kind code_kind, Mode mode,
                                  Isolate* isolate, Zone* zone)
     : isolate_(isolate),
       literal_(nullptr),
       flags_(0),
-      code_flags_(code_flags),
+      code_kind_(code_kind),
       mode_(mode),
       osr_offset_(BailoutId::None()),
       zone_(zone),
@@ -144,7 +142,7 @@ std::unique_ptr<char[]> CompilationInfo::GetDebugName() const {
 }
 
 StackFrame::Type CompilationInfo::GetOutputStackFrameType() const {
-  switch (output_code_kind()) {
+  switch (code_kind()) {
     case Code::STUB:
     case Code::BYTECODE_HANDLER:
     case Code::BUILTIN:
@@ -199,10 +197,6 @@ int CompilationInfo::AddInlinedFunction(
   int id = static_cast<int>(inlined_functions_.size());
   inlined_functions_.push_back(InlinedFunctionHolder(inlined_function, pos));
   return id;
-}
-
-Code::Kind CompilationInfo::output_code_kind() const {
-  return Code::ExtractKindFromFlags(code_flags_);
 }
 
 }  // namespace internal

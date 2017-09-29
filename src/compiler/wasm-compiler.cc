@@ -4142,7 +4142,6 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
       static_cast<int>(module->functions[index].sig->parameter_count());
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
       &zone, false, params + 1, CallDescriptor::kNoFlags);
-  Code::Flags flags = Code::ComputeFlags(Code::JS_TO_WASM_FUNCTION);
   bool debugging =
 #if DEBUG
       true;
@@ -4159,7 +4158,7 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
     func_name = Vector<const char>::cast(buffer.SubVector(0, chars));
   }
 
-  CompilationInfo info(func_name, isolate, &zone, flags);
+  CompilationInfo info(func_name, isolate, &zone, Code::JS_TO_WASM_FUNCTION);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, incoming, &graph);
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code && !code.is_null()) {
@@ -4263,7 +4262,6 @@ Handle<Code> CompileWasmToJSWrapper(
     if (machine.Is32()) {
       incoming = GetI32WasmCallDescriptor(&zone, incoming);
     }
-    Code::Flags flags = Code::ComputeFlags(Code::WASM_TO_JS_FUNCTION);
     bool debugging =
 #if DEBUG
         true;
@@ -4279,7 +4277,7 @@ Handle<Code> CompileWasmToJSWrapper(
       func_name = Vector<const char>::cast(buffer.SubVector(0, chars));
     }
 
-    CompilationInfo info(func_name, isolate, &zone, flags);
+    CompilationInfo info(func_name, isolate, &zone, Code::WASM_TO_JS_FUNCTION);
     code = Pipeline::GenerateCodeForTesting(&info, incoming, &graph, nullptr,
                                             source_position_table);
     ValidateImportWrapperReferencesImmovables(code);
@@ -4343,7 +4341,6 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, Handle<Code> target,
   if (machine.Is32()) {
     incoming = GetI32WasmCallDescriptor(&zone, incoming);
   }
-  Code::Flags flags = Code::ComputeFlags(Code::WASM_FUNCTION);
   bool debugging =
 #if DEBUG
       true;
@@ -4359,7 +4356,7 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, Handle<Code> target,
     func_name = Vector<const char>::cast(buffer.SubVector(0, chars));
   }
 
-  CompilationInfo info(func_name, isolate, &zone, flags);
+  CompilationInfo info(func_name, isolate, &zone, Code::WASM_FUNCTION);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, incoming, &graph);
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code && !code.is_null()) {
@@ -4415,7 +4412,6 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
     if (machine.Is32()) {
       incoming = GetI32WasmCallDescriptor(&zone, incoming);
     }
-    Code::Flags flags = Code::ComputeFlags(Code::WASM_INTERPRETER_ENTRY);
     EmbeddedVector<char, 32> debug_name;
     int name_len =
         SNPrintF(debug_name, "wasm-interpreter-entry#%d", func_index);
@@ -4423,7 +4419,8 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
     debug_name.Truncate(name_len);
     DCHECK_EQ('\0', debug_name.start()[debug_name.length()]);
 
-    CompilationInfo info(debug_name, isolate, &zone, flags);
+    CompilationInfo info(debug_name, isolate, &zone,
+                         Code::WASM_INTERPRETER_ENTRY);
     code = Pipeline::GenerateCodeForTesting(&info, incoming, &graph, nullptr);
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code && !code.is_null()) {
@@ -4473,7 +4470,6 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
   CallDescriptor* incoming = Linkage::GetJSCallDescriptor(
       &zone, false, CWasmEntryParameters::kNumParameters + 1,
       CallDescriptor::kNoFlags);
-  Code::Flags flags = Code::ComputeFlags(Code::C_WASM_ENTRY);
 
   // Build a name in the form "c-wasm-entry:<params>:<returns>".
   static constexpr size_t kMaxNameLen = 128;
@@ -4492,7 +4488,7 @@ Handle<Code> CompileCWasmEntry(Isolate* isolate, wasm::FunctionSig* sig,
   debug_name[name_len] = '\0';
   Vector<const char> debug_name_vec(debug_name, name_len);
 
-  CompilationInfo info(debug_name_vec, isolate, &zone, flags);
+  CompilationInfo info(debug_name_vec, isolate, &zone, Code::C_WASM_ENTRY);
   Handle<Code> code = Pipeline::GenerateCodeForTesting(&info, incoming, &graph);
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_opt_code && !code.is_null()) {
@@ -4640,8 +4636,7 @@ void WasmCompilationUnit::ExecuteCompilation() {
     }
     info_.reset(new CompilationInfo(
         GetDebugName(compilation_zone_.get(), func_name_, func_index_),
-        isolate_, compilation_zone_.get(),
-        Code::ComputeFlags(Code::WASM_FUNCTION)));
+        isolate_, compilation_zone_.get(), Code::WASM_FUNCTION));
     ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions(
         compilation_zone_.get());
 

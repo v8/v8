@@ -125,9 +125,8 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   CodeDesc desc;
   masm.GetCode(isolate(), &desc);
   // Copy the generated code into a heap object.
-  Code::Flags flags = Code::ComputeFlags(Code::STUB);
   Handle<Code> new_object = factory->NewCode(
-      desc, flags, masm.CodeObject(), NeedsImmovableCode());
+      desc, Code::STUB, masm.CodeObject(), NeedsImmovableCode());
   return new_object;
 }
 
@@ -296,8 +295,8 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   const char* name = CodeStub::MajorName(MajorKey());
   Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
-  compiler::CodeAssemblerState state(isolate(), &zone, descriptor,
-                                     Code::ComputeFlags(Code::STUB), name);
+  compiler::CodeAssemblerState state(isolate(), &zone, descriptor, Code::STUB,
+                                     name);
   GenerateAssembly(&state);
   return compiler::CodeAssembler::GenerateCode(&state);
 }

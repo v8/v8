@@ -69,7 +69,7 @@ class RawMachineAssemblerTester : public HandleAndZoneScope,
       CallDescriptor* call_descriptor = this->call_descriptor();
       Graph* graph = this->graph();
       CompilationInfo info(ArrayVector("testing"), main_isolate(), main_zone(),
-                           Code::ComputeFlags(Code::STUB));
+                           Code::STUB);
       code_ = Pipeline::GenerateCodeForTesting(&info, call_descriptor, graph,
                                                schedule);
     }

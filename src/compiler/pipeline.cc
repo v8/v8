@@ -1755,10 +1755,10 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
                                                CallDescriptor* call_descriptor,
                                                Graph* graph, Schedule* schedule,
-                                               Code::Flags flags,
+                                               Code::Kind kind,
                                                const char* debug_name,
                                                JumpOptimizationInfo* jump_opt) {
-  CompilationInfo info(CStrVector(debug_name), isolate, graph->zone(), flags);
+  CompilationInfo info(CStrVector(debug_name), isolate, graph->zone(), kind);
   if (isolate->serializer_enabled()) info.MarkAsSerializing();
 
   // Construct a pipeline for scheduling and code generation.
@@ -1877,7 +1877,7 @@ bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,
                                            InstructionSequence* sequence,
                                            bool run_verifier) {
   CompilationInfo info(ArrayVector("testing"), sequence->isolate(),
-                       sequence->zone(), Code::ComputeFlags(Code::STUB));
+                       sequence->zone(), Code::STUB);
   ZoneStats zone_stats(sequence->isolate()->allocator());
   PipelineData data(&zone_stats, &info, sequence);
   PipelineImpl pipeline(&data);

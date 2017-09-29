@@ -3489,11 +3489,6 @@ bool Map::is_dictionary_map() const {
   return DictionaryMap::decode(bit_field3());
 }
 
-Code::Flags Code::flags() const {
-  return static_cast<Flags>(READ_INT_FIELD(this, kFlagsOffset));
-}
-
-
 void Map::set_owns_descriptors(bool owns_descriptors) {
   set_bit_field3(OwnsDescriptors::update(bit_field3(), owns_descriptors));
 }
@@ -3686,13 +3681,20 @@ void DependentCode::copy(int from, int to) {
   set(kCodesStartIndex + to, get(kCodesStartIndex + from));
 }
 
-
-void Code::set_flags(Code::Flags flags) {
-  STATIC_ASSERT(Code::NUMBER_OF_KINDS <= KindField::kMax + 1);
-  WRITE_INT_FIELD(this, kFlagsOffset, flags);
+Code::Kind Code::kind() const {
+  return KindField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
 }
 
-Code::Kind Code::kind() const { return ExtractKindFromFlags(flags()); }
+void Code::initialize_flags(Kind kind) {
+  WRITE_UINT32_FIELD(this, kFlagsOffset, KindField::encode(kind));
+}
+
+void Code::set_kind(Kind kind) {
+  STATIC_ASSERT(Code::NUMBER_OF_KINDS <= KindField::kMax + 1);
+  uint32_t previous = READ_UINT32_FIELD(this, kFlagsOffset);
+  uint32_t updated_value = KindField::update(previous, kind);
+  WRITE_UINT32_FIELD(this, kFlagsOffset, updated_value);
+}
 
 // For initialization.
 void Code::set_raw_kind_specific_flags1(int value) {
@@ -3905,17 +3907,6 @@ Address Code::constant_pool() {
   }
   return constant_pool;
 }
-
-Code::Flags Code::ComputeFlags(Kind kind) {
-  // Compute the bit mask.
-  unsigned int bits = KindField::encode(kind);
-  return static_cast<Flags>(bits);
-}
-
-Code::Kind Code::ExtractKindFromFlags(Flags flags) {
-  return KindField::decode(flags);
-}
-
 
 Code* Code::GetCodeFromTargetAddress(Address address) {
   HeapObject* code = HeapObject::FromAddress(address - Code::kHeaderSize);

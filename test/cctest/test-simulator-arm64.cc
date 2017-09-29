@@ -189,8 +189,8 @@ static void TestInvalidateExclusiveAccess(
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   TestData t = initial_data;
   Simulator::CallArgument args[] = {
       Simulator::CallArgument(reinterpret_cast<uintptr_t>(&t)),
@@ -259,8 +259,8 @@ static int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
 
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::ComputeFlags(Code::STUB), Handle<Code>());
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
   Simulator::CallArgument args[] = {
       Simulator::CallArgument(reinterpret_cast<uintptr_t>(test_data)),
       Simulator::CallArgument::End()};
