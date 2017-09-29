@@ -719,9 +719,8 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
 
   if (receiver->IsStringWrapper() &&
       *lookup->name() == isolate()->heap()->length_string()) {
-    TRACE_HANDLER_STATS(isolate(), LoadIC_StringLengthStub);
-    StringLengthStub string_length_stub(isolate());
-    return string_length_stub.GetCode();
+    TRACE_HANDLER_STATS(isolate(), LoadIC_StringLength);
+    return BUILTIN_CODE(isolate(), LoadIC_StringLength);
   }
 
   // Use specialized code for getting prototype of functions.

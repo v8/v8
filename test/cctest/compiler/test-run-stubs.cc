@@ -108,8 +108,7 @@ TEST(RunStringLengthStub) {
   Isolate* isolate = scope.main_isolate();
   Zone* zone = scope.main_zone();
 
-  StringLengthStub stub(isolate);
-  StubTester tester(isolate, zone, &stub);
+  StubTester tester(isolate, zone, Builtins::kLoadIC_StringLength);
 
   // Actuall call through to the stub, verifying its result.
   const char* testString = "Und das Lamm schrie HURZ!";

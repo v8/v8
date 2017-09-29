@@ -47,7 +47,6 @@ class Node;
   V(ArrayNoArgumentConstructor)               \
   V(ArraySingleArgumentConstructor)           \
   V(ArrayNArgumentsConstructor)               \
-  V(StringLength)                             \
   V(InternalArrayNoArgumentConstructor)       \
   V(InternalArraySingleArgumentConstructor)   \
   V(ElementsTransitionAndStore)               \
@@ -461,14 +460,6 @@ class TurboFanCodeStub : public CodeStub {
 
 namespace v8 {
 namespace internal {
-
-class StringLengthStub : public TurboFanCodeStub {
- public:
-  explicit StringLengthStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(LoadWithVector);
-  DEFINE_TURBOFAN_CODE_STUB(StringLength, TurboFanCodeStub);
-};
 
 class StoreInterceptorStub : public TurboFanCodeStub {
  public:

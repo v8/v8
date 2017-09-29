@@ -867,7 +867,7 @@ class RuntimeCallTimer final {
   V(LoadIC_NonReceiver)                          \
   V(LoadIC_Premonomorphic)                       \
   V(LoadIC_SlowStub)                             \
-  V(LoadIC_StringLengthStub)                     \
+  V(LoadIC_StringLength)                         \
   V(StoreIC_HandlerCacheHit_Accessor)            \
   V(StoreIC_NonReceiver)                         \
   V(StoreIC_Premonomorphic)                      \
