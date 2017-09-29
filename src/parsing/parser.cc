@@ -464,7 +464,7 @@ Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
                          info->extension(), info->GetOrCreateAstValueFactory(),
                          info->runtime_call_stats(), true),
-      scanner_(info->unicode_cache()),
+      scanner_(info->unicode_cache(), use_counts_),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
       source_range_map_(info->source_range_map()),
