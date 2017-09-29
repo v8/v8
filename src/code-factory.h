@@ -63,8 +63,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable FastNewFunctionContext(Isolate* isolate,
                                          ScopeType scope_type);
 
-  static Callable AllocateHeapNumber(Isolate* isolate);
-
   static Callable ArgumentAdaptor(Isolate* isolate);
   static Callable Call(Isolate* isolate,
                        ConvertReceiverMode mode = ConvertReceiverMode::kAny);

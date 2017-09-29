@@ -210,12 +210,6 @@ Callable CodeFactory::FastNewFunctionContext(Isolate* isolate,
 }
 
 // static
-Callable CodeFactory::AllocateHeapNumber(Isolate* isolate) {
-  AllocateHeapNumberStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
 Callable CodeFactory::ArgumentAdaptor(Isolate* isolate) {
   return Callable(BUILTIN_CODE(isolate, ArgumentsAdaptorTrampoline),
                   ArgumentAdaptorDescriptor(isolate));

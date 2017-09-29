@@ -354,12 +354,6 @@ TF_STUB(ElementsTransitionAndStoreStub, CodeStubAssembler) {
   }
 }
 
-// TODO(ishell): move to builtins.
-TF_STUB(AllocateHeapNumberStub, CodeStubAssembler) {
-  Node* result = AllocateHeapNumber();
-  Return(result);
-}
-
 // TODO(ishell): move to builtins-handler-gen.
 TF_STUB(StringLengthStub, CodeStubAssembler) {
   Node* value = Parameter(Descriptor::kReceiver);
@@ -504,13 +498,6 @@ void JSEntryStub::FinishCode(Handle<Code> code) {
       code->GetIsolate()->factory()->NewFixedArray(1, TENURED);
   handler_table->set(0, Smi::FromInt(handler_offset_));
   code->set_handler_table(*handler_table);
-}
-
-
-void AllocateHeapNumberStub::InitializeDescriptor(
-    CodeStubDescriptor* descriptor) {
-  descriptor->Initialize(
-      Runtime::FunctionForId(Runtime::kAllocateHeapNumber)->entry);
 }
 
 

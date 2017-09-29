@@ -2736,9 +2736,10 @@ Node* WasmGraphBuilder::BuildAllocateHeapNumberWithValue(Node* value,
                                                          Node* control) {
   MachineOperatorBuilder* machine = jsgraph()->machine();
   CommonOperatorBuilder* common = jsgraph()->common();
-  // The AllocateHeapNumberStub does not use the js_context, so we can safely
-  // pass in Smi zero here.
-  Callable callable = CodeFactory::AllocateHeapNumber(jsgraph()->isolate());
+  // The AllocateHeapNumber builtin does not use the js_context, so we can
+  // safely pass in Smi zero here.
+  Callable callable = Builtins::CallableFor(jsgraph()->isolate(),
+                                            Builtins::kAllocateHeapNumber);
   Node* target = jsgraph()->HeapConstant(callable.code());
   Node* js_context = jsgraph()->NoContextConstant();
   Node* effect =

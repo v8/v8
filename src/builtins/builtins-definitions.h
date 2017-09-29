@@ -647,6 +647,7 @@ namespace internal {
   TFJ(MathTrunc, 1, kX)                                                        \
                                                                                \
   /* Number */                                                                 \
+  TFC(AllocateHeapNumber, AllocateHeapNumber, 1)                               \
   /* ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Call]] case */        \
   TFJ(NumberConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)      \
   /* ES6 section 20.1.1.1 Number ( [ value ] ) for the [[Construct]] case */   \

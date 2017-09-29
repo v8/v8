@@ -44,7 +44,6 @@ class Node;
   V(SubString)                                \
   V(NameDictionaryLookup)                     \
   /* --- TurboFanCodeStubs --- */             \
-  V(AllocateHeapNumber)                       \
   V(ArrayNoArgumentConstructor)               \
   V(ArraySingleArgumentConstructor)           \
   V(ArrayNArgumentsConstructor)               \
@@ -960,17 +959,6 @@ class StoreFastElementStub : public TurboFanCodeStub {
   DEFINE_TURBOFAN_CODE_STUB(StoreFastElement, TurboFanCodeStub);
 };
 
-
-class AllocateHeapNumberStub : public TurboFanCodeStub {
- public:
-  explicit AllocateHeapNumberStub(Isolate* isolate)
-      : TurboFanCodeStub(isolate) {}
-
-  void InitializeDescriptor(CodeStubDescriptor* descriptor) override;
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(AllocateHeapNumber);
-  DEFINE_TURBOFAN_CODE_STUB(AllocateHeapNumber, TurboFanCodeStub);
-};
 
 class CommonArrayConstructorStub : public TurboFanCodeStub {
  protected:

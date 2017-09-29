@@ -84,6 +84,11 @@ TF_BUILTIN(NumberIsFinite, CodeStubAssembler) {
   Return(BooleanConstant(false));
 }
 
+TF_BUILTIN(AllocateHeapNumber, CodeStubAssembler) {
+  Node* result = AllocateHeapNumber();
+  Return(result);
+}
+
 // ES6 #sec-number.isinteger
 TF_BUILTIN(NumberIsInteger, CodeStubAssembler) {
   Node* number = Parameter(Descriptor::kNumber);
