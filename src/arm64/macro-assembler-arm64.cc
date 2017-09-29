@@ -1482,62 +1482,6 @@ void TurboAssembler::AssertCspAligned() {
   }
 }
 
-void TurboAssembler::CopySlots(int dst, Register src, Register slot_count) {
-  DCHECK(!src.IsZero());
-  UseScratchRegisterScope scope(this);
-  Register dst_reg = scope.AcquireX();
-  Add(dst_reg, StackPointer(), dst << kPointerSizeLog2);
-  Add(src, StackPointer(), Operand(src, LSL, kPointerSizeLog2));
-  CopyDoubleWords(dst_reg, src, slot_count);
-}
-
-void TurboAssembler::CopySlots(Register dst, Register src,
-                               Register slot_count) {
-  DCHECK(!dst.IsZero() && !src.IsZero());
-  Add(dst, StackPointer(), Operand(dst, LSL, kPointerSizeLog2));
-  Add(src, StackPointer(), Operand(src, LSL, kPointerSizeLog2));
-  CopyDoubleWords(dst, src, slot_count);
-}
-
-void TurboAssembler::CopyDoubleWords(Register dst, Register src,
-                                     Register count) {
-  if (emit_debug_code()) {
-    // Copy requires dst < src || (dst - src) >= count.
-    Label dst_below_src;
-    Subs(dst, dst, src);
-    B(lt, &dst_below_src);
-    Cmp(dst, count);
-    Check(ge, kOffsetOutOfRange);
-    Bind(&dst_below_src);
-    Add(dst, dst, src);
-  }
-
-  static_assert(kPointerSize == kDRegSize,
-                "pointers must be the same size as doubles");
-  UseScratchRegisterScope scope(this);
-  VRegister temp0 = scope.AcquireD();
-  VRegister temp1 = scope.AcquireD();
-
-  Label pairs, done;
-
-  Tbz(count, 0, &pairs);
-  Ldr(temp0, MemOperand(src, kPointerSize, PostIndex));
-  Sub(count, count, 1);
-  Str(temp0, MemOperand(dst, kPointerSize, PostIndex));
-
-  Bind(&pairs);
-  Cbz(count, &done);
-  Ldp(temp0, temp1, MemOperand(src, 2 * kPointerSize, PostIndex));
-  Sub(count, count, 2);
-  Stp(temp0, temp1, MemOperand(dst, 2 * kPointerSize, PostIndex));
-  B(&pairs);
-
-  // TODO(all): large copies may benefit from using temporary Q registers
-  // to copy four double words per iteration.
-
-  Bind(&done);
-}
-
 void TurboAssembler::AssertFPCRState(Register fpcr) {
   if (emit_debug_code()) {
     Label unexpected_mode, done;
