@@ -46,7 +46,6 @@ struct BlockEffectControlData {
   Node* current_effect = nullptr;       // New effect.
   Node* current_control = nullptr;      // New control.
   Node* current_frame_state = nullptr;  // New frame state.
-  bool dead = false;                    // This control edge can never be taken.
 };
 
 class BlockEffectControlMap {
@@ -77,14 +76,8 @@ struct PendingEffectPhi {
       : effect_phi(effect_phi), block(block) {}
 };
 
-Node* InsertUnreachable(Node* effect, Node* control, JSGraph* jsgraph) {
-  if (effect->opcode() == IrOpcode::kUnreachable) return effect;
-  return jsgraph->graph()->NewNode(jsgraph->common()->Unreachable(), effect,
-                                   control);
-}
-
 void UpdateEffectPhi(Node* node, BasicBlock* block,
-                     BlockEffectControlMap* block_effects, JSGraph* jsgraph) {
+                     BlockEffectControlMap* block_effects) {
   // Update all inputs to an effect phi with the effects from the given
   // block->effect map.
   DCHECK_EQ(IrOpcode::kEffectPhi, node->opcode());
@@ -95,12 +88,8 @@ void UpdateEffectPhi(Node* node, BasicBlock* block,
     BasicBlock* predecessor = block->PredecessorAt(static_cast<size_t>(i));
     const BlockEffectControlData& block_effect =
         block_effects->For(predecessor, block);
-    Node* effect = block_effect.current_effect;
-    if (block_effect.dead) {
-      effect = InsertUnreachable(effect, block_effect.current_control, jsgraph);
-    }
-    if (input != effect) {
-      node->ReplaceInput(i, effect);
+    if (input != block_effect.current_effect) {
+      node->ReplaceInput(i, block_effect.current_effect);
     }
   }
 }
@@ -314,31 +303,6 @@ void TryCloneBranch(Node* node, BasicBlock* block, Zone* temp_zone,
   cond->Kill();
   merge->Kill();
 }
-
-Node* SentinelValue(JSGraph* graph, MachineRepresentation representation) {
-  switch (representation) {
-    case MachineRepresentation::kTagged:
-    case MachineRepresentation::kTaggedSigned:
-      return graph->SmiConstant(0xdead);
-    case MachineRepresentation::kTaggedPointer:
-      return graph->OptimizedOutConstant();
-    case MachineRepresentation::kFloat32:
-      return graph->Float32Constant(bit_cast<float>(0xdeaddead));
-    case MachineRepresentation::kFloat64:
-      return graph->Float32Constant(bit_cast<double>(0xdeaddeaddeaddead));
-    case MachineRepresentation::kBit:
-    case MachineRepresentation::kWord8:
-      return graph->Int32Constant(0);
-    case MachineRepresentation::kWord16:
-    case MachineRepresentation::kWord32:
-      return graph->Int32Constant(0xdead);
-    case MachineRepresentation::kWord64:
-      return graph->Int64Constant(0xdead);
-    default:
-      UNREACHABLE();
-  }
-}
-
 }  // namespace
 
 void EffectControlLinearizer::Run() {
@@ -366,38 +330,29 @@ void EffectControlLinearizer::Run() {
     instr++;
 
     // Iterate over the phis and update the effect phis.
-    Node* effect_phi = nullptr;
+    Node* effect = nullptr;
     Node* terminate = nullptr;
-    int predecessor_count = static_cast<int>(block->PredecessorCount());
     for (; instr < block->NodeCount(); instr++) {
       Node* node = block->NodeAt(instr);
       // Only go through the phis and effect phis.
       if (node->opcode() == IrOpcode::kEffectPhi) {
         // There should be at most one effect phi in a block.
-        DCHECK_NULL(effect_phi);
+        DCHECK_NULL(effect);
         // IfException blocks should not have effect phis.
         DCHECK_NE(IrOpcode::kIfException, control->opcode());
-        effect_phi = node;
-      } else if (node->opcode() == IrOpcode::kPhi) {
-        DCHECK_EQ(predecessor_count, node->op()->ValueInputCount());
-        // If a value input of a phi node is {DeadValue}, then the
-        // corresponding control edge is dead.
-        for (int i = 0; i < predecessor_count; ++i) {
-          if (NodeProperties::GetValueInput(node, i)->opcode() ==
-              IrOpcode::kDeadValue) {
-            MachineRepresentation representation =
-                PhiRepresentationOf(node->op());
-            NodeProperties::ReplaceValueInput(
-                node, SentinelValue(jsgraph(), representation), i);
-            BlockEffectControlData* data =
-                &block_effects.For(block->predecessors()[i], block);
-            data->dead = true;
-            if (data->current_effect) {
-              data->current_effect = InsertUnreachable(
-                  data->current_effect, data->current_control, jsgraph());
-            }
-          }
+        effect = node;
+
+        // Make sure we update the inputs to the incoming blocks' effects.
+        if (HasIncomingBackEdges(block)) {
+          // In case of loops, we do not update the effect phi immediately
+          // because the back predecessor has not been handled yet. We just
+          // record the effect phi for later processing.
+          pending_effect_phis.push_back(PendingEffectPhi(node, block));
+        } else {
+          UpdateEffectPhi(node, block, &block_effects);
         }
+      } else if (node->opcode() == IrOpcode::kPhi) {
+        // Just skip phis.
       } else if (node->opcode() == IrOpcode::kTerminate) {
         DCHECK_NULL(terminate);
         terminate = node;
@@ -406,19 +361,6 @@ void EffectControlLinearizer::Run() {
       }
     }
 
-    if (effect_phi) {
-      // Make sure we update the inputs to the incoming blocks' effects.
-      if (HasIncomingBackEdges(block)) {
-        // In case of loops, we do not update the effect phi immediately
-        // because the back predecessor has not been handled yet. We just
-        // record the effect phi for later processing.
-        pending_effect_phis.push_back(PendingEffectPhi(effect_phi, block));
-      } else {
-        UpdateEffectPhi(effect_phi, block, &block_effects, jsgraph());
-      }
-    }
-
-    Node* effect = effect_phi;
     if (effect == nullptr) {
       // There was no effect phi.
       DCHECK(!HasIncomingBackEdges(block));
@@ -457,7 +399,7 @@ void EffectControlLinearizer::Run() {
           if (control->opcode() == IrOpcode::kLoop) {
             pending_effect_phis.push_back(PendingEffectPhi(effect, block));
           } else {
-            UpdateEffectPhi(effect, block, &block_effects, jsgraph());
+            UpdateEffectPhi(effect, block, &block_effects);
           }
         } else if (control->opcode() == IrOpcode::kIfException) {
           // The IfException is connected into the effect chain, so we need
@@ -538,7 +480,7 @@ void EffectControlLinearizer::Run() {
   // during the first pass (because they could have incoming back edges).
   for (const PendingEffectPhi& pending_effect_phi : pending_effect_phis) {
     UpdateEffectPhi(pending_effect_phi.effect_phi, pending_effect_phi.block,
-                    &block_effects, jsgraph());
+                    &block_effects);
   }
   for (BasicBlock* pending_block_control : pending_block_controls) {
     UpdateBlockControl(pending_block_control, &block_effects);
@@ -554,18 +496,6 @@ void EffectControlLinearizer::ProcessNode(Node* node, Node** frame_state,
   // here. Pass current frame state for lowering to eager deoptimization.
   if (TryWireInStateEffect(node, *frame_state, effect, control)) {
     return;
-  }
-
-  // {Branch} and {Switch} nodes can have a {DeadValue} condition not pruned in
-  // {DeadCodeElimination}. Now we have the effect chain at hand to insert
-  // {Unreachable}. After this assertion, it is safe to replace {DeadValue} with
-  // an arbitrary value.
-  if ((node->opcode() == IrOpcode::kBranch ||
-       node->opcode() == IrOpcode::kSwitch) &&
-      NodeProperties::GetValueInput(node, 0)->opcode() ==
-          IrOpcode::kDeadValue) {
-    *effect = InsertUnreachable(*effect, *control, jsgraph());
-    node->ReplaceInput(0, jsgraph()->Int32Constant(0));
   }
 
   // If the node has a visible effect, then there must be a checkpoint in the
