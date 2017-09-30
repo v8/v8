@@ -44,17 +44,9 @@
 #include "include/libplatform/v8-tracing.h"
 #include "src/tracing/trace-event.h"
 
-using i::CodeEntry;
-using i::CpuProfile;
-using i::CpuProfiler;
-using i::CpuProfilesCollection;
-using i::Heap;
-using i::ProfileGenerator;
-using i::ProfileNode;
-using i::ProfilerEventsProcessor;
-using i::ProfilerListener;
-using i::ScopedVector;
-using i::Vector;
+namespace v8 {
+namespace internal {
+namespace test_cpu_profiler {
 
 // Helper methods
 static v8::Local<v8::Function> GetFunction(v8::Local<v8::Context> env,
@@ -2192,3 +2184,7 @@ TEST(TracingCpuProfiler) {
 
   i::V8::SetPlatformForTesting(old_platform);
 }
+
+}  // namespace test_cpu_profiler
+}  // namespace internal
+}  // namespace v8
