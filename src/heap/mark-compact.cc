@@ -3851,9 +3851,9 @@ class UpdatingItem : public ItemParallelJob::Item {
   virtual void Process() = 0;
 };
 
-class PointersUpatingTask : public ItemParallelJob::Task {
+class PointersUpdatingTask : public ItemParallelJob::Task {
  public:
-  explicit PointersUpatingTask(Isolate* isolate)
+  explicit PointersUpdatingTask(Isolate* isolate)
       : ItemParallelJob::Task(isolate) {}
 
   void RunInParallel() override {
@@ -4218,7 +4218,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
     const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
     const int num_tasks = Max(to_space_tasks, remembered_set_tasks);
     for (int i = 0; i < num_tasks; i++) {
-      updating_job.AddTask(new PointersUpatingTask(isolate()));
+      updating_job.AddTask(new PointersUpdatingTask(isolate()));
     }
     updating_job.Run();
   }
@@ -4240,7 +4240,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
                                     remembered_set_pages, old_to_new_slots_);
     if (num_tasks > 0) {
       for (int i = 0; i < num_tasks; i++) {
-        updating_job.AddTask(new PointersUpatingTask(isolate()));
+        updating_job.AddTask(new PointersUpdatingTask(isolate()));
       }
       updating_job.Run();
     }
@@ -4288,7 +4288,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
       remembered_set_pages, old_to_new_slots_);
   const int num_tasks = Max(to_space_tasks, remembered_set_tasks);
   for (int i = 0; i < num_tasks; i++) {
-    updating_job.AddTask(new PointersUpatingTask(isolate()));
+    updating_job.AddTask(new PointersUpdatingTask(isolate()));
   }
 
   {
