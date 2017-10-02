@@ -1434,6 +1434,8 @@
         'wasm/leb-helper.h',
         'wasm/local-decl-encoder.cc',
         'wasm/local-decl-encoder.h',
+        'wasm/memory-tracing.cc',
+        'wasm/memory-tracing.h',
         'wasm/module-compiler.cc',
         'wasm/module-compiler.h',
         'wasm/module-decoder.cc',

@@ -3335,9 +3335,9 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContextFromJS(
   // CEntryStubConstant nodes have to be created and cached in the main
   // thread. At the moment this is only done for CEntryStubConstant(1).
   DCHECK_EQ(1, fun->result_size);
-  // At the moment we only allow 3 parameters. If more parameters are needed,
+  // At the moment we only allow 4 parameters. If more parameters are needed,
   // increase this constant accordingly.
-  static const int kMaxParams = 3;
+  static const int kMaxParams = 4;
   DCHECK_GE(kMaxParams, parameter_count);
   Node* inputs[kMaxParams + 6];
   int count = 0;
@@ -3470,6 +3470,29 @@ const Operator* WasmGraphBuilder::GetSafeStoreOperator(int offset,
   return jsgraph()->machine()->UnalignedStore(rep);
 }
 
+Node* WasmGraphBuilder::TraceMemoryOperation(bool is_store,
+                                             MachineRepresentation rep,
+                                             Node* index, uint32_t offset,
+                                             wasm::WasmCodePosition position) {
+  Node* address = graph()->NewNode(jsgraph()->machine()->Int32Add(),
+                                   Int32Constant(offset), index);
+  Node* addr_low = BuildChangeInt32ToSmi(graph()->NewNode(
+      jsgraph()->machine()->Word32And(), address, Int32Constant(0xffff)));
+  Node* addr_high = BuildChangeInt32ToSmi(graph()->NewNode(
+      jsgraph()->machine()->Word32Shr(), address, Int32Constant(16)));
+  int32_t rep_i = static_cast<int32_t>(rep);
+  Node* params[] = {
+      jsgraph()->SmiConstant(is_store),  // is_store
+      jsgraph()->SmiConstant(rep_i),     // mem rep
+      addr_low,                          // address lower half word
+      addr_high                          // address higher half word
+  };
+  Node* call =
+      BuildCallToRuntime(Runtime::kWasmTraceMemory, params, arraysize(params));
+  SetSourcePosition(call, position);
+  return call;
+}
+
 Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
                                 Node* index, uint32_t offset,
                                 uint32_t alignment,
@@ -3518,6 +3541,11 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
     }
   }
 
+  if (FLAG_wasm_trace_memory) {
+    TraceMemoryOperation(false, memtype.representation(), index, offset,
+                         position);
+  }
+
   return load;
 }
 
@@ -3559,6 +3587,11 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
   }
 
   *effect_ = store;
+
+  if (FLAG_wasm_trace_memory) {
+    TraceMemoryOperation(true, memtype.representation(), index, offset,
+                         position);
+  }
 
   return store;
 }
