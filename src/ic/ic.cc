@@ -501,7 +501,9 @@ static bool AddOneReceiverMapIfMissing(MapHandles* receiver_maps,
 
 bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> handler) {
   DCHECK(IsHandler(*handler));
-  if (is_keyed() && state() != RECOMPUTE_HANDLER) return false;
+  if (is_keyed() && state() != RECOMPUTE_HANDLER) {
+    if (nexus()->FindFirstName() != *name) return false;
+  }
   Handle<Map> map = receiver_map();
   MapHandles maps;
   ObjectHandles handlers;
@@ -539,10 +541,10 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> handler) {
   }
 
   number_of_valid_maps++;
-  if (number_of_valid_maps > 1 && is_keyed()) return false;
   if (number_of_valid_maps == 1) {
     ConfigureVectorState(name, receiver_map(), handler);
   } else {
+    if (is_keyed() && nexus()->FindFirstName() != *name) return false;
     if (handler_to_overwrite >= 0) {
       handlers[handler_to_overwrite] = handler;
       if (!map.is_identical_to(maps.at(handler_to_overwrite))) {
@@ -609,10 +611,8 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
       }
     // Fall through.
     case POLYMORPHIC:
+      if (UpdatePolymorphicIC(name, handler)) break;
       if (!is_keyed() || state() == RECOMPUTE_HANDLER) {
-        if (UpdatePolymorphicIC(name, handler)) break;
-        // For keyed stubs, we can't know whether old handlers were for the
-        // same key.
         CopyICToMegamorphicCache(name);
       }
       ConfigureVectorState(MEGAMORPHIC, name);
