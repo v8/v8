@@ -332,6 +332,12 @@ let kExprF64ReinterpretI64 = 0xbf;
 // Prefix opcodes
 let kAtomicPrefix = 0xfe;
 
+let kExprI32AtomicLoad = 0x10;
+let kExprI32AtomicLoad8U = 0x12;
+let kExprI32AtomicLoad16U = 0x13;
+let kExprI32AtomicStore = 0x17;
+let kExprI32AtomicStore8U = 0x19;
+let kExprI32AtomicStore16U = 0x1a;
 let kExprI32AtomicAdd = 0x1e;
 let kExprI32AtomicAdd8U = 0x20;
 let kExprI32AtomicAdd16U = 0x21;

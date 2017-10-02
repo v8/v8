@@ -34,8 +34,8 @@ function GetAtomicBinOpFunction(wasmExpression, alignment, offset) {
 
   // Instantiate module, get function exports
   let module = new WebAssembly.Module(builder.toBuffer());
-  let instance = (new WebAssembly.Instance(module,
-        {m: {imported_mem: memory}}));
+  let instance = new WebAssembly.Instance(module,
+        {m: {imported_mem: memory}});
   return instance.exports.main;
 }
 
@@ -53,11 +53,45 @@ function GetAtomicCmpExchangeFunction(wasmExpression, alignment, offset) {
 
   // Instantiate module, get function exports
   let module = new WebAssembly.Module(builder.toBuffer());
-  let instance = (new WebAssembly.Instance(module,
-        {m: {imported_mem: memory}}));
+  let instance = new WebAssembly.Instance(module,
+        {m: {imported_mem: memory}});
   return instance.exports.main;
 }
 
+function GetAtomicLoadFunction(wasmExpression, alignment, offset) {
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "imported_mem", 0, maxSize, "shared");
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprGetLocal, 0,
+      kAtomicPrefix,
+      wasmExpression, alignment, offset])
+    .exportAs("main");
+
+  // Instantiate module, get function exports
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module,
+        {m: {imported_mem: memory}});
+  return instance.exports.main;
+}
+
+function GetAtomicStoreFunction(wasmExpression, alignment, offset) {
+  let builder = new WasmModuleBuilder();
+  builder.addImportedMemory("m", "imported_mem", 0, maxSize, "shared");
+  builder.addFunction("main", kSig_v_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kAtomicPrefix,
+      wasmExpression, alignment, offset])
+    .exportAs("main");
+
+  // Instantiate module, get function exports
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module,
+        {m: {imported_mem: memory}});
+  return instance.exports.main;
+}
 
 function VerifyBoundsCheck(func, memtype_size) {
   const kPageSize = 65536;
@@ -254,4 +288,99 @@ function TestCmpExchange(func, buffer, params, size) {
   let i8 = new Uint8Array(memory.buffer);
   let params = [0x01, 0x0d, 0xf9];
   TestCmpExchange(wasmCmpExchange, i8, params, kMemtypeSize8);
+})();
+
+function TestLoad(func, buffer, value, size) {
+  for (let i = 0; i < buffer.length; i++) {
+    buffer[i] = value;
+    assertEquals(value, func(i * size) >>> 0);
+  }
+  VerifyBoundsCheck(func, size);
+}
+
+(function TestAtomicLoad() {
+  print("TestAtomicLoad");
+  let wasmLoad = GetAtomicLoadFunction(kExprI32AtomicLoad, 2, 0);
+  let i32 = new Uint32Array(memory.buffer);
+  let value = 0xacedaced;
+  TestLoad(wasmLoad, i32, value, kMemtypeSize32);
+})();
+
+(function TestAtomicLoad16U() {
+  print("TestAtomicLoad16U");
+  let wasmLoad = GetAtomicLoadFunction(kExprI32AtomicLoad16U, 1, 0);
+  let i16 = new Uint16Array(memory.buffer);
+  let value = 0xaced;
+  TestLoad(wasmLoad, i16, value, kMemtypeSize16);
+})();
+
+(function TestAtomicLoad8U() {
+  print("TestAtomicLoad8U");
+  let wasmLoad = GetAtomicLoadFunction(kExprI32AtomicLoad8U, 0, 0);
+  let i8 = new Uint8Array(memory.buffer);
+  let value = 0xac;
+  TestLoad(wasmLoad, i8, value, kMemtypeSize8);
+})();
+
+function TestStore(func, buffer, value, size) {
+  for (let i = 0; i < buffer.length; i++) {
+    func(i * size, value)
+    assertEquals(value, buffer[i]);
+  }
+  VerifyBoundsCheck(func, size);
+}
+
+(function TestAtomicStore() {
+  print("TestAtomicStore");
+  let wasmStore = GetAtomicStoreFunction(kExprI32AtomicStore, 2, 0);
+  let i32 = new Uint32Array(memory.buffer);
+  let value = 0xacedaced;
+  TestStore(wasmStore, i32, value, kMemtypeSize32);
+})();
+
+(function TestAtomicStore16U() {
+  print("TestAtomicStore16U");
+  let wasmStore = GetAtomicStoreFunction(kExprI32AtomicStore16U, 1, 0);
+  let i16 = new Uint16Array(memory.buffer);
+  let value = 0xaced;
+  TestStore(wasmStore, i16, value, kMemtypeSize16);
+})();
+
+(function TestAtomicStore8U() {
+  print("TestAtomicStore8U");
+  let wasmStore = GetAtomicStoreFunction(kExprI32AtomicStore8U, 0, 0);
+  let i8 = new Uint8Array(memory.buffer);
+  let value = 0xac;
+  TestCmpExchange(wasmStore, i8, value, kMemtypeSize8);
+})();
+
+(function TestAtomicLoadStoreOffset() {
+  print("TestAtomicLoadStoreOffset");
+  var builder = new WasmModuleBuilder();
+  let memory = new WebAssembly.Memory({
+    initial: 16, maximum: 128, shared: true});
+  builder.addImportedMemory("m", "imported_mem", 16, 128, "shared");
+  builder.addFunction("loadStore", kSig_i_v)
+    .addBody([
+      kExprI32Const, 16,
+      kExprI32Const, 20,
+      kAtomicPrefix,
+      kExprI32AtomicStore, 0, 0xFC, 0xFF, 0x3a,
+      kExprI32Const, 16,
+      kAtomicPrefix,
+      kExprI32AtomicLoad, 0, 0xFC, 0xFF, 0x3a])
+    .exportAs("loadStore");
+  builder.addFunction("storeOob", kSig_v_v)
+    .addBody([
+      kExprI32Const, 16,
+      kExprI32Const, 20,
+      kAtomicPrefix,
+      kExprI32AtomicStore, 0, 0xFC, 0xFF, 0xFF, 0x3a])
+    .exportAs("storeOob");
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = (new WebAssembly.Instance(module,
+        {m: {imported_mem: memory}}));
+  let buf = memory.buffer;
+  assertEquals(20, instance.exports.loadStore());
+  assertTraps(kTrapMemOutOfBounds, instance.exports.storeOob);
 })();

@@ -4046,38 +4046,77 @@ Node* WasmGraphBuilder::Simd8x16ShuffleOp(const uint8_t shuffle[16],
   V(I32AtomicCompareExchange8U, CompareExchange, Uint8) \
   V(I32AtomicCompareExchange16U, CompareExchange, Uint16)
 
+#define ATOMIC_LOAD_LIST(V) \
+  V(I32AtomicLoad, Uint32)  \
+  V(I32AtomicLoad8U, Uint8) \
+  V(I32AtomicLoad16U, Uint16)
+
+#define ATOMIC_STORE_LIST(V)         \
+  V(I32AtomicStore, Uint32, kWord32) \
+  V(I32AtomicStore8U, Uint8, kWord8) \
+  V(I32AtomicStore16U, Uint16, kWord16)
+
 Node* WasmGraphBuilder::AtomicOp(wasm::WasmOpcode opcode, Node* const* inputs,
                                  uint32_t alignment, uint32_t offset,
                                  wasm::WasmCodePosition position) {
+  // TODO(gdeepti): Add alignment validation, traps on misalignment
   Node* node;
   switch (opcode) {
-#define BUILD_ATOMIC_BINOP(Name, Operation, Type)                     \
-  case wasm::kExpr##Name: {                                           \
-    BoundsCheckMem(MachineType::Type(), inputs[0], 0, position);      \
-    node = graph()->NewNode(                                          \
-        jsgraph()->machine()->Atomic##Operation(MachineType::Type()), \
-        MemBuffer(0), inputs[0], inputs[1], *effect_, *control_);     \
-    break;                                                            \
+#define BUILD_ATOMIC_BINOP(Name, Operation, Type)                      \
+  case wasm::kExpr##Name: {                                            \
+    BoundsCheckMem(MachineType::Type(), inputs[0], offset, position);  \
+    node = graph()->NewNode(                                           \
+        jsgraph()->machine()->Atomic##Operation(MachineType::Type()),  \
+        MemBuffer(offset), inputs[0], inputs[1], *effect_, *control_); \
+    break;                                                             \
   }
     ATOMIC_BINOP_LIST(BUILD_ATOMIC_BINOP)
 #undef BUILD_ATOMIC_BINOP
 
-#define BUILD_ATOMIC_TERNARY_OP(Name, Operation, Type)                       \
-  case wasm::kExpr##Name: {                                                  \
-    BoundsCheckMem(MachineType::Type(), inputs[0], 0, position);             \
-    node = graph()->NewNode(                                                 \
-        jsgraph()->machine()->Atomic##Operation(MachineType::Type()),        \
-        MemBuffer(0), inputs[0], inputs[1], inputs[2], *effect_, *control_); \
-    break;                                                                   \
+#define BUILD_ATOMIC_TERNARY_OP(Name, Operation, Type)                \
+  case wasm::kExpr##Name: {                                           \
+    BoundsCheckMem(MachineType::Type(), inputs[0], offset, position); \
+    node = graph()->NewNode(                                          \
+        jsgraph()->machine()->Atomic##Operation(MachineType::Type()), \
+        MemBuffer(offset), inputs[0], inputs[1], inputs[2], *effect_, \
+        *control_);                                                   \
+    break;                                                            \
   }
     ATOMIC_TERNARY_LIST(BUILD_ATOMIC_TERNARY_OP)
 #undef BUILD_ATOMIC_TERNARY_OP
+
+#define BUILD_ATOMIC_LOAD_OP(Name, Type)                              \
+  case wasm::kExpr##Name: {                                           \
+    BoundsCheckMem(MachineType::Type(), inputs[0], offset, position); \
+    node = graph()->NewNode(                                          \
+        jsgraph()->machine()->AtomicLoad(MachineType::Type()),        \
+        MemBuffer(offset), inputs[0], *effect_, *control_);           \
+    break;                                                            \
+  }
+    ATOMIC_LOAD_LIST(BUILD_ATOMIC_LOAD_OP)
+#undef BUILD_ATOMIC_LOAD_OP
+
+#define BUILD_ATOMIC_STORE_OP(Name, Type, Rep)                         \
+  case wasm::kExpr##Name: {                                            \
+    BoundsCheckMem(MachineType::Type(), inputs[0], offset, position);  \
+    node = graph()->NewNode(                                           \
+        jsgraph()->machine()->AtomicStore(MachineRepresentation::Rep), \
+        MemBuffer(offset), inputs[0], inputs[1], *effect_, *control_); \
+    break;                                                             \
+  }
+    ATOMIC_STORE_LIST(BUILD_ATOMIC_STORE_OP)
+#undef BUILD_ATOMIC_STORE_OP
     default:
       FATAL_UNSUPPORTED_OPCODE(opcode);
   }
   *effect_ = node;
   return node;
 }
+
+#undef ATOMIC_BINOP_LIST
+#undef ATOMIC_TERNARY_LIST
+#undef ATOMIC_LOAD_LIST
+#undef ATOMIC_STORE_LIST
 
 namespace {
 bool must_record_function_compilation(Isolate* isolate) {
@@ -4738,8 +4777,6 @@ MaybeHandle<Code> WasmCompilationUnit::CompileWasmFunction(
 
 #undef WASM_64
 #undef FATAL_UNSUPPORTED_OPCODE
-#undef ATOMIC_BINOP_LIST
-#undef ATOMIC_TERNARY_LIST
 
 }  // namespace compiler
 }  // namespace internal

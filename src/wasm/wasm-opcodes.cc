@@ -235,6 +235,8 @@ const char* WasmOpcodes::OpcodeName(WasmOpcode opcode) {
     CASE_S1x16_OP(AllTrue, "all_true")
 
     // Atomic operations.
+    CASE_U32_OP(AtomicLoad, "atomic_load")
+    CASE_U32_OP(AtomicStore, "atomic_store")
     CASE_U32_OP(AtomicAdd, "atomic_add")
     CASE_U32_OP(AtomicSub, "atomic_sub")
     CASE_U32_OP(AtomicAnd, "atomic_and")
