@@ -512,6 +512,7 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> handler) {
   int number_of_maps = static_cast<int>(maps.size());
   int deprecated_maps = 0;
   int handler_to_overwrite = -1;
+  if (!nexus()->FindHandlers(&handlers, number_of_maps)) return false;
 
   for (int i = 0; i < number_of_maps; i++) {
     Handle<Map> current_map = maps.at(i);
@@ -519,6 +520,10 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> handler) {
       // Filter out deprecated maps to ensure their instances get migrated.
       ++deprecated_maps;
     } else if (map.is_identical_to(current_map)) {
+      // If both map and handler stayed the same (and the name is also the
+      // same as checked above, for keyed accesses), we're not progressing
+      // in the lattice and need to go MEGAMORPHIC instead.
+      if (handler.is_identical_to(handlers[i])) return false;
       // If the receiver type is already in the polymorphic IC, this indicates
       // there was a prototoype chain failure. In that case, just overwrite the
       // handler.
@@ -534,9 +539,6 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> handler) {
 
   if (number_of_valid_maps >= kMaxPolymorphicMapCount) return false;
   if (number_of_maps == 0 && state() != MONOMORPHIC && state() != POLYMORPHIC) {
-    return false;
-  }
-  if (!nexus()->FindHandlers(&handlers, static_cast<int>(maps.size()))) {
     return false;
   }
 
