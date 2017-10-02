@@ -36,6 +36,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_macro_assembler_arm {
 
 typedef void* (*F)(int x, int y, int p2, int p3, int p4);
 
@@ -406,5 +407,6 @@ TEST(ReplaceLane) {
 
 #undef __
 
+}  // namespace test_macro_assembler_arm
 }  // namespace internal
 }  // namespace v8

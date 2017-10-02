@@ -40,6 +40,7 @@
 
 namespace v8 {
 namespace internal {
+namespace test_assembler_arm {
 
 using base::RandomNumberGenerator;
 
@@ -3994,5 +3995,6 @@ TEST(use_scratch_register_scope) {
 
 #undef __
 
+}  // namespace test_assembler_arm
 }  // namespace internal
 }  // namespace v8
