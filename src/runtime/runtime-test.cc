@@ -977,8 +977,8 @@ RUNTIME_FUNCTION(Runtime_ValidateWasmInstancesChain) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
   CONVERT_ARG_HANDLE_CHECKED(Smi, instance_count, 1);
-  wasm::testing::ValidateInstancesChain(isolate, module_obj,
-                                        instance_count->value());
+  WasmInstanceObject::ValidateInstancesChainForTesting(isolate, module_obj,
+                                                       instance_count->value());
   return isolate->heap()->ToBoolean(true);
 }
 
@@ -986,7 +986,7 @@ RUNTIME_FUNCTION(Runtime_ValidateWasmModuleState) {
   HandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmModuleObject, module_obj, 0);
-  wasm::testing::ValidateModuleState(isolate, module_obj);
+  WasmModuleObject::ValidateStateForTesting(isolate, module_obj);
   return isolate->heap()->ToBoolean(true);
 }
 
@@ -994,7 +994,7 @@ RUNTIME_FUNCTION(Runtime_ValidateWasmOrphanedInstance) {
   HandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  wasm::testing::ValidateOrphanedInstance(isolate, instance);
+  WasmInstanceObject::ValidateOrphanedInstanceForTesting(isolate, instance);
   return isolate->heap()->ToBoolean(true);
 }
 
@@ -1056,6 +1056,7 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
       frame->wasm_instance()->memory_buffer()->allocation_base());
   int func_index = frame->function_index();
   int pos = frame->position();
+  // TODO(titzer): eliminate dependency on WasmModule definition here.
   int func_start =
       frame->wasm_instance()->module()->functions[func_index].code.offset();
   tracing::TraceMemoryOperation(tracing::kWasmCompiled, is_store,

@@ -25,7 +25,6 @@
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module-builder.h"
-#include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
 

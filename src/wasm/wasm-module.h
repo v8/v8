@@ -328,15 +328,6 @@ class TruncatedUserString {
   char buffer_[kMaxLen];
 };
 
-namespace testing {
-void ValidateInstancesChain(Isolate* isolate,
-                            Handle<WasmModuleObject> module_obj,
-                            int instance_count);
-void ValidateModuleState(Isolate* isolate, Handle<WasmModuleObject> module_obj);
-void ValidateOrphanedInstance(Isolate* isolate,
-                              Handle<WasmInstanceObject> instance);
-}  // namespace testing
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

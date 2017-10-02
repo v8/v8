@@ -173,6 +173,17 @@ Handle<WasmModuleObject> WasmModuleObject::New(
   return module_object;
 }
 
+void WasmModuleObject::ValidateStateForTesting(
+    Isolate* isolate, Handle<WasmModuleObject> module_obj) {
+  DisallowHeapAllocation no_gc;
+  WasmCompiledModule* compiled_module = module_obj->compiled_module();
+  CHECK(compiled_module->has_weak_wasm_module());
+  CHECK_EQ(compiled_module->ptr_to_weak_wasm_module()->value(), *module_obj);
+  CHECK(!compiled_module->has_weak_prev_instance());
+  CHECK(!compiled_module->has_weak_next_instance());
+  CHECK(!compiled_module->has_weak_owning_instance());
+}
+
 Handle<WasmTableObject> WasmTableObject::New(Isolate* isolate, uint32_t initial,
                                              int64_t maximum,
                                              Handle<FixedArray>* js_functions) {
@@ -566,6 +577,40 @@ WasmInstanceObject* WasmInstanceObject::GetOwningInstance(Code* code) {
   WeakCell* cell = WeakCell::cast(weak_link);
   if (cell->cleared()) return nullptr;
   return WasmInstanceObject::cast(cell->value());
+}
+
+void WasmInstanceObject::ValidateInstancesChainForTesting(
+    Isolate* isolate, Handle<WasmModuleObject> module_obj, int instance_count) {
+  CHECK_GE(instance_count, 0);
+  DisallowHeapAllocation no_gc;
+  WasmCompiledModule* compiled_module = module_obj->compiled_module();
+  CHECK_EQ(JSObject::cast(compiled_module->ptr_to_weak_wasm_module()->value()),
+           *module_obj);
+  Object* prev = nullptr;
+  int found_instances = compiled_module->has_weak_owning_instance() ? 1 : 0;
+  WasmCompiledModule* current_instance = compiled_module;
+  while (current_instance->has_weak_next_instance()) {
+    CHECK((prev == nullptr && !current_instance->has_weak_prev_instance()) ||
+          current_instance->ptr_to_weak_prev_instance()->value() == prev);
+    CHECK_EQ(current_instance->ptr_to_weak_wasm_module()->value(), *module_obj);
+    CHECK(current_instance->ptr_to_weak_owning_instance()
+              ->value()
+              ->IsWasmInstanceObject());
+    prev = current_instance;
+    current_instance = WasmCompiledModule::cast(
+        current_instance->ptr_to_weak_next_instance()->value());
+    ++found_instances;
+    CHECK_LE(found_instances, instance_count);
+  }
+  CHECK_EQ(found_instances, instance_count);
+}
+
+void WasmInstanceObject::ValidateOrphanedInstanceForTesting(
+    Isolate* isolate, Handle<WasmInstanceObject> instance) {
+  DisallowHeapAllocation no_gc;
+  WasmCompiledModule* compiled_module = instance->compiled_module();
+  CHECK(compiled_module->has_weak_wasm_module());
+  CHECK(compiled_module->ptr_to_weak_wasm_module()->cleared());
 }
 
 bool WasmExportedFunction::IsWasmExportedFunction(Object* object) {

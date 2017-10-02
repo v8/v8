@@ -73,7 +73,6 @@
 #include "src/register-configuration.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
-#include "src/wasm/wasm-module.h"
 
 namespace v8 {
 namespace internal {
@@ -742,7 +741,7 @@ class PipelineWasmCompilationJob final : public CompilationJob {
       CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
       SourcePositionTable* source_positions,
       ZoneVector<trap_handler::ProtectedInstructionData>* protected_insts,
-      wasm::ModuleOrigin wasm_origin)
+      bool asmjs_origin)
       : CompilationJob(info->isolate(), nullptr, info, "TurboFan",
                        State::kReadyToExecute),
         zone_stats_(info->isolate()->allocator()),
@@ -752,7 +751,7 @@ class PipelineWasmCompilationJob final : public CompilationJob {
               source_positions, protected_insts),
         pipeline_(&data_),
         linkage_(descriptor),
-        wasm_origin_(wasm_origin) {}
+        asmjs_origin_(asmjs_origin) {}
 
  protected:
   Status PrepareJobImpl() final;
@@ -773,7 +772,7 @@ class PipelineWasmCompilationJob final : public CompilationJob {
   PipelineData data_;
   PipelineImpl pipeline_;
   Linkage linkage_;
-  wasm::ModuleOrigin wasm_origin_;
+  bool asmjs_origin_;
 };
 
 PipelineWasmCompilationJob::Status
@@ -791,15 +790,14 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
   }
 
   pipeline_.RunPrintAndVerify("Machine", true);
-  if (FLAG_wasm_opt || wasm_origin_ == wasm::ModuleOrigin::kAsmJsOrigin) {
+  if (FLAG_wasm_opt || asmjs_origin_) {
     PipelineData* data = &data_;
     PipelineRunScope scope(data, "Wasm optimization");
     JSGraphReducer graph_reducer(data->jsgraph(), scope.zone());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
                                               data->common());
     ValueNumberingReducer value_numbering(scope.zone(), data->graph()->zone());
-    MachineOperatorReducer machine_reducer(
-        data->jsgraph(), wasm_origin_ == wasm::ModuleOrigin::kAsmJsOrigin);
+    MachineOperatorReducer machine_reducer(data->jsgraph(), asmjs_origin_);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
     AddReducer(data, &graph_reducer, &dead_code_elimination);
@@ -1867,10 +1865,10 @@ CompilationJob* Pipeline::NewWasmCompilationJob(
     CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
     SourcePositionTable* source_positions,
     ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions,
-    wasm::ModuleOrigin wasm_origin) {
+    wasm::ModuleOrigin asmjs_origin) {
   return new PipelineWasmCompilationJob(info, jsgraph, descriptor,
                                         source_positions,
-                                        protected_instructions, wasm_origin);
+                                        protected_instructions, asmjs_origin);
 }
 
 bool Pipeline::AllocateRegistersForTesting(const RegisterConfiguration* config,

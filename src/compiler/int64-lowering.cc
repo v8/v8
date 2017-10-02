@@ -13,7 +13,6 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/compiler/wasm-compiler.h"
-#include "src/wasm/wasm-module.h"
 #include "src/zone/zone.h"
 
 namespace v8 {

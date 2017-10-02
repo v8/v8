@@ -81,6 +81,9 @@ class WasmModuleObject : public JSObject {
 
   static Handle<WasmModuleObject> New(
       Isolate* isolate, Handle<WasmCompiledModule> compiled_module);
+
+  static void ValidateStateForTesting(Isolate* isolate,
+                                      Handle<WasmModuleObject> module);
 };
 
 // Representation of a WebAssembly.Table JavaScript-level object.
@@ -228,6 +231,13 @@ class WasmInstanceObject : public JSObject {
   // instance. Intended to be called from runtime functions. Returns nullptr on
   // failing to get owning instance.
   static WasmInstanceObject* GetOwningInstance(Code* code);
+
+  static void ValidateInstancesChainForTesting(
+      Isolate* isolate, Handle<WasmModuleObject> module_obj,
+      int instance_count);
+
+  static void ValidateOrphanedInstanceForTesting(
+      Isolate* isolate, Handle<WasmInstanceObject> instance);
 };
 
 // A WASM function that is wrapped and exported to JavaScript.
