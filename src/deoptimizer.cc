@@ -999,13 +999,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
     output_frame->SetRegister(context_reg.code(), context_value);
     // Set the continuation for the topmost frame.
     Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
-    if (bailout_type_ == LAZY) {
-      continuation = builtins->builtin(Builtins::kNotifyLazyDeoptimized);
-    } else if (bailout_type_ == SOFT) {
-      continuation = builtins->builtin(Builtins::kNotifySoftDeoptimized);
-    } else {
-      CHECK_EQ(bailout_type_, EAGER);
-    }
     output_frame->SetContinuation(
         reinterpret_cast<intptr_t>(continuation->entry()));
   }
@@ -1326,7 +1319,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   if (is_topmost) {
     Builtins* builtins = isolate_->builtins();
     DCHECK_EQ(LAZY, bailout_type_);
-    Code* continuation = builtins->builtin(Builtins::kNotifyLazyDeoptimized);
+    Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
     output_frame->SetContinuation(
         reinterpret_cast<intptr_t>(continuation->entry()));
   }
@@ -1511,7 +1504,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   if (is_topmost) {
     Builtins* builtins = isolate_->builtins();
     DCHECK_EQ(LAZY, bailout_type_);
-    Code* continuation = builtins->builtin(Builtins::kNotifyLazyDeoptimized);
+    Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
     output_frame->SetContinuation(
         reinterpret_cast<intptr_t>(continuation->entry()));
   }

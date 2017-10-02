@@ -1606,13 +1606,9 @@ void Builtins::Generate_ContinueToJavaScriptBuiltinWithResult(
   Generate_ContinueToBuiltinHelper(masm, true, true);
 }
 
-static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
-                                             Deoptimizer::BailoutType type) {
+void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    // Pass the deoptimization type to the runtime system.
-    __ Mov(x0, Smi::FromInt(static_cast<int>(type)));
-    __ Push(x0);
     __ CallRuntime(Runtime::kNotifyDeoptimized);
   }
 
@@ -1641,18 +1637,6 @@ static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
 
   __ Bind(&unknown_state);
   __ Abort(kInvalidFullCodegenState);
-}
-
-void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
-  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::EAGER);
-}
-
-void Builtins::Generate_NotifyLazyDeoptimized(MacroAssembler* masm) {
-  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::LAZY);
-}
-
-void Builtins::Generate_NotifySoftDeoptimized(MacroAssembler* masm) {
-  Generate_NotifyDeoptimizedHelper(masm, Deoptimizer::SOFT);
 }
 
 static void Generate_OnStackReplacementHelper(MacroAssembler* masm,

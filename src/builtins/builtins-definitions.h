@@ -124,8 +124,6 @@ namespace internal {
   ASM(DeserializeLazy)                                                         \
   ASM(InstantiateAsmJs)                                                        \
   ASM(NotifyDeoptimized)                                                       \
-  ASM(NotifySoftDeoptimized)                                                   \
-  ASM(NotifyLazyDeoptimized)                                                   \
   ASM(NotifyBuiltinContinuation)                                               \
                                                                                \
   /* Trampolines called when returning from a deoptimization that expects   */ \

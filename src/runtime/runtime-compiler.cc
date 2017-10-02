@@ -162,10 +162,7 @@ RUNTIME_FUNCTION(Runtime_NotifyStubFailure) {
 
 RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_SMI_ARG_CHECKED(type_arg, 0);
-  Deoptimizer::BailoutType type =
-      static_cast<Deoptimizer::BailoutType>(type_arg);
+  DCHECK_EQ(0, args.length());
   Deoptimizer* deoptimizer = Deoptimizer::Grab(isolate);
   DCHECK(deoptimizer->compiled_code()->kind() == Code::OPTIMIZED_FUNCTION);
   DCHECK(deoptimizer->compiled_code()->is_turbofanned());
@@ -173,7 +170,7 @@ RUNTIME_FUNCTION(Runtime_NotifyDeoptimized) {
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
   Handle<JSFunction> function = deoptimizer->function();
-  DCHECK(type == deoptimizer->bailout_type());
+  Deoptimizer::BailoutType type = deoptimizer->bailout_type();
 
   MaterializeHeapObjectsAndDeleteDeoptimizer(isolate, deoptimizer);
 
