@@ -3956,7 +3956,8 @@ Handle<Object> TranslatedState::MaterializeObjectAt(int object_index) {
 
 TranslatedFrame* TranslatedState::GetFrameFromJSFrameIndex(int jsframe_index) {
   for (size_t i = 0; i < frames_.size(); i++) {
-    if (frames_[i].kind() == TranslatedFrame::kInterpretedFunction) {
+    if (frames_[i].kind() == TranslatedFrame::kInterpretedFunction ||
+        frames_[i].kind() == TranslatedFrame::kJavaScriptBuiltinContinuation) {
       if (jsframe_index > 0) {
         jsframe_index--;
       } else {
@@ -3970,7 +3971,8 @@ TranslatedFrame* TranslatedState::GetFrameFromJSFrameIndex(int jsframe_index) {
 TranslatedFrame* TranslatedState::GetArgumentsInfoFromJSFrameIndex(
     int jsframe_index, int* args_count) {
   for (size_t i = 0; i < frames_.size(); i++) {
-    if (frames_[i].kind() == TranslatedFrame::kInterpretedFunction) {
+    if (frames_[i].kind() == TranslatedFrame::kInterpretedFunction ||
+        frames_[i].kind() == TranslatedFrame::kJavaScriptBuiltinContinuation) {
       if (jsframe_index > 0) {
         jsframe_index--;
       } else {
