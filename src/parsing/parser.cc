@@ -506,6 +506,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
   set_allow_harmony_async_iteration(FLAG_harmony_async_iteration);
   set_allow_harmony_template_escapes(FLAG_harmony_template_escapes);
+  set_allow_harmony_optional_catch_binding(FLAG_harmony_optional_catch_binding);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;
@@ -1661,7 +1662,6 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
 
   if (catch_block != nullptr && finally_block != nullptr) {
     // If we have both, create an inner try/catch.
-    DCHECK_NOT_NULL(catch_info.scope);
     TryCatchStatement* statement;
     statement = factory()->NewTryCatchStatement(try_block, catch_info.scope,
                                                 catch_block, kNoSourcePosition);
@@ -1674,7 +1674,6 @@ Statement* Parser::RewriteTryStatement(Block* try_block, Block* catch_block,
 
   if (catch_block != nullptr) {
     DCHECK_NULL(finally_block);
-    DCHECK_NOT_NULL(catch_info.scope);
     TryCatchStatement* stmt = factory()->NewTryCatchStatement(
         try_block, catch_info.scope, catch_block, pos);
     RecordTryCatchStatementSourceRange(stmt, catch_range);
@@ -4294,9 +4293,8 @@ void Parser::BuildIteratorCloseForCompletion(ZoneList<Statement*>* statements,
                                  zone());
 
     Block* catch_block = factory()->NewBlock(0, false);
-    Scope* catch_scope = NewHiddenCatchScope();
-    try_call_return = factory()->NewTryCatchStatement(try_block, catch_scope,
-                                                      catch_block, nopos);
+    try_call_return =
+        factory()->NewTryCatchStatement(try_block, nullptr, catch_block, nopos);
   }
 
   // let output = %_Call(iteratorReturn, iterator);

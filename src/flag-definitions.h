@@ -194,7 +194,8 @@ DEFINE_IMPLICATION(es_staging, harmony)
   V(harmony_function_sent, "harmony function.sent")                   \
   V(harmony_do_expressions, "harmony do-expressions")                 \
   V(harmony_class_fields, "harmony public fields in class literals")  \
-  V(harmony_bigint, "harmony arbitrary precision integers")
+  V(harmony_bigint, "harmony arbitrary precision integers")           \
+  V(harmony_optional_catch_binding, "allow omitting binding in catch blocks")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED_BASE(V)                                          \
