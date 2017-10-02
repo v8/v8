@@ -4102,8 +4102,10 @@ void Heap::NotifyObjectLayoutChange(HeapObject* object, int size,
     }
   }
 #ifdef VERIFY_HEAP
-  DCHECK_NULL(pending_layout_change_object_);
-  pending_layout_change_object_ = object;
+  if (FLAG_verify_heap) {
+    DCHECK_NULL(pending_layout_change_object_);
+    pending_layout_change_object_ = object;
+  }
 #endif
 }
 
@@ -4126,6 +4128,8 @@ class SlotCollectingVisitor final : public ObjectVisitor {
 };
 
 void Heap::VerifyObjectLayoutChange(HeapObject* object, Map* new_map) {
+  if (!FLAG_verify_heap) return;
+
   // Check that Heap::NotifyObjectLayout was called for object transitions
   // that are not safe for concurrent marking.
   // If you see this check triggering for a freshly allocated object,
