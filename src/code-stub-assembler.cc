@@ -7003,10 +7003,15 @@ Node* CodeStubAssembler::PrepareValueForWriteToTypedArray(
   }
 
   VARIABLE(var_result, rep);
-  Label done(this, &var_result), if_smi(this);
+  Label done(this, &var_result), if_smi(this), if_heapnumber(this);
   GotoIf(TaggedIsSmi(input), &if_smi);
-  // Try to convert a heap number to a Smi.
-  GotoIfNot(IsHeapNumber(input), bailout);
+  // We can handle both HeapNumber and Oddball here, since Oddball has the
+  // same layout as the HeapNumber for the HeapNumber::value field. This
+  // way we can also properly optimize stores of oddballs to typed arrays.
+  GotoIf(IsHeapNumber(input), &if_heapnumber);
+  Branch(HasInstanceType(input, ODDBALL_TYPE), &if_heapnumber, bailout);
+
+  BIND(&if_heapnumber);
   {
     Node* value = LoadHeapNumberValue(input);
     if (rep == MachineRepresentation::kWord32) {
