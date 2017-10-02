@@ -5683,18 +5683,6 @@ class Relocatable BASE_EMBEDDED {
   Relocatable* prev_;
 };
 
-template <typename T>
-class VectorIterator {
- public:
-  VectorIterator(T* d, int l) : data_(Vector<const T>(d, l)), index_(0) { }
-  explicit VectorIterator(Vector<const T> data) : data_(data), index_(0) { }
-  T GetNext() { return data_[index_++]; }
-  bool has_more() { return index_ < data_.length(); }
- private:
-  Vector<const T> data_;
-  int index_;
-};
-
 
 // The Oddball describes objects null, undefined, true, and false.
 class Oddball: public HeapObject {
