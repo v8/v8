@@ -19,6 +19,7 @@
 #include "src/wasm/wasm-api.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"
+#include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
@@ -780,7 +781,7 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
       i::WasmMemoryObject::SetupNewBufferWithSameBackingStore(
           i_isolate, receiver, static_cast<uint32_t>(new_size64));
     }
-    i::wasm::DetachWebAssemblyMemoryBuffer(i_isolate, old_buffer, free_memory);
+    i::wasm::DetachMemoryBuffer(i_isolate, old_buffer, free_memory);
   }
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   return_value.Set(ret);

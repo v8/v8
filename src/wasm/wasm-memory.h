@@ -1,0 +1,43 @@
+// Copyright 2017 the V8 project authors. All rights reserved.
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef V8_WASM_MEMORY_H_
+#define V8_WASM_MEMORY_H_
+
+#include "src/flags.h"
+#include "src/handles.h"
+#include "src/objects.h"
+
+namespace v8 {
+namespace internal {
+namespace wasm {
+
+#if V8_TARGET_ARCH_64_BIT
+const bool kGuardRegionsSupported = true;
+#else
+const bool kGuardRegionsSupported = false;
+#endif
+
+inline bool EnableGuardRegions() {
+  return FLAG_wasm_guard_pages && kGuardRegionsSupported &&
+         !FLAG_experimental_wasm_threads;
+}
+
+Handle<JSArrayBuffer> NewArrayBuffer(
+    Isolate*, size_t size, bool enable_guard_regions,
+    SharedFlag shared = SharedFlag::kNotShared);
+
+Handle<JSArrayBuffer> SetupArrayBuffer(
+    Isolate*, void* allocation_base, size_t allocation_length,
+    void* backing_store, size_t size, bool is_external,
+    bool enable_guard_regions, SharedFlag shared = SharedFlag::kNotShared);
+
+void DetachMemoryBuffer(Isolate* isolate, Handle<JSArrayBuffer> buffer,
+                        bool free_memory);
+
+}  // namespace wasm
+}  // namespace internal
+}  // namespace v8
+
+#endif  // V8_WASM_MODULE_H_

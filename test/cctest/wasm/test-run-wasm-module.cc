@@ -11,6 +11,7 @@
 #include "src/version.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
+#include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-module-builder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -1111,7 +1112,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
       i::WasmMemoryObject::SetupNewBufferWithSameBackingStore(isolate, mem_obj,
                                                               current_pages);
     }
-    wasm::DetachWebAssemblyMemoryBuffer(isolate, memory, free_memory);
+    wasm::DetachMemoryBuffer(isolate, memory, free_memory);
     CHECK_EQ(16, result);
     memory = handle(mem_obj->array_buffer());
     instance->set_memory_buffer(*memory);
@@ -1152,7 +1153,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMemMemSize) {
         WasmMemoryObject::New(isolate, buffer, 100);
     v8::Utils::ToLocal(buffer)->Externalize();
     int32_t result = WasmMemoryObject::Grow(isolate, mem_obj, 0);
-    wasm::DetachWebAssemblyMemoryBuffer(isolate, buffer, false);
+    wasm::DetachMemoryBuffer(isolate, buffer, false);
     CHECK_EQ(16, result);
 
     isolate->array_buffer_allocator()->Free(backing_store,
@@ -1173,7 +1174,7 @@ TEST(Run_WasmModule_Buffer_Externalized_Detach) {
         isolate, backing_store, 16 * WasmModule::kPageSize, backing_store,
         16 * WasmModule::kPageSize, false, false);
     v8::Utils::ToLocal(buffer)->Externalize();
-    wasm::DetachWebAssemblyMemoryBuffer(isolate, buffer, true);
+    wasm::DetachMemoryBuffer(isolate, buffer, true);
     isolate->array_buffer_allocator()->Free(backing_store,
                                             16 * WasmModule::kPageSize);
   }

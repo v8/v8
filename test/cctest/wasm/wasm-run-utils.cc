@@ -6,6 +6,7 @@
 
 #include "src/api.h"
 #include "src/assembler-inl.h"
+#include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {

@@ -275,19 +275,6 @@ V8_EXPORT_PRIVATE Handle<JSArray> GetCustomSections(
 // function index, the inner one by the local index.
 Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmCompiledModule>);
 
-Handle<JSArrayBuffer> NewArrayBuffer(
-    Isolate*, size_t size, bool enable_guard_regions,
-    SharedFlag shared = SharedFlag::kNotShared);
-
-Handle<JSArrayBuffer> SetupArrayBuffer(
-    Isolate*, void* allocation_base, size_t allocation_length,
-    void* backing_store, size_t size, bool is_external,
-    bool enable_guard_regions, SharedFlag shared = SharedFlag::kNotShared);
-
-void DetachWebAssemblyMemoryBuffer(Isolate* isolate,
-                                   Handle<JSArrayBuffer> buffer,
-                                   bool free_memory);
-
 // If the target is an export wrapper, return the {WasmFunction*} corresponding
 // to the wrapped wasm function; in all other cases, return nullptr.
 // The returned pointer is owned by the wasm instance target belongs to. The
@@ -299,17 +286,6 @@ Handle<Code> UnwrapExportWrapper(Handle<JSFunction> export_wrapper);
 
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
                           int index, WasmFunction* function, Handle<Code> code);
-
-#if V8_TARGET_ARCH_64_BIT
-const bool kGuardRegionsSupported = true;
-#else
-const bool kGuardRegionsSupported = false;
-#endif
-
-inline bool EnableGuardRegions() {
-  return FLAG_wasm_guard_pages && kGuardRegionsSupported &&
-         !FLAG_experimental_wasm_threads;
-}
 
 void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
                                             Handle<FixedArray> code_table);
