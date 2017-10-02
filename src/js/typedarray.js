@@ -247,16 +247,6 @@ TYPED_ARRAYS(TYPED_ARRAY_SUBARRAY_CASE)
 );
 
 
-DEFINE_METHOD(
-  GlobalTypedArray.prototype,
-  get [toStringTagSymbol]() {
-    if (!IS_TYPEDARRAY(this)) return;
-    var name = %_ClassOf(this);
-    if (IS_UNDEFINED(name)) return;
-    return name;
-  }
-);
-
 // The following functions cannot be made efficient on sparse arrays while
 // preserving the semantics, since the calls to the receiver function can add
 // or delete elements from the array.

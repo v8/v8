@@ -1495,6 +1495,9 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
         case kMapIteratorNext:
         case kSetIteratorNext:
           return Type::OtherObject();
+        case kTypedArrayToStringTag:
+          return Type::Union(Type::InternalizedString(), Type::Undefined(),
+                             t->zone());
 
         // Array functions.
         case kArrayIsArray:

@@ -1029,6 +1029,8 @@ namespace internal {
   CPP(TypedArrayPrototypeSet)                                                  \
   /* ES6 #sec-%typedarray%.prototype.slice */                                  \
   CPP(TypedArrayPrototypeSlice)                                                \
+  /* ES6 #sec-get-%typedarray%.prototype-@@tostringtag */                      \
+  TFJ(TypedArrayPrototypeToStringTag, 0)                                       \
   /* ES6 %TypedArray%.prototype.every */                                       \
   TFJ(TypedArrayPrototypeEvery,                                                \
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \

@@ -4662,6 +4662,7 @@ enum BuiltinFunctionId {
   kTypedArrayEntries,
   kTypedArrayKeys,
   kTypedArrayLength,
+  kTypedArrayToStringTag,
   kTypedArrayValues,
   kSharedArrayBufferByteLength,
   kStringIterator,

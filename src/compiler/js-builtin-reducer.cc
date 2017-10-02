@@ -663,6 +663,77 @@ Reduction JSBuiltinReducer::ReduceTypedArrayIteratorNext(
   return Replace(value);
 }
 
+// ES #sec-get-%typedarray%.prototype-@@tostringtag
+Reduction JSBuiltinReducer::ReduceTypedArrayToStringTag(Node* node) {
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  NodeVector values(graph()->zone());
+  NodeVector effects(graph()->zone());
+  NodeVector controls(graph()->zone());
+
+  Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
+  control =
+      graph()->NewNode(common()->Branch(BranchHint::kFalse), check, control);
+
+  values.push_back(jsgraph()->UndefinedConstant());
+  effects.push_back(effect);
+  controls.push_back(graph()->NewNode(common()->IfTrue(), control));
+
+  control = graph()->NewNode(common()->IfFalse(), control);
+  Node* receiver_map = effect =
+      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
+                       receiver, effect, control);
+  Node* receiver_bit_field2 = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapBitField2()), receiver_map,
+      effect, control);
+  Node* receiver_elements_kind = graph()->NewNode(
+      simplified()->NumberShiftRightLogical(),
+      graph()->NewNode(simplified()->NumberBitwiseAnd(), receiver_bit_field2,
+                       jsgraph()->Constant(Map::ElementsKindBits::kMask)),
+      jsgraph()->Constant(Map::ElementsKindBits::kShift));
+
+  // Offset the elements kind by FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
+  // so that the branch cascade below is turned into a simple table
+  // switch by the ControlFlowOptimizer later.
+  receiver_elements_kind = graph()->NewNode(
+      simplified()->NumberSubtract(), receiver_elements_kind,
+      jsgraph()->Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
+
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size)                \
+  do {                                                                 \
+    Node* check = graph()->NewNode(                                    \
+        simplified()->NumberEqual(), receiver_elements_kind,           \
+        jsgraph()->Constant(TYPE##_ELEMENTS -                          \
+                            FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));   \
+    control = graph()->NewNode(common()->Branch(), check, control);    \
+    values.push_back(jsgraph()->HeapConstant(                          \
+        factory()->InternalizeUtf8String(#Type "Array")));             \
+    effects.push_back(effect);                                         \
+    controls.push_back(graph()->NewNode(common()->IfTrue(), control)); \
+    control = graph()->NewNode(common()->IfFalse(), control);          \
+  } while (false);
+  TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+
+  values.push_back(jsgraph()->UndefinedConstant());
+  effects.push_back(effect);
+  controls.push_back(control);
+
+  int const count = static_cast<int>(controls.size());
+  control = graph()->NewNode(common()->Merge(count), count, &controls.front());
+  effects.push_back(control);
+  effect =
+      graph()->NewNode(common()->EffectPhi(count), count + 1, &effects.front());
+  values.push_back(control);
+  Node* value =
+      graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, count),
+                       count + 1, &values.front());
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
+}
+
 Reduction JSBuiltinReducer::ReduceArrayIteratorNext(Node* node) {
   Handle<Map> receiver_map;
   if (GetMapWitness(node).ToHandle(&receiver_map)) {
@@ -3114,6 +3185,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceTypedArrayIterator(node, IterationKind::kKeys);
     case kTypedArrayValues:
       return ReduceTypedArrayIterator(node, IterationKind::kValues);
+    case kTypedArrayToStringTag:
+      return ReduceTypedArrayToStringTag(node);
     default:
       break;
   }

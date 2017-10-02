@@ -520,7 +520,7 @@ V8_NOINLINE void SimpleInstallGetterSetter(Handle<JSObject> base,
 }
 
 V8_NOINLINE Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
-                                                   Handle<String> name,
+                                                   Handle<Name> name,
                                                    Handle<Name> property_name,
                                                    Builtins::Name call,
                                                    bool adapt) {
@@ -541,14 +541,14 @@ V8_NOINLINE Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
 }
 
 V8_NOINLINE Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
-                                                   Handle<String> name,
+                                                   Handle<Name> name,
                                                    Builtins::Name call,
                                                    bool adapt) {
   return SimpleInstallGetter(base, name, name, call, adapt);
 }
 
 V8_NOINLINE Handle<JSFunction> SimpleInstallGetter(Handle<JSObject> base,
-                                                   Handle<String> name,
+                                                   Handle<Name> name,
                                                    Builtins::Name call,
                                                    bool adapt,
                                                    BuiltinFunctionId id) {
@@ -2937,8 +2937,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         JSObject::cast(typed_array_fun->instance_prototype()));
     native_context()->set_typed_array_prototype(*prototype);
 
-    // Install the "buffer", "byteOffset", "byteLength" and "length"
-    // getters on the {prototype}.
+    // Install the "buffer", "byteOffset", "byteLength", "length"
+    // and @@toStringTag getters on the {prototype}.
     SimpleInstallGetter(prototype, factory->buffer_string(),
                         Builtins::kTypedArrayPrototypeBuffer, false);
     SimpleInstallGetter(prototype, factory->byte_length_string(),
@@ -2950,6 +2950,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallGetter(prototype, factory->length_string(),
                         Builtins::kTypedArrayPrototypeLength, true,
                         kTypedArrayLength);
+    SimpleInstallGetter(prototype, factory->to_string_tag_symbol(),
+                        Builtins::kTypedArrayPrototypeToStringTag, true,
+                        kTypedArrayToStringTag);
 
     // Install "keys", "values" and "entries" methods on the {prototype}.
     SimpleInstallFunction(prototype, "entries",

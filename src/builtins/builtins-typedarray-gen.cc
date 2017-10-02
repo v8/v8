@@ -674,6 +674,49 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
                                     JSTypedArray::kLengthOffset);
 }
 
+// ES #sec-get-%typedarray%.prototype-@@tostringtag
+TF_BUILTIN(TypedArrayPrototypeToStringTag, TypedArrayBuiltinsAssembler) {
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Label if_receiverisheapobject(this), return_undefined(this);
+  Branch(TaggedIsSmi(receiver), &return_undefined, &if_receiverisheapobject);
+
+  // Dispatch on the elements kind, offset by
+  // FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND.
+  size_t const kTypedElementsKindCount = LAST_FIXED_TYPED_ARRAY_ELEMENTS_KIND -
+                                         FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND +
+                                         1;
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  Label return_##type##array(this);                     \
+  BIND(&return_##type##array);                          \
+  Return(StringConstant(#Type "Array"));
+  TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  Label* elements_kind_labels[kTypedElementsKindCount] = {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) &return_##type##array,
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  };
+  int32_t elements_kinds[kTypedElementsKindCount] = {
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
+  TYPE##_ELEMENTS - FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
+      TYPED_ARRAYS(TYPED_ARRAY_CASE)
+#undef TYPED_ARRAY_CASE
+  };
+
+  // We offset the dispatch by FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND, so
+  // that this can be turned into a non-sparse table switch for ideal
+  // performance.
+  BIND(&if_receiverisheapobject);
+  Node* elements_kind =
+      Int32Sub(LoadMapElementsKind(LoadMap(receiver)),
+               Int32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
+  Switch(elements_kind, &return_undefined, elements_kinds, elements_kind_labels,
+         kTypedElementsKindCount);
+
+  BIND(&return_undefined);
+  Return(UndefinedConstant());
+}
+
 void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
     Node* context, Node* receiver, const char* method_name,
     IterationKind iteration_kind) {
