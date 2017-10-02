@@ -246,12 +246,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     {
       Comment("convert hole");
       GotoIfNot(IsSetWord<LoadHandler::ConvertHoleBits>(handler_word), miss);
-      Node* protector_cell = LoadRoot(Heap::kArrayProtectorRootIndex);
-      DCHECK(isolate()->heap()->array_protector()->IsPropertyCell());
-      GotoIfNot(
-          WordEqual(LoadObjectField(protector_cell, PropertyCell::kValueOffset),
-                    SmiConstant(Isolate::kProtectorValid)),
-          miss);
+      GotoIf(IsArrayProtectorCellInvalid(), miss);
       exit_point->Return(UndefinedConstant());
     }
 

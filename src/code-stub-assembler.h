@@ -943,6 +943,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsWeakCell(Node* object);
   Node* IsUndetectableMap(Node* map);
   Node* IsArrayProtectorCellInvalid();
+  Node* IsSpeciesProtectorCellInvalid();
+  Node* IsPrototypeInitialArrayPrototype(Node* context, Node* map);
 
   // True iff |object| is a Smi or a HeapNumber.
   Node* IsNumber(Node* object);
