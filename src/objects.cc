@@ -3424,6 +3424,12 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
       os << '>';
       break;
     }
+    case BIGINT_TYPE: {
+      os << "<BigInt ";
+      BigInt::cast(this)->BigIntShortPrint(os);
+      os << ">";
+      break;
+    }
     case JS_PROXY_TYPE:
       os << "<JSProxy>";
       break;

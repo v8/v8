@@ -51,6 +51,7 @@ class BigInt : public HeapObject {
   DECL_CAST(BigInt)
   DECL_VERIFIER(BigInt)
   DECL_PRINTER(BigInt)
+  void BigIntShortPrint(std::ostream& os);
 
   // TODO(jkummerow): Do we need {synchronized_length} for GC purposes?
   DECL_INT_ACCESSORS(length)

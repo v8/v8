@@ -196,6 +196,17 @@ void BigInt::Initialize(int length, bool zero_initialize) {
   }
 }
 
+void BigInt::BigIntShortPrint(std::ostream& os) {
+  if (sign()) os << "-";
+  int len = length();
+  if (len == 0) {
+    os << "0";
+    return;
+  }
+  if (len > 1) os << "...";
+  os << digit(0);
+}
+
 // Private helpers for public methods.
 
 Handle<BigInt> BigInt::AbsoluteAdd(Handle<BigInt> x, Handle<BigInt> y,
