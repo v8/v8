@@ -1931,6 +1931,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   code_specialization.ApplyToWholeInstance(*instance, SKIP_ICACHE_FLUSH);
 
   FlushICache(isolate_, code_table);
+  FlushICache(isolate_, wrapper_table);
 
   //--------------------------------------------------------------------------
   // Unpack and notify signal handler of protected instructions.
