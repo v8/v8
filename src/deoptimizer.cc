@@ -716,11 +716,9 @@ void Deoptimizer::DoComputeOutputFrames() {
     PrintFunctionName();
     PrintF(trace_scope_->file(),
            " @%d => node=%d, pc=0x%08" V8PRIxPTR ", caller sp=0x%08" V8PRIxPTR
-           ", state=%s, took %0.3f ms]\n",
+           ", took %0.3f ms]\n",
            bailout_id_, node_id.ToInt(), output_[index]->GetPc(),
-           caller_frame_top_, BailoutStateToString(static_cast<BailoutState>(
-                                  output_[index]->GetState()->value())),
-           ms);
+           caller_frame_top_, ms);
   }
 }
 
@@ -741,10 +739,11 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
       InterpreterFrameConstants::RegisterStackSlotCount(register_count);
   int height_in_bytes = register_stack_slot_count * kPointerSize;
 
-  // The topmost frame is assumed to be in bailout state
-  // {BailoutState::TOS_REGISTER} and will contain the accumulator, which we
-  // add to the frame height here.
-  if (is_topmost) height_in_bytes += kPointerSize;
+  // The topmost frame will contain the accumulator.
+  if (is_topmost) {
+    height_in_bytes += kPointerSize;
+    if (PadTopOfStackRegister()) height_in_bytes += kPointerSize;
+  }
 
   TranslatedFrame::iterator function_iterator = value_iterator;
   Object* function = value_iterator->GetRawValue();
@@ -939,9 +938,13 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
 
   // Translate the accumulator register (depending on frame position).
   if (is_topmost) {
-    // For topmost frame, put the accumulator on the stack. The bailout state
-    // for interpreted frames is always set to {BailoutState::TOS_REGISTER} and
-    // the {NotifyDeoptimized} builtin pops it off the topmost frame (possibly
+    if (PadTopOfStackRegister()) {
+      output_offset -= kPointerSize;
+      WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                         output_offset, "padding ");
+    }
+    // For topmost frame, put the accumulator on the stack. The
+    // {NotifyDeoptimized} builtin pops it off the topmost frame (possibly
     // after materialization).
     output_offset -= kPointerSize;
     if (goto_catch_handler) {
@@ -974,9 +977,6 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
           ? builtins->builtin(Builtins::kInterpreterEnterBytecodeAdvance)
           : builtins->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
   output_frame->SetPc(reinterpret_cast<intptr_t>(dispatch_builtin->entry()));
-  // Restore accumulator (TOS) register.
-  output_frame->SetState(
-      Smi::FromInt(static_cast<int>(BailoutState::TOS_REGISTER)));
 
   // Update constant pool.
   if (FLAG_enable_embedded_constant_pool) {
@@ -1153,10 +1153,11 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   // If the construct frame appears to be topmost we should ensure that the
   // value of result register is preserved during continuation execution.
   // We do this here by "pushing" the result of the constructor function to the
-  // top of the reconstructed stack and then using the
-  // BailoutState::TOS_REGISTER machinery.
+  // top of the reconstructed stack and popping it in
+  // {Builtins::kNotifyDeoptimized}.
   if (is_topmost) {
     height_in_bytes += kPointerSize;
+    if (PadTopOfStackRegister()) height_in_bytes += kPointerSize;
   }
 
   JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
@@ -1271,15 +1272,17 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   }
 
   if (is_topmost) {
+    if (PadTopOfStackRegister()) {
+      output_offset -= kPointerSize;
+      WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                         output_offset, "padding ");
+    }
     // Ensure the result is restored back when we return to the stub.
     output_offset -= kPointerSize;
     Register result_reg = kReturnRegister0;
     value = input_->GetRegister(result_reg.code());
     output_frame->SetFrameSlot(output_offset, value);
     DebugPrintOutputSlot(value, frame_index, output_offset, "subcall result\n");
-
-    output_frame->SetState(
-        Smi::FromInt(static_cast<int>(BailoutState::TOS_REGISTER)));
   }
 
   CHECK_EQ(0u, output_offset);
@@ -1348,13 +1351,14 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   // If the accessor frame appears to be topmost we should ensure that the
   // value of result register is preserved during continuation execution.
   // We do this here by "pushing" the result of the accessor function to the
-  // top of the reconstructed stack and then using the
-  // BailoutState::TOS_REGISTER machinery.
-  // We don't need to restore the result in case of a setter call because we
-  // have to return the stored value but not the result of the setter function.
-  bool should_preserve_result = is_topmost && !is_setter_stub_frame;
-  if (should_preserve_result) {
+  // top of the reconstructed stack and then popping it in
+  // {Builtins::kNotifyDeoptimized}.
+  // For setter calls, since the result register is going to be overwritten
+  // anyway in the stub, we store a dummy value to pop into the result register
+  // to keep the code simpler.
+  if (is_topmost) {
     height_in_bytes += kPointerSize;
+    if (PadTopOfStackRegister()) height_in_bytes += kPointerSize;
   }
 
   const char* kind = is_setter_stub_frame ? "setter" : "getter";
@@ -1454,7 +1458,12 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
                                  output_offset);
   }
 
-  if (should_preserve_result) {
+  if (is_topmost) {
+    if (PadTopOfStackRegister()) {
+      output_offset -= kPointerSize;
+      WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                         output_offset, "padding ");
+    }
     // Ensure the result is restored back when we return to the stub.
     output_offset -= kPointerSize;
     Register result_reg = kReturnRegister0;
@@ -1462,12 +1471,6 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
     output_frame->SetFrameSlot(output_offset, value);
     DebugPrintOutputSlot(value, frame_index, output_offset,
                          "accessor result\n");
-
-    output_frame->SetState(
-        Smi::FromInt(static_cast<int>(BailoutState::TOS_REGISTER)));
-  } else {
-    output_frame->SetState(
-        Smi::FromInt(static_cast<int>(BailoutState::NO_REGISTERS)));
   }
 
   CHECK_EQ(0u, output_offset);
@@ -1629,9 +1632,6 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
   }
   output_frame->SetTop(top_address);
-
-  output_frame->SetState(
-      Smi::FromInt(static_cast<int>(BailoutState::NO_REGISTERS)));
 
   // Get the possible JSFunction for the case that
   intptr_t maybe_function =

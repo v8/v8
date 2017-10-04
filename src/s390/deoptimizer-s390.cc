@@ -211,9 +211,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ ld(dreg, MemOperand(r3, src_offset));
   }
 
-  // Push state, pc, and continuation from the last output frame.
-  __ LoadP(r8, MemOperand(r4, FrameDescription::state_offset()));
-  __ push(r8);
+  // Push pc and continuation from the last output frame.
   __ LoadP(r8, MemOperand(r4, FrameDescription::pc_offset()));
   __ push(r8);
   __ LoadP(r8, MemOperand(r4, FrameDescription::continuation_offset()));
@@ -253,6 +251,8 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   __ bind(&done);
   __ StoreP(ip, MemOperand(sp));
 }
+
+bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);

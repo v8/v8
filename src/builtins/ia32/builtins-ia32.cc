@@ -1562,8 +1562,7 @@ void Builtins::Generate_NotifyBuiltinContinuation(MacroAssembler* masm) {
     // Tear down internal frame.
   }
 
-  __ pop(MemOperand(esp, 0));  // Ignore state offset
-  __ ret(0);  // Return to ContinueToBuiltin stub still on stack.
+  __ Ret();  // Return to ContinueToBuiltin stub still on stack.
 }
 
 namespace {
@@ -1624,25 +1623,9 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
     // Tear down internal frame.
   }
 
-  // Get the full codegen state from the stack and untag it.
-  __ mov(ecx, Operand(esp, 1 * kPointerSize));
-  __ SmiUntag(ecx);
-
-  // Switch on the state.
-  Label not_no_registers, not_tos_eax;
-  __ cmp(ecx, static_cast<int>(Deoptimizer::BailoutState::NO_REGISTERS));
-  __ j(not_equal, &not_no_registers, Label::kNear);
-  __ ret(1 * kPointerSize);  // Remove state.
-
-  __ bind(&not_no_registers);
   DCHECK_EQ(kInterpreterAccumulatorRegister.code(), eax.code());
-  __ mov(eax, Operand(esp, 2 * kPointerSize));
-  __ cmp(ecx, static_cast<int>(Deoptimizer::BailoutState::TOS_REGISTER));
-  __ j(not_equal, &not_tos_eax, Label::kNear);
-  __ ret(2 * kPointerSize);  // Remove state, eax.
-
-  __ bind(&not_tos_eax);
-  __ Abort(kNoCasesLeft);
+  __ mov(eax, Operand(esp, 1 * kPointerSize));
+  __ ret(1 * kPointerSize);  // Remove eax.
 }
 
 // static

@@ -1547,9 +1547,6 @@ void Builtins::Generate_NotifyBuiltinContinuation(MacroAssembler* masm) {
     __ Pop(x0);
   }
 
-  // Ignore state (pushed by Deoptimizer::EntryGenerator::Generate).
-  __ Drop(1);
-
   // Jump to the ContinueToBuiltin stub. Deoptimizer::EntryGenerator::Generate
   // loads this into lr before it jumps here.
   __ Br(lr);
@@ -1612,31 +1609,10 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kNotifyDeoptimized);
   }
 
-  // Get the full codegen state from the stack and untag it.
-  Register state = x6;
-  __ Peek(state, 0);
-  __ SmiUntag(state);
-
-  // Switch on the state.
-  Label with_tos_register, unknown_state;
-  __ CompareAndBranch(state,
-                      static_cast<int>(Deoptimizer::BailoutState::NO_REGISTERS),
-                      ne, &with_tos_register);
-  __ Drop(1);  // Remove state.
-  __ Ret();
-
-  __ Bind(&with_tos_register);
-  // Reload TOS register.
+  // Pop TOS register and padding.
   DCHECK_EQ(kInterpreterAccumulatorRegister.code(), x0.code());
-  __ Peek(x0, kPointerSize);
-  __ CompareAndBranch(state,
-                      static_cast<int>(Deoptimizer::BailoutState::TOS_REGISTER),
-                      ne, &unknown_state);
-  __ Drop(2);  // Remove state and TOS.
+  __ Pop(x0, padreg);
   __ Ret();
-
-  __ Bind(&unknown_state);
-  __ Abort(kInvalidFullCodegenState);
 }
 
 static void Generate_OnStackReplacementHelper(MacroAssembler* masm,

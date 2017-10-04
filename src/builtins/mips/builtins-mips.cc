@@ -1488,7 +1488,6 @@ void Builtins::Generate_NotifyBuiltinContinuation(MacroAssembler* masm) {
     __ Pop(v0);
   }
 
-  __ Addu(sp, sp, Operand(kPointerSize));  // Ignore state
   __ Jump(ra);                             // Jump to the ContinueToBuiltin stub
 }
 
@@ -1548,29 +1547,11 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kNotifyDeoptimized);
   }
 
-  // Get the full codegen state from the stack and untag it -> t2.
-  __ lw(t2, MemOperand(sp, 0 * kPointerSize));
-  __ SmiUntag(t2);
-  // Switch on the state.
-  Label with_tos_register, unknown_state;
-  __ Branch(&with_tos_register, ne, t2,
-            Operand(static_cast<int>(Deoptimizer::BailoutState::NO_REGISTERS)));
-  __ Ret(USE_DELAY_SLOT);
-  // Safe to fill delay slot Addu will emit one instruction.
-  __ Addu(sp, sp, Operand(1 * kPointerSize));  // Remove state.
-
-  __ bind(&with_tos_register);
   DCHECK_EQ(kInterpreterAccumulatorRegister.code(), v0.code());
-  __ lw(v0, MemOperand(sp, 1 * kPointerSize));
-  __ Branch(&unknown_state, ne, t2,
-            Operand(static_cast<int>(Deoptimizer::BailoutState::TOS_REGISTER)));
-
+  __ lw(v0, MemOperand(sp, 0 * kPointerSize));
   __ Ret(USE_DELAY_SLOT);
   // Safe to fill delay slot Addu will emit one instruction.
-  __ Addu(sp, sp, Operand(2 * kPointerSize));  // Remove state.
-
-  __ bind(&unknown_state);
-  __ stop("no cases left");
+  __ Addu(sp, sp, Operand(1 * kPointerSize));  // Remove accumulator.
 }
 
 static void Generate_OnStackReplacementHelper(MacroAssembler* masm,

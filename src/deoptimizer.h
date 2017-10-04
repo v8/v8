@@ -326,21 +326,6 @@ class Deoptimizer : public Malloced {
  public:
   enum BailoutType { EAGER, LAZY, SOFT, kLastBailoutType = SOFT };
 
-  enum class BailoutState {
-    NO_REGISTERS,
-    TOS_REGISTER,
-  };
-
-  static const char* BailoutStateToString(BailoutState state) {
-    switch (state) {
-      case BailoutState::NO_REGISTERS:
-        return "NO_REGISTERS";
-      case BailoutState::TOS_REGISTER:
-        return "TOS_REGISTER";
-    }
-    UNREACHABLE();
-  }
-
   struct DeoptInfo {
     DeoptInfo(SourcePosition position, DeoptimizeReason deopt_reason,
               int deopt_id)
@@ -537,6 +522,10 @@ class Deoptimizer : public Malloced {
   // Deoptimizes all code marked in the given context.
   static void DeoptimizeMarkedCodeForContext(Context* native_context);
 
+  // Some architectures need to push padding together with the TOS register
+  // in order to maintain stack alignment.
+  static bool PadTopOfStackRegister();
+
   // Searches the list of known deoptimizing code for a Code object
   // containing the given address (which is supposedly faster than
   // searching all code objects).
@@ -722,9 +711,6 @@ class FrameDescription {
     constant_pool_ = constant_pool;
   }
 
-  Smi* GetState() const { return state_; }
-  void SetState(Smi* state) { state_ = state; }
-
   void SetContinuation(intptr_t pc) { continuation_ = pc; }
 
   // Argument count, including receiver.
@@ -748,8 +734,6 @@ class FrameDescription {
 
   static int pc_offset() { return offsetof(FrameDescription, pc_); }
 
-  static int state_offset() { return offsetof(FrameDescription, state_); }
-
   static int continuation_offset() {
     return offsetof(FrameDescription, continuation_);
   }
@@ -772,7 +756,6 @@ class FrameDescription {
   intptr_t fp_;
   intptr_t context_;
   intptr_t constant_pool_;
-  Smi* state_;
 
   // Continuation is the PC where the execution continues after
   // deoptimizing.

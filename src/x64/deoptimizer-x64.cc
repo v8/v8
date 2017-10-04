@@ -196,8 +196,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ Movsd(xmm_reg, Operand(rbx, src_offset));
   }
 
-  // Push state, pc, and continuation from the last output frame.
-  __ Push(Operand(rbx, FrameDescription::state_offset()));
+  // Push pc and continuation from the last output frame.
   __ PushQuad(Operand(rbx, FrameDescription::pc_offset()));
   __ PushQuad(Operand(rbx, FrameDescription::continuation_offset()));
 
@@ -240,6 +239,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   __ bind(&done);
 }
 
+bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   if (kPCOnStackSize == 2 * kPointerSize) {

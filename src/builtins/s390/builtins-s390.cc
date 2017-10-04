@@ -1525,7 +1525,6 @@ void Builtins::Generate_NotifyBuiltinContinuation(MacroAssembler* masm) {
     __ pop(r2);
   }
 
-  __ AddP(sp, sp, Operand(kPointerSize));  // Ignore state
   __ Ret();                                // Jump to ContinueToBuiltin stub
 }
 
@@ -1587,30 +1586,9 @@ void Builtins::Generate_NotifyDeoptimized(MacroAssembler* masm) {
     __ CallRuntime(Runtime::kNotifyDeoptimized);
   }
 
-  // Get the full codegen state from the stack and untag it -> r8.
-  __ LoadP(r8, MemOperand(sp, 0 * kPointerSize));
-  __ SmiUntag(r8);
-  // Switch on the state.
-  Label with_tos_register, unknown_state;
-  __ CmpP(
-      r8,
-      Operand(static_cast<intptr_t>(Deoptimizer::BailoutState::NO_REGISTERS)));
-  __ bne(&with_tos_register);
-  __ la(sp, MemOperand(sp, 1 * kPointerSize));  // Remove state.
-  __ Ret();
-
-  __ bind(&with_tos_register);
   DCHECK_EQ(kInterpreterAccumulatorRegister.code(), r2.code());
-  __ LoadP(r2, MemOperand(sp, 1 * kPointerSize));
-  __ CmpP(
-      r8,
-      Operand(static_cast<intptr_t>(Deoptimizer::BailoutState::TOS_REGISTER)));
-  __ bne(&unknown_state);
-  __ la(sp, MemOperand(sp, 2 * kPointerSize));  // Remove state.
+  __ pop(r2);
   __ Ret();
-
-  __ bind(&unknown_state);
-  __ stop("no cases left");
 }
 
 static void Generate_OnStackReplacementHelper(MacroAssembler* masm,

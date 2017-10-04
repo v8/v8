@@ -208,15 +208,11 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ Ldc1(fpu_reg, MemOperand(a1, src_offset));
   }
 
-  // Push state, pc, and continuation from the last output frame.
-  __ Ld(a6, MemOperand(a2, FrameDescription::state_offset()));
-  __ push(a6);
-
+  // Push pc and continuation from the last output frame.
   __ Ld(a6, MemOperand(a2, FrameDescription::pc_offset()));
   __ push(a6);
   __ Ld(a6, MemOperand(a2, FrameDescription::continuation_offset()));
   __ push(a6);
-
 
   // Technically restoring 'at' should work unless zero_reg is also restored
   // but it's safer to check for this.
@@ -313,6 +309,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   }
 }
 
+bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);

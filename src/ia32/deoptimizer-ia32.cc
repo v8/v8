@@ -184,11 +184,9 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     __ movsd(xmm_reg, Operand(ebx, src_offset));
   }
 
-  // Push state, pc, and continuation from the last output frame.
-  __ push(Operand(ebx, FrameDescription::state_offset()));
+  // Push pc and continuation from the last output frame.
   __ push(Operand(ebx, FrameDescription::pc_offset()));
   __ push(Operand(ebx, FrameDescription::continuation_offset()));
-
 
   // Push the registers from the last output frame.
   for (int i = 0; i < kNumberOfRegisters; i++) {
@@ -217,6 +215,7 @@ void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
   __ bind(&done);
 }
 
+bool Deoptimizer::PadTopOfStackRegister() { return false; }
 
 void FrameDescription::SetCallerPc(unsigned offset, intptr_t value) {
   SetFrameSlot(offset, value);
