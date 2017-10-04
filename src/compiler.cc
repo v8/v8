@@ -1208,13 +1208,13 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
                                        eval_scope_position, eval_position);
 }
 
-Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
-    Handle<String> source, Handle<Object> script_name, int line_offset,
-    int column_offset, ScriptOriginOptions resource_options,
-    Handle<Object> source_map_url, Handle<Context> context,
+MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
+    Handle<String> source, MaybeHandle<Object> maybe_script_name,
+    int line_offset, int column_offset, ScriptOriginOptions resource_options,
+    MaybeHandle<Object> maybe_source_map_url, Handle<Context> context,
     v8::Extension* extension, ScriptData** cached_data,
     ScriptCompiler::CompileOptions compile_options, NativesFlag natives,
-    Handle<FixedArray> host_defined_options) {
+    MaybeHandle<FixedArray> maybe_host_defined_options) {
   Isolate* isolate = source->GetIsolate();
   if (compile_options == ScriptCompiler::kNoCompileOptions) {
     cached_data = NULL;
@@ -1237,12 +1237,12 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   CompilationCache* compilation_cache = isolate->compilation_cache();
 
   // Do a lookup in the compilation cache but not for extensions.
-  Handle<SharedFunctionInfo> result;
+  MaybeHandle<SharedFunctionInfo> maybe_result;
   Handle<Cell> vector;
   if (extension == NULL) {
     // First check per-isolate compilation cache.
     InfoVectorPair pair = compilation_cache->LookupScript(
-        source, script_name, line_offset, column_offset, resource_options,
+        source, maybe_script_name, line_offset, column_offset, resource_options,
         context, language_mode);
     if (!pair.has_shared() &&
         compile_options == ScriptCompiler::kConsumeCodeCache &&
@@ -1270,7 +1270,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       // Deserializer failed. Fall through to compile.
     } else {
       if (pair.has_shared()) {
-        result = Handle<SharedFunctionInfo>(pair.shared(), isolate);
+        maybe_result = MaybeHandle<SharedFunctionInfo>(pair.shared(), isolate);
       }
       if (pair.has_vector()) {
         vector = Handle<Cell>(pair.vector(), isolate);
@@ -1283,7 +1283,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     timer.Start();
   }
 
-  if (result.is_null() || ShouldProduceCodeCache(compile_options)) {
+  if (maybe_result.is_null() || ShouldProduceCodeCache(compile_options)) {
     // No cache entry found, or embedder wants a code cache. Compile the script.
 
     // Create a script object describing the script to be compiled.
@@ -1298,16 +1298,19 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     } else if (natives == INSPECTOR_CODE) {
       script->set_type(Script::TYPE_INSPECTOR);
     }
-    if (!script_name.is_null()) {
+    Handle<Object> script_name;
+    if (maybe_script_name.ToHandle(&script_name)) {
       script->set_name(*script_name);
       script->set_line_offset(line_offset);
       script->set_column_offset(column_offset);
     }
     script->set_origin_options(resource_options);
-    if (!source_map_url.is_null()) {
+    Handle<Object> source_map_url;
+    if (maybe_source_map_url.ToHandle(&source_map_url)) {
       script->set_source_mapping_url(*source_map_url);
     }
-    if (!host_defined_options.is_null()) {
+    Handle<FixedArray> host_defined_options;
+    if (maybe_host_defined_options.ToHandle(&host_defined_options)) {
       script->set_host_defined_options(*host_defined_options);
     }
 
@@ -1331,8 +1334,9 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
 
     parse_info.set_language_mode(
         static_cast<LanguageMode>(parse_info.language_mode() | language_mode));
-    CompileToplevel(&parse_info, isolate).ToHandle(&result);
-    if (extension == NULL && !result.is_null()) {
+    maybe_result = CompileToplevel(&parse_info, isolate);
+    Handle<SharedFunctionInfo> result;
+    if (extension == NULL && maybe_result.ToHandle(&result)) {
       // We need a feedback vector.
       DCHECK(result->is_compiled());
       Handle<FeedbackVector> feedback_vector =
@@ -1356,7 +1360,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       }
     }
 
-    if (result.is_null()) {
+    if (maybe_result.is_null()) {
       if (natives != EXTENSION_CODE && natives != NATIVES_CODE) {
         isolate->ReportPendingMessages();
       }
@@ -1364,7 +1368,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       isolate->debug()->OnAfterCompile(script);
     }
   }
-  return result;
+  return maybe_result;
 }
 
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(

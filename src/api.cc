@@ -2305,9 +2305,9 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
   {
     i::HistogramTimerScope total(isolate->counters()->compile_script(), true);
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileScript");
-    i::Handle<i::Object> name_obj;
-    i::Handle<i::Object> source_map_url;
-    i::Handle<i::FixedArray> host_defined_options =
+    i::MaybeHandle<i::Object> name_obj;
+    i::MaybeHandle<i::Object> source_map_url;
+    i::MaybeHandle<i::FixedArray> host_defined_options =
         isolate->factory()->empty_fixed_array();
     int line_offset = 0;
     int column_offset = 0;
@@ -2327,11 +2327,12 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
     if (!source->source_map_url.IsEmpty()) {
       source_map_url = Utils::OpenHandle(*(source->source_map_url));
     }
-    result = i::Compiler::GetSharedFunctionInfoForScript(
-        str, name_obj, line_offset, column_offset, source->resource_options,
-        source_map_url, isolate->native_context(), NULL, &script_data, options,
-        i::NOT_NATIVES_CODE, host_defined_options);
-    has_pending_exception = result.is_null();
+    i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
+        i::Compiler::GetSharedFunctionInfoForScript(
+            str, name_obj, line_offset, column_offset, source->resource_options,
+            source_map_url, isolate->native_context(), NULL, &script_data,
+            options, i::NOT_NATIVES_CODE, host_defined_options);
+    has_pending_exception = !maybe_function_info.ToHandle(&result);
     if (has_pending_exception && script_data != NULL) {
       // This case won't happen during normal operation; we have compiled
       // successfully and produced cached data, and but the second compilation
@@ -9963,14 +9964,15 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
   i::Handle<i::SharedFunctionInfo> result;
   {
     ScriptOriginOptions origin_options;
-    result = i::Compiler::GetSharedFunctionInfoForScript(
-        str, i::Handle<i::Object>(), 0, 0, origin_options,
-        i::Handle<i::Object>(), isolate->native_context(), NULL, &script_data,
-        ScriptCompiler::kNoCompileOptions,
-        i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE
-                                         : i::INSPECTOR_CODE,
-        i::Handle<i::FixedArray>());
-    has_pending_exception = result.is_null();
+    i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
+        i::Compiler::GetSharedFunctionInfoForScript(
+            str, i::MaybeHandle<i::Object>(), 0, 0, origin_options,
+            i::MaybeHandle<i::Object>(), isolate->native_context(), NULL,
+            &script_data, ScriptCompiler::kNoCompileOptions,
+            i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE
+                                             : i::INSPECTOR_CODE,
+            i::MaybeHandle<i::FixedArray>());
+    has_pending_exception = !maybe_function_info.ToHandle(&result);
     RETURN_ON_FAILED_EXECUTION(UnboundScript);
   }
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));

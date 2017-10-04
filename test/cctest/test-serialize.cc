@@ -1200,9 +1200,10 @@ static Handle<SharedFunctionInfo> CompileScript(
     Isolate* isolate, Handle<String> source, Handle<String> name,
     ScriptData** cached_data, v8::ScriptCompiler::CompileOptions options) {
   return Compiler::GetSharedFunctionInfoForScript(
-      source, name, 0, 0, v8::ScriptOriginOptions(), Handle<Object>(),
-      Handle<Context>(isolate->native_context()), NULL, cached_data, options,
-      NOT_NATIVES_CODE, Handle<FixedArray>());
+             source, name, 0, 0, v8::ScriptOriginOptions(), Handle<Object>(),
+             Handle<Context>(isolate->native_context()), NULL, cached_data,
+             options, NOT_NATIVES_CODE, Handle<FixedArray>())
+      .ToHandleChecked();
 }
 
 TEST(CodeSerializerOnePlusOne) {
@@ -2089,11 +2090,13 @@ TEST(Regress503552) {
   Handle<String> source = isolate->factory()->NewStringFromAsciiChecked(
       "function f() {} function g() {}");
   ScriptData* script_data = NULL;
-  Handle<SharedFunctionInfo> shared = Compiler::GetSharedFunctionInfoForScript(
-      source, Handle<String>(), 0, 0, v8::ScriptOriginOptions(),
-      Handle<Object>(), Handle<Context>(isolate->native_context()), NULL,
-      &script_data, v8::ScriptCompiler::kProduceCodeCache, NOT_NATIVES_CODE,
-      Handle<FixedArray>());
+  Handle<SharedFunctionInfo> shared =
+      Compiler::GetSharedFunctionInfoForScript(
+          source, MaybeHandle<String>(), 0, 0, v8::ScriptOriginOptions(),
+          MaybeHandle<Object>(), Handle<Context>(isolate->native_context()),
+          NULL, &script_data, v8::ScriptCompiler::kProduceCodeCache,
+          NOT_NATIVES_CODE, MaybeHandle<FixedArray>())
+          .ToHandleChecked();
   delete script_data;
 
   heap::SimulateIncrementalMarking(isolate->heap());
