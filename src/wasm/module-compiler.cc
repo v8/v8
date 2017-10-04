@@ -1807,10 +1807,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
 
     DCHECK_IMPLIES(EnableGuardRegions(),
                    module_->is_asm_js() || memory->has_guard_region());
-  } else if (initial_pages > 0 || EnableGuardRegions()) {
-    // We need to unconditionally create a guard region if using trap handlers,
-    // even when the size is zero to prevent null-derence issues
-    // (e.g. https://crbug.com/769637).
+  } else if (initial_pages > 0) {
     memory_ = AllocateMemory(initial_pages);
     if (memory_.is_null()) return {};  // failed to allocate memory
   }
