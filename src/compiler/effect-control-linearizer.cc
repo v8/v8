@@ -721,6 +721,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kObjectIsDetectableCallable:
       result = LowerObjectIsDetectableCallable(node);
       break;
+    case IrOpcode::kObjectIsMinusZero:
+      result = LowerObjectIsMinusZero(node);
+      break;
     case IrOpcode::kObjectIsNaN:
       result = LowerObjectIsNaN(node);
       break;
@@ -1939,6 +1942,31 @@ Node* EffectControlLinearizer::LowerObjectIsDetectableCallable(Node* node) {
 
   __ Bind(&if_smi);
   __ Goto(&done, __ Int32Constant(0));
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerObjectIsMinusZero(Node* node) {
+  Node* value = node->InputAt(0);
+  Node* zero = __ Int32Constant(0);
+
+  auto done = __ MakeLabel(MachineRepresentation::kBit);
+
+  // Check if {value} is a Smi.
+  __ GotoIf(ObjectIsSmi(value), &done, zero);
+
+  // Check if {value} is a HeapNumber.
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  __ GotoIfNot(__ WordEqual(value_map, __ HeapNumberMapConstant()), &done,
+               zero);
+
+  // Check if {value} contains -0.
+  Node* value_value = __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
+  __ Goto(&done,
+          __ Float64Equal(
+              __ Float64Div(__ Float64Constant(1.0), value_value),
+              __ Float64Constant(-std::numeric_limits<double>::infinity())));
 
   __ Bind(&done);
   return done.PhiAt(0);

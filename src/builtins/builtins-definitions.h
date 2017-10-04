@@ -709,7 +709,7 @@ namespace internal {
   CPP(ObjectGetOwnPropertySymbols)                                             \
   CPP(ObjectGetPrototypeOf)                                                    \
   CPP(ObjectSetPrototypeOf)                                                    \
-  CPP(ObjectIs)                                                                \
+  TFJ(ObjectIs, 2, kLeft, kRight)                                              \
   CPP(ObjectIsExtensible)                                                      \
   CPP(ObjectIsFrozen)                                                          \
   CPP(ObjectIsSealed)                                                          \

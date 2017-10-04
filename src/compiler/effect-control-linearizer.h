@@ -87,6 +87,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerObjectIsArrayBufferView(Node* node);
   Node* LowerObjectIsCallable(Node* node);
   Node* LowerObjectIsDetectableCallable(Node* node);
+  Node* LowerObjectIsMinusZero(Node* node);
   Node* LowerObjectIsNaN(Node* node);
   Node* LowerObjectIsNonCallable(Node* node);
   Node* LowerObjectIsNumber(Node* node);

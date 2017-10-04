@@ -438,6 +438,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ObjectIsArrayBufferView();
   const Operator* ObjectIsCallable();
   const Operator* ObjectIsDetectableCallable();
+  const Operator* ObjectIsMinusZero();
   const Operator* ObjectIsNaN();
   const Operator* ObjectIsNonCallable();
   const Operator* ObjectIsNumber();

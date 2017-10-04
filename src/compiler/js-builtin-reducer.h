@@ -111,6 +111,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceNumberIsSafeInteger(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
   Reduction ReduceObjectCreate(Node* node);
+  Reduction ReduceObjectIs(Node* node);
   Reduction ReduceStringCharAt(Node* node);
   Reduction ReduceStringCharCodeAt(Node* node);
   Reduction ReduceStringConcat(Node* node);

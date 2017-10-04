@@ -517,9 +517,8 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
 
       // If SameValue(trapResult, targetDesc.[[Value]]) is false,
       // throw a TypeError exception.
-      GotoIfNot(SameValue(trap_result, var_value.value()),
-                &throw_non_configurable_data);
-      Goto(check_passed);
+      BranchIfSameValue(trap_result, var_value.value(), check_passed,
+                        &throw_non_configurable_data);
     }
 
     BIND(&check_accessor);

@@ -2208,9 +2208,10 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
 
   // Ensure last index is 0.
   {
-    Label next(this);
-    GotoIf(SameValue(previous_last_index, smi_zero), &next);
+    Label next(this), slow(this, Label::kDeferred);
+    BranchIfSameValue(previous_last_index, smi_zero, &next, &slow);
 
+    BIND(&slow);
     SlowStoreLastIndex(context, regexp, smi_zero);
     Goto(&next);
     BIND(&next);
@@ -2221,14 +2222,14 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodySlow(
 
   // Reset last index if necessary.
   {
-    Label next(this);
+    Label next(this), slow(this, Label::kDeferred);
     Node* const current_last_index = SlowLoadLastIndex(context, regexp);
 
-    GotoIf(SameValue(current_last_index, previous_last_index), &next);
+    BranchIfSameValue(current_last_index, previous_last_index, &next, &slow);
 
+    BIND(&slow);
     SlowStoreLastIndex(context, regexp, previous_last_index);
     Goto(&next);
-
     BIND(&next);
   }
 

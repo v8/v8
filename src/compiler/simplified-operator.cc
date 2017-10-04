@@ -498,6 +498,7 @@ BailoutReason BailoutReasonOf(const Operator* op) {
   V(ObjectIsArrayBufferView, Operator::kNoProperties, 1, 0)      \
   V(ObjectIsCallable, Operator::kNoProperties, 1, 0)             \
   V(ObjectIsDetectableCallable, Operator::kNoProperties, 1, 0)   \
+  V(ObjectIsMinusZero, Operator::kNoProperties, 1, 0)            \
   V(ObjectIsNaN, Operator::kNoProperties, 1, 0)                  \
   V(ObjectIsNonCallable, Operator::kNoProperties, 1, 0)          \
   V(ObjectIsNumber, Operator::kNoProperties, 1, 0)               \

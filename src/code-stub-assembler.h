@@ -1580,9 +1580,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // ECMA#sec-samevalue
   // Similar to StrictEqual except that NaNs are treated as equal and minus zero
   // differs from positive zero.
-  // Unlike Equal and StrictEqual, returns a value suitable for use in Branch
-  // instructions, e.g. Branch(SameValue(...), &label).
-  Node* SameValue(Node* lhs, Node* rhs);
+  void BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true, Label* if_false);
 
   enum HasPropertyLookupMode { kHasProperty, kForInHasProperty };
 

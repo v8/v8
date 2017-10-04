@@ -683,7 +683,8 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
   VARIABLE(var_reason, MachineRepresentation::kTagged);
   VARIABLE(var_then, MachineRepresentation::kTagged);
 
-  Label do_enqueue(this), fulfill(this), if_cycle(this, Label::kDeferred),
+  Label do_enqueue(this), fulfill(this), if_nocycle(this),
+      if_cycle(this, Label::kDeferred),
       if_rejectpromise(this, Label::kDeferred), out(this);
 
   Label cycle_check(this);
@@ -693,7 +694,8 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
 
   BIND(&cycle_check);
   // 6. If SameValue(resolution, promise) is true, then
-  GotoIf(SameValue(promise, result), &if_cycle);
+  BranchIfSameValue(promise, result, &if_cycle, &if_nocycle);
+  BIND(&if_nocycle);
 
   // 7. If Type(resolution) is not Object, then
   GotoIf(TaggedIsSmi(result), &fulfill);
@@ -1435,11 +1437,13 @@ TF_BUILTIN(PromiseResolve, PromiseBuiltinsAssembler) {
   // they could be of the same subclass.
   BIND(&if_value_or_constructor_are_not_native_promise);
   {
+    Label if_return(this);
     Node* const xConstructor =
         GetProperty(context, value, isolate->factory()->constructor_string());
+    BranchIfSameValue(xConstructor, constructor, &if_return,
+                      &if_need_to_allocate);
 
-    GotoIfNot(SameValue(xConstructor, constructor), &if_need_to_allocate);
-
+    BIND(&if_return);
     Return(value);
   }
 

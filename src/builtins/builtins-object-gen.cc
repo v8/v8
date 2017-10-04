@@ -598,6 +598,21 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
   }
 }
 
+// ES #sec-object.is
+TF_BUILTIN(ObjectIs, ObjectBuiltinsAssembler) {
+  Node* const left = Parameter(Descriptor::kLeft);
+  Node* const right = Parameter(Descriptor::kRight);
+
+  Label return_true(this), return_false(this);
+  BranchIfSameValue(left, right, &return_true, &return_false);
+
+  BIND(&return_true);
+  Return(TrueConstant());
+
+  BIND(&return_false);
+  Return(FalseConstant());
+}
+
 TF_BUILTIN(CreateIterResultObject, ObjectBuiltinsAssembler) {
   Node* const value = Parameter(Descriptor::kValue);
   Node* const done = Parameter(Descriptor::kDone);

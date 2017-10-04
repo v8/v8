@@ -1008,6 +1008,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kObjectIsArrayBufferView:
     case IrOpcode::kObjectIsCallable:
     case IrOpcode::kObjectIsDetectableCallable:
+    case IrOpcode::kObjectIsMinusZero:
     case IrOpcode::kObjectIsNaN:
     case IrOpcode::kObjectIsNonCallable:
     case IrOpcode::kObjectIsNumber:

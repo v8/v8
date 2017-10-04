@@ -4519,6 +4519,7 @@ class ContextExtension : public Struct {
   V(Function.prototype, call, FunctionCall)                 \
   V(Object, assign, ObjectAssign)                           \
   V(Object, create, ObjectCreate)                           \
+  V(Object, is, ObjectIs)                                   \
   V(Object.prototype, hasOwnProperty, ObjectHasOwnProperty) \
   V(Object.prototype, isPrototypeOf, ObjectIsPrototypeOf)   \
   V(Object.prototype, toString, ObjectToString)             \

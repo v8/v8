@@ -52,6 +52,7 @@ namespace compiler {
   V(Int32LessThan)                        \
   V(Float64Add)                           \
   V(Float64Sub)                           \
+  V(Float64Div)                           \
   V(Float64Mod)                           \
   V(Float64Equal)                         \
   V(Float64LessThan)                      \

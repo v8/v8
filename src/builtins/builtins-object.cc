@@ -369,15 +369,6 @@ BUILTIN(ObjectGetOwnPropertySymbols) {
   return GetOwnPropertyKeys(isolate, args, SKIP_STRINGS);
 }
 
-// ES#sec-object.is Object.is ( value1, value2 )
-BUILTIN(ObjectIs) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(3, args.length());
-  Handle<Object> value1 = args.at(1);
-  Handle<Object> value2 = args.at(2);
-  return isolate->heap()->ToBoolean(value1->SameValue(*value2));
-}
-
 // ES6 section 19.1.2.11 Object.isExtensible ( O )
 BUILTIN(ObjectIsExtensible) {
   HandleScope scope(isolate);

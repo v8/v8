@@ -290,6 +290,7 @@ class Typer::Visitor : public Reducer {
   static Type* ObjectIsArrayBufferView(Type*, Typer*);
   static Type* ObjectIsCallable(Type*, Typer*);
   static Type* ObjectIsDetectableCallable(Type*, Typer*);
+  static Type* ObjectIsMinusZero(Type*, Typer*);
   static Type* ObjectIsNaN(Type*, Typer*);
   static Type* ObjectIsNonCallable(Type*, Typer*);
   static Type* ObjectIsNumber(Type*, Typer*);
@@ -525,6 +526,12 @@ Type* Typer::Visitor::ObjectIsCallable(Type* type, Typer* t) {
 Type* Typer::Visitor::ObjectIsDetectableCallable(Type* type, Typer* t) {
   if (type->Is(Type::DetectableCallable())) return t->singleton_true_;
   if (!type->Maybe(Type::DetectableCallable())) return t->singleton_false_;
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::ObjectIsMinusZero(Type* type, Typer* t) {
+  if (type->Is(Type::MinusZero())) return t->singleton_true_;
+  if (!type->Maybe(Type::MinusZero())) return t->singleton_false_;
   return Type::Boolean();
 }
 
@@ -1544,6 +1551,7 @@ Type* Typer::Visitor::JSCallTyper(Type* fun, Typer* t) {
           return Type::Receiver();
         case kObjectCreate:
           return Type::OtherObject();
+        case kObjectIs:
         case kObjectHasOwnProperty:
         case kObjectIsPrototypeOf:
           return Type::Boolean();
@@ -1978,6 +1986,10 @@ Type* Typer::Visitor::TypeObjectIsCallable(Node* node) {
 
 Type* Typer::Visitor::TypeObjectIsDetectableCallable(Node* node) {
   return TypeUnaryOp(node, ObjectIsDetectableCallable);
+}
+
+Type* Typer::Visitor::TypeObjectIsMinusZero(Node* node) {
+  return TypeUnaryOp(node, ObjectIsMinusZero);
 }
 
 Type* Typer::Visitor::TypeObjectIsNaN(Node* node) {

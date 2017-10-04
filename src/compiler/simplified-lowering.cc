@@ -2677,6 +2677,39 @@ class RepresentationSelector {
         VisitObjectIs(node, Type::DetectableCallable(), lowering);
         return;
       }
+      case IrOpcode::kObjectIsMinusZero: {
+        Type* const input_type = GetUpperBound(node->InputAt(0));
+        if (input_type->Is(Type::MinusZero())) {
+          VisitUnop(node, UseInfo::None(), MachineRepresentation::kBit);
+          if (lower()) {
+            DeferReplacement(node, lowering->jsgraph()->Int32Constant(1));
+          }
+        } else if (!input_type->Maybe(Type::MinusZero())) {
+          VisitUnop(node, UseInfo::Any(), MachineRepresentation::kBit);
+          if (lower()) {
+            DeferReplacement(node, lowering->jsgraph()->Int32Constant(0));
+          }
+        } else if (input_type->Is(Type::Number())) {
+          VisitUnop(node, UseInfo::TruncatingFloat64(),
+                    MachineRepresentation::kBit);
+          if (lower()) {
+            // ObjectIsMinusZero(x:kRepFloat64)
+            //   => Float64Equal(Float64Div(1.0,x),-Infinity)
+            Node* const input = node->InputAt(0);
+            node->ReplaceInput(
+                0, jsgraph_->graph()->NewNode(
+                       lowering->machine()->Float64Div(),
+                       lowering->jsgraph()->Float64Constant(1.0), input));
+            node->AppendInput(jsgraph_->zone(),
+                              jsgraph_->Float64Constant(
+                                  -std::numeric_limits<double>::infinity()));
+            NodeProperties::ChangeOp(node, lowering->machine()->Float64Equal());
+          }
+        } else {
+          VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
+        }
+        return;
+      }
       case IrOpcode::kObjectIsNaN: {
         Type* const input_type = GetUpperBound(node->InputAt(0));
         if (input_type->Is(Type::NaN())) {
