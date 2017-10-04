@@ -384,3 +384,30 @@ function TestStore(func, buffer, value, size) {
   assertEquals(20, instance.exports.loadStore());
   assertTraps(kTrapMemOutOfBounds, instance.exports.storeOob);
 })();
+
+(function TestAtomicOpinLoop() {
+  print("TestAtomicOpinLoop");
+  var builder = new WasmModuleBuilder();
+  let memory = new WebAssembly.Memory({
+    initial: 16, maximum: 128, shared: true});
+  builder.addImportedMemory("m", "imported_mem", 16, 128, "shared");
+  builder.addFunction("main", kSig_i_v)
+    .addBody([
+      kExprLoop, kWasmStmt,
+        kExprI32Const, 16,
+        kExprI32Const, 20,
+        kAtomicPrefix,
+        kExprI32AtomicStore, 2, 0,
+        kExprI32Const, 16,
+        kAtomicPrefix,
+        kExprI32AtomicLoad, 2, 0,
+        kExprReturn,
+      kExprEnd,
+      kExprI32Const, 0
+    ])
+    .exportFunc();
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = (new WebAssembly.Instance(module,
+        {m: {imported_mem: memory}}));
+  assertEquals(20, instance.exports.main());
+})();

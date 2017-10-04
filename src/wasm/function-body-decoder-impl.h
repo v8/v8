@@ -970,6 +970,23 @@ class WasmDecoder : public Decoder {
             return 2;
         }
       }
+      case kAtomicPrefix: {
+        byte atomic_index = decoder->read_u8<validate>(pc + 1, "atomic_index");
+        WasmOpcode opcode =
+            static_cast<WasmOpcode>(kAtomicPrefix << 8 | atomic_index);
+        switch (opcode) {
+#define DECLARE_OPCODE_CASE(name, opcode, sig) case kExpr##name:
+          FOREACH_ATOMIC_OPCODE(DECLARE_OPCODE_CASE)
+#undef DECLARE_OPCODE_CASE
+          {
+            MemoryAccessOperand<validate> operand(decoder, pc + 1, UINT32_MAX);
+            return 2 + operand.length;
+          }
+          default:
+            decoder->error(pc, "invalid Atomics opcode");
+            return 2;
+        }
+      }
       default:
         return 1;
     }
