@@ -625,13 +625,26 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   if (result != NodeProperties::kReliableReceiverMaps) {
     return NoChange();
   }
-  if (receiver_maps.size() != 1) return NoChange();
-  Handle<Map> receiver_map(receiver_maps[0]);
-  ElementsKind kind = receiver_map->elements_kind();
-  // TODO(danno): Handle double packed elements
-  if (!IsFastElementsKind(kind) || IsDoubleElementsKind(kind) ||
-      !CanInlineArrayIteratingBuiltin(receiver_map)) {
-    return NoChange();
+  if (receiver_maps.size() == 0) return NoChange();
+
+  ElementsKind kind = IsDoubleElementsKind(receiver_maps[0]->elements_kind())
+                          ? PACKED_DOUBLE_ELEMENTS
+                          : PACKED_ELEMENTS;
+  for (Handle<Map> receiver_map : receiver_maps) {
+    ElementsKind next_kind = receiver_map->elements_kind();
+    if (!CanInlineArrayIteratingBuiltin(receiver_map)) {
+      return NoChange();
+    }
+    if (!IsFastElementsKind(next_kind) ||
+        (IsDoubleElementsKind(next_kind) && IsHoleyElementsKind(next_kind))) {
+      return NoChange();
+    }
+    if (IsDoubleElementsKind(kind) != IsDoubleElementsKind(next_kind)) {
+      return NoChange();
+    }
+    if (IsHoleyElementsKind(next_kind)) {
+      kind = HOLEY_ELEMENTS;
+    }
   }
 
   // Install code dependencies on the {receiver} prototype maps and the
@@ -692,14 +705,9 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
       graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
 
   // Make sure the map hasn't changed during the iteration
-  Node* orig_map = jsgraph()->HeapConstant(receiver_map);
-  Node* array_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       receiver, effect, control);
-  Node* check_map =
-      graph()->NewNode(simplified()->ReferenceEqual(), array_map, orig_map);
-  effect =
-      graph()->NewNode(simplified()->CheckIf(), check_map, effect, control);
+  effect = graph()->NewNode(
+      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
+      effect, control);
 
   // Make sure that the access is still in bounds, since the callback could have
   // changed the array's size.
@@ -717,7 +725,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
       effect, control);
 
   Node* element = graph()->NewNode(
-      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
+      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(kind)),
       elements, k, effect, control);
 
   Node* next_k =
