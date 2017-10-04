@@ -600,6 +600,12 @@ void JSInliningHeuristic::CreateOrReuseDispatch(Node* node, Node* callee,
     // Clone the calls for each branch.
     // The first input to the call is the actual target (which we specialize
     // to the known {target}); the last input is the control dependency.
+    // We also specialize the new.target of JSConstruct {node}s if it refers
+    // to the same node as the {node}'s target input, so that we can later
+    // properly inline the JSCreate operations.
+    if (node->opcode() == IrOpcode::kJSConstruct && inputs[0] == inputs[1]) {
+      inputs[1] = target;
+    }
     inputs[0] = target;
     inputs[input_count - 1] = if_successes[i];
     calls[i] = if_successes[i] =
