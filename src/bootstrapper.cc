@@ -948,6 +948,8 @@ void Genesis::CreateAsyncIteratorMaps(Handle<JSFunction> empty) {
   // %AsyncGeneratorPrototype%
   JSObject::ForceSetPrototype(async_generator_object_prototype,
                               async_iterator_prototype);
+  native_context()->set_initial_async_generator_prototype(
+      *async_generator_object_prototype);
 
   JSObject::AddProperty(async_generator_object_prototype,
                         factory()->to_string_tag_symbol(),
