@@ -1861,7 +1861,7 @@ void TurboAssembler::Trunc_uw_s(FPURegister fd, FPURegister fs,
   mtc1(t8, fd);
 }
 
-void MacroAssembler::Trunc_w_d(FPURegister fd, FPURegister fs) {
+void TurboAssembler::Trunc_w_d(FPURegister fd, FPURegister fs) {
   if (IsMipsArchVariant(kLoongson) && fd == fs) {
     Mfhc1(t8, fs);
     trunc_w_d(fd, fs);
@@ -1871,8 +1871,7 @@ void MacroAssembler::Trunc_w_d(FPURegister fd, FPURegister fs) {
   }
 }
 
-
-void MacroAssembler::Round_w_d(FPURegister fd, FPURegister fs) {
+void TurboAssembler::Round_w_d(FPURegister fd, FPURegister fs) {
   if (IsMipsArchVariant(kLoongson) && fd == fs) {
     Mfhc1(t8, fs);
     round_w_d(fd, fs);
@@ -1882,8 +1881,7 @@ void MacroAssembler::Round_w_d(FPURegister fd, FPURegister fs) {
   }
 }
 
-
-void MacroAssembler::Floor_w_d(FPURegister fd, FPURegister fs) {
+void TurboAssembler::Floor_w_d(FPURegister fd, FPURegister fs) {
   if (IsMipsArchVariant(kLoongson) && fd == fs) {
     Mfhc1(t8, fs);
     floor_w_d(fd, fs);
@@ -1893,8 +1891,7 @@ void MacroAssembler::Floor_w_d(FPURegister fd, FPURegister fs) {
   }
 }
 
-
-void MacroAssembler::Ceil_w_d(FPURegister fd, FPURegister fs) {
+void TurboAssembler::Ceil_w_d(FPURegister fd, FPURegister fs) {
   if (IsMipsArchVariant(kLoongson) && fd == fs) {
     Mfhc1(t8, fs);
     ceil_w_d(fd, fs);

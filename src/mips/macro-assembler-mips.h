@@ -609,6 +609,11 @@ class TurboAssembler : public Assembler {
   void Trunc_uw_s(FPURegister fd, FPURegister fs, FPURegister scratch);
   void Trunc_uw_s(FPURegister fd, Register rs, FPURegister scratch);
 
+  void Trunc_w_d(FPURegister fd, FPURegister fs);
+  void Round_w_d(FPURegister fd, FPURegister fs);
+  void Floor_w_d(FPURegister fd, FPURegister fs);
+  void Ceil_w_d(FPURegister fd, FPURegister fs);
+
   // FP32 mode: Move the general purpose register into
   // the high part of the double-register pair.
   // FP64 mode: Move the general-purpose register into
@@ -1056,11 +1061,6 @@ class MacroAssembler : public TurboAssembler {
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
   void PopSafepointRegisters();
-
-  void Trunc_w_d(FPURegister fd, FPURegister fs);
-  void Round_w_d(FPURegister fd, FPURegister fs);
-  void Floor_w_d(FPURegister fd, FPURegister fs);
-  void Ceil_w_d(FPURegister fd, FPURegister fs);
 
   // Truncates a double using a specific rounding mode, and writes the value
   // to the result register.
