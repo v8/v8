@@ -959,32 +959,23 @@ void PromiseBuiltinsAssembler::InternalPromiseReject(Node* context,
 void PromiseBuiltinsAssembler::InternalPromiseReject(Node* context,
                                                      Node* promise, Node* value,
                                                      bool debug_event) {
-  Label fulfill(this), report_unhandledpromise(this), run_promise_hook(this);
+  Label fulfill(this), exit(this);
 
+  GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &fulfill);
   if (debug_event) {
-    GotoIfNot(IsDebugActive(), &run_promise_hook);
     CallRuntime(Runtime::kDebugPromiseReject, context, promise, value);
-    Goto(&run_promise_hook);
-  } else {
-    Goto(&run_promise_hook);
   }
-
-  BIND(&run_promise_hook);
-  {
-    GotoIfNot(IsPromiseHookEnabledOrDebugIsActive(), &report_unhandledpromise);
-    CallRuntime(Runtime::kPromiseHookResolve, context, promise);
-    Goto(&report_unhandledpromise);
-  }
-
-  BIND(&report_unhandledpromise);
-  {
-    GotoIf(PromiseHasHandler(promise), &fulfill);
-    CallRuntime(Runtime::kReportPromiseReject, context, promise, value);
-    Goto(&fulfill);
-  }
+  CallRuntime(Runtime::kPromiseHookResolve, context, promise);
+  Goto(&fulfill);
 
   BIND(&fulfill);
   PromiseFulfill(context, promise, value, v8::Promise::kRejected);
+
+  GotoIf(PromiseHasHandler(promise), &exit);
+  CallRuntime(Runtime::kReportPromiseReject, context, promise, value);
+  Goto(&exit);
+
+  BIND(&exit);
 }
 
 void PromiseBuiltinsAssembler::SetForwardingHandlerIfTrue(
