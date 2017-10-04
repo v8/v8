@@ -788,28 +788,29 @@ void CodeStubAssembler::BranchIfJSObject(Node* object, Label* if_true,
          if_true, if_false);
 }
 
-void CodeStubAssembler::BranchIfFastJSArray(
-    Node* object, Node* context, CodeStubAssembler::FastJSArrayAccessMode mode,
-    Label* if_true, Label* if_false) {
+void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
+                                            Label* if_true, Label* if_false) {
   // Bailout if receiver is a Smi.
   GotoIf(TaggedIsSmi(object), if_false);
 
   Node* map = LoadMap(object);
-
-  // Bailout if instance type is not JS_ARRAY_TYPE.
-  GotoIf(Word32NotEqual(LoadMapInstanceType(map), Int32Constant(JS_ARRAY_TYPE)),
-         if_false);
-
-  Node* elements_kind = LoadMapElementsKind(map);
+  GotoIfNot(IsJSArrayMap(map), if_false);
 
   // Bailout if receiver has slow elements.
+  Node* elements_kind = LoadMapElementsKind(map);
   GotoIfNot(IsFastElementsKind(elements_kind), if_false);
 
-  // Check prototype chain if receiver does not have packed elements.
-  if (mode == FastJSArrayAccessMode::INBOUNDS_READ) {
-    GotoIfNot(IsHoleyFastElementsKind(elements_kind), if_true);
-  }
-  BranchIfPrototypesHaveNoElements(map, if_true, if_false);
+  // Check prototype chain if receiver does not have packed elements
+  GotoIfNot(IsPrototypeInitialArrayPrototype(context, map), if_false);
+
+  Branch(IsArrayProtectorCellInvalid(), if_false, if_true);
+}
+
+void CodeStubAssembler::BranchIfFastJSArrayForCopy(Node* object, Node* context,
+                                                   Label* if_true,
+                                                   Label* if_false) {
+  GotoIf(IsSpeciesProtectorCellInvalid(), if_false);
+  BranchIfFastJSArray(object, context, if_true, if_false);
 }
 
 Node* CodeStubAssembler::AllocateRaw(Node* size_in_bytes, AllocationFlags flags,
@@ -9632,8 +9633,7 @@ Node* CodeStubAssembler::CreateArrayIterator(Node* array, Node* array_map,
     BIND(&if_isgeneric);
     {
       Label if_isfast(this), if_isslow(this);
-      BranchIfFastJSArray(array, context, FastJSArrayAccessMode::INBOUNDS_READ,
-                          &if_isfast, &if_isslow);
+      BranchIfFastJSArray(array, context, &if_isfast, &if_isslow);
 
       BIND(&if_isfast);
       {
@@ -9667,8 +9667,7 @@ Node* CodeStubAssembler::CreateArrayIterator(Node* array, Node* array_map,
     BIND(&if_isgeneric);
     {
       Label if_isfast(this), if_isslow(this);
-      BranchIfFastJSArray(array, context, FastJSArrayAccessMode::INBOUNDS_READ,
-                          &if_isfast, &if_isslow);
+      BranchIfFastJSArray(array, context, &if_isfast, &if_isslow);
 
       BIND(&if_isfast);
       {

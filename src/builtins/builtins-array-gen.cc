@@ -112,8 +112,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
       Label fast(this);
       Label runtime(this);
       Label object_push_pre(this), object_push(this), double_push(this);
-      BranchIfFastJSArray(a(), context(), FastJSArrayAccessMode::ANY_ACCESS,
-                          &fast, &runtime);
+      BranchIfFastJSArray(a(), context(), &fast, &runtime);
 
       BIND(&fast);
       {
@@ -705,7 +704,6 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     GotoIf(TaggedIsNotSmi(len()), slow);
 
     BranchIfFastJSArray(o(), context(),
-                        CodeStubAssembler::FastJSArrayAccessMode::INBOUNDS_READ,
                         &switch_on_elements_kind, slow);
 
     BIND(&switch_on_elements_kind);
@@ -827,8 +825,7 @@ TF_BUILTIN(FastArrayPop, CodeStubAssembler) {
   // 4) we aren't supposed to shrink the backing store.
 
   // 1) Check that the array has fast elements.
-  BranchIfFastJSArray(receiver, context, FastJSArrayAccessMode::INBOUNDS_READ,
-                      &fast, &runtime);
+  BranchIfFastJSArray(receiver, context, &fast, &runtime);
 
   BIND(&fast);
   {
@@ -931,8 +928,7 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
   Node* kind = nullptr;
 
   Label fast(this);
-  BranchIfFastJSArray(receiver, context, FastJSArrayAccessMode::ANY_ACCESS,
-                      &fast, &runtime);
+  BranchIfFastJSArray(receiver, context, &fast, &runtime);
 
   BIND(&fast);
   {
@@ -1060,8 +1056,7 @@ TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
   // 5) we aren't supposed to left-trim the backing store.
 
   // 1) Check that the array has fast elements.
-  BranchIfFastJSArray(receiver, context, FastJSArrayAccessMode::INBOUNDS_READ,
-                      &fast, &runtime);
+  BranchIfFastJSArray(receiver, context, &fast, &runtime);
 
   BIND(&fast);
   {
@@ -1741,8 +1736,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
 
   // Take slow path if not a JSArray, if retrieving elements requires
   // traversing prototype, or if access checks are required.
-  BranchIfFastJSArray(receiver, context, FastJSArrayAccessMode::INBOUNDS_READ,
-                      &init_index, &call_runtime);
+  BranchIfFastJSArray(receiver, context, &init_index, &call_runtime);
 
   BIND(&init_index);
   VARIABLE(index_var, MachineType::PointerRepresentation(), intptr_zero);

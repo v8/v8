@@ -397,10 +397,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void BranchIfJSReceiver(Node* object, Label* if_true, Label* if_false);
   void BranchIfJSObject(Node* object, Label* if_true, Label* if_false);
 
-  enum class FastJSArrayAccessMode { INBOUNDS_READ, ANY_ACCESS };
-  void BranchIfFastJSArray(Node* object, Node* context,
-                           FastJSArrayAccessMode mode, Label* if_true,
+  void BranchIfFastJSArray(Node* object, Node* context, Label* if_true,
                            Label* if_false);
+  void BranchIfFastJSArrayForCopy(Node* object, Node* context, Label* if_true,
+                                  Label* if_false);
 
   // Load value from current frame by given offset in bytes.
   Node* LoadFromFrame(int offset, MachineType rep = MachineType::AnyTagged());
