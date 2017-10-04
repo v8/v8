@@ -5689,13 +5689,53 @@ MaybeHandle<Context> JSBoundFunction::GetFunctionRealm(
 MaybeHandle<String> JSBoundFunction::GetName(Isolate* isolate,
                                              Handle<JSBoundFunction> function) {
   Handle<String> prefix = isolate->factory()->bound__string();
-  if (!function->bound_target_function()->IsJSFunction()) return prefix;
+  Handle<String> target_name = prefix;
+  Factory* factory = isolate->factory();
+  // Concatenate the "bound " up to the last non-bound target.
+  while (function->bound_target_function()->IsJSBoundFunction()) {
+    ASSIGN_RETURN_ON_EXCEPTION(isolate, target_name,
+                               factory->NewConsString(prefix, target_name),
+                               String);
+    function = handle(JSBoundFunction::cast(function->bound_target_function()),
+                      isolate);
+  }
+  if (function->bound_target_function()->IsJSFunction()) {
+    Handle<JSFunction> target(
+        JSFunction::cast(function->bound_target_function()), isolate);
+    Handle<Object> name = JSFunction::GetName(isolate, target);
+    if (!name->IsString()) return target_name;
+    return factory->NewConsString(target_name, Handle<String>::cast(name));
+  }
+  // This will omit the proper target name for bound JSProxies.
+  return target_name;
+}
+
+// static
+Maybe<int> JSBoundFunction::GetLength(Isolate* isolate,
+                                      Handle<JSBoundFunction> function) {
+  int nof_bound_arguments = function->bound_arguments()->length();
+  while (function->bound_target_function()->IsJSBoundFunction()) {
+    function = handle(JSBoundFunction::cast(function->bound_target_function()),
+                      isolate);
+    // Make sure we never overflow {nof_bound_arguments}, the number of
+    // arguments of a function is strictly limited by the max length of an
+    // JSAarray, Smi::kMaxValue is thus a reasonably good overestimate.
+    int length = function->bound_arguments()->length();
+    if (V8_LIKELY(Smi::kMaxValue - nof_bound_arguments > length)) {
+      nof_bound_arguments += length;
+    } else {
+      nof_bound_arguments = Smi::kMaxValue;
+    }
+  }
+  // All non JSFunction targets get a direct property and don't use this
+  // accessor.
   Handle<JSFunction> target(JSFunction::cast(function->bound_target_function()),
                             isolate);
-  Handle<Object> target_name = JSFunction::GetName(isolate, target);
-  if (!target_name->IsString()) return prefix;
-  Factory* factory = isolate->factory();
-  return factory->NewConsString(prefix, Handle<String>::cast(target_name));
+  Maybe<int> target_length = JSFunction::GetLength(isolate, target);
+  if (target_length.IsNothing()) return target_length;
+
+  int length = Max(0, target_length.FromJust() - nof_bound_arguments);
+  return Just(length);
 }
 
 // static
@@ -5708,8 +5748,8 @@ Handle<Object> JSFunction::GetName(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Smi> JSFunction::GetLength(Isolate* isolate,
-                                       Handle<JSFunction> function) {
+Maybe<int> JSFunction::GetLength(Isolate* isolate,
+                                 Handle<JSFunction> function) {
   int length = 0;
   if (function->shared()->is_compiled()) {
     length = function->shared()->GetLength();
@@ -5719,10 +5759,10 @@ MaybeHandle<Smi> JSFunction::GetLength(Isolate* isolate,
     if (Compiler::Compile(function, Compiler::KEEP_EXCEPTION)) {
       length = function->shared()->GetLength();
     }
-    if (isolate->has_pending_exception()) return MaybeHandle<Smi>();
+    if (isolate->has_pending_exception()) return Nothing<int>();
   }
   DCHECK_GE(length, 0);
-  return handle(Smi::FromInt(length), isolate);
+  return Just(length);
 }
 
 // static

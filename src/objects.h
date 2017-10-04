@@ -4779,6 +4779,8 @@ class JSBoundFunction : public JSObject {
 
   static MaybeHandle<String> GetName(Isolate* isolate,
                                      Handle<JSBoundFunction> function);
+  static Maybe<int> GetLength(Isolate* isolate,
+                              Handle<JSBoundFunction> function);
   static MaybeHandle<Context> GetFunctionRealm(
       Handle<JSBoundFunction> function);
 
@@ -4824,8 +4826,7 @@ class JSFunction: public JSObject {
   inline Context* native_context();
 
   static Handle<Object> GetName(Isolate* isolate, Handle<JSFunction> function);
-  static MaybeHandle<Smi> GetLength(Isolate* isolate,
-                                    Handle<JSFunction> function);
+  static Maybe<int> GetLength(Isolate* isolate, Handle<JSFunction> function);
   static Handle<Context> GetFunctionRealm(Handle<JSFunction> function);
 
   // [code]: The generated code object for this function.  Executed

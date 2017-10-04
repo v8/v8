@@ -727,12 +727,11 @@ void Accessors::FunctionLengthGetter(
   HandleScope scope(isolate);
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
-  Handle<Object> result;
-  if (!JSFunction::GetLength(isolate, function).ToHandle(&result)) {
-    result = handle(Smi::kZero, isolate);
+  int length = 0;
+  if (!JSFunction::GetLength(isolate, function).To(&length)) {
     isolate->OptionalRescheduleException(false);
   }
-
+  Handle<Object> result(Smi::FromInt(length), isolate);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
@@ -1110,18 +1109,11 @@ void Accessors::BoundFunctionLengthGetter(
   Handle<JSBoundFunction> function =
       Handle<JSBoundFunction>::cast(Utils::OpenHandle(*info.Holder()));
 
-  Handle<Smi> target_length;
-  Handle<JSFunction> target(JSFunction::cast(function->bound_target_function()),
-                            isolate);
-  if (!JSFunction::GetLength(isolate, target).ToHandle(&target_length)) {
-    target_length = handle(Smi::kZero, isolate);
+  int length = 0;
+  if (!JSBoundFunction::GetLength(isolate, function).To(&length)) {
     isolate->OptionalRescheduleException(false);
     return;
   }
-
-  int bound_length = function->bound_arguments()->length();
-  int length = Max(0, target_length->value() - bound_length);
-
   Handle<Object> result(Smi::FromInt(length), isolate);
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
