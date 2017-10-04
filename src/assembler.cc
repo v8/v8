@@ -1015,6 +1015,18 @@ ExternalReference ExternalReference::wasm_float64_pow(Isolate* isolate) {
       Redirect(isolate, FUNCTION_ADDR(wasm::float64_pow_wrapper)));
 }
 
+ExternalReference ExternalReference::wasm_set_thread_in_wasm_flag(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::set_thread_in_wasm_flag)));
+}
+
+ExternalReference ExternalReference::wasm_clear_thread_in_wasm_flag(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(wasm::clear_thread_in_wasm_flag)));
+}
+
 static void f64_mod_wrapper(double* param0, double* param1) {
   WriteDoubleValue(param0,
                    modulo(ReadDoubleValue(param0), ReadDoubleValue(param1)));

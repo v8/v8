@@ -2302,13 +2302,30 @@ Node* WasmGraphBuilder::BuildDiv64Call(Node* left, Node* right,
   return load;
 }
 
-Node* WasmGraphBuilder::BuildCCall(MachineSignature* sig, Node** args) {
+Node* WasmGraphBuilder::BuildCCall(MachineSignature* sig, Node* const* args) {
   const size_t params = sig->parameter_count();
   const size_t extra = 2;  // effect and control inputs.
   const size_t count = 1 + params + extra;
 
   // Reallocate the buffer to make space for extra inputs.
-  args = Realloc(args, 1 + params, count);
+  Node** new_args = Realloc(args, 1 + params, count);
+  return BuildCCallWithBuffer(sig, new_args, count);
+}
+
+// Builds a CCall using the caller-provided buffer rather than calling Buffer()
+// and copying. The args array contains the function to call and any
+// parameters. There should be space for two more arguments at the end, which
+// BuildCCallWithBuffer will fill with the effect and control nodes.
+//
+// TODO(eholk): Refactor this as a variadic template that knows the right number
+// of arguments.
+Node* WasmGraphBuilder::BuildCCallWithBuffer(MachineSignature* sig, Node** args,
+                                             size_t args_len) {
+  const size_t params = sig->parameter_count();
+  const size_t extra = 2;  // effect and control inputs.
+  const size_t count = 1 + params + extra;
+
+  DCHECK_LE(count, args_len);
 
   // Add effect and control inputs.
   args[params + 1] = *effect_;
@@ -2773,8 +2790,9 @@ Node* WasmGraphBuilder::BuildHeapNumberValueIndexConstant() {
 
 void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
                                             Address wasm_context_address) {
-  int wasm_count = static_cast<int>(sig_->parameter_count());
-  int count = wasm_count + 4;  // wasm_code, wasm_context, effect, and control.
+  const int wasm_count = static_cast<int>(sig_->parameter_count());
+  const int count =
+      wasm_count + 4;  // wasm_code, wasm_context, effect, and control.
   Node** args = Buffer(count);
 
   // Build the start and the JS parameter nodes.
@@ -3269,36 +3287,22 @@ void WasmGraphBuilder::EnsureFunctionTableNodes() {
 Node* WasmGraphBuilder::BuildModifyThreadInWasmFlag(bool new_value) {
   // TODO(eholk): generate code to modify the thread-local storage directly,
   // rather than calling the runtime.
-  //
-  // Note that the runtime functions also toggle the wasm_execution_time
-  // counters. Make sure this behavior is preserved if we avoid the runtime
-  // call.
   if (!trap_handler::UseTrapHandler()) {
     return *control_;
   }
 
-  const Runtime::FunctionId f =
-      new_value ? Runtime::kSetThreadInWasm : Runtime::kClearThreadInWasm;
-  const Runtime::Function* fun = Runtime::FunctionForId(f);
-  DCHECK_EQ(0, fun->nargs);
-  const CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
-      jsgraph()->zone(), f, fun->nargs, Operator::kNoProperties,
-      CallDescriptor::kNoFlags);
-  // CEntryStubConstant nodes have to be created and cached in the main
-  // thread. At the moment this is only done for CEntryStubConstant(1).
-  DCHECK_EQ(1, fun->result_size);
-  Node* inputs[] = {centry_stub_node_,
-                    jsgraph()->ExternalConstant(
-                        ExternalReference(f, jsgraph()->isolate())),  // ref
-                    jsgraph()->Int32Constant(fun->nargs),             // arity
-                    jsgraph()->NoContextConstant(),
-                    *effect_,
-                    *control_};
-
-  Node* node = jsgraph()->graph()->NewNode(jsgraph()->common()->Call(desc),
-                                           arraysize(inputs), inputs);
-  *effect_ = node;
-  return node;
+  // Using two functions instead of taking the new value as a parameter saves
+  // one instruction on each call to set up the parameter.
+  ExternalReference ref =
+      new_value ? ExternalReference::wasm_set_thread_in_wasm_flag(
+                      jsgraph()->isolate())
+                : ExternalReference::wasm_clear_thread_in_wasm_flag(
+                      jsgraph()->isolate());
+  MachineSignature::Builder sig_builder(jsgraph()->zone(), 0, 0);
+  Node* args[] = {graph()->NewNode(jsgraph()->common()->ExternalConstant(ref)),
+                  nullptr,  // Extra space for CCall effect and control inputs
+                  nullptr};
+  return BuildCCallWithBuffer(sig_builder.Build(), args, arraysize(args));
 }
 
 // Only call this function for code which is not reused across instantiations,
@@ -3307,10 +3311,6 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(Runtime::FunctionId f,
                                                       Node* js_context,
                                                       Node** parameters,
                                                       int parameter_count) {
-  // Setting and clearing the thread-in-wasm flag should not be done as a normal
-  // runtime call.
-  DCHECK_NE(f, Runtime::kSetThreadInWasm);
-  DCHECK_NE(f, Runtime::kClearThreadInWasm);
   // We're leaving Wasm code, so clear the flag.
   *control_ = BuildModifyThreadInWasmFlag(false);
   // Since the thread-in-wasm flag is clear, it is as if we are calling from JS.

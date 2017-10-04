@@ -252,16 +252,6 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionSetElement) {
   return isolate->heap()->undefined_value();
 }
 
-RUNTIME_FUNCTION(Runtime_SetThreadInWasm) {
-  trap_handler::SetThreadInWasm();
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_ClearThreadInWasm) {
-  trap_handler::ClearThreadInWasm();
-  return isolate->heap()->undefined_value();
-}
-
 RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   DCHECK_EQ(3, args.length());
   HandleScope scope(isolate);

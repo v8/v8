@@ -8,6 +8,7 @@
 #include "src/assembler.h"
 #include "src/counters.h"
 #include "src/ic/stub-cache.h"
+#include "src/trap-handler/trap-handler.h"
 
 #if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
 #define SYMBOLIZE_FUNCTION
@@ -215,6 +216,15 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "wasm::word32_popcnt");
   Add(ExternalReference::wasm_word64_popcnt(isolate).address(),
       "wasm::word64_popcnt");
+  // If the trap handler is not supported, the optimizer will remove these
+  // runtime functions. In this case, the arm simulator will break if we add
+  // them to the external reference table.
+  if (V8_TRAP_HANDLER_SUPPORTED) {
+    Add(ExternalReference::wasm_set_thread_in_wasm_flag(isolate).address(),
+        "wasm::set_thread_in_wasm_flag");
+    Add(ExternalReference::wasm_clear_thread_in_wasm_flag(isolate).address(),
+        "wasm::clear_thread_in_wasm_flag");
+  }
   Add(ExternalReference::f64_acos_wrapper_function(isolate).address(),
       "f64_acos_wrapper");
   Add(ExternalReference::f64_asin_wrapper_function(isolate).address(),

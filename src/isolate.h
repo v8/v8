@@ -1005,6 +1005,9 @@ class Isolate {
   }
 
   bool serializer_enabled() const { return serializer_enabled_; }
+  void set_serializer_enabled_for_test(bool serializer_enabled) {
+    serializer_enabled_ = serializer_enabled;
+  }
   bool snapshot_available() const {
     return snapshot_blob_ != NULL && snapshot_blob_->raw_size != 0;
   }

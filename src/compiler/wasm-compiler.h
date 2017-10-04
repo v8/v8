@@ -405,7 +405,9 @@ class WasmGraphBuilder {
   Node* MaskShiftCount32(Node* node);
   Node* MaskShiftCount64(Node* node);
 
-  Node* BuildCCall(MachineSignature* sig, Node** args);
+  Node* BuildCCall(MachineSignature* sig, Node* const* args);
+  Node* BuildCCallWithBuffer(MachineSignature* sig, Node** args,
+                             size_t args_len);
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
                       wasm::WasmCodePosition position);
 
@@ -504,7 +506,7 @@ class WasmGraphBuilder {
   void BuildEncodeException32BitValue(uint32_t* index, Node* value);
   Node* BuildDecodeException32BitValue(Node* const* values, uint32_t* index);
 
-  Node** Realloc(Node** buffer, size_t old_count, size_t new_count) {
+  Node** Realloc(Node* const* buffer, size_t old_count, size_t new_count) {
     Node** buf = Buffer(new_count);
     if (buf != buffer) memcpy(buf, buffer, old_count * sizeof(Node*));
     return buf;
