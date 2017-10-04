@@ -292,6 +292,8 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
     marking_worklist_ = marking_worklist;
   }
 
+  void Deactivate();
+
  private:
   class Observer : public AllocationObserver {
    public:

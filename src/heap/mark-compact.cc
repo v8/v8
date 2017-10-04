@@ -523,19 +523,10 @@ void MarkCompactCollector::CollectGarbage() {
   heap()->minor_mark_compact_collector()->CleanupSweepToIteratePages();
 
   MarkLiveObjects();
-
-  DCHECK(heap_->incremental_marking()->IsStopped());
-
   ClearNonLiveReferences();
+  VerifyMarking();
 
   RecordObjectStats();
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) {
-    FullMarkingVerifier verifier(heap());
-    verifier.Run();
-  }
-#endif
 
   StartSweepSpaces();
 
@@ -984,19 +975,12 @@ void MarkCompactCollector::Prepare() {
   // them here.
   heap()->memory_allocator()->unmapper()->WaitUntilCompleted();
 
-  heap()->concurrent_marking()->EnsureCompleted();
-  heap()->concurrent_marking()->FlushLiveBytes(non_atomic_marking_state());
-
-#ifdef VERIFY_HEAP
-  heap()->old_space()->VerifyLiveBytes();
-  heap()->map_space()->VerifyLiveBytes();
-  heap()->code_space()->VerifyLiveBytes();
-#endif
-
   // Clear marking bits if incremental marking is aborted.
   if (was_marked_incrementally_ && heap_->ShouldAbortIncrementalMarking()) {
     heap()->incremental_marking()->Stop();
     heap()->incremental_marking()->AbortBlackAllocation();
+    FinishConcurrentMarking();
+    heap()->incremental_marking()->Deactivate();
     ClearMarkbits();
     AbortWeakCollections();
     AbortWeakObjects();
@@ -1031,6 +1015,28 @@ void MarkCompactCollector::Prepare() {
 #endif
 }
 
+void MarkCompactCollector::FinishConcurrentMarking() {
+  if (FLAG_concurrent_marking) {
+    heap()->concurrent_marking()->EnsureCompleted();
+    heap()->concurrent_marking()->FlushLiveBytes(non_atomic_marking_state());
+  }
+}
+
+void MarkCompactCollector::VerifyMarking() {
+  CHECK(marking_worklist()->IsEmpty());
+  DCHECK(heap_->incremental_marking()->IsStopped());
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) {
+    FullMarkingVerifier verifier(heap());
+    verifier.Run();
+  }
+#endif
+#ifdef VERIFY_HEAP
+  heap()->old_space()->VerifyLiveBytes();
+  heap()->map_space()->VerifyLiveBytes();
+  heap()->code_space()->VerifyLiveBytes();
+#endif
+}
 
 void MarkCompactCollector::Finish() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_FINISH);
@@ -1126,7 +1132,7 @@ class MarkCompactMarkingVisitor final
   // Marks the object black without pushing it on the marking stack. Returns
   // true if object needed marking and false otherwise.
   V8_INLINE bool MarkObjectWithoutPush(HeapObject* host, HeapObject* object) {
-    if (collector_->non_atomic_marking_state()->WhiteToBlack(object)) {
+    if (collector_->atomic_marking_state()->WhiteToBlack(object)) {
       if (V8_UNLIKELY(FLAG_track_retaining_path)) {
         heap_->AddRetainer(host, object);
       }
@@ -1171,7 +1177,6 @@ class MarkCompactCollector::RootMarkingVisitor final : public RootVisitor {
     if (!(*p)->IsHeapObject()) return;
 
     collector_->MarkRootObject(root, HeapObject::cast(*p));
-    collector_->EmptyMarkingWorklist();
   }
 
   MarkCompactCollector* const collector_;
@@ -1795,10 +1800,9 @@ void MarkCompactCollector::MarkStringTable(
     ObjectVisitor* custom_root_body_visitor) {
   StringTable* string_table = heap()->string_table();
   // Mark the string table itself.
-  if (non_atomic_marking_state()->WhiteToBlack(string_table)) {
+  if (atomic_marking_state()->WhiteToBlack(string_table)) {
     // Explicitly mark the prefix.
     string_table->IteratePrefix(custom_root_body_visitor);
-    EmptyMarkingWorklist();
   }
 }
 
@@ -1813,24 +1817,20 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
   ProcessTopOptimizedFrame(custom_root_body_visitor);
 }
 
-// Mark all objects reachable from the objects on the marking work list.
-// Before: the marking work list contains zero or more heap object pointers.
-// After: the marking work list is empty, and all objects reachable from the
-// marking work list have been marked.
-void MarkCompactCollector::EmptyMarkingWorklist() {
+void MarkCompactCollector::ProcessMarkingWorklist() {
   HeapObject* object;
   MarkCompactMarkingVisitor visitor(this);
   while ((object = marking_worklist()->Pop()) != nullptr) {
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
-    DCHECK(!(non_atomic_marking_state()->IsWhite(object)));
-
+    DCHECK(!(atomic_marking_state()->IsWhite(object)));
+    atomic_marking_state()->GreyToBlack(object);
     Map* map = object->map();
     MarkObject(object, map);
     visitor.Visit(map, object);
   }
-  DCHECK(marking_worklist()->IsEmpty());
+  DCHECK(marking_worklist()->IsBailoutEmpty());
 }
 
 // Mark all objects reachable (transitively) from objects on the marking
@@ -1858,7 +1858,7 @@ void MarkCompactCollector::ProcessEphemeralMarking(
     }
     ProcessWeakCollections();
     work_to_do = !marking_worklist()->IsEmpty();
-    EmptyMarkingWorklist();
+    ProcessMarkingWorklist();
   }
   CHECK(marking_worklist()->IsEmpty());
   CHECK_EQ(0, heap()->local_embedder_heap_tracer()->NumberOfWrappersToTrace());
@@ -1875,7 +1875,6 @@ void MarkCompactCollector::ProcessTopOptimizedFrame(ObjectVisitor* visitor) {
       if (!code->CanDeoptAt(it.frame()->pc())) {
         Code::BodyDescriptor::IterateBody(code, visitor);
       }
-      EmptyMarkingWorklist();
       return;
     }
   }
@@ -2010,7 +2009,7 @@ class MinorMarkCompactCollector::RootMarkingVisitor : public RootVisitor {
 
     if (marking_state_->WhiteToGrey(object)) {
       collector_->main_marking_visitor()->Visit(object);
-      collector_->EmptyMarkingWorklist();
+      collector_->ProcessMarkingWorklist();
     }
   }
 
@@ -2313,7 +2312,7 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MINOR_MC_MARK_WEAK);
     heap()->IterateEncounteredWeakCollections(&root_visitor);
-    EmptyMarkingWorklist();
+    ProcessMarkingWorklist();
   }
 
   {
@@ -2322,11 +2321,11 @@ void MinorMarkCompactCollector::MarkLiveObjects() {
         &IsUnmarkedObjectForYoungGeneration);
     isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
         &root_visitor);
-    EmptyMarkingWorklist();
+    ProcessMarkingWorklist();
   }
 }
 
-void MinorMarkCompactCollector::EmptyMarkingWorklist() {
+void MinorMarkCompactCollector::ProcessMarkingWorklist() {
   MarkingWorklist::View marking_worklist(worklist(), kMainMarker);
   HeapObject* object = nullptr;
   while (marking_worklist.Pop(&object)) {
@@ -2547,7 +2546,20 @@ void MarkCompactCollector::MarkLiveObjects() {
   }
 
   {
+    TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_MAIN);
+    if (FLAG_concurrent_marking) {
+      heap_->concurrent_marking()->RescheduleTasksIfNeeded();
+    }
+    ProcessMarkingWorklist();
+
+    FinishConcurrentMarking();
+    ProcessMarkingWorklist();
+  }
+
+  {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WEAK_CLOSURE);
+
+    DCHECK(marking_worklist()->IsEmpty());
 
     // The objects reachable from the roots are marked, yet unreachable
     // objects are unmarked.  Mark objects reachable due to host
@@ -2570,7 +2582,7 @@ void MarkCompactCollector::MarkLiveObjects() {
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_HANDLES);
       heap()->isolate()->global_handles()->IdentifyWeakHandles(
           &IsUnmarkedHeapObject);
-      EmptyMarkingWorklist();
+      ProcessMarkingWorklist();
     }
     // Then we mark the objects.
 
@@ -2578,7 +2590,7 @@ void MarkCompactCollector::MarkLiveObjects() {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS);
       heap()->isolate()->global_handles()->IterateWeakRoots(&root_visitor);
-      EmptyMarkingWorklist();
+      ProcessMarkingWorklist();
     }
 
     // Repeat Harmony weak maps marking to mark unmarked objects reachable from
@@ -2594,6 +2606,10 @@ void MarkCompactCollector::MarkLiveObjects() {
         heap()->local_embedder_heap_tracer()->TraceEpilogue();
       }
     }
+  }
+
+  if (was_marked_incrementally_) {
+    heap()->incremental_marking()->Deactivate();
   }
 }
 

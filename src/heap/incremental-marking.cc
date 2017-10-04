@@ -425,7 +425,6 @@ void IncrementalMarking::ActivateGeneratedStub(Code* stub) {
   }
 }
 
-
 static void PatchIncrementalMarkingRecordWriteStubs(
     Heap* heap, RecordWriteStub::Mode mode) {
   UnseededNumberDictionary* stubs = heap->code_stubs();
@@ -445,6 +444,12 @@ static void PatchIncrementalMarkingRecordWriteStubs(
       }
     }
   }
+}
+
+void IncrementalMarking::Deactivate() {
+  DeactivateIncrementalWriteBarrier();
+  PatchIncrementalMarkingRecordWriteStubs(heap_,
+                                          RecordWriteStub::STORE_BUFFER_ONLY);
 }
 
 void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
@@ -933,11 +938,6 @@ void IncrementalMarking::Stop() {
   }
 
   IncrementalMarking::set_should_hurry(false);
-  if (IsMarking()) {
-    PatchIncrementalMarkingRecordWriteStubs(heap_,
-                                            RecordWriteStub::STORE_BUFFER_ONLY);
-    DeactivateIncrementalWriteBarrier();
-  }
   heap_->isolate()->stack_guard()->ClearGC();
   SetState(STOPPED);
   is_compacting_ = false;

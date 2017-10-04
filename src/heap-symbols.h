@@ -310,6 +310,7 @@
   F(MC_FINISH)                                       \
   F(MC_MARK)                                         \
   F(MC_MARK_FINISH_INCREMENTAL)                      \
+  F(MC_MARK_MAIN)                                    \
   F(MC_MARK_ROOTS)                                   \
   F(MC_MARK_WEAK_CLOSURE)                            \
   F(MC_MARK_WEAK_CLOSURE_EPHEMERAL)                  \

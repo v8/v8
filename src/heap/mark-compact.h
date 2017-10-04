@@ -265,8 +265,8 @@ class MarkCompactCollectorBase {
   // Marking operations for objects reachable from roots.
   virtual void MarkLiveObjects() = 0;
   // Mark objects reachable (transitively) from objects in the marking
-  // stack.
-  virtual void EmptyMarkingWorklist() = 0;
+  // work list.
+  virtual void ProcessMarkingWorklist() = 0;
   // Clear non-live references held in side data structures.
   virtual void ClearNonLiveReferences() = 0;
   virtual void EvacuatePrologue() = 0;
@@ -388,7 +388,7 @@ class MinorMarkCompactCollector final : public MarkCompactCollectorBase {
 
   void MarkLiveObjects() override;
   void MarkRootSetInParallel();
-  void EmptyMarkingWorklist() override;
+  void ProcessMarkingWorklist() override;
   void ClearNonLiveReferences() override;
 
   void EvacuatePrologue() override;
@@ -474,6 +474,7 @@ struct WeakObjects {
 // Collector for young and old generation.
 class MarkCompactCollector final : public MarkCompactCollectorBase {
  public:
+  using AtomicMarkingState = MajorAtomicMarkingState;
   using NonAtomicMarkingState = MajorNonAtomicMarkingState;
 
   static const int kMainThread = 0;
@@ -655,6 +656,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     kClearMarkbits,
   };
 
+  AtomicMarkingState* atomic_marking_state() { return &atomic_marking_state_; }
+
   NonAtomicMarkingState* non_atomic_marking_state() {
     return &non_atomic_marking_state_;
   }
@@ -671,6 +674,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Prepares for GC by resetting relocation info in old and map spaces and
   // choosing spaces to compact.
   void Prepare();
+
+  void FinishConcurrentMarking();
 
   bool StartCompaction();
 
@@ -731,6 +736,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   bool are_map_pointers_encoded() { return state_ == UPDATE_POINTERS; }
 #endif
 
+  void VerifyMarking();
 #ifdef VERIFY_HEAP
   void VerifyValidStoreAndSlotsBufferEntries();
   void VerifyMarkbitsAreClean();
@@ -792,9 +798,9 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Collects a list of dependent code from maps embedded in optimize code.
   DependentCode* DependentCodeListFromNonLiveMaps();
 
-  // This function empties the marking stack, but may leave overflowed objects
-  // in the heap, in which case the marking stack's overflow flag will be set.
-  void EmptyMarkingWorklist() override;
+  // Drains the main thread marking work list. Will mark all pending objects
+  // if no concurrent threads are running.
+  void ProcessMarkingWorklist() override;
 
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
@@ -908,6 +914,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   Sweeper sweeper_;
 
+  AtomicMarkingState atomic_marking_state_;
   NonAtomicMarkingState non_atomic_marking_state_;
 
   friend class FullEvacuator;
