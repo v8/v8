@@ -803,7 +803,7 @@ void CodeGenerator::BailoutIfDeoptimized() {
   int pc = __ pc_offset();
   __ bind(&current);
   int offset = Code::kKindSpecificFlags1Offset - (Code::kHeaderSize + pc);
-  __ Ld(a2, MemOperand(ra, offset));
+  __ Lw(a2, MemOperand(ra, offset));
   __ pop(ra);
   __ And(a2, a2, Operand(1 << Code::kMarkedForDeoptimizationBit));
   Handle<Code> code = isolate()->builtins()->builtin_handle(
