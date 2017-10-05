@@ -316,6 +316,7 @@ StreamingDecoder::DecodeSectionLength::NextWithValue(
   SectionBuffer* buf = streaming->CreateNewBuffer(
       module_offset(), section_id(), value(),
       Vector<const uint8_t>(buffer(), static_cast<int>(bytes_needed())));
+  if (!buf) return nullptr;
   if (value() == 0) {
     if (section_id() == SectionCode::kCodeSectionCode) {
       return streaming->Error("Code section cannot have size 0");

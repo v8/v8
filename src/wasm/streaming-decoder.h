@@ -184,6 +184,14 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   SectionBuffer* CreateNewBuffer(uint32_t module_offset, uint8_t id,
                                  size_t length,
                                  Vector<const uint8_t> length_bytes) {
+    // Check the order of sections. Unknown sections can appear at any position.
+    if (id != kUnknownSectionCode) {
+      if (id < next_section_id_) {
+        Error("Unexpected section");
+        return nullptr;
+      }
+      next_section_id_ = id + 1;
+    }
     section_buffers_.emplace_back(
         new SectionBuffer(module_offset, id, length, length_bytes));
     return section_buffers_.back().get();
@@ -241,6 +249,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
   std::vector<std::unique_ptr<SectionBuffer>> section_buffers_;
   uint32_t module_offset_ = 0;
   size_t total_size_ = 0;
+  uint8_t next_section_id_ = kFirstSectionInModule;
 
   DISALLOW_COPY_AND_ASSIGN(StreamingDecoder);
 };

@@ -574,6 +574,66 @@ TEST_F(WasmStreamingDecoderTest, NumberOfFunctionsTooLow) {
   };
   ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
 }
+
+TEST_F(WasmStreamingDecoderTest, TwoCodeSections) {
+  const uint8_t data[] = {
+      U32_LE(kWasmMagic),    // --
+      U32_LE(kWasmVersion),  // --
+      kCodeSectionCode,      // Section ID
+      0x3,                   // Section Length
+      0x1,                   // Number of Functions
+      0x1,                   // Function Length
+      0x0,                   // Function
+      kCodeSectionCode,      // Section ID
+      0x3,                   // Section Length
+      0x1,                   // Number of Functions
+      0x1,                   // Function Length
+      0x0,                   // Function
+  };
+  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+}
+
+TEST_F(WasmStreamingDecoderTest, UnknownSection) {
+  const uint8_t data[] = {
+      U32_LE(kWasmMagic),    // --
+      U32_LE(kWasmVersion),  // --
+      kCodeSectionCode,      // Section ID
+      0x3,                   // Section Length
+      0x1,                   // Number of Functions
+      0x1,                   // Function Length
+      0x0,                   // Function
+      kUnknownSectionCode,   // Section ID
+      0x3,                   // Section Length
+      0x1,                   // Name Length
+      0x1,                   // Name
+      0x0,                   // Content
+  };
+  ExpectVerifies(Vector<const uint8_t>(data, arraysize(data)), 1, 1);
+}
+
+TEST_F(WasmStreamingDecoderTest, UnknownSectionSandwich) {
+  const uint8_t data[] = {
+      U32_LE(kWasmMagic),    // --
+      U32_LE(kWasmVersion),  // --
+      kCodeSectionCode,      // Section ID
+      0x3,                   // Section Length
+      0x1,                   // Number of Functions
+      0x1,                   // Function Length
+      0x0,                   // Function
+      kUnknownSectionCode,   // Section ID
+      0x3,                   // Section Length
+      0x1,                   // Name Length
+      0x1,                   // Name
+      0x0,                   // Content
+      kCodeSectionCode,      // Section ID
+      0x3,                   // Section Length
+      0x1,                   // Number of Functions
+      0x1,                   // Function Length
+      0x0,                   // Function
+  };
+  ExpectFailure(Vector<const uint8_t>(data, arraysize(data)));
+}
+
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
