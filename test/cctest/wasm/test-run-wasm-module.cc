@@ -564,13 +564,16 @@ TEST(TransferrableWasmModules) {
     create_params.array_buffer_allocator =
         from_isolate->array_buffer_allocator();
     v8::Isolate* to_isolate = v8::Isolate::New(create_params);
-    v8::HandleScope new_scope(to_isolate);
-    v8::Local<v8::Context> deserialization_context =
-        v8::Context::New(to_isolate);
-    deserialization_context->Enter();
-    v8::MaybeLocal<v8::WasmCompiledModule> mod =
-        v8::WasmCompiledModule::FromTransferrableModule(to_isolate, store[0]);
-    CHECK(!mod.IsEmpty());
+    {
+      v8::HandleScope new_scope(to_isolate);
+      v8::Local<v8::Context> deserialization_context =
+          v8::Context::New(to_isolate);
+      deserialization_context->Enter();
+      v8::MaybeLocal<v8::WasmCompiledModule> mod =
+          v8::WasmCompiledModule::FromTransferrableModule(to_isolate, store[0]);
+      CHECK(!mod.IsEmpty());
+    }
+    to_isolate->Dispose();
   }
 }
 
