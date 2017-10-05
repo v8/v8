@@ -77,6 +77,82 @@ typedef std::vector<Handle<Map>> MapHandles;
 //  A Map contains information about:
 //  - Size information about the object
 //  - How to iterate over an object (for garbage collection)
+//
+// Map layout:
+// +---------------+---------------------------------------------+
+// |   _ Type _    | _ Description _                             |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | map - Always a pointer to the MetaMap root  |
+// +---------------+---------------------------------------------+
+// | Int           | instance_sizes (the first int field)        |
+//  `---+----------+---------------------------------------------+
+//      | Byte     | [instance_size]                             |
+//      +----------+---------------------------------------------+
+//      | Byte     | If Map for a primitive type:                |
+//      |          |   native context index for constructor fn   |
+//      |          | If Map for an Object type:                  |
+//      |          |   number of in-object properties            |
+//      +----------+---------------------------------------------+
+//      | Byte     | unused                                      |
+//      +----------+---------------------------------------------+
+//      | Byte     | [visitor_id]                                |
+// +----+----------+---------------------------------------------+
+// | Int           | instance_attributes (second int field)      |
+//  `---+----------+---------------------------------------------+
+//      | Word16   | [instance_type] in low byte                 |
+//      |          | [bit_field] in high byte                    |
+//      |          |   - has_non_instance_prototype (bit 0)      |
+//      |          |   - is_callable (bit 1)                     |
+//      |          |   - has_named_interceptor (bit 2)           |
+//      |          |   - has_indexed_interceptor (bit 3)         |
+//      |          |   - is_undetectable (bit 4)                 |
+//      |          |   - is_access_check_needed (bit 5)          |
+//      |          |   - is_constructor (bit 6)                  |
+//      |          |   - unused (bit 7)                          |
+//      +----------+---------------------------------------------+
+//      | Byte     | [bit_field2]                                |
+//      |          |   - is_extensible (bit 0)                   |
+//      |          |   - is_prototype_map (bit 2)                |
+//      |          |   - elements_kind (bits 3..7)               |
+//      +----------+---------------------------------------------+
+//      | Byte     | [unused_property_fields] number of unused   |
+//      |          | property fields in JSObject (for fast-mode) |
+// +----+----------+---------------------------------------------+
+// | Word          | [bit_field3]                                |
+// |               |   - number_of_own_descriptors (bit 0..19)   |
+// |               |   - is_dictionary_map (bit 20)              |
+// |               |   - owns_descriptors (bit 21)               |
+// |               |   - has_hidden_prototype (bit 22)           |
+// |               |   - is_deprecated (bit 23)                  |
+// |               |   - is_unstable (bit 24)                    |
+// |               |   - is_migration_target (bit 25)            |
+// |               |   - is_immutable_proto (bit 26)             |
+// |               |   - new_target_is_base (bit 27)             |
+// |               |   - may_have_interesting_symbols (bit 28)   |
+// |               |   - construction_counter (bit 29..31)       |
+// |               |                                             |
+// |               | On systems with 64bit pointer types, there  |
+// |               | is an unused 32bits after bit_field3        |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | [prototype]                                 |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | [constructor_or_backpointer]                |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | If Map is a prototype map:                  |
+// |               |   [prototype_info]                          |
+// |               | Else:                                       |
+// |               |   [raw_transitions]                         |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | [instance_descriptors]                      |
+// +*************************************************************+
+// ! TaggedPointer ! [layout_descriptors]                        !
+// !               ! Field is only present on 64 bit arch        !
+// +*************************************************************+
+// | TaggedPointer | [dependent_code]                            |
+// +---------------+---------------------------------------------+
+// | TaggedPointer | [weak_cell_cache]                           |
+// +---------------+---------------------------------------------+
+
 class Map : public HeapObject {
  public:
   // Instance size.
