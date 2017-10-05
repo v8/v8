@@ -203,6 +203,7 @@ UNINITIALIZED_TEST(StartupSerializerOnce) {
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   StartupBlobs blobs = Serialize(isolate);
+  isolate->Dispose();
   isolate = Deserialize(blobs);
   blobs.Dispose();
   {
@@ -271,6 +272,7 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   StartupBlobs blobs1 = Serialize(isolate);
   StartupBlobs blobs2 = Serialize(isolate);
+  isolate->Dispose();
   blobs1.Dispose();
   isolate = Deserialize(blobs2);
   blobs2.Dispose();
@@ -291,6 +293,7 @@ UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
   DisableAlwaysOpt();
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   StartupBlobs blobs = Serialize(isolate);
+  isolate->Dispose();
   isolate = Deserialize(blobs);
   blobs.Dispose();
   {
@@ -317,6 +320,7 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
   v8::Isolate* isolate = TestIsolate::NewInitialized(true);
   StartupBlobs blobs1 = Serialize(isolate);
   StartupBlobs blobs2 = Serialize(isolate);
+  isolate->Dispose();
   blobs1.Dispose();
   isolate = Deserialize(blobs2);
   blobs2.Dispose();
