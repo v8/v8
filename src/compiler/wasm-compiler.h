@@ -406,9 +406,8 @@ class WasmGraphBuilder {
   Node* MaskShiftCount32(Node* node);
   Node* MaskShiftCount64(Node* node);
 
-  Node* BuildCCall(MachineSignature* sig, Node* const* args);
-  Node* BuildCCallWithBuffer(MachineSignature* sig, Node** args,
-                             size_t args_len);
+  template <typename... Args>
+  Node* BuildCCall(MachineSignature* sig, Node* function, Args... args);
   Node* BuildWasmCall(wasm::FunctionSig* sig, Node** args, Node*** rets,
                       wasm::WasmCodePosition position);
 
