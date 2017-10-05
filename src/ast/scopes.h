@@ -201,6 +201,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   // The return value is meaningful only if FLAG_preparser_scope_analysis is on.
   Variable* DeclareVariableName(const AstRawString* name, VariableMode mode);
+  void DeclareCatchVariableName(const AstRawString* name);
 
   // Declarations list.
   ThreadedList<Declaration>* declarations() { return &decls_; }

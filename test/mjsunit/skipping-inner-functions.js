@@ -338,3 +338,17 @@ TestSkippableFunctionInForOfHeaderAndBody();
   }
   lazy();
 })();
+
+(function TestSloppyBlockFunctionShadowingCatchVariable() {
+  // Regression test for
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=771474
+  function lazy() {
+    try {
+    } catch (my_var) {
+      if (false) {
+        function my_var() { }
+      }
+    }
+  }
+  lazy();
+})();

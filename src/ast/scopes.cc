@@ -1207,12 +1207,7 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
   }
   DCHECK(!is_with_scope());
   DCHECK(!is_eval_scope());
-  // Unlike DeclareVariable, DeclareVariableName allows declaring variables in
-  // catch scopes: Parser::RewriteCatchPattern bypasses DeclareVariable by
-  // calling DeclareLocal directly, and it doesn't make sense to add a similar
-  // bypass mechanism for PreParser.
-  DCHECK(is_declaration_scope() || (IsLexicalVariableMode(mode) &&
-                                    (is_block_scope() || is_catch_scope())));
+  DCHECK(is_declaration_scope() || IsLexicalVariableMode(mode));
   DCHECK(scope_info_.is_null());
 
   // Declare the variable in the declaration scope.
@@ -1235,6 +1230,19 @@ Variable* Scope::DeclareVariableName(const AstRawString* name,
     return var;
   } else {
     return variables_.DeclareName(zone(), name, mode);
+  }
+}
+
+void Scope::DeclareCatchVariableName(const AstRawString* name) {
+  DCHECK(!already_resolved_);
+  DCHECK(GetDeclarationScope()->is_being_lazily_parsed());
+  DCHECK(is_catch_scope());
+  DCHECK(scope_info_.is_null());
+
+  if (FLAG_preparser_scope_analysis) {
+    Declare(zone(), name, VAR);
+  } else {
+    variables_.DeclareName(zone(), name, VAR);
   }
 }
 
