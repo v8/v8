@@ -135,6 +135,7 @@ HEAP_TEST(InvalidatedSlotsAfterTrimming) {
 }
 
 HEAP_TEST(InvalidatedSlotsEvacuationCandidate) {
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
   std::vector<ByteArray*> byte_arrays;

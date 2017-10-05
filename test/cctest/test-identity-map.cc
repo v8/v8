@@ -773,6 +773,7 @@ TEST(CanonicalHandleScope) {
 }
 
 TEST(GCShortCutting) {
+  ManualGCScope manual_gc_scope;
   IdentityMapTester t;
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
