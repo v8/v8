@@ -12,20 +12,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define WASM_ATOMICS_OP(op) kAtomicPrefix, static_cast<byte>(op)
-#define WASM_ATOMICS_BINOP(op, x, y, representation) \
-  x, y, WASM_ATOMICS_OP(op),                         \
-      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
-#define WASM_ATOMICS_TERNARY_OP(op, x, y, z, representation) \
-  x, y, z, WASM_ATOMICS_OP(op),                              \
-      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
-#define WASM_ATOMICS_LOAD_OP(op, x, representation) \
-  x, WASM_ATOMICS_OP(op),                           \
-      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
-#define WASM_ATOMICS_STORE_OP(op, x, y, representation) \
-  x, y, WASM_ATOMICS_OP(op),                            \
-      static_cast<byte>(ElementSizeLog2Of(representation)), ZERO_OFFSET
-
 typedef uint32_t (*Uint32BinOp)(uint32_t, uint32_t);
 typedef uint16_t (*Uint16BinOp)(uint16_t, uint16_t);
 typedef uint8_t (*Uint8BinOp)(uint8_t, uint8_t);
@@ -311,11 +297,6 @@ TEST(I32AtomicStoreLoad8U) {
     CHECK_EQ(*i, r.builder().ReadMemory(&memory[0]));
   }
 }
-#undef WASM_ATOMICS_OP
-#undef WASM_ATOMICS_BINOP
-#undef WASM_ATOMICS_TERNARY_OP
-#undef WASM_ATOMICS_LOAD_OP
-#undef WASM_ATOMICS_STORE_OP
 
 }  // namespace wasm
 }  // namespace internal

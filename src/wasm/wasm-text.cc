@@ -190,6 +190,21 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
       case kExprSelect:
         os << WasmOpcodes::OpcodeName(opcode);
         break;
+      case kAtomicPrefix: {
+        WasmOpcode atomic_opcode = i.prefixed_opcode();
+        switch (atomic_opcode) {
+          FOREACH_ATOMIC_OPCODE(CASE_OPCODE) {
+            MemoryAccessOperand<false> operand(&i, i.pc(), kMaxUInt32);
+            os << WasmOpcodes::OpcodeName(atomic_opcode)
+               << " offset=" << operand.offset
+               << " align=" << (1ULL << operand.alignment);
+            break;
+          }
+          default:
+            UNREACHABLE();
+            break;
+        }
+      }
 
         // This group is just printed by their internal opcode name, as they
         // should never be shown to end-users.
@@ -200,7 +215,6 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
         FOREACH_SIMD_1_OPERAND_OPCODE(CASE_OPCODE)
         FOREACH_SIMD_MASK_OPERAND_OPCODE(CASE_OPCODE)
         FOREACH_SIMD_MEM_OPCODE(CASE_OPCODE)
-        FOREACH_ATOMIC_OPCODE(CASE_OPCODE)
         os << WasmOpcodes::OpcodeName(opcode);
         break;
 #undef CASE_OPCODE
