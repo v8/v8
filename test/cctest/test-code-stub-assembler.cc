@@ -2748,6 +2748,62 @@ TEST(IsNumberArrayIndex) {
   }
 }
 
+TEST(NumberMinMax) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 2;
+  CodeAssemblerTester asm_tester_min(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester_min.state());
+    m.Return(m.NumberMin(m.Parameter(0), m.Parameter(1)));
+  }
+  FunctionTester ft_min(asm_tester_min.GenerateCode(), kNumParams);
+
+  CodeAssemblerTester asm_tester_max(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester_max.state());
+    m.Return(m.NumberMax(m.Parameter(0), m.Parameter(1)));
+  }
+  FunctionTester ft_max(asm_tester_max.GenerateCode(), kNumParams);
+
+  // Test smi values.
+  Handle<Smi> smi_1(Smi::FromInt(1), isolate);
+  Handle<Smi> smi_2(Smi::FromInt(2), isolate);
+  Handle<Smi> smi_5(Smi::FromInt(5), isolate);
+  CHECK_EQ(ft_min.CallChecked<Smi>(smi_1, smi_2)->value(), 1);
+  CHECK_EQ(ft_min.CallChecked<Smi>(smi_2, smi_1)->value(), 1);
+  CHECK_EQ(ft_max.CallChecked<Smi>(smi_1, smi_2)->value(), 2);
+  CHECK_EQ(ft_max.CallChecked<Smi>(smi_2, smi_1)->value(), 2);
+
+  // Test double values.
+  Handle<Object> double_a = isolate->factory()->NewNumber(2.5);
+  Handle<Object> double_b = isolate->factory()->NewNumber(3.5);
+  Handle<Object> nan =
+      isolate->factory()->NewNumber(std::numeric_limits<double>::quiet_NaN());
+  Handle<Object> infinity = isolate->factory()->NewNumber(V8_INFINITY);
+
+  CHECK_EQ(ft_min.CallChecked<HeapNumber>(double_a, double_b)->value(), 2.5);
+  CHECK_EQ(ft_min.CallChecked<HeapNumber>(double_b, double_a)->value(), 2.5);
+  CHECK_EQ(ft_min.CallChecked<HeapNumber>(infinity, double_a)->value(), 2.5);
+  CHECK_EQ(ft_min.CallChecked<HeapNumber>(double_a, infinity)->value(), 2.5);
+  CHECK(std::isnan(ft_min.CallChecked<HeapNumber>(nan, double_a)->value()));
+  CHECK(std::isnan(ft_min.CallChecked<HeapNumber>(double_a, nan)->value()));
+
+  CHECK_EQ(ft_max.CallChecked<HeapNumber>(double_a, double_b)->value(), 3.5);
+  CHECK_EQ(ft_max.CallChecked<HeapNumber>(double_b, double_a)->value(), 3.5);
+  CHECK_EQ(ft_max.CallChecked<HeapNumber>(infinity, double_a)->value(),
+           V8_INFINITY);
+  CHECK_EQ(ft_max.CallChecked<HeapNumber>(double_a, infinity)->value(),
+           V8_INFINITY);
+  CHECK(std::isnan(ft_max.CallChecked<HeapNumber>(nan, double_a)->value()));
+  CHECK(std::isnan(ft_max.CallChecked<HeapNumber>(double_a, nan)->value()));
+
+  // Mixed smi/double values.
+  CHECK_EQ(ft_max.CallChecked<HeapNumber>(smi_1, double_b)->value(), 3.5);
+  CHECK_EQ(ft_max.CallChecked<HeapNumber>(double_b, smi_1)->value(), 3.5);
+  CHECK_EQ(ft_min.CallChecked<HeapNumber>(smi_5, double_b)->value(), 3.5);
+  CHECK_EQ(ft_min.CallChecked<HeapNumber>(double_b, smi_5)->value(), 3.5);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -195,6 +195,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Float64T> Float64Round(SloppyTNode<Float64T> x);
   TNode<Float64T> Float64RoundToEven(SloppyTNode<Float64T> x);
   TNode<Float64T> Float64Trunc(SloppyTNode<Float64T> x);
+  // Select the minimum of the two provided Number values.
+  TNode<Object> NumberMax(SloppyTNode<Object> left, SloppyTNode<Object> right);
+  // Select the minimum of the two provided Number values.
+  TNode<Object> NumberMin(SloppyTNode<Object> left, SloppyTNode<Object> right);
 
   // Tag a Word as a Smi value.
   TNode<Smi> SmiTag(SloppyTNode<IntPtrT> value);

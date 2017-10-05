@@ -529,6 +529,44 @@ TNode<Smi> CodeStubAssembler::SmiMin(SloppyTNode<Smi> a, SloppyTNode<Smi> b) {
   return SelectTaggedConstant(SmiLessThan(a, b), a, b);
 }
 
+TNode<Object> CodeStubAssembler::NumberMax(SloppyTNode<Object> a,
+                                           SloppyTNode<Object> b) {
+  // TODO(danno): This could be optimized by specifically handling smi cases.
+  VARIABLE(result, MachineRepresentation::kTagged);
+  Label done(this), greater_than_equal_a(this), greater_than_equal_b(this);
+  GotoIfNumberGreaterThanOrEqual(a, b, &greater_than_equal_a);
+  GotoIfNumberGreaterThanOrEqual(b, a, &greater_than_equal_b);
+  result.Bind(NanConstant());
+  Goto(&done);
+  BIND(&greater_than_equal_a);
+  result.Bind(a);
+  Goto(&done);
+  BIND(&greater_than_equal_b);
+  result.Bind(b);
+  Goto(&done);
+  BIND(&done);
+  return TNode<Object>::UncheckedCast(result.value());
+}
+
+TNode<Object> CodeStubAssembler::NumberMin(SloppyTNode<Object> a,
+                                           SloppyTNode<Object> b) {
+  // TODO(danno): This could be optimized by specifically handling smi cases.
+  VARIABLE(result, MachineRepresentation::kTagged);
+  Label done(this), greater_than_equal_a(this), greater_than_equal_b(this);
+  GotoIfNumberGreaterThanOrEqual(a, b, &greater_than_equal_a);
+  GotoIfNumberGreaterThanOrEqual(b, a, &greater_than_equal_b);
+  result.Bind(NanConstant());
+  Goto(&done);
+  BIND(&greater_than_equal_a);
+  result.Bind(b);
+  Goto(&done);
+  BIND(&greater_than_equal_b);
+  result.Bind(a);
+  Goto(&done);
+  BIND(&done);
+  return TNode<Object>::UncheckedCast(result.value());
+}
+
 Node* CodeStubAssembler::SmiMod(Node* a, Node* b) {
   VARIABLE(var_result, MachineRepresentation::kTagged);
   Label return_result(this, &var_result),
