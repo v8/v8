@@ -2502,7 +2502,7 @@ Reduction JSBuiltinReducer::ReduceObjectIs(Node* node) {
   // SameValue simplified operator (and also a StrictEqual simplified
   // operator) and create unified handling in SimplifiedLowering.
   JSCallReduction r(node);
-  if (r.left() == r.right()) {
+  if (r.GetJSCallArity() == 2 && r.left() == r.right()) {
     // Object.is(x,x) => #true
     Node* value = jsgraph()->TrueConstant();
     return Replace(value);
