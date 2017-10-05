@@ -22,7 +22,8 @@ TestingModuleBuilder::TestingModuleBuilder(
       mem_start_(nullptr),
       mem_size_(0),
       interpreter_(nullptr),
-      runtime_exception_support_(exception_support) {
+      runtime_exception_support_(exception_support),
+      lower_simd_(mode == kExecuteSimdLowered) {
   WasmJs::Install(isolate_, true);
   test_module_.globals_size = kMaxGlobalsSize;
   memset(globals_data_, 0, sizeof(globals_data_));
@@ -429,7 +430,7 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   compiler::WasmCompilationUnit unit(
       isolate(), &module_env, func_body, func_name, function_->func_index,
       CEntryStub(isolate(), 1).GetCode(), isolate()->counters(),
-      builder_->runtime_exception_support());
+      builder_->runtime_exception_support(), builder_->lower_simd());
   unit.ExecuteCompilation();
   Handle<Code> code = unit.FinishCompilation(&thrower).ToHandleChecked();
   CHECK(!thrower.error());

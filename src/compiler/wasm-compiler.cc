@@ -4619,7 +4619,8 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
 
   builder.LowerInt64();
 
-  if (builder.has_simd() && !CpuFeatures::SupportsWasmSimd128()) {
+  if (builder.has_simd() &&
+      (!CpuFeatures::SupportsWasmSimd128() || lower_simd_)) {
     SimdScalarLowering(jsgraph_, func_body_.sig).LowerGraph();
   }
 
@@ -4656,7 +4657,8 @@ Vector<const char> GetDebugName(Zone* zone, wasm::WasmName name, int index) {
 WasmCompilationUnit::WasmCompilationUnit(
     Isolate* isolate, ModuleEnv* env, wasm::FunctionBody body,
     wasm::WasmName name, int index, Handle<Code> centry_stub,
-    Counters* counters, RuntimeExceptionSupport exception_support)
+    Counters* counters, RuntimeExceptionSupport exception_support,
+    bool lower_simd)
     : isolate_(isolate),
       env_(env),
       func_body_(body),
@@ -4664,7 +4666,8 @@ WasmCompilationUnit::WasmCompilationUnit(
       counters_(counters ? counters : isolate->counters()),
       centry_stub_(centry_stub),
       func_index_(index),
-      runtime_exception_support_(exception_support) {}
+      runtime_exception_support_(exception_support),
+      lower_simd_(lower_simd) {}
 
 void WasmCompilationUnit::ExecuteCompilation() {
   auto timed_histogram = env_->module->is_wasm()

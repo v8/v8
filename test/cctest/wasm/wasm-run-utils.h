@@ -47,7 +47,11 @@ namespace wasm {
 constexpr uint32_t kMaxFunctions = 10;
 constexpr uint32_t kMaxGlobalsSize = 128;
 
-enum WasmExecutionMode { kExecuteInterpreted, kExecuteCompiled };
+enum WasmExecutionMode {
+  kExecuteInterpreted,
+  kExecuteCompiled,
+  kExecuteSimdLowered
+};
 
 using compiler::CallDescriptor;
 using compiler::MachineTypeForC;
@@ -187,6 +191,7 @@ class TestingModuleBuilder {
 
   WasmInterpreter* interpreter() { return interpreter_; }
   bool interpret() { return interpreter_ != nullptr; }
+  bool lower_simd() { return lower_simd_; }
   Isolate* isolate() { return isolate_; }
   Handle<WasmInstanceObject> instance_object() { return instance_object_; }
   Handle<Code> GetFunctionCode(int index) { return function_code_[index]; }
@@ -215,6 +220,7 @@ class TestingModuleBuilder {
   WasmInterpreter* interpreter_;
   Handle<WasmInstanceObject> instance_object_;
   compiler::RuntimeExceptionSupport runtime_exception_support_;
+  bool lower_simd_;
 
   const WasmGlobal* AddGlobal(ValueType type);
 
