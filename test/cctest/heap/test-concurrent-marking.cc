@@ -31,6 +31,8 @@ TEST(ConcurrentMarking) {
   if (!i::FLAG_concurrent_marking) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
+  CcTest::CollectAllGarbage();
+  if (!heap->incremental_marking()->IsStopped()) return;
   ConcurrentMarking::MarkingWorklist shared, bailout;
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
@@ -45,6 +47,8 @@ TEST(ConcurrentMarkingReschedule) {
   if (!i::FLAG_concurrent_marking) return;
   CcTest::InitializeVM();
   Heap* heap = CcTest::heap();
+  CcTest::CollectAllGarbage();
+  if (!heap->incremental_marking()->IsStopped()) return;
   ConcurrentMarking::MarkingWorklist shared, bailout;
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
