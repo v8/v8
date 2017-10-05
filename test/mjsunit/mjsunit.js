@@ -550,7 +550,7 @@ var failWithMessage;
             try {
               success(result);
             } catch (e) {
-              failWithMessage(e);
+              failWithMessage(String(e));
             }
           },
           result => {

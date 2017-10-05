@@ -124,6 +124,22 @@ void WebAssemblyCompileStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+
+  if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
+    // Manually create a promise and reject it.
+    Local<Context> context = isolate->GetCurrentContext();
+    ASSIGN(Promise::Resolver, resolver, Promise::Resolver::New(context));
+    v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
+    return_value.Set(resolver->GetPromise());
+    i::wasm::ScheduledErrorThrower thrower(i_isolate,
+                                           "WebAssembly.compileStreaming()");
+    thrower.CompileError("Wasm code generation disallowed by embedder");
+    auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
+    CHECK_IMPLIES(!maybe.FromMaybe(false),
+                  i_isolate->has_scheduled_exception());
+    return;
+  }
+
   MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
   DCHECK_NOT_NULL(i_isolate->wasm_compile_streaming_callback());
   i_isolate->wasm_compile_streaming_callback()(args);
@@ -137,6 +153,10 @@ void WebAssemblyCompile(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   HandleScope scope(isolate);
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.compile()");
+
+  if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
+    thrower.CompileError("Wasm code generation disallowed by embedder");
+  }
 
   Local<Context> context = isolate->GetCurrentContext();
   ASSIGN(Promise::Resolver, resolver, Promise::Resolver::New(context));
@@ -181,6 +201,11 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   HandleScope scope(isolate);
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Module()");
+
+  if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
+    thrower.CompileError("Wasm code generation disallowed by embedder");
+    return;
+  }
 
   auto bytes = GetFirstArgumentAsBytes(args, &thrower);
 

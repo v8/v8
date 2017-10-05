@@ -508,23 +508,6 @@ bool False(v8::Local<v8::Context> context, v8::Local<v8::String> source) {
   return false;
 }
 
-TEST(BlockWasmCodeGen) {
-  v8::internal::AccountingAllocator allocator;
-  Zone zone(&allocator, ZONE_NAME);
-  ZoneBuffer buffer(&zone);
-  WasmSerializationTest::BuildWireBytes(&zone, &buffer);
-  Isolate* isolate = CcTest::InitIsolateOnce();
-  HandleScope scope(isolate);
-  testing::SetupIsolateForWasmModule(isolate);
-  CcTest::isolate()->SetAllowCodeGenerationFromStringsCallback(False);
-
-  ErrorThrower thrower(isolate, "block codegen");
-  MaybeHandle<WasmModuleObject> ret = wasm::SyncCompile(
-      isolate, &thrower, ModuleWireBytes(buffer.begin(), buffer.end()));
-  CHECK(ret.is_null());
-  CHECK(thrower.error());
-}
-
 TEST(BlockWasmCodeGenAtDeserialization) {
   WasmSerializationTest test;
   {

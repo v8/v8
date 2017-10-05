@@ -512,11 +512,6 @@ MaybeHandle<WasmModuleObject> SyncCompileTranslatedAsmJs(
 MaybeHandle<WasmModuleObject> SyncCompile(Isolate* isolate,
                                           ErrorThrower* thrower,
                                           const ModuleWireBytes& bytes) {
-  if (!IsWasmCodegenAllowed(isolate, isolate->native_context())) {
-    thrower->CompileError("Wasm code generation disallowed in this context");
-    return {};
-  }
-
   // TODO(titzer): only make a copy of the bytes if SharedArrayBuffer
   std::unique_ptr<byte[]> copy(new byte[bytes.length()]);
   memcpy(copy.get(), bytes.start(), bytes.length());

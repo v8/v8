@@ -7917,7 +7917,10 @@ MaybeLocal<WasmCompiledModule> WasmCompiledModule::Compile(Isolate* isolate,
                                                            const uint8_t* start,
                                                            size_t length) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::wasm::ErrorThrower thrower(i_isolate, "WasmCompiledModule::Deserialize()");
+  i::wasm::ErrorThrower thrower(i_isolate, "WasmCompiledModule::Compile()");
+  if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
+    return MaybeLocal<WasmCompiledModule>();
+  }
   i::MaybeHandle<i::JSObject> maybe_compiled = i::wasm::SyncCompile(
       i_isolate, &thrower, i::wasm::ModuleWireBytes(start, start + length));
   if (maybe_compiled.is_null()) return MaybeLocal<WasmCompiledModule>();

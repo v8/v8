@@ -852,10 +852,15 @@ bool DisallowCodegenFromStringsCallback(v8::Local<v8::Context> context,
 
 RUNTIME_FUNCTION(Runtime_DisallowCodegenFromStrings) {
   SealHandleScope shs(isolate);
-  DCHECK_EQ(0, args.length());
+  DCHECK_EQ(1, args.length());
+  CONVERT_BOOLEAN_ARG_CHECKED(flag, 0);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  v8_isolate->SetAllowCodeGenerationFromStringsCallback(
-      DisallowCodegenFromStringsCallback);
+  if (flag) {
+    v8_isolate->SetAllowCodeGenerationFromStringsCallback(
+        DisallowCodegenFromStringsCallback);
+  } else {
+    v8_isolate->SetAllowCodeGenerationFromStringsCallback(nullptr);
+  }
   return isolate->heap()->undefined_value();
 }
 
