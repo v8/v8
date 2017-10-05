@@ -672,7 +672,8 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::LAZY);
   Node* check_throw = check_fail = graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kThrowCalledNonCallable), fncallback,
+      javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
+      jsgraph()->Constant(MessageTemplate::kCalledNonCallable), fncallback,
       context, check_frame_state, effect, check_fail);
   control = graph()->NewNode(common()->IfTrue(), check_branch);
 
@@ -799,9 +800,9 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   control = if_false;
   effect = eloop;
 
-  // The above %ThrowCalledNonCallable runtime call is an unconditional
-  // throw, making it impossible to return a successful completion in this
-  // case. We simply connect the successful completion to the graph end.
+  // The above %ThrowTypeError runtime call is an unconditional throw, making
+  // it impossible to return a successful completion in this case. We simply
+  // connect the successful completion to the graph end.
   Node* terminate =
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), terminate);
@@ -902,7 +903,8 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::LAZY);
   Node* check_throw = check_fail = graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kThrowCalledNonCallable), fncallback,
+      javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
+      jsgraph()->Constant(MessageTemplate::kCalledNonCallable), fncallback,
       context, check_frame_state, effect, check_fail);
   control = graph()->NewNode(common()->IfTrue(), check_branch);
 
@@ -1011,9 +1013,9 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   control = if_false;
   effect = eloop;
 
-  // The above %ThrowCalledNonCallable runtime call is an unconditional
-  // throw, making it impossible to return a successful completion in this
-  // case. We simply connect the successful completion to the graph end.
+  // The above %ThrowTypeError runtime call is an unconditional throw, making
+  // it impossible to return a successful completion in this case. We simply
+  // connect the successful completion to the graph end.
   Node* terminate =
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), terminate);
