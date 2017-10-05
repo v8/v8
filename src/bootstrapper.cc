@@ -3304,7 +3304,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     CreateJSProxyMaps();
 
     Handle<Map> proxy_function_map =
-        Map::Copy(isolate->sloppy_function_without_prototype_map(), "Proxy");
+        Map::Copy(isolate->strict_function_without_prototype_map(), "Proxy");
     proxy_function_map->set_is_constructor(true);
 
     Handle<String> name = factory->Proxy_string();
