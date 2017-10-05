@@ -1352,11 +1352,10 @@ TEST(CodeSerializerLargeCodeObject) {
   // code. Don't even bother generating optimized code to avoid timeouts.
   FLAG_always_opt = false;
 
-  Vector<const uint8_t> source = ConstructSource(
-      STATIC_CHAR_VECTOR("var j=1; if (j == 0) {"),
-      STATIC_CHAR_VECTOR(
-          "for (let i of Object.prototype) for (let k = 0; k < 0; ++k);"),
-      STATIC_CHAR_VECTOR("} j=7; j"), 1100);
+  Vector<const uint8_t> source =
+      ConstructSource(STATIC_CHAR_VECTOR("var j=1; if (j == 0) {"),
+                      STATIC_CHAR_VECTOR("for (let i of Object.prototype);"),
+                      STATIC_CHAR_VECTOR("} j=7; j"), 1100);
   Handle<String> source_str =
       isolate->factory()->NewStringFromOneByte(source).ToHandleChecked();
 

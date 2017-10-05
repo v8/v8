@@ -73,7 +73,7 @@ void Reparenter::VisitVariableProxy(VariableProxy* proxy) {
 }
 
 void Reparenter::VisitBlock(Block* stmt) {
-  if (stmt->scope())
+  if (stmt->scope() != nullptr)
     stmt->scope()->ReplaceOuterScope(scope_);
   else
     VisitStatements(stmt->statements());
@@ -81,11 +81,7 @@ void Reparenter::VisitBlock(Block* stmt) {
 
 void Reparenter::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Visit(stmt->try_block());
-  if (stmt->scope()) {
-    stmt->scope()->ReplaceOuterScope(scope_);
-  } else {
-    Visit(stmt->catch_block());
-  }
+  stmt->scope()->ReplaceOuterScope(scope_);
 }
 
 void Reparenter::VisitWithStatement(WithStatement* stmt) {

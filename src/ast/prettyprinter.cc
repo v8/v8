@@ -924,10 +924,8 @@ void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
       UNREACHABLE();
   }
   Print(" %s\n", prediction);
-  if (node->scope()) {
-    PrintLiteralWithModeIndented("CATCHVAR", node->scope()->catch_variable(),
-                                 node->scope()->catch_variable()->name());
-  }
+  PrintLiteralWithModeIndented("CATCHVAR", node->scope()->catch_variable(),
+                               node->scope()->catch_variable()->name());
   PrintIndentedVisit("CATCH", node->catch_block());
 }
 
