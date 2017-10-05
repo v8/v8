@@ -242,7 +242,8 @@ void PatternRewriter::VisitVariableProxy(VariableProxy* pattern) {
   if (value == nullptr) return;
 
   Scope* var_init_scope = descriptor_->scope;
-  Parser::MarkLoopVariableAsAssigned(var_init_scope, proxy->var());
+  Parser::MarkLoopVariableAsAssigned(var_init_scope, proxy->var(),
+                                     descriptor_->declaration_kind);
 
   // A declaration of the form:
   //
