@@ -3477,13 +3477,15 @@ void BytecodeGenerator::VisitDelete(UnaryOperation* expr) {
     builder()->Delete(object, language_mode());
   } else if (expr->expression()->IsVariableProxy()) {
     // Delete of an unqualified identifier is allowed in sloppy mode but is
-    // not allowed in strict mode. Deleting 'this' is allowed in both modes.
+    // not allowed in strict mode. Deleting 'this' and 'new.target' is allowed
+    // in both modes.
     VariableProxy* proxy = expr->expression()->AsVariableProxy();
-    Variable* variable = proxy->var();
-    DCHECK(is_sloppy(language_mode()) || variable->is_this());
-    if (variable->is_this()) {
+    DCHECK(is_sloppy(language_mode()) || proxy->is_this() ||
+           proxy->is_new_target());
+    if (proxy->is_this() || proxy->is_new_target()) {
       builder()->LoadTrue();
     } else {
+      Variable* variable = proxy->var();
       switch (variable->location()) {
         case VariableLocation::PARAMETER:
         case VariableLocation::LOCAL:
