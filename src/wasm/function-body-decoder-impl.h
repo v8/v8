@@ -573,8 +573,7 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(Throw, const ExceptionIndexOperand<validate>&, Control* block,             \
     const Vector<Value>& args)                                                 \
   F(CatchException, const ExceptionIndexOperand<validate>& operand,            \
-    Control* block, void** caught_values)                                      \
-  F(SetCaughtValue, void* caught_values, Value* value, size_t index)           \
+    Control* block, Vector<Value> caught_values)                               \
   F(AtomicOp, WasmOpcode opcode, Vector<Value> args,                           \
     const MemoryAccessOperand<validate>& operand, Value* result)
 
@@ -1323,13 +1322,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             c->kind = kControlTryCatch;
             FallThruTo(c);
             stack_.resize(c->stack_depth);
-            void* caught_values = nullptr;
-            interface_.CatchException(this, operand, c, &caught_values);
             const WasmExceptionSig* sig = operand.exception->sig;
             for (size_t i = 0, e = sig->parameter_count(); i < e; ++i) {
-              auto* value = Push(sig->GetParam(i));
-              interface_.SetCaughtValue(this, caught_values, value, i);
+              Push(sig->GetParam(i));
             }
+            Vector<Value> values(stack_.data() + c->stack_depth,
+                                 sig->parameter_count());
+            interface_.CatchException(this, operand, c, values);
             break;
           }
           case kExprCatchAll: {

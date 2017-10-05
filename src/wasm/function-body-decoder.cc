@@ -422,13 +422,12 @@ class WasmGraphBuildingInterface {
 
   void CatchException(Decoder* decoder,
                       const ExceptionIndexOperand<true>& operand,
-                      Control* block, void** caught_values_ptr) {
+                      Control* block, Vector<Value> values) {
     DCHECK(block->is_try_catch());
     current_catch_ = block->previous_catch;
     SsaEnv* catch_env = block->try_info->catch_env;
     SetEnv(catch_env);
 
-    TFNode*** caught_values = reinterpret_cast<TFNode***>(caught_values_ptr);
     TFNode* compare_i32 = nullptr;
     if (block->try_info->exception == nullptr) {
       // Catch not applicable, no possible throws in the try
@@ -466,23 +465,19 @@ class WasmGraphBuildingInterface {
     SetEnv(if_catch_env);
 
     if (block->try_info->exception == nullptr) {
-      *caught_values = nullptr;
+      // No caught value, make up filler nodes so that catch block still
+      // compiles.
+      for (Value& value : values) {
+        value.node = DefaultValue(value.type);
+      }
     } else {
       // TODO(kschimpf): Can't use BUILD() here, GetExceptionValues() returns
       // TFNode** rather than TFNode*. Fix to add landing pads.
-      *caught_values = builder_->GetExceptionValues(operand.exception);
+      TFNode** caught_values = builder_->GetExceptionValues(operand.exception);
+      for (size_t i = 0, e = values.size(); i < e; ++i) {
+        values[i].node = caught_values[i];
+      }
     }
-  }
-
-  void SetCaughtValue(Decoder* decoder, void* caught_values_ptr, Value* value,
-                      size_t index) {
-    if (caught_values_ptr) {
-      TFNode** caught_values = reinterpret_cast<TFNode**>(caught_values_ptr);
-      value->node = caught_values[index];
-      return;
-    }
-    // No caught value, make up filler node so that catch block still compiles.
-    value->node = DefaultValue(value->type);
   }
 
   void AtomicOp(Decoder* decoder, WasmOpcode opcode, Vector<Value> args,
