@@ -77,6 +77,10 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
       HeapNumber::cast(this)->HeapNumberPrint(os);
       os << ">\n";
       break;
+    case BIGINT_TYPE:
+      BigInt::cast(this)->BigIntPrint(os);
+      os << "\n";
+      break;
     case FIXED_DOUBLE_ARRAY_TYPE:
       FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(os);
       break;

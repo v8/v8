@@ -238,9 +238,14 @@ Handle<BigInt> BigInt::BitwiseOr(Handle<BigInt> x, Handle<BigInt> y) {
 }
 
 MaybeHandle<String> BigInt::ToString(Handle<BigInt> bigint, int radix) {
-  // TODO(jkummerow): Support non-power-of-two radixes.
-  if (!base::bits::IsPowerOfTwo(radix)) radix = 16;
-  return ToStringBasePowerOfTwo(bigint, radix);
+  Isolate* isolate = bigint->GetIsolate();
+  if (bigint->is_zero()) {
+    return isolate->factory()->NewStringFromStaticChars("0");
+  }
+  if (base::bits::IsPowerOfTwo(radix)) {
+    return ToStringBasePowerOfTwo(bigint, radix);
+  }
+  return ToStringGeneric(bigint, radix);
 }
 
 void BigInt::Initialize(int length, bool zero_initialize) {
@@ -927,7 +932,7 @@ Handle<BigInt> BigInt::Copy(Handle<BigInt> source) {
 // base-N string representation of a number. To increase accuracy, the array
 // value is the actual value multiplied by 32. To generate this table:
 // for (var i = 0; i <= 36; i++) { print(Math.ceil(Math.log2(i) * 32) + ","); }
-uint8_t kMaxBitsPerChar[] = {
+constexpr uint8_t kMaxBitsPerChar[] = {
     0,   0,   32,  51,  64,  75,  83,  90,  96,  // 0..8
     102, 107, 111, 115, 119, 122, 126, 128,      // 9..16
     131, 134, 136, 139, 141, 143, 145, 147,      // 17..24
@@ -942,25 +947,16 @@ MaybeHandle<BigInt> BigInt::AllocateFor(Isolate* isolate, int radix,
                                         int charcount) {
   DCHECK(2 <= radix && radix <= 36);
   DCHECK(charcount >= 0);
-  size_t bits_min;
   size_t bits_per_char = kMaxBitsPerChar[radix];
   size_t chars = static_cast<size_t>(charcount);
   const int roundup = kBitsPerCharTableMultiplier - 1;
-  if (chars <= 1000000) {
-    // More precise path: multiply first, then divide.
-    bits_min = bits_per_char * chars;
-    // Divide by 32 (see table), rounding up.
-    bits_min = (bits_min + roundup) >> kBitsPerCharTableShift;
-  } else {
-    // Overflow avoidance path: divide first, then multiply.
-    // The addition can't overflow because of the int -> size_t cast.
-    bits_min = ((chars + roundup) >> kBitsPerCharTableShift) * bits_per_char;
-    // Check if overflow happened.
-    if (bits_min < chars) {
-      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
-                      BigInt);
-    }
+  if ((std::numeric_limits<size_t>::max() - roundup) / bits_per_char < chars) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
+                    BigInt);
   }
+  size_t bits_min = bits_per_char * chars;
+  // Divide by 32 (see table), rounding up.
+  bits_min = (bits_min + roundup) >> kBitsPerCharTableShift;
   if (bits_min > static_cast<size_t>(kMaxInt)) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
                     BigInt);
@@ -991,16 +987,13 @@ void BigInt::RightTrim() {
 
 static const char kConversionChars[] = "0123456789abcdefghijklmnopqrstuvwxyz";
 
-// TODO(jkummerow): Add more tests for this when we have a way to construct
-// multi-digit BigInts.
 MaybeHandle<String> BigInt::ToStringBasePowerOfTwo(Handle<BigInt> x,
                                                    int radix) {
   STATIC_ASSERT(base::bits::IsPowerOfTwo(kDigitBits));
   DCHECK(base::bits::IsPowerOfTwo(radix));
   DCHECK(radix >= 2 && radix <= 32);
+  DCHECK(!x->is_zero());
   Isolate* isolate = x->GetIsolate();
-  // TODO(jkummerow): check in caller?
-  if (x->is_zero()) return isolate->factory()->NewStringFromStaticChars("0");
 
   const int length = x->length();
   const bool sign = x->sign();
@@ -1022,6 +1015,7 @@ MaybeHandle<String> BigInt::ToStringBasePowerOfTwo(Handle<BigInt> x,
       isolate->factory()
           ->NewRawOneByteString(static_cast<int>(chars_required))
           .ToHandleChecked();
+  DisallowHeapAllocation no_gc;
   uint8_t* buffer = result->GetChars();
   // Print the number into the string, starting from the last position.
   int pos = static_cast<int>(chars_required - 1);
@@ -1052,6 +1046,127 @@ MaybeHandle<String> BigInt::ToStringBasePowerOfTwo(Handle<BigInt> x,
   }
   if (sign) buffer[pos--] = '-';
   DCHECK(pos == -1);
+  return result;
+}
+
+MaybeHandle<String> BigInt::ToStringGeneric(Handle<BigInt> x, int radix) {
+  DCHECK(radix >= 2 && radix <= 36);
+  DCHECK(!x->is_zero());
+  Heap* heap = x->GetHeap();
+  Isolate* isolate = heap->isolate();
+
+  const int length = x->length();
+  const bool sign = x->sign();
+
+  // Compute (an overapproximation of) the length of the resulting string:
+  // Divide bit length of the BigInt by bits representable per character.
+  const size_t bit_length =
+      length * kDigitBits - base::bits::CountLeadingZeros(x->digit(length - 1));
+  // Maximum number of bits we can represent with one character. We'll use this
+  // to find an appropriate chunk size below.
+  const uint8_t max_bits_per_char = kMaxBitsPerChar[radix];
+  // For estimating result length, we have to be pessimistic and work with
+  // the minimum number of bits one character can represent.
+  const uint8_t min_bits_per_char = max_bits_per_char - 1;
+  // Perform the following computation with uint64_t to avoid overflows.
+  uint64_t chars_required = bit_length;
+  chars_required *= kBitsPerCharTableMultiplier;
+  chars_required += min_bits_per_char - 1;  // Round up.
+  chars_required /= min_bits_per_char;
+  chars_required += sign;
+
+  if (chars_required > String::kMaxLength) {
+    THROW_NEW_ERROR(isolate, NewInvalidStringLengthError(), String);
+  }
+  Handle<SeqOneByteString> result =
+      isolate->factory()
+          ->NewRawOneByteString(static_cast<int>(chars_required))
+          .ToHandleChecked();
+
+#if DEBUG
+  // Zap the string first.
+  {
+    DisallowHeapAllocation no_gc;
+    uint8_t* chars = result->GetChars();
+    for (int i = 0; i < static_cast<int>(chars_required); i++) chars[i] = '?';
+  }
+#endif
+
+  // We assemble the result string in reverse order, and then reverse it.
+  // TODO(jkummerow): Consider building the string from the right, and
+  // left-shifting it if the length estimate was too large.
+  int pos = 0;
+
+  digit_t last_digit;
+  if (length == 1) {
+    last_digit = x->digit(0);
+  } else {
+    int chunk_chars =
+        kDigitBits * kBitsPerCharTableMultiplier / max_bits_per_char;
+    digit_t chunk_divisor = digit_pow(radix, chunk_chars);
+    // By construction of chunk_chars, there can't have been overflow.
+    DCHECK(chunk_divisor != 0);
+    int nonzero_digit = length - 1;
+    DCHECK(x->digit(nonzero_digit) != 0);
+    // {rest} holds the part of the BigInt that we haven't looked at yet.
+    // Not to be confused with "remainder"!
+    Handle<BigInt> rest;
+    // In the first round, divide the input, allocating a new BigInt for
+    // the result == rest; from then on divide the rest in-place.
+    Handle<BigInt>* dividend = &x;
+    do {
+      digit_t chunk;
+      AbsoluteDivSmall(*dividend, chunk_divisor, &rest, &chunk);
+      DCHECK(!rest.is_null());
+      dividend = &rest;
+      DisallowHeapAllocation no_gc;
+      uint8_t* chars = result->GetChars();
+      for (int i = 0; i < chunk_chars; i++) {
+        chars[pos++] = kConversionChars[chunk % radix];
+        chunk /= radix;
+      }
+      DCHECK(chunk == 0);
+      if (rest->digit(nonzero_digit) == 0) nonzero_digit--;
+      // We can never clear more than one digit per iteration, because
+      // chunk_divisor is smaller than max digit value.
+      DCHECK(rest->digit(nonzero_digit) > 0);
+    } while (nonzero_digit > 0);
+    last_digit = rest->digit(0);
+  }
+  DisallowHeapAllocation no_gc;
+  uint8_t* chars = result->GetChars();
+  do {
+    chars[pos++] = kConversionChars[last_digit % radix];
+    last_digit /= radix;
+  } while (last_digit > 0);
+  DCHECK(pos >= 1);
+  DCHECK(pos <= static_cast<int>(chars_required));
+  // Remove leading zeroes.
+  while (pos > 1 && chars[pos - 1] == '0') pos--;
+  if (sign) chars[pos++] = '-';
+  // Trim any over-allocation (which can happen due to conservative estimates).
+  if (pos < static_cast<int>(chars_required)) {
+    result->synchronized_set_length(pos);
+    int string_size =
+        SeqOneByteString::SizeFor(static_cast<int>(chars_required));
+    int needed_size = SeqOneByteString::SizeFor(pos);
+    if (needed_size < string_size) {
+      Address new_end = result->address() + needed_size;
+      heap->CreateFillerObjectAt(new_end, (string_size - needed_size),
+                                 ClearRecordedSlots::kNo);
+    }
+  }
+  // Reverse the string.
+  for (int i = 0, j = pos - 1; i < j; i++, j--) {
+    uint8_t tmp = chars[i];
+    chars[i] = chars[j];
+    chars[j] = tmp;
+  }
+#if DEBUG
+  // Verify that all characters have been written.
+  DCHECK(result->length() == pos);
+  for (int i = 0; i < pos; i++) DCHECK(chars[i] != '?');
+#endif
   return result;
 }
 
@@ -1152,7 +1267,12 @@ BigInt::digit_t BigInt::digit_div(digit_t high, digit_t low, digit_t divisor,
 
   digit_t vn1 = divisor >> kHalfDigitBits;
   digit_t vn0 = divisor & kHalfDigitMask;
-  digit_t un32 = (high << s) | (low >> (kDigitBits - s));
+  // {s} can be 0. "low >> kDigitBits == low" on x86, so we "&" it with
+  // {s_zero_mask} which is 0 if s == 0 and all 1-bits otherwise.
+  STATIC_ASSERT(sizeof(intptr_t) == sizeof(digit_t));
+  digit_t s_zero_mask =
+      static_cast<digit_t>(static_cast<intptr_t>(-s) >> (kDigitBits - 1));
+  digit_t un32 = (high << s) | ((low >> (kDigitBits - s)) & s_zero_mask);
   digit_t un10 = low << s;
   digit_t un1 = un10 >> kHalfDigitBits;
   digit_t un0 = un10 & kHalfDigitMask;
@@ -1178,6 +1298,19 @@ BigInt::digit_t BigInt::digit_div(digit_t high, digit_t low, digit_t divisor,
   *remainder = (un21 * kHalfDigitBase + un0 - q0 * divisor) >> s;
   return q1 * kHalfDigitBase + q0;
 #endif
+}
+
+// Raises {base} to the power of {exponent}. Does not check for overflow.
+BigInt::digit_t BigInt::digit_pow(digit_t base, digit_t exponent) {
+  digit_t result = 1ull;
+  while (exponent > 0) {
+    if (exponent & 1) {
+      result *= base;
+    }
+    exponent >>= 1;
+    base *= base;
+  }
+  return result;
 }
 
 #undef HAVE_TWODIGIT_T

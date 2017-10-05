@@ -157,6 +157,7 @@ class BigInt : public HeapObject {
 
   static MaybeHandle<String> ToStringBasePowerOfTwo(Handle<BigInt> x,
                                                     int radix);
+  static MaybeHandle<String> ToStringGeneric(Handle<BigInt> x, int radix);
 
   // Digit arithmetic helpers.
   static inline digit_t digit_add(digit_t a, digit_t b, digit_t* carry);
@@ -164,6 +165,7 @@ class BigInt : public HeapObject {
   static inline digit_t digit_mul(digit_t a, digit_t b, digit_t* high);
   static inline digit_t digit_div(digit_t high, digit_t low, digit_t divisor,
                                   digit_t* remainder);
+  static digit_t digit_pow(digit_t base, digit_t exponent);
   static inline bool digit_ismax(digit_t x) {
     return static_cast<digit_t>(~x) == 0;
   }
