@@ -31,8 +31,9 @@ class BigInt : public HeapObject {
   static MaybeHandle<BigInt> Remainder(Handle<BigInt> x, Handle<BigInt> y);
   static Handle<BigInt> Add(Handle<BigInt> x, Handle<BigInt> y);
   static Handle<BigInt> Subtract(Handle<BigInt> x, Handle<BigInt> y);
-  static Handle<BigInt> LeftShift(Handle<BigInt> x, Handle<BigInt> y);
-  static Handle<BigInt> SignedRightShift(Handle<BigInt> x, Handle<BigInt> y);
+  static MaybeHandle<BigInt> LeftShift(Handle<BigInt> x, Handle<BigInt> y);
+  static MaybeHandle<BigInt> SignedRightShift(Handle<BigInt> x,
+                                              Handle<BigInt> y);
   static MaybeHandle<BigInt> UnsignedRightShift(Handle<BigInt> x,
                                                 Handle<BigInt> y);
   static bool LessThan(Handle<BigInt> x, Handle<BigInt> y);
@@ -145,6 +146,14 @@ class BigInt : public HeapObject {
   };
   static Handle<BigInt> SpecialLeftShift(Handle<BigInt> x, int shift,
                                          SpecialLeftShiftMode mode);
+
+  // Specialized helpers for shift operations.
+  static MaybeHandle<BigInt> LeftShiftByAbsolute(Handle<BigInt> x,
+                                                 Handle<BigInt> y);
+  static Handle<BigInt> RightShiftByAbsolute(Handle<BigInt> x,
+                                             Handle<BigInt> y);
+  static Handle<BigInt> RightShiftByMaximum(Isolate* isolate, bool sign);
+  static Maybe<digit_t> ToShiftAmount(Handle<BigInt> x);
 
   static MaybeHandle<String> ToStringBasePowerOfTwo(Handle<BigInt> x,
                                                     int radix);

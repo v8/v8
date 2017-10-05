@@ -136,17 +136,23 @@ Handle<BigInt> BigInt::Subtract(Handle<BigInt> x, Handle<BigInt> y) {
   return AbsoluteSub(y, x, !xsign);
 }
 
-Handle<BigInt> BigInt::LeftShift(Handle<BigInt> x, Handle<BigInt> y) {
-  UNIMPLEMENTED();  // TODO(jkummerow): Implement.
+MaybeHandle<BigInt> BigInt::LeftShift(Handle<BigInt> x, Handle<BigInt> y) {
+  if (y->is_zero() || x->is_zero()) return x;
+  if (y->sign()) return RightShiftByAbsolute(x, y);
+  return LeftShiftByAbsolute(x, y);
 }
 
-Handle<BigInt> BigInt::SignedRightShift(Handle<BigInt> x, Handle<BigInt> y) {
-  UNIMPLEMENTED();  // TODO(jkummerow): Implement.
+MaybeHandle<BigInt> BigInt::SignedRightShift(Handle<BigInt> x,
+                                             Handle<BigInt> y) {
+  if (y->is_zero() || x->is_zero()) return x;
+  if (y->sign()) return LeftShiftByAbsolute(x, y);
+  return RightShiftByAbsolute(x, y);
 }
 
 MaybeHandle<BigInt> BigInt::UnsignedRightShift(Handle<BigInt> x,
                                                Handle<BigInt> y) {
-  UNIMPLEMENTED();  // TODO(jkummerow): Implement.
+  THROW_NEW_ERROR(x->GetIsolate(), NewTypeError(MessageTemplate::kBigIntShr),
+                  BigInt);
 }
 
 bool BigInt::LessThan(Handle<BigInt> x, Handle<BigInt> y) {
@@ -768,6 +774,144 @@ Handle<BigInt> BigInt::SpecialLeftShift(Handle<BigInt> x, int shift,
     DCHECK(carry == 0);
   }
   return result;
+}
+
+MaybeHandle<BigInt> BigInt::LeftShiftByAbsolute(Handle<BigInt> x,
+                                                Handle<BigInt> y) {
+  Isolate* isolate = x->GetIsolate();
+  Maybe<digit_t> maybe_shift = ToShiftAmount(y);
+  if (maybe_shift.IsNothing()) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
+                    BigInt);
+  }
+  digit_t shift = maybe_shift.FromJust();
+  int digit_shift = static_cast<int>(shift / kDigitBits);
+  int bits_shift = static_cast<int>(shift % kDigitBits);
+  int length = x->length();
+  bool grow = bits_shift != 0 &&
+              (x->digit(length - 1) >> (kDigitBits - bits_shift)) != 0;
+  int result_length = length + digit_shift + grow;
+  if (result_length > kMaxLength) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
+                    BigInt);
+  }
+  Handle<BigInt> result = isolate->factory()->NewBigIntRaw(result_length);
+  if (bits_shift == 0) {
+    int i = 0;
+    for (; i < digit_shift; i++) result->set_digit(i, 0ul);
+    for (; i < result_length; i++) {
+      result->set_digit(i, x->digit(i - digit_shift));
+    }
+  } else {
+    digit_t carry = 0;
+    for (int i = 0; i < digit_shift; i++) result->set_digit(i, 0ul);
+    for (int i = 0; i < length; i++) {
+      digit_t d = x->digit(i);
+      result->set_digit(i + digit_shift, (d << bits_shift) | carry);
+      carry = d >> (kDigitBits - bits_shift);
+    }
+    if (grow) {
+      result->set_digit(length + digit_shift, carry);
+    } else {
+      DCHECK(carry == 0);
+    }
+  }
+  result->set_sign(x->sign());
+  result->RightTrim();
+  return result;
+}
+
+Handle<BigInt> BigInt::RightShiftByAbsolute(Handle<BigInt> x,
+                                            Handle<BigInt> y) {
+  Isolate* isolate = x->GetIsolate();
+  int length = x->length();
+  bool sign = x->sign();
+  Maybe<digit_t> maybe_shift = ToShiftAmount(y);
+  if (maybe_shift.IsNothing()) {
+    return RightShiftByMaximum(isolate, sign);
+  }
+  digit_t shift = maybe_shift.FromJust();
+  int digit_shift = static_cast<int>(shift / kDigitBits);
+  int bits_shift = static_cast<int>(shift % kDigitBits);
+  int result_length = length - digit_shift;
+  if (result_length <= 0) {
+    return RightShiftByMaximum(isolate, sign);
+  }
+  // For negative numbers, round down if any bit was shifted out (so that e.g.
+  // -5n >> 1n == -3n and not -2n). Check now whether this will happen and
+  // whether it can cause overflow into a new digit. If we allocate the result
+  // large enough up front, it avoids having to do a second allocation later.
+  bool must_round_down = false;
+  if (sign) {
+    if ((x->digit(digit_shift) & ((1 << bits_shift) - 1)) != 0) {
+      must_round_down = true;
+    } else {
+      for (int i = 0; i < digit_shift; i++) {
+        if (x->digit(i) != 0) {
+          must_round_down = true;
+          break;
+        }
+      }
+    }
+  }
+  // If bits_shift is non-zero, it frees up bits, preventing overflow.
+  if (must_round_down && bits_shift == 0) {
+    // Overflow cannot happen if the most significant digit has unset bits.
+    digit_t msd = x->digit(length - 1);
+    bool rounding_can_overflow = digit_ismax(msd);
+    if (rounding_can_overflow) result_length++;
+  }
+
+  Handle<BigInt> result = isolate->factory()->NewBigIntRaw(result_length);
+  if (bits_shift == 0) {
+    for (int i = digit_shift; i < length; i++) {
+      result->set_digit(i - digit_shift, x->digit(i));
+    }
+  } else {
+    digit_t carry = x->digit(digit_shift) >> bits_shift;
+    int last = length - digit_shift - 1;
+    for (int i = 0; i < last; i++) {
+      digit_t d = x->digit(i + digit_shift + 1);
+      result->set_digit(i, (d << (kDigitBits - bits_shift)) | carry);
+      carry = d >> bits_shift;
+    }
+    result->set_digit(last, carry);
+  }
+
+  if (sign) {
+    result->set_sign(true);
+    if (must_round_down) {
+      // Since the result is negative, rounding down means adding one to
+      // its absolute value.
+      result = AbsoluteAddOne(result, true, *result);
+    }
+  }
+  result->RightTrim();
+  return result;
+}
+
+Handle<BigInt> BigInt::RightShiftByMaximum(Isolate* isolate, bool sign) {
+  if (sign) {
+    // Return -1n.
+    // TODO(jkummerow): Consider caching a canonical -1n BigInt.
+    Handle<BigInt> result = isolate->factory()->NewBigInt(1);
+    result->set_digit(0, 1);
+    result->set_sign(true);
+    return result;
+  } else {
+    // TODO(jkummerow): Consider caching a canonical zero BigInt.
+    return isolate->factory()->NewBigInt(0);
+  }
+}
+
+// Returns the value of {x} if it is less than the maximum bit length of
+// a BigInt, or Nothing otherwise.
+Maybe<BigInt::digit_t> BigInt::ToShiftAmount(Handle<BigInt> x) {
+  if (x->length() > 1) return Nothing<digit_t>();
+  digit_t value = x->digit(0);
+  STATIC_ASSERT(kMaxLength * kDigitBits < std::numeric_limits<digit_t>::max());
+  if (value > kMaxLength * kDigitBits) return Nothing<digit_t>();
+  return Just(value);
 }
 
 Handle<BigInt> BigInt::Copy(Handle<BigInt> source) {
