@@ -267,6 +267,10 @@ CompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
       ->asm_wasm_translation_peak_memory_bytes()
       ->AddSample(static_cast<int>(translate_zone_size));
   translate_time_ = translate_timer.Elapsed().InMillisecondsF();
+  int module_size = compilation_info()->literal()->end_position() -
+                    compilation_info()->literal()->start_position();
+  compilation_info()->isolate()->counters()->asm_module_size_bytes()->AddSample(
+      module_size);
   if (FLAG_trace_asm_parser) {
     PrintF(
         "[asm.js translation successful: time=%0.3fms, "
