@@ -522,8 +522,13 @@ bool IC::UpdatePolymorphicIC(Handle<Name> name, Handle<Object> handler) {
     } else if (map.is_identical_to(current_map)) {
       // If both map and handler stayed the same (and the name is also the
       // same as checked above, for keyed accesses), we're not progressing
-      // in the lattice and need to go MEGAMORPHIC instead.
-      if (handler.is_identical_to(handlers[i])) return false;
+      // in the lattice and need to go MEGAMORPHIC instead. There's one
+      // exception to this rule, which is when we're in RECOMPUTE_HANDLER
+      // state, there we allow to migrate to a new handler.
+      if (handler.is_identical_to(handlers[i]) &&
+          state() != RECOMPUTE_HANDLER) {
+        return false;
+      }
       // If the receiver type is already in the polymorphic IC, this indicates
       // there was a prototoype chain failure. In that case, just overwrite the
       // handler.
