@@ -1251,14 +1251,28 @@ inline BigInt::digit_t BigInt::digit_mul(digit_t a, digit_t b, digit_t* high) {
 BigInt::digit_t BigInt::digit_div(digit_t high, digit_t low, digit_t divisor,
                                   digit_t* remainder) {
   DCHECK(high < divisor);
-// Clang on Windows defines __SIZEOF_INT128__, but does not support division
-// of __uint128_t variables. See https://bugs.llvm.org/show_bug.cgi?id=25305.
-#if HAVE_TWODIGIT_T && !(defined(_MSC_VER) && defined(__clang__))
-  twodigit_t dividend = (static_cast<twodigit_t>(high) << kDigitBits) |
-                        static_cast<twodigit_t>(low);
-  digit_t result = dividend / divisor;
-  *remainder = dividend % divisor;
-  return result;
+#if V8_TARGET_ARCH_X64 && (__GNUC__ || __clang__)
+  digit_t quotient;
+  digit_t rem;
+  __asm__("divq  %[divisor]"
+          // Outputs: {quotient} will be in rax, {rem} in rdx.
+          : "=a"(quotient), "=d"(rem)
+          // Inputs: put {high} into rdx, {low} into rax, and {divisor} into
+          // any register or stack slot.
+          : "d"(high), "a"(low), [divisor] "rm"(divisor));
+  *remainder = rem;
+  return quotient;
+#elif V8_TARGET_ARCH_IA32 && (__GNUC__ || __clang__)
+  digit_t quotient;
+  digit_t rem;
+  __asm__("divl  %[divisor]"
+          // Outputs: {quotient} will be in eax, {rem} in edx.
+          : "=a"(quotient), "=d"(rem)
+          // Inputs: put {high} into edx, {low} into eax, and {divisor} into
+          // any register or stack slot.
+          : "d"(high), "a"(low), [divisor] "rm"(divisor));
+  *remainder = rem;
+  return quotient;
 #else
   static const digit_t kHalfDigitBase = 1ull << kHalfDigitBits;
   // Adapted from Warren, Hacker's Delight, p. 152.
