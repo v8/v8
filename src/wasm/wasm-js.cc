@@ -771,10 +771,10 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   EXTRACT_THIS(receiver, WasmMemoryObject);
 
   int64_t delta_size = 0;
-  if (args.Length() < 1 || !args[0]->IntegerValue(context).To(&delta_size)) {
-    thrower.TypeError("Argument 0 required, must be numeric value of pages");
+  if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&delta_size)) {
     return;
   }
+
   int64_t max_size64 = receiver->maximum_pages();
   if (max_size64 < 0 ||
       max_size64 > static_cast<int64_t>(i::FLAG_wasm_max_mem_pages)) {
