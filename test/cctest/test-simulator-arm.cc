@@ -279,30 +279,33 @@ class MemoryAccessThread : public v8::base::Thread {
         test_data_(NULL),
         is_finished_(false),
         has_request_(false),
-        did_request_(false) {}
+        did_request_(false),
+        isolate_(nullptr) {}
 
   virtual void Run() {
     v8::Isolate::CreateParams create_params;
     create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-    v8::Isolate* isolate = v8::Isolate::New(create_params);
-    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
-    v8::Isolate::Scope scope(isolate);
+    isolate_ = v8::Isolate::New(create_params);
+    Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate_);
+    {
+      v8::Isolate::Scope scope(isolate_);
+      v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
+      while (!is_finished_) {
+        while (!(has_request_ || is_finished_)) {
+          has_request_cv_.Wait(&mutex_);
+        }
 
-    v8::base::LockGuard<v8::base::Mutex> lock_guard(&mutex_);
-    while (!is_finished_) {
-      while (!(has_request_ || is_finished_)) {
-        has_request_cv_.Wait(&mutex_);
+        if (is_finished_) {
+          break;
+        }
+
+        ExecuteMemoryAccess(i_isolate, test_data_, access_);
+        has_request_ = false;
+        did_request_ = true;
+        did_request_cv_.NotifyOne();
       }
-
-      if (is_finished_) {
-        break;
-      }
-
-      ExecuteMemoryAccess(i_isolate, test_data_, access_);
-      has_request_ = false;
-      did_request_ = true;
-      did_request_cv_.NotifyOne();
     }
+    isolate_->Dispose();
   }
 
   void NextAndWait(TestData* test_data, MemoryAccess access) {
@@ -333,6 +336,7 @@ class MemoryAccessThread : public v8::base::Thread {
   v8::base::Mutex mutex_;
   v8::base::ConditionVariable has_request_cv_;
   v8::base::ConditionVariable did_request_cv_;
+  v8::Isolate* isolate_;
 };
 
 TEST(simulator_invalidate_exclusive_access_threaded) {
