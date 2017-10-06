@@ -356,7 +356,8 @@ void DoPrintElements(std::ostream& os, Object* object) {  // NOLINT
   }
 }
 
-void PrintFixedArrayElements(std::ostream& os, FixedArray* array) {
+template <typename T>
+void PrintFixedArrayElements(std::ostream& os, T* array) {
   // Print in array notation for non-sparse arrays.
   Object* previous_value = array->length() > 0 ? array->get(0) : nullptr;
   Object* value = nullptr;
@@ -629,16 +630,12 @@ void FixedArray::FixedArrayPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
-// TODO(gsathya): Templatize PrintFixedArrayElements to print this as
-// well.
 void PropertyArray::PropertyArrayPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "PropertyArray");
   os << "\n - map = " << Brief(map());
   os << "\n - length: " << length();
-  for (int i = 0; i < length(); i++) {
-    os << "\n" << i << " : " << std::setw(8) << Brief(get(i));
-  }
-
+  os << "\n - hash: " << Hash();
+  PrintFixedArrayElements(os, this);
   os << "\n";
 }
 
