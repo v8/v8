@@ -244,22 +244,6 @@ class IncrementalMarkingMarkingVisitor final
     return object_size;
   }
 
-  V8_INLINE int VisitNativeContext(Map* map, Context* context) {
-    // We will mark cache black with a separate pass when we finish marking.
-    // Note that GC can happen when the context is not fully initialized,
-    // so the cache can be undefined.
-    Object* cache = context->get(Context::NORMALIZED_MAP_CACHE_INDEX);
-    if (!cache->IsUndefined(map->GetIsolate())) {
-      if (cache->IsHeapObject()) {
-        HeapObject* heap_obj = HeapObject::cast(cache);
-        // Mark the object grey if it is white, do not enque it into the marking
-        // deque.
-        incremental_marking_->marking_state()->WhiteToGrey(heap_obj);
-      }
-    }
-    return Parent::VisitNativeContext(map, context);
-  }
-
   V8_INLINE void VisitPointer(HeapObject* host, Object** p) final {
     Object* target = *p;
     if (target->IsHeapObject()) {
@@ -897,18 +881,6 @@ void IncrementalMarking::Hurry() {
             static_cast<int>(delta));
       }
     }
-  }
-
-  Object* context = heap_->native_contexts_list();
-  while (!context->IsUndefined(heap_->isolate())) {
-    // GC can happen when the context is not fully initialized,
-    // so the cache can be undefined.
-    HeapObject* cache = HeapObject::cast(
-        Context::cast(context)->get(Context::NORMALIZED_MAP_CACHE_INDEX));
-    if (!cache->IsUndefined(heap_->isolate())) {
-      marking_state()->GreyToBlack(cache);
-    }
-    context = Context::cast(context)->next_context_link();
   }
 }
 
