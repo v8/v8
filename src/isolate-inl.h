@@ -126,6 +126,11 @@ Isolate::ExceptionScope::~ExceptionScope() {
 NATIVE_CONTEXT_FIELDS(NATIVE_CONTEXT_FIELD_ACCESSOR)
 #undef NATIVE_CONTEXT_FIELD_ACCESSOR
 
+bool Isolate::IsArrayConstructorIntact() {
+  Cell* array_constructor_cell = heap()->array_constructor_protector();
+  return array_constructor_cell->value() == Smi::FromInt(kProtectorValid);
+}
+
 bool Isolate::IsArraySpeciesLookupChainIntact() {
   // Note: It would be nice to have debug checks to make sure that the
   // species protector is accurate, but this would be hard to do for most of

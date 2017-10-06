@@ -397,6 +397,10 @@ bool operator!=(AllocateParameters const& lhs, AllocateParameters const& rhs) {
 }
 
 PretenureFlag PretenureFlagOf(const Operator* op) {
+  if (op->opcode() == IrOpcode::kNewFastDoubleElements ||
+      op->opcode() == IrOpcode::kNewFastSmiOrObjectElements) {
+    return OpParameter<PretenureFlag>(op);
+  }
   DCHECK_EQ(IrOpcode::kAllocate, op->opcode());
   return OpParameter<AllocateParameters>(op).pretenure();
 }
@@ -971,6 +975,26 @@ int FormalParameterCountOf(const Operator* op) {
 bool IsRestLengthOf(const Operator* op) {
   DCHECK_EQ(IrOpcode::kArgumentsLength, op->opcode());
   return OpParameter<ArgumentsLengthParameters>(op).is_rest_length;
+}
+
+const Operator* SimplifiedOperatorBuilder::NewFastDoubleElements(
+    PretenureFlag pretenure) {
+  return new (zone()) Operator1<PretenureFlag>(  // --
+      IrOpcode::kNewFastDoubleElements,          // opcode
+      Operator::kEliminatable,                   // flags
+      "NewFastDoubleElements",                   // name
+      1, 1, 1, 1, 1, 0,                          // counts
+      pretenure);                                // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::NewFastSmiOrObjectElements(
+    PretenureFlag pretenure) {
+  return new (zone()) Operator1<PretenureFlag>(  // --
+      IrOpcode::kNewFastSmiOrObjectElements,     // opcode
+      Operator::kEliminatable,                   // flags
+      "NewFastSmiOrObjectElements",              // name
+      1, 1, 1, 1, 1, 0,                          // counts
+      pretenure);                                // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::NewArgumentsElements(

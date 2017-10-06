@@ -94,6 +94,88 @@ TF_BUILTIN(GrowFastSmiOrObjectElements, CodeStubAssembler) {
   TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
 }
 
+// TODO(bmeurer): Temporary builtin, will disappear soon.
+TF_BUILTIN(NewFastDoubleElements_NotTenured, CodeStubAssembler) {
+  Node* length = SmiUntag(Parameter(Descriptor::kLength));
+
+  Node* const zero = IntPtrConstant(0);
+  ElementsKind const elements_kind = PACKED_DOUBLE_ELEMENTS;
+
+  Label if_empty(this, Label::kDeferred), if_nonempty(this);
+  Branch(WordEqual(length, zero), &if_empty, &if_nonempty);
+
+  BIND(&if_empty);
+  Return(EmptyFixedArrayConstant());
+
+  BIND(&if_nonempty);
+  Node* const elements = AllocateFixedArray(elements_kind, length);
+  FillFixedArrayWithValue(elements_kind, elements, zero, length,
+                          Heap::kTheHoleValueRootIndex);
+  Return(elements);
+}
+
+// TODO(bmeurer): Temporary builtin, will disappear soon.
+TF_BUILTIN(NewFastDoubleElements_Tenured, CodeStubAssembler) {
+  Node* length = SmiUntag(Parameter(Descriptor::kLength));
+
+  Node* const zero = IntPtrConstant(0);
+  ElementsKind const elements_kind = PACKED_DOUBLE_ELEMENTS;
+
+  Label if_empty(this, Label::kDeferred), if_nonempty(this);
+  Branch(WordEqual(length, zero), &if_empty, &if_nonempty);
+
+  BIND(&if_empty);
+  Return(EmptyFixedArrayConstant());
+
+  BIND(&if_nonempty);
+  Node* const elements =
+      AllocateFixedArray(elements_kind, length, INTPTR_PARAMETERS, kPretenured);
+  FillFixedArrayWithValue(elements_kind, elements, zero, length,
+                          Heap::kTheHoleValueRootIndex);
+  Return(elements);
+}
+
+// TODO(bmeurer): Temporary builtin, will disappear soon.
+TF_BUILTIN(NewFastSmiOrObjectElements_NotTenured, CodeStubAssembler) {
+  Node* length = SmiUntag(Parameter(Descriptor::kLength));
+
+  Node* const zero = IntPtrConstant(0);
+  ElementsKind const elements_kind = PACKED_ELEMENTS;
+
+  Label if_empty(this, Label::kDeferred), if_nonempty(this);
+  Branch(WordEqual(length, zero), &if_empty, &if_nonempty);
+
+  BIND(&if_empty);
+  Return(EmptyFixedArrayConstant());
+
+  BIND(&if_nonempty);
+  Node* const elements = AllocateFixedArray(elements_kind, length);
+  FillFixedArrayWithValue(elements_kind, elements, zero, length,
+                          Heap::kTheHoleValueRootIndex);
+  Return(elements);
+}
+
+// TODO(bmeurer): Temporary builtin, will disappear soon.
+TF_BUILTIN(NewFastSmiOrObjectElements_Tenured, CodeStubAssembler) {
+  Node* length = SmiUntag(Parameter(Descriptor::kLength));
+
+  Node* const zero = IntPtrConstant(0);
+  ElementsKind const elements_kind = PACKED_ELEMENTS;
+
+  Label if_empty(this, Label::kDeferred), if_nonempty(this);
+  Branch(WordEqual(length, zero), &if_empty, &if_nonempty);
+
+  BIND(&if_empty);
+  Return(EmptyFixedArrayConstant());
+
+  BIND(&if_nonempty);
+  Node* const elements =
+      AllocateFixedArray(elements_kind, length, INTPTR_PARAMETERS, kPretenured);
+  FillFixedArrayWithValue(elements_kind, elements, zero, length,
+                          Heap::kTheHoleValueRootIndex);
+  Return(elements);
+}
+
 TF_BUILTIN(NewArgumentsElements, CodeStubAssembler) {
   Node* frame = Parameter(Descriptor::kFrame);
   Node* length = SmiToWord(Parameter(Descriptor::kLength));

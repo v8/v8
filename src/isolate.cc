@@ -3164,6 +3164,14 @@ void Isolate::InvalidateIsConcatSpreadableProtector() {
   DCHECK(!IsIsConcatSpreadableLookupChainIntact());
 }
 
+void Isolate::InvalidateArrayConstructorProtector() {
+  DCHECK(factory()->array_constructor_protector()->value()->IsSmi());
+  DCHECK(IsArrayConstructorIntact());
+  factory()->array_constructor_protector()->set_value(
+      Smi::FromInt(kProtectorInvalid));
+  DCHECK(!IsArrayConstructorIntact());
+}
+
 void Isolate::InvalidateArraySpeciesProtector() {
   DCHECK(factory()->species_protector()->value()->IsSmi());
   DCHECK(IsArraySpeciesLookupChainIntact());

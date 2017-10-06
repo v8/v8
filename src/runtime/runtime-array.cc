@@ -460,13 +460,25 @@ RUNTIME_FUNCTION(Runtime_NewArray) {
   ElementsKind old_kind = array->GetElementsKind();
   RETURN_FAILURE_ON_EXCEPTION(isolate,
                               ArrayConstructInitializeElements(array, &argv));
-  if (!site.is_null() &&
-      (old_kind != array->GetElementsKind() || !can_use_type_feedback ||
-       !can_inline_array_constructor)) {
-    // The arguments passed in caused a transition. This kind of complexity
-    // can't be dealt with in the inlined hydrogen array constructor case.
-    // We must mark the allocationsite as un-inlinable.
-    site->SetDoNotInlineCall();
+  if (!site.is_null()) {
+    if ((old_kind != array->GetElementsKind() || !can_use_type_feedback ||
+         !can_inline_array_constructor)) {
+      // The arguments passed in caused a transition. This kind of complexity
+      // can't be dealt with in the inlined hydrogen array constructor case.
+      // We must mark the allocationsite as un-inlinable.
+      site->SetDoNotInlineCall();
+    }
+  } else {
+    if (old_kind != array->GetElementsKind() || !can_inline_array_constructor) {
+      // We don't have an AllocationSite for this Array constructor invocation,
+      // i.e. it might a call from Array#map or from an Array subclass, so we
+      // just flip the bit on the global protector cell instead.
+      // TODO(bmeurer): Find a better way to mark this. Global protectors
+      // tend to back-fire over time...
+      if (isolate->IsArrayConstructorIntact()) {
+        isolate->InvalidateArrayConstructorProtector();
+      }
+    }
   }
 
   return *array;

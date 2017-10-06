@@ -579,6 +579,57 @@ Reduction JSCreateLowering::ReduceJSCreateGeneratorObject(Node* node) {
   return NoChange();
 }
 
+// Constructs an array with a variable {length} when no upper bound
+// is known for the capacity.
+Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
+                                           Handle<Map> initial_map,
+                                           PretenureFlag pretenure) {
+  DCHECK_EQ(IrOpcode::kJSCreateArray, node->opcode());
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Constructing an Array via new Array(N) where N is an unsigned
+  // integer, always creates a holey backing store.
+  if (!IsHoleyElementsKind(initial_map->elements_kind())) {
+    initial_map = Map::AsElementsKind(
+        initial_map, GetHoleyElementsKind(initial_map->elements_kind()));
+  }
+
+  // Check that the {limit} is an unsigned integer in the valid range.
+  // This has to be kept in sync with src/runtime/runtime-array.cc,
+  // where this limit is protected.
+  length = effect = graph()->NewNode(
+      simplified()->CheckBounds(), length,
+      jsgraph()->Constant(JSArray::kInitialMaxFastElementArray), effect,
+      control);
+
+  // Construct elements and properties for the resulting JSArray.
+  Node* elements = effect = graph()->NewNode(
+      IsDoubleElementsKind(initial_map->elements_kind())
+          ? simplified()->NewFastDoubleElements(pretenure)
+          : simplified()->NewFastSmiOrObjectElements(pretenure),
+      length, effect, control);
+  Node* properties = jsgraph()->EmptyFixedArrayConstant();
+
+  // Perform the allocation of the actual JSArray object.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(initial_map->instance_size(), pretenure);
+  a.Store(AccessBuilder::ForMap(), initial_map);
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+  a.Store(AccessBuilder::ForJSObjectElements(), elements);
+  a.Store(AccessBuilder::ForJSArrayLength(initial_map->elements_kind()),
+          length);
+  for (int i = 0; i < initial_map->GetInObjectProperties(); ++i) {
+    a.Store(AccessBuilder::ForJSObjectInObjectProperty(initial_map, i),
+            jsgraph()->UndefinedConstant());
+  }
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
+}
+
+// Constructs an array with a variable {length} when an actual
+// upper bound is known for the {capacity}.
 Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
                                            int capacity,
                                            Handle<Map> initial_map,
@@ -771,16 +822,23 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
       // deoptimized whenever the {initial_map} changes.
       dependencies()->AssumeInitialMapCantChange(initial_map);
 
+      // Tells whether we are protected by either the {site} or a
+      // protector cell to do certain speculative optimizations.
+      bool can_inline_call = false;
+
       // Check if we have a feedback {site} on the {node}.
       if (!site.is_null()) {
         ElementsKind elements_kind = site->GetElementsKind();
         if (initial_map->elements_kind() != elements_kind) {
           initial_map = Map::AsElementsKind(initial_map, elements_kind);
         }
+        can_inline_call = site->CanInlineCall();
         pretenure = site->GetPretenureMode();
 
         dependencies()->AssumeTransitionStable(site);
         dependencies()->AssumeTenuringDecision(site);
+      } else {
+        can_inline_call = isolate()->IsArrayConstructorIntact();
       }
 
       if (arity == 0) {
@@ -799,13 +857,17 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
                                  ? HOLEY_ELEMENTS
                                  : PACKED_ELEMENTS);
           initial_map = Map::AsElementsKind(initial_map, elements_kind);
-          return ReduceNewArray(node, {length}, initial_map, pretenure);
+          return ReduceNewArray(node, std::vector<Node*>{length}, initial_map,
+                                pretenure);
         }
         if (length_type->Is(Type::SignedSmall()) && length_type->Min() >= 0 &&
             length_type->Max() <= kElementLoopUnrollLimit &&
             length_type->Min() == length_type->Max()) {
           int capacity = static_cast<int>(length_type->Max());
           return ReduceNewArray(node, length, capacity, initial_map, pretenure);
+        }
+        if (length_type->Maybe(Type::UnsignedSmall()) && can_inline_call) {
+          return ReduceNewArray(node, length, initial_map, pretenure);
         }
       } else if (arity <= JSArray::kInitialMaxFastElementArray) {
         // Gather the values to store into the newly created array.
@@ -842,7 +904,7 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
               elements_kind, IsHoleyElementsKind(elements_kind)
                                  ? HOLEY_ELEMENTS
                                  : PACKED_ELEMENTS);
-        } else if (site.is_null() || !site->CanInlineCall()) {
+        } else if (!can_inline_call) {
           // We have some crazy combination of types for the {values} where
           // there's no clear decision on the elements kind statically. And
           // we don't have a protection against deoptimization loops for the

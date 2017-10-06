@@ -186,6 +186,7 @@ using v8::MemoryPressureLevel;
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   /* Protectors */                                                             \
+  V(Cell, array_constructor_protector, ArrayConstructorProtector)              \
   V(PropertyCell, array_protector, ArrayProtector)                             \
   V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)         \
   V(PropertyCell, species_protector, SpeciesProtector)                         \
