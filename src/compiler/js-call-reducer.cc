@@ -834,44 +834,46 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   if (result != NodeProperties::kReliableReceiverMaps) {
     return NoChange();
   }
-  if (receiver_maps.size() != 1) return NoChange();
-  Handle<Map> receiver_map(receiver_maps[0]);
-  ElementsKind kind = receiver_map->elements_kind();
+
+  // Ensure that any changes to the Array species constructor cause deopt.
+  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
+
+  if (receiver_maps.size() == 0) return NoChange();
+
+  const ElementsKind kind = receiver_maps[0]->elements_kind();
+
   // TODO(danno): Handle holey Smi and Object fast elements kinds and double
   // packed.
   if (!IsFastPackedElementsKind(kind) || IsDoubleElementsKind(kind)) {
     return NoChange();
   }
 
-  // We want the input to be a generic Array.
+  for (Handle<Map> receiver_map : receiver_maps) {
+    if (!CanInlineArrayIteratingBuiltin(receiver_map)) {
+      return NoChange();
+    }
+    // We can handle different maps, as long as their elements kind are the
+    // same.
+    if (receiver_map->elements_kind() != kind) {
+      return NoChange();
+    }
+  }
+
+  dependencies()->AssumePropertyCell(factory()->species_protector());
+
   Handle<JSFunction> handle_constructor(
       JSFunction::cast(
           native_context()->GetInitialJSArrayMap(kind)->GetConstructor()),
       isolate());
   Node* array_constructor = jsgraph()->HeapConstant(handle_constructor);
-  if (receiver_map->prototype() !=
-      native_context()->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
-    return NoChange();
-  }
 
-  // And ensure that any changes to the Array species constructor cause deopt.
-  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
-
-  dependencies()->AssumePropertyCell(factory()->species_protector());
 
   Node* k = jsgraph()->ZeroConstant();
-  Node* orig_map = jsgraph()->HeapConstant(receiver_map);
 
   // Make sure the map hasn't changed before we construct the output array.
-  {
-    Node* array_map = effect =
-        graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                         receiver, effect, control);
-    Node* check_map =
-        graph()->NewNode(simplified()->ReferenceEqual(), array_map, orig_map);
-    effect =
-        graph()->NewNode(simplified()->CheckIf(), check_map, effect, control);
-  }
+  effect = graph()->NewNode(
+      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
+      effect, control);
 
   Node* original_length = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
@@ -933,19 +935,15 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
       graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
 
   // Make sure the map hasn't changed during the iteration
-  Node* array_map = effect =
-      graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                       receiver, effect, control);
-  Node* check_map =
-      graph()->NewNode(simplified()->ReferenceEqual(), array_map, orig_map);
-  effect =
-      graph()->NewNode(simplified()->CheckIf(), check_map, effect, control);
+  effect = graph()->NewNode(
+      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
+      effect, control);
 
   // Make sure that the access is still in bounds, since the callback could have
   // changed the array's size.
   Node* length = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
-      receiver, effect, control);
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
+      effect, control);
   k = effect =
       graph()->NewNode(simplified()->CheckBounds(), k, length, effect, control);
 
@@ -957,7 +955,7 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
       effect, control);
 
   Node* element = graph()->NewNode(
-      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()),
+      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(kind)),
       elements, k, effect, control);
 
   Node* next_k =
