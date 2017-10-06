@@ -2804,6 +2804,50 @@ TEST(NumberMinMax) {
   CHECK_EQ(ft_min.CallChecked<HeapNumber>(double_b, smi_5)->value(), 3.5);
 }
 
+TEST(NumberAddSub) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 2;
+  CodeAssemblerTester asm_tester_add(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester_add.state());
+    m.Return(m.NumberAdd(m.Parameter(0), m.Parameter(1)));
+  }
+  FunctionTester ft_add(asm_tester_add.GenerateCode(), kNumParams);
+
+  CodeAssemblerTester asm_tester_sub(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester_sub.state());
+    m.Return(m.NumberSub(m.Parameter(0), m.Parameter(1)));
+  }
+  FunctionTester ft_sub(asm_tester_sub.GenerateCode(), kNumParams);
+
+  // Test smi values.
+  Handle<Smi> smi_1(Smi::FromInt(1), isolate);
+  Handle<Smi> smi_2(Smi::FromInt(2), isolate);
+  CHECK_EQ(ft_add.CallChecked<Smi>(smi_1, smi_2)->value(), 3);
+  CHECK_EQ(ft_sub.CallChecked<Smi>(smi_2, smi_1)->value(), 1);
+
+  // Test double values.
+  Handle<Object> double_a = isolate->factory()->NewNumber(2.5);
+  Handle<Object> double_b = isolate->factory()->NewNumber(3.0);
+  CHECK_EQ(ft_add.CallChecked<HeapNumber>(double_a, double_b)->value(), 5.5);
+  CHECK_EQ(ft_sub.CallChecked<HeapNumber>(double_a, double_b)->value(), -.5);
+
+  // Test overflow.
+  Handle<Smi> smi_max(Smi::FromInt(Smi::kMaxValue), isolate);
+  Handle<Smi> smi_min(Smi::FromInt(Smi::kMinValue), isolate);
+  CHECK_EQ(ft_add.CallChecked<HeapNumber>(smi_max, smi_1)->value(),
+           static_cast<double>(Smi::kMaxValue) + 1);
+  CHECK_EQ(ft_sub.CallChecked<HeapNumber>(smi_min, smi_1)->value(),
+           static_cast<double>(Smi::kMinValue) - 1);
+
+  // Test mixed smi/double values.
+  CHECK_EQ(ft_add.CallChecked<HeapNumber>(smi_1, double_a)->value(), 3.5);
+  CHECK_EQ(ft_add.CallChecked<HeapNumber>(double_a, smi_1)->value(), 3.5);
+  CHECK_EQ(ft_sub.CallChecked<HeapNumber>(smi_1, double_a)->value(), -1.5);
+  CHECK_EQ(ft_sub.CallChecked<HeapNumber>(double_a, smi_1)->value(), 1.5);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
