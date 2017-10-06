@@ -271,6 +271,17 @@ CompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
                     compilation_info()->literal()->start_position();
   compilation_info()->isolate()->counters()->asm_module_size_bytes()->AddSample(
       module_size);
+  int64_t translate_time_micro = translate_timer.Elapsed().InMicroseconds();
+  int translation_throughput =
+      translate_time_micro != 0
+          ? static_cast<int>(static_cast<int64_t>(module_size) /
+                             translate_time_micro)
+          : 0;
+  compilation_info()
+      ->isolate()
+      ->counters()
+      ->asm_wasm_translation_throughput()
+      ->AddSample(translation_throughput);
   if (FLAG_trace_asm_parser) {
     PrintF(
         "[asm.js translation successful: time=%0.3fms, "

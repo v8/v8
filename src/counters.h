@@ -990,46 +990,48 @@ class RuntimeCallTimerScope {
   DISALLOW_COPY_AND_ASSIGN(RuntimeCallTimerScope);
 };
 
-#define HISTOGRAM_RANGE_LIST(HR)                                              \
-  /* Generic range histograms: HR(name, caption, min, max, num_buckets) */    \
-  HR(detached_context_age_in_gc, V8.DetachedContextAgeInGC, 0, 20, 21)        \
-  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)             \
-  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)        \
-  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                      \
-  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)    \
-  HR(incremental_marking_sum, V8.GCIncrementalMarkingSum, 0, 10000, 101)      \
-  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                  \
-  HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                         \
-  HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)        \
-  /* Asm/Wasm. */                                                             \
-  HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 100000, \
-     51)                                                                      \
-  HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1,       \
-     100000, 51)                                                              \
-  HR(array_buffer_big_allocations, V8.ArrayBufferLargeAllocations, 0, 4096,   \
-     13)                                                                      \
-  HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096,  \
-     13)                                                                      \
-  HR(shared_array_allocations, V8.SharedArrayAllocationSizes, 0, 4096, 13)    \
-  HR(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm, 1, GB, 51)   \
-  HR(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm, 1, GB, 51) \
-  HR(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm, 1, GB, 51)       \
-  HR(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm, 1, GB, 51)     \
-  HR(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm, 1, 2 << 16,   \
-     51)                                                                      \
-  HR(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm, 1, 2 << 16, \
-     51)                                                                      \
-  HR(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm, 1, 2 << 16, \
-     51)                                                                      \
-  HR(wasm_decode_asm_module_peak_memory_bytes,                                \
-     V8.WasmDecodeModulePeakMemoryBytes.asm, 1, GB, 51)                       \
-  HR(wasm_decode_wasm_module_peak_memory_bytes,                               \
-     V8.WasmDecodeModulePeakMemoryBytes.wasm, 1, GB, 51)                      \
-  HR(asm_wasm_translation_peak_memory_bytes,                                  \
-     V8.AsmWasmTranslationPeakMemoryBytes, 1, GB, 51)                         \
-  HR(wasm_compile_function_peak_memory_bytes,                                 \
-     V8.WasmCompileFunctionPeakMemoryBytes, 1, GB, 51)                        \
-  HR(asm_module_size_bytes, V8.AsmModuleSizeBytes, 1, GB, 51)
+#define HISTOGRAM_RANGE_LIST(HR)                                               \
+  /* Generic range histograms: HR(name, caption, min, max, num_buckets) */     \
+  HR(detached_context_age_in_gc, V8.DetachedContextAgeInGC, 0, 20, 21)         \
+  HR(code_cache_reject_reason, V8.CodeCacheRejectReason, 1, 6, 6)              \
+  HR(errors_thrown_per_context, V8.ErrorsThrownPerContext, 0, 200, 20)         \
+  HR(debug_feature_usage, V8.DebugFeatureUsage, 1, 7, 7)                       \
+  HR(incremental_marking_reason, V8.GCIncrementalMarkingReason, 0, 21, 22)     \
+  HR(incremental_marking_sum, V8.GCIncrementalMarkingSum, 0, 10000, 101)       \
+  HR(mark_compact_reason, V8.GCMarkCompactReason, 0, 21, 22)                   \
+  HR(scavenge_reason, V8.GCScavengeReason, 0, 21, 22)                          \
+  HR(young_generation_handling, V8.GCYoungGenerationHandling, 0, 2, 3)         \
+  /* Asm/Wasm. */                                                              \
+  HR(wasm_functions_per_asm_module, V8.WasmFunctionsPerModule.asm, 1, 100000,  \
+     51)                                                                       \
+  HR(wasm_functions_per_wasm_module, V8.WasmFunctionsPerModule.wasm, 1,        \
+     100000, 51)                                                               \
+  HR(array_buffer_big_allocations, V8.ArrayBufferLargeAllocations, 0, 4096,    \
+     13)                                                                       \
+  HR(array_buffer_new_size_failures, V8.ArrayBufferNewSizeFailures, 0, 4096,   \
+     13)                                                                       \
+  HR(shared_array_allocations, V8.SharedArrayAllocationSizes, 0, 4096, 13)     \
+  HR(wasm_asm_function_size_bytes, V8.WasmFunctionSizeBytes.asm, 1, GB, 51)    \
+  HR(wasm_wasm_function_size_bytes, V8.WasmFunctionSizeBytes.wasm, 1, GB, 51)  \
+  HR(wasm_asm_module_size_bytes, V8.WasmModuleSizeBytes.asm, 1, GB, 51)        \
+  HR(wasm_wasm_module_size_bytes, V8.WasmModuleSizeBytes.wasm, 1, GB, 51)      \
+  HR(wasm_asm_min_mem_pages_count, V8.WasmMinMemPagesCount.asm, 1, 2 << 16,    \
+     51)                                                                       \
+  HR(wasm_wasm_min_mem_pages_count, V8.WasmMinMemPagesCount.wasm, 1, 2 << 16,  \
+     51)                                                                       \
+  HR(wasm_wasm_max_mem_pages_count, V8.WasmMaxMemPagesCount.wasm, 1, 2 << 16,  \
+     51)                                                                       \
+  HR(wasm_decode_asm_module_peak_memory_bytes,                                 \
+     V8.WasmDecodeModulePeakMemoryBytes.asm, 1, GB, 51)                        \
+  HR(wasm_decode_wasm_module_peak_memory_bytes,                                \
+     V8.WasmDecodeModulePeakMemoryBytes.wasm, 1, GB, 51)                       \
+  HR(asm_wasm_translation_peak_memory_bytes,                                   \
+     V8.AsmWasmTranslationPeakMemoryBytes, 1, GB, 51)                          \
+  HR(wasm_compile_function_peak_memory_bytes,                                  \
+     V8.WasmCompileFunctionPeakMemoryBytes, 1, GB, 51)                         \
+  HR(asm_module_size_bytes, V8.AsmModuleSizeBytes, 1, GB, 51)                  \
+  HR(asm_wasm_translation_throughput, V8.AsmWasmTranslationThroughput, 1, 100, \
+     20)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
