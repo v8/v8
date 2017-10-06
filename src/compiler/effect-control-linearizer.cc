@@ -3207,46 +3207,53 @@ void EffectControlLinearizer::LowerTransitionAndStoreElement(Node* node) {
   }
 
   auto do_store = __ MakeLabel(MachineRepresentation::kWord32);
-  Node* check1 = ObjectIsSmi(value);
-  __ GotoIf(check1, &do_store, kind);
+  // We can store a smi anywhere.
+  __ GotoIf(ObjectIsSmi(value), &do_store, kind);
+
+  // {value} is a HeapObject.
+  auto transition_smi_array = __ MakeDeferredLabel();
+  auto transition_double_to_fast = __ MakeDeferredLabel();
   {
-    // {value} is a HeapObject.
-    Node* check2 = IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS);
-    auto if_array_not_fast_smi = __ MakeLabel();
-    __ GotoIf(check2, &if_array_not_fast_smi);
+    __ GotoIfNot(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
+                 &transition_smi_array);
+    __ GotoIfNot(IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS), &do_store,
+                 kind);
+
+    // We have double elements kind. Only a HeapNumber can be stored
+    // without effecting a transition.
+    Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+    Node* heap_number_map = __ HeapNumberMapConstant();
+    Node* check = __ WordEqual(value_map, heap_number_map);
+    __ GotoIfNot(check, &transition_double_to_fast);
+    __ Goto(&do_store, kind);
+  }
+
+  __ Bind(&transition_smi_array);  // deferred code.
+  {
+    // Transition {array} from HOLEY_SMI_ELEMENTS to HOLEY_DOUBLE_ELEMENTS or
+    // to HOLEY_ELEMENTS.
+    auto if_value_not_heap_number = __ MakeLabel();
+    Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+    Node* heap_number_map = __ HeapNumberMapConstant();
+    Node* check = __ WordEqual(value_map, heap_number_map);
+    __ GotoIfNot(check, &if_value_not_heap_number);
     {
-      // Transition {array} from HOLEY_SMI_ELEMENTS to HOLEY_DOUBLE_ELEMENTS or
-      // to HOLEY_ELEMENTS.
-      Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-      Node* heap_number_map = __ HeapNumberMapConstant();
-      Node* check3 = __ WordEqual(value_map, heap_number_map);
-      auto if_value_not_heap_number = __ MakeLabel();
-      __ GotoIfNot(check3, &if_value_not_heap_number);
-      {
-        // {value} is a HeapNumber.
-        TransitionElementsTo(node, array, HOLEY_SMI_ELEMENTS,
-                             HOLEY_DOUBLE_ELEMENTS);
-        __ Goto(&do_store, __ Int32Constant(HOLEY_DOUBLE_ELEMENTS));
-      }
-      __ Bind(&if_value_not_heap_number);
-      {
-        TransitionElementsTo(node, array, HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS);
-        __ Goto(&do_store, __ Int32Constant(HOLEY_ELEMENTS));
-      }
+      // {value} is a HeapNumber.
+      TransitionElementsTo(node, array, HOLEY_SMI_ELEMENTS,
+                           HOLEY_DOUBLE_ELEMENTS);
+      __ Goto(&do_store, __ Int32Constant(HOLEY_DOUBLE_ELEMENTS));
     }
-    __ Bind(&if_array_not_fast_smi);
+    __ Bind(&if_value_not_heap_number);
     {
-      Node* check3 = IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS);
-      __ GotoIfNot(check3, &do_store, kind);
-      // We have double elements kind.
-      Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
-      Node* heap_number_map = __ HeapNumberMapConstant();
-      Node* check4 = __ WordEqual(value_map, heap_number_map);
-      __ GotoIf(check4, &do_store, kind);
-      // But the value is not a heap number, so we must transition.
-      TransitionElementsTo(node, array, HOLEY_DOUBLE_ELEMENTS, HOLEY_ELEMENTS);
+      TransitionElementsTo(node, array, HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS);
       __ Goto(&do_store, __ Int32Constant(HOLEY_ELEMENTS));
     }
+  }
+
+  __ Bind(&transition_double_to_fast);  // deferred code.
+  {
+    TransitionElementsTo(node, array, HOLEY_DOUBLE_ELEMENTS, HOLEY_ELEMENTS);
+    __ Goto(&do_store, __ Int32Constant(HOLEY_ELEMENTS));
   }
 
   // Make sure kind is up-to-date.
@@ -3254,10 +3261,10 @@ void EffectControlLinearizer::LowerTransitionAndStoreElement(Node* node) {
   kind = do_store.PhiAt(0);
 
   Node* elements = __ LoadField(AccessBuilder::ForJSObjectElements(), array);
-  Node* check2 = IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS);
   auto if_kind_is_double = __ MakeLabel();
   auto done = __ MakeLabel();
-  __ GotoIf(check2, &if_kind_is_double);
+  __ GotoIf(IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS),
+            &if_kind_is_double);
   {
     // Our ElementsKind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS.
     __ StoreElement(AccessBuilder::ForFixedArrayElement(HOLEY_ELEMENTS),
@@ -3267,9 +3274,8 @@ void EffectControlLinearizer::LowerTransitionAndStoreElement(Node* node) {
   __ Bind(&if_kind_is_double);
   {
     // Our ElementsKind is HOLEY_DOUBLE_ELEMENTS.
-    Node* check1 = ObjectIsSmi(value);
     auto do_double_store = __ MakeLabel();
-    __ GotoIfNot(check1, &do_double_store);
+    __ GotoIfNot(ObjectIsSmi(value), &do_double_store);
     {
       Node* int_value = ChangeSmiToInt32(value);
       Node* float_value = __ ChangeInt32ToFloat64(int_value);
@@ -3286,6 +3292,7 @@ void EffectControlLinearizer::LowerTransitionAndStoreElement(Node* node) {
       __ Goto(&done);
     }
   }
+
   __ Bind(&done);
 }
 
