@@ -7,7 +7,6 @@
 #include <algorithm>
 
 #include "src/debug/debug-interface.h"
-#include "src/inspector/script-breakpoint.h"
 #include "src/inspector/string-util.h"
 #include "src/inspector/v8-debugger-agent-impl.h"
 #include "src/inspector/v8-debugger-script.h"
