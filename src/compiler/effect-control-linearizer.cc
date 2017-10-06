@@ -2225,32 +2225,87 @@ Node* EffectControlLinearizer::LowerNewFastDoubleElements(Node* node) {
   PretenureFlag const pretenure = PretenureFlagOf(node->op());
   Node* length = node->InputAt(0);
 
-  Callable const callable = Builtins::CallableFor(
-      isolate(), pretenure == NOT_TENURED
-                     ? Builtins::kNewFastDoubleElements_NotTenured
-                     : Builtins::kNewFastDoubleElements_Tenured);
-  Operator::Properties const properties = node->op()->properties();
-  CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), length,
-                 __ NoContextConstant());
+  // Compute the effective size of the backing store.
+  Node* size =
+      __ Int32Add(__ Word32Shl(length, __ Int32Constant(kDoubleSizeLog2)),
+                  __ Int32Constant(FixedDoubleArray::kHeaderSize));
+
+  // Allocate the result and initialize the header.
+  Node* result = __ Allocate(pretenure, size);
+  __ StoreField(AccessBuilder::ForMap(), result,
+                __ FixedDoubleArrayMapConstant());
+  __ StoreField(AccessBuilder::ForFixedArrayLength(), result,
+                ChangeInt32ToSmi(length));
+
+  // Initialize the backing store with holes.
+  STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+  Node* the_hole =
+      __ LoadField(AccessBuilder::ForHeapNumberValue(), __ TheHoleConstant());
+  auto loop = __ MakeLoopLabel(MachineRepresentation::kWord32);
+  auto done_loop = __ MakeLabel();
+  __ Goto(&loop, __ Int32Constant(0));
+  __ Bind(&loop);
+  {
+    // Check if we've initialized everything.
+    Node* index = loop.PhiAt(0);
+    Node* check = __ Int32LessThan(index, length);
+    __ GotoIfNot(check, &done_loop);
+
+    // Storing "the_hole" doesn't need a write barrier.
+    ElementAccess const access = {kTaggedBase, FixedDoubleArray::kHeaderSize,
+                                  Type::NumberOrHole(), MachineType::Float64(),
+                                  kNoWriteBarrier};
+    __ StoreElement(access, result, index, the_hole);
+
+    // Advance the {index}.
+    index = __ Int32Add(index, __ Int32Constant(1));
+    __ Goto(&loop, index);
+  }
+
+  __ Bind(&done_loop);
+  return result;
 }
 
 Node* EffectControlLinearizer::LowerNewFastSmiOrObjectElements(Node* node) {
   PretenureFlag const pretenure = PretenureFlagOf(node->op());
   Node* length = node->InputAt(0);
 
-  Callable const callable = Builtins::CallableFor(
-      isolate(), pretenure == NOT_TENURED
-                     ? Builtins::kNewFastSmiOrObjectElements_NotTenured
-                     : Builtins::kNewFastSmiOrObjectElements_Tenured);
-  Operator::Properties const properties = node->op()->properties();
-  CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  return __ Call(desc, __ HeapConstant(callable.code()), length,
-                 __ NoContextConstant());
+  // Compute the effective size of the backing store.
+  Node* size =
+      __ Int32Add(__ Word32Shl(length, __ Int32Constant(kPointerSizeLog2)),
+                  __ Int32Constant(FixedArray::kHeaderSize));
+
+  // Allocate the result and initialize the header.
+  Node* result = __ Allocate(pretenure, size);
+  __ StoreField(AccessBuilder::ForMap(), result, __ FixedArrayMapConstant());
+  __ StoreField(AccessBuilder::ForFixedArrayLength(), result,
+                ChangeInt32ToSmi(length));
+
+  // Initialize the backing store with holes.
+  Node* the_hole = __ TheHoleConstant();
+  auto loop = __ MakeLoopLabel(MachineRepresentation::kWord32);
+  auto done_loop = __ MakeLabel();
+  __ Goto(&loop, __ Int32Constant(0));
+  __ Bind(&loop);
+  {
+    // Check if we've initialized everything.
+    Node* index = loop.PhiAt(0);
+    Node* check = __ Int32LessThan(index, length);
+    __ GotoIfNot(check, &done_loop);
+
+    // Storing "the_hole" doesn't need a write barrier.
+    ElementAccess const access = {kTaggedBase, FixedArray::kHeaderSize,
+                                  Type::Any(), MachineType::AnyTagged(),
+                                  kNoWriteBarrier};
+    __ StoreElement(access, result, index, the_hole);
+
+    // Advance the {index}.
+    index = __ Int32Add(index, __ Int32Constant(1));
+    __ Goto(&loop, index);
+  }
+
+  __ Bind(&done_loop);
+  return result;
 }
 
 Node* EffectControlLinearizer::LowerNewArgumentsElements(Node* node) {

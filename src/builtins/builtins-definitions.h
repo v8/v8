@@ -167,12 +167,6 @@ namespace internal {
   TFC(GrowFastDoubleElements, GrowArrayElements, 1)                            \
   TFC(GrowFastSmiOrObjectElements, GrowArrayElements, 1)                       \
   TFC(NewArgumentsElements, NewArgumentsElements, 1)                           \
-  /* TODO(bmeurer): Remove these four builtins when the operations are */      \
-  /* inlined into TurboFan, which requires Loop support in GraphAssembler. */  \
-  TFS(NewFastDoubleElements_NotTenured, kLength)                               \
-  TFS(NewFastDoubleElements_Tenured, kLength)                                  \
-  TFS(NewFastSmiOrObjectElements_NotTenured, kLength)                          \
-  TFS(NewFastSmiOrObjectElements_Tenured, kLength)                             \
                                                                                \
   /* Debugger */                                                               \
   ASM(FrameDropperTrampoline)                                                  \
