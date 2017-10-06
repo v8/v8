@@ -357,8 +357,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Pass buffer for return value on stack if necessary
   bool needs_return_buffer =
-      result_size() > 2 ||
-      (result_size() == 2 && !ABI_RETURNS_OBJECTPAIR_IN_REGS);
+      result_size() == 2 && !ABI_RETURNS_OBJECTPAIR_IN_REGS;
   if (needs_return_buffer) {
     arg_stack_space += result_size();
   }
@@ -416,7 +415,6 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // If return value is on the stack, pop it to registers.
   if (needs_return_buffer) {
-    if (result_size() > 2) __ LoadP(r4, MemOperand(r2, 2 * kPointerSize));
     __ LoadP(r3, MemOperand(r2, kPointerSize));
     __ LoadP(r2, MemOperand(r2));
   }

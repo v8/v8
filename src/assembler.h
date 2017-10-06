@@ -759,10 +759,6 @@ class ExternalReference BASE_EMBEDDED {
     // ObjectPair f(v8::internal::Arguments).
     BUILTIN_CALL_PAIR,
 
-    // Builtin call that returns .
-    // ObjectTriple f(v8::internal::Arguments).
-    BUILTIN_CALL_TRIPLE,
-
     // Builtin that takes float arguments and returns an int.
     // int f(double, double).
     BUILTIN_COMPARE_CALL,

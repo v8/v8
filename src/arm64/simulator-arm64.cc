@@ -549,11 +549,6 @@ typedef ObjectPair (*SimulatorRuntimeCall)(int64_t arg0, int64_t arg1,
                                            int64_t arg6, int64_t arg7,
                                            int64_t arg8);
 
-typedef ObjectTriple (*SimulatorRuntimeTripleCall)(int64_t arg0, int64_t arg1,
-                                                   int64_t arg2, int64_t arg3,
-                                                   int64_t arg4, int64_t arg5,
-                                                   int64_t arg6, int64_t arg7);
-
 typedef int64_t (*SimulatorRuntimeCompareCall)(double arg1, double arg2);
 typedef double (*SimulatorRuntimeFPFPCall)(double arg1, double arg2);
 typedef double (*SimulatorRuntimeFPCall)(double arg1);
@@ -640,38 +635,6 @@ void Simulator::DoRuntimeCall(Instruction* instr) {
 #endif
       set_xreg(0, reinterpret_cast<int64_t>(result.x));
       set_xreg(1, reinterpret_cast<int64_t>(result.y));
-      break;
-    }
-
-    case ExternalReference::BUILTIN_CALL_TRIPLE: {
-      // ObjectTriple f(v8::internal::Arguments).
-      TraceSim("Type: BUILTIN_CALL TRIPLE\n");
-      SimulatorRuntimeTripleCall target =
-          reinterpret_cast<SimulatorRuntimeTripleCall>(external);
-
-      // We don't know how many arguments are being passed, but we can
-      // pass 8 without touching the stack. They will be ignored by the
-      // host function if they aren't used.
-      TraceSim(
-          "Arguments: "
-          "0x%016" PRIx64 ", 0x%016" PRIx64
-          ", "
-          "0x%016" PRIx64 ", 0x%016" PRIx64
-          ", "
-          "0x%016" PRIx64 ", 0x%016" PRIx64
-          ", "
-          "0x%016" PRIx64 ", 0x%016" PRIx64,
-          arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
-      // Return location passed in x8.
-      ObjectTriple* sim_result = reinterpret_cast<ObjectTriple*>(xreg(8));
-      ObjectTriple result =
-          target(arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7);
-      TraceSim("Returned: {%p, %p, %p}\n", static_cast<void*>(result.x),
-               static_cast<void*>(result.y), static_cast<void*>(result.z));
-#ifdef DEBUG
-      CorruptAllCallerSavedCPURegisters();
-#endif
-      *sim_result = result;
       break;
     }
 

@@ -488,7 +488,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   // result size is greater than can be returned in registers, also reserve
   // space for the hidden argument for the result location, and space for the
   // result itself.
-  int arg_stack_space = result_size() < 3 ? 3 : 4 + result_size();
+  int arg_stack_space = 3;
 
   // Enter the exit frame that transitions from JavaScript to C++.
   if (argv_in_register()) {
@@ -518,35 +518,13 @@ void CEntryStub::Generate(MacroAssembler* masm) {
     __ CheckStackAlignment();
   }
   // Call C function.
-  if (result_size() <= 2) {
-    __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
-    __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
-    __ mov(Operand(esp, 2 * kPointerSize),
-           Immediate(ExternalReference::isolate_address(isolate())));
-  } else {
-    DCHECK_EQ(3, result_size());
-    // Pass a pointer to the result location as the first argument.
-    __ lea(eax, Operand(esp, 4 * kPointerSize));
-    __ mov(Operand(esp, 0 * kPointerSize), eax);
-    __ mov(Operand(esp, 1 * kPointerSize), edi);  // argc.
-    __ mov(Operand(esp, 2 * kPointerSize), esi);  // argv.
-    __ mov(Operand(esp, 3 * kPointerSize),
-           Immediate(ExternalReference::isolate_address(isolate())));
-  }
+  __ mov(Operand(esp, 0 * kPointerSize), edi);  // argc.
+  __ mov(Operand(esp, 1 * kPointerSize), esi);  // argv.
+  __ mov(Operand(esp, 2 * kPointerSize),
+         Immediate(ExternalReference::isolate_address(isolate())));
   __ call(ebx);
 
-  if (result_size() > 2) {
-    DCHECK_EQ(3, result_size());
-#ifndef _WIN32
-    // Restore the "hidden" argument on the stack which was popped by caller.
-    __ sub(esp, Immediate(kPointerSize));
-#endif
-    // Read result values stored on stack. Result is stored above the arguments.
-    __ mov(kReturnRegister0, Operand(esp, 4 * kPointerSize));
-    __ mov(kReturnRegister1, Operand(esp, 5 * kPointerSize));
-    __ mov(kReturnRegister2, Operand(esp, 6 * kPointerSize));
-  }
-  // Result is in eax, edx:eax or edi:edx:eax - do not destroy these registers!
+  // Result is in eax or edx:eax - do not destroy these registers!
 
   // Check result for exception sentinel.
   Label exception_returned;

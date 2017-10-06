@@ -1108,7 +1108,6 @@ struct ConcurrentOptimizationPrepPhase {
     // Make sure we cache these code stubs.
     data->jsgraph()->CEntryStubConstant(1);
     data->jsgraph()->CEntryStubConstant(2);
-    data->jsgraph()->CEntryStubConstant(3);
 
     // TODO(turbofan): Remove this line once the Array constructor code
     // is a proper builtin and no longer a CodeStub.

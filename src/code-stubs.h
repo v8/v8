@@ -714,7 +714,7 @@ class CEntryStub : public PlatformCodeStub {
     minor_key_ = SaveDoublesBits::encode(save_doubles == kSaveFPRegs) |
                  FrameTypeBits::encode(builtin_exit_frame) |
                  ArgvMode::encode(argv_mode == kArgvInRegister);
-    DCHECK(result_size == 1 || result_size == 2 || result_size == 3);
+    DCHECK(result_size == 1 || result_size == 2);
     minor_key_ = ResultSizeBits::update(minor_key_, result_size);
   }
 
