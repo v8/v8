@@ -747,6 +747,12 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
     hole_true = graph()->NewNode(common()->IfTrue(), branch);
     hole_false = graph()->NewNode(common()->IfFalse(), branch);
     control = hole_false;
+
+    // The contract is that we don't leak "the hole" into "user JavaScript",
+    // so we must rename the {element} here to explicitly exclude "the hole"
+    // from the type of {element}.
+    element = graph()->NewNode(common()->TypeGuard(Type::NonInternal()),
+                               element, control);
   }
 
   frame_state = CreateJavaScriptBuiltinContinuationFrameState(
