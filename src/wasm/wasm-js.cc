@@ -665,26 +665,25 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
 
-  int64_t new_size64 = 0;
-  if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&new_size64)) {
+  int64_t grow_by = 0;
+  if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&grow_by)) {
     return;
   }
   i::Handle<i::FixedArray> old_array(receiver->functions(), i_isolate);
   int old_size = old_array->length();
-  new_size64 += old_size;
 
   int64_t max_size64 = receiver->maximum_length()->Number();
   if (max_size64 < 0 || max_size64 > i::FLAG_wasm_max_table_size) {
     max_size64 = i::FLAG_wasm_max_table_size;
   }
 
-  if (new_size64 < old_size || new_size64 > max_size64) {
-    thrower.RangeError(new_size64 < old_size ? "trying to shrink table"
-                                             : "maximum table size exceeded");
+  if (grow_by < 0 || grow_by > max_size64 - old_size) {
+    thrower.RangeError(grow_by < 0 ? "trying to shrink table"
+                                   : "maximum table size exceeded");
     return;
   }
 
-  int new_size = static_cast<int>(new_size64);
+  int new_size = static_cast<int>(old_size + grow_by);
   receiver->Grow(i_isolate, static_cast<uint32_t>(new_size - old_size));
 
   if (new_size != old_size) {
