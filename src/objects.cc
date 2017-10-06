@@ -6108,23 +6108,19 @@ MaybeHandle<Map> NormalizedMapCache::Get(Handle<Map> fast_map,
                                          PropertyNormalizationMode mode) {
   DisallowHeapAllocation no_gc;
   Object* value = FixedArray::get(GetIndex(fast_map));
-  if (!value->IsWeakCell() || WeakCell::cast(value)->cleared()) {
+  if (!value->IsMap() ||
+      !Map::cast(value)->EquivalentToForNormalization(*fast_map, mode)) {
     return MaybeHandle<Map>();
   }
-
-  Map* normalized_map = Map::cast(WeakCell::cast(value)->value());
-  if (!normalized_map->EquivalentToForNormalization(*fast_map, mode)) {
-    return MaybeHandle<Map>();
-  }
-  return handle(normalized_map);
+  return handle(Map::cast(value));
 }
 
-void NormalizedMapCache::Set(Handle<Map> fast_map, Handle<Map> normalized_map,
-                             Handle<WeakCell> normalized_map_weak_cell) {
+
+void NormalizedMapCache::Set(Handle<Map> fast_map,
+                             Handle<Map> normalized_map) {
   DisallowHeapAllocation no_gc;
   DCHECK(normalized_map->is_dictionary_map());
-  DCHECK_EQ(normalized_map_weak_cell->value(), *normalized_map);
-  FixedArray::set(GetIndex(fast_map), *normalized_map_weak_cell);
+  FixedArray::set(GetIndex(fast_map), *normalized_map);
 }
 
 
@@ -9031,8 +9027,7 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
   } else {
     new_map = Map::CopyNormalized(fast_map, mode);
     if (use_cache) {
-      Handle<WeakCell> cell = Map::WeakCellForMap(new_map);
-      cache->Set(fast_map, new_map, cell);
+      cache->Set(fast_map, new_map);
       isolate->counters()->maps_normalized()->Increment();
     }
 #if V8_TRACE_MAPS

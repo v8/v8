@@ -1402,10 +1402,8 @@ void NormalizedMapCache::NormalizedMapCacheVerify() {
     Isolate* isolate = GetIsolate();
     for (int i = 0; i < length(); i++) {
       Object* e = FixedArray::get(i);
-      if (e->IsWeakCell()) {
-        if (!WeakCell::cast(e)->cleared()) {
-          Map::cast(WeakCell::cast(e)->value())->DictionaryMapVerify();
-        }
+      if (e->IsMap()) {
+        Map::cast(e)->DictionaryMapVerify();
       } else {
         CHECK(e->IsUndefined(isolate));
       }

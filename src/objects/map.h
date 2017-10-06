@@ -917,8 +917,7 @@ class NormalizedMapCache : public FixedArray {
 
   MUST_USE_RESULT MaybeHandle<Map> Get(Handle<Map> fast_map,
                                        PropertyNormalizationMode mode);
-  void Set(Handle<Map> fast_map, Handle<Map> normalized_map,
-           Handle<WeakCell> normalized_map_weak_cell);
+  void Set(Handle<Map> fast_map, Handle<Map> normalized_map);
 
   void Clear();
 

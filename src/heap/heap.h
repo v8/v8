@@ -813,6 +813,8 @@ class Heap {
   // scavenge operation.
   inline bool ShouldBePromoted(Address old_address);
 
+  void ClearNormalizedMapCaches();
+
   void IncrementDeferredCount(v8::Isolate::UseCounterFeature feature);
 
   inline uint32_t HashSeed();
