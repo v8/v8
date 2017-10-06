@@ -249,15 +249,11 @@ class ConcurrentMarkingVisitor final
   }
 
   int VisitNativeContext(Map* map, Context* object) {
-    if (marking_state_.IsGrey(object)) {
-      int size = Context::BodyDescriptorWeak::SizeOf(map, object);
-      VisitMapPointer(object, object->map_slot());
-      Context::BodyDescriptorWeak::IterateBody(object, size, this);
-      // TODO(ulan): implement proper weakness for normalized map cache
-      // and remove this bailout.
-      bailout_.Push(object);
-    }
-    return 0;
+    if (!ShouldVisit(object)) return 0;
+    int size = Context::BodyDescriptorWeak::SizeOf(map, object);
+    VisitMapPointer(object, object->map_slot());
+    Context::BodyDescriptorWeak::IterateBody(object, size, this);
+    return size;
   }
 
   int VisitTransitionArray(Map* map, TransitionArray* array) {

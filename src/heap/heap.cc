@@ -1470,26 +1470,6 @@ void Heap::EnsureFromSpaceIsCommitted() {
 }
 
 
-void Heap::ClearNormalizedMapCaches() {
-  if (isolate_->bootstrapper()->IsActive() &&
-      !incremental_marking()->IsMarking()) {
-    return;
-  }
-
-  Object* context = native_contexts_list();
-  while (!context->IsUndefined(isolate())) {
-    // GC can happen when the context is not fully initialized,
-    // so the cache can be undefined.
-    Object* cache =
-        Context::cast(context)->get(Context::NORMALIZED_MAP_CACHE_INDEX);
-    if (!cache->IsUndefined(isolate())) {
-      NormalizedMapCache::cast(cache)->Clear();
-    }
-    context = Context::cast(context)->next_context_link();
-  }
-}
-
-
 void Heap::UpdateSurvivalStatistics(int start_new_space_size) {
   if (start_new_space_size == 0) return;
 
@@ -1730,7 +1710,6 @@ void Heap::MarkCompactPrologue() {
   isolate_->compilation_cache()->MarkCompactPrologue();
 
   FlushNumberStringCache();
-  ClearNormalizedMapCaches();
 }
 
 
