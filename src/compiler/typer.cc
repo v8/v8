@@ -887,6 +887,10 @@ Type* Typer::Visitor::TypeTypeGuard(Node* node) {
 
 Type* Typer::Visitor::TypeDead(Node* node) { return Type::None(); }
 
+Type* Typer::Visitor::TypeDeadValue(Node* node) { return Type::None(); }
+
+Type* Typer::Visitor::TypeUnreachable(Node* node) { UNREACHABLE(); }
+
 // JS comparison operators.
 
 
