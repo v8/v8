@@ -1258,7 +1258,7 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
   // Optimize the case where we load from a constant {receiver}.
   if (access_mode == AccessMode::kLoad) {
     HeapObjectMatcher mreceiver(receiver);
-    if (mreceiver.HasValue() &&
+    if (mreceiver.HasValue() && !mreceiver.Value()->IsTheHole(isolate()) &&
         !mreceiver.Value()->IsNullOrUndefined(isolate())) {
       // Check whether we're accessing a known element on the {receiver}
       // that is non-configurable, non-writable (i.e. the {receiver} was
