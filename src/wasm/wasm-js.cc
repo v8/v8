@@ -50,11 +50,6 @@ Local<String> v8_str(Isolate* isolate, const char* str) {
 
 i::MaybeHandle<i::WasmModuleObject> GetFirstArgumentAsModule(
     const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower) {
-  if (args.Length() < 1) {
-    thrower->TypeError("Argument 0 must be a WebAssembly.Module");
-    return {};
-  }
-
   i::Handle<i::Object> arg0 = Utils::OpenHandle(*args[0]);
   if (!arg0->IsWasmModuleObject()) {
     thrower->TypeError("Argument 0 must be a WebAssembly.Module");
@@ -68,11 +63,6 @@ i::MaybeHandle<i::WasmModuleObject> GetFirstArgumentAsModule(
 
 i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
     const v8::FunctionCallbackInfo<v8::Value>& args, ErrorThrower* thrower) {
-  if (args.Length() < 1) {
-    thrower->TypeError("Argument 0 must be a buffer source");
-    return i::wasm::ModuleWireBytes(nullptr, nullptr);
-  }
-
   const uint8_t* start = nullptr;
   size_t length = 0;
   v8::Local<v8::Value> source = args[0];
@@ -420,16 +410,6 @@ void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Local<Promise> module_promise = resolver->GetPromise();
   args.GetReturnValue().Set(module_promise);
 
-  if (args.Length() < 1) {
-    thrower.TypeError(
-        "Argument 0 must be provided and must be either a buffer source or a "
-        "WebAssembly.Module object");
-    auto maybe = resolver->Reject(context, Utils::ToLocal(thrower.Reify()));
-    CHECK_IMPLIES(!maybe.FromMaybe(false),
-                  i_isolate->has_scheduled_exception());
-    return;
-  }
-
   Local<Value> first_arg_value = args[0];
   i::Handle<i::Object> first_arg = Utils::OpenHandle(*first_arg_value);
   if (!first_arg->IsJSObject()) {
@@ -497,12 +477,12 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Module()");
-  if (args.Length() < 1 || !args[0]->IsObject()) {
+  if (!args[0]->IsObject()) {
     thrower.TypeError("Argument 0 must be a table descriptor");
     return;
   }
   Local<Context> context = isolate->GetCurrentContext();
-  Local<v8::Object> descriptor = args[0]->ToObject(context).ToLocalChecked();
+  Local<v8::Object> descriptor = Local<Object>::Cast(args[0]);
   // The descriptor's 'element'.
   {
     v8::MaybeLocal<v8::Value> maybe =
@@ -550,12 +530,12 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Memory()");
-  if (args.Length() < 1 || !args[0]->IsObject()) {
+  if (!args[0]->IsObject()) {
     thrower.TypeError("Argument 0 must be a memory descriptor");
     return;
   }
   Local<Context> context = isolate->GetCurrentContext();
-  Local<v8::Object> descriptor = args[0]->ToObject(context).ToLocalChecked();
+  Local<v8::Object> descriptor = Local<Object>::Cast(args[0]);
   // The descriptor's 'initial'.
   int64_t initial = 0;
   if (!GetIntegerProperty(isolate, &thrower, context, descriptor,
@@ -666,9 +646,7 @@ void WebAssemblyTableGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   EXTRACT_THIS(receiver, WasmTableObject);
 
   int64_t grow_by = 0;
-  if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&grow_by)) {
-    return;
-  }
+  if (!args[0]->IntegerValue(context).To(&grow_by)) return;
   i::Handle<i::FixedArray> old_array(receiver->functions(), i_isolate);
   int old_size = old_array->length();
 
@@ -710,7 +688,7 @@ void WebAssemblyTableGet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   EXTRACT_THIS(receiver, WasmTableObject);
   i::Handle<i::FixedArray> array(receiver->functions(), i_isolate);
   int64_t i = 0;
-  if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&i)) return;
+  if (!args[0]->IntegerValue(context).To(&i)) return;
   v8::ReturnValue<v8::Value> return_value = args.GetReturnValue();
   if (i < 0 || i >= array->length()) {
     thrower.RangeError("index out of bounds");
@@ -729,11 +707,6 @@ void WebAssemblyTableSet(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Table.set()");
   Local<Context> context = isolate->GetCurrentContext();
   EXTRACT_THIS(receiver, WasmTableObject);
-
-  if (args.Length() < 2) {
-    thrower.TypeError("Argument 1 must be null or a function");
-    return;
-  }
 
   // Parameter 0.
   int64_t index;
@@ -771,9 +744,7 @@ void WebAssemblyMemoryGrow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   EXTRACT_THIS(receiver, WasmMemoryObject);
 
   int64_t delta_size = 0;
-  if (args.Length() > 0 && !args[0]->IntegerValue(context).To(&delta_size)) {
-    return;
-  }
+  if (!args[0]->IntegerValue(context).To(&delta_size)) return;
 
   int64_t max_size64 = receiver->maximum_pages();
   if (max_size64 < 0 ||
