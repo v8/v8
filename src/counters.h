@@ -937,6 +937,7 @@ class RuntimeCallStats final : public ZoneObject {
   RuntimeCallTimer* current_timer() { return current_timer_.Value(); }
   RuntimeCallCounter* current_counter() { return current_counter_.Value(); }
   bool InUse() { return in_use_; }
+  bool IsCalledOnTheSameThread();
 
  private:
   // Top of a stack of active timers.
