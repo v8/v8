@@ -45,8 +45,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   Response setSkipAllPauses(bool skip) override;
   Response setBreakpointByUrl(
       int lineNumber, Maybe<String16> optionalURL,
-      Maybe<String16> optionalURLRegex, Maybe<int> optionalColumnNumber,
-      Maybe<String16> optionalCondition, String16*,
+      Maybe<String16> optionalURLRegex, Maybe<String16> optionalScriptHash,
+      Maybe<int> optionalColumnNumber, Maybe<String16> optionalCondition,
+      String16*,
       std::unique_ptr<protocol::Array<protocol::Debugger::Location>>* locations)
       override;
   Response setBreakpoint(

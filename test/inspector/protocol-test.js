@@ -45,7 +45,7 @@ InspectorTest.logMessage = function(originalMessage) {
     for (var key in object) {
       if (nonStableFields.has(key))
         object[key] = `<${key}>`;
-      else if (typeof object[key] === "string" && object[key].match(/4:\d+:\d+:\d+/))
+      else if (typeof object[key] === "string" && object[key].match(/\d+:\d+:\d+:\d+/))
         object[key] = object[key].substring(0, object[key].lastIndexOf(':')) + ":<scriptId>";
       else if (typeof object[key] === "object")
         objects.push(object[key]);

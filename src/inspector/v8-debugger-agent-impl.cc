@@ -44,6 +44,7 @@ static const char skipAllPauses[] = "skipAllPauses";
 
 static const char breakpointsByRegex[] = "breakpointsByRegex";
 static const char breakpointsByUrl[] = "breakpointsByUrl";
+static const char breakpointsByScriptHash[] = "breakpointsByScriptHash";
 static const char breakpointHints[] = "breakpointHints";
 
 }  // namespace DebuggerAgentState
@@ -74,6 +75,7 @@ void TranslateLocation(protocol::Debugger::Location* location,
 enum class BreakpointType {
   kByUrl = 1,
   kByUrlRegex,
+  kByScriptHash,
   kByScriptId,
   kDebugCommand,
   kMonitorCommand
@@ -383,6 +385,7 @@ Response V8DebuggerAgentImpl::disable() {
 
   m_state->remove(DebuggerAgentState::breakpointsByRegex);
   m_state->remove(DebuggerAgentState::breakpointsByUrl);
+  m_state->remove(DebuggerAgentState::breakpointsByScriptHash);
   m_state->remove(DebuggerAgentState::breakpointHints);
 
   m_state->setInteger(DebuggerAgentState::pauseOnExceptionsState,
@@ -460,45 +463,80 @@ Response V8DebuggerAgentImpl::setSkipAllPauses(bool skip) {
   return Response::OK();
 }
 
-static bool matches(V8InspectorImpl* inspector, const String16& url,
-                    const String16& pattern, bool isRegex) {
-  if (isRegex) {
-    V8Regex regex(inspector, pattern, true);
-    return regex.match(url) != -1;
+static bool matches(V8InspectorImpl* inspector, const V8DebuggerScript& script,
+                    BreakpointType type, const String16& selector) {
+  switch (type) {
+    case BreakpointType::kByUrl:
+      return script.sourceURL() == selector;
+    case BreakpointType::kByScriptHash:
+      return script.hash() == selector;
+    case BreakpointType::kByUrlRegex: {
+      V8Regex regex(inspector, selector, true);
+      return regex.match(script.sourceURL()) != -1;
+    }
+    default:
+      UNREACHABLE();
+      return false;
   }
-  return url == pattern;
 }
 
 Response V8DebuggerAgentImpl::setBreakpointByUrl(
     int lineNumber, Maybe<String16> optionalURL,
-    Maybe<String16> optionalURLRegex, Maybe<int> optionalColumnNumber,
-    Maybe<String16> optionalCondition, String16* outBreakpointId,
+    Maybe<String16> optionalURLRegex, Maybe<String16> optionalScriptHash,
+    Maybe<int> optionalColumnNumber, Maybe<String16> optionalCondition,
+    String16* outBreakpointId,
     std::unique_ptr<protocol::Array<protocol::Debugger::Location>>* locations) {
   *locations = Array<protocol::Debugger::Location>::create();
-  if (optionalURL.isJust() == optionalURLRegex.isJust())
-    return Response::Error("Either url or urlRegex must be specified.");
 
-  String16 url = optionalURL.isJust() ? optionalURL.fromJust()
-                                      : optionalURLRegex.fromJust();
+  int specified = (optionalURL.isJust() ? 1 : 0) +
+                  (optionalURLRegex.isJust() ? 1 : 0) +
+                  (optionalScriptHash.isJust() ? 1 : 0);
+  if (specified != 1) {
+    return Response::Error(
+        "Either url or urlRegex or scriptHash must be specified.");
+  }
   int columnNumber = 0;
   if (optionalColumnNumber.isJust()) {
     columnNumber = optionalColumnNumber.fromJust();
     if (columnNumber < 0) return Response::Error("Incorrect column number");
   }
-  String16 condition = optionalCondition.fromMaybe("");
-  bool isRegex = optionalURLRegex.isJust();
 
-  String16 breakpointId = generateBreakpointId(
-      isRegex ? BreakpointType::kByUrlRegex : BreakpointType::kByUrl, url,
-      lineNumber, columnNumber);
+  BreakpointType type = BreakpointType::kByUrl;
+  String16 selector;
+  if (optionalURLRegex.isJust()) {
+    selector = optionalURLRegex.fromJust();
+    type = BreakpointType::kByUrlRegex;
+  } else if (optionalURL.isJust()) {
+    selector = optionalURL.fromJust();
+    type = BreakpointType::kByUrl;
+  } else if (optionalScriptHash.isJust()) {
+    selector = optionalScriptHash.fromJust();
+    type = BreakpointType::kByScriptHash;
+  }
+
+  String16 condition = optionalCondition.fromMaybe(String16());
+  String16 breakpointId =
+      generateBreakpointId(type, selector, lineNumber, columnNumber);
   protocol::DictionaryValue* breakpoints;
-  if (isRegex) {
-    breakpoints =
-        getOrCreateObject(m_state, DebuggerAgentState::breakpointsByRegex);
-  } else {
-    protocol::DictionaryValue* breakpointsByUrl =
-        getOrCreateObject(m_state, DebuggerAgentState::breakpointsByUrl);
-    breakpoints = getOrCreateObject(breakpointsByUrl, url);
+  switch (type) {
+    case BreakpointType::kByUrlRegex:
+      breakpoints =
+          getOrCreateObject(m_state, DebuggerAgentState::breakpointsByRegex);
+      break;
+    case BreakpointType::kByUrl:
+      breakpoints = getOrCreateObject(
+          getOrCreateObject(m_state, DebuggerAgentState::breakpointsByUrl),
+          selector);
+      break;
+    case BreakpointType::kByScriptHash:
+      breakpoints = getOrCreateObject(
+          getOrCreateObject(m_state,
+                            DebuggerAgentState::breakpointsByScriptHash),
+          selector);
+      break;
+    default:
+      UNREACHABLE();
+      break;
   }
   if (breakpoints->get(breakpointId)) {
     return Response::Error("Breakpoint at specified location already exists.");
@@ -506,16 +544,16 @@ Response V8DebuggerAgentImpl::setBreakpointByUrl(
 
   String16 hint;
   for (const auto& script : m_scripts) {
-    if (!matches(m_inspector, script.second->sourceURL(), url, isRegex))
-      continue;
+    if (!matches(m_inspector, *script.second, type, selector)) continue;
     if (!hint.isEmpty()) {
       adjustBreakpointLocation(*script.second, hint, &lineNumber,
                                &columnNumber);
     }
     std::unique_ptr<protocol::Debugger::Location> location = setBreakpointImpl(
         breakpointId, script.first, condition, lineNumber, columnNumber);
-    if (!isRegex)
+    if (type != BreakpointType::kByUrlRegex) {
       hint = breakpointHint(*script.second, lineNumber, columnNumber);
+    }
     if (location) (*locations)->addItem(std::move(location));
   }
   breakpoints->setString(breakpointId, condition);
@@ -556,14 +594,26 @@ Response V8DebuggerAgentImpl::removeBreakpoint(const String16& breakpointId) {
     return Response::OK();
   }
   protocol::DictionaryValue* breakpoints = nullptr;
-  if (type == BreakpointType::kByUrl) {
-    protocol::DictionaryValue* breakpointsByUrl =
-        m_state->getObject(DebuggerAgentState::breakpointsByUrl);
-    if (breakpointsByUrl) {
-      breakpoints = breakpointsByUrl->getObject(selector);
-    }
-  } else if (type == BreakpointType::kByUrlRegex) {
-    breakpoints = m_state->getObject(DebuggerAgentState::breakpointsByRegex);
+  switch (type) {
+    case BreakpointType::kByUrl: {
+      protocol::DictionaryValue* breakpointsByUrl =
+          m_state->getObject(DebuggerAgentState::breakpointsByUrl);
+      if (breakpointsByUrl) {
+        breakpoints = breakpointsByUrl->getObject(selector);
+      }
+    } break;
+    case BreakpointType::kByScriptHash: {
+      protocol::DictionaryValue* breakpointsByScriptHash =
+          m_state->getObject(DebuggerAgentState::breakpointsByScriptHash);
+      if (breakpointsByScriptHash) {
+        breakpoints = breakpointsByScriptHash->getObject(selector);
+      }
+    } break;
+    case BreakpointType::kByUrlRegex:
+      breakpoints = m_state->getObject(DebuggerAgentState::breakpointsByRegex);
+      break;
+    default:
+      break;
   }
   if (breakpoints) breakpoints->remove(breakpointId);
   protocol::DictionaryValue* breakpointHints =
@@ -1266,16 +1316,24 @@ void V8DebuggerAgentImpl::didParseSource(
         static_cast<int>(scriptRef->source().length()), std::move(stackTrace));
   }
 
-  if (scriptURL.isEmpty() || !success) return;
+  if (!success) return;
 
   std::vector<protocol::DictionaryValue*> potentialBreakpoints;
-  protocol::DictionaryValue* breakpointsByUrl =
-      m_state->getObject(DebuggerAgentState::breakpointsByUrl);
-  if (breakpointsByUrl) {
-    potentialBreakpoints.push_back(breakpointsByUrl->getObject(scriptURL));
+  if (!scriptURL.isEmpty()) {
+    protocol::DictionaryValue* breakpointsByUrl =
+        m_state->getObject(DebuggerAgentState::breakpointsByUrl);
+    if (breakpointsByUrl) {
+      potentialBreakpoints.push_back(breakpointsByUrl->getObject(scriptURL));
+    }
+    potentialBreakpoints.push_back(
+        m_state->getObject(DebuggerAgentState::breakpointsByRegex));
   }
-  potentialBreakpoints.push_back(
-      m_state->getObject(DebuggerAgentState::breakpointsByRegex));
+  protocol::DictionaryValue* breakpointsByScriptHash =
+      m_state->getObject(DebuggerAgentState::breakpointsByScriptHash);
+  if (breakpointsByScriptHash) {
+    potentialBreakpoints.push_back(
+        breakpointsByScriptHash->getObject(scriptRef->hash()));
+  }
   protocol::DictionaryValue* breakpointHints =
       m_state->getObject(DebuggerAgentState::breakpointHints);
   for (auto breakpoints : potentialBreakpoints) {
@@ -1291,9 +1349,7 @@ void V8DebuggerAgentImpl::didParseSource(
       parseBreakpointId(breakpointId, &type, &selector, &lineNumber,
                         &columnNumber);
 
-      bool isRegex = type == BreakpointType::kByUrlRegex;
-      if (!matches(m_inspector, scriptURL, selector, isRegex)) continue;
-
+      if (!matches(m_inspector, *scriptRef, type, selector)) continue;
       String16 condition;
       breakpointWithCondition.second->asString(&condition);
       String16 hint;
