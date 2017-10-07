@@ -3676,6 +3676,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       }
       return object;
     }
+    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_GENERATOR_OBJECT_TYPE: {
       Handle<JSGeneratorObject> object = Handle<JSGeneratorObject>::cast(
           isolate_->factory()->NewJSObjectFromMap(map, NOT_TENURED));
@@ -3698,6 +3699,15 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_resume_mode(Smi::ToInt(*resume_mode));
       object->set_continuation(Smi::ToInt(*continuation_offset));
       object->set_register_file(FixedArray::cast(*register_file));
+
+      if (object->IsJSAsyncGeneratorObject()) {
+        auto generator = Handle<JSAsyncGeneratorObject>::cast(object);
+        Handle<Object> queue = materializer.FieldAt(value_index);
+        Handle<Object> awaited_promise = materializer.FieldAt(value_index);
+        generator->set_queue(HeapObject::cast(*queue));
+        generator->set_awaited_promise(HeapObject::cast(*awaited_promise));
+      }
+
       int in_object_properties = map->GetInObjectProperties();
       for (int i = 0; i < in_object_properties; ++i) {
         Handle<Object> value = materializer.FieldAt(value_index);
@@ -3840,7 +3850,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case JS_MESSAGE_OBJECT_TYPE:
     case JS_DATE_TYPE:
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
-    case JS_ASYNC_GENERATOR_OBJECT_TYPE:
     case JS_MODULE_NAMESPACE_TYPE:
     case JS_ARRAY_BUFFER_TYPE:
     case JS_TYPED_ARRAY_TYPE:
