@@ -1291,6 +1291,7 @@ enum ParserFlag {
   kAllowHarmonyDynamicImport,
   kAllowHarmonyAsyncIteration,
   kAllowHarmonyTemplateEscapes,
+  kAllowHarmonyImportMeta,
 };
 
 enum ParserSyncTestResult {
@@ -1308,6 +1309,7 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_object_rest_spread =
       flags.Contains(kAllowHarmonyObjectRestSpread);
   i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
+  i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
   i::FLAG_harmony_async_iteration = flags.Contains(kAllowHarmonyAsyncIteration);
   i::FLAG_harmony_template_escapes =
       flags.Contains(kAllowHarmonyTemplateEscapes);
@@ -1325,6 +1327,8 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyObjectRestSpread));
   parser->set_allow_harmony_dynamic_import(
       flags.Contains(kAllowHarmonyDynamicImport));
+  parser->set_allow_harmony_import_meta(
+      flags.Contains(kAllowHarmonyImportMeta));
   parser->set_allow_harmony_async_iteration(
       flags.Contains(kAllowHarmonyAsyncIteration));
   parser->set_allow_harmony_template_escapes(
@@ -7907,6 +7911,9 @@ TEST(DestructuringAssignmentNegativeTests) {
     "{ new.target }",
     "{ x: new.target }",
     "{ x: new.target = 1 }",
+    "{ import.meta }",
+    "{ x: import.meta }",
+    "{ x: import.meta = 1 }",
     "[x--]",
     "[--x = 1]",
     "[x()]",
@@ -7914,6 +7921,8 @@ TEST(DestructuringAssignmentNegativeTests) {
     "[this = 1]",
     "[new.target]",
     "[new.target = 1]",
+    "[import.meta]",
+    "[import.meta = 1]",
     "[super]",
     "[super = 1]",
     "[function f() {}]",
@@ -8314,6 +8323,106 @@ TEST(NewTarget) {
   RunParserSyncTest(bad_context_data, data, kError);
 }
 
+TEST(ImportMetaSuccess) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"", ""},
+    {"'use strict';", ""},
+    {"function f() {", "}"},
+    {"'use strict'; function f() {", "}"},
+    {"var f = function() {", "}"},
+    {"'use strict'; var f = function() {", "}"},
+    {"({m: function() {", "}})"},
+    {"'use strict'; ({m: function() {", "}})"},
+    {"({m() {", "}})"},
+    {"'use strict'; ({m() {", "}})"},
+    {"({get x() {", "}})"},
+    {"'use strict'; ({get x() {", "}})"},
+    {"({set x(_) {", "}})"},
+    {"'use strict'; ({set x(_) {", "}})"},
+    {"class C {m() {", "}}"},
+    {"class C {get x() {", "}}"},
+    {"class C {set x(_) {", "}}"},
+    {NULL}
+  };
+
+  const char* data[] = {
+    "import.meta",
+    "() => { import.meta }",
+    "() => import.meta",
+    "if (1) { import.meta }",
+    "if (1) {} else { import.meta }",
+    "while (0) { import.meta }",
+    "do { import.meta } while (0)",
+    "import.meta.url",
+    "import.meta[0]",
+    "import.meta.couldBeMutable = true",
+    "import.meta()",
+    "new import.meta.MagicClass",
+    "new import.meta",
+    "t = [...import.meta]",
+    "f = {...import.meta}",
+    "delete import.meta",
+    NULL
+  };
+
+  // clang-format on
+
+  // Making sure the same *wouldn't* parse without the flags
+  RunModuleParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0, NULL, 0,
+                          true, true);
+
+  static const ParserFlag flags[] = {
+      kAllowHarmonyImportMeta, kAllowHarmonyDynamicImport,
+      kAllowHarmonyObjectRestSpread,
+  };
+  // 2.1.1 Static Semantics: Early Errors
+  // ImportMeta
+  // * It is an early Syntax Error if Module is not the syntactic goal symbol.
+  RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                    arraysize(flags));
+  // Making sure the same wouldn't parse without the flags either
+  RunParserSyncTest(context_data, data, kError);
+
+  RunModuleParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+                          arraysize(flags));
+}
+
+TEST(ImportMetaFailure) {
+  // clang-format off
+  const char* context_data[][2] = {
+    {"var ", ""},
+    {"let ", ""},
+    {"const ", ""},
+    {"var [", "] = [1]"},
+    {"([", "] = [1])"},
+    {"({", "} = {1})"},
+    {"var {", " = 1} = 1"},
+    {"for (var ", " of [1]) {}"},
+    {NULL}
+  };
+
+  const char* data[] = {
+    "import.meta",
+    NULL
+  };
+
+  // clang-format on
+
+  static const ParserFlag flags[] = {
+      kAllowHarmonyImportMeta, kAllowHarmonyDynamicImport,
+      kAllowHarmonyObjectRestSpread,
+  };
+
+  RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                    arraysize(flags));
+  RunModuleParserSyncTest(context_data, data, kError, NULL, 0, flags,
+                          arraysize(flags));
+
+  RunModuleParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0, NULL, 0,
+                          true, true);
+  RunParserSyncTest(context_data, data, kError);
+}
 
 TEST(ConstSloppy) {
   // clang-format off

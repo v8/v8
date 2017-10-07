@@ -504,6 +504,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_class_fields(FLAG_harmony_class_fields);
   set_allow_harmony_object_rest_spread(FLAG_harmony_object_rest_spread);
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
+  set_allow_harmony_import_meta(FLAG_harmony_import_meta);
   set_allow_harmony_async_iteration(FLAG_harmony_async_iteration);
   set_allow_harmony_template_escapes(FLAG_harmony_template_escapes);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
@@ -911,12 +912,15 @@ Statement* Parser::ParseModuleItem(bool* ok) {
     return ParseExportDeclaration(ok);
   }
 
-  // We must be careful not to parse a dynamic import expression as an import
-  // declaration.
-  if (next == Token::IMPORT &&
-      (!allow_harmony_dynamic_import() || PeekAhead() != Token::LPAREN)) {
-    ParseImportDeclaration(CHECK_OK);
-    return factory()->NewEmptyStatement(kNoSourcePosition);
+  if (next == Token::IMPORT) {
+    // We must be careful not to parse a dynamic import expression as an import
+    // declaration. Same for import.meta expressions.
+    Token::Value peek_ahead = PeekAhead();
+    if ((!allow_harmony_dynamic_import() || peek_ahead != Token::LPAREN) &&
+        (!allow_harmony_import_meta() || peek_ahead != Token::PERIOD)) {
+      ParseImportDeclaration(CHECK_OK);
+      return factory()->NewEmptyStatement(kNoSourcePosition);
+    }
   }
 
   return ParseStatementListItem(ok);

@@ -317,6 +317,7 @@ class ErrorUtils : public AllStatic {
   T(ImmutablePrototypeSet,                                                     \
     "Immutable prototype object '%' cannot have their prototype set")          \
   T(ImportCallNotNewExpression, "Cannot use new with import")                  \
+  T(ImportMetaOutsideModule, "Cannot use 'import.meta' outside a module")      \
   T(IncompatibleMethodReceiver, "Method % called on incompatible receiver %")  \
   T(InstanceofNonobjectProto,                                                  \
     "Function has non-object prototype '%' in instanceof check")               \

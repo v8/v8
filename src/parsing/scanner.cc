@@ -1437,6 +1437,8 @@ uc32 Scanner::ScanUnicodeEscape() {
   KEYWORD("interface", Token::FUTURE_STRICT_RESERVED_WORD)  \
   KEYWORD_GROUP('l')                                        \
   KEYWORD("let", Token::LET)                                \
+  KEYWORD_GROUP('m')                                        \
+  KEYWORD("meta", Token::META)                              \
   KEYWORD_GROUP('n')                                        \
   KEYWORD("name", Token::NAME)                              \
   KEYWORD("new", Token::NEW)                                \
