@@ -3609,6 +3609,12 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       object->set_raw_properties_or_hash(*properties);
       object->set_elements(FixedArrayBase::cast(*elements));
       object->set_length(*array_length);
+      int in_object_properties = map->GetInObjectProperties();
+      for (int i = 0; i < in_object_properties; ++i) {
+        Handle<Object> value = materializer.FieldAt(value_index);
+        FieldIndex index = FieldIndex::ForPropertyIndex(object->map(), i);
+        object->FastPropertyAtPut(index, *value);
+      }
       return object;
     }
     case JS_BOUND_FUNCTION_TYPE: {
