@@ -6527,8 +6527,8 @@ class JSArray: public JSObject {
 
   static const int kInitialMaxFastElementArray =
       (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - kSize -
-       AllocationMemento::kSize) /
-      kPointerSize;
+       AllocationMemento::kSize) >>
+      kDoubleSizeLog2;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSArray);
