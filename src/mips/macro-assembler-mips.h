@@ -1041,11 +1041,6 @@ class MacroAssembler : public TurboAssembler {
   // Make sure the stack is aligned. Only emits code in debug mode.
   void AssertStackIsAligned();
 
-  // Load the global object from the current context.
-  void LoadGlobalObject(Register dst) {
-    LoadNativeContextSlot(Context::EXTENSION_INDEX, dst);
-  }
-
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst) {
     LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);

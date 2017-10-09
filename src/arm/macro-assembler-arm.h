@@ -683,11 +683,6 @@ class MacroAssembler : public TurboAssembler {
                       bool restore_context,
                       bool argument_count_is_length = false);
 
-  // Load the global object from the current context.
-  void LoadGlobalObject(Register dst) {
-    LoadNativeContextSlot(Context::EXTENSION_INDEX, dst);
-  }
-
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst) {
     LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
