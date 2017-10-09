@@ -374,6 +374,7 @@
   V(MaybeGrowFastElements)          \
   V(TransitionElementsKind)         \
   V(LookupHashStorageIndex)         \
+  V(LookupSigned32HashStorageIndex) \
   V(LoadHashMapValue)               \
   V(RuntimeAbort)
 

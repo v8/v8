@@ -838,6 +838,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kLookupHashStorageIndex:
       result = LowerLookupHashStorageIndex(node);
       break;
+    case IrOpcode::kLookupSigned32HashStorageIndex:
+      result = LowerLookupSigned32HashStorageIndex(node);
+      break;
     case IrOpcode::kLoadHashMapValue:
       result = LowerLoadHashMapValue(node);
     case IrOpcode::kTransitionAndStoreElement:
@@ -2701,15 +2704,31 @@ Node* EffectControlLinearizer::ChangeInt32ToSmi(Node* value) {
   return __ WordShl(value, SmiShiftBitsConstant());
 }
 
-Node* EffectControlLinearizer::ChangeUint32ToSmi(Node* value) {
+Node* EffectControlLinearizer::ChangeIntPtrToInt32(Node* value) {
+  if (machine()->Is64()) {
+    value = __ TruncateInt64ToInt32(value);
+  }
+  return value;
+}
+
+Node* EffectControlLinearizer::ChangeUint32ToUintPtr(Node* value) {
   if (machine()->Is64()) {
     value = __ ChangeUint32ToUint64(value);
   }
+  return value;
+}
+
+Node* EffectControlLinearizer::ChangeUint32ToSmi(Node* value) {
+  value = ChangeUint32ToUintPtr(value);
   return __ WordShl(value, SmiShiftBitsConstant());
 }
 
+Node* EffectControlLinearizer::ChangeSmiToIntPtr(Node* value) {
+  return __ WordSar(value, SmiShiftBitsConstant());
+}
+
 Node* EffectControlLinearizer::ChangeSmiToInt32(Node* value) {
-  value = __ WordSar(value, SmiShiftBitsConstant());
+  value = ChangeSmiToIntPtr(value);
   if (machine()->Is64()) {
     value = __ TruncateInt64ToInt32(value);
   }
@@ -3568,6 +3587,97 @@ Node* EffectControlLinearizer::LowerLookupHashStorageIndex(Node* node) {
     return __ Call(desc, __ HeapConstant(callable.code()), table, key,
                    __ NoContextConstant());
   }
+}
+
+Node* EffectControlLinearizer::ComputeIntegerHash(Node* value) {
+  // See v8::internal::ComputeIntegerHash()
+  value = __ Int32Add(__ Word32Xor(value, __ Int32Constant(0xffffffff)),
+                      __ Word32Shl(value, __ Int32Constant(15)));
+  value = __ Word32Xor(value, __ Word32Shr(value, __ Int32Constant(12)));
+  value = __ Int32Add(value, __ Word32Shl(value, __ Int32Constant(2)));
+  value = __ Word32Xor(value, __ Word32Shr(value, __ Int32Constant(4)));
+  value = __ Int32Mul(value, __ Int32Constant(2057));
+  value = __ Word32Xor(value, __ Word32Shr(value, __ Int32Constant(16)));
+  value = __ Word32And(value, __ Int32Constant(0x3fffffff));
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerLookupSigned32HashStorageIndex(Node* node) {
+  Node* table = NodeProperties::GetValueInput(node, 0);
+  Node* key = NodeProperties::GetValueInput(node, 1);
+
+  // Compute the integer hash code.
+  Node* hash = ChangeUint32ToUintPtr(ComputeIntegerHash(key));
+
+  Node* number_of_buckets = ChangeSmiToIntPtr(__ LoadField(
+      AccessBuilder::ForOrderedHashTableBaseNumberOfBuckets(), table));
+  hash = __ WordAnd(hash, __ IntSub(number_of_buckets, __ IntPtrConstant(1)));
+  Node* first_entry = ChangeSmiToIntPtr(__ Load(
+      MachineType::TaggedSigned(), table,
+      __ IntAdd(__ WordShl(hash, __ IntPtrConstant(kPointerSizeLog2)),
+                __ IntPtrConstant(OrderedHashMap::kHashTableStartOffset -
+                                  kHeapObjectTag))));
+
+  auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
+  auto done = __ MakeLabel(MachineRepresentation::kWord32);
+  __ Goto(&loop, first_entry);
+  __ Bind(&loop);
+  {
+    Node* entry = loop.PhiAt(0);
+    Node* check =
+        __ WordEqual(entry, __ IntPtrConstant(OrderedHashTableBase::kNotFound));
+    __ GotoIf(check, &done, __ Int32Constant(-1));
+
+    Node* entry_start = __ IntAdd(
+        __ IntMul(entry, __ IntPtrConstant(OrderedHashMap::kEntrySize)),
+        number_of_buckets);
+
+    Node* candidate_key = __ Load(
+        MachineType::AnyTagged(), table,
+        __ IntAdd(__ WordShl(entry_start, __ IntPtrConstant(kPointerSizeLog2)),
+                  __ IntPtrConstant(OrderedHashMap::kHashTableStartOffset -
+                                    kHeapObjectTag)));
+
+    auto if_match = __ MakeLabel();
+    auto if_notmatch = __ MakeLabel();
+    auto if_notsmi = __ MakeDeferredLabel();
+    __ GotoIfNot(ObjectIsSmi(candidate_key), &if_notsmi);
+    __ Branch(__ Word32Equal(ChangeSmiToInt32(candidate_key), key), &if_match,
+              &if_notmatch);
+
+    __ Bind(&if_notsmi);
+    __ GotoIfNot(
+        __ WordEqual(__ LoadField(AccessBuilder::ForMap(), candidate_key),
+                     __ HeapNumberMapConstant()),
+        &if_notmatch);
+    __ Branch(__ Float64Equal(__ LoadField(AccessBuilder::ForHeapNumberValue(),
+                                           candidate_key),
+                              __ ChangeInt32ToFloat64(key)),
+              &if_match, &if_notmatch);
+
+    __ Bind(&if_match);
+    {
+      Node* index = ChangeIntPtrToInt32(__ IntAdd(
+          entry_start, __ IntPtrConstant(OrderedHashMap::kHashTableStartIndex +
+                                         OrderedHashMap::kValueOffset)));
+      __ Goto(&done, index);
+    }
+
+    __ Bind(&if_notmatch);
+    {
+      Node* next_entry = ChangeSmiToIntPtr(__ Load(
+          MachineType::TaggedSigned(), table,
+          __ IntAdd(
+              __ WordShl(entry_start, __ IntPtrConstant(kPointerSizeLog2)),
+              __ IntPtrConstant(OrderedHashMap::kHashTableStartOffset +
+                                OrderedHashMap::kChainOffset * kPointerSize -
+                                kHeapObjectTag))));
+      __ Goto(&loop, next_entry);
+    }
+  }
+
+  __ Bind(&done);
+  return done.PhiAt(0);
 }
 
 Node* EffectControlLinearizer::LowerLoadHashMapValue(Node* node) {

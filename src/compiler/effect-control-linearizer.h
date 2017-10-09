@@ -126,6 +126,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerLoadTypedElement(Node* node);
   void LowerStoreTypedElement(Node* node);
   Node* LowerLookupHashStorageIndex(Node* node);
+  Node* LowerLookupSigned32HashStorageIndex(Node* node);
   Node* LowerLoadHashMapValue(Node* node);
   void LowerTransitionAndStoreElement(Node* node);
   void LowerRuntimeAbort(Node* node);
@@ -143,11 +144,15 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                                  Node* value,
                                                  Node* frame_state);
   Node* BuildFloat64RoundDown(Node* value);
+  Node* ComputeIntegerHash(Node* value);
   Node* LowerStringComparison(Callable const& callable, Node* node);
   Node* IsElementsKindGreaterThan(Node* kind, ElementsKind reference_kind);
 
   Node* ChangeInt32ToSmi(Node* value);
+  Node* ChangeIntPtrToInt32(Node* value);
+  Node* ChangeUint32ToUintPtr(Node* value);
   Node* ChangeUint32ToSmi(Node* value);
+  Node* ChangeSmiToIntPtr(Node* value);
   Node* ChangeSmiToInt32(Node* value);
   Node* ObjectIsSmi(Node* value);
 

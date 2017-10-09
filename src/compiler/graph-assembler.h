@@ -37,10 +37,12 @@ namespace compiler {
   V(WordAnd)                              \
   V(Word32Or)                             \
   V(Word32And)                            \
+  V(Word32Xor)                            \
   V(Word32Shr)                            \
   V(Word32Shl)                            \
   V(IntAdd)                               \
   V(IntSub)                               \
+  V(IntMul)                               \
   V(IntLessThan)                          \
   V(UintLessThan)                         \
   V(Int32Add)                             \

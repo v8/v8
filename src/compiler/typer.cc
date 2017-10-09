@@ -2054,6 +2054,10 @@ Type* Typer::Visitor::TypeLookupHashStorageIndex(Node* node) {
   return Type::SignedSmall();
 }
 
+Type* Typer::Visitor::TypeLookupSigned32HashStorageIndex(Node* node) {
+  return Type::SignedSmall();
+}
+
 Type* Typer::Visitor::TypeLoadHashMapValue(Node* node) {
   return Type::NonInternal();
 }

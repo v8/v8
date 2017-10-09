@@ -2917,9 +2917,21 @@ class RepresentationSelector {
         // Assume the output is tagged.
         return SetOutput(node, MachineRepresentation::kTagged);
 
-      case IrOpcode::kLookupHashStorageIndex:
-        VisitInputs(node);
-        return SetOutput(node, MachineRepresentation::kTaggedSigned);
+      case IrOpcode::kLookupHashStorageIndex: {
+        Type* const key_type = TypeOf(node->InputAt(1));
+        if (key_type->Is(Type::Signed32())) {
+          VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
+                     MachineRepresentation::kWord32);
+          if (lower()) {
+            NodeProperties::ChangeOp(
+                node, lowering->simplified()->LookupSigned32HashStorageIndex());
+          }
+        } else {
+          VisitBinop(node, UseInfo::AnyTagged(),
+                     MachineRepresentation::kTaggedSigned);
+        }
+        return;
+      }
 
       case IrOpcode::kLoadHashMapValue:
         ProcessInput(node, 0, UseInfo::AnyTagged());         // table
