@@ -398,14 +398,14 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     }
     weak_objects_->weak_cells.FlushToGlobal(task_id);
     weak_objects_->transition_arrays.FlushToGlobal(task_id);
+    base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
+    total_marked_bytes_.Increment(marked_bytes);
     {
       base::LockGuard<base::Mutex> guard(&pending_lock_);
       is_pending_[task_id] = false;
       --pending_task_count_;
       pending_condition_.NotifyAll();
     }
-    base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
-    total_marked_bytes_.Increment(marked_bytes);
   }
   if (FLAG_trace_concurrent_marking) {
     heap_->isolate()->PrintWithTimestamp(
