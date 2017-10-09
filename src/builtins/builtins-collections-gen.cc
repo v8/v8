@@ -884,14 +884,18 @@ TF_BUILTIN(MapPrototypeGet, CollectionsBuiltinsAssembler) {
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.get");
 
   Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
-  Node* index = CallBuiltin(Builtins::kMapLookupHashIndex, context, table, key);
+  Node* index =
+      CallBuiltin(Builtins::kFindOrderedHashMapEntry, context, table, key);
 
   Label if_found(this), if_not_found(this);
   Branch(SmiGreaterThanOrEqual(index, SmiConstant(0)), &if_found,
          &if_not_found);
 
   BIND(&if_found);
-  Return(LoadFixedArrayElement(table, SmiUntag(index)));
+  Return(LoadFixedArrayElement(
+      table, SmiUntag(index),
+      (OrderedHashMap::kHashTableStartIndex + OrderedHashMap::kValueOffset) *
+          kPointerSize));
 
   BIND(&if_not_found);
   Return(UndefinedConstant());
@@ -905,7 +909,8 @@ TF_BUILTIN(MapPrototypeHas, CollectionsBuiltinsAssembler) {
   ThrowIfNotInstanceType(context, receiver, JS_MAP_TYPE, "Map.prototype.has");
 
   Node* const table = LoadObjectField(receiver, JSMap::kTableOffset);
-  Node* index = CallBuiltin(Builtins::kMapLookupHashIndex, context, table, key);
+  Node* index =
+      CallBuiltin(Builtins::kFindOrderedHashMapEntry, context, table, key);
 
   Label if_found(this), if_not_found(this);
   Branch(SmiGreaterThanOrEqual(index, SmiConstant(0)), &if_found,
@@ -1688,7 +1693,7 @@ void CollectionsBuiltinsAssembler::TryLookupOrderedHashTableIndex(
   }
 }
 
-TF_BUILTIN(MapLookupHashIndex, CollectionsBuiltinsAssembler) {
+TF_BUILTIN(FindOrderedHashMapEntry, CollectionsBuiltinsAssembler) {
   Node* const table = Parameter(Descriptor::kTable);
   Node* const key = Parameter(Descriptor::kKey);
   Node* const context = Parameter(Descriptor::kContext);
@@ -1701,10 +1706,7 @@ TF_BUILTIN(MapLookupHashIndex, CollectionsBuiltinsAssembler) {
       table, key, context, &entry_start_position, &entry_found, &not_found);
 
   BIND(&entry_found);
-  Node* index = IntPtrAdd(entry_start_position.value(),
-                          IntPtrConstant(OrderedHashMap::kHashTableStartIndex +
-                                         OrderedHashMap::kValueOffset));
-  Return(SmiTag(index));
+  Return(SmiTag(entry_start_position.value()));
 
   BIND(&not_found);
   Return(SmiConstant(-1));

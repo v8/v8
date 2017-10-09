@@ -2056,12 +2056,12 @@ Type* Typer::Visitor::TypeArrayBufferWasNeutered(Node* node) {
   return Type::Boolean();
 }
 
-Type* Typer::Visitor::TypeLookupHashStorageIndex(Node* node) {
-  return Type::SignedSmall();
+Type* Typer::Visitor::TypeFindOrderedHashMapEntry(Node* node) {
+  return Type::Range(-1.0, FixedArray::kMaxLength, zone());
 }
 
-Type* Typer::Visitor::TypeLookupSigned32HashStorageIndex(Node* node) {
-  return Type::SignedSmall();
+Type* Typer::Visitor::TypeFindOrderedHashMapEntryForInt32Key(Node* node) {
+  return Type::Range(-1.0, FixedArray::kMaxLength, zone());
 }
 
 Type* Typer::Visitor::TypeRuntimeAbort(Node* node) { UNREACHABLE(); }

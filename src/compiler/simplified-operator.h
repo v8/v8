@@ -373,8 +373,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringToLowerCaseIntl();
   const Operator* StringToUpperCaseIntl();
 
-  const Operator* LookupHashStorageIndex();
-  const Operator* LookupSigned32HashStorageIndex();
+  const Operator* FindOrderedHashMapEntry();
+  const Operator* FindOrderedHashMapEntryForInt32Key();
 
   const Operator* SpeculativeToNumber(NumberOperationHint hint);
 

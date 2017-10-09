@@ -1827,14 +1827,14 @@ Reduction JSBuiltinReducer::ReduceMapGet(Node* node) {
 
   if (!HasInstanceTypeWitness(receiver, effect, JS_MAP_TYPE)) return NoChange();
 
-  Node* storage = effect = graph()->NewNode(
+  Node* table = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSCollectionTable()), receiver,
       effect, control);
 
-  Node* index = effect = graph()->NewNode(
-      simplified()->LookupHashStorageIndex(), storage, key, effect, control);
+  Node* entry = effect = graph()->NewNode(
+      simplified()->FindOrderedHashMapEntry(), table, key, effect, control);
 
-  Node* check = graph()->NewNode(simplified()->NumberEqual(), index,
+  Node* check = graph()->NewNode(simplified()->NumberEqual(), entry,
                                  jsgraph()->MinusOneConstant());
 
   Node* branch = graph()->NewNode(common()->Branch(), check, control);
@@ -1848,8 +1848,8 @@ Reduction JSBuiltinReducer::ReduceMapGet(Node* node) {
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   Node* efalse = effect;
   Node* vfalse = efalse = graph()->NewNode(
-      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement()), storage,
-      index, efalse, if_false);
+      simplified()->LoadElement(AccessBuilder::ForOrderedHashMapEntryValue()),
+      table, entry, efalse, if_false);
 
   control = graph()->NewNode(common()->Merge(2), if_true, if_false);
   Node* value = graph()->NewNode(
@@ -1870,12 +1870,12 @@ Reduction JSBuiltinReducer::ReduceMapHas(Node* node) {
 
   if (!HasInstanceTypeWitness(receiver, effect, JS_MAP_TYPE)) return NoChange();
 
-  Node* storage = effect = graph()->NewNode(
+  Node* table = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSCollectionTable()), receiver,
       effect, control);
 
   Node* index = effect = graph()->NewNode(
-      simplified()->LookupHashStorageIndex(), storage, key, effect, control);
+      simplified()->FindOrderedHashMapEntry(), table, key, effect, control);
 
   Node* check = graph()->NewNode(simplified()->NumberEqual(), index,
                                  jsgraph()->MinusOneConstant());

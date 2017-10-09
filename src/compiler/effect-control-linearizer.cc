@@ -894,11 +894,11 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStoreSignedSmallElement:
       LowerStoreSignedSmallElement(node);
       break;
-    case IrOpcode::kLookupHashStorageIndex:
-      result = LowerLookupHashStorageIndex(node);
+    case IrOpcode::kFindOrderedHashMapEntry:
+      result = LowerFindOrderedHashMapEntry(node);
       break;
-    case IrOpcode::kLookupSigned32HashStorageIndex:
-      result = LowerLookupSigned32HashStorageIndex(node);
+    case IrOpcode::kFindOrderedHashMapEntryForInt32Key:
+      result = LowerFindOrderedHashMapEntryForInt32Key(node);
       break;
     case IrOpcode::kTransitionAndStoreElement:
       LowerTransitionAndStoreElement(node);
@@ -3697,13 +3697,13 @@ Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundTruncate(Node* node) {
   return Just(done.PhiAt(0));
 }
 
-Node* EffectControlLinearizer::LowerLookupHashStorageIndex(Node* node) {
+Node* EffectControlLinearizer::LowerFindOrderedHashMapEntry(Node* node) {
   Node* table = NodeProperties::GetValueInput(node, 0);
   Node* key = NodeProperties::GetValueInput(node, 1);
 
   {
     Callable const callable =
-        Builtins::CallableFor(isolate(), Builtins::kMapLookupHashIndex);
+        Builtins::CallableFor(isolate(), Builtins::kFindOrderedHashMapEntry);
     Operator::Properties const properties = node->op()->properties();
     CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
     CallDescriptor* desc = Linkage::GetStubCallDescriptor(
@@ -3727,7 +3727,8 @@ Node* EffectControlLinearizer::ComputeIntegerHash(Node* value) {
   return value;
 }
 
-Node* EffectControlLinearizer::LowerLookupSigned32HashStorageIndex(Node* node) {
+Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
+    Node* node) {
   Node* table = NodeProperties::GetValueInput(node, 0);
   Node* key = NodeProperties::GetValueInput(node, 1);
 
@@ -3750,16 +3751,15 @@ Node* EffectControlLinearizer::LowerLookupSigned32HashStorageIndex(Node* node) {
   {
     Node* entry = loop.PhiAt(0);
     Node* check =
-        __ WordEqual(entry, __ IntPtrConstant(OrderedHashTableBase::kNotFound));
+        __ WordEqual(entry, __ IntPtrConstant(OrderedHashMap::kNotFound));
     __ GotoIf(check, &done, __ Int32Constant(-1));
-
-    Node* entry_start = __ IntAdd(
+    entry = __ IntAdd(
         __ IntMul(entry, __ IntPtrConstant(OrderedHashMap::kEntrySize)),
         number_of_buckets);
 
     Node* candidate_key = __ Load(
         MachineType::AnyTagged(), table,
-        __ IntAdd(__ WordShl(entry_start, __ IntPtrConstant(kPointerSizeLog2)),
+        __ IntAdd(__ WordShl(entry, __ IntPtrConstant(kPointerSizeLog2)),
                   __ IntPtrConstant(OrderedHashMap::kHashTableStartOffset -
                                     kHeapObjectTag)));
 
@@ -3782,9 +3782,7 @@ Node* EffectControlLinearizer::LowerLookupSigned32HashStorageIndex(Node* node) {
 
     __ Bind(&if_match);
     {
-      Node* index = ChangeIntPtrToInt32(__ IntAdd(
-          entry_start, __ IntPtrConstant(OrderedHashMap::kHashTableStartIndex +
-                                         OrderedHashMap::kValueOffset)));
+      Node* index = ChangeIntPtrToInt32(entry);
       __ Goto(&done, index);
     }
 
@@ -3793,7 +3791,7 @@ Node* EffectControlLinearizer::LowerLookupSigned32HashStorageIndex(Node* node) {
       Node* next_entry = ChangeSmiToIntPtr(__ Load(
           MachineType::TaggedSigned(), table,
           __ IntAdd(
-              __ WordShl(entry_start, __ IntPtrConstant(kPointerSizeLog2)),
+              __ WordShl(entry, __ IntPtrConstant(kPointerSizeLog2)),
               __ IntPtrConstant(OrderedHashMap::kHashTableStartOffset +
                                 OrderedHashMap::kChainOffset * kPointerSize -
                                 kHeapObjectTag))));

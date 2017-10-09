@@ -589,20 +589,21 @@ struct SimplifiedOperatorGlobalCache final {
   };
   ArrayBufferWasNeuteredOperator kArrayBufferWasNeutered;
 
-  struct LookupHashStorageIndexOperator final : public Operator {
-    LookupHashStorageIndexOperator()
-        : Operator(IrOpcode::kLookupHashStorageIndex, Operator::kEliminatable,
-                   "LookupHashStorageIndex", 2, 1, 1, 1, 1, 0) {}
+  struct FindOrderedHashMapEntryOperator final : public Operator {
+    FindOrderedHashMapEntryOperator()
+        : Operator(IrOpcode::kFindOrderedHashMapEntry, Operator::kEliminatable,
+                   "FindOrderedHashMapEntry", 2, 1, 1, 1, 1, 0) {}
   };
-  LookupHashStorageIndexOperator kLookupHashStorageIndex;
+  FindOrderedHashMapEntryOperator kFindOrderedHashMapEntry;
 
-  struct LookupSigned32HashStorageIndexOperator final : public Operator {
-    LookupSigned32HashStorageIndexOperator()
-        : Operator(IrOpcode::kLookupSigned32HashStorageIndex,
-                   Operator::kEliminatable, "LookupSigned32HashStorageIndex", 2,
-                   1, 1, 1, 1, 0) {}
+  struct FindOrderedHashMapEntryForInt32KeyOperator final : public Operator {
+    FindOrderedHashMapEntryForInt32KeyOperator()
+        : Operator(IrOpcode::kFindOrderedHashMapEntryForInt32Key,
+                   Operator::kEliminatable,
+                   "FindOrderedHashMapEntryForInt32Key", 2, 1, 1, 1, 1, 0) {}
   };
-  LookupSigned32HashStorageIndexOperator kLookupSigned32HashStorageIndex;
+  FindOrderedHashMapEntryForInt32KeyOperator
+      kFindOrderedHashMapEntryForInt32Key;
 
   struct ArgumentsFrameOperator final : public Operator {
     ArgumentsFrameOperator()
@@ -780,8 +781,8 @@ PURE_OP_LIST(GET_FROM_CACHE)
 CHECKED_OP_LIST(GET_FROM_CACHE)
 GET_FROM_CACHE(ArrayBufferWasNeutered)
 GET_FROM_CACHE(ArgumentsFrame)
-GET_FROM_CACHE(LookupHashStorageIndex)
-GET_FROM_CACHE(LookupSigned32HashStorageIndex)
+GET_FROM_CACHE(FindOrderedHashMapEntry)
+GET_FROM_CACHE(FindOrderedHashMapEntryForInt32Key)
 GET_FROM_CACHE(LoadFieldByIndex)
 #undef GET_FROM_CACHE
 

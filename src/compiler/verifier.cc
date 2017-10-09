@@ -1026,11 +1026,11 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Boolean());
       break;
-    case IrOpcode::kLookupHashStorageIndex:
+    case IrOpcode::kFindOrderedHashMapEntry:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::SignedSmall());
       break;
-    case IrOpcode::kLookupSigned32HashStorageIndex:
+    case IrOpcode::kFindOrderedHashMapEntryForInt32Key:
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Signed32());
       CheckTypeIs(node, Type::SignedSmall());
