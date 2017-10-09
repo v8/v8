@@ -1718,112 +1718,6 @@ void MacroAssembler::PopStackHandler() {
 }
 
 
-void MacroAssembler::Allocate(int object_size,
-                              Register result,
-                              Register scratch1,
-                              Register scratch2,
-                              Label* gc_required,
-                              AllocationFlags flags) {
-  DCHECK(object_size <= kMaxRegularHeapObjectSize);
-  if (!FLAG_inline_new) {
-    if (emit_debug_code()) {
-      // Trash the registers to simulate an allocation failure.
-      mov(result, Operand(0x7091));
-      mov(scratch1, Operand(0x7191));
-      mov(scratch2, Operand(0x7291));
-    }
-    jmp(gc_required);
-    return;
-  }
-
-  DCHECK(!AreAliased(result, scratch1, scratch2));
-
-  // Make object size into bytes.
-  if ((flags & SIZE_IN_WORDS) != 0) {
-    object_size *= kPointerSize;
-  }
-  DCHECK_EQ(0, object_size & kObjectAlignmentMask);
-
-  // Check relative positions of allocation top and limit addresses.
-  // The values must be adjacent in memory to allow the use of LDM.
-  // Also, assert that the registers are numbered such that the values
-  // are loaded in the correct order.
-  ExternalReference allocation_top =
-      AllocationUtils::GetAllocationTopReference(isolate(), flags);
-  ExternalReference allocation_limit =
-      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
-
-  intptr_t top = reinterpret_cast<intptr_t>(allocation_top.address());
-  intptr_t limit = reinterpret_cast<intptr_t>(allocation_limit.address());
-  DCHECK((limit - top) == kPointerSize);
-
-  UseScratchRegisterScope temps(this);
-
-  // Set up allocation top address register.
-  Register top_address = scratch1;
-  Register alloc_limit = temps.Acquire();
-  Register result_end = scratch2;
-  mov(top_address, Operand(allocation_top));
-
-  if ((flags & RESULT_CONTAINS_TOP) == 0) {
-    // Load allocation top into result and allocation limit into alloc_limit.
-    ldm(ia, top_address, result.bit() | alloc_limit.bit());
-  } else {
-    if (emit_debug_code()) {
-      // Assert that result actually contains top on entry.
-      ldr(alloc_limit, MemOperand(top_address));
-      cmp(result, alloc_limit);
-      Check(eq, kUnexpectedAllocationTop);
-    }
-    // Load allocation limit. Result already contains allocation top.
-    ldr(alloc_limit, MemOperand(top_address, limit - top));
-  }
-
-  if ((flags & DOUBLE_ALIGNMENT) != 0) {
-    // Align the next allocation. Storing the filler map without checking top is
-    // safe in new-space because the limit of the heap is aligned there.
-    STATIC_ASSERT(kPointerAlignment * 2 == kDoubleAlignment);
-    and_(result_end, result, Operand(kDoubleAlignmentMask), SetCC);
-    Label aligned;
-    b(eq, &aligned);
-    if ((flags & PRETENURE) != 0) {
-      cmp(result, Operand(alloc_limit));
-      b(hs, gc_required);
-    }
-    mov(result_end, Operand(isolate()->factory()->one_pointer_filler_map()));
-    str(result_end, MemOperand(result, kDoubleSize / 2, PostIndex));
-    bind(&aligned);
-  }
-
-  // Calculate new top and bail out if new space is exhausted. Use result
-  // to calculate the new top. We have already acquired the scratch register at
-  // this point, so we cannot just use add().
-  DCHECK(object_size > 0);
-  Register source = result;
-  int shift = 0;
-  while (object_size != 0) {
-    if (((object_size >> shift) & 0x03) == 0) {
-      shift += 2;
-    } else {
-      int bits = object_size & (0xff << shift);
-      object_size -= bits;
-      shift += 8;
-      Operand bits_operand(bits);
-      DCHECK(bits_operand.InstructionsRequired(this) == 1);
-      add(result_end, source, bits_operand);
-      source = result_end;
-    }
-  }
-
-  cmp(result_end, Operand(alloc_limit));
-  b(hi, gc_required);
-
-  str(result_end, MemOperand(top_address));
-
-  // Tag object.
-  add(result, result, Operand(kHeapObjectTag));
-}
-
 void MacroAssembler::CompareObjectType(Register object,
                                        Register map,
                                        Register type_reg,
@@ -2169,21 +2063,6 @@ void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
 }
 
 
-void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
-                                                  Register map,
-                                                  Register scratch) {
-  // Load the initial map. The global functions all have initial maps.
-  ldr(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-  if (emit_debug_code()) {
-    Label ok, fail;
-    CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, DO_SMI_CHECK);
-    b(&ok);
-    bind(&fail);
-    Abort(kGlobalFunctionsMustHaveInitialMap);
-    bind(&ok);
-  }
-}
-
 void TurboAssembler::InitializeRootRegister() {
   ExternalReference roots_array_start =
       ExternalReference::roots_array_start(isolate());
@@ -2332,28 +2211,6 @@ void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register reg,
   b(ne, not_unique_name);
 
   bind(&succeed);
-}
-
-void MacroAssembler::AllocateJSValue(Register result, Register constructor,
-                                     Register value, Register scratch1,
-                                     Register scratch2, Label* gc_required) {
-  DCHECK(result != constructor);
-  DCHECK(result != scratch1);
-  DCHECK(result != scratch2);
-  DCHECK(result != value);
-
-  // Allocate JSValue in new space.
-  Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  // Initialize the JSValue.
-  LoadGlobalFunctionInitialMap(constructor, scratch1, scratch2);
-  str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
-  LoadRoot(scratch1, Heap::kEmptyFixedArrayRootIndex);
-  str(scratch1, FieldMemOperand(result, JSObject::kPropertiesOrHashOffset));
-  str(scratch1, FieldMemOperand(result, JSObject::kElementsOffset));
-  str(value, FieldMemOperand(result, JSValue::kValueOffset));
-  STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
 }
 
 void TurboAssembler::CheckFor32DRegs(Register scratch) {

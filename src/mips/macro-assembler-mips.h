@@ -1036,25 +1036,6 @@ class MacroAssembler : public TurboAssembler {
       PointersToHereCheck pointers_to_here_check_for_value =
           kPointersToHereMaybeInteresting);
 
-  // ---------------------------------------------------------------------------
-  // Allocation support.
-
-  // Allocate an object in new space or old space. The object_size is
-  // specified either in bytes or in words if the allocation flag SIZE_IN_WORDS
-  // is passed. If the space is exhausted control continues at the gc_required
-  // label. The allocated object is returned in result. If the flag
-  // tag_allocated_object is true the result is tagged as as a heap object.
-  // All registers are clobbered also when control continues at the gc_required
-  // label.
-  void Allocate(int object_size, Register result, Register scratch1,
-                Register scratch2, Label* gc_required, AllocationFlags flags);
-
-  // Allocate and initialize a JSValue wrapper with the specified {constructor}
-  // and {value}.
-  void AllocateJSValue(Register result, Register constructor, Register value,
-                       Register scratch1, Register scratch2,
-                       Label* gc_required);
-
   void Pref(int32_t hint, const MemOperand& rs);
 
   // Push and pop the registers that can hold pointers, as defined by the
@@ -1099,12 +1080,6 @@ class MacroAssembler : public TurboAssembler {
   }
 
   void LoadNativeContextSlot(int index, Register dst);
-
-  // Load the initial map from the global function. The registers
-  // function and map can be the same, function is then overwritten.
-  void LoadGlobalFunctionInitialMap(Register function,
-                                    Register map,
-                                    Register scratch);
 
   // -------------------------------------------------------------------------
   // JavaScript invokes.

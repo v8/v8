@@ -216,28 +216,6 @@ class ParameterCount BASE_EMBEDDED {
   DISALLOW_IMPLICIT_CONSTRUCTORS(ParameterCount);
 };
 
-
-class AllocationUtils {
- public:
-  static ExternalReference GetAllocationTopReference(
-      Isolate* isolate, AllocationFlags flags) {
-    if ((flags & PRETENURE) != 0) {
-      return ExternalReference::old_space_allocation_top_address(isolate);
-    }
-    return ExternalReference::new_space_allocation_top_address(isolate);
-  }
-
-
-  static ExternalReference GetAllocationLimitReference(
-      Isolate* isolate, AllocationFlags flags) {
-    if ((flags & PRETENURE) != 0) {
-      return ExternalReference::old_space_allocation_limit_address(isolate);
-    }
-    return ExternalReference::new_space_allocation_limit_address(isolate);
-  }
-};
-
-
 }  // namespace internal
 }  // namespace v8
 

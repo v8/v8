@@ -2619,82 +2619,6 @@ void MacroAssembler::MaybeDropFrames() {
        ne);
 }
 
-void MacroAssembler::Allocate(int object_size,
-                              Register result,
-                              Register scratch1,
-                              Register scratch2,
-                              Label* gc_required,
-                              AllocationFlags flags) {
-  DCHECK(object_size <= kMaxRegularHeapObjectSize);
-  if (!FLAG_inline_new) {
-    if (emit_debug_code()) {
-      // Trash the registers to simulate an allocation failure.
-      // We apply salt to the original zap value to easily spot the values.
-      Mov(result, (kDebugZapValue & ~0xffL) | 0x11L);
-      Mov(scratch1, (kDebugZapValue & ~0xffL) | 0x21L);
-      Mov(scratch2, (kDebugZapValue & ~0xffL) | 0x21L);
-    }
-    B(gc_required);
-    return;
-  }
-
-  UseScratchRegisterScope temps(this);
-  Register scratch3 = temps.AcquireX();
-
-  DCHECK(!AreAliased(result, scratch1, scratch2, scratch3));
-  DCHECK(result.Is64Bits() && scratch1.Is64Bits() && scratch2.Is64Bits());
-
-  // Make object size into bytes.
-  if ((flags & SIZE_IN_WORDS) != 0) {
-    object_size *= kPointerSize;
-  }
-  DCHECK(0 == (object_size & kObjectAlignmentMask));
-
-  // Check relative positions of allocation top and limit addresses.
-  // The values must be adjacent in memory to allow the use of LDP.
-  ExternalReference heap_allocation_top =
-      AllocationUtils::GetAllocationTopReference(isolate(), flags);
-  ExternalReference heap_allocation_limit =
-      AllocationUtils::GetAllocationLimitReference(isolate(), flags);
-  intptr_t top = reinterpret_cast<intptr_t>(heap_allocation_top.address());
-  intptr_t limit = reinterpret_cast<intptr_t>(heap_allocation_limit.address());
-  DCHECK((limit - top) == kPointerSize);
-
-  // Set up allocation top address and allocation limit registers.
-  Register top_address = scratch1;
-  Register alloc_limit = scratch2;
-  Register result_end = scratch3;
-  Mov(top_address, Operand(heap_allocation_top));
-
-  if ((flags & RESULT_CONTAINS_TOP) == 0) {
-    // Load allocation top into result and allocation limit into alloc_limit.
-    Ldp(result, alloc_limit, MemOperand(top_address));
-  } else {
-    if (emit_debug_code()) {
-      // Assert that result actually contains top on entry.
-      Ldr(alloc_limit, MemOperand(top_address));
-      Cmp(result, alloc_limit);
-      Check(eq, kUnexpectedAllocationTop);
-    }
-    // Load allocation limit. Result already contains allocation top.
-    Ldr(alloc_limit, MemOperand(top_address, limit - top));
-  }
-
-  // We can ignore DOUBLE_ALIGNMENT flags here because doubles and pointers have
-  // the same alignment on ARM64.
-  STATIC_ASSERT(kPointerAlignment == kDoubleAlignment);
-
-  // Calculate new top and bail out if new space is exhausted.
-  Adds(result_end, result, object_size);
-  Ccmp(result_end, alloc_limit, NoFlag, cc);
-  B(hi, gc_required);
-
-  Str(result_end, MemOperand(top_address));
-
-  // Tag the object.
-  ObjectTag(result, result);
-}
-
 void MacroAssembler::JumpIfObjectType(Register object,
                                       Register map,
                                       Register type_reg,
@@ -2703,29 +2627,6 @@ void MacroAssembler::JumpIfObjectType(Register object,
                                       Condition cond) {
   CompareObjectType(object, map, type_reg, type);
   B(cond, if_cond_pass);
-}
-
-
-void MacroAssembler::AllocateJSValue(Register result, Register constructor,
-                                     Register value, Register scratch1,
-                                     Register scratch2, Label* gc_required) {
-  DCHECK(!result.is(constructor));
-  DCHECK(!result.is(scratch1));
-  DCHECK(!result.is(scratch2));
-  DCHECK(!result.is(value));
-
-  // Allocate JSValue in new space.
-  Allocate(JSValue::kSize, result, scratch1, scratch2, gc_required,
-           NO_ALLOCATION_FLAGS);
-
-  // Initialize the JSValue.
-  LoadGlobalFunctionInitialMap(constructor, scratch1, scratch2);
-  Str(scratch1, FieldMemOperand(result, HeapObject::kMapOffset));
-  LoadRoot(scratch1, Heap::kEmptyFixedArrayRootIndex);
-  Str(scratch1, FieldMemOperand(result, JSObject::kPropertiesOrHashOffset));
-  Str(scratch1, FieldMemOperand(result, JSObject::kElementsOffset));
-  Str(value, FieldMemOperand(result, JSValue::kValueOffset));
-  STATIC_ASSERT(JSValue::kSize == 4 * kPointerSize);
 }
 
 
@@ -3509,22 +3410,6 @@ void TurboAssembler::Abort(BailoutReason reason) {
 void MacroAssembler::LoadNativeContextSlot(int index, Register dst) {
   Ldr(dst, NativeContextMemOperand());
   Ldr(dst, ContextMemOperand(dst, index));
-}
-
-
-void MacroAssembler::LoadGlobalFunctionInitialMap(Register function,
-                                                  Register map,
-                                                  Register scratch) {
-  // Load the initial map. The global functions all have initial maps.
-  Ldr(map, FieldMemOperand(function, JSFunction::kPrototypeOrInitialMapOffset));
-  if (emit_debug_code()) {
-    Label ok, fail;
-    CheckMap(map, scratch, Heap::kMetaMapRootIndex, &fail, DO_SMI_CHECK);
-    B(&ok);
-    Bind(&fail);
-    Abort(kGlobalFunctionsMustHaveInitialMap);
-    Bind(&ok);
-  }
 }
 
 

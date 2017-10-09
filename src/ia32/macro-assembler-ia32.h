@@ -508,10 +508,6 @@ class MacroAssembler : public TurboAssembler {
   // Load the global function with the given index.
   void LoadGlobalFunction(int index, Register function);
 
-  // Load the initial map from the global function. The registers
-  // function and map can be the same.
-  void LoadGlobalFunctionInitialMap(Register function, Register map);
-
   // Push and pop the registers that can hold pointers.
   void PushSafepointRegisters() { pushad(); }
   void PopSafepointRegisters() { popad(); }
@@ -647,27 +643,6 @@ class MacroAssembler : public TurboAssembler {
   void PopStackHandler();
 
   // ---------------------------------------------------------------------------
-  // Allocation support
-
-  // Allocate an object in new space or old space. If the given space
-  // is exhausted control continues at the gc_required label. The allocated
-  // object is returned in result and end of the new object is returned in
-  // result_end. The register scratch can be passed as no_reg in which case
-  // an additional object reference will be added to the reloc info. The
-  // returned pointers in result and result_end have not yet been tagged as
-  // heap objects. If result_contains_top_on_entry is true the content of
-  // result is known to be the allocation top on entry (could be result_end
-  // from a previous call). If result_contains_top_on_entry is true scratch
-  // should be no_reg as it is never used.
-  void Allocate(int object_size, Register result, Register result_end,
-                Register scratch, Label* gc_required, AllocationFlags flags);
-
-  // Allocate and initialize a JSValue wrapper with the specified {constructor}
-  // and {value}.
-  void AllocateJSValue(Register result, Register constructor, Register value,
-                       Register scratch, Label* gc_required);
-
-  // ---------------------------------------------------------------------------
   // Support functions.
 
   // Machine code version of Map::GetConstructor().
@@ -777,13 +752,6 @@ class MacroAssembler : public TurboAssembler {
   void EnterExitFrameEpilogue(int argc, bool save_doubles);
 
   void LeaveExitFrameEpilogue(bool restore_context);
-
-  // Allocation support helpers.
-  void LoadAllocationTopHelper(Register result, Register scratch,
-                               AllocationFlags flags);
-
-  void UpdateAllocationTopHelper(Register result_end, Register scratch,
-                                 AllocationFlags flags);
 
   // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
   void InNewSpace(Register object, Register scratch, Condition cc,

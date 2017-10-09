@@ -1869,28 +1869,6 @@ class MacroAssembler : public TurboAssembler {
   void MaybeDropFrames();
 
   // ---------------------------------------------------------------------------
-  // Allocation support
-
-  // Allocate an object in new space or old space. The object_size is
-  // specified either in bytes or in words if the allocation flag SIZE_IN_WORDS
-  // is passed. The allocated object is returned in result.
-  //
-  // If the new space is exhausted control continues at the gc_required label.
-  // In this case, the result and scratch registers may still be clobbered.
-  void Allocate(int object_size,
-                Register result,
-                Register scratch1,
-                Register scratch2,
-                Label* gc_required,
-                AllocationFlags flags);
-
-  // Allocate and initialize a JSValue wrapper with the specified {constructor}
-  // and {value}.
-  void AllocateJSValue(Register result, Register constructor, Register value,
-                       Register scratch1, Register scratch2,
-                       Label* gc_required);
-
-  // ---------------------------------------------------------------------------
   // Support functions.
 
   // Machine code version of Map::GetConstructor().
@@ -2228,12 +2206,6 @@ class MacroAssembler : public TurboAssembler {
   void AssertHasValidColor(const Register& reg);
 
   void LoadNativeContextSlot(int index, Register dst);
-
-  // Load the initial map from the global function. The registers function and
-  // map can be the same, function is then overwritten.
-  void LoadGlobalFunctionInitialMap(Register function,
-                                    Register map,
-                                    Register scratch);
 
   // Like printf, but print at run-time from generated code.
   //
