@@ -19,6 +19,14 @@ deps = {
     Var('chromium_url') + '/chromium/buildtools.git' + '@' + 'f6d165d9d842ddd29056c127a5f3a3c5d8e0d2e3',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + 'abcc4153b783b5e2c2dafcfbf658017ecb56989a',
+  'v8/third_party/android_tools': {
+    'url': Var('chromium_url') + '/android_tools.git' + '@' + 'ca9dc7245b888c75307f0619e4a39fb46a82de66',
+    'condition': 'checkout_android',
+  },
+  'v8/third_party/catapult': {
+    'url': Var('chromium_url') + '/catapult.git' + '@' + 'a48a6afde0ff7eeb1c847744192977e412107d6a',
+    'condition': 'checkout_android',
+  },
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'd34383206fa42d52faa10bb9931d6d538f3a57e0',
   'v8/third_party/markupsafe':
@@ -41,15 +49,6 @@ deps = {
     Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'b3169f97cc1a9daa1a9fbae15752588079792098',
   'v8/test/wasm-js':
     Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '4f1d3114157e6459d8a06e7d8fcc8fc90288cd85',
-}
-
-deps_os = {
-  'android': {
-    'v8/third_party/android_tools':
-      Var('chromium_url') + '/android_tools.git' + '@' + 'ca9dc7245b888c75307f0619e4a39fb46a82de66',
-    'v8/third_party/catapult':
-      Var('chromium_url') + '/catapult.git' + '@' + 'a48a6afde0ff7eeb1c847744192977e412107d6a',
-  },
 }
 
 recursedeps = [
@@ -87,6 +86,7 @@ hooks = [
   {
     'name': 'clang_format_win',
     'pattern': '.',
+    'condition': 'host_os == "win"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=win32',
@@ -98,6 +98,7 @@ hooks = [
   {
     'name': 'clang_format_mac',
     'pattern': '.',
+    'condition': 'host_os == "mac"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=darwin',
@@ -109,6 +110,7 @@ hooks = [
   {
     'name': 'clang_format_linux',
     'pattern': '.',
+    'condition': 'host_os == "linux"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=linux*',
@@ -120,6 +122,7 @@ hooks = [
   {
     'name': 'gcmole',
     'pattern': '.',
+    # TODO(machenbach): Insert condition and remove GYP_DEFINES dependency.
     'action': [
         'python',
         'v8/tools/gcmole/download_gcmole_tools.py',
@@ -128,6 +131,7 @@ hooks = [
   {
     'name': 'jsfunfuzz',
     'pattern': '.',
+    # TODO(machenbach): Insert condition and remove GYP_DEFINES dependency.
     'action': [
         'python',
         'v8/tools/jsfunfuzz/download_jsfunfuzz.py',
@@ -137,6 +141,7 @@ hooks = [
   {
     'name': 'luci-go_win',
     'pattern': '.',
+    'condition': 'host_os == "win"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=win32',
@@ -148,6 +153,7 @@ hooks = [
   {
     'name': 'luci-go_mac',
     'pattern': '.',
+    'condition': 'host_os == "mac"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=darwin',
@@ -159,6 +165,7 @@ hooks = [
   {
     'name': 'luci-go_linux',
     'pattern': '.',
+    'condition': 'host_os == "linux"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=linux*',
@@ -171,6 +178,7 @@ hooks = [
   {
     'name': 'gn_win',
     'pattern': '.',
+    'condition': 'host_os == "win"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=win32',
@@ -182,6 +190,7 @@ hooks = [
   {
     'name': 'gn_mac',
     'pattern': '.',
+    'condition': 'host_os == "mac"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=darwin',
@@ -193,6 +202,7 @@ hooks = [
   {
     'name': 'gn_linux',
     'pattern': '.',
+    'condition': 'host_os == "linux"',
     'action': [ 'download_from_google_storage',
                 '--no_resume',
                 '--platform=linux*',
@@ -240,6 +250,7 @@ hooks = [
     # GYP_DEFINES.
     'name': 'instrumented_libraries',
     'pattern': '\\.sha1',
+    # TODO(machenbach): Insert condition and remove GYP_DEFINES dependency.
     'action': [
         'python',
         'v8/third_party/instrumented_libraries/scripts/download_binaries.py',
@@ -249,6 +260,7 @@ hooks = [
     # Update the Windows toolchain if necessary.
     'name': 'win_toolchain',
     'pattern': '.',
+    'condition': 'checkout_win',
     'action': ['python', 'v8/build/vs_toolchain.py', 'update'],
   },
   # Pull binutils for linux, enabled debug fission for faster linking /
@@ -257,17 +269,17 @@ hooks = [
   {
     'name': 'binutils',
     'pattern': 'v8/third_party/binutils',
+    'condition': 'host_os == "linux"',
     'action': [
         'python',
         'v8/third_party/binutils/download.py',
     ],
   },
   {
-    # Pull clang if needed or requested via GYP_DEFINES.
     # Note: On Win, this should run after win_toolchain, as it may use it.
     'name': 'clang',
     'pattern': '.',
-    'action': ['python', 'v8/tools/clang/scripts/update.py', '--if-needed'],
+    'action': ['python', 'v8/tools/clang/scripts/update.py'],
   },
   {
     # A change to a .gyp, .gypi, or to GYP itself should run the generator.
