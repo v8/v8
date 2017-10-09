@@ -1877,21 +1877,9 @@ Reduction JSBuiltinReducer::ReduceMapHas(Node* node) {
   Node* index = effect = graph()->NewNode(
       simplified()->FindOrderedHashMapEntry(), table, key, effect, control);
 
-  Node* check = graph()->NewNode(simplified()->NumberEqual(), index,
+  Node* value = graph()->NewNode(simplified()->NumberEqual(), index,
                                  jsgraph()->MinusOneConstant());
-  Node* branch = graph()->NewNode(common()->Branch(), check, control);
-
-  // Key not found.
-  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-  Node* vtrue = jsgraph()->FalseConstant();
-
-  // Key found.
-  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* vfalse = jsgraph()->TrueConstant();
-
-  control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-  Node* value = graph()->NewNode(
-      common()->Phi(MachineRepresentation::kTagged, 2), vtrue, vfalse, control);
+  value = graph()->NewNode(simplified()->BooleanNot(), value);
 
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
