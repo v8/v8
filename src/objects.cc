@@ -255,7 +255,7 @@ MaybeHandle<String> Object::ConvertToString(Isolate* isolate,
                       String);
     }
     if (input->IsBigInt()) {
-      return BigInt::ToString(Handle<BigInt>::cast(input), 10);
+      return BigInt::ToString(Handle<BigInt>::cast(input));
     }
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, input, JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),

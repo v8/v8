@@ -62,7 +62,7 @@ class BigInt : public HeapObject {
   }
   void Initialize(int length, bool zero_initialize);
 
-  static MaybeHandle<String> ToString(Handle<BigInt> bigint, int radix);
+  static MaybeHandle<String> ToString(Handle<BigInt> bigint, int radix = 10);
 
   // Temporarily exposed helper, pending proper initialization.
   void set_value(int value) {
