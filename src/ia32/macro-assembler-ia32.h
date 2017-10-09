@@ -392,10 +392,6 @@ class MacroAssembler : public TurboAssembler {
                            SaveFPRegsMode save_fp,
                            RememberedSetFinalAction and_then);
 
-  void CheckPageFlagForMap(
-      Handle<Map> map, int mask, Condition cc, Label* condition_met,
-      Label::Distance condition_met_distance = Label::kFar);
-
   // Check if object is in new space.  Jumps if the object is not in new space.
   // The register scratch can be object itself, but scratch will be clobbered.
   void JumpIfNotInNewSpace(Register object, Register scratch, Label* branch,
@@ -475,12 +471,6 @@ class MacroAssembler : public TurboAssembler {
       SmiCheck smi_check = INLINE_SMI_CHECK,
       PointersToHereCheck pointers_to_here_check_for_value =
           kPointersToHereMaybeInteresting);
-
-  // For page containing |object| mark the region covering the object's map
-  // dirty. |object| is the object being stored into, |map| is the Map object
-  // that was stored.
-  void RecordWriteForMap(Register object, Handle<Map> map, Register scratch1,
-                         Register scratch2, SaveFPRegsMode save_fp);
 
   // Frame restart support
   void MaybeDropFrames();

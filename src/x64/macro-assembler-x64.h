@@ -622,12 +622,6 @@ class MacroAssembler : public TurboAssembler {
                      pointers_to_here_check_for_value);
   }
 
-  void RecordWriteForMap(
-      Register object,
-      Register map,
-      Register dst,
-      SaveFPRegsMode save_fp);
-
   // For page containing |object| mark region covering |address|
   // dirty. |object| is the object being stored into, |value| is the
   // object being stored. The address and value registers are clobbered by the

@@ -376,67 +376,6 @@ void TurboAssembler::CallRecordWriteStub(
 
   RestoreRegisters(registers);
 }
-void MacroAssembler::RecordWriteForMap(
-    Register object,
-    Handle<Map> map,
-    Register scratch1,
-    Register scratch2,
-    SaveFPRegsMode save_fp) {
-  Label done;
-
-  Register address = scratch1;
-  Register value = scratch2;
-  if (emit_debug_code()) {
-    Label ok;
-    lea(address, FieldOperand(object, HeapObject::kMapOffset));
-    test_b(address, Immediate((1 << kPointerSizeLog2) - 1));
-    j(zero, &ok, Label::kNear);
-    int3();
-    bind(&ok);
-  }
-
-  DCHECK(object != value);
-  DCHECK(object != address);
-  DCHECK(value != address);
-  AssertNotSmi(object);
-
-  if (!FLAG_incremental_marking) {
-    return;
-  }
-
-  // Compute the address.
-  lea(address, FieldOperand(object, HeapObject::kMapOffset));
-
-  // A single check of the map's pages interesting flag suffices, since it is
-  // only set during incremental collection, and then it's also guaranteed that
-  // the from object's page's interesting flag is also set.  This optimization
-  // relies on the fact that maps can never be in new space.
-  DCHECK(!isolate()->heap()->InNewSpace(*map));
-  CheckPageFlagForMap(map,
-                      MemoryChunk::kPointersToHereAreInterestingMask,
-                      zero,
-                      &done,
-                      Label::kNear);
-
-  RecordWriteStub stub(isolate(), object, value, address, OMIT_REMEMBERED_SET,
-                       save_fp);
-  CallStub(&stub);
-
-  bind(&done);
-
-  // Count number of write barriers in generated code.
-  isolate()->counters()->write_barriers_static()->Increment();
-  IncrementCounter(isolate()->counters()->write_barriers_dynamic(), 1);
-
-  // Clobber clobbered input registers when running with the debug-code flag
-  // turned on to provoke errors.
-  if (emit_debug_code()) {
-    mov(value, Immediate(bit_cast<int32_t>(kZapValue)));
-    mov(scratch1, Immediate(bit_cast<int32_t>(kZapValue)));
-    mov(scratch2, Immediate(bit_cast<int32_t>(kZapValue)));
-  }
-}
-
 
 void MacroAssembler::RecordWrite(
     Register object,
@@ -1839,30 +1778,6 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
   }
   j(cc, condition_met, condition_met_distance);
 }
-
-
-void MacroAssembler::CheckPageFlagForMap(
-    Handle<Map> map,
-    int mask,
-    Condition cc,
-    Label* condition_met,
-    Label::Distance condition_met_distance) {
-  DCHECK(cc == zero || cc == not_zero);
-  Page* page = Page::FromAddress(map->address());
-  DCHECK(!serializer_enabled());  // Serializer cannot match page_flags.
-  ExternalReference reference(ExternalReference::page_flags(page));
-  // The inlined static address check of the page's flags relies
-  // on maps never being compacted.
-  DCHECK(!isolate()->heap()->mark_compact_collector()->
-         IsOnEvacuationCandidate(*map));
-  if (mask < (1 << kBitsPerByte)) {
-    test_b(Operand::StaticVariable(reference), Immediate(mask));
-  } else {
-    test(Operand::StaticVariable(reference), Immediate(mask));
-  }
-  j(cc, condition_met, condition_met_distance);
-}
-
 
 void MacroAssembler::JumpIfBlack(Register object,
                                  Register scratch0,

@@ -1373,9 +1373,6 @@ class MacroAssembler : public TurboAssembler {
                      pointers_to_here_check_for_value);
   }
 
-  void RecordWriteForMap(Register object, Register map, Register dst,
-                         LinkRegisterStatus lr_status, SaveFPRegsMode save_fp);
-
   // For a given |object| notify the garbage collector that the slot |address|
   // has been written.  |value| is the object being stored. The value and
   // address registers are clobbered by the operation.
