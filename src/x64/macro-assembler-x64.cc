@@ -972,12 +972,6 @@ void MacroAssembler::SmiToInteger64(Register dst, const Operand& src) {
 }
 
 
-void MacroAssembler::SmiTest(Register src) {
-  AssertSmi(src);
-  testp(src, src);
-}
-
-
 void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
   AssertSmi(smi1);
   AssertSmi(smi2);

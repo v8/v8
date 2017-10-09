@@ -681,8 +681,6 @@ class MacroAssembler : public TurboAssembler {
   void SmiCompare(Register dst, const Operand& src);
   void SmiCompare(const Operand& dst, Register src);
   void SmiCompare(const Operand& dst, Smi* src);
-  // Compare the int32 in src register to the value of the smi stored at dst.
-  void SmiTest(Register src);
 
   // Functions performing a check on a known or potential smi. Returns
   // a condition that is satisfied if the check is successful.
