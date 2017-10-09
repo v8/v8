@@ -33,6 +33,10 @@ TEST(ConcurrentMarking) {
   Heap* heap = CcTest::heap();
   CcTest::CollectAllGarbage();
   if (!heap->incremental_marking()->IsStopped()) return;
+  MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
+  }
   ConcurrentMarking::MarkingWorklist shared, bailout;
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
@@ -49,6 +53,11 @@ TEST(ConcurrentMarkingReschedule) {
   Heap* heap = CcTest::heap();
   CcTest::CollectAllGarbage();
   if (!heap->incremental_marking()->IsStopped()) return;
+  MarkCompactCollector* collector = CcTest::heap()->mark_compact_collector();
+  if (collector->sweeping_in_progress()) {
+    collector->EnsureSweepingCompleted();
+  }
+
   ConcurrentMarking::MarkingWorklist shared, bailout;
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
