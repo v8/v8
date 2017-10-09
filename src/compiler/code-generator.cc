@@ -504,7 +504,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleInstruction(
       branch.false_label = &continue_label;
       branch.fallthru = true;
       // Assemble architecture-specific branch.
-      AssembleArchBranch(instr, &branch);
+      AssembleArchDeoptBranch(instr, &branch);
       tasm()->bind(&continue_label);
       break;
     }

@@ -657,4 +657,10 @@
     'mjsunit-assertion-error' : [SKIP],
 }], # no_harness
 
+##############################################################################
+['arch != x64 or deopt_fuzzer', {
+    # Skip stress-deopt-count tests since it's in x64 only
+    'compiler/stress-deopt-count-*': [SKIP],
+}], # arch != x64 or deopt_fuzzer
+
 ]

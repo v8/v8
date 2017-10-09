@@ -3065,6 +3065,10 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
                          branch->fallthru);
 }
 
+void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
+                                            BranchInfo* branch) {
+  AssembleArchBranch(instr, branch);
+}
 
 void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ Branch(GetLabel(target));

@@ -2830,6 +2830,46 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   if (!branch->fallthru) __ jmp(flabel, flabel_distance);
 }
 
+void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
+                                            BranchInfo* branch) {
+  Label::Distance flabel_distance =
+      branch->fallthru ? Label::kNear : Label::kFar;
+  Label* tlabel = branch->true_label;
+  Label* flabel = branch->false_label;
+  Label nodeopt;
+  if (branch->condition == kUnorderedEqual) {
+    __ j(parity_even, flabel, flabel_distance);
+  } else if (branch->condition == kUnorderedNotEqual) {
+    __ j(parity_even, tlabel);
+  }
+  __ j(FlagsConditionToCondition(branch->condition), tlabel);
+
+  if (FLAG_deopt_every_n_times > 0) {
+    ExternalReference counter =
+        ExternalReference::stress_deopt_count(isolate());
+
+    __ pushfq();
+    __ pushq(rax);
+    __ load_rax(counter);
+    __ decl(rax);
+    __ j(not_zero, &nodeopt);
+
+    __ Set(rax, FLAG_deopt_every_n_times);
+    __ store_rax(counter);
+    __ popq(rax);
+    __ popfq();
+    __ jmp(tlabel);
+
+    __ bind(&nodeopt);
+    __ store_rax(counter);
+    __ popq(rax);
+    __ popfq();
+  }
+
+  if (!branch->fallthru) {
+    __ jmp(flabel, flabel_distance);
+  }
+}
 
 void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ jmp(GetLabel(target));

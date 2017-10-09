@@ -158,6 +158,10 @@ class CodeGenerator final : public GapResolver::Assembler {
   CodeGenResult AssembleArchInstruction(Instruction* instr);
   void AssembleArchJump(RpoNumber target);
   void AssembleArchBranch(Instruction* instr, BranchInfo* branch);
+
+  // Generates special branch for deoptimization condition.
+  void AssembleArchDeoptBranch(Instruction* instr, BranchInfo* branch);
+
   void AssembleArchBoolean(Instruction* instr, FlagsCondition condition);
   void AssembleArchTrap(Instruction* instr, FlagsCondition condition);
   void AssembleArchLookupSwitch(Instruction* instr);

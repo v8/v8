@@ -2648,6 +2648,10 @@ void CodeGenerator::AssembleArchBranch(Instruction* instr, BranchInfo* branch) {
   if (!branch->fallthru) __ b(flabel);  // no fallthru to flabel.
 }
 
+void CodeGenerator::AssembleArchDeoptBranch(Instruction* instr,
+                                            BranchInfo* branch) {
+  AssembleArchBranch(instr, branch);
+}
 
 void CodeGenerator::AssembleArchJump(RpoNumber target) {
   if (!IsNextInAssemblyOrder(target)) __ b(GetLabel(target));
