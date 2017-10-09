@@ -375,7 +375,6 @@
   V(TransitionElementsKind)         \
   V(LookupHashStorageIndex)         \
   V(LookupSigned32HashStorageIndex) \
-  V(LoadHashMapValue)               \
   V(RuntimeAbort)
 
 #define SIMPLIFIED_OP_LIST(V)                 \

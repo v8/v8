@@ -841,8 +841,6 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kLookupSigned32HashStorageIndex:
       result = LowerLookupSigned32HashStorageIndex(node);
       break;
-    case IrOpcode::kLoadHashMapValue:
-      result = LowerLoadHashMapValue(node);
     case IrOpcode::kTransitionAndStoreElement:
       LowerTransitionAndStoreElement(node);
       break;
@@ -3678,12 +3676,6 @@ Node* EffectControlLinearizer::LowerLookupSigned32HashStorageIndex(Node* node) {
 
   __ Bind(&done);
   return done.PhiAt(0);
-}
-
-Node* EffectControlLinearizer::LowerLoadHashMapValue(Node* node) {
-  Node* table = NodeProperties::GetValueInput(node, 0);
-  Node* index = NodeProperties::GetValueInput(node, 1);
-  return __ LoadElement(AccessBuilder::ForFixedArrayElement(), table, index);
 }
 
 #undef __

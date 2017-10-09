@@ -604,13 +604,6 @@ struct SimplifiedOperatorGlobalCache final {
   };
   LookupSigned32HashStorageIndexOperator kLookupSigned32HashStorageIndex;
 
-  struct LoadHashMapValueOperator final : public Operator {
-    LoadHashMapValueOperator()
-        : Operator(IrOpcode::kLoadHashMapValue, Operator::kEliminatable,
-                   "LoadHashMapValue", 2, 1, 1, 1, 1, 0) {}
-  };
-  LoadHashMapValueOperator kLoadHashMapValue;
-
   struct ArgumentsFrameOperator final : public Operator {
     ArgumentsFrameOperator()
         : Operator(IrOpcode::kArgumentsFrame, Operator::kPure, "ArgumentsFrame",
@@ -789,7 +782,6 @@ GET_FROM_CACHE(ArrayBufferWasNeutered)
 GET_FROM_CACHE(ArgumentsFrame)
 GET_FROM_CACHE(LookupHashStorageIndex)
 GET_FROM_CACHE(LookupSigned32HashStorageIndex)
-GET_FROM_CACHE(LoadHashMapValue)
 GET_FROM_CACHE(LoadFieldByIndex)
 #undef GET_FROM_CACHE
 

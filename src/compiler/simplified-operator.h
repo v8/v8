@@ -375,7 +375,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* LookupHashStorageIndex();
   const Operator* LookupSigned32HashStorageIndex();
-  const Operator* LoadHashMapValue();
 
   const Operator* SpeculativeToNumber(NumberOperationHint hint);
 
