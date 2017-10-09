@@ -1421,11 +1421,11 @@ Variable* Parser::Declare(Declaration* declaration,
                           var_end_pos != kNoSourcePosition
                               ? var_end_pos
                               : declaration->proxy()->position() + 1);
-    if (declaration_kind == DeclarationDescriptor::NORMAL) {
+    if (declaration_kind == DeclarationDescriptor::PARAMETER) {
+      ReportMessageAt(loc, MessageTemplate::kParamDupe);
+    } else {
       ReportMessageAt(loc, MessageTemplate::kVarRedeclaration,
                       declaration->proxy()->raw_name());
-    } else {
-      ReportMessageAt(loc, MessageTemplate::kParamDupe);
     }
     return nullptr;
   }

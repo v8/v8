@@ -484,7 +484,7 @@ class ParserBase {
   };
 
   struct DeclarationDescriptor {
-    enum Kind { NORMAL, PARAMETER };
+    enum Kind { NORMAL, PARAMETER, FOR_EACH };
     Scope* scope;
     VariableMode mode;
     int declaration_pos;
@@ -1285,7 +1285,12 @@ class ParserBase {
   // assigned inside a loop due to the various rewritings that the parser
   // performs.
   //
-  static void MarkLoopVariableAsAssigned(Scope* scope, Variable* var);
+  // This also handles marking of loop variables in for-in and for-of loops,
+  // as determined by declaration_kind.
+  //
+  static void MarkLoopVariableAsAssigned(
+      Scope* scope, Variable* var,
+      typename DeclarationDescriptor::Kind declaration_kind);
 
   FunctionKind FunctionKindForImpl(bool is_method, bool is_generator,
                                    bool is_async) {
@@ -5663,6 +5668,10 @@ ParserBase<Impl>::ParseForEachStatementWithDeclarations(
     return impl()->NullStatement();
   }
 
+  // Reset the declaration_kind to ensure proper processing during declaration.
+  for_info->parsing_result.descriptor.declaration_kind =
+      DeclarationDescriptor::FOR_EACH;
+
   BlockT init_block = impl()->RewriteForVarInLegacy(*for_info);
 
   auto loop = factory()->NewForEachStatement(for_info->mode, labels, stmt_pos);
@@ -5852,8 +5861,12 @@ typename ParserBase<Impl>::ForStatementT ParserBase<Impl>::ParseStandardForLoop(
 }
 
 template <typename Impl>
-void ParserBase<Impl>::MarkLoopVariableAsAssigned(Scope* scope, Variable* var) {
-  if (!IsLexicalVariableMode(var->mode()) && !scope->is_function_scope()) {
+void ParserBase<Impl>::MarkLoopVariableAsAssigned(
+    Scope* scope, Variable* var,
+    typename DeclarationDescriptor::Kind declaration_kind) {
+  if (!IsLexicalVariableMode(var->mode()) &&
+      (!scope->is_function_scope() ||
+       declaration_kind == DeclarationDescriptor::FOR_EACH)) {
     var->set_maybe_assigned();
   }
 }
