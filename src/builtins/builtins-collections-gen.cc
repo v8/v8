@@ -876,7 +876,7 @@ std::tuple<Node*, Node*, Node*> CollectionsBuiltinsAssembler::NextSkipHoles(
                                          var_index.value());
 }
 
-TF_BUILTIN(MapGet, CollectionsBuiltinsAssembler) {
+TF_BUILTIN(MapPrototypeGet, CollectionsBuiltinsAssembler) {
   Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* const key = Parameter(Descriptor::kKey);
   Node* const context = Parameter(Descriptor::kContext);
@@ -897,7 +897,7 @@ TF_BUILTIN(MapGet, CollectionsBuiltinsAssembler) {
   Return(UndefinedConstant());
 }
 
-TF_BUILTIN(MapHas, CollectionsBuiltinsAssembler) {
+TF_BUILTIN(MapPrototypeHas, CollectionsBuiltinsAssembler) {
   Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* const key = Parameter(Descriptor::kKey);
   Node* const context = Parameter(Descriptor::kContext);
@@ -935,7 +935,7 @@ Node* CollectionsBuiltinsAssembler::NormalizeNumberKey(Node* const key) {
   return result.value();
 }
 
-TF_BUILTIN(MapSet, CollectionsBuiltinsAssembler) {
+TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
   Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kKey);
   Node* const value = Parameter(Descriptor::kValue);
@@ -1047,7 +1047,7 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashMapNewEntry(
                                  SmiAdd(number_of_elements, SmiConstant(1)));
 }
 
-TF_BUILTIN(MapDelete, CollectionsBuiltinsAssembler) {
+TF_BUILTIN(MapPrototypeDelete, CollectionsBuiltinsAssembler) {
   Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kKey);
   Node* const context = Parameter(Descriptor::kContext);
@@ -1106,7 +1106,7 @@ TF_BUILTIN(MapDelete, CollectionsBuiltinsAssembler) {
   Return(TrueConstant());
 }
 
-TF_BUILTIN(SetAdd, CollectionsBuiltinsAssembler) {
+TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
   Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kKey);
   Node* const context = Parameter(Descriptor::kContext);
@@ -1210,7 +1210,7 @@ void CollectionsBuiltinsAssembler::StoreOrderedHashSetNewEntry(
                                  SmiAdd(number_of_elements, SmiConstant(1)));
 }
 
-TF_BUILTIN(SetDelete, CollectionsBuiltinsAssembler) {
+TF_BUILTIN(SetPrototypeDelete, CollectionsBuiltinsAssembler) {
   Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* key = Parameter(Descriptor::kKey);
   Node* const context = Parameter(Descriptor::kContext);
@@ -1437,7 +1437,7 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   }
 }
 
-TF_BUILTIN(SetHas, CollectionsBuiltinsAssembler) {
+TF_BUILTIN(SetPrototypeHas, CollectionsBuiltinsAssembler) {
   Node* const receiver = Parameter(Descriptor::kReceiver);
   Node* const key = Parameter(Descriptor::kKey);
   Node* const context = Parameter(Descriptor::kContext);

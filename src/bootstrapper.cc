@@ -3137,23 +3137,24 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         prototype, factory->to_string_tag_symbol(), factory->Map_string(),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
-    Handle<JSFunction> map_get =
-        SimpleInstallFunction(prototype, "get", Builtins::kMapGet, 1, true);
+    Handle<JSFunction> map_get = SimpleInstallFunction(
+        prototype, "get", Builtins::kMapPrototypeGet, 1, true);
     native_context()->set_map_get(*map_get);
 
-    Handle<JSFunction> map_set =
-        SimpleInstallFunction(prototype, "set", Builtins::kMapSet, 2, true);
+    Handle<JSFunction> map_set = SimpleInstallFunction(
+        prototype, "set", Builtins::kMapPrototypeSet, 2, true);
     native_context()->set_map_set(*map_set);
 
-    Handle<JSFunction> map_has =
-        SimpleInstallFunction(prototype, "has", Builtins::kMapHas, 1, true);
+    Handle<JSFunction> map_has = SimpleInstallFunction(
+        prototype, "has", Builtins::kMapPrototypeHas, 1, true);
     native_context()->set_map_has(*map_has);
 
     Handle<JSFunction> map_delete = SimpleInstallFunction(
-        prototype, "delete", Builtins::kMapDelete, 1, true);
+        prototype, "delete", Builtins::kMapPrototypeDelete, 1, true);
     native_context()->set_map_delete(*map_delete);
 
-    SimpleInstallFunction(prototype, "clear", Builtins::kMapClear, 0, true);
+    SimpleInstallFunction(prototype, "clear", Builtins::kMapPrototypeClear, 0,
+                          true);
     Handle<JSFunction> entries = SimpleInstallFunction(
         prototype, "entries", Builtins::kMapPrototypeEntries, 0, true);
     JSObject::AddProperty(prototype, factory->iterator_symbol(), entries,
@@ -3192,19 +3193,20 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         prototype, factory->to_string_tag_symbol(), factory->Set_string(),
         static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 
-    Handle<JSFunction> set_has =
-        SimpleInstallFunction(prototype, "has", Builtins::kSetHas, 1, true);
+    Handle<JSFunction> set_has = SimpleInstallFunction(
+        prototype, "has", Builtins::kSetPrototypeHas, 1, true);
     native_context()->set_set_has(*set_has);
 
-    Handle<JSFunction> set_add =
-        SimpleInstallFunction(prototype, "add", Builtins::kSetAdd, 1, true);
+    Handle<JSFunction> set_add = SimpleInstallFunction(
+        prototype, "add", Builtins::kSetPrototypeAdd, 1, true);
     native_context()->set_set_add(*set_add);
 
     Handle<JSFunction> set_delete = SimpleInstallFunction(
-        prototype, "delete", Builtins::kSetDelete, 1, true);
+        prototype, "delete", Builtins::kSetPrototypeDelete, 1, true);
     native_context()->set_set_delete(*set_delete);
 
-    SimpleInstallFunction(prototype, "clear", Builtins::kSetClear, 0, true);
+    SimpleInstallFunction(prototype, "clear", Builtins::kSetPrototypeClear, 0,
+                          true);
     SimpleInstallFunction(prototype, "entries", Builtins::kSetPrototypeEntries,
                           0, true);
     SimpleInstallFunction(prototype, "forEach", Builtins::kSetPrototypeForEach,

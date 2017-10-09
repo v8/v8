@@ -555,11 +555,11 @@ namespace internal {
   /* Map */                                                                    \
   TFS(MapLookupHashIndex, kTable, kKey)                                        \
   TFJ(MapConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
-  TFJ(MapSet, 2, kKey, kValue)                                                 \
-  TFJ(MapDelete, 1, kKey)                                                      \
-  TFJ(MapGet, 1, kKey)                                                         \
-  TFJ(MapHas, 1, kKey)                                                         \
-  CPP(MapClear)                                                                \
+  TFJ(MapPrototypeSet, 2, kKey, kValue)                                        \
+  TFJ(MapPrototypeDelete, 1, kKey)                                             \
+  TFJ(MapPrototypeGet, 1, kKey)                                                \
+  TFJ(MapPrototypeHas, 1, kKey)                                                \
+  CPP(MapPrototypeClear)                                                       \
   /* ES #sec-map.prototype.entries */                                          \
   TFJ(MapPrototypeEntries, 0)                                                  \
   /* ES #sec-get-map.prototype.size */                                         \
@@ -859,10 +859,10 @@ namespace internal {
                                                                                \
   /* Set */                                                                    \
   TFJ(SetConstructor, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
-  TFJ(SetHas, 1, kKey)                                                         \
-  TFJ(SetAdd, 1, kKey)                                                         \
-  TFJ(SetDelete, 1, kKey)                                                      \
-  CPP(SetClear)                                                                \
+  TFJ(SetPrototypeHas, 1, kKey)                                                \
+  TFJ(SetPrototypeAdd, 1, kKey)                                                \
+  TFJ(SetPrototypeDelete, 1, kKey)                                             \
+  CPP(SetPrototypeClear)                                                       \
   /* ES #sec-set.prototype.entries */                                          \
   TFJ(SetPrototypeEntries, 0)                                                  \
   /* ES #sec-get-set.prototype.size */                                         \
