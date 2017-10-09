@@ -165,17 +165,6 @@ void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index) {
                             (index << kPointerSizeLog2) - kRootRegisterBias));
 }
 
-void MacroAssembler::LoadRootIndexed(Register destination,
-                                     Register variable_offset,
-                                     int fixed_offset) {
-  DCHECK(root_array_available_);
-  movp(destination,
-       Operand(kRootRegister,
-               variable_offset, times_pointer_size,
-               (fixed_offset << kPointerSizeLog2) - kRootRegisterBias));
-}
-
-
 void MacroAssembler::PushRoot(Heap::RootListIndex index) {
   DCHECK(root_array_available_);
   Push(Operand(kRootRegister, (index << kPointerSizeLog2) - kRootRegisterBias));

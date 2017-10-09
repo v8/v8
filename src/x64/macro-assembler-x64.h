@@ -508,9 +508,6 @@ class MacroAssembler : public TurboAssembler {
   // Load a root value where the index (or part of it) is variable.
   // The variable_offset register is added to the fixed_offset value
   // to get the index into the root-array.
-  void LoadRootIndexed(Register destination,
-                       Register variable_offset,
-                       int fixed_offset);
   void PushRoot(Heap::RootListIndex index);
 
   // Compare the object in a register to a value and jump if they are equal.
