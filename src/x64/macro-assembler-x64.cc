@@ -184,12 +184,9 @@ void TurboAssembler::CompareRoot(const Operand& with,
   cmpp(with, kScratchRegister);
 }
 
-
 void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
-                                         Register addr,
-                                         Register scratch,
-                                         SaveFPRegsMode save_fp,
-                                         RememberedSetFinalAction and_then) {
+                                         Register addr, Register scratch,
+                                         SaveFPRegsMode save_fp) {
   if (emit_debug_code()) {
     Label ok;
     JumpIfNotInNewSpace(object, scratch, &ok, Label::kNear);
@@ -212,23 +209,13 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   Label done;
   // Check for end of buffer.
   testp(scratch, Immediate(StoreBuffer::kStoreBufferMask));
-  if (and_then == kReturnAtEnd) {
-    Label buffer_overflowed;
-    j(equal, &buffer_overflowed, Label::kNear);
-    ret(0);
-    bind(&buffer_overflowed);
-  } else {
-    DCHECK(and_then == kFallThroughAtEnd);
-    j(not_equal, &done, Label::kNear);
-  }
+  Label buffer_overflowed;
+  j(equal, &buffer_overflowed, Label::kNear);
+  ret(0);
+  bind(&buffer_overflowed);
   StoreBufferOverflowStub store_buffer_overflow(isolate(), save_fp);
   CallStub(&store_buffer_overflow);
-  if (and_then == kReturnAtEnd) {
-    ret(0);
-  } else {
-    DCHECK(and_then == kFallThroughAtEnd);
-    bind(&done);
-  }
+  ret(0);
 }
 
 

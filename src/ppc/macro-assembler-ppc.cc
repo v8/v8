@@ -510,8 +510,7 @@ void MacroAssembler::RecordWrite(
 
 void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
                                          Register address, Register scratch,
-                                         SaveFPRegsMode fp_mode,
-                                         RememberedSetFinalAction and_then) {
+                                         SaveFPRegsMode fp_mode) {
   Label done;
   if (emit_debug_code()) {
     Label ok;
@@ -533,12 +532,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   // Check for end of buffer.
   TestBitMask(scratch, StoreBuffer::kStoreBufferMask, r0);
 
-  if (and_then == kFallThroughAtEnd) {
-    bne(&done, cr0);
-  } else {
-    DCHECK(and_then == kReturnAtEnd);
-    Ret(ne, cr0);
-  }
+  Ret(ne, cr0);
   mflr(r0);
   push(r0);
   StoreBufferOverflowStub store_buffer_overflow(isolate(), fp_mode);
@@ -546,9 +540,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   pop(r0);
   mtlr(r0);
   bind(&done);
-  if (and_then == kReturnAtEnd) {
-    Ret();
-  }
+  Ret();
 }
 
 void TurboAssembler::PushCommonFrame(Register marker_reg) {

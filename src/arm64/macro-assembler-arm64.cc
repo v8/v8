@@ -2822,10 +2822,8 @@ bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
 }
 
 void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
-                                         Register address,
-                                         Register scratch1,
-                                         SaveFPRegsMode fp_mode,
-                                         RememberedSetFinalAction and_then) {
+                                         Register address, Register scratch1,
+                                         SaveFPRegsMode fp_mode) {
   DCHECK(!AreAliased(object, address, scratch1));
   Label done, store_buffer_overflow;
   if (emit_debug_code()) {
@@ -2847,13 +2845,8 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   // Call stub on end of buffer.
   // Check for end of buffer.
   Tst(scratch1, StoreBuffer::kStoreBufferMask);
-  if (and_then == kFallThroughAtEnd) {
-    B(ne, &done);
-  } else {
-    DCHECK(and_then == kReturnAtEnd);
-    B(eq, &store_buffer_overflow);
-    Ret();
-  }
+  B(eq, &store_buffer_overflow);
+  Ret();
 
   Bind(&store_buffer_overflow);
   Push(lr);
@@ -2862,9 +2855,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   Pop(lr);
 
   Bind(&done);
-  if (and_then == kReturnAtEnd) {
-    Ret();
-  }
+  Ret();
 }
 
 

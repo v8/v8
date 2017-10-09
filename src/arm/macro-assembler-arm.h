@@ -619,15 +619,12 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // GC Support
 
-  enum RememberedSetFinalAction { kReturnAtEnd, kFallThroughAtEnd };
-
   // Record in the remembered set the fact that we have a pointer to new space
   // at the address pointed to by the addr register.  Only works if addr is not
   // in new space.
   void RememberedSetHelper(Register object,  // Used for debug code.
                            Register addr, Register scratch,
-                           SaveFPRegsMode save_fp,
-                           RememberedSetFinalAction and_then);
+                           SaveFPRegsMode save_fp);
 
   // Check if object is in new space.  Jumps if the object is not in new space.
   // The register scratch can be object itself, but scratch will be clobbered.

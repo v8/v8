@@ -185,13 +185,9 @@ void MacroAssembler::InNewSpace(Register object, Register scratch, Condition cc,
                 condition_met, distance);
 }
 
-
 void MacroAssembler::RememberedSetHelper(
     Register object,  // Only used for debug checks.
-    Register addr,
-    Register scratch,
-    SaveFPRegsMode save_fp,
-    MacroAssembler::RememberedSetFinalAction and_then) {
+    Register addr, Register scratch, SaveFPRegsMode save_fp) {
   Label done;
   if (emit_debug_code()) {
     Label ok;
@@ -212,23 +208,13 @@ void MacroAssembler::RememberedSetHelper(
   // Call stub on end of buffer.
   // Check for end of buffer.
   test(scratch, Immediate(StoreBuffer::kStoreBufferMask));
-  if (and_then == kReturnAtEnd) {
-    Label buffer_overflowed;
-    j(equal, &buffer_overflowed, Label::kNear);
-    ret(0);
-    bind(&buffer_overflowed);
-  } else {
-    DCHECK(and_then == kFallThroughAtEnd);
-    j(not_equal, &done, Label::kNear);
-  }
+  Label buffer_overflowed;
+  j(equal, &buffer_overflowed, Label::kNear);
+  ret(0);
+  bind(&buffer_overflowed);
   StoreBufferOverflowStub store_buffer_overflow(isolate(), save_fp);
   CallStub(&store_buffer_overflow);
-  if (and_then == kReturnAtEnd) {
-    ret(0);
-  } else {
-    DCHECK(and_then == kFallThroughAtEnd);
-    bind(&done);
-  }
+  ret(0);
 }
 
 void TurboAssembler::SlowTruncateToIDelayed(Zone* zone, Register result_reg,

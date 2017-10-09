@@ -2065,19 +2065,12 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Garbage collector support (GC).
 
-  enum RememberedSetFinalAction {
-    kReturnAtEnd,
-    kFallThroughAtEnd
-  };
-
   // Record in the remembered set the fact that we have a pointer to new space
   // at the address pointed to by the addr register. Only works if addr is not
   // in new space.
   void RememberedSetHelper(Register object,  // Used for debug code.
-                           Register addr,
-                           Register scratch1,
-                           SaveFPRegsMode save_fp,
-                           RememberedSetFinalAction and_then);
+                           Register addr, Register scratch1,
+                           SaveFPRegsMode save_fp);
 
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.

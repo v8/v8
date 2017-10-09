@@ -1022,8 +1022,7 @@ void RecordWriteStub::Generate(MacroAssembler* masm) {
   __ jmp(&skip_to_incremental, Label::kNear);
 
   if (remembered_set_action() == EMIT_REMEMBERED_SET) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
   } else {
     __ ret(0);
   }
@@ -1060,8 +1059,7 @@ void RecordWriteStub::GenerateIncremental(MacroAssembler* masm,
         second_instr);
     InformIncrementalMarker(masm);
     regs_.Restore(masm);
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
 
     __ bind(&dont_need_remembered_set);
   }
@@ -1118,8 +1116,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
   } else {
     __ ret(0);
   }
@@ -1158,8 +1155,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   regs_.Restore(masm);
   if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode(),
-                           MacroAssembler::kReturnAtEnd);
+    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
   } else {
     __ ret(0);
   }

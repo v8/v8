@@ -1306,15 +1306,12 @@ class MacroAssembler : public TurboAssembler {
   void IncrementalMarkingRecordWriteHelper(Register object, Register value,
                                            Register address);
 
-  enum RememberedSetFinalAction { kReturnAtEnd, kFallThroughAtEnd };
-
   // Record in the remembered set the fact that we have a pointer to new space
   // at the address pointed to by the addr register.  Only works if addr is not
   // in new space.
   void RememberedSetHelper(Register object,  // Used for debug code.
                            Register addr, Register scratch,
-                           SaveFPRegsMode save_fp,
-                           RememberedSetFinalAction and_then);
+                           SaveFPRegsMode save_fp);
 
   void CallJSEntry(Register target);
   static int CallSizeNotPredictableCodeSize(Address target,
