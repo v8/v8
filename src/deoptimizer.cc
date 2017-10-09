@@ -1636,14 +1636,16 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // Get the possible JSFunction for the case that
   intptr_t maybe_function =
       reinterpret_cast<intptr_t>(value_iterator->GetRawValue());
+  ++input_index;
   ++value_iterator;
 
-  std::vector<intptr_t> register_values;
+  struct RegisterValue {
+    Object* raw_value_;
+    TranslatedFrame::iterator iterator_;
+  };
+  std::vector<RegisterValue> register_values;
   int total_registers = config->num_general_registers();
-  register_values.resize(total_registers, 0);
-  for (int i = 0; i < total_registers; ++i) {
-    register_values[i] = 0;
-  }
+  register_values.resize(total_registers, {Smi::kZero, value_iterator});
 
   intptr_t value;
 
@@ -1672,9 +1674,9 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   }
 
   for (int i = 0; i < register_parameter_count; ++i) {
-    value = reinterpret_cast<intptr_t>(value_iterator->GetRawValue());
+    Object* object = value_iterator->GetRawValue();
     int code = continuation_descriptor.GetRegisterParameter(i).code();
-    register_values[code] = value;
+    register_values[code] = {object, value_iterator};
     ++input_index;
     ++value_iterator;
   }
@@ -1684,8 +1686,9 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // sure that it's harvested from the translation and copied into the register
   // set (it was automatically added at the end of the FrameState by the
   // instruction selector).
-  value = reinterpret_cast<intptr_t>(value_iterator->GetRawValue());
-  register_values[kContextRegister.code()] = value;
+  Object* context = value_iterator->GetRawValue();
+  value = reinterpret_cast<intptr_t>(context);
+  register_values[kContextRegister.code()] = {context, value_iterator};
   output_frame->SetContext(value);
   output_frame->SetRegister(kContextRegister.code(), value);
   ++input_index;
@@ -1755,7 +1758,8 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   for (int i = 0; i < allocatable_register_count; ++i) {
     output_frame_offset -= kPointerSize;
     int code = config->GetAllocatableGeneralCode(i);
-    value = register_values[code];
+    Object* object = register_values[code].raw_value_;
+    value = reinterpret_cast<intptr_t>(object);
     output_frame->SetFrameSlot(output_frame_offset, value);
     if (trace_scope_ != nullptr) {
       ScopedVector<char> str(128);
@@ -1771,6 +1775,13 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       }
       DebugPrintOutputSlot(value, frame_index, output_frame_offset,
                            str.start());
+    }
+    if (object == isolate_->heap()->arguments_marker()) {
+      Address output_address =
+          reinterpret_cast<Address>(output_[frame_index]->GetTop()) +
+          output_frame_offset;
+      values_to_materialize_.push_back(
+          {output_address, register_values[code].iterator_});
     }
   }
 
