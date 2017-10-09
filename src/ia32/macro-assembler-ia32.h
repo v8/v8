@@ -750,12 +750,6 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // String utilities.
 
-  // Checks if both objects are sequential one-byte strings, and jumps to label
-  // if either is not.
-  void JumpIfNotBothSequentialOneByteStrings(
-      Register object1, Register object2, Register scratch1, Register scratch2,
-      Label* on_not_flat_one_byte_strings);
-
   // Checks if the given register or operand is a unique name
   void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name,
                                        Label::Distance distance = Label::kFar) {

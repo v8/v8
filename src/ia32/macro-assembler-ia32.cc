@@ -1872,39 +1872,6 @@ void MacroAssembler::LoadAccessor(Register dst, Register holder,
   mov(dst, FieldOperand(dst, offset));
 }
 
-void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(Register object1,
-                                                           Register object2,
-                                                           Register scratch1,
-                                                           Register scratch2,
-                                                           Label* failure) {
-  // Check that both objects are not smis.
-  STATIC_ASSERT(kSmiTag == 0);
-  mov(scratch1, object1);
-  and_(scratch1, object2);
-  JumpIfSmi(scratch1, failure);
-
-  // Load instance type for both strings.
-  mov(scratch1, FieldOperand(object1, HeapObject::kMapOffset));
-  mov(scratch2, FieldOperand(object2, HeapObject::kMapOffset));
-  movzx_b(scratch1, FieldOperand(scratch1, Map::kInstanceTypeOffset));
-  movzx_b(scratch2, FieldOperand(scratch2, Map::kInstanceTypeOffset));
-
-  // Check that both are flat one-byte strings.
-  const int kFlatOneByteStringMask =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatOneByteStringTag =
-      kStringTag | kOneByteStringTag | kSeqStringTag;
-  // Interleave bits from both instance types and compare them in one check.
-  const int kShift = 8;
-  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << kShift));
-  and_(scratch1, kFlatOneByteStringMask);
-  and_(scratch2, kFlatOneByteStringMask);
-  shl(scratch2, kShift);
-  or_(scratch1, scratch2);
-  cmp(scratch1, kFlatOneByteStringTag | (kFlatOneByteStringTag << kShift));
-  j(not_equal, failure);
-}
-
 void MacroAssembler::JumpIfNotUniqueNameInstanceType(Operand operand,
                                                      Label* not_unique_name,
                                                      Label::Distance distance) {

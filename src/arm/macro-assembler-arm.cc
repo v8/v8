@@ -2322,20 +2322,6 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
 }
 
 
-void MacroAssembler::JumpIfNonSmisNotBothSequentialOneByteStrings(
-    Register first, Register second, Register scratch1, Register scratch2,
-    Label* failure) {
-  // Test that both first and second are sequential one-byte strings.
-  // Assume that they are non-smis.
-  ldr(scratch1, FieldMemOperand(first, HeapObject::kMapOffset));
-  ldr(scratch2, FieldMemOperand(second, HeapObject::kMapOffset));
-  ldrb(scratch1, FieldMemOperand(scratch1, Map::kInstanceTypeOffset));
-  ldrb(scratch2, FieldMemOperand(scratch2, Map::kInstanceTypeOffset));
-
-  JumpIfBothInstanceTypesAreNotSequentialOneByte(scratch1, scratch2, scratch1,
-                                                 scratch2, failure);
-}
-
 void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register reg,
                                                      Label* not_unique_name) {
   STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
@@ -2529,21 +2515,6 @@ void TurboAssembler::FloatMaxOutOfLine(DwVfpRegister result, DwVfpRegister left,
 void TurboAssembler::FloatMinOutOfLine(DwVfpRegister result, DwVfpRegister left,
                                        DwVfpRegister right) {
   FloatMinOutOfLineHelper(result, left, right);
-}
-
-void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialOneByte(
-    Register first, Register second, Register scratch1, Register scratch2,
-    Label* failure) {
-  const int kFlatOneByteStringMask =
-      kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask;
-  const int kFlatOneByteStringTag =
-      kStringTag | kOneByteStringTag | kSeqStringTag;
-  and_(scratch1, first, Operand(kFlatOneByteStringMask));
-  and_(scratch2, second, Operand(kFlatOneByteStringMask));
-  cmp(scratch1, Operand(kFlatOneByteStringTag));
-  // Ignore second test if first test failed.
-  cmp(scratch2, Operand(kFlatOneByteStringTag), eq);
-  b(ne, failure);
 }
 
 static const int kRegisterPassedArguments = 4;

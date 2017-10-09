@@ -1588,64 +1588,6 @@ void TurboAssembler::Push(Smi* source) {
 
 // ----------------------------------------------------------------------------
 
-void MacroAssembler::JumpIfNotBothSequentialOneByteStrings(
-    Register first_object, Register second_object, Register scratch1,
-    Register scratch2, Label* on_fail, Label::Distance near_jump) {
-  // Check that both objects are not smis.
-  Condition either_smi = CheckEitherSmi(first_object, second_object);
-  j(either_smi, on_fail, near_jump);
-
-  // Load instance type for both strings.
-  movp(scratch1, FieldOperand(first_object, HeapObject::kMapOffset));
-  movp(scratch2, FieldOperand(second_object, HeapObject::kMapOffset));
-  movzxbl(scratch1, FieldOperand(scratch1, Map::kInstanceTypeOffset));
-  movzxbl(scratch2, FieldOperand(scratch2, Map::kInstanceTypeOffset));
-
-  // Check that both are flat one-byte strings.
-  DCHECK(kNotStringTag != 0);
-  const int kFlatOneByteStringMask =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatOneByteStringTag =
-      kStringTag | kOneByteStringTag | kSeqStringTag;
-
-  andl(scratch1, Immediate(kFlatOneByteStringMask));
-  andl(scratch2, Immediate(kFlatOneByteStringMask));
-  // Interleave the bits to check both scratch1 and scratch2 in one test.
-  const int kShift = 8;
-  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << kShift));
-  shlp(scratch2, Immediate(kShift));
-  orp(scratch1, scratch2);
-  cmpl(scratch1,
-       Immediate(kFlatOneByteStringTag + (kFlatOneByteStringTag << kShift)));
-  j(not_equal, on_fail, near_jump);
-}
-
-void MacroAssembler::JumpIfBothInstanceTypesAreNotSequentialOneByte(
-    Register first_object_instance_type, Register second_object_instance_type,
-    Register scratch1, Register scratch2, Label* on_fail,
-    Label::Distance near_jump) {
-  // Load instance type for both strings.
-  movp(scratch1, first_object_instance_type);
-  movp(scratch2, second_object_instance_type);
-
-  // Check that both are flat one-byte strings.
-  DCHECK(kNotStringTag != 0);
-  const int kFlatOneByteStringMask =
-      kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
-  const int kFlatOneByteStringTag =
-      kStringTag | kOneByteStringTag | kSeqStringTag;
-
-  andl(scratch1, Immediate(kFlatOneByteStringMask));
-  andl(scratch2, Immediate(kFlatOneByteStringMask));
-  // Interleave the bits to check both scratch1 and scratch2 in one test.
-  DCHECK_EQ(0, kFlatOneByteStringMask & (kFlatOneByteStringMask << 3));
-  leap(scratch1, Operand(scratch1, scratch2, times_8, 0));
-  cmpl(scratch1,
-       Immediate(kFlatOneByteStringTag + (kFlatOneByteStringTag << 3)));
-  j(not_equal, on_fail, near_jump);
-}
-
-
 template<class T>
 static void JumpIfNotUniqueNameHelper(MacroAssembler* masm,
                                       T operand_or_register,

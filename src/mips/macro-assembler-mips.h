@@ -1301,21 +1301,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
   // -------------------------------------------------------------------------
   // String utilities.
 
-  // Checks if both instance types are sequential ASCII strings and jumps to
-  // label if either is not.
-  void JumpIfBothInstanceTypesAreNotSequentialOneByte(
-      Register first_object_instance_type, Register second_object_instance_type,
-      Register scratch1, Register scratch2, Label* failure);
-
   void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name);
-
-  // Checks if both objects are sequential one-byte strings and jumps to label
-  // if either is not. Assumes that neither object is a smi.
-  void JumpIfNonSmisNotBothSequentialOneByteStrings(Register first,
-                                                    Register second,
-                                                    Register scratch1,
-                                                    Register scratch2,
-                                                    Label* failure);
 
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void LoadAccessor(Register dst, Register holder, int accessor_index,
