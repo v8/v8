@@ -24,7 +24,7 @@ namespace wasm {
 
 class MockPlatform final : public TestPlatform {
  public:
-  MockPlatform() {
+  MockPlatform() : old_platform_(i::V8::GetCurrentPlatform()) {
     // Now that it's completely constructed, make this the current platform.
     i::V8::SetPlatformForTesting(this);
   }
@@ -35,6 +35,7 @@ class MockPlatform final : public TestPlatform {
       tasks_.pop_back();
       delete task;
     }
+    i::V8::SetPlatformForTesting(old_platform_);
   }
 
   void CallOnForegroundThread(v8::Isolate* isolate, Task* task) override {
@@ -60,6 +61,7 @@ class MockPlatform final : public TestPlatform {
  private:
   // We do not execute tasks concurrently, so we only need one list of tasks.
   std::vector<Task*> tasks_;
+  v8::Platform* old_platform_;
 };
 
 namespace {
@@ -86,7 +88,9 @@ class StreamTester {
   std::shared_ptr<StreamingDecoder> stream() { return stream_; }
 
   // Run all compiler tasks, both foreground and background tasks.
-  void RunCompilerTasks() { platform_.ExecuteTasks(); }
+  void RunCompilerTasks() {
+    static_cast<MockPlatform*>(i::V8::GetCurrentPlatform())->ExecuteTasks();
+  }
 
   bool IsPromiseFulfilled() {
     return promise_->State() == v8::Promise::kFulfilled;
@@ -109,7 +113,6 @@ class StreamTester {
  private:
   AccountingAllocator allocator_;
   Zone zone_;
-  MockPlatform platform_;
   v8::Local<v8::Promise> promise_;
   std::shared_ptr<StreamingDecoder> stream_;
 };
@@ -118,6 +121,7 @@ class StreamTester {
 #define STREAM_TEST(name)                               \
   void RunStream_##name();                              \
   TEST(name) {                                          \
+    MockPlatform platform;                              \
     CcTest::InitializeVM();                             \
     v8::HandleScope handle_scope(CcTest::isolate());    \
     i::HandleScope internal_scope(CcTest::i_isolate()); \
