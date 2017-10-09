@@ -2937,17 +2937,12 @@ void TurboAssembler::CheckPageFlagClear(const Register& object,
   TestAndBranchIfAllClear(scratch, mask, if_all_clear);
 }
 
-
-void MacroAssembler::RecordWriteField(
-    Register object,
-    int offset,
-    Register value,
-    Register scratch,
-    LinkRegisterStatus lr_status,
-    SaveFPRegsMode save_fp,
-    RememberedSetAction remembered_set_action,
-    SmiCheck smi_check,
-    PointersToHereCheck pointers_to_here_check_for_value) {
+void MacroAssembler::RecordWriteField(Register object, int offset,
+                                      Register value, Register scratch,
+                                      LinkRegisterStatus lr_status,
+                                      SaveFPRegsMode save_fp,
+                                      RememberedSetAction remembered_set_action,
+                                      SmiCheck smi_check) {
   // First, check if a write barrier is even needed. The tests below
   // catch stores of Smis.
   Label done;
@@ -2970,14 +2965,8 @@ void MacroAssembler::RecordWriteField(
     Bind(&ok);
   }
 
-  RecordWrite(object,
-              scratch,
-              value,
-              lr_status,
-              save_fp,
-              remembered_set_action,
-              OMIT_SMI_CHECK,
-              pointers_to_here_check_for_value);
+  RecordWrite(object, scratch, value, lr_status, save_fp, remembered_set_action,
+              OMIT_SMI_CHECK);
 
   Bind(&done);
 
@@ -3057,15 +3046,11 @@ void TurboAssembler::CallRecordWriteStub(
 //
 // The register 'object' contains a heap object pointer. The heap object tag is
 // shifted away.
-void MacroAssembler::RecordWrite(
-    Register object,
-    Register address,
-    Register value,
-    LinkRegisterStatus lr_status,
-    SaveFPRegsMode fp_mode,
-    RememberedSetAction remembered_set_action,
-    SmiCheck smi_check,
-    PointersToHereCheck pointers_to_here_check_for_value) {
+void MacroAssembler::RecordWrite(Register object, Register address,
+                                 Register value, LinkRegisterStatus lr_status,
+                                 SaveFPRegsMode fp_mode,
+                                 RememberedSetAction remembered_set_action,
+                                 SmiCheck smi_check) {
   ASM_LOCATION_IN_ASSEMBLER("MacroAssembler::RecordWrite");
   DCHECK(!AreAliased(object, value));
 
@@ -3087,12 +3072,9 @@ void MacroAssembler::RecordWrite(
     JumpIfSmi(value, &done);
   }
 
-  if (pointers_to_here_check_for_value != kPointersToHereAreAlwaysInteresting) {
-    CheckPageFlagClear(value,
-                       value,  // Used as scratch.
-                       MemoryChunk::kPointersToHereAreInterestingMask,
-                       &done);
-  }
+  CheckPageFlagClear(value,
+                     value,  // Used as scratch.
+                     MemoryChunk::kPointersToHereAreInterestingMask, &done);
   CheckPageFlagClear(object,
                      value,  // Used as scratch.
                      MemoryChunk::kPointersFromHereAreInterestingMask,
