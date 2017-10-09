@@ -434,9 +434,10 @@ void ConcurrentMarking::ScheduleTasks() {
       task_state_[i].interrupt_request.SetValue(false);
       is_pending_[i] = true;
       ++pending_task_count_;
+      Task* task = new Task(heap_->isolate(), this, &task_state_[i], i);
+      cancelable_id_[i] = task->id();
       V8::GetCurrentPlatform()->CallOnBackgroundThread(
-          new Task(heap_->isolate(), this, &task_state_[i], i),
-          v8::Platform::kShortRunningTask);
+          task, v8::Platform::kShortRunningTask);
     }
   }
 }
@@ -452,11 +453,33 @@ void ConcurrentMarking::RescheduleTasksIfNeeded() {
   }
 }
 
-void ConcurrentMarking::EnsureCompleted() {
+void ConcurrentMarking::WaitForTasks() {
   if (!FLAG_concurrent_marking) return;
   base::LockGuard<base::Mutex> guard(&pending_lock_);
   while (pending_task_count_ > 0) {
     pending_condition_.Wait(&pending_lock_);
+  }
+}
+
+void ConcurrentMarking::EnsureCompleted() {
+  if (!FLAG_concurrent_marking) return;
+  base::LockGuard<base::Mutex> guard(&pending_lock_);
+  CancelableTaskManager* task_manager =
+      heap_->isolate()->cancelable_task_manager();
+  for (int i = 1; i <= task_count_; i++) {
+    if (is_pending_[i]) {
+      if (task_manager->TryAbort(cancelable_id_[i]) ==
+          CancelableTaskManager::kTaskAborted) {
+        is_pending_[i] = false;
+        --pending_task_count_;
+      }
+    }
+  }
+  while (pending_task_count_ > 0) {
+    pending_condition_.Wait(&pending_lock_);
+  }
+  for (int i = 1; i <= task_count_; i++) {
+    DCHECK(!is_pending_[i]);
   }
 }
 

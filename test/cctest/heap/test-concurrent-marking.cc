@@ -43,6 +43,7 @@ TEST(ConcurrentMarking) {
       new ConcurrentMarking(heap, &shared, &bailout, &weak_objects);
   PublishSegment(&shared, heap->undefined_value());
   concurrent_marking->ScheduleTasks();
+  concurrent_marking->WaitForTasks();
   concurrent_marking->EnsureCompleted();
   delete concurrent_marking;
 }
@@ -64,9 +65,11 @@ TEST(ConcurrentMarkingReschedule) {
       new ConcurrentMarking(heap, &shared, &bailout, &weak_objects);
   PublishSegment(&shared, heap->undefined_value());
   concurrent_marking->ScheduleTasks();
+  concurrent_marking->WaitForTasks();
   concurrent_marking->EnsureCompleted();
   PublishSegment(&shared, heap->undefined_value());
   concurrent_marking->RescheduleTasksIfNeeded();
+  concurrent_marking->WaitForTasks();
   concurrent_marking->EnsureCompleted();
   delete concurrent_marking;
 }
@@ -81,6 +84,7 @@ TEST(ConcurrentMarkingMarkedBytes) {
   CcTest::CollectAllGarbage();
   if (!heap->incremental_marking()->IsStopped()) return;
   heap::SimulateIncrementalMarking(heap, false);
+  heap->concurrent_marking()->WaitForTasks();
   heap->concurrent_marking()->EnsureCompleted();
   CHECK_GE(heap->concurrent_marking()->TotalMarkedBytes(), root->Size());
 }
