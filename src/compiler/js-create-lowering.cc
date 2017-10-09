@@ -604,11 +604,11 @@ Reduction JSCreateLowering::ReduceNewArray(Node* node, Node* length,
       control);
 
   // Construct elements and properties for the resulting JSArray.
-  Node* elements = effect = graph()->NewNode(
-      IsDoubleElementsKind(initial_map->elements_kind())
-          ? simplified()->NewFastDoubleElements(pretenure)
-          : simplified()->NewFastSmiOrObjectElements(pretenure),
-      length, effect, control);
+  Node* elements = effect =
+      graph()->NewNode(IsDoubleElementsKind(initial_map->elements_kind())
+                           ? simplified()->NewDoubleElements(pretenure)
+                           : simplified()->NewSmiOrObjectElements(pretenure),
+                       length, effect, control);
   Node* properties = jsgraph()->EmptyFixedArrayConstant();
 
   // Perform the allocation of the actual JSArray object.

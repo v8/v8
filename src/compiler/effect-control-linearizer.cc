@@ -810,11 +810,11 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kArgumentsLength:
       result = LowerArgumentsLength(node);
       break;
-    case IrOpcode::kNewFastDoubleElements:
-      result = LowerNewFastDoubleElements(node);
+    case IrOpcode::kNewDoubleElements:
+      result = LowerNewDoubleElements(node);
       break;
-    case IrOpcode::kNewFastSmiOrObjectElements:
-      result = LowerNewFastSmiOrObjectElements(node);
+    case IrOpcode::kNewSmiOrObjectElements:
+      result = LowerNewSmiOrObjectElements(node);
       break;
     case IrOpcode::kNewArgumentsElements:
       result = LowerNewArgumentsElements(node);
@@ -2281,7 +2281,7 @@ Node* EffectControlLinearizer::LowerArgumentsFrame(Node* node) {
   return done.PhiAt(0);
 }
 
-Node* EffectControlLinearizer::LowerNewFastDoubleElements(Node* node) {
+Node* EffectControlLinearizer::LowerNewDoubleElements(Node* node) {
   PretenureFlag const pretenure = PretenureFlagOf(node->op());
   Node* length = node->InputAt(0);
 
@@ -2328,7 +2328,7 @@ Node* EffectControlLinearizer::LowerNewFastDoubleElements(Node* node) {
   return result;
 }
 
-Node* EffectControlLinearizer::LowerNewFastSmiOrObjectElements(Node* node) {
+Node* EffectControlLinearizer::LowerNewSmiOrObjectElements(Node* node) {
   PretenureFlag const pretenure = PretenureFlagOf(node->op());
   Node* length = node->InputAt(0);
 

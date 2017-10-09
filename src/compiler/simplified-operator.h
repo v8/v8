@@ -452,8 +452,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ArgumentsLength(int formal_parameter_count,
                                   bool is_rest_length);
 
-  const Operator* NewFastDoubleElements(PretenureFlag);
-  const Operator* NewFastSmiOrObjectElements(PretenureFlag);
+  const Operator* NewDoubleElements(PretenureFlag);
+  const Operator* NewSmiOrObjectElements(PretenureFlag);
 
   // new-arguments-elements arguments-frame, arguments-length
   const Operator* NewArgumentsElements(int mapped_count);

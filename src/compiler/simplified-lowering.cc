@@ -2787,8 +2787,8 @@ class RepresentationSelector {
                   MachineRepresentation::kTaggedSigned);
         return;
       }
-      case IrOpcode::kNewFastDoubleElements:
-      case IrOpcode::kNewFastSmiOrObjectElements: {
+      case IrOpcode::kNewDoubleElements:
+      case IrOpcode::kNewSmiOrObjectElements: {
         VisitUnop(node, UseInfo::TruncatingWord32(),
                   MachineRepresentation::kTaggedPointer);
         return;

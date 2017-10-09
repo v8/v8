@@ -1042,8 +1042,8 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kArgumentsFrame:
       CheckTypeIs(node, Type::ExternalPointer());
       break;
-    case IrOpcode::kNewFastDoubleElements:
-    case IrOpcode::kNewFastSmiOrObjectElements:
+    case IrOpcode::kNewDoubleElements:
+    case IrOpcode::kNewSmiOrObjectElements:
       CheckValueInputIs(node, 0,
                         Type::Range(0.0, FixedArray::kMaxLength, zone));
       CheckTypeIs(node, Type::OtherInternal());

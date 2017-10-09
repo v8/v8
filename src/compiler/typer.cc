@@ -2040,11 +2040,11 @@ Type* Typer::Visitor::TypeArgumentsFrame(Node* node) {
   return Type::ExternalPointer();
 }
 
-Type* Typer::Visitor::TypeNewFastDoubleElements(Node* node) {
+Type* Typer::Visitor::TypeNewDoubleElements(Node* node) {
   return Type::OtherInternal();
 }
 
-Type* Typer::Visitor::TypeNewFastSmiOrObjectElements(Node* node) {
+Type* Typer::Visitor::TypeNewSmiOrObjectElements(Node* node) {
   return Type::OtherInternal();
 }
 
