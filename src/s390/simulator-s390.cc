@@ -1976,9 +1976,8 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       int arg0_regnum = 2;
       intptr_t result_buffer = 0;
       bool uses_result_buffer =
-          redirection->type() == ExternalReference::BUILTIN_CALL_TRIPLE ||
-          (redirection->type() == ExternalReference::BUILTIN_CALL_PAIR &&
-           !ABI_RETURNS_OBJECTPAIR_IN_REGS);
+          redirection->type() == ExternalReference::BUILTIN_CALL_PAIR &&
+          !ABI_RETURNS_OBJECTPAIR_IN_REGS;
       if (uses_result_buffer) {
         result_buffer = get_register(r2);
         arg0_regnum++;
