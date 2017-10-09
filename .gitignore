@@ -72,9 +72,7 @@
 /tools/gyp
 /tools/jsfunfuzz/jsfunfuzz
 /tools/jsfunfuzz/jsfunfuzz.tar.gz
-/tools/luci-go/linux64/isolate
-/tools/luci-go/mac64/isolate
-/tools/luci-go/win64/isolate.exe
+/tools/luci-go
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o
 /tools/swarming_client
