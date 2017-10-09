@@ -1176,9 +1176,14 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
   heap_->tracer()->AddIncrementalMarkingStep(duration, bytes_processed);
   if (FLAG_trace_incremental_marking) {
     heap_->isolate()->PrintWithTimestamp(
-        "[IncrementalMarking] Step %s %zu bytes (%zu) in %.1f\n",
-        step_origin == StepOrigin::kV8 ? "in v8" : "in task", bytes_processed,
-        bytes_to_process, duration);
+        "[IncrementalMarking] Step %s %" PRIuS "KB (%" PRIuS "KB) in %.1f\n",
+        step_origin == StepOrigin::kV8 ? "in v8" : "in task",
+        bytes_processed / KB, bytes_to_process / KB, duration);
+  }
+  if (FLAG_trace_concurrent_marking) {
+    heap_->isolate()->PrintWithTimestamp(
+        "Concurrently marked %" PRIuS "KB\n",
+        heap_->concurrent_marking()->TotalMarkedBytes() / KB);
   }
   return bytes_processed;
 }

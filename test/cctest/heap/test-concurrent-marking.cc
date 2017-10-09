@@ -62,6 +62,20 @@ TEST(ConcurrentMarkingReschedule) {
   delete concurrent_marking;
 }
 
+TEST(ConcurrentMarkingMarkedBytes) {
+  if (!i::FLAG_concurrent_marking) return;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = CcTest::heap();
+  HandleScope sc(isolate);
+  Handle<FixedArray> root = isolate->factory()->NewFixedArray(1000000);
+  CcTest::CollectAllGarbage();
+  if (!heap->incremental_marking()->IsStopped()) return;
+  heap::SimulateIncrementalMarking(heap, false);
+  heap->concurrent_marking()->EnsureCompleted();
+  CHECK_GE(heap->concurrent_marking()->TotalMarkedBytes(), root->Size());
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

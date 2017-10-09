@@ -353,7 +353,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
   ConcurrentMarkingVisitor visitor(shared_, bailout_, live_bytes, weak_objects_,
                                    task_id);
   double time_ms;
-  size_t total_bytes_marked = 0;
+  size_t marked_bytes = 0;
   if (FLAG_trace_concurrent_marking) {
     heap_->isolate()->PrintWithTimestamp(
         "Starting concurrent marking task %d\n", task_id);
@@ -363,9 +363,9 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
     bool done = false;
     while (!done) {
       base::LockGuard<base::Mutex> guard(&task_state->lock);
-      size_t bytes_marked = 0;
+      size_t current_marked_bytes = 0;
       int objects_processed = 0;
-      while (bytes_marked < kBytesUntilInterruptCheck &&
+      while (current_marked_bytes < kBytesUntilInterruptCheck &&
              objects_processed < kObjectsUntilInterrupCheck) {
         HeapObject* object;
         if (!shared_->Pop(task_id, &object)) {
@@ -380,10 +380,12 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
           bailout_->Push(task_id, object);
         } else {
           Map* map = object->synchronized_map();
-          bytes_marked += visitor.Visit(map, object);
+          current_marked_bytes += visitor.Visit(map, object);
         }
       }
-      total_bytes_marked += bytes_marked;
+      marked_bytes += current_marked_bytes;
+      base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes,
+                                                marked_bytes);
       if (task_state->interrupt_request.Value()) {
         task_state->interrupt_condition.Wait(&task_state->lock);
       }
@@ -402,11 +404,13 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
       --pending_task_count_;
       pending_condition_.NotifyAll();
     }
+    base::AsAtomicWord::Relaxed_Store<size_t>(&task_state->marked_bytes, 0);
+    total_marked_bytes_.Increment(marked_bytes);
   }
   if (FLAG_trace_concurrent_marking) {
     heap_->isolate()->PrintWithTimestamp(
         "Task %d concurrently marked %dKB in %.2fms\n", task_id,
-        static_cast<int>(total_bytes_marked / KB), time_ms);
+        static_cast<int>(marked_bytes / KB), time_ms);
   }
 }
 
@@ -470,6 +474,7 @@ void ConcurrentMarking::FlushLiveBytes(
     }
     live_bytes.clear();
   }
+  total_marked_bytes_.SetValue(0);
 }
 
 void ConcurrentMarking::ClearLiveness(MemoryChunk* chunk) {
@@ -478,6 +483,16 @@ void ConcurrentMarking::ClearLiveness(MemoryChunk* chunk) {
       task_state_[i].live_bytes[chunk] = 0;
     }
   }
+}
+
+size_t ConcurrentMarking::TotalMarkedBytes() {
+  size_t result = 0;
+  for (int i = 1; i <= task_count_; i++) {
+    result +=
+        base::AsAtomicWord::Relaxed_Load<size_t>(&task_state_[i].marked_bytes);
+  }
+  result += total_marked_bytes_.Value();
+  return result;
 }
 
 ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)

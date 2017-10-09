@@ -53,6 +53,8 @@ class ConcurrentMarking {
 
   int TaskCount() { return task_count_; }
 
+  size_t TotalMarkedBytes();
+
  private:
   struct TaskState {
     // When the concurrent marking task has this lock, then objects in the
@@ -65,6 +67,7 @@ class ConcurrentMarking {
     // flag is cleared by the main thread.
     base::ConditionVariable interrupt_condition;
     LiveBytesMap live_bytes;
+    size_t marked_bytes;
     char cache_line_padding[64];
   };
   class Task;
@@ -74,6 +77,7 @@ class ConcurrentMarking {
   MarkingWorklist* bailout_;
   WeakObjects* weak_objects_;
   TaskState task_state_[kMaxTasks + 1];
+  base::AtomicNumber<size_t> total_marked_bytes_;
   base::Mutex pending_lock_;
   base::ConditionVariable pending_condition_;
   int pending_task_count_;
