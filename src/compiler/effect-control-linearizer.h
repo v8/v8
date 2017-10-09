@@ -125,6 +125,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerLoadFieldByIndex(Node* node);
   Node* LowerLoadTypedElement(Node* node);
   void LowerStoreTypedElement(Node* node);
+  void LowerStoreSignedSmallElement(Node* node);
   Node* LowerLookupHashStorageIndex(Node* node);
   Node* LowerLookupSigned32HashStorageIndex(Node* node);
   void LowerTransitionAndStoreElement(Node* node);

@@ -485,6 +485,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // store-element [base + index], value, only with fast arrays.
   const Operator* TransitionAndStoreElement(Handle<Map> double_map,
                                             Handle<Map> fast_map);
+  // store-element [base + index], smi value, only with fast arrays.
+  const Operator* StoreSignedSmallElement();
 
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);

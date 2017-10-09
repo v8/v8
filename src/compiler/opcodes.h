@@ -353,6 +353,7 @@
   V(StoreField)                     \
   V(StoreElement)                   \
   V(StoreTypedElement)              \
+  V(StoreSignedSmallElement)        \
   V(TransitionAndStoreElement)      \
   V(ObjectIsArrayBufferView)        \
   V(ObjectIsCallable)               \

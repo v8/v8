@@ -891,6 +891,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStoreTypedElement:
       LowerStoreTypedElement(node);
       break;
+    case IrOpcode::kStoreSignedSmallElement:
+      LowerStoreSignedSmallElement(node);
+      break;
     case IrOpcode::kLookupHashStorageIndex:
       result = LowerLookupHashStorageIndex(node);
       break;
@@ -3295,6 +3298,63 @@ void EffectControlLinearizer::LowerTransitionAndStoreElement(Node* node) {
                       index, float_value);
       __ Goto(&done);
     }
+  }
+
+  __ Bind(&done);
+}
+
+void EffectControlLinearizer::LowerStoreSignedSmallElement(Node* node) {
+  Node* array = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);
+
+  // Store a signed small in an output array.
+  //
+  //   kind = ElementsKind(array)
+  //
+  //   -- STORE PHASE ----------------------
+  //   if kind == HOLEY_DOUBLE_ELEMENTS {
+  //     float_value = convert smi to float
+  //     Store array[index] = float_value
+  //   } else {
+  //     // kind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS
+  //     Store array[index] = value
+  //   }
+  //
+  Node* map = __ LoadField(AccessBuilder::ForMap(), array);
+  Node* kind;
+  {
+    Node* bit_field2 = __ LoadField(AccessBuilder::ForMapBitField2(), map);
+    Node* mask = __ Int32Constant(Map::ElementsKindBits::kMask);
+    Node* andit = __ Word32And(bit_field2, mask);
+    Node* shift = __ Int32Constant(Map::ElementsKindBits::kShift);
+    kind = __ Word32Shr(andit, shift);
+  }
+
+  Node* elements = __ LoadField(AccessBuilder::ForJSObjectElements(), array);
+  auto if_kind_is_double = __ MakeLabel();
+  auto done = __ MakeLabel();
+  __ GotoIf(IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS),
+            &if_kind_is_double);
+  {
+    // Our ElementsKind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS.
+    // In this case, we know our value is a signed small, and we can optimize
+    // the ElementAccess information.
+    ElementAccess access = AccessBuilder::ForFixedArrayElement();
+    access.type = Type::SignedSmall();
+    access.machine_type = MachineType::TaggedSigned();
+    access.write_barrier_kind = kNoWriteBarrier;
+    __ StoreElement(access, elements, index, value);
+    __ Goto(&done);
+  }
+  __ Bind(&if_kind_is_double);
+  {
+    // Our ElementsKind is HOLEY_DOUBLE_ELEMENTS.
+    Node* int_value = ChangeSmiToInt32(value);
+    Node* float_value = __ ChangeInt32ToFloat64(int_value);
+    __ StoreElement(AccessBuilder::ForFixedDoubleArrayElement(), elements,
+                    index, float_value);
+    __ Goto(&done);
   }
 
   __ Bind(&done);

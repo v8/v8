@@ -1076,6 +1076,12 @@ const Operator* SimplifiedOperatorBuilder::TransitionAndStoreElement(
       1, 1, 0, 1, 0, parameters);
 }
 
+const Operator* SimplifiedOperatorBuilder::StoreSignedSmallElement() {
+  return new (zone()) Operator(IrOpcode::kStoreSignedSmallElement,
+                               Operator::kNoDeopt | Operator::kNoThrow,
+                               "StoreSignedSmallElement", 3, 1, 1, 0, 1, 0);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

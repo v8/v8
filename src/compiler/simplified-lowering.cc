@@ -2577,9 +2577,19 @@ class RepresentationSelector {
         return;
       }
       case IrOpcode::kTransitionAndStoreElement: {
+        Type* value_type = TypeOf(node->InputAt(2));
+
         ProcessInput(node, 0, UseInfo::AnyTagged());         // array
         ProcessInput(node, 1, UseInfo::TruncatingWord32());  // index
         ProcessInput(node, 2, UseInfo::AnyTagged());         // value
+
+        if (value_type->Is(Type::SignedSmall())) {
+          if (lower()) {
+            NodeProperties::ChangeOp(node,
+                                     simplified()->StoreSignedSmallElement());
+          }
+        }
+
         ProcessRemainingInputs(node, 3);
         SetOutput(node, MachineRepresentation::kNone);
         return;
