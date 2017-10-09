@@ -2258,7 +2258,6 @@ class Heap {
   Space* space_[LAST_SPACE + 1];
   HeapState gc_state_;
   int gc_post_processing_depth_;
-  Address new_space_top_after_last_gc_;
 
   // Returns the amount of external memory registered since last global gc.
   uint64_t PromotedExternalMemorySize();

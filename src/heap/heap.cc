@@ -935,9 +935,6 @@ void Heap::GarbageCollectionEpilogue() {
   ReportStatisticsAfterGC();
 #endif  // DEBUG
 
-  // Remember the last top pointer so that we can later find out
-  // whether we allocated in new space since the last GC.
-  new_space_top_after_last_gc_ = new_space()->top();
   last_gc_time_ = MonotonicallyIncreasingTimeInMs();
 
   {
@@ -5431,7 +5428,6 @@ bool Heap::SetUp() {
   if (!new_space_->SetUp(initial_semispace_size_, max_semi_space_size_)) {
     return false;
   }
-  new_space_top_after_last_gc_ = new_space()->top();
 
   space_[OLD_SPACE] = old_space_ =
       new OldSpace(this, OLD_SPACE, NOT_EXECUTABLE);
