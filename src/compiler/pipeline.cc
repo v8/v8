@@ -844,7 +844,7 @@ void PipelineWasmCompilationJob::ValidateImmovableEmbeddedObjects() const {
       case RelocInfo::CODE_TARGET:
         // this would be either one of the stubs or builtins, because
         // we didn't link yet.
-        target = reinterpret_cast<Object*>(it.rinfo()->target_address());
+        target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
         break;
       case RelocInfo::EMBEDDED_OBJECT:
         target = it.rinfo()->target_object();
@@ -855,7 +855,17 @@ void PipelineWasmCompilationJob::ValidateImmovableEmbeddedObjects() const {
     CHECK_NOT_NULL(target);
     bool is_immovable =
         target->IsSmi() || Heap::IsImmovable(HeapObject::cast(target));
-    CHECK(is_immovable);
+    bool is_wasm = target->IsCode() &&
+                   (Code::cast(target)->kind() == Code::WASM_FUNCTION ||
+                    Code::cast(target)->kind() == Code::WASM_TO_JS_FUNCTION);
+    bool is_allowed_stub = false;
+    if (target->IsCode()) {
+      Code* code = Code::cast(target);
+      is_allowed_stub =
+          code->kind() == Code::STUB &&
+          CodeStub::MajorKeyFromKey(code->stub_key()) == CodeStub::DoubleToI;
+    }
+    CHECK(is_immovable || is_wasm || is_allowed_stub);
   }
 }
 
