@@ -18,8 +18,6 @@ namespace internal {
   V(kAllocationIsNotDoubleAligned, "Allocation is not double aligned")         \
   V(kAPICallReturnedInvalidObject, "API call returned invalid object")         \
   V(kBailedOutDueToDependencyChange, "Bailed out due to dependency change")    \
-  V(kBothRegistersWereSmisInSelectNonSmi,                                      \
-    "Both registers were smis in SelectNonSmi")                                \
   V(kClassConstructorFunction, "Class constructor function")                   \
   V(kClassLiteral, "Class literal")                                            \
   V(kCodeGenerationFailed, "Code generation failed")                           \

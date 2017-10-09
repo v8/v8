@@ -687,13 +687,6 @@ class MacroAssembler : public TurboAssembler {
   // Functions performing a check on a known or potential smi. Returns
   // a condition that is satisfied if the check is successful.
 
-  // Are both values tagged smis.
-  Condition CheckBothSmi(Register first, Register second);
-
-  // Are either value a tagged smi.
-  Condition CheckEitherSmi(Register first,
-                           Register second,
-                           Register scratch = kScratchRegister);
   // Test-and-jump functions. Typically combines a check function
   // above with a conditional jump.
 
@@ -705,12 +698,6 @@ class MacroAssembler : public TurboAssembler {
   // Jump to label if the value is not a tagged smi.
   void JumpIfNotSmi(Operand src, Label* on_not_smi,
                     Label::Distance near_jump = Label::kFar);
-
-  // Jump if either or both register are not smi values.
-  void JumpIfNotBothSmi(Register src1,
-                        Register src2,
-                        Label* on_not_both_smi,
-                        Label::Distance near_jump = Label::kFar);
 
   // Operations on tagged smi values.
 
@@ -783,14 +770,6 @@ class MacroAssembler : public TurboAssembler {
               const Operand& src2);
 
   // Specialized operations
-
-  // Select the non-smi register of two registers where exactly one is a
-  // smi. If neither are smis, jump to the failure label.
-  void SelectNonSmi(Register dst,
-                    Register src1,
-                    Register src2,
-                    Label* on_not_smis,
-                    Label::Distance near_jump = Label::kFar);
 
   // Converts, if necessary, a smi to a combination of number and
   // multiplier to be used as a scaled index.

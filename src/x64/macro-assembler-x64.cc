@@ -1066,41 +1066,6 @@ Condition TurboAssembler::CheckSmi(const Operand& src) {
   return zero;
 }
 
-Condition MacroAssembler::CheckBothSmi(Register first, Register second) {
-  if (first == second) {
-    return CheckSmi(first);
-  }
-  STATIC_ASSERT(kSmiTag == 0 && kHeapObjectTag == 1 && kHeapObjectTagMask == 3);
-  if (SmiValuesAre32Bits()) {
-    leal(kScratchRegister, Operand(first, second, times_1, 0));
-    testb(kScratchRegister, Immediate(0x03));
-  } else {
-    DCHECK(SmiValuesAre31Bits());
-    movl(kScratchRegister, first);
-    orl(kScratchRegister, second);
-    testb(kScratchRegister, Immediate(kSmiTagMask));
-  }
-  return zero;
-}
-
-Condition MacroAssembler::CheckEitherSmi(Register first,
-                                         Register second,
-                                         Register scratch) {
-  if (first == second) {
-    return CheckSmi(first);
-  }
-  if (scratch == second) {
-    andl(scratch, first);
-  } else {
-    if (scratch != first) {
-      movl(scratch, first);
-    }
-    andl(scratch, second);
-  }
-  testb(scratch, Immediate(kSmiTagMask));
-  return zero;
-}
-
 void TurboAssembler::JumpIfSmi(Register src, Label* on_smi,
                                Label::Distance near_jump) {
   Condition smi = CheckSmi(src);
@@ -1119,14 +1084,6 @@ void MacroAssembler::JumpIfNotSmi(Operand src, Label* on_not_smi,
                                   Label::Distance near_jump) {
   Condition smi = CheckSmi(src);
   j(NegateCondition(smi), on_not_smi, near_jump);
-}
-
-void MacroAssembler::JumpIfNotBothSmi(Register src1,
-                                      Register src2,
-                                      Label* on_not_both_smi,
-                                      Label::Distance near_jump) {
-  Condition both_smi = CheckBothSmi(src1, src2);
-  j(NegateCondition(both_smi), on_not_both_smi, near_jump);
 }
 
 void MacroAssembler::SmiAddConstant(Register dst, Register src, Smi* constant) {
@@ -1399,43 +1356,6 @@ void MacroAssembler::SmiSub(Register dst,
                             const Operand& src2) {
   SmiSubNoOverflowHelper<Operand>(this, dst, src1, src2);
 }
-
-void MacroAssembler::SelectNonSmi(Register dst,
-                                  Register src1,
-                                  Register src2,
-                                  Label* on_not_smis,
-                                  Label::Distance near_jump) {
-  DCHECK(dst != kScratchRegister);
-  DCHECK(src1 != kScratchRegister);
-  DCHECK(src2 != kScratchRegister);
-  DCHECK(dst != src1);
-  DCHECK(dst != src2);
-  // Both operands must not be smis.
-#ifdef DEBUG
-  Condition not_both_smis = NegateCondition(CheckBothSmi(src1, src2));
-  Check(not_both_smis, kBothRegistersWereSmisInSelectNonSmi);
-#endif
-  STATIC_ASSERT(kSmiTag == 0);
-  DCHECK_EQ(static_cast<Smi*>(0), Smi::kZero);
-  movl(kScratchRegister, Immediate(kSmiTagMask));
-  andp(kScratchRegister, src1);
-  testl(kScratchRegister, src2);
-  // If non-zero then both are smis.
-  j(not_zero, on_not_smis, near_jump);
-
-  // Exactly one operand is a smi.
-  DCHECK_EQ(1, static_cast<int>(kSmiTagMask));
-  // kScratchRegister still holds src1 & kSmiTag, which is either zero or one.
-  subp(kScratchRegister, Immediate(1));
-  // If src1 is a smi, then scratch register all 1s, else it is all 0s.
-  movp(dst, src1);
-  xorp(dst, src2);
-  andp(dst, kScratchRegister);
-  // If src1 is a smi, dst holds src1 ^ src2, else it is zero.
-  xorp(dst, src1);
-  // If src1 is a smi, dst is src2, else it is src1, i.e., the non-smi.
-}
-
 
 SmiIndex MacroAssembler::SmiToIndex(Register dst,
                                     Register src,

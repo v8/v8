@@ -395,39 +395,6 @@ TEST(SmiCheck) {
   cond = masm->CheckSmi(rcx);
   __ j(cond, &exit);
 
-  // CheckBothSmi
-
-  __ incq(rax);
-  __ movq(rcx, Immediate(Smi::kMaxValue));
-  __ Integer32ToSmi(rcx, rcx);
-  __ movq(rdx, Immediate(Smi::kMinValue));
-  __ Integer32ToSmi(rdx, rdx);
-  cond = masm->CheckBothSmi(rcx, rdx);
-  __ j(NegateCondition(cond), &exit);
-
-  __ incq(rax);
-  __ xorq(rcx, Immediate(kSmiTagMask));
-  cond = masm->CheckBothSmi(rcx, rdx);
-  __ j(cond, &exit);
-
-  __ incq(rax);
-  __ xorq(rdx, Immediate(kSmiTagMask));
-  cond = masm->CheckBothSmi(rcx, rdx);
-  __ j(cond, &exit);
-
-  __ incq(rax);
-  __ xorq(rcx, Immediate(kSmiTagMask));
-  cond = masm->CheckBothSmi(rcx, rdx);
-  __ j(cond, &exit);
-
-  __ incq(rax);
-  cond = masm->CheckBothSmi(rcx, rcx);
-  __ j(NegateCondition(cond), &exit);
-
-  __ incq(rax);
-  cond = masm->CheckBothSmi(rdx, rdx);
-  __ j(cond, &exit);
-
   // Success
   __ xorq(rax, rax);
 
@@ -922,75 +889,6 @@ TEST(SmiIndex) {
   TestSmiIndex(masm, &exit, 0x30, 100);
   TestSmiIndex(masm, &exit, 0x40, 1000);
   TestSmiIndex(masm, &exit, 0x50, Smi::kMaxValue);
-
-  __ xorq(rax, rax);  // Success.
-  __ bind(&exit);
-  ExitCode(masm);
-  __ ret(0);
-
-  CodeDesc desc;
-  masm->GetCode(isolate, &desc);
-  // Call the function from C++.
-  int result = FUNCTION_CAST<F0>(buffer)();
-  CHECK_EQ(0, result);
-}
-
-void TestSelectNonSmi(MacroAssembler* masm, Label* exit, int id, int x, int y) {
-  __ movl(rax, Immediate(id));
-  __ Move(rcx, Smi::FromInt(x));
-  __ Move(rdx, Smi::FromInt(y));
-  __ xorq(rdx, Immediate(kSmiTagMask));
-  __ SelectNonSmi(r9, rcx, rdx, exit);
-
-  __ incq(rax);
-  __ cmpq(r9, rdx);
-  __ j(not_equal, exit);
-
-  __ incq(rax);
-  __ Move(rcx, Smi::FromInt(x));
-  __ Move(rdx, Smi::FromInt(y));
-  __ xorq(rcx, Immediate(kSmiTagMask));
-  __ SelectNonSmi(r9, rcx, rdx, exit);
-
-  __ incq(rax);
-  __ cmpq(r9, rcx);
-  __ j(not_equal, exit);
-
-  __ incq(rax);
-  Label fail_ok;
-  __ Move(rcx, Smi::FromInt(x));
-  __ Move(rdx, Smi::FromInt(y));
-  __ xorq(rcx, Immediate(kSmiTagMask));
-  __ xorq(rdx, Immediate(kSmiTagMask));
-  __ SelectNonSmi(r9, rcx, rdx, &fail_ok);
-  __ jmp(exit);
-  __ bind(&fail_ok);
-}
-
-TEST(SmiSelectNonSmi) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize * 2, &actual_size, true));
-  CHECK(buffer);
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
-                           v8::internal::CodeObjectRequired::kYes);
-
-  MacroAssembler* masm = &assembler;
-  EntryCode(masm);
-  Label exit;
-
-  TestSelectNonSmi(masm, &exit, 0x10, 0, 0);
-  TestSelectNonSmi(masm, &exit, 0x20, 0, 1);
-  TestSelectNonSmi(masm, &exit, 0x30, 1, 0);
-  TestSelectNonSmi(masm, &exit, 0x40, 0, -1);
-  TestSelectNonSmi(masm, &exit, 0x50, -1, 0);
-  TestSelectNonSmi(masm, &exit, 0x60, -1, -1);
-  TestSelectNonSmi(masm, &exit, 0x70, 1, 1);
-  TestSelectNonSmi(masm, &exit, 0x80, Smi::kMinValue, Smi::kMaxValue);
-  TestSelectNonSmi(masm, &exit, 0x90, Smi::kMinValue, Smi::kMinValue);
 
   __ xorq(rax, rax);  // Success.
   __ bind(&exit);
