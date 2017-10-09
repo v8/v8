@@ -2296,26 +2296,28 @@ Node* EffectControlLinearizer::LowerNewFastDoubleElements(Node* node) {
 
   // Initialize the backing store with holes.
   STATIC_ASSERT(HeapNumber::kValueOffset == Oddball::kToNumberRawOffset);
+  Node* limit = ChangeUint32ToUintPtr(length);
   Node* the_hole =
       __ LoadField(AccessBuilder::ForHeapNumberValue(), __ TheHoleConstant());
-  auto loop = __ MakeLoopLabel(MachineRepresentation::kWord32);
+  auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
   auto done_loop = __ MakeLabel();
-  __ Goto(&loop, __ Int32Constant(0));
+  __ Goto(&loop, __ IntPtrConstant(0));
   __ Bind(&loop);
   {
     // Check if we've initialized everything.
     Node* index = loop.PhiAt(0);
-    Node* check = __ Int32LessThan(index, length);
+    Node* check = __ UintLessThan(index, limit);
     __ GotoIfNot(check, &done_loop);
 
     // Storing "the_hole" doesn't need a write barrier.
-    ElementAccess const access = {kTaggedBase, FixedDoubleArray::kHeaderSize,
-                                  Type::NumberOrHole(), MachineType::Float64(),
-                                  kNoWriteBarrier};
-    __ StoreElement(access, result, index, the_hole);
+    StoreRepresentation rep(MachineRepresentation::kFloat64, kNoWriteBarrier);
+    Node* offset = __ IntAdd(
+        __ WordShl(index, __ IntPtrConstant(kDoubleSizeLog2)),
+        __ IntPtrConstant(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
+    __ Store(rep, result, offset, the_hole);
 
     // Advance the {index}.
-    index = __ Int32Add(index, __ Int32Constant(1));
+    index = __ IntAdd(index, __ IntPtrConstant(1));
     __ Goto(&loop, index);
   }
 
@@ -2339,25 +2341,27 @@ Node* EffectControlLinearizer::LowerNewFastSmiOrObjectElements(Node* node) {
                 ChangeInt32ToSmi(length));
 
   // Initialize the backing store with holes.
+  Node* limit = ChangeUint32ToUintPtr(length);
   Node* the_hole = __ TheHoleConstant();
-  auto loop = __ MakeLoopLabel(MachineRepresentation::kWord32);
+  auto loop = __ MakeLoopLabel(MachineType::PointerRepresentation());
   auto done_loop = __ MakeLabel();
-  __ Goto(&loop, __ Int32Constant(0));
+  __ Goto(&loop, __ IntPtrConstant(0));
   __ Bind(&loop);
   {
     // Check if we've initialized everything.
     Node* index = loop.PhiAt(0);
-    Node* check = __ Int32LessThan(index, length);
+    Node* check = __ UintLessThan(index, limit);
     __ GotoIfNot(check, &done_loop);
 
     // Storing "the_hole" doesn't need a write barrier.
-    ElementAccess const access = {kTaggedBase, FixedArray::kHeaderSize,
-                                  Type::Any(), MachineType::AnyTagged(),
-                                  kNoWriteBarrier};
-    __ StoreElement(access, result, index, the_hole);
+    StoreRepresentation rep(MachineRepresentation::kTagged, kNoWriteBarrier);
+    Node* offset =
+        __ IntAdd(__ WordShl(index, __ IntPtrConstant(kPointerSizeLog2)),
+                  __ IntPtrConstant(FixedArray::kHeaderSize - kHeapObjectTag));
+    __ Store(rep, result, offset, the_hole);
 
     // Advance the {index}.
-    index = __ Int32Add(index, __ Int32Constant(1));
+    index = __ IntAdd(index, __ IntPtrConstant(1));
     __ Goto(&loop, index);
   }
 
