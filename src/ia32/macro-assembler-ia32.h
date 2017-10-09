@@ -515,16 +515,6 @@ class MacroAssembler : public TurboAssembler {
   // Compare instance type for map.
   void CmpInstanceType(Register map, InstanceType type);
 
-  // Compare an object's map with the specified map.
-  void CompareMap(Register obj, Handle<Map> map);
-
-  // Check if the map of an object is equal to a specified map and branch to
-  // label if not. Skip the smi check if not required (object is known to be a
-  // heap object). If mode is ALLOW_ELEMENT_TRANSITION_MAPS, then also match
-  // against maps that are ElementsKind transition maps of the specified map.
-  void CheckMap(Register obj, Handle<Map> map, Label* fail,
-                SmiCheckType smi_check_type);
-
   void DoubleToI(Register result_reg, XMMRegister input_reg,
                  XMMRegister scratch, MinusZeroMode minus_zero_mode,
                  Label* lost_precision, Label* is_nan, Label* minus_zero,

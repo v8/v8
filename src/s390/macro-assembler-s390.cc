@@ -1467,41 +1467,6 @@ void MacroAssembler::SmiToDouble(DoubleRegister value, Register smi) {
   ConvertIntToDouble(value, ip);
 }
 
-void MacroAssembler::CompareMap(Register obj, Register scratch, Handle<Map> map,
-                                Label* early_success) {
-  LoadP(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  CompareMap(obj, map, early_success);
-}
-
-void MacroAssembler::CompareMap(Register obj_map, Handle<Map> map,
-                                Label* early_success) {
-  mov(r0, Operand(map));
-  CmpP(r0, FieldMemOperand(obj_map, HeapObject::kMapOffset));
-}
-
-void MacroAssembler::CheckMap(Register obj, Register scratch, Handle<Map> map,
-                              Label* fail, SmiCheckType smi_check_type) {
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(obj, fail);
-  }
-
-  Label success;
-  CompareMap(obj, scratch, map, &success);
-  bne(fail);
-  bind(&success);
-}
-
-void MacroAssembler::CheckMap(Register obj, Register scratch,
-                              Heap::RootListIndex index, Label* fail,
-                              SmiCheckType smi_check_type) {
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(obj, fail);
-  }
-  LoadP(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  CompareRoot(scratch, index);
-  bne(fail);
-}
-
 void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
   mov(value, Operand(cell));
   LoadP(value, FieldMemOperand(value, WeakCell::kValueOffset));

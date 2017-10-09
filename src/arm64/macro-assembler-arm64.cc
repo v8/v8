@@ -2658,67 +2658,6 @@ void MacroAssembler::CompareInstanceType(Register map,
 }
 
 
-void MacroAssembler::CompareObjectMap(Register obj, Heap::RootListIndex index) {
-  UseScratchRegisterScope temps(this);
-  Register obj_map = temps.AcquireX();
-  Ldr(obj_map, FieldMemOperand(obj, HeapObject::kMapOffset));
-  CompareRoot(obj_map, index);
-}
-
-
-void MacroAssembler::CompareObjectMap(Register obj, Register scratch,
-                                      Handle<Map> map) {
-  Ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  CompareMap(scratch, map);
-}
-
-
-void MacroAssembler::CompareMap(Register obj_map,
-                                Handle<Map> map) {
-  Cmp(obj_map, Operand(map));
-}
-
-
-void MacroAssembler::CheckMap(Register obj,
-                              Register scratch,
-                              Handle<Map> map,
-                              Label* fail,
-                              SmiCheckType smi_check_type) {
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(obj, fail);
-  }
-
-  CompareObjectMap(obj, scratch, map);
-  B(ne, fail);
-}
-
-
-void MacroAssembler::CheckMap(Register obj,
-                              Register scratch,
-                              Heap::RootListIndex index,
-                              Label* fail,
-                              SmiCheckType smi_check_type) {
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(obj, fail);
-  }
-  Ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  JumpIfNotRoot(scratch, index, fail);
-}
-
-
-void MacroAssembler::CheckMap(Register obj_map,
-                              Handle<Map> map,
-                              Label* fail,
-                              SmiCheckType smi_check_type) {
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(obj_map, fail);
-  }
-
-  CompareMap(obj_map, map);
-  B(ne, fail);
-}
-
-
 void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
   Mov(value, Operand(cell));
   Ldr(value, FieldMemOperand(value, WeakCell::kValueOffset));

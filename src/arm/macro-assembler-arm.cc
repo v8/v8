@@ -1644,52 +1644,6 @@ void MacroAssembler::CompareRoot(Register obj,
   cmp(obj, scratch);
 }
 
-void MacroAssembler::CompareMap(Register obj,
-                                Register scratch,
-                                Handle<Map> map,
-                                Label* early_success) {
-  ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  CompareMap(scratch, map, early_success);
-}
-
-
-void MacroAssembler::CompareMap(Register obj_map,
-                                Handle<Map> map,
-                                Label* early_success) {
-  cmp(obj_map, Operand(map));
-}
-
-
-void MacroAssembler::CheckMap(Register obj,
-                              Register scratch,
-                              Handle<Map> map,
-                              Label* fail,
-                              SmiCheckType smi_check_type) {
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(obj, fail);
-  }
-
-  Label success;
-  CompareMap(obj, scratch, map, &success);
-  b(ne, fail);
-  bind(&success);
-}
-
-void MacroAssembler::CheckMap(Register obj, Register scratch,
-                              Heap::RootListIndex index, Label* fail,
-                              SmiCheckType smi_check_type) {
-  UseScratchRegisterScope temps(this);
-  Register root_register = temps.Acquire();
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(obj, fail);
-  }
-  ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  LoadRoot(root_register, index);
-  cmp(scratch, root_register);
-  b(ne, fail);
-}
-
-
 void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
   mov(value, Operand(cell));
   ldr(value, FieldMemOperand(value, WeakCell::kValueOffset));

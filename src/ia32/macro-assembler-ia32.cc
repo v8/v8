@@ -533,23 +533,6 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
   cmpb(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
 }
 
-void MacroAssembler::CompareMap(Register obj, Handle<Map> map) {
-  cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
-}
-
-
-void MacroAssembler::CheckMap(Register obj,
-                              Handle<Map> map,
-                              Label* fail,
-                              SmiCheckType smi_check_type) {
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(obj, fail);
-  }
-
-  CompareMap(obj, map);
-  j(not_equal, fail);
-}
-
 void MacroAssembler::AssertSmi(Register object) {
   if (emit_debug_code()) {
     test(object, Immediate(kSmiTagMask));

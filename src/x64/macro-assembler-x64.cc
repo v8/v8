@@ -2399,23 +2399,6 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
        Immediate(static_cast<int8_t>(type)));
 }
 
-void MacroAssembler::CompareMap(Register obj, Handle<Map> map) {
-  Cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
-}
-
-
-void MacroAssembler::CheckMap(Register obj,
-                              Handle<Map> map,
-                              Label* fail,
-                              SmiCheckType smi_check_type) {
-  if (smi_check_type == DO_SMI_CHECK) {
-    JumpIfSmi(obj, fail);
-  }
-
-  CompareMap(obj, map);
-  j(not_equal, fail);
-}
-
 void TurboAssembler::SlowTruncateToIDelayed(Zone* zone, Register result_reg,
                                             Register input_reg, int offset) {
   CallStubDelayed(

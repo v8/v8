@@ -1912,43 +1912,6 @@ class MacroAssembler : public TurboAssembler {
                            Register type_reg,
                            InstanceType type);
 
-  // Compare an object's map with the specified map. Condition flags are set
-  // with result of map compare.
-  void CompareObjectMap(Register obj, Heap::RootListIndex index);
-
-  // Compare an object's map with the specified map. Condition flags are set
-  // with result of map compare.
-  void CompareObjectMap(Register obj, Register scratch, Handle<Map> map);
-
-  // As above, but the map of the object is already loaded into the register
-  // which is preserved by the code generated.
-  void CompareMap(Register obj_map,
-                  Handle<Map> map);
-
-  // Check if the map of an object is equal to a specified map and branch to
-  // label if not. Skip the smi check if not required (object is known to be a
-  // heap object). If mode is ALLOW_ELEMENT_TRANSITION_MAPS, then also match
-  // against maps that are ElementsKind transition maps of the specified map.
-  void CheckMap(Register obj,
-                Register scratch,
-                Handle<Map> map,
-                Label* fail,
-                SmiCheckType smi_check_type);
-
-
-  void CheckMap(Register obj,
-                Register scratch,
-                Heap::RootListIndex index,
-                Label* fail,
-                SmiCheckType smi_check_type);
-
-  // As above, but the map of the object is already loaded into obj_map, and is
-  // preserved.
-  void CheckMap(Register obj_map,
-                Handle<Map> map,
-                Label* fail,
-                SmiCheckType smi_check_type);
-
   void GetWeakValue(Register value, Handle<WeakCell> cell);
 
   // Load the value of the weak cell in the value register. Branch to the given
