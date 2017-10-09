@@ -2630,15 +2630,6 @@ void MacroAssembler::JumpIfObjectType(Register object,
 }
 
 
-void MacroAssembler::JumpIfNotObjectType(Register object,
-                                         Register map,
-                                         Register type_reg,
-                                         InstanceType type,
-                                         Label* if_not_object) {
-  JumpIfObjectType(object, map, type_reg, type, if_not_object, ne);
-}
-
-
 // Sets condition flags based on comparison, and returns type in type_reg.
 void MacroAssembler::CompareObjectType(Register object,
                                        Register map,
