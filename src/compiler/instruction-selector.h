@@ -348,7 +348,6 @@ class V8_EXPORT_PRIVATE InstructionSelector final {
   void VisitReturn(Node* ret);
   void VisitThrow(Node* node);
   void VisitRetain(Node* node);
-  void VisitUnreachable(Node* node);
 
   void EmitPrepareArguments(ZoneVector<compiler::PushParameter>* arguments,
                             const CallDescriptor* descriptor, Node* node);

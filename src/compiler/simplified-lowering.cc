@@ -2966,7 +2966,6 @@ class RepresentationSelector {
       case IrOpcode::kArgumentsElementsState:
       case IrOpcode::kArgumentsLengthState:
       case IrOpcode::kRuntimeAbort:
-      case IrOpcode::kUnreachable:
 // All JavaScript operators except JSToNumber have uniform handling.
 #define OPCODE_CASE(name) case IrOpcode::k##name:
         JS_SIMPLE_BINOP_LIST(OPCODE_CASE)
@@ -2983,8 +2982,7 @@ class RepresentationSelector {
         VisitInputs(node);
         // Assume the output is tagged.
         return SetOutput(node, MachineRepresentation::kTagged);
-      case IrOpcode::kDeadValue:
-        return SetOutput(node, MachineRepresentation::kNone);
+
       default:
         V8_Fatal(
             __FILE__, __LINE__,
