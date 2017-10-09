@@ -18,7 +18,7 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
   // systems. It may be safer to fail instead, given that other code might do
   // things that would be unsafe if they expected guard pages where there
   // weren't any.
-  if (enable_guard_regions && kGuardRegionsSupported) {
+  if (enable_guard_regions) {
     // TODO(eholk): On Windows we want to make sure we don't commit the guard
     // pages yet.
 
@@ -83,8 +83,6 @@ Handle<JSArrayBuffer> NewArrayBuffer(Isolate* isolate, size_t size,
     // TODO(titzer): lift restriction on maximum memory allocated here.
     return Handle<JSArrayBuffer>::null();
   }
-
-  enable_guard_regions = enable_guard_regions && kGuardRegionsSupported;
 
   void* allocation_base = nullptr;  // Set by TryAllocateBackingStore
   size_t allocation_length = 0;     // Set by TryAllocateBackingStore

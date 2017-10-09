@@ -13,17 +13,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#if V8_TARGET_ARCH_64_BIT
-const bool kGuardRegionsSupported = true;
-#else
-const bool kGuardRegionsSupported = false;
-#endif
-
-inline bool EnableGuardRegions() {
-  return FLAG_wasm_guard_pages && kGuardRegionsSupported &&
-         !FLAG_experimental_wasm_threads;
-}
-
 Handle<JSArrayBuffer> NewArrayBuffer(
     Isolate*, size_t size, bool enable_guard_regions,
     SharedFlag shared = SharedFlag::kNotShared);

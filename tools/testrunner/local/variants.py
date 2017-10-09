@@ -12,7 +12,7 @@ ALL_VARIANT_FLAGS = {
   # https://chromium-review.googlesource.com/c/452620/ for more discussion.
   "nooptimization": [["--noopt"]],
   "stress_asm_wasm": [["--validate-asm", "--stress-validate-asm", "--suppress-asm-messages"]],
-  "wasm_traps": [["--wasm_guard_pages", "--wasm_trap_handler", "--invoke-weak-callbacks"]],
+  "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }
 
 # FAST_VARIANTS implies no --always-opt.
@@ -25,7 +25,7 @@ FAST_VARIANT_FLAGS = {
   # https://chromium-review.googlesource.com/c/452620/ for more discussion.
   "nooptimization": [["--noopt"]],
   "stress_asm_wasm": [["--validate-asm", "--stress-validate-asm", "--suppress-asm-messages"]],
-  "wasm_traps": [["--wasm_guard_pages", "--wasm_trap_handler", "--invoke-weak-callbacks"]],
+  "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }
 
 ALL_VARIANTS = set(["default", "stress", "stress_incremental_marking",

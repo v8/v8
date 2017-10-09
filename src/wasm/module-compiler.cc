@@ -1800,7 +1800,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     memory->set_is_neuterable(false);
     memory->set_is_wasm_buffer(true);
 
-    DCHECK_IMPLIES(EnableGuardRegions(),
+    DCHECK_IMPLIES(trap_handler::UseTrapHandler(),
                    module_->is_asm_js() || memory->has_guard_region());
   } else if (initial_pages > 0) {
     memory_ = AllocateMemory(initial_pages);
@@ -2480,7 +2480,7 @@ Handle<JSArrayBuffer> InstanceBuilder::AllocateMemory(uint32_t num_pages) {
     thrower_->RangeError("Out of memory: wasm memory too large");
     return Handle<JSArrayBuffer>::null();
   }
-  const bool enable_guard_regions = EnableGuardRegions();
+  const bool enable_guard_regions = trap_handler::UseTrapHandler();
   Handle<JSArrayBuffer> mem_buffer = NewArrayBuffer(
       isolate_, num_pages * WasmModule::kPageSize, enable_guard_regions);
 

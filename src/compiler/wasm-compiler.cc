@@ -3482,8 +3482,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
 
   if (memtype.representation() == MachineRepresentation::kWord8 ||
       jsgraph()->machine()->UnalignedLoadSupported(memtype.representation())) {
-    if (FLAG_wasm_trap_handler && V8_TRAP_HANDLER_SUPPORTED) {
-      DCHECK(FLAG_wasm_guard_pages);
+    if (trap_handler::UseTrapHandler()) {
       load = graph()->NewNode(jsgraph()->machine()->ProtectedLoad(memtype),
                               MemBuffer(offset), index, *effect_, *control_);
       SetSourcePosition(load, position);

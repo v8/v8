@@ -40,7 +40,8 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   DCHECK(!instance_object_->has_memory_buffer());
   DCHECK(!instance_object_->has_memory_object());
   test_module_.has_memory = true;
-  bool enable_guard_regions = EnableGuardRegions() && test_module_.is_wasm();
+  const bool enable_guard_regions =
+      trap_handler::UseTrapHandler() && test_module_.is_wasm();
   uint32_t alloc_size =
       enable_guard_regions ? RoundUp(size, base::OS::CommitPageSize()) : size;
   Handle<JSArrayBuffer> new_buffer =

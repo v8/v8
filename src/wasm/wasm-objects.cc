@@ -329,7 +329,7 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
     return Handle<JSArrayBuffer>::null();
   }
   const bool enable_guard_regions = old_buffer.is_null()
-                                        ? wasm::EnableGuardRegions()
+                                        ? trap_handler::UseTrapHandler()
                                         : old_buffer->has_guard_region();
   size_t new_size =
       static_cast<size_t>(old_pages + pages) * WasmModule::kPageSize;
@@ -386,7 +386,7 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
       isolate->factory()->NewJSObject(memory_ctor, TENURED));
   auto wasm_context = Managed<WasmContext>::Allocate(isolate);
   if (buffer.is_null()) {
-    const bool enable_guard_regions = wasm::EnableGuardRegions();
+    const bool enable_guard_regions = trap_handler::UseTrapHandler();
     buffer = wasm::SetupArrayBuffer(isolate, nullptr, 0, nullptr, 0, false,
                                     enable_guard_regions);
     wasm_context->get()->mem_size = 0;
