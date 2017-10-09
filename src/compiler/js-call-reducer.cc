@@ -653,7 +653,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
 
   Node* k = jsgraph()->ZeroConstant();
 
-  Node* original_length = graph()->NewNode(
+  Node* original_length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
       receiver, effect, control);
 
@@ -712,7 +712,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
 
   // Make sure that the access is still in bounds, since the callback could have
   // changed the array's size.
-  Node* length = graph()->NewNode(
+  Node* length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
       receiver, effect, control);
   k = effect =
@@ -721,11 +721,11 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   // Reload the elements pointer before calling the callback, since the previous
   // callback might have resized the array causing the elements buffer to be
   // re-allocated.
-  Node* elements = graph()->NewNode(
+  Node* elements = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
       effect, control);
 
-  Node* element = graph()->NewNode(
+  Node* element = effect = graph()->NewNode(
       simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(kind)),
       elements, k, effect, control);
 
@@ -876,7 +876,7 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
       simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
       effect, control);
 
-  Node* original_length = graph()->NewNode(
+  Node* original_length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
       receiver, effect, control);
 
@@ -943,7 +943,7 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
 
   // Make sure that the access is still in bounds, since the callback could have
   // changed the array's size.
-  Node* length = graph()->NewNode(
+  Node* length = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
       effect, control);
   k = effect =
@@ -952,11 +952,11 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   // Reload the elements pointer before calling the callback, since the previous
   // callback might have resized the array causing the elements buffer to be
   // re-allocated.
-  Node* elements = graph()->NewNode(
+  Node* elements = effect = graph()->NewNode(
       simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
       effect, control);
 
-  Node* element = graph()->NewNode(
+  Node* element = effect = graph()->NewNode(
       simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(kind)),
       elements, k, effect, control);
 
