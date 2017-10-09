@@ -6,6 +6,7 @@
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/ic/binary-op-assembler.h"
+#include "src/parsing/token.h"
 
 namespace v8 {
 namespace internal {
@@ -20,29 +21,64 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   template <typename Descriptor>
-  void BitwiseOp(std::function<Node*(Node* lhs, Node* rhs)> body,
-                 Signedness signed_result = kSigned) {
+  void BitwiseOp(Token::Value op) {
     Node* left = Parameter(Descriptor::kLeft);
     Node* right = Parameter(Descriptor::kRight);
     Node* context = Parameter(Descriptor::kContext);
 
-    Node* lhs_value = TruncateTaggedToWord32(context, left);
-    Node* rhs_value = TruncateTaggedToWord32(context, right);
-    Node* value = body(lhs_value, rhs_value);
-    Node* result = signed_result == kSigned ? ChangeInt32ToTagged(value)
-                                            : ChangeUint32ToTagged(value);
-    Return(result);
-  }
+    VARIABLE(var_left_bigint, MachineRepresentation::kTagged, left);
+    VARIABLE(var_right_bigint, MachineRepresentation::kTagged, right);
+    Label if_left_bigint(this), do_bigint_op(this);
 
-  template <typename Descriptor>
-  void BitwiseShiftOp(std::function<Node*(Node* lhs, Node* shift_count)> body,
-                      Signedness signed_result = kSigned) {
-    BitwiseOp<Descriptor>(
-        [=](Node* lhs, Node* rhs) {
-          Node* shift_count = Word32And(rhs, Int32Constant(0x1f));
-          return body(lhs, shift_count);
-        },
-        signed_result);
+    Node* left32 = TaggedToWord32OrBigInt(context, left, &if_left_bigint,
+                                          &var_left_bigint);
+    Node* right32 = TaggedToWord32OrBigInt(context, right, &do_bigint_op,
+                                           &var_right_bigint);
+    // Number case.
+    Node* result;
+    switch (op) {
+      case Token::BIT_AND:
+        result = ChangeInt32ToTagged(Word32And(left32, right32));
+        break;
+      case Token::BIT_OR:
+        result = ChangeInt32ToTagged(Word32Or(left32, right32));
+        break;
+      case Token::BIT_XOR:
+        result = ChangeInt32ToTagged(Word32Xor(left32, right32));
+        break;
+      case Token::SHL:
+        result = ChangeInt32ToTagged(
+            Word32Shl(left32, Word32And(right32, Int32Constant(0x1f))));
+        break;
+      case Token::SAR:
+        result = ChangeInt32ToTagged(
+            Word32Sar(left32, Word32And(right32, Int32Constant(0x1f))));
+        break;
+      case Token::SHR:
+        result = ChangeUint32ToTagged(
+            Word32Shr(left32, Word32And(right32, Int32Constant(0x1f))));
+        break;
+      default:
+        UNREACHABLE();
+    }
+    Return(result);
+
+    // BigInt cases.
+    BIND(&if_left_bigint);
+    GotoIf(TaggedIsSmi(right), &do_bigint_op);
+    Node* right_map = LoadMap(right);
+    GotoIf(IsHeapNumberMap(right_map), &do_bigint_op);
+    Node* right_type = LoadMapInstanceType(right_map);
+    GotoIf(IsBigIntInstanceType(right_type), &do_bigint_op);
+    // TODO(jkummerow): This should use kNonNumericToNumeric.
+    var_right_bigint.Bind(
+        CallBuiltin(Builtins::kNonNumberToNumber, context, right));
+    Goto(&do_bigint_op);
+
+    BIND(&do_bigint_op);
+    Return(CallRuntime(Runtime::kBigIntBinaryOp, context,
+                       var_left_bigint.value(), var_right_bigint.value(),
+                       SmiConstant(op)));
   }
 
   template <typename Descriptor>
@@ -58,6 +94,47 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
   void BinaryOp(Label* smis, Variable* var_left, Variable* var_right,
                 Label* doubles, Variable* var_left_double,
                 Variable* var_right_double, Label* bigints);
+
+  // Similar to CodeStubAssembler::TruncateTaggedToWord32, but BigInt aware.
+  // Jumps to {bigint} with {var_bigint_result} populated if it encounters
+  // a BigInt.
+  Node* TaggedToWord32OrBigInt(Node* context, Node* value, Label* bigint,
+                               Variable* var_bigint_result) {
+    // We might need to loop once due to ToNumeric conversion.
+    VARIABLE(var_value, MachineRepresentation::kTagged, value);
+    VARIABLE(var_result, MachineRepresentation::kWord32);
+    Label loop(this, &var_value), done(this, &var_result);
+    Goto(&loop);
+    BIND(&loop);
+    {
+      value = var_value.value();
+      Label not_smi(this), is_heap_number(this), is_bigint(this);
+      GotoIf(TaggedIsNotSmi(value), &not_smi);
+      // {value} is a Smi.
+      var_result.Bind(SmiToWord32(value));
+      Goto(&done);
+
+      BIND(&not_smi);
+      Node* map = LoadMap(value);
+      GotoIf(IsHeapNumberMap(map), &is_heap_number);
+      Node* instance_type = LoadMapInstanceType(map);
+      GotoIf(IsBigIntInstanceType(instance_type), &is_bigint);
+      // Neither HeapNumber nor BigInt -> convert to Numeric.
+      // TODO(jkummerow): This should call "NonNumericToNumeric".
+      var_value.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, value));
+      Goto(&loop);
+
+      BIND(&is_heap_number);
+      var_result.Bind(TruncateHeapNumberValueToWord32(value));
+      Goto(&done);
+
+      BIND(&is_bigint);
+      var_bigint_result->Bind(value);
+      Goto(bigint);
+    }
+    BIND(&done);
+    return var_result.value();
+  }
 };
 
 // ES6 #sec-number.isfinite
@@ -824,36 +901,27 @@ TF_BUILTIN(Modulus, NumberBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ShiftLeft, NumberBuiltinsAssembler) {
-  BitwiseShiftOp<Descriptor>([=](Node* lhs, Node* shift_count) {
-    return Word32Shl(lhs, shift_count);
-  });
+  BitwiseOp<Descriptor>(Token::SHL);
 }
 
 TF_BUILTIN(ShiftRight, NumberBuiltinsAssembler) {
-  BitwiseShiftOp<Descriptor>([=](Node* lhs, Node* shift_count) {
-    return Word32Sar(lhs, shift_count);
-  });
+  BitwiseOp<Descriptor>(Token::SAR);
 }
 
 TF_BUILTIN(ShiftRightLogical, NumberBuiltinsAssembler) {
-  BitwiseShiftOp<Descriptor>(
-      [=](Node* lhs, Node* shift_count) { return Word32Shr(lhs, shift_count); },
-      kUnsigned);
+  BitwiseOp<Descriptor>(Token::SHR);
 }
 
 TF_BUILTIN(BitwiseAnd, NumberBuiltinsAssembler) {
-  BitwiseOp<Descriptor>(
-      [=](Node* lhs, Node* rhs) { return Word32And(lhs, rhs); });
+  BitwiseOp<Descriptor>(Token::BIT_AND);
 }
 
 TF_BUILTIN(BitwiseOr, NumberBuiltinsAssembler) {
-  BitwiseOp<Descriptor>(
-      [=](Node* lhs, Node* rhs) { return Word32Or(lhs, rhs); });
+  BitwiseOp<Descriptor>(Token::BIT_OR);
 }
 
 TF_BUILTIN(BitwiseXor, NumberBuiltinsAssembler) {
-  BitwiseOp<Descriptor>(
-      [=](Node* lhs, Node* rhs) { return Word32Xor(lhs, rhs); });
+  BitwiseOp<Descriptor>(Token::BIT_XOR);
 }
 
 TF_BUILTIN(LessThan, NumberBuiltinsAssembler) {

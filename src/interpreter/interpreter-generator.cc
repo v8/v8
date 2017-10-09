@@ -936,72 +936,101 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
 
   void BitwiseBinaryOpWithFeedback(Token::Value bitwise_op) {
     Node* reg_index = BytecodeOperandReg(0);
-    Node* lhs = LoadRegister(reg_index);
-    Node* rhs = GetAccumulator();
+    Node* left = LoadRegister(reg_index);
+    Node* right = GetAccumulator();
     Node* context = GetContext();
     Node* slot_index = BytecodeOperandIdx(1);
     Node* feedback_vector = LoadFeedbackVector();
 
-    Variable var_lhs_type_feedback(this, MachineRepresentation::kTaggedSigned),
-        var_rhs_type_feedback(this, MachineRepresentation::kTaggedSigned);
-    Node* lhs_value = TruncateTaggedToWord32WithFeedback(
-        context, lhs, &var_lhs_type_feedback);
-    Node* rhs_value = TruncateTaggedToWord32WithFeedback(
-        context, rhs, &var_rhs_type_feedback);
-    Node* result = nullptr;
+    VARIABLE(var_left_feedback, MachineRepresentation::kTaggedSigned);
+    VARIABLE(var_right_feedback, MachineRepresentation::kTaggedSigned);
+    VARIABLE(var_left_bigint, MachineRepresentation::kTagged, left);
+    VARIABLE(var_right_bigint, MachineRepresentation::kTagged, right);
+    Label if_left_bigint(this), do_bigint_op(this);
 
-    switch (bitwise_op) {
-      case Token::BIT_OR: {
-        Node* value = Word32Or(lhs_value, rhs_value);
-        result = ChangeInt32ToTagged(value);
-      } break;
-      case Token::BIT_AND: {
-        Node* value = Word32And(lhs_value, rhs_value);
-        result = ChangeInt32ToTagged(value);
-      } break;
-      case Token::BIT_XOR: {
-        Node* value = Word32Xor(lhs_value, rhs_value);
-        result = ChangeInt32ToTagged(value);
-      } break;
-      case Token::SHL: {
-        Node* value =
-            Word32Shl(lhs_value, Word32And(rhs_value, Int32Constant(0x1f)));
-        result = ChangeInt32ToTagged(value);
-      } break;
-      case Token::SHR: {
-        Node* value =
-            Word32Shr(lhs_value, Word32And(rhs_value, Int32Constant(0x1f)));
-        result = ChangeUint32ToTagged(value);
-      } break;
-      case Token::SAR: {
-        Node* value =
-            Word32Sar(lhs_value, Word32And(rhs_value, Int32Constant(0x1f)));
-        result = ChangeInt32ToTagged(value);
-      } break;
-      default:
-        UNREACHABLE();
-    }
+    Node* left32 = TaggedToWord32OrBigIntWithFeedback(
+        context, left, &var_left_feedback, &if_left_bigint, &var_left_bigint);
+    Node* right32 = TaggedToWord32OrBigIntWithFeedback(
+        context, right, &var_right_feedback, &do_bigint_op, &var_right_bigint);
 
+    // Numbers case.
+    Node* result = BitwiseOp(left32, right32, bitwise_op);
     Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
                                           BinaryOperationFeedback::kSignedSmall,
                                           BinaryOperationFeedback::kNumber);
-
-    if (FLAG_debug_code) {
-      Label ok(this);
-      GotoIf(TaggedIsSmi(result), &ok);
-      Node* result_map = LoadMap(result);
-      AbortIfWordNotEqual(result_map, HeapNumberMapConstant(),
-                          kExpectedHeapNumber);
-      Goto(&ok);
-      BIND(&ok);
-    }
-
     Node* input_feedback =
-        SmiOr(var_lhs_type_feedback.value(), var_rhs_type_feedback.value());
+        SmiOr(var_left_feedback.value(), var_right_feedback.value());
     UpdateFeedback(SmiOr(result_type, input_feedback), feedback_vector,
                    slot_index);
     SetAccumulator(result);
     Dispatch();
+
+    // BigInt cases.
+    BIND(&if_left_bigint);
+    // TODO(jkummerow): NumberBuiltinsAssembler::BitwiseOp inlines the
+    // relevant bits of this. Find a way to unify the approaches.
+    TaggedToWord32OrBigIntWithFeedback(context, right, &var_right_feedback,
+                                       &do_bigint_op, &var_right_bigint);
+    Goto(&do_bigint_op);
+
+    BIND(&do_bigint_op);
+    SetAccumulator(
+        CallRuntime(Runtime::kBigIntBinaryOp, context, var_left_bigint.value(),
+                    var_right_bigint.value(), SmiConstant(bitwise_op)));
+    UpdateFeedback(SmiOr(var_left_feedback.value(), var_right_feedback.value()),
+                   feedback_vector, slot_index);
+    Dispatch();
+  }
+
+  void BitwiseBinaryOpWithSmi(Token::Value bitwise_op) {
+    Node* left = GetAccumulator();
+    Node* right = BytecodeOperandImmSmi(0);
+    Node* slot_index = BytecodeOperandIdx(1);
+    Node* feedback_vector = LoadFeedbackVector();
+    Node* context = GetContext();
+
+    VARIABLE(var_left_feedback, MachineRepresentation::kTaggedSigned);
+    VARIABLE(var_left_bigint, MachineRepresentation::kTagged);
+    Label if_bigint_mix(this);
+
+    Node* left32 = TaggedToWord32OrBigIntWithFeedback(
+        context, left, &var_left_feedback, &if_bigint_mix, &var_left_bigint);
+    Node* result = BitwiseOp(left32, SmiToWord32(right), bitwise_op);
+    Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
+                                          BinaryOperationFeedback::kSignedSmall,
+                                          BinaryOperationFeedback::kNumber);
+    UpdateFeedback(SmiOr(result_type, var_left_feedback.value()),
+                   feedback_vector, slot_index);
+    SetAccumulator(result);
+    Dispatch();
+
+    BIND(&if_bigint_mix);
+    UpdateFeedback(var_left_feedback.value(), feedback_vector, slot_index);
+    ThrowTypeError(context, MessageTemplate::kBigIntMixedTypes);
+  }
+
+ private:
+  Node* BitwiseOp(Node* left32, Node* right32, Token::Value bitwise_op) {
+    switch (bitwise_op) {
+      case Token::BIT_AND:
+        return ChangeInt32ToTagged(Word32And(left32, right32));
+      case Token::BIT_OR:
+        return ChangeInt32ToTagged(Word32Or(left32, right32));
+      case Token::BIT_XOR:
+        return ChangeInt32ToTagged(Word32Xor(left32, right32));
+      case Token::SHL:
+        return ChangeInt32ToTagged(
+            Word32Shl(left32, Word32And(right32, Int32Constant(0x1f))));
+      case Token::SAR:
+        return ChangeInt32ToTagged(
+            Word32Sar(left32, Word32And(right32, Int32Constant(0x1f))));
+      case Token::SHR:
+        return ChangeUint32ToTagged(
+            Word32Shr(left32, Word32And(right32, Int32Constant(0x1f))));
+      default:
+        break;
+    }
+    UNREACHABLE();
   }
 };
 
@@ -1059,76 +1088,22 @@ IGNITION_HANDLER(ShiftRightLogical, InterpreterBitwiseBinaryOpAssembler) {
 // BitwiseOrSmi <imm>
 //
 // BitwiseOrSmi accumulator with <imm>.
-IGNITION_HANDLER(BitwiseOrSmi, InterpreterAssembler) {
-  Node* left = GetAccumulator();
-  Node* right = BytecodeOperandImmSmi(0);
-  Node* slot_index = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  Node* context = GetContext();
-
-  Variable var_lhs_type_feedback(this, MachineRepresentation::kTaggedSigned);
-  Node* lhs_value =
-      TruncateTaggedToWord32WithFeedback(context, left, &var_lhs_type_feedback);
-  Node* rhs_value = SmiToWord32(right);
-  Node* value = Word32Or(lhs_value, rhs_value);
-  Node* result = ChangeInt32ToTagged(value);
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
-  UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
-                 feedback_vector, slot_index);
-  SetAccumulator(result);
-  Dispatch();
+IGNITION_HANDLER(BitwiseOrSmi, InterpreterBitwiseBinaryOpAssembler) {
+  BitwiseBinaryOpWithSmi(Token::BIT_OR);
 }
 
 // BitwiseXorSmi <imm>
 //
 // BitwiseXorSmi accumulator with <imm>.
-IGNITION_HANDLER(BitwiseXorSmi, InterpreterAssembler) {
-  Node* left = GetAccumulator();
-  Node* right = BytecodeOperandImmSmi(0);
-  Node* slot_index = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  Node* context = GetContext();
-
-  Variable var_lhs_type_feedback(this, MachineRepresentation::kTaggedSigned);
-  Node* lhs_value =
-      TruncateTaggedToWord32WithFeedback(context, left, &var_lhs_type_feedback);
-  Node* rhs_value = SmiToWord32(right);
-  Node* value = Word32Xor(lhs_value, rhs_value);
-  Node* result = ChangeInt32ToTagged(value);
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
-  UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
-                 feedback_vector, slot_index);
-  SetAccumulator(result);
-  Dispatch();
+IGNITION_HANDLER(BitwiseXorSmi, InterpreterBitwiseBinaryOpAssembler) {
+  BitwiseBinaryOpWithSmi(Token::BIT_XOR);
 }
 
 // BitwiseAndSmi <imm>
 //
 // BitwiseAndSmi accumulator with <imm>.
-IGNITION_HANDLER(BitwiseAndSmi, InterpreterAssembler) {
-  Node* left = GetAccumulator();
-  Node* right = BytecodeOperandImmSmi(0);
-  Node* slot_index = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  Node* context = GetContext();
-
-  Variable var_lhs_type_feedback(this, MachineRepresentation::kTaggedSigned);
-  Node* lhs_value =
-      TruncateTaggedToWord32WithFeedback(context, left, &var_lhs_type_feedback);
-  Node* rhs_value = SmiToWord32(right);
-  Node* value = Word32And(lhs_value, rhs_value);
-  Node* result = ChangeInt32ToTagged(value);
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
-  UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
-                 feedback_vector, slot_index);
-  SetAccumulator(result);
-  Dispatch();
+IGNITION_HANDLER(BitwiseAndSmi, InterpreterBitwiseBinaryOpAssembler) {
+  BitwiseBinaryOpWithSmi(Token::BIT_AND);
 }
 
 // BitwiseNot <feedback_slot>
@@ -1159,83 +1134,26 @@ IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
 // Left shifts accumulator by the count specified in <imm>.
 // The accumulator is converted to an int32 before the operation. The 5
 // lsb bits from <imm> are used as count i.e. <src> << (<imm> & 0x1F).
-IGNITION_HANDLER(ShiftLeftSmi, InterpreterAssembler) {
-  Node* left = GetAccumulator();
-  Node* right = BytecodeOperandImmSmi(0);
-  Node* slot_index = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  Node* context = GetContext();
-
-  Variable var_lhs_type_feedback(this, MachineRepresentation::kTaggedSigned);
-  Node* lhs_value =
-      TruncateTaggedToWord32WithFeedback(context, left, &var_lhs_type_feedback);
-  Node* rhs_value = SmiToWord32(right);
-  Node* shift_count = Word32And(rhs_value, Int32Constant(0x1f));
-  Node* value = Word32Shl(lhs_value, shift_count);
-  Node* result = ChangeInt32ToTagged(value);
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
-  UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
-                 feedback_vector, slot_index);
-  SetAccumulator(result);
-  Dispatch();
+IGNITION_HANDLER(ShiftLeftSmi, InterpreterBitwiseBinaryOpAssembler) {
+  BitwiseBinaryOpWithSmi(Token::SHL);
 }
 
 // ShiftRightSmi <imm>
 //
 // Right shifts accumulator by the count specified in <imm>. Result is sign
 // extended. The accumulator is converted to an int32 before the operation. The
-// 5 lsb bits from <imm> are used as count i.e. <src> << (<imm> & 0x1F).
-IGNITION_HANDLER(ShiftRightSmi, InterpreterAssembler) {
-  Node* left = GetAccumulator();
-  Node* right = BytecodeOperandImmSmi(0);
-  Node* slot_index = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  Node* context = GetContext();
-
-  Variable var_lhs_type_feedback(this, MachineRepresentation::kTaggedSigned);
-  Node* lhs_value =
-      TruncateTaggedToWord32WithFeedback(context, left, &var_lhs_type_feedback);
-  Node* rhs_value = SmiToWord32(right);
-  Node* shift_count = Word32And(rhs_value, Int32Constant(0x1f));
-  Node* value = Word32Sar(lhs_value, shift_count);
-  Node* result = ChangeInt32ToTagged(value);
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
-  UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
-                 feedback_vector, slot_index);
-  SetAccumulator(result);
-  Dispatch();
+// 5 lsb bits from <imm> are used as count i.e. <src> >> (<imm> & 0x1F).
+IGNITION_HANDLER(ShiftRightSmi, InterpreterBitwiseBinaryOpAssembler) {
+  BitwiseBinaryOpWithSmi(Token::SAR);
 }
 
 // ShiftRightLogicalSmi <imm>
 //
 // Right shifts accumulator by the count specified in <imm>. Result is zero
 // extended. The accumulator is converted to an int32 before the operation. The
-// 5 lsb bits from <imm> are used as count i.e. <src> << (<imm> & 0x1F).
-IGNITION_HANDLER(ShiftRightLogicalSmi, InterpreterAssembler) {
-  Node* left = GetAccumulator();
-  Node* right = BytecodeOperandImmSmi(0);
-  Node* slot_index = BytecodeOperandIdx(1);
-  Node* feedback_vector = LoadFeedbackVector();
-  Node* context = GetContext();
-
-  Variable var_lhs_type_feedback(this, MachineRepresentation::kTaggedSigned);
-  Node* lhs_value =
-      TruncateTaggedToWord32WithFeedback(context, left, &var_lhs_type_feedback);
-  Node* rhs_value = SmiToWord32(right);
-  Node* shift_count = Word32And(rhs_value, Int32Constant(0x1f));
-  Node* value = Word32Shr(lhs_value, shift_count);
-  Node* result = ChangeUint32ToTagged(value);
-  Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
-                                        BinaryOperationFeedback::kSignedSmall,
-                                        BinaryOperationFeedback::kNumber);
-  UpdateFeedback(SmiOr(result_type, var_lhs_type_feedback.value()),
-                 feedback_vector, slot_index);
-  SetAccumulator(result);
-  Dispatch();
+// 5 lsb bits from <imm> are used as count i.e. <src> >>> (<imm> & 0x1F).
+IGNITION_HANDLER(ShiftRightLogicalSmi, InterpreterBitwiseBinaryOpAssembler) {
+  BitwiseBinaryOpWithSmi(Token::SHR);
 }
 
 // Negate <feedback_slot>

@@ -382,3 +382,47 @@ const six = BigInt(6);
   assertThrows("three % zero", RangeError);
   assertThrows("three % 0", TypeError);
 }
+
+// Bitwise binary ops.
+{
+  assertTrue((three & one) === one);
+  assertThrows("three & 1", TypeError);
+  assertThrows("1 & three", TypeError);
+  assertThrows("three & true", TypeError);
+  assertThrows("true & three", TypeError);
+  assertThrows("three & {valueOf: function() { return 1; }}", TypeError);
+  assertThrows("({valueOf: function() { return 1; }}) & three", TypeError);
+
+  assertTrue((two | one) === three);
+  assertThrows("two | 0", TypeError);
+  assertThrows("0 | two", TypeError);
+  assertThrows("two | undefined", TypeError);
+  assertThrows("undefined | two", TypeError);
+
+  assertTrue((three ^ one) === two);
+  assertThrows("three ^ 1", TypeError);
+  assertThrows("1 ^ three", TypeError);
+  assertThrows("three ^ 2.5", TypeError);
+  assertThrows("2.5 ^ three", TypeError);
+}
+
+// Shift ops.
+{
+  assertTrue(one << one === two);
+  assertThrows("one << 1", TypeError);
+  assertThrows("1 << one", TypeError);
+  assertThrows("one << true", TypeError);
+  assertThrows("true << one", TypeError);
+
+  assertTrue(three >> one === one);
+  assertThrows("three >> 1", TypeError);
+  assertThrows("0xbeef >> one", TypeError);
+  assertThrows("three >> 1.5", TypeError);
+  assertThrows("23.45 >> three", TypeError);
+
+  assertThrows("three >>> one", TypeError);
+  assertThrows("three >>> 1", TypeError);
+  assertThrows("0xbeef >>> one", TypeError);
+  assertThrows("three >>> {valueOf: function() { return 1; }}", TypeError);
+  assertThrows("({valueOf: function() { return 1; }}) >>> one", TypeError);
+}

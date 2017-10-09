@@ -60,6 +60,24 @@ RUNTIME_FUNCTION(Runtime_BigIntBinaryOp) {
     case Token::MOD:
       result = BigInt::Remainder(left, right);
       break;
+    case Token::BIT_AND:
+      result = BigInt::BitwiseAnd(left, right);
+      break;
+    case Token::BIT_OR:
+      result = BigInt::BitwiseOr(left, right);
+      break;
+    case Token::BIT_XOR:
+      result = BigInt::BitwiseXor(left, right);
+      break;
+    case Token::SHL:
+      result = BigInt::LeftShift(left, right);
+      break;
+    case Token::SAR:
+      result = BigInt::SignedRightShift(left, right);
+      break;
+    case Token::SHR:
+      result = BigInt::UnsignedRightShift(left, right);
+      break;
     default:
       UNREACHABLE();
   }
