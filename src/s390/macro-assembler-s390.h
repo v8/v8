@@ -1110,8 +1110,6 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // StatsCounter support
 
-  void SetCounter(StatsCounter* counter, int value, Register scratch1,
-                  Register scratch2);
   void IncrementCounter(StatsCounter* counter, int value, Register scratch1,
                         Register scratch2);
   void DecrementCounter(StatsCounter* counter, int value, Register scratch1,

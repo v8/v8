@@ -1478,13 +1478,6 @@ void TurboAssembler::Popcnt(Register dst, const Operand& src) {
 }
 
 
-void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
-  if (FLAG_native_code_counters && counter->Enabled()) {
-    mov(Operand::StaticVariable(ExternalReference(counter)), Immediate(value));
-  }
-}
-
-
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
   DCHECK(value > 0);
   if (FLAG_native_code_counters && counter->Enabled()) {

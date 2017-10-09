@@ -2565,14 +2565,6 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
   bind(&done);
 }
 
-void MacroAssembler::SetCounter(StatsCounter* counter, int value) {
-  if (FLAG_native_code_counters && counter->Enabled()) {
-    Operand counter_operand = ExternalOperand(ExternalReference(counter));
-    movl(counter_operand, Immediate(value));
-  }
-}
-
-
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
   DCHECK(value > 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
