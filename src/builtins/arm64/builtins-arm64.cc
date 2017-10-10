@@ -208,37 +208,26 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     __ SmiTag(x11, x0);
     __ Push(cp, x11, x10);
 
-    // Set up pointer to last argument.
-    __ Add(x2, fp, StandardFrameConstants::kCallerSPOffset);
-
-    // Copy arguments and receiver to the expression stack.
-    // Copy 2 values every loop to use ldp/stp.
-
-    // Compute pointer behind the first argument.
-    __ Add(x4, x2, Operand(x0, LSL, kPointerSizeLog2));
-    Label loop, entry, done_copying_arguments;
     // ----------- S t a t e -------------
     //  --                        x0: number of arguments (untagged)
     //  --                        x1: constructor function
     //  --                        x3: new target
-    //  --                        x2: pointer to last argument (caller sp)
-    //  --                        x4: pointer to argument last copied
     //  --        sp[0*kPointerSize]: the hole (receiver)
     //  --        sp[1*kPointerSize]: number of arguments (tagged)
     //  --        sp[2*kPointerSize]: context
     // -----------------------------------
-    __ B(&entry);
-    __ Bind(&loop);
-    __ Ldp(x10, x11, MemOperand(x4, -2 * kPointerSize, PreIndex));
-    __ Push(x11, x10);
-    __ Bind(&entry);
-    __ Cmp(x4, x2);
-    __ B(gt, &loop);
-    // Because we copied values 2 by 2 we may have copied one extra value.
-    // Drop it if that is the case.
-    __ B(eq, &done_copying_arguments);
-    __ Drop(1);
-    __ Bind(&done_copying_arguments);
+
+    // Copy arguments to the expression stack.
+    __ Claim(x0);
+    {
+      Register count = x2;
+      Register dst = x10;
+      Register src = x11;
+      __ Mov(count, x0);
+      __ Mov(dst, __ StackPointer());
+      __ Add(src, fp, StandardFrameConstants::kCallerSPOffset);
+      __ CopyDoubleWords(dst, src, count);
+    }
 
     // Call the function.
     // x0: number of arguments
@@ -292,8 +281,8 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
 
     __ Ldr(x4, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
     __ Ldr(w4, FieldMemOperand(x4, SharedFunctionInfo::kCompilerHintsOffset));
-    __ tst(w4, Operand(SharedFunctionInfo::kDerivedConstructorMask));
-    __ B(ne, &not_create_implicit_receiver);
+    __ TestAndBranchIfAnySet(w4, SharedFunctionInfo::kDerivedConstructorMask,
+                             &not_create_implicit_receiver);
 
     // If not derived class constructor: Allocate the new receiver object.
     __ IncrementCounter(masm->isolate()->counters()->constructed_objects(), 1,
@@ -303,7 +292,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     __ B(&post_instantiation_deopt_entry);
 
     // Else: use TheHoleValue as receiver for constructor call
-    __ bind(&not_create_implicit_receiver);
+    __ Bind(&not_create_implicit_receiver);
     __ LoadRoot(x0, Heap::kTheHoleValueRootIndex);
 
     // ----------- S t a t e -------------
@@ -316,7 +305,7 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // Deoptimizer enters here.
     masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
         masm->pc_offset());
-    __ bind(&post_instantiation_deopt_entry);
+    __ Bind(&post_instantiation_deopt_entry);
 
     // Restore new target.
     __ Pop(x3);
@@ -325,52 +314,32 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // conventions dictate that the called function pops the receiver.
     __ Push(x0, x0);
 
-    // ----------- S t a t e -------------
-    //  --                 x3: new target
-    //  -- sp[0*kPointerSize]: implicit receiver
-    //  -- sp[1*kPointerSize]: implicit receiver
-    //  -- sp[2*kPointerSize]: constructor function
-    //  -- sp[3*kPointerSize]: number of arguments (tagged)
-    //  -- sp[4*kPointerSize]: context
-    // -----------------------------------
-
     // Restore constructor function and argument count.
     __ Ldr(x1, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
-    __ Ldr(x0, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
-    __ SmiUntag(x0);
+    __ Ldrsw(x0,
+             UntagSmiMemOperand(fp, ConstructFrameConstants::kLengthOffset));
 
-    // Set up pointer to last argument.
-    __ Add(x2, fp, StandardFrameConstants::kCallerSPOffset);
-
-    // Copy arguments and receiver to the expression stack.
-    // Copy 2 values every loop to use ldp/stp.
-
-    // Compute pointer behind the first argument.
-    __ Add(x4, x2, Operand(x0, LSL, kPointerSizeLog2));
-    Label loop, entry, done_copying_arguments;
     // ----------- S t a t e -------------
     //  --                        x0: number of arguments (untagged)
     //  --                        x3: new target
-    //  --                        x2: pointer to last argument (caller sp)
-    //  --                        x4: pointer to argument last copied
     //  --        sp[0*kPointerSize]: implicit receiver
     //  --        sp[1*kPointerSize]: implicit receiver
     //  -- x1 and sp[2*kPointerSize]: constructor function
     //  --        sp[3*kPointerSize]: number of arguments (tagged)
     //  --        sp[4*kPointerSize]: context
     // -----------------------------------
-    __ B(&entry);
-    __ Bind(&loop);
-    __ Ldp(x10, x11, MemOperand(x4, -2 * kPointerSize, PreIndex));
-    __ Push(x11, x10);
-    __ Bind(&entry);
-    __ Cmp(x4, x2);
-    __ B(gt, &loop);
-    // Because we copied values 2 by 2 we may have copied one extra value.
-    // Drop it if that is the case.
-    __ B(eq, &done_copying_arguments);
-    __ Drop(1);
-    __ Bind(&done_copying_arguments);
+
+    // Copy arguments to the expression stack.
+    __ Claim(x0);
+    {
+      Register count = x2;
+      Register dst = x10;
+      Register src = x11;
+      __ Mov(count, x0);
+      __ Mov(dst, __ StackPointer());
+      __ Add(src, fp, StandardFrameConstants::kCallerSPOffset);
+      __ CopyDoubleWords(dst, src, count);
+    }
 
     // Call the function.
     ParameterCount actual(x0);
@@ -416,13 +385,14 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     __ Ldr(x4, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
     __ Ldr(x4, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
     __ Ldr(w4, FieldMemOperand(x4, SharedFunctionInfo::kCompilerHintsOffset));
-    __ tst(w4, Operand(SharedFunctionInfo::kClassConstructorMask));
 
     if (restrict_constructor_return) {
       // Throw if constructor function is a class constructor
-      __ B(eq, &use_receiver);
+      __ TestAndBranchIfAllClear(w4, SharedFunctionInfo::kClassConstructorMask,
+                                 &use_receiver);
     } else {
-      __ B(ne, &use_receiver);
+      __ TestAndBranchIfAnySet(w4, SharedFunctionInfo::kClassConstructorMask,
+                               &use_receiver);
       __ CallRuntime(
           Runtime::kIncrementUseCounterConstructorReturnNonUndefinedPrimitive);
       __ B(&use_receiver);
@@ -2212,7 +2182,6 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
     //  -- x4 : the number of [[BoundArguments]]
     // -----------------------------------
 
-    // Reserve stack space for the [[BoundArguments]].
     {
       Label done;
       __ Claim(x4);
@@ -2231,22 +2200,14 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       __ Bind(&done);
     }
 
+    UseScratchRegisterScope temps(masm);
+    Register argc = temps.AcquireX();
     // Relocate arguments down the stack.
-    {
-      Label loop, done_loop;
-      __ Mov(x5, 0);
-      __ Bind(&loop);
-      __ Cmp(x5, x0);
-      __ B(gt, &done_loop);
-      __ Peek(x10, Operand(x4, LSL, kPointerSizeLog2));
-      __ Poke(x10, Operand(x5, LSL, kPointerSizeLog2));
-      __ Add(x4, x4, 1);
-      __ Add(x5, x5, 1);
-      __ B(&loop);
-      __ Bind(&done_loop);
-    }
+    __ Mov(argc, x0);
+    __ CopySlots(0, x4, argc);
 
-    // Copy [[BoundArguments]] to the stack (below the arguments).
+    // Copy [[BoundArguments]] to the stack (below the arguments). The first
+    // element of the array is copied to the highest address.
     {
       Label loop;
       __ Ldrsw(x4, UntagSmiFieldMemOperand(x2, FixedArray::kLengthOffset));

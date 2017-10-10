@@ -13263,6 +13263,148 @@ TEST(pop_queued) {
   TEARDOWN();
 }
 
+TEST(copy_slots_down) {
+  INIT_V8();
+  SETUP();
+
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+  const uint64_t fours = 0x4444444444444444UL;
+
+  START();
+
+  // Test copying 12 slots down one slot.
+  __ Mov(jssp, __ StackPointer());
+  __ SetStackPointer(jssp);
+
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+  __ Mov(x4, fours);
+
+  __ Push(x1, x2, x3, x4);
+  __ Push(x1, x2, x1, x2);
+  __ Push(x3, x4, x3, x4);
+  __ Push(xzr);
+
+  __ Mov(x5, 0);
+  __ Mov(x6, 1);
+  __ Mov(x7, 12);
+  __ CopySlots(x5, x6, x7);
+
+  __ Pop(x4, x5, x6, x7);
+  __ Pop(x8, x9, x10, x11);
+  __ Pop(x12, x13, x14, x15);
+  __ Drop(1);
+
+  // Test copying one slot down one slot.
+  __ Push(x1, xzr, xzr);
+
+  __ Mov(x1, 1);
+  __ Mov(x2, 2);
+  __ Mov(x3, 1);
+  __ CopySlots(x1, x2, x3);
+
+  __ Drop(1);
+  __ Pop(x0);
+  __ Drop(1);
+
+  __ Mov(csp, jssp);
+  __ SetStackPointer(csp);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(fours, x4);
+  CHECK_EQUAL_64(threes, x5);
+  CHECK_EQUAL_64(fours, x6);
+  CHECK_EQUAL_64(threes, x7);
+
+  CHECK_EQUAL_64(twos, x8);
+  CHECK_EQUAL_64(ones, x9);
+  CHECK_EQUAL_64(twos, x10);
+  CHECK_EQUAL_64(ones, x11);
+
+  CHECK_EQUAL_64(fours, x12);
+  CHECK_EQUAL_64(threes, x13);
+  CHECK_EQUAL_64(twos, x14);
+  CHECK_EQUAL_64(ones, x15);
+
+  CHECK_EQUAL_64(ones, x0);
+
+  TEARDOWN();
+}
+
+TEST(copy_slots_up) {
+  INIT_V8();
+  SETUP();
+
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+
+  START();
+
+  __ Mov(jssp, __ StackPointer());
+  __ SetStackPointer(jssp);
+
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+
+  // Test copying one slot to the next slot higher in memory.
+  __ Push(xzr, x1);
+
+  __ Mov(x5, 1);
+  __ Mov(x6, 0);
+  __ Mov(x7, 1);
+  __ CopySlots(x5, x6, x7);
+
+  __ Drop(1);
+  __ Pop(x10);
+
+  // Test copying two slots to the next two slots higher in memory.
+  __ Push(xzr, xzr);
+  __ Push(x1, x2);
+
+  __ Mov(x5, 2);
+  __ Mov(x6, 0);
+  __ Mov(x7, 2);
+  __ CopySlots(x5, x6, x7);
+
+  __ Drop(2);
+  __ Pop(x11, x12);
+
+  // Test copying three slots to the next three slots higher in memory.
+  __ Push(xzr, xzr, xzr);
+  __ Push(x1, x2, x3);
+
+  __ Mov(x5, 3);
+  __ Mov(x6, 0);
+  __ Mov(x7, 3);
+  __ CopySlots(x5, x6, x7);
+
+  __ Drop(3);
+  __ Pop(x0, x1, x2);
+
+  __ Mov(csp, jssp);
+  __ SetStackPointer(csp);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(ones, x10);
+  CHECK_EQUAL_64(twos, x11);
+  CHECK_EQUAL_64(ones, x12);
+  CHECK_EQUAL_64(threes, x0);
+  CHECK_EQUAL_64(twos, x1);
+  CHECK_EQUAL_64(ones, x2);
+
+  TEARDOWN();
+}
 
 TEST(jump_both_smi) {
   INIT_V8();
