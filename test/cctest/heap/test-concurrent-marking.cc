@@ -37,10 +37,11 @@ TEST(ConcurrentMarking) {
   if (collector->sweeping_in_progress()) {
     collector->EnsureSweepingCompleted();
   }
-  ConcurrentMarking::MarkingWorklist shared, bailout;
+
+  ConcurrentMarking::MarkingWorklist shared, bailout, on_hold;
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &shared, &bailout, &weak_objects);
+      new ConcurrentMarking(heap, &shared, &bailout, &on_hold, &weak_objects);
   PublishSegment(&shared, heap->undefined_value());
   concurrent_marking->ScheduleTasks();
   concurrent_marking->WaitForTasks();
@@ -59,10 +60,10 @@ TEST(ConcurrentMarkingReschedule) {
     collector->EnsureSweepingCompleted();
   }
 
-  ConcurrentMarking::MarkingWorklist shared, bailout;
+  ConcurrentMarking::MarkingWorklist shared, bailout, on_hold;
   WeakObjects weak_objects;
   ConcurrentMarking* concurrent_marking =
-      new ConcurrentMarking(heap, &shared, &bailout, &weak_objects);
+      new ConcurrentMarking(heap, &shared, &bailout, &on_hold, &weak_objects);
   PublishSegment(&shared, heap->undefined_value());
   concurrent_marking->ScheduleTasks();
   concurrent_marking->WaitForTasks();

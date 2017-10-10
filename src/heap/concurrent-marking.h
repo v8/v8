@@ -40,7 +40,8 @@ class ConcurrentMarking {
   using MarkingWorklist = Worklist<HeapObject*, 64 /* segment size */>;
 
   ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
-                    MarkingWorklist* bailout, WeakObjects* weak_objects);
+                    MarkingWorklist* bailout, MarkingWorklist* on_hold,
+                    WeakObjects* weak_objects);
 
   void ScheduleTasks();
   void WaitForTasks();
@@ -76,6 +77,7 @@ class ConcurrentMarking {
   Heap* heap_;
   MarkingWorklist* shared_;
   MarkingWorklist* bailout_;
+  MarkingWorklist* on_hold_;
   WeakObjects* weak_objects_;
   TaskState task_state_[kMaxTasks + 1];
   base::AtomicNumber<size_t> total_marked_bytes_;

@@ -5414,10 +5414,10 @@ bool Heap::SetUp() {
         mark_compact_collector_->marking_worklist();
     concurrent_marking_ = new ConcurrentMarking(
         this, marking_worklist->shared(), marking_worklist->bailout(),
-        mark_compact_collector_->weak_objects());
+        marking_worklist->on_hold(), mark_compact_collector_->weak_objects());
   } else {
     concurrent_marking_ =
-        new ConcurrentMarking(this, nullptr, nullptr, nullptr);
+        new ConcurrentMarking(this, nullptr, nullptr, nullptr, nullptr);
   }
 
   for (int i = 0; i <= LAST_SPACE; i++) {

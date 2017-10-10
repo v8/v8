@@ -326,10 +326,12 @@ class ConcurrentMarking::Task : public CancelableTask {
 
 ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
                                      MarkingWorklist* bailout,
+                                     MarkingWorklist* on_hold,
                                      WeakObjects* weak_objects)
     : heap_(heap),
       shared_(shared),
       bailout_(bailout),
+      on_hold_(on_hold),
       weak_objects_(weak_objects),
       pending_task_count_(0),
       task_count_(0) {
@@ -377,7 +379,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
         Address new_space_limit = heap_->new_space()->original_limit();
         Address addr = object->address();
         if (new_space_top <= addr && addr < new_space_limit) {
-          bailout_->Push(task_id, object);
+          on_hold_->Push(task_id, object);
         } else {
           Map* map = object->synchronized_map();
           current_marked_bytes += visitor.Visit(map, object);
@@ -395,6 +397,7 @@ void ConcurrentMarking::Run(int task_id, TaskState* task_state) {
       // young generation GC.
       base::LockGuard<base::Mutex> guard(&task_state->lock);
       bailout_->FlushToGlobal(task_id);
+      on_hold_->FlushToGlobal(task_id);
     }
     weak_objects_->weak_cells.FlushToGlobal(task_id);
     weak_objects_->transition_arrays.FlushToGlobal(task_id);

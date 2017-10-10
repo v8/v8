@@ -2616,8 +2616,13 @@ class NewSpace : public Space {
     return allocation_info_.limit();
   }
 
-  Address original_top() { return original_top_.Value(); }
+  void ResetOriginalTop() {
+    DCHECK_GE(top(), original_top());
+    DCHECK_LE(top(), original_limit());
+    original_top_.SetValue(top());
+  }
 
+  Address original_top() { return original_top_.Value(); }
   Address original_limit() { return original_limit_.Value(); }
 
   // Return the address of the first object in the active semispace.

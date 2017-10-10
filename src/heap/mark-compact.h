@@ -506,12 +506,18 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       if (bailout_.Pop(kMainThread, &result)) return result;
 #endif
       if (shared_.Pop(kMainThread, &result)) return result;
+#ifdef V8_CONCURRENT_MARKING
+      // The expectation is that this work list is empty almost all the time
+      // and we can thus avoid the emptiness checks by putting it last.
+      if (on_hold_.Pop(kMainThread, &result)) return result;
+#endif
       return nullptr;
     }
 
     void Clear() {
       bailout_.Clear();
       shared_.Clear();
+      on_hold_.Clear();
     }
 
     bool IsBailoutEmpty() { return bailout_.IsLocalEmpty(kMainThread); }
@@ -519,12 +525,15 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     bool IsEmpty() {
       return bailout_.IsLocalEmpty(kMainThread) &&
              shared_.IsLocalEmpty(kMainThread) &&
-             bailout_.IsGlobalPoolEmpty() && shared_.IsGlobalPoolEmpty();
+             on_hold_.IsLocalEmpty(kMainThread) &&
+             bailout_.IsGlobalPoolEmpty() && shared_.IsGlobalPoolEmpty() &&
+             on_hold_.IsGlobalPoolEmpty();
     }
 
     int Size() {
       return static_cast<int>(bailout_.LocalSize(kMainThread) +
-                              shared_.LocalSize(kMainThread));
+                              shared_.LocalSize(kMainThread) +
+                              on_hold_.LocalSize(kMainThread));
     }
 
     // Calls the specified callback on each element of the deques and replaces
@@ -535,14 +544,17 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     void Update(Callback callback) {
       bailout_.Update(callback);
       shared_.Update(callback);
+      on_hold_.Update(callback);
     }
 
     ConcurrentMarkingWorklist* shared() { return &shared_; }
     ConcurrentMarkingWorklist* bailout() { return &bailout_; }
+    ConcurrentMarkingWorklist* on_hold() { return &on_hold_; }
 
     void Print() {
       PrintWorklist("shared", &shared_);
       PrintWorklist("bailout", &bailout_);
+      PrintWorklist("on_hold", &on_hold_);
     }
 
    private:
@@ -572,6 +584,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     }
     ConcurrentMarkingWorklist shared_;
     ConcurrentMarkingWorklist bailout_;
+    ConcurrentMarkingWorklist on_hold_;
   };
 
   class RootMarkingVisitor;
