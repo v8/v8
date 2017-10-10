@@ -3518,7 +3518,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseImportExpressions(
       return impl()->NullExpression();
     }
 
-    return impl()->ExpressionFromLiteral(Token::NULL_LITERAL, pos);
+    return impl()->ImportMetaExpression(pos);
   }
   Expect(Token::LPAREN, CHECK_OK);
   ExpressionT arg = ParseAssignmentExpression(true, CHECK_OK);

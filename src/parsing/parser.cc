@@ -383,6 +383,12 @@ Expression* Parser::FunctionSentExpression(int pos) {
                                    args, pos);
 }
 
+Expression* Parser::ImportMetaExpression(int pos) {
+  return factory()->NewCallRuntime(
+      Runtime::kGetImportMetaObject,
+      new (zone()) ZoneList<Expression*>(0, zone()), pos);
+}
+
 Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
   switch (token) {
     case Token::NULL_LITERAL:
