@@ -13,7 +13,6 @@ group("gn_all") {
       ":jsfunfuzz_run",
       ":run-deopt-fuzzer_run",
       ":run-gcmole_run",
-      ":run-valgrind_run",
     ]
   }
 }
@@ -48,12 +47,4 @@ v8_isolate_run("run-gcmole") {
   ]
 
   isolate = "gcmole/run-gcmole.isolate"
-}
-
-v8_isolate_run("run-valgrind") {
-  deps = [
-    "..:d8_run",
-  ]
-
-  isolate = "run-valgrind.isolate"
 }

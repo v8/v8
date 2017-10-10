@@ -62,9 +62,9 @@
       'V8 Linux - noi18n - debug': 'gn_debug_x86_no_i18n',
       'V8 Linux - verify csa': 'gn_release_x86_verify_csa',
       # Linux64.
-      'V8 Linux64 - builder': 'gn_release_x64_valgrind',
+      'V8 Linux64 - builder': 'gn_release_x64',
       'V8 Linux64 - concurrent marking - builder': 'gn_release_x64_concurrent_marking',
-      'V8 Linux64 - debug builder': 'gn_debug_x64_valgrind',
+      'V8 Linux64 - debug builder': 'gn_debug_x64',
       'V8 Linux64 - custom snapshot - debug builder': 'gn_debug_x64_custom',
       'V8 Linux64 - internal snapshot': 'gn_release_x64_internal',
       'V8 Linux64 - gyp': 'gyp_release_x64',
@@ -198,7 +198,7 @@
       'v8_linux_gcc_compile_rel': 'gn_release_x86_gcc_minimal_symbols',
       'v8_linux_gcc_rel': 'gn_release_x86_gcc_minimal_symbols',
       'v8_linux64_gcc_compile_dbg': 'gn_debug_x64_gcc',
-      'v8_linux64_rel_ng': 'gn_release_x64_valgrind_trybot',
+      'v8_linux64_rel_ng': 'gn_release_x64_trybot',
       'v8_linux64_verify_csa_rel_ng': 'gn_release_x64_verify_csa',
       'v8_linux64_gyp_rel_ng': 'gyp_release_x64',
       'v8_linux64_avx2_rel_ng': 'gn_release_x64_trybot',
@@ -433,12 +433,6 @@
       'gn', 'release_bot', 'x64', 'edge', 'ubsan_vptr_recover', 'swarming'],
     'gn_release_x64_ubsan_vptr_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'ubsan_vptr', 'minimal_symbols', 'swarming'],
-    'gn_release_x64_valgrind': [
-      'gn', 'release_bot', 'x64', 'swarming', 'valgrind',
-      'no_custom_libcxx'],
-    'gn_release_x64_valgrind_trybot': [
-      'gn', 'release_trybot', 'x64', 'swarming', 'valgrind',
-      'no_custom_libcxx'],
     'gn_release_x64_verify_csa': [
       'gn', 'release_bot', 'x64', 'swarming', 'dcheck_always_on',
       'v8_enable_slow_dchecks', 'v8_verify_csa'],
@@ -461,9 +455,6 @@
       'gn', 'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
     'gn_debug_x64_trybot': [
       'gn', 'debug_trybot', 'x64', 'swarming'],
-    'gn_debug_x64_valgrind': [
-      'gn', 'debug_bot', 'x64', 'swarming', 'valgrind',
-      'no_custom_libcxx'],
 
     # GN debug configs for x86.
     'gn_debug_x86': [
@@ -773,11 +764,6 @@
     'ubsan_vptr_recover': {
       # Ubsan vptr with recovery.
       'gn_args': 'is_ubsan_vptr=true is_ubsan_no_recover=false',
-    },
-
-    'valgrind': {
-      'gn_args': 'v8_has_valgrind=true',
-      'gyp_defines': 'has_valgrind=1',
     },
 
     'v8_no_i18n': {
