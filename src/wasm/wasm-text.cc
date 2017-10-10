@@ -103,8 +103,10 @@ void PrintWasmText(const WasmModule* module, const ModuleWireBytes& wire_bytes,
       case kExprTry: {
         BlockTypeOperand<false> operand(&i, i.pc());
         os << WasmOpcodes::OpcodeName(opcode);
-        for (unsigned i = 0; i < operand.arity; i++) {
-          os << " " << WasmOpcodes::TypeName(operand.read_entry(i));
+        if (operand.type == kWasmVar) {
+          os << " (type " << operand.sig_index << ")";
+        } else if (operand.out_arity() > 0) {
+          os << " " << WasmOpcodes::TypeName(operand.out_type(0));
         }
         control_depth++;
         break;

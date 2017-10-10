@@ -28,9 +28,6 @@ enum ValueTypeCode {
   kLocalS128 = 0x7b
 };
 
-// Type code for multi-value block types.
-static const uint8_t kMultivalBlock = 0x41;
-
 // We reuse the internal machine type to represent WebAssembly types.
 // A typedef improves readability without adding a whole new type system.
 using ValueType = MachineRepresentation;

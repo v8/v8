@@ -827,24 +827,34 @@ class SideTable : public ZoneObject {
         case kExprLoop: {
           bool is_loop = opcode == kExprLoop;
           BlockTypeOperand<false> operand(&i, i.pc());
-          TRACE("control @%u: %s, arity %d\n", i.pc_offset(),
-                is_loop ? "Loop" : "Block", operand.arity);
+          if (operand.type == kWasmVar) {
+            operand.sig = module->signatures[operand.sig_index];
+          }
+          TRACE("control @%u: %s, arity %d->%d\n", i.pc_offset(),
+                is_loop ? "Loop" : "Block",
+                operand.in_arity(), operand.out_arity());
           CLabel* label = CLabel::New(&control_transfer_zone, stack_height,
-                                      is_loop ? 0 : operand.arity);
-          control_stack.emplace_back(i.pc(), label, operand.arity);
+                                      is_loop ? operand.in_arity()
+                                              : operand.out_arity());
+          control_stack.emplace_back(i.pc(), label, operand.out_arity());
           copy_unreachable();
           if (is_loop) label->Bind(i.pc());
           break;
         }
         case kExprIf: {
-          TRACE("control @%u: If\n", i.pc_offset());
           BlockTypeOperand<false> operand(&i, i.pc());
+          if (operand.type == kWasmVar) {
+            operand.sig = module->signatures[operand.sig_index];
+          }
+          TRACE("control @%u: If, arity %d->%d\n", i.pc_offset(),
+                operand.in_arity(), operand.out_arity());
           CLabel* end_label =
-              CLabel::New(&control_transfer_zone, stack_height, operand.arity);
+              CLabel::New(&control_transfer_zone, stack_height,
+                          operand.out_arity());
           CLabel* else_label =
               CLabel::New(&control_transfer_zone, stack_height, 0);
           control_stack.emplace_back(i.pc(), end_label, else_label,
-                                     operand.arity);
+                                     operand.out_arity());
           copy_unreachable();
           if (!unreachable) else_label->Ref(i.pc(), stack_height);
           break;
