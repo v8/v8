@@ -582,8 +582,8 @@ var failWithMessage;
     return OptimizationStatusImpl(fun, sync_opt);
   }
 
-  assertUnoptimized = function assertUnoptimized(fun, sync_opt, name_opt,
-      skip_if_maybe_deopted = true) {
+  assertUnoptimized = function assertUnoptimized(
+      fun, sync_opt, name_opt, skip_if_maybe_deopted = true) {
     if (sync_opt === undefined) sync_opt = "";
     var opt_status = OptimizationStatus(fun, sync_opt);
     // Tests that use assertUnoptimized() do not make sense if --always-opt
@@ -601,8 +601,8 @@ var failWithMessage;
     assertFalse((opt_status & V8OptimizationStatus.kOptimized) !== 0, name_opt);
   }
 
-  assertOptimized = function assertOptimized(fun, sync_opt, name_opt,
-      skip_if_maybe_deopted = true) {
+  assertOptimized = function assertOptimized(
+      fun, sync_opt, name_opt, skip_if_maybe_deopted = true) {
     if (sync_opt === undefined) sync_opt = "";
     var opt_status = OptimizationStatus(fun, sync_opt);
     // Tests that use assertOptimized() do not make sense if --no-opt

@@ -559,6 +559,10 @@
   'regress/regress-2185-2': [SKIP],
   'readonly': [SKIP],
   'array-feedback': [SKIP],
+  'deopt-recursive-eager-once': [SKIP],
+  'deopt-recursive-lazy-once': [SKIP],
+  'deopt-recursive-soft-once': [SKIP],
+  'code-coverage-block-opt': [SKIP],
 
   # Bounds check triggers forced deopt for array constructors.
   'array-constructor-feedback': [SKIP],
