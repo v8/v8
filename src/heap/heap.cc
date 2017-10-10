@@ -2323,6 +2323,10 @@ void Heap::UnregisterArrayBuffer(JSArrayBuffer* buffer) {
   ArrayBufferTracker::Unregister(this, buffer);
 }
 
+void Heap::TrackIncreasedArrayBufferSize(JSArrayBuffer* buffer, size_t delta) {
+  ArrayBufferTracker::IncreaseArrayBufferSize(this, buffer, delta);
+}
+
 void Heap::ConfigureInitialOldGenerationSize() {
   if (!old_generation_size_configured_ && tracer()->SurvivalEventsRecorded()) {
     old_generation_allocation_limit_ =

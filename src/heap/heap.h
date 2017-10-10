@@ -1473,6 +1473,7 @@ class Heap {
   // unregistered buffer, too, and the name is confusing.
   void RegisterNewArrayBuffer(JSArrayBuffer* buffer);
   void UnregisterArrayBuffer(JSArrayBuffer* buffer);
+  void TrackIncreasedArrayBufferSize(JSArrayBuffer* buffer, size_t delta);
 
   // ===========================================================================
   // Allocation site tracking. =================================================
