@@ -96,6 +96,8 @@
       'V8 Linux gcc 4.8': 'gn_release_x86_gcc',
       'V8 Linux64 gcc 4.8 - debug': 'gn_debug_x64_gcc',
       # FYI.
+      'V8 Fuchsia': 'gn_release_x64_fuchsia',
+      'V8 Fuchsia - debug': 'gn_debug_x64_fuchsia',
       'V8 Linux - swarming staging': 'gn_release_x64',
       'V8 Linux64 - cfi': 'gn_release_x64_cfi',
       'V8 Linux64 UBSanVptr': 'gn_release_x64_ubsan_vptr',
@@ -183,6 +185,7 @@
       'V8 s390x - sim - stable branch': 'gyp_release_simulate_s390x',
     },
     'tryserver.v8': {
+      'v8_fuchsia_rel_ng': 'gn_release_x64_fuchsia_trybot',
       'v8_linux_rel_ng': 'gn_release_x86_gcmole_trybot',
       'v8_linux_verify_csa_rel_ng': 'gn_release_x86_verify_csa',
       'v8_linux_avx2_dbg': 'gn_debug_x86_trybot',
@@ -400,6 +403,10 @@
       'gn', 'release_bot', 'x64', 'v8_enable_concurrent_marking', 'swarming'],
     'gn_release_x64_correctness_fuzzer' : [
       'gn', 'release_bot', 'x64', 'v8_correctness_fuzzer'],
+    'gn_release_x64_fuchsia': [
+      'gn', 'release_bot', 'x64', 'fuchsia', 'swarming'],
+    'gn_release_x64_fuchsia_trybot': [
+      'gn', 'release_trybot', 'x64', 'fuchsia', 'swarming'],
     'gn_release_x64_gcc_coverage': [
       'gn', 'release_bot', 'x64', 'coverage', 'gcc'],
     'gn_release_x64_internal': [
@@ -446,6 +453,8 @@
       'v8_optimized_debug', 'x64', 'asan', 'edge', 'swarming'],
     'gn_debug_x64_custom': [
       'gn', 'debug_bot', 'x64', 'swarming', 'v8_snapshot_custom'],
+    'gn_debug_x64_fuchsia': [
+      'gn', 'debug_bot', 'x64', 'fuchsia', 'swarming'],
     'gn_debug_x64_gcc': [
       'gn', 'debug_bot', 'x64', 'gcc'],
     'gn_debug_x64_minimal_symbols': [
@@ -606,6 +615,10 @@
     'edge': {
       'gn_args': 'sanitizer_coverage_flags="trace-pc-guard"',
       'gyp_defines': 'sanitizer_coverage=trace-pc-guard',
+    },
+
+    'fuchsia': {
+      'gn_args': 'target_os="fuchsia"',
     },
 
     'gcc': {
