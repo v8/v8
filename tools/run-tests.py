@@ -589,11 +589,8 @@ def ProcessOptions(options):
     VARIANTS = EXHAUSTIVE_VARIANTS
 
   # TODO(machenbach): Figure out how to test a bigger subset of variants on
-  # msan and tsan.
+  # msan.
   if options.msan:
-    VARIANTS = ["default"]
-
-  if options.tsan:
     VARIANTS = ["default"]
 
   if options.j == 0:
