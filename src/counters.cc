@@ -489,9 +489,10 @@ void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
   DCHECK(stats->IsCalledOnTheSameThread());
   if (stats->current_timer_.Value() != timer) {
     // The branch is added to catch a crash crbug.com/760649
+    RuntimeCallTimer* stack_top = stats->current_timer_.Value();
     EmbeddedVector<char, 200> text;
     SNPrintF(text, "ERROR: Leaving counter '%s', stack top '%s'.\n",
-             timer->name(), stats->current_timer_.Value()->name());
+             timer->name(), stack_top ? stack_top->name() : "(null)");
     USE(text);
     CHECK(false);
   }
