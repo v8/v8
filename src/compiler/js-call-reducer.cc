@@ -849,9 +849,8 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
 
-  // TODO(danno): Handle holey Smi and Object fast elements kinds and double
-  // packed.
-  if (!IsFastPackedElementsKind(kind) || IsDoubleElementsKind(kind)) {
+  // TODO(danno): Handle holey elements kinds.
+  if (!IsFastPackedElementsKind(kind)) {
     return NoChange();
   }
 
@@ -883,8 +882,8 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
       effect, control);
 
   Node* original_length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
-      receiver, effect, control);
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
+      effect, control);
 
   // This array should be HOLEY_SMI_ELEMENTS because of the non-zero length.
   // Even though {JSCreateArray} is not marked as {kNoThrow}, we can elide the
