@@ -2480,7 +2480,8 @@ void AsmJsParser::GatherCases(ZoneVector<int32_t>* cases) {
         value = static_cast<int32_t>(uvalue);
       }
       cases->push_back(value);
-    } else if (Peek(AsmJsScanner::kEndOfInput)) {
+    } else if (Peek(AsmJsScanner::kEndOfInput) ||
+               Peek(AsmJsScanner::kParseError)) {
       break;
     }
     scanner_.Next();
