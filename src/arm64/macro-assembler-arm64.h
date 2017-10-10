@@ -659,20 +659,6 @@ class TurboAssembler : public Assembler {
   // Emits a runtime assert that the CSP is aligned.
   void AssertCspAligned();
 
-  // Copy slot_count stack slots from the stack offset specified by src to
-  // the stack offset specified by dst. The offsets and count are expressed in
-  // slot-sized units. Offset dst must be less than src, or the gap between
-  // them must be greater than or equal to slot_count, otherwise the result is
-  // unpredictable. The function may corrupt its register arguments.
-  void CopySlots(int dst, Register src, Register slot_count);
-  void CopySlots(Register dst, Register src, Register slot_count);
-
-  // Copy count double words from the address in register src to the address
-  // in register dst. Address dst must be less than src, or the gap between
-  // them must be greater than or equal to count double words, otherwise the
-  // result is unpredictable. The function may corrupt its register arguments.
-  void CopyDoubleWords(Register dst, Register src, Register count);
-
   // Load a literal from the inline constant pool.
   inline void Ldr(const CPURegister& rt, const Operand& imm);
   // Helper function for double immediate.
