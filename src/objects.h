@@ -913,7 +913,6 @@ enum class ComparisonResult {
   kUndefined     // at least one of x or y was undefined or NaN
 };
 
-
 class AbstractCode;
 class AccessorPair;
 class AllocationSite;
@@ -1158,6 +1157,8 @@ class Object {
 
   enum ShouldThrow { THROW_ON_ERROR, DONT_THROW };
 
+  enum class Conversion { kToNumber, kToNumeric };
+
 #define RETURN_FAILURE(isolate, should_throw, call) \
   do {                                              \
     if ((should_throw) == DONT_THROW) {             \
@@ -1266,6 +1267,9 @@ class Object {
 
   // ES6 section 7.1.3 ToNumber
   MUST_USE_RESULT static inline MaybeHandle<Object> ToNumber(
+      Handle<Object> input);
+
+  MUST_USE_RESULT static inline MaybeHandle<Object> ToNumeric(
       Handle<Object> input);
 
   // ES6 section 7.1.4 ToInteger
@@ -1537,8 +1541,8 @@ class Object {
       Isolate* isolate, Handle<Object> value);
   MUST_USE_RESULT static MaybeHandle<String> ConvertToString(
       Isolate* isolate, Handle<Object> input);
-  MUST_USE_RESULT static MaybeHandle<Object> ConvertToNumber(
-      Isolate* isolate, Handle<Object> input);
+  MUST_USE_RESULT static MaybeHandle<Object> ConvertToNumberOrNumeric(
+      Isolate* isolate, Handle<Object> input, Conversion mode);
   MUST_USE_RESULT static MaybeHandle<Object> ConvertToInteger(
       Isolate* isolate, Handle<Object> input);
   MUST_USE_RESULT static MaybeHandle<Object> ConvertToInt32(

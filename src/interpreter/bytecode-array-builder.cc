@@ -1020,6 +1020,11 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ToNumber(int feedback_slot) {
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::ToNumeric(int feedback_slot) {
+  OutputToNumeric(feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::Bind(BytecodeLabel* label) {
   // Flush the register optimizer when binding a label to ensure all
   // expected registers are valid when jumping to this label.

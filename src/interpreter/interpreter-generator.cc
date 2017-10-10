@@ -1327,49 +1327,14 @@ IGNITION_HANDLER(ToName, InterpreterAssembler) {
 //
 // Convert the object referenced by the accumulator to a number.
 IGNITION_HANDLER(ToNumber, InterpreterAssembler) {
-  Node* object = GetAccumulator();
-  Node* context = GetContext();
+  ToNumberOrNumeric(Object::Conversion::kToNumber);
+}
 
-  // Convert the {object} to a Number and collect feedback for the {object}.
-  Variable var_type_feedback(this, MachineRepresentation::kTaggedSigned);
-  Variable var_result(this, MachineRepresentation::kTagged);
-  Label if_done(this), if_objectissmi(this), if_objectisnumber(this),
-      if_objectisother(this, Label::kDeferred);
-
-  GotoIf(TaggedIsSmi(object), &if_objectissmi);
-  Branch(IsHeapNumber(object), &if_objectisnumber, &if_objectisother);
-
-  BIND(&if_objectissmi);
-  {
-    var_result.Bind(object);
-    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kSignedSmall));
-    Goto(&if_done);
-  }
-
-  BIND(&if_objectisnumber);
-  {
-    var_result.Bind(object);
-    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
-    Goto(&if_done);
-  }
-
-  BIND(&if_objectisother);
-  {
-    // Convert the {object} to a Number.
-    var_result.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, object));
-    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
-    Goto(&if_done);
-  }
-
-  BIND(&if_done);
-
-  // Record the type feedback collected for {object}.
-  Node* slot_index = BytecodeOperandIdx(0);
-  Node* feedback_vector = LoadFeedbackVector();
-  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
-
-  SetAccumulator(var_result.value());
-  Dispatch();
+// ToNumeric <slot>
+//
+// Convert the object referenced by the accumulator to a numeric.
+IGNITION_HANDLER(ToNumeric, InterpreterAssembler) {
+  ToNumberOrNumeric(Object::Conversion::kToNumeric);
 }
 
 // ToObject <dst>

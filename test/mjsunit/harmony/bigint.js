@@ -6,6 +6,7 @@
 
 'use strict'
 
+const minus_one = BigInt(-1);
 const zero = BigInt(0);
 const another_zero = BigInt(0);
 const one = BigInt(1);
@@ -311,6 +312,34 @@ const six = BigInt(6);
 
   assertTrue(new Map([[one, 42]]).has(one));
   assertTrue(new Map([[one, 42]]).has(another_one));
+}
+
+// ToNumber
+{
+  assertThrows(() => isNaN(zero), TypeError);
+  assertThrows(() => isNaN(one), TypeError);
+
+  assertThrows(() => +zero, TypeError);
+  assertThrows(() => +one, TypeError);
+}
+{
+  let Zero = {valueOf() { return zero }};
+  let One = {valueOf() { return one }};
+
+  assertThrows(() => isNaN(Zero), TypeError);
+  assertThrows(() => isNaN(One), TypeError);
+
+  assertThrows(() => +Zero, TypeError);
+  assertThrows(() => +One, TypeError);
+}{
+  let Zero = {valueOf() { return Object(NaN) }, toString() { return zero }};
+  let One = {valueOf() { return one }, toString() { return NaN }};
+
+  assertThrows(() => isNaN(Zero), TypeError);
+  assertThrows(() => isNaN(One), TypeError);
+
+  assertThrows(() => +Zero, TypeError);
+  assertThrows(() => +One, TypeError);
 }
 
 // Binary ops.

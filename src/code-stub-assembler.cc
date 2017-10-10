@@ -3956,6 +3956,13 @@ Node* CodeStubAssembler::IsJSRegExp(Node* object) {
   return HasInstanceType(object, JS_REGEXP_TYPE);
 }
 
+Node* CodeStubAssembler::IsNumeric(Node* object) {
+  return Select(
+      TaggedIsSmi(object), [=] { return Int32Constant(1); },
+      [=] { return Word32Or(IsHeapNumber(object), IsBigInt(object)); },
+      MachineRepresentation::kWord32);
+}
+
 Node* CodeStubAssembler::IsNumber(Node* object) {
   return Select(TaggedIsSmi(object), [=] { return Int32Constant(1); },
                 [=] { return IsHeapNumber(object); },
@@ -4869,8 +4876,8 @@ Node* CodeStubAssembler::ToName(Node* context, Node* value) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
-  // Assert input is a HeapObject (not smi or heap number)
+Node* CodeStubAssembler::NonNumberToNumberOrNumeric(Node* context, Node* input,
+                                                    Object::Conversion mode) {
   CSA_ASSERT(this, Word32BinaryNot(TaggedIsSmi(input)));
   CSA_ASSERT(this, Word32BinaryNot(IsHeapNumber(input)));
 
@@ -4888,9 +4895,10 @@ Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
     // Dispatch on the {input} instance type.
     Node* input_instance_type = LoadInstanceType(input);
     Label if_inputisstring(this), if_inputisoddball(this),
-        if_inputisreceiver(this, Label::kDeferred),
+        if_inputisbigint(this), if_inputisreceiver(this, Label::kDeferred),
         if_inputisother(this, Label::kDeferred);
     GotoIf(IsStringInstanceType(input_instance_type), &if_inputisstring);
+    GotoIf(IsBigIntInstanceType(input_instance_type), &if_inputisbigint);
     GotoIf(Word32Equal(input_instance_type, Int32Constant(ODDBALL_TYPE)),
            &if_inputisoddball);
     Branch(IsJSReceiverInstanceType(input_instance_type), &if_inputisreceiver,
@@ -4901,6 +4909,15 @@ Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
       // The {input} is a String, use the fast stub to convert it to a Number.
       var_result.Bind(StringToNumber(context, input));
       Goto(&end);
+    }
+
+    BIND(&if_inputisbigint);
+    if (mode == Object::Conversion::kToNumeric) {
+      var_result.Bind(input);
+      Goto(&end);
+    } else {
+      DCHECK(mode == Object::Conversion::kToNumber);
+      Goto(&if_inputisother);
     }
 
     BIND(&if_inputisoddball);
@@ -4918,21 +4935,23 @@ Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
           isolate(), ToPrimitiveHint::kNumber);
       Node* result = CallStub(callable, context, input);
 
-      // Check if the {result} is already a Number.
-      Label if_resultisnumber(this), if_resultisnotnumber(this);
-      GotoIf(TaggedIsSmi(result), &if_resultisnumber);
-      Branch(IsHeapNumber(result), &if_resultisnumber, &if_resultisnotnumber);
+      // Check if the {result} is already a Number/Numeric.
+      Label if_done(this), if_notdone(this);
+      Branch(mode == Object::Conversion::kToNumber ? IsNumber(result)
+                                                   : IsNumeric(result),
+             &if_done, &if_notdone);
 
-      BIND(&if_resultisnumber);
+      BIND(&if_done);
       {
-        // The ToPrimitive conversion already gave us a Number, so we're done.
+        // The ToPrimitive conversion already gave us a Number/Numeric, so we're
+        // done.
         var_result.Bind(result);
         Goto(&end);
       }
 
-      BIND(&if_resultisnotnumber);
+      BIND(&if_notdone);
       {
-        // We now have a Primitive {result}, but it's not yet a Number.
+        // We now have a Primitive {result}, but it's not yet a Number/Numeric.
         var_input.Bind(result);
         Goto(&loop);
       }
@@ -4946,14 +4965,32 @@ Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
       // trampolines also use this code currently, and they declare all
       // outgoing parameters as untagged, while we would push a tagged
       // object here.
-      var_result.Bind(CallRuntime(Runtime::kToNumber, context, input));
+      auto function_id = mode == Object::Conversion::kToNumber
+                             ? Runtime::kToNumber
+                             : Runtime::kToNumeric;
+      var_result.Bind(CallRuntime(function_id, context, input));
       Goto(&end);
     }
   }
 
   BIND(&end);
-  CSA_ASSERT(this, IsNumber(var_result.value()));
+  if (mode == Object::Conversion::kToNumeric) {
+    CSA_ASSERT(this, IsNumeric(var_result.value()));
+  } else {
+    DCHECK(mode == Object::Conversion::kToNumber);
+    CSA_ASSERT(this, IsNumber(var_result.value()));
+  }
   return var_result.value();
+}
+
+Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
+  return NonNumberToNumberOrNumeric(context, input,
+                                    Object::Conversion::kToNumber);
+}
+
+Node* CodeStubAssembler::NonNumberToNumeric(Node* context, Node* input) {
+  return NonNumberToNumberOrNumeric(context, input,
+                                    Object::Conversion::kToNumeric);
 }
 
 Node* CodeStubAssembler::ToNumber(Node* context, Node* input) {

@@ -778,8 +778,16 @@ MaybeHandle<Object> Object::ToPrimitive(Handle<Object> input,
 
 // static
 MaybeHandle<Object> Object::ToNumber(Handle<Object> input) {
-  if (input->IsNumber()) return input;
-  return ConvertToNumber(HeapObject::cast(*input)->GetIsolate(), input);
+  if (input->IsNumber()) return input;  // Shortcut.
+  return ConvertToNumberOrNumeric(HeapObject::cast(*input)->GetIsolate(), input,
+                                  Conversion::kToNumber);
+}
+
+// static
+MaybeHandle<Object> Object::ToNumeric(Handle<Object> input) {
+  if (input->IsNumber() || input->IsBigInt()) return input;  // Shortcut.
+  return ConvertToNumberOrNumeric(HeapObject::cast(*input)->GetIsolate(), input,
+                                  Conversion::kToNumeric);
 }
 
 // static

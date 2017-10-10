@@ -245,6 +245,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   Bytecode bytecode() const { return bytecode_; }
   static bool TargetSupportsUnalignedAccess();
 
+  void ToNumberOrNumeric(Object::Conversion mode);
+
  private:
   // Returns a tagged pointer to the current function's BytecodeArray object.
   compiler::Node* BytecodeArrayTaggedPointer();

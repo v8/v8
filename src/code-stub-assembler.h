@@ -954,6 +954,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // True iff |object| is a Smi or a HeapNumber.
   Node* IsNumber(Node* object);
+  // True iff |object| is a Smi or a HeapNumber or a BigInt.
+  Node* IsNumeric(Node* object);
 
   // True iff |number| is either a Smi, or a HeapNumber whose value is not
   // within Smi range.
@@ -1016,6 +1018,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ToName(Node* context, Node* input);
   // Convert a Non-Number object to a Number.
   Node* NonNumberToNumber(Node* context, Node* input);
+  // Convert a Non-Number object to a Numeric.
+  Node* NonNumberToNumeric(Node* context, Node* input);
   // Convert any object to a Number.
   Node* ToNumber(Node* context, Node* input);
 
@@ -1723,6 +1727,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                      Node* character_count);
 
   static const int kElementLoopUnrollThreshold = 8;
+
+  Node* NonNumberToNumberOrNumeric(Node* context, Node* input,
+                                   Object::Conversion mode);
 };
 
 class CodeStubArguments {

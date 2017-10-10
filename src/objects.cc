@@ -155,8 +155,9 @@ MaybeHandle<JSReceiver> Object::ConvertReceiver(Isolate* isolate,
 }
 
 // static
-MaybeHandle<Object> Object::ConvertToNumber(Isolate* isolate,
-                                            Handle<Object> input) {
+MaybeHandle<Object> Object::ConvertToNumberOrNumeric(Isolate* isolate,
+                                                     Handle<Object> input,
+                                                     Conversion mode) {
   while (true) {
     if (input->IsNumber()) {
       return input;
@@ -171,6 +172,12 @@ MaybeHandle<Object> Object::ConvertToNumber(Isolate* isolate,
       THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kSymbolToNumber),
                       Object);
     }
+    if (input->IsBigInt()) {
+      if (mode == Conversion::kToNumeric) return input;
+      DCHECK(mode == Conversion::kToNumber);
+      THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kBigIntToNumber),
+                      Object);
+    }
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, input, JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(input),
                                                 ToPrimitiveHint::kNumber),
@@ -181,8 +188,9 @@ MaybeHandle<Object> Object::ConvertToNumber(Isolate* isolate,
 // static
 MaybeHandle<Object> Object::ConvertToInteger(Isolate* isolate,
                                              Handle<Object> input) {
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input),
-                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, input,
+      ConvertToNumberOrNumeric(isolate, input, Conversion::kToNumber), Object);
   if (input->IsSmi()) return input;
   return isolate->factory()->NewNumber(DoubleToInteger(input->Number()));
 }
@@ -190,8 +198,9 @@ MaybeHandle<Object> Object::ConvertToInteger(Isolate* isolate,
 // static
 MaybeHandle<Object> Object::ConvertToInt32(Isolate* isolate,
                                            Handle<Object> input) {
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input),
-                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, input,
+      ConvertToNumberOrNumeric(isolate, input, Conversion::kToNumber), Object);
   if (input->IsSmi()) return input;
   return isolate->factory()->NewNumberFromInt(DoubleToInt32(input->Number()));
 }
@@ -199,8 +208,9 @@ MaybeHandle<Object> Object::ConvertToInt32(Isolate* isolate,
 // static
 MaybeHandle<Object> Object::ConvertToUint32(Isolate* isolate,
                                             Handle<Object> input) {
-  ASSIGN_RETURN_ON_EXCEPTION(isolate, input, ConvertToNumber(isolate, input),
-                             Object);
+  ASSIGN_RETURN_ON_EXCEPTION(
+      isolate, input,
+      ConvertToNumberOrNumeric(isolate, input, Conversion::kToNumber), Object);
   if (input->IsSmi()) return handle(Smi::cast(*input)->ToUint32Smi(), isolate);
   return isolate->factory()->NewNumberFromUint(DoubleToUint32(input->Number()));
 }

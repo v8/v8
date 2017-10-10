@@ -276,6 +276,7 @@ class ErrorUtils : public AllStatic {
   T(BigIntMixedTypes,                                                          \
     "Cannot mix BigInt and other types, use explicit conversions")             \
   T(BigIntShr, "BigInts have no unsigned right shift, use >> instead")         \
+  T(BigIntToNumber, "Cannot convert a BigInt value to a number")               \
   T(CalledNonCallable, "% is not a function")                                  \
   T(CalledOnNonObject, "% called on non-object")                               \
   T(CalledOnNullOrUndefined, "% called on null or undefined")                  \

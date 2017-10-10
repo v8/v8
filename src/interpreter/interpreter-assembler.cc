@@ -1549,6 +1549,65 @@ int InterpreterAssembler::CurrentBytecodeSize() const {
   return Bytecodes::Size(bytecode_, operand_scale_);
 }
 
+void InterpreterAssembler::ToNumberOrNumeric(Object::Conversion mode) {
+  Node* object = GetAccumulator();
+  Node* context = GetContext();
+
+  Variable var_type_feedback(this, MachineRepresentation::kTaggedSigned);
+  Variable var_result(this, MachineRepresentation::kTagged);
+  Label if_done(this), if_objectissmi(this), if_objectisheapnumber(this),
+      if_objectisother(this, Label::kDeferred);
+
+  GotoIf(TaggedIsSmi(object), &if_objectissmi);
+  Branch(IsHeapNumber(object), &if_objectisheapnumber, &if_objectisother);
+
+  BIND(&if_objectissmi);
+  {
+    var_result.Bind(object);
+    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kSignedSmall));
+    Goto(&if_done);
+  }
+
+  BIND(&if_objectisheapnumber);
+  {
+    var_result.Bind(object);
+    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kNumber));
+    Goto(&if_done);
+  }
+
+  BIND(&if_objectisother);
+  {
+    auto builtin = Builtins::kNonNumberToNumber;
+    if (mode == Object::Conversion::kToNumeric) {
+      builtin = Builtins::kNonNumberToNumeric;
+      // Special case for collecting BigInt feedback.
+      Label not_bigint(this);
+      GotoIfNot(IsBigInt(object), &not_bigint);
+      {
+        var_result.Bind(object);
+        var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kBigInt));
+        Goto(&if_done);
+      }
+      BIND(&not_bigint);
+    }
+
+    // Convert {object} by calling out to the appropriate builtin.
+    var_result.Bind(CallBuiltin(builtin, context, object));
+    var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
+    Goto(&if_done);
+  }
+
+  BIND(&if_done);
+
+  // Record the type feedback collected for {object}.
+  Node* slot_index = BytecodeOperandIdx(0);
+  Node* feedback_vector = LoadFeedbackVector();
+  UpdateFeedback(var_type_feedback.value(), feedback_vector, slot_index);
+
+  SetAccumulator(var_result.value());
+  Dispatch();
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

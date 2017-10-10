@@ -183,6 +183,7 @@ namespace internal {
   TFC(StringToNumber, TypeConversion, 1)                                       \
   TFC(ToName, TypeConversion, 1)                                               \
   TFC(NonNumberToNumber, TypeConversion, 1)                                    \
+  TFC(NonNumberToNumeric, TypeConversion, 1)                                   \
   TFC(ToNumber, TypeConversion, 1)                                             \
   TFC(ToString, TypeConversion, 1)                                             \
   TFC(ToInteger, TypeConversion, 1)                                            \

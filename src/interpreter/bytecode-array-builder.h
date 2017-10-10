@@ -361,6 +361,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Converts accumulator and stores result back in accumulator.
   BytecodeArrayBuilder& ToNumber(int feedback_slot);
+  BytecodeArrayBuilder& ToNumeric(int feedback_slot);
 
   // Flow Control.
   BytecodeArrayBuilder& Bind(BytecodeLabel* label);
