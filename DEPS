@@ -50,7 +50,7 @@ deps = {
   'v8/tools/luci-go':
     Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '9f54aa9fe06499b6bac378ae1f045be2158cf2cc',
   'v8/test/wasm-js':
-    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '4f1d3114157e6459d8a06e7d8fcc8fc90288cd85',
+    Var('chromium_url') + '/external/github.com/WebAssembly/spec.git' + '@' + '89573ee3eabc690637deeb1b8dadec13a963ec30',
 }
 
 recursedeps = [
