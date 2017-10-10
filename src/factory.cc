@@ -1423,6 +1423,22 @@ Handle<BigInt> Factory::NewBigIntRaw(int length, PretenureFlag pretenure) {
       BigInt);
 }
 
+Handle<BigInt> Factory::NewBigIntFromInt(int value, PretenureFlag pretenure) {
+  if (value == 0) return NewBigInt(0);
+  Handle<BigInt> result = NewBigIntRaw(1);
+  if (value > 0) {
+    result->set_digit(0, value);
+  } else if (value == kMinInt) {
+    STATIC_ASSERT(kMinInt == -kMaxInt - 1);
+    result->set_digit(0, static_cast<BigInt::digit_t>(kMaxInt) + 1);
+    result->set_sign(true);
+  } else {
+    result->set_digit(0, -value);
+    result->set_sign(true);
+  }
+  return result;
+}
+
 Handle<Object> Factory::NewError(Handle<JSFunction> constructor,
                                  MessageTemplate::Template template_index,
                                  Handle<Object> arg0, Handle<Object> arg1,

@@ -67,7 +67,7 @@ MaybeHandle<BigInt> BigInt::Divide(Handle<BigInt> x, Handle<BigInt> y) {
   //    integral value.
   if (AbsoluteCompare(x, y) < 0) {
     // TODO(jkummerow): Consider caching a canonical zero-BigInt.
-    return x->GetIsolate()->factory()->NewBigInt(0);
+    return x->GetIsolate()->factory()->NewBigIntFromInt(0);
   }
   Handle<BigInt> quotient;
   if (y->length() == 1) {
@@ -95,7 +95,7 @@ MaybeHandle<BigInt> BigInt::Remainder(Handle<BigInt> x, Handle<BigInt> y) {
     digit_t remainder_digit;
     AbsoluteDivSmall(x, y->digit(0), nullptr, &remainder_digit);
     if (remainder_digit == 0) {
-      return x->GetIsolate()->factory()->NewBigInt(0);
+      return x->GetIsolate()->factory()->NewBigIntFromInt(0);
     }
     remainder = x->GetIsolate()->factory()->NewBigIntRaw(1);
     remainder->set_digit(0, remainder_digit);
@@ -897,15 +897,11 @@ Handle<BigInt> BigInt::RightShiftByAbsolute(Handle<BigInt> x,
 
 Handle<BigInt> BigInt::RightShiftByMaximum(Isolate* isolate, bool sign) {
   if (sign) {
-    // Return -1n.
     // TODO(jkummerow): Consider caching a canonical -1n BigInt.
-    Handle<BigInt> result = isolate->factory()->NewBigInt(1);
-    result->set_digit(0, 1);
-    result->set_sign(true);
-    return result;
+    return isolate->factory()->NewBigIntFromInt(-1);
   } else {
     // TODO(jkummerow): Consider caching a canonical zero BigInt.
-    return isolate->factory()->NewBigInt(0);
+    return isolate->factory()->NewBigIntFromInt(0);
   }
 }
 

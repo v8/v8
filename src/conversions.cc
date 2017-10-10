@@ -813,7 +813,7 @@ class BigIntParseIntHelper : public StringToIntHelper {
                         NewSyntaxError(MessageTemplate::kBigIntInvalidString),
                         BigInt);
       case kZero:
-        return isolate()->factory()->NewBigInt(0);
+        return isolate()->factory()->NewBigIntFromInt(0);
       case kError:
         return MaybeHandle<BigInt>();
       case kDone:
