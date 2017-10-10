@@ -968,8 +968,6 @@
         'feedback-vector-inl.h',
         'feedback-vector.cc',
         'feedback-vector.h',
-        'ffi/ffi-compiler.cc',
-        'ffi/ffi-compiler.h',
         'field-index.h',
         'field-index-inl.h',
         'field-type.cc',

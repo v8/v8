@@ -17,7 +17,6 @@
 #include "src/extensions/ignition-statistics-extension.h"
 #include "src/extensions/statistics-extension.h"
 #include "src/extensions/trigger-failure-extension.h"
-#include "src/ffi/ffi-compiler.h"
 #include "src/heap/heap.h"
 #include "src/isolate-inl.h"
 #include "src/snapshot/natives.h"
@@ -4966,8 +4965,6 @@ bool Genesis::InstallSpecialObjects(Handle<Context> native_context) {
     // translated to WASM to work correctly.
     WasmJs::Install(isolate, false);
   }
-
-  InstallFFIMap(isolate);
 
   return true;
 }

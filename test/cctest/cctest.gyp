@@ -79,7 +79,6 @@
       'cctest.cc',
       'cctest.h',
       'expression-type-collector-macros.h',
-      'ffi/test-ffi.cc',
       'gay-fixed.cc',
       'gay-fixed.h',
       'gay-precision.cc',

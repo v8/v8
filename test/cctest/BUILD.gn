@@ -89,7 +89,6 @@ v8_source_set("cctest_sources") {
     "compiler/test-run-wasm-machops.cc",
     "compiler/value-helper.h",
     "expression-type-collector-macros.h",
-    "ffi/test-ffi.cc",
     "gay-fixed.cc",
     "gay-fixed.h",
     "gay-precision.cc",

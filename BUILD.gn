@@ -1585,8 +1585,6 @@ v8_source_set("v8_base") {
     "src/feedback-vector-inl.h",
     "src/feedback-vector.cc",
     "src/feedback-vector.h",
-    "src/ffi/ffi-compiler.cc",
-    "src/ffi/ffi-compiler.h",
     "src/field-index-inl.h",
     "src/field-index.h",
     "src/field-type.cc",
