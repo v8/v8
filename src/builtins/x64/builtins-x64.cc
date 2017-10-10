@@ -1384,7 +1384,7 @@ void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
 
   Register target = rdi;  // Must be preserved
   Register scratch0 = rbx;
-  Register scratch1 = kScratchRegister;
+  Register scratch1 = r12;
 
   CHECK(scratch0 != rax && scratch0 != rdx && scratch0 != rdi);
   CHECK(scratch1 != rax && scratch1 != rdx && scratch1 != rdi);
