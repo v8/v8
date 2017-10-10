@@ -310,7 +310,7 @@ Node* RegExpBuiltinsAssembler::RegExpExecInternal(Node* const context,
 #ifdef V8_INTERPRETED_REGEXP
   return CallRuntime(Runtime::kRegExpExec, context, regexp, string, last_index,
                      match_info);
-#else   // V8_INTERPRETED_REGEXP
+#else  // V8_INTERPRETED_REGEXP
   CSA_ASSERT(this, TaggedIsNotSmi(regexp));
   CSA_ASSERT(this, IsJSRegExp(regexp));
 
@@ -2153,10 +2153,23 @@ TF_BUILTIN(RegExpPrototypeMatch, RegExpBuiltinsAssembler) {
   BranchIfFastRegExp(context, receiver, &fast_path, &slow_path);
 
   BIND(&fast_path);
-  RegExpPrototypeMatchBody(context, receiver, string, true);
+  // TODO(pwong): Could be optimized to remove the overhead of calling the
+  //              builtin (at the cost of a larger builtin).
+  Return(CallBuiltin(Builtins::kRegExpMatchFast, context, receiver, string));
 
   BIND(&slow_path);
   RegExpPrototypeMatchBody(context, receiver, string, false);
+}
+
+// Helper that skips a few initial checks. and assumes...
+// 1) receiver is a "fast" RegExp
+// 2) pattern is a string
+TF_BUILTIN(RegExpMatchFast, RegExpBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const string = Parameter(Descriptor::kPattern);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  RegExpPrototypeMatchBody(context, receiver, string, true);
 }
 
 void RegExpBuiltinsAssembler::RegExpPrototypeSearchBodyFast(
@@ -2281,10 +2294,23 @@ TF_BUILTIN(RegExpPrototypeSearch, RegExpBuiltinsAssembler) {
   BranchIfFastRegExp(context, receiver, &fast_path, &slow_path);
 
   BIND(&fast_path);
-  RegExpPrototypeSearchBodyFast(context, receiver, string);
+  // TODO(pwong): Could be optimized to remove the overhead of calling the
+  //              builtin (at the cost of a larger builtin).
+  Return(CallBuiltin(Builtins::kRegExpSearchFast, context, receiver, string));
 
   BIND(&slow_path);
   RegExpPrototypeSearchBodySlow(context, receiver, string);
+}
+
+// Helper that skips a few initial checks. and assumes...
+// 1) receiver is a "fast" RegExp
+// 2) pattern is a string
+TF_BUILTIN(RegExpSearchFast, RegExpBuiltinsAssembler) {
+  Node* const receiver = Parameter(Descriptor::kReceiver);
+  Node* const string = Parameter(Descriptor::kPattern);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  RegExpPrototypeSearchBodyFast(context, receiver, string);
 }
 
 // Generates the fast path for @@split. {regexp} is an unmodified, non-sticky

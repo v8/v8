@@ -74,6 +74,14 @@ test(function() {
 }, "String.prototype.includes called on null or undefined", TypeError);
 
 test(function() {
+  String.prototype.match.call(null);
+}, "String.prototype.match called on null or undefined", TypeError);
+
+test(function() {
+  String.prototype.search.call(null);
+}, "String.prototype.search called on null or undefined", TypeError);
+
+test(function() {
   Array.prototype.shift.call(null);
 }, "Array.prototype.shift called on null or undefined", TypeError);
 

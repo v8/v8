@@ -902,33 +902,6 @@ RUNTIME_FUNCTION(Runtime_StringSplit) {
   return *result;
 }
 
-// ES##sec-regexpcreate
-// RegExpCreate ( P, F )
-RUNTIME_FUNCTION(Runtime_RegExpCreate) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, source_object, 0);
-
-  Handle<String> source;
-  if (source_object->IsUndefined(isolate)) {
-    source = isolate->factory()->empty_string();
-  } else {
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, source, Object::ToString(isolate, source_object));
-  }
-
-  Handle<Map> map(isolate->regexp_function()->initial_map());
-  Handle<JSRegExp> regexp =
-      Handle<JSRegExp>::cast(isolate->factory()->NewJSObjectFromMap(map));
-
-  JSRegExp::Flags flags = JSRegExp::kNone;
-
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-                              JSRegExp::Initialize(regexp, source, flags));
-
-  return *regexp;
-}
-
 RUNTIME_FUNCTION(Runtime_RegExpExec) {
   HandleScope scope(isolate);
   DCHECK_EQ(4, args.length());
@@ -1946,6 +1919,9 @@ RUNTIME_FUNCTION(Runtime_RegExpExecReThrow) {
 RUNTIME_FUNCTION(Runtime_RegExpInitializeAndCompile) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());
+  // TODO(pwong): To follow the spec more closely and simplify calling code,
+  // this could handle the canonicalization of pattern and flags. See
+  // https://tc39.github.io/ecma262/#sec-regexpinitialize
   CONVERT_ARG_HANDLE_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, source, 1);
   CONVERT_ARG_HANDLE_CHECKED(String, flags, 2);
