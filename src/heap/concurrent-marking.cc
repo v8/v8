@@ -134,6 +134,52 @@ class ConcurrentMarkingVisitor final
   }
 
   // ===========================================================================
+  // Strings with pointers =====================================================
+  // ===========================================================================
+
+  int VisitConsString(Map* map, ConsString* object) {
+    int size = ConsString::BodyDescriptor::SizeOf(map, object);
+    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, size);
+    if (!ShouldVisit(object)) return 0;
+    VisitPointersInSnapshot(object, snapshot);
+    return size;
+  }
+
+  int VisitSlicedString(Map* map, SlicedString* object) {
+    int size = SlicedString::BodyDescriptor::SizeOf(map, object);
+    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, size);
+    if (!ShouldVisit(object)) return 0;
+    VisitPointersInSnapshot(object, snapshot);
+    return size;
+  }
+
+  int VisitThinString(Map* map, ThinString* object) {
+    int size = ThinString::BodyDescriptor::SizeOf(map, object);
+    const SlotSnapshot& snapshot = MakeSlotSnapshot(map, object, size);
+    if (!ShouldVisit(object)) return 0;
+    VisitPointersInSnapshot(object, snapshot);
+    return size;
+  }
+
+  // ===========================================================================
+  // Strings without pointers ==================================================
+  // ===========================================================================
+
+  int VisitSeqOneByteString(Map* map, SeqOneByteString* object) {
+    int size = SeqOneByteString::SizeFor(object->synchronized_length());
+    if (!ShouldVisit(object)) return 0;
+    VisitMapPointer(object, object->map_slot());
+    return size;
+  }
+
+  int VisitSeqTwoByteString(Map* map, SeqTwoByteString* object) {
+    int size = SeqTwoByteString::SizeFor(object->synchronized_length());
+    if (!ShouldVisit(object)) return 0;
+    VisitMapPointer(object, object->map_slot());
+    return size;
+  }
+
+  // ===========================================================================
   // Fixed array object ========================================================
   // ===========================================================================
 
@@ -284,13 +330,14 @@ class ConcurrentMarkingVisitor final
     SlotSnapshot* slot_snapshot_;
   };
 
-  const SlotSnapshot& MakeSlotSnapshot(Map* map, HeapObject* object, int size) {
+  template <typename T>
+  const SlotSnapshot& MakeSlotSnapshot(Map* map, T* object, int size) {
     // TODO(ulan): Iterate only the existing fields and skip slack at the end
     // of the object.
     SlotSnapshottingVisitor visitor(&slot_snapshot_);
     visitor.VisitPointer(object,
                          reinterpret_cast<Object**>(object->map_slot()));
-    JSObject::BodyDescriptor::IterateBody(object, size, &visitor);
+    T::BodyDescriptor::IterateBody(object, size, &visitor);
     return slot_snapshot_;
   }
   ConcurrentMarking::MarkingWorklist::View shared_;
