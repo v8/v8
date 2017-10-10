@@ -470,7 +470,6 @@ class ErrorUtils : public AllStatic {
   T(ReduceNoInitial, "Reduce of empty array with no initial value")            \
   T(RegExpFlags,                                                               \
     "Cannot supply flags when constructing one RegExp from another")           \
-  T(RegExpInvalidReplaceString, "Invalid replacement string: '%'")             \
   T(RegExpNonObject, "% getter called on non-object %")                        \
   T(RegExpNonRegExp, "% getter called on non-RegExp object")                   \
   T(ResolverNotAFunction, "Promise resolver % is not a function")              \

@@ -517,6 +517,10 @@
   'language/statements/labeled/value-await-non-module-escaped': [FAIL],
   'language/statements/labeled/value-yield-non-strict-escaped': [FAIL],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=6912
+  'built-ins/RegExp/named-groups/string-replace-missing': [FAIL],
+  'built-ins/RegExp/named-groups/string-replace-unclosed': [FAIL],
+
   ############################ INVALID TESTS #############################
 
   # Test makes unjustified assumptions about the number of calls to SortCompare.

@@ -53,11 +53,9 @@ class CompiledReplacement {
   explicit CompiledReplacement(Zone* zone)
       : parts_(1, zone), replacement_substrings_(0, zone), zone_(zone) {}
 
-  // Return whether the replacement is simple. Can also fail and return Nothing
-  // if the given replacement string is invalid (and requires throwing a
-  // SyntaxError).
-  Maybe<bool> Compile(Handle<JSRegExp> regexp, Handle<String> replacement,
-                      int capture_count, int subject_length);
+  // Return whether the replacement is simple.
+  bool Compile(Handle<JSRegExp> regexp, Handle<String> replacement,
+               int capture_count, int subject_length);
 
   // Use Apply only if Compile returned false.
   void Apply(ReplacementStringBuilder* builder, int match_from, int match_to,
@@ -75,6 +73,7 @@ class CompiledReplacement {
     SUBJECT_CAPTURE,
     REPLACEMENT_SUBSTRING,
     REPLACEMENT_STRING,
+    EMPTY_REPLACEMENT,
     NUMBER_OF_PART_TYPES
   };
 
@@ -93,6 +92,9 @@ class CompiledReplacement {
     }
     static inline ReplacementPart ReplacementString() {
       return ReplacementPart(REPLACEMENT_STRING, 0);
+    }
+    static inline ReplacementPart EmptyReplacement() {
+      return ReplacementPart(EMPTY_REPLACEMENT, 0);
     }
     static inline ReplacementPart ReplacementSubString(int from, int to) {
       DCHECK_LE(0, from);
@@ -116,6 +118,7 @@ class CompiledReplacement {
     // tag == REPLACEMENT_SUBSTRING ||
     // tag == REPLACEMENT_STRING:    data is index into array of substrings
     //                               of the replacement string.
+    // tag == EMPTY_REPLACEMENT: data is unused.
     // tag <= 0: Temporary representation of the substring of the replacement
     //           string ranging over -tag .. data.
     //           Is replaced by REPLACEMENT_{SUB,}STRING when we create the
@@ -124,11 +127,10 @@ class CompiledReplacement {
   };
 
   template <typename Char>
-  Maybe<bool> ParseReplacementPattern(ZoneList<ReplacementPart>* parts,
-                                      Vector<Char> characters,
-                                      FixedArray* capture_name_map,
-                                      int capture_count, int subject_length,
-                                      Zone* zone) {
+  bool ParseReplacementPattern(ZoneList<ReplacementPart>* parts,
+                               Vector<Char> characters,
+                               FixedArray* capture_name_map, int capture_count,
+                               int subject_length, Zone* zone) {
     // Equivalent to String::GetSubstitution, except that this method converts
     // the replacement string into an internal representation that avoids
     // repeated parsing when used repeatedly.
@@ -228,8 +230,8 @@ class CompiledReplacement {
               break;
             }
 
-            // Scan until the next '>', throwing a SyntaxError exception if one
-            // is not found, and let the enclosed substring be groupName.
+            // Scan until the next '>', and let the enclosed substring be the
+            // groupName.
 
             const int name_start_index = next_index + 1;
             int closing_bracket_index = -1;
@@ -240,8 +242,12 @@ class CompiledReplacement {
               }
             }
 
-            // Throw a SyntaxError for invalid replacement strings.
-            if (closing_bracket_index == -1) return Nothing<bool>();
+            // If no closing bracket is found, '$<' is treated as a string
+            // literal.
+            if (closing_bracket_index == -1) {
+              i = next_index;
+              break;
+            }
 
             Vector<Char> requested_name =
                 characters.SubVector(name_start_index, closing_bracket_index);
@@ -254,21 +260,21 @@ class CompiledReplacement {
                 },
                 capture_name_map);
 
-            // If ? HasProperty(_namedCaptures_, _groupName_) is *false*, throw
-            // a *SyntaxError* exception.
-            if (capture_index == -1) return Nothing<bool>();
-
-            // If capture is undefined, replace the text through the following
-            // '>' with the empty string.
+            // If capture is undefined or does not exist, replace the text
+            // through the following '>' with the empty string.
             // Otherwise, replace the text through the following '>' with
             // ? ToString(capture).
 
-            DCHECK(1 <= capture_index && capture_index <= capture_count);
+            DCHECK(capture_index == -1 ||
+                   (1 <= capture_index && capture_index <= capture_count));
 
             if (i > last) {
               parts->Add(ReplacementPart::ReplacementSubString(last, i), zone);
             }
-            parts->Add(ReplacementPart::SubjectCapture(capture_index), zone);
+            parts->Add((capture_index == -1)
+                           ? ReplacementPart::EmptyReplacement()
+                           : ReplacementPart::SubjectCapture(capture_index),
+                       zone);
             last = closing_bracket_index + 1;
             i = closing_bracket_index;
             break;
@@ -282,12 +288,12 @@ class CompiledReplacement {
     if (length > last) {
       if (last == 0) {
         // Replacement is simple.  Do not use Apply to do the replacement.
-        return Just(true);
+        return true;
       } else {
         parts->Add(ReplacementPart::ReplacementSubString(last, length), zone);
       }
     }
-    return Just(false);
+    return false;
   }
 
   ZoneList<ReplacementPart> parts_;
@@ -295,10 +301,9 @@ class CompiledReplacement {
   Zone* zone_;
 };
 
-Maybe<bool> CompiledReplacement::Compile(Handle<JSRegExp> regexp,
-                                         Handle<String> replacement,
-                                         int capture_count,
-                                         int subject_length) {
+bool CompiledReplacement::Compile(Handle<JSRegExp> regexp,
+                                  Handle<String> replacement, int capture_count,
+                                  int subject_length) {
   {
     DisallowHeapAllocation no_gc;
     String::FlatContent content = replacement->GetFlatContent();
@@ -314,7 +319,7 @@ Maybe<bool> CompiledReplacement::Compile(Handle<JSRegExp> regexp,
       }
     }
 
-    Maybe<bool> simple = Nothing<bool>();
+    bool simple;
     if (content.IsOneByte()) {
       simple = ParseReplacementPattern(&parts_, content.ToOneByteVector(),
                                        capture_name_map, capture_count,
@@ -325,7 +330,7 @@ Maybe<bool> CompiledReplacement::Compile(Handle<JSRegExp> regexp,
                                        capture_name_map, capture_count,
                                        subject_length, zone());
     }
-    if (simple.IsNothing() || simple.FromJust()) return simple;
+    if (simple) return true;
   }
 
   Isolate* isolate = replacement->GetIsolate();
@@ -347,7 +352,7 @@ Maybe<bool> CompiledReplacement::Compile(Handle<JSRegExp> regexp,
       substring_index++;
     }
   }
-  return Just(false);
+  return false;
 }
 
 
@@ -379,6 +384,8 @@ void CompiledReplacement::Apply(ReplacementStringBuilder* builder,
       case REPLACEMENT_SUBSTRING:
       case REPLACEMENT_STRING:
         builder->AddString(replacement_substrings_[part.data]);
+        break;
+      case EMPTY_REPLACEMENT:
         break;
       default:
         UNREACHABLE();
@@ -608,15 +615,8 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
   // CompiledReplacement uses zone allocation.
   Zone zone(isolate->allocator(), ZONE_NAME);
   CompiledReplacement compiled_replacement(&zone);
-  Maybe<bool> maybe_simple_replace = compiled_replacement.Compile(
+  const bool simple_replace = compiled_replacement.Compile(
       regexp, replacement, capture_count, subject_length);
-  if (maybe_simple_replace.IsNothing()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewSyntaxError(MessageTemplate::kRegExpInvalidReplaceString,
-                                replacement));
-  }
-
-  const bool simple_replace = maybe_simple_replace.FromJust();
 
   // Shortcut for simple non-regexp global replacements
   if (typeTag == JSRegExp::ATOM && simple_replace) {

@@ -11676,11 +11676,10 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
             String::IndexOf(isolate, replacement, bracket_string, peek_ix + 1);
 
         if (closing_bracket_ix == -1) {
-          THROW_NEW_ERROR(
-              isolate,
-              NewSyntaxError(MessageTemplate::kRegExpInvalidReplaceString,
-                             replacement),
-              String);
+          // No closing bracket was found, treat '$<' as a string literal.
+          builder.AppendCharacter('$');
+          continue_from_ix = peek_ix;
+          break;
         }
 
         Handle<String> capture_name =
@@ -11693,12 +11692,6 @@ MaybeHandle<String> String::GetSubstitution(Isolate* isolate, Match* match,
 
         switch (capture_state) {
           case CaptureState::INVALID:
-            THROW_NEW_ERROR(
-                isolate,
-                NewSyntaxError(MessageTemplate::kRegExpInvalidReplaceString,
-                               replacement),
-                String);
-            break;
           case CaptureState::UNMATCHED:
             break;
           case CaptureState::MATCHED:
