@@ -1260,6 +1260,11 @@ class Isolate {
   MaybeHandle<JSPromise> RunHostImportModuleDynamicallyCallback(
       Handle<Script> referrer, Handle<Object> specifier);
 
+  void SetHostInitializeImportMetaObjectCallback(
+      HostInitializeImportMetaObjectCallback callback);
+  Handle<JSObject> RunHostInitializeImportMetaObjectCallback(
+      Handle<Module> module);
+
   void SetRAILMode(RAILMode rail_mode);
 
   RAILMode rail_mode() { return rail_mode_.Value(); }
@@ -1504,6 +1509,8 @@ class Isolate {
   bool promise_hook_or_debug_is_active_;
   PromiseHook promise_hook_;
   HostImportModuleDynamicallyCallback host_import_module_dynamically_callback_;
+  HostInitializeImportMetaObjectCallback
+      host_initialize_import_meta_object_callback_;
   base::Mutex rail_mutex_;
   double load_start_time_ms_;
 

@@ -8755,6 +8755,12 @@ void Isolate::SetHostImportModuleDynamicallyCallback(
   isolate->SetHostImportModuleDynamicallyCallback(callback);
 }
 
+void Isolate::SetHostInitializeImportMetaObjectCallback(
+    HostInitializeImportMetaObjectCallback callback) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetHostInitializeImportMetaObjectCallback(callback);
+}
+
 Isolate::DisallowJavascriptExecutionScope::DisallowJavascriptExecutionScope(
     Isolate* isolate,
     Isolate::DisallowJavascriptExecutionScope::OnFailure on_failure)
