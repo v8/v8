@@ -160,6 +160,7 @@
       'wasm/loop-assignment-analysis-unittest.cc',
       'wasm/module-decoder-unittest.cc',
       'wasm/streaming-decoder-unittest.cc',
+      'wasm/trap-handler-unittest.cc',
       'wasm/wasm-macro-gen-unittest.cc',
       'wasm/wasm-module-builder-unittest.cc',
       'wasm/wasm-opcodes-unittest.cc',
