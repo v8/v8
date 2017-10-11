@@ -1511,10 +1511,10 @@ void Builtins::Generate_NotifyBuiltinContinuation(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
     // Preserve possible return result from lazy deopt.
-    __ Push(x0);
+    __ Push(x0, padreg);
     // Pass the function and deoptimization type to the runtime system.
     __ CallRuntime(Runtime::kNotifyStubFailure, false);
-    __ Pop(x0);
+    __ Pop(padreg, x0);
   }
 
   // Jump to the ContinueToBuiltin stub. Deoptimizer::EntryGenerator::Generate
@@ -1528,30 +1528,55 @@ void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                                       bool with_result) {
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
+  int frame_size = BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp +
+                   (allocatable_register_count +
+                    BuiltinContinuationFrameConstants::PaddingSlotCount(
+                        allocatable_register_count)) *
+                       kPointerSize;
+
+  // Set up frame pointer.
+  __ Add(fp, jssp, frame_size);
+
   if (with_result) {
     // Overwrite the hole inserted by the deoptimizer with the return value from
     // the LAZY deopt point.
-    __ Str(x0, MemOperand(
-                   jssp,
-                   config->num_allocatable_general_registers() * kPointerSize +
-                       BuiltinContinuationFrameConstants::kFixedFrameSize));
+    __ Str(x0,
+           MemOperand(fp, BuiltinContinuationFrameConstants::kCallerSPOffset));
   }
-  for (int i = allocatable_register_count - 1; i >= 0; --i) {
-    int code = config->GetAllocatableGeneralCode(i);
-    __ Pop(Register::from_code(code));
-    if (java_script_builtin && code == kJavaScriptCallArgCountRegister.code()) {
-      __ SmiUntag(Register::from_code(code));
-    }
+
+  // Restore registers in pairs.
+  int offset = -BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp -
+               allocatable_register_count * kPointerSize;
+  for (int i = allocatable_register_count - 1; i > 0; i -= 2) {
+    int code1 = config->GetAllocatableGeneralCode(i);
+    int code2 = config->GetAllocatableGeneralCode(i - 1);
+    Register reg1 = Register::from_code(code1);
+    Register reg2 = Register::from_code(code2);
+    __ Ldp(reg1, reg2, MemOperand(fp, offset));
+    offset += 2 * kPointerSize;
   }
-  __ ldr(fp,
-         MemOperand(jssp,
-                    BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
-  __ Pop(ip0);
-  __ Add(jssp, jssp,
-         Operand(BuiltinContinuationFrameConstants::kFixedFrameSizeFromFp));
-  __ Pop(lr);
-  __ Add(ip0, ip0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Br(ip0);
+
+  // Restore first register separately, if number of registers is odd.
+  if (allocatable_register_count % 2 != 0) {
+    int code = config->GetAllocatableGeneralCode(0);
+    __ Ldr(Register::from_code(code), MemOperand(fp, offset));
+  }
+
+  if (java_script_builtin) __ SmiUntag(kJavaScriptCallArgCountRegister);
+
+  // Load builtin object.
+  UseScratchRegisterScope temps(masm);
+  Register builtin = temps.AcquireX();
+  __ Ldr(builtin,
+         MemOperand(fp, BuiltinContinuationFrameConstants::kBuiltinOffset));
+
+  // Restore fp, lr.
+  __ Mov(__ StackPointer(), fp);
+  __ Pop(fp, lr);
+
+  // Call builtin.
+  __ Add(builtin, builtin, Code::kHeaderSize - kHeapObjectTag);
+  __ Br(builtin);
 }
 }  // namespace
 

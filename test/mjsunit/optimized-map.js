@@ -101,6 +101,27 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
   lazyDeopt();
 })();
 
+// Escape analyzed array where callback function isn't inlined, forcing a lazy
+// deopt. Check that the result of the callback function is passed correctly
+// to the lazy deopt and that the final result of map is as expected.
+(function() {
+  var lazyDeopt = function(deopt) {
+    var b = [1,2,3];
+    var callback = function(v,i,o) {
+      if (i == 1 && deopt) {
+        %DeoptimizeFunction(lazyDeopt);
+      }
+      return 2 * v;
+    };
+    %NeverOptimizeFunction(callback);
+    return b.map(callback);
+  }
+  assertEquals([2,4,6], lazyDeopt());
+  assertEquals([2,4,6], lazyDeopt());
+  %OptimizeFunctionOnNextCall(lazyDeopt);
+  assertEquals([2,4,6], lazyDeopt(true));
+})();
+
 // Lazy deopt from runtime call from inlined callback function.
 (function() {
   var result = 0;

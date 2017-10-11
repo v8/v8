@@ -1581,6 +1581,9 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   const RegisterConfiguration* config(RegisterConfiguration::Default());
   int allocatable_register_count = config->num_allocatable_general_registers();
+  int padding_slot_count = BuiltinContinuationFrameConstants::PaddingSlotCount(
+      allocatable_register_count);
+
   int register_parameter_count =
       continuation_descriptor.GetRegisterParameterCount();
   // Make sure to account for the context by removing it from the register
@@ -1588,8 +1591,9 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   int stack_param_count = height_in_words - register_parameter_count - 1;
   if (must_handle_result) stack_param_count++;
   int output_frame_size =
-      kPointerSize * (stack_param_count + allocatable_register_count) +
-      TYPED_FRAME_SIZE(2);  // For destination builtin code and registers
+      kPointerSize * (stack_param_count + allocatable_register_count +
+                      padding_slot_count) +
+      BuiltinContinuationFrameConstants::kFixedFrameSize;
 
   // Validate types of parameters. They must all be tagged except for argc for
   // JS builtins.
@@ -1633,7 +1637,9 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   }
   output_frame->SetTop(top_address);
 
-  // Get the possible JSFunction for the case that
+  // Get the possible JSFunction for the case that this is a
+  // JavaScriptBuiltinContinuationFrame, which needs the JSFunction pointer
+  // like a normal JavaScriptFrame.
   intptr_t maybe_function =
       reinterpret_cast<intptr_t>(value_iterator->GetRawValue());
   ++input_index;
@@ -1798,6 +1804,14 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   // will build its own frame once we continue to it.
   Register fp_reg = JavaScriptFrame::fp_register();
   output_frame->SetRegister(fp_reg.code(), output_[frame_index - 1]->GetFp());
+
+  // Some architectures must pad the stack frame with extra stack slots
+  // to ensure the stack frame is aligned.
+  for (int i = 0; i < padding_slot_count; ++i) {
+    output_frame_offset -= kPointerSize;
+    WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                       output_frame_offset, "padding ");
+  }
 
   Code* continue_to_builtin =
       java_script_builtin
