@@ -300,7 +300,9 @@ class MarkCompactCollectorBase {
   bool ShouldMovePage(Page* p, intptr_t live_bytes);
 
   int CollectToSpaceUpdatingItems(ItemParallelJob* job);
+  template <typename IterateableSpace>
   int CollectRememberedSetUpdatingItems(ItemParallelJob* job,
+                                        IterateableSpace* space,
                                         RememberedSetUpdatingMode mode);
 
   int NumberOfParallelCompactionTasks(int pages);

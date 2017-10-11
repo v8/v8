@@ -303,7 +303,8 @@
   F(MC_EVACUATE_PROLOGUE)                            \
   F(MC_EVACUATE_REBALANCE)                           \
   F(MC_EVACUATE_UPDATE_POINTERS)                     \
-  F(MC_EVACUATE_UPDATE_POINTERS_SLOTS)               \
+  F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN)          \
+  F(MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE)     \
   F(MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS)        \
   F(MC_EVACUATE_UPDATE_POINTERS_WEAK)                \
   F(MC_FINISH)                                       \

@@ -4211,30 +4211,30 @@ int MarkCompactCollectorBase::CollectToSpaceUpdatingItems(
   return NumberOfParallelToSpacePointerUpdateTasks(pages);
 }
 
+template <typename IterateableSpace>
 int MarkCompactCollectorBase::CollectRememberedSetUpdatingItems(
-    ItemParallelJob* job, RememberedSetUpdatingMode mode) {
+    ItemParallelJob* job, IterateableSpace* space,
+    RememberedSetUpdatingMode mode) {
   int pages = 0;
-  if (mode == RememberedSetUpdatingMode::ALL) {
-    RememberedSet<OLD_TO_OLD>::IterateMemoryChunks(
-        heap(), [this, &job, &pages, mode](MemoryChunk* chunk) {
-          job->AddItem(CreateRememberedSetUpdatingItem(chunk, mode));
-          pages++;
-        });
+  for (MemoryChunk* chunk : *space) {
+    const bool contains_old_to_old_slots =
+        chunk->slot_set<OLD_TO_OLD>() != nullptr ||
+        chunk->typed_slot_set<OLD_TO_OLD>() != nullptr;
+    const bool contains_old_to_new_slots =
+        chunk->slot_set<OLD_TO_NEW>() != nullptr ||
+        chunk->typed_slot_set<OLD_TO_NEW>() != nullptr;
+    const bool contains_invalidated_slots =
+        chunk->invalidated_slots() != nullptr;
+    if (!contains_old_to_new_slots && !contains_old_to_old_slots &&
+        !contains_invalidated_slots)
+      continue;
+    if (mode == RememberedSetUpdatingMode::ALL || contains_old_to_new_slots ||
+        contains_invalidated_slots) {
+      job->AddItem(CreateRememberedSetUpdatingItem(chunk, mode));
+      pages++;
+    }
   }
-  RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
-      heap(), [this, &job, &pages, mode](MemoryChunk* chunk) {
-        const bool contains_old_to_old_slots =
-            chunk->slot_set<OLD_TO_OLD>() != nullptr ||
-            chunk->typed_slot_set<OLD_TO_OLD>() != nullptr;
-        if (mode == RememberedSetUpdatingMode::OLD_TO_NEW_ONLY ||
-            !contains_old_to_old_slots) {
-          job->AddItem(CreateRememberedSetUpdatingItem(chunk, mode));
-          pages++;
-        }
-      });
-  return (pages == 0)
-             ? 0
-             : NumberOfParallelPointerUpdateTasks(pages, old_to_new_slots_);
+  return pages;
 }
 
 void MinorMarkCompactCollector::CollectNewSpaceArrayBufferTrackerItems(
@@ -4269,29 +4269,63 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS);
 
   PointersUpdatingVisitor updating_visitor;
-  ItemParallelJob updating_job(isolate()->cancelable_task_manager(),
-                               &page_parallel_job_semaphore_);
-
-  CollectNewSpaceArrayBufferTrackerItems(&updating_job);
-  CollectOldSpaceArrayBufferTrackerItems(&updating_job);
-
-  const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
-  const int remembered_set_tasks = CollectRememberedSetUpdatingItems(
-      &updating_job, RememberedSetUpdatingMode::ALL);
-  const int num_tasks = Max(to_space_tasks, remembered_set_tasks);
-  for (int i = 0; i < num_tasks; i++) {
-    updating_job.AddTask(new PointersUpatingTask(isolate()));
-  }
 
   {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_TO_NEW_ROOTS);
     heap_->IterateRoots(&updating_visitor, VISIT_ALL_IN_SWEEP_NEWSPACE);
   }
+
   {
     TRACE_GC(heap()->tracer(),
-             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS);
+             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN);
+    ItemParallelJob updating_job(isolate()->cancelable_task_manager(),
+                                 &page_parallel_job_semaphore_);
+
+    CollectNewSpaceArrayBufferTrackerItems(&updating_job);
+    CollectOldSpaceArrayBufferTrackerItems(&updating_job);
+
+    int remembered_set_pages = 0;
+    remembered_set_pages += CollectRememberedSetUpdatingItems(
+        &updating_job, heap()->old_space(), RememberedSetUpdatingMode::ALL);
+    remembered_set_pages += CollectRememberedSetUpdatingItems(
+        &updating_job, heap()->code_space(), RememberedSetUpdatingMode::ALL);
+    remembered_set_pages += CollectRememberedSetUpdatingItems(
+        &updating_job, heap()->lo_space(), RememberedSetUpdatingMode::ALL);
+    const int remembered_set_tasks =
+        remembered_set_pages == 0
+            ? 0
+            : NumberOfParallelPointerUpdateTasks(remembered_set_pages,
+                                                 old_to_new_slots_);
+    const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
+    const int num_tasks = Max(to_space_tasks, remembered_set_tasks);
+    for (int i = 0; i < num_tasks; i++) {
+      updating_job.AddTask(new PointersUpatingTask(isolate()));
+    }
     updating_job.Run();
+  }
+
+  {
+    // Update pointers in map space in a separate phase to avoid data races
+    // with Map->LayoutDescriptor edge.
+    TRACE_GC(heap()->tracer(),
+             GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE);
+    ItemParallelJob updating_job(isolate()->cancelable_task_manager(),
+                                 &page_parallel_job_semaphore_);
+
+    int remembered_set_pages = 0;
+    remembered_set_pages += CollectRememberedSetUpdatingItems(
+        &updating_job, heap()->map_space(), RememberedSetUpdatingMode::ALL);
+    const int num_tasks = remembered_set_pages == 0
+                              ? 0
+                              : NumberOfParallelPointerUpdateTasks(
+                                    remembered_set_pages, old_to_new_slots_);
+    if (num_tasks > 0) {
+      for (int i = 0; i < num_tasks; i++) {
+        updating_job.AddTask(new PointersUpatingTask(isolate()));
+      }
+      updating_job.Run();
+    }
   }
 
   {
@@ -4319,8 +4353,21 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   SeedGlobalHandles<GlobalHandlesUpdatingItem>(isolate()->global_handles(),
                                                &updating_job);
   const int to_space_tasks = CollectToSpaceUpdatingItems(&updating_job);
-  const int remembered_set_tasks = CollectRememberedSetUpdatingItems(
-      &updating_job, RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+  int remembered_set_pages = 0;
+  remembered_set_pages += CollectRememberedSetUpdatingItems(
+      &updating_job, heap()->old_space(),
+      RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+  remembered_set_pages += CollectRememberedSetUpdatingItems(
+      &updating_job, heap()->code_space(),
+      RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+  remembered_set_pages += CollectRememberedSetUpdatingItems(
+      &updating_job, heap()->map_space(),
+      RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+  remembered_set_pages += CollectRememberedSetUpdatingItems(
+      &updating_job, heap()->lo_space(),
+      RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
+  const int remembered_set_tasks = NumberOfParallelPointerUpdateTasks(
+      remembered_set_pages, old_to_new_slots_);
   const int num_tasks = Max(to_space_tasks, remembered_set_tasks);
   for (int i = 0; i < num_tasks; i++) {
     updating_job.AddTask(new PointersUpatingTask(isolate()));
