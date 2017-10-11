@@ -89,8 +89,7 @@ void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
     }
     if (unpacked.empty()) continue;
 
-    int size = code->CodeSize();
-    const int index = RegisterHandlerData(reinterpret_cast<void*>(base), size,
+    const int index = RegisterHandlerData(base, code->instruction_size(),
                                           unpacked.size(), &unpacked[0]);
     unpacked.clear();
     // TODO(eholk): if index is negative, fail.
