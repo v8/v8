@@ -166,7 +166,11 @@ MaybeHandle<BigInt> BigInt::UnsignedRightShift(Handle<BigInt> x,
 }
 
 bool BigInt::LessThan(Handle<BigInt> x, Handle<BigInt> y) {
-  UNIMPLEMENTED();  // TODO(jkummerow): Implement.
+  if (x->sign() == y->sign()) {
+    int result = AbsoluteCompare(x, y);
+    return x->sign() ? (result > 0) : (result < 0);
+  }
+  return x->sign();
 }
 
 bool BigInt::Equal(BigInt* x, BigInt* y) {
