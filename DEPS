@@ -3,6 +3,7 @@
 # all paths in here must match this assumption.
 
 vars = {
+  'checkout_instrumented_libraries': False,
   'chromium_url': 'https://chromium.googlesource.com',
 }
 
@@ -14,7 +15,7 @@ deps = {
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '08cb956852a5ccdba7f9c941728bb833529ba3c6',
   'v8/third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + '644afd349826cb68204226a16c38bde13abe9c3c',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'e07d437dc8b65ca96ebd3b7d4aa303cd2ec0ec45',
   'v8/buildtools':
     Var('chromium_url') + '/chromium/buildtools.git' + '@' + 'f6d165d9d842ddd29056c127a5f3a3c5d8e0d2e3',
   'v8/base/trace_event/common':
@@ -248,15 +249,26 @@ hooks = [
     ],
   },
   {
-    # Pull sanitizer-instrumented third-party libraries if requested via
-    # GYP_DEFINES.
-    'name': 'instrumented_libraries',
-    'pattern': '\\.sha1',
-    # TODO(machenbach): Insert condition and remove GYP_DEFINES dependency.
-    'action': [
-        'python',
-        'v8/third_party/instrumented_libraries/scripts/download_binaries.py',
-    ],
+    'name': 'msan_chained_origins',
+    'pattern': '.',
+    'condition': 'checkout_instrumented_libraries',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--no_auth',
+                '--bucket', 'chromium-instrumented-libraries',
+                '-s', 'v8/third_party/instrumented_libraries/binaries/msan-chained-origins-trusty.tgz.sha1',
+              ],
+  },
+  {
+    'name': 'msan_no_origins',
+    'pattern': '.',
+    'condition': 'checkout_instrumented_libraries',
+    'action': [ 'download_from_google_storage',
+                '--no_resume',
+                '--no_auth',
+                '--bucket', 'chromium-instrumented-libraries',
+                '-s', 'v8/third_party/instrumented_libraries/binaries/msan-no-origins-trusty.tgz.sha1',
+              ],
   },
   {
     # Update the Windows toolchain if necessary.
