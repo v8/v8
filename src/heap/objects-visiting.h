@@ -116,38 +116,6 @@ class NewSpaceVisitor : public HeapVisitor<int, ConcreteVisitor> {
   }
 };
 
-template <typename ConcreteVisitor>
-class MarkingVisitor : public HeapVisitor<int, ConcreteVisitor> {
- public:
-  explicit MarkingVisitor(Heap* heap, MarkCompactCollector* collector)
-      : heap_(heap), collector_(collector) {}
-
-  V8_INLINE bool ShouldVisitMapPointer() { return false; }
-
-  V8_INLINE int VisitJSFunction(Map* map, JSFunction* object);
-  V8_INLINE int VisitWeakCell(Map* map, WeakCell* object);
-  V8_INLINE int VisitTransitionArray(Map* map, TransitionArray* object);
-  V8_INLINE int VisitNativeContext(Map* map, Context* object);
-  V8_INLINE int VisitJSWeakCollection(Map* map, JSWeakCollection* object);
-  V8_INLINE int VisitBytecodeArray(Map* map, BytecodeArray* object);
-  V8_INLINE int VisitCode(Map* map, Code* object);
-  V8_INLINE int VisitMap(Map* map, Map* object);
-  V8_INLINE int VisitJSApiObject(Map* map, JSObject* object);
-  V8_INLINE int VisitAllocationSite(Map* map, AllocationSite* object);
-
-  // ObjectVisitor implementation.
-  V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
-  V8_INLINE void VisitCodeTarget(Code* host, RelocInfo* rinfo) final;
-  // Skip weak next code link.
-  V8_INLINE void VisitNextCodeLink(Code* host, Object** p) final {}
-
- protected:
-  V8_INLINE void MarkMapContents(Map* map);
-
-  Heap* heap_;
-  MarkCompactCollector* collector_;
-};
-
 class WeakObjectRetainer;
 
 // A weak list is single linked list where each element has a weak pointer to

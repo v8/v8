@@ -1075,49 +1075,6 @@ void MarkCompactCollector::Finish() {
   }
 }
 
-class MarkCompactMarkingVisitor final
-    : public MarkingVisitor<MarkCompactMarkingVisitor> {
- public:
-  explicit MarkCompactMarkingVisitor(MarkCompactCollector* collector)
-      : MarkingVisitor<MarkCompactMarkingVisitor>(collector->heap(),
-                                                  collector) {}
-
-  V8_INLINE void VisitPointer(HeapObject* host, Object** p) final {
-    MarkObjectByPointer(host, p);
-  }
-
-  V8_INLINE void VisitPointers(HeapObject* host, Object** start,
-                               Object** end) final {
-    for (Object** p = start; p < end; p++) {
-      MarkObjectByPointer(host, p);
-    }
-  }
-
-  // Marks the object black and pushes it on the marking stack.
-  V8_INLINE void MarkObject(HeapObject* host, HeapObject* object) {
-    collector_->MarkObject(host, object);
-  }
-
-  // Marks the object black without pushing it on the marking stack. Returns
-  // true if object needed marking and false otherwise.
-  V8_INLINE bool MarkObjectWithoutPush(HeapObject* host, HeapObject* object) {
-    if (collector_->atomic_marking_state()->WhiteToBlack(object)) {
-      if (V8_UNLIKELY(FLAG_track_retaining_path)) {
-        heap_->AddRetainer(host, object);
-      }
-      return true;
-    }
-    return false;
-  }
-
-  V8_INLINE void MarkObjectByPointer(HeapObject* host, Object** p) {
-    if (!(*p)->IsHeapObject()) return;
-    HeapObject* target_object = HeapObject::cast(*p);
-    collector_->RecordSlot(host, p, target_object);
-    collector_->MarkObject(host, target_object);
-  }
-};
-
 void MinorMarkCompactCollector::CleanupSweepToIteratePages() {
   for (Page* p : sweep_to_iterate_pages_) {
     if (p->IsFlagSet(Page::SWEEP_TO_ITERATE)) {
@@ -2855,7 +2812,7 @@ void MarkCompactCollector::ProcessWeakCollections() {
           RecordSlot(table, key_slot, *key_slot);
           Object** value_slot =
               table->RawFieldOfElementAt(ObjectHashTable::EntryToValueIndex(i));
-          visitor.MarkObjectByPointer(table, value_slot);
+          visitor.VisitPointer(table, value_slot);
         }
       }
     }

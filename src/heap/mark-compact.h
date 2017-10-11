@@ -9,6 +9,7 @@
 #include <vector>
 
 #include "src/heap/marking.h"
+#include "src/heap/objects-visiting.h"
 #include "src/heap/spaces.h"
 #include "src/heap/worklist.h"
 
@@ -934,10 +935,77 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   friend class FullEvacuator;
   friend class Heap;
-  friend class IncrementalMarkingMarkingVisitor;
-  friend class MarkCompactMarkingVisitor;
   friend class RecordMigratedSlotVisitor;
 };
+
+template <FixedArrayVisitationMode fixed_array_mode,
+          TraceRetainingPathMode retaining_path_mode>
+class MarkingVisitor final
+    : public HeapVisitor<
+          int, MarkingVisitor<fixed_array_mode, retaining_path_mode>> {
+ public:
+  typedef HeapVisitor<int,
+                      MarkingVisitor<fixed_array_mode, retaining_path_mode>>
+      Parent;
+
+  V8_INLINE explicit MarkingVisitor(MarkCompactCollector* collector);
+
+  V8_INLINE bool ShouldVisitMapPointer() { return false; }
+
+  V8_INLINE int VisitAllocationSite(Map* map, AllocationSite* object);
+  V8_INLINE int VisitBytecodeArray(Map* map, BytecodeArray* object);
+  V8_INLINE int VisitFixedArray(Map* map, FixedArray* object);
+  V8_INLINE int VisitJSApiObject(Map* map, JSObject* object);
+  V8_INLINE int VisitJSFunction(Map* map, JSFunction* object);
+  V8_INLINE int VisitJSWeakCollection(Map* map, JSWeakCollection* object);
+  V8_INLINE int VisitMap(Map* map, Map* object);
+  V8_INLINE int VisitNativeContext(Map* map, Context* object);
+  V8_INLINE int VisitTransitionArray(Map* map, TransitionArray* object);
+  V8_INLINE int VisitWeakCell(Map* map, WeakCell* object);
+
+  // ObjectVisitor implementation.
+  V8_INLINE void VisitPointer(HeapObject* host, Object** p) final;
+  V8_INLINE void VisitPointers(HeapObject* host, Object** start,
+                               Object** end) final;
+  V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
+  V8_INLINE void VisitCodeTarget(Code* host, RelocInfo* rinfo) final;
+  // Skip weak next code link.
+  V8_INLINE void VisitNextCodeLink(Code* host, Object** p) final {}
+
+ private:
+  // Granularity in which FixedArrays are scanned if |fixed_array_mode|
+  // is true.
+  static const int kProgressBarScanningChunk = 32 * 1024;
+
+  V8_INLINE int VisitFixedArrayIncremental(Map* map, FixedArray* object);
+
+  V8_INLINE void MarkMapContents(Map* map);
+
+  // Marks the object black without pushing it on the marking work list. Returns
+  // true if the object needed marking and false otherwise.
+  V8_INLINE bool MarkObjectWithoutPush(HeapObject* host, HeapObject* object);
+
+  // Marks the object grey and pushes it on the marking work list.
+  V8_INLINE void MarkObject(HeapObject* host, HeapObject* obj);
+
+  MajorAtomicMarkingState* marking_state() {
+    return this->collector_->atomic_marking_state();
+  }
+
+  MarkCompactCollector::MarkingWorklist* marking_worklist() {
+    return this->heap_->incremental_marking()->marking_worklist();
+  }
+
+  Heap* const heap_;
+  MarkCompactCollector* const collector_;
+};
+
+using MarkCompactMarkingVisitor =
+    MarkingVisitor<FixedArrayVisitationMode::kRegular,
+                   TraceRetainingPathMode::kEnabled>;
+using IncrementalMarkingMarkingVisitor =
+    MarkingVisitor<FixedArrayVisitationMode::kIncremental,
+                   TraceRetainingPathMode::kDisabled>;
 
 class EvacuationScope {
  public:

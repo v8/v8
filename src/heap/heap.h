@@ -399,6 +399,10 @@ enum ArrayStorageAllocationMode {
 
 enum class ClearRecordedSlots { kYes, kNo };
 
+enum class FixedArrayVisitationMode { kRegular, kIncremental };
+
+enum class TraceRetainingPathMode { kEnabled, kDisabled };
+
 enum class GarbageCollectionReason {
   kUnknown = 0,
   kAllocationFailure = 1,
@@ -2440,16 +2444,16 @@ class Heap {
   friend class GCCallbacksScope;
   friend class GCTracer;
   friend class HeapIterator;
-  template <typename ConcreteVisitor>
-  friend class MarkingVisitor;
   friend class IdleScavengeObserver;
   friend class IncrementalMarking;
   friend class IncrementalMarkingJob;
   friend class LargeObjectSpace;
+  template <FixedArrayVisitationMode fixed_array_mode,
+            TraceRetainingPathMode retaining_path_mode>
+  friend class MarkingVisitor;
   friend class MarkCompactCollector;
   friend class MarkCompactCollectorBase;
   friend class MinorMarkCompactCollector;
-  friend class MarkCompactMarkingVisitor;
   friend class NewSpace;
   friend class ObjectStatsCollector;
   friend class Page;
