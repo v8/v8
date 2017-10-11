@@ -106,6 +106,11 @@ def RunProcess(verbose, timeout, args, additional_env, **rest):
           print "Return code: %d" % tk.returncode
           sys.stdout.flush()
       else:
+        if utils.GuessOS() == "macos":
+          # TODO(machenbach): Temporary output for investigating hanging test
+          # driver on mac.
+          print "Attempting to kill process %d - cmd %s" % (process.pid, args)
+          sys.stdout.flush()
         process.kill()
     except OSError:
       sys.stderr.write('Error: Process %s already ended.\n' % process.pid)
