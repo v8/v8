@@ -1167,17 +1167,16 @@ TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
     BIND(&fast_elements_smi);
     {
       Node* value = LoadFixedArrayElement(elements, 0);
-      int32_t header_size = FixedDoubleArray::kHeaderSize - kHeapObjectTag;
-      Node* memmove =
-          ExternalConstant(ExternalReference::libc_memmove_function(isolate()));
-      Node* start = IntPtrAdd(
-          BitcastTaggedToWord(elements),
-          ElementOffsetFromIndex(IntPtrConstant(0), HOLEY_SMI_ELEMENTS,
-                                 INTPTR_PARAMETERS, header_size));
-      CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
-                     MachineType::Pointer(), MachineType::UintPtr(), memmove,
-                     start, IntPtrAdd(start, IntPtrConstant(kPointerSize)),
-                     IntPtrMul(new_length, IntPtrConstant(kPointerSize)));
+      BuildFastLoop(IntPtrConstant(0), new_length,
+                    [&](Node* index) {
+                      StoreFixedArrayElement(
+                          elements, index,
+                          LoadFixedArrayElement(
+                              elements, IntPtrAdd(index, IntPtrConstant(1))),
+                          SKIP_WRITE_BARRIER);
+                    },
+                    1, ParameterMode::INTPTR_PARAMETERS,
+                    IndexAdvanceMode::kPost);
       StoreFixedArrayElement(elements, new_length, TheHoleConstant());
       GotoIf(WordEqual(value, TheHoleConstant()), &return_undefined);
       args.PopAndReturn(value);
