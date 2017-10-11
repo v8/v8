@@ -241,6 +241,10 @@ const six = BigInt(6);
   assertFalse(!one);
   assertTrue(!!one);
   assertFalse(!!!one);
+
+  // This is a hack to test Object::BooleanValue.
+  assertTrue(%CreateIterResultObject(42, one).done);
+  assertFalse(%CreateIterResultObject(42, zero).done);
 }
 
 // Strict equality

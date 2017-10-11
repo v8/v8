@@ -469,6 +469,7 @@ bool Object::BooleanValue() {
   if (IsUndetectable()) return false;  // Undetectable object is false.
   if (IsString()) return String::cast(this)->length() != 0;
   if (IsHeapNumber()) return DoubleToBoolean(HeapNumber::cast(this)->value());
+  if (IsBigInt()) return BigInt::cast(this)->ToBoolean();
   return true;
 }
 
