@@ -145,7 +145,8 @@ void MaybePrintAst(ParseInfo* parse_info, CompilationInfo* compilation_info) {
      << compilation_info->GetDebugName().get() << "]" << std::endl;
 #ifdef DEBUG
   os << "--- AST ---" << std::endl
-     << AstPrinter(isolate).PrintProgram(parse_info->literal()) << std::endl;
+     << AstPrinter(isolate).PrintProgram(compilation_info->literal())
+     << std::endl;
 #endif  // DEBUG
 }
 
