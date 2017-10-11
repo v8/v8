@@ -1207,6 +1207,26 @@ void Assembler::AddrMode1(Instr instr, Register rd, Register rn,
       // pool only for a MOV instruction which does not set the flags.
       DCHECK(!rn.is_valid());
       Move32BitImmediate(rd, x, cond);
+    } else if ((opcode == ADD) && !set_flags && (rd == rn) &&
+               (scratch_register_list_ == 0)) {
+      // Split the operation into a sequence of additions if we cannot use a
+      // scratch register. In this case, we cannot re-use rn and the assembler
+      // does not have any scratch registers to spare.
+      uint32_t imm = x.immediate();
+      do {
+        // The immediate encoding format is composed of 8 bits of data and 4
+        // bits encoding a rotation. Each of the 16 possible rotations accounts
+        // for a rotation by an even number.
+        //   4 bits -> 16 rotations possible
+        //          -> 16 rotations of 2 bits each fits in a 32-bit value.
+        // This means that finding the even number of trailing zeroes of the
+        // immediate allows us to more efficiently split it:
+        int trailing_zeroes = base::bits::CountTrailingZeros(imm) & ~1u;
+        uint32_t mask = (0xff << trailing_zeroes);
+        add(rd, rd, Operand(imm & mask), LeaveCC, cond);
+        imm = imm & ~mask;
+      } while (!ImmediateFitsAddrMode1Instruction(imm));
+      add(rd, rd, Operand(imm), LeaveCC, cond);
     } else {
       // The immediate operand cannot be encoded as a shifter operand, so load
       // it first to a scratch register and change the original instruction to

@@ -2837,14 +2837,15 @@ void CodeGenerator::AssembleConstructFrame() {
         // If the frame is bigger than the stack, we throw the stack overflow
         // exception unconditionally. Thereby we can avoid the integer overflow
         // check in the condition code.
-        if (shrink_slots * kPointerSize < FLAG_stack_size * 1024) {
-          __ Move(kScratchReg,
+        if ((shrink_slots * kPointerSize) < (FLAG_stack_size * 1024)) {
+          UseScratchRegisterScope temps(tasm());
+          Register scratch = temps.Acquire();
+          __ Move(scratch,
                   Operand(ExternalReference::address_of_real_stack_limit(
                       __ isolate())));
-          __ ldr(kScratchReg, MemOperand(kScratchReg));
-          __ add(kScratchReg, kScratchReg,
-                 Operand(shrink_slots * kPointerSize));
-          __ cmp(sp, kScratchReg);
+          __ ldr(scratch, MemOperand(scratch));
+          __ add(scratch, scratch, Operand(shrink_slots * kPointerSize));
+          __ cmp(sp, scratch);
           __ b(cs, &done);
         }
 

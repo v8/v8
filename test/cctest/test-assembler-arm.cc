@@ -3993,6 +3993,79 @@ TEST(use_scratch_register_scope) {
   CHECK_EQ(*assm.GetScratchRegisterList(), ip.bit());
 }
 
+TEST(split_add_immediate) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  {
+    Assembler assm(isolate, NULL, 0);
+    __ mov(r1, r0);
+    // Re-use the destination as a scratch.
+    __ add(r0, r1, Operand(0x12345678));
+    __ blx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(isolate, &desc);
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F1 f = FUNCTION_CAST<F1>(code->entry());
+    uint32_t res =
+        reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+    ::printf("f() = 0x%x\n", res);
+    CHECK_EQ(0x12345678, res);
+  }
+
+  {
+    Assembler assm(isolate, NULL, 0);
+    // Use ip as a scratch.
+    __ add(r0, r0, Operand(0x12345678));
+    __ blx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(isolate, &desc);
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F1 f = FUNCTION_CAST<F1>(code->entry());
+    uint32_t res =
+        reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+    ::printf("f() = 0x%x\n", res);
+    CHECK_EQ(0x12345678, res);
+  }
+
+  {
+    Assembler assm(isolate, NULL, 0);
+    UseScratchRegisterScope temps(&assm);
+    Register reserved = temps.Acquire();
+    USE(reserved);
+    // If ip is not available, split the operation into multiple additions.
+    __ add(r0, r0, Operand(0x12345678));
+    __ blx(lr);
+
+    CodeDesc desc;
+    assm.GetCode(isolate, &desc);
+    Handle<Code> code =
+        isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+#ifdef DEBUG
+    OFStream os(stdout);
+    code->Print(os);
+#endif
+    F1 f = FUNCTION_CAST<F1>(code->entry());
+    uint32_t res =
+        reinterpret_cast<int>(CALL_GENERATED_CODE(isolate, f, 0, 0, 0, 0, 0));
+    ::printf("f() = 0x%x\n", res);
+    CHECK_EQ(0x12345678, res);
+  }
+}
+
 #undef __
 
 }  // namespace test_assembler_arm
