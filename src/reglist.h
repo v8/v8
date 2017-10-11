@@ -5,6 +5,10 @@
 #ifndef V8_REGLIST_H_
 #define V8_REGLIST_H_
 
+#include <cstdint>
+
+#include "src/base/bits.h"
+
 namespace v8 {
 namespace internal {
 
