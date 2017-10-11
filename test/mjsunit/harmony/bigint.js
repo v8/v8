@@ -260,6 +260,22 @@ const six = BigInt(6);
   assertTrue(zero !== 0);
   assertFalse(0 === zero);
   assertTrue(0 !== zero);
+}{
+  assertTrue(%StrictEqual(zero, zero));
+  assertFalse(%StrictNotEqual(zero, zero));
+
+  assertTrue(%StrictEqual(zero, another_zero));
+  assertFalse(%StrictNotEqual(zero, another_zero));
+
+  assertFalse(%StrictEqual(zero, one));
+  assertTrue(%StrictNotEqual(zero, one));
+  assertTrue(%StrictNotEqual(one, zero));
+  assertFalse(%StrictEqual(one, zero));
+
+  assertFalse(%StrictEqual(zero, 0));
+  assertTrue(%StrictNotEqual(zero, 0));
+  assertFalse(%StrictEqual(0, zero));
+  assertTrue(%StrictNotEqual(0, zero));
 }
 
 // SameValue

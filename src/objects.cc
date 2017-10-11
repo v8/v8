@@ -623,6 +623,9 @@ bool Object::StrictEquals(Object* that) {
   } else if (this->IsString()) {
     if (!that->IsString()) return false;
     return String::cast(this)->Equals(String::cast(that));
+  } else if (this->IsBigInt()) {
+    if (!that->IsBigInt()) return false;
+    return BigInt::Equal(BigInt::cast(this), BigInt::cast(that));
   }
   return this == that;
 }
