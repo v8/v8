@@ -729,6 +729,8 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
 
 void LazyCompilationOrchestrator::CompileFunction(
     Isolate* isolate, Handle<WasmInstanceObject> instance, int func_index) {
+  base::ElapsedTimer compilation_timer;
+  compilation_timer.Start();
   Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
                                              isolate);
   if (Code::cast(compiled_module->code_table()->get(func_index))->kind() ==
@@ -789,10 +791,16 @@ void LazyCompilationOrchestrator::CompileFunction(
   code_specialization.ApplyToWasmCode(*code, SKIP_ICACHE_FLUSH);
   Assembler::FlushICache(isolate, code->instruction_start(),
                          code->instruction_size());
+  int64_t func_size =
+      static_cast<int64_t>(func->code.end_offset() - func->code.offset());
+  int64_t compilation_time = compilation_timer.Elapsed().InMicroseconds();
   auto counters = isolate->counters();
   counters->wasm_lazily_compiled_functions()->Increment();
   counters->wasm_generated_code_size()->Increment(code->body_size());
   counters->wasm_reloc_size()->Increment(code->relocation_info()->length());
+  counters->wasm_lazy_compilation_throughput()->AddSample(
+      compilation_time != 0 ? static_cast<int>(func_size / compilation_time)
+                            : 0);
 }
 
 int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,

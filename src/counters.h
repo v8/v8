@@ -1032,7 +1032,9 @@ class RuntimeCallTimerScope {
      V8.WasmCompileFunctionPeakMemoryBytes, 1, GB, 51)                         \
   HR(asm_module_size_bytes, V8.AsmModuleSizeBytes, 1, GB, 51)                  \
   HR(asm_wasm_translation_throughput, V8.AsmWasmTranslationThroughput, 1, 100, \
-     20)
+     20)                                                                       \
+  HR(wasm_lazy_compilation_throughput, V8.WasmLazyCompilationThroughput, 1,    \
+     10000, 50)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \

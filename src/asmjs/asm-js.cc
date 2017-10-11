@@ -271,11 +271,13 @@ CompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
                     compilation_info()->literal()->start_position();
   compilation_info()->isolate()->counters()->asm_module_size_bytes()->AddSample(
       module_size);
-  int64_t translate_time_micro = translate_timer.Elapsed().InMicroseconds();
+  int64_t translation_time_micro = translate_timer.Elapsed().InMicroseconds();
+  // translation_throughput is not exact (assumes MB == 1000000). But that is ok
+  // since the metric is stored in buckets that lose some precision anyways.
   int translation_throughput =
-      translate_time_micro != 0
+      translation_time_micro != 0
           ? static_cast<int>(static_cast<int64_t>(module_size) /
-                             translate_time_micro)
+                             translation_time_micro)
           : 0;
   compilation_info()
       ->isolate()
