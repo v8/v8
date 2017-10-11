@@ -1009,6 +1009,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
   friend class CodeAssembler;
   friend class CodeAssemblerLabel;
   friend class CodeAssemblerVariable;
+  friend class CodeAssemblerTester;
 
   CodeAssemblerState(Isolate* isolate, Zone* zone,
                      CallDescriptor* call_descriptor, Code::Kind kind,
