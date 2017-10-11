@@ -87,7 +87,6 @@ inline void ClearThreadInWasm() {
 }
 
 bool RegisterDefaultSignalHandler();
-V8_EXPORT_PRIVATE void RestoreOriginalSignalHandler();
 
 #if V8_OS_LINUX
 bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context);

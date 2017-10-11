@@ -160,14 +160,18 @@ void HandleSignal(int signum, siginfo_t* info, void* context) {
 
   if (!TryHandleSignal(signum, info, uc)) {
     // Since V8 didn't handle this signal, we want to re-raise the same signal.
-    // For kernel-generated SEGV signals, we do this by restoring the original
+    // For kernel-generated SEGV signals, we do this by restoring the default
     // SEGV handler and then returning. The fault will happen again and the
     // usual SEGV handling will happen.
     //
     // We handle user-generated signals by calling raise() instead. This is for
     // completeness. We should never actually see one of these, but just in
     // case, we do the right thing.
-    RestoreOriginalSignalHandler();
+    struct sigaction action;
+    action.sa_handler = SIG_DFL;
+    sigemptyset(&action.sa_mask);
+    action.sa_flags = 0;
+    sigaction(signum, &action, nullptr);
     if (!IsKernelGeneratedSignal(info)) {
       raise(signum);
     }
