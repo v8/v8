@@ -6,6 +6,7 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/graph.h"
+#include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/operator-properties.h"
 
@@ -18,9 +19,31 @@ DeadCodeElimination::DeadCodeElimination(Editor* editor, Graph* graph,
     : AdvancedReducer(editor),
       graph_(graph),
       common_(common),
-      dead_(graph->NewNode(common->Dead())) {
+      dead_(graph->NewNode(common->Dead())),
+      dead_value_(graph->NewNode(common->DeadValue())) {
   NodeProperties::SetType(dead_, Type::None());
+  NodeProperties::SetType(dead_value_, Type::None());
 }
+
+namespace {
+
+// True if we can guarantee that {node} will never actually produce a value or
+// effect.
+bool NoReturn(Node* node) {
+  return node->opcode() == IrOpcode::kDead ||
+         node->opcode() == IrOpcode::kUnreachable ||
+         node->opcode() == IrOpcode::kDeadValue ||
+         !NodeProperties::GetTypeOrAny(node)->IsInhabited();
+}
+
+bool HasDeadInput(Node* node) {
+  for (Node* input : node->inputs()) {
+    if (NoReturn(input)) return true;
+  }
+  return false;
+}
+
+}  // namespace
 
 Reduction DeadCodeElimination::Reduce(Node* node) {
   switch (node->opcode()) {
@@ -140,13 +163,89 @@ Reduction DeadCodeElimination::RemoveLoopExit(Node* node) {
 }
 
 Reduction DeadCodeElimination::ReduceNode(Node* node) {
-  // If {node} has exactly one control input and this is {Dead},
-  // replace {node} with {Dead}.
+  int const effect_input_count = node->op()->EffectInputCount();
   int const control_input_count = node->op()->ControlInputCount();
-  if (control_input_count == 0) return NoChange();
-  DCHECK_EQ(1, control_input_count);
-  Node* control = NodeProperties::GetControlInput(node);
-  if (control->opcode() == IrOpcode::kDead) return Replace(control);
+  if (control_input_count == 0 && effect_input_count == 0) {
+    return ReducePureNode(node);
+  }
+
+  if (control_input_count == 1) {
+    // If {node} has exactly one control input and this is {Dead},
+    // replace {node} with {Dead}.
+    Node* control = NodeProperties::GetControlInput(node);
+    if (control->opcode() == IrOpcode::kDead) return Replace(control);
+
+    if (node->opcode() == IrOpcode::kPhi &&
+        (PhiRepresentationOf(node->op()) == MachineRepresentation::kNone ||
+         !NodeProperties::GetTypeOrAny(node)->IsInhabited())) {
+      return Replace(dead_value());
+    }
+  }
+
+  if (effect_input_count > 0 && !NodeProperties::IsPhi(node))
+    return ReduceEffectNode(node);
+
+  return NoChange();
+}
+
+Reduction DeadCodeElimination::ReducePureNode(Node* node) {
+  DCHECK_EQ(0, node->op()->EffectInputCount());
+  DCHECK_EQ(0, node->op()->ControlInputCount());
+  int input_count = node->op()->ValueInputCount();
+  for (int i = 0; i < input_count; ++i) {
+    Node* input = NodeProperties::GetValueInput(node, i);
+    if (NoReturn(input)) {
+      return Replace(dead_value());
+    }
+  }
+  return NoChange();
+}
+
+Reduction DeadCodeElimination::ReduceEffectNode(Node* node) {
+  if (IrOpcode::IsGraphTerminator(node->opcode())) {
+    return ReduceGraphTerminator(node);
+  }
+
+  DCHECK_EQ(1, node->op()->EffectInputCount());
+  Node* effect = NodeProperties::GetEffectInput(node, 0);
+  if (effect->opcode() == IrOpcode::kDead) {
+    return Replace(effect);
+  }
+  if (HasDeadInput(node) && node->opcode() != IrOpcode::kIfException) {
+    if (effect->opcode() == IrOpcode::kUnreachable) {
+      RelaxEffectsAndControls(node);
+      return Replace(dead_value());
+    }
+
+    if (node->opcode() == IrOpcode::kUnreachable) return NoChange();
+
+    Node* control = node->op()->ControlInputCount() == 1
+                        ? NodeProperties::GetControlInput(node, 0)
+                        : graph()->start();
+    Node* unreachable =
+        graph()->NewNode(common()->Unreachable(), effect, control);
+    ReplaceWithValue(node, dead_value(), node, control);
+    return Replace(unreachable);
+  }
+
+  return NoChange();
+}
+
+Reduction DeadCodeElimination::ReduceGraphTerminator(Node* node) {
+  DCHECK(IrOpcode::IsGraphTerminator(node->opcode()));
+  if (node->opcode() == IrOpcode::kThrow) return NoChange();
+  if (HasDeadInput(node)) {
+    Node* effect = NodeProperties::GetEffectInput(node, 0);
+    Node* control = NodeProperties::GetControlInput(node, 0);
+    if (effect->opcode() != IrOpcode::kUnreachable) {
+      effect = graph()->NewNode(common()->Unreachable(), effect, control);
+    }
+    node->TrimInputCount(2);
+    node->ReplaceInput(0, effect);
+    node->ReplaceInput(1, control);
+    NodeProperties::ChangeOp(node, common()->Throw());
+    return Changed(node);
+  }
   return NoChange();
 }
 
