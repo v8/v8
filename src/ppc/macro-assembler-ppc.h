@@ -1037,9 +1037,6 @@ class MacroAssembler : public TurboAssembler {
     DecodeField<Field>(reg, reg, rc);
   }
 
-  void EnterBuiltinFrame(Register context, Register target, Register argc);
-  void LeaveBuiltinFrame(Register context, Register target, Register argc);
-
  private:
   static const int kSmiShift = kSmiTagSize + kSmiShiftSize;
 

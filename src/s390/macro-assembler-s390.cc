@@ -980,20 +980,6 @@ int TurboAssembler::LeaveFrame(StackFrame::Type type, int stack_adjustment) {
   return frame_ends;
 }
 
-void MacroAssembler::EnterBuiltinFrame(Register context, Register target,
-                                       Register argc) {
-  CleanseP(r14);
-  Push(r14, fp, context, target);
-  la(fp, MemOperand(sp, 2 * kPointerSize));
-  Push(argc);
-}
-
-void MacroAssembler::LeaveBuiltinFrame(Register context, Register target,
-                                       Register argc) {
-  Pop(argc);
-  Pop(r14, fp, context, target);
-}
-
 // ExitFrame layout (probably wrongish.. needs updating)
 //
 //  SP -> previousSP

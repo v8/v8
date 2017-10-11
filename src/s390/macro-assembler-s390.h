@@ -1175,9 +1175,6 @@ class MacroAssembler : public TurboAssembler {
                       bool restore_context,
                       bool argument_count_is_length = false);
 
-  void EnterBuiltinFrame(Register context, Register target, Register argc);
-  void LeaveBuiltinFrame(Register context, Register target, Register argc);
-
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst) {
     LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
