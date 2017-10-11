@@ -75,8 +75,7 @@ static V8_INLINE void __cpuid(int cpu_info[4], int info_type) {
 
 #endif  // !V8_LIBC_MSVCRT
 
-#elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_ARM64 \
-    || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
+#elif V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
 
 #if V8_OS_LINUX
 
@@ -176,7 +175,7 @@ int __detect_mips_arch_revision(void) {
   // Fall-back to the least common denominator which is mips32 revision 1.
   return result ? 1 : 6;
 }
-#endif
+#endif  // V8_HOST_ARCH_MIPS
 
 // Extract the information exposed by the kernel via /proc/cpuinfo.
 class CPUInfo final {
@@ -270,8 +269,6 @@ class CPUInfo final {
   size_t datalen_;
 };
 
-#if V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
-
 // Checks that a space-separated list of items contains one given 'item'.
 static bool HasListItem(const char* list, const char* item) {
   ssize_t item_len = strlen(item);
@@ -296,11 +293,9 @@ static bool HasListItem(const char* list, const char* item) {
   return false;
 }
 
-#endif  // V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
-
 #endif  // V8_OS_LINUX
 
-#endif  // V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+#endif  //  V8_HOST_ARCH_ARM || V8_HOST_ARCH_MIPS || V8_HOST_ARCH_MIPS64
 
 CPU::CPU()
     : stepping_(0),
@@ -606,40 +601,7 @@ CPU::CPU()
 #endif
 
 #elif V8_HOST_ARCH_ARM64
-
-  CPUInfo cpu_info;
-
-  // Extract implementor from the "CPU implementer" field.
-  char* implementer = cpu_info.ExtractField("CPU implementer");
-  if (implementer != NULL) {
-    char* end;
-    implementer_ = static_cast<int>(strtol(implementer, &end, 0));
-    if (end == implementer) {
-      implementer_ = 0;
-    }
-    delete[] implementer;
-  }
-
-  char* variant = cpu_info.ExtractField("CPU variant");
-  if (variant != NULL) {
-    char* end;
-    variant_ = static_cast<int>(strtol(variant, &end, 0));
-    if (end == variant) {
-      variant_ = -1;
-    }
-    delete[] variant;
-  }
-
-  // Extract part number from the "CPU part" field.
-  char* part = cpu_info.ExtractField("CPU part");
-  if (part != NULL) {
-    char* end;
-    part_ = static_cast<int>(strtol(part, &end, 0));
-    if (end == part) {
-      part_ = 0;
-    }
-    delete[] part;
-  }
+// Implementer, variant and part are currently unused under ARM64.
 
 #elif V8_HOST_ARCH_PPC
 
