@@ -2320,6 +2320,10 @@ class VerboseAccountingAllocator : public AccountingAllocator {
   size_t allocation_sample_bytes_, pool_sample_bytes_;
 };
 
+#ifdef DEBUG
+base::AtomicNumber<size_t> Isolate::non_disposed_isolates_;
+#endif  // DEBUG
+
 Isolate::Isolate(bool enable_serializer)
     : embedder_data_(),
       entry_stack_(NULL),
@@ -2403,7 +2407,9 @@ Isolate::Isolate(bool enable_serializer)
 #ifdef DEBUG
   // heap_histograms_ initializes itself.
   memset(&js_spill_information_, 0, sizeof(js_spill_information_));
-#endif
+
+  non_disposed_isolates_.Increment(1);
+#endif  // DEBUG
 
   handle_scope_data_.Initialize();
 
@@ -2443,6 +2449,10 @@ void Isolate::TearDown() {
     base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
     thread_data_table_->RemoveAllThreads(this);
   }
+
+#ifdef DEBUG
+  non_disposed_isolates_.Decrement(1);
+#endif  // DEBUG
 
   delete this;
 

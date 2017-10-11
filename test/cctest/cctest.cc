@@ -95,7 +95,17 @@ void CcTest::Run() {
     }
     isolate_->Enter();
   }
+#ifdef DEBUG
+  const size_t active_isolates = i::Isolate::non_disposed_isolates();
+#endif  // DEBUG
   callback_();
+#ifdef DEBUG
+  // This DCHECK ensures that all Isolates are properly disposed after finishing
+  // the test. Stray Isolates lead to stray tasks in the platform which can
+  // interact weirdly when swapping in new platforms (for testing) or during
+  // shutdown.
+  DCHECK_EQ(active_isolates, i::Isolate::non_disposed_isolates());
+#endif  // DEBUG
   if (initialize_) {
     if (v8::Locker::IsActive()) {
       v8::Locker locker(isolate_);

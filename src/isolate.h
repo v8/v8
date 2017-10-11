@@ -980,6 +980,10 @@ class Isolate {
   HeapProfiler* heap_profiler() const { return heap_profiler_; }
 
 #ifdef DEBUG
+  static size_t non_disposed_isolates() {
+    return non_disposed_isolates_.Value();
+  }
+
   HistogramInfo* heap_histograms() { return heap_histograms_; }
 
   JSObject::SpillInformation* js_spill_information() {
@@ -1523,6 +1527,8 @@ class Isolate {
   double time_millis_at_init_;
 
 #ifdef DEBUG
+  static base::AtomicNumber<size_t> non_disposed_isolates_;
+
   // A static array of histogram info for each type.
   HistogramInfo heap_histograms_[LAST_TYPE + 1];
   JSObject::SpillInformation js_spill_information_;
