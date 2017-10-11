@@ -17,7 +17,7 @@ void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
   void* data = buffer->backing_store();
   if (!data) return;
 
-  size_t length = static_cast<size_t>(buffer->byte_length()->Number());
+  size_t length = buffer->allocation_length();
   Page* page = Page::FromAddress(buffer->address());
   {
     base::LockGuard<base::RecursiveMutex> guard(page->mutex());
@@ -40,7 +40,7 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
   if (!data) return;
 
   Page* page = Page::FromAddress(buffer->address());
-  size_t length = static_cast<size_t>(buffer->byte_length()->Number());
+  size_t length = buffer->allocation_length();
   {
     base::LockGuard<base::RecursiveMutex> guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
@@ -50,22 +50,6 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
   heap->update_external_memory(-static_cast<intptr_t>(length));
 }
 
-void ArrayBufferTracker::IncreaseArrayBufferSize(Heap* heap,
-                                                 JSArrayBuffer* buffer,
-                                                 size_t delta) {
-  DCHECK_NOT_NULL(buffer->backing_store());
-
-  Page* const page = Page::FromAddress(buffer->address());
-  {
-    base::LockGuard<base::RecursiveMutex> guard(page->mutex());
-    LocalArrayBufferTracker* tracker = page->local_tracker();
-    DCHECK_NOT_NULL(tracker);
-    DCHECK(tracker->IsTracked(buffer));
-    tracker->IncreaseRetainedSize(delta);
-  }
-  heap->update_external_memory(delta);
-}
-
 template <typename Callback>
 void LocalArrayBufferTracker::Free(Callback should_free) {
   size_t freed_memory = 0;
@@ -73,7 +57,7 @@ void LocalArrayBufferTracker::Free(Callback should_free) {
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
     JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(*it);
-    const size_t length = static_cast<size_t>(buffer->byte_length()->Number());
+    const size_t length = buffer->allocation_length();
     if (should_free(buffer)) {
       freed_memory += length;
       buffer->FreeBackingStore();
@@ -120,11 +104,6 @@ void LocalArrayBufferTracker::Remove(JSArrayBuffer* buffer, size_t length) {
   // Check that we indeed find a key to remove.
   DCHECK(it != array_buffers_.end());
   array_buffers_.erase(it);
-}
-
-void LocalArrayBufferTracker::IncreaseRetainedSize(size_t delta) {
-  DCHECK_GE(retained_size_ + delta, retained_size_);
-  retained_size_ += delta;
 }
 
 }  // namespace internal
