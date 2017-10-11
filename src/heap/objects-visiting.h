@@ -87,6 +87,9 @@ class HeapVisitor : public ObjectVisitor {
   V8_INLINE ResultType VisitJSApiObject(Map* map, JSObject* object);
   V8_INLINE ResultType VisitStruct(Map* map, HeapObject* object);
   V8_INLINE ResultType VisitFreeSpace(Map* map, FreeSpace* object);
+
+  template <typename T>
+  static V8_INLINE T* Cast(HeapObject* object);
 };
 
 template <typename ConcreteVisitor>

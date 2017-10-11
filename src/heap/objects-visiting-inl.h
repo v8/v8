@@ -17,6 +17,12 @@ namespace v8 {
 namespace internal {
 
 template <typename ResultType, typename ConcreteVisitor>
+template <typename T>
+T* HeapVisitor<ResultType, ConcreteVisitor>::Cast(HeapObject* object) {
+  return T::cast(object);
+}
+
+template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(HeapObject* object) {
   return Visit(object->map(), object);
 }
@@ -26,23 +32,28 @@ ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map* map,
                                                            HeapObject* object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
   switch (static_cast<VisitorId>(map->visitor_id())) {
-#define CASE(type)   \
-  case kVisit##type: \
-    return visitor->Visit##type(map, type::cast(object));
+#define CASE(type)                   \
+  case kVisit##type:                 \
+    return visitor->Visit##type(map, \
+                                ConcreteVisitor::template Cast<type>(object));
     TYPED_VISITOR_ID_LIST(CASE)
 #undef CASE
     case kVisitShortcutCandidate:
-      return visitor->VisitShortcutCandidate(map, ConsString::cast(object));
+      return visitor->VisitShortcutCandidate(
+          map, ConcreteVisitor::template Cast<ConsString>(object));
     case kVisitNativeContext:
-      return visitor->VisitNativeContext(map, Context::cast(object));
+      return visitor->VisitNativeContext(
+          map, ConcreteVisitor::template Cast<Context>(object));
     case kVisitDataObject:
-      return visitor->VisitDataObject(map, HeapObject::cast(object));
+      return visitor->VisitDataObject(map, object);
     case kVisitJSObjectFast:
-      return visitor->VisitJSObjectFast(map, JSObject::cast(object));
+      return visitor->VisitJSObjectFast(
+          map, ConcreteVisitor::template Cast<JSObject>(object));
     case kVisitJSApiObject:
-      return visitor->VisitJSApiObject(map, JSObject::cast(object));
+      return visitor->VisitJSApiObject(
+          map, ConcreteVisitor::template Cast<JSObject>(object));
     case kVisitStruct:
-      return visitor->VisitStruct(map, HeapObject::cast(object));
+      return visitor->VisitStruct(map, object);
     case kVisitFreeSpace:
       return visitor->VisitFreeSpace(map, FreeSpace::cast(object));
     case kVisitorIdCount:
@@ -78,13 +89,7 @@ TYPED_VISITOR_ID_LIST(VISIT)
 template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::VisitShortcutCandidate(
     Map* map, ConsString* object) {
-  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  if (!visitor->ShouldVisit(object)) return ResultType();
-  int size = ConsString::BodyDescriptor::SizeOf(map, object);
-  if (visitor->ShouldVisitMapPointer())
-    visitor->VisitMapPointer(object, object->map_slot());
-  ConsString::BodyDescriptor::IterateBody(object, size, visitor);
-  return static_cast<ResultType>(size);
+  return static_cast<ConcreteVisitor*>(this)->VisitConsString(map, object);
 }
 
 template <typename ResultType, typename ConcreteVisitor>
