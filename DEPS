@@ -284,6 +284,16 @@ hooks = [
     'action': ['python', 'v8/tools/clang/scripts/update.py'],
   },
   {
+    'name': 'fuchsia_sdk',
+    'pattern': '.',
+    'condition': 'checkout_fuchsia',
+    'action': [
+      'python',
+      'v8/build/fuchsia/update_sdk.py',
+      '226f6dd0cad1d6be63a353ce2649423470729ae9',
+    ],
+  },
+  {
     # A change to a .gyp, .gypi, or to GYP itself should run the generator.
     'pattern': '.',
     'action': ['python', 'v8/gypfiles/gyp_v8', '--running-as-hook'],
