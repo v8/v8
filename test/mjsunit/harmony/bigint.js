@@ -280,6 +280,17 @@ const six = BigInt(6);
 
 // SameValue
 {
+  assertTrue(Object.is(zero, zero));
+  assertTrue(Object.is(zero, another_zero));
+  assertTrue(Object.is(one, one));
+  assertTrue(Object.is(one, another_one));
+  assertFalse(Object.is(zero, +0));
+  assertFalse(Object.is(zero, -0));
+  assertFalse(Object.is(+0, zero));
+  assertFalse(Object.is(-0, zero));
+  assertFalse(Object.is(zero, one));
+  assertFalse(Object.is(one, minus_one));
+}{
   const obj = Object.defineProperty({}, 'foo',
       {value: zero, writable: false, configurable: false});
 

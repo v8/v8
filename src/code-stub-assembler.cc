@@ -9130,14 +9130,16 @@ void CodeStubAssembler::BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true,
 
     BIND(&if_rhsisheapobject);
     {
-      // Now this can only yield true if either both {lhs} and {rhs}
-      // are HeapNumbers with the same value or both {lhs} and {rhs}
-      // are Strings with the same character sequence.
-      Label if_lhsisheapnumber(this), if_lhsisstring(this);
+      // Now this can only yield true if either both {lhs} and {rhs} are
+      // HeapNumbers with the same value, or both are Strings with the same
+      // character sequence, or both are BigInts with the same value.
+      Label if_lhsisheapnumber(this), if_lhsisstring(this),
+          if_lhsisbigint(this);
       Node* const lhs_map = LoadMap(lhs);
       GotoIf(IsHeapNumberMap(lhs_map), &if_lhsisheapnumber);
       Node* const lhs_instance_type = LoadMapInstanceType(lhs_map);
-      Branch(IsStringInstanceType(lhs_instance_type), &if_lhsisstring,
+      GotoIf(IsStringInstanceType(lhs_instance_type), &if_lhsisstring);
+      Branch(IsBigIntInstanceType(lhs_instance_type), &if_lhsisbigint,
              if_false);
 
       BIND(&if_lhsisheapnumber);
@@ -9155,6 +9157,14 @@ void CodeStubAssembler::BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true,
         GotoIfNot(IsString(rhs), if_false);
         Node* const result =
             CallBuiltin(Builtins::kStringEqual, NoContextConstant(), lhs, rhs);
+        Branch(IsTrue(result), if_true, if_false);
+      }
+
+      BIND(&if_lhsisbigint);
+      {
+        GotoIfNot(IsBigInt(rhs), if_false);
+        Node* const result =
+            CallRuntime(Runtime::kBigIntEqual, NoContextConstant(), lhs, rhs);
         Branch(IsTrue(result), if_true, if_false);
       }
     }
