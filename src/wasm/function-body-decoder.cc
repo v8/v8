@@ -1018,8 +1018,8 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprTry: {
         BlockTypeOperand<false> operand(&i, i.pc());
         os << "   // @" << i.pc_offset();
-        for (unsigned i = 0; i < operand.out_arity(); i++) {
-          os << " " << WasmOpcodes::TypeName(operand.out_type(i));
+        for (unsigned i = 0; i < operand.arity; i++) {
+          os << " " << WasmOpcodes::TypeName(operand.read_entry(i));
         }
         control_depth++;
         break;

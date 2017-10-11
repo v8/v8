@@ -70,17 +70,21 @@
 #define ARITY_2 2
 
 #define WASM_BLOCK(...) kExprBlock, kLocalVoid, __VA_ARGS__, kExprEnd
-#define WASM_BLOCK_I(...) kExprBlock, kLocalI32, __VA_ARGS__, kExprEnd
-#define WASM_BLOCK_L(...) kExprBlock, kLocalI64, __VA_ARGS__, kExprEnd
-#define WASM_BLOCK_F(...) kExprBlock, kLocalF32, __VA_ARGS__, kExprEnd
-#define WASM_BLOCK_D(...) kExprBlock, kLocalF64, __VA_ARGS__, kExprEnd
 
 #define WASM_BLOCK_T(t, ...)                                       \
   kExprBlock, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t)), \
       __VA_ARGS__, kExprEnd
 
-#define WASM_BLOCK_TT(index, ...)                                  \
-  kExprBlock, static_cast<byte>(index), __VA_ARGS__, kExprEnd
+#define WASM_BLOCK_TT(t1, t2, ...)                                       \
+  kExprBlock, kMultivalBlock, 0,                                         \
+      static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t1)),              \
+      static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t2)), __VA_ARGS__, \
+      kExprEnd
+
+#define WASM_BLOCK_I(...) kExprBlock, kLocalI32, __VA_ARGS__, kExprEnd
+#define WASM_BLOCK_L(...) kExprBlock, kLocalI64, __VA_ARGS__, kExprEnd
+#define WASM_BLOCK_F(...) kExprBlock, kLocalF32, __VA_ARGS__, kExprEnd
+#define WASM_BLOCK_D(...) kExprBlock, kLocalF64, __VA_ARGS__, kExprEnd
 
 #define WASM_INFINITE_LOOP kExprLoop, kLocalVoid, kExprBr, DEPTH_0, kExprEnd
 
@@ -89,13 +93,6 @@
 #define WASM_LOOP_L(...) kExprLoop, kLocalI64, __VA_ARGS__, kExprEnd
 #define WASM_LOOP_F(...) kExprLoop, kLocalF32, __VA_ARGS__, kExprEnd
 #define WASM_LOOP_D(...) kExprLoop, kLocalF64, __VA_ARGS__, kExprEnd
-
-#define WASM_LOOP_T(t, ...)                                       \
-  kExprLoop, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t)), \
-      __VA_ARGS__, kExprEnd
-
-#define WASM_LOOP_TT(index, ...)                                  \
-  kExprLoop, static_cast<byte>(index), __VA_ARGS__, kExprEnd
 
 #define WASM_IF(cond, tstmt) cond, kExprIf, kLocalVoid, tstmt, kExprEnd
 
@@ -106,8 +103,11 @@
   cond, kExprIf, static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t)), tstmt, \
       kExprElse, fstmt, kExprEnd
 
-#define WASM_IF_ELSE_TT(index, cond, tstmt, fstmt)                           \
-  cond, kExprIf, static_cast<byte>(index), tstmt, kExprElse, fstmt, kExprEnd
+#define WASM_IF_ELSE_TT(t1, t2, cond, tstmt, fstmt)                           \
+  cond, kExprIf, kMultivalBlock, 0,                                           \
+      static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t1)),                   \
+      static_cast<byte>(WasmOpcodes::ValueTypeCodeFor(t2)), tstmt, kExprElse, \
+      fstmt, kExprEnd
 
 #define WASM_IF_ELSE_I(cond, tstmt, fstmt) \
   cond, kExprIf, kLocalI32, tstmt, kExprElse, fstmt, kExprEnd
