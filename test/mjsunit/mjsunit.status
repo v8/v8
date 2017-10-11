@@ -255,6 +255,9 @@
 
   # BUG(chromium:751825): Crashes flakily.
   'wasm/js-api': [SKIP],
+
+  # BUG(chromium:773631): Crashes flakily.
+  'wasm/streaming-trap-location': [SKIP]
 }],  # 'gc_stress == True'
 
 ##############################################################################
