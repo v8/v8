@@ -1334,7 +1334,6 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
       int arg0_regnum = 3;
       intptr_t result_buffer = 0;
       bool uses_result_buffer =
-          redirection->type() == ExternalReference::BUILTIN_CALL_TRIPLE ||
           (redirection->type() == ExternalReference::BUILTIN_CALL_PAIR &&
            !ABI_RETURNS_OBJECT_PAIRS_IN_REGS);
       if (uses_result_buffer) {
