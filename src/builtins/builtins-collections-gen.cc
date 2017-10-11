@@ -1796,7 +1796,7 @@ TF_BUILTIN(WeakMapHas, CollectionsBuiltinsAssembler) {
   Label return_false(this);
 
   ThrowIfNotInstanceType(context, receiver, JS_WEAK_MAP_TYPE,
-                         "WeakMap.prototype.get");
+                         "WeakMap.prototype.has");
 
   GotoIf(TaggedIsSmi(key), &return_false);
   GotoIfNot(IsJSReceiver(key), &return_false);
@@ -1822,7 +1822,7 @@ TF_BUILTIN(WeakSetHas, CollectionsBuiltinsAssembler) {
   Label return_false(this);
 
   ThrowIfNotInstanceType(context, receiver, JS_WEAK_SET_TYPE,
-                         "WeakSet.prototype.get");
+                         "WeakSet.prototype.has");
 
   GotoIf(TaggedIsSmi(key), &return_false);
   GotoIfNot(IsJSReceiver(key), &return_false);
