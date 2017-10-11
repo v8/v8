@@ -1073,8 +1073,6 @@ void MarkCompactCollector::Finish() {
     Deoptimizer::DeoptimizeMarkedCode(isolate());
     have_code_to_deoptimize_ = false;
   }
-
-  heap_->incremental_marking()->ClearIdleMarkingDelayCounter();
 }
 
 class MarkCompactMarkingVisitor final

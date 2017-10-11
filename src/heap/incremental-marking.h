@@ -95,10 +95,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   static const int kStepSizeInMs = 1;
   static const int kMaxStepSizeInMs = 5;
 
-  // This is the upper bound for how many times we allow finalization of
-  // incremental marking to be postponed.
-  static const int kMaxIdleMarkingDelayCounter = 3;
-
 #ifndef DEBUG
   static const intptr_t kActivationThreshold = 8 * MB;
 #else
@@ -207,13 +203,12 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   // anymore because a single step would exceed the deadline.
   double AdvanceIncrementalMarking(double deadline_in_ms,
                                    CompletionAction completion_action,
-                                   ForceCompletionAction force_completion,
                                    StepOrigin step_origin);
 
   void FinalizeSweeping();
 
   size_t Step(size_t bytes_to_process, CompletionAction action,
-              ForceCompletionAction completion, StepOrigin step_origin);
+              StepOrigin step_origin);
 
   inline void RestartIfNotMarking();
 
@@ -259,10 +254,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void NotifyIncompleteScanOfObject(int unscanned_bytes) {
     unscanned_bytes_of_large_object_ = unscanned_bytes;
   }
-
-  void ClearIdleMarkingDelayCounter();
-
-  bool IsIdleMarkingDelayCounterLimitReached();
 
   void ProcessBlackAllocatedObject(HeapObject* obj);
 
@@ -366,9 +357,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
 
   // Must use SetState() above to update state_
   State state_;
-
-  int idle_marking_delay_counter_;
-  int incremental_marking_finalization_rounds_;
 
   bool is_compacting_;
   bool should_hurry_;

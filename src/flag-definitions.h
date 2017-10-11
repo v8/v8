@@ -618,11 +618,6 @@ DEFINE_BOOL(minor_mc_parallel_marking, true,
             "use parallel marking for the young generation")
 DEFINE_BOOL(trace_minor_mc_parallel_marking, false,
             "trace parallel marking for the young generation")
-DEFINE_INT(min_progress_during_incremental_marking_finalization, 32,
-           "keep finalizing incremental marking as long as we discover at "
-           "least this many unmarked objects")
-DEFINE_INT(max_incremental_marking_finalization_rounds, 3,
-           "at most try this many times to finalize incremental marking")
 DEFINE_BOOL(minor_mc, false, "perform young generation mark compact GCs")
 DEFINE_BOOL(black_allocation, true, "use black allocation")
 DEFINE_BOOL(concurrent_store_buffer, true,
