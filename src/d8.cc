@@ -518,8 +518,6 @@ ScriptCompiler::CachedData* CompileForCachedData(
   Isolate* temp_isolate = Isolate::New(create_params);
   temp_isolate->SetHostImportModuleDynamicallyCallback(
       Shell::HostImportModuleDynamically);
-  temp_isolate->SetHostInitializeImportMetaObjectCallback(
-      Shell::HostInitializeImportMetaObject);
   ScriptCompiler::CachedData* result = NULL;
   {
     Isolate::Scope isolate_scope(temp_isolate);
@@ -714,13 +712,13 @@ class ModuleEmbedderData {
 
  public:
   explicit ModuleEmbedderData(Isolate* isolate)
-      : module_to_specifier_map(10, ModuleGlobalHash(isolate)) {}
+      : module_to_directory_map(10, ModuleGlobalHash(isolate)) {}
 
   // Map from normalized module specifier to Module.
   std::unordered_map<std::string, Global<Module>> specifier_to_module_map;
-  // Map from Module to its URL as defined in the ScriptOrigin
+  // Map from Module to the directory that Module was loaded from.
   std::unordered_map<Global<Module>, std::string, ModuleGlobalHash>
-      module_to_specifier_map;
+      module_to_directory_map;
 };
 
 enum {
@@ -748,11 +746,11 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
                                          Local<Module> referrer) {
   Isolate* isolate = context->GetIsolate();
   ModuleEmbedderData* d = GetModuleDataFromContext(context);
-  auto specifier_it =
-      d->module_to_specifier_map.find(Global<Module>(isolate, referrer));
-  CHECK(specifier_it != d->module_to_specifier_map.end());
-  std::string absolute_path = NormalizePath(ToSTLString(isolate, specifier),
-                                            DirName(specifier_it->second));
+  auto dir_name_it =
+      d->module_to_directory_map.find(Global<Module>(isolate, referrer));
+  CHECK(dir_name_it != d->module_to_directory_map.end());
+  std::string absolute_path =
+      NormalizePath(ToSTLString(isolate, specifier), dir_name_it->second);
   auto module_it = d->specifier_to_module_map.find(absolute_path);
   CHECK(module_it != d->specifier_to_module_map.end());
   return module_it->second.Get(isolate);
@@ -785,11 +783,11 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Context> context,
   CHECK(d->specifier_to_module_map
             .insert(std::make_pair(file_name, Global<Module>(isolate, module)))
             .second);
-  CHECK(d->module_to_specifier_map
-            .insert(std::make_pair(Global<Module>(isolate, module), file_name))
-            .second);
 
   std::string dir_name = DirName(file_name);
+  CHECK(d->module_to_directory_map
+            .insert(std::make_pair(Global<Module>(isolate, module), dir_name))
+            .second);
 
   for (int i = 0, length = module->GetModuleRequestsLength(); i < length; ++i) {
     Local<String> name = module->GetModuleRequest(i);
@@ -842,26 +840,6 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
   }
 
   return MaybeLocal<Promise>();
-}
-
-void Shell::HostInitializeImportMetaObject(Local<Context> context,
-                                           Local<Module> module,
-                                           Local<Object> meta) {
-  Isolate* isolate = context->GetIsolate();
-  HandleScope handle_scope(isolate);
-
-  ModuleEmbedderData* d = GetModuleDataFromContext(context);
-  auto specifier_it =
-      d->module_to_specifier_map.find(Global<Module>(isolate, module));
-  CHECK(specifier_it != d->module_to_specifier_map.end());
-
-  Local<String> url_key =
-      String::NewFromUtf8(isolate, "url", NewStringType::kNormal)
-          .ToLocalChecked();
-  Local<String> url = String::NewFromUtf8(isolate, specifier_it->second.c_str(),
-                                          NewStringType::kNormal)
-                          .ToLocalChecked();
-  meta->CreateDataProperty(context, url_key, url).ToChecked();
 }
 
 void Shell::DoHostImportModuleDynamically(void* import_data) {
@@ -2450,8 +2428,6 @@ void SourceGroup::ExecuteInThread() {
   Isolate* isolate = Isolate::New(create_params);
   isolate->SetHostImportModuleDynamicallyCallback(
       Shell::HostImportModuleDynamically);
-  isolate->SetHostInitializeImportMetaObjectCallback(
-      Shell::HostInitializeImportMetaObject);
 
   Shell::EnsureEventLoopInitialized(isolate);
   D8Console console(isolate);
@@ -2597,8 +2573,6 @@ void Worker::ExecuteInThread() {
   Isolate* isolate = Isolate::New(create_params);
   isolate->SetHostImportModuleDynamicallyCallback(
       Shell::HostImportModuleDynamically);
-  isolate->SetHostInitializeImportMetaObjectCallback(
-      Shell::HostInitializeImportMetaObject);
   D8Console console(isolate);
   debug::SetConsoleDelegate(isolate, &console);
   {
@@ -3275,8 +3249,6 @@ int Shell::Main(int argc, char* argv[]) {
   Isolate* isolate = Isolate::New(create_params);
   isolate->SetHostImportModuleDynamicallyCallback(
       Shell::HostImportModuleDynamically);
-  isolate->SetHostInitializeImportMetaObjectCallback(
-      Shell::HostInitializeImportMetaObject);
 
   D8Console console(isolate);
   {

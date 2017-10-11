@@ -882,7 +882,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   Expression* NewSuperCallReference(int pos);
   Expression* NewTargetExpression(int pos);
   Expression* FunctionSentExpression(int pos);
-  Expression* ImportMetaExpression(int pos);
 
   Literal* ExpressionFromLiteral(Token::Value token, int pos);
 

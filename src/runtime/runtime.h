@@ -356,7 +356,6 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_MODULE(F) \
   F(DynamicImportCall, 2, 1)         \
-  F(GetImportMetaObject, 0, 1)       \
   F(GetModuleNamespace, 1, 1)        \
   F(LoadModuleVariable, 1, 1)        \
   F(StoreModuleVariable, 2, 1)

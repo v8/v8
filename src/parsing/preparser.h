@@ -1480,10 +1480,6 @@ class PreParser : public ParserBase<PreParser> {
     return PreParserExpression::Default();
   }
 
-  V8_INLINE PreParserExpression ImportMetaExpression(int pos) {
-    return PreParserExpression::Default();
-  }
-
   V8_INLINE PreParserExpression ExpressionFromLiteral(Token::Value token,
                                                       int pos) {
     return PreParserExpression::Default();

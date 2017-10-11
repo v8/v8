@@ -1335,7 +1335,6 @@ void Module::ModulePrint(std::ostream& os) {  // NOLINT
   os << "\n - exports: " << Brief(exports());
   os << "\n - requested_modules: " << Brief(requested_modules());
   os << "\n - script: " << Brief(script());
-  os << "\n - import_meta: " << Brief(import_meta());
   os << "\n - status: " << status();
   os << "\n - exception: " << Brief(exception());
   os << "\n";

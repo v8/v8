@@ -72,7 +72,6 @@ using ::v8::Local;
 using ::v8::Maybe;
 using ::v8::Message;
 using ::v8::MessageCallback;
-using ::v8::Module;
 using ::v8::Name;
 using ::v8::None;
 using ::v8::Object;
@@ -27198,58 +27197,6 @@ TEST(DynamicImport) {
   i::Handle<i::JSPromise> promise = maybe_promise.ToHandleChecked();
   isolate->RunMicrotasks();
   CHECK(result->Equals(i::String::cast(promise->result())));
-}
-
-void HostInitializeImportMetaObjectCallbackStatic(Local<Context> context,
-                                                  Local<Module> module,
-                                                  Local<Object> meta) {
-  CHECK(!module.IsEmpty());
-
-  meta->CreateDataProperty(context, v8_str("foo"), v8_str("bar")).ToChecked();
-}
-
-v8::MaybeLocal<Module> UnexpectedModuleResolveCallback(Local<Context> context,
-                                                       Local<String> specifier,
-                                                       Local<Module> referrer) {
-  CHECK_WITH_MSG(false, "Unexpected call to resolve callback");
-}
-
-TEST(ImportMeta) {
-  i::FLAG_harmony_dynamic_import = true;
-  i::FLAG_harmony_import_meta = true;
-  LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
-  v8::HandleScope scope(isolate);
-
-  isolate->SetHostInitializeImportMetaObjectCallback(
-      HostInitializeImportMetaObjectCallbackStatic);
-
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  Local<String> url = v8_str("www.google.com");
-  Local<String> source_text = v8_str("import.meta;");
-  v8::ScriptOrigin origin(url, Local<v8::Integer>(), Local<v8::Integer>(),
-                          Local<v8::Boolean>(), Local<v8::Integer>(),
-                          Local<v8::Value>(), Local<v8::Boolean>(),
-                          Local<v8::Boolean>(), True(isolate));
-  v8::ScriptCompiler::Source source(source_text, origin);
-  Local<Module> module =
-      v8::ScriptCompiler::CompileModule(isolate, &source).ToLocalChecked();
-  i::Handle<i::Object> meta =
-      i_isolate->RunHostInitializeImportMetaObjectCallback(
-          v8::Utils::OpenHandle(*module));
-  CHECK(meta->IsJSObject());
-  Local<Object> meta_obj = Local<Object>::Cast(v8::Utils::ToLocal(meta));
-  CHECK(meta_obj->Get(context.local(), v8_str("foo"))
-            .ToLocalChecked()
-            ->IsString());
-  CHECK(meta_obj->Get(context.local(), v8_str("zapp"))
-            .ToLocalChecked()
-            ->IsUndefined());
-
-  module->InstantiateModule(context.local(), UnexpectedModuleResolveCallback)
-      .ToChecked();
-  Local<Value> result = module->Evaluate(context.local()).ToLocalChecked();
-  CHECK(result->StrictEquals(Local<v8::Value>::Cast(v8::Utils::ToLocal(meta))));
 }
 
 TEST(GlobalTemplateWithDoubleProperty) {

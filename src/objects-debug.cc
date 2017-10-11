@@ -1246,7 +1246,6 @@ void Module::ModuleVerify() {
   VerifyPointer(module_namespace());
   VerifyPointer(requested_modules());
   VerifyPointer(script());
-  VerifyPointer(import_meta());
   VerifyPointer(exception());
   VerifySmiField(kHashOffset);
   VerifySmiField(kStatusOffset);
@@ -1266,8 +1265,6 @@ void Module::ModuleVerify() {
   }
 
   CHECK_EQ(requested_modules()->length(), info()->module_requests()->length());
-
-  CHECK(import_meta()->IsTheHole(GetIsolate()) || import_meta()->IsJSObject());
 
   CHECK_NE(hash(), 0);
 }

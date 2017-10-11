@@ -450,9 +450,6 @@ class Shell : public i::AllStatic {
   static MaybeLocal<Promise> HostImportModuleDynamically(
       Local<Context> context, Local<ScriptOrModule> referrer,
       Local<String> specifier);
-  static void HostInitializeImportMetaObject(Local<Context> context,
-                                             Local<Module> module,
-                                             Local<Object> meta);
 
   // Data is of type DynamicImportData*. We use void* here to be able
   // to conform with MicrotaskCallback interface and enqueue this
