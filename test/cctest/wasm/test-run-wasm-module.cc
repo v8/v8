@@ -281,7 +281,7 @@ class WasmSerializationTest {
                       wire_bytes().first, wire_bytes().second),
                0);
     }
-    Handle<JSObject> instance =
+    Handle<WasmInstanceObject> instance =
         SyncInstantiate(current_isolate(), &thrower, module_object,
                         Handle<JSReceiver>::null(),
                         MaybeHandle<JSArrayBuffer>())

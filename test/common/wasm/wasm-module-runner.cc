@@ -96,8 +96,9 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
   return interpreter_result != WasmInterpreter::PAUSED;
 }
 
-int32_t RunWasmModuleForTesting(Isolate* isolate, Handle<JSObject> instance,
-                                int argc, Handle<Object> argv[]) {
+int32_t RunWasmModuleForTesting(Isolate* isolate,
+                                Handle<WasmInstanceObject> instance, int argc,
+                                Handle<Object> argv[]) {
   ErrorThrower thrower(isolate, "RunWasmModule");
   return CallWasmFunctionForTesting(isolate, instance, &thrower, "main", argc,
                                     argv);
@@ -165,9 +166,8 @@ int32_t InterpretWasmModule(Isolate* isolate,
   }
 }
 
-MaybeHandle<WasmExportedFunction> GetExportedFunction(Isolate* isolate,
-                                                      Handle<JSObject> instance,
-                                                      const char* name) {
+MaybeHandle<WasmExportedFunction> GetExportedFunction(
+    Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name) {
   Handle<JSObject> exports_object;
   Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
   exports_object = Handle<JSObject>::cast(
@@ -183,7 +183,8 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(Isolate* isolate,
   return Handle<WasmExportedFunction>::cast(desc.value());
 }
 
-int32_t CallWasmFunctionForTesting(Isolate* isolate, Handle<JSObject> instance,
+int32_t CallWasmFunctionForTesting(Isolate* isolate,
+                                   Handle<WasmInstanceObject> instance,
                                    ErrorThrower* thrower, const char* name,
                                    int argc, Handle<Object> argv[]) {
   MaybeHandle<WasmExportedFunction> maybe_export =
