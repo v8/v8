@@ -144,26 +144,6 @@ class BenchmarksTestSuite(testsuite.TestSuite):
     with open(filename) as f:
       return f.read()
 
-  def DownloadData(self):
-    print "Benchmarks download is deprecated. It's part of DEPS."
-
-    def rm_dir(directory):
-      directory_name = os.path.join(self.root, directory)
-      if os.path.exists(directory_name):
-        shutil.rmtree(directory_name)
-
-    # Clean up old directories and archive files.
-    rm_dir('kraken')
-    rm_dir('octane')
-    rm_dir('sunspider')
-    archive_files = [f for f in os.listdir(self.root)
-                     if f.startswith("downloaded_") or
-                        f.startswith("CHECKED_OUT_")]
-    if len(archive_files) > 0:
-      print "Clobber outdated test archives ..."
-      for f in archive_files:
-        os.remove(os.path.join(self.root, f))
-
   def _VariantGeneratorFactory(self):
     return BenchmarksVariantGenerator
 

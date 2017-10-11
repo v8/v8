@@ -172,8 +172,6 @@ def BuildOptions():
   result.add_option("--coverage-lift", help=("Lifts test coverage for tests "
                     "with a small number of deopt points (range 0, inf)"),
                     default=20, type="int")
-  result.add_option("--download-data", help="Download missing test suite data",
-                    default=False, action="store_true")
   result.add_option("--distribution-factor1", help=("Factor of the first "
                     "derivation of the distribution function"), default=2.0,
                     type="float")
@@ -317,10 +315,6 @@ def Main():
         os.path.join(BASE_DIR, "test", root))
     if suite:
       suites.append(suite)
-
-  if options.download_data:
-    for s in suites:
-      s.DownloadData()
 
   for mode in options.mode:
     for arch in options.arch:

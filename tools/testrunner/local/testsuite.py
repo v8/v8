@@ -131,9 +131,6 @@ class TestSuite(object):
     """
     pass
 
-  def DownloadData(self):
-    pass
-
   def ReadStatusFile(self, variables):
     with open(self.status_file()) as f:
       self.rules, self.wildcards = (

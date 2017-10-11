@@ -256,11 +256,6 @@ def BuildOptions():
   result.add_option("--command-prefix",
                     help="Prepended to each shell command used to run a test",
                     default="")
-  result.add_option("--download-data", help="Download missing test suite data",
-                    default=False, action="store_true")
-  result.add_option("--download-data-only",
-                    help="Deprecated",
-                    default=False, action="store_true")
   result.add_option("--extra-flags",
                     help="Additional flags to pass to each test command",
                     action="append", default=[])
@@ -740,13 +735,6 @@ def Main():
         os.path.join(BASE_DIR, "test", root))
     if suite:
       suites.append(suite)
-
-  if options.download_data or options.download_data_only:
-    for s in suites:
-      s.DownloadData()
-
-  if options.download_data_only:
-    return exit_code
 
   for s in suites:
     s.PrepareSources()

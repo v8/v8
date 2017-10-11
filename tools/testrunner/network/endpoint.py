@@ -106,9 +106,6 @@ def Execute(workspace, ctx, tests, sock, server):
     suite.tests.append(t)
 
   suites = [ s for s in suites if len(s.tests) > 0 ]
-  for s in suites:
-    s.DownloadData()
-
   progress_indicator = EndpointProgress(sock, server, ctx)
   runner = execution.Runner(suites, progress_indicator, ctx)
   try:
