@@ -739,7 +739,9 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
     case GC:
       return CodeEntry::gc_entry();
     case JS:
+    case PARSER:
     case COMPILER:
+    case BYTECODE_COMPILER:
     // DOM events handlers are reported as OTHER / EXTERNAL entries.
     // To avoid confusing people, let's put all these entries into
     // one bucket.
@@ -748,8 +750,8 @@ CodeEntry* ProfileGenerator::EntryForVMState(StateTag tag) {
       return CodeEntry::program_entry();
     case IDLE:
       return CodeEntry::idle_entry();
-    default: return NULL;
   }
+  UNREACHABLE();
 }
 
 }  // namespace internal
