@@ -1366,23 +1366,19 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   TRACE_IC("StoreIC", lookup->name());
 }
 
-namespace {
-
-Handle<Object> StoreGlobal(Isolate* isolate, Handle<PropertyCell> cell) {
-  return isolate->factory()->NewWeakCell(cell);
-}
-
-}  // namespace
-
 Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
   switch (lookup->state()) {
     case LookupIterator::TRANSITION: {
       Handle<JSObject> holder = lookup->GetHolder<JSObject>();
 
-      auto store_target = lookup->GetStoreTarget();
+      Handle<JSObject> store_target = lookup->GetStoreTarget();
       if (store_target->IsJSGlobalObject()) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransitionDH);
-        return StoreGlobal(isolate(), lookup->transition_cell());
+
+        Handle<Object> handler = StoreHandler::StoreTransition(
+            isolate(), receiver_map(), store_target, lookup->transition_cell(),
+            lookup->name());
+        return handler;
       }
       // Currently not handled by CompileStoreTransition.
       if (!holder->HasFastProperties()) {
@@ -1477,7 +1473,8 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
       if (lookup->is_dictionary_holder()) {
         if (holder->IsJSGlobalObject()) {
           TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalDH);
-          return StoreGlobal(isolate(), lookup->GetPropertyCell());
+          return StoreHandler::StoreGlobal(isolate(),
+                                           lookup->GetPropertyCell());
         }
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormalDH);
         DCHECK(holder.is_identical_to(receiver));

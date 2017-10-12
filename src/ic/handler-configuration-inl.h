@@ -108,6 +108,11 @@ Handle<Smi> LoadHandler::LoadElement(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {
+  int config = KindBits::encode(kStoreGlobalProxy);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> StoreHandler::StoreNormal(Isolate* isolate) {
   int config = KindBits::encode(kStoreNormal);
   return handle(Smi::FromInt(config), isolate);
@@ -115,6 +120,13 @@ Handle<Smi> StoreHandler::StoreNormal(Isolate* isolate) {
 
 Handle<Smi> StoreHandler::StoreProxy(Isolate* isolate) {
   int config = KindBits::encode(kProxy);
+  return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Smi> StoreHandler::EnableAccessCheckOnReceiver(Isolate* isolate,
+                                                      Handle<Smi> smi_handler) {
+  int config = smi_handler->value();
+  config = DoAccessCheckOnReceiverBits::update(config, true);
   return handle(Smi::FromInt(config), isolate);
 }
 

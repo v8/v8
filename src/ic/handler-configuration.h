@@ -178,12 +178,13 @@ class StoreHandler {
     kStoreElement,
     kStoreField,
     kStoreConstField,
+    // TODO(ishell): remove once constant field tracking is done.
+    kTransitionToConstant = kStoreConstField,
     kTransitionToField,
+    kStoreGlobalProxy,
     kStoreNormal,
     kProxy,
-    kKindsNumber,  // Keep last
-    // TODO(ishell): remove once constant field tracking is done.
-    kTransitionToConstant = kStoreConstField
+    kKindsNumber  // Keep last
   };
   class KindBits : public BitField<Kind, 0, 3> {};
 
@@ -191,12 +192,19 @@ class StoreHandler {
 
   static inline bool IsHandler(Object* maybe_handler);
 
+  // Applicable to kStoreGlobalProxy, kProxy kinds.
+
+  // Defines whether access rights check should be done on receiver object.
+  class DoAccessCheckOnReceiverBits
+      : public BitField<bool, KindBits::kNext, 1> {};
+
   // Applicable to kStoreField, kTransitionToField and kTransitionToConstant
   // kinds.
 
   // Index of a value entry in the descriptor array.
   class DescriptorBits
-      : public BitField<unsigned, KindBits::kNext, kDescriptorIndexBitCount> {};
+      : public BitField<unsigned, DoAccessCheckOnReceiverBits::kNext,
+                        kDescriptorIndexBitCount> {};
   //
   // Encoding when KindBits contains kTransitionToConstant.
   //
@@ -245,7 +253,7 @@ class StoreHandler {
   static Handle<Object> StoreTransition(Isolate* isolate,
                                         Handle<Map> receiver_map,
                                         Handle<JSObject> holder,
-                                        Handle<Map> transition,
+                                        Handle<HeapObject> transition,
                                         Handle<Name> name);
 
   static Handle<Object> StoreElementTransition(Isolate* isolate,
@@ -258,6 +266,14 @@ class StoreHandler {
                                    Handle<JSReceiver> receiver,
                                    Handle<Name> name);
 
+  // Creates a handler for storing a property to the property cell of a global
+  // object.
+  static Handle<Object> StoreGlobal(Isolate* isolate,
+                                    Handle<PropertyCell> cell);
+
+  // Creates a Smi-handler for storing a property to a global proxy object.
+  static inline Handle<Smi> StoreGlobalProxy(Isolate* isolate);
+
   // Creates a Smi-handler for storing a property to a slow object.
   static inline Handle<Smi> StoreNormal(Isolate* isolate);
 
@@ -265,6 +281,11 @@ class StoreHandler {
   static inline Handle<Smi> StoreProxy(Isolate* isolate);
 
  private:
+  // Sets DoAccessCheckOnReceiverBits in given Smi-handler. The receiver
+  // check is a part of a prototype chain check.
+  static inline Handle<Smi> EnableAccessCheckOnReceiver(
+      Isolate* isolate, Handle<Smi> smi_handler);
+
   static inline Handle<Smi> StoreField(Isolate* isolate, Kind kind,
                                        int descriptor, FieldIndex field_index,
                                        Representation representation,

@@ -537,43 +537,51 @@ void AccessorAssembler::HandleLoadICProtoHandlerCase(
   }
 }
 
+void AccessorAssembler::EmitAccessCheck(Node* expected_native_context,
+                                        Node* context, Node* receiver,
+                                        Label* can_access, Label* miss) {
+  CSA_ASSERT(this, IsNativeContext(expected_native_context));
+
+  Node* native_context = LoadNativeContext(context);
+  GotoIf(WordEqual(expected_native_context, native_context), can_access);
+  // If the receiver is not a JSGlobalProxy then we miss.
+  GotoIfNot(IsJSGlobalProxy(receiver), miss);
+  // For JSGlobalProxy receiver try to compare security tokens of current
+  // and expected native contexts.
+  Node* expected_token = LoadContextElement(expected_native_context,
+                                            Context::SECURITY_TOKEN_INDEX);
+  Node* current_token =
+      LoadContextElement(native_context, Context::SECURITY_TOKEN_INDEX);
+  Branch(WordEqual(expected_token, current_token), can_access, miss);
+}
+
 Node* AccessorAssembler::EmitLoadICProtoArrayCheck(const LoadICParameters* p,
                                                    Node* handler,
                                                    Node* handler_length,
                                                    Node* handler_flags,
                                                    Label* miss) {
-  VARIABLE(start_index, MachineType::PointerRepresentation());
-  start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex));
+  VARIABLE(var_start_index, MachineType::PointerRepresentation(),
+           IntPtrConstant(LoadHandler::kFirstPrototypeIndex));
 
   Label can_access(this);
   GotoIfNot(IsSetWord<LoadHandler::DoAccessCheckOnReceiverBits>(handler_flags),
             &can_access);
   {
     // Skip this entry of a handler.
-    start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex + 1));
+    var_start_index.Bind(IntPtrConstant(LoadHandler::kFirstPrototypeIndex + 1));
 
     int offset =
         FixedArray::OffsetOfElementAt(LoadHandler::kFirstPrototypeIndex);
     Node* expected_native_context =
         LoadWeakCellValue(LoadObjectField(handler, offset), miss);
-    CSA_ASSERT(this, IsNativeContext(expected_native_context));
 
-    Node* native_context = LoadNativeContext(p->context);
-    GotoIf(WordEqual(expected_native_context, native_context), &can_access);
-    // If the receiver is not a JSGlobalProxy then we miss.
-    GotoIfNot(IsJSGlobalProxy(p->receiver), miss);
-    // For JSGlobalProxy receiver try to compare security tokens of current
-    // and expected native contexts.
-    Node* expected_token = LoadContextElement(expected_native_context,
-                                              Context::SECURITY_TOKEN_INDEX);
-    Node* current_token =
-        LoadContextElement(native_context, Context::SECURITY_TOKEN_INDEX);
-    Branch(WordEqual(expected_token, current_token), &can_access, miss);
+    EmitAccessCheck(expected_native_context, p->context, p->receiver,
+                    &can_access, miss);
   }
   BIND(&can_access);
 
-  BuildFastLoop(start_index.value(), handler_length,
-                [this, p, handler, miss](Node* current) {
+  BuildFastLoop(var_start_index.value(), handler_length,
+                [=](Node* current) {
                   Node* prototype_cell =
                       LoadFixedArrayElement(handler, current);
                   CheckPrototype(prototype_cell, p->name, miss);
@@ -649,16 +657,19 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     Label if_fast_smi(this), if_proxy(this);
 
+    STATIC_ASSERT(StoreHandler::kStoreGlobalProxy + 1 ==
+                  StoreHandler::kStoreNormal);
     STATIC_ASSERT(StoreHandler::kStoreNormal + 1 == StoreHandler::kProxy);
     STATIC_ASSERT(StoreHandler::kProxy + 1 == StoreHandler::kKindsNumber);
 
     Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
     GotoIf(IntPtrLessThan(handler_kind,
-                          IntPtrConstant(StoreHandler::kStoreNormal)),
+                          IntPtrConstant(StoreHandler::kStoreGlobalProxy)),
            &if_fast_smi);
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kProxy)),
            &if_proxy);
-
+    CSA_ASSERT(this, WordEqual(handler_kind,
+                               IntPtrConstant(StoreHandler::kStoreNormal)));
     Node* properties = LoadSlowProperties(holder);
 
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
@@ -716,62 +727,11 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
   BIND(&store_global);
   {
+    // Load value or miss if the {handler} weak cell is cleared.
     Node* cell = LoadWeakCellValue(handler, miss);
-    CSA_ASSERT(this, IsPropertyCell(cell));
 
-    // Load the payload of the global parameter cell. A hole indicates that
-    // the cell has been invalidated and that the store must be handled by the
-    // runtime.
-    Node* cell_contents = LoadObjectField(cell, PropertyCell::kValueOffset);
-    Node* details =
-        LoadAndUntagToWord32ObjectField(cell, PropertyCell::kDetailsOffset);
-    Node* type = DecodeWord32<PropertyDetails::PropertyCellTypeField>(details);
-
-    Label constant(this), store(this), not_smi(this);
-
-    GotoIf(
-        Word32Equal(
-            type, Int32Constant(static_cast<int>(PropertyCellType::kConstant))),
-        &constant);
-
-    GotoIf(IsTheHole(cell_contents), miss);
-
-    GotoIf(
-        Word32Equal(
-            type, Int32Constant(static_cast<int>(PropertyCellType::kMutable))),
-        &store);
-    CSA_ASSERT(this,
-               Word32Or(Word32Equal(type,
-                                    Int32Constant(static_cast<int>(
-                                        PropertyCellType::kConstantType))),
-                        Word32Equal(type,
-                                    Int32Constant(static_cast<int>(
-                                        PropertyCellType::kUndefined)))));
-
-    GotoIfNot(TaggedIsSmi(cell_contents), &not_smi);
-    GotoIfNot(TaggedIsSmi(p->value), miss);
-    Goto(&store);
-
-    BIND(&not_smi);
-    {
-      GotoIf(TaggedIsSmi(p->value), miss);
-      Node* expected_map = LoadMap(cell_contents);
-      Node* map = LoadMap(p->value);
-      GotoIfNot(WordEqual(expected_map, map), miss);
-      Goto(&store);
-    }
-
-    BIND(&store);
-    {
-      StoreObjectField(cell, PropertyCell::kValueOffset, p->value);
-      Return(p->value);
-    }
-
-    BIND(&constant);
-    {
-      GotoIfNot(WordEqual(cell_contents, p->value), miss);
-      Return(p->value);
-    }
+    ExitPoint direct_exit(this);
+    StoreGlobalIC_PropertyCellCase(cell, p->value, &direct_exit, miss);
   }
 }
 
@@ -794,6 +754,8 @@ void AccessorAssembler::HandleStoreICElementHandlerCase(
 void AccessorAssembler::HandleStoreICProtoHandler(
     const StoreICParameters* p, Node* handler, Label* miss,
     ElementSupport support_elements) {
+  Comment("HandleStoreICProtoHandler");
+
   // IC dispatchers rely on these assumptions to be held.
   STATIC_ASSERT(FixedArray::kLengthOffset ==
                 StoreHandler::kTransitionCellOffset);
@@ -823,7 +785,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
   VARIABLE(var_transition, MachineRepresentation::kTagged);
   Label if_transition(this), if_transition_to_constant(this),
-      if_store_normal(this), if_proxy(this), do_store(this);
+      if_store_normal(this), if_store_global_proxy(this), if_proxy(this),
+      do_store(this);
   BIND(&tuple_handler);
   {
     Node* transition = LoadWeakCellValue(maybe_transition_cell, miss);
@@ -833,9 +796,35 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
   BIND(&array_handler);
   {
+    VARIABLE(var_start_index, MachineType::PointerRepresentation(),
+             IntPtrConstant(StoreHandler::kFirstPrototypeIndex));
+
+    Comment("array_handler");
+    Label can_access(this);
+    // Only Tuple3 handlers are allowed to have code handlers.
+    CSA_ASSERT(this, TaggedIsSmi(smi_or_code));
+    GotoIfNot(
+        IsSetSmi(smi_or_code, StoreHandler::DoAccessCheckOnReceiverBits::kMask),
+        &can_access);
+
+    {
+      // Skip this entry of a handler.
+      var_start_index.Bind(
+          IntPtrConstant(StoreHandler::kFirstPrototypeIndex + 1));
+
+      int offset =
+          FixedArray::OffsetOfElementAt(StoreHandler::kFirstPrototypeIndex);
+      Node* expected_native_context =
+          LoadWeakCellValue(LoadObjectField(handler, offset), miss);
+
+      EmitAccessCheck(expected_native_context, p->context, p->receiver,
+                      &can_access, miss);
+    }
+    BIND(&can_access);
+
     Node* length = SmiUntag(maybe_transition_cell);
-    BuildFastLoop(IntPtrConstant(StoreHandler::kFirstPrototypeIndex), length,
-                  [this, p, handler, miss](Node* current) {
+    BuildFastLoop(var_start_index.value(), length,
+                  [=](Node* current) {
                     Node* prototype_cell =
                         LoadFixedArrayElement(handler, current);
                     CheckPrototype(prototype_cell, p->name, miss);
@@ -866,6 +855,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     Node* holder = p->receiver;
     Node* transition = var_transition.value();
 
+    GotoIfNot(IsMap(transition), &if_store_global_proxy);
     GotoIf(IsDeprecatedMap(transition), miss);
 
     if (support_elements == kSupportElements) {
@@ -892,6 +882,10 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     GotoIf(WordEqual(handler_kind,
                      IntPtrConstant(StoreHandler::kTransitionToConstant)),
            &if_transition_to_constant);
+    // This case is already handled above.
+    CSA_ASSERT(this,
+               WordNotEqual(handler_kind,
+                            IntPtrConstant(StoreHandler::kStoreGlobalProxy)));
 
     // Handle transitioning field stores.
     HandleStoreICSmiHandlerCase(handler_word, holder, p->value, transition,
@@ -953,6 +947,11 @@ void AccessorAssembler::HandleStoreICProtoHandler(
         TailCallRuntime(Runtime::kAddDictionaryProperty, p->context,
                         p->receiver, p->name, p->value);
       }
+    }
+    BIND(&if_store_global_proxy);
+    {
+      ExitPoint direct_exit(this);
+      StoreGlobalIC_PropertyCellCase(transition, p->value, &direct_exit, miss);
     }
   }
 }
@@ -2393,6 +2392,65 @@ void AccessorAssembler::StoreIC(const StoreICParameters* p) {
   {
     TailCallRuntime(Runtime::kStoreIC_Miss, p->context, p->value, p->slot,
                     p->vector, p->receiver, p->name);
+  }
+}
+
+void AccessorAssembler::StoreGlobalIC_PropertyCellCase(Node* property_cell,
+                                                       Node* value,
+                                                       ExitPoint* exit_point,
+                                                       Label* miss) {
+  Comment("StoreGlobalIC_TryPropertyCellCase");
+  CSA_ASSERT(this, IsPropertyCell(property_cell));
+
+  // Load the payload of the global parameter cell. A hole indicates that
+  // the cell has been invalidated and that the store must be handled by the
+  // runtime.
+  Node* cell_contents =
+      LoadObjectField(property_cell, PropertyCell::kValueOffset);
+  Node* details = LoadAndUntagToWord32ObjectField(property_cell,
+                                                  PropertyCell::kDetailsOffset);
+  Node* type = DecodeWord32<PropertyDetails::PropertyCellTypeField>(details);
+
+  Label constant(this), store(this), not_smi(this);
+
+  GotoIf(Word32Equal(type, Int32Constant(
+                               static_cast<int>(PropertyCellType::kConstant))),
+         &constant);
+
+  GotoIf(IsTheHole(cell_contents), miss);
+
+  GotoIf(Word32Equal(
+             type, Int32Constant(static_cast<int>(PropertyCellType::kMutable))),
+         &store);
+  CSA_ASSERT(this,
+             Word32Or(Word32Equal(type, Int32Constant(static_cast<int>(
+                                            PropertyCellType::kConstantType))),
+                      Word32Equal(type, Int32Constant(static_cast<int>(
+                                            PropertyCellType::kUndefined)))));
+
+  GotoIfNot(TaggedIsSmi(cell_contents), &not_smi);
+  GotoIfNot(TaggedIsSmi(value), miss);
+  Goto(&store);
+
+  BIND(&not_smi);
+  {
+    GotoIf(TaggedIsSmi(value), miss);
+    Node* expected_map = LoadMap(cell_contents);
+    Node* map = LoadMap(value);
+    GotoIfNot(WordEqual(expected_map, map), miss);
+    Goto(&store);
+  }
+
+  BIND(&store);
+  {
+    StoreObjectField(property_cell, PropertyCell::kValueOffset, value);
+    exit_point->Return(value);
+  }
+
+  BIND(&constant);
+  {
+    GotoIfNot(WordEqual(cell_contents, value), miss);
+    exit_point->Return(value);
   }
 }
 
