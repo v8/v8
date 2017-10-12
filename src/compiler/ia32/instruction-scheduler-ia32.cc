@@ -108,6 +108,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI32x4ShrS:
     case kSSEI32x4Add:
     case kAVXI32x4Add:
+    case kSSEI32x4AddHoriz:
+    case kAVXI32x4AddHoriz:
     case kSSEI32x4Sub:
     case kAVXI32x4Sub:
     case kSSEI32x4Mul:
@@ -138,6 +140,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I16x8ExtractLane:
     case kSSEI16x8ReplaceLane:
     case kAVXI16x8ReplaceLane:
+    case kSSEI16x8AddHoriz:
+    case kAVXI16x8AddHoriz:
     case kIA32I8x16Splat:
     case kIA32I8x16ExtractLane:
     case kSSEI8x16ReplaceLane:
@@ -161,6 +165,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32Movl:
     case kIA32Movss:
     case kIA32Movsd:
+    case kIA32Movdqu:
       // Moves are used for memory load/store operations.
       return instr->HasOutput() ? kIsLoadOperation : kHasSideEffect;
 

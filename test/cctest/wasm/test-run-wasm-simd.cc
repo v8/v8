@@ -1610,6 +1610,8 @@ WASM_SIMD_SELECT_TEST(8x16)
 WASM_SIMD_NON_CANONICAL_SELECT_TEST(32x4)
 WASM_SIMD_NON_CANONICAL_SELECT_TEST(16x8)
 WASM_SIMD_NON_CANONICAL_SELECT_TEST(8x16)
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
+        // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 // Test binary ops with two lane test patterns, all lanes distinct.
 template <typename T>
@@ -1653,8 +1655,6 @@ WASM_SIMD_COMPILED_TEST(I16x8AddHoriz) {
   RunBinaryLaneOpTest<int16_t>(execution_mode, kExprI16x8AddHoriz,
                                {{1, 5, 9, 13, 17, 21, 25, 29}});
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
-        // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64
