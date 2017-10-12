@@ -5383,10 +5383,9 @@ bool Heap::SetUp() {
   store_buffer_ = new StoreBuffer(this);
 
   mark_compact_collector_ = new MarkCompactCollector(this);
-  incremental_marking_ = new IncrementalMarking(this);
+  incremental_marking_ =
+      new IncrementalMarking(this, mark_compact_collector_->marking_worklist());
 
-  incremental_marking_->set_marking_worklist(
-      mark_compact_collector_->marking_worklist());
   if (FLAG_concurrent_marking) {
     MarkCompactCollector::MarkingWorklist* marking_worklist =
         mark_compact_collector_->marking_worklist();

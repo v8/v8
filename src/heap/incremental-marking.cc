@@ -45,9 +45,10 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
   }
 }
 
-IncrementalMarking::IncrementalMarking(Heap* heap)
+IncrementalMarking::IncrementalMarking(
+    Heap* heap, MarkCompactCollector::MarkingWorklist* marking_worklist)
     : heap_(heap),
-      marking_worklist_(nullptr),
+      marking_worklist_(marking_worklist),
       initial_old_generation_size_(0),
       bytes_marked_ahead_of_schedule_(0),
       unscanned_bytes_of_large_object_(0),
@@ -60,6 +61,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       request_type_(NONE),
       new_generation_observer_(*this, kYoungGenerationAllocatedThreshold),
       old_generation_observer_(*this, kOldGenerationAllocatedThreshold) {
+  DCHECK_NOT_NULL(marking_worklist_);
   SetState(STOPPED);
 }
 
