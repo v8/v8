@@ -70,8 +70,8 @@ class BigInt : public HeapObject {
   // The maximum length that the current implementation supports would be
   // kMaxInt / kDigitBits. However, we use a lower limit for now, because
   // raising it later is easier than lowering it.
-  static const int kMaxLengthBits = 20;
-  static const int kMaxLength = (1 << kMaxLengthBits) - 1;
+  // Support up to 1 million bits.
+  static const int kMaxLength = 1024 * 1024 / (kPointerSize * kBitsPerByte);
 
   class BodyDescriptor;
 
@@ -84,6 +84,8 @@ class BigInt : public HeapObject {
   static const int kDigitBits = kDigitSize * kBitsPerByte;
   static const int kHalfDigitBits = kDigitBits / 2;
   static const digit_t kHalfDigitMask = (1ull << kHalfDigitBits) - 1;
+  // kMaxLength definition assumes this:
+  STATIC_ASSERT(kDigitSize == kPointerSize);
 
   // Private helpers for public methods.
   static Handle<BigInt> Copy(Handle<BigInt> source);
@@ -164,6 +166,8 @@ class BigInt : public HeapObject {
     return static_cast<digit_t>(~x) == 0;
   }
 
+  static const int kMaxLengthBits = 20;
+  STATIC_ASSERT(kMaxLength <= ((1 << kMaxLengthBits) - 1));
   class LengthBits : public BitField<int, 0, kMaxLengthBits> {};
   class SignBits : public BitField<bool, LengthBits::kNext, 1> {};
 
