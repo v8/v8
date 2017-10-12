@@ -2648,15 +2648,7 @@ class AllocationObserver {
   // Called each time the observed space does an allocation step. This may be
   // more frequently than the step_size we are monitoring (e.g. when there are
   // multiple observers, or when page or space boundary is encountered.)
-  void AllocationStep(int bytes_allocated, Address soon_object, size_t size) {
-    bytes_to_next_step_ -= bytes_allocated;
-    if (bytes_to_next_step_ <= 0) {
-      Step(static_cast<int>(step_size_ - bytes_to_next_step_), soon_object,
-           size);
-      step_size_ = GetNextStepSize();
-      bytes_to_next_step_ = step_size_;
-    }
-  }
+  void AllocationStep(int bytes_allocated, Address soon_object, size_t size);
 
  protected:
   intptr_t step_size() const { return step_size_; }
