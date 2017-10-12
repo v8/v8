@@ -249,7 +249,7 @@ bytecodes: [
   /*   55 E> */ B(Add), R(1), U8(0),
                 B(Star), R(1),
                 B(Ldar), R(0),
-                B(ToNumber), U8(1),
+                B(ToNumeric), U8(1),
                 B(Star), R(2),
                 B(Inc), U8(1),
                 B(Star), R(0),

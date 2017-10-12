@@ -23,7 +23,7 @@ class BigInt : public HeapObject {
   // https://tc39.github.io/proposal-bigint/#sec-numeric-types
   // Sections 1.1.1 through 1.1.19.
   static Handle<BigInt> UnaryMinus(Handle<BigInt> x);
-  static Handle<BigInt> BitwiseNot(Handle<BigInt> x);
+  static MaybeHandle<BigInt> BitwiseNot(Handle<BigInt> x);
   static MaybeHandle<BigInt> Exponentiate(Handle<BigInt> base,
                                           Handle<BigInt> exponent);
   static Handle<BigInt> Multiply(Handle<BigInt> x, Handle<BigInt> y);
@@ -41,6 +41,9 @@ class BigInt : public HeapObject {
   static Handle<BigInt> BitwiseAnd(Handle<BigInt> x, Handle<BigInt> y);
   static Handle<BigInt> BitwiseXor(Handle<BigInt> x, Handle<BigInt> y);
   static Handle<BigInt> BitwiseOr(Handle<BigInt> x, Handle<BigInt> y);
+
+  static MaybeHandle<BigInt> Increment(Handle<BigInt> x);
+  static MaybeHandle<BigInt> Decrement(Handle<BigInt> x);
 
   // Other parts of the public interface.
   bool ToBoolean() { return !is_zero(); }
@@ -93,7 +96,7 @@ class BigInt : public HeapObject {
   static Handle<BigInt> AbsoluteSub(Handle<BigInt> x, Handle<BigInt> y,
                                     bool result_sign);
   static Handle<BigInt> AbsoluteAddOne(Handle<BigInt> x, bool sign,
-                                       BigInt* result_storage);
+                                       BigInt* result_storage = nullptr);
   static Handle<BigInt> AbsoluteSubOne(Handle<BigInt> x, int result_length);
 
   enum ExtraDigitsHandling { kCopy, kSkip };

@@ -71,7 +71,8 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_BIGINT(F) \
   F(BigIntBinaryOp, 3, 1)            \
   F(BigIntEqual, 2, 1)               \
-  F(BigIntToBoolean, 1, 1)
+  F(BigIntToBoolean, 1, 1)           \
+  F(BigIntUnaryOp, 2, 1)
 
 #define FOR_EACH_INTRINSIC_CLASSES(F)        \
   F(ThrowUnsupportedSuperError, 0, 1)        \

@@ -34,8 +34,18 @@ Handle<BigInt> BigInt::UnaryMinus(Handle<BigInt> x) {
   return result;
 }
 
-Handle<BigInt> BigInt::BitwiseNot(Handle<BigInt> x) {
-  UNIMPLEMENTED();  // TODO(jkummerow): Implement.
+MaybeHandle<BigInt> BigInt::BitwiseNot(Handle<BigInt> x) {
+  Handle<BigInt> result;
+  int length = x->length();
+  if (x->sign()) {
+    // ~(-x) == ~(~(x-1)) == x-1
+    result = AbsoluteSubOne(x, length);
+  } else {
+    // ~x == -x-1 == -(x+1)
+    result = AbsoluteAddOne(x, true);
+  }
+  result->RightTrim();
+  return result;
 }
 
 MaybeHandle<BigInt> BigInt::Exponentiate(Handle<BigInt> base,
@@ -237,6 +247,34 @@ Handle<BigInt> BigInt::BitwiseOr(Handle<BigInt> x, Handle<BigInt> y) {
   return result;
 }
 
+MaybeHandle<BigInt> BigInt::Increment(Handle<BigInt> x) {
+  int length = x->length();
+  Handle<BigInt> result;
+  if (x->sign()) {
+    result = AbsoluteSubOne(x, length);
+    result->set_sign(true);
+  } else {
+    result = AbsoluteAddOne(x, false);
+  }
+  result->RightTrim();
+  return result;
+}
+
+MaybeHandle<BigInt> BigInt::Decrement(Handle<BigInt> x) {
+  int length = x->length();
+  Handle<BigInt> result;
+  if (x->sign()) {
+    result = AbsoluteAddOne(x, true);
+  } else if (x->is_zero()) {
+    // TODO(jkummerow): Consider caching a canonical -1n BigInt.
+    result = x->GetIsolate()->factory()->NewBigIntFromInt(-1);
+  } else {
+    result = AbsoluteSubOne(x, length);
+  }
+  result->RightTrim();
+  return result;
+}
+
 MaybeHandle<String> BigInt::ToString(Handle<BigInt> bigint, int radix) {
   Isolate* isolate = bigint->GetIsolate();
   if (bigint->is_zero()) {
@@ -343,17 +381,31 @@ Handle<BigInt> BigInt::AbsoluteSub(Handle<BigInt> x, Handle<BigInt> y,
   return result;
 }
 
-// Adds 1 to the absolute value of {x}, stores the result in {result_storage}
-// and sets its sign to {sign}.
+// Adds 1 to the absolute value of {x} and sets the result's sign to {sign}.
+// {result_storage} is optional; if present, it will be used to store the
+// result, otherwise a new BigInt will be allocated for the result.
 // {result_storage} and {x} may refer to the same BigInt for in-place
 // modification.
 Handle<BigInt> BigInt::AbsoluteAddOne(Handle<BigInt> x, bool sign,
                                       BigInt* result_storage) {
-  DCHECK(result_storage != nullptr);
   int input_length = x->length();
-  int result_length = result_storage->length();
+  // The addition will overflow into a new digit if all existing digits are
+  // at maximum.
+  bool will_overflow = true;
+  for (int i = 0; i < input_length; i++) {
+    if (!digit_ismax(x->digit(i))) {
+      will_overflow = false;
+      break;
+    }
+  }
+  int result_length = input_length + will_overflow;
   Isolate* isolate = x->GetIsolate();
   Handle<BigInt> result(result_storage, isolate);
+  if (result_storage == nullptr) {
+    result = isolate->factory()->NewBigIntRaw(result_length);
+  } else {
+    DCHECK(result->length() == result_length);
+  }
   digit_t carry = 1;
   for (int i = 0; i < input_length; i++) {
     digit_t new_carry = 0;

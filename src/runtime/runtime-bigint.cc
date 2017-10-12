@@ -84,5 +84,31 @@ RUNTIME_FUNCTION(Runtime_BigIntBinaryOp) {
   RETURN_RESULT_OR_FAILURE(isolate, result);
 }
 
+RUNTIME_FUNCTION(Runtime_BigIntUnaryOp) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, x, 0);
+  CONVERT_SMI_ARG_CHECKED(opcode, 1);
+
+  MaybeHandle<BigInt> result;
+  switch (opcode) {
+    case Token::BIT_NOT:
+      result = BigInt::BitwiseNot(x);
+      break;
+    case Token::SUB:
+      result = BigInt::UnaryMinus(x);
+      break;
+    case Token::INC:
+      result = BigInt::Increment(x);
+      break;
+    case Token::DEC:
+      result = BigInt::Decrement(x);
+      break;
+    default:
+      UNREACHABLE();
+  }
+  RETURN_RESULT_OR_FAILURE(isolate, result);
+}
+
 }  // namespace internal
 }  // namespace v8

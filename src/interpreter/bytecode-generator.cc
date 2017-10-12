@@ -3594,7 +3594,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
     // TODO(ignition): Think about adding proper PostInc/PostDec bytecodes
     // instead of this ToNumber + Inc/Dec dance.
     builder()
-        ->ToNumber(feedback_index(count_slot))
+        ->ToNumeric(feedback_index(count_slot))
         .StoreAccumulatorInRegister(old_value);
   }
 
