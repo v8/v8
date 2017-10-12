@@ -1529,20 +1529,6 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
   __ jmp(rcx);
 }
 
-void Builtins::Generate_NotifyBuiltinContinuation(MacroAssembler* masm) {
-  // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    // Preserve possible return result from lazy deopt.
-    __ pushq(rax);
-    __ CallRuntime(Runtime::kNotifyStubFailure, false);
-    __ popq(rax);
-    // Tear down internal frame.
-  }
-
-  __ ret(0);  // Return to ContinueToBuiltin stub still on stack.
-}
-
 namespace {
 void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                                       bool java_script_builtin,

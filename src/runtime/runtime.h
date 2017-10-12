@@ -118,7 +118,6 @@ namespace internal {
   F(CompileOptimized_Concurrent, 1, 1)    \
   F(CompileOptimized_NotConcurrent, 1, 1) \
   F(EvictOptimizedCodeSlot, 1, 1)         \
-  F(NotifyStubFailure, 0, 1)              \
   F(NotifyDeoptimized, 0, 1)              \
   F(CompileForOnStackReplacement, 1, 1)   \
   F(TryInstallOptimizedCode, 1, 1)        \

@@ -407,6 +407,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
       function_(function),
       bailout_id_(bailout_id),
       bailout_type_(type),
+      preserve_optimized_(false),
       from_(from),
       fp_to_sp_delta_(fp_to_sp_delta),
       deoptimizing_throw_(false),
@@ -1595,6 +1596,16 @@ void Deoptimizer::DoComputeBuiltinContinuation(
                       padding_slot_count) +
       BuiltinContinuationFrameConstants::kFixedFrameSize;
 
+  // If the builtins frame appears to be topmost we should ensure that the
+  // value of result register is preserved during continuation execution.
+  // We do this here by "pushing" the result of callback function to the
+  // top of the reconstructed stack and popping it in
+  // {Builtins::kNotifyDeoptimized}.
+  if (is_topmost) {
+    output_frame_size += kPointerSize;
+    if (PadTopOfStackRegister()) output_frame_size += kPointerSize;
+  }
+
   // Validate types of parameters. They must all be tagged except for argc for
   // JS builtins.
   bool has_argc = false;
@@ -1654,14 +1665,6 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   register_values.resize(total_registers, {Smi::kZero, value_iterator});
 
   intptr_t value;
-
-  Register result_reg = kReturnRegister0;
-  if (must_handle_result) {
-    value = input_->GetRegister(result_reg.code());
-  } else {
-    value = reinterpret_cast<intptr_t>(isolate()->heap()->undefined_value());
-  }
-  output_frame->SetRegister(result_reg.code(), value);
 
   int translated_stack_parameters =
       must_handle_result ? stack_param_count - 1 : stack_param_count;
@@ -1791,20 +1794,6 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     }
   }
 
-  // Clear the context register. The context might be a de-materialized object
-  // and will be materialized by {Runtime_NotifyStubFailure}. For additional
-  // safety we use Smi(0) instead of the potential {arguments_marker} here.
-  if (is_topmost) {
-    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
-    Register context_reg = JavaScriptFrame::context_register();
-    output_frame->SetRegister(context_reg.code(), context_value);
-  }
-
-  // Ensure the frame pointer register points to the callee's frame. The builtin
-  // will build its own frame once we continue to it.
-  Register fp_reg = JavaScriptFrame::fp_register();
-  output_frame->SetRegister(fp_reg.code(), output_[frame_index - 1]->GetFp());
-
   // Some architectures must pad the stack frame with extra stack slots
   // to ensure the stack frame is aligned.
   for (int i = 0; i < padding_slot_count; ++i) {
@@ -1812,6 +1801,48 @@ void Deoptimizer::DoComputeBuiltinContinuation(
     WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
                        output_frame_offset, "padding ");
   }
+
+  if (is_topmost) {
+    if (PadTopOfStackRegister()) {
+      output_frame_offset -= kPointerSize;
+      WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
+                         output_frame_offset, "padding ");
+    }
+    // Ensure the result is restored back when we return to the stub.
+    output_frame_offset -= kPointerSize;
+    Register result_reg = kReturnRegister0;
+    if (must_handle_result) {
+      value = input_->GetRegister(result_reg.code());
+    } else {
+      value = reinterpret_cast<intptr_t>(isolate()->heap()->undefined_value());
+    }
+    output_frame->SetFrameSlot(output_frame_offset, value);
+    DebugPrintOutputSlot(value, frame_index, output_frame_offset,
+                         "callback result\n");
+  }
+
+  CHECK_EQ(0u, output_frame_offset);
+
+  // Clear the context register. The context might be a de-materialized object
+  // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
+  // safety we use Smi(0) instead of the potential {arguments_marker} here.
+  if (is_topmost) {
+    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
+    Register context_reg = JavaScriptFrame::context_register();
+    output_frame->SetRegister(context_reg.code(), context_value);
+  }
+
+  // TODO(6898): For eager deopts within builtin stub frames we currently skip
+  // marking the underlying function as deoptimized. This is to avoid deopt
+  // loops where we would just generate the same optimized code all over again.
+  if (is_topmost && bailout_type_ != LAZY) {
+    preserve_optimized_ = true;
+  }
+
+  // Ensure the frame pointer register points to the callee's frame. The builtin
+  // will build its own frame once we continue to it.
+  Register fp_reg = JavaScriptFrame::fp_register();
+  output_frame->SetRegister(fp_reg.code(), output_[frame_index - 1]->GetFp());
 
   Code* continue_to_builtin =
       java_script_builtin
@@ -1829,7 +1860,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
       reinterpret_cast<intptr_t>(continue_to_builtin->instruction_start()));
 
   Code* continuation =
-      isolate()->builtins()->builtin(Builtins::kNotifyBuiltinContinuation);
+      isolate()->builtins()->builtin(Builtins::kNotifyDeoptimized);
   output_frame->SetContinuation(
       reinterpret_cast<intptr_t>(continuation->entry()));
 }

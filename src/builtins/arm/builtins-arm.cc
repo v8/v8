@@ -1503,19 +1503,6 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
   __ Jump(r4);
 }
 
-void Builtins::Generate_NotifyBuiltinContinuation(MacroAssembler* masm) {
-  {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    // Preserve possible return result from lazy deopt.
-    __ push(r0);
-    // Pass the function and deoptimization type to the runtime system.
-    __ CallRuntime(Runtime::kNotifyStubFailure, false);
-    __ pop(r0);
-  }
-
-  __ mov(pc, lr);                         // Jump to ContinueToBuiltin stub
-}
-
 namespace {
 void Generate_ContinueToBuiltinHelper(MacroAssembler* masm,
                                       bool java_script_builtin,
