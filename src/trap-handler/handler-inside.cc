@@ -102,13 +102,15 @@ bool TryHandleSignal(int signum, siginfo_t* info, ucontext_t* context) {
     if (TryFindLandingPad(fault_addr, &landing_pad)) {
       // Tell the caller to return to the landing pad.
       context->uc_mcontext.gregs[REG_RIP] = landing_pad;
+      // We will return to wasm code, so restore the g_thread_in_wasm_code flag.
+      g_thread_in_wasm_code = true;
       return true;
     }
   }  // end signal mask scope
 
   // If we get here, it's not a recoverable wasm fault, so we go to the next
-  // handler.
-  g_thread_in_wasm_code = true;
+  // handler. Leave the g_thread_in_wasm_code flag unset since we do not return
+  // to wasm code.
   return false;
 }
 

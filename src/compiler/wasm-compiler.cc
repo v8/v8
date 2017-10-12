@@ -2796,8 +2796,8 @@ void WasmGraphBuilder::BuildJSToWasmWrapper(Handle<Code> wasm_code,
     // Throw a TypeError. Use the js_context of the calling javascript function
     // (passed as a parameter), such that the generated code is js_context
     // independent.
-    BuildCallToRuntimeWithContextFromJS(Runtime::kWasmThrowTypeError,
-                                        js_context, nullptr, 0);
+    BuildCallToRuntimeWithContext(Runtime::kWasmThrowTypeError, js_context,
+                                  nullptr, 0);
 
     // Add a dummy call to the wasm function so that the generated wrapper
     // contains a reference to the wrapped wasm function. Without this reference
@@ -3133,9 +3133,6 @@ void WasmGraphBuilder::BuildCWasmEntry(Address wasm_context_address) {
   Node* code_obj = Param(CWasmEntryParameters::kCodeObject + 1);
   Node* arg_buffer = Param(CWasmEntryParameters::kArgumentsBuffer + 1);
 
-  // Set the ThreadInWasm flag before we do the actual call.
-  BuildModifyThreadInWasmFlag(true);
-
   int wasm_arg_count = static_cast<int>(sig_->parameter_count());
   int arg_count = wasm_arg_count + 4;  // code, wasm_context, control, effect
   Node** args = Buffer(arg_count);
@@ -3164,9 +3161,6 @@ void WasmGraphBuilder::BuildCWasmEntry(Address wasm_context_address) {
   Node* call =
       graph()->NewNode(jsgraph()->common()->Call(desc), arg_count, args);
   *effect_ = call;
-
-  // Clear the ThreadInWasmFlag
-  BuildModifyThreadInWasmFlag(false);
 
   // Store the return value.
   DCHECK_GE(1, sig_->return_count());
@@ -3320,23 +3314,6 @@ Node* WasmGraphBuilder::BuildCallToRuntimeWithContext(Runtime::FunctionId f,
                                                       Node* js_context,
                                                       Node** parameters,
                                                       int parameter_count) {
-  // We're leaving Wasm code, so clear the flag.
-  *control_ = BuildModifyThreadInWasmFlag(false);
-  // Since the thread-in-wasm flag is clear, it is as if we are calling from JS.
-  Node* call = BuildCallToRuntimeWithContextFromJS(f, js_context, parameters,
-                                                   parameter_count);
-
-  // Restore the thread-in-wasm flag, since we have returned to Wasm.
-  *control_ = BuildModifyThreadInWasmFlag(true);
-
-  return call;
-}
-
-// This version of BuildCallToRuntime does not clear and set the thread-in-wasm
-// flag.
-Node* WasmGraphBuilder::BuildCallToRuntimeWithContextFromJS(
-    Runtime::FunctionId f, Node* js_context, Node* const* parameters,
-    int parameter_count) {
   const Runtime::Function* fun = Runtime::FunctionForId(f);
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
       jsgraph()->zone(), f, fun->nargs, Operator::kNoProperties,

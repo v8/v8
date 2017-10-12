@@ -41,6 +41,24 @@ Context* GetWasmContextOnStackTop(Isolate* isolate) {
       ->compiled_module()
       ->ptr_to_native_context();
 }
+
+class ClearThreadInWasmScope {
+ public:
+  explicit ClearThreadInWasmScope(bool coming_from_wasm)
+      : coming_from_wasm_(coming_from_wasm) {
+    DCHECK_EQ(trap_handler::UseTrapHandler() && coming_from_wasm,
+              trap_handler::IsThreadInWasm());
+    if (coming_from_wasm) trap_handler::ClearThreadInWasm();
+  }
+  ~ClearThreadInWasmScope() {
+    DCHECK(!trap_handler::IsThreadInWasm());
+    if (coming_from_wasm_) trap_handler::SetThreadInWasm();
+  }
+
+ private:
+  const bool coming_from_wasm_;
+};
+
 }  // namespace
 
 RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
@@ -49,6 +67,9 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
   CONVERT_UINT32_ARG_CHECKED(delta_pages, 0);
   Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate),
                                       isolate);
+
+  // This runtime function is always being called from wasm code.
+  ClearThreadInWasmScope flag_scope(true);
 
   // Set the current isolate's context.
   DCHECK_NULL(isolate->context());
@@ -110,6 +131,7 @@ Object* ThrowRuntimeError(Isolate* isolate, int message_id, int byte_offset,
 RUNTIME_FUNCTION(Runtime_ThrowWasmErrorFromTrapIf) {
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
+  ClearThreadInWasmScope clear_wasm_flag(isolate->context() == nullptr);
   return ThrowRuntimeError(isolate, message_id, 0, false);
 }
 
@@ -117,6 +139,7 @@ RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
   DCHECK_EQ(2, args.length());
   CONVERT_SMI_ARG_CHECKED(message_id, 0);
   CONVERT_SMI_ARG_CHECKED(byte_offset, 1);
+  ClearThreadInWasmScope clear_wasm_flag(isolate->context() == nullptr);
   return ThrowRuntimeError(isolate, message_id, byte_offset, true);
 }
 
@@ -266,6 +289,8 @@ RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
   CHECK(arg_buffer_obj->IsSmi());
   uint8_t* arg_buffer = reinterpret_cast<uint8_t*>(*arg_buffer_obj);
 
+  ClearThreadInWasmScope wasm_flag(true);
+
   // Set the current isolate's context.
   DCHECK_NULL(isolate->context());
   isolate->set_context(instance->compiled_module()->ptr_to_native_context());
@@ -297,11 +322,7 @@ RUNTIME_FUNCTION(Runtime_WasmStackGuard) {
   DCHECK_EQ(0, args.length());
   DCHECK(!trap_handler::UseTrapHandler() || trap_handler::IsThreadInWasm());
 
-  struct ClearAndRestoreThreadInWasm {
-    ClearAndRestoreThreadInWasm() { trap_handler::ClearThreadInWasm(); }
-
-    ~ClearAndRestoreThreadInWasm() { trap_handler::SetThreadInWasm(); }
-  } restore_thread_in_wasm;
+  ClearThreadInWasmScope wasm_flag(true);
 
   // Set the current isolate's context.
   DCHECK_NULL(isolate->context());

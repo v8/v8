@@ -2224,9 +2224,18 @@ class ThreadImpl {
     args[compiler::CWasmEntryParameters::kArgumentsBuffer] = arg_buffer_obj;
 
     Handle<Object> receiver = isolate->factory()->undefined_value();
+    trap_handler::SetThreadInWasm();
     MaybeHandle<Object> maybe_retval =
         Execution::Call(isolate, wasm_entry, receiver, arraysize(args), args);
-    if (maybe_retval.is_null()) return TryHandleException(isolate);
+    TRACE("  => External wasm function returned%s\n",
+          maybe_retval.is_null() ? " with exception" : "");
+
+    if (maybe_retval.is_null()) {
+      DCHECK(!trap_handler::IsThreadInWasm());
+      return TryHandleException(isolate);
+    }
+
+    trap_handler::ClearThreadInWasm();
 
     // Pop arguments off the stack.
     sp_ -= num_args;
