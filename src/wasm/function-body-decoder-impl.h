@@ -1474,19 +1474,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             }
             if (!VALIDATE(this->ok())) break;
 
-            if (operand.table_count > 0) {
-              interface_.BrTable(this, operand, key);
-            } else {
-              // Only a default target. Do the equivalent of br.
-              BranchTableIterator<validate> iterator(this, operand);
-              const byte* pos = iterator.pc();
-              uint32_t target = iterator.next();
-              if (!VALIDATE(target < control_.size())) {
-                this->error(pos, "improper branch in br_table");
-                break;
-              }
-              interface_.BreakTo(this, target);
-            }
+            interface_.BrTable(this, operand, key);
+
             len = 1 + iterator.length();
             EndControl();
             break;

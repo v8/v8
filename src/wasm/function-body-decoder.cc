@@ -314,6 +314,13 @@ class WasmGraphBuildingInterface {
 
   void BrTable(Decoder* decoder, const BranchTableOperand<true>& operand,
                const Value& key) {
+    if (operand.table_count == 0) {
+      // Only a default target. Do the equivalent of br.
+      uint32_t target = BranchTableIterator<true>(decoder, operand).next();
+      BreakTo(decoder, target);
+      return;
+    }
+
     SsaEnv* break_env = ssa_env_;
     // Build branches to the various blocks based on the table.
     TFNode* sw = BUILD(Switch, operand.table_count + 1, key.node);
