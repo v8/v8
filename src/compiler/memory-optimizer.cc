@@ -100,7 +100,6 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
     case IrOpcode::kRetain:
     case IrOpcode::kUnsafePointerAdd:
     case IrOpcode::kDebugBreak:
-    case IrOpcode::kUnreachable:
       return VisitOtherEffect(node, state);
     default:
       break;
