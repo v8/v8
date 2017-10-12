@@ -716,3 +716,22 @@ var global = this;
   assertEquals(["a", "b"], result);
   assertSame(result, f());
 })();
+
+(function testTaggedTemplateInvalidAssignmentTargetStrict() {
+  "use strict";
+  function f() {}
+  assertThrows(() => Function("++f`foo`"), ReferenceError);
+  assertThrows(() => Function("f`foo`++"), ReferenceError);
+  assertThrows(() => Function("--f`foo`"), ReferenceError);
+  assertThrows(() => Function("f`foo`--"), ReferenceError);
+  assertThrows(() => Function("f`foo` = 1"), ReferenceError);
+})();
+
+(function testTaggedTemplateInvalidAssignmentTargetSloppy() {
+  function f() {}
+  assertThrows(() => Function("++f`foo`"), ReferenceError);
+  assertThrows(() => Function("f`foo`++"), ReferenceError);
+  assertThrows(() => Function("--f`foo`"), ReferenceError);
+  assertThrows(() => Function("f`foo`--"), ReferenceError);
+  assertThrows(() => Function("f`foo` = 1"), ReferenceError);
+})();

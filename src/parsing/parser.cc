@@ -3469,7 +3469,7 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
         new (zone()) ZoneList<Expression*>(expressions->length() + 1, zone());
     call_args->Add(template_object, zone());
     call_args->AddAll(*expressions, zone());
-    return factory()->NewCall(tag, call_args, pos);
+    return factory()->NewTaggedTemplate(tag, call_args, pos);
   }
 }
 

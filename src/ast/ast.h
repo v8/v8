@@ -1662,6 +1662,10 @@ class Call final : public Expression {
     return IsPossiblyEvalField::decode(bit_field_);
   }
 
+  bool is_tagged_template() const {
+    return IsTaggedTemplateField::decode(bit_field_);
+  }
+
   bool only_last_arg_is_spread() {
     return !arguments_->is_empty() && arguments_->last()->IsSpread();
   }
@@ -1685,6 +1689,8 @@ class Call final : public Expression {
   // Helpers to determine how to handle the call.
   CallType GetCallType() const;
 
+  enum class TaggedTemplateTag { kTrue };
+
  private:
   friend class AstNodeFactory;
 
@@ -1694,11 +1700,21 @@ class Call final : public Expression {
         expression_(expression),
         arguments_(arguments) {
     bit_field_ |=
-        IsPossiblyEvalField::encode(possibly_eval == IS_POSSIBLY_EVAL);
+        IsPossiblyEvalField::encode(possibly_eval == IS_POSSIBLY_EVAL) |
+        IsTaggedTemplateField::encode(false);
+  }
+
+  Call(Expression* expression, ZoneList<Expression*>* arguments, int pos,
+       TaggedTemplateTag tag)
+      : Expression(pos, kCall), expression_(expression), arguments_(arguments) {
+    bit_field_ |= IsPossiblyEvalField::encode(false) |
+                  IsTaggedTemplateField::encode(true);
   }
 
   class IsPossiblyEvalField
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
+  class IsTaggedTemplateField
+      : public BitField<bool, IsPossiblyEvalField::kNext, 1> {};
 
   FeedbackSlot ic_slot_;
   Expression* expression_;
@@ -3196,6 +3212,12 @@ class AstNodeFactory final BASE_EMBEDDED {
   Call* NewCall(Expression* expression, ZoneList<Expression*>* arguments,
                 int pos, Call::PossiblyEval possibly_eval = Call::NOT_EVAL) {
     return new (zone_) Call(expression, arguments, pos, possibly_eval);
+  }
+
+  Call* NewTaggedTemplate(Expression* expression,
+                          ZoneList<Expression*>* arguments, int pos) {
+    return new (zone_)
+        Call(expression, arguments, pos, Call::TaggedTemplateTag::kTrue);
   }
 
   CallNew* NewCallNew(Expression* expression,

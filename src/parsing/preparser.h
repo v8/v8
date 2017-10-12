@@ -192,6 +192,17 @@ class PreParserExpression {
         ExpressionTypeField::encode(kCallEvalExpression));
   }
 
+  static PreParserExpression CallTaggedTemplate() {
+    return PreParserExpression(
+        TypeField::encode(kExpression) |
+        ExpressionTypeField::encode(kCallTaggedTemplateExpression));
+  }
+
+  bool is_tagged_template() const {
+    DCHECK(IsCall());
+    return ExpressionTypeField::decode(code_) == kCallTaggedTemplateExpression;
+  }
+
   static PreParserExpression SuperCallReference() {
     return PreParserExpression(
         TypeField::encode(kExpression) |
@@ -255,7 +266,13 @@ class PreParserExpression {
   bool IsCall() const {
     return TypeField::decode(code_) == kExpression &&
            (ExpressionTypeField::decode(code_) == kCallExpression ||
-            ExpressionTypeField::decode(code_) == kCallEvalExpression);
+            ExpressionTypeField::decode(code_) == kCallEvalExpression ||
+            ExpressionTypeField::decode(code_) ==
+                kCallTaggedTemplateExpression);
+  }
+  PreParserExpression* AsCall() {
+    if (IsCall()) return this;
+    return nullptr;
   }
 
   bool IsSuperCallReference() const {
@@ -304,6 +321,7 @@ class PreParserExpression {
     kPropertyExpression,
     kCallExpression,
     kCallEvalExpression,
+    kCallTaggedTemplateExpression,
     kSuperCallReference,
     kAssignment
   };
@@ -623,6 +641,11 @@ class PreParserFactory {
       return PreParserExpression::CallEval();
     }
     return PreParserExpression::Call();
+  }
+  PreParserExpression NewTaggedTemplate(
+      PreParserExpression expression, const PreParserExpressionList& arguments,
+      int pos) {
+    return PreParserExpression::CallTaggedTemplate();
   }
   PreParserExpression NewCallNew(const PreParserExpression& expression,
                                  const PreParserExpressionList& arguments,
