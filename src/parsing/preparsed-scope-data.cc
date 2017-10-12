@@ -336,12 +336,6 @@ bool ProducedPreParsedScopeData::ScopeIsSkippableFunctionScope(Scope* scope) {
 void ProducedPreParsedScopeData::SaveDataForScope(Scope* scope) {
   DCHECK_NE(scope->end_position(), kNoSourcePosition);
 
-  // We're not trying to save data for default constructors because the
-  // PreParser doesn't construct them.
-  DCHECK_IMPLIES(scope->scope_type() == ScopeType::FUNCTION_SCOPE,
-                 (scope->AsDeclarationScope()->function_kind() &
-                  kDefaultConstructor) == 0);
-
   if (!ScopeNeedsData(scope)) {
     return;
   }
