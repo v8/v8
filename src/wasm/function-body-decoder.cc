@@ -157,6 +157,8 @@ class WasmGraphBuildingInterface {
     builder_->PatchInStackCheckIfNeeded();
   }
 
+  void OnFirstError(Decoder* decoder) {}
+
   void Block(Decoder* decoder, Control* block) {
     // The break environment is the outer environment.
     block->end_env = ssa_env_;
@@ -205,9 +207,9 @@ class WasmGraphBuildingInterface {
     SetEnv(c->end_env);
   }
 
-  void PopControl(Decoder* decoder, Control& block) {
-    if (block.is_onearmed_if()) {
-      Goto(decoder, block.false_env, block.end_env);
+  void PopControl(Decoder* decoder, Control* block) {
+    if (block->is_onearmed_if()) {
+      Goto(decoder, block->false_env, block->end_env);
     }
   }
 
@@ -240,7 +242,9 @@ class WasmGraphBuildingInterface {
     result->node = builder_->Float64Constant(value);
   }
 
-  void DoReturn(Decoder* decoder, Vector<Value> values) {
+  void Drop(Decoder* decoder, const Value& value) {}
+
+  void DoReturn(Decoder* decoder, Vector<Value> values, bool implicit) {
     size_t num_values = values.size();
     TFNode** buffer = GetNodes(values);
     for (size_t i = 0; i < num_values; ++i) {
@@ -293,8 +297,7 @@ class WasmGraphBuildingInterface {
     ssa_env_->control = merge;
   }
 
-  void BreakTo(Decoder* decoder, uint32_t depth) {
-    Control* target = decoder->control_at(depth);
+  void BreakTo(Decoder* decoder, Control* target) {
     if (target->is_loop()) {
       Goto(decoder, ssa_env_, target->end_env);
     } else {
@@ -302,13 +305,13 @@ class WasmGraphBuildingInterface {
     }
   }
 
-  void BrIf(Decoder* decoder, const Value& cond, uint32_t depth) {
+  void BrIf(Decoder* decoder, const Value& cond, Control* target) {
     SsaEnv* fenv = ssa_env_;
     SsaEnv* tenv = Split(decoder, fenv);
     fenv->SetNotMerged();
     BUILD(BranchNoHint, cond.node, &tenv->control, &fenv->control);
     ssa_env_ = tenv;
-    BreakTo(decoder, depth);
+    BreakTo(decoder, target);
     ssa_env_ = fenv;
   }
 
@@ -317,7 +320,7 @@ class WasmGraphBuildingInterface {
     if (operand.table_count == 0) {
       // Only a default target. Do the equivalent of br.
       uint32_t target = BranchTableIterator<true>(decoder, operand).next();
-      BreakTo(decoder, target);
+      BreakTo(decoder, decoder->control_at(target));
       return;
     }
 
@@ -334,7 +337,7 @@ class WasmGraphBuildingInterface {
       ssa_env_ = Split(decoder, copy);
       ssa_env_->control = (i == operand.table_count) ? BUILD(IfDefault, sw)
                                                      : BUILD(IfValue, i, sw);
-      BreakTo(decoder, target);
+      BreakTo(decoder, decoder->control_at(target));
     }
     DCHECK(decoder->ok());
     ssa_env_ = break_env;

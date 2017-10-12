@@ -510,13 +510,14 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(StartFunction)                                                             \
   F(StartFunctionBody, Control* block)                                         \
   F(FinishFunction)                                                            \
+  F(OnFirstError)                                                              \
   /* Control: */                                                               \
   F(Block, Control* block)                                                     \
   F(Loop, Control* block)                                                      \
   F(Try, Control* block)                                                       \
   F(If, const Value& cond, Control* if_block)                                  \
   F(FallThruTo, Control* c)                                                    \
-  F(PopControl, const Control& block)                                          \
+  F(PopControl, Control* block)                                                \
   F(EndControl, Control* block)                                                \
   /* Instructions: */                                                          \
   F(UnOp, WasmOpcode opcode, FunctionSig*, const Value& value, Value* result)  \
@@ -526,7 +527,8 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(I64Const, Value* result, int64_t value)                                    \
   F(F32Const, Value* result, float value)                                      \
   F(F64Const, Value* result, double value)                                     \
-  F(DoReturn, Vector<Value> values)                                            \
+  F(Drop, const Value& value)                                                  \
+  F(DoReturn, Vector<Value> values, bool implicit)                             \
   F(GetLocal, Value* result, const LocalIndexOperand<validate>& operand)       \
   F(SetLocal, const Value& value, const LocalIndexOperand<validate>& operand)  \
   F(TeeLocal, const Value& value, Value* result,                               \
@@ -537,8 +539,8 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(Unreachable)                                                               \
   F(Select, const Value& cond, const Value& fval, const Value& tval,           \
     Value* result)                                                             \
-  F(BreakTo, uint32_t depth)                                                   \
-  F(BrIf, const Value& cond, uint32_t depth)                                   \
+  F(BreakTo, Control* target)                                                  \
+  F(BrIf, const Value& cond, Control* target)                                  \
   F(BrTable, const BranchTableOperand<validate>& operand, const Value& key)    \
   F(Else, Control* if_block)                                                   \
   F(LoadMem, ValueType type, MachineType mem_type,                             \
@@ -1057,12 +1059,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   using Control = typename Interface::Control;
   using MergeValues = Merge<Value>;
 
-  // All Value and Control types should be trivially copyable for
-  // performance. We push and pop them, and store them in local variables.
+  // All Value types should be trivially copyable for performance. We push, pop,
+  // and store them in local variables.
   static_assert(IS_TRIVIALLY_COPYABLE(Value),
                 "all Value<...> types should be trivially copyable");
-  static_assert(IS_TRIVIALLY_COPYABLE(Control),
-                "all Control<...> types should be trivially copyable");
 
  public:
   template <typename... InterfaceArgs>
@@ -1166,7 +1166,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   inline Control* control_at(uint32_t depth) {
     DCHECK_GT(control_.size(), depth);
-    return &control_[control_.size() - depth - 1];
+    return &control_.back() - depth;
   }
 
   inline uint32_t stack_size() const {
@@ -1410,7 +1410,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               // The result of the block is the return value.
               TRACE("  @%-8d #xx:%-20s|", startrel(this->pc_),
                     "(implicit) return");
-              DoReturn();
+              DoReturn(true);
               TRACE("\n");
             }
 
@@ -1427,10 +1427,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           case kExprBr: {
             BreakDepthOperand<validate> operand(this, this->pc_);
-            if (this->Validate(this->pc_, operand, control_.size()) &&
-                TypeCheckBreak(operand.depth)) {
-              interface_.BreakTo(this, operand.depth);
-            }
+            if (!this->Validate(this->pc_, operand, control_.size())) break;
+            Control* c = control_at(operand.depth);
+            if (!TypeCheckBreak(c)) break;
+            interface_.BreakTo(this, c);
             len = 1 + operand.length;
             EndControl();
             break;
@@ -1438,10 +1438,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprBrIf: {
             BreakDepthOperand<validate> operand(this, this->pc_);
             auto cond = Pop(0, kWasmI32);
-            if (this->Validate(this->pc_, operand, control_.size()) &&
-                TypeCheckBreak(operand.depth)) {
-              interface_.BrIf(this, cond, operand.depth);
-            }
+            if (!this->Validate(this->pc_, operand, control_.size())) break;
+            Control* c = control_at(operand.depth);
+            if (!TypeCheckBreak(c)) break;
+            interface_.BrIf(this, cond, c);
             len = 1 + operand.length;
             break;
           }
@@ -1470,7 +1470,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                              " (previous was %u, this one %u)",
                              i, br_arity, arity);
               }
-              if (!TypeCheckBreak(target)) break;
+              if (!TypeCheckBreak(c)) break;
             }
             if (!VALIDATE(this->ok())) break;
 
@@ -1481,7 +1481,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprReturn: {
-            DoReturn();
+            DoReturn(false);
             break;
           }
           case kExprUnreachable: {
@@ -1543,7 +1543,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprDrop: {
-            Pop();
+            auto value = Pop();
+            interface_.Drop(this, value);
             break;
           }
           case kExprGetGlobal: {
@@ -1858,7 +1859,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   void PopControl(Control* c) {
     DCHECK_EQ(c, &control_.back());
-    interface_.PopControl(this, *c);
+    interface_.PopControl(this, c);
     control_.pop_back();
   }
 
@@ -2053,7 +2054,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return len;
   }
 
-  void DoReturn() {
+  void DoReturn(bool implicit) {
     // TODO(clemensh): Optimize memory usage here (it will be mostly 0 or 1
     // returned values).
     int return_count = static_cast<int>(this->sig_->return_count());
@@ -2064,7 +2065,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       values[i] = Pop(i, this->sig_->GetReturn(i));
     }
 
-    interface_.DoReturn(this, vec2vec(values));
+    interface_.DoReturn(this, vec2vec(values), implicit);
     EndControl();
   }
 
@@ -2176,8 +2177,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return TypeCheckMergeValues(c);
   }
 
-  bool TypeCheckBreak(unsigned depth) {
-    Control* c = control_at(depth);
+  bool TypeCheckBreak(Control* c) {
     if (c->is_loop()) {
       // This is the inner loop block, which does not have a value.
       return true;
@@ -2217,6 +2217,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   virtual void onFirstError() {
     this->end_ = this->pc_;  // Terminate decoding loop.
     TRACE(" !%s\n", this->error_msg_.c_str());
+    interface_.OnFirstError(this);
   }
 
   inline void BuildSimpleOperator(WasmOpcode opcode, FunctionSig* sig) {
