@@ -1124,7 +1124,22 @@ class PreParser : public ParserBase<PreParser> {
                       ClassInfo* class_info, int pos, int end_pos, bool* ok) {
     bool has_default_constructor = !class_info->has_seen_constructor;
     // Account for the default constructor.
-    if (has_default_constructor) GetNextFunctionLiteralId();
+    if (has_default_constructor) {
+      // Creating and disposing of a FunctionState makes tracking of
+      // next_function_is_likely_called match what Parser does. TODO(marja):
+      // Make the lazy function + next_function_is_likely_called + default ctor
+      // logic less surprising. Default ctors shouldn't affect the laziness of
+      // functions.
+      bool has_extends = class_info->extends.IsNull();
+      FunctionKind kind = has_extends ? FunctionKind::kDefaultDerivedConstructor
+                                      : FunctionKind::kDefaultBaseConstructor;
+      DeclarationScope* function_scope = NewFunctionScope(kind);
+      SetLanguageMode(function_scope, STRICT);
+      function_scope->set_start_position(pos);
+      function_scope->set_end_position(pos);
+      FunctionState function_state(&function_state_, &scope_, function_scope);
+      GetNextFunctionLiteralId();
+    }
     return PreParserExpression::Default();
   }
 

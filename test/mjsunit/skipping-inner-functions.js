@@ -352,3 +352,16 @@ TestSkippableFunctionInForOfHeaderAndBody();
   }
   lazy();
 })();
+
+
+(function TestLazinessDecisionWithDefaultConstructors() {
+  // Regression test for
+  // https://bugs.chromium.org/p/chromium/issues/detail?id=773576
+
+  // The problem was that Parser and PreParser treated default constructors
+  // differently, and that threw off the "next / previous function is likely
+  // called" logic.
+
+  function lazy(p = (function() {}, class {}, function() {}, class { method1() { } })) { }
+  lazy();
+})();
