@@ -1470,7 +1470,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                              " (previous was %u, this one %u)",
                              i, br_arity, arity);
               }
-              if (!VALIDATE(TypeCheckBreak(target))) break;
+              if (!TypeCheckBreak(target)) break;
             }
             if (!VALIDATE(this->ok())) break;
 
