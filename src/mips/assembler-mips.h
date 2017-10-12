@@ -54,8 +54,9 @@ namespace internal {
   V(k0)  V(k1)  V(gp)  V(sp)  V(fp)  V(ra)
 
 #define ALLOCATABLE_GENERAL_REGISTERS(V) \
-  V(v0)  V(v1)  V(a0)  V(a1)  V(a2)  V(a3) \
-  V(t0)  V(t1)  V(t2)  V(t3)  V(t4)  V(t5)  V(t6) V(s7)
+  V(a0)  V(a1)  V(a2)  V(a3) \
+  V(t0)  V(t1)  V(t2)  V(t3)  V(t4)  V(t5)  V(t6) V(s7) \
+  V(v0)  V(v1)
 
 #define DOUBLE_REGISTERS(V)                               \
   V(f0)  V(f1)  V(f2)  V(f3)  V(f4)  V(f5)  V(f6)  V(f7)  \
