@@ -443,6 +443,7 @@ const six = BigInt(6);
 // Bitwise binary ops.
 {
   assertTrue((three & one) === one);
+  assertTrue((BigInt(-2) & zero) === zero);
   assertThrows("three & 1", TypeError);
   assertThrows("1 & three", TypeError);
   assertThrows("three & true", TypeError);

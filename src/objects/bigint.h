@@ -100,9 +100,10 @@ class BigInt : public HeapObject {
   static Handle<BigInt> AbsoluteSubOne(Handle<BigInt> x, int result_length);
 
   enum ExtraDigitsHandling { kCopy, kSkip };
+  enum SymmetricOp { kSymmetric, kNotSymmetric };
   static inline Handle<BigInt> AbsoluteBitwiseOp(
       Handle<BigInt> x, Handle<BigInt> y, BigInt* result_storage,
-      ExtraDigitsHandling extra_digits,
+      ExtraDigitsHandling extra_digits, SymmetricOp symmetric,
       std::function<digit_t(digit_t, digit_t)> op);
   static Handle<BigInt> AbsoluteAnd(Handle<BigInt> x, Handle<BigInt> y,
                                     BigInt* result_storage = nullptr);

@@ -446,8 +446,8 @@ Handle<BigInt> BigInt::AbsoluteSubOne(Handle<BigInt> x, int result_length) {
 // Helper for Absolute{And,AndNot,Or,Xor}.
 // Performs the given binary {op} on digit pairs of {x} and {y}; when the
 // end of the shorter of the two is reached, {extra_digits} configures how
-// remaining digits in the longer input are handled: copied to the result
-// or ignored.
+// remaining digits in the longer input (if {symmetric} == kSymmetric, in
+// {x} otherwise) are handled: copied to the result or ignored.
 // If {result_storage} is non-nullptr, it will be used for the result and
 // any extra digits in it will be zeroed out, otherwise a new BigInt (with
 // the same length as the longer input) will be allocated.
@@ -462,16 +462,22 @@ Handle<BigInt> BigInt::AbsoluteSubOne(Handle<BigInt> x, int result_length) {
 // result_storage: [  0 ][ x3 ][ r2 ][ r1 ][ r0 ]
 inline Handle<BigInt> BigInt::AbsoluteBitwiseOp(
     Handle<BigInt> x, Handle<BigInt> y, BigInt* result_storage,
-    ExtraDigitsHandling extra_digits,
+    ExtraDigitsHandling extra_digits, SymmetricOp symmetric,
     std::function<digit_t(digit_t, digit_t)> op) {
   int x_length = x->length();
   int y_length = y->length();
+  int num_pairs = y_length;
   if (x_length < y_length) {
-    return AbsoluteBitwiseOp(y, x, result_storage, extra_digits, op);
+    num_pairs = x_length;
+    if (symmetric == kSymmetric) {
+      std::swap(x, y);
+      std::swap(x_length, y_length);
+    }
   }
+  DCHECK(num_pairs == Min(x_length, y_length));
   Isolate* isolate = x->GetIsolate();
   Handle<BigInt> result(result_storage, isolate);
-  int result_length = extra_digits == kCopy ? x_length : y_length;
+  int result_length = extra_digits == kCopy ? x_length : num_pairs;
   if (result_storage == nullptr) {
     result = isolate->factory()->NewBigIntRaw(result_length);
   } else {
@@ -479,7 +485,7 @@ inline Handle<BigInt> BigInt::AbsoluteBitwiseOp(
     result_length = result_storage->length();
   }
   int i = 0;
-  for (; i < y_length; i++) {
+  for (; i < num_pairs; i++) {
     result->set_digit(i, op(x->digit(i), y->digit(i)));
   }
   if (extra_digits == kCopy) {
@@ -498,7 +504,7 @@ inline Handle<BigInt> BigInt::AbsoluteBitwiseOp(
 // {result_storage} may alias {x} or {y} for in-place modification.
 Handle<BigInt> BigInt::AbsoluteAnd(Handle<BigInt> x, Handle<BigInt> y,
                                    BigInt* result_storage) {
-  return AbsoluteBitwiseOp(x, y, result_storage, kSkip,
+  return AbsoluteBitwiseOp(x, y, result_storage, kSkip, kSymmetric,
                            [](digit_t a, digit_t b) { return a & b; });
 }
 
@@ -507,7 +513,7 @@ Handle<BigInt> BigInt::AbsoluteAnd(Handle<BigInt> x, Handle<BigInt> y,
 // {result_storage} may alias {x} or {y} for in-place modification.
 Handle<BigInt> BigInt::AbsoluteAndNot(Handle<BigInt> x, Handle<BigInt> y,
                                       BigInt* result_storage) {
-  return AbsoluteBitwiseOp(x, y, result_storage, kCopy,
+  return AbsoluteBitwiseOp(x, y, result_storage, kCopy, kNotSymmetric,
                            [](digit_t a, digit_t b) { return a & ~b; });
 }
 
@@ -516,7 +522,7 @@ Handle<BigInt> BigInt::AbsoluteAndNot(Handle<BigInt> x, Handle<BigInt> y,
 // {result_storage} may alias {x} or {y} for in-place modification.
 Handle<BigInt> BigInt::AbsoluteOr(Handle<BigInt> x, Handle<BigInt> y,
                                   BigInt* result_storage) {
-  return AbsoluteBitwiseOp(x, y, result_storage, kCopy,
+  return AbsoluteBitwiseOp(x, y, result_storage, kCopy, kSymmetric,
                            [](digit_t a, digit_t b) { return a | b; });
 }
 
@@ -525,7 +531,7 @@ Handle<BigInt> BigInt::AbsoluteOr(Handle<BigInt> x, Handle<BigInt> y,
 // {result_storage} may alias {x} or {y} for in-place modification.
 Handle<BigInt> BigInt::AbsoluteXor(Handle<BigInt> x, Handle<BigInt> y,
                                    BigInt* result_storage) {
-  return AbsoluteBitwiseOp(x, y, result_storage, kCopy,
+  return AbsoluteBitwiseOp(x, y, result_storage, kCopy, kSymmetric,
                            [](digit_t a, digit_t b) { return a ^ b; });
 }
 
