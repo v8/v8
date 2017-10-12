@@ -2,30 +2,21 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 var N = 10;
+var LargeN = 1e4;
 var keys;
 
 
-function SetupSmiKeys() {
-  keys = new Array(N * 2);
-  for (var i = 0; i < N * 2; i++) {
-    keys[i] = i;
-  }
+function SetupSmiKeys(count = 2 * N) {
+  keys = Array.from({ length : count }, (v, i) => i);
 }
 
 
-function SetupStringKeys() {
-  keys = new Array(N * 2);
-  for (var i = 0; i < N * 2; i++) {
-    keys[i] = 's' + i;
-  }
+function SetupStringKeys(count = 2 * N) {
+  keys = Array.from({ length : count }, (v, i) => 's' + i);
 }
 
 
-function SetupObjectKeys() {
-  keys = new Array(N * 2);
-  for (var i = 0; i < N * 2; i++) {
-    keys[i] = {};
-  }
+function SetupObjectKeys(count = 2 * N) {
+  keys = Array.from({ length : count }, (v, i) => ({}));
 }
