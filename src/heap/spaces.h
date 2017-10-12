@@ -903,11 +903,9 @@ class Space : public Malloced {
   // Identity used in error reporting.
   AllocationSpace identity() { return id_; }
 
-  V8_EXPORT_PRIVATE virtual void AddAllocationObserver(
-      AllocationObserver* observer);
+  void AddAllocationObserver(AllocationObserver* observer);
 
-  V8_EXPORT_PRIVATE virtual void RemoveAllocationObserver(
-      AllocationObserver* observer);
+  void RemoveAllocationObserver(AllocationObserver* observer);
 
   V8_EXPORT_PRIVATE virtual void PauseAllocationObservers();
 
@@ -2080,13 +2078,8 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
 
   void ResetFreeList() { free_list_.Reset(); }
 
-  void AddAllocationObserver(AllocationObserver* observer) override;
-  void RemoveAllocationObserver(AllocationObserver* observer) override;
   void PauseAllocationObservers() override;
   void ResumeAllocationObservers() override;
-
-  void InlineAllocationStep(Address top, Address new_top, Address soon_object,
-                            size_t size);
 
   // Empty space allocation info, returning unused area to free list.
   void EmptyAllocationInfo();
@@ -2737,8 +2730,6 @@ class NewSpace : public Space {
 
   SemiSpace* active_space() { return &to_space_; }
 
-  void AddAllocationObserver(AllocationObserver* observer) override;
-  void RemoveAllocationObserver(AllocationObserver* observer) override;
   void PauseAllocationObservers() override;
   void ResumeAllocationObservers() override;
 
