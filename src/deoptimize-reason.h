@@ -13,13 +13,16 @@ namespace internal {
 #define DEOPTIMIZE_REASON_LIST(V)                                              \
   V(AccessCheck, "Access check needed")                                        \
   V(NoReason, "no reason")                                                     \
+  V(ArrayBufferWasNeutered, "array buffer was neutered")                       \
   V(ConstantGlobalVariableAssignment, "Constant global variable assignment")   \
   V(ConversionOverflow, "conversion overflow")                                 \
+  V(CowArrayElementsChanged, "copy-on-write array's elements changed")         \
   V(DivisionByZero, "division by zero")                                        \
   V(ExpectedHeapNumber, "Expected heap number")                                \
   V(ExpectedSmi, "Expected smi")                                               \
   V(ForcedDeoptToRuntime, "Forced deopt to runtime")                           \
   V(Hole, "hole")                                                              \
+  V(IndexNameMismatch, "index and name do not match in access")                \
   V(InstanceMigrationFailed, "instance migration failed")                      \
   V(InsufficientTypeFeedbackForCall, "Insufficient type feedback for call")    \
   V(InsufficientTypeFeedbackForCallWithArguments,                              \
@@ -55,6 +58,7 @@ namespace internal {
   V(OutsideOfRange, "Outside of range")                                        \
   V(Overflow, "overflow")                                                      \
   V(Proxy, "proxy")                                                            \
+  V(ReceiverNotAGlobalProxy, "receiver was not a global proxy")                \
   V(ReceiverWasAGlobalObject, "receiver was a global object")                  \
   V(Smi, "Smi")                                                                \
   V(TooManyArguments, "too many arguments")                                    \

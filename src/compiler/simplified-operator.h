@@ -10,6 +10,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/compiler/operator.h"
 #include "src/compiler/types.h"
+#include "src/deoptimize-reason.h"
 #include "src/globals.h"
 #include "src/handles.h"
 #include "src/machine-type.h"
@@ -257,6 +258,8 @@ UnicodeEncoding UnicodeEncodingOf(const Operator*) WARN_UNUSED_RESULT;
 
 BailoutReason BailoutReasonOf(const Operator* op) WARN_UNUSED_RESULT;
 
+DeoptimizeReason DeoptimizeReasonOf(const Operator* op) WARN_UNUSED_RESULT;
+
 // Interface for building simplified operators, which represent the
 // medium-level operations of V8, including adding numbers, allocating objects,
 // indexing into objects and arrays, etc.
@@ -399,7 +402,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* TruncateTaggedToBit();
   const Operator* TruncateTaggedPointerToBit();
 
-  const Operator* CheckIf();
+  const Operator* CheckIf(DeoptimizeReason deoptimize_reason);
   const Operator* CheckBounds();
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>);
   const Operator* CompareMaps(ZoneHandleSet<Map>);

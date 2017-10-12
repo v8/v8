@@ -1945,7 +1945,8 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
       Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
                                      receiver_map, cache_type);
       effect =
-          graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+          graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
+                           check, effect, control);
 
       ReplaceWithValue(node, node, effect, control);
 

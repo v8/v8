@@ -232,8 +232,9 @@ Reduction JSBuiltinReducer::ReduceArrayIterator(Handle<Map> receiver_map,
       Node* check = effect = graph()->NewNode(
           simplified()->ArrayBufferWasNeutered(), buffer, effect, control);
       check = graph()->NewNode(simplified()->BooleanNot(), check);
-      effect =
-          graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+      effect = graph()->NewNode(
+          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered),
+          check, effect, control);
     }
   }
 
@@ -386,8 +387,9 @@ Reduction JSBuiltinReducer::ReduceFastArrayIteratorNext(
                              iterator, etrue1, if_true1);
         Node* check_map = graph()->NewNode(simplified()->ReferenceEqual(),
                                            array_map, orig_map);
-        etrue1 = graph()->NewNode(simplified()->CheckIf(), check_map, etrue1,
-                                  if_true1);
+        etrue1 =
+            graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongMap),
+                             check_map, etrue1, if_true1);
       }
 
       if (kind != IterationKind::kKeys) {
@@ -526,8 +528,9 @@ Reduction JSBuiltinReducer::ReduceTypedArrayIteratorNext(
       Node* check1 = efalse0 = graph()->NewNode(
           simplified()->ArrayBufferWasNeutered(), buffer, efalse0, if_false0);
       check1 = graph()->NewNode(simplified()->BooleanNot(), check1);
-      efalse0 =
-          graph()->NewNode(simplified()->CheckIf(), check1, efalse0, if_false0);
+      efalse0 = graph()->NewNode(
+          simplified()->CheckIf(DeoptimizeReason::kArrayBufferWasNeutered),
+          check1, efalse0, if_false0);
     }
 
     Node* length = efalse0 = graph()->NewNode(

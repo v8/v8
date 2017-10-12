@@ -465,7 +465,9 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
   if (index != nullptr) {
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), index,
                                    jsgraph()->HeapConstant(name));
-    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kIndexNameMismatch), check,
+        effect, control);
   }
 
   // Check if we have a {receiver} to validate. If so, we need to check that
@@ -474,7 +476,9 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
   if (receiver != nullptr) {
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), receiver,
                                    jsgraph()->HeapConstant(global_proxy()));
-    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kReceiverNotAGlobalProxy),
+        check, effect, control);
   }
 
   if (access_mode == AccessMode::kLoad) {
@@ -545,8 +549,9 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
         Node* check =
             graph()->NewNode(simplified()->ReferenceEqual(), value,
                              jsgraph()->Constant(property_cell_value));
-        effect =
-            graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+        effect = graph()->NewNode(
+            simplified()->CheckIf(DeoptimizeReason::kValueMismatch), check,
+            effect, control);
         break;
       }
       case PropertyCellType::kConstantType: {
@@ -702,7 +707,9 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
   if (index != nullptr) {
     Node* check = graph()->NewNode(simplified()->ReferenceEqual(), index,
                                    jsgraph()->HeapConstant(name));
-    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+    effect = graph()->NewNode(
+        simplified()->CheckIf(DeoptimizeReason::kIndexNameMismatch), check,
+        effect, control);
   }
 
   // Collect call nodes to rewire exception edges.
@@ -1300,8 +1307,10 @@ Reduction JSNativeContextSpecialization::ReduceKeyedAccess(
               Node* check =
                   graph()->NewNode(simplified()->ReferenceEqual(), elements,
                                    jsgraph()->HeapConstant(array_elements));
-              effect = graph()->NewNode(simplified()->CheckIf(), check, effect,
-                                        control);
+              effect = graph()->NewNode(
+                  simplified()->CheckIf(
+                      DeoptimizeReason::kCowArrayElementsChanged),
+                  check, effect, control);
               value = jsgraph()->Constant(it.GetDataValue());
               ReplaceWithValue(node, value, effect, control);
               return Replace(value);
@@ -1483,8 +1492,9 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
                                receiver, effect, control);
           Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
                                          receiver_map, enumerator);
-          effect =
-              graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+          effect = graph()->NewNode(
+              simplified()->CheckIf(DeoptimizeReason::kNoReason), check, effect,
+              control);
         }
 
         // Load the enum cache indices from the {cache_type}.
@@ -1505,7 +1515,8 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
             graph()->NewNode(simplified()->ReferenceEqual(), enum_indices,
                              jsgraph()->EmptyFixedArrayConstant()));
         effect =
-            graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+            graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
+                             check, effect, control);
 
         // Determine the index from the {enum_indices}.
         index = effect = graph()->NewNode(
@@ -1781,7 +1792,9 @@ JSNativeContextSpecialization::BuildPropertyStore(
     Node* constant_value = jsgraph()->Constant(access_info.constant());
     Node* check =
         graph()->NewNode(simplified()->ReferenceEqual(), value, constant_value);
-    effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+    effect =
+        graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
+                         check, effect, control);
     value = constant_value;
   } else if (access_info.IsAccessorConstant()) {
     value =
@@ -1857,8 +1870,9 @@ JSNativeContextSpecialization::BuildPropertyStore(
 
           Node* check = graph()->NewNode(simplified()->NumberEqual(),
                                          current_value, value);
-          effect =
-              graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+          effect = graph()->NewNode(
+              simplified()->CheckIf(DeoptimizeReason::kNoReason), check, effect,
+              control);
           return ValueEffectControl(value, effect, control);
         }
         break;
@@ -1875,8 +1889,9 @@ JSNativeContextSpecialization::BuildPropertyStore(
 
           Node* check = graph()->NewNode(simplified()->ReferenceEqual(),
                                          current_value, value);
-          effect =
-              graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+          effect = graph()->NewNode(
+              simplified()->CheckIf(DeoptimizeReason::kNoReason), check, effect,
+              control);
           return ValueEffectControl(value, effect, control);
         }
 
@@ -2011,7 +2026,8 @@ Reduction JSNativeContextSpecialization::ReduceJSStoreDataPropertyInLiteral(
   Node* name = NodeProperties::GetValueInput(node, 1);
   Node* check = graph()->NewNode(simplified()->ReferenceEqual(), name,
                                  jsgraph()->HeapConstant(cached_name));
-  effect = graph()->NewNode(simplified()->CheckIf(), check, effect, control);
+  effect = graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
+                            check, effect, control);
 
   Node* value = NodeProperties::GetValueInput(node, 2);
   Node* context = NodeProperties::GetContextInput(node);

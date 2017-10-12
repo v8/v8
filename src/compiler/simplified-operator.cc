@@ -420,6 +420,11 @@ BailoutReason BailoutReasonOf(const Operator* op) {
   return OpParameter<BailoutReason>(op);
 }
 
+DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kCheckIf, op->opcode());
+  return OpParameter<DeoptimizeReason>(op);
+}
+
 #define PURE_OP_LIST(V)                                          \
   V(BooleanNot, Operator::kNoProperties, 1, 0)                   \
   V(NumberEqual, Operator::kCommutative, 2, 0)                   \
@@ -526,7 +531,6 @@ BailoutReason BailoutReasonOf(const Operator* op) {
 #define CHECKED_OP_LIST(V)             \
   V(CheckBounds, 2, 1)                 \
   V(CheckHeapObject, 1, 1)             \
-  V(CheckIf, 1, 0)                     \
   V(CheckInternalizedString, 1, 1)     \
   V(CheckNumber, 1, 1)                 \
   V(CheckReceiver, 1, 1)               \
@@ -569,6 +573,18 @@ struct SimplifiedOperatorGlobalCache final {
   Name##Operator k##Name;
   CHECKED_OP_LIST(CHECKED)
 #undef CHECKED
+
+  template <DeoptimizeReason kDeoptimizeReason>
+  struct CheckIfOperator final : public Operator1<DeoptimizeReason> {
+    CheckIfOperator()
+        : Operator1<DeoptimizeReason>(
+              IrOpcode::kCheckIf, Operator::kFoldable | Operator::kNoThrow,
+              "CheckIf", 1, 1, 1, 0, 1, 0, kDeoptimizeReason) {}
+  };
+#define CHECK_IF(Name, message) \
+  CheckIfOperator<DeoptimizeReason::k##Name> kCheckIf##Name;
+  DEOPTIMIZE_REASON_LIST(CHECK_IF)
+#undef CHECK_IF
 
   template <UnicodeEncoding kEncoding>
   struct StringFromCodePointOperator final : public Operator1<UnicodeEncoding> {
@@ -793,6 +809,17 @@ const Operator* SimplifiedOperatorBuilder::RuntimeAbort(BailoutReason reason) {
       "RuntimeAbort",                            // name
       0, 1, 1, 0, 1, 0,                          // counts
       reason);                                   // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::CheckIf(DeoptimizeReason reason) {
+  switch (reason) {
+#define CHECK_IF(Name, message)   \
+  case DeoptimizeReason::k##Name: \
+    return &cache_.kCheckIf##Name;
+    DEOPTIMIZE_REASON_LIST(CHECK_IF)
+#undef CHECK_IF
+  }
+  UNREACHABLE();
 }
 
 const Operator* SimplifiedOperatorBuilder::ChangeFloat64ToTagged(
@@ -1082,6 +1109,11 @@ const Operator* SimplifiedOperatorBuilder::StoreSignedSmallElement() {
                                Operator::kNoDeopt | Operator::kNoThrow,
                                "StoreSignedSmallElement", 3, 1, 1, 0, 1, 0);
 }
+
+#undef PURE_OP_LIST
+#undef SPECULATIVE_NUMBER_BINOP_LIST
+#undef CHECKED_OP_LIST
+#undef ACCESS_OP_LIST
 
 }  // namespace compiler
 }  // namespace internal
