@@ -10,6 +10,7 @@
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
 #include "src/compiler/access-info.h"
+#include "src/compiler/allocation-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/linkage.h"
@@ -1820,21 +1821,12 @@ JSNativeContextSpecialization::BuildPropertyStore(
             !FLAG_unbox_double_fields) {
           if (access_info.HasTransitionMap()) {
             // Allocate a MutableHeapNumber for the new property.
-            effect = graph()->NewNode(
-                common()->BeginRegion(RegionObservability::kNotObservable),
-                effect);
-            Node* box = effect = graph()->NewNode(
-                simplified()->Allocate(Type::OtherInternal(), NOT_TENURED),
-                jsgraph()->Constant(HeapNumber::kSize), effect, control);
-            effect = graph()->NewNode(
-                simplified()->StoreField(AccessBuilder::ForMap()), box,
-                jsgraph()->HeapConstant(factory()->mutable_heap_number_map()),
-                effect, control);
-            effect = graph()->NewNode(
-                simplified()->StoreField(AccessBuilder::ForHeapNumberValue()),
-                box, value, effect, control);
-            value = effect =
-                graph()->NewNode(common()->FinishRegion(), box, effect);
+            AllocationBuilder a(jsgraph(), effect, control);
+            a.Allocate(HeapNumber::kSize, NOT_TENURED, Type::OtherInternal());
+            a.Store(AccessBuilder::ForMap(),
+                    factory()->mutable_heap_number_map());
+            a.Store(AccessBuilder::ForHeapNumberValue(), value);
+            value = effect = a.Finish();
 
             field_access.type = Type::Any();
             field_access.machine_type = MachineType::TaggedPointer();
@@ -2427,11 +2419,9 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
     values.push_back(jsgraph()->UndefinedConstant());
   }
 
-  // Allocate and initialize the new properties.
+  // Compute new length and hash.
   Node* hash;
   if (length == 0) {
-    effect = graph()->NewNode(
-        common()->BeginRegion(RegionObservability::kNotObservable), effect);
     hash = graph()->NewNode(
         common()->Select(MachineRepresentation::kTaggedSigned),
         graph()->NewNode(simplified()->ObjectIsSmi(), properties), properties,
@@ -2445,30 +2435,23 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
     hash = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForPropertyArrayLengthAndHash()),
         properties, effect, control);
-    effect = graph()->NewNode(
-        common()->BeginRegion(RegionObservability::kNotObservable), effect);
     hash =
         graph()->NewNode(simplified()->NumberBitwiseAnd(), hash,
                          jsgraph()->Constant(PropertyArray::HashField::kMask));
   }
-
   Node* new_length_and_hash = graph()->NewNode(
       simplified()->NumberBitwiseOr(), jsgraph()->Constant(new_length), hash);
-  Node* new_properties = effect = graph()->NewNode(
-      simplified()->Allocate(Type::OtherInternal(), NOT_TENURED),
-      jsgraph()->Constant(PropertyArray::SizeFor(new_length)), effect, control);
-  effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForMap()), new_properties,
-      jsgraph()->PropertyArrayMapConstant(), effect, control);
-  effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForPropertyArrayLengthAndHash()),
-      new_properties, new_length_and_hash, effect, control);
+
+  // Allocate and initialize the new properties.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(PropertyArray::SizeFor(new_length), NOT_TENURED,
+             Type::OtherInternal());
+  a.Store(AccessBuilder::ForMap(), jsgraph()->PropertyArrayMapConstant());
+  a.Store(AccessBuilder::ForPropertyArrayLengthAndHash(), new_length_and_hash);
   for (int i = 0; i < new_length; ++i) {
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForFixedArraySlot(i)),
-        new_properties, values[i], effect, control);
+    a.Store(AccessBuilder::ForFixedArraySlot(i), values[i]);
   }
-  return graph()->NewNode(common()->FinishRegion(), new_properties, effect);
+  return a.Finish();
 }
 
 bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(

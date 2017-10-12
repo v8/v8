@@ -688,6 +688,7 @@
         'compiler/access-info.h',
         'compiler/all-nodes.cc',
         'compiler/all-nodes.h',
+        'compiler/allocation-builder.h',
         'compiler/basic-block-instrumentor.cc',
         'compiler/basic-block-instrumentor.h',
         'compiler/branch-elimination.cc',

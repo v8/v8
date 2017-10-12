@@ -9,6 +9,7 @@
 #include "src/code-factory.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler/access-builder.h"
+#include "src/compiler/allocation-builder.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node-matchers.h"
@@ -292,35 +293,20 @@ Reduction JSBuiltinReducer::ReduceArrayIterator(Handle<Map> receiver_map,
 
   Handle<Map> map(Map::cast(native_context()->get(map_index)), isolate());
 
-  // allocate new iterator
-  effect = graph()->NewNode(
-      common()->BeginRegion(RegionObservability::kNotObservable), effect);
-  Node* value = effect = graph()->NewNode(
-      simplified()->Allocate(Type::OtherObject(), NOT_TENURED),
-      jsgraph()->Constant(JSArrayIterator::kSize), effect, control);
-  effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
-                            value, jsgraph()->Constant(map), effect, control);
-  effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForJSObjectPropertiesOrHash()),
-      value, jsgraph()->EmptyFixedArrayConstant(), effect, control);
-  effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
-      jsgraph()->EmptyFixedArrayConstant(), effect, control);
+  // Allocate new iterator and attach the iterator to this object.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(JSArrayIterator::kSize, NOT_TENURED, Type::OtherObject());
+  a.Store(AccessBuilder::ForMap(), map);
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSObjectElements(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSArrayIteratorObject(), receiver);
+  a.Store(AccessBuilder::ForJSArrayIteratorIndex(), jsgraph()->ZeroConstant());
+  a.Store(AccessBuilder::ForJSArrayIteratorObjectMap(), object_map);
+  Node* value = effect = a.Finish();
 
-  // attach the iterator to this object
-  effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForJSArrayIteratorObject()),
-      value, receiver, effect, control);
-  effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForJSArrayIteratorIndex()), value,
-      jsgraph()->ZeroConstant(), effect, control);
-  effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForJSArrayIteratorObjectMap()),
-      value, object_map, effect, control);
-
-  value = effect = graph()->NewNode(common()->FinishRegion(), value, effect);
-
-  // replace it
+  // Replace it.
   ReplaceWithValue(node, value, effect, control);
   return Replace(value);
 }
@@ -1338,27 +1324,17 @@ Reduction JSBuiltinReducer::ReduceCollectionIterator(
         receiver, effect, control);
 
     // Create the JSCollectionIterator result.
-    effect = graph()->NewNode(
-        common()->BeginRegion(RegionObservability::kNotObservable), effect);
-    Node* value = effect = graph()->NewNode(
-        simplified()->Allocate(Type::OtherObject(), NOT_TENURED),
-        jsgraph()->Constant(JSCollectionIterator::kSize), effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForMap()), value,
-        jsgraph()->Constant(collection_iterator_map), effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSObjectPropertiesOrHash()),
-        value, jsgraph()->EmptyFixedArrayConstant(), effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
-        jsgraph()->EmptyFixedArrayConstant(), effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSCollectionIteratorTable()),
-        value, table, effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSCollectionIteratorIndex()),
-        value, jsgraph()->ZeroConstant(), effect, control);
-    value = effect = graph()->NewNode(common()->FinishRegion(), value, effect);
+    AllocationBuilder a(jsgraph(), effect, control);
+    a.Allocate(JSCollectionIterator::kSize, NOT_TENURED, Type::OtherObject());
+    a.Store(AccessBuilder::ForMap(), collection_iterator_map);
+    a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+            jsgraph()->EmptyFixedArrayConstant());
+    a.Store(AccessBuilder::ForJSObjectElements(),
+            jsgraph()->EmptyFixedArrayConstant());
+    a.Store(AccessBuilder::ForJSCollectionIteratorTable(), table);
+    a.Store(AccessBuilder::ForJSCollectionIteratorIndex(),
+            jsgraph()->ZeroConstant());
+    Node* value = effect = a.Finish();
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
@@ -1735,53 +1711,27 @@ Reduction JSBuiltinReducer::ReduceFunctionBind(Node* node) {
     Node* bound_arguments = jsgraph()->EmptyFixedArrayConstant();
     if (node->op()->ValueInputCount() > 3) {
       int const length = node->op()->ValueInputCount() - 3;
-      effect = graph()->NewNode(
-          common()->BeginRegion(RegionObservability::kNotObservable), effect);
-      bound_arguments = effect = graph()->NewNode(
-          simplified()->Allocate(Type::OtherInternal(), NOT_TENURED),
-          jsgraph()->Constant(FixedArray::SizeFor(length)), effect, control);
-      effect = graph()->NewNode(
-          simplified()->StoreField(AccessBuilder::ForMap()), bound_arguments,
-          jsgraph()->FixedArrayMapConstant(), effect, control);
-      effect = graph()->NewNode(
-          simplified()->StoreField(AccessBuilder::ForFixedArrayLength()),
-          bound_arguments, jsgraph()->Constant(length), effect, control);
+      AllocationBuilder a(jsgraph(), effect, control);
+      a.AllocateArray(length, factory()->fixed_array_map());
       for (int i = 0; i < length; ++i) {
-        effect = graph()->NewNode(
-            simplified()->StoreField(AccessBuilder::ForFixedArraySlot(i)),
-            bound_arguments, NodeProperties::GetValueInput(node, 3 + i), effect,
-            control);
+        a.Store(AccessBuilder::ForFixedArraySlot(i),
+                NodeProperties::GetValueInput(node, 3 + i));
       }
-      bound_arguments = effect =
-          graph()->NewNode(common()->FinishRegion(), bound_arguments, effect);
+      bound_arguments = effect = a.Finish();
     }
 
     // Create the JSBoundFunction result.
-    effect = graph()->NewNode(
-        common()->BeginRegion(RegionObservability::kNotObservable), effect);
-    Node* value = effect = graph()->NewNode(
-        simplified()->Allocate(Type::BoundFunction(), NOT_TENURED),
-        jsgraph()->Constant(JSBoundFunction::kSize), effect, control);
-    effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
-                              value, jsgraph()->Constant(map), effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSObjectPropertiesOrHash()),
-        value, jsgraph()->EmptyFixedArrayConstant(), effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
-        jsgraph()->EmptyFixedArrayConstant(), effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(
-            AccessBuilder::ForJSBoundFunctionBoundTargetFunction()),
-        value, receiver, effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSBoundFunctionBoundThis()),
-        value, bound_this, effect, control);
-    effect =
-        graph()->NewNode(simplified()->StoreField(
-                             AccessBuilder::ForJSBoundFunctionBoundArguments()),
-                         value, bound_arguments, effect, control);
-    value = effect = graph()->NewNode(common()->FinishRegion(), value, effect);
+    AllocationBuilder a(jsgraph(), effect, control);
+    a.Allocate(JSBoundFunction::kSize, NOT_TENURED, Type::BoundFunction());
+    a.Store(AccessBuilder::ForMap(), map);
+    a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+            jsgraph()->EmptyFixedArrayConstant());
+    a.Store(AccessBuilder::ForJSObjectElements(),
+            jsgraph()->EmptyFixedArrayConstant());
+    a.Store(AccessBuilder::ForJSBoundFunctionBoundTargetFunction(), receiver);
+    a.Store(AccessBuilder::ForJSBoundFunctionBoundThis(), bound_this);
+    a.Store(AccessBuilder::ForJSBoundFunctionBoundArguments(), bound_arguments);
+    Node* value = effect = a.Finish();
 
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
@@ -2397,55 +2347,34 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
     int length = NameDictionary::EntryToIndex(capacity);
     int size = NameDictionary::SizeFor(length);
 
-    effect = graph()->NewNode(
-        common()->BeginRegion(RegionObservability::kNotObservable), effect);
-
-    Node* value = effect =
-        graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
-                         jsgraph()->Constant(size), effect, control);
-    effect =
-        graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
-                         value, jsgraph()->HeapConstant(map), effect, control);
-
+    AllocationBuilder a(jsgraph(), effect, control);
+    a.Allocate(size, NOT_TENURED, Type::Any());
+    a.Store(AccessBuilder::ForMap(), map);
     // Initialize FixedArray fields.
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForFixedArrayLength()), value,
-        jsgraph()->SmiConstant(length), effect, control);
+    a.Store(AccessBuilder::ForFixedArrayLength(),
+            jsgraph()->SmiConstant(length));
     // Initialize HashTable fields.
-    effect =
-        graph()->NewNode(simplified()->StoreField(
-                             AccessBuilder::ForHashTableBaseNumberOfElements()),
-                         value, jsgraph()->SmiConstant(0), effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(
-            AccessBuilder::ForHashTableBaseNumberOfDeletedElement()),
-        value, jsgraph()->SmiConstant(0), effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForHashTableBaseCapacity()),
-        value, jsgraph()->SmiConstant(capacity), effect, control);
+    a.Store(AccessBuilder::ForHashTableBaseNumberOfElements(),
+            jsgraph()->SmiConstant(0));
+    a.Store(AccessBuilder::ForHashTableBaseNumberOfDeletedElement(),
+            jsgraph()->SmiConstant(0));
+    a.Store(AccessBuilder::ForHashTableBaseCapacity(),
+            jsgraph()->SmiConstant(capacity));
     // Initialize Dictionary fields.
-    Node* undefined = jsgraph()->UndefinedConstant();
-    effect = graph()->NewNode(
-        simplified()->StoreField(
-            AccessBuilder::ForDictionaryNextEnumerationIndex()),
-        value, jsgraph()->SmiConstant(PropertyDetails::kInitialIndex), effect,
-        control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForDictionaryObjectHashIndex()),
-        value, jsgraph()->SmiConstant(PropertyArray::kNoHashSentinel), effect,
-        control);
+    a.Store(AccessBuilder::ForDictionaryNextEnumerationIndex(),
+            jsgraph()->SmiConstant(PropertyDetails::kInitialIndex));
+    a.Store(AccessBuilder::ForDictionaryObjectHashIndex(),
+            jsgraph()->SmiConstant(PropertyArray::kNoHashSentinel));
     // Initialize the Properties fields.
+    Node* undefined = jsgraph()->UndefinedConstant();
     STATIC_ASSERT(NameDictionary::kElementsStartIndex ==
                   NameDictionary::kObjectHashIndex + 1);
     for (int index = NameDictionary::kElementsStartIndex; index < length;
          index++) {
-      effect = graph()->NewNode(
-          simplified()->StoreField(
-              AccessBuilder::ForFixedArraySlot(index, kNoWriteBarrier)),
-          value, undefined, effect, control);
+      a.Store(AccessBuilder::ForFixedArraySlot(index, kNoWriteBarrier),
+              undefined);
     }
-    properties = effect =
-        graph()->NewNode(common()->FinishRegion(), value, effect);
+    properties = effect = a.Finish();
   }
 
   int const instance_size = instance_map->instance_size();
@@ -2454,30 +2383,20 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
 
   // Emit code to allocate the JSObject instance for the given
   // {instance_map}.
-  effect = graph()->NewNode(
-      common()->BeginRegion(RegionObservability::kNotObservable), effect);
-  Node* value = effect =
-      graph()->NewNode(simplified()->Allocate(Type::Any(), NOT_TENURED),
-                       jsgraph()->Constant(instance_size), effect, control);
-  effect =
-      graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()), value,
-                       jsgraph()->HeapConstant(instance_map), effect, control);
-  effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForJSObjectPropertiesOrHash()),
-      value, properties, effect, control);
-  effect = graph()->NewNode(
-      simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
-      jsgraph()->EmptyFixedArrayConstant(), effect, control);
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(instance_size, NOT_TENURED, Type::Any());
+  a.Store(AccessBuilder::ForMap(), instance_map);
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(), properties);
+  a.Store(AccessBuilder::ForJSObjectElements(),
+          jsgraph()->EmptyFixedArrayConstant());
   // Initialize Object fields.
   Node* undefined = jsgraph()->UndefinedConstant();
   for (int offset = JSObject::kHeaderSize; offset < instance_size;
        offset += kPointerSize) {
-    effect = graph()->NewNode(
-        simplified()->StoreField(
-            AccessBuilder::ForJSObjectOffset(offset, kNoWriteBarrier)),
-        value, undefined, effect, control);
+    a.Store(AccessBuilder::ForJSObjectOffset(offset, kNoWriteBarrier),
+            undefined);
   }
-  value = effect = graph()->NewNode(common()->FinishRegion(), value, effect);
+  Node* value = effect = a.Finish();
 
   // replace it
   ReplaceWithValue(node, value, effect, control);
@@ -2744,32 +2663,20 @@ Reduction JSBuiltinReducer::ReduceStringIterator(Node* node) {
     Node* map = jsgraph()->HeapConstant(
         handle(native_context()->string_iterator_map(), isolate()));
 
-    // allocate new iterator
-    effect = graph()->NewNode(
-        common()->BeginRegion(RegionObservability::kNotObservable), effect);
-    Node* value = effect = graph()->NewNode(
-        simplified()->Allocate(Type::OtherObject(), NOT_TENURED),
-        jsgraph()->Constant(JSStringIterator::kSize), effect, control);
-    effect = graph()->NewNode(simplified()->StoreField(AccessBuilder::ForMap()),
-                              value, map, effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSObjectPropertiesOrHash()),
-        value, jsgraph()->EmptyFixedArrayConstant(), effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSObjectElements()), value,
-        jsgraph()->EmptyFixedArrayConstant(), effect, control);
+    // Allocate new iterator and attach the iterator to this string.
+    AllocationBuilder a(jsgraph(), effect, control);
+    a.Allocate(JSStringIterator::kSize, NOT_TENURED, Type::OtherObject());
+    a.Store(AccessBuilder::ForMap(), map);
+    a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+            jsgraph()->EmptyFixedArrayConstant());
+    a.Store(AccessBuilder::ForJSObjectElements(),
+            jsgraph()->EmptyFixedArrayConstant());
+    a.Store(AccessBuilder::ForJSStringIteratorString(), receiver);
+    a.Store(AccessBuilder::ForJSStringIteratorIndex(),
+            jsgraph()->SmiConstant(0));
+    Node* value = effect = a.Finish();
 
-    // attach the iterator to this string
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSStringIteratorString()),
-        value, receiver, effect, control);
-    effect = graph()->NewNode(
-        simplified()->StoreField(AccessBuilder::ForJSStringIteratorIndex()),
-        value, jsgraph()->SmiConstant(0), effect, control);
-
-    value = effect = graph()->NewNode(common()->FinishRegion(), value, effect);
-
-    // replace it
+    // Replace it.
     ReplaceWithValue(node, value, effect, control);
     return Replace(value);
   }
