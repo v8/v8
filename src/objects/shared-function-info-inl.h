@@ -167,7 +167,7 @@ void SharedFunctionInfo::clear_padding() {
 
 void SharedFunctionInfo::UpdateFunctionMapIndex() {
   int map_index = Context::FunctionMapIndex(
-      language_mode(), kind(), has_shared_name(), needs_home_object());
+      language_mode(), kind(), true, has_shared_name(), needs_home_object());
   set_function_map_index(map_index);
 }
 

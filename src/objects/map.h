@@ -303,6 +303,8 @@ class Map : public HeapObject {
   inline void set_may_have_interesting_symbols(bool value);
   inline bool may_have_interesting_symbols() const;
 
+  DECL_BOOLEAN_ACCESSORS(has_prototype_slot)
+
   // Tells whether the instance with this map has a hidden prototype.
   inline void set_has_hidden_prototype(bool value);
   inline bool has_hidden_prototype() const;
@@ -767,7 +769,7 @@ class Map : public HeapObject {
   static const int kIsUndetectable = 4;
   static const int kIsAccessCheckNeeded = 5;
   static const int kIsConstructor = 6;
-  // Bit 7 is free.
+  static const int kHasPrototypeSlot = 7;
 
   // Bit positions for bit field 2
   static const int kIsExtensible = 0;

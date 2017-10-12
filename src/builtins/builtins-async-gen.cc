@@ -31,42 +31,15 @@ Node* AsyncBuiltinsAssembler::Await(
 
   Node* const native_context = LoadNativeContext(context);
 
-#ifdef DEBUG
-  {
-    Node* const map = LoadContextElement(
-        native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
-    Node* const instance_size = LoadMapInstanceSize(map);
-    // Assert that the strict function map has an instance size is
-    // JSFunction::kSize
-    CSA_ASSERT(this, WordEqual(instance_size, IntPtrConstant(JSFunction::kSize /
-                                                             kPointerSize)));
-  }
-#endif
-
-#ifdef DEBUG
-  {
-    Node* const promise_fun =
-        LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
-    Node* const map =
-        LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
-    Node* const instance_size = LoadMapInstanceSize(map);
-    // Assert that the JSPromise map has an instance size is
-    // JSPromise::kSize
-    CSA_ASSERT(this,
-               WordEqual(instance_size,
-                         IntPtrConstant(JSPromise::kSizeWithEmbedderFields /
-                                        kPointerSize)));
-  }
-#endif
-
   static const int kWrappedPromiseOffset = FixedArray::SizeFor(context_length);
   static const int kThrowawayPromiseOffset =
       kWrappedPromiseOffset + JSPromise::kSizeWithEmbedderFields;
   static const int kResolveClosureOffset =
       kThrowawayPromiseOffset + JSPromise::kSizeWithEmbedderFields;
   static const int kRejectClosureOffset =
-      kResolveClosureOffset + JSFunction::kSize;
-  static const int kTotalSize = kRejectClosureOffset + JSFunction::kSize;
+      kResolveClosureOffset + JSFunction::kSizeWithoutPrototype;
+  static const int kTotalSize =
+      kRejectClosureOffset + JSFunction::kSizeWithoutPrototype;
 
   Node* const base = AllocateInNewSpace(kTotalSize);
   Node* const closure_context = base;
@@ -79,8 +52,14 @@ Node* AsyncBuiltinsAssembler::Await(
   // Let promiseCapability be ! NewPromiseCapability(%Promise%).
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
   Node* const promise_map =
       LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
+  // Assert that the JSPromise map has an instance size is
+  // JSPromise::kSizeWithEmbedderFields.
+  CSA_ASSERT(this, WordEqual(LoadMapInstanceSize(promise_map),
+                             IntPtrConstant(JSPromise::kSizeWithEmbedderFields /
+                                            kPointerSize)));
   Node* const wrapped_value = InnerAllocate(base, kWrappedPromiseOffset);
   {
     // Initialize Promise
@@ -179,6 +158,11 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
                                                      Node* context_index) {
   Node* const function_map = LoadContextElement(
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
+  // Ensure that we don't have to initialize prototype_or_initial_map field of
+  // JSFunction.
+  CSA_ASSERT(this, WordEqual(LoadMapInstanceSize(function_map),
+                             IntPtrConstant(JSFunction::kSizeWithoutPrototype /
+                                            kPointerSize)));
   StoreMapNoWriteBarrier(function, function_map);
   StoreObjectFieldRoot(function, JSObject::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);
@@ -186,8 +170,6 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldRoot(function, JSFunction::kFeedbackVectorOffset,
                        Heap::kUndefinedCellRootIndex);
-  StoreObjectFieldRoot(function, JSFunction::kPrototypeOrInitialMapOffset,
-                       Heap::kTheHoleValueRootIndex);
 
   Node* shared_info = LoadContextElement(native_context, context_index);
   CSA_ASSERT(this, IsSharedFunctionInfo(shared_info));

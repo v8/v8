@@ -3700,19 +3700,25 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       // The correct function and context will be set below once available.
       Handle<Object> properties = materializer.FieldAt(value_index);
       Handle<Object> elements = materializer.FieldAt(value_index);
-      Handle<Object> prototype = materializer.FieldAt(value_index);
       Handle<Object> shared = materializer.FieldAt(value_index);
       Handle<Object> context = materializer.FieldAt(value_index);
       Handle<Object> vector_cell = materializer.FieldAt(value_index);
       Handle<Object> code = materializer.FieldAt(value_index);
+      bool has_prototype_slot = map->has_prototype_slot();
+      Handle<Object> prototype;
+      if (has_prototype_slot) {
+        prototype = materializer.FieldAt(value_index);
+      }
       object->set_map(*map);
       object->set_raw_properties_or_hash(*properties);
       object->set_elements(FixedArrayBase::cast(*elements));
-      object->set_prototype_or_initial_map(*prototype);
       object->set_shared(SharedFunctionInfo::cast(*shared));
       object->set_context(Context::cast(*context));
       object->set_feedback_vector_cell(Cell::cast(*vector_cell));
       object->set_code(Code::cast(*code));
+      if (has_prototype_slot) {
+        object->set_prototype_or_initial_map(*prototype);
+      }
       int in_object_properties = map->GetInObjectProperties();
       for (int i = 0; i < in_object_properties; ++i) {
         Handle<Object> value = materializer.FieldAt(value_index);

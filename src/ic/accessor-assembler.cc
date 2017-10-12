@@ -2084,9 +2084,17 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
     GotoIf(Word32NotEqual(instance_type, Int32Constant(JS_FUNCTION_TYPE)),
            &not_function_prototype);
     GotoIfNot(IsPrototypeString(p->name), &not_function_prototype);
-    Node* bit_field = LoadMapBitField(receiver_map);
-    GotoIf(IsSetWord32(bit_field, 1 << Map::kHasNonInstancePrototype),
-           &not_function_prototype);
+
+    // if (!(has_prototype_slot() && !has_non_instance_prototype())) use generic
+    // property loading mechanism.
+    int has_prototype_slot_mask = 1 << Map::kHasPrototypeSlot;
+    int has_non_instance_prototype_mask = 1 << Map::kHasNonInstancePrototype;
+    GotoIfNot(
+        Word32Equal(Word32And(LoadMapBitField(receiver_map),
+                              Int32Constant(has_prototype_slot_mask |
+                                            has_non_instance_prototype_mask)),
+                    Int32Constant(has_prototype_slot_mask)),
+        &not_function_prototype);
     Return(LoadJSFunctionPrototype(receiver, &miss));
     BIND(&not_function_prototype);
   }

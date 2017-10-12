@@ -789,6 +789,12 @@ Handle<Map> CreateNonConstructorMap(Handle<Map> source_map,
                                     Handle<JSObject> prototype,
                                     const char* reason) {
   Handle<Map> map = Map::Copy(source_map, reason);
+  // Ensure the resulting map has prototype slot (it is necessary for storing
+  // inital map even when the prototype property is not required).
+  if (!map->has_prototype_slot()) {
+    map->set_instance_size(map->instance_size() + kPointerSize);
+    map->set_has_prototype_slot(true);
+  }
   map->set_is_constructor(false);
   Map::SetPrototype(map, prototype);
   return map;
@@ -1481,9 +1487,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // --- F u n c t i o n ---
     Handle<JSFunction> prototype = empty_function;
-    Handle<JSFunction> function_fun =
-        InstallFunction(global, "Function", JS_FUNCTION_TYPE, JSFunction::kSize,
-                        prototype, Builtins::kFunctionConstructor);
+    Handle<JSFunction> function_fun = InstallFunction(
+        global, "Function", JS_FUNCTION_TYPE, JSFunction::kSizeWithPrototype,
+        prototype, Builtins::kFunctionConstructor);
     // Function instances are sloppy by default.
     function_fun->set_prototype_or_initial_map(*isolate->sloppy_function_map());
     function_fun->shared()->DontAdaptArguments();
@@ -3308,8 +3314,12 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- P r o x y
     CreateJSProxyMaps();
 
+    // Proxy function map has prototype slot for storing initial map but does
+    // not have a prototype property.
     Handle<Map> proxy_function_map =
         Map::Copy(isolate->strict_function_without_prototype_map(), "Proxy");
+    proxy_function_map->set_instance_size(JSFunction::kSizeWithPrototype);
+    proxy_function_map->set_has_prototype_slot(true);
     proxy_function_map->set_is_constructor(true);
 
     Handle<String> name = factory->Proxy_string();
@@ -3411,13 +3421,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // This is done by introducing an anonymous function with
     // class_name equals 'Arguments'.
     Handle<String> arguments_string = factory->Arguments_string();
-    Handle<Code> code(BUILTIN_CODE(isolate, Illegal));
     Handle<JSFunction> function =
-        factory->NewFunctionWithoutPrototype(arguments_string, code, STRICT);
+        factory->NewFunction(arguments_string, BUILTIN_CODE(isolate, Illegal),
+                             isolate->initial_object_prototype(), STRICT);
     function->shared()->set_instance_class_name(*arguments_string);
 
     Handle<Map> map = factory->NewMap(
         JS_ARGUMENTS_TYPE, JSSloppyArgumentsObject::kSize, PACKED_ELEMENTS);
+    JSFunction::SetInitialMap(function, map,
+                              isolate->initial_object_prototype());
+
     // Create the descriptor array for the arguments object.
     Map::EnsureDescriptorSlack(map, 2);
 
@@ -3437,10 +3450,6 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     map->SetInObjectProperties(2);
     native_context()->set_sloppy_arguments_map(*map);
-
-    DCHECK(!function->has_initial_map());
-    JSFunction::SetInitialMap(function, map,
-                              isolate->initial_object_prototype());
 
     DCHECK(!map->is_dictionary_map());
     DCHECK(IsObjectElementsKind(map->elements_kind()));
@@ -3817,8 +3826,9 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         generator_function_prototype, NONE);
 
     Handle<JSFunction> generator_function_function = InstallFunction(
-        container, "GeneratorFunction", JS_FUNCTION_TYPE, JSFunction::kSize,
-        generator_function_prototype, Builtins::kGeneratorFunctionConstructor);
+        container, "GeneratorFunction", JS_FUNCTION_TYPE,
+        JSFunction::kSizeWithPrototype, generator_function_prototype,
+        Builtins::kGeneratorFunctionConstructor);
     generator_function_function->set_prototype_or_initial_map(
         native_context->generator_function_map());
     generator_function_function->shared()->DontAdaptArguments();
@@ -3845,10 +3855,10 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     Handle<JSObject> async_generator_function_prototype(
         iter.GetCurrent<JSObject>());
 
-    Handle<JSFunction> async_generator_function_function =
-        InstallFunction(container, "AsyncGeneratorFunction", JS_FUNCTION_TYPE,
-                        JSFunction::kSize, async_generator_function_prototype,
-                        Builtins::kAsyncGeneratorFunctionConstructor);
+    Handle<JSFunction> async_generator_function_function = InstallFunction(
+        container, "AsyncGeneratorFunction", JS_FUNCTION_TYPE,
+        JSFunction::kSizeWithPrototype, async_generator_function_prototype,
+        Builtins::kAsyncGeneratorFunctionConstructor);
     async_generator_function_function->set_prototype_or_initial_map(
         native_context->async_generator_function_map());
     async_generator_function_function->shared()->DontAdaptArguments();
@@ -4082,8 +4092,9 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
     Handle<JSObject> async_function_prototype(iter.GetCurrent<JSObject>());
 
     Handle<JSFunction> async_function_constructor = InstallFunction(
-        container, "AsyncFunction", JS_FUNCTION_TYPE, JSFunction::kSize,
-        async_function_prototype, Builtins::kAsyncFunctionConstructor);
+        container, "AsyncFunction", JS_FUNCTION_TYPE,
+        JSFunction::kSizeWithPrototype, async_function_prototype,
+        Builtins::kAsyncFunctionConstructor);
     async_function_constructor->set_prototype_or_initial_map(
         native_context->async_function_map());
     async_function_constructor->shared()->DontAdaptArguments();

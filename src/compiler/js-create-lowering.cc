@@ -877,13 +877,16 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
             jsgraph()->EmptyFixedArrayConstant());
     a.Store(AccessBuilder::ForJSObjectElements(),
             jsgraph()->EmptyFixedArrayConstant());
-    a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),
-            jsgraph()->TheHoleConstant());
     a.Store(AccessBuilder::ForJSFunctionSharedFunctionInfo(), shared);
     a.Store(AccessBuilder::ForJSFunctionContext(), context);
     a.Store(AccessBuilder::ForJSFunctionFeedbackVector(), vector_cell);
     a.Store(AccessBuilder::ForJSFunctionCode(), lazy_compile_builtin);
-    STATIC_ASSERT(JSFunction::kSize == 8 * kPointerSize);
+    STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
+    if (function_map->has_prototype_slot()) {
+      a.Store(AccessBuilder::ForJSFunctionPrototypeOrInitialMap(),
+              jsgraph()->TheHoleConstant());
+      STATIC_ASSERT(JSFunction::kSizeWithPrototype == 8 * kPointerSize);
+    }
     for (int i = 0; i < function_map->GetInObjectProperties(); i++) {
       a.Store(AccessBuilder::ForJSObjectInObjectProperty(function_map, i),
               jsgraph()->UndefinedConstant());

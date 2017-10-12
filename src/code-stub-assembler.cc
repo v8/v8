@@ -1686,6 +1686,7 @@ Node* CodeStubAssembler::LoadJSFunctionPrototype(Node* function,
                                                  Label* if_bailout) {
   CSA_ASSERT(this, TaggedIsNotSmi(function));
   CSA_ASSERT(this, IsJSFunction(function));
+  CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(function)));
   CSA_ASSERT(this, IsClearWord32(LoadMapBitField(LoadMap(function)),
                                  1 << Map::kHasNonInstancePrototype));
   Node* proto_or_map =
@@ -3648,6 +3649,11 @@ Node* CodeStubAssembler::IsConstructorMap(Node* map) {
 
 Node* CodeStubAssembler::IsConstructor(Node* object) {
   return IsConstructorMap(LoadMap(object));
+}
+
+Node* CodeStubAssembler::IsFunctionWithPrototypeSlotMap(Node* map) {
+  CSA_ASSERT(this, IsMap(map));
+  return IsSetWord32(LoadMapBitField(map), 1 << Map::kHasPrototypeSlot);
 }
 
 Node* CodeStubAssembler::IsSpecialReceiverInstanceType(Node* instance_type) {
@@ -6274,9 +6280,17 @@ Node* CodeStubAssembler::CallGetterIfAccessor(Node* value, Node* details,
       GotoIfNot(IsPrototypeString(
                     LoadObjectField(accessor_info, AccessorInfo::kNameOffset)),
                 if_bailout);
-      GotoIf(IsSetWord32(LoadMapBitField(receiver_map),
-                         1 << Map::kHasNonInstancePrototype),
-             if_bailout);
+
+      // if (!(has_prototype_slot() && !has_non_instance_prototype())) use
+      // generic property loading mechanism.
+      int has_prototype_slot_mask = 1 << Map::kHasPrototypeSlot;
+      int has_non_instance_prototype_mask = 1 << Map::kHasNonInstancePrototype;
+      GotoIfNot(
+          Word32Equal(Word32And(LoadMapBitField(receiver_map),
+                                Int32Constant(has_prototype_slot_mask |
+                                              has_non_instance_prototype_mask)),
+                      Int32Constant(has_prototype_slot_mask)),
+          if_bailout);
       var_value.Bind(LoadJSFunctionPrototype(receiver, if_bailout));
       Goto(&done);
     }
@@ -10145,7 +10159,12 @@ Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
   Node* const code =
       LoadObjectField(shared_info, SharedFunctionInfo::kCodeOffset);
 
-  Node* const fun = Allocate(JSFunction::kSize);
+  // TODO(ishell): All the callers of this function pass map loaded from
+  // Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX. So we can remove
+  // map parameter.
+  CSA_ASSERT(this, Word32BinaryNot(IsConstructorMap(map)));
+  CSA_ASSERT(this, Word32BinaryNot(IsFunctionWithPrototypeSlotMap(map)));
+  Node* const fun = Allocate(JSFunction::kSizeWithoutPrototype);
   StoreMapNoWriteBarrier(fun, map);
   StoreObjectFieldRoot(fun, JSObject::kPropertiesOrHashOffset,
                        Heap::kEmptyFixedArrayRootIndex);
@@ -10153,8 +10172,6 @@ Node* CodeStubAssembler::AllocateFunctionWithMapAndContext(Node* map,
                        Heap::kEmptyFixedArrayRootIndex);
   StoreObjectFieldRoot(fun, JSFunction::kFeedbackVectorOffset,
                        Heap::kUndefinedCellRootIndex);
-  StoreObjectFieldRoot(fun, JSFunction::kPrototypeOrInitialMapOffset,
-                       Heap::kTheHoleValueRootIndex);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kSharedFunctionInfoOffset,
                                  shared_info);
   StoreObjectFieldNoWriteBarrier(fun, JSFunction::kContextOffset, context);

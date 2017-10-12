@@ -680,7 +680,8 @@ class Context: public FixedArray {
   }
 
   static inline int FunctionMapIndex(LanguageMode language_mode,
-                                     FunctionKind kind, bool has_shared_name,
+                                     FunctionKind kind, bool has_prototype_slot,
+                                     bool has_shared_name,
                                      bool needs_home_object);
 
   static int ArrayMapIndex(ElementsKind elements_kind) {

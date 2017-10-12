@@ -111,15 +111,19 @@ class JSObject::FastBodyDescriptor final : public BodyDescriptorBase {
 class JSFunction::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(HeapObject* obj, int offset) {
-    if (offset < kSize) return true;
+    if (offset < kSizeWithoutPrototype) return true;
+    if (offset < kSizeWithPrototype && obj->map()->has_prototype_slot()) {
+      return true;
+    }
     return IsValidSlotImpl(obj, offset);
   }
 
   template <typename ObjectVisitor>
   static inline void IterateBody(HeapObject* obj, int object_size,
                                  ObjectVisitor* v) {
-    IteratePointers(obj, kPropertiesOrHashOffset, kSize, v);
-    IterateBodyImpl(obj, kSize, object_size, v);
+    int header_size = JSFunction::cast(obj)->GetHeaderSize();
+    IteratePointers(obj, kPropertiesOrHashOffset, header_size, v);
+    IterateBodyImpl(obj, header_size, object_size, v);
   }
 
   static inline int SizeOf(Map* map, HeapObject* object) {

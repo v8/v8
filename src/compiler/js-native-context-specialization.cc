@@ -369,7 +369,8 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
   if (m.Value()->IsJSFunction()) {
     // Check if the {function} is a constructor and has an instance "prototype".
     Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
-    if (function->IsConstructor() && function->has_instance_prototype() &&
+    if (function->IsConstructor() && function->has_prototype_slot() &&
+        function->has_instance_prototype() &&
         function->prototype()->IsJSReceiver()) {
       // Ensure that the {function} has a valid initial map, so we can
       // depend on that for the prototype constant-folding below.

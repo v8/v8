@@ -631,17 +631,16 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
           shared, isolate->native_context());
 
   if (obj->remove_prototype()) {
-    result->set_map(*isolate->sloppy_function_without_prototype_map());
     DCHECK(prototype.is_null());
     DCHECK(result->shared()->IsApiFunction());
-    DCHECK(!result->has_initial_map());
-    DCHECK(!result->has_prototype());
     DCHECK(!result->IsConstructor());
+    DCHECK(!result->has_prototype_slot());
     return result;
   }
 
   // Down from here is only valid for API functions that can be used as a
   // constructor (don't set the "remove prototype" flag).
+  DCHECK(result->has_prototype_slot());
 
   if (obj->read_only_prototype()) {
     result->set_map(*isolate->sloppy_function_with_readonly_prototype_map());

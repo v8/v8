@@ -582,6 +582,10 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
   if (is_undetectable()) os << "\n - undetectable";
   if (is_callable()) os << "\n - callable";
   if (is_constructor()) os << "\n - constructor";
+  if (has_prototype_slot()) {
+    os << "\n - has_prototype_slot";
+    if (has_non_instance_prototype()) os << " (non-instance prototype)";
+  }
   if (is_access_check_needed()) os << "\n - access_check_needed";
   if (!is_extensible()) os << "\n - non-extensible";
   if (is_prototype_map()) {
@@ -1057,8 +1061,19 @@ std::ostream& operator<<(std::ostream& os, FunctionKind kind) {
 
 void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "Function");
-  os << "\n - initial_map = ";
-  if (has_initial_map()) os << Brief(initial_map());
+  os << "\n - function prototype = ";
+  if (has_prototype_slot()) {
+    if (has_prototype()) {
+      os << Brief(prototype());
+      if (map()->has_non_instance_prototype()) {
+        os << " (non-instance prototype)";
+      }
+    }
+    os << "\n - initial_map = ";
+    if (has_initial_map()) os << Brief(initial_map());
+  } else {
+    os << "<no-prototype-slot>";
+  }
   os << "\n - shared_info = " << Brief(shared());
   os << "\n - name = " << Brief(shared()->name());
   os << "\n - formal_parameter_count = "

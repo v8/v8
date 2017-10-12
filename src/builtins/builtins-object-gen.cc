@@ -725,9 +725,10 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 
   // Get the initial map from the function, jumping to the runtime if we don't
   // have one.
+  Label runtime(this);
+  GotoIfNot(IsFunctionWithPrototypeSlotMap(LoadMap(closure)), &runtime);
   Node* maybe_map =
       LoadObjectField(closure, JSFunction::kPrototypeOrInitialMapOffset);
-  Label runtime(this);
   GotoIf(DoesntHaveInstanceType(maybe_map, MAP_TYPE), &runtime);
 
   Node* shared =

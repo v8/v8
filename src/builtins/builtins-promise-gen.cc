@@ -21,6 +21,7 @@ Node* PromiseBuiltinsAssembler::AllocateJSPromise(Node* context) {
   Node* const native_context = LoadNativeContext(context);
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
+  CSA_ASSERT(this, IsFunctionWithPrototypeSlotMap(LoadMap(promise_fun)));
   Node* const initial_map =
       LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
   Node* const instance = AllocateJSObjectFromMap(initial_map);

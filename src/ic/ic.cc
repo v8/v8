@@ -733,10 +733,8 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
   // Use specialized code for getting prototype of functions.
   if (receiver->IsJSFunction() &&
       *lookup->name() == isolate()->heap()->prototype_string() &&
-      receiver->IsConstructor() &&
-      !Handle<JSFunction>::cast(receiver)
-           ->map()
-           ->has_non_instance_prototype()) {
+      JSFunction::cast(*receiver)->has_prototype_slot() &&
+      !JSFunction::cast(*receiver)->map()->has_non_instance_prototype()) {
     Handle<Code> stub;
     TRACE_HANDLER_STATS(isolate(), LoadIC_FunctionPrototypeStub);
     return BUILTIN_CODE(isolate(), LoadIC_FunctionPrototype);

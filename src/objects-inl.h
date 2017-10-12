@@ -1459,12 +1459,16 @@ void WeakCell::initialize(HeapObject* val) {
 
 bool WeakCell::cleared() const { return value() == Smi::kZero; }
 
-int JSObject::GetHeaderSize() {
+int JSObject::GetHeaderSize() const { return GetHeaderSize(map()); }
+
+int JSObject::GetHeaderSize(const Map* map) {
   // Check for the most common kind of JavaScript object before
   // falling into the generic switch. This speeds up the internal
   // field operations considerably on average.
-  InstanceType type = map()->instance_type();
-  return type == JS_OBJECT_TYPE ? JSObject::kHeaderSize : GetHeaderSize(type);
+  InstanceType instance_type = map->instance_type();
+  return instance_type == JS_OBJECT_TYPE
+             ? JSObject::kHeaderSize
+             : GetHeaderSize(instance_type, map->has_prototype_slot());
 }
 
 inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
@@ -1475,8 +1479,7 @@ inline bool IsSpecialReceiverInstanceType(InstanceType instance_type) {
 int JSObject::GetEmbedderFieldCount(const Map* map) {
   int instance_size = map->instance_size();
   if (instance_size == kVariableSizeSentinel) return 0;
-  InstanceType instance_type = map->instance_type();
-  return ((instance_size - GetHeaderSize(instance_type)) >> kPointerSizeLog2) -
+  return ((instance_size - GetHeaderSize(map)) >> kPointerSizeLog2) -
          map->GetInObjectProperties();
 }
 
@@ -3337,6 +3340,7 @@ void Map::set_non_instance_prototype(bool value) {
 }
 
 bool Map::has_non_instance_prototype() const {
+  if (!has_prototype_slot()) return false;
   return ((1 << kHasNonInstancePrototype) & bit_field()) != 0;
 }
 
@@ -3353,6 +3357,8 @@ void Map::set_is_constructor(bool value) {
 bool Map::is_constructor() const {
   return ((1 << kIsConstructor) & bit_field()) != 0;
 }
+
+BOOL_ACCESSORS(Map, bit_field, has_prototype_slot, kHasPrototypeSlot)
 
 void Map::set_has_hidden_prototype(bool value) {
   set_bit_field3(HasHiddenPrototype::update(bit_field3(), value));
@@ -4567,6 +4573,7 @@ bool JSFunction::IsInOptimizationQueue() {
 
 
 void JSFunction::CompleteInobjectSlackTrackingIfActive() {
+  if (!has_prototype_slot()) return;
   if (has_initial_map() && initial_map()->IsInobjectSlackTrackingInProgress()) {
     initial_map()->CompleteInobjectSlackTracking();
   }
@@ -4667,9 +4674,12 @@ void JSFunction::set_context(Object* value) {
   WRITE_BARRIER(GetHeap(), this, kContextOffset, value);
 }
 
-ACCESSORS(JSFunction, prototype_or_initial_map, Object,
-          kPrototypeOrInitialMapOffset)
+ACCESSORS_CHECKED(JSFunction, prototype_or_initial_map, Object,
+                  kPrototypeOrInitialMapOffset, map()->has_prototype_slot())
 
+bool JSFunction::has_prototype_slot() const {
+  return map()->has_prototype_slot();
+}
 
 Map* JSFunction::initial_map() {
   return Map::cast(prototype_or_initial_map());
@@ -4677,17 +4687,20 @@ Map* JSFunction::initial_map() {
 
 
 bool JSFunction::has_initial_map() {
+  DCHECK(has_prototype_slot());
   return prototype_or_initial_map()->IsMap();
 }
 
 
 bool JSFunction::has_instance_prototype() {
+  DCHECK(has_prototype_slot());
   return has_initial_map() ||
          !prototype_or_initial_map()->IsTheHole(GetIsolate());
 }
 
 
 bool JSFunction::has_prototype() {
+  DCHECK(has_prototype_slot());
   return map()->has_non_instance_prototype() || has_instance_prototype();
 }
 

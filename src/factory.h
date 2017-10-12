@@ -852,14 +852,6 @@ class V8_EXPORT_PRIVATE Factory final {
   // Create a JSArray with no elements and no length.
   Handle<JSArray> NewJSArray(ElementsKind elements_kind,
                              PretenureFlag pretenure = NOT_TENURED);
-
-  void SetSloppyFunctionInstanceDescriptor(Handle<Map> map,
-                                           FunctionMode function_mode);
-
-  void SetStrictFunctionInstanceDescriptor(Handle<Map> map,
-                                           FunctionMode function_mode);
-
-  void SetClassFunctionInstanceDescriptor(Handle<Map> map);
 };
 
 }  // namespace internal

@@ -1272,9 +1272,17 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
                                          : isolate->factory()->empty_string();
   }
   Handle<Code> code = BUILTIN_CODE(isolate, HandleApiCall);
-  bool is_constructor = !info->remove_prototype();
+  bool is_constructor;
+  FunctionKind function_kind;
+  if (!info->remove_prototype()) {
+    is_constructor = true;
+    function_kind = kNormalFunction;
+  } else {
+    is_constructor = false;
+    function_kind = kConciseMethod;
+  }
   Handle<SharedFunctionInfo> result = isolate->factory()->NewSharedFunctionInfo(
-      name_string, code, is_constructor);
+      name_string, code, is_constructor, function_kind);
   if (is_constructor) {
     result->SetConstructStub(*BUILTIN_CODE(isolate, JSConstructStubApi));
   }
@@ -1379,7 +1387,8 @@ void JSObject::EnsureWritableFastElements(Handle<JSObject> object) {
   isolate->counters()->cow_arrays_converted()->Increment();
 }
 
-int JSObject::GetHeaderSize(InstanceType type) {
+int JSObject::GetHeaderSize(InstanceType type,
+                            bool function_has_prototype_slot) {
   switch (type) {
     case JS_OBJECT_TYPE:
     case JS_API_OBJECT_TYPE:
@@ -1396,7 +1405,8 @@ int JSObject::GetHeaderSize(InstanceType type) {
     case JS_BOUND_FUNCTION_TYPE:
       return JSBoundFunction::kSize;
     case JS_FUNCTION_TYPE:
-      return JSFunction::kSize;
+      return function_has_prototype_slot ? JSFunction::kSizeWithPrototype
+                                         : JSFunction::kSizeWithoutPrototype;
     case JS_VALUE_TYPE:
       return JSValue::kSize;
     case JS_DATE_TYPE:
@@ -12843,6 +12853,7 @@ bool CanSubclassHaveInobjectProperties(InstanceType instance_type) {
 
 
 void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
+  DCHECK(function->has_prototype_slot());
   DCHECK(function->IsConstructor() ||
          IsResumableFunction(function->shared()->kind()));
   if (function->has_initial_map()) return;
@@ -12870,7 +12881,7 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
 
   int instance_size;
   int in_object_properties;
-  CalculateInstanceSizeHelper(instance_type, 0, expected_nof_properties,
+  CalculateInstanceSizeHelper(instance_type, false, 0, expected_nof_properties,
                               &instance_size, &in_object_properties);
 
   Handle<Map> map = isolate->factory()->NewMap(instance_type, instance_size);
@@ -13626,11 +13637,12 @@ int SharedFunctionInfo::SourceSize() {
 }
 
 void JSFunction::CalculateInstanceSizeHelper(InstanceType instance_type,
+                                             bool has_prototype_slot,
                                              int requested_embedder_fields,
                                              int requested_in_object_properties,
                                              int* instance_size,
                                              int* in_object_properties) {
-  int header_size = JSObject::GetHeaderSize(instance_type);
+  int header_size = JSObject::GetHeaderSize(instance_type, has_prototype_slot);
   DCHECK_LE(requested_embedder_fields,
             (JSObject::kMaxInstanceSize - header_size) >> kPointerSizeLog2);
   *instance_size =
@@ -13666,7 +13678,7 @@ void JSFunction::CalculateInstanceSizeForDerivedClass(
       break;
     }
   }
-  CalculateInstanceSizeHelper(instance_type, requested_embedder_fields,
+  CalculateInstanceSizeHelper(instance_type, true, requested_embedder_fields,
                               expected_nof_properties, instance_size,
                               in_object_properties);
 }

@@ -888,6 +888,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsConsStringInstanceType(Node* instance_type);
   Node* IsConstructorMap(Node* map);
   Node* IsConstructor(Node* object);
+  Node* IsFunctionWithPrototypeSlotMap(Node* map);
   Node* IsDeprecatedMap(Node* map);
   Node* IsDictionary(Node* object);
   Node* IsExternalStringInstanceType(Node* instance_type);

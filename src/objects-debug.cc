@@ -705,9 +705,11 @@ void JSBoundFunction::JSBoundFunctionVerify() {
 
 void JSFunction::JSFunctionVerify() {
   CHECK(IsJSFunction());
-  VerifyObjectField(kPrototypeOrInitialMapOffset);
   CHECK(code()->IsCode());
   CHECK(map()->is_callable());
+  if (has_prototype_slot()) {
+    VerifyObjectField(kPrototypeOrInitialMapOffset);
+  }
 }
 
 
@@ -736,7 +738,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
         HasInferredName());
 
   int expected_map_index = Context::FunctionMapIndex(
-      language_mode(), kind(), has_shared_name(), needs_home_object());
+      language_mode(), kind(), true, has_shared_name(), needs_home_object());
   CHECK_EQ(expected_map_index, function_map_index());
 
   if (scope_info()->length() > 0) {

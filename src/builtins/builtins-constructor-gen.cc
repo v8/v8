@@ -120,7 +120,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
   Node* result = Allocate(instance_size_in_bytes);
   StoreMapNoWriteBarrier(result, function_map);
   InitializeJSObjectBody(result, function_map, instance_size_in_bytes,
-                         JSFunction::kSize);
+                         JSFunction::kSizeWithoutPrototype);
 
   // Initialize the rest of the function.
   Node* empty_fixed_array = HeapConstant(factory->empty_fixed_array());
@@ -128,6 +128,20 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
                                  empty_fixed_array);
   StoreObjectFieldNoWriteBarrier(result, JSObject::kElementsOffset,
                                  empty_fixed_array);
+  {
+    // Set function prototype if necessary.
+    Label done(this), init_prototype(this);
+    Branch(IsFunctionWithPrototypeSlotMap(function_map), &init_prototype,
+           &done);
+
+    BIND(&init_prototype);
+    StoreObjectFieldNoWriteBarrier(
+        result, JSFunction::kPrototypeOrInitialMapOffset, TheHoleConstant());
+    Goto(&done);
+
+    BIND(&done);
+  }
+
   Node* literals_cell = LoadFeedbackVectorSlot(
       feedback_vector, slot, 0, CodeStubAssembler::SMI_PARAMETERS);
   {
@@ -153,8 +167,6 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
   }
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kFeedbackVectorOffset,
                                  literals_cell);
-  StoreObjectFieldNoWriteBarrier(
-      result, JSFunction::kPrototypeOrInitialMapOffset, TheHoleConstant());
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kSharedFunctionInfoOffset,
                                  shared_info);
   StoreObjectFieldNoWriteBarrier(result, JSFunction::kContextOffset, context);
