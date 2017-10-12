@@ -24,8 +24,10 @@ const six = BigInt(6);
 {
   assertEquals(typeof zero, "bigint");
   assertEquals(typeof one, "bigint");
-}
-{
+}{
+  assertEquals(%Typeof(zero), "bigint");
+  assertEquals(%Typeof(one), "bigint");
+}{
   // TODO(neis): Enable once --no-opt can be removed.
   //
   // function Typeof(x) { return typeof x }
