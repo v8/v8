@@ -671,6 +671,7 @@ namespace internal {
   F(LoadIC_Miss, 4, 1)                       \
   F(LoadPropertyWithInterceptor, 5, 1)       \
   F(StoreCallbackProperty, 6, 1)             \
+  F(StoreGlobalIC_Slow, 5, 1)                \
   F(StoreIC_Miss, 5, 1)                      \
   F(StorePropertyWithInterceptor, 5, 1)      \
   F(Unreachable, 0, 1)

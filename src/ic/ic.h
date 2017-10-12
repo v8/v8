@@ -321,7 +321,7 @@ class StoreIC : public IC {
 
  protected:
   // Stub accessors.
-  Handle<Code> slow_stub() const {
+  virtual Handle<Code> slow_stub() const {
     // All StoreICs share the same slow stub.
     return BUILTIN_CODE(isolate(), KeyedStoreIC_Slow);
   }
@@ -348,6 +348,11 @@ class StoreGlobalIC : public StoreIC {
   MUST_USE_RESULT MaybeHandle<Object> Store(Handle<Object> object,
                                             Handle<Name> name,
                                             Handle<Object> value);
+
+ protected:
+  Handle<Code> slow_stub() const override {
+    return BUILTIN_CODE(isolate(), StoreGlobalIC_Slow);
+  }
 };
 
 enum KeyedStoreCheckMap { kDontCheckMap, kCheckMap };

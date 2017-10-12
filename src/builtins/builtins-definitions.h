@@ -213,6 +213,7 @@ namespace internal {
   TFH(LoadIC_Slow, LoadWithVector)                                             \
   TFH(LoadIC_StringLength, LoadWithVector)                                     \
   TFH(LoadIC_Uninitialized, LoadWithVector)                                    \
+  TFH(StoreGlobalIC_Slow, StoreWithVector)                                     \
   TFH(StoreIC_Miss, StoreWithVector)                                           \
   ASM(StoreIC_Setter_ForDeopt)                                                 \
   TFH(StoreIC_Uninitialized, StoreWithVector)                                  \

@@ -2139,6 +2139,48 @@ RUNTIME_FUNCTION(Runtime_StoreIC_Miss) {
   }
 }
 
+RUNTIME_FUNCTION(Runtime_StoreGlobalIC_Slow) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(5, args.length());
+  // Runtime functions don't follow the IC's calling convention.
+  Handle<Object> value = args.at(0);
+  Handle<Smi> slot = args.at<Smi>(1);
+  Handle<FeedbackVector> vector = args.at<FeedbackVector>(2);
+  Handle<Object> object = args.at(3);
+  CONVERT_ARG_HANDLE_CHECKED(String, name, 4);
+
+  Handle<Context> native_context = isolate->native_context();
+  Handle<ScriptContextTable> script_contexts(
+      native_context->script_context_table());
+
+  ScriptContextTable::LookupResult lookup_result;
+  if (ScriptContextTable::Lookup(script_contexts, name, &lookup_result)) {
+    Handle<Context> script_context = ScriptContextTable::GetContext(
+        script_contexts, lookup_result.context_index);
+    if (lookup_result.mode == CONST) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewTypeError(MessageTemplate::kConstAssign, object, name));
+    }
+
+    Handle<Object> previous_value =
+        FixedArray::get(*script_context, lookup_result.slot_index, isolate);
+
+    if (previous_value->IsTheHole(isolate)) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewReferenceError(MessageTemplate::kNotDefined, name));
+    }
+
+    script_context->set(lookup_result.slot_index, *value);
+    return *value;
+  }
+
+  FeedbackSlot vector_slot = vector->ToSlot(slot->value());
+  LanguageMode language_mode = vector->GetLanguageMode(vector_slot);
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      Runtime::SetObjectProperty(isolate, object, name, value, language_mode));
+}
+
 // Used from ic-<arch>.cc.
 RUNTIME_FUNCTION(Runtime_KeyedStoreIC_Miss) {
   HandleScope scope(isolate);

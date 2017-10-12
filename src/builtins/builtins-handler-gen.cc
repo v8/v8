@@ -167,5 +167,19 @@ void Builtins::Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
   NamedStoreHandlerCompiler::GenerateStoreViaSetterForDeopt(masm);
 }
 
+TF_BUILTIN(StoreGlobalIC_Slow, CodeStubAssembler) {
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* value = Parameter(Descriptor::kValue);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  // The slow case calls into the runtime to complete the store without causing
+  // an IC miss that would otherwise cause a transition to the generic stub.
+  TailCallRuntime(Runtime::kStoreGlobalIC_Slow, context, value, slot, vector,
+                  receiver, name);
+}
+
 }  // namespace internal
 }  // namespace v8
