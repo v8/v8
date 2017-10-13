@@ -40,8 +40,6 @@ namespace internal {
     "Expected optimized code cell or optimization sentinel")                   \
   V(kExpectedNewSpaceObject, "Expected new space object")                      \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
-  V(kExternalStringExpectedButNotFound,                                        \
-    "External string expected, but not found")                                 \
   V(kForOfStatement, "ForOfStatement")                                         \
   V(kFunctionBeingDebugged, "Function is being debugged")                      \
   V(kFunctionCallsEval, "Function calls eval")                                 \

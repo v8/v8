@@ -11,22 +11,6 @@ namespace v8 {
 namespace internal {
 
 
-class StringCharLoadGenerator : public AllStatic {
- public:
-  // Generates the code for handling different string types and loading the
-  // indexed character into |result|.  We expect |index| as untagged input and
-  // |result| as untagged output.
-  static void Generate(MacroAssembler* masm,
-                       Register string,
-                       Register index,
-                       Register result,
-                       Label* call_runtime);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(StringCharLoadGenerator);
-};
-
-
 enum StackArgumentsAccessorReceiverMode {
   ARGUMENTS_CONTAIN_RECEIVER,
   ARGUMENTS_DONT_CONTAIN_RECEIVER
