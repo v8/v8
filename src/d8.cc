@@ -2807,10 +2807,14 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 
 // On x64 Linux we want to enable the Wasm trap handler by default. Setting
 // the flag here allows the command line argument to still override it.
-#if V8_OS_LINUX && V8_TARGET_ARCH_X64
+//
+// Currently we leave the default unchanged for sanitizers.
+//
+// TODO(eholk): enable trap handlers on sanitizers once issues are resolved.
+#if !defined(V8_USE_ADDRESS_SANITIZER) && !defined(LEAK_SANITIZER) && \
+    !defined(THREAD_SANITIZER) && V8_OS_LINUX && V8_TARGET_ARCH_X64
   SetFlagsFromString("--wasm-trap-handler");
 #endif
-
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
 
   // Set up isolated source groups.
