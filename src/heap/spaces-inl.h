@@ -8,6 +8,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/spaces.h"
 #include "src/msan.h"
+#include "src/objects/code-inl.h"
 
 namespace v8 {
 namespace internal {

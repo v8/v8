@@ -7,6 +7,7 @@
 #include "src/interpreter/bytecode-decoder.h"
 #include "src/interpreter/interpreter-intrinsics.h"
 #include "src/objects-inl.h"
+#include "src/objects/code-inl.h"
 
 namespace v8 {
 namespace internal {

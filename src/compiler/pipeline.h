@@ -9,6 +9,7 @@
 // Do not include anything from src/compiler here!
 #include "src/globals.h"
 #include "src/objects.h"
+#include "src/objects/code.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {

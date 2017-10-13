@@ -9,6 +9,7 @@
 #include "src/flags.h"
 #include "src/handles.h"
 #include "src/objects.h"
+#include "src/objects/code.h"
 #include "src/safepoint-table.h"
 
 namespace v8 {

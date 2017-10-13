@@ -5,6 +5,7 @@
 #include "src/v8.h"
 
 #include "src/objects.h"
+#include "src/objects/code.h"
 #include "src/source-position-table.h"
 #include "test/unittests/test-utils.h"
 

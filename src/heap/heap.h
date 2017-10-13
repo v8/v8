@@ -36,6 +36,8 @@ class HeapTester;
 class TestMemoryAllocatorScope;
 }  // namespace heap
 
+class BytecodeArray;
+
 using v8::MemoryPressureLevel;
 
 // Defines all the roots in Heap.

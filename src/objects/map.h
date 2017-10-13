@@ -6,6 +6,7 @@
 #define V8_OBJECTS_MAP_H_
 
 #include "src/objects.h"
+#include "src/objects/code.h"
 
 #include "src/globals.h"
 

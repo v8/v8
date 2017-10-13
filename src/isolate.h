@@ -23,6 +23,7 @@
 #include "src/handles.h"
 #include "src/heap/heap.h"
 #include "src/messages.h"
+#include "src/objects/code.h"
 #include "src/regexp/regexp-stack.h"
 #include "src/runtime/runtime.h"
 #include "src/zone/zone.h"

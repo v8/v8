@@ -17,6 +17,7 @@ namespace v8 {
 namespace internal {
 
 class BigInt;
+class BytecodeArray;
 
 #define TYPED_VISITOR_ID_LIST(V) \
   V(AllocationSite)              \

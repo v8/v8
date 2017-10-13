@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 
+class BytecodeArray;
 class CoverageInfo;
 class DebugInfo;
 
