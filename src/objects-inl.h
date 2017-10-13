@@ -36,6 +36,8 @@
 #include "src/objects/bigint-inl.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/hash-table.h"
+#include "src/objects/js-array-inl.h"
+#include "src/objects/js-regexp-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module-inl.h"
 #include "src/objects/regexp-match-info.h"
@@ -84,8 +86,6 @@ TYPE_CHECKER(Foreign, FOREIGN_TYPE)
 TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
 TYPE_CHECKER(HashTable, HASH_TABLE_TYPE)
 TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
-TYPE_CHECKER(JSArrayBuffer, JS_ARRAY_BUFFER_TYPE)
-TYPE_CHECKER(JSArray, JS_ARRAY_TYPE)
 TYPE_CHECKER(JSAsyncFromSyncIterator, JS_ASYNC_FROM_SYNC_ITERATOR_TYPE)
 TYPE_CHECKER(JSAsyncGeneratorObject, JS_ASYNC_GENERATOR_OBJECT_TYPE)
 TYPE_CHECKER(JSBoundFunction, JS_BOUND_FUNCTION_TYPE)
@@ -98,10 +98,8 @@ TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
 TYPE_CHECKER(JSMap, JS_MAP_TYPE)
 TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
 TYPE_CHECKER(JSPromise, JS_PROMISE_TYPE)
-TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
 TYPE_CHECKER(JSSet, JS_SET_TYPE)
 TYPE_CHECKER(JSStringIterator, JS_STRING_ITERATOR_TYPE)
-TYPE_CHECKER(JSTypedArray, JS_TYPED_ARRAY_TYPE)
 TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
 TYPE_CHECKER(JSWeakMap, JS_WEAK_MAP_TYPE)
 TYPE_CHECKER(JSWeakSet, JS_WEAK_SET_TYPE)
@@ -416,11 +414,6 @@ bool HeapObject::IsJSArrayBufferView() const {
   return IsJSDataView() || IsJSTypedArray();
 }
 
-template <>
-inline bool Is<JSArray>(Object* obj) {
-  return obj->IsJSArray();
-}
-
 bool HeapObject::IsWeakHashTable() const { return IsHashTable(); }
 
 bool HeapObject::IsDictionary() const {
@@ -561,10 +554,6 @@ CAST_ACCESSOR(FunctionTemplateInfo)
 CAST_ACCESSOR(GlobalDictionary)
 CAST_ACCESSOR(HeapObject)
 CAST_ACCESSOR(InterceptorInfo)
-CAST_ACCESSOR(JSArray)
-CAST_ACCESSOR(JSArrayBuffer)
-CAST_ACCESSOR(JSArrayBufferView)
-CAST_ACCESSOR(JSArrayIterator)
 CAST_ACCESSOR(JSAsyncFromSyncIterator)
 CAST_ACCESSOR(JSAsyncGeneratorObject)
 CAST_ACCESSOR(JSBoundFunction)
@@ -581,11 +570,9 @@ CAST_ACCESSOR(JSObject)
 CAST_ACCESSOR(JSPromise)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSReceiver)
-CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSSet)
 CAST_ACCESSOR(JSSetIterator)
 CAST_ACCESSOR(JSStringIterator)
-CAST_ACCESSOR(JSTypedArray)
 CAST_ACCESSOR(JSValue)
 CAST_ACCESSOR(JSWeakCollection)
 CAST_ACCESSOR(JSWeakMap)
@@ -4215,196 +4202,6 @@ SMI_ACCESSORS(JSMessageObject, end_position, kEndPositionOffset)
 SMI_ACCESSORS(JSMessageObject, error_level, kErrorLevelOffset)
 
 
-ACCESSORS(JSArray, length, Object, kLengthOffset)
-
-
-void* JSArrayBuffer::backing_store() const {
-  intptr_t ptr = READ_INTPTR_FIELD(this, kBackingStoreOffset);
-  return reinterpret_cast<void*>(ptr);
-}
-
-
-void JSArrayBuffer::set_backing_store(void* value, WriteBarrierMode mode) {
-  intptr_t ptr = reinterpret_cast<intptr_t>(value);
-  WRITE_INTPTR_FIELD(this, kBackingStoreOffset, ptr);
-}
-
-
-ACCESSORS(JSArrayBuffer, byte_length, Object, kByteLengthOffset)
-
-void* JSArrayBuffer::allocation_base() const {
-  intptr_t ptr = READ_INTPTR_FIELD(this, kAllocationBaseOffset);
-  return reinterpret_cast<void*>(ptr);
-}
-
-void JSArrayBuffer::set_allocation_base(void* value, WriteBarrierMode mode) {
-  intptr_t ptr = reinterpret_cast<intptr_t>(value);
-  WRITE_INTPTR_FIELD(this, kAllocationBaseOffset, ptr);
-}
-
-size_t JSArrayBuffer::allocation_length() const {
-  return *reinterpret_cast<const size_t*>(
-      FIELD_ADDR_CONST(this, kAllocationLengthOffset));
-}
-
-void JSArrayBuffer::set_allocation_length(size_t value) {
-  (*reinterpret_cast<size_t*>(FIELD_ADDR(this, kAllocationLengthOffset))) =
-      value;
-}
-
-ArrayBuffer::Allocator::AllocationMode JSArrayBuffer::allocation_mode() const {
-  using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
-  return has_guard_region() ? AllocationMode::kReservation
-                            : AllocationMode::kNormal;
-}
-
-void JSArrayBuffer::set_bit_field(uint32_t bits) {
-  if (kInt32Size != kPointerSize) {
-#if V8_TARGET_LITTLE_ENDIAN
-    WRITE_UINT32_FIELD(this, kBitFieldSlot + kInt32Size, 0);
-#else
-    WRITE_UINT32_FIELD(this, kBitFieldSlot, 0);
-#endif
-  }
-  WRITE_UINT32_FIELD(this, kBitFieldOffset, bits);
-}
-
-
-uint32_t JSArrayBuffer::bit_field() const {
-  return READ_UINT32_FIELD(this, kBitFieldOffset);
-}
-
-
-bool JSArrayBuffer::is_external() { return IsExternal::decode(bit_field()); }
-
-
-void JSArrayBuffer::set_is_external(bool value) {
-  set_bit_field(IsExternal::update(bit_field(), value));
-}
-
-
-bool JSArrayBuffer::is_neuterable() {
-  return IsNeuterable::decode(bit_field());
-}
-
-
-void JSArrayBuffer::set_is_neuterable(bool value) {
-  set_bit_field(IsNeuterable::update(bit_field(), value));
-}
-
-
-bool JSArrayBuffer::was_neutered() { return WasNeutered::decode(bit_field()); }
-
-
-void JSArrayBuffer::set_was_neutered(bool value) {
-  set_bit_field(WasNeutered::update(bit_field(), value));
-}
-
-
-bool JSArrayBuffer::is_shared() { return IsShared::decode(bit_field()); }
-
-
-void JSArrayBuffer::set_is_shared(bool value) {
-  set_bit_field(IsShared::update(bit_field(), value));
-}
-
-bool JSArrayBuffer::has_guard_region() const {
-  return HasGuardRegion::decode(bit_field());
-}
-
-void JSArrayBuffer::set_has_guard_region(bool value) {
-  set_bit_field(HasGuardRegion::update(bit_field(), value));
-}
-
-bool JSArrayBuffer::is_wasm_buffer() {
-  return IsWasmBuffer::decode(bit_field());
-}
-
-void JSArrayBuffer::set_is_wasm_buffer(bool value) {
-  set_bit_field(IsWasmBuffer::update(bit_field(), value));
-}
-
-Object* JSArrayBufferView::byte_offset() const {
-  if (WasNeutered()) return Smi::kZero;
-  return Object::cast(READ_FIELD(this, kByteOffsetOffset));
-}
-
-
-void JSArrayBufferView::set_byte_offset(Object* value, WriteBarrierMode mode) {
-  WRITE_FIELD(this, kByteOffsetOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kByteOffsetOffset, value, mode);
-}
-
-
-Object* JSArrayBufferView::byte_length() const {
-  if (WasNeutered()) return Smi::kZero;
-  return Object::cast(READ_FIELD(this, kByteLengthOffset));
-}
-
-
-void JSArrayBufferView::set_byte_length(Object* value, WriteBarrierMode mode) {
-  WRITE_FIELD(this, kByteLengthOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kByteLengthOffset, value, mode);
-}
-
-
-ACCESSORS(JSArrayBufferView, buffer, Object, kBufferOffset)
-#ifdef VERIFY_HEAP
-ACCESSORS(JSArrayBufferView, raw_byte_offset, Object, kByteOffsetOffset)
-ACCESSORS(JSArrayBufferView, raw_byte_length, Object, kByteLengthOffset)
-#endif
-
-
-bool JSArrayBufferView::WasNeutered() const {
-  return JSArrayBuffer::cast(buffer())->was_neutered();
-}
-
-
-Object* JSTypedArray::length() const {
-  if (WasNeutered()) return Smi::kZero;
-  return Object::cast(READ_FIELD(this, kLengthOffset));
-}
-
-
-uint32_t JSTypedArray::length_value() const {
-  if (WasNeutered()) return 0;
-  uint32_t index = 0;
-  CHECK(Object::cast(READ_FIELD(this, kLengthOffset))->ToArrayLength(&index));
-  return index;
-}
-
-
-void JSTypedArray::set_length(Object* value, WriteBarrierMode mode) {
-  WRITE_FIELD(this, kLengthOffset, value);
-  CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kLengthOffset, value, mode);
-}
-
-// static
-MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
-                                                 Handle<Object> receiver,
-                                                 const char* method_name) {
-  if (V8_UNLIKELY(!receiver->IsJSTypedArray())) {
-    const MessageTemplate::Template message = MessageTemplate::kNotTypedArray;
-    THROW_NEW_ERROR(isolate, NewTypeError(message), JSTypedArray);
-  }
-
-  Handle<JSTypedArray> array = Handle<JSTypedArray>::cast(receiver);
-  if (V8_UNLIKELY(array->WasNeutered())) {
-    const MessageTemplate::Template message =
-        MessageTemplate::kDetachedOperation;
-    Handle<String> operation =
-        isolate->factory()->NewStringFromAsciiChecked(method_name);
-    THROW_NEW_ERROR(isolate, NewTypeError(message, operation), JSTypedArray);
-  }
-
-  // spec describes to return `buffer`, but it may disrupt current
-  // implementations, and it's much useful to return array for now.
-  return array;
-}
-
-#ifdef VERIFY_HEAP
-ACCESSORS(JSTypedArray, raw_length, Object, kLengthOffset)
-#endif
 
 ACCESSORS(PromiseCapability, promise, Object, kPromiseOffset)
 ACCESSORS(PromiseCapability, resolve, Object, kResolveOffset)
@@ -4420,65 +4217,6 @@ SMI_ACCESSORS(JSPromise, flags, kFlagsOffset)
 BOOL_ACCESSORS(JSPromise, flags, has_handler, kHasHandlerBit)
 BOOL_ACCESSORS(JSPromise, flags, handled_hint, kHandledHintBit)
 
-ACCESSORS(JSRegExp, data, Object, kDataOffset)
-ACCESSORS(JSRegExp, flags, Object, kFlagsOffset)
-ACCESSORS(JSRegExp, source, Object, kSourceOffset)
-ACCESSORS(JSRegExp, last_index, Object, kLastIndexOffset)
-
-JSRegExp::Type JSRegExp::TypeTag() {
-  Object* data = this->data();
-  if (data->IsUndefined(GetIsolate())) return JSRegExp::NOT_COMPILED;
-  Smi* smi = Smi::cast(FixedArray::cast(data)->get(kTagIndex));
-  return static_cast<JSRegExp::Type>(smi->value());
-}
-
-
-int JSRegExp::CaptureCount() {
-  switch (TypeTag()) {
-    case ATOM:
-      return 0;
-    case IRREGEXP:
-      return Smi::ToInt(DataAt(kIrregexpCaptureCountIndex));
-    default:
-      UNREACHABLE();
-  }
-}
-
-
-JSRegExp::Flags JSRegExp::GetFlags() {
-  DCHECK(this->data()->IsFixedArray());
-  Object* data = this->data();
-  Smi* smi = Smi::cast(FixedArray::cast(data)->get(kFlagsIndex));
-  return Flags(smi->value());
-}
-
-
-String* JSRegExp::Pattern() {
-  DCHECK(this->data()->IsFixedArray());
-  Object* data = this->data();
-  String* pattern = String::cast(FixedArray::cast(data)->get(kSourceIndex));
-  return pattern;
-}
-
-Object* JSRegExp::CaptureNameMap() {
-  DCHECK(this->data()->IsFixedArray());
-  DCHECK_EQ(TypeTag(), IRREGEXP);
-  Object* value = DataAt(kIrregexpCaptureNameMapIndex);
-  DCHECK_NE(value, Smi::FromInt(JSRegExp::kUninitializedValue));
-  return value;
-}
-
-Object* JSRegExp::DataAt(int index) {
-  DCHECK(TypeTag() != NOT_COMPILED);
-  return FixedArray::cast(data())->get(index);
-}
-
-
-void JSRegExp::SetDataAt(int index, Object* value) {
-  DCHECK(TypeTag() != NOT_COMPILED);
-  DCHECK(index >= kDataIndex);  // Only implementation data can be set this way.
-  FixedArray::cast(data())->set(index, value);
-}
 
 ElementsKind JSObject::GetElementsKind() {
   ElementsKind kind = map()->elements_kind();
@@ -5155,46 +4893,6 @@ int Map::SlackForArraySize(int old_size, int size_limit) {
   return Min(max_slack, old_size / 4);
 }
 
-
-void JSArray::set_length(Smi* length) {
-  // Don't need a write barrier for a Smi.
-  set_length(static_cast<Object*>(length), SKIP_WRITE_BARRIER);
-}
-
-
-bool JSArray::SetLengthWouldNormalize(Heap* heap, uint32_t new_length) {
-  return new_length > kMaxFastArrayLength;
-}
-
-
-bool JSArray::AllowsSetLength() {
-  bool result = elements()->IsFixedArray() || elements()->IsFixedDoubleArray();
-  DCHECK(result == !HasFixedTypedArrayElements());
-  return result;
-}
-
-
-void JSArray::SetContent(Handle<JSArray> array,
-                         Handle<FixedArrayBase> storage) {
-  EnsureCanContainElements(array, storage, storage->length(),
-                           ALLOW_COPIED_DOUBLE_ELEMENTS);
-
-  DCHECK((storage->map() == array->GetHeap()->fixed_double_array_map() &&
-          IsDoubleElementsKind(array->GetElementsKind())) ||
-         ((storage->map() != array->GetHeap()->fixed_double_array_map()) &&
-          (IsObjectElementsKind(array->GetElementsKind()) ||
-           (IsSmiElementsKind(array->GetElementsKind()) &&
-            Handle<FixedArray>::cast(storage)->ContainsOnlySmisOrHoles()))));
-  array->set_elements(*storage);
-  array->set_length(Smi::FromInt(storage->length()));
-}
-
-
-bool JSArray::HasArrayPrototype(Isolate* isolate) {
-  return map()->prototype() == *isolate->initial_array_prototype();
-}
-
-
 int TypeFeedbackInfo::ic_total_count() {
   int current = Smi::ToInt(READ_FIELD(this, kStorage1Offset));
   return ICTotalCountField::decode(current);
@@ -5354,10 +5052,6 @@ static inline Handle<Object> MakeEntryPair(Isolate* isolate, Handle<Object> key,
 
 ACCESSORS(JSIteratorResult, value, Object, kValueOffset)
 ACCESSORS(JSIteratorResult, done, Object, kDoneOffset)
-
-ACCESSORS(JSArrayIterator, object, Object, kIteratedObjectOffset)
-ACCESSORS(JSArrayIterator, index, Object, kNextIndexOffset)
-ACCESSORS(JSArrayIterator, object_map, Object, kIteratedObjectMapOffset)
 
 ACCESSORS(JSAsyncFromSyncIterator, sync_iterator, JSReceiver,
           kSyncIteratorOffset)

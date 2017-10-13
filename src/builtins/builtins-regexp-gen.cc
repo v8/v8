@@ -11,6 +11,7 @@
 #include "src/code-stub-assembler.h"
 #include "src/counters.h"
 #include "src/factory-inl.h"
+#include "src/objects/js-regexp.h"
 #include "src/objects/regexp-match-info.h"
 #include "src/regexp/regexp-macro-assembler.h"
 

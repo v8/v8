@@ -11,6 +11,8 @@
 #include "src/messages.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
+#include "src/objects/js-array.h"
+#include "src/objects/js-regexp.h"
 #include "src/objects/scope-info.h"
 #include "src/objects/string.h"
 #include "src/string-hasher.h"

@@ -37,6 +37,7 @@ class TestMemoryAllocatorScope;
 }  // namespace heap
 
 class BytecodeArray;
+class JSArrayBuffer;
 
 using v8::MemoryPressureLevel;
 

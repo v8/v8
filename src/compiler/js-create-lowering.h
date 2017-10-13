@@ -16,7 +16,7 @@ namespace internal {
 class AllocationSiteUsageContext;
 class CompilationDependencies;
 class Factory;
-
+class JSRegExp;
 
 namespace compiler {
 

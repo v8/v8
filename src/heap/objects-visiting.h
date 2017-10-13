@@ -18,6 +18,8 @@ namespace internal {
 
 class BigInt;
 class BytecodeArray;
+class JSArrayBuffer;
+class JSRegExp;
 
 #define TYPED_VISITOR_ID_LIST(V) \
   V(AllocationSite)              \
