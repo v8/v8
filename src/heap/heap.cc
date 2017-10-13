@@ -6378,5 +6378,16 @@ void Heap::CreateObjectStats() {
   }
 }
 
+void AllocationObserver::AllocationStep(int bytes_allocated,
+                                        Address soon_object, size_t size) {
+  DCHECK_GE(bytes_allocated, 0);
+  bytes_to_next_step_ -= bytes_allocated;
+  if (bytes_to_next_step_ <= 0) {
+    Step(static_cast<int>(step_size_ - bytes_to_next_step_), soon_object, size);
+    step_size_ = GetNextStepSize();
+    bytes_to_next_step_ = step_size_;
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

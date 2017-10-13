@@ -1696,12 +1696,7 @@ void PagedSpace::EmptyAllocationInfo() {
     }
   }
 
-  if (top_on_previous_step_) {
-    DCHECK(current_top >= top_on_previous_step_);
-    AllocationStep(static_cast<int>(current_top - top_on_previous_step_),
-                   nullptr, 0);
-    top_on_previous_step_ = 0;
-  }
+  InlineAllocationStep(current_top, nullptr, nullptr, 0);
   SetTopAndLimit(nullptr, nullptr);
   DCHECK_GE(current_limit, current_top);
   Free(current_top, current_limit - current_top);
@@ -2153,6 +2148,30 @@ void NewSpace::StartNextInlineAllocationStep() {
   }
 }
 
+// TODO(ofrobots): refactor into SpaceWithLinearArea
+void NewSpace::AddAllocationObserver(AllocationObserver* observer) {
+  InlineAllocationStep(top(), top(), nullptr, 0);
+  Space::AddAllocationObserver(observer);
+}
+
+// TODO(ofrobots): refactor into SpaceWithLinearArea
+void PagedSpace::AddAllocationObserver(AllocationObserver* observer) {
+  InlineAllocationStep(top(), top(), nullptr, 0);
+  Space::AddAllocationObserver(observer);
+}
+
+// TODO(ofrobots): refactor into SpaceWithLinearArea
+void NewSpace::RemoveAllocationObserver(AllocationObserver* observer) {
+  InlineAllocationStep(top(), top(), nullptr, 0);
+  Space::RemoveAllocationObserver(observer);
+}
+
+// TODO(ofrobots): refactor into SpaceWithLinearArea
+void PagedSpace::RemoveAllocationObserver(AllocationObserver* observer) {
+  InlineAllocationStep(top(), top(), nullptr, 0);
+  Space::RemoveAllocationObserver(observer);
+}
+
 void NewSpace::PauseAllocationObservers() {
   // Do a step to account for memory allocated so far.
   InlineAllocationStep(top(), top(), nullptr, 0);
@@ -2163,10 +2182,7 @@ void NewSpace::PauseAllocationObservers() {
 
 void PagedSpace::PauseAllocationObservers() {
   // Do a step to account for memory allocated so far.
-  if (top_on_previous_step_) {
-    int bytes_allocated = static_cast<int>(top() - top_on_previous_step_);
-    AllocationStep(bytes_allocated, nullptr, 0);
-  }
+  InlineAllocationStep(top(), nullptr, nullptr, 0);
   Space::PauseAllocationObservers();
   top_on_previous_step_ = 0;
 }
@@ -2184,13 +2200,21 @@ void PagedSpace::ResumeAllocationObservers() {
   StartNextInlineAllocationStep();
 }
 
+// TODO(ofrobots): refactor into SpaceWithLinearArea
+void PagedSpace::InlineAllocationStep(Address top, Address new_top,
+                                      Address soon_object, size_t size) {
+  if (top_on_previous_step_) {
+    int bytes_allocated = static_cast<int>(top - top_on_previous_step_);
+    AllocationStep(bytes_allocated, soon_object, static_cast<int>(size));
+    top_on_previous_step_ = new_top;
+  }
+}
+
 void NewSpace::InlineAllocationStep(Address top, Address new_top,
                                     Address soon_object, size_t size) {
   if (top_on_previous_step_) {
     int bytes_allocated = static_cast<int>(top - top_on_previous_step_);
-    for (AllocationObserver* observer : allocation_observers_) {
-      observer->AllocationStep(bytes_allocated, soon_object, size);
-    }
+    AllocationStep(bytes_allocated, soon_object, static_cast<int>(size));
     top_on_previous_step_ = new_top;
   }
 }
