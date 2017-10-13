@@ -27314,3 +27314,19 @@ TEST(PrimitiveArray) {
   CHECK(array->Get(3)->IsBoolean());
   CHECK(array->Get(4)->IsNull());
 }
+
+TEST(PersistentValueMap) {
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+
+  v8::PersistentValueMap<
+      std::string, v8::Value,
+      v8::DefaultPersistentValueMapTraits<std::string, v8::Value>>
+      map(isolate);
+  v8::Local<v8::Value> value =
+      v8::String::NewFromUtf8(isolate, "value",
+                              v8::NewStringType::kInternalized)
+          .ToLocalChecked();
+  map.Set("key", value);
+}
