@@ -22,3 +22,14 @@
   f(this);
   f(this);
 })();
+
+(function() {
+  function f(o) {
+    o.z = 153;
+  };
+
+  Object.setPrototypeOf(this, new Proxy({get z(){}}, {}));
+  f({});
+  f(this);
+  f(this);
+})();

@@ -196,15 +196,15 @@ Handle<Smi> StoreHandler::TransitionToConstant(Isolate* isolate,
 // static
 WeakCell* StoreHandler::GetTransitionCell(Object* handler) {
   if (handler->IsTuple3()) {
-    STATIC_ASSERT(kTransitionCellOffset == Tuple3::kValue1Offset);
+    STATIC_ASSERT(kTransitionOrHolderCellOffset == Tuple3::kValue1Offset);
     WeakCell* cell = WeakCell::cast(Tuple3::cast(handler)->value1());
     DCHECK(!cell->cleared());
     return cell;
   }
 
   DCHECK(handler->IsFixedArray());
-  WeakCell* cell =
-      WeakCell::cast(FixedArray::cast(handler)->get(kTransitionCellIndex));
+  WeakCell* cell = WeakCell::cast(
+      FixedArray::cast(handler)->get(kTransitionMapOrHolderCellIndex));
   DCHECK(!cell->cleared());
   return cell;
 }

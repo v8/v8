@@ -229,7 +229,7 @@ class StoreHandler {
   // The layout of an Tuple3 handler representing a transitioning store
   // when prototype chain checks do not include non-existing lookups or access
   // checks.
-  static const int kTransitionCellOffset = Tuple3::kValue1Offset;
+  static const int kTransitionOrHolderCellOffset = Tuple3::kValue1Offset;
   static const int kSmiHandlerOffset = Tuple3::kValue2Offset;
   static const int kValidityCellOffset = Tuple3::kValue3Offset;
 
@@ -241,7 +241,7 @@ class StoreHandler {
   // when prototype chain checks include non-existing lookups and access checks.
   static const int kSmiHandlerIndex = 0;
   static const int kValidityCellIndex = 1;
-  static const int kTransitionCellIndex = 2;
+  static const int kTransitionMapOrHolderCellIndex = 2;
   static const int kFirstPrototypeIndex = 3;
 
   // Creates a Smi-handler for storing a field to fast object.

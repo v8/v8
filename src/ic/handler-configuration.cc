@@ -314,7 +314,7 @@ Handle<Object> StoreHandler::StoreTransition(Isolate* isolate,
       factory->NewFixedArray(kFirstPrototypeIndex + checks_count, TENURED));
   handler_array->set(kSmiHandlerIndex, *smi_handler);
   handler_array->set(kValidityCellIndex, *validity_cell);
-  handler_array->set(kTransitionCellIndex, *transition_cell);
+  handler_array->set(kTransitionMapOrHolderCellIndex, *transition_cell);
   InitPrototypeChecks(isolate, receiver_map, holder, name, handler_array,
                       kFirstPrototypeIndex);
   return handler_array;
@@ -363,7 +363,7 @@ Handle<Object> StoreHandler::StoreProxy(Isolate* isolate,
       factory->NewFixedArray(kFirstPrototypeIndex + checks_count, TENURED));
   handler_array->set(kSmiHandlerIndex, *smi_handler);
   handler_array->set(kValidityCellIndex, *validity_cell);
-  handler_array->set(kTransitionCellIndex, *holder_cell);
+  handler_array->set(kTransitionMapOrHolderCellIndex, *holder_cell);
   InitPrototypeChecks(isolate, receiver_map, proxy, name, handler_array,
                       kFirstPrototypeIndex);
   return handler_array;
