@@ -72,34 +72,6 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 }
 
 
-class FloatingPointHelper : public AllStatic {
- public:
-  enum ArgLocation {
-    ARGS_ON_STACK,
-    ARGS_IN_REGISTERS
-  };
-
-  // Code pattern for loading a floating point value. Input value must
-  // be either a smi or a heap number object (fp value). Requirements:
-  // operand in register number. Returns operand as floating point number
-  // on FPU stack.
-  static void LoadFloatOperand(MacroAssembler* masm, Register number);
-
-  // Test if operands are smi or number objects (fp). Requirements:
-  // operand_1 in eax, operand_2 in edx; falls through on float
-  // operands, jumps to the non_float label otherwise.
-  static void CheckFloatOperands(MacroAssembler* masm,
-                                 Label* non_float,
-                                 Register scratch);
-
-  // Test if operands are numbers (smi or HeapNumber objects), and load
-  // them into xmm0 and xmm1 if they are.  Jump to label not_numbers if
-  // either operand is not a number.  Operands are in edx and eax.
-  // Leaves operands unchanged.
-  static void LoadSSE2Operands(MacroAssembler* masm, Label* not_numbers);
-};
-
-
 void DoubleToIStub::Generate(MacroAssembler* masm) {
   Register input_reg = this->source();
   Register final_result_reg = this->destination();
@@ -221,78 +193,6 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   __ pop(save_reg);
   __ pop(scratch1);
   __ ret(0);
-}
-
-
-void FloatingPointHelper::LoadFloatOperand(MacroAssembler* masm,
-                                           Register number) {
-  Label load_smi, done;
-
-  __ JumpIfSmi(number, &load_smi, Label::kNear);
-  __ fld_d(FieldOperand(number, HeapNumber::kValueOffset));
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&load_smi);
-  __ SmiUntag(number);
-  __ push(number);
-  __ fild_s(Operand(esp, 0));
-  __ pop(number);
-
-  __ bind(&done);
-}
-
-
-void FloatingPointHelper::LoadSSE2Operands(MacroAssembler* masm,
-                                           Label* not_numbers) {
-  Label load_smi_edx, load_eax, load_smi_eax, load_float_eax, done;
-  // Load operand in edx into xmm0, or branch to not_numbers.
-  __ JumpIfSmi(edx, &load_smi_edx, Label::kNear);
-  Factory* factory = masm->isolate()->factory();
-  __ cmp(FieldOperand(edx, HeapObject::kMapOffset), factory->heap_number_map());
-  __ j(not_equal, not_numbers);  // Argument in edx is not a number.
-  __ movsd(xmm0, FieldOperand(edx, HeapNumber::kValueOffset));
-  __ bind(&load_eax);
-  // Load operand in eax into xmm1, or branch to not_numbers.
-  __ JumpIfSmi(eax, &load_smi_eax, Label::kNear);
-  __ cmp(FieldOperand(eax, HeapObject::kMapOffset), factory->heap_number_map());
-  __ j(equal, &load_float_eax, Label::kNear);
-  __ jmp(not_numbers);  // Argument in eax is not a number.
-  __ bind(&load_smi_edx);
-  __ SmiUntag(edx);  // Untag smi before converting to float.
-  __ Cvtsi2sd(xmm0, edx);
-  __ SmiTag(edx);  // Retag smi for heap number overwriting test.
-  __ jmp(&load_eax);
-  __ bind(&load_smi_eax);
-  __ SmiUntag(eax);  // Untag smi before converting to float.
-  __ Cvtsi2sd(xmm1, eax);
-  __ SmiTag(eax);  // Retag smi for heap number overwriting test.
-  __ jmp(&done, Label::kNear);
-  __ bind(&load_float_eax);
-  __ movsd(xmm1, FieldOperand(eax, HeapNumber::kValueOffset));
-  __ bind(&done);
-}
-
-
-void FloatingPointHelper::CheckFloatOperands(MacroAssembler* masm,
-                                             Label* non_float,
-                                             Register scratch) {
-  Label test_other, done;
-  // Test if both operands are floats or smi -> scratch=k_is_float;
-  // Otherwise scratch = k_not_float.
-  __ JumpIfSmi(edx, &test_other, Label::kNear);
-  __ mov(scratch, FieldOperand(edx, HeapObject::kMapOffset));
-  Factory* factory = masm->isolate()->factory();
-  __ cmp(scratch, factory->heap_number_map());
-  __ j(not_equal, non_float);  // argument in edx is not a number -> NaN
-
-  __ bind(&test_other);
-  __ JumpIfSmi(eax, &done, Label::kNear);
-  __ mov(scratch, FieldOperand(eax, HeapObject::kMapOffset));
-  __ cmp(scratch, factory->heap_number_map());
-  __ j(not_equal, non_float);  // argument in eax is not a number -> NaN
-
-  // Fall-through: Both operands are numbers.
-  __ bind(&done);
 }
 
 

@@ -57,21 +57,6 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 }
 
 
-class FloatingPointHelper : public AllStatic {
- public:
-  enum ConvertUndefined {
-    CONVERT_UNDEFINED_TO_ZERO,
-    BAILOUT_ON_UNDEFINED
-  };
-  // Load the operands from rdx and rax into xmm0 and xmm1, as doubles.
-  // If the operands are not both numbers, jump to not_numbers.
-  // Leaves rdx and rax unchanged.  SmiOperands assumes both are smis.
-  // NumberOperands assumes both are smis or heap numbers.
-  static void LoadSSE2UnknownOperands(MacroAssembler* masm,
-                                      Label* not_numbers);
-};
-
-
 void DoubleToIStub::Generate(MacroAssembler* masm) {
     Register input_reg = this->source();
     Register final_result_reg = this->destination();
@@ -154,37 +139,6 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     __ popq(scratch1);
     __ ret(0);
 }
-
-
-void FloatingPointHelper::LoadSSE2UnknownOperands(MacroAssembler* masm,
-                                                  Label* not_numbers) {
-  Label load_smi_rdx, load_nonsmi_rax, load_smi_rax, load_float_rax, done;
-  // Load operand in rdx into xmm0, or branch to not_numbers.
-  __ LoadRoot(rcx, Heap::kHeapNumberMapRootIndex);
-  __ JumpIfSmi(rdx, &load_smi_rdx);
-  __ cmpp(FieldOperand(rdx, HeapObject::kMapOffset), rcx);
-  __ j(not_equal, not_numbers);  // Argument in rdx is not a number.
-  __ Movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
-  // Load operand in rax into xmm1, or branch to not_numbers.
-  __ JumpIfSmi(rax, &load_smi_rax);
-
-  __ bind(&load_nonsmi_rax);
-  __ cmpp(FieldOperand(rax, HeapObject::kMapOffset), rcx);
-  __ j(not_equal, not_numbers);
-  __ Movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
-  __ jmp(&done);
-
-  __ bind(&load_smi_rdx);
-  __ SmiToInteger32(kScratchRegister, rdx);
-  __ Cvtlsi2sd(xmm0, kScratchRegister);
-  __ JumpIfNotSmi(rax, &load_nonsmi_rax);
-
-  __ bind(&load_smi_rax);
-  __ SmiToInteger32(kScratchRegister, rax);
-  __ Cvtlsi2sd(xmm1, kScratchRegister);
-  __ bind(&done);
-}
-
 
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = MathPowTaggedDescriptor::exponent();
