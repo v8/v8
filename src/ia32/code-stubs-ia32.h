@@ -9,31 +9,6 @@ namespace v8 {
 namespace internal {
 
 
-class StringHelper : public AllStatic {
- public:
-  // Compares two flat one byte strings and returns result in eax.
-  static void GenerateCompareFlatOneByteStrings(MacroAssembler* masm,
-                                                Register left, Register right,
-                                                Register scratch1,
-                                                Register scratch2,
-                                                Register scratch3);
-
-  // Compares two flat one byte strings for equality and returns result in eax.
-  static void GenerateFlatOneByteStringEquals(MacroAssembler* masm,
-                                              Register left, Register right,
-                                              Register scratch1,
-                                              Register scratch2);
-
- private:
-  static void GenerateOneByteCharsCompareLoop(
-      MacroAssembler* masm, Register left, Register right, Register length,
-      Register scratch, Label* chars_not_equal,
-      Label::Distance chars_not_equal_near = Label::kFar);
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
-};
-
-
 class NameDictionaryLookupStub: public PlatformCodeStub {
  public:
   enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };

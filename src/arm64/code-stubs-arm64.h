@@ -9,29 +9,6 @@ namespace v8 {
 namespace internal {
 
 
-class StringHelper : public AllStatic {
- public:
-  // Compares two flat one-byte strings and returns result in x0.
-  static void GenerateCompareFlatOneByteStrings(
-      MacroAssembler* masm, Register left, Register right, Register scratch1,
-      Register scratch2, Register scratch3, Register scratch4);
-
-  // Compare two flat one-byte strings for equality and returns result in x0.
-  static void GenerateFlatOneByteStringEquals(MacroAssembler* masm,
-                                              Register left, Register right,
-                                              Register scratch1,
-                                              Register scratch2,
-                                              Register scratch3);
-
- private:
-  static void GenerateOneByteCharsCompareLoop(
-      MacroAssembler* masm, Register left, Register right, Register length,
-      Register scratch1, Register scratch2, Label* chars_not_equal);
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
-};
-
-
 class RecordWriteStub: public PlatformCodeStub {
  public:
   // Stub to record the write of 'value' at 'address' in 'object'.

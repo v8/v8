@@ -706,68 +706,7 @@ class MacroAssembler : public TurboAssembler {
 
   // Add an integer constant to a tagged smi, giving a tagged smi as result.
   // No overflow testing on the result is done.
-  void SmiAddConstant(Register dst, Register src, Smi* constant);
-
-  // Add an integer constant to a tagged smi, giving a tagged smi as result.
-  // No overflow testing on the result is done.
   void SmiAddConstant(const Operand& dst, Smi* constant);
-
-  // Add an integer constant to a tagged smi, giving a tagged smi as result,
-  // or jumping to a label if the result cannot be represented by a smi.
-  void SmiAddConstant(Register dst, Register src, Smi* constant,
-                      SmiOperationConstraints constraints, Label* bailout_label,
-                      Label::Distance near_jump = Label::kFar);
-
-  // Subtract an integer constant from a tagged smi, giving a tagged smi as
-  // result. No testing on the result is done. Sets the N and Z flags
-  // based on the value of the resulting integer.
-  void SmiSubConstant(Register dst, Register src, Smi* constant);
-
-  // Subtract an integer constant from a tagged smi, giving a tagged smi as
-  // result, or jumping to a label if the result cannot be represented by a smi.
-  void SmiSubConstant(Register dst, Register src, Smi* constant,
-                      SmiOperationConstraints constraints, Label* bailout_label,
-                      Label::Distance near_jump = Label::kFar);
-
-  // Adds smi values and return the result as a smi.
-  // If dst is src1, then src1 will be destroyed if the operation is
-  // successful, otherwise kept intact.
-  void SmiAdd(Register dst,
-              Register src1,
-              Register src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-  void SmiAdd(Register dst,
-              Register src1,
-              const Operand& src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-
-  void SmiAdd(Register dst,
-              Register src1,
-              Register src2);
-
-  // Subtracts smi values and return the result as a smi.
-  // If dst is src1, then src1 will be destroyed if the operation is
-  // successful, otherwise kept intact.
-  void SmiSub(Register dst,
-              Register src1,
-              Register src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-  void SmiSub(Register dst,
-              Register src1,
-              const Operand& src2,
-              Label* on_not_smi_result,
-              Label::Distance near_jump = Label::kFar);
-
-  void SmiSub(Register dst,
-              Register src1,
-              Register src2);
-
-  void SmiSub(Register dst,
-              Register src1,
-              const Operand& src2);
 
   // Specialized operations
 

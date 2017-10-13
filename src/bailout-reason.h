@@ -97,8 +97,6 @@ namespace internal {
   V(kRememberedSetPointerInNewSpace, "Remembered set pointer is in new space") \
   V(kRestParameter, "Rest parameters")                                         \
   V(kReturnAddressNotFoundInFrame, "Return address not found in frame")        \
-  V(kSmiAdditionOverflow, "Smi addition overflow")                             \
-  V(kSmiSubtractionOverflow, "Smi subtraction overflow")                       \
   V(kSpreadCall, "Call with spread argument")                                  \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
