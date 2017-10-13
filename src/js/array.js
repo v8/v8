@@ -390,8 +390,6 @@ function InnerArrayJoin(separator, array, length) {
 DEFINE_METHOD(
   GlobalArray.prototype,
   join(separator) {
-    CHECK_OBJECT_COERCIBLE(this, "Array.prototype.join");
-
     var array = TO_OBJECT(this);
     var length = TO_LENGTH(array.length);
 
@@ -403,8 +401,6 @@ DEFINE_METHOD(
 // Removes the last element from the array and returns it. See
 // ECMA-262, section 15.4.4.6.
 function ArrayPopFallback() {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.pop");
-
   var array = TO_OBJECT(this);
   var n = TO_LENGTH(array.length);
   if (n == 0) {
@@ -423,8 +419,6 @@ function ArrayPopFallback() {
 // Appends the arguments to the end of the array and returns the new
 // length of the array. See ECMA-262, section 15.4.4.7.
 function ArrayPushFallback() {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.push");
-
   var array = TO_OBJECT(this);
   var n = TO_LENGTH(array.length);
   var m = arguments.length;
@@ -527,8 +521,6 @@ function GenericArrayReverse(array, len) {
 DEFINE_METHOD(
   GlobalArray.prototype,
   reverse() {
-    CHECK_OBJECT_COERCIBLE(this, "Array.prototype.reverse");
-
     var array = TO_OBJECT(this);
     var len = TO_LENGTH(array.length);
     var isArray = IS_ARRAY(array);
@@ -547,8 +539,6 @@ DEFINE_METHOD(
 
 
 function ArrayShiftFallback() {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.shift");
-
   var array = TO_OBJECT(this);
   var len = TO_LENGTH(array.length);
 
@@ -574,8 +564,6 @@ function ArrayShiftFallback() {
 
 
 function ArrayUnshiftFallback(arg1) {  // length == 1
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.unshift");
-
   var array = TO_OBJECT(this);
   var len = TO_LENGTH(array.length);
   var num_arguments = arguments.length;
@@ -598,8 +586,6 @@ function ArrayUnshiftFallback(arg1) {  // length == 1
 
 
 function ArraySliceFallback(start, end) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.slice");
-
   var array = TO_OBJECT(this);
   var len = TO_LENGTH(array.length);
   var start_i = TO_INTEGER(start);
@@ -671,8 +657,6 @@ function ComputeSpliceDeleteCount(delete_count, num_arguments, len, start_i) {
 
 
 function ArraySpliceFallback(start, delete_count) {
-  CHECK_OBJECT_COERCIBLE(this, "Array.prototype.splice");
-
   var num_arguments = arguments.length;
   var array = TO_OBJECT(this);
   var len = TO_LENGTH(array.length);
@@ -1010,8 +994,6 @@ function InnerArraySort(array, length, comparefn) {
 DEFINE_METHOD(
   GlobalArray.prototype,
   sort(comparefn) {
-    CHECK_OBJECT_COERCIBLE(this, "Array.prototype.sort");
-
     if (!IS_UNDEFINED(comparefn) && !IS_CALLABLE(comparefn)) {
       throw %make_type_error(kBadSortComparisonFunction, comparefn);
     }
@@ -1025,9 +1007,7 @@ DEFINE_METHOD(
 DEFINE_METHOD_LEN(
   GlobalArray.prototype,
   lastIndexOf(element, index) {
-    CHECK_OBJECT_COERCIBLE(this, "Array.prototype.lastIndexOf");
-
-    var array = this;
+    var array = TO_OBJECT(this);
     var length = TO_LENGTH(this.length);
 
     if (length == 0) return -1;
@@ -1086,8 +1066,6 @@ DEFINE_METHOD_LEN(
 DEFINE_METHOD_LEN(
   GlobalArray.prototype,
   copyWithin(target, start, end) {
-    CHECK_OBJECT_COERCIBLE(this, "Array.prototype.copyWithin");
-
     var array = TO_OBJECT(this);
     var length = TO_LENGTH(array.length);
 
@@ -1160,8 +1138,6 @@ function InnerArrayFind(predicate, thisArg, array, length) {
 DEFINE_METHOD_LEN(
   GlobalArray.prototype,
   find(predicate, thisArg) {
-    CHECK_OBJECT_COERCIBLE(this, "Array.prototype.find");
-
     var array = TO_OBJECT(this);
     var length = TO_INTEGER(array.length);
 
@@ -1191,8 +1167,6 @@ function InnerArrayFindIndex(predicate, thisArg, array, length) {
 DEFINE_METHOD_LEN(
   GlobalArray.prototype,
   findIndex(predicate, thisArg) {
-    CHECK_OBJECT_COERCIBLE(this, "Array.prototype.findIndex");
-
     var array = TO_OBJECT(this);
     var length = TO_INTEGER(array.length);
 
@@ -1206,8 +1180,6 @@ DEFINE_METHOD_LEN(
 DEFINE_METHOD_LEN(
   GlobalArray.prototype,
   fill(value, start, end) {
-    CHECK_OBJECT_COERCIBLE(this, "Array.prototype.fill");
-
     var array = TO_OBJECT(this);
     var length = TO_LENGTH(array.length);
 

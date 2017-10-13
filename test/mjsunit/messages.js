@@ -83,7 +83,7 @@ test(function() {
 
 test(function() {
   Array.prototype.shift.call(null);
-}, "Array.prototype.shift called on null or undefined", TypeError);
+}, "Cannot convert undefined or null to object", TypeError);
 
 test(function() {
   String.prototype.trim.call(null);
