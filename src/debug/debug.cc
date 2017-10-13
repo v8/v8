@@ -603,8 +603,13 @@ bool Debug::SetBreakPointForScript(Handle<Script> script,
 
   Handle<DebugInfo> debug_info(shared->GetDebugInfo());
 
-  // Find the break point and change it.
-  *source_position = FindBreakablePosition(debug_info, *source_position);
+  // Find breakable position returns first breakable position after
+  // *source_position, it can return 0 if no break location is found after
+  // *source_position.
+  int breakable_position = FindBreakablePosition(debug_info, *source_position);
+  if (breakable_position < *source_position) return false;
+  *source_position = breakable_position;
+
   DebugInfo::SetBreakPoint(debug_info, *source_position, break_point_object);
   // At least one active break point now.
   DCHECK_LT(0, debug_info->GetBreakPointCount());
