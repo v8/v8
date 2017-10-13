@@ -2751,27 +2751,6 @@ bool AreAliased(Register reg1,
 }
 #endif
 
-
-CodePatcher::CodePatcher(Isolate* isolate, byte* address, int size)
-    : address_(address),
-      size_(size),
-      masm_(isolate, address, size + Assembler::kGap, CodeObjectRequired::kNo) {
-  // Create a new macro assembler pointing to the address of the code to patch.
-  // The size is adjusted with kGap on order for the assembler to generate size
-  // bytes of instructions without failing with buffer size constraints.
-  DCHECK(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
-}
-
-
-CodePatcher::~CodePatcher() {
-  // Indicate that code has changed.
-  Assembler::FlushICache(masm_.isolate(), address_, size_);
-
-  // Check that the code was patched as expected.
-  DCHECK(masm_.pc_ == address_ + size_);
-  DCHECK(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
-}
-
 void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
                                    Condition cc, Label* condition_met,
                                    Label::Distance condition_met_distance) {

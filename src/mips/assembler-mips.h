@@ -2226,7 +2226,6 @@ class Assembler : public AssemblerBase {
 
   friend class RegExpMacroAssemblerMIPS;
   friend class RelocInfo;
-  friend class CodePatcher;
   friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;
 };

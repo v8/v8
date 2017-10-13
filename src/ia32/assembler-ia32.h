@@ -1788,7 +1788,6 @@ class Assembler : public AssemblerBase {
 
   bool is_optimizable_farjmp(int idx);
 
-  friend class CodePatcher;
   friend class EnsureSpace;
 
   // Internal reference positions, required for (potential) patching in

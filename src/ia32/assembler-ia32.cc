@@ -328,7 +328,7 @@ Assembler::Assembler(IsolateData isolate_data, void* buffer, int buffer_size)
     : AssemblerBase(isolate_data, buffer, buffer_size) {
 // Clear the buffer in debug mode unless it was provided by the
 // caller in which case we can't be sure it's okay to overwrite
-// existing code in it; see CodePatcher::CodePatcher(...).
+// existing code in it.
 #ifdef DEBUG
   if (own_buffer_) {
     memset(buffer_, 0xCC, buffer_size_);  // int3

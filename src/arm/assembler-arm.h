@@ -1724,7 +1724,6 @@ class Assembler : public AssemblerBase {
   void ConstantPoolAddEntry(int position, Double value);
 
   friend class RelocInfo;
-  friend class CodePatcher;
   friend class BlockConstPoolScope;
   friend class BlockCodeTargetSharingScope;
   friend class EnsureSpace;

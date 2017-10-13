@@ -1641,7 +1641,6 @@ class Assembler : public AssemblerBase {
 
   friend class RegExpMacroAssemblerPPC;
   friend class RelocInfo;
-  friend class CodePatcher;
   friend class BlockTrampolinePoolScope;
   friend class EnsureSpace;
 

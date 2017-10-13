@@ -1592,7 +1592,6 @@ class Assembler : public AssemblerBase {
 
   friend class RegExpMacroAssemblerS390;
   friend class RelocInfo;
-  friend class CodePatcher;
 
   std::vector<Handle<Code>> code_targets_;
   friend class EnsureSpace;

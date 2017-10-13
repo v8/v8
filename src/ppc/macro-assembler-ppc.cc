@@ -2973,49 +2973,6 @@ bool AreAliased(Register reg1, Register reg2, Register reg3, Register reg4,
 #endif
 
 
-CodePatcher::CodePatcher(Isolate* isolate, byte* address, int instructions,
-                         FlushICache flush_cache)
-    : address_(address),
-      size_(instructions * Assembler::kInstrSize),
-      masm_(isolate, address, size_ + Assembler::kGap, CodeObjectRequired::kNo),
-      flush_cache_(flush_cache) {
-  // Create a new macro assembler pointing to the address of the code to patch.
-  // The size is adjusted with kGap on order for the assembler to generate size
-  // bytes of instructions without failing with buffer size constraints.
-  DCHECK(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
-}
-
-
-CodePatcher::~CodePatcher() {
-  // Indicate that code has changed.
-  if (flush_cache_ == FLUSH) {
-    Assembler::FlushICache(masm_.isolate(), address_, size_);
-  }
-
-  // Check that the code was patched as expected.
-  DCHECK(masm_.pc_ == address_ + size_);
-  DCHECK(masm_.reloc_info_writer.pos() == address_ + size_ + Assembler::kGap);
-}
-
-
-void CodePatcher::Emit(Instr instr) { masm()->emit(instr); }
-
-
-void CodePatcher::EmitCondition(Condition cond) {
-  Instr instr = Assembler::instr_at(masm_.pc_);
-  switch (cond) {
-    case eq:
-      instr = (instr & ~kCondMask) | BT;
-      break;
-    case ne:
-      instr = (instr & ~kCondMask) | BF;
-      break;
-    default:
-      UNIMPLEMENTED();
-  }
-  masm_.emit(instr);
-}
-
 }  // namespace internal
 }  // namespace v8
 
