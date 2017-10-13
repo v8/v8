@@ -11,6 +11,7 @@
 #include "src/objects.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/string.h"
+#include "src/visitors.h"
 
 namespace v8 {
 namespace internal {

@@ -4,6 +4,8 @@
 
 #include "src/visitors.h"
 
+#include "src/objects.h"
+
 namespace v8 {
 namespace internal {
 
@@ -17,6 +19,10 @@ const char* const
 const char* const VisitorSynchronization::kTagNames
     [VisitorSynchronization::kNumberOfSyncTags] = {ROOT_ID_LIST(DECLARE_TAG)};
 #undef DECLARE_TAG
+
+void ObjectVisitor::VisitNextCodeLink(Code* host, Object** p) {
+  VisitPointers(host, p, p + 1);
+}
 
 }  // namespace internal
 }  // namespace v8
