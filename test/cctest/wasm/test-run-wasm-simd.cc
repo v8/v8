@@ -2277,14 +2277,15 @@ WASM_SIMD_TEST(SimdF32x4SetGlobal) {
     V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 WASM_SIMD_COMPILED_TEST(SimdLoadStoreLoad) {
   WasmRunner<int32_t> r(execution_mode);
-  int32_t* memory = r.builder().AddMemoryElems<int32_t>(4);
-
-  BUILD(r, WASM_SIMD_STORE_MEM(WASM_ZERO, WASM_SIMD_LOAD_MEM(WASM_ZERO)),
-        WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_SIMD_LOAD_MEM(WASM_ZERO)));
+  int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
+  // Load memory, store it, then reload it and extract the first lane. Use a
+  // non-zero offset into the memory of 1 lane (4 bytes) to test indexing.
+  BUILD(r, WASM_SIMD_STORE_MEM(WASM_I32V(4), WASM_SIMD_LOAD_MEM(WASM_I32V(4))),
+        WASM_SIMD_I32x4_EXTRACT_LANE(0, WASM_SIMD_LOAD_MEM(WASM_I32V(4))));
 
   FOR_INT32_INPUTS(i) {
     int32_t expected = *i;
-    r.builder().WriteMemory(&memory[0], expected);
+    r.builder().WriteMemory(&memory[1], expected);
     CHECK_EQ(expected, r.Call());
   }
 }

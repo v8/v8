@@ -606,9 +606,10 @@ void InstructionSelector::VisitUnalignedLoad(Node* node) {
 
       if (CpuFeatures::IsSupported(NEON)) {
         // With NEON we can load directly from the calculated address.
-        ArchOpcode op = load_rep == MachineRepresentation::kFloat64
-                            ? kArmVld1F64
-                            : kArmVld1S128;
+        InstructionCode op = load_rep == MachineRepresentation::kFloat64
+                                 ? kArmVld1F64
+                                 : kArmVld1S128;
+        op |= AddressingModeField::encode(kMode_Operand2_R);
         Emit(op, g.DefineAsRegister(node), addr);
       } else {
         DCHECK_NE(MachineRepresentation::kSimd128, load_rep);
@@ -680,9 +681,10 @@ void InstructionSelector::VisitUnalignedStore(Node* node) {
 
         inputs[input_count++] = g.UseRegister(value);
         inputs[input_count++] = address;
-        ArchOpcode op = store_rep == MachineRepresentation::kFloat64
-                            ? kArmVst1F64
-                            : kArmVst1S128;
+        InstructionCode op = store_rep == MachineRepresentation::kFloat64
+                                 ? kArmVst1F64
+                                 : kArmVst1S128;
+        op |= AddressingModeField::encode(kMode_Operand2_R);
         Emit(op, 0, nullptr, input_count, inputs);
       } else {
         DCHECK_NE(MachineRepresentation::kSimd128, store_rep);
