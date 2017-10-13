@@ -3150,8 +3150,9 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) Literal(ast_value_factory_->NewUndefined(), pos);
   }
 
-  Literal* NewTheHoleLiteral(int pos) {
-    return new (zone_) Literal(ast_value_factory_->NewTheHole(), pos);
+  Literal* NewTheHoleLiteral() {
+    return new (zone_)
+        Literal(ast_value_factory_->NewTheHole(), kNoSourcePosition);
   }
 
   ObjectLiteral* NewObjectLiteral(

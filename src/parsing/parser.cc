@@ -3212,11 +3212,6 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
   return class_literal;
 }
 
-Literal* Parser::GetLiteralUndefined(int position) {
-  return factory()->NewUndefinedLiteral(position);
-}
-
-
 void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
   Declaration* decl = scope->CheckConflictingVarDeclarations();
   if (decl != nullptr) {
@@ -3419,7 +3414,8 @@ void Parser::AddTemplateSpan(TemplateLiteralState* state, bool should_cook,
     Literal* cooked = factory()->NewStringLiteral(tv, pos);
     (*state)->AddTemplateSpan(cooked, raw, end, zone());
   } else {
-    (*state)->AddTemplateSpan(GetLiteralUndefined(pos), raw, end, zone());
+    (*state)->AddTemplateSpan(factory()->NewUndefinedLiteral(pos), raw, end,
+                              zone());
   }
 }
 

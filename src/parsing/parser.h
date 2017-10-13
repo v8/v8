@@ -427,9 +427,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       int function_token_position, FunctionLiteral::FunctionType type,
       LanguageMode language_mode, bool* ok);
 
-  // Get odd-ball literals.
-  Literal* GetLiteralUndefined(int position);
-
   // Check if the scope has conflicting var/let declarations from different
   // scopes. This covers for example
   //
@@ -849,11 +846,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Non-null empty string.
   V8_INLINE const AstRawString* EmptyIdentifierString() const {
     return ast_value_factory()->empty_string();
-  }
-
-  // Odd-ball literal creators.
-  V8_INLINE Literal* GetLiteralTheHole(int position) {
-    return factory()->NewTheHoleLiteral(kNoSourcePosition);
   }
 
   // Producing data during the recursive descent.

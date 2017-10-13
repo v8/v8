@@ -542,6 +542,9 @@ class PreParserFactory {
   PreParserExpression NewUndefinedLiteral(int pos) {
     return PreParserExpression::Default();
   }
+  PreParserExpression NewTheHoleLiteral() {
+    return PreParserExpression::Default();
+  }
   PreParserExpression NewRegExpLiteral(const PreParserIdentifier& js_pattern,
                                        int js_flags, int pos) {
     return PreParserExpression::Default();
@@ -1448,15 +1451,6 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE PreParserIdentifier EmptyIdentifierString() const {
     return PreParserIdentifier::Default();
-  }
-
-  // Odd-ball literal creators.
-  V8_INLINE PreParserExpression GetLiteralTheHole(int position) {
-    return PreParserExpression::Default();
-  }
-
-  V8_INLINE PreParserExpression GetLiteralUndefined(int position) {
-    return PreParserExpression::Default();
   }
 
   // Producing data during the recursive descent.

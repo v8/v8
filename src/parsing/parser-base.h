@@ -1364,7 +1364,7 @@ class ParserBase {
   inline StatementT BuildReturnStatement(ExpressionT expr, int pos,
                                          int end_pos = kNoSourcePosition) {
     if (impl()->IsNull(expr)) {
-      expr = impl()->GetLiteralUndefined(kNoSourcePosition);
+      expr = factory()->NewUndefinedLiteral(kNoSourcePosition);
     } else if (is_async_generator()) {
       // In async generators, if there is an explicit operand to the return
       // statement, await the operand.
@@ -2001,7 +2001,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
   while (peek() != Token::RBRACK) {
     ExpressionT elem;
     if (peek() == Token::COMMA) {
-      elem = impl()->GetLiteralTheHole(peek_position());
+      elem = factory()->NewTheHoleLiteral();
     } else if (peek() == Token::ELLIPSIS) {
       int start_pos = peek_position();
       Consume(Token::ELLIPSIS);
@@ -2450,7 +2450,7 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
       *is_rest_property = true;
 
       return factory()->NewObjectLiteralProperty(
-          impl()->GetLiteralTheHole(kNoSourcePosition), name_expression,
+          factory()->NewTheHoleLiteral(), name_expression,
           ObjectLiteralProperty::SPREAD, true);
 
     case PropertyKind::kValueProperty: {
@@ -3866,7 +3866,7 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
         }
         // 'let x' initializes 'x' to undefined.
         if (parsing_result->descriptor.mode == LET) {
-          value = impl()->GetLiteralUndefined(position());
+          value = factory()->NewUndefinedLiteral(position());
         }
       }
 
