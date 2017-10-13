@@ -45,8 +45,6 @@ typedef Operand MemOperand;
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 
-enum class ReturnAddressState { kOnStack, kNotOnStack };
-
 #ifdef DEBUG
 bool AreAliased(Register reg1,
                 Register reg2,
@@ -361,15 +359,13 @@ class TurboAssembler : public Assembler {
   }
   void LeaveFrame(StackFrame::Type type);
 
-  // Removes current frame and its arguments from the stack preserving
-  // the arguments and a return address pushed to the stack for the next call.
-  // |ra_state| defines whether return address is already pushed to stack or
-  // not. Both |callee_args_count| and |caller_args_count_reg| do not include
-  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
-  // is trashed.
+  // Removes current frame and its arguments from the stack preserving the
+  // arguments and a return address pushed to the stack for the next call.  Both
+  // |callee_args_count| and |caller_args_count_reg| do not include receiver.
+  // |callee_args_count| is not modified, |caller_args_count_reg| is trashed.
   void PrepareForTailCall(const ParameterCount& callee_args_count,
                           Register caller_args_count_reg, Register scratch0,
-                          Register scratch1, ReturnAddressState ra_state);
+                          Register scratch1);
 
   inline bool AllowThisStubCall(CodeStub* stub);
 

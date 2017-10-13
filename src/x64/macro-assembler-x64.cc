@@ -2227,8 +2227,7 @@ void MacroAssembler::MaybeDropFrames() {
 
 void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
                                         Register caller_args_count_reg,
-                                        Register scratch0, Register scratch1,
-                                        ReturnAddressState ra_state) {
+                                        Register scratch0, Register scratch1) {
 #if DEBUG
   if (callee_args_count.is_reg()) {
     DCHECK(!AreAliased(callee_args_count.reg(), caller_args_count_reg, scratch0,
@@ -2260,13 +2259,8 @@ void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
   // to avoid its trashing and let the following loop copy it to the right
   // place.
   Register tmp_reg = scratch1;
-  if (ra_state == ReturnAddressState::kOnStack) {
-    movp(tmp_reg, Operand(rbp, StandardFrameConstants::kCallerPCOffset));
-    movp(Operand(rsp, 0), tmp_reg);
-  } else {
-    DCHECK(ReturnAddressState::kNotOnStack == ra_state);
-    Push(Operand(rbp, StandardFrameConstants::kCallerPCOffset));
-  }
+  movp(tmp_reg, Operand(rbp, StandardFrameConstants::kCallerPCOffset));
+  movp(Operand(rsp, 0), tmp_reg);
 
   // Restore caller's frame pointer now as it could be overwritten by
   // the copying loop.

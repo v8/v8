@@ -38,8 +38,6 @@ enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 
 enum RegisterValueType { REGISTER_VALUE_IS_SMI, REGISTER_VALUE_IS_INT32 };
 
-enum class ReturnAddressState { kOnStack, kNotOnStack };
-
 #ifdef DEBUG
 bool AreAliased(Register reg1, Register reg2, Register reg3 = no_reg,
                 Register reg4 = no_reg, Register reg5 = no_reg,
@@ -140,18 +138,17 @@ class TurboAssembler : public Assembler {
 
   void SmiUntag(Register reg) { sar(reg, kSmiTagSize); }
 
-  // Removes current frame and its arguments from the stack preserving
-  // the arguments and a return address pushed to the stack for the next call.
-  // |ra_state| defines whether return address is already pushed to stack or
-  // not. Both |callee_args_count| and |caller_args_count_reg| do not include
-  // receiver. |callee_args_count| is not modified, |caller_args_count_reg|
-  // is trashed. |number_of_temp_values_after_return_address| specifies
-  // the number of words pushed to the stack after the return address. This is
-  // to allow "allocation" of scratch registers that this function requires
-  // by saving their values on the stack.
+  // Removes current frame and its arguments from the stack preserving the
+  // arguments and a return address pushed to the stack for the next call. Both
+  // |callee_args_count| and |caller_args_count_reg| do not include receiver.
+  // |callee_args_count| is not modified, |caller_args_count_reg| is trashed.
+  // |number_of_temp_values_after_return_address| specifies the number of words
+  // pushed to the stack after the return address. This is to allow "allocation"
+  // of scratch registers that this function requires by saving their values on
+  // the stack.
   void PrepareForTailCall(const ParameterCount& callee_args_count,
                           Register caller_args_count_reg, Register scratch0,
-                          Register scratch1, ReturnAddressState ra_state,
+                          Register scratch1,
                           int number_of_temp_values_after_return_address);
 
   // Before calling a C-function from generated code, align arguments on stack.

@@ -850,7 +850,7 @@ void CodeGenerator::AssemblePopArgumentsAdaptorFrame(Register args_reg,
 
   ParameterCount callee_args_count(args_reg);
   __ PrepareForTailCall(callee_args_count, caller_args_count_reg, scratch2,
-                        scratch3, ReturnAddressState::kOnStack, scratch_count);
+                        scratch3, scratch_count);
   __ pop(scratch3);
   __ pop(scratch2);
   __ pop(scratch1);

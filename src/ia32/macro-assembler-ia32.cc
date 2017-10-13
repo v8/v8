@@ -925,7 +925,7 @@ void MacroAssembler::JumpToExternalReference(const ExternalReference& ext,
 
 void TurboAssembler::PrepareForTailCall(
     const ParameterCount& callee_args_count, Register caller_args_count_reg,
-    Register scratch0, Register scratch1, ReturnAddressState ra_state,
+    Register scratch0, Register scratch1,
     int number_of_temp_values_after_return_address) {
 #if DEBUG
   if (callee_args_count.is_reg()) {
@@ -934,8 +934,6 @@ void TurboAssembler::PrepareForTailCall(
   } else {
     DCHECK(!AreAliased(caller_args_count_reg, scratch0, scratch1));
   }
-  DCHECK(ra_state != ReturnAddressState::kNotOnStack ||
-         number_of_temp_values_after_return_address == 0);
 #endif
 
   // Calculate the destination address where we will put the return address
@@ -964,15 +962,9 @@ void TurboAssembler::PrepareForTailCall(
   // to avoid its trashing and let the following loop copy it to the right
   // place.
   Register tmp_reg = scratch1;
-  if (ra_state == ReturnAddressState::kOnStack) {
-    mov(tmp_reg, Operand(ebp, StandardFrameConstants::kCallerPCOffset));
-    mov(Operand(esp, number_of_temp_values_after_return_address * kPointerSize),
-        tmp_reg);
-  } else {
-    DCHECK(ReturnAddressState::kNotOnStack == ra_state);
-    DCHECK_EQ(0, number_of_temp_values_after_return_address);
-    Push(Operand(ebp, StandardFrameConstants::kCallerPCOffset));
-  }
+  mov(tmp_reg, Operand(ebp, StandardFrameConstants::kCallerPCOffset));
+  mov(Operand(esp, number_of_temp_values_after_return_address * kPointerSize),
+      tmp_reg);
 
   // Restore caller's frame pointer now as it could be overwritten by
   // the copying loop.
