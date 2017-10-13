@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_BACKGROUND_PARSING_TASK_H_
-#define V8_BACKGROUND_PARSING_TASK_H_
+#ifndef V8_PARSING_BACKGROUND_PARSING_TASK_H_
+#define V8_PARSING_BACKGROUND_PARSING_TASK_H_
 
 #include <memory>
 
@@ -46,7 +46,6 @@ struct StreamedSource {
   StreamedSource& operator=(const StreamedSource&) = delete;
 };
 
-
 class BackgroundParsingTask : public ScriptCompiler::ScriptStreamingTask {
  public:
   BackgroundParsingTask(StreamedSource* source,
@@ -63,4 +62,4 @@ class BackgroundParsingTask : public ScriptCompiler::ScriptStreamingTask {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_BACKGROUND_PARSING_TASK_H_
+#endif  // V8_PARSING_BACKGROUND_PARSING_TASK_H_
