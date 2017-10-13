@@ -6612,6 +6612,11 @@ void store_uint32_elements_of_vector(MacroAssembler& assm, MSARegister w,
   __ st_w(w, MemOperand(a, 0));
 }
 
+void store_uint16_elements_of_vector(MacroAssembler& assm, MSARegister w,
+                                     Register a) {
+  __ st_h(w, MemOperand(a, 0));
+}
+
 TEST(MSA_fill_copy) {
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -10222,6 +10227,723 @@ TEST(MSA_3R_instructions) {
 #undef DIV_DF
 #undef MOD_DF
 #undef SRAR_DF
+}
+
+struct TestCaseMsa3RF {
+  uint64_t ws_lo;
+  uint64_t ws_hi;
+  uint64_t wt_lo;
+  uint64_t wt_hi;
+  uint64_t wd_lo;
+  uint64_t wd_hi;
+};
+
+struct ExpectedResult_MSA3RF {
+  uint64_t exp_res_lo;
+  uint64_t exp_res_hi;
+};
+
+template <typename Func, typename FuncLoad, typename FuncStore>
+void run_msa_3rf(const struct TestCaseMsa3RF* input,
+                 const struct ExpectedResult_MSA3RF* output,
+                 Func Generate2RInstructionFunc,
+                 FuncLoad load_elements_of_vector,
+                 FuncStore store_elements_of_vector) {
+  Isolate* isolate = CcTest::i_isolate();
+  HandleScope scope(isolate);
+
+  MacroAssembler assm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  CpuFeatureScope fscope(&assm, MIPS_SIMD);
+  msa_reg_t res;
+
+  load_elements_of_vector(
+      assm, reinterpret_cast<const uint64_t*>(&input->ws_lo), w0, t0, t1);
+  load_elements_of_vector(
+      assm, reinterpret_cast<const uint64_t*>(&input->wt_lo), w1, t0, t1);
+  load_elements_of_vector(
+      assm, reinterpret_cast<const uint64_t*>(&input->wd_lo), w2, t0, t1);
+  Generate2RInstructionFunc(assm);
+  store_elements_of_vector(assm, w2, a0);
+
+  __ jr(ra);
+  __ nop();
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+#ifdef OBJECT_PRINT
+  code->Print(std::cout);
+#endif
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+
+  (CALL_GENERATED_CODE(isolate, f, &res, 0, 0, 0, 0));
+
+  if (store_elements_of_vector == store_uint64_elements_of_vector) {
+    CHECK_EQ(output->exp_res_lo, res.d[0]);
+    CHECK_EQ(output->exp_res_hi, res.d[1]);
+  } else if (store_elements_of_vector == store_uint32_elements_of_vector) {
+    const uint32_t* exp_res =
+        reinterpret_cast<const uint32_t*>(&output->exp_res_lo);
+    CHECK_EQ(exp_res[0], res.w[0]);
+    CHECK_EQ(exp_res[1], res.w[1]);
+    CHECK_EQ(exp_res[2], res.w[2]);
+    CHECK_EQ(exp_res[3], res.w[3]);
+  } else {
+    const uint16_t* exp_res =
+        reinterpret_cast<const uint16_t*>(&output->exp_res_lo);
+    CHECK_EQ(exp_res[0], res.h[0]);
+    CHECK_EQ(exp_res[1], res.h[1]);
+    CHECK_EQ(exp_res[2], res.h[2]);
+    CHECK_EQ(exp_res[3], res.h[3]);
+    CHECK_EQ(exp_res[4], res.h[4]);
+    CHECK_EQ(exp_res[5], res.h[5]);
+    CHECK_EQ(exp_res[6], res.h[6]);
+    CHECK_EQ(exp_res[7], res.h[7]);
+  }
+}
+
+struct TestCaseMsa3RF_F {
+  float ws_1, ws_2, ws_3, ws_4;
+  float wt_1, wt_2, wt_3, wt_4;
+  float wd_1, wd_2, wd_3, wd_4;
+};
+struct ExpRes_32I {
+  int32_t exp_res_1;
+  int32_t exp_res_2;
+  int32_t exp_res_3;
+  int32_t exp_res_4;
+};
+
+struct TestCaseMsa3RF_D {
+  double ws_lo, ws_hi;
+  double wt_lo, wt_hi;
+  double wd_lo, wd_hi;
+};
+struct ExpRes_64I {
+  int64_t exp_res_lo;
+  int64_t exp_res_hi;
+};
+
+TEST(MSA_floating_point_quiet_compare) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float qnan_f = std::numeric_limits<float>::quiet_NaN();
+  const double qnan_d = std::numeric_limits<double>::quiet_NaN();
+  const float inf_f = std::numeric_limits<float>::infinity();
+  const double inf_d = std::numeric_limits<double>::infinity();
+  const int32_t ones = -1;
+
+  const struct TestCaseMsa3RF_F tc_w[]{
+      {qnan_f, -qnan_f, inf_f, 2.14e9f,  // ws
+       qnan_f, 0.f, qnan_f, -2.14e9f,    // wt
+       0, 0, 0, 0},                      // wd
+      {inf_f, -inf_f, -3.4e38f, 1.5e-45f, -inf_f, -inf_f, -inf_f, inf_f, 0, 0,
+       0, 0},
+      {0.f, 19.871e24f, -1.5e-45f, -1.5e-45f, -19.871e24f, 19.871e24f, 1.5e-45f,
+       -1.5e-45f, 0, 0, 0, 0}};
+
+  const struct TestCaseMsa3RF_D tc_d[]{
+      // ws_lo, ws_hi, wt_lo, wt_hi, wd_lo, wd_hi
+      {qnan_d, -qnan_d, qnan_f, 0., 0, 0},
+      {inf_d, 9.22e18, qnan_d, -9.22e18, 0, 0},
+      {inf_d, inf_d, -inf_d, inf_d, 0, 0},
+      {-2.3e-308, 5e-324, -inf_d, inf_d, 0, 0},
+      {0., 24.1e87, -1.6e308, 24.1e87, 0, 0},
+      {-5e-324, -5e-324, 5e-324, -5e-324, 0, 0}};
+
+  const struct ExpectedResult_MSA3RF exp_res_fcaf = {0, 0};
+  const struct ExpRes_32I exp_res_fcun_w[] = {
+      {ones, ones, ones, 0}, {0, 0, 0, 0}, {0, 0, 0, 0}};
+  const struct ExpRes_64I exp_res_fcun_d[] = {{ones, ones}, {ones, 0}, {0, 0},
+                                              {0, 0},       {0, 0},    {0, 0}};
+  const struct ExpRes_32I exp_res_fceq_w[] = {
+      {0, 0, 0, 0}, {0, ones, 0, 0}, {0, ones, 0, ones}};
+  const struct ExpRes_64I exp_res_fceq_d[] = {{0, 0}, {0, 0},    {0, ones},
+                                              {0, 0}, {0, ones}, {0, ones}};
+  const struct ExpRes_32I exp_res_fcueq_w[] = {
+      {ones, ones, ones, 0}, {0, ones, 0, 0}, {0, ones, 0, ones}};
+  const struct ExpRes_64I exp_res_fcueq_d[] = {
+      {ones, ones}, {ones, 0}, {0, ones}, {0, 0}, {0, ones}, {0, ones}};
+  const struct ExpRes_32I exp_res_fclt_w[] = {
+      {0, 0, 0, 0}, {0, 0, 0, ones}, {0, 0, ones, 0}};
+  const struct ExpRes_64I exp_res_fclt_d[] = {{0, 0},    {0, 0}, {0, 0},
+                                              {0, ones}, {0, 0}, {ones, 0}};
+  const struct ExpRes_32I exp_res_fcult_w[] = {
+      {ones, ones, ones, 0}, {0, 0, 0, ones}, {0, 0, ones, 0}};
+  const struct ExpRes_64I exp_res_fcult_d[] = {
+      {ones, ones}, {ones, 0}, {0, 0}, {0, ones}, {0, 0}, {ones, 0}};
+  const struct ExpRes_32I exp_res_fcle_w[] = {
+      {0, 0, 0, 0}, {0, ones, 0, ones}, {0, ones, ones, ones}};
+  const struct ExpRes_64I exp_res_fcle_d[] = {
+      {0, 0}, {0, 0}, {0, ones}, {0, ones}, {0, ones}, {ones, ones}};
+  const struct ExpRes_32I exp_res_fcule_w[] = {
+      {ones, ones, ones, 0}, {0, ones, 0, ones}, {0, ones, ones, ones}};
+  const struct ExpRes_64I exp_res_fcule_d[] = {
+      {ones, ones}, {ones, 0}, {0, ones}, {0, ones}, {0, ones}, {ones, ones}};
+  const struct ExpRes_32I exp_res_fcor_w[] = {
+      {0, 0, 0, ones}, {ones, ones, ones, ones}, {ones, ones, ones, ones}};
+  const struct ExpRes_64I exp_res_fcor_d[] = {{0, 0},       {0, ones},
+                                              {ones, ones}, {ones, ones},
+                                              {ones, ones}, {ones, ones}};
+  const struct ExpRes_32I exp_res_fcune_w[] = {
+      {ones, ones, ones, ones}, {ones, 0, ones, ones}, {ones, 0, ones, 0}};
+  const struct ExpRes_64I exp_res_fcune_d[] = {{ones, ones}, {ones, ones},
+                                               {ones, 0},    {ones, ones},
+                                               {ones, 0},    {ones, 0}};
+  const struct ExpRes_32I exp_res_fcne_w[] = {
+      {0, 0, 0, ones}, {ones, 0, ones, ones}, {ones, 0, ones, 0}};
+  const struct ExpRes_64I exp_res_fcne_d[] = {
+      {0, 0}, {0, ones}, {ones, 0}, {ones, ones}, {ones, 0}, {ones, 0}};
+
+#define TEST_FP_QUIET_COMPARE_W(instruction, src, exp_res)                    \
+  run_msa_3rf(reinterpret_cast<const struct TestCaseMsa3RF*>(src),            \
+              reinterpret_cast<const struct ExpectedResult_MSA3RF*>(exp_res), \
+              [](MacroAssembler& assm) { __ instruction(w2, w0, w1); },       \
+              load_uint32_elements_of_vector,                                 \
+              store_uint32_elements_of_vector);
+#define TEST_FP_QUIET_COMPARE_D(instruction, src, exp_res)                    \
+  run_msa_3rf(reinterpret_cast<const struct TestCaseMsa3RF*>(src),            \
+              reinterpret_cast<const struct ExpectedResult_MSA3RF*>(exp_res), \
+              [](MacroAssembler& assm) { __ instruction(w2, w0, w1); },       \
+              load_uint64_elements_of_vector,                                 \
+              store_uint64_elements_of_vector);
+
+  for (uint64_t i = 0; i < arraysize(tc_w); i++) {
+    TEST_FP_QUIET_COMPARE_W(fcaf_w, &tc_w[i], &exp_res_fcaf)
+    TEST_FP_QUIET_COMPARE_W(fcun_w, &tc_w[i], &exp_res_fcun_w[i])
+    TEST_FP_QUIET_COMPARE_W(fceq_w, &tc_w[i], &exp_res_fceq_w[i])
+    TEST_FP_QUIET_COMPARE_W(fcueq_w, &tc_w[i], &exp_res_fcueq_w[i])
+    TEST_FP_QUIET_COMPARE_W(fclt_w, &tc_w[i], &exp_res_fclt_w[i])
+    TEST_FP_QUIET_COMPARE_W(fcult_w, &tc_w[i], &exp_res_fcult_w[i])
+    TEST_FP_QUIET_COMPARE_W(fcle_w, &tc_w[i], &exp_res_fcle_w[i])
+    TEST_FP_QUIET_COMPARE_W(fcule_w, &tc_w[i], &exp_res_fcule_w[i])
+    TEST_FP_QUIET_COMPARE_W(fcor_w, &tc_w[i], &exp_res_fcor_w[i])
+    TEST_FP_QUIET_COMPARE_W(fcune_w, &tc_w[i], &exp_res_fcune_w[i])
+    TEST_FP_QUIET_COMPARE_W(fcne_w, &tc_w[i], &exp_res_fcne_w[i])
+  }
+  for (uint64_t i = 0; i < arraysize(tc_d); i++) {
+    TEST_FP_QUIET_COMPARE_D(fcaf_d, &tc_d[i], &exp_res_fcaf)
+    TEST_FP_QUIET_COMPARE_D(fcun_d, &tc_d[i], &exp_res_fcun_d[i])
+    TEST_FP_QUIET_COMPARE_D(fceq_d, &tc_d[i], &exp_res_fceq_d[i])
+    TEST_FP_QUIET_COMPARE_D(fcueq_d, &tc_d[i], &exp_res_fcueq_d[i])
+    TEST_FP_QUIET_COMPARE_D(fclt_d, &tc_d[i], &exp_res_fclt_d[i])
+    TEST_FP_QUIET_COMPARE_D(fcult_d, &tc_d[i], &exp_res_fcult_d[i])
+    TEST_FP_QUIET_COMPARE_D(fcle_d, &tc_d[i], &exp_res_fcle_d[i])
+    TEST_FP_QUIET_COMPARE_D(fcule_d, &tc_d[i], &exp_res_fcule_d[i])
+    TEST_FP_QUIET_COMPARE_D(fcor_d, &tc_d[i], &exp_res_fcor_d[i])
+    TEST_FP_QUIET_COMPARE_D(fcune_d, &tc_d[i], &exp_res_fcune_d[i])
+    TEST_FP_QUIET_COMPARE_D(fcne_d, &tc_d[i], &exp_res_fcne_d[i])
+  }
+#undef TEST_FP_QUIET_COMPARE_W
+#undef TEST_FP_QUIET_COMPARE_D
+}
+
+template <typename T>
+inline const T* fadd_function(const T* src1, const T* src2, const T* src3,
+                              T* dst) {
+  for (uint64_t i = 0; i < kMSALanesByte / sizeof(T); i++) {
+    dst[i] = src1[i] + src2[i];
+  }
+  return dst;
+}
+template <typename T>
+inline const T* fsub_function(const T* src1, const T* src2, const T* src3,
+                              T* dst) {
+  for (uint64_t i = 0; i < kMSALanesByte / sizeof(T); i++) {
+    dst[i] = src1[i] - src2[i];
+  }
+  return dst;
+}
+template <typename T>
+inline const T* fmul_function(const T* src1, const T* src2, const T* src3,
+                              T* dst) {
+  for (uint64_t i = 0; i < kMSALanesByte / sizeof(T); i++) {
+    dst[i] = src1[i] * src2[i];
+  }
+  return dst;
+}
+template <typename T>
+inline const T* fdiv_function(const T* src1, const T* src2, const T* src3,
+                              T* dst) {
+  for (uint64_t i = 0; i < kMSALanesByte / sizeof(T); i++) {
+    dst[i] = src1[i] / src2[i];
+  }
+  return dst;
+}
+template <typename T>
+inline const T* fmadd_function(const T* src1, const T* src2, const T* src3,
+                               T* dst) {
+  for (uint64_t i = 0; i < kMSALanesByte / sizeof(T); i++) {
+    dst[i] = std::fma(src1[i], src2[i], src3[i]);
+  }
+  return dst;
+}
+template <typename T>
+inline const T* fmsub_function(const T* src1, const T* src2, const T* src3,
+                               T* dst) {
+  for (uint64_t i = 0; i < kMSALanesByte / sizeof(T); i++) {
+    dst[i] = std::fma(src1[i], -src2[i], src3[i]);
+  }
+  return dst;
+}
+
+TEST(MSA_floating_point_arithmetic) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float inf_f = std::numeric_limits<float>::infinity();
+  const double inf_d = std::numeric_limits<double>::infinity();
+
+  const struct TestCaseMsa3RF_F tc_w[] = {
+      {0.3, -2.14e13f, inf_f, 0.f,                     // ws
+       -inf_f, std::sqrt(8.e-26f), -23.e34, -2.14e9f,  // wt
+       -1e30f, 4.6e12f, 0, 2.14e9f},                   // wd
+      {3.4e38f, -1.2e-38f, 1e19f, -1e19f, 3.4e38f, 1.2e-38f, -1e19f, -1e-19f,
+       3.4e38f, 1.2e-38f * 3, 3.4e38f, -4e19f},
+      {-3e-31f, 3e10f, 1e25f, 123.f, 1e-14f, 1e-34f, 4e25f, 321.f, 3e-17f,
+       2e-24f, 2.f, -123456.f}};
+
+  const struct TestCaseMsa3RF_D tc_d[] = {
+      // ws_lo, ws_hi, wt_lo, wt_hi, wd_lo, wd_hi
+      {0.3, -2.14e103, -inf_d, std::sqrt(8.e-206), -1e30, 4.6e102},
+      {inf_d, 0., -23.e304, -2.104e9, 0, 2.104e9},
+      {3.4e307, -1.2e-307, 3.4e307, 1.2e-307, 3.4e307, 1.2e-307 * 3},
+      {1e154, -1e154, -1e154, -1e-154, 2.9e38, -4e19},
+      {-3e-301, 3e100, 1e-104, 1e-304, 3e-107, 2e-204},
+      {1e205, 123., 4e205, 321., 2., -123456.}};
+
+  struct ExpectedResult_MSA3RF dst_container;
+
+#define FP_ARITHMETIC_DF_W(instr, function, src1, src2, src3)           \
+  run_msa_3rf(                                                          \
+      reinterpret_cast<const struct TestCaseMsa3RF*>(src1),             \
+      reinterpret_cast<const struct ExpectedResult_MSA3RF*>(function(   \
+          src1, src2, src3, reinterpret_cast<float*>(&dst_container))), \
+      [](MacroAssembler& assm) { __ instr(w2, w0, w1); },               \
+      load_uint32_elements_of_vector, store_uint32_elements_of_vector);
+
+#define FP_ARITHMETIC_DF_D(instr, function, src1, src2, src3)            \
+  run_msa_3rf(                                                           \
+      reinterpret_cast<const struct TestCaseMsa3RF*>(src1),              \
+      reinterpret_cast<const struct ExpectedResult_MSA3RF*>(function(    \
+          src1, src2, src3, reinterpret_cast<double*>(&dst_container))), \
+      [](MacroAssembler& assm) { __ instr(w2, w0, w1); },                \
+      load_uint64_elements_of_vector, store_uint64_elements_of_vector);
+
+  for (uint64_t i = 0; i < arraysize(tc_w); i++) {
+    FP_ARITHMETIC_DF_W(fadd_w, fadd_function, &tc_w[i].ws_1, &tc_w[i].wt_1,
+                       &tc_w[i].wd_1)
+    FP_ARITHMETIC_DF_W(fsub_w, fsub_function, &tc_w[i].ws_1, &tc_w[i].wt_1,
+                       &tc_w[i].wd_1)
+    FP_ARITHMETIC_DF_W(fmul_w, fmul_function, &tc_w[i].ws_1, &tc_w[i].wt_1,
+                       &tc_w[i].wd_1)
+    FP_ARITHMETIC_DF_W(fdiv_w, fdiv_function, &tc_w[i].ws_1, &tc_w[i].wt_1,
+                       &tc_w[i].wd_1)
+    FP_ARITHMETIC_DF_W(fmadd_w, fmadd_function, &tc_w[i].ws_1, &tc_w[i].wt_1,
+                       &tc_w[i].wd_1)
+    FP_ARITHMETIC_DF_W(fmsub_w, fmsub_function, &tc_w[i].ws_1, &tc_w[i].wt_1,
+                       &tc_w[i].wd_1)
+  }
+  for (uint64_t i = 0; i < arraysize(tc_d); i++) {
+    FP_ARITHMETIC_DF_D(fadd_d, fadd_function, &tc_d[i].ws_lo, &tc_d[i].wt_lo,
+                       &tc_d[i].wd_lo)
+    FP_ARITHMETIC_DF_D(fsub_d, fsub_function, &tc_d[i].ws_lo, &tc_d[i].wt_lo,
+                       &tc_d[i].wd_lo)
+    FP_ARITHMETIC_DF_D(fmul_d, fmul_function, &tc_d[i].ws_lo, &tc_d[i].wt_lo,
+                       &tc_d[i].wd_lo)
+    FP_ARITHMETIC_DF_D(fdiv_d, fdiv_function, &tc_d[i].ws_lo, &tc_d[i].wt_lo,
+                       &tc_d[i].wd_lo)
+    FP_ARITHMETIC_DF_D(fmadd_d, fmadd_function, &tc_d[i].ws_lo, &tc_d[i].wt_lo,
+                       &tc_d[i].wd_lo)
+    FP_ARITHMETIC_DF_D(fmsub_d, fmsub_function, &tc_d[i].ws_lo, &tc_d[i].wt_lo,
+                       &tc_d[i].wd_lo)
+  }
+#undef FP_ARITHMETIC_DF_W
+#undef FP_ARITHMETIC_DF_D
+}
+
+struct ExpRes_F {
+  float exp_res_1;
+  float exp_res_2;
+  float exp_res_3;
+  float exp_res_4;
+};
+
+struct ExpRes_D {
+  double exp_res_1;
+  double exp_res_2;
+};
+
+TEST(MSA_fmin_fmin_a_fmax_fmax_a) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float inf_f = std::numeric_limits<float>::infinity();
+  const double inf_d = std::numeric_limits<double>::infinity();
+
+  const struct TestCaseMsa3RF_F tc_w[] = {
+      {0.3f, -2.14e13f, inf_f, -0.f,                    // ws
+       -inf_f, -std::sqrt(8.e26f), -23.e34f, -2.14e9f,  // wt
+       0, 0, 0, 0},                                     // wd
+      {3.4e38f, 1.2e-41f, 1e19f, 1e19f,                 // ws
+       3.4e38f, -1.1e-41f, -1e-42f, -1e29f,             // wt
+       0, 0, 0, 0}};                                    // wd
+
+  const struct TestCaseMsa3RF_D tc_d[] = {
+      // ws_lo, ws_hi, wt_lo, wt_hi, wd_lo, wd_hi
+      {0.3, -2.14e103, -inf_d, -std::sqrt(8e206), 0, 0},
+      {inf_d, -0., -23e304, -2.14e90, 0, 0},
+      {3.4e307, 1.2e-320, 3.4e307, -1.1e-320, 0, 0},
+      {1e154, 1e154, -1e-321, -1e174, 0, 0}};
+
+  const struct ExpRes_F exp_res_fmax_w[] = {{0.3f, -2.14e13f, inf_f, -0.f},
+                                            {3.4e38f, 1.2e-41f, 1e19f, 1e19f}};
+  const struct ExpRes_F exp_res_fmax_a_w[] = {
+      {-inf_f, -std::sqrt(8e26f), inf_f, -2.14e9f},
+      {3.4e38f, 1.2e-41f, 1e19f, -1e29f}};
+  const struct ExpRes_F exp_res_fmin_w[] = {
+      {-inf_f, -std::sqrt(8.e26f), -23e34f, -2.14e9f},
+      {3.4e38f, -1.1e-41f, -1e-42f, -1e29f}};
+  const struct ExpRes_F exp_res_fmin_a_w[] = {
+      {0.3, -2.14e13f, -23.e34f, -0.f}, {3.4e38f, -1.1e-41f, -1e-42f, 1e19f}};
+
+  const struct ExpRes_D exp_res_fmax_d[] = {
+      {0.3, -2.14e103}, {inf_d, -0.}, {3.4e307, 1.2e-320}, {1e154, 1e154}};
+  const struct ExpRes_D exp_res_fmax_a_d[] = {{-inf_d, -std::sqrt(8e206)},
+                                              {inf_d, -2.14e90},
+                                              {3.4e307, 1.2e-320},
+                                              {1e154, -1e174}};
+  const struct ExpRes_D exp_res_fmin_d[] = {{-inf_d, -std::sqrt(8e206)},
+                                            {-23e304, -2.14e90},
+                                            {3.4e307, -1.1e-320},
+                                            {-1e-321, -1e174}};
+  const struct ExpRes_D exp_res_fmin_a_d[] = {
+      {0.3, -2.14e103}, {-23e304, -0.}, {3.4e307, -1.1e-320}, {-1e-321, 1e154}};
+
+#define TEST_FP_MIN_MAX_W(instruction, src, exp_res)                          \
+  run_msa_3rf(reinterpret_cast<const struct TestCaseMsa3RF*>(src),            \
+              reinterpret_cast<const struct ExpectedResult_MSA3RF*>(exp_res), \
+              [](MacroAssembler& assm) { __ instruction(w2, w0, w1); },       \
+              load_uint32_elements_of_vector,                                 \
+              store_uint32_elements_of_vector);
+
+#define TEST_FP_MIN_MAX_D(instruction, src, exp_res)                          \
+  run_msa_3rf(reinterpret_cast<const struct TestCaseMsa3RF*>(src),            \
+              reinterpret_cast<const struct ExpectedResult_MSA3RF*>(exp_res), \
+              [](MacroAssembler& assm) { __ instruction(w2, w0, w1); },       \
+              load_uint64_elements_of_vector,                                 \
+              store_uint64_elements_of_vector);
+
+  for (uint64_t i = 0; i < arraysize(tc_w); i++) {
+    TEST_FP_MIN_MAX_W(fmax_w, &tc_w[i], &exp_res_fmax_w[i])
+    TEST_FP_MIN_MAX_W(fmax_a_w, &tc_w[i], &exp_res_fmax_a_w[i])
+    TEST_FP_MIN_MAX_W(fmin_w, &tc_w[i], &exp_res_fmin_w[i])
+    TEST_FP_MIN_MAX_W(fmin_a_w, &tc_w[i], &exp_res_fmin_a_w[i])
+  }
+
+  for (uint64_t i = 0; i < arraysize(tc_d); i++) {
+    TEST_FP_MIN_MAX_D(fmax_d, &tc_d[i], &exp_res_fmax_d[i])
+    TEST_FP_MIN_MAX_D(fmax_a_d, &tc_d[i], &exp_res_fmax_a_d[i])
+    TEST_FP_MIN_MAX_D(fmin_d, &tc_d[i], &exp_res_fmin_d[i])
+    TEST_FP_MIN_MAX_D(fmin_a_d, &tc_d[i], &exp_res_fmin_a_d[i])
+  }
+#undef TEST_FP_MIN_MAX_W
+#undef TEST_FP_MIN_MAX_D
+}
+
+struct TestCaseMsa3RF_16I {
+  int16_t ws_1, ws_2, ws_3, ws_4, ws_5, ws_6, ws_7, ws_8;
+  int16_t wt_1, wt_2, wt_3, wt_4, wt_5, wt_6, wt_7, wt_8;
+  int16_t wd_1, wd_2, wd_3, wd_4, wd_5, wd_6, wd_7, wd_8;
+};
+struct ExpRes_16I {
+  int16_t exp_res_1;
+  int16_t exp_res_2;
+  int16_t exp_res_3;
+  int16_t exp_res_4;
+  int16_t exp_res_5;
+  int16_t exp_res_6;
+  int16_t exp_res_7;
+  int16_t exp_res_8;
+};
+
+struct TestCaseMsa3RF_32I {
+  int32_t ws_1, ws_2, ws_3, ws_4;
+  int32_t wt_1, wt_2, wt_3, wt_4;
+  int32_t wd_1, wd_2, wd_3, wd_4;
+};
+
+TEST(MSA_fixed_point_arithmetic) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const struct TestCaseMsa3RF tc_h[]{
+      {0x800080007fff7fff, 0xe1ed8000fad3863a, 0x80007fff00af7fff,
+       0x800015a77fffa0eb, 0x7fff800080007fff, 0x80007fff1f207364},
+      {0x800080007fff006a, 0x002affc4329ad87b, 0x80007fff7fff00f3,
+       0xffecffb4d0d7f429, 0x80007fff80007c33, 0x54ac6bbce53b8c91}};
+
+  const struct TestCaseMsa3RF tc_w[]{
+      {0x8000000080000000, 0x7fffffff7fffffff, 0x800000007fffffff,
+       0x00001ff37fffffff, 0x7fffffff80000000, 0x800000007fffffff},
+      {0xe1ed035580000000, 0xfad3863aed462c0b, 0x8000000015a70aec,
+       0x7fffffffa0ebd354, 0x800000007fffffff, 0xd0d7f4291f207364},
+      {0x8000000080000000, 0x7fffffff0000da1f, 0x800000007fffffff,
+       0x7fffffff00f39c3b, 0x800000007fffffff, 0x800000007c33f2fd},
+      {0x0000ac33ffff329a, 0x54ac6bbce53bd87b, 0xffffe2b4d0d7f429,
+       0x0355ed462c0b1ff3, 0xb5deb625939dd3f9, 0xe642adfa69519596}};
+
+  const struct ExpectedResult_MSA3RF exp_res_mul_q_h[] = {
+      {0x7fff800100ae7ffe, 0x1e13ea59fad35a74},
+      {0x7fff80017ffe0000, 0xffff0000ed5b03a7}};
+  const struct ExpectedResult_MSA3RF exp_res_madd_q_h[] = {
+      {0x7fff800080ae7fff, 0x9e136a5819f37fff},
+      {0x00000000fffe7c33, 0x54ab6bbcd2969038}};
+  const struct ExpectedResult_MSA3RF exp_res_msub_q_h[] = {
+      {0xffffffff80000000, 0x80007fff244c18ef},
+      {0x80007fff80007c32, 0x54ac6bbbf7df88e9}};
+  const struct ExpectedResult_MSA3RF exp_res_mulr_q_h[] = {
+      {0x7fff800100af7ffe, 0x1e13ea59fad35a75},
+      {0x7fff80017ffe0001, 0x00000000ed5b03a8}};
+  const struct ExpectedResult_MSA3RF exp_res_maddr_q_h[] = {
+      {0x7fff800080af7fff, 0x9e136a5819f37fff},
+      {0x00000000fffe7c34, 0x54ac6bbcd2969039}};
+  const struct ExpectedResult_MSA3RF exp_res_msubr_q_h[] = {
+      {0xffffffff80000001, 0x80007fff244d18ef},
+      {0x80007fff80007c32, 0x54ac6bbcf7e088e9}};
+
+  const struct ExpectedResult_MSA3RF exp_res_mul_q_w[] = {
+      {0x7fffffff80000001, 0x00001ff27ffffffe},
+      {0x1e12fcabea58f514, 0xfad3863a0de8dee1},
+      {0x7fffffff80000001, 0x7ffffffe0000019f},
+      {0xffffffff00004bab, 0x0234e1fbf6ca3ee0}};
+  const struct ExpectedResult_MSA3RF exp_res_madd_q_w[] = {
+      {0x7fffffff80000000, 0x80001ff27fffffff},
+      {0x9e12fcab6a58f513, 0xcbab7a632d095245},
+      {0x0000000000000000, 0xfffffffe7c33f49c},
+      {0xb5deb624939e1fa4, 0xe8778ff5601bd476}};
+  const struct ExpectedResult_MSA3RF exp_res_msub_q_w[] = {
+      {0xffffffffffffffff, 0x8000000000000000},
+      {0x800000007fffffff, 0xd6046dee11379482},
+      {0x800000007fffffff, 0x800000007c33f15d},
+      {0xb5deb625939d884d, 0xe40dcbfe728756b5}};
+  const struct ExpectedResult_MSA3RF exp_res_mulr_q_w[] = {
+      {0x7fffffff80000001, 0x00001ff37ffffffe},
+      {0x1e12fcabea58f514, 0xfad3863a0de8dee2},
+      {0x7fffffff80000001, 0x7ffffffe0000019f},
+      {0x0000000000004bac, 0x0234e1fcf6ca3ee1}};
+  const struct ExpectedResult_MSA3RF exp_res_maddr_q_w[] = {
+      {0x7fffffff80000000, 0x80001ff37fffffff},
+      {0x9e12fcab6a58f513, 0xcbab7a632d095246},
+      {0x0000000000000000, 0xfffffffe7c33f49c},
+      {0xb5deb625939e1fa5, 0xe8778ff6601bd477}};
+  const struct ExpectedResult_MSA3RF exp_res_msubr_q_w[] = {
+      {0xffffffffffffffff, 0x8000000000000001},
+      {0x800000007fffffff, 0xd6046def11379482},
+      {0x800000007fffffff, 0x800000007c33f15e},
+      {0xb5deb625939d884d, 0xe40dcbfe728756b5}};
+
+#define TEST_FIXED_POINT_DF_H(instruction, src, exp_res)                \
+  run_msa_3rf((src), (exp_res),                                         \
+              [](MacroAssembler& assm) { __ instruction(w2, w0, w1); }, \
+              load_uint16_elements_of_vector,                           \
+              store_uint16_elements_of_vector);
+
+#define TEST_FIXED_POINT_DF_W(instruction, src, exp_res)                \
+  run_msa_3rf((src), (exp_res),                                         \
+              [](MacroAssembler& assm) { __ instruction(w2, w0, w1); }, \
+              load_uint32_elements_of_vector,                           \
+              store_uint32_elements_of_vector);
+
+  for (uint64_t i = 0; i < arraysize(tc_h); i++) {
+    TEST_FIXED_POINT_DF_H(mul_q_h, &tc_h[i], &exp_res_mul_q_h[i])
+    TEST_FIXED_POINT_DF_H(madd_q_h, &tc_h[i], &exp_res_madd_q_h[i])
+    TEST_FIXED_POINT_DF_H(msub_q_h, &tc_h[i], &exp_res_msub_q_h[i])
+    TEST_FIXED_POINT_DF_H(mulr_q_h, &tc_h[i], &exp_res_mulr_q_h[i])
+    TEST_FIXED_POINT_DF_H(maddr_q_h, &tc_h[i], &exp_res_maddr_q_h[i])
+    TEST_FIXED_POINT_DF_H(msubr_q_h, &tc_h[i], &exp_res_msubr_q_h[i])
+  }
+
+  for (uint64_t i = 0; i < arraysize(tc_w); i++) {
+    TEST_FIXED_POINT_DF_W(mul_q_w, &tc_w[i], &exp_res_mul_q_w[i])
+    TEST_FIXED_POINT_DF_W(madd_q_w, &tc_w[i], &exp_res_madd_q_w[i])
+    TEST_FIXED_POINT_DF_W(msub_q_w, &tc_w[i], &exp_res_msub_q_w[i])
+    TEST_FIXED_POINT_DF_W(mulr_q_w, &tc_w[i], &exp_res_mulr_q_w[i])
+    TEST_FIXED_POINT_DF_W(maddr_q_w, &tc_w[i], &exp_res_maddr_q_w[i])
+    TEST_FIXED_POINT_DF_W(msubr_q_w, &tc_w[i], &exp_res_msubr_q_w[i])
+  }
+#undef TEST_FIXED_POINT_DF_H
+#undef TEST_FIXED_POINT_DF_W
+}
+
+TEST(MSA_fexdo) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float inf_float = std::numeric_limits<float>::infinity();
+  const float nan_float = std::numeric_limits<float>::quiet_NaN();
+  const double inf_double = std::numeric_limits<double>::infinity();
+
+  const struct TestCaseMsa3RF_F tc_w[] = {
+      // ws_1, ws_2, ws_3, ws_4, wt_1, wt_2, wt_3, wt_4, wd_1, wd_2, wd_3, wd_4
+      {inf_float, nan_float, 66505.f, 65504.f, 6.2e-5f, 5e-5f, -32.42f,
+       -inf_float, 0, 0, 0, 0},
+      {-0.f, 0.f, 123.567f, -765.321f, -6e-8f, 5.9e-8f, 1e-7f, -1e-20f, 0, 0, 0,
+       0},
+      {1e-36f, 1e20f, -1e20f, 2e-20f, 6e-8f, -2.9e-8f, -66505.f, -65504.f}};
+
+  const struct TestCaseMsa3RF_D tc_d[] = {
+      // ws_lo, ws_hi, wt_lo, wt_hi, wd_lo, wd_hi
+      {inf_double, -1234., 4e38, 3.4e38, 0, 0},
+      {1.2e-38, 1.1e-39, -38.92f, -inf_double, 0, 0},
+      {-0., 0., 123.567e31, -765.321e33, 0, 0},
+      {-1.5e-45, 1.3e-45, 1e-42, -1e-200, 0, 0},
+      {1e-202, 1e158, -1e159, 1e14, 0, 0},
+      {1.5e-42, 1.3e-46, -123.567e31, 765.321e33, 0, 0}};
+
+  const struct ExpRes_16I exp_res_fexdo_w[] = {
+      {static_cast<int16_t>(0x0410), static_cast<int16_t>(0x0347),
+       static_cast<int16_t>(0xd00d), static_cast<int16_t>(0xfc00),
+       static_cast<int16_t>(0x7c00), static_cast<int16_t>(0x7dff),
+       static_cast<int16_t>(0x7c00), static_cast<int16_t>(0x7bff)},
+      {static_cast<int16_t>(0x8001), static_cast<int16_t>(0x0001),
+       static_cast<int16_t>(0x0002), static_cast<int16_t>(0x8000),
+       static_cast<int16_t>(0x8000), static_cast<int16_t>(0x0000),
+       static_cast<int16_t>(0x57b9), static_cast<int16_t>(0xe1fb)},
+      {static_cast<int16_t>(0x0001), static_cast<int16_t>(0x8000),
+       static_cast<int16_t>(0xfc00), static_cast<int16_t>(0xfbff),
+       static_cast<int16_t>(0x0000), static_cast<int16_t>(0x7c00),
+       static_cast<int16_t>(0xfc00), static_cast<int16_t>(0x0000)}};
+
+  const struct ExpRes_32I exp_res_fexdo_d[] = {
+      {bit_cast<int32_t>(0x7f800000), bit_cast<int32_t>(0x7f7fc99e),
+       bit_cast<int32_t>(0x7f800000), bit_cast<int32_t>(0xc49a4000)},
+      {bit_cast<int32_t>(0xc21bae14), bit_cast<int32_t>(0xff800000),
+       bit_cast<int32_t>(0x0082ab1e), bit_cast<int32_t>(0x000bfa5a)},
+      {bit_cast<int32_t>(0x7673b164), bit_cast<int32_t>(0xfb13653d),
+       bit_cast<int32_t>(0x80000000), bit_cast<int32_t>(0x00000000)},
+      {bit_cast<int32_t>(0x000002ca), bit_cast<int32_t>(0x80000000),
+       bit_cast<int32_t>(0x80000001), bit_cast<int32_t>(0x00000001)},
+      {bit_cast<int32_t>(0xff800000), bit_cast<int32_t>(0x56b5e621),
+       bit_cast<int32_t>(0x00000000), bit_cast<int32_t>(0x7f800000)},
+      {bit_cast<int32_t>(0xf673b164), bit_cast<int32_t>(0x7b13653d),
+       bit_cast<int32_t>(0x0000042e), bit_cast<int32_t>(0x00000000)}};
+
+#define TEST_FEXDO_H(instruction, src, exp_res)                               \
+  run_msa_3rf(reinterpret_cast<const struct TestCaseMsa3RF*>(src),            \
+              reinterpret_cast<const struct ExpectedResult_MSA3RF*>(exp_res), \
+              [](MacroAssembler& assm) { __ instruction(w2, w0, w1); },       \
+              load_uint32_elements_of_vector,                                 \
+              store_uint16_elements_of_vector);
+
+#define TEST_FEXDO_W(instruction, src, exp_res)                               \
+  run_msa_3rf(reinterpret_cast<const struct TestCaseMsa3RF*>(src),            \
+              reinterpret_cast<const struct ExpectedResult_MSA3RF*>(exp_res), \
+              [](MacroAssembler& assm) { __ instruction(w2, w0, w1); },       \
+              load_uint64_elements_of_vector,                                 \
+              store_uint32_elements_of_vector);
+
+  for (uint64_t i = 0; i < arraysize(tc_w); i++) {
+    TEST_FEXDO_H(fexdo_h, &tc_w[i], &exp_res_fexdo_w[i])
+  }
+
+  for (uint64_t i = 0; i < arraysize(tc_d); i++) {
+    TEST_FEXDO_W(fexdo_w, &tc_d[i], &exp_res_fexdo_d[i])
+  }
+
+#undef TEST_FEXDO_H
+#undef TEST_FEXDO_W
+}
+
+TEST(MSA_ftq) {
+  if ((kArchVariant != kMips64r6) || !CpuFeatures::IsSupported(MIPS_SIMD))
+    return;
+
+  CcTest::InitializeVM();
+
+  const float nan_float = std::numeric_limits<float>::quiet_NaN();
+  const float inf_float = std::numeric_limits<float>::infinity();
+  const double nan_double = std::numeric_limits<double>::quiet_NaN();
+  const double inf_double = std::numeric_limits<double>::infinity();
+
+  const struct TestCaseMsa3RF_F tc_w[] = {
+      {1.f, -0.999f, 1.5f, -31e-6, 1e-7, -0.598, 0.0023, -0.f, 0, 0, 0, 0},
+      {100.f, -102.f, -1.1f, 1.3f, 0.f, -1.f, 0.9999f, -0.000322, 0, 0, 0, 0},
+      {nan_float, inf_float, -inf_float, -nan_float, -1e-40, 3e-44, 8.3e36,
+       -0.00003, 0, 0, 0, 0}};
+
+  const struct TestCaseMsa3RF_D tc_d[] = {
+      {1., -0.999, 1.5, -31e-6, 0, 0},
+      {1e-7, -0.598, 0.0023, -0.f, 0, 0},
+      {100.f, -102.f, -1.1f, 1.3f, 0, 0},
+      {0.f, -1.f, 0.9999f, -0.000322, 0, 0},
+      {nan_double, inf_double, -inf_double, -nan_double, 0, 0},
+      {-3e306, 2e-307, 9e307, 2e-307, 0, 0}};
+
+  const struct ExpRes_16I exp_res_ftq_w[] = {
+      {static_cast<int16_t>(0x0000), static_cast<int16_t>(0xb375),
+       static_cast<int16_t>(0x004b), static_cast<int16_t>(0x0000),
+       static_cast<int16_t>(0x7fff), static_cast<int16_t>(0x8021),
+       static_cast<int16_t>(0x7fff), static_cast<int16_t>(0xffff)},
+      {static_cast<int16_t>(0x0000), static_cast<int16_t>(0x8000),
+       static_cast<int16_t>(0x7ffd), static_cast<int16_t>(0xfff5),
+       static_cast<int16_t>(0x7fff), static_cast<int16_t>(0x8000),
+       static_cast<int16_t>(0x8000), static_cast<int16_t>(0x7fff)},
+      {static_cast<int16_t>(0x0000), static_cast<int16_t>(0x0000),
+       static_cast<int16_t>(0x7fff), static_cast<int16_t>(0xffff),
+       static_cast<int16_t>(0x0000), static_cast<int16_t>(0x7fff),
+       static_cast<int16_t>(0x8000), static_cast<int16_t>(0x0000)}};
+
+  const struct ExpRes_32I exp_res_ftq_d[] = {
+      {bit_cast<int32_t>(0x7fffffff), bit_cast<int32_t>(0xfffefbf4),
+       bit_cast<int32_t>(0x7fffffff), bit_cast<int32_t>(0x8020c49c)},
+      {bit_cast<int32_t>(0x004b5dcc), bit_cast<int32_t>(0x00000000),
+       bit_cast<int32_t>(0x000000d7), bit_cast<int32_t>(0xb374bc6a)},
+      {bit_cast<int32_t>(0x80000000), bit_cast<int32_t>(0x7fffffff),
+       bit_cast<int32_t>(0x7fffffff), bit_cast<int32_t>(0x80000000)},
+      {bit_cast<int32_t>(0x7ffcb900), bit_cast<int32_t>(0xfff572de),
+       bit_cast<int32_t>(0x00000000), bit_cast<int32_t>(0x80000000)},
+      {bit_cast<int32_t>(0x80000000), bit_cast<int32_t>(0x00000000),
+       bit_cast<int32_t>(0x00000000), bit_cast<int32_t>(0x7fffffff)},
+      {bit_cast<int32_t>(0x7fffffff), bit_cast<int32_t>(0x00000000),
+       bit_cast<int32_t>(0x80000000), bit_cast<int32_t>(0x00000000)}};
+
+#define TEST_FTQ_H(instruction, src, exp_res)                                 \
+  run_msa_3rf(reinterpret_cast<const struct TestCaseMsa3RF*>(src),            \
+              reinterpret_cast<const struct ExpectedResult_MSA3RF*>(exp_res), \
+              [](MacroAssembler& assm) { __ instruction(w2, w0, w1); },       \
+              load_uint32_elements_of_vector,                                 \
+              store_uint16_elements_of_vector);
+
+#define TEST_FTQ_W(instruction, src, exp_res)                                 \
+  run_msa_3rf(reinterpret_cast<const struct TestCaseMsa3RF*>(src),            \
+              reinterpret_cast<const struct ExpectedResult_MSA3RF*>(exp_res), \
+              [](MacroAssembler& assm) { __ instruction(w2, w0, w1); },       \
+              load_uint64_elements_of_vector,                                 \
+              store_uint32_elements_of_vector);
+
+  for (uint64_t i = 0; i < arraysize(tc_w); i++) {
+    TEST_FTQ_H(ftq_h, &tc_w[i], &exp_res_ftq_w[i])
+  }
+
+  for (uint64_t i = 0; i < arraysize(tc_d); i++) {
+    TEST_FTQ_W(ftq_w, &tc_d[i], &exp_res_ftq_d[i])
+  }
+
+#undef TEST_FTQ_H
+#undef TEST_FTQ_W
 }
 
 #undef __
