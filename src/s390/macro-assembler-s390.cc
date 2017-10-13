@@ -1448,11 +1448,6 @@ void MacroAssembler::CompareRoot(Register obj, Heap::RootListIndex index) {
   CmpP(obj, MemOperand(kRootRegister, index << kPointerSizeLog2));
 }
 
-void MacroAssembler::SmiToDouble(DoubleRegister value, Register smi) {
-  SmiUntag(ip, smi);
-  ConvertIntToDouble(value, ip);
-}
-
 void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
   mov(value, Operand(cell));
   LoadP(value, FieldMemOperand(value, WeakCell::kValueOffset));

@@ -784,10 +784,6 @@ class MacroAssembler : public TurboAssembler {
     b(ne, if_not_equal);
   }
 
-  // Load the value of a smi object into a double register.
-  // The register value must be between d0 and d15.
-  void SmiToDouble(LowDwVfpRegister value, Register smi);
-
   // Try to convert a double to a signed 32-bit integer.
   // Z flag set to one and result assigned if the conversion is exact.
   void TryDoubleToInt32Exact(Register result,

@@ -662,12 +662,6 @@ class MacroAssembler : public TurboAssembler {
   void SmiToInteger64(Register dst, Register src);
   void SmiToInteger64(Register dst, const Operand& src);
 
-  // Convert smi to double.
-  void SmiToDouble(XMMRegister dst, Register src) {
-    SmiToInteger32(kScratchRegister, src);
-    Cvtlsi2sd(dst, kScratchRegister);
-  }
-
   // Multiply a positive smi's integer value by a power of two.
   // Provides result as 64-bit integer value.
   void PositiveSmiTimesPowerOfTwoToInteger64(Register dst,

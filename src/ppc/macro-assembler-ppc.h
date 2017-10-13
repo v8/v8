@@ -890,9 +890,6 @@ class MacroAssembler : public TurboAssembler {
     bne(if_not_equal);
   }
 
-  // Load the value of a smi object into a double register.
-  void SmiToDouble(DoubleRegister value, Register smi);
-
   // Try to convert a double to a signed 32-bit integer.
   // CR_EQ in cr7 is set and result assigned if the conversion is exact.
   void TryDoubleToInt32Exact(Register result, DoubleRegister double_input,

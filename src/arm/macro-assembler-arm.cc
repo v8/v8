@@ -1715,20 +1715,6 @@ bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
   return has_frame() || !stub->SometimesSetsUpAFrame();
 }
 
-void MacroAssembler::SmiToDouble(LowDwVfpRegister value, Register smi) {
-  if (CpuFeatures::IsSupported(VFPv3)) {
-    CpuFeatureScope scope(this, VFPv3);
-    vmov(value.low(), smi);
-    vcvt_f64_s32(value, 1);
-  } else {
-    UseScratchRegisterScope temps(this);
-    Register scratch = temps.Acquire();
-    SmiUntag(scratch, smi);
-    vmov(value.low(), scratch);
-    vcvt_f64_s32(value, value.low());
-  }
-}
-
 void MacroAssembler::TryDoubleToInt32Exact(Register result,
                                            DwVfpRegister double_input,
                                            LowDwVfpRegister double_scratch) {
