@@ -197,6 +197,7 @@
       'v8_linux_nosnap_dbg': 'gn_debug_x86_no_snap_trybot',
       'v8_linux_gcc_compile_rel': 'gn_release_x86_gcc_minimal_symbols',
       'v8_linux_gcc_rel': 'gn_release_x86_gcc_minimal_symbols',
+      'v8_linux_shared_compile_rel': 'gn_release_x86_shared_verify_heap',
       'v8_linux64_gcc_compile_dbg': 'gn_debug_x64_gcc',
       'v8_linux64_rel_ng': 'gn_release_x64_trybot',
       'v8_linux64_verify_csa_rel_ng': 'gn_release_x64_verify_csa',
@@ -216,6 +217,7 @@
       'v8_win_rel_ng': 'gn_release_x86_trybot',
       'v8_win_nosnap_shared_rel_ng':
         'gn_release_x86_no_snap_shared_minimal_symbols',
+      'v8_win64_clang_compile_rel': 'gn_release_x64_clang',
       'v8_win64_asan_rel_ng': 'gn_release_x64_asan_no_lsan',
       'v8_win64_dbg': 'gn_debug_x64_minimal_symbols',
       'v8_win64_rel_ng': 'gn_release_x64_trybot',
