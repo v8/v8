@@ -2206,9 +2206,9 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   Node* iterator = Parameter(Descriptor::kReceiver);
 
   GotoIf(TaggedIsSmi(iterator), &throw_bad_receiver);
-  GotoIfNot(Word32Equal(LoadInstanceType(iterator),
-                        Int32Constant(JS_STRING_ITERATOR_TYPE)),
-            &throw_bad_receiver);
+  GotoIfNot(
+      InstanceTypeEqual(LoadInstanceType(iterator), JS_STRING_ITERATOR_TYPE),
+      &throw_bad_receiver);
 
   Node* string = LoadObjectField(iterator, JSStringIterator::kStringOffset);
   Node* position =
