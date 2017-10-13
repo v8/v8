@@ -18,7 +18,6 @@ console.timeEnd("a", "b");
 
 console.log("log", "more");
 console.warn("warn", { toString: () => 2 });
-console.error("error");
 console.debug("debug");
 console.info("info");
 

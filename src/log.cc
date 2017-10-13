@@ -845,9 +845,7 @@ void Logger::CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
   if (!log_->IsEnabled()) return;
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, pc);
   Log::MessageBuilder msg(log_);
-  int since_epoch = timer_.IsStarted()
-                        ? static_cast<int>(timer_.Elapsed().InMicroseconds())
-                        : -1;
+  int since_epoch = static_cast<int>(timer_.Elapsed().InMicroseconds());
   msg.Append("code-deopt,%d,%d,", since_epoch, code->CodeSize());
   msg.AppendAddress(code->instruction_start());
 
@@ -893,24 +891,27 @@ void Logger::CurrentTimeEvent() {
 
 void Logger::TimerEvent(Logger::StartEnd se, const char* name) {
   if (!log_->IsEnabled()) return;
-  DCHECK(FLAG_log_internal_timer_events);
   Log::MessageBuilder msg(log_);
   int since_epoch = static_cast<int>(timer_.Elapsed().InMicroseconds());
-  const char* format = (se == START) ? "timer-event-start,\"%s\",%ld"
-                                     : "timer-event-end,\"%s\",%ld";
+  const char* format = (se == START)
+                           ? "timer-event-start,\"%s\",%ld"
+                           : (se == END) ? "timer-event-end,\"%s\",%ld"
+                                         : "timer-event,\"%s\",%ld";
   msg.Append(format, name, since_epoch);
   msg.WriteToLogFile();
 }
 
-
+// static
 void Logger::EnterExternal(Isolate* isolate) {
+  DCHECK(FLAG_log_internal_timer_events);
   LOG(isolate, TimerEvent(START, TimerEventExternal::name()));
   DCHECK(isolate->current_vm_state() == JS);
   isolate->set_current_vm_state(EXTERNAL);
 }
 
-
+// static
 void Logger::LeaveExternal(Isolate* isolate) {
+  DCHECK(FLAG_log_internal_timer_events);
   LOG(isolate, TimerEvent(END, TimerEventExternal::name()));
   DCHECK(isolate->current_vm_state() == EXTERNAL);
   isolate->set_current_vm_state(JS);
@@ -1000,9 +1001,7 @@ void Logger::CallbackEventInternal(const char* prefix, Name* name,
   msg.Append("%s,%s,-2,",
              kLogEventsNames[CodeEventListener::CODE_CREATION_EVENT],
              kLogEventsNames[CodeEventListener::CALLBACK_TAG]);
-  int timestamp = timer_.IsStarted()
-                      ? static_cast<int>(timer_.Elapsed().InMicroseconds())
-                      : -1;
+  int timestamp = static_cast<int>(timer_.Elapsed().InMicroseconds());
   msg.Append("%d,", timestamp);
   msg.AppendAddress(entry_point);
   if (name->IsString()) {
@@ -1048,9 +1047,7 @@ void AppendCodeCreateHeader(Log::MessageBuilder* msg,
   msg->Append("%s,%s,%d,",
               kLogEventsNames[CodeEventListener::CODE_CREATION_EVENT],
               kLogEventsNames[tag], code->kind());
-  int timestamp = timer->IsStarted()
-                      ? static_cast<int>(timer->Elapsed().InMicroseconds())
-                      : -1;
+  int timestamp = static_cast<int>(timer->Elapsed().InMicroseconds());
   msg->Append("%d,", timestamp);
   msg->AppendAddress(code->instruction_start());
   msg->Append(",%d,", code->instruction_size());
@@ -1825,7 +1822,7 @@ bool Logger::SetUp(Isolate* isolate) {
     is_logging_ = true;
   }
 
-  if (FLAG_log_internal_timer_events || FLAG_prof_cpp) timer_.Start();
+  timer_.Start();
 
   if (FLAG_prof_cpp) {
     profiler_ = new Profiler(isolate);

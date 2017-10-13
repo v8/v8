@@ -93,7 +93,7 @@ class Ticker;
 
 class Logger : public CodeEventListener {
  public:
-  enum StartEnd { START = 0, END = 1 };
+  enum StartEnd { START = 0, END = 1, STAMP = 2 };
 
   // Acquires resources for logging if the right flags are set.
   bool SetUp(Isolate* isolate);
@@ -213,7 +213,7 @@ class Logger : public CodeEventListener {
 
   void CurrentTimeEvent();
 
-  void TimerEvent(StartEnd se, const char* name);
+  V8_EXPORT_PRIVATE void TimerEvent(StartEnd se, const char* name);
 
   static void EnterExternal(Isolate* isolate);
   static void LeaveExternal(Isolate* isolate);

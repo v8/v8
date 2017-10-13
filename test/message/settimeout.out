@@ -1,11 +1,11 @@
-state: 0
-state: 0
-increment state
-current state: 1
-increment state
-current state: 2
-increment state
-current state: 3
+console.log: state: 0
+console.log: state: 0
+console.log: increment state
+console.log: current state: 1
+console.log: increment state
+console.log: current state: 2
+console.log: increment state
+console.log: current state: 3
 *%(basename)s:19: Error
     setTimeout(function() { throw new Error(); });
                             ^

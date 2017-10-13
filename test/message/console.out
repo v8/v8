@@ -1,15 +1,16 @@
-default: {NUMBER}
-abcd: {NUMBER}
-b: 0.000000
-a: {NUMBER}
-log more
-warn 2
-debug
-info
-*%(basename)s:25: Error: exception
+console.timeEnd: default, {NUMBER}
+console.timeEnd: abcd, {NUMBER}
+console.timeEnd: b, {NUMBER}
+console.timeEnd: a, {NUMBER}
+console.log: log more
+console.warn: warn 2
+console.debug: debug
+console.info: info
+console.info: *%(basename)s:24: Error: exception
 console.info({ toString: () => {throw new Error("exception");} })
                                 ^
 Error: exception
-    at Object.toString (*%(basename)s:25:39)
+    at Object.toString (*%(basename)s:24:39)
     at console.info (<anonymous>)
-    at *%(basename)s:25:9
+    at *%(basename)s:24:9
+

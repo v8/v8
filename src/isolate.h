@@ -722,7 +722,8 @@ class Isolate {
   void PrintCurrentStackTrace(FILE* out);
   void PrintStack(StringStream* accumulator,
                   PrintStackMode mode = kPrintStackVerbose);
-  void PrintStack(FILE* out, PrintStackMode mode = kPrintStackVerbose);
+  V8_EXPORT_PRIVATE void PrintStack(FILE* out,
+                                    PrintStackMode mode = kPrintStackVerbose);
   Handle<String> StackTraceString();
   // Stores a stack trace in a stack-allocated temporary buffer which will
   // end up in the minidump for debugging purposes.
