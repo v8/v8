@@ -212,12 +212,8 @@ class DirectCEntryStub: public PlatformCodeStub {
 
 class NameDictionaryLookupStub: public PlatformCodeStub {
  public:
-  enum LookupMode { POSITIVE_LOOKUP, NEGATIVE_LOOKUP };
-
-  NameDictionaryLookupStub(Isolate* isolate, LookupMode mode)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = LookupModeBits::encode(mode);
-  }
+  explicit NameDictionaryLookupStub(Isolate* isolate)
+      : PlatformCodeStub(isolate) {}
 
   static void GenerateNegativeLookup(MacroAssembler* masm,
                                      Label* miss,
@@ -240,10 +236,6 @@ class NameDictionaryLookupStub: public PlatformCodeStub {
   static const int kElementsStartOffset =
       NameDictionary::kHeaderSize +
       NameDictionary::kElementsStartIndex * kPointerSize;
-
-  LookupMode mode() const { return LookupModeBits::decode(minor_key_); }
-
-  class LookupModeBits: public BitField<LookupMode, 0, 1> {};
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);

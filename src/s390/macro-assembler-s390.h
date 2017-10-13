@@ -1241,11 +1241,6 @@ class MacroAssembler : public TurboAssembler {
   // via --debug-code.
   void AssertUndefinedOrAllocationSite(Register object, Register scratch);
 
-  // ---------------------------------------------------------------------------
-  // String utilities
-
-  void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name);
-
   void LoadInstanceDescriptors(Register map, Register descriptors);
   void LoadAccessor(Register dst, Register holder, int accessor_index,
                     AccessorComponent accessor);

@@ -662,21 +662,9 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     // Stop if found the property.
     __ Cmp(entity_name, name);
     __ j(equal, miss);
-
-    Label good;
-    // Check for the hole and skip.
-    __ CompareRoot(entity_name, Heap::kTheHoleValueRootIndex);
-    __ j(equal, &good, Label::kNear);
-
-    // Check if the entry name is not a unique name.
-    __ movp(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
-    __ JumpIfNotUniqueNameInstanceType(
-        FieldOperand(entity_name, Map::kInstanceTypeOffset), miss);
-    __ bind(&good);
   }
 
-  NameDictionaryLookupStub stub(masm->isolate(), properties, r0, r0,
-                                NEGATIVE_LOOKUP);
+  NameDictionaryLookupStub stub(masm->isolate(), properties, r0, r0);
   __ Push(name);
   __ Push(Immediate(name->Hash()));
   __ CallStub(&stub);
@@ -700,7 +688,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   // Returns:
   //  result_ is zero if lookup failed, non zero otherwise.
 
-  Label in_dictionary, maybe_in_dictionary, not_in_dictionary;
+  Label in_dictionary, not_in_dictionary;
 
   Register scratch = result();
 
@@ -737,28 +725,6 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
     // Stop if found the property.
     __ cmpp(scratch, args.GetArgumentOperand(0));
     __ j(equal, &in_dictionary);
-
-    if (i != kTotalProbes - 1 && mode() == NEGATIVE_LOOKUP) {
-      // If we hit a key that is not a unique name during negative
-      // lookup we have to bailout as this key might be equal to the
-      // key we are looking for.
-
-      // Check if the entry name is not a unique name.
-      __ movp(scratch, FieldOperand(scratch, HeapObject::kMapOffset));
-      __ JumpIfNotUniqueNameInstanceType(
-          FieldOperand(scratch, Map::kInstanceTypeOffset),
-          &maybe_in_dictionary);
-    }
-  }
-
-  __ bind(&maybe_in_dictionary);
-  // If we are doing negative lookup then probing failure should be
-  // treated as a lookup success. For positive lookup probing failure
-  // should be treated as lookup failure.
-  if (mode() == POSITIVE_LOOKUP) {
-    __ movp(scratch, Immediate(0));
-    __ Drop(1);
-    __ ret(2 * kPointerSize);
   }
 
   __ bind(&in_dictionary);

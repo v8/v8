@@ -1012,11 +1012,6 @@ class MacroAssembler : public TurboAssembler {
   void AssertUndefinedOrAllocationSite(Register object, Register scratch);
 
   // ---------------------------------------------------------------------------
-  // String utilities
-
-  void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name);
-
-  // ---------------------------------------------------------------------------
   // Patching helpers.
 
   void LoadInstanceDescriptors(Register map, Register descriptors);

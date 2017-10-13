@@ -703,15 +703,6 @@ class MacroAssembler : public TurboAssembler {
   SmiIndex SmiToIndex(Register dst, Register src, int shift);
 
   // ---------------------------------------------------------------------------
-  // String macros.
-
-  // Checks if the given register or operand is a unique name
-  void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name,
-                                       Label::Distance distance = Label::kFar);
-  void JumpIfNotUniqueNameInstanceType(Operand operand, Label* not_unique_name,
-                                       Label::Distance distance = Label::kFar);
-
-  // ---------------------------------------------------------------------------
   // Macro instructions.
 
   // Load/store with specific representation.

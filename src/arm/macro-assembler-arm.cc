@@ -2038,18 +2038,6 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
 }
 
 
-void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register reg,
-                                                     Label* not_unique_name) {
-  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
-  Label succeed;
-  tst(reg, Operand(kIsNotStringMask | kIsNotInternalizedMask));
-  b(eq, &succeed);
-  cmp(reg, Operand(SYMBOL_TYPE));
-  b(ne, not_unique_name);
-
-  bind(&succeed);
-}
-
 void TurboAssembler::CheckFor32DRegs(Register scratch) {
   mov(scratch, Operand(ExternalReference::cpu_features()));
   ldr(scratch, MemOperand(scratch));

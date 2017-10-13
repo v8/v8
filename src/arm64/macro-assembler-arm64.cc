@@ -2102,19 +2102,6 @@ void MacroAssembler::TryRepresentDoubleAsInt(Register as_int, VRegister value,
   }
 }
 
-void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register type,
-                                                     Label* not_unique_name) {
-  STATIC_ASSERT((kInternalizedTag == 0) && (kStringTag == 0));
-  // if ((type is string && type is internalized) || type == SYMBOL_TYPE) {
-  //   continue
-  // } else {
-  //   goto not_unique_name
-  // }
-  Tst(type, kIsNotStringMask | kIsNotInternalizedMask);
-  Ccmp(type, SYMBOL_TYPE, ZFlag, ne);
-  B(ne, not_unique_name);
-}
-
 void TurboAssembler::PrepareForTailCall(const ParameterCount& callee_args_count,
                                         Register caller_args_count_reg,
                                         Register scratch0, Register scratch1) {

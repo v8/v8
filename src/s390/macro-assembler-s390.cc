@@ -1775,18 +1775,6 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
   }
 }
 
-void MacroAssembler::JumpIfNotUniqueNameInstanceType(Register reg,
-                                                     Label* not_unique_name) {
-  STATIC_ASSERT(kInternalizedTag == 0 && kStringTag == 0);
-  Label succeed;
-  AndP(r0, reg, Operand(kIsNotStringMask | kIsNotInternalizedMask));
-  beq(&succeed, Label::kNear);
-  CmpP(reg, Operand(SYMBOL_TYPE));
-  bne(not_unique_name);
-
-  bind(&succeed);
-}
-
 static const int kRegisterPassedArguments = 5;
 
 int TurboAssembler::CalculateStackPassedWords(int num_reg_arguments,

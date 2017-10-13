@@ -1813,10 +1813,6 @@ class MacroAssembler : public TurboAssembler {
                             on_failed_conversion);
   }
 
-  // ---- String Utilities ----
-
-  void JumpIfNotUniqueNameInstanceType(Register type, Label* not_unique_name);
-
   // ---- Calling / Jumping helpers ----
 
   void CallStub(CodeStub* stub);

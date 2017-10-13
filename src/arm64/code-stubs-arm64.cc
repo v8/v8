@@ -1149,16 +1149,6 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     // Stop if found the property.
     __ Cmp(entity_name, Operand(name));
     __ B(eq, miss);
-
-    Label good;
-    __ JumpIfRoot(entity_name, Heap::kTheHoleValueRootIndex, &good);
-
-    // Check if the entry name is not a unique name.
-    __ Ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
-    __ Ldrb(entity_name,
-            FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-    __ JumpIfNotUniqueNameInstanceType(entity_name, miss);
-    __ Bind(&good);
   }
 
   CPURegList spill_list(CPURegister::kRegister, kXRegSizeInBits, 0, 6);
@@ -1171,7 +1161,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
 
   __ Ldr(x0, FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
   __ Mov(x1, Operand(name));
-  NameDictionaryLookupStub stub(masm->isolate(), NEGATIVE_LOOKUP);
+  NameDictionaryLookupStub stub(masm->isolate());
   __ CallStub(&stub);
   // Move stub return value to scratch0. Note that scratch0 is not included in
   // spill_list and won't be clobbered by PopCPURegList.
@@ -1203,7 +1193,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   Register undefined = x5;
   Register entry_key = x6;
 
-  Label in_dictionary, maybe_in_dictionary, not_in_dictionary;
+  Label in_dictionary, not_in_dictionary;
 
   __ Ldrsw(mask, UntagSmiFieldMemOperand(dictionary, kCapacityOffset));
   __ Sub(mask, mask, 1);
@@ -1241,22 +1231,6 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
     // Stop if found the property.
     __ Cmp(entry_key, key);
     __ B(eq, &in_dictionary);
-
-    if (i != kTotalProbes - 1 && mode() == NEGATIVE_LOOKUP) {
-      // Check if the entry name is not a unique name.
-      __ Ldr(entry_key, FieldMemOperand(entry_key, HeapObject::kMapOffset));
-      __ Ldrb(entry_key, FieldMemOperand(entry_key, Map::kInstanceTypeOffset));
-      __ JumpIfNotUniqueNameInstanceType(entry_key, &maybe_in_dictionary);
-    }
-  }
-
-  __ Bind(&maybe_in_dictionary);
-  // If we are doing negative lookup then probing failure should be
-  // treated as a lookup success. For positive lookup, probing failure
-  // should be treated as lookup failure.
-  if (mode() == POSITIVE_LOOKUP) {
-    __ Mov(result, 0);
-    __ Ret();
   }
 
   __ Bind(&in_dictionary);

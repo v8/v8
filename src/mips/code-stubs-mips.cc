@@ -785,16 +785,6 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
     // Stop if found the property.
     __ Branch(miss, eq, entity_name, Operand(Handle<Name>(name)));
 
-    Label good;
-    __ Branch(&good, eq, entity_name, Operand(tmp));
-
-    // Check if the entry name is not a unique name.
-    __ lw(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
-    __ lbu(entity_name,
-           FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-    __ JumpIfNotUniqueNameInstanceType(entity_name, miss);
-    __ bind(&good);
-
     // Restore the properties.
     __ lw(properties,
           FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
@@ -807,7 +797,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
   __ MultiPush(spill_mask);
   __ lw(a0, FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
   __ li(a1, Operand(Handle<Name>(name)));
-  NameDictionaryLookupStub stub(masm->isolate(), NEGATIVE_LOOKUP);
+  NameDictionaryLookupStub stub(masm->isolate());
   __ CallStub(&stub);
   __ mov(at, v0);
   __ MultiPop(spill_mask);
@@ -837,7 +827,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   Register undefined = t1;
   Register entry_key = t2;
 
-  Label in_dictionary, maybe_in_dictionary, not_in_dictionary;
+  Label in_dictionary, not_in_dictionary;
 
   __ lw(mask, FieldMemOperand(dictionary, kCapacityOffset));
   __ sra(mask, mask, kSmiTagSize);
@@ -878,23 +868,6 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
 
     // Stop if found the property.
     __ Branch(&in_dictionary, eq, entry_key, Operand(key));
-
-    if (i != kTotalProbes - 1 && mode() == NEGATIVE_LOOKUP) {
-      // Check if the entry name is not a unique name.
-      __ lw(entry_key, FieldMemOperand(entry_key, HeapObject::kMapOffset));
-      __ lbu(entry_key,
-             FieldMemOperand(entry_key, Map::kInstanceTypeOffset));
-      __ JumpIfNotUniqueNameInstanceType(entry_key, &maybe_in_dictionary);
-    }
-  }
-
-  __ bind(&maybe_in_dictionary);
-  // If we are doing negative lookup then probing failure should be
-  // treated as a lookup success. For positive lookup probing failure
-  // should be treated as lookup failure.
-  if (mode() == POSITIVE_LOOKUP) {
-    __ Ret(USE_DELAY_SLOT);
-    __ mov(result, zero_reg);
   }
 
   __ bind(&in_dictionary);

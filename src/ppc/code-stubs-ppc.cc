@@ -751,16 +751,6 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(
     __ Cmpi(entity_name, Operand(Handle<Name>(name)), r0);
     __ beq(miss);
 
-    Label good;
-    __ cmp(entity_name, tmp);
-    __ beq(&good);
-
-    // Check if the entry name is not a unique name.
-    __ LoadP(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
-    __ lbz(entity_name, FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-    __ JumpIfNotUniqueNameInstanceType(entity_name, miss);
-    __ bind(&good);
-
     // Restore the properties.
     __ LoadP(properties,
              FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
@@ -774,7 +764,7 @@ void NameDictionaryLookupStub::GenerateNegativeLookup(
 
   __ LoadP(r3, FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
   __ mov(r4, Operand(Handle<Name>(name)));
-  NameDictionaryLookupStub stub(masm->isolate(), NEGATIVE_LOOKUP);
+  NameDictionaryLookupStub stub(masm->isolate());
   __ CallStub(&stub);
   __ cmpi(r3, Operand::Zero());
 
@@ -807,7 +797,7 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   Register entry_key = r9;
   Register scratch = r9;
 
-  Label in_dictionary, maybe_in_dictionary, not_in_dictionary;
+  Label in_dictionary, not_in_dictionary;
 
   __ LoadP(mask, FieldMemOperand(dictionary, kCapacityOffset));
   __ SmiUntag(mask);
@@ -850,22 +840,6 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
     // Stop if found the property.
     __ cmp(entry_key, key);
     __ beq(&in_dictionary);
-
-    if (i != kTotalProbes - 1 && mode() == NEGATIVE_LOOKUP) {
-      // Check if the entry name is not a unique name.
-      __ LoadP(entry_key, FieldMemOperand(entry_key, HeapObject::kMapOffset));
-      __ lbz(entry_key, FieldMemOperand(entry_key, Map::kInstanceTypeOffset));
-      __ JumpIfNotUniqueNameInstanceType(entry_key, &maybe_in_dictionary);
-    }
-  }
-
-  __ bind(&maybe_in_dictionary);
-  // If we are doing negative lookup then probing failure should be
-  // treated as a lookup success. For positive lookup probing failure
-  // should be treated as lookup failure.
-  if (mode() == POSITIVE_LOOKUP) {
-    __ li(result, Operand::Zero());
-    __ Ret();
   }
 
   __ bind(&in_dictionary);

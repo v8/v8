@@ -672,18 +672,6 @@ class MacroAssembler : public TurboAssembler {
   void IncrementCounter(StatsCounter* counter, int value);
   void DecrementCounter(StatsCounter* counter, int value);
 
-  // ---------------------------------------------------------------------------
-  // String utilities.
-
-  // Checks if the given register or operand is a unique name
-  void JumpIfNotUniqueNameInstanceType(Register reg, Label* not_unique_name,
-                                       Label::Distance distance = Label::kFar) {
-    JumpIfNotUniqueNameInstanceType(Operand(reg), not_unique_name, distance);
-  }
-
-  void JumpIfNotUniqueNameInstanceType(Operand operand, Label* not_unique_name,
-                                       Label::Distance distance = Label::kFar);
-
   static int SafepointRegisterStackIndex(Register reg) {
     return SafepointRegisterStackIndex(reg.code());
   }
