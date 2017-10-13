@@ -2,5 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-var size = 0x40000000;
-assertThrows(() => WebAssembly.validate(new Uint16Array(size)), RangeError);
+// Flags: --expose-gc
+
+var size = Math.floor(0xFFFFFFFF / 4) + 1;
+(function() {
+  // Note: On 32 bit, this throws in the Uint16Array constructor (size does not
+  // fit in a Smi). On 64 bit, it throws in WebAssembly.validate, because the
+  // size exceeds the internal module size limit.
+  assertThrows(() => WebAssembly.validate(new Uint16Array(size)), RangeError);
+})();
+gc();
