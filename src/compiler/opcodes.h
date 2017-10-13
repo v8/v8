@@ -355,6 +355,7 @@
   V(TransitionAndStoreElement)          \
   V(ObjectIsArrayBufferView)            \
   V(ObjectIsCallable)                   \
+  V(ObjectIsConstructor)                \
   V(ObjectIsDetectableCallable)         \
   V(ObjectIsMinusZero)                  \
   V(ObjectIsNaN)                        \
