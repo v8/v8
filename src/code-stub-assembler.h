@@ -880,6 +880,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsAccessorPair(Node* object);
   Node* IsAllocationSite(Node* object);
   Node* IsAnyHeapNumber(Node* object);
+  Node* IsArrayIteratorInstanceType(Node* instance_type);
   Node* IsBoolean(Node* object);
   Node* IsExtensibleMap(Node* map);
   Node* IsCallableMap(Node* map);

@@ -812,18 +812,14 @@ void CodeStubAssembler::BranchIfJSReceiver(Node* object, Label* if_true,
                                            Label* if_false) {
   GotoIf(TaggedIsSmi(object), if_false);
   STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-  Branch(Int32GreaterThanOrEqual(LoadInstanceType(object),
-                                 Int32Constant(FIRST_JS_RECEIVER_TYPE)),
-         if_true, if_false);
+  Branch(IsJSReceiver(object), if_true, if_false);
 }
 
 void CodeStubAssembler::BranchIfJSObject(Node* object, Label* if_true,
                                          Label* if_false) {
   GotoIf(TaggedIsSmi(object), if_false);
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  Branch(Int32GreaterThanOrEqual(LoadInstanceType(object),
-                                 Int32Constant(FIRST_JS_OBJECT_TYPE)),
-         if_true, if_false);
+  Branch(IsJSObject(object), if_true, if_false);
 }
 
 void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
@@ -1384,9 +1380,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapInobjectProperties(
   CSA_SLOW_ASSERT(this, IsMap(map));
   // See Map::GetInObjectProperties() for details.
   STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
-  CSA_ASSERT(this,
-             Int32GreaterThanOrEqual(LoadMapInstanceType(map),
-                                     Int32Constant(FIRST_JS_OBJECT_TYPE)));
+  CSA_ASSERT(this, IsJSObjectMap(map));
   return ChangeInt32ToIntPtr(LoadObjectField(
       map, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
       MachineType::Uint8()));
@@ -3711,6 +3705,12 @@ Node* CodeStubAssembler::IsJSReceiverInstanceType(Node* instance_type) {
   STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
   return Int32GreaterThanOrEqual(instance_type,
                                  Int32Constant(FIRST_JS_RECEIVER_TYPE));
+}
+
+Node* CodeStubAssembler::IsArrayIteratorInstanceType(Node* instance_type) {
+  return Uint32LessThan(
+      Int32Constant(LAST_ARRAY_ITERATOR_TYPE - FIRST_ARRAY_ITERATOR_TYPE),
+      Int32Sub(instance_type, Int32Constant(FIRST_ARRAY_ITERATOR_TYPE)));
 }
 
 Node* CodeStubAssembler::IsJSReceiverMap(Node* map) {
@@ -6477,7 +6477,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   {
     CSA_ASSERT(this, HasInstanceType(object, JS_VALUE_TYPE));
     Node* string = LoadJSValueValue(object);
-    CSA_ASSERT(this, IsStringInstanceType(LoadInstanceType(string)));
+    CSA_ASSERT(this, IsString(string));
     Node* length = LoadStringLength(string);
     GotoIf(UintPtrLessThan(intptr_index, SmiUntag(length)), if_found);
     Goto(&if_isobjectorsmi);
@@ -6486,7 +6486,7 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
   {
     CSA_ASSERT(this, HasInstanceType(object, JS_VALUE_TYPE));
     Node* string = LoadJSValueValue(object);
-    CSA_ASSERT(this, IsStringInstanceType(LoadInstanceType(string)));
+    CSA_ASSERT(this, IsString(string));
     Node* length = LoadStringLength(string);
     GotoIf(UintPtrLessThan(intptr_index, SmiUntag(length)), if_found);
     Goto(&if_isdictionary);
@@ -6530,9 +6530,8 @@ void CodeStubAssembler::TryPrototypeChainLookup(
     Label if_objectisreceiver(this);
     STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
     STATIC_ASSERT(FIRST_JS_RECEIVER_TYPE == JS_PROXY_TYPE);
-    Branch(Int32GreaterThanOrEqual(instance_type,
-                                   Int32Constant(FIRST_JS_RECEIVER_TYPE)),
-           &if_objectisreceiver, if_bailout);
+    Branch(IsJSReceiverInstanceType(instance_type), &if_objectisreceiver,
+           if_bailout);
     BIND(&if_objectisreceiver);
 
     if (if_proxy) {
@@ -9302,9 +9301,7 @@ Node* CodeStubAssembler::ClassOf(Node* value) {
 
   // Check if {value} is a primitive HeapObject.
   STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-  GotoIf(Uint32LessThan(value_instance_type,
-                        Int32Constant(FIRST_JS_RECEIVER_TYPE)),
-         &if_primitive);
+  GotoIfNot(IsJSReceiverInstanceType(value_instance_type), &if_primitive);
 
   // Load the {value}s constructor, and check that it's a JSFunction.
   Node* constructor = LoadMapConstructor(value_map);

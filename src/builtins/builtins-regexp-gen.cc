@@ -2063,7 +2063,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
             Node* const match = LoadFixedArrayElement(result_fixed_array, 0);
 
             // The match is guaranteed to be a string on the fast path.
-            CSA_ASSERT(this, IsStringInstanceType(LoadInstanceType(match)));
+            CSA_ASSERT(this, IsString(match));
 
             var_match.Bind(match);
             Goto(&if_didmatch);

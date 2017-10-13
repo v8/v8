@@ -2174,11 +2174,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
   // (22.1.5.3), throw a TypeError exception
   GotoIf(TaggedIsSmi(iterator), &throw_bad_receiver);
   TNode<Int32T> instance_type = LoadInstanceType(iterator);
-  GotoIf(
-      Uint32LessThan(
-          Int32Constant(LAST_ARRAY_ITERATOR_TYPE - FIRST_ARRAY_ITERATOR_TYPE),
-          Int32Sub(instance_type, Int32Constant(FIRST_ARRAY_ITERATOR_TYPE))),
-      &throw_bad_receiver);
+  GotoIf(IsArrayIteratorInstanceType(instance_type), &throw_bad_receiver);
 
   // Let a be O.[[IteratedObject]].
   Node* array =
