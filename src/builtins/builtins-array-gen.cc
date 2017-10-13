@@ -829,8 +829,7 @@ TF_BUILTIN(FastArrayPop, CodeStubAssembler) {
 
   BIND(&fast);
   {
-    CSA_ASSERT(this, TaggedIsPositiveSmi(
-                         LoadObjectField(receiver, JSArray::kLengthOffset)));
+    CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(receiver)));
     Node* length = LoadAndUntagObjectField(receiver, JSArray::kLengthOffset);
     Label return_undefined(this), fast_elements(this);
     GotoIf(IntPtrEqual(length, IntPtrConstant(0)), &return_undefined);
@@ -1060,8 +1059,7 @@ TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
 
   BIND(&fast);
   {
-    CSA_ASSERT(this, TaggedIsPositiveSmi(
-                         LoadObjectField(receiver, JSArray::kLengthOffset)));
+    CSA_ASSERT(this, TaggedIsPositiveSmi(LoadJSArrayLength(receiver)));
     Node* length = LoadAndUntagObjectField(receiver, JSArray::kLengthOffset);
     Label return_undefined(this), fast_elements_tagged(this),
         fast_elements_smi(this);
@@ -2203,7 +2201,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     CSA_ASSERT(this, Word32Equal(LoadMapInstanceType(array_map),
                                  Int32Constant(JS_ARRAY_TYPE)));
 
-    Node* length = LoadObjectField(array, JSArray::kLengthOffset);
+    Node* length = LoadJSArrayLength(array);
 
     CSA_ASSERT(this, TaggedIsSmi(length));
     CSA_ASSERT(this, TaggedIsSmi(index));
@@ -2309,7 +2307,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
         BIND(&if_isarray);
         {
-          var_length.Bind(LoadObjectField(array, JSArray::kLengthOffset));
+          var_length.Bind(LoadJSArrayLength(array));
 
           // Invalidate protector cell if needed
           Branch(WordNotEqual(orig_map, UndefinedConstant()), &if_wasfastarray,

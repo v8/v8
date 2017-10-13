@@ -754,7 +754,7 @@ TF_BUILTIN(OrderedHashTableHealIndex, CollectionsBuiltinsAssembler) {
   Label return_index(this), return_zero(this);
 
   // Check if we need to update the {index}.
-  GotoIfNot(SmiLessThan(SmiConstant(Smi::kZero), index), &return_zero);
+  GotoIfNot(SmiLessThan(SmiConstant(0), index), &return_zero);
 
   // Check if the {table} was cleared.
   Node* number_of_deleted_elements = LoadAndUntagObjectField(
@@ -783,7 +783,7 @@ TF_BUILTIN(OrderedHashTableHealIndex, CollectionsBuiltinsAssembler) {
   Return(var_index.value());
 
   BIND(&return_zero);
-  Return(SmiConstant(Smi::kZero));
+  Return(SmiConstant(0));
 }
 
 template <typename TableType>

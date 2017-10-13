@@ -165,8 +165,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
         LoadObjectField(arguments_list, JSArgumentsObject::kLengthOffset);
     Node* elements =
         LoadObjectField(arguments_list, JSArgumentsObject::kElementsOffset);
-    Node* elements_length =
-        LoadObjectField(elements, FixedArray::kLengthOffset);
+    Node* elements_length = LoadFixedArrayBaseLength(elements);
     GotoIfNot(WordEqual(length, elements_length), &if_runtime);
     var_elements.Bind(elements);
     var_length.Bind(SmiToWord32(length));

@@ -188,7 +188,7 @@ TF_BUILTIN(ObjectKeys, ObjectBuiltinsAssembler) {
 
   // Ensure that the {object} doesn't have any elements.
   CSA_ASSERT(this, IsJSObjectMap(object_map));
-  Node* object_elements = LoadObjectField(object, JSObject::kElementsOffset);
+  Node* object_elements = LoadElements(object);
   GotoIf(IsEmptyFixedArray(object_elements), &if_empty_elements);
   Branch(IsEmptySlowElementDictionary(object_elements), &if_empty_elements,
          &if_slow);

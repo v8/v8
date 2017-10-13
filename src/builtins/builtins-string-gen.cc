@@ -653,7 +653,7 @@ TF_BUILTIN(StringPrototypeCharAt, CodeStubAssembler) {
     GotoIfNot(TaggedIsSmi(position), &return_emptystring);
 
     // Determine the actual length of the {receiver} String.
-    Node* receiver_length = LoadObjectField(receiver, String::kLengthOffset);
+    Node* receiver_length = LoadStringLength(receiver);
 
     // Return "" if the Smi {position} is outside the bounds of the {receiver}.
     Label if_positioninbounds(this);
@@ -692,7 +692,7 @@ TF_BUILTIN(StringPrototypeCharCodeAt, CodeStubAssembler) {
     GotoIfNot(TaggedIsSmi(position), &return_nan);
 
     // Determine the actual length of the {receiver} String.
-    Node* receiver_length = LoadObjectField(receiver, String::kLengthOffset);
+    Node* receiver_length = LoadStringLength(receiver);
 
     // Return NaN if the Smi {position} is outside the bounds of the {receiver}.
     Label if_positioninbounds(this);
@@ -726,7 +726,7 @@ TF_BUILTIN(StringPrototypeCodePointAt, StringBuiltinsAssembler) {
   position =
       ToInteger(context, position, CodeStubAssembler::kTruncateMinusZero);
   GotoIfNot(TaggedIsSmi(position), &if_outofbounds);
-  Node* receiver_length = LoadObjectField(receiver, String::kLengthOffset);
+  Node* receiver_length = LoadStringLength(receiver);
   Branch(SmiBelow(position, receiver_length), &if_inbounds, &if_outofbounds);
 
   BIND(&if_inbounds);
@@ -2213,7 +2213,7 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   Node* string = LoadObjectField(iterator, JSStringIterator::kStringOffset);
   Node* position =
       LoadObjectField(iterator, JSStringIterator::kNextIndexOffset);
-  Node* length = LoadObjectField(string, String::kLengthOffset);
+  Node* length = LoadStringLength(string);
 
   Branch(SmiLessThan(position, length), &next_codepoint, &return_result);
 
@@ -2223,7 +2223,7 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
     Node* ch = LoadSurrogatePairAt(string, length, position, encoding);
     Node* value = StringFromCodePoint(ch, encoding);
     var_value.Bind(value);
-    Node* length = LoadObjectField(value, String::kLengthOffset);
+    Node* length = LoadStringLength(value);
     StoreObjectFieldNoWriteBarrier(iterator, JSStringIterator::kNextIndexOffset,
                                    SmiAdd(position, length));
     var_done.Bind(BooleanConstant(false));

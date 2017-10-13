@@ -7211,7 +7211,7 @@ void CodeStubAssembler::EmitElementStore(Node* object, Node* key, Node* value,
   DCHECK(IsSmiOrObjectElementsKind(elements_kind) ||
          IsDoubleElementsKind(elements_kind));
 
-  Node* length = is_jsarray ? LoadObjectField(object, JSArray::kLengthOffset)
+  Node* length = is_jsarray ? LoadJSArrayLength(object)
                             : LoadFixedArrayBaseLength(elements);
   length = TaggedToParameter(length, parameter_mode);
 
@@ -10239,9 +10239,8 @@ void CodeStubAssembler::CheckPrototypeEnumCache(Node* receiver,
 
     // It might still be an empty JSArray.
     GotoIfNot(IsJSArrayMap(object_map), if_slow);
-    Node* object_length = LoadObjectField(object, JSArray::kLengthOffset);
-    Branch(WordEqual(object_length, SmiConstant(Smi::kZero)), &if_no_elements,
-           if_slow);
+    Node* object_length = LoadJSArrayLength(object);
+    Branch(WordEqual(object_length, SmiConstant(0)), &if_no_elements, if_slow);
 
     // Continue with the {object}s prototype.
     BIND(&if_no_elements);
@@ -10276,7 +10275,7 @@ Node* CodeStubAssembler::CheckEnumCache(Node* receiver, Label* if_empty,
     Node* properties = LoadSlowProperties(receiver);
     Node* length = LoadFixedArrayElement(
         properties, NameDictionary::kNumberOfElementsIndex);
-    GotoIfNot(WordEqual(length, SmiConstant(Smi::kZero)), if_runtime);
+    GotoIfNot(WordEqual(length, SmiConstant(0)), if_runtime);
     // Check that there are no elements on the {receiver} and its prototype
     // chain. Given that we do not create an EnumCache for dict-mode objects,
     // directly jump to {if_empty} if there are no elements and no properties

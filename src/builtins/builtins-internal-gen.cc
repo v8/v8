@@ -31,7 +31,7 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
   Node* object = Parameter(Descriptor::kObject);
 
   // Load the {object}s elements.
-  Node* source = LoadObjectField(object, JSObject::kElementsOffset);
+  Node* source = LoadElements(object);
 
   ParameterMode mode = OptimalParameterMode();
   Node* length = TaggedToParameter(LoadFixedArrayBaseLength(source), mode);
