@@ -96,7 +96,7 @@ class S390OperandConverter final : public InstructionOperandConverter {
     UNREACHABLE();
   }
 
-  MemOperand MemoryOperand(AddressingMode* mode = NULL,
+  MemOperand MemoryOperand(AddressingMode* mode = nullptr,
                            size_t first_index = 0) {
     return MemoryOperand(mode, &first_index);
   }
@@ -2353,13 +2353,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ LoadlW(i.OutputRegister(), i.MemoryOperand());
       break;
     case kAtomicStoreWord8:
-      __ StoreByte(i.InputRegister(0), i.MemoryOperand(NULL, 1));
+      __ StoreByte(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
       break;
     case kAtomicStoreWord16:
-      __ StoreHalfWord(i.InputRegister(0), i.MemoryOperand(NULL, 1));
+      __ StoreHalfWord(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
       break;
     case kAtomicStoreWord32:
-      __ StoreW(i.InputRegister(0), i.MemoryOperand(NULL, 1));
+      __ StoreW(i.InputRegister(0), i.MemoryOperand(nullptr, 1));
       break;
 //         0x aa bb cc dd
 // index =    3..2..1..0

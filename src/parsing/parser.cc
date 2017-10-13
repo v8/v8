@@ -177,7 +177,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   // Set start and end position to the same value
   function_scope->set_start_position(pos);
   function_scope->set_end_position(pos);
-  ZoneList<Statement*>* body = NULL;
+  ZoneList<Statement*>* body = nullptr;
 
   {
     FunctionState function_state(&function_state_, &scope_, function_scope);
@@ -310,7 +310,7 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
 
 Expression* Parser::BuildUnaryExpression(Expression* expression,
                                          Token::Value op, int pos) {
-  DCHECK(expression != NULL);
+  DCHECK(expression != nullptr);
   if (expression->IsLiteral()) {
     const AstValue* literal = expression->AsLiteral()->raw_value();
     if (op == Token::NOT) {
@@ -408,7 +408,7 @@ Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
     default:
       DCHECK(false);
   }
-  return NULL;
+  return nullptr;
 }
 
 Expression* Parser::NewV8Intrinsic(const AstRawString* name,
@@ -622,7 +622,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   DCHECK(info->function_literal_id() == FunctionLiteral::kIdTypeTopLevel ||
          info->function_literal_id() == FunctionLiteral::kIdTypeInvalid);
 
-  FunctionLiteral* result = NULL;
+  FunctionLiteral* result = nullptr;
   {
     Scope* outer = original_scope_;
     DCHECK_NOT_NULL(outer);
@@ -714,7 +714,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   info->set_max_function_literal_id(GetLastFunctionLiteralId());
 
   // Make sure the target stack is empty.
-  DCHECK(target_stack_ == NULL);
+  DCHECK(target_stack_ == nullptr);
 
   return result;
 }
@@ -746,7 +746,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
     result->set_inferred_name(inferred_name);
   }
 
-  if (FLAG_trace_parse && result != NULL) {
+  if (FLAG_trace_parse && result != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
     // We need to make sure that the debug-name is available.
     ast_value_factory()->Internalize(isolate);
@@ -989,7 +989,7 @@ void Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
       *reserved_loc = scanner()->location();
     }
     const AstRawString* local_name = ParseIdentifierName(CHECK_OK_VOID);
-    const AstRawString* export_name = NULL;
+    const AstRawString* export_name = nullptr;
     Scanner::Location location = scanner()->location();
     if (CheckContextualKeyword(Token::AS)) {
       export_name = ParseIdentifierName(CHECK_OK_VOID);
@@ -997,7 +997,7 @@ void Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
       // both for errors due to "a" and for errors due to "b".
       location.end_pos = scanner()->location().end_pos;
     }
-    if (export_name == NULL) {
+    if (export_name == nullptr) {
       export_name = local_name;
     }
     export_names->Add(export_name, zone());
@@ -1857,7 +1857,7 @@ Statement* Parser::InitializeForEachStatement(ForEachStatement* stmt,
                                               Expression* subject,
                                               Statement* body) {
   ForOfStatement* for_of = stmt->AsForOfStatement();
-  if (for_of != NULL) {
+  if (for_of != nullptr) {
     const bool finalize = true;
     return InitializeForOfStatement(for_of, each, subject, body, finalize,
                                     IteratorType::kNormal, each->position());
@@ -2186,7 +2186,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     temps.Add(temp, zone());
   }
 
-  Variable* first = NULL;
+  Variable* first = nullptr;
   // Make statement: first = 1.
   if (next) {
     first = NewTemporary(temp_name);
@@ -2211,7 +2211,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   // need to know about it. This should be safe because we don't run any code
   // in this function that looks up break targets.
   ForStatement* outer_loop =
-      factory()->NewForStatement(NULL, kNoSourcePosition);
+      factory()->NewForStatement(nullptr, kNoSourcePosition);
   outer_block->statements()->Add(outer_loop, zone());
   outer_block->set_scope(scope());
 
@@ -2243,7 +2243,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     // Make statement: if (first == 1) { first = 0; } else { next; }
     if (next) {
       DCHECK(first);
-      Expression* compare = NULL;
+      Expression* compare = nullptr;
       // Make compare expression: first == 1.
       {
         Expression* const1 = factory()->NewSmiLiteral(1, kNoSourcePosition);
@@ -2251,7 +2251,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
         compare = factory()->NewCompareOperation(Token::EQ, first_proxy, const1,
                                                  kNoSourcePosition);
       }
-      Statement* clear_first = NULL;
+      Statement* clear_first = nullptr;
       // Make statement: first = 0.
       {
         VariableProxy* first_proxy = factory()->NewVariableProxy(first);
@@ -2290,7 +2290,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
 
     inner_block->statements()->Add(ignore_completion_block, zone());
     // Make cond expression for main loop: flag == 1.
-    Expression* flag_cond = NULL;
+    Expression* flag_cond = nullptr;
     {
       Expression* const1 = factory()->NewSmiLiteral(1, kNoSourcePosition);
       VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
@@ -2299,9 +2299,9 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     }
 
     // Create chain of expressions "flag = 0, temp_x = x, ..."
-    Statement* compound_next_statement = NULL;
+    Statement* compound_next_statement = nullptr;
     {
-      Expression* compound_next = NULL;
+      Expression* compound_next = nullptr;
       // Make expression: flag = 0.
       {
         VariableProxy* flag_proxy = factory()->NewVariableProxy(flag);
@@ -2330,12 +2330,12 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     // Note that we re-use the original loop node, which retains its labels
     // and ensures that any break or continue statements in body point to
     // the right place.
-    loop->Initialize(NULL, flag_cond, compound_next_statement, body);
+    loop->Initialize(nullptr, flag_cond, compound_next_statement, body);
     inner_block->statements()->Add(loop, zone());
 
     // Make statement: {{if (flag == 1) break;}}
     {
-      Expression* compare = NULL;
+      Expression* compare = nullptr;
       // Make compare expresion: flag == 1.
       {
         Expression* const1 = factory()->NewSmiLiteral(1, kNoSourcePosition);
@@ -2354,7 +2354,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
     inner_block->set_scope(inner_scope);
   }
 
-  outer_loop->Initialize(NULL, NULL, NULL, inner_block);
+  outer_loop->Initialize(nullptr, nullptr, nullptr, inner_block);
 
   return outer_block;
 }
@@ -2473,7 +2473,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   // Anonymous functions were passed either the empty symbol or a null
   // handle as the function name.  Remember if we were passed a non-empty
   // handle to decide whether to invoke function name inference.
-  bool should_infer_name = function_name == NULL;
+  bool should_infer_name = function_name == nullptr;
 
   // We want a non-null handle as the function name by default. We will handle
   // the "function does not have a shared name" case later.
@@ -3215,7 +3215,7 @@ Literal* Parser::GetLiteralUndefined(int position) {
 
 void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
   Declaration* decl = scope->CheckConflictingVarDeclarations();
-  if (decl != NULL) {
+  if (decl != nullptr) {
     // In ES6, conflicting variable bindings are early errors.
     const AstRawString* name = decl->proxy()->raw_name();
     int position = decl->proxy()->position();
@@ -3269,7 +3269,7 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
 // Parser support
 
 bool Parser::TargetStackContainsLabel(const AstRawString* label) {
-  for (ParserTarget* t = target_stack_; t != NULL; t = t->previous()) {
+  for (ParserTarget* t = target_stack_; t != nullptr; t = t->previous()) {
     if (ContainsLabel(t->statement()->labels(), label)) return true;
   }
   return false;
@@ -3278,31 +3278,31 @@ bool Parser::TargetStackContainsLabel(const AstRawString* label) {
 
 BreakableStatement* Parser::LookupBreakTarget(const AstRawString* label,
                                               bool* ok) {
-  bool anonymous = label == NULL;
-  for (ParserTarget* t = target_stack_; t != NULL; t = t->previous()) {
+  bool anonymous = label == nullptr;
+  for (ParserTarget* t = target_stack_; t != nullptr; t = t->previous()) {
     BreakableStatement* stat = t->statement();
     if ((anonymous && stat->is_target_for_anonymous()) ||
         (!anonymous && ContainsLabel(stat->labels(), label))) {
       return stat;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 
 IterationStatement* Parser::LookupContinueTarget(const AstRawString* label,
                                                  bool* ok) {
-  bool anonymous = label == NULL;
-  for (ParserTarget* t = target_stack_; t != NULL; t = t->previous()) {
+  bool anonymous = label == nullptr;
+  for (ParserTarget* t = target_stack_; t != nullptr; t = t->previous()) {
     IterationStatement* stat = t->statement()->AsIterationStatement();
-    if (stat == NULL) continue;
+    if (stat == nullptr) continue;
 
     DCHECK(stat->is_target_for_anonymous());
     if (anonymous || ContainsLabel(stat->labels(), label)) {
       return stat;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -3349,8 +3349,8 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
 void Parser::ParseOnBackground(ParseInfo* info) {
   parsing_on_main_thread_ = false;
 
-  DCHECK(info->literal() == NULL);
-  FunctionLiteral* result = NULL;
+  DCHECK(info->literal() == nullptr);
+  FunctionLiteral* result = nullptr;
 
   ParserLogger logger;
   if (produce_cached_parse_data()) {
@@ -3386,8 +3386,8 @@ void Parser::ParseOnBackground(ParseInfo* info) {
   // care of calling AstValueFactory::Internalize just before compilation.
 
   if (produce_cached_parse_data()) {
-    if (result != NULL) *info->cached_data() = logger.GetScriptData();
-    log_ = NULL;
+    if (result != nullptr) *info->cached_data() = logger.GetScriptData();
+    log_ = nullptr;
   }
   if (FLAG_runtime_stats &
       v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING) {

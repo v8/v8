@@ -228,13 +228,13 @@ void AstTraversalVisitor<Subclass>::VisitWhileStatement(WhileStatement* stmt) {
 template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitForStatement(ForStatement* stmt) {
   PROCESS_NODE(stmt);
-  if (stmt->init() != NULL) {
+  if (stmt->init() != nullptr) {
     RECURSE(Visit(stmt->init()));
   }
-  if (stmt->cond() != NULL) {
+  if (stmt->cond() != nullptr) {
     RECURSE(Visit(stmt->cond()));
   }
-  if (stmt->next() != NULL) {
+  if (stmt->next() != nullptr) {
     RECURSE(Visit(stmt->next()));
   }
   RECURSE(Visit(stmt->body()));

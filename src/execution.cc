@@ -17,13 +17,10 @@
 namespace v8 {
 namespace internal {
 
-StackGuard::StackGuard()
-    : isolate_(NULL) {
-}
-
+StackGuard::StackGuard() : isolate_(nullptr) {}
 
 void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
-  DCHECK(isolate_ != NULL);
+  DCHECK(isolate_ != nullptr);
   thread_local_.set_jslimit(kInterruptLimit);
   thread_local_.set_climit(kInterruptLimit);
   isolate_->heap()->SetStackLimits();
@@ -31,7 +28,7 @@ void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
 
 
 void StackGuard::reset_limits(const ExecutionAccess& lock) {
-  DCHECK(isolate_ != NULL);
+  DCHECK(isolate_ != nullptr);
   thread_local_.set_jslimit(thread_local_.real_jslimit_);
   thread_local_.set_climit(thread_local_.real_climit_);
   isolate_->heap()->SetStackLimits();
@@ -115,7 +112,7 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(
   }
 
   // Placeholder for return value.
-  Object* value = NULL;
+  Object* value = nullptr;
 
   typedef Object* (*JSEntryFunction)(Object* new_target, Object* target,
                                      Object* receiver, int argc,
@@ -218,7 +215,7 @@ MaybeHandle<Object> Execution::TryCall(Isolate* isolate,
                                        MaybeHandle<Object>* exception_out) {
   bool is_termination = false;
   MaybeHandle<Object> maybe_result;
-  if (exception_out != NULL) *exception_out = MaybeHandle<Object>();
+  if (exception_out != nullptr) *exception_out = MaybeHandle<Object>();
   DCHECK_IMPLIES(message_handling == MessageHandling::kKeepPending,
                  exception_out == nullptr);
   // Enter a try-block while executing the JavaScript code. To avoid
@@ -353,8 +350,7 @@ void StackGuard::ClearInterrupt(InterruptFlag flag) {
   ExecutionAccess access(isolate_);
   // Clear the interrupt flag from the chain of PostponeInterruptsScopes.
   for (PostponeInterruptsScope* current = thread_local_.postpone_interrupts_;
-       current != NULL;
-       current = current->prev_) {
+       current != nullptr; current = current->prev_) {
     current->intercepted_flags_ &= ~flag;
   }
 
@@ -410,7 +406,7 @@ void StackGuard::ThreadLocal::Clear() {
   set_jslimit(kIllegalLimit);
   real_climit_ = kIllegalLimit;
   set_climit(kIllegalLimit);
-  postpone_interrupts_ = NULL;
+  postpone_interrupts_ = nullptr;
   interrupt_flags_ = 0;
 }
 
@@ -427,7 +423,7 @@ bool StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
     set_climit(limit);
     should_set_stack_limits = true;
   }
-  postpone_interrupts_ = NULL;
+  postpone_interrupts_ = nullptr;
   interrupt_flags_ = 0;
   return should_set_stack_limits;
 }

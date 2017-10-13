@@ -46,11 +46,11 @@ class Deserializer : public SerializerDeserializer {
   // Create a deserializer from a snapshot byte source.
   template <class Data>
   Deserializer(Data* data, bool deserializing_user_code)
-      : isolate_(NULL),
+      : isolate_(nullptr),
         source_(data->Payload()),
         magic_number_(data->GetMagicNumber()),
         next_map_index_(0),
-        external_reference_table_(NULL),
+        external_reference_table_(nullptr),
         deserialized_large_objects_(0),
         deserializing_user_code_(deserializing_user_code),
         next_alignment_(kWordAligned),
@@ -128,7 +128,7 @@ class Deserializer : public SerializerDeserializer {
 
   // Fills in some heap data in an area from start to end (non-inclusive).  The
   // space id is used for the write barrier.  The object_address is the address
-  // of the object we are writing into, or NULL if we are not writing into an
+  // of the object we are writing into, or nullptr if we are not writing into an
   // object, i.e. if we are writing a series of tagged values that are not on
   // the heap. Return false if the object content has been deferred.
   bool ReadData(Object** start, Object** end, int space,

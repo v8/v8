@@ -99,7 +99,7 @@ void* OS::Allocate(const size_t requested, size_t* allocated,
   int prot = GetProtectionFromMemoryPermission(access);
   void* mbase = mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, kMmapFd,
                      kMmapFdOffset);
-  if (mbase == MAP_FAILED) return NULL;
+  if (mbase == MAP_FAILED) return nullptr;
   *allocated = msize;
   return mbase;
 }
@@ -110,7 +110,7 @@ void* OS::ReserveRegion(size_t size, void* hint) {
       mmap(hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_LAZY,
            kMmapFd, kMmapFdOffset);
 
-  if (result == MAP_FAILED) return NULL;
+  if (result == MAP_FAILED) return nullptr;
 
   return result;
 }
@@ -188,7 +188,7 @@ bool OS::HasLazyCommits() { return false; }
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   std::vector<SharedLibraryAddress> result;
-  procfs_mapinfo *mapinfos = NULL, *mapinfo;
+  procfs_mapinfo *mapinfos = nullptr, *mapinfo;
   int proc_fd, num, i;
 
   struct {
@@ -205,14 +205,14 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   }
 
   /* Get the number of map entries.  */
-  if (devctl(proc_fd, DCMD_PROC_MAPINFO, NULL, 0, &num) != EOK) {
+  if (devctl(proc_fd, DCMD_PROC_MAPINFO, nullptr, 0, &num) != EOK) {
     close(proc_fd);
     return result;
   }
 
   mapinfos =
       reinterpret_cast<procfs_mapinfo*>(malloc(num * sizeof(procfs_mapinfo)));
-  if (mapinfos == NULL) {
+  if (mapinfos == nullptr) {
     close(proc_fd);
     return result;
   }

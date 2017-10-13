@@ -833,7 +833,7 @@ Name* KeyedLoadICNexus::FindFirstName() const {
   if (IsPropertyNameFeedback(feedback)) {
     return Name::cast(feedback);
   }
-  return NULL;
+  return nullptr;
 }
 
 Name* KeyedStoreICNexus::FindFirstName() const {
@@ -841,7 +841,7 @@ Name* KeyedStoreICNexus::FindFirstName() const {
   if (IsPropertyNameFeedback(feedback)) {
     return Name::cast(feedback);
   }
-  return NULL;
+  return nullptr;
 }
 
 KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {

@@ -347,8 +347,8 @@ MAKE_TO_LOCAL(ScriptOrModuleToLocal, Script, ScriptOrModule)
 #define MAKE_OPEN_HANDLE(From, To)                                             \
   v8::internal::Handle<v8::internal::To> Utils::OpenHandle(                    \
       const v8::From* that, bool allow_empty_handle) {                         \
-    DCHECK(allow_empty_handle || that != NULL);                                \
-    DCHECK(that == NULL ||                                                     \
+    DCHECK(allow_empty_handle || that != nullptr);                             \
+    DCHECK(that == nullptr ||                                                  \
            (*reinterpret_cast<v8::internal::Object* const*>(that))->Is##To()); \
     return v8::internal::Handle<v8::internal::To>(                             \
         reinterpret_cast<v8::internal::To**>(const_cast<v8::From*>(that)));    \
@@ -370,8 +370,8 @@ class V8_EXPORT_PRIVATE DeferredHandles {
 
  private:
   DeferredHandles(Object** first_block_limit, Isolate* isolate)
-      : next_(NULL),
-        previous_(NULL),
+      : next_(nullptr),
+        previous_(nullptr),
         first_block_limit_(first_block_limit),
         isolate_(isolate) {
     isolate->LinkDeferredHandles(this);
@@ -404,7 +404,7 @@ class HandleScopeImplementer {
   explicit HandleScopeImplementer(Isolate* isolate)
       : isolate_(isolate),
         microtask_context_(nullptr),
-        spare_(NULL),
+        spare_(nullptr),
         call_depth_(0),
         microtasks_depth_(0),
         microtasks_suppressions_(0),
@@ -413,7 +413,7 @@ class HandleScopeImplementer {
         debug_microtasks_depth_(0),
 #endif
         microtasks_policy_(v8::MicrotasksPolicy::kAuto),
-        last_handle_before_deferred_block_(NULL) {
+        last_handle_before_deferred_block_(nullptr) {
   }
 
   ~HandleScopeImplementer() {
@@ -487,8 +487,8 @@ class HandleScopeImplementer {
   Isolate* isolate() const { return isolate_; }
 
   void ReturnBlock(Object** block) {
-    DCHECK(block != NULL);
-    if (spare_ != NULL) DeleteArray(spare_);
+    DCHECK_NOT_NULL(block);
+    if (spare_ != nullptr) DeleteArray(spare_);
     spare_ = block;
   }
 
@@ -499,8 +499,8 @@ class HandleScopeImplementer {
     saved_contexts_.detach();
     microtask_context_ = nullptr;
     entered_context_count_during_microtasks_ = 0;
-    spare_ = NULL;
-    last_handle_before_deferred_block_ = NULL;
+    spare_ = nullptr;
+    last_handle_before_deferred_block_ = nullptr;
     call_depth_ = 0;
   }
 
@@ -513,9 +513,9 @@ class HandleScopeImplementer {
     blocks_.free();
     entered_contexts_.free();
     saved_contexts_.free();
-    if (spare_ != NULL) {
+    if (spare_ != nullptr) {
       DeleteArray(spare_);
-      spare_ = NULL;
+      spare_ = nullptr;
     }
     DCHECK(call_depth_ == 0);
   }
@@ -620,10 +620,10 @@ Handle<Context> HandleScopeImplementer::MicrotaskContext() {
 
 // If there's a spare block, use it for growing the current scope.
 internal::Object** HandleScopeImplementer::GetSpareOrNewBlock() {
-  internal::Object** block = (spare_ != NULL) ?
-      spare_ :
-      NewArray<internal::Object*>(kHandleBlockSize);
-  spare_ = NULL;
+  internal::Object** block =
+      (spare_ != nullptr) ? spare_
+                          : NewArray<internal::Object*>(kHandleBlockSize);
+  spare_ = nullptr;
   return block;
 }
 
@@ -645,13 +645,13 @@ void HandleScopeImplementer::DeleteExtensions(internal::Object** prev_limit) {
 #ifdef ENABLE_HANDLE_ZAPPING
     internal::HandleScope::ZapRange(block_start, block_limit);
 #endif
-    if (spare_ != NULL) {
+    if (spare_ != nullptr) {
       DeleteArray(spare_);
     }
     spare_ = block_start;
   }
-  DCHECK((blocks_.empty() && prev_limit == NULL) ||
-         (!blocks_.empty() && prev_limit != NULL));
+  DCHECK((blocks_.empty() && prev_limit == nullptr) ||
+         (!blocks_.empty() && prev_limit != nullptr));
 }
 
 // Interceptor functions called from generated inline caches to notify

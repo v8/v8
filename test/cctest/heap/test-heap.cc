@@ -213,7 +213,7 @@ static void CheckFindCodeObject(Isolate* isolate) {
   // Test FindCodeObject
 #define __ assm.
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   __ nop();  // supported on all architectures
 
@@ -1194,7 +1194,8 @@ static int ObjectsFoundInHeap(Heap* heap, Handle<Object> objs[], int size) {
   // Count the number of objects found in the heap.
   int found_count = 0;
   HeapIterator iterator(heap);
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+  for (HeapObject* obj = iterator.next(); obj != nullptr;
+       obj = iterator.next()) {
     for (int i = 0; i < size; i++) {
       if (*objs[i] == obj) {
         found_count++;
@@ -1570,7 +1571,7 @@ TEST(TestAlignmentCalculations) {
   int max_double_unaligned_fill = Heap::GetMaximumFillToAlign(kDoubleUnaligned);
   CHECK_EQ(maximum_double_misalignment, max_double_unaligned_fill);
 
-  Address base = static_cast<Address>(NULL);
+  Address base = static_cast<Address>(nullptr);
   int fill = 0;
 
   // Word alignment never requires fill.
@@ -1598,7 +1599,7 @@ static HeapObject* NewSpaceAllocateAligned(int size,
   Heap* heap = CcTest::heap();
   AllocationResult allocation =
       heap->new_space()->AllocateRawAligned(size, alignment);
-  HeapObject* obj = NULL;
+  HeapObject* obj = nullptr;
   allocation.To(&obj);
   heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   return obj;
@@ -1665,7 +1666,7 @@ static HeapObject* OldSpaceAllocateAligned(int size,
   Heap* heap = CcTest::heap();
   AllocationResult allocation =
       heap->old_space()->AllocateRawAligned(size, alignment);
-  HeapObject* obj = NULL;
+  HeapObject* obj = nullptr;
   allocation.To(&obj);
   heap->CreateFillerObjectAt(obj->address(), size, ClearRecordedSlots::kNo);
   return obj;
@@ -1743,8 +1744,7 @@ TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   HeapIterator iterator(CcTest::heap());
   intptr_t size_of_objects_1 = CcTest::heap()->SizeOfObjects();
   intptr_t size_of_objects_2 = 0;
-  for (HeapObject* obj = iterator.next();
-       obj != NULL;
+  for (HeapObject* obj = iterator.next(); obj != nullptr;
        obj = iterator.next()) {
     if (!obj->IsFreeSpace()) {
       size_of_objects_2 += obj->Size();
@@ -1857,7 +1857,8 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
 static int NumberOfGlobalObjects() {
   int count = 0;
   HeapIterator iterator(CcTest::heap());
-  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+  for (HeapObject* obj = iterator.next(); obj != nullptr;
+       obj = iterator.next()) {
     if (obj->IsJSGlobalObject()) count++;
   }
   return count;
@@ -3148,14 +3149,14 @@ class SourceResource : public v8::String::ExternalOneByteStringResource {
 
   virtual void Dispose() {
     i::DeleteArray(data_);
-    data_ = NULL;
+    data_ = nullptr;
   }
 
   const char* data() const { return data_; }
 
   size_t length() const { return length_; }
 
-  bool IsDisposed() { return data_ == NULL; }
+  bool IsDisposed() { return data_ == nullptr; }
 
  private:
   const char* data_;
@@ -3313,7 +3314,7 @@ TEST(Regress169928) {
 
   // We need filler the size of AllocationMemento object, plus an extra
   // fill pointer value.
-  HeapObject* obj = NULL;
+  HeapObject* obj = nullptr;
   AllocationResult allocation =
       CcTest::heap()->new_space()->AllocateRawUnaligned(
           AllocationMemento::kSize + kPointerSize);
@@ -4408,7 +4409,7 @@ static void InterruptCallback357137(v8::Isolate* isolate, void* data) { }
 
 
 static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  CcTest::isolate()->RequestInterrupt(&InterruptCallback357137, NULL);
+  CcTest::isolate()->RequestInterrupt(&InterruptCallback357137, nullptr);
 }
 
 HEAP_TEST(Regress538257) {
@@ -4455,7 +4456,7 @@ TEST(Regress357137) {
       v8::String::NewFromUtf8(isolate, "interrupt", v8::NewStringType::kNormal)
           .ToLocalChecked(),
       v8::FunctionTemplate::New(isolate, RequestInterrupt));
-  v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
+  v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
   CHECK(!context.IsEmpty());
   v8::Context::Scope cscope(context);
 
@@ -4487,7 +4488,7 @@ TEST(Regress507979) {
   // way the filler object shares the mark bits with the following live object.
   o1->Shrink(kFixedArrayLen - 1);
 
-  for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
+  for (HeapObject* obj = it.next(); obj != nullptr; obj = it.next()) {
     // Let's not optimize the loop away.
     CHECK_NOT_NULL(obj->address());
   }
@@ -4984,7 +4985,7 @@ TEST(MessageObjectLeak) {
       v8::String::NewFromUtf8(isolate, "check", v8::NewStringType::kNormal)
           .ToLocalChecked(),
       v8::FunctionTemplate::New(isolate, CheckLeak));
-  v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
+  v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
   v8::Context::Scope cscope(context);
 
   const char* test =
@@ -5039,7 +5040,7 @@ TEST(CanonicalSharedFunctionInfo) {
                                     isolate, CheckEqualSharedFunctionInfos));
   global->Set(isolate, "remove",
               v8::FunctionTemplate::New(isolate, RemoveCodeAndGC));
-  v8::Local<v8::Context> context = v8::Context::New(isolate, NULL, global);
+  v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
   v8::Context::Scope cscope(context);
   CompileRun(
       "function f() { return function g() {}; }"
@@ -5069,7 +5070,7 @@ TEST(ScriptIterator) {
   int script_count = 0;
   {
     HeapIterator it(heap);
-    for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
+    for (HeapObject* obj = it.next(); obj != nullptr; obj = it.next()) {
       if (obj->IsScript()) script_count++;
     }
   }
@@ -5096,7 +5097,7 @@ TEST(SharedFunctionInfoIterator) {
   int sfi_count = 0;
   {
     HeapIterator it(heap);
-    for (HeapObject* obj = it.next(); obj != NULL; obj = it.next()) {
+    for (HeapObject* obj = it.next(); obj != nullptr; obj = it.next()) {
       if (!obj->IsSharedFunctionInfo()) continue;
       sfi_count++;
     }
@@ -5795,7 +5796,7 @@ HEAP_TEST(Regress670675) {
 
 namespace {
 Handle<Code> GenerateDummyImmovableCode(Isolate* isolate) {
-  Assembler assm(isolate, NULL, 256);
+  Assembler assm(isolate, nullptr, 256);
 
   const int kNumberOfNops = 1 << 10;
   for (int i = 0; i < kNumberOfNops; i++) {

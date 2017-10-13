@@ -24,7 +24,7 @@ class PropertyAccessCompiler BASE_EMBEDDED {
       : registers_(GetCallingConvention(isolate, type)),
         type_(type),
         isolate_(isolate),
-        masm_(isolate, NULL, 256, CodeObjectRequired::kYes) {
+        masm_(isolate, nullptr, 256, CodeObjectRequired::kYes) {
     // TODO(yangguo): remove this once we can serialize IC stubs.
     masm_.enable_serializer();
   }

@@ -96,9 +96,8 @@ RUNTIME_FUNCTION(Runtime_ScheduleBreak) {
   return isolate->heap()->undefined_value();
 }
 
-
 static Handle<Object> DebugGetProperty(LookupIterator* it,
-                                       bool* has_caught = NULL) {
+                                       bool* has_caught = nullptr) {
   for (; it->IsFound(); it->Next()) {
     switch (it->state()) {
       case LookupIterator::NOT_FOUND:
@@ -122,7 +121,7 @@ static Handle<Object> DebugGetProperty(LookupIterator* it,
         if (!maybe_result.ToHandle(&result)) {
           result = handle(it->isolate()->pending_exception(), it->isolate());
           it->isolate()->clear_pending_exception();
-          if (has_caught != NULL) *has_caught = true;
+          if (has_caught != nullptr) *has_caught = true;
         }
         return result;
       }
@@ -140,7 +139,7 @@ static MaybeHandle<JSArray> GetIteratorInternalProperties(
     Isolate* isolate, Handle<IteratorType> object) {
   Factory* factory = isolate->factory();
   Handle<IteratorType> iterator = Handle<IteratorType>::cast(object);
-  const char* kind = NULL;
+  const char* kind = nullptr;
   switch (iterator->map()->instance_type()) {
     case JS_MAP_KEY_ITERATOR_TYPE:
       kind = "keys";
@@ -1501,8 +1500,8 @@ RUNTIME_FUNCTION(Runtime_GetScript) {
   Handle<Script> found;
   {
     Script::Iterator iterator(isolate);
-    Script* script = NULL;
-    while ((script = iterator.Next()) != NULL) {
+    Script* script = nullptr;
+    while ((script = iterator.Next()) != nullptr) {
       if (!script->name()->IsString()) continue;
       String* name = String::cast(script->name());
       if (name->Equals(*script_name)) {
@@ -1678,8 +1677,8 @@ Handle<Object> ScriptLocationFromLine(Isolate* isolate, Handle<Script> script,
 // Slow traversal over all scripts on the heap.
 bool GetScriptById(Isolate* isolate, int needle, Handle<Script>* result) {
   Script::Iterator iterator(isolate);
-  Script* script = NULL;
-  while ((script = iterator.Next()) != NULL) {
+  Script* script = nullptr;
+  while ((script = iterator.Next()) != nullptr) {
     if (script->id() == needle) {
       *result = handle(script);
       return true;
@@ -1895,7 +1894,7 @@ RUNTIME_FUNCTION(Runtime_DebugIsActive) {
 
 RUNTIME_FUNCTION(Runtime_DebugBreakInOptimizedCode) {
   UNIMPLEMENTED();
-  return NULL;
+  return nullptr;
 }
 
 namespace {

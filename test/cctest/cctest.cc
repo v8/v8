@@ -47,11 +47,11 @@ enum InitializationState { kUnset, kUninitialized, kInitialized };
 static InitializationState initialization_state_ = kUnset;
 static bool disable_automatic_dispose_ = false;
 
-CcTest* CcTest::last_ = NULL;
+CcTest* CcTest::last_ = nullptr;
 bool CcTest::initialize_called_ = false;
 v8::base::Atomic32 CcTest::isolate_used_ = 0;
-v8::ArrayBuffer::Allocator* CcTest::allocator_ = NULL;
-v8::Isolate* CcTest::isolate_ = NULL;
+v8::ArrayBuffer::Allocator* CcTest::allocator_ = nullptr;
+v8::Isolate* CcTest::isolate_ = nullptr;
 
 CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
                bool enabled, bool initialize)
@@ -84,11 +84,11 @@ void CcTest::Run() {
   if (!initialize_) {
     CHECK(initialization_state_ != kInitialized);
     initialization_state_ = kUninitialized;
-    CHECK(CcTest::isolate_ == NULL);
+    CHECK(CcTest::isolate_ == nullptr);
   } else {
     CHECK(initialization_state_ != kUninitialized);
     initialization_state_ = kInitialized;
-    if (isolate_ == NULL) {
+    if (isolate_ == nullptr) {
       v8::Isolate::CreateParams create_params;
       create_params.array_buffer_allocator = allocator_;
       isolate_ = v8::Isolate::New(create_params);
@@ -152,7 +152,7 @@ void CcTest::InitializeVM() {
 }
 
 void CcTest::TearDown() {
-  if (isolate_ != NULL) isolate_->Dispose();
+  if (isolate_ != nullptr) isolate_->Dispose();
 }
 
 v8::Local<v8::Context> CcTest::NewContext(CcTestExtensionFlags extensions,
@@ -218,7 +218,7 @@ HandleAndZoneScope::HandleAndZoneScope()
 HandleAndZoneScope::~HandleAndZoneScope() {}
 
 static void PrintTestList(CcTest* current) {
-  if (current == NULL) return;
+  if (current == nullptr) return;
   PrintTestList(current->prev());
   printf("%s/%s\n", current->file(), current->name());
 }
@@ -301,7 +301,7 @@ int main(int argc, char* argv[]) {
         char* file = arg_copy;
         char* name = testname + 1;
         CcTest* test = CcTest::last();
-        while (test != NULL) {
+        while (test != nullptr) {
           if (test->enabled()
               && strcmp(test->file(), file) == 0
               && strcmp(test->name(), name) == 0) {
@@ -315,7 +315,7 @@ int main(int argc, char* argv[]) {
         // Run all tests with the specified file or test name.
         char* file_or_name = arg_copy;
         CcTest* test = CcTest::last();
-        while (test != NULL) {
+        while (test != nullptr) {
           if (test->enabled()
               && (strcmp(test->file(), file_or_name) == 0
                   || strcmp(test->name(), file_or_name) == 0)) {
@@ -338,5 +338,5 @@ int main(int argc, char* argv[]) {
   return 0;
 }
 
-RegisterThreadedTest *RegisterThreadedTest::first_ = NULL;
+RegisterThreadedTest* RegisterThreadedTest::first_ = nullptr;
 int RegisterThreadedTest::count_ = 0;

@@ -102,8 +102,8 @@ static void VerifyMemoryChunk(Isolate* isolate,
         (executable == EXECUTABLE) ? MemoryAllocator::CodePageGuardSize() : 0;
 
     MemoryChunk* memory_chunk = memory_allocator->AllocateChunk(
-        reserve_area_size, commit_area_size, executable, NULL);
-    size_t alignment = code_range != NULL && code_range->valid()
+        reserve_area_size, commit_area_size, executable, nullptr);
+    size_t alignment = code_range != nullptr && code_range->valid()
                            ? MemoryChunk::kAlignment
                            : base::OS::CommitPageSize();
     size_t reserved_size =
@@ -318,7 +318,7 @@ TEST(OldSpace) {
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
   OldSpace* s = new OldSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
-  CHECK(s != NULL);
+  CHECK(s != nullptr);
 
   CHECK(s->SetUp());
 
@@ -338,7 +338,7 @@ TEST(LargeObjectSpace) {
   v8::V8::Initialize();
 
   LargeObjectSpace* lo = CcTest::heap()->lo_space();
-  CHECK(lo != NULL);
+  CHECK(lo != nullptr);
 
   int lo_size = Page::kPageSize;
 
@@ -433,7 +433,7 @@ TEST(SizeOfInitialHeap) {
 static HeapObject* AllocateUnaligned(NewSpace* space, int size) {
   AllocationResult allocation = space->AllocateRawUnaligned(size);
   CHECK(!allocation.IsRetry());
-  HeapObject* filler = NULL;
+  HeapObject* filler = nullptr;
   CHECK(allocation.To(&filler));
   space->heap()->CreateFillerObjectAt(filler->address(), size,
                                       ClearRecordedSlots::kNo);
@@ -443,7 +443,7 @@ static HeapObject* AllocateUnaligned(NewSpace* space, int size) {
 static HeapObject* AllocateUnaligned(PagedSpace* space, int size) {
   AllocationResult allocation = space->AllocateRaw(size, kDoubleUnaligned);
   CHECK(!allocation.IsRetry());
-  HeapObject* filler = NULL;
+  HeapObject* filler = nullptr;
   CHECK(allocation.To(&filler));
   space->heap()->CreateFillerObjectAt(filler->address(), size,
                                       ClearRecordedSlots::kNo);
@@ -453,7 +453,7 @@ static HeapObject* AllocateUnaligned(PagedSpace* space, int size) {
 static HeapObject* AllocateUnaligned(LargeObjectSpace* space, int size) {
   AllocationResult allocation = space->AllocateRaw(size, EXECUTABLE);
   CHECK(!allocation.IsRetry());
-  HeapObject* filler = NULL;
+  HeapObject* filler = nullptr;
   CHECK(allocation.To(&filler));
   return filler;
 }

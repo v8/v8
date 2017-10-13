@@ -400,10 +400,10 @@ void AstNumberingVisitor::VisitSwitchStatement(SwitchStatement* node) {
 
 
 void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
-  if (node->init() != NULL) Visit(node->init());  // Not part of loop.
+  if (node->init() != nullptr) Visit(node->init());  // Not part of loop.
   node->set_first_suspend_id(suspend_count_);
-  if (node->cond() != NULL) Visit(node->cond());
-  if (node->next() != NULL) Visit(node->next());
+  if (node->cond() != nullptr) Visit(node->cond());
+  if (node->next() != nullptr) Visit(node->next());
   Visit(node->body());
   node->set_suspend_count(suspend_count_ - node->first_suspend_id());
 }
@@ -461,7 +461,7 @@ void AstNumberingVisitor::VisitCallNew(CallNew* node) {
 
 
 void AstNumberingVisitor::VisitStatements(ZoneList<Statement*>* statements) {
-  if (statements == NULL) return;
+  if (statements == nullptr) return;
   for (int i = 0; i < statements->length(); i++) {
     Visit(statements->at(i));
     if (statements->at(i)->IsJump()) break;

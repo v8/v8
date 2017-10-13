@@ -170,7 +170,7 @@ const uint8_t* TracingController::GetCategoryGroupEnabledInternal(
     }
   }
 
-  unsigned char* category_group_enabled = NULL;
+  unsigned char* category_group_enabled = nullptr;
   size_t category_index = base::Acquire_Load(&g_category_index);
   for (size_t i = 0; i < category_index; ++i) {
     if (strcmp(g_category_groups[i], category_group) == 0) {

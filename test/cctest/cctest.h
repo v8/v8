@@ -114,7 +114,7 @@ class CcTest {
   bool enabled() { return enabled_; }
 
   static v8::Isolate* isolate() {
-    CHECK(isolate_ != NULL);
+    CHECK(isolate_ != nullptr);
     v8::base::Relaxed_Store(&isolate_used_, 1);
     return isolate_;
   }
@@ -246,7 +246,7 @@ class RegisterThreadedTest {
  public:
   explicit RegisterThreadedTest(CcTest::TestFunction* callback,
                                 const char* name)
-      : fuzzer_(NULL), callback_(callback), name_(name) {
+      : fuzzer_(nullptr), callback_(callback), name_(name) {
     prev_ = first_;
     first_ = this;
     count_++;

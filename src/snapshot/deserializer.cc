@@ -28,7 +28,7 @@ void Deserializer::DecodeReservation(
   STATIC_ASSERT(NEW_SPACE == 0);
   int current_space = NEW_SPACE;
   for (auto& r : res) {
-    reservations_[current_space].push_back({r.chunk_size(), NULL, NULL});
+    reservations_[current_space].push_back({r.chunk_size(), nullptr, nullptr});
     if (r.is_last()) current_space++;
   }
   DCHECK_EQ(kNumberOfSpaces, current_space);
@@ -182,8 +182,8 @@ Deserializer::~Deserializer() {
 // process.  It is also called on the body of each function.
 void Deserializer::VisitRootPointers(Root root, Object** start, Object** end) {
   // The space must be new space.  Any other space would cause ReadChunk to try
-  // to update the remembered using NULL as the address.
-  ReadData(start, end, NEW_SPACE, NULL);
+  // to update the remembered using nullptr as the address.
+  ReadData(start, end, NEW_SPACE, nullptr);
 }
 
 void Deserializer::Synchronize(VisitorSynchronization::SyncTag tag) {
@@ -252,7 +252,7 @@ HeapObject* Deserializer::PostProcessNewObject(HeapObject* obj, int space) {
         // string table, set it to forward to the existing one.
         StringTableInsertionKey key(string);
         String* canonical = StringTable::LookupKeyIfExists(isolate_, &key);
-        if (canonical == NULL) {
+        if (canonical == nullptr) {
           new_internalized_strings_.push_back(handle(string));
           return string;
         } else {
@@ -481,7 +481,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
   // are no new space objects in current boot snapshots, so it's not needed,
   // but that may change.
   bool write_barrier_needed =
-      (current_object_address != NULL && source_space != NEW_SPACE &&
+      (current_object_address != nullptr && source_space != NEW_SPACE &&
        source_space != CODE_SPACE);
   while (current < limit) {
     byte data = source_.Get();
@@ -795,7 +795,7 @@ Object** Deserializer::ReadDataCase(Isolate* isolate, Object** current,
     ReadObject(space_number, current);
     emit_write_barrier = (space_number == NEW_SPACE);
   } else {
-    Object* new_object = NULL; /* May not be a real Object pointer. */
+    Object* new_object = nullptr; /* May not be a real Object pointer. */
     if (where == kNewObject) {
       ReadObject(space_number, &new_object);
     } else if (where == kBackref) {

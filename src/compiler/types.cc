@@ -561,14 +561,14 @@ bool Type::Maybe(Type* that) {
   return this->SimplyEquals(that);
 }
 
-// Return the range in [this], or [NULL].
+// Return the range in [this], or [nullptr].
 Type* Type::GetRange() {
   DisallowHeapAllocation no_allocation;
   if (this->IsRange()) return this;
   if (this->IsUnion() && this->AsUnion()->Get(1)->IsRange()) {
     return this->AsUnion()->Get(1);
   }
-  return NULL;
+  return nullptr;
 }
 
 bool UnionType::Wellformed() {
@@ -852,15 +852,15 @@ Type* Type::Union(Type* type1, Type* type2, Zone* zone) {
   Type* range = None();
   Type* range1 = type1->GetRange();
   Type* range2 = type2->GetRange();
-  if (range1 != NULL && range2 != NULL) {
+  if (range1 != nullptr && range2 != nullptr) {
     RangeType::Limits lims =
         RangeType::Limits::Union(RangeType::Limits(range1->AsRange()),
                                  RangeType::Limits(range2->AsRange()));
     Type* union_range = RangeType::New(lims, zone);
     range = NormalizeRangeAndBitset(union_range, &new_bitset, zone);
-  } else if (range1 != NULL) {
+  } else if (range1 != nullptr) {
     range = NormalizeRangeAndBitset(range1, &new_bitset, zone);
-  } else if (range2 != NULL) {
+  } else if (range2 != nullptr) {
     range = NormalizeRangeAndBitset(range2, &new_bitset, zone);
   }
   Type* bits = BitsetType::New(new_bitset);
@@ -938,7 +938,7 @@ const char* BitsetType::Name(bitset bits) {
 #undef RETURN_NAMED_TYPE
 
     default:
-      return NULL;
+      return nullptr;
   }
 }
 
@@ -946,7 +946,7 @@ void BitsetType::Print(std::ostream& os,  // NOLINT
                        bitset bits) {
   DisallowHeapAllocation no_allocation;
   const char* name = Name(bits);
-  if (name != NULL) {
+  if (name != nullptr) {
     os << name;
     return;
   }

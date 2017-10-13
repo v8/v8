@@ -111,7 +111,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
 
 
 void CpuFeatures::PrintTarget() {
-  const char* ppc_arch = NULL;
+  const char* ppc_arch = nullptr;
 
 #if V8_TARGET_ARCH_PPC64
   ppc_arch = "ppc64";
@@ -155,7 +155,7 @@ bool RelocInfo::IsCodedSpecially() {
 
 
 bool RelocInfo::IsInConstantPool() {
-  if (FLAG_enable_embedded_constant_pool && host_ != NULL) {
+  if (FLAG_enable_embedded_constant_pool && host_ != nullptr) {
     Address constant_pool = host_->constant_pool();
     return (constant_pool && Assembler::IsConstantPoolLoadStart(pc_));
   }
@@ -228,7 +228,7 @@ void Assembler::AllocateAndInstallRequestedHeapObjects(Isolate* isolate) {
         break;
     }
     Address pc = buffer_ + request.offset();
-    Address constant_pool = NULL;
+    Address constant_pool = nullptr;
     set_target_address_at(nullptr, pc, constant_pool,
                           reinterpret_cast<Address>(object.location()),
                           SKIP_ICACHE_FLUSH);
@@ -1288,7 +1288,7 @@ void Assembler::EnsureSpaceFor(int space_needed) {
 
 bool Operand::must_output_reloc_info(const Assembler* assembler) const {
   if (rmode_ == RelocInfo::EXTERNAL_REFERENCE) {
-    if (assembler != NULL && assembler->predictable_code_size()) return true;
+    if (assembler != nullptr && assembler->predictable_code_size()) return true;
     return assembler->serializer_enabled();
   } else if (RelocInfo::IsNone(rmode_)) {
     return false;
@@ -2074,7 +2074,7 @@ void Assembler::EmitRelocations() {
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = buffer_ + it->position();
-    Code* code = NULL;
+    Code* code = nullptr;
     RelocInfo rinfo(pc, rmode, it->data(), code);
 
     // Fix up internal references now that they are guaranteed to be bound.

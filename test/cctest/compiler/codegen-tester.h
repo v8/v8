@@ -475,7 +475,7 @@ class CompareWrapper {
       default:
         UNREACHABLE();
     }
-    return NULL;
+    return nullptr;
   }
 
   bool Int32Compare(int32_t a, int32_t b) {

@@ -338,7 +338,7 @@ FILETIME Time::ToFiletime() const {
 
 Time Time::Now() {
   struct timeval tv;
-  int result = gettimeofday(&tv, NULL);
+  int result = gettimeofday(&tv, nullptr);
   DCHECK_EQ(0, result);
   USE(result);
   return FromTimeval(tv);

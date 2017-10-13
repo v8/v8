@@ -533,7 +533,7 @@ Address Assembler::target_address_at(Address pc, Address constant_pool) {
 
 
 Address Assembler::target_address_at(Address pc, Code* code) {
-  Address constant_pool = code ? code->constant_pool() : NULL;
+  Address constant_pool = code ? code->constant_pool() : nullptr;
   return target_address_at(pc, constant_pool);
 }
 
@@ -618,7 +618,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc,
 void Assembler::set_target_address_at(Isolate* isolate, Address pc, Code* code,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
-  Address constant_pool = code ? code->constant_pool() : NULL;
+  Address constant_pool = code ? code->constant_pool() : nullptr;
   set_target_address_at(isolate, pc, constant_pool, target, icache_flush_mode);
 }
 
@@ -665,7 +665,7 @@ void RelocInfo::set_target_object(HeapObject* target,
   Assembler::set_target_address_at(target->GetIsolate(), pc_, host_,
                                    reinterpret_cast<Address>(target),
                                    icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL) {
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr) {
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
                                                                   target);
     host()->GetHeap()->RecordWriteIntoCode(host(), this, target);
@@ -710,9 +710,9 @@ void RelocInfo::WipeOut(Isolate* isolate) {
          IsRuntimeEntry(rmode_) || IsExternalReference(rmode_) ||
          IsInternalReference(rmode_));
   if (IsInternalReference(rmode_)) {
-    Memory::Address_at(pc_) = NULL;
+    Memory::Address_at(pc_) = nullptr;
   } else {
-    Assembler::set_target_address_at(isolate, pc_, host_, NULL);
+    Assembler::set_target_address_at(isolate, pc_, host_, nullptr);
   }
 }
 

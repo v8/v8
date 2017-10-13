@@ -27,13 +27,11 @@ namespace internal {
 static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
   return allocator->AllocateChunk(Deoptimizer::GetMaxDeoptTableSize(),
                                   MemoryAllocator::GetCommitPageSize(),
-                                  EXECUTABLE, NULL);
+                                  EXECUTABLE, nullptr);
 }
 
-
 DeoptimizerData::DeoptimizerData(MemoryAllocator* allocator)
-    : allocator_(allocator),
-      current_(NULL) {
+    : allocator_(allocator), current_(nullptr) {
   for (int i = 0; i <= Deoptimizer::kLastBailoutType; ++i) {
     deopt_entry_code_entries_[i] = -1;
     deopt_entry_code_[i] = AllocateCodeChunk(allocator);
@@ -44,7 +42,7 @@ DeoptimizerData::DeoptimizerData(MemoryAllocator* allocator)
 DeoptimizerData::~DeoptimizerData() {
   for (int i = 0; i <= Deoptimizer::kLastBailoutType; ++i) {
     allocator_->Free<MemoryAllocator::kFull>(deopt_entry_code_[i]);
-    deopt_entry_code_[i] = NULL;
+    deopt_entry_code_[i] = nullptr;
   }
 }
 
@@ -62,7 +60,7 @@ Code* Deoptimizer::FindDeoptimizingCode(Address addr) {
       element = code->next_code_link();
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -76,7 +74,7 @@ Deoptimizer* Deoptimizer::New(JSFunction* function,
                               Isolate* isolate) {
   Deoptimizer* deoptimizer = new Deoptimizer(isolate, function, type,
                                              bailout_id, from, fp_to_sp_delta);
-  CHECK(isolate->deoptimizer_data()->current_ == NULL);
+  CHECK(isolate->deoptimizer_data()->current_ == nullptr);
   isolate->deoptimizer_data()->current_ = deoptimizer;
   return deoptimizer;
 }
@@ -100,7 +98,7 @@ Deoptimizer* Deoptimizer::Grab(Isolate* isolate) {
   Deoptimizer* result = isolate->deoptimizer_data()->current_;
   CHECK_NOT_NULL(result);
   result->DeleteFrameDescriptions();
-  isolate->deoptimizer_data()->current_ = NULL;
+  isolate->deoptimizer_data()->current_ = nullptr;
   return result;
 }
 
@@ -194,7 +192,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   DisallowHeapAllocation no_allocation;
 
   Isolate* isolate = context->GetHeap()->isolate();
-  Code* topmost_optimized_code = NULL;
+  Code* topmost_optimized_code = nullptr;
   bool safe_to_deopt_topmost_optimized_code = false;
 #ifdef DEBUG
   // Make sure all activations of optimized code can deopt at their current PC.
@@ -224,9 +222,9 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
           deopt_index != Safepoint::kNoDeoptimizationIndex ||
           is_non_deoptimizing_asm_code;
       bool is_builtin_code = code->kind() == Code::BUILTIN;
-      DCHECK(topmost_optimized_code == NULL || safe_if_deopt_triggered ||
+      DCHECK(topmost_optimized_code == nullptr || safe_if_deopt_triggered ||
              is_non_deoptimizing_asm_code || is_builtin_code);
-      if (topmost_optimized_code == NULL) {
+      if (topmost_optimized_code == nullptr) {
         topmost_optimized_code = code;
         safe_to_deopt_topmost_optimized_code = safe_if_deopt_triggered;
       }
@@ -241,7 +239,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   // Move marked code from the optimized code list to the deoptimized
   // code list.
   // Walk over all optimized code objects in this native context.
-  Code* prev = NULL;
+  Code* prev = nullptr;
   Object* element = context->OptimizedCodeListHead();
   while (!element->IsUndefined(isolate)) {
     Code* code = Code::cast(element);
@@ -253,7 +251,7 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       code->InvalidateEmbeddedObjects();
       codes.insert(code);
 
-      if (prev != NULL) {
+      if (prev != nullptr) {
         // Skip this code in the optimized code list.
         prev->set_next_code_link(next);
       } else {
@@ -380,7 +378,7 @@ const char* Deoptimizer::MessageFor(BailoutType type) {
     case LAZY: return "lazy";
   }
   FATAL("Unsupported deopt type");
-  return NULL;
+  return nullptr;
 }
 
 namespace {
@@ -431,11 +429,12 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
 
   DCHECK(from != nullptr);
   compiled_code_ = FindOptimizedCode();
-  DCHECK(compiled_code_ != NULL);
+  DCHECK(compiled_code_ != nullptr);
 
   DCHECK(function->IsJSFunction());
-  trace_scope_ =
-      FLAG_trace_deopt ? new CodeTracer::Scope(isolate->GetCodeTracer()) : NULL;
+  trace_scope_ = FLAG_trace_deopt
+                     ? new CodeTracer::Scope(isolate->GetCodeTracer())
+                     : nullptr;
 #ifdef DEBUG
   DCHECK(AllowHeapAllocation::IsAllowed());
   disallow_heap_allocation_ = new DisallowHeapAllocation();
@@ -468,7 +467,7 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
 
 Code* Deoptimizer::FindOptimizedCode() {
   Code* compiled_code = FindDeoptimizingCode(from_);
-  return (compiled_code == NULL)
+  return (compiled_code == nullptr)
              ? static_cast<Code*>(isolate_->FindCodeObject(from_))
              : compiled_code;
 }
@@ -491,8 +490,8 @@ Handle<Code> Deoptimizer::compiled_code() const {
 }
 
 Deoptimizer::~Deoptimizer() {
-  DCHECK(input_ == NULL && output_ == NULL);
-  DCHECK(disallow_heap_allocation_ == NULL);
+  DCHECK(input_ == nullptr && output_ == nullptr);
+  DCHECK(disallow_heap_allocation_ == nullptr);
   delete trace_scope_;
 }
 
@@ -503,13 +502,13 @@ void Deoptimizer::DeleteFrameDescriptions() {
     if (output_[i] != input_) delete output_[i];
   }
   delete[] output_;
-  input_ = NULL;
-  output_ = NULL;
+  input_ = nullptr;
+  output_ = nullptr;
 #ifdef DEBUG
   DCHECK(!AllowHeapAllocation::IsAllowed());
-  DCHECK(disallow_heap_allocation_ != NULL);
+  DCHECK(disallow_heap_allocation_ != nullptr);
   delete disallow_heap_allocation_;
-  disallow_heap_allocation_ = NULL;
+  disallow_heap_allocation_ = nullptr;
 #endif  // DEBUG
 }
 
@@ -519,7 +518,7 @@ Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate,
                                             BailoutType type,
                                             GetEntryMode mode) {
   CHECK_GE(id, 0);
-  if (id >= kMaxNumberOfEntries) return NULL;
+  if (id >= kMaxNumberOfEntries) return nullptr;
   if (mode == ENSURE_ENTRY_CODE) {
     EnsureCodeForDeoptimizationEntry(isolate, type, id);
   } else {
@@ -619,7 +618,7 @@ void Deoptimizer::DoComputeOutputFrames() {
     }
   }
 
-  if (trace_scope_ != NULL) {
+  if (trace_scope_ != nullptr) {
     timer.Start();
     PrintF(trace_scope_->file(), "[deoptimizing (DEOPT %s): begin ",
            MessageFor(bailout_type_));
@@ -666,10 +665,10 @@ void Deoptimizer::DoComputeOutputFrames() {
     count = catch_handler_frame_index + 1;
   }
 
-  DCHECK(output_ == NULL);
+  DCHECK(output_ == nullptr);
   output_ = new FrameDescription*[count];
   for (size_t i = 0; i < count; ++i) {
-    output_[i] = NULL;
+    output_[i] = nullptr;
   }
   output_count_ = static_cast<int>(count);
 
@@ -709,7 +708,7 @@ void Deoptimizer::DoComputeOutputFrames() {
   }
 
   // Print some helpful diagnostic information.
-  if (trace_scope_ != NULL) {
+  if (trace_scope_ != nullptr) {
     double ms = timer.Elapsed().InMillisecondsF();
     int index = output_count_ - 1;  // Index of the topmost frame.
     PrintF(trace_scope_->file(), "[deoptimizing (%s): end ",
@@ -750,7 +749,7 @@ void Deoptimizer::DoComputeInterpretedFrame(TranslatedFrame* translated_frame,
   Object* function = value_iterator->GetRawValue();
   value_iterator++;
   input_index++;
-  if (trace_scope_ != NULL) {
+  if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(), "  translating interpreted frame ");
     std::unique_ptr<char[]> name = shared->DebugName()->ToCString();
     PrintF(trace_scope_->file(), "%s", name.get());
@@ -1017,7 +1016,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
   Object* function = value_iterator->GetRawValue();
   value_iterator++;
   input_index++;
-  if (trace_scope_ != NULL) {
+  if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(),
            "  translating arguments adaptor => height=%d\n", height_in_bytes);
   }
@@ -1032,7 +1031,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
 
   // Arguments adaptor can not be topmost.
   CHECK(frame_index < output_count_ - 1);
-  CHECK(output_[frame_index] == NULL);
+  CHECK(output_[frame_index] == nullptr);
   output_[frame_index] = output_frame;
 
   // The top address of the frame is computed from the previous frame's top and
@@ -1164,7 +1163,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   JSFunction* function = JSFunction::cast(value_iterator->GetRawValue());
   value_iterator++;
   input_index++;
-  if (trace_scope_ != NULL) {
+  if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(),
            "  translating construct stub => bailout_id=%d (%s), height=%d\n",
            bailout_id.ToInt(),
@@ -1181,7 +1180,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   // Construct stub can not be topmost.
   DCHECK(frame_index > 0 && frame_index < output_count_);
-  DCHECK(output_[frame_index] == NULL);
+  DCHECK(output_[frame_index] == nullptr);
   output_[frame_index] = output_frame;
 
   // The top address of the frame is computed from the previous frame's top and
@@ -1363,7 +1362,7 @@ void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
   }
 
   const char* kind = is_setter_stub_frame ? "setter" : "getter";
-  if (trace_scope_ != NULL) {
+  if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(),
            "  translating %s stub => height=%u\n", kind, height_in_bytes);
   }
@@ -1624,7 +1623,7 @@ void Deoptimizer::DoComputeBuiltinContinuation(
   }
   CHECK_EQ(java_script_builtin, has_argc);
 
-  if (trace_scope_ != NULL) {
+  if (trace_scope_ != nullptr) {
     PrintF(trace_scope_->file(),
            "  translating BuiltinContinuation to %s,"
            " register param count %d,"
@@ -2002,7 +2001,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   while (max_entry_id >= entry_count) entry_count *= 2;
   CHECK(entry_count <= Deoptimizer::kMaxNumberOfEntries);
 
-  MacroAssembler masm(isolate, NULL, 16 * KB, CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, nullptr, 16 * KB, CodeObjectRequired::kYes);
   masm.set_emit_debug_code(false);
   GenerateDeoptimizationEntries(&masm, entry_count, type);
   CodeDesc desc;

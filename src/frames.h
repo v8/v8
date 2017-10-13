@@ -187,7 +187,7 @@ class StackFrame BASE_EMBEDDED {
   // (as an iterator usually lives on stack).
   StackFrame(const StackFrame& original) {
     this->state_ = original.state_;
-    this->iterator_ = NULL;
+    this->iterator_ = nullptr;
     this->isolate_ = original.isolate_;
   }
 
@@ -1120,7 +1120,7 @@ class StackFrameIteratorBase BASE_EMBEDDED {
  public:
   Isolate* isolate() const { return isolate_; }
 
-  bool done() const { return frame_ == NULL; }
+  bool done() const { return frame_ == nullptr; }
 
  protected:
   // An iterator that iterates over a given thread's stack.
@@ -1141,7 +1141,7 @@ class StackFrameIteratorBase BASE_EMBEDDED {
 
   // Get the type-specific frame singleton in a given state.
   StackFrame* SingletonFor(StackFrame::Type type, StackFrame::State* state);
-  // A helper function, can return a NULL pointer.
+  // A helper function, can return a nullptr pointer.
   StackFrame* SingletonFor(StackFrame::Type type);
 
  private:

@@ -289,7 +289,7 @@ Map* TransitionsAccessor::SearchTransition(Name* name, PropertyKind kind,
 Map* TransitionsAccessor::SearchSpecial(Symbol* name) {
   if (encoding() != kFullTransitionArray) return nullptr;
   int transition = transitions()->SearchSpecial(name);
-  if (transition == kNotFound) return NULL;
+  if (transition == kNotFound) return nullptr;
   return transitions()->GetTarget(transition);
 }
 
@@ -307,7 +307,7 @@ Handle<Map> TransitionsAccessor::FindTransitionToField(Handle<Name> name) {
   DCHECK(name->IsUniqueName());
   DisallowHeapAllocation no_gc;
   Map* target = SearchTransition(*name, kData, NONE);
-  if (target == NULL) return Handle<Map>::null();
+  if (target == nullptr) return Handle<Map>::null();
   PropertyDetails details = target->GetLastDescriptorDetails();
   DCHECK_EQ(NONE, details.attributes());
   if (details.location() != kField) return Handle<Map>::null();
@@ -645,7 +645,7 @@ int TransitionArray::SearchDetails(int transition, PropertyKind kind,
       break;
     }
   }
-  if (out_insertion_index != NULL) *out_insertion_index = transition;
+  if (out_insertion_index != nullptr) *out_insertion_index = transition;
   return kNotFound;
 }
 

@@ -242,8 +242,8 @@ Handle<String> StringStream::ToString(Isolate* isolate) {
 
 
 void StringStream::ClearMentionedObjectCache(Isolate* isolate) {
-  isolate->set_string_stream_current_security_token(NULL);
-  if (isolate->string_stream_debug_object_cache() == NULL) {
+  isolate->set_string_stream_current_security_token(nullptr);
+  if (isolate->string_stream_debug_object_cache() == nullptr) {
     isolate->set_string_stream_debug_object_cache(new DebugObjectCache());
   }
   isolate->string_stream_debug_object_cache()->clear();
@@ -529,7 +529,7 @@ char* HeapStringAllocator::grow(unsigned* bytes) {
     return space_;
   }
   char* new_space = NewArray<char>(new_bytes);
-  if (new_space == NULL) {
+  if (new_space == nullptr) {
     return space_;
   }
   MemCopy(new_space, space_, *bytes);

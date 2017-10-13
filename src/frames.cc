@@ -21,9 +21,8 @@
 namespace v8 {
 namespace internal {
 
-ReturnAddressLocationResolver
-    StackFrame::return_address_location_resolver_ = NULL;
-
+ReturnAddressLocationResolver StackFrame::return_address_location_resolver_ =
+    nullptr;
 
 // Iterator that supports traversing the stack handlers of a
 // particular frame. Needs to know the top of the handler chain.
@@ -37,9 +36,7 @@ class StackHandlerIterator BASE_EMBEDDED {
 
   StackHandler* handler() const { return handler_; }
 
-  bool done() {
-    return handler_ == NULL || handler_->address() > limit_;
-  }
+  bool done() { return handler_ == nullptr || handler_->address() > limit_; }
   void Advance() {
     DCHECK(!done());
     handler_ = handler_->next();
@@ -58,10 +55,9 @@ class StackHandlerIterator BASE_EMBEDDED {
 StackFrameIteratorBase::StackFrameIteratorBase(Isolate* isolate,
                                                bool can_access_heap_objects)
     : isolate_(isolate),
-      STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON)
-      frame_(NULL), handler_(NULL),
-      can_access_heap_objects_(can_access_heap_objects) {
-}
+      STACK_FRAME_TYPE_LIST(INITIALIZE_SINGLETON) frame_(nullptr),
+      handler_(nullptr),
+      can_access_heap_objects_(can_access_heap_objects) {}
 #undef INITIALIZE_SINGLETON
 
 StackFrameIterator::StackFrameIterator(Isolate* isolate)
@@ -91,7 +87,7 @@ void StackFrameIterator::Advance() {
 
   // When we're done iterating over the stack frames, the handler
   // chain must have been completely unwound.
-  DCHECK(!done() || handler_ == NULL);
+  DCHECK(!done() || handler_ == nullptr);
 }
 
 
@@ -119,11 +115,12 @@ StackFrame* StackFrameIteratorBase::SingletonFor(StackFrame::Type type) {
     return &field##_;
 
   switch (type) {
-    case StackFrame::NONE: return NULL;
-    STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
+    case StackFrame::NONE:
+      return nullptr;
+      STACK_FRAME_TYPE_LIST(FRAME_TYPE_CASE)
     default: break;
   }
-  return NULL;
+  return nullptr;
 
 #undef FRAME_TYPE_CASE
 }
@@ -207,7 +204,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
     top_frame_type_ = type;
   } else if (IsValidStackAddress(fp)) {
-    DCHECK(fp != NULL);
+    DCHECK(fp != nullptr);
     state.fp = fp;
     state.sp = sp;
     state.pc_address = StackFrame::ResolveReturnAddressLocation(
@@ -259,7 +256,7 @@ bool SafeStackFrameIterator::IsValidTop(ThreadLocalTop* top) const {
   if (!IsValidExitFrame(c_entry_fp)) return false;
   // There should be at least one JS_ENTRY stack handler.
   Address handler = Isolate::handler(top);
-  if (handler == NULL) return false;
+  if (handler == nullptr) return false;
   // Check that there are no js frames on top of the native frames.
   return c_entry_fp < handler;
 }
@@ -271,7 +268,7 @@ void SafeStackFrameIterator::AdvanceOneFrame() {
   Address last_sp = last_frame->sp(), last_fp = last_frame->fp();
   // Before advancing to the next stack frame, perform pointer validity tests.
   if (!IsValidFrame(last_frame) || !IsValidCaller(last_frame)) {
-    frame_ = NULL;
+    frame_ = nullptr;
     return;
   }
 
@@ -283,7 +280,7 @@ void SafeStackFrameIterator::AdvanceOneFrame() {
 
   // Check that we have actually moved to the previous frame in the stack.
   if (frame_->sp() < last_sp || frame_->fp() < last_fp) {
-    frame_ = NULL;
+    frame_ = nullptr;
   }
 }
 
@@ -314,7 +311,7 @@ bool SafeStackFrameIterator::IsValidCaller(StackFrame* frame) {
   }
   frame->ComputeCallerState(&state);
   return IsValidStackAddress(state.sp) && IsValidStackAddress(state.fp) &&
-      SingletonFor(frame->GetCallerState(&state)) != NULL;
+         SingletonFor(frame->GetCallerState(&state)) != nullptr;
 }
 
 
@@ -333,8 +330,8 @@ void SafeStackFrameIterator::Advance() {
   while (true) {
     AdvanceOneFrame();
     if (done()) break;
-    ExternalCallbackScope* last_callback_scope = NULL;
-    while (external_callback_scope_ != NULL &&
+    ExternalCallbackScope* last_callback_scope = nullptr;
+    while (external_callback_scope_ != nullptr &&
            external_callback_scope_->scope_address() < frame_->fp()) {
       // As long as the setup of a frame is not atomic, we may happen to be
       // in an interval where an ExternalCallbackScope is already created,
@@ -399,13 +396,13 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
 
 void StackFrame::SetReturnAddressLocationResolver(
     ReturnAddressLocationResolver resolver) {
-  DCHECK(return_address_location_resolver_ == NULL);
+  DCHECK(return_address_location_resolver_ == nullptr);
   return_address_location_resolver_ = resolver;
 }
 
 StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
                                          State* state) {
-  DCHECK(state->fp != NULL);
+  DCHECK(state->fp != nullptr);
 
   MSAN_MEMORY_IS_INITIALIZED(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
@@ -667,7 +664,7 @@ void BuiltinExitFrame::Print(StringStream* accumulator, PrintMode mode,
   accumulator->PrintSecurityTokenIfChanged(function);
   PrintIndex(accumulator, mode, index);
   accumulator->Add("builtin exit frame: ");
-  Code* code = NULL;
+  Code* code = nullptr;
   if (IsConstructor()) accumulator->Add("new ");
   accumulator->PrintFunction(function, receiver, &code);
 
@@ -1433,7 +1430,7 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
     code = isolate()->inner_pointer_to_code_cache()->
         GcSafeFindCodeForInnerPointer(pc());
   }
-  DCHECK(code != NULL);
+  DCHECK(code != nullptr);
   DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
 
   SafepointEntry safepoint_entry = code->GetSafepointEntry(pc());
@@ -1634,7 +1631,7 @@ Address InternalFrame::GetCallerStackPointer() const {
 Code* InternalFrame::unchecked_code() const {
   const int offset = InternalFrameConstants::kCodeOffset;
   Object* code = Memory::Object_at(fp() + offset);
-  DCHECK(code != NULL);
+  DCHECK(code != nullptr);
   return reinterpret_cast<Code*>(code);
 }
 
@@ -1782,7 +1779,7 @@ namespace {
 
 void PrintFunctionSource(StringStream* accumulator, SharedFunctionInfo* shared,
                          Code* code) {
-  if (FLAG_max_stack_trace_source_length != 0 && code != NULL) {
+  if (FLAG_max_stack_trace_source_length != 0 && code != nullptr) {
     std::ostringstream os;
     os << "--------- s o u r c e   c o d e ---------\n"
        << SourceCodeOf(shared, FLAG_max_stack_trace_source_length)
@@ -1805,11 +1802,11 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   accumulator->PrintSecurityTokenIfChanged(function);
   PrintIndex(accumulator, mode, index);
   PrintFrameKind(accumulator);
-  Code* code = NULL;
+  Code* code = nullptr;
   if (IsConstructor()) accumulator->Add("new ");
   accumulator->PrintFunction(function, receiver, &code);
 
-  // Get scope information for nicer output, if possible. If code is NULL, or
+  // Get scope information for nicer output, if possible. If code is nullptr, or
   // doesn't contain scope info, scope_info will return 0 for the number of
   // parameters, stack local variables, context local variables, stack slots,
   // or context slots.
@@ -1888,13 +1885,13 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   }
 
   // Try to get hold of the context of this frame.
-  Context* context = NULL;
-  if (this->context() != NULL && this->context()->IsContext()) {
+  Context* context = nullptr;
+  if (this->context() != nullptr && this->context()->IsContext()) {
     context = Context::cast(this->context());
   }
   while (context->IsWithContext()) {
     context = context->previous();
-    DCHECK(context != NULL);
+    DCHECK(context != nullptr);
   }
 
   // Print heap-allocated local variables.
@@ -1905,7 +1902,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
     accumulator->Add("  var ");
     accumulator->PrintName(scope_info->ContextLocalName(i));
     accumulator->Add(" = ");
-    if (context != NULL) {
+    if (context != nullptr) {
       int index = Context::MIN_CONTEXT_SLOTS + i;
       if (index < context->length()) {
         accumulator->Add("%o", context->get(index));
@@ -2019,7 +2016,7 @@ static bool GcSafeCodeContains(HeapObject* code, Address addr) {
 Code* InnerPointerToCodeCache::GcSafeCastToCode(HeapObject* object,
                                                 Address inner_pointer) {
   Code* code = reinterpret_cast<Code*>(object);
-  DCHECK(code != NULL && GcSafeCodeContains(code, inner_pointer));
+  DCHECK(code != nullptr && GcSafeCodeContains(code, inner_pointer));
   return code;
 }
 
@@ -2030,7 +2027,7 @@ Code* InnerPointerToCodeCache::GcSafeFindCodeForInnerPointer(
 
   // Check if the inner pointer points into a large object chunk.
   LargePage* large_page = heap->lo_space()->FindPage(inner_pointer);
-  if (large_page != NULL) {
+  if (large_page != nullptr) {
     return GcSafeCastToCode(large_page->GetObject(), inner_pointer);
   }
 
@@ -2115,7 +2112,7 @@ static StackFrame* AllocateFrameCopy(StackFrame* frame, Zone* zone) {
     default: UNREACHABLE();
   }
 #undef FRAME_TYPE_CASE
-  return NULL;
+  return nullptr;
 }
 
 

@@ -838,7 +838,7 @@ void Code::CodeVerify() {
   CHECK(IsAligned(reinterpret_cast<intptr_t>(instruction_start()),
                   kCodeAlignment));
   relocation_info()->ObjectVerify();
-  Address last_gc_pc = NULL;
+  Address last_gc_pc = nullptr;
   Isolate* isolate = GetIsolate();
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Verify(isolate);
@@ -1550,7 +1550,7 @@ void JSObject::SpillInformation::Print() {
 
 bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
   if (valid_entries == -1) valid_entries = number_of_descriptors();
-  Name* current_key = NULL;
+  Name* current_key = nullptr;
   uint32_t current = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
     Name* key = GetSortedKey(i);
@@ -1572,7 +1572,7 @@ bool DescriptorArray::IsSortedNoDuplicates(int valid_entries) {
 
 bool TransitionArray::IsSortedNoDuplicates(int valid_entries) {
   DCHECK(valid_entries == -1);
-  Name* prev_key = NULL;
+  Name* prev_key = nullptr;
   PropertyKind prev_kind = kData;
   PropertyAttributes prev_attributes = NONE;
   uint32_t prev_hash = 0;

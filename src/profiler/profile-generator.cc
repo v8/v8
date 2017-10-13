@@ -144,7 +144,7 @@ void CodeEntry::AddInlineStack(int pc_offset,
 
 const std::vector<CodeEntry*>* CodeEntry::GetInlineStack(int pc_offset) const {
   auto it = inline_locations_.find(pc_offset);
-  return it != inline_locations_.end() ? &it->second : NULL;
+  return it != inline_locations_.end() ? &it->second : nullptr;
 }
 
 void CodeEntry::AddDeoptInlinedFrames(
@@ -190,8 +190,8 @@ void ProfileNode::CollectDeoptInfo(CodeEntry* entry) {
 ProfileNode* ProfileNode::FindChild(CodeEntry* entry) {
   base::HashMap::Entry* map_entry =
       children_.Lookup(entry, CodeEntryHash(entry));
-  return map_entry != NULL ?
-      reinterpret_cast<ProfileNode*>(map_entry->value) : NULL;
+  return map_entry != nullptr ? reinterpret_cast<ProfileNode*>(map_entry->value)
+                              : nullptr;
 }
 
 
@@ -221,7 +221,7 @@ void ProfileNode::IncrementLineTicks(int src_line) {
 
 bool ProfileNode::GetLineTicks(v8::CpuProfileNode::LineTick* entries,
                                unsigned int length) const {
-  if (entries == NULL || length == 0) return false;
+  if (entries == nullptr || length == 0) return false;
 
   unsigned line_count = line_ticks_.occupancy();
 
@@ -230,7 +230,7 @@ bool ProfileNode::GetLineTicks(v8::CpuProfileNode::LineTick* entries,
 
   v8::CpuProfileNode::LineTick* entry = entries;
 
-  for (base::HashMap::Entry *p = line_ticks_.Start(); p != NULL;
+  for (base::HashMap::Entry *p = line_ticks_.Start(); p != nullptr;
        p = line_ticks_.Next(p), entry++) {
     entry->line =
         static_cast<unsigned int>(reinterpret_cast<uintptr_t>(p->key));
@@ -268,7 +268,7 @@ void ProfileNode::Print(int indent) {
     base::OS::Print("%*s bailed out due to '%s'\n", indent + 10, "",
                     bailout_reason);
   }
-  for (base::HashMap::Entry* p = children_.Start(); p != NULL;
+  for (base::HashMap::Entry* p = children_.Start(); p != nullptr;
        p = children_.Next(p)) {
     reinterpret_cast<ProfileNode*>(p->value)->Print(indent + 2);
   }
@@ -313,9 +313,9 @@ unsigned ProfileTree::GetFunctionId(const ProfileNode* node) {
 ProfileNode* ProfileTree::AddPathFromEnd(const std::vector<CodeEntry*>& path,
                                          int src_line, bool update_stats) {
   ProfileNode* node = root_;
-  CodeEntry* last_entry = NULL;
+  CodeEntry* last_entry = nullptr;
   for (auto it = path.rbegin(); it != path.rend(); ++it) {
-    if (*it == NULL) continue;
+    if (*it == nullptr) continue;
     last_entry = *it;
     node = node->FindOrAddChild(*it);
   }
@@ -715,7 +715,7 @@ void ProfileGenerator::RecordTickSample(const TickSample& sample) {
   if (FLAG_prof_browser_mode) {
     bool no_symbolized_entries = true;
     for (auto e : entries) {
-      if (e != NULL) {
+      if (e != nullptr) {
         no_symbolized_entries = false;
         break;
       }

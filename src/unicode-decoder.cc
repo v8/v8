@@ -14,7 +14,7 @@ void Utf8DecoderBase::Reset(uint16_t* buffer, size_t buffer_length,
                             const uint8_t* stream, size_t stream_length) {
   // Assume everything will fit in the buffer and stream won't be needed.
   last_byte_of_buffer_unused_ = false;
-  unbuffered_start_ = NULL;
+  unbuffered_start_ = nullptr;
   unbuffered_length_ = 0;
   bool writing_to_buffer = true;
   // Loop until stream is read, writing to buffer as long as buffer has space.

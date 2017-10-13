@@ -206,7 +206,7 @@ class AstNode: public ZoneObject {
 
 class Statement : public AstNode {
  public:
-  bool IsEmpty() { return AsEmptyStatement() != NULL; }
+  bool IsEmpty() { return AsEmptyStatement() != nullptr; }
   bool IsJump() const;
 
  protected:
@@ -312,8 +312,8 @@ class Block : public BreakableStatement {
   inline ZoneList<const AstRawString*>* labels() const;
 
   bool IsJump() const {
-    return !statements_.is_empty() && statements_.last()->IsJump()
-        && labels() == NULL;  // Good enough as an approximation...
+    return !statements_.is_empty() && statements_.last()->IsJump() &&
+           labels() == nullptr;  // Good enough as an approximation...
   }
 
   Scope* scope() const { return scope_; }
@@ -335,7 +335,7 @@ class Block : public BreakableStatement {
         bool ignore_completion_value)
       : BreakableStatement(TARGET_FOR_NAMED_ONLY, kNoSourcePosition, kBlock),
         statements_(capacity, zone),
-        scope_(NULL) {
+        scope_(nullptr) {
     bit_field_ |= IgnoreCompletionField::encode(ignore_completion_value) |
                   IsLabeledField::encode(labels != nullptr);
   }
@@ -455,7 +455,7 @@ class FunctionDeclaration final : public Declaration {
 
   FunctionDeclaration(VariableProxy* proxy, FunctionLiteral* fun, int pos)
       : Declaration(proxy, pos, kFunctionDeclaration), fun_(fun) {
-    DCHECK(fun != NULL);
+    DCHECK(fun != nullptr);
   }
 
   FunctionLiteral* fun_;
@@ -481,7 +481,7 @@ class IterationStatement : public BreakableStatement {
                      NodeType type)
       : BreakableStatement(TARGET_FOR_ANONYMOUS, pos, type),
         labels_(labels),
-        body_(NULL),
+        body_(nullptr),
         suspend_count_(0),
         first_suspend_id_(0) {}
   void Initialize(Statement* body) { body_ = body; }
@@ -511,7 +511,7 @@ class DoWhileStatement final : public IterationStatement {
   friend class AstNodeFactory;
 
   DoWhileStatement(ZoneList<const AstRawString*>* labels, int pos)
-      : IterationStatement(labels, pos, kDoWhileStatement), cond_(NULL) {}
+      : IterationStatement(labels, pos, kDoWhileStatement), cond_(nullptr) {}
 
   Expression* cond_;
 };
@@ -531,7 +531,7 @@ class WhileStatement final : public IterationStatement {
   friend class AstNodeFactory;
 
   WhileStatement(ZoneList<const AstRawString*>* labels, int pos)
-      : IterationStatement(labels, pos, kWhileStatement), cond_(NULL) {}
+      : IterationStatement(labels, pos, kWhileStatement), cond_(nullptr) {}
 
   Expression* cond_;
 };
@@ -560,9 +560,9 @@ class ForStatement final : public IterationStatement {
 
   ForStatement(ZoneList<const AstRawString*>* labels, int pos)
       : IterationStatement(labels, pos, kForStatement),
-        init_(NULL),
-        cond_(NULL),
-        next_(NULL) {}
+        init_(nullptr),
+        cond_(nullptr),
+        next_(nullptr) {}
 
   Statement* init_;
   Expression* cond_;
@@ -690,11 +690,11 @@ class ForOfStatement final : public ForEachStatement {
 
   ForOfStatement(ZoneList<const AstRawString*>* labels, int pos)
       : ForEachStatement(labels, pos, kForOfStatement),
-        iterator_(NULL),
-        assign_iterator_(NULL),
-        next_result_(NULL),
-        result_done_(NULL),
-        assign_each_(NULL) {}
+        iterator_(nullptr),
+        assign_iterator_(nullptr),
+        next_result_(nullptr),
+        result_done_(nullptr),
+        assign_each_(nullptr) {}
 
   Variable* iterator_;
   Expression* assign_iterator_;
@@ -811,7 +811,7 @@ class WithStatement final : public Statement {
 
 class CaseClause final : public ZoneObject {
  public:
-  bool is_default() const { return label_ == NULL; }
+  bool is_default() const { return label_ == nullptr; }
   Expression* label() const {
     DCHECK(!is_default());
     return label_;
@@ -1348,7 +1348,7 @@ class ObjectLiteral final : public AggregateLiteral {
       static_cast<int>(kFastElements));
 
   struct Accessors: public ZoneObject {
-    Accessors() : getter(NULL), setter(NULL) {}
+    Accessors() : getter(nullptr), setter(nullptr) {}
     ObjectLiteralProperty* getter;
     ObjectLiteralProperty* setter;
   };
@@ -1414,7 +1414,9 @@ class AccessorTable
 
   Iterator lookup(Literal* literal) {
     Iterator it = find(literal, true, ZoneAllocationPolicy(zone_));
-    if (it->second == NULL) it->second = new (zone_) ObjectLiteral::Accessors();
+    if (it->second == nullptr) {
+      it->second = new (zone_) ObjectLiteral::Accessors();
+    }
     return it;
   }
 
@@ -1625,7 +1627,7 @@ class Property final : public Expression {
 
   // Returns the properties assign type.
   static LhsKind GetAssignType(Property* property) {
-    if (property == NULL) return VARIABLE;
+    if (property == nullptr) return VARIABLE;
     bool super_access = property->IsSuperAccess();
     return (property->key()->IsPropertyName())
                ? (super_access ? NAMED_SUPER_PROPERTY : NAMED_PROPERTY)
@@ -1768,7 +1770,7 @@ class CallNew final : public Expression {
 class CallRuntime final : public Expression {
  public:
   ZoneList<Expression*>* arguments() const { return arguments_; }
-  bool is_jsruntime() const { return function_ == NULL; }
+  bool is_jsruntime() const { return function_ == nullptr; }
 
   int context_index() const {
     DCHECK(is_jsruntime());
@@ -1796,7 +1798,7 @@ class CallRuntime final : public Expression {
   CallRuntime(int context_index, ZoneList<Expression*>* arguments, int pos)
       : Expression(pos, kCallRuntime),
         context_index_(context_index),
-        function_(NULL),
+        function_(nullptr),
         arguments_(arguments) {}
 
   int context_index_;
@@ -2356,7 +2358,7 @@ class FunctionLiteral final : public Expression {
   }
 
   Handle<String> debug_name() const {
-    if (raw_name_ != NULL && !raw_name_->IsEmpty()) {
+    if (raw_name_ != nullptr && !raw_name_->IsEmpty()) {
       return raw_name_->string();
     }
     return inferred_name();
@@ -2364,10 +2366,10 @@ class FunctionLiteral final : public Expression {
 
   Handle<String> inferred_name() const {
     if (!inferred_name_.is_null()) {
-      DCHECK(raw_inferred_name_ == NULL);
+      DCHECK(raw_inferred_name_ == nullptr);
       return inferred_name_;
     }
-    if (raw_inferred_name_ != NULL) {
+    if (raw_inferred_name_ != nullptr) {
       return raw_inferred_name_->string();
     }
     UNREACHABLE();
@@ -2377,12 +2379,12 @@ class FunctionLiteral final : public Expression {
   void set_inferred_name(Handle<String> inferred_name) {
     DCHECK(!inferred_name.is_null());
     inferred_name_ = inferred_name;
-    DCHECK(raw_inferred_name_== NULL || raw_inferred_name_->IsEmpty());
-    raw_inferred_name_ = NULL;
+    DCHECK(raw_inferred_name_ == nullptr || raw_inferred_name_->IsEmpty());
+    raw_inferred_name_ = nullptr;
   }
 
   void set_raw_inferred_name(const AstConsString* raw_inferred_name) {
-    DCHECK(raw_inferred_name != NULL);
+    DCHECK(raw_inferred_name != nullptr);
     raw_inferred_name_ = raw_inferred_name;
     DCHECK(inferred_name_.is_null());
     inferred_name_ = Handle<String>();
@@ -2829,12 +2831,12 @@ class AstVisitor BASE_EMBEDDED {
 
   void VisitExpressions(ZoneList<Expression*>* expressions) {
     for (int i = 0; i < expressions->length(); i++) {
-      // The variable statement visiting code may pass NULL expressions
+      // The variable statement visiting code may pass null expressions
       // to this code. Maybe this should be handled by introducing an
-      // undefined expression or literal?  Revisit this code if this
-      // changes
+      // undefined expression or literal? Revisit this code if this
+      // changes.
       Expression* expression = expressions->at(i);
-      if (expression != NULL) Visit(expression);
+      if (expression != nullptr) Visit(expression);
     }
   }
 
@@ -3450,38 +3452,39 @@ class AstNodeFactory final BASE_EMBEDDED {
 // Type testing & conversion functions overridden by concrete subclasses.
 // Inline functions for AstNode.
 
-#define DECLARE_NODE_FUNCTIONS(type)                                          \
-  bool AstNode::Is##type() const {                                            \
-    NodeType mine = node_type();                                              \
-    if (mine == AstNode::kRewritableExpression &&                             \
-        AstNode::k##type != AstNode::kRewritableExpression)                   \
-      mine = reinterpret_cast<const RewritableExpression*>(this)              \
-                 ->expression()                                               \
-                 ->node_type();                                               \
-    return mine == AstNode::k##type;                                          \
-  }                                                                           \
-  type* AstNode::As##type() {                                                 \
-    NodeType mine = node_type();                                              \
-    AstNode* result = this;                                                   \
-    if (mine == AstNode::kRewritableExpression &&                             \
-        AstNode::k##type != AstNode::kRewritableExpression) {                 \
-      result =                                                                \
-          reinterpret_cast<const RewritableExpression*>(this)->expression();  \
-      mine = result->node_type();                                             \
-    }                                                                         \
-    return mine == AstNode::k##type ? reinterpret_cast<type*>(result) : NULL; \
-  }                                                                           \
-  const type* AstNode::As##type() const {                                     \
-    NodeType mine = node_type();                                              \
-    const AstNode* result = this;                                             \
-    if (mine == AstNode::kRewritableExpression &&                             \
-        AstNode::k##type != AstNode::kRewritableExpression) {                 \
-      result =                                                                \
-          reinterpret_cast<const RewritableExpression*>(this)->expression();  \
-      mine = result->node_type();                                             \
-    }                                                                         \
-    return mine == AstNode::k##type ? reinterpret_cast<const type*>(result)   \
-                                    : NULL;                                   \
+#define DECLARE_NODE_FUNCTIONS(type)                                         \
+  bool AstNode::Is##type() const {                                           \
+    NodeType mine = node_type();                                             \
+    if (mine == AstNode::kRewritableExpression &&                            \
+        AstNode::k##type != AstNode::kRewritableExpression)                  \
+      mine = reinterpret_cast<const RewritableExpression*>(this)             \
+                 ->expression()                                              \
+                 ->node_type();                                              \
+    return mine == AstNode::k##type;                                         \
+  }                                                                          \
+  type* AstNode::As##type() {                                                \
+    NodeType mine = node_type();                                             \
+    AstNode* result = this;                                                  \
+    if (mine == AstNode::kRewritableExpression &&                            \
+        AstNode::k##type != AstNode::kRewritableExpression) {                \
+      result =                                                               \
+          reinterpret_cast<const RewritableExpression*>(this)->expression(); \
+      mine = result->node_type();                                            \
+    }                                                                        \
+    return mine == AstNode::k##type ? reinterpret_cast<type*>(result)        \
+                                    : nullptr;                               \
+  }                                                                          \
+  const type* AstNode::As##type() const {                                    \
+    NodeType mine = node_type();                                             \
+    const AstNode* result = this;                                            \
+    if (mine == AstNode::kRewritableExpression &&                            \
+        AstNode::k##type != AstNode::kRewritableExpression) {                \
+      result =                                                               \
+          reinterpret_cast<const RewritableExpression*>(this)->expression(); \
+      mine = result->node_type();                                            \
+    }                                                                        \
+    return mine == AstNode::k##type ? reinterpret_cast<const type*>(result)  \
+                                    : nullptr;                               \
   }
 AST_NODE_LIST(DECLARE_NODE_FUNCTIONS)
 #undef DECLARE_NODE_FUNCTIONS

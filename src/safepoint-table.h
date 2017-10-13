@@ -18,14 +18,14 @@ class Register;
 
 class SafepointEntry BASE_EMBEDDED {
  public:
-  SafepointEntry() : info_(0), bits_(NULL), trampoline_pc_(-1) {}
+  SafepointEntry() : info_(0), bits_(nullptr), trampoline_pc_(-1) {}
 
   SafepointEntry(unsigned info, uint8_t* bits, int trampoline_pc)
       : info_(info), bits_(bits), trampoline_pc_(trampoline_pc) {
     DCHECK(is_valid());
   }
 
-  bool is_valid() const { return bits_ != NULL; }
+  bool is_valid() const { return bits_ != nullptr; }
 
   bool Equals(const SafepointEntry& other) const {
     return info_ == other.info_ && bits_ == other.bits_;
@@ -33,7 +33,7 @@ class SafepointEntry BASE_EMBEDDED {
 
   void Reset() {
     info_ = 0;
-    bits_ = NULL;
+    bits_ = nullptr;
   }
 
   int deoptimization_index() const {

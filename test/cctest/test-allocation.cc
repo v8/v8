@@ -17,7 +17,7 @@ using v8::Task;
 #include "src/allocation.h"
 #include "src/zone/accounting-allocator.h"
 
-// ASAN isn't configured to return NULL, so skip all of these tests.
+// ASAN isn't configured to return nullptr, so skip all of these tests.
 #if !defined(V8_USE_ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) && \
     !defined(THREAD_SANITIZER)
 

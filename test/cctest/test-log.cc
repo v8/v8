@@ -98,7 +98,7 @@ class ScopedLoggerInitializer {
   ScopedLoggerInitializer(bool saved_log, bool saved_prof, v8::Isolate* isolate)
       : saved_log_(saved_log),
         saved_prof_(saved_prof),
-        temp_file_(NULL),
+        temp_file_(nullptr),
         isolate_(isolate),
         isolate_scope_(isolate),
         scope_(isolate),
@@ -110,7 +110,7 @@ class ScopedLoggerInitializer {
   ~ScopedLoggerInitializer() {
     env_->Exit();
     logger_->TearDown();
-    if (temp_file_ != NULL) fclose(temp_file_);
+    if (temp_file_ != nullptr) fclose(temp_file_);
     i::FLAG_prof = saved_prof_;
     i::FLAG_log = saved_log_;
     log_.Dispose();
@@ -239,7 +239,7 @@ class LoopingJsThread : public LoopingThread {
       : LoopingThread(isolate) { }
   void RunLoop() {
     v8::Locker locker;
-    CHECK(CcTest::i_isolate() != NULL);
+    CHECK(CcTest::i_isolate() != nullptr);
     CHECK_GT(CcTest::i_isolate()->thread_manager()->CurrentId(), 0);
     SetV8ThreadId();
     while (IsRunning()) {
@@ -267,7 +267,7 @@ class LoopingNonJsThread : public LoopingThread {
     v8::Locker locker;
     v8::Unlocker unlocker;
     // Now thread has V8's id, but will not run VM code.
-    CHECK(CcTest::i_isolate() != NULL);
+    CHECK(CcTest::i_isolate() != nullptr);
     CHECK_GT(CcTest::i_isolate()->thread_manager()->CurrentId(), 0);
     double i = 10;
     SignalRunning();
@@ -310,7 +310,7 @@ class TestSampler : public v8::internal::Sampler {
 }  // namespace
 
 TEST(ProfMultipleThreads) {
-  TestSampler* sampler = NULL;
+  TestSampler* sampler = nullptr;
   {
     v8::Locker locker;
     sampler = new TestSampler(CcTest::i_isolate());
@@ -389,7 +389,7 @@ TEST(Issue23768) {
       i::ExternalTwoByteString::cast(*v8::Utils::OpenHandle(*source)));
   // This situation can happen if source was an external string disposed
   // by its owner.
-  i_source->set_resource(NULL);
+  i_source->set_resource(nullptr);
 
   // Must not crash.
   CcTest::i_isolate()->logger()->LogCompiledFunctions();

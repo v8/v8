@@ -63,7 +63,7 @@ namespace test_parsing {
 
 namespace {
 
-int* global_use_counts = NULL;
+int* global_use_counts = nullptr;
 
 void MockUseCounterCallback(v8::Isolate* isolate,
                             v8::Isolate::UseCounterFeature feature) {
@@ -82,12 +82,12 @@ TEST(ScanKeywords) {
 #define KEYWORD(t, s, d) { s, i::Token::t },
       TOKEN_LIST(IGNORE_TOKEN, KEYWORD, IGNORE_TOKEN)
 #undef KEYWORD
-          {NULL, i::Token::IDENTIFIER}};
+          {nullptr, i::Token::IDENTIFIER}};
 
   KeywordToken key_token;
   i::UnicodeCache unicode_cache;
   char buffer[32];
-  for (int i = 0; (key_token = keywords[i]).keyword != NULL; i++) {
+  for (int i = 0; (key_token = keywords[i]).keyword != nullptr; i++) {
     const char* keyword = key_token.keyword;
     size_t length = strlen(key_token.keyword);
     CHECK(static_cast<int>(sizeof(buffer)) >= length);
@@ -169,7 +169,7 @@ TEST(ScanHTMLEndComments) {
       "/* SLDC */ /* MLC \n */ --> is eol-comment\nvar y = 37;\n",
       "/* MLC1 \n */ /* SLDC1 */ /* MLC2 \n */ /* SLDC2 */ --> is eol-comment\n"
           "var y = 37;\n",
-      NULL
+      nullptr
   };
 
   const char* fail_tests[] = {
@@ -177,7 +177,7 @@ TEST(ScanHTMLEndComments) {
       "\"\\n\" --> is eol-comment\nvar y = 37;\n",
       "x/* precomment */ --> is eol-comment\nvar y = 37;\n",
       "var x = 42; --> is eol-comment\nvar y = 37;\n",
-      NULL
+      nullptr
   };
   // clang-format on
 
@@ -363,7 +363,7 @@ TEST(PreparseFunctionDataIsUsed) {
 
     const v8::ScriptCompiler::CachedData* cached_data =
         good_source.GetCachedData();
-    CHECK(cached_data->data != NULL);
+    CHECK(cached_data->data != nullptr);
     CHECK_GT(cached_data->length, 0);
 
     // Now compile the erroneous code with the good preparse data. If the
@@ -387,15 +387,13 @@ TEST(StandAlonePreParser) {
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       i::GetCurrentStackPosition() - 128 * 1024);
 
-  const char* programs[] = {
-      "{label: 42}",
-      "var x = 42;",
-      "function foo(x, y) { return x + y; }",
-      "%ArgleBargle(glop);",
-      "var x = new new Function('this.x = 42');",
-      "var f = (x, y) => x + y;",
-      NULL
-  };
+  const char* programs[] = {"{label: 42}",
+                            "var x = 42;",
+                            "function foo(x, y) { return x + y; }",
+                            "%ArgleBargle(glop);",
+                            "var x = new new Function('this.x = 42');",
+                            "var f = (x, y) => x + y;",
+                            nullptr};
 
   uintptr_t stack_limit = CcTest::i_isolate()->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
@@ -427,11 +425,8 @@ TEST(StandAlonePreParserNoNatives) {
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       i::GetCurrentStackPosition() - 128 * 1024);
 
-  const char* programs[] = {
-      "%ArgleBargle(glop);",
-      "var x = %_IsSmi(42);",
-      NULL
-  };
+  const char* programs[] = {"%ArgleBargle(glop);", "var x = %_IsSmi(42);",
+                            nullptr};
 
   uintptr_t stack_limit = isolate->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
@@ -850,7 +845,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       i::DeclarationScope::Analyze(&info);
       i::DeclarationScope::AllocateScopeInfos(&info, isolate,
                                               i::AnalyzeMode::kRegular);
-      CHECK(info.literal() != NULL);
+      CHECK(info.literal() != nullptr);
 
       i::DeclarationScope* script_scope = info.literal()->scope();
       CHECK(script_scope->is_script_scope());
@@ -1154,7 +1149,7 @@ TEST(ScopePositions) {
        "  (function fun",
        "(a,b) { 'bar\360\220\220\214'; }", ")();", i::FUNCTION_SCOPE,
        i::SLOPPY},
-      {NULL, NULL, NULL, i::EVAL_SCOPE, i::SLOPPY}};
+      {nullptr, nullptr, nullptr, i::EVAL_SCOPE, i::SLOPPY}};
 
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -1220,7 +1215,7 @@ TEST(DiscardFunctionBody) {
       "(function f() { 0, function g() { var a; } })();",
       "(function f() { 0, { g() { var a; } } })();",
       "(function f() { 0, class c { g() { var a; } } })();", */
-      NULL};
+      nullptr};
 
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -1377,7 +1372,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
   }
 
   // Check that preparsing fails iff parsing fails.
-  if (function == NULL) {
+  if (function == nullptr) {
     // Extract exception from the parser.
     CHECK(isolate->has_pending_exception());
     i::Handle<i::JSObject> exception_handle(
@@ -1449,9 +1444,9 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
 void TestParserSync(const char* source, const ParserFlag* varying_flags,
                     size_t varying_flags_length,
                     ParserSyncTestResult result = kSuccessOrError,
-                    const ParserFlag* always_true_flags = NULL,
+                    const ParserFlag* always_true_flags = nullptr,
                     size_t always_true_flags_length = 0,
-                    const ParserFlag* always_false_flags = NULL,
+                    const ParserFlag* always_false_flags = nullptr,
                     size_t always_false_flags_length = 0,
                     bool is_module = false, bool test_preparser = true,
                     bool ignore_error_msg = false) {
@@ -1478,74 +1473,37 @@ void TestParserSync(const char* source, const ParserFlag* varying_flags,
 
 
 TEST(ParserSync) {
-  const char* context_data[][2] = {
-    { "", "" },
-    { "{", "}" },
-    { "if (true) ", " else {}" },
-    { "if (true) {} else ", "" },
-    { "if (true) ", "" },
-    { "do ", " while (false)" },
-    { "while (false) ", "" },
-    { "for (;;) ", "" },
-    { "with ({})", "" },
-    { "switch (12) { case 12: ", "}" },
-    { "switch (12) { default: ", "}" },
-    { "switch (12) { ", "case 12: }" },
-    { "label2: ", "" },
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"", ""},
+                                   {"{", "}"},
+                                   {"if (true) ", " else {}"},
+                                   {"if (true) {} else ", ""},
+                                   {"if (true) ", ""},
+                                   {"do ", " while (false)"},
+                                   {"while (false) ", ""},
+                                   {"for (;;) ", ""},
+                                   {"with ({})", ""},
+                                   {"switch (12) { case 12: ", "}"},
+                                   {"switch (12) { default: ", "}"},
+                                   {"switch (12) { ", "case 12: }"},
+                                   {"label2: ", ""},
+                                   {nullptr, nullptr}};
 
   const char* statement_data[] = {
-    "{}",
-    "var x",
-    "var x = 1",
-    "const x",
-    "const x = 1",
-    ";",
-    "12",
-    "if (false) {} else ;",
-    "if (false) {} else {}",
-    "if (false) {} else 12",
-    "if (false) ;",
-    "if (false) {}",
-    "if (false) 12",
-    "do {} while (false)",
-    "for (;;) ;",
-    "for (;;) {}",
-    "for (;;) 12",
-    "continue",
-    "continue label",
-    "continue\nlabel",
-    "break",
-    "break label",
-    "break\nlabel",
-    // TODO(marja): activate once parsing 'return' is merged into ParserBase.
-    // "return",
-    // "return  12",
-    // "return\n12",
-    "with ({}) ;",
-    "with ({}) {}",
-    "with ({}) 12",
-    "switch ({}) { default: }",
-    "label3: ",
-    "throw",
-    "throw  12",
-    "throw\n12",
-    "try {} catch(e) {}",
-    "try {} finally {}",
-    "try {} catch(e) {} finally {}",
-    "debugger",
-    NULL
-  };
+      "{}", "var x", "var x = 1", "const x", "const x = 1", ";", "12",
+      "if (false) {} else ;", "if (false) {} else {}", "if (false) {} else 12",
+      "if (false) ;", "if (false) {}", "if (false) 12", "do {} while (false)",
+      "for (;;) ;", "for (;;) {}", "for (;;) 12", "continue", "continue label",
+      "continue\nlabel", "break", "break label", "break\nlabel",
+      // TODO(marja): activate once parsing 'return' is merged into ParserBase.
+      // "return",
+      // "return  12",
+      // "return\n12",
+      "with ({}) ;", "with ({}) {}", "with ({}) 12", "switch ({}) { default: }",
+      "label3: ", "throw", "throw  12", "throw\n12", "try {} catch(e) {}",
+      "try {} finally {}", "try {} catch(e) {} finally {}", "debugger",
+      nullptr};
 
-  const char* termination_data[] = {
-    "",
-    ";",
-    "\n",
-    ";\n",
-    "\n;",
-    NULL
-  };
+  const char* termination_data[] = {"", ";", "\n", ";\n", "\n;", nullptr};
 
   v8::HandleScope handles(CcTest::isolate());
   v8::Local<v8::Context> context = v8::Context::New(CcTest::isolate());
@@ -1554,9 +1512,9 @@ TEST(ParserSync) {
   CcTest::i_isolate()->stack_guard()->SetStackLimit(
       i::GetCurrentStackPosition() - 128 * 1024);
 
-  for (int i = 0; context_data[i][0] != NULL; ++i) {
-    for (int j = 0; statement_data[j] != NULL; ++j) {
-      for (int k = 0; termination_data[k] != NULL; ++k) {
+  for (int i = 0; context_data[i][0] != nullptr; ++i) {
+    for (int j = 0; statement_data[j] != nullptr; ++j) {
+      for (int k = 0; termination_data[k] != nullptr; ++k) {
         int kPrefixLen = i::StrLength(context_data[i][0]);
         int kStatementLen = i::StrLength(statement_data[j]);
         int kTerminationLen = i::StrLength(termination_data[k]);
@@ -1573,7 +1531,7 @@ TEST(ParserSync) {
             termination_data[k],
             context_data[i][1]);
         CHECK(length == kProgramSize);
-        TestParserSync(program.start(), NULL, 0);
+        TestParserSync(program.start(), nullptr, 0);
       }
     }
   }
@@ -1581,8 +1539,8 @@ TEST(ParserSync) {
   // Neither Harmony numeric literals nor our natives syntax have any
   // interaction with the flags above, so test these separately to reduce
   // the combinatorial explosion.
-  TestParserSync("0o1234", NULL, 0);
-  TestParserSync("0b1011", NULL, 0);
+  TestParserSync("0o1234", nullptr, 0);
+  TestParserSync("0b1011", nullptr, 0);
 
   static const ParserFlag flags3[] = { kAllowNatives };
   TestParserSync("%DebugPrint(123)", flags3, arraysize(flags3));
@@ -1615,9 +1573,9 @@ TEST(StrictOctal) {
 
 void RunParserSyncTest(
     const char* context_data[][2], const char* statement_data[],
-    ParserSyncTestResult result, const ParserFlag* flags = NULL,
-    int flags_len = 0, const ParserFlag* always_true_flags = NULL,
-    int always_true_len = 0, const ParserFlag* always_false_flags = NULL,
+    ParserSyncTestResult result, const ParserFlag* flags = nullptr,
+    int flags_len = 0, const ParserFlag* always_true_flags = nullptr,
+    int always_true_len = 0, const ParserFlag* always_false_flags = nullptr,
     int always_false_len = 0, bool is_module = false,
     bool test_preparser = true, bool ignore_error_msg = false) {
   v8::HandleScope handles(CcTest::isolate());
@@ -1633,14 +1591,14 @@ void RunParserSyncTest(
     kAllowLazy,
     kAllowNatives,
   };
-  ParserFlag* generated_flags = NULL;
-  if (flags == NULL) {
+  ParserFlag* generated_flags = nullptr;
+  if (flags == nullptr) {
     flags = default_flags;
     flags_len = arraysize(default_flags);
-    if (always_true_flags != NULL || always_false_flags != NULL) {
+    if (always_true_flags != nullptr || always_false_flags != nullptr) {
       // Remove always_true/false_flags from default_flags (if present).
-      CHECK((always_true_flags != NULL) == (always_true_len > 0));
-      CHECK((always_false_flags != NULL) == (always_false_len > 0));
+      CHECK((always_true_flags != nullptr) == (always_true_len > 0));
+      CHECK((always_false_flags != nullptr) == (always_false_len > 0));
       generated_flags = new ParserFlag[flags_len + always_true_len];
       int flag_index = 0;
       for (int i = 0; i < flags_len; ++i) {
@@ -1657,8 +1615,8 @@ void RunParserSyncTest(
       flags = generated_flags;
     }
   }
-  for (int i = 0; context_data[i][0] != NULL; ++i) {
-    for (int j = 0; statement_data[j] != NULL; ++j) {
+  for (int i = 0; context_data[i][0] != nullptr; ++i) {
+    for (int j = 0; statement_data[j] != nullptr; ++j) {
       int kPrefixLen = i::StrLength(context_data[i][0]);
       int kStatementLen = i::StrLength(statement_data[j]);
       int kSuffixLen = i::StrLength(context_data[i][1]);
@@ -1683,9 +1641,9 @@ void RunParserSyncTest(
 
 void RunModuleParserSyncTest(
     const char* context_data[][2], const char* statement_data[],
-    ParserSyncTestResult result, const ParserFlag* flags = NULL,
-    int flags_len = 0, const ParserFlag* always_true_flags = NULL,
-    int always_true_len = 0, const ParserFlag* always_false_flags = NULL,
+    ParserSyncTestResult result, const ParserFlag* flags = nullptr,
+    int flags_len = 0, const ParserFlag* always_true_flags = nullptr,
+    int always_true_len = 0, const ParserFlag* always_false_flags = nullptr,
     int always_false_len = 0, bool test_preparser = true,
     bool ignore_error_msg = false) {
   RunParserSyncTest(context_data, statement_data, result, flags, flags_len,
@@ -1702,35 +1660,33 @@ TEST(ErrorsEvalAndArguments) {
   const char* context_data[][2] = {
       {"\"use strict\";", ""},
       {"var eval; function test_func() {\"use strict\"; ", "}"},
-      {NULL, NULL}};
+      {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "var eval;",
-    "var arguments",
-    "var foo, eval;",
-    "var foo, arguments;",
-    "try { } catch (eval) { }",
-    "try { } catch (arguments) { }",
-    "function eval() { }",
-    "function arguments() { }",
-    "function foo(eval) { }",
-    "function foo(arguments) { }",
-    "function foo(bar, eval) { }",
-    "function foo(bar, arguments) { }",
-    "(eval) => { }",
-    "(arguments) => { }",
-    "(foo, eval) => { }",
-    "(foo, arguments) => { }",
-    "eval = 1;",
-    "arguments = 1;",
-    "var foo = eval = 1;",
-    "var foo = arguments = 1;",
-    "++eval;",
-    "++arguments;",
-    "eval++;",
-    "arguments++;",
-    NULL
-  };
+  const char* statement_data[] = {"var eval;",
+                                  "var arguments",
+                                  "var foo, eval;",
+                                  "var foo, arguments;",
+                                  "try { } catch (eval) { }",
+                                  "try { } catch (arguments) { }",
+                                  "function eval() { }",
+                                  "function arguments() { }",
+                                  "function foo(eval) { }",
+                                  "function foo(arguments) { }",
+                                  "function foo(bar, eval) { }",
+                                  "function foo(bar, arguments) { }",
+                                  "(eval) => { }",
+                                  "(arguments) => { }",
+                                  "(foo, eval) => { }",
+                                  "(foo, arguments) => { }",
+                                  "eval = 1;",
+                                  "arguments = 1;",
+                                  "var foo = eval = 1;",
+                                  "var foo = arguments = 1;",
+                                  "++eval;",
+                                  "++arguments;",
+                                  "eval++;",
+                                  "arguments++;",
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -1740,34 +1696,29 @@ TEST(NoErrorsEvalAndArgumentsSloppy) {
   // Tests that both preparsing and parsing accept "eval" and "arguments" as
   // identifiers when needed.
   const char* context_data[][2] = {
-    { "", "" },
-    { "function test_func() {", "}"},
-    { NULL, NULL }
-  };
+      {"", ""}, {"function test_func() {", "}"}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "var eval;",
-    "var arguments",
-    "var foo, eval;",
-    "var foo, arguments;",
-    "try { } catch (eval) { }",
-    "try { } catch (arguments) { }",
-    "function eval() { }",
-    "function arguments() { }",
-    "function foo(eval) { }",
-    "function foo(arguments) { }",
-    "function foo(bar, eval) { }",
-    "function foo(bar, arguments) { }",
-    "eval = 1;",
-    "arguments = 1;",
-    "var foo = eval = 1;",
-    "var foo = arguments = 1;",
-    "++eval;",
-    "++arguments;",
-    "eval++;",
-    "arguments++;",
-    NULL
-  };
+  const char* statement_data[] = {"var eval;",
+                                  "var arguments",
+                                  "var foo, eval;",
+                                  "var foo, arguments;",
+                                  "try { } catch (eval) { }",
+                                  "try { } catch (arguments) { }",
+                                  "function eval() { }",
+                                  "function arguments() { }",
+                                  "function foo(eval) { }",
+                                  "function foo(arguments) { }",
+                                  "function foo(bar, eval) { }",
+                                  "function foo(bar, arguments) { }",
+                                  "eval = 1;",
+                                  "arguments = 1;",
+                                  "var foo = eval = 1;",
+                                  "var foo = arguments = 1;",
+                                  "++eval;",
+                                  "++arguments;",
+                                  "eval++;",
+                                  "arguments++;",
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -1775,23 +1726,20 @@ TEST(NoErrorsEvalAndArgumentsSloppy) {
 
 TEST(NoErrorsEvalAndArgumentsStrict) {
   const char* context_data[][2] = {
-    { "\"use strict\";", "" },
-    { "function test_func() { \"use strict\";", "}" },
-    { "() => { \"use strict\"; ", "}" },
-    { NULL, NULL }
-  };
+      {"\"use strict\";", ""},
+      {"function test_func() { \"use strict\";", "}"},
+      {"() => { \"use strict\"; ", "}"},
+      {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "eval;",
-    "arguments;",
-    "var foo = eval;",
-    "var foo = arguments;",
-    "var foo = { eval: 1 };",
-    "var foo = { arguments: 1 };",
-    "var foo = { }; foo.eval = {};",
-    "var foo = { }; foo.arguments = {};",
-    NULL
-  };
+  const char* statement_data[] = {"eval;",
+                                  "arguments;",
+                                  "var foo = eval;",
+                                  "var foo = arguments;",
+                                  "var foo = { eval: 1 };",
+                                  "var foo = { arguments: 1 };",
+                                  "var foo = { }; foo.eval = {};",
+                                  "var foo = { }; foo.arguments = {};",
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -1853,13 +1801,13 @@ TEST(ErrorsFutureStrictReservedWords) {
   const char* strict_contexts[][2] = {
       {"function test_func() {\"use strict\"; ", "}"},
       {"() => { \"use strict\"; ", "}"},
-      {NULL, NULL}};
+      {nullptr, nullptr}};
 
   // clang-format off
   const char* statement_data[] {
     LIMITED_FUTURE_STRICT_RESERVED_WORDS(FUTURE_STRICT_RESERVED_STATEMENTS)
     LIMITED_FUTURE_STRICT_RESERVED_WORDS(FUTURE_STRICT_RESERVED_LEX_BINDINGS)
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -1873,9 +1821,9 @@ TEST(ErrorsFutureStrictReservedWords) {
   const char* non_strict_contexts[][2] = {{"", ""},
                                           {"function test_func() {", "}"},
                                           {"() => {", "}"},
-                                          {NULL, NULL}};
-  const char* invalid_statements[] = {FUTURE_STRICT_RESERVED_LEX_BINDINGS("let")
-                                          NULL};
+                                          {nullptr, nullptr}};
+  const char* invalid_statements[] = {
+      FUTURE_STRICT_RESERVED_LEX_BINDINGS("let") nullptr};
 
   RunParserSyncTest(non_strict_contexts, invalid_statements, kError);
 }
@@ -1884,18 +1832,16 @@ TEST(ErrorsFutureStrictReservedWords) {
 
 
 TEST(NoErrorsFutureStrictReservedWords) {
-  const char* context_data[][2] = {
-    { "", "" },
-    { "function test_func() {", "}"},
-    { "() => {", "}" },
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"", ""},
+                                   {"function test_func() {", "}"},
+                                   {"() => {", "}"},
+                                   {nullptr, nullptr}};
 
   // clang-format off
   const char* statement_data[] = {
     FUTURE_STRICT_RESERVED_WORDS(FUTURE_STRICT_RESERVED_STATEMENTS)
     FUTURE_STRICT_RESERVED_WORDS_NO_LET(FUTURE_STRICT_RESERVED_LEX_BINDINGS)
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -1908,31 +1854,28 @@ TEST(ErrorsReservedWords) {
   // using future reserved words as identifiers. These tests don't depend on the
   // strict mode.
   const char* context_data[][2] = {
-    { "", "" },
-    { "\"use strict\";", "" },
-    { "var eval; function test_func() {", "}"},
-    { "var eval; function test_func() {\"use strict\"; ", "}"},
-    { "var eval; () => {", "}"},
-    { "var eval; () => {\"use strict\"; ", "}"},
-    { NULL, NULL }
-  };
+      {"", ""},
+      {"\"use strict\";", ""},
+      {"var eval; function test_func() {", "}"},
+      {"var eval; function test_func() {\"use strict\"; ", "}"},
+      {"var eval; () => {", "}"},
+      {"var eval; () => {\"use strict\"; ", "}"},
+      {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "var super;",
-    "var foo, super;",
-    "try { } catch (super) { }",
-    "function super() { }",
-    "function foo(super) { }",
-    "function foo(bar, super) { }",
-    "(super) => { }",
-    "(bar, super) => { }",
-    "super = 1;",
-    "var foo = super = 1;",
-    "++super;",
-    "super++;",
-    "function foo super",
-    NULL
-  };
+  const char* statement_data[] = {"var super;",
+                                  "var foo, super;",
+                                  "try { } catch (super) { }",
+                                  "function super() { }",
+                                  "function foo(super) { }",
+                                  "function foo(bar, super) { }",
+                                  "(super) => { }",
+                                  "(bar, super) => { }",
+                                  "super = 1;",
+                                  "var foo = super = 1;",
+                                  "++super;",
+                                  "super++;",
+                                  "function foo super",
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -1940,12 +1883,10 @@ TEST(ErrorsReservedWords) {
 
 TEST(NoErrorsLetSloppyAllModes) {
   // In sloppy mode, it's okay to use "let" as identifier.
-  const char* context_data[][2] = {
-    { "", "" },
-    { "function f() {", "}" },
-    { "(function f() {", "})" },
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"", ""},
+                                   {"function f() {", "}"},
+                                   {"(function f() {", "})"},
+                                   {nullptr, nullptr}};
 
   const char* statement_data[] = {
       "var let;",
@@ -1967,7 +1908,7 @@ TEST(NoErrorsLetSloppyAllModes) {
       "let(100)",
       "L: let\nx",
       "L: let\n{x}",
-      NULL};
+      nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -1976,34 +1917,31 @@ TEST(NoErrorsLetSloppyAllModes) {
 TEST(NoErrorsYieldSloppyAllModes) {
   // In sloppy mode, it's okay to use "yield" as identifier, *except* inside a
   // generator (see other test).
-  const char* context_data[][2] = {
-    { "", "" },
-    { "function not_gen() {", "}" },
-    { "(function not_gen() {", "})" },
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"", ""},
+                                   {"function not_gen() {", "}"},
+                                   {"(function not_gen() {", "})"},
+                                   {nullptr, nullptr}};
 
   const char* statement_data[] = {
-    "var yield;",
-    "var foo, yield;",
-    "try { } catch (yield) { }",
-    "function yield() { }",
-    "(function yield() { })",
-    "function foo(yield) { }",
-    "function foo(bar, yield) { }",
-    "yield = 1;",
-    "var foo = yield = 1;",
-    "yield * 2;",
-    "++yield;",
-    "yield++;",
-    "yield: 34",
-    "function yield(yield) { yield: yield (yield + yield(0)); }",
-    "({ yield: 1 })",
-    "({ get yield() { 1 } })",
-    "yield(100)",
-    "yield[100]",
-    NULL
-  };
+      "var yield;",
+      "var foo, yield;",
+      "try { } catch (yield) { }",
+      "function yield() { }",
+      "(function yield() { })",
+      "function foo(yield) { }",
+      "function foo(bar, yield) { }",
+      "yield = 1;",
+      "var foo = yield = 1;",
+      "yield * 2;",
+      "++yield;",
+      "yield++;",
+      "yield: 34",
+      "function yield(yield) { yield: yield (yield + yield(0)); }",
+      "({ yield: 1 })",
+      "({ get yield() { 1 } })",
+      "yield(100)",
+      "yield[100]",
+      nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -2013,36 +1951,34 @@ TEST(NoErrorsYieldSloppyGeneratorsEnabled) {
   // In sloppy mode, it's okay to use "yield" as identifier, *except* inside a
   // generator (see next test).
   const char* context_data[][2] = {
-    { "", "" },
-    { "function not_gen() {", "}" },
-    { "function * gen() { function not_gen() {", "} }" },
-    { "(function not_gen() {", "})" },
-    { "(function * gen() { (function not_gen() {", "}) })" },
-    { NULL, NULL }
-  };
+      {"", ""},
+      {"function not_gen() {", "}"},
+      {"function * gen() { function not_gen() {", "} }"},
+      {"(function not_gen() {", "})"},
+      {"(function * gen() { (function not_gen() {", "}) })"},
+      {nullptr, nullptr}};
 
   const char* statement_data[] = {
-    "var yield;",
-    "var foo, yield;",
-    "try { } catch (yield) { }",
-    "function yield() { }",
-    "(function yield() { })",
-    "function foo(yield) { }",
-    "function foo(bar, yield) { }",
-    "function * yield() { }",
-    "yield = 1;",
-    "var foo = yield = 1;",
-    "yield * 2;",
-    "++yield;",
-    "yield++;",
-    "yield: 34",
-    "function yield(yield) { yield: yield (yield + yield(0)); }",
-    "({ yield: 1 })",
-    "({ get yield() { 1 } })",
-    "yield(100)",
-    "yield[100]",
-    NULL
-  };
+      "var yield;",
+      "var foo, yield;",
+      "try { } catch (yield) { }",
+      "function yield() { }",
+      "(function yield() { })",
+      "function foo(yield) { }",
+      "function foo(bar, yield) { }",
+      "function * yield() { }",
+      "yield = 1;",
+      "var foo = yield = 1;",
+      "yield * 2;",
+      "++yield;",
+      "yield++;",
+      "yield: 34",
+      "function yield(yield) { yield: yield (yield + yield(0)); }",
+      "({ yield: 1 })",
+      "({ get yield() { 1 } })",
+      "yield(100)",
+      "yield[100]",
+      nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -2057,42 +1993,35 @@ TEST(ErrorsYieldStrict) {
       {"\"use strict\"; (function not_gen() {", "})"},
       {"\"use strict\"; (function * gen() { (function not_gen() {", "}) })"},
       {"() => {\"use strict\"; ", "}"},
-      {NULL, NULL}};
+      {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "var yield;",
-    "var foo, yield;",
-    "try { } catch (yield) { }",
-    "function yield() { }",
-    "(function yield() { })",
-    "function foo(yield) { }",
-    "function foo(bar, yield) { }",
-    "function * yield() { }",
-    "(function * yield() { })",
-    "yield = 1;",
-    "var foo = yield = 1;",
-    "++yield;",
-    "yield++;",
-    "yield: 34;",
-    NULL
-  };
+  const char* statement_data[] = {"var yield;",
+                                  "var foo, yield;",
+                                  "try { } catch (yield) { }",
+                                  "function yield() { }",
+                                  "(function yield() { })",
+                                  "function foo(yield) { }",
+                                  "function foo(bar, yield) { }",
+                                  "function * yield() { }",
+                                  "(function * yield() { })",
+                                  "yield = 1;",
+                                  "var foo = yield = 1;",
+                                  "++yield;",
+                                  "yield++;",
+                                  "yield: 34;",
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
 
 
 TEST(ErrorsYieldSloppy) {
-  const char* context_data[][2] = {
-    { "", "" },
-    { "function not_gen() {", "}" },
-    { "(function not_gen() {", "})" },
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"", ""},
+                                   {"function not_gen() {", "}"},
+                                   {"(function not_gen() {", "})"},
+                                   {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "(function * yield() { })",
-    NULL
-  };
+  const char* statement_data[] = {"(function * yield() { })", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -2104,7 +2033,7 @@ TEST(NoErrorsGenerator) {
     { "function * gen() {", "}" },
     { "(function * gen() {", "})" },
     { "(function * () {", "})" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* statement_data[] = {
@@ -2158,7 +2087,7 @@ TEST(NoErrorsGenerator) {
     "x = class extends f(yield) {}",
     "x = class extends (null, yield) { }",
     "x = class extends (a ? null : yield) { }",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -2171,7 +2100,7 @@ TEST(ErrorsYieldGenerator) {
   const char* context_data[][2] = {
     { "function * gen() {", "}" },
     { "\"use strict\"; function * gen() {", "}" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* statement_data[] = {
@@ -2223,7 +2152,7 @@ TEST(ErrorsYieldGenerator) {
     "for (yield 'x' in {} in {});",
     "for (yield 'x' in {} of {});",
     "class C extends yield { }",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -2234,60 +2163,37 @@ TEST(ErrorsYieldGenerator) {
 TEST(ErrorsNameOfStrictFunction) {
   // Tests that illegal tokens as names of a strict function produce the correct
   // errors.
-  const char* context_data[][2] = {
-    { "function ", ""},
-    { "\"use strict\"; function", ""},
-    { "function * ", ""},
-    { "\"use strict\"; function * ", ""},
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"function ", ""},
+                                   {"\"use strict\"; function", ""},
+                                   {"function * ", ""},
+                                   {"\"use strict\"; function * ", ""},
+                                   {nullptr, nullptr}};
 
   const char* statement_data[] = {
-    "eval() {\"use strict\";}",
-    "arguments() {\"use strict\";}",
-    "interface() {\"use strict\";}",
-    "yield() {\"use strict\";}",
-    // Future reserved words are always illegal
-    "super() { }",
-    "super() {\"use strict\";}",
-    NULL
-  };
+      "eval() {\"use strict\";}", "arguments() {\"use strict\";}",
+      "interface() {\"use strict\";}", "yield() {\"use strict\";}",
+      // Future reserved words are always illegal
+      "super() { }", "super() {\"use strict\";}", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
 
 
 TEST(NoErrorsNameOfStrictFunction) {
-  const char* context_data[][2] = {
-    { "function ", ""},
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"function ", ""}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "eval() { }",
-    "arguments() { }",
-    "interface() { }",
-    "yield() { }",
-    NULL
-  };
+  const char* statement_data[] = {"eval() { }", "arguments() { }",
+                                  "interface() { }", "yield() { }", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 
 TEST(NoErrorsNameOfStrictGenerator) {
-  const char* context_data[][2] = {
-    { "function * ", ""},
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"function * ", ""}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "eval() { }",
-    "arguments() { }",
-    "interface() { }",
-    "yield() { }",
-    NULL
-  };
+  const char* statement_data[] = {"eval() { }", "arguments() { }",
+                                  "interface() { }", "yield() { }", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -2295,17 +2201,13 @@ TEST(NoErrorsNameOfStrictGenerator) {
 
 TEST(ErrorsIllegalWordsAsLabelsSloppy) {
   // Using future reserved words as labels is always an error.
-  const char* context_data[][2] = {
-    { "", ""},
-    { "function test_func() {", "}" },
-    { "() => {", "}" },
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"", ""},
+                                   {"function test_func() {", "}"},
+                                   {"() => {", "}"},
+                                   {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "super: while(true) { break super; }",
-    NULL
-  };
+  const char* statement_data[] = {"super: while(true) { break super; }",
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -2317,14 +2219,12 @@ TEST(ErrorsIllegalWordsAsLabelsStrict) {
       {"\"use strict\";", ""},
       {"function test_func() {\"use strict\"; ", "}"},
       {"() => {\"use strict\"; ", "}"},
-      {NULL, NULL}};
+      {nullptr, nullptr}};
 
 #define LABELLED_WHILE(NAME) #NAME ": while (true) { break " #NAME "; }",
   const char* statement_data[] = {
-    "super: while(true) { break super; }",
-    FUTURE_STRICT_RESERVED_WORDS(LABELLED_WHILE)
-    NULL
-  };
+      "super: while(true) { break super; }",
+      FUTURE_STRICT_RESERVED_WORDS(LABELLED_WHILE) nullptr};
 #undef LABELLED_WHILE
 
   RunParserSyncTest(context_data, statement_data, kError);
@@ -2334,39 +2234,32 @@ TEST(ErrorsIllegalWordsAsLabelsStrict) {
 TEST(NoErrorsIllegalWordsAsLabels) {
   // Using eval and arguments as labels is legal even in strict mode.
   const char* context_data[][2] = {
-    { "", ""},
-    { "function test_func() {", "}" },
-    { "() => {", "}" },
-    { "\"use strict\";", "" },
-    { "\"use strict\"; function test_func() {", "}" },
-    { "\"use strict\"; () => {", "}" },
-    { NULL, NULL }
-  };
+      {"", ""},
+      {"function test_func() {", "}"},
+      {"() => {", "}"},
+      {"\"use strict\";", ""},
+      {"\"use strict\"; function test_func() {", "}"},
+      {"\"use strict\"; () => {", "}"},
+      {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "mylabel: while(true) { break mylabel; }",
-    "eval: while(true) { break eval; }",
-    "arguments: while(true) { break arguments; }",
-    NULL
-  };
+  const char* statement_data[] = {"mylabel: while(true) { break mylabel; }",
+                                  "eval: while(true) { break eval; }",
+                                  "arguments: while(true) { break arguments; }",
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 
 TEST(NoErrorsFutureStrictReservedAsLabelsSloppy) {
-  const char* context_data[][2] = {
-    { "", ""},
-    { "function test_func() {", "}" },
-    { "() => {", "}" },
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"", ""},
+                                   {"function test_func() {", "}"},
+                                   {"() => {", "}"},
+                                   {nullptr, nullptr}};
 
 #define LABELLED_WHILE(NAME) #NAME ": while (true) { break " #NAME "; }",
-  const char* statement_data[] {
-    FUTURE_STRICT_RESERVED_WORDS(LABELLED_WHILE)
-    NULL
-  };
+  const char* statement_data[]{
+      FUTURE_STRICT_RESERVED_WORDS(LABELLED_WHILE) nullptr};
 #undef LABELLED_WHILE
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
@@ -2375,17 +2268,13 @@ TEST(NoErrorsFutureStrictReservedAsLabelsSloppy) {
 
 TEST(ErrorsParenthesizedLabels) {
   // Parenthesized identifiers shouldn't be recognized as labels.
-  const char* context_data[][2] = {
-    { "", ""},
-    { "function test_func() {", "}" },
-    { "() => {", "}" },
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"", ""},
+                                   {"function test_func() {", "}"},
+                                   {"() => {", "}"},
+                                   {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "(mylabel): while(true) { break mylabel; }",
-    NULL
-  };
+  const char* statement_data[] = {"(mylabel): while(true) { break mylabel; }",
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -2393,15 +2282,9 @@ TEST(ErrorsParenthesizedLabels) {
 
 TEST(NoErrorsParenthesizedDirectivePrologue) {
   // Parenthesized directive prologue shouldn't be recognized.
-  const char* context_data[][2] = {
-    { "", ""},
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "(\"use strict\"); var eval;",
-    NULL
-  };
+  const char* statement_data[] = {"(\"use strict\"); var eval;", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -2409,20 +2292,15 @@ TEST(NoErrorsParenthesizedDirectivePrologue) {
 
 TEST(ErrorsNotAnIdentifierName) {
   const char* context_data[][2] = {
-    { "", ""},
-    { "\"use strict\";", ""},
-    { NULL, NULL }
-  };
+      {"", ""}, {"\"use strict\";", ""}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "var foo = {}; foo.{;",
-    "var foo = {}; foo.};",
-    "var foo = {}; foo.=;",
-    "var foo = {}; foo.888;",
-    "var foo = {}; foo.-;",
-    "var foo = {}; foo.--;",
-    NULL
-  };
+  const char* statement_data[] = {"var foo = {}; foo.{;",
+                                  "var foo = {}; foo.};",
+                                  "var foo = {}; foo.=;",
+                                  "var foo = {}; foo.888;",
+                                  "var foo = {}; foo.-;",
+                                  "var foo = {}; foo.--;",
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -2431,20 +2309,15 @@ TEST(ErrorsNotAnIdentifierName) {
 TEST(NoErrorsIdentifierNames) {
   // Keywords etc. are valid as property names.
   const char* context_data[][2] = {
-    { "", ""},
-    { "\"use strict\";", ""},
-    { NULL, NULL }
-  };
+      {"", ""}, {"\"use strict\";", ""}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "var foo = {}; foo.if;",
-    "var foo = {}; foo.yield;",
-    "var foo = {}; foo.super;",
-    "var foo = {}; foo.interface;",
-    "var foo = {}; foo.eval;",
-    "var foo = {}; foo.arguments;",
-    NULL
-  };
+  const char* statement_data[] = {"var foo = {}; foo.if;",
+                                  "var foo = {}; foo.yield;",
+                                  "var foo = {}; foo.super;",
+                                  "var foo = {}; foo.interface;",
+                                  "var foo = {}; foo.eval;",
+                                  "var foo = {}; foo.arguments;",
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -2465,19 +2338,20 @@ TEST(DontRegressPreParserDataSizes) {
     const char* program;
     int functions;
   } test_cases[] = {
-    // No functions.
-    {"var x = 42;", 0},
-    // Functions.
-    {"function foo() {}", 1},
-    {"function foo() {} function bar() {}", 2},
-    // Getter / setter functions are recorded as functions if they're on the top
-    // level.
-    {"var x = {get foo(){} };", 1},
-    // Functions insize lazy functions are not recorded.
-    {"function lazy() { function a() {} function b() {} function c() {} }", 1},
-    {"function lazy() { var x = {get foo(){} } }", 1},
-    {NULL, 0}
-  };
+      // No functions.
+      {"var x = 42;", 0},
+      // Functions.
+      {"function foo() {}", 1},
+      {"function foo() {} function bar() {}", 2},
+      // Getter / setter functions are recorded as functions if they're on the
+      // top
+      // level.
+      {"var x = {get foo(){} };", 1},
+      // Functions insize lazy functions are not recorded.
+      {"function lazy() { function a() {} function b() {} function c() {} }",
+       1},
+      {"function lazy() { var x = {get foo(){} } }", 1},
+      {nullptr, 0}};
 
   for (int i = 0; test_cases[i].program; i++) {
     const char* program = test_cases[i].program;
@@ -2486,7 +2360,7 @@ TEST(DontRegressPreParserDataSizes) {
         factory->NewStringFromUtf8(i::CStrVector(program)).ToHandleChecked();
     i::Handle<i::Script> script = factory->NewScript(source);
     i::ParseInfo info(script);
-    i::ScriptData* sd = NULL;
+    i::ScriptData* sd = nullptr;
     info.set_cached_data(&sd);
     info.set_compile_options(v8::ScriptCompiler::kProduceParserCache);
     i::parsing::ParseProgram(&info, CcTest::i_isolate());
@@ -2511,32 +2385,24 @@ TEST(FunctionDeclaresItselfStrict) {
   // itself strict (we cannot produce there errors as soon as we see the
   // offending identifiers, because we don't know at that point whether the
   // function is strict or not).
-  const char* context_data[][2] = {
-    {"function eval() {", "}"},
-    {"function arguments() {", "}"},
-    {"function yield() {", "}"},
-    {"function interface() {", "}"},
-    {"function foo(eval) {", "}"},
-    {"function foo(arguments) {", "}"},
-    {"function foo(yield) {", "}"},
-    {"function foo(interface) {", "}"},
-    {"function foo(bar, eval) {", "}"},
-    {"function foo(bar, arguments) {", "}"},
-    {"function foo(bar, yield) {", "}"},
-    {"function foo(bar, interface) {", "}"},
-    {"function foo(bar, bar) {", "}"},
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"function eval() {", "}"},
+                                   {"function arguments() {", "}"},
+                                   {"function yield() {", "}"},
+                                   {"function interface() {", "}"},
+                                   {"function foo(eval) {", "}"},
+                                   {"function foo(arguments) {", "}"},
+                                   {"function foo(yield) {", "}"},
+                                   {"function foo(interface) {", "}"},
+                                   {"function foo(bar, eval) {", "}"},
+                                   {"function foo(bar, arguments) {", "}"},
+                                   {"function foo(bar, yield) {", "}"},
+                                   {"function foo(bar, interface) {", "}"},
+                                   {"function foo(bar, bar) {", "}"},
+                                   {nullptr, nullptr}};
 
-  const char* strict_statement_data[] = {
-    "\"use strict\";",
-    NULL
-  };
+  const char* strict_statement_data[] = {"\"use strict\";", nullptr};
 
-  const char* non_strict_statement_data[] = {
-    ";",
-    NULL
-  };
+  const char* non_strict_statement_data[] = {";", nullptr};
 
   RunParserSyncTest(context_data, strict_statement_data, kError);
   RunParserSyncTest(context_data, non_strict_statement_data, kSuccess);
@@ -2544,67 +2410,40 @@ TEST(FunctionDeclaresItselfStrict) {
 
 
 TEST(ErrorsTryWithoutCatchOrFinally) {
-  const char* context_data[][2] = {
-    {"", ""},
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
   const char* statement_data[] = {
-    "try { }",
-    "try { } foo();",
-    "try { } catch (e) foo();",
-    "try { } catch { }",
-    "try { } finally foo();",
-    NULL
-  };
+      "try { }",           "try { } foo();",         "try { } catch (e) foo();",
+      "try { } catch { }", "try { } finally foo();", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
 
 
 TEST(NoErrorsTryCatchFinally) {
-  const char* context_data[][2] = {
-    {"", ""},
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "try { } catch (e) { }",
-    "try { } catch (e) { } finally { }",
-    "try { } finally { }",
-    NULL
-  };
+  const char* statement_data[] = {"try { } catch (e) { }",
+                                  "try { } catch (e) { } finally { }",
+                                  "try { } finally { }", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 
 TEST(ErrorsRegexpLiteral) {
-  const char* context_data[][2] = {
-    {"var r = ", ""},
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"var r = ", ""}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "/unterminated",
-    NULL
-  };
+  const char* statement_data[] = {"/unterminated", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
 
 
 TEST(NoErrorsRegexpLiteral) {
-  const char* context_data[][2] = {
-    {"var r = ", ""},
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"var r = ", ""}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "/foo/",
-    "/foo/g",
-    NULL
-  };
+  const char* statement_data[] = {"/foo/", "/foo/g", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -2612,38 +2451,24 @@ TEST(NoErrorsRegexpLiteral) {
 
 TEST(NoErrorsNewExpression) {
   const char* context_data[][2] = {
-    {"", ""},
-    {"var f =", ""},
-    { NULL, NULL }
-  };
+      {"", ""}, {"var f =", ""}, {nullptr, nullptr}};
 
   const char* statement_data[] = {
-    "new foo",
-    "new foo();",
-    "new foo(1);",
-    "new foo(1, 2);",
-    // The first () will be processed as a part of the NewExpression and the
-    // second () will be processed as part of LeftHandSideExpression.
-    "new foo()();",
-    // The first () will be processed as a part of the inner NewExpression and
-    // the second () will be processed as a part of the outer NewExpression.
-    "new new foo()();",
-    "new foo.bar;",
-    "new foo.bar();",
-    "new foo.bar.baz;",
-    "new foo.bar().baz;",
-    "new foo[bar];",
-    "new foo[bar]();",
-    "new foo[bar][baz];",
-    "new foo[bar]()[baz];",
-    "new foo[bar].baz(baz)()[bar].baz;",
-    "new \"foo\"",  // Runtime error
-    "new 1",  // Runtime error
-    // This even runs:
-    "(new new Function(\"this.x = 1\")).x;",
-    "new new Test_Two(String, 2).v(0123).length;",
-    NULL
-  };
+      "new foo", "new foo();", "new foo(1);", "new foo(1, 2);",
+      // The first () will be processed as a part of the NewExpression and the
+      // second () will be processed as part of LeftHandSideExpression.
+      "new foo()();",
+      // The first () will be processed as a part of the inner NewExpression and
+      // the second () will be processed as a part of the outer NewExpression.
+      "new new foo()();", "new foo.bar;", "new foo.bar();", "new foo.bar.baz;",
+      "new foo.bar().baz;", "new foo[bar];", "new foo[bar]();",
+      "new foo[bar][baz];", "new foo[bar]()[baz];",
+      "new foo[bar].baz(baz)()[bar].baz;",
+      "new \"foo\"",  // Runtime error
+      "new 1",        // Runtime error
+      // This even runs:
+      "(new new Function(\"this.x = 1\")).x;",
+      "new new Test_Two(String, 2).v(0123).length;", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -2651,43 +2476,29 @@ TEST(NoErrorsNewExpression) {
 
 TEST(ErrorsNewExpression) {
   const char* context_data[][2] = {
-    {"", ""},
-    {"var f =", ""},
-    { NULL, NULL }
-  };
+      {"", ""}, {"var f =", ""}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "new foo bar",
-    "new ) foo",
-    "new ++foo",
-    "new foo ++",
-    NULL
-  };
+  const char* statement_data[] = {"new foo bar", "new ) foo", "new ++foo",
+                                  "new foo ++", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
 
 
 TEST(StrictObjectLiteralChecking) {
-  const char* context_data[][2] = {
-    {"\"use strict\"; var myobject = {", "};"},
-    {"\"use strict\"; var myobject = {", ",};"},
-    {"var myobject = {", "};"},
-    {"var myobject = {", ",};"},
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"\"use strict\"; var myobject = {", "};"},
+                                   {"\"use strict\"; var myobject = {", ",};"},
+                                   {"var myobject = {", "};"},
+                                   {"var myobject = {", ",};"},
+                                   {nullptr, nullptr}};
 
   // These are only errors in strict mode.
   const char* statement_data[] = {
-    "foo: 1, foo: 2",
-    "\"foo\": 1, \"foo\": 2",
-    "foo: 1, \"foo\": 2",
-    "1: 1, 1: 2",
-    "1: 1, \"1\": 2",
-    "get: 1, get: 2",  // Not a getter for real, just a property called get.
-    "set: 1, set: 2",  // Not a setter for real, just a property called set.
-    NULL
-  };
+      "foo: 1, foo: 2", "\"foo\": 1, \"foo\": 2", "foo: 1, \"foo\": 2",
+      "1: 1, 1: 2",     "1: 1, \"1\": 2",
+      "get: 1, get: 2",  // Not a getter for real, just a property called get.
+      "set: 1, set: 2",  // Not a setter for real, just a property called set.
+      nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -2698,7 +2509,7 @@ TEST(ErrorsObjectLiteralChecking) {
   const char* context_data[][2] = {
     {"\"use strict\"; var myobject = {", "};"},
     {"var myobject = {", "};"},
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* statement_data[] = {
@@ -2743,7 +2554,7 @@ TEST(ErrorsObjectLiteralChecking) {
     "async get *x(){}",
     "async set x(y){}",
     "async get : 0",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -2758,7 +2569,7 @@ TEST(NoErrorsObjectLiteralChecking) {
     {"var myobject = {", ",};"},
     {"\"use strict\"; var myobject = {", "};"},
     {"\"use strict\"; var myobject = {", ",};"},
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* statement_data[] = {
@@ -2830,7 +2641,7 @@ TEST(NoErrorsObjectLiteralChecking) {
     "async : 0",
     "async(){}",
     "*async(){}",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -2839,10 +2650,7 @@ TEST(NoErrorsObjectLiteralChecking) {
 
 
 TEST(TooManyArguments) {
-  const char* context_data[][2] = {
-    {"foo(", "0)"},
-    { NULL, NULL }
-  };
+  const char* context_data[][2] = {{"foo(", "0)"}, {nullptr, nullptr}};
 
   using v8::internal::Code;
   char statement[Code::kMaxArguments * 2 + 1];
@@ -2852,10 +2660,7 @@ TEST(TooManyArguments) {
   }
   statement[Code::kMaxArguments * 2] = 0;
 
-  const char* statement_data[] = {
-    statement,
-    NULL
-  };
+  const char* statement_data[] = {statement, nullptr};
 
   // The test is quite slow, so run it with a reduced set of flags.
   static const ParserFlag empty_flags[] = {kAllowLazy};
@@ -2865,46 +2670,31 @@ TEST(TooManyArguments) {
 
 TEST(StrictDelete) {
   // "delete <Identifier>" is not allowed in strict mode.
-  const char* strict_context_data[][2] = {
-    {"\"use strict\"; ", ""},
-    { NULL, NULL }
-  };
+  const char* strict_context_data[][2] = {{"\"use strict\"; ", ""},
+                                          {nullptr, nullptr}};
 
-  const char* sloppy_context_data[][2] = {
-    {"", ""},
-    { NULL, NULL }
-  };
+  const char* sloppy_context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
   // These are errors in the strict mode.
-  const char* sloppy_statement_data[] = {
-    "delete foo;",
-    "delete foo + 1;",
-    "delete (foo);",
-    "delete eval;",
-    "delete interface;",
-    NULL
-  };
+  const char* sloppy_statement_data[] = {"delete foo;",       "delete foo + 1;",
+                                         "delete (foo);",     "delete eval;",
+                                         "delete interface;", nullptr};
 
   // These are always OK
-  const char* good_statement_data[] = {
-    "delete this;",
-    "delete 1;",
-    "delete 1 + 2;",
-    "delete foo();",
-    "delete foo.bar;",
-    "delete foo[bar];",
-    "delete foo--;",
-    "delete --foo;",
-    "delete new foo();",
-    "delete new foo(bar);",
-    NULL
-  };
+  const char* good_statement_data[] = {"delete this;",
+                                       "delete 1;",
+                                       "delete 1 + 2;",
+                                       "delete foo();",
+                                       "delete foo.bar;",
+                                       "delete foo[bar];",
+                                       "delete foo--;",
+                                       "delete --foo;",
+                                       "delete new foo();",
+                                       "delete new foo(bar);",
+                                       nullptr};
 
   // These are always errors
-  const char* bad_statement_data[] = {
-    "delete if;",
-    NULL
-  };
+  const char* bad_statement_data[] = {"delete if;", nullptr};
 
   RunParserSyncTest(strict_context_data, sloppy_statement_data, kError);
   RunParserSyncTest(sloppy_context_data, sloppy_statement_data, kSuccess);
@@ -2946,68 +2736,53 @@ TEST(NoErrorsDeclsInCase) {
 
 TEST(InvalidLeftHandSide) {
   const char* assignment_context_data[][2] = {
-    {"", " = 1;"},
-    {"\"use strict\"; ", " = 1;"},
-    { NULL, NULL }
-  };
+      {"", " = 1;"}, {"\"use strict\"; ", " = 1;"}, {nullptr, nullptr}};
 
   const char* prefix_context_data[][2] = {
-    {"++", ";"},
-    {"\"use strict\"; ++", ";"},
-    {NULL, NULL},
+      {"++", ";"}, {"\"use strict\"; ++", ";"}, {nullptr, nullptr},
   };
 
   const char* postfix_context_data[][2] = {
-    {"", "++;"},
-    {"\"use strict\"; ", "++;"},
-    { NULL, NULL }
-  };
+      {"", "++;"}, {"\"use strict\"; ", "++;"}, {nullptr, nullptr}};
 
   // Good left hand sides for assigment or prefix / postfix operations.
-  const char* good_statement_data[] = {
-    "foo",
-    "foo.bar",
-    "foo[bar]",
-    "foo()[bar]",
-    "foo().bar",
-    "this.foo",
-    "this[foo]",
-    "new foo()[bar]",
-    "new foo().bar",
-    "foo()",
-    "foo(bar)",
-    "foo[bar]()",
-    "foo.bar()",
-    "this()",
-    "this.foo()",
-    "this[foo].bar()",
-    "this.foo[foo].bar(this)(bar)[foo]()",
-    NULL
-  };
+  const char* good_statement_data[] = {"foo",
+                                       "foo.bar",
+                                       "foo[bar]",
+                                       "foo()[bar]",
+                                       "foo().bar",
+                                       "this.foo",
+                                       "this[foo]",
+                                       "new foo()[bar]",
+                                       "new foo().bar",
+                                       "foo()",
+                                       "foo(bar)",
+                                       "foo[bar]()",
+                                       "foo.bar()",
+                                       "this()",
+                                       "this.foo()",
+                                       "this[foo].bar()",
+                                       "this.foo[foo].bar(this)(bar)[foo]()",
+                                       nullptr};
 
   // Bad left hand sides for assigment or prefix / postfix operations.
   const char* bad_statement_data_common[] = {
-    "2",
-    "new foo",
-    "new foo()",
-    "null",
-    "if",  // Unexpected token
-    "{x: 1}",  // Unexpected token
-    "this",
-    "\"bar\"",
-    "(foo + bar)",
-    "new new foo()[bar]",  // means: new (new foo()[bar])
-    "new new foo().bar",  // means: new (new foo()[bar])
-    NULL
-  };
+      "2",
+      "new foo",
+      "new foo()",
+      "null",
+      "if",      // Unexpected token
+      "{x: 1}",  // Unexpected token
+      "this",
+      "\"bar\"",
+      "(foo + bar)",
+      "new new foo()[bar]",  // means: new (new foo()[bar])
+      "new new foo().bar",   // means: new (new foo()[bar])
+      nullptr};
 
   // These are not okay for assignment, but okay for prefix / postix.
-  const char* bad_statement_data_for_assignment[] = {
-    "++foo",
-    "foo++",
-    "foo + bar",
-    NULL
-  };
+  const char* bad_statement_data_for_assignment[] = {"++foo", "foo++",
+                                                     "foo + bar", nullptr};
 
   RunParserSyncTest(assignment_context_data, good_statement_data, kSuccess);
   RunParserSyncTest(assignment_context_data, bad_statement_data_common, kError);
@@ -3183,12 +2958,12 @@ TEST(SerializationOfMaybeAssignmentFlag) {
       &zone, context->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   CHECK(s != script_scope);
-  CHECK(name != NULL);
+  CHECK(name != nullptr);
 
   // Get result from h's function context (that is f's context)
   i::Variable* var = s->Lookup(name);
 
-  CHECK(var != NULL);
+  CHECK(var != nullptr);
   // Maybe assigned should survive deserialization
   CHECK(var->maybe_assigned() == i::kMaybeAssigned);
   // TODO(sigurds) Figure out if is_used should survive context serialization.
@@ -3235,7 +3010,7 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
 
   // Get result from f's function context (that is g's outer context)
   i::Variable* var_x = s->Lookup(name_x);
-  CHECK(var_x != NULL);
+  CHECK(var_x != nullptr);
   CHECK(var_x->maybe_assigned() == i::kMaybeAssigned);
 }
 
@@ -3392,7 +3167,7 @@ TEST(InnerAssignment) {
           CHECK(i::parsing::ParseProgram(info.get(), isolate));
         }
         CHECK(i::Compiler::Analyze(info.get()));
-        CHECK(info->literal() != NULL);
+        CHECK(info->literal() != nullptr);
 
         i::Scope* scope = info->literal()->scope();
         if (!lazy) {
@@ -3405,7 +3180,7 @@ TEST(InnerAssignment) {
             info->ast_value_factory()->GetOneByteString("x");
         i::Variable* var = scope->Lookup(var_name);
         bool expected = outers[i].assigned || inners[j].assigned;
-        CHECK(var != NULL);
+        CHECK(var != nullptr);
         CHECK(var->is_used() || !expected);
         bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
         if (i::FLAG_lazy_inner_functions) {
@@ -4137,7 +3912,7 @@ TEST(ErrorsArrowFunctions) {
     {"bar[", "];"},
     {"bar, ", ";"},
     {"", ", bar;"},
-    {NULL, NULL}
+    {nullptr, nullptr}
   };
 
   const char* statement_data[] = {
@@ -4226,7 +4001,7 @@ TEST(ErrorsArrowFunctions) {
     "(...rest - a) => b",
     "(a, ...b - 10) => b",
 
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -4254,7 +4029,7 @@ TEST(NoErrorsArrowFunctions) {
     {"bar ? baz : (", ");"},
     {"bar, ", ";"},
     {"", ", bar;"},
-    {NULL, NULL}
+    {nullptr, nullptr}
   };
 
   const char* statement_data[] = {
@@ -4317,7 +4092,7 @@ TEST(NoErrorsArrowFunctions) {
     "([x] = []) => {}",
     "({a = 42}) => {}",
     "([x = 0]) => {}",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -4335,44 +4110,35 @@ TEST(NoErrorsArrowFunctions) {
 
 
 TEST(ArrowFunctionsSloppyParameterNames) {
-  const char* strict_context_data[][2] = {
-    {"'use strict'; ", ";"},
-    {"'use strict'; bar ? (", ") : baz;"},
-    {"'use strict'; bar ? baz : (", ");"},
-    {"'use strict'; bar, ", ";"},
-    {"'use strict'; ", ", bar;"},
-    {NULL, NULL}
-  };
+  const char* strict_context_data[][2] = {{"'use strict'; ", ";"},
+                                          {"'use strict'; bar ? (", ") : baz;"},
+                                          {"'use strict'; bar ? baz : (", ");"},
+                                          {"'use strict'; bar, ", ";"},
+                                          {"'use strict'; ", ", bar;"},
+                                          {nullptr, nullptr}};
 
   const char* sloppy_context_data[][2] = {
-    {"", ";"},
-    {"bar ? (", ") : baz;"},
-    {"bar ? baz : (", ");"},
-    {"bar, ", ";"},
-    {"", ", bar;"},
-    {NULL, NULL}
-  };
+      {"", ";"},      {"bar ? (", ") : baz;"}, {"bar ? baz : (", ");"},
+      {"bar, ", ";"}, {"", ", bar;"},          {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "eval => {}",
-    "arguments => {}",
-    "yield => {}",
-    "interface => {}",
-    "(eval) => {}",
-    "(arguments) => {}",
-    "(yield) => {}",
-    "(interface) => {}",
-    "(eval, bar) => {}",
-    "(bar, eval) => {}",
-    "(bar, arguments) => {}",
-    "(bar, yield) => {}",
-    "(bar, interface) => {}",
-    "(interface, eval) => {}",
-    "(interface, arguments) => {}",
-    "(eval, interface) => {}",
-    "(arguments, interface) => {}",
-    NULL
-  };
+  const char* statement_data[] = {"eval => {}",
+                                  "arguments => {}",
+                                  "yield => {}",
+                                  "interface => {}",
+                                  "(eval) => {}",
+                                  "(arguments) => {}",
+                                  "(yield) => {}",
+                                  "(interface) => {}",
+                                  "(eval, bar) => {}",
+                                  "(bar, eval) => {}",
+                                  "(bar, arguments) => {}",
+                                  "(bar, yield) => {}",
+                                  "(bar, interface) => {}",
+                                  "(interface, eval) => {}",
+                                  "(interface, arguments) => {}",
+                                  "(eval, interface) => {}",
+                                  "(arguments, interface) => {}",
+                                  nullptr};
 
   RunParserSyncTest(strict_context_data, statement_data, kError);
   RunParserSyncTest(sloppy_context_data, statement_data, kSuccess);
@@ -4381,32 +4147,20 @@ TEST(ArrowFunctionsSloppyParameterNames) {
 
 TEST(ArrowFunctionsYieldParameterNameInGenerator) {
   const char* sloppy_function_context_data[][2] = {
-    {"(function f() { (", "); });"},
-    {NULL, NULL}
-  };
+      {"(function f() { (", "); });"}, {nullptr, nullptr}};
 
   const char* strict_function_context_data[][2] = {
-    {"(function f() {'use strict'; (", "); });"},
-    {NULL, NULL}
-  };
+      {"(function f() {'use strict'; (", "); });"}, {nullptr, nullptr}};
 
   const char* generator_context_data[][2] = {
-    {"(function *g() {'use strict'; (", "); });"},
-    {"(function *g() { (", "); });"},
-    {NULL, NULL}
-  };
+      {"(function *g() {'use strict'; (", "); });"},
+      {"(function *g() { (", "); });"},
+      {nullptr, nullptr}};
 
   const char* arrow_data[] = {
-    "yield => {}",
-    "(yield) => {}",
-    "(a, yield) => {}",
-    "(yield, a) => {}",
-    "(yield, ...a) => {}",
-    "(a, ...yield) => {}",
-    "({yield}) => {}",
-    "([yield]) => {}",
-    NULL
-  };
+      "yield => {}",      "(yield) => {}",       "(a, yield) => {}",
+      "(yield, a) => {}", "(yield, ...a) => {}", "(a, ...yield) => {}",
+      "({yield}) => {}",  "([yield]) => {}",     nullptr};
 
   RunParserSyncTest(sloppy_function_context_data, arrow_data, kSuccess);
   RunParserSyncTest(strict_function_context_data, arrow_data, kError);
@@ -4416,51 +4170,40 @@ TEST(ArrowFunctionsYieldParameterNameInGenerator) {
 
 TEST(SuperNoErrors) {
   // Tests that parser and preparser accept 'super' keyword in right places.
-  const char* context_data[][2] = {
-    {"class C { m() { ", "; } }"},
-    {"class C { m() { k = ", "; } }"},
-    {"class C { m() { foo(", "); } }"},
-    {"class C { m() { () => ", "; } }"},
-    {NULL, NULL}
-  };
+  const char* context_data[][2] = {{"class C { m() { ", "; } }"},
+                                   {"class C { m() { k = ", "; } }"},
+                                   {"class C { m() { foo(", "); } }"},
+                                   {"class C { m() { () => ", "; } }"},
+                                   {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "super.x",
-    "super[27]",
-    "new super.x",
-    "new super.x()",
-    "new super[27]",
-    "new super[27]()",
-    "z.super",  // Ok, property lookup.
-    NULL
-  };
+  const char* statement_data[] = {"super.x",       "super[27]",
+                                  "new super.x",   "new super.x()",
+                                  "new super[27]", "new super[27]()",
+                                  "z.super",  // Ok, property lookup.
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 
 TEST(SuperErrors) {
-  const char* context_data[][2] = {
-    {"class C { m() { ", "; } }"},
-    {"class C { m() { k = ", "; } }"},
-    {"class C { m() { foo(", "); } }"},
-    {"class C { m() { () => ", "; } }"},
-    {NULL, NULL}
-  };
+  const char* context_data[][2] = {{"class C { m() { ", "; } }"},
+                                   {"class C { m() { k = ", "; } }"},
+                                   {"class C { m() { foo(", "); } }"},
+                                   {"class C { m() { () => ", "; } }"},
+                                   {nullptr, nullptr}};
 
-  const char* expression_data[] = {
-    "super",
-    "super = x",
-    "y = super",
-    "f(super)",
-    "new super",
-    "new super()",
-    "new super(12, 45)",
-    "new new super",
-    "new new super()",
-    "new new super()()",
-    NULL
-  };
+  const char* expression_data[] = {"super",
+                                   "super = x",
+                                   "y = super",
+                                   "f(super)",
+                                   "new super",
+                                   "new super()",
+                                   "new super(12, 45)",
+                                   "new new super",
+                                   "new new super()",
+                                   "new new super()()",
+                                   nullptr};
 
   RunParserSyncTest(context_data, expression_data, kError);
 }
@@ -4469,7 +4212,7 @@ TEST(ImportExpressionSuccess) {
   // clang-format off
   const char* context_data[][2] = {
     {"", ""},
-    {NULL, NULL}
+    {nullptr, nullptr}
   };
 
   const char* data[] = {
@@ -4489,7 +4232,7 @@ TEST(ImportExpressionSuccess) {
     "let x = import(x)",
     "for(x of import(x)) {}",
     "import(x).then()",
-    NULL
+    nullptr
   };
 
   // clang-format on
@@ -4504,12 +4247,12 @@ TEST(ImportExpressionSuccess) {
   // run without kAllowHarmonyDynamicImport flag), so this results in
   // an "Unexpected token import" error.
   RunParserSyncTest(context_data, data, kError);
-  RunModuleParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0, NULL, 0,
-                          true, true);
+  RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
+                          nullptr, 0, true, true);
   static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
                     arraysize(flags));
-  RunModuleParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+  RunModuleParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
                           arraysize(flags));
 }
 
@@ -4521,7 +4264,7 @@ TEST(ImportExpressionErrors) {
       {"var ", ""},
       {"let ", ""},
       {"new ", ""},
-      {NULL, NULL}
+      {nullptr, nullptr}
     };
 
     const char* data[] = {
@@ -4551,17 +4294,17 @@ TEST(ImportExpressionErrors) {
       "import = 1",
       "import.wat",
       "new import(x)",
-      NULL
+      nullptr
     };
 
     // clang-format on
     RunParserSyncTest(context_data, data, kError);
     // We ignore the error messages for the reason explained in the
     // ImportExpressionSuccess test.
-    RunModuleParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0, NULL,
-                            0, true, true);
+    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
+                            nullptr, 0, true, true);
     static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
-    RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                       arraysize(flags));
 
     // We ignore test error messages because the error message from
@@ -4571,8 +4314,8 @@ TEST(ImportExpressionErrors) {
     // correctly and then shows an "Unexpected end of input" error
     // message because of the '{'. The preparser shows an "Unexpected
     // token {" because it's not a valid token in a CallExpression.
-    RunModuleParserSyncTest(context_data, data, kError, NULL, 0, flags,
-                            arraysize(flags), NULL, 0, true, true);
+    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
+                            arraysize(flags), nullptr, 0, true, true);
   }
 
   {
@@ -4580,12 +4323,12 @@ TEST(ImportExpressionErrors) {
     const char* context_data[][2] = {
       {"var ", ""},
       {"let ", ""},
-      {NULL, NULL}
+      {nullptr, nullptr}
     };
 
     const char* data[] = {
       "import('x')",
-      NULL
+      nullptr
     };
 
     // clang-format on
@@ -4593,100 +4336,83 @@ TEST(ImportExpressionErrors) {
     RunModuleParserSyncTest(context_data, data, kError);
 
     static const ParserFlag flags[] = {kAllowHarmonyDynamicImport};
-    RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                       arraysize(flags));
-    RunModuleParserSyncTest(context_data, data, kError, NULL, 0, flags,
+    RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                             arraysize(flags));
   }
 }
 
 TEST(SuperCall) {
-  const char* context_data[][2] = {{"", ""},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
   const char* success_data[] = {
-    "class C extends B { constructor() { super(); } }",
-    "class C extends B { constructor() { () => super(); } }",
-    NULL
-  };
+      "class C extends B { constructor() { super(); } }",
+      "class C extends B { constructor() { () => super(); } }", nullptr};
 
   RunParserSyncTest(context_data, success_data, kSuccess);
 
-  const char* error_data[] = {
-    "class C { constructor() { super(); } }",
-    "class C { method() { super(); } }",
-    "class C { method() { () => super(); } }",
-    "class C { *method() { super(); } }",
-    "class C { get x() { super(); } }",
-    "class C { set x(_) { super(); } }",
-    "({ method() { super(); } })",
-    "({ *method() { super(); } })",
-    "({ get x() { super(); } })",
-    "({ set x(_) { super(); } })",
-    "({ f: function() { super(); } })",
-    "(function() { super(); })",
-    "var f = function() { super(); }",
-    "({ f: function*() { super(); } })",
-    "(function*() { super(); })",
-    "var f = function*() { super(); }",
-    NULL
-  };
+  const char* error_data[] = {"class C { constructor() { super(); } }",
+                              "class C { method() { super(); } }",
+                              "class C { method() { () => super(); } }",
+                              "class C { *method() { super(); } }",
+                              "class C { get x() { super(); } }",
+                              "class C { set x(_) { super(); } }",
+                              "({ method() { super(); } })",
+                              "({ *method() { super(); } })",
+                              "({ get x() { super(); } })",
+                              "({ set x(_) { super(); } })",
+                              "({ f: function() { super(); } })",
+                              "(function() { super(); })",
+                              "var f = function() { super(); }",
+                              "({ f: function*() { super(); } })",
+                              "(function*() { super(); })",
+                              "var f = function*() { super(); }",
+                              nullptr};
 
   RunParserSyncTest(context_data, error_data, kError);
 }
 
 
 TEST(SuperNewNoErrors) {
-  const char* context_data[][2] = {
-    {"class C { constructor() { ", " } }"},
-    {"class C { *method() { ", " } }"},
-    {"class C { get x() { ", " } }"},
-    {"class C { set x(_) { ", " } }"},
-    {"({ method() { ", " } })"},
-    {"({ *method() { ", " } })"},
-    {"({ get x() { ", " } })"},
-    {"({ set x(_) { ", " } })"},
-    {NULL, NULL}
-  };
+  const char* context_data[][2] = {{"class C { constructor() { ", " } }"},
+                                   {"class C { *method() { ", " } }"},
+                                   {"class C { get x() { ", " } }"},
+                                   {"class C { set x(_) { ", " } }"},
+                                   {"({ method() { ", " } })"},
+                                   {"({ *method() { ", " } })"},
+                                   {"({ get x() { ", " } })"},
+                                   {"({ set x(_) { ", " } })"},
+                                   {nullptr, nullptr}};
 
-  const char* expression_data[] = {
-    "new super.x;",
-    "new super.x();",
-    "() => new super.x;",
-    "() => new super.x();",
-    NULL
-  };
+  const char* expression_data[] = {"new super.x;", "new super.x();",
+                                   "() => new super.x;", "() => new super.x();",
+                                   nullptr};
 
   RunParserSyncTest(context_data, expression_data, kSuccess);
 }
 
 
 TEST(SuperNewErrors) {
-  const char* context_data[][2] = {
-    {"class C { method() { ", " } }"},
-    {"class C { *method() { ", " } }"},
-    {"class C { get x() { ", " } }"},
-    {"class C { set x(_) { ", " } }"},
-    {"({ method() { ", " } })"},
-    {"({ *method() { ", " } })"},
-    {"({ get x() { ", " } })"},
-    {"({ set x(_) { ", " } })"},
-    {"({ f: function() { ", " } })"},
-    {"(function() { ", " })"},
-    {"var f = function() { ", " }"},
-    {"({ f: function*() { ", " } })"},
-    {"(function*() { ", " })"},
-    {"var f = function*() { ", " }"},
-    {NULL, NULL}
-  };
+  const char* context_data[][2] = {{"class C { method() { ", " } }"},
+                                   {"class C { *method() { ", " } }"},
+                                   {"class C { get x() { ", " } }"},
+                                   {"class C { set x(_) { ", " } }"},
+                                   {"({ method() { ", " } })"},
+                                   {"({ *method() { ", " } })"},
+                                   {"({ get x() { ", " } })"},
+                                   {"({ set x(_) { ", " } })"},
+                                   {"({ f: function() { ", " } })"},
+                                   {"(function() { ", " })"},
+                                   {"var f = function() { ", " }"},
+                                   {"({ f: function*() { ", " } })"},
+                                   {"(function*() { ", " })"},
+                                   {"var f = function*() { ", " }"},
+                                   {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "new super;",
-    "new super();",
-    "() => new super;",
-    "() => new super();",
-    NULL
-  };
+  const char* statement_data[] = {"new super;", "new super();",
+                                  "() => new super;", "() => new super();",
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -4694,37 +4420,24 @@ TEST(SuperNewErrors) {
 
 TEST(SuperErrorsNonMethods) {
   // super is only allowed in methods, accessors and constructors.
-  const char* context_data[][2] = {
-    {"", ";"},
-    {"k = ", ";"},
-    {"foo(", ");"},
-    {"if (", ") {}"},
-    {"if (true) {", "}"},
-    {"if (false) {} else {", "}"},
-    {"while (true) {", "}"},
-    {"function f() {", "}"},
-    {"class C extends (", ") {}"},
-    {"class C { m() { function f() {", "} } }"},
-    {"({ m() { function f() {", "} } })"},
-    {NULL, NULL}
-  };
+  const char* context_data[][2] = {{"", ";"},
+                                   {"k = ", ";"},
+                                   {"foo(", ");"},
+                                   {"if (", ") {}"},
+                                   {"if (true) {", "}"},
+                                   {"if (false) {} else {", "}"},
+                                   {"while (true) {", "}"},
+                                   {"function f() {", "}"},
+                                   {"class C extends (", ") {}"},
+                                   {"class C { m() { function f() {", "} } }"},
+                                   {"({ m() { function f() {", "} } })"},
+                                   {nullptr, nullptr}};
 
   const char* statement_data[] = {
-    "super",
-    "super = x",
-    "y = super",
-    "f(super)",
-    "super.x",
-    "super[27]",
-    "super.x()",
-    "super[27]()",
-    "super()",
-    "new super.x",
-    "new super.x()",
-    "new super[27]",
-    "new super[27]()",
-    NULL
-  };
+      "super",           "super = x",   "y = super",     "f(super)",
+      "super.x",         "super[27]",   "super.x()",     "super[27]()",
+      "super()",         "new super.x", "new super.x()", "new super[27]",
+      "new super[27]()", nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -4735,16 +4448,11 @@ TEST(NoErrorsMethodDefinition) {
                                    {"'use strict'; ({", "});"},
                                    {"({*", "});"},
                                    {"'use strict'; ({*", "});"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
   const char* object_literal_body_data[] = {
-    "m() {}",
-    "m(x) { return x; }",
-    "m(x, y) {}, n() {}",
-    "set(x, y) {}",
-    "get(x, y) {}",
-    NULL
-  };
+      "m() {}",       "m(x) { return x; }", "m(x, y) {}, n() {}",
+      "set(x, y) {}", "get(x, y) {}",       nullptr};
 
   RunParserSyncTest(context_data, object_literal_body_data, kSuccess);
 }
@@ -4755,70 +4463,20 @@ TEST(MethodDefinitionNames) {
                                    {"'use strict'; ({", "(x, y) {}});"},
                                    {"({*", "(x, y) {}});"},
                                    {"'use strict'; ({*", "(x, y) {}});"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
   const char* name_data[] = {
-    "m",
-    "'m'",
-    "\"m\"",
-    "\"m n\"",
-    "true",
-    "false",
-    "null",
-    "0",
-    "1.2",
-    "1e1",
-    "1E1",
-    "1e+1",
-    "1e-1",
+      "m", "'m'", "\"m\"", "\"m n\"", "true", "false", "null", "0", "1.2",
+      "1e1", "1E1", "1e+1", "1e-1",
 
-    // Keywords
-    "async",
-    "await",
-    "break",
-    "case",
-    "catch",
-    "class",
-    "const",
-    "continue",
-    "debugger",
-    "default",
-    "delete",
-    "do",
-    "else",
-    "enum",
-    "export",
-    "extends",
-    "finally",
-    "for",
-    "function",
-    "if",
-    "implements",
-    "import",
-    "in",
-    "instanceof",
-    "interface",
-    "let",
-    "new",
-    "package",
-    "private",
-    "protected",
-    "public",
-    "return",
-    "static",
-    "super",
-    "switch",
-    "this",
-    "throw",
-    "try",
-    "typeof",
-    "var",
-    "void",
-    "while",
-    "with",
-    "yield",
-    NULL
-  };
+      // Keywords
+      "async", "await", "break", "case", "catch", "class", "const", "continue",
+      "debugger", "default", "delete", "do", "else", "enum", "export",
+      "extends", "finally", "for", "function", "if", "implements", "import",
+      "in", "instanceof", "interface", "let", "new", "package", "private",
+      "protected", "public", "return", "static", "super", "switch", "this",
+      "throw", "try", "typeof", "var", "void", "while", "with", "yield",
+      nullptr};
 
   RunParserSyncTest(context_data, name_data, kSuccess);
 }
@@ -4829,34 +4487,23 @@ TEST(MethodDefinitionStrictFormalParamereters) {
                                    {"'use strict'; ({method(", "){}});"},
                                    {"({*method(", "){}});"},
                                    {"'use strict'; ({*method(", "){}});"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
-  const char* params_data[] = {
-    "x, x",
-    "x, y, x",
-    "var",
-    "const",
-    NULL
-  };
+  const char* params_data[] = {"x, x", "x, y, x", "var", "const", nullptr};
 
   RunParserSyncTest(context_data, params_data, kError);
 }
 
 
 TEST(MethodDefinitionEvalArguments) {
-  const char* strict_context_data[][2] =
-      {{"'use strict'; ({method(", "){}});"},
-       {"'use strict'; ({*method(", "){}});"},
-       {NULL, NULL}};
-  const char* sloppy_context_data[][2] =
-      {{"({method(", "){}});"},
-       {"({*method(", "){}});"},
-       {NULL, NULL}};
+  const char* strict_context_data[][2] = {
+      {"'use strict'; ({method(", "){}});"},
+      {"'use strict'; ({*method(", "){}});"},
+      {nullptr, nullptr}};
+  const char* sloppy_context_data[][2] = {
+      {"({method(", "){}});"}, {"({*method(", "){}});"}, {nullptr, nullptr}};
 
-  const char* data[] = {
-      "eval",
-      "arguments",
-      NULL};
+  const char* data[] = {"eval", "arguments", nullptr};
 
   // Fail in strict mode
   RunParserSyncTest(strict_context_data, data, kError);
@@ -4867,19 +4514,14 @@ TEST(MethodDefinitionEvalArguments) {
 
 
 TEST(MethodDefinitionDuplicateEvalArguments) {
-  const char* context_data[][2] =
-      {{"'use strict'; ({method(", "){}});"},
-       {"'use strict'; ({*method(", "){}});"},
-       {"({method(", "){}});"},
-       {"({*method(", "){}});"},
-       {NULL, NULL}};
+  const char* context_data[][2] = {{"'use strict'; ({method(", "){}});"},
+                                   {"'use strict'; ({*method(", "){}});"},
+                                   {"({method(", "){}});"},
+                                   {"({*method(", "){}});"},
+                                   {nullptr, nullptr}};
 
-  const char* data[] = {
-      "eval, eval",
-      "eval, a, eval",
-      "arguments, arguments",
-      "arguments, a, arguments",
-      NULL};
+  const char* data[] = {"eval, eval", "eval, a, eval", "arguments, arguments",
+                        "arguments, a, arguments", nullptr};
 
   // In strict mode, the error is using "eval" or "arguments" as parameter names
   // In sloppy mode, the error is that eval / arguments are duplicated
@@ -4889,55 +4531,50 @@ TEST(MethodDefinitionDuplicateEvalArguments) {
 
 TEST(MethodDefinitionDuplicateProperty) {
   const char* context_data[][2] = {{"'use strict'; ({", "});"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
-  const char* params_data[] = {
-    "x: 1, x() {}",
-    "x() {}, x: 1",
-    "x() {}, get x() {}",
-    "x() {}, set x(_) {}",
-    "x() {}, x() {}",
-    "x() {}, y() {}, x() {}",
-    "x() {}, \"x\"() {}",
-    "x() {}, 'x'() {}",
-    "0() {}, '0'() {}",
-    "1.0() {}, 1: 1",
+  const char* params_data[] = {"x: 1, x() {}",
+                               "x() {}, x: 1",
+                               "x() {}, get x() {}",
+                               "x() {}, set x(_) {}",
+                               "x() {}, x() {}",
+                               "x() {}, y() {}, x() {}",
+                               "x() {}, \"x\"() {}",
+                               "x() {}, 'x'() {}",
+                               "0() {}, '0'() {}",
+                               "1.0() {}, 1: 1",
 
-    "x: 1, *x() {}",
-    "*x() {}, x: 1",
-    "*x() {}, get x() {}",
-    "*x() {}, set x(_) {}",
-    "*x() {}, *x() {}",
-    "*x() {}, y() {}, *x() {}",
-    "*x() {}, *\"x\"() {}",
-    "*x() {}, *'x'() {}",
-    "*0() {}, *'0'() {}",
-    "*1.0() {}, 1: 1",
+                               "x: 1, *x() {}",
+                               "*x() {}, x: 1",
+                               "*x() {}, get x() {}",
+                               "*x() {}, set x(_) {}",
+                               "*x() {}, *x() {}",
+                               "*x() {}, y() {}, *x() {}",
+                               "*x() {}, *\"x\"() {}",
+                               "*x() {}, *'x'() {}",
+                               "*0() {}, *'0'() {}",
+                               "*1.0() {}, 1: 1",
 
-    NULL
-  };
+                               nullptr};
 
   RunParserSyncTest(context_data, params_data, kSuccess);
 }
 
 
 TEST(ClassExpressionNoErrors) {
-  const char* context_data[][2] = {{"(", ");"},
-                                   {"var C = ", ";"},
-                                   {"bar, ", ";"},
-                                   {NULL, NULL}};
-  const char* class_data[] = {
-    "class {}",
-    "class name {}",
-    "class extends F {}",
-    "class name extends F {}",
-    "class extends (F, G) {}",
-    "class name extends (F, G) {}",
-    "class extends class {} {}",
-    "class name extends class {} {}",
-    "class extends class base {} {}",
-    "class name extends class base {} {}",
-    NULL};
+  const char* context_data[][2] = {
+      {"(", ");"}, {"var C = ", ";"}, {"bar, ", ";"}, {nullptr, nullptr}};
+  const char* class_data[] = {"class {}",
+                              "class name {}",
+                              "class extends F {}",
+                              "class name extends F {}",
+                              "class extends (F, G) {}",
+                              "class name extends (F, G) {}",
+                              "class extends class {} {}",
+                              "class name extends class {} {}",
+                              "class extends class base {} {}",
+                              "class name extends class base {} {}",
+                              nullptr};
 
   RunParserSyncTest(context_data, class_data, kSuccess);
 }
@@ -4947,14 +4584,13 @@ TEST(ClassDeclarationNoErrors) {
   const char* context_data[][2] = {{"'use strict'; ", ""},
                                    {"'use strict'; {", "}"},
                                    {"'use strict'; if (true) {", "}"},
-                                   {NULL, NULL}};
-  const char* statement_data[] = {
-    "class name {}",
-    "class name extends F {}",
-    "class name extends (F, G) {}",
-    "class name extends class {} {}",
-    "class name extends class base {} {}",
-    NULL};
+                                   {nullptr, nullptr}};
+  const char* statement_data[] = {"class name {}",
+                                  "class name extends F {}",
+                                  "class name extends (F, G) {}",
+                                  "class name extends class {} {}",
+                                  "class name extends class base {} {}",
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -4967,7 +4603,7 @@ TEST(ClassBodyNoErrors) {
                                    {"(class extends Base {", "});"},
                                    {"class C {", "}"},
                                    {"class C extends Base {", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
   const char* class_body_data[] = {
     ";",
     ";;",
@@ -5026,7 +4662,7 @@ TEST(ClassBodyNoErrors) {
     "async async(){}",
     "async(){}",
     "*async(){}",
-    NULL};
+    nullptr};
   // clang-format on
 
   RunParserSyncTest(context_data, class_body_data, kSuccess);
@@ -5050,37 +4686,13 @@ TEST(ClassPropertyNameNoErrors) {
                                    {"class C { static set ", "(v) {}}"},
                                    {"class C { *", "() {}}"},
                                    {"class C { static *", "() {}}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
   const char* name_data[] = {
-    "42",
-    "42.5",
-    "42e2",
-    "42e+2",
-    "42e-2",
-    "null",
-    "false",
-    "true",
-    "'str'",
-    "\"str\"",
-    "static",
-    "get",
-    "set",
-    "var",
-    "const",
-    "let",
-    "this",
-    "class",
-    "function",
-    "yield",
-    "if",
-    "else",
-    "for",
-    "while",
-    "do",
-    "try",
-    "catch",
-    "finally",
-    NULL};
+      "42",       "42.5",  "42e2",  "42e+2",   "42e-2",  "null",
+      "false",    "true",  "'str'", "\"str\"", "static", "get",
+      "set",      "var",   "const", "let",     "this",   "class",
+      "function", "yield", "if",    "else",    "for",    "while",
+      "do",       "try",   "catch", "finally", nullptr};
 
   RunParserSyncTest(context_data, name_data, kSuccess);
 }
@@ -5092,7 +4704,7 @@ TEST(ClassFieldsNoErrors) {
                                    {"(class extends Base {", "});"},
                                    {"class C {", "}"},
                                    {"class C extends Base {", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
   const char* class_body_data[] = {
     // Basic syntax
     "a = 0;",
@@ -5168,12 +4780,12 @@ TEST(ClassFieldsNoErrors) {
     "await;",
     "await = 0;",
     "await\n a",
-    NULL
+    nullptr
   };
   // clang-format on
 
   static const ParserFlag always_flags[] = {kAllowHarmonyClassFields};
-  RunParserSyncTest(context_data, class_body_data, kSuccess, NULL, 0,
+  RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
                     always_flags, arraysize(always_flags));
 }
 
@@ -5184,7 +4796,7 @@ TEST(ClassFieldsErrors) {
                                    {"(class extends Base {", "});"},
                                    {"class C {", "}"},
                                    {"class C extends Base {", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
   const char* class_body_data[] = {
     "a : 0",
     "a =",
@@ -5209,68 +4821,64 @@ TEST(ClassFieldsErrors) {
     "a = 0\n *b(){}",
     "a = 0\n ['b'](){}",
     "get\n a",
-    NULL
+    nullptr
   };
   // clang-format on
 
   static const ParserFlag always_flags[] = {kAllowHarmonyClassFields};
-  RunParserSyncTest(context_data, class_body_data, kError, NULL, 0,
+  RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
                     always_flags, arraysize(always_flags));
 }
 
 TEST(ClassExpressionErrors) {
-  const char* context_data[][2] = {{"(", ");"},
-                                   {"var C = ", ";"},
-                                   {"bar, ", ";"},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"(", ");"}, {"var C = ", ";"}, {"bar, ", ";"}, {nullptr, nullptr}};
   const char* class_data[] = {
-    "class",
-    "class name",
-    "class name extends",
-    "class extends",
-    "class {",
-    "class { m }",
-    "class { m; n }",
-    "class { m: 1 }",
-    "class { m(); n() }",
-    "class { get m }",
-    "class { get m() }",
-    "class { get m() { }",
-    "class { set m() {} }",  // Missing required parameter.
-    "class { m() {}, n() {} }",  // No commas allowed.
-    NULL};
+      "class",
+      "class name",
+      "class name extends",
+      "class extends",
+      "class {",
+      "class { m }",
+      "class { m; n }",
+      "class { m: 1 }",
+      "class { m(); n() }",
+      "class { get m }",
+      "class { get m() }",
+      "class { get m() { }",
+      "class { set m() {} }",      // Missing required parameter.
+      "class { m() {}, n() {} }",  // No commas allowed.
+      nullptr};
 
   RunParserSyncTest(context_data, class_data, kError);
 }
 
 
 TEST(ClassDeclarationErrors) {
-  const char* context_data[][2] = {{"", ""},
-                                   {"{", "}"},
-                                   {"if (true) {", "}"},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"", ""}, {"{", "}"}, {"if (true) {", "}"}, {nullptr, nullptr}};
   const char* class_data[] = {
-    "class",
-    "class name",
-    "class name extends",
-    "class extends",
-    "class name {",
-    "class name { m }",
-    "class name { m; n }",
-    "class name { m: 1 }",
-    "class name { m(); n() }",
-    "class name { get x }",
-    "class name { get x() }",
-    "class name { set x() {) }",  // missing required param
-    "class {}",  // Name is required for declaration
-    "class extends base {}",
-    "class name { *",
-    "class name { * }",
-    "class name { *; }",
-    "class name { *get x() {} }",
-    "class name { *set x(_) {} }",
-    "class name { *static m() {} }",
-    NULL};
+      "class",
+      "class name",
+      "class name extends",
+      "class extends",
+      "class name {",
+      "class name { m }",
+      "class name { m; n }",
+      "class name { m: 1 }",
+      "class name { m(); n() }",
+      "class name { get x }",
+      "class name { get x() }",
+      "class name { set x() {) }",  // missing required param
+      "class {}",                   // Name is required for declaration
+      "class extends base {}",
+      "class name { *",
+      "class name { * }",
+      "class name { *; }",
+      "class name { *get x() {} }",
+      "class name { *set x(_) {} }",
+      "class name { *static m() {} }",
+      nullptr};
 
   RunParserSyncTest(context_data, class_data, kError);
 }
@@ -5281,7 +4889,7 @@ TEST(ClassAsyncErrors) {
                                    {"(class extends Base {", "});"},
                                    {"class C {", "}"},
                                    {"class C extends Base {", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
   const char* async_data[] = {
     "*async x(){}",
     "async *(){}",
@@ -5300,7 +4908,7 @@ TEST(ClassAsyncErrors) {
     "static async set x(y){}",
     "static async x : 0",
     "static async : 0",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -5312,21 +4920,11 @@ TEST(ClassNameErrors) {
                                    {"(class ", "{});"},
                                    {"'use strict'; class ", "{}"},
                                    {"'use strict'; (class ", "{});"},
-                                   {NULL, NULL}};
-  const char* class_name[] = {
-    "arguments",
-    "eval",
-    "implements",
-    "interface",
-    "let",
-    "package",
-    "private",
-    "protected",
-    "public",
-    "static",
-    "var",
-    "yield",
-    NULL};
+                                   {nullptr, nullptr}};
+  const char* class_name[] = {"arguments", "eval",    "implements", "interface",
+                              "let",       "package", "private",    "protected",
+                              "public",    "static",  "var",        "yield",
+                              nullptr};
 
   RunParserSyncTest(context_data, class_name, kError);
 }
@@ -5334,243 +4932,163 @@ TEST(ClassNameErrors) {
 
 TEST(ClassGetterParamNameErrors) {
   const char* context_data[][2] = {
-    {"class C { get name(", ") {} }"},
-    {"(class { get name(", ") {} });"},
-    {"'use strict'; class C { get name(", ") {} }"},
-    {"'use strict'; (class { get name(", ") {} })"},
-    {NULL, NULL}
-  };
+      {"class C { get name(", ") {} }"},
+      {"(class { get name(", ") {} });"},
+      {"'use strict'; class C { get name(", ") {} }"},
+      {"'use strict'; (class { get name(", ") {} })"},
+      {nullptr, nullptr}};
 
-  const char* class_name[] = {
-    "arguments",
-    "eval",
-    "implements",
-    "interface",
-    "let",
-    "package",
-    "private",
-    "protected",
-    "public",
-    "static",
-    "var",
-    "yield",
-    NULL};
+  const char* class_name[] = {"arguments", "eval",    "implements", "interface",
+                              "let",       "package", "private",    "protected",
+                              "public",    "static",  "var",        "yield",
+                              nullptr};
 
   RunParserSyncTest(context_data, class_name, kError);
 }
 
 
 TEST(ClassStaticPrototypeErrors) {
-  const char* context_data[][2] = {{"class C {", "}"},
-                                   {"(class {", "});"},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"class C {", "}"}, {"(class {", "});"}, {nullptr, nullptr}};
 
-  const char* class_body_data[] = {
-    "static prototype() {}",
-    "static get prototype() {}",
-    "static set prototype(_) {}",
-    "static *prototype() {}",
-    "static 'prototype'() {}",
-    "static *'prototype'() {}",
-    "static prot\\u006ftype() {}",
-    "static 'prot\\u006ftype'() {}",
-    "static get 'prot\\u006ftype'() {}",
-    "static set 'prot\\u006ftype'(_) {}",
-    "static *'prot\\u006ftype'() {}",
-    NULL};
+  const char* class_body_data[] = {"static prototype() {}",
+                                   "static get prototype() {}",
+                                   "static set prototype(_) {}",
+                                   "static *prototype() {}",
+                                   "static 'prototype'() {}",
+                                   "static *'prototype'() {}",
+                                   "static prot\\u006ftype() {}",
+                                   "static 'prot\\u006ftype'() {}",
+                                   "static get 'prot\\u006ftype'() {}",
+                                   "static set 'prot\\u006ftype'(_) {}",
+                                   "static *'prot\\u006ftype'() {}",
+                                   nullptr};
 
   RunParserSyncTest(context_data, class_body_data, kError);
 }
 
 
 TEST(ClassSpecialConstructorErrors) {
-  const char* context_data[][2] = {{"class C {", "}"},
-                                   {"(class {", "});"},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"class C {", "}"}, {"(class {", "});"}, {nullptr, nullptr}};
 
-  const char* class_body_data[] = {
-    "get constructor() {}",
-    "get constructor(_) {}",
-    "*constructor() {}",
-    "get 'constructor'() {}",
-    "*'constructor'() {}",
-    "get c\\u006fnstructor() {}",
-    "*c\\u006fnstructor() {}",
-    "get 'c\\u006fnstructor'() {}",
-    "get 'c\\u006fnstructor'(_) {}",
-    "*'c\\u006fnstructor'() {}",
-    NULL};
+  const char* class_body_data[] = {"get constructor() {}",
+                                   "get constructor(_) {}",
+                                   "*constructor() {}",
+                                   "get 'constructor'() {}",
+                                   "*'constructor'() {}",
+                                   "get c\\u006fnstructor() {}",
+                                   "*c\\u006fnstructor() {}",
+                                   "get 'c\\u006fnstructor'() {}",
+                                   "get 'c\\u006fnstructor'(_) {}",
+                                   "*'c\\u006fnstructor'() {}",
+                                   nullptr};
 
   RunParserSyncTest(context_data, class_body_data, kError);
 }
 
 
 TEST(ClassConstructorNoErrors) {
-  const char* context_data[][2] = {{"class C {", "}"},
-                                   {"(class {", "});"},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"class C {", "}"}, {"(class {", "});"}, {nullptr, nullptr}};
 
-  const char* class_body_data[] = {
-    "constructor() {}",
-    "static constructor() {}",
-    "static get constructor() {}",
-    "static set constructor(_) {}",
-    "static *constructor() {}",
-    NULL};
+  const char* class_body_data[] = {"constructor() {}",
+                                   "static constructor() {}",
+                                   "static get constructor() {}",
+                                   "static set constructor(_) {}",
+                                   "static *constructor() {}",
+                                   nullptr};
 
   RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 
 TEST(ClassMultipleConstructorErrors) {
-  const char* context_data[][2] = {{"class C {", "}"},
-                                   {"(class {", "});"},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"class C {", "}"}, {"(class {", "});"}, {nullptr, nullptr}};
 
-  const char* class_body_data[] = {
-    "constructor() {}; constructor() {}",
-    NULL};
+  const char* class_body_data[] = {"constructor() {}; constructor() {}",
+                                   nullptr};
 
   RunParserSyncTest(context_data, class_body_data, kError);
 }
 
 
 TEST(ClassMultiplePropertyNamesNoErrors) {
-  const char* context_data[][2] = {{"class C {", "}"},
-                                   {"(class {", "});"},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"class C {", "}"}, {"(class {", "});"}, {nullptr, nullptr}};
 
   const char* class_body_data[] = {
-    "constructor() {}; static constructor() {}",
-    "m() {}; static m() {}",
-    "m() {}; m() {}",
-    "static m() {}; static m() {}",
-    "get m() {}; set m(_) {}; get m() {}; set m(_) {};",
-    NULL};
+      "constructor() {}; static constructor() {}",
+      "m() {}; static m() {}",
+      "m() {}; m() {}",
+      "static m() {}; static m() {}",
+      "get m() {}; set m(_) {}; get m() {}; set m(_) {};",
+      nullptr};
 
   RunParserSyncTest(context_data, class_body_data, kSuccess);
 }
 
 
 TEST(ClassesAreStrictErrors) {
-  const char* context_data[][2] = {{"", ""},
-                                   {"(", ");"},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {{"", ""}, {"(", ");"}, {nullptr, nullptr}};
 
   const char* class_body_data[] = {
-    "class C { method() { with ({}) {} } }",
-    "class C extends function() { with ({}) {} } {}",
-    "class C { *method() { with ({}) {} } }",
-    NULL};
+      "class C { method() { with ({}) {} } }",
+      "class C extends function() { with ({}) {} } {}",
+      "class C { *method() { with ({}) {} } }", nullptr};
 
   RunParserSyncTest(context_data, class_body_data, kError);
 }
 
 
 TEST(ObjectLiteralPropertyShorthandKeywordsError) {
-  const char* context_data[][2] = {{"({", "});"},
-                                   {"'use strict'; ({", "});"},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"({", "});"}, {"'use strict'; ({", "});"}, {nullptr, nullptr}};
 
   const char* name_data[] = {
-    "break",
-    "case",
-    "catch",
-    "class",
-    "const",
-    "continue",
-    "debugger",
-    "default",
-    "delete",
-    "do",
-    "else",
-    "enum",
-    "export",
-    "extends",
-    "false",
-    "finally",
-    "for",
-    "function",
-    "if",
-    "import",
-    "in",
-    "instanceof",
-    "new",
-    "null",
-    "return",
-    "super",
-    "switch",
-    "this",
-    "throw",
-    "true",
-    "try",
-    "typeof",
-    "var",
-    "void",
-    "while",
-    "with",
-    NULL
-  };
+      "break",    "case",    "catch",  "class",      "const", "continue",
+      "debugger", "default", "delete", "do",         "else",  "enum",
+      "export",   "extends", "false",  "finally",    "for",   "function",
+      "if",       "import",  "in",     "instanceof", "new",   "null",
+      "return",   "super",   "switch", "this",       "throw", "true",
+      "try",      "typeof",  "var",    "void",       "while", "with",
+      nullptr};
 
   RunParserSyncTest(context_data, name_data, kError);
 }
 
 
 TEST(ObjectLiteralPropertyShorthandStrictKeywords) {
-  const char* context_data[][2] = {{"({", "});"},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {{"({", "});"}, {nullptr, nullptr}};
 
-  const char* name_data[] = {
-    "implements",
-    "interface",
-    "let",
-    "package",
-    "private",
-    "protected",
-    "public",
-    "static",
-    "yield",
-    NULL
-  };
+  const char* name_data[] = {"implements", "interface", "let",    "package",
+                             "private",    "protected", "public", "static",
+                             "yield",      nullptr};
 
   RunParserSyncTest(context_data, name_data, kSuccess);
 
   const char* context_strict_data[][2] = {{"'use strict'; ({", "});"},
-                                          {NULL, NULL}};
+                                          {nullptr, nullptr}};
   RunParserSyncTest(context_strict_data, name_data, kError);
 }
 
 
 TEST(ObjectLiteralPropertyShorthandError) {
-  const char* context_data[][2] = {{"({", "});"},
-                                   {"'use strict'; ({", "});"},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"({", "});"}, {"'use strict'; ({", "});"}, {nullptr, nullptr}};
 
-  const char* name_data[] = {
-    "1",
-    "1.2",
-    "0",
-    "0.1",
-    "1.0",
-    "1e1",
-    "0x1",
-    "\"s\"",
-    "'s'",
-    NULL
-  };
+  const char* name_data[] = {"1",   "1.2", "0",     "0.1", "1.0",
+                             "1e1", "0x1", "\"s\"", "'s'", nullptr};
 
   RunParserSyncTest(context_data, name_data, kError);
 }
 
 
 TEST(ObjectLiteralPropertyShorthandYieldInGeneratorError) {
-  const char* context_data[][2] = {{"", ""},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
-  const char* name_data[] = {
-    "function* g() { ({yield}); }",
-    NULL
-  };
+  const char* name_data[] = {"function* g() { ({yield}); }", nullptr};
 
   RunParserSyncTest(context_data, name_data, kError);
 }
@@ -5579,14 +5097,11 @@ TEST(ObjectLiteralPropertyShorthandYieldInGeneratorError) {
 TEST(ConstParsingInForIn) {
   const char* context_data[][2] = {{"'use strict';", ""},
                                    {"function foo(){ 'use strict';", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
   const char* data[] = {
-      "for(const x = 1; ; ) {}",
-      "for(const x = 1, y = 2;;){}",
-      "for(const x in [1,2,3]) {}",
-      "for(const x of [1,2,3]) {}",
-      NULL};
+      "for(const x = 1; ; ) {}", "for(const x = 1, y = 2;;){}",
+      "for(const x in [1,2,3]) {}", "for(const x of [1,2,3]) {}", nullptr};
   RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, nullptr, 0);
 }
 
@@ -5595,11 +5110,11 @@ TEST(StatementParsingInForIn) {
   const char* context_data[][2] = {{"", ""},
                                    {"'use strict';", ""},
                                    {"function foo(){ 'use strict';", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
   const char* data[] = {"for(x in {}, {}) {}", "for(var x in {}, {}) {}",
                         "for(let x in {}, {}) {}", "for(const x in {}, {}) {}",
-                        NULL};
+                        nullptr};
 
   RunParserSyncTest(context_data, data, kSuccess);
 }
@@ -5608,19 +5123,14 @@ TEST(StatementParsingInForIn) {
 TEST(ConstParsingInForInError) {
   const char* context_data[][2] = {{"'use strict';", ""},
                                    {"function foo(){ 'use strict';", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
   const char* data[] = {
-      "for(const x,y = 1; ; ) {}",
-      "for(const x = 4 in [1,2,3]) {}",
-      "for(const x = 4, y in [1,2,3]) {}",
-      "for(const x = 4 of [1,2,3]) {}",
-      "for(const x = 4, y of [1,2,3]) {}",
-      "for(const x = 1, y = 2 in []) {}",
-      "for(const x,y in []) {}",
-      "for(const x = 1, y = 2 of []) {}",
-      "for(const x,y of []) {}",
-      NULL};
+      "for(const x,y = 1; ; ) {}",         "for(const x = 4 in [1,2,3]) {}",
+      "for(const x = 4, y in [1,2,3]) {}", "for(const x = 4 of [1,2,3]) {}",
+      "for(const x = 4, y of [1,2,3]) {}", "for(const x = 1, y = 2 in []) {}",
+      "for(const x,y in []) {}",           "for(const x = 1, y = 2 of []) {}",
+      "for(const x,y of []) {}",           nullptr};
   RunParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0);
 }
 
@@ -5684,24 +5194,23 @@ TEST(ForInMultipleDeclarationsError) {
                                    {"function foo(){", "}"},
                                    {"'use strict';", ""},
                                    {"function foo(){ 'use strict';", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
-  const char* data[] = {
-      "for (var i, j in {}) {}",
-      "for (var i, j in [1, 2, 3]) {}",
-      "for (var i, j = 1 in {}) {}",
-      "for (var i, j = void 0 in [1, 2, 3]) {}",
+  const char* data[] = {"for (var i, j in {}) {}",
+                        "for (var i, j in [1, 2, 3]) {}",
+                        "for (var i, j = 1 in {}) {}",
+                        "for (var i, j = void 0 in [1, 2, 3]) {}",
 
-      "for (let i, j in {}) {}",
-      "for (let i, j in [1, 2, 3]) {}",
-      "for (let i, j = 1 in {}) {}",
-      "for (let i, j = void 0 in [1, 2, 3]) {}",
+                        "for (let i, j in {}) {}",
+                        "for (let i, j in [1, 2, 3]) {}",
+                        "for (let i, j = 1 in {}) {}",
+                        "for (let i, j = void 0 in [1, 2, 3]) {}",
 
-      "for (const i, j in {}) {}",
-      "for (const i, j in [1, 2, 3]) {}",
-      "for (const i, j = 1 in {}) {}",
-      "for (const i, j = void 0 in [1, 2, 3]) {}",
-      NULL};
+                        "for (const i, j in {}) {}",
+                        "for (const i, j in [1, 2, 3]) {}",
+                        "for (const i, j = 1 in {}) {}",
+                        "for (const i, j = void 0 in [1, 2, 3]) {}",
+                        nullptr};
   RunParserSyncTest(context_data, data, kError);
 }
 
@@ -5711,24 +5220,23 @@ TEST(ForOfMultipleDeclarationsError) {
                                    {"function foo(){", "}"},
                                    {"'use strict';", ""},
                                    {"function foo(){ 'use strict';", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
-  const char* data[] = {
-      "for (var i, j of {}) {}",
-      "for (var i, j of [1, 2, 3]) {}",
-      "for (var i, j = 1 of {}) {}",
-      "for (var i, j = void 0 of [1, 2, 3]) {}",
+  const char* data[] = {"for (var i, j of {}) {}",
+                        "for (var i, j of [1, 2, 3]) {}",
+                        "for (var i, j = 1 of {}) {}",
+                        "for (var i, j = void 0 of [1, 2, 3]) {}",
 
-      "for (let i, j of {}) {}",
-      "for (let i, j of [1, 2, 3]) {}",
-      "for (let i, j = 1 of {}) {}",
-      "for (let i, j = void 0 of [1, 2, 3]) {}",
+                        "for (let i, j of {}) {}",
+                        "for (let i, j of [1, 2, 3]) {}",
+                        "for (let i, j = 1 of {}) {}",
+                        "for (let i, j = void 0 of [1, 2, 3]) {}",
 
-      "for (const i, j of {}) {}",
-      "for (const i, j of [1, 2, 3]) {}",
-      "for (const i, j = 1 of {}) {}",
-      "for (const i, j = void 0 of [1, 2, 3]) {}",
-      NULL};
+                        "for (const i, j of {}) {}",
+                        "for (const i, j of [1, 2, 3]) {}",
+                        "for (const i, j = 1 of {}) {}",
+                        "for (const i, j = void 0 of [1, 2, 3]) {}",
+                        nullptr};
   RunParserSyncTest(context_data, data, kError);
 }
 
@@ -5738,12 +5246,9 @@ TEST(ForInNoDeclarationsError) {
                                    {"function foo(){", "}"},
                                    {"'use strict';", ""},
                                    {"function foo(){ 'use strict';", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
-  const char* data[] = {
-      "for (var in {}) {}",
-      "for (const in {}) {}",
-      NULL};
+  const char* data[] = {"for (var in {}) {}", "for (const in {}) {}", nullptr};
   RunParserSyncTest(context_data, data, kError);
 }
 
@@ -5753,12 +5258,10 @@ TEST(ForOfNoDeclarationsError) {
                                    {"function foo(){", "}"},
                                    {"'use strict';", ""},
                                    {"function foo(){ 'use strict';", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
-  const char* data[] = {
-      "for (var of [1, 2, 3]) {}",
-      "for (const of [1, 2, 3]) {}",
-      NULL};
+  const char* data[] = {"for (var of [1, 2, 3]) {}",
+                        "for (const of [1, 2, 3]) {}", nullptr};
   RunParserSyncTest(context_data, data, kError);
 }
 
@@ -5767,22 +5270,23 @@ TEST(ForOfInOperator) {
   const char* context_data[][2] = {{"", ""},
                                    {"'use strict';", ""},
                                    {"function foo(){ 'use strict';", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
-  const char* data[] = {
-      "for(x of 'foo' in {}) {}", "for(var x of 'foo' in {}) {}",
-      "for(let x of 'foo' in {}) {}", "for(const x of 'foo' in {}) {}", NULL};
+  const char* data[] = {"for(x of 'foo' in {}) {}",
+                        "for(var x of 'foo' in {}) {}",
+                        "for(let x of 'foo' in {}) {}",
+                        "for(const x of 'foo' in {}) {}", nullptr};
 
   RunParserSyncTest(context_data, data, kSuccess);
 }
 
 
 TEST(ForOfYieldIdentifier) {
-  const char* context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
   const char* data[] = {"for(x of yield) {}", "for(var x of yield) {}",
                         "for(let x of yield) {}", "for(const x of yield) {}",
-                        NULL};
+                        nullptr};
 
   RunParserSyncTest(context_data, data, kSuccess);
 }
@@ -5792,12 +5296,12 @@ TEST(ForOfYieldExpression) {
   const char* context_data[][2] = {{"", ""},
                                    {"'use strict';", ""},
                                    {"function foo(){ 'use strict';", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
   const char* data[] = {"function* g() { for(x of yield) {} }",
                         "function* g() { for(var x of yield) {} }",
                         "function* g() { for(let x of yield) {} }",
-                        "function* g() { for(const x of yield) {} }", NULL};
+                        "function* g() { for(const x of yield) {} }", nullptr};
 
   RunParserSyncTest(context_data, data, kSuccess);
 }
@@ -5807,7 +5311,7 @@ TEST(ForOfExpressionError) {
   const char* context_data[][2] = {{"", ""},
                                    {"'use strict';", ""},
                                    {"function foo(){ 'use strict';", "}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
   const char* data[] = {
       "for(x of [], []) {}", "for(var x of [], []) {}",
@@ -5815,77 +5319,61 @@ TEST(ForOfExpressionError) {
 
       // AssignmentExpression should be validated statically:
       "for(x of { y = 23 }) {}", "for(var x of { y = 23 }) {}",
-      "for(let x of { y = 23 }) {}", "for(const x of { y = 23 }) {}", NULL};
+      "for(let x of { y = 23 }) {}", "for(const x of { y = 23 }) {}", nullptr};
 
   RunParserSyncTest(context_data, data, kError);
 }
 
 
 TEST(InvalidUnicodeEscapes) {
-  const char* context_data[][2] = {{"", ""},
-                                   {"'use strict';", ""},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"", ""}, {"'use strict';", ""}, {nullptr, nullptr}};
   const char* data[] = {
-    "var foob\\u123r = 0;",
-    "var \\u123roo = 0;",
-    "\"foob\\u123rr\"",
-    // No escapes allowed in regexp flags
-    "/regex/\\u0069g",
-    "/regex/\\u006g",
-    // Braces gone wrong
-    "var foob\\u{c481r = 0;",
-    "var foob\\uc481}r = 0;",
-    "var \\u{0052oo = 0;",
-    "var \\u0052}oo = 0;",
-    "\"foob\\u{c481r\"",
-    "var foob\\u{}ar = 0;",
-    // Too high value for the unicode escape
-    "\"\\u{110000}\"",
-    // Not an unicode escape
-    "var foob\\v1234r = 0;",
-    "var foob\\U1234r = 0;",
-    "var foob\\v{1234}r = 0;",
-    "var foob\\U{1234}r = 0;",
-    NULL};
+      "var foob\\u123r = 0;", "var \\u123roo = 0;", "\"foob\\u123rr\"",
+      // No escapes allowed in regexp flags
+      "/regex/\\u0069g", "/regex/\\u006g",
+      // Braces gone wrong
+      "var foob\\u{c481r = 0;", "var foob\\uc481}r = 0;", "var \\u{0052oo = 0;",
+      "var \\u0052}oo = 0;", "\"foob\\u{c481r\"", "var foob\\u{}ar = 0;",
+      // Too high value for the unicode escape
+      "\"\\u{110000}\"",
+      // Not an unicode escape
+      "var foob\\v1234r = 0;", "var foob\\U1234r = 0;",
+      "var foob\\v{1234}r = 0;", "var foob\\U{1234}r = 0;", nullptr};
   RunParserSyncTest(context_data, data, kError);
 }
 
 
 TEST(UnicodeEscapes) {
-  const char* context_data[][2] = {{"", ""},
-                                   {"'use strict';", ""},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"", ""}, {"'use strict';", ""}, {nullptr, nullptr}};
   const char* data[] = {
-    // Identifier starting with escape
-    "var \\u0052oo = 0;",
-    "var \\u{0052}oo = 0;",
-    "var \\u{52}oo = 0;",
-    "var \\u{00000000052}oo = 0;",
-    // Identifier with an escape but not starting with an escape
-    "var foob\\uc481r = 0;",
-    "var foob\\u{c481}r = 0;",
-    // String with an escape
-    "\"foob\\uc481r\"",
-    "\"foob\\{uc481}r\"",
-    // This character is a valid unicode character, representable as a surrogate
-    // pair, not representable as 4 hex digits.
-    "\"foo\\u{10e6d}\"",
-    // Max value for the unicode escape
-    "\"\\u{10ffff}\"",
-    NULL};
+      // Identifier starting with escape
+      "var \\u0052oo = 0;", "var \\u{0052}oo = 0;", "var \\u{52}oo = 0;",
+      "var \\u{00000000052}oo = 0;",
+      // Identifier with an escape but not starting with an escape
+      "var foob\\uc481r = 0;", "var foob\\u{c481}r = 0;",
+      // String with an escape
+      "\"foob\\uc481r\"", "\"foob\\{uc481}r\"",
+      // This character is a valid unicode character, representable as a
+      // surrogate
+      // pair, not representable as 4 hex digits.
+      "\"foo\\u{10e6d}\"",
+      // Max value for the unicode escape
+      "\"\\u{10ffff}\"", nullptr};
   RunParserSyncTest(context_data, data, kSuccess);
 }
 
 TEST(OctalEscapes) {
   const char* sloppy_context_data[][2] = {{"", ""},    // as a directive
                                           {"0;", ""},  // as a string literal
-                                          {NULL, NULL}};
+                                          {nullptr, nullptr}};
 
   const char* strict_context_data[][2] = {
       {"'use strict';", ""},     // as a directive before 'use strict'
       {"", ";'use strict';"},    // as a directive after 'use strict'
       {"'use strict'; 0;", ""},  // as a string literal
-      {NULL, NULL}};
+      {nullptr, nullptr}};
 
   // clang-format off
   const char* data[] = {
@@ -5894,7 +5382,7 @@ TEST(OctalEscapes) {
     "'\\001'",
     "'\\08'",
     "'\\09'",
-    NULL};
+    nullptr};
   // clang-format on
 
   // Permitted in sloppy mode
@@ -5907,33 +5395,33 @@ TEST(OctalEscapes) {
 TEST(ScanTemplateLiterals) {
   const char* context_data[][2] = {{"'use strict';", ""},
                                    {"function foo(){ 'use strict';"
-                                    "  var a, b, c; return ", "}"},
-                                   {NULL, NULL}};
+                                    "  var a, b, c; return ",
+                                    "}"},
+                                   {nullptr, nullptr}};
 
-  const char* data[] = {
-      "``",
-      "`no-subst-template`",
-      "`template-head${a}`",
-      "`${a}`",
-      "`${a}template-tail`",
-      "`template-head${a}template-tail`",
-      "`${a}${b}${c}`",
-      "`a${a}b${b}c${c}`",
-      "`${a}a${b}b${c}c`",
-      "`foo\n\nbar\r\nbaz`",
-      "`foo\n\n${  bar  }\r\nbaz`",
-      "`foo${a /* comment */}`",
-      "`foo${a // comment\n}`",
-      "`foo${a \n}`",
-      "`foo${a \r\n}`",
-      "`foo${a \r}`",
-      "`foo${/* comment */ a}`",
-      "`foo${// comment\na}`",
-      "`foo${\n a}`",
-      "`foo${\r\n a}`",
-      "`foo${\r a}`",
-      "`foo${'a' in a}`",
-      NULL};
+  const char* data[] = {"``",
+                        "`no-subst-template`",
+                        "`template-head${a}`",
+                        "`${a}`",
+                        "`${a}template-tail`",
+                        "`template-head${a}template-tail`",
+                        "`${a}${b}${c}`",
+                        "`a${a}b${b}c${c}`",
+                        "`${a}a${b}b${c}c`",
+                        "`foo\n\nbar\r\nbaz`",
+                        "`foo\n\n${  bar  }\r\nbaz`",
+                        "`foo${a /* comment */}`",
+                        "`foo${a // comment\n}`",
+                        "`foo${a \n}`",
+                        "`foo${a \r\n}`",
+                        "`foo${a \r}`",
+                        "`foo${/* comment */ a}`",
+                        "`foo${// comment\na}`",
+                        "`foo${\n a}`",
+                        "`foo${\r\n a}`",
+                        "`foo${\r a}`",
+                        "`foo${'a' in a}`",
+                        nullptr};
   RunParserSyncTest(context_data, data, kSuccess);
 }
 
@@ -5942,59 +5430,48 @@ TEST(ScanTaggedTemplateLiterals) {
   const char* context_data[][2] = {{"'use strict';", ""},
                                    {"function foo(){ 'use strict';"
                                     "  function tag() {}"
-                                    "  var a, b, c; return ", "}"},
-                                   {NULL, NULL}};
+                                    "  var a, b, c; return ",
+                                    "}"},
+                                   {nullptr, nullptr}};
 
-  const char* data[] = {
-      "tag ``",
-      "tag `no-subst-template`",
-      "tag`template-head${a}`",
-      "tag `${a}`",
-      "tag `${a}template-tail`",
-      "tag   `template-head${a}template-tail`",
-      "tag\n`${a}${b}${c}`",
-      "tag\r\n`a${a}b${b}c${c}`",
-      "tag    `${a}a${b}b${c}c`",
-      "tag\t`foo\n\nbar\r\nbaz`",
-      "tag\r`foo\n\n${  bar  }\r\nbaz`",
-      "tag`foo${a /* comment */}`",
-      "tag`foo${a // comment\n}`",
-      "tag`foo${a \n}`",
-      "tag`foo${a \r\n}`",
-      "tag`foo${a \r}`",
-      "tag`foo${/* comment */ a}`",
-      "tag`foo${// comment\na}`",
-      "tag`foo${\n a}`",
-      "tag`foo${\r\n a}`",
-      "tag`foo${\r a}`",
-      "tag`foo${'a' in a}`",
-      NULL};
+  const char* data[] = {"tag ``",
+                        "tag `no-subst-template`",
+                        "tag`template-head${a}`",
+                        "tag `${a}`",
+                        "tag `${a}template-tail`",
+                        "tag   `template-head${a}template-tail`",
+                        "tag\n`${a}${b}${c}`",
+                        "tag\r\n`a${a}b${b}c${c}`",
+                        "tag    `${a}a${b}b${c}c`",
+                        "tag\t`foo\n\nbar\r\nbaz`",
+                        "tag\r`foo\n\n${  bar  }\r\nbaz`",
+                        "tag`foo${a /* comment */}`",
+                        "tag`foo${a // comment\n}`",
+                        "tag`foo${a \n}`",
+                        "tag`foo${a \r\n}`",
+                        "tag`foo${a \r}`",
+                        "tag`foo${/* comment */ a}`",
+                        "tag`foo${// comment\na}`",
+                        "tag`foo${\n a}`",
+                        "tag`foo${\r\n a}`",
+                        "tag`foo${\r a}`",
+                        "tag`foo${'a' in a}`",
+                        nullptr};
   RunParserSyncTest(context_data, data, kSuccess);
 }
 
 
 TEST(TemplateMaterializedLiterals) {
-  const char* context_data[][2] = {
-    {
-      "'use strict';\n"
-      "function tag() {}\n"
-      "var a, b, c;\n"
-      "(", ")"
-    },
-    {NULL, NULL}
-  };
+  const char* context_data[][2] = {{"'use strict';\n"
+                                    "function tag() {}\n"
+                                    "var a, b, c;\n"
+                                    "(",
+                                    ")"},
+                                   {nullptr, nullptr}};
 
-  const char* data[] = {
-    "tag``",
-    "tag`a`",
-    "tag`a${1}b`",
-    "tag`a${1}b${2}c`",
-    "``",
-    "`a`",
-    "`a${1}b`",
-    "`a${1}b${2}c`",
-    NULL
-  };
+  const char* data[] = {"tag``", "tag`a`", "tag`a${1}b`", "tag`a${1}b${2}c`",
+                        "``",    "`a`",    "`a${1}b`",    "`a${1}b${2}c`",
+                        nullptr};
 
   RunParserSyncTest(context_data, data, kSuccess);
 }
@@ -6003,33 +5480,33 @@ TEST(TemplateMaterializedLiterals) {
 TEST(ScanUnterminatedTemplateLiterals) {
   const char* context_data[][2] = {{"'use strict';", ""},
                                    {"function foo(){ 'use strict';"
-                                    "  var a, b, c; return ", "}"},
-                                   {NULL, NULL}};
+                                    "  var a, b, c; return ",
+                                    "}"},
+                                   {nullptr, nullptr}};
 
-  const char* data[] = {
-      "`no-subst-template",
-      "`template-head${a}",
-      "`${a}template-tail",
-      "`template-head${a}template-tail",
-      "`${a}${b}${c}",
-      "`a${a}b${b}c${c}",
-      "`${a}a${b}b${c}c",
-      "`foo\n\nbar\r\nbaz",
-      "`foo\n\n${  bar  }\r\nbaz",
-      "`foo${a /* comment } */`",
-      "`foo${a /* comment } `*/",
-      "`foo${a // comment}`",
-      "`foo${a \n`",
-      "`foo${a \r\n`",
-      "`foo${a \r`",
-      "`foo${/* comment */ a`",
-      "`foo${// commenta}`",
-      "`foo${\n a`",
-      "`foo${\r\n a`",
-      "`foo${\r a`",
-      "`foo${fn(}`",
-      "`foo${1 if}`",
-      NULL};
+  const char* data[] = {"`no-subst-template",
+                        "`template-head${a}",
+                        "`${a}template-tail",
+                        "`template-head${a}template-tail",
+                        "`${a}${b}${c}",
+                        "`a${a}b${b}c${c}",
+                        "`${a}a${b}b${c}c",
+                        "`foo\n\nbar\r\nbaz",
+                        "`foo\n\n${  bar  }\r\nbaz",
+                        "`foo${a /* comment } */`",
+                        "`foo${a /* comment } `*/",
+                        "`foo${a // comment}`",
+                        "`foo${a \n`",
+                        "`foo${a \r\n`",
+                        "`foo${a \r`",
+                        "`foo${/* comment */ a`",
+                        "`foo${// commenta}`",
+                        "`foo${\n a`",
+                        "`foo${\r\n a`",
+                        "`foo${\r a`",
+                        "`foo${fn(}`",
+                        "`foo${1 if}`",
+                        nullptr};
   RunParserSyncTest(context_data, data, kError);
 }
 
@@ -6037,18 +5514,13 @@ TEST(ScanUnterminatedTemplateLiterals) {
 TEST(TemplateLiteralsIllegalTokens) {
   const char* context_data[][2] = {{"'use strict';", ""},
                                    {"function foo(){ 'use strict';"
-                                    "  var a, b, c; return ", "}"},
-                                   {NULL, NULL}};
+                                    "  var a, b, c; return ",
+                                    "}"},
+                                   {nullptr, nullptr}};
   const char* data[] = {
-      "`hello\\x`",
-      "`hello\\x${1}`",
-      "`hello${1}\\x`",
-      "`hello${1}\\x${2}`",
-      "`hello\\x\n`",
-      "`hello\\x\n${1}`",
-      "`hello${1}\\x\n`",
-      "`hello${1}\\x\n${2}`",
-      NULL};
+      "`hello\\x`",         "`hello\\x${1}`",       "`hello${1}\\x`",
+      "`hello${1}\\x${2}`", "`hello\\x\n`",         "`hello\\x\n${1}`",
+      "`hello${1}\\x\n`",   "`hello${1}\\x\n${2}`", nullptr};
 
   RunParserSyncTest(context_data, data, kError);
 }
@@ -6058,9 +5530,10 @@ TEST(ParseRestParameters) {
   const char* context_data[][2] = {{"'use strict';(function(",
                                     "){ return args;})(1, [], /regexp/, 'str',"
                                     "function(){});"},
-                                   {"(function(", "){ return args;})(1, [],"
+                                   {"(function(",
+                                    "){ return args;})(1, [],"
                                     "/regexp/, 'str', function(){});"},
-                                  {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
   const char* data[] = {"...args",
                         "a, ...args",
@@ -6079,7 +5552,7 @@ TEST(ParseRestParameters) {
                         "...[a, b]",
                         "...[]",
                         "...[...[a, b, ...c]]",
-                        NULL};
+                        nullptr};
   RunParserSyncTest(context_data, data, kSuccess);
 }
 
@@ -6088,28 +5561,28 @@ TEST(ParseRestParametersErrors) {
   const char* context_data[][2] = {{"'use strict';(function(",
                                     "){ return args;}(1, [], /regexp/, 'str',"
                                     "function(){});"},
-                                   {"(function(", "){ return args;}(1, [],"
+                                   {"(function(",
+                                    "){ return args;}(1, [],"
                                     "/regexp/, 'str', function(){});"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
-  const char* data[] = {
-      "...args, b",
-      "a, ...args, b",
-      "...args,   b",
-      "a, ...args,   b",
-      "...args,\tb",
-      "a,...args\t,b",
-      "...args\r\n, b",
-      "a, ... args,\r\nb",
-      "...args\r,b",
-      "a, ... args,\rb",
-      "...args\t\n\t\t\n,  b",
-      "a, ... args,  \n  \n  b",
-      "a, a, ...args",
-      "a,\ta, ...args",
-      "a,\ra, ...args",
-      "a,\na, ...args",
-      NULL};
+  const char* data[] = {"...args, b",
+                        "a, ...args, b",
+                        "...args,   b",
+                        "a, ...args,   b",
+                        "...args,\tb",
+                        "a,...args\t,b",
+                        "...args\r\n, b",
+                        "a, ... args,\r\nb",
+                        "...args\r,b",
+                        "a, ... args,\rb",
+                        "...args\t\n\t\t\n,  b",
+                        "a, ... args,  \n  \n  b",
+                        "a, a, ...args",
+                        "a,\ta, ...args",
+                        "a,\ra, ...args",
+                        "a,\na, ...args",
+                        nullptr};
   RunParserSyncTest(context_data, data, kError);
 }
 
@@ -6134,11 +5607,11 @@ TEST(RestParametersEvalArguments) {
   const char* strict_context_data[][2] =
       {{"'use strict';(function(",
         "){ return;})(1, [], /regexp/, 'str',function(){});"},
-       {NULL, NULL}};
+       {nullptr, nullptr}};
   const char* sloppy_context_data[][2] =
       {{"(function(",
         "){ return;})(1, [],/regexp/, 'str', function(){});"},
-       {NULL, NULL}};
+       {nullptr, nullptr}};
 
   const char* data[] = {
       "...eval",
@@ -6146,7 +5619,7 @@ TEST(RestParametersEvalArguments) {
       "...arguments",
       // See https://bugs.chromium.org/p/v8/issues/detail?id=4577
       // "arguments, ...args",
-      NULL};
+      nullptr};
   // clang-format on
 
   // Fail in strict mode
@@ -6158,19 +5631,15 @@ TEST(RestParametersEvalArguments) {
 
 
 TEST(RestParametersDuplicateEvalArguments) {
-  const char* context_data[][2] =
-      {{"'use strict';(function(",
-        "){ return;})(1, [], /regexp/, 'str',function(){});"},
-       {"(function(",
-        "){ return;})(1, [],/regexp/, 'str', function(){});"},
-       {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"'use strict';(function(",
+       "){ return;})(1, [], /regexp/, 'str',function(){});"},
+      {"(function(", "){ return;})(1, [],/regexp/, 'str', function(){});"},
+      {nullptr, nullptr}};
 
-  const char* data[] = {
-      "eval, ...eval",
-      "eval, eval, ...args",
-      "arguments, ...arguments",
-      "arguments, arguments, ...args",
-      NULL};
+  const char* data[] = {"eval, ...eval", "eval, eval, ...args",
+                        "arguments, ...arguments",
+                        "arguments, arguments, ...args", nullptr};
 
   // In strict mode, the error is using "eval" or "arguments" as parameter names
   // In sloppy mode, the error is that eval / arguments are duplicated
@@ -6181,15 +5650,19 @@ TEST(RestParametersDuplicateEvalArguments) {
 TEST(SpreadCall) {
   const char* context_data[][2] = {{"function fn() { 'use strict';} fn(", ");"},
                                    {"function fn() {} fn(", ");"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
-  const char* data[] = {
-      "...([1, 2, 3])", "...'123', ...'456'", "...new Set([1, 2, 3]), 4",
-      "1, ...[2, 3], 4", "...Array(...[1,2,3,4])", "...NaN",
-      "0, 1, ...[2, 3, 4], 5, 6, 7, ...'89'",
-      "0, 1, ...[2, 3, 4], 5, 6, 7, ...'89', 10",
-      "...[0, 1, 2], 3, 4, 5, 6, ...'7', 8, 9",
-      "...[0, 1, 2], 3, 4, 5, 6, ...'7', 8, 9, ...[10]", NULL};
+  const char* data[] = {"...([1, 2, 3])",
+                        "...'123', ...'456'",
+                        "...new Set([1, 2, 3]), 4",
+                        "1, ...[2, 3], 4",
+                        "...Array(...[1,2,3,4])",
+                        "...NaN",
+                        "0, 1, ...[2, 3, 4], 5, 6, 7, ...'89'",
+                        "0, 1, ...[2, 3, 4], 5, 6, 7, ...'89', 10",
+                        "...[0, 1, 2], 3, 4, 5, 6, ...'7', 8, 9",
+                        "...[0, 1, 2], 3, 4, 5, 6, ...'7', 8, 9, ...[10]",
+                        nullptr};
 
   RunParserSyncTest(context_data, data, kSuccess);
 }
@@ -6198,9 +5671,9 @@ TEST(SpreadCall) {
 TEST(SpreadCallErrors) {
   const char* context_data[][2] = {{"function fn() { 'use strict';} fn(", ");"},
                                    {"function fn() {} fn(", ");"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
-  const char* data[] = {"(...[1, 2, 3])", "......[1,2,3]", NULL};
+  const char* data[] = {"(...[1, 2, 3])", "......[1,2,3]", nullptr};
 
   RunParserSyncTest(context_data, data, kError);
 }
@@ -6209,26 +5682,23 @@ TEST(SpreadCallErrors) {
 TEST(BadRestSpread) {
   const char* context_data[][2] = {{"function fn() { 'use strict';", "} fn();"},
                                    {"function fn() { ", "} fn();"},
-                                   {NULL, NULL}};
-  const char* data[] = {"return ...[1,2,3];",     "var ...x = [1,2,3];",
-                        "var [...x,] = [1,2,3];", "var [...x, y] = [1,2,3];",
-                        "var {...x} = [1,2,3];",  "var { x } = {x: ...[1,2,3]}",
-                        NULL};
+                                   {nullptr, nullptr}};
+  const char* data[] = {"return ...[1,2,3];",
+                        "var ...x = [1,2,3];",
+                        "var [...x,] = [1,2,3];",
+                        "var [...x, y] = [1,2,3];",
+                        "var {...x} = [1,2,3];",
+                        "var { x } = {x: ...[1,2,3]}",
+                        nullptr};
   RunParserSyncTest(context_data, data, kError);
 }
 
 
 TEST(LexicalScopingSloppyMode) {
   const char* context_data[][2] = {
-      {"", ""},
-      {"function f() {", "}"},
-      {"{", "}"},
-      {NULL, NULL}};
+      {"", ""}, {"function f() {", "}"}, {"{", "}"}, {nullptr, nullptr}};
 
-  const char* good_data[] = {
-    "let = 1;",
-    "for(let = 1;;){}",
-    NULL};
+  const char* good_data[] = {"let = 1;", "for(let = 1;;){}", nullptr};
   RunParserSyncTest(context_data, good_data, kSuccess);
 }
 
@@ -6243,34 +5713,21 @@ TEST(ComputedPropertyName) {
                                    {"(class {set [", "](_) {}});"},
                                    {"(class {[", "]() {}});"},
                                    {"(class {*[", "]() {}});"},
-                                   {NULL, NULL}};
-  const char* error_data[] = {
-    "1, 2",
-    "var name",
-    NULL};
+                                   {nullptr, nullptr}};
+  const char* error_data[] = {"1, 2", "var name", nullptr};
 
   RunParserSyncTest(context_data, error_data, kError);
 
-  const char* name_data[] = {
-    "1",
-    "1 + 2",
-    "'name'",
-    "\"name\"",
-    "[]",
-    "{}",
-    NULL};
+  const char* name_data[] = {"1",  "1 + 2", "'name'", "\"name\"",
+                             "[]", "{}",    nullptr};
 
   RunParserSyncTest(context_data, name_data, kSuccess);
 }
 
 
 TEST(ComputedPropertyNameShorthandError) {
-  const char* context_data[][2] = {{"({", "});"},
-                                   {NULL, NULL}};
-  const char* error_data[] = {
-    "a: 1, [2]",
-    "[1], a: 1",
-    NULL};
+  const char* context_data[][2] = {{"({", "});"}, {nullptr, nullptr}};
+  const char* error_data[] = {"a: 1, [2]", "[1], a: 1", nullptr};
 
   RunParserSyncTest(context_data, error_data, kError);
 }
@@ -6552,17 +6009,17 @@ TEST(ModuleAwaitReserved) {
       "({ set p(await) {} });",
       "try {} catch (await) {}",
       "try {} catch (await) {} finally {}",
-      NULL
+      nullptr
   };
   // clang-format on
-  const char* context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
   RunModuleParserSyncTest(context_data, kErrorSources, kError);
 }
 
 TEST(ModuleAwaitReservedPreParse) {
-  const char* context_data[][2] = {{"", ""}, {NULL, NULL}};
-  const char* error_data[] = {"function f() { var await = 0; }", NULL};
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
+  const char* error_data[] = {"function f() { var await = 0; }", nullptr};
 
   RunModuleParserSyncTest(context_data, error_data, kError);
 }
@@ -6579,10 +6036,10 @@ TEST(ModuleAwaitPermitted) {
     "(class { static await() {} });",
     "(class { *await() {} });",
     "(class { static *await() {} });",
-    NULL
+    nullptr
   };
   // clang-format on
-  const char* context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
   RunModuleParserSyncTest(context_data, kValidSources, kSuccess);
 }
@@ -6634,10 +6091,10 @@ TEST(EnumReserved) {
       "({ set p(enum) {} });",
       "try {} catch (enum) {}",
       "try {} catch (enum) {} finally {}",
-      NULL
+      nullptr
   };
   // clang-format on
-  const char* context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
   RunModuleParserSyncTest(context_data, kErrorSources, kError);
 }
@@ -6894,17 +6351,11 @@ TEST(ModuleParsingInternals) {
 
 TEST(DuplicateProtoError) {
   const char* context_data[][2] = {
-    {"({", "});"},
-    {"'use strict'; ({", "});"},
-    {NULL, NULL}
-  };
-  const char* error_data[] = {
-    "__proto__: {}, __proto__: {}",
-    "__proto__: {}, \"__proto__\": {}",
-    "__proto__: {}, \"__\x70roto__\": {}",
-    "__proto__: {}, a: 1, __proto__: {}",
-    NULL
-  };
+      {"({", "});"}, {"'use strict'; ({", "});"}, {nullptr, nullptr}};
+  const char* error_data[] = {"__proto__: {}, __proto__: {}",
+                              "__proto__: {}, \"__proto__\": {}",
+                              "__proto__: {}, \"__\x70roto__\": {}",
+                              "__proto__: {}, a: 1, __proto__: {}", nullptr};
 
   RunParserSyncTest(context_data, error_data, kError);
 }
@@ -6912,18 +6363,11 @@ TEST(DuplicateProtoError) {
 
 TEST(DuplicateProtoNoError) {
   const char* context_data[][2] = {
-    {"({", "});"},
-    {"'use strict'; ({", "});"},
-    {NULL, NULL}
-  };
+      {"({", "});"}, {"'use strict'; ({", "});"}, {nullptr, nullptr}};
   const char* error_data[] = {
-    "__proto__: {}, ['__proto__']: {}",
-    "__proto__: {}, __proto__() {}",
-    "__proto__: {}, get __proto__() {}",
-    "__proto__: {}, set __proto__(v) {}",
-    "__proto__: {}, __proto__",
-    NULL
-  };
+      "__proto__: {}, ['__proto__']: {}",  "__proto__: {}, __proto__() {}",
+      "__proto__: {}, get __proto__() {}", "__proto__: {}, set __proto__(v) {}",
+      "__proto__: {}, __proto__",          nullptr};
 
   RunParserSyncTest(context_data, error_data, kSuccess);
 }
@@ -6936,13 +6380,10 @@ TEST(DeclarationsError) {
                                    {"'use strict'; for (;;)", ""},
                                    {"'use strict'; for (x in y)", ""},
                                    {"'use strict'; do ", " while (false)"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-    "let x = 1;",
-    "const x = 1;",
-    "class C {}",
-    NULL};
+  const char* statement_data[] = {"let x = 1;", "const x = 1;", "class C {}",
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kError);
 }
@@ -6962,7 +6403,7 @@ void TestLanguageMode(const char* source,
       factory->NewScript(factory->NewStringFromAsciiChecked(source));
   i::ParseInfo info(script);
   i::parsing::ParseProgram(&info, isolate);
-  CHECK(info.literal() != NULL);
+  CHECK(info.literal() != nullptr);
   CHECK_EQ(expected_language_mode, info.literal()->language_mode());
 }
 
@@ -6978,59 +6419,56 @@ TEST(LanguageModeDirectives) {
 
 
 TEST(PropertyNameEvalArguments) {
-  const char* context_data[][2] = {{"'use strict';", ""},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {{"'use strict';", ""}, {nullptr, nullptr}};
 
-  const char* statement_data[] = {
-      "({eval: 1})",
-      "({arguments: 1})",
-      "({eval() {}})",
-      "({arguments() {}})",
-      "({*eval() {}})",
-      "({*arguments() {}})",
-      "({get eval() {}})",
-      "({get arguments() {}})",
-      "({set eval(_) {}})",
-      "({set arguments(_) {}})",
+  const char* statement_data[] = {"({eval: 1})",
+                                  "({arguments: 1})",
+                                  "({eval() {}})",
+                                  "({arguments() {}})",
+                                  "({*eval() {}})",
+                                  "({*arguments() {}})",
+                                  "({get eval() {}})",
+                                  "({get arguments() {}})",
+                                  "({set eval(_) {}})",
+                                  "({set arguments(_) {}})",
 
-      "class C {eval() {}}",
-      "class C {arguments() {}}",
-      "class C {*eval() {}}",
-      "class C {*arguments() {}}",
-      "class C {get eval() {}}",
-      "class C {get arguments() {}}",
-      "class C {set eval(_) {}}",
-      "class C {set arguments(_) {}}",
+                                  "class C {eval() {}}",
+                                  "class C {arguments() {}}",
+                                  "class C {*eval() {}}",
+                                  "class C {*arguments() {}}",
+                                  "class C {get eval() {}}",
+                                  "class C {get arguments() {}}",
+                                  "class C {set eval(_) {}}",
+                                  "class C {set arguments(_) {}}",
 
-      "class C {static eval() {}}",
-      "class C {static arguments() {}}",
-      "class C {static *eval() {}}",
-      "class C {static *arguments() {}}",
-      "class C {static get eval() {}}",
-      "class C {static get arguments() {}}",
-      "class C {static set eval(_) {}}",
-      "class C {static set arguments(_) {}}",
+                                  "class C {static eval() {}}",
+                                  "class C {static arguments() {}}",
+                                  "class C {static *eval() {}}",
+                                  "class C {static *arguments() {}}",
+                                  "class C {static get eval() {}}",
+                                  "class C {static get arguments() {}}",
+                                  "class C {static set eval(_) {}}",
+                                  "class C {static set arguments(_) {}}",
 
-      NULL};
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
 
 
 TEST(FunctionLiteralDuplicateParameters) {
-  const char* strict_context_data[][2] =
-      {{"'use strict';(function(", "){})();"},
-       {"(function(", ") { 'use strict'; })();"},
-       {"'use strict'; function fn(", ") {}; fn();"},
-       {"function fn(", ") { 'use strict'; }; fn();"},
-       {NULL, NULL}};
+  const char* strict_context_data[][2] = {
+      {"'use strict';(function(", "){})();"},
+      {"(function(", ") { 'use strict'; })();"},
+      {"'use strict'; function fn(", ") {}; fn();"},
+      {"function fn(", ") { 'use strict'; }; fn();"},
+      {nullptr, nullptr}};
 
-  const char* sloppy_context_data[][2] =
-      {{"(function(", "){})();"},
-       {"(function(", ") {})();"},
-       {"function fn(", ") {}; fn();"},
-       {"function fn(", ") {}; fn();"},
-       {NULL, NULL}};
+  const char* sloppy_context_data[][2] = {{"(function(", "){})();"},
+                                          {"(function(", ") {})();"},
+                                          {"function fn(", ") {}; fn();"},
+                                          {"function fn(", ") {}; fn();"},
+                                          {nullptr, nullptr}};
 
   const char* data[] = {
       "a, a",
@@ -7038,7 +6476,7 @@ TEST(FunctionLiteralDuplicateParameters) {
       "b, a, a",
       "a, b, c, c",
       "a, b, c, d, e, f, g, h, i, j, k, l, m, n, o, p, q, r, s, t, u, v, w, w",
-      NULL};
+      nullptr};
 
   RunParserSyncTest(strict_context_data, data, kError);
   RunParserSyncTest(sloppy_context_data, data, kSuccess);
@@ -7046,17 +6484,16 @@ TEST(FunctionLiteralDuplicateParameters) {
 
 
 TEST(ArrowFunctionASIErrors) {
-  const char* context_data[][2] = {{"'use strict';", ""}, {"", ""},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"'use strict';", ""}, {"", ""}, {nullptr, nullptr}};
 
-  const char* data[] = {
-      "(a\n=> a)(1)",
-      "(a/*\n*/=> a)(1)",
-      "((a)\n=> a)(1)",
-      "((a)/*\n*/=> a)(1)",
-      "((a, b)\n=> a + b)(1, 2)",
-      "((a, b)/*\n*/=> a + b)(1, 2)",
-      NULL};
+  const char* data[] = {"(a\n=> a)(1)",
+                        "(a/*\n*/=> a)(1)",
+                        "((a)\n=> a)(1)",
+                        "((a)/*\n*/=> a)(1)",
+                        "((a, b)\n=> a + b)(1, 2)",
+                        "((a, b)/*\n*/=> a + b)(1, 2)",
+                        nullptr};
   RunParserSyncTest(context_data, data, kError);
 }
 
@@ -7065,7 +6502,7 @@ TEST(ObjectSpreadPositiveTests) {
   const char* context_data[][2] = {
     {"x = ", ""},
     {"'use strict'; x = ", ""},
-    {NULL, NULL}};
+    {nullptr, nullptr}};
 
   // clang-format off
   const char* data[] = {
@@ -7086,18 +6523,17 @@ TEST(ObjectSpreadPositiveTests) {
     "{ ...async function() { }}",
     "{ ...async () => { }}",
     "{ ...new Foo()}",
-    NULL};
+    nullptr};
   // clang-format on
 
   static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
                     arraysize(flags));
 }
 
 TEST(ObjectSpreadNegativeTests) {
-  const char* context_data[][2] = {{"x = ", ""},
-                                   {"'use strict'; x = ", ""},
-                                   {NULL, NULL}};
+  const char* context_data[][2] = {
+      {"x = ", ""}, {"'use strict'; x = ", ""}, {nullptr, nullptr}};
 
   // clang-format off
   const char* data[] = {
@@ -7108,10 +6544,10 @@ TEST(ObjectSpreadNegativeTests) {
     "{get ...foo}",
     "{set ...foo}",
     "{async ...foo}",
-    NULL};
+    nullptr};
 
   static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
-  RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+  RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                     arraysize(flags));
 }
 
@@ -7120,7 +6556,7 @@ TEST(TemplateEscapesPositiveTests) {
   const char* context_data[][2] = {
     {"", ""},
     {"'use strict';", ""},
-    {NULL, NULL}};
+    {nullptr, nullptr}};
 
   // clang-format off
   const char* data[] = {
@@ -7187,12 +6623,12 @@ TEST(TemplateEscapesPositiveTests) {
     "tag`\\u``\\u`",
     "` ${tag`\\u`}`",
     "` ``\\u`",
-    NULL};
+    nullptr};
   // clang-format on
 
   // No error with flag
   static const ParserFlag flags[] = {kAllowHarmonyTemplateEscapes};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
                     arraysize(flags));
 
   // Still an error without flag
@@ -7204,7 +6640,7 @@ TEST(TemplateEscapesNegativeTests) {
   const char* context_data[][2] = {
     {"", ""},
     {"'use strict';", ""},
-    {NULL, NULL}};
+    {nullptr, nullptr}};
 
   // clang-format off
   const char* data[] = {
@@ -7268,12 +6704,12 @@ TEST(TemplateEscapesNegativeTests) {
     "`\\1``\\2`",
     "tag` ${`\\u`}`",
     "`\\u```",
-    NULL};
+    nullptr};
   // clang-format on
 
   // Error with flag
   static const ParserFlag flags[] = {kAllowHarmonyTemplateEscapes};
-  RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+  RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                     arraysize(flags));
 
   // Still an error without flag
@@ -7289,7 +6725,7 @@ TEST(DestructuringPositiveTests) {
                                    {"var f = (", ") => {};"},
                                    {"var f = (argument1,", ") => {};"},
                                    {"try {} catch(", ") {}"},
-                                   {NULL, NULL}};
+                                   {nullptr, nullptr}};
 
   // clang-format off
   const char* data[] = {
@@ -7332,7 +6768,7 @@ TEST(DestructuringPositiveTests) {
     "{ __proto__: x, __proto__: y}",
     "{arguments: x}",
     "{eval: x}",
-    NULL};
+    nullptr};
 
   const char* rest_data[] =  {
     "{ x : y, ...z }",
@@ -7353,16 +6789,16 @@ TEST(DestructuringPositiveTests) {
     "{[1+1] : z, ...x}",
     "{arguments: x, ...z}",
     "{ __proto__: x, __proto__: y, ...z}",
-    NULL};
+    nullptr};
 
   // clang-format on
   RunParserSyncTest(context_data, data, kSuccess);
   RunParserSyncTest(context_data, rest_data, kError);
 
   static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
                     arraysize(flags));
-  RunParserSyncTest(context_data, rest_data, kSuccess, NULL, 0, flags,
+  RunParserSyncTest(context_data, rest_data, kSuccess, nullptr, 0, flags,
                     arraysize(flags));
 
   // v8:5201
@@ -7375,13 +6811,13 @@ TEST(DestructuringPositiveTests) {
       {"var f = (", ") => {};"},
       {"var f = (argument1,", ") => {};"},
       {"try {} catch(", ") {}"},
-      {NULL, NULL}
+      {nullptr, nullptr}
     };
 
     const char* rest_data[] = {
       "{...arguments}",
       "{...eval}",
-      NULL
+      nullptr
     };
 
     const char* data[] = {
@@ -7391,16 +6827,16 @@ TEST(DestructuringPositiveTests) {
       "{x: eval}",
       "{arguments = false}",
       "{eval = false}",
-      NULL
+      nullptr
     };
     // clang-format on
     RunParserSyncTest(sloppy_context_data, data, kSuccess);
     RunParserSyncTest(sloppy_context_data, rest_data, kError);
     static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
-    RunParserSyncTest(sloppy_context_data, data, kSuccess, NULL, 0, flags,
+    RunParserSyncTest(sloppy_context_data, data, kSuccess, nullptr, 0, flags,
                       arraysize(flags));
-    RunParserSyncTest(sloppy_context_data, rest_data, kSuccess, NULL, 0, flags,
-                      arraysize(flags));
+    RunParserSyncTest(sloppy_context_data, rest_data, kSuccess, nullptr, 0,
+                      flags, arraysize(flags));
   }
 }
 
@@ -7416,7 +6852,7 @@ TEST(DestructuringNegativeTests) {
                                      {"var f = ", " => {};"},
                                      {"var f = (argument1,", ") => {};"},
                                      {"try {} catch(", ") {}"},
-                                     {NULL, NULL}};
+                                     {nullptr, nullptr}};
 
     // clang-format off
     const char* data[] = {
@@ -7493,7 +6929,7 @@ TEST(DestructuringNegativeTests) {
         "{ set a() {} }",
         "{ method() {} }",
         "{ *method() {} }",
-        NULL};
+        nullptr};
 
     const char* rest_data[] = {
       "...a++",
@@ -7521,42 +6957,39 @@ TEST(DestructuringNegativeTests) {
       "{...[ x = 5 ] }",
       "{...x.f }",
       "{...x[0] }",
-      NULL
+      nullptr
     };
 
     const char* async_gen_data[] = {
       "async function* a() {}",
-      NULL
+      nullptr
     };
 
     // clang-format on
     RunParserSyncTest(context_data, data, kError);
     RunParserSyncTest(context_data, rest_data, kError);
     static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
-    RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                       arraysize(flags));
-    RunParserSyncTest(context_data, rest_data, kError, NULL, 0, flags,
+    RunParserSyncTest(context_data, rest_data, kError, nullptr, 0, flags,
                       arraysize(flags));
     static const ParserFlag async_gen_flags[] = {kAllowHarmonyAsyncIteration};
-    RunParserSyncTest(context_data, async_gen_data, kError, NULL, 0,
+    RunParserSyncTest(context_data, async_gen_data, kError, nullptr, 0,
                       async_gen_flags, arraysize(async_gen_flags));
   }
 
   {  // All modes.
-    const char* context_data[][2] = {{"'use strict'; let ", " = {};"},
-                                     {"var ", " = {};"},
-                                     {"'use strict'; const ", " = {};"},
-                                     {"function f(", ") {}"},
-                                     {"function f(argument1, ", ") {}"},
-                                     {"var f = (", ") => {};"},
-                                     {"var f = (argument1,", ") => {};"},
-                                     {NULL, NULL}};
+    const char* context_data[][2] = {
+        {"'use strict'; let ", " = {};"},    {"var ", " = {};"},
+        {"'use strict'; const ", " = {};"},  {"function f(", ") {}"},
+        {"function f(argument1, ", ") {}"},  {"var f = (", ") => {};"},
+        {"var f = (argument1,", ") => {};"}, {nullptr, nullptr}};
 
     // clang-format off
     const char* data[] = {
         "x => x",
         "() => x",
-        NULL};
+        nullptr};
     // clang-format on
     RunParserSyncTest(context_data, data, kError);
   }
@@ -7568,7 +7001,7 @@ TEST(DestructuringNegativeTests) {
         {"'use strict'; const ", " = {};"},
         {"'use strict'; function f(", ") {}"},
         {"'use strict'; function f(argument1, ", ") {}"},
-        {NULL, NULL}};
+        {nullptr, nullptr}};
 
     // clang-format off
     const char* data[] = {
@@ -7584,20 +7017,20 @@ TEST(DestructuringNegativeTests) {
       "{ eval }",
       "{ arguments = false }"
       "{ eval = false }",
-      NULL};
+      nullptr};
 
     const char* rest_data[] = {
       "{ ...eval }",
       "{ ...arguments }",
-      NULL};
+      nullptr};
 
     // clang-format on
     RunParserSyncTest(context_data, data, kError);
     RunParserSyncTest(context_data, rest_data, kError);
     static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
-    RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                       arraysize(flags));
-    RunParserSyncTest(context_data, rest_data, kError, NULL, 0, flags,
+    RunParserSyncTest(context_data, rest_data, kError, nullptr, 0, flags,
                       arraysize(flags));
   }
 
@@ -7606,14 +7039,14 @@ TEST(DestructuringNegativeTests) {
         {"function*() { var ", " = {};"},
         {"function*() { 'use strict'; let ", " = {};"},
         {"function*() { 'use strict'; const ", " = {};"},
-        {NULL, NULL}};
+        {nullptr, nullptr}};
 
     // clang-format off
     const char* data[] = {
       "yield",
       "[yield]",
       "{ x : yield }",
-      NULL};
+      nullptr};
     // clang-format on
     RunParserSyncTest(context_data, data, kError);
   }
@@ -7631,23 +7064,23 @@ TEST(DestructuringNegativeTests) {
                                      {"for (var ", ";;) {}"},
                                      {"for (let ", ";;) {}"},
                                      {"for (const ", ";;) {}"},
-                                     {NULL, NULL}};
+                                     {nullptr, nullptr}};
 
     // clang-format off
     const char* data[] = {
       "{ a }",
       "[ a ]",
-      NULL};
+      nullptr};
     const char* rest_data[] = {
       "{ ...a }",
-      NULL};
+      nullptr};
     // clang-format on
     RunParserSyncTest(context_data, data, kError);
     RunParserSyncTest(context_data, rest_data, kError);
     static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
-    RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+    RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                       arraysize(flags));
-    RunParserSyncTest(context_data, rest_data, kError, NULL, 0, flags,
+    RunParserSyncTest(context_data, rest_data, kError, nullptr, 0, flags,
                       arraysize(flags));
   }
 }
@@ -7656,7 +7089,7 @@ TEST(ObjectRestNegativeTestSlow) {
   // clang-format off
   const char* context_data[][2] = {
     {"var { ", " } = { a: 1};"},
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   using v8::internal::Code;
@@ -7668,13 +7101,13 @@ TEST(ObjectRestNegativeTestSlow) {
 
   const char* statement_data[] = {
     statement.c_str(),
-    NULL
+    nullptr
   };
 
   // clang-format on
   // The test is quite slow, so run it with a reduced set of flags.
   static const ParserFlag flags[] = {kAllowLazy, kAllowHarmonyObjectRestSpread};
-  RunParserSyncTest(context_data, statement_data, kError, NULL, 0, flags,
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0, flags,
                     arraysize(flags));
 }
 
@@ -7694,7 +7127,7 @@ TEST(DestructuringAssignmentPositiveTests) {
       {"var x, y, z; m(['b']) ? lhs : ", " = {}"},
       {"'use strict'; var x, y, z; m(['a']) ? ", " = {} : rhs"},
       {"'use strict'; var x, y, z; m(['b']) ? lhs : ", " = {}"},
-      {NULL, NULL}};
+      {nullptr, nullptr}};
 
   const char* mixed_assignments_context_data[][2] = {
       {"'use strict'; let x, y, z; (", " = z = {});"},
@@ -7709,7 +7142,7 @@ TEST(DestructuringAssignmentPositiveTests) {
       {"var x, y, z; for (x in x = ", " = z = {});"},
       {"var x, y, z; for (x of ", " = z = {});"},
       {"var x, y, z; for (x of x = ", " = z = {});"},
-      {NULL, NULL}};
+      {nullptr, nullptr}};
 
   // clang-format off
   const char* data[] = {
@@ -7850,17 +7283,17 @@ TEST(DestructuringAssignmentPositiveTests) {
     "[ (foo.bar) ]",
     "[ (foo['bar']) ]",
 
-    NULL};
+    nullptr};
   // clang-format on
   static const ParserFlag flags[] = {kAllowHarmonyObjectRestSpread};
-  RunParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
                     arraysize(flags));
 
-  RunParserSyncTest(mixed_assignments_context_data, data, kSuccess, NULL, 0,
+  RunParserSyncTest(mixed_assignments_context_data, data, kSuccess, nullptr, 0,
                     flags, arraysize(flags));
 
   const char* empty_context_data[][2] = {
-      {"'use strict';", ""}, {"", ""}, {NULL, NULL}};
+      {"'use strict';", ""}, {"", ""}, {nullptr, nullptr}};
 
   // CoverInitializedName ambiguity handling in various contexts
   const char* ambiguity_data[] = {
@@ -7878,7 +7311,7 @@ TEST(DestructuringAssignmentPositiveTests) {
       "({ __proto__: x, __proto__: y } = {})",
       "var { x = 10 } = (o = { x = 20 } = {});",
       "var x; (({ x = 10 } = { x = 20 } = {}) => x)({})",
-      NULL,
+      nullptr,
   };
   RunParserSyncTest(empty_context_data, ambiguity_data, kSuccess);
 }
@@ -7892,7 +7325,7 @@ TEST(DestructuringAssignmentNegativeTests) {
       {"'use strict'; let x, y, z; for (x of ", " = {});"},
       {"var x, y, z; for (x in ", " = {});"},
       {"var x, y, z; for (x of ", " = {});"},
-      {NULL, NULL}};
+      {nullptr, nullptr}};
 
   // clang-format off
   const char* data[] = {
@@ -8001,32 +7434,27 @@ TEST(DestructuringAssignmentNegativeTests) {
     "[ x += x ]",
     "{ foo: x += x }",
 
-    NULL};
+    nullptr};
   // clang-format on
   RunParserSyncTest(context_data, data, kError);
 
   const char* empty_context_data[][2] = {
-      {"'use strict';", ""}, {"", ""}, {NULL, NULL}};
+      {"'use strict';", ""}, {"", ""}, {nullptr, nullptr}};
 
   // CoverInitializedName ambiguity handling in various contexts
   const char* ambiguity_data[] = {
-      "var foo = { x = 10 };",
-      "var foo = { q } = { x = 10 };",
-      "var foo; foo = { x = 10 };",
-      "var foo; foo = { q } = { x = 10 };",
-      "var x; ({ x = 10 });",
-      "var q, x; ({ q } = { x = 10 });",
-      "var x; [{ x = 10 }]",
-      "var x; (true ? { x = true } : { x = false })",
-      "var q, x; (q, { x = 10 });",
-      "var { x = 10 } = { x = 20 };",
+      "var foo = { x = 10 };", "var foo = { q } = { x = 10 };",
+      "var foo; foo = { x = 10 };", "var foo; foo = { q } = { x = 10 };",
+      "var x; ({ x = 10 });", "var q, x; ({ q } = { x = 10 });",
+      "var x; [{ x = 10 }]", "var x; (true ? { x = true } : { x = false })",
+      "var q, x; (q, { x = 10 });", "var { x = 10 } = { x = 20 };",
       "var { x = 10 } = (o = { x = 20 });",
       "var x; (({ x = 10 } = { x = 20 }) => x)({})",
 
       // Not ambiguous, but uses same context data
       "switch([window %= []] = []) { default: }",
 
-      NULL,
+      nullptr,
   };
   RunParserSyncTest(empty_context_data, ambiguity_data, kError);
 
@@ -8034,60 +7462,41 @@ TEST(DestructuringAssignmentNegativeTests) {
   const char* strict_context_data[][2] = {{"'use strict'; (", " = {})"},
                                           {"'use strict'; for (", " of {}) {}"},
                                           {"'use strict'; for (", " in {}) {}"},
-                                          {NULL, NULL}};
-  const char* strict_data[] = {"{ eval }",
-                               "{ arguments }",
-                               "{ foo: eval }",
-                               "{ foo: arguments }",
-                               "{ eval = 0 }",
-                               "{ arguments = 0 }",
-                               "{ foo: eval = 0 }",
-                               "{ foo: arguments = 0 }",
-                               "[ eval ]",
-                               "[ arguments ]",
-                               "[ eval = 0 ]",
-                               "[ arguments = 0 ]",
+                                          {nullptr, nullptr}};
+  const char* strict_data[] = {
+      "{ eval }", "{ arguments }", "{ foo: eval }", "{ foo: arguments }",
+      "{ eval = 0 }", "{ arguments = 0 }", "{ foo: eval = 0 }",
+      "{ foo: arguments = 0 }", "[ eval ]", "[ arguments ]", "[ eval = 0 ]",
+      "[ arguments = 0 ]",
 
-                               // v8:4662
-                               "{ x: (eval) }",
-                               "{ x: (arguments) }",
-                               "{ x: (eval = 0) }",
-                               "{ x: (arguments = 0) }",
-                               "{ x: (eval) = 0 }",
-                               "{ x: (arguments) = 0 }",
-                               "[ (eval) ]",
-                               "[ (arguments) ]",
-                               "[ (eval = 0) ]",
-                               "[ (arguments = 0) ]",
-                               "[ (eval) = 0 ]",
-                               "[ (arguments) = 0 ]",
-                               "[ ...(eval) ]",
-                               "[ ...(arguments) ]",
-                               "[ ...(eval = 0) ]",
-                               "[ ...(arguments = 0) ]",
-                               "[ ...(eval) = 0 ]",
-                               "[ ...(arguments) = 0 ]",
+      // v8:4662
+      "{ x: (eval) }", "{ x: (arguments) }", "{ x: (eval = 0) }",
+      "{ x: (arguments = 0) }", "{ x: (eval) = 0 }", "{ x: (arguments) = 0 }",
+      "[ (eval) ]", "[ (arguments) ]", "[ (eval = 0) ]", "[ (arguments = 0) ]",
+      "[ (eval) = 0 ]", "[ (arguments) = 0 ]", "[ ...(eval) ]",
+      "[ ...(arguments) ]", "[ ...(eval = 0) ]", "[ ...(arguments = 0) ]",
+      "[ ...(eval) = 0 ]", "[ ...(arguments) = 0 ]",
 
-                               NULL};
+      nullptr};
   RunParserSyncTest(strict_context_data, strict_data, kError);
 }
 
 
 TEST(DestructuringDisallowPatternsInForVarIn) {
   const char* context_data[][2] = {
-      {"", ""}, {"function f() {", "}"}, {NULL, NULL}};
+      {"", ""}, {"function f() {", "}"}, {nullptr, nullptr}};
   // clang-format off
   const char* error_data[] = {
     "for (let x = {} in null);",
     "for (let x = {} of null);",
-    NULL};
+    nullptr};
   // clang-format on
   RunParserSyncTest(context_data, error_data, kError);
 
   // clang-format off
   const char* success_data[] = {
     "for (var x = {} in null);",
-    NULL};
+    nullptr};
   // clang-format on
   RunParserSyncTest(context_data, success_data, kSuccess);
 }
@@ -8155,22 +7564,22 @@ TEST(DefaultParametersYieldInInitializers) {
   // clang-format off
   const char* sloppy_function_context_data[][2] = {
     {"(function f(", ") { });"},
-    {NULL, NULL}
+    {nullptr, nullptr}
   };
 
   const char* strict_function_context_data[][2] = {
     {"'use strict'; (function f(", ") { });"},
-    {NULL, NULL}
+    {nullptr, nullptr}
   };
 
   const char* sloppy_arrow_context_data[][2] = {
     {"((", ")=>{});"},
-    {NULL, NULL}
+    {nullptr, nullptr}
   };
 
   const char* strict_arrow_context_data[][2] = {
     {"'use strict'; ((", ")=>{});"},
-    {NULL, NULL}
+    {nullptr, nullptr}
   };
 
   const char* generator_context_data[][2] = {
@@ -8182,7 +7591,7 @@ TEST(DefaultParametersYieldInInitializers) {
     // And similarly for arrow functions in the parameter list.
     {"'use strict'; (function *g(z = (", ") => {}) { });"},
     {"(function *g(z = (", ") => {}) { });"},
-    {NULL, NULL}
+    {nullptr, nullptr}
   };
 
   const char* parameter_data[] = {
@@ -8209,7 +7618,7 @@ TEST(DefaultParametersYieldInInitializers) {
 
     "{x}=f(yield)",
     "[x]=f(yield)",
-    NULL
+    nullptr
   };
 
   // Because classes are always in strict mode, these are always errors.
@@ -8225,7 +7634,7 @@ TEST(DefaultParametersYieldInInitializers) {
     "x = class { static [yield]() { } }",
     "x = class { [(yield, 1)]() { } }",
     "x = class { [y = (yield, 1)]() { } }",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -8241,7 +7650,7 @@ TEST(DefaultParametersYieldInInitializers) {
 
 TEST(SpreadArray) {
   const char* context_data[][2] = {
-      {"'use strict';", ""}, {"", ""}, {NULL, NULL}};
+      {"'use strict';", ""}, {"", ""}, {nullptr, nullptr}};
 
   // clang-format off
   const char* data[] = {
@@ -8255,7 +7664,7 @@ TEST(SpreadArray) {
     "[...[...a]]",
     "[, ...a]",
     "[, , ...a]",
-    NULL};
+    nullptr};
   // clang-format on
   RunParserSyncTest(context_data, data, kSuccess);
 }
@@ -8263,7 +7672,7 @@ TEST(SpreadArray) {
 
 TEST(SpreadArrayError) {
   const char* context_data[][2] = {
-      {"'use strict';", ""}, {"", ""}, {NULL, NULL}};
+      {"'use strict';", ""}, {"", ""}, {nullptr, nullptr}};
 
   // clang-format off
   const char* data[] = {
@@ -8272,7 +7681,7 @@ TEST(SpreadArrayError) {
     "[..., ]",
     "[..., ...]",
     "[ (...a)]",
-    NULL};
+    nullptr};
   // clang-format on
   RunParserSyncTest(context_data, data, kError);
 }
@@ -8296,13 +7705,13 @@ TEST(NewTarget) {
     {"class C {m() {", "}}"},
     {"class C {get x() {", "}}"},
     {"class C {set x(_) {", "}}"},
-    {NULL}
+    {nullptr}
   };
 
   const char* bad_context_data[][2] = {
     {"", ""},
     {"'use strict';", ""},
-    {NULL}
+    {nullptr}
   };
 
   const char* data[] = {
@@ -8314,7 +7723,7 @@ TEST(NewTarget) {
     "if (1) {} else { new.target }",
     "while (0) { new.target }",
     "do { new.target } while (0)",
-    NULL
+    nullptr
   };
 
   // clang-format on
@@ -8343,7 +7752,7 @@ TEST(ImportMetaSuccess) {
     {"class C {m() {", "}}"},
     {"class C {get x() {", "}}"},
     {"class C {set x(_) {", "}}"},
-    {NULL}
+    {nullptr}
   };
 
   const char* data[] = {
@@ -8363,14 +7772,14 @@ TEST(ImportMetaSuccess) {
     "t = [...import.meta]",
     "f = {...import.meta}",
     "delete import.meta",
-    NULL
+    nullptr
   };
 
   // clang-format on
 
   // Making sure the same *wouldn't* parse without the flags
-  RunModuleParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0, NULL, 0,
-                          true, true);
+  RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
+                          nullptr, 0, true, true);
 
   static const ParserFlag flags[] = {
       kAllowHarmonyImportMeta, kAllowHarmonyDynamicImport,
@@ -8379,12 +7788,12 @@ TEST(ImportMetaSuccess) {
   // 2.1.1 Static Semantics: Early Errors
   // ImportMeta
   // * It is an early Syntax Error if Module is not the syntactic goal symbol.
-  RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+  RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                     arraysize(flags));
   // Making sure the same wouldn't parse without the flags either
   RunParserSyncTest(context_data, data, kError);
 
-  RunModuleParserSyncTest(context_data, data, kSuccess, NULL, 0, flags,
+  RunModuleParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
                           arraysize(flags));
 }
 
@@ -8399,12 +7808,12 @@ TEST(ImportMetaFailure) {
     {"({", "} = {1})"},
     {"var {", " = 1} = 1"},
     {"for (var ", " of [1]) {}"},
-    {NULL}
+    {nullptr}
   };
 
   const char* data[] = {
     "import.meta",
-    NULL
+    nullptr
   };
 
   // clang-format on
@@ -8414,13 +7823,13 @@ TEST(ImportMetaFailure) {
       kAllowHarmonyObjectRestSpread,
   };
 
-  RunParserSyncTest(context_data, data, kError, NULL, 0, flags,
+  RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                     arraysize(flags));
-  RunModuleParserSyncTest(context_data, data, kError, NULL, 0, flags,
+  RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, flags,
                           arraysize(flags));
 
-  RunModuleParserSyncTest(context_data, data, kError, NULL, 0, NULL, 0, NULL, 0,
-                          true, true);
+  RunModuleParserSyncTest(context_data, data, kError, nullptr, 0, nullptr, 0,
+                          nullptr, 0, true, true);
   RunParserSyncTest(context_data, data, kError);
 }
 
@@ -8429,7 +7838,7 @@ TEST(ConstSloppy) {
   const char* context_data[][2] = {
     {"", ""},
     {"{", "}"},
-    {NULL, NULL}
+    {nullptr, nullptr}
   };
 
   const char* data[] = {
@@ -8437,7 +7846,7 @@ TEST(ConstSloppy) {
     "for (const x = 1; x < 1; x++) {}",
     "for (const x in {}) {}",
     "for (const x of []) {}",
-    NULL
+    nullptr
   };
   // clang-format on
   RunParserSyncTest(context_data, data, kSuccess);
@@ -8450,7 +7859,7 @@ TEST(LetSloppy) {
     {"", ""},
     {"'use strict';", ""},
     {"{", "}"},
-    {NULL, NULL}
+    {nullptr, nullptr}
   };
 
   const char* data[] = {
@@ -8459,7 +7868,7 @@ TEST(LetSloppy) {
     "for (let x = 1; x < 1; x++) {}",
     "for (let x in {}) {}",
     "for (let x of []) {}",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -8490,7 +7899,7 @@ TEST(LanguageModeDirectivesNonSimpleParameterListErrors) {
       {"'use strict'; var c = { m(", ") { 'use strict'; }"},
       {"'use strict'; var c = { *gm(", ") { 'use strict'; }"},
 
-      {NULL, NULL}};
+      {nullptr, nullptr}};
 
   const char* data[] = {
       // TODO(@caitp): support formal parameter initializers
@@ -8507,7 +7916,7 @@ TEST(LanguageModeDirectivesNonSimpleParameterListErrors) {
       "[a, b, ...rest]",
       "{ bindingPattern = {} }",
       "{ initializedBindingPattern } = { initializedBindingPattern: true }",
-      NULL};
+      nullptr};
 
   RunParserSyncTest(context_data, data, kError);
 }
@@ -8519,7 +7928,7 @@ TEST(LetSloppyOnly) {
     {"", ""},
     {"{", "}"},
     {"(function() {", "})()"},
-    {NULL, NULL}
+    {nullptr, nullptr}
   };
 
   const char* data[] = {
@@ -8533,7 +7942,7 @@ TEST(LetSloppyOnly) {
     "for (var [let] in {}) {}",
     "var let",
     "var [let] = []",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -8567,7 +7976,7 @@ TEST(LetSloppyOnly) {
     "let [l\\u0065t] = 1",
     "const [l\\u0065t] = 1",
     "for (let l\\u0065t in {}) {}",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -8579,12 +7988,12 @@ TEST(EscapedKeywords) {
   // clang-format off
   const char* sloppy_context_data[][2] = {
     {"", ""},
-    {NULL, NULL}
+    {nullptr, nullptr}
   };
 
   const char* strict_context_data[][2] = {
     {"'use strict';", ""},
-    {NULL, NULL}
+    {nullptr, nullptr}
   };
 
   const char* fail_data[] = {
@@ -8667,7 +8076,7 @@ TEST(EscapedKeywords) {
     "(y\\u0069eld);",
     "var y\\u0069eld = 1;",
     "var { y\\u0069eld } = {};",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -8680,7 +8089,7 @@ TEST(EscapedKeywords) {
     "var l\\u0065t = 1;",
     "l\\u0065t = 1;",
     "(l\\u0065t === 1);",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -8709,7 +8118,7 @@ TEST(EscapedKeywords) {
                               "(st\\u0061tic);",
                               "var st\\u0061tic = 1;",
                               "var { st\\u0061tic } = {};",
-                              NULL};
+                              nullptr};
   RunParserSyncTest(sloppy_context_data, valid_data, kSuccess);
   RunParserSyncTest(strict_context_data, valid_data, kError);
   RunModuleParserSyncTest(strict_context_data, valid_data, kError);
@@ -8721,14 +8130,14 @@ TEST(MiscSyntaxErrors) {
   const char* context_data[][2] = {
     { "'use strict'", "" },
     { "", "" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
   const char* error_data[] = {
     "for (();;) {}",
 
     // crbug.com/582626
     "{ NaN ,chA((evarA=new t ( l = !.0[((... co -a0([1]))=> greturnkf",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -8746,7 +8155,7 @@ TEST(EscapeSequenceErrors) {
     { "`${\"", "\"}`" },
     { "`${`", "`}`" },
     { "f(tag`", "`);" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
   const char* error_data[] = {
     "\\uABCG",
@@ -8757,7 +8166,7 @@ TEST(EscapeSequenceErrors) {
     "\\u{110000",
     "\\u{FFFD }",
     "\\xZF",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -8770,12 +8179,12 @@ TEST(FunctionSentErrors) {
   const char* context_data[][2] = {
     { "'use strict'", "" },
     { "", "" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
   const char* error_data[] = {
     "var x = function.sent",
     "function* g() { yield function.s\\u0065nt; }",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -8789,12 +8198,12 @@ TEST(NewTargetErrors) {
   const char* context_data[][2] = {
     { "'use strict'", "" },
     { "", "" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
   const char* error_data[] = {
     "var x = new.target",
     "function f() { return new.t\\u0061rget; }",
-    NULL
+    nullptr
   };
   // clang-format on
   RunParserSyncTest(context_data, error_data, kError);
@@ -8807,14 +8216,14 @@ TEST(FunctionDeclarationError) {
     { "'use strict'; { ", "}" },
     {"(function() { 'use strict';", "})()"},
     {"(function() { 'use strict'; {", "} })()"},
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
   const char* sloppy_context[][2] = {
     { "", "" },
     { "{", "}" },
     {"(function() {", "})()"},
     {"(function() { {", "} })()"},
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
   // Invalid in all contexts
   const char* error_data[] = {
@@ -8845,7 +8254,7 @@ TEST(FunctionDeclarationError) {
     "label: function* f() { }",
     "if (true) async function f() { }",
     "label: async function f() { }",
-    NULL
+    nullptr
   };
   // Valid only in sloppy mode.
   const char* sloppy_data[] = {
@@ -8855,7 +8264,7 @@ TEST(FunctionDeclarationError) {
     "label: if (true) function f() { }",
     "label: if (true) {} else function f() { }",
     "label: label2: function f() { }",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -8872,14 +8281,14 @@ TEST(FunctionDeclarationError) {
   const char* async_iterator_data[] = {
     "if (true) async function* f() { }",
     "label: async function* f() { }",
-    NULL,
+    nullptr,
   };
   // clang-format on
   static const ParserFlag flags[] = {kAllowHarmonyAsyncIteration};
-  RunParserSyncTest(sloppy_context, async_iterator_data, kError, NULL, 0, flags,
-                    arraysize(flags));
-  RunParserSyncTest(strict_context, async_iterator_data, kError, NULL, 0, flags,
-                    arraysize(flags));
+  RunParserSyncTest(sloppy_context, async_iterator_data, kError, nullptr, 0,
+                    flags, arraysize(flags));
+  RunParserSyncTest(strict_context, async_iterator_data, kError, nullptr, 0,
+                    flags, arraysize(flags));
 }
 
 TEST(ExponentiationOperator) {
@@ -8888,7 +8297,7 @@ TEST(ExponentiationOperator) {
     { "var O = { p: 1 }, x = 10; ; if (", ") { foo(); }" },
     { "var O = { p: 1 }, x = 10; ; (", ")" },
     { "var O = { p: 1 }, x = 10; foo(", ")" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
   const char* data[] = {
     "(delete O.p) ** 10",
@@ -8914,7 +8323,7 @@ TEST(ExponentiationOperator) {
     "x++ ** 10",
     "O.p-- ** 10",
     "x-- ** 10",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -8927,7 +8336,7 @@ TEST(ExponentiationOperatorErrors) {
     { "var O = { p: 1 }, x = 10; ; if (", ") { foo(); }" },
     { "var O = { p: 1 }, x = 10; ; (", ")" },
     { "var O = { p: 1 }, x = 10; foo(", ")" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
   const char* error_data[] = {
     "delete O.p ** 10",
@@ -8961,7 +8370,7 @@ TEST(ExponentiationOperatorErrors) {
     "{ x: x **= 2 ] = { x: 2 }",
     // TODO(caitp): a Call expression as LHS should be an early ReferenceError!
     // "Array() **= 10",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -8973,7 +8382,7 @@ TEST(AsyncAwait) {
   const char* context_data[][2] = {
     { "'use strict';", "" },
     { "", "" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* data[] = {
@@ -8993,7 +8402,7 @@ TEST(AsyncAwait) {
 
     "function* g() { var f = async(yield); }",
     "function* g() { var f = async(x = yield); }",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -9009,7 +8418,7 @@ TEST(AsyncAwait) {
     { "'use strict'; var f = async function() {", "}" },
     { "'use strict'; var f = async() => {", "}" },
     { "'use strict'; var O = { async method() {", "} }" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* body_context_data[][2] = {
@@ -9027,7 +8436,7 @@ TEST(AsyncAwait) {
     { "'use strict'; var O = { method() {", "} }" },
     { "'use strict'; var O = { *method() {", "} }" },
     { "'use strict'; var f = () => {", "}" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* body_data[] = {
@@ -9047,7 +8456,7 @@ TEST(AsyncAwait) {
     "var O = { *method(await) { return await; } };",
 
     "(function await() {})",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -9060,12 +8469,12 @@ TEST(AsyncAwaitErrors) {
   const char* context_data[][2] = {
     { "'use strict';", "" },
     { "", "" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* strict_context_data[][2] = {
     { "'use strict';", "" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* error_data[] = {
@@ -9139,7 +8548,7 @@ TEST(AsyncAwaitErrors) {
     "async(...a = b) => b",
     "async(...a,) => b",
     "async(...a, b) => b",
-    NULL
+    nullptr
   };
 
   const char* strict_error_data[] = {
@@ -9158,7 +8567,7 @@ TEST(AsyncAwaitErrors) {
     // TODO(caitp): preparser needs to report duplicate parameter errors, too.
     // "var f = async(dupe, dupe) => {}",
 
-    NULL
+    nullptr
   };
 
   RunParserSyncTest(context_data, error_data, kError);
@@ -9174,7 +8583,7 @@ TEST(AsyncAwaitErrors) {
     { "'use strict'; var f = async function() {", "}" },
     { "'use strict'; var f = async() => {", "}" },
     { "'use strict'; var O = { async method() {", "} }" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* async_body_error_data[] = {
@@ -9199,7 +8608,7 @@ TEST(AsyncAwaitErrors) {
     "var e = [await];",
     "var e = {await};",
 
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -9273,26 +8682,26 @@ TEST(AsyncAwaitModule) {
   // clang-format off
   const char* context_data[][2] = {
     { "", "" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* data[] = {
     "export default async function() { await 1; }",
     "export default async function async() { await 1; }",
     "export async function async() { await 1; }",
-    NULL
+    nullptr
   };
   // clang-format on
 
-  RunModuleParserSyncTest(context_data, data, kSuccess, NULL, 0, NULL, 0, NULL,
-                          0, false);
+  RunModuleParserSyncTest(context_data, data, kSuccess, nullptr, 0, nullptr, 0,
+                          nullptr, 0, false);
 }
 
 TEST(AsyncAwaitModuleErrors) {
   // clang-format off
   const char* context_data[][2] = {
     { "", "" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* error_data[] = {
@@ -9302,32 +8711,32 @@ TEST(AsyncAwaitModuleErrors) {
     "export async function() {}",
     "export async",
     "export async\nfunction async() { await 1; }",
-    NULL
+    nullptr
   };
   // clang-format on
 
-  RunModuleParserSyncTest(context_data, error_data, kError, NULL, 0, NULL, 0,
-                          NULL, 0, false);
+  RunModuleParserSyncTest(context_data, error_data, kError, nullptr, 0, nullptr,
+                          0, nullptr, 0, false);
 }
 
 TEST(RestrictiveForInErrors) {
   // clang-format off
   const char* strict_context_data[][2] = {
     { "'use strict'", "" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
   const char* sloppy_context_data[][2] = {
     { "", "" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
   const char* error_data[] = {
     "for (const x = 0 in {});",
     "for (let x = 0 in {});",
-    NULL
+    nullptr
   };
   const char* sloppy_data[] = {
     "for (var x = 0 in {});",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -9343,23 +8752,23 @@ TEST(NoDuplicateGeneratorsInBlock) {
       {"{", "}"},
       {"(function() { {", "} })()"},
       {"(function() {'use strict'; {", "} })()"},
-      {NULL, NULL}};
+      {nullptr, nullptr}};
   const char* top_level_context_data[][2] = {
       {"'use strict';", ""},
       {"", ""},
       {"(function() {", "})()"},
       {"(function() {'use strict';", "})()"},
-      {NULL, NULL}};
+      {nullptr, nullptr}};
   const char* error_data[] = {"function* x() {} function* x() {}",
                               "function x() {} function* x() {}",
-                              "function* x() {} function x() {}", NULL};
+                              "function* x() {} function x() {}", nullptr};
   static const ParserFlag always_flags[] = {kAllowHarmonyRestrictiveGenerators};
   // The preparser doesn't enforce the restriction, so turn it off.
   bool test_preparser = false;
-  RunParserSyncTest(block_context_data, error_data, kError, NULL, 0,
-                    always_flags, arraysize(always_flags), NULL, 0, false,
+  RunParserSyncTest(block_context_data, error_data, kError, nullptr, 0,
+                    always_flags, arraysize(always_flags), nullptr, 0, false,
                     test_preparser);
-  RunParserSyncTest(top_level_context_data, error_data, kSuccess, NULL, 0,
+  RunParserSyncTest(top_level_context_data, error_data, kSuccess, nullptr, 0,
                     always_flags, arraysize(always_flags));
 }
 
@@ -9369,13 +8778,13 @@ TEST(NoDuplicateAsyncFunctionInBlock) {
       {"{", "}"},
       {"(function() { {", "} })()"},
       {"(function() {'use strict'; {", "} })()"},
-      {NULL, NULL}};
+      {nullptr, nullptr}};
   const char* top_level_context_data[][2] = {
       {"'use strict';", ""},
       {"", ""},
       {"(function() {", "})()"},
       {"(function() {'use strict';", "})()"},
-      {NULL, NULL}};
+      {nullptr, nullptr}};
   const char* error_data[] = {"async function x() {} async function x() {}",
                               "function x() {} async function x() {}",
                               "async function x() {} function x() {}",
@@ -9383,11 +8792,11 @@ TEST(NoDuplicateAsyncFunctionInBlock) {
                               "function* x() {} async function x() {}",
                               "async function x() {} function* x() {}",
                               "function* x() {} async function x() {}",
-                              NULL};
+                              nullptr};
   // The preparser doesn't enforce the restriction, so turn it off.
   bool test_preparser = false;
-  RunParserSyncTest(block_context_data, error_data, kError, NULL, 0, NULL, 0,
-                    NULL, 0, false, test_preparser);
+  RunParserSyncTest(block_context_data, error_data, kError, nullptr, 0, nullptr,
+                    0, nullptr, 0, false, test_preparser);
   RunParserSyncTest(top_level_context_data, error_data, kSuccess);
 }
 
@@ -9398,7 +8807,7 @@ TEST(TrailingCommasInParameters) {
     { "'use strict';", "" },
     { "function foo() {", "}" },
     { "function foo() {'use strict';", "}" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* data[] = {
@@ -9421,7 +8830,7 @@ TEST(TrailingCommasInParameters) {
     "a(...[],);",
     "a(1, 2, ...[],);",
     "a(...[], 2, ...[],);",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -9435,7 +8844,7 @@ TEST(TrailingCommasInParametersErrors) {
     { "'use strict';", "" },
     { "function foo() {", "}" },
     { "function foo() {'use strict';", "}" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* data[] = {
@@ -9484,7 +8893,7 @@ TEST(TrailingCommasInParametersErrors) {
     "(,);",
     "(a,);",
     "(a,b,c,);",
-    NULL
+    nullptr
   };
   // clang-format on
 
@@ -9496,14 +8905,14 @@ TEST(ArgumentsRedeclaration) {
     // clang-format off
     const char* context_data[][2] = {
       { "function f(", ") {}" },
-      { NULL, NULL }
+      { nullptr, nullptr }
     };
     const char* success_data[] = {
       "{arguments}",
       "{arguments = false}",
       "arg1, arguments",
       "arg1, ...arguments",
-      NULL
+      nullptr
     };
     // clang-format on
     RunParserSyncTest(context_data, success_data, kSuccess);
@@ -9513,13 +8922,13 @@ TEST(ArgumentsRedeclaration) {
     // clang-format off
     const char* context_data[][2] = {
       { "function f() {", "}" },
-      { NULL, NULL }
+      { nullptr, nullptr }
     };
     const char* data[] = {
       "const arguments = 1",
       "let arguments",
       "var arguments",
-      NULL
+      nullptr
     };
     // clang-format on
     RunParserSyncTest(context_data, data, kSuccess);
@@ -9803,7 +9212,7 @@ TEST(NoPessimisticContextAllocation) {
 
       CHECK(i::parsing::ParseProgram(&info, isolate));
       CHECK(i::Compiler::Analyze(&info));
-      CHECK(info.literal() != NULL);
+      CHECK(info.literal() != nullptr);
 
       i::Scope* scope = info.literal()->scope()->inner_scope();
       DCHECK_NOT_NULL(scope);
@@ -9821,7 +9230,7 @@ TEST(NoPessimisticContextAllocation) {
 TEST(EscapedStrictReservedWord) {
   // Test that identifiers which are both escaped and only reserved in the
   // strict mode are accepted in non-strict mode.
-  const char* context_data[][2] = {{"", ""}, {NULL, NULL}};
+  const char* context_data[][2] = {{"", ""}, {nullptr, nullptr}};
 
   const char* statement_data[] = {"if (true) l\\u0065t: ;",
                                   "function l\\u0065t() { }",
@@ -9833,7 +9242,7 @@ TEST(EscapedStrictReservedWord) {
                                   "function packag\\u0065() {}",
                                   "function impl\\u0065ments() {}",
                                   "function privat\\u0065() {}",
-                                  NULL};
+                                  nullptr};
 
   RunParserSyncTest(context_data, statement_data, kSuccess);
 }
@@ -9859,7 +9268,7 @@ TEST(ForAwaitOf) {
     { "async function f() { 'use strict'; for await\n", " ; }" },
     { "async function f() { 'use strict'; for await\n", " { } }" },
     { "async function * f() { 'use strict'; for await\n", " { } }" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* context_data2[][2] = {
@@ -9881,7 +9290,7 @@ TEST(ForAwaitOf) {
     { "async function f() { 'use strict'; let a; for await\n", " ; }" },
     { "async function f() { 'use strict'; let a; for await\n", " { } }" },
     { "async function * f() { 'use strict'; let a; for await\n", " { } }" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* expr_data[] = {
@@ -9903,7 +9312,7 @@ TEST(ForAwaitOf) {
     "({\"a\": a = 1} of [])",
     "({[Symbol.iterator]: a = 1} of [])",
     "({0: a = 1} of [])",
-    NULL
+    nullptr
   };
 
   const char* var_data[] = {
@@ -9924,7 +9333,7 @@ TEST(ForAwaitOf) {
     "(var {\"a\": a = 1} of [])",
     "(var {[Symbol.iterator]: a = 1} of [])",
     "(var {0: a = 1} of [])",
-    NULL
+    nullptr
   };
 
   const char* lexical_data[] = {
@@ -9962,25 +9371,26 @@ TEST(ForAwaitOf) {
     "(const {\"a\": a = 1} of [])",
     "(const {[Symbol.iterator]: a = 1} of [])",
     "(const {0: a = 1} of [])",
-    NULL
+    nullptr
   };
   // clang-format on
   static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
-  RunParserSyncTest(context_data, expr_data, kSuccess, NULL, 0, always_flags,
+  RunParserSyncTest(context_data, expr_data, kSuccess, nullptr, 0, always_flags,
                     arraysize(always_flags));
-  RunParserSyncTest(context_data2, expr_data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data2, expr_data, kSuccess, nullptr, 0,
+                    always_flags, arraysize(always_flags));
 
-  RunParserSyncTest(context_data, var_data, kSuccess, NULL, 0, always_flags,
+  RunParserSyncTest(context_data, var_data, kSuccess, nullptr, 0, always_flags,
                     arraysize(always_flags));
   // TODO(marja): PreParser doesn't report early errors.
   //              (https://bugs.chromium.org/p/v8/issues/detail?id=2728)
-  // RunParserSyncTest(context_data2, var_data, kError, NULL, 0, always_flags,
+  // RunParserSyncTest(context_data2, var_data, kError, nullptr, 0,
+  // always_flags,
   //                   arraysize(always_flags));
 
-  RunParserSyncTest(context_data, lexical_data, kSuccess, NULL, 0, always_flags,
-                    arraysize(always_flags));
-  RunParserSyncTest(context_data2, lexical_data, kSuccess, NULL, 0,
+  RunParserSyncTest(context_data, lexical_data, kSuccess, nullptr, 0,
+                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(context_data2, lexical_data, kSuccess, nullptr, 0,
                     always_flags, arraysize(always_flags));
 }
 
@@ -9995,7 +9405,7 @@ TEST(ForAwaitOfErrors) {
     { "async function * f() { for await ", " { } }" },
     { "async function * f() { 'use strict'; for await ", " ; }" },
     { "async function * f() { 'use strict'; for await ", "  { } }" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* data[] = {
@@ -10139,11 +9549,11 @@ TEST(ForAwaitOfErrors) {
     "(const {0: a = 1} = 1 of [])",
     "(const {0: a = 1}, b of [])",
 
-    NULL
+    nullptr
   };
   // clang-format on
   static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
-  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+  RunParserSyncTest(context_data, data, kError, nullptr, 0, always_flags,
                     arraysize(always_flags));
 }
 
@@ -10152,7 +9562,7 @@ TEST(ForAwaitOfFunctionDeclaration) {
   const char* context_data[][2] = {
     { "async function f() {", "}" },
     { "async function f() { 'use strict'; ", "}" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* data[] = {
@@ -10163,12 +9573,12 @@ TEST(ForAwaitOfFunctionDeclaration) {
     // TODO(caitp): handle async function declarations in ParseScopedStatement.
     // "for await (x of []) async function a() {};",
     // "for await (x of []) async function a() {}; return a;",
-    NULL
+    nullptr
   };
 
   // clang-format on
   static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
-  RunParserSyncTest(context_data, data, kError, NULL, 0, always_flags,
+  RunParserSyncTest(context_data, data, kError, nullptr, 0, always_flags,
                     arraysize(always_flags));
 }
 
@@ -10179,7 +9589,7 @@ TEST(AsyncGenerator) {
     { "(async function * gen() {", "})" },
     { "(async function * () {", "})" },
     { "({ async * gen () {", "} })" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* statement_data[] = {
@@ -10262,12 +9672,12 @@ TEST(AsyncGenerator) {
     "yield await // comment\n 10",
     "await (yield /* comment */)",
     "await (yield // comment\n)",
-    NULL
+    nullptr
   };
   // clang-format on
 
   static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
-  RunParserSyncTest(context_data, statement_data, kSuccess, NULL, 0,
+  RunParserSyncTest(context_data, statement_data, kSuccess, nullptr, 0,
                     always_flags, arraysize(always_flags));
 }
 
@@ -10276,7 +9686,7 @@ TEST(AsyncGeneratorErrors) {
   const char* context_data[][2] = {
     { "async function * gen() {", "}" },
     { "\"use strict\"; async function * gen() {", "}" },
-    { NULL, NULL }
+    { nullptr, nullptr }
   };
 
   const char* statement_data[] = {
@@ -10352,13 +9762,13 @@ TEST(AsyncGeneratorErrors) {
     "for (await 'x' in {} of {});",
     "class C extends yield { }",
     "class C extends await { }",
-    NULL
+    nullptr
   };
   // clang-format on
 
   static const ParserFlag always_flags[] = {kAllowHarmonyAsyncIteration};
-  RunParserSyncTest(context_data, statement_data, kError, NULL, 0, always_flags,
-                    arraysize(always_flags));
+  RunParserSyncTest(context_data, statement_data, kError, nullptr, 0,
+                    always_flags, arraysize(always_flags));
 }
 
 TEST(LexicalLoopVariable) {
@@ -10380,7 +9790,7 @@ TEST(LexicalLoopVariable) {
     i::DeclarationScope::Analyze(&info);
     i::DeclarationScope::AllocateScopeInfos(&info, isolate,
                                             i::AnalyzeMode::kRegular);
-    CHECK(info.literal() != NULL);
+    CHECK(info.literal() != nullptr);
 
     i::DeclarationScope* script_scope = info.literal()->scope();
     CHECK(script_scope->is_script_scope());

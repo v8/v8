@@ -1173,7 +1173,7 @@ void TurboAssembler::JumpIfSmi(Register value, Label* smi_label,
 
 
 void MacroAssembler::JumpIfNotSmi(Register value, Label* not_smi_label) {
-  JumpIfSmi(value, NULL, not_smi_label);
+  JumpIfSmi(value, nullptr, not_smi_label);
 }
 
 
@@ -1206,14 +1206,14 @@ void MacroAssembler::JumpIfEitherSmi(Register value1,
 void MacroAssembler::JumpIfEitherNotSmi(Register value1,
                                         Register value2,
                                         Label* not_smi_label) {
-  JumpIfBothSmi(value1, value2, NULL, not_smi_label);
+  JumpIfBothSmi(value1, value2, nullptr, not_smi_label);
 }
 
 
 void MacroAssembler::JumpIfBothNotSmi(Register value1,
                                       Register value2,
                                       Label* not_smi_label) {
-  JumpIfEitherSmi(value1, value2, NULL, not_smi_label);
+  JumpIfEitherSmi(value1, value2, nullptr, not_smi_label);
 }
 
 

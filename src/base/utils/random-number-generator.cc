@@ -18,8 +18,7 @@ namespace v8 {
 namespace base {
 
 static LazyMutex entropy_mutex = LAZY_MUTEX_INITIALIZER;
-static RandomNumberGenerator::EntropySource entropy_source = NULL;
-
+static RandomNumberGenerator::EntropySource entropy_source = nullptr;
 
 // static
 void RandomNumberGenerator::SetEntropySource(EntropySource source) {
@@ -31,7 +30,7 @@ void RandomNumberGenerator::SetEntropySource(EntropySource source) {
 RandomNumberGenerator::RandomNumberGenerator() {
   // Check if embedder supplied an entropy source.
   { LockGuard<Mutex> lock_guard(entropy_mutex.Pointer());
-    if (entropy_source != NULL) {
+    if (entropy_source != nullptr) {
       int64_t seed;
       if (entropy_source(reinterpret_cast<unsigned char*>(&seed),
                          sizeof(seed))) {
@@ -53,7 +52,7 @@ RandomNumberGenerator::RandomNumberGenerator() {
 #else
   // Gather entropy from /dev/urandom if available.
   FILE* fp = fopen("/dev/urandom", "rb");
-  if (fp != NULL) {
+  if (fp != nullptr) {
     int64_t seed;
     size_t n = fread(&seed, sizeof(seed), 1, fp);
     fclose(fp);

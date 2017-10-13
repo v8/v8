@@ -138,7 +138,7 @@ void DefaultPlatform::EnsureInitialized() {
 Task* DefaultPlatform::PopTaskInMainThreadQueue(v8::Isolate* isolate) {
   auto it = main_thread_queue_.find(isolate);
   if (it == main_thread_queue_.end() || it->second.empty()) {
-    return NULL;
+    return nullptr;
   }
   Task* task = it->second.front();
   it->second.pop();
@@ -149,12 +149,12 @@ Task* DefaultPlatform::PopTaskInMainThreadQueue(v8::Isolate* isolate) {
 Task* DefaultPlatform::PopTaskInMainThreadDelayedQueue(v8::Isolate* isolate) {
   auto it = main_thread_delayed_queue_.find(isolate);
   if (it == main_thread_delayed_queue_.end() || it->second.empty()) {
-    return NULL;
+    return nullptr;
   }
   double now = MonotonicallyIncreasingTime();
   std::pair<double, Task*> deadline_and_task = it->second.top();
   if (deadline_and_task.first > now) {
-    return NULL;
+    return nullptr;
   }
   it->second.pop();
   return deadline_and_task.second;
@@ -194,20 +194,20 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
   if (behavior == MessageLoopBehavior::kWaitForWork) {
     WaitForForegroundWork(isolate);
   }
-  Task* task = NULL;
+  Task* task = nullptr;
   {
     base::LockGuard<base::Mutex> guard(&lock_);
 
     // Move delayed tasks that hit their deadline to the main queue.
     task = PopTaskInMainThreadDelayedQueue(isolate);
-    while (task != NULL) {
+    while (task != nullptr) {
       ScheduleOnForegroundThread(isolate, task);
       task = PopTaskInMainThreadDelayedQueue(isolate);
     }
 
     task = PopTaskInMainThreadQueue(isolate);
 
-    if (task == NULL) {
+    if (task == nullptr) {
       return behavior == MessageLoopBehavior::kWaitForWork;
     }
   }

@@ -1843,7 +1843,7 @@ void Builtins::Generate_InternalArrayConstructor(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     // Initial map for the builtin InternalArray function should be a map.
     __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
-    // Will both indicate a NULL and a Smi.
+    // Will both indicate a nullptr and a Smi.
     __ test(ebx, Immediate(kSmiTagMask));
     __ Assert(not_zero, kUnexpectedInitialMapForInternalArrayFunction);
     __ CmpObjectType(ebx, MAP_TYPE, ecx);
@@ -1872,7 +1872,7 @@ void Builtins::Generate_ArrayConstructor(MacroAssembler* masm) {
   if (FLAG_debug_code) {
     // Initial map for the builtin Array function should be a map.
     __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
-    // Will both indicate a NULL and a Smi.
+    // Will both indicate a nullptr and a Smi.
     __ test(ebx, Immediate(kSmiTagMask));
     __ Assert(not_zero, kUnexpectedInitialMapForArrayFunction);
     __ CmpObjectType(ebx, MAP_TYPE, ecx);

@@ -534,13 +534,13 @@ class FeedbackMetadataIterator {
 class FeedbackNexus {
  public:
   FeedbackNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
-      : vector_handle_(vector), vector_(NULL), slot_(slot) {}
+      : vector_handle_(vector), vector_(nullptr), slot_(slot) {}
   FeedbackNexus(FeedbackVector* vector, FeedbackSlot slot)
       : vector_(vector), slot_(slot) {}
   virtual ~FeedbackNexus() {}
 
   Handle<FeedbackVector> vector_handle() const {
-    DCHECK(vector_ == NULL);
+    DCHECK(vector_ == nullptr);
     return vector_handle_;
   }
   FeedbackVector* vector() const {
@@ -557,14 +557,14 @@ class FeedbackNexus {
     MapHandles maps;
     ExtractMaps(&maps);
     if (maps.size() > 0) return *maps.at(0);
-    return NULL;
+    return nullptr;
   }
 
   virtual InlineCacheState StateFromFeedback() const = 0;
   virtual int ExtractMaps(MapHandles* maps) const;
   virtual MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const;
   virtual bool FindHandlers(ObjectHandles* code_list, int length = -1) const;
-  virtual Name* FindFirstName() const { return NULL; }
+  virtual Name* FindFirstName() const { return nullptr; }
 
   bool IsCleared() {
     InlineCacheState state = StateFromFeedback();

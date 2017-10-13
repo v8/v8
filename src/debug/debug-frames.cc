@@ -224,10 +224,10 @@ bool FrameInspector::ParameterIsShadowedByContextLocal(
 SaveContext* DebugFrameHelper::FindSavedContextForFrame(Isolate* isolate,
                                                         StandardFrame* frame) {
   SaveContext* save = isolate->save_context();
-  while (save != NULL && !save->IsBelowFrame(frame)) {
+  while (save != nullptr && !save->IsBelowFrame(frame)) {
     save = save->prev();
   }
-  DCHECK(save != NULL);
+  DCHECK(save != nullptr);
   return save;
 }
 

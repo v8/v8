@@ -132,7 +132,7 @@ bool S390Debugger::GetFPDoubleValue(const char* desc, double* value) {
 
 bool S390Debugger::SetBreakpoint(Instruction* break_pc) {
   // Check if a breakpoint can be set. If not return without any side-effects.
-  if (sim_->break_pc_ != NULL) {
+  if (sim_->break_pc_ != nullptr) {
     return false;
   }
 
@@ -145,23 +145,23 @@ bool S390Debugger::SetBreakpoint(Instruction* break_pc) {
 }
 
 bool S390Debugger::DeleteBreakpoint(Instruction* break_pc) {
-  if (sim_->break_pc_ != NULL) {
+  if (sim_->break_pc_ != nullptr) {
     sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
   }
 
-  sim_->break_pc_ = NULL;
+  sim_->break_pc_ = nullptr;
   sim_->break_instr_ = 0;
   return true;
 }
 
 void S390Debugger::UndoBreakpoints() {
-  if (sim_->break_pc_ != NULL) {
+  if (sim_->break_pc_ != nullptr) {
     sim_->break_pc_->SetInstructionBits(sim_->break_instr_);
   }
 }
 
 void S390Debugger::RedoBreakpoints() {
-  if (sim_->break_pc_ != NULL) {
+  if (sim_->break_pc_ != nullptr) {
     sim_->break_pc_->SetInstructionBits(kBreakpointInstr);
   }
 }
@@ -204,11 +204,11 @@ void S390Debugger::Debug() {
       last_pc = sim_->get_pc();
     }
     char* line = ReadLine("sim> ");
-    if (line == NULL) {
+    if (line == nullptr) {
       break;
     } else {
       char* last_input = sim_->last_debugger_input();
-      if (strcmp(line, "\n") == 0 && last_input != NULL) {
+      if (strcmp(line, "\n") == 0 && last_input != nullptr) {
         line = last_input;
       } else {
         // Ownership is transferred to sim_;
@@ -389,8 +389,8 @@ void S390Debugger::Debug() {
         }
         sim_->set_pc(value);
       } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0) {
-        intptr_t* cur = NULL;
-        intptr_t* end = NULL;
+        intptr_t* cur = nullptr;
+        intptr_t* end = nullptr;
         int next_arg = 1;
 
         if (strcmp(cmd, "stack") == 0) {
@@ -438,8 +438,8 @@ void S390Debugger::Debug() {
         // use a reasonably large buffer
         v8::internal::EmbeddedVector<char, 256> buffer;
 
-        byte* prev = NULL;
-        byte* cur = NULL;
+        byte* prev = nullptr;
+        byte* cur = nullptr;
         // Default number of instructions to disassemble.
         int32_t numInstructions = 10;
 
@@ -497,7 +497,7 @@ void S390Debugger::Debug() {
           PrintF("break <address>\n");
         }
       } else if (strcmp(cmd, "del") == 0) {
-        if (!DeleteBreakpoint(NULL)) {
+        if (!DeleteBreakpoint(nullptr)) {
           PrintF("deleting breakpoint failed\n");
         }
       } else if (strcmp(cmd, "cr") == 0) {
@@ -684,7 +684,7 @@ void Simulator::FlushICache(base::CustomMatcherHashMap* i_cache,
 CachePage* Simulator::GetCachePage(base::CustomMatcherHashMap* i_cache,
                                    void* page) {
   base::HashMap::Entry* entry = i_cache->LookupOrInsert(page, ICacheHash(page));
-  if (entry->value == NULL) {
+  if (entry->value == nullptr) {
     CachePage* new_page = new CachePage();
     entry->value = new_page;
   }
@@ -736,7 +736,7 @@ void Simulator::Initialize(Isolate* isolate) {
   base::CallOnce(&once, &Simulator::EvalTableInit);
 }
 
-Simulator::EvaluateFuncType Simulator::EvalTable[] = {NULL};
+Simulator::EvaluateFuncType Simulator::EvalTable[] = {nullptr};
 
 void Simulator::EvalTableInit() {
   for (int i = 0; i < MAX_NUM_OPCODES; i++) {
@@ -1488,7 +1488,7 @@ void Simulator::EvalTableInit() {
 
 Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   i_cache_ = isolate_->simulator_i_cache();
-  if (i_cache_ == NULL) {
+  if (i_cache_ == nullptr) {
     i_cache_ = new base::CustomMatcherHashMap(&ICacheMatch);
     isolate_->set_simulator_i_cache(i_cache_);
   }
@@ -1504,7 +1504,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   stack_ = reinterpret_cast<char*>(malloc(stack_size));
   pc_modified_ = false;
   icount_ = 0;
-  break_pc_ = NULL;
+  break_pc_ = nullptr;
   break_instr_ = 0;
 
 // make sure our register type can hold exactly 4/8 bytes
@@ -1532,7 +1532,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   registers_[sp] =
       reinterpret_cast<intptr_t>(stack_) + stack_size - stack_protection_size_;
 
-  last_debugger_input_ = NULL;
+  last_debugger_input_ = nullptr;
 }
 
 Simulator::~Simulator() { free(stack_); }
@@ -1556,7 +1556,7 @@ class Redirection {
         swi_instruction_(0xB2FF0000 | kCallRtRedirected),
 #endif
         type_(type),
-        next_(NULL) {
+        next_(nullptr) {
     next_ = isolate->simulator_redirection();
     Simulator::current(isolate)->FlushICache(
         isolate->simulator_i_cache(),
@@ -1583,7 +1583,7 @@ class Redirection {
   static Redirection* Get(Isolate* isolate, void* external_function,
                           ExternalReference::Type type) {
     Redirection* current = isolate->simulator_redirection();
-    for (; current != NULL; current = current->next_) {
+    for (; current != nullptr; current = current->next_) {
       if (current->external_function_ == external_function) {
         DCHECK_EQ(current->type(), type);
         return current;
@@ -1654,10 +1654,10 @@ void* Simulator::RedirectExternalReference(Isolate* isolate,
 Simulator* Simulator::current(Isolate* isolate) {
   v8::internal::Isolate::PerIsolateThreadData* isolate_data =
       isolate->FindOrAllocatePerThreadDataForThisThread();
-  DCHECK(isolate_data != NULL);
+  DCHECK(isolate_data != nullptr);
 
   Simulator* sim = isolate_data->simulator();
-  if (sim == NULL) {
+  if (sim == nullptr) {
     // TODO(146): delete the simulator object when a thread/isolate goes away.
     sim = new Simulator(isolate);
     isolate_data->set_simulator(sim);
@@ -2434,7 +2434,7 @@ int64_t Simulator::ByteReverse(int64_t dword) {
 
 int Simulator::DecodeInstruction(Instruction* instr) {
   Opcode op = instr->S390OpcodeValue();
-  DCHECK(EvalTable[op] != NULL);
+  DCHECK(EvalTable[op] != nullptr);
   return (this->*EvalTable[op])(instr);
 }
 

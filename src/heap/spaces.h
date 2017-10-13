@@ -1124,7 +1124,7 @@ class SkipList {
   static void Update(Address addr, int size) {
     Page* page = Page::FromAddress(addr);
     SkipList* list = page->skip_list();
-    if (list == NULL) {
+    if (list == nullptr) {
       list = new SkipList();
       page->set_skip_list(list);
     }
@@ -1363,19 +1363,19 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
                          size_t bytes_to_free, Address new_area_end);
 
   // Commit a contiguous block of memory from the initial chunk.  Assumes that
-  // the address is not NULL, the size is greater than zero, and that the
+  // the address is not nullptr, the size is greater than zero, and that the
   // block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
   bool CommitBlock(Address start, size_t size, Executability executable);
 
   // Uncommit a contiguous block of memory [start..(start+size)[.
-  // start is not NULL, the size is greater than zero, and the
+  // start is not nullptr, the size is greater than zero, and the
   // block is contained in the initial chunk.  Returns true if it succeeded
   // and false otherwise.
   bool UncommitBlock(Address start, size_t size);
 
   // Zaps a contiguous block of memory [start..(start+size)[ thus
-  // filling it up with a recognizable non-NULL bit pattern.
+  // filling it up with a recognizable non-nullptr bit pattern.
   void ZapBlock(Address start, size_t size);
 
   MUST_USE_RESULT bool CommitExecutableMemory(VirtualMemory* vm, Address start,
@@ -1565,13 +1565,13 @@ class AllocationInfo {
   }
 
   INLINE(void set_top(Address top)) {
-    SLOW_DCHECK(top == NULL ||
+    SLOW_DCHECK(top == nullptr ||
                 (reinterpret_cast<intptr_t>(top) & kHeapObjectTagMask) == 0);
     top_ = top;
   }
 
   INLINE(Address top()) const {
-    SLOW_DCHECK(top_ == NULL ||
+    SLOW_DCHECK(top_ == nullptr ||
                 (reinterpret_cast<intptr_t>(top_) & kHeapObjectTagMask) == 0);
     return top_;
   }
@@ -2926,7 +2926,7 @@ class LargeObjectSpace : public Space {
   // Takes the chunk_map_mutex_ and calls FindPage after that.
   LargePage* FindPageThreadSafe(Address a);
 
-  // Finds a large object page containing the given address, returns NULL
+  // Finds a large object page containing the given address, returns nullptr
   // if such a page doesn't exist.
   LargePage* FindPage(Address a);
 
@@ -2947,7 +2947,7 @@ class LargeObjectSpace : public Space {
   bool ContainsSlow(Address addr) { return FindObject(addr)->IsHeapObject(); }
 
   // Checks whether the space is empty.
-  bool IsEmpty() { return first_page_ == NULL; }
+  bool IsEmpty() { return first_page_ == nullptr; }
 
   LargePage* first_page() { return first_page_; }
 
@@ -3000,7 +3000,7 @@ class MemoryChunkIterator BASE_EMBEDDED {
  public:
   inline explicit MemoryChunkIterator(Heap* heap);
 
-  // Return NULL when the iterator is done.
+  // Return nullptr when the iterator is done.
   inline MemoryChunk* next();
 
  private:

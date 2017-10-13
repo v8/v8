@@ -34,7 +34,7 @@ CodeStubDescriptor::CodeStubDescriptor(CodeStub* stub)
       stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
-      deoptimization_handler_(NULL),
+      deoptimization_handler_(nullptr),
       miss_handler_(),
       has_miss_handler_(false) {
   stub->InitializeDescriptor(this);
@@ -45,7 +45,7 @@ CodeStubDescriptor::CodeStubDescriptor(Isolate* isolate, uint32_t stub_key)
       stack_parameter_count_(no_reg),
       hint_stack_parameter_count_(-1),
       function_mode_(NOT_JS_FUNCTION_STUB_MODE),
-      deoptimization_handler_(NULL),
+      deoptimization_handler_(nullptr),
       miss_handler_(),
       has_miss_handler_(false) {
   CodeStub::InitializeDescriptor(isolate, stub_key, this);
@@ -108,7 +108,7 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   Factory* factory = isolate()->factory();
 
   // Generate the new code.
-  MacroAssembler masm(isolate(), NULL, 256, CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate(), nullptr, 256, CodeObjectRequired::kYes);
 
   {
     // Update the static counter each time a new code stub is generated.
@@ -188,7 +188,7 @@ const char* CodeStub::MajorName(CodeStub::Major major_key) {
     case NUMBER_OF_IDS:
       UNREACHABLE();
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -591,7 +591,7 @@ void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
                                                intptr_t stack_pointer,
                                                Isolate* isolate) {
   FunctionEntryHook entry_hook = isolate->function_entry_hook();
-  DCHECK(entry_hook != NULL);
+  DCHECK(entry_hook != nullptr);
   entry_hook(function, stack_pointer);
 }
 

@@ -36,7 +36,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
   if (!array_buffer->is_neuterable()) {
     return isolate->heap()->undefined_value();
   }
-  if (array_buffer->backing_store() == NULL) {
+  if (array_buffer->backing_store() == nullptr) {
     CHECK(Smi::kZero == array_buffer->byte_length());
     return isolate->heap()->undefined_value();
   }

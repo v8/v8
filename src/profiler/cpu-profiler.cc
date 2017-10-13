@@ -129,7 +129,7 @@ ProfilerEventsProcessor::SampleProcessingResult
   }
 
   const TickSampleEventRecord* record = ticks_buffer_.Peek();
-  if (record == NULL) {
+  if (record == nullptr) {
     if (ticks_from_vm_buffer_.IsEmpty()) return NoSamplesInQueue;
     return FoundSampleForNextCodeEvent;
   }
@@ -171,7 +171,7 @@ void ProfilerEventsProcessor::Run() {
 #endif
     }
 
-    // Schedule next sample. sampler_ is NULL in tests.
+    // Schedule next sample. sampler_ is nullptr in tests.
     if (sampler_) sampler_->DoSample();
   }
 

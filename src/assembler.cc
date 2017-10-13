@@ -162,7 +162,7 @@ AssemblerBase::AssemblerBase(IsolateData isolate_data, void* buffer,
       predictable_code_size_(false),
       constant_pool_available_(false),
       jump_optimization_info_(nullptr) {
-  own_buffer_ = buffer == NULL;
+  own_buffer_ = buffer == nullptr;
   if (buffer_size == 0) buffer_size = kMinimalBufferSize;
   DCHECK(buffer_size > 0);
   if (own_buffer_) buffer = NewArray<byte>(buffer_size);
@@ -356,7 +356,7 @@ void RelocInfo::set_target_address(Isolate* isolate, Address target,
   DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
   Assembler::set_target_address_at(isolate, pc_, host_, target,
                                    icache_flush_mode);
-  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != NULL &&
+  if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
       IsCodeTarget(rmode_)) {
     Code* target_code = Code::GetCodeFromTargetAddress(target);
     host()->GetHeap()->incremental_marking()->RecordWriteIntoCode(host(), this,
@@ -678,8 +678,7 @@ void RelocInfo::Print(Isolate* isolate, std::ostream& os) {  // NOLINT
     Code* code = Code::GetCodeFromTargetAddress(target_address());
     os << " (" << Code::Kind2String(code->kind()) << ")  ("
        << static_cast<const void*>(target_address()) << ")";
-  } else if (IsRuntimeEntry(rmode_) &&
-             isolate->deoptimizer_data() != NULL) {
+  } else if (IsRuntimeEntry(rmode_) && isolate->deoptimizer_data() != nullptr) {
     // Depotimization bailouts are stored as runtime entries.
     int id = Deoptimizer::GetDeoptimizationId(
         isolate, target_address(), Deoptimizer::EAGER);
@@ -703,7 +702,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case CODE_TARGET: {
       // convert inline target address to code object
       Address addr = target_address();
-      CHECK(addr != NULL);
+      CHECK(addr != nullptr);
       // Check that we can find the right code object.
       Code* code = Code::GetCodeFromTargetAddress(addr);
       Object* found = isolate->FindCodeObject(addr);
@@ -772,10 +771,9 @@ ExternalReference::ExternalReference(Address address, Isolate* isolate)
     : address_(Redirect(isolate, address)) {}
 
 ExternalReference::ExternalReference(
-    ApiFunction* fun,
-    Type type = ExternalReference::BUILTIN_CALL,
-    Isolate* isolate = NULL)
-  : address_(Redirect(isolate, fun->address(), type)) {}
+    ApiFunction* fun, Type type = ExternalReference::BUILTIN_CALL,
+    Isolate* isolate = nullptr)
+    : address_(Redirect(isolate, fun->address(), type)) {}
 
 ExternalReference::ExternalReference(Runtime::FunctionId id, Isolate* isolate)
     : ExternalReference(Runtime::FunctionForId(id), isolate) {}
@@ -852,7 +850,7 @@ ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
 void ExternalReference::set_redirector(
     Isolate* isolate, ExternalReferenceRedirector* redirector) {
   // We can't stack them.
-  DCHECK(isolate->external_reference_redirector() == NULL);
+  DCHECK(isolate->external_reference_redirector() == nullptr);
   isolate->set_external_reference_redirector(
       reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
 }

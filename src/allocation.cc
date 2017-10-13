@@ -241,7 +241,7 @@ void* GetRandomMmapAddr() {
 #if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
     defined(THREAD_SANITIZER)
   // Dynamic tools do not support custom mmap addresses.
-  return NULL;
+  return nullptr;
 #endif
   uintptr_t raw_addr;
   random_number_generator.Pointer()->NextBytes(&raw_addr, sizeof(raw_addr));

@@ -32,7 +32,7 @@ TEST(WasmRelocationIa32ContextReference) {
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
   Assembler assm(isolate, buffer, sizeof buffer);
-  DummyStaticFunction(NULL);
+  DummyStaticFunction(nullptr);
   int32_t imm = 1234567;
 
   __ mov(eax, Immediate(reinterpret_cast<Address>(imm),

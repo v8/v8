@@ -181,7 +181,7 @@ IC::IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus)
   // levels of the stack frame iteration code. This yields a ~35% speedup when
   // running DeltaBlue and a ~25% speedup of gbemu with the '--nouse-ic' flag.
   const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
-  Address* constant_pool = NULL;
+  Address* constant_pool = nullptr;
   if (FLAG_enable_embedded_constant_pool) {
     constant_pool = reinterpret_cast<Address*>(
         entry + ExitFrameConstants::kConstantPoolOffset);
@@ -288,7 +288,7 @@ bool IC::ShouldRecomputeHandler(Handle<String> name) {
   if (maybe_handler_.is_null()) {
     if (!receiver_map()->IsJSObjectMap()) return false;
     Map* first_map = FirstTargetMap();
-    if (first_map == NULL) return false;
+    if (first_map == nullptr) return false;
     Handle<Map> old_map(first_map);
     if (old_map->is_deprecated()) return true;
     return IsMoreGeneralElementsKindTransition(old_map->elements_kind(),
@@ -2268,7 +2268,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   Address setter_address = v8::ToCData<Address>(callback->setter());
   v8::AccessorNameSetterCallback fun =
       FUNCTION_CAST<v8::AccessorNameSetterCallback>(setter_address);
-  DCHECK(fun != NULL);
+  DCHECK(fun != nullptr);
 
   Object::ShouldThrow should_throw =
       is_sloppy(language_mode) ? Object::DONT_THROW : Object::THROW_ON_ERROR;

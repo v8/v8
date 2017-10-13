@@ -49,17 +49,17 @@ const char* AIXTimezoneCache::LocalTimezone(double time) {
   time_t tv = static_cast<time_t>(floor(time / msPerSecond));
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);
-  if (NULL == t) return "";
+  if (nullptr == t) return "";
   return tzname[0];  // The location of the timezone string on AIX.
 }
 
 double AIXTimezoneCache::LocalTimeOffset() {
   // On AIX, struct tm does not contain a tm_gmtoff field.
-  time_t utc = time(NULL);
+  time_t utc = time(nullptr);
   DCHECK(utc != -1);
   struct tm tm;
   struct tm* loc = localtime_r(&utc, &tm);
-  DCHECK(loc != NULL);
+  DCHECK(loc != nullptr);
   return static_cast<double>((mktime(loc) - utc) * msPerSecond);
 }
 
@@ -76,7 +76,7 @@ void* OS::Allocate(const size_t requested, size_t* allocated,
   void* mbase = mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, kMmapFd,
                      kMmapFdOffset);
 
-  if (mbase == MAP_FAILED) return NULL;
+  if (mbase == MAP_FAILED) return nullptr;
   *allocated = msize;
   return mbase;
 }
@@ -161,7 +161,7 @@ bool OS::ReleasePartialRegion(void* address, size_t size) {
 bool OS::HasLazyCommits() { return true; }
 
 static unsigned StringToLong(char* buffer) {
-  return static_cast<unsigned>(strtol(buffer, NULL, 16));  // NOLINT
+  return static_cast<unsigned>(strtol(buffer, nullptr, 16));  // NOLINT
 }
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
@@ -196,7 +196,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
     if (buffer[3] != 'x') continue;
     char* start_of_path = index(buffer, '/');
     // There may be no filename in this line.  Skip to next.
-    if (start_of_path == NULL) continue;
+    if (start_of_path == nullptr) continue;
     buffer[bytes_read] = 0;
     result.push_back(SharedLibraryAddress(start_of_path, start, end));
   }

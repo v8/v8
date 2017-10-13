@@ -1104,7 +1104,7 @@ void SharedFunctionInfo::PrintSourceCode(std::ostream& os) {
     int start = start_position();
     int length = end_position() - start;
     std::unique_ptr<char[]> source_string = source->ToCString(
-        DISALLOW_NULLS, FAST_STRING_TRAVERSAL, start, length, NULL);
+        DISALLOW_NULLS, FAST_STRING_TRAVERSAL, start, length, nullptr);
     os << source_string.get();
   }
 }
@@ -1256,7 +1256,7 @@ void Code::CodePrint(std::ostream& os) {  // NOLINT
   os << "\n";
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_use_verbose_printer) {
-    Disassemble(NULL, os);
+    Disassemble(nullptr, os);
   }
 #endif
 }
@@ -1635,8 +1635,8 @@ int Name::NameShortPrint(Vector<char> str) {
 char* String::ToAsciiArray() {
   // Static so that subsequent calls frees previously allocated space.
   // This also means that previous results will be overwritten.
-  static char* buffer = NULL;
-  if (buffer != NULL) delete[] buffer;
+  static char* buffer = nullptr;
+  if (buffer != nullptr) delete[] buffer;
   buffer = new char[length() + 1];
   WriteToFlat(this, reinterpret_cast<uint8_t*>(buffer), 0, length());
   buffer[length()] = 0;

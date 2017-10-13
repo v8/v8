@@ -31,7 +31,7 @@ namespace v8 {
 namespace internal {
 
 void SourceCodeCache::Initialize(Isolate* isolate, bool create_heap_objects) {
-  cache_ = create_heap_objects ? isolate->heap()->empty_fixed_array() : NULL;
+  cache_ = create_heap_objects ? isolate->heap()->empty_fixed_array() : nullptr;
 }
 
 bool SourceCodeCache::Lookup(Vector<const char> name,
@@ -86,17 +86,17 @@ void Bootstrapper::Initialize(bool create_heap_objects) {
 
 
 static const char* GCFunctionName() {
-  bool flag_given = FLAG_expose_gc_as != NULL && strlen(FLAG_expose_gc_as) != 0;
+  bool flag_given =
+      FLAG_expose_gc_as != nullptr && strlen(FLAG_expose_gc_as) != 0;
   return flag_given ? FLAG_expose_gc_as : "gc";
 }
 
-
-v8::Extension* Bootstrapper::free_buffer_extension_ = NULL;
-v8::Extension* Bootstrapper::gc_extension_ = NULL;
-v8::Extension* Bootstrapper::externalize_string_extension_ = NULL;
-v8::Extension* Bootstrapper::statistics_extension_ = NULL;
-v8::Extension* Bootstrapper::trigger_failure_extension_ = NULL;
-v8::Extension* Bootstrapper::ignition_statistics_extension_ = NULL;
+v8::Extension* Bootstrapper::free_buffer_extension_ = nullptr;
+v8::Extension* Bootstrapper::gc_extension_ = nullptr;
+v8::Extension* Bootstrapper::externalize_string_extension_ = nullptr;
+v8::Extension* Bootstrapper::statistics_extension_ = nullptr;
+v8::Extension* Bootstrapper::trigger_failure_extension_ = nullptr;
+v8::Extension* Bootstrapper::ignition_statistics_extension_ = nullptr;
 
 void Bootstrapper::InitializeOncePerProcess() {
   free_buffer_extension_ = new FreeBufferExtension;
@@ -116,17 +116,17 @@ void Bootstrapper::InitializeOncePerProcess() {
 
 void Bootstrapper::TearDownExtensions() {
   delete free_buffer_extension_;
-  free_buffer_extension_ = NULL;
+  free_buffer_extension_ = nullptr;
   delete gc_extension_;
-  gc_extension_ = NULL;
+  gc_extension_ = nullptr;
   delete externalize_string_extension_;
-  externalize_string_extension_ = NULL;
+  externalize_string_extension_ = nullptr;
   delete statistics_extension_;
-  statistics_extension_ = NULL;
+  statistics_extension_ = nullptr;
   delete trigger_failure_extension_;
-  trigger_failure_extension_ = NULL;
+  trigger_failure_extension_ = nullptr;
   delete ignition_statistics_extension_;
-  ignition_statistics_extension_ = NULL;
+  ignition_statistics_extension_ = nullptr;
 }
 
 void Bootstrapper::TearDown() {
@@ -1363,7 +1363,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   // --- N a t i v e   C o n t e x t ---
   // Use the empty function as closure (no scope info).
   native_context()->set_closure(*empty_function);
-  native_context()->set_previous(NULL);
+  native_context()->set_previous(nullptr);
   // Set extension and global object.
   native_context()->set_extension(*global_object);
   // Security setup: Set the security token of the native context to the global
@@ -3644,7 +3644,7 @@ bool Bootstrapper::CompileNative(Isolate* isolate, Vector<const char> name,
   MaybeHandle<SharedFunctionInfo> maybe_function_info =
       Compiler::GetSharedFunctionInfoForScript(
           source, script_name, 0, 0, ScriptOriginOptions(),
-          MaybeHandle<Object>(), context, NULL, NULL,
+          MaybeHandle<Object>(), context, nullptr, nullptr,
           ScriptCompiler::kNoCompileOptions, natives_flag,
           MaybeHandle<FixedArray>());
   Handle<SharedFunctionInfo> function_info;
@@ -3710,7 +3710,7 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
     MaybeHandle<SharedFunctionInfo> maybe_function_info =
         Compiler::GetSharedFunctionInfoForScript(
             source, script_name, 0, 0, ScriptOriginOptions(),
-            MaybeHandle<Object>(), context, extension, NULL,
+            MaybeHandle<Object>(), context, extension, nullptr,
             ScriptCompiler::kNoCompileOptions, EXTENSION_CODE,
             MaybeHandle<FixedArray>());
     if (!maybe_function_info.ToHandle(&function_info)) return false;
@@ -3738,7 +3738,7 @@ static Handle<JSObject> ResolveBuiltinIdHolder(Handle<Context> native_context,
   Factory* factory = isolate->factory();
   Handle<JSGlobalObject> global(native_context->global_object());
   const char* period_pos = strchr(holder_expr, '.');
-  if (period_pos == NULL) {
+  if (period_pos == nullptr) {
     return Handle<JSObject>::cast(
         Object::GetPropertyOrElement(
             global, factory->InternalizeUtf8String(holder_expr))
@@ -3772,7 +3772,7 @@ void Genesis::ConfigureUtilsObject(GlobalContextType context_type) {
     case FULL_CONTEXT: {
       // We still need the utils object after deserialization.
       if (isolate()->serializer_enabled()) return;
-      if (FLAG_expose_natives_as == NULL) break;
+      if (FLAG_expose_natives_as == nullptr) break;
       if (strlen(FLAG_expose_natives_as) == 0) break;
       HandleScope scope(isolate());
       Handle<String> natives_key =
@@ -4994,7 +4994,7 @@ Genesis::ExtensionStates::ExtensionStates() : map_(8) {}
 Genesis::ExtensionTraversalState Genesis::ExtensionStates::get_state(
     RegisteredExtension* extension) {
   base::HashMap::Entry* entry = map_.Lookup(extension, Hash(extension));
-  if (entry == NULL) {
+  if (entry == nullptr) {
     return UNVISITED;
   }
   return static_cast<ExtensionTraversalState>(
@@ -5033,8 +5033,7 @@ bool Genesis::InstallExtensions(Handle<Context> native_context,
 bool Genesis::InstallAutoExtensions(Isolate* isolate,
                                     ExtensionStates* extension_states) {
   for (v8::RegisteredExtension* it = v8::RegisteredExtension::first_extension();
-       it != NULL;
-       it = it->next()) {
+       it != nullptr; it = it->next()) {
     if (it->extension()->auto_enable() &&
         !InstallExtension(isolate, it, extension_states)) {
       return false;
@@ -5060,8 +5059,7 @@ bool Genesis::InstallExtension(Isolate* isolate,
                                const char* name,
                                ExtensionStates* extension_states) {
   for (v8::RegisteredExtension* it = v8::RegisteredExtension::first_extension();
-       it != NULL;
-       it = it->next()) {
+       it != nullptr; it = it->next()) {
     if (strcmp(name, it->extension()->name()) == 0) {
       return InstallExtension(isolate, it, extension_states);
     }

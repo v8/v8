@@ -48,7 +48,7 @@ void* OS::Allocate(const size_t requested, size_t* allocated,
   int prot = GetProtectionFromMemoryPermission(access);
   void* mbase =
       mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANON, kMmapFd, kMmapFdOffset);
-  if (mbase == MAP_FAILED) return NULL;
+  if (mbase == MAP_FAILED) return nullptr;
   *allocated = msize;
   return mbase;
 }
@@ -59,7 +59,7 @@ void* OS::ReserveRegion(size_t size, void* hint) {
       mmap(hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
            kMmapFd, kMmapFdOffset);
 
-  if (result == MAP_FAILED) return NULL;
+  if (result == MAP_FAILED) return nullptr;
 
   return result;
 }
@@ -143,7 +143,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
   // If we encounter an unexpected situation we abort scanning further entries.
   FILE* fp = fopen("/proc/self/maps", "r");
-  if (fp == NULL) return result;
+  if (fp == nullptr) return result;
 
   // Allocate enough room to be able to store a full file name.
   const int kLibNameLen = FILENAME_MAX + 1;
@@ -171,7 +171,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
         ungetc(c, fp);  // Push the '/' back into the stream to be read below.
 
         // Read to the end of the line. Exit if the read fails.
-        if (fgets(lib_name, kLibNameLen, fp) == NULL) break;
+        if (fgets(lib_name, kLibNameLen, fp) == nullptr) break;
 
         // Drop the newline character read by fgets. We do not need to check
         // for a zero-length string because we know that we at least read the
@@ -208,7 +208,7 @@ void OS::SignalCodeMovingGC(void* hint) {
   // kernel log.
   int size = sysconf(_SC_PAGESIZE);
   FILE* f = fopen(OS::GetGCFakeMMapFile(), "w+");
-  if (f == NULL) {
+  if (f == nullptr) {
     OS::PrintError("Failed to open %s\n", OS::GetGCFakeMMapFile());
     OS::Abort();
   }

@@ -93,7 +93,7 @@ icu::SimpleDateFormat* CreateICUDateFormat(Isolate* isolate,
                                            Handle<JSObject> options) {
   // Create time zone as specified by the user. We have to re-create time zone
   // since calendar takes ownership.
-  icu::TimeZone* tz = NULL;
+  icu::TimeZone* tz = nullptr;
   icu::UnicodeString timezone;
   if (ExtractStringSetting(isolate, options, "timeZone", &timezone)) {
     tz = icu::TimeZone::createTimeZone(timezone);
@@ -118,7 +118,7 @@ icu::SimpleDateFormat* CreateICUDateFormat(Isolate* isolate,
 
   // Make formatter from skeleton. Calendar and numbering system are added
   // to the locale as Unicode extension (if they were specified at all).
-  icu::SimpleDateFormat* date_format = NULL;
+  icu::SimpleDateFormat* date_format = nullptr;
   icu::UnicodeString skeleton;
   if (ExtractStringSetting(isolate, options, "skeleton", &skeleton)) {
     std::unique_ptr<icu::DateTimePatternGenerator> generator(
@@ -283,7 +283,7 @@ icu::DecimalFormat* CreateICUNumberFormat(Isolate* isolate,
   // Make formatter from options. Numbering system is added
   // to the locale as Unicode extension (if it was specified at all).
   UErrorCode status = U_ZERO_ERROR;
-  icu::DecimalFormat* number_format = NULL;
+  icu::DecimalFormat* number_format = nullptr;
   icu::UnicodeString style;
   icu::UnicodeString currency;
   if (ExtractStringSetting(isolate, options, "style", &style)) {
@@ -317,14 +317,14 @@ icu::DecimalFormat* CreateICUNumberFormat(Isolate* isolate,
 
       if (U_FAILURE(status)) {
         delete number_format;
-        return NULL;
+        return nullptr;
       }
     } else if (style == UNICODE_STRING_SIMPLE("percent")) {
       number_format = static_cast<icu::DecimalFormat*>(
           icu::NumberFormat::createPercentInstance(icu_locale, status));
       if (U_FAILURE(status)) {
         delete number_format;
-        return NULL;
+        return nullptr;
       }
       // Make sure 1.1% doesn't go into 2%.
       number_format->setMinimumFractionDigits(1);
@@ -337,7 +337,7 @@ icu::DecimalFormat* CreateICUNumberFormat(Isolate* isolate,
 
   if (U_FAILURE(status)) {
     delete number_format;
-    return NULL;
+    return nullptr;
   }
 
   // Set all options.
@@ -469,13 +469,13 @@ icu::Collator* CreateICUCollator(Isolate* isolate,
                                  const icu::Locale& icu_locale,
                                  Handle<JSObject> options) {
   // Make collator from options.
-  icu::Collator* collator = NULL;
+  icu::Collator* collator = nullptr;
   UErrorCode status = U_ZERO_ERROR;
   collator = icu::Collator::createInstance(icu_locale, status);
 
   if (U_FAILURE(status)) {
     delete collator;
-    return NULL;
+    return nullptr;
   }
 
   // Set flags first, and then override them with sensitivity if necessary.
@@ -718,7 +718,7 @@ bool SetResolvedPluralRulesSettings(Isolate* isolate,
   for (int32_t i = 0;; i++) {
     const icu::UnicodeString* category = categories->snext(status);
     if (U_FAILURE(status)) return false;
-    if (category == NULL) return true;
+    if (category == nullptr) return true;
 
     std::string keyword;
     Handle<String> value = factory->NewStringFromAsciiChecked(
@@ -735,9 +735,9 @@ icu::BreakIterator* CreateICUBreakIterator(Isolate* isolate,
                                            const icu::Locale& icu_locale,
                                            Handle<JSObject> options) {
   UErrorCode status = U_ZERO_ERROR;
-  icu::BreakIterator* break_iterator = NULL;
+  icu::BreakIterator* break_iterator = nullptr;
   icu::UnicodeString type;
-  if (!ExtractStringSetting(isolate, options, "type", &type)) return NULL;
+  if (!ExtractStringSetting(isolate, options, "type", &type)) return nullptr;
 
   if (type == UNICODE_STRING_SIMPLE("character")) {
     break_iterator =
@@ -754,7 +754,7 @@ icu::BreakIterator* CreateICUBreakIterator(Isolate* isolate,
 
   if (U_FAILURE(status)) {
     delete break_iterator;
-    return NULL;
+    return nullptr;
   }
 
   isolate->CountUsage(v8::Isolate::UseCounterFeature::kBreakIterator);
@@ -802,7 +802,7 @@ icu::SimpleDateFormat* DateFormat::InitializeDateTimeFormat(
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
     if (U_FAILURE(status) || icu_length == 0) {
-      return NULL;
+      return nullptr;
     }
     icu_locale = icu::Locale(icu_result);
   }
@@ -853,7 +853,7 @@ icu::DecimalFormat* NumberFormat::InitializeNumberFormat(
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
     if (U_FAILURE(status) || icu_length == 0) {
-      return NULL;
+      return nullptr;
     }
     icu_locale = icu::Locale(icu_result);
   }
@@ -905,7 +905,7 @@ icu::Collator* Collator::InitializeCollator(Isolate* isolate,
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
     if (U_FAILURE(status) || icu_length == 0) {
-      return NULL;
+      return nullptr;
     }
     icu_locale = icu::Locale(icu_result);
   }
@@ -1014,7 +1014,7 @@ icu::BreakIterator* V8BreakIterator::InitializeBreakIterator(
     uloc_forLanguageTag(*bcp47_locale, icu_result, ULOC_FULLNAME_CAPACITY,
                         &icu_length, &status);
     if (U_FAILURE(status) || icu_length == 0) {
-      return NULL;
+      return nullptr;
     }
     icu_locale = icu::Locale(icu_result);
   }

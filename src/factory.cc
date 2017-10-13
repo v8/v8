@@ -42,7 +42,7 @@ namespace internal {
 #define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)                      \
   do {                                                                        \
     AllocationResult __allocation__ = FUNCTION_CALL;                          \
-    Object* __object__ = NULL;                                                \
+    Object* __object__ = nullptr;                                             \
     RETURN_OBJECT_UNLESS_RETRY(ISOLATE, TYPE)                                 \
     /* Two GCs before panicking.  In newspace will almost always succeed. */  \
     for (int __i__ = 0; __i__ < 2; __i__++) {                                 \
@@ -191,7 +191,7 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(int size,
   DCHECK(0 <= size);
   AllocationResult allocation =
       isolate()->heap()->AllocateFixedArray(size, pretenure);
-  Object* array = NULL;
+  Object* array = nullptr;
   if (!allocation.To(&array)) return MaybeHandle<FixedArray>();
   return Handle<FixedArray>(FixedArray::cast(array), isolate());
 }
@@ -1297,9 +1297,8 @@ Handle<Map> Factory::NewMap(InstanceType type,
 
 
 Handle<JSObject> Factory::CopyJSObject(Handle<JSObject> object) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->CopyJSObject(*object, NULL),
-                     JSObject);
+  CALL_HEAP_FUNCTION(
+      isolate(), isolate()->heap()->CopyJSObject(*object, nullptr), JSObject);
 }
 
 
@@ -1308,8 +1307,7 @@ Handle<JSObject> Factory::CopyJSObjectWithAllocationSite(
     Handle<AllocationSite> site) {
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->CopyJSObject(
-                         *object,
-                         site.is_null() ? NULL : *site),
+                         *object, site.is_null() ? nullptr : *site),
                      JSObject);
 }
 
@@ -1962,9 +1960,8 @@ Handle<JSObject> Factory::NewJSObjectFromMap(
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateJSObjectFromMap(
-          *map,
-          pretenure,
-          allocation_site.is_null() ? NULL : *allocation_site),
+          *map, pretenure,
+          allocation_site.is_null() ? nullptr : *allocation_site),
       JSObject);
 }
 
@@ -2370,7 +2367,7 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ElementsKind elements_kind,
 
   Handle<JSArrayBuffer> buffer =
       NewJSArrayBuffer(SharedFlag::kNotShared, pretenure);
-  JSArrayBuffer::Setup(buffer, isolate(), true, NULL, byte_length,
+  JSArrayBuffer::Setup(buffer, isolate(), true, nullptr, byte_length,
                        SharedFlag::kNotShared);
   obj->set_buffer(*buffer);
   Handle<FixedTypedArrayBase> elements = NewFixedTypedArray(

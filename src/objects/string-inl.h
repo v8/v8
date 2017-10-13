@@ -378,25 +378,25 @@ ConsString* String::VisitFlat(Visitor* visitor, String* string,
         visitor->VisitOneByteString(
             SeqOneByteString::cast(string)->GetChars() + slice_offset,
             length - offset);
-        return NULL;
+        return nullptr;
 
       case kSeqStringTag | kTwoByteStringTag:
         visitor->VisitTwoByteString(
             SeqTwoByteString::cast(string)->GetChars() + slice_offset,
             length - offset);
-        return NULL;
+        return nullptr;
 
       case kExternalStringTag | kOneByteStringTag:
         visitor->VisitOneByteString(
             ExternalOneByteString::cast(string)->GetChars() + slice_offset,
             length - offset);
-        return NULL;
+        return nullptr;
 
       case kExternalStringTag | kTwoByteStringTag:
         visitor->VisitTwoByteString(
             ExternalTwoByteString::cast(string)->GetChars() + slice_offset,
             length - offset);
-        return NULL;
+        return nullptr;
 
       case kSlicedStringTag | kOneByteStringTag:
       case kSlicedStringTag | kTwoByteStringTag: {
@@ -546,7 +546,7 @@ void ExternalOneByteString::set_resource(
   DCHECK(IsAligned(reinterpret_cast<intptr_t>(resource), kPointerSize));
   *reinterpret_cast<const Resource**>(FIELD_ADDR(this, kResourceOffset)) =
       resource;
-  if (resource != NULL) update_data_cache();
+  if (resource != nullptr) update_data_cache();
 }
 
 const uint8_t* ExternalOneByteString::GetChars() {
@@ -573,7 +573,7 @@ void ExternalTwoByteString::set_resource(
     const ExternalTwoByteString::Resource* resource) {
   *reinterpret_cast<const Resource**>(FIELD_ADDR(this, kResourceOffset)) =
       resource;
-  if (resource != NULL) update_data_cache();
+  if (resource != nullptr) update_data_cache();
 }
 
 const uint16_t* ExternalTwoByteString::GetChars() { return resource()->data(); }
@@ -610,7 +610,7 @@ void ConsStringIterator::Pop() {
 }
 
 uint16_t StringCharacterStream::GetNext() {
-  DCHECK(buffer8_ != NULL && end_ != NULL);
+  DCHECK(buffer8_ != nullptr && end_ != nullptr);
   // Advance cursor if needed.
   if (buffer8_ == end_) HasMore();
   DCHECK(buffer8_ < end_);
@@ -623,13 +623,13 @@ StringCharacterStream::StringCharacterStream(String* string, int offset)
 }
 
 void StringCharacterStream::Reset(String* string, int offset) {
-  buffer8_ = NULL;
-  end_ = NULL;
+  buffer8_ = nullptr;
+  end_ = nullptr;
   ConsString* cons_string = String::VisitFlat(this, string, offset);
   iter_.Reset(cons_string, offset);
-  if (cons_string != NULL) {
+  if (cons_string != nullptr) {
     string = iter_.Next(&offset);
-    if (string != NULL) String::VisitFlat(this, string, offset);
+    if (string != nullptr) String::VisitFlat(this, string, offset);
   }
 }
 
@@ -638,7 +638,7 @@ bool StringCharacterStream::HasMore() {
   int offset;
   String* string = iter_.Next(&offset);
   DCHECK_EQ(offset, 0);
-  if (string == NULL) return false;
+  if (string == nullptr) return false;
   String::VisitFlat(this, string);
   DCHECK(buffer8_ != end_);
   return true;

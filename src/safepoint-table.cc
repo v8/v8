@@ -137,9 +137,9 @@ Safepoint SafepointTableBuilder::DefineSafepoint(
   }
   indexes_.Add(new(zone_) ZoneList<int>(8, zone_), zone_);
   registers_.Add((kind & Safepoint::kWithRegisters)
-      ? new(zone_) ZoneList<int>(4, zone_)
-      : NULL,
-      zone_);
+                     ? new (zone_) ZoneList<int>(4, zone_)
+                     : nullptr,
+                 zone_);
   return Safepoint(indexes_.last(), registers_.last());
 }
 
@@ -208,7 +208,7 @@ void SafepointTableBuilder::Emit(Assembler* assembler, int bits_per_entry) {
 
     // Run through the registers (if any).
     DCHECK(IsAligned(kNumSafepointRegisters, kBitsPerByte));
-    if (registers == NULL) {
+    if (registers == nullptr) {
       const int num_reg_bytes = kNumSafepointRegisters >> kBitsPerByteLog2;
       for (int j = 0; j < num_reg_bytes; j++) {
         bits[j] = SafepointTable::kNoRegisters;

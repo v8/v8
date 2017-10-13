@@ -58,7 +58,7 @@ void* OS::Allocate(const size_t requested, size_t* allocated,
   int prot = GetProtectionFromMemoryPermission(access);
   void* mbase =
       mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANON, kMmapFd, kMmapFdOffset);
-  if (mbase == MAP_FAILED) return NULL;
+  if (mbase == MAP_FAILED) return nullptr;
   *allocated = msize;
   return mbase;
 }
@@ -155,7 +155,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   unsigned int images_count = _dyld_image_count();
   for (unsigned int i = 0; i < images_count; ++i) {
     const mach_header* header = _dyld_get_image_header(i);
-    if (header == NULL) continue;
+    if (header == nullptr) continue;
 #if V8_HOST_ARCH_X64
     uint64_t size;
     char* code_ptr = getsectdatafromheader_64(
@@ -165,7 +165,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
     unsigned int size;
     char* code_ptr = getsectdatafromheader(header, SEG_TEXT, SECT_TEXT, &size);
 #endif
-    if (code_ptr == NULL) continue;
+    if (code_ptr == nullptr) continue;
     const intptr_t slide = _dyld_get_image_vmaddr_slide(i);
     const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
     result.push_back(SharedLibraryAddress(_dyld_get_image_name(i), start,

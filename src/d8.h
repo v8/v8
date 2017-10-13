@@ -63,13 +63,13 @@ class CounterMap {
   Counter* Lookup(const char* name) {
     base::HashMap::Entry* answer =
         hash_map_.Lookup(const_cast<char*>(name), Hash(name));
-    if (!answer) return NULL;
+    if (!answer) return nullptr;
     return reinterpret_cast<Counter*>(answer->value);
   }
   void Set(const char* name, Counter* value) {
     base::HashMap::Entry* answer =
         hash_map_.LookupOrInsert(const_cast<char*>(name), Hash(name));
-    DCHECK(answer != NULL);
+    DCHECK(answer != nullptr);
     answer->value = value;
   }
   class Iterator {
@@ -77,7 +77,7 @@ class CounterMap {
     explicit Iterator(CounterMap* map)
         : map_(&map->hash_map_), entry_(map_->Start()) { }
     void Next() { entry_ = map_->Next(entry_); }
-    bool More() { return entry_ != NULL; }
+    bool More() { return entry_ != nullptr; }
     const char* CurrentKey() { return static_cast<const char*>(entry_->key); }
     Counter* CurrentValue() { return static_cast<Counter*>(entry_->value); }
    private:
@@ -94,13 +94,13 @@ class CounterMap {
 
 class SourceGroup {
  public:
-  SourceGroup() :
-      next_semaphore_(0),
-      done_semaphore_(0),
-      thread_(NULL),
-      argv_(NULL),
-      begin_offset_(0),
-      end_offset_(0) {}
+  SourceGroup()
+      : next_semaphore_(0),
+        done_semaphore_(0),
+        thread_(nullptr),
+        argv_(nullptr),
+        begin_offset_(0),
+        end_offset_(0) {}
 
   ~SourceGroup();
 
@@ -297,13 +297,13 @@ class ShellOptions {
         enable_inspector(false),
         num_isolates(1),
         compile_options(v8::ScriptCompiler::kNoCompileOptions),
-        isolate_sources(NULL),
-        icu_data_file(NULL),
-        natives_blob(NULL),
-        snapshot_blob(NULL),
+        isolate_sources(nullptr),
+        icu_data_file(nullptr),
+        natives_blob(nullptr),
+        snapshot_blob(nullptr),
         trace_enabled(false),
-        trace_config(NULL),
-        lcov_file(NULL),
+        trace_config(nullptr),
+        lcov_file(nullptr),
         disable_in_process_stack_traces(false),
         read_from_tcp_port(-1) {}
 

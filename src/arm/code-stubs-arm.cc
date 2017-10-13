@@ -986,7 +986,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
 void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
                                                      Zone* zone) {
-  if (tasm->isolate()->function_entry_hook() != NULL) {
+  if (tasm->isolate()->function_entry_hook() != nullptr) {
     tasm->MaybeCheckConstPool();
     PredictableCodeSizeScope predictable(tasm);
     predictable.ExpectSize(tasm->CallStubSize() + 2 * Assembler::kInstrSize);
@@ -997,7 +997,7 @@ void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
 }
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
-  if (masm->isolate()->function_entry_hook() != NULL) {
+  if (masm->isolate()->function_entry_hook() != nullptr) {
     ProfileEntryHookStub stub(masm->isolate());
     masm->MaybeCheckConstPool();
     PredictableCodeSizeScope predictable(masm);
@@ -1235,7 +1235,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
     // Initial map for the builtin Array function should be a map.
     __ ldr(r4, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
-    // Will both indicate a NULL and a Smi.
+    // Will both indicate a nullptr and a Smi.
     __ tst(r4, Operand(kSmiTagMask));
     __ Assert(ne, kUnexpectedInitialMapForArrayFunction);
     __ CompareObjectType(r4, r4, r5, MAP_TYPE);
@@ -1315,7 +1315,7 @@ void InternalArrayConstructorStub::Generate(MacroAssembler* masm) {
 
     // Initial map for the builtin Array function should be a map.
     __ ldr(r3, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
-    // Will both indicate a NULL and a Smi.
+    // Will both indicate a nullptr and a Smi.
     __ tst(r3, Operand(kSmiTagMask));
     __ Assert(ne, kUnexpectedInitialMapForArrayFunction);
     __ CompareObjectType(r3, r3, r4, MAP_TYPE);
@@ -1449,17 +1449,18 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
   // Leave the API exit frame.
   __ bind(&leave_exit_frame);
-  bool restore_context = context_restore_operand != NULL;
+  bool restore_context = context_restore_operand != nullptr;
   if (restore_context) {
     __ ldr(cp, *context_restore_operand);
   }
   // LeaveExitFrame expects unwind space to be in a register.
-  if (stack_space_operand != NULL) {
+  if (stack_space_operand != nullptr) {
     __ ldr(r4, *stack_space_operand);
   } else {
     __ mov(r4, Operand(stack_space));
   }
-  __ LeaveExitFrame(false, r4, !restore_context, stack_space_operand != NULL);
+  __ LeaveExitFrame(false, r4, !restore_context,
+                    stack_space_operand != nullptr);
 
   // Check if the function scheduled an exception.
   __ LoadRoot(r4, Heap::kTheHoleValueRootIndex);
@@ -1681,7 +1682,8 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   MemOperand return_value_operand(
       fp, (PropertyCallbackArguments::kReturnValueOffset + 3) * kPointerSize);
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref,
-                           kStackUnwindSpace, NULL, return_value_operand, NULL);
+                           kStackUnwindSpace, nullptr, return_value_operand,
+                           nullptr);
 }
 
 #undef __

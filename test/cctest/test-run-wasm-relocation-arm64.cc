@@ -31,7 +31,7 @@ TEST(WasmRelocationArm64ContextReference) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
-  DummyStaticFunction(NULL);
+  DummyStaticFunction(nullptr);
   int64_t imm = 1234567;
 
   MacroAssembler masm(isolate, buffer, sizeof buffer,

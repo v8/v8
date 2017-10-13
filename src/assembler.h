@@ -634,7 +634,7 @@ class RelocInfo {
 // lower addresses.
 class RelocInfoWriter BASE_EMBEDDED {
  public:
-  RelocInfoWriter() : pos_(NULL), last_pc_(NULL) {}
+  RelocInfoWriter() : pos_(nullptr), last_pc_(nullptr) {}
   RelocInfoWriter(byte* pos, byte* pc) : pos_(pos), last_pc_(pc) {}
 
   byte* pos() const { return pos_; }
@@ -799,7 +799,7 @@ class ExternalReference BASE_EMBEDDED {
   typedef void* ExternalReferenceRedirector(Isolate* isolate, void* original,
                                             Type type);
 
-  ExternalReference() : address_(NULL) {}
+  ExternalReference() : address_(nullptr) {}
 
   ExternalReference(Address address, Isolate* isolate);
 
@@ -1053,8 +1053,9 @@ class ExternalReference BASE_EMBEDDED {
         reinterpret_cast<ExternalReferenceRedirector*>(
             isolate->external_reference_redirector());
     void* address = reinterpret_cast<void*>(address_arg);
-    void* answer =
-        (redirector == NULL) ? address : (*redirector)(isolate, address, type);
+    void* answer = (redirector == nullptr)
+                       ? address
+                       : (*redirector)(isolate, address, type);
     return answer;
   }
 

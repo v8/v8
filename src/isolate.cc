@@ -88,26 +88,26 @@ void ThreadLocalTop::InitializeInternal() {
   c_function_ = 0;
   handler_ = 0;
 #ifdef USE_SIMULATOR
-  simulator_ = NULL;
+  simulator_ = nullptr;
 #endif
-  js_entry_sp_ = NULL;
-  external_callback_scope_ = NULL;
+  js_entry_sp_ = nullptr;
+  external_callback_scope_ = nullptr;
   current_vm_state_ = EXTERNAL;
-  try_catch_handler_ = NULL;
-  context_ = NULL;
+  try_catch_handler_ = nullptr;
+  context_ = nullptr;
   thread_id_ = ThreadId::Invalid();
   external_caught_exception_ = false;
-  failed_access_check_callback_ = NULL;
-  save_context_ = NULL;
-  promise_on_stack_ = NULL;
+  failed_access_check_callback_ = nullptr;
+  save_context_ = nullptr;
+  promise_on_stack_ = nullptr;
 
   // These members are re-initialized later after deserialization
   // is complete.
-  pending_exception_ = NULL;
-  wasm_caught_exception_ = NULL;
+  pending_exception_ = nullptr;
+  wasm_caught_exception_ = nullptr;
   rethrowing_message_ = false;
-  pending_message_obj_ = NULL;
-  scheduled_exception_ = NULL;
+  pending_message_obj_ = nullptr;
+  scheduled_exception_ = nullptr;
 }
 
 
@@ -131,7 +131,7 @@ base::Thread::LocalStorageKey Isolate::isolate_key_;
 base::Thread::LocalStorageKey Isolate::thread_id_key_;
 base::Thread::LocalStorageKey Isolate::per_isolate_thread_data_key_;
 base::LazyMutex Isolate::thread_data_table_mutex_ = LAZY_MUTEX_INITIALIZER;
-Isolate::ThreadDataTable* Isolate::thread_data_table_ = NULL;
+Isolate::ThreadDataTable* Isolate::thread_data_table_ = nullptr;
 base::Atomic32 Isolate::isolate_counter_ = 0;
 #if DEBUG
 base::Atomic32 Isolate::isolate_key_created_ = 0;
@@ -140,11 +140,11 @@ base::Atomic32 Isolate::isolate_key_created_ = 0;
 Isolate::PerIsolateThreadData*
     Isolate::FindOrAllocatePerThreadDataForThisThread() {
   ThreadId thread_id = ThreadId::Current();
-  PerIsolateThreadData* per_thread = NULL;
+  PerIsolateThreadData* per_thread = nullptr;
   {
     base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
     per_thread = thread_data_table_->Lookup(this, thread_id);
-    if (per_thread == NULL) {
+    if (per_thread == nullptr) {
       per_thread = new PerIsolateThreadData(this, thread_id);
       thread_data_table_->Insert(per_thread);
     }
@@ -178,7 +178,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThisThread() {
 
 Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
     ThreadId thread_id) {
-  PerIsolateThreadData* per_thread = NULL;
+  PerIsolateThreadData* per_thread = nullptr;
   {
     base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
     per_thread = thread_data_table_->Lookup(this, thread_id);
@@ -189,7 +189,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
 
 void Isolate::InitializeOncePerProcess() {
   base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
-  CHECK(thread_data_table_ == NULL);
+  CHECK(thread_data_table_ == nullptr);
   isolate_key_ = base::Thread::CreateThreadLocalKey();
 #if DEBUG
   base::Relaxed_Store(&isolate_key_created_, 1);
@@ -223,8 +223,7 @@ void Isolate::Iterate(RootVisitor* v, ThreadLocalTop* thread) {
   v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(thread->context_)));
   v->VisitRootPointer(Root::kTop, &thread->scheduled_exception_);
 
-  for (v8::TryCatch* block = thread->try_catch_handler();
-       block != NULL;
+  for (v8::TryCatch* block = thread->try_catch_handler(); block != nullptr;
        block = block->next_) {
     v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(block->exception_)));
     v->VisitRootPointer(Root::kTop, bit_cast<Object**>(&(block->message_obj_)));
@@ -242,8 +241,7 @@ void Isolate::Iterate(RootVisitor* v) {
 }
 
 void Isolate::IterateDeferredHandles(RootVisitor* visitor) {
-  for (DeferredHandles* deferred = deferred_handles_head_;
-       deferred != NULL;
+  for (DeferredHandles* deferred = deferred_handles_head_; deferred != nullptr;
        deferred = deferred->next_) {
     deferred->Iterate(visitor);
   }
@@ -258,8 +256,7 @@ bool Isolate::IsDeferredHandle(Object** handle) {
   // not be fully filled.
   // We iterate through all the blocks to see whether the argument handle
   // belongs to one of the blocks.  If so, it is deferred.
-  for (DeferredHandles* deferred = deferred_handles_head_;
-       deferred != NULL;
+  for (DeferredHandles* deferred = deferred_handles_head_; deferred != nullptr;
        deferred = deferred->next_) {
     std::vector<Object**>* blocks = &deferred->blocks_;
     for (size_t i = 0; i < blocks->size(); i++) {
@@ -293,7 +290,7 @@ Handle<String> Isolate::StackTraceString() {
     incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
     Handle<String> stack_trace = accumulator.ToString(this);
-    incomplete_message_ = NULL;
+    incomplete_message_ = nullptr;
     stack_trace_nesting_level_ = 0;
     return stack_trace;
   } else if (stack_trace_nesting_level_ == 1) {
@@ -804,7 +801,7 @@ void Isolate::PrintStack(FILE* out, PrintStackMode mode) {
     accumulator.OutputToFile(out);
     InitializeLoggingAndCounters();
     accumulator.Log(this);
-    incomplete_message_ = NULL;
+    incomplete_message_ = nullptr;
     stack_trace_nesting_level_ = 0;
   } else if (stack_trace_nesting_level_ == 1) {
     stack_trace_nesting_level_++;
@@ -1014,7 +1011,7 @@ void Isolate::InvokeApiInterruptCallbacks() {
 void ReportBootstrappingException(Handle<Object> exception,
                                   MessageLocation* location) {
   base::OS::PrintError("Exception thrown during bootstrapping\n");
-  if (location == NULL || location->script().is_null()) return;
+  if (location == nullptr || location->script().is_null()) return;
   // We are bootstrapping and caught an error where the location is set
   // and we have a script for the location.
   // In this case we could have an extension (or an internal error
@@ -1139,7 +1136,7 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
   if (requires_message && !rethrowing_message) {
     MessageLocation computed_location;
     // If no location was specified we try to use a computed one instead.
-    if (location == NULL && ComputeLocation(&computed_location)) {
+    if (location == nullptr && ComputeLocation(&computed_location)) {
       location = &computed_location;
     }
 
@@ -1691,7 +1688,7 @@ Handle<JSMessageObject> Isolate::CreateMessage(Handle<Object> exception,
     }
   }
   MessageLocation computed_location;
-  if (location == NULL &&
+  if (location == nullptr &&
       (ComputeLocationFromException(&computed_location, exception) ||
        ComputeLocationFromStackTrace(&computed_location, exception) ||
        ComputeLocation(&computed_location))) {
@@ -1840,7 +1837,7 @@ bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
     // If the exception is externally caught, clear it if there are no
     // JavaScript frames on the way to the C++ frame that has the
     // external handler.
-    DCHECK(thread_local_top()->try_catch_handler_address() != NULL);
+    DCHECK(thread_local_top()->try_catch_handler_address() != nullptr);
     Address external_handler_address =
         thread_local_top()->try_catch_handler_address();
     JavaScriptFrameIterator it(this);
@@ -1872,7 +1869,7 @@ void Isolate::PushPromise(Handle<JSObject> promise) {
 
 void Isolate::PopPromise() {
   ThreadLocalTop* tltop = thread_local_top();
-  if (tltop->promise_on_stack_ == NULL) return;
+  if (tltop->promise_on_stack_ == nullptr) return;
   PromiseOnStack* prev = tltop->promise_on_stack_->prev();
   Handle<Object> global_promise = tltop->promise_on_stack_->promise();
   delete tltop->promise_on_stack_;
@@ -1976,7 +1973,7 @@ bool Isolate::PromiseHasUserDefinedRejectHandler(Handle<Object> promise) {
 Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   Handle<Object> undefined = factory()->undefined_value();
   ThreadLocalTop* tltop = thread_local_top();
-  if (tltop->promise_on_stack_ == NULL) return undefined;
+  if (tltop->promise_on_stack_ == nullptr) return undefined;
   // Find the top-most try-catch or try-finally handler.
   CatchType prediction = PredictExceptionCatcher();
   if (prediction == NOT_CAUGHT || prediction == CAUGHT_BY_EXTERNAL) {
@@ -2111,15 +2108,11 @@ char* Isolate::RestoreThread(char* from) {
 #ifdef USE_SIMULATOR
   thread_local_top()->simulator_ = Simulator::current(this);
 #endif
-  DCHECK(context() == NULL || context()->IsContext());
+  DCHECK(context() == nullptr || context()->IsContext());
   return from + sizeof(ThreadLocalTop);
 }
 
-
-Isolate::ThreadDataTable::ThreadDataTable()
-    : list_(NULL) {
-}
-
+Isolate::ThreadDataTable::ThreadDataTable() : list_(nullptr) {}
 
 Isolate::ThreadDataTable::~ThreadDataTable() {
   // TODO(svenpanne) The assertion below would fire if an embedder does not
@@ -2177,15 +2170,16 @@ Isolate::PerIsolateThreadData::~PerIsolateThreadData() {
 Isolate::PerIsolateThreadData*
     Isolate::ThreadDataTable::Lookup(Isolate* isolate,
                                      ThreadId thread_id) {
-  for (PerIsolateThreadData* data = list_; data != NULL; data = data->next_) {
+  for (PerIsolateThreadData* data = list_; data != nullptr;
+       data = data->next_) {
     if (data->Matches(isolate, thread_id)) return data;
   }
-  return NULL;
+  return nullptr;
 }
 
 
 void Isolate::ThreadDataTable::Insert(Isolate::PerIsolateThreadData* data) {
-  if (list_ != NULL) list_->prev_ = data;
+  if (list_ != nullptr) list_->prev_ = data;
   data->next_ = list_;
   list_ = data;
 }
@@ -2193,15 +2187,15 @@ void Isolate::ThreadDataTable::Insert(Isolate::PerIsolateThreadData* data) {
 
 void Isolate::ThreadDataTable::Remove(PerIsolateThreadData* data) {
   if (list_ == data) list_ = data->next_;
-  if (data->next_ != NULL) data->next_->prev_ = data->prev_;
-  if (data->prev_ != NULL) data->prev_->next_ = data->next_;
+  if (data->next_ != nullptr) data->next_->prev_ = data->prev_;
+  if (data->prev_ != nullptr) data->prev_->next_ = data->next_;
   delete data;
 }
 
 
 void Isolate::ThreadDataTable::RemoveAllThreads(Isolate* isolate) {
   PerIsolateThreadData* data = list_;
-  while (data != NULL) {
+  while (data != nullptr) {
     PerIsolateThreadData* next = data->next_;
     if (data->isolate() == isolate) Remove(data);
     data = next;
@@ -2326,65 +2320,65 @@ base::AtomicNumber<size_t> Isolate::non_disposed_isolates_;
 
 Isolate::Isolate(bool enable_serializer)
     : embedder_data_(),
-      entry_stack_(NULL),
+      entry_stack_(nullptr),
       stack_trace_nesting_level_(0),
-      incomplete_message_(NULL),
-      bootstrapper_(NULL),
-      runtime_profiler_(NULL),
-      compilation_cache_(NULL),
-      logger_(NULL),
-      load_stub_cache_(NULL),
-      store_stub_cache_(NULL),
-      deoptimizer_data_(NULL),
+      incomplete_message_(nullptr),
+      bootstrapper_(nullptr),
+      runtime_profiler_(nullptr),
+      compilation_cache_(nullptr),
+      logger_(nullptr),
+      load_stub_cache_(nullptr),
+      store_stub_cache_(nullptr),
+      deoptimizer_data_(nullptr),
       deoptimizer_lazy_throw_(false),
-      materialized_object_store_(NULL),
+      materialized_object_store_(nullptr),
       capture_stack_trace_for_uncaught_exceptions_(false),
       stack_trace_for_uncaught_exceptions_frame_limit_(0),
       stack_trace_for_uncaught_exceptions_options_(StackTrace::kOverview),
-      context_slot_cache_(NULL),
-      descriptor_lookup_cache_(NULL),
-      handle_scope_implementer_(NULL),
-      unicode_cache_(NULL),
+      context_slot_cache_(nullptr),
+      descriptor_lookup_cache_(nullptr),
+      handle_scope_implementer_(nullptr),
+      unicode_cache_(nullptr),
       allocator_(FLAG_trace_gc_object_stats ? new VerboseAccountingAllocator(
                                                   &heap_, 256 * KB, 128 * KB)
                                             : new AccountingAllocator()),
-      inner_pointer_to_code_cache_(NULL),
-      global_handles_(NULL),
-      eternal_handles_(NULL),
-      thread_manager_(NULL),
-      setup_delegate_(NULL),
-      regexp_stack_(NULL),
-      date_cache_(NULL),
-      call_descriptor_data_(NULL),
+      inner_pointer_to_code_cache_(nullptr),
+      global_handles_(nullptr),
+      eternal_handles_(nullptr),
+      thread_manager_(nullptr),
+      setup_delegate_(nullptr),
+      regexp_stack_(nullptr),
+      date_cache_(nullptr),
+      call_descriptor_data_(nullptr),
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
-      random_number_generator_(NULL),
+      random_number_generator_(nullptr),
       rail_mode_(PERFORMANCE_ANIMATION),
       promise_hook_or_debug_is_active_(false),
-      promise_hook_(NULL),
+      promise_hook_(nullptr),
       load_start_time_ms_(0),
       serializer_enabled_(enable_serializer),
       has_fatal_error_(false),
       initialized_from_snapshot_(false),
       is_tail_call_elimination_enabled_(true),
       is_isolate_in_background_(false),
-      cpu_profiler_(NULL),
-      heap_profiler_(NULL),
+      cpu_profiler_(nullptr),
+      heap_profiler_(nullptr),
       code_event_dispatcher_(new CodeEventDispatcher()),
-      function_entry_hook_(NULL),
-      deferred_handles_head_(NULL),
-      optimizing_compile_dispatcher_(NULL),
+      function_entry_hook_(nullptr),
+      deferred_handles_head_(nullptr),
+      optimizing_compile_dispatcher_(nullptr),
       stress_deopt_count_(0),
       next_optimization_id_(0),
 #if V8_SFI_HAS_UNIQUE_ID
       next_unique_sfi_id_(0),
 #endif
       is_running_microtasks_(false),
-      use_counter_callback_(NULL),
-      basic_block_profiler_(NULL),
+      use_counter_callback_(nullptr),
+      basic_block_profiler_(nullptr),
       cancelable_task_manager_(new CancelableTaskManager()),
       wasm_compilation_manager_(new wasm::CompilationManager()),
-      abort_on_uncaught_exception_callback_(NULL),
+      abort_on_uncaught_exception_callback_(nullptr),
       total_regexp_code_generated_(0) {
   {
     base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
@@ -2441,7 +2435,7 @@ void Isolate::TearDown() {
   DCHECK(base::Relaxed_Load(&isolate_key_created_) == 1);
   Isolate* saved_isolate =
       reinterpret_cast<Isolate*>(base::Thread::GetThreadLocal(isolate_key_));
-  SetIsolateThreadLocals(this, NULL);
+  SetIsolateThreadLocals(this, nullptr);
 
   Deinit();
 
@@ -2463,15 +2457,15 @@ void Isolate::TearDown() {
 
 void Isolate::GlobalTearDown() {
   delete thread_data_table_;
-  thread_data_table_ = NULL;
+  thread_data_table_ = nullptr;
 }
 
 
 void Isolate::ClearSerializerData() {
   delete external_reference_table_;
-  external_reference_table_ = NULL;
+  external_reference_table_ = nullptr;
   delete external_reference_map_;
-  external_reference_map_ = NULL;
+  external_reference_map_ = nullptr;
 }
 
 
@@ -2483,7 +2477,7 @@ void Isolate::Deinit() {
   if (concurrent_recompilation_enabled()) {
     optimizing_compile_dispatcher_->Stop();
     delete optimizing_compile_dispatcher_;
-    optimizing_compile_dispatcher_ = NULL;
+    optimizing_compile_dispatcher_ = nullptr;
   }
 
   wasm_compilation_manager_->TearDown();
@@ -2511,20 +2505,20 @@ void Isolate::Deinit() {
   ReleaseManagedObjects();
 
   delete deoptimizer_data_;
-  deoptimizer_data_ = NULL;
+  deoptimizer_data_ = nullptr;
   builtins_.TearDown();
   bootstrapper_->TearDown();
 
-  if (runtime_profiler_ != NULL) {
+  if (runtime_profiler_ != nullptr) {
     delete runtime_profiler_;
-    runtime_profiler_ = NULL;
+    runtime_profiler_ = nullptr;
   }
 
   delete basic_block_profiler_;
-  basic_block_profiler_ = NULL;
+  basic_block_profiler_ = nullptr;
 
   delete heap_profiler_;
-  heap_profiler_ = NULL;
+  heap_profiler_ = nullptr;
 
   compiler_dispatcher_->AbortAll(CompilerDispatcher::BlockingBehavior::kBlock);
   delete compiler_dispatcher_;
@@ -2536,18 +2530,18 @@ void Isolate::Deinit() {
   logger_->TearDown();
 
   delete interpreter_;
-  interpreter_ = NULL;
+  interpreter_ = nullptr;
 
   delete ast_string_constants_;
   ast_string_constants_ = nullptr;
 
   delete cpu_profiler_;
-  cpu_profiler_ = NULL;
+  cpu_profiler_ = nullptr;
 
   code_event_dispatcher_.reset();
 
   delete root_index_map_;
-  root_index_map_ = NULL;
+  root_index_map_ = nullptr;
 
   ClearSerializerData();
 }
@@ -2564,71 +2558,71 @@ Isolate::~Isolate() {
   TRACE_ISOLATE(destructor);
 
   // The entry stack must be empty when we get here.
-  DCHECK(entry_stack_ == NULL || entry_stack_->previous_item == NULL);
+  DCHECK(entry_stack_ == nullptr || entry_stack_->previous_item == nullptr);
 
   delete entry_stack_;
-  entry_stack_ = NULL;
+  entry_stack_ = nullptr;
 
   delete unicode_cache_;
-  unicode_cache_ = NULL;
+  unicode_cache_ = nullptr;
 
   delete date_cache_;
-  date_cache_ = NULL;
+  date_cache_ = nullptr;
 
   delete[] call_descriptor_data_;
-  call_descriptor_data_ = NULL;
+  call_descriptor_data_ = nullptr;
 
   delete access_compiler_data_;
-  access_compiler_data_ = NULL;
+  access_compiler_data_ = nullptr;
 
   delete regexp_stack_;
-  regexp_stack_ = NULL;
+  regexp_stack_ = nullptr;
 
   delete descriptor_lookup_cache_;
-  descriptor_lookup_cache_ = NULL;
+  descriptor_lookup_cache_ = nullptr;
   delete context_slot_cache_;
-  context_slot_cache_ = NULL;
+  context_slot_cache_ = nullptr;
 
   delete load_stub_cache_;
-  load_stub_cache_ = NULL;
+  load_stub_cache_ = nullptr;
   delete store_stub_cache_;
-  store_stub_cache_ = NULL;
+  store_stub_cache_ = nullptr;
 
   delete materialized_object_store_;
-  materialized_object_store_ = NULL;
+  materialized_object_store_ = nullptr;
 
   delete logger_;
-  logger_ = NULL;
+  logger_ = nullptr;
 
   delete handle_scope_implementer_;
-  handle_scope_implementer_ = NULL;
+  handle_scope_implementer_ = nullptr;
 
   delete code_tracer();
-  set_code_tracer(NULL);
+  set_code_tracer(nullptr);
 
   delete compilation_cache_;
-  compilation_cache_ = NULL;
+  compilation_cache_ = nullptr;
   delete bootstrapper_;
-  bootstrapper_ = NULL;
+  bootstrapper_ = nullptr;
   delete inner_pointer_to_code_cache_;
-  inner_pointer_to_code_cache_ = NULL;
+  inner_pointer_to_code_cache_ = nullptr;
 
   delete thread_manager_;
-  thread_manager_ = NULL;
+  thread_manager_ = nullptr;
 
   delete global_handles_;
-  global_handles_ = NULL;
+  global_handles_ = nullptr;
   delete eternal_handles_;
-  eternal_handles_ = NULL;
+  eternal_handles_ = nullptr;
 
   delete string_stream_debug_object_cache_;
-  string_stream_debug_object_cache_ = NULL;
+  string_stream_debug_object_cache_ = nullptr;
 
   delete random_number_generator_;
-  random_number_generator_ = NULL;
+  random_number_generator_ = nullptr;
 
   delete debug_;
-  debug_ = NULL;
+  debug_ = nullptr;
 
   delete cancelable_task_manager_;
   cancelable_task_manager_ = nullptr;
@@ -2690,7 +2684,7 @@ bool Isolate::InitializeCounters() {
 }
 
 void Isolate::InitializeLoggingAndCounters() {
-  if (logger_ == NULL) {
+  if (logger_ == nullptr) {
     logger_ = new Logger(this);
   }
   InitializeCounters();
@@ -2716,12 +2710,12 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   has_fatal_error_ = false;
 
-  if (function_entry_hook() != NULL) {
+  if (function_entry_hook() != nullptr) {
     // When function entry hooking is in effect, we have to create the code
     // stubs from scratch to get entry hooks, rather than loading the previously
     // generated stubs from disk.
     // If this assert fires, the initialization path has regressed.
-    DCHECK(des == NULL);
+    DCHECK(des == nullptr);
   }
 
   // The initialization process does not handle memory exhaustion.
@@ -2794,7 +2788,7 @@ bool Isolate::Init(StartupDeserializer* des) {
 
   deoptimizer_data_ = new DeoptimizerData(heap()->memory_allocator());
 
-  const bool create_heap_objects = (des == NULL);
+  const bool create_heap_objects = (des == nullptr);
   if (setup_delegate_ == nullptr) {
     setup_delegate_ = new SetupIsolateDelegate(create_heap_objects);
   }
@@ -2889,7 +2883,7 @@ bool Isolate::Init(StartupDeserializer* des) {
     StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
   }
 
-  initialized_from_snapshot_ = (des != NULL);
+  initialized_from_snapshot_ = (des != nullptr);
 
   if (!FLAG_inline_new) heap_.DisableInlineAllocation();
 
@@ -2898,15 +2892,15 @@ bool Isolate::Init(StartupDeserializer* des) {
 
 
 void Isolate::Enter() {
-  Isolate* current_isolate = NULL;
+  Isolate* current_isolate = nullptr;
   PerIsolateThreadData* current_data = CurrentPerIsolateThreadData();
-  if (current_data != NULL) {
+  if (current_data != nullptr) {
     current_isolate = current_data->isolate_;
-    DCHECK(current_isolate != NULL);
+    DCHECK(current_isolate != nullptr);
     if (current_isolate == this) {
       DCHECK(Current() == this);
-      DCHECK(entry_stack_ != NULL);
-      DCHECK(entry_stack_->previous_thread_data == NULL ||
+      DCHECK(entry_stack_ != nullptr);
+      DCHECK(entry_stack_->previous_thread_data == nullptr ||
              entry_stack_->previous_thread_data->thread_id().Equals(
                  ThreadId::Current()));
       // Same thread re-enters the isolate, no need to re-init anything.
@@ -2916,7 +2910,7 @@ void Isolate::Enter() {
   }
 
   PerIsolateThreadData* data = FindOrAllocatePerThreadDataForThisThread();
-  DCHECK(data != NULL);
+  DCHECK(data != nullptr);
   DCHECK(data->isolate_ == this);
 
   EntryStackItem* item = new EntryStackItem(current_data,
@@ -2932,14 +2926,14 @@ void Isolate::Enter() {
 
 
 void Isolate::Exit() {
-  DCHECK(entry_stack_ != NULL);
-  DCHECK(entry_stack_->previous_thread_data == NULL ||
+  DCHECK(entry_stack_ != nullptr);
+  DCHECK(entry_stack_->previous_thread_data == nullptr ||
          entry_stack_->previous_thread_data->thread_id().Equals(
              ThreadId::Current()));
 
   if (--entry_stack_->entry_count > 0) return;
 
-  DCHECK(CurrentPerIsolateThreadData() != NULL);
+  DCHECK(CurrentPerIsolateThreadData() != nullptr);
   DCHECK(CurrentPerIsolateThreadData()->isolate_ == this);
 
   // Pop the stack.
@@ -2958,7 +2952,7 @@ void Isolate::Exit() {
 
 void Isolate::LinkDeferredHandles(DeferredHandles* deferred) {
   deferred->next_ = deferred_handles_head_;
-  if (deferred_handles_head_ != NULL) {
+  if (deferred_handles_head_ != nullptr) {
     deferred_handles_head_->previous_ = deferred;
   }
   deferred_handles_head_ = deferred;
@@ -2969,7 +2963,7 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
 #ifdef DEBUG
   // In debug mode assert that the linked list is well-formed.
   DeferredHandles* deferred_iterator = deferred;
-  while (deferred_iterator->previous_ != NULL) {
+  while (deferred_iterator->previous_ != nullptr) {
     deferred_iterator = deferred_iterator->previous_;
   }
   DCHECK(deferred_handles_head_ == deferred_iterator);
@@ -2977,10 +2971,10 @@ void Isolate::UnlinkDeferredHandles(DeferredHandles* deferred) {
   if (deferred_handles_head_ == deferred) {
     deferred_handles_head_ = deferred_handles_head_->next_;
   }
-  if (deferred->next_ != NULL) {
+  if (deferred->next_ != nullptr) {
     deferred->next_->previous_ = deferred->previous_;
   }
-  if (deferred->previous_ != NULL) {
+  if (deferred->previous_ != nullptr) {
     deferred->previous_->next_ = deferred->next_;
   }
 }
@@ -3011,14 +3005,14 @@ void Isolate::DumpAndResetStats() {
 
 
 CompilationStatistics* Isolate::GetTurboStatistics() {
-  if (turbo_statistics() == NULL)
+  if (turbo_statistics() == nullptr)
     set_turbo_statistics(new CompilationStatistics());
   return turbo_statistics();
 }
 
 
 CodeTracer* Isolate::GetCodeTracer() {
-  if (code_tracer() == NULL) set_code_tracer(new CodeTracer(id()));
+  if (code_tracer() == nullptr) set_code_tracer(new CodeTracer(id()));
   return code_tracer();
 }
 
@@ -3080,7 +3074,8 @@ bool Isolate::IsFastArrayConstructorPrototypeChainIntact() {
   JSObject* initial_object_proto = JSObject::cast(
       native_context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX));
 
-  if (root_array_map == NULL || initial_array_proto == initial_object_proto) {
+  if (root_array_map == nullptr ||
+      initial_array_proto == initial_object_proto) {
     // We are in the bootstrapping process, and the entire check sequence
     // shouldn't be performed.
     return cell_reports_intact;
@@ -3131,7 +3126,7 @@ bool Isolate::IsIsConcatSpreadableLookupChainIntact() {
 #ifdef DEBUG
   Map* root_array_map =
       raw_native_context()->GetInitialJSArrayMap(GetInitialFastElementsKind());
-  if (root_array_map == NULL) {
+  if (root_array_map == nullptr) {
     // Ignore the value of is_concat_spreadable during bootstrap.
     return !is_is_concat_spreadable_set;
   }
@@ -3228,7 +3223,7 @@ CallInterfaceDescriptorData* Isolate::call_descriptor_data(int index) {
 
 
 base::RandomNumberGenerator* Isolate::random_number_generator() {
-  if (random_number_generator_ == NULL) {
+  if (random_number_generator_ == nullptr) {
     if (FLAG_random_seed != 0) {
       random_number_generator_ =
           new base::RandomNumberGenerator(FLAG_random_seed);
@@ -3460,7 +3455,7 @@ void Isolate::ReportPromiseReject(Handle<JSPromise> promise,
                                   Handle<Object> value,
                                   v8::PromiseRejectEvent event) {
   DCHECK_EQ(v8::Promise::kRejected, promise->status());
-  if (promise_reject_callback_ == NULL) return;
+  if (promise_reject_callback_ == nullptr) return;
   Handle<FixedArray> stack_trace;
   if (event == v8::kPromiseRejectWithNoHandler && value->IsJSObject()) {
     stack_trace = GetDetailedStackTrace(Handle<JSObject>::cast(value));
@@ -3657,7 +3652,7 @@ void Isolate::CountUsage(v8::Isolate::UseCounterFeature feature) {
 
 
 BasicBlockProfiler* Isolate::GetOrCreateBasicBlockProfiler() {
-  if (basic_block_profiler_ == NULL) {
+  if (basic_block_profiler_ == nullptr) {
     basic_block_profiler_ = new BasicBlockProfiler();
   }
   return basic_block_profiler_;
@@ -3665,7 +3660,7 @@ BasicBlockProfiler* Isolate::GetOrCreateBasicBlockProfiler() {
 
 
 std::string Isolate::GetTurboCfgFileName() {
-  if (FLAG_trace_turbo_cfg_file == NULL) {
+  if (FLAG_trace_turbo_cfg_file == nullptr) {
     std::ostringstream os;
     os << "turbo-" << base::OS::GetCurrentProcessId() << "-" << id() << ".cfg";
     return os.str();
@@ -3777,7 +3772,7 @@ bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {
 
 SaveContext::SaveContext(Isolate* isolate)
     : isolate_(isolate), prev_(isolate->save_context()) {
-  if (isolate->context() != NULL) {
+  if (isolate->context() != nullptr) {
     context_ = Handle<Context>(isolate->context());
   }
   isolate->set_save_context(this);
@@ -3786,7 +3781,7 @@ SaveContext::SaveContext(Isolate* isolate)
 }
 
 SaveContext::~SaveContext() {
-  isolate_->set_context(context_.is_null() ? NULL : *context_);
+  isolate_->set_context(context_.is_null() ? nullptr : *context_);
   isolate_->set_save_context(prev_);
 }
 

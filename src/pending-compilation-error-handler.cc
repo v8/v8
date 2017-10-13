@@ -16,8 +16,8 @@ namespace internal {
 
 Handle<String> PendingCompilationErrorHandler::ArgumentString(
     Isolate* isolate) {
-  if (arg_ != NULL) return arg_->string();
-  if (char_arg_ != NULL) {
+  if (arg_ != nullptr) return arg_->string();
+  if (char_arg_ != nullptr) {
     return isolate->factory()
         ->NewStringFromUtf8(CStrVector(char_arg_))
         .ToHandleChecked();

@@ -494,18 +494,18 @@ class Scanner {
     // Initialize current_ to not refer to a literal.
     current_.token = Token::UNINITIALIZED;
     current_.contextual_token = Token::UNINITIALIZED;
-    current_.literal_chars = NULL;
-    current_.raw_literal_chars = NULL;
+    current_.literal_chars = nullptr;
+    current_.raw_literal_chars = nullptr;
     current_.invalid_template_escape_message = MessageTemplate::kNone;
     next_.token = Token::UNINITIALIZED;
     next_.contextual_token = Token::UNINITIALIZED;
-    next_.literal_chars = NULL;
-    next_.raw_literal_chars = NULL;
+    next_.literal_chars = nullptr;
+    next_.raw_literal_chars = nullptr;
     next_.invalid_template_escape_message = MessageTemplate::kNone;
     next_next_.token = Token::UNINITIALIZED;
     next_next_.contextual_token = Token::UNINITIALIZED;
-    next_next_.literal_chars = NULL;
-    next_next_.raw_literal_chars = NULL;
+    next_next_.literal_chars = nullptr;
+    next_next_.raw_literal_chars = nullptr;
     next_next_.invalid_template_escape_message = MessageTemplate::kNone;
     found_html_comment_ = false;
     scanner_error_ = MessageTemplate::kNone;
@@ -572,8 +572,8 @@ class Scanner {
   // Stops scanning of a literal and drop the collected characters,
   // e.g., due to an encountered error.
   inline void DropLiteral() {
-    next_.literal_chars = NULL;
-    next_.raw_literal_chars = NULL;
+    next_.literal_chars = nullptr;
+    next_.raw_literal_chars = nullptr;
   }
 
   inline void AddLiteralCharAdvance() {

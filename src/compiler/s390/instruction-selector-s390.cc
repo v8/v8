@@ -1406,8 +1406,8 @@ static inline bool TryMatchDoubleConstructFromInsert(
   S390OperandGenerator g(selector);
   Node* left = node->InputAt(0);
   Node* right = node->InputAt(1);
-  Node* lo32 = NULL;
-  Node* hi32 = NULL;
+  Node* lo32 = nullptr;
+  Node* hi32 = nullptr;
 
   if (node->opcode() == IrOpcode::kFloat64InsertLowWord32) {
     lo32 = right;

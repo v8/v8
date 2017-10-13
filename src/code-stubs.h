@@ -329,11 +329,11 @@ class CodeStubDescriptor {
 
   CodeStubDescriptor(Isolate* isolate, uint32_t stub_key);
 
-  void Initialize(Address deoptimization_handler = NULL,
+  void Initialize(Address deoptimization_handler = nullptr,
                   int hint_stack_parameter_count = -1,
                   StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE);
   void Initialize(Register stack_parameter_count,
-                  Address deoptimization_handler = NULL,
+                  Address deoptimization_handler = nullptr,
                   int hint_stack_parameter_count = -1,
                   StubFunctionMode function_mode = NOT_JS_FUNCTION_STUB_MODE);
 

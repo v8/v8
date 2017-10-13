@@ -27,7 +27,7 @@ TEST(WasmRelocationArmContextReference) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
-  DummyStaticFunction(NULL);
+  DummyStaticFunction(nullptr);
   int32_t imm = 1234567;
 
   Assembler assm(isolate, buffer, sizeof buffer);

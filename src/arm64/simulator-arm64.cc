@@ -72,9 +72,7 @@ void Simulator::TraceSim(const char* format, ...) {
   }
 }
 
-
-const Instruction* Simulator::kEndOfSimAddress = NULL;
-
+const Instruction* Simulator::kEndOfSimAddress = nullptr;
 
 void SimSystemRegister::SetBits(int msb, int lsb, uint32_t bits) {
   int width = msb - lsb + 1;
@@ -111,10 +109,10 @@ void Simulator::Initialize(Isolate* isolate) {
 Simulator* Simulator::current(Isolate* isolate) {
   Isolate::PerIsolateThreadData* isolate_data =
       isolate->FindOrAllocatePerThreadDataForThisThread();
-  DCHECK(isolate_data != NULL);
+  DCHECK(isolate_data != nullptr);
 
   Simulator* sim = isolate_data->simulator();
-  if (sim == NULL) {
+  if (sim == nullptr) {
     if (FLAG_trace_sim || FLAG_log_instruction_stats || FLAG_debug_sim) {
       sim = new Simulator(new Decoder<DispatchingDecoderVisitor>(), isolate);
     } else {
@@ -352,11 +350,10 @@ uintptr_t Simulator::StackLimit(uintptr_t c_limit) const {
   return stack_limit_ + 1024;
 }
 
-
 Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
                      Isolate* isolate, FILE* stream)
     : decoder_(decoder),
-      last_debugger_input_(NULL),
+      last_debugger_input_(nullptr),
       log_parameters_(NO_PARAM),
       isolate_(isolate) {
   // Setup the decoder.
@@ -376,12 +373,11 @@ Simulator::Simulator(Decoder<DispatchingDecoderVisitor>* decoder,
   }
 }
 
-
 Simulator::Simulator()
-    : decoder_(NULL),
-      last_debugger_input_(NULL),
+    : decoder_(nullptr),
+      last_debugger_input_(nullptr),
       log_parameters_(NO_PARAM),
-      isolate_(NULL) {
+      isolate_(nullptr) {
   Init(stdout);
   CHECK(!FLAG_trace_sim && !FLAG_log_instruction_stats);
 }
@@ -414,7 +410,7 @@ void Simulator::ResetState() {
   fpcr_ = SimSystemRegister::DefaultValueFor(FPCR);
 
   // Reset registers to 0.
-  pc_ = NULL;
+  pc_ = nullptr;
   for (unsigned i = 0; i < kNumberOfRegisters; i++) {
     set_xreg(i, 0xbadbeef);
   }
@@ -473,7 +469,7 @@ class Redirection {
  public:
   Redirection(Isolate* isolate, void* external_function,
               ExternalReference::Type type)
-      : external_function_(external_function), type_(type), next_(NULL) {
+      : external_function_(external_function), type_(type), next_(nullptr) {
     redirect_call_.SetInstructionBits(
         HLT | Assembler::ImmException(kImmExceptionIsRedirectedCall));
     next_ = isolate->simulator_redirection();
@@ -493,7 +489,7 @@ class Redirection {
   static Redirection* Get(Isolate* isolate, void* external_function,
                           ExternalReference::Type type) {
     Redirection* current = isolate->simulator_redirection();
-    for (; current != NULL; current = current->next_) {
+    for (; current != nullptr; current = current->next_) {
       if (current->external_function_ == external_function) {
         DCHECK_EQ(current->type(), type);
         return current;
@@ -3216,12 +3212,12 @@ void Simulator::Debug() {
     PrintInstructionsAt(pc_, 1);
     // Read the command line.
     char* line = ReadLine("sim> ");
-    if (line == NULL) {
+    if (line == nullptr) {
       break;
     } else {
       // Repeat last command by default.
       char* last_input = last_debugger_input();
-      if (strcmp(line, "\n") == 0 && (last_input != NULL)) {
+      if (strcmp(line, "\n") == 0 && (last_input != nullptr)) {
         DeleteArray(line);
         line = last_input;
       } else {
@@ -3341,8 +3337,8 @@ void Simulator::Debug() {
 
       // stack / mem ----------------------------------------------------------
       } else if (strcmp(cmd, "stack") == 0 || strcmp(cmd, "mem") == 0) {
-        int64_t* cur = NULL;
-        int64_t* end = NULL;
+        int64_t* cur = nullptr;
+        int64_t* end = nullptr;
         int next_arg = 1;
 
         if (strcmp(cmd, "stack") == 0) {
@@ -3504,7 +3500,7 @@ void Simulator::VisitException(Instruction* instr) {
         // We are going to break, so printing something is not an issue in
         // terms of speed.
         if (FLAG_trace_sim_messages || FLAG_trace_sim || (parameters & BREAK)) {
-          if (message != NULL) {
+          if (message != nullptr) {
             PrintF(stream_,
                    "# %sDebugger hit %d: %s%s%s\n",
                    clr_debug_number,
@@ -4341,7 +4337,7 @@ void Simulator::VisitNEONByIndexedElement(Instruction* instr) {
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
 
-  ByElementOp Op = NULL;
+  ByElementOp Op = nullptr;
 
   int rm_reg = instr->Rm();
   int index = (instr->NEONH() << 1) | instr->NEONL();
@@ -5275,7 +5271,7 @@ void Simulator::VisitNEONScalarByIndexedElement(Instruction* instr) {
 
   SimVRegister& rd = vreg(instr->Rd());
   SimVRegister& rn = vreg(instr->Rn());
-  ByElementOp Op = NULL;
+  ByElementOp Op = nullptr;
 
   int rm_reg = instr->Rm();
   int index = (instr->NEONH() << 1) | instr->NEONL();
@@ -5730,7 +5726,7 @@ void Simulator::DoPrintf(Instruction* instr) {
   // Leave enough space for one extra character per expected argument (plus the
   // '\0' termination).
   const char * format_base = reg<const char *>(0);
-  DCHECK(format_base != NULL);
+  DCHECK(format_base != nullptr);
   size_t length = strlen(format_base) + 1;
   char * const format = new char[length + arg_count];
 

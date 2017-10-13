@@ -531,7 +531,7 @@ void Assembler::push(const Operand& src) {
 
 
 void Assembler::pop(Register dst) {
-  DCHECK(reloc_info_writer.last_pc() != NULL);
+  DCHECK(reloc_info_writer.last_pc() != nullptr);
   EnsureSpace ensure_space(this);
   EMIT(0x58 | dst.code());
 }
@@ -818,7 +818,7 @@ void Assembler::add(const Operand& dst, Register src) {
 
 
 void Assembler::add(const Operand& dst, const Immediate& x) {
-  DCHECK(reloc_info_writer.last_pc() != NULL);
+  DCHECK(reloc_info_writer.last_pc() != nullptr);
   EnsureSpace ensure_space(this);
   emit_arith(0, dst, x);
 }
@@ -3347,7 +3347,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       !serializer_enabled() && !emit_debug_code()) {
     return;
   }
-  RelocInfo rinfo(pc_, rmode, data, NULL);
+  RelocInfo rinfo(pc_, rmode, data, nullptr);
   reloc_info_writer.Write(&rinfo);
 }
 

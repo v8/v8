@@ -699,7 +699,7 @@ void Assembler::RemoveBranchFromLabelLinkChain(Instruction* branch,
     // The branch is in the middle of the chain.
     if (prev_link->IsTargetInImmPCOffsetRange(next_link)) {
       prev_link->SetImmPCOffsetTarget(isolate_data(), next_link);
-    } else if (label_veneer != NULL) {
+    } else if (label_veneer != nullptr) {
       // Use the veneer for all previous links in the chain.
       prev_link->SetImmPCOffsetTarget(isolate_data(), prev_link);
 
@@ -4064,7 +4064,7 @@ void Assembler::EmitStringData(const char* string) {
   size_t len = strlen(string) + 1;
   DCHECK_LE(RoundUp(len, kInstructionSize), static_cast<size_t>(kGap));
   EmitData(string, static_cast<int>(len));
-  // Pad with NULL characters until pc_ is aligned.
+  // Pad with nullptr characters until pc_ is aligned.
   const char pad[] = {'\0', '\0', '\0', '\0'};
   static_assert(sizeof(pad) == kInstructionSize,
                 "Size of padding must match instruction size.");
@@ -4438,7 +4438,7 @@ bool Assembler::IsImmLogical(uint64_t value,
                              unsigned* n,
                              unsigned* imm_s,
                              unsigned* imm_r) {
-  DCHECK((n != NULL) && (imm_s != NULL) && (imm_r != NULL));
+  DCHECK((n != nullptr) && (imm_s != nullptr) && (imm_r != nullptr));
   DCHECK((width == kWRegSizeInBits) || (width == kXRegSizeInBits));
 
   bool negate = false;
@@ -4748,7 +4748,7 @@ void Assembler::GrowBuffer() {
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, NULL);
+  RelocInfo rinfo(reinterpret_cast<byte*>(pc_), rmode, data, nullptr);
   bool write_reloc_info = true;
 
   if ((rmode == RelocInfo::COMMENT) ||
@@ -4862,7 +4862,7 @@ bool Assembler::ShouldEmitVeneer(int max_reachable_pc, int margin) {
 
 void Assembler::RecordVeneerPool(int location_offset, int size) {
   RelocInfo rinfo(buffer_ + location_offset, RelocInfo::VENEER_POOL,
-                  static_cast<intptr_t>(size), NULL);
+                  static_cast<intptr_t>(size), nullptr);
   reloc_info_writer.Write(&rinfo);
 }
 

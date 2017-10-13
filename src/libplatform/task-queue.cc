@@ -40,7 +40,7 @@ Task* TaskQueue::GetNext() {
       }
       if (terminated_) {
         process_queue_semaphore_.Signal();
-        return NULL;
+        return nullptr;
       }
     }
     process_queue_semaphore_.Wait();

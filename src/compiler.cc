@@ -59,7 +59,7 @@ class CompilationHandleScope final {
 // Helper that times a scoped region and records the elapsed time.
 struct ScopedTimer {
   explicit ScopedTimer(base::TimeDelta* location) : location_(location) {
-    DCHECK(location_ != NULL);
+    DCHECK(location_ != nullptr);
     timer_.Start();
   }
 
@@ -1172,7 +1172,7 @@ bool Compiler::CodeGenerationFromStringsAllowed(Isolate* isolate,
   // Check with callback if set.
   AllowCodeGenerationFromStringsCallback callback =
       isolate->allow_code_gen_callback();
-  if (callback == NULL) {
+  if (callback == nullptr) {
     // No callback set and code generation disallowed.
     return false;
   } else {
@@ -1217,17 +1217,17 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     MaybeHandle<FixedArray> maybe_host_defined_options) {
   Isolate* isolate = source->GetIsolate();
   if (compile_options == ScriptCompiler::kNoCompileOptions) {
-    cached_data = NULL;
+    cached_data = nullptr;
   } else if (compile_options == ScriptCompiler::kProduceParserCache ||
              ShouldProduceCodeCache(compile_options)) {
     DCHECK(cached_data && !*cached_data);
-    DCHECK(extension == NULL);
+    DCHECK(extension == nullptr);
     DCHECK(!isolate->debug()->is_loaded());
   } else {
     DCHECK(compile_options == ScriptCompiler::kConsumeParserCache ||
            compile_options == ScriptCompiler::kConsumeCodeCache);
     DCHECK(cached_data && *cached_data);
-    DCHECK(extension == NULL);
+    DCHECK(extension == nullptr);
   }
   int source_length = source->length();
   isolate->counters()->total_load_size()->Increment(source_length);
@@ -1239,7 +1239,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   // Do a lookup in the compilation cache but not for extensions.
   MaybeHandle<SharedFunctionInfo> maybe_result;
   Handle<Cell> vector;
-  if (extension == NULL) {
+  if (extension == nullptr) {
     // First check per-isolate compilation cache.
     InfoVectorPair pair = compilation_cache->LookupScript(
         source, maybe_script_name, line_offset, column_offset, resource_options,
@@ -1336,7 +1336,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
         static_cast<LanguageMode>(parse_info.language_mode() | language_mode));
     maybe_result = CompileToplevel(&parse_info, isolate);
     Handle<SharedFunctionInfo> result;
-    if (extension == NULL && maybe_result.ToHandle(&result)) {
+    if (extension == nullptr && maybe_result.ToHandle(&result)) {
       // We need a feedback vector.
       DCHECK(result->is_compiled());
       Handle<FeedbackVector> feedback_vector =

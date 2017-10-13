@@ -468,7 +468,7 @@ class AstValueFactory {
   AstRawString* GetString(uint32_t hash, bool is_one_byte,
                           Vector<const byte> literal_bytes);
 
-  // All strings are copied here, one after another (no NULLs inbetween).
+  // All strings are copied here, one after another (no zeroes inbetween).
   base::CustomMatcherHashMap string_table_;
   // For keeping track of all AstValues and AstRawStrings we've created (so that
   // they can be internalized later).

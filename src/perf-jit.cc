@@ -134,7 +134,7 @@ void PerfJitLogger::OpenJitDumpFile() {
   perf_output_handle_ = fdopen(fd, "w+");
   if (perf_output_handle_ == nullptr) return;
 
-  setvbuf(perf_output_handle_, NULL, _IOFBF, kLogBufferSize);
+  setvbuf(perf_output_handle_, nullptr, _IOFBF, kLogBufferSize);
 }
 
 void PerfJitLogger::CloseJitDumpFile() {
@@ -388,7 +388,7 @@ void PerfJitLogger::LogWriteBytes(const char* bytes, int size) {
 }
 
 void PerfJitLogger::LogWriteHeader() {
-  DCHECK(perf_output_handle_ != NULL);
+  DCHECK(perf_output_handle_ != nullptr);
   PerfJitHeader header;
 
   header.magic_ = PerfJitHeader::kMagic;

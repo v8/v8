@@ -41,15 +41,8 @@ const char* Registers::names_[kNumRegisters] = {
 
 // List of alias names which can be used when referring to ARM registers.
 const Registers::RegisterAlias Registers::aliases_[] = {
-  {10, "sl"},
-  {11, "r11"},
-  {12, "r12"},
-  {13, "r13"},
-  {14, "r14"},
-  {15, "r15"},
-  {kNoRegister, NULL}
-};
-
+    {10, "sl"},  {11, "r11"}, {12, "r12"},           {13, "r13"},
+    {14, "r14"}, {15, "r15"}, {kNoRegister, nullptr}};
 
 // Support for VFP registers s0 to s31 (d0 to d15) and d16-d31.
 // Note that "sN:sM" is the same as "dN/2" up to d15.

@@ -98,7 +98,7 @@ const char* Builtins::Lookup(byte* pc) {
       if (entry->contains(pc)) return name(i);
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 Handle<Code> Builtins::NewFunctionContext(ScopeType scope_type) {

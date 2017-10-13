@@ -51,7 +51,7 @@ void* OS::Allocate(const size_t requested, size_t* allocated,
   void* mbase =
       mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANON, kMmapFd, kMmapFdOffset);
 
-  if (mbase == MAP_FAILED) return NULL;
+  if (mbase == MAP_FAILED) return nullptr;
   *allocated = msize;
   return mbase;
 }
@@ -61,7 +61,7 @@ void* OS::ReserveRegion(size_t size, void* hint) {
   void* result = mmap(hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANON, kMmapFd,
                       kMmapFdOffset);
 
-  if (result == MAP_FAILED) return NULL;
+  if (result == MAP_FAILED) return nullptr;
 
   return result;
 }
@@ -139,7 +139,7 @@ bool OS::HasLazyCommits() {
 }
 
 static unsigned StringToLong(char* buffer) {
-  return static_cast<unsigned>(strtol(buffer, NULL, 16));  // NOLINT
+  return static_cast<unsigned>(strtol(buffer, nullptr, 16));  // NOLINT
 }
 
 std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
@@ -174,7 +174,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
     if (buffer[3] != 'x') continue;
     char* start_of_path = index(buffer, '/');
     // There may be no filename in this line.  Skip to next.
-    if (start_of_path == NULL) continue;
+    if (start_of_path == nullptr) continue;
     buffer[bytes_read] = 0;
     result.push_back(SharedLibraryAddress(start_of_path, start, end));
   }

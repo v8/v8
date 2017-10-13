@@ -935,14 +935,15 @@ class Assembler : public AssemblerBase {
   // relocation information starting from the end of the buffer. See CodeDesc
   // for a detailed comment on the layout (globals.h).
   //
-  // If the provided buffer is NULL, the assembler allocates and grows its own
-  // buffer, and buffer_size determines the initial buffer size. The buffer is
-  // owned by the assembler and deallocated upon destruction of the assembler.
+  // If the provided buffer is nullptr, the assembler allocates and grows its
+  // own buffer, and buffer_size determines the initial buffer size. The buffer
+  // is owned by the assembler and deallocated upon destruction of the
+  // assembler.
   //
-  // If the provided buffer is not NULL, the assembler uses the provided buffer
-  // for code generation and assumes its size to be buffer_size. If the buffer
-  // is too small, a fatal error occurs. No deallocation of the buffer is done
-  // upon destruction of the assembler.
+  // If the provided buffer is not nullptr, the assembler uses the provided
+  // buffer for code generation and assumes its size to be buffer_size. If the
+  // buffer is too small, a fatal error occurs. No deallocation of the buffer is
+  // done upon destruction of the assembler.
   Assembler(Isolate* isolate, void* buffer, int buffer_size)
       : Assembler(IsolateData(isolate), buffer, buffer_size) {}
   Assembler(IsolateData isolate_data, void* buffer, int buffer_size);
@@ -965,8 +966,8 @@ class Assembler : public AssemblerBase {
   // desc. GetCode() is idempotent; it returns the same result if no other
   // Assembler functions are invoked in between GetCode() calls.
   //
-  // The descriptor (desc) can be NULL. In that case, the code is finalized as
-  // usual, but the descriptor is not populated.
+  // The descriptor (desc) can be nullptr. In that case, the code is finalized
+  // as usual, but the descriptor is not populated.
   void GetCode(Isolate* isolate, CodeDesc* desc);
 
   // Insert the smallest number of nop instructions
@@ -2872,9 +2873,9 @@ class Assembler : public AssemblerBase {
   // Emit an address in the instruction stream.
   void dcptr(Label* label);
 
-  // Copy a string into the instruction stream, including the terminating NULL
-  // character. The instruction pointer (pc_) is then aligned correctly for
-  // subsequent instructions.
+  // Copy a string into the instruction stream, including the terminating
+  // nullptr character. The instruction pointer (pc_) is then aligned correctly
+  // for subsequent instructions.
   void EmitStringData(const char* string);
 
   // Pseudo-instructions ------------------------------------------------------
@@ -3353,9 +3354,8 @@ class Assembler : public AssemblerBase {
   // Remove the specified branch from the unbound label link chain.
   // If available, a veneer for this label can be used for other branches in the
   // chain if the link chain cannot be fixed up without this branch.
-  void RemoveBranchFromLabelLinkChain(Instruction* branch,
-                                      Label* label,
-                                      Instruction* label_veneer = NULL);
+  void RemoveBranchFromLabelLinkChain(Instruction* branch, Label* label,
+                                      Instruction* label_veneer = nullptr);
 
   // Prevent sharing of code target constant pool entries until
   // EndBlockCodeTargetSharing is called. Calls to this function can be nested

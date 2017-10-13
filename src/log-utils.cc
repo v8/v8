@@ -20,8 +20,8 @@ const char* const Log::kLogToConsole = "-";
 
 Log::Log(Logger* logger)
     : is_stopped_(false),
-      output_handle_(NULL),
-      message_buffer_(NULL),
+      output_handle_(nullptr),
+      message_buffer_(nullptr),
       logger_(logger) {}
 
 void Log::Initialize(const char* log_file_name) {
@@ -86,18 +86,18 @@ void Log::OpenFile(const char* name) {
 }
 
 FILE* Log::Close() {
-  FILE* result = NULL;
-  if (output_handle_ != NULL) {
+  FILE* result = nullptr;
+  if (output_handle_ != nullptr) {
     if (strcmp(FLAG_logfile, kLogToTemporaryFile) != 0) {
       fclose(output_handle_);
     } else {
       result = output_handle_;
     }
   }
-  output_handle_ = NULL;
+  output_handle_ = nullptr;
 
   DeleteArray(message_buffer_);
-  message_buffer_ = NULL;
+  message_buffer_ = nullptr;
 
   is_stopped_ = false;
   return result;
@@ -108,7 +108,7 @@ Log::MessageBuilder::MessageBuilder(Log* log)
   : log_(log),
     lock_guard_(&log_->mutex_),
     pos_(0) {
-  DCHECK(log_->message_buffer_ != NULL);
+  DCHECK(log_->message_buffer_ != nullptr);
 }
 
 
@@ -183,7 +183,7 @@ void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
 
 
 void Log::MessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
-  if (str == NULL) return;
+  if (str == nullptr) return;
   DisallowHeapAllocation no_gc;  // Ensure string stay valid.
   int len = str->length();
   if (len > 0x1000)
@@ -215,7 +215,7 @@ void Log::MessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
 }
 
 void Log::MessageBuilder::AppendUnbufferedHeapString(String* str) {
-  if (str == NULL) return;
+  if (str == nullptr) return;
   DisallowHeapAllocation no_gc;  // Ensure string stay valid.
   ScopedVector<char> buffer(16);
   int len = str->length();

@@ -41,9 +41,7 @@ class Log {
   FILE* Close();
 
   // Returns whether logging is enabled.
-  bool IsEnabled() {
-    return !is_stopped_ && output_handle_ != NULL;
-  }
+  bool IsEnabled() { return !is_stopped_ && output_handle_ != nullptr; }
 
   // Size of buffer used for formatting log messages.
   static const int kMessageBufferSize = 2048;

@@ -963,7 +963,7 @@ Heap* HeapObject::GetHeap() const {
   Heap* heap = MemoryChunk::FromAddress(
                    reinterpret_cast<Address>(const_cast<HeapObject*>(this)))
                    ->heap();
-  SLOW_DCHECK(heap != NULL);
+  SLOW_DCHECK(heap != nullptr);
   return heap;
 }
 
@@ -985,7 +985,7 @@ void HeapObject::set_map(Map* value) {
   }
   set_map_word(MapWord::FromMap(value));
   if (value != nullptr) {
-    // TODO(1600) We are passing NULL as a slot because maps can never be on
+    // TODO(1600) We are passing nullptr as a slot because maps can never be on
     // evacuation candidate.
     value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
   }
@@ -1004,7 +1004,7 @@ void HeapObject::synchronized_set_map(Map* value) {
   }
   synchronized_set_map_word(MapWord::FromMap(value));
   if (value != nullptr) {
-    // TODO(1600) We are passing NULL as a slot because maps can never be on
+    // TODO(1600) We are passing nullptr as a slot because maps can never be on
     // evacuation candidate.
     value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
   }
@@ -1025,7 +1025,7 @@ void HeapObject::set_map_after_allocation(Map* value, WriteBarrierMode mode) {
   set_map_word(MapWord::FromMap(value));
   if (mode != SKIP_WRITE_BARRIER) {
     DCHECK(value != nullptr);
-    // TODO(1600) We are passing NULL as a slot because maps can never be on
+    // TODO(1600) We are passing nullptr as a slot because maps can never be on
     // evacuation candidate.
     value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
   }
@@ -1862,16 +1862,16 @@ void WeakFixedArray::set_last_used_index(int index) {
 
 template <class T>
 T* WeakFixedArray::Iterator::Next() {
-  if (list_ != NULL) {
+  if (list_ != nullptr) {
     // Assert that list did not change during iteration.
     DCHECK_EQ(last_used_index_, list_->last_used_index());
     while (index_ < list_->Length()) {
       Object* item = list_->Get(index_++);
       if (item != Empty()) return T::cast(item);
     }
-    list_ = NULL;
+    list_ = nullptr;
   }
-  return NULL;
+  return nullptr;
 }
 
 int ArrayList::Length() const {
@@ -2076,7 +2076,7 @@ EnumCache* DescriptorArray::GetEnumCache() {
 template <SearchMode search_mode, typename T>
 int BinarySearch(T* array, Name* name, int valid_entries,
                  int* out_insertion_index) {
-  DCHECK(search_mode == ALL_ENTRIES || out_insertion_index == NULL);
+  DCHECK(search_mode == ALL_ENTRIES || out_insertion_index == nullptr);
   int low = 0;
   int high = array->number_of_entries() - 1;
   uint32_t hash = name->hash_field();
@@ -2178,7 +2178,8 @@ int Search(T* array, Name* name, int valid_entries, int* out_insertion_index) {
 
 int DescriptorArray::Search(Name* name, int valid_descriptors) {
   DCHECK(name->IsUniqueName());
-  return internal::Search<VALID_ENTRIES>(this, name, valid_descriptors, NULL);
+  return internal::Search<VALID_ENTRIES>(this, name, valid_descriptors,
+                                         nullptr);
 }
 
 int DescriptorArray::SearchWithCache(Isolate* isolate, Name* name, Map* map) {
@@ -2628,7 +2629,7 @@ int FreeSpace::Size() { return size(); }
 
 FreeSpace* FreeSpace::next() {
   DCHECK(map() == GetHeap()->root(Heap::kFreeSpaceMapRootIndex) ||
-         (!GetHeap()->deserialization_complete() && map() == NULL));
+         (!GetHeap()->deserialization_complete() && map() == nullptr));
   DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
   return reinterpret_cast<FreeSpace*>(
       Memory::Address_at(address() + kNextOffset));
@@ -2637,7 +2638,7 @@ FreeSpace* FreeSpace::next() {
 
 void FreeSpace::set_next(FreeSpace* next) {
   DCHECK(map() == GetHeap()->root(Heap::kFreeSpaceMapRootIndex) ||
-         (!GetHeap()->deserialization_complete() && map() == NULL));
+         (!GetHeap()->deserialization_complete() && map() == nullptr));
   DCHECK_LE(kNextOffset + kPointerSize, relaxed_read_size());
   base::Relaxed_Store(
       reinterpret_cast<base::AtomicWord*>(address() + kNextOffset),
@@ -4571,7 +4572,7 @@ bool JSObject::HasFixedTypedArrayElements() {
 #define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype, size)      \
   bool JSObject::HasFixed##Type##Elements() {                          \
     HeapObject* array = elements();                                    \
-    DCHECK(array != NULL);                                             \
+    DCHECK(array != nullptr);                                          \
     if (!array->IsHeapObject()) return false;                          \
     return array->map()->instance_type() == FIXED_##TYPE##_ARRAY_TYPE; \
   }

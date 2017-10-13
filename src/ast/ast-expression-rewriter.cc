@@ -39,10 +39,10 @@ void AstExpressionRewriter::VisitStatements(ZoneList<Statement*>* statements) {
 void AstExpressionRewriter::VisitExpressions(
     ZoneList<Expression*>* expressions) {
   for (int i = 0; i < expressions->length(); i++) {
-    // The variable statement visiting code may pass NULL expressions
+    // The variable statement visiting code may pass null expressions
     // to this code. Maybe this should be handled by introducing an
-    // undefined expression or literal?  Revisit this code if this
-    // changes
+    // undefined expression or literal? Revisit this code if this
+    // changes.
     if (expressions->at(i) != nullptr) {
       AST_REWRITE_LIST_ELEMENT(Expression, expressions, i);
     }

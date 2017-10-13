@@ -57,8 +57,8 @@ class GlobalHandles::Node {
     set_independent(false);
     set_active(false);
     set_in_new_space_list(false);
-    parameter_or_next_free_.next_free = NULL;
-    weak_callback_ = NULL;
+    parameter_or_next_free_.next_free = nullptr;
+    weak_callback_ = nullptr;
   }
 #endif
 
@@ -79,8 +79,8 @@ class GlobalHandles::Node {
     set_independent(false);
     set_active(false);
     set_state(NORMAL);
-    parameter_or_next_free_.parameter = NULL;
-    weak_callback_ = NULL;
+    parameter_or_next_free_.parameter = nullptr;
+    weak_callback_ = nullptr;
     IncreaseBlockUses();
   }
 
@@ -98,7 +98,7 @@ class GlobalHandles::Node {
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     set_independent(false);
     set_active(false);
-    weak_callback_ = NULL;
+    weak_callback_ = nullptr;
     DecreaseBlockUses();
   }
 
@@ -248,7 +248,7 @@ class GlobalHandles::Node {
     DCHECK(IsInUse());
     void* p = parameter();
     set_state(NORMAL);
-    set_parameter(NULL);
+    set_parameter(nullptr);
     return p;
   }
 
@@ -295,7 +295,7 @@ class GlobalHandles::Node {
   bool PostGarbageCollectionProcessing(Isolate* isolate) {
     // Handles only weak handles (not phantom) that are dying.
     if (state() != Node::PENDING) return false;
-    if (weak_callback_ == NULL) {
+    if (weak_callback_ == nullptr) {
       Release();
       return false;
     }
@@ -304,9 +304,9 @@ class GlobalHandles::Node {
     // Check that we are not passing a finalized external string to
     // the callback.
     DCHECK(!object_->IsExternalOneByteString() ||
-           ExternalOneByteString::cast(object_)->resource() != NULL);
+           ExternalOneByteString::cast(object_)->resource() != nullptr);
     DCHECK(!object_->IsExternalTwoByteString() ||
-           ExternalTwoByteString::cast(object_)->resource() != NULL);
+           ExternalTwoByteString::cast(object_)->resource() != nullptr);
     if (weakness_type() != FINALIZER_WEAK) {
       return false;
     }
@@ -378,8 +378,8 @@ class GlobalHandles::NodeBlock {
   explicit NodeBlock(GlobalHandles* global_handles, NodeBlock* next)
       : next_(next),
         used_nodes_(0),
-        next_used_(NULL),
-        prev_used_(NULL),
+        next_used_(nullptr),
+        prev_used_(nullptr),
         global_handles_(global_handles) {}
 
   void PutNodesOnFreeList(Node** first_free) {
@@ -399,8 +399,8 @@ class GlobalHandles::NodeBlock {
       NodeBlock* old_first = global_handles_->first_used_block_;
       global_handles_->first_used_block_ = this;
       next_used_ = old_first;
-      prev_used_ = NULL;
-      if (old_first == NULL) return;
+      prev_used_ = nullptr;
+      if (old_first == nullptr) return;
       old_first->prev_used_ = this;
     }
   }
@@ -408,8 +408,8 @@ class GlobalHandles::NodeBlock {
   void DecreaseUses() {
     DCHECK(used_nodes_ > 0);
     if (--used_nodes_ == 0) {
-      if (next_used_ != NULL) next_used_->prev_used_ = prev_used_;
-      if (prev_used_ != NULL) prev_used_->next_used_ = next_used_;
+      if (next_used_ != nullptr) next_used_->prev_used_ = prev_used_;
+      if (prev_used_ != nullptr) prev_used_->next_used_ = next_used_;
       if (this == global_handles_->first_used_block_) {
         global_handles_->first_used_block_ = next_used_;
       }
@@ -475,7 +475,7 @@ class GlobalHandles::NodeIterator {
       : block_(global_handles->first_used_block_),
         index_(0) {}
 
-  bool done() const { return block_ == NULL; }
+  bool done() const { return block_ == nullptr; }
 
   Node* node() const {
     DCHECK(!done());
@@ -529,29 +529,29 @@ class GlobalHandles::PendingPhantomCallbacksSecondPassTask
 GlobalHandles::GlobalHandles(Isolate* isolate)
     : isolate_(isolate),
       number_of_global_handles_(0),
-      first_block_(NULL),
-      first_used_block_(NULL),
-      first_free_(NULL),
+      first_block_(nullptr),
+      first_used_block_(nullptr),
+      first_free_(nullptr),
       post_gc_processing_count_(0),
       number_of_phantom_handle_resets_(0) {}
 
 GlobalHandles::~GlobalHandles() {
   NodeBlock* block = first_block_;
-  while (block != NULL) {
+  while (block != nullptr) {
     NodeBlock* tmp = block->next();
     delete block;
     block = tmp;
   }
-  first_block_ = NULL;
+  first_block_ = nullptr;
 }
 
 
 Handle<Object> GlobalHandles::Create(Object* value) {
-  if (first_free_ == NULL) {
+  if (first_free_ == nullptr) {
     first_block_ = new NodeBlock(this, first_block_);
     first_block_->PutNodesOnFreeList(&first_free_);
   }
-  DCHECK(first_free_ != NULL);
+  DCHECK(first_free_ != nullptr);
   // Take the first node in the free list.
   Node* result = first_free_;
   first_free_ = result->next_free();
@@ -566,13 +566,13 @@ Handle<Object> GlobalHandles::Create(Object* value) {
 
 
 Handle<Object> GlobalHandles::CopyGlobal(Object** location) {
-  DCHECK(location != NULL);
+  DCHECK(location != nullptr);
   return Node::FromLocation(location)->GetGlobalHandles()->Create(*location);
 }
 
 
 void GlobalHandles::Destroy(Object** location) {
-  if (location != NULL) Node::FromLocation(location)->Release();
+  if (location != nullptr) Node::FromLocation(location)->Release();
 }
 
 
@@ -1070,7 +1070,7 @@ void EternalHandles::PostGarbageCollectionProcessing(Heap* heap) {
 
 void EternalHandles::Create(Isolate* isolate, Object* object, int* index) {
   DCHECK_EQ(kInvalidIndex, *index);
-  if (object == NULL) return;
+  if (object == nullptr) return;
   DCHECK_NE(isolate->heap()->the_hole_value(), object);
   int block = size_ >> kShift;
   int offset = size_ & kMask;

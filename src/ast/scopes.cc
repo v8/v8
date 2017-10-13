@@ -98,12 +98,12 @@ void VariableMap::Add(Zone* zone, Variable* var) {
 
 Variable* VariableMap::Lookup(const AstRawString* name) {
   Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), name->Hash());
-  if (p != NULL) {
+  if (p != nullptr) {
     DCHECK(reinterpret_cast<const AstRawString*>(p->key) == name);
-    DCHECK(p->value != NULL);
+    DCHECK(p->value != nullptr);
     return reinterpret_cast<Variable*>(p->value);
   }
-  return NULL;
+  return nullptr;
 }
 
 void SloppyBlockFunctionMap::Delegate::set_statement(Statement* statement) {
@@ -650,7 +650,7 @@ void DeclarationScope::AttachOuterScopeInfo(ParseInfo* info, Isolate* isolate) {
 void DeclarationScope::Analyze(ParseInfo* info) {
   RuntimeCallTimerScope runtimeTimer(info->runtime_call_stats(),
                                      &RuntimeCallStats::CompileScopeAnalysis);
-  DCHECK(info->literal() != NULL);
+  DCHECK(info->literal() != nullptr);
   DeclarationScope* scope = info->literal()->scope();
 
   base::Optional<AllowHandleDereference> allow_deref;
@@ -998,13 +998,11 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name) {
 }
 
 Variable* Scope::Lookup(const AstRawString* name) {
-  for (Scope* scope = this;
-       scope != NULL;
-       scope = scope->outer_scope()) {
+  for (Scope* scope = this; scope != nullptr; scope = scope->outer_scope()) {
     Variable* var = scope->LookupLocal(name);
-    if (var != NULL) return var;
+    if (var != nullptr) return var;
   }
-  return NULL;
+  return nullptr;
 }
 
 Variable* DeclarationScope::DeclareParameter(
@@ -1098,7 +1096,7 @@ Variable* Scope::DeclareVariable(
          (IsLexicalVariableMode(mode) && is_block_scope()));
 
   VariableProxy* proxy = declaration->proxy();
-  DCHECK(proxy->raw_name() != NULL);
+  DCHECK(proxy->raw_name() != nullptr);
   const AstRawString* name = proxy->raw_name();
   bool is_function_declaration = declaration->IsFunctionDeclaration();
 
@@ -1125,7 +1123,7 @@ Variable* Scope::DeclareVariable(
   } else {
     // Declare the variable in the declaration scope.
     var = LookupLocal(name);
-    if (var == NULL) {
+    if (var == nullptr) {
       // Declare the name.
       VariableKind kind = NORMAL_VARIABLE;
       if (is_function_declaration) {
@@ -1391,7 +1389,7 @@ bool DeclarationScope::AllowsLazyCompilation() const {
 int Scope::ContextChainLength(Scope* scope) const {
   int n = 0;
   for (const Scope* s = this; s != scope; s = s->outer_scope_) {
-    DCHECK(s != NULL);  // scope must be in the scope chain
+    DCHECK(s != nullptr);  // scope must be in the scope chain
     if (s->NeedsContext()) n++;
   }
   return n;

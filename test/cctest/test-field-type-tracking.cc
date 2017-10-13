@@ -400,7 +400,7 @@ class Expectations {
     Handle<String> name = MakeName("prop", property_index);
     Map* target =
         TransitionsAccessor(map).SearchTransition(*name, kData, attributes);
-    CHECK(target != NULL);
+    CHECK(target != nullptr);
     return handle(target);
   }
 
@@ -2119,7 +2119,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       Handle<String> name = MakeName("prop", i);
       Map* target =
           TransitionsAccessor(map2).SearchTransition(*name, kData, NONE);
-      CHECK(target != NULL);
+      CHECK(target != nullptr);
       map2 = handle(target);
     }
 

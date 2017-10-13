@@ -218,7 +218,7 @@ void ArrayConstructorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   // kTarget, kNewTarget, kActualArgumentsCount, kAllocationSite
   Register registers[] = {rdi, rdx, rax, rbx};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
 void ArrayNoArgumentConstructorDescriptor::InitializePlatformSpecific(
@@ -228,7 +228,7 @@ void ArrayNoArgumentConstructorDescriptor::InitializePlatformSpecific(
   // rdi -- function
   // rbx -- allocation site with elements kind
   Register registers[] = {rdi, rbx, rax};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
 void ArraySingleArgumentConstructorDescriptor::InitializePlatformSpecific(
@@ -238,7 +238,7 @@ void ArraySingleArgumentConstructorDescriptor::InitializePlatformSpecific(
   // rdi -- function
   // rbx -- allocation site with elements kind
   Register registers[] = {rdi, rbx, rax};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
 void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
@@ -248,7 +248,7 @@ void ArrayNArgumentsConstructorDescriptor::InitializePlatformSpecific(
   // rdi -- function
   // rbx -- allocation site with elements kind
   Register registers[] = {rdi, rbx, rax};
-  data->InitializePlatformSpecific(arraysize(registers), registers, NULL);
+  data->InitializePlatformSpecific(arraysize(registers), registers, nullptr);
 }
 
 void CompareDescriptor::InitializePlatformSpecific(

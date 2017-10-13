@@ -657,8 +657,8 @@ void NEONFormatDecoder::SetFormatMaps(const NEONFormatMap* format0,
                                       const NEONFormatMap* format2) {
   DCHECK_NOT_NULL(format0);
   formats_[0] = format0;
-  formats_[1] = (format1 == NULL) ? formats_[0] : format1;
-  formats_[2] = (format2 == NULL) ? formats_[1] : format2;
+  formats_[1] = (format1 == nullptr) ? formats_[0] : format1;
+  formats_[2] = (format2 == nullptr) ? formats_[1] : format2;
 }
 
 void NEONFormatDecoder::SetFormatMap(unsigned index,

@@ -36,7 +36,7 @@ class IC {
 
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
-  IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = NULL);
+  IC(FrameDepth depth, Isolate* isolate, FeedbackNexus* nexus = nullptr);
   virtual ~IC() {}
 
   State state() const { return state_; }
@@ -156,7 +156,7 @@ class IC {
 
   Map* FirstTargetMap() {
     FindTargetMaps();
-    return !target_maps_.empty() ? *target_maps_[0] : NULL;
+    return !target_maps_.empty() ? *target_maps_[0] : nullptr;
   }
 
   Handle<FeedbackVector> vector() const { return nexus()->vector_handle(); }
@@ -218,7 +218,7 @@ class CallIC : public IC {
  public:
   CallIC(Isolate* isolate, CallICNexus* nexus)
       : IC(EXTRA_CALL_FRAME, isolate, nexus) {
-    DCHECK(nexus != NULL);
+    DCHECK(nexus != nullptr);
   }
 };
 
@@ -227,7 +227,7 @@ class LoadIC : public IC {
  public:
   LoadIC(Isolate* isolate, FeedbackNexus* nexus)
       : IC(NO_EXTRA_FRAME, isolate, nexus) {
-    DCHECK(nexus != NULL);
+    DCHECK(nexus != nullptr);
     DCHECK(IsAnyLoad());
   }
 
@@ -280,7 +280,7 @@ class KeyedLoadIC : public LoadIC {
  public:
   KeyedLoadIC(Isolate* isolate, KeyedLoadICNexus* nexus)
       : LoadIC(isolate, nexus) {
-    DCHECK(nexus != NULL);
+    DCHECK(nexus != nullptr);
   }
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,

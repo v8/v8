@@ -1102,7 +1102,7 @@ char* DoubleToPrecisionCString(double value, int p) {
 
   int exponent = decimal_point - 1;
 
-  char* result = NULL;
+  char* result = nullptr;
 
   if (exponent < -6 || exponent >= p) {
     result =

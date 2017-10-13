@@ -547,7 +547,7 @@ void DisassemblingDecoder::VisitUnconditionalBranchToRegister(
     case RET: {
       mnemonic = "ret";
       if (instr->Rn() == kLinkRegCode) {
-        form = NULL;
+        form = nullptr;
       }
       break;
     }
@@ -1244,7 +1244,7 @@ void DisassemblingDecoder::VisitSystem(Instruction* instr) {
     switch (instr->ImmHint()) {
       case NOP: {
         mnemonic = "nop";
-        form = NULL;
+        form = nullptr;
         break;
       }
     }
@@ -1262,7 +1262,7 @@ void DisassemblingDecoder::VisitSystem(Instruction* instr) {
       }
       case ISB: {
         mnemonic = "isb";
-        form = NULL;
+        form = nullptr;
         break;
       }
     }
@@ -1334,8 +1334,8 @@ void DisassemblingDecoder::VisitNEON3Same(Instruction* instr) {
         "shadd",       "uhadd",       "shadd",       "uhadd",
         "sqadd",       "uqadd",       "sqadd",       "uqadd",
         "srhadd",      "urhadd",      "srhadd",      "urhadd",
-        NULL,          NULL,          NULL,
-        NULL,  // Handled by logical cases above.
+        nullptr,       nullptr,       nullptr,
+        nullptr,  // Handled by logical cases above.
         "shsub",       "uhsub",       "shsub",       "uhsub",
         "sqsub",       "uqsub",       "sqsub",       "uqsub",
         "cmgt",        "cmhi",        "cmgt",        "cmhi",
@@ -1976,8 +1976,8 @@ void DisassemblingDecoder::VisitNEONExtract(Instruction* instr) {
 }
 
 void DisassemblingDecoder::VisitNEONLoadStoreMultiStruct(Instruction* instr) {
-  const char* mnemonic = NULL;
-  const char* form = NULL;
+  const char* mnemonic = nullptr;
+  const char* form = nullptr;
   const char* form_1v = "{'Vt.%1$s}, ['Xns]";
   const char* form_2v = "{'Vt.%1$s, 'Vt2.%1$s}, ['Xns]";
   const char* form_3v = "{'Vt.%1$s, 'Vt2.%1$s, 'Vt3.%1$s}, ['Xns]";
@@ -2046,7 +2046,7 @@ void DisassemblingDecoder::VisitNEONLoadStoreMultiStruct(Instruction* instr) {
   }
 
   // Work out unallocated encodings.
-  bool allocated = (mnemonic != NULL);
+  bool allocated = (mnemonic != nullptr);
   switch (instr->Mask(NEONLoadStoreMultiStructMask)) {
     case NEON_LD2:
     case NEON_LD3:
@@ -2073,8 +2073,8 @@ void DisassemblingDecoder::VisitNEONLoadStoreMultiStruct(Instruction* instr) {
 
 void DisassemblingDecoder::VisitNEONLoadStoreMultiStructPostIndex(
     Instruction* instr) {
-  const char* mnemonic = NULL;
-  const char* form = NULL;
+  const char* mnemonic = nullptr;
+  const char* form = nullptr;
   const char* form_1v = "{'Vt.%1$s}, ['Xns], 'Xmr1";
   const char* form_2v = "{'Vt.%1$s, 'Vt2.%1$s}, ['Xns], 'Xmr2";
   const char* form_3v = "{'Vt.%1$s, 'Vt2.%1$s, 'Vt3.%1$s}, ['Xns], 'Xmr3";
@@ -2144,7 +2144,7 @@ void DisassemblingDecoder::VisitNEONLoadStoreMultiStructPostIndex(
   }
 
   // Work out unallocated encodings.
-  bool allocated = (mnemonic != NULL);
+  bool allocated = (mnemonic != nullptr);
   switch (instr->Mask(NEONLoadStoreMultiStructPostIndexMask)) {
     case NEON_LD2_post:
     case NEON_LD3_post:
@@ -2170,8 +2170,8 @@ void DisassemblingDecoder::VisitNEONLoadStoreMultiStructPostIndex(
 }
 
 void DisassemblingDecoder::VisitNEONLoadStoreSingleStruct(Instruction* instr) {
-  const char* mnemonic = NULL;
-  const char* form = NULL;
+  const char* mnemonic = nullptr;
+  const char* form = nullptr;
 
   const char* form_1b = "{'Vt.b}['IVLSLane0], ['Xns]";
   const char* form_1h = "{'Vt.h}['IVLSLane1], ['Xns]";
@@ -2294,7 +2294,7 @@ void DisassemblingDecoder::VisitNEONLoadStoreSingleStruct(Instruction* instr) {
   }
 
   // Work out unallocated encodings.
-  bool allocated = (mnemonic != NULL);
+  bool allocated = (mnemonic != nullptr);
   switch (instr->Mask(NEONLoadStoreSingleStructMask)) {
     case NEON_LD1_h:
     case NEON_LD2_h:
@@ -2342,8 +2342,8 @@ void DisassemblingDecoder::VisitNEONLoadStoreSingleStruct(Instruction* instr) {
 
 void DisassemblingDecoder::VisitNEONLoadStoreSingleStructPostIndex(
     Instruction* instr) {
-  const char* mnemonic = NULL;
-  const char* form = NULL;
+  const char* mnemonic = nullptr;
+  const char* form = nullptr;
 
   const char* form_1b = "{'Vt.b}['IVLSLane0], ['Xns], 'Xmb1";
   const char* form_1h = "{'Vt.h}['IVLSLane1], ['Xns], 'Xmb2";
@@ -2455,7 +2455,7 @@ void DisassemblingDecoder::VisitNEONLoadStoreSingleStructPostIndex(
   }
 
   // Work out unallocated encodings.
-  bool allocated = (mnemonic != NULL);
+  bool allocated = (mnemonic != nullptr);
   switch (instr->Mask(NEONLoadStoreSingleStructPostIndexMask)) {
     case NEON_LD1_h_post:
     case NEON_LD2_h_post:
@@ -3355,10 +3355,10 @@ void DisassemblingDecoder::Format(Instruction* instr, const char* mnemonic,
                                   const char* format) {
   // TODO(mcapewel) don't think I can use the instr address here - there needs
   //                to be a base address too
-  DCHECK(mnemonic != NULL);
+  DCHECK(mnemonic != nullptr);
   ResetOutput();
   Substitute(instr, mnemonic);
-  if (format != NULL) {
+  if (format != nullptr) {
     buffer_[buffer_pos_++] = ' ';
     Substitute(instr, format);
   }

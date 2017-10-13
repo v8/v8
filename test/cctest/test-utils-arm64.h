@@ -225,7 +225,7 @@ std::array<RegType, Size> CreateRegisterArray() {
 // (such as the push and pop tests), but where certain registers must be
 // avoided as they are used for other purposes.
 //
-// Any of w, x, or r can be NULL if they are not required.
+// Any of w, x, or r can be nullptr if they are not required.
 //
 // The return value is a RegList indicating which registers were allocated.
 RegList PopulateRegisterArray(Register* w, Register* x, Register* r,

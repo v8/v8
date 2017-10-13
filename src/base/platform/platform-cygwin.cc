@@ -36,7 +36,7 @@ namespace {
 
 static void* RandomizedVirtualAlloc(size_t size, int action, int protection,
                                     void* hint) {
-  LPVOID base = NULL;
+  LPVOID base = nullptr;
 
   if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
     // For exectutable pages try and randomize the allocation address
@@ -44,7 +44,7 @@ static void* RandomizedVirtualAlloc(size_t size, int action, int protection,
   }
 
   // After three attempts give up and let the OS find an address to use.
-  if (base == NULL) base = VirtualAlloc(NULL, size, action, protection);
+  if (base == nullptr) base = VirtualAlloc(nullptr, size, action, protection);
 
   return base;
 }
@@ -64,17 +64,17 @@ const char* CygwinTimezoneCache::LocalTimezone(double time) {
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);
-  if (NULL == t) return "";
+  if (nullptr == t) return "";
   return tzname[0];  // The location of the timezone string on Cygwin.
 }
 
 double CygwinTimezoneCache::LocalTimeOffset() {
   // On Cygwin, struct tm does not contain a tm_gmtoff field.
-  time_t utc = time(NULL);
+  time_t utc = time(nullptr);
   DCHECK(utc != -1);
   struct tm tm;
   struct tm* loc = localtime_r(&utc, &tm);
-  DCHECK(loc != NULL);
+  DCHECK(loc != nullptr);
   // time - localtime includes any daylight savings offset, so subtract it.
   return static_cast<double>((mktime(loc) - utc) * msPerSecond -
                              (loc->tm_isdst > 0 ? 3600 * msPerSecond : 0));
@@ -84,8 +84,8 @@ void* OS::Allocate(const size_t requested, size_t* allocated,
                    OS::MemoryPermission access, void* hint) {
   const size_t msize = RoundUp(requested, sysconf(_SC_PAGESIZE));
   int prot = GetProtectionFromMemoryPermission(access);
-  void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-  if (mbase == MAP_FAILED) return NULL;
+  void* mbase = mmap(nullptr, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (mbase == MAP_FAILED) return nullptr;
   *allocated = msize;
   return mbase;
 }
@@ -103,7 +103,7 @@ void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
   size_t request_size =
       RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
   void* address = ReserveRegion(request_size, hint);
-  if (address == NULL) {
+  if (address == nullptr) {
     *allocated = 0;
     return nullptr;
   }
@@ -132,7 +132,7 @@ void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
 // static
 bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
   int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  if (NULL == VirtualAlloc(address, size, MEM_COMMIT, prot)) {
+  if (nullptr == VirtualAlloc(address, size, MEM_COMMIT, prot)) {
     return false;
   }
   return true;
@@ -165,7 +165,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
   // If we encounter an unexpected situation we abort scanning further entries.
   FILE* fp = fopen("/proc/self/maps", "r");
-  if (fp == NULL) return result;
+  if (fp == nullptr) return result;
 
   // Allocate enough room to be able to store a full file name.
   const int kLibNameLen = FILENAME_MAX + 1;
@@ -193,7 +193,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
         ungetc(c, fp);  // Push the '/' back into the stream to be read below.
 
         // Read to the end of the line. Exit if the read fails.
-        if (fgets(lib_name, kLibNameLen, fp) == NULL) break;
+        if (fgets(lib_name, kLibNameLen, fp) == nullptr) break;
 
         // Drop the newline character read by fgets. We do not need to check
         // for a zero-length string because we know that we at least read the

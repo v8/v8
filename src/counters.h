@@ -46,23 +46,21 @@ class StatsTable {
     add_histogram_sample_function_ = f;
   }
 
-  bool HasCounterFunction() const {
-    return lookup_function_ != NULL;
-  }
+  bool HasCounterFunction() const { return lookup_function_ != nullptr; }
 
   // Lookup the location of a counter by name.  If the lookup
-  // is successful, returns a non-NULL pointer for writing the
+  // is successful, returns a non-nullptr pointer for writing the
   // value of the counter.  Each thread calling this function
   // may receive a different location to store it's counter.
   // The return value must not be cached and re-used across
   // threads, although a single thread is free to cache it.
   int* FindLocation(const char* name) {
-    if (!lookup_function_) return NULL;
+    if (!lookup_function_) return nullptr;
     return lookup_function_(name);
   }
 
   // Create a histogram by name. If the create is successful,
-  // returns a non-NULL pointer for use with AddHistogramSample
+  // returns a non-nullptr pointer for use with AddHistogramSample
   // function. min and max define the expected minimum and maximum
   // sample values. buckets is the maximum number of buckets
   // that the samples will be grouped into.
@@ -70,7 +68,7 @@ class StatsTable {
                         int min,
                         int max,
                         size_t buckets) {
-    if (!create_histogram_function_) return NULL;
+    if (!create_histogram_function_) return nullptr;
     return create_histogram_function_(name, min, max, buckets);
   }
 
@@ -149,16 +147,14 @@ class StatsCounter : public StatsCounterBase {
 
   // Is this counter enabled?
   // Returns false if table is full.
-  bool Enabled() {
-    return GetPtr() != NULL;
-  }
+  bool Enabled() { return GetPtr() != nullptr; }
 
   // Get the internal pointer to the counter. This is used
   // by the code generator to emit code that manipulates a
   // given counter without calling the runtime system.
   int* GetInternalPointer() {
     int* loc = GetPtr();
-    DCHECK(loc != NULL);
+    DCHECK(loc != nullptr);
     return loc;
   }
 
@@ -191,9 +187,9 @@ class StatsCounterThreadSafe : public StatsCounterBase {
   void Increment(int value);
   void Decrement();
   void Decrement(int value);
-  bool Enabled() { return ptr_ != NULL; }
+  bool Enabled() { return ptr_ != nullptr; }
   int* GetInternalPointer() {
-    DCHECK(ptr_ != NULL);
+    DCHECK(ptr_ != nullptr);
     return ptr_;
   }
 
@@ -466,7 +462,7 @@ class AggregatedMemoryHistogram {
         last_ms_(0.0),
         aggregate_value_(0.0),
         last_value_(0.0),
-        backing_histogram_(NULL) {}
+        backing_histogram_(nullptr) {}
   double Aggregate(double current_ms, double current_value);
 
   bool is_initialized_;

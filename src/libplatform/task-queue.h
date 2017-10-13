@@ -28,7 +28,7 @@ class V8_PLATFORM_EXPORT TaskQueue {
   void Append(Task* task);
 
   // Returns the next task to process. Blocks if no task is available. Returns
-  // NULL if the queue is terminated.
+  // nullptr if the queue is terminated.
   Task* GetNext();
 
   // Terminate the queue.

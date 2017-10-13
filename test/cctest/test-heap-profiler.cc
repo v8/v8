@@ -117,7 +117,7 @@ static const v8::HeapGraphNode* GetProperty(v8::Isolate* isolate,
     if (prop->GetType() == type && strcmp(name, *prop_name) == 0)
       return prop->GetToNode();
   }
-  return NULL;
+  return nullptr;
 }
 
 static bool HasString(v8::Isolate* isolate, const v8::HeapGraphNode* node,
@@ -438,7 +438,7 @@ TEST(HeapSnapshotConsString) {
   v8::Local<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate);
   global_template->SetInternalFieldCount(1);
-  LocalContext env(NULL, global_template);
+  LocalContext env(nullptr, global_template);
   v8::Local<v8::Object> global_proxy = env->Global();
   v8::Local<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
   CHECK_EQ(1, global->InternalFieldCount());
@@ -674,7 +674,7 @@ TEST(HeapSnapshotInternalReferences) {
   v8::Local<v8::ObjectTemplate> global_template =
       v8::ObjectTemplate::New(isolate);
   global_template->SetInternalFieldCount(2);
-  LocalContext env(NULL, global_template);
+  LocalContext env(nullptr, global_template);
   v8::Local<v8::Object> global_proxy = env->Global();
   v8::Local<v8::Object> global = global_proxy->GetPrototype().As<v8::Object>();
   CHECK_EQ(2, global->InternalFieldCount());
@@ -1101,7 +1101,7 @@ class TestStatsStream : public v8::OutputStream {
 
 static TestStatsStream GetHeapStatsUpdate(
     v8::HeapProfiler* heap_profiler,
-    v8::SnapshotObjectId* object_id = NULL) {
+    v8::SnapshotObjectId* object_id = nullptr) {
   TestStatsStream stream;
   int64_t timestamp = -1;
   v8::SnapshotObjectId last_seen_id =
@@ -1460,7 +1460,7 @@ class TestRetainedObjectInfo : public v8::RetainedObjectInfo {
       }
     }
     CHECK(false);
-    return NULL;
+    return nullptr;
   }
 
   static std::vector<TestRetainedObjectInfo*> instances;
@@ -1490,7 +1490,7 @@ static const v8::HeapGraphNode* GetNode(const v8::HeapGraphNode* parent,
       return node;
     }
   }
-  return NULL;
+  return nullptr;
 }
 
 
@@ -1635,7 +1635,7 @@ TEST(GlobalObjectName) {
 
   NameResolver name_resolver;
   const v8::HeapSnapshot* snapshot =
-      heap_profiler->TakeHeapSnapshot(NULL, &name_resolver);
+      heap_profiler->TakeHeapSnapshot(nullptr, &name_resolver);
   CHECK(ValidateSnapshot(snapshot));
   const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
   CHECK(global);
@@ -2346,7 +2346,7 @@ static const v8::HeapGraphNode* GetNodeByPath(v8::Isolate* isolate,
         break;
       }
     }
-    if (i == count) return NULL;
+    if (i == count) return nullptr;
   }
   return node;
 }
@@ -2431,10 +2431,10 @@ static const char* record_trace_tree_source =
 static AllocationTraceNode* FindNode(
     AllocationTracker* tracker, const Vector<const char*>& names) {
   AllocationTraceNode* node = tracker->trace_tree()->root();
-  for (int i = 0; node != NULL && i < names.length(); i++) {
+  for (int i = 0; node != nullptr && i < names.length(); i++) {
     const char* name = names[i];
     const std::vector<AllocationTraceNode*>& children = node->children();
-    node = NULL;
+    node = nullptr;
     for (AllocationTraceNode* child : children) {
       unsigned index = child->function_info_index();
       AllocationTracker::FunctionInfo* info =
@@ -2687,7 +2687,7 @@ TEST(ArrayBufferSharedBackingStore) {
 
   CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
   void* data = ab_contents.Data();
-  CHECK(data != NULL);
+  CHECK(data != nullptr);
   v8::Local<v8::ArrayBuffer> ab2 =
       v8::ArrayBuffer::New(isolate, data, ab_contents.ByteLength());
   CHECK(ab2->IsExternal());
@@ -3108,7 +3108,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
       v8::Local<v8::Function>::Cast(CompileRun(source.start()));
 
   // Make sure the function is producing pre-tenured objects.
-  auto res = f->Call(env.local(), env->Global(), 0, NULL).ToLocalChecked();
+  auto res = f->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   i::Handle<i::JSObject> o = i::Handle<i::JSObject>::cast(
       v8::Utils::OpenHandle(*v8::Local<v8::Object>::Cast(res)));
   CHECK(CcTest::heap()->InOldSpace(o->elements()));
@@ -3117,7 +3117,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
   // Call the function and profile it.
   heap_profiler->StartSamplingHeapProfiler(64);
   for (int i = 0; i < 100; ++i) {
-    f->Call(env.local(), env->Global(), 0, NULL).ToLocalChecked();
+    f->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   }
 
   std::unique_ptr<v8::AllocationProfile> profile(

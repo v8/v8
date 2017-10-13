@@ -314,15 +314,15 @@ class TransitionArray : public FixedArray {
 
   // Search a  transition for a given kind, property name and attributes.
   int Search(PropertyKind kind, Name* name, PropertyAttributes attributes,
-             int* out_insertion_index = NULL);
+             int* out_insertion_index = nullptr);
 
   // Search a non-property transition (like elements kind, observe or frozen
   // transitions).
-  inline int SearchSpecial(Symbol* symbol, int* out_insertion_index = NULL) {
+  inline int SearchSpecial(Symbol* symbol, int* out_insertion_index = nullptr) {
     return SearchName(symbol, out_insertion_index);
   }
   // Search a first transition for a given property name.
-  inline int SearchName(Name* name, int* out_insertion_index = NULL);
+  inline int SearchName(Name* name, int* out_insertion_index = nullptr);
   int SearchDetails(int transition, PropertyKind kind,
                     PropertyAttributes attributes, int* out_insertion_index);
 

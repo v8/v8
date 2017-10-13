@@ -480,7 +480,7 @@ struct CommentStatistic {
   int size;
   int count;
   void Clear() {
-    comment = NULL;
+    comment = nullptr;
     size = 0;
     count = 0;
   }
@@ -778,7 +778,7 @@ class Heap {
   inline bool IsInGCPostProcessing() { return gc_post_processing_depth_ > 0; }
 
   // If an object has an AllocationMemento trailing it, return it, otherwise
-  // return NULL;
+  // return nullptr;
   template <FindMementoMode mode>
   inline AllocationMemento* FindAllocationMemento(Map* map, HeapObject* object);
 
@@ -1957,7 +1957,7 @@ class Heap {
   // Properties and elements are copied too.
   // Optionally takes an AllocationSite to be appended in an AllocationMemento.
   MUST_USE_RESULT AllocationResult CopyJSObject(JSObject* source,
-                                                AllocationSite* site = NULL);
+                                                AllocationSite* site = nullptr);
 
   // Allocates a JS Map in the heap.
   MUST_USE_RESULT AllocationResult
@@ -1970,14 +1970,14 @@ class Heap {
   // that points to the site.
   MUST_USE_RESULT AllocationResult AllocateJSObject(
       JSFunction* constructor, PretenureFlag pretenure = NOT_TENURED,
-      AllocationSite* allocation_site = NULL);
+      AllocationSite* allocation_site = nullptr);
 
   // Allocates and initializes a new JavaScript object based on a map.
   // Passing an allocation site means that a memento will be created that
   // points to the site.
   MUST_USE_RESULT AllocationResult
   AllocateJSObjectFromMap(Map* map, PretenureFlag pretenure = NOT_TENURED,
-                          AllocationSite* allocation_site = NULL);
+                          AllocationSite* allocation_site = nullptr);
 
   // Allocates a HeapNumber from value.
   MUST_USE_RESULT AllocationResult AllocateHeapNumber(
@@ -2033,8 +2033,8 @@ class Heap {
 
   // Allocates a heap object based on the map.
   MUST_USE_RESULT AllocationResult
-      Allocate(Map* map, AllocationSpace space,
-               AllocationSite* allocation_site = NULL);
+  Allocate(Map* map, AllocationSpace space,
+           AllocationSite* allocation_site = nullptr);
 
   // Allocates a partial map for bootstrapping.
   MUST_USE_RESULT AllocationResult
@@ -2631,7 +2631,7 @@ class WeakObjectRetainer {
  public:
   virtual ~WeakObjectRetainer() {}
 
-  // Return whether this object should be retained. If NULL is returned the
+  // Return whether this object should be retained. If nullptr is returned the
   // object has no references. Otherwise the address of the retained object
   // should be returned as in some GC situations the object has been moved.
   virtual Object* RetainAs(Object* object) = 0;

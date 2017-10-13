@@ -122,14 +122,14 @@ static void InitializeVM() {
 #define SETUP_SIZE(buf_size)                                   \
   Isolate* isolate = CcTest::i_isolate();                      \
   HandleScope scope(isolate);                                  \
-  CHECK(isolate != NULL);                                      \
+  CHECK(isolate != nullptr);                                   \
   byte* buf = new byte[buf_size];                              \
   MacroAssembler masm(isolate, buf, buf_size,                  \
                       v8::internal::CodeObjectRequired::kYes); \
   Decoder<DispatchingDecoderVisitor>* decoder =                \
       new Decoder<DispatchingDecoderVisitor>();                \
   Simulator simulator(decoder);                                \
-  PrintDisassembler* pdis = NULL;                              \
+  PrintDisassembler* pdis = nullptr;                           \
   RegisterDump core;
 
 /*  if (Cctest::trace_sim()) {                                                 \
@@ -166,7 +166,7 @@ static void InitializeVM() {
   core.Dump(&masm);                                         \
   __ PopCalleeSavedRegisters();                             \
   __ Ret();                                                 \
-  __ GetCode(masm.isolate(), NULL);
+  __ GetCode(masm.isolate(), nullptr);
 
 #define TEARDOWN()                                                             \
   delete pdis;                                                                 \
@@ -177,7 +177,7 @@ static void InitializeVM() {
 #define SETUP_SIZE(buf_size)                                            \
   Isolate* isolate = CcTest::i_isolate();                               \
   HandleScope scope(isolate);                                           \
-  CHECK(isolate != NULL);                                               \
+  CHECK(isolate != nullptr);                                            \
   size_t actual_size;                                                   \
   byte* buf = static_cast<byte*>(                                       \
       v8::base::OS::Allocate(buf_size, &actual_size, true));            \
@@ -212,7 +212,7 @@ static void InitializeVM() {
   core.Dump(&masm);             \
   __ PopCalleeSavedRegisters(); \
   __ Ret();                     \
-  __ GetCode(masm.isolate(), NULL);
+  __ GetCode(masm.isolate(), nullptr);
 
 #define TEARDOWN()                                                             \
   v8::base::OS::Free(buf, actual_size);
@@ -12368,7 +12368,7 @@ static void PushPopJsspSimpleHelper(int reg_count,
   // Work out which registers to use, based on reg_size.
   auto r = CreateRegisterArray<Register, kNumberOfRegisters>();
   auto x = CreateRegisterArray<Register, kNumberOfRegisters>();
-  RegList list = PopulateRegisterArray(NULL, x.data(), r.data(), reg_size,
+  RegList list = PopulateRegisterArray(nullptr, x.data(), r.data(), reg_size,
                                        reg_count, allowed);
 
   // The literal base is chosen to have two useful properties:
@@ -12552,7 +12552,7 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
   // Work out which registers to use, based on reg_size.
   auto v = CreateRegisterArray<VRegister, kNumberOfRegisters>();
   auto d = CreateRegisterArray<VRegister, kNumberOfRegisters>();
-  RegList list = PopulateVRegisterArray(NULL, d.data(), v.data(), reg_size,
+  RegList list = PopulateVRegisterArray(nullptr, d.data(), v.data(), reg_size,
                                         reg_count, allowed);
 
   // The literal base is chosen to have two useful properties:
@@ -12721,7 +12721,7 @@ static void PushPopJsspMixedMethodsHelper(int claim, int reg_size) {
   // Work out which registers to use, based on reg_size.
   auto r = CreateRegisterArray<Register, 10>();
   auto x = CreateRegisterArray<Register, 10>();
-  PopulateRegisterArray(NULL, x.data(), r.data(), reg_size, 10, allowed);
+  PopulateRegisterArray(nullptr, x.data(), r.data(), reg_size, 10, allowed);
 
   // Calculate some handy register lists.
   RegList r0_to_r3 = 0;
@@ -12827,7 +12827,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
   auto w = CreateRegisterArray<Register, kNumberOfRegisters>();
   auto x = CreateRegisterArray<Register, kNumberOfRegisters>();
   RegList list =
-      PopulateRegisterArray(w.data(), x.data(), NULL, 0, reg_count, allowed);
+      PopulateRegisterArray(w.data(), x.data(), nullptr, 0, reg_count, allowed);
 
   // The number of W-sized slots we expect to pop. When we pop, we alternate
   // between W and X registers, so we need reg_count*1.5 W-sized slots.
@@ -15325,7 +15325,7 @@ static void AbsHelperX(int64_t value) {
     __ Abs(x11, x1, &fail);
     __ Abs(x12, x1, &fail, &next);
     __ Bind(&next);
-    __ Abs(x13, x1, NULL, &done);
+    __ Abs(x13, x1, nullptr, &done);
   } else {
     // labs is undefined for kXMinInt but our implementation in the
     // MacroAssembler will return kXMinInt in such a case.
@@ -15334,7 +15334,7 @@ static void AbsHelperX(int64_t value) {
     Label next;
     // The result is not representable.
     __ Abs(x10, x1);
-    __ Abs(x11, x1, NULL, &fail);
+    __ Abs(x11, x1, nullptr, &fail);
     __ Abs(x12, x1, &next, &fail);
     __ Bind(&next);
     __ Abs(x13, x1, &done);
@@ -15382,7 +15382,7 @@ static void AbsHelperW(int32_t value) {
     __ Abs(w11, w1, &fail);
     __ Abs(w12, w1, &fail, &next);
     __ Bind(&next);
-    __ Abs(w13, w1, NULL, &done);
+    __ Abs(w13, w1, nullptr, &done);
   } else {
     // abs is undefined for kWMinInt but our implementation in the
     // MacroAssembler will return kWMinInt in such a case.
@@ -15391,7 +15391,7 @@ static void AbsHelperW(int32_t value) {
     Label next;
     // The result is not representable.
     __ Abs(w10, w1);
-    __ Abs(w11, w1, NULL, &fail);
+    __ Abs(w11, w1, nullptr, &fail);
     __ Abs(w12, w1, &next, &fail);
     __ Bind(&next);
     __ Abs(w13, w1, &done);

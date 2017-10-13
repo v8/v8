@@ -94,7 +94,7 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
 
   void InitializePlatformSpecific(
       int register_parameter_count, const Register* registers,
-      PlatformInterfaceDescriptor* platform_descriptor = NULL);
+      PlatformInterfaceDescriptor* platform_descriptor = nullptr);
 
   // if machine_types is null, then an array of size
   // (parameter_count + extra_parameter_count) will be created with
@@ -163,7 +163,7 @@ class CallDescriptors {
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
  public:
-  CallInterfaceDescriptor() : data_(NULL) {}
+  CallInterfaceDescriptor() : data_(nullptr) {}
   virtual ~CallInterfaceDescriptor() {}
 
   CallInterfaceDescriptor(Isolate* isolate, CallDescriptors::Key key)
@@ -210,7 +210,8 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptor {
 
   virtual void InitializePlatformIndependent(
       CallInterfaceDescriptorData* data) {
-    data->InitializePlatformIndependent(data->register_param_count(), 0, NULL);
+    data->InitializePlatformIndependent(data->register_param_count(), 0,
+                                        nullptr);
   }
 
   void Initialize(Isolate* isolate, CallDescriptors::Key key) {
@@ -256,7 +257,8 @@ static const int kMaxBuiltinRegisterParams = 5;
   }                                                                           \
   void InitializePlatformIndependent(CallInterfaceDescriptorData* data)       \
       override {                                                              \
-    data->InitializePlatformIndependent(kRegisterParams, kStackParams, NULL); \
+    data->InitializePlatformIndependent(kRegisterParams, kStackParams,        \
+                                        nullptr);                             \
   }                                                                           \
   name(Isolate* isolate, CallDescriptors::Key key) : base(isolate, key) {}    \
                                                                               \
@@ -283,7 +285,7 @@ static const int kMaxBuiltinRegisterParams = 5;
  protected:                                                             \
   void InitializePlatformIndependent(CallInterfaceDescriptorData* data) \
       override {                                                        \
-    data->InitializePlatformIndependent(0, kParameterCount, NULL);      \
+    data->InitializePlatformIndependent(0, kParameterCount, nullptr);   \
   }                                                                     \
   void InitializePlatformSpecific(CallInterfaceDescriptorData* data)    \
       override {                                                        \

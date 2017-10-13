@@ -180,7 +180,8 @@ static void TestInvalidateExclusiveAccess(
     MemoryAccess access3, int expected_res, TestData expected_data) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, nullptr, 0,
+                      v8::internal::CodeObjectRequired::kYes);
 
   AssembleLoadExcl(&masm, access1, w1, x1);
   AssembleMemoryAccess(&masm, access2, w3, w2, x1);
@@ -253,7 +254,8 @@ TEST(simulator_invalidate_exclusive_access) {
 static int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
                                MemoryAccess access) {
   HandleScope scope(isolate);
-  MacroAssembler masm(isolate, NULL, 0, v8::internal::CodeObjectRequired::kYes);
+  MacroAssembler masm(isolate, nullptr, 0,
+                      v8::internal::CodeObjectRequired::kYes);
   AssembleMemoryAccess(&masm, access, w0, w2, x1);
   __ br(lr);
 
@@ -272,7 +274,7 @@ class MemoryAccessThread : public v8::base::Thread {
  public:
   MemoryAccessThread()
       : Thread(Options("MemoryAccessThread")),
-        test_data_(NULL),
+        test_data_(nullptr),
         is_finished_(false),
         has_request_(false),
         did_request_(false),

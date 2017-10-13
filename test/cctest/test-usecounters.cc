@@ -10,7 +10,7 @@ namespace v8 {
 namespace internal {
 namespace test_usecounters {
 
-int* global_use_counts = NULL;
+int* global_use_counts = nullptr;
 
 void MockUseCounterCallback(v8::Isolate* isolate,
                             v8::Isolate::UseCounterFeature feature) {

@@ -278,7 +278,7 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   if (!function->IsOptimized()) {
     function->set_code(function->shared()->code());
   }
-  return NULL;
+  return nullptr;
 }
 
 

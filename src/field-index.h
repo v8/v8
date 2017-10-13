@@ -23,7 +23,7 @@ class FieldIndex final {
 
   static FieldIndex ForPropertyIndex(const Map* map, int index,
                                      bool is_double = false);
-  static FieldIndex ForInObjectOffset(int offset, const Map* map = NULL);
+  static FieldIndex ForInObjectOffset(int offset, const Map* map = nullptr);
   static FieldIndex ForDescriptor(const Map* map, int descriptor_index);
   static FieldIndex ForLoadByFieldIndex(const Map* map, int index);
   static FieldIndex FromFieldAccessStubKey(int key);

@@ -16,9 +16,9 @@ namespace v8 {
 namespace internal {
 
 StatsTable::StatsTable(Counters* counters)
-    : lookup_function_(NULL),
-      create_histogram_function_(NULL),
-      add_histogram_sample_function_(NULL) {}
+    : lookup_function_(nullptr),
+      create_histogram_function_(nullptr),
+      add_histogram_sample_function_(nullptr) {}
 
 void StatsTable::SetCounterFunction(CounterLookupCallback f) {
   lookup_function_ = f;

@@ -224,7 +224,7 @@ Handle<JSReceiver> LookupIterator::GetRootForNonJSReceiver(
       handle(receiver->GetPrototypeChainRootMap(isolate)->prototype(), isolate);
   if (root->IsNull(isolate)) {
     unsigned int magic = 0xbbbbbbbb;
-    isolate->PushStackTraceAndDie(magic, *receiver, NULL, magic);
+    isolate->PushStackTraceAndDie(magic, *receiver, nullptr, magic);
   }
   return Handle<JSReceiver>::cast(root);
 }
@@ -694,7 +694,7 @@ bool LookupIterator::HolderIsReceiverOrHiddenPrototype() const {
 
 
 Handle<Object> LookupIterator::FetchValue() const {
-  Object* result = NULL;
+  Object* result = nullptr;
   if (IsElement()) {
     Handle<JSObject> holder = GetHolder<JSObject>();
     ElementsAccessor* accessor = holder->GetElementsAccessor();
@@ -880,8 +880,8 @@ bool LookupIterator::SkipInterceptor(JSObject* holder) {
 
 JSReceiver* LookupIterator::NextHolder(Map* map) {
   DisallowHeapAllocation no_gc;
-  if (map->prototype() == heap()->null_value()) return NULL;
-  if (!check_prototype_chain() && !map->has_hidden_prototype()) return NULL;
+  if (map->prototype() == heap()->null_value()) return nullptr;
+  if (!check_prototype_chain() && !map->has_hidden_prototype()) return nullptr;
   return JSReceiver::cast(map->prototype());
 }
 

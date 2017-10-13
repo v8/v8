@@ -30,7 +30,7 @@ TEST(WasmRelocationX64ContextReference) {
   HandleScope scope(isolate);
   v8::internal::byte buffer[4096];
   Assembler assm(isolate, buffer, sizeof buffer);
-  DummyStaticFunction(NULL);
+  DummyStaticFunction(nullptr);
   int64_t imm = 1234567;
 
   __ movq(rax, imm, RelocInfo::WASM_CONTEXT_REFERENCE);

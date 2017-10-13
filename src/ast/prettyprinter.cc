@@ -146,11 +146,11 @@ void CallPrinter::VisitWhileStatement(WhileStatement* node) {
 
 
 void CallPrinter::VisitForStatement(ForStatement* node) {
-  if (node->init() != NULL) {
+  if (node->init() != nullptr) {
     Find(node->init());
   }
-  if (node->cond() != NULL) Find(node->cond());
-  if (node->next() != NULL) Find(node->next());
+  if (node->cond() != nullptr) Find(node->cond());
+  if (node->next() != nullptr) Find(node->next());
   Find(node->body());
 }
 
@@ -279,7 +279,7 @@ void CallPrinter::VisitThrow(Throw* node) { Find(node->exception()); }
 void CallPrinter::VisitProperty(Property* node) {
   Expression* key = node->key();
   Literal* literal = key->AsLiteral();
-  if (literal != NULL && literal->value()->IsInternalizedString()) {
+  if (literal != nullptr && literal->value()->IsInternalizedString()) {
     Find(node->obj(), true);
     Print(".");
     PrintLiteral(literal->value(), false);
@@ -442,7 +442,7 @@ void CallPrinter::VisitRewritableExpression(RewritableExpression* node) {
 
 
 void CallPrinter::FindStatements(ZoneList<Statement*>* statements) {
-  if (statements == NULL) return;
+  if (statements == nullptr) return;
   for (int i = 0; i < statements->length(); i++) {
     Find(statements->at(i));
   }
@@ -506,7 +506,7 @@ const char* AstPrinter::Print(AstNode* node) {
 
 void AstPrinter::Init() {
   if (size_ == 0) {
-    DCHECK(output_ == NULL);
+    DCHECK(output_ == nullptr);
     const int initial_size = 256;
     output_ = NewArray<char>(initial_size);
     size_ = initial_size;
@@ -542,7 +542,7 @@ void AstPrinter::Print(const char* format, ...) {
 }
 
 void AstPrinter::PrintLabels(ZoneList<const AstRawString*>* labels) {
-  if (labels != NULL) {
+  if (labels != nullptr) {
     for (int i = 0; i < labels->length(); i++) {
       PrintLiteral(labels->at(i), false);
       Print(": ");
@@ -669,7 +669,7 @@ void AstPrinter::PrintLiteralIndented(const char* info,
 void AstPrinter::PrintLiteralWithModeIndented(const char* info,
                                               Variable* var,
                                               Handle<Object> value) {
-  if (var == NULL) {
+  if (var == nullptr) {
     PrintLiteralIndented(info, value, true);
   } else {
     EmbeddedVector<char, 256> buf;
@@ -683,7 +683,7 @@ void AstPrinter::PrintLiteralWithModeIndented(const char* info,
 
 
 void AstPrinter::PrintLabelsIndented(ZoneList<const AstRawString*>* labels) {
-  if (labels == NULL || labels->length() == 0) return;
+  if (labels == nullptr || labels->length() == 0) return;
   PrintIndented("LABELS ");
   PrintLabels(labels);
   Print("\n");
@@ -1174,7 +1174,7 @@ void AstPrinter::VisitProperty(Property* node) {
 
   Visit(node->obj());
   Literal* literal = node->key()->AsLiteral();
-  if (literal != NULL && literal->value()->IsInternalizedString()) {
+  if (literal != nullptr && literal->value()->IsInternalizedString()) {
     PrintLiteralIndented("NAME", literal->value(), false);
   } else {
     PrintIndentedVisit("KEY", node->key());

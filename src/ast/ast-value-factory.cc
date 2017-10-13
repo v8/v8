@@ -204,7 +204,7 @@ bool AstValue::IsPropertyName() const {
 bool AstValue::BooleanValue() const {
   switch (type_) {
     case STRING:
-      DCHECK(string_ != NULL);
+      DCHECK(string_ != nullptr);
       return !string_->IsEmpty();
     case SYMBOL:
       UNREACHABLE();
@@ -317,7 +317,7 @@ AstRawString* AstValueFactory::GetTwoByteStringInternal(
 
 
 const AstRawString* AstValueFactory::GetString(Handle<String> literal) {
-  AstRawString* result = NULL;
+  AstRawString* result = nullptr;
   DisallowHeapAllocation no_gc;
   String::FlatContent content = literal->GetFlatContent();
   if (content.IsOneByte()) {

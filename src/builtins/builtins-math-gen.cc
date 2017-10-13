@@ -53,7 +53,7 @@ TF_BUILTIN(MathAbs, CodeStubAssembler) {
     BIND(&if_xissmi);
     {
       Label if_overflow(this, Label::kDeferred), if_notoverflow(this);
-      Node* pair = NULL;
+      Node* pair = nullptr;
 
       // check if support abs function
       if (IsIntPtrAbsWithOverflowSupported()) {

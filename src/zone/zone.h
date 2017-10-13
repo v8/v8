@@ -204,8 +204,8 @@ class ZoneList final {
 
   INLINE(void Initialize(int capacity, Zone* zone)) {
     DCHECK_GE(capacity, 0);
-    data_ =
-        (capacity > 0) ? NewData(capacity, ZoneAllocationPolicy(zone)) : NULL;
+    data_ = (capacity > 0) ? NewData(capacity, ZoneAllocationPolicy(zone))
+                           : nullptr;
     capacity_ = capacity;
     length_ = 0;
   }

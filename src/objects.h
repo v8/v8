@@ -2963,7 +2963,7 @@ class WeakFixedArray : public FixedArray {
   // ensure this themselves if necessary.
   static Handle<WeakFixedArray> Add(Handle<Object> maybe_array,
                                     Handle<HeapObject> value,
-                                    int* assigned_index = NULL);
+                                    int* assigned_index = nullptr);
 
   // Returns true if an entry was found and removed.
   bool Remove(Handle<HeapObject> value);
@@ -2985,7 +2985,9 @@ class WeakFixedArray : public FixedArray {
 
   class Iterator {
    public:
-    explicit Iterator(Object* maybe_array) : list_(NULL) { Reset(maybe_array); }
+    explicit Iterator(Object* maybe_array) : list_(nullptr) {
+      Reset(maybe_array);
+    }
     void Reset(Object* maybe_array);
 
     template <class T>
@@ -3079,7 +3081,7 @@ enum SearchMode { ALL_ENTRIES, VALID_ENTRIES };
 
 template <SearchMode search_mode, typename T>
 inline int Search(T* array, Name* name, int valid_entries = 0,
-                  int* out_insertion_index = NULL);
+                  int* out_insertion_index = nullptr);
 
 // ByteArray represents fixed sized byte arrays.  Used for the relocation info
 // that is attached to code objects.

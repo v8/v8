@@ -4181,7 +4181,7 @@ class SlowStringWrapperElementsAccessor
 void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t index,
                      bool allow_appending) {
   DisallowHeapAllocation no_allocation;
-  Object* raw_length = NULL;
+  Object* raw_length = nullptr;
   const char* elements_type = "array";
   if (obj->IsJSArray()) {
     JSArray* array = JSArray::cast(*obj);
@@ -4323,11 +4323,11 @@ void ElementsAccessor::InitializeOncePerProcess() {
 
 
 void ElementsAccessor::TearDown() {
-  if (elements_accessors_ == NULL) return;
+  if (elements_accessors_ == nullptr) return;
 #define ACCESSOR_DELETE(Class, Kind, Store) delete elements_accessors_[Kind];
   ELEMENTS_LIST(ACCESSOR_DELETE)
 #undef ACCESSOR_DELETE
-  elements_accessors_ = NULL;
+  elements_accessors_ = nullptr;
 }
 
 Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
@@ -4382,6 +4382,6 @@ Handle<JSArray> ElementsAccessor::Concat(Isolate* isolate, Arguments* args,
   return result_array;
 }
 
-ElementsAccessor** ElementsAccessor::elements_accessors_ = NULL;
+ElementsAccessor** ElementsAccessor::elements_accessors_ = nullptr;
 }  // namespace internal
 }  // namespace v8

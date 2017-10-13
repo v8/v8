@@ -39,7 +39,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   rec->entry = NewCodeEntry(
       tag, GetFunctionName(name), CodeEntry::kEmptyNamePrefix,
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+      CpuProfileNode::kNoColumnNumberInfo, nullptr, code->instruction_start());
   RecordInliningInfo(rec->entry, code);
   rec->size = code->ExecutableSize();
   DispatchCodeEvent(evt_rec);
@@ -53,7 +53,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   rec->entry = NewCodeEntry(
       tag, GetFunctionName(name), CodeEntry::kEmptyNamePrefix,
       CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+      CpuProfileNode::kNoColumnNumberInfo, nullptr, code->instruction_start());
   RecordInliningInfo(rec->entry, code);
   rec->size = code->ExecutableSize();
   DispatchCodeEvent(evt_rec);
@@ -70,7 +70,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
       tag, GetFunctionName(shared->DebugName()), CodeEntry::kEmptyNamePrefix,
       GetName(InferScriptName(script_name, shared)),
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
-      NULL, code->instruction_start());
+      nullptr, code->instruction_start());
   RecordInliningInfo(rec->entry, code);
   rec->entry->FillFunctionInfo(shared);
   rec->size = code->ExecutableSize();
@@ -85,7 +85,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = abstract_code->address();
-  JITLineInfoTable* line_table = NULL;
+  JITLineInfoTable* line_table = nullptr;
   if (shared->script()->IsScript()) {
     Script* script = Script::cast(shared->script());
     line_table = new JITLineInfoTable();
@@ -122,7 +122,7 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   rec->entry = NewCodeEntry(
       tag, GetName(args_count), "args_count: ", CodeEntry::kEmptyResourceName,
       CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
-      NULL, code->instruction_start());
+      nullptr, code->instruction_start());
   RecordInliningInfo(rec->entry, code);
   rec->size = code->ExecutableSize();
   DispatchCodeEvent(evt_rec);
@@ -173,10 +173,11 @@ void ProfilerListener::RegExpCodeCreateEvent(AbstractCode* code,
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
   CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
   rec->start = code->address();
-  rec->entry = NewCodeEntry(
-      CodeEventListener::REG_EXP_TAG, GetName(source), "RegExp: ",
-      CodeEntry::kEmptyResourceName, CpuProfileNode::kNoLineNumberInfo,
-      CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+  rec->entry = NewCodeEntry(CodeEventListener::REG_EXP_TAG, GetName(source),
+                            "RegExp: ", CodeEntry::kEmptyResourceName,
+                            CpuProfileNode::kNoLineNumberInfo,
+                            CpuProfileNode::kNoColumnNumberInfo, nullptr,
+                            code->instruction_start());
   rec->size = code->ExecutableSize();
   DispatchCodeEvent(evt_rec);
 }
@@ -230,11 +231,12 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
       SharedFunctionInfo* shared_info = SharedFunctionInfo::cast(
           deopt_input_data->LiteralArray()->get(shared_info_id));
       if (!depth++) continue;  // Skip the current function itself.
-      CodeEntry* inline_entry = new CodeEntry(
-          entry->tag(), GetFunctionName(shared_info->DebugName()),
-          CodeEntry::kEmptyNamePrefix, entry->resource_name(),
-          CpuProfileNode::kNoLineNumberInfo,
-          CpuProfileNode::kNoColumnNumberInfo, NULL, code->instruction_start());
+      CodeEntry* inline_entry =
+          new CodeEntry(entry->tag(), GetFunctionName(shared_info->DebugName()),
+                        CodeEntry::kEmptyNamePrefix, entry->resource_name(),
+                        CpuProfileNode::kNoLineNumberInfo,
+                        CpuProfileNode::kNoColumnNumberInfo, nullptr,
+                        code->instruction_start());
       inline_entry->FillFunctionInfo(shared_info);
       inline_stack.push_back(inline_entry);
     }

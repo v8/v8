@@ -32,10 +32,10 @@ MaybeHandle<Object> DebugEvaluate::Global(Isolate* isolate,
   // Enter the top context from before the debugger was invoked.
   SaveContext save(isolate);
   SaveContext* top = &save;
-  while (top != NULL && IsDebugContext(isolate, *top->context())) {
+  while (top != nullptr && IsDebugContext(isolate, *top->context())) {
     top = top->prev();
   }
-  if (top != NULL) isolate->set_context(*top->context());
+  if (top != nullptr) isolate->set_context(*top->context());
 
   // Get the native context now set to the top context from before the
   // debugger was invoked.
@@ -101,8 +101,8 @@ MaybeHandle<Object> DebugEvaluate::Evaluate(
   {
     NoSideEffectScope no_side_effect(isolate, throw_on_side_effect);
     ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, result, Execution::Call(isolate, eval_fun, receiver, 0, NULL),
-        Object);
+        isolate, result,
+        Execution::Call(isolate, eval_fun, receiver, 0, nullptr), Object);
   }
 
   // Skip the global proxy as it has no properties and always delegates to the

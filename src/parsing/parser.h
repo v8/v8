@@ -85,7 +85,7 @@ class ParseData {
     if (pd->IsSane()) return pd;
     cached_data->Reject();
     delete pd;
-    return NULL;
+    return nullptr;
   }
 
   void Initialize();
@@ -190,9 +190,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   explicit Parser(ParseInfo* info);
   ~Parser() {
     delete reusable_preparser_;
-    reusable_preparser_ = NULL;
+    reusable_preparser_ = nullptr;
     delete cached_parse_data_;
-    cached_parse_data_ = NULL;
+    cached_parse_data_ = nullptr;
   }
 
   static bool IsPreParser() { return false; }
@@ -257,7 +257,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   void PrepareGeneratorVariables();
 
-  // Returns NULL if parsing failed.
+  // Returns nullptr if parsing failed.
   FunctionLiteral* ParseProgram(Isolate* isolate, ParseInfo* info);
 
   FunctionLiteral* ParseFunction(Isolate* isolate, ParseInfo* info,
@@ -283,7 +283,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   }
 
   PreParser* reusable_preparser() {
-    if (reusable_preparser_ == NULL) {
+    if (reusable_preparser_ == nullptr) {
       reusable_preparser_ =
           new PreParser(zone(), &scanner_, stack_limit_, ast_value_factory(),
                         &pending_error_handler_, runtime_call_stats_,
@@ -623,9 +623,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Returns true if the expression is of type "this.foo".
   V8_INLINE static bool IsThisProperty(Expression* expression) {
-    DCHECK(expression != NULL);
+    DCHECK(expression != nullptr);
     Property* property = expression->AsProperty();
-    return property != NULL && property->obj()->IsVariableProxy() &&
+    return property != nullptr && property->obj()->IsVariableProxy() &&
            property->obj()->AsVariableProxy()->is_this();
   }
 
@@ -740,7 +740,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // literal so it can be added as a constant function property.
   V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
       Expression* left, Expression* right) {
-    DCHECK(left != NULL);
+    DCHECK(left != nullptr);
     if (left->IsProperty() && right->IsFunctionLiteral()) {
       right->AsFunctionLiteral()->set_pretenure();
     }
@@ -800,7 +800,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Reporting errors.
   V8_INLINE void ReportMessageAt(Scanner::Location source_location,
                                  MessageTemplate::Template message,
-                                 const char* arg = NULL,
+                                 const char* arg = nullptr,
                                  ParseErrorType error_type = kSyntaxError) {
     if (stack_overflow()) {
       // Suppress the error message (syntax error or such) in the presence of a
@@ -845,7 +845,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return subject == nullptr;
   }
 
-  // Non-NULL empty string.
+  // Non-null empty string.
   V8_INLINE const AstRawString* EmptyIdentifierString() const {
     return ast_value_factory()->empty_string();
   }
@@ -858,7 +858,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Producing data during the recursive descent.
   V8_INLINE const AstRawString* GetSymbol() const {
     const AstRawString* result = scanner()->CurrentSymbol(ast_value_factory());
-    DCHECK(result != NULL);
+    DCHECK(result != nullptr);
     return result;
   }
 

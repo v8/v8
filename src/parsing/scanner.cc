@@ -626,8 +626,8 @@ Token::Value Scanner::ScanHtmlComment() {
 }
 
 void Scanner::Scan() {
-  next_.literal_chars = NULL;
-  next_.raw_literal_chars = NULL;
+  next_.literal_chars = nullptr;
+  next_.raw_literal_chars = nullptr;
   next_.invalid_template_escape_message = MessageTemplate::kNone;
   Token::Value token;
   do {

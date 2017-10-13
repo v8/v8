@@ -115,7 +115,7 @@ static uint32_t ReadELFHWCaps() {
 #else
   // Read the ELF HWCAP flags by parsing /proc/self/auxv.
   FILE* fp = fopen("/proc/self/auxv", "r");
-  if (fp != NULL) {
+  if (fp != nullptr) {
     struct { uint32_t tag; uint32_t value; } entry;
     for (;;) {
       size_t n = fread(&entry, sizeof(entry), 1, fp);
@@ -186,7 +186,7 @@ class CPUInfo final {
     // when using fseek(0, SEEK_END) + ftell(). Nor can the be mmap()-ed.
     static const char PATHNAME[] = "/proc/cpuinfo";
     FILE* fp = fopen(PATHNAME, "r");
-    if (fp != NULL) {
+    if (fp != nullptr) {
       for (;;) {
         char buffer[256];
         size_t n = fread(buffer, 1, sizeof(buffer), fp);
@@ -201,7 +201,7 @@ class CPUInfo final {
     // Read the contents of the cpuinfo file.
     data_ = new char[datalen_ + 1];
     fp = fopen(PATHNAME, "r");
-    if (fp != NULL) {
+    if (fp != nullptr) {
       for (size_t offset = 0; offset < datalen_; ) {
         size_t n = fread(data_ + offset, 1, datalen_ - offset, fp);
         if (n == 0) {
@@ -223,17 +223,17 @@ class CPUInfo final {
   // Extract the content of a the first occurrence of a given field in
   // the content of the cpuinfo file and return it as a heap-allocated
   // string that must be freed by the caller using delete[].
-  // Return NULL if not found.
+  // Return nullptr if not found.
   char* ExtractField(const char* field) const {
-    DCHECK(field != NULL);
+    DCHECK(field != nullptr);
 
     // Look for first field occurrence, and ensure it starts the line.
     size_t fieldlen = strlen(field);
     char* p = data_;
     for (;;) {
       p = strstr(p, field);
-      if (p == NULL) {
-        return NULL;
+      if (p == nullptr) {
+        return nullptr;
       }
       if (p == data_ || p[-1] == '\n') {
         break;
@@ -243,21 +243,21 @@ class CPUInfo final {
 
     // Skip to the first colon followed by a space.
     p = strchr(p + fieldlen, ':');
-    if (p == NULL || !isspace(p[1])) {
-      return NULL;
+    if (p == nullptr || !isspace(p[1])) {
+      return nullptr;
     }
     p += 2;
 
     // Find the end of the line.
     char* q = strchr(p, '\n');
-    if (q == NULL) {
+    if (q == nullptr) {
       q = data_ + datalen_;
     }
 
     // Copy the line into a heap-allocated buffer.
     size_t len = q - p;
     char* result = new char[len + 1];
-    if (result != NULL) {
+    if (result != nullptr) {
       memcpy(result, p, len);
       result[len] = '\0';
     }
@@ -273,7 +273,7 @@ class CPUInfo final {
 static bool HasListItem(const char* list, const char* item) {
   ssize_t item_len = strlen(item);
   const char* p = list;
-  if (p != NULL) {
+  if (p != nullptr) {
     while (*p != '\0') {
       // Skip whitespace.
       while (isspace(*p)) ++p;
@@ -427,7 +427,7 @@ CPU::CPU()
 
   // Extract implementor from the "CPU implementer" field.
   char* implementer = cpu_info.ExtractField("CPU implementer");
-  if (implementer != NULL) {
+  if (implementer != nullptr) {
     char* end;
     implementer_ = strtol(implementer, &end, 0);
     if (end == implementer) {
@@ -437,7 +437,7 @@ CPU::CPU()
   }
 
   char* variant = cpu_info.ExtractField("CPU variant");
-  if (variant != NULL) {
+  if (variant != nullptr) {
     char* end;
     variant_ = strtol(variant, &end, 0);
     if (end == variant) {
@@ -448,7 +448,7 @@ CPU::CPU()
 
   // Extract part number from the "CPU part" field.
   char* part = cpu_info.ExtractField("CPU part");
-  if (part != NULL) {
+  if (part != nullptr) {
     char* end;
     part_ = strtol(part, &end, 0);
     if (end == part) {
@@ -464,7 +464,7 @@ CPU::CPU()
   // $KERNEL/arch/arm/kernel/setup.c and the 'c_show' function in
   // same file.
   char* architecture = cpu_info.ExtractField("CPU architecture");
-  if (architecture != NULL) {
+  if (architecture != nullptr) {
     char* end;
     architecture_ = strtol(architecture, &end, 10);
     if (end == architecture) {
@@ -608,9 +608,9 @@ CPU::CPU()
 #ifndef USE_SIMULATOR
 #if V8_OS_LINUX
   // Read processor info from /proc/self/auxv.
-  char* auxv_cpu_type = NULL;
+  char* auxv_cpu_type = nullptr;
   FILE* fp = fopen("/proc/self/auxv", "r");
-  if (fp != NULL) {
+  if (fp != nullptr) {
 #if V8_TARGET_ARCH_PPC64
     Elf64_auxv_t entry;
 #else

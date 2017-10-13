@@ -14,24 +14,23 @@ namespace internal {
 
 struct RegExpCompileData;
 
-
 // A BufferedZoneList is an automatically growing list, just like (and backed
 // by) a ZoneList, that is optimized for the case of adding and removing
 // a single element. The last element added is stored outside the backing list,
 // and if no more than one element is ever added, the ZoneList isn't even
 // allocated.
-// Elements must not be NULL pointers.
+// Elements must not be nullptr pointers.
 template <typename T, int initial_size>
 class BufferedZoneList {
  public:
-  BufferedZoneList() : list_(NULL), last_(NULL) {}
+  BufferedZoneList() : list_(nullptr), last_(nullptr) {}
 
   // Adds element at end of list. This element is buffered and can
   // be read using last() or removed using RemoveLast until a new Add or until
   // RemoveLast or GetList has been called.
   void Add(T* value, Zone* zone) {
-    if (last_ != NULL) {
-      if (list_ == NULL) {
+    if (last_ != nullptr) {
+      if (list_ == nullptr) {
         list_ = new (zone) ZoneList<T*>(initial_size, zone);
       }
       list_->Add(last_, zone);
@@ -40,28 +39,28 @@ class BufferedZoneList {
   }
 
   T* last() {
-    DCHECK(last_ != NULL);
+    DCHECK(last_ != nullptr);
     return last_;
   }
 
   T* RemoveLast() {
-    DCHECK(last_ != NULL);
+    DCHECK(last_ != nullptr);
     T* result = last_;
-    if ((list_ != NULL) && (list_->length() > 0))
+    if ((list_ != nullptr) && (list_->length() > 0))
       last_ = list_->RemoveLast();
     else
-      last_ = NULL;
+      last_ = nullptr;
     return result;
   }
 
   T* Get(int i) {
     DCHECK((0 <= i) && (i < length()));
-    if (list_ == NULL) {
+    if (list_ == nullptr) {
       DCHECK_EQ(0, i);
       return last_;
     } else {
       if (i == list_->length()) {
-        DCHECK(last_ != NULL);
+        DCHECK(last_ != nullptr);
         return last_;
       } else {
         return list_->at(i);
@@ -70,22 +69,22 @@ class BufferedZoneList {
   }
 
   void Clear() {
-    list_ = NULL;
-    last_ = NULL;
+    list_ = nullptr;
+    last_ = nullptr;
   }
 
   int length() {
-    int length = (list_ == NULL) ? 0 : list_->length();
-    return length + ((last_ == NULL) ? 0 : 1);
+    int length = (list_ == nullptr) ? 0 : list_->length();
+    return length + ((last_ == nullptr) ? 0 : 1);
   }
 
   ZoneList<T*>* GetList(Zone* zone) {
-    if (list_ == NULL) {
+    if (list_ == nullptr) {
       list_ = new (zone) ZoneList<T*>(initial_size, zone);
     }
-    if (last_ != NULL) {
+    if (last_ != nullptr) {
       list_->Add(last_, zone);
-      last_ = NULL;
+      last_ = nullptr;
     }
     return list_;
   }
@@ -240,7 +239,7 @@ class RegExpParser BASE_EMBEDDED {
           capture_name_(capture_name) {}
     // Parser state of containing expression, if any.
     RegExpParserState* previous_state() { return previous_state_; }
-    bool IsSubexpression() { return previous_state_ != NULL; }
+    bool IsSubexpression() { return previous_state_ != nullptr; }
     // RegExpBuilder building this regexp's AST.
     RegExpBuilder* builder() { return builder_; }
     // Type of regexp being parsed (parenthesized group or entire regexp).

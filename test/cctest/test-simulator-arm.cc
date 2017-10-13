@@ -186,7 +186,7 @@ static void TestInvalidateExclusiveAccess(
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
 
   AssembleLoadExcl(&assm, access1, r1, r1);
   AssembleMemoryAccess(&assm, access2, r3, r2, r1);
@@ -258,7 +258,7 @@ TEST(simulator_invalidate_exclusive_access) {
 static int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
                                MemoryAccess access) {
   HandleScope scope(isolate);
-  Assembler assm(isolate, NULL, 0);
+  Assembler assm(isolate, nullptr, 0);
   AssembleMemoryAccess(&assm, access, r0, r2, r1);
   __ bx(lr);
 
@@ -276,7 +276,7 @@ class MemoryAccessThread : public v8::base::Thread {
  public:
   MemoryAccessThread()
       : Thread(Options("MemoryAccessThread")),
-        test_data_(NULL),
+        test_data_(nullptr),
         is_finished_(false),
         has_request_(false),
         did_request_(false),

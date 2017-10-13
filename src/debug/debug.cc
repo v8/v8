@@ -46,7 +46,7 @@ Debug::Debug(Isolate* isolate)
       break_on_exception_(false),
       break_on_uncaught_exception_(false),
       side_effect_check_failed_(false),
-      debug_info_list_(NULL),
+      debug_info_list_(nullptr),
       feature_tracker_(isolate),
       isolate_(isolate) {
   ThreadInit();
@@ -282,7 +282,7 @@ void Debug::Iterate(RootVisitor* v) {
   v->VisitRootPointer(Root::kDebug, &thread_local_.ignore_step_into_function_);
 }
 
-DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info): next_(NULL) {
+DebugInfoListNode::DebugInfoListNode(DebugInfo* debug_info) : next_(nullptr) {
   // Globalize the request debug info object and make it weak.
   GlobalHandles* global_handles = debug_info->GetIsolate()->global_handles();
   debug_info_ = global_handles->Create(debug_info).location();
@@ -658,7 +658,7 @@ void Debug::ClearBreakPoints(Handle<DebugInfo> debug_info) {
 void Debug::ClearBreakPoint(Handle<Object> break_point_object) {
   HandleScope scope(isolate_);
 
-  for (DebugInfoListNode* node = debug_info_list_; node != NULL;
+  for (DebugInfoListNode* node = debug_info_list_; node != nullptr;
        node = node->next()) {
     Handle<Object> result =
         DebugInfo::FindBreakPointInfo(node->debug_info(), break_point_object);
@@ -1025,7 +1025,7 @@ void Debug::ClearOneShot() {
   // The current implementation just runs through all the breakpoints. When the
   // last break point for a function is removed that function is automatically
   // removed from the list.
-  for (DebugInfoListNode* node = debug_info_list_; node != NULL;
+  for (DebugInfoListNode* node = debug_info_list_; node != nullptr;
        node = node->next()) {
     Handle<DebugInfo> debug_info = node->debug_info();
     ClearBreakPoints(debug_info);
@@ -1201,12 +1201,12 @@ void Debug::RecordGenerator(Handle<JSGeneratorObject> generator_object) {
 class SharedFunctionInfoFinder {
  public:
   explicit SharedFunctionInfoFinder(int target_position)
-      : current_candidate_(NULL),
-        current_candidate_closure_(NULL),
+      : current_candidate_(nullptr),
+        current_candidate_closure_(nullptr),
         current_start_position_(kNoSourcePosition),
         target_position_(target_position) {}
 
-  void NewCandidate(SharedFunctionInfo* shared, JSFunction* closure = NULL) {
+  void NewCandidate(SharedFunctionInfo* shared, JSFunction* closure = nullptr) {
     if (!shared->IsSubjectToDebugging()) return;
     int start_position = shared->function_token_position();
     if (start_position == kNoSourcePosition) {
@@ -1216,11 +1216,11 @@ class SharedFunctionInfoFinder {
     if (start_position > target_position_) return;
     if (target_position_ > shared->end_position()) return;
 
-    if (current_candidate_ != NULL) {
+    if (current_candidate_ != nullptr) {
       if (current_start_position_ == start_position &&
           shared->end_position() == current_candidate_->end_position()) {
         // If we already have a matching closure, do not throw it away.
-        if (current_candidate_closure_ != NULL && closure == NULL) return;
+        if (current_candidate_closure_ != nullptr && closure == nullptr) return;
         // If a top-level function contains only one function
         // declaration the source for the top-level and the function
         // is the same. In that case prefer the non top-level function.
@@ -1272,7 +1272,7 @@ Handle<Object> Debug::FindSharedFunctionInfoInScript(Handle<Script> script,
         finder.NewCandidate(info);
       }
       shared = finder.Result();
-      if (shared == NULL) break;
+      if (shared == nullptr) break;
       // We found it if it's already compiled.
       if (shared->is_compiled()) {
         Handle<SharedFunctionInfo> shared_handle(shared);
@@ -1408,7 +1408,7 @@ void Debug::FreeDebugInfoListNode(DebugInfoListNode* prev,
                                   DebugInfoListNode* node) {
   DCHECK(node->debug_info()->IsEmpty());
 
-  // Unlink from list. If prev is NULL we are looking at the first element.
+  // Unlink from list. If prev is nullptr we are looking at the first element.
   if (prev == nullptr) {
     debug_info_list_ = node->next();
   } else {
@@ -1565,7 +1565,7 @@ void Debug::OnPromiseReject(Handle<Object> promise, Handle<Object> value) {
 namespace {
 v8::Local<v8::Context> GetDebugEventContext(Isolate* isolate) {
   Handle<Context> context = isolate->debug()->debugger_entry()->GetContext();
-  // Isolate::context() may have been NULL when "script collected" event
+  // Isolate::context() may have been nullptr when "script collected" event
   // occurred.
   if (context.is_null()) return v8::Local<v8::Context>();
   Handle<Context> native_context(context->native_context());

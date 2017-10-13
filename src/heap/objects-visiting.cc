@@ -29,7 +29,7 @@ template <class T>
 Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
   Object* undefined = heap->undefined_value();
   Object* head = undefined;
-  T* tail = NULL;
+  T* tail = nullptr;
   bool record_slots = MustRecordSlots(heap);
 
   while (list != undefined) {
@@ -37,13 +37,13 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
     T* candidate = reinterpret_cast<T*>(list);
 
     Object* retained = retainer->RetainAs(list);
-    if (retained != NULL) {
+    if (retained != nullptr) {
       if (head == undefined) {
         // First element in the list.
         head = retained;
       } else {
         // Subsequent elements in the list.
-        DCHECK(tail != NULL);
+        DCHECK(tail != nullptr);
         WeakListVisitor<T>::SetWeakNext(tail, retained);
         if (record_slots) {
           Object** next_slot =
@@ -68,7 +68,7 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
   }
 
   // Terminate the list if there is one or more elements.
-  if (tail != NULL) WeakListVisitor<T>::SetWeakNext(tail, undefined);
+  if (tail != nullptr) WeakListVisitor<T>::SetWeakNext(tail, undefined);
   return head;
 }
 

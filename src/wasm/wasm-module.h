@@ -208,7 +208,7 @@ struct V8_EXPORT_PRIVATE ModuleWireBytes {
 
   // Get a string stored in the module bytes representing a name.
   WasmName GetNameOrNull(WireBytesRef ref) const {
-    if (!ref.is_set()) return {NULL, 0};  // no name.
+    if (!ref.is_set()) return {nullptr, 0};  // no name.
     CHECK(BoundsCheck(ref.offset(), ref.length()));
     return Vector<const char>::cast(
         module_bytes_.SubVector(ref.offset(), ref.end_offset()));

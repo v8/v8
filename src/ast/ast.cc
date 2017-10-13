@@ -118,7 +118,7 @@ bool Expression::IsUndefinedLiteral() const {
   Variable* var = var_proxy->var();
   // The global identifier "undefined" is immutable. Everything
   // else could be reassigned.
-  return var != NULL && var->IsUnallocated() &&
+  return var != nullptr && var->IsUnallocated() &&
          var_proxy->raw_name()->IsOneByteEqualTo("undefined");
 }
 
@@ -323,7 +323,7 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
       key->AsLiteral()->raw_value()->EqualsString(
           ast_value_factory->proto_string())) {
     kind_ = PROTOTYPE;
-  } else if (value_->AsMaterializedLiteral() != NULL) {
+  } else if (value_->AsMaterializedLiteral() != nullptr) {
     kind_ = MATERIALIZED_LITERAL;
   } else if (value_->IsLiteral()) {
     kind_ = CONSTANT;
@@ -479,7 +479,7 @@ void ObjectLiteral::CalculateEmitStore(Zone* zone) {
     // entry was also an accessor.
     uint32_t hash = literal->Hash();
     ZoneHashMap::Entry* entry = table.LookupOrInsert(literal, hash, allocator);
-    if (entry->value != NULL) {
+    if (entry->value != nullptr) {
       auto previous_kind =
           static_cast<ObjectLiteral::Property*>(entry->value)->kind();
       if (!((property->kind() == GETTER && previous_kind == SETTER) ||
@@ -611,7 +611,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
     DCHECK(!property->is_computed_name());
 
     MaterializedLiteral* m_literal = property->value()->AsMaterializedLiteral();
-    if (m_literal != NULL) {
+    if (m_literal != nullptr) {
       m_literal->BuildConstants(isolate);
     }
 
@@ -665,7 +665,7 @@ int ArrayLiteral::InitDepthAndFlags() {
     Expression* element = values()->at(array_index);
     DCHECK(!element->IsSpread());
     MaterializedLiteral* literal = element->AsMaterializedLiteral();
-    if (literal != NULL) {
+    if (literal != nullptr) {
       int subliteral_depth = literal->InitDepthAndFlags() + 1;
       if (subliteral_depth > depth_acc) depth_acc = subliteral_depth;
     }
@@ -700,7 +700,7 @@ void ArrayLiteral::BuildConstantElements(Isolate* isolate) {
     Expression* element = values()->at(array_index);
     DCHECK(!element->IsSpread());
     MaterializedLiteral* m_literal = element->AsMaterializedLiteral();
-    if (m_literal != NULL) {
+    if (m_literal != nullptr) {
       m_literal->BuildConstants(isolate);
     }
 
@@ -909,7 +909,7 @@ bool BinaryOperation::IsSmiLiteralOperation(Expression** subexpr,
 
 static bool IsTypeof(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
-  return maybe_unary != NULL && maybe_unary->op() == Token::TYPEOF;
+  return maybe_unary != nullptr && maybe_unary->op() == Token::TYPEOF;
 }
 
 void CompareOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
@@ -949,9 +949,8 @@ bool CompareOperation::IsLiteralCompareTypeof(Expression** expr,
 
 static bool IsVoidOfLiteral(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
-  return maybe_unary != NULL &&
-      maybe_unary->op() == Token::VOID &&
-      maybe_unary->expression()->IsLiteral();
+  return maybe_unary != nullptr && maybe_unary->op() == Token::VOID &&
+         maybe_unary->expression()->IsLiteral();
 }
 
 
@@ -1008,7 +1007,7 @@ void Call::AssignFeedbackSlots(FeedbackVectorSpec* spec,
 
 Call::CallType Call::GetCallType() const {
   VariableProxy* proxy = expression()->AsVariableProxy();
-  if (proxy != NULL) {
+  if (proxy != nullptr) {
     if (proxy->var()->IsUnallocated()) {
       return GLOBAL_CALL;
     } else if (proxy->var()->IsLookupSlot()) {

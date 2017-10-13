@@ -1015,12 +1015,12 @@ void TurboAssembler::Abs(const Register& rd, const Register& rm,
   // If the comparison sets the v flag, the input was the smallest value
   // representable by rm, and the mathematical result of abs(rm) is not
   // representable using two's complement.
-  if ((is_not_representable != NULL) && (is_representable != NULL)) {
+  if ((is_not_representable != nullptr) && (is_representable != nullptr)) {
     B(is_not_representable, vs);
     B(is_representable);
-  } else if (is_not_representable != NULL) {
+  } else if (is_not_representable != nullptr) {
     B(is_not_representable, vs);
-  } else if (is_representable != NULL) {
+  } else if (is_representable != nullptr) {
     B(is_representable, vc);
   }
 }
@@ -3584,7 +3584,7 @@ void InlineSmiCheckInfo::Emit(MacroAssembler* masm, const Register& reg,
 }
 
 InlineSmiCheckInfo::InlineSmiCheckInfo(Address info)
-    : reg_(NoReg), smi_check_delta_(0), smi_check_(NULL) {
+    : reg_(NoReg), smi_check_delta_(0), smi_check_(nullptr) {
   InstructionSequence* inline_data = InstructionSequence::At(info);
   DCHECK(inline_data->IsInlineData());
   if (inline_data->IsInlineData()) {

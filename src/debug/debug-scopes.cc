@@ -253,7 +253,7 @@ void ScopeIterator::Next() {
   } else {
     do {
       if (LastNestedScopeChain().scope_info->HasContext()) {
-        DCHECK(context_->previous() != NULL);
+        DCHECK(context_->previous() != nullptr);
         context_ = Handle<Context>(context_->previous(), isolate_);
       }
       nested_scope_chain_.pop_back();

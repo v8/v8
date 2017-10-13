@@ -404,7 +404,7 @@ void FindOneByteStringIndices(Vector<const uint8_t> subject, uint8_t pattern,
   while (limit > 0) {
     pos = reinterpret_cast<const uint8_t*>(
         memchr(pos, pattern, subject_end - pos));
-    if (pos == NULL) return;
+    if (pos == nullptr) return;
     indices->push_back(static_cast<int>(pos - subject_start));
     pos++;
     limit--;
@@ -633,7 +633,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
   if (global_cache.HasException()) return isolate->heap()->exception();
 
   int32_t* current_match = global_cache.FetchNext();
-  if (current_match == NULL) {
+  if (current_match == nullptr) {
     if (global_cache.HasException()) return isolate->heap()->exception();
     return *subject;
   }
@@ -669,7 +669,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithString(
     prev = end;
 
     current_match = global_cache.FetchNext();
-  } while (current_match != NULL);
+  } while (current_match != nullptr);
 
   if (global_cache.HasException()) return isolate->heap()->exception();
 
@@ -706,7 +706,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
   if (global_cache.HasException()) return isolate->heap()->exception();
 
   int32_t* current_match = global_cache.FetchNext();
-  if (current_match == NULL) {
+  if (current_match == nullptr) {
     if (global_cache.HasException()) return isolate->heap()->exception();
     return *subject;
   }
@@ -742,7 +742,7 @@ MUST_USE_RESULT static Object* StringReplaceGlobalRegExpWithEmptyString(
     prev = end;
 
     current_match = global_cache.FetchNext();
-  } while (current_match != NULL);
+  } while (current_match != nullptr);
 
   if (global_cache.HasException()) return isolate->heap()->exception();
 
@@ -1189,7 +1189,7 @@ static Object* SearchRegExpMultiple(Isolate* isolate, Handle<String> subject,
 
   while (true) {
     int32_t* current_match = global_cache.FetchNext();
-    if (current_match == NULL) break;
+    if (current_match == nullptr) break;
     match_start = current_match[0];
     builder.EnsureCapacity(kMaxBuilderEntriesPerRegExpMatch);
     if (match_end < match_start) {

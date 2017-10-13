@@ -140,7 +140,7 @@ class CharacterRange {
 class CharacterSet final BASE_EMBEDDED {
  public:
   explicit CharacterSet(uc16 standard_set_type)
-      : ranges_(NULL), standard_set_type_(standard_set_type) {}
+      : ranges_(nullptr), standard_set_type_(standard_set_type) {}
   explicit CharacterSet(ZoneList<CharacterRange>* ranges)
       : ranges_(ranges), standard_set_type_(0) {}
   ZoneList<CharacterRange>* ranges(Zone* zone);
@@ -432,7 +432,7 @@ class RegExpQuantifier final : public RegExpTree {
 class RegExpCapture final : public RegExpTree {
  public:
   explicit RegExpCapture(int index)
-      : body_(NULL), index_(index), name_(nullptr) {}
+      : body_(nullptr), index_(index), name_(nullptr) {}
   void* Accept(RegExpVisitor* visitor, void* data) override;
   RegExpNode* ToNode(RegExpCompiler* compiler, RegExpNode* on_success) override;
   static RegExpNode* ToNode(RegExpTree* body, int index,

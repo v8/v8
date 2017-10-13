@@ -26,17 +26,17 @@ Serializer<AllocatorT>::Serializer(Isolate* isolate)
       instance_type_size_[i] = 0;
     }
   } else {
-    instance_type_count_ = NULL;
-    instance_type_size_ = NULL;
+    instance_type_count_ = nullptr;
+    instance_type_size_ = nullptr;
   }
 #endif  // OBJECT_PRINT
 }
 
 template <class AllocatorT>
 Serializer<AllocatorT>::~Serializer() {
-  if (code_address_map_ != NULL) delete code_address_map_;
+  if (code_address_map_ != nullptr) delete code_address_map_;
 #ifdef OBJECT_PRINT
-  if (instance_type_count_ != NULL) {
+  if (instance_type_count_ != nullptr) {
     DeleteArray(instance_type_count_);
     DeleteArray(instance_type_size_);
   }

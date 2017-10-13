@@ -71,7 +71,7 @@ const pthread_t kNoThread = (pthread_t) 0;
 
 bool g_hard_abort = false;
 
-const char* g_gc_fake_mmap = NULL;
+const char* g_gc_fake_mmap = nullptr;
 
 }  // namespace
 
@@ -309,7 +309,7 @@ double PosixTimezoneCache::DaylightSavingsOffset(double time) {
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);
-  if (NULL == t) return std::numeric_limits<double>::quiet_NaN();
+  if (nullptr == t) return std::numeric_limits<double>::quiet_NaN();
   return t->tm_isdst > 0 ? 3600 * msPerSecond : 0;
 }
 
@@ -325,16 +325,16 @@ int OS::GetLastError() {
 
 FILE* OS::FOpen(const char* path, const char* mode) {
   FILE* file = fopen(path, mode);
-  if (file == NULL) return NULL;
+  if (file == nullptr) return nullptr;
   struct stat file_stat;
   if (fstat(fileno(file), &file_stat) != 0) {
     fclose(file);
-    return NULL;
+    return nullptr;
   }
   bool is_regular_file = ((file_stat.st_mode & S_IFREG) != 0);
   if (is_regular_file) return file;
   fclose(file);
-  return NULL;
+  return nullptr;
 }
 
 
@@ -462,7 +462,7 @@ class Thread::PlatformData {
 Thread::Thread(const Options& options)
     : data_(new PlatformData),
       stack_size_(options.stack_size()),
-      start_semaphore_(NULL) {
+      start_semaphore_(nullptr) {
   if (stack_size_ > 0 && static_cast<size_t>(stack_size_) < PTHREAD_STACK_MIN) {
     stack_size_ = PTHREAD_STACK_MIN;
   }
@@ -487,8 +487,7 @@ static void SetThreadName(const char* name) {
   int (*dynamic_pthread_setname_np)(const char*);
   *reinterpret_cast<void**>(&dynamic_pthread_setname_np) =
     dlsym(RTLD_DEFAULT, "pthread_setname_np");
-  if (dynamic_pthread_setname_np == NULL)
-    return;
+  if (dynamic_pthread_setname_np == nullptr) return;
 
   // Mac OS X does not expose the length limit of the name, so hardcode it.
   static const int kMaxNameLength = 63;
@@ -511,7 +510,7 @@ static void* ThreadEntry(void* arg) {
   SetThreadName(thread->name());
   DCHECK(thread->data()->thread_ != kNoThread);
   thread->NotifyStartedAndRun();
-  return NULL;
+  return nullptr;
 }
 
 
@@ -552,11 +551,7 @@ void Thread::Start() {
   USE(result);
 }
 
-
-void Thread::Join() {
-  pthread_join(data_->thread_, NULL);
-}
-
+void Thread::Join() { pthread_join(data_->thread_, nullptr); }
 
 static Thread::LocalStorageKey PthreadKeyToLocalKey(pthread_key_t pthread_key) {
 #if V8_OS_CYGWIN
@@ -595,7 +590,7 @@ static void InitializeTlsBaseOffset() {
   char buffer[kBufferSize];
   size_t buffer_size = kBufferSize;
   int ctl_name[] = { CTL_KERN , KERN_OSRELEASE };
-  if (sysctl(ctl_name, 2, buffer, &buffer_size, NULL, 0) != 0) {
+  if (sysctl(ctl_name, 2, buffer, &buffer_size, nullptr, 0) != 0) {
     V8_Fatal(__FILE__, __LINE__, "V8 failed to get kernel version");
   }
   // The buffer now contains a string of the form XX.YY.ZZ, where
@@ -605,7 +600,7 @@ static void InitializeTlsBaseOffset() {
   char* period_pos = strchr(buffer, '.');
   *period_pos = '\0';
   int kernel_version_major =
-      static_cast<int>(strtol(buffer, NULL, 10));  // NOLINT
+      static_cast<int>(strtol(buffer, nullptr, 10));  // NOLINT
   // The constants below are taken from pthreads.s from the XNU kernel
   // sources archive at www.opensource.apple.com.
   if (kernel_version_major < 11) {
@@ -633,7 +628,7 @@ static void CheckFastTls(Thread::LocalStorageKey key) {
     V8_Fatal(__FILE__, __LINE__,
              "V8 failed to initialize fast TLS on current kernel");
   }
-  Thread::SetThreadLocal(key, NULL);
+  Thread::SetThreadLocal(key, nullptr);
 }
 
 #endif  // V8_FAST_TLS_SUPPORTED
@@ -648,7 +643,7 @@ Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
   }
 #endif
   pthread_key_t key;
-  int result = pthread_key_create(&key, NULL);
+  int result = pthread_key_create(&key, nullptr);
   DCHECK_EQ(0, result);
   USE(result);
   LocalStorageKey local_key = PthreadKeyToLocalKey(key);

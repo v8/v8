@@ -39,7 +39,7 @@ class HandleBase {
                 (that.location_ == nullptr ||
                  that.IsDereferenceAllowed(NO_DEFERRED_CHECK)));
     if (this->location_ == that.location_) return true;
-    if (this->location_ == NULL || that.location_ == NULL) return false;
+    if (this->location_ == nullptr || that.location_ == nullptr) return false;
     return *this->location_ == *that.location_;
   }
 
@@ -172,11 +172,10 @@ V8_INLINE Handle<T> handle(T* object) {
   return Handle<T>(object);
 }
 
-
 // ----------------------------------------------------------------------------
 // A Handle can be converted into a MaybeHandle. Converting a MaybeHandle
-// into a Handle requires checking that it does not point to NULL.  This
-// ensures NULL checks before use.
+// into a Handle requires checking that it does not point to nullptr.  This
+// ensures nullptr checks before use.
 //
 // Also note that Handles do not provide default equality comparison or hashing
 // operators on purpose. Such operators would be misleading, because intended
@@ -425,9 +424,9 @@ struct HandleScopeData final {
   CanonicalHandleScope* canonical_scope;
 
   void Initialize() {
-    next = limit = NULL;
+    next = limit = nullptr;
     sealed_level = level = 0;
-    canonical_scope = NULL;
+    canonical_scope = nullptr;
   }
 };
 

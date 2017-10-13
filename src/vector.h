@@ -19,10 +19,10 @@ namespace internal {
 template <typename T>
 class Vector {
  public:
-  Vector() : start_(NULL), length_(0) {}
+  Vector() : start_(nullptr), length_(0) {}
 
   Vector(T* data, size_t length) : start_(data), length_(length) {
-    DCHECK(length == 0 || data != NULL);
+    DCHECK(length == 0 || data != nullptr);
   }
 
   template <int N>
@@ -115,7 +115,7 @@ class Vector {
   // vector is empty.
   void Dispose() {
     DeleteArray(start_);
-    start_ = NULL;
+    start_ = nullptr;
     length_ = 0;
   }
 
@@ -128,7 +128,7 @@ class Vector {
   inline operator Vector<const T>() { return Vector<const T>::cast(*this); }
 
   // Factory method for creating empty vectors.
-  static Vector<T> empty() { return Vector<T>(NULL, 0); }
+  static Vector<T> empty() { return Vector<T>(nullptr, 0); }
 
   template<typename S>
   static Vector<T> cast(Vector<S> input) {

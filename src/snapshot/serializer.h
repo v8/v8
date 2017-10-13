@@ -44,7 +44,7 @@ class CodeAddressMap : public CodeEventLogger {
     NameMap() : impl_() {}
 
     ~NameMap() {
-      for (base::HashMap::Entry* p = impl_.Start(); p != NULL;
+      for (base::HashMap::Entry* p = impl_.Start(); p != nullptr;
            p = impl_.Next(p)) {
         DeleteArray(static_cast<const char*>(p->value));
       }
@@ -52,19 +52,20 @@ class CodeAddressMap : public CodeEventLogger {
 
     void Insert(Address code_address, const char* name, int name_size) {
       base::HashMap::Entry* entry = FindOrCreateEntry(code_address);
-      if (entry->value == NULL) {
+      if (entry->value == nullptr) {
         entry->value = CopyName(name, name_size);
       }
     }
 
     const char* Lookup(Address code_address) {
       base::HashMap::Entry* entry = FindEntry(code_address);
-      return (entry != NULL) ? static_cast<const char*>(entry->value) : NULL;
+      return (entry != nullptr) ? static_cast<const char*>(entry->value)
+                                : nullptr;
     }
 
     void Remove(Address code_address) {
       base::HashMap::Entry* entry = FindEntry(code_address);
-      if (entry != NULL) {
+      if (entry != nullptr) {
         DeleteArray(static_cast<char*>(entry->value));
         RemoveEntry(entry);
       }
@@ -73,11 +74,11 @@ class CodeAddressMap : public CodeEventLogger {
     void Move(Address from, Address to) {
       if (from == to) return;
       base::HashMap::Entry* from_entry = FindEntry(from);
-      DCHECK(from_entry != NULL);
+      DCHECK(from_entry != nullptr);
       void* value = from_entry->value;
       RemoveEntry(from_entry);
       base::HashMap::Entry* to_entry = FindOrCreateEntry(to);
-      DCHECK(to_entry->value == NULL);
+      DCHECK(to_entry->value == nullptr);
       to_entry->value = value;
     }
 

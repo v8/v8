@@ -49,7 +49,7 @@ TEST(StackAlignment) {
   global_template->Set(v8_str("get_stack_pointer"),
                        v8::FunctionTemplate::New(isolate, GetStackPointer));
 
-  LocalContext env(NULL, global_template);
+  LocalContext env(nullptr, global_template);
   CompileRun(
       "function foo() {"
       "  return get_stack_pointer();"
@@ -61,7 +61,7 @@ TEST(StackAlignment) {
           .ToLocalChecked());
 
   v8::Local<v8::Value> result =
-      foo->Call(isolate->GetCurrentContext(), global_object, 0, NULL)
+      foo->Call(isolate->GetCurrentContext(), global_object, 0, nullptr)
           .ToLocalChecked();
   CHECK_EQ(0u, result->Uint32Value(isolate->GetCurrentContext()).FromJust() %
                    v8::base::OS::ActivationFrameAlignment());

@@ -47,7 +47,7 @@ const char* SolarisTimezoneCache::LocalTimezone(double time) {
   time_t tv = static_cast<time_t>(std::floor(time/msPerSecond));
   struct tm tm;
   struct tm* t = localtime_r(&tv, &tm);
-  if (NULL == t) return "";
+  if (nullptr == t) return "";
   return tzname[0];  // The location of the timezone string on Solaris.
 }
 
@@ -69,7 +69,7 @@ void* OS::Allocate(const size_t requested, size_t* allocated,
   void* mbase =
       mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANON, kMmapFd, kMmapFdOffset);
 
-  if (mbase == MAP_FAILED) return NULL;
+  if (mbase == MAP_FAILED) return nullptr;
   *allocated = msize;
   return mbase;
 }
@@ -80,7 +80,7 @@ void* OS::ReserveRegion(size_t size, void* hint) {
       mmap(hint, size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE,
            kMmapFd, kMmapFdOffset);
 
-  if (result == MAP_FAILED) return NULL;
+  if (result == MAP_FAILED) return nullptr;
 
   return result;
 }

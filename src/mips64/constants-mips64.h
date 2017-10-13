@@ -989,7 +989,7 @@ enum SecondaryField : uint32_t {
   BIT_DF_w = ((2U << 5) << 16),
   BIT_DF_d = ((0U << 6) << 16),
 
-  NULLSF = 0U
+  nullptrSF = 0U
 };
 
 enum MSAMinorOpcode : uint32_t {
@@ -1577,7 +1577,7 @@ class InstructionGetters : public T {
       case REGIMM:
         return RtValue();
       default:
-        return NULLSF;
+        return nullptrSF;
     }
   }
 

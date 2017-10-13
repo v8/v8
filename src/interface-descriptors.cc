@@ -29,7 +29,7 @@ void CallInterfaceDescriptorData::InitializePlatformIndependent(
   param_count_ = parameter_count + extra_parameter_count;
   machine_types_.reset(NewArray<MachineType>(param_count_));
   for (int i = 0; i < param_count_; i++) {
-    if (machine_types == NULL || i >= parameter_count) {
+    if (machine_types == nullptr || i >= parameter_count) {
       machine_types_[i] = MachineType::AnyTagged();
     } else {
       machine_types_[i] = machine_types[i];
@@ -281,7 +281,7 @@ void TypeConversionStackParameterDescriptor::InitializePlatformSpecific(
 
 void TypeConversionStackParameterDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  data->InitializePlatformIndependent(data->register_param_count(), 1, NULL);
+  data->InitializePlatformIndependent(data->register_param_count(), 1, nullptr);
 }
 
 void MathPowTaggedDescriptor::InitializePlatformSpecific(

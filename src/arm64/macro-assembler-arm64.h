@@ -867,7 +867,7 @@ class TurboAssembler : public Assembler {
   inline void Brk(int code);
 
   inline void JumpIfSmi(Register value, Label* smi_label,
-                        Label* not_smi_label = NULL);
+                        Label* not_smi_label = nullptr);
 
   inline void Fmov(VRegister fd, VRegister fn);
   inline void Fmov(VRegister fd, Register rn);
@@ -1211,7 +1211,8 @@ class TurboAssembler : public Assembler {
   // If rm is the minimum representable value, the result is not representable.
   // Handlers for each case can be specified using the relevant labels.
   void Abs(const Register& rd, const Register& rm,
-           Label* is_not_representable = NULL, Label* is_representable = NULL);
+           Label* is_not_representable = nullptr,
+           Label* is_representable = nullptr);
 
   inline void Cls(const Register& rd, const Register& rn);
   inline void Cneg(const Register& rd, const Register& rn, Condition cond);
@@ -1254,7 +1255,7 @@ class TurboAssembler : public Assembler {
   // The 'args' argument should point to an array of variable arguments in their
   // proper PCS registers (and in calling order). The argument registers can
   // have mixed types. The format string (x0) should not be included.
-  void CallPrintf(int arg_count = 0, const CPURegister* args = NULL);
+  void CallPrintf(int arg_count = 0, const CPURegister* args = nullptr);
 
  private:
   bool has_frame_ = false;
@@ -1755,14 +1756,12 @@ class MacroAssembler : public TurboAssembler {
   inline void SmiTagAndPush(Register src1, Register src2);
 
   inline void JumpIfNotSmi(Register value, Label* not_smi_label);
-  inline void JumpIfBothSmi(Register value1,
-                            Register value2,
+  inline void JumpIfBothSmi(Register value1, Register value2,
                             Label* both_smi_label,
-                            Label* not_smi_label = NULL);
-  inline void JumpIfEitherSmi(Register value1,
-                              Register value2,
+                            Label* not_smi_label = nullptr);
+  inline void JumpIfEitherSmi(Register value1, Register value2,
                               Label* either_smi_label,
-                              Label* not_smi_label = NULL);
+                              Label* not_smi_label = nullptr);
   inline void JumpIfEitherNotSmi(Register value1,
                                  Register value2,
                                  Label* not_smi_label);
@@ -1806,8 +1805,8 @@ class MacroAssembler : public TurboAssembler {
   // On output the Z flag is set if the operation was successful.
   void TryRepresentDoubleAsInt64(Register as_int, VRegister value,
                                  VRegister scratch_d,
-                                 Label* on_successful_conversion = NULL,
-                                 Label* on_failed_conversion = NULL) {
+                                 Label* on_successful_conversion = nullptr,
+                                 Label* on_failed_conversion = nullptr) {
     DCHECK(as_int.Is64Bits());
     TryRepresentDoubleAsInt(as_int, value, scratch_d, on_successful_conversion,
                             on_failed_conversion);
@@ -2168,8 +2167,8 @@ class MacroAssembler : public TurboAssembler {
   // On output the Z flag is set if the operation was successful.
   void TryRepresentDoubleAsInt(Register as_int, VRegister value,
                                VRegister scratch_d,
-                               Label* on_successful_conversion = NULL,
-                               Label* on_failed_conversion = NULL);
+                               Label* on_successful_conversion = nullptr,
+                               Label* on_failed_conversion = nullptr);
 
  public:
   // Far branches resolving.
@@ -2288,9 +2287,7 @@ class InlineSmiCheckInfo {
  public:
   explicit InlineSmiCheckInfo(Address info);
 
-  bool HasSmiCheck() const {
-    return smi_check_ != NULL;
-  }
+  bool HasSmiCheck() const { return smi_check_ != nullptr; }
 
   const Register& SmiRegister() const {
     return reg_;

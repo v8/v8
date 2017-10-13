@@ -13,8 +13,8 @@ namespace v8 {
 namespace platform {
 namespace tracing {
 
-// We perform checks for NULL strings since it is possible that a string arg
-// value is NULL.
+// We perform checks for nullptr strings since it is possible that a string arg
+// value is nullptr.
 V8_INLINE static size_t GetAllocLength(const char* str) {
   return str ? strlen(str) + 1 : 0;
 }

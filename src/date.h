@@ -43,7 +43,7 @@ class DateCache {
 
   virtual ~DateCache() {
     delete tz_cache_;
-    tz_cache_ = NULL;
+    tz_cache_ = nullptr;
   }
 
 

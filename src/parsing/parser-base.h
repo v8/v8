@@ -1590,7 +1590,7 @@ void ParserBase<Impl>::GetUnexpectedTokenMessage(
       break;
     default:
       const char* name = Token::String(token);
-      DCHECK(name != NULL);
+      DCHECK(name != nullptr);
       *arg = name;
       break;
   }
@@ -1881,7 +1881,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
       return ParseTemplateLiteral(impl()->NullExpression(), beg_pos, false, ok);
 
     case Token::MOD:
-      if (allow_natives() || extension_ != NULL) {
+      if (allow_natives() || extension_ != nullptr) {
         BindingPatternUnexpectedToken();
         return ParseV8Intrinsic(ok);
       }
@@ -2910,7 +2910,7 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
 
   impl()->CheckAssigningFunctionLiteralToProperty(expression, right);
 
-  if (fni_ != NULL) {
+  if (fni_ != nullptr) {
     // Check if the right hand side is a call to avoid inferring a
     // name if we're dealing with "a = function(){...}();"-like
     // expression.
@@ -3316,7 +3316,7 @@ ParserBase<Impl>::ParseLeftHandSideExpression(bool* ok) {
               factory()->NewAssignment(Token::INIT, this_expr, result, pos);
         }
 
-        if (fni_ != NULL) fni_->RemoveLastFunction();
+        if (fni_ != nullptr) fni_->RemoveLastFunction();
         break;
       }
 
@@ -5121,7 +5121,7 @@ ParserBase<Impl>::ParseExpressionOrLabelledStatement(
   ExpectSemicolon(CHECK_OK);
   if (labels != nullptr) {
     // TODO(adamk): Also measure in the PreParser by passing something
-    // non-NULL as |labels|.
+    // non-null as |labels|.
     impl()->CountUsage(v8::Isolate::kLabeledExpressionStatement);
   }
   return factory()->NewExpressionStatement(expr, pos);

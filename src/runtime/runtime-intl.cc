@@ -105,7 +105,7 @@ RUNTIME_FUNCTION(Runtime_AvailableLocalesOf) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, service, 0);
 
-  const icu::Locale* available_locales = NULL;
+  const icu::Locale* available_locales = nullptr;
   int32_t count = 0;
 
   if (service->IsUtf8EqualTo(CStrVector("collator"))) {
@@ -660,7 +660,7 @@ RUNTIME_FUNCTION(Runtime_CreateBreakIterator) {
   if (!break_iterator) return isolate->ThrowIllegalOperation();
 
   local_object->SetEmbedderField(0, reinterpret_cast<Smi*>(break_iterator));
-  // Make sure that the pointer to adopted text is NULL.
+  // Make sure that the pointer to adopted text is nullptr.
   local_object->SetEmbedderField(1, static_cast<Smi*>(nullptr));
 
   // Make object handle weak so we can delete the break iterator once GC kicks

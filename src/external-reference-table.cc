@@ -28,7 +28,7 @@ BUILTIN_LIST_C(FORWARD_DECLARE)
 ExternalReferenceTable* ExternalReferenceTable::instance(Isolate* isolate) {
   ExternalReferenceTable* external_reference_table =
       isolate->external_reference_table();
-  if (external_reference_table == NULL) {
+  if (external_reference_table == nullptr) {
     external_reference_table = new ExternalReferenceTable(isolate);
     isolate->set_external_reference_table(external_reference_table);
   }
@@ -373,7 +373,7 @@ void ExternalReferenceTable::AddIsolateAddresses(Isolate* isolate) {
   // Top addresses
   static const char* address_names[] = {
 #define BUILD_NAME_LITERAL(Name, name) "Isolate::" #name "_address",
-      FOR_EACH_ISOLATE_ADDRESS_NAME(BUILD_NAME_LITERAL) NULL
+      FOR_EACH_ISOLATE_ADDRESS_NAME(BUILD_NAME_LITERAL) nullptr
 #undef BUILD_NAME_LITERAL
   };
 

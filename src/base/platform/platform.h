@@ -160,12 +160,12 @@ class V8_BASE_EXPORT OS {
   enum class MemoryPermission { kNoAccess, kReadWrite, kReadWriteExecute };
 
   // Allocate/Free memory used by JS heap. Permissions are set according to the
-  // is_* flags. Returns the address of allocated memory, or NULL if failed.
+  // is_* flags. Returns the address of allocated memory, or nullptr if failed.
   static void* Allocate(const size_t requested, size_t* allocated,
                         MemoryPermission access, void* hint = nullptr);
   // Allocate/Free memory used by JS heap. Pages are readable/writable, but
   // they are not guaranteed to be executable unless 'executable' is true.
-  // Returns the address of allocated memory, or NULL if failed.
+  // Returns the address of allocated memory, or nullptr if failed.
   static void* Allocate(const size_t requested, size_t* allocated,
                         bool is_executable, void* hint = nullptr);
   static void Free(void* address, const size_t size);
@@ -335,7 +335,7 @@ class V8_BASE_EXPORT Thread {
     Start();
     start_semaphore_->Wait();
     delete start_semaphore_;
-    start_semaphore_ = NULL;
+    start_semaphore_ = nullptr;
   }
 
   // Wait until thread terminates.
@@ -360,7 +360,7 @@ class V8_BASE_EXPORT Thread {
     SetThreadLocal(key, reinterpret_cast<void*>(static_cast<intptr_t>(value)));
   }
   static bool HasThreadLocal(LocalStorageKey key) {
-    return GetThreadLocal(key) != NULL;
+    return GetThreadLocal(key) != nullptr;
   }
 
 #ifdef V8_FAST_TLS_SUPPORTED

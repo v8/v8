@@ -138,7 +138,7 @@ class String : public Name {
         : onebyte_start(start), length_(length), state_(ONE_BYTE) {}
     explicit FlatContent(const uc16* start, int length)
         : twobyte_start(start), length_(length), state_(TWO_BYTE) {}
-    FlatContent() : onebyte_start(NULL), length_(0), state_(NON_FLAT) {}
+    FlatContent() : onebyte_start(nullptr), length_(0), state_(NON_FLAT) {}
 
     union {
       const uint8_t* onebyte_start;
@@ -826,14 +826,14 @@ class ConsStringIterator {
   }
   inline void Reset(ConsString* cons_string, int offset = 0) {
     depth_ = 0;
-    // Next will always return NULL.
-    if (cons_string == NULL) return;
+    // Next will always return nullptr.
+    if (cons_string == nullptr) return;
     Initialize(cons_string, offset);
   }
-  // Returns NULL when complete.
+  // Returns nullptr when complete.
   inline String* Next(int* offset_out) {
     *offset_out = 0;
-    if (depth_ == 0) return NULL;
+    if (depth_ == 0) return nullptr;
     return Continue(offset_out);
   }
 

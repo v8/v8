@@ -93,7 +93,7 @@ void StartupDeserializer::PrintDisassembledCodeObjects() {
     CodeTracer::Scope tracing_scope(isolate()->GetCodeTracer());
     OFStream os(tracing_scope.file());
 
-    for (HeapObject* obj = iterator.next(); obj != NULL;
+    for (HeapObject* obj = iterator.next(); obj != nullptr;
          obj = iterator.next()) {
       if (obj->IsCode()) {
         Code::cast(obj)->Disassemble(nullptr, os);

@@ -41,7 +41,7 @@ inline StackHandler* StackFrame::top_handler() const {
 
 
 inline Address* StackFrame::ResolveReturnAddressLocation(Address* pc_address) {
-  if (return_address_location_resolver_ == NULL) {
+  if (return_address_location_resolver_ == nullptr) {
     return pc_address;
   } else {
     return reinterpret_cast<Address*>(
