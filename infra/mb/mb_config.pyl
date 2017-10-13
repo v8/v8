@@ -152,11 +152,11 @@
       'V8 Linux - mipsel - sim - builder': 'gn_release_simulate_mipsel',
       'V8 Linux - mips64el - sim - builder': 'gn_release_simulate_mips64el',
       # PPC.
-      'V8 Linux - ppc - sim': 'gyp_release_simulate_ppc',
-      'V8 Linux - ppc64 - sim': 'gyp_release_simulate_ppc64',
+      'V8 Linux - ppc - sim': 'gn_release_simulate_ppc',
+      'V8 Linux - ppc64 - sim': 'gn_release_simulate_ppc64',
       # S390.
-      'V8 Linux - s390 - sim': 'gyp_release_simulate_s390',
-      'V8 Linux - s390x - sim': 'gyp_release_simulate_s390x',
+      'V8 Linux - s390 - sim': 'gn_release_simulate_s390',
+      'V8 Linux - s390x - sim': 'gn_release_simulate_s390x',
     },
     'client.v8.branches': {
       'V8 Linux - beta branch': 'gn_release_x86',
@@ -175,14 +175,14 @@
       'V8 mips64el - sim - stable branch': 'gn_release_simulate_mips64el',
       'V8 mipsel - sim - beta branch': 'gn_release_simulate_mipsel',
       'V8 mipsel - sim - stable branch': 'gn_release_simulate_mipsel',
-      'V8 ppc - sim - beta branch': 'gyp_release_simulate_ppc',
-      'V8 ppc - sim - stable branch': 'gyp_release_simulate_ppc',
-      'V8 ppc64 - sim - beta branch': 'gyp_release_simulate_ppc64',
-      'V8 ppc64 - sim - stable branch': 'gyp_release_simulate_ppc64',
-      'V8 s390 - sim - beta branch': 'gyp_release_simulate_s390',
-      'V8 s390 - sim - stable branch': 'gyp_release_simulate_s390',
-      'V8 s390x - sim - beta branch': 'gyp_release_simulate_s390x',
-      'V8 s390x - sim - stable branch': 'gyp_release_simulate_s390x',
+      'V8 ppc - sim - beta branch': 'gn_release_simulate_ppc',
+      'V8 ppc - sim - stable branch': 'gn_release_simulate_ppc',
+      'V8 ppc64 - sim - beta branch': 'gn_release_simulate_ppc64',
+      'V8 ppc64 - sim - stable branch': 'gn_release_simulate_ppc64',
+      'V8 s390 - sim - beta branch': 'gn_release_simulate_s390',
+      'V8 s390 - sim - stable branch': 'gn_release_simulate_s390',
+      'V8 s390x - sim - beta branch': 'gn_release_simulate_s390x',
+      'V8 s390x - sim - stable branch': 'gn_release_simulate_s390x',
     },
     'tryserver.v8': {
       'v8_fuchsia_rel_ng': 'gn_release_x64_fuchsia_trybot',
@@ -358,6 +358,14 @@
       'gn', 'release_bot', 'simulate_mipsel', 'swarming'],
     'gn_release_simulate_mips64el': [
       'gn', 'release_bot', 'simulate_mips64el', 'swarming'],
+    'gn_release_simulate_ppc': [
+      'gn', 'release_bot', 'simulate_ppc', 'swarming'],
+    'gn_release_simulate_ppc64': [
+      'gn', 'release_bot', 'simulate_ppc64', 'swarming'],
+    'gn_release_simulate_s390': [
+      'gn', 'release_bot', 'simulate_s390', 'swarming'],
+    'gn_release_simulate_s390x': [
+      'gn', 'release_bot', 'simulate_s390x', 'swarming'],
 
     # GN debug configs for arm.
     'gn_debug_arm': [
@@ -515,16 +523,6 @@
     'gyp_release_mips_no_snap_no_i18n': [
       'gyp', 'release', 'mips', 'crosscompile', 'static', 'v8_no_i18n',
       'v8_snapshot_none'],
-
-    # Gyp release configs for simulators.
-    'gyp_release_simulate_ppc': [
-      'gyp', 'release_bot', 'simulate_ppc', 'swarming'],
-    'gyp_release_simulate_ppc64': [
-      'gyp', 'release_bot', 'simulate_ppc64', 'swarming'],
-    'gyp_release_simulate_s390': [
-      'gyp', 'release_bot', 'simulate_s390', 'swarming'],
-    'gyp_release_simulate_s390x': [
-      'gyp', 'release_bot', 'simulate_s390x', 'swarming'],
 
     # Gyp release configs for x64.
     'gyp_release_x64': [
