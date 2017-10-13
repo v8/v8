@@ -203,11 +203,12 @@ class WasmGraphBuildingInterface {
   }
 
   void FallThruTo(Decoder* decoder, Control* c) {
+    DCHECK(!c->is_loop());
     MergeValuesInto(decoder, c);
-    SetEnv(c->end_env);
   }
 
   void PopControl(Decoder* decoder, Control* block) {
+    if (!block->is_loop()) SetEnv(block->end_env);
     if (block->is_onearmed_if()) {
       Goto(decoder, block->false_env, block->end_env);
     }
@@ -245,6 +246,10 @@ class WasmGraphBuildingInterface {
   void Drop(Decoder* decoder, const Value& value) {}
 
   void DoReturn(Decoder* decoder, Vector<Value> values, bool implicit) {
+    if (implicit) {
+      DCHECK_EQ(1, decoder->control_depth());
+      SetEnv(decoder->control_at(0)->end_env);
+    }
     size_t num_values = values.size();
     TFNode** buffer = GetNodes(values);
     for (size_t i = 0; i < num_values; ++i) {

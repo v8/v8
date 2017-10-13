@@ -491,8 +491,8 @@ struct ControlBase {
     return {kControlIf, stack_depth, pc};
   }
 
-  static ControlBase Loop(const byte* pc, uint32_t stack_depth) {
-    return {kControlLoop, stack_depth, pc, true};
+  static ControlBase Loop(const byte* pc, uint32_t stack_depth, bool reached) {
+    return {kControlLoop, stack_depth, pc, reached};
   }
 
   static ControlBase Try(const byte* pc, uint32_t stack_depth) {
@@ -1087,6 +1087,22 @@ class WasmDecoder : public Decoder {
   }
 };
 
+#define CALL_INTERFACE(name, ...) interface_.name(this, ##__VA_ARGS__)
+#define CALL_INTERFACE_IF_REACHABLE(name, ...)       \
+  do {                                               \
+    DCHECK(!control_.empty());                       \
+    if (this->ok() && control_.back().reachable()) { \
+      interface_.name(this, ##__VA_ARGS__);          \
+    }                                                \
+  } while (false)
+#define CALL_INTERFACE_IF_PARENT_REACHABLE(name, ...)                         \
+  do {                                                                        \
+    DCHECK(!control_.empty());                                                \
+    if (this->ok() && (control_.size() == 1 || control_at(1)->reachable())) { \
+      interface_.name(this, ##__VA_ARGS__);                                   \
+    }                                                                         \
+  } while (false)
+
 template <bool validate, typename Interface>
 class WasmFullDecoder : public WasmDecoder<validate> {
   using Value = typename Interface::Value;
@@ -1134,9 +1150,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
     DCHECK_EQ(0, this->local_types_->size());
     WasmDecoder<validate>::DecodeLocals(this, this->sig_, this->local_types_);
-    interface_.StartFunction(this);
+    CALL_INTERFACE(StartFunction);
     DecodeFunctionBody();
-    if (!this->failed()) interface_.FinishFunction(this);
+    if (!this->failed()) CALL_INTERFACE(FinishFunction);
 
     if (this->failed()) return this->TraceFailed();
 
@@ -1267,7 +1283,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               Value::New(this->pc_, this->sig_->GetReturn(i));
         }
       }
-      interface_.StartFunctionBody(this, c);
+      CALL_INTERFACE(StartFunctionBody, c);
     }
 
     while (this->pc_ < this->end_) {  // decoding loop.
@@ -1294,7 +1310,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             auto* block = PushBlock();
             SetBlockType(block, operand);
             len = 1 + operand.length;
-            interface_.Block(this, block);
+            CALL_INTERFACE_IF_REACHABLE(Block, block);
             break;
           }
           case kExprRethrow: {
@@ -1310,7 +1326,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (!this->Validate(this->pc_, operand)) break;
             std::vector<Value> args;
             PopArgs(operand.exception->ToFunctionSig(), &args);
-            interface_.Throw(this, operand, &control_.back(), vec2vec(args));
+            CALL_INTERFACE_IF_REACHABLE(Throw, operand, &control_.back(),
+                                        vec2vec(args));
             EndControl();
             break;
           }
@@ -1321,7 +1338,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             auto* try_block = PushTry();
             SetBlockType(try_block, operand);
             len = 1 + operand.length;
-            interface_.Try(this, try_block);
+            CALL_INTERFACE_IF_REACHABLE(Try, try_block);
             break;
           }
           case kExprCatch: {
@@ -1356,7 +1373,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             }
             Vector<Value> values(stack_.data() + c->stack_depth,
                                  sig->parameter_count());
-            interface_.CatchException(this, operand, c, values);
+            CALL_INTERFACE_IF_PARENT_REACHABLE(CatchException, operand, c,
+                                               values);
             c->reachability = control_at(1)->innerReachability();
             break;
           }
@@ -1369,21 +1387,20 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprLoop: {
             BlockTypeOperand<validate> operand(this, this->pc_);
             if (!LookupBlockType(&operand)) break;
-            // The continue environment is the inner environment.
             auto* block = PushLoop();
             SetBlockType(&control_.back(), operand);
             len = 1 + operand.length;
-            interface_.Loop(this, block);
+            CALL_INTERFACE_IF_REACHABLE(Loop, block);
             break;
           }
           case kExprIf: {
-            // Condition on top of stack. Split environments for branches.
             BlockTypeOperand<validate> operand(this, this->pc_);
             if (!LookupBlockType(&operand)) break;
             auto cond = Pop(0, kWasmI32);
+            if (!this->ok()) break;
             auto* if_block = PushIf();
             SetBlockType(if_block, operand);
-            interface_.If(this, cond, if_block);
+            CALL_INTERFACE_IF_REACHABLE(If, cond, if_block);
             len = 1 + operand.length;
             break;
           }
@@ -1404,7 +1421,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             c->kind = kControlIfElse;
             FallThruTo(c);
             stack_.resize(c->stack_depth);
-            interface_.Else(this, c);
+            CALL_INTERFACE_IF_PARENT_REACHABLE(Else, c);
             c->reachability = control_at(1)->innerReachability();
             break;
           }
@@ -1422,7 +1439,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             }
             if (c->is_onearmed_if()) {
               // The merge point is reached if the if is not taken.
-              c->merge.reached = true;
+              if (control_at(1)->reachable()) c->merge.reached = true;
               // End the true branch of a one-armed if.
               if (!VALIDATE(c->unreachable() ||
                             stack_.size() == c->stack_depth)) {
@@ -1449,7 +1466,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               // The result of the block is the return value.
               TRACE("  @%-8d #xx:%-20s|", startrel(this->pc_),
                     "(implicit) return");
-              DoReturn(true);
+              DoReturn(c, true);
               TRACE("\n");
             }
 
@@ -1461,7 +1478,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             auto fval = Pop();
             auto tval = Pop(0, fval.type);
             auto* result = Push(tval.type == kWasmVar ? fval.type : tval.type);
-            interface_.Select(this, cond, fval, tval, result);
+            CALL_INTERFACE_IF_REACHABLE(Select, cond, fval, tval, result);
             break;
           }
           case kExprBr: {
@@ -1469,7 +1486,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (!this->Validate(this->pc_, operand, control_.size())) break;
             Control* c = control_at(operand.depth);
             if (!TypeCheckBreak(c)) break;
-            interface_.BreakTo(this, c);
+            CALL_INTERFACE_IF_REACHABLE(BreakTo, c);
             if (control_.back().reachable()) c->merge.reached = true;
             len = 1 + operand.length;
             EndControl();
@@ -1481,7 +1498,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (!this->Validate(this->pc_, operand, control_.size())) break;
             Control* c = control_at(operand.depth);
             if (!TypeCheckBreak(c)) break;
-            interface_.BrIf(this, cond, c);
+            CALL_INTERFACE_IF_REACHABLE(BrIf, cond, c);
             if (control_.back().reachable()) c->merge.reached = true;
             len = 1 + operand.length;
             break;
@@ -1514,48 +1531,47 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               if (!TypeCheckBreak(c)) break;
               if (control_.back().reachable()) c->merge.reached = true;
             }
-            if (!VALIDATE(this->ok())) break;
 
-            interface_.BrTable(this, operand, key);
+            CALL_INTERFACE_IF_REACHABLE(BrTable, operand, key);
 
             len = 1 + iterator.length();
             EndControl();
             break;
           }
           case kExprReturn: {
-            DoReturn(false);
+            DoReturn(&control_.back(), false);
             break;
           }
           case kExprUnreachable: {
-            interface_.Unreachable(this);
+            CALL_INTERFACE_IF_REACHABLE(Unreachable);
             EndControl();
             break;
           }
           case kExprI32Const: {
             ImmI32Operand<validate> operand(this, this->pc_);
             auto* value = Push(kWasmI32);
-            interface_.I32Const(this, value, operand.value);
+            CALL_INTERFACE_IF_REACHABLE(I32Const, value, operand.value);
             len = 1 + operand.length;
             break;
           }
           case kExprI64Const: {
             ImmI64Operand<validate> operand(this, this->pc_);
             auto* value = Push(kWasmI64);
-            interface_.I64Const(this, value, operand.value);
+            CALL_INTERFACE_IF_REACHABLE(I64Const, value, operand.value);
             len = 1 + operand.length;
             break;
           }
           case kExprF32Const: {
             ImmF32Operand<validate> operand(this, this->pc_);
             auto* value = Push(kWasmF32);
-            interface_.F32Const(this, value, operand.value);
+            CALL_INTERFACE_IF_REACHABLE(F32Const, value, operand.value);
             len = 1 + operand.length;
             break;
           }
           case kExprF64Const: {
             ImmF64Operand<validate> operand(this, this->pc_);
             auto* value = Push(kWasmF64);
-            interface_.F64Const(this, value, operand.value);
+            CALL_INTERFACE_IF_REACHABLE(F64Const, value, operand.value);
             len = 1 + operand.length;
             break;
           }
@@ -1563,7 +1579,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             LocalIndexOperand<validate> operand(this, this->pc_);
             if (!this->Validate(this->pc_, operand)) break;
             auto* value = Push(operand.type);
-            interface_.GetLocal(this, value, operand);
+            CALL_INTERFACE_IF_REACHABLE(GetLocal, value, operand);
             len = 1 + operand.length;
             break;
           }
@@ -1571,7 +1587,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             LocalIndexOperand<validate> operand(this, this->pc_);
             if (!this->Validate(this->pc_, operand)) break;
             auto value = Pop(0, local_type_vec_[operand.index]);
-            interface_.SetLocal(this, value, operand);
+            CALL_INTERFACE_IF_REACHABLE(SetLocal, value, operand);
             len = 1 + operand.length;
             break;
           }
@@ -1580,13 +1596,13 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (!this->Validate(this->pc_, operand)) break;
             auto value = Pop(0, local_type_vec_[operand.index]);
             auto* result = Push(value.type);
-            interface_.TeeLocal(this, value, result, operand);
+            CALL_INTERFACE_IF_REACHABLE(TeeLocal, value, result, operand);
             len = 1 + operand.length;
             break;
           }
           case kExprDrop: {
             auto value = Pop();
-            interface_.Drop(this, value);
+            CALL_INTERFACE_IF_REACHABLE(Drop, value);
             break;
           }
           case kExprGetGlobal: {
@@ -1594,7 +1610,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             len = 1 + operand.length;
             if (!this->Validate(this->pc_, operand)) break;
             auto* result = Push(operand.type);
-            interface_.GetGlobal(this, result, operand);
+            CALL_INTERFACE_IF_REACHABLE(GetGlobal, result, operand);
             break;
           }
           case kExprSetGlobal: {
@@ -1607,7 +1623,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               break;
             }
             auto value = Pop(0, operand.type);
-            interface_.SetGlobal(this, value, operand);
+            CALL_INTERFACE_IF_REACHABLE(SetGlobal, value, operand);
             break;
           }
           case kExprI32LoadMem8S:
@@ -1690,7 +1706,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             }
             auto value = Pop(0, kWasmI32);
             auto* result = Push(kWasmI32);
-            interface_.GrowMemory(this, value, result);
+            CALL_INTERFACE_IF_REACHABLE(GrowMemory, value, result);
             break;
           }
           case kExprMemorySize: {
@@ -1698,7 +1714,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             MemoryIndexOperand<validate> operand(this, this->pc_);
             auto* result = Push(kWasmI32);
             len = 1 + operand.length;
-            interface_.CurrentMemoryPages(this, result);
+            CALL_INTERFACE_IF_REACHABLE(CurrentMemoryPages, result);
             break;
           }
           case kExprCallFunction: {
@@ -1709,7 +1725,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             std::vector<Value> args;
             PopArgs(operand.sig, &args);
             auto* returns = PushReturns(operand.sig);
-            interface_.CallDirect(this, operand, args.data(), returns);
+            CALL_INTERFACE_IF_REACHABLE(CallDirect, operand, args.data(),
+                                        returns);
             break;
           }
           case kExprCallIndirect: {
@@ -1721,7 +1738,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             std::vector<Value> args;
             PopArgs(operand.sig, &args);
             auto* returns = PushReturns(operand.sig);
-            interface_.CallIndirect(this, index, operand, args.data(), returns);
+            CALL_INTERFACE_IF_REACHABLE(CallIndirect, index, operand,
+                                        args.data(), returns);
             break;
           }
           case kSimdPrefix: {
@@ -1830,7 +1848,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DCHECK(!control_.empty());
     auto* current = &control_.back();
     stack_.resize(current->stack_depth);
-    interface_.EndControl(this, current);
+    CALL_INTERFACE_IF_REACHABLE(EndControl, current);
     current->reachability = kUnreachable;
   }
 
@@ -1890,7 +1908,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return PushControl(Control::Block(this->pc_, stack_size()));
   }
   Control* PushLoop() {
-    return PushControl(Control::Loop(this->pc_, stack_size()));
+    return PushControl(
+        Control::Loop(this->pc_, stack_size(), control_.back().reachable()));
   }
   Control* PushIf() {
     return PushControl(Control::If(this->pc_, stack_size()));
@@ -1902,7 +1921,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   void PopControl(Control* c) {
     DCHECK_EQ(c, &control_.back());
-    interface_.PopControl(this, c);
+    CALL_INTERFACE_IF_PARENT_REACHABLE(PopControl, c);
     bool reached = c->is_loop() ? c->reachable() : c->merge.reached;
     control_.pop_back();
     // If the parent block was reachable before, but the popped control does not
@@ -1919,7 +1938,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
     auto index = Pop(0, kWasmI32);
     auto* result = Push(type);
-    interface_.LoadMem(this, type, mem_type, operand, index, result);
+    CALL_INTERFACE_IF_REACHABLE(LoadMem, type, mem_type, operand, index,
+                                result);
     return 1 + operand.length;
   }
 
@@ -1929,7 +1949,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         this, this->pc_, ElementSizeLog2Of(mem_type.representation()));
     auto value = Pop(1, type);
     auto index = Pop(0, kWasmI32);
-    interface_.StoreMem(this, type, mem_type, operand, index, value);
+    CALL_INTERFACE_IF_REACHABLE(StoreMem, type, mem_type, operand, index,
+                                value);
     return 1 + operand.length;
   }
 
@@ -1940,7 +1961,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
     auto index = Pop(0, kWasmI32);
     auto* result = Push(type);
-    interface_.LoadMem(this, type, mem_type, operand, index, result);
+    CALL_INTERFACE_IF_REACHABLE(LoadMem, type, mem_type, operand, index,
+                                result);
     return operand.length;
   }
 
@@ -1950,7 +1972,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         this, this->pc_ + 1, ElementSizeLog2Of(mem_type.representation()));
     auto value = Pop(1, type);
     auto index = Pop(0, kWasmI32);
-    interface_.StoreMem(this, type, mem_type, operand, index, value);
+    CALL_INTERFACE_IF_REACHABLE(StoreMem, type, mem_type, operand, index,
+                                value);
     return operand.length;
   }
 
@@ -1959,7 +1982,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (this->Validate(this->pc_, opcode, operand)) {
       Value inputs[] = {Pop(0, ValueType::kSimd128)};
       auto* result = Push(type);
-      interface_.SimdLaneOp(this, opcode, operand, ArrayVector(inputs), result);
+      CALL_INTERFACE_IF_REACHABLE(SimdLaneOp, opcode, operand,
+                                  ArrayVector(inputs), result);
     }
     return operand.length;
   }
@@ -1971,7 +1995,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       inputs[1] = Pop(1, type);
       inputs[0] = Pop(0, ValueType::kSimd128);
       auto* result = Push(ValueType::kSimd128);
-      interface_.SimdLaneOp(this, opcode, operand, ArrayVector(inputs), result);
+      CALL_INTERFACE_IF_REACHABLE(SimdLaneOp, opcode, operand,
+                                  ArrayVector(inputs), result);
     }
     return operand.length;
   }
@@ -1981,7 +2006,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     if (this->Validate(this->pc_, opcode, operand)) {
       auto input = Pop(0, ValueType::kSimd128);
       auto* result = Push(ValueType::kSimd128);
-      interface_.SimdShiftOp(this, opcode, operand, input, result);
+      CALL_INTERFACE_IF_REACHABLE(SimdShiftOp, opcode, operand, input, result);
     }
     return operand.length;
   }
@@ -1992,7 +2017,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       auto input1 = Pop(1, ValueType::kSimd128);
       auto input0 = Pop(0, ValueType::kSimd128);
       auto* result = Push(ValueType::kSimd128);
-      interface_.Simd8x16ShuffleOp(this, operand, input0, input1, result);
+      CALL_INTERFACE_IF_REACHABLE(Simd8x16ShuffleOp, operand, input0, input1,
+                                  result);
     }
     return 16;
   }
@@ -2052,7 +2078,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         PopArgs(sig, &args);
         auto* result =
             sig->return_count() == 0 ? nullptr : Push(GetReturnType(sig));
-        interface_.SimdOp(this, opcode, vec2vec(args), result);
+        CALL_INTERFACE_IF_REACHABLE(SimdOp, opcode, vec2vec(args), result);
       }
     }
     return len;
@@ -2096,14 +2122,15 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       auto result = ret_type == MachineRepresentation::kNone
                         ? nullptr
                         : Push(GetReturnType(sig));
-      interface_.AtomicOp(this, opcode, vec2vec(args), operand, result);
+      CALL_INTERFACE_IF_REACHABLE(AtomicOp, opcode, vec2vec(args), operand,
+                                  result);
     } else {
       this->error("invalid atomic opcode");
     }
     return len;
   }
 
-  void DoReturn(bool implicit) {
+  void DoReturn(Control* c, bool implicit) {
     // TODO(clemensh): Optimize memory usage here (it will be mostly 0 or 1
     // returned values).
     int return_count = static_cast<int>(this->sig_->return_count());
@@ -2114,7 +2141,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       values[i] = Pop(i, this->sig_->GetReturn(i));
     }
 
-    interface_.DoReturn(this, vec2vec(values), implicit);
+    if (this->ok() && (c->reachable() || (implicit && c->merge.reached))) {
+      CALL_INTERFACE(DoReturn, vec2vec(values), implicit);
+    }
+
     EndControl();
   }
 
@@ -2181,8 +2211,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     DCHECK(!c->is_loop());
     DCHECK_EQ(c, &control_.back());
     if (!TypeCheckFallThru(c)) return;
+    if (!c->reachable()) return;
 
-    interface_.FallThruTo(this, c);
+    CALL_INTERFACE(FallThruTo, c);
     c->merge.reached = true;
   }
 
@@ -2267,7 +2298,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   virtual void onFirstError() {
     this->end_ = this->pc_;  // Terminate decoding loop.
     TRACE(" !%s\n", this->error_msg_.c_str());
-    interface_.OnFirstError(this);
+    CALL_INTERFACE(OnFirstError);
   }
 
   inline void BuildSimpleOperator(WasmOpcode opcode, FunctionSig* sig) {
@@ -2276,7 +2307,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         auto val = Pop(0, sig->GetParam(0));
         auto* ret =
             sig->return_count() == 0 ? nullptr : Push(sig->GetReturn(0));
-        interface_.UnOp(this, opcode, sig, val, ret);
+        CALL_INTERFACE_IF_REACHABLE(UnOp, opcode, sig, val, ret);
         break;
       }
       case 2: {
@@ -2284,7 +2315,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         auto lval = Pop(0, sig->GetParam(0));
         auto* ret =
             sig->return_count() == 0 ? nullptr : Push(sig->GetReturn(0));
-        interface_.BinOp(this, opcode, sig, lval, rval, ret);
+        CALL_INTERFACE_IF_REACHABLE(BinOp, opcode, sig, lval, rval, ret);
         break;
       }
       default:
@@ -2292,6 +2323,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     }
   }
 };
+
+#undef CALL_INTERFACE
+#undef CALL_INTERFACE_IF_REACHABLE
+#undef CALL_INTERFACE_IF_PARENT_REACHABLE
 
 class EmptyInterface {
  public:
