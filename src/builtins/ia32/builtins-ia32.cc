@@ -55,12 +55,12 @@ void AdaptorWithExitFrameType(MacroAssembler* masm,
 
   // CEntryStub expects eax to contain the number of arguments including the
   // receiver and the extra arguments.
-  const int num_extra_args = 3;
-  __ add(eax, Immediate(num_extra_args + 1));
+  __ add(eax, Immediate(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
 
   // Insert extra arguments.
   __ PopReturnAddressTo(ecx);
   __ SmiTag(eax);
+  __ PushRoot(Heap::kTheHoleValueRootIndex);  // Padding.
   __ Push(eax);
   __ SmiUntag(eax);
   __ Push(edi);

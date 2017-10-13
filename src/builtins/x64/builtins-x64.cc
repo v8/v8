@@ -59,13 +59,13 @@ void AdaptorWithExitFrameType(MacroAssembler* masm,
 
   // CEntryStub expects rax to contain the number of arguments including the
   // receiver and the extra arguments.
-  const int num_extra_args = 3;
-  __ addp(rax, Immediate(num_extra_args + 1));
+  __ addp(rax, Immediate(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
 
   // Unconditionally insert argc, target and new target as extra arguments. They
   // will be used by stack frame iterators when constructing the stack trace.
   __ PopReturnAddressTo(kScratchRegister);
   __ Integer32ToSmi(rax, rax);
+  __ PushRoot(Heap::kTheHoleValueRootIndex);  // Padding.
   __ Push(rax);
   __ SmiToInteger32(rax, rax);
   __ Push(rdi);

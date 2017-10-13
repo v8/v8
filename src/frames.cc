@@ -636,7 +636,8 @@ bool BuiltinExitFrame::IsConstructor() const {
 
 Object* BuiltinExitFrame::GetParameter(int i) const {
   DCHECK(i >= 0 && i < ComputeParametersCount());
-  int offset = BuiltinExitFrameConstants::kArgcOffset + (i + 1) * kPointerSize;
+  int offset =
+      BuiltinExitFrameConstants::kFirstArgumentOffset + i * kPointerSize;
   return Memory::Object_at(fp() + offset);
 }
 

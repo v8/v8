@@ -69,18 +69,18 @@ void AdaptorWithExitFrameType(MacroAssembler* masm,
 
   // CEntryStub expects x0 to contain the number of arguments including the
   // receiver and the extra arguments.
-  const int num_extra_args = 3;
-  __ Add(x0, x0, num_extra_args + 1);
+  __ Add(x0, x0, BuiltinExitFrameConstants::kNumExtraArgsWithReceiver);
 
   // Insert extra arguments.
-  __ SmiTag(x0);
-  __ Push(x0, x1, x3);
-  __ SmiUntag(x0);
+  Register padding = x10;
+  __ LoadRoot(padding, Heap::kTheHoleValueRootIndex);
+  __ SmiTag(x11, x0);
+  __ Push(padding, x11, x1, x3);
 
   // Jump to the C entry runtime stub directly here instead of using
   // JumpToExternalReference. We have already loaded entry point to x5
   // in Generate_adaptor.
-  __ mov(x1, x5);
+  __ Mov(x1, x5);
   CEntryStub stub(masm->isolate(), 1, kDontSaveFPRegs, kArgvOnStack,
                   exit_frame_type == Builtins::BUILTIN_EXIT);
   __ Jump(stub.GetCode(), RelocInfo::CODE_TARGET);

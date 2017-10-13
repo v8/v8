@@ -1252,9 +1252,10 @@ Reduction JSBuiltinReducer::ReduceArrayShift(Node* node) {
         Node* argc =
             jsgraph()->Constant(BuiltinArguments::kNumExtraArgsWithReceiver);
         if_false1 = efalse1 = vfalse1 =
-            graph()->NewNode(common()->Call(desc), stub_code, receiver, argc,
-                             target, jsgraph()->UndefinedConstant(), entry,
-                             argc, context, frame_state, efalse1, if_false1);
+            graph()->NewNode(common()->Call(desc), stub_code, receiver,
+                             jsgraph()->PaddingConstant(), argc, target,
+                             jsgraph()->UndefinedConstant(), entry, argc,
+                             context, frame_state, efalse1, if_false1);
       }
 
       if_false0 = graph()->NewNode(common()->Merge(2), if_true1, if_false1);

@@ -54,10 +54,11 @@ void AdaptorWithExitFrameType(MacroAssembler* masm,
 
   // CEntryStub expects r2 to contain the number of arguments including the
   // receiver and the extra arguments.
-  const int num_extra_args = 3;
-  __ AddP(r2, r2, Operand(num_extra_args + 1));
+  __ AddP(r2, r2,
+          Operand(BuiltinExitFrameConstants::kNumExtraArgsWithReceiver));
 
   // Insert extra arguments.
+  __ PushRoot(Heap::kTheHoleValueRootIndex);  // Padding.
   __ SmiTag(r2);
   __ Push(r2, r3, r5);
   __ SmiUntag(r2);

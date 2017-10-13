@@ -269,6 +269,9 @@ class BuiltinExitFrameConstants : public CommonFrameConstants {
   static const int kNewTargetOffset = kCallerPCOffset + 1 * kPointerSize;
   static const int kTargetOffset = kNewTargetOffset + 1 * kPointerSize;
   static const int kArgcOffset = kTargetOffset + 1 * kPointerSize;
+  static const int kPaddingOffset = kArgcOffset + 1 * kPointerSize;
+  static const int kFirstArgumentOffset = kPaddingOffset + 1 * kPointerSize;
+  static const int kNumExtraArgsWithReceiver = 5;
 };
 
 class InterpreterFrameConstants : public AllStatic {

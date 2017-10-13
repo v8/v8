@@ -1647,6 +1647,7 @@ void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
 
   static const int kStubAndReceiver = 2;
   int cursor = arity + kStubAndReceiver;
+  node->InsertInput(zone, cursor++, jsgraph->PaddingConstant());
   node->InsertInput(zone, cursor++, argc_node);
   node->InsertInput(zone, cursor++, target);
   node->InsertInput(zone, cursor++, new_target);
