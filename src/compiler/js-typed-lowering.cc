@@ -1879,8 +1879,7 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
           node, common()->Call(Linkage::GetStubCallDescriptor(
                     isolate(), graph()->zone(), callable.descriptor(),
                     1 + arity, flags)));
-    } else if (is_builtin && Builtins::HasCppImplementation(builtin_index) &&
-               ((flags & CallDescriptor::kSupportsTailCalls) == 0)) {
+    } else if (is_builtin && Builtins::HasCppImplementation(builtin_index)) {
       // Patch {node} to a direct CEntryStub call.
       ReduceBuiltin(isolate(), jsgraph(), node, builtin_index, arity, flags);
     } else {
