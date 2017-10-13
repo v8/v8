@@ -143,6 +143,9 @@ enum class SerializationTag : uint8_t {
   // The delegate is responsible for processing all following data.
   // This "escapes" to whatever wire format the delegate chooses.
   kHostObject = '\\',
+  // A transferred WebAssembly.Memory object. maximumPages:int32_t, then by
+  // SharedArrayBuffer tag and its data.
+  kWasmMemoryTransfer = 'm',
 };
 
 namespace {
@@ -479,7 +482,16 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
       if (!FLAG_wasm_disable_structured_cloning) {
         // Only write WebAssembly modules if not disabled by a flag.
         return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
-      }  // fall through to error case
+      }
+      goto error;
+    case WASM_MEMORY_TYPE:
+      if (FLAG_experimental_wasm_threads) {
+        // Only write WebAssembly modules if not disabled by a flag.
+        return WriteWasmMemory(Handle<WasmMemoryObject>::cast(receiver));
+      }
+      goto error;
+
+    error:
     default:
       ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
       return Nothing<bool>();
@@ -855,6 +867,17 @@ Maybe<bool> ValueSerializer::WriteWasmModule(Handle<WasmModuleObject> object) {
   return ThrowIfOutOfMemory();
 }
 
+Maybe<bool> ValueSerializer::WriteWasmMemory(Handle<WasmMemoryObject> object) {
+  if (!object->array_buffer()->is_shared()) {
+    ThrowDataCloneError(MessageTemplate::kDataCloneError, object);
+    return Nothing<bool>();
+  }
+
+  WriteTag(SerializationTag::kWasmMemoryTransfer);
+  WriteZigZag<int32_t>(object->maximum_pages());
+  return WriteJSReceiver(Handle<JSReceiver>(object->array_buffer(), isolate_));
+}
+
 Maybe<bool> ValueSerializer::WriteHostObject(Handle<JSObject> object) {
   WriteTag(SerializationTag::kHostObject);
   if (!delegate_) {
@@ -1177,6 +1200,8 @@ MaybeHandle<Object> ValueDeserializer::ReadObjectInternal() {
       return ReadWasmModule();
     case SerializationTag::kWasmModuleTransfer:
       return ReadWasmModuleTransfer();
+    case SerializationTag::kWasmMemoryTransfer:
+      return ReadWasmMemory();
     case SerializationTag::kHostObject:
       return ReadHostObject();
     default:
@@ -1708,6 +1733,30 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
     AddObjectWithID(id, result.ToHandleChecked());
   }
   return result;
+}
+
+MaybeHandle<JSObject> ValueDeserializer::ReadWasmMemory() {
+  if (!FLAG_experimental_wasm_threads) {
+    return MaybeHandle<JSObject>();
+  }
+
+  int32_t maximum_pages;
+  if (!ReadZigZag<int32_t>().To(&maximum_pages)) {
+    return MaybeHandle<JSObject>();
+  }
+
+  SerializationTag tag;
+  if (!ReadTag().To(&tag) || tag != SerializationTag::kSharedArrayBuffer) {
+    return MaybeHandle<JSObject>();
+  }
+
+  const bool is_shared = true;
+  Handle<JSArrayBuffer> buffer;
+  if (!ReadTransferredJSArrayBuffer(is_shared).ToHandle(&buffer)) {
+    return MaybeHandle<JSObject>();
+  }
+
+  return WasmMemoryObject::New(isolate_, buffer, maximum_pages);
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {
