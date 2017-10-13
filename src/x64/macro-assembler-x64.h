@@ -45,17 +45,7 @@ typedef Operand MemOperand;
 enum RememberedSetAction { EMIT_REMEMBERED_SET, OMIT_REMEMBERED_SET };
 enum SmiCheck { INLINE_SMI_CHECK, OMIT_SMI_CHECK };
 
-enum class SmiOperationConstraint {
-  kPreserveSourceRegister = 1 << 0,
-  kBailoutOnNoOverflow = 1 << 1,
-  kBailoutOnOverflow = 1 << 2
-};
-
 enum class ReturnAddressState { kOnStack, kNotOnStack };
-
-typedef base::Flags<SmiOperationConstraint> SmiOperationConstraints;
-
-DEFINE_OPERATORS_FOR_FLAGS(SmiOperationConstraints)
 
 #ifdef DEBUG
 bool AreAliased(Register reg1,
