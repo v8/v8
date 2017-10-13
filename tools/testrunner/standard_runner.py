@@ -218,6 +218,16 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         # this less cryptic by printing it ourselves.
         print ' '.join(sys.argv)
 
+        if utils.GuessOS() == "macos":
+          # TODO(machenbach): Temporary output for investigating hanging test
+          # driver on mac.
+          print "V8 related processes running on this host:"
+          try:
+            print subprocess.check_output(
+              "ps -e | egrep 'd8|cctest|unittests'", shell=True)
+          except Exception:
+            pass
+
       exit_code = 0
 
       suite_paths = utils.GetSuitePaths(join(BASE_DIR, "test"))
