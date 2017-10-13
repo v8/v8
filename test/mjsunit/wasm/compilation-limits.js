@@ -71,4 +71,4 @@ async function TestAll() {
   await FailSyncInstantiate();
 }
 
-assertPromiseResult(TestAll());
+assertPromiseFulfills(TestAll());

@@ -14,7 +14,5 @@ var bytes = builder.toBuffer();
 var m = new WebAssembly.Module(bytes);
 assertTrue(m instanceof WebAssembly.Module);
 
-assertPromiseResult(
-  WebAssembly.compile(bytes)
-  .then(async_result => assertTrue(async_result instanceof WebAssembly.Module),
-        assertUnreachable));
+assertPromiseFulfills(WebAssembly.compile(bytes))
+  .then(async_result => assertTrue(async_result instanceof WebAssembly.Module));

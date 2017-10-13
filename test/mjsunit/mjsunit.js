@@ -132,8 +132,9 @@ var assertContains;
 // Assert that a string matches a given regex.
 var assertMatches;
 
-// Assert the result of a promise.
-var assertPromiseResult;
+// Assert the fulfillment or rejection of a promise.
+var assertPromiseFulfills;
+var assertPromiseRejects;
 
 var promiseTestChain;
 var promiseTestCount = 0;
@@ -530,42 +531,40 @@ var failWithMessage;
     }
   };
 
-  assertPromiseResult = function(promise, success, fail) {
-    // Use --allow-natives-syntax to use this function. Note that this function
-    // overwrites {failWithMessage} permanently with %AbortJS.
-
-    // We have to patch mjsunit because normal assertion failures just throw
-    // exceptions which are swallowed in a then clause.
-    // We use eval here to avoid parsing issues with the natives syntax.
-    if (!success) success = () => {};
-
-    failWithMessage = (msg) => eval("%AbortJS(msg)");
-    if (!fail) {
-      fail = result => failWithMessage("assertPromiseResult failed: " + result);
-    }
-
-    var test_promise =
-        promise.then(
-          result => {
-            try {
-              success(result);
-            } catch (e) {
-              failWithMessage(String(e));
-            }
-          },
-          result => {
-            fail(result);
-          }
-        )
-        .then((x)=> {
-          if (--promiseTestCount == 0) testRunner.notifyDone();
-        });
-
-    if (!promiseTestChain) promiseTestChain = Promise.resolve();
+  assertPromiseFulfills = (promise) => {
     // waitUntilDone is idempotent.
     testRunner.waitUntilDone();
     ++promiseTestCount;
-    return promiseTestChain.then(test_promise);
+    return promise.then((value) => {
+      if (--promiseTestCount == 0) {
+        testRunner.notifyDone();
+      }
+      return value;
+    }).catch((error) => {
+      // Use `setTimeout` to cause the assert to trigger outside of the promise,
+      // since promises swallow exceptions.
+      setTimeout(() => {
+        assertUnreachable("Promise was rejected unexpectedly");
+      });
+    });
+  };
+
+  assertPromiseRejects = (promise) => {
+    // waitUntilDone is idempotent.
+    testRunner.waitUntilDone();
+    ++promiseTestCount;
+    return promise.then(() => {
+      // Use `setTimeout` to cause the assert to trigger outside of the promise,
+      // since promises swallow exceptions.
+      setTimeout(() => {
+        assertUnreachable("Promise was fulfilled unexpectedly");
+      });
+    }).catch((error) => {
+      if (--promiseTestCount == 0) {
+        testRunner.notifyDone();
+      }
+      return error;
+    });
   };
 
   var OptimizationStatusImpl = undefined;

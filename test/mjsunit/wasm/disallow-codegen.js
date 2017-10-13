@@ -44,8 +44,8 @@ async function AsyncTestOk() {
   print('async module compile (ok)...');
   %DisallowCodegenFromStrings(false);
   let promise = WebAssembly.compile(buffer);
-  assertPromiseResult(
-    promise, module => assertInstanceof(module, WebAssembly.Module));
+  assertPromiseFulfills(promise)
+    .then(module => assertInstanceof(module, WebAssembly.Module));
 }
 
 async function AsyncTestFail() {
@@ -70,8 +70,9 @@ async function StreamingTestOk() {
     return;
   }
   let promise = WebAssembly.compileStreaming(buffer);
-  assertPromiseResult(
-    promise, module => assertInstanceof(module, WebAssembly.Module));
+  assertPromiseFulfills(promise)
+    .then(module => assertInstanceof(module, WebAssembly.Module)
+  );
 }
 
 async function StreamingTestFail() {
@@ -101,4 +102,4 @@ async function RunAll() {
   await StreamingTestFail();
 }
 
-assertPromiseResult(RunAll());
+assertPromiseFulfills(RunAll());

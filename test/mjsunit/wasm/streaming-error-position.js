@@ -33,14 +33,14 @@ function toBuffer(binary) {
 }
 
 function testErrorPosition(bytes, pos, test_name) {
-  assertPromiseResult(
-      WebAssembly.compile(toBuffer(bytes)), assertUnreachable, e => {
-        print(test_name);
-        assertInstanceof(e, WebAssembly.CompileError);
-        let regex = new RegExp('@\\+' + pos);
-        print(e.message);
-        assertMatches(regex, e.message, 'Error Position');
-      });
+  assertPromiseRejects(WebAssembly.compile(toBuffer(bytes)))
+    .then(e => {
+      print(test_name);
+      assertInstanceof(e, WebAssembly.CompileError);
+      let regex = new RegExp('@\\+' + pos);
+      print(e.message);
+      assertMatches(regex, e.message, 'Error Position');
+    });
 }
 
 (function testInvalidMagic() {

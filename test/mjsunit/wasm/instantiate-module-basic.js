@@ -65,12 +65,13 @@ function CheckInstance(instance) {
 
   print('async module compile...');
   let promise = WebAssembly.compile(buffer);
-  assertPromiseResult(
-      promise, module => CheckInstance(new WebAssembly.Instance(module)));
+  assertPromiseFulfills(promise)
+    .then(module => CheckInstance(new WebAssembly.Instance(module)));
 
   print('async instantiate...');
   let instance_promise = WebAssembly.instantiate(buffer);
-  assertPromiseResult(instance_promise, pair => CheckInstance(pair.instance));
+  assertPromiseFulfills(instance_promise)
+    .then(pair => CheckInstance(pair.instance));
 })();
 
 // Check that validate works correctly for a module.
@@ -98,10 +99,8 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
   let builder = new WasmModuleBuilder();
   builder.addFunction('f', kSig_i_i).addBody([kExprCallFunction, 0]);
   let promise = WebAssembly.compile(builder.toBuffer());
-  assertPromiseResult(
-      promise, compiled => assertUnreachable(
-                   'should not be able to compile invalid blob.'),
-      e => assertInstanceof(e, WebAssembly.CompileError));
+  assertPromiseRejects(promise)
+    .then(e => assertInstanceof(e, WebAssembly.CompileError));
 })();
 
 // Multiple instances tests.
@@ -116,11 +115,12 @@ assertFalse(WebAssembly.validate(bytes(88, 88, 88, 88, 88, 88, 88, 88)));
 (function ManyInstancesAsync() {
   print('ManyInstancesAsync...');
   let promise = WebAssembly.compile(buffer);
-  assertPromiseResult(promise, compiled_module => {
-    let instance_1 = new WebAssembly.Instance(compiled_module);
-    let instance_2 = new WebAssembly.Instance(compiled_module);
-    assertTrue(instance_1 != instance_2);
-  });
+  assertPromiseFulfills(promise)
+    .then(compiled_module => {
+      let instance_1 = new WebAssembly.Instance(compiled_module);
+      let instance_2 = new WebAssembly.Instance(compiled_module);
+      assertTrue(instance_1 != instance_2);
+    });
 })();
 
 (function InstancesAreIsolatedFromEachother() {
