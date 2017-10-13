@@ -217,10 +217,11 @@ class AstValue : public ZoneObject {
 
   bool IsPropertyName() const;
 
-  bool BooleanValue() const;
+  V8_EXPORT_PRIVATE bool BooleanValue() const;
 
   bool IsSmi() const { return type_ == SMI; }
   bool IsHeapNumber() const { return type_ == NUMBER; }
+  bool IsBigInt() const { return type_ == BIGINT; }
   bool IsFalse() const { return type_ == BOOLEAN && !bool_; }
   bool IsTrue() const { return type_ == BOOLEAN && bool_; }
   bool IsUndefined() const { return type_ == UNDEFINED; }
@@ -249,6 +250,7 @@ class AstValue : public ZoneObject {
     SYMBOL,
     NUMBER,
     SMI,
+    BIGINT,
     BOOLEAN,
     NULL_TYPE,
     UNDEFINED,
@@ -268,6 +270,10 @@ class AstValue : public ZoneObject {
   AstValue(Type t, int i) : type_(t), next_(nullptr) {
     DCHECK(type_ == SMI);
     smi_ = i;
+  }
+
+  explicit AstValue(const char* n) : type_(BIGINT), next_(nullptr) {
+    bigint_buffer_ = n;
   }
 
   explicit AstValue(bool b) : type_(BOOLEAN), next_(nullptr) { bool_ = b; }
@@ -292,6 +298,7 @@ class AstValue : public ZoneObject {
     int smi_;
     bool bool_;
     AstSymbol symbol_;
+    const char* bigint_buffer_;
   };
 };
 
@@ -430,6 +437,7 @@ class AstValueFactory {
   const AstValue* NewSymbol(AstSymbol symbol);
   V8_EXPORT_PRIVATE const AstValue* NewNumber(double number);
   const AstValue* NewSmi(uint32_t number);
+  V8_EXPORT_PRIVATE const AstValue* NewBigInt(const char* number);
   const AstValue* NewBoolean(bool b);
   const AstValue* NewStringList(ZoneList<const AstRawString*>* strings);
   const AstValue* NewNull();

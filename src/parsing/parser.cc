@@ -405,6 +405,9 @@ Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
       double value = scanner()->DoubleValue();
       return factory()->NewNumberLiteral(value, pos);
     }
+    case Token::BIGINT:
+      return factory()->NewBigIntLiteral(
+          scanner()->CurrentLiteralAsCString(zone()), pos);
     default:
       DCHECK(false);
   }
@@ -513,6 +516,7 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_import_meta(FLAG_harmony_import_meta);
   set_allow_harmony_async_iteration(FLAG_harmony_async_iteration);
   set_allow_harmony_template_escapes(FLAG_harmony_template_escapes);
+  set_allow_harmony_bigint(FLAG_harmony_bigint);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
     use_counts_[feature] = 0;

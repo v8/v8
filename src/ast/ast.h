@@ -3134,6 +3134,10 @@ class AstNodeFactory final BASE_EMBEDDED {
     return new (zone_) Literal(ast_value_factory_->NewSmi(number), pos);
   }
 
+  Literal* NewBigIntLiteral(const char* buffer, int pos) {
+    return new (zone_) Literal(ast_value_factory_->NewBigInt(buffer), pos);
+  }
+
   Literal* NewBooleanLiteral(bool b, int pos) {
     return new (zone_) Literal(ast_value_factory_->NewBoolean(b), pos);
   }

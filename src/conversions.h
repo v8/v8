@@ -108,6 +108,13 @@ double StringToInt(Isolate* isolate, Handle<String> string, int radix);
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string,
                                    int radix);
 
+// This version expects a zero-terminated character array. Radix will
+// be inferred from string prefix (case-insensitive):
+//   0x -> hex
+//   0o -> octal
+//   0b -> binary
+MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, const char* string);
+
 const int kDoubleToCStringMinBufferSize = 100;
 
 // Converts a double to a string value according to ECMA-262 9.8.1.

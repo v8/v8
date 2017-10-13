@@ -298,6 +298,13 @@ class ParserBase {
 
 #undef ALLOW_ACCESSORS
 
+  bool allow_harmony_bigint() const {
+    return scanner()->allow_harmony_bigint();
+  }
+  void set_allow_harmony_bigint(bool allow) {
+    scanner()->set_allow_harmony_bigint(allow);
+  }
+
   uintptr_t stack_limit() const { return stack_limit_; }
 
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
@@ -1549,6 +1556,7 @@ void ParserBase<Impl>::GetUnexpectedTokenMessage(
       break;
     case Token::SMI:
     case Token::NUMBER:
+    case Token::BIGINT:
       *message = MessageTemplate::kUnexpectedTokenNumber;
       break;
     case Token::STRING:
@@ -1780,6 +1788,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePrimaryExpression(
     case Token::FALSE_LITERAL:
     case Token::SMI:
     case Token::NUMBER:
+    case Token::BIGINT:
       BindingPatternUnexpectedToken();
       return impl()->ExpressionFromLiteral(Next(), beg_pos);
 
@@ -4233,9 +4242,10 @@ template <typename Impl>
 bool ParserBase<Impl>::IsTrivialExpression() {
   Token::Value peek_token = peek();
   if (peek_token == Token::SMI || peek_token == Token::NUMBER ||
-      peek_token == Token::NULL_LITERAL || peek_token == Token::TRUE_LITERAL ||
-      peek_token == Token::FALSE_LITERAL || peek_token == Token::STRING ||
-      peek_token == Token::IDENTIFIER || peek_token == Token::THIS) {
+      peek_token == Token::BIGINT || peek_token == Token::NULL_LITERAL ||
+      peek_token == Token::TRUE_LITERAL || peek_token == Token::FALSE_LITERAL ||
+      peek_token == Token::STRING || peek_token == Token::IDENTIFIER ||
+      peek_token == Token::THIS) {
     // PeekAhead() is expensive & may not always be called, so we only call it
     // after checking peek().
     Token::Value peek_ahead = PeekAhead();

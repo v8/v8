@@ -138,6 +138,7 @@
       'libplatform/worker-thread-unittest.cc',
       'locked-queue-unittest.cc',
       'object-unittest.cc',
+      'parser/ast-value-unittest.cc',
       'parser/preparser-unittest.cc',
       'register-configuration-unittest.cc',
       'run-all-unittests.cc',

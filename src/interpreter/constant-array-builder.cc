@@ -191,12 +191,12 @@ size_t ConstantArrayBuilder::Insert(const AstRawString* raw_string) {
 }
 
 size_t ConstantArrayBuilder::Insert(const AstValue* heap_number) {
-  // This method only accepts heap numbers. Other types of ast value should
-  // either be passed through as raw values (in the case of strings), use the
-  // singleton Insert methods (in the case of symbols), or skip the constant
-  // pool entirely and use bytecodes with immediate values (Smis, booleans,
-  // undefined, etc.).
-  DCHECK(heap_number->IsHeapNumber());
+  // This method only accepts heap numbers and BigInts. Other types of
+  // AstValue should either be passed through as raw values (in the
+  // case of strings), use the singleton Insert methods (in the case
+  // of symbols), or skip the constant pool entirely and use bytecodes
+  // with immediate values (Smis, booleans, undefined, etc.).
+  DCHECK(heap_number->IsHeapNumber() || heap_number->IsBigInt());
   return constants_map_
       .LookupOrInsert(reinterpret_cast<intptr_t>(heap_number),
                       static_cast<uint32_t>(base::hash_value(heap_number)),
@@ -340,7 +340,7 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
     case Tag::kRawString:
       return raw_string_->string();
     case Tag::kHeapNumber:
-      DCHECK(heap_number_->IsHeapNumber());
+      DCHECK(heap_number_->IsHeapNumber() || heap_number_->IsBigInt());
       return heap_number_->value();
     case Tag::kScope:
       return scope_->scope_info();

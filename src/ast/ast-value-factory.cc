@@ -213,6 +213,17 @@ bool AstValue::BooleanValue() const {
       return DoubleToBoolean(number_);
     case SMI:
       return smi_ != 0;
+    case BIGINT: {
+      size_t length = strlen(bigint_buffer_);
+      DCHECK_GT(length, 0);
+      if (length == 1 && bigint_buffer_[0] == '0') return false;
+      // Skip over any radix prefix; BigInts with length > 1 only
+      // begin with zero if they include a radix.
+      for (size_t i = (bigint_buffer_[0] == '0') ? 2 : 0; i < length; ++i) {
+        if (bigint_buffer_[i] != '0') return true;
+      }
+      return false;
+    }
     case BOOLEAN:
       return bool_;
     case NULL_TYPE:
@@ -246,6 +257,11 @@ void AstValue::Internalize(Isolate* isolate) {
       break;
     case SMI:
       set_value(handle(Smi::FromInt(smi_), isolate));
+      break;
+    case BIGINT:
+      // TODO(adamk): Don't check-fail on conversion failure; instead
+      // check for errors during parsing and throw at that point.
+      set_value(StringToBigInt(isolate, bigint_buffer_).ToHandleChecked());
       break;
     case BOOLEAN:
       if (bool_) {
@@ -393,6 +409,11 @@ const AstValue* AstValueFactory::NewSmi(uint32_t number) {
 
   AstValue* value = new (zone_) AstValue(AstValue::SMI, number);
   if (cacheable_smi) smis_[number] = value;
+  return AddValue(value);
+}
+
+const AstValue* AstValueFactory::NewBigInt(const char* number) {
+  AstValue* value = new (zone_) AstValue(number);
   return AddValue(value);
 }
 

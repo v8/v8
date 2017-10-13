@@ -196,6 +196,7 @@ Scanner::Scanner(UnicodeCache* unicode_cache, int* use_counts)
       octal_pos_(Location::invalid()),
       octal_message_(MessageTemplate::kNone),
       found_html_comment_(false),
+      allow_harmony_bigint_(false),
       use_counts_(use_counts) {}
 
 void Scanner::Initialize(Utf16CharacterStream* source, bool is_module) {
@@ -934,6 +935,7 @@ void Scanner::SanityCheckTokenDesc(const TokenDesc& token) const {
     case Token::FUTURE_STRICT_RESERVED_WORD:
     case Token::IDENTIFIER:
     case Token::NUMBER:
+    case Token::BIGINT:
     case Token::REGEXP_LITERAL:
     case Token::SMI:
     case Token::STRING:
@@ -1321,14 +1323,20 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
 
       ScanDecimalDigits();  // optional
       if (c0_ == '.') {
+        seen_period = true;
         AddLiteralCharAdvance();
         ScanDecimalDigits();  // optional
       }
     }
   }
 
-  // scan exponent, if any
-  if (c0_ == 'e' || c0_ == 'E') {
+  bool is_bigint = false;
+  if (allow_harmony_bigint() && c0_ == 'n' && !seen_period &&
+      (kind == DECIMAL || kind == HEX || kind == OCTAL || kind == BINARY)) {
+    is_bigint = true;
+    Advance();
+  } else if (c0_ == 'e' || c0_ == 'E') {
+    // scan exponent, if any
     DCHECK(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
     if (!(kind == DECIMAL || kind == DECIMAL_WITH_LEADING_ZERO))
       return Token::ILLEGAL;
@@ -1357,7 +1365,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     octal_pos_ = Location(start_pos, source_pos());
     octal_message_ = MessageTemplate::kStrictDecimalWithLeadingZero;
   }
-  return Token::NUMBER;
+  return is_bigint ? Token::BIGINT : Token::NUMBER;
 }
 
 
@@ -1785,6 +1793,16 @@ double Scanner::DoubleValue() {
       unicode_cache_,
       literal_one_byte_string(),
       ALLOW_HEX | ALLOW_OCTAL | ALLOW_IMPLICIT_OCTAL | ALLOW_BINARY);
+}
+
+const char* Scanner::CurrentLiteralAsCString(Zone* zone) const {
+  DCHECK(is_literal_one_byte());
+  Vector<const uint8_t> vector = literal_one_byte_string();
+  int length = vector.length();
+  char* buffer = zone->NewArray<char>(length + 1);
+  memcpy(buffer, vector.start(), length);
+  buffer[length] = '\0';
+  return buffer;
 }
 
 bool Scanner::IsDuplicateSymbol(DuplicateFinder* duplicate_finder,

@@ -260,6 +260,8 @@ class Scanner {
 
   double DoubleValue();
 
+  const char* CurrentLiteralAsCString(Zone* zone) const;
+
   inline bool CurrentMatches(Token::Value token) const {
     DCHECK(Token::IsKeyword(token));
     return current_.token == token;
@@ -355,6 +357,9 @@ class Scanner {
   Handle<String> SourceMappingUrl(Isolate* isolate) const;
 
   bool FoundHtmlComment() const { return found_html_comment_; }
+
+  bool allow_harmony_bigint() const { return allow_harmony_bigint_; }
+  void set_allow_harmony_bigint(bool allow) { allow_harmony_bigint_ = allow; }
 
  private:
   // Scoped helper for saving & restoring scanner error state.
@@ -800,6 +805,9 @@ class Scanner {
 
   // Whether this scanner encountered an HTML comment.
   bool found_html_comment_;
+
+  // Whether to recognize BIGINT tokens.
+  bool allow_harmony_bigint_;
 
   int* use_counts_;
 

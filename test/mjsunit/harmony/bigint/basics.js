@@ -399,6 +399,26 @@ const six = BigInt(6);
   assertThrows(() => +One, TypeError);
 }
 
+// Literals
+{
+  // Invalid literals.
+  assertThrows("00n", SyntaxError);
+  assertThrows("01n", SyntaxError);
+  assertThrows("0bn", SyntaxError);
+  assertThrows("0on", SyntaxError);
+  assertThrows("0xn", SyntaxError);
+  assertThrows("1.n", SyntaxError);
+  assertThrows("1.0n", SyntaxError);
+  assertThrows("1e25n", SyntaxError);
+
+  // Various radixes.
+  assertTrue(12345n === BigInt(12345));
+  assertTrue(0xabcden === BigInt(0xabcde));
+  assertTrue(0xAbCdEn === BigInt(0xabcde));
+  assertTrue(0o54321n === BigInt(0o54321));
+  assertTrue(0b1010101n === BigInt(0b1010101));
+}
+
 // Binary ops.
 {
   assertTrue(one + two === three);

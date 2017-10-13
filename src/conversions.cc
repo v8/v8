@@ -184,6 +184,11 @@ class StringToIntHelper {
       : isolate_(isolate), subject_(subject), radix_(radix) {
     DCHECK(subject->IsFlat());
   }
+
+  // Used for parsing BigInt literals, where the input is a Zone-allocated
+  // buffer of one-byte digits, along with an optional radix prefix.
+  StringToIntHelper(Isolate* isolate, const uint8_t* subject, int length)
+      : isolate_(isolate), raw_one_byte_subject_(subject), length_(length) {}
   virtual ~StringToIntHelper() {}
 
  protected:
@@ -197,17 +202,40 @@ class StringToIntHelper {
   // Subclasses may override this.
   virtual void HandleSpecialCases() {}
 
+  bool IsOneByte() const {
+    return raw_one_byte_subject_ != nullptr ||
+           subject_->IsOneByteRepresentationUnderneath();
+  }
+
+  Vector<const uint8_t> GetOneByteVector() {
+    if (raw_one_byte_subject_ != nullptr) {
+      return Vector<const uint8_t>(raw_one_byte_subject_, length_);
+    }
+    return subject_->GetFlatContent().ToOneByteVector();
+  }
+
+  Vector<const uc16> GetTwoByteVector() {
+    return subject_->GetFlatContent().ToUC16Vector();
+  }
+
   // Subclasses get access to internal state:
   enum State { kRunning, kError, kJunk, kZero, kDone };
 
   Isolate* isolate() { return isolate_; }
-  Handle<String> subject() { return subject_; }
   int radix() { return radix_; }
   int cursor() { return cursor_; }
   int length() { return length_; }
   bool negative() { return negative_; }
   State state() { return state_; }
   void set_state(State state) { state_ = state; }
+
+  bool AllowOctalRadixPrefix() const {
+    return raw_one_byte_subject_ != nullptr;
+  }
+
+  bool AllowBinaryRadixPrefix() const {
+    return raw_one_byte_subject_ != nullptr;
+  }
 
  private:
   template <class Char>
@@ -217,7 +245,8 @@ class StringToIntHelper {
 
   Isolate* isolate_;
   Handle<String> subject_;
-  int radix_;
+  const uint8_t* raw_one_byte_subject_ = nullptr;
+  int radix_ = 0;
   int cursor_ = 0;
   int length_ = 0;
   bool negative_ = false;
@@ -228,12 +257,11 @@ class StringToIntHelper {
 void StringToIntHelper::ParseInt() {
   {
     DisallowHeapAllocation no_gc;
-    String::FlatContent flat = subject_->GetFlatContent();
-    if (flat.IsOneByte()) {
-      Vector<const uint8_t> vector = flat.ToOneByteVector();
+    if (IsOneByte()) {
+      Vector<const uint8_t> vector = GetOneByteVector();
       DetectRadixInternal(vector.start(), vector.length());
     } else {
-      Vector<const uc16> vector = flat.ToUC16Vector();
+      Vector<const uc16> vector = GetTwoByteVector();
       DetectRadixInternal(vector.start(), vector.length());
     }
   }
@@ -243,13 +271,12 @@ void StringToIntHelper::ParseInt() {
   if (state_ != kRunning) return;
   {
     DisallowHeapAllocation no_gc;
-    String::FlatContent flat = subject_->GetFlatContent();
-    if (flat.IsOneByte()) {
-      Vector<const uint8_t> vector = flat.ToOneByteVector();
+    if (IsOneByte()) {
+      Vector<const uint8_t> vector = GetOneByteVector();
       DCHECK_EQ(length_, vector.length());
       ParseInternal(vector.start());
     } else {
-      Vector<const uc16> vector = flat.ToUC16Vector();
+      Vector<const uc16> vector = GetTwoByteVector();
       DCHECK_EQ(length_, vector.length());
       ParseInternal(vector.start());
     }
@@ -292,6 +319,16 @@ void StringToIntHelper::DetectRadixInternal(Char current, int length) {
         radix_ = 16;
         ++current;
         if (current == end) return set_state(kJunk);
+      } else if (AllowOctalRadixPrefix() &&
+                 (*current == 'o' || *current == 'O')) {
+        radix_ = 8;
+        ++current;
+        DCHECK(current != end);
+      } else if (AllowBinaryRadixPrefix() &&
+                 (*current == 'b' || *current == 'B')) {
+        radix_ = 2;
+        ++current;
+        DCHECK(current != end);
       } else {
         leading_zero_ = true;
       }
@@ -419,14 +456,13 @@ class NumberParseIntHelper : public StringToIntHelper {
     bool is_power_of_two = base::bits::IsPowerOfTwo(radix());
     if (!is_power_of_two && radix() != 10) return;
     DisallowHeapAllocation no_gc;
-    String::FlatContent flat = subject()->GetFlatContent();
-    if (flat.IsOneByte()) {
-      Vector<const uint8_t> vector = flat.ToOneByteVector();
+    if (IsOneByte()) {
+      Vector<const uint8_t> vector = GetOneByteVector();
       DCHECK_EQ(length(), vector.length());
       result_ = is_power_of_two ? HandlePowerOfTwoCase(vector.start())
                                 : HandleBaseTenCase(vector.start());
     } else {
-      Vector<const uc16> vector = flat.ToUC16Vector();
+      Vector<const uc16> vector = GetTwoByteVector();
       DCHECK_EQ(length(), vector.length());
       result_ = is_power_of_two ? HandlePowerOfTwoCase(vector.start())
                                 : HandleBaseTenCase(vector.start());
@@ -802,8 +838,14 @@ double StringToInt(Isolate* isolate, Handle<String> string, int radix) {
 
 class BigIntParseIntHelper : public StringToIntHelper {
  public:
+  // Used for BigInt.parseInt API, where the input is a Heap-allocated String.
   BigIntParseIntHelper(Isolate* isolate, Handle<String> string, int radix)
       : StringToIntHelper(isolate, string, radix) {}
+
+  // Used for parsing BigInt literals, where the input is a buffer of
+  // one-byte ASCII digits, along with an optional radix prefix.
+  BigIntParseIntHelper(Isolate* isolate, const uint8_t* string, int length)
+      : StringToIntHelper(isolate, string, length) {}
 
   MaybeHandle<BigInt> GetResult() {
     ParseInt();
@@ -852,6 +894,12 @@ class BigIntParseIntHelper : public StringToIntHelper {
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string,
                                    int radix) {
   BigIntParseIntHelper helper(isolate, string, radix);
+  return helper.GetResult();
+}
+
+MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, const char* string) {
+  BigIntParseIntHelper helper(isolate, reinterpret_cast<const uint8_t*>(string),
+                              static_cast<int>(strlen(string)));
   return helper.GetResult();
 }
 
