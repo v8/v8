@@ -3044,9 +3044,7 @@ void CodeGenerator::AssembleConstructFrame() {
       __ StubPrologue(info()->GetOutputStackFrameType());
     }
 
-    if (!descriptor->IsJSFunctionCall()) {
-      unwinding_info_writer_.MarkFrameConstructed(pc_base);
-    }
+    unwinding_info_writer_.MarkFrameConstructed(pc_base);
   }
   int shrink_slots =
       frame()->GetTotalFrameSlotCount() - descriptor->CalculateFixedFrameSize();
