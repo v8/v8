@@ -9,9 +9,9 @@
 namespace v8 {
 
 namespace {
-void WriteToFile(const char* action, FILE* file, Isolate* isolate,
+void WriteToFile(const char* prefix, FILE* file, Isolate* isolate,
                  const debug::ConsoleCallArguments& args) {
-  fprintf(file, "console.%s: ", action);
+  if (prefix) fprintf(file, "%s: ", prefix);
   for (int i = 0; i < args.Length(); i++) {
     HandleScope handle_scope(isolate);
     if (i > 0) fprintf(file, " ");
@@ -49,7 +49,7 @@ void D8Console::Assert(const debug::ConsoleCallArguments& args,
     arg = v8::False(isolate_);
   }
   if (arg->IsTrue()) return;
-  WriteToFile("assert", stdout, isolate_, args);
+  WriteToFile("console.assert", stdout, isolate_, args);
   isolate_->ThrowException(v8::Exception::Error(
       v8::String::NewFromUtf8(isolate_, "console.assert failed",
                               v8::NewStringType::kNormal)
@@ -58,27 +58,27 @@ void D8Console::Assert(const debug::ConsoleCallArguments& args,
 
 void D8Console::Log(const debug::ConsoleCallArguments& args,
                     const v8::debug::ConsoleContext&) {
-  WriteToFile("log", stdout, isolate_, args);
+  WriteToFile(nullptr, stdout, isolate_, args);
 }
 
 void D8Console::Error(const debug::ConsoleCallArguments& args,
                       const v8::debug::ConsoleContext&) {
-  WriteToFile("error", stderr, isolate_, args);
+  WriteToFile("console.error", stderr, isolate_, args);
 }
 
 void D8Console::Warn(const debug::ConsoleCallArguments& args,
                      const v8::debug::ConsoleContext&) {
-  WriteToFile("warn", stdout, isolate_, args);
+  WriteToFile("console.warn", stdout, isolate_, args);
 }
 
 void D8Console::Info(const debug::ConsoleCallArguments& args,
                      const v8::debug::ConsoleContext&) {
-  WriteToFile("info", stdout, isolate_, args);
+  WriteToFile("console.info", stdout, isolate_, args);
 }
 
 void D8Console::Debug(const debug::ConsoleCallArguments& args,
                       const v8::debug::ConsoleContext&) {
-  WriteToFile("debug", stdout, isolate_, args);
+  WriteToFile("console.debug", stdout, isolate_, args);
 }
 
 void D8Console::Time(const debug::ConsoleCallArguments& args,
