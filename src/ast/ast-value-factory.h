@@ -372,13 +372,6 @@ class AstStringConstants final {
   DISALLOW_COPY_AND_ASSIGN(AstStringConstants);
 };
 
-#define OTHER_CONSTANTS(F) \
-  F(true_value)            \
-  F(false_value)           \
-  F(null_value)            \
-  F(undefined_value)       \
-  F(the_hole_value)
-
 class AstValueFactory {
  public:
   AstValueFactory(Zone* zone, const AstStringConstants* string_constants,
@@ -393,9 +386,6 @@ class AstValueFactory {
         empty_cons_string_(nullptr),
         zone_(zone),
         hash_seed_(hash_seed) {
-#define F(name) name##_ = nullptr;
-    OTHER_CONSTANTS(F)
-#undef F
     DCHECK_EQ(hash_seed, string_constants->hash_seed());
     std::fill(smis_, smis_ + arraysize(smis_), nullptr);
     std::fill(one_character_strings_,
@@ -502,13 +492,13 @@ class AstValueFactory {
 
   uint32_t hash_seed_;
 
-#define F(name) AstValue* name##_;
-  OTHER_CONSTANTS(F)
-#undef F
+  AstValue* true_value_ = nullptr;
+  AstValue* false_value_ = nullptr;
+  AstValue* null_value_ = nullptr;
+  AstValue* undefined_value_ = nullptr;
+  AstValue* the_hole_value_ = nullptr;
 };
 }  // namespace internal
 }  // namespace v8
-
-#undef OTHER_CONSTANTS
 
 #endif  // V8_AST_AST_VALUE_FACTORY_H_
