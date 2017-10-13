@@ -494,7 +494,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableImportedGlobal) {
       0,                    // mutability
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 9),
@@ -527,7 +527,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithMutableImportedGlobal) {
       1,                   // mutability
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 9),
@@ -546,7 +546,7 @@ TEST_F(WasmModuleVerifyTest, DataSegmentWithImmutableGlobal) {
   const byte data[] = {
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Global, 8),  // --
@@ -571,7 +571,7 @@ TEST_F(WasmModuleVerifyTest, OneDataSegment) {
   const byte data[] = {
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 11),
@@ -610,7 +610,7 @@ TEST_F(WasmModuleVerifyTest, TwoDataSegments) {
   const byte data[] = {
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 29),
@@ -678,15 +678,13 @@ TEST_F(WasmModuleVerifyTest, DataWithoutMemory) {
 TEST_F(WasmModuleVerifyTest, MaxMaximumMemorySize) {
   {
     const byte data[] = {
-        SECTION(Memory, 6), ENTRY_COUNT(1), kResizableMaximumFlag, 0,
-        U32V_3(65536),
+        SECTION(Memory, 6), ENTRY_COUNT(1), kHasMaximumFlag, 0, U32V_3(65536),
     };
     EXPECT_VERIFIES(data);
   }
   {
     const byte data[] = {
-        SECTION(Memory, 6), ENTRY_COUNT(1), kResizableMaximumFlag, 0,
-        U32V_3(65537),
+        SECTION(Memory, 6), ENTRY_COUNT(1), kHasMaximumFlag, 0, U32V_3(65537),
     };
     EXPECT_FAILURE(data);
   }
@@ -696,7 +694,7 @@ TEST_F(WasmModuleVerifyTest, DataSegment_wrong_init_type) {
   const byte data[] = {
       SECTION(Memory, 4),
       ENTRY_COUNT(1),
-      kResizableMaximumFlag,
+      kHasMaximumFlag,
       28,
       28,
       SECTION(Data, 11),
@@ -715,7 +713,7 @@ TEST_F(WasmModuleVerifyTest, DataSegment_wrong_init_type) {
 TEST_F(WasmModuleVerifyTest, DataSegmentEndOverflow) {
   const byte data[] = {
       SECTION(Memory, 4),  // memory section
-      ENTRY_COUNT(1),           kResizableMaximumFlag, 28, 28,
+      ENTRY_COUNT(1),           kHasMaximumFlag, 28, 28,
       SECTION(Data, 10),         // data section
       ENTRY_COUNT(1),            // one entry
       LINEAR_MEMORY_INDEX_0,     // mem index

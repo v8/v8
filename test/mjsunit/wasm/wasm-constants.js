@@ -78,7 +78,7 @@ let kLocalNamesCode = 2;
 let kWasmFunctionTypeForm = 0x60;
 let kWasmAnyFunctionTypeForm = 0x70;
 
-let kResizableMaximumFlag = 1;
+let kHasMaximumFlag = 1;
 
 // Function declaration flags
 let kDeclFunctionName   = 0x01;

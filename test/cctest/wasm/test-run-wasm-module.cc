@@ -930,18 +930,18 @@ TEST(InitDataAtTheUpperLimit) {
     ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
 
     const byte data[] = {
-        WASM_MODULE_HEADER,     // --
-        kMemorySectionCode,     // --
-        U32V_1(4),              // section size
-        ENTRY_COUNT(1),         // --
-        kResizableMaximumFlag,  // --
-        1,                      // initial size
-        2,                      // maximum size
-        kDataSectionCode,       // --
-        U32V_1(9),              // section size
-        ENTRY_COUNT(1),         // --
-        0,                      // linear memory index
-        WASM_I32V_3(0xffff),    // destination offset
+        WASM_MODULE_HEADER,   // --
+        kMemorySectionCode,   // --
+        U32V_1(4),            // section size
+        ENTRY_COUNT(1),       // --
+        kHasMaximumFlag,      // --
+        1,                    // initial size
+        2,                    // maximum size
+        kDataSectionCode,     // --
+        U32V_1(9),            // section size
+        ENTRY_COUNT(1),       // --
+        0,                    // linear memory index
+        WASM_I32V_3(0xffff),  // destination offset
         kExprEnd,
         U32V_1(1),  // source size
         'c'         // data bytes
@@ -967,18 +967,18 @@ TEST(EmptyMemoryNonEmptyDataSegment) {
     ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
 
     const byte data[] = {
-        WASM_MODULE_HEADER,     // --
-        kMemorySectionCode,     // --
-        U32V_1(4),              // section size
-        ENTRY_COUNT(1),         // --
-        kResizableMaximumFlag,  // --
-        0,                      // initial size
-        0,                      // maximum size
-        kDataSectionCode,       // --
-        U32V_1(7),              // section size
-        ENTRY_COUNT(1),         // --
-        0,                      // linear memory index
-        WASM_I32V_1(8),         // destination offset
+        WASM_MODULE_HEADER,  // --
+        kMemorySectionCode,  // --
+        U32V_1(4),           // section size
+        ENTRY_COUNT(1),      // --
+        kHasMaximumFlag,     // --
+        0,                   // initial size
+        0,                   // maximum size
+        kDataSectionCode,    // --
+        U32V_1(7),           // section size
+        ENTRY_COUNT(1),      // --
+        0,                   // linear memory index
+        WASM_I32V_1(8),      // destination offset
         kExprEnd,
         U32V_1(1),  // source size
         'c'         // data bytes
@@ -1002,18 +1002,18 @@ TEST(EmptyMemoryEmptyDataSegment) {
     ErrorThrower thrower(isolate, "Run_WasmModule_InitDataAtTheUpperLimit");
 
     const byte data[] = {
-        WASM_MODULE_HEADER,     // --
-        kMemorySectionCode,     // --
-        U32V_1(4),              // section size
-        ENTRY_COUNT(1),         // --
-        kResizableMaximumFlag,  // --
-        0,                      // initial size
-        0,                      // maximum size
-        kDataSectionCode,       // --
-        U32V_1(6),              // section size
-        ENTRY_COUNT(1),         // --
-        0,                      // linear memory index
-        WASM_I32V_1(0),         // destination offset
+        WASM_MODULE_HEADER,  // --
+        kMemorySectionCode,  // --
+        U32V_1(4),           // section size
+        ENTRY_COUNT(1),      // --
+        kHasMaximumFlag,     // --
+        0,                   // initial size
+        0,                   // maximum size
+        kDataSectionCode,    // --
+        U32V_1(6),           // section size
+        ENTRY_COUNT(1),      // --
+        0,                   // linear memory index
+        WASM_I32V_1(0),      // destination offset
         kExprEnd,
         U32V_1(0),  // source size
     };
@@ -1040,7 +1040,7 @@ TEST(MemoryWithOOBEmptyDataSegment) {
         kMemorySectionCode,      // --
         U32V_1(4),               // section size
         ENTRY_COUNT(1),          // --
-        kResizableMaximumFlag,   // --
+        kHasMaximumFlag,         // --
         1,                       // initial size
         1,                       // maximum size
         kDataSectionCode,        // --
