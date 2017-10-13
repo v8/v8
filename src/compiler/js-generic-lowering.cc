@@ -745,7 +745,7 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  Node* limit = graph()->NewNode(
+  Node* limit = effect = graph()->NewNode(
       machine()->Load(MachineType::Pointer()),
       jsgraph()->ExternalConstant(
           ExternalReference::address_of_stack_limit(isolate())),
@@ -761,6 +761,7 @@ void JSGenericLowering::LowerJSStackCheck(Node* node) {
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
   NodeProperties::ReplaceControlInput(node, if_false);
+  NodeProperties::ReplaceEffectInput(node, effect);
   Node* efalse = if_false = node;
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
