@@ -4,7 +4,7 @@
 
 var source =
   "var foo = function foo() {\n" +
-  "  var a = 1;\n" +
+  "  return 1;\n" +
   "}\n" +
   "//@ sourceURL=test";
 
