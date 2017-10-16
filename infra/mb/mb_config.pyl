@@ -74,11 +74,11 @@
       'V8 Win32 - debug builder': 'gn_debug_x86_minimal_symbols',
       'V8 Win32 - nosnap - shared':
         'gn_release_x86_no_snap_shared_minimal_symbols',
+      'V8 Win32 ASAN': 'gn_release_x86_asan_no_lsan',
       'V8 Win64': 'gn_release_x64_minimal_symbols',
       'V8 Win64 - debug': 'gn_debug_x64_minimal_symbols',
       # TODO(machenbach): Switch plugins on when errors are fixed.
       'V8 Win64 - clang': 'gn_release_x64_clang',
-      'V8 Win64 ASAN': 'gn_release_x64_asan_no_lsan',
       # Mac.
       'V8 Mac': 'gn_release_x86',
       'V8 Mac - debug': 'gn_debug_x86',
@@ -212,13 +212,13 @@
       'v8_linux64_tsan_concurrent_marking_rel_ng':
           'gn_release_x64_tsan_concurrent_marking_minimal_symbols',
       'v8_linux64_ubsan_rel_ng': 'gn_release_x64_ubsan_vptr_minimal_symbols',
+      'v8_win_asan_rel_ng': 'gn_release_x86_asan_no_lsan',
       'v8_win_dbg': 'gn_debug_x86_trybot',
       'v8_win_compile_dbg': 'gn_debug_x86_trybot',
       'v8_win_rel_ng': 'gn_release_x86_trybot',
       'v8_win_nosnap_shared_rel_ng':
         'gn_release_x86_no_snap_shared_minimal_symbols',
       'v8_win64_clang_compile_rel': 'gn_release_x64_clang',
-      'v8_win64_asan_rel_ng': 'gn_release_x64_asan_no_lsan',
       'v8_win64_dbg': 'gn_debug_x64_minimal_symbols',
       'v8_win64_rel_ng': 'gn_release_x64_trybot',
       'v8_mac_rel_ng': 'gn_release_x86_trybot',
@@ -488,6 +488,8 @@
     # GN release configs for x86.
     'gn_release_x86': [
       'gn', 'release_bot', 'x86', 'swarming'],
+    'gn_release_x86_asan_no_lsan': [
+      'gn', 'release_bot', 'x86', 'asan', 'swarming'],
     'gn_release_x86_disassembler': [
       'gn', 'release_bot', 'x86', 'v8_enable_disassembler'],
     'gn_release_x86_gcc': [
