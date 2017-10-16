@@ -2903,12 +2903,8 @@ void Heap::RightTrimFixedArray(FixedArrayBase* object, int elements_to_trim) {
   DCHECK_GE(elements_to_trim, 0);
 
   int bytes_to_trim;
-  if (object->IsFixedTypedArrayBase()) {
-    InstanceType type = object->map()->instance_type();
-    bytes_to_trim =
-        FixedTypedArrayBase::TypedArraySize(type, len) -
-        FixedTypedArrayBase::TypedArraySize(type, len - elements_to_trim);
-  } else if (object->IsByteArray()) {
+  DCHECK(!object->IsFixedTypedArrayBase());
+  if (object->IsByteArray()) {
     int new_size = ByteArray::SizeFor(len - elements_to_trim);
     bytes_to_trim = ByteArray::SizeFor(len) - new_size;
     DCHECK_GE(bytes_to_trim, 0);
