@@ -138,30 +138,6 @@ BUILTIN(ReflectGetPrototypeOf) {
                            JSReceiver::GetPrototype(isolate, receiver));
 }
 
-// ES6 section 26.1.9 Reflect.has
-BUILTIN(ReflectHas) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  Handle<Object> target = args.at(1);
-  Handle<Object> key = args.at(2);
-
-  if (!target->IsJSReceiver()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledOnNonObject,
-                              isolate->factory()->NewStringFromAsciiChecked(
-                                  "Reflect.has")));
-  }
-
-  Handle<Name> name;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, name,
-                                     Object::ToName(isolate, key));
-
-  Maybe<bool> result =
-      JSReceiver::HasProperty(Handle<JSReceiver>::cast(target), name);
-  return result.IsJust() ? *isolate->factory()->ToBoolean(result.FromJust())
-                         : isolate->heap()->exception();
-}
-
 // ES6 section 26.1.10 Reflect.isExtensible
 BUILTIN(ReflectIsExtensible) {
   HandleScope scope(isolate);

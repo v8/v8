@@ -3533,6 +3533,28 @@ Node* CodeStubAssembler::ThrowIfNotInstanceType(Node* context, Node* value,
   return var_value_map.value();
 }
 
+Node* CodeStubAssembler::ThrowIfNotJSReceiver(
+    Node* context, Node* value, MessageTemplate::Template msg_template,
+    const char* method_name) {
+  Label out(this), throw_exception(this, Label::kDeferred);
+  VARIABLE(var_value_map, MachineRepresentation::kTagged);
+
+  GotoIf(TaggedIsSmi(value), &throw_exception);
+
+  // Load the instance type of the {value}.
+  var_value_map.Bind(LoadMap(value));
+  Node* const value_instance_type = LoadMapInstanceType(var_value_map.value());
+
+  Branch(IsJSReceiverInstanceType(value_instance_type), &out, &throw_exception);
+
+  // The {value} is not a compatible receiver for this method.
+  BIND(&throw_exception);
+  ThrowTypeError(context, msg_template, method_name);
+
+  BIND(&out);
+  return var_value_map.value();
+}
+
 void CodeStubAssembler::ThrowTypeError(Node* context,
                                        MessageTemplate::Template message,
                                        char const* arg0, char const* arg1) {

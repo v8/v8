@@ -867,6 +867,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ThrowIfNotInstanceType(Node* context, Node* value,
                                InstanceType instance_type,
                                char const* method_name);
+  // Throws a TypeError for {method_name} if {value} is not a JSReceiver.
+  // Returns the {value}'s map.
+  Node* ThrowIfNotJSReceiver(Node* context, Node* value,
+                             MessageTemplate::Template msg_template,
+                             const char* method_name = nullptr);
   void ThrowTypeError(Node* context, MessageTemplate::Template message,
                       char const* arg0 = nullptr, char const* arg1 = nullptr);
   void ThrowTypeError(Node* context, MessageTemplate::Template message,

@@ -112,10 +112,6 @@ class PromiseBuiltinsAssembler : public CodeStubAssembler {
  protected:
   void PromiseInit(Node* promise);
 
-  Node* ThrowIfNotJSReceiver(Node* context, Node* value,
-                             MessageTemplate::Template msg_template,
-                             const char* method_name = nullptr);
-
   Node* SpeciesConstructor(Node* context, Node* object,
                            Node* default_constructor);
 

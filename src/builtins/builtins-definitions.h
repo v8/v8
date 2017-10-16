@@ -795,7 +795,7 @@ namespace internal {
   CPP(ReflectGet)                                                              \
   CPP(ReflectGetOwnPropertyDescriptor)                                         \
   CPP(ReflectGetPrototypeOf)                                                   \
-  CPP(ReflectHas)                                                              \
+  TFJ(ReflectHas, 2, kTarget, kKey)                                            \
   CPP(ReflectIsExtensible)                                                     \
   CPP(ReflectOwnKeys)                                                          \
   CPP(ReflectPreventExtensions)                                                \
