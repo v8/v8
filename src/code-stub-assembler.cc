@@ -8652,7 +8652,7 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
             BIND(&if_rhsisnotreceiver);
             {
               // The {rhs} is not a JSReceiver and also not the same Symbol
-              // as the {lhs}, so this is equality check is considered false.
+              // as the {lhs}, so this equality check is considered false.
               if (var_type_feedback != nullptr) {
                 Label if_rhsissymbol(this), if_rhsisnotsymbol(this);
                 Branch(IsSymbolInstanceType(rhs_instance_type), &if_rhsissymbol,
@@ -8660,7 +8660,8 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
 
                 BIND(&if_rhsissymbol);
                 {
-                  var_type_feedback->Bind(
+                  CombineFeedback(
+                      var_type_feedback,
                       SmiConstant(CompareOperationFeedback::kSymbol));
                   Goto(&if_notequal);
                 }
