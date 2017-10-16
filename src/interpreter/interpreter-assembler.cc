@@ -1298,8 +1298,8 @@ Node* InterpreterAssembler::TaggedToWord32OrBigIntWithFeedback(
              &is_oddball);
 
       // Not an oddball either -> convert to Numeric.
-      // TODO(jkummerow): This should use "NonNumericToNumeric".
-      var_value.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, value));
+      var_value.Bind(
+          CallBuiltin(Builtins::kNonNumberToNumeric, context, value));
       var_type_feedback->Bind(SmiConstant(BinaryOperationFeedback::kAny));
       Goto(&loop);
 

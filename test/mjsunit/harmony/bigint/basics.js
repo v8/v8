@@ -421,7 +421,10 @@ const six = BigInt(6);
 
 // Binary ops.
 {
+  let One = {valueOf() { return one }};
   assertTrue(one + two === three);
+  assertTrue(One + two === three);
+  assertTrue(two + One === three);
   assertEquals("hello1", "hello" + one);
   assertEquals("2hello", two + "hello");
   assertThrows("one + 2", TypeError);
@@ -438,6 +441,8 @@ const six = BigInt(6);
   assertThrows("2.5 - one", TypeError);
 
   assertTrue(two * three === six);
+  assertTrue(two * One === two);
+  assertTrue(One * two === two);
   assertThrows("two * 1", TypeError);
   assertThrows("1 * two", TypeError);
   assertThrows("two * 1.5", TypeError);
@@ -462,8 +467,11 @@ const six = BigInt(6);
 
 // Bitwise binary ops.
 {
+  let One = {valueOf() { return one }};
   assertTrue((three & one) === one);
   assertTrue((BigInt(-2) & zero) === zero);
+  assertTrue((three & One) === one);
+  assertTrue((One & three) === one);
   assertThrows("three & 1", TypeError);
   assertThrows("1 & three", TypeError);
   assertThrows("three & true", TypeError);
@@ -507,10 +515,13 @@ const six = BigInt(6);
 
 // Unary ops.
 {
+  let One = {valueOf() { return one }};
   assertTrue(~minus_one === zero);
   assertTrue(-minus_one === one);
+  assertTrue(-One === minus_one);
   assertTrue(~~two === two);
   assertTrue(-(-two) === two);
+  assertTrue(~One === BigInt(-2));
 
   let a = minus_one;
   assertTrue(a++ === minus_one);

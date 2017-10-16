@@ -70,9 +70,8 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
     GotoIf(IsHeapNumberMap(right_map), &do_bigint_op);
     Node* right_type = LoadMapInstanceType(right_map);
     GotoIf(IsBigIntInstanceType(right_type), &do_bigint_op);
-    // TODO(jkummerow): This should use kNonNumericToNumeric.
     var_right_bigint.Bind(
-        CallBuiltin(Builtins::kNonNumberToNumber, context, right));
+        CallBuiltin(Builtins::kNonNumberToNumeric, context, right));
     Goto(&do_bigint_op);
 
     BIND(&do_bigint_op);
@@ -120,8 +119,8 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
       Node* instance_type = LoadMapInstanceType(map);
       GotoIf(IsBigIntInstanceType(instance_type), &is_bigint);
       // Neither HeapNumber nor BigInt -> convert to Numeric.
-      // TODO(jkummerow): This should call "NonNumericToNumeric".
-      var_value.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, value));
+      var_value.Bind(
+          CallBuiltin(Builtins::kNonNumberToNumeric, context, value));
       Goto(&loop);
 
       BIND(&is_heap_number);
@@ -448,8 +447,8 @@ class AddStubAssembler : public CodeStubAssembler {
 
   void ConvertNonReceiverAndLoop(Variable* var_value, Label* loop,
                                  Node* context) {
-    var_value->Bind(
-        CallBuiltin(Builtins::kNonNumberToNumber, context, var_value->value()));
+    var_value->Bind(CallBuiltin(Builtins::kNonNumberToNumeric, context,
+                                var_value->value()));
     Goto(loop);
   }
 
@@ -478,7 +477,7 @@ TF_BUILTIN(Add, AddStubAssembler) {
   VARIABLE(var_right_double, MachineRepresentation::kFloat64);
 
   // We might need to loop several times due to ToPrimitive, ToString and/or
-  // ToNumber conversions.
+  // ToNumeric conversions.
   VARIABLE(var_result, MachineRepresentation::kTagged);
   Variable* loop_vars[2] = {&var_left, &var_right};
   Label loop(this, 2, loop_vars),
@@ -562,7 +561,7 @@ TF_BUILTIN(Add, AddStubAssembler) {
           GotoIf(IsStringInstanceType(left_instance_type),
                  &string_add_convert_right);
           GotoIf(IsBigIntInstanceType(left_instance_type), &do_bigint_add);
-          // {left} is neither a Number nor a String, and {right} is a Smi.
+          // {left} is neither a Numeric nor a String, and {right} is a Smi.
           ConvertAndLoop(&var_left, left_instance_type, &loop, context);
         }
       }  // if_right_smi
@@ -597,20 +596,29 @@ TF_BUILTIN(Add, AddStubAssembler) {
 
         BIND(&if_left_not_number);
         {
+          Label if_left_bigint(this);
           Node* left_instance_type = LoadMapInstanceType(left_map);
           GotoIf(IsStringInstanceType(left_instance_type),
                  &string_add_convert_right);
           Node* right_instance_type = LoadMapInstanceType(right_map);
           GotoIf(IsStringInstanceType(right_instance_type),
                  &string_add_convert_left);
-          GotoIf(IsBigIntInstanceType(left_instance_type), &do_bigint_add);
-          GotoIf(IsBigIntInstanceType(right_instance_type), &do_bigint_add);
+          GotoIf(IsBigIntInstanceType(left_instance_type), &if_left_bigint);
           Label if_left_not_receiver(this, Label::kDeferred);
           Label if_right_not_receiver(this, Label::kDeferred);
           GotoIfNot(IsJSReceiverInstanceType(left_instance_type),
                     &if_left_not_receiver);
           // {left} is a JSReceiver, convert it first.
           ConvertReceiverAndLoop(&var_left, &loop, context);
+
+          BIND(&if_left_bigint);
+          {
+            // {right} is a HeapObject, but not a String. Jump to
+            // {do_bigint_add} if {right} is already a Numeric.
+            GotoIf(IsBigIntInstanceType(right_instance_type), &do_bigint_add);
+            GotoIf(IsHeapNumberMap(right_map), &do_bigint_add);
+            ConvertAndLoop(&var_right, right_instance_type, &loop, context);
+          }
 
           BIND(&if_left_not_receiver);
           GotoIfNot(IsJSReceiverInstanceType(right_instance_type),
@@ -705,18 +713,29 @@ void NumberBuiltinsAssembler::BinaryOp(Label* smis, Variable* var_left,
 
   BIND(&left_not_number);
   {
-    GotoIf(IsBigInt(var_left->value()), bigints);
-    // TODO(jkummerow): Here and below, this should call NonNumericToNumeric.
+    Label left_bigint(this);
+    GotoIf(IsBigInt(var_left->value()), &left_bigint);
     var_left->Bind(
-        CallBuiltin(Builtins::kNonNumberToNumber, context, var_left->value()));
+        CallBuiltin(Builtins::kNonNumberToNumeric, context, var_left->value()));
     Goto(&loop);
+
+    BIND(&left_bigint);
+    {
+      // Jump to {bigints} if {var_right} is already a Numeric.
+      GotoIf(TaggedIsSmi(var_right->value()), bigints);
+      GotoIf(IsBigInt(var_right->value()), bigints);
+      GotoIf(IsHeapNumber(var_right->value()), bigints);
+      var_right->Bind(CallBuiltin(Builtins::kNonNumberToNumeric, context,
+                                  var_right->value()));
+      Goto(&loop);
+    }
   }
 
   BIND(&right_not_number);
   {
     GotoIf(IsBigInt(var_right->value()), bigints);
-    var_right->Bind(
-        CallBuiltin(Builtins::kNonNumberToNumber, context, var_right->value()));
+    var_right->Bind(CallBuiltin(Builtins::kNonNumberToNumeric, context,
+                                var_right->value()));
     Goto(&loop);
   }
 }

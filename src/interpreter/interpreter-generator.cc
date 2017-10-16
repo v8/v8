@@ -1252,9 +1252,8 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
         CSA_ASSERT(this, SmiEqual(var_feedback.value(),
                                   SmiConstant(BinaryOperationFeedback::kNone)));
         var_feedback.Bind(SmiConstant(BinaryOperationFeedback::kAny));
-        // TODO(jkummerow): This should call kNonNumericToNumeric.
         var_value.Bind(
-            CallBuiltin(Builtins::kNonNumberToNumber, GetContext(), value));
+            CallBuiltin(Builtins::kNonNumberToNumeric, GetContext(), value));
         Goto(&start);
       }
     }

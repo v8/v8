@@ -155,10 +155,8 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
 
       BIND(&lhs_is_bigint);
       {
-        // Label "bigint" handles BigInt + {anything except string}.
-        GotoIf(TaggedIsSmi(rhs), &bigint);
-        Branch(IsStringInstanceType(LoadInstanceType(rhs)),
-               &call_with_any_feedback, &bigint);
+        GotoIf(TaggedIsSmi(rhs), &call_with_any_feedback);
+        Branch(IsBigInt(rhs), &bigint, &call_with_any_feedback);
       }
 
       BIND(&lhs_is_string);
@@ -322,31 +320,40 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   BIND(&if_lhsisnotnumber);
   {
     // No checks on rhs are done yet. We just know lhs is not a number or Smi.
-    // Check if lhs is an oddball.
+    Label if_left_bigint(this), if_left_oddball(this);
     Node* lhs_instance_type = LoadInstanceType(lhs);
-    GotoIf(IsBigIntInstanceType(lhs_instance_type), &if_bigint);
+    GotoIf(IsBigIntInstanceType(lhs_instance_type), &if_left_bigint);
     Node* lhs_is_oddball =
         Word32Equal(lhs_instance_type, Int32Constant(ODDBALL_TYPE));
-    GotoIfNot(lhs_is_oddball, &call_with_any_feedback);
+    Branch(lhs_is_oddball, &if_left_oddball, &call_with_any_feedback);
 
-    Label if_rhsissmi(this), if_rhsisnotsmi(this);
-    Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
-
-    BIND(&if_rhsissmi);
+    BIND(&if_left_oddball);
     {
-      var_type_feedback.Bind(
-          SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
-      Goto(&call_stub);
+      Label if_rhsissmi(this), if_rhsisnotsmi(this);
+      Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+
+      BIND(&if_rhsissmi);
+      {
+        var_type_feedback.Bind(
+            SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
+        Goto(&call_stub);
+      }
+
+      BIND(&if_rhsisnotsmi);
+      {
+        // Check if {rhs} is a HeapNumber.
+        GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
+
+        var_type_feedback.Bind(
+            SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
+        Goto(&call_stub);
+      }
     }
 
-    BIND(&if_rhsisnotsmi);
+    BIND(&if_left_bigint);
     {
-      // Check if {rhs} is a HeapNumber.
-      GotoIfNot(IsHeapNumber(rhs), &check_rhsisoddball);
-
-      var_type_feedback.Bind(
-          SmiConstant(BinaryOperationFeedback::kNumberOrOddball));
-      Goto(&call_stub);
+      GotoIf(TaggedIsSmi(rhs), &call_with_any_feedback);
+      Branch(IsBigInt(rhs), &if_bigint, &call_with_any_feedback);
     }
   }
 
