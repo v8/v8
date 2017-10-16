@@ -2357,28 +2357,22 @@ void InstructionSelector::EmitPrepareArguments(
     }
   } else {
     // Push any stack arguments.
-    int num_slots = 0;
+    int num_slots = static_cast<int>(descriptor->StackParameterCount());
     int slot = 0;
-
-    for (PushParameter input : *arguments) {
-      if (input.node() == nullptr) continue;
-      num_slots +=
-          input.type().representation() == MachineRepresentation::kFloat64
-              ? kDoubleSize / kPointerSize
-              : 1;
-    }
-    Emit(kS390_StackClaim, g.NoOutput(), g.TempImmediate(num_slots));
-    for (PushParameter input : *arguments) {
-      // Skip any alignment holes in pushed nodes.
-      if (input.node()) {
-        Emit(kS390_StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
-             g.TempImmediate(slot));
-        slot += input.type().representation() == MachineRepresentation::kFloat64
-                    ? (kDoubleSize / kPointerSize)
-                    : 1;
+    for (PushParameter input : (*arguments)) {
+      if (slot == 0) {
+        DCHECK(input.node());
+        Emit(kS390_PushFrame, g.NoOutput(), g.UseRegister(input.node()),
+             g.TempImmediate(num_slots));
+      } else {
+        // Skip any alignment holes in pushed nodes.
+        if (input.node()) {
+          Emit(kS390_StoreToStackSlot, g.NoOutput(),
+               g.UseRegister(input.node()), g.TempImmediate(slot));
+        }
       }
+      ++slot;
     }
-    DCHECK(num_slots == slot);
   }
 }
 

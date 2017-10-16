@@ -341,7 +341,7 @@ typedef DoubleRegister Simd128Register;
   constexpr DoubleRegister R = DoubleRegister::from_code<kDoubleCode_##R>();
 DOUBLE_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
-constexpr DoubleRegister no_dreg = DoubleRegister::no_reg();
+constexpr Register no_dreg = Register::no_reg();
 
 constexpr DoubleRegister kFirstCalleeSavedDoubleReg = d14;
 constexpr DoubleRegister kLastCalleeSavedDoubleReg = d31;
@@ -461,10 +461,12 @@ class MemOperand BASE_EMBEDDED {
 
   // PowerPC - base register
   Register ra() const {
+    DCHECK(ra_ != no_reg);
     return ra_;
   }
 
   Register rb() const {
+    DCHECK(offset_ == 0 && rb_ != no_reg);
     return rb_;
   }
 

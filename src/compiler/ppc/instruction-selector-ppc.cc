@@ -1995,10 +1995,21 @@ void InstructionSelector::EmitPrepareArguments(
     }
   } else {
     // Push any stack arguments.
-    for (PushParameter input : base::Reversed(*arguments)) {
-      // Skip any alignment holes in pushed nodes.
-      if (input.node() == nullptr) continue;
-      Emit(kPPC_Push, g.NoOutput(), g.UseRegister(input.node()));
+    int num_slots = static_cast<int>(descriptor->StackParameterCount());
+    int slot = 0;
+    for (PushParameter input : (*arguments)) {
+      if (slot == 0) {
+        DCHECK(input.node());
+        Emit(kPPC_PushFrame, g.NoOutput(), g.UseRegister(input.node()),
+             g.TempImmediate(num_slots));
+      } else {
+        // Skip any alignment holes in pushed nodes.
+        if (input.node()) {
+          Emit(kPPC_StoreToStackSlot, g.NoOutput(), g.UseRegister(input.node()),
+               g.TempImmediate(slot));
+        }
+      }
+      ++slot;
     }
   }
 }
