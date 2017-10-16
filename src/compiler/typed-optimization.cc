@@ -101,6 +101,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceReferenceEqual(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
+    case IrOpcode::kTypeOf:
+      return ReduceTypeOf(node);
     case IrOpcode::kSpeculativeToNumber:
       return ReduceSpeculativeToNumber(node);
     default:
@@ -358,6 +360,32 @@ Reduction TypedOptimization::ReduceSpeculativeToNumber(Node* node) {
     ReplaceWithValue(node, input);
     return Replace(input);
   }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceTypeOf(Node* node) {
+  Node* const input = node->InputAt(0);
+  Type* const type = NodeProperties::GetType(input);
+  Factory* const f = factory();
+  if (type->Is(Type::Boolean())) {
+    return Replace(jsgraph()->Constant(f->boolean_string()));
+  } else if (type->Is(Type::Number())) {
+    return Replace(jsgraph()->Constant(f->number_string()));
+  } else if (type->Is(Type::String())) {
+    return Replace(jsgraph()->Constant(f->string_string()));
+  } else if (type->Is(Type::Symbol())) {
+    return Replace(jsgraph()->Constant(f->symbol_string()));
+  } else if (type->Is(Type::OtherUndetectableOrUndefined())) {
+    return Replace(jsgraph()->Constant(f->undefined_string()));
+  } else if (type->Is(Type::NonCallableOrNull())) {
+    return Replace(jsgraph()->Constant(f->object_string()));
+  } else if (type->Is(Type::Function())) {
+    return Replace(jsgraph()->Constant(f->function_string()));
+  } else if (type->IsHeapConstant()) {
+    return Replace(jsgraph()->Constant(
+        Object::TypeOf(isolate(), type->AsHeapConstant()->Value())));
+  }
+
   return NoChange();
 }
 

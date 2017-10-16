@@ -1083,7 +1083,7 @@ Type* Typer::Visitor::TypeJSClassOf(Node* node) {
   return Type::InternalizedStringOrNull();
 }
 
-Type* Typer::Visitor::TypeJSTypeOf(Node* node) {
+Type* Typer::Visitor::TypeTypeOf(Node* node) {
   return Type::InternalizedString();
 }
 

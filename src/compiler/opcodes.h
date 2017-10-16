@@ -122,9 +122,7 @@
   V(JSToObject)                    \
   V(JSToString)
 
-#define JS_OTHER_UNOP_LIST(V) \
-  V(JSClassOf)                \
-  V(JSTypeOf)
+#define JS_OTHER_UNOP_LIST(V) V(JSClassOf)
 
 #define JS_SIMPLE_UNOP_LIST(V) \
   JS_CONVERSION_UNOP_LIST(V)   \
@@ -343,6 +341,7 @@
   V(CheckNotTaggedHole)                 \
   V(CompareMaps)                        \
   V(ConvertTaggedHoleToUndefined)       \
+  V(TypeOf)                             \
   V(Allocate)                           \
   V(LoadFieldByIndex)                   \
   V(LoadField)                          \

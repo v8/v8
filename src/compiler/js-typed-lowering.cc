@@ -750,32 +750,6 @@ Reduction JSTypedLowering::ReduceJSComparison(Node* node) {
   return r.ChangeToPureOperator(comparison);
 }
 
-Reduction JSTypedLowering::ReduceJSTypeOf(Node* node) {
-  Node* const input = node->InputAt(0);
-  Type* type = NodeProperties::GetType(input);
-  Factory* const f = factory();
-  if (type->Is(Type::Boolean())) {
-    return Replace(jsgraph()->Constant(f->boolean_string()));
-  } else if (type->Is(Type::Number())) {
-    return Replace(jsgraph()->Constant(f->number_string()));
-  } else if (type->Is(Type::String())) {
-    return Replace(jsgraph()->Constant(f->string_string()));
-  } else if (type->Is(Type::Symbol())) {
-    return Replace(jsgraph()->Constant(f->symbol_string()));
-  } else if (type->Is(Type::OtherUndetectableOrUndefined())) {
-    return Replace(jsgraph()->Constant(f->undefined_string()));
-  } else if (type->Is(Type::NonCallableOrNull())) {
-    return Replace(jsgraph()->Constant(f->object_string()));
-  } else if (type->Is(Type::Function())) {
-    return Replace(jsgraph()->Constant(f->function_string()));
-  } else if (type->IsHeapConstant()) {
-    return Replace(jsgraph()->Constant(
-        Object::TypeOf(isolate(), type->AsHeapConstant()->Value())));
-  }
-
-  return NoChange();
-}
-
 Reduction JSTypedLowering::ReduceJSEqual(Node* node) {
   JSBinopReduction r(this, node);
 
@@ -2303,8 +2277,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSToString(node);
     case IrOpcode::kJSToObject:
       return ReduceJSToObject(node);
-    case IrOpcode::kJSTypeOf:
-      return ReduceJSTypeOf(node);
     case IrOpcode::kJSLoadNamed:
       return ReduceJSLoadNamed(node);
     case IrOpcode::kJSLoadContext:

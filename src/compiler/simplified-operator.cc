@@ -552,6 +552,7 @@ DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
   V(StringIndexOf, Operator::kNoProperties, 3, 0)                \
   V(StringToLowerCaseIntl, Operator::kNoProperties, 1, 0)        \
   V(StringToUpperCaseIntl, Operator::kNoProperties, 1, 0)        \
+  V(TypeOf, Operator::kNoProperties, 1, 1)                       \
   V(PlainPrimitiveToNumber, Operator::kNoProperties, 1, 0)       \
   V(PlainPrimitiveToWord32, Operator::kNoProperties, 1, 0)       \
   V(PlainPrimitiveToFloat64, Operator::kNoProperties, 1, 0)      \

@@ -144,16 +144,6 @@ void JSGenericLowering::LowerJSClassOf(Node* node) {
                       Operator::kEliminatable);
 }
 
-void JSGenericLowering::LowerJSTypeOf(Node* node) {
-  // The typeof operator doesn't need the current context.
-  NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kTypeof);
-  node->AppendInput(zone(), graph()->start());
-  ReplaceWithStubCall(node, callable, CallDescriptor::kNoAllocate,
-                      Operator::kEliminatable);
-}
-
-
 void JSGenericLowering::LowerJSLoadProperty(Node* node) {
   CallDescriptor::Flags flags = FrameStateFlagForCall(node);
   const PropertyAccess& p = PropertyAccessOf(node->op());

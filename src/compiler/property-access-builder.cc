@@ -113,7 +113,7 @@ bool NeedsCheckHeapObject(Node* receiver) {
     case IrOpcode::kJSToName:
     case IrOpcode::kJSToString:
     case IrOpcode::kJSToObject:
-    case IrOpcode::kJSTypeOf:
+    case IrOpcode::kTypeOf:
     case IrOpcode::kJSGetSuperConstructor:
       return false;
     case IrOpcode::kPhi: {
