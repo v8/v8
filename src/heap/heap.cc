@@ -1916,6 +1916,7 @@ void Heap::Scavenge() {
     mark_compact_collector()->EnsureSweepingCompleted();
   }
 
+  // TODO(mlippautz): Untangle the dependency of the unmapper from the sweeper.
   mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
 
   SetGCState(SCAVENGE);
@@ -1948,41 +1949,46 @@ void Heap::Scavenge() {
         job.AddItem(new PageScavengingItem(this, chunk));
       });
 
-  RootScavengeVisitor root_scavenge_visitor(this, scavengers[kMainThreadId]);
+  {
+    MarkCompactCollector::Sweeper::PauseOrCompleteScope sweeper_scope(
+        &mark_compact_collector()->sweeper());
+    RootScavengeVisitor root_scavenge_visitor(this, scavengers[kMainThreadId]);
 
-  {
-    // Identify weak unmodified handles. Requires an unmodified graph.
-    TRACE_GC(tracer(),
-             GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY);
-    isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
-        &JSObject::IsUnmodifiedApiObject);
-  }
-  {
-    // Copy roots.
-    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS);
-    IterateRoots(&root_scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
-  }
-  {
-    // Weak collections are held strongly by the Scavenger.
-    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK);
-    IterateEncounteredWeakCollections(&root_scavenge_visitor);
-  }
-  {
-    // Parallel phase scavenging all copied and promoted objects.
-    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL);
-    job.Run();
-    DCHECK(copied_list.IsGlobalEmpty());
-    DCHECK(promotion_list.IsGlobalEmpty());
-  }
-  {
-    // Scavenge weak global handles.
-    TRACE_GC(tracer(),
-             GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
-    isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
-        &IsUnscavengedHeapObject);
-    isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
-        &root_scavenge_visitor);
-    scavengers[kMainThreadId]->Process();
+    {
+      // Identify weak unmodified handles. Requires an unmodified graph.
+      TRACE_GC(
+          tracer(),
+          GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY);
+      isolate()->global_handles()->IdentifyWeakUnmodifiedObjects(
+          &JSObject::IsUnmodifiedApiObject);
+    }
+    {
+      // Copy roots.
+      TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_ROOTS);
+      IterateRoots(&root_scavenge_visitor, VISIT_ALL_IN_SCAVENGE);
+    }
+    {
+      // Weak collections are held strongly by the Scavenger.
+      TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK);
+      IterateEncounteredWeakCollections(&root_scavenge_visitor);
+    }
+    {
+      // Parallel phase scavenging all copied and promoted objects.
+      TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_SCAVENGE_PARALLEL);
+      job.Run();
+      DCHECK(copied_list.IsGlobalEmpty());
+      DCHECK(promotion_list.IsGlobalEmpty());
+    }
+    {
+      // Scavenge weak global handles.
+      TRACE_GC(tracer(),
+               GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
+      isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
+          &IsUnscavengedHeapObject);
+      isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
+          &root_scavenge_visitor);
+      scavengers[kMainThreadId]->Process();
+    }
   }
 
   for (int i = 0; i < num_scavenge_tasks; i++) {
