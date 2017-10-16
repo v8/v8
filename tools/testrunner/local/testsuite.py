@@ -318,12 +318,16 @@ class GoogleTestSuite(TestSuite):
 
     output = None
     for i in xrange(3): # Try 3 times in case of errors.
-      output = commands.Execute(context.command_prefix +
-                                [shell, "--gtest_list_tests"] +
-                                context.extra_flags)
+      cmd = (
+          context.command_prefix +
+          [shell, "--gtest_list_tests"] +
+          context.extra_flags
+      )
+      output = commands.Execute(cmd)
       if output.exit_code == 0:
         break
       print "Test executable failed to list the tests (try %d).\n\nStdout:" % i
+      print ' '.join(cmd)
       print output.stdout
       print "\nStderr:"
       print output.stderr

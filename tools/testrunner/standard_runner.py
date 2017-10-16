@@ -665,8 +665,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       if options.asan:
         asan_options = [symbolizer, "allow_user_segv_handler=1"]
-        if not utils.GuessOS() == 'macos':
-          # LSAN is not available on mac.
+        if not utils.GuessOS() in ['macos', 'windows']:
+          # LSAN is not available on mac and windows.
           asan_options.append('detect_leaks=1')
         os.environ['ASAN_OPTIONS'] = ":".join(asan_options)
 

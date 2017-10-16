@@ -144,6 +144,9 @@ def RunProcess(verbose, timeout, args, additional_env, **rest):
   )
 
 
+# TODO(machenbach): Instead of passing args around, we should introduce an
+# immutable Command class (that just represents the command with all flags and
+# is pretty-printable) and a member method for running such a command.
 def Execute(args, verbose=False, timeout=None, env=None):
   args = [ c for c in args if c != "" ]
   return RunProcess(verbose, timeout, args, env or {})
