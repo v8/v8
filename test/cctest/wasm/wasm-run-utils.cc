@@ -53,9 +53,6 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   CHECK(size == 0 || mem_start_);
   memset(mem_start_, 0, size);
 
-  if (interpreter_) {
-    interpreter_->UpdateMemory(mem_start_, mem_size_);
-  }
   // Create the WasmMemoryObject.
   Handle<WasmMemoryObject> memory_object = WasmMemoryObject::New(
       isolate_, new_buffer,

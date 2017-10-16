@@ -368,9 +368,6 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
 void SetInstanceMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
                        Handle<JSArrayBuffer> buffer) {
   instance->set_memory_buffer(*buffer);
-  if (instance->has_debug_info()) {
-    instance->debug_info()->UpdateMemory(*buffer);
-  }
   auto wasm_context = instance->wasm_context()->get();
   wasm_context->mem_start = reinterpret_cast<byte*>(buffer->backing_store());
   wasm_context->mem_size = buffer->byte_length()->Number();

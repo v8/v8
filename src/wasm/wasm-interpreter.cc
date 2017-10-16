@@ -618,21 +618,6 @@ inline int64_t ExecuteI64ReinterpretF64(WasmValue a) {
   return a.to_unchecked<int64_t>();
 }
 
-inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
-                                 MaybeHandle<WasmInstanceObject> instance_obj,
-                                 CachedInstanceInfo* mem_info) {
-  Handle<WasmInstanceObject> instance = instance_obj.ToHandleChecked();
-  Isolate* isolate = instance->GetIsolate();
-  int32_t ret = WasmInstanceObject::GrowMemory(isolate, instance, delta_pages);
-
-  // Ensure the effects of GrowMemory have been observed by the interpreter.
-  // See {UpdateMemory}. In all cases, we are in agreement with the runtime
-  // object's view.
-  DCHECK_EQ(mem_info->mem_size, instance->wasm_context()->get()->mem_size);
-  DCHECK_EQ(mem_info->mem_start, instance->wasm_context()->get()->mem_start);
-  return ret;
-}
-
 enum InternalOpcode {
 #define DECL_INTERNAL_ENUM(name, value) kInternal##name = value,
   FOREACH_INTERNAL_OPCODE(DECL_INTERNAL_ENUM)
@@ -1130,10 +1115,9 @@ class ThreadImpl {
   };
 
  public:
-  ThreadImpl(Zone* zone, CodeMap* codemap,
-             CachedInstanceInfo* cached_instance_info)
+  ThreadImpl(Zone* zone, CodeMap* codemap, WasmContext* wasm_context)
       : codemap_(codemap),
-        cached_instance_info_(cached_instance_info),
+        wasm_context_(wasm_context),
         zone_(zone),
         frames_(zone),
         activations_(zone) {}
@@ -1293,7 +1277,7 @@ class ThreadImpl {
   friend class InterpretedFrameImpl;
 
   CodeMap* codemap_;
-  CachedInstanceInfo* const cached_instance_info_;
+  WasmContext* wasm_context_;
   Zone* zone_;
   WasmValue* stack_start_ = nullptr;  // Start of allocated stack space.
   WasmValue* stack_limit_ = nullptr;  // End of allocated stack space.
@@ -1457,12 +1441,11 @@ class ThreadImpl {
                    MachineRepresentation rep) {
     MemoryAccessOperand<false> operand(decoder, code->at(pc), sizeof(ctype));
     uint32_t index = Pop().to<uint32_t>();
-    if (!BoundsCheck<mtype>(cached_instance_info_->mem_size, operand.offset,
-                            index)) {
+    if (!BoundsCheck<mtype>(wasm_context_->mem_size, operand.offset, index)) {
       DoTrap(kTrapMemOutOfBounds, pc);
       return false;
     }
-    byte* addr = cached_instance_info_->mem_start + operand.offset + index;
+    byte* addr = wasm_context_->mem_start + operand.offset + index;
     WasmValue result(static_cast<ctype>(ReadLittleEndianValue<mtype>(addr)));
 
     Push(result);
@@ -1472,7 +1455,7 @@ class ThreadImpl {
       tracing::TraceMemoryOperation(
           tracing::kWasmInterpreted, false, rep, operand.offset + index,
           code->function->func_index, static_cast<int>(pc),
-          cached_instance_info_->mem_start);
+          wasm_context_->mem_start);
     }
 
     return true;
@@ -1485,12 +1468,11 @@ class ThreadImpl {
     WasmValue val = Pop();
 
     uint32_t index = Pop().to<uint32_t>();
-    if (!BoundsCheck<mtype>(cached_instance_info_->mem_size, operand.offset,
-                            index)) {
+    if (!BoundsCheck<mtype>(wasm_context_->mem_size, operand.offset, index)) {
       DoTrap(kTrapMemOutOfBounds, pc);
       return false;
     }
-    byte* addr = cached_instance_info_->mem_start + operand.offset + index;
+    byte* addr = wasm_context_->mem_start + operand.offset + index;
     WriteLittleEndianValue<mtype>(addr, static_cast<mtype>(val.to<ctype>()));
     len = 1 + operand.length;
 
@@ -1504,7 +1486,7 @@ class ThreadImpl {
       tracing::TraceMemoryOperation(
           tracing::kWasmInterpreted, true, rep, operand.offset + index,
           code->function->func_index, static_cast<int>(pc),
-          cached_instance_info_->mem_start);
+          wasm_context_->mem_start);
     }
 
     return true;
@@ -1793,7 +1775,7 @@ class ThreadImpl {
         case kExprGetGlobal: {
           GlobalIndexOperand<false> operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
-          byte* ptr = cached_instance_info_->globals_start + global->offset;
+          byte* ptr = wasm_context_->globals_start + global->offset;
           WasmValue val;
           switch (global->type) {
 #define CASE_TYPE(wasm, ctype)                       \
@@ -1812,7 +1794,7 @@ class ThreadImpl {
         case kExprSetGlobal: {
           GlobalIndexOperand<false> operand(&decoder, code->at(pc));
           const WasmGlobal* global = &module()->globals[operand.index];
-          byte* ptr = cached_instance_info_->globals_start + global->offset;
+          byte* ptr = wasm_context_->globals_start + global->offset;
           WasmValue val = Pop();
           switch (global->type) {
 #define CASE_TYPE(wasm, ctype)                        \
@@ -1871,19 +1853,19 @@ class ThreadImpl {
           STORE_CASE(F64StoreMem, double, double, kFloat64);
 #undef STORE_CASE
 
-#define ASMJS_LOAD_CASE(name, ctype, mtype, defval)                       \
-  case kExpr##name: {                                                     \
-    uint32_t index = Pop().to<uint32_t>();                                \
-    ctype result;                                                         \
-    if (!BoundsCheck<mtype>(cached_instance_info_->mem_size, 0, index)) { \
-      result = defval;                                                    \
-    } else {                                                              \
-      byte* addr = cached_instance_info_->mem_start + index;              \
-      /* TODO(titzer): alignment for asmjs load mem? */                   \
-      result = static_cast<ctype>(*reinterpret_cast<mtype*>(addr));       \
-    }                                                                     \
-    Push(WasmValue(result));                                              \
-    break;                                                                \
+#define ASMJS_LOAD_CASE(name, ctype, mtype, defval)                 \
+  case kExpr##name: {                                               \
+    uint32_t index = Pop().to<uint32_t>();                          \
+    ctype result;                                                   \
+    if (!BoundsCheck<mtype>(wasm_context_->mem_size, 0, index)) {   \
+      result = defval;                                              \
+    } else {                                                        \
+      byte* addr = wasm_context_->mem_start + index;                \
+      /* TODO(titzer): alignment for asmjs load mem? */             \
+      result = static_cast<ctype>(*reinterpret_cast<mtype*>(addr)); \
+    }                                                               \
+    Push(WasmValue(result));                                        \
+    break;                                                          \
   }
           ASMJS_LOAD_CASE(I32AsmjsLoadMem8S, int32_t, int8_t, 0);
           ASMJS_LOAD_CASE(I32AsmjsLoadMem8U, int32_t, uint8_t, 0);
@@ -1900,8 +1882,8 @@ class ThreadImpl {
   case kExpr##name: {                                                          \
     WasmValue val = Pop();                                                     \
     uint32_t index = Pop().to<uint32_t>();                                     \
-    if (BoundsCheck<mtype>(cached_instance_info_->mem_size, 0, index)) {       \
-      byte* addr = cached_instance_info_->mem_start + index;                   \
+    if (BoundsCheck<mtype>(wasm_context_->mem_size, 0, index)) {               \
+      byte* addr = wasm_context_->mem_start + index;                           \
       /* TODO(titzer): alignment for asmjs store mem? */                       \
       *(reinterpret_cast<mtype*>(addr)) = static_cast<mtype>(val.to<ctype>()); \
     }                                                                          \
@@ -1918,14 +1900,19 @@ class ThreadImpl {
         case kExprGrowMemory: {
           MemoryIndexOperand<false> operand(&decoder, code->at(pc));
           uint32_t delta_pages = Pop().to<uint32_t>();
-          Push(WasmValue(ExecuteGrowMemory(
-              delta_pages, codemap_->maybe_instance(), cached_instance_info_)));
+          Handle<WasmInstanceObject> instance =
+              codemap()->maybe_instance().ToHandleChecked();
+          DCHECK_EQ(wasm_context_, instance->wasm_context()->get());
+          Isolate* isolate = instance->GetIsolate();
+          int32_t result =
+              WasmInstanceObject::GrowMemory(isolate, instance, delta_pages);
+          Push(WasmValue(result));
           len = 1 + operand.length;
           break;
         }
         case kExprMemorySize: {
           MemoryIndexOperand<false> operand(&decoder, code->at(pc));
-          Push(WasmValue(static_cast<uint32_t>(cached_instance_info_->mem_size /
+          Push(WasmValue(static_cast<uint32_t>(wasm_context_->mem_size /
                                                WasmModule::kPageSize)));
           len = 1 + operand.length;
           break;
@@ -2569,9 +2556,6 @@ uint32_t WasmInterpreter::Thread::ActivationFrameBase(uint32_t id) {
 //============================================================================
 class WasmInterpreterInternals : public ZoneObject {
  public:
-  // We cache the memory information of the debugged instance here, and all
-  // threads (currently, one) share it and update it in case of {GrowMemory}.
-  CachedInstanceInfo cached_instance_info_;
   // Create a copy of the module bytes for the interpreter, since the passed
   // pointer might be invalidated after constructing the interpreter.
   const ZoneVector<uint8_t> module_bytes_;
@@ -2581,13 +2565,11 @@ class WasmInterpreterInternals : public ZoneObject {
   WasmInterpreterInternals(Isolate* isolate, Zone* zone,
                            const WasmModule* module,
                            const ModuleWireBytes& wire_bytes,
-                           byte* globals_start, byte* mem_start,
-                           uint32_t mem_size)
-      : cached_instance_info_(globals_start, mem_start, mem_size),
-        module_bytes_(wire_bytes.start(), wire_bytes.end(), zone),
+                           WasmContext* wasm_context)
+      : module_bytes_(wire_bytes.start(), wire_bytes.end(), zone),
         codemap_(isolate, module, module_bytes_.data(), zone),
         threads_(zone) {
-    threads_.emplace_back(zone, &codemap_, &cached_instance_info_);
+    threads_.emplace_back(zone, &codemap_, wasm_context);
   }
 };
 
@@ -2596,12 +2578,10 @@ class WasmInterpreterInternals : public ZoneObject {
 //============================================================================
 WasmInterpreter::WasmInterpreter(Isolate* isolate, const WasmModule* module,
                                  const ModuleWireBytes& wire_bytes,
-                                 byte* globals_start, byte* mem_start,
-                                 uint32_t mem_size)
+                                 WasmContext* wasm_context)
     : zone_(isolate->allocator(), ZONE_NAME),
       internals_(new (&zone_) WasmInterpreterInternals(
-          isolate, &zone_, module, wire_bytes, globals_start, mem_start,
-          mem_size)) {}
+          isolate, &zone_, module, wire_bytes, wasm_context)) {}
 
 WasmInterpreter::~WasmInterpreter() { internals_->~WasmInterpreterInternals(); }
 
@@ -2651,14 +2631,6 @@ int WasmInterpreter::GetThreadCount() {
 WasmInterpreter::Thread* WasmInterpreter::GetThread(int id) {
   CHECK_EQ(0, id);  // only one thread for now.
   return ToThread(&internals_->threads_[id]);
-}
-
-void WasmInterpreter::UpdateMemory(byte* mem_start, uint32_t mem_size) {
-  // We assume one thread. Things are likely to be more complicated than this
-  // in a multi-threaded case.
-  DCHECK_EQ(1, internals_->threads_.size());
-  internals_->cached_instance_info_.mem_start = mem_start;
-  internals_->cached_instance_info_.mem_size = mem_size;
 }
 
 void WasmInterpreter::AddFunctionForTesting(const WasmFunction* function) {

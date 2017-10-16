@@ -632,10 +632,6 @@ class WasmDebugInfo : public FixedArray {
   // Returns the number of calls / function frames executed in the interpreter.
   uint64_t NumInterpretedCalls();
 
-  // Update the memory view of the interpreter after executing GrowMemory in
-  // compiled code.
-  void UpdateMemory(JSArrayBuffer* new_memory);
-
   // Get scope details for a specific interpreted frame.
   // This returns a JSArray of length two: One entry for the global scope, one
   // for the local scope. Both elements are JSArrays of size
