@@ -133,19 +133,17 @@ void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
                           Handle<Code> code) {
   DCHECK_EQ(0, dispatch_tables->length() % 4);
   for (int i = 0; i < dispatch_tables->length(); i += 4) {
-    int table_index = Smi::ToInt(dispatch_tables->get(i + 1));
     Handle<FixedArray> function_table(
         FixedArray::cast(dispatch_tables->get(i + 2)), isolate);
     Handle<FixedArray> signature_table(
         FixedArray::cast(dispatch_tables->get(i + 3)), isolate);
     if (function) {
-      // TODO(titzer): the signature might need to be copied to avoid
-      // a dangling pointer in the signature map.
       Handle<WasmInstanceObject> instance(
           WasmInstanceObject::cast(dispatch_tables->get(i)), isolate);
-      auto& func_table = instance->module()->function_tables[table_index];
-      uint32_t sig_index = func_table.map.FindOrInsert(function->sig);
-      signature_table->set(index, Smi::FromInt(static_cast<int>(sig_index)));
+      // Note that {SignatureMap::Find} may return {-1} if the signature is
+      // not found; it will simply never match any check.
+      auto sig_index = instance->module()->signature_map.Find(function->sig);
+      signature_table->set(index, Smi::FromInt(sig_index));
       function_table->set(index, *code);
     } else {
       signature_table->set(index, Smi::FromInt(-1));

@@ -423,7 +423,9 @@ class ModuleDecoderImpl : public Decoder {
             static_cast<int>(pc_ - start_));
       FunctionSig* s = consume_sig(module_->signature_zone.get());
       module_->signatures.push_back(s);
+      module_->signature_ids.push_back(module_->signature_map.FindOrInsert(s));
     }
+    module_->signature_map.Freeze();
   }
 
   void DecodeImportSection() {
@@ -684,12 +686,10 @@ class ModuleDecoderImpl : public Decoder {
       if (table_index != 0) {
         errorf(pos, "illegal table index %u != 0", table_index);
       }
-      WasmIndirectFunctionTable* table = nullptr;
       if (table_index >= module_->function_tables.size()) {
         errorf(pos, "out of bounds table index %u", table_index);
         break;
       }
-      table = &module_->function_tables[table_index];
       WasmInitExpr offset = consume_init_expr(module_.get(), kWasmI32);
       uint32_t num_elem =
           consume_count("number of elements", kV8MaxWasmTableEntries);
@@ -702,8 +702,6 @@ class ModuleDecoderImpl : public Decoder {
         if (!ok()) break;
         DCHECK_EQ(index, func->func_index);
         init->entries.push_back(index);
-        // Canonicalize signature indices during decoding.
-        table->map.FindOrInsert(func->sig);
       }
     }
   }

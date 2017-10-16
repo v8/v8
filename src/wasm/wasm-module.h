@@ -98,7 +98,6 @@ struct WasmIndirectFunctionTable {
   std::vector<int32_t> values;  // function table, -1 indicating invalid.
   bool imported = false;        // true if imported.
   bool exported = false;        // true if exported.
-  SignatureMap map;             // canonicalizing map for sig indexes.
 };
 
 // Static representation of how to initialize a table.
@@ -157,7 +156,8 @@ struct V8_EXPORT_PRIVATE WasmModule {
   uint32_t num_exported_functions = 0;
   WireBytesRef name = {0, 0};
   // TODO(wasm): Add url here, for spec'ed location information.
-  std::vector<FunctionSig*> signatures;
+  std::vector<FunctionSig*> signatures;  // by signature index
+  std::vector<uint32_t> signature_ids;   // by signature index
   std::vector<WasmFunction> functions;
   std::vector<WasmDataSegment> data_segments;
   std::vector<WasmIndirectFunctionTable> function_tables;
@@ -165,6 +165,7 @@ struct V8_EXPORT_PRIVATE WasmModule {
   std::vector<WasmExport> export_table;
   std::vector<WasmException> exceptions;
   std::vector<WasmTableInit> table_inits;
+  SignatureMap signature_map;  // canonicalizing map for signature indexes.
 
   WasmModule() : WasmModule(nullptr) {}
   WasmModule(std::unique_ptr<Zone> owned);

@@ -140,7 +140,6 @@ void TestingModuleBuilder::AddIndirectFunctionTable(uint16_t* function_indexes,
   table.has_maximum_size = true;
   for (uint32_t i = 0; i < table_size; ++i) {
     table.values.push_back(function_indexes[i]);
-    table.map.FindOrInsert(test_module_.functions[function_indexes[i]].sig);
   }
 
   function_tables_.push_back(
@@ -165,7 +164,8 @@ void TestingModuleBuilder::PopulateIndirectFunctionTable() {
     int table_size = static_cast<int>(table.values.size());
     for (int j = 0; j < table_size; j++) {
       WasmFunction& function = test_module_.functions[table.values[j]];
-      signature_table->set(j, Smi::FromInt(table.map.Find(function.sig)));
+      signature_table->set(
+          j, Smi::FromInt(test_module_.signature_map.Find(function.sig)));
       function_table->set(j, *function_code_[function.func_index]);
     }
   }
@@ -189,13 +189,8 @@ uint32_t TestingModuleBuilder::AddBytes(Vector<const byte> bytes) {
 }
 
 compiler::ModuleEnv TestingModuleBuilder::CreateModuleEnv() {
-  std::vector<SignatureMap*> signature_maps;
-  for (size_t i = 0; i < test_module_.function_tables.size(); i++) {
-    auto& function_table = test_module_.function_tables[i];
-    signature_maps.push_back(&function_table.map);
-  }
-  return {&test_module_,  function_tables_, signature_tables_,
-          signature_maps, function_code_,   Handle<Code>::null()};
+  return {&test_module_, function_tables_, signature_tables_, function_code_,
+          Handle<Code>::null()};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {

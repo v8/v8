@@ -59,12 +59,7 @@ struct ModuleEnv {
   // (the same length as module.function_tables)
   //  We use the address to a global handle to the FixedArray.
   const std::vector<Address> signature_tables;
-  // Signature maps canonicalize {FunctionSig*} to indexes. New entries can be
-  // added to a signature map during graph building.
-  // Normally, these signature maps correspond to the signature maps in the
-  // function tables stored in the {module}.
-  const std::vector<wasm::SignatureMap*> signature_maps;
-  // Contains the code objects to call for each indirect call.
+  // Contains the code objects to call for each direct call.
   // (the same length as module.functions)
   const std::vector<Handle<Code>> function_code;
   // If the default code is not a null handle, always use it for direct calls.

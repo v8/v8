@@ -2301,13 +2301,12 @@ class ThreadImpl {
       if (!code) return {ExternalCallResult::INVALID_FUNC};
       if (code->function->sig_index != sig_index) {
         // If not an exact match, we have to do a canonical check.
-        // TODO(titzer): make this faster with some kind of caching?
-        const WasmIndirectFunctionTable* table =
-            &module()->function_tables[table_index];
-        int function_key = table->map.Find(code->function->sig);
-        if (function_key < 0 ||
-            (function_key !=
-             table->map.Find(module()->signatures[sig_index]))) {
+        int function_canonical_id =
+            module()->signature_ids[code->function->sig_index];
+        int expected_canonical_id = module()->signature_ids[sig_index];
+        DCHECK_EQ(function_canonical_id,
+                  module()->signature_map.Find(code->function->sig));
+        if (function_canonical_id != expected_canonical_id) {
           return {ExternalCallResult::SIGNATURE_MISMATCH};
         }
       }
@@ -2325,11 +2324,9 @@ class ThreadImpl {
       // changes to the tables.
 
       // Canonicalize signature index.
-      // TODO(titzer): make this faster with some kind of caching?
-      const WasmIndirectFunctionTable* table =
-          &module()->function_tables[table_index];
-      FunctionSig* sig = module()->signatures[sig_index];
-      uint32_t canonical_sig_index = table->map.Find(sig);
+      uint32_t canonical_sig_index = module()->signature_ids[sig_index];
+      DCHECK_EQ(canonical_sig_index,
+                module()->signature_map.Find(module()->signatures[sig_index]));
 
       // Check signature.
       FixedArray* sig_tables = compiled_module->ptr_to_signature_tables();

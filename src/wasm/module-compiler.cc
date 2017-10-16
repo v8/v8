@@ -699,7 +699,6 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
 
   std::vector<GlobalHandleAddress> function_tables;
   std::vector<GlobalHandleAddress> signature_tables;
-  std::vector<SignatureMap*> signature_maps;
 
   int num_function_tables = static_cast<int>(module->function_tables.size());
   for (int i = 0; i < num_function_tables; ++i) {
@@ -709,7 +708,6 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
     // TODO(clemensh): defer these handles for concurrent compilation.
     function_tables.push_back(WasmCompiledModule::GetTableValue(ft, i));
     signature_tables.push_back(WasmCompiledModule::GetTableValue(st, i));
-    signature_maps.push_back(&module->function_tables[i].map);
   }
 
   std::vector<Handle<Code>> empty_code;
@@ -717,7 +715,6 @@ compiler::ModuleEnv CreateModuleEnvFromCompiledModule(
   compiler::ModuleEnv result = {module,            // --
                                 function_tables,   // --
                                 signature_tables,  // --
-                                signature_maps,    // --
                                 empty_code,        // --
                                 BUILTIN_CODE(isolate, WasmCompileLazy)};
   return result;
@@ -1405,7 +1402,6 @@ std::unique_ptr<compiler::ModuleEnv> CreateDefaultModuleEnv(
     Isolate* isolate, WasmModule* module, Handle<Code> illegal_builtin) {
   std::vector<GlobalHandleAddress> function_tables;
   std::vector<GlobalHandleAddress> signature_tables;
-  std::vector<SignatureMap*> signature_maps;
 
   for (size_t i = 0; i < module->function_tables.size(); i++) {
     Handle<Object> func_table =
@@ -1420,7 +1416,6 @@ std::unique_ptr<compiler::ModuleEnv> CreateDefaultModuleEnv(
                             v8::WeakCallbackType::kFinalizer);
     function_tables.push_back(func_table.address());
     signature_tables.push_back(sig_table.address());
-    signature_maps.push_back(&module->function_tables[i].map);
   }
 
   std::vector<Handle<Code>> empty_code;
@@ -1429,7 +1424,6 @@ std::unique_ptr<compiler::ModuleEnv> CreateDefaultModuleEnv(
       module,            // --
       function_tables,   // --
       signature_tables,  // --
-      signature_maps,    // --
       empty_code,        // --
       illegal_builtin    // --
   };
@@ -2321,12 +2315,15 @@ int InstanceBuilder::ProcessImports(Handle<FixedArray> code_table,
                                 index, i);
             return -1;
           }
+          // Look up the signature's canonical id. If there is no canonical
+          // id, then the signature does not appear at all in this module,
+          // so putting {-1} in the table will cause checks to always fail.
           auto target = Handle<WasmExportedFunction>::cast(val);
           FunctionSig* sig = nullptr;
           Handle<Code> code =
               MakeWasmToWasmWrapper(isolate_, target, nullptr, &sig,
                                     &imported_wasm_instances, instance);
-          int sig_index = table.map.FindOrInsert(sig);
+          int sig_index = module_->signature_map.Find(sig);
           table_instance.signature_table->set(i, Smi::FromInt(sig_index));
           table_instance.function_table->set(i, *code);
         }
@@ -2763,7 +2760,6 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
                                         Handle<WasmInstanceObject> instance) {
   int function_table_count = static_cast<int>(module_->function_tables.size());
   for (int index = 0; index < function_table_count; ++index) {
-    WasmIndirectFunctionTable& table = module_->function_tables[index];
     TableInstance& table_instance = table_instances_[index];
 
     Handle<FixedArray> all_dispatch_tables;
@@ -2801,8 +2797,7 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
         uint32_t func_index = table_init.entries[i];
         WasmFunction* function = &module_->functions[func_index];
         int table_index = static_cast<int>(i + base);
-        int32_t sig_index = table.map.Find(function->sig);
-        DCHECK_GE(sig_index, 0);
+        uint32_t sig_index = module_->signature_ids[function->sig_index];
         table_instance.signature_table->set(table_index,
                                             Smi::FromInt(sig_index));
         Handle<Code> wasm_code = EnsureTableExportLazyDeoptData(

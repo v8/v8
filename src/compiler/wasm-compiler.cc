@@ -2415,10 +2415,11 @@ Node* WasmGraphBuilder::CallIndirect(uint32_t sig_index, Node** args,
                                           Int32Constant(kPointerSizeLog2)),
                          Int32Constant(fixed_offset)),
         *effect_, *control_);
-    auto map = env_->signature_maps[table_index];
-    Node* sig_match = graph()->NewNode(
-        machine->WordEqual(), load_sig,
-        jsgraph()->SmiConstant(static_cast<int>(map->FindOrInsert(sig))));
+    int32_t canonical_sig_num = env_->module->signature_ids[sig_index];
+    CHECK_GE(sig_index, 0);
+    Node* sig_match =
+        graph()->NewNode(machine->WordEqual(), load_sig,
+                         jsgraph()->SmiConstant(canonical_sig_num));
     TrapIfFalse(wasm::kTrapFuncSigMismatch, sig_match, position);
   }
 
@@ -4206,12 +4207,11 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
 
   // TODO(titzer): compile JS to WASM wrappers without a {ModuleEnv}.
   ModuleEnv env = {
-      module,                              // module itself
-      std::vector<Address>(),              // function_tables
-      std::vector<Address>(),              // signature_tables
-      std::vector<wasm::SignatureMap*>(),  // signature_maps
-      std::vector<Handle<Code>>(),         // function_code
-      BUILTIN_CODE(isolate, Illegal)       // default_function_code
+      module,
+      std::vector<Address>(),         // function_tables
+      std::vector<Address>(),         // signature_tables
+      std::vector<Handle<Code>>(),    // function_code
+      BUILTIN_CODE(isolate, Illegal)  // default_function_code
   };
 
   WasmGraphBuilder builder(&env, &zone, &jsgraph,
@@ -4595,7 +4595,6 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
     size_t tables_size = env_->module->function_tables.size();
     DCHECK_EQ(tables_size, env_->function_tables.size());
     DCHECK_EQ(tables_size, env_->signature_tables.size());
-    DCHECK_EQ(tables_size, env_->signature_maps.size());
   }
 #endif
 
