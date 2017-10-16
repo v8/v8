@@ -51,7 +51,6 @@ struct FieldAccess {
 };
 
 V8_EXPORT_PRIVATE bool operator==(FieldAccess const&, FieldAccess const&);
-bool operator!=(FieldAccess const&, FieldAccess const&);
 
 size_t hash_value(FieldAccess const&);
 
@@ -78,7 +77,6 @@ struct ElementAccess {
 };
 
 V8_EXPORT_PRIVATE bool operator==(ElementAccess const&, ElementAccess const&);
-bool operator!=(ElementAccess const&, ElementAccess const&);
 
 size_t hash_value(ElementAccess const&);
 
@@ -149,7 +147,6 @@ class CheckMapsParameters final {
 };
 
 bool operator==(CheckMapsParameters const&, CheckMapsParameters const&);
-bool operator!=(CheckMapsParameters const&, CheckMapsParameters const&);
 
 size_t hash_value(CheckMapsParameters const&);
 
@@ -198,7 +195,6 @@ class ElementsTransition final {
 };
 
 bool operator==(ElementsTransition const&, ElementsTransition const&);
-bool operator!=(ElementsTransition const&, ElementsTransition const&);
 
 size_t hash_value(ElementsTransition);
 
@@ -253,7 +249,6 @@ size_t hash_value(AllocateParameters);
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream&, AllocateParameters);
 
 bool operator==(AllocateParameters const&, AllocateParameters const&);
-bool operator!=(AllocateParameters const&, AllocateParameters const&);
 
 PretenureFlag PretenureFlagOf(const Operator* op) WARN_UNUSED_RESULT;
 

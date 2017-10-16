@@ -40,12 +40,6 @@ bool operator==(FieldAccess const& lhs, FieldAccess const& rhs) {
          lhs.machine_type == rhs.machine_type;
 }
 
-
-bool operator!=(FieldAccess const& lhs, FieldAccess const& rhs) {
-  return !(lhs == rhs);
-}
-
-
 size_t hash_value(FieldAccess const& access) {
   // On purpose we don't include the write barrier kind here, as this method is
   // really only relevant for eliminating loads and they don't care about the
@@ -91,12 +85,6 @@ bool operator==(ElementAccess const& lhs, ElementAccess const& rhs) {
          lhs.header_size == rhs.header_size &&
          lhs.machine_type == rhs.machine_type;
 }
-
-
-bool operator!=(ElementAccess const& lhs, ElementAccess const& rhs) {
-  return !(lhs == rhs);
-}
-
 
 size_t hash_value(ElementAccess const& access) {
   // On purpose we don't include the write barrier kind here, as this method is
@@ -192,11 +180,6 @@ bool operator==(CheckMapsParameters const& lhs,
   return lhs.flags() == rhs.flags() && lhs.maps() == rhs.maps();
 }
 
-bool operator!=(CheckMapsParameters const& lhs,
-                CheckMapsParameters const& rhs) {
-  return !(lhs == rhs);
-}
-
 size_t hash_value(CheckMapsParameters const& p) {
   return base::hash_combine(p.flags(), p.maps());
 }
@@ -259,10 +242,6 @@ bool operator==(ElementsTransition const& lhs, ElementsTransition const& rhs) {
   return lhs.mode() == rhs.mode() &&
          lhs.source().address() == rhs.source().address() &&
          lhs.target().address() == rhs.target().address();
-}
-
-bool operator!=(ElementsTransition const& lhs, ElementsTransition const& rhs) {
-  return !(lhs == rhs);
 }
 
 size_t hash_value(ElementsTransition transition) {
@@ -481,10 +460,6 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
 
 bool operator==(AllocateParameters const& lhs, AllocateParameters const& rhs) {
   return lhs.pretenure() == rhs.pretenure() && lhs.type() == rhs.type();
-}
-
-bool operator!=(AllocateParameters const& lhs, AllocateParameters const& rhs) {
-  return !(lhs == rhs);
 }
 
 PretenureFlag PretenureFlagOf(const Operator* op) {
