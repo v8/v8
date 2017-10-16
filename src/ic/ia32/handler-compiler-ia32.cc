@@ -426,7 +426,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   }
   __ Push(name);
   __ push(value());
-  __ push(Immediate(Smi::FromInt(language_mode)));
+  __ push(Immediate(Smi::FromEnum(language_mode)));
   __ push(scratch1());  // restore return address
 
   // Do tail-call to the runtime system.

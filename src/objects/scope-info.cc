@@ -299,7 +299,8 @@ Handle<ScopeInfo> ScopeInfo::CreateForWithScope(
   // Encode the flags.
   int flags =
       ScopeTypeField::encode(WITH_SCOPE) | CallsSloppyEvalField::encode(false) |
-      LanguageModeField::encode(SLOPPY) | DeclarationScopeField::encode(false) |
+      LanguageModeField::encode(LanguageMode::kSloppy) |
+      DeclarationScopeField::encode(false) |
       ReceiverVariableField::encode(NONE) | HasNewTargetField::encode(false) |
       FunctionVariableField::encode(NONE) | AsmModuleField::encode(false) |
       HasSimpleParametersField::encode(true) |
@@ -352,7 +353,7 @@ Handle<ScopeInfo> ScopeInfo::CreateGlobalThisBinding(Isolate* isolate) {
   // Encode the flags.
   int flags = ScopeTypeField::encode(SCRIPT_SCOPE) |
               CallsSloppyEvalField::encode(false) |
-              LanguageModeField::encode(SLOPPY) |
+              LanguageModeField::encode(LanguageMode::kSloppy) |
               DeclarationScopeField::encode(true) |
               ReceiverVariableField::encode(receiver_info) |
               FunctionVariableField::encode(function_name_info) |
@@ -413,7 +414,8 @@ bool ScopeInfo::CallsSloppyEval() {
 }
 
 LanguageMode ScopeInfo::language_mode() {
-  return length() > 0 ? LanguageModeField::decode(Flags()) : SLOPPY;
+  return length() > 0 ? LanguageModeField::decode(Flags())
+                      : LanguageMode::kSloppy;
 }
 
 bool ScopeInfo::is_declaration_scope() {

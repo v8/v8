@@ -2396,7 +2396,7 @@ ParserBase<Impl>::ParseClassFieldForInitializer(bool has_initializer,
   initializer_scope->set_start_position(scanner()->location().end_pos);
   FunctionState initializer_state(&function_state_, &scope_, initializer_scope);
   DCHECK_EQ(initializer_scope, scope());
-  scope()->SetLanguageMode(STRICT);
+  scope()->SetLanguageMode(LanguageMode::kStrict);
   ExpressionClassifier expression_classifier(this);
   ExpressionT value;
   if (has_initializer) {
@@ -4417,7 +4417,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
 
   Scope* block_scope = NewScope(BLOCK_SCOPE);
   BlockState block_state(&scope_, block_scope);
-  RaiseLanguageMode(STRICT);
+  RaiseLanguageMode(LanguageMode::kStrict);
 
   ClassInfo class_info(this);
   class_info.is_anonymous = is_anonymous;
@@ -4773,7 +4773,7 @@ ParserBase<Impl>::ParseStatementList(StatementListT body, int end_token,
       if (impl()->IsUseStrictDirective(stat) &&
           token_loc.end_pos - token_loc.beg_pos == sizeof("use strict") + 1) {
         // Directive "use strict" (ES5 14.1).
-        RaiseLanguageMode(STRICT);
+        RaiseLanguageMode(LanguageMode::kStrict);
         if (!scope()->HasSimpleParameters()) {
           // TC39 deemed "use strict" directives to be an error when occurring
           // in the body of a function with non-simple parameter list, on
@@ -4793,14 +4793,14 @@ ParserBase<Impl>::ParseStatementList(StatementListT body, int end_token,
         // Possibly an unknown directive.
         // Should not change mode, but will increment usage counters
         // as appropriate. Ditto usages below.
-        RaiseLanguageMode(SLOPPY);
+        RaiseLanguageMode(LanguageMode::kSloppy);
       } else {
         // End of the directive prologue.
         directive_prologue = false;
-        RaiseLanguageMode(SLOPPY);
+        RaiseLanguageMode(LanguageMode::kSloppy);
       }
     } else {
-      RaiseLanguageMode(SLOPPY);
+      RaiseLanguageMode(LanguageMode::kSloppy);
     }
 
     // If we're allowed to abort, we will do so when we see a "long and

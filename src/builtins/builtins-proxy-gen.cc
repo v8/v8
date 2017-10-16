@@ -441,7 +441,9 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   BIND(&failure);
   {
     Label if_throw(this, Label::kDeferred);
-    Branch(SmiEqual(language_mode, SmiConstant(STRICT)), &if_throw, &success);
+    Branch(SmiEqual(language_mode,
+                    SmiConstant(Smi::FromEnum(LanguageMode::kStrict))),
+           &if_throw, &success);
 
     BIND(&if_throw);
     ThrowTypeError(context, MessageTemplate::kProxyTrapReturnedFalsishFor,
@@ -456,8 +458,9 @@ TF_BUILTIN(ProxySetProperty, ProxiesCodeStubAssembler) {
   {
     Label failure(this), throw_error(this, Label::kDeferred);
 
-    Branch(SmiEqual(language_mode, SmiConstant(STRICT)), &throw_error,
-           &failure);
+    Branch(SmiEqual(language_mode,
+                    SmiConstant(Smi::FromEnum(LanguageMode::kStrict))),
+           &throw_error, &failure);
 
     BIND(&failure);
     Return(UndefinedConstant());

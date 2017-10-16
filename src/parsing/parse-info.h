@@ -215,7 +215,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     return construct_language_mode(is_strict_mode());
   }
   void set_language_mode(LanguageMode language_mode) {
-    STATIC_ASSERT(LANGUAGE_END == 2);
+    STATIC_ASSERT(LanguageModeSize == 2);
     set_strict_mode(is_strict(language_mode));
   }
 

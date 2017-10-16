@@ -712,10 +712,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(const AstRawString* name,
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreGlobal(
     const AstRawString* name, int feedback_slot, LanguageMode language_mode) {
   size_t name_index = GetConstantPoolEntry(name);
-  if (language_mode == SLOPPY) {
+  if (language_mode == LanguageMode::kSloppy) {
     OutputStaGlobalSloppy(name_index, feedback_slot);
   } else {
-    DCHECK_EQ(language_mode, STRICT);
+    DCHECK_EQ(language_mode, LanguageMode::kStrict);
     OutputStaGlobalStrict(name_index, feedback_slot);
   }
   return *this;
@@ -1433,10 +1433,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallJSRuntime(int context_index,
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::Delete(Register object,
                                                    LanguageMode language_mode) {
-  if (language_mode == SLOPPY) {
+  if (language_mode == LanguageMode::kSloppy) {
     OutputDeletePropertySloppy(object);
   } else {
-    DCHECK_EQ(language_mode, STRICT);
+    DCHECK_EQ(language_mode, LanguageMode::kStrict);
     OutputDeletePropertyStrict(object);
   }
   return *this;

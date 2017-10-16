@@ -78,7 +78,7 @@ TestTypeOfFlags::LiteralFlag TestTypeOfFlags::Decode(uint8_t raw_flag) {
 uint8_t StoreLookupSlotFlags::Encode(LanguageMode language_mode,
                                      LookupHoistingMode lookup_hoisting_mode) {
   DCHECK_IMPLIES(lookup_hoisting_mode == LookupHoistingMode::kLegacySloppy,
-                 language_mode == SLOPPY);
+                 language_mode == LanguageMode::kSloppy);
   return LanguageModeBit::encode(language_mode) |
          LookupHoistingModeBit::encode(static_cast<bool>(lookup_hoisting_mode));
 }

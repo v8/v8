@@ -412,7 +412,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     __ mov(scratch, Operand(name));
     __ Push(scratch, value());
   }
-  __ Push(Smi::FromInt(language_mode));
+  __ Push(Smi::FromEnum(language_mode));
 
   // Do tail-call to the runtime system.
   __ TailCallRuntime(Runtime::kStoreCallbackProperty);

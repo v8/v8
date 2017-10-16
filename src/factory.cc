@@ -1645,7 +1645,8 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
                                         InstanceType type,
                                         int instance_size) {
   DCHECK(isolate()->bootstrapper()->IsActive());
-  return NewFunction(name, code, the_hole_value(), type, instance_size, STRICT);
+  return NewFunction(name, code, the_hole_value(), type, instance_size,
+                     LanguageMode::kStrict);
 }
 
 
@@ -2783,9 +2784,11 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
   DCHECK(!isolate()->has_pending_exception());
   Handle<JSObject> result = NewJSObjectFromMap(map);
   Handle<Smi> value(Smi::FromInt(length), isolate());
-  Object::SetProperty(result, length_string(), value, STRICT).Assert();
+  Object::SetProperty(result, length_string(), value, LanguageMode::kStrict)
+      .Assert();
   if (!strict_mode_callee) {
-    Object::SetProperty(result, callee_string(), callee, STRICT).Assert();
+    Object::SetProperty(result, callee_string(), callee, LanguageMode::kStrict)
+        .Assert();
   }
   return result;
 }

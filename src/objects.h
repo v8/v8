@@ -2059,15 +2059,15 @@ class JSReceiver: public HeapObject {
   // Implementation of ES6 [[Delete]]
   MUST_USE_RESULT static Maybe<bool> DeletePropertyOrElement(
       Handle<JSReceiver> object, Handle<Name> name,
-      LanguageMode language_mode = SLOPPY);
+      LanguageMode language_mode = LanguageMode::kSloppy);
   MUST_USE_RESULT static Maybe<bool> DeleteProperty(
       Handle<JSReceiver> object, Handle<Name> name,
-      LanguageMode language_mode = SLOPPY);
+      LanguageMode language_mode = LanguageMode::kSloppy);
   MUST_USE_RESULT static Maybe<bool> DeleteProperty(LookupIterator* it,
                                                     LanguageMode language_mode);
   MUST_USE_RESULT static Maybe<bool> DeleteElement(
       Handle<JSReceiver> object, uint32_t index,
-      LanguageMode language_mode = SLOPPY);
+      LanguageMode language_mode = LanguageMode::kSloppy);
 
   MUST_USE_RESULT static Object* DefineProperty(Isolate* isolate,
                                                 Handle<Object> object,
@@ -5068,7 +5068,7 @@ class JSProxy: public JSReceiver {
                                                  Handle<Object> receiver,
                                                  LanguageMode language_mode);
 
-  // ES6 9.5.10 (when passed SLOPPY)
+  // ES6 9.5.10 (when passed LanguageMode::kSloppy)
   MUST_USE_RESULT static Maybe<bool> DeletePropertyOrElement(
       Handle<JSProxy> proxy, Handle<Name> name, LanguageMode language_mode);
 

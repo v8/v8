@@ -802,11 +802,11 @@ RUNTIME_FUNCTION(Runtime_GetExceptionDetails) {
 
   key = factory->NewStringFromAsciiChecked("start_pos");
   value = handle(Smi::FromInt(message_obj->start_position()), isolate);
-  JSObject::SetProperty(message, key, value, STRICT).Assert();
+  JSObject::SetProperty(message, key, value, LanguageMode::kStrict).Assert();
 
   key = factory->NewStringFromAsciiChecked("end_pos");
   value = handle(Smi::FromInt(message_obj->end_position()), isolate);
-  JSObject::SetProperty(message, key, value, STRICT).Assert();
+  JSObject::SetProperty(message, key, value, LanguageMode::kStrict).Assert();
 
   return *message;
 }

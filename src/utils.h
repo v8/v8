@@ -298,9 +298,10 @@ class BitFieldBase {
   static const U kShift = shift;
   static const U kSize = size;
   static const U kNext = kShift + kSize;
+  static const U kNumValues = kOne << size;
 
   // Value for the field with all bits set.
-  static const T kMax = static_cast<T>((kOne << size) - 1);
+  static const T kMax = static_cast<T>(kNumValues - 1);
 
   // Tells whether the provided value fits into the bit field.
   static constexpr bool is_valid(T value) {

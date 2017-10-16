@@ -1987,7 +1987,7 @@ void BytecodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
           VisitForRegisterValue(property->value(), args[2]);
           if (property->emit_store()) {
             builder()
-                ->LoadLiteral(Smi::FromInt(SLOPPY))
+                ->LoadLiteral(Smi::FromEnum(LanguageMode::kSloppy))
                 .StoreAccumulatorInRegister(args[3])
                 .CallRuntime(Runtime::kSetProperty, args);
             Register value = args[2];
@@ -3302,7 +3302,7 @@ void BytecodeGenerator::VisitCall(Call* expr) {
         ->MoveRegister(callee, runtime_call_args[0])
         .MoveRegister(first_arg, runtime_call_args[1])
         .MoveRegister(Register::function_closure(), runtime_call_args[2])
-        .LoadLiteral(Smi::FromInt(language_mode()))
+        .LoadLiteral(Smi::FromEnum(language_mode()))
         .StoreAccumulatorInRegister(runtime_call_args[3])
         .LoadLiteral(Smi::FromInt(current_scope()->start_position()))
         .StoreAccumulatorInRegister(runtime_call_args[4])

@@ -2239,8 +2239,9 @@ MUST_USE_RESULT Maybe<bool> FastAssign(
 
     if (use_set) {
       LookupIterator it(target, next_key, target);
-      Maybe<bool> result = Object::SetProperty(
-          &it, prop_value, STRICT, Object::CERTAINLY_NOT_STORE_FROM_KEYED);
+      Maybe<bool> result =
+          Object::SetProperty(&it, prop_value, LanguageMode::kStrict,
+                              Object::CERTAINLY_NOT_STORE_FROM_KEYED);
       if (result.IsNothing()) return result;
       if (stable) stable = from->map() == *map;
     } else {
@@ -2302,8 +2303,9 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
         // 4c ii 2. Let status be ? Set(to, nextKey, propValue, true).
         Handle<Object> status;
         ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-            isolate, status, Runtime::SetObjectProperty(
-                                 isolate, target, next_key, prop_value, STRICT),
+            isolate, status,
+            Runtime::SetObjectProperty(isolate, target, next_key, prop_value,
+                                       LanguageMode::kStrict),
             Nothing<bool>());
       } else {
         if (excluded_properties != nullptr &&
@@ -9478,8 +9480,8 @@ Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
   Handle<Map> function_map(Map::cast(
       isolate->native_context()->get(shared_info->function_map_index())));
 
-  STATIC_ASSERT(LANGUAGE_END == 2);
-  DCHECK_EQ(STRICT, shared_info->language_mode());
+  STATIC_ASSERT(LanguageModeSize == 2);
+  DCHECK_EQ(LanguageMode::kStrict, shared_info->language_mode());
   Handle<Symbol> transition_symbol =
       isolate->factory()->strict_function_transition_symbol();
   Map* maybe_transition =
@@ -15768,7 +15770,7 @@ class StringSharedKey : public HashTableKey {
     Handle<FixedArray> array = isolate->factory()->NewFixedArray(4);
     array->set(0, *shared_);
     array->set(1, *source_);
-    array->set(2, Smi::FromInt(language_mode_));
+    array->set(2, Smi::FromEnum(language_mode_));
     array->set(3, Smi::FromInt(position_));
     array->set_map(isolate->heap()->fixed_cow_array_map());
     return array;
@@ -15978,10 +15980,12 @@ MaybeHandle<JSRegExp> JSRegExp::Initialize(Handle<JSRegExp> regexp,
                                   SKIP_WRITE_BARRIER);
   } else {
     // Map has changed, so use generic, but slower, method.
-    RETURN_ON_EXCEPTION(isolate, JSReceiver::SetProperty(
-                                     regexp, factory->lastIndex_string(),
-                                     Handle<Smi>(Smi::kZero, isolate), STRICT),
-                        JSRegExp);
+    RETURN_ON_EXCEPTION(
+        isolate,
+        JSReceiver::SetProperty(regexp, factory->lastIndex_string(),
+                                Handle<Smi>(Smi::kZero, isolate),
+                                LanguageMode::kStrict),
+        JSRegExp);
   }
 
   return regexp;

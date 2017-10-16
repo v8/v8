@@ -620,14 +620,14 @@ class V8_EXPORT_PRIVATE Factory final {
                                  Handle<SharedFunctionInfo> info,
                                  Handle<Object> context_or_undefined,
                                  PretenureFlag pretenure = TENURED);
-  Handle<JSFunction> NewFunction(Handle<String> name, Handle<Code> code,
-                                 Handle<Object> prototype,
-                                 LanguageMode language_mode = SLOPPY,
-                                 MutableMode prototype_mutability = MUTABLE);
+  Handle<JSFunction> NewFunction(
+      Handle<String> name, Handle<Code> code, Handle<Object> prototype,
+      LanguageMode language_mode = LanguageMode::kSloppy,
+      MutableMode prototype_mutability = MUTABLE);
   Handle<JSFunction> NewFunction(Handle<String> name);
   Handle<JSFunction> NewFunctionWithoutPrototype(
       Handle<String> name, Handle<Code> code,
-      LanguageMode language_mode = SLOPPY);
+      LanguageMode language_mode = LanguageMode::kSloppy);
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
@@ -646,11 +646,11 @@ class V8_EXPORT_PRIVATE Factory final {
       Handle<SharedFunctionInfo> function_info, Handle<Context> context,
       PretenureFlag pretenure = TENURED);
 
-  Handle<JSFunction> NewFunction(Handle<String> name, Handle<Code> code,
-                                 Handle<Object> prototype, InstanceType type,
-                                 int instance_size,
-                                 LanguageMode language_mode = SLOPPY,
-                                 MutableMode prototype_mutability = MUTABLE);
+  Handle<JSFunction> NewFunction(
+      Handle<String> name, Handle<Code> code, Handle<Object> prototype,
+      InstanceType type, int instance_size,
+      LanguageMode language_mode = LanguageMode::kSloppy,
+      MutableMode prototype_mutability = MUTABLE);
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Code> code,
                                  InstanceType type,

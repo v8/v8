@@ -312,7 +312,7 @@ MaybeHandle<Object> TypedArraySetFromArrayLike(Isolate* isolate,
                                Object::GetElement(isolate, source, i), Object);
     ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
                                Object::SetElement(isolate, target, offset + i,
-                                                  value, LanguageMode::STRICT),
+                                                  value, LanguageMode::kStrict),
                                Object);
   }
 
@@ -353,7 +353,7 @@ MaybeHandle<Object> TypedArraySetFromOverlapping(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, value,
         Object::SetElement(isolate, target, offset + left_index, value,
-                           LanguageMode::STRICT),
+                           LanguageMode::kStrict),
         Object);
 
     target_ptr += targetElementSize;
@@ -381,7 +381,7 @@ MaybeHandle<Object> TypedArraySetFromOverlapping(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, value,
         Object::SetElement(isolate, target, offset + right_index, value,
-                           LanguageMode::STRICT),
+                           LanguageMode::kStrict),
         Object);
 
     target_ptr -= targetElementSize;
@@ -403,7 +403,7 @@ MaybeHandle<Object> TypedArraySetFromOverlapping(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, value,
         Object::SetElement(isolate, target, offset + i, temp[i - left_index],
-                           LanguageMode::STRICT),
+                           LanguageMode::kStrict),
         Object);
   }
 

@@ -963,11 +963,11 @@ void BytecodeGraphBuilder::BuildStoreGlobal(LanguageMode language_mode) {
 }
 
 void BytecodeGraphBuilder::VisitStaGlobalSloppy() {
-  BuildStoreGlobal(LanguageMode::SLOPPY);
+  BuildStoreGlobal(LanguageMode::kSloppy);
 }
 
 void BytecodeGraphBuilder::VisitStaGlobalStrict() {
-  BuildStoreGlobal(LanguageMode::STRICT);
+  BuildStoreGlobal(LanguageMode::kStrict);
 }
 
 void BytecodeGraphBuilder::VisitStaDataPropertyInLiteral() {
@@ -2320,11 +2320,11 @@ void BytecodeGraphBuilder::BuildDelete(LanguageMode language_mode) {
 }
 
 void BytecodeGraphBuilder::VisitDeletePropertyStrict() {
-  BuildDelete(LanguageMode::STRICT);
+  BuildDelete(LanguageMode::kStrict);
 }
 
 void BytecodeGraphBuilder::VisitDeletePropertySloppy() {
-  BuildDelete(LanguageMode::SLOPPY);
+  BuildDelete(LanguageMode::kSloppy);
 }
 
 void BytecodeGraphBuilder::VisitGetSuperConstructor() {

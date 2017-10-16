@@ -23249,8 +23249,8 @@ TEST(AccessCheckThrows) {
   CheckCorrectThrow("%GetProperty(other, 'x')");
   CheckCorrectThrow("%SetProperty(other, 'x', 'foo', 0)");
   CheckCorrectThrow("%AddNamedProperty(other, 'x', 'foo', 1)");
-  STATIC_ASSERT(i::SLOPPY == 0);
-  STATIC_ASSERT(i::STRICT == 1);
+  STATIC_ASSERT(static_cast<int>(i::LanguageMode::kSloppy) == 0);
+  STATIC_ASSERT(static_cast<int>(i::LanguageMode::kStrict) == 1);
   CheckCorrectThrow("%DeleteProperty(other, 'x', 0)");  // 0 == SLOPPY
   CheckCorrectThrow("%DeleteProperty(other, 'x', 1)");  // 1 == STRICT
   CheckCorrectThrow("%DeleteProperty(other, '1', 0)");

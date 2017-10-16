@@ -305,7 +305,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
     BIND(&slow);
     CallRuntime(Runtime::kSetProperty, context(), a(), k, mapped_value,
-                SmiConstant(STRICT));
+                SmiConstant(Smi::FromEnum(LanguageMode::kStrict)));
     Goto(&done);
 
     BIND(&detached);
@@ -953,7 +953,7 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
     // TODO(danno): Use the KeyedStoreGeneric stub here when possible,
     // calling into the runtime to do the elements transition is overkill.
     CallRuntime(Runtime::kSetProperty, context, receiver, length, arg,
-                SmiConstant(STRICT));
+                SmiConstant(Smi::FromEnum(LanguageMode::kStrict)));
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
@@ -1000,7 +1000,7 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
     // TODO(danno): Use the KeyedStoreGeneric stub here when possible,
     // calling into the runtime to do the elements transition is overkill.
     CallRuntime(Runtime::kSetProperty, context, receiver, length, arg,
-                SmiConstant(STRICT));
+                SmiConstant(Smi::FromEnum(LanguageMode::kStrict)));
     Increment(&arg_index);
     // The runtime SetProperty call could have converted the array to dictionary
     // mode, which must be detected to abort the fast-path.
@@ -1020,7 +1020,7 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
         [this, receiver, context](Node* arg) {
           Node* length = LoadJSArrayLength(receiver);
           CallRuntime(Runtime::kSetProperty, context, receiver, length, arg,
-                      SmiConstant(STRICT));
+                      SmiConstant(Smi::FromEnum(LanguageMode::kStrict)));
         },
         arg_index);
     args.PopAndReturn(LoadJSArrayLength(receiver));

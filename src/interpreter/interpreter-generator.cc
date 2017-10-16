@@ -277,7 +277,8 @@ class InterpreterStoreGlobalAssembler : public InterpreterAssembler {
 // Store the value in the accumulator into the global with name in constant pool
 // entry <name_index> using FeedBackVector slot <slot> in sloppy mode.
 IGNITION_HANDLER(StaGlobalSloppy, InterpreterStoreGlobalAssembler) {
-  Callable ic = CodeFactory::StoreGlobalICInOptimizedCode(isolate(), SLOPPY);
+  Callable ic = CodeFactory::StoreGlobalICInOptimizedCode(
+      isolate(), LanguageMode::kSloppy);
   StaGlobal(ic);
 }
 
@@ -286,7 +287,8 @@ IGNITION_HANDLER(StaGlobalSloppy, InterpreterStoreGlobalAssembler) {
 // Store the value in the accumulator into the global with name in constant pool
 // entry <name_index> using FeedBackVector slot <slot> in strict mode.
 IGNITION_HANDLER(StaGlobalStrict, InterpreterStoreGlobalAssembler) {
-  Callable ic = CodeFactory::StoreGlobalICInOptimizedCode(isolate(), STRICT);
+  Callable ic = CodeFactory::StoreGlobalICInOptimizedCode(
+      isolate(), LanguageMode::kStrict);
   StaGlobal(ic);
 }
 
@@ -511,8 +513,8 @@ IGNITION_HANDLER(StaLookupSlot, InterpreterAssembler) {
   Variable var_result(this, MachineRepresentation::kTagged);
 
   Label sloppy(this), strict(this), end(this);
-  DCHECK_EQ(0, SLOPPY);
-  DCHECK_EQ(1, STRICT);
+  DCHECK_EQ(0, LanguageMode::kSloppy);
+  DCHECK_EQ(1, LanguageMode::kStrict);
   DCHECK_EQ(0, static_cast<int>(LookupHoistingMode::kNormal));
   DCHECK_EQ(1, static_cast<int>(LookupHoistingMode::kLegacySloppy));
   Branch(IsSetWord32<StoreLookupSlotFlags::LanguageModeBit>(bytecode_flags),
@@ -1481,7 +1483,7 @@ IGNITION_HANDLER(DeletePropertyStrict, InterpreterAssembler) {
   Node* key = GetAccumulator();
   Node* context = GetContext();
   Node* result = CallBuiltin(Builtins::kDeleteProperty, context, object, key,
-                             SmiConstant(STRICT));
+                             SmiConstant(Smi::FromEnum(LanguageMode::kStrict)));
   SetAccumulator(result);
   Dispatch();
 }
@@ -1496,7 +1498,7 @@ IGNITION_HANDLER(DeletePropertySloppy, InterpreterAssembler) {
   Node* key = GetAccumulator();
   Node* context = GetContext();
   Node* result = CallBuiltin(Builtins::kDeleteProperty, context, object, key,
-                             SmiConstant(SLOPPY));
+                             SmiConstant(Smi::FromEnum(LanguageMode::kSloppy)));
   SetAccumulator(result);
   Dispatch();
 }

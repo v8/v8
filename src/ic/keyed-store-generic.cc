@@ -1008,10 +1008,10 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric() {
   {
     Comment("KeyedStoreGeneric_slow");
     VARIABLE(var_language_mode, MachineRepresentation::kTaggedSigned,
-             SmiConstant(STRICT));
+             SmiConstant(Smi::FromEnum(LanguageMode::kStrict)));
     Label call_runtime(this);
     BranchIfStrictMode(vector, slot, &call_runtime);
-    var_language_mode.Bind(SmiConstant(SLOPPY));
+    var_language_mode.Bind(SmiConstant(Smi::FromEnum(LanguageMode::kSloppy)));
     Goto(&call_runtime);
     BIND(&call_runtime);
     TailCallRuntime(Runtime::kSetProperty, context, receiver, name, value,

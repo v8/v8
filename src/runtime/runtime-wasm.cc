@@ -149,7 +149,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   CHECK(!JSReceiver::SetProperty(exception,
                                  isolate->factory()->InternalizeUtf8String(
                                      wasm::WasmException::kRuntimeIdStr),
-                                 id, STRICT)
+                                 id, LanguageMode::kStrict)
              .is_null());
   CONVERT_SMI_ARG_CHECKED(size, 1);
   Handle<JSTypedArray> values =
@@ -157,7 +157,7 @@ RUNTIME_FUNCTION(Runtime_WasmThrowCreate) {
   CHECK(!JSReceiver::SetProperty(exception,
                                  isolate->factory()->InternalizeUtf8String(
                                      wasm::WasmException::kRuntimeValuesStr),
-                                 values, STRICT)
+                                 values, LanguageMode::kStrict)
              .is_null());
   return isolate->heap()->undefined_value();
 }

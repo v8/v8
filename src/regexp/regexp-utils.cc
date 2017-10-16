@@ -50,7 +50,8 @@ MaybeHandle<Object> RegExpUtils::SetLastIndex(Isolate* isolate,
     return recv;
   } else {
     return Object::SetProperty(recv, isolate->factory()->lastIndex_string(),
-                               handle(Smi::FromInt(value), isolate), STRICT);
+                               handle(Smi::FromInt(value), isolate),
+                               LanguageMode::kStrict);
   }
 }
 

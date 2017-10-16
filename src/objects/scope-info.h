@@ -289,7 +289,7 @@ class ScopeInfo : public FixedArray {
   class ScopeTypeField : public BitField<ScopeType, 0, 4> {};
   class CallsSloppyEvalField : public BitField<bool, ScopeTypeField::kNext, 1> {
   };
-  STATIC_ASSERT(LANGUAGE_END == 2);
+  STATIC_ASSERT(LanguageModeSize == 2);
   class LanguageModeField
       : public BitField<LanguageMode, CallsSloppyEvalField::kNext, 1> {};
   class DeclarationScopeField

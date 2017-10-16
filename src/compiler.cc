@@ -1203,9 +1203,9 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
   int eval_scope_position = 0;
   int eval_position = kNoSourcePosition;
   Handle<SharedFunctionInfo> outer_info(native_context->closure()->shared());
-  return Compiler::GetFunctionFromEval(source, outer_info, native_context,
-                                       SLOPPY, restriction, parameters_end_pos,
-                                       eval_scope_position, eval_position);
+  return Compiler::GetFunctionFromEval(
+      source, outer_info, native_context, LanguageMode::kSloppy, restriction,
+      parameters_end_pos, eval_scope_position, eval_position);
 }
 
 MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
@@ -1333,7 +1333,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     }
 
     parse_info.set_language_mode(
-        static_cast<LanguageMode>(parse_info.language_mode() | language_mode));
+        stricter_language_mode(parse_info.language_mode(), language_mode));
     maybe_result = CompileToplevel(&parse_info, isolate);
     Handle<SharedFunctionInfo> result;
     if (extension == nullptr && maybe_result.ToHandle(&result)) {
@@ -1380,7 +1380,7 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(
 
   LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
   parse_info->set_language_mode(
-      static_cast<LanguageMode>(parse_info->language_mode() | language_mode));
+      stricter_language_mode(parse_info->language_mode(), language_mode));
 
   Handle<SharedFunctionInfo> result;
   if (CompileToplevel(parse_info, isolate).ToHandle(&result)) {

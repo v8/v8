@@ -87,7 +87,8 @@ bool JsonParseInternalizer::RecurseAndApply(Handle<JSReceiver> holder,
       isolate_, result, InternalizeJsonProperty(holder, name), false);
   Maybe<bool> change_result = Nothing<bool>();
   if (result->IsUndefined(isolate_)) {
-    change_result = JSReceiver::DeletePropertyOrElement(holder, name, SLOPPY);
+    change_result = JSReceiver::DeletePropertyOrElement(holder, name,
+                                                        LanguageMode::kSloppy);
   } else {
     PropertyDescriptor desc;
     desc.set_value(result);

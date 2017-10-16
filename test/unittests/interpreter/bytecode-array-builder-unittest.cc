@@ -85,8 +85,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   const AstRawString* name = ast_factory.GetOneByteString("var_name");
   builder.LoadGlobal(name, 1, TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadGlobal(name, 1, TypeofMode::INSIDE_TYPEOF)
-      .StoreGlobal(name, 1, LanguageMode::SLOPPY)
-      .StoreGlobal(name, 1, LanguageMode::STRICT);
+      .StoreGlobal(name, 1, LanguageMode::kSloppy)
+      .StoreGlobal(name, 1, LanguageMode::kStrict);
 
   // Emit context operations.
   builder.PushContext(reg)
@@ -108,19 +108,20 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit load / store property operations.
   builder.LoadNamedProperty(reg, name, 0)
       .LoadKeyedProperty(reg, 0)
-      .StoreNamedProperty(reg, name, 0, LanguageMode::SLOPPY)
-      .StoreKeyedProperty(reg, reg, 0, LanguageMode::SLOPPY)
-      .StoreNamedProperty(reg, name, 0, LanguageMode::STRICT)
-      .StoreKeyedProperty(reg, reg, 0, LanguageMode::STRICT)
+      .StoreNamedProperty(reg, name, 0, LanguageMode::kSloppy)
+      .StoreKeyedProperty(reg, reg, 0, LanguageMode::kSloppy)
+      .StoreNamedProperty(reg, name, 0, LanguageMode::kStrict)
+      .StoreKeyedProperty(reg, reg, 0, LanguageMode::kStrict)
       .StoreNamedOwnProperty(reg, name, 0);
 
   // Emit load / store lookup slots.
   builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadLookupSlot(name, TypeofMode::INSIDE_TYPEOF)
-      .StoreLookupSlot(name, LanguageMode::SLOPPY, LookupHoistingMode::kNormal)
-      .StoreLookupSlot(name, LanguageMode::SLOPPY,
+      .StoreLookupSlot(name, LanguageMode::kSloppy, LookupHoistingMode::kNormal)
+      .StoreLookupSlot(name, LanguageMode::kSloppy,
                        LookupHoistingMode::kLegacySloppy)
-      .StoreLookupSlot(name, LanguageMode::STRICT, LookupHoistingMode::kNormal);
+      .StoreLookupSlot(name, LanguageMode::kStrict,
+                       LookupHoistingMode::kNormal);
 
   // Emit load / store lookup slots with context fast paths.
   builder.LoadLookupContextSlot(name, TypeofMode::NOT_INSIDE_TYPEOF, 1, 0)
@@ -206,7 +207,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .TypeOf();
 
   // Emit delete
-  builder.Delete(reg, LanguageMode::SLOPPY).Delete(reg, LanguageMode::STRICT);
+  builder.Delete(reg, LanguageMode::kSloppy).Delete(reg, LanguageMode::kStrict);
 
   // Emit construct.
   builder.Construct(reg, reg_list, 1).ConstructWithSpread(reg, reg_list, 1);
@@ -319,8 +320,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.LoadGlobal(name, 1024, TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadGlobal(name, 1024, TypeofMode::INSIDE_TYPEOF)
       .LoadGlobal(name, 1024, TypeofMode::INSIDE_TYPEOF)
-      .StoreGlobal(name, 1024, LanguageMode::SLOPPY)
-      .StoreGlobal(wide_name, 1, LanguageMode::STRICT);
+      .StoreGlobal(name, 1024, LanguageMode::kSloppy)
+      .StoreGlobal(wide_name, 1, LanguageMode::kStrict);
 
   // Emit extra wide global load.
   builder.LoadGlobal(name, 1024 * 1024, TypeofMode::NOT_INSIDE_TYPEOF);
@@ -328,10 +329,10 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit wide load / store property operations.
   builder.LoadNamedProperty(reg, wide_name, 0)
       .LoadKeyedProperty(reg, 2056)
-      .StoreNamedProperty(reg, wide_name, 0, LanguageMode::SLOPPY)
-      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::SLOPPY)
-      .StoreNamedProperty(reg, wide_name, 0, LanguageMode::STRICT)
-      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::STRICT)
+      .StoreNamedProperty(reg, wide_name, 0, LanguageMode::kSloppy)
+      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::kSloppy)
+      .StoreNamedProperty(reg, wide_name, 0, LanguageMode::kStrict)
+      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::kStrict)
       .StoreNamedOwnProperty(reg, wide_name, 0);
 
   builder.StoreDataPropertyInLiteral(reg, reg,
@@ -344,11 +345,11 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit wide load / store lookup slots.
   builder.LoadLookupSlot(wide_name, TypeofMode::NOT_INSIDE_TYPEOF)
       .LoadLookupSlot(wide_name, TypeofMode::INSIDE_TYPEOF)
-      .StoreLookupSlot(wide_name, LanguageMode::SLOPPY,
+      .StoreLookupSlot(wide_name, LanguageMode::kSloppy,
                        LookupHoistingMode::kNormal)
-      .StoreLookupSlot(wide_name, LanguageMode::SLOPPY,
+      .StoreLookupSlot(wide_name, LanguageMode::kSloppy,
                        LookupHoistingMode::kLegacySloppy)
-      .StoreLookupSlot(wide_name, LanguageMode::STRICT,
+      .StoreLookupSlot(wide_name, LanguageMode::kStrict,
                        LookupHoistingMode::kNormal);
 
   // CreateClosureWide

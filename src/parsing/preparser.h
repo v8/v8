@@ -1160,7 +1160,7 @@ class PreParser : public ParserBase<PreParser> {
       FunctionKind kind = has_extends ? FunctionKind::kDefaultDerivedConstructor
                                       : FunctionKind::kDefaultBaseConstructor;
       DeclarationScope* function_scope = NewFunctionScope(kind);
-      SetLanguageMode(function_scope, STRICT);
+      SetLanguageMode(function_scope, LanguageMode::kStrict);
       function_scope->set_start_position(pos);
       function_scope->set_end_position(pos);
       FunctionState function_state(&function_state_, &scope_, function_scope);

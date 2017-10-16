@@ -386,7 +386,9 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   ScopeType scope_type() const { return scope_type_; }
 
   // The language mode of this scope.
-  LanguageMode language_mode() const { return is_strict_ ? STRICT : SLOPPY; }
+  LanguageMode language_mode() const {
+    return is_strict_ ? LanguageMode::kStrict : LanguageMode::kSloppy;
+  }
 
   // inner_scope() and sibling() together implement the inner scope list of a
   // scope. Inner scope points to the an inner scope of the function, and
@@ -565,7 +567,7 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // Scope-specific information computed during parsing.
   //
   // The language mode of this scope.
-  STATIC_ASSERT(LANGUAGE_END == 2);
+  STATIC_ASSERT(LanguageModeSize == 2);
   bool is_strict_ : 1;
   // This scope or a nested catch scope or with scope contain an 'eval' call. At
   // the 'eval' call site this scope is the declaration scope.

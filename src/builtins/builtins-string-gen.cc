@@ -1979,7 +1979,7 @@ void StringTrimAssembler::Generate(String::TrimMode mode,
 
   BIND(&if_runtime);
   arguments.PopAndReturn(CallRuntime(Runtime::kStringTrim, context, string,
-                                     SmiConstant(static_cast<int>(mode))));
+                                     SmiConstant(Smi::FromEnum(mode))));
 
   BIND(&return_emptystring);
   arguments.PopAndReturn(EmptyStringConstant());

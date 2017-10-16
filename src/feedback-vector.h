@@ -108,7 +108,8 @@ inline LanguageMode GetLanguageModeFromSlotKind(FeedbackSlotKind kind) {
                 FeedbackSlotKind::kLastSloppyKind);
   STATIC_ASSERT(FeedbackSlotKind::kStoreNamedSloppy <=
                 FeedbackSlotKind::kLastSloppyKind);
-  return (kind <= FeedbackSlotKind::kLastSloppyKind) ? SLOPPY : STRICT;
+  return (kind <= FeedbackSlotKind::kLastSloppyKind) ? LanguageMode::kSloppy
+                                                     : LanguageMode::kStrict;
 }
 
 std::ostream& operator<<(std::ostream& os, FeedbackSlotKind kind);
@@ -307,7 +308,7 @@ class FeedbackVectorSpecBase {
   }
 
   FeedbackSlot AddStoreICSlot(LanguageMode language_mode) {
-    STATIC_ASSERT(LANGUAGE_END == 2);
+    STATIC_ASSERT(LanguageModeSize == 2);
     return AddSlot(is_strict(language_mode)
                        ? FeedbackSlotKind::kStoreNamedStrict
                        : FeedbackSlotKind::kStoreNamedSloppy);
@@ -318,14 +319,14 @@ class FeedbackVectorSpecBase {
   }
 
   FeedbackSlot AddStoreGlobalICSlot(LanguageMode language_mode) {
-    STATIC_ASSERT(LANGUAGE_END == 2);
+    STATIC_ASSERT(LanguageModeSize == 2);
     return AddSlot(is_strict(language_mode)
                        ? FeedbackSlotKind::kStoreGlobalStrict
                        : FeedbackSlotKind::kStoreGlobalSloppy);
   }
 
   FeedbackSlot AddKeyedStoreICSlot(LanguageMode language_mode) {
-    STATIC_ASSERT(LANGUAGE_END == 2);
+    STATIC_ASSERT(LanguageModeSize == 2);
     return AddSlot(is_strict(language_mode)
                        ? FeedbackSlotKind::kStoreKeyedStrict
                        : FeedbackSlotKind::kStoreKeyedSloppy);

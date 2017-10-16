@@ -21,7 +21,7 @@ class AstNumberingVisitor final : public AstVisitor<AstNumberingVisitor> {
         eager_literals_(eager_literals),
         suspend_count_(0),
         properties_(zone),
-        language_mode_(SLOPPY),
+        language_mode_(LanguageMode::kSloppy),
         slot_cache_(zone),
         dont_optimize_reason_(kNoReason),
         collect_type_profile_(collect_type_profile) {
@@ -410,7 +410,7 @@ void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
 
 
 void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
-  LanguageModeScope language_mode_scope(this, STRICT);
+  LanguageModeScope language_mode_scope(this, LanguageMode::kStrict);
   if (node->extends()) Visit(node->extends());
   if (node->constructor()) Visit(node->constructor());
   for (int i = 0; i < node->properties()->length(); i++) {

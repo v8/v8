@@ -1857,7 +1857,8 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
   Handle<Symbol> async_stack_id_symbol =
       isolate->factory()->promise_async_stack_id_symbol();
   JSObject::SetProperty(promise, async_stack_id_symbol,
-                        handle(Smi::FromInt(id), isolate), STRICT)
+                        handle(Smi::FromInt(id), isolate),
+                        LanguageMode::kStrict)
       .Assert();
   isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueAsyncFunction, id, 0);
   return isolate->heap()->undefined_value();

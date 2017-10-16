@@ -2538,7 +2538,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
   i::Handle<i::JSFunction> fun;
   has_pending_exception =
       !i::Compiler::GetFunctionFromEval(
-           source_string, outer_info, context, i::SLOPPY,
+           source_string, outer_info, context, i::LanguageMode::kSloppy,
            i::ONLY_SINGLE_FUNCTION_LITERAL, i::kNoSourcePosition,
            eval_scope_position, eval_position, line_offset,
            column_offset - scope_position, name_obj, source->resource_options)
@@ -4347,7 +4347,8 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context,
   auto value_obj = Utils::OpenHandle(*value);
   has_pending_exception =
       i::Runtime::SetObjectProperty(isolate, self, key_obj, value_obj,
-                                    i::SLOPPY).is_null();
+                                    i::LanguageMode::kSloppy)
+          .is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -4366,7 +4367,8 @@ Maybe<bool> v8::Object::Set(v8::Local<v8::Context> context, uint32_t index,
   auto self = Utils::OpenHandle(this);
   auto value_obj = Utils::OpenHandle(*value);
   has_pending_exception = i::Object::SetElement(isolate, self, index, value_obj,
-                                                i::SLOPPY).is_null();
+                                                i::LanguageMode::kSloppy)
+                              .is_null();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
 }
@@ -4856,8 +4858,8 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, Local<Value> key) {
   auto key_obj = Utils::OpenHandle(*key);
   if (self->IsJSProxy()) {
     ENTER_V8(isolate, context, Object, Delete, Nothing<bool>(), i::HandleScope);
-    Maybe<bool> result =
-        i::Runtime::DeleteObjectProperty(isolate, self, key_obj, i::SLOPPY);
+    Maybe<bool> result = i::Runtime::DeleteObjectProperty(
+        isolate, self, key_obj, i::LanguageMode::kSloppy);
     has_pending_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;
@@ -4866,8 +4868,8 @@ Maybe<bool> v8::Object::Delete(Local<Context> context, Local<Value> key) {
     // a script.
     ENTER_V8_NO_SCRIPT(isolate, context, Object, Delete, Nothing<bool>(),
                        i::HandleScope);
-    Maybe<bool> result =
-        i::Runtime::DeleteObjectProperty(isolate, self, key_obj, i::SLOPPY);
+    Maybe<bool> result = i::Runtime::DeleteObjectProperty(
+        isolate, self, key_obj, i::LanguageMode::kSloppy);
     has_pending_exception = result.IsNothing();
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return result;
@@ -4888,8 +4890,8 @@ Maybe<bool> v8::Object::DeletePrivate(Local<Context> context,
                      i::HandleScope);
   auto self = Utils::OpenHandle(this);
   auto key_obj = Utils::OpenHandle(*key);
-  Maybe<bool> result =
-      i::Runtime::DeleteObjectProperty(isolate, self, key_obj, i::SLOPPY);
+  Maybe<bool> result = i::Runtime::DeleteObjectProperty(
+      isolate, self, key_obj, i::LanguageMode::kSloppy);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
@@ -10079,7 +10081,8 @@ Local<Function> debug::GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
   i::Handle<i::Code> call_code(isolate->builtins()->builtin(name));
   i::Handle<i::JSFunction> fun =
       isolate->factory()->NewFunctionWithoutPrototype(
-          isolate->factory()->empty_string(), call_code, i::SLOPPY);
+          isolate->factory()->empty_string(), call_code,
+          i::LanguageMode::kSloppy);
   if (i::Builtins::IsLazy(name)) {
     fun->shared()->set_lazy_deserialization_builtin_id(name);
   }

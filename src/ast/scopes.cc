@@ -197,7 +197,7 @@ ModuleScope::ModuleScope(DeclarationScope* script_scope,
                        kModule) {
   Zone* zone = ast_value_factory->zone();
   module_descriptor_ = new (zone) ModuleDescriptor(zone);
-  set_language_mode(STRICT);
+  set_language_mode(LanguageMode::kStrict);
   DeclareThis(ast_value_factory);
 }
 
@@ -208,7 +208,7 @@ ModuleScope::ModuleScope(Handle<ScopeInfo> scope_info,
   Isolate* isolate = scope_info->GetIsolate();
   Handle<ModuleInfo> module_info(scope_info->ModuleDescriptorInfo(), isolate);
 
-  set_language_mode(STRICT);
+  set_language_mode(LanguageMode::kStrict);
   module_descriptor_ = new (zone) ModuleDescriptor(zone);
 
   // Deserialize special exports.
@@ -339,7 +339,7 @@ void Scope::SetDefaults() {
   num_stack_slots_ = 0;
   num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
 
-  set_language_mode(SLOPPY);
+  set_language_mode(LanguageMode::kSloppy);
 
   scope_calls_eval_ = false;
   scope_nonlinear_ = false;

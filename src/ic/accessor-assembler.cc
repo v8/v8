@@ -972,12 +972,12 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
   VARIABLE(var_index, MachineType::PointerRepresentation());
   VARIABLE(var_unique, MachineRepresentation::kTagged);
   VARIABLE(var_language_mode, MachineRepresentation::kTaggedSigned,
-           SmiConstant(STRICT));
+           SmiConstant(Smi::FromEnum(LanguageMode::kStrict)));
 
   Label if_index(this), if_unique_name(this), language_mode_determined(this),
       to_name_failed(this, Label::kDeferred);
   BranchIfStrictMode(p->vector, p->slot, &language_mode_determined);
-  var_language_mode.Bind(SmiConstant(SLOPPY));
+  var_language_mode.Bind(SmiConstant(Smi::FromEnum(LanguageMode::kSloppy)));
   Goto(&language_mode_determined);
   BIND(&language_mode_determined);
 

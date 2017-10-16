@@ -950,45 +950,48 @@ TEST(ScopePositions) {
   };
 
   const SourceData source_data[] = {
-      {"  with ({}) ", "{ block; }", " more;", i::WITH_SCOPE, i::SLOPPY},
-      {"  with ({}) ", "{ block; }", "; more;", i::WITH_SCOPE, i::SLOPPY},
+      {"  with ({}) ", "{ block; }", " more;", i::WITH_SCOPE,
+       i::LanguageMode::kSloppy},
+      {"  with ({}) ", "{ block; }", "; more;", i::WITH_SCOPE,
+       i::LanguageMode::kSloppy},
       {"  with ({}) ",
        "{\n"
        "    block;\n"
        "  }",
        "\n"
        "  more;",
-       i::WITH_SCOPE, i::SLOPPY},
-      {"  with ({}) ", "statement;", " more;", i::WITH_SCOPE, i::SLOPPY},
+       i::WITH_SCOPE, i::LanguageMode::kSloppy},
+      {"  with ({}) ", "statement;", " more;", i::WITH_SCOPE,
+       i::LanguageMode::kSloppy},
       {"  with ({}) ", "statement",
        "\n"
        "  more;",
-       i::WITH_SCOPE, i::SLOPPY},
+       i::WITH_SCOPE, i::LanguageMode::kSloppy},
       {"  with ({})\n"
        "    ",
        "statement;",
        "\n"
        "  more;",
-       i::WITH_SCOPE, i::SLOPPY},
+       i::WITH_SCOPE, i::LanguageMode::kSloppy},
       {"  try {} catch ", "(e) { block; }", " more;", i::CATCH_SCOPE,
-       i::SLOPPY},
+       i::LanguageMode::kSloppy},
       {"  try {} catch ", "(e) { block; }", "; more;", i::CATCH_SCOPE,
-       i::SLOPPY},
+       i::LanguageMode::kSloppy},
       {"  try {} catch ",
        "(e) {\n"
        "    block;\n"
        "  }",
        "\n"
        "  more;",
-       i::CATCH_SCOPE, i::SLOPPY},
+       i::CATCH_SCOPE, i::LanguageMode::kSloppy},
       {"  try {} catch ", "(e) { block; }", " finally { block; } more;",
-       i::CATCH_SCOPE, i::SLOPPY},
+       i::CATCH_SCOPE, i::LanguageMode::kSloppy},
       {"  start;\n"
        "  ",
-       "{ let block; }", " more;", i::BLOCK_SCOPE, i::STRICT},
+       "{ let block; }", " more;", i::BLOCK_SCOPE, i::LanguageMode::kStrict},
       {"  start;\n"
        "  ",
-       "{ let block; }", "; more;", i::BLOCK_SCOPE, i::STRICT},
+       "{ let block; }", "; more;", i::BLOCK_SCOPE, i::LanguageMode::kStrict},
       {"  start;\n"
        "  ",
        "{\n"
@@ -996,10 +999,11 @@ TEST(ScopePositions) {
        "  }",
        "\n"
        "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
+       i::BLOCK_SCOPE, i::LanguageMode::kStrict},
       {"  start;\n"
        "  function fun",
-       "(a,b) { infunction; }", " more;", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", " more;", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       {"  start;\n"
        "  function fun",
        "(a,b) {\n"
@@ -1007,149 +1011,170 @@ TEST(ScopePositions) {
        "  }",
        "\n"
        "  more;",
-       i::FUNCTION_SCOPE, i::SLOPPY},
-      {"  start;\n", "(a,b) => a + b", "; more;", i::FUNCTION_SCOPE, i::SLOPPY},
+       i::FUNCTION_SCOPE, i::LanguageMode::kSloppy},
+      {"  start;\n", "(a,b) => a + b", "; more;", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       {"  start;\n", "(a,b) => { return a+b; }", "\nmore;", i::FUNCTION_SCOPE,
-       i::SLOPPY},
+       i::LanguageMode::kSloppy},
       {"  start;\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       {"  for ", "(let x = 1 ; x < 10; ++ x) { block; }", " more;",
-       i::BLOCK_SCOPE, i::STRICT},
+       i::BLOCK_SCOPE, i::LanguageMode::kStrict},
       {"  for ", "(let x = 1 ; x < 10; ++ x) { block; }", "; more;",
-       i::BLOCK_SCOPE, i::STRICT},
+       i::BLOCK_SCOPE, i::LanguageMode::kStrict},
       {"  for ",
        "(let x = 1 ; x < 10; ++ x) {\n"
        "    block;\n"
        "  }",
        "\n"
        "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
+       i::BLOCK_SCOPE, i::LanguageMode::kStrict},
       {"  for ", "(let x = 1 ; x < 10; ++ x) statement;", " more;",
-       i::BLOCK_SCOPE, i::STRICT},
+       i::BLOCK_SCOPE, i::LanguageMode::kStrict},
       {"  for ", "(let x = 1 ; x < 10; ++ x) statement",
        "\n"
        "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
+       i::BLOCK_SCOPE, i::LanguageMode::kStrict},
       {"  for ",
        "(let x = 1 ; x < 10; ++ x)\n"
        "    statement;",
        "\n"
        "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
+       i::BLOCK_SCOPE, i::LanguageMode::kStrict},
       {"  for ", "(let x in {}) { block; }", " more;", i::BLOCK_SCOPE,
-       i::STRICT},
+       i::LanguageMode::kStrict},
       {"  for ", "(let x in {}) { block; }", "; more;", i::BLOCK_SCOPE,
-       i::STRICT},
+       i::LanguageMode::kStrict},
       {"  for ",
        "(let x in {}) {\n"
        "    block;\n"
        "  }",
        "\n"
        "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
+       i::BLOCK_SCOPE, i::LanguageMode::kStrict},
       {"  for ", "(let x in {}) statement;", " more;", i::BLOCK_SCOPE,
-       i::STRICT},
+       i::LanguageMode::kStrict},
       {"  for ", "(let x in {}) statement",
        "\n"
        "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
+       i::BLOCK_SCOPE, i::LanguageMode::kStrict},
       {"  for ",
        "(let x in {})\n"
        "    statement;",
        "\n"
        "  more;",
-       i::BLOCK_SCOPE, i::STRICT},
+       i::BLOCK_SCOPE, i::LanguageMode::kStrict},
       // Check that 6-byte and 4-byte encodings of UTF-8 strings do not throw
       // the preparser off in terms of byte offsets.
       // 2 surrogates, encode a character that doesn't need a surrogate.
       {"  'foo\355\240\201\355\260\211';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // 4 byte encoding.
       {"  'foo\360\220\220\212';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // 3 byte encoding of \u0fff.
       {"  'foo\340\277\277';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // 3 byte surrogate, followed by broken 2-byte surrogate w/ impossible 2nd
       // byte and last byte missing.
       {"  'foo\355\240\201\355\211';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Broken 3 byte encoding of \u0fff with missing last byte.
       {"  'foo\340\277';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Broken 3 byte encoding of \u0fff with missing 2 last bytes.
       {"  'foo\340';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Broken 3 byte encoding of \u00ff should be a 2 byte encoding.
       {"  'foo\340\203\277';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Broken 3 byte encoding of \u007f should be a 2 byte encoding.
       {"  'foo\340\201\277';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Unpaired lead surrogate.
       {"  'foo\355\240\201';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Unpaired lead surrogate where following code point is a 3 byte
       // sequence.
       {"  'foo\355\240\201\340\277\277';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Unpaired lead surrogate where following code point is a 4 byte encoding
       // of a trail surrogate.
       {"  'foo\355\240\201\360\215\260\211';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Unpaired trail surrogate.
       {"  'foo\355\260\211';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // 2 byte encoding of \u00ff.
       {"  'foo\303\277';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Broken 2 byte encoding of \u00ff with missing last byte.
       {"  'foo\303';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Broken 2 byte encoding of \u007f should be a 1 byte encoding.
       {"  'foo\301\277';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Illegal 5 byte encoding.
       {"  'foo\370\277\277\277\277';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Illegal 6 byte encoding.
       {"  'foo\374\277\277\277\277\277';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Illegal 0xfe byte
       {"  'foo\376\277\277\277\277\277\277';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       // Illegal 0xff byte
       {"  'foo\377\277\277\277\277\277\277\277';\n"
        "  (function fun",
-       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE, i::SLOPPY},
+       "(a,b) { infunction; }", ")();", i::FUNCTION_SCOPE,
+       i::LanguageMode::kSloppy},
       {"  'foo';\n"
        "  (function fun",
        "(a,b) { 'bar\355\240\201\355\260\213'; }", ")();", i::FUNCTION_SCOPE,
-       i::SLOPPY},
+       i::LanguageMode::kSloppy},
       {"  'foo';\n"
        "  (function fun",
        "(a,b) { 'bar\360\220\220\214'; }", ")();", i::FUNCTION_SCOPE,
-       i::SLOPPY},
-      {nullptr, nullptr, nullptr, i::EVAL_SCOPE, i::SLOPPY}};
+       i::LanguageMode::kSloppy},
+      {nullptr, nullptr, nullptr, i::EVAL_SCOPE, i::LanguageMode::kSloppy}};
 
   i::Isolate* isolate = CcTest::i_isolate();
   i::Factory* factory = isolate->factory();
@@ -6409,12 +6434,13 @@ void TestLanguageMode(const char* source,
 
 
 TEST(LanguageModeDirectives) {
-  TestLanguageMode("\"use nothing\"", i::SLOPPY);
-  TestLanguageMode("\"use strict\"", i::STRICT);
+  TestLanguageMode("\"use nothing\"", i::LanguageMode::kSloppy);
+  TestLanguageMode("\"use strict\"", i::LanguageMode::kStrict);
 
-  TestLanguageMode("var x = 1; \"use strict\"", i::SLOPPY);
+  TestLanguageMode("var x = 1; \"use strict\"", i::LanguageMode::kSloppy);
 
-  TestLanguageMode("\"use some future directive\"; \"use strict\";", i::STRICT);
+  TestLanguageMode("\"use some future directive\"; \"use strict\";",
+                   i::LanguageMode::kStrict);
 }
 
 

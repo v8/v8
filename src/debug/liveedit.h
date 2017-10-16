@@ -213,7 +213,8 @@ class JSArrayBasedStruct {
 
  protected:
   void SetField(int field_position, Handle<Object> value) {
-    Object::SetElement(isolate(), array_, field_position, value, SLOPPY)
+    Object::SetElement(isolate(), array_, field_position, value,
+                       LanguageMode::kSloppy)
         .Assert();
   }
 

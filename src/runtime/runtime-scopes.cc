@@ -1012,7 +1012,8 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Sloppy) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  RETURN_RESULT_OR_FAILURE(isolate, StoreLookupSlot(name, value, SLOPPY));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           StoreLookupSlot(name, value, LanguageMode::kSloppy));
 }
 
 // Store into a dynamic context for sloppy-mode block-scoped function hoisting
@@ -1025,8 +1026,9 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_SloppyHoisting) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
   const ContextLookupFlags lookup_flags = static_cast<ContextLookupFlags>(
       FOLLOW_CONTEXT_CHAIN | STOP_AT_DECLARATION_SCOPE | SKIP_WITH_CONTEXT);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           StoreLookupSlot(name, value, SLOPPY, lookup_flags));
+  RETURN_RESULT_OR_FAILURE(
+      isolate,
+      StoreLookupSlot(name, value, LanguageMode::kSloppy, lookup_flags));
 }
 
 RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
@@ -1034,7 +1036,8 @@ RUNTIME_FUNCTION(Runtime_StoreLookupSlot_Strict) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  RETURN_RESULT_OR_FAILURE(isolate, StoreLookupSlot(name, value, STRICT));
+  RETURN_RESULT_OR_FAILURE(isolate,
+                           StoreLookupSlot(name, value, LanguageMode::kStrict));
 }
 
 }  // namespace internal

@@ -325,32 +325,47 @@ template <typename T, class P = FreeStoreAllocationPolicy> class List;
 
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
 
-enum LanguageMode : uint32_t { SLOPPY, STRICT, LANGUAGE_END };
+enum class LanguageMode : bool { kSloppy, kStrict };
+static const size_t LanguageModeSize = 2;
+
+inline size_t hash_value(LanguageMode mode) {
+  return static_cast<size_t>(mode);
+}
 
 inline std::ostream& operator<<(std::ostream& os, const LanguageMode& mode) {
   switch (mode) {
-    case SLOPPY: return os << "sloppy";
-    case STRICT: return os << "strict";
-    case LANGUAGE_END:
-      UNREACHABLE();
+    case LanguageMode::kSloppy:
+      return os << "sloppy";
+    case LanguageMode::kStrict:
+      return os << "strict";
   }
   UNREACHABLE();
 }
 
 inline bool is_sloppy(LanguageMode language_mode) {
-  return language_mode == SLOPPY;
+  return language_mode == LanguageMode::kSloppy;
 }
 
 inline bool is_strict(LanguageMode language_mode) {
-  return language_mode != SLOPPY;
+  return language_mode != LanguageMode::kSloppy;
 }
 
 inline bool is_valid_language_mode(int language_mode) {
-  return language_mode == SLOPPY || language_mode == STRICT;
+  return language_mode == static_cast<int>(LanguageMode::kSloppy) ||
+         language_mode == static_cast<int>(LanguageMode::kStrict);
 }
 
 inline LanguageMode construct_language_mode(bool strict_bit) {
   return static_cast<LanguageMode>(strict_bit);
+}
+
+// Return kStrict if either of the language modes is kStrict, or kSloppy
+// otherwise.
+inline LanguageMode stricter_language_mode(LanguageMode mode1,
+                                           LanguageMode mode2) {
+  STATIC_ASSERT(LanguageModeSize == 2);
+  return static_cast<LanguageMode>(static_cast<int>(mode1) |
+                                   static_cast<int>(mode2));
 }
 
 enum TypeofMode : int { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };

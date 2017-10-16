@@ -62,7 +62,8 @@ bool Context::is_declaration_context() {
       IsModuleContext()) {
     return true;
   }
-  if (IsEvalContext()) return closure()->shared()->language_mode() == STRICT;
+  if (IsEvalContext())
+    return closure()->shared()->language_mode() == LanguageMode::kStrict;
   if (!IsBlockContext()) return false;
   Object* ext = extension();
   // If we have the special extension, we immediately know it must be a

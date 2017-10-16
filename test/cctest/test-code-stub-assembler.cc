@@ -908,7 +908,8 @@ TEST(TryHasOwnProperty) {
     JSObject::NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0, "test");
 
     JSObject::AddProperty(object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name, SLOPPY)
+    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+                                   LanguageMode::kSloppy)
               .FromJust());
 
     CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
@@ -928,7 +929,8 @@ TEST(TryHasOwnProperty) {
     AddProperties(object, names, arraysize(names));
 
     JSObject::AddProperty(object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name, SLOPPY)
+    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+                                   LanguageMode::kSloppy)
               .FromJust());
 
     CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map()->instance_type());
@@ -1109,7 +1111,8 @@ TEST(TryGetOwnProperty) {
     JSObject::NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0, "test");
 
     JSObject::AddProperty(object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name, SLOPPY)
+    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+                                   LanguageMode::kSloppy)
               .FromJust());
 
     CHECK_EQ(JS_OBJECT_TYPE, object->map()->instance_type());
@@ -1124,7 +1127,8 @@ TEST(TryGetOwnProperty) {
                   rand_gen.NextInt());
 
     JSObject::AddProperty(object, deleted_property_name, object, NONE);
-    CHECK(JSObject::DeleteProperty(object, deleted_property_name, SLOPPY)
+    CHECK(JSObject::DeleteProperty(object, deleted_property_name,
+                                   LanguageMode::kSloppy)
               .FromJust());
 
     CHECK_EQ(JS_GLOBAL_OBJECT_TYPE, object->map()->instance_type());
@@ -1799,10 +1803,12 @@ class AppendJSArrayCodeStubAssembler : public CodeStubAssembler {
     Handle<JSArray> array = isolate->factory()->NewJSArray(
         kind_, 2, initial_size, INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
     JSObject::SetElement(isolate, array, 0,
-                         Handle<Smi>(Smi::FromInt(1), isolate), SLOPPY)
+                         Handle<Smi>(Smi::FromInt(1), isolate),
+                         LanguageMode::kSloppy)
         .Check();
     JSObject::SetElement(isolate, array, 1,
-                         Handle<Smi>(Smi::FromInt(2), isolate), SLOPPY)
+                         Handle<Smi>(Smi::FromInt(2), isolate),
+                         LanguageMode::kSloppy)
         .Check();
     CodeStubArguments args(this, IntPtrConstant(kNumParams));
     TVariable<IntPtrT> arg_index(this);

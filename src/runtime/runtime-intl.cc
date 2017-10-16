@@ -217,7 +217,7 @@ RUNTIME_FUNCTION(Runtime_MarkAsInitializedIntlObjectOfType) {
   CONVERT_ARG_HANDLE_CHECKED(String, type, 1);
 
   Handle<Symbol> marker = isolate->factory()->intl_initialized_marker_symbol();
-  JSObject::SetProperty(input, marker, type, STRICT).Assert();
+  JSObject::SetProperty(input, marker, type, LanguageMode::kStrict).Assert();
 
   return isolate->heap()->undefined_value();
 }

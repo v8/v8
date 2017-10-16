@@ -392,7 +392,7 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   __ Push(ip);
   __ mov(ip, Operand(name));
   __ Push(ip, value());
-  __ Push(Smi::FromInt(language_mode));
+  __ Push(Smi::FromEnum(language_mode));
 
   // Do tail-call to the runtime system.
   __ TailCallRuntime(Runtime::kStoreCallbackProperty);

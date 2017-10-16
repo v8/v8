@@ -38,9 +38,9 @@ const size_t kUint8Size = 1;
 
 const int kSkippableFunctionDataSize = 4 * kUint32Size + 1 * kUint8Size;
 
-STATIC_ASSERT(LANGUAGE_END == 2);
-class LanguageField : public BitField<int, 0, 1> {};
+class LanguageField : public BitField<LanguageMode, 0, 1> {};
 class UsesSuperField : public BitField<bool, LanguageField::kNext, 1> {};
+STATIC_ASSERT(LanguageModeSize <= LanguageField::kNumValues);
 
 }  // namespace
 

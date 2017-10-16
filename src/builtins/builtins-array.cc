@@ -512,7 +512,7 @@ class ArrayConcatVisitor {
     RETURN_ON_EXCEPTION(
         isolate_,
         JSReceiver::SetProperty(result, isolate_->factory()->length_string(),
-                                length, STRICT),
+                                length, LanguageMode::kStrict),
         JSReceiver);
     return result;
   }

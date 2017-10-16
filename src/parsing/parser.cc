@@ -173,7 +173,7 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
   FunctionKind kind = call_super ? FunctionKind::kDefaultDerivedConstructor
                                  : FunctionKind::kDefaultBaseConstructor;
   DeclarationScope* function_scope = NewFunctionScope(kind);
-  SetLanguageMode(function_scope, STRICT);
+  SetLanguageMode(function_scope, LanguageMode::kStrict);
   // Set start and end position to the same value
   function_scope->set_start_position(pos);
   function_scope->set_end_position(pos);
@@ -989,7 +989,8 @@ void Parser::ParseExportClause(ZoneList<const AstRawString*>* export_names,
     // Keep track of the first reserved word encountered in case our
     // caller needs to report an error.
     if (!reserved_loc->IsValid() &&
-        !Token::IsIdentifier(name_tok, STRICT, false, parsing_module_)) {
+        !Token::IsIdentifier(name_tok, LanguageMode::kStrict, false,
+                             parsing_module_)) {
       *reserved_loc = scanner()->location();
     }
     const AstRawString* local_name = ParseIdentifierName(CHECK_OK_VOID);
@@ -1043,8 +1044,8 @@ ZoneList<const Parser::NamedImport*>* Parser::ParseNamedImports(
     if (CheckContextualKeyword(Token::AS)) {
       local_name = ParseIdentifierName(CHECK_OK);
     }
-    if (!Token::IsIdentifier(scanner()->current_token(), STRICT, false,
-                             parsing_module_)) {
+    if (!Token::IsIdentifier(scanner()->current_token(), LanguageMode::kStrict,
+                             false, parsing_module_)) {
       *ok = false;
       ReportMessage(MessageTemplate::kUnexpectedReserved);
       return nullptr;
@@ -3187,7 +3188,7 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
                                         int end_pos, bool* ok) {
   DCHECK_NOT_NULL(block_scope);
   DCHECK_EQ(block_scope->scope_type(), BLOCK_SCOPE);
-  DCHECK_EQ(block_scope->language_mode(), STRICT);
+  DCHECK_EQ(block_scope->language_mode(), LanguageMode::kStrict);
 
   bool has_extends = class_info->extends != nullptr;
   bool has_default_constructor = class_info->constructor == nullptr;

@@ -397,8 +397,10 @@ V8_NOINLINE Handle<JSFunction> CreateFunction(
   Handle<JSFunction> result =
       maybe_prototype.ToHandle(&prototype)
           ? factory->NewFunction(name, call_code, prototype, type,
-                                 instance_size, STRICT, IMMUTABLE)
-          : factory->NewFunctionWithoutPrototype(name, call_code, STRICT);
+                                 instance_size, LanguageMode::kStrict,
+                                 IMMUTABLE)
+          : factory->NewFunctionWithoutPrototype(name, call_code,
+                                                 LanguageMode::kStrict);
   if (Builtins::IsLazy(call)) {
     result->shared()->set_lazy_deserialization_builtin_id(call);
   }
@@ -588,7 +590,7 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   Handle<Code> code(BUILTIN_CODE(isolate, EmptyFunction));
   Handle<JSFunction> empty_function =
       factory->NewFunction(empty_function_map, factory->empty_string(), code);
-  empty_function->shared()->set_language_mode(STRICT);
+  empty_function->shared()->set_language_mode(LanguageMode::kStrict);
 
   // --- E m p t y ---
   Handle<String> source = factory->NewStringFromStaticChars("() {}");
@@ -641,7 +643,7 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
   Handle<String> name(factory()->empty_string());
   Handle<Code> code = BUILTIN_CODE(isolate(), StrictPoisonPillThrower);
   Handle<JSFunction> function =
-      factory()->NewFunctionWithoutPrototype(name, code, STRICT);
+      factory()->NewFunctionWithoutPrototype(name, code, LanguageMode::kStrict);
   function->shared()->DontAdaptArguments();
 
   // %ThrowTypeError% must not have a name property.
@@ -1178,7 +1180,7 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
         factory()->NewFunctionPrototype(isolate()->object_function());
     js_global_object_function =
         factory()->NewFunction(name, code, prototype, JS_GLOBAL_OBJECT_TYPE,
-                               JSGlobalObject::kSize, STRICT);
+                               JSGlobalObject::kSize, LanguageMode::kStrict);
 #ifdef DEBUG
     LookupIterator it(prototype, factory()->constructor_string(),
                       LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -3421,9 +3423,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // This is done by introducing an anonymous function with
     // class_name equals 'Arguments'.
     Handle<String> arguments_string = factory->Arguments_string();
-    Handle<JSFunction> function =
-        factory->NewFunction(arguments_string, BUILTIN_CODE(isolate, Illegal),
-                             isolate->initial_object_prototype(), STRICT);
+    Handle<JSFunction> function = factory->NewFunction(
+        arguments_string, BUILTIN_CODE(isolate, Illegal),
+        isolate->initial_object_prototype(), LanguageMode::kStrict);
     function->shared()->set_instance_class_name(*arguments_string);
 
     Handle<Map> map = factory->NewMap(
