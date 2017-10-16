@@ -847,6 +847,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kFindOrderedHashMapEntryForInt32Key:
       result = LowerFindOrderedHashMapEntryForInt32Key(node);
       break;
+    case IrOpcode::kTransitionAndStoreNumberElement:
+      LowerTransitionAndStoreNumberElement(node);
+      break;
+    case IrOpcode::kTransitionAndStoreNonNumberElement:
+      LowerTransitionAndStoreNonNumberElement(node);
+      break;
     case IrOpcode::kTransitionAndStoreElement:
       LowerTransitionAndStoreElement(node);
       break;
@@ -3275,10 +3281,139 @@ void EffectControlLinearizer::LowerTransitionAndStoreElement(Node* node) {
   __ Bind(&done);
 }
 
-void EffectControlLinearizer::LowerStoreSignedSmallElement(Node* node) {
+void EffectControlLinearizer::LowerTransitionAndStoreNumberElement(Node* node) {
+  Node* array = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);  // This is a Float64, not tagged.
+
+  // Possibly transition array based on input and store.
+  //
+  //   -- TRANSITION PHASE -----------------
+  //   kind = ElementsKind(array)
+  //   if kind == HOLEY_SMI_ELEMENTS {
+  //     Transition array to HOLEY_DOUBLE_ELEMENTS
+  //   } else if kind != HOLEY_DOUBLE_ELEMENTS {
+  //     This is UNREACHABLE, execute a debug break.
+  //   }
+  //
+  //   -- STORE PHASE ----------------------
+  //   Store array[index] = value (it's a float)
+  //
+  Node* map = __ LoadField(AccessBuilder::ForMap(), array);
+  Node* kind;
+  {
+    Node* bit_field2 = __ LoadField(AccessBuilder::ForMapBitField2(), map);
+    Node* mask = __ Int32Constant(Map::ElementsKindBits::kMask);
+    Node* andit = __ Word32And(bit_field2, mask);
+    Node* shift = __ Int32Constant(Map::ElementsKindBits::kShift);
+    kind = __ Word32Shr(andit, shift);
+  }
+
+  auto do_store = __ MakeLabel();
+
+  // {value} is a float64.
+  auto transition_smi_array = __ MakeDeferredLabel();
+  {
+    __ GotoIfNot(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
+                 &transition_smi_array);
+    // We expect that our input array started at HOLEY_SMI_ELEMENTS, and
+    // climbs the lattice up to HOLEY_DOUBLE_ELEMENTS. Force a debug break
+    // if this assumption is broken. It also would be the case that
+    // loop peeling can break this assumption.
+    __ GotoIf(__ Word32Equal(kind, __ Int32Constant(HOLEY_DOUBLE_ELEMENTS)),
+              &do_store);
+    // TODO(turbofan): It would be good to have an "Unreachable()" node type.
+    __ DebugBreak();
+    __ Goto(&do_store);
+  }
+
+  __ Bind(&transition_smi_array);  // deferred code.
+  {
+    // Transition {array} from HOLEY_SMI_ELEMENTS to HOLEY_DOUBLE_ELEMENTS.
+    TransitionElementsTo(node, array, HOLEY_SMI_ELEMENTS,
+                         HOLEY_DOUBLE_ELEMENTS);
+    __ Goto(&do_store);
+  }
+
+  __ Bind(&do_store);
+
+  Node* elements = __ LoadField(AccessBuilder::ForJSObjectElements(), array);
+  __ StoreElement(AccessBuilder::ForFixedDoubleArrayElement(), elements, index,
+                  value);
+}
+
+void EffectControlLinearizer::LowerTransitionAndStoreNonNumberElement(
+    Node* node) {
   Node* array = node->InputAt(0);
   Node* index = node->InputAt(1);
   Node* value = node->InputAt(2);
+
+  // Possibly transition array based on input and store.
+  //
+  //   -- TRANSITION PHASE -----------------
+  //   kind = ElementsKind(array)
+  //   if kind == HOLEY_SMI_ELEMENTS {
+  //     Transition array to HOLEY_ELEMENTS
+  //   } else if kind == HOLEY_DOUBLE_ELEMENTS {
+  //     Transition array to HOLEY_ELEMENTS
+  //   }
+  //
+  //   -- STORE PHASE ----------------------
+  //   // kind is HOLEY_ELEMENTS
+  //   Store array[index] = value
+  //
+  Node* map = __ LoadField(AccessBuilder::ForMap(), array);
+  Node* kind;
+  {
+    Node* bit_field2 = __ LoadField(AccessBuilder::ForMapBitField2(), map);
+    Node* mask = __ Int32Constant(Map::ElementsKindBits::kMask);
+    Node* andit = __ Word32And(bit_field2, mask);
+    Node* shift = __ Int32Constant(Map::ElementsKindBits::kShift);
+    kind = __ Word32Shr(andit, shift);
+  }
+
+  auto do_store = __ MakeLabel();
+
+  auto transition_smi_array = __ MakeDeferredLabel();
+  auto transition_double_to_fast = __ MakeDeferredLabel();
+  {
+    __ GotoIfNot(IsElementsKindGreaterThan(kind, HOLEY_SMI_ELEMENTS),
+                 &transition_smi_array);
+    __ GotoIf(IsElementsKindGreaterThan(kind, HOLEY_ELEMENTS),
+              &transition_double_to_fast);
+    __ Goto(&do_store);
+  }
+
+  __ Bind(&transition_smi_array);  // deferred code.
+  {
+    // Transition {array} from HOLEY_SMI_ELEMENTS to HOLEY_ELEMENTS.
+    TransitionElementsTo(node, array, HOLEY_SMI_ELEMENTS, HOLEY_ELEMENTS);
+    __ Goto(&do_store);
+  }
+
+  __ Bind(&transition_double_to_fast);  // deferred code.
+  {
+    TransitionElementsTo(node, array, HOLEY_DOUBLE_ELEMENTS, HOLEY_ELEMENTS);
+    __ Goto(&do_store);
+  }
+
+  __ Bind(&do_store);
+
+  Node* elements = __ LoadField(AccessBuilder::ForJSObjectElements(), array);
+  // Our ElementsKind is HOLEY_ELEMENTS.
+  ElementAccess access = AccessBuilder::ForFixedArrayElement(HOLEY_ELEMENTS);
+  Type* value_type = ValueTypeParameterOf(node->op());
+  if (value_type->Is(Type::BooleanOrNullOrUndefined())) {
+    access.type = value_type;
+    access.write_barrier_kind = kNoWriteBarrier;
+  }
+  __ StoreElement(access, elements, index, value);
+}
+
+void EffectControlLinearizer::LowerStoreSignedSmallElement(Node* node) {
+  Node* array = node->InputAt(0);
+  Node* index = node->InputAt(1);
+  Node* value = node->InputAt(2);  // int32
 
   // Store a signed small in an output array.
   //
@@ -3286,11 +3421,12 @@ void EffectControlLinearizer::LowerStoreSignedSmallElement(Node* node) {
   //
   //   -- STORE PHASE ----------------------
   //   if kind == HOLEY_DOUBLE_ELEMENTS {
-  //     float_value = convert smi to float
+  //     float_value = convert int32 to float
   //     Store array[index] = float_value
   //   } else {
   //     // kind is HOLEY_SMI_ELEMENTS or HOLEY_ELEMENTS
-  //     Store array[index] = value
+  //     smi_value = convert int32 to smi
+  //     Store array[index] = smi_value
   //   }
   //
   Node* map = __ LoadField(AccessBuilder::ForMap(), array);
@@ -3316,14 +3452,14 @@ void EffectControlLinearizer::LowerStoreSignedSmallElement(Node* node) {
     access.type = Type::SignedSmall();
     access.machine_type = MachineType::TaggedSigned();
     access.write_barrier_kind = kNoWriteBarrier;
-    __ StoreElement(access, elements, index, value);
+    Node* smi_value = ChangeInt32ToSmi(value);
+    __ StoreElement(access, elements, index, smi_value);
     __ Goto(&done);
   }
   __ Bind(&if_kind_is_double);
   {
     // Our ElementsKind is HOLEY_DOUBLE_ELEMENTS.
-    Node* int_value = ChangeSmiToInt32(value);
-    Node* float_value = __ ChangeInt32ToFloat64(int_value);
+    Node* float_value = __ ChangeInt32ToFloat64(value);
     __ StoreElement(AccessBuilder::ForFixedDoubleArrayElement(), elements,
                     index, float_value);
     __ Goto(&done);

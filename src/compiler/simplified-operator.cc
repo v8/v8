@@ -327,14 +327,105 @@ std::ostream& operator<<(std::ostream& os,
 
 }  // namespace
 
+namespace {
+
+// Parameters for the TransitionAndStoreNonNumberElement opcode.
+class TransitionAndStoreNonNumberElementParameters final {
+ public:
+  TransitionAndStoreNonNumberElementParameters(Handle<Map> fast_map,
+                                               Type* value_type);
+
+  Handle<Map> fast_map() const { return fast_map_; }
+  Type* value_type() const { return value_type_; }
+
+ private:
+  Handle<Map> const fast_map_;
+  Type* value_type_;
+};
+
+TransitionAndStoreNonNumberElementParameters::
+    TransitionAndStoreNonNumberElementParameters(Handle<Map> fast_map,
+                                                 Type* value_type)
+    : fast_map_(fast_map), value_type_(value_type) {}
+
+bool operator==(TransitionAndStoreNonNumberElementParameters const& lhs,
+                TransitionAndStoreNonNumberElementParameters const& rhs) {
+  return lhs.fast_map().address() == rhs.fast_map().address() &&
+         lhs.value_type() == rhs.value_type();
+}
+
+size_t hash_value(TransitionAndStoreNonNumberElementParameters parameters) {
+  return base::hash_combine(parameters.fast_map().address(),
+                            parameters.value_type());
+}
+
+std::ostream& operator<<(
+    std::ostream& os, TransitionAndStoreNonNumberElementParameters parameters) {
+  parameters.value_type()->PrintTo(os);
+  return os << ", fast-map" << Brief(*parameters.fast_map());
+}
+
+}  // namespace
+
+namespace {
+
+// Parameters for the TransitionAndStoreNumberElement opcode.
+class TransitionAndStoreNumberElementParameters final {
+ public:
+  explicit TransitionAndStoreNumberElementParameters(Handle<Map> double_map);
+
+  Handle<Map> double_map() const { return double_map_; }
+
+ private:
+  Handle<Map> const double_map_;
+};
+
+TransitionAndStoreNumberElementParameters::
+    TransitionAndStoreNumberElementParameters(Handle<Map> double_map)
+    : double_map_(double_map) {}
+
+bool operator==(TransitionAndStoreNumberElementParameters const& lhs,
+                TransitionAndStoreNumberElementParameters const& rhs) {
+  return lhs.double_map().address() == rhs.double_map().address();
+}
+
+size_t hash_value(TransitionAndStoreNumberElementParameters parameters) {
+  return base::hash_combine(parameters.double_map().address());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         TransitionAndStoreNumberElementParameters parameters) {
+  return os << "double-map" << Brief(*parameters.double_map());
+}
+
+}  // namespace
+
 Handle<Map> DoubleMapParameterOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kTransitionAndStoreElement, op->opcode());
-  return OpParameter<TransitionAndStoreElementParameters>(op).double_map();
+  if (op->opcode() == IrOpcode::kTransitionAndStoreElement) {
+    return OpParameter<TransitionAndStoreElementParameters>(op).double_map();
+  } else if (op->opcode() == IrOpcode::kTransitionAndStoreNumberElement) {
+    return OpParameter<TransitionAndStoreNumberElementParameters>(op)
+        .double_map();
+  }
+  UNREACHABLE();
+  return Handle<Map>::null();
+}
+
+Type* ValueTypeParameterOf(const Operator* op) {
+  DCHECK_EQ(IrOpcode::kTransitionAndStoreNonNumberElement, op->opcode());
+  return OpParameter<TransitionAndStoreNonNumberElementParameters>(op)
+      .value_type();
 }
 
 Handle<Map> FastMapParameterOf(const Operator* op) {
-  DCHECK_EQ(IrOpcode::kTransitionAndStoreElement, op->opcode());
-  return OpParameter<TransitionAndStoreElementParameters>(op).fast_map();
+  if (op->opcode() == IrOpcode::kTransitionAndStoreElement) {
+    return OpParameter<TransitionAndStoreElementParameters>(op).fast_map();
+  } else if (op->opcode() == IrOpcode::kTransitionAndStoreNonNumberElement) {
+    return OpParameter<TransitionAndStoreNonNumberElementParameters>(op)
+        .fast_map();
+  }
+  UNREACHABLE();
+  return Handle<Map>::null();
 }
 
 std::ostream& operator<<(std::ostream& os, NumberOperationHint hint) {
@@ -1109,6 +1200,24 @@ const Operator* SimplifiedOperatorBuilder::StoreSignedSmallElement() {
   return new (zone()) Operator(IrOpcode::kStoreSignedSmallElement,
                                Operator::kNoDeopt | Operator::kNoThrow,
                                "StoreSignedSmallElement", 3, 1, 1, 0, 1, 0);
+}
+
+const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNumberElement(
+    Handle<Map> double_map) {
+  TransitionAndStoreNumberElementParameters parameters(double_map);
+  return new (zone()) Operator1<TransitionAndStoreNumberElementParameters>(
+      IrOpcode::kTransitionAndStoreNumberElement,
+      Operator::kNoDeopt | Operator::kNoThrow,
+      "TransitionAndStoreNumberElement", 3, 1, 1, 0, 1, 0, parameters);
+}
+
+const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNonNumberElement(
+    Handle<Map> fast_map, Type* value_type) {
+  TransitionAndStoreNonNumberElementParameters parameters(fast_map, value_type);
+  return new (zone()) Operator1<TransitionAndStoreNonNumberElementParameters>(
+      IrOpcode::kTransitionAndStoreNonNumberElement,
+      Operator::kNoDeopt | Operator::kNoThrow,
+      "TransitionAndStoreNonNumberElement", 3, 1, 1, 0, 1, 0, parameters);
 }
 
 #undef PURE_OP_LIST

@@ -2581,13 +2581,31 @@ class RepresentationSelector {
 
         ProcessInput(node, 0, UseInfo::AnyTagged());         // array
         ProcessInput(node, 1, UseInfo::TruncatingWord32());  // index
-        ProcessInput(node, 2, UseInfo::AnyTagged());         // value
 
         if (value_type->Is(Type::SignedSmall())) {
+          ProcessInput(node, 2, UseInfo::TruncatingWord32());  // value
           if (lower()) {
             NodeProperties::ChangeOp(node,
                                      simplified()->StoreSignedSmallElement());
           }
+        } else if (value_type->Is(Type::Number())) {
+          ProcessInput(node, 2, UseInfo::TruncatingFloat64());  // value
+          if (lower()) {
+            Handle<Map> double_map = DoubleMapParameterOf(node->op());
+            NodeProperties::ChangeOp(
+                node,
+                simplified()->TransitionAndStoreNumberElement(double_map));
+          }
+        } else if (value_type->Is(Type::NonNumber())) {
+          ProcessInput(node, 2, UseInfo::AnyTagged());  // value
+          if (lower()) {
+            Handle<Map> fast_map = FastMapParameterOf(node->op());
+            NodeProperties::ChangeOp(
+                node, simplified()->TransitionAndStoreNonNumberElement(
+                          fast_map, value_type));
+          }
+        } else {
+          ProcessInput(node, 2, UseInfo::AnyTagged());  // value
         }
 
         ProcessRemainingInputs(node, 3);

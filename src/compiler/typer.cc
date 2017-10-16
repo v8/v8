@@ -1977,6 +1977,14 @@ Type* Typer::Visitor::TypeTransitionAndStoreElement(Node* node) {
   UNREACHABLE();
 }
 
+Type* Typer::Visitor::TypeTransitionAndStoreNumberElement(Node* node) {
+  UNREACHABLE();
+}
+
+Type* Typer::Visitor::TypeTransitionAndStoreNonNumberElement(Node* node) {
+  UNREACHABLE();
+}
+
 Type* Typer::Visitor::TypeStoreSignedSmallElement(Node* node) { UNREACHABLE(); }
 
 Type* Typer::Visitor::TypeStoreTypedElement(Node* node) {

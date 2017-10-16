@@ -436,6 +436,38 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
   assertOptimized(to_fast);
 })();
 
+// TurboFan specializes on number results, ensure the code path is
+// tested.
+(function() {
+  var a = [1, 2, 3];
+  function double_results() {
+    // TurboFan recognizes the result is a double.
+    var callback = v => v + 0.5;
+    return a.map(callback);
+  }
+  double_results();
+  double_results();
+  %OptimizeFunctionOnNextCall(double_results);
+  double_results();
+  assertEquals(1.5, double_results()[0]);
+})();
+
+// TurboFan specializes on non-number results, ensure the code path is
+// tested.
+(function() {
+  var a = [1, 2, 3];
+  function string_results() {
+    // TurboFan recognizes the result is a string.
+    var callback = v => "hello" + v.toString();
+    return a.map(callback);
+  }
+  string_results();
+  string_results();
+  %OptimizeFunctionOnNextCall(string_results);
+  string_results();
+  assertEquals("hello1", string_results()[0]);
+})();
+
 // Messing with the Array species constructor causes deoptimization.
 (function() {
   var result = 0;
@@ -457,3 +489,11 @@ var c = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25];
   assertUnoptimized(species_breakage);
   assertEquals(24, result);
 })();
+
+/////////////////////////////////////////////////////////////////////////
+//
+// Any tests added below species_breakage won't test optimized map calls
+// because the array species constructor change disables inlining of
+// Array.prototype.map across the isolate.
+//
+/////////////////////////////////////////////////////////////////////////

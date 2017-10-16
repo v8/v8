@@ -1302,8 +1302,13 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kTransitionAndStoreElement:
       CheckNotTyped(node);
       break;
+    case IrOpcode::kTransitionAndStoreNumberElement:
+      CheckNotTyped(node);
+      break;
+    case IrOpcode::kTransitionAndStoreNonNumberElement:
+      CheckNotTyped(node);
+      break;
     case IrOpcode::kStoreSignedSmallElement:
-      CheckValueInputIs(node, 1, Type::SignedSmall());
       CheckNotTyped(node);
       break;
     case IrOpcode::kStoreTypedElement:

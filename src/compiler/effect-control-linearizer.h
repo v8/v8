@@ -130,6 +130,8 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerFindOrderedHashMapEntry(Node* node);
   Node* LowerFindOrderedHashMapEntryForInt32Key(Node* node);
   void LowerTransitionAndStoreElement(Node* node);
+  void LowerTransitionAndStoreNumberElement(Node* node);
+  void LowerTransitionAndStoreNonNumberElement(Node* node);
   void LowerRuntimeAbort(Node* node);
 
   // Lowering of optional operators.

@@ -207,9 +207,14 @@ std::ostream& operator<<(std::ostream&, ElementsTransition);
 ElementsTransition const& ElementsTransitionOf(const Operator* op)
     WARN_UNUSED_RESULT;
 
-// Parameters for TransitionAndStoreElement.
+// Parameters for TransitionAndStoreElement, or
+// TransitionAndStoreNonNumberElement, or
+// TransitionAndStoreNumberElement.
 Handle<Map> DoubleMapParameterOf(const Operator* op);
 Handle<Map> FastMapParameterOf(const Operator* op);
+
+// Parameters for TransitionAndStoreNonNumberElement.
+Type* ValueTypeParameterOf(const Operator* op);
 
 // A hint for speculative number operations.
 enum class NumberOperationHint : uint8_t {
@@ -491,6 +496,13 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
                                             Handle<Map> fast_map);
   // store-element [base + index], smi value, only with fast arrays.
   const Operator* StoreSignedSmallElement();
+
+  // store-element [base + index], double value, only with fast arrays.
+  const Operator* TransitionAndStoreNumberElement(Handle<Map> double_map);
+
+  // store-element [base + index], object value, only with fast arrays.
+  const Operator* TransitionAndStoreNonNumberElement(Handle<Map> fast_map,
+                                                     Type* value_type);
 
   // load-typed-element buffer, [base + external + index]
   const Operator* LoadTypedElement(ExternalArrayType const&);

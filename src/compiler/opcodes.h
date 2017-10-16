@@ -353,6 +353,8 @@
   V(StoreTypedElement)                  \
   V(StoreSignedSmallElement)            \
   V(TransitionAndStoreElement)          \
+  V(TransitionAndStoreNumberElement)    \
+  V(TransitionAndStoreNonNumberElement) \
   V(ObjectIsArrayBufferView)            \
   V(ObjectIsCallable)                   \
   V(ObjectIsConstructor)                \
