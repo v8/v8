@@ -3137,28 +3137,3 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
 
   CHECK_GE(count, 9000);
 }
-
-TEST(SamplingHeapProfilerLargeInterval) {
-  v8::HandleScope scope(v8::Isolate::GetCurrent());
-  LocalContext env;
-  v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();
-
-  // Suppress randomness to avoid flakiness in tests.
-  v8::internal::FLAG_sampling_heap_profiler_suppress_randomness = true;
-
-  heap_profiler->StartSamplingHeapProfiler(512 * 1024);
-
-  for (int i = 0; i < 8 * 1024; ++i) {
-    CcTest::i_isolate()->factory()->NewFixedArray(1024);
-  }
-
-  std::unique_ptr<v8::AllocationProfile> profile(
-      heap_profiler->GetAllocationProfile());
-  CHECK(profile);
-  const char* names[] = {"(EXTERNAL)"};
-  auto node = FindAllocationProfileNode(env->GetIsolate(), *profile,
-                                        ArrayVector(names));
-  CHECK(node);
-
-  heap_profiler->StopSamplingHeapProfiler();
-}
