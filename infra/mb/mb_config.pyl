@@ -489,7 +489,7 @@
     'gn_release_x86': [
       'gn', 'release_bot', 'x86', 'swarming'],
     'gn_release_x86_asan_no_lsan': [
-      'gn', 'release_bot', 'x86', 'asan', 'swarming'],
+      'gn', 'release_bot', 'x86', 'asan', 'clang', 'swarming'],
     'gn_release_x86_disassembler': [
       'gn', 'release_bot', 'x86', 'v8_enable_disassembler'],
     'gn_release_x86_gcc': [
