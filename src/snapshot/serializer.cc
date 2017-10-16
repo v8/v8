@@ -389,7 +389,7 @@ void Serializer<AllocatorT>::ObjectSerializer::FixupIfNeutered() {
   if (!array->WasNeutered()) return;
 
   FixedTypedArrayBase* fta = FixedTypedArrayBase::cast(array->elements());
-  DCHECK(fta->base_pointer() == nullptr);
+  DCHECK_NULL(fta->base_pointer());
   fta->set_external_pointer(Smi::kZero);
   fta->set_length(0);
 }
@@ -416,7 +416,7 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeFixedTypedArray() {
   FixedTypedArrayBase* fta = FixedTypedArrayBase::cast(object_);
   void* backing_store = fta->DataPtr();
   // We cannot store byte_length larger than Smi range in the snapshot.
-  CHECK(fta->ByteLength() < Smi::kMaxValue);
+  CHECK_LT(fta->ByteLength(), Smi::kMaxValue);
   int32_t byte_length = static_cast<int32_t>(fta->ByteLength());
 
   // The heap contains empty FixedTypedArrays for each type, with a byte_length
@@ -795,7 +795,7 @@ void Serializer<AllocatorT>::ObjectSerializer::OutputRawData(Address up_to) {
   int to_skip = up_to_offset - bytes_processed_so_far_;
   int bytes_to_output = to_skip;
   bytes_processed_so_far_ += to_skip;
-  DCHECK(to_skip >= 0);
+  DCHECK_GE(to_skip, 0);
   if (bytes_to_output != 0) {
     DCHECK(to_skip == bytes_to_output);
     if (IsAligned(bytes_to_output, kPointerAlignment) &&
@@ -822,7 +822,7 @@ int Serializer<AllocatorT>::ObjectSerializer::SkipTo(Address to) {
   bytes_processed_so_far_ += to_skip;
   // This assert will fail if the reloc info gives us the target_address_address
   // locations in a non-ascending order.  Luckily that doesn't happen.
-  DCHECK(to_skip >= 0);
+  DCHECK_GE(to_skip, 0);
   return to_skip;
 }
 

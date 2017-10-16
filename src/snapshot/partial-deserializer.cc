@@ -67,8 +67,8 @@ void PartialDeserializer::DeserializeEmbedderFields(
        code = source()->Get()) {
     HandleScope scope(isolate());
     int space = code & kSpaceMask;
-    DCHECK(space <= kNumberOfSpaces);
-    DCHECK(code - space == kNewObject);
+    DCHECK_LE(space, kNumberOfSpaces);
+    DCHECK_EQ(code - space, kNewObject);
     Handle<JSObject> obj(JSObject::cast(GetBackReferencedObject(space)),
                          isolate());
     int index = source()->GetInt();

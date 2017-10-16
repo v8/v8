@@ -97,7 +97,7 @@ void ObjectDeserializer::
 }
 
 void ObjectDeserializer::CommitPostProcessedObjects() {
-  CHECK(new_internalized_strings().size() <= kMaxInt);
+  CHECK_LE(new_internalized_strings().size(), kMaxInt);
   StringTable::EnsureCapacityForDeserialization(
       isolate(), static_cast<int>(new_internalized_strings().size()));
   for (Handle<String> string : new_internalized_strings()) {

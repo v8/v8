@@ -74,11 +74,11 @@ class CodeAddressMap : public CodeEventLogger {
     void Move(Address from, Address to) {
       if (from == to) return;
       base::HashMap::Entry* from_entry = FindEntry(from);
-      DCHECK(from_entry != nullptr);
+      DCHECK_NOT_NULL(from_entry);
       void* value = from_entry->value;
       RemoveEntry(from_entry);
       base::HashMap::Entry* to_entry = FindOrCreateEntry(to);
-      DCHECK(to_entry->value == nullptr);
+      DCHECK_NULL(to_entry->value);
       to_entry->value = value;
     }
 

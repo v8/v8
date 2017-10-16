@@ -159,7 +159,7 @@ void SetNativesFromFile(StartupData* natives_blob) {
   DCHECK(!natives_blob_);
   DCHECK(natives_blob);
   DCHECK(natives_blob->data);
-  DCHECK(natives_blob->raw_size > 0);
+  DCHECK_GT(natives_blob->raw_size, 0);
 
   natives_blob_ = natives_blob;
   ReadNatives();

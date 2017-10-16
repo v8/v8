@@ -43,7 +43,7 @@ void Deserializer::RegisterDeserializedObjectsForBlackAllocation() {
 bool Deserializer::ReserveSpace() {
 #ifdef DEBUG
   for (int i = NEW_SPACE; i < kNumberOfSpaces; ++i) {
-    DCHECK(reservations_[i].size() > 0);
+    DCHECK_GT(reservations_[i].size(), 0);
   }
 #endif  // DEBUG
   DCHECK(allocated_maps_.empty());
@@ -202,8 +202,8 @@ void Deserializer::DeserializeDeferredObjects() {
         break;
       default: {
         int space = code & kSpaceMask;
-        DCHECK(space <= kNumberOfSpaces);
-        DCHECK(code - space == kNewObject);
+        DCHECK_LE(space, kNumberOfSpaces);
+        DCHECK_EQ(code - space, kNewObject);
         HeapObject* object = GetBackReferencedObject(space);
         int size = source_.GetInt() << kPointerSizeLog2;
         Address obj_address = object->address();
@@ -354,7 +354,7 @@ HeapObject* Deserializer::GetBackReferencedObject(int space) {
     DCHECK(index < next_map_index_);
     obj = HeapObject::FromAddress(allocated_maps_[index]);
   } else {
-    DCHECK(space < kNumberOfPreallocatedSpaces);
+    DCHECK_LT(space, kNumberOfPreallocatedSpaces);
     uint32_t chunk_index = back_reference.chunk_index();
     DCHECK_LE(chunk_index, current_chunk_[space]);
     uint32_t chunk_offset = back_reference.chunk_offset();
@@ -447,7 +447,7 @@ Address Deserializer::Allocate(int space_index, int size) {
     DCHECK_EQ(Map::kSize, size);
     return allocated_maps_[next_map_index_++];
   } else {
-    DCHECK(space_index < kNumberOfPreallocatedSpaces);
+    DCHECK_LT(space_index, kNumberOfPreallocatedSpaces);
     Address address = high_water_[space_index];
     DCHECK_NOT_NULL(address);
     high_water_[space_index] += size;
@@ -618,7 +618,7 @@ bool Deserializer::ReadData(Object** current, Object** limit, int source_space,
 
       case kNextChunk: {
         int space = source_.Get();
-        DCHECK(space < kNumberOfPreallocatedSpaces);
+        DCHECK_LT(space, kNumberOfPreallocatedSpaces);
         int chunk_index = current_chunk_[space];
         const Heap::Reservation& reservation = reservations_[space];
         // Make sure the current chunk is indeed exhausted.
@@ -829,13 +829,13 @@ Object** Deserializer::ReadDataCase(Isolate* isolate, Object** current,
       new_object = *attached_objects_[index];
       emit_write_barrier = isolate->heap()->InNewSpace(new_object);
     } else {
-      DCHECK(where == kBuiltin);
+      DCHECK_EQ(where, kBuiltin);
       int builtin_id = MaybeReplaceWithDeserializeLazy(source_.GetInt());
       new_object = isolate->builtins()->builtin(builtin_id);
       emit_write_barrier = false;
     }
     if (within == kInnerPointer) {
-      DCHECK(how == kFromCode);
+      DCHECK_EQ(how, kFromCode);
       if (where == kBuiltin) {
         // At this point, new_object may still be uninitialized, thus the
         // unchecked Code cast.
