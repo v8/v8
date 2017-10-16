@@ -45,7 +45,6 @@ namespace internal {
 #define __ assm.
 
 ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
-                                              Register source_reg,
                                               Register destination_reg) {
   // Allocate an executable page of memory.
   size_t actual_size;
@@ -55,8 +54,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   HandleScope handles(isolate);
   MacroAssembler assm(isolate, buffer, static_cast<int>(actual_size),
                       v8::internal::CodeObjectRequired::kYes);
-  int offset = source_reg == esp ? 0 : (HeapNumber::kValueOffset - kSmiTagSize);
-  DoubleToIStub stub(isolate, source_reg, destination_reg, offset, true);
+  DoubleToIStub stub(isolate, destination_reg);
   byte* start = stub.GetCode()->instruction_start();
 
   __ push(ebx);
@@ -64,10 +62,6 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ push(edx);
   __ push(esi);
   __ push(edi);
-
-  if (source_reg != esp) {
-    __ lea(source_reg, MemOperand(esp, 6 * kPointerSize - offset));
-  }
 
   int param_offset = 7 * kPointerSize;
   // Save registers make sure they don't get clobbered.
@@ -140,16 +134,11 @@ TEST(ConvertDToI) {
   RunAllTruncationTests(&ConvertDToICVersion);
 #endif
 
-  Register source_registers[] = {esp, eax, ebx, ecx, edx, edi, esi};
   Register dest_registers[] = {eax, ebx, ecx, edx, edi, esi};
 
-  for (size_t s = 0; s < sizeof(source_registers) / sizeof(Register); s++) {
-    for (size_t d = 0; d < sizeof(dest_registers) / sizeof(Register); d++) {
-      RunAllTruncationTests(
-          MakeConvertDToIFuncTrampoline(isolate,
-                                        source_registers[s],
-                                        dest_registers[d]));
-    }
+  for (size_t d = 0; d < sizeof(dest_registers) / sizeof(Register); d++) {
+    RunAllTruncationTests(
+        MakeConvertDToIFuncTrampoline(isolate, dest_registers[d]));
   }
 }
 

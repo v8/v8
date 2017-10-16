@@ -39,60 +39,52 @@ void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
 
 void DoubleToIStub::Generate(MacroAssembler* masm) {
   Label out_of_range, only_low, negate, done;
-  Register input_reg = source();
   Register result_reg = destination();
 
-  int double_offset = offset();
-  // Account for saved regs if input is sp.
-  if (input_reg == sp) double_offset += 3 * kPointerSize;
-
-  Register scratch =
-      GetRegisterThatIsNotOneOf(input_reg, result_reg);
-  Register scratch2 =
-      GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch);
-  Register scratch3 =
-      GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch, scratch2);
+  Register scratch = GetRegisterThatIsNotOneOf(result_reg);
+  Register scratch2 = GetRegisterThatIsNotOneOf(result_reg, scratch);
+  Register scratch3 = GetRegisterThatIsNotOneOf(result_reg, scratch, scratch2);
   DoubleRegister double_scratch = kLithiumScratchDouble;
 
+  // Account for saved regs.
+  const int kArgumentOffset = 3 * kPointerSize;
+
   __ Push(scratch, scratch2, scratch3);
-  if (!skip_fastpath()) {
-    // Load double input.
-    __ Ldc1(double_scratch, MemOperand(input_reg, double_offset));
 
-    // Clear cumulative exception flags and save the FCSR.
-    __ cfc1(scratch2, FCSR);
-    __ ctc1(zero_reg, FCSR);
+  // Load double input.
+  __ Ldc1(double_scratch, MemOperand(sp, kArgumentOffset));
 
-    // Try a conversion to a signed integer.
-    __ Trunc_w_d(double_scratch, double_scratch);
-    // Move the converted value into the result register.
-    __ mfc1(scratch3, double_scratch);
+  // Clear cumulative exception flags and save the FCSR.
+  __ cfc1(scratch2, FCSR);
+  __ ctc1(zero_reg, FCSR);
 
-    // Retrieve and restore the FCSR.
-    __ cfc1(scratch, FCSR);
-    __ ctc1(scratch2, FCSR);
+  // Try a conversion to a signed integer.
+  __ Trunc_w_d(double_scratch, double_scratch);
+  // Move the converted value into the result register.
+  __ mfc1(scratch3, double_scratch);
 
-    // Check for overflow and NaNs.
-    __ And(
-        scratch, scratch,
-        kFCSROverflowFlagMask | kFCSRUnderflowFlagMask
-           | kFCSRInvalidOpFlagMask);
-    // If we had no exceptions then set result_reg and we are done.
-    Label error;
-    __ Branch(&error, ne, scratch, Operand(zero_reg));
-    __ Move(result_reg, scratch3);
-    __ Branch(&done);
-    __ bind(&error);
-  }
+  // Retrieve and restore the FCSR.
+  __ cfc1(scratch, FCSR);
+  __ ctc1(scratch2, FCSR);
+
+  // Check for overflow and NaNs.
+  __ And(
+      scratch, scratch,
+      kFCSROverflowFlagMask | kFCSRUnderflowFlagMask | kFCSRInvalidOpFlagMask);
+  // If we had no exceptions then set result_reg and we are done.
+  Label error;
+  __ Branch(&error, ne, scratch, Operand(zero_reg));
+  __ Move(result_reg, scratch3);
+  __ Branch(&done);
+  __ bind(&error);
 
   // Load the double value and perform a manual truncation.
   Register input_high = scratch2;
   Register input_low = scratch3;
 
-  __ Lw(input_low,
-        MemOperand(input_reg, double_offset + Register::kMantissaOffset));
+  __ Lw(input_low, MemOperand(sp, kArgumentOffset + Register::kMantissaOffset));
   __ Lw(input_high,
-        MemOperand(input_reg, double_offset + Register::kExponentOffset));
+        MemOperand(sp, kArgumentOffset + Register::kExponentOffset));
 
   Label normal_exponent, restore_sign;
   // Extract the biased exponent in result.

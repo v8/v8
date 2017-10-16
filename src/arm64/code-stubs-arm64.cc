@@ -41,35 +41,21 @@ void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
 
 void DoubleToIStub::Generate(MacroAssembler* masm) {
   Label done;
-  Register input = source();
   Register result = destination();
-  DCHECK(is_truncating());
 
   DCHECK(result.Is64Bits());
   DCHECK(jssp.Is(masm->StackPointer()));
 
-  int double_offset = offset();
+  UseScratchRegisterScope temps(masm);
+  Register scratch1 = temps.AcquireX();
+  Register scratch2 = temps.AcquireX();
+  DoubleRegister double_scratch = temps.AcquireD();
 
-  DoubleRegister double_scratch = d0;  // only used if !skip_fastpath()
-  Register scratch1 = GetAllocatableRegisterThatIsNotOneOf(input, result);
-  Register scratch2 =
-      GetAllocatableRegisterThatIsNotOneOf(input, result, scratch1);
-
-  __ Push(scratch1, scratch2);
-  // Account for saved regs if input is jssp.
-  if (input.is(jssp)) double_offset += 2 * kPointerSize;
-
-  if (!skip_fastpath()) {
-    __ Push(double_scratch);
-    if (input.is(jssp)) double_offset += 1 * kDoubleSize;
-    __ Ldr(double_scratch, MemOperand(input, double_offset));
-    // Try to convert with a FPU convert instruction.  This handles all
-    // non-saturating cases.
-    __ TryConvertDoubleToInt64(result, double_scratch, &done);
-    __ Fmov(result, double_scratch);
-  } else {
-    __ Ldr(result, MemOperand(input, double_offset));
-  }
+  __ Peek(double_scratch, 0);
+  // Try to convert with a FPU convert instruction.  This handles all
+  // non-saturating cases.
+  __ TryConvertDoubleToInt64(result, double_scratch, &done);
+  __ Fmov(result, double_scratch);
 
   // If we reach here we need to manually convert the input to an int32.
 
@@ -110,10 +96,6 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   __ Lsl(result, mantissa, exponent);
 
   __ Bind(&done);
-  if (!skip_fastpath()) {
-    __ Pop(double_scratch);
-  }
-  __ Pop(scratch2, scratch1);
   __ Ret();
 }
 

@@ -226,7 +226,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
   void Generate() final {
     __ sub(esp, Immediate(kDoubleSize));
     __ movsd(MemOperand(esp, 0), input_);
-    __ SlowTruncateToIDelayed(zone_, result_, esp, 0);
+    __ SlowTruncateToIDelayed(zone_, result_);
     __ add(esp, Immediate(kDoubleSize));
   }
 

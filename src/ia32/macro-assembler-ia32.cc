@@ -217,10 +217,8 @@ void MacroAssembler::RememberedSetHelper(
   ret(0);
 }
 
-void TurboAssembler::SlowTruncateToIDelayed(Zone* zone, Register result_reg,
-                                            Register input_reg, int offset) {
-  CallStubDelayed(
-      new (zone) DoubleToIStub(nullptr, input_reg, result_reg, offset, true));
+void TurboAssembler::SlowTruncateToIDelayed(Zone* zone, Register result_reg) {
+  CallStubDelayed(new (zone) DoubleToIStub(nullptr, result_reg));
 }
 
 void MacroAssembler::DoubleToI(Register result_reg, XMMRegister input_reg,

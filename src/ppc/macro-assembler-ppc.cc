@@ -1602,7 +1602,7 @@ void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
   // Put input on stack.
   stfdu(double_input, MemOperand(sp, -kDoubleSize));
 
-  CallStubDelayed(new (zone) DoubleToIStub(nullptr, sp, result, 0, true, true));
+  CallStubDelayed(new (zone) DoubleToIStub(nullptr, result));
 
   addi(sp, sp, Operand(kDoubleSize));
   pop(r0);

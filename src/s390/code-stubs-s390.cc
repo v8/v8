@@ -38,44 +38,37 @@ void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
 
 void DoubleToIStub::Generate(MacroAssembler* masm) {
   Label out_of_range, only_low, negate, done, fastpath_done;
-  Register input_reg = source();
   Register result_reg = destination();
-  DCHECK(is_truncating());
-
-  int double_offset = offset();
 
   // Immediate values for this stub fit in instructions, so it's safe to use ip.
-  Register scratch = GetRegisterThatIsNotOneOf(input_reg, result_reg);
-  Register scratch_low =
-      GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch);
+  Register scratch = GetRegisterThatIsNotOneOf(result_reg);
+  Register scratch_low = GetRegisterThatIsNotOneOf(result_reg, scratch);
   Register scratch_high =
-      GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch, scratch_low);
+      GetRegisterThatIsNotOneOf(result_reg, scratch, scratch_low);
   DoubleRegister double_scratch = kScratchDoubleReg;
 
   __ push(scratch);
-  // Account for saved regs if input is sp.
-  if (input_reg == sp) double_offset += kPointerSize;
+  // Account for saved regs.
+  int argument_offset = 1 * kPointerSize;
 
-  if (!skip_fastpath()) {
-    // Load double input.
-    __ LoadDouble(double_scratch, MemOperand(input_reg, double_offset));
+  // Load double input.
+  __ LoadDouble(double_scratch, MemOperand(sp, argument_offset));
 
-    // Do fast-path convert from double to int.
-    __ ConvertDoubleToInt64(result_reg, double_scratch);
+  // Do fast-path convert from double to int.
+  __ ConvertDoubleToInt64(result_reg, double_scratch);
 
-    // Test for overflow
-    __ TestIfInt32(result_reg);
-    __ beq(&fastpath_done, Label::kNear);
-  }
+  // Test for overflow
+  __ TestIfInt32(result_reg);
+  __ beq(&fastpath_done, Label::kNear);
 
   __ Push(scratch_high, scratch_low);
-  // Account for saved regs if input is sp.
-  if (input_reg == sp) double_offset += 2 * kPointerSize;
+  // Account for saved regs.
+  argument_offset += 2 * kPointerSize;
 
   __ LoadlW(scratch_high,
-            MemOperand(input_reg, double_offset + Register::kExponentOffset));
+            MemOperand(sp, argument_offset + Register::kExponentOffset));
   __ LoadlW(scratch_low,
-            MemOperand(input_reg, double_offset + Register::kMantissaOffset));
+            MemOperand(sp, argument_offset + Register::kMantissaOffset));
 
   __ ExtractBitMask(scratch, scratch_high, HeapNumber::kExponentMask);
   // Load scratch with exponent - 1. This is faster than loading

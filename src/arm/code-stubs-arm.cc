@@ -42,50 +42,30 @@ void ArrayNArgumentsConstructorStub::Generate(MacroAssembler* masm) {
 
 
 void DoubleToIStub::Generate(MacroAssembler* masm) {
-  Label out_of_range, only_low, negate, done;
-  Register input_reg = source();
+  Label negate, done;
   Register result_reg = destination();
-  DCHECK(is_truncating());
 
-  int double_offset = offset();
-  // Account for saved regs if input is sp.
-  if (input_reg == sp) double_offset += 3 * kPointerSize;
-
-  Register scratch = GetRegisterThatIsNotOneOf(input_reg, result_reg);
-  Register scratch_low =
-      GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch);
-  Register scratch_high =
-      GetRegisterThatIsNotOneOf(input_reg, result_reg, scratch, scratch_low);
+  UseScratchRegisterScope temps(masm);
+  Register double_low = GetRegisterThatIsNotOneOf(result_reg);
+  Register double_high = GetRegisterThatIsNotOneOf(result_reg, double_low);
   LowDwVfpRegister double_scratch = kScratchDoubleReg;
 
-  __ Push(scratch_high, scratch_low, scratch);
+  // Save the old values from these temporary registers on the stack.
+  __ Push(double_high, double_low);
 
-  if (!skip_fastpath()) {
-    // Load double input.
-    __ vldr(double_scratch, MemOperand(input_reg, double_offset));
-    __ vmov(scratch_low, scratch_high, double_scratch);
+  // Account for saved regs.
+  const int kArgumentOffset = 2 * kPointerSize;
 
-    // Do fast-path convert from double to int.
-    __ vcvt_s32_f64(double_scratch.low(), double_scratch);
-    __ vmov(result_reg, double_scratch.low());
+  // Load double input.
+  __ vldr(double_scratch, MemOperand(sp, kArgumentOffset));
+  __ vmov(double_low, double_high, double_scratch);
+  // Try to convert with a FPU convert instruction. This handles all
+  // non-saturating cases.
+  __ TryInlineTruncateDoubleToI(result_reg, double_scratch, &done);
 
-    // If result is not saturated (0x7fffffff or 0x80000000), we are done.
-    __ sub(scratch, result_reg, Operand(1));
-    __ cmp(scratch, Operand(0x7ffffffe));
-    __ b(lt, &done);
-  } else {
-    // We've already done MacroAssembler::TryFastTruncatedDoubleToILoad, so we
-    // know exponent > 31, so we can skip the vcvt_s32_f64 which will saturate.
-    if (double_offset == 0) {
-      __ ldm(ia, input_reg, scratch_low.bit() | scratch_high.bit());
-    } else {
-      __ ldr(scratch_low, MemOperand(input_reg, double_offset));
-      __ ldr(scratch_high, MemOperand(input_reg, double_offset + kIntSize));
-    }
-  }
-
-  __ Ubfx(scratch, scratch_high,
-         HeapNumber::kExponentShift, HeapNumber::kExponentBits);
+  Register scratch = temps.Acquire();
+  __ Ubfx(scratch, double_high, HeapNumber::kExponentShift,
+          HeapNumber::kExponentBits);
   // Load scratch with exponent - 1. This is faster than loading
   // with exponent because Bias + 1 = 1024 which is an *ARM* immediate value.
   STATIC_ASSERT(HeapNumber::kExponentBias + 1 == 1024);
@@ -93,55 +73,60 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   // If exponent is greater than or equal to 84, the 32 less significant
   // bits are 0s (2^84 = 1, 52 significant bits, 32 uncoded bits),
   // the result is 0.
-  // Compare exponent with 84 (compare exponent - 1 with 83).
+  // Compare exponent with 84 (compare exponent - 1 with 83). If the exponent is
+  // greater than this, the conversion is out of range, so return zero.
   __ cmp(scratch, Operand(83));
-  __ b(ge, &out_of_range);
+  __ mov(result_reg, Operand::Zero(), LeaveCC, ge);
+  __ b(ge, &done);
 
-  // If we reach this code, 31 <= exponent <= 83.
-  // So, we don't have to handle cases where 0 <= exponent <= 20 for
-  // which we would need to shift right the high part of the mantissa.
+  // If we reach this code, 30 <= exponent <= 83.
+  // `TryInlineTruncateDoubleToI` above will have truncated any double with an
+  // exponent lower than 30.
+  if (masm->emit_debug_code()) {
+    // Scratch is exponent - 1.
+    __ cmp(scratch, Operand(30 - 1));
+    __ Check(ge, kUnexpectedValue);
+  }
+
+  // We don't have to handle cases where 0 <= exponent <= 20 for which we would
+  // need to shift right the high part of the mantissa.
   // Scratch contains exponent - 1.
   // Load scratch with 52 - exponent (load with 51 - (exponent - 1)).
   __ rsb(scratch, scratch, Operand(51), SetCC);
-  __ b(ls, &only_low);
-  // 21 <= exponent <= 51, shift scratch_low and scratch_high
+
+  // 52 <= exponent <= 83, shift only double_low.
+  // On entry, scratch contains: 52 - exponent.
+  __ rsb(scratch, scratch, Operand::Zero(), LeaveCC, ls);
+  __ mov(result_reg, Operand(double_low, LSL, scratch), LeaveCC, ls);
+  __ b(ls, &negate);
+
+  // 21 <= exponent <= 51, shift double_low and double_high
   // to generate the result.
-  __ mov(scratch_low, Operand(scratch_low, LSR, scratch));
+  __ mov(double_low, Operand(double_low, LSR, scratch));
   // Scratch contains: 52 - exponent.
   // We needs: exponent - 20.
   // So we use: 32 - scratch = 32 - 52 + exponent = exponent - 20.
   __ rsb(scratch, scratch, Operand(32));
-  __ Ubfx(result_reg, scratch_high,
-          0, HeapNumber::kMantissaBitsInTopWord);
-  // Set the implicit 1 before the mantissa part in scratch_high.
+  __ Ubfx(result_reg, double_high, 0, HeapNumber::kMantissaBitsInTopWord);
+  // Set the implicit 1 before the mantissa part in double_high.
   __ orr(result_reg, result_reg,
          Operand(1 << HeapNumber::kMantissaBitsInTopWord));
-  __ orr(result_reg, scratch_low, Operand(result_reg, LSL, scratch));
-  __ b(&negate);
-
-  __ bind(&out_of_range);
-  __ mov(result_reg, Operand::Zero());
-  __ b(&done);
-
-  __ bind(&only_low);
-  // 52 <= exponent <= 83, shift only scratch_low.
-  // On entry, scratch contains: 52 - exponent.
-  __ rsb(scratch, scratch, Operand::Zero());
-  __ mov(result_reg, Operand(scratch_low, LSL, scratch));
+  __ orr(result_reg, double_low, Operand(result_reg, LSL, scratch));
 
   __ bind(&negate);
-  // If input was positive, scratch_high ASR 31 equals 0 and
-  // scratch_high LSR 31 equals zero.
+  // If input was positive, double_high ASR 31 equals 0 and
+  // double_high LSR 31 equals zero.
   // New result = (result eor 0) + 0 = result.
   // If the input was negative, we have to negate the result.
-  // Input_high ASR 31 equals 0xffffffff and scratch_high LSR 31 equals 1.
+  // Input_high ASR 31 equals 0xffffffff and double_high LSR 31 equals 1.
   // New result = (result eor 0xffffffff) + 1 = 0 - result.
-  __ eor(result_reg, result_reg, Operand(scratch_high, ASR, 31));
-  __ add(result_reg, result_reg, Operand(scratch_high, LSR, 31));
+  __ eor(result_reg, result_reg, Operand(double_high, ASR, 31));
+  __ add(result_reg, result_reg, Operand(double_high, LSR, 31));
 
   __ bind(&done);
 
-  __ Pop(scratch_high, scratch_low, scratch);
+  // Restore registers corrupted in this routine and return.
+  __ Pop(double_high, double_low);
   __ Ret();
 }
 

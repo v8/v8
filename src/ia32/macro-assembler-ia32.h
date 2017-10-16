@@ -273,10 +273,7 @@ class TurboAssembler : public Assembler {
 
   void Cvtui2ss(XMMRegister dst, Register src, Register tmp);
 
-  void SlowTruncateToIDelayed(Zone* zone, Register result_reg,
-                              Register input_reg,
-                              int offset = HeapNumber::kValueOffset -
-                                           kHeapObjectTag);
+  void SlowTruncateToIDelayed(Zone* zone, Register result_reg);
 
   void Push(Register src) { push(src); }
   void Push(const Operand& src) { push(src); }

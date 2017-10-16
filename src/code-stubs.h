@@ -789,45 +789,22 @@ enum EmbedMode {
 
 class DoubleToIStub : public PlatformCodeStub {
  public:
-  DoubleToIStub(Isolate* isolate, Register source, Register destination,
-                int offset, bool is_truncating, bool skip_fastpath = false)
+  DoubleToIStub(Isolate* isolate, Register destination)
       : PlatformCodeStub(isolate) {
-    minor_key_ = SourceRegisterBits::encode(source.code()) |
-                 DestinationRegisterBits::encode(destination.code()) |
-                 OffsetBits::encode(offset) |
-                 IsTruncatingBits::encode(is_truncating) |
-                 SkipFastPathBits::encode(skip_fastpath) |
-                 SSE3Bits::encode(CpuFeatures::IsSupported(SSE3) ? 1 : 0);
+    minor_key_ = DestinationRegisterBits::encode(destination.code());
   }
 
   bool SometimesSetsUpAFrame() override { return false; }
 
  private:
-  Register source() const {
-    return Register::from_code(SourceRegisterBits::decode(minor_key_));
-  }
   Register destination() const {
     return Register::from_code(DestinationRegisterBits::decode(minor_key_));
   }
-  bool is_truncating() const { return IsTruncatingBits::decode(minor_key_); }
-  bool skip_fastpath() const { return SkipFastPathBits::decode(minor_key_); }
-  int offset() const { return OffsetBits::decode(minor_key_); }
 
   static const int kBitsPerRegisterNumber = 6;
   STATIC_ASSERT((1L << kBitsPerRegisterNumber) >= Register::kNumRegisters);
-  class SourceRegisterBits:
-      public BitField<int, 0, kBitsPerRegisterNumber> {};  // NOLINT
-  class DestinationRegisterBits:
-      public BitField<int, kBitsPerRegisterNumber,
-        kBitsPerRegisterNumber> {};  // NOLINT
-  class IsTruncatingBits:
-      public BitField<bool, 2 * kBitsPerRegisterNumber, 1> {};  // NOLINT
-  class OffsetBits:
-      public BitField<int, 2 * kBitsPerRegisterNumber + 1, 3> {};  // NOLINT
-  class SkipFastPathBits:
-      public BitField<int, 2 * kBitsPerRegisterNumber + 4, 1> {};  // NOLINT
-  class SSE3Bits:
-      public BitField<int, 2 * kBitsPerRegisterNumber + 5, 1> {};  // NOLINT
+  class DestinationRegisterBits
+      : public BitField<int, 0, kBitsPerRegisterNumber> {};  // NOLINT
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DoubleToI, PlatformCodeStub);

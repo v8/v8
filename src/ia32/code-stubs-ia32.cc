@@ -73,27 +73,23 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 
 
 void DoubleToIStub::Generate(MacroAssembler* masm) {
-  Register input_reg = this->source();
   Register final_result_reg = this->destination();
-  DCHECK(is_truncating());
 
-  Label check_negative, process_64_bits, done, done_no_stash;
+  Label check_negative, process_64_bits, done;
 
-  int double_offset = offset();
+  // Account for return address and saved regs.
+  const int kArgumentOffset = 3 * kPointerSize;
 
-  // Account for return address and saved regs if input is esp.
-  if (input_reg == esp) double_offset += 3 * kPointerSize;
-
-  MemOperand mantissa_operand(MemOperand(input_reg, double_offset));
-  MemOperand exponent_operand(MemOperand(input_reg,
-                                         double_offset + kDoubleSize / 2));
+  MemOperand mantissa_operand(MemOperand(esp, kArgumentOffset));
+  MemOperand exponent_operand(
+      MemOperand(esp, kArgumentOffset + kDoubleSize / 2));
 
   Register scratch1 = no_reg;
   {
     Register scratch_candidates[3] = { ebx, edx, edi };
     for (int i = 0; i < 3; i++) {
       scratch1 = scratch_candidates[i];
-      if (final_result_reg != scratch1 && input_reg != scratch1) break;
+      if (final_result_reg != scratch1) break;
     }
   }
   // Since we must use ecx for shifts below, use some other register (eax)
@@ -106,7 +102,6 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   __ push(scratch1);
   __ push(save_reg);
 
-  bool stash_exponent_copy = input_reg != esp;
   __ mov(scratch1, mantissa_operand);
   if (CpuFeatures::IsSupported(SSE3)) {
     CpuFeatureScope scope(masm, SSE3);
@@ -114,7 +109,6 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     __ fld_d(mantissa_operand);
   }
   __ mov(ecx, exponent_operand);
-  if (stash_exponent_copy) __ push(ecx);
 
   __ and_(ecx, HeapNumber::kExponentMask);
   __ shr(ecx, HeapNumber::kExponentShift);
@@ -137,28 +131,18 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   __ bind(&process_64_bits);
   if (CpuFeatures::IsSupported(SSE3)) {
     CpuFeatureScope scope(masm, SSE3);
-    if (stash_exponent_copy) {
-      // Already a copy of the exponent on the stack, overwrite it.
-      STATIC_ASSERT(kDoubleSize == 2 * kPointerSize);
-      __ sub(esp, Immediate(kDoubleSize / 2));
-    } else {
-      // Reserve space for 64 bit answer.
-      __ sub(esp, Immediate(kDoubleSize));  // Nolint.
-    }
+    // Reserve space for 64 bit answer.
+    __ sub(esp, Immediate(kDoubleSize));  // Nolint.
     // Do conversion, which cannot fail because we checked the exponent.
     __ fisttp_d(Operand(esp, 0));
     __ mov(result_reg, Operand(esp, 0));  // Load low word of answer as result
     __ add(esp, Immediate(kDoubleSize));
-    __ jmp(&done_no_stash);
+    __ jmp(&done);
   } else {
     // Result must be extracted from shifted 32-bit mantissa
     __ sub(ecx, Immediate(delta));
     __ neg(ecx);
-    if (stash_exponent_copy) {
-      __ mov(result_reg, MemOperand(esp, 0));
-    } else {
-      __ mov(result_reg, exponent_operand);
-    }
+    __ mov(result_reg, exponent_operand);
     __ and_(result_reg,
             Immediate(static_cast<uint32_t>(Double::kSignificandMask >> 32)));
     __ add(result_reg,
@@ -173,19 +157,11 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   __ bind(&check_negative);
   __ mov(result_reg, scratch1);
   __ neg(result_reg);
-  if (stash_exponent_copy) {
-    __ cmp(MemOperand(esp, 0), Immediate(0));
-  } else {
-    __ cmp(exponent_operand, Immediate(0));
-  }
-    __ cmov(greater, result_reg, scratch1);
+  __ cmp(exponent_operand, Immediate(0));
+  __ cmov(greater, result_reg, scratch1);
 
   // Restore registers
   __ bind(&done);
-  if (stash_exponent_copy) {
-    __ add(esp, Immediate(kDoubleSize / 2));
-  }
-  __ bind(&done_no_stash);
   if (final_result_reg != result_reg) {
     DCHECK(final_result_reg == ecx);
     __ mov(final_result_reg, result_reg);

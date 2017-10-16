@@ -2416,9 +2416,7 @@ void TurboAssembler::TruncateDoubleToIDelayed(Zone* zone, Register result,
   // If we fell through then inline version didn't succeed - call stub instead.
   Push(lr, double_input);
 
-  auto stub = new (zone) DoubleToIStub(nullptr, jssp, result, 0,
-                                       true,   // is_truncating
-                                       true);  // skip_fastpath
+  auto stub = new (zone) DoubleToIStub(nullptr, result);
   // DoubleToIStub preserves any registers it needs to clobber.
   CallStubDelayed(stub);
 

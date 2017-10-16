@@ -45,7 +45,6 @@ namespace test_code_stubs_x64 {
 #define __ assm.
 
 ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
-                                              Register source_reg,
                                               Register destination_reg) {
   // Allocate an executable page of memory.
   size_t actual_size;
@@ -55,8 +54,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   HandleScope handles(isolate);
   MacroAssembler assm(isolate, buffer, static_cast<int>(actual_size),
                       v8::internal::CodeObjectRequired::kYes);
-  int offset = source_reg == rsp ? 0 : (HeapNumber::kValueOffset - kSmiTagSize);
-  DoubleToIStub stub(isolate, source_reg, destination_reg, offset, true);
+  DoubleToIStub stub(isolate, destination_reg);
   byte* start = stub.GetCode()->instruction_start();
 
   __ pushq(rbx);
@@ -66,16 +64,6 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ pushq(rdi);
 
   const RegisterConfiguration* config = RegisterConfiguration::Default();
-  if (source_reg != rsp) {
-    // The argument we pass to the stub is not a heap number, but instead
-    // stack-allocated and offset-wise made to look like a heap number for
-    // the stub.  We create that "heap number" after pushing all allocatable
-    // registers.
-    int double_argument_slot =
-        (config->num_allocatable_general_registers() - 1) * kPointerSize +
-        kDoubleSize;
-    __ leaq(source_reg, MemOperand(rsp, -double_argument_slot - offset));
-  }
 
   // Save registers make sure they don't get clobbered.
   int reg_num = 0;
@@ -144,16 +132,11 @@ TEST(ConvertDToI) {
   RunAllTruncationTests(&ConvertDToICVersion);
 #endif
 
-  Register source_registers[] = {rsp, rax, rbx, rcx, rdx, rsi, rdi, r8, r9};
   Register dest_registers[] = {rax, rbx, rcx, rdx, rsi, rdi, r8, r9};
 
-  for (size_t s = 0; s < sizeof(source_registers) / sizeof(Register); s++) {
-    for (size_t d = 0; d < sizeof(dest_registers) / sizeof(Register); d++) {
-      RunAllTruncationTests(
-          MakeConvertDToIFuncTrampoline(isolate,
-                                        source_registers[s],
-                                        dest_registers[d]));
-    }
+  for (size_t d = 0; d < sizeof(dest_registers) / sizeof(Register); d++) {
+    RunAllTruncationTests(
+        MakeConvertDToIFuncTrampoline(isolate, dest_registers[d]));
   }
 }
 

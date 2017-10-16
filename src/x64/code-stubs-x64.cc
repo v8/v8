@@ -58,26 +58,22 @@ void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
 
 
 void DoubleToIStub::Generate(MacroAssembler* masm) {
-    Register input_reg = this->source();
     Register final_result_reg = this->destination();
-    DCHECK(is_truncating());
 
     Label check_negative, process_64_bits, done;
 
-    int double_offset = offset();
+    // Account for return address and saved regs.
+    const int kArgumentOffset = 3 * kRegisterSize;
 
-    // Account for return address and saved regs if input is rsp.
-    if (input_reg == rsp) double_offset += 3 * kRegisterSize;
-
-    MemOperand mantissa_operand(MemOperand(input_reg, double_offset));
-    MemOperand exponent_operand(MemOperand(input_reg,
-                                           double_offset + kDoubleSize / 2));
+    MemOperand mantissa_operand(MemOperand(rsp, kArgumentOffset));
+    MemOperand exponent_operand(
+        MemOperand(rsp, kArgumentOffset + kDoubleSize / 2));
 
     Register scratch1 = no_reg;
     Register scratch_candidates[3] = { rbx, rdx, rdi };
     for (int i = 0; i < 3; i++) {
       scratch1 = scratch_candidates[i];
-      if (final_result_reg != scratch1 && input_reg != scratch1) break;
+      if (final_result_reg != scratch1) break;
     }
 
     // Since we must use rcx for shifts below, use some other register (rax)
@@ -90,11 +86,9 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     __ pushq(scratch1);
     __ pushq(save_reg);
 
-    bool stash_exponent_copy = input_reg != rsp;
     __ movl(scratch1, mantissa_operand);
     __ Movsd(kScratchDoubleReg, mantissa_operand);
     __ movl(rcx, exponent_operand);
-    if (stash_exponent_copy) __ pushq(rcx);
 
     __ andl(rcx, Immediate(HeapNumber::kExponentMask));
     __ shrl(rcx, Immediate(HeapNumber::kExponentShift));
@@ -119,18 +113,11 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
     __ bind(&check_negative);
     __ movl(result_reg, scratch1);
     __ negl(result_reg);
-    if (stash_exponent_copy) {
-        __ cmpl(MemOperand(rsp, 0), Immediate(0));
-    } else {
-        __ cmpl(exponent_operand, Immediate(0));
-    }
+    __ cmpl(exponent_operand, Immediate(0));
     __ cmovl(greater, result_reg, scratch1);
 
     // Restore registers
     __ bind(&done);
-    if (stash_exponent_copy) {
-        __ addp(rsp, Immediate(kDoubleSize));
-    }
     if (final_result_reg != result_reg) {
       DCHECK(final_result_reg == rcx);
       __ movl(final_result_reg, result_reg);

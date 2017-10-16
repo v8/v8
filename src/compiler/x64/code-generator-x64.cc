@@ -212,7 +212,7 @@ class OutOfLineTruncateDoubleToI final : public OutOfLineCode {
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                       kDoubleSize);
     __ Movsd(MemOperand(rsp, 0), input_);
-    __ SlowTruncateToIDelayed(zone_, result_, rsp, 0);
+    __ SlowTruncateToIDelayed(zone_, result_);
     __ addp(rsp, Immediate(kDoubleSize));
     unwinding_info_writer_->MaybeIncreaseBaseOffsetAt(__ pc_offset(),
                                                       -kDoubleSize);
