@@ -3575,25 +3575,27 @@ void TurboAssembler::LoadP(Register dst, const MemOperand& mem,
                            Register scratch) {
   int offset = mem.offset();
 
-  if (scratch != no_reg && !is_int20(offset)) {
-    /* cannot use d-form */
+#if V8_TARGET_ARCH_S390X
+  MemOperand src = mem;
+  if (!is_int20(offset)) {
+    DCHECK(scratch != no_reg && scratch != r0 && mem.rx() == r0);
+    DCHECK(scratch != mem.rb());
     LoadIntLiteral(scratch, offset);
-#if V8_TARGET_ARCH_S390X
-    lg(dst, MemOperand(mem.rb(), scratch));
-#else
-    l(dst, MemOperand(mem.rb(), scratch));
-#endif
-  } else {
-#if V8_TARGET_ARCH_S390X
-    lg(dst, mem);
-#else
-    if (is_uint12(offset)) {
-      l(dst, mem);
-    } else {
-      ly(dst, mem);
-    }
-#endif
+    src = MemOperand(mem.rb(), scratch);
   }
+  lg(dst, src);
+#else
+  if (is_uint12(offset)) {
+    l(dst, mem);
+  } else if (is_int20(offset)) {
+    ly(dst, mem);
+  } else {
+    DCHECK(scratch != no_reg && scratch != r0 && mem.rx() == r0);
+    DCHECK(scratch != mem.rb());
+    LoadIntLiteral(scratch, offset);
+    l(dst, MemOperand(mem.rb(), scratch));
+  }
+#endif
 }
 
 // Store a "pointer" sized value to the memory location
@@ -4288,10 +4290,118 @@ void TurboAssembler::Popcnt64(Register dst, Register src) {
 }
 #endif
 
+void TurboAssembler::SwapP(Register src, Register dst, Register scratch) {
+  if (src == dst) return;
+  DCHECK(!AreAliased(src, dst, scratch));
+  LoadRR(scratch, src);
+  LoadRR(src, dst);
+  LoadRR(dst, scratch);
+}
+
+void TurboAssembler::SwapP(Register src, MemOperand dst, Register scratch) {
+  if (dst.rx() != r0) DCHECK(!AreAliased(src, dst.rx(), scratch));
+  if (dst.rb() != r0) DCHECK(!AreAliased(src, dst.rb(), scratch));
+  DCHECK(!AreAliased(src, scratch));
+  LoadRR(scratch, src);
+  LoadP(src, dst);
+  StoreP(scratch, dst);
+}
+
+void TurboAssembler::SwapP(MemOperand src, MemOperand dst, Register scratch_0,
+                           Register scratch_1) {
+  if (src.rx() != r0) DCHECK(!AreAliased(src.rx(), scratch_0, scratch_1));
+  if (src.rb() != r0) DCHECK(!AreAliased(src.rb(), scratch_0, scratch_1));
+  if (dst.rx() != r0) DCHECK(!AreAliased(dst.rx(), scratch_0, scratch_1));
+  if (dst.rb() != r0) DCHECK(!AreAliased(dst.rb(), scratch_0, scratch_1));
+  DCHECK(!AreAliased(scratch_0, scratch_1));
+  LoadP(scratch_0, src);
+  LoadP(scratch_1, dst);
+  StoreP(scratch_0, dst);
+  StoreP(scratch_1, src);
+}
+
+void TurboAssembler::SwapFloat32(DoubleRegister src, DoubleRegister dst,
+                                 DoubleRegister scratch) {
+  if (src == dst) return;
+  DCHECK(!AreAliased(src, dst, scratch));
+  ldr(scratch, src);
+  ldr(src, dst);
+  ldr(dst, scratch);
+}
+
+void TurboAssembler::SwapFloat32(DoubleRegister src, MemOperand dst,
+                                 DoubleRegister scratch) {
+  DCHECK(!AreAliased(src, scratch));
+  ldr(scratch, src);
+  LoadFloat32(src, dst);
+  StoreFloat32(scratch, dst);
+}
+
+void TurboAssembler::SwapFloat32(MemOperand src, MemOperand dst,
+                                 DoubleRegister scratch_0,
+                                 DoubleRegister scratch_1) {
+  DCHECK(!AreAliased(scratch_0, scratch_1));
+  LoadFloat32(scratch_0, src);
+  LoadFloat32(scratch_1, dst);
+  StoreFloat32(scratch_0, dst);
+  StoreFloat32(scratch_1, src);
+}
+
+void TurboAssembler::SwapDouble(DoubleRegister src, DoubleRegister dst,
+                                DoubleRegister scratch) {
+  if (src == dst) return;
+  DCHECK(!AreAliased(src, dst, scratch));
+  ldr(scratch, src);
+  ldr(src, dst);
+  ldr(dst, scratch);
+}
+
+void TurboAssembler::SwapDouble(DoubleRegister src, MemOperand dst,
+                                DoubleRegister scratch) {
+  DCHECK(!AreAliased(src, scratch));
+  ldr(scratch, src);
+  LoadDouble(src, dst);
+  StoreDouble(scratch, dst);
+}
+
+void TurboAssembler::SwapDouble(MemOperand src, MemOperand dst,
+                                DoubleRegister scratch_0,
+                                DoubleRegister scratch_1) {
+  DCHECK(!AreAliased(scratch_0, scratch_1));
+  LoadDouble(scratch_0, src);
+  LoadDouble(scratch_1, dst);
+  StoreDouble(scratch_0, dst);
+  StoreDouble(scratch_1, src);
+}
+
 #ifdef DEBUG
 bool AreAliased(Register reg1, Register reg2, Register reg3, Register reg4,
                 Register reg5, Register reg6, Register reg7, Register reg8,
                 Register reg9, Register reg10) {
+  int n_of_valid_regs = reg1.is_valid() + reg2.is_valid() + reg3.is_valid() +
+                        reg4.is_valid() + reg5.is_valid() + reg6.is_valid() +
+                        reg7.is_valid() + reg8.is_valid() + reg9.is_valid() +
+                        reg10.is_valid();
+
+  RegList regs = 0;
+  if (reg1.is_valid()) regs |= reg1.bit();
+  if (reg2.is_valid()) regs |= reg2.bit();
+  if (reg3.is_valid()) regs |= reg3.bit();
+  if (reg4.is_valid()) regs |= reg4.bit();
+  if (reg5.is_valid()) regs |= reg5.bit();
+  if (reg6.is_valid()) regs |= reg6.bit();
+  if (reg7.is_valid()) regs |= reg7.bit();
+  if (reg8.is_valid()) regs |= reg8.bit();
+  if (reg9.is_valid()) regs |= reg9.bit();
+  if (reg10.is_valid()) regs |= reg10.bit();
+  int n_of_non_aliasing_regs = NumRegs(regs);
+
+  return n_of_valid_regs != n_of_non_aliasing_regs;
+}
+bool AreAliased(DoubleRegister reg1, DoubleRegister reg2, DoubleRegister reg3,
+                DoubleRegister reg4, DoubleRegister reg5, DoubleRegister reg6,
+                DoubleRegister reg7, DoubleRegister reg8, DoubleRegister reg9,
+                DoubleRegister reg10) {
   int n_of_valid_regs = reg1.is_valid() + reg2.is_valid() + reg3.is_valid() +
                         reg4.is_valid() + reg5.is_valid() + reg6.is_valid() +
                         reg7.is_valid() + reg8.is_valid() + reg9.is_valid() +

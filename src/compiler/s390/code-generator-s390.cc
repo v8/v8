@@ -1964,11 +1964,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ CanonicalizeNaN(result, value);
       break;
     }
+    case kS390_StackClaim: {
+      int num_slots = i.InputInt32(0);
+      __ lay(sp, MemOperand(sp, -num_slots * kPointerSize));
+      frame_access_state()->IncreaseSPDelta(num_slots);
+      break;
+    }
     case kS390_Push:
       if (instr->InputAt(0)->IsFPRegister()) {
-        __ lay(sp, MemOperand(sp, -kDoubleSize));
-        __ StoreDouble(i.InputDoubleRegister(0), MemOperand(sp));
-        frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        LocationOperand* op = LocationOperand::cast(instr->InputAt(0));
+        if (op->representation() == MachineRepresentation::kFloat64) {
+          __ lay(sp, MemOperand(sp, -kDoubleSize));
+          __ StoreDouble(i.InputDoubleRegister(0), MemOperand(sp));
+          frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
+        } else {
+          DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
+          __ lay(sp, MemOperand(sp, -kPointerSize));
+          __ StoreFloat32(i.InputDoubleRegister(0), MemOperand(sp));
+          frame_access_state()->IncreaseSPDelta(1);
+        }
       } else {
         __ Push(i.InputRegister(0));
         frame_access_state()->IncreaseSPDelta(1);
@@ -2883,8 +2897,12 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ LoadDoubleLiteral(dst, value, kScratchReg);
       }
 
-      if (destination->IsFPStackSlot()) {
+      if (destination->IsFloatStackSlot()) {
+        __ StoreFloat32(dst, g.ToMemOperand(destination));
+      } else if (destination->IsDoubleStackSlot()) {
         __ StoreDouble(dst, g.ToMemOperand(destination));
+      } else {
+        UNREACHABLE();
       }
     }
   } else if (source->IsFPRegister()) {
@@ -2927,71 +2945,56 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
   }
 }
 
+// Swaping contents in source and destination.
+// source and destination could be:
+//   Register,
+//   FloatRegister,
+//   DoubleRegister,
+//   StackSlot,
+//   FloatStackSlot,
+//   or DoubleStackSlot
 void CodeGenerator::AssembleSwap(InstructionOperand* source,
                                  InstructionOperand* destination) {
   S390OperandConverter g(this, nullptr);
-  // Dispatch on the source and destination operand kinds.  Not all
-  // combinations are possible.
   if (source->IsRegister()) {
-    // Register-register.
-    Register temp = kScratchReg;
     Register src = g.ToRegister(source);
     if (destination->IsRegister()) {
-      Register dst = g.ToRegister(destination);
-      __ LoadRR(temp, src);
-      __ LoadRR(src, dst);
-      __ LoadRR(dst, temp);
+      __ SwapP(src, g.ToRegister(destination), kScratchReg);
     } else {
       DCHECK(destination->IsStackSlot());
-      MemOperand dst = g.ToMemOperand(destination);
-      __ LoadRR(temp, src);
-      __ LoadP(src, dst);
-      __ StoreP(temp, dst);
+      __ SwapP(src, g.ToMemOperand(destination), kScratchReg);
     }
-#if V8_TARGET_ARCH_S390X
-  } else if (source->IsStackSlot() || source->IsFPStackSlot()) {
-#else
   } else if (source->IsStackSlot()) {
     DCHECK(destination->IsStackSlot());
-#endif
-    Register temp_0 = kScratchReg;
-    Register temp_1 = r0;
-    MemOperand src = g.ToMemOperand(source);
-    MemOperand dst = g.ToMemOperand(destination);
-    __ LoadP(temp_0, src);
-    __ LoadP(temp_1, dst);
-    __ StoreP(temp_0, dst);
-    __ StoreP(temp_1, src);
-  } else if (source->IsFPRegister()) {
-    DoubleRegister temp = kScratchDoubleReg;
+    __ SwapP(g.ToMemOperand(source), g.ToMemOperand(destination), kScratchReg,
+             r0);
+  } else if (source->IsFloatRegister()) {
     DoubleRegister src = g.ToDoubleRegister(source);
-    if (destination->IsFPRegister()) {
-      DoubleRegister dst = g.ToDoubleRegister(destination);
-      __ ldr(temp, src);
-      __ ldr(src, dst);
-      __ ldr(dst, temp);
+    if (destination->IsFloatRegister()) {
+      __ SwapFloat32(src, g.ToDoubleRegister(destination), kScratchDoubleReg);
     } else {
-      DCHECK(destination->IsFPStackSlot());
-      MemOperand dst = g.ToMemOperand(destination);
-      __ ldr(temp, src);
-      __ LoadDouble(src, dst);
-      __ StoreDouble(temp, dst);
+      DCHECK(destination->IsFloatStackSlot());
+      __ SwapFloat32(src, g.ToMemOperand(destination), kScratchDoubleReg);
     }
-#if !V8_TARGET_ARCH_S390X
-  } else if (source->IsFPStackSlot()) {
-    DCHECK(destination->IsFPStackSlot());
-    DoubleRegister temp_0 = kScratchDoubleReg;
-    DoubleRegister temp_1 = d0;
-    MemOperand src = g.ToMemOperand(source);
-    MemOperand dst = g.ToMemOperand(destination);
-    // TODO(joransiu): MVC opportunity
-    __ LoadDouble(temp_0, src);
-    __ LoadDouble(temp_1, dst);
-    __ StoreDouble(temp_0, dst);
-    __ StoreDouble(temp_1, src);
-#endif
+  } else if (source->IsDoubleRegister()) {
+    DoubleRegister src = g.ToDoubleRegister(source);
+    if (destination->IsDoubleRegister()) {
+      __ SwapDouble(src, g.ToDoubleRegister(destination), kScratchDoubleReg);
+    } else {
+      DCHECK(destination->IsDoubleStackSlot());
+      __ SwapDouble(src, g.ToMemOperand(destination), kScratchDoubleReg);
+    }
+  } else if (source->IsFloatStackSlot()) {
+    DCHECK(destination->IsFloatStackSlot());
+    __ SwapFloat32(g.ToMemOperand(source), g.ToMemOperand(destination),
+                   kScratchDoubleReg, d0);
+  } else if (source->IsDoubleStackSlot()) {
+    DCHECK(destination->IsDoubleStackSlot());
+    __ SwapDouble(g.ToMemOperand(source), g.ToMemOperand(destination),
+                  kScratchDoubleReg, d0);
+  } else if (source->IsSimd128Register()) {
+    UNREACHABLE();
   } else {
-    // No other combinations are possible.
     UNREACHABLE();
   }
 }
