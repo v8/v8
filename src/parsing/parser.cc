@@ -310,7 +310,7 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
 
 Expression* Parser::BuildUnaryExpression(Expression* expression,
                                          Token::Value op, int pos) {
-  DCHECK(expression != nullptr);
+  DCHECK_NOT_NULL(expression);
   if (expression->IsLiteral()) {
     const AstValue* literal = expression->AsLiteral()->raw_value();
     if (op == Token::NOT) {
@@ -488,7 +488,7 @@ Parser::Parser(ParseInfo* info)
   // Even though we were passed ParseInfo, we should not store it in
   // Parser - this makes sure that Isolate is not accidentally accessed via
   // ParseInfo during background parsing.
-  DCHECK(info->character_stream() != nullptr);
+  DCHECK_NOT_NULL(info->character_stream());
   // Determine if functions can be lazily compiled. This is necessary to
   // allow some of our builtin JS files to be lazily compiled. These
   // builtins cannot be handled lazily by the parser, since we have to know
@@ -718,7 +718,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   info->set_max_function_literal_id(GetLastFunctionLiteralId());
 
   // Make sure the target stack is empty.
-  DCHECK(target_stack_ == nullptr);
+  DCHECK_NULL(target_stack_);
 
   return result;
 }
@@ -2166,7 +2166,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
   //    }
   //  }
 
-  DCHECK(for_info.bound_names.length() > 0);
+  DCHECK_GT(for_info.bound_names.length(), 0);
   ZoneList<Variable*> temps(for_info.bound_names.length(), zone());
 
   Block* outer_block =
@@ -2240,7 +2240,7 @@ Statement* Parser::DesugarLexicalBindingsInForStatement(
       Statement* assignment_statement =
           factory()->NewExpressionStatement(assignment, kNoSourcePosition);
       int declaration_pos = for_info.parsing_result.descriptor.declaration_pos;
-      DCHECK(declaration_pos != kNoSourcePosition);
+      DCHECK_NE(declaration_pos, kNoSourcePosition);
       decl->proxy()->var()->set_initializer_position(declaration_pos);
       ignore_completion_block->statements()->Add(assignment_statement, zone());
     }
@@ -3349,7 +3349,7 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
 void Parser::ParseOnBackground(ParseInfo* info) {
   parsing_on_main_thread_ = false;
 
-  DCHECK(info->literal() == nullptr);
+  DCHECK_NULL(info->literal());
   FunctionLiteral* result = nullptr;
 
   ParserLogger logger;
@@ -4177,7 +4177,7 @@ void Parser::FinalizeIteratorUse(Variable* completion, Expression* condition,
     Block* block = factory()->NewBlock(2, true);
     Expression* proxy = factory()->NewVariableProxy(completion);
     BuildIteratorCloseForCompletion(block->statements(), iter, proxy, type);
-    DCHECK(block->statements()->length() == 2);
+    DCHECK_EQ(block->statements()->length(), 2);
 
     maybe_close = IgnoreCompletion(factory()->NewIfStatement(
         condition, block, factory()->NewEmptyStatement(nopos), nopos));

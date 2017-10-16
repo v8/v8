@@ -455,7 +455,7 @@ class FunctionDeclaration final : public Declaration {
 
   FunctionDeclaration(VariableProxy* proxy, FunctionLiteral* fun, int pos)
       : Declaration(proxy, pos, kFunctionDeclaration), fun_(fun) {
-    DCHECK(fun != nullptr);
+    DCHECK_NOT_NULL(fun);
   }
 
   FunctionLiteral* fun_;
@@ -2366,7 +2366,7 @@ class FunctionLiteral final : public Expression {
 
   Handle<String> inferred_name() const {
     if (!inferred_name_.is_null()) {
-      DCHECK(raw_inferred_name_ == nullptr);
+      DCHECK_NULL(raw_inferred_name_);
       return inferred_name_;
     }
     if (raw_inferred_name_ != nullptr) {
@@ -2384,7 +2384,7 @@ class FunctionLiteral final : public Expression {
   }
 
   void set_raw_inferred_name(const AstConsString* raw_inferred_name) {
-    DCHECK(raw_inferred_name != nullptr);
+    DCHECK_NOT_NULL(raw_inferred_name);
     raw_inferred_name_ = raw_inferred_name;
     DCHECK(inferred_name_.is_null());
     inferred_name_ = Handle<String>();

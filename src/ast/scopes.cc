@@ -100,7 +100,7 @@ Variable* VariableMap::Lookup(const AstRawString* name) {
   Entry* p = ZoneHashMap::Lookup(const_cast<AstRawString*>(name), name->Hash());
   if (p != nullptr) {
     DCHECK(reinterpret_cast<const AstRawString*>(p->key) == name);
-    DCHECK(p->value != nullptr);
+    DCHECK_NOT_NULL(p->value);
     return reinterpret_cast<Variable*>(p->value);
   }
   return nullptr;
@@ -650,7 +650,7 @@ void DeclarationScope::AttachOuterScopeInfo(ParseInfo* info, Isolate* isolate) {
 void DeclarationScope::Analyze(ParseInfo* info) {
   RuntimeCallTimerScope runtimeTimer(info->runtime_call_stats(),
                                      &RuntimeCallStats::CompileScopeAnalysis);
-  DCHECK(info->literal() != nullptr);
+  DCHECK_NOT_NULL(info->literal());
   DeclarationScope* scope = info->literal()->scope();
 
   base::Optional<AllowHandleDereference> allow_deref;
@@ -1096,7 +1096,7 @@ Variable* Scope::DeclareVariable(
          (IsLexicalVariableMode(mode) && is_block_scope()));
 
   VariableProxy* proxy = declaration->proxy();
-  DCHECK(proxy->raw_name() != nullptr);
+  DCHECK_NOT_NULL(proxy->raw_name());
   const AstRawString* name = proxy->raw_name();
   bool is_function_declaration = declaration->IsFunctionDeclaration();
 
@@ -1389,7 +1389,7 @@ bool DeclarationScope::AllowsLazyCompilation() const {
 int Scope::ContextChainLength(Scope* scope) const {
   int n = 0;
   for (const Scope* s = this; s != scope; s = s->outer_scope_) {
-    DCHECK(s != nullptr);  // scope must be in the scope chain
+    DCHECK_NOT_NULL(s);  // scope must be in the scope chain
     if (s->NeedsContext()) n++;
   }
   return n;
@@ -1980,8 +1980,8 @@ void UpdateNeedsHoleCheck(Variable* var, VariableProxy* proxy, Scope* scope) {
   }
 
   // We should always have valid source positions.
-  DCHECK(var->initializer_position() != kNoSourcePosition);
-  DCHECK(proxy->position() != kNoSourcePosition);
+  DCHECK_NE(var->initializer_position(), kNoSourcePosition);
+  DCHECK_NE(proxy->position(), kNoSourcePosition);
 
   if (var->scope()->is_nonlinear() ||
       var->initializer_position() >= proxy->position()) {
@@ -2024,7 +2024,7 @@ void Scope::ResolveVariablesRecursively(ParseInfo* info) {
   // unresolved references remaining, they just need to be resolved in outer
   // scopes.
   if (is_declaration_scope() && AsDeclarationScope()->was_lazily_parsed()) {
-    DCHECK(variables_.occupancy() == 0);
+    DCHECK_EQ(variables_.occupancy(), 0);
     for (VariableProxy* proxy = unresolved_; proxy != nullptr;
          proxy = proxy->next_unresolved()) {
       Variable* var = outer_scope()->LookupRecursive(proxy, nullptr);

@@ -397,8 +397,8 @@ void ProducedPreParsedScopeData::SaveDataForInnerScopes(Scope* scope) {
     if (ScopeIsSkippableFunctionScope(inner)) {
       // Don't save data about function scopes, since they'll have their own
       // ProducedPreParsedScopeData where their data is saved.
-      DCHECK(inner->AsDeclarationScope()->produced_preparsed_scope_data() !=
-             nullptr);
+      DCHECK_NOT_NULL(
+          inner->AsDeclarationScope()->produced_preparsed_scope_data());
       continue;
     }
     scopes.push_back(inner);

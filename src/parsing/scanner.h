@@ -414,7 +414,7 @@ class Scanner {
 
     Vector<const uint16_t> two_byte_literal() const {
       DCHECK(!is_one_byte_);
-      DCHECK((position_ & 0x1) == 0);
+      DCHECK_EQ(position_ & 0x1, 0);
       return Vector<const uint16_t>(
           reinterpret_cast<const uint16_t*>(backing_store_.start()),
           position_ >> 1);

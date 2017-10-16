@@ -621,7 +621,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   // Returns true if the expression is of type "this.foo".
   V8_INLINE static bool IsThisProperty(Expression* expression) {
-    DCHECK(expression != nullptr);
+    DCHECK_NOT_NULL(expression);
     Property* property = expression->AsProperty();
     return property != nullptr && property->obj()->IsVariableProxy() &&
            property->obj()->AsVariableProxy()->is_this();
@@ -738,7 +738,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // literal so it can be added as a constant function property.
   V8_INLINE static void CheckAssigningFunctionLiteralToProperty(
       Expression* left, Expression* right) {
-    DCHECK(left != nullptr);
+    DCHECK_NOT_NULL(left);
     if (left->IsProperty() && right->IsFunctionLiteral()) {
       right->AsFunctionLiteral()->set_pretenure();
     }
@@ -851,7 +851,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Producing data during the recursive descent.
   V8_INLINE const AstRawString* GetSymbol() const {
     const AstRawString* result = scanner()->CurrentSymbol(ast_value_factory());
-    DCHECK(result != nullptr);
+    DCHECK_NOT_NULL(result);
     return result;
   }
 

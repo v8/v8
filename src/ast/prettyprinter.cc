@@ -506,7 +506,7 @@ const char* AstPrinter::Print(AstNode* node) {
 
 void AstPrinter::Init() {
   if (size_ == 0) {
-    DCHECK(output_ == nullptr);
+    DCHECK_NULL(output_);
     const int initial_size = 256;
     output_ = NewArray<char>(initial_size);
     size_ = initial_size;
@@ -644,7 +644,7 @@ AstPrinter::AstPrinter(Isolate* isolate)
 }
 
 AstPrinter::~AstPrinter() {
-  DCHECK(indent_ == 0);
+  DCHECK_EQ(indent_, 0);
   DeleteArray(output_);
 }
 

@@ -1598,7 +1598,7 @@ void ParserBase<Impl>::GetUnexpectedTokenMessage(
       break;
     default:
       const char* name = Token::String(token);
-      DCHECK(name != nullptr);
+      DCHECK_NOT_NULL(name);
       *arg = name;
       break;
   }
@@ -2088,7 +2088,7 @@ template <class Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
     IdentifierT* name, PropertyKind* kind, bool* is_generator, bool* is_get,
     bool* is_set, bool* is_async, bool* is_computed_name, bool* ok) {
-  DCHECK(*kind == PropertyKind::kNotSet);
+  DCHECK_EQ(*kind, PropertyKind::kNotSet);
   DCHECK(!*is_generator);
   DCHECK(!*is_get);
   DCHECK(!*is_set);
@@ -3051,7 +3051,7 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
 template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
     int prec, bool accept_IN, bool* ok) {
-  DCHECK(prec >= 4);
+  DCHECK_GE(prec, 4);
   ExpressionT x = ParseUnaryExpression(CHECK_OK);
   for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
     // prec1 >= 4
@@ -3784,12 +3784,12 @@ typename ParserBase<Impl>::BlockT ParserBase<Impl>::ParseVariableDeclarations(
       break;
     case Token::CONST:
       Consume(Token::CONST);
-      DCHECK(var_context != kStatement);
+      DCHECK_NE(var_context, kStatement);
       parsing_result->descriptor.mode = CONST;
       break;
     case Token::LET:
       Consume(Token::LET);
-      DCHECK(var_context != kStatement);
+      DCHECK_NE(var_context, kStatement);
       parsing_result->descriptor.mode = LET;
       break;
     default:
@@ -4312,7 +4312,7 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         // For arrow functions, we don't need to retrieve data about function
         // parameters.
         int dummy_num_parameters = -1;
-        DCHECK((kind & FunctionKind::kArrowFunction) != 0);
+        DCHECK_NE(kind & FunctionKind::kArrowFunction, 0);
         LazyParsingResult result = impl()->SkipFunction(
             nullptr, kind, FunctionLiteral::kAnonymousExpression,
             formal_parameters.scope, &dummy_num_parameters,

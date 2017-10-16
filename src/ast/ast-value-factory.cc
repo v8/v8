@@ -204,7 +204,7 @@ bool AstValue::IsPropertyName() const {
 bool AstValue::BooleanValue() const {
   switch (type_) {
     case STRING:
-      DCHECK(string_ != nullptr);
+      DCHECK_NOT_NULL(string_);
       return !string_->IsEmpty();
     case SYMBOL:
       UNREACHABLE();

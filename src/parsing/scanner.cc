@@ -212,7 +212,7 @@ void Scanner::Initialize(Utf16CharacterStream* source, bool is_module) {
 
 template <bool capture_raw, bool unicode>
 uc32 Scanner::ScanHexNumber(int expected_length) {
-  DCHECK(expected_length <= 4);  // prevent overflow
+  DCHECK_LE(expected_length, 4);  // prevent overflow
 
   int begin = source_pos() - 2;
   uc32 x = 0;
@@ -583,7 +583,7 @@ void Scanner::TryToParseSourceURLComment() {
 
 
 Token::Value Scanner::SkipMultiLineComment() {
-  DCHECK(c0_ == '*');
+  DCHECK_EQ(c0_, '*');
   Advance();
 
   while (c0_ != kEndOfInput) {
@@ -609,7 +609,7 @@ Token::Value Scanner::SkipMultiLineComment() {
 
 Token::Value Scanner::ScanHtmlComment() {
   // Check for <!-- comments.
-  DCHECK(c0_ == '!');
+  DCHECK_EQ(c0_, '!');
   Advance();
   if (c0_ != '-') {
     PushBack('!');  // undo Advance()
@@ -1187,8 +1187,8 @@ Token::Value Scanner::ScanTemplateSpan() {
 
 
 Token::Value Scanner::ScanTemplateStart() {
-  DCHECK(next_next_.token == Token::UNINITIALIZED);
-  DCHECK(c0_ == '`');
+  DCHECK_EQ(next_next_.token, Token::UNINITIALIZED);
+  DCHECK_EQ(c0_, '`');
   next_.location.beg_pos = source_pos();
   Advance();  // Consume `
   return ScanTemplateSpan();
@@ -1489,7 +1489,7 @@ uc32 Scanner::ScanUnicodeEscape() {
 
 static Token::Value KeywordOrIdentifierToken(const uint8_t* input,
                                              int input_length) {
-  DCHECK(input_length >= 1);
+  DCHECK_GE(input_length, 1);
   const int kMinLength = 2;
   const int kMaxLength = 11;
   if (input_length < kMinLength || input_length > kMaxLength) {

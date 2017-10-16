@@ -63,7 +63,7 @@ class ContinuationSourceRanges : public AstNodeSourceRanges {
       : continuation_position_(continuation_position) {}
 
   SourceRange GetRange(SourceRangeKind kind) {
-    DCHECK(kind == SourceRangeKind::kContinuation);
+    DCHECK_EQ(kind, SourceRangeKind::kContinuation);
     return SourceRange::OpenEnded(continuation_position_);
   }
 
@@ -83,7 +83,7 @@ class CaseClauseSourceRanges final : public AstNodeSourceRanges {
       : body_range_(body_range) {}
 
   SourceRange GetRange(SourceRangeKind kind) {
-    DCHECK(kind == SourceRangeKind::kBody);
+    DCHECK_EQ(kind, SourceRangeKind::kBody);
     return body_range_;
   }
 

@@ -400,7 +400,7 @@ inline void PreParserList<PreParserExpression>::Add(
     const PreParserExpression& expression, Zone* zone) {
   if (expression.variables_ != nullptr) {
     DCHECK(FLAG_lazy_inner_functions);
-    DCHECK(zone != nullptr);
+    DCHECK_NOT_NULL(zone);
     if (variables_ == nullptr) {
       variables_ = new (zone) ZoneList<VariableProxy*>(1, zone);
     }
