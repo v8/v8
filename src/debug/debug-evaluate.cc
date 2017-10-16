@@ -609,6 +609,8 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeItalics:
     case Builtins::kStringPrototypeLastIndexOf:
     case Builtins::kStringPrototypeLink:
+    case Builtins::kStringPrototypePadEnd:
+    case Builtins::kStringPrototypePadStart:
     case Builtins::kStringPrototypeRepeat:
     case Builtins::kStringPrototypeSlice:
     case Builtins::kStringPrototypeSmall:

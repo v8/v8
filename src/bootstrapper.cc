@@ -1992,6 +1992,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(prototype, "normalize",
                           Builtins::kStringPrototypeNormalize, 0, false);
 #endif  // V8_INTL_SUPPORT
+    SimpleInstallFunction(prototype, "padEnd", Builtins::kStringPrototypePadEnd,
+                          1, false);
+    SimpleInstallFunction(prototype, "padStart",
+                          Builtins::kStringPrototypePadStart, 1, false);
     SimpleInstallFunction(prototype, "repeat", Builtins::kStringPrototypeRepeat,
                           1, true);
     SimpleInstallFunction(prototype, "replace",

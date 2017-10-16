@@ -450,6 +450,14 @@ test(function() {
 
 // kThrowInvalidStringLength
 test(function() {
+  "a".padEnd(1 << 30);
+}, "Invalid string length", RangeError);
+
+test(function() {
+  "a".padStart(1 << 30);
+}, "Invalid string length", RangeError);
+
+test(function() {
   "a".repeat(1 << 30);
 }, "Invalid string length", RangeError);
 
