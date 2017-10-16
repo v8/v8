@@ -71,7 +71,9 @@ constexpr uint32_t kNullCatch = static_cast<uint32_t>(-1);
 
 class WasmGraphBuildingInterface {
  public:
-  using Decoder = WasmFullDecoder<true, WasmGraphBuildingInterface>;
+  static constexpr wasm::Decoder::ValidateFlag validate =
+      wasm::Decoder::kValidate;
+  using Decoder = WasmFullDecoder<validate, WasmGraphBuildingInterface>;
 
   struct Value : public ValueWithNamedConstructors<Value> {
     TFNode* node;
@@ -259,31 +261,31 @@ class WasmGraphBuildingInterface {
   }
 
   void GetLocal(Decoder* decoder, Value* result,
-                const LocalIndexOperand<true>& operand) {
+                const LocalIndexOperand<validate>& operand) {
     if (!ssa_env_->locals) return;  // unreachable
     result->node = ssa_env_->locals[operand.index];
   }
 
   void SetLocal(Decoder* decoder, const Value& value,
-                const LocalIndexOperand<true>& operand) {
+                const LocalIndexOperand<validate>& operand) {
     if (!ssa_env_->locals) return;  // unreachable
     ssa_env_->locals[operand.index] = value.node;
   }
 
   void TeeLocal(Decoder* decoder, const Value& value, Value* result,
-                const LocalIndexOperand<true>& operand) {
+                const LocalIndexOperand<validate>& operand) {
     result->node = value.node;
     if (!ssa_env_->locals) return;  // unreachable
     ssa_env_->locals[operand.index] = value.node;
   }
 
   void GetGlobal(Decoder* decoder, Value* result,
-                 const GlobalIndexOperand<true>& operand) {
+                 const GlobalIndexOperand<validate>& operand) {
     result->node = BUILD(GetGlobal, operand.index);
   }
 
   void SetGlobal(Decoder* decoder, const Value& value,
-                 const GlobalIndexOperand<true>& operand) {
+                 const GlobalIndexOperand<validate>& operand) {
     BUILD(SetGlobal, operand.index, value.node);
   }
 
@@ -320,11 +322,11 @@ class WasmGraphBuildingInterface {
     ssa_env_ = fenv;
   }
 
-  void BrTable(Decoder* decoder, const BranchTableOperand<true>& operand,
+  void BrTable(Decoder* decoder, const BranchTableOperand<validate>& operand,
                const Value& key) {
     if (operand.table_count == 0) {
       // Only a default target. Do the equivalent of br.
-      uint32_t target = BranchTableIterator<true>(decoder, operand).next();
+      uint32_t target = BranchTableIterator<validate>(decoder, operand).next();
       BreakTo(decoder, decoder->control_at(target));
       return;
     }
@@ -335,7 +337,7 @@ class WasmGraphBuildingInterface {
 
     SsaEnv* copy = Steal(decoder->zone(), break_env);
     ssa_env_ = copy;
-    BranchTableIterator<true> iterator(decoder, operand);
+    BranchTableIterator<validate> iterator(decoder, operand);
     while (iterator.has_next()) {
       uint32_t i = iterator.cur_index();
       uint32_t target = iterator.next();
@@ -353,15 +355,15 @@ class WasmGraphBuildingInterface {
   }
 
   void LoadMem(Decoder* decoder, ValueType type, MachineType mem_type,
-               const MemoryAccessOperand<true>& operand, const Value& index,
+               const MemoryAccessOperand<validate>& operand, const Value& index,
                Value* result) {
     result->node = BUILD(LoadMem, type, mem_type, index.node, operand.offset,
                          operand.alignment, decoder->position());
   }
 
   void StoreMem(Decoder* decoder, ValueType type, MachineType mem_type,
-                const MemoryAccessOperand<true>& operand, const Value& index,
-                const Value& value) {
+                const MemoryAccessOperand<validate>& operand,
+                const Value& index, const Value& value) {
     BUILD(StoreMem, mem_type, index.node, operand.offset, operand.alignment,
           value.node, decoder->position(), type);
   }
@@ -376,13 +378,14 @@ class WasmGraphBuildingInterface {
     LoadContextIntoSsa(ssa_env_);
   }
 
-  void CallDirect(Decoder* decoder, const CallFunctionOperand<true>& operand,
+  void CallDirect(Decoder* decoder,
+                  const CallFunctionOperand<validate>& operand,
                   const Value args[], Value returns[]) {
     DoCall(decoder, nullptr, operand, args, returns, false);
   }
 
   void CallIndirect(Decoder* decoder, const Value& index,
-                    const CallIndirectOperand<true>& operand,
+                    const CallIndirectOperand<validate>& operand,
                     const Value args[], Value returns[]) {
     DoCall(decoder, index.node, operand, args, returns, true);
   }
@@ -395,21 +398,21 @@ class WasmGraphBuildingInterface {
   }
 
   void SimdLaneOp(Decoder* decoder, WasmOpcode opcode,
-                  const SimdLaneOperand<true> operand, Vector<Value> inputs,
+                  const SimdLaneOperand<validate> operand, Vector<Value> inputs,
                   Value* result) {
     TFNode** nodes = GetNodes(inputs);
     result->node = BUILD(SimdLaneOp, opcode, operand.lane, nodes);
   }
 
   void SimdShiftOp(Decoder* decoder, WasmOpcode opcode,
-                   const SimdShiftOperand<true> operand, const Value& input,
+                   const SimdShiftOperand<validate> operand, const Value& input,
                    Value* result) {
     TFNode* inputs[] = {input.node};
     result->node = BUILD(SimdShiftOp, opcode, operand.shift, inputs);
   }
 
   void Simd8x16ShuffleOp(Decoder* decoder,
-                         const Simd8x16ShuffleOperand<true>& operand,
+                         const Simd8x16ShuffleOperand<validate>& operand,
                          const Value& input0, const Value& input1,
                          Value* result) {
     TFNode* input_nodes[] = {input0.node, input1.node};
@@ -417,13 +420,13 @@ class WasmGraphBuildingInterface {
   }
 
   TFNode* GetExceptionTag(Decoder* decoder,
-                          const ExceptionIndexOperand<true>& operand) {
+                          const ExceptionIndexOperand<validate>& operand) {
     // TODO(kschimpf): Need to get runtime exception tag values. This
     // code only handles non-imported/exported exceptions.
     return BUILD(Int32Constant, operand.index);
   }
 
-  void Throw(Decoder* decoder, const ExceptionIndexOperand<true>& operand,
+  void Throw(Decoder* decoder, const ExceptionIndexOperand<validate>& operand,
              Control* block, const Vector<Value>& value_args) {
     int count = value_args.length();
     ZoneVector<TFNode*> args(count, decoder->zone());
@@ -436,7 +439,7 @@ class WasmGraphBuildingInterface {
   }
 
   void CatchException(Decoder* decoder,
-                      const ExceptionIndexOperand<true>& operand,
+                      const ExceptionIndexOperand<validate>& operand,
                       Control* block, Vector<Value> values) {
     DCHECK(block->is_try_catch());
     current_catch_ = block->previous_catch;
@@ -496,7 +499,7 @@ class WasmGraphBuildingInterface {
   }
 
   void AtomicOp(Decoder* decoder, WasmOpcode opcode, Vector<Value> args,
-                const MemoryAccessOperand<true>& operand, Value* result) {
+                const MemoryAccessOperand<validate>& operand, Value* result) {
     TFNode** inputs = GetNodes(args);
     TFNode* node = BUILD(AtomicOp, opcode, inputs, operand.alignment,
                          operand.offset, decoder->position());
@@ -743,7 +746,7 @@ class WasmGraphBuildingInterface {
     env->effect = builder_->EffectPhi(1, &env->effect, env->control);
     builder_->Terminate(env->effect, env->control);
     // The '+ 2' here is to be able to set mem_size and mem_start as assigned.
-    BitVector* assigned = WasmDecoder<true>::AnalyzeLoopAssignment(
+    BitVector* assigned = WasmDecoder<validate>::AnalyzeLoopAssignment(
         decoder, decoder->pc(), decoder->total_locals() + 2, decoder->zone());
     if (decoder->failed()) return env;
     if (assigned != nullptr) {
@@ -846,7 +849,7 @@ class WasmGraphBuildingInterface {
   }
 
   template <typename Operand>
-  void DoCall(WasmFullDecoder<true, WasmGraphBuildingInterface>* decoder,
+  void DoCall(WasmFullDecoder<validate, WasmGraphBuildingInterface>* decoder,
               TFNode* index_node, const Operand& operand, const Value args[],
               Value returns[], bool is_indirect) {
     if (!build(decoder)) return;
@@ -879,7 +882,8 @@ class WasmGraphBuildingInterface {
 bool DecodeLocalDecls(BodyLocalDecls* decls, const byte* start,
                       const byte* end) {
   Decoder decoder(start, end);
-  if (WasmDecoder<true>::DecodeLocals(&decoder, nullptr, &decls->type_list)) {
+  if (WasmDecoder<Decoder::kValidate>::DecodeLocals(&decoder, nullptr,
+                                                    &decls->type_list)) {
     DCHECK(decoder.ok());
     decls->encoded_size = decoder.pc_offset();
     return true;
@@ -902,7 +906,8 @@ DecodeResult VerifyWasmCode(AccountingAllocator* allocator,
                             const wasm::WasmModule* module,
                             FunctionBody& body) {
   Zone zone(allocator, ZONE_NAME);
-  WasmFullDecoder<true, EmptyInterface> decoder(&zone, module, body);
+  WasmFullDecoder<Decoder::kValidate, EmptyInterface> decoder(&zone, module,
+                                                              body);
   decoder.Decode();
   return decoder.toResult(nullptr);
 }
@@ -921,7 +926,7 @@ DecodeResult VerifyWasmCodeWithStats(AccountingAllocator* allocator,
 DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
                           FunctionBody& body) {
   Zone zone(allocator, ZONE_NAME);
-  WasmFullDecoder<true, WasmGraphBuildingInterface> decoder(
+  WasmFullDecoder<Decoder::kValidate, WasmGraphBuildingInterface> decoder(
       &zone, builder->module(), body, builder);
   decoder.Decode();
   return decoder.toResult(nullptr);
@@ -929,13 +934,13 @@ DecodeResult BuildTFGraph(AccountingAllocator* allocator, TFBuilder* builder,
 
 unsigned OpcodeLength(const byte* pc, const byte* end) {
   Decoder decoder(pc, end);
-  return WasmDecoder<false>::OpcodeLength(&decoder, pc);
+  return WasmDecoder<Decoder::kNoValidate>::OpcodeLength(&decoder, pc);
 }
 
 std::pair<uint32_t, uint32_t> StackEffect(const WasmModule* module,
                                           FunctionSig* sig, const byte* pc,
                                           const byte* end) {
-  WasmDecoder<false> decoder(module, sig, pc, end);
+  WasmDecoder<Decoder::kNoValidate> decoder(module, sig, pc, end);
   return decoder.StackEffect(pc);
 }
 
@@ -963,7 +968,8 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
                       const wasm::WasmModule* module) {
   OFStream os(stdout);
   Zone zone(allocator, ZONE_NAME);
-  WasmDecoder<false> decoder(module, body.sig, body.start, body.end);
+  WasmDecoder<Decoder::kNoValidate> decoder(module, body.sig, body.start,
+                                            body.end);
   int line_nr = 0;
 
   // Print the function signature.
@@ -1004,7 +1010,8 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
   ++line_nr;
   unsigned control_depth = 0;
   for (; i.has_next(); i.next()) {
-    unsigned length = WasmDecoder<false>::OpcodeLength(&decoder, i.pc());
+    unsigned length =
+        WasmDecoder<Decoder::kNoValidate>::OpcodeLength(&decoder, i.pc());
 
     WasmOpcode opcode = i.current();
     if (opcode == kExprElse) control_depth--;
@@ -1031,7 +1038,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
       case kExprIf:
       case kExprBlock:
       case kExprTry: {
-        BlockTypeOperand<false> operand(&i, i.pc());
+        BlockTypeOperand<Decoder::kNoValidate> operand(&i, i.pc());
         os << "   // @" << i.pc_offset();
         for (unsigned i = 0; i < operand.out_arity(); i++) {
           os << " " << WasmOpcodes::TypeName(operand.out_type(i));
@@ -1044,22 +1051,22 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         control_depth--;
         break;
       case kExprBr: {
-        BreakDepthOperand<false> operand(&i, i.pc());
+        BreakDepthOperand<Decoder::kNoValidate> operand(&i, i.pc());
         os << "   // depth=" << operand.depth;
         break;
       }
       case kExprBrIf: {
-        BreakDepthOperand<false> operand(&i, i.pc());
+        BreakDepthOperand<Decoder::kNoValidate> operand(&i, i.pc());
         os << "   // depth=" << operand.depth;
         break;
       }
       case kExprBrTable: {
-        BranchTableOperand<false> operand(&i, i.pc());
+        BranchTableOperand<Decoder::kNoValidate> operand(&i, i.pc());
         os << " // entries=" << operand.table_count;
         break;
       }
       case kExprCallIndirect: {
-        CallIndirectOperand<false> operand(&i, i.pc());
+        CallIndirectOperand<Decoder::kNoValidate> operand(&i, i.pc());
         os << "   // sig #" << operand.index;
         if (decoder.Complete(i.pc(), operand)) {
           os << ": " << *operand.sig;
@@ -1067,7 +1074,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
         break;
       }
       case kExprCallFunction: {
-        CallFunctionOperand<false> operand(&i, i.pc());
+        CallFunctionOperand<Decoder::kNoValidate> operand(&i, i.pc());
         os << " // function #" << operand.index;
         if (decoder.Complete(i.pc(), operand)) {
           os << ": " << *operand.sig;
@@ -1087,7 +1094,7 @@ bool PrintRawWasmCode(AccountingAllocator* allocator, const FunctionBody& body,
 BitVector* AnalyzeLoopAssignmentForTesting(Zone* zone, size_t num_locals,
                                            const byte* start, const byte* end) {
   Decoder decoder(start, end);
-  return WasmDecoder<true>::AnalyzeLoopAssignment(
+  return WasmDecoder<Decoder::kValidate>::AnalyzeLoopAssignment(
       &decoder, start, static_cast<uint32_t>(num_locals), zone);
 }
 

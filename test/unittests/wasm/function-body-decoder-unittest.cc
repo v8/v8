@@ -2533,15 +2533,15 @@ class BranchTableIteratorTest : public TestWithZone {
   BranchTableIteratorTest() : TestWithZone() {}
   void CheckBrTableSize(const byte* start, const byte* end) {
     Decoder decoder(start, end);
-    BranchTableOperand<true> operand(&decoder, start);
-    BranchTableIterator<true> iterator(&decoder, operand);
+    BranchTableOperand<Decoder::kValidate> operand(&decoder, start);
+    BranchTableIterator<Decoder::kValidate> iterator(&decoder, operand);
     EXPECT_EQ(end - start - 1u, iterator.length());
     EXPECT_TRUE(decoder.ok());
   }
   void CheckBrTableError(const byte* start, const byte* end) {
     Decoder decoder(start, end);
-    BranchTableOperand<true> operand(&decoder, start);
-    BranchTableIterator<true> iterator(&decoder, operand);
+    BranchTableOperand<Decoder::kValidate> operand(&decoder, start);
+    BranchTableIterator<Decoder::kValidate> iterator(&decoder, operand);
     iterator.length();
     EXPECT_FALSE(decoder.ok());
   }

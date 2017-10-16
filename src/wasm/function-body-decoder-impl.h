@@ -87,7 +87,7 @@ Vector<T> vec2vec(std::vector<T>& vec) {
 }
 
 // Helpers for decoding different kinds of operands which follow bytecodes.
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct LocalIndexOperand {
   uint32_t index;
   ValueType type = kWasmStmt;
@@ -98,7 +98,7 @@ struct LocalIndexOperand {
   }
 };
 
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct ExceptionIndexOperand {
   uint32_t index;
   const WasmException* exception = nullptr;
@@ -109,7 +109,7 @@ struct ExceptionIndexOperand {
   }
 };
 
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct ImmI32Operand {
   int32_t value;
   unsigned length;
@@ -118,7 +118,7 @@ struct ImmI32Operand {
   }
 };
 
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct ImmI64Operand {
   int64_t value;
   unsigned length;
@@ -127,7 +127,7 @@ struct ImmI64Operand {
   }
 };
 
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct ImmF32Operand {
   float value;
   unsigned length = 4;
@@ -138,7 +138,7 @@ struct ImmF32Operand {
   }
 };
 
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct ImmF64Operand {
   double value;
   unsigned length = 8;
@@ -149,7 +149,7 @@ struct ImmF64Operand {
   }
 };
 
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct GlobalIndexOperand {
   uint32_t index;
   ValueType type = kWasmStmt;
@@ -161,7 +161,7 @@ struct GlobalIndexOperand {
   }
 };
 
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct BlockTypeOperand {
   unsigned length = 1;
   ValueType type = kWasmStmt;
@@ -235,7 +235,7 @@ struct BlockTypeOperand {
   }
 };
 
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct BreakDepthOperand {
   uint32_t depth;
   unsigned length;
@@ -244,7 +244,7 @@ struct BreakDepthOperand {
   }
 };
 
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct CallIndirectOperand {
   uint32_t table_index;
   uint32_t index;
@@ -262,7 +262,7 @@ struct CallIndirectOperand {
   }
 };
 
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct CallFunctionOperand {
   uint32_t index;
   FunctionSig* sig = nullptr;
@@ -272,7 +272,7 @@ struct CallFunctionOperand {
   }
 };
 
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct MemoryIndexOperand {
   uint32_t index;
   unsigned length = 1;
@@ -284,7 +284,7 @@ struct MemoryIndexOperand {
   }
 };
 
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct BranchTableOperand {
   uint32_t table_count;
   const byte* start;
@@ -299,7 +299,7 @@ struct BranchTableOperand {
 };
 
 // A helper to iterate over a branch table.
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 class BranchTableIterator {
  public:
   unsigned cur_index() { return index_; }
@@ -337,7 +337,7 @@ class BranchTableIterator {
   uint32_t table_count_;  // the count of entries, not including default.
 };
 
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct MemoryAccessOperand {
   uint32_t alignment;
   uint32_t offset;
@@ -361,7 +361,7 @@ struct MemoryAccessOperand {
 };
 
 // Operand for SIMD lane operations.
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct SimdLaneOperand {
   uint8_t lane;
   unsigned length = 1;
@@ -372,7 +372,7 @@ struct SimdLaneOperand {
 };
 
 // Operand for SIMD shift operations.
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct SimdShiftOperand {
   uint8_t shift;
   unsigned length = 1;
@@ -383,7 +383,7 @@ struct SimdShiftOperand {
 };
 
 // Operand for SIMD S8x16 shuffle operations.
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 struct Simd8x16ShuffleOperand {
   uint8_t shuffle[kSimd128Size];
 
@@ -606,7 +606,7 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
 
 // Generic Wasm bytecode decoder with utilities for decoding operands,
 // lengths, etc.
-template <bool validate>
+template <Decoder::ValidateFlag validate>
 class WasmDecoder : public Decoder {
  public:
   WasmDecoder(const WasmModule* module, FunctionSig* sig, const byte* start,
@@ -703,7 +703,7 @@ class WasmDecoder : public Decoder {
           break;
         case kExprSetLocal:  // fallthru
         case kExprTeeLocal: {
-          LocalIndexOperand<validate> operand(decoder, pc);
+          LocalIndexOperand<Decoder::kValidate> operand(decoder, pc);
           if (assigned->length() > 0 &&
               operand.index < static_cast<uint32_t>(assigned->length())) {
             // Unverified code might have an out-of-bounds index.
@@ -733,7 +733,8 @@ class WasmDecoder : public Decoder {
     return decoder->ok() ? assigned : nullptr;
   }
 
-  inline bool Validate(const byte* pc, LocalIndexOperand<validate>& operand) {
+  inline bool Validate(const byte* pc,
+                       LocalIndexOperand<Decoder::kValidate>& operand) {
     if (!VALIDATE(operand.index < total_locals())) {
       errorf(pc + 1, "invalid local index: %u", operand.index);
       return false;
@@ -943,7 +944,7 @@ class WasmDecoder : public Decoder {
       case kExprSetLocal:
       case kExprTeeLocal:
       case kExprGetLocal: {
-        LocalIndexOperand<validate> operand(decoder, pc);
+        LocalIndexOperand<Decoder::kValidate> operand(decoder, pc);
         return 1 + operand.length;
       }
       case kExprBrTable: {
@@ -1103,7 +1104,7 @@ class WasmDecoder : public Decoder {
     }                                                                         \
   } while (false)
 
-template <bool validate, typename Interface>
+template <Decoder::ValidateFlag validate, typename Interface>
 class WasmFullDecoder : public WasmDecoder<validate> {
   using Value = typename Interface::Value;
   using Control = typename Interface::Control;
@@ -1321,7 +1322,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           }
           case kExprThrow: {
             CHECK_PROTOTYPE_OPCODE(eh);
-            ExceptionIndexOperand<true> operand(this, this->pc_);
+            ExceptionIndexOperand<Decoder::kValidate> operand(this, this->pc_);
             len = 1 + operand.length;
             if (!this->Validate(this->pc_, operand)) break;
             std::vector<Value> args;
@@ -1344,7 +1345,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprCatch: {
             // TODO(kschimpf): Fix to use type signature of exception.
             CHECK_PROTOTYPE_OPCODE(eh);
-            ExceptionIndexOperand<true> operand(this, this->pc_);
+            ExceptionIndexOperand<Decoder::kValidate> operand(this, this->pc_);
             len = 1 + operand.length;
 
             if (!this->Validate(this->pc_, operand)) break;
@@ -1576,7 +1577,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprGetLocal: {
-            LocalIndexOperand<validate> operand(this, this->pc_);
+            LocalIndexOperand<Decoder::kValidate> operand(this, this->pc_);
             if (!this->Validate(this->pc_, operand)) break;
             auto* value = Push(operand.type);
             CALL_INTERFACE_IF_REACHABLE(GetLocal, value, operand);
@@ -1584,7 +1585,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprSetLocal: {
-            LocalIndexOperand<validate> operand(this, this->pc_);
+            LocalIndexOperand<Decoder::kValidate> operand(this, this->pc_);
             if (!this->Validate(this->pc_, operand)) break;
             auto value = Pop(0, local_type_vec_[operand.index]);
             CALL_INTERFACE_IF_REACHABLE(SetLocal, value, operand);
@@ -1592,7 +1593,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             break;
           }
           case kExprTeeLocal: {
-            LocalIndexOperand<validate> operand(this, this->pc_);
+            LocalIndexOperand<Decoder::kValidate> operand(this, this->pc_);
             if (!this->Validate(this->pc_, operand)) break;
             auto value = Pop(0, local_type_vec_[operand.index]);
             auto* result = Push(value.type);
@@ -1822,7 +1823,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             case kExprGetLocal:
             case kExprSetLocal:
             case kExprTeeLocal: {
-              LocalIndexOperand<validate> operand(this, val.pc);
+              LocalIndexOperand<Decoder::kValidate> operand(this, val.pc);
               PrintF("[%u]", operand.index);
               break;
             }
@@ -2330,7 +2331,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
 class EmptyInterface {
  public:
-  constexpr static bool validate = true;
+  static constexpr wasm::Decoder::ValidateFlag validate =
+      wasm::Decoder::kValidate;
   using Value = ValueBase;
   using Control = ControlBase<Value>;
   using Decoder = WasmFullDecoder<validate, EmptyInterface>;
