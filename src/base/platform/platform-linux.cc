@@ -203,11 +203,15 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
 
   // This loop will terminate once the scanning hits an EOF.
   while (true) {
-    uintptr_t start, end;
+    uintptr_t start, end, offset;
     char attr_r, attr_w, attr_x, attr_p;
     // Parse the addresses and permission bits at the beginning of the line.
     if (fscanf(fp, "%" V8PRIxPTR "-%" V8PRIxPTR, &start, &end) != 2) break;
     if (fscanf(fp, " %c%c%c%c", &attr_r, &attr_w, &attr_x, &attr_p) != 4) break;
+    if (fscanf(fp, "%" V8PRIxPTR, &offset) != 1) break;
+
+    // Adjust {start} based on {offset}.
+    start -= offset;
 
     int c;
     if (attr_r == 'r' && attr_w != 'w' && attr_x == 'x') {
