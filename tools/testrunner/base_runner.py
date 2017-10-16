@@ -218,8 +218,8 @@ class BaseTestRunner(object):
       if options.arch_and_mode:
         self.arch_and_mode = map(lambda am: am.split('.'),
                                  options.arch_and_mode.split(','))
-        self.arch = ','.join(map(lambda am: am[0], options.arch_and_mode))
-        self.mode = ','.join(map(lambda am: am[1], options.arch_and_mode))
+        self.arch = ','.join(map(lambda am: am[0], self.arch_and_mode))
+        self.mode = ','.join(map(lambda am: am[1], self.arch_and_mode))
 
     self.mode = self.mode.split(',')
     for mode in self.mode:
