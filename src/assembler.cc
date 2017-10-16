@@ -317,22 +317,6 @@ Address RelocInfo::global_handle() const {
   return embedded_address();
 }
 
-void RelocInfo::update_wasm_global_reference(
-    Isolate* isolate, Address old_base, Address new_base,
-    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsWasmGlobalReference(rmode_));
-  Address updated_reference;
-  DCHECK_LE(old_base, wasm_global_reference());
-  updated_reference = new_base + (wasm_global_reference() - old_base);
-  DCHECK_LE(new_base, updated_reference);
-  set_embedded_address(isolate, updated_reference, icache_flush_mode);
-}
-
-Address RelocInfo::wasm_global_reference() const {
-  DCHECK(IsWasmGlobalReference(rmode_));
-  return embedded_address();
-}
-
 uint32_t RelocInfo::wasm_function_table_size_reference() const {
   DCHECK(IsWasmFunctionTableSizeReference(rmode_));
   return embedded_size();
@@ -642,8 +626,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "veneer pool";
     case WASM_CONTEXT_REFERENCE:
       return "wasm context reference";
-    case WASM_GLOBAL_REFERENCE:
-      return "wasm global value reference";
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
       return "wasm function table size reference";
     case WASM_PROTECTED_INSTRUCTION_LANDING:
@@ -729,7 +711,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case CONST_POOL:
     case VENEER_POOL:
     case WASM_CONTEXT_REFERENCE:
-    case WASM_GLOBAL_REFERENCE:
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
     case WASM_GLOBAL_HANDLE:
     case WASM_PROTECTED_INSTRUCTION_LANDING:

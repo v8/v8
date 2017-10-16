@@ -628,8 +628,8 @@ inline int32_t ExecuteGrowMemory(uint32_t delta_pages,
   // Ensure the effects of GrowMemory have been observed by the interpreter.
   // See {UpdateMemory}. In all cases, we are in agreement with the runtime
   // object's view.
-  DCHECK_EQ(mem_info->mem_size, instance->wasm_context()->mem_size);
-  DCHECK_EQ(mem_info->mem_start, instance->wasm_context()->mem_start);
+  DCHECK_EQ(mem_info->mem_size, instance->wasm_context()->get()->mem_size);
+  DCHECK_EQ(mem_info->mem_start, instance->wasm_context()->get()->mem_start);
   return ret;
 }
 

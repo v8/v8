@@ -79,12 +79,6 @@ void CodeSpecialization::RelocateWasmContextReferences(Address new_context) {
   new_wasm_context_address = new_context;
 }
 
-void CodeSpecialization::RelocateGlobals(Address old_start, Address new_start) {
-  DCHECK(old_globals_start == 0 && new_globals_start == 0);
-  old_globals_start = old_start;
-  new_globals_start = new_start;
-}
-
 void CodeSpecialization::PatchTableSize(uint32_t old_size, uint32_t new_size) {
   DCHECK(old_function_table_size == 0 && new_function_table_size == 0);
   old_function_table_size = old_size;
@@ -178,7 +172,6 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
   DisallowHeapAllocation no_gc;
   DCHECK_EQ(Code::WASM_FUNCTION, code->kind());
 
-  bool reloc_globals = old_globals_start || new_globals_start;
   bool patch_table_size = old_function_table_size || new_function_table_size;
   bool reloc_direct_calls = !relocate_direct_calls_instance.is_null();
   bool reloc_pointers = pointers_to_relocate.size() > 0;
@@ -187,7 +180,6 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
   auto add_mode = [&reloc_mode](bool cond, RelocInfo::Mode mode) {
     if (cond) reloc_mode |= RelocInfo::ModeMask(mode);
   };
-  add_mode(reloc_globals, RelocInfo::WASM_GLOBAL_REFERENCE);
   add_mode(patch_table_size, RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
   add_mode(reloc_direct_calls, RelocInfo::CODE_TARGET);
   add_mode(reloc_pointers, RelocInfo::WASM_GLOBAL_HANDLE);
@@ -198,13 +190,6 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
   for (RelocIterator it(code, reloc_mode); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();
     switch (mode) {
-      case RelocInfo::WASM_GLOBAL_REFERENCE:
-        DCHECK(reloc_globals);
-        it.rinfo()->update_wasm_global_reference(
-            code->GetIsolate(), old_globals_start, new_globals_start,
-            icache_flush_mode);
-        changed = true;
-        break;
       case RelocInfo::CODE_TARGET: {
         DCHECK(reloc_direct_calls);
         // Skip everything which is not a wasm call (stack checks, traps, ...).

@@ -279,10 +279,8 @@ Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmCompiledModule>);
 // to the wrapped wasm function; in all other cases, return nullptr.
 // The returned pointer is owned by the wasm instance target belongs to. The
 // result is alive as long as the instance exists.
+// TODO(titzer): move this to WasmExportedFunction.
 WasmFunction* GetWasmFunctionForExport(Isolate* isolate, Handle<Object> target);
-
-// {export_wrapper} is known to be an export.
-Handle<Code> UnwrapExportWrapper(Handle<JSFunction> export_wrapper);
 
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
                           int index, WasmFunction* function, Handle<Code> code);

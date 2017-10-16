@@ -65,8 +65,8 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   // TODO(wasm): Delete the following two lines when test-run-wasm will use a
   // multiple of kPageSize as memory size. At the moment, the effect of these
   // two lines is used to shrink the memory for testing purposes.
-  instance_object_->wasm_context()->mem_start = mem_start_;
-  instance_object_->wasm_context()->mem_size = mem_size_;
+  instance_object_->wasm_context()->get()->mem_start = mem_start_;
+  instance_object_->wasm_context()->get()->mem_size = mem_size_;
   return mem_start_;
 }
 
@@ -197,15 +197,8 @@ compiler::ModuleEnv TestingModuleBuilder::CreateModuleEnv() {
     auto& function_table = test_module_.function_tables[i];
     signature_maps.push_back(&function_table.map);
   }
-  return {
-      &test_module_,
-      function_tables_,
-      signature_tables_,
-      signature_maps,
-      function_code_,
-      Handle<Code>::null(),
-      reinterpret_cast<uintptr_t>(globals_data_),
-  };
+  return {&test_module_,  function_tables_, signature_tables_,
+          signature_maps, function_code_,   Handle<Code>::null()};
 }
 
 const WasmGlobal* TestingModuleBuilder::AddGlobal(ValueType type) {
@@ -237,17 +230,13 @@ Handle<WasmInstanceObject> TestingModuleBuilder::InitInstanceObject() {
   Handle<WasmCompiledModule> compiled_module = WasmCompiledModule::New(
       isolate_, shared_module_data, code_table, export_wrappers,
       function_tables_, signature_tables_);
-  // This method is called when we initialize TestEnvironment. We don't
-  // have a memory yet, so we won't create it here. We'll update the
-  // interpreter when we get a memory. We do have globals, though.
-  WasmCompiledModule::recreate_globals_start(
-      compiled_module, isolate_->factory(),
-      reinterpret_cast<size_t>(globals_data_));
   Handle<FixedArray> weak_exported = isolate_->factory()->NewFixedArray(0);
   compiled_module->set_weak_exported_functions(weak_exported);
   DCHECK(WasmCompiledModule::IsWasmCompiledModule(*compiled_module));
   script->set_wasm_compiled_module(*compiled_module);
-  return WasmInstanceObject::New(isolate_, compiled_module);
+  auto instance = WasmInstanceObject::New(isolate_, compiled_module);
+  instance->wasm_context()->get()->globals_start = globals_data_;
+  return instance;
 }
 
 void TestBuildingGraph(

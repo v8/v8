@@ -298,12 +298,19 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
   Handle<Object> value = isolate->factory()->null_value();
 
   if (!function.is_null()) {
+    auto exported_function = Handle<WasmExportedFunction>::cast(function);
     wasm_function = wasm::GetWasmFunctionForExport(isolate, function);
     // The verification that {function} is an export was done
     // by the caller.
     DCHECK_NOT_NULL(wasm_function);
-    code = wasm::UnwrapExportWrapper(function);
-    value = Handle<Object>::cast(function);
+    value = function;
+    // TODO(titzer): Make JSToWasm wrappers just call the WASM to WASM wrapper,
+    // and then we can just reuse the WASM to WASM wrapper.
+    Address new_context_address = reinterpret_cast<Address>(
+        exported_function->instance()->wasm_context()->get());
+    code = compiler::CompileWasmToWasmWrapper(
+        isolate, exported_function->GetWasmCode(), wasm_function->sig,
+        exported_function->function_index(), new_context_address);
   }
 
   UpdateDispatchTables(isolate, dispatch_tables, index, wasm_function, code);
@@ -364,15 +371,18 @@ void SetInstanceMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
   if (instance->has_debug_info()) {
     instance->debug_info()->UpdateMemory(*buffer);
   }
-}
-
-void UpdateWasmContext(WasmContext* wasm_context,
-                       Handle<JSArrayBuffer> buffer) {
-  uint32_t new_mem_size = buffer->byte_length()->Number();
-  Address new_mem_start = static_cast<Address>(buffer->backing_store());
-  DCHECK_NOT_NULL(new_mem_start);
-  wasm_context->mem_start = new_mem_start;
-  wasm_context->mem_size = new_mem_size;
+  auto wasm_context = instance->wasm_context()->get();
+  wasm_context->mem_start = reinterpret_cast<byte*>(buffer->backing_store());
+  wasm_context->mem_size = buffer->byte_length()->Number();
+#if DEBUG
+  // To flush out bugs earlier, in DEBUG mode, check that all pages of the
+  // memory are accessible by reading and writing one byte on each page.
+  for (uint32_t offset = 0; offset < wasm_context->mem_size;
+       offset += WasmModule::kPageSize) {
+    byte val = wasm_context->mem_start[offset];
+    wasm_context->mem_start[offset] = val;
+  }
+#endif
 }
 
 }  // namespace
@@ -384,21 +394,19 @@ Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
       isolate->native_context()->wasm_memory_constructor());
   auto memory_obj = Handle<WasmMemoryObject>::cast(
       isolate->factory()->NewJSObject(memory_ctor, TENURED));
-  auto wasm_context = Managed<WasmContext>::Allocate(isolate);
+
   if (buffer.is_null()) {
-    const bool enable_guard_regions = trap_handler::UseTrapHandler();
+    // If no buffer was provided, create a 0-length one.
     buffer = wasm::SetupArrayBuffer(isolate, nullptr, 0, nullptr, 0, false,
-                                    enable_guard_regions);
-    wasm_context->get()->mem_size = 0;
-    wasm_context->get()->mem_start = nullptr;
+                                    trap_handler::UseTrapHandler());
   } else {
-    CHECK(buffer->byte_length()->ToUint32(&wasm_context->get()->mem_size));
-    wasm_context->get()->mem_start =
-        static_cast<Address>(buffer->backing_store());
+    // Paranoid check that the buffer size makes sense.
+    uint32_t mem_size = 0;
+    CHECK(buffer->byte_length()->ToUint32(&mem_size));
   }
   memory_obj->set_array_buffer(*buffer);
   memory_obj->set_maximum_pages(maximum);
-  memory_obj->set_wasm_context(*wasm_context);
+
   return memory_obj;
 }
 
@@ -418,6 +426,8 @@ void WasmMemoryObject::AddInstance(Isolate* isolate,
   Handle<WeakFixedArray> new_instances =
       WeakFixedArray::Add(old_instances, instance);
   memory->set_instances(*new_instances);
+  Handle<JSArrayBuffer> buffer(memory->array_buffer(), isolate);
+  SetInstanceMemory(isolate, instance, buffer);
 }
 
 void WasmMemoryObject::RemoveInstance(Isolate* isolate,
@@ -461,28 +471,18 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer());
   uint32_t old_size = 0;
   CHECK(old_buffer->byte_length()->ToUint32(&old_size));
+  DCHECK_EQ(0, old_size % WasmModule::kPageSize);
   Handle<JSArrayBuffer> new_buffer;
   // Return current size if grow by 0.
-  if (pages == 0) {
-    DCHECK_EQ(0, old_size % WasmModule::kPageSize);
-    return old_size / WasmModule::kPageSize;
-  }
+  if (pages == 0) return old_size / WasmModule::kPageSize;
 
-  uint32_t maximum_pages;
+  uint32_t maximum_pages = FLAG_wasm_max_mem_pages;
   if (memory_object->has_maximum_pages()) {
     maximum_pages = Min(FLAG_wasm_max_mem_pages,
                         static_cast<uint32_t>(memory_object->maximum_pages()));
-  } else {
-    maximum_pages = FLAG_wasm_max_mem_pages;
   }
   new_buffer = GrowMemoryBuffer(isolate, old_buffer, pages, maximum_pages);
   if (new_buffer.is_null()) return -1;
-
-  // Verify that the values we will change are actually the ones we expect.
-  DCHECK_EQ(memory_object->wasm_context()->get()->mem_size, old_size);
-  DCHECK_EQ(memory_object->wasm_context()->get()->mem_start,
-            static_cast<Address>(old_buffer->backing_store()));
-  UpdateWasmContext(memory_object->wasm_context()->get(), new_buffer);
 
   if (memory_object->has_instances()) {
     Handle<WeakFixedArray> instances(memory_object->instances(), isolate);
@@ -495,17 +495,11 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
     }
   }
   memory_object->set_array_buffer(*new_buffer);
-  DCHECK_EQ(0, old_size % WasmModule::kPageSize);
   return old_size / WasmModule::kPageSize;
 }
 
 WasmModuleObject* WasmInstanceObject::module_object() {
   return *compiled_module()->wasm_module();
-}
-
-WasmContext* WasmInstanceObject::wasm_context() {
-  DCHECK(has_memory_object());
-  return memory_object()->wasm_context()->get();
 }
 
 WasmModule* WasmInstanceObject::module() { return compiled_module()->module(); }
@@ -527,6 +521,12 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
 
   Handle<WasmInstanceObject> instance(
       reinterpret_cast<WasmInstanceObject*>(*instance_object), isolate);
+
+  auto wasm_context = Managed<WasmContext>::Allocate(isolate);
+  wasm_context->get()->mem_start = nullptr;
+  wasm_context->get()->mem_size = 0;
+  wasm_context->get()->globals_start = nullptr;
+  instance->set_wasm_context(*wasm_context);
 
   instance->set_compiled_module(*compiled_module);
   return instance;
@@ -679,6 +679,32 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
                         isolate->factory()->NewNumber(func_index), DONT_ENUM);
 
   return Handle<WasmExportedFunction>::cast(js_function);
+}
+
+Handle<Code> WasmExportedFunction::GetWasmCode() {
+  DisallowHeapAllocation no_gc;
+  Handle<Code> export_wrapper_code = handle(this->code());
+  DCHECK_EQ(export_wrapper_code->kind(), Code::JS_TO_WASM_FUNCTION);
+  int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
+  for (RelocIterator it(*export_wrapper_code, mask);; it.next()) {
+    DCHECK(!it.done());
+    Code* target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+    if (target->kind() != Code::WASM_FUNCTION &&
+        target->kind() != Code::WASM_TO_JS_FUNCTION &&
+        target->kind() != Code::WASM_INTERPRETER_ENTRY)
+      continue;
+// There should only be this one call to wasm code.
+#ifdef DEBUG
+    for (it.next(); !it.done(); it.next()) {
+      Code* code = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+      DCHECK(code->kind() != Code::WASM_FUNCTION &&
+             code->kind() != Code::WASM_TO_JS_FUNCTION &&
+             code->kind() != Code::WASM_INTERPRETER_ENTRY);
+    }
+#endif
+    return handle(target);
+  }
+  UNREACHABLE();
 }
 
 bool WasmSharedModuleData::IsWasmSharedModuleData(Object* object) {
@@ -975,10 +1001,6 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   ret->reset_weak_next_instance();
   ret->reset_weak_prev_instance();
   ret->reset_weak_exported_functions();
-  if (ret->has_globals_start()) {
-    WasmCompiledModule::recreate_globals_start(ret, isolate->factory(),
-                                               ret->globals_start());
-  }
   return ret;
 }
 
@@ -1014,13 +1036,6 @@ void WasmCompiledModule::Reset(Isolate* isolate,
     // table references.
     Zone specialization_zone(isolate->allocator(), ZONE_NAME);
     wasm::CodeSpecialization code_specialization(isolate, &specialization_zone);
-
-    if (compiled_module->has_globals_start()) {
-      Address globals_start =
-          reinterpret_cast<Address>(compiled_module->globals_start());
-      code_specialization.RelocateGlobals(globals_start, nullptr);
-      compiled_module->set_globals_start(0);
-    }
 
     // Reset function tables.
     if (compiled_module->has_function_tables()) {
@@ -1084,19 +1099,6 @@ void WasmCompiledModule::InitId() {
 #endif
 }
 
-void WasmCompiledModule::SetGlobalsStartAddressFrom(
-    Factory* factory, Handle<WasmCompiledModule> compiled_module,
-    Handle<JSArrayBuffer> buffer) {
-  DCHECK(!buffer.is_null());
-  size_t start_address = reinterpret_cast<size_t>(buffer->backing_store());
-  if (!compiled_module->has_globals_start()) {
-    WasmCompiledModule::recreate_globals_start(compiled_module, factory,
-                                               start_address);
-  } else {
-    compiled_module->set_globals_start(start_address);
-  }
-}
-
 MaybeHandle<String> WasmCompiledModule::ExtractUtf8StringFromModuleBytes(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
     wasm::WireBytesRef ref) {
@@ -1127,7 +1129,6 @@ bool WasmCompiledModule::IsWasmCompiledModule(Object* obj) {
   if (!obj->IsFixedArray()) return false;
   FixedArray* arr = FixedArray::cast(obj);
   if (arr->length() != PropertyIndices::Count) return false;
-  Isolate* isolate = arr->GetIsolate();
 #define WCM_CHECK_TYPE(NAME, TYPE_CHECK) \
   do {                                   \
     Object* obj = arr->get(kID_##NAME);  \
@@ -1150,9 +1151,6 @@ bool WasmCompiledModule::IsWasmCompiledModule(Object* obj) {
 #define WCM_CHECK(KIND, TYPE, NAME) WCM_CHECK_##KIND(TYPE, NAME)
 #define WCM_CHECK_SMALL_CONST_NUMBER(TYPE, NAME) \
   WCM_CHECK_TYPE(NAME, obj->IsSmi())
-#define WCM_CHECK_LARGE_NUMBER(TYPE, NAME) \
-  WCM_CHECK_TYPE(NAME, obj->IsUndefined(isolate) || obj->IsMutableHeapNumber())
-  WCM_PROPERTY_TABLE(WCM_CHECK)
 #undef WCM_CHECK_TYPE
 #undef WCM_CHECK_OBJECT
 #undef WCM_CHECK_CONST_OBJECT
@@ -1161,7 +1159,6 @@ bool WasmCompiledModule::IsWasmCompiledModule(Object* obj) {
 #undef WCM_CHECK_SMALL_NUMBER
 #undef WCM_CHECK
 #undef WCM_CHECK_SMALL_CONST_NUMBER
-#undef WCM_CHECK_LARGE_NUMBER
 
   // All checks passed.
   return true;

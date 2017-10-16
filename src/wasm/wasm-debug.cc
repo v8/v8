@@ -138,25 +138,17 @@ class InterpreterHandle {
 
   static uint32_t GetMemSize(WasmDebugInfo* debug_info) {
     DisallowHeapAllocation no_gc;
-    return debug_info->wasm_instance()->has_memory_object()
-               ? debug_info->wasm_instance()->wasm_context()->mem_size
-               : 0;
+    return debug_info->wasm_instance()->wasm_context()->get()->mem_size;
   }
 
   static byte* GetMemStart(WasmDebugInfo* debug_info) {
     DisallowHeapAllocation no_gc;
-    return debug_info->wasm_instance()->has_memory_object()
-               ? debug_info->wasm_instance()->wasm_context()->mem_start
-               : nullptr;
+    return debug_info->wasm_instance()->wasm_context()->get()->mem_start;
   }
 
   static byte* GetGlobalsStart(WasmDebugInfo* debug_info) {
     DisallowHeapAllocation no_gc;
-    WasmCompiledModule* compiled_module =
-        debug_info->wasm_instance()->compiled_module();
-    return reinterpret_cast<byte*>(compiled_module->has_globals_start()
-                                       ? compiled_module->globals_start()
-                                       : 0);
+    return debug_info->wasm_instance()->wasm_context()->get()->globals_start;
   }
 
  public:

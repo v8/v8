@@ -297,17 +297,28 @@ void Int64Lowering::LowerNode(Node* node) {
       }
       break;
     }
+    case IrOpcode::kTailCall: {
+      CallDescriptor* descriptor =
+          const_cast<CallDescriptor*>(CallDescriptorOf(node->op()));
+      if (DefaultLowering(node) ||
+          (descriptor->ReturnCount() == 1 &&
+           descriptor->GetReturnType(0) == MachineType::Int64())) {
+        // Tail calls do not have return values, so adjusting the call
+        // descriptor is enough.
+        auto new_descriptor = GetI32WasmCallDescriptor(zone(), descriptor);
+        NodeProperties::ChangeOp(node, common()->TailCall(new_descriptor));
+      }
+      break;
+    }
     case IrOpcode::kCall: {
-      // TODO(turbofan): Make wasm code const-correct wrt. CallDescriptor.
       CallDescriptor* descriptor =
           const_cast<CallDescriptor*>(CallDescriptorOf(node->op()));
       if (DefaultLowering(node) ||
           (descriptor->ReturnCount() == 1 &&
            descriptor->GetReturnType(0) == MachineType::Int64())) {
         // We have to adjust the call descriptor.
-        const Operator* op =
-            common()->Call(GetI32WasmCallDescriptor(zone(), descriptor));
-        NodeProperties::ChangeOp(node, op);
+        NodeProperties::ChangeOp(
+            node, common()->Call(GetI32WasmCallDescriptor(zone(), descriptor)));
       }
       if (descriptor->ReturnCount() == 1 &&
           descriptor->GetReturnType(0) == MachineType::Int64()) {

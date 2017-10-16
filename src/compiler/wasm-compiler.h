@@ -45,8 +45,7 @@ namespace compiler {
 // which the  compiled code should be specialized, including which code to call
 // for direct calls {function_code}, which tables to use for indirect calls
 // {function_tables}, memory start address and size {mem_start, mem_size},
-// globals start address {globals_start}, as well as signature maps
-// {signature_maps} and the module itself {module}.
+// as well as signature maps {signature_maps} and the module itself {module}.
 // ModuleEnvs are shareable across multiple compilations.
 struct ModuleEnv {
   // A pointer to the decoded module's static representation.
@@ -70,8 +69,6 @@ struct ModuleEnv {
   const std::vector<Handle<Code>> function_code;
   // If the default code is not a null handle, always use it for direct calls.
   const Handle<Code> default_function_code;
-  // Address of the start of the globals region.
-  const uintptr_t globals_start;
 };
 
 enum RuntimeExceptionSupport : bool {
@@ -151,7 +148,8 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
 // Wraps a wasm function, producing a code object that can be called from other
 // wasm instances (the WasmContext address must be changed).
 Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, Handle<Code> target,
-                                      wasm::FunctionSig* sig, uint32_t index,
+                                      wasm::FunctionSig* sig,
+                                      uint32_t func_index,
                                       Address new_wasm_context_address);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
@@ -323,6 +321,8 @@ class WasmGraphBuilder {
 
   Node* LoadMemSize();
   Node* LoadMemStart();
+  void GetGlobalBaseAndOffset(MachineType mem_type, uint32_t offset,
+                              Node** base_node, Node** offset_node);
 
   void set_mem_size(Node** mem_size) { this->mem_size_ = mem_size; }
 
@@ -373,6 +373,7 @@ class WasmGraphBuilder {
   Node** effect_ = nullptr;
   Node** mem_size_ = nullptr;
   Node** mem_start_ = nullptr;
+  Node* globals_start_ = nullptr;
   Node** cur_buffer_;
   size_t cur_bufsize_;
   Node* def_buffer_[kDefaultBufferSize];
@@ -538,8 +539,8 @@ class WasmGraphBuilder {
 // call descriptors. This is used by the Int64Lowering::LowerNode method.
 constexpr int kWasmContextParameterIndex = 0;
 
-V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(Zone* zone,
-                                                        wasm::FunctionSig* sig);
+V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
+    Zone* zone, wasm::FunctionSig* sig, bool supports_tails_calls = false);
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
     Zone* zone, CallDescriptor* descriptor);
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptorForSimd(

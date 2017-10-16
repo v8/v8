@@ -48,7 +48,7 @@ static void RunLoadStoreRelocation(MachineType rep) {
   CType new_buffer[kNumElems];
   byte* raw = reinterpret_cast<byte*>(buffer);
   byte* new_raw = reinterpret_cast<byte*>(new_buffer);
-  WasmContext wasm_context = {raw, sizeof(buffer)};
+  WasmContext wasm_context = {raw, sizeof(buffer), nullptr};
   for (size_t i = 0; i < sizeof(buffer); i++) {
     raw[i] = static_cast<byte>((i + sizeof(CType)) ^ 0xAA);
     new_raw[i] = static_cast<byte>((i + sizeof(CType)) ^ 0xAA);
@@ -99,7 +99,7 @@ static void RunLoadStoreRelocationOffset(MachineType rep) {
     int32_t y = kNumElems - x - 1;
     // initialize the buffer with raw data.
     byte* raw = reinterpret_cast<byte*>(buffer);
-    wasm_context = {raw, sizeof(buffer)};
+    wasm_context = {raw, sizeof(buffer), nullptr};
     for (size_t i = 0; i < sizeof(buffer); i++) {
       raw[i] = static_cast<byte>((i + sizeof(buffer)) ^ 0xAA);
     }
@@ -152,7 +152,7 @@ TEST(RunLoadStoreRelocationOffset) {
 TEST(Uint32LessThanMemoryRelocation) {
   RawMachineAssemblerTester<uint32_t> m;
   RawMachineLabel within_bounds, out_of_bounds;
-  WasmContext wasm_context = {reinterpret_cast<Address>(1234), 0x200};
+  WasmContext wasm_context = {reinterpret_cast<Address>(1234), 0x200, nullptr};
   Node* index = m.Int32Constant(0x200);
   Node* wasm_context_node =
       m.RelocatableIntPtrConstant(reinterpret_cast<uintptr_t>(&wasm_context),

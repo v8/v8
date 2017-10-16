@@ -16,6 +16,7 @@
 #include "src/ostreams.h"
 #include "src/regexp/jsregexp.h"
 #include "src/transitions-inl.h"
+#include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -1086,6 +1087,14 @@ void JSFunction::JSFunctionPrint(std::ostream& os) {  // NOLINT
     if (shared()->HasBytecodeArray()) {
       os << "\n - bytecode = " << shared()->bytecode_array();
     }
+  }
+  if (WasmExportedFunction::IsWasmExportedFunction(this)) {
+    WasmExportedFunction* function = WasmExportedFunction::cast(this);
+    os << "\n - WASM instance "
+       << reinterpret_cast<void*>(function->instance());
+    os << "\n   context "
+       << reinterpret_cast<void*>(function->instance()->wasm_context()->get());
+    os << "\n - WASM function index " << function->function_index();
   }
   shared()->PrintSourceCode(os);
   JSObjectPrintBody(os, this);

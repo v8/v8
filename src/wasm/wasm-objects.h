@@ -61,6 +61,7 @@ class WasmInstanceObject;
 struct WasmContext {
   byte* mem_start;
   uint32_t mem_size;
+  byte* globals_start;
 };
 
 // Representation of a WebAssembly.Module JavaScript-level object.
@@ -171,6 +172,7 @@ class WasmInstanceObject : public JSObject {
  public:
   DECL_CAST(WasmInstanceObject)
 
+  DECL_ACCESSORS(wasm_context, Managed<WasmContext>)
   DECL_ACCESSORS(compiled_module, WasmCompiledModule)
   DECL_ACCESSORS(exports_object, JSObject)
   DECL_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject)
@@ -185,6 +187,7 @@ class WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(js_imports_table, FixedArray)
 
   enum {  // --
+    kWasmContextIndex,
     kCompiledModuleIndex,
     kExportsObjectIndex,
     kMemoryObjectIndex,
@@ -199,6 +202,7 @@ class WasmInstanceObject : public JSObject {
   };
 
   DEF_SIZE(JSObject)
+  DEF_OFFSET(WasmContext)
   DEF_OFFSET(CompiledModule)
   DEF_OFFSET(ExportsObject)
   DEF_OFFSET(MemoryObject)
@@ -211,7 +215,6 @@ class WasmInstanceObject : public JSObject {
   DEF_OFFSET(JsImportsTable)
 
   WasmModuleObject* module_object();
-  WasmContext* wasm_context();
   V8_EXPORT_PRIVATE wasm::WasmModule* module();
 
   // Get the debug info associated with the given wasm object.
@@ -321,10 +324,7 @@ class WasmSharedModuleData : public FixedArray {
 //     used as memory of a particular WebAssembly.Instance object. This
 //     information are then used at runtime to access memory / verify bounds
 //     check limits.
-//   - bounds check limits, computed at compile time, relative to the
-//     size of the memory.
 //   - the objects representing the function tables and signature tables
-//   - raw pointer to the globals buffer.
 //
 // Even without instantiating, we need values for all of these parameters.
 // We need to track these values to be able to create new instances and
@@ -332,11 +332,6 @@ class WasmSharedModuleData : public FixedArray {
 // The design decisions for how we track these values is not too immediate,
 // and it deserves a summary. The "tricky" ones are: memory, globals, and
 // the tables (signature and functions).
-// The first 2 (memory & globals) are embedded as raw pointers to native
-// buffers. All we need to track them is the start addresses and, in the
-// case of memory, the size. We model all of them as HeapNumbers, because
-// we need to store size_t values (for addresses), and potentially full
-// 32 bit unsigned values for the size. Smis are 31 bits.
 // For tables, we need to hold a reference to the JS Heap object, because
 // we embed them as objects, and they may move.
 class WasmCompiledModule : public FixedArray {
@@ -386,14 +381,6 @@ class WasmCompiledModule : public FixedArray {
  public:                                                                   \
   inline Handle<TYPE> NAME() const;
 
-#define WCM_LARGE_NUMBER(TYPE, NAME)                                   \
- public:                                                               \
-  inline TYPE NAME() const;                                            \
-  inline void set_##NAME(TYPE value);                                  \
-  inline static void recreate_##NAME(Handle<WasmCompiledModule> obj,   \
-                                     Factory* factory, TYPE init_val); \
-  inline bool has_##NAME() const;
-
 // Add values here if they are required for creating new instances or
 // for deserialization, and if they are serializable.
 // By default, instance values go to WasmInstanceObject, however, if
@@ -409,7 +396,6 @@ class WasmCompiledModule : public FixedArray {
   MACRO(OBJECT, FixedArray, signature_tables)                 \
   MACRO(CONST_OBJECT, FixedArray, empty_function_tables)      \
   MACRO(CONST_OBJECT, FixedArray, empty_signature_tables)     \
-  MACRO(LARGE_NUMBER, size_t, globals_start)                  \
   MACRO(SMALL_CONST_NUMBER, uint32_t, initial_pages)          \
   MACRO(WEAK_LINK, WasmCompiledModule, next_instance)         \
   MACRO(WEAK_LINK, WasmCompiledModule, prev_instance)         \
@@ -447,13 +433,7 @@ class WasmCompiledModule : public FixedArray {
                                           Handle<WasmCompiledModule> module);
   static void Reset(Isolate* isolate, WasmCompiledModule* module);
 
-  inline Address GetGlobalsStartOrNull() const;
-
   uint32_t default_mem_size() const;
-
-  static void SetGlobalsStartAddressFrom(
-      Factory* factory, Handle<WasmCompiledModule> compiled_module,
-      Handle<JSArrayBuffer> buffer);
 
 #define DECLARATION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)
   WCM_PROPERTY_TABLE(DECLARATION)

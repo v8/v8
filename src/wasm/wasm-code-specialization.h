@@ -30,8 +30,6 @@ class CodeSpecialization {
 
   // Update WasmContext references.
   void RelocateWasmContextReferences(Address new_context);
-  // Update references to global variables.
-  void RelocateGlobals(Address old_start, Address new_start);
   // Update function table size.
   // TODO(wasm): Prepare this for more than one indirect function table.
   void PatchTableSize(uint32_t old_size, uint32_t new_size);
@@ -49,9 +47,6 @@ class CodeSpecialization {
 
  private:
   Address new_wasm_context_address = 0;
-
-  Address old_globals_start = 0;
-  Address new_globals_start = 0;
 
   uint32_t old_function_table_size = 0;
   uint32_t new_function_table_size = 0;
