@@ -1741,8 +1741,8 @@ void Scope::Print(int n) {
   if (is_declaration_scope() && AsDeclarationScope()->calls_sloppy_eval()) {
     Indent(n1, "// scope calls sloppy 'eval'\n");
   }
-  if (is_declaration_scope() && AsDeclarationScope()->uses_super_property()) {
-    Indent(n1, "// scope uses 'super' property\n");
+  if (is_declaration_scope() && AsDeclarationScope()->NeedsHomeObject()) {
+    Indent(n1, "// scope needs home object\n");
   }
   if (inner_scope_calls_eval_) Indent(n1, "// inner scope calls 'eval'\n");
   if (is_declaration_scope()) {

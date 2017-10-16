@@ -193,7 +193,7 @@ void ProducedPreParsedScopeData::DataGatheringScope::MarkFunctionAsSkippable(
   produced_preparsed_scope_data_->parent_->AddSkippableFunction(
       function_scope_->start_position(), end_position,
       function_scope_->num_parameters(), num_inner_functions,
-      function_scope_->language_mode(), function_scope_->uses_super_property());
+      function_scope_->language_mode(), function_scope_->NeedsHomeObject());
 }
 
 void ProducedPreParsedScopeData::AddSkippableFunction(
