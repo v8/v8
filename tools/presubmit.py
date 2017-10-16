@@ -55,7 +55,6 @@ from testrunner.local import utils
 # build/include_what_you_use: Started giving false positives for variables
 #   named "string" and "map" assuming that you needed to include STL headers.
 # TODO(bmeurer): Fix and re-enable readability/check
-# http://crrev.com/2199323003 relands.
 
 LINT_RULES = """
 -build/header_guard
