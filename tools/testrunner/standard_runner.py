@@ -6,13 +6,9 @@
 
 
 from collections import OrderedDict
-from os.path import getmtime, isdir, join
-import itertools
-import json
+from os.path import join
 import multiprocessing
-import optparse
 import os
-import platform
 import random
 import shlex
 import subprocess
@@ -32,63 +28,6 @@ from testrunner.network import network_execution
 from testrunner.objects import context
 
 
-# Base dir of the v8 checkout to be used as cwd.
-BASE_DIR = (
-    os.path.dirname(
-      os.path.dirname(
-        os.path.dirname(
-          os.path.abspath(__file__)))))
-
-DEFAULT_OUT_GN = "out.gn"
-
-ARCH_GUESS = utils.DefaultArch()
-
-# Map of test name synonyms to lists of test suites. Should be ordered by
-# expected runtimes (suites with slow test cases first). These groups are
-# invoked in separate steps on the bots.
-TEST_MAP = {
-  # This needs to stay in sync with test/bot_default.isolate.
-  "bot_default": [
-    "debugger",
-    "mjsunit",
-    "cctest",
-    "wasm-spec-tests",
-    "inspector",
-    "webkit",
-    "mkgrokdump",
-    "fuzzer",
-    "message",
-    "preparser",
-    "intl",
-    "unittests",
-  ],
-  # This needs to stay in sync with test/default.isolate.
-  "default": [
-    "debugger",
-    "mjsunit",
-    "cctest",
-    "wasm-spec-tests",
-    "inspector",
-    "mkgrokdump",
-    "fuzzer",
-    "message",
-    "preparser",
-    "intl",
-    "unittests",
-  ],
-  # This needs to stay in sync with test/optimize_for_size.isolate.
-  "optimize_for_size": [
-    "debugger",
-    "mjsunit",
-    "cctest",
-    "inspector",
-    "webkit",
-    "intl",
-  ],
-  "unittests": [
-    "unittests",
-  ],
-}
 
 TIMEOUT_DEFAULT = 60
 
@@ -115,73 +54,11 @@ VARIANT_ALIASES = {
   "extra": [],
 }
 
-DEBUG_FLAGS = ["--nohard-abort", "--enable-slow-asserts", "--verify-heap"]
-RELEASE_FLAGS = ["--nohard-abort"]
-
-MODES = {
-  "debug": {
-    "flags": DEBUG_FLAGS,
-    "timeout_scalefactor": 4,
-    "status_mode": "debug",
-    "execution_mode": "debug",
-    "output_folder": "debug",
-  },
-  "optdebug": {
-    "flags": DEBUG_FLAGS,
-    "timeout_scalefactor": 4,
-    "status_mode": "debug",
-    "execution_mode": "debug",
-    "output_folder": "optdebug",
-  },
-  "release": {
-    "flags": RELEASE_FLAGS,
-    "timeout_scalefactor": 1,
-    "status_mode": "release",
-    "execution_mode": "release",
-    "output_folder": "release",
-  },
-  # Normal trybot release configuration. There, dchecks are always on which
-  # implies debug is set. Hence, the status file needs to assume debug-like
-  # behavior/timeouts.
-  "tryrelease": {
-    "flags": RELEASE_FLAGS,
-    "timeout_scalefactor": 1,
-    "status_mode": "debug",
-    "execution_mode": "release",
-    "output_folder": "release",
-  },
-  # This mode requires v8 to be compiled with dchecks and slow dchecks.
-  "slowrelease": {
-    "flags": RELEASE_FLAGS + ["--enable-slow-asserts"],
-    "timeout_scalefactor": 2,
-    "status_mode": "debug",
-    "execution_mode": "release",
-    "output_folder": "release",
-  },
-}
-
 GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",
                    "--concurrent-recompilation-queue-length=64",
                    "--concurrent-recompilation-delay=500",
                    "--concurrent-recompilation"]
 
-SUPPORTED_ARCHS = ["android_arm",
-                   "android_arm64",
-                   "android_ia32",
-                   "android_x64",
-                   "arm",
-                   "ia32",
-                   "mips",
-                   "mipsel",
-                   "mips64",
-                   "mips64el",
-                   "s390",
-                   "s390x",
-                   "ppc",
-                   "ppc64",
-                   "x64",
-                   "x32",
-                   "arm64"]
 # Double the timeout for these:
 SLOW_ARCHS = ["android_arm",
               "android_arm64",
@@ -201,16 +78,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     def __init__(self):
         super(StandardTestRunner, self).__init__()
 
-    def _do_execute(self):
+    def _do_execute(self, options, args):
       # Use the v8 root as cwd as some test cases use "load" with relative
       # paths.
-      os.chdir(BASE_DIR)
+      os.chdir(base_runner.BASE_DIR)
 
-      parser = self._build_options()
-      (options, args) = parser.parse_args()
-      if not self._process_options(options):
-        parser.print_help()
-        return 1
       self._setup_env(options)
 
       if options.swarming:
@@ -230,7 +102,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       exit_code = 0
 
-      suite_paths = utils.GetSuitePaths(join(BASE_DIR, "test"))
+      suite_paths = utils.GetSuitePaths(join(base_runner.BASE_DIR, "test"))
 
       # Use default tests if no test configuration was provided at the cmd line.
       if len(args) == 0:
@@ -239,8 +111,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       # Expand arguments with grouped tests. The args should reflect the list
       # of suites as otherwise filters would break.
       def ExpandTestGroups(name):
-        if name in TEST_MAP:
-          return [suite for suite in TEST_MAP[name]]
+        if name in base_runner.TEST_MAP:
+          return [suite for suite in base_runner.TEST_MAP[name]]
         else:
           return [name]
       args = reduce(lambda x, y: x + y,
@@ -255,14 +127,14 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       suites = []
       for root in suite_paths:
         suite = testsuite.TestSuite.LoadTestSuite(
-            os.path.join(BASE_DIR, "test", root))
+            os.path.join(base_runner.BASE_DIR, "test", root))
         if suite:
           suites.append(suite)
 
       for s in suites:
         s.PrepareSources()
 
-      for (arch, mode) in options.arch_and_mode:
+      for (arch, mode) in self.arch_and_mode:
         try:
           code = self._execute(arch, mode, args, options, suites)
         except KeyboardInterrupt:
@@ -270,288 +142,153 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         exit_code = exit_code or code
       return exit_code
 
-    def _build_options(self):
-      result = optparse.OptionParser()
-      result.usage = '%prog [options] [tests]'
-      result.description = """TESTS: %s""" % (TEST_MAP["default"])
-      result.add_option("--arch",
-                        help=("The architecture to run tests for, "
-                              "'auto' or 'native' for auto-detect: %s" %
-                              SUPPORTED_ARCHS))
-      result.add_option("--arch-and-mode",
-                        help="Architecture and mode in the format 'arch.mode'")
-      result.add_option("--asan",
+    def _add_parser_options(self, parser):
+      parser.add_option("--asan",
                         help="Regard test expectations for ASAN",
                         default=False, action="store_true")
-      result.add_option("--sancov-dir",
+      parser.add_option("--sancov-dir",
                         help="Directory where to collect coverage data")
-      result.add_option("--cfi-vptr",
+      parser.add_option("--cfi-vptr",
                         help="Run tests with UBSAN cfi_vptr option.",
                         default=False, action="store_true")
-      result.add_option("--buildbot",
-                        help="Adapt to path structure used on buildbots",
-                        default=False, action="store_true")
-      result.add_option("--dcheck-always-on",
+      parser.add_option("--dcheck-always-on",
                         help="Indicates that V8 was compiled with DCHECKs"
                         " enabled",
                         default=False, action="store_true")
-      result.add_option("--novfp3",
+      parser.add_option("--novfp3",
                         help="Indicates that V8 was compiled without VFP3"
                         " support",
                         default=False, action="store_true")
-      result.add_option("--cat", help="Print the source of the tests",
+      parser.add_option("--cat", help="Print the source of the tests",
                         default=False, action="store_true")
-      result.add_option("--slow-tests",
+      parser.add_option("--slow-tests",
                         help="Regard slow tests (run|skip|dontcare)",
                         default="dontcare")
-      result.add_option("--pass-fail-tests",
+      parser.add_option("--pass-fail-tests",
                         help="Regard pass|fail tests (run|skip|dontcare)",
                         default="dontcare")
-      result.add_option("--gc-stress",
+      parser.add_option("--gc-stress",
                         help="Switch on GC stress mode",
                         default=False, action="store_true")
-      result.add_option("--gcov-coverage",
+      parser.add_option("--gcov-coverage",
                         help="Uses executables instrumented for gcov coverage",
                         default=False, action="store_true")
-      result.add_option("--command-prefix",
+      parser.add_option("--command-prefix",
                         help="Prepended to each shell command used to run a"
                         " test",
                         default="")
-      result.add_option("--extra-flags",
+      parser.add_option("--extra-flags",
                         help="Additional flags to pass to each test command",
                         action="append", default=[])
-      result.add_option("--isolates", help="Whether to test isolates",
+      parser.add_option("--isolates", help="Whether to test isolates",
                         default=False, action="store_true")
-      result.add_option("-j", help="The number of parallel tasks to run",
+      parser.add_option("-j", help="The number of parallel tasks to run",
                         default=0, type="int")
-      result.add_option("-m", "--mode",
-                        help="The test modes in which to run (comma-separated,"
-                        " uppercase for ninja and buildbot builds): %s"
-                        % MODES.keys())
-      result.add_option("--no-harness", "--noharness",
+      parser.add_option("--no-harness", "--noharness",
                         help="Run without test harness of a given suite",
                         default=False, action="store_true")
-      result.add_option("--no-i18n", "--noi18n",
+      parser.add_option("--no-i18n", "--noi18n",
                         help="Skip internationalization tests",
                         default=False, action="store_true")
-      result.add_option("--network", help="Distribute tests on the network",
+      parser.add_option("--network", help="Distribute tests on the network",
                         default=False, dest="network", action="store_true")
-      result.add_option("--no-network", "--nonetwork",
+      parser.add_option("--no-network", "--nonetwork",
                         help="Don't distribute tests on the network",
                         dest="network", action="store_false")
-      result.add_option("--no-presubmit", "--nopresubmit",
+      parser.add_option("--no-presubmit", "--nopresubmit",
                         help='Skip presubmit checks (deprecated)',
                         default=False, dest="no_presubmit", action="store_true")
-      result.add_option("--no-snap", "--nosnap",
+      parser.add_option("--no-snap", "--nosnap",
                         help='Test a build compiled without snapshot.',
                         default=False, dest="no_snap", action="store_true")
-      result.add_option("--no-sorting", "--nosorting",
+      parser.add_option("--no-sorting", "--nosorting",
                         help="Don't sort tests according to duration of last"
                         " run.",
                         default=False, dest="no_sorting", action="store_true")
-      result.add_option("--no-variants", "--novariants",
+      parser.add_option("--no-variants", "--novariants",
                         help="Don't run any testing variants",
                         default=False, dest="no_variants", action="store_true")
-      result.add_option("--variants",
+      parser.add_option("--variants",
                         help="Comma-separated list of testing variants;"
                         " default: \"%s\"" % ",".join(VARIANTS))
-      result.add_option("--exhaustive-variants",
+      parser.add_option("--exhaustive-variants",
                         default=False, action="store_true",
                         help="Use exhaustive set of default variants:"
                         " \"%s\"" % ",".join(EXHAUSTIVE_VARIANTS))
-      result.add_option("--outdir", help="Base directory with compile output",
-                        default="out")
-      result.add_option("--gn", help="Scan out.gn for the last built"
-                        " configuration",
-                        default=False, action="store_true")
-      result.add_option("--predictable",
+      parser.add_option("--predictable",
                         help="Compare output of several reruns of each test",
                         default=False, action="store_true")
-      result.add_option("-p", "--progress",
+      parser.add_option("-p", "--progress",
                         help=("The style of progress indicator"
                               " (verbose, dots, color, mono)"),
                         choices=progress.PROGRESS_INDICATORS.keys(),
                         default="mono")
-      result.add_option("--quickcheck", default=False, action="store_true",
+      parser.add_option("--quickcheck", default=False, action="store_true",
                         help=("Quick check mode (skip slow tests)"))
-      result.add_option("--report", help="Print a summary of the tests to be"
+      parser.add_option("--report", help="Print a summary of the tests to be"
                         " run",
                         default=False, action="store_true")
-      result.add_option("--json-test-results",
+      parser.add_option("--json-test-results",
                         help="Path to a file for storing json results.")
-      result.add_option("--flakiness-results",
+      parser.add_option("--flakiness-results",
                         help="Path to a file for storing flakiness json.")
-      result.add_option("--rerun-failures-count",
+      parser.add_option("--rerun-failures-count",
                         help=("Number of times to rerun each failing test case."
                               " Very slow tests will be rerun only once."),
                         default=0, type="int")
-      result.add_option("--rerun-failures-max",
+      parser.add_option("--rerun-failures-max",
                         help="Maximum number of failing test cases to rerun.",
                         default=100, type="int")
-      result.add_option("--shard-count",
+      parser.add_option("--shard-count",
                         help="Split testsuites into this number of shards",
                         default=1, type="int")
-      result.add_option("--shard-run",
+      parser.add_option("--shard-run",
                         help="Run this shard from the split up tests.",
                         default=1, type="int")
-      result.add_option("--shell", help="DEPRECATED! use --shell-dir",
+      parser.add_option("--shell", help="DEPRECATED! use --shell-dir",
                         default="")
-      result.add_option("--shell-dir", help="Directory containing executables",
+      parser.add_option("--shell-dir", help="Directory containing executables",
                         default="")
-      result.add_option("--dont-skip-slow-simulator-tests",
+      parser.add_option("--dont-skip-slow-simulator-tests",
                         help="Don't skip more slow tests when using a"
                         " simulator.",
                         default=False, action="store_true",
                         dest="dont_skip_simulator_slow_tests")
-      result.add_option("--swarming",
+      parser.add_option("--swarming",
                         help="Indicates running test driver on swarming.",
                         default=False, action="store_true")
-      result.add_option("--time", help="Print timing information after running",
+      parser.add_option("--time", help="Print timing information after running",
                         default=False, action="store_true")
-      result.add_option("-t", "--timeout", help="Timeout in seconds",
+      parser.add_option("-t", "--timeout", help="Timeout in seconds",
                         default=TIMEOUT_DEFAULT, type="int")
-      result.add_option("--tsan",
+      parser.add_option("--tsan",
                         help="Regard test expectations for TSAN",
                         default=False, action="store_true")
-      result.add_option("-v", "--verbose", help="Verbose output",
+      parser.add_option("-v", "--verbose", help="Verbose output",
                         default=False, action="store_true")
-      result.add_option("--valgrind", help="Run tests through valgrind",
+      parser.add_option("--valgrind", help="Run tests through valgrind",
                         default=False, action="store_true")
-      result.add_option("--warn-unused", help="Report unused rules",
+      parser.add_option("--warn-unused", help="Report unused rules",
                         default=False, action="store_true")
-      result.add_option("--junitout", help="File name of the JUnit output")
-      result.add_option("--junittestsuite",
+      parser.add_option("--junitout", help="File name of the JUnit output")
+      parser.add_option("--junittestsuite",
                         help="The testsuite name in the JUnit output file",
                         default="v8tests")
-      result.add_option("--random-seed", default=0, dest="random_seed",
+      parser.add_option("--random-seed", default=0, dest="random_seed",
                         help="Default seed for initializing random generator",
                         type=int)
-      result.add_option("--random-seed-stress-count", default=1, type="int",
+      parser.add_option("--random-seed-stress-count", default=1, type="int",
                         dest="random_seed_stress_count",
                         help="Number of runs with different random seeds")
-      result.add_option("--ubsan-vptr",
+      parser.add_option("--ubsan-vptr",
                         help="Regard test expectations for UBSanVptr",
                         default=False, action="store_true")
-      result.add_option("--msan",
+      parser.add_option("--msan",
                         help="Regard test expectations for UBSanVptr",
                         default=False, action="store_true")
-      return result
 
     def _process_options(self, options):
       global VARIANTS
-
-      # First try to auto-detect configurations based on the build if GN was
-      # used. This can't be overridden by cmd-line arguments.
-      options.auto_detect = False
-      if options.gn:
-        gn_out_dir = os.path.join(BASE_DIR, DEFAULT_OUT_GN)
-        latest_timestamp = -1
-        latest_config = None
-        for gn_config in os.listdir(gn_out_dir):
-          gn_config_dir = os.path.join(gn_out_dir, gn_config)
-          if not isdir(gn_config_dir):
-            continue
-          if os.path.getmtime(gn_config_dir) > latest_timestamp:
-            latest_timestamp = os.path.getmtime(gn_config_dir)
-            latest_config = gn_config
-        if latest_config:
-          print(">>> Latest GN build found is %s" % latest_config)
-          options.outdir = os.path.join(DEFAULT_OUT_GN, latest_config)
-
-      if options.buildbot:
-        build_config_path = os.path.join(
-            BASE_DIR, options.outdir, options.mode, "v8_build_config.json")
-      else:
-        build_config_path = os.path.join(
-            BASE_DIR, options.outdir, "v8_build_config.json")
-
-      # Auto-detect test configurations based on the build (GN only).
-      if os.path.exists(build_config_path):
-        try:
-          with open(build_config_path) as f:
-            build_config = json.load(f)
-        except Exception:
-          print ("%s exists but contains invalid json. "
-                 "Is your build up-to-date?" % build_config_path)
-          return False
-        options.auto_detect = True
-
-        # In auto-detect mode the outdir is always where we found the build
-        # config.
-        # This ensures that we'll also take the build products from there.
-        options.outdir = os.path.dirname(build_config_path)
-        options.arch_and_mode = None
-        if options.mode:
-          # In auto-detect mode we don't use the mode for more path-magic.
-          # Therefore transform the buildbot mode here to fit to the GN build
-          # config.
-          options.mode = self._buildbot_to_v8_mode(options.mode)
-
-        # In V8 land, GN's x86 is called ia32.
-        if build_config["v8_target_cpu"] == "x86":
-          build_config["v8_target_cpu"] = "ia32"
-
-        # Update options based on the build config. Sanity check that we're not
-        # trying to use inconsistent options.
-        for param, value in (
-            ('arch', build_config["v8_target_cpu"]),
-            ('asan', build_config["is_asan"]),
-            ('dcheck_always_on', build_config["dcheck_always_on"]),
-            ('gcov_coverage', build_config["is_gcov_coverage"]),
-            ('mode', 'debug' if build_config["is_debug"] else 'release'),
-            ('msan', build_config["is_msan"]),
-            ('no_i18n', not build_config["v8_enable_i18n_support"]),
-            ('no_snap', not build_config["v8_use_snapshot"]),
-            ('tsan', build_config["is_tsan"]),
-            ('ubsan_vptr', build_config["is_ubsan_vptr"])):
-          cmd_line_value = getattr(options, param)
-          if (cmd_line_value not in [None, True, False] and
-              cmd_line_value != value):
-            # TODO(machenbach): This is for string options only. Requires
-            # options  to not have default values. We should make this more
-            # modular and implement it in our own version of the option parser.
-            print "Attempted to set %s to %s, while build is %s." % (
-                param, cmd_line_value, value)
-            return False
-          if cmd_line_value == True and value == False:
-            print "Attempted to turn on %s, but it's not available." % (
-                param)
-            return False
-          if cmd_line_value != value:
-            print ">>> Auto-detected %s=%s" % (param, value)
-          setattr(options, param, value)
-
-      else:
-        # Non-GN build without auto-detect. Set default values for missing
-        # parameters.
-        if not options.mode:
-          options.mode = "release,debug"
-        if not options.arch:
-          options.arch = "ia32,x64,arm"
-
-      # Architecture and mode related stuff.
-      if options.arch_and_mode:
-        options.arch_and_mode = [arch_and_mode.split(".")
-            for arch_and_mode in options.arch_and_mode.split(",")]
-        options.arch = ",".join([tokens[0] for tokens in options.arch_and_mode])
-        options.mode = ",".join([tokens[1] for tokens in options.arch_and_mode])
-      options.mode = options.mode.split(",")
-      for mode in options.mode:
-        if not self._buildbot_to_v8_mode(mode) in MODES:
-          print "Unknown mode %s" % mode
-          return False
-      if options.arch in ["auto", "native"]:
-        options.arch = ARCH_GUESS
-      options.arch = options.arch.split(",")
-      for arch in options.arch:
-        if not arch in SUPPORTED_ARCHS:
-          print "Unknown architecture %s" % arch
-          return False
-
-      # Store the final configuration in arch_and_mode list. Don't overwrite
-      # predefined arch_and_mode since it is more expressive than arch and mode.
-      if not options.arch_and_mode:
-        options.arch_and_mode = itertools.product(options.arch, options.mode)
 
       # Special processing of other options, sorted alphabetically.
 
@@ -597,7 +334,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       if not excl(options.no_variants, bool(options.variants)):
         print("Use only one of --no-variants or --variants.")
-        return False
+        raise base_runner.TestRunnerError()
       if options.quickcheck:
         VARIANTS = ["default", "stress"]
         options.slow_tests = "skip"
@@ -616,7 +353,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
         if not set(VARIANTS).issubset(ALL_VARIANTS):
           print "All variants must be in %s" % str(ALL_VARIANTS)
-          return False
+          raise base_runner.TestRunnerError()
       if options.predictable:
         VARIANTS = ["default"]
         options.extra_flags.append("--predictable")
@@ -639,16 +376,12 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       def CheckTestMode(name, option):
         if not option in ["run", "skip", "dontcare"]:
           print "Unknown %s mode %s" % (name, option)
-          return False
-        return True
-      if not CheckTestMode("slow test", options.slow_tests):
-        return False
-      if not CheckTestMode("pass|fail test", options.pass_fail_tests):
-        return False
+          raise base_runner.TestRunnerError()
+      CheckTestMode("slow test", options.slow_tests)
+      CheckTestMode("pass|fail test", options.pass_fail_tests)
       if options.no_i18n:
-        TEST_MAP["bot_default"].remove("intl")
-        TEST_MAP["default"].remove("intl")
-      return True
+        base_runner.TEST_MAP["bot_default"].remove("intl")
+        base_runner.TEST_MAP["default"].remove("intl")
 
     def _setup_env(self, options):
       """Setup additional environment variables."""
@@ -658,7 +391,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       symbolizer = 'external_symbolizer_path=%s' % (
           os.path.join(
-              BASE_DIR, 'third_party', 'llvm-build', 'Release+Asserts', 'bin',
+              base_runner.BASE_DIR,
+              'third_party',
+              'llvm-build',
+              'Release+Asserts',
+              'bin',
               'llvm-symbolizer',
           )
       )
@@ -698,7 +435,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       if options.tsan:
         suppressions_file = os.path.join(
-            BASE_DIR, 'tools', 'sanitizers', 'tsan_suppressions.txt')
+            base_runner.BASE_DIR,
+            'tools',
+            'sanitizers',
+            'tsan_suppressions.txt')
         os.environ['TSAN_OPTIONS'] = " ".join([
           symbolizer,
           'suppressions=%s' % suppressions_file,
@@ -719,39 +459,42 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       shell_dir = options.shell_dir
       if not shell_dir:
-        if options.auto_detect:
+        if self.auto_detect:
           # If an output dir with a build was passed, test directly in that
           # directory.
-          shell_dir = os.path.join(BASE_DIR, options.outdir)
+          shell_dir = os.path.join(base_runner.BASE_DIR, self.outdir)
         elif options.buildbot:
           # TODO(machenbach): Get rid of different output folder location on
           # buildbot. Currently this is capitalized Release and Debug.
-          shell_dir = os.path.join(BASE_DIR, options.outdir, mode)
+          shell_dir = os.path.join(base_runner.BASE_DIR, self.outdir, mode)
           mode = self._buildbot_to_v8_mode(mode)
         else:
           shell_dir = os.path.join(
-              BASE_DIR,
-              options.outdir,
-              "%s.%s" % (arch, MODES[mode]["output_folder"]),
+              base_runner.BASE_DIR,
+              self.outdir,
+              "%s.%s" % (arch, base_runner.MODES[mode]["output_folder"]),
           )
       if not os.path.exists(shell_dir):
           raise Exception('Could not find shell_dir: "%s"' % shell_dir)
 
       # Populate context object.
-      mode_flags = MODES[mode]["flags"]
+      mode_flags = base_runner.MODES[mode]["flags"]
 
       # Simulators are slow, therefore allow a longer timeout.
       if arch in SLOW_ARCHS:
         options.timeout *= 2
 
-      options.timeout *= MODES[mode]["timeout_scalefactor"]
+      options.timeout *= base_runner.MODES[mode]["timeout_scalefactor"]
 
       if options.predictable:
         # Predictable mode is slower.
         options.timeout *= 2
 
-      ctx = context.Context(arch, MODES[mode]["execution_mode"], shell_dir,
-                            mode_flags, options.verbose,
+      ctx = context.Context(arch,
+                            base_runner.MODES[mode]["execution_mode"],
+                            shell_dir,
+                            mode_flags,
+                            options.verbose,
                             options.timeout,
                             options.isolates,
                             options.command_prefix,
@@ -772,7 +515,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       simulator_run = not options.dont_skip_simulator_slow_tests and \
           arch in ['arm64', 'arm', 'mipsel', 'mips', 'mips64', 'mips64el', \
                   'ppc', 'ppc64', 's390', 's390x'] and \
-          bool(ARCH_GUESS) and arch != ARCH_GUESS
+          bool(base_runner.ARCH_GUESS) and arch != base_runner.ARCH_GUESS
       # Find available test suites and read test cases from them.
       variables = {
         "arch": arch,
@@ -781,7 +524,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         "gc_stress": options.gc_stress,
         "gcov_coverage": options.gcov_coverage,
         "isolates": options.isolates,
-        "mode": MODES[mode]["status_mode"],
+        "mode": base_runner.MODES[mode]["status_mode"],
         "no_i18n": options.no_i18n,
         "no_snap": options.no_snap,
         "simulator_run": simulator_run,
@@ -860,8 +603,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
             options.junitout, options.junittestsuite))
       if options.json_test_results:
         progress_indicator.Register(progress.JsonTestProgressIndicator(
-            options.json_test_results, arch, MODES[mode]["execution_mode"],
-            ctx.random_seed))
+          options.json_test_results,
+          arch,
+          base_runner.MODES[mode]["execution_mode"],
+          ctx.random_seed))
       if options.flakiness_results:
         progress_indicator.Register(progress.FlakinessTestProgressIndicator(
             options.flakiness_results))
@@ -887,8 +632,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           run_networked = False
 
       if run_networked:
-        runner = network_execution.NetworkedRunner(suites, progress_indicator,
-                                                  ctx, peers, BASE_DIR)
+        runner = network_execution.NetworkedRunner(
+          suites, progress_indicator, ctx, peers, base_runner.BASE_DIR)
       else:
         runner = execution.Runner(suites, progress_indicator, ctx)
 
@@ -912,22 +657,14 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           print "Merging sancov files."
           subprocess.check_call([
             sys.executable,
-            join(BASE_DIR, "tools", "sanitizers", "sancov_merger.py"),
+            join(
+              base_runner.BASE_DIR, "tools", "sanitizers", "sancov_merger.py"),
             "--coverage-dir=%s" % options.sancov_dir])
         except:
           print >> sys.stderr, "Error: Merging sancov files failed."
           exit_code = 1
 
       return exit_code
-
-    def _buildbot_to_v8_mode(self, config):
-      """Convert buildbot build configs to configs understood by the v8 runner.
-
-      V8 configs are always lower case and without the additional _x64 suffix
-      for 64 bit builds on windows with ninja.
-      """
-      mode = config[:-4] if config.endswith('_x64') else config
-      return mode.lower()
 
     def _shard_tests(self, tests, options):
       # Read gtest shard configuration from environment (e.g. set by swarming).

@@ -255,7 +255,6 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
       options.coverage_lift = 0
     return True
 
-
   def _shard_tests(self, tests, shard_count, shard_run):
     if shard_count < 2:
       return tests
@@ -271,8 +270,8 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
       count += 1
     return shard
 
-
-  def _do_execute(self):
+  # TODO(majeski): reuse baseclass code
+  def execute(self):
     # Use the v8 root as cwd as some test cases use "load" with relative paths.
     os.chdir(BASE_DIR)
 
