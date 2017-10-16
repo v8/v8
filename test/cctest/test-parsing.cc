@@ -864,8 +864,14 @@ TEST(ScopeUsesArgumentsSuperThis) {
           !scope->AsDeclarationScope()->is_arrow_scope()) {
         CHECK_NOT_NULL(scope->AsDeclarationScope()->arguments());
       }
-      CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
-               scope->AsDeclarationScope()->uses_super_property());
+      if (IsClassConstructor(scope->AsDeclarationScope()->function_kind())) {
+        CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0 ||
+                     (source_data[i].expected & EVAL) != 0,
+                 scope->AsDeclarationScope()->NeedsHomeObject());
+      } else {
+        CHECK_EQ((source_data[i].expected & SUPER_PROPERTY) != 0,
+                 scope->AsDeclarationScope()->NeedsHomeObject());
+      }
       if ((source_data[i].expected & THIS) != 0) {
         // Currently the is_used() flag is conservative; all variables in a
         // script scope are marked as used.

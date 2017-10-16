@@ -2801,7 +2801,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
     DCHECK(log_);
     log_->LogFunction(function_scope->start_position(),
                       function_scope->end_position(), *num_parameters,
-                      language_mode(), function_scope->uses_super_property(),
+                      language_mode(), function_scope->NeedsHomeObject(),
                       logger->num_inner_functions());
   }
   return kLazyParsingComplete;

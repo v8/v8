@@ -669,14 +669,13 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   // Inform the scope that the corresponding code uses "super".
   void RecordSuperPropertyUsage() {
-    DCHECK((IsConciseMethod(function_kind()) ||
-            IsAccessorFunction(function_kind()) ||
-            IsClassConstructor(function_kind())));
+    DCHECK(IsConciseMethod(function_kind()) ||
+           IsAccessorFunction(function_kind()) ||
+           IsClassConstructor(function_kind()));
     scope_uses_super_property_ = true;
   }
-  // Does this scope access "super" property (super.foo).
-  bool uses_super_property() const { return scope_uses_super_property_; }
 
+  // Does this scope access "super" property (super.foo).
   bool NeedsHomeObject() const {
     return scope_uses_super_property_ ||
            (inner_scope_calls_eval_ && (IsConciseMethod(function_kind()) ||
