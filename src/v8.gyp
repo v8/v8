@@ -1345,6 +1345,8 @@
         'snapshot/builtin-serializer.h',
         'snapshot/code-serializer.cc',
         'snapshot/code-serializer.h',
+        'snapshot/default-deserializer-allocator.cc',
+        'snapshot/default-deserializer-allocator.h',
         'snapshot/default-serializer-allocator.cc',
         'snapshot/default-serializer-allocator.h',
         'snapshot/deserializer.cc',

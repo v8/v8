@@ -1968,6 +1968,8 @@ v8_source_set("v8_base") {
     "src/snapshot/builtin-serializer.h",
     "src/snapshot/code-serializer.cc",
     "src/snapshot/code-serializer.h",
+    "src/snapshot/default-deserializer-allocator.cc",
+    "src/snapshot/default-deserializer-allocator.h",
     "src/snapshot/default-serializer-allocator.cc",
     "src/snapshot/default-serializer-allocator.h",
     "src/snapshot/deserializer.cc",

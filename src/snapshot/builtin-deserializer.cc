@@ -38,7 +38,7 @@ BuiltinDeserializer::BuiltinDeserializer(Isolate* isolate,
     : Deserializer(data, false) {
   // We may have to relax this at some point to pack reloc infos and handler
   // tables into the builtin blob (instead of the partial snapshot cache).
-  DCHECK(ReservesOnlyCodeSpace());
+  DCHECK(allocator()->ReservesOnlyCodeSpace());
 
   builtin_offsets_ = data->BuiltinOffsets();
   DCHECK_EQ(Builtins::builtin_count, builtin_offsets_.length());
@@ -136,7 +136,7 @@ uint32_t BuiltinDeserializer::ExtractBuiltinSize(int builtin_id) {
 }
 
 Heap::Reservation BuiltinDeserializer::CreateReservationsForEagerBuiltins() {
-  DCHECK(ReservesOnlyCodeSpace());
+  DCHECK(allocator()->ReservesOnlyCodeSpace());
 
   Heap::Reservation result;
 
@@ -236,7 +236,8 @@ Address BuiltinDeserializer::Allocate(int space_index, int size) {
   DCHECK_EQ(ExtractBuiltinSize(current_builtin_id_), size);
   Object* obj = isolate()->builtins()->builtin(current_builtin_id_);
   DCHECK(Internals::HasHeapObjectTag(obj));
-  return HeapObject::cast(obj)->address();
+  HeapObject* heap_obj = HeapObject::cast(obj);
+  return heap_obj->address();
 }
 
 }  // namespace internal

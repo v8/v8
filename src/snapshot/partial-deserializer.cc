@@ -30,7 +30,9 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
     Isolate* isolate, Handle<JSGlobalProxy> global_proxy,
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer) {
   Initialize(isolate);
-  if (!ReserveSpace()) V8::FatalProcessOutOfMemory("PartialDeserializer");
+  if (!allocator()->ReserveSpace()) {
+    V8::FatalProcessOutOfMemory("PartialDeserializer");
+  }
 
   AddAttachedObject(global_proxy);
 
@@ -44,7 +46,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   DeserializeDeferredObjects();
   DeserializeEmbedderFields(embedder_fields_deserializer);
 
-  RegisterDeserializedObjectsForBlackAllocation();
+  allocator()->RegisterDeserializedObjectsForBlackAllocation();
 
   // There's no code deserialized here. If this assert fires then that's
   // changed and logging should be added to notify the profiler et al of the

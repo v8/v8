@@ -18,7 +18,8 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
 
   BuiltinDeserializer builtin_deserializer(isolate, builtin_data_);
 
-  if (!Deserializer::ReserveSpace(this, &builtin_deserializer)) {
+  if (!DefaultDeserializerAllocator::ReserveSpace(this,
+                                                  &builtin_deserializer)) {
     V8::FatalProcessOutOfMemory("StartupDeserializer");
   }
 

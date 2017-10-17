@@ -67,7 +67,7 @@ ObjectDeserializer::DeserializeWasmCompiledModule(
 
 MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   Initialize(isolate);
-  if (!ReserveSpace()) return MaybeHandle<HeapObject>();
+  if (!allocator()->ReserveSpace()) return MaybeHandle<HeapObject>();
 
   DCHECK(deserializing_user_code());
   HandleScope scope(isolate);
@@ -79,7 +79,7 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
     DeserializeDeferredObjects();
     FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
     result = Handle<HeapObject>(HeapObject::cast(root));
-    RegisterDeserializedObjectsForBlackAllocation();
+    allocator()->RegisterDeserializedObjectsForBlackAllocation();
   }
   CommitPostProcessedObjects();
   return scope.CloseAndEscape(result);

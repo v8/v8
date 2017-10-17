@@ -14,7 +14,7 @@ namespace internal {
 class BuiltinSnapshotData;
 
 // Deserializes the builtins blob.
-class BuiltinDeserializer final : public Deserializer {
+class BuiltinDeserializer final : public Deserializer<> {
  public:
   BuiltinDeserializer(Isolate* isolate, const BuiltinSnapshotData* data);
 
