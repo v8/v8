@@ -1551,7 +1551,6 @@ class Heap {
 
  private:
   class SkipStoreBufferScope;
-  class PretenuringScope;
 
   typedef String* (*ExternalStringTableUpdaterCallback)(Heap* heap,
                                                         Object** pointer);
