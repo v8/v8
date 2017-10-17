@@ -29,6 +29,13 @@ utils.Import(function(from) {
 
 // -------------------------------------------------------------------
 
+macro IS_PROXY(arg)
+(%_IsJSProxy(arg))
+endmacro
+
+macro INVERT_NEG_ZERO(arg)
+((arg) + 0)
+endmacro
 
 function ArraySpeciesCreate(array, length) {
   length = INVERT_NEG_ZERO(length);

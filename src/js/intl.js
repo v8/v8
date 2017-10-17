@@ -46,6 +46,24 @@ utils.Import(function(from) {
 
 // Utilities for definitions
 
+macro IS_OBJECT(arg)
+(typeof(arg) === 'object')
+endmacro
+
+macro NUMBER_IS_NAN(arg)
+(%IS_VAR(arg) !== arg)
+endmacro
+
+macro NUMBER_IS_FINITE(arg)
+(%_IsSmi(%IS_VAR(arg)) || ((arg == arg) && (arg != 1/0) && (arg != -1/0)))
+endmacro
+
+// To avoid ES2015 Function name inference.
+
+macro ANONYMOUS_FUNCTION(fn)
+(0, (fn))
+endmacro
+
 /**
  * Adds bound method to the prototype of the given object.
  */

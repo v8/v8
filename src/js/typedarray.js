@@ -49,6 +49,18 @@ endmacro
 
 TYPED_ARRAYS(DECLARE_GLOBALS)
 
+macro IS_ARRAYBUFFER(arg)
+(%_ClassOf(arg) === 'ArrayBuffer')
+endmacro
+
+macro IS_SHAREDARRAYBUFFER(arg)
+(%_ClassOf(arg) === 'SharedArrayBuffer')
+endmacro
+
+macro IS_TYPEDARRAY(arg)
+(%_IsTypedArray(arg))
+endmacro
+
 var GlobalTypedArray = %object_get_prototype_of(GlobalUint8Array);
 
 utils.Import(function(from) {
