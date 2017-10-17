@@ -1056,7 +1056,14 @@ class Isolate {
     return type_profile_mode() == debug::TypeProfile::kCollect;
   }
 
-  void SetCodeCoverageList(Object* value);
+  // Collect feedback vectors with data for code coverage or type profile.
+  // Reset the list, when both code coverage and type profile are not
+  // needed anymore. This keeps many feedback vectors alive, but code
+  // coverage or type profile are used for debugging only and increase in
+  // memory usage is expected.
+  void SetFeedbackVectorsForProfilingTools(Object* value);
+
+  void InitializeVectorListFromHeap();
 
   double time_millis_since_init() {
     return heap_.MonotonicallyIncreasingTimeInMs() - time_millis_at_init_;

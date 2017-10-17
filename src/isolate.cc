@@ -3030,9 +3030,39 @@ bool Isolate::NeedsSourcePositionsForProfiling() const {
          debug_->is_active() || logger_->is_logging();
 }
 
-void Isolate::SetCodeCoverageList(Object* value) {
+void Isolate::SetFeedbackVectorsForProfilingTools(Object* value) {
   DCHECK(value->IsUndefined(this) || value->IsArrayList());
-  heap()->set_code_coverage_list(value);
+  heap()->set_feedback_vectors_for_profiling_tools(value);
+}
+
+void Isolate::InitializeVectorListFromHeap() {
+  // Collect existing feedback vectors.
+  std::vector<Handle<FeedbackVector>> vectors;
+  {
+    HeapIterator heap_iterator(heap());
+    while (HeapObject* current_obj = heap_iterator.next()) {
+      if (current_obj->IsSharedFunctionInfo()) {
+        SharedFunctionInfo* shared = SharedFunctionInfo::cast(current_obj);
+        shared->set_has_reported_binary_coverage(false);
+      } else if (current_obj->IsFeedbackVector()) {
+        FeedbackVector* vector = FeedbackVector::cast(current_obj);
+        SharedFunctionInfo* shared = vector->shared_function_info();
+        if (!shared->IsSubjectToDebugging()) continue;
+        vector->clear_invocation_count();
+        vectors.emplace_back(vector, this);
+      } else if (current_obj->IsJSFunction()) {
+        JSFunction* function = JSFunction::cast(current_obj);
+        function->set_code(function->shared()->code());
+      }
+    }
+  }
+
+  // Add collected feedback vectors to the root list lest we lose them to
+  // GC.
+  Handle<ArrayList> list =
+      ArrayList::New(this, static_cast<int>(vectors.size()));
+  for (const auto& vector : vectors) list = ArrayList::Add(list, vector);
+  SetFeedbackVectorsForProfilingTools(*list);
 }
 
 bool Isolate::IsArrayOrObjectPrototype(Object* object) {

@@ -542,7 +542,7 @@ void Heap::CreateInitialObjects() {
       ArrayList::cast(*(factory->NewFixedArray(16, TENURED))));
   weak_new_space_object_to_code_list()->SetLength(0);
 
-  set_code_coverage_list(undefined_value());
+  set_feedback_vectors_for_profiling_tools(undefined_value());
 
   set_script_list(Smi::kZero);
 

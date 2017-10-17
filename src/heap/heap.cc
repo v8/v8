@@ -2559,7 +2559,7 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kWeakNewSpaceObjectToCodeListRootIndex:
     case kRetainedMapsRootIndex:
     case kRetainingPathTargetsRootIndex:
-    case kCodeCoverageListRootIndex:
+    case kFeedbackVectorsForProfilingToolsRootIndex:
     case kNoScriptSharedFunctionInfosRootIndex:
     case kWeakStackTraceListRootIndex:
     case kSerializedTemplatesRootIndex:

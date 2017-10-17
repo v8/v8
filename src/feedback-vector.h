@@ -278,8 +278,8 @@ class FeedbackVector : public HeapObject {
   }
 
  private:
-  static void AddToCodeCoverageList(Isolate* isolate,
-                                    Handle<FeedbackVector> vector);
+  static void AddToVectorsForProfilingTools(Isolate* isolate,
+                                            Handle<FeedbackVector> vector);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FeedbackVector);
 };
