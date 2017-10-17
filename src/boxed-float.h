@@ -7,6 +7,7 @@
 
 #include <cmath>
 #include "src/base/macros.h"
+#include "src/globals.h"
 
 namespace v8 {
 namespace internal {
@@ -19,7 +20,10 @@ class Float32 {
  public:
   Float32() : bit_pattern_(0) {}
 
-  explicit Float32(uint32_t bit_pattern) : bit_pattern_(bit_pattern) {}
+  Float32(const Float32&) = default;
+
+  explicit constexpr Float32(uint32_t bit_pattern)
+      : bit_pattern_(bit_pattern) {}
 
   // This constructor does not guarantee that bit pattern of the input value
   // is preserved if the input is a NaN.
@@ -33,11 +37,20 @@ class Float32 {
 
   float get_scalar() const { return bit_cast<float>(bit_pattern_); }
 
-  static Float32 FromBits(uint32_t bits) { return Float32(bits); }
+  bool is_nan() const {
+    // Even though {get_scalar()} might flip the quiet NaN bit, it's ok here,
+    // because this does not change the is_nan property.
+    return std::isnan(get_scalar());
+  }
+
+  static constexpr Float32 FromBits(uint32_t bits) { return Float32(bits); }
 
  private:
   uint32_t bit_pattern_;
 };
+
+static_assert(IS_TRIVIALLY_COPYABLE(Float32),
+              "Float32 should be trivially copyable");
 
 // Safety wrapper for a 64-bit floating-point value to make sure we don't lose
 // the exact bit pattern during deoptimization when passing this value. Note
@@ -46,15 +59,35 @@ class Float32 {
 class Float64 {
  public:
   Float64() : bit_pattern_(0) {}
+
+  Float64(const Float64&) = default;
+
+  // This constructor does not guarantee that bit pattern of the input value
+  // is preserved if the input is a NaN.
+  explicit Float64(double value) : bit_pattern_(bit_cast<uint64_t>(value)) {
+    // Check that the provided value is not a NaN, because the bit pattern of a
+    // NaN may be changed by a bit_cast, e.g. for signalling NaNs on ia32.
+    DCHECK(!std::isnan(value));
+  }
+
   uint64_t get_bits() const { return bit_pattern_; }
   double get_scalar() const { return bit_cast<double>(bit_pattern_); }
   bool is_hole_nan() const { return bit_pattern_ == kHoleNanInt64; }
-  static Float64 FromBits(uint64_t bits) { return Float64(bits); }
+  bool is_nan() const {
+    // Even though {get_scalar()} might flip the quiet NaN bit, it's ok here,
+    // because this does not change the is_nan property.
+    return std::isnan(get_scalar());
+  }
+  static constexpr Float64 FromBits(uint64_t bits) { return Float64(bits); }
 
  private:
-  explicit Float64(uint64_t bit_pattern) : bit_pattern_(bit_pattern) {}
+  explicit constexpr Float64(uint64_t bit_pattern)
+      : bit_pattern_(bit_pattern) {}
   uint64_t bit_pattern_;
 };
+
+static_assert(IS_TRIVIALLY_COPYABLE(Float64),
+              "Float64 should be trivially copyable");
 
 }  // namespace internal
 }  // namespace v8

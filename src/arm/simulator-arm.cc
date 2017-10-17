@@ -92,7 +92,7 @@ double ArmDebugger::GetRegisterPairDoubleValue(int regnum) {
 
 
 double ArmDebugger::GetVFPDoubleRegisterValue(int regnum) {
-  return sim_->get_double_from_d_register(regnum);
+  return sim_->get_double_from_d_register(regnum).get_scalar();
 }
 
 
@@ -116,7 +116,7 @@ bool ArmDebugger::GetVFPSingleValue(const char* desc, float* value) {
   bool is_double;
   int regnum = VFPRegisters::Number(desc, &is_double);
   if (regnum != kNoRegister && !is_double) {
-    *value = sim_->get_float_from_s_register(regnum);
+    *value = sim_->get_float_from_s_register(regnum).get_scalar();
     return true;
   }
   return false;
@@ -127,7 +127,7 @@ bool ArmDebugger::GetVFPDoubleValue(const char* desc, double* value) {
   bool is_double;
   int regnum = VFPRegisters::Number(desc, &is_double);
   if (regnum != kNoRegister && is_double) {
-    *value = sim_->get_double_from_d_register(regnum);
+    *value = sim_->get_double_from_d_register(regnum).get_scalar();
     return true;
   }
   return false;
@@ -946,28 +946,26 @@ unsigned int Simulator::get_s_register(int sreg) const {
 
 template<class InputType, int register_size>
 void Simulator::SetVFPRegister(int reg_index, const InputType& value) {
-  DCHECK(reg_index >= 0);
+  unsigned bytes = register_size * sizeof(vfp_registers_[0]);
+  DCHECK_EQ(sizeof(InputType), bytes);
+  DCHECK_GE(reg_index, 0);
   if (register_size == 1) DCHECK(reg_index < num_s_registers);
   if (register_size == 2) DCHECK(reg_index < DwVfpRegister::NumRegisters());
 
-  char buffer[register_size * sizeof(vfp_registers_[0])];
-  memcpy(buffer, &value, register_size * sizeof(vfp_registers_[0]));
-  memcpy(&vfp_registers_[reg_index * register_size], buffer,
-         register_size * sizeof(vfp_registers_[0]));
+  memcpy(&vfp_registers_[reg_index * register_size], &value, bytes);
 }
 
 
 template<class ReturnType, int register_size>
 ReturnType Simulator::GetFromVFPRegister(int reg_index) {
-  DCHECK(reg_index >= 0);
+  unsigned bytes = register_size * sizeof(vfp_registers_[0]);
+  DCHECK_EQ(sizeof(ReturnType), bytes);
+  DCHECK_GE(reg_index, 0);
   if (register_size == 1) DCHECK(reg_index < num_s_registers);
   if (register_size == 2) DCHECK(reg_index < DwVfpRegister::NumRegisters());
 
-  ReturnType value = 0;
-  char buffer[register_size * sizeof(vfp_registers_[0])];
-  memcpy(buffer, &vfp_registers_[register_size * reg_index],
-         register_size * sizeof(vfp_registers_[0]));
-  memcpy(&value, buffer, register_size * sizeof(vfp_registers_[0]));
+  ReturnType value;
+  memcpy(&value, &vfp_registers_[register_size * reg_index], bytes);
   return value;
 }
 
@@ -1004,8 +1002,8 @@ uint32_t Simulator::GetFromSpecialRegister(SRegister reg) {
 // All are consructed here from r0-r3 or d0, d1 and r0.
 void Simulator::GetFpArgs(double* x, double* y, int32_t* z) {
   if (use_eabi_hardfloat()) {
-    *x = get_double_from_d_register(0);
-    *y = get_double_from_d_register(1);
+    *x = get_double_from_d_register(0).get_scalar();
+    *y = get_double_from_d_register(1).get_scalar();
     *z = get_register(0);
   } else {
     // Registers 0 and 1 -> x.
@@ -1966,24 +1964,37 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
 float Simulator::canonicalizeNaN(float value) {
   // Default NaN value, see "NaN handling" in "IEEE 754 standard implementation
   // choices" of the ARM Reference Manual.
-  const uint32_t kDefaultNaN = 0x7FC00000u;
+  constexpr uint32_t kDefaultNaN = 0x7FC00000u;
   if (FPSCR_default_NaN_mode_ && std::isnan(value)) {
     value = bit_cast<float>(kDefaultNaN);
   }
   return value;
 }
 
+Float32 Simulator::canonicalizeNaN(Float32 value) {
+  // Default NaN value, see "NaN handling" in "IEEE 754 standard implementation
+  // choices" of the ARM Reference Manual.
+  constexpr Float32 kDefaultNaN = Float32::FromBits(0x7FC00000u);
+  return FPSCR_default_NaN_mode_ && value.is_nan() ? kDefaultNaN : value;
+}
 
 double Simulator::canonicalizeNaN(double value) {
   // Default NaN value, see "NaN handling" in "IEEE 754 standard implementation
   // choices" of the ARM Reference Manual.
-  const uint64_t kDefaultNaN = V8_UINT64_C(0x7FF8000000000000);
+  constexpr uint64_t kDefaultNaN = V8_UINT64_C(0x7FF8000000000000);
   if (FPSCR_default_NaN_mode_ && std::isnan(value)) {
     value = bit_cast<double>(kDefaultNaN);
   }
   return value;
 }
 
+Float64 Simulator::canonicalizeNaN(Float64 value) {
+  // Default NaN value, see "NaN handling" in "IEEE 754 standard implementation
+  // choices" of the ARM Reference Manual.
+  constexpr Float64 kDefaultNaN =
+      Float64::FromBits(V8_UINT64_C(0x7FF8000000000000));
+  return FPSCR_default_NaN_mode_ && value.is_nan() ? kDefaultNaN : value;
+}
 
 // Stop helper functions.
 bool Simulator::isStopInstruction(Instruction* instr) {
@@ -3216,12 +3227,12 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       } else if ((instr->Opc2Value() == 0x0) && (instr->Opc3Value() == 0x3)) {
         // vabs
         if (instr->SzValue() == 0x1) {
-          double dm_value = get_double_from_d_register(vm);
+          double dm_value = get_double_from_d_register(vm).get_scalar();
           double dd_value = std::fabs(dm_value);
           dd_value = canonicalizeNaN(dd_value);
           set_d_register_from_double(vd, dd_value);
         } else {
-          float sm_value = get_float_from_s_register(m);
+          float sm_value = get_float_from_s_register(m).get_scalar();
           float sd_value = std::fabs(sm_value);
           sd_value = canonicalizeNaN(sd_value);
           set_s_register_from_float(d, sd_value);
@@ -3229,12 +3240,12 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       } else if ((instr->Opc2Value() == 0x1) && (instr->Opc3Value() == 0x1)) {
         // vneg
         if (instr->SzValue() == 0x1) {
-          double dm_value = get_double_from_d_register(vm);
+          double dm_value = get_double_from_d_register(vm).get_scalar();
           double dd_value = -dm_value;
           dd_value = canonicalizeNaN(dd_value);
           set_d_register_from_double(vd, dd_value);
         } else {
-          float sm_value = get_float_from_s_register(m);
+          float sm_value = get_float_from_s_register(m).get_scalar();
           float sd_value = -sm_value;
           sd_value = canonicalizeNaN(sd_value);
           set_s_register_from_float(d, sd_value);
@@ -3260,12 +3271,12 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         // vsqrt
         lazily_initialize_fast_sqrt(isolate_);
         if (instr->SzValue() == 0x1) {
-          double dm_value = get_double_from_d_register(vm);
+          double dm_value = get_double_from_d_register(vm).get_scalar();
           double dd_value = fast_sqrt(dm_value, isolate_);
           dd_value = canonicalizeNaN(dd_value);
           set_d_register_from_double(vd, dd_value);
         } else {
-          float sm_value = get_float_from_s_register(m);
+          float sm_value = get_float_from_s_register(m).get_scalar();
           float sd_value = fast_sqrt(sm_value, isolate_);
           sd_value = canonicalizeNaN(sd_value);
           set_s_register_from_float(d, sd_value);
@@ -3275,17 +3286,19 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
         if (instr->SzValue() == 0x1) {
           set_d_register_from_double(vd, instr->DoubleImmedVmov());
         } else {
-          set_s_register_from_float(d, instr->DoubleImmedVmov());
+          // Cast double to float.
+          float value = instr->DoubleImmedVmov().get_scalar();
+          set_s_register_from_float(d, value);
         }
       } else if (((instr->Opc2Value() == 0x6)) && (instr->Opc3Value() == 0x3)) {
         // vrintz - truncate
         if (instr->SzValue() == 0x1) {
-          double dm_value = get_double_from_d_register(vm);
+          double dm_value = get_double_from_d_register(vm).get_scalar();
           double dd_value = trunc(dm_value);
           dd_value = canonicalizeNaN(dd_value);
           set_d_register_from_double(vd, dd_value);
         } else {
-          float sm_value = get_float_from_s_register(m);
+          float sm_value = get_float_from_s_register(m).get_scalar();
           float sd_value = truncf(sm_value);
           sd_value = canonicalizeNaN(sd_value);
           set_s_register_from_float(d, sd_value);
@@ -3297,14 +3310,14 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       if (instr->Opc3Value() & 0x1) {
         // vsub
         if (instr->SzValue() == 0x1) {
-          double dn_value = get_double_from_d_register(vn);
-          double dm_value = get_double_from_d_register(vm);
+          double dn_value = get_double_from_d_register(vn).get_scalar();
+          double dm_value = get_double_from_d_register(vm).get_scalar();
           double dd_value = dn_value - dm_value;
           dd_value = canonicalizeNaN(dd_value);
           set_d_register_from_double(vd, dd_value);
         } else {
-          float sn_value = get_float_from_s_register(n);
-          float sm_value = get_float_from_s_register(m);
+          float sn_value = get_float_from_s_register(n).get_scalar();
+          float sm_value = get_float_from_s_register(m).get_scalar();
           float sd_value = sn_value - sm_value;
           sd_value = canonicalizeNaN(sd_value);
           set_s_register_from_float(d, sd_value);
@@ -3312,14 +3325,14 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       } else {
         // vadd
         if (instr->SzValue() == 0x1) {
-          double dn_value = get_double_from_d_register(vn);
-          double dm_value = get_double_from_d_register(vm);
+          double dn_value = get_double_from_d_register(vn).get_scalar();
+          double dm_value = get_double_from_d_register(vm).get_scalar();
           double dd_value = dn_value + dm_value;
           dd_value = canonicalizeNaN(dd_value);
           set_d_register_from_double(vd, dd_value);
         } else {
-          float sn_value = get_float_from_s_register(n);
-          float sm_value = get_float_from_s_register(m);
+          float sn_value = get_float_from_s_register(n).get_scalar();
+          float sm_value = get_float_from_s_register(m).get_scalar();
           float sd_value = sn_value + sm_value;
           sd_value = canonicalizeNaN(sd_value);
           set_s_register_from_float(d, sd_value);
@@ -3328,14 +3341,14 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
     } else if ((instr->Opc1Value() == 0x2) && !(instr->Opc3Value() & 0x1)) {
       // vmul
       if (instr->SzValue() == 0x1) {
-        double dn_value = get_double_from_d_register(vn);
-        double dm_value = get_double_from_d_register(vm);
+        double dn_value = get_double_from_d_register(vn).get_scalar();
+        double dm_value = get_double_from_d_register(vm).get_scalar();
         double dd_value = dn_value * dm_value;
         dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else {
-        float sn_value = get_float_from_s_register(n);
-        float sm_value = get_float_from_s_register(m);
+        float sn_value = get_float_from_s_register(n).get_scalar();
+        float sm_value = get_float_from_s_register(m).get_scalar();
         float sd_value = sn_value * sm_value;
         sd_value = canonicalizeNaN(sd_value);
         set_s_register_from_float(d, sd_value);
@@ -3344,48 +3357,46 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       // vmla, vmls
       const bool is_vmls = (instr->Opc3Value() & 0x1);
       if (instr->SzValue() == 0x1) {
-        const double dd_val = get_double_from_d_register(vd);
-        const double dn_val = get_double_from_d_register(vn);
-        const double dm_val = get_double_from_d_register(vm);
+        const double dd_val = get_double_from_d_register(vd).get_scalar();
+        const double dn_val = get_double_from_d_register(vn).get_scalar();
+        const double dm_val = get_double_from_d_register(vm).get_scalar();
 
         // Note: we do the mul and add/sub in separate steps to avoid getting a
         // result with too high precision.
-        set_d_register_from_double(vd, dn_val * dm_val);
+        const double res = dn_val * dm_val;
+        set_d_register_from_double(vd, res);
         if (is_vmls) {
-          set_d_register_from_double(
-              vd, canonicalizeNaN(dd_val - get_double_from_d_register(vd)));
+          set_d_register_from_double(vd, canonicalizeNaN(dd_val - res));
         } else {
-          set_d_register_from_double(
-              vd, canonicalizeNaN(dd_val + get_double_from_d_register(vd)));
+          set_d_register_from_double(vd, canonicalizeNaN(dd_val + res));
         }
       } else {
-        const float sd_val = get_float_from_s_register(d);
-        const float sn_val = get_float_from_s_register(n);
-        const float sm_val = get_float_from_s_register(m);
+        const float sd_val = get_float_from_s_register(d).get_scalar();
+        const float sn_val = get_float_from_s_register(n).get_scalar();
+        const float sm_val = get_float_from_s_register(m).get_scalar();
 
         // Note: we do the mul and add/sub in separate steps to avoid getting a
         // result with too high precision.
-        set_s_register_from_float(d, sn_val * sm_val);
+        const float res = sn_val * sm_val;
+        set_s_register_from_float(d, res);
         if (is_vmls) {
-          set_s_register_from_float(
-              d, canonicalizeNaN(sd_val - get_float_from_s_register(d)));
+          set_s_register_from_float(d, canonicalizeNaN(sd_val - res));
         } else {
-          set_s_register_from_float(
-              d, canonicalizeNaN(sd_val + get_float_from_s_register(d)));
+          set_s_register_from_float(d, canonicalizeNaN(sd_val + res));
         }
       }
     } else if ((instr->Opc1Value() == 0x4) && !(instr->Opc3Value() & 0x1)) {
       // vdiv
       if (instr->SzValue() == 0x1) {
-        double dn_value = get_double_from_d_register(vn);
-        double dm_value = get_double_from_d_register(vm);
+        double dn_value = get_double_from_d_register(vn).get_scalar();
+        double dm_value = get_double_from_d_register(vm).get_scalar();
         double dd_value = dn_value / dm_value;
         div_zero_vfp_flag_ = (dm_value == 0);
         dd_value = canonicalizeNaN(dd_value);
         set_d_register_from_double(vd, dd_value);
       } else {
-        float sn_value = get_float_from_s_register(n);
-        float sm_value = get_float_from_s_register(m);
+        float sn_value = get_float_from_s_register(n).get_scalar();
+        float sm_value = get_float_from_s_register(m).get_scalar();
         float sd_value = sn_value / sm_value;
         div_zero_vfp_flag_ = (sm_value == 0);
         sd_value = canonicalizeNaN(sd_value);
@@ -3624,10 +3635,10 @@ void Simulator::DecodeVCMP(Instruction* instr) {
   }
 
   if (precision == kDoublePrecision) {
-    double dd_value = get_double_from_d_register(d);
+    double dd_value = get_double_from_d_register(d).get_scalar();
     double dm_value = 0.0;
     if (instr->Opc2Value() == 0x4) {
-      dm_value = get_double_from_d_register(m);
+      dm_value = get_double_from_d_register(m).get_scalar();
     }
 
     // Raise exceptions for quiet NaNs if necessary.
@@ -3639,10 +3650,10 @@ void Simulator::DecodeVCMP(Instruction* instr) {
 
     Compute_FPSCR_Flags(dd_value, dm_value);
   } else {
-    float sd_value = get_float_from_s_register(d);
+    float sd_value = get_float_from_s_register(d).get_scalar();
     float sm_value = 0.0;
     if (instr->Opc2Value() == 0x4) {
-      sm_value = get_float_from_s_register(m);
+      sm_value = get_float_from_s_register(m).get_scalar();
     }
 
     // Raise exceptions for quiet NaNs if necessary.
@@ -3672,10 +3683,10 @@ void Simulator::DecodeVCVTBetweenDoubleAndSingle(Instruction* instr) {
   int src = instr->VFPMRegValue(src_precision);
 
   if (dst_precision == kSinglePrecision) {
-    double val = get_double_from_d_register(src);
+    double val = get_double_from_d_register(src).get_scalar();
     set_s_register_from_float(dst, static_cast<float>(val));
   } else {
-    float val = get_float_from_s_register(src);
+    float val = get_float_from_s_register(src).get_scalar();
     set_d_register_from_double(dst, static_cast<double>(val));
   }
 }
@@ -3808,8 +3819,8 @@ void Simulator::DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr) {
     bool unsigned_integer = (instr->Bit(16) == 0);
     bool double_precision = (src_precision == kDoublePrecision);
 
-    double val = double_precision ? get_double_from_d_register(src)
-                                  : get_float_from_s_register(src);
+    double val = double_precision ? get_double_from_d_register(src).get_scalar()
+                                  : get_float_from_s_register(src).get_scalar();
 
     int32_t temp = ConvertDoubleToInt(val, unsigned_integer, mode);
 
@@ -5559,7 +5570,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         if (instr->SzValue() == 0x1) {
           int vm = instr->VFPMRegValue(kDoublePrecision);
           int vd = instr->VFPDRegValue(kDoublePrecision);
-          double dm_value = get_double_from_d_register(vm);
+          double dm_value = get_double_from_d_register(vm).get_scalar();
           double dd_value = 0.0;
           int rounding_mode = instr->Bits(17, 16);
           switch (rounding_mode) {
@@ -5585,7 +5596,7 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
         } else {
           int m = instr->VFPMRegValue(kSinglePrecision);
           int d = instr->VFPDRegValue(kSinglePrecision);
-          float sm_value = get_float_from_s_register(m);
+          float sm_value = get_float_from_s_register(m).get_scalar();
           float sd_value = 0.0;
           int rounding_mode = instr->Bits(17, 16);
           switch (rounding_mode) {
@@ -5615,8 +5626,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           int m = instr->VFPMRegValue(kDoublePrecision);
           int n = instr->VFPNRegValue(kDoublePrecision);
           int d = instr->VFPDRegValue(kDoublePrecision);
-          double dn_value = get_double_from_d_register(n);
-          double dm_value = get_double_from_d_register(m);
+          double dn_value = get_double_from_d_register(n).get_scalar();
+          double dm_value = get_double_from_d_register(m).get_scalar();
           double dd_value;
           if (instr->Bit(6) == 0x1) {  // vminnm
             if ((dn_value < dm_value) || std::isnan(dm_value)) {
@@ -5645,8 +5656,8 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           int m = instr->VFPMRegValue(kSinglePrecision);
           int n = instr->VFPNRegValue(kSinglePrecision);
           int d = instr->VFPDRegValue(kSinglePrecision);
-          float sn_value = get_float_from_s_register(n);
-          float sm_value = get_float_from_s_register(m);
+          float sn_value = get_float_from_s_register(n).get_scalar();
+          float sm_value = get_float_from_s_register(m).get_scalar();
           float sd_value;
           if (instr->Bit(6) == 0x1) {  // vminnm
             if ((sn_value < sm_value) || std::isnan(sm_value)) {
@@ -5702,13 +5713,13 @@ void Simulator::DecodeSpecialCondition(Instruction* instr) {
           int n = instr->VFPNRegValue(kDoublePrecision);
           int m = instr->VFPMRegValue(kDoublePrecision);
           int d = instr->VFPDRegValue(kDoublePrecision);
-          double result = get_double_from_d_register(condition_holds ? n : m);
+          Float64 result = get_double_from_d_register(condition_holds ? n : m);
           set_d_register_from_double(d, result);
         } else {
           int n = instr->VFPNRegValue(kSinglePrecision);
           int m = instr->VFPMRegValue(kSinglePrecision);
           int d = instr->VFPDRegValue(kSinglePrecision);
-          float result = get_float_from_s_register(condition_holds ? n : m);
+          Float32 result = get_float_from_s_register(condition_holds ? n : m);
           set_s_register_from_float(d, result);
         }
       } else {
@@ -5930,16 +5941,6 @@ int32_t Simulator::CallFPReturnsInt(byte* entry, double d0, double d1) {
   CallFP(entry, d0, d1);
   int32_t result = get_register(r0);
   return result;
-}
-
-
-double Simulator::CallFPReturnsDouble(byte* entry, double d0, double d1) {
-  CallFP(entry, d0, d1);
-  if (use_eabi_hardfloat()) {
-    return get_double_from_d_register(0);
-  } else {
-    return get_double_from_register_pair(0);
-  }
 }
 
 

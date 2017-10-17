@@ -10,7 +10,7 @@
 namespace v8 {
 namespace internal {
 
-double Instruction::DoubleImmedVmov() const {
+Float64 Instruction::DoubleImmedVmov() const {
   // Reconstruct a double from the immediate encoded in the vmov instruction.
   //
   //   instruction: [xxxxxxxx,xxxxabcd,xxxxxxxx,xxxxefgh]
@@ -25,9 +25,7 @@ double Instruction::DoubleImmedVmov() const {
   high16 |= Bit(19) << 15;                      // axxxxxxx,xxxxxxxx.
 
   uint64_t imm = high16 << 48;
-  double d;
-  memcpy(&d, &imm, 8);
-  return d;
+  return Float64::FromBits(imm);
 }
 
 

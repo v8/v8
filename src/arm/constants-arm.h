@@ -9,6 +9,7 @@
 
 #include "src/base/logging.h"
 #include "src/base/macros.h"
+#include "src/boxed-float.h"
 #include "src/globals.h"
 
 // ARM EABI is required.
@@ -662,7 +663,7 @@ class Instruction {
   inline bool HasLink() const { return LinkValue() == 1; }
 
   // Decode the double immediate from a vmov instruction.
-  double DoubleImmedVmov() const;
+  Float64 DoubleImmedVmov() const;
 
   // Instructions are read of out a code stream. The only way to get a
   // reference to an instruction is to convert a pointer. There is no way

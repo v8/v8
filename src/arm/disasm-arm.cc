@@ -468,7 +468,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       return 4;
     }
     case 'd': {  // 'd: vmov double immediate.
-      double d = instr->DoubleImmedVmov();
+      double d = instr->DoubleImmedVmov().get_scalar();
       out_buffer_pos_ += SNPrintF(out_buffer_ + out_buffer_pos_, "#%g", d);
       return 1;
     }
