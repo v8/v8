@@ -91,6 +91,9 @@ bool Serializer<AllocatorT>::MustBeDeferred(HeapObject* object) {
 template <class AllocatorT>
 void Serializer<AllocatorT>::VisitRootPointers(Root root, Object** start,
                                                Object** end) {
+  // Builtins are serialized in a separate pass by the BuiltinSerializer.
+  if (root == Root::kBuiltins) return;
+
   for (Object** current = start; current < end; current++) {
     if ((*current)->IsSmi()) {
       PutSmi(Smi::cast(*current));

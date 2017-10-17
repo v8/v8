@@ -17,7 +17,6 @@ StartupSerializer::StartupSerializer(
     : Serializer(isolate),
       clear_function_code_(function_code_handling ==
                            v8::SnapshotCreator::FunctionCodeHandling::kClear),
-      serializing_builtins_(false),
       can_be_rehashed_(true) {
   InitializeCodeAddressMap();
 }
@@ -36,9 +35,7 @@ void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
 
   BuiltinReferenceSerializationMode mode =
-      (clear_function_code() && !serializing_builtins_)
-          ? kCanonicalizeCompileLazy
-          : kDefault;
+      clear_function_code() ? kCanonicalizeCompileLazy : kDefault;
   if (SerializeBuiltinReference(obj, how_to_code, where_to_point, skip, mode)) {
     return;
   }
@@ -107,9 +104,6 @@ int StartupSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
 }
 
 void StartupSerializer::Synchronize(VisitorSynchronization::SyncTag tag) {
-  // We expect the builtins tag after builtins have been serialized.
-  DCHECK(!serializing_builtins_ || tag == VisitorSynchronization::kBuiltins);
-  serializing_builtins_ = (tag == VisitorSynchronization::kHandleScope);
   sink_.Put(kSynchronize, "Synchronize");
 }
 

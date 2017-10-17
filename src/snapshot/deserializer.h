@@ -151,10 +151,6 @@ class Deserializer : public SerializerDeserializer {
   AllocatorT allocator_;
   const bool deserializing_user_code_;
 
-  // TODO(jgruber): This workaround will no longer be necessary once builtin
-  // reference patching has been removed (through advance allocation).
-  bool deserializing_builtins_ = false;
-
   // TODO(6593): generalize rehashing, and remove this flag.
   bool can_rehash_;
 

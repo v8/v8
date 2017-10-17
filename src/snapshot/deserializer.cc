@@ -54,6 +54,9 @@ Deserializer<AllocatorT>::~Deserializer() {
 template <class AllocatorT>
 void Deserializer<AllocatorT>::VisitRootPointers(Root root, Object** start,
                                                  Object** end) {
+  // Builtins are deserialized in a separate pass by the BuiltinDeserializer.
+  if (root == Root::kBuiltins) return;
+
   // The space must be new space.  Any other space would cause ReadChunk to try
   // to update the remembered using nullptr as the address.
   ReadData(start, end, NEW_SPACE, nullptr);
@@ -64,7 +67,6 @@ void Deserializer<AllocatorT>::Synchronize(
     VisitorSynchronization::SyncTag tag) {
   static const byte expected = kSynchronize;
   CHECK_EQ(expected, source_.Get());
-  deserializing_builtins_ = (tag == VisitorSynchronization::kHandleScope);
 }
 
 template <class AllocatorT>
@@ -217,8 +219,7 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
 template <class AllocatorT>
 int Deserializer<AllocatorT>::MaybeReplaceWithDeserializeLazy(int builtin_id) {
   DCHECK(Builtins::IsBuiltinId(builtin_id));
-  return (IsLazyDeserializationEnabled() && Builtins::IsLazy(builtin_id) &&
-          !deserializing_builtins_)
+  return IsLazyDeserializationEnabled() && Builtins::IsLazy(builtin_id)
              ? Builtins::kDeserializeLazy
              : builtin_id;
 }

@@ -78,7 +78,6 @@ class StartupSerializer : public Serializer<> {
   void CheckRehashability(HeapObject* hashtable);
 
   const bool clear_function_code_;
-  bool serializing_builtins_;
   bool serializing_immortal_immovables_roots_;
   std::bitset<Heap::kStrongRootListLength> root_has_been_serialized_;
   PartialCacheIndexMap partial_cache_index_map_;
