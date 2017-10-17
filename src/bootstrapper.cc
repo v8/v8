@@ -4430,7 +4430,7 @@ void Genesis::InitializeGlobal_harmony_number_format_to_parts() {
   InstallFunction(number_format_prototype,
                   SimpleCreateFunction(
                       isolate(), name,
-                      Builtins::kNumberFormatPrototypeFormatToParts, 0, false),
+                      Builtins::kNumberFormatPrototypeFormatToParts, 1, false),
                   name);
 }
 
