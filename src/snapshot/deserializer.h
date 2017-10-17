@@ -55,6 +55,8 @@ class Deserializer : public SerializerDeserializer {
   void Initialize(Isolate* isolate);
   void DeserializeDeferredObjects();
 
+  virtual Address Allocate(int space_index, int size);
+
   // Deserializes into a single pointer and returns the resulting object.
   Object* ReadDataSingle();
 

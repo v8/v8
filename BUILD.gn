@@ -1962,8 +1962,6 @@ v8_source_set("v8_base") {
     "src/setup-isolate.h",
     "src/signature.h",
     "src/simulator.h",
-    "src/snapshot/builtin-deserializer-allocator.cc",
-    "src/snapshot/builtin-deserializer-allocator.h",
     "src/snapshot/builtin-deserializer.cc",
     "src/snapshot/builtin-deserializer.h",
     "src/snapshot/builtin-serializer.cc",
