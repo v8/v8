@@ -250,10 +250,8 @@ void InstructionSelector::VisitLoad(Node* node) {
     case MachineRepresentation::kWord32:
       opcode = kIA32Movl;
       break;
-    case MachineRepresentation::kSimd128:
-      opcode = kIA32Movdqu;
-      break;
     case MachineRepresentation::kWord64:   // Fall through.
+    case MachineRepresentation::kSimd128:  // Fall through.
     case MachineRepresentation::kNone:
       UNREACHABLE();
       return;
@@ -342,10 +340,8 @@ void InstructionSelector::VisitStore(Node* node) {
       case MachineRepresentation::kWord32:
         opcode = kIA32Movl;
         break;
-      case MachineRepresentation::kSimd128:
-        opcode = kIA32Movdqu;
-        break;
       case MachineRepresentation::kWord64:   // Fall through.
+      case MachineRepresentation::kSimd128:  // Fall through.
       case MachineRepresentation::kNone:
         UNREACHABLE();
         return;
@@ -1909,7 +1905,6 @@ VISIT_ATOMIC_BINOP(Xor)
 
 #define SIMD_BINOP_LIST(V) \
   V(I32x4Add)              \
-  V(I32x4AddHoriz)         \
   V(I32x4Sub)              \
   V(I32x4Mul)              \
   V(I32x4MinS)             \
@@ -1921,8 +1916,7 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MinU)             \
   V(I32x4MaxU)             \
   V(I32x4GtU)              \
-  V(I32x4GeU)              \
-  V(I16x8AddHoriz)
+  V(I32x4GeU)
 
 #define SIMD_UNOP_LIST(V) V(I32x4Neg)
 

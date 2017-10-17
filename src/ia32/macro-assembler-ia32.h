@@ -214,8 +214,6 @@ class TurboAssembler : public Assembler {
     }                                                           \
   }
 
-  AVX_OP2_WITH_TYPE(Movdqu, movdqu, XMMRegister, const Operand&)
-  AVX_OP2_WITH_TYPE(Movdqu, movdqu, const Operand&, XMMRegister)
   AVX_OP2_WITH_TYPE(Movd, movd, XMMRegister, Register)
   AVX_OP2_WITH_TYPE(Movd, movd, XMMRegister, const Operand&)
   AVX_OP2_WITH_TYPE(Movd, movd, Register, XMMRegister)

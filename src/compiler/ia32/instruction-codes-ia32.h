@@ -103,7 +103,6 @@ namespace compiler {
   V(IA32Movl)                      \
   V(IA32Movss)                     \
   V(IA32Movsd)                     \
-  V(IA32Movdqu)                    \
   V(IA32BitcastFI)                 \
   V(IA32BitcastIF)                 \
   V(IA32Lea)                       \
@@ -123,8 +122,6 @@ namespace compiler {
   V(AVXI32x4ShrS)                  \
   V(SSEI32x4Add)                   \
   V(AVXI32x4Add)                   \
-  V(SSEI32x4AddHoriz)              \
-  V(AVXI32x4AddHoriz)              \
   V(SSEI32x4Sub)                   \
   V(AVXI32x4Sub)                   \
   V(SSEI32x4Mul)                   \
@@ -155,8 +152,6 @@ namespace compiler {
   V(IA32I16x8ExtractLane)          \
   V(SSEI16x8ReplaceLane)           \
   V(AVXI16x8ReplaceLane)           \
-  V(SSEI16x8AddHoriz)              \
-  V(AVXI16x8AddHoriz)              \
   V(IA32I8x16Splat)                \
   V(IA32I8x16ExtractLane)          \
   V(SSEI8x16ReplaceLane)           \

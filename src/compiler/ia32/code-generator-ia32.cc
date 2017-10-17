@@ -1863,15 +1863,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ movss(operand, i.InputDoubleRegister(index));
       }
       break;
-    case kIA32Movdqu:
-      if (instr->HasOutput()) {
-        __ Movdqu(i.OutputSimd128Register(), i.MemoryOperand());
-      } else {
-        size_t index = 0;
-        Operand operand = i.MemoryOperand(&index);
-        __ Movdqu(operand, i.InputSimd128Register(index));
-      }
-      break;
     case kIA32BitcastFI:
       if (instr->InputAt(0)->IsFPStackSlot()) {
         __ mov(i.OutputRegister(), i.InputOperand(0));
@@ -2047,17 +2038,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpaddd(i.OutputSimd128Register(), i.InputSimd128Register(0),
                 i.InputOperand(1));
-      break;
-    }
-    case kSSEI32x4AddHoriz: {
-      CpuFeatureScope sse_scope(tasm(), SSSE3);
-      __ phaddd(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXI32x4AddHoriz: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vphaddd(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputOperand(1));
       break;
     }
     case kSSEI32x4Sub: {
@@ -2244,17 +2224,6 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpinsrw(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(2), i.InputInt8(1));
-      break;
-    }
-    case kSSEI16x8AddHoriz: {
-      CpuFeatureScope sse_scope(tasm(), SSSE3);
-      __ phaddw(i.OutputSimd128Register(), i.InputOperand(1));
-      break;
-    }
-    case kAVXI16x8AddHoriz: {
-      CpuFeatureScope avx_scope(tasm(), AVX);
-      __ vphaddw(i.OutputSimd128Register(), i.InputSimd128Register(0),
-                 i.InputOperand(1));
       break;
     }
     case kIA32I8x16Splat: {
