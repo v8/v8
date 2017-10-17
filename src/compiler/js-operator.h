@@ -527,6 +527,32 @@ std::ostream& operator<<(std::ostream&, CreateArrayParameters const&);
 
 const CreateArrayParameters& CreateArrayParametersOf(const Operator* op);
 
+// Defines shared information for the bound function that should be created.
+// This is used as parameter by JSCreateBoundFunction operators.
+class CreateBoundFunctionParameters final {
+ public:
+  CreateBoundFunctionParameters(size_t arity, Handle<Map> map)
+      : arity_(arity), map_(map) {}
+
+  size_t arity() const { return arity_; }
+  Handle<Map> map() const { return map_; }
+
+ private:
+  size_t const arity_;
+  Handle<Map> const map_;
+};
+
+bool operator==(CreateBoundFunctionParameters const&,
+                CreateBoundFunctionParameters const&);
+bool operator!=(CreateBoundFunctionParameters const&,
+                CreateBoundFunctionParameters const&);
+
+size_t hash_value(CreateBoundFunctionParameters const&);
+
+std::ostream& operator<<(std::ostream&, CreateBoundFunctionParameters const&);
+
+const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
+    const Operator* op);
 
 // Defines shared information for the closure that should be created. This is
 // used as a parameter by JSCreateClosure operators.
@@ -644,6 +670,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Create();
   const Operator* CreateArguments(CreateArgumentsType type);
   const Operator* CreateArray(size_t arity, Handle<AllocationSite> site);
+  const Operator* CreateBoundFunction(size_t arity, Handle<Map> map);
   const Operator* CreateClosure(Handle<SharedFunctionInfo> shared_info,
                                 VectorSlotPair const& feedback,
                                 PretenureFlag pretenure);

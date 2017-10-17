@@ -132,6 +132,7 @@
   V(JSCreate)                     \
   V(JSCreateArguments)            \
   V(JSCreateArray)                \
+  V(JSCreateBoundFunction)        \
   V(JSCreateClosure)              \
   V(JSCreateIterResultObject)     \
   V(JSCreateKeyValueArray)        \

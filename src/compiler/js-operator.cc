@@ -450,6 +450,33 @@ const CreateArrayParameters& CreateArrayParametersOf(const Operator* op) {
   return OpParameter<CreateArrayParameters>(op);
 }
 
+bool operator==(CreateBoundFunctionParameters const& lhs,
+                CreateBoundFunctionParameters const& rhs) {
+  return lhs.arity() == rhs.arity() &&
+         lhs.map().location() == rhs.map().location();
+}
+
+bool operator!=(CreateBoundFunctionParameters const& lhs,
+                CreateBoundFunctionParameters const& rhs) {
+  return !(lhs == rhs);
+}
+
+size_t hash_value(CreateBoundFunctionParameters const& p) {
+  return base::hash_combine(p.arity(), p.map().location());
+}
+
+std::ostream& operator<<(std::ostream& os,
+                         CreateBoundFunctionParameters const& p) {
+  os << p.arity();
+  if (!p.map().is_null()) os << ", " << Brief(*p.map());
+  return os;
+}
+
+const CreateBoundFunctionParameters& CreateBoundFunctionParametersOf(
+    const Operator* op) {
+  DCHECK_EQ(IrOpcode::kJSCreateBoundFunction, op->opcode());
+  return OpParameter<CreateBoundFunctionParameters>(op);
+}
 
 bool operator==(CreateClosureParameters const& lhs,
                 CreateClosureParameters const& rhs) {
@@ -1034,6 +1061,18 @@ const Operator* JSOperatorBuilder::CreateArray(size_t arity,
       "JSCreateArray",                                    // name
       value_input_count, 1, 1, 1, 1, 2,                   // counts
       parameters);                                        // parameter
+}
+
+const Operator* JSOperatorBuilder::CreateBoundFunction(size_t arity,
+                                                       Handle<Map> map) {
+  // bound_target_function, bound_this, arg1, ..., argN
+  int const value_input_count = static_cast<int>(arity) + 2;
+  CreateBoundFunctionParameters parameters(arity, map);
+  return new (zone()) Operator1<CreateBoundFunctionParameters>(   // --
+      IrOpcode::kJSCreateBoundFunction, Operator::kEliminatable,  // opcode
+      "JSCreateBoundFunction",                                    // name
+      value_input_count, 1, 1, 1, 1, 0,                           // counts
+      parameters);                                                // parameter
 }
 
 const Operator* JSOperatorBuilder::CreateClosure(

@@ -67,7 +67,6 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
       InstanceType collection_iterator_instance_type_last);
   Reduction ReduceDateNow(Node* node);
   Reduction ReduceDateGetTime(Node* node);
-  Reduction ReduceFunctionBind(Node* node);
   Reduction ReduceGlobalIsFinite(Node* node);
   Reduction ReduceGlobalIsNaN(Node* node);
   Reduction ReduceMapHas(Node* node);

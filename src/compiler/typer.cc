@@ -1138,6 +1138,10 @@ Type* Typer::Visitor::TypeJSCreateArguments(Node* node) {
 
 Type* Typer::Visitor::TypeJSCreateArray(Node* node) { return Type::Array(); }
 
+Type* Typer::Visitor::TypeJSCreateBoundFunction(Node* node) {
+  return Type::BoundFunction();
+}
+
 Type* Typer::Visitor::TypeJSCreateGeneratorObject(Node* node) {
   return Type::OtherObject();
 }

@@ -137,6 +137,8 @@ Reduction JSCreateLowering::Reduce(Node* node) {
       return ReduceJSCreateArguments(node);
     case IrOpcode::kJSCreateArray:
       return ReduceJSCreateArray(node);
+    case IrOpcode::kJSCreateBoundFunction:
+      return ReduceJSCreateBoundFunction(node);
     case IrOpcode::kJSCreateClosure:
       return ReduceJSCreateClosure(node);
     case IrOpcode::kJSCreateIterResultObject:
@@ -846,6 +848,46 @@ Reduction JSCreateLowering::ReduceJSCreateArray(Node* node) {
   if (target != new_target) return NoChange();
 
   return ReduceNewArrayToStubCall(node, site);
+}
+
+Reduction JSCreateLowering::ReduceJSCreateBoundFunction(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCreateBoundFunction, node->opcode());
+  CreateBoundFunctionParameters const& p =
+      CreateBoundFunctionParametersOf(node->op());
+  int const arity = static_cast<int>(p.arity());
+  Handle<Map> const map = p.map();
+  Node* bound_target_function = NodeProperties::GetValueInput(node, 0);
+  Node* bound_this = NodeProperties::GetValueInput(node, 1);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Create the [[BoundArguments]] for the result.
+  Node* bound_arguments = jsgraph()->EmptyFixedArrayConstant();
+  if (arity > 0) {
+    AllocationBuilder a(jsgraph(), effect, control);
+    a.AllocateArray(arity, factory()->fixed_array_map());
+    for (int i = 0; i < arity; ++i) {
+      a.Store(AccessBuilder::ForFixedArraySlot(i),
+              NodeProperties::GetValueInput(node, 2 + i));
+    }
+    bound_arguments = effect = a.Finish();
+  }
+
+  // Create the JSBoundFunction result.
+  AllocationBuilder a(jsgraph(), effect, control);
+  a.Allocate(JSBoundFunction::kSize, NOT_TENURED, Type::BoundFunction());
+  a.Store(AccessBuilder::ForMap(), map);
+  a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSObjectElements(),
+          jsgraph()->EmptyFixedArrayConstant());
+  a.Store(AccessBuilder::ForJSBoundFunctionBoundTargetFunction(),
+          bound_target_function);
+  a.Store(AccessBuilder::ForJSBoundFunctionBoundThis(), bound_this);
+  a.Store(AccessBuilder::ForJSBoundFunctionBoundArguments(), bound_arguments);
+  RelaxControls(node);
+  a.FinishAndChange(node);
+  return Changed(node);
 }
 
 Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {

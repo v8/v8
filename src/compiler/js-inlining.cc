@@ -277,6 +277,7 @@ bool NeedsConvertReceiver(Node* receiver, Node* effect) {
     case IrOpcode::kJSCreate:
     case IrOpcode::kJSCreateArguments:
     case IrOpcode::kJSCreateArray:
+    case IrOpcode::kJSCreateBoundFunction:
     case IrOpcode::kJSCreateClosure:
     case IrOpcode::kJSCreateIterResultObject:
     case IrOpcode::kJSCreateKeyValueArray:

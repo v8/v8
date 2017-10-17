@@ -387,6 +387,9 @@ void JSGenericLowering::LowerJSCreateArray(Node* node) {
   NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
+void JSGenericLowering::LowerJSCreateBoundFunction(Node* node) {
+  UNREACHABLE();  // Eliminated in typed lowering.
+}
 
 void JSGenericLowering::LowerJSCreateClosure(Node* node) {
   CreateClosureParameters const& p = CreateClosureParametersOf(node->op());

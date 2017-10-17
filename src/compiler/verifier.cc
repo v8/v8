@@ -598,6 +598,10 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is Array.
       CheckTypeIs(node, Type::Array());
       break;
+    case IrOpcode::kJSCreateBoundFunction:
+      // Type is BoundFunction.
+      CheckTypeIs(node, Type::BoundFunction());
+      break;
     case IrOpcode::kJSCreateClosure:
       // Type is Function.
       CheckTypeIs(node, Type::Function());

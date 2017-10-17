@@ -1661,88 +1661,6 @@ Reduction JSBuiltinReducer::ReduceDateGetTime(Node* node) {
   return NoChange();
 }
 
-// ES6 section 19.2.3.2 Function.prototype.bind ( thisArg, ...args )
-Reduction JSBuiltinReducer::ReduceFunctionBind(Node* node) {
-  // Value inputs to the {node} are as follows:
-  //
-  //  - target, which is Function.prototype.bind JSFunction
-  //  - receiver, which is the [[BoundTargetFunction]]
-  //  - bound_this (optional), which is the [[BoundThis]]
-  //  - and all the remaining value inouts are [[BoundArguments]]
-  Node* receiver = NodeProperties::GetValueInput(node, 1);
-  Type* receiver_type = NodeProperties::GetType(receiver);
-  Node* bound_this = (node->op()->ValueInputCount() < 3)
-                         ? jsgraph()->UndefinedConstant()
-                         : NodeProperties::GetValueInput(node, 2);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-  if (receiver_type->IsHeapConstant() &&
-      receiver_type->AsHeapConstant()->Value()->IsJSFunction()) {
-    Handle<JSFunction> target_function =
-        Handle<JSFunction>::cast(receiver_type->AsHeapConstant()->Value());
-
-    // Check that the "length" property on the {target_function} is the
-    // default JSFunction accessor.
-    LookupIterator length_lookup(target_function, factory()->length_string(),
-                                 target_function, LookupIterator::OWN);
-    if (length_lookup.state() != LookupIterator::ACCESSOR ||
-        !length_lookup.GetAccessors()->IsAccessorInfo()) {
-      return NoChange();
-    }
-
-    // Check that the "name" property on the {target_function} is the
-    // default JSFunction accessor.
-    LookupIterator name_lookup(target_function, factory()->name_string(),
-                               target_function, LookupIterator::OWN);
-    if (name_lookup.state() != LookupIterator::ACCESSOR ||
-        !name_lookup.GetAccessors()->IsAccessorInfo()) {
-      return NoChange();
-    }
-
-    // Determine the prototype of the {target_function}.
-    Handle<Object> prototype(target_function->map()->prototype(), isolate());
-
-    // Setup the map for the JSBoundFunction instance.
-    Handle<Map> map = target_function->IsConstructor()
-                          ? isolate()->bound_function_with_constructor_map()
-                          : isolate()->bound_function_without_constructor_map();
-    if (map->prototype() != *prototype) {
-      map = Map::TransitionToPrototype(map, prototype);
-    }
-    DCHECK_EQ(target_function->IsConstructor(), map->is_constructor());
-
-    // Create the [[BoundArguments]] for the result.
-    Node* bound_arguments = jsgraph()->EmptyFixedArrayConstant();
-    if (node->op()->ValueInputCount() > 3) {
-      int const length = node->op()->ValueInputCount() - 3;
-      AllocationBuilder a(jsgraph(), effect, control);
-      a.AllocateArray(length, factory()->fixed_array_map());
-      for (int i = 0; i < length; ++i) {
-        a.Store(AccessBuilder::ForFixedArraySlot(i),
-                NodeProperties::GetValueInput(node, 3 + i));
-      }
-      bound_arguments = effect = a.Finish();
-    }
-
-    // Create the JSBoundFunction result.
-    AllocationBuilder a(jsgraph(), effect, control);
-    a.Allocate(JSBoundFunction::kSize, NOT_TENURED, Type::BoundFunction());
-    a.Store(AccessBuilder::ForMap(), map);
-    a.Store(AccessBuilder::ForJSObjectPropertiesOrHash(),
-            jsgraph()->EmptyFixedArrayConstant());
-    a.Store(AccessBuilder::ForJSObjectElements(),
-            jsgraph()->EmptyFixedArrayConstant());
-    a.Store(AccessBuilder::ForJSBoundFunctionBoundTargetFunction(), receiver);
-    a.Store(AccessBuilder::ForJSBoundFunctionBoundThis(), bound_this);
-    a.Store(AccessBuilder::ForJSBoundFunctionBoundArguments(), bound_arguments);
-    Node* value = effect = a.Finish();
-
-    ReplaceWithValue(node, value, effect, control);
-    return Replace(value);
-  }
-  return NoChange();
-}
-
 // ES6 section 18.2.2 isFinite ( number )
 Reduction JSBuiltinReducer::ReduceGlobalIsFinite(Node* node) {
   JSCallReduction r(node);
@@ -2926,8 +2844,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceDateNow(node);
     case kDateGetTime:
       return ReduceDateGetTime(node);
-    case kFunctionBind:
-      return ReduceFunctionBind(node);
     case kGlobalIsFinite:
       reduction = ReduceGlobalIsFinite(node);
       break;
