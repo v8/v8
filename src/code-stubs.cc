@@ -121,12 +121,15 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
     Generate(&masm);
   }
 
+  // Allocate the handler table.
+  Handle<HandlerTable> table = GenerateHandlerTable();
+
   // Create the code object.
   CodeDesc desc;
   masm.GetCode(isolate(), &desc);
   // Copy the generated code into a heap object.
   Handle<Code> new_object = factory->NewCode(
-      desc, Code::STUB, masm.CodeObject(), NeedsImmovableCode());
+      desc, Code::STUB, masm.CodeObject(), table, NeedsImmovableCode());
   return new_object;
 }
 
@@ -147,7 +150,6 @@ Handle<Code> CodeStub::GetCode() {
 
     Handle<Code> new_object = GenerateCode();
     new_object->set_stub_key(GetKey());
-    FinishCode(new_object);
     RecordCodeGeneration(new_object);
 
 #ifdef ENABLE_DISASSEMBLER
@@ -222,6 +224,9 @@ void CodeStub::Dispatch(Isolate* isolate, uint32_t key, void** value_out,
   }
 }
 
+Handle<HandlerTable> PlatformCodeStub::GenerateHandlerTable() {
+  return HandlerTable::Empty(isolate());
+}
 
 static void InitializeDescriptorDispatchedCall(CodeStub* stub,
                                                void** value_out) {
@@ -459,11 +464,11 @@ TF_STUB(LoadIndexedInterceptorStub, CodeStubAssembler) {
                   vector);
 }
 
-void JSEntryStub::FinishCode(Handle<Code> code) {
+Handle<HandlerTable> JSEntryStub::GenerateHandlerTable() {
   Handle<FixedArray> handler_table =
-      code->GetIsolate()->factory()->NewFixedArray(1, TENURED);
+      isolate()->factory()->NewFixedArray(1, TENURED);
   handler_table->set(0, Smi::FromInt(handler_offset_));
-  code->set_handler_table(*handler_table);
+  return Handle<HandlerTable>::cast(handler_table);
 }
 
 

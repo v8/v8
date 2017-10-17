@@ -675,7 +675,10 @@ class V8_EXPORT_PRIVATE Factory final {
   // This allows generated code to reference its own Code object
   // by containing this handle.
   Handle<Code> NewCode(const CodeDesc& desc, Code::Kind kind,
-                       Handle<Object> self_reference, bool immovable = false);
+                       Handle<Object> self_reference,
+                       MaybeHandle<HandlerTable> maybe_handler_table =
+                           MaybeHandle<HandlerTable>(),
+                       bool immovable = false);
 
   // Allocates a new, empty code object for use by builtin deserialization. The
   // given {size} argument specifies the size of the entire code object.

@@ -10515,6 +10515,9 @@ int HandlerTable::LookupReturn(int pc_offset) {
   return -1;
 }
 
+Handle<HandlerTable> HandlerTable::Empty(Isolate* isolate) {
+  return Handle<HandlerTable>::cast(isolate->factory()->empty_fixed_array());
+}
 
 #ifdef DEBUG
 bool DescriptorArray::IsEqualTo(DescriptorArray* other) {

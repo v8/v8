@@ -229,9 +229,6 @@ class CodeStub : public ZoneObject {
   // initially generated.
   void RecordCodeGeneration(Handle<Code> code);
 
-  // Finish the code object after it has been generated.
-  virtual void FinishCode(Handle<Code> code) { }
-
   // Activate newly generated stub. Is called after
   // registering stub in the stub cache.
   virtual void Activate(Code* code) { }
@@ -314,6 +311,9 @@ class PlatformCodeStub : public CodeStub {
 
   // Generates the assembler code for the stub.
   virtual void Generate(MacroAssembler* masm) = 0;
+
+  // Generates the exception handler table for the stub.
+  virtual Handle<HandlerTable> GenerateHandlerTable();
 
   DEFINE_CODE_STUB_BASE(PlatformCodeStub, CodeStub);
 };
@@ -750,7 +750,7 @@ class JSEntryStub : public PlatformCodeStub {
   }
 
  private:
-  void FinishCode(Handle<Code> code) override;
+  Handle<HandlerTable> GenerateHandlerTable() override;
 
   void PrintName(std::ostream& os) const override {  // NOLINT
     os << (type() == StackFrame::ENTRY ? "JSEntryStub"

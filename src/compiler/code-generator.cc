@@ -278,6 +278,18 @@ void CodeGenerator::AssembleCode() {
 Handle<Code> CodeGenerator::FinalizeCode() {
   if (result_ != kSuccess) return Handle<Code>();
 
+  // Allocate exception handler table.
+  Handle<HandlerTable> table = HandlerTable::Empty(isolate());
+  if (!handlers_.empty()) {
+    table = Handle<HandlerTable>::cast(isolate()->factory()->NewFixedArray(
+        HandlerTable::LengthForReturn(static_cast<int>(handlers_.size())),
+        TENURED));
+    for (size_t i = 0; i < handlers_.size(); ++i) {
+      table->SetReturnOffset(static_cast<int>(i), handlers_[i].pc_offset);
+      table->SetReturnHandler(static_cast<int>(i), handlers_[i].handler->pos());
+    }
+  }
+
   // Allocate and install the code.
   CodeDesc desc;
   tasm()->GetCode(isolate(), &desc);
@@ -285,8 +297,8 @@ Handle<Code> CodeGenerator::FinalizeCode() {
     unwinding_info_writer_.eh_frame_writer()->GetEhFrame(&desc);
   }
 
-  Handle<Code> result = isolate()->factory()->NewCode(desc, info()->code_kind(),
-                                                      Handle<Object>(), false);
+  Handle<Code> result = isolate()->factory()->NewCode(
+      desc, info()->code_kind(), Handle<Object>(), table, false);
   isolate()->counters()->total_compiled_code_size()->Increment(
       result->instruction_size());
   result->set_is_turbofanned(true);
@@ -296,19 +308,6 @@ Handle<Code> CodeGenerator::FinalizeCode() {
       source_position_table_builder_.ToSourcePositionTable(
           isolate(), Handle<AbstractCode>::cast(result));
   result->set_source_position_table(*source_positions);
-
-  // Emit exception handler table.
-  if (!handlers_.empty()) {
-    Handle<HandlerTable> table =
-        Handle<HandlerTable>::cast(isolate()->factory()->NewFixedArray(
-            HandlerTable::LengthForReturn(static_cast<int>(handlers_.size())),
-            TENURED));
-    for (size_t i = 0; i < handlers_.size(); ++i) {
-      table->SetReturnOffset(static_cast<int>(i), handlers_[i].pc_offset);
-      table->SetReturnHandler(static_cast<int>(i), handlers_[i].handler->pos());
-    }
-    result->set_handler_table(*table);
-  }
 
   PopulateDeoptimizationData(result);
 

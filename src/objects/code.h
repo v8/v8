@@ -74,6 +74,9 @@ class HandlerTable : public FixedArray {
   static int LengthForRange(int entries) { return entries * kRangeEntrySize; }
   static int LengthForReturn(int entries) { return entries * kReturnEntrySize; }
 
+  // Returns an empty handler table.
+  static Handle<HandlerTable> Empty(Isolate* isolate);
+
   DECL_CAST(HandlerTable)
 
 #ifdef ENABLE_DISASSEMBLER
