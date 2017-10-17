@@ -1554,12 +1554,6 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
       unresolved = copy;
     }
 
-    // Clear arguments_ if unused. This is used as a signal for optimization.
-    if (arguments_ != nullptr &&
-        !(MustAllocate(arguments_) && !has_arguments_parameter_)) {
-      arguments_ = nullptr;
-    }
-
     // Migrate function_ to the right Zone.
     if (function_ != nullptr) {
       function_ = ast_node_factory->CopyVariable(function_);

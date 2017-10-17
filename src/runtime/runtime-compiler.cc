@@ -211,9 +211,6 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
 
-  // We're not prepared to handle a function with arguments object.
-  DCHECK(!function->shared()->uses_arguments());
-
   // Only reachable when OST is enabled.
   CHECK(FLAG_use_osr);
 
