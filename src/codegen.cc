@@ -14,7 +14,6 @@
 #include "src/compilation-info.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
-#include "src/eh-frame.h"
 #include "src/objects-inl.h"
 #include "src/runtime/runtime.h"
 
@@ -66,24 +65,6 @@ double modulo(double x, double y) {
 UNARY_MATH_FUNCTION(sqrt, CreateSqrtFunction)
 
 #undef UNARY_MATH_FUNCTION
-
-Handle<Code> CodeGenerator::MakeCodeEpilogue(TurboAssembler* tasm,
-                                             EhFrameWriter* eh_frame_writer,
-                                             CompilationInfo* info,
-                                             Handle<Object> self_reference) {
-  Isolate* isolate = info->isolate();
-
-  // Allocate and install the code.
-  CodeDesc desc;
-  tasm->GetCode(isolate, &desc);
-  if (eh_frame_writer) eh_frame_writer->GetEhFrame(&desc);
-
-  Handle<Code> code = isolate->factory()->NewCode(desc, info->code_kind(),
-                                                  self_reference, false);
-  isolate->counters()->total_compiled_code_size()->Increment(
-      code->instruction_size());
-  return code;
-}
 
 // Print function's source if it was not printed before.
 // Return a sequential id under which this function was printed.

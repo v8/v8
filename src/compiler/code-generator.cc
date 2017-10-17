@@ -11,6 +11,7 @@
 #include "src/compiler/code-generator-impl.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/pipeline.h"
+#include "src/eh-frame.h"
 #include "src/frames.h"
 #include "src/macro-assembler-inl.h"
 
@@ -277,9 +278,17 @@ void CodeGenerator::AssembleCode() {
 Handle<Code> CodeGenerator::FinalizeCode() {
   if (result_ != kSuccess) return Handle<Code>();
 
-  Handle<Code> result = v8::internal::CodeGenerator::MakeCodeEpilogue(
-      tasm(), unwinding_info_writer_.eh_frame_writer(), info(),
-      Handle<Object>());
+  // Allocate and install the code.
+  CodeDesc desc;
+  tasm()->GetCode(isolate(), &desc);
+  if (unwinding_info_writer_.eh_frame_writer()) {
+    unwinding_info_writer_.eh_frame_writer()->GetEhFrame(&desc);
+  }
+
+  Handle<Code> result = isolate()->factory()->NewCode(desc, info()->code_kind(),
+                                                      Handle<Object>(), false);
+  isolate()->counters()->total_compiled_code_size()->Increment(
+      result->instruction_size());
   result->set_is_turbofanned(true);
   result->set_stack_slots(frame()->GetTotalFrameSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
