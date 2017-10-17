@@ -811,14 +811,14 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       BIND(&tuple3);
       {
         var_transition_cell.Bind(LoadObjectField(
-            maybe_handler, StoreHandler::kTransitionCellOffset));
+            maybe_handler, StoreHandler::kTransitionOrHolderCellOffset));
         Goto(&check_key);
       }
 
       BIND(&fixedarray);
       {
         var_transition_cell.Bind(LoadFixedArrayElement(
-            maybe_handler, StoreHandler::kTransitionCellIndex));
+            maybe_handler, StoreHandler::kTransitionMapOrHolderCellIndex));
         Goto(&check_key);
       }
 
