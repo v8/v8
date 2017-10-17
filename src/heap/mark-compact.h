@@ -744,12 +744,6 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
   // Note: Can only be called safely from main thread.
   void EnsureSweepingCompleted();
 
-  // Help out in sweeping the corresponding space and refill memory that has
-  // been regained.
-  //
-  // Note: Thread-safe.
-  void SweepAndRefill(CompactionSpace* space);
-
   // Checks if sweeping is in progress right now on any space.
   bool sweeping_in_progress() { return sweeper().sweeping_in_progress(); }
 

@@ -710,13 +710,6 @@ void MarkCompactCollector::Sweeper::SweepOrWaitUntilSweepingCompleted(
   }
 }
 
-void MarkCompactCollector::SweepAndRefill(CompactionSpace* space) {
-  if (FLAG_concurrent_sweeping && sweeper().sweeping_in_progress()) {
-    sweeper().ParallelSweepSpace(space->identity(), 0);
-    space->RefillFreeList();
-  }
-}
-
 Page* MarkCompactCollector::Sweeper::GetSweptPageSafe(PagedSpace* space) {
   base::LockGuard<base::Mutex> guard(&mutex_);
   SweptList& list = swept_list_[space->identity()];

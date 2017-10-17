@@ -3165,8 +3165,9 @@ bool PagedSpace::SweepAndRetryAllocation(int size_in_bytes) {
 
 bool CompactionSpace::SweepAndRetryAllocation(int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
-  if (collector->sweeping_in_progress()) {
-    collector->SweepAndRefill(this);
+  if (FLAG_concurrent_sweeping && collector->sweeping_in_progress()) {
+    collector->sweeper().ParallelSweepSpace(identity(), 0);
+    RefillFreeList();
     return free_list_.Allocate(size_in_bytes);
   }
   return false;
