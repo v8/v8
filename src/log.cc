@@ -1547,7 +1547,10 @@ static int EnumerateCompiledFunctions(Heap* heap,
           !Script::cast(maybe_script)->HasValidSource()) {
         continue;
       }
-      if (function->HasOptimizedCode()) {
+      // TODO(jarin) This leaves out deoptimized code that might still be on the
+      // stack. Also note that we will not log optimized code objects that are
+      // only on a type feedback vector. We should make this mroe precise.
+      if (function->IsOptimized()) {
         AddFunctionAndCode(sfi, AbstractCode::cast(function->code()), sfis,
                            code_objects, compiled_funcs_count);
         ++compiled_funcs_count;
