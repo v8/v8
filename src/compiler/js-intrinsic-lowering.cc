@@ -69,8 +69,6 @@ Reduction JSIntrinsicLowering::Reduce(Node* node) {
       return ReduceIsJSReceiver(node);
     case Runtime::kInlineIsSmi:
       return ReduceIsSmi(node);
-    case Runtime::kInlineSubString:
-      return ReduceSubString(node);
     case Runtime::kInlineToInteger:
       return ReduceToInteger(node);
     case Runtime::kInlineToLength:
@@ -280,11 +278,6 @@ Reduction JSIntrinsicLowering::Change(Node* node, const Operator* op) {
   NodeProperties::ChangeOp(node, op);
   return Changed(node);
 }
-
-Reduction JSIntrinsicLowering::ReduceSubString(Node* node) {
-  return Change(node, CodeFactory::SubString(isolate()), 3);
-}
-
 
 Reduction JSIntrinsicLowering::ReduceToInteger(Node* node) {
   NodeProperties::ChangeOp(node, javascript()->ToInteger());

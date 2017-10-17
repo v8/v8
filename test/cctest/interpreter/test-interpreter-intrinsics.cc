@@ -216,14 +216,6 @@ TEST(IntrinsicAsStubCall) {
            *has_property_helper.Invoke(
                has_property_helper.NewObject("'y'"),
                has_property_helper.NewObject("({ x: 20 })")));
-
-  InvokeIntrinsicHelper sub_string_helper(isolate, handles.main_zone(),
-                                          Runtime::kInlineSubString);
-  CHECK(sub_string_helper
-            .Invoke(sub_string_helper.NewObject("'foobar'"),
-                    sub_string_helper.NewObject("3"),
-                    sub_string_helper.NewObject("6"))
-            ->SameValue(*sub_string_helper.NewObject("'bar'")));
 }
 
 TEST(ClassOf) {

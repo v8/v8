@@ -630,6 +630,7 @@ bool BuiltinHasNoSideEffect(Builtins::Name id) {
     case Builtins::kStringPrototypeTrimRight:
     case Builtins::kStringPrototypeValueOf:
     case Builtins::kStringToNumber:
+    case Builtins::kSubString:
     // Symbol builtins.
     case Builtins::kSymbolConstructor:
     case Builtins::kSymbolKeyFor:

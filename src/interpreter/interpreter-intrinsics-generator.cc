@@ -282,11 +282,6 @@ Node* IntrinsicsGenerator::HasProperty(Node* input, Node* arg_count,
       input, context, Builtins::CallableFor(isolate(), Builtins::kHasProperty));
 }
 
-Node* IntrinsicsGenerator::SubString(Node* input, Node* arg_count,
-                                     Node* context) {
-  return IntrinsicAsStubCall(input, context, CodeFactory::SubString(isolate()));
-}
-
 Node* IntrinsicsGenerator::ToString(Node* input, Node* arg_count,
                                     Node* context) {
   return IntrinsicAsStubCall(

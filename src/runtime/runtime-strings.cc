@@ -237,8 +237,9 @@ RUNTIME_FUNCTION(Runtime_SubString) {
   } else {
     return isolate->ThrowIllegalOperation();
   }
-  // The following condition is intentionally robust because the SubStringStub
-  // delegates here and we test this in cctest/test-strings/RobustSubStringStub.
+  // The following condition is intentionally robust because the SubString
+  // builtin delegates here and we test this in
+  // cctest/test-strings/RobustSubStringStub.
   if (end < start || start < 0 || end > string->length()) {
     return isolate->ThrowIllegalOperation();
   }

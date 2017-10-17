@@ -1678,7 +1678,6 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
       return Type::Boolean();
     case Runtime::kInlineCreateIterResultObject:
       return Type::OtherObject();
-    case Runtime::kInlineSubString:
     case Runtime::kInlineStringCharFromCode:
       return Type::String();
     case Runtime::kInlineToInteger:

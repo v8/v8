@@ -58,7 +58,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
                             StringAddFlags flags = STRING_ADD_CHECK_NONE,
                             PretenureFlag pretenure_flag = NOT_TENURED);
   static Callable StringCompare(Isolate* isolate, Token::Value token);
-  static Callable SubString(Isolate* isolate);
 
   static Callable FastNewFunctionContext(Isolate* isolate,
                                          ScopeType scope_type);

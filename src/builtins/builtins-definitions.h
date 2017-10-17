@@ -100,6 +100,7 @@ namespace internal {
   TFC(StringLessThan, Compare, 1)                                              \
   TFC(StringLessThanOrEqual, Compare, 1)                                       \
   TFS(StringRepeat, kString, kCount)                                           \
+  TFS(SubString, kString, kFrom, kTo)                                          \
                                                                                \
   /* OrderedHashTable helpers */                                               \
   TFS(OrderedHashTableHealIndex, kTable, kIndex)                               \

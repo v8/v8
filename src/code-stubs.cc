@@ -362,16 +362,6 @@ TF_STUB(NumberToStringStub, CodeStubAssembler) {
   Return(NumberToString(context, argument));
 }
 
-// TODO(ishell): move to builtins.
-TF_STUB(SubStringStub, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* string = Parameter(Descriptor::kString);
-  Node* from = Parameter(Descriptor::kFrom);
-  Node* to = Parameter(Descriptor::kTo);
-
-  Return(SubString(context, string, from, to));
-}
-
 // TODO(ishell): move to builtins-handler-gen.
 TF_STUB(KeyedLoadSloppyArgumentsStub, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);

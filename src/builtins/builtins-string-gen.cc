@@ -1166,9 +1166,9 @@ compiler::Node* StringBuiltinsAssembler::GetSubstitution(
   {
     CSA_ASSERT(this, TaggedIsPositiveSmi(dollar_index));
 
-    Callable substring_callable = CodeFactory::SubString(isolate());
-    Node* const matched = CallStub(substring_callable, context, subject_string,
-                                   match_start_index, match_end_index);
+    Node* const matched =
+        CallBuiltin(Builtins::kSubString, context, subject_string,
+                    match_start_index, match_end_index);
     Node* const replacement_string =
         CallRuntime(Runtime::kGetSubstitution, context, matched, subject_string,
                     match_start_index, replace_string, dollar_index);
@@ -1396,7 +1396,6 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
   Node* const match_end_index = SmiAdd(match_start_index, search_length);
 
-  Callable substring_callable = CodeFactory::SubString(isolate());
   Callable stringadd_callable =
       CodeFactory::StringAdd(isolate(), STRING_ADD_CHECK_NONE, NOT_TENURED);
 
@@ -1407,8 +1406,9 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
     Label next(this);
 
     GotoIf(SmiEqual(match_start_index, smi_zero), &next);
-    Node* const prefix = CallStub(substring_callable, context, subject_string,
-                                  smi_zero, match_start_index);
+    Node* const prefix =
+        CallBuiltin(Builtins::kSubString, context, subject_string, smi_zero,
+                    match_start_index);
     var_result.Bind(prefix);
 
     Goto(&next);
@@ -1447,8 +1447,9 @@ TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
 
   BIND(&out);
   {
-    Node* const suffix = CallStub(substring_callable, context, subject_string,
-                                  match_end_index, subject_length);
+    Node* const suffix =
+        CallBuiltin(Builtins::kSubString, context, subject_string,
+                    match_end_index, subject_length);
     Node* const result =
         CallStub(stringadd_callable, context, var_result.value(), suffix);
     Return(result);
@@ -1628,10 +1629,9 @@ class StringPadAssembler : public StringBuiltinsAssembler {
 
         GotoIfNot(remaining_word32, &return_result);
         {
-          Callable substring_callable = CodeFactory::SubString(isolate());
-          Node* const remainder_string =
-              CallStub(substring_callable, context, var_fill_string.value(),
-                       SmiConstant(0), SmiFromWord32(remaining_word32));
+          Node* const remainder_string = CallBuiltin(
+              Builtins::kSubString, context, var_fill_string.value(),
+              SmiConstant(0), SmiFromWord32(remaining_word32));
           var_pad.Bind(CallStub(stringadd_callable, context, var_pad.value(),
                                 remainder_string));
           Goto(&return_result);
@@ -1996,6 +1996,15 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
 
   BIND(&out);
   return var_result;
+}
+
+TF_BUILTIN(SubString, CodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* string = Parameter(Descriptor::kString);
+  Node* from = Parameter(Descriptor::kFrom);
+  Node* to = Parameter(Descriptor::kTo);
+
+  Return(SubString(context, string, from, to));
 }
 
 // ES6 #sec-string.prototype.substring

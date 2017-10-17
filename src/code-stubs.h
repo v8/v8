@@ -41,7 +41,6 @@ class Node;
   V(RecordWrite)                              \
   V(StoreBufferOverflow)                      \
   V(StoreSlowElement)                         \
-  V(SubString)                                \
   V(NameDictionaryLookup)                     \
   /* --- TurboFanCodeStubs --- */             \
   V(ArrayNoArgumentConstructor)               \
@@ -1113,15 +1112,6 @@ class StoreBufferOverflowStub : public PlatformCodeStub {
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(StoreBufferOverflow, PlatformCodeStub);
 };
-
-class SubStringStub : public TurboFanCodeStub {
- public:
-  explicit SubStringStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(SubString);
-  DEFINE_TURBOFAN_CODE_STUB(SubString, TurboFanCodeStub);
-};
-
 
 #undef DEFINE_CALL_INTERFACE_DESCRIPTOR
 #undef DEFINE_PLATFORM_CODE_STUB

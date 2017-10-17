@@ -63,7 +63,6 @@ class PlatformInterfaceDescriptor;
   V(StringCharAt)                     \
   V(StringCharCodeAt)                 \
   V(StringCompare)                    \
-  V(SubString)                        \
   V(ForInPrepare)                     \
   V(GetProperty)                      \
   V(ArgumentAdaptor)                  \
@@ -748,13 +747,6 @@ class StringCompareDescriptor : public CallInterfaceDescriptor {
 
   static const Register LeftRegister();
   static const Register RightRegister();
-};
-
-class SubStringDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kString, kFrom, kTo)
-  DECLARE_DESCRIPTOR_WITH_STACK_ARGS(SubStringDescriptor,
-                                     CallInterfaceDescriptor)
 };
 
 class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {

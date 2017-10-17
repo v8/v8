@@ -116,14 +116,6 @@ TEST(StringCompare) {
 }
 
 
-TEST(SubString) {
-  FunctionTester T("(function(a,b) { return %_SubString(a,b,b+3); })", flags);
-
-  T.CheckCall(T.Val("aaa"), T.Val("aaabbb"), T.Val(0.0));
-  T.CheckCall(T.Val("abb"), T.Val("aaabbb"), T.Val(2));
-  T.CheckCall(T.Val("aaa"), T.Val("aaa"), T.Val(0.0));
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
