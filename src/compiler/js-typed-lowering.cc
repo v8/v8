@@ -532,7 +532,7 @@ Reduction JSTypedLowering::ReduceSpeculativeNumberBinop(Node* node) {
   NumberOperationHint hint = NumberOperationHintOf(node->op());
   if ((hint == NumberOperationHint::kNumber ||
        hint == NumberOperationHint::kNumberOrOddball) &&
-      r.BothInputsAre(Type::NumberOrOddball())) {
+      r.BothInputsAre(Type::NumberOrUndefinedOrNullOrBoolean())) {
     r.ConvertInputsToNumber();
     return r.ChangeToPureOperator(r.NumberOpFromSpeculativeNumberOp(),
                                   Type::Number());

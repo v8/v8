@@ -170,6 +170,8 @@ namespace compiler {
                                   kHole) \
   V(NumberOrString,               kNumber | kString) \
   V(NumberOrUndefined,            kNumber | kUndefined) \
+  V(NumberOrUndefinedOrNullOrBoolean,  \
+                                  kNumber | kNullOrUndefined | kBoolean) \
   V(PlainPrimitive,               kNumberOrString | kBoolean | \
                                   kNullOrUndefined) \
   V(Primitive,                    kSymbol | kPlainPrimitive) \
