@@ -9499,6 +9499,7 @@ Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
                           initial_map->unused_property_fields());
   map->SetConstructor(initial_map->GetConstructor());
   map->set_prototype(initial_map->prototype());
+  map->set_construction_counter(initial_map->construction_counter());
 
   if (TransitionsAccessor(initial_map).CanHaveMoreTransitions()) {
     Map::ConnectTransition(initial_map, map, transition_symbol,
