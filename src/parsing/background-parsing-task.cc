@@ -37,6 +37,8 @@ BackgroundParsingTask::BackgroundParsingTask(
   info->InitFromIsolate(isolate);
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
     info->set_runtime_call_stats(new (info->zone()) RuntimeCallStats());
+  } else {
+    info->set_runtime_call_stats(nullptr);
   }
   info->set_toplevel();
   std::unique_ptr<Utf16CharacterStream> stream(
