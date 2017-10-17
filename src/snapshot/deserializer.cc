@@ -7,7 +7,6 @@
 #include "src/assembler-inl.h"
 #include "src/isolate.h"
 #include "src/objects/string.h"
-#include "src/snapshot/builtin-deserializer-allocator.h"
 #include "src/snapshot/natives.h"
 
 namespace v8 {
@@ -273,8 +272,7 @@ void Deserializer<AllocatorT>::ReadObject(int space_number,
                                           Object** write_back) {
   const int size = source_.GetInt() << kObjectAlignmentBits;
 
-  Address address =
-      allocator()->Allocate(static_cast<AllocationSpace>(space_number), size);
+  Address address = Allocate(space_number, size);
   HeapObject* obj = HeapObject::FromAddress(address);
 
   isolate_->heap()->OnAllocationEvent(obj, size);
@@ -295,6 +293,13 @@ void Deserializer<AllocatorT>::ReadObject(int space_number,
     DCHECK(space_number != CODE_SPACE);
   }
 #endif  // DEBUG
+}
+
+template <class AllocatorT>
+Address Deserializer<AllocatorT>::Allocate(int space_index, int size) {
+  // TODO(jgruber): Remove this indirection once we have a
+  // BuiltinDeserializerAllocator.
+  return allocator()->Allocate(static_cast<AllocationSpace>(space_index), size);
 }
 
 template <class AllocatorT>
@@ -713,7 +718,6 @@ Object** Deserializer<AllocatorT>::ReadDataCase(Isolate* isolate,
 }
 
 // Explicit instantiation.
-template class Deserializer<BuiltinDeserializerAllocator>;
 template class Deserializer<DefaultDeserializerAllocator>;
 
 }  // namespace internal

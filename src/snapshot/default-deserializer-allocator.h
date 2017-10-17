@@ -52,6 +52,7 @@ class DefaultDeserializerAllocator final {
   static bool ReserveSpace(StartupDeserializer* startup_deserializer,
                            BuiltinDeserializer* builtin_deserializer);
 
+  bool ReservesOnlyCodeSpace() const;
   bool ReservationsAreFullyUsed() const;
 
   // ------- Misc Utility Methods -------
