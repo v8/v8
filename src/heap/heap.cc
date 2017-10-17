@@ -1805,10 +1805,15 @@ static bool IsLogging(Isolate* isolate) {
           isolate->heap_profiler()->is_tracking_object_moves());
 }
 
-class ScavengingItem : public ItemParallelJob::Item {
+class PageScavengingItem final : public ItemParallelJob::Item {
  public:
-  virtual ~ScavengingItem() {}
-  virtual void Process(Scavenger* scavenger) = 0;
+  explicit PageScavengingItem(MemoryChunk* chunk) : chunk_(chunk) {}
+  virtual ~PageScavengingItem() {}
+
+  void Process(Scavenger* scavenger) { scavenger->ScavengePage(chunk_); }
+
+ private:
+  MemoryChunk* const chunk_;
 };
 
 class ScavengingTask final : public ItemParallelJob::Task {
@@ -1824,8 +1829,8 @@ class ScavengingTask final : public ItemParallelJob::Task {
     {
       barrier_->Start();
       TimedScope scope(&scavenging_time);
-      ScavengingItem* item = nullptr;
-      while ((item = GetItem<ScavengingItem>()) != nullptr) {
+      PageScavengingItem* item = nullptr;
+      while ((item = GetItem<PageScavengingItem>()) != nullptr) {
         item->Process(scavenger_);
         item->MarkFinished();
       }
@@ -1846,41 +1851,6 @@ class ScavengingTask final : public ItemParallelJob::Task {
   Heap* const heap_;
   Scavenger* const scavenger_;
   OneshotBarrier* const barrier_;
-};
-
-class PageScavengingItem final : public ScavengingItem {
- public:
-  explicit PageScavengingItem(Heap* heap, MemoryChunk* chunk)
-      : heap_(heap), chunk_(chunk) {}
-  virtual ~PageScavengingItem() {}
-
-  void Process(Scavenger* scavenger) final {
-    base::LockGuard<base::RecursiveMutex> guard(chunk_->mutex());
-    scavenger->AnnounceLockedPage(chunk_);
-    RememberedSet<OLD_TO_NEW>::Iterate(
-        chunk_,
-        [this, scavenger](Address addr) {
-          return scavenger->CheckAndScavengeObject(heap_, addr);
-        },
-        SlotSet::KEEP_EMPTY_BUCKETS);
-    RememberedSet<OLD_TO_NEW>::IterateTyped(
-        chunk_,
-        [this, scavenger](SlotType type, Address host_addr, Address addr) {
-          return UpdateTypedSlotHelper::UpdateTypedSlot(
-              heap_->isolate(), type, addr, [this, scavenger](Object** addr) {
-                // We expect that objects referenced by code are long
-                // living. If we do not force promotion, then we need to
-                // clear old_to_new slots in dead code objects after
-                // mark-compact.
-                return scavenger->CheckAndScavengeObject(
-                    heap_, reinterpret_cast<Address>(addr));
-              });
-        });
-  }
-
- private:
-  Heap* const heap_;
-  MemoryChunk* const chunk_;
 };
 
 int Heap::NumberOfScavengeTasks() {
@@ -1945,8 +1915,8 @@ void Heap::Scavenge() {
   }
 
   RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
-      this, [this, &job](MemoryChunk* chunk) {
-        job.AddItem(new PageScavengingItem(this, chunk));
+      this, [&job](MemoryChunk* chunk) {
+        job.AddItem(new PageScavengingItem(chunk));
       });
 
   {

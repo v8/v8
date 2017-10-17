@@ -86,6 +86,24 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
   target->IterateBody(target->map()->instance_type(), size, &visitor);
 }
 
+void Scavenger::ScavengePage(MemoryChunk* page) {
+  base::LockGuard<base::RecursiveMutex> guard(page->mutex());
+  AnnounceLockedPage(page);
+
+  RememberedSet<OLD_TO_NEW>::Iterate(
+      page,
+      [this](Address addr) { return CheckAndScavengeObject(heap_, addr); },
+      SlotSet::KEEP_EMPTY_BUCKETS);
+  RememberedSet<OLD_TO_NEW>::IterateTyped(
+      page, [this](SlotType type, Address host_addr, Address addr) {
+        return UpdateTypedSlotHelper::UpdateTypedSlot(
+            heap_->isolate(), type, addr, [this](Object** addr) {
+              return CheckAndScavengeObject(heap(),
+                                            reinterpret_cast<Address>(addr));
+            });
+      });
+}
+
 void Scavenger::Process(OneshotBarrier* barrier) {
   // Threshold when to switch processing the promotion list to avoid
   // allocating too much backing store in the worklist.
