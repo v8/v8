@@ -3405,9 +3405,10 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
     // The end offset is larger than the smallest memory.
     // Dynamically check the end offset against the actual memory size, which
     // is not known at compile time.
-    Node* cond =
-        graph()->NewNode(jsgraph()->machine()->Uint32LessThanOrEqual(),
-                         jsgraph()->Int32Constant(end_offset), *mem_size_);
+    Node* cond = graph()->NewNode(
+        jsgraph()->machine()->Uint32LessThanOrEqual(),
+        jsgraph()->IntPtrConstant(static_cast<uintptr_t>(end_offset)),
+        *mem_size_);
     TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
   } else {
     // The end offset is within the bounds of the smallest memory, so only
@@ -3427,10 +3428,8 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
       graph()->NewNode(jsgraph()->machine()->Int32Sub(), *mem_size_,
                        jsgraph()->Int32Constant(end_offset - 1));
 
-  const Operator* less = jsgraph()->machine()->Is32()
-                             ? jsgraph()->machine()->Uint32LessThan()
-                             : jsgraph()->machine()->Uint64LessThan();
-  Node* cond = graph()->NewNode(less, index, effective_size);
+  Node* cond = graph()->NewNode(jsgraph()->machine()->Uint32LessThan(), index,
+                                effective_size);
   TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
 }
 
