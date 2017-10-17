@@ -790,7 +790,7 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
         int entry = exports->FindEntry(isolate(), lookup->name(),
                                        Smi::ToInt(lookup->name()->GetHash()));
         // We found the accessor, so the entry must exist.
-        DCHECK(entry != ObjectHashTable::kNotFound);
+        DCHECK_NE(entry, ObjectHashTable::kNotFound);
         int index = ObjectHashTable::EntryToValueIndex(entry);
         return LoadHandler::LoadModuleExport(isolate(), index);
       }
@@ -1529,7 +1529,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup) {
 
   if (accessors->IsAccessorInfo()) {
     Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
-    DCHECK(v8::ToCData<Address>(info->setter()) != 0);
+    DCHECK_NOT_NULL(v8::ToCData<Address>(info->setter()));
     DCHECK(!AccessorInfo::cast(*accessors)->is_special_data_property() ||
            lookup->HolderIsReceiverOrHiddenPrototype());
     DCHECK(
@@ -2268,7 +2268,7 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
   Address setter_address = v8::ToCData<Address>(callback->setter());
   v8::AccessorNameSetterCallback fun =
       FUNCTION_CAST<v8::AccessorNameSetterCallback>(setter_address);
-  DCHECK(fun != nullptr);
+  DCHECK_NOT_NULL(fun);
 
   Object::ShouldThrow should_throw =
       is_sloppy(language_mode) ? Object::DONT_THROW : Object::THROW_ON_ERROR;
@@ -2384,7 +2384,7 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
   // TODO(verwaest): This should probably get the holder and receiver as input.
   HandleScope scope(isolate);
   Handle<JSObject> receiver = args.at<JSObject>(0);
-  DCHECK(args.smi_at(1) >= 0);
+  DCHECK_GE(args.smi_at(1), 0);
   uint32_t index = args.smi_at(1);
 
   InterceptorInfo* interceptor = receiver->GetIndexedInterceptor();

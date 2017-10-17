@@ -218,7 +218,7 @@ class CallIC : public IC {
  public:
   CallIC(Isolate* isolate, CallICNexus* nexus)
       : IC(EXTRA_CALL_FRAME, isolate, nexus) {
-    DCHECK(nexus != nullptr);
+    DCHECK_NOT_NULL(nexus);
   }
 };
 
@@ -227,7 +227,7 @@ class LoadIC : public IC {
  public:
   LoadIC(Isolate* isolate, FeedbackNexus* nexus)
       : IC(NO_EXTRA_FRAME, isolate, nexus) {
-    DCHECK(nexus != nullptr);
+    DCHECK_NOT_NULL(nexus);
     DCHECK(IsAnyLoad());
   }
 
@@ -280,7 +280,7 @@ class KeyedLoadIC : public LoadIC {
  public:
   KeyedLoadIC(Isolate* isolate, KeyedLoadICNexus* nexus)
       : LoadIC(isolate, nexus) {
-    DCHECK(nexus != nullptr);
+    DCHECK_NOT_NULL(nexus);
   }
 
   MUST_USE_RESULT MaybeHandle<Object> Load(Handle<Object> object,
