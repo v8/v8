@@ -147,7 +147,7 @@ namespace internal {
   T(NUMBER, nullptr, 0)                                            \
   T(SMI, nullptr, 0)                                               \
   T(STRING, nullptr, 0)                                            \
-  T(BIGINT, NULL, 0)                                               \
+  T(BIGINT, nullptr, 0)                                            \
                                                                    \
   /* Identifiers (not keywords or future reserved words). */       \
   T(IDENTIFIER, nullptr, 0)                                        \
