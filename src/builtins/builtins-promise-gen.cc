@@ -330,16 +330,15 @@ void PromiseBuiltinsAssembler::AppendPromiseCallback(int offset, Node* promise,
   Node* delta = IntPtrOrSmiConstant(1, mode);
   Node* new_capacity = IntPtrOrSmiAdd(length, delta, mode);
 
-  const ElementsKind kind = PACKED_ELEMENTS;
   const WriteBarrierMode barrier_mode = UPDATE_WRITE_BARRIER;
-  const CodeStubAssembler::AllocationFlags flags =
-      CodeStubAssembler::kAllowLargeObjectAllocation;
   int additional_offset = 0;
 
-  Node* new_elements = AllocateFixedArray(kind, new_capacity, mode, flags);
+  ExtractFixedArrayFlags flags;
+  flags |= ExtractFixedArrayFlag::kFixedArrays;
+  flags |= ExtractFixedArrayFlag::kForceCOWCopy;
+  Node* new_elements =
+      ExtractFixedArray(elements, nullptr, length, new_capacity, flags, mode);
 
-  CopyFixedArrayElements(kind, elements, new_elements, length, barrier_mode,
-                         mode);
   StoreFixedArrayElement(new_elements, length, value, barrier_mode,
                          additional_offset, mode);
 

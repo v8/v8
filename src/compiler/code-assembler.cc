@@ -281,12 +281,13 @@ bool CodeAssembler::ToInt64Constant(Node* node, int64_t& out_value) {
 bool CodeAssembler::ToSmiConstant(Node* node, Smi*& out_value) {
   if (node->opcode() == IrOpcode::kBitcastWordToTaggedSigned) {
     node = node->InputAt(0);
-  } else {
-    return false;
   }
   IntPtrMatcher m(node);
   if (m.HasValue()) {
-    out_value = Smi::cast(bit_cast<Object*>(m.Value()));
+    intptr_t value = m.Value();
+    // Make sure that the value is actually a smi
+    CHECK_EQ(0, value & ((static_cast<intptr_t>(1) << kSmiShiftSize) - 1));
+    out_value = Smi::cast(bit_cast<Object*>(value));
     return true;
   }
   return false;

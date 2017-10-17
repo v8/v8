@@ -31,37 +31,13 @@ TF_BUILTIN(CopyFastSmiOrObjectElements, CodeStubAssembler) {
   Node* object = Parameter(Descriptor::kObject);
 
   // Load the {object}s elements.
-  Node* source = LoadElements(object);
-
-  ParameterMode mode = OptimalParameterMode();
-  Node* length = TaggedToParameter(LoadFixedArrayBaseLength(source), mode);
-
-  // Check if we can allocate in new space.
-  ElementsKind kind = PACKED_ELEMENTS;
-  int max_elements = FixedArrayBase::GetMaxLengthForNewSpaceAllocation(kind);
-  Label if_newspace(this), if_lospace(this, Label::kDeferred);
-  Branch(UintPtrOrSmiLessThan(length, IntPtrOrSmiConstant(max_elements, mode),
-                              mode),
-         &if_newspace, &if_lospace);
-
-  BIND(&if_newspace);
-  {
-    Node* target = AllocateFixedArray(kind, length, mode);
-    CopyFixedArrayElements(kind, source, target, length, SKIP_WRITE_BARRIER,
-                           mode);
-    StoreObjectField(object, JSObject::kElementsOffset, target);
-    Return(target);
-  }
-
-  BIND(&if_lospace);
-  {
-    Node* target =
-        AllocateFixedArray(kind, length, mode, kAllowLargeObjectAllocation);
-    CopyFixedArrayElements(kind, source, target, length, UPDATE_WRITE_BARRIER,
-                           mode);
-    StoreObjectField(object, JSObject::kElementsOffset, target);
-    Return(target);
-  }
+  Node* source = LoadObjectField(object, JSObject::kElementsOffset);
+  ExtractFixedArrayFlags flags;
+  flags |= ExtractFixedArrayFlag::kFixedArrays;
+  flags |= ExtractFixedArrayFlag::kForceCOWCopy;
+  Node* target = CloneFixedArray(source, flags);
+  StoreObjectField(object, JSObject::kElementsOffset, target);
+  Return(target);
 }
 
 TF_BUILTIN(GrowFastDoubleElements, CodeStubAssembler) {

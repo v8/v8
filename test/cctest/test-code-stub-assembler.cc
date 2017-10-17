@@ -2854,6 +2854,221 @@ TEST(NumberAddSub) {
   CHECK_EQ(ft_sub.CallChecked<HeapNumber>(double_a, smi_1)->value(), 1.5);
 }
 
+TEST(CloneEmptyFixedArray) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    m.Return(m.CloneFixedArray(m.Parameter(0)));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<FixedArray> source(isolate->factory()->empty_fixed_array());
+  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  FixedArray* result(FixedArray::cast(*result_raw));
+  CHECK_EQ(0, result->length());
+  CHECK_EQ(*(isolate->factory()->empty_fixed_array()), result);
+}
+
+TEST(CloneFixedArray) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    m.Return(m.CloneFixedArray(m.Parameter(0)));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
+  source->set(1, Smi::FromInt(1234));
+  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  FixedArray* result(FixedArray::cast(*result_raw));
+  CHECK_EQ(5, result->length());
+  CHECK(result->get(0)->IsTheHole(isolate));
+  CHECK_EQ(Smi::cast(result->get(1))->value(), 1234);
+  CHECK(result->get(2)->IsTheHole(isolate));
+  CHECK(result->get(3)->IsTheHole(isolate));
+  CHECK(result->get(4)->IsTheHole(isolate));
+}
+
+TEST(CloneFixedArrayCOW) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    m.Return(m.CloneFixedArray(m.Parameter(0)));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
+  source->set(1, Smi::FromInt(1234));
+  source->set_map(isolate->heap()->fixed_cow_array_map());
+  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  FixedArray* result(FixedArray::cast(*result_raw));
+  CHECK_EQ(*source, result);
+}
+
+TEST(CloneFixedArrayCOWForceCopy) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    CodeStubAssembler::ExtractFixedArrayFlags flags;
+    flags |= CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays;
+    flags |= CodeStubAssembler::ExtractFixedArrayFlag::kForceCOWCopy;
+    m.Return(m.CloneFixedArray(m.Parameter(0), flags));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
+  source->set(1, Smi::FromInt(1234));
+  source->set_map(isolate->heap()->fixed_cow_array_map());
+  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  FixedArray* result(FixedArray::cast(*result_raw));
+  CHECK_NE(*source, result);
+  CHECK_EQ(5, result->length());
+  CHECK(result->get(0)->IsTheHole(isolate));
+  CHECK_EQ(Smi::cast(result->get(1))->value(), 1234);
+  CHECK(result->get(2)->IsTheHole(isolate));
+  CHECK(result->get(3)->IsTheHole(isolate));
+  CHECK(result->get(4)->IsTheHole(isolate));
+}
+
+TEST(ExtractFixedArraySimple) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 3;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    m.Return(m.ExtractFixedArray(
+        m.Parameter(0), m.Parameter(1), m.Parameter(2), nullptr,
+        CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays,
+        CodeStubAssembler::SMI_PARAMETERS));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
+  source->set(1, Smi::FromInt(1234));
+  Handle<Object> result_raw =
+      ft.Call(source, Handle<Smi>(Smi::FromInt(1), isolate),
+              Handle<Smi>(Smi::FromInt(2), isolate))
+          .ToHandleChecked();
+  FixedArray* result(FixedArray::cast(*result_raw));
+  CHECK_EQ(2, result->length());
+  CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
+  CHECK(result->get(1)->IsTheHole(isolate));
+}
+
+TEST(ExtractFixedArraySimpleSmiConstant) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    m.Return(m.ExtractFixedArray(
+        m.Parameter(0), m.SmiConstant(1), m.SmiConstant(2), nullptr,
+        CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays,
+        CodeStubAssembler::SMI_PARAMETERS));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
+  source->set(1, Smi::FromInt(1234));
+  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  FixedArray* result(FixedArray::cast(*result_raw));
+  CHECK_EQ(2, result->length());
+  CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
+  CHECK(result->get(1)->IsTheHole(isolate));
+}
+
+TEST(ExtractFixedArraySimpleIntPtrConstant) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    m.Return(m.ExtractFixedArray(
+        m.Parameter(0), m.IntPtrConstant(1), m.IntPtrConstant(2), nullptr,
+        CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays,
+        CodeStubAssembler::INTPTR_PARAMETERS));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
+  source->set(1, Smi::FromInt(1234));
+  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  FixedArray* result(FixedArray::cast(*result_raw));
+  CHECK_EQ(2, result->length());
+  CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
+  CHECK(result->get(1)->IsTheHole(isolate));
+}
+
+TEST(ExtractFixedArraySimpleIntPtrConstantNoDoubles) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 1;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    m.Return(m.ExtractFixedArray(
+        m.Parameter(0), m.IntPtrConstant(1), m.IntPtrConstant(2), nullptr,
+        CodeStubAssembler::ExtractFixedArrayFlag::kFixedArrays,
+        CodeStubAssembler::INTPTR_PARAMETERS));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
+  source->set(1, Smi::FromInt(1234));
+  Handle<Object> result_raw = ft.Call(source).ToHandleChecked();
+  FixedArray* result(FixedArray::cast(*result_raw));
+  CHECK_EQ(2, result->length());
+  CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
+  CHECK(result->get(1)->IsTheHole(isolate));
+}
+
+TEST(ExtractFixedArraySimpleIntPtrParameters) {
+  Isolate* isolate(CcTest::InitIsolateOnce());
+  const int kNumParams = 3;
+  CodeAssemblerTester asm_tester(isolate, kNumParams);
+  {
+    CodeStubAssembler m(asm_tester.state());
+    Node* p1_untagged = m.SmiUntag(m.Parameter(1));
+    Node* p2_untagged = m.SmiUntag(m.Parameter(2));
+    m.Return(m.ExtractFixedArray(m.Parameter(0), p1_untagged, p2_untagged));
+  }
+  FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
+
+  Handle<FixedArray> source(isolate->factory()->NewFixedArrayWithHoles(5));
+  source->set(1, Smi::FromInt(1234));
+  Handle<Object> result_raw =
+      ft.Call(source, Handle<Smi>(Smi::FromInt(1), isolate),
+              Handle<Smi>(Smi::FromInt(2), isolate))
+          .ToHandleChecked();
+  FixedArray* result(FixedArray::cast(*result_raw));
+  CHECK_EQ(2, result->length());
+  CHECK_EQ(Smi::cast(result->get(0))->value(), 1234);
+  CHECK(result->get(1)->IsTheHole(isolate));
+
+  Handle<FixedDoubleArray> source_double(Handle<FixedDoubleArray>::cast(
+      isolate->factory()->NewFixedDoubleArray(5)));
+  source_double->set(0, 10);
+  source_double->set(1, 11);
+  source_double->set(2, 12);
+  source_double->set(3, 13);
+  source_double->set(4, 14);
+  Handle<Object> double_result_raw =
+      ft.Call(source_double, Handle<Smi>(Smi::FromInt(1), isolate),
+              Handle<Smi>(Smi::FromInt(2), isolate))
+          .ToHandleChecked();
+  FixedDoubleArray* double_result(FixedDoubleArray::cast(*double_result_raw));
+  CHECK_EQ(2, double_result->length());
+  CHECK_EQ(double_result->get_scalar(0), 11);
+  CHECK_EQ(double_result->get_scalar(1), 12);
+}
+
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

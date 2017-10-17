@@ -78,7 +78,7 @@ ArgumentsBuiltinsAssembler::AllocateArgumentsObject(Node* map,
     base_size += FixedArray::kHeaderSize;
     element_count = IntPtrOrSmiAdd(element_count, parameter_map_count, mode);
   }
-  bool empty = IsIntPtrOrSmiConstantZero(arguments_count);
+  bool empty = IsIntPtrOrSmiConstantZero(arguments_count, mode);
   DCHECK_IMPLIES(empty, parameter_map_count == nullptr);
   Node* size =
       empty ? IntPtrConstant(base_size)
