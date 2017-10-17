@@ -41,9 +41,8 @@ int GetSlotSizeInBytes(MachineRepresentation rep) {
 }
 
 // Forward declaration.
-Handle<Code> BuildTeardownFunction(
-    Isolate* isolate, CallDescriptor* descriptor,
-    std::vector<MachineRepresentation> parameter_types);
+Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
+                                   std::vector<AllocatedOperand> parameters);
 
 // Build the `setup` function. It takes a code object and a FixedArray as
 // parameters and calls the former while passing it each element of the array as
@@ -65,21 +64,20 @@ Handle<Code> BuildTeardownFunction(
 // | kFloat32       | HeapNumber         | Load value and convert to Float32. |
 // | kFloat64       | HeapNumber         | Load value.                        |
 //
-Handle<Code> BuildSetupFunction(
-    Isolate* isolate, CallDescriptor* descriptor,
-    std::vector<MachineRepresentation> parameter_types) {
+Handle<Code> BuildSetupFunction(Isolate* isolate, CallDescriptor* descriptor,
+                                std::vector<AllocatedOperand> parameters) {
   CodeAssemblerTester tester(isolate, 2);
   CodeStubAssembler assembler(tester.state());
   std::vector<Node*> params;
   // The first parameter is always the callee.
   params.push_back(__ Parameter(0));
-  params.push_back(__ HeapConstant(
-      BuildTeardownFunction(isolate, descriptor, parameter_types)));
+  params.push_back(
+      __ HeapConstant(BuildTeardownFunction(isolate, descriptor, parameters)));
   Node* state_in = __ Parameter(1);
-  for (int i = 0; i < static_cast<int>(parameter_types.size()); i++) {
+  for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     Node* element = __ LoadFixedArrayElement(state_in, __ IntPtrConstant(i));
     // Unbox all elements before passing them as arguments.
-    switch (parameter_types[i]) {
+    switch (parameters[i].representation()) {
       // Tagged parameters are Smis, they do not need unboxing.
       case MachineRepresentation::kTagged:
         break;
@@ -102,8 +100,7 @@ Handle<Code> BuildSetupFunction(
 }
 
 // Build the `teardown` function. It allocates and fills a FixedArray with all
-// its parameters. The types of the parameters need to be consistent with
-// `parameter_types`.
+// its parameters. The parameters need to be consistent with `parameters`.
 // ~~~
 // FixedArray teardown(CodeObject* /* unused  */,
 //                     // Tagged registers.
@@ -130,17 +127,16 @@ Handle<Code> BuildSetupFunction(
 // HeapNumber. This is because `AssembleMove` will allocate a new HeapNumber if
 // it is asked to move a FP constant to a tagged register or slot.
 //
-Handle<Code> BuildTeardownFunction(
-    Isolate* isolate, CallDescriptor* descriptor,
-    std::vector<MachineRepresentation> parameter_types) {
+Handle<Code> BuildTeardownFunction(Isolate* isolate, CallDescriptor* descriptor,
+                                   std::vector<AllocatedOperand> parameters) {
   CodeAssemblerTester tester(isolate, descriptor);
   CodeStubAssembler assembler(tester.state());
   Node* result_array = __ AllocateFixedArray(
-      PACKED_ELEMENTS, __ IntPtrConstant(parameter_types.size()));
-  for (int i = 0; i < static_cast<int>(parameter_types.size()); i++) {
+      PACKED_ELEMENTS, __ IntPtrConstant(parameters.size()));
+  for (int i = 0; i < static_cast<int>(parameters.size()); i++) {
     // The first argument is not used.
     Node* param = __ Parameter(i + 1);
-    switch (parameter_types[i]) {
+    switch (parameters[i].representation()) {
       case MachineRepresentation::kTagged:
         break;
       // Box FP values into HeapNumbers.
@@ -159,6 +155,36 @@ Handle<Code> BuildTeardownFunction(
   }
   __ Return(result_array);
   return tester.GenerateCodeCloseAndEscape();
+}
+
+// Print the content of `value`, representing the register or stack slot
+// described by `operand`.
+void PrintStateValue(std::ostream& os, Handle<Object> value,
+                     AllocatedOperand operand) {
+  switch (operand.representation()) {
+    case MachineRepresentation::kTagged:
+      if (value->IsSmi()) {
+        os << Smi::cast(*value)->value();
+      } else {
+        os << value->Number();
+      }
+      break;
+    case MachineRepresentation::kFloat32:
+    case MachineRepresentation::kFloat64:
+      os << value->Number();
+      break;
+    default:
+      UNREACHABLE();
+      break;
+  }
+  os << " (" << operand.representation() << " ";
+  if (operand.location_kind() == AllocatedOperand::REGISTER) {
+    os << "register";
+  } else {
+    DCHECK_EQ(operand.location_kind(), AllocatedOperand::STACK_SLOT);
+    os << "stack slot";
+  }
+  os << ")";
 }
 
 }  // namespace
@@ -400,10 +426,10 @@ class TestEnvironment : public HandleAndZoneScope {
   void AddConstant(MachineRepresentation rep, int virtual_register) {
     auto entry = allocated_constants_.find(rep);
     if (entry == allocated_constants_.end()) {
-      std::vector<int> vregs = {virtual_register};
-      allocated_constants_.emplace(rep, vregs);
+      allocated_constants_.emplace(
+          rep, std::vector<ConstantOperand>{ConstantOperand(virtual_register)});
     } else {
-      entry->second.push_back(virtual_register);
+      entry->second.emplace_back(virtual_register);
     }
   }
 
@@ -414,29 +440,29 @@ class TestEnvironment : public HandleAndZoneScope {
 
   void AddRegister(LocationSignature::Builder* test_signature,
                    MachineRepresentation rep, int code) {
-    layout_.push_back(rep);
+    AllocatedOperand operand(AllocatedOperand::REGISTER, rep, code);
+    layout_.push_back(operand);
     test_signature->AddParam(LinkageLocation::ForRegister(
         code, MachineType::TypeForRepresentation(rep)));
     auto entry = allocated_registers_.find(rep);
     if (entry == allocated_registers_.end()) {
-      std::vector<int> codes = {code};
-      allocated_registers_.emplace(rep, codes);
+      allocated_registers_.emplace(rep, std::vector<AllocatedOperand>{operand});
     } else {
-      entry->second.push_back(code);
+      entry->second.push_back(operand);
     }
   }
 
   void AddStackSlot(LocationSignature::Builder* test_signature,
                     MachineRepresentation rep, int slot) {
-    layout_.push_back(rep);
+    AllocatedOperand operand(AllocatedOperand::STACK_SLOT, rep, slot);
+    layout_.push_back(operand);
     test_signature->AddParam(LinkageLocation::ForCallerFrameSlot(
         slot, MachineType::TypeForRepresentation(rep)));
     auto entry = allocated_slots_.find(rep);
     if (entry == allocated_slots_.end()) {
-      std::vector<int> slots = {slot};
-      allocated_slots_.emplace(rep, slots);
+      allocated_slots_.emplace(rep, std::vector<AllocatedOperand>{operand});
     } else {
-      entry->second.push_back(slot);
+      entry->second.push_back(operand);
     }
   }
 
@@ -447,7 +473,7 @@ class TestEnvironment : public HandleAndZoneScope {
     Handle<FixedArray> state = main_isolate()->factory()->NewFixedArray(
         static_cast<int>(layout_.size()));
     for (int i = 0; i < state->length(); i++) {
-      switch (layout_[i]) {
+      switch (layout_[i].representation()) {
         case MachineRepresentation::kTagged:
           state->set(i, Smi::FromInt(rng_->NextInt(Smi::kMaxValue)));
           break;
@@ -490,23 +516,108 @@ class TestEnvironment : public HandleAndZoneScope {
     return state_out;
   }
 
-  // Make sure that the given state is type-consistent with the current layout.
-  void CheckState(Handle<FixedArray> state) {
-    for (int i = 0; i < state->length(); i++) {
-      Handle<Object> value = state->GetValueChecked<Object>(main_isolate(), i);
-      switch (layout_[i]) {
-        // Tagged elements may contain a HeapNumber if a float constant was
-        // placed there.
-        case MachineRepresentation::kTagged:
-          CHECK(value->IsSmi() || value->IsHeapNumber());
-          break;
-        case MachineRepresentation::kFloat32:
-        case MachineRepresentation::kFloat64:
-          CHECK(value->IsHeapNumber());
-          break;
-        default:
-          UNREACHABLE();
-          break;
+  // For a given operand representing either a register or a stack slot, return
+  // what position it should live in inside a FixedArray state.
+  int OperandToStatePosition(const AllocatedOperand& operand) const {
+    // Search `layout_` for `operand`.
+    auto it = std::find_if(layout_.cbegin(), layout_.cend(),
+                           [operand](const AllocatedOperand& this_operand) {
+                             return this_operand.Equals(operand);
+                           });
+    DCHECK_NE(it, layout_.cend());
+    return static_cast<int>(std::distance(layout_.cbegin(), it));
+  }
+
+  // Perform the given list of moves on `state_in` and return a newly allocated
+  // state with the results.
+  Handle<FixedArray> SimulateMoves(ParallelMove* moves,
+                                   Handle<FixedArray> state_in) {
+    Handle<FixedArray> state_out = main_isolate()->factory()->NewFixedArray(
+        static_cast<int>(layout_.size()));
+    // We do not want to modify `state_in` in place so perform the moves on a
+    // copy.
+    state_in->CopyTo(0, *state_out, 0, state_in->length());
+    for (auto move : *moves) {
+      int to_index =
+          OperandToStatePosition(AllocatedOperand::cast(move->destination()));
+      InstructionOperand from = move->source();
+      if (from.IsConstant()) {
+        Constant constant =
+            code_.GetConstant(ConstantOperand::cast(from).virtual_register());
+        Handle<Object> constant_value;
+        switch (constant.type()) {
+          case Constant::kInt32:
+            constant_value =
+                Handle<Smi>(reinterpret_cast<Smi*>(
+                                static_cast<intptr_t>(constant.ToInt32())),
+                            main_isolate());
+            break;
+          case Constant::kInt64:
+            constant_value =
+                Handle<Smi>(reinterpret_cast<Smi*>(
+                                static_cast<intptr_t>(constant.ToInt64())),
+                            main_isolate());
+            break;
+          case Constant::kFloat32:
+            constant_value = main_isolate()->factory()->NewHeapNumber(
+                static_cast<double>(constant.ToFloat32()));
+            break;
+          case Constant::kFloat64:
+            constant_value = main_isolate()->factory()->NewHeapNumber(
+                constant.ToFloat64().value());
+            break;
+          default:
+            UNREACHABLE();
+            break;
+        }
+        state_out->set(to_index, *constant_value);
+      } else {
+        int from_index = OperandToStatePosition(AllocatedOperand::cast(from));
+        state_out->set(to_index, *state_out->GetValueChecked<Object>(
+                                     main_isolate(), from_index));
+      }
+    }
+    return state_out;
+  }
+
+  // Perform the given list of swaps on `state_in` and return a newly allocated
+  // state with the results.
+  Handle<FixedArray> SimulateSwaps(ParallelMove* swaps,
+                                   Handle<FixedArray> state_in) {
+    Handle<FixedArray> state_out = main_isolate()->factory()->NewFixedArray(
+        static_cast<int>(layout_.size()));
+    // We do not want to modify `state_in` in place so perform the swaps on a
+    // copy.
+    state_in->CopyTo(0, *state_out, 0, state_in->length());
+    for (auto swap : *swaps) {
+      int lhs_index =
+          OperandToStatePosition(AllocatedOperand::cast(swap->destination()));
+      int rhs_index =
+          OperandToStatePosition(AllocatedOperand::cast(swap->source()));
+      Handle<Object> lhs =
+          state_out->GetValueChecked<Object>(main_isolate(), lhs_index);
+      Handle<Object> rhs =
+          state_out->GetValueChecked<Object>(main_isolate(), rhs_index);
+      state_out->set(lhs_index, *rhs);
+      state_out->set(rhs_index, *lhs);
+    }
+    return state_out;
+  }
+
+  // Compare the given state with a reference.
+  void CheckState(Handle<FixedArray> actual, Handle<FixedArray> expected) {
+    for (int i = 0; i < static_cast<int>(layout_.size()); i++) {
+      Handle<Object> actual_value =
+          actual->GetValueChecked<Object>(main_isolate(), i);
+      Handle<Object> expected_value =
+          expected->GetValueChecked<Object>(main_isolate(), i);
+      if (!actual_value->StrictEquals(*expected_value)) {
+        std::ostringstream expected_str;
+        PrintStateValue(expected_str, expected_value, layout_[i]);
+        std::ostringstream actual_str;
+        PrintStateValue(actual_str, actual_value, layout_[i]);
+        V8_Fatal(__FILE__, __LINE__, "Expected: '%s' but got '%s'",
+                 expected_str.str().c_str(), actual_str.str().c_str());
       }
     }
   }
@@ -585,23 +696,21 @@ class TestEnvironment : public HandleAndZoneScope {
     UNREACHABLE();
   }
 
-  InstructionOperand CreateRandomRegisterOperand(MachineRepresentation rep) {
+  AllocatedOperand CreateRandomRegisterOperand(MachineRepresentation rep) {
     int index =
         rng_->NextInt(static_cast<int>(allocated_registers_[rep].size()));
-    return AllocatedOperand(LocationOperand::REGISTER, rep,
-                            allocated_registers_[rep][index]);
+    return allocated_registers_[rep][index];
   }
 
-  InstructionOperand CreateRandomStackSlotOperand(MachineRepresentation rep) {
+  AllocatedOperand CreateRandomStackSlotOperand(MachineRepresentation rep) {
     int index = rng_->NextInt(static_cast<int>(allocated_slots_[rep].size()));
-    return AllocatedOperand(LocationOperand::STACK_SLOT, rep,
-                            allocated_slots_[rep][index]);
+    return allocated_slots_[rep][index];
   }
 
-  InstructionOperand CreateRandomConstant(MachineRepresentation rep) {
+  ConstantOperand CreateRandomConstant(MachineRepresentation rep) {
     int index =
         rng_->NextInt(static_cast<int>(allocated_constants_[rep].size()));
-    return ConstantOperand(allocated_constants_[rep][index]);
+    return allocated_constants_[rep][index];
   }
 
   v8::base::RandomNumberGenerator* rng() const { return rng_; }
@@ -612,16 +721,18 @@ class TestEnvironment : public HandleAndZoneScope {
   ZoneVector<InstructionBlock*> blocks_;
   InstructionSequence code_;
   v8::base::RandomNumberGenerator* rng_;
-  // The layout describes the type of each element in the environment, in
-  // order, while the test_descriptor describes if they are slots or registers.
-  std::vector<MachineRepresentation> layout_;
+  // The layout describes the type of each element in the environment, in order.
+  std::vector<AllocatedOperand> layout_;
   CallDescriptor* test_descriptor_;
   // Allocated constants, registers and stack slots that we can generate moves
   // with. Each per compatible representation.
   std::vector<MachineRepresentation> supported_reps_;
-  std::map<MachineRepresentation, std::vector<int>> allocated_constants_;
-  std::map<MachineRepresentation, std::vector<int>> allocated_registers_;
-  std::map<MachineRepresentation, std::vector<int>> allocated_slots_;
+  std::map<MachineRepresentation, std::vector<ConstantOperand>>
+      allocated_constants_;
+  std::map<MachineRepresentation, std::vector<AllocatedOperand>>
+      allocated_registers_;
+  std::map<MachineRepresentation, std::vector<AllocatedOperand>>
+      allocated_slots_;
 };
 
 // Wrapper around the CodeGenerator. Code generated by this can only be called
@@ -752,11 +863,10 @@ class CodeGeneratorTester {
 // stack slots will be initialised according to this FixedArray. A new
 // FixedArray is returned containing values that were moved by the generated
 // code.
-
-// TODO(planglois): We are only checking that the resulting FixedArray is
-// consistent with itself. For example, we check that no Smi is where a FP value
-// should be. We need to compare the result with a reference simulation of
-// AssembleMove and AssembleSwap as well.
+//
+// And finally, we are able to compare the resulting FixedArray against a
+// reference, computed with a simulation of AssembleMove and AssembleSwap. See
+// SimulateMoves and SimulateSwaps.
 
 TEST(FuzzAssembleMove) {
   TestEnvironment env;
@@ -774,8 +884,9 @@ TEST(FuzzAssembleMove) {
     test->Print();
   }
 
-  Handle<FixedArray> state_out = env.Run(test, state_in);
-  env.CheckState(state_out);
+  Handle<FixedArray> actual = env.Run(test, state_in);
+  Handle<FixedArray> expected = env.SimulateMoves(moves, state_in);
+  env.CheckState(actual, expected);
 }
 
 TEST(FuzzAssembleSwap) {
@@ -794,8 +905,9 @@ TEST(FuzzAssembleSwap) {
     test->Print();
   }
 
-  Handle<FixedArray> state_out = env.Run(test, state_in);
-  env.CheckState(state_out);
+  Handle<FixedArray> actual = env.Run(test, state_in);
+  Handle<FixedArray> expected = env.SimulateSwaps(swaps, state_in);
+  env.CheckState(actual, expected);
 }
 
 TEST(FuzzAssembleMoveAndSwap) {
@@ -803,15 +915,20 @@ TEST(FuzzAssembleMoveAndSwap) {
   CodeGeneratorTester c(&env);
 
   Handle<FixedArray> state_in = env.GenerateInitialState();
+  Handle<FixedArray> expected =
+      env.main_isolate()->factory()->NewFixedArray(state_in->length());
+  state_in->CopyTo(0, *expected, 0, state_in->length());
 
   for (int i = 0; i < 1000; i++) {
     // Randomly alternate between swaps and moves.
     if (env.rng()->NextInt(2) == 0) {
-      MoveOperands* move = env.GenerateRandomMoves(1)->at(0);
-      c.CheckAssembleMove(&move->source(), &move->destination());
+      ParallelMove* move = env.GenerateRandomMoves(1);
+      expected = env.SimulateMoves(move, expected);
+      c.CheckAssembleMove(&move->at(0)->source(), &move->at(0)->destination());
     } else {
-      MoveOperands* move = env.GenerateRandomSwaps(1)->at(0);
-      c.CheckAssembleSwap(&move->source(), &move->destination());
+      ParallelMove* swap = env.GenerateRandomSwaps(1);
+      expected = env.SimulateSwaps(swap, expected);
+      c.CheckAssembleSwap(&swap->at(0)->source(), &swap->at(0)->destination());
     }
   }
 
@@ -820,8 +937,8 @@ TEST(FuzzAssembleMoveAndSwap) {
     test->Print();
   }
 
-  Handle<FixedArray> state_out = env.Run(test, state_in);
-  env.CheckState(state_out);
+  Handle<FixedArray> actual = env.Run(test, state_in);
+  env.CheckState(actual, expected);
 }
 
 TEST(AssembleTailCallGap) {
