@@ -484,7 +484,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   DCHECK(jssp.Is(__ StackPointer()));
   if (!argv_in_register()) {
     // Drop the remaining stack slots and return from the stub.
-    __ Drop(x11);
+    __ DropArguments(x11);
   }
   __ AssertFPCRState();
   __ Ret();

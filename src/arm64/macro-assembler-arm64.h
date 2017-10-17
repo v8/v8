@@ -695,18 +695,25 @@ class TurboAssembler : public Assembler {
   inline void Drop(const Register& count, uint64_t unit_size = kXRegSize);
 
   // Drop arguments from stack without actually accessing memory.
-  // This will currently drop 'count' arguments of the given size from the
-  // stack.
+  // This will currently drop 'count' arguments from the stack.
+  // We assume the size of the arguments is the pointer size.
+  // An optional mode argument is passed, which can indicate we need to
+  // explicitly add the receiver to the count.
   // TODO(arm64): Update this to round up the number of bytes dropped to
   // a multiple of 16, so that we can remove jssp.
+  enum ArgumentsCountMode { kCountIncludesReceiver, kCountExcludesReceiver };
   inline void DropArguments(const Register& count,
-                            uint64_t unit_size = kXRegSize);
+                            ArgumentsCountMode mode = kCountIncludesReceiver);
 
   // Drop slots from stack without actually accessing memory.
   // This will currently drop 'count' slots of the given size from the stack.
   // TODO(arm64): Update this to round up the number of bytes dropped to
   // a multiple of 16, so that we can remove jssp.
   inline void DropSlots(int64_t count, uint64_t unit_size = kXRegSize);
+
+  // Push a single argument to the stack.
+  // TODO(arm64): Update this to push a padding slot above the argument.
+  inline void PushArgument(const Register& arg);
 
   // Re-synchronizes the system stack pointer (csp) with the current stack
   // pointer (according to StackPointer()).

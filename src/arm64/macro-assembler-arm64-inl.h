@@ -1353,13 +1353,23 @@ void TurboAssembler::Drop(const Register& count, uint64_t unit_size) {
   }
 }
 
-void TurboAssembler::DropArguments(const Register& count, uint64_t unit_size) {
-  Drop(count, unit_size);
+void TurboAssembler::DropArguments(const Register& count,
+                                   ArgumentsCountMode mode) {
+  if (mode == kCountExcludesReceiver) {
+    UseScratchRegisterScope temps(this);
+    Register tmp = temps.AcquireX();
+    Add(tmp, count, 1);
+    Drop(tmp);
+  } else {
+    Drop(count);
+  }
 }
 
 void TurboAssembler::DropSlots(int64_t count, uint64_t unit_size) {
   Drop(count, unit_size);
 }
+
+void TurboAssembler::PushArgument(const Register& arg) { Push(arg); }
 
 void MacroAssembler::DropBySMI(const Register& count_smi, uint64_t unit_size) {
   DCHECK(unit_size == 0 || base::bits::IsPowerOfTwo(unit_size));

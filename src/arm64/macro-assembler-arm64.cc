@@ -2254,10 +2254,10 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
     if (new_target.is_valid()) {
       Push(new_target);
     }
-    Push(fun);
-    Push(fun);
+    Push(fun, padreg);
+    PushArgument(fun);
     CallRuntime(Runtime::kDebugOnFunctionCall);
-    Pop(fun);
+    Pop(padreg, fun);
     if (new_target.is_valid()) {
       Pop(new_target);
     }
