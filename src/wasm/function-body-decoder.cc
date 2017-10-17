@@ -60,12 +60,12 @@ struct SsaEnv {
   }
 };
 
-// Macros that build nodes only if there is a graph and the current SSA
-// environment is reachable from start. This avoids problems with malformed
-// TF graphs when decoding inputs that have unreachable code.
-#define BUILD(func, ...)                                                    \
-  (build(decoder) ? CheckForException(decoder, builder_->func(__VA_ARGS__)) \
-                  : nullptr)
+#define BUILD(func, ...)                                            \
+  ([&] {                                                            \
+    DCHECK(ssa_env_->go());                                         \
+    DCHECK(decoder->ok());                                          \
+    return CheckForException(decoder, builder_->func(__VA_ARGS__)); \
+  })()
 
 constexpr uint32_t kNullCatch = static_cast<uint32_t>(-1);
 
@@ -193,7 +193,7 @@ class WasmGraphBuildingInterface {
   void If(Decoder* decoder, const Value& cond, Control* if_block) {
     TFNode* if_true = nullptr;
     TFNode* if_false = nullptr;
-    BUILD(BranchNoHint, cond.node, &if_true, &if_false);
+    if (ssa_env_->go()) BUILD(BranchNoHint, cond.node, &if_true, &if_false);
     SsaEnv* end_env = ssa_env_;
     SsaEnv* false_env = Split(decoder, ssa_env_);
     false_env->control = if_false;
@@ -510,8 +510,6 @@ class WasmGraphBuildingInterface {
   SsaEnv* ssa_env_;
   TFBuilder* builder_;
   uint32_t current_catch_ = kNullCatch;
-
-  bool build(Decoder* decoder) { return ssa_env_->go() && decoder->ok(); }
 
   TryInfo* current_try_info(Decoder* decoder) {
     return decoder->control_at(decoder->control_depth() - 1 - current_catch_)
@@ -852,7 +850,6 @@ class WasmGraphBuildingInterface {
   void DoCall(WasmFullDecoder<validate, WasmGraphBuildingInterface>* decoder,
               TFNode* index_node, const Operand& operand, const Value args[],
               Value returns[], bool is_indirect) {
-    if (!build(decoder)) return;
     int param_count = static_cast<int>(operand.sig->parameter_count());
     TFNode** arg_nodes = builder_->Buffer(param_count + 1);
     TFNode** return_nodes = nullptr;
