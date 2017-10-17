@@ -171,6 +171,9 @@
   # Allocates a large array buffer, which TSAN sometimes cannot handle.
   'regress/regress-599717': [PASS, ['tsan', SKIP]],
 
+  # BUG(v8:6924). The test uses a lot of memory.
+  'regress/wasm/regression-694433': [PASS, ['tsan', SKIP]],
+
   # TODO(bmeurer): Flaky timeouts (sometimes <1s, sometimes >3m).
   'unicodelctest': [PASS, NO_VARIANTS],
   'unicodelctest-no-optimization': [PASS, NO_VARIANTS],
@@ -627,9 +630,6 @@
 
   # Slow tests.
   'regress/regress-2185-2': [SKIP],
-
-  # BUG(v8:6924). The test uses a lot of memory.
-  'regress/wasm/regression-694433': [PASS, ['tsan', SKIP]],
 }],  # variant == stress
 
 ##############################################################################
