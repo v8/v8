@@ -36,10 +36,6 @@ class DeserializingBuiltinScope {
 BuiltinDeserializer::BuiltinDeserializer(Isolate* isolate,
                                          const BuiltinSnapshotData* data)
     : Deserializer(data, false) {
-  // We may have to relax this at some point to pack reloc infos and handler
-  // tables into the builtin blob (instead of the partial snapshot cache).
-  DCHECK(allocator()->ReservesOnlyCodeSpace());
-
   builtin_offsets_ = data->BuiltinOffsets();
   DCHECK_EQ(Builtins::builtin_count, builtin_offsets_.length());
   DCHECK(std::is_sorted(builtin_offsets_.begin(), builtin_offsets_.end()));
@@ -59,7 +55,7 @@ void BuiltinDeserializer::DeserializeEagerBuiltins() {
       DCHECK_EQ(builtins->builtin(Builtins::kDeserializeLazy),
                 builtins->builtin(i));
     } else {
-      builtins->set_builtin(i, DeserializeBuiltin(i));
+      builtins->set_builtin(i, DeserializeBuiltinRaw(i));
     }
   }
 
@@ -72,6 +68,12 @@ void BuiltinDeserializer::DeserializeEagerBuiltins() {
 }
 
 Code* BuiltinDeserializer::DeserializeBuiltin(int builtin_id) {
+  allocator()->ReserveAndInitializeBuiltinsTableForBuiltin(builtin_id);
+  DisallowHeapAllocation no_gc;
+  return DeserializeBuiltinRaw(builtin_id);
+}
+
+Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
   DCHECK(!AllowHeapAllocation::IsAllowed());
   DCHECK(Builtins::IsBuiltinId(builtin_id));
 
@@ -133,111 +135,6 @@ uint32_t BuiltinDeserializer::ExtractBuiltinSize(int builtin_id) {
   source()->set_position(initial_position);
 
   return result;
-}
-
-Heap::Reservation BuiltinDeserializer::CreateReservationsForEagerBuiltins() {
-  DCHECK(allocator()->ReservesOnlyCodeSpace());
-
-  Heap::Reservation result;
-
-  // DeserializeLazy is always the first reservation (to simplify logic in
-  // InitializeBuiltinsTable).
-  {
-    DCHECK(!Builtins::IsLazy(Builtins::kDeserializeLazy));
-    uint32_t builtin_size = ExtractBuiltinSize(Builtins::kDeserializeLazy);
-    DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
-    result.push_back({builtin_size, nullptr, nullptr});
-  }
-
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (i == Builtins::kDeserializeLazy) continue;
-
-    // Skip lazy builtins. These will be replaced by the DeserializeLazy code
-    // object in InitializeBuiltinsTable and thus require no reserved space.
-    if (IsLazyDeserializationEnabled() && Builtins::IsLazy(i)) continue;
-
-    uint32_t builtin_size = ExtractBuiltinSize(i);
-    DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
-    result.push_back({builtin_size, nullptr, nullptr});
-  }
-
-  return result;
-}
-
-void BuiltinDeserializer::InitializeBuiltinFromReservation(
-    const Heap::Chunk& chunk, int builtin_id) {
-  DCHECK_EQ(ExtractBuiltinSize(builtin_id), chunk.size);
-  DCHECK_EQ(chunk.size, chunk.end - chunk.start);
-
-  SkipList::Update(chunk.start, chunk.size);
-  isolate()->builtins()->set_builtin(builtin_id,
-                                     HeapObject::FromAddress(chunk.start));
-}
-
-void BuiltinDeserializer::InitializeBuiltinsTable(
-    const Heap::Reservation& reservation) {
-  DCHECK(!AllowHeapAllocation::IsAllowed());
-
-  Builtins* builtins = isolate()->builtins();
-  int reservation_index = 0;
-
-  // Other builtins can be replaced by DeserializeLazy so it may not be lazy.
-  // It always occupies the first reservation slot.
-  {
-    DCHECK(!Builtins::IsLazy(Builtins::kDeserializeLazy));
-    InitializeBuiltinFromReservation(reservation[reservation_index],
-                                     Builtins::kDeserializeLazy);
-    reservation_index++;
-  }
-
-  Code* deserialize_lazy = builtins->builtin(Builtins::kDeserializeLazy);
-
-  for (int i = 0; i < Builtins::builtin_count; i++) {
-    if (i == Builtins::kDeserializeLazy) continue;
-
-    if (IsLazyDeserializationEnabled() && Builtins::IsLazy(i)) {
-      builtins->set_builtin(i, deserialize_lazy);
-    } else {
-      InitializeBuiltinFromReservation(reservation[reservation_index], i);
-      reservation_index++;
-    }
-  }
-
-  DCHECK_EQ(reservation.size(), reservation_index);
-}
-
-void BuiltinDeserializer::ReserveAndInitializeBuiltinsTableForBuiltin(
-    int builtin_id) {
-  DCHECK(AllowHeapAllocation::IsAllowed());
-  DCHECK(isolate()->builtins()->is_initialized());
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
-  DCHECK_NE(Builtins::kDeserializeLazy, builtin_id);
-  DCHECK_EQ(Builtins::kDeserializeLazy,
-            isolate()->builtins()->builtin(builtin_id)->builtin_index());
-
-  const uint32_t builtin_size = ExtractBuiltinSize(builtin_id);
-  DCHECK_LE(builtin_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
-
-  Handle<HeapObject> o =
-      isolate()->factory()->NewCodeForDeserialization(builtin_size);
-
-  // Note: After this point and until deserialization finishes, heap allocation
-  // is disallowed. We currently can't safely assert this since we'd need to
-  // pass the DisallowHeapAllocation scope out of this function.
-
-  // Write the allocated filler object into the builtins table. It will be
-  // returned by our custom Allocate method below once needed.
-
-  isolate()->builtins()->set_builtin(builtin_id, *o);
-}
-
-Address BuiltinDeserializer::Allocate(int space_index, int size) {
-  DCHECK_EQ(CODE_SPACE, space_index);
-  DCHECK_EQ(ExtractBuiltinSize(current_builtin_id_), size);
-  Object* obj = isolate()->builtins()->builtin(current_builtin_id_);
-  DCHECK(Internals::HasHeapObjectTag(obj));
-  HeapObject* heap_obj = HeapObject::cast(obj);
-  return heap_obj->address();
 }
 
 }  // namespace internal

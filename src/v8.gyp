@@ -1339,6 +1339,8 @@
         'setup-isolate.h',
         'signature.h',
         'simulator.h',
+        'snapshot/builtin-deserializer-allocator.cc',
+        'snapshot/builtin-deserializer-allocator.h',
         'snapshot/builtin-deserializer.cc',
         'snapshot/builtin-deserializer.h',
         'snapshot/builtin-serializer.cc',
