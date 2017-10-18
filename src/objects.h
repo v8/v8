@@ -4000,7 +4000,8 @@ class JSFunction: public JSObject {
   enum FeedbackVectorState {
     TOP_LEVEL_SCRIPT_NEEDS_VECTOR,
     NEEDS_VECTOR,
-    HAS_VECTOR
+    HAS_VECTOR,
+    NO_VECTOR_NEEDED
   };
 
   inline FeedbackVectorState GetFeedbackVectorState(Isolate* isolate) const;

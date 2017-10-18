@@ -4019,7 +4019,9 @@ bool JSFunction::has_feedback_vector() const {
 JSFunction::FeedbackVectorState JSFunction::GetFeedbackVectorState(
     Isolate* isolate) const {
   Cell* cell = feedback_vector_cell();
-  if (cell == isolate->heap()->undefined_cell()) {
+  if (shared()->HasAsmWasmData()) {
+    return NO_VECTOR_NEEDED;
+  } else if (cell == isolate->heap()->undefined_cell()) {
     return TOP_LEVEL_SCRIPT_NEEDS_VECTOR;
   } else if (cell->value() == isolate->heap()->undefined_value() ||
              !has_feedback_vector()) {

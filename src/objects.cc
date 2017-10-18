@@ -12286,6 +12286,7 @@ void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
       break;
     }
     case HAS_VECTOR:
+    case NO_VECTOR_NEEDED:
       // Nothing to do.
       break;
   }

@@ -1501,7 +1501,7 @@ void Compiler::PostInstantiation(Handle<JSFunction> function,
     }
   }
 
-  if (shared->is_compiled()) {
+  if (shared->is_compiled() && !shared->HasAsmWasmData()) {
     // TODO(mvstanton): pass pretenure flag to EnsureLiterals.
     JSFunction::EnsureLiterals(function);
 
