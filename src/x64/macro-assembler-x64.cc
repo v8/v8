@@ -1134,7 +1134,7 @@ void TurboAssembler::Move(XMMRegister dst, uint32_t src) {
   if (src == 0) {
     Xorpd(dst, dst);
   } else {
-    unsigned pop = base::bits::CountPopulation32(src);
+    unsigned pop = base::bits::CountPopulation(src);
     DCHECK_NE(0u, pop);
     if (pop == 32) {
       Pcmpeqd(dst, dst);
@@ -1151,7 +1151,7 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
   } else {
     unsigned nlz = base::bits::CountLeadingZeros64(src);
     unsigned ntz = base::bits::CountTrailingZeros64(src);
-    unsigned pop = base::bits::CountPopulation64(src);
+    unsigned pop = base::bits::CountPopulation(src);
     DCHECK_NE(0u, pop);
     if (pop == 64) {
       Pcmpeqd(dst, dst);

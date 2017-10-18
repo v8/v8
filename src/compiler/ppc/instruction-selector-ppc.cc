@@ -509,7 +509,7 @@ static void VisitLogical(InstructionSelector* selector, Node* node, Matcher* m,
 
 
 static inline bool IsContiguousMask32(uint32_t value, int* mb, int* me) {
-  int mask_width = base::bits::CountPopulation32(value);
+  int mask_width = base::bits::CountPopulation(value);
   int mask_msb = base::bits::CountLeadingZeros32(value);
   int mask_lsb = base::bits::CountTrailingZeros32(value);
   if ((mask_width == 0) || (mask_msb + mask_width + mask_lsb != 32))
@@ -522,7 +522,7 @@ static inline bool IsContiguousMask32(uint32_t value, int* mb, int* me) {
 
 #if V8_TARGET_ARCH_PPC64
 static inline bool IsContiguousMask64(uint64_t value, int* mb, int* me) {
-  int mask_width = base::bits::CountPopulation64(value);
+  int mask_width = base::bits::CountPopulation(value);
   int mask_msb = base::bits::CountLeadingZeros64(value);
   int mask_lsb = base::bits::CountTrailingZeros64(value);
   if ((mask_width == 0) || (mask_msb + mask_width + mask_lsb != 64))

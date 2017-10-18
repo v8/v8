@@ -3666,7 +3666,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 
   const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
   if (saves_fpu != 0) {
-    int count = base::bits::CountPopulation32(saves_fpu);
+    int count = base::bits::CountPopulation(saves_fpu);
     DCHECK_EQ(kNumCalleeSavedFPU, count);
     frame->AllocateSavedCalleeRegisterSlots(count *
                                             (kDoubleSize / kPointerSize));
@@ -3674,7 +3674,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
 
   const RegList saves = descriptor->CalleeSavedRegisters();
   if (saves != 0) {
-    int count = base::bits::CountPopulation32(saves);
+    int count = base::bits::CountPopulation(saves);
     DCHECK_EQ(kNumCalleeSaved, count + 1);
     frame->AllocateSavedCalleeRegisterSlots(count);
   }
@@ -3721,14 +3721,14 @@ void CodeGenerator::AssembleConstructFrame() {
   if (saves_fpu != 0) {
     // Save callee-saved FPU registers.
     __ MultiPushFPU(saves_fpu);
-    DCHECK_EQ(kNumCalleeSavedFPU, base::bits::CountPopulation32(saves_fpu));
+    DCHECK_EQ(kNumCalleeSavedFPU, base::bits::CountPopulation(saves_fpu));
   }
 
   const RegList saves = descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     // Save callee-saved registers.
     __ MultiPush(saves);
-    DCHECK_EQ(kNumCalleeSaved, base::bits::CountPopulation32(saves) + 1);
+    DCHECK_EQ(kNumCalleeSaved, base::bits::CountPopulation(saves) + 1);
   }
 }
 

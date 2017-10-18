@@ -5943,7 +5943,7 @@ void Simulator::DecodeTypeMsa2R() {
   get_msa_register(instr_.WsValue(), ws.elem);            \
   for (int i = 0; i < num_of_lanes; i++) {                \
     uint64_t u64elem = static_cast<uint64_t>(ws.elem[i]); \
-    wd.elem[i] = base::bits::CountPopulation64(u64elem);  \
+    wd.elem[i] = base::bits::CountPopulation(u64elem);    \
   }                                                       \
   set_msa_register(instr_.WdValue(), wd.elem);            \
   TraceMSARegWr(wd.elem)

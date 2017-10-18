@@ -3010,7 +3010,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   if (saves_fp != 0) {
     frame->AlignSavedCalleeRegisterSlots();
     if (saves_fp != 0) {  // Save callee-saved XMM registers.
-      const uint32_t saves_fp_count = base::bits::CountPopulation32(saves_fp);
+      const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
       frame->AllocateSavedCalleeRegisterSlots(saves_fp_count *
                                               (kQuadWordSize / kPointerSize));
     }
@@ -3098,7 +3098,7 @@ void CodeGenerator::AssembleConstructFrame() {
   }
 
   if (saves_fp != 0) {  // Save callee-saved XMM registers.
-    const uint32_t saves_fp_count = base::bits::CountPopulation32(saves_fp);
+    const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
     const int stack_size = saves_fp_count * kQuadWordSize;
     // Adjust the stack pointer.
     __ subp(rsp, Immediate(stack_size));
@@ -3134,7 +3134,7 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
   }
   const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
   if (saves_fp != 0) {
-    const uint32_t saves_fp_count = base::bits::CountPopulation32(saves_fp);
+    const uint32_t saves_fp_count = base::bits::CountPopulation(saves_fp);
     const int stack_size = saves_fp_count * kQuadWordSize;
     // Load the registers from the stack.
     int slot_idx = 0;

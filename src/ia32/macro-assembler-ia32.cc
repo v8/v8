@@ -1250,7 +1250,7 @@ void TurboAssembler::Move(XMMRegister dst, uint32_t src) {
   if (src == 0) {
     pxor(dst, dst);
   } else {
-    unsigned cnt = base::bits::CountPopulation32(src);
+    unsigned cnt = base::bits::CountPopulation(src);
     unsigned nlz = base::bits::CountLeadingZeros32(src);
     unsigned ntz = base::bits::CountTrailingZeros32(src);
     if (nlz + cnt + ntz == 32) {
@@ -1276,7 +1276,7 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
   } else {
     uint32_t lower = static_cast<uint32_t>(src);
     uint32_t upper = static_cast<uint32_t>(src >> 32);
-    unsigned cnt = base::bits::CountPopulation64(src);
+    unsigned cnt = base::bits::CountPopulation(src);
     unsigned nlz = base::bits::CountLeadingZeros64(src);
     unsigned ntz = base::bits::CountTrailingZeros64(src);
     if (nlz + cnt + ntz == 64) {

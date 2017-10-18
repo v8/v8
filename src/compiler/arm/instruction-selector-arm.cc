@@ -858,7 +858,7 @@ void InstructionSelector::VisitWord32And(Node* node) {
   }
   if (m.right().HasValue()) {
     uint32_t const value = m.right().Value();
-    uint32_t width = base::bits::CountPopulation32(value);
+    uint32_t width = base::bits::CountPopulation(value);
     uint32_t leading_zeros = base::bits::CountLeadingZeros32(value);
 
     // Try to merge SHR operations on the left hand input into this AND.
@@ -1029,7 +1029,7 @@ void InstructionSelector::VisitWord32Shr(Node* node) {
     Int32BinopMatcher mleft(m.left().node());
     if (mleft.right().HasValue()) {
       uint32_t value = (mleft.right().Value() >> lsb) << lsb;
-      uint32_t width = base::bits::CountPopulation32(value);
+      uint32_t width = base::bits::CountPopulation(value);
       uint32_t msb = base::bits::CountLeadingZeros32(value);
       if (msb + width + lsb == 32) {
         DCHECK_EQ(lsb, base::bits::CountTrailingZeros32(value));

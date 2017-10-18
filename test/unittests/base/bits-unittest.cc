@@ -19,27 +19,27 @@ namespace base {
 namespace bits {
 
 TEST(Bits, CountPopulation32) {
-  EXPECT_EQ(0u, CountPopulation32(0));
-  EXPECT_EQ(1u, CountPopulation32(1));
-  EXPECT_EQ(8u, CountPopulation32(0x11111111));
-  EXPECT_EQ(16u, CountPopulation32(0xf0f0f0f0));
-  EXPECT_EQ(24u, CountPopulation32(0xfff0f0ff));
-  EXPECT_EQ(32u, CountPopulation32(0xffffffff));
+  EXPECT_EQ(0u, CountPopulation(uint32_t{0}));
+  EXPECT_EQ(1u, CountPopulation(uint32_t{1}));
+  EXPECT_EQ(8u, CountPopulation(uint32_t{0x11111111}));
+  EXPECT_EQ(16u, CountPopulation(uint32_t{0xf0f0f0f0}));
+  EXPECT_EQ(24u, CountPopulation(uint32_t{0xfff0f0ff}));
+  EXPECT_EQ(32u, CountPopulation(uint32_t{0xffffffff}));
 }
 
 
 TEST(Bits, CountPopulation64) {
-  EXPECT_EQ(0u, CountPopulation64(0));
-  EXPECT_EQ(1u, CountPopulation64(1));
-  EXPECT_EQ(2u, CountPopulation64(0x8000000000000001));
-  EXPECT_EQ(8u, CountPopulation64(0x11111111));
-  EXPECT_EQ(16u, CountPopulation64(0xf0f0f0f0));
-  EXPECT_EQ(24u, CountPopulation64(0xfff0f0ff));
-  EXPECT_EQ(32u, CountPopulation64(0xffffffff));
-  EXPECT_EQ(16u, CountPopulation64(0x1111111111111111));
-  EXPECT_EQ(32u, CountPopulation64(0xf0f0f0f0f0f0f0f0));
-  EXPECT_EQ(48u, CountPopulation64(0xfff0f0fffff0f0ff));
-  EXPECT_EQ(64u, CountPopulation64(0xffffffffffffffff));
+  EXPECT_EQ(0u, CountPopulation(uint64_t{0}));
+  EXPECT_EQ(1u, CountPopulation(uint64_t{1}));
+  EXPECT_EQ(2u, CountPopulation(uint64_t{0x8000000000000001}));
+  EXPECT_EQ(8u, CountPopulation(uint64_t{0x11111111}));
+  EXPECT_EQ(16u, CountPopulation(uint64_t{0xf0f0f0f0}));
+  EXPECT_EQ(24u, CountPopulation(uint64_t{0xfff0f0ff}));
+  EXPECT_EQ(32u, CountPopulation(uint64_t{0xffffffff}));
+  EXPECT_EQ(16u, CountPopulation(uint64_t{0x1111111111111111}));
+  EXPECT_EQ(32u, CountPopulation(uint64_t{0xf0f0f0f0f0f0f0f0}));
+  EXPECT_EQ(48u, CountPopulation(uint64_t{0xfff0f0fffff0f0ff}));
+  EXPECT_EQ(64u, CountPopulation(uint64_t{0xffffffffffffffff}));
 }
 
 

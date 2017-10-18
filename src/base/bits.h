@@ -54,32 +54,31 @@ namespace bits {
     return Name##64(value);                                            \
   }
 
-// CountPopulation32(value) returns the number of bits set in |value|.
-inline unsigned CountPopulation32(uint32_t value) {
+// CountPopulation(value) returns the number of bits set in |value|.
+template <typename T>
+constexpr inline
+    typename std::enable_if<std::is_unsigned<T>::value && sizeof(T) <= 8,
+                            unsigned>::type
+    CountPopulation(T value) {
 #if V8_HAS_BUILTIN_POPCOUNT
-  return __builtin_popcount(value);
+  return sizeof(T) == 8 ? __builtin_popcountll(static_cast<uint64_t>(value))
+                        : __builtin_popcount(static_cast<uint32_t>(value));
 #else
-  value = ((value >> 1) & 0x55555555) + (value & 0x55555555);
-  value = ((value >> 2) & 0x33333333) + (value & 0x33333333);
-  value = ((value >> 4) & 0x0f0f0f0f) + (value & 0x0f0f0f0f);
-  value = ((value >> 8) & 0x00ff00ff) + (value & 0x00ff00ff);
-  value = ((value >> 16) & 0x0000ffff) + (value & 0x0000ffff);
+  constexpr uint64_t mask[] = {0x5555555555555555, 0x3333333333333333,
+                               0x0f0f0f0f0f0f0f0f, 0x00ff00ff00ff00ff,
+                               0x0000ffff0000ffff, 0x00000000ffffffff};
+  value = ((value >> 1) & mask[0]) + (value & mask[0]);
+  value = ((value >> 2) & mask[1]) + (value & mask[1]);
+  value = ((value >> 4) & mask[2]) + (value & mask[2]);
+  if (sizeof(T) > 1)
+    value = ((value >> (sizeof(T) > 1 ? 8 : 0)) & mask[3]) + (value & mask[3]);
+  if (sizeof(T) > 2)
+    value = ((value >> (sizeof(T) > 2 ? 16 : 0)) & mask[4]) + (value & mask[4]);
+  if (sizeof(T) > 4)
+    value = ((value >> (sizeof(T) > 4 ? 32 : 0)) & mask[5]) + (value & mask[5]);
   return static_cast<unsigned>(value);
 #endif
 }
-
-
-// CountPopulation64(value) returns the number of bits set in |value|.
-inline unsigned CountPopulation64(uint64_t value) {
-#if V8_HAS_BUILTIN_POPCOUNT
-  return __builtin_popcountll(value);
-#else
-  return CountPopulation32(static_cast<uint32_t>(value)) +
-         CountPopulation32(static_cast<uint32_t>(value >> 32));
-#endif
-}
-
-DEFINE_32_64_OVERLOADS(CountPopulation)
 
 // CountLeadingZeros32(value) returns the number of zero bits following the most
 // significant 1 bit in |value| if |value| is non-zero, otherwise it returns 32.
@@ -96,7 +95,7 @@ inline unsigned CountLeadingZeros32(uint32_t value) {
   value = value | (value >> 4);
   value = value | (value >> 8);
   value = value | (value >> 16);
-  return CountPopulation32(~value);
+  return CountPopulation(~value);
 #endif
 }
 
@@ -113,7 +112,7 @@ inline unsigned CountLeadingZeros64(uint64_t value) {
   value = value | (value >> 8);
   value = value | (value >> 16);
   value = value | (value >> 32);
-  return CountPopulation64(~value);
+  return CountPopulation(~value);
 #endif
 }
 

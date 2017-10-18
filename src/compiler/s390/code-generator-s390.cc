@@ -2691,7 +2691,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   if (double_saves != 0) {
     frame->AlignSavedCalleeRegisterSlots();
     DCHECK_EQ(kNumCalleeSavedDoubles,
-              base::bits::CountPopulation32(double_saves));
+              base::bits::CountPopulation(double_saves));
     frame->AllocateSavedCalleeRegisterSlots(kNumCalleeSavedDoubles *
                                             (kDoubleSize / kPointerSize));
   }
@@ -2700,7 +2700,7 @@ void CodeGenerator::FinishFrame(Frame* frame) {
   if (saves != 0) {
     // register save area does not include the fp or constant pool pointer.
     const int num_saves = kNumCalleeSaved - 1;
-    DCHECK(num_saves == base::bits::CountPopulation32(saves));
+    DCHECK(num_saves == base::bits::CountPopulation(saves));
     frame->AllocateSavedCalleeRegisterSlots(num_saves);
   }
 }
@@ -2749,7 +2749,7 @@ void CodeGenerator::AssembleConstructFrame() {
   if (double_saves != 0) {
     __ MultiPushDoubles(double_saves);
     DCHECK_EQ(kNumCalleeSavedDoubles,
-              base::bits::CountPopulation32(double_saves));
+              base::bits::CountPopulation(double_saves));
   }
 
   // Save callee-saved registers.
