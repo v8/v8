@@ -180,13 +180,14 @@ Reduction JSCreateLowering::ReduceJSCreate(Node* node) {
   Node* const control = NodeProperties::GetControlInput(node);
   // Extract constructor and original constructor function.
   if (target_type->IsHeapConstant() && new_target_type->IsHeapConstant() &&
+      target_type->AsHeapConstant()->Value()->IsJSFunction() &&
       new_target_type->AsHeapConstant()->Value()->IsJSFunction()) {
     Handle<JSFunction> constructor =
         Handle<JSFunction>::cast(target_type->AsHeapConstant()->Value());
+    if (!constructor->IsConstructor()) return NoChange();
     Handle<JSFunction> original_constructor =
         Handle<JSFunction>::cast(new_target_type->AsHeapConstant()->Value());
-    DCHECK(constructor->IsConstructor());
-    DCHECK(original_constructor->IsConstructor());
+    if (!original_constructor->IsConstructor()) return NoChange();
 
     // Check if we can inline the allocation.
     if (IsAllocationInlineable(constructor, original_constructor)) {

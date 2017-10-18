@@ -12,6 +12,7 @@
   function f() {
     return new g();
   }
+  new C();  // Warm-up!
   assertThrows(f, TypeError);
   assertThrows(f, TypeError);
   %OptimizeFunctionOnNextCall(f);
@@ -29,6 +30,7 @@
   function f() {
     return new g();
   }
+  new C();  // Warm-up!
   assertThrows(f, TypeError);
   assertThrows(f, TypeError);
   %OptimizeFunctionOnNextCall(f);
