@@ -100,8 +100,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           except Exception:
             pass
 
-      exit_code = 0
-
       suite_paths = utils.GetSuitePaths(join(base_runner.BASE_DIR, "test"))
 
       # Use default tests if no test configuration was provided at the cmd line.
@@ -134,13 +132,10 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       for s in suites:
         s.PrepareSources()
 
-      for (arch, mode) in self.arch_and_mode:
-        try:
-          code = self._execute(arch, mode, args, options, suites)
-        except KeyboardInterrupt:
-          return 2
-        exit_code = exit_code or code
-      return exit_code
+      try:
+        return self._execute(self.arch, self.mode, args, options, suites)
+      except KeyboardInterrupt:
+        return 2
 
     def _add_parser_options(self, parser):
       parser.add_option("--asan",

@@ -3,7 +3,6 @@
 # found in the LICENSE file.
 
 
-import itertools
 import json
 import optparse
 import os
@@ -151,7 +150,6 @@ class BaseTestRunner(object):
     self.outdir = None
 
     self.arch = None
-    self.arch_and_mode = None
     self.mode = None
 
     self.auto_detect = None
@@ -192,12 +190,9 @@ class BaseTestRunner(object):
                       help=("The architecture to run tests for, "
                             "'auto' or 'native' for auto-detect: %s" %
                             SUPPORTED_ARCHS))
-    parser.add_option("--arch-and-mode",
-                      help="Architecture and mode in the format 'arch.mode'")
     parser.add_option("-m", "--mode",
-                      help="The test modes in which to run (comma-separated,"
-                      " uppercase for ninja and buildbot builds): %s"
-                      % MODES.keys())
+                      help="The test mode in which to run (uppercase for ninja"
+                      " and buildbot builds): %s" % MODES.keys())
 
   def _add_parser_options(self, parser):
     pass
@@ -212,33 +207,28 @@ class BaseTestRunner(object):
 
     self.auto_detect = self._read_build_config(outdir, options)
     if not self.auto_detect:
-      self.arch = options.arch or 'ia32,x64,arm'
-      self.mode = options.mode or 'release,debug'
-      self.outdir = outdir
-      if options.arch_and_mode:
-        self.arch_and_mode = map(lambda am: am.split('.'),
-                                 options.arch_and_mode.split(','))
-        self.arch = ','.join(map(lambda am: am[0], self.arch_and_mode))
-        self.mode = ','.join(map(lambda am: am[1], self.arch_and_mode))
-
-    self.mode = self.mode.split(',')
-    for mode in self.mode:
-      if not self._buildbot_to_v8_mode(mode) in MODES:
-        print "Unknown mode %s" % mode
+      if any(map(lambda v: v and ',' in v,
+                 [options.arch, options.mode])):
+        print 'Multiple arch/mode are deprecated'
         raise TestRunnerError()
+
+      self.outdir = outdir
+      if not options.arch or not options.mode:
+        print('Autodetect mode is not available and therefore '
+              '--arch and --mode options are required')
+        raise TestRunnerError()
+      self.arch = options.arch
+      self.mode = options.mode
+
+    if not self._buildbot_to_v8_mode(self.mode) in MODES:
+      print "Unknown mode %s" % self.mode
+      raise TestRunnerError()
 
     if self.arch in ["auto", "native"]:
       self.arch = ARCH_GUESS
-    self.arch = self.arch.split(",")
-    for arch in self.arch:
-      if not arch in SUPPORTED_ARCHS:
-        print "Unknown architecture %s" % arch
-        raise TestRunnerError()
-
-    # Store the final configuration in arch_and_mode list. Don't overwrite
-    # predefined arch_and_mode since it is more expressive than arch and mode.
-    if not self.arch_and_mode:
-      self.arch_and_mode = itertools.product(self.arch, self.mode)
+    if not self.arch in SUPPORTED_ARCHS:
+      print "Unknown architecture %s" % self.arch
+      raise TestRunnerError()
 
   def _get_gn_outdir(self):
     gn_out_dir = os.path.join(BASE_DIR, DEFAULT_OUT_GN)
@@ -258,7 +248,6 @@ class BaseTestRunner(object):
   # Auto-detect test configurations based on the build (GN only).
   # sets:
   #   - arch
-  #   - arch_and_mode
   #   - mode
   #   - outdir
   def _read_build_config(self, outdir, options):
@@ -284,7 +273,6 @@ class BaseTestRunner(object):
     # config.
     # This ensures that we'll also take the build products from there.
     self.outdir = os.path.dirname(build_config_path)
-    self.arch_and_mode = None
 
     # In V8 land, GN's x86 is called ia32.
     if build_config["v8_target_cpu"] == "x86":
