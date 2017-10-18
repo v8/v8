@@ -9116,6 +9116,7 @@ class Internals {
   static const int kFirstNonstringType = 0x80;
   static const int kOddballType = 0x83;
   static const int kForeignType = 0x87;
+  static const int kJSSpecialApiObjectType = 0xbb;
   static const int kJSApiObjectType = 0xbf;
   static const int kJSObjectType = 0xc0;
 
@@ -9723,7 +9724,8 @@ Local<Value> Object::GetInternalField(int index) {
   // know where to find the internal fields and can return the value directly.
   auto instance_type = I::GetInstanceType(obj);
   if (instance_type == I::kJSObjectType ||
-      instance_type == I::kJSApiObjectType) {
+      instance_type == I::kJSApiObjectType ||
+      instance_type == I::kJSSpecialApiObjectType) {
     int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
     O* value = I::ReadField<O*>(obj, offset);
     O** result = HandleScope::CreateHandle(reinterpret_cast<HO*>(obj), value);
@@ -9743,7 +9745,8 @@ void* Object::GetAlignedPointerFromInternalField(int index) {
   // know where to find the internal fields and can return the value directly.
   auto instance_type = I::GetInstanceType(obj);
   if (V8_LIKELY(instance_type == I::kJSObjectType ||
-                instance_type == I::kJSApiObjectType)) {
+                instance_type == I::kJSApiObjectType ||
+                instance_type == I::kJSSpecialApiObjectType)) {
     int offset = I::kJSObjectHeaderSize + (internal::kApiPointerSize * index);
     return I::ReadField<void*>(obj, offset);
   }
