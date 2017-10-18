@@ -134,11 +134,11 @@ enum class SharedFlag { kNotShared, kShared };
 
 class JSArrayBuffer : public JSObject {
  public:
-  // [backing_store]: backing memory for this array
-  DECL_ACCESSORS(backing_store, void)
-
   // [byte_length]: length in bytes
   DECL_ACCESSORS(byte_length, Object)
+
+  // [backing_store]: backing memory for this array
+  DECL_ACCESSORS(backing_store, void)
 
   // [allocation_base]: the start of the memory allocation for this array,
   // normally equal to backing_store
