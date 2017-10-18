@@ -358,28 +358,6 @@ TF_BUILTIN(CreateRegExpLiteral, ConstructorBuiltinsAssembler) {
   Return(result);
 }
 
-Node* ConstructorBuiltinsAssembler::NonEmptyShallowClone(
-    Node* boilerplate, Node* boilerplate_map, Node* boilerplate_elements,
-    Node* allocation_site, Node* capacity, ElementsKind kind) {
-  ParameterMode param_mode = OptimalParameterMode();
-
-  Node* length = LoadJSArrayLength(boilerplate);
-  capacity = TaggedToParameter(capacity, param_mode);
-
-  Node *array, *elements;
-  std::tie(array, elements) = AllocateUninitializedJSArrayWithElements(
-      kind, boilerplate_map, length, allocation_site, capacity, param_mode);
-
-  length = TaggedToParameter(length, param_mode);
-
-  Comment("copy boilerplate elements");
-  CopyFixedArrayElements(kind, boilerplate_elements, elements, length,
-                         SKIP_WRITE_BARRIER, param_mode);
-  IncrementCounter(isolate()->counters()->inlined_copied_elements(), 1);
-
-  return array;
-}
-
 Node* ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
     Node* feedback_vector, Node* slot, Node* context, Label* call_runtime,
     AllocationSiteMode allocation_site_mode) {
@@ -392,73 +370,16 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
   GotoIf(NotHasBoilerplate(allocation_site), call_runtime);
 
   Node* boilerplate = LoadAllocationSiteBoilerplate(allocation_site);
-  Node* boilerplate_map = LoadMap(boilerplate);
-  CSA_ASSERT(this, IsJSArrayMap(boilerplate_map));
-  Node* boilerplate_elements = LoadElements(boilerplate);
-  Node* capacity = LoadFixedArrayBaseLength(boilerplate_elements);
   allocation_site =
       allocation_site_mode == TRACK_ALLOCATION_SITE ? allocation_site : nullptr;
 
-  Node* zero = SmiConstant(0);
-  GotoIf(SmiEqual(capacity, zero), &zero_capacity);
-
-  Node* elements_map = LoadMap(boilerplate_elements);
-  GotoIf(IsFixedCOWArrayMap(elements_map), &cow_elements);
-
-  GotoIf(IsFixedArrayMap(elements_map), &fast_elements);
-  {
-    Comment("fast double elements path");
-    if (FLAG_debug_code) CSA_CHECK(this, IsFixedDoubleArrayMap(elements_map));
-    Node* array =
-        NonEmptyShallowClone(boilerplate, boilerplate_map, boilerplate_elements,
-                             allocation_site, capacity, PACKED_DOUBLE_ELEMENTS);
-    result.Bind(array);
-    Goto(&return_result);
-  }
-
-  BIND(&fast_elements);
-  {
-    Comment("fast elements path");
-    Node* array =
-        NonEmptyShallowClone(boilerplate, boilerplate_map, boilerplate_elements,
-                             allocation_site, capacity, PACKED_ELEMENTS);
-    result.Bind(array);
-    Goto(&return_result);
-  }
-
-  VARIABLE(length, MachineRepresentation::kTagged);
-  VARIABLE(elements, MachineRepresentation::kTagged);
-  Label allocate_without_elements(this);
-
-  BIND(&cow_elements);
-  {
-    Comment("fixed cow path");
-    length.Bind(LoadJSArrayLength(boilerplate));
-    elements.Bind(boilerplate_elements);
-
-    Goto(&allocate_without_elements);
-  }
-
-  BIND(&zero_capacity);
-  {
-    Comment("zero capacity path");
-    length.Bind(zero);
-    elements.Bind(LoadRoot(Heap::kEmptyFixedArrayRootIndex));
-
-    Goto(&allocate_without_elements);
-  }
-
-  BIND(&allocate_without_elements);
-  {
-    Node* array = AllocateUninitializedJSArrayWithoutElements(
-        boilerplate_map, length.value(), allocation_site);
-    StoreObjectField(array, JSObject::kElementsOffset, elements.value());
-    result.Bind(array);
-    Goto(&return_result);
-  }
-
-  BIND(&return_result);
-  return result.value();
+  CSA_ASSERT(this, IsJSArrayMap(LoadMap(boilerplate)));
+  Node* boilerplate_elements = LoadElements(boilerplate);
+  ParameterMode mode = OptimalParameterMode();
+  Node* capacity =
+      TaggedToParameter(LoadFixedArrayBaseLength(boilerplate_elements), mode);
+  return CloneFastJSArray(context, boilerplate, mode, capacity,
+                          allocation_site);
 }
 
 TF_BUILTIN(CreateShallowArrayLiteral, ConstructorBuiltinsAssembler) {
