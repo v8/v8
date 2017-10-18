@@ -19,14 +19,14 @@ namespace internal {
 template <typename T>
 class Vector {
  public:
-  constexpr Vector() : start_(nullptr), length_(0) {}
+  Vector() : start_(nullptr), length_(0) {}
 
   Vector(T* data, size_t length) : start_(data), length_(length) {
     DCHECK(length == 0 || data != nullptr);
   }
 
   template <int N>
-  explicit constexpr Vector(T (&arr)[N]) : start_(arr), length_(N) {}
+  explicit Vector(T (&arr)[N]) : start_(arr), length_(N) {}
 
   static Vector<T> New(int length) {
     return Vector<T>(NewArray<T>(length), length);
@@ -47,13 +47,13 @@ class Vector {
   }
 
   // Returns the length of the vector as a size_t.
-  constexpr size_t size() const { return length_; }
+  size_t size() const { return length_; }
 
   // Returns whether or not the vector is empty.
-  constexpr bool is_empty() const { return length_ == 0; }
+  bool is_empty() const { return length_ == 0; }
 
   // Returns the pointer to the start of the data in the vector.
-  constexpr T* start() const { return start_; }
+  T* start() const { return start_; }
 
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
@@ -65,14 +65,11 @@ class Vector {
 
   T& first() { return start_[0]; }
 
-  T& last() {
-    DCHECK_LT(0, length_);
-    return start_[length_ - 1];
-  }
+  T& last() { return start_[length_ - 1]; }
 
   typedef T* iterator;
-  constexpr iterator begin() const { return start_; }
-  constexpr iterator end() const { return start_ + length_; }
+  inline iterator begin() const { return &start_[0]; }
+  inline iterator end() const { return &start_[length_]; }
 
   // Returns a clone of this vector with a new backing store.
   Vector<T> Clone() const {
@@ -133,8 +130,8 @@ class Vector {
   // Factory method for creating empty vectors.
   static Vector<T> empty() { return Vector<T>(nullptr, 0); }
 
-  template <typename S>
-  static constexpr Vector<T> cast(Vector<S> input) {
+  template<typename S>
+  static Vector<T> cast(Vector<S> input) {
     return Vector<T>(reinterpret_cast<T*>(input.start()),
                      input.length() * sizeof(S) / sizeof(T));
   }
@@ -217,7 +214,7 @@ inline Vector<char> MutableCStrVector(char* data, int max) {
 }
 
 template <typename T, int N>
-inline constexpr Vector<T> ArrayVector(T (&arr)[N]) {
+inline Vector<T> ArrayVector(T (&arr)[N]) {
   return Vector<T>(arr);
 }
 

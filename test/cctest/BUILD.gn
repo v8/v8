@@ -87,7 +87,6 @@ v8_source_set("cctest_sources") {
     "compiler/test-run-unwinding-info.cc",
     "compiler/test-run-variables.cc",
     "compiler/test-run-wasm-machops.cc",
-    "compiler/value-helper.cc",
     "compiler/value-helper.h",
     "expression-type-collector-macros.h",
     "gay-fixed.cc",

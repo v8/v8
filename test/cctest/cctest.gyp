@@ -75,7 +75,6 @@
       'compiler/test-run-stubs.cc',
       'compiler/test-run-variables.cc',
       'compiler/test-run-wasm-machops.cc',
-      'compiler/value-helper.cc',
       'compiler/value-helper.h',
       'cctest.cc',
       'cctest.h',

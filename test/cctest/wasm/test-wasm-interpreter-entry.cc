@@ -101,7 +101,8 @@ TEST(TestArgumentPassing_int32) {
        WASM_GET_LOCAL(0), WASM_CALL_FUNCTION0(f2.function_index())},
       [](int32_t a) { return 2 * a + 1; });
 
-  FOR_INT32_INPUTS(v) { helper.CheckCall(*v); }
+  std::vector<int32_t> test_values = compiler::ValueHelper::int32_vector();
+  for (int32_t v : test_values) helper.CheckCall(v);
 }
 
 // Pass int64_t, return double.
@@ -124,13 +125,17 @@ TEST(TestArgumentPassing_double_int64) {
         return static_cast<double>(a64 | b64);
       });
 
-  FOR_INT32_INPUTS(v1) {
-    FOR_INT32_INPUTS(v2) { helper.CheckCall(*v1, *v2); }
+  std::vector<int32_t> test_values_i32 = compiler::ValueHelper::int32_vector();
+  for (int32_t v1 : test_values_i32) {
+    for (int32_t v2 : test_values_i32) {
+      helper.CheckCall(v1, v2);
+    }
   }
 
-  FOR_INT64_INPUTS(v) {
-    int32_t v1 = static_cast<int32_t>(*v);
-    int32_t v2 = static_cast<int32_t>(*v >> 32);
+  std::vector<int64_t> test_values_i64 = compiler::ValueHelper::int64_vector();
+  for (int64_t v : test_values_i64) {
+    int32_t v1 = static_cast<int32_t>(v);
+    int32_t v2 = static_cast<int32_t>(v >> 32);
     helper.CheckCall(v1, v2);
     helper.CheckCall(v2, v1);
   }
@@ -171,7 +176,8 @@ TEST(TestArgumentPassing_float_double) {
        WASM_GET_LOCAL(0), WASM_CALL_FUNCTION0(f2.function_index())},
       [](float f) { return 2. * static_cast<double>(f) + 1.; });
 
-  FOR_FLOAT32_INPUTS(f) { helper.CheckCall(*f); }
+  std::vector<float> test_values = compiler::ValueHelper::float32_vector();
+  for (float f : test_values) helper.CheckCall(f);
 }
 
 // Pass two doubles, return double.
@@ -187,8 +193,11 @@ TEST(TestArgumentPassing_double_double) {
                            WASM_CALL_FUNCTION0(f2.function_index())},
                           [](double a, double b) { return a + b; });
 
-  FOR_FLOAT64_INPUTS(d1) {
-    FOR_FLOAT64_INPUTS(d2) { helper.CheckCall(*d1, *d2); }
+  std::vector<double> test_values = compiler::ValueHelper::float64_vector();
+  for (double d1 : test_values) {
+    for (double d2 : test_values) {
+      helper.CheckCall(d1, d2);
+    }
   }
 }
 
@@ -233,11 +242,10 @@ TEST(TestArgumentPassing_AllTypes) {
     helper.CheckCall(a, b1, b0, c, d);
   };
 
-  Vector<const int32_t> test_values_i32 = compiler::ValueHelper::int32_vector();
-  Vector<const int64_t> test_values_i64 = compiler::ValueHelper::int64_vector();
-  Vector<const float> test_values_f32 = compiler::ValueHelper::float32_vector();
-  Vector<const double> test_values_f64 =
-      compiler::ValueHelper::float64_vector();
+  std::vector<int32_t> test_values_i32 = compiler::ValueHelper::int32_vector();
+  std::vector<int64_t> test_values_i64 = compiler::ValueHelper::int64_vector();
+  std::vector<float> test_values_f32 = compiler::ValueHelper::float32_vector();
+  std::vector<double> test_values_f64 = compiler::ValueHelper::float64_vector();
   size_t max_len =
       std::max(std::max(test_values_i32.size(), test_values_i64.size()),
                std::max(test_values_f32.size(), test_values_f64.size()));
