@@ -783,12 +783,14 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
       }
       case FeedbackSlotKind::kBinaryOp: {
         BinaryOpICNexus nexus(this, slot);
-        os << Code::ICState2String(nexus.StateFromFeedback());
+        os << Code::ICState2String(nexus.StateFromFeedback()) << " ("
+           << nexus.GetBinaryOperationFeedback() << ")";
         break;
       }
       case FeedbackSlotKind::kCompareOp: {
         CompareICNexus nexus(this, slot);
-        os << Code::ICState2String(nexus.StateFromFeedback());
+        os << Code::ICState2String(nexus.StateFromFeedback()) << " ("
+           << nexus.GetCompareOperationFeedback() << ")";
         break;
       }
       case FeedbackSlotKind::kForIn: {
