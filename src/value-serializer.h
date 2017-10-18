@@ -273,7 +273,7 @@ class ValueDeserializer {
       Handle<JSArrayBuffer> buffer) WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadWasmModule() WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadWasmModuleTransfer() WARN_UNUSED_RESULT;
-  MaybeHandle<JSObject> ReadWasmMemory() WARN_UNUSED_RESULT;
+  MaybeHandle<WasmMemoryObject> ReadWasmMemory() WARN_UNUSED_RESULT;
   MaybeHandle<JSObject> ReadHostObject() WARN_UNUSED_RESULT;
 
   /*

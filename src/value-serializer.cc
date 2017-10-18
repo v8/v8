@@ -1735,28 +1735,34 @@ MaybeHandle<JSObject> ValueDeserializer::ReadWasmModule() {
   return result;
 }
 
-MaybeHandle<JSObject> ValueDeserializer::ReadWasmMemory() {
+MaybeHandle<WasmMemoryObject> ValueDeserializer::ReadWasmMemory() {
+  uint32_t id = next_id_++;
+
   if (!FLAG_experimental_wasm_threads) {
-    return MaybeHandle<JSObject>();
+    return MaybeHandle<WasmMemoryObject>();
   }
 
   int32_t maximum_pages;
   if (!ReadZigZag<int32_t>().To(&maximum_pages)) {
-    return MaybeHandle<JSObject>();
+    return MaybeHandle<WasmMemoryObject>();
   }
 
   SerializationTag tag;
   if (!ReadTag().To(&tag) || tag != SerializationTag::kSharedArrayBuffer) {
-    return MaybeHandle<JSObject>();
+    return MaybeHandle<WasmMemoryObject>();
   }
 
   const bool is_shared = true;
   Handle<JSArrayBuffer> buffer;
   if (!ReadTransferredJSArrayBuffer(is_shared).ToHandle(&buffer)) {
-    return MaybeHandle<JSObject>();
+    return MaybeHandle<WasmMemoryObject>();
   }
 
-  return WasmMemoryObject::New(isolate_, buffer, maximum_pages);
+  Handle<WasmMemoryObject> result =
+      WasmMemoryObject::New(isolate_, buffer, maximum_pages);
+
+  AddObjectWithID(id, result);
+  return result;
 }
 
 MaybeHandle<JSObject> ValueDeserializer::ReadHostObject() {

@@ -158,9 +158,8 @@ class WasmMemoryObject : public JSObject {
   uint32_t current_pages();
   inline bool has_maximum_pages();
 
-  static Handle<WasmMemoryObject> New(Isolate* isolate,
-                                      Handle<JSArrayBuffer> buffer,
-                                      int32_t maximum);
+  V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
+      Isolate* isolate, Handle<JSArrayBuffer> buffer, int32_t maximum);
 
   static int32_t Grow(Isolate*, Handle<WasmMemoryObject>, uint32_t pages);
   static void SetupNewBufferWithSameBackingStore(
