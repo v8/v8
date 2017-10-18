@@ -1429,7 +1429,8 @@ void Builtins::Generate_DeserializeLazy(MacroAssembler* masm) {
 
     __ AddP(target_builtin, target_builtin,
             Operand(Code::kHeaderSize - kHeapObjectTag));
-    __ Jump(target_builtin);
+    __ LoadRR(ip, target_builtin);
+    __ Jump(ip);
   }
 
   __ bind(&deserialize_in_runtime);
