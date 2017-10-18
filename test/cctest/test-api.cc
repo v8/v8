@@ -25740,6 +25740,9 @@ TEST(StreamingScriptWithSourceMappingURLInTheMiddle) {
 
 
 TEST(NewStringRangeError) {
+  // This test uses a lot of memory and fails with flaky OOM when run
+  // with --stress-incremental-marking on TSAN.
+  i::FLAG_stress_incremental_marking = false;
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
   const int length = i::String::kMaxLength + 1;
