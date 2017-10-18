@@ -326,8 +326,9 @@ class GoogleTestSuite(TestSuite):
       output = commands.Execute(cmd)
       if output.exit_code == 0:
         break
-      print "Test executable failed to list the tests (try %d).\n\nStdout:" % i
+      print "Test executable failed to list the tests (try %d).\n\nCmd:" % i
       print ' '.join(cmd)
+      print "\nStdout:"
       print output.stdout
       print "\nStderr:"
       print output.stderr

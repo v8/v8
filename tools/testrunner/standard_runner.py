@@ -389,16 +389,18 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       # Many tests assume an English interface.
       os.environ['LANG'] = 'en_US.UTF-8'
 
-      symbolizer = 'external_symbolizer_path=%s' % (
-          os.path.join(
-              base_runner.BASE_DIR,
-              'third_party',
-              'llvm-build',
-              'Release+Asserts',
-              'bin',
-              'llvm-symbolizer',
-          )
+      external_symbolizer_path = os.path.join(
+          base_runner.BASE_DIR,
+          'third_party',
+          'llvm-build',
+          'Release+Asserts',
+          'bin',
+          'llvm-symbolizer',
       )
+      if utils.IsWindows():
+        # Quote, because sanitizers might confuse colon as option separator.
+        external_symbolizer_path = '"%s.exe"' % external_symbolizer_path
+      symbolizer = 'external_symbolizer_path=%s' % external_symbolizer_path
 
       if options.asan:
         asan_options = [symbolizer, "allow_user_segv_handler=1"]
