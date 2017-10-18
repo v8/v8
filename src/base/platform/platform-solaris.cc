@@ -162,7 +162,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   return std::vector<SharedLibraryAddress>();
 }
 
-void OS::SignalCodeMovingGC(void* hint) {}
+void OS::SignalCodeMovingGC() {}
 
 }  // namespace base
 }  // namespace v8

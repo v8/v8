@@ -138,7 +138,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   return std::vector<SharedLibraryAddress>();
 }
 
-void OS::SignalCodeMovingGC(void* hint) {
+void OS::SignalCodeMovingGC() {
   CHECK(false);  // TODO(scottmg): Port, https://crbug.com/731217.
 }
 

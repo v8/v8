@@ -1276,7 +1276,7 @@ void Logger::CodeDisableOptEvent(AbstractCode* code,
 void Logger::CodeMovingGCEvent() {
   if (!is_logging_code_events()) return;
   if (!log_->IsEnabled() || !FLAG_ll_prof) return;
-  base::OS::SignalCodeMovingGC(GetRandomMmapAddr());
+  base::OS::SignalCodeMovingGC();
 }
 
 void Logger::RegExpCodeCreateEvent(AbstractCode* code, String* source) {

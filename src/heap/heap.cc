@@ -5345,7 +5345,7 @@ bool Heap::SetUp() {
   }
 
   mmap_region_base_ =
-      reinterpret_cast<uintptr_t>(v8::internal::GetRandomMmapAddr()) &
+      reinterpret_cast<uintptr_t>(base::OS::GetRandomMmapAddr()) &
       ~kMmapRegionMask;
 
   // Set up memory allocator.

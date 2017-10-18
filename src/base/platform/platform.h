@@ -107,9 +107,11 @@ class TimezoneCache;
 class V8_BASE_EXPORT OS {
  public:
   // Initialize the OS class.
+  // - random_seed: Used for the GetRandomMmapAddress() if non-zero.
   // - hard_abort: If true, OS::Abort() will crash instead of aborting.
   // - gc_fake_mmap: Name of the file for fake gc mmap used in ll_prof.
-  static void Initialize(bool hard_abort, const char* const gc_fake_mmap);
+  static void Initialize(int64_t random_seed, bool hard_abort,
+                         const char* const gc_fake_mmap);
 
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
@@ -188,6 +190,9 @@ class V8_BASE_EXPORT OS {
   // Make a region of memory readable and writable.
   static void Unprotect(void* address, const size_t size);
 
+  // Generate a random address to be used for hinting mmap().
+  static void* GetRandomMmapAddr();
+
   // Get the Alignment guaranteed by Allocate().
   static size_t AllocateAlignment();
 
@@ -231,8 +236,8 @@ class V8_BASE_EXPORT OS {
     virtual void* memory() const = 0;
     virtual size_t size() const = 0;
 
-    static MemoryMappedFile* open(const char* name, void* hint);
-    static MemoryMappedFile* create(const char* name, void* hint, size_t size,
+    static MemoryMappedFile* open(const char* name);
+    static MemoryMappedFile* create(const char* name, size_t size,
                                     void* initial);
   };
 
@@ -271,7 +276,7 @@ class V8_BASE_EXPORT OS {
   // process that a code moving garbage collection starts.  Can do
   // nothing, in which case the code objects must not move (e.g., by
   // using --never-compact) if accurate profiling is desired.
-  static void SignalCodeMovingGC(void* hint);
+  static void SignalCodeMovingGC();
 
   // Support runtime detection of whether the hard float option of the
   // EABI is used.

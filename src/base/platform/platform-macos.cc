@@ -174,7 +174,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   return result;
 }
 
-void OS::SignalCodeMovingGC(void* hint) {}
+void OS::SignalCodeMovingGC() {}
 
 TimezoneCache* OS::CreateTimezoneCache() {
   return new PosixDefaultTimezoneCache();

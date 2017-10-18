@@ -197,7 +197,7 @@ std::vector<OS::SharedLibraryAddress> OS::GetSharedLibraryAddresses() {
   return result;
 }
 
-void OS::SignalCodeMovingGC(void* hint) {
+void OS::SignalCodeMovingGC() {
   // Support for ll_prof.py.
   //
   // The Linux profiler built into the kernel logs all mmap's with
@@ -213,8 +213,8 @@ void OS::SignalCodeMovingGC(void* hint) {
     OS::Abort();
   }
   void* addr =
-      mmap(hint, size, PROT_READ | PROT_EXEC, MAP_PRIVATE, fileno(f), 0);
-  DCHECK_NE(MAP_FAILED, addr);
+      mmap(NULL, size, PROT_READ | PROT_EXEC, MAP_PRIVATE, fileno(f), 0);
+  DCHECK(addr != MAP_FAILED);
   OS::Free(addr, size);
   fclose(f);
 }
