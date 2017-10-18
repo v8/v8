@@ -3581,7 +3581,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> elements = materializer.FieldAt(value_index);
       Handle<Object> table = materializer.FieldAt(value_index);
       Handle<Object> index = materializer.FieldAt(value_index);
-      object->set_raw_properties_or_hash(FixedArray::cast(*properties));
+      object->set_raw_properties_or_hash(*properties);
       object->set_elements(FixedArrayBase::cast(*elements));
       object->set_table(*table);
       object->set_index(*index);
@@ -3596,7 +3596,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       Handle<Object> elements = materializer.FieldAt(value_index);
       Handle<Object> table = materializer.FieldAt(value_index);
       Handle<Object> index = materializer.FieldAt(value_index);
-      object->set_raw_properties_or_hash(FixedArray::cast(*properties));
+      object->set_raw_properties_or_hash(*properties);
       object->set_elements(FixedArrayBase::cast(*elements));
       object->set_table(*table);
       object->set_index(*index);
