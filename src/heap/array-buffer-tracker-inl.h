@@ -14,9 +14,10 @@ namespace v8 {
 namespace internal {
 
 void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
-  if (buffer->backing_store() == nullptr) return;
+  void* data = buffer->backing_store();
+  if (!data) return;
 
-  const size_t length = NumberToSize(buffer->byte_length());
+  size_t length = buffer->allocation_length();
   Page* page = Page::FromAddress(buffer->address());
   {
     base::LockGuard<base::RecursiveMutex> guard(page->mutex());
@@ -35,10 +36,11 @@ void ArrayBufferTracker::RegisterNew(Heap* heap, JSArrayBuffer* buffer) {
 }
 
 void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
-  if (buffer->backing_store() == nullptr) return;
+  void* data = buffer->backing_store();
+  if (!data) return;
 
   Page* page = Page::FromAddress(buffer->address());
-  const size_t length = NumberToSize(buffer->byte_length());
+  size_t length = buffer->allocation_length();
   {
     base::LockGuard<base::RecursiveMutex> guard(page->mutex());
     LocalArrayBufferTracker* tracker = page->local_tracker();
@@ -50,25 +52,26 @@ void ArrayBufferTracker::Unregister(Heap* heap, JSArrayBuffer* buffer) {
 
 template <typename Callback>
 void LocalArrayBufferTracker::Free(Callback should_free) {
-  size_t new_retained_size = 0;
+  size_t freed_memory = 0;
+  size_t retained_size = 0;
   for (TrackingData::iterator it = array_buffers_.begin();
        it != array_buffers_.end();) {
     JSArrayBuffer* buffer = reinterpret_cast<JSArrayBuffer*>(*it);
     const size_t length = buffer->allocation_length();
     if (should_free(buffer)) {
+      freed_memory += length;
       buffer->FreeBackingStore();
       it = array_buffers_.erase(it);
     } else {
-      new_retained_size += length;
+      retained_size += length;
       ++it;
     }
   }
-  const size_t freed_memory = retained_size_ - new_retained_size;
+  retained_size_ = retained_size;
   if (freed_memory > 0) {
     heap_->update_external_memory_concurrently_freed(
         static_cast<intptr_t>(freed_memory));
   }
-  retained_size_ = new_retained_size;
 }
 
 template <typename MarkingState>
