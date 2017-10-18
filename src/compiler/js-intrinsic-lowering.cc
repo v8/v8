@@ -239,13 +239,16 @@ Reduction JSIntrinsicLowering::ReduceIsInstanceType(
   Node* vtrue = jsgraph()->FalseConstant();
 
   Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-  Node* efalse = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForMapInstanceType()),
+  Node* efalse = effect;
+  Node* map = efalse =
       graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()), value,
-                       effect, if_false),
-      effect, if_false);
-  Node* vfalse = graph()->NewNode(simplified()->NumberEqual(), efalse,
-                                  jsgraph()->Constant(instance_type));
+                       efalse, if_false);
+  Node* map_instance_type = efalse = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForMapInstanceType()), map, efalse,
+      if_false);
+  Node* vfalse =
+      graph()->NewNode(simplified()->NumberEqual(), map_instance_type,
+                       jsgraph()->Constant(instance_type));
 
   Node* merge = graph()->NewNode(common()->Merge(2), if_true, if_false);
 
