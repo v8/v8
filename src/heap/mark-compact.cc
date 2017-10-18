@@ -3058,6 +3058,7 @@ void MarkCompactCollector::EvacuatePrologue() {
 }
 
 void MarkCompactCollector::EvacuateEpilogue() {
+  aborted_evacuation_candidates_.clear();
   // New space.
   heap()->new_space()->set_age_mark(heap()->new_space()->top());
   // Deallocate unmarked large objects.
@@ -4052,16 +4053,28 @@ class GlobalHandlesUpdatingItem : public UpdatingItem {
 // using a lock.
 class ArrayBufferTrackerUpdatingItem : public UpdatingItem {
  public:
-  explicit ArrayBufferTrackerUpdatingItem(Page* page) : page_(page) {}
+  enum EvacuationState { kRegular, kAborted };
+
+  explicit ArrayBufferTrackerUpdatingItem(Page* page, EvacuationState state)
+      : page_(page), state_(state) {}
   virtual ~ArrayBufferTrackerUpdatingItem() {}
 
   void Process() override {
-    ArrayBufferTracker::ProcessBuffers(
-        page_, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
+    switch (state_) {
+      case EvacuationState::kRegular:
+        ArrayBufferTracker::ProcessBuffers(
+            page_, ArrayBufferTracker::kUpdateForwardedRemoveOthers);
+        break;
+      case EvacuationState::kAborted:
+        ArrayBufferTracker::ProcessBuffers(
+            page_, ArrayBufferTracker::kUpdateForwardedKeepOthers);
+        break;
+    }
   }
 
  private:
-  Page* page_;
+  Page* const page_;
+  const EvacuationState state_;
 };
 
 int MarkCompactCollectorBase::CollectToSpaceUpdatingItems(
@@ -4107,32 +4120,58 @@ int MarkCompactCollectorBase::CollectRememberedSetUpdatingItems(
   return pages;
 }
 
-void MinorMarkCompactCollector::CollectNewSpaceArrayBufferTrackerItems(
+int MinorMarkCompactCollector::CollectNewSpaceArrayBufferTrackerItems(
     ItemParallelJob* job) {
+  int pages = 0;
   for (Page* p : new_space_evacuation_pages_) {
     if (Evacuator::ComputeEvacuationMode(p) == Evacuator::kObjectsNewToOld) {
-      job->AddItem(new ArrayBufferTrackerUpdatingItem(p));
+      if (p->local_tracker() == nullptr) continue;
+
+      pages++;
+      job->AddItem(new ArrayBufferTrackerUpdatingItem(
+          p, ArrayBufferTrackerUpdatingItem::kRegular));
     }
   }
+  return pages;
 }
 
-void MarkCompactCollector::CollectNewSpaceArrayBufferTrackerItems(
+int MarkCompactCollector::CollectNewSpaceArrayBufferTrackerItems(
     ItemParallelJob* job) {
+  int pages = 0;
   for (Page* p : new_space_evacuation_pages_) {
     if (Evacuator::ComputeEvacuationMode(p) == Evacuator::kObjectsNewToOld) {
-      job->AddItem(new ArrayBufferTrackerUpdatingItem(p));
+      if (p->local_tracker() == nullptr) continue;
+
+      pages++;
+      job->AddItem(new ArrayBufferTrackerUpdatingItem(
+          p, ArrayBufferTrackerUpdatingItem::kRegular));
     }
   }
+  return pages;
 }
 
-void MarkCompactCollector::CollectOldSpaceArrayBufferTrackerItems(
+int MarkCompactCollector::CollectOldSpaceArrayBufferTrackerItems(
     ItemParallelJob* job) {
+  int pages = 0;
   for (Page* p : old_space_evacuation_pages_) {
     if (Evacuator::ComputeEvacuationMode(p) == Evacuator::kObjectsOldToOld &&
         p->IsEvacuationCandidate()) {
-      job->AddItem(new ArrayBufferTrackerUpdatingItem(p));
+      if (p->local_tracker() == nullptr) continue;
+
+      pages++;
+      job->AddItem(new ArrayBufferTrackerUpdatingItem(
+          p, ArrayBufferTrackerUpdatingItem::kRegular));
     }
   }
+  for (auto object_and_page : aborted_evacuation_candidates_) {
+    Page* p = object_and_page.second;
+    if (p->local_tracker() == nullptr) continue;
+
+    pages++;
+    job->AddItem(new ArrayBufferTrackerUpdatingItem(
+        p, ArrayBufferTrackerUpdatingItem::kAborted));
+  }
+  return pages;
 }
 
 void MarkCompactCollector::UpdatePointersAfterEvacuation() {
@@ -4151,9 +4190,6 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAIN);
     ItemParallelJob updating_job(isolate()->cancelable_task_manager(),
                                  &page_parallel_job_semaphore_);
-
-    CollectNewSpaceArrayBufferTrackerItems(&updating_job);
-    CollectOldSpaceArrayBufferTrackerItems(&updating_job);
 
     int remembered_set_pages = 0;
     remembered_set_pages += CollectRememberedSetUpdatingItems(
@@ -4176,20 +4212,28 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
   }
 
   {
-    // Update pointers in map space in a separate phase to avoid data races
-    // with Map->LayoutDescriptor edge.
+    // - Update pointers in map space in a separate phase to avoid data races
+    //   with Map->LayoutDescriptor edge.
+    // - Update array buffer trackers in the second phase to have access to
+    //   byte length which is potentially a HeapNumber.
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MC_EVACUATE_UPDATE_POINTERS_SLOTS_MAP_SPACE);
     ItemParallelJob updating_job(isolate()->cancelable_task_manager(),
                                  &page_parallel_job_semaphore_);
 
+    int array_buffer_pages = 0;
+    array_buffer_pages += CollectNewSpaceArrayBufferTrackerItems(&updating_job);
+    array_buffer_pages += CollectOldSpaceArrayBufferTrackerItems(&updating_job);
+
     int remembered_set_pages = 0;
     remembered_set_pages += CollectRememberedSetUpdatingItems(
         &updating_job, heap()->map_space(), RememberedSetUpdatingMode::ALL);
-    const int num_tasks = remembered_set_pages == 0
-                              ? 0
-                              : NumberOfParallelPointerUpdateTasks(
-                                    remembered_set_pages, old_to_new_slots_);
+    const int remembered_set_tasks =
+        remembered_set_pages == 0
+            ? 0
+            : NumberOfParallelPointerUpdateTasks(remembered_set_pages,
+                                                 old_to_new_slots_);
+    const int num_tasks = Max(array_buffer_pages, remembered_set_tasks);
     if (num_tasks > 0) {
       for (int i = 0; i < num_tasks; i++) {
         updating_job.AddTask(new PointersUpdatingTask(isolate()));
@@ -4297,13 +4341,10 @@ void MarkCompactCollector::PostProcessEvacuationCandidates() {
     LiveObjectVisitor::VisitBlackObjectsNoFail(page, non_atomic_marking_state(),
                                                &record_visitor,
                                                LiveObjectVisitor::kKeepMarking);
-    // Fix up array buffers.
-    ArrayBufferTracker::ProcessBuffers(
-        page, ArrayBufferTracker::kUpdateForwardedKeepOthers);
+    // Array buffers will be processed during pointer updating.
   }
   const int aborted_pages =
       static_cast<int>(aborted_evacuation_candidates_.size());
-  aborted_evacuation_candidates_.clear();
   int aborted_pages_verified = 0;
   for (Page* p : old_space_evacuation_pages_) {
     if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
