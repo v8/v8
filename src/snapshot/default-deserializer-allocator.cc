@@ -169,7 +169,7 @@ bool DefaultDeserializerAllocator::ReserveSpace(
   }
 
   Heap::Reservation builtin_reservations =
-      builtin_deserializer->CreateReservationsForEagerBuiltins();
+      builtin_deserializer->allocator()->CreateReservationsForEagerBuiltins();
   DCHECK(!builtin_reservations.empty());
 
   for (const auto& c : builtin_reservations) {
@@ -199,7 +199,8 @@ bool DefaultDeserializerAllocator::ReserveSpace(
       merged_reservations[CODE_SPACE].pop_back();
     }
 
-    builtin_deserializer->InitializeBuiltinsTable(builtin_reservations);
+    builtin_deserializer->allocator()->InitializeBuiltinsTable(
+        builtin_reservations);
   }
 
   // Write back startup reservations.
@@ -212,19 +213,8 @@ bool DefaultDeserializerAllocator::ReserveSpace(
   for (int i = first_space; i < kNumberOfPreallocatedSpaces; i++) {
     startup_deserializer->allocator()->high_water_[i] =
         startup_deserializer->allocator()->reservations_[i][0].start;
-    builtin_deserializer->allocator()->high_water_[i] = nullptr;
   }
 
-  return true;
-}
-
-bool DefaultDeserializerAllocator::ReservesOnlyCodeSpace() const {
-  for (int space = NEW_SPACE; space < kNumberOfSpaces; space++) {
-    if (space == CODE_SPACE) continue;
-    const auto& r = reservations_[space];
-    for (const Heap::Chunk& c : r)
-      if (c.size != 0) return false;
-  }
   return true;
 }
 
