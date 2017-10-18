@@ -5894,7 +5894,7 @@ Vector<const int> CharacterRange::GetWordBounds() {
   return Vector<const int>(kWordRanges, kWordRangeCount - 1);
 }
 
-
+// static
 void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
                                         ZoneList<CharacterRange>* ranges,
                                         bool is_one_byte) {
@@ -5903,12 +5903,12 @@ void CharacterRange::AddCaseEquivalents(Isolate* isolate, Zone* zone,
   for (int i = 0; i < range_count; i++) {
     CharacterRange range = ranges->at(i);
     uc32 bottom = range.from();
-    if (bottom > String::kMaxUtf16CodeUnit) return;
+    if (bottom > String::kMaxUtf16CodeUnit) continue;
     uc32 top = Min(range.to(), String::kMaxUtf16CodeUnit);
     // Nothing to be done for surrogates.
-    if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) return;
+    if (bottom >= kLeadSurrogateStart && top <= kTrailSurrogateEnd) continue;
     if (is_one_byte && !RangeContainsLatin1Equivalents(range)) {
-      if (bottom > String::kMaxOneByteCharCode) return;
+      if (bottom > String::kMaxOneByteCharCode) continue;
       if (top > String::kMaxOneByteCharCode) top = String::kMaxOneByteCharCode;
     }
     unibrow::uchar chars[unibrow::Ecma262UnCanonicalize::kMaxWidth];
