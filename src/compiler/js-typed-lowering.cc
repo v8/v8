@@ -1922,7 +1922,9 @@ Reduction JSTypedLowering::ReduceJSForInNext(Node* node) {
           graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
                            check, effect, control);
 
-      ReplaceWithValue(node, node, effect, control);
+      // Since the change to LoadElement() below is effectful, we connect
+      // node to all effect uses.
+      ReplaceWithValue(node, node, node, control);
 
       // Morph the {node} into a LoadElement.
       node->ReplaceInput(0, cache_array);
@@ -2043,7 +2045,7 @@ Reduction JSTypedLowering::ReduceJSForInPrepare(Node* node) {
     }
     case ForInMode::kGeneric: {
       // Check if the {enumerator} is a Map or a FixedArray.
-      Node* check = graph()->NewNode(
+      Node* check = effect = graph()->NewNode(
           simplified()->CompareMaps(ZoneHandleSet<Map>(factory()->meta_map())),
           enumerator, effect, control);
       Node* branch =
