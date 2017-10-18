@@ -279,12 +279,10 @@ BUILTIN(TypedArrayPrototypeReverse) {
 
 namespace {
 Object* TypedArrayCopyElements(Handle<JSTypedArray> target,
-                               Handle<JSReceiver> source, Object* length_obj) {
-  size_t length;
-  CHECK(TryNumberToSize(length_obj, &length));
-
+                               Handle<JSReceiver> source, uint32_t length,
+                               uint32_t offset) {
   ElementsAccessor* accessor = target->GetElementsAccessor();
-  return accessor->CopyElements(source, target, length);
+  return accessor->CopyElements(source, target, length, offset);
 }
 
 enum class TypedArraySetResultCodes {
@@ -299,30 +297,10 @@ enum class TypedArraySetResultCodes {
   NON_TYPED_ARRAY
 };
 
-MaybeHandle<Object> TypedArraySetFromArrayLike(Isolate* isolate,
-                                               Handle<JSTypedArray> target,
-                                               Handle<Object> source,
-                                               int source_length, int offset) {
-  DCHECK_GE(source_length, 0);
-  DCHECK_GE(offset, 0);
-
-  for (int i = 0; i < source_length; i++) {
-    Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                               Object::GetElement(isolate, source, i), Object);
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                               Object::SetElement(isolate, target, offset + i,
-                                                  value, LanguageMode::kStrict),
-                               Object);
-  }
-
-  return target;
-}
-
 MaybeHandle<Object> TypedArraySetFromOverlapping(Isolate* isolate,
                                                  Handle<JSTypedArray> target,
                                                  Handle<JSTypedArray> source,
-                                                 int offset) {
+                                                 uint32_t offset) {
   DCHECK_GE(offset, 0);
 
   size_t sourceElementSize = source->element_size();
@@ -343,18 +321,14 @@ MaybeHandle<Object> TypedArraySetFromOverlapping(Isolate* isolate,
   uint32_t source_ptr = 0;
   CHECK(source->byte_offset()->ToUint32(&source_ptr));
 
+  ElementsAccessor* source_accessor = source->GetElementsAccessor();
+  ElementsAccessor* target_accessor = target->GetElementsAccessor();
+
   uint32_t left_index;
   for (left_index = 0; left_index < source_length && target_ptr <= source_ptr;
        left_index++) {
-    Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                               Object::GetElement(isolate, source, left_index),
-                               Object);
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, value,
-        Object::SetElement(isolate, target, offset + left_index, value,
-                           LanguageMode::kStrict),
-        Object);
+    Handle<Object> value = source_accessor->Get(source, left_index);
+    target_accessor->Set(target, offset + left_index, *value);
 
     target_ptr += targetElementSize;
     source_ptr += sourceElementSize;
@@ -374,15 +348,8 @@ MaybeHandle<Object> TypedArraySetFromOverlapping(Isolate* isolate,
   DCHECK_GE(source_length, 1);
   for (right_index = source_length - 1;
        right_index > left_index && target_ptr >= source_ptr; right_index--) {
-    Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                               Object::GetElement(isolate, source, right_index),
-                               Object);
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, value,
-        Object::SetElement(isolate, target, offset + right_index, value,
-                           LanguageMode::kStrict),
-        Object);
+    Handle<Object> value = source_accessor->Get(source, right_index);
+    target_accessor->Set(target, offset + right_index, *value);
 
     target_ptr -= targetElementSize;
     source_ptr -= sourceElementSize;
@@ -391,20 +358,11 @@ MaybeHandle<Object> TypedArraySetFromOverlapping(Isolate* isolate,
   std::vector<Handle<Object>> temp(right_index + 1 - left_index);
 
   for (uint32_t i = left_index; i <= right_index; i++) {
-    Handle<Object> value;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, value,
-                               Object::GetElement(isolate, source, i), Object);
-    temp[i - left_index] = value;
+    temp[i - left_index] = source_accessor->Get(source, i);
   }
 
   for (uint32_t i = left_index; i <= right_index; i++) {
-    Handle<Object> value;
-
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, value,
-        Object::SetElement(isolate, target, offset + i, temp[i - left_index],
-                           LanguageMode::kStrict),
-        Object);
+    target_accessor->Set(target, offset + i, *temp[i - left_index]);
   }
 
   return target;
@@ -476,6 +434,7 @@ BUILTIN(TypedArrayPrototypeSet) {
   Handle<Object> target = args.receiver();
   Handle<Object> obj = args.atOrUndefined(isolate, 1);
   Handle<Object> offset = args.atOrUndefined(isolate, 2);
+  const char* method = "%TypedArray%.prototype.set";
 
   if (offset->IsUndefined(isolate)) {
     offset = Handle<Object>(Smi::kZero, isolate);
@@ -498,13 +457,26 @@ BUILTIN(TypedArrayPrototypeSet) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kNotTypedArray));
   }
-  auto int_offset = static_cast<int>(offset->Number());
 
+  Handle<JSTypedArray> target_array = Handle<JSTypedArray>::cast(target);
+  if (V8_UNLIKELY(target_array->WasNeutered())) {
+    const MessageTemplate::Template message =
+        MessageTemplate::kDetachedOperation;
+    Handle<String> operation =
+        isolate->factory()->NewStringFromAsciiChecked(method);
+    THROW_NEW_ERROR_RETURN_FAILURE(isolate, NewTypeError(message, operation));
+  }
+
+  uint32_t uint_offset;
+  CHECK(offset->ToUint32(&uint_offset));
+
+  // TODO(cwhan.tunz): Implement CopyElements for overlapping cases, and use
+  // TypedArrayCopyElements for all case instead of this result code based
+  // branches
   Handle<Smi> result_code;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result_code,
-      TypedArraySetFastCases(isolate, Handle<JSTypedArray>::cast(target), obj,
-                             offset));
+      TypedArraySetFastCases(isolate, target_array, obj, offset));
 
   switch (static_cast<TypedArraySetResultCodes>(result_code->value())) {
     case TypedArraySetResultCodes::SAME_TYPE: {
@@ -512,23 +484,15 @@ BUILTIN(TypedArrayPrototypeSet) {
     }
     case TypedArraySetResultCodes::OVERLAPPING: {
       RETURN_FAILURE_ON_EXCEPTION(
-          isolate, TypedArraySetFromOverlapping(
-                       isolate, Handle<JSTypedArray>::cast(target),
-                       Handle<JSTypedArray>::cast(obj), int_offset));
+          isolate, TypedArraySetFromOverlapping(isolate, target_array,
+                                                Handle<JSTypedArray>::cast(obj),
+                                                uint_offset));
       break;
     }
     case TypedArraySetResultCodes::NONOVERLAPPING: {
-      if (int_offset == 0) {
-        TypedArrayCopyElements(Handle<JSTypedArray>::cast(target),
-                               Handle<JSTypedArray>::cast(obj),
-                               Handle<JSTypedArray>::cast(obj)->length());
-      } else {
-        RETURN_FAILURE_ON_EXCEPTION(
-            isolate,
-            TypedArraySetFromArrayLike(
-                isolate, Handle<JSTypedArray>::cast(target), obj,
-                Handle<JSTypedArray>::cast(obj)->length_value(), int_offset));
-      }
+      return TypedArrayCopyElements(
+          target_array, Handle<JSTypedArray>::cast(obj),
+          Handle<JSTypedArray>::cast(obj)->length_value(), uint_offset);
       break;
     }
     case TypedArraySetResultCodes::NON_TYPED_ARRAY: {
@@ -554,19 +518,16 @@ BUILTIN(TypedArrayPrototypeSet) {
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
                                          Object::ToLength(isolate, len));
 
-      DCHECK_GE(int_offset, 0);
-      if (int_offset + len->Number() >
-          Handle<JSTypedArray>::cast(target)->length_value()) {
+      DCHECK_GE(uint_offset, 0);
+      if (uint_offset + len->Number() > target_array->length_value()) {
         THROW_NEW_ERROR_RETURN_FAILURE(
             isolate,
             NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
       }
       uint32_t int_l;
       CHECK(DoubleToUint32IfEqualToSelf(len->Number(), &int_l));
-      RETURN_FAILURE_ON_EXCEPTION(
-          isolate, TypedArraySetFromArrayLike(
-                       isolate, Handle<JSTypedArray>::cast(target), obj, int_l,
-                       int_offset));
+      return TypedArrayCopyElements(target_array, Handle<JSReceiver>::cast(obj),
+                                    int_l, uint_offset);
     } break;
   }
 

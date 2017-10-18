@@ -192,7 +192,8 @@ class ElementsAccessor {
                             Handle<FixedArrayBase> destination, int size) = 0;
 
   virtual Object* CopyElements(Handle<JSReceiver> source,
-                               Handle<JSObject> destination, size_t length) = 0;
+                               Handle<JSObject> destination, size_t length,
+                               uint32_t offset = 0) = 0;
 
   virtual Handle<FixedArray> CreateListFromArrayLike(Isolate* isolate,
                                                      Handle<JSObject> object,

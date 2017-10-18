@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // ArrayBuffer
 
 function TestByteLength(param, expectedByteLength) {
@@ -609,6 +611,20 @@ function TestTypedArraySet() {
   a101[0] = 42;
   b101.set(a101);
   assertArrayPrefix([42], b101);
+
+  // Detached array buffer when accessing a source element
+  var a111 = new Int8Array(100);
+  var evilarr = new Array(100);
+  var detached = false;
+  evilarr[1] = {
+    [Symbol.toPrimitive]() {
+      %ArrayBufferNeuter(a111.buffer);
+      detached = true;
+      return 1;
+    }
+  };
+  assertThrows(() => a111.set(evilarr), TypeError);
+  assertEquals(true, detached);
 }
 
 TestTypedArraySet();
