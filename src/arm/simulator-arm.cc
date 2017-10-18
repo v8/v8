@@ -3227,28 +3227,32 @@ void Simulator::DecodeTypeVFP(Instruction* instr) {
       } else if ((instr->Opc2Value() == 0x0) && (instr->Opc3Value() == 0x3)) {
         // vabs
         if (instr->SzValue() == 0x1) {
-          double dm_value = get_double_from_d_register(vm).get_scalar();
-          double dd_value = std::fabs(dm_value);
-          dd_value = canonicalizeNaN(dd_value);
-          set_d_register_from_double(vd, dd_value);
+          Float64 dm = get_double_from_d_register(vm);
+          constexpr uint64_t kSignBit64 = uint64_t{1} << 63;
+          Float64 dd = Float64::FromBits(dm.get_bits() & ~kSignBit64);
+          dd = canonicalizeNaN(dd);
+          set_d_register_from_double(vd, dd);
         } else {
-          float sm_value = get_float_from_s_register(m).get_scalar();
-          float sd_value = std::fabs(sm_value);
-          sd_value = canonicalizeNaN(sd_value);
-          set_s_register_from_float(d, sd_value);
+          Float32 sm = get_float_from_s_register(m);
+          constexpr uint32_t kSignBit32 = uint32_t{1} << 31;
+          Float32 sd = Float32::FromBits(sm.get_bits() & ~kSignBit32);
+          sd = canonicalizeNaN(sd);
+          set_s_register_from_float(d, sd);
         }
       } else if ((instr->Opc2Value() == 0x1) && (instr->Opc3Value() == 0x1)) {
         // vneg
         if (instr->SzValue() == 0x1) {
-          double dm_value = get_double_from_d_register(vm).get_scalar();
-          double dd_value = -dm_value;
-          dd_value = canonicalizeNaN(dd_value);
-          set_d_register_from_double(vd, dd_value);
+          Float64 dm = get_double_from_d_register(vm);
+          constexpr uint64_t kSignBit64 = uint64_t{1} << 63;
+          Float64 dd = Float64::FromBits(dm.get_bits() ^ kSignBit64);
+          dd = canonicalizeNaN(dd);
+          set_d_register_from_double(vd, dd);
         } else {
-          float sm_value = get_float_from_s_register(m).get_scalar();
-          float sd_value = -sm_value;
-          sd_value = canonicalizeNaN(sd_value);
-          set_s_register_from_float(d, sd_value);
+          Float32 sm = get_float_from_s_register(m);
+          constexpr uint32_t kSignBit32 = uint32_t{1} << 31;
+          Float32 sd = Float32::FromBits(sm.get_bits() ^ kSignBit32);
+          sd = canonicalizeNaN(sd);
+          set_s_register_from_float(d, sd);
         }
       } else if ((instr->Opc2Value() == 0x7) && (instr->Opc3Value() == 0x3)) {
         DecodeVCVTBetweenDoubleAndSingle(instr);
