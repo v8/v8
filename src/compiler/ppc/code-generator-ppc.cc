@@ -1725,13 +1725,16 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         if (op->representation() == MachineRepresentation::kFloat64) {
           __ StoreDoubleU(i.InputDoubleRegister(0),
                           MemOperand(sp, -kDoubleSize), r0);
+          frame_access_state()->IncreaseSPDelta(kDoubleSize / kPointerSize);
         } else {
           DCHECK_EQ(MachineRepresentation::kFloat32, op->representation());
           __ StoreSingleU(i.InputDoubleRegister(0),
                           MemOperand(sp, -kPointerSize), r0);
+          frame_access_state()->IncreaseSPDelta(1);
         }
       } else {
         __ StorePU(i.InputRegister(0), MemOperand(sp, -kPointerSize), r0);
+        frame_access_state()->IncreaseSPDelta(1);
       }
       DCHECK_EQ(LeaveRC, i.OutputRCBit());
       break;
@@ -2538,8 +2541,10 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
                   : Double(src.ToFloat64());
 #endif
       __ LoadDoubleLiteral(dst, value, kScratchReg);
-      if (destination->IsFPStackSlot()) {
+      if (destination->IsDoubleStackSlot()) {
         __ StoreDouble(dst, g.ToMemOperand(destination), r0);
+      } else if (destination->IsFloatStackSlot()) {
+        __ StoreSingle(dst, g.ToMemOperand(destination), r0);
       }
     }
   } else if (source->IsFPRegister()) {
