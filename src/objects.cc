@@ -14466,7 +14466,7 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
     Disassembler::Decode(isolate, &os, begin, end, this);
 
     if (constant_pool_offset < size) {
-      int constant_pool_size = size - constant_pool_offset;
+      int constant_pool_size = safepoint_offset - constant_pool_offset;
       DCHECK_EQ(constant_pool_size & kPointerAlignmentMask, 0);
       os << "\nConstant Pool (size = " << constant_pool_size << ")\n";
       Vector<char> buf = Vector<char>::New(50);
