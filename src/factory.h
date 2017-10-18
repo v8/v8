@@ -678,6 +678,8 @@ class V8_EXPORT_PRIVATE Factory final {
                        Handle<Object> self_reference,
                        MaybeHandle<HandlerTable> maybe_handler_table =
                            MaybeHandle<HandlerTable>(),
+                       MaybeHandle<DeoptimizationData> deopt_data =
+                           MaybeHandle<DeoptimizationData>(),
                        bool immovable = false);
 
   // Allocates a new, empty code object for use by builtin deserialization. The

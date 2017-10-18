@@ -10477,6 +10477,11 @@ Handle<DeoptimizationData> DeoptimizationData::New(Isolate* isolate,
       LengthFor(deopt_entry_count), pretenure));
 }
 
+Handle<DeoptimizationData> DeoptimizationData::Empty(Isolate* isolate) {
+  return Handle<DeoptimizationData>::cast(
+      isolate->factory()->empty_fixed_array());
+}
+
 SharedFunctionInfo* DeoptimizationData::GetInlinedFunction(int index) {
   if (index == -1) {
     return SharedFunctionInfo::cast(SharedFunctionInfo());

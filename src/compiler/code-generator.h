@@ -252,7 +252,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   // ===========================================================================
 
   void RecordCallPosition(Instruction* instr);
-  void PopulateDeoptimizationData(Handle<Code> code);
+  Handle<DeoptimizationData> GenerateDeoptimizationData();
   int DefineDeoptimizationLiteral(DeoptimizationLiteral literal);
   DeoptimizationEntry const& GetDeoptimizationEntry(Instruction* instr,
                                                     size_t frame_state_offset);

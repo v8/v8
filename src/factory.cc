@@ -1786,12 +1786,16 @@ Handle<Code> Factory::NewCodeRaw(int object_size, bool immovable) {
 Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Kind kind,
                               Handle<Object> self_ref,
                               MaybeHandle<HandlerTable> maybe_handler_table,
+                              MaybeHandle<DeoptimizationData> maybe_deopt_data,
                               bool immovable) {
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
 
   Handle<HandlerTable> handler_table =
       maybe_handler_table.is_null() ? HandlerTable::Empty(isolate())
                                     : maybe_handler_table.ToHandleChecked();
+  Handle<DeoptimizationData> deopt_data =
+      maybe_deopt_data.is_null() ? DeoptimizationData::Empty(isolate())
+                                 : maybe_deopt_data.ToHandleChecked();
 
   bool has_unwinding_info = desc.unwinding_info != nullptr;
   DCHECK((has_unwinding_info && desc.unwinding_info_size > 0) ||
@@ -1822,7 +1826,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Kind kind,
   code->set_raw_kind_specific_flags1(0);
   code->set_raw_kind_specific_flags2(0);
   code->set_has_tagged_params(true);
-  code->set_deoptimization_data(*empty_fixed_array(), SKIP_WRITE_BARRIER);
+  code->set_deoptimization_data(*deopt_data);
   code->set_raw_type_feedback_info(Smi::kZero);
   code->set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
   code->set_handler_table(*handler_table);

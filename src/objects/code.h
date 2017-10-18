@@ -904,6 +904,9 @@ class DeoptimizationData : public FixedArray {
   static Handle<DeoptimizationData> New(Isolate* isolate, int deopt_entry_count,
                                         PretenureFlag pretenure);
 
+  // Return an empty DeoptimizationData.
+  static Handle<DeoptimizationData> Empty(Isolate* isolate);
+
   DECL_CAST(DeoptimizationData)
 
 #ifdef ENABLE_DISASSEMBLER

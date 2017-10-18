@@ -290,6 +290,9 @@ Handle<Code> CodeGenerator::FinalizeCode() {
     }
   }
 
+  // Allocate deoptimization data.
+  Handle<DeoptimizationData> deopt_data = GenerateDeoptimizationData();
+
   // Allocate and install the code.
   CodeDesc desc;
   tasm()->GetCode(isolate(), &desc);
@@ -298,7 +301,7 @@ Handle<Code> CodeGenerator::FinalizeCode() {
   }
 
   Handle<Code> result = isolate()->factory()->NewCode(
-      desc, info()->code_kind(), Handle<Object>(), table, false);
+      desc, info()->code_kind(), Handle<Object>(), table, deopt_data, false);
   isolate()->counters()->total_compiled_code_size()->Increment(
       result->instruction_size());
   result->set_is_turbofanned(true);
@@ -308,8 +311,6 @@ Handle<Code> CodeGenerator::FinalizeCode() {
       source_position_table_builder_.ToSourcePositionTable(
           isolate(), Handle<AbstractCode>::cast(result));
   result->set_source_position_table(*source_positions);
-
-  PopulateDeoptimizationData(result);
 
   return result;
 }
@@ -606,10 +607,12 @@ Handle<PodArray<InliningPosition>> CreateInliningPositions(
 
 }  // namespace
 
-void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
+Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   CompilationInfo* info = this->info();
   int deopt_count = static_cast<int>(deoptimization_states_.size());
-  if (deopt_count == 0 && !info->is_osr()) return;
+  if (deopt_count == 0 && !info->is_osr()) {
+    return DeoptimizationData::Empty(isolate());
+  }
   Handle<DeoptimizationData> data =
       DeoptimizationData::New(isolate(), deopt_count, TENURED);
 
@@ -658,7 +661,7 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
     data->SetPc(i, Smi::FromInt(deoptimization_state->pc_offset()));
   }
 
-  code_object->set_deoptimization_data(*data);
+  return data;
 }
 
 
