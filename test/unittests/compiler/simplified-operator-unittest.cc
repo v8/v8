@@ -12,12 +12,11 @@
 namespace v8 {
 namespace internal {
 namespace compiler {
+namespace simplified_operator_unittest {
 
 // -----------------------------------------------------------------------------
+
 // Pure operators.
-
-
-namespace {
 
 struct PureOperator {
   const Operator* (SimplifiedOperatorBuilder::*constructor)();
@@ -71,8 +70,6 @@ const PureOperator kPureOperators[] = {
 #undef PURE
 };
 
-}  // namespace
-
 
 class SimplifiedPureOperatorTest
     : public TestWithZone,
@@ -123,10 +120,8 @@ INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest, SimplifiedPureOperatorTest,
 
 
 // -----------------------------------------------------------------------------
+
 // Element access operators.
-
-
-namespace {
 
 const ElementAccess kElementAccesses[] = {
     {kTaggedBase, FixedArray::kHeaderSize, Type::Any(),
@@ -170,8 +165,6 @@ const ElementAccess kElementAccesses[] = {
     {kTaggedBase, FixedTypedArrayBase::kDataOffset, Type::Number(),
      MachineType(MachineRepresentation::kFloat32, MachineSemantic::kNone),
      kNoWriteBarrier}};
-
-}  // namespace
 
 
 class SimplifiedElementAccessOperatorTest
@@ -225,6 +218,7 @@ INSTANTIATE_TEST_CASE_P(SimplifiedOperatorTest,
                         SimplifiedElementAccessOperatorTest,
                         ::testing::ValuesIn(kElementAccesses));
 
+}  // namespace simplified_operator_unittest
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8
