@@ -1486,21 +1486,23 @@ void TurboAssembler::CopySlots(int dst, Register src, Register slot_count) {
   DCHECK(!src.IsZero());
   UseScratchRegisterScope scope(this);
   Register dst_reg = scope.AcquireX();
-  Add(dst_reg, StackPointer(), dst << kPointerSizeLog2);
-  Add(src, StackPointer(), Operand(src, LSL, kPointerSizeLog2));
+  SlotAddress(dst_reg, dst);
+  SlotAddress(src, src);
   CopyDoubleWords(dst_reg, src, slot_count);
 }
 
 void TurboAssembler::CopySlots(Register dst, Register src,
                                Register slot_count) {
   DCHECK(!dst.IsZero() && !src.IsZero());
-  Add(dst, StackPointer(), Operand(dst, LSL, kPointerSizeLog2));
-  Add(src, StackPointer(), Operand(src, LSL, kPointerSizeLog2));
+  SlotAddress(dst, dst);
+  SlotAddress(src, src);
   CopyDoubleWords(dst, src, slot_count);
 }
 
 void TurboAssembler::CopyDoubleWords(Register dst, Register src,
                                      Register count) {
+  DCHECK(!AreAliased(dst, src, count));
+
   if (emit_debug_code()) {
     // Copy requires dst < src || (dst - src) >= count.
     Label dst_below_src;
@@ -1536,6 +1538,14 @@ void TurboAssembler::CopyDoubleWords(Register dst, Register src,
   // to copy four double words per iteration.
 
   Bind(&done);
+}
+
+void TurboAssembler::SlotAddress(Register dst, int slot_offset) {
+  Add(dst, StackPointer(), slot_offset << kPointerSizeLog2);
+}
+
+void TurboAssembler::SlotAddress(Register dst, Register slot_offset) {
+  Add(dst, StackPointer(), Operand(slot_offset, LSL, kPointerSizeLog2));
 }
 
 void TurboAssembler::AssertFPCRState(Register fpcr) {

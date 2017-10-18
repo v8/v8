@@ -351,7 +351,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   //  - Adjust for the arg[] array.
   Register temp_argv = x11;
   if (!argv_in_register()) {
-    __ Add(temp_argv, jssp, Operand(x0, LSL, kPointerSizeLog2));
+    __ SlotAddress(temp_argv, x0);
     //  - Adjust for the receiver.
     __ Sub(temp_argv, temp_argv, 1 * kPointerSize);
   }
@@ -1045,7 +1045,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
 
   // The caller's return address is above the saved temporaries.
   // Grab its location for the second argument to the hook.
-  __ Add(x1, __ StackPointer(), kNumSavedRegs * kPointerSize);
+  __ SlotAddress(x1, kNumSavedRegs);
 
   {
     // Create a dummy frame, as CallCFunction requires this.
@@ -1793,7 +1793,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   DCHECK(!AreAliased(x0, api_function_address));
   // x0 = FunctionCallbackInfo&
   // Arguments is after the return address.
-  __ Add(x0, masm->StackPointer(), 1 * kPointerSize);
+  __ SlotAddress(x0, 1);
   // FunctionCallbackInfo::implicit_args_ and FunctionCallbackInfo::values_
   __ Add(x10, args, Operand((FCA::kArgsLength - 1 + argc()) * kPointerSize));
   __ Stp(args, x10, MemOperand(x0, 0 * kPointerSize));
@@ -1882,7 +1882,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   // Create v8::PropertyCallbackInfo object on the stack and initialize
   // it's args_ field.
   __ Poke(x1, 1 * kPointerSize);
-  __ Add(x1, masm->StackPointer(), 1 * kPointerSize);
+  __ SlotAddress(x1, 1);
   // x1 = v8::PropertyCallbackInfo&
 
   ExternalReference thunk_ref =

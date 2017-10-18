@@ -663,7 +663,8 @@ class TurboAssembler : public Assembler {
   // the stack offset specified by dst. The offsets and count are expressed in
   // slot-sized units. Offset dst must be less than src, or the gap between
   // them must be greater than or equal to slot_count, otherwise the result is
-  // unpredictable. The function may corrupt its register arguments.
+  // unpredictable. The function may corrupt its register arguments. The
+  // registers must not alias each other.
   void CopySlots(int dst, Register src, Register slot_count);
   void CopySlots(Register dst, Register src, Register slot_count);
 
@@ -671,7 +672,14 @@ class TurboAssembler : public Assembler {
   // in register dst. Address dst must be less than src, or the gap between
   // them must be greater than or equal to count double words, otherwise the
   // result is unpredictable. The function may corrupt its register arguments.
+  // The registers must not alias each other.
   void CopyDoubleWords(Register dst, Register src, Register count);
+
+  // Calculate the address of a double word-sized slot at slot_offset from the
+  // stack pointer, and write it to dst. Positive slot_offsets are at addresses
+  // greater than sp, with slot zero at sp.
+  void SlotAddress(Register dst, int slot_offset);
+  void SlotAddress(Register dst, Register slot_offset);
 
   // Load a literal from the inline constant pool.
   inline void Ldr(const CPURegister& rt, const Operand& imm);

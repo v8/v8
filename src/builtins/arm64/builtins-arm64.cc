@@ -204,22 +204,25 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   {
     FrameScope scope(masm, StackFrame::CONSTRUCT);
 
-    __ LoadRoot(x10, Heap::kTheHoleValueRootIndex);
-    // Preserve the incoming parameters on the stack.
-    __ SmiTag(x11, x0);
-    __ Push(cp, x11, x10);
+    // Add slots for the context, tagged argc and receiver.
+    Register slot_count = x2;
+    __ Add(slot_count, x0, 3);
+    __ Claim(slot_count);
 
-    // ----------- S t a t e -------------
-    //  --                        x0: number of arguments (untagged)
-    //  --                        x1: constructor function
-    //  --                        x3: new target
-    //  --        sp[0*kPointerSize]: the hole (receiver)
-    //  --        sp[1*kPointerSize]: number of arguments (tagged)
-    //  --        sp[2*kPointerSize]: context
-    // -----------------------------------
+    // Preserve the incoming parameters on the stack.
+    __ LoadRoot(x10, Heap::kTheHoleValueRootIndex);
+    __ SmiTag(x11, x0);
+
+    // Compute a pointer to the slot immediately above the newly claimed area
+    // of stack.
+    __ SlotAddress(x2, slot_count);
+
+    // Poke the the hole (receiver), number of arguments (tagged) and the
+    // context into the three highest slots.
+    __ Stp(x11, cp, MemOperand(x2, -2 * kPointerSize));
+    __ Str(x10, MemOperand(x2, -3 * kPointerSize));
 
     // Copy arguments to the expression stack.
-    __ Claim(x0);
     {
       Register count = x2;
       Register dst = x10;
@@ -230,10 +233,19 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
       __ CopyDoubleWords(dst, src, count);
     }
 
+    // ----------- S t a t e -------------
+    //  --                     x0: number of arguments (untagged)
+    //  --                     x1: constructor function
+    //  --                     x3: new target
+    //  --     sp[0*kPointerSize]: argument n - 1
+    //  --             ...
+    //  -- sp[(n-1)*kPointerSize]: argument 0
+    //  -- sp[(n+0)*kPointerSize]: the hole (receiver)
+    //  -- sp[(n+1)*kPointerSize]: number of arguments (tagged)
+    //  -- sp[(n+2)*kPointerSize]: context
+    // -----------------------------------
+
     // Call the function.
-    // x0: number of arguments
-    // x1: constructor function
-    // x3: new target
     ParameterCount actual(x0);
     __ InvokeFunction(x1, x3, actual, CALL_FUNCTION);
 
@@ -309,20 +321,16 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     __ Bind(&post_instantiation_deopt_entry);
 
     // Restore new target.
-    __ Pop(x3);
-    // Push the allocated receiver to the stack. We need two copies
-    // because we may have to return the original one and the calling
-    // conventions dictate that the called function pops the receiver.
-    __ Push(x0, x0);
+    __ Peek(x3, 0);
 
     // Restore constructor function and argument count.
     __ Ldr(x1, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
-    __ Ldrsw(x0,
+    __ Ldrsw(x12,
              UntagSmiMemOperand(fp, ConstructFrameConstants::kLengthOffset));
 
     // ----------- S t a t e -------------
-    //  --                        x0: number of arguments (untagged)
     //  --                        x3: new target
+    //  --                       x12: number of arguments (untagged)
     //  --        sp[0*kPointerSize]: implicit receiver
     //  --        sp[1*kPointerSize]: implicit receiver
     //  -- x1 and sp[2*kPointerSize]: constructor function
@@ -330,19 +338,30 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     //  --        sp[4*kPointerSize]: context
     // -----------------------------------
 
-    // Copy arguments to the expression stack.
-    __ Claim(x0);
+    // Copy arguments to the expression stack. Increment the number of slots by
+    // one to account for the two copies of the receiver, where one overwrites
+    // the slot used by the new target.
+    __ Add(x10, x12, 1);
+    __ Claim(x10);
+
+    // Poke the allocated receiver to the stack. We need two copies
+    // because we may have to return the original one and the calling
+    // conventions dictate that the called function pops the receiver.
+    __ Poke(x0, Operand(x10, LSL, kPointerSizeLog2));
+    __ Poke(x0, Operand(x12, LSL, kPointerSizeLog2));
+
     {
       Register count = x2;
       Register dst = x10;
       Register src = x11;
-      __ Mov(count, x0);
-      __ Mov(dst, __ StackPointer());
+      __ Mov(count, x12);
+      __ SlotAddress(dst, 0);
       __ Add(src, fp, StandardFrameConstants::kCallerSPOffset);
       __ CopyDoubleWords(dst, src, count);
     }
 
     // Call the function.
+    __ Mov(x0, x12);
     ParameterCount actual(x0);
     __ InvokeFunction(x1, x3, actual, CALL_FUNCTION);
 
@@ -411,11 +430,10 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
 
     __ Bind(&leave_frame);
     // Restore smi-tagged arguments count from the frame.
-    __ Ldr(x1, MemOperand(fp, ConstructFrameConstants::kLengthOffset));
+    __ Ldr(w1, UntagSmiMemOperand(fp, ConstructFrameConstants::kLengthOffset));
     // Leave construct frame.
   }
   // Remove caller arguments from the stack and return.
-  __ SmiUntag(x1);
   __ DropArguments(x1, TurboAssembler::kCountExcludesReceiver);
   __ Ret();
 }
@@ -482,28 +500,45 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
                       &prepare_step_in_suspended_generator);
   __ Bind(&stepping_prepared);
 
-  // Push receiver.
+  // Get number of arguments for generator function.
+  __ Ldr(x10, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
+  __ Ldr(w10,
+         FieldMemOperand(x10, SharedFunctionInfo::kFormalParameterCountOffset));
+
+  // Claim slots for arguments and receiver.
+  __ Add(x11, x10, 1);
+  __ Claim(x11);
+
+  // Poke receiver into highest claimed slot.
   __ Ldr(x5, FieldMemOperand(x1, JSGeneratorObject::kReceiverOffset));
-  __ Push(x5);
+  __ Poke(x5, Operand(x10, LSL, kPointerSizeLog2));
 
   // ----------- S t a t e -------------
-  //  -- x1      : the JSGeneratorObject to resume
-  //  -- x2      : the resume mode (tagged)
-  //  -- x4      : generator function
-  //  -- cp      : generator context
-  //  -- lr      : return address
-  //  -- jssp[0] : generator receiver
+  //  -- x1                       : the JSGeneratorObject to resume
+  //  -- x2                       : the resume mode (tagged)
+  //  -- x4                       : generator function
+  //  -- x10                      : argument count
+  //  -- cp                       : generator context
+  //  -- lr                       : return address
+  //  -- jssp[arg count]          : generator receiver
+  //  -- jssp[0 .. arg count - 1] : claimed for args
   // -----------------------------------
 
   // Push holes for arguments to generator function. Since the parser forced
   // context allocation for any variables in generators, the actual argument
   // values have already been copied into the context and these dummy values
   // will never be used.
-  __ Ldr(x10, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
-  __ Ldr(w10,
-         FieldMemOperand(x10, SharedFunctionInfo::kFormalParameterCountOffset));
-  __ LoadRoot(x11, Heap::kTheHoleValueRootIndex);
-  __ PushMultipleTimes(x11, w10);
+  {
+    Label loop, done;
+    __ Cbz(x10, &done);
+    __ LoadRoot(x11, Heap::kTheHoleValueRootIndex);
+
+    __ Bind(&loop);
+    __ Sub(x10, x10, 1);
+    __ Poke(x11, Operand(x10, LSL, kPointerSizeLog2));
+    __ Cbnz(x10, &loop);
+    __ Bind(&done);
+  }
 
   // Underlying function needs to have bytecode available.
   if (FLAG_debug_code) {
@@ -616,24 +651,35 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Push(function, receiver);
 
     // Check if we have enough stack space to push all arguments.
-    // Expects argument count in eax. Clobbers ecx, edx, edi.
     Generate_CheckStackOverflow(masm, argc, kArgcIsUntaggedInt);
 
     // Copy arguments to the stack in a loop, in reverse order.
     // x3: argc.
     // x4: argv.
-    Label loop, entry;
-    // Compute the copy end address.
-    __ Add(scratch, argv, Operand(argc, LSL, kPointerSizeLog2));
+    Label loop, done;
 
-    __ B(&entry);
+    // Skip the argument set up if we have no arguments.
+    __ Cbz(argc, &done);
+
+    // Set scratch to the current position of the stack pointer, which marks
+    // the end of the argument copy.
+    __ SlotAddress(scratch, 0);
+
+    // Claim enough space for the arguments.
+    __ Claim(argc);
+
     __ Bind(&loop);
+    // Load the handle.
     __ Ldr(x11, MemOperand(argv, kPointerSize, PostIndex));
-    __ Ldr(x12, MemOperand(x11));  // Dereference the handle.
-    __ Push(x12);                  // Push the argument.
-    __ Bind(&entry);
-    __ Cmp(scratch, argv);
-    __ B(ne, &loop);
+    // Dereference the handle.
+    __ Ldr(x11, MemOperand(x11));
+    // Poke the result into the stack.
+    __ Str(x11, MemOperand(scratch, -kPointerSize, PreIndex));
+    // Loop if we've not reached the end of copy marker.
+    __ Cmp(__ StackPointer(), scratch);
+    __ B(lt, &loop);
+
+    __ Bind(&done);
 
     __ Mov(scratch, argc);
     __ Mov(argc, new_target);
@@ -1753,7 +1799,7 @@ void Builtins::Generate_FunctionPrototypeCall(MacroAssembler* masm) {
   {
     Label loop;
     // Calculate the copy start address (destination). Copy end address is jssp.
-    __ Add(scratch2, jssp, Operand(argc, LSL, kPointerSizeLog2));
+    __ SlotAddress(scratch2, argc);
     __ Sub(scratch1, scratch2, kPointerSize);
 
     __ Bind(&loop);
@@ -2218,13 +2264,14 @@ void Generate_PushBoundArguments(MacroAssembler* masm) {
       Label loop;
       __ Ldrsw(x4, UntagSmiFieldMemOperand(x2, FixedArray::kLengthOffset));
       __ Add(x2, x2, FixedArray::kHeaderSize - kHeapObjectTag);
+      __ SlotAddress(x11, x0);
+      __ Add(x0, x0, x4);
       __ Bind(&loop);
       __ Sub(x4, x4, 1);
       __ Ldr(x10, MemOperand(x2, x4, LSL, kPointerSizeLog2));
-      __ Poke(x10, Operand(x0, LSL, kPointerSizeLog2));
-      __ Add(x0, x0, 1);
-      __ Cmp(x4, 0);
-      __ B(gt, &loop);
+      // Poke into claimed area of stack.
+      __ Str(x10, MemOperand(x11, kPointerSize, PostIndex));
+      __ Cbnz(x4, &loop);
     }
   }
   __ Bind(&no_bound_arguments);
