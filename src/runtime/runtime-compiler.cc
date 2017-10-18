@@ -239,8 +239,8 @@ RUNTIME_FUNCTION(Runtime_CompileForOnStackReplacement) {
   Handle<Code> result;
   if (maybe_result.ToHandle(&result) &&
       result->kind() == Code::OPTIMIZED_FUNCTION) {
-    DeoptimizationInputData* data =
-        DeoptimizationInputData::cast(result->deoptimization_data());
+    DeoptimizationData* data =
+        DeoptimizationData::cast(result->deoptimization_data());
 
     if (data->OsrPcOffset()->value() >= 0) {
       DCHECK(BailoutId(data->OsrBytecodeOffset()->value()) == ast_id);

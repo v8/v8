@@ -332,7 +332,7 @@ bool HeapObject::IsFeedbackVector() const {
 
 bool HeapObject::IsFeedbackMetadata() const { return IsFixedArray(); }
 
-bool HeapObject::IsDeoptimizationInputData() const {
+bool HeapObject::IsDeoptimizationData() const {
   // Must be a fixed array.
   if (!IsFixedArray()) return false;
 
@@ -343,8 +343,8 @@ bool HeapObject::IsDeoptimizationInputData() const {
   int length = FixedArray::cast(this)->length();
   if (length == 0) return true;
 
-  length -= DeoptimizationInputData::kFirstDeoptEntryIndex;
-  return length >= 0 && length % DeoptimizationInputData::kDeoptEntrySize == 0;
+  length -= DeoptimizationData::kFirstDeoptEntryIndex;
+  return length >= 0 && length % DeoptimizationData::kDeoptEntrySize == 0;
 }
 
 bool HeapObject::IsHandlerTable() const {

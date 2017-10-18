@@ -27,8 +27,7 @@ struct SourcePositionInfo;
 //
 // A defined inlining_id refers to positions in
 // CompilationInfo::inlined_functions or
-// DeoptimizationInputData::InliningPositions, depending on the compilation
-// stage.
+// DeoptimizationData::InliningPositions, depending on the compilation stage.
 class SourcePosition final {
  public:
   explicit SourcePosition(int script_offset, int inlining_id = kNotInlined)
@@ -97,7 +96,7 @@ struct InliningPosition {
   // position of the inlined call
   SourcePosition position = SourcePosition::Unknown();
 
-  // references position in DeoptimizationInputData::literals()
+  // references position in DeoptimizationData::literals()
   int inlined_function_id;
 };
 

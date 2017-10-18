@@ -229,7 +229,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
         : shared_info(inlined_shared_info) {
       position.position = pos;
       // initialized when generating the deoptimization literals
-      position.inlined_function_id = DeoptimizationInputData::kNotInlinedIndex;
+      position.inlined_function_id = DeoptimizationData::kNotInlinedIndex;
     }
 
     void RegisterInlinedFunctionId(size_t inlined_function_id) {

@@ -1632,7 +1632,7 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
   __ Ldrsw(w1, UntagSmiFieldMemOperand(
                    x1, FixedArray::OffsetOfElementAt(
-                           DeoptimizationInputData::kOsrPcOffsetIndex)));
+                           DeoptimizationData::kOsrPcOffsetIndex)));
 
   // Compute the target address = code_obj + header_size + osr_offset
   // <entry_addr> = <code_obj> + #header_size + <osr_offset>

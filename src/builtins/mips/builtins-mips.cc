@@ -1567,7 +1567,7 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
   __ lw(a1, MemOperand(a1, FixedArray::OffsetOfElementAt(
-                               DeoptimizationInputData::kOsrPcOffsetIndex) -
+                               DeoptimizationData::kOsrPcOffsetIndex) -
                                kHeapObjectTag));
   __ SmiUntag(a1);
 

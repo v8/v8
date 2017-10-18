@@ -837,13 +837,13 @@ class BytecodeArray : public FixedArrayBase {
   DISALLOW_IMPLICIT_CONSTRUCTORS(BytecodeArray);
 };
 
-// DeoptimizationInputData is a fixed array used to hold the deoptimization
-// data for optimized code.  It also contains information about functions that
-// were inlined.  If N different functions were inlined then first N elements of
+// DeoptimizationData is a fixed array used to hold the deoptimization data for
+// optimized code.  It also contains information about functions that were
+// inlined.  If N different functions were inlined then the first N elements of
 // the literal array will contain these functions.
 //
 // It can be empty.
-class DeoptimizationInputData : public FixedArray {
+class DeoptimizationData : public FixedArray {
  public:
   // Layout description.  Indices in the array.
   static const int kTranslationByteArrayIndex = 0;
@@ -903,15 +903,14 @@ class DeoptimizationInputData : public FixedArray {
   // outer function if index == kNotInlinedIndex.
   class SharedFunctionInfo* GetInlinedFunction(int index);
 
-  // Allocates a DeoptimizationInputData.
-  static Handle<DeoptimizationInputData> New(Isolate* isolate,
-                                             int deopt_entry_count,
-                                             PretenureFlag pretenure);
+  // Allocates a DeoptimizationData.
+  static Handle<DeoptimizationData> New(Isolate* isolate, int deopt_entry_count,
+                                        PretenureFlag pretenure);
 
-  DECL_CAST(DeoptimizationInputData)
+  DECL_CAST(DeoptimizationData)
 
 #ifdef ENABLE_DISASSEMBLER
-  void DeoptimizationInputDataPrint(std::ostream& os);  // NOLINT
+  void DeoptimizationDataPrint(std::ostream& os);  // NOLINT
 #endif
 
  private:

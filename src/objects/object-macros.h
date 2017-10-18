@@ -285,18 +285,16 @@
 #define DECL_VERIFIER(Name)
 #endif
 
-#define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)       \
-  type* DeoptimizationInputData::name() {                \
-    return type::cast(get(k##name##Index));              \
-  }                                                      \
-  void DeoptimizationInputData::Set##name(type* value) { \
-    set(k##name##Index, value);                          \
+#define DEFINE_DEOPT_ELEMENT_ACCESSORS(name, type)                             \
+  type* DeoptimizationData::name() { return type::cast(get(k##name##Index)); } \
+  void DeoptimizationData::Set##name(type* value) {                            \
+    set(k##name##Index, value);                                                \
   }
 
 #define DEFINE_DEOPT_ENTRY_ACCESSORS(name, type)                \
-  type* DeoptimizationInputData::name(int i) {                  \
+  type* DeoptimizationData::name(int i) {                       \
     return type::cast(get(IndexForEntry(i) + k##name##Offset)); \
   }                                                             \
-  void DeoptimizationInputData::Set##name(int i, type* value) { \
+  void DeoptimizationData::Set##name(int i, type* value) {      \
     set(IndexForEntry(i) + k##name##Offset, value);             \
   }

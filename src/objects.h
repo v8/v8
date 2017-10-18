@@ -986,7 +986,7 @@ template <class C> inline bool Is(Object* obj);
   V(Constructor)                          \
   V(Context)                              \
   V(CoverageInfo)                         \
-  V(DeoptimizationInputData)              \
+  V(DeoptimizationData)                   \
   V(DependentCode)                        \
   V(DescriptorArray)                      \
   V(EnumCache)                            \

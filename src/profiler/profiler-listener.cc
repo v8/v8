@@ -204,8 +204,8 @@ void ProfilerListener::RecordInliningInfo(CodeEntry* entry,
   if (!abstract_code->IsCode()) return;
   Code* code = abstract_code->GetCode();
   if (code->kind() != Code::OPTIMIZED_FUNCTION) return;
-  DeoptimizationInputData* deopt_input_data =
-      DeoptimizationInputData::cast(code->deoptimization_data());
+  DeoptimizationData* deopt_input_data =
+      DeoptimizationData::cast(code->deoptimization_data());
   int deopt_count = deopt_input_data->DeoptCount();
   for (int i = 0; i < deopt_count; i++) {
     int pc_offset = deopt_input_data->Pc(i)->value();

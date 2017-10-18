@@ -480,8 +480,8 @@ void ObjectStatsCollector::RecordCodeDetails(Code* code) {
   RecordFixedArrayHelper(code, code->deoptimization_data(),
                          DEOPTIMIZATION_DATA_SUB_TYPE, 0);
   if (code->kind() == Code::Kind::OPTIMIZED_FUNCTION) {
-    DeoptimizationInputData* input_data =
-        DeoptimizationInputData::cast(code->deoptimization_data());
+    DeoptimizationData* input_data =
+        DeoptimizationData::cast(code->deoptimization_data());
     if (input_data->length() > 0) {
       RecordFixedArrayHelper(code->deoptimization_data(),
                              input_data->LiteralArray(),

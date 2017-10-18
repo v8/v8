@@ -10458,15 +10458,14 @@ Handle<Object> AccessorPair::GetComponent(Handle<AccessorPair> accessor_pair,
   return handle(accessor, isolate);
 }
 
-Handle<DeoptimizationInputData> DeoptimizationInputData::New(
-    Isolate* isolate, int deopt_entry_count, PretenureFlag pretenure) {
-  return Handle<DeoptimizationInputData>::cast(
-      isolate->factory()->NewFixedArray(LengthFor(deopt_entry_count),
-                                        pretenure));
+Handle<DeoptimizationData> DeoptimizationData::New(Isolate* isolate,
+                                                   int deopt_entry_count,
+                                                   PretenureFlag pretenure) {
+  return Handle<DeoptimizationData>::cast(isolate->factory()->NewFixedArray(
+      LengthFor(deopt_entry_count), pretenure));
 }
 
-
-SharedFunctionInfo* DeoptimizationInputData::GetInlinedFunction(int index) {
+SharedFunctionInfo* DeoptimizationData::GetInlinedFunction(int index) {
   if (index == -1) {
     return SharedFunctionInfo::cast(SharedFunctionInfo());
   } else {
@@ -14042,8 +14041,8 @@ void Code::PrintDeoptLocation(FILE* out, Address pc) {
 
 
 bool Code::CanDeoptAt(Address pc) {
-  DeoptimizationInputData* deopt_data =
-      DeoptimizationInputData::cast(deoptimization_data());
+  DeoptimizationData* deopt_data =
+      DeoptimizationData::cast(deoptimization_data());
   Address code_start_address = instruction_start();
   for (int i = 0; i < deopt_data->DeoptCount(); i++) {
     if (deopt_data->Pc(i)->value() == -1) continue;
@@ -14080,7 +14079,7 @@ Handle<WeakCell> Code::WeakCellFor(Handle<Code> code) {
   WeakCell* raw_cell = code->CachedWeakCell();
   if (raw_cell != nullptr) return Handle<WeakCell>(raw_cell);
   Handle<WeakCell> cell = code->GetIsolate()->factory()->NewWeakCell(code);
-  DeoptimizationInputData::cast(code->deoptimization_data())
+  DeoptimizationData::cast(code->deoptimization_data())
       ->SetWeakCellCache(*cell);
   return cell;
 }
@@ -14088,7 +14087,7 @@ Handle<WeakCell> Code::WeakCellFor(Handle<Code> code) {
 WeakCell* Code::CachedWeakCell() {
   DCHECK(kind() == OPTIMIZED_FUNCTION);
   Object* weak_cell_cache =
-      DeoptimizationInputData::cast(deoptimization_data())->WeakCellCache();
+      DeoptimizationData::cast(deoptimization_data())->WeakCellCache();
   if (weak_cell_cache->IsWeakCell()) {
     DCHECK(this == WeakCell::cast(weak_cell_cache)->value());
     return WeakCell::cast(weak_cell_cache);
@@ -14100,8 +14099,8 @@ bool Code::Inlines(SharedFunctionInfo* sfi) {
   // We can only check for inlining for optimized code.
   DCHECK(is_optimized_code());
   DisallowHeapAllocation no_gc;
-  DeoptimizationInputData* const data =
-      DeoptimizationInputData::cast(deoptimization_data());
+  DeoptimizationData* const data =
+      DeoptimizationData::cast(deoptimization_data());
   if (data->length() == 0) return false;
   if (data->SharedFunctionInfo() == sfi) return true;
   FixedArray* const literals = data->LiteralArray();
@@ -14179,8 +14178,7 @@ void print_pc(std::ostream& os, int pc) {
 }
 }  // anonymous namespace
 
-void DeoptimizationInputData::DeoptimizationInputDataPrint(
-    std::ostream& os) {  // NOLINT
+void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
   if (length() == 0) {
     os << "Deoptimization Input Data invalidated by lazy deoptimization\n";
     return;
@@ -14492,9 +14490,9 @@ void Code::Disassemble(const char* name, std::ostream& os) {  // NOLINT
   }
 
   if (kind() == OPTIMIZED_FUNCTION) {
-    DeoptimizationInputData* data =
-        DeoptimizationInputData::cast(this->deoptimization_data());
-    data->DeoptimizationInputDataPrint(os);
+    DeoptimizationData* data =
+        DeoptimizationData::cast(this->deoptimization_data());
+    data->DeoptimizationDataPrint(os);
   }
   os << "\n";
 
@@ -14915,8 +14913,8 @@ void DependentCode::SetMarkedForDeoptimization(Code* code,
   code->set_marked_for_deoptimization(true);
   if (FLAG_trace_deopt &&
       (code->deoptimization_data() != code->GetHeap()->empty_fixed_array())) {
-    DeoptimizationInputData* deopt_data =
-        DeoptimizationInputData::cast(code->deoptimization_data());
+    DeoptimizationData* deopt_data =
+        DeoptimizationData::cast(code->deoptimization_data());
     CodeTracer::Scope scope(code->GetHeap()->isolate()->GetCodeTracer());
     PrintF(scope.file(), "[marking dependent code 0x%08" V8PRIxPTR
                          " (opt #%d) for deoptimization, reason: %s]\n",

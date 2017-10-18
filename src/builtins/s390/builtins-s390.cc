@@ -1609,9 +1609,8 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   // Load the OSR entrypoint offset from the deoptimization data.
   // <osr_offset> = <deopt_data>[#header_size + #osr_pc_offset]
-  __ LoadP(
-      r3, FieldMemOperand(r3, FixedArray::OffsetOfElementAt(
-                                  DeoptimizationInputData::kOsrPcOffsetIndex)));
+  __ LoadP(r3, FieldMemOperand(r3, FixedArray::OffsetOfElementAt(
+                                       DeoptimizationData::kOsrPcOffsetIndex)));
   __ SmiUntag(r3);
 
   // Compute the target address = code_obj + header_size + osr_offset

@@ -23,7 +23,7 @@ CAST_ACCESSOR(AbstractCode)
 CAST_ACCESSOR(BytecodeArray)
 CAST_ACCESSOR(Code)
 CAST_ACCESSOR(DependentCode)
-CAST_ACCESSOR(DeoptimizationInputData)
+CAST_ACCESSOR(DeoptimizationData)
 CAST_ACCESSOR(HandlerTable)
 
 int AbstractCode::instruction_size() {
@@ -721,15 +721,15 @@ int HandlerTable::NumberOfRangeEntries() const {
   return length() / kRangeEntrySize;
 }
 
-BailoutId DeoptimizationInputData::BytecodeOffset(int i) {
+BailoutId DeoptimizationData::BytecodeOffset(int i) {
   return BailoutId(BytecodeOffsetRaw(i)->value());
 }
 
-void DeoptimizationInputData::SetBytecodeOffset(int i, BailoutId value) {
+void DeoptimizationData::SetBytecodeOffset(int i, BailoutId value) {
   SetBytecodeOffsetRaw(i, Smi::FromInt(value.ToInt()));
 }
 
-int DeoptimizationInputData::DeoptCount() {
+int DeoptimizationData::DeoptCount() {
   return (length() - kFirstDeoptEntryIndex) / kDeoptEntrySize;
 }
 

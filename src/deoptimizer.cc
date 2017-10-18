@@ -593,8 +593,8 @@ void Deoptimizer::DoComputeOutputFrames() {
 
   // Determine basic deoptimization information.  The optimized frame is
   // described by the input data.
-  DeoptimizationInputData* input_data =
-      DeoptimizationInputData::cast(compiled_code_->deoptimization_data());
+  DeoptimizationData* input_data =
+      DeoptimizationData::cast(compiled_code_->deoptimization_data());
 
   {
     // Read caller's PC, caller's FP and caller's constant pool values
@@ -3406,7 +3406,7 @@ int TranslatedState::CreateNextTranslatedValue(
 TranslatedState::TranslatedState(const JavaScriptFrame* frame)
     : isolate_(nullptr), stack_frame_pointer_(nullptr) {
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
-  DeoptimizationInputData* data =
+  DeoptimizationData* data =
       static_cast<const OptimizedFrame*>(frame)->GetDeoptimizationData(
           &deopt_index);
   DCHECK(data != nullptr && deopt_index != Safepoint::kNoDeoptimizationIndex);

@@ -610,8 +610,8 @@ void CodeGenerator::PopulateDeoptimizationData(Handle<Code> code_object) {
   CompilationInfo* info = this->info();
   int deopt_count = static_cast<int>(deoptimization_states_.size());
   if (deopt_count == 0 && !info->is_osr()) return;
-  Handle<DeoptimizationInputData> data =
-      DeoptimizationInputData::New(isolate(), deopt_count, TENURED);
+  Handle<DeoptimizationData> data =
+      DeoptimizationData::New(isolate(), deopt_count, TENURED);
 
   Handle<ByteArray> translation_array =
       translations_.CreateByteArray(isolate()->factory());

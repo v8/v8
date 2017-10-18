@@ -1211,8 +1211,7 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
       int maxInlinedId = -1;
       if (hasInlined) {
         PodArray<InliningPosition>* inlining_positions =
-            DeoptimizationInputData::cast(
-                Code::cast(code)->deoptimization_data())
+            DeoptimizationData::cast(Code::cast(code)->deoptimization_data())
                 ->InliningPositions();
         for (int i = 0; i < inlining_positions->length(); i++) {
           InliningPosition inlining_pos = inlining_positions->get(i);
@@ -1232,8 +1231,8 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
       }
       os << ",";
       if (hasInlined) {
-        DeoptimizationInputData* deopt_data = DeoptimizationInputData::cast(
-            Code::cast(code)->deoptimization_data());
+        DeoptimizationData* deopt_data =
+            DeoptimizationData::cast(Code::cast(code)->deoptimization_data());
 
         os << std::hex;
         for (int i = 0; i <= maxInlinedId; i++) {

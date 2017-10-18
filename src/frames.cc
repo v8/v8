@@ -1334,7 +1334,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
   }
 
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
-  DeoptimizationInputData* const data = GetDeoptimizationData(&deopt_index);
+  DeoptimizationData* const data = GetDeoptimizationData(&deopt_index);
   if (deopt_index == Safepoint::kNoDeoptimizationIndex) {
     CHECK_NULL(data);
     FATAL("Missing deoptimization information for OptimizedFrame::Summarize.");
@@ -1420,8 +1420,7 @@ int OptimizedFrame::LookupExceptionHandlerInTable(
   return table->LookupReturn(pc_offset);
 }
 
-
-DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
+DeoptimizationData* OptimizedFrame::GetDeoptimizationData(
     int* deopt_index) const {
   DCHECK(is_optimized());
 
@@ -1441,7 +1440,7 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
   SafepointEntry safepoint_entry = code->GetSafepointEntry(pc());
   *deopt_index = safepoint_entry.deoptimization_index();
   if (*deopt_index != Safepoint::kNoDeoptimizationIndex) {
-    return DeoptimizationInputData::cast(code->deoptimization_data());
+    return DeoptimizationData::cast(code->deoptimization_data());
   }
   return nullptr;
 }
@@ -1475,7 +1474,7 @@ void OptimizedFrame::GetFunctions(
 
   DisallowHeapAllocation no_gc;
   int deopt_index = Safepoint::kNoDeoptimizationIndex;
-  DeoptimizationInputData* const data = GetDeoptimizationData(&deopt_index);
+  DeoptimizationData* const data = GetDeoptimizationData(&deopt_index);
   DCHECK_NOT_NULL(data);
   DCHECK_NE(Safepoint::kNoDeoptimizationIndex, deopt_index);
   FixedArray* const literal_array = data->LiteralArray();

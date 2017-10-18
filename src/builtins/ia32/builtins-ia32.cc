@@ -2644,7 +2644,7 @@ static void Generate_OnStackReplacementHelper(MacroAssembler* masm,
 
   // Load the OSR entrypoint offset from the deoptimization data.
   __ mov(ebx, Operand(ebx, FixedArray::OffsetOfElementAt(
-                               DeoptimizationInputData::kOsrPcOffsetIndex) -
+                               DeoptimizationData::kOsrPcOffsetIndex) -
                                kHeapObjectTag));
   __ SmiUntag(ebx);
 
