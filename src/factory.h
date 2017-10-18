@@ -418,7 +418,8 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<AllocationSite> NewAllocationSite();
 
   Handle<Map> NewMap(InstanceType type, int instance_size,
-                     ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND);
+                     ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+                     int inobject_properties = 0);
 
   Handle<HeapObject> NewFillerObject(int size,
                                      bool double_align,
@@ -650,13 +651,12 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<JSFunction> NewFunction(
       Handle<String> name, Handle<Code> code, Handle<Object> prototype,
-      InstanceType type, int instance_size,
+      InstanceType type, int instance_size, int inobject_properties,
       LanguageMode language_mode = LanguageMode::kSloppy,
       MutableMode prototype_mutability = MUTABLE);
-  Handle<JSFunction> NewFunction(Handle<String> name,
-                                 Handle<Code> code,
-                                 InstanceType type,
-                                 int instance_size);
+  Handle<JSFunction> NewFunction(Handle<String> name, Handle<Code> code,
+                                 InstanceType type, int instance_size,
+                                 int inobject_properties);
   Handle<JSFunction> NewFunction(Handle<Map> map, Handle<String> name,
                                  MaybeHandle<Code> maybe_code);
 

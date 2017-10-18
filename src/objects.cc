@@ -9001,11 +9001,12 @@ Object* JSObject::SlowReverseLookup(Object* value) {
   }
 }
 
-
-Handle<Map> Map::RawCopy(Handle<Map> map, int instance_size) {
+Handle<Map> Map::RawCopy(Handle<Map> map, int instance_size,
+                         int inobject_properties) {
   Isolate* isolate = map->GetIsolate();
-  Handle<Map> result =
-      isolate->factory()->NewMap(map->instance_type(), instance_size);
+  Handle<Map> result = isolate->factory()->NewMap(
+      map->instance_type(), instance_size, TERMINAL_FAST_ELEMENTS_KIND,
+      inobject_properties);
   Handle<Object> prototype(map->prototype(), isolate);
   Map::SetPrototype(result, prototype);
   result->set_constructor_or_backpointer(map->GetConstructor());
@@ -9097,12 +9098,12 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
     new_instance_size -= map->GetInObjectProperties() * kPointerSize;
   }
 
-  Handle<Map> result = RawCopy(map, new_instance_size);
-
-  if (mode != CLEAR_INOBJECT_PROPERTIES) {
-    result->SetInObjectProperties(map->GetInObjectProperties());
-  }
-
+  Handle<Map> result = RawCopy(
+      map, new_instance_size,
+      mode == CLEAR_INOBJECT_PROPERTIES ? 0 : map->GetInObjectProperties());
+  // Clear the unused_property_fields explicitly as this field should not
+  // be accessed for normalized maps.
+  result->set_unused_property_fields(0);
   result->set_dictionary_map(true);
   result->set_migration_target(false);
   result->set_may_have_interesting_symbols(true);
@@ -9165,13 +9166,12 @@ Handle<Map> Map::CopyInitialMapNormalized(Handle<Map> map,
 
 // static
 Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
-                                int in_object_properties,
+                                int inobject_properties,
                                 int unused_property_fields) {
   EnsureInitialMap(map);
-  Handle<Map> result = RawCopy(map, instance_size);
+  Handle<Map> result = RawCopy(map, instance_size, inobject_properties);
 
   // Please note instance_type and instance_size are set when allocated.
-  result->SetInObjectProperties(in_object_properties);
   result->set_unused_property_fields(unused_property_fields);
 
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
@@ -9181,8 +9181,8 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
                               map->GetLayoutDescriptor());
     result->SetNumberOfOwnDescriptors(number_of_own_descriptors);
 
-    DCHECK_EQ(result->NumberOfFields(),
-              in_object_properties - unused_property_fields);
+    DCHECK_EQ(result->NumberOfFields(), result->GetInObjectProperties() -
+                                            result->unused_property_fields());
   }
 
   return result;
@@ -9190,11 +9190,12 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
 
 
 Handle<Map> Map::CopyDropDescriptors(Handle<Map> map) {
-  Handle<Map> result = RawCopy(map, map->instance_size());
+  Handle<Map> result =
+      RawCopy(map, map->instance_size(),
+              map->IsJSObjectMap() ? map->GetInObjectProperties() : 0);
 
   // Please note instance_type and instance_size are set when allocated.
   if (map->IsJSObjectMap()) {
-    result->SetInObjectProperties(map->GetInObjectProperties());
     result->set_unused_property_fields(map->unused_property_fields());
   }
   map->NotifyLeafMapLayoutChange();
@@ -12907,11 +12908,13 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   }
 
   int instance_size;
-  int in_object_properties;
+  int inobject_properties;
   CalculateInstanceSizeHelper(instance_type, false, 0, expected_nof_properties,
-                              &instance_size, &in_object_properties);
+                              &instance_size, &inobject_properties);
 
-  Handle<Map> map = isolate->factory()->NewMap(instance_type, instance_size);
+  Handle<Map> map = isolate->factory()->NewMap(instance_type, instance_size,
+                                               TERMINAL_FAST_ELEMENTS_KIND,
+                                               inobject_properties);
 
   // Fetch or allocate prototype.
   Handle<Object> prototype;
@@ -12920,8 +12923,6 @@ void JSFunction::EnsureHasInitialMap(Handle<JSFunction> function) {
   } else {
     prototype = isolate->factory()->NewFunctionPrototype(function);
   }
-  map->SetInObjectProperties(in_object_properties);
-  map->set_unused_property_fields(in_object_properties);
   DCHECK(map->has_fast_object_elements());
 
   // Finally link initial map and constructor function.

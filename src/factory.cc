@@ -1285,13 +1285,13 @@ Handle<AllocationSite> Factory::NewAllocationSite() {
   return site;
 }
 
-
-Handle<Map> Factory::NewMap(InstanceType type,
-                            int instance_size,
-                            ElementsKind elements_kind) {
+Handle<Map> Factory::NewMap(InstanceType type, int instance_size,
+                            ElementsKind elements_kind,
+                            int inobject_properties) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateMap(type, instance_size, elements_kind),
+      isolate()->heap()->AllocateMap(type, instance_size, elements_kind,
+                                     inobject_properties),
       Map);
 }
 
@@ -1618,6 +1618,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
 Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
                                         Handle<Object> prototype,
                                         InstanceType type, int instance_size,
+                                        int inobject_properties,
                                         LanguageMode language_mode,
                                         MutableMode prototype_mutability) {
   // Allocate the function
@@ -1626,7 +1627,8 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
 
   ElementsKind elements_kind =
       type == JS_ARRAY_TYPE ? PACKED_SMI_ELEMENTS : HOLEY_SMI_ELEMENTS;
-  Handle<Map> initial_map = NewMap(type, instance_size, elements_kind);
+  Handle<Map> initial_map =
+      NewMap(type, instance_size, elements_kind, inobject_properties);
   // TODO(littledan): Why do we have this is_generator test when
   // NewFunctionPrototype already handles finding an appropriately
   // shared prototype?
@@ -1639,14 +1641,12 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
   return function;
 }
 
-
-Handle<JSFunction> Factory::NewFunction(Handle<String> name,
-                                        Handle<Code> code,
-                                        InstanceType type,
-                                        int instance_size) {
+Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
+                                        InstanceType type, int instance_size,
+                                        int inobject_properties) {
   DCHECK(isolate()->bootstrapper()->IsActive());
   return NewFunction(name, code, the_hole_value(), type, instance_size,
-                     LanguageMode::kStrict);
+                     inobject_properties, LanguageMode::kStrict);
 }
 
 
@@ -2946,7 +2946,8 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
   if (IsFunctionModeWithName(function_mode)) ++inobject_properties_count;
 
   Handle<Map> map = NewMap(
-      JS_FUNCTION_TYPE, header_size + inobject_properties_count * kPointerSize);
+      JS_FUNCTION_TYPE, header_size + inobject_properties_count * kPointerSize,
+      TERMINAL_FAST_ELEMENTS_KIND, inobject_properties_count);
   map->set_has_prototype_slot(has_prototype);
   map->set_is_constructor(has_prototype);
   map->set_is_callable();
@@ -2954,7 +2955,6 @@ Handle<Map> Factory::CreateSloppyFunctionMap(
   if (maybe_empty_function.ToHandle(&empty_function)) {
     Map::SetPrototype(map, empty_function);
   }
-  map->SetInObjectProperties(inobject_properties_count);
 
   //
   // Setup descriptors array.
@@ -3035,12 +3035,12 @@ Handle<Map> Factory::CreateStrictFunctionMap(
                           inobject_properties_count;
 
   Handle<Map> map = NewMap(
-      JS_FUNCTION_TYPE, header_size + inobject_properties_count * kPointerSize);
+      JS_FUNCTION_TYPE, header_size + inobject_properties_count * kPointerSize,
+      TERMINAL_FAST_ELEMENTS_KIND, inobject_properties_count);
   map->set_has_prototype_slot(has_prototype);
   map->set_is_constructor(has_prototype);
   map->set_is_callable();
   Map::SetPrototype(map, empty_function);
-  map->SetInObjectProperties(inobject_properties_count);
 
   //
   // Setup descriptors array.

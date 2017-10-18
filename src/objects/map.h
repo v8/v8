@@ -843,7 +843,8 @@ class Map : public HeapObject {
 
   bool EquivalentToForTransition(const Map* other) const;
   bool EquivalentToForElementsKindTransition(const Map* other) const;
-  static Handle<Map> RawCopy(Handle<Map> map, int instance_size);
+  static Handle<Map> RawCopy(Handle<Map> map, int instance_size,
+                             int inobject_properties);
   static Handle<Map> ShareDescriptor(Handle<Map> map,
                                      Handle<DescriptorArray> descriptors,
                                      Descriptor* descriptor);

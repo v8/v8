@@ -3526,11 +3526,15 @@ void Map::AppendDescriptor(Descriptor* desc) {
   if (desc->GetKey()->IsInterestingSymbol()) {
     set_may_have_interesting_symbols(true);
   }
+  PropertyDetails details = desc->GetDetails();
+  if (details.location() == kField) {
+    DCHECK_GT(unused_property_fields(), 0);
+    set_unused_property_fields(unused_property_fields() - 1);
+  }
 
 // This function does not support appending double field descriptors and
 // it should never try to (otherwise, layout descriptor must be updated too).
 #ifdef DEBUG
-  PropertyDetails details = desc->GetDetails();
   DCHECK(details.location() != kField || !details.representation().IsDouble());
 #endif
 }

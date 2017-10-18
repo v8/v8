@@ -1967,7 +1967,8 @@ class Heap {
   // Allocates a JS Map in the heap.
   MUST_USE_RESULT AllocationResult
   AllocateMap(InstanceType instance_type, int instance_size,
-              ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND);
+              ElementsKind elements_kind = TERMINAL_FAST_ELEMENTS_KIND,
+              int inobject_properties = 0);
 
   // Allocates and initializes a new JavaScript object based on a
   // constructor.
