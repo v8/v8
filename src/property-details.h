@@ -133,8 +133,8 @@ class Representation {
     if (kind_ == kExternal && other.kind_ == kExternal) return false;
     if (kind_ == kNone && other.kind_ == kExternal) return false;
 
-    DCHECK(kind_ != kExternal);
-    DCHECK(other.kind_ != kExternal);
+    DCHECK_NE(kind_, kExternal);
+    DCHECK_NE(other.kind_, kExternal);
     if (IsHeapObject()) return other.IsNone();
     if (kind_ == kUInteger8 && other.kind_ == kInteger8) return false;
     if (kind_ == kUInteger16 && other.kind_ == kInteger16) return false;

@@ -205,10 +205,10 @@ Operand::Operand(Label* label) : rex_(0), len_(1) {
 
 
 Operand::Operand(const Operand& operand, int32_t offset) {
-  DCHECK(operand.len_ >= 1);
+  DCHECK_GE(operand.len_, 1);
   // Operand encodes REX ModR/M [SIB] [Disp].
   byte modrm = operand.buf_[0];
-  DCHECK(modrm < 0xC0);  // Disallow mode 3 (register target).
+  DCHECK_LT(modrm, 0xC0);  // Disallow mode 3 (register target).
   bool has_sib = ((modrm & 0x07) == 0x04);
   byte mode = modrm & 0xC0;
   int disp_offset = has_sib ? 2 : 1;
@@ -253,7 +253,7 @@ Operand::Operand(const Operand& operand, int32_t offset) {
 
 bool Operand::AddressUsesRegister(Register reg) const {
   int code = reg.code();
-  DCHECK((buf_[0] & 0xC0) != 0xC0);  // Always a memory operand.
+  DCHECK_NE(buf_[0] & 0xC0, 0xC0);  // Always a memory operand.
   // Start with only low three bits of base register. Initial decoding doesn't
   // distinguish on the REX.B bit.
   int base_code = buf_[0] & 0x07;
@@ -325,7 +325,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
   desc->buffer = buffer_;
   desc->buffer_size = buffer_size_;
   desc->instr_size = pc_offset();
-  DCHECK(desc->instr_size > 0);  // Zero-size code objects upset the system.
+  DCHECK_GT(desc->instr_size, 0);  // Zero-size code objects upset the system.
   desc->reloc_size =
       static_cast<int>((buffer_ + buffer_size_) - reloc_info_writer.pos());
   desc->origin = this;
@@ -415,7 +415,7 @@ void Assembler::bind_to(Label* L, int pos) {
     int fixup_pos = L->near_link_pos();
     int offset_to_next =
         static_cast<int>(*reinterpret_cast<int8_t*>(addr_at(fixup_pos)));
-    DCHECK(offset_to_next <= 0);
+    DCHECK_LE(offset_to_next, 0);
     int disp = pos - (fixup_pos + sizeof(int8_t));
     CHECK(is_int8(disp));
     set_byte_at(fixup_pos, disp);
@@ -520,10 +520,10 @@ void Assembler::GrowBuffer() {
 void Assembler::emit_operand(int code, const Operand& adr) {
   DCHECK(is_uint3(code));
   const unsigned length = adr.len_;
-  DCHECK(length > 0);
+  DCHECK_GT(length, 0);
 
   // Emit updated ModR/M byte containing the given register.
-  DCHECK((adr.buf_[0] & 0x38) == 0);
+  DCHECK_EQ(adr.buf_[0] & 0x38, 0);
   *pc_++ = adr.buf_[0] | code << 3;
 
   // Recognize RIP relative addressing.
@@ -568,7 +568,7 @@ void Assembler::arithmetic_op(byte opcode,
                               Register rm_reg,
                               int size) {
   EnsureSpace ensure_space(this);
-  DCHECK((opcode & 0xC6) == 2);
+  DCHECK_EQ(opcode & 0xC6, 2);
   if (rm_reg.low_bits() == 4)  {  // Forces SIB byte.
     // Swap reg and rm_reg and change opcode operand order.
     emit_rex(rm_reg, reg, size);
@@ -584,7 +584,7 @@ void Assembler::arithmetic_op(byte opcode,
 
 void Assembler::arithmetic_op_16(byte opcode, Register reg, Register rm_reg) {
   EnsureSpace ensure_space(this);
-  DCHECK((opcode & 0xC6) == 2);
+  DCHECK_EQ(opcode & 0xC6, 2);
   if (rm_reg.low_bits() == 4) {  // Forces SIB byte.
     // Swap reg and rm_reg and change opcode operand order.
     emit(0x66);
@@ -625,7 +625,7 @@ void Assembler::arithmetic_op_8(byte opcode, Register reg, const Operand& op) {
 
 void Assembler::arithmetic_op_8(byte opcode, Register reg, Register rm_reg) {
   EnsureSpace ensure_space(this);
-  DCHECK((opcode & 0xC6) == 2);
+  DCHECK_EQ(opcode & 0xC6, 2);
   if (rm_reg.low_bits() == 4)  {  // Forces SIB byte.
     // Swap reg and rm_reg and change opcode operand order.
     if (!rm_reg.is_byte_register() || !reg.is_byte_register()) {
@@ -916,7 +916,7 @@ void Assembler::call(Label* L) {
   emit(0xE8);
   if (L->is_bound()) {
     int offset = L->pos() - pc_offset() - sizeof(int32_t);
-    DCHECK(offset <= 0);
+    DCHECK_LE(offset, 0);
     emitl(offset);
   } else if (L->is_linked()) {
     emitl(L->pos());
@@ -1012,7 +1012,7 @@ void Assembler::cmovq(Condition cc, Register dst, Register src) {
   }
   // No need to check CpuInfo for CMOV support, it's a required part of the
   // 64-bit architecture.
-  DCHECK(cc >= 0);  // Use mov for unconditional moves.
+  DCHECK_GE(cc, 0);  // Use mov for unconditional moves.
   EnsureSpace ensure_space(this);
   // Opcode: REX.W 0f 40 + cc /r.
   emit_rex_64(dst, src);
@@ -1028,7 +1028,7 @@ void Assembler::cmovq(Condition cc, Register dst, const Operand& src) {
   } else if (cc == never) {
     return;
   }
-  DCHECK(cc >= 0);
+  DCHECK_GE(cc, 0);
   EnsureSpace ensure_space(this);
   // Opcode: REX.W 0f 40 + cc /r.
   emit_rex_64(dst, src);
@@ -1044,7 +1044,7 @@ void Assembler::cmovl(Condition cc, Register dst, Register src) {
   } else if (cc == never) {
     return;
   }
-  DCHECK(cc >= 0);
+  DCHECK_GE(cc, 0);
   EnsureSpace ensure_space(this);
   // Opcode: 0f 40 + cc /r.
   emit_optional_rex_32(dst, src);
@@ -1060,7 +1060,7 @@ void Assembler::cmovl(Condition cc, Register dst, const Operand& src) {
   } else if (cc == never) {
     return;
   }
-  DCHECK(cc >= 0);
+  DCHECK_GE(cc, 0);
   EnsureSpace ensure_space(this);
   // Opcode: 0f 40 + cc /r.
   emit_optional_rex_32(dst, src);
@@ -1291,7 +1291,7 @@ void Assembler::j(Condition cc, Label* L, Label::Distance distance) {
     const int short_size = 2;
     const int long_size  = 6;
     int offs = L->pos() - pc_offset();
-    DCHECK(offs <= 0);
+    DCHECK_LE(offs, 0);
     // Determine whether we can use 1-byte offsets for backwards branches,
     // which have a max range of 128 bytes.
 
@@ -1382,7 +1382,7 @@ void Assembler::jmp(Label* L, Label::Distance distance) {
   const int long_size = sizeof(int32_t);
   if (L->is_bound()) {
     int offs = L->pos() - pc_offset() - 1;
-    DCHECK(offs <= 0);
+    DCHECK_LE(offs, 0);
     if (is_int8(offs - short_size) && !predictable_code_size()) {
       // 1110 1011 #8-bit disp.
       emit(0xEB);
@@ -1473,7 +1473,7 @@ void Assembler::load_rax(void* value, RelocInfo::Mode mode) {
     emit(0xA1);
     emitp(value, mode);
   } else {
-    DCHECK(kPointerSize == kInt32Size);
+    DCHECK_EQ(kPointerSize, kInt32Size);
     emit(0xA1);
     emitp(value, mode);
     // In 64-bit mode, need to zero extend the operand to 8 bytes.
@@ -1607,7 +1607,7 @@ void Assembler::emit_mov(Register dst, Immediate value, int size) {
     emit(0xC7);
     emit_modrm(0x0, dst);
   } else {
-    DCHECK(size == kInt32Size);
+    DCHECK_EQ(size, kInt32Size);
     emit(0xB8 + dst.low_bits());
   }
   emit(value);
@@ -1661,7 +1661,7 @@ void Assembler::movl(const Operand& dst, Label* src) {
   emit_operand(0, dst);
   if (src->is_bound()) {
     int offset = src->pos() - pc_offset() - sizeof(int32_t);
-    DCHECK(offset <= 0);
+    DCHECK_LE(offset, 0);
     emitl(offset);
   } else if (src->is_linked()) {
     emitl(src->pos());
@@ -2143,7 +2143,7 @@ void Assembler::store_rax(void* dst, RelocInfo::Mode mode) {
     emit(0xA3);
     emitp(dst, mode);
   } else {
-    DCHECK(kPointerSize == kInt32Size);
+    DCHECK_EQ(kPointerSize, kInt32Size);
     emit(0xA3);
     emitp(dst, mode);
     // In 64-bit mode, need to zero extend the operand to 8 bytes.

@@ -189,7 +189,7 @@ Isolate::PerIsolateThreadData* Isolate::FindPerThreadDataForThread(
 
 void Isolate::InitializeOncePerProcess() {
   base::LockGuard<base::Mutex> lock_guard(thread_data_table_mutex_.Pointer());
-  CHECK(thread_data_table_ == nullptr);
+  CHECK_NULL(thread_data_table_);
   isolate_key_ = base::Thread::CreateThreadLocalKey();
 #if DEBUG
   base::Relaxed_Store(&isolate_key_created_, 1);
@@ -1839,7 +1839,7 @@ bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
     // If the exception is externally caught, clear it if there are no
     // JavaScript frames on the way to the C++ frame that has the
     // external handler.
-    DCHECK(thread_local_top()->try_catch_handler_address() != nullptr);
+    DCHECK_NOT_NULL(thread_local_top()->try_catch_handler_address());
     Address external_handler_address =
         thread_local_top()->try_catch_handler_address();
     JavaScriptFrameIterator it(this);
@@ -2434,7 +2434,7 @@ void Isolate::TearDown() {
   // direct pointer. We don't use Enter/Exit here to avoid
   // initializing the thread data.
   PerIsolateThreadData* saved_data = CurrentPerIsolateThreadData();
-  DCHECK(base::Relaxed_Load(&isolate_key_created_) == 1);
+  DCHECK_EQ(base::Relaxed_Load(&isolate_key_created_), 1);
   Isolate* saved_isolate =
       reinterpret_cast<Isolate*>(base::Thread::GetThreadLocal(isolate_key_));
   SetIsolateThreadLocals(this, nullptr);
@@ -2717,7 +2717,7 @@ bool Isolate::Init(StartupDeserializer* des) {
     // stubs from scratch to get entry hooks, rather than loading the previously
     // generated stubs from disk.
     // If this assert fires, the initialization path has regressed.
-    DCHECK(des == nullptr);
+    DCHECK_NULL(des);
   }
 
   // The initialization process does not handle memory exhaustion.
@@ -2898,10 +2898,10 @@ void Isolate::Enter() {
   PerIsolateThreadData* current_data = CurrentPerIsolateThreadData();
   if (current_data != nullptr) {
     current_isolate = current_data->isolate_;
-    DCHECK(current_isolate != nullptr);
+    DCHECK_NOT_NULL(current_isolate);
     if (current_isolate == this) {
       DCHECK(Current() == this);
-      DCHECK(entry_stack_ != nullptr);
+      DCHECK_NOT_NULL(entry_stack_);
       DCHECK(entry_stack_->previous_thread_data == nullptr ||
              entry_stack_->previous_thread_data->thread_id().Equals(
                  ThreadId::Current()));
@@ -2912,7 +2912,7 @@ void Isolate::Enter() {
   }
 
   PerIsolateThreadData* data = FindOrAllocatePerThreadDataForThisThread();
-  DCHECK(data != nullptr);
+  DCHECK_NOT_NULL(data);
   DCHECK(data->isolate_ == this);
 
   EntryStackItem* item = new EntryStackItem(current_data,
@@ -2928,14 +2928,14 @@ void Isolate::Enter() {
 
 
 void Isolate::Exit() {
-  DCHECK(entry_stack_ != nullptr);
+  DCHECK_NOT_NULL(entry_stack_);
   DCHECK(entry_stack_->previous_thread_data == nullptr ||
          entry_stack_->previous_thread_data->thread_id().Equals(
              ThreadId::Current()));
 
   if (--entry_stack_->entry_count > 0) return;
 
-  DCHECK(CurrentPerIsolateThreadData() != nullptr);
+  DCHECK_NOT_NULL(CurrentPerIsolateThreadData());
   DCHECK(CurrentPerIsolateThreadData()->isolate_ == this);
 
   // Pop the stack.

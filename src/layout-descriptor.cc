@@ -122,7 +122,7 @@ Handle<LayoutDescriptor> LayoutDescriptor::EnsureCapacity(
 
 bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
                                 int* out_sequence_length) {
-  DCHECK(max_sequence_length > 0);
+  DCHECK_GT(max_sequence_length, 0);
   if (IsFastPointerLayout()) {
     *out_sequence_length = max_sequence_length;
     return true;
@@ -203,7 +203,7 @@ bool LayoutDescriptorHelper::IsTagged(
   int sequence_length;
   bool tagged = layout_descriptor_->IsTagged(field_index, max_sequence_length,
                                              &sequence_length);
-  DCHECK(sequence_length > 0);
+  DCHECK_GT(sequence_length, 0);
   if (offset_in_bytes < header_size_) {
     // Object headers do not contain non-tagged fields. Check if the contiguous
     // region continues after the header.

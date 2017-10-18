@@ -71,7 +71,8 @@ Object* JSRegExp::DataAt(int index) {
 
 void JSRegExp::SetDataAt(int index, Object* value) {
   DCHECK(TypeTag() != NOT_COMPILED);
-  DCHECK(index >= kDataIndex);  // Only implementation data can be set this way.
+  DCHECK_GE(index,
+            kDataIndex);  // Only implementation data can be set this way.
   FixedArray::cast(data())->set(index, value);
 }
 

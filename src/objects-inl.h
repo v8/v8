@@ -68,7 +68,7 @@ Smi* PropertyDetails::AsSmi() const {
 
 
 int PropertyDetails::field_width_in_words() const {
-  DCHECK(location() == kField);
+  DCHECK_EQ(location(), kField);
   if (!FLAG_unbox_double_fields) return 1;
   if (kDoubleSize == kPointerSize) return 1;
   return representation().IsDouble() ? kDoubleSize / kPointerSize : 1;
@@ -1011,7 +1011,7 @@ void HeapObject::set_map_no_write_barrier(Map* value) {
 void HeapObject::set_map_after_allocation(Map* value, WriteBarrierMode mode) {
   set_map_word(MapWord::FromMap(value));
   if (mode != SKIP_WRITE_BARRIER) {
-    DCHECK(value != nullptr);
+    DCHECK_NOT_NULL(value);
     // TODO(1600) We are passing nullptr as a slot because maps can never be on
     // evacuation candidate.
     value->GetHeap()->incremental_marking()->RecordWrite(this, nullptr, value);
@@ -1201,7 +1201,7 @@ inline void AllocationSite::set_memento_found_count(int count) {
   DCHECK((GetHeap()->MaxSemiSpaceSize() /
           (Heap::kMinObjectSizeInWords * kPointerSize +
            AllocationMemento::kSize)) < MementoFoundCountBits::kMax);
-  DCHECK(count < MementoFoundCountBits::kMax);
+  DCHECK_LT(count, MementoFoundCountBits::kMax);
   set_pretenure_data(MementoFoundCountBits::update(value, count));
 }
 
@@ -2191,7 +2191,7 @@ PropertyDetails Map::GetLastDescriptorDetails() const {
 
 int Map::LastAdded() const {
   int number_of_own_descriptors = NumberOfOwnDescriptors();
-  DCHECK(number_of_own_descriptors > 0);
+  DCHECK_GT(number_of_own_descriptors, 0);
   return number_of_own_descriptors - 1;
 }
 
@@ -2209,7 +2209,7 @@ int Map::EnumLength() const { return EnumLengthBits::decode(bit_field3()); }
 
 void Map::SetEnumLength(int length) {
   if (length != kInvalidEnumCacheSentinel) {
-    DCHECK(length >= 0);
+    DCHECK_GE(length, 0);
     DCHECK(length <= NumberOfOwnDescriptors());
   }
   set_bit_field3(EnumLengthBits::update(bit_field3(), length));
@@ -2299,12 +2299,12 @@ PropertyDetails DescriptorArray::GetDetails(int descriptor_number) {
 }
 
 int DescriptorArray::GetFieldIndex(int descriptor_number) {
-  DCHECK(GetDetails(descriptor_number).location() == kField);
+  DCHECK_EQ(GetDetails(descriptor_number).location(), kField);
   return GetDetails(descriptor_number).field_index();
 }
 
 FieldType* DescriptorArray::GetFieldType(int descriptor_number) {
-  DCHECK(GetDetails(descriptor_number).location() == kField);
+  DCHECK_EQ(GetDetails(descriptor_number).location(), kField);
   Object* wrapped_type = GetValue(descriptor_number);
   return Map::UnwrapFieldType(wrapped_type);
 }
@@ -2997,7 +2997,7 @@ void Map::SetConstructorFunctionIndex(int value) {
 int Map::GetInObjectPropertyOffset(int index) const {
   // Adjust for the number of properties stored in the object.
   index -= GetInObjectProperties();
-  DCHECK(index <= 0);
+  DCHECK_LE(index, 0);
   return instance_size() + (index * kPointerSize);
 }
 
@@ -3228,8 +3228,8 @@ bool Map::should_be_fast_prototype_map() const {
 }
 
 void Map::set_elements_kind(ElementsKind elements_kind) {
-  DCHECK(static_cast<int>(elements_kind) < kElementsKindCount);
-  DCHECK(kElementsKindCount <= (1 << Map::ElementsKindBits::kSize));
+  DCHECK_LT(static_cast<int>(elements_kind), kElementsKindCount);
+  DCHECK_LE(kElementsKindCount, 1 << Map::ElementsKindBits::kSize);
   set_bit_field2(Map::ElementsKindBits::update(bit_field2(), elements_kind));
   DCHECK(this->elements_kind() == elements_kind);
 }
@@ -4310,7 +4310,7 @@ bool JSObject::HasFixedTypedArrayElements() {
 #define FIXED_TYPED_ELEMENTS_CHECK(Type, type, TYPE, ctype, size)      \
   bool JSObject::HasFixed##Type##Elements() {                          \
     HeapObject* array = elements();                                    \
-    DCHECK(array != nullptr);                                          \
+    DCHECK_NOT_NULL(array);                                            \
     if (!array->IsHeapObject()) return false;                          \
     return array->map()->instance_type() == FIXED_##TYPE##_ARRAY_TYPE; \
   }

@@ -318,8 +318,8 @@ void Assembler::deserialization_set_target_internal_reference_at(
 
 
 void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
-  DCHECK(len_ == 1);
-  DCHECK((scale & -4) == 0);
+  DCHECK_EQ(len_, 1);
+  DCHECK_EQ(scale & -4, 0);
   // Use SIB with no index register only for base esp.
   DCHECK(index != esp || base == esp);
   buf_[1] = scale << 6 | index.code() << 3 | base.code();

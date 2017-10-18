@@ -358,7 +358,7 @@ struct Mask {
   uint8_t mask;
   uint8_t value() { return mask; }
   static Mask from_value(uint8_t input) {
-    DCHECK(input <= 0x0F);
+    DCHECK_LE(input, 0x0F);
     Mask m = {input};
     return m;
   }
@@ -624,7 +624,7 @@ class Assembler : public AssemblerBase {
   template <class T, int size, int lo, int hi>
   inline T getfield(T value) {
     DCHECK(lo < hi);
-    DCHECK(size > 0);
+    DCHECK_GT(size, 0);
     int mask = hi - lo;
     int shift = size * 8 - hi;
     uint32_t mask_value = (mask == 32) ? 0xffffffff : (1 << mask) - 1;

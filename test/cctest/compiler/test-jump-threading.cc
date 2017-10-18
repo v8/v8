@@ -94,7 +94,7 @@ class TestCode : public HandleAndZoneScope {
     }
   }
   void Defer() {
-    CHECK(current_ == nullptr);
+    CHECK_NULL(current_);
     Start(true);
   }
   void AddGapMove(int index, const InstructionOperand& from,

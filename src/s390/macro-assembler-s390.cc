@@ -378,7 +378,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 }
 
 void TurboAssembler::SaveRegisters(RegList registers) {
-  DCHECK(NumRegs(registers) > 0);
+  DCHECK_GT(NumRegs(registers), 0);
   RegList regs = 0;
   for (int i = 0; i < Register::kNumRegisters; ++i) {
     if ((registers >> i) & 1u) {
@@ -389,7 +389,7 @@ void TurboAssembler::SaveRegisters(RegList registers) {
 }
 
 void TurboAssembler::RestoreRegisters(RegList registers) {
-  DCHECK(NumRegs(registers) > 0);
+  DCHECK_GT(NumRegs(registers), 0);
   RegList regs = 0;
   for (int i = 0; i < Register::kNumRegisters; ++i) {
     if ((registers >> i) & 1u) {
@@ -584,7 +584,7 @@ void MacroAssembler::PushSafepointRegisters() {
   // Safepoints expect a block of kNumSafepointRegisters values on the
   // stack, so adjust the stack for unsaved registers.
   const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
-  DCHECK(num_unsaved >= 0);
+  DCHECK_GE(num_unsaved, 0);
   if (num_unsaved > 0) {
     lay(sp, MemOperand(sp, -(num_unsaved * kPointerSize)));
   }
@@ -1012,7 +1012,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   DCHECK_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   DCHECK_EQ(1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
   DCHECK_EQ(0 * kPointerSize, ExitFrameConstants::kCallerFPOffset);
-  DCHECK(stack_space > 0);
+  DCHECK_GT(stack_space, 0);
 
   // This is an opportunity to build a frame to wrap
   // all of the pushes that have happened inside of V8
@@ -1052,7 +1052,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   // function.
   const int frame_alignment = TurboAssembler::ActivationFrameAlignment();
   if (frame_alignment > 0) {
-    DCHECK(frame_alignment == 8);
+    DCHECK_EQ(frame_alignment, 8);
     ClearRightImm(sp, sp, Operand(3));  // equivalent to &= -8
   }
 
@@ -1930,7 +1930,7 @@ void TurboAssembler::CheckPageFlag(
 void MacroAssembler::JumpIfBlack(Register object, Register scratch0,
                                  Register scratch1, Label* on_black) {
   HasColor(object, scratch0, scratch1, on_black, 1, 1);  // kBlackBitPattern.
-  DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
+  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
 }
 
 void MacroAssembler::HasColor(Register object, Register bitmap_scratch,
@@ -1985,10 +1985,10 @@ void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
   GetMarkBits(value, bitmap_scratch, mask_scratch);
 
   // If the value is black or grey we don't need to do anything.
-  DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
-  DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
-  DCHECK(strcmp(Marking::kGreyBitPattern, "10") == 0);
-  DCHECK(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
+  DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
+  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
+  DCHECK_EQ(strcmp(Marking::kGreyBitPattern, "10"), 0);
+  DCHECK_EQ(strcmp(Marking::kImpossibleBitPattern, "01"), 0);
 
   // Since both black and grey have a 1 in the first position and white does
   // not have a 1 there we only need to check one bit.
@@ -2247,7 +2247,7 @@ void TurboAssembler::Mul(Register dst, Register src1, Register src2) {
 
 void TurboAssembler::DivP(Register dividend, Register divider) {
   // have to make sure the src and dst are reg pairs
-  DCHECK(dividend.code() % 2 == 0);
+  DCHECK_EQ(dividend.code() % 2, 0);
 #if V8_TARGET_ARCH_S390X
   dsgr(dividend, divider);
 #else
@@ -3394,7 +3394,7 @@ void TurboAssembler::CmpLogical32(Register dst, const Operand& opnd) {
 // Compare Logical Pointer Sized Register vs Immediate
 void TurboAssembler::CmpLogicalP(Register dst, const Operand& opnd) {
 #if V8_TARGET_ARCH_S390X
-  DCHECK(static_cast<uint32_t>(opnd.immediate() >> 32) == 0);
+  DCHECK_EQ(static_cast<uint32_t>(opnd.immediate() >> 32), 0);
   clgfi(dst, opnd);
 #else
   CmpLogical32(dst, opnd);
@@ -3461,7 +3461,7 @@ void TurboAssembler::LoadIntLiteral(Register dst, int value) {
 void TurboAssembler::LoadSmiLiteral(Register dst, Smi* smi) {
   intptr_t value = reinterpret_cast<intptr_t>(smi);
 #if V8_TARGET_ARCH_S390X
-  DCHECK((value & 0xffffffff) == 0);
+  DCHECK_EQ(value & 0xffffffff, 0);
   // The smi value is loaded in upper 32-bits.  Lower 32-bit are zeros.
   llihf(dst, Operand(value >> 32));
 #else
@@ -3562,7 +3562,7 @@ void TurboAssembler::SubSmiLiteral(Register dst, Register src, Smi* smi,
 void TurboAssembler::AndSmiLiteral(Register dst, Register src, Smi* smi) {
   if (dst != src) LoadRR(dst, src);
 #if V8_TARGET_ARCH_S390X
-  DCHECK((reinterpret_cast<intptr_t>(smi) & 0xffffffff) == 0);
+  DCHECK_EQ(reinterpret_cast<intptr_t>(smi) & 0xffffffff, 0);
   int value = static_cast<int>(reinterpret_cast<intptr_t>(smi) >> 32);
   nihf(dst, Operand(value));
 #else
@@ -3625,7 +3625,7 @@ void TurboAssembler::StoreP(Register src, const MemOperand& mem,
 void TurboAssembler::StoreP(const MemOperand& mem, const Operand& opnd,
                             Register scratch) {
   // Relocations not supported
-  DCHECK(opnd.rmode() == kRelocInfo_NONEPTR);
+  DCHECK_EQ(opnd.rmode(), kRelocInfo_NONEPTR);
 
   // Try to use MVGHI/MVHI
   if (CpuFeatures::IsSupported(GENERAL_INSTR_EXT) && is_uint12(mem.offset()) &&

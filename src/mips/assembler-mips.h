@@ -253,12 +253,12 @@ class FPURegister : public RegisterBase<FPURegister, kDoubleAfterLast> {
  public:
   FPURegister low() const {
     // Find low reg of a Double-reg pair, which is the reg itself.
-    DCHECK(code() % 2 == 0);  // Specified Double reg must be even.
+    DCHECK_EQ(code() % 2, 0);  // Specified Double reg must be even.
     return FPURegister::from_code(code());
   }
   FPURegister high() const {
     // Find high reg of a Doubel-reg pair, which is reg + 1.
-    DCHECK(code() % 2 == 0);  // Specified Double reg must be even.
+    DCHECK_EQ(code() % 2, 0);  // Specified Double reg must be even.
     return FPURegister::from_code(code() + 1);
   }
 
@@ -688,7 +688,7 @@ class Assembler : public AssemblerBase {
   // sll(zero_reg, zero_reg, 0). We use rt_reg == at for non-zero
   // marking, to avoid conflict with ssnop and ehb instructions.
   void nop(unsigned int type = 0) {
-    DCHECK(type < 32);
+    DCHECK_LT(type, 32);
     Register nop_rt_reg = (type == 0) ? zero_reg : at;
     sll(zero_reg, nop_rt_reg, type, true);
   }

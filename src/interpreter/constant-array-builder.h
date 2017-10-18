@@ -128,13 +128,13 @@ class V8_EXPORT_PRIVATE ConstantArrayBuilder final BASE_EMBEDDED {
     }
 
     void SetDeferred(Handle<Object> handle) {
-      DCHECK(tag_ == Tag::kDeferred);
+      DCHECK_EQ(tag_, Tag::kDeferred);
       tag_ = Tag::kHandle;
       handle_ = handle;
     }
 
     void SetJumpTableSmi(Smi* smi) {
-      DCHECK(tag_ == Tag::kUninitializedJumpTableSmi);
+      DCHECK_EQ(tag_, Tag::kUninitializedJumpTableSmi);
       tag_ = Tag::kJumpTableSmi;
       smi_ = smi;
     }

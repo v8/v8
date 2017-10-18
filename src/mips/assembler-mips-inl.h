@@ -164,7 +164,7 @@ void Assembler::set_target_internal_reference_encoded_at(Address pc,
   instr1 &= ~kImm16Mask;
   instr2 &= ~kImm16Mask;
   int32_t imm = reinterpret_cast<int32_t>(target);
-  DCHECK((imm & 3) == 0);
+  DCHECK_EQ(imm & 3, 0);
   if (Assembler::IsJicOrJialc(instr2)) {
     // Encoded internal references are lui/jic load of 32-bit absolute address.
     uint32_t lui_offset_u, jic_offset_u;

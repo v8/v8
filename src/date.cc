@@ -109,7 +109,7 @@ void DateCache::YearMonthDayFromDays(
 
   bool is_leap = (!yd1 || yd2) && !yd3;
 
-  DCHECK(days >= -1);
+  DCHECK_GE(days, -1);
   DCHECK(is_leap || (days >= 0));
   DCHECK((days < 365) || (is_leap && (days < 366)));
   DCHECK(is_leap == ((*year % 4 == 0) && (*year % 100 || (*year % 400 == 0))));
@@ -162,8 +162,8 @@ int DateCache::DaysFromYearMonth(int year, int month) {
     month += 12;
   }
 
-  DCHECK(month >= 0);
-  DCHECK(month < 12);
+  DCHECK_GE(month, 0);
+  DCHECK_LT(month, 12);
 
   // year_delta is an arbitrary number such that:
   // a) year_delta = -1 (mod 400)
@@ -363,8 +363,8 @@ void DateCache::ProbeDST(int time_sec) {
             ? after_ : LeastRecentlyUsedDST(before);
   }
 
-  DCHECK(before != nullptr);
-  DCHECK(after != nullptr);
+  DCHECK_NOT_NULL(before);
+  DCHECK_NOT_NULL(after);
   DCHECK(before != after);
   DCHECK(InvalidSegment(before) || before->start_sec <= time_sec);
   DCHECK(InvalidSegment(after) || time_sec < after->start_sec);

@@ -59,7 +59,7 @@ RUNTIME_FUNCTION(Runtime_InstallToContext) {
     if (index == Context::kNotFound) {
       index = Context::IntrinsicIndexForName(name);
     }
-    CHECK(index != Context::kNotFound);
+    CHECK_NE(index, Context::kNotFound);
     native_context->set(index, *object);
   }
   return isolate->heap()->undefined_value();
@@ -317,8 +317,8 @@ RUNTIME_FUNCTION(Runtime_AllocateInNewSpace) {
   DCHECK_EQ(1, args.length());
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CHECK(IsAligned(size, kPointerSize));
-  CHECK(size > 0);
-  CHECK(size <= kMaxRegularHeapObjectSize);
+  CHECK_GT(size, 0);
+  CHECK_LE(size, kMaxRegularHeapObjectSize);
   return *isolate->factory()->NewFillerObject(size, false, NEW_SPACE);
 }
 
@@ -328,7 +328,7 @@ RUNTIME_FUNCTION(Runtime_AllocateInTargetSpace) {
   CONVERT_SMI_ARG_CHECKED(size, 0);
   CONVERT_SMI_ARG_CHECKED(flags, 1);
   CHECK(IsAligned(size, kPointerSize));
-  CHECK(size > 0);
+  CHECK_GT(size, 0);
   bool double_align = AllocateDoubleAlignFlag::decode(flags);
   AllocationSpace space = AllocateTargetSpace::decode(flags);
   CHECK(size <= kMaxRegularHeapObjectSize || space == LO_SPACE);

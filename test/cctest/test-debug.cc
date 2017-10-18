@@ -3943,7 +3943,7 @@ TEST(DebugBreak) {
   }
 
   // One break for each function called.
-  CHECK(4 * arraysize(argv) == break_point_hit_count);
+  CHECK_EQ(4 * arraysize(argv), break_point_hit_count);
 
   // Get rid of the debug event listener.
   SetDebugEventListener(isolate, nullptr);
@@ -6355,7 +6355,7 @@ static void NoInterruptsOnDebugEvent(
   if (event_details.GetEvent() != v8::AfterCompile) return;
   ++after_compile_handler_depth;
   // Do not allow nested AfterCompile events.
-  CHECK(after_compile_handler_depth <= 1);
+  CHECK_LE(after_compile_handler_depth, 1);
   v8::Isolate* isolate = event_details.GetEventContext()->GetIsolate();
   v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate);
   isolate->RequestInterrupt(&HandleInterrupt, nullptr);
@@ -6649,7 +6649,7 @@ TEST(DebugGetPossibleBreakpointsReturnLocations) {
   CompileRun(source);
   v8::PersistentValueVector<v8::debug::Script> scripts(isolate);
   v8::debug::GetLoadedScripts(isolate, scripts);
-  CHECK(scripts.Size() == 1);
+  CHECK_EQ(scripts.Size(), 1);
   std::vector<v8::debug::BreakLocation> locations;
   CHECK(scripts.Get(0)->GetPossibleBreakpoints(
       v8::debug::Location(0, 17), v8::debug::Location(), true, &locations));
@@ -6661,7 +6661,7 @@ TEST(DebugGetPossibleBreakpointsReturnLocations) {
   }
   // With Ignition we generate one return location per return statement,
   // each has line = 5, column = 0 as statement position.
-  CHECK(returns_count == 4);
+  CHECK_EQ(returns_count, 4);
 }
 
 TEST(DebugEvaluateNoSideEffect) {

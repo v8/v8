@@ -229,7 +229,7 @@ wasm::AsmJsParser::VarInfo* AsmJsParser::GetVarInfo(
 }
 
 uint32_t AsmJsParser::VarIndex(VarInfo* info) {
-  DCHECK(info->kind == VarKind::kGlobal);
+  DCHECK_EQ(info->kind, VarKind::kGlobal);
   return info->index + static_cast<uint32_t>(global_imports_.size());
 }
 
@@ -307,7 +307,7 @@ void AsmJsParser::BareBegin(BlockKind kind, AsmJsScanner::token_t label) {
 }
 
 void AsmJsParser::BareEnd() {
-  DCHECK(block_stack_.size() > 0);
+  DCHECK_GT(block_stack_.size(), 0);
   block_stack_.pop_back();
 }
 
@@ -791,7 +791,7 @@ void AsmJsParser::ValidateFunction() {
   }
   function_info = GetVarInfo(function_name);
   if (function_info->type->IsA(AsmType::None())) {
-    DCHECK(function_info->kind == VarKind::kFunction);
+    DCHECK_EQ(function_info->kind, VarKind::kFunction);
     function_info->type = function_type;
   } else if (!function_type->IsA(function_info->type)) {
     // TODO(bradnelson): Should IsExactly be used here?
@@ -2188,7 +2188,7 @@ AsmType* AsmJsParser::ValidateCall() {
     if (return_type->IsA(AsmType::Float())) {
       FAILn("Imported function can't be called as float");
     }
-    DCHECK(function_info->import != nullptr);
+    DCHECK_NOT_NULL(function_info->import);
     // TODO(bradnelson): Factor out.
     uint32_t index;
     auto it = function_info->import->cache.find(sig);

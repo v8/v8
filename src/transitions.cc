@@ -137,7 +137,7 @@ void TransitionsAccessor::Insert(Handle<Name> name, Handle<Map> target,
     }
 
     ++new_nof;
-    CHECK(new_nof <= kMaxNumberOfTransitions);
+    CHECK_LE(new_nof, kMaxNumberOfTransitions);
     DCHECK(insertion_index >= 0 && insertion_index <= number_of_transitions);
 
     // If there is enough capacity, insert new entry into the existing array.
@@ -475,7 +475,7 @@ FixedArray* TransitionsAccessor::GetPrototypeTransitions() {
 // static
 void TransitionArray::SetNumberOfPrototypeTransitions(
     FixedArray* proto_transitions, int value) {
-  DCHECK(proto_transitions->length() != 0);
+  DCHECK_NE(proto_transitions->length(), 0);
   proto_transitions->set(kProtoTransitionNumberOfEntriesOffset,
                          Smi::FromInt(value));
 }

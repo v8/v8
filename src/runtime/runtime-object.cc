@@ -682,7 +682,7 @@ RUNTIME_FUNCTION(Runtime_LoadMutableDouble) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   CONVERT_ARG_HANDLE_CHECKED(Smi, index, 1);
-  CHECK((index->value() & 1) == 1);
+  CHECK_EQ(index->value() & 1, 1);
   FieldIndex field_index =
       FieldIndex::ForLoadByFieldIndex(object->map(), index->value());
   if (field_index.is_inobject()) {

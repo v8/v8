@@ -225,7 +225,7 @@ class CPUInfo final {
   // string that must be freed by the caller using delete[].
   // Return nullptr if not found.
   char* ExtractField(const char* field) const {
-    DCHECK(field != nullptr);
+    DCHECK_NOT_NULL(field);
 
     // Look for first field occurrence, and ensure it starts the line.
     size_t fieldlen = strlen(field);
@@ -567,7 +567,7 @@ CPU::CPU()
     // QNX doesn't say if Thumb2 is available.
     // Assume false for the architectures older than ARMv7.
   }
-  DCHECK(architecture_ >= 6);
+  DCHECK_GE(architecture_, 6);
   has_fpu_ = (cpu_flags & CPU_FLAG_FPU) != 0;
   has_vfp_ = has_fpu_;
   if (cpu_flags & ARM_CPU_FLAG_NEON) {

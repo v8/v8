@@ -1045,7 +1045,7 @@ void TurboAssembler::Uxtw(const Register& rd, const Register& rn) {
 void MacroAssembler::AlignAndSetCSPForFrame() {
   int sp_alignment = ActivationFrameAlignment();
   // AAPCS64 mandates at least 16-byte alignment.
-  DCHECK(sp_alignment >= 16);
+  DCHECK_GE(sp_alignment, 16);
   DCHECK(base::bits::IsPowerOfTwo(sp_alignment));
   Bic(csp, StackPointer(), sp_alignment - 1);
   SetStackPointer(csp);
@@ -1257,7 +1257,7 @@ void TurboAssembler::Push(Smi* smi) {
 }
 
 void TurboAssembler::Claim(int64_t count, uint64_t unit_size) {
-  DCHECK(count >= 0);
+  DCHECK_GE(count, 0);
   uint64_t size = count * unit_size;
 
   if (size == 0) {
@@ -1265,7 +1265,7 @@ void TurboAssembler::Claim(int64_t count, uint64_t unit_size) {
   }
 
   if (csp.Is(StackPointer())) {
-    DCHECK(size % 16 == 0);
+    DCHECK_EQ(size % 16, 0);
   } else {
     BumpSystemStackPointer(size);
   }
@@ -1312,7 +1312,7 @@ void MacroAssembler::ClaimBySMI(const Register& count_smi, uint64_t unit_size) {
 }
 
 void TurboAssembler::Drop(int64_t count, uint64_t unit_size) {
-  DCHECK(count >= 0);
+  DCHECK_GE(count, 0);
   uint64_t size = count * unit_size;
 
   if (size == 0) {
@@ -1322,7 +1322,7 @@ void TurboAssembler::Drop(int64_t count, uint64_t unit_size) {
   Add(StackPointer(), StackPointer(), size);
 
   if (csp.Is(StackPointer())) {
-    DCHECK(size % 16 == 0);
+    DCHECK_EQ(size % 16, 0);
   } else if (emit_debug_code()) {
     // It is safe to leave csp where it is when unwinding the JavaScript stack,
     // but if we keep it matching StackPointer, the simulator can detect memory
@@ -1414,7 +1414,7 @@ void TurboAssembler::TestAndBranchIfAnySet(const Register& reg,
                                            const uint64_t bit_pattern,
                                            Label* label) {
   int bits = reg.SizeInBits();
-  DCHECK(CountSetBits(bit_pattern, bits) > 0);
+  DCHECK_GT(CountSetBits(bit_pattern, bits), 0);
   if (CountSetBits(bit_pattern, bits) == 1) {
     Tbnz(reg, MaskToBit(bit_pattern), label);
   } else {
@@ -1427,7 +1427,7 @@ void TurboAssembler::TestAndBranchIfAllClear(const Register& reg,
                                              const uint64_t bit_pattern,
                                              Label* label) {
   int bits = reg.SizeInBits();
-  DCHECK(CountSetBits(bit_pattern, bits) > 0);
+  DCHECK_GT(CountSetBits(bit_pattern, bits), 0);
   if (CountSetBits(bit_pattern, bits) == 1) {
     Tbz(reg, MaskToBit(bit_pattern), label);
   } else {
@@ -1457,7 +1457,7 @@ void MacroAssembler::DisableInstrumentation() {
 
 
 void MacroAssembler::AnnotateInstrumentation(const char* marker_name) {
-  DCHECK(strlen(marker_name) == 2);
+  DCHECK_EQ(strlen(marker_name), 2);
 
   // We allow only printable characters in the marker names. Unprintable
   // characters are reserved for controlling features of the instrumentation.

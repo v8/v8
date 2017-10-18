@@ -3117,7 +3117,7 @@ class ByteArray: public FixedArrayBase {
   // have.
   static int LengthFor(int size_in_bytes) {
     DCHECK(IsAligned(size_in_bytes, kPointerSize));
-    DCHECK(size_in_bytes >= kHeaderSize);
+    DCHECK_GE(size_in_bytes, kHeaderSize);
     return size_in_bytes - kHeaderSize;
   }
 

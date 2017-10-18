@@ -400,7 +400,7 @@ class Expectations {
     Handle<String> name = MakeName("prop", property_index);
     Map* target =
         TransitionsAccessor(map).SearchTransition(*name, kData, attributes);
-    CHECK(target != nullptr);
+    CHECK_NOT_NULL(target);
     return handle(target);
   }
 
@@ -608,7 +608,7 @@ static void TestGeneralizeField(int detach_property_at_index,
 
   CHECK(detach_property_at_index >= -1 &&
         detach_property_at_index < kPropCount);
-  CHECK(property_index < kPropCount);
+  CHECK_LT(property_index, kPropCount);
   CHECK_NE(detach_property_at_index, property_index);
 
   const bool is_detached_map = detach_property_at_index >= 0;
@@ -1404,7 +1404,7 @@ static void TestReconfigureProperty_CustomPropertyAfterTargetMap(
   Expectations expectations(isolate);
 
   const int kSplitProp = 2;
-  CHECK(kSplitProp < kCustomPropIndex);
+  CHECK_LT(kSplitProp, kCustomPropIndex);
 
   const PropertyConstness constness = kMutable;
   const Representation representation = Representation::Smi();
@@ -2119,7 +2119,7 @@ TEST(ReconfigurePropertySplitMapTransitionsOverflow) {
       Handle<String> name = MakeName("prop", i);
       Map* target =
           TransitionsAccessor(map2).SearchTransition(*name, kData, NONE);
-      CHECK(target != nullptr);
+      CHECK_NOT_NULL(target);
       map2 = handle(target);
     }
 

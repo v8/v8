@@ -363,7 +363,7 @@ TEST(PreparseFunctionDataIsUsed) {
 
     const v8::ScriptCompiler::CachedData* cached_data =
         good_source.GetCachedData();
-    CHECK(cached_data->data != nullptr);
+    CHECK_NOT_NULL(cached_data->data);
     CHECK_GT(cached_data->length, 0);
 
     // Now compile the erroneous code with the good preparse data. If the
@@ -845,7 +845,7 @@ TEST(ScopeUsesArgumentsSuperThis) {
       i::DeclarationScope::Analyze(&info);
       i::DeclarationScope::AllocateScopeInfos(&info, isolate,
                                               i::AnalyzeMode::kRegular);
-      CHECK(info.literal() != nullptr);
+      CHECK_NOT_NULL(info.literal());
 
       i::DeclarationScope* script_scope = info.literal()->scope();
       CHECK(script_scope->is_script_scope());
@@ -912,7 +912,7 @@ static void CheckParsesToNumber(const char* source) {
   CHECK_EQ(1, info.scope()->declarations()->LengthForTest());
   i::Declaration* decl = info.scope()->declarations()->AtForTest(0);
   i::FunctionLiteral* fun = decl->AsFunctionDeclaration()->fun();
-  CHECK(fun->body()->length() == 1);
+  CHECK_EQ(fun->body()->length(), 1);
   CHECK(fun->body()->at(0)->IsReturnStatement());
   i::ReturnStatement* ret = fun->body()->at(0)->AsReturnStatement();
   i::Literal* lit = ret->expression()->AsLiteral();
@@ -1561,7 +1561,7 @@ TEST(ParserSync) {
             statement_data[j],
             termination_data[k],
             context_data[i][1]);
-        CHECK(length == kProgramSize);
+        CHECK_EQ(length, kProgramSize);
         TestParserSync(program.start(), nullptr, 0);
       }
     }
@@ -1660,7 +1660,7 @@ void RunParserSyncTest(
                                context_data[i][0],
                                statement_data[j],
                                context_data[i][1]);
-      CHECK(length == kProgramSize);
+      CHECK_EQ(length, kProgramSize);
       TestParserSync(program.start(), flags, flags_len, result,
                      always_true_flags, always_true_len, always_false_flags,
                      always_false_len, is_module, test_preparser,
@@ -2989,14 +2989,14 @@ TEST(SerializationOfMaybeAssignmentFlag) {
       &zone, context->scope_info(), script_scope, &avf,
       i::Scope::DeserializationMode::kIncludingVariables);
   CHECK(s != script_scope);
-  CHECK(name != nullptr);
+  CHECK_NOT_NULL(name);
 
   // Get result from h's function context (that is f's context)
   i::Variable* var = s->Lookup(name);
 
-  CHECK(var != nullptr);
+  CHECK_NOT_NULL(var);
   // Maybe assigned should survive deserialization
-  CHECK(var->maybe_assigned() == i::kMaybeAssigned);
+  CHECK_EQ(var->maybe_assigned(), i::kMaybeAssigned);
   // TODO(sigurds) Figure out if is_used should survive context serialization.
 }
 
@@ -3041,8 +3041,8 @@ TEST(IfArgumentsArrayAccessedThenParametersMaybeAssigned) {
 
   // Get result from f's function context (that is g's outer context)
   i::Variable* var_x = s->Lookup(name_x);
-  CHECK(var_x != nullptr);
-  CHECK(var_x->maybe_assigned() == i::kMaybeAssigned);
+  CHECK_NOT_NULL(var_x);
+  CHECK_EQ(var_x->maybe_assigned(), i::kMaybeAssigned);
 }
 
 
@@ -3198,7 +3198,7 @@ TEST(InnerAssignment) {
           CHECK(i::parsing::ParseProgram(info.get(), isolate));
         }
         CHECK(i::Compiler::Analyze(info.get()));
-        CHECK(info->literal() != nullptr);
+        CHECK_NOT_NULL(info->literal());
 
         i::Scope* scope = info->literal()->scope();
         if (!lazy) {
@@ -3211,7 +3211,7 @@ TEST(InnerAssignment) {
             info->ast_value_factory()->GetOneByteString("x");
         i::Variable* var = scope->Lookup(var_name);
         bool expected = outers[i].assigned || inners[j].assigned;
-        CHECK(var != nullptr);
+        CHECK_NOT_NULL(var);
         CHECK(var->is_used() || !expected);
         bool is_maybe_assigned = var->maybe_assigned() == i::kMaybeAssigned;
         if (i::FLAG_lazy_inner_functions) {
@@ -6434,7 +6434,7 @@ void TestLanguageMode(const char* source,
       factory->NewScript(factory->NewStringFromAsciiChecked(source));
   i::ParseInfo info(script);
   i::parsing::ParseProgram(&info, isolate);
-  CHECK(info.literal() != nullptr);
+  CHECK_NOT_NULL(info.literal());
   CHECK_EQ(expected_language_mode, info.literal()->language_mode());
 }
 
@@ -9244,7 +9244,7 @@ TEST(NoPessimisticContextAllocation) {
 
       CHECK(i::parsing::ParseProgram(&info, isolate));
       CHECK(i::Compiler::Analyze(&info));
-      CHECK(info.literal() != nullptr);
+      CHECK_NOT_NULL(info.literal());
 
       i::Scope* scope = info.literal()->scope()->inner_scope();
       DCHECK_NOT_NULL(scope);
@@ -9822,7 +9822,7 @@ TEST(LexicalLoopVariable) {
     i::DeclarationScope::Analyze(&info);
     i::DeclarationScope::AllocateScopeInfos(&info, isolate,
                                             i::AnalyzeMode::kRegular);
-    CHECK(info.literal() != nullptr);
+    CHECK_NOT_NULL(info.literal());
 
     i::DeclarationScope* script_scope = info.literal()->scope();
     CHECK(script_scope->is_script_scope());

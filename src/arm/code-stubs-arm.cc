@@ -729,8 +729,8 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
       // Add the probe offset (i + i * i) left shifted to avoid right shifting
       // the hash in a separate instruction. The value hash + i + i * i is right
       // shifted in the following and instruction.
-      DCHECK(NameDictionary::GetProbeOffset(i) <
-             1 << (32 - Name::kHashFieldOffset));
+      DCHECK_LT(NameDictionary::GetProbeOffset(i),
+                1 << (32 - Name::kHashFieldOffset));
       __ add(index, hash, Operand(
           NameDictionary::GetProbeOffset(i) << Name::kHashShift));
     } else {
@@ -1025,7 +1025,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   // We also save lr, so the count here is one higher than the mask indicates.
   const int32_t kNumSavedRegs = 7;
 
-  DCHECK((kCallerSaved & kSavedRegs) == kCallerSaved);
+  DCHECK_EQ(kCallerSaved & kSavedRegs, kCallerSaved);
 
   // Save all caller-save registers as this may be called from anywhere.
   __ stm(db_w, sp, kSavedRegs | lr.bit());

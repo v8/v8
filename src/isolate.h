@@ -532,7 +532,7 @@ class Isolate {
 
   // Returns the isolate inside which the current thread is running.
   INLINE(static Isolate* Current()) {
-    DCHECK(base::Relaxed_Load(&isolate_key_created_) == 1);
+    DCHECK_EQ(base::Relaxed_Load(&isolate_key_created_), 1);
     Isolate* isolate = reinterpret_cast<Isolate*>(
         base::Thread::GetExistingThreadLocal(isolate_key_));
     DCHECK_NOT_NULL(isolate);
@@ -1003,11 +1003,11 @@ class Isolate {
   THREAD_LOCAL_TOP_ACCESSOR(StateTag, current_vm_state)
 
   void SetData(uint32_t slot, void* data) {
-    DCHECK(slot < Internals::kNumIsolateDataSlots);
+    DCHECK_LT(slot, Internals::kNumIsolateDataSlots);
     embedder_data_[slot] = data;
   }
   void* GetData(uint32_t slot) {
-    DCHECK(slot < Internals::kNumIsolateDataSlots);
+    DCHECK_LT(slot, Internals::kNumIsolateDataSlots);
     return embedder_data_[slot];
   }
 

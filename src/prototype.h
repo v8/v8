@@ -103,7 +103,7 @@ class PrototypeIterator {
   template <typename T = Object>
   static Handle<T> GetCurrent(const PrototypeIterator& iterator) {
     DCHECK(!iterator.handle_.is_null());
-    DCHECK(iterator.object_ == nullptr);
+    DCHECK_NULL(iterator.object_);
     return Handle<T>::cast(iterator.handle_);
   }
 

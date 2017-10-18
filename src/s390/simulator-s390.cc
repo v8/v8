@@ -640,8 +640,8 @@ void S390Debugger::Debug() {
 }
 
 static bool ICacheMatch(void* one, void* two) {
-  DCHECK((reinterpret_cast<intptr_t>(one) & CachePage::kPageMask) == 0);
-  DCHECK((reinterpret_cast<intptr_t>(two) & CachePage::kPageMask) == 0);
+  DCHECK_EQ(reinterpret_cast<intptr_t>(one) & CachePage::kPageMask, 0);
+  DCHECK_EQ(reinterpret_cast<intptr_t>(two) & CachePage::kPageMask, 0);
   return one == two;
 }
 
@@ -694,10 +694,10 @@ CachePage* Simulator::GetCachePage(base::CustomMatcherHashMap* i_cache,
 // Flush from start up to and not including start + size.
 void Simulator::FlushOnePage(base::CustomMatcherHashMap* i_cache,
                              intptr_t start, int size) {
-  DCHECK(size <= CachePage::kPageSize);
+  DCHECK_LE(size, CachePage::kPageSize);
   DCHECK(AllOnOnePage(start, size - 1));
-  DCHECK((start & CachePage::kLineMask) == 0);
-  DCHECK((size & CachePage::kLineMask) == 0);
+  DCHECK_EQ(start & CachePage::kLineMask, 0);
+  DCHECK_EQ(size & CachePage::kLineMask, 0);
   void* page = reinterpret_cast<void*>(start & (~CachePage::kPageMask));
   int offset = (start & CachePage::kPageMask);
   CachePage* cache_page = GetCachePage(i_cache, page);
@@ -1509,9 +1509,9 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
 
 // make sure our register type can hold exactly 4/8 bytes
 #ifdef V8_TARGET_ARCH_S390X
-  DCHECK(sizeof(intptr_t) == 8);
+  DCHECK_EQ(sizeof(intptr_t), 8);
 #else
-  DCHECK(sizeof(intptr_t) == 4);
+  DCHECK_EQ(sizeof(intptr_t), 4);
 #endif
   // Set up architecture state.
   // All registers are initialized to zero to start with.
@@ -1654,7 +1654,7 @@ void* Simulator::RedirectExternalReference(Isolate* isolate,
 Simulator* Simulator::current(Isolate* isolate) {
   v8::internal::Isolate::PerIsolateThreadData* isolate_data =
       isolate->FindOrAllocatePerThreadDataForThisThread();
-  DCHECK(isolate_data != nullptr);
+  DCHECK_NOT_NULL(isolate_data);
 
   Simulator* sim = isolate_data->simulator();
   if (sim == nullptr) {
@@ -2313,12 +2313,12 @@ bool Simulator::isStopInstruction(Instruction* instr) {
 }
 
 bool Simulator::isWatchedStop(uint32_t code) {
-  DCHECK(code <= kMaxStopCode);
+  DCHECK_LE(code, kMaxStopCode);
   return code < kNumOfWatchedStops;
 }
 
 bool Simulator::isEnabledStop(uint32_t code) {
-  DCHECK(code <= kMaxStopCode);
+  DCHECK_LE(code, kMaxStopCode);
   // Unwatched stops are always enabled.
   return !isWatchedStop(code) ||
          !(watched_stops_[code].count & kStopDisabledBit);
@@ -2339,7 +2339,7 @@ void Simulator::DisableStop(uint32_t code) {
 }
 
 void Simulator::IncreaseStopCounter(uint32_t code) {
-  DCHECK(code <= kMaxStopCode);
+  DCHECK_LE(code, kMaxStopCode);
   DCHECK(isWatchedStop(code));
   if ((watched_stops_[code].count & ~(1 << 31)) == 0x7fffffff) {
     PrintF(
@@ -2355,7 +2355,7 @@ void Simulator::IncreaseStopCounter(uint32_t code) {
 
 // Print a stop status.
 void Simulator::PrintStopInfo(uint32_t code) {
-  DCHECK(code <= kMaxStopCode);
+  DCHECK_LE(code, kMaxStopCode);
   if (!isWatchedStop(code)) {
     PrintF("Stop not watched.");
   } else {
@@ -2434,7 +2434,7 @@ int64_t Simulator::ByteReverse(int64_t dword) {
 
 int Simulator::DecodeInstruction(Instruction* instr) {
   Opcode op = instr->S390OpcodeValue();
-  DCHECK(EvalTable[op] != nullptr);
+  DCHECK_NOT_NULL(EvalTable[op]);
   return (this->*EvalTable[op])(instr);
 }
 
@@ -2930,8 +2930,8 @@ EVALUATE(VFA) {
   USE(m6);
   USE(m5);
   USE(m4);
-  DCHECK(m5 == 8);
-  DCHECK(m4 == 3);
+  DCHECK_EQ(m5, 8);
+  DCHECK_EQ(m4, 3);
   double r2_val = get_double_from_d_register(r2);
   double r3_val = get_double_from_d_register(r3);
   double r1_val = r2_val + r3_val;
@@ -2945,8 +2945,8 @@ EVALUATE(VFS) {
   USE(m6);
   USE(m5);
   USE(m4);
-  DCHECK(m5 == 8);
-  DCHECK(m4 == 3);
+  DCHECK_EQ(m5, 8);
+  DCHECK_EQ(m4, 3);
   double r2_val = get_double_from_d_register(r2);
   double r3_val = get_double_from_d_register(r3);
   double r1_val = r2_val - r3_val;
@@ -2960,8 +2960,8 @@ EVALUATE(VFM) {
   USE(m6);
   USE(m5);
   USE(m4);
-  DCHECK(m5 == 8);
-  DCHECK(m4 == 3);
+  DCHECK_EQ(m5, 8);
+  DCHECK_EQ(m4, 3);
   double r2_val = get_double_from_d_register(r2);
   double r3_val = get_double_from_d_register(r3);
   double r1_val = r2_val * r3_val;
@@ -2975,8 +2975,8 @@ EVALUATE(VFD) {
   USE(m6);
   USE(m5);
   USE(m4);
-  DCHECK(m5 == 8);
-  DCHECK(m4 == 3);
+  DCHECK_EQ(m5, 8);
+  DCHECK_EQ(m4, 3);
   double r2_val = get_double_from_d_register(r2);
   double r3_val = get_double_from_d_register(r3);
   double r1_val = r2_val / r3_val;
@@ -3526,7 +3526,7 @@ EVALUATE(MR) {
   DECODE_RR_INSTRUCTION(r1, r2);
   int32_t r1_val = get_low_register<int32_t>(r1);
   int32_t r2_val = get_low_register<int32_t>(r2);
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
   r1_val = get_low_register<int32_t>(r1 + 1);
   int64_t product = static_cast<int64_t>(r1_val) * static_cast<int64_t>(r2_val);
   int32_t high_bits = product >> 32;
@@ -3543,7 +3543,7 @@ EVALUATE(DR) {
   int32_t r1_val = get_low_register<int32_t>(r1);
   int32_t r2_val = get_low_register<int32_t>(r2);
   // reg-reg pair should be even-odd pair, assert r1 is an even register
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
   // leftmost 32 bits of the dividend are in r1
   // rightmost 32 bits of the dividend are in r1+1
   // get the signed value from r1
@@ -3894,7 +3894,7 @@ EVALUATE(M) {
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t addr = b2_val + x2_val + d2_val;
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
   int32_t mem_val = ReadW(addr, instr);
   int32_t r1_val = get_low_register<int32_t>(r1 + 1);
   int64_t product =
@@ -4094,7 +4094,7 @@ EVALUATE(SLA) {
 EVALUATE(SRDL) {
   DCHECK_OPCODE(SRDL);
   DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2);
-  DCHECK(r1 % 2 == 0);  // must be a reg pair
+  DCHECK_EQ(r1 % 2, 0);  // must be a reg pair
   // only takes rightmost 6bits
   int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
   int shiftBits = (b2_val + d2) & 0x3F;
@@ -4115,7 +4115,7 @@ EVALUATE(SLDL) {
   int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
   int shiftBits = (b2_val + d2) & 0x3F;
 
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
   uint32_t r1_val = get_low_register<uint32_t>(r1);
   uint32_t r1_next_val = get_low_register<uint32_t>(r1 + 1);
   uint64_t alu_out = (static_cast<uint64_t>(r1_val) << 32) |
@@ -4129,7 +4129,7 @@ EVALUATE(SLDL) {
 EVALUATE(SRDA) {
   DCHECK_OPCODE(SRDA);
   DECODE_RS_A_INSTRUCTION_NO_R3(r1, b2, d2);
-  DCHECK(r1 % 2 == 0);  // must be a reg pair
+  DCHECK_EQ(r1 % 2, 0);  // must be a reg pair
   // only takes rightmost 6bits
   int64_t b2_val = b2 == 0 ? 0 : get_register(b2);
   int shiftBits = (b2_val + d2) & 0x3F;
@@ -4634,7 +4634,7 @@ EVALUATE(TMLL) {
     return length;  // Done!
   }
 
-  DCHECK(mask != 0);
+  DCHECK_NE(mask, 0);
   // Test if all selected bits are one
   if (mask == (mask & r1_val)) {
     condition_reg_ = 0x1;
@@ -5895,7 +5895,7 @@ EVALUATE(FIEBRA) {
   DCHECK_OPCODE(FIEBRA);
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
   float r2_val = get_float32_from_d_register(r2);
-  CHECK(m4 == 0);
+  CHECK_EQ(m4, 0);
   switch (m3) {
     case Assembler::FIDBRA_ROUND_TO_NEAREST_AWAY_FROM_0:
       set_d_register_from_float32(r1, round(r2_val));
@@ -5938,7 +5938,7 @@ EVALUATE(FIDBRA) {
   DCHECK_OPCODE(FIDBRA);
   DECODE_RRF_E_INSTRUCTION(r1, r2, m3, m4);
   double r2_val = get_double_from_d_register(r2);
-  CHECK(m4 == 0);
+  CHECK_EQ(m4, 0);
   switch (m3) {
     case Assembler::FIDBRA_ROUND_TO_NEAREST_AWAY_FROM_0:
       set_d_register_from_double(r1, round(r2_val));
@@ -6883,7 +6883,7 @@ EVALUATE(DSGR) {
   DCHECK_OPCODE(DSGR);
   DECODE_RRE_INSTRUCTION(r1, r2);
 
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
 
   int64_t dividend = get_register(r1 + 1);
   int64_t divisor = get_register(r2);
@@ -7012,7 +7012,7 @@ EVALUATE(MSGFR) {
 EVALUATE(DSGFR) {
   DCHECK_OPCODE(DSGFR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
   int64_t r1_val = get_register(r1 + 1);
   int64_t r2_val = static_cast<int64_t>(get_low_register<int32_t>(r2));
   int64_t quotient = r1_val / r2_val;
@@ -7231,7 +7231,7 @@ EVALUATE(FLOGR) {
   DCHECK_OPCODE(FLOGR);
   DECODE_RRE_INSTRUCTION(r1, r2);
 
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
 
   int64_t r2_val = get_register(r2);
 
@@ -7277,7 +7277,7 @@ EVALUATE(DLGR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   uint64_t r1_val = get_register(r1);
   uint64_t r2_val = get_register(r2);
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
   unsigned __int128 dividend = static_cast<unsigned __int128>(r1_val) << 64;
   dividend += get_register(r1 + 1);
   uint64_t remainder = dividend % r2_val;
@@ -7357,7 +7357,7 @@ EVALUATE(LLHR) {
 EVALUATE(MLR) {
   DCHECK_OPCODE(MLR);
   DECODE_RRE_INSTRUCTION(r1, r2);
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
 
   uint32_t r1_val = get_low_register<uint32_t>(r1 + 1);
   uint32_t r2_val = get_low_register<uint32_t>(r2);
@@ -7375,7 +7375,7 @@ EVALUATE(DLR) {
   DECODE_RRE_INSTRUCTION(r1, r2);
   uint32_t r1_val = get_low_register<uint32_t>(r1);
   uint32_t r2_val = get_low_register<uint32_t>(r2);
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
   uint64_t dividend = static_cast<uint64_t>(r1_val) << 32;
   dividend += get_low_register<uint32_t>(r1 + 1);
   uint32_t remainder = dividend % r2_val;
@@ -7852,7 +7852,7 @@ EVALUATE(MSG) {
 EVALUATE(DSG) {
   DCHECK_OPCODE(DSG);
   DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
@@ -7972,7 +7972,7 @@ EVALUATE(MSGF) {
 EVALUATE(DSGF) {
   DCHECK_OPCODE(DSGF);
   DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   intptr_t d2_val = d2;
@@ -8263,7 +8263,7 @@ EVALUATE(MFY) {
   DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
   int32_t mem_val = ReadW(b2_val + x2_val + d2, instr);
   int32_t r1_val = get_low_register<int32_t>(r1 + 1);
   int64_t product =
@@ -8495,7 +8495,7 @@ EVALUATE(DLG) {
   uint64_t r1_val = get_register(r1);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
   unsigned __int128 dividend = static_cast<unsigned __int128>(r1_val) << 64;
   dividend += get_register(r1 + 1);
   int64_t mem_val = ReadDW(b2_val + x2_val + d2);
@@ -8564,7 +8564,7 @@ EVALUATE(ML) {
   DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
   uint32_t mem_val = ReadWU(b2_val + x2_val + d2, instr);
   uint32_t r1_val = get_low_register<uint32_t>(r1 + 1);
   uint64_t product =
@@ -8582,7 +8582,7 @@ EVALUATE(DL) {
   DECODE_RXY_A_INSTRUCTION(r1, x2, b2, d2);
   int64_t x2_val = (x2 == 0) ? 0 : get_register(x2);
   int64_t b2_val = (b2 == 0) ? 0 : get_register(b2);
-  DCHECK(r1 % 2 == 0);
+  DCHECK_EQ(r1 % 2, 0);
   uint32_t mem_val = ReadWU(b2_val + x2_val + d2, instr);
   uint32_t r1_val = get_low_register<uint32_t>(r1 + 1);
   uint64_t quotient =
@@ -8857,7 +8857,7 @@ EVALUATE(CS) {
   int32_t r1_val = get_low_register<int32_t>(r1);
   int32_t r3_val = get_low_register<int32_t>(r3);
 
-  DCHECK((target_addr & 0x3) == 0);
+  DCHECK_EQ(target_addr & 0x3, 0);
   bool is_success = __atomic_compare_exchange_n(
       reinterpret_cast<int32_t*>(target_addr), &r1_val, r3_val, true,
       __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);
@@ -8880,7 +8880,7 @@ EVALUATE(CSY) {
   int32_t r1_val = get_low_register<int32_t>(r1);
   int32_t r3_val = get_low_register<int32_t>(r3);
 
-  DCHECK((target_addr & 0x3) == 0);
+  DCHECK_EQ(target_addr & 0x3, 0);
   bool is_success = __atomic_compare_exchange_n(
       reinterpret_cast<int32_t*>(target_addr), &r1_val, r3_val, true,
       __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST);

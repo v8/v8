@@ -195,7 +195,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     Label exit(this);
     Label* black = &exit;
 
-    DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
+    DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
 
     Node* cell;
     Node* mask;
@@ -234,7 +234,7 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
   }
 
   Node* IsWhite(Node* object) {
-    DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
+    DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
     Node* cell;
     Node* mask;
     GetMarkBit(object, &cell, &mask);

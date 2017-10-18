@@ -220,9 +220,9 @@ LayoutDescriptorHelper::LayoutDescriptorHelper(Map* map)
   }
 
   int inobject_properties = map->GetInObjectProperties();
-  DCHECK(inobject_properties > 0);
+  DCHECK_GT(inobject_properties, 0);
   header_size_ = map->instance_size() - (inobject_properties * kPointerSize);
-  DCHECK(header_size_ >= 0);
+  DCHECK_GE(header_size_, 0);
 
   all_fields_tagged_ = false;
 }

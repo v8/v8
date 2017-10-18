@@ -191,7 +191,7 @@ void TurboAssembler::LogicalMacro(const Register& rd, const Register& rn,
     DCHECK(operand.reg().SizeInBits() <= rd.SizeInBits());
     // Add/sub extended supports shift <= 4. We want to support exactly the
     // same modes here.
-    DCHECK(operand.shift_amount() <= 4);
+    DCHECK_LE(operand.shift_amount(), 4);
     DCHECK(operand.reg().Is64Bits() ||
            ((operand.extend() != UXTX) && (operand.extend() != SXTX)));
     Register temp = temps.AcquireSameSizeAs(rn);
@@ -255,7 +255,7 @@ void TurboAssembler::Mov(const Register& rd, uint64_t imm) {
 
     // Iterate through the halfwords. Use movn/movz for the first non-ignored
     // halfword, and movk for subsequent halfwords.
-    DCHECK((reg_size % 16) == 0);
+    DCHECK_EQ(reg_size % 16, 0);
     bool first_mov_done = false;
     for (int i = 0; i < (rd.SizeInBits() / 16); i++) {
       uint64_t imm16 = (imm >> (16 * i)) & 0xffffL;
@@ -528,7 +528,7 @@ void TurboAssembler::Mvn(const Register& rd, const Operand& operand) {
 }
 
 unsigned TurboAssembler::CountClearHalfWords(uint64_t imm, unsigned reg_size) {
-  DCHECK((reg_size % 8) == 0);
+  DCHECK_EQ(reg_size % 8, 0);
   int count = 0;
   for (unsigned i = 0; i < (reg_size / 16); i++) {
     if ((imm & 0xffff) == 0) {
@@ -765,7 +765,7 @@ void TurboAssembler::AddSubWithCarryMacro(const Register& rd,
     DCHECK(operand.reg().SizeInBits() <= rd.SizeInBits());
     // Add/sub extended supports a shift <= 4. We want to support exactly the
     // same modes.
-    DCHECK(operand.shift_amount() <= 4);
+    DCHECK_LE(operand.shift_amount(), 4);
     DCHECK(operand.reg().Is64Bits() ||
            ((operand.extend() != UXTX) && (operand.extend() != SXTX)));
     Register temp = temps.AcquireSameSizeAs(rn);
@@ -876,13 +876,13 @@ void TurboAssembler::Adr(const Register& rd, Label* label, AdrHint hint) {
     return;
   }
 
-  DCHECK(hint == kAdrFar);
+  DCHECK_EQ(hint, kAdrFar);
   if (label->is_bound()) {
     int label_offset = label->pos() - pc_offset();
     if (Instruction::IsValidPCRelOffset(label_offset)) {
       adr(rd, label);
     } else {
-      DCHECK(label_offset <= 0);
+      DCHECK_LE(label_offset, 0);
       int min_adr_offset = -(1 << (Instruction::ImmPCRelRangeBitwidth - 1));
       adr(rd, min_adr_offset);
       Add(rd, rd, label_offset - min_adr_offset);
@@ -1313,7 +1313,7 @@ void TurboAssembler::PushPreamble(Operand total_size) {
     // on entry and the total size of the specified registers must also be a
     // multiple of 16 bytes.
     if (total_size.IsImmediate()) {
-      DCHECK((total_size.ImmediateValue() % 16) == 0);
+      DCHECK_EQ(total_size.ImmediateValue() % 16, 0);
     }
 
     // Don't check access size for non-immediate sizes. It's difficult to do
@@ -1334,7 +1334,7 @@ void TurboAssembler::PopPostamble(Operand total_size) {
     // on entry and the total size of the specified registers must also be a
     // multiple of 16 bytes.
     if (total_size.IsImmediate()) {
-      DCHECK((total_size.ImmediateValue() % 16) == 0);
+      DCHECK_EQ(total_size.ImmediateValue() % 16, 0);
     }
 
     // Don't check access size for non-immediate sizes. It's difficult to do
@@ -1356,7 +1356,7 @@ void TurboAssembler::PopPostamble(int count, int size) {
 
 void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
   if (offset.IsImmediate()) {
-    DCHECK(offset.ImmediateValue() >= 0);
+    DCHECK_GE(offset.ImmediateValue(), 0);
   } else if (emit_debug_code()) {
     Cmp(xzr, offset);
     Check(le, kStackAccessBelowStackPointer);
@@ -1368,7 +1368,7 @@ void TurboAssembler::Poke(const CPURegister& src, const Operand& offset) {
 
 void MacroAssembler::Peek(const CPURegister& dst, const Operand& offset) {
   if (offset.IsImmediate()) {
-    DCHECK(offset.ImmediateValue() >= 0);
+    DCHECK_GE(offset.ImmediateValue(), 0);
   } else if (emit_debug_code()) {
     Cmp(xzr, offset);
     Check(le, kStackAccessBelowStackPointer);
@@ -1841,14 +1841,14 @@ void TurboAssembler::CallCFunction(Register function, int num_of_reg_args,
   //  BUILTIN_FP_CALL:       double f(double)
   //  BUILTIN_FP_INT_CALL:   double f(double, int)
   if (num_of_double_args > 0) {
-    DCHECK(num_of_reg_args <= 1);
-    DCHECK((num_of_double_args + num_of_reg_args) <= 2);
+    DCHECK_LE(num_of_reg_args, 1);
+    DCHECK_LE(num_of_double_args + num_of_reg_args, 2);
   }
 
   // We rely on the frame alignment being 16 bytes, which means we never need
   // to align the CSP by an unknown number of bytes and we always know the delta
   // between the stack pointer and the frame pointer.
-  DCHECK(ActivationFrameAlignment() == 16);
+  DCHECK_EQ(ActivationFrameAlignment(), 16);
 
   // If the stack pointer is not csp, we need to derive an aligned csp from the
   // current stack pointer.
@@ -1987,7 +1987,7 @@ void TurboAssembler::Call(Address target, RelocInfo::Mode rmode) {
     // Addresses are 48 bits so we never need to load the upper 16 bits.
     uint64_t imm = reinterpret_cast<uint64_t>(target);
     // If we don't use ARM tagged addresses, the 16 higher bits must be 0.
-    DCHECK(((imm >> 48) & 0xffff) == 0);
+    DCHECK_EQ((imm >> 48) & 0xffff, 0);
     movz(temp, (imm >> 0) & 0xffff, 0);
     movk(temp, (imm >> 16) & 0xffff, 16);
     movk(temp, (imm >> 32) & 0xffff, 32);
@@ -2505,7 +2505,7 @@ void MacroAssembler::ExitFrameRestoreFPRegs() {
   // Read the registers from the stack without popping them. The stack pointer
   // will be reset as part of the unwinding process.
   CPURegList saved_fp_regs = kCallerSavedV;
-  DCHECK(saved_fp_regs.Count() % 2 == 0);
+  DCHECK_EQ(saved_fp_regs.Count() % 2, 0);
 
   int offset = ExitFrameConstants::kLastExitFrameField;
   while (!saved_fp_regs.IsEmpty()) {
@@ -2636,7 +2636,7 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
 
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value,
                                       Register scratch1, Register scratch2) {
-  DCHECK(value != 0);
+  DCHECK_NE(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     Mov(scratch2, ExternalReference(counter));
     Ldr(scratch1.W(), MemOperand(scratch2));
@@ -2855,7 +2855,7 @@ void MacroAssembler::PushSafepointRegisters() {
 
 int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   // Make sure the safepoint registers list is what we expect.
-  DCHECK(CPURegList::GetSafepointSavedRegisters().list() == 0x6ffcffff);
+  DCHECK_EQ(CPURegList::GetSafepointSavedRegisters().list(), 0x6ffcffff);
 
   // Safepoint registers are stored contiguously on the stack, but not all the
   // registers are saved. The following registers are excluded:
@@ -2952,7 +2952,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 }
 
 void TurboAssembler::SaveRegisters(RegList registers) {
-  DCHECK(NumRegs(registers) > 0);
+  DCHECK_GT(NumRegs(registers), 0);
   CPURegList regs(lr);
   for (int i = 0; i < Register::kNumRegisters; ++i) {
     if ((registers >> i) & 1u) {
@@ -2964,7 +2964,7 @@ void TurboAssembler::SaveRegisters(RegList registers) {
 }
 
 void TurboAssembler::RestoreRegisters(RegList registers) {
-  DCHECK(NumRegs(registers) > 0);
+  DCHECK_GT(NumRegs(registers), 0);
   CPURegList regs(lr);
   for (int i = 0; i < Register::kNumRegisters; ++i) {
     if ((registers >> i) & 1u) {
@@ -3088,7 +3088,7 @@ void MacroAssembler::AssertHasValidColor(const Register& reg) {
   if (emit_debug_code()) {
     // The bit sequence is backward. The first character in the string
     // represents the least significant bit.
-    DCHECK(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
+    DCHECK_EQ(strcmp(Marking::kImpossibleBitPattern, "01"), 0);
 
     Label color_is_valid;
     Tbnz(reg, 0, &color_is_valid);
@@ -3138,14 +3138,14 @@ void MacroAssembler::HasColor(Register object,
 
   // These bit sequences are backwards. The first character in the string
   // represents the least significant bit.
-  DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
-  DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
-  DCHECK(strcmp(Marking::kGreyBitPattern, "10") == 0);
+  DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
+  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
+  DCHECK_EQ(strcmp(Marking::kGreyBitPattern, "10"), 0);
 
   // Check for the color.
   if (first_bit == 0) {
     // Checking for white.
-    DCHECK(second_bit == 0);
+    DCHECK_EQ(second_bit, 0);
     // We only need to test the first bit.
     Tbz(bitmap_scratch, 0, has_color);
   } else {
@@ -3168,7 +3168,7 @@ void MacroAssembler::JumpIfBlack(Register object,
                                  Register scratch0,
                                  Register scratch1,
                                  Label* on_black) {
-  DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
+  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
   HasColor(object, scratch0, scratch1, on_black, 1, 1);  // kBlackBitPattern.
 }
 
@@ -3181,9 +3181,9 @@ void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
 
   // These bit sequences are backwards. The first character in the string
   // represents the least significant bit.
-  DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
-  DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
-  DCHECK(strcmp(Marking::kGreyBitPattern, "10") == 0);
+  DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
+  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
+  DCHECK_EQ(strcmp(Marking::kGreyBitPattern, "10"), 0);
 
   GetMarkBits(value, bitmap_scratch, shift_scratch);
   Ldr(load_scratch, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));

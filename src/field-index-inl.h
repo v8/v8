@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 inline FieldIndex FieldIndex::ForInObjectOffset(int offset, const Map* map) {
-  DCHECK((offset % kPointerSize) == 0);
+  DCHECK_EQ(offset % kPointerSize, 0);
   int index = offset / kPointerSize;
   DCHECK(map == nullptr ||
          index < (map->GetInObjectPropertyOffset(0) / kPointerSize +

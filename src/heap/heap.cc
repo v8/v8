@@ -5444,7 +5444,7 @@ void Heap::InitializeHashSeed() {
 }
 
 void Heap::SetStackLimits() {
-  DCHECK(isolate_ != nullptr);
+  DCHECK_NOT_NULL(isolate_);
   DCHECK(isolate_ == isolate());
   // On 64 bit machines, pointers are generally out of range of Smis.  We write
   // something that looks like an out of range Smi to the GC.

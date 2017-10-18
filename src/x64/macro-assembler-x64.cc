@@ -196,7 +196,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
   // Load store buffer top.
   ExternalReference store_buffer =
       ExternalReference::store_buffer_top(isolate());
-  DCHECK(scratch != kScratchRegister);
+  DCHECK_NE(scratch, kScratchRegister);
   Move(kScratchRegister, store_buffer);
   movp(scratch, Operand(kScratchRegister, 0));
   // Store pointer to buffer.
@@ -269,7 +269,7 @@ void MacroAssembler::RecordWriteField(Register object, int offset,
 }
 
 void TurboAssembler::SaveRegisters(RegList registers) {
-  DCHECK(NumRegs(registers) > 0);
+  DCHECK_GT(NumRegs(registers), 0);
   for (int i = 0; i < Register::kNumRegisters; ++i) {
     if ((registers >> i) & 1u) {
       pushq(Register::from_code(i));
@@ -278,7 +278,7 @@ void TurboAssembler::SaveRegisters(RegList registers) {
 }
 
 void TurboAssembler::RestoreRegisters(RegList registers) {
-  DCHECK(NumRegs(registers) > 0);
+  DCHECK_GT(NumRegs(registers), 0);
   for (int i = Register::kNumRegisters - 1; i >= 0; --i) {
     if ((registers >> i) & 1u) {
       popq(Register::from_code(i));
@@ -986,7 +986,7 @@ void MacroAssembler::SmiCompare(Register dst, Smi* src) {
 
 
 void MacroAssembler::Cmp(Register dst, Smi* src) {
-  DCHECK(dst != kScratchRegister);
+  DCHECK_NE(dst, kScratchRegister);
   if (src->value() == 0) {
     testp(dst, dst);
   } else {
@@ -1032,8 +1032,8 @@ void MacroAssembler::Cmp(const Operand& dst, Smi* src) {
 void MacroAssembler::PositiveSmiTimesPowerOfTwoToInteger64(Register dst,
                                                            Register src,
                                                            int power) {
-  DCHECK(power >= 0);
-  DCHECK(power < 64);
+  DCHECK_GE(power, 0);
+  DCHECK_LT(power, 64);
   if (power == 0) {
     SmiToInteger64(dst, src);
     return;
@@ -1540,7 +1540,7 @@ void MacroAssembler::Drop(int stack_elements) {
 
 void MacroAssembler::DropUnderReturnAddress(int stack_elements,
                                             Register scratch) {
-  DCHECK(stack_elements > 0);
+  DCHECK_GT(stack_elements, 0);
   if (kPointerSize == kInt64Size && stack_elements == 1) {
     popq(MemOperand(rsp, 0));
     return;
@@ -2110,7 +2110,7 @@ void MacroAssembler::AssertFixedArray(Register object) {
 
 void TurboAssembler::AssertZeroExtended(Register int32_register) {
   if (emit_debug_code()) {
-    DCHECK(int32_register != kScratchRegister);
+    DCHECK_NE(int32_register, kScratchRegister);
     movq(kScratchRegister, V8_INT64_C(0x0000000100000000));
     cmpq(kScratchRegister, int32_register);
     Check(above_equal, k32BitValueInRegisterIsNotZeroExtended);
@@ -2191,7 +2191,7 @@ void MacroAssembler::GetMapConstructor(Register result, Register map,
 }
 
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
-  DCHECK(value > 0);
+  DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     Operand counter_operand = ExternalOperand(ExternalReference(counter));
     if (value == 1) {
@@ -2204,7 +2204,7 @@ void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
 
 
 void MacroAssembler::DecrementCounter(StatsCounter* counter, int value) {
-  DCHECK(value > 0);
+  DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     Operand counter_operand = ExternalOperand(ExternalReference(counter));
     if (value == 1) {
@@ -2674,7 +2674,7 @@ int TurboAssembler::ArgumentStackSlotsForCFunctionCall(int num_arguments) {
   // arguments.
   // On AMD64 ABI (Linux/Mac) the first six arguments are passed in registers
   // and the caller does not reserve stack slots for them.
-  DCHECK(num_arguments >= 0);
+  DCHECK_GE(num_arguments, 0);
 #ifdef _WIN64
   const int kMinimumStackSlots = kRegisterPassedArguments;
   if (num_arguments < kMinimumStackSlots) return kMinimumStackSlots;
@@ -2687,8 +2687,8 @@ int TurboAssembler::ArgumentStackSlotsForCFunctionCall(int num_arguments) {
 
 void TurboAssembler::PrepareCallCFunction(int num_arguments) {
   int frame_alignment = base::OS::ActivationFrameAlignment();
-  DCHECK(frame_alignment != 0);
-  DCHECK(num_arguments >= 0);
+  DCHECK_NE(frame_alignment, 0);
+  DCHECK_GE(num_arguments, 0);
 
   // Make stack end at alignment and allocate space for arguments and old rsp.
   movp(kScratchRegister, rsp);
@@ -2715,8 +2715,8 @@ void TurboAssembler::CallCFunction(Register function, int num_arguments) {
   }
 
   call(function);
-  DCHECK(base::OS::ActivationFrameAlignment() != 0);
-  DCHECK(num_arguments >= 0);
+  DCHECK_NE(base::OS::ActivationFrameAlignment(), 0);
+  DCHECK_GE(num_arguments, 0);
   int argument_slots_on_stack =
       ArgumentStackSlotsForCFunctionCall(num_arguments);
   movp(rsp, Operand(rsp, argument_slots_on_stack * kRegisterSize));
@@ -2780,7 +2780,7 @@ void MacroAssembler::JumpIfBlack(Register object,
 
   GetMarkBits(object, bitmap_scratch, mask_scratch);
 
-  DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
+  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
   // The mask_scratch register contains a 1 at the position of the first bit
   // and a 1 at a position of the second bit. All other positions are zero.
   movp(rcx, mask_scratch);
@@ -2821,10 +2821,10 @@ void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
   GetMarkBits(value, bitmap_scratch, mask_scratch);
 
   // If the value is black or grey we don't need to do anything.
-  DCHECK(strcmp(Marking::kWhiteBitPattern, "00") == 0);
-  DCHECK(strcmp(Marking::kBlackBitPattern, "11") == 0);
-  DCHECK(strcmp(Marking::kGreyBitPattern, "10") == 0);
-  DCHECK(strcmp(Marking::kImpossibleBitPattern, "01") == 0);
+  DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
+  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
+  DCHECK_EQ(strcmp(Marking::kGreyBitPattern, "10"), 0);
+  DCHECK_EQ(strcmp(Marking::kImpossibleBitPattern, "01"), 0);
 
   // Since both black and grey have a 1 in the first position and white does
   // not have a 1 there we only need to check one bit.

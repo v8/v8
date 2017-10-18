@@ -284,7 +284,7 @@ Operand::Operand(Register reg, Extend extend, unsigned shift_amount)
       extend_(extend),
       shift_amount_(shift_amount) {
   DCHECK(reg.IsValid());
-  DCHECK(shift_amount <= 4);
+  DCHECK_LE(shift_amount, 4);
   DCHECK(!reg.IsSP());
 
   // Extend modes SXTX and UXTX require a 64-bit register.
@@ -816,7 +816,7 @@ LoadLiteralOp Assembler::LoadLiteralOpFor(const CPURegister& rt) {
 
 
 int Assembler::LinkAndGetInstructionOffsetTo(Label* label) {
-  DCHECK(kStartOfLabelLinkChain == 0);
+  DCHECK_EQ(kStartOfLabelLinkChain, 0);
   int offset = LinkAndGetByteOffsetTo(label);
   DCHECK(IsAligned(offset, kInstructionSize));
   return offset >> kInstructionSizeLog2;
@@ -965,7 +965,7 @@ Instr Assembler::ExtendMode(Extend extend) {
 
 
 Instr Assembler::ImmExtendShift(unsigned left_shift) {
-  DCHECK(left_shift <= 4);
+  DCHECK_LE(left_shift, 4);
   return left_shift << ImmExtendShift_offset;
 }
 

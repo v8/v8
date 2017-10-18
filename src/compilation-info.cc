@@ -103,12 +103,12 @@ bool CompilationInfo::is_this_defined() const { return !IsStub(); }
 
 void CompilationInfo::set_deferred_handles(
     std::shared_ptr<DeferredHandles> deferred_handles) {
-  DCHECK(deferred_handles_.get() == nullptr);
+  DCHECK_NULL(deferred_handles_);
   deferred_handles_.swap(deferred_handles);
 }
 
 void CompilationInfo::set_deferred_handles(DeferredHandles* deferred_handles) {
-  DCHECK(deferred_handles_.get() == nullptr);
+  DCHECK_NULL(deferred_handles_);
   deferred_handles_.reset(deferred_handles);
 }
 

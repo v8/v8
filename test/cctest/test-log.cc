@@ -239,7 +239,7 @@ class LoopingJsThread : public LoopingThread {
       : LoopingThread(isolate) { }
   void RunLoop() {
     v8::Locker locker;
-    CHECK(CcTest::i_isolate() != nullptr);
+    CHECK_NOT_NULL(CcTest::i_isolate());
     CHECK_GT(CcTest::i_isolate()->thread_manager()->CurrentId(), 0);
     SetV8ThreadId();
     while (IsRunning()) {
@@ -267,7 +267,7 @@ class LoopingNonJsThread : public LoopingThread {
     v8::Locker locker;
     v8::Unlocker unlocker;
     // Now thread has V8's id, but will not run VM code.
-    CHECK(CcTest::i_isolate() != nullptr);
+    CHECK_NOT_NULL(CcTest::i_isolate());
     CHECK_GT(CcTest::i_isolate()->thread_manager()->CurrentId(), 0);
     double i = 10;
     SignalRunning();

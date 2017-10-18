@@ -37,7 +37,7 @@ RUNTIME_FUNCTION(Runtime_ArrayBufferNeuter) {
     return isolate->heap()->undefined_value();
   }
   if (array_buffer->backing_store() == nullptr) {
-    CHECK(Smi::kZero == array_buffer->byte_length());
+    CHECK_EQ(Smi::kZero, array_buffer->byte_length());
     return isolate->heap()->undefined_value();
   }
   // Shared array buffers should never be neutered.
@@ -200,7 +200,7 @@ RUNTIME_FUNCTION(Runtime_IsSharedInteger32TypedArray) {
 
 RUNTIME_FUNCTION(Runtime_TypedArraySpeciesCreateByLength) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 2);
+  DCHECK_EQ(args.length(), 2);
   Handle<JSTypedArray> exemplar = args.at<JSTypedArray>(0);
   Handle<Object> length = args.at(1);
   int argc = 1;

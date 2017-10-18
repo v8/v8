@@ -113,7 +113,7 @@ void OS::Free(void* address, const size_t size) {
   // TODO(1240712): munmap has a return value which is ignored here.
   int result = munmap(address, size);
   USE(result);
-  DCHECK(result == 0);
+  DCHECK_EQ(result, 0);
 }
 
 
@@ -508,7 +508,7 @@ static void* ThreadEntry(void* arg) {
   // one).
   { LockGuard<Mutex> lock_guard(&thread->data()->thread_creation_mutex_); }
   SetThreadName(thread->name());
-  DCHECK(thread->data()->thread_ != kNoThread);
+  DCHECK_NE(thread->data()->thread_, kNoThread);
   thread->NotifyStartedAndRun();
   return nullptr;
 }
@@ -547,7 +547,7 @@ void Thread::Start() {
   DCHECK_EQ(0, result);
   result = pthread_attr_destroy(&attr);
   DCHECK_EQ(0, result);
-  DCHECK(data_->thread_ != kNoThread);
+  DCHECK_NE(data_->thread_, kNoThread);
   USE(result);
 }
 

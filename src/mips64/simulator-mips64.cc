@@ -716,8 +716,8 @@ void MipsDebugger::Debug() {
 
 
 static bool ICacheMatch(void* one, void* two) {
-  DCHECK((reinterpret_cast<intptr_t>(one) & CachePage::kPageMask) == 0);
-  DCHECK((reinterpret_cast<intptr_t>(two) & CachePage::kPageMask) == 0);
+  DCHECK_EQ(reinterpret_cast<intptr_t>(one) & CachePage::kPageMask, 0);
+  DCHECK_EQ(reinterpret_cast<intptr_t>(two) & CachePage::kPageMask, 0);
   return one == two;
 }
 
@@ -774,10 +774,10 @@ CachePage* Simulator::GetCachePage(base::CustomMatcherHashMap* i_cache,
 // Flush from start up to and not including start + size.
 void Simulator::FlushOnePage(base::CustomMatcherHashMap* i_cache,
                              intptr_t start, size_t size) {
-  DCHECK(size <= CachePage::kPageSize);
+  DCHECK_LE(size, CachePage::kPageSize);
   DCHECK(AllOnOnePage(start, size - 1));
-  DCHECK((start & CachePage::kLineMask) == 0);
-  DCHECK((size & CachePage::kLineMask) == 0);
+  DCHECK_EQ(start & CachePage::kLineMask, 0);
+  DCHECK_EQ(size & CachePage::kLineMask, 0);
   void* page = reinterpret_cast<void*>(start & (~CachePage::kPageMask));
   int offset = (start & CachePage::kPageMask);
   CachePage* cache_page = GetCachePage(i_cache, page);
@@ -962,8 +962,8 @@ void* Simulator::RedirectExternalReference(Isolate* isolate,
 Simulator* Simulator::current(Isolate* isolate) {
   v8::internal::Isolate::PerIsolateThreadData* isolate_data =
        isolate->FindOrAllocatePerThreadDataForThisThread();
-  DCHECK(isolate_data != nullptr);
-  DCHECK(isolate_data != nullptr);
+  DCHECK_NOT_NULL(isolate_data);
+  DCHECK_NOT_NULL(isolate_data);
 
   Simulator* sim = isolate_data->simulator();
   if (sim == nullptr) {
@@ -2520,8 +2520,8 @@ bool Simulator::IsStopInstruction(Instruction* instr) {
 
 
 bool Simulator::IsEnabledStop(uint64_t code) {
-  DCHECK(code <= kMaxStopCode);
-  DCHECK(code > kMaxWatchpointCode);
+  DCHECK_LE(code, kMaxStopCode);
+  DCHECK_GT(code, kMaxWatchpointCode);
   return !(watched_stops_[code].count & kStopDisabledBit);
 }
 
@@ -2541,7 +2541,7 @@ void Simulator::DisableStop(uint64_t code) {
 
 
 void Simulator::IncreaseStopCounter(uint64_t code) {
-  DCHECK(code <= kMaxStopCode);
+  DCHECK_LE(code, kMaxStopCode);
   if ((watched_stops_[code].count & ~(1 << 31)) == 0x7fffffff) {
     PrintF("Stop counter for code %" PRId64
            "  has overflowed.\n"
@@ -2725,7 +2725,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
   fcsr_cc = get_fcsr_condition_bit(cc);
   switch (instr_.FunctionFieldRaw()) {
     case RINT: {
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       float result, temp_result;
       double temp;
       float upper = std::ceil(fs);
@@ -2775,11 +2775,11 @@ void Simulator::DecodeTypeRegisterSRsType() {
                                  fs, ft));
       break;
     case MADDF_S:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUFloatResult(fd_reg(), std::fma(fs, ft, fd));
       break;
     case MSUBF_S:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUFloatResult(fd_reg(), std::fma(-fs, ft, fd));
       break;
     case MUL_S:
@@ -2913,7 +2913,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
                (posInf << 6) | (negZero << 5) | (negSubnorm << 4) |
                (negNorm << 3) | (negInf << 2) | (quietNan << 1) | signalingNan;
 
-      DCHECK(result != 0);
+      DCHECK_NE(result, 0);
 
       fResult = bit_cast<float>(result);
       SetFPUFloatResult(fd_reg(), fResult);
@@ -3022,46 +3022,46 @@ void Simulator::DecodeTypeRegisterSRsType() {
       break;
     }
     case MINA:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUFloatResult(fd_reg(), FPUMinA(ft, fs));
       break;
     case MAXA:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUFloatResult(fd_reg(), FPUMaxA(ft, fs));
       break;
     case MIN:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUFloatResult(fd_reg(), FPUMin(ft, fs));
       break;
     case MAX:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUFloatResult(fd_reg(), FPUMax(ft, fs));
       break;
     case SEL:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUFloatResult(fd_reg(), (fd_int & 0x1) == 0 ? fs : ft);
       break;
     case SELEQZ_C:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUFloatResult(
           fd_reg(),
           (ft_int & 0x1) == 0 ? get_fpu_register_float(fs_reg()) : 0.0);
       break;
     case SELNEZ_C:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUFloatResult(
           fd_reg(),
           (ft_int & 0x1) != 0 ? get_fpu_register_float(fs_reg()) : 0.0);
       break;
     case MOVZ_C: {
-      DCHECK(kArchVariant == kMips64r2);
+      DCHECK_EQ(kArchVariant, kMips64r2);
       if (rt() == 0) {
         SetFPUFloatResult(fd_reg(), fs);
       }
       break;
     }
     case MOVN_C: {
-      DCHECK(kArchVariant == kMips64r2);
+      DCHECK_EQ(kArchVariant, kMips64r2);
       if (rt() != 0) {
         SetFPUFloatResult(fd_reg(), fs);
       }
@@ -3102,7 +3102,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
   int64_t fd_int = bit_cast<int64_t>(fd);
   switch (instr_.FunctionFieldRaw()) {
     case RINT: {
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       double result, temp, temp_result;
       double upper = std::ceil(fs);
       double lower = std::floor(fs);
@@ -3139,26 +3139,26 @@ void Simulator::DecodeTypeRegisterDRsType() {
       break;
     }
     case SEL:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUDoubleResult(fd_reg(), (fd_int & 0x1) == 0 ? fs : ft);
       break;
     case SELEQZ_C:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUDoubleResult(fd_reg(), (ft_int & 0x1) == 0 ? fs : 0.0);
       break;
     case SELNEZ_C:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUDoubleResult(fd_reg(), (ft_int & 0x1) != 0 ? fs : 0.0);
       break;
     case MOVZ_C: {
-      DCHECK(kArchVariant == kMips64r2);
+      DCHECK_EQ(kArchVariant, kMips64r2);
       if (rt() == 0) {
         SetFPUDoubleResult(fd_reg(), fs);
       }
       break;
     }
     case MOVN_C: {
-      DCHECK(kArchVariant == kMips64r2);
+      DCHECK_EQ(kArchVariant, kMips64r2);
       if (rt() != 0) {
         SetFPUDoubleResult(fd_reg(), fs);
       }
@@ -3178,19 +3178,19 @@ void Simulator::DecodeTypeRegisterDRsType() {
       break;
     }
     case MINA:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUDoubleResult(fd_reg(), FPUMinA(ft, fs));
       break;
     case MAXA:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUDoubleResult(fd_reg(), FPUMaxA(ft, fs));
       break;
     case MIN:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUDoubleResult(fd_reg(), FPUMin(ft, fs));
       break;
     case MAX:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUDoubleResult(fd_reg(), FPUMax(ft, fs));
       break;
     case ADD_D:
@@ -3206,11 +3206,11 @@ void Simulator::DecodeTypeRegisterDRsType() {
               [](double lhs, double rhs) { return lhs - rhs; }, fs, ft));
       break;
     case MADDF_D:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUDoubleResult(fd_reg(), std::fma(fs, ft, fd));
       break;
     case MSUBF_D:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetFPUDoubleResult(fd_reg(), std::fma(-fs, ft, fd));
       break;
     case MUL_D:
@@ -3444,7 +3444,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
                (posInf << 6) | (negZero << 5) | (negSubnorm << 4) |
                (negNorm << 3) | (negInf << 2) | (quietNan << 1) | signalingNan;
 
-      DCHECK(result != 0);
+      DCHECK_NE(result, 0);
 
       dResult = bit_cast<double>(result);
       SetFPUDoubleResult(fd_reg(), dResult);
@@ -3654,7 +3654,7 @@ void Simulator::DecodeTypeRegisterCOP1() {
       break;
     case CFC1:
       // At the moment only FCSR is supported.
-      DCHECK(fs_reg() == kFCSRRegister);
+      DCHECK_EQ(fs_reg(), kFCSRRegister);
       SetResult(rt_reg(), FCSR_);
       break;
     case MFC1:
@@ -3670,12 +3670,12 @@ void Simulator::DecodeTypeRegisterCOP1() {
       break;
     case CTC1: {
       // At the moment only FCSR is supported.
-      DCHECK(fs_reg() == kFCSRRegister);
+      DCHECK_EQ(fs_reg(), kFCSRRegister);
       uint32_t reg = static_cast<uint32_t>(rt());
       if (kArchVariant == kMips64r6) {
         FCSR_ = reg | kFCSRNaN2008FlagMask;
       } else {
-        DCHECK(kArchVariant == kMips64r2);
+        DCHECK_EQ(kArchVariant, kMips64r2);
         FCSR_ = reg & ~kFCSRNaN2008FlagMask;
       }
       TraceRegWr(FCSR_);
@@ -3715,7 +3715,7 @@ void Simulator::DecodeTypeRegisterCOP1() {
 void Simulator::DecodeTypeRegisterCOP1X() {
   switch (instr_.FunctionFieldRaw()) {
     case MADD_S: {
-      DCHECK(kArchVariant == kMips64r2);
+      DCHECK_EQ(kArchVariant, kMips64r2);
       float fr, ft, fs;
       fr = get_fpu_register_float(fr_reg());
       fs = get_fpu_register_float(fs_reg());
@@ -3724,7 +3724,7 @@ void Simulator::DecodeTypeRegisterCOP1X() {
       break;
     }
     case MSUB_S: {
-      DCHECK(kArchVariant == kMips64r2);
+      DCHECK_EQ(kArchVariant, kMips64r2);
       float fr, ft, fs;
       fr = get_fpu_register_float(fr_reg());
       fs = get_fpu_register_float(fs_reg());
@@ -3733,7 +3733,7 @@ void Simulator::DecodeTypeRegisterCOP1X() {
       break;
     }
     case MADD_D: {
-      DCHECK(kArchVariant == kMips64r2);
+      DCHECK_EQ(kArchVariant, kMips64r2);
       double fr, ft, fs;
       fr = get_fpu_register_double(fr_reg());
       fs = get_fpu_register_double(fs_reg());
@@ -3742,7 +3742,7 @@ void Simulator::DecodeTypeRegisterCOP1X() {
       break;
     }
     case MSUB_D: {
-      DCHECK(kArchVariant == kMips64r2);
+      DCHECK_EQ(kArchVariant, kMips64r2);
       double fr, ft, fs;
       fr = get_fpu_register_double(fr_reg());
       fs = get_fpu_register_double(fs_reg());
@@ -3764,11 +3764,11 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
 
   switch (instr_.FunctionFieldRaw()) {
     case SELEQZ_S:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetResult(rd_reg(), rt() == 0 ? rs() : 0);
       break;
     case SELNEZ_S:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetResult(rd_reg(), rt() != 0 ? rs() : 0);
       break;
     case JR: {
@@ -3904,7 +3904,7 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       SetResult(rd_reg(), rt() >> rs());
       break;
     case LSA: {
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       int8_t sa = lsa_sa() + 1;
       int32_t _rt = static_cast<int32_t>(rt());
       int32_t _rs = static_cast<int32_t>(rs());
@@ -3914,29 +3914,29 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
       break;
     }
     case DLSA:
-      DCHECK(kArchVariant == kMips64r6);
+      DCHECK_EQ(kArchVariant, kMips64r6);
       SetResult(rd_reg(), (rs() << (lsa_sa() + 1)) + rt());
       break;
     case MFHI:  // MFHI == CLZ on R6.
       if (kArchVariant != kMips64r6) {
-        DCHECK(sa() == 0);
+        DCHECK_EQ(sa(), 0);
         alu_out = get_register(HI);
       } else {
         // MIPS spec: If no bits were set in GPR rs(), the result written to
         // GPR rd() is 32.
-        DCHECK(sa() == 1);
+        DCHECK_EQ(sa(), 1);
         alu_out = base::bits::CountLeadingZeros32(static_cast<int32_t>(rs_u()));
       }
       SetResult(rd_reg(), alu_out);
       break;
     case MFLO:  // MFLO == DCLZ on R6.
       if (kArchVariant != kMips64r6) {
-        DCHECK(sa() == 0);
+        DCHECK_EQ(sa(), 0);
         alu_out = get_register(LO);
       } else {
         // MIPS spec: If no bits were set in GPR rs(), the result written to
         // GPR rd() is 64.
-        DCHECK(sa() == 1);
+        DCHECK_EQ(sa(), 1);
         alu_out = base::bits::CountLeadingZeros64(static_cast<int64_t>(rs_u()));
       }
       SetResult(rd_reg(), alu_out);
@@ -4640,7 +4640,7 @@ int Simulator::DecodeMsaDataFormat() {
 }
 
 void Simulator::DecodeTypeMsaI8() {
-  DCHECK(kArchVariant == kMips64r6);
+  DCHECK_EQ(kArchVariant, kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsaI8Mask;
   int8_t i8 = instr_.MsaImm8Value();
@@ -4790,7 +4790,7 @@ T Simulator::MsaI5InstrHelper(uint32_t opcode, T ws, int32_t i5) {
 }
 
 void Simulator::DecodeTypeMsaI5() {
-  DCHECK(kArchVariant == kMips64r6);
+  DCHECK_EQ(kArchVariant, kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsaI5Mask;
   msa_reg_t ws, wd;
@@ -4826,7 +4826,7 @@ void Simulator::DecodeTypeMsaI5() {
 }
 
 void Simulator::DecodeTypeMsaI10() {
-  DCHECK(kArchVariant == kMips64r6);
+  DCHECK_EQ(kArchVariant, kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsaI5Mask;
   int64_t s10 = (static_cast<int64_t>(instr_.MsaImm10Value()) << 54) >> 54;
@@ -4863,20 +4863,20 @@ void Simulator::DecodeTypeMsaI10() {
 }
 
 void Simulator::DecodeTypeMsaELM() {
-  DCHECK(kArchVariant == kMips64r6);
+  DCHECK_EQ(kArchVariant, kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsaLongerELMMask;
   int32_t n = instr_.MsaElmNValue();
   int64_t alu_out;
   switch (opcode) {
     case CTCMSA:
-      DCHECK(sa() == kMSACSRRegister);
+      DCHECK_EQ(sa(), kMSACSRRegister);
       MSACSR_ = bit_cast<uint32_t>(
           static_cast<int32_t>(registers_[rd_reg()] & kMaxUInt32));
       TraceRegWr(static_cast<int32_t>(MSACSR_));
       break;
     case CFCMSA:
-      DCHECK(rd_reg() == kMSACSRRegister);
+      DCHECK_EQ(rd_reg(), kMSACSRRegister);
       SetResult(sa(), static_cast<int64_t>(bit_cast<int32_t>(MSACSR_)));
       break;
     case MOVE_V:
@@ -4890,28 +4890,28 @@ void Simulator::DecodeTypeMsaELM() {
           msa_reg_t ws;
           switch (DecodeMsaDataFormat()) {
             case MSA_BYTE:
-              DCHECK(n < kMSALanesByte);
+              DCHECK_LT(n, kMSALanesByte);
               get_msa_register(instr_.WsValue(), ws.b);
               alu_out = static_cast<int32_t>(ws.b[n]);
               SetResult(wd_reg(),
                         (opcode == COPY_U) ? alu_out & 0xFFu : alu_out);
               break;
             case MSA_HALF:
-              DCHECK(n < kMSALanesHalf);
+              DCHECK_LT(n, kMSALanesHalf);
               get_msa_register(instr_.WsValue(), ws.h);
               alu_out = static_cast<int32_t>(ws.h[n]);
               SetResult(wd_reg(),
                         (opcode == COPY_U) ? alu_out & 0xFFFFu : alu_out);
               break;
             case MSA_WORD:
-              DCHECK(n < kMSALanesWord);
+              DCHECK_LT(n, kMSALanesWord);
               get_msa_register(instr_.WsValue(), ws.w);
               alu_out = static_cast<int32_t>(ws.w[n]);
               SetResult(wd_reg(),
                         (opcode == COPY_U) ? alu_out & 0xFFFFFFFFu : alu_out);
               break;
             case MSA_DWORD:
-              DCHECK(n < kMSALanesDword);
+              DCHECK_LT(n, kMSALanesDword);
               get_msa_register(instr_.WsValue(), ws.d);
               alu_out = static_cast<int64_t>(ws.d[n]);
               SetResult(wd_reg(), alu_out);
@@ -4924,7 +4924,7 @@ void Simulator::DecodeTypeMsaELM() {
           msa_reg_t wd;
           switch (DecodeMsaDataFormat()) {
             case MSA_BYTE: {
-              DCHECK(n < kMSALanesByte);
+              DCHECK_LT(n, kMSALanesByte);
               int64_t rs = get_register(instr_.WsValue());
               get_msa_register(instr_.WdValue(), wd.b);
               wd.b[n] = rs & 0xFFu;
@@ -4933,7 +4933,7 @@ void Simulator::DecodeTypeMsaELM() {
               break;
             }
             case MSA_HALF: {
-              DCHECK(n < kMSALanesHalf);
+              DCHECK_LT(n, kMSALanesHalf);
               int64_t rs = get_register(instr_.WsValue());
               get_msa_register(instr_.WdValue(), wd.h);
               wd.h[n] = rs & 0xFFFFu;
@@ -4942,7 +4942,7 @@ void Simulator::DecodeTypeMsaELM() {
               break;
             }
             case MSA_WORD: {
-              DCHECK(n < kMSALanesWord);
+              DCHECK_LT(n, kMSALanesWord);
               int64_t rs = get_register(instr_.WsValue());
               get_msa_register(instr_.WdValue(), wd.w);
               wd.w[n] = rs & 0xFFFFFFFFu;
@@ -4951,7 +4951,7 @@ void Simulator::DecodeTypeMsaELM() {
               break;
             }
             case MSA_DWORD: {
-              DCHECK(n < kMSALanesDword);
+              DCHECK_LT(n, kMSALanesDword);
               int64_t rs = get_register(instr_.WsValue());
               get_msa_register(instr_.WdValue(), wd.d);
               wd.d[n] = rs;
@@ -5063,7 +5063,7 @@ T Simulator::MsaBitInstrHelper(uint32_t opcode, T wd, T ws, int32_t m) {
 }
 
 void Simulator::DecodeTypeMsaBIT() {
-  DCHECK(kArchVariant == kMips64r6);
+  DCHECK_EQ(kArchVariant, kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsaBITMask;
   int32_t m = instr_.MsaBitMValue();
@@ -5103,7 +5103,7 @@ void Simulator::DecodeTypeMsaBIT() {
 }
 
 void Simulator::DecodeTypeMsaMI10() {
-  DCHECK(kArchVariant == kMips64r6);
+  DCHECK_EQ(kArchVariant, kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsaMI10Mask;
   int64_t s10 = (static_cast<int64_t>(instr_.MsaImmMI10Value()) << 54) >> 54;
@@ -5413,7 +5413,7 @@ T Simulator::Msa3RInstrHelper(uint32_t opcode, T wd, T ws, T wt) {
 }
 
 void Simulator::DecodeTypeMsa3R() {
-  DCHECK(kArchVariant == kMips64r6);
+  DCHECK_EQ(kArchVariant, kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsa3RMask;
   msa_reg_t ws, wd, wt;
@@ -5651,7 +5651,7 @@ void Msa3RFInstrHelper2(uint32_t opcode, T_reg ws, T_reg wt, T_reg& wd) {
 }
 
 void Simulator::DecodeTypeMsa3RF() {
-  DCHECK(kArchVariant == kMips64r6);
+  DCHECK_EQ(kArchVariant, kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsa3RFMask;
   msa_reg_t wd, ws, wt;
@@ -5850,7 +5850,7 @@ void Simulator::DecodeTypeMsa3RF() {
 }
 
 void Simulator::DecodeTypeMsaVec() {
-  DCHECK(kArchVariant == kMips64r6);
+  DCHECK_EQ(kArchVariant, kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsaVECMask;
   msa_reg_t wd, ws, wt;
@@ -5893,7 +5893,7 @@ void Simulator::DecodeTypeMsaVec() {
 }
 
 void Simulator::DecodeTypeMsa2R() {
-  DCHECK(kArchVariant == kMips64r6);
+  DCHECK_EQ(kArchVariant, kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsa2RMask;
   msa_reg_t wd, ws;
@@ -6314,7 +6314,7 @@ T_int Msa2RFInstrHelper2(uint32_t opcode, T_reg ws, T_i i) {
 }
 
 void Simulator::DecodeTypeMsa2RF() {
-  DCHECK(kArchVariant == kMips64r6);
+  DCHECK_EQ(kArchVariant, kMips64r6);
   DCHECK(CpuFeatures::IsSupported(MIPS_SIMD));
   uint32_t opcode = instr_.InstructionBits() & kMsa2RFMask;
   msa_reg_t wd, ws;
@@ -6725,7 +6725,7 @@ void Simulator::DecodeTypeImmediate() {
     case LUI:
       if (rs_reg != 0) {
         // AUI instruction.
-        DCHECK(kArchVariant == kMips64r6);
+        DCHECK_EQ(kArchVariant, kMips64r6);
         int32_t alu32_out = static_cast<int32_t>(rs + (se_imm16 << 16));
         SetResult(rt_reg, static_cast<int64_t>(alu32_out));
       } else {
@@ -6736,8 +6736,8 @@ void Simulator::DecodeTypeImmediate() {
       }
       break;
     case DAUI:
-      DCHECK(kArchVariant == kMips64r6);
-      DCHECK(rs_reg != 0);
+      DCHECK_EQ(kArchVariant, kMips64r6);
+      DCHECK_NE(rs_reg, 0);
       SetResult(rt_reg, rs + (se_imm16 << 16));
       break;
     // ------------- Memory instructions.
@@ -6862,26 +6862,26 @@ void Simulator::DecodeTypeImmediate() {
     }
     case LL: {
       // LL/SC sequence cannot be simulated properly
-      DCHECK(kArchVariant == kMips64r2);
+      DCHECK_EQ(kArchVariant, kMips64r2);
       set_register(rt_reg, ReadW(rs + se_imm16, instr_.instr()));
       break;
     }
     case SC: {
       // LL/SC sequence cannot be simulated properly
-      DCHECK(kArchVariant == kMips64r2);
+      DCHECK_EQ(kArchVariant, kMips64r2);
       WriteW(rs + se_imm16, static_cast<int32_t>(rt), instr_.instr());
       set_register(rt_reg, 1);
       break;
     }
     case LLD: {
       // LL/SC sequence cannot be simulated properly
-      DCHECK(kArchVariant == kMips64r2);
+      DCHECK_EQ(kArchVariant, kMips64r2);
       set_register(rt_reg, ReadD(rs + se_imm16, instr_.instr()));
       break;
     }
     case SCD: {
       // LL/SC sequence cannot be simulated properly
-      DCHECK(kArchVariant == kMips64r2);
+      DCHECK_EQ(kArchVariant, kMips64r2);
       WriteD(rs + se_imm16, rt, instr_.instr());
       set_register(rt_reg, 1);
       break;
@@ -6973,7 +6973,7 @@ void Simulator::DecodeTypeImmediate() {
       switch (instr_.FunctionFieldRaw()) {
         case LL_R6: {
           // LL/SC sequence cannot be simulated properly
-          DCHECK(kArchVariant == kMips64r6);
+          DCHECK_EQ(kArchVariant, kMips64r6);
           int64_t base = get_register(instr_.BaseValue());
           int32_t offset9 = instr_.Imm9Value();
           set_register(rt_reg, ReadW(base + offset9, instr_.instr()));
@@ -6981,7 +6981,7 @@ void Simulator::DecodeTypeImmediate() {
         }
         case LLD_R6: {
           // LL/SC sequence cannot be simulated properly
-          DCHECK(kArchVariant == kMips64r6);
+          DCHECK_EQ(kArchVariant, kMips64r6);
           int64_t base = get_register(instr_.BaseValue());
           int32_t offset9 = instr_.Imm9Value();
           set_register(rt_reg, ReadD(base + offset9, instr_.instr()));
@@ -6989,7 +6989,7 @@ void Simulator::DecodeTypeImmediate() {
         }
         case SC_R6: {
           // LL/SC sequence cannot be simulated properly
-          DCHECK(kArchVariant == kMips64r6);
+          DCHECK_EQ(kArchVariant, kMips64r6);
           int64_t base = get_register(instr_.BaseValue());
           int32_t offset9 = instr_.Imm9Value();
           WriteW(base + offset9, static_cast<int32_t>(rt), instr_.instr());
@@ -6998,7 +6998,7 @@ void Simulator::DecodeTypeImmediate() {
         }
         case SCD_R6: {
           // LL/SC sequence cannot be simulated properly
-          DCHECK(kArchVariant == kMips64r6);
+          DCHECK_EQ(kArchVariant, kMips64r6);
           int64_t base = get_register(instr_.BaseValue());
           int32_t offset9 = instr_.Imm9Value();
           WriteD(base + offset9, rt, instr_.instr());
@@ -7237,7 +7237,7 @@ int64_t Simulator::Call(byte* entry, int argument_count, ...) {
   // Set up arguments.
 
   // First four arguments passed in registers in both ABI's.
-  DCHECK(argument_count >= 4);
+  DCHECK_GE(argument_count, 4);
   set_register(a0, va_arg(parameters, int64_t));
   set_register(a1, va_arg(parameters, int64_t));
   set_register(a2, va_arg(parameters, int64_t));

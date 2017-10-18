@@ -385,7 +385,7 @@ class String : public Name {
         ++chars;
       }
       // Check aligned words.
-      DCHECK(unibrow::Utf8::kMaxOneByteChar == 0x7F);
+      DCHECK_EQ(unibrow::Utf8::kMaxOneByteChar, 0x7F);
       const uintptr_t non_one_byte_mask = kUintptrAllBitsSet / 0xFF * 0x80;
       while (chars + sizeof(uintptr_t) <= limit) {
         if (*reinterpret_cast<const uintptr_t*>(chars) & non_one_byte_mask) {

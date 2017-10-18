@@ -80,7 +80,7 @@ void SimSystemRegister::SetBits(int msb, int lsb, uint32_t bits) {
 
   bits <<= lsb;
   uint32_t mask = ((1 << width) - 1) << lsb;
-  DCHECK((mask & write_ignore_mask_) == 0);
+  DCHECK_EQ(mask & write_ignore_mask_, 0);
 
   value_ = (value_ & ~mask) | (bits & mask);
 }
@@ -109,7 +109,7 @@ void Simulator::Initialize(Isolate* isolate) {
 Simulator* Simulator::current(Isolate* isolate) {
   Isolate::PerIsolateThreadData* isolate_data =
       isolate->FindOrAllocatePerThreadDataForThisThread();
-  DCHECK(isolate_data != nullptr);
+  DCHECK_NOT_NULL(isolate_data);
 
   Simulator* sim = isolate_data->simulator();
   if (sim == nullptr) {
@@ -331,7 +331,7 @@ uintptr_t Simulator::PopAddress() {
   intptr_t current_sp = sp();
   uintptr_t* stack_slot = reinterpret_cast<uintptr_t*>(current_sp);
   uintptr_t address = *stack_slot;
-  DCHECK(sizeof(uintptr_t) < 2 * kXRegSize);
+  DCHECK_LT(sizeof(uintptr_t), 2 * kXRegSize);
   set_sp(current_sp + 2 * kXRegSize);
   return address;
 }
@@ -2215,7 +2215,7 @@ void Simulator::LoadStoreWriteBack(unsigned addr_reg,
                                    int64_t offset,
                                    AddrMode addrmode) {
   if ((addrmode == PreIndex) || (addrmode == PostIndex)) {
-    DCHECK(offset != 0);
+    DCHECK_NE(offset, 0);
     uint64_t address = xreg(addr_reg, Reg31IsStackPointer);
     set_reg(addr_reg, address + offset, Reg31IsStackPointer);
   }
@@ -2566,7 +2566,7 @@ void Simulator::VisitDataProcessing3Source(Instruction* instr) {
     case UMADDL_x: result = xreg(instr->Ra()) + (rn_u32 * rm_u32); break;
     case UMSUBL_x: result = xreg(instr->Ra()) - (rn_u32 * rm_u32); break;
     case SMULH_x:
-      DCHECK(instr->Ra() == kZeroRegCode);
+      DCHECK_EQ(instr->Ra(), kZeroRegCode);
       result = MultiplyHighSigned(xreg(instr->Rn()), xreg(instr->Rm()));
       break;
     default: UNIMPLEMENTED();
@@ -3535,7 +3535,7 @@ void Simulator::VisitException(Instruction* instr) {
             break;
           default:
             // We don't support a one-shot LOG_DISASM.
-            DCHECK((parameters & LOG_DISASM) == 0);
+            DCHECK_EQ(parameters & LOG_DISASM, 0);
             // Don't print information that is already being traced.
             parameters &= ~log_parameters();
             // Print the requested information.
@@ -3550,7 +3550,7 @@ void Simulator::VisitException(Instruction* instr) {
         pc_ = pc_->InstructionAtOffset(RoundUp(size, kInstructionSize));
         //  - Verify that the unreachable marker is present.
         DCHECK(pc_->Mask(ExceptionMask) == HLT);
-        DCHECK(pc_->ImmException() ==  kImmExceptionIsUnreachable);
+        DCHECK_EQ(pc_->ImmException(), kImmExceptionIsUnreachable);
         //  - Skip past the unreachable marker.
         set_pc(pc_->following());
 
@@ -5713,8 +5713,8 @@ void Simulator::DoPrintf(Instruction* instr) {
          instr + kPrintfArgPatternListOffset,
          sizeof(arg_pattern_list));
 
-  DCHECK(arg_count <= kPrintfMaxArgCount);
-  DCHECK((arg_pattern_list >> (kPrintfArgPatternBits * arg_count)) == 0);
+  DCHECK_LE(arg_count, kPrintfMaxArgCount);
+  DCHECK_EQ(arg_pattern_list >> (kPrintfArgPatternBits * arg_count), 0);
 
   // We need to call the host printf function with a set of arguments defined by
   // arg_pattern_list. Because we don't know the types and sizes of the
@@ -5726,7 +5726,7 @@ void Simulator::DoPrintf(Instruction* instr) {
   // Leave enough space for one extra character per expected argument (plus the
   // '\0' termination).
   const char * format_base = reg<const char *>(0);
-  DCHECK(format_base != nullptr);
+  DCHECK_NOT_NULL(format_base);
   size_t length = strlen(format_base) + 1;
   char * const format = new char[length + arg_count];
 

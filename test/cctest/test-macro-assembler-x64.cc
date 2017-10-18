@@ -466,7 +466,7 @@ TEST(SmiIndex) {
 }
 
 void TestPositiveSmiPowerUp(MacroAssembler* masm, Label* exit, int id, int x) {
-  CHECK(x >= 0);
+  CHECK_GE(x, 0);
   int powers[] = { 0, 1, 2, 3, 8, 16, 24, 31 };
   int power_count = 8;
   __ movl(rax, Immediate(id));

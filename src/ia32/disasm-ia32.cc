@@ -2438,7 +2438,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
   if (instr_len == 0) {
     printf("%02x", *data);
   }
-  DCHECK(instr_len > 0);  // Ensure progress.
+  DCHECK_GT(instr_len, 0);  // Ensure progress.
 
   int outp = 0;
   // Instruction bytes.

@@ -708,7 +708,7 @@ void FeedbackNexus::ConfigurePolymorphic(Handle<Name> name,
                                          MapHandles const& maps,
                                          ObjectHandles* handlers) {
   int receiver_count = static_cast<int>(maps.size());
-  DCHECK(receiver_count > 1);
+  DCHECK_GT(receiver_count, 1);
   Handle<FixedArray> array;
   if (name.is_null()) {
     array = EnsureArrayOfSize(receiver_count * 2);

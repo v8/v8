@@ -212,7 +212,7 @@ class DateCache {
 
   virtual int GetLocalOffsetFromOS() {
     double offset = tz_cache_->LocalTimeOffset();
-    DCHECK(offset < kInvalidLocalOffsetInMs);
+    DCHECK_LT(offset, kInvalidLocalOffsetInMs);
     return static_cast<int>(offset);
   }
 

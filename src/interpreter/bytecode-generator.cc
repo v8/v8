@@ -562,7 +562,7 @@ class BytecodeGenerator::ExpressionResultScope {
 
   // Specify expression always returns a Boolean result value.
   void SetResultIsBoolean() {
-    DCHECK(type_hint_ == TypeHint::kAny);
+    DCHECK_EQ(type_hint_, TypeHint::kAny);
     type_hint_ = TypeHint::kBoolean;
   }
 
@@ -2948,7 +2948,7 @@ void BytecodeGenerator::VisitYieldStar(YieldStar* expr) {
         builder()->LoadAccumulatorWithRegister(output);
       } else {
         RegisterAllocationScope register_scope(this);
-        DCHECK(iterator_type == IteratorType::kAsync);
+        DCHECK_EQ(iterator_type, IteratorType::kAsync);
         // If generatorKind is async, perform AsyncGeneratorYield(output.value),
         // which will await `output.value` before resolving the current
         // AsyncGeneratorRequest's promise.

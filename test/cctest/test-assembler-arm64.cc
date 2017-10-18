@@ -122,7 +122,7 @@ static void InitializeVM() {
 #define SETUP_SIZE(buf_size)                                   \
   Isolate* isolate = CcTest::i_isolate();                      \
   HandleScope scope(isolate);                                  \
-  CHECK(isolate != nullptr);                                   \
+  CHECK_NOT_NULL(isolate);                                     \
   byte* buf = new byte[buf_size];                              \
   MacroAssembler masm(isolate, buf, buf_size,                  \
                       v8::internal::CodeObjectRequired::kYes); \
@@ -177,7 +177,7 @@ static void InitializeVM() {
 #define SETUP_SIZE(buf_size)                                            \
   Isolate* isolate = CcTest::i_isolate();                               \
   HandleScope scope(isolate);                                           \
-  CHECK(isolate != nullptr);                                            \
+  CHECK_NOT_NULL(isolate);                                              \
   size_t actual_size;                                                   \
   byte* buf = static_cast<byte*>(                                       \
       v8::base::OS::Allocate(buf_size, &actual_size, true));            \
@@ -10570,8 +10570,8 @@ TEST(fcvt_sd) {
     float expected = test[i].expected;
 
     // We only expect positive input.
-    CHECK(std::signbit(in) == 0);
-    CHECK(std::signbit(expected) == 0);
+    CHECK_EQ(std::signbit(in), 0);
+    CHECK_EQ(std::signbit(expected), 0);
 
     SETUP();
     START();
@@ -12409,7 +12409,7 @@ static void PushPopJsspSimpleHelper(int reg_count,
           case 2:  __ Push(r[1], r[0]);       break;
           case 1:  __ Push(r[0]);             break;
           default:
-            CHECK(i == 0);
+            CHECK_EQ(i, 0);
             break;
         }
         break;
@@ -12597,7 +12597,7 @@ static void PushPopFPJsspSimpleHelper(int reg_count,
           case 2:  __ Push(v[1], v[0]);       break;
           case 1:  __ Push(v[0]);             break;
           default:
-            CHECK(i == 0);
+            CHECK_EQ(i, 0);
             break;
         }
         break;
@@ -12965,7 +12965,7 @@ static void PushPopJsspWXOverlapHelper(int reg_count, int claim) {
       }
       next_is_64 = !next_is_64;
     }
-    CHECK(active_w_slots == 0);
+    CHECK_EQ(active_w_slots, 0);
 
     // Drop memory to restore jssp.
     __ Drop(claim, kByteSizeInBytes);
@@ -15478,7 +15478,7 @@ TEST(pool_size) {
     }
   }
 
-  CHECK(pool_count == 2);
+  CHECK_EQ(pool_count, 2);
 
   TEARDOWN();
 }

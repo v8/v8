@@ -164,7 +164,7 @@ AssemblerBase::AssemblerBase(IsolateData isolate_data, void* buffer,
       jump_optimization_info_(nullptr) {
   own_buffer_ = buffer == nullptr;
   if (buffer_size == 0) buffer_size = kMinimalBufferSize;
-  DCHECK(buffer_size > 0);
+  DCHECK_GT(buffer_size, 0);
   if (own_buffer_) buffer = NewArray<byte>(buffer_size);
   buffer_ = static_cast<byte*>(buffer);
   buffer_size_ = buffer_size;
@@ -355,7 +355,7 @@ uint32_t RelocInfoWriter::WriteLongPCJump(uint32_t pc_delta) {
   if (is_uintn(pc_delta, kSmallPCDeltaBits)) return pc_delta;
   WriteMode(RelocInfo::PC_JUMP);
   uint32_t pc_jump = pc_delta >> kSmallPCDeltaBits;
-  DCHECK(pc_jump > 0);
+  DCHECK_GT(pc_jump, 0);
   // Write kChunkBits size chunks of the pc_jump.
   for (; pc_jump > 0; pc_jump = pc_jump >> kChunkBits) {
     byte b = pc_jump & kChunkMask;
@@ -411,7 +411,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   byte* begin_pos = pos_;
 #endif
   DCHECK(rinfo->rmode() < RelocInfo::NUMBER_OF_MODES);
-  DCHECK(rinfo->pc() - last_pc_ >= 0);
+  DCHECK_GE(rinfo->pc() - last_pc_, 0);
   // Use unsigned delta-encoding for pc.
   uint32_t pc_delta = static_cast<uint32_t>(rinfo->pc() - last_pc_);
 
@@ -420,7 +420,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
     WriteShortTaggedPC(pc_delta, kEmbeddedObjectTag);
   } else if (rmode == RelocInfo::CODE_TARGET) {
     WriteShortTaggedPC(pc_delta, kCodeTargetTag);
-    DCHECK(begin_pos - pos_ <= RelocInfo::kMaxCallSize);
+    DCHECK_LE(begin_pos - pos_, RelocInfo::kMaxCallSize);
   } else if (rmode == RelocInfo::DEOPT_REASON) {
     DCHECK(rinfo->data() < (1 << kBitsPerByte));
     WriteShortTaggedPC(pc_delta, kLocatableTag);
@@ -439,7 +439,7 @@ void RelocInfoWriter::Write(const RelocInfo* rinfo) {
   last_pc_ = rinfo->pc();
   last_mode_ = rmode;
 #ifdef DEBUG
-  DCHECK(begin_pos - pos_ <= kMaxSize);
+  DCHECK_LE(begin_pos - pos_, kMaxSize);
 #endif
 }
 
@@ -519,7 +519,7 @@ void RelocIterator::next() {
         return;
       }
     } else {
-      DCHECK(tag == kDefaultTag);
+      DCHECK_EQ(tag, kDefaultTag);
       RelocInfo::Mode rmode = GetMode();
       if (rmode == RelocInfo::PC_JUMP) {
         AdvanceReadLongPCJump();
@@ -684,7 +684,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case CODE_TARGET: {
       // convert inline target address to code object
       Address addr = target_address();
-      CHECK(addr != nullptr);
+      CHECK_NOT_NULL(addr);
       // Check that we can find the right code object.
       Code* code = Code::GetCodeFromTargetAddress(addr);
       Object* found = isolate->FindCodeObject(addr);
@@ -831,7 +831,7 @@ ExternalReference ExternalReference::date_cache_stamp(Isolate* isolate) {
 void ExternalReference::set_redirector(
     Isolate* isolate, ExternalReferenceRedirector* redirector) {
   // We can't stack them.
-  DCHECK(isolate->external_reference_redirector() == nullptr);
+  DCHECK_NULL(isolate->external_reference_redirector());
   isolate->set_external_reference_redirector(
       reinterpret_cast<ExternalReferenceRedirectorPointer*>(redirector));
 }
@@ -1650,7 +1650,7 @@ void ConstantPoolBuilder::EmitSharedEntries(Assembler* assm,
   std::vector<ConstantPoolEntry>& shared_entries = info.shared_entries;
   const int entry_size = ConstantPoolEntry::size(type);
   int base = emitted_label_.pos();
-  DCHECK(base > 0);
+  DCHECK_GT(base, 0);
   int shared_end = static_cast<int>(shared_entries.size());
   std::vector<ConstantPoolEntry>::iterator shared_it = shared_entries.begin();
   for (int i = 0; i < shared_end; i++, shared_it++) {
@@ -1678,7 +1678,7 @@ void ConstantPoolBuilder::EmitGroup(Assembler* assm,
   std::vector<ConstantPoolEntry>& shared_entries = info.shared_entries;
   const int entry_size = ConstantPoolEntry::size(type);
   int base = emitted_label_.pos();
-  DCHECK(base > 0);
+  DCHECK_GT(base, 0);
   int begin;
   int end;
 
@@ -1807,7 +1807,7 @@ void SetUpJSCallerSavedCodeData() {
   for (int r = 0; r < kNumRegs; r++)
     if ((kJSCallerSaved & (1 << r)) != 0) caller_saved_codes[i++] = r;
 
-  DCHECK(i == kNumJSCallerSaved);
+  DCHECK_EQ(i, kNumJSCallerSaved);
 }
 
 int JSCallerSavedCode(int n) {

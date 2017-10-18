@@ -212,7 +212,7 @@ void Deoptimizer::TableEntryGenerator::Generate() {
     // Do not restore rsp, simply pop the value into the next register
     // and overwrite this afterwards.
     if (r == rsp) {
-      DCHECK(i > 0);
+      DCHECK_GT(i, 0);
       r = Register::from_code(i - 1);
     }
     __ popq(r);

@@ -255,7 +255,7 @@ std::vector<const char*>* FlagList::argv() {
     Flag* f = &flags[i];
     if (!f->IsDefault()) {
       if (f->type() == Flag::TYPE_ARGS) {
-        DCHECK(args_flag == nullptr);
+        DCHECK_NULL(args_flag);
         args_flag = f;  // Must be last in arguments.
         continue;
       }

@@ -26,8 +26,8 @@ JITLineInfoTable::~JITLineInfoTable() {}
 
 
 void JITLineInfoTable::SetPosition(int pc_offset, int line) {
-  DCHECK(pc_offset >= 0);
-  DCHECK(line > 0);  // The 1-based number of the source line.
+  DCHECK_GE(pc_offset, 0);
+  DCHECK_GT(line, 0);  // The 1-based number of the source line.
   if (GetSourceLineNumber(pc_offset) != line) {
     pc_offset_map_.insert(std::make_pair(pc_offset, line));
   }

@@ -767,7 +767,7 @@ void* OS::Allocate(const size_t requested, size_t* allocated,
 
   if (mbase == NULL) return NULL;
 
-  DCHECK((reinterpret_cast<uintptr_t>(mbase) % OS::AllocateAlignment()) == 0);
+  DCHECK_EQ(reinterpret_cast<uintptr_t>(mbase) % OS::AllocateAlignment(), 0);
 
   *allocated = msize;
   return mbase;
@@ -805,7 +805,7 @@ void* OS::ReserveRegion(size_t size, void* hint) {
 
 void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
                                size_t* allocated) {
-  DCHECK((alignment % OS::AllocateAlignment()) == 0);
+  DCHECK_EQ(alignment % OS::AllocateAlignment(), 0);
   hint = AlignedAddress(hint, alignment);
   size_t request_size =
       RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));

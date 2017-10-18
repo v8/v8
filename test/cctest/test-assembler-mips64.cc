@@ -6881,16 +6881,16 @@ void run_msa_insert(int64_t rs_value, int n, msa_reg_t* w) {
   __ fill_w(w0, t0);
 
   if (std::is_same<T, int8_t>::value) {
-    DCHECK(n < 16);
+    DCHECK_LT(n, 16);
     __ insert_b(w0, n, t1);
   } else if (std::is_same<T, int16_t>::value) {
-    DCHECK(n < 8);
+    DCHECK_LT(n, 8);
     __ insert_h(w0, n, t1);
   } else if (std::is_same<T, int32_t>::value) {
-    DCHECK(n < 4);
+    DCHECK_LT(n, 4);
     __ insert_w(w0, n, t1);
   } else if (std::is_same<T, int64_t>::value) {
-    DCHECK(n < 2);
+    DCHECK_LT(n, 2);
     __ insert_d(w0, n, t1);
   } else {
     UNREACHABLE();

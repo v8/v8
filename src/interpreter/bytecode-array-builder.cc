@@ -549,7 +549,7 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareNil(Token::Value op,
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::CompareTypeOf(
     TestTypeOfFlags::LiteralFlag literal_flag) {
-  DCHECK(literal_flag != TestTypeOfFlags::LiteralFlag::kOther);
+  DCHECK_NE(literal_flag, TestTypeOfFlags::LiteralFlag::kOther);
   OutputTestTypeOf(TestTypeOfFlags::Encode(literal_flag));
   return *this;
 }
@@ -1385,7 +1385,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::ConstructWithSpread(
 BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntime(
     Runtime::FunctionId function_id, RegisterList args) {
   DCHECK_EQ(1, Runtime::FunctionForId(function_id)->result_size);
-  DCHECK(Bytecodes::SizeForUnsignedOperand(function_id) <= OperandSize::kShort);
+  DCHECK_LE(Bytecodes::SizeForUnsignedOperand(function_id),
+            OperandSize::kShort);
   if (IntrinsicsHelper::IsSupported(function_id)) {
     IntrinsicsHelper::IntrinsicId intrinsic_id =
         IntrinsicsHelper::FromRuntimeId(function_id);
@@ -1412,7 +1413,8 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CallRuntimeForPair(
     Runtime::FunctionId function_id, RegisterList args,
     RegisterList return_pair) {
   DCHECK_EQ(2, Runtime::FunctionForId(function_id)->result_size);
-  DCHECK(Bytecodes::SizeForUnsignedOperand(function_id) <= OperandSize::kShort);
+  DCHECK_LE(Bytecodes::SizeForUnsignedOperand(function_id),
+            OperandSize::kShort);
   DCHECK_EQ(2, return_pair.register_count());
   OutputCallRuntimeForPair(static_cast<uint16_t>(function_id), args,
                            args.register_count(), return_pair);

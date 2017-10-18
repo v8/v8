@@ -82,11 +82,11 @@ CcTest::CcTest(TestFunction* callback, const char* file, const char* name,
 
 void CcTest::Run() {
   if (!initialize_) {
-    CHECK(initialization_state_ != kInitialized);
+    CHECK_NE(initialization_state_, kInitialized);
     initialization_state_ = kUninitialized;
-    CHECK(CcTest::isolate_ == nullptr);
+    CHECK_NULL(CcTest::isolate_);
   } else {
-    CHECK(initialization_state_ != kUninitialized);
+    CHECK_NE(initialization_state_, kUninitialized);
     initialization_state_ = kInitialized;
     if (isolate_ == nullptr) {
       v8::Isolate::CreateParams create_params;

@@ -31,7 +31,7 @@ bool FeedbackMetadata::is_empty() const {
 
 int FeedbackMetadata::slot_count() const {
   if (length() == 0) return 0;
-  DCHECK(length() > kReservedIndexCount);
+  DCHECK_GT(length(), kReservedIndexCount);
   return Smi::ToInt(get(kSlotsCountIndex));
 }
 

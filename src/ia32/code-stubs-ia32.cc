@@ -723,13 +723,13 @@ RecordWriteStub::Mode RecordWriteStub::GetMode(Code* stub) {
     return INCREMENTAL;
   }
 
-  DCHECK(first_instruction == kTwoByteNopInstruction);
+  DCHECK_EQ(first_instruction, kTwoByteNopInstruction);
 
   if (second_instruction == kFiveByteJumpInstruction) {
     return INCREMENTAL_COMPACTION;
   }
 
-  DCHECK(second_instruction == kFiveByteNopInstruction);
+  DCHECK_EQ(second_instruction, kFiveByteNopInstruction);
 
   return STORE_BUFFER_ONLY;
 }
@@ -956,7 +956,7 @@ void ProfileEntryHookStub::Generate(MacroAssembler* masm) {
   __ push(eax);
 
   // Call the entry hook.
-  DCHECK(isolate()->function_entry_hook() != nullptr);
+  DCHECK_NOT_NULL(isolate()->function_entry_hook());
   __ call(FUNCTION_ADDR(isolate()->function_entry_hook()),
           RelocInfo::RUNTIME_ENTRY);
   __ add(esp, Immediate(2 * kPointerSize));

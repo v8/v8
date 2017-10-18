@@ -108,7 +108,7 @@ Log::MessageBuilder::MessageBuilder(Log* log)
   : log_(log),
     lock_guard_(&log_->mutex_),
     pos_(0) {
-  DCHECK(log_->message_buffer_ != nullptr);
+  DCHECK_NOT_NULL(log_->message_buffer_);
 }
 
 
@@ -119,7 +119,7 @@ void Log::MessageBuilder::Append(const char* format, ...) {
   va_start(args, format);
   AppendVA(format, args);
   va_end(args);
-  DCHECK(pos_ <= Log::kMessageBufferSize);
+  DCHECK_LE(pos_, Log::kMessageBufferSize);
 }
 
 
@@ -134,7 +134,7 @@ void Log::MessageBuilder::AppendVA(const char* format, va_list args) {
   } else {
     pos_ = Log::kMessageBufferSize;
   }
-  DCHECK(pos_ <= Log::kMessageBufferSize);
+  DCHECK_LE(pos_, Log::kMessageBufferSize);
 }
 
 
@@ -142,7 +142,7 @@ void Log::MessageBuilder::Append(const char c) {
   if (pos_ < Log::kMessageBufferSize) {
     log_->message_buffer_[pos_++] = c;
   }
-  DCHECK(pos_ <= Log::kMessageBufferSize);
+  DCHECK_LE(pos_, Log::kMessageBufferSize);
 }
 
 
@@ -234,7 +234,7 @@ void Log::MessageBuilder::AppendUnbufferedHeapString(String* str) {
       DCHECK_EQ(6, length);
       log_->WriteToFile(buffer.start(), length);
     } else {
-      DCHECK(c <= 0xffff);
+      DCHECK_LE(c, 0xffff);
       int length = v8::internal::SNPrintF(buffer, "\\x%02x", c);
       DCHECK_EQ(4, length);
       log_->WriteToFile(buffer.start(), length);
@@ -253,18 +253,18 @@ void Log::MessageBuilder::AppendUnbufferedCString(const char* str) {
 void Log::MessageBuilder::AppendStringPart(const char* str, int len) {
   if (pos_ + len > Log::kMessageBufferSize) {
     len = Log::kMessageBufferSize - pos_;
-    DCHECK(len >= 0);
+    DCHECK_GE(len, 0);
     if (len == 0) return;
   }
   Vector<char> buf(log_->message_buffer_ + pos_,
                    Log::kMessageBufferSize - pos_);
   StrNCpy(buf, str, len);
   pos_ += len;
-  DCHECK(pos_ <= Log::kMessageBufferSize);
+  DCHECK_LE(pos_, Log::kMessageBufferSize);
 }
 
 void Log::MessageBuilder::WriteToLogFile() {
-  DCHECK(pos_ <= Log::kMessageBufferSize);
+  DCHECK_LE(pos_, Log::kMessageBufferSize);
   // Assert that we do not already have a new line at the end.
   DCHECK(pos_ == 0 || log_->message_buffer_[pos_ - 1] != '\n');
   if (pos_ == Log::kMessageBufferSize) pos_--;

@@ -154,7 +154,7 @@ class StatsCounter : public StatsCounterBase {
   // given counter without calling the runtime system.
   int* GetInternalPointer() {
     int* loc = GetPtr();
-    DCHECK(loc != nullptr);
+    DCHECK_NOT_NULL(loc);
     return loc;
   }
 
@@ -189,7 +189,7 @@ class StatsCounterThreadSafe : public StatsCounterBase {
   void Decrement(int value);
   bool Enabled() { return ptr_ != nullptr; }
   int* GetInternalPointer() {
-    DCHECK(ptr_ != nullptr);
+    DCHECK_NOT_NULL(ptr_);
     return ptr_;
   }
 

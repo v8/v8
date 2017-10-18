@@ -316,11 +316,11 @@ RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
 
   size_t actual_array_length = 0;
   CHECK(TryNumberToSize(array->length(), &actual_array_length));
-  CHECK(array_length >= 0);
+  CHECK_GE(array_length, 0);
   CHECK(static_cast<size_t>(array_length) <= actual_array_length);
 
   // This assumption is used by the slice encoding in one or two smis.
-  DCHECK(Smi::kMaxValue >= String::kMaxLength);
+  DCHECK_GE(Smi::kMaxValue, String::kMaxLength);
 
   CHECK(array->HasFastElements());
   JSObject::EnsureCanContainHeapObjectElements(array);
@@ -386,7 +386,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   }
   CONVERT_ARG_HANDLE_CHECKED(String, separator, 2);
   CHECK(array->HasObjectElements());
-  CHECK(array_length >= 0);
+  CHECK_GE(array_length, 0);
 
   Handle<FixedArray> fixed_array(FixedArray::cast(array->elements()));
   if (fixed_array->length() < array_length) {
@@ -402,7 +402,7 @@ RUNTIME_FUNCTION(Runtime_StringBuilderJoin) {
   }
 
   int separator_length = separator->length();
-  CHECK(separator_length > 0);
+  CHECK_GT(separator_length, 0);
   int max_nof_separators =
       (String::kMaxLength + separator_length - 1) / separator_length;
   if (max_nof_separators < (array_length - 1)) {
@@ -509,7 +509,7 @@ static void JoinSparseArrayWithSeparator(FixedArray* elements,
   int last_array_index = static_cast<int>(array_length - 1);
   // Array length must be representable as a signed 32-bit number,
   // otherwise the total string length would have been too large.
-  DCHECK(array_length <= 0x7fffffff);  // Is int32_t.
+  DCHECK_LE(array_length, 0x7fffffff);  // Is int32_t.
   int repeat = last_array_index - previous_separator_position;
   WriteRepeatToFlat<Char>(separator, buffer, cursor, repeat, separator_length);
   cursor += repeat * separator_length;
@@ -527,7 +527,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   CHECK(elements_array->HasSmiOrObjectElements());
   // array_length is length of original array (used to add separators);
   // separator is string to put between elements. Assumed to be non-empty.
-  CHECK(array_length > 0);
+  CHECK_GT(array_length, 0);
 
   // Find total length of join result.
   int string_length = 0;
@@ -535,7 +535,7 @@ RUNTIME_FUNCTION(Runtime_SparseJoinWithSeparator) {
   bool overflow = false;
   CONVERT_NUMBER_CHECKED(int, elements_length, Int32, elements_array->length());
   CHECK(elements_length <= elements_array->elements()->length());
-  CHECK((elements_length & 1) == 0);  // Even length.
+  CHECK_EQ(elements_length & 1, 0);  // Even length.
   FixedArray* elements = FixedArray::cast(elements_array->elements());
   {
     DisallowHeapAllocation no_gc;
@@ -617,7 +617,7 @@ static int CopyCachedOneByteCharsToArray(Heap* heap, const uint8_t* chars,
     elements->set(i, value, mode);
   }
   if (i < length) {
-    DCHECK(Smi::kZero == 0);
+    static_assert(Smi::kZero == 0, "Can use memset since Smi::kZero is 0");
     memset(elements->data_start() + i, 0, kPointerSize * (length - i));
   }
 #ifdef DEBUG
@@ -670,7 +670,7 @@ RUNTIME_FUNCTION(Runtime_StringToArray) {
 
 #ifdef DEBUG
   for (int i = 0; i < length; ++i) {
-    DCHECK(String::cast(elements->get(i))->length() == 1);
+    DCHECK_EQ(String::cast(elements->get(i))->length(), 1);
   }
 #endif
 

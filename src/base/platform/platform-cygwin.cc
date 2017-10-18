@@ -71,10 +71,10 @@ const char* CygwinTimezoneCache::LocalTimezone(double time) {
 double CygwinTimezoneCache::LocalTimeOffset() {
   // On Cygwin, struct tm does not contain a tm_gmtoff field.
   time_t utc = time(nullptr);
-  DCHECK(utc != -1);
+  DCHECK_NE(utc, -1);
   struct tm tm;
   struct tm* loc = localtime_r(&utc, &tm);
-  DCHECK(loc != nullptr);
+  DCHECK_NOT_NULL(loc);
   // time - localtime includes any daylight savings offset, so subtract it.
   return static_cast<double>((mktime(loc) - utc) * msPerSecond -
                              (loc->tm_isdst > 0 ? 3600 * msPerSecond : 0));
@@ -99,7 +99,7 @@ void* OS::ReserveRegion(size_t size, void* hint) {
 void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
                                size_t* allocated) {
   hint = AlignedAddress(hint, alignment);
-  DCHECK((alignment % OS::AllocateAlignment()) == 0);
+  DCHECK_EQ(alignment % OS::AllocateAlignment(), 0);
   size_t request_size =
       RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
   void* address = ReserveRegion(request_size, hint);

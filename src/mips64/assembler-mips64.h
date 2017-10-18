@@ -258,13 +258,13 @@ class FPURegister : public RegisterBase<FPURegister, kDoubleAfterLast> {
   FPURegister low() const {
     // TODO(plind): Create DCHECK for FR=0 mode. This usage suspect for FR=1.
     // Find low reg of a Double-reg pair, which is the reg itself.
-    DCHECK(code() % 2 == 0);  // Specified Double reg must be even.
+    DCHECK_EQ(code() % 2, 0);  // Specified Double reg must be even.
     return FPURegister::from_code(code());
   }
   FPURegister high() const {
     // TODO(plind): Create DCHECK for FR=0 mode. This usage illegal in FR=1.
     // Find high reg of a Doubel-reg pair, which is reg + 1.
-    DCHECK(code() % 2 == 0);  // Specified Double reg must be even.
+    DCHECK_EQ(code() % 2, 0);  // Specified Double reg must be even.
     return FPURegister::from_code(code() + 1);
   }
 
@@ -537,7 +537,7 @@ class Assembler : public AssemblerBase {
     return pc_offset() - L->pos() < kMaxBranchOffset - 4 * kInstrSize;
   }
   inline bool is_near_r6(Label* L) {
-    DCHECK(kArchVariant == kMips64r6);
+    DCHECK_EQ(kArchVariant, kMips64r6);
     return pc_offset() - L->pos() < kMaxCompactBranchOffset - 4 * kInstrSize;
   }
 
@@ -696,7 +696,7 @@ class Assembler : public AssemblerBase {
   // sll(zero_reg, zero_reg, 0). We use rt_reg == at for non-zero
   // marking, to avoid conflict with ssnop and ehb instructions.
   void nop(unsigned int type = 0) {
-    DCHECK(type < 32);
+    DCHECK_LT(type, 32);
     Register nop_rt_reg = (type == 0) ? zero_reg : at;
     sll(zero_reg, nop_rt_reg, type, true);
   }

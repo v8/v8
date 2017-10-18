@@ -97,7 +97,7 @@ RUNTIME_FUNCTION(Runtime_GetWeakMapEntries) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, holder, 0);
   CONVERT_NUMBER_CHECKED(int, max_entries, Int32, args[1]);
-  CHECK(max_entries >= 0);
+  CHECK_GE(max_entries, 0);
   return *JSWeakCollection::GetEntries(holder, max_entries);
 }
 
@@ -146,7 +146,7 @@ RUNTIME_FUNCTION(Runtime_GetWeakSetValues) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, holder, 0);
   CONVERT_NUMBER_CHECKED(int, max_values, Int32, args[1]);
-  CHECK(max_values >= 0);
+  CHECK_GE(max_values, 0);
   return *JSWeakCollection::GetEntries(holder, max_values);
 }
 

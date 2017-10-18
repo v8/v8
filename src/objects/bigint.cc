@@ -419,7 +419,7 @@ Handle<BigInt> BigInt::AbsoluteAddOne(Handle<BigInt> x, bool sign,
   if (result_length > input_length) {
     result->set_digit(input_length, carry);
   } else {
-    DCHECK(carry == 0);
+    DCHECK_EQ(carry, 0);
   }
   result->set_sign(sign);
   return result;
@@ -440,7 +440,7 @@ Handle<BigInt> BigInt::AbsoluteSubOne(Handle<BigInt> x, int result_length) {
     result->set_digit(i, digit_sub(x->digit(i), borrow, &new_borrow));
     borrow = new_borrow;
   }
-  DCHECK(borrow == 0);
+  DCHECK_EQ(borrow, 0);
   for (int i = length; i < result_length; i++) {
     result->set_digit(i, borrow);
   }
@@ -618,7 +618,7 @@ void BigInt::InternalMultiplyAdd(BigInt* source, digit_t factor,
       result->set_digit(n++, 0);
     }
   } else {
-    CHECK((carry + high) == 0);
+    CHECK_EQ(carry + high, 0);
   }
 }
 
@@ -638,7 +638,7 @@ void BigInt::InplaceMultiplyAdd(uintptr_t factor, uintptr_t summand) {
 // also be nullptr if the caller is only interested in the remainder.
 void BigInt::AbsoluteDivSmall(Handle<BigInt> x, digit_t divisor,
                               Handle<BigInt>* quotient, digit_t* remainder) {
-  DCHECK(divisor != 0);
+  DCHECK_NE(divisor, 0);
   DCHECK(!x->is_zero());  // Callers check anyway, no need to handle this.
   *remainder = 0;
   if (divisor == 1) {
@@ -671,7 +671,7 @@ void BigInt::AbsoluteDivSmall(Handle<BigInt> x, digit_t divisor,
 void BigInt::AbsoluteDivLarge(Handle<BigInt> dividend, Handle<BigInt> divisor,
                               Handle<BigInt>* quotient,
                               Handle<BigInt>* remainder) {
-  DCHECK(divisor->length() >= 2);
+  DCHECK_GE(divisor->length(), 2);
   DCHECK(dividend->length() >= divisor->length());
   Factory* factory = dividend->GetIsolate()->factory();
   // The unusual variable names inside this function are consistent with
@@ -801,10 +801,10 @@ BigInt::digit_t BigInt::InplaceSub(BigInt* subtrahend, int start_index) {
 }
 
 void BigInt::InplaceRightShift(int shift) {
-  DCHECK(shift >= 0);
-  DCHECK(shift < kDigitBits);
-  DCHECK(length() > 0);
-  DCHECK((digit(0) & ((1 << shift) - 1)) == 0);
+  DCHECK_GE(shift, 0);
+  DCHECK_LT(shift, kDigitBits);
+  DCHECK_GT(length(), 0);
+  DCHECK_EQ(digit(0) & ((1 << shift) - 1), 0);
   if (shift == 0) return;
   digit_t carry = digit(0) >> shift;
   int last = length() - 1;
@@ -821,9 +821,9 @@ void BigInt::InplaceRightShift(int shift) {
 // {shift} must be less than kDigitBits, {x} must be non-zero.
 Handle<BigInt> BigInt::SpecialLeftShift(Handle<BigInt> x, int shift,
                                         SpecialLeftShiftMode mode) {
-  DCHECK(shift >= 0);
-  DCHECK(shift < kDigitBits);
-  DCHECK(x->length() > 0);
+  DCHECK_GE(shift, 0);
+  DCHECK_LT(shift, kDigitBits);
+  DCHECK_GT(x->length(), 0);
   int n = x->length();
   int result_length = mode == kAlwaysAddOneDigit ? n + 1 : n;
   Handle<BigInt> result =
@@ -837,8 +837,8 @@ Handle<BigInt> BigInt::SpecialLeftShift(Handle<BigInt> x, int shift,
   if (mode == kAlwaysAddOneDigit) {
     result->set_digit(n, carry);
   } else {
-    DCHECK(mode == kSameSizeResult);
-    DCHECK(carry == 0);
+    DCHECK_EQ(mode, kSameSizeResult);
+    DCHECK_EQ(carry, 0);
   }
   return result;
 }
@@ -880,7 +880,7 @@ MaybeHandle<BigInt> BigInt::LeftShiftByAbsolute(Handle<BigInt> x,
     if (grow) {
       result->set_digit(length + digit_shift, carry);
     } else {
-      DCHECK(carry == 0);
+      DCHECK_EQ(carry, 0);
     }
   }
   result->set_sign(x->sign());
@@ -1004,7 +1004,7 @@ static const size_t kBitsPerCharTableMultiplier = 1u << kBitsPerCharTableShift;
 MaybeHandle<BigInt> BigInt::AllocateFor(Isolate* isolate, int radix,
                                         int charcount) {
   DCHECK(2 <= radix && radix <= 36);
-  DCHECK(charcount >= 0);
+  DCHECK_GE(charcount, 0);
   size_t bits_per_char = kMaxBitsPerChar[radix];
   size_t chars = static_cast<size_t>(charcount);
   const int roundup = kBitsPerCharTableMultiplier - 1;
@@ -1103,7 +1103,7 @@ MaybeHandle<String> BigInt::ToStringBasePowerOfTwo(Handle<BigInt> x,
     digit >>= bits_per_char;
   }
   if (sign) buffer[pos--] = '-';
-  DCHECK(pos == -1);
+  DCHECK_EQ(pos, -1);
   return result;
 }
 
@@ -1163,9 +1163,9 @@ MaybeHandle<String> BigInt::ToStringGeneric(Handle<BigInt> x, int radix) {
         kDigitBits * kBitsPerCharTableMultiplier / max_bits_per_char;
     digit_t chunk_divisor = digit_pow(radix, chunk_chars);
     // By construction of chunk_chars, there can't have been overflow.
-    DCHECK(chunk_divisor != 0);
+    DCHECK_NE(chunk_divisor, 0);
     int nonzero_digit = length - 1;
-    DCHECK(x->digit(nonzero_digit) != 0);
+    DCHECK_NE(x->digit(nonzero_digit), 0);
     // {rest} holds the part of the BigInt that we haven't looked at yet.
     // Not to be confused with "remainder"!
     Handle<BigInt> rest;
@@ -1183,11 +1183,11 @@ MaybeHandle<String> BigInt::ToStringGeneric(Handle<BigInt> x, int radix) {
         chars[pos++] = kConversionChars[chunk % radix];
         chunk /= radix;
       }
-      DCHECK(chunk == 0);
+      DCHECK_EQ(chunk, 0);
       if (rest->digit(nonzero_digit) == 0) nonzero_digit--;
       // We can never clear more than one digit per iteration, because
       // chunk_divisor is smaller than max digit value.
-      DCHECK(rest->digit(nonzero_digit) > 0);
+      DCHECK_GT(rest->digit(nonzero_digit), 0);
     } while (nonzero_digit > 0);
     last_digit = rest->digit(0);
   }
@@ -1197,7 +1197,7 @@ MaybeHandle<String> BigInt::ToStringGeneric(Handle<BigInt> x, int radix) {
     chars[pos++] = kConversionChars[last_digit % radix];
     last_digit /= radix;
   } while (last_digit > 0);
-  DCHECK(pos >= 1);
+  DCHECK_GE(pos, 1);
   DCHECK(pos <= static_cast<int>(chars_required));
   // Remove leading zeroes.
   while (pos > 1 && chars[pos - 1] == '0') pos--;
@@ -1223,7 +1223,7 @@ MaybeHandle<String> BigInt::ToStringGeneric(Handle<BigInt> x, int radix) {
 #if DEBUG
   // Verify that all characters have been written.
   DCHECK(result->length() == pos);
-  for (int i = 0; i < pos; i++) DCHECK(chars[i] != '?');
+  for (int i = 0; i < pos; i++) DCHECK_NE(chars[i], '?');
 #endif
   return result;
 }

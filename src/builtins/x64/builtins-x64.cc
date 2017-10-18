@@ -422,7 +422,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm,
   if (rax_is_tagged == kRaxIsSmiTagged) {
     __ PositiveSmiTimesPowerOfTwoToInteger64(r11, rax, kPointerSizeLog2);
   } else {
-    DCHECK(rax_is_tagged == kRaxIsUntaggedInt);
+    DCHECK_EQ(rax_is_tagged, kRaxIsUntaggedInt);
     __ movp(r11, rax);
     __ shlq(r11, Immediate(kPointerSizeLog2));
   }

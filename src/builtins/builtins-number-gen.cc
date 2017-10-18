@@ -669,8 +669,8 @@ void NumberBuiltinsAssembler::BinaryOp(Label* smis, Variable* var_left,
                                        Variable* var_left_double,
                                        Variable* var_right_double,
                                        Label* bigints) {
-  DCHECK(var_left->rep() == MachineRepresentation::kTagged);
-  DCHECK(var_right->rep() == MachineRepresentation::kTagged);
+  DCHECK_EQ(var_left->rep(), MachineRepresentation::kTagged);
+  DCHECK_EQ(var_right->rep(), MachineRepresentation::kTagged);
 
   Node* context = Parameter(Descriptor::kContext);
   var_left->Bind(Parameter(Descriptor::kLeft));

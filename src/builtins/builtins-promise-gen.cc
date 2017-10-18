@@ -264,7 +264,7 @@ void PromiseBuiltinsAssembler::PromiseSetStatus(
     Node* promise, v8::Promise::PromiseState const status) {
   CSA_ASSERT(this,
              IsPromiseStatus(PromiseStatus(promise), v8::Promise::kPending));
-  CHECK(status != v8::Promise::kPending);
+  CHECK_NE(status, v8::Promise::kPending);
 
   Node* mask = SmiConstant(status);
   Node* const flags = LoadObjectField(promise, JSPromise::kFlagsOffset);

@@ -136,7 +136,7 @@ Node* ArgumentsBuiltinsAssembler::ConstructParametersObjectFromArgs(
   Node* unused;
   std::tie(result, elements, unused) =
       AllocateArgumentsObject(map, rest_count, nullptr, param_mode, base_size);
-  DCHECK(unused == nullptr);
+  DCHECK_NULL(unused);
   CodeStubArguments arguments(this, arg_count, frame_ptr, param_mode);
   VARIABLE(offset, MachineType::PointerRepresentation());
   offset.Bind(IntPtrConstant(FixedArrayBase::kHeaderSize - kHeapObjectTag));

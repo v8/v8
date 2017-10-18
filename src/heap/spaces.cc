@@ -1723,7 +1723,7 @@ void PagedSpace::ReleasePage(Page* page) {
 
   // If page is still in a list, unlink it from that list.
   if (page->next_chunk() != nullptr) {
-    DCHECK(page->prev_chunk() != nullptr);
+    DCHECK_NOT_NULL(page->prev_chunk());
     page->Unlink();
   }
   AccountUncommitted(page->size());
@@ -2179,7 +2179,7 @@ void NewSpace::ResumeAllocationObservers() {
 
 // TODO(ofrobots): refactor into SpaceWithLinearArea
 void PagedSpace::ResumeAllocationObservers() {
-  DCHECK(top_on_previous_step_ == 0);
+  DCHECK_NULL(top_on_previous_step_);
   Space::ResumeAllocationObservers();
   StartNextInlineAllocationStep();
 }
@@ -2567,7 +2567,7 @@ static int CollectHistogramInfo(HeapObject* obj) {
   Isolate* isolate = obj->GetIsolate();
   InstanceType type = obj->map()->instance_type();
   DCHECK(0 <= type && type <= LAST_TYPE);
-  DCHECK(isolate->heap_histograms()[type].name() != nullptr);
+  DCHECK_NOT_NULL(isolate->heap_histograms()[type].name());
   isolate->heap_histograms()[type].increment_number(1);
   isolate->heap_histograms()[type].increment_bytes(obj->Size());
 

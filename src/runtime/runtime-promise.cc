@@ -83,7 +83,7 @@ RUNTIME_FUNCTION(Runtime_EnqueuePromiseReactionJob) {
 
 RUNTIME_FUNCTION(Runtime_EnqueuePromiseResolveThenableJob) {
   HandleScope scope(isolate);
-  DCHECK(args.length() == 1);
+  DCHECK_EQ(args.length(), 1);
   CONVERT_ARG_HANDLE_CHECKED(PromiseResolveThenableJobInfo, info, 0);
   isolate->EnqueueMicrotask(info);
   return isolate->heap()->undefined_value();

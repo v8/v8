@@ -116,7 +116,7 @@ static void CheckParseEq(const char* input, const char* expected,
   if (unicode) flags |= JSRegExp::kUnicode;
   CHECK(v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), &zone,
                                                 &reader, flags, &result));
-  CHECK(result.tree != nullptr);
+  CHECK_NOT_NULL(result.tree);
   CHECK(result.error.is_null());
   std::ostringstream os;
   result.tree->Print(os, &zone);
@@ -134,7 +134,7 @@ static bool CheckSimple(const char* input) {
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
       CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
-  CHECK(result.tree != nullptr);
+  CHECK_NOT_NULL(result.tree);
   CHECK(result.error.is_null());
   return result.simple;
 }
@@ -152,7 +152,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
   RegExpCompileData result;
   CHECK(v8::internal::RegExpParser::ParseRegExp(
       CcTest::i_isolate(), &zone, &reader, JSRegExp::kNone, &result));
-  CHECK(result.tree != nullptr);
+  CHECK_NOT_NULL(result.tree);
   CHECK(result.error.is_null());
   int min_match = result.tree->min_match();
   int max_match = result.tree->max_match();
@@ -487,7 +487,7 @@ static void ExpectError(const char* input, const char* expected,
   if (unicode) flags |= JSRegExp::kUnicode;
   CHECK(!v8::internal::RegExpParser::ParseRegExp(CcTest::i_isolate(), &zone,
                                                  &reader, flags, &result));
-  CHECK(result.tree == nullptr);
+  CHECK_NULL(result.tree);
   CHECK(!result.error.is_null());
   std::unique_ptr<char[]> str = result.error->ToCString(ALLOW_NULLS);
   CHECK_EQ(0, strcmp(expected, str.get()));

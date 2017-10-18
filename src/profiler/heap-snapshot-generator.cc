@@ -201,12 +201,12 @@ void HeapSnapshot::AddSyntheticRootEntries() {
     AddGcSubrootEntry(tag, id);
     id += HeapObjectsMap::kObjectIdStep;
   }
-  DCHECK(HeapObjectsMap::kFirstAvailableObjectId == id);
+  DCHECK_EQ(HeapObjectsMap::kFirstAvailableObjectId, id);
 }
 
 
 HeapEntry* HeapSnapshot::AddRootEntry() {
-  DCHECK(root_index_ == HeapEntry::kNoEntry);
+  DCHECK_EQ(root_index_, HeapEntry::kNoEntry);
   DCHECK(entries_.empty());  // Root entry must be the first one.
   HeapEntry* entry = AddEntry(HeapEntry::kSynthetic,
                               "",
@@ -214,13 +214,13 @@ HeapEntry* HeapSnapshot::AddRootEntry() {
                               0,
                               0);
   root_index_ = entry->index();
-  DCHECK(root_index_ == 0);
+  DCHECK_EQ(root_index_, 0);
   return entry;
 }
 
 
 HeapEntry* HeapSnapshot::AddGcRootsEntry() {
-  DCHECK(gc_roots_index_ == HeapEntry::kNoEntry);
+  DCHECK_EQ(gc_roots_index_, HeapEntry::kNoEntry);
   HeapEntry* entry = AddEntry(HeapEntry::kSynthetic,
                               "(GC roots)",
                               HeapObjectsMap::kGcRootsObjectId,
@@ -232,7 +232,7 @@ HeapEntry* HeapSnapshot::AddGcRootsEntry() {
 
 
 HeapEntry* HeapSnapshot::AddGcSubrootEntry(int tag, SnapshotObjectId id) {
-  DCHECK(gc_subroot_indexes_[tag] == HeapEntry::kNoEntry);
+  DCHECK_EQ(gc_subroot_indexes_[tag], HeapEntry::kNoEntry);
   DCHECK(0 <= tag && tag < VisitorSynchronization::kNumberOfSyncTags);
   HeapEntry* entry = AddEntry(HeapEntry::kSynthetic,
                               VisitorSynchronization::kTagNames[tag], id, 0, 0);
@@ -319,8 +319,8 @@ HeapObjectsMap::HeapObjectsMap(Heap* heap)
 }
 
 bool HeapObjectsMap::MoveObject(Address from, Address to, int object_size) {
-  DCHECK(to != nullptr);
-  DCHECK(from != nullptr);
+  DCHECK_NOT_NULL(to);
+  DCHECK_NOT_NULL(from);
   if (from == to) return false;
   void* from_value = entries_map_.Remove(from, ComputePointerHash(from));
   if (from_value == nullptr) {
@@ -537,7 +537,7 @@ int HeapEntriesMap::Map(HeapThing thing) {
 void HeapEntriesMap::Pair(HeapThing thing, int entry) {
   base::HashMap::Entry* cache_entry =
       entries_.LookupOrInsert(thing, Hash(thing));
-  DCHECK(cache_entry->value == nullptr);
+  DCHECK_NULL(cache_entry->value);
   cache_entry->value = reinterpret_cast<void*>(static_cast<intptr_t>(entry));
 }
 
@@ -1845,7 +1845,7 @@ void V8HeapExplorer::SetRootGcRootsReference() {
 
 void V8HeapExplorer::SetUserGlobalReference(Object* child_obj) {
   HeapEntry* child_entry = GetEntry(child_obj);
-  DCHECK(child_entry != nullptr);
+  DCHECK_NOT_NULL(child_entry);
   filler_->SetNamedAutoIndexReference(
       HeapGraphEdge::kShortcut,
       snapshot_->root()->index(),
@@ -2108,7 +2108,7 @@ void NativeObjectsExplorer::FillEdges() {
     HeapObject* parent = HeapObject::cast(*parent_object);
     int parent_entry =
         filler_->FindOrAddEntry(parent, native_entries_allocator_)->index();
-    DCHECK(parent_entry != HeapEntry::kNoEntry);
+    DCHECK_NE(parent_entry, HeapEntry::kNoEntry);
     Handle<Object> child_object = v8::Utils::OpenHandle(
         *pair.second->Get(reinterpret_cast<v8::Isolate*>(isolate_)));
     HeapObject* child = HeapObject::cast(*child_object);
@@ -2204,7 +2204,7 @@ void NativeObjectsExplorer::SetNativeRootReference(
     v8::RetainedObjectInfo* info) {
   HeapEntry* child_entry =
       filler_->FindOrAddEntry(info, native_entries_allocator_);
-  DCHECK(child_entry != nullptr);
+  DCHECK_NOT_NULL(child_entry);
   NativeGroupRetainedObjectInfo* group_info =
       FindOrAddGroupInfo(info->GetGroupLabel());
   HeapEntry* group_entry =
@@ -2222,10 +2222,10 @@ void NativeObjectsExplorer::SetNativeRootReference(
 void NativeObjectsExplorer::SetWrapperNativeReferences(
     HeapObject* wrapper, v8::RetainedObjectInfo* info) {
   HeapEntry* wrapper_entry = filler_->FindEntry(wrapper);
-  DCHECK(wrapper_entry != nullptr);
+  DCHECK_NOT_NULL(wrapper_entry);
   HeapEntry* info_entry =
       filler_->FindOrAddEntry(info, native_entries_allocator_);
-  DCHECK(info_entry != nullptr);
+  DCHECK_NOT_NULL(info_entry);
   filler_->SetNamedReference(HeapGraphEdge::kInternal,
                              wrapper_entry->index(),
                              "native",
@@ -2243,7 +2243,7 @@ void NativeObjectsExplorer::SetRootNativeRootsReference() {
         static_cast<NativeGroupRetainedObjectInfo*>(entry->value);
     HeapEntry* group_entry =
         filler_->FindOrAddEntry(group_info, native_entries_allocator_);
-    DCHECK(group_entry != nullptr);
+    DCHECK_NOT_NULL(group_entry);
     filler_->SetIndexedAutoIndexReference(
         HeapGraphEdge::kElement,
         snapshot_->root()->index(),
@@ -2383,11 +2383,11 @@ class OutputStreamWriter {
         chunk_(chunk_size_),
         chunk_pos_(0),
         aborted_(false) {
-    DCHECK(chunk_size_ > 0);
+    DCHECK_GT(chunk_size_, 0);
   }
   bool aborted() { return aborted_; }
   void AddCharacter(char c) {
-    DCHECK(c != '\0');
+    DCHECK_NE(c, '\0');
     DCHECK(chunk_pos_ < chunk_size_);
     chunk_[chunk_pos_++] = c;
     MaybeWriteChunk();
@@ -2402,7 +2402,7 @@ class OutputStreamWriter {
     while (s < s_end) {
       int s_chunk_size =
           Min(chunk_size_ - chunk_pos_, static_cast<int>(s_end - s));
-      DCHECK(s_chunk_size > 0);
+      DCHECK_GT(s_chunk_size, 0);
       MemCopy(chunk_.start() + chunk_pos_, s, s_chunk_size);
       s += s_chunk_size;
       chunk_pos_ += s_chunk_size;
@@ -2428,14 +2428,14 @@ class OutputStreamWriter {
     if (chunk_size_ - chunk_pos_ >= kMaxNumberSize) {
       int result = SNPrintF(
           chunk_.SubVector(chunk_pos_, chunk_size_), format, n);
-      DCHECK(result != -1);
+      DCHECK_NE(result, -1);
       chunk_pos_ += result;
       MaybeWriteChunk();
     } else {
       EmbeddedVector<char, kMaxNumberSize> buffer;
       int result = SNPrintF(buffer, format, n);
       USE(result);
-      DCHECK(result != -1);
+      DCHECK_NE(result, -1);
       AddString(buffer.start());
     }
   }
@@ -2470,7 +2470,7 @@ void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
       snapshot_->profiler()->allocation_tracker()) {
     allocation_tracker->PrepareForSerialization();
   }
-  DCHECK(writer_ == nullptr);
+  DCHECK_NULL(writer_);
   writer_ = new OutputStreamWriter(stream);
   SerializeImpl();
   delete writer_;
@@ -2479,7 +2479,7 @@ void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
 
 
 void HeapSnapshotJSONSerializer::SerializeImpl() {
-  DCHECK(0 == snapshot_->root()->index());
+  DCHECK_EQ(0, snapshot_->root()->index());
   writer_->AddCharacter('{');
   writer_->AddString("\"snapshot\":{");
   SerializeSnapshot();
@@ -2778,7 +2778,7 @@ static int SerializePosition(int position, const Vector<char>& buffer,
   if (position == -1) {
     buffer[buffer_pos++] = '0';
   } else {
-    DCHECK(position >= 0);
+    DCHECK_GE(position, 0);
     buffer_pos = utoa(static_cast<unsigned>(position + 1), buffer, buffer_pos);
   }
   return buffer_pos;
@@ -2885,7 +2885,7 @@ void HeapSnapshotJSONSerializer::SerializeString(const unsigned char* s) {
           unibrow::uchar c = unibrow::Utf8::CalculateValue(s, length, &cursor);
           if (c != unibrow::Utf8::kBadChar) {
             WriteUChar(writer_, c);
-            DCHECK(cursor != 0);
+            DCHECK_NE(cursor, 0);
             s += cursor - 1;
           } else {
             writer_->AddCharacter('?');

@@ -661,7 +661,7 @@ std::string GetWorkingDirectory() {
   char system_buffer[MAX_PATH];
   // TODO(adamk): Support Unicode paths.
   DWORD len = GetCurrentDirectoryA(MAX_PATH, system_buffer);
-  CHECK(len > 0);
+  CHECK_GT(len, 0);
   return system_buffer;
 #else
   char curdir[PATH_MAX];
@@ -2166,7 +2166,8 @@ static void ReadBufferWeakCallback(
 
 
 void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  DCHECK(sizeof(char) == sizeof(uint8_t));  // NOLINT
+  static_assert(sizeof(char) == sizeof(uint8_t),
+                "char and uint8_t should both have 1 byte");
   Isolate* isolate = args.GetIsolate();
   String::Utf8Value filename(isolate, args[0]);
   int length;
@@ -2259,7 +2260,7 @@ class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
   void Send(const v8_inspector::StringView& string) {
     v8::Isolate::AllowJavascriptExecutionScope allow_script(isolate_);
     int length = static_cast<int>(string.length());
-    DCHECK(length < v8::String::kMaxLength);
+    DCHECK_LT(length, v8::String::kMaxLength);
     Local<String> message =
         (string.is8Bit()
              ? v8::String::NewFromOneByte(
@@ -2994,7 +2995,7 @@ class Serializer : public ValueSerializer::Delegate {
 
   Maybe<uint32_t> GetSharedArrayBufferId(
       Isolate* isolate, Local<SharedArrayBuffer> shared_array_buffer) override {
-    DCHECK(data_ != nullptr);
+    DCHECK_NOT_NULL(data_);
     for (size_t index = 0; index < shared_array_buffers_.size(); ++index) {
       if (shared_array_buffers_[index] == shared_array_buffer) {
         return Just<uint32_t>(static_cast<uint32_t>(index));

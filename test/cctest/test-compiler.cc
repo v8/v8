@@ -552,7 +552,7 @@ TEST(CompileFunctionInContextScriptOrigin) {
   v8::Local<v8::StackTrace> stack =
       v8::Exception::GetStackTrace(try_catch.Exception());
   CHECK(!stack.IsEmpty());
-  CHECK(stack->GetFrameCount() > 0);
+  CHECK_GT(stack->GetFrameCount(), 0);
   v8::Local<v8::StackFrame> frame = stack->GetFrame(0);
   CHECK_EQ(23, frame->GetLineNumber());
   CHECK_EQ(42 + strlen("throw "), static_cast<unsigned>(frame->GetColumn()));

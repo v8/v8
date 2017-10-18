@@ -277,7 +277,7 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
 
 void Assembler::Align(int m) {
   DCHECK(m >= 4 && base::bits::IsPowerOfTwo(m));
-  DCHECK((pc_offset() & (kInstrSize - 1)) == 0);
+  DCHECK_EQ(pc_offset() & (kInstrSize - 1), 0);
   while ((pc_offset() & (m - 1)) != 0) {
     nop();
   }
@@ -569,7 +569,7 @@ void Assembler::bind_to(Label* L, int pos) {
     if (maxReach && is_intn(offset, maxReach) == false) {
       if (trampoline_pos == kInvalidSlotPos) {
         trampoline_pos = get_trampoline_entry();
-        CHECK(trampoline_pos != kInvalidSlotPos);
+        CHECK_NE(trampoline_pos, kInvalidSlotPos);
         target_at_put(trampoline_pos, pos);
       }
       target_at_put(fixup_pos, trampoline_pos);
@@ -601,7 +601,7 @@ void Assembler::next(Label* L) {
   if (link == kEndOfChain) {
     L->Unuse();
   } else {
-    DCHECK(link >= 0);
+    DCHECK_GE(link, 0);
     L->link_to(link);
   }
 }
@@ -1228,7 +1228,7 @@ void Assembler::divdu(Register dst, Register src1, Register src2, OEBit o,
 void Assembler::function_descriptor() {
   if (ABI_USES_FUNCTION_DESCRIPTORS) {
     Label instructions;
-    DCHECK(pc_offset() == 0);
+    DCHECK_EQ(pc_offset(), 0);
     emit_label_addr(&instructions);
     dp(0);
     dp(0);
@@ -1507,7 +1507,7 @@ void Assembler::mov_label_addr(Register dst, Label* label) {
     BlockTrampolinePoolScope block_trampoline_pool(this);
     emit(kUnboundMovLabelAddrOpcode | (link & kImm26Mask));
     emit(dst.code());
-    DCHECK(kMovInstructionsNoConstantPool >= 2);
+    DCHECK_GE(kMovInstructionsNoConstantPool, 2);
     for (int i = 0; i < kMovInstructionsNoConstantPool - 2; i++) nop();
   }
 }
@@ -1573,7 +1573,7 @@ void Assembler::mtxer(Register src) {
 
 
 void Assembler::mcrfs(CRegister cr, FPSCRBit bit) {
-  DCHECK(static_cast<int>(bit) < 32);
+  DCHECK_LT(static_cast<int>(bit), 32);
   int bf = cr.code();
   int bfa = bit / CRWIDTH;
   emit(EXT4 | MCRFS | bf * B23 | bfa * B18);
@@ -1879,14 +1879,14 @@ void Assembler::fneg(const DoubleRegister frt, const DoubleRegister frb,
 
 
 void Assembler::mtfsb0(FPSCRBit bit, RCBit rc) {
-  DCHECK(static_cast<int>(bit) < 32);
+  DCHECK_LT(static_cast<int>(bit), 32);
   int bt = bit;
   emit(EXT4 | MTFSB0 | bt * B21 | rc);
 }
 
 
 void Assembler::mtfsb1(FPSCRBit bit, RCBit rc) {
-  DCHECK(static_cast<int>(bit) < 32);
+  DCHECK_LT(static_cast<int>(bit), 32);
   int bt = bit;
   emit(EXT4 | MTFSB1 | bt * B21 | rc);
 }

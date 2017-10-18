@@ -799,7 +799,7 @@ StartupData V8::CreateSnapshotDataBlob(const char* embedded_source) {
 StartupData V8::WarmUpSnapshotDataBlob(StartupData cold_snapshot_blob,
                                        const char* warmup_source) {
   CHECK(cold_snapshot_blob.raw_size > 0 && cold_snapshot_blob.data != nullptr);
-  CHECK(warmup_source != nullptr);
+  CHECK_NOT_NULL(warmup_source);
   // Use following steps to create a warmed up snapshot blob from a cold one:
   //  - Create a new isolate from the cold snapshot.
   //  - Create a new context to run the warmup script. This will trigger
@@ -8650,7 +8650,7 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
 Isolate* IsolateNewImpl(internal::Isolate* isolate,
                         const v8::Isolate::CreateParams& params) {
   Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
-  CHECK(params.array_buffer_allocator != nullptr);
+  CHECK_NOT_NULL(params.array_buffer_allocator);
   isolate->set_array_buffer_allocator(params.array_buffer_allocator);
   if (params.snapshot_blob != nullptr) {
     isolate->set_snapshot_blob(params.snapshot_blob);
@@ -8983,7 +8983,7 @@ void Isolate::SetPromiseRejectCallback(PromiseRejectCallback callback) {
 
 
 void Isolate::RunMicrotasks() {
-  DCHECK(MicrotasksPolicy::kScoped != GetMicrotasksPolicy());
+  DCHECK_NE(MicrotasksPolicy::kScoped, GetMicrotasksPolicy());
   reinterpret_cast<i::Isolate*>(this)->RunMicrotasks();
 }
 
@@ -10405,7 +10405,7 @@ const std::vector<CpuProfileDeoptInfo>& CpuProfileNode::GetDeoptInfos() const {
 void CpuProfile::Delete() {
   i::CpuProfile* profile = reinterpret_cast<i::CpuProfile*>(this);
   i::CpuProfiler* profiler = profile->cpu_profiler();
-  DCHECK(profiler != nullptr);
+  DCHECK_NOT_NULL(profiler);
   profiler->DeleteProfile(profile);
 }
 
@@ -10909,14 +10909,14 @@ DeferredHandles* HandleScopeImplementer::Detach(Object** prev_limit) {
   DCHECK(prev_limit == nullptr || !blocks_.empty());
 
   DCHECK(!blocks_.empty() && prev_limit != nullptr);
-  DCHECK(last_handle_before_deferred_block_ != nullptr);
+  DCHECK_NOT_NULL(last_handle_before_deferred_block_);
   last_handle_before_deferred_block_ = nullptr;
   return deferred;
 }
 
 
 void HandleScopeImplementer::BeginDeferredScope() {
-  DCHECK(last_handle_before_deferred_block_ == nullptr);
+  DCHECK_NULL(last_handle_before_deferred_block_);
   last_handle_before_deferred_block_ = isolate()->handle_scope_data()->next;
 }
 

@@ -29,13 +29,13 @@ class GlobalHandles::Node {
 
   // Maps handle location (slot) to the containing node.
   static Node* FromLocation(Object** location) {
-    DCHECK(offsetof(Node, object_) == 0);
+    DCHECK_EQ(offsetof(Node, object_), 0);
     return reinterpret_cast<Node*>(location);
   }
 
   Node() {
-    DCHECK(offsetof(Node, class_id_) == Internals::kNodeClassIdOffset);
-    DCHECK(offsetof(Node, flags_) == Internals::kNodeFlagsOffset);
+    DCHECK_EQ(offsetof(Node, class_id_), Internals::kNodeClassIdOffset);
+    DCHECK_EQ(offsetof(Node, flags_), Internals::kNodeFlagsOffset);
     STATIC_ASSERT(static_cast<int>(NodeState::kMask) ==
                   Internals::kNodeStateMask);
     STATIC_ASSERT(WEAK == Internals::kNodeStateIsWeakValue);
@@ -216,7 +216,7 @@ class GlobalHandles::Node {
   void MakeWeak(void* parameter,
                 WeakCallbackInfo<void>::Callback phantom_callback,
                 v8::WeakCallbackType type) {
-    DCHECK(phantom_callback != nullptr);
+    DCHECK_NOT_NULL(phantom_callback);
     DCHECK(IsInUse());
     CHECK_NE(object_, reinterpret_cast<Object*>(kGlobalHandleZapValue));
     set_state(WEAK);
@@ -258,7 +258,7 @@ class GlobalHandles::Node {
     DCHECK(weakness_type() == PHANTOM_WEAK ||
            weakness_type() == PHANTOM_WEAK_2_EMBEDDER_FIELDS);
     DCHECK(state() == PENDING);
-    DCHECK(weak_callback_ != nullptr);
+    DCHECK_NOT_NULL(weak_callback_);
 
     void* embedder_fields[v8::kEmbedderFieldsInWeakCallback] = {nullptr,
                                                                 nullptr};
@@ -286,7 +286,7 @@ class GlobalHandles::Node {
   void ResetPhantomHandle() {
     DCHECK(weakness_type() == PHANTOM_WEAK_RESET_HANDLE);
     DCHECK(state() == PENDING);
-    DCHECK(weak_callback_ == nullptr);
+    DCHECK_NULL(weak_callback_);
     Object*** handle = reinterpret_cast<Object***>(parameter());
     *handle = nullptr;
     Release();
@@ -394,7 +394,7 @@ class GlobalHandles::NodeBlock {
   }
 
   void IncreaseUses() {
-    DCHECK(used_nodes_ < kSize);
+    DCHECK_LT(used_nodes_, kSize);
     if (used_nodes_++ == 0) {
       NodeBlock* old_first = global_handles_->first_used_block_;
       global_handles_->first_used_block_ = this;
@@ -406,7 +406,7 @@ class GlobalHandles::NodeBlock {
   }
 
   void DecreaseUses() {
-    DCHECK(used_nodes_ > 0);
+    DCHECK_GT(used_nodes_, 0);
     if (--used_nodes_ == 0) {
       if (next_used_ != nullptr) next_used_->prev_used_ = prev_used_;
       if (prev_used_ != nullptr) prev_used_->next_used_ = next_used_;
@@ -551,7 +551,7 @@ Handle<Object> GlobalHandles::Create(Object* value) {
     first_block_ = new NodeBlock(this, first_block_);
     first_block_->PutNodesOnFreeList(&first_free_);
   }
-  DCHECK(first_free_ != nullptr);
+  DCHECK_NOT_NULL(first_free_);
   // Take the first node in the free list.
   Node* result = first_free_;
   first_free_ = result->next_free();
@@ -566,7 +566,7 @@ Handle<Object> GlobalHandles::Create(Object* value) {
 
 
 Handle<Object> GlobalHandles::CopyGlobal(Object** location) {
-  DCHECK(location != nullptr);
+  DCHECK_NOT_NULL(location);
   return Node::FromLocation(location)->GetGlobalHandles()->Create(*location);
 }
 
@@ -710,7 +710,7 @@ void GlobalHandles::InvokeSecondPassPhantomCallbacks(
   while (!callbacks->empty()) {
     auto callback = callbacks->back();
     callbacks->pop_back();
-    DCHECK(callback.node() == nullptr);
+    DCHECK_NULL(callback.node());
     // Fire second pass callback
     callback.Invoke(isolate);
   }
@@ -1042,7 +1042,7 @@ EternalHandles::~EternalHandles() {
 void EternalHandles::IterateAllRoots(RootVisitor* visitor) {
   int limit = size_;
   for (Object** block : blocks_) {
-    DCHECK(limit > 0);
+    DCHECK_GT(limit, 0);
     visitor->VisitRootPointers(Root::kEternalHandles, block,
                                block + Min(limit, kSize));
     limit -= kSize;

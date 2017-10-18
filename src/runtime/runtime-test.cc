@@ -482,7 +482,7 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
   // calls an intermediate function, and the intermediate function
   // calls exactly one imported function
   HandleScope scope(isolate);
-  CHECK(args.length() == 2);
+  CHECK_EQ(args.length(), 2);
   // It takes two parameters, the first one is the JSFunction,
   // The second one is the type
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
@@ -505,7 +505,7 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
       export_fct = handle(target);
     }
   }
-  CHECK(count == 1);
+  CHECK_EQ(count, 1);
   // check the type of the intermediate_fct
   Handle<Code> intermediate_fct;
   count = 0;
@@ -518,7 +518,7 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
       intermediate_fct = handle(target);
     }
   }
-  CHECK(count == 1);
+  CHECK_EQ(count, 1);
   // Check the type of the imported exported function, it should be also a wasm
   // function in our case.
   Handle<Code> imported_fct;
@@ -543,7 +543,7 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
 RUNTIME_FUNCTION(Runtime_SetWasmCompileControls) {
   HandleScope scope(isolate);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  CHECK(args.length() == 2);
+  CHECK_EQ(args.length(), 2);
   CONVERT_ARG_HANDLE_CHECKED(Smi, block_size, 0);
   CONVERT_BOOLEAN_ARG_CHECKED(allow_async, 1);
   WasmCompileControls& ctrl = (*g_PerIsolateWasmControls.Pointer())[v8_isolate];
@@ -556,7 +556,7 @@ RUNTIME_FUNCTION(Runtime_SetWasmCompileControls) {
 RUNTIME_FUNCTION(Runtime_SetWasmInstantiateControls) {
   HandleScope scope(isolate);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  CHECK(args.length() == 0);
+  CHECK_EQ(args.length(), 0);
   v8_isolate->SetWasmInstanceCallback(WasmInstanceOverride);
   return isolate->heap()->undefined_value();
 }

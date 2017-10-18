@@ -258,7 +258,7 @@ Operand::Operand(Register rm) : rm_(rm), rmode_(kRelocInfo_NONEPTR) {}
 
 void Assembler::UntrackBranch() {
   DCHECK(!trampoline_emitted_);
-  DCHECK(tracked_branch_count_ > 0);
+  DCHECK_GT(tracked_branch_count_, 0);
   int count = --tracked_branch_count_;
   if (count == 0) {
     // Reset

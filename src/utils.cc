@@ -196,7 +196,7 @@ char* ReadLine(const char* prompt) {
     MemCopy(result + offset, line_buf, len * kCharSize);
     offset += len;
   }
-  DCHECK(result != nullptr);
+  DCHECK_NOT_NULL(result);
   result[offset] = '\0';
   return result;
 }

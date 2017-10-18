@@ -46,7 +46,7 @@ class IntSet {
     CHECK_NE(0, x);  // 0 corresponds to (void*)nullptr - illegal key value
     v8::base::HashMap::Entry* p =
         map_.LookupOrInsert(reinterpret_cast<void*>(x), hash_(x));
-    CHECK(p != nullptr);  // insert is set!
+    CHECK_NOT_NULL(p);  // insert is set!
     CHECK_EQ(reinterpret_cast<void*>(x), p->key);
     // we don't care about p->value
   }

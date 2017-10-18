@@ -120,11 +120,11 @@ class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
   }
 
   void RestrictAllocatableRegisters(const Register* registers, int num) {
-    DCHECK(allocatable_registers_ == 0);
+    DCHECK_EQ(allocatable_registers_, 0);
     for (int i = 0; i < num; ++i) {
       allocatable_registers_ |= registers[i].bit();
     }
-    DCHECK(NumRegs(allocatable_registers_) > 0);
+    DCHECK_GT(NumRegs(allocatable_registers_), 0);
   }
 
   RegList allocatable_registers() const { return allocatable_registers_; }

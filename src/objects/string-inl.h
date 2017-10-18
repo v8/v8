@@ -35,17 +35,17 @@ CAST_ACCESSOR(ThinString)
 StringShape::StringShape(const String* str)
     : type_(str->map()->instance_type()) {
   set_valid();
-  DCHECK((type_ & kIsNotStringMask) == kStringTag);
+  DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
 StringShape::StringShape(Map* map) : type_(map->instance_type()) {
   set_valid();
-  DCHECK((type_ & kIsNotStringMask) == kStringTag);
+  DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
 StringShape::StringShape(InstanceType t) : type_(static_cast<uint32_t>(t)) {
   set_valid();
-  DCHECK((type_ & kIsNotStringMask) == kStringTag);
+  DCHECK_EQ(type_ & kIsNotStringMask, kStringTag);
 }
 
 bool StringShape::IsInternalized() {
@@ -604,7 +604,7 @@ void ConsStringIterator::AdjustMaximumDepth() {
 }
 
 void ConsStringIterator::Pop() {
-  DCHECK(depth_ > 0);
+  DCHECK_GT(depth_, 0);
   DCHECK(depth_ <= maximum_depth_);
   depth_--;
 }

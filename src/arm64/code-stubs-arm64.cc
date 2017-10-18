@@ -610,7 +610,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Select between the inner and outermost frame marker, based on the JS entry
   // sp. We assert that the inner marker is zero, so we can use xzr to save a
   // move instruction.
-  DCHECK(StackFrame::INNER_JSENTRY_FRAME == 0);
+  DCHECK_EQ(StackFrame::INNER_JSENTRY_FRAME, 0);
   __ Cmp(x11, 0);  // If x11 is zero, this is the outermost frame.
   __ Csel(x12, xzr, StackFrame::OUTERMOST_JSENTRY_FRAME, ne);
   __ B(ne, &done);
@@ -1010,8 +1010,8 @@ void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
     tasm->Bind(&entry_hook_call_start);
     tasm->Push(padreg, lr);
     tasm->CallStubDelayed(new (zone) ProfileEntryHookStub(nullptr));
-    DCHECK(tasm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
-           kProfileEntryHookCallSize);
+    DCHECK_EQ(tasm->SizeOfCodeGeneratedSince(&entry_hook_call_start),
+              kProfileEntryHookCallSize);
     tasm->Pop(lr, padreg);
   }
 }
@@ -1025,8 +1025,8 @@ void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
     __ Bind(&entry_hook_call_start);
     __ Push(padreg, lr);
     __ CallStub(&stub);
-    DCHECK(masm->SizeOfCodeGeneratedSince(&entry_hook_call_start) ==
-           kProfileEntryHookCallSize);
+    DCHECK_EQ(masm->SizeOfCodeGeneratedSince(&entry_hook_call_start),
+              kProfileEntryHookCallSize);
     __ Pop(lr, padreg);
   }
 }
@@ -1208,8 +1208,8 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
       // Add the probe offset (i + i * i) left shifted to avoid right shifting
       // the hash in a separate instruction. The value hash + i + i * i is right
       // shifted in the following and instruction.
-      DCHECK(NameDictionary::GetProbeOffset(i) <
-             1 << (32 - Name::kHashFieldOffset));
+      DCHECK_LT(NameDictionary::GetProbeOffset(i),
+                1 << (32 - Name::kHashFieldOffset));
       __ Add(index, hash,
              NameDictionary::GetProbeOffset(i) << Name::kHashShift);
     } else {

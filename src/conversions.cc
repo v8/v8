@@ -171,7 +171,7 @@ double InternalStringToIntDouble(UnicodeCache* unicode_cache, Iterator current,
     return static_cast<double>(number);
   }
 
-  DCHECK(number != 0);
+  DCHECK_NE(number, 0);
   return std::ldexp(static_cast<double>(negative ? -number : number), exponent);
 }
 
@@ -281,7 +281,7 @@ void StringToIntHelper::ParseInt() {
       ParseInternal(vector.start());
     }
   }
-  DCHECK(state_ != kRunning);
+  DCHECK_NE(state_, kRunning);
 }
 
 template <class Char>
@@ -516,7 +516,7 @@ class NumberParseIntHelper : public StringToIntHelper {
       if (buffer_pos <= kMaxSignificantDigits) {
         // If the number has more than kMaxSignificantDigits it will be parsed
         // as infinity.
-        DCHECK(buffer_pos < kBufferSize);
+        DCHECK_LT(buffer_pos, kBufferSize);
         buffer[buffer_pos++] = static_cast<char>(*current);
       }
       ++current;
@@ -601,7 +601,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache, Iterator current,
       return JunkStringValue();
     }
 
-    DCHECK(buffer_pos == 0);
+    DCHECK_EQ(buffer_pos, 0);
     return (sign == NEGATIVE) ? -V8_INFINITY : V8_INFINITY;
   }
 
@@ -655,7 +655,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache, Iterator current,
   // Copy significant digits of the integer part (if any) to the buffer.
   while (*current >= '0' && *current <= '9') {
     if (significant_digits < kMaxSignificantDigits) {
-      DCHECK(buffer_pos < kBufferSize);
+      DCHECK_LT(buffer_pos, kBufferSize);
       buffer[buffer_pos++] = static_cast<char>(*current);
       significant_digits++;
       // Will later check if it's an octal in the buffer.
@@ -700,7 +700,7 @@ double InternalStringToDouble(UnicodeCache* unicode_cache, Iterator current,
     // instead.
     while (*current >= '0' && *current <= '9') {
       if (significant_digits < kMaxSignificantDigits) {
-        DCHECK(buffer_pos < kBufferSize);
+        DCHECK_LT(buffer_pos, kBufferSize);
         buffer[buffer_pos++] = static_cast<char>(*current);
         significant_digits++;
         exponent--;
@@ -981,8 +981,8 @@ const char* IntToCString(int n, Vector<char> buffer) {
 char* DoubleToFixedCString(double value, int f) {
   const int kMaxDigitsBeforePoint = 21;
   const double kFirstNonFixed = 1e21;
-  DCHECK(f >= 0);
-  DCHECK(f <= kMaxFractionDigits);
+  DCHECK_GE(f, 0);
+  DCHECK_LE(f, kMaxFractionDigits);
 
   bool negative = false;
   double abs_value = value;
@@ -1099,7 +1099,7 @@ char* DoubleToExponentialCString(double value, int f) {
   const int kV8DtoaBufferCapacity = kMaxFractionDigits + 1 + 1;
   // Make sure that the buffer is big enough, even if we fall back to the
   // shortest representation (which happens when f equals -1).
-  DCHECK(kBase10MaximalLength <= kMaxFractionDigits + 1);
+  DCHECK_LE(kBase10MaximalLength, kMaxFractionDigits + 1);
   char decimal_rep[kV8DtoaBufferCapacity];
   int decimal_rep_length;
 
@@ -1113,7 +1113,7 @@ char* DoubleToExponentialCString(double value, int f) {
                   Vector<char>(decimal_rep, kV8DtoaBufferCapacity),
                   &sign, &decimal_rep_length, &decimal_point);
   }
-  DCHECK(decimal_rep_length > 0);
+  DCHECK_GT(decimal_rep_length, 0);
   DCHECK(decimal_rep_length <= f + 1);
 
   int exponent = decimal_point - 1;

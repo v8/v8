@@ -568,7 +568,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
   if (argc_is_tagged == kArgcIsSmiTagged) {
     __ Cmp(x10, Operand::UntagSmiAndScale(argc, kPointerSizeLog2));
   } else {
-    DCHECK(argc_is_tagged == kArgcIsUntaggedInt);
+    DCHECK_EQ(argc_is_tagged, kArgcIsUntaggedInt);
     __ Cmp(x10, Operand(argc, LSL, kPointerSizeLog2));
   }
   __ B(gt, &enough_stack_space);
@@ -1446,7 +1446,7 @@ void Builtins::Generate_InstantiateAsmJs(MacroAssembler* masm) {
 
     Label at_least_one_arg;
     Label three_args;
-    DCHECK(Smi::kZero == 0);
+    DCHECK_NULL(Smi::kZero);
     __ Cbnz(argc, &at_least_one_arg);
 
     // No arguments.

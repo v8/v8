@@ -962,7 +962,7 @@ Node* CodeStubAssembler::AllocateRawUnaligned(Node* size_in_bytes,
                                               AllocationFlags flags,
                                               Node* top_address,
                                               Node* limit_address) {
-  DCHECK((flags & kDoubleAlignment) == 0);
+  DCHECK_EQ(flags & kDoubleAlignment, 0);
   return AllocateRaw(size_in_bytes, flags, top_address, limit_address);
 }
 
@@ -5168,7 +5168,7 @@ Node* CodeStubAssembler::NonNumberToNumberOrNumeric(Node* context, Node* input,
       var_result.Bind(input);
       Goto(&end);
     } else {
-      DCHECK(mode == Object::Conversion::kToNumber);
+      DCHECK_EQ(mode, Object::Conversion::kToNumber);
       Goto(&if_inputisother);
     }
 
@@ -5229,7 +5229,7 @@ Node* CodeStubAssembler::NonNumberToNumberOrNumeric(Node* context, Node* input,
   if (mode == Object::Conversion::kToNumeric) {
     CSA_ASSERT(this, IsNumeric(var_result.value()));
   } else {
-    DCHECK(mode == Object::Conversion::kToNumber);
+    DCHECK_EQ(mode, Object::Conversion::kToNumber);
     CSA_ASSERT(this, IsNumber(var_result.value()));
   }
   return var_result.value();
@@ -5610,7 +5610,7 @@ void CodeStubAssembler::SetCounter(StatsCounter* counter, int value) {
 }
 
 void CodeStubAssembler::IncrementCounter(StatsCounter* counter, int delta) {
-  DCHECK(delta > 0);
+  DCHECK_GT(delta, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     Node* counter_address = ExternalConstant(ExternalReference(counter));
     Node* value = Load(MachineType::Int32(), counter_address);
@@ -5620,7 +5620,7 @@ void CodeStubAssembler::IncrementCounter(StatsCounter* counter, int delta) {
 }
 
 void CodeStubAssembler::DecrementCounter(StatsCounter* counter, int delta) {
-  DCHECK(delta > 0);
+  DCHECK_GT(delta, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
     Node* counter_address = ExternalConstant(ExternalReference(counter));
     Node* value = Load(MachineType::Int32(), counter_address);
@@ -5704,7 +5704,7 @@ void CodeStubAssembler::TryInternalizeString(
     Node* string, Label* if_index, Variable* var_index, Label* if_internalized,
     Variable* var_internalized, Label* if_not_internalized, Label* if_bailout) {
   DCHECK(var_index->rep() == MachineType::PointerRepresentation());
-  DCHECK(var_internalized->rep() == MachineRepresentation::kTagged);
+  DCHECK_EQ(var_internalized->rep(), MachineRepresentation::kTagged);
   CSA_SLOW_ASSERT(this, IsString(string));
   Node* function = ExternalConstant(
       ExternalReference::try_internalize_string_function(isolate()));
@@ -7840,7 +7840,7 @@ void CodeStubAssembler::BuildFastFixedArrayForEach(
   bool constent_last = ToInt32Constant(last_element_exclusive, last_val);
   if (constant_first && constent_last) {
     int delta = last_val - first_val;
-    DCHECK(delta >= 0);
+    DCHECK_GE(delta, 0);
     if (delta <= kElementLoopUnrollThreshold) {
       if (direction == ForEachDirection::kForward) {
         for (int i = first_val; i < last_val; ++i) {

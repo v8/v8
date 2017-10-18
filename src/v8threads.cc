@@ -27,7 +27,7 @@ base::Atomic32 g_locker_was_ever_used_ = 0;
 // Once the Locker is initialized, the current thread will be guaranteed to have
 // the lock for a given isolate.
 void Locker::Initialize(v8::Isolate* isolate) {
-  DCHECK(isolate != nullptr);
+  DCHECK_NOT_NULL(isolate);
   has_lock_ = false;
   top_level_ = true;
   isolate_ = reinterpret_cast<i::Isolate*>(isolate);
@@ -53,7 +53,7 @@ void Locker::Initialize(v8::Isolate* isolate) {
 
 
 bool Locker::IsLocked(v8::Isolate* isolate) {
-  DCHECK(isolate != nullptr);
+  DCHECK_NOT_NULL(isolate);
   i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
   return internal_isolate->thread_manager()->IsLockedByCurrentThread();
 }
@@ -78,7 +78,7 @@ Locker::~Locker() {
 
 
 void Unlocker::Initialize(v8::Isolate* isolate) {
-  DCHECK(isolate != nullptr);
+  DCHECK_NOT_NULL(isolate);
   isolate_ = reinterpret_cast<i::Isolate*>(isolate);
   DCHECK(isolate_->thread_manager()->IsLockedByCurrentThread());
   isolate_->thread_manager()->ArchiveThread();
@@ -105,7 +105,7 @@ bool ThreadManager::RestoreThread() {
     lazily_archived_thread_ = ThreadId::Invalid();
     Isolate::PerIsolateThreadData* per_thread =
         isolate_->FindPerThreadDataForThisThread();
-    DCHECK(per_thread != nullptr);
+    DCHECK_NOT_NULL(per_thread);
     DCHECK(per_thread->thread_state() == lazily_archived_thread_state_);
     lazily_archived_thread_state_->set_id(ThreadId::Invalid());
     lazily_archived_thread_state_->LinkInto(ThreadState::FREE_LIST);
@@ -301,7 +301,7 @@ void ThreadManager::EagerlyArchiveThread() {
 void ThreadManager::FreeThreadResources() {
   DCHECK(!isolate_->has_pending_exception());
   DCHECK(!isolate_->external_caught_exception());
-  DCHECK(isolate_->try_catch_handler() == nullptr);
+  DCHECK_NULL(isolate_->try_catch_handler());
   isolate_->handle_scope_implementer()->FreeThreadResources();
   isolate_->FreeThreadResources();
   isolate_->debug()->FreeThreadResources();

@@ -59,7 +59,7 @@ class CompilationHandleScope final {
 // Helper that times a scoped region and records the elapsed time.
 struct ScopedTimer {
   explicit ScopedTimer(base::TimeDelta* location) : location_(location) {
-    DCHECK(location_ != nullptr);
+    DCHECK_NOT_NULL(location_);
     timer_.Start();
   }
 
@@ -97,7 +97,7 @@ CompilationJob::Status CompilationJob::PrepareJob() {
   }
 
   // Delegate to the underlying implementation.
-  DCHECK(state() == State::kReadyToPrepare);
+  DCHECK_EQ(state(), State::kReadyToPrepare);
   ScopedTimer t(&time_taken_to_prepare_);
   return UpdateState(PrepareJobImpl(), State::kReadyToExecute);
 }
@@ -119,7 +119,7 @@ CompilationJob::Status CompilationJob::ExecuteJob() {
   }
 
   // Delegate to the underlying implementation.
-  DCHECK(state() == State::kReadyToExecute);
+  DCHECK_EQ(state(), State::kReadyToExecute);
   ScopedTimer t(&time_taken_to_execute_);
   return UpdateState(ExecuteJobImpl(), State::kReadyToFinalize);
 }
@@ -132,7 +132,7 @@ CompilationJob::Status CompilationJob::FinalizeJob() {
   DCHECK(!compilation_info()->dependencies()->HasAborted());
 
   // Delegate to the underlying implementation.
-  DCHECK(state() == State::kReadyToFinalize);
+  DCHECK_EQ(state(), State::kReadyToFinalize);
   ScopedTimer t(&time_taken_to_finalize_);
   return UpdateState(FinalizeJobImpl(), State::kSucceeded);
 }
@@ -738,7 +738,7 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
     }
   }
 
-  DCHECK(job->state() == CompilationJob::State::kFailed);
+  DCHECK_EQ(job->state(), CompilationJob::State::kFailed);
   if (FLAG_trace_opt) {
     PrintF("[aborted optimizing ");
     compilation_info->closure()->ShortPrint();
@@ -1221,13 +1221,13 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
   } else if (compile_options == ScriptCompiler::kProduceParserCache ||
              ShouldProduceCodeCache(compile_options)) {
     DCHECK(cached_data && !*cached_data);
-    DCHECK(extension == nullptr);
+    DCHECK_NULL(extension);
     DCHECK(!isolate->debug()->is_loaded());
   } else {
     DCHECK(compile_options == ScriptCompiler::kConsumeParserCache ||
            compile_options == ScriptCompiler::kConsumeCodeCache);
     DCHECK(cached_data && *cached_data);
-    DCHECK(extension == nullptr);
+    DCHECK_NULL(extension);
   }
   int source_length = source->length();
   isolate->counters()->total_load_size()->Increment(source_length);

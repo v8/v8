@@ -72,7 +72,7 @@ void Utf8DecoderBase::WriteUtf16Slow(const uint8_t* stream,
     if (character > unibrow::Utf16::kMaxNonSurrogateCharCode) {
       *data++ = Utf16::LeadSurrogate(character);
       *data++ = Utf16::TrailSurrogate(character);
-      DCHECK(data_length > 1);
+      DCHECK_GT(data_length, 1);
       data_length -= 2;
     } else {
       *data++ = character;

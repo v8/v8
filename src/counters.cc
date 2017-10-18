@@ -478,7 +478,7 @@ void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
                              CounterId counter_id) {
   DCHECK(stats->IsCalledOnTheSameThread());
   RuntimeCallCounter* counter = &(stats->*counter_id);
-  DCHECK(counter->name() != nullptr);
+  DCHECK_NOT_NULL(counter->name());
   timer->Start(counter, stats->current_timer_.Value());
   stats->current_timer_.SetValue(timer);
   stats->current_counter_.SetValue(counter);

@@ -2687,7 +2687,7 @@ TEST(ArrayBufferSharedBackingStore) {
 
   CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
   void* data = ab_contents.Data();
-  CHECK(data != nullptr);
+  CHECK_NOT_NULL(data);
   v8::Local<v8::ArrayBuffer> ab2 =
       v8::ArrayBuffer::New(isolate, data, ab_contents.ByteLength());
   CHECK(ab2->IsExternal());
@@ -2907,7 +2907,7 @@ TEST(SamplingHeapProfiler) {
   // Sample should be empty if requested before sampling has started.
   {
     v8::AllocationProfile* profile = heap_profiler->GetAllocationProfile();
-    CHECK(profile == nullptr);
+    CHECK_NULL(profile);
   }
 
   int count_1024 = 0;
@@ -2935,7 +2935,7 @@ TEST(SamplingHeapProfiler) {
   // Samples should get cleared once sampling is stopped.
   {
     v8::AllocationProfile* profile = heap_profiler->GetAllocationProfile();
-    CHECK(profile == nullptr);
+    CHECK_NULL(profile);
   }
 
   // Sampling at a higher rate should give us similar numbers of objects.

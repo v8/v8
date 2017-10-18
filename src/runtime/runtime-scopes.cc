@@ -82,7 +82,7 @@ Object* DeclareGlobal(
     if ((old_attributes & DONT_DELETE) != 0) {
       // Only allow reconfiguring globals to functions in user code (no
       // natives, which are marked as read-only).
-      DCHECK((attr & READ_ONLY) == 0);
+      DCHECK_EQ(attr & READ_ONLY, 0);
 
       // Check whether we can reconfigure the existing property into a
       // function.
@@ -470,7 +470,7 @@ Handle<JSObject> NewSloppyArguments(Isolate* isolate, Handle<JSFunction> callee,
             }
           }
 
-          DCHECK(context_index >= 0);
+          DCHECK_GE(context_index, 0);
           arguments->set_the_hole(index);
           parameter_map->set(
               index + 2,

@@ -4676,7 +4676,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
     // Verification of important array prototype properties.
     Object* length = proto->length();
     CHECK(length->IsSmi());
-    CHECK(Smi::ToInt(length) == 0);
+    CHECK_EQ(Smi::ToInt(length), 0);
     CHECK(proto->HasSmiOrObjectElements());
     // This is necessary to enable fast checks for absence of elements
     // on Array.prototype and below.
@@ -4812,7 +4812,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
       Handle<String> length = factory()->length_string();
       int old = array_descriptors->SearchWithCache(
           isolate(), *length, array_function->initial_map());
-      DCHECK(old != DescriptorArray::kNotFound);
+      DCHECK_NE(old, DescriptorArray::kNotFound);
       Descriptor d = Descriptor::AccessorConstant(
           length, handle(array_descriptors->GetValue(old), isolate()),
           array_descriptors->GetDetails(old).attributes());

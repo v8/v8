@@ -624,7 +624,7 @@ class Ticker: public sampler::Sampler {
   }
 
   void SetProfiler(Profiler* profiler) {
-    DCHECK(profiler_ == nullptr);
+    DCHECK_NULL(profiler_);
     profiler_ = profiler;
     IncreaseProfilingDepth();
     if (!IsActive()) Start();

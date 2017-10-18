@@ -74,7 +74,7 @@ Deoptimizer* Deoptimizer::New(JSFunction* function,
                               Isolate* isolate) {
   Deoptimizer* deoptimizer = new Deoptimizer(isolate, function, type,
                                              bailout_id, from, fp_to_sp_delta);
-  CHECK(isolate->deoptimizer_data()->current_ == nullptr);
+  CHECK_NULL(isolate->deoptimizer_data()->current_);
   isolate->deoptimizer_data()->current_ = deoptimizer;
   return deoptimizer;
 }
@@ -427,9 +427,9 @@ Deoptimizer::Deoptimizer(Isolate* isolate, JSFunction* function,
     deoptimizing_throw_ = true;
   }
 
-  DCHECK(from != nullptr);
+  DCHECK_NOT_NULL(from);
   compiled_code_ = FindOptimizedCode();
-  DCHECK(compiled_code_ != nullptr);
+  DCHECK_NOT_NULL(compiled_code_);
 
   DCHECK(function->IsJSFunction());
   trace_scope_ = FLAG_trace_deopt
@@ -491,7 +491,7 @@ Handle<Code> Deoptimizer::compiled_code() const {
 
 Deoptimizer::~Deoptimizer() {
   DCHECK(input_ == nullptr && output_ == nullptr);
-  DCHECK(disallow_heap_allocation_ == nullptr);
+  DCHECK_NULL(disallow_heap_allocation_);
   delete trace_scope_;
 }
 
@@ -506,7 +506,7 @@ void Deoptimizer::DeleteFrameDescriptions() {
   output_ = nullptr;
 #ifdef DEBUG
   DCHECK(!AllowHeapAllocation::IsAllowed());
-  DCHECK(disallow_heap_allocation_ != nullptr);
+  DCHECK_NOT_NULL(disallow_heap_allocation_);
   delete disallow_heap_allocation_;
   disallow_heap_allocation_ = nullptr;
 #endif  // DEBUG
@@ -665,7 +665,7 @@ void Deoptimizer::DoComputeOutputFrames() {
     count = catch_handler_frame_index + 1;
   }
 
-  DCHECK(output_ == nullptr);
+  DCHECK_NULL(output_);
   output_ = new FrameDescription*[count];
   for (size_t i = 0; i < count; ++i) {
     output_[i] = nullptr;
@@ -1031,7 +1031,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
 
   // Arguments adaptor can not be topmost.
   CHECK(frame_index < output_count_ - 1);
-  CHECK(output_[frame_index] == nullptr);
+  CHECK_NULL(output_[frame_index]);
   output_[frame_index] = output_frame;
 
   // The top address of the frame is computed from the previous frame's top and
@@ -1115,7 +1115,7 @@ void Deoptimizer::DoComputeArgumentsAdaptorFrame(
     PrintF(trace_scope_->file(), "(%d)\n", height - 1);
   }
 
-  DCHECK(0 == output_offset);
+  DCHECK_EQ(0, output_offset);
 
   Builtins* builtins = isolate_->builtins();
   Code* adaptor_trampoline =
@@ -1180,7 +1180,7 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
 
   // Construct stub can not be topmost.
   DCHECK(frame_index > 0 && frame_index < output_count_);
-  DCHECK(output_[frame_index] == nullptr);
+  DCHECK_NULL(output_[frame_index]);
   output_[frame_index] = output_frame;
 
   // The top address of the frame is computed from the previous frame's top and
@@ -1999,7 +1999,7 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   if (max_entry_id < entry_count) return;
   entry_count = Max(entry_count, Deoptimizer::kMinNumberOfEntries);
   while (max_entry_id >= entry_count) entry_count *= 2;
-  CHECK(entry_count <= Deoptimizer::kMaxNumberOfEntries);
+  CHECK_LE(entry_count, Deoptimizer::kMaxNumberOfEntries);
 
   MacroAssembler masm(isolate, nullptr, 16 * KB, CodeObjectRequired::kYes);
   masm.set_emit_debug_code(false);
@@ -2052,7 +2052,7 @@ FrameDescription::FrameDescription(uint32_t frame_size, int parameter_count)
 
 void TranslationBuffer::Add(int32_t value) {
   // This wouldn't handle kMinInt correctly if it ever encountered it.
-  DCHECK(value != kMinInt);
+  DCHECK_NE(value, kMinInt);
   // Encode the sign bit in the least significant bit.
   bool is_negative = (value < 0);
   uint32_t bits = ((is_negative ? -value : value) << 1) |
@@ -2616,7 +2616,7 @@ Float64 TranslatedValue::double_value() const {
 
 
 int TranslatedValue::object_length() const {
-  DCHECK(kind() == kCapturedObject);
+  DCHECK_EQ(kind(), kCapturedObject);
   return materialization_info_.length_;
 }
 
@@ -3507,7 +3507,7 @@ class TranslatedState::CapturedObjectMaterializer {
       : state_(state), frame_index_(frame_index), field_count_(field_count) {}
 
   Handle<Object> FieldAt(int* value_index) {
-    CHECK(field_count_ > 0);
+    CHECK_GT(field_count_, 0);
     --field_count_;
     return state_->MaterializeAt(frame_index_, value_index);
   }
@@ -3990,7 +3990,7 @@ Handle<Object> TranslatedState::MaterializeAt(int frame_index,
 
     case TranslatedValue::kCapturedObject: {
       // The map must be a tagged object.
-      CHECK(frame->values_[*value_index].kind() == TranslatedValue::kTagged);
+      CHECK_EQ(frame->values_[*value_index].kind(), TranslatedValue::kTagged);
       CHECK(frame->values_[*value_index].GetValue()->IsMap());
       return MaterializeCapturedObjectAt(slot, frame_index, value_index);
     }
@@ -4110,7 +4110,7 @@ void TranslatedState::StoreMaterializedValuesAndDeopt(JavaScriptFrame* frame) {
   if (new_store && value_changed) {
     materialized_store->Set(stack_frame_pointer_,
                             previously_materialized_objects);
-    CHECK(frames_[0].kind() == TranslatedFrame::kInterpretedFunction);
+    CHECK_EQ(frames_[0].kind(), TranslatedFrame::kInterpretedFunction);
     CHECK_EQ(frame->function(), frames_[0].front().GetRawValue());
     Deoptimizer::DeoptimizeFunction(frame->function(), frame->LookupCode());
   }

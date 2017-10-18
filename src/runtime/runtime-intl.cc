@@ -800,7 +800,7 @@ RUNTIME_FUNCTION(Runtime_StringLocaleConvertCase) {
 
   // Primary language tag can be up to 8 characters long in theory.
   // https://tools.ietf.org/html/bcp47#section-2.2.1
-  DCHECK(lang_arg->length() <= 8);
+  DCHECK_LE(lang_arg->length(), 8);
   lang_arg = String::Flatten(lang_arg);
   s = String::Flatten(s);
 

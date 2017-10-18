@@ -1524,7 +1524,7 @@ THREADED_TEST(BigInteger) {
     // The code will not be run in that case, due to the "if" guard.
     int32_t value =
         static_cast<int32_t>(static_cast<uint32_t>(i::Smi::kMaxValue) + 1);
-    CHECK(value > i::Smi::kMaxValue);
+    CHECK_GT(value, i::Smi::kMaxValue);
     CHECK(!i::Smi::IsValid(value));
 
     Local<v8::Integer> value_obj = v8::Integer::New(isolate, value);
@@ -3528,7 +3528,7 @@ THREADED_TEST(ArrayBuffer_ApiInternalToExternal) {
 
   CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
   uint8_t* data = static_cast<uint8_t*>(ab_contents.Data());
-  CHECK(data != nullptr);
+  CHECK_NOT_NULL(data);
   CHECK(env->Global()->Set(env.local(), v8_str("ab"), ab).FromJust());
 
   v8::Local<v8::Value> result = CompileRun("ab.byteLength");
@@ -3782,8 +3782,8 @@ THREADED_TEST(ArrayBuffer_AllocationInformation) {
   ScopedArrayBufferContents contents(ab->Externalize());
 
   // Array buffers should have normal allocation mode.
-  CHECK(contents.AllocationMode() ==
-        v8::ArrayBuffer::Allocator::AllocationMode::kNormal);
+  CHECK_EQ(contents.AllocationMode(),
+           v8::ArrayBuffer::Allocator::AllocationMode::kNormal);
   // The allocation must contain the buffer (normally they will be equal, but
   // this is not required by the contract).
   CHECK_NOT_NULL(contents.AllocationBase());
@@ -3831,7 +3831,7 @@ THREADED_TEST(SharedArrayBuffer_ApiInternalToExternal) {
 
   CHECK_EQ(1024, static_cast<int>(ab_contents.ByteLength()));
   uint8_t* data = static_cast<uint8_t*>(ab_contents.Data());
-  CHECK(data != nullptr);
+  CHECK_NOT_NULL(data);
   CHECK(env->Global()->Set(env.local(), v8_str("ab"), ab).FromJust());
 
   v8::Local<v8::Value> result = CompileRun("ab.byteLength");
@@ -5465,52 +5465,45 @@ THREADED_TEST(ConversionNumber) {
   CHECK_EQ(5312874545152.0,
            obj->ToNumber(env.local()).ToLocalChecked()->Value());
   CHECK_EQ(0, obj->ToInt32(env.local()).ToLocalChecked()->Value());
-  CHECK(0u ==
-        obj->ToUint32(env.local())
-            .ToLocalChecked()
-            ->Value());  // NOLINT - no CHECK_EQ for unsigned.
+  CHECK_EQ(0, obj->ToUint32(env.local()).ToLocalChecked()->Value());
   // Large number.
   CompileRun("var obj = -1234567890123;");
   obj = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
   CHECK_EQ(-1234567890123.0,
            obj->ToNumber(env.local()).ToLocalChecked()->Value());
   CHECK_EQ(-1912276171, obj->ToInt32(env.local()).ToLocalChecked()->Value());
-  CHECK(2382691125u ==
-        obj->ToUint32(env.local()).ToLocalChecked()->Value());  // NOLINT
+  CHECK_EQ(2382691125, obj->ToUint32(env.local()).ToLocalChecked()->Value());
   // Small positive integer.
   CompileRun("var obj = 42;");
   obj = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
   CHECK_EQ(42.0, obj->ToNumber(env.local()).ToLocalChecked()->Value());
   CHECK_EQ(42, obj->ToInt32(env.local()).ToLocalChecked()->Value());
-  CHECK(42u == obj->ToUint32(env.local()).ToLocalChecked()->Value());  // NOLINT
+  CHECK_EQ(42, obj->ToUint32(env.local()).ToLocalChecked()->Value());
   // Negative integer.
   CompileRun("var obj = -37;");
   obj = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
   CHECK_EQ(-37.0, obj->ToNumber(env.local()).ToLocalChecked()->Value());
   CHECK_EQ(-37, obj->ToInt32(env.local()).ToLocalChecked()->Value());
-  CHECK(4294967259u ==
-        obj->ToUint32(env.local()).ToLocalChecked()->Value());  // NOLINT
+  CHECK_EQ(4294967259, obj->ToUint32(env.local()).ToLocalChecked()->Value());
   // Positive non-int32 integer.
   CompileRun("var obj = 0x81234567;");
   obj = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
   CHECK_EQ(2166572391.0, obj->ToNumber(env.local()).ToLocalChecked()->Value());
   CHECK_EQ(-2128394905, obj->ToInt32(env.local()).ToLocalChecked()->Value());
-  CHECK(2166572391u ==
-        obj->ToUint32(env.local()).ToLocalChecked()->Value());  // NOLINT
+  CHECK_EQ(2166572391, obj->ToUint32(env.local()).ToLocalChecked()->Value());
   // Fraction.
   CompileRun("var obj = 42.3;");
   obj = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
   CHECK_EQ(42.3, obj->ToNumber(env.local()).ToLocalChecked()->Value());
   CHECK_EQ(42, obj->ToInt32(env.local()).ToLocalChecked()->Value());
-  CHECK(42u == obj->ToUint32(env.local()).ToLocalChecked()->Value());  // NOLINT
+  CHECK_EQ(42, obj->ToUint32(env.local()).ToLocalChecked()->Value());
   // Large negative fraction.
   CompileRun("var obj = -5726623061.75;");
   obj = env->Global()->Get(env.local(), v8_str("obj")).ToLocalChecked();
   CHECK_EQ(-5726623061.75,
            obj->ToNumber(env.local()).ToLocalChecked()->Value());
   CHECK_EQ(-1431655765, obj->ToInt32(env.local()).ToLocalChecked()->Value());
-  CHECK(2863311531u ==
-        obj->ToUint32(env.local()).ToLocalChecked()->Value());  // NOLINT
+  CHECK_EQ(2863311531, obj->ToUint32(env.local()).ToLocalChecked()->Value());
 }
 
 
@@ -7221,7 +7214,7 @@ TEST(ExtensionMissingSourceLength) {
   const char* extension_names[] = {"srclentest_fail"};
   v8::ExtensionConfiguration extensions(1, extension_names);
   v8::Local<Context> context = Context::New(CcTest::isolate(), &extensions);
-  CHECK(0 == *context);
+  CHECK_NULL(*context);
 }
 
 
@@ -7244,7 +7237,7 @@ TEST(ExtensionWithSourceLength) {
                 .FromJust());
     } else {
       // Anything but exactly the right length should fail to compile.
-      CHECK(0 == *context);
+      CHECK_NULL(*context);
     }
   }
 }
@@ -14294,7 +14287,7 @@ struct SymbolInfo {
 class SetFunctionEntryHookTest {
  public:
   SetFunctionEntryHookTest() {
-    CHECK(instance_ == nullptr);
+    CHECK_NULL(instance_);
     instance_ = this;
   }
   ~SetFunctionEntryHookTest() {
@@ -14309,7 +14302,7 @@ class SetFunctionEntryHookTest {
   void RunTest();
   void OnJitEvent(const v8::JitCodeEvent* event);
   static void JitEvent(const v8::JitCodeEvent* event) {
-    CHECK(instance_ != nullptr);
+    CHECK_NOT_NULL(instance_);
     instance_->OnJitEvent(event);
   }
 
@@ -14317,12 +14310,12 @@ class SetFunctionEntryHookTest {
                    uintptr_t return_addr_location);
   static void EntryHook(uintptr_t function,
                         uintptr_t return_addr_location) {
-    CHECK(instance_ != nullptr);
+    CHECK_NOT_NULL(instance_);
     instance_->OnEntryHook(function, return_addr_location);
   }
 
   static void RuntimeCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
-    CHECK(instance_ != nullptr);
+    CHECK_NOT_NULL(instance_);
     args.GetReturnValue().Set(v8_num(42));
   }
   void RunLoopInNewEnv(v8::Isolate* isolate);
@@ -14389,9 +14382,9 @@ void SetFunctionEntryHookTest::InsertSymbolAt(i::Address addr,
 void SetFunctionEntryHookTest::OnJitEvent(const v8::JitCodeEvent* event) {
   switch (event->type) {
     case v8::JitCodeEvent::CODE_ADDED: {
-      CHECK(event->code_start != nullptr);
+      CHECK_NOT_NULL(event->code_start);
       CHECK_NE(0, static_cast<int>(event->code_len));
-      CHECK(event->name.str != nullptr);
+      CHECK_NOT_NULL(event->name.str);
       size_t symbol_id = symbols_.size();
 
       // Record the new symbol.
@@ -14434,7 +14427,7 @@ void SetFunctionEntryHookTest::OnEntryHook(
   // Get the function's code object.
   i::Code* function_code = i::Code::GetCodeFromTargetAddress(
       reinterpret_cast<i::Address>(function));
-  CHECK(function_code != nullptr);
+  CHECK_NOT_NULL(function_code);
 
   // Then try and look up the caller's code object.
   i::Address caller = *reinterpret_cast<i::Address*>(return_addr_location);
@@ -14673,18 +14666,18 @@ static bool FunctionNameIs(const char* expected,
 
 
 static void event_handler(const v8::JitCodeEvent* event) {
-  CHECK(event != nullptr);
-  CHECK(code_map != nullptr);
-  CHECK(jitcode_line_info != nullptr);
+  CHECK_NOT_NULL(event);
+  CHECK_NOT_NULL(code_map);
+  CHECK_NOT_NULL(jitcode_line_info);
 
   class DummyJitCodeLineInfo {
   };
 
   switch (event->type) {
     case v8::JitCodeEvent::CODE_ADDED: {
-      CHECK(event->code_start != nullptr);
+      CHECK_NOT_NULL(event->code_start);
       CHECK_NE(0, static_cast<int>(event->code_len));
-      CHECK(event->name.str != nullptr);
+      CHECK_NOT_NULL(event->name.str);
       v8::base::HashMap::Entry* entry = code_map->LookupOrInsert(
           event->code_start, i::ComputePointerHash(event->code_start));
       entry->value = reinterpret_cast<void*>(event->code_len);
@@ -14741,21 +14734,21 @@ static void event_handler(const v8::JitCodeEvent* event) {
     // data structure is created before during CODE_START_LINE_INFO_RECORDING
     // event. And delete it in CODE_END_LINE_INFO_RECORDING event handling.
     case v8::JitCodeEvent::CODE_END_LINE_INFO_RECORDING: {
-      CHECK(event->user_data != nullptr);
+      CHECK_NOT_NULL(event->user_data);
       uint32_t hash = i::ComputePointerHash(event->user_data);
       v8::base::HashMap::Entry* entry =
           jitcode_line_info->Lookup(event->user_data, hash);
-      CHECK(entry != nullptr);
+      CHECK_NOT_NULL(entry);
       delete reinterpret_cast<DummyJitCodeLineInfo*>(event->user_data);
       }
       break;
 
     case v8::JitCodeEvent::CODE_ADD_LINE_POS_INFO: {
-      CHECK(event->user_data != nullptr);
+      CHECK_NOT_NULL(event->user_data);
       uint32_t hash = i::ComputePointerHash(event->user_data);
       v8::base::HashMap::Entry* entry =
           jitcode_line_info->Lookup(event->user_data, hash);
-      CHECK(entry != nullptr);
+      CHECK_NOT_NULL(entry);
       }
       break;
 
@@ -16295,8 +16288,8 @@ TEST(DefineProperty) {
 
 THREADED_TEST(GetCurrentContextWhenNotInContext) {
   i::Isolate* isolate = CcTest::i_isolate();
-  CHECK(isolate != nullptr);
-  CHECK(isolate->context() == nullptr);
+  CHECK_NOT_NULL(isolate);
+  CHECK_NULL(isolate->context());
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
   v8::HandleScope scope(v8_isolate);
   // The following should not crash, but return an empty handle.
@@ -17097,7 +17090,7 @@ THREADED_TEST(StackTrace) {
   v8::String::Utf8Value stack(
       context->GetIsolate(),
       try_catch.StackTrace(context.local()).ToLocalChecked());
-  CHECK(strstr(*stack, "at foo (stack-trace-test") != nullptr);
+  CHECK_NOT_NULL(strstr(*stack, "at foo (stack-trace-test"));
 }
 
 
@@ -17111,11 +17104,11 @@ void checkStackFrame(const char* expected_script_name,
   v8::String::Utf8Value script_name(CcTest::isolate(), frame->GetScriptName());
   if (*script_name == nullptr) {
     // The situation where there is no associated script, like for evals.
-    CHECK(expected_script_name == nullptr);
+    CHECK_NULL(expected_script_name);
   } else {
-    CHECK(strstr(*script_name, expected_script_name) != nullptr);
+    CHECK_NOT_NULL(strstr(*script_name, expected_script_name));
   }
-  CHECK(strstr(*func_name, expected_func_name) != nullptr);
+  CHECK_NOT_NULL(strstr(*func_name, expected_func_name));
   CHECK_EQ(expected_line_number, frame->GetLineNumber());
   CHECK_EQ(expected_column, frame->GetColumn());
   CHECK_EQ(is_eval, frame->IsEval());
@@ -17134,7 +17127,7 @@ void AnalyzeStackInNativeCode(const v8::FunctionCallbackInfo<v8::Value>& args) {
   const int kDisplayNameIsNotString = 6;
   const int kFunctionNameIsNotString = 7;
 
-  CHECK(args.Length() == 1);
+  CHECK_EQ(args.Length(), 1);
 
   v8::Local<v8::Context> context = args.GetIsolate()->GetCurrentContext();
   int testGroup = args[0]->Int32Value(context).FromJust();
@@ -18088,7 +18081,7 @@ TEST(ScriptIdInStackTrace) {
   v8::Local<v8::Script> script = CompileWithOrigin(scriptSource, "test");
   script->Run(context.local()).ToLocalChecked();
   for (int i = 0; i < 2; i++) {
-    CHECK(scriptIdInStack[i] != v8::Message::kNoScriptIdInfo);
+    CHECK_NE(scriptIdInStack[i], v8::Message::kNoScriptIdInfo);
     CHECK_EQ(scriptIdInStack[i], script->GetUnboundScript()->GetId());
   }
 }
@@ -18230,7 +18223,7 @@ TEST(PromiseHook) {
   auto init_promise = global->Get(context, v8_str("init")).ToLocalChecked();
   CHECK(GetPromise("p")->Equals(env.local(), init_promise).FromJust());
   auto init_promise_obj = v8::Local<v8::Promise>::Cast(init_promise);
-  CHECK(init_promise_obj->State() == v8::Promise::PromiseState::kPending);
+  CHECK_EQ(init_promise_obj->State(), v8::Promise::PromiseState::kPending);
   CHECK(!init_promise_obj->HasHandler());
 
   promise_hook_data->Reset();
@@ -18549,7 +18542,7 @@ TEST(DynamicWithSourceURLInStackTraceString) {
   v8::String::Utf8Value stack(
       context->GetIsolate(),
       try_catch.StackTrace(context.local()).ToLocalChecked());
-  CHECK(strstr(*stack, "at foo (source_url:3:5)") != nullptr);
+  CHECK_NOT_NULL(strstr(*stack, "at foo (source_url:3:5)"));
 }
 
 
@@ -20270,7 +20263,7 @@ TEST(IsolateNewDispose) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
-  CHECK(isolate != nullptr);
+  CHECK_NOT_NULL(isolate);
   CHECK(current_isolate != isolate);
   CHECK(current_isolate == CcTest::isolate());
 
@@ -24520,15 +24513,15 @@ TEST(PromiseStateAndValue) {
       "var resolver;"
       "new Promise((res, rej) => { resolver = res; })");
   v8::Local<v8::Promise> promise = v8::Local<v8::Promise>::Cast(result);
-  CHECK(promise->State() == v8::Promise::PromiseState::kPending);
+  CHECK_EQ(promise->State(), v8::Promise::PromiseState::kPending);
 
   CompileRun("resolver('fulfilled')");
-  CHECK(promise->State() == v8::Promise::PromiseState::kFulfilled);
+  CHECK_EQ(promise->State(), v8::Promise::PromiseState::kFulfilled);
   CHECK(v8_str("fulfilled")->SameValue(promise->Result()));
 
   result = CompileRun("Promise.reject('rejected')");
   promise = v8::Local<v8::Promise>::Cast(result);
-  CHECK(promise->State() == v8::Promise::PromiseState::kRejected);
+  CHECK_EQ(promise->State(), v8::Promise::PromiseState::kRejected);
   CHECK(v8_str("rejected")->SameValue(promise->Result()));
 }
 
@@ -25150,7 +25143,7 @@ TEST(StreamingUtf8ScriptWithSplitCharactersSanityCheck) {
   // characters is correct. Here is an UTF-8 character which will take three
   // bytes.
   const char* reference = "\xec\x92\x81";
-  CHECK(3u == strlen(reference));  // NOLINT - no CHECK_EQ for unsigned.
+  CHECK_EQ(3, strlen(reference));
 
   char chunk1[] =
       "function foo() {\n"
@@ -25290,8 +25283,8 @@ TEST(StreamingProducesParserCache) {
   delete task;
 
   const v8::ScriptCompiler::CachedData* cached_data = source.GetCachedData();
-  CHECK(cached_data != nullptr);
-  CHECK(cached_data->data != nullptr);
+  CHECK_NOT_NULL(cached_data);
+  CHECK_NOT_NULL(cached_data->data);
   CHECK(!cached_data->rejected);
   CHECK_GT(cached_data->length, 0);
 }
@@ -25562,8 +25555,8 @@ TEST(ParserCacheRejectedGracefully) {
   USE(script);
   const v8::ScriptCompiler::CachedData* original_cached_data =
       source.GetCachedData();
-  CHECK(original_cached_data != nullptr);
-  CHECK(original_cached_data->data != nullptr);
+  CHECK_NOT_NULL(original_cached_data);
+  CHECK_NOT_NULL(original_cached_data->data);
   CHECK(!original_cached_data->rejected);
   CHECK_GT(original_cached_data->length, 0);
   // Recompiling the same script with it won't reject the data.
@@ -25579,7 +25572,7 @@ TEST(ParserCacheRejectedGracefully) {
     USE(script);
     const v8::ScriptCompiler::CachedData* new_cached_data =
         source_with_cached_data.GetCachedData();
-    CHECK(new_cached_data != nullptr);
+    CHECK_NOT_NULL(new_cached_data);
     CHECK(!new_cached_data->rejected);
   }
   // Compile an incompatible script with the cached data. The new script doesn't
@@ -25599,7 +25592,7 @@ TEST(ParserCacheRejectedGracefully) {
     USE(script);
     const v8::ScriptCompiler::CachedData* new_cached_data =
         source_with_cached_data.GetCachedData();
-    CHECK(new_cached_data != nullptr);
+    CHECK_NOT_NULL(new_cached_data);
     CHECK(new_cached_data->rejected);
   }
 }
@@ -26296,8 +26289,8 @@ THREADED_TEST(SharedArrayBuffer_AllocationInformation) {
   ScopedSharedArrayBufferContents contents(ab->Externalize());
 
   // Array buffers should have normal allocation mode.
-  CHECK(contents.AllocationMode() ==
-        v8::ArrayBuffer::Allocator::AllocationMode::kNormal);
+  CHECK_EQ(contents.AllocationMode(),
+           v8::ArrayBuffer::Allocator::AllocationMode::kNormal);
   // The allocation must contain the buffer (normally they will be equal, but
   // this is not required by the contract).
   CHECK_NOT_NULL(contents.AllocationBase());

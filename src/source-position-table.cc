@@ -67,7 +67,7 @@ void EncodeInt(ZoneVector<byte>& bytes, T value) {
 // Encode a PositionTableEntry.
 void EncodeEntry(ZoneVector<byte>& bytes, const PositionTableEntry& entry) {
   // We only accept ascending code offsets.
-  DCHECK(entry.code_offset >= 0);
+  DCHECK_GE(entry.code_offset, 0);
   // Since code_offset is not negative, we use sign to encode is_statement.
   EncodeInt(bytes,
             entry.is_statement ? entry.code_offset : -entry.code_offset - 1);

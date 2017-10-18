@@ -144,7 +144,7 @@ inline MemOperand UntagSmiFieldMemOperand(Register rm, int offset) {
 //              n64, and used in RegExp code, and other places
 //              with more than 8 arguments.
 inline MemOperand CFunctionArgumentOperand(int index) {
-  DCHECK(index > kCArgSlotCount);
+  DCHECK_GT(index, kCArgSlotCount);
   // Argument 5 takes the slot just past the four Arg-slots.
   int offset = (index - 5) * kPointerSize + kCArgsSlotsSize;
   return MemOperand(sp, offset);
@@ -1256,7 +1256,7 @@ const Operand& rt = Operand(zero_reg), BranchDelaySlot bd = PROTECT
       // The int portion is upper 32-bits of 64-bit word.
       dsra(dst, src, kSmiShift - scale);
     } else {
-      DCHECK(scale >= kSmiTagSize);
+      DCHECK_GE(scale, kSmiTagSize);
       sll(dst, src, scale - kSmiTagSize);
     }
   }

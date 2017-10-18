@@ -318,7 +318,7 @@ TEST(OldSpace) {
   TestMemoryAllocatorScope test_scope(isolate, memory_allocator);
 
   OldSpace* s = new OldSpace(heap, OLD_SPACE, NOT_EXECUTABLE);
-  CHECK(s != nullptr);
+  CHECK_NOT_NULL(s);
 
   CHECK(s->SetUp());
 
@@ -338,7 +338,7 @@ TEST(LargeObjectSpace) {
   v8::V8::Initialize();
 
   LargeObjectSpace* lo = CcTest::heap()->lo_space();
-  CHECK(lo != nullptr);
+  CHECK_NOT_NULL(lo);
 
   int lo_size = Page::kPageSize;
 

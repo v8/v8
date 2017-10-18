@@ -23,9 +23,9 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm, Address address,
                                 ExitFrameType exit_frame_type) {
 #if defined(__thumb__)
   // Thumb mode builtin.
-  DCHECK((reinterpret_cast<intptr_t>(
-              ExternalReference(address, masm->isolate()).address()) &
-          1) == 1);
+  DCHECK_EQ(1, reinterpret_cast<intptr_t>(
+                   ExternalReference(address, masm->isolate()).address()) &
+                   1);
 #endif
   __ mov(r5, Operand(ExternalReference(address, masm->isolate())));
   if (exit_frame_type == BUILTIN_EXIT) {
@@ -602,7 +602,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
   if (argc_is_tagged == kArgcIsSmiTagged) {
     __ cmp(r2, Operand::PointerOffsetFromSmiKey(argc));
   } else {
-    DCHECK(argc_is_tagged == kArgcIsUntaggedInt);
+    DCHECK_EQ(argc_is_tagged, kArgcIsUntaggedInt);
     __ cmp(r2, Operand(argc, LSL, kPointerSizeLog2));
   }
   __ b(gt, &okay);  // Signed comparison.

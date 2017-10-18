@@ -116,7 +116,7 @@ DefaultPlatform::~DefaultPlatform() {
 
 void DefaultPlatform::SetThreadPoolSize(int thread_pool_size) {
   base::LockGuard<base::Mutex> guard(&lock_);
-  DCHECK(thread_pool_size >= 0);
+  DCHECK_GE(thread_pool_size, 0);
   if (thread_pool_size < 1) {
     thread_pool_size = base::SysInfo::NumberOfProcessors() - 1;
   }
@@ -218,7 +218,7 @@ bool DefaultPlatform::PumpMessageLoop(v8::Isolate* isolate,
 
 void DefaultPlatform::RunIdleTasks(v8::Isolate* isolate,
                                    double idle_time_in_seconds) {
-  DCHECK(IdleTaskSupport::kEnabled == idle_task_support_);
+  DCHECK_EQ(IdleTaskSupport::kEnabled, idle_task_support_);
   double deadline_in_seconds =
       MonotonicallyIncreasingTime() + idle_time_in_seconds;
   while (deadline_in_seconds > MonotonicallyIncreasingTime()) {

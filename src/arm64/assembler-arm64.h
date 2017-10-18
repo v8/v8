@@ -132,7 +132,7 @@ class CPURegister : public RegisterBase<CPURegister, kRegAfterLast> {
   }
   int SizeInBytes() const {
     DCHECK(IsValid());
-    DCHECK(SizeInBits() % 8 == 0);
+    DCHECK_EQ(SizeInBits() % 8, 0);
     return reg_size_ / 8;
   }
   bool Is8Bits() const {
@@ -671,7 +671,7 @@ class CPURegList {
 
   int RegisterSizeInBytes() const {
     int size_in_bits = RegisterSizeInBits();
-    DCHECK((size_in_bits % kBitsPerByte) == 0);
+    DCHECK_EQ(size_in_bits % kBitsPerByte, 0);
     return size_in_bits / kBitsPerByte;
   }
 
@@ -1065,7 +1065,7 @@ class Assembler : public AssemblerBase {
   // TODO(jbramley): Work out what sign to use for these things and if possible,
   // change things to be consistent.
   void AssertSizeOfCodeGeneratedSince(const Label* label, ptrdiff_t size) {
-    DCHECK(size >= 0);
+    DCHECK_GE(size, 0);
     DCHECK(static_cast<uint64_t>(size) == SizeOfCodeGeneratedSince(label));
   }
 
@@ -1409,14 +1409,14 @@ class Assembler : public AssemblerBase {
   // Bfm aliases.
   // Bitfield insert.
   void bfi(const Register& rd, const Register& rn, int lsb, int width) {
-    DCHECK(width >= 1);
+    DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     bfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Bitfield extract and insert low.
   void bfxil(const Register& rd, const Register& rn, int lsb, int width) {
-    DCHECK(width >= 1);
+    DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     bfm(rd, rn, lsb, lsb + width - 1);
   }
@@ -1430,14 +1430,14 @@ class Assembler : public AssemblerBase {
 
   // Signed bitfield insert in zero.
   void sbfiz(const Register& rd, const Register& rn, int lsb, int width) {
-    DCHECK(width >= 1);
+    DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     sbfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Signed bitfield extract.
   void sbfx(const Register& rd, const Register& rn, int lsb, int width) {
-    DCHECK(width >= 1);
+    DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     sbfm(rd, rn, lsb, lsb + width - 1);
   }
@@ -1473,14 +1473,14 @@ class Assembler : public AssemblerBase {
 
   // Unsigned bitfield insert in zero.
   void ubfiz(const Register& rd, const Register& rn, int lsb, int width) {
-    DCHECK(width >= 1);
+    DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     ubfm(rd, rn, (rd.SizeInBits() - lsb) & (rd.SizeInBits() - 1), width - 1);
   }
 
   // Unsigned bitfield extract.
   void ubfx(const Register& rd, const Register& rn, int lsb, int width) {
-    DCHECK(width >= 1);
+    DCHECK_GE(width, 1);
     DCHECK(lsb + width <= rn.SizeInBits());
     ubfm(rd, rn, lsb, lsb + width - 1);
   }
@@ -3497,7 +3497,7 @@ class Assembler : public AssemblerBase {
 
   // Emit data inline in the instruction stream.
   void EmitData(void const * data, unsigned size) {
-    DCHECK(sizeof(*pc_) == 1);
+    DCHECK_EQ(sizeof(*pc_), 1);
     DCHECK((pc_ + size) <= (buffer_ + buffer_size_));
 
     // TODO(all): Somehow register we have some data here. Then we can

@@ -30,7 +30,7 @@ inline int EncodeConstantPoolLength(int length) {
   return ((length & 0xfff0) << 4) | (length & 0xf);
 }
 inline int DecodeConstantPoolLength(int instr) {
-  DCHECK((instr & kConstantPoolMarkerMask) == kConstantPoolMarker);
+  DCHECK_EQ(instr & kConstantPoolMarkerMask, kConstantPoolMarker);
   return ((instr >> 4) & 0xfff0) | (instr & 0xf);
 }
 

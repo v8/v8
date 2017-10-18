@@ -188,7 +188,7 @@ Reduction DeadCodeElimination::ReduceNode(Node* node) {
   if (control_input_count == 0 && effect_input_count == 0) {
     return ReducePureNode(node);
   }
-  DCHECK(control_input_count <= 1);
+  DCHECK_LE(control_input_count, 1);
   if (control_input_count == 1) {
     Reduction reduction = PropagateDeadControl(node);
     if (reduction.Changed()) return reduction;

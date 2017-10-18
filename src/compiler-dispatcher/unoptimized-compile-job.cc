@@ -161,7 +161,7 @@ void UnoptimizedCompileJob::StepNextOnBackgroundThread() {
 void UnoptimizedCompileJob::PrepareToParseOnMainThread(Isolate* isolate) {
   DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
   DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
-  DCHECK(status() == Status::kInitial);
+  DCHECK_EQ(status(), Status::kInitial);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToParse);
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("UnoptimizedCompileJob[%p]: Preparing to parse\n",
@@ -270,7 +270,7 @@ void UnoptimizedCompileJob::PrepareToParseOnMainThread(Isolate* isolate) {
 }
 
 void UnoptimizedCompileJob::Parse() {
-  DCHECK(status() == Status::kReadyToParse);
+  DCHECK_EQ(status(), Status::kReadyToParse);
   COMPILER_DISPATCHER_TRACE_SCOPE_WITH_NUM(
       tracer_, kParse,
       parse_info_->end_position() - parse_info_->start_position());
@@ -292,7 +292,7 @@ void UnoptimizedCompileJob::Parse() {
 void UnoptimizedCompileJob::FinalizeParsingOnMainThread(Isolate* isolate) {
   DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
   DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
-  DCHECK(status() == Status::kParsed);
+  DCHECK_EQ(status(), Status::kParsed);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kFinalizeParsing);
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("UnoptimizedCompileJob[%p]: Finalizing parsing\n",
@@ -339,7 +339,7 @@ void UnoptimizedCompileJob::FinalizeParsingOnMainThread(Isolate* isolate) {
 void UnoptimizedCompileJob::AnalyzeOnMainThread(Isolate* isolate) {
   DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
   DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
-  DCHECK(status() == Status::kReadyToAnalyze);
+  DCHECK_EQ(status(), Status::kReadyToAnalyze);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kAnalyze);
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("UnoptimizedCompileJob[%p]: Analyzing\n", static_cast<void*>(this));
@@ -356,7 +356,7 @@ void UnoptimizedCompileJob::AnalyzeOnMainThread(Isolate* isolate) {
 void UnoptimizedCompileJob::PrepareToCompileOnMainThread(Isolate* isolate) {
   DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
   DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
-  DCHECK(status() == Status::kAnalyzed);
+  DCHECK_EQ(status(), Status::kAnalyzed);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToCompile);
 
   compilation_job_.reset(
@@ -372,7 +372,7 @@ void UnoptimizedCompileJob::PrepareToCompileOnMainThread(Isolate* isolate) {
 }
 
 void UnoptimizedCompileJob::Compile() {
-  DCHECK(status() == Status::kReadyToCompile);
+  DCHECK_EQ(status(), Status::kReadyToCompile);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kCompile);
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("UnoptimizedCompileJob[%p]: Compiling\n", static_cast<void*>(this));
@@ -395,7 +395,7 @@ void UnoptimizedCompileJob::Compile() {
 void UnoptimizedCompileJob::FinalizeCompilingOnMainThread(Isolate* isolate) {
   DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
   DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
-  DCHECK(status() == Status::kCompiled);
+  DCHECK_EQ(status(), Status::kCompiled);
   COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kFinalizeCompiling);
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("UnoptimizedCompileJob[%p]: Finalizing compiling\n",

@@ -517,7 +517,7 @@ class HandleScopeImplementer {
       DeleteArray(spare_);
       spare_ = nullptr;
     }
-    DCHECK(call_depth_ == 0);
+    DCHECK_EQ(call_depth_, 0);
   }
 
   void BeginDeferredScope();

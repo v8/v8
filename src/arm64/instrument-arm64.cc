@@ -9,7 +9,7 @@ namespace internal {
 
 Counter::Counter(const char* name, CounterType type)
     : count_(0), enabled_(false), type_(type) {
-  DCHECK(name != nullptr);
+  DCHECK_NOT_NULL(name);
   strncpy(name_, name, kCounterNameMaxLength);
 }
 

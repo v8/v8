@@ -171,7 +171,7 @@ Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
 
 
 Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
-  DCHECK(0 <= size);
+  DCHECK_LE(0, size);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateFixedArray(size, pretenure),
@@ -188,7 +188,7 @@ Handle<PropertyArray> Factory::NewPropertyArray(int size,
 
 MaybeHandle<FixedArray> Factory::TryNewFixedArray(int size,
                                                   PretenureFlag pretenure) {
-  DCHECK(0 <= size);
+  DCHECK_LE(0, size);
   AllocationResult allocation =
       isolate()->heap()->AllocateFixedArray(size, pretenure);
   Object* array = nullptr;
@@ -198,7 +198,7 @@ MaybeHandle<FixedArray> Factory::TryNewFixedArray(int size,
 
 Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
                                                    PretenureFlag pretenure) {
-  DCHECK(0 <= size);
+  DCHECK_LE(0, size);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateFixedArrayWithFiller(size,
@@ -254,7 +254,7 @@ Handle<BoilerplateDescription> Factory::NewBoilerplateDescription(
 
 Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int size,
                                                     PretenureFlag pretenure) {
-  DCHECK(0 <= size);
+  DCHECK_LE(0, size);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateUninitializedFixedDoubleArray(size, pretenure),
@@ -265,7 +265,7 @@ Handle<FixedArrayBase> Factory::NewFixedDoubleArray(int size,
 Handle<FixedArrayBase> Factory::NewFixedDoubleArrayWithHoles(
     int size,
     PretenureFlag pretenure) {
-  DCHECK(0 <= size);
+  DCHECK_LE(0, size);
   Handle<FixedArrayBase> array = NewFixedDoubleArray(size, pretenure);
   if (size > 0) {
     Handle<FixedDoubleArray>::cast(array)->FillWithHoles(0, size);
@@ -396,7 +396,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8(Vector<const char> string,
   decoder->Reset(string.start() + non_ascii_start,
                  length - non_ascii_start);
   int utf16_length = static_cast<int>(decoder->Utf16Length());
-  DCHECK(utf16_length > 0);
+  DCHECK_GT(utf16_length, 0);
   // Allocate string.
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -431,7 +431,7 @@ MaybeHandle<String> Factory::NewStringFromUtf8SubString(
       isolate()->unicode_cache()->utf8_decoder());
   decoder->Reset(start + non_ascii_start, length - non_ascii_start);
   int utf16_length = static_cast<int>(decoder->Utf16Length());
-  DCHECK(utf16_length > 0);
+  DCHECK_GT(utf16_length, 0);
   // Allocate string.
   Handle<SeqTwoByteString> result;
   ASSIGN_RETURN_ON_EXCEPTION(
@@ -596,7 +596,7 @@ MaybeHandle<SeqOneByteString> Factory::NewRawOneByteString(
   if (length > String::kMaxLength || length < 0) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqOneByteString);
   }
-  DCHECK(length > 0);  // Use Factory::empty_string() instead.
+  DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateRawOneByteString(length, pretenure),
@@ -609,7 +609,7 @@ MaybeHandle<SeqTwoByteString> Factory::NewRawTwoByteString(
   if (length > String::kMaxLength || length < 0) {
     THROW_NEW_ERROR(isolate(), NewInvalidStringLengthError(), SeqTwoByteString);
   }
-  DCHECK(length > 0);  // Use Factory::empty_string() instead.
+  DCHECK_GT(length, 0);  // Use Factory::empty_string() instead.
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateRawTwoByteString(length, pretenure),
@@ -633,7 +633,7 @@ Handle<String> Factory::LookupSingleCharacterStringFromCode(uint32_t code) {
     single_character_string_cache()->set(code, *result);
     return result;
   }
-  DCHECK(code <= String::kMaxUtf16CodeUnitU);
+  DCHECK_LE(code, String::kMaxUtf16CodeUnitU);
 
   Handle<SeqTwoByteString> result = NewRawTwoByteString(1).ToHandleChecked();
   result->SeqTwoByteStringSet(0, static_cast<uint16_t>(code));
@@ -1187,7 +1187,7 @@ Handle<Foreign> Factory::NewForeign(const AccessorDescriptor* desc) {
 
 
 Handle<ByteArray> Factory::NewByteArray(int length, PretenureFlag pretenure) {
-  DCHECK(0 <= length);
+  DCHECK_LE(0, length);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateByteArray(length, pretenure),
@@ -1198,7 +1198,7 @@ Handle<ByteArray> Factory::NewByteArray(int length, PretenureFlag pretenure) {
 Handle<BytecodeArray> Factory::NewBytecodeArray(
     int length, const byte* raw_bytecodes, int frame_size, int parameter_count,
     Handle<FixedArray> constant_pool) {
-  DCHECK(0 <= length);
+  DCHECK_LE(0, length);
   CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateBytecodeArray(
                                     length, raw_bytecodes, frame_size,
                                     parameter_count, *constant_pool),
@@ -1902,12 +1902,12 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
   // Make sure no field properties are described in the initial map.
   // This guarantees us that normalizing the properties does not
   // require us to change property values to PropertyCells.
-  DCHECK(map->NextFreePropertyIndex() == 0);
+  DCHECK_EQ(map->NextFreePropertyIndex(), 0);
 
   // Make sure we don't have a ton of pre-allocated slots in the
   // global objects. They will be unused once we normalize the object.
-  DCHECK(map->unused_property_fields() == 0);
-  DCHECK(map->GetInObjectProperties() == 0);
+  DCHECK_EQ(map->unused_property_fields(), 0);
+  DCHECK_EQ(map->GetInObjectProperties(), 0);
 
   // Initial size of the backing store to avoid resize of the storage during
   // bootstrapping. The size differs between the JS global object ad the
@@ -2320,7 +2320,7 @@ Handle<JSTypedArray> Factory::NewJSTypedArray(ExternalArrayType type,
   size_t element_size = GetExternalArrayElementSize(type);
   ElementsKind elements_kind = GetExternalArrayElementsKind(type);
 
-  CHECK(byte_offset % element_size == 0);
+  CHECK_EQ(byte_offset % element_size, 0);
 
   CHECK(length <= (std::numeric_limits<size_t>::max() / element_size));
   CHECK(length <= static_cast<size_t>(Smi::kMaxValue));

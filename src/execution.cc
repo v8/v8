@@ -20,7 +20,7 @@ namespace internal {
 StackGuard::StackGuard() : isolate_(nullptr) {}
 
 void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
-  DCHECK(isolate_ != nullptr);
+  DCHECK_NOT_NULL(isolate_);
   thread_local_.set_jslimit(kInterruptLimit);
   thread_local_.set_climit(kInterruptLimit);
   isolate_->heap()->SetStackLimits();
@@ -28,7 +28,7 @@ void StackGuard::set_interrupt_limits(const ExecutionAccess& lock) {
 
 
 void StackGuard::reset_limits(const ExecutionAccess& lock) {
-  DCHECK(isolate_ != nullptr);
+  DCHECK_NOT_NULL(isolate_);
   thread_local_.set_jslimit(thread_local_.real_jslimit_);
   thread_local_.set_climit(thread_local_.real_climit_);
   isolate_->heap()->SetStackLimits();
@@ -315,7 +315,7 @@ void StackGuard::PopPostponeInterruptsScope() {
   ExecutionAccess access(isolate_);
   PostponeInterruptsScope* top = thread_local_.postpone_interrupts_;
   // Make intercepted interrupts active.
-  DCHECK((thread_local_.interrupt_flags_ & top->intercept_mask_) == 0);
+  DCHECK_EQ(thread_local_.interrupt_flags_ & top->intercept_mask_, 0);
   thread_local_.interrupt_flags_ |= top->intercepted_flags_;
   if (has_pending_interrupts(access)) set_interrupt_limits(access);
   // Remove scope from chain.
@@ -415,7 +415,7 @@ bool StackGuard::ThreadLocal::Initialize(Isolate* isolate) {
   bool should_set_stack_limits = false;
   if (real_climit_ == kIllegalLimit) {
     const uintptr_t kLimitSize = FLAG_stack_size * KB;
-    DCHECK(GetCurrentStackPosition() > kLimitSize);
+    DCHECK_GT(GetCurrentStackPosition(), kLimitSize);
     uintptr_t limit = GetCurrentStackPosition() - kLimitSize;
     real_jslimit_ = SimulatorStack::JsLimitFromCLimit(isolate, limit);
     set_jslimit(SimulatorStack::JsLimitFromCLimit(isolate, limit));

@@ -465,7 +465,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   // Returns bytecode for |value|.
   static Bytecode FromByte(uint8_t value) {
     Bytecode bytecode = static_cast<Bytecode>(value);
-    DCHECK(bytecode <= Bytecode::kLast);
+    DCHECK_LE(bytecode, Bytecode::kLast);
     return bytecode;
   }
 
@@ -504,7 +504,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
 
   // Returns how accumulator is used by |bytecode|.
   static AccumulatorUse GetAccumulatorUse(Bytecode bytecode) {
-    DCHECK(bytecode <= Bytecode::kLast);
+    DCHECK_LE(bytecode, Bytecode::kLast);
     return kAccumulatorUse[static_cast<size_t>(bytecode)];
   }
 
@@ -680,7 +680,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
 
   // Returns the number of operands expected by |bytecode|.
   static int NumberOfOperands(Bytecode bytecode) {
-    DCHECK(bytecode <= Bytecode::kLast);
+    DCHECK_LE(bytecode, Bytecode::kLast);
     return kOperandCount[static_cast<size_t>(bytecode)];
   }
 
@@ -695,20 +695,20 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   // Returns a pointer to an array of operand types terminated in
   // OperandType::kNone.
   static const OperandType* GetOperandTypes(Bytecode bytecode) {
-    DCHECK(bytecode <= Bytecode::kLast);
+    DCHECK_LE(bytecode, Bytecode::kLast);
     return kOperandTypes[static_cast<size_t>(bytecode)];
   }
 
   static bool OperandIsScalableSignedByte(Bytecode bytecode,
                                           int operand_index) {
-    DCHECK(bytecode <= Bytecode::kLast);
+    DCHECK_LE(bytecode, Bytecode::kLast);
     return kOperandTypeInfos[static_cast<size_t>(bytecode)][operand_index] ==
            OperandTypeInfo::kScalableSignedByte;
   }
 
   static bool OperandIsScalableUnsignedByte(Bytecode bytecode,
                                             int operand_index) {
-    DCHECK(bytecode <= Bytecode::kLast);
+    DCHECK_LE(bytecode, Bytecode::kLast);
     return kOperandTypeInfos[static_cast<size_t>(bytecode)][operand_index] ==
            OperandTypeInfo::kScalableUnsignedByte;
   }
@@ -731,7 +731,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   // Returns the operand sizes of |bytecode| with scale |operand_scale|.
   static const OperandSize* GetOperandSizes(Bytecode bytecode,
                                             OperandScale operand_scale) {
-    DCHECK(bytecode <= Bytecode::kLast);
+    DCHECK_LE(bytecode, Bytecode::kLast);
     DCHECK_GE(operand_scale, OperandScale::kSingle);
     DCHECK_LE(operand_scale, OperandScale::kLast);
     STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
@@ -748,7 +748,7 @@ class V8_EXPORT_PRIVATE Bytecodes final {
   // Returns the size of the bytecode including its operands for the
   // given |operand_scale|.
   static int Size(Bytecode bytecode, OperandScale operand_scale) {
-    DCHECK(bytecode <= Bytecode::kLast);
+    DCHECK_LE(bytecode, Bytecode::kLast);
     STATIC_ASSERT(static_cast<int>(OperandScale::kQuadruple) == 4 &&
                   OperandScale::kLast == OperandScale::kQuadruple);
     int scale_index = static_cast<int>(operand_scale) >> 1;

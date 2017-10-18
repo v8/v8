@@ -458,7 +458,7 @@ void Operand::set_modrm(int mod, Register rm_reg) {
 
 
 void Operand::set_sib(ScaleFactor scale, Register index, Register base) {
-  DCHECK(len_ == 1);
+  DCHECK_EQ(len_, 1);
   DCHECK(is_uint2(scale));
   // Use SIB with no index register only for base rsp or r12. Otherwise we
   // would skip the SIB byte entirely.

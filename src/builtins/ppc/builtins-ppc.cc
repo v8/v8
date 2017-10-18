@@ -603,7 +603,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
   if (argc_is_tagged == kArgcIsSmiTagged) {
     __ SmiToPtrArrayOffset(r0, argc);
   } else {
-    DCHECK(argc_is_tagged == kArgcIsUntaggedInt);
+    DCHECK_EQ(argc_is_tagged, kArgcIsUntaggedInt);
     __ ShiftLeftImm(r0, argc, Operand(kPointerSizeLog2));
   }
   __ cmp(r5, r0);

@@ -204,7 +204,7 @@ SafeStackFrameIterator::SafeStackFrameIterator(
     type = ExitFrame::GetStateForFramePointer(Isolate::c_entry_fp(top), &state);
     top_frame_type_ = type;
   } else if (IsValidStackAddress(fp)) {
-    DCHECK(fp != nullptr);
+    DCHECK_NOT_NULL(fp);
     state.fp = fp;
     state.sp = sp;
     state.pc_address = StackFrame::ResolveReturnAddressLocation(
@@ -401,13 +401,13 @@ void StackFrame::IteratePc(RootVisitor* v, Address* pc_address,
 
 void StackFrame::SetReturnAddressLocationResolver(
     ReturnAddressLocationResolver resolver) {
-  DCHECK(return_address_location_resolver_ == nullptr);
+  DCHECK_NULL(return_address_location_resolver_);
   return_address_location_resolver_ = resolver;
 }
 
 StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
                                          State* state) {
-  DCHECK(state->fp != nullptr);
+  DCHECK_NOT_NULL(state->fp);
 
   MSAN_MEMORY_IS_INITIALIZED(
       state->fp + CommonFrameConstants::kContextOrFrameTypeOffset,
@@ -649,7 +649,7 @@ int BuiltinExitFrame::ComputeParametersCount() const {
   // Argc also counts the receiver, target, new target, and argc itself as args,
   // therefore the real argument count is argc - 4.
   int argc = Smi::ToInt(argc_slot) - 4;
-  DCHECK(argc >= 0);
+  DCHECK_GE(argc, 0);
   return argc;
 }
 
@@ -1435,7 +1435,7 @@ DeoptimizationInputData* OptimizedFrame::GetDeoptimizationData(
     code = isolate()->inner_pointer_to_code_cache()->
         GcSafeFindCodeForInnerPointer(pc());
   }
-  DCHECK(code != nullptr);
+  DCHECK_NOT_NULL(code);
   DCHECK(code->kind() == Code::OPTIMIZED_FUNCTION);
 
   SafepointEntry safepoint_entry = code->GetSafepointEntry(pc());
@@ -1636,7 +1636,7 @@ Address InternalFrame::GetCallerStackPointer() const {
 Code* InternalFrame::unchecked_code() const {
   const int offset = InternalFrameConstants::kCodeOffset;
   Object* code = Memory::Object_at(fp() + offset);
-  DCHECK(code != nullptr);
+  DCHECK_NOT_NULL(code);
   return reinterpret_cast<Code*>(code);
 }
 
@@ -1896,7 +1896,7 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   }
   while (context->IsWithContext()) {
     context = context->previous();
-    DCHECK(context != nullptr);
+    DCHECK_NOT_NULL(context);
   }
 
   // Print heap-allocated local variables.

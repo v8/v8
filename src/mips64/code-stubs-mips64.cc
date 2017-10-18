@@ -843,8 +843,8 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
       // Add the probe offset (i + i * i) left shifted to avoid right shifting
       // the hash in a separate instruction. The value hash + i + i * i is right
       // shifted in the following and instruction.
-      DCHECK(NameDictionary::GetProbeOffset(i) <
-             1 << (32 - Name::kHashFieldOffset));
+      DCHECK_LT(NameDictionary::GetProbeOffset(i),
+                1 << (32 - Name::kHashFieldOffset));
       __ Daddu(index, hash, Operand(
           NameDictionary::GetProbeOffset(i) << Name::kHashShift));
     } else {
@@ -1551,7 +1551,7 @@ static void CallApiFunctionAndReturn(
     __ Ld(cp, *context_restore_operand);
   }
   if (stack_space_offset != kInvalidStackOffset) {
-    DCHECK(kCArgsSlotsSize == 0);
+    DCHECK_EQ(kCArgsSlotsSize, 0);
     __ Ld(s0, MemOperand(sp, stack_space_offset));
   } else {
     __ li(s0, Operand(stack_space));
@@ -1746,7 +1746,7 @@ void CallApiGetterStub::Generate(MacroAssembler* masm) {
   __ Sd(scratch, MemOperand(sp, (PCA::kIsolateIndex + 1) * kPointerSize));
   __ Sd(holder, MemOperand(sp, (PCA::kHolderIndex + 1) * kPointerSize));
   // should_throw_on_error -> false
-  DCHECK(Smi::kZero == nullptr);
+  DCHECK_NULL(Smi::kZero);
   __ Sd(zero_reg,
         MemOperand(sp, (PCA::kShouldThrowOnErrorIndex + 1) * kPointerSize));
   __ Ld(scratch, FieldMemOperand(callback, AccessorInfo::kNameOffset));

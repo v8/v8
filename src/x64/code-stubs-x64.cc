@@ -755,13 +755,13 @@ RecordWriteStub::Mode RecordWriteStub::GetMode(Code* stub) {
     return INCREMENTAL;
   }
 
-  DCHECK(first_instruction == kTwoByteNopInstruction);
+  DCHECK_EQ(first_instruction, kTwoByteNopInstruction);
 
   if (second_instruction == kTwoByteJumpInstruction) {
     return INCREMENTAL_COMPACTION;
   }
 
-  DCHECK(second_instruction == kTwoByteNopInstruction);
+  DCHECK_EQ(second_instruction, kTwoByteNopInstruction);
 
   return STORE_BUFFER_ONLY;
 }

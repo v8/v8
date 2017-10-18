@@ -267,13 +267,13 @@ TF_STUB(StringAddStub, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
 
   if ((flags & STRING_ADD_CHECK_LEFT) != 0) {
-    DCHECK((flags & STRING_ADD_CONVERT) != 0);
+    DCHECK_NE(flags & STRING_ADD_CONVERT, 0);
     // TODO(danno): The ToString and JSReceiverToPrimitive below could be
     // combined to avoid duplicate smi and instance type checks.
     left = ToString(context, JSReceiverToPrimitive(context, left));
   }
   if ((flags & STRING_ADD_CHECK_RIGHT) != 0) {
-    DCHECK((flags & STRING_ADD_CONVERT) != 0);
+    DCHECK_NE(flags & STRING_ADD_CONVERT, 0);
     // TODO(danno): The ToString and JSReceiverToPrimitive below could be
     // combined to avoid duplicate smi and instance type checks.
     right = ToString(context, JSReceiverToPrimitive(context, right));
@@ -581,7 +581,7 @@ void ProfileEntryHookStub::EntryHookTrampoline(intptr_t function,
                                                intptr_t stack_pointer,
                                                Isolate* isolate) {
   FunctionEntryHook entry_hook = isolate->function_entry_hook();
-  DCHECK(entry_hook != nullptr);
+  DCHECK_NOT_NULL(entry_hook);
   entry_hook(function, stack_pointer);
 }
 

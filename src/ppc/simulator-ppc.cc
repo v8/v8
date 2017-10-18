@@ -639,8 +639,8 @@ void PPCDebugger::Debug() {
 
 
 static bool ICacheMatch(void* one, void* two) {
-  DCHECK((reinterpret_cast<intptr_t>(one) & CachePage::kPageMask) == 0);
-  DCHECK((reinterpret_cast<intptr_t>(two) & CachePage::kPageMask) == 0);
+  DCHECK_EQ(reinterpret_cast<intptr_t>(one) & CachePage::kPageMask, 0);
+  DCHECK_EQ(reinterpret_cast<intptr_t>(two) & CachePage::kPageMask, 0);
   return one == two;
 }
 
@@ -697,10 +697,10 @@ CachePage* Simulator::GetCachePage(base::CustomMatcherHashMap* i_cache,
 // Flush from start up to and not including start + size.
 void Simulator::FlushOnePage(base::CustomMatcherHashMap* i_cache,
                              intptr_t start, int size) {
-  DCHECK(size <= CachePage::kPageSize);
+  DCHECK_LE(size, CachePage::kPageSize);
   DCHECK(AllOnOnePage(start, size - 1));
-  DCHECK((start & CachePage::kLineMask) == 0);
-  DCHECK((size & CachePage::kLineMask) == 0);
+  DCHECK_EQ(start & CachePage::kLineMask, 0);
+  DCHECK_EQ(size & CachePage::kLineMask, 0);
   void* page = reinterpret_cast<void*>(start & (~CachePage::kPageMask));
   int offset = (start & CachePage::kPageMask);
   CachePage* cache_page = GetCachePage(i_cache, page);
@@ -905,7 +905,7 @@ void* Simulator::RedirectExternalReference(Isolate* isolate,
 Simulator* Simulator::current(Isolate* isolate) {
   v8::internal::Isolate::PerIsolateThreadData* isolate_data =
       isolate->FindOrAllocatePerThreadDataForThisThread();
-  DCHECK(isolate_data != nullptr);
+  DCHECK_NOT_NULL(isolate_data);
 
   Simulator* sim = isolate_data->simulator();
   if (sim == nullptr) {
@@ -1607,13 +1607,13 @@ bool Simulator::isStopInstruction(Instruction* instr) {
 
 
 bool Simulator::isWatchedStop(uint32_t code) {
-  DCHECK(code <= kMaxStopCode);
+  DCHECK_LE(code, kMaxStopCode);
   return code < kNumOfWatchedStops;
 }
 
 
 bool Simulator::isEnabledStop(uint32_t code) {
-  DCHECK(code <= kMaxStopCode);
+  DCHECK_LE(code, kMaxStopCode);
   // Unwatched stops are always enabled.
   return !isWatchedStop(code) ||
          !(watched_stops_[code].count & kStopDisabledBit);
@@ -1637,7 +1637,7 @@ void Simulator::DisableStop(uint32_t code) {
 
 
 void Simulator::IncreaseStopCounter(uint32_t code) {
-  DCHECK(code <= kMaxStopCode);
+  DCHECK_LE(code, kMaxStopCode);
   DCHECK(isWatchedStop(code));
   if ((watched_stops_[code].count & ~(1 << 31)) == 0x7fffffff) {
     PrintF(
@@ -1654,7 +1654,7 @@ void Simulator::IncreaseStopCounter(uint32_t code) {
 
 // Print a stop status.
 void Simulator::PrintStopInfo(uint32_t code) {
-  DCHECK(code <= kMaxStopCode);
+  DCHECK_LE(code, kMaxStopCode);
   if (!isWatchedStop(code)) {
     PrintF("Stop not watched.");
   } else {
@@ -2242,7 +2242,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       float* fptr = reinterpret_cast<float*>(&val);
       set_d_register_from_double(frt, static_cast<double>(*fptr));
       if (opcode == LFSUX) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + rb_val);
       }
       break;
@@ -2257,7 +2257,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int64_t* dptr = reinterpret_cast<int64_t*>(ReadDW(ra_val + rb_val));
       set_d_register(frt, *dptr);
       if (opcode == LFDUX) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + rb_val);
       }
       break;
@@ -2273,7 +2273,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         int32_t* p = reinterpret_cast<int32_t*>(&frs_val);
         WriteW(ra_val + rb_val, *p, instr);
         if (opcode == STFSUX) {
-          DCHECK(ra != 0);
+          DCHECK_NE(ra, 0);
           set_register(ra, ra_val + rb_val);
         }
         break;
@@ -2288,7 +2288,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         int64_t frs_val = get_d_register(frs);
         WriteDW(ra_val + rb_val, frs_val);
         if (opcode == STFDUX) {
-          DCHECK(ra != 0);
+          DCHECK_NE(ra, 0);
           set_register(ra, ra_val + rb_val);
         }
         break;
@@ -2340,7 +2340,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int offset = SIGN_EXT_IMM16(instr->Bits(15, 0));
       set_register(rt, ReadWU(ra_val + offset, instr));
       if (opcode == LWZU) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + offset);
       }
       break;
@@ -2354,7 +2354,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int offset = SIGN_EXT_IMM16(instr->Bits(15, 0));
       set_register(rt, ReadB(ra_val + offset) & 0xFF);
       if (opcode == LBZU) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + offset);
       }
       break;
@@ -2369,7 +2369,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int offset = SIGN_EXT_IMM16(instr->Bits(15, 0));
       WriteW(ra_val + offset, rs_val, instr);
       if (opcode == STWU) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + offset);
       }
       break;
@@ -3029,7 +3029,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       intptr_t rb_val = get_register(rb);
       WriteW(ra_val + rb_val, rs_val, instr);
       if (opcode == STWUX) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + rb_val);
       }
       break;
@@ -3044,7 +3044,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       intptr_t rb_val = get_register(rb);
       WriteB(ra_val + rb_val, rs_val);
       if (opcode == STBUX) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + rb_val);
       }
       break;
@@ -3059,7 +3059,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       intptr_t rb_val = get_register(rb);
       WriteH(ra_val + rb_val, rs_val, instr);
       if (opcode == STHUX) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + rb_val);
       }
       break;
@@ -3113,7 +3113,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       intptr_t rb_val = get_register(rb);
       WriteDW(ra_val + rb_val, rs_val);
       if (opcode == STDUX) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + rb_val);
       }
       break;
@@ -3209,7 +3209,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int offset = SIGN_EXT_IMM16(instr->Bits(15, 0));
       WriteB(ra_val + offset, rs_val);
       if (opcode == STBU) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + offset);
       }
       break;
@@ -3252,7 +3252,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int offset = SIGN_EXT_IMM16(instr->Bits(15, 0));
       WriteH(ra_val + offset, rs_val, instr);
       if (opcode == STHU) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + offset);
       }
       break;
@@ -3286,7 +3286,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       set_d_register_from_double(frt, static_cast<double>(*fptr));
 #endif
       if (opcode == LFSU) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + offset);
       }
       break;
@@ -3301,7 +3301,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int64_t* dptr = reinterpret_cast<int64_t*>(ReadDW(ra_val + offset));
       set_d_register(frt, *dptr);
       if (opcode == LFDU) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + offset);
       }
       break;
@@ -3331,7 +3331,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
 #endif
         WriteW(ra_val + offset, *p, instr);
         if (opcode == STFSU) {
-          DCHECK(ra != 0);
+          DCHECK_NE(ra, 0);
           set_register(ra, ra_val + offset);
         }
         break;
@@ -3346,7 +3346,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int64_t frs_val = get_d_register(frs);
       WriteDW(ra_val + offset, frs_val);
       if (opcode == STFDU) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + offset);
       }
       break;
@@ -3911,7 +3911,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         case 1: {  // ldu
           intptr_t* result = ReadDW(ra_val + offset);
           set_register(rt, *result);
-          DCHECK(ra != 0);
+          DCHECK_NE(ra, 0);
           set_register(ra, ra_val + offset);
           break;
         }
@@ -3933,7 +3933,7 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       int offset = SIGN_EXT_IMM16(instr->Bits(15, 0) & ~3);
       WriteDW(ra_val + offset, rs_val);
       if (opcode == STDU) {
-        DCHECK(ra != 0);
+        DCHECK_NE(ra, 0);
         set_register(ra, ra_val + offset);
       }
       break;

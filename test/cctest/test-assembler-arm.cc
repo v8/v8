@@ -1206,7 +1206,7 @@ TEST(14) {
 #ifdef DEBUG
   const uint64_t kArmNanInt64 =
       (static_cast<uint64_t>(kArmNanUpper32) << 32) | kArmNanLower32;
-  CHECK(kArmNanInt64 != kHoleNanInt64);
+  CHECK_NE(kArmNanInt64, kHoleNanInt64);
 #endif
   // With VFP2 the sign of the canonicalized Nan is undefined. So
   // we remove the sign bit for the upper tests.

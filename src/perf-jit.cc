@@ -388,7 +388,7 @@ void PerfJitLogger::LogWriteBytes(const char* bytes, int size) {
 }
 
 void PerfJitLogger::LogWriteHeader() {
-  DCHECK(perf_output_handle_ != nullptr);
+  DCHECK_NOT_NULL(perf_output_handle_);
   PerfJitHeader header;
 
   header.magic_ = PerfJitHeader::kMagic;

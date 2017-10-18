@@ -406,7 +406,7 @@ class Operand BASE_EMBEDDED {
   // Set the ModRM byte without an encoded 'reg' register. The
   // register is encoded later as part of the emit_operand operation.
   inline void set_modrm(int mod, Register rm) {
-    DCHECK((mod & -4) == 0);
+    DCHECK_EQ(mod & -4, 0);
     buf_[0] = mod << 6 | rm.code();
     len_ = 1;
   }

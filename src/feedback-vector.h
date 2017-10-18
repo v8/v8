@@ -379,7 +379,7 @@ class StaticFeedbackVectorSpec
   friend class FeedbackVectorSpecBase<StaticFeedbackVectorSpec>;
 
   void append(FeedbackSlotKind kind) {
-    DCHECK(slot_count_ < kMaxLength);
+    DCHECK_LT(slot_count_, kMaxLength);
     kinds_[slot_count_++] = kind;
   }
 
@@ -541,7 +541,7 @@ class FeedbackNexus {
   virtual ~FeedbackNexus() {}
 
   Handle<FeedbackVector> vector_handle() const {
-    DCHECK(vector_ == nullptr);
+    DCHECK_NULL(vector_);
     return vector_handle_;
   }
   FeedbackVector* vector() const {

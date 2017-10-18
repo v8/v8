@@ -2205,7 +2205,7 @@ class Simulator : public DecoderVisitor {
   // functions, or to save and restore it when entering and leaving generated
   // code.
   void AssertSupportedFPCR() {
-    DCHECK(fpcr().FZ() == 0);             // No flush-to-zero support.
+    DCHECK_EQ(fpcr().FZ(), 0);            // No flush-to-zero support.
     DCHECK(fpcr().RMode() == FPTieEven);  // Ties-to-even rounding only.
 
     // The simulator does not support half-precision operations so fpcr().AHP()

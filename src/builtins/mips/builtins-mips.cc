@@ -471,7 +471,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
   if (argc_is_tagged == kArgcIsSmiTagged) {
     __ sll(t3, argc, kPointerSizeLog2 - kSmiTagSize);
   } else {
-    DCHECK(argc_is_tagged == kArgcIsUntaggedInt);
+    DCHECK_EQ(argc_is_tagged, kArgcIsUntaggedInt);
     __ sll(t3, argc, kPointerSizeLog2);
   }
   // Signed comparison.

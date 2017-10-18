@@ -44,7 +44,7 @@ void HeapProfiler::RemoveSnapshot(HeapSnapshot* snapshot) {
 
 void HeapProfiler::DefineWrapperClass(
     uint16_t class_id, v8::HeapProfiler::WrapperInfoCallback callback) {
-  DCHECK(class_id != v8::HeapProfiler::kPersistentHandleNoClassId);
+  DCHECK_NE(class_id, v8::HeapProfiler::kPersistentHandleNoClassId);
   if (wrapper_callbacks_.size() <= class_id) {
     wrapper_callbacks_.insert(wrapper_callbacks_.end(),
                               class_id - wrapper_callbacks_.size() + 1,
@@ -189,7 +189,7 @@ Handle<HeapObject> HeapProfiler::FindHeapObjectById(SnapshotObjectId id) {
   for (HeapObject* obj = iterator.next(); obj != nullptr;
        obj = iterator.next()) {
     if (ids_->FindEntry(obj->address()) == id) {
-      DCHECK(object == nullptr);
+      DCHECK_NULL(object);
       object = obj;
       // Can't break -- kFilterUnreachable requires full heap traversal.
     }

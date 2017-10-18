@@ -1105,7 +1105,7 @@ RUNTIME_FUNCTION(Runtime_SetScriptBreakPoint) {
   CHECK(isolate->debug()->is_active());
   CONVERT_ARG_HANDLE_CHECKED(JSValue, wrapper, 0);
   CONVERT_NUMBER_CHECKED(int32_t, source_position, Int32, args[1]);
-  CHECK(source_position >= 0);
+  CHECK_GE(source_position, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, break_point_object_arg, 2);
 
   // Get the script from the script wrapper.
@@ -1299,7 +1299,7 @@ RUNTIME_FUNCTION(Runtime_DebugReferencedBy) {
   CONVERT_ARG_HANDLE_CHECKED(Object, filter, 1);
   CHECK(filter->IsUndefined(isolate) || filter->IsJSObject());
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[2]);
-  CHECK(max_references >= 0);
+  CHECK_GE(max_references, 0);
 
   std::vector<Handle<JSObject>> instances;
   Heap* heap = isolate->heap();
@@ -1355,7 +1355,7 @@ RUNTIME_FUNCTION(Runtime_DebugConstructedBy) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSFunction, constructor, 0);
   CONVERT_NUMBER_CHECKED(int32_t, max_references, Int32, args[1]);
-  CHECK(max_references >= 0);
+  CHECK_GE(max_references, 0);
 
   std::vector<Handle<JSObject>> instances;
   Heap* heap = isolate->heap();

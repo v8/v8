@@ -784,8 +784,8 @@ void MipsDebugger::Debug() {
 
 
 static bool ICacheMatch(void* one, void* two) {
-  DCHECK((reinterpret_cast<intptr_t>(one) & CachePage::kPageMask) == 0);
-  DCHECK((reinterpret_cast<intptr_t>(two) & CachePage::kPageMask) == 0);
+  DCHECK_EQ(reinterpret_cast<intptr_t>(one) & CachePage::kPageMask, 0);
+  DCHECK_EQ(reinterpret_cast<intptr_t>(two) & CachePage::kPageMask, 0);
   return one == two;
 }
 
@@ -843,10 +843,10 @@ CachePage* Simulator::GetCachePage(base::CustomMatcherHashMap* i_cache,
 // Flush from start up to and not including start + size.
 void Simulator::FlushOnePage(base::CustomMatcherHashMap* i_cache,
                              intptr_t start, int size) {
-  DCHECK(size <= CachePage::kPageSize);
+  DCHECK_LE(size, CachePage::kPageSize);
   DCHECK(AllOnOnePage(start, size - 1));
-  DCHECK((start & CachePage::kLineMask) == 0);
-  DCHECK((size & CachePage::kLineMask) == 0);
+  DCHECK_EQ(start & CachePage::kLineMask, 0);
+  DCHECK_EQ(size & CachePage::kLineMask, 0);
   void* page = reinterpret_cast<void*>(start & (~CachePage::kPageMask));
   int offset = (start & CachePage::kPageMask);
   CachePage* cache_page = GetCachePage(i_cache, page);
@@ -1029,8 +1029,8 @@ void* Simulator::RedirectExternalReference(Isolate* isolate,
 Simulator* Simulator::current(Isolate* isolate) {
   v8::internal::Isolate::PerIsolateThreadData* isolate_data =
        isolate->FindOrAllocatePerThreadDataForThisThread();
-  DCHECK(isolate_data != nullptr);
-  DCHECK(isolate_data != nullptr);
+  DCHECK_NOT_NULL(isolate_data);
+  DCHECK_NOT_NULL(isolate_data);
 
   Simulator* sim = isolate_data->simulator();
   if (sim == nullptr) {
@@ -2577,8 +2577,8 @@ bool Simulator::IsStopInstruction(Instruction* instr) {
 
 
 bool Simulator::IsEnabledStop(uint32_t code) {
-  DCHECK(code <= kMaxStopCode);
-  DCHECK(code > kMaxWatchpointCode);
+  DCHECK_LE(code, kMaxStopCode);
+  DCHECK_GT(code, kMaxWatchpointCode);
   return !(watched_stops_[code].count & kStopDisabledBit);
 }
 
@@ -2598,7 +2598,7 @@ void Simulator::DisableStop(uint32_t code) {
 
 
 void Simulator::IncreaseStopCounter(uint32_t code) {
-  DCHECK(code <= kMaxStopCode);
+  DCHECK_LE(code, kMaxStopCode);
   if ((watched_stops_[code].count & ~(1 << 31)) == 0x7fffffff) {
     PrintF("Stop counter for code %i has overflowed.\n"
            "Enabling this code and reseting the counter to 0.\n", code);
@@ -3150,7 +3150,7 @@ void Simulator::DecodeTypeRegisterDRsType() {
                (posInf << 6) | (negZero << 5) | (negSubnorm << 4) |
                (negNorm << 3) | (negInf << 2) | (quietNan << 1) | signalingNan;
 
-      DCHECK(result != 0);
+      DCHECK_NE(result, 0);
 
       dResult = bit_cast<double>(result);
       SetFPUDoubleResult(fd_reg(), dResult);
@@ -3465,7 +3465,7 @@ void Simulator::DecodeTypeRegisterSRsType() {
                (posInf << 6) | (negZero << 5) | (negSubnorm << 4) |
                (negNorm << 3) | (negInf << 2) | (quietNan << 1) | signalingNan;
 
-      DCHECK(result != 0);
+      DCHECK_NE(result, 0);
 
       fResult = bit_cast<float>(result);
       SetFPUFloatResult(fd_reg(), fResult);
@@ -3770,7 +3770,7 @@ void Simulator::DecodeTypeRegisterCOP1() {
   switch (instr_.RsFieldRaw()) {
     case CFC1:
       // At the moment only FCSR is supported.
-      DCHECK(fs_reg() == kFCSRRegister);
+      DCHECK_EQ(fs_reg(), kFCSRRegister);
       SetResult(rt_reg(), FCSR_);
       break;
     case MFC1:
@@ -3785,7 +3785,7 @@ void Simulator::DecodeTypeRegisterCOP1() {
       break;
     case CTC1: {
       // At the moment only FCSR is supported.
-      DCHECK(fs_reg() == kFCSRRegister);
+      DCHECK_EQ(fs_reg(), kFCSRRegister);
       int32_t reg = registers_[rt_reg()];
       if (IsMipsArchVariant(kMips32r6)) {
         FCSR_ = reg | kFCSRNaN2008FlagMask;
@@ -3972,12 +3972,12 @@ void Simulator::DecodeTypeRegisterSPECIAL() {
     }
     case MFHI:  // MFHI == CLZ on R6.
       if (!IsMipsArchVariant(kMips32r6)) {
-        DCHECK(sa() == 0);
+        DCHECK_EQ(sa(), 0);
         alu_out = get_register(HI);
       } else {
         // MIPS spec: If no bits were set in GPR rs, the result written to
         // GPR rd is 32.
-        DCHECK(sa() == 1);
+        DCHECK_EQ(sa(), 1);
         alu_out = base::bits::CountLeadingZeros32(rs_u());
       }
       SetResult(rd_reg(), static_cast<int32_t>(alu_out));
@@ -4659,12 +4659,12 @@ void Simulator::DecodeTypeMsaELM() {
   int32_t alu_out;
   switch (opcode) {
     case CTCMSA:
-      DCHECK(sa() == kMSACSRRegister);
+      DCHECK_EQ(sa(), kMSACSRRegister);
       MSACSR_ = bit_cast<uint32_t>(registers_[rd_reg()]);
       TraceRegWr(static_cast<int32_t>(MSACSR_));
       break;
     case CFCMSA:
-      DCHECK(rd_reg() == kMSACSRRegister);
+      DCHECK_EQ(rd_reg(), kMSACSRRegister);
       SetResult(sa(), bit_cast<int32_t>(MSACSR_));
       break;
     case MOVE_V:
@@ -4678,7 +4678,7 @@ void Simulator::DecodeTypeMsaELM() {
           msa_reg_t ws;
           switch (DecodeMsaDataFormat()) {
             case MSA_BYTE: {
-              DCHECK(n < kMSALanesByte);
+              DCHECK_LT(n, kMSALanesByte);
               get_msa_register(instr_.WsValue(), ws.b);
               alu_out = static_cast<int32_t>(ws.b[n]);
               SetResult(wd_reg(),
@@ -4686,7 +4686,7 @@ void Simulator::DecodeTypeMsaELM() {
               break;
             }
             case MSA_HALF: {
-              DCHECK(n < kMSALanesHalf);
+              DCHECK_LT(n, kMSALanesHalf);
               get_msa_register(instr_.WsValue(), ws.h);
               alu_out = static_cast<int32_t>(ws.h[n]);
               SetResult(wd_reg(),
@@ -4694,7 +4694,7 @@ void Simulator::DecodeTypeMsaELM() {
               break;
             }
             case MSA_WORD: {
-              DCHECK(n < kMSALanesWord);
+              DCHECK_LT(n, kMSALanesWord);
               get_msa_register(instr_.WsValue(), ws.w);
               alu_out = static_cast<int32_t>(ws.w[n]);
               SetResult(wd_reg(), alu_out);
@@ -4708,7 +4708,7 @@ void Simulator::DecodeTypeMsaELM() {
           msa_reg_t wd;
           switch (DecodeMsaDataFormat()) {
             case MSA_BYTE: {
-              DCHECK(n < kMSALanesByte);
+              DCHECK_LT(n, kMSALanesByte);
               int32_t rs = get_register(instr_.WsValue());
               get_msa_register(instr_.WdValue(), wd.b);
               wd.b[n] = rs & 0xFFu;
@@ -4717,7 +4717,7 @@ void Simulator::DecodeTypeMsaELM() {
               break;
             }
             case MSA_HALF: {
-              DCHECK(n < kMSALanesHalf);
+              DCHECK_LT(n, kMSALanesHalf);
               int32_t rs = get_register(instr_.WsValue());
               get_msa_register(instr_.WdValue(), wd.h);
               wd.h[n] = rs & 0xFFFFu;
@@ -4726,7 +4726,7 @@ void Simulator::DecodeTypeMsaELM() {
               break;
             }
             case MSA_WORD: {
-              DCHECK(n < kMSALanesWord);
+              DCHECK_LT(n, kMSALanesWord);
               int32_t rs = get_register(instr_.WsValue());
               get_msa_register(instr_.WdValue(), wd.w);
               wd.w[n] = rs;
@@ -6881,7 +6881,7 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   // Set up arguments.
 
   // First four arguments passed in registers.
-  DCHECK(argument_count >= 4);
+  DCHECK_GE(argument_count, 4);
   set_register(a0, va_arg(parameters, int32_t));
   set_register(a1, va_arg(parameters, int32_t));
   set_register(a2, va_arg(parameters, int32_t));

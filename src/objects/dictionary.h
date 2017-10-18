@@ -92,7 +92,7 @@ class BaseDictionaryShape : public BaseShape<Key> {
   template <typename Dictionary>
   static inline PropertyDetails DetailsAt(Dictionary* dict, int entry) {
     STATIC_ASSERT(Dictionary::kEntrySize == 3);
-    DCHECK(entry >= 0);  // Not found is -1, which is not caught by get().
+    DCHECK_GE(entry, 0);  // Not found is -1, which is not caught by get().
     return PropertyDetails(Smi::cast(dict->get(
         Dictionary::EntryToIndex(entry) + Dictionary::kEntryDetailsIndex)));
   }

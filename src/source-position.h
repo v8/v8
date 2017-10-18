@@ -54,12 +54,12 @@ class SourcePosition final {
 
   void SetScriptOffset(int script_offset) {
     DCHECK(script_offset <= ScriptOffsetField::kMax - 2);
-    DCHECK(script_offset >= kNoSourcePosition);
+    DCHECK_GE(script_offset, kNoSourcePosition);
     value_ = ScriptOffsetField::update(value_, script_offset + 1);
   }
   void SetInliningId(int inlining_id) {
     DCHECK(inlining_id <= InliningIdField::kMax - 2);
-    DCHECK(inlining_id >= kNotInlined);
+    DCHECK_GE(inlining_id, kNotInlined);
     value_ = InliningIdField::update(value_, inlining_id + 1);
   }
 

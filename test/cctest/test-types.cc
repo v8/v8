@@ -100,9 +100,8 @@ struct Tests {
   void IsSomeType() {
     for (TypeIterator it = T.types.begin(); it != T.types.end(); ++it) {
       Type* t = *it;
-      CHECK(1 ==
-            this->IsBitset(t) + t->IsHeapConstant() + t->IsRange() +
-                t->IsOtherNumberConstant() + this->IsUnion(t));
+      CHECK_EQ(1, this->IsBitset(t) + t->IsHeapConstant() + t->IsRange() +
+                      t->IsOtherNumberConstant() + this->IsUnion(t));
     }
   }
 

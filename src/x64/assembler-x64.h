@@ -501,7 +501,7 @@ class Assembler : public AssemblerBase {
     if (kPointerSize == kInt64Size) {
       return RelocInfo::NONE64;
     } else {
-      DCHECK(kPointerSize == kInt32Size);
+      DCHECK_EQ(kPointerSize, kInt32Size);
       return RelocInfo::NONE32;
     }
   }
@@ -2069,7 +2069,7 @@ class Assembler : public AssemblerBase {
     if (size == kInt64Size) {
       emit_rex_64();
     } else {
-      DCHECK(size == kInt32Size);
+      DCHECK_EQ(size, kInt32Size);
     }
   }
 
@@ -2078,7 +2078,7 @@ class Assembler : public AssemblerBase {
     if (size == kInt64Size) {
       emit_rex_64(p1);
     } else {
-      DCHECK(size == kInt32Size);
+      DCHECK_EQ(size, kInt32Size);
       emit_optional_rex_32(p1);
     }
   }
@@ -2088,7 +2088,7 @@ class Assembler : public AssemblerBase {
     if (size == kInt64Size) {
       emit_rex_64(p1, p2);
     } else {
-      DCHECK(size == kInt32Size);
+      DCHECK_EQ(size, kInt32Size);
       emit_optional_rex_32(p1, p2);
     }
   }

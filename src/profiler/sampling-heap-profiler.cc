@@ -119,7 +119,7 @@ void SamplingHeapProfiler::OnWeakCallback(
     const WeakCallbackInfo<Sample>& data) {
   Sample* sample = data.GetParameter();
   AllocationNode* node = sample->owner;
-  DCHECK(node->allocations_[sample->size] > 0);
+  DCHECK_GT(node->allocations_[sample->size], 0);
   node->allocations_[sample->size]--;
   if (node->allocations_[sample->size] == 0) {
     node->allocations_.erase(sample->size);
@@ -144,7 +144,7 @@ SamplingHeapProfiler::AllocationNode::FindOrAddChildNode(const char* name,
   FunctionId id = function_id(script_id, start_position, name);
   auto it = children_.find(id);
   if (it != children_.end()) {
-    DCHECK(strcmp(it->second->name_, name) == 0);
+    DCHECK_EQ(strcmp(it->second->name_, name), 0);
     return it->second;
   }
   auto child = new AllocationNode(this, name, script_id, start_position);

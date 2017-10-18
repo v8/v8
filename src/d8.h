@@ -69,7 +69,7 @@ class CounterMap {
   void Set(const char* name, Counter* value) {
     base::HashMap::Entry* answer =
         hash_map_.LookupOrInsert(const_cast<char*>(name), Hash(name));
-    DCHECK(answer != nullptr);
+    DCHECK_NOT_NULL(answer);
     answer->value = value;
   }
   class Iterator {

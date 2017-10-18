@@ -287,12 +287,12 @@ class CpuFeatures : public AllStatic {
   static inline bool SupportsWasmSimd128();
 
   static inline unsigned icache_line_size() {
-    DCHECK(icache_line_size_ != 0);
+    DCHECK_NE(icache_line_size_, 0);
     return icache_line_size_;
   }
 
   static inline unsigned dcache_line_size() {
-    DCHECK(dcache_line_size_ != 0);
+    DCHECK_NE(dcache_line_size_, 0);
     return dcache_line_size_;
   }
 
@@ -1096,11 +1096,11 @@ class ConstantPoolEntry {
     DCHECK(is_merged());
   }
   int offset(void) const {
-    DCHECK(merged_index_ >= 0);
+    DCHECK_GE(merged_index_, 0);
     return merged_index_;
   }
   void set_offset(int offset) {
-    DCHECK(offset >= 0);
+    DCHECK_GE(offset, 0);
     merged_index_ = offset;
   }
   intptr_t value() const { return value_; }

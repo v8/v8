@@ -121,7 +121,7 @@ Node* IntrinsicsGenerator::CompareInstanceType(Node* object, int type,
   if (mode == kInstanceTypeEqual) {
     return __ Word32Equal(instance_type, __ Int32Constant(type));
   } else {
-    DCHECK(mode == kInstanceTypeGreaterThanOrEqual);
+    DCHECK_EQ(mode, kInstanceTypeGreaterThanOrEqual);
     return __ Int32GreaterThanOrEqual(instance_type, __ Int32Constant(type));
   }
 }

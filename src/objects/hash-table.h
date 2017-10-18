@@ -225,8 +225,8 @@ class HashTable : public HashTableBase {
     // To scale a computed hash code to fit within the hash table, we
     // use bit-wise AND with a mask, so the capacity must be positive
     // and non-zero.
-    DCHECK(capacity > 0);
-    DCHECK(capacity <= kMaxCapacity);
+    DCHECK_GT(capacity, 0);
+    DCHECK_LE(capacity, kMaxCapacity);
     set(kCapacityIndex, Smi::FromInt(capacity));
   }
 

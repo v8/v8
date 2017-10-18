@@ -79,7 +79,7 @@ class FieldIndex final {
   FieldIndex(bool is_inobject, int local_index, bool is_double,
              int inobject_properties, int first_inobject_property_offset,
              bool is_hidden = false) {
-    DCHECK((first_inobject_property_offset & (kPointerSize - 1)) == 0);
+    DCHECK_EQ(first_inobject_property_offset & (kPointerSize - 1), 0);
     bit_field_ = IsInObjectBits::encode(is_inobject) |
       IsDoubleBits::encode(is_double) |
       FirstInobjectPropertyOffsetBits::encode(first_inobject_property_offset) |

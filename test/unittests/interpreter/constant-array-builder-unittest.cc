@@ -119,7 +119,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
                                 isolate()->heap()->HashSeed());
     for (size_t i = 0; i < reserved; i++) {
       OperandSize operand_size = builder.CreateReservedEntry();
-      CHECK(operand_size == OperandSize::kByte);
+      CHECK_EQ(operand_size, OperandSize::kByte);
     }
     for (size_t i = 0; i < 2 * k8BitCapacity; i++) {
       builder.CommitReservedEntry(builder.CreateReservedEntry(),
@@ -147,7 +147,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithIdx8Reservations) {
     // Now make reservations, and commit them with unique entries.
     for (size_t i = 0; i < duplicates_in_idx8_space; i++) {
       OperandSize operand_size = builder.CreateReservedEntry();
-      CHECK(operand_size == OperandSize::kByte);
+      CHECK_EQ(operand_size, OperandSize::kByte);
     }
     for (size_t i = 0; i < duplicates_in_idx8_space; i++) {
       Smi* value = Smi::FromInt(static_cast<int>(2 * k8BitCapacity + i));
@@ -192,7 +192,7 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
     }
     for (size_t i = 0; i < reserved; i++) {
       OperandSize operand_size = builder.CreateReservedEntry();
-      CHECK(operand_size == OperandSize::kShort);
+      CHECK_EQ(operand_size, OperandSize::kShort);
       CHECK_EQ(builder.size(), k8BitCapacity);
     }
     for (size_t i = 0; i < reserved; i++) {
@@ -201,14 +201,14 @@ TEST_F(ConstantArrayBuilderTest, AllocateEntriesWithWideReservations) {
     }
     for (size_t i = 0; i < reserved; i++) {
       OperandSize operand_size = builder.CreateReservedEntry();
-      CHECK(operand_size == OperandSize::kShort);
+      CHECK_EQ(operand_size, OperandSize::kShort);
       builder.CommitReservedEntry(operand_size,
                                   Smi::FromInt(static_cast<int>(i)));
       CHECK_EQ(builder.size(), k8BitCapacity);
     }
     for (size_t i = k8BitCapacity; i < k8BitCapacity + reserved; i++) {
       OperandSize operand_size = builder.CreateReservedEntry();
-      CHECK(operand_size == OperandSize::kShort);
+      CHECK_EQ(operand_size, OperandSize::kShort);
       builder.CommitReservedEntry(operand_size,
                                   Smi::FromInt(static_cast<int>(i)));
       CHECK_EQ(builder.size(), i + 1);
@@ -232,7 +232,7 @@ TEST_F(ConstantArrayBuilderTest, GapFilledWhenLowReservationCommitted) {
                               isolate()->heap()->HashSeed());
   for (size_t i = 0; i < k8BitCapacity; i++) {
     OperandSize operand_size = builder.CreateReservedEntry();
-    CHECK(OperandSize::kByte == operand_size);
+    CHECK_EQ(OperandSize::kByte, operand_size);
     CHECK_EQ(builder.size(), 0u);
   }
   for (size_t i = 0; i < k8BitCapacity; i++) {
@@ -264,7 +264,7 @@ TEST_F(ConstantArrayBuilderTest, GapNotFilledWhenLowReservationDiscarded) {
                               isolate()->heap()->HashSeed());
   for (size_t i = 0; i < k8BitCapacity; i++) {
     OperandSize operand_size = builder.CreateReservedEntry();
-    CHECK(OperandSize::kByte == operand_size);
+    CHECK_EQ(OperandSize::kByte, operand_size);
     CHECK_EQ(builder.size(), 0u);
   }
   const AstValue* ast_values[k8BitCapacity];

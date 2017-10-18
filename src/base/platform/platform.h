@@ -62,7 +62,7 @@ inline intptr_t InternalGetExistingThreadLocal(intptr_t index) {
                                                kPointerSize * index));
   }
   intptr_t extra = static_cast<intptr_t>(__readfsdword(kTibExtraTlsOffset));
-  DCHECK(extra != 0);
+  DCHECK_NE(extra, 0);
   return *reinterpret_cast<intptr_t*>(extra +
                                       kPointerSize * (index - kMaxInlineSlots));
 }

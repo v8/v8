@@ -43,7 +43,7 @@ SafepointTable::SafepointTable(Code* code) {
   entry_size_ = Memory::uint32_at(header + kEntrySizeOffset);
   pc_and_deoptimization_indexes_ = header + kHeaderSize;
   entries_ = pc_and_deoptimization_indexes_ + (length_ * kFixedEntrySize);
-  DCHECK(entry_size_ > 0);
+  DCHECK_GT(entry_size_, 0);
   STATIC_ASSERT(SafepointEntry::DeoptimizationIndexField::kMax ==
                 Safepoint::kNoDeoptimizationIndex);
 }
@@ -124,7 +124,7 @@ Safepoint SafepointTableBuilder::DefineSafepoint(
     Safepoint::Kind kind,
     int arguments,
     Safepoint::DeoptMode deopt_mode) {
-  DCHECK(arguments >= 0);
+  DCHECK_GE(arguments, 0);
   DeoptimizationInfo info;
   info.pc = assembler->pc_offset();
   info.arguments = arguments;
@@ -164,7 +164,7 @@ int SafepointTableBuilder::UpdateDeoptimizationInfo(int pc, int trampoline,
       break;
     }
   }
-  CHECK(index >= 0);
+  CHECK_GE(index, 0);
   DCHECK(index < deoptimization_info_.length());
   deoptimization_info_[index].trampoline = trampoline;
   return index;
