@@ -214,6 +214,7 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
   }
 
   void Generate() final {
+    ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
     if (mode_ > RecordWriteMode::kValueIsPointer) {
       __ JumpIfSmi(value_, exit());
     }
@@ -241,7 +242,6 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                            save_fp_mode);
 #else
     if (must_save_lr_ && FLAG_enable_embedded_constant_pool) {
-      ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
       __ CallStubDelayed(
           new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
                                       remembered_set_action, save_fp_mode));
