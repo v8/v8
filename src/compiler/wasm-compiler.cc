@@ -3221,6 +3221,10 @@ Node* WasmGraphBuilder::LoadMemSize() {
           static_cast<int32_t>(offsetof(WasmContext, mem_size))),
       *effect_, *control_);
   *effect_ = mem_size;
+  if (jsgraph()->machine()->Is64()) {
+    mem_size = graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(),
+                                mem_size);
+  }
   return mem_size;
 }
 
@@ -3235,8 +3239,13 @@ Node* WasmGraphBuilder::CurrentMemoryPages() {
   // CurrentMemoryPages can not be called from asm.js.
   DCHECK_EQ(wasm::kWasmOrigin, env_->module->origin());
   DCHECK_NOT_NULL(*mem_size_);
+  Node* mem_size = *mem_size_;
+  if (jsgraph()->machine()->Is64()) {
+    mem_size = graph()->NewNode(jsgraph()->machine()->TruncateInt64ToInt32(),
+                                mem_size);
+  }
   return graph()->NewNode(
-      jsgraph()->machine()->Word32Shr(), *mem_size_,
+      jsgraph()->machine()->Word32Shr(), mem_size,
       jsgraph()->Int32Constant(WhichPowerOf2(wasm::WasmModule::kPageSize)));
 }
 
@@ -3397,15 +3406,21 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
     // The end offset is larger than the smallest memory.
     // Dynamically check the end offset against the actual memory size, which
     // is not known at compile time.
-    Node* cond = graph()->NewNode(
-        jsgraph()->machine()->Uint32LessThanOrEqual(),
-        jsgraph()->IntPtrConstant(static_cast<uintptr_t>(end_offset)),
-        *mem_size_);
+    Node* cond;
+    if (jsgraph()->machine()->Is32()) {
+      cond = graph()->NewNode(jsgraph()->machine()->Uint32LessThanOrEqual(),
+                              jsgraph()->Int32Constant(end_offset), *mem_size_);
+    } else {
+      cond = graph()->NewNode(
+          jsgraph()->machine()->Uint64LessThanOrEqual(),
+          jsgraph()->Int64Constant(static_cast<int64_t>(end_offset)),
+          *mem_size_);
+    }
     TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
   } else {
     // The end offset is within the bounds of the smallest memory, so only
     // one check is required. Check to see if the index is also a constant.
-    Uint32Matcher m(index);
+    UintPtrMatcher m(index);
     if (m.HasValue()) {
       uint64_t index_val = m.Value();
       if ((index_val + offset + access_size) <= min_size) {
@@ -3416,12 +3431,22 @@ void WasmGraphBuilder::BoundsCheckMem(MachineType memtype, Node* index,
     }
   }
 
-  Node* effective_size =
-      graph()->NewNode(jsgraph()->machine()->Int32Sub(), *mem_size_,
-                       jsgraph()->Int32Constant(end_offset - 1));
+  Node* effective_size;
+  if (jsgraph()->machine()->Is32()) {
+    effective_size =
+        graph()->NewNode(jsgraph()->machine()->Int32Sub(), *mem_size_,
+                         jsgraph()->Int32Constant(end_offset - 1));
+  } else {
+    effective_size = graph()->NewNode(
+        jsgraph()->machine()->Int64Sub(), *mem_size_,
+        jsgraph()->Int64Constant(static_cast<int64_t>(end_offset - 1)));
+  }
 
-  Node* cond = graph()->NewNode(jsgraph()->machine()->Uint32LessThan(), index,
-                                effective_size);
+  const Operator* less = jsgraph()->machine()->Is32()
+                             ? jsgraph()->machine()->Uint32LessThan()
+                             : jsgraph()->machine()->Uint64LessThan();
+
+  Node* cond = graph()->NewNode(less, index, effective_size);
   TrapIfFalse(wasm::kTrapMemOutOfBounds, cond, position);
 }
 
@@ -3475,6 +3500,10 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
                                 wasm::WasmCodePosition position) {
   Node* load;
 
+  if (jsgraph()->machine()->Is64()) {
+    index =
+        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
+  }
   // Wasm semantics throw on OOB. Introduce explicit bounds check.
   if (!FLAG_wasm_trap_handler || !V8_TRAP_HANDLER_SUPPORTED) {
     BoundsCheckMem(memtype, index, offset, position);
@@ -3530,6 +3559,10 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
                                  wasm::ValueType type) {
   Node* store;
 
+  if (jsgraph()->machine()->Is64()) {
+    index =
+        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
+  }
   // Wasm semantics throw on OOB. Introduce explicit bounds check.
   if (!FLAG_wasm_trap_handler || !V8_TRAP_HANDLER_SUPPORTED) {
     BoundsCheckMem(memtype, index, offset, position);
@@ -3576,6 +3609,10 @@ Node* WasmGraphBuilder::BuildAsmjsLoadMem(MachineType type, Node* index) {
   // asm.js semantics use CheckedLoad (i.e. OOB reads return 0ish).
   DCHECK_NOT_NULL(*mem_size_);
   DCHECK_NOT_NULL(*mem_start_);
+  if (jsgraph()->machine()->Is64()) {
+    index =
+        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
+  }
   const Operator* op = jsgraph()->machine()->CheckedLoad(type);
   Node* load =
       graph()->NewNode(op, *mem_start_, index, *mem_size_, *effect_, *control_);
@@ -3589,6 +3626,10 @@ Node* WasmGraphBuilder::BuildAsmjsStoreMem(MachineType type, Node* index,
   // asm.js semantics use CheckedStore (i.e. ignore OOB writes).
   DCHECK_NOT_NULL(*mem_size_);
   DCHECK_NOT_NULL(*mem_start_);
+  if (jsgraph()->machine()->Is64()) {
+    index =
+        graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
+  }
   const Operator* op =
       jsgraph()->machine()->CheckedStore(type.representation());
   Node* store = graph()->NewNode(op, *mem_start_, index, *mem_size_, val,
@@ -3609,7 +3650,7 @@ Node* WasmGraphBuilder::String(const char* string) {
 Graph* WasmGraphBuilder::graph() { return jsgraph()->graph(); }
 
 void WasmGraphBuilder::LowerInt64() {
-  if (!jsgraph()->machine()->Is32()) return;
+  if (jsgraph()->machine()->Is64()) return;
   Int64Lowering r(jsgraph()->graph(), jsgraph()->machine(), jsgraph()->common(),
                   jsgraph()->zone(), sig_);
   r.LowerGraph();
