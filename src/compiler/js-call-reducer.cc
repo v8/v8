@@ -835,19 +835,14 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
 
   // Check whether the given callback function is callable. Note that this has
   // to happen outside the loop to make sure we also throw on empty arrays.
-  Node* check = graph()->NewNode(simplified()->ObjectIsCallable(), fncallback);
-  Node* check_branch =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-  Node* check_fail = graph()->NewNode(common()->IfFalse(), check_branch);
   Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
       jsgraph(), function, Builtins::kArrayForEachLoopLazyDeoptContinuation,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::LAZY);
-  Node* check_throw = check_fail = graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
-      jsgraph()->Constant(MessageTemplate::kCalledNonCallable), fncallback,
-      context, check_frame_state, effect, check_fail);
-  control = graph()->NewNode(common()->IfTrue(), check_branch);
+  Node* check_fail = nullptr;
+  Node* check_throw = nullptr;
+  WireInCallbackIsCallableCheck(fncallback, context, check_frame_state, effect,
+                                &control, &check_fail, &check_throw);
 
   // Start the loop.
   Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
@@ -882,24 +877,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
       simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
       effect, control);
 
-  // Make sure that the access is still in bounds, since the callback could have
-  // changed the array's size.
-  Node* length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(PACKED_ELEMENTS)),
-      receiver, effect, control);
-  k = effect =
-      graph()->NewNode(simplified()->CheckBounds(), k, length, effect, control);
-
-  // Reload the elements pointer before calling the callback, since the previous
-  // callback might have resized the array causing the elements buffer to be
-  // re-allocated.
-  Node* elements = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
-      effect, control);
-
-  Node* element = effect = graph()->NewNode(
-      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(kind)),
-      elements, k, effect, control);
+  Node* element = SafeLoadElement(kind, receiver, control, &effect, &k);
 
   Node* next_k =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->Constant(1));
@@ -939,23 +917,8 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   // Rewire potential exception edges.
   Node* on_exception = nullptr;
   if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-    // Create appropriate {IfException} and {IfSuccess} nodes.
-    Node* if_exception0 =
-        graph()->NewNode(common()->IfException(), check_throw, check_fail);
-    check_fail = graph()->NewNode(common()->IfSuccess(), check_fail);
-    Node* if_exception1 =
-        graph()->NewNode(common()->IfException(), effect, control);
-    control = graph()->NewNode(common()->IfSuccess(), control);
-
-    // Join the exception edges.
-    Node* merge =
-        graph()->NewNode(common()->Merge(2), if_exception0, if_exception1);
-    Node* ephi = graph()->NewNode(common()->EffectPhi(2), if_exception0,
-                                  if_exception1, merge);
-    Node* phi =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                         if_exception0, if_exception1, merge);
-    ReplaceWithValue(on_exception, phi, ephi, merge);
+    RewirePostCallbackExceptionEdges(check_throw, on_exception, effect,
+                                     &check_fail, &control);
   }
 
   if (IsHoleyElementsKind(kind)) {
@@ -978,9 +941,10 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
   control = if_false;
   effect = eloop;
 
-  // The above %ThrowTypeError runtime call is an unconditional throw, making
-  // it impossible to return a successful completion in this case. We simply
-  // connect the successful completion to the graph end.
+  // Wire up the branch for the case when IsCallable fails for the callback.
+  // Since {check_throw} is an unconditional throw, it's impossible to
+  // return a successful completion. Therefore, we simply connect the successful
+  // completion to the graph end.
   Node* terminate =
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), terminate);
@@ -1071,19 +1035,14 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
 
   // Check whether the given callback function is callable. Note that this has
   // to happen outside the loop to make sure we also throw on empty arrays.
-  Node* check = graph()->NewNode(simplified()->ObjectIsCallable(), fncallback);
-  Node* check_branch =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-  Node* check_fail = graph()->NewNode(common()->IfFalse(), check_branch);
   Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
       jsgraph(), function, Builtins::kArrayMapLoopLazyDeoptContinuation,
       node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
       outer_frame_state, ContinuationFrameStateMode::LAZY);
-  Node* check_throw = check_fail = graph()->NewNode(
-      javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
-      jsgraph()->Constant(MessageTemplate::kCalledNonCallable), fncallback,
-      context, check_frame_state, effect, check_fail);
-  control = graph()->NewNode(common()->IfTrue(), check_branch);
+  Node* check_fail = nullptr;
+  Node* check_throw = nullptr;
+  WireInCallbackIsCallableCheck(fncallback, context, check_frame_state, effect,
+                                &control, &check_fail, &check_throw);
 
   // Start the loop.
   Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
@@ -1118,24 +1077,7 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
       simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
       effect, control);
 
-  // Make sure that the access is still in bounds, since the callback could have
-  // changed the array's size.
-  Node* length = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
-      effect, control);
-  k = effect =
-      graph()->NewNode(simplified()->CheckBounds(), k, length, effect, control);
-
-  // Reload the elements pointer before calling the callback, since the previous
-  // callback might have resized the array causing the elements buffer to be
-  // re-allocated.
-  Node* elements = effect = graph()->NewNode(
-      simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
-      effect, control);
-
-  Node* element = effect = graph()->NewNode(
-      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(kind)),
-      elements, k, effect, control);
+  Node* element = SafeLoadElement(kind, receiver, control, &effect, &k);
 
   Node* next_k =
       graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
@@ -1154,23 +1096,8 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   // Rewire potential exception edges.
   Node* on_exception = nullptr;
   if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
-    // Create appropriate {IfException} and {IfSuccess} nodes.
-    Node* if_exception0 =
-        graph()->NewNode(common()->IfException(), check_throw, check_fail);
-    check_fail = graph()->NewNode(common()->IfSuccess(), check_fail);
-    Node* if_exception1 =
-        graph()->NewNode(common()->IfException(), effect, control);
-    control = graph()->NewNode(common()->IfSuccess(), control);
-
-    // Join the exception edges.
-    Node* merge =
-        graph()->NewNode(common()->Merge(2), if_exception0, if_exception1);
-    Node* ephi = graph()->NewNode(common()->EffectPhi(2), if_exception0,
-                                  if_exception1, merge);
-    Node* phi =
-        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
-                         if_exception0, if_exception1, merge);
-    ReplaceWithValue(on_exception, phi, ephi, merge);
+    RewirePostCallbackExceptionEdges(check_throw, on_exception, effect,
+                                     &check_fail, &control);
   }
 
   Handle<Map> double_map(Map::cast(
@@ -1190,15 +1117,354 @@ Reduction JSCallReducer::ReduceArrayMap(Handle<JSFunction> function,
   control = if_false;
   effect = eloop;
 
-  // The above %ThrowTypeError runtime call is an unconditional throw, making
-  // it impossible to return a successful completion in this case. We simply
-  // connect the successful completion to the graph end.
+  // Wire up the branch for the case when IsCallable fails for the callback.
+  // Since {check_throw} is an unconditional throw, it's impossible to
+  // return a successful completion. Therefore, we simply connect the successful
+  // completion to the graph end.
   Node* terminate =
       graph()->NewNode(common()->Throw(), check_throw, check_fail);
   NodeProperties::MergeControlToEnd(graph(), common(), terminate);
 
   ReplaceWithValue(node, a, effect, control);
   return Replace(a);
+}
+
+Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
+                                           Node* node) {
+  if (!FLAG_turbo_inline_array_builtins) return NoChange();
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  Node* outer_frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+  Node* context = NodeProperties::GetContextInput(node);
+  CallParameters const& p = CallParametersOf(node->op());
+  // Try to determine the {receiver} map.
+  Node* receiver = NodeProperties::GetValueInput(node, 1);
+  Node* fncallback = node->op()->ValueInputCount() > 2
+                         ? NodeProperties::GetValueInput(node, 2)
+                         : jsgraph()->UndefinedConstant();
+  Node* this_arg = node->op()->ValueInputCount() > 3
+                       ? NodeProperties::GetValueInput(node, 3)
+                       : jsgraph()->UndefinedConstant();
+  ZoneHandleSet<Map> receiver_maps;
+  NodeProperties::InferReceiverMapsResult result =
+      NodeProperties::InferReceiverMaps(receiver, effect, &receiver_maps);
+  if (result != NodeProperties::kReliableReceiverMaps) {
+    return NoChange();
+  }
+
+  // And ensure that any changes to the Array species constructor cause deopt.
+  if (!isolate()->IsArraySpeciesLookupChainIntact()) return NoChange();
+
+  if (receiver_maps.size() == 0) return NoChange();
+
+  const ElementsKind kind = receiver_maps[0]->elements_kind();
+
+  // TODO(danno): Handle holey and double elements kinds.
+  if (!IsFastPackedElementsKind(kind) || IsDoubleElementsKind(kind)) {
+    return NoChange();
+  }
+
+  for (Handle<Map> receiver_map : receiver_maps) {
+    if (!CanInlineArrayIteratingBuiltin(receiver_map)) {
+      return NoChange();
+    }
+    // We can handle different maps, as long as their elements kind are the
+    // same.
+    if (receiver_map->elements_kind() != kind) {
+      return NoChange();
+    }
+  }
+
+  dependencies()->AssumePropertyCell(factory()->species_protector());
+
+  Handle<JSFunction> handle_constructor(
+      JSFunction::cast(
+          native_context()->GetInitialJSArrayMap(kind)->GetConstructor()),
+      isolate());
+  Node* array_constructor = jsgraph()->HeapConstant(handle_constructor);
+
+  Node* k = jsgraph()->ZeroConstant();
+  Node* to = jsgraph()->ZeroConstant();
+
+  // Make sure the map hasn't changed before we construct the output array.
+  effect = graph()->NewNode(
+      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
+      effect, control);
+
+  Node* original_length = effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
+      effect, control);
+
+  // This array should be PACKED_SMI_ELEMENTS because of the zero length.
+  // Even though {JSCreateArray} is not marked as {kNoThrow}, we can elide the
+  // exceptional projections because it cannot throw with the given parameters.
+  Node* a = control = effect = graph()->NewNode(
+      javascript()->CreateArray(1, Handle<AllocationSite>::null()),
+      array_constructor, array_constructor, jsgraph()->ZeroConstant(), context,
+      outer_frame_state, effect, control);
+
+  // Check whether the given callback function is callable. Note that this has
+  // to happen outside the loop to make sure we also throw on empty arrays.
+  Node* check_fail = nullptr;
+  Node* check_throw = nullptr;
+  {
+    // This frame state doesn't ever call the deopt continuation, it's only
+    // necessary to specifiy a continuation in order to handle the exceptional
+    // case. We don't have all the values available to completely fill out
+    // checkpoint_params yet, but that's okay because it'll never be called.
+    // Therefore, "to" is mentioned twice, once standing in for the k_value
+    // value.
+    std::vector<Node*> checkpoint_params(
+        {receiver, fncallback, this_arg, a, k, original_length, to, to});
+    const int stack_parameters = static_cast<int>(checkpoint_params.size());
+
+    Node* check_frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+        jsgraph(), function, Builtins::kArrayFilterLoopLazyDeoptContinuation,
+        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
+        outer_frame_state, ContinuationFrameStateMode::LAZY);
+    WireInCallbackIsCallableCheck(fncallback, context, check_frame_state,
+                                  effect, &control, &check_fail, &check_throw);
+  }
+
+  // Start the loop.
+  Node* loop = control = graph()->NewNode(common()->Loop(2), control, control);
+  Node* eloop = effect =
+      graph()->NewNode(common()->EffectPhi(2), effect, effect, loop);
+  Node* vloop = k = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTagged, 2), k, k, loop);
+  Node* v_to_loop = to = graph()->NewNode(
+      common()->Phi(MachineRepresentation::kTaggedSigned, 2), to, to, loop);
+
+  control = loop;
+  effect = eloop;
+
+  Node* continue_test =
+      graph()->NewNode(simplified()->NumberLessThan(), k, original_length);
+  Node* continue_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                           continue_test, control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), continue_branch);
+  Node* if_false = graph()->NewNode(common()->IfFalse(), continue_branch);
+  control = if_true;
+
+  {
+    std::vector<Node*> checkpoint_params(
+        {receiver, fncallback, this_arg, a, k, original_length, to});
+    const int stack_parameters = static_cast<int>(checkpoint_params.size());
+
+    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+        jsgraph(), function, Builtins::kArrayFilterLoopEagerDeoptContinuation,
+        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
+        outer_frame_state, ContinuationFrameStateMode::EAGER);
+
+    effect =
+        graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
+  }
+
+  // Make sure the map hasn't changed during the iteration.
+  effect = graph()->NewNode(
+      simplified()->CheckMaps(CheckMapsFlag::kNone, receiver_maps), receiver,
+      effect, control);
+
+  Node* element = SafeLoadElement(kind, receiver, control, &effect, &k);
+
+  Node* next_k =
+      graph()->NewNode(simplified()->NumberAdd(), k, jsgraph()->OneConstant());
+
+  Node* callback_value = nullptr;
+  {
+    // This frame state is dealt with by hand in
+    // Builtins::kArrayFilterLoopLazyDeoptContinuation.
+    std::vector<Node*> checkpoint_params(
+        {receiver, fncallback, this_arg, a, k, original_length, element, to});
+    const int stack_parameters = static_cast<int>(checkpoint_params.size());
+
+    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+        jsgraph(), function, Builtins::kArrayFilterLoopLazyDeoptContinuation,
+        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
+        outer_frame_state, ContinuationFrameStateMode::LAZY);
+
+    callback_value = control = effect = graph()->NewNode(
+        javascript()->Call(5, p.frequency()), fncallback, this_arg, element, k,
+        receiver, context, frame_state, effect, control);
+  }
+
+  // Rewire potential exception edges.
+  Node* on_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    RewirePostCallbackExceptionEdges(check_throw, on_exception, effect,
+                                     &check_fail, &control);
+  }
+
+  // We need an eager frame state for right after the callback function
+  // returned, just in case an attempt to grow the output array fails.
+  //
+  // Note that we are intentionally reusing the
+  // Builtins::kArrayFilterLoopLazyDeoptContinuation as an *eager* entry
+  // point in this case. This is safe, because re-evaluating a [ToBoolean]
+  // coercion is safe.
+  {
+    std::vector<Node*> checkpoint_params({receiver, fncallback, this_arg, a, k,
+                                          original_length, element, to,
+                                          callback_value});
+    const int stack_parameters = static_cast<int>(checkpoint_params.size());
+    Node* frame_state = CreateJavaScriptBuiltinContinuationFrameState(
+        jsgraph(), function, Builtins::kArrayFilterLoopLazyDeoptContinuation,
+        node->InputAt(0), context, &checkpoint_params[0], stack_parameters,
+        outer_frame_state, ContinuationFrameStateMode::EAGER);
+
+    effect =
+        graph()->NewNode(common()->Checkpoint(), frame_state, effect, control);
+  }
+
+  // We have to coerce callback_value to boolean, and only store the element in
+  // a if it's true. The checkpoint above protects against the case that
+  // growing {a} fails.
+  to = DoFilterPostCallbackWork(kind, context, &control, &effect, a, to,
+                                element, callback_value);
+  k = next_k;
+
+  loop->ReplaceInput(1, control);
+  vloop->ReplaceInput(1, k);
+  v_to_loop->ReplaceInput(1, to);
+  eloop->ReplaceInput(1, effect);
+
+  control = if_false;
+  effect = eloop;
+
+  // Wire up the branch for the case when IsCallable fails for the callback.
+  // Since {check_throw} is an unconditional throw, it's impossible to
+  // return a successful completion. Therefore, we simply connect the successful
+  // completion to the graph end.
+  Node* terminate =
+      graph()->NewNode(common()->Throw(), check_throw, check_fail);
+  NodeProperties::MergeControlToEnd(graph(), common(), terminate);
+
+  ReplaceWithValue(node, a, effect, control);
+  return Replace(a);
+}
+
+Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node* context,
+                                              Node** control, Node** effect,
+                                              Node* a, Node* to, Node* element,
+                                              Node* callback_value) {
+  Node* boolean_result = graph()->NewNode(
+      javascript()->ToBoolean(ToBooleanHint::kAny), callback_value, context);
+
+  Node* check_boolean_result =
+      graph()->NewNode(simplified()->ReferenceEqual(), boolean_result,
+                       jsgraph()->TrueConstant());
+  Node* boolean_branch = graph()->NewNode(common()->Branch(BranchHint::kTrue),
+                                          check_boolean_result, *control);
+
+  Node* if_true = graph()->NewNode(common()->IfTrue(), boolean_branch);
+  Node* etrue = *effect;
+  Node* vtrue;
+  {
+    // Load the elements backing store of the {receiver}.
+    Node* elements = etrue = graph()->NewNode(
+        simplified()->LoadField(AccessBuilder::ForJSObjectElements()), a, etrue,
+        if_true);
+
+    // We know that {to} is in Unsigned31 range here, being smaller than
+    // {original_length} at all times.
+    Node* checked_to =
+        graph()->NewNode(common()->TypeGuard(Type::Unsigned31()), to, if_true);
+
+    GrowFastElementsMode mode = GrowFastElementsMode::kSmiOrObjectElements;
+    // TODO(mvstanton): Make sure{flags} is correct when we handle{a} as a
+    // double output array.
+    DCHECK(!IsDoubleElementsKind(kind));
+    elements = etrue =
+        graph()->NewNode(simplified()->MaybeGrowFastElements(mode), a, elements,
+                         checked_to, checked_to, etrue, if_true);
+
+    // Update the length of {a}.
+    Node* new_length_a = graph()->NewNode(simplified()->NumberAdd(), checked_to,
+                                          jsgraph()->OneConstant());
+
+    etrue = graph()->NewNode(
+        simplified()->StoreField(AccessBuilder::ForJSArrayLength(kind)), a,
+        new_length_a, etrue, if_true);
+
+    // Append the value to the {elements}.
+    etrue = graph()->NewNode(
+        simplified()->StoreElement(AccessBuilder::ForFixedArrayElement(kind)),
+        elements, checked_to, element, etrue, if_true);
+
+    vtrue = new_length_a;
+  }
+
+  Node* if_false = graph()->NewNode(common()->IfFalse(), boolean_branch);
+  Node* efalse = *effect;
+  Node* vfalse = to;
+
+  *control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+  *effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, *control);
+  to = graph()->NewNode(common()->Phi(MachineRepresentation::kTaggedSigned, 2),
+                        vtrue, vfalse, *control);
+  return to;
+}
+
+void JSCallReducer::WireInCallbackIsCallableCheck(
+    Node* fncallback, Node* context, Node* check_frame_state, Node* effect,
+    Node** control, Node** check_fail, Node** check_throw) {
+  Node* check = graph()->NewNode(simplified()->ObjectIsCallable(), fncallback);
+  Node* check_branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, *control);
+  *check_fail = graph()->NewNode(common()->IfFalse(), check_branch);
+  *check_throw = *check_fail = graph()->NewNode(
+      javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
+      jsgraph()->Constant(MessageTemplate::kCalledNonCallable), fncallback,
+      context, check_frame_state, effect, *check_fail);
+  *control = graph()->NewNode(common()->IfTrue(), check_branch);
+}
+
+void JSCallReducer::RewirePostCallbackExceptionEdges(Node* check_throw,
+                                                     Node* on_exception,
+                                                     Node* effect,
+                                                     Node** check_fail,
+                                                     Node** control) {
+  // Create appropriate {IfException} and {IfSuccess} nodes.
+  Node* if_exception0 =
+      graph()->NewNode(common()->IfException(), check_throw, *check_fail);
+  *check_fail = graph()->NewNode(common()->IfSuccess(), *check_fail);
+  Node* if_exception1 =
+      graph()->NewNode(common()->IfException(), effect, *control);
+  *control = graph()->NewNode(common()->IfSuccess(), *control);
+
+  // Join the exception edges.
+  Node* merge =
+      graph()->NewNode(common()->Merge(2), if_exception0, if_exception1);
+  Node* ephi = graph()->NewNode(common()->EffectPhi(2), if_exception0,
+                                if_exception1, merge);
+  Node* phi = graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                               if_exception0, if_exception1, merge);
+  ReplaceWithValue(on_exception, phi, ephi, merge);
+}
+
+Node* JSCallReducer::SafeLoadElement(ElementsKind kind, Node* receiver,
+                                     Node* control, Node** effect, Node** k) {
+  // Make sure that the access is still in bounds, since the callback could have
+  // changed the array's size.
+  Node* length = *effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSArrayLength(kind)), receiver,
+      *effect, control);
+  *k = *effect = graph()->NewNode(simplified()->CheckBounds(), *k, length,
+                                  *effect, control);
+
+  // Reload the elements pointer before calling the callback, since the previous
+  // callback might have resized the array causing the elements buffer to be
+  // re-allocated.
+  Node* elements = *effect = graph()->NewNode(
+      simplified()->LoadField(AccessBuilder::ForJSObjectElements()), receiver,
+      *effect, control);
+
+  Node* element = *effect = graph()->NewNode(
+      simplified()->LoadElement(AccessBuilder::ForFixedArrayElement(kind)),
+      elements, *k, *effect, control);
+  return element;
 }
 
 Reduction JSCallReducer::ReduceCallApiFunction(
@@ -1615,6 +1881,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceArrayForEach(function, node);
         case Builtins::kArrayMap:
           return ReduceArrayMap(function, node);
+        case Builtins::kArrayFilter:
+          return ReduceArrayFilter(function, node);
         case Builtins::kReturnReceiver:
           return ReduceReturnReceiver(node);
         default:
