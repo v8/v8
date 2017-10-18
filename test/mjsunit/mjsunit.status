@@ -666,6 +666,12 @@
   'whitespaces': [SKIP],
 }],  # variant == wasm_traps
 
+['variant == wasm_traps and gc_stress == True', {
+  # TODO(eholk): these tests are disabled due to address space exhaustion.
+  # Re-enable them once Wasm address space limits are in place.
+  '*': [SKIP],
+}],  # variant == wasm_traps and gc_stress == True
+
 ##############################################################################
 ['no_harness', {
     # skip assertion tests since the stack trace is broken if mjsunit is
