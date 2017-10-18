@@ -1173,11 +1173,6 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
               receiver, this_effect, this_control);
         }
 
-        // Load the {receiver} map.
-        Node* receiver_map = this_effect =
-            graph()->NewNode(simplified()->LoadField(AccessBuilder::ForMap()),
-                             receiver, this_effect, this_control);
-
         // Perform map check(s) on {receiver}.
         MapHandles const& receiver_maps = access_info.receiver_maps();
         if (j == access_infos.size() - 1) {
@@ -1187,34 +1182,22 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
                                         receiver_maps);
           fallthrough_control = nullptr;
         } else {
-          ZoneVector<Node*> this_controls(zone());
-          ZoneVector<Node*> this_effects(zone());
+          // Explicitly branch on the {receiver_maps}.
+          ZoneHandleSet<Map> maps;
           for (Handle<Map> map : receiver_maps) {
-            Node* check =
-                graph()->NewNode(simplified()->ReferenceEqual(), receiver_map,
-                                 jsgraph()->Constant(map));
-            Node* branch = graph()->NewNode(common()->Branch(), check,
-                                            fallthrough_control);
-            this_controls.push_back(
-                graph()->NewNode(common()->IfTrue(), branch));
-            this_effects.push_back(this_effect);
-            fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+            maps.insert(map, graph()->zone());
           }
+          Node* check = this_effect =
+              graph()->NewNode(simplified()->CompareMaps(maps), receiver,
+                               this_effect, fallthrough_control);
+          Node* branch =
+              graph()->NewNode(common()->Branch(), check, fallthrough_control);
+          fallthrough_control = graph()->NewNode(common()->IfFalse(), branch);
+          this_control = graph()->NewNode(common()->IfTrue(), branch);
 
-          // Create single chokepoint for the control.
-          int const this_control_count = static_cast<int>(this_controls.size());
-          if (this_control_count == 1) {
-            this_control = this_controls.front();
-            this_effect = this_effects.front();
-          } else {
-            this_control =
-                graph()->NewNode(common()->Merge(this_control_count),
-                                 this_control_count, &this_controls.front());
-            this_effects.push_back(this_control);
-            this_effect =
-                graph()->NewNode(common()->EffectPhi(this_control_count),
-                                 this_control_count + 1, &this_effects.front());
-          }
+          // Introduce a MapGuard to learn from this on the effect chain.
+          this_effect = graph()->NewNode(common()->MapGuard(maps), receiver,
+                                         this_effect, this_control);
         }
 
         // Access the actual element.
