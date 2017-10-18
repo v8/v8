@@ -6,6 +6,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/objects/map.h"
+#include "src/snapshot/builtin-serializer-allocator.h"
 #include "src/snapshot/natives.h"
 
 namespace v8 {
@@ -866,6 +867,7 @@ void Serializer<AllocatorT>::ObjectSerializer::OutputCode(int size) {
 }
 
 // Explicit instantiation.
+template class Serializer<BuiltinSerializerAllocator>;
 template class Serializer<DefaultSerializerAllocator>;
 
 }  // namespace internal

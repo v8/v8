@@ -37,8 +37,6 @@ class BuiltinDeserializer final
   // already been allocated.
   Code* DeserializeBuiltinRaw(int builtin_id);
 
-  // TODO(jgruber): Remove once allocations have been refactored.
-  void SetPositionToBuiltin(int builtin_id);
 
   // Extracts the size builtin Code objects (baked into the snapshot).
   uint32_t ExtractBuiltinSize(int builtin_id);

@@ -5,6 +5,7 @@
 #ifndef V8_SNAPSHOT_BUILTIN_SERIALIZER_H_
 #define V8_SNAPSHOT_BUILTIN_SERIALIZER_H_
 
+#include "src/snapshot/builtin-serializer-allocator.h"
 #include "src/snapshot/serializer.h"
 
 namespace v8 {
@@ -15,7 +16,7 @@ class StartupSerializer;
 // Responsible for serializing all builtin objects during startup snapshot
 // creation.  Builtins are serialized into a dedicated area of the snapshot.
 // See snapshot.h for documentation of the snapshot layout.
-class BuiltinSerializer : public Serializer<> {
+class BuiltinSerializer : public Serializer<BuiltinSerializerAllocator> {
  public:
   BuiltinSerializer(Isolate* isolate, StartupSerializer* startup_serializer);
   ~BuiltinSerializer() override;

@@ -80,7 +80,7 @@ Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
   DeserializingBuiltinScope scope(this, builtin_id);
 
   const int initial_position = source()->position();
-  SetPositionToBuiltin(builtin_id);
+  source()->set_position(builtin_offsets_[builtin_id]);
 
   Object* o = ReadDataSingle();
   DCHECK(o->IsCode() && Code::cast(o)->is_builtin());
@@ -96,35 +96,13 @@ Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
   return code;
 }
 
-void BuiltinDeserializer::SetPositionToBuiltin(int builtin_id) {
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
-
-  const uint32_t offset = builtin_offsets_[builtin_id];
-  source()->set_position(offset);
-
-  // Grab the size of the code object.
-  byte data = source()->Get();
-
-  // The first bytecode can either be kNewObject, or kNextChunk if the current
-  // chunk has been exhausted. Since we do allocations differently here, we
-  // don't care about kNextChunk and can simply skip over it.
-  // TODO(jgruber): When refactoring (de)serializer allocations, ensure we don't
-  // generate kNextChunk bytecodes anymore for the builtins snapshot. In fact,
-  // the entire reservations mechanism is unused for the builtins snapshot.
-  if (data == kNextChunk) {
-    source()->Get();  // Skip over kNextChunk's {space} parameter.
-  } else {
-    source()->set_position(offset);  // Rewind.
-  }
-}
-
 uint32_t BuiltinDeserializer::ExtractBuiltinSize(int builtin_id) {
   DCHECK(Builtins::IsBuiltinId(builtin_id));
 
   const int initial_position = source()->position();
 
   // Grab the size of the code object.
-  SetPositionToBuiltin(builtin_id);
+  source()->set_position(builtin_offsets_[builtin_id]);
   byte data = source()->Get();
 
   USE(data);

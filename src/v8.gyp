@@ -1343,6 +1343,8 @@
         'snapshot/builtin-deserializer-allocator.h',
         'snapshot/builtin-deserializer.cc',
         'snapshot/builtin-deserializer.h',
+        'snapshot/builtin-serializer-allocator.cc',
+        'snapshot/builtin-serializer-allocator.h',
         'snapshot/builtin-serializer.cc',
         'snapshot/builtin-serializer.h',
         'snapshot/code-serializer.cc',
