@@ -396,11 +396,8 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
-enum IsTagged { kEaxIsSmiTagged, kEaxIsUntaggedInt };
-
 // Clobbers ecx, edx, edi; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm,
-                                        IsTagged eax_is_tagged) {
+static void Generate_CheckStackOverflow(MacroAssembler* masm) {
   // eax   : the number of items to be pushed to the stack
   //
   // Check the stack for overflow. We are not trying to catch
@@ -417,8 +414,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm,
   // Make edx the space we need for the array when it is unrolled onto the
   // stack.
   __ mov(edx, eax);
-  int smi_tag = eax_is_tagged == kEaxIsSmiTagged ? kSmiTagSize : 0;
-  __ shl(edx, kPointerSizeLog2 - smi_tag);
+  __ shl(edx, kPointerSizeLog2);
   // Check if the arguments will overflow the stack.
   __ cmp(ecx, edx);
   __ j(greater, &okay);  // Signed comparison.
@@ -454,7 +450,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     // Check if we have enough stack space to push all arguments.
     // Expects argument count in eax. Clobbers ecx, edx, edi.
-    Generate_CheckStackOverflow(masm, kEaxIsUntaggedInt);
+    Generate_CheckStackOverflow(masm);
 
     // Copy arguments to the stack in a loop.
     Label loop, entry;

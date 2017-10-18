@@ -581,11 +581,8 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
-enum IsTagged { kArgcIsSmiTagged, kArgcIsUntaggedInt };
-
 // Clobbers r4; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
-                                        IsTagged argc_is_tagged) {
+static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc) {
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
@@ -595,12 +592,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
   // here which will cause r4 to become negative.
   __ SubP(r4, sp, r4);
   // Check if the arguments will overflow the stack.
-  if (argc_is_tagged == kArgcIsSmiTagged) {
-    __ SmiToPtrArrayOffset(r0, argc);
-  } else {
-    DCHECK_EQ(argc_is_tagged, kArgcIsUntaggedInt);
-    __ ShiftLeftP(r0, argc, Operand(kPointerSizeLog2));
-  }
+  __ ShiftLeftP(r0, argc, Operand(kPointerSizeLog2));
   __ CmpP(r4, r0);
   __ bgt(&okay);  // Signed comparison.
 
@@ -639,7 +631,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     // Check if we have enough stack space to push all arguments.
     // Clobbers r4.
-    Generate_CheckStackOverflow(masm, r5, kArgcIsUntaggedInt);
+    Generate_CheckStackOverflow(masm, r5);
 
     // Copy arguments to the stack in a loop from argv to sp.
     // The arguments are actually placed in reverse order on sp

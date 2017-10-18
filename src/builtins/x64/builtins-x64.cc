@@ -401,11 +401,8 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
-enum IsTagged { kRaxIsSmiTagged, kRaxIsUntaggedInt };
-
 // Clobbers rcx, r11, kScratchRegister; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm,
-                                        IsTagged rax_is_tagged) {
+static void Generate_CheckStackOverflow(MacroAssembler* masm) {
   // rax   : the number of items to be pushed to the stack
   //
   // Check the stack for overflow. We are not trying to catch
@@ -419,13 +416,8 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm,
   __ subp(rcx, kScratchRegister);
   // Make r11 the space we need for the array when it is unrolled onto the
   // stack.
-  if (rax_is_tagged == kRaxIsSmiTagged) {
-    __ PositiveSmiTimesPowerOfTwoToInteger64(r11, rax, kPointerSizeLog2);
-  } else {
-    DCHECK_EQ(rax_is_tagged, kRaxIsUntaggedInt);
-    __ movp(r11, rax);
-    __ shlq(r11, Immediate(kPointerSizeLog2));
-  }
+  __ movp(r11, rax);
+  __ shlq(r11, Immediate(kPointerSizeLog2));
   // Check if the arguments will overflow the stack.
   __ cmpp(rcx, r11);
   __ j(greater, &okay);  // Signed comparison.
@@ -534,7 +526,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     // Check if we have enough stack space to push all arguments.
     // Expects argument count in rax. Clobbers rcx, r11.
-    Generate_CheckStackOverflow(masm, kRaxIsUntaggedInt);
+    Generate_CheckStackOverflow(masm);
 
     // Copy arguments to the stack in a loop.
     // Register rbx points to array of pointers to handle locations.

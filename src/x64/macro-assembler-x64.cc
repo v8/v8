@@ -960,18 +960,6 @@ void MacroAssembler::SmiToInteger64(Register dst, Register src) {
   }
 }
 
-
-void MacroAssembler::SmiToInteger64(Register dst, const Operand& src) {
-  if (SmiValuesAre32Bits()) {
-    movsxlq(dst, Operand(src, kSmiShift / kBitsPerByte));
-  } else {
-    DCHECK(SmiValuesAre31Bits());
-    movp(dst, src);
-    SmiToInteger64(dst, dst);
-  }
-}
-
-
 void MacroAssembler::SmiCompare(Register smi1, Register smi2) {
   AssertSmi(smi1);
   AssertSmi(smi2);
@@ -1028,25 +1016,6 @@ void MacroAssembler::Cmp(const Operand& dst, Smi* src) {
   cmpp(dst, smi_reg);
 }
 
-
-void MacroAssembler::PositiveSmiTimesPowerOfTwoToInteger64(Register dst,
-                                                           Register src,
-                                                           int power) {
-  DCHECK_GE(power, 0);
-  DCHECK_LT(power, 64);
-  if (power == 0) {
-    SmiToInteger64(dst, src);
-    return;
-  }
-  if (dst != src) {
-    movp(dst, src);
-  }
-  if (power < kSmiShift) {
-    sarp(dst, Immediate(kSmiShift - power));
-  } else if (power > kSmiShift) {
-    shlp(dst, Immediate(power - kSmiShift));
-  }
-}
 
 Condition TurboAssembler::CheckSmi(Register src) {
   STATIC_ASSERT(kSmiTag == 0);

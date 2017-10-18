@@ -585,11 +585,8 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ B(&stepping_prepared);
 }
 
-enum IsTagged { kArgcIsSmiTagged, kArgcIsUntaggedInt };
-
 // Clobbers x10, x15; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
-                                        IsTagged argc_is_tagged) {
+static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc) {
   // Check the stack for overflow.
   // We are not trying to catch interruptions (e.g. debug break and
   // preemption) here, so the "real stack limit" is checked.
@@ -600,12 +597,7 @@ static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc,
   // TODO(jbramley): Check that the stack usage here is safe.
   __ Sub(x10, jssp, x10);
   // Check if the arguments will overflow the stack.
-  if (argc_is_tagged == kArgcIsSmiTagged) {
-    __ Cmp(x10, Operand::UntagSmiAndScale(argc, kPointerSizeLog2));
-  } else {
-    DCHECK_EQ(argc_is_tagged, kArgcIsUntaggedInt);
-    __ Cmp(x10, Operand(argc, LSL, kPointerSizeLog2));
-  }
+  __ Cmp(x10, Operand(argc, LSL, kPointerSizeLog2));
   __ B(gt, &enough_stack_space);
   __ CallRuntime(Runtime::kThrowStackOverflow);
   // We should never return from the APPLY_OVERFLOW builtin.
@@ -651,7 +643,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Push(function, receiver);
 
     // Check if we have enough stack space to push all arguments.
-    Generate_CheckStackOverflow(masm, argc, kArgcIsUntaggedInt);
+    Generate_CheckStackOverflow(masm, argc);
 
     // Copy arguments to the stack in a loop, in reverse order.
     // x3: argc.

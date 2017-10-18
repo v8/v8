@@ -643,13 +643,6 @@ class MacroAssembler : public TurboAssembler {
 
   // Convert smi to 64-bit integer (sign extended if necessary).
   void SmiToInteger64(Register dst, Register src);
-  void SmiToInteger64(Register dst, const Operand& src);
-
-  // Multiply a positive smi's integer value by a power of two.
-  // Provides result as 64-bit integer value.
-  void PositiveSmiTimesPowerOfTwoToInteger64(Register dst,
-                                             Register src,
-                                             int power);
 
   // Simple comparison of smis.  Both sides must be known smis to use these,
   // otherwise use Cmp.
