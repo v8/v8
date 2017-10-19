@@ -248,10 +248,7 @@ class ValueHelper {
       0x761c4761, 0x80000000, 0x88888888, 0xa0000000, 0xdddddddd, 0xe0000000,
       0xeeeeeeee, 0xfffffffd, 0xf0000000, 0x007fffff, 0x003fffff, 0x001fffff,
       0x000fffff, 0x0007ffff, 0x0003ffff, 0x0001ffff, 0x0000ffff, 0x00007fff,
-      0x00003fff, 0x00001fff, 0x00000fff, 0x000007ff, 0x000003ff, 0x000001ff,
-      // Bit pattern of a quiet NaN and signaling NaN, with or without
-      // additional payload.
-      0x7fc00000, 0x7f800000, 0x7fffffff, 0x7f876543};
+      0x00003fff, 0x00001fff, 0x00000fff, 0x000007ff, 0x000003ff, 0x000001ff};
 
   static constexpr Vector<const uint32_t> uint32_vector() {
     return ArrayVector(uint32_array);
@@ -262,30 +259,32 @@ class ValueHelper {
   }
 
   static constexpr uint64_t uint64_array[] = {
-      0x00000000, 0x00000001, 0xffffffff, 0x1b09788b, 0x04c5fce8, 0xcc0de5bf,
-      0x00000002, 0x00000003, 0x00000004, 0x00000005, 0x00000008, 0x00000009,
+      0x00000000,         0x00000001,         0xffffffff,
+      0x1b09788b,         0x04c5fce8,         0xcc0de5bf,
+      0x00000002,         0x00000003,         0x00000004,
+      0x00000005,         0x00000008,         0x00000009,
       0xffffffffffffffff, 0xfffffffffffffffe, 0xfffffffffffffffd,
       0x0000000000000000, 0x0000000100000000, 0xffffffff00000000,
       0x1b09788b00000000, 0x04c5fce800000000, 0xcc0de5bf00000000,
       0x0000000200000000, 0x0000000300000000, 0x0000000400000000,
       0x0000000500000000, 0x0000000800000000, 0x0000000900000000,
-      0x273a798e187937a3, 0xece3af835495a16b, 0x0b668ecc11223344, 0x0000009e,
-      0x00000043, 0x0000af73, 0x0000116b, 0x00658ecc, 0x002b3b4c, 0x88776655,
-      0x70000000, 0x07200000, 0x7fffffff, 0x56123761, 0x7fffff00,
+      0x273a798e187937a3, 0xece3af835495a16b, 0x0b668ecc11223344,
+      0x0000009e,         0x00000043,         0x0000af73,
+      0x0000116b,         0x00658ecc,         0x002b3b4c,
+      0x88776655,         0x70000000,         0x07200000,
+      0x7fffffff,         0x56123761,         0x7fffff00,
       0x761c4761eeeeeeee, 0x80000000eeeeeeee, 0x88888888dddddddd,
       0xa0000000dddddddd, 0xddddddddaaaaaaaa, 0xe0000000aaaaaaaa,
       0xeeeeeeeeeeeeeeee, 0xfffffffdeeeeeeee, 0xf0000000dddddddd,
-      0x007fffffdddddddd, 0x003fffffaaaaaaaa, 0x001fffffaaaaaaaa, 0x000fffff,
-      0x0007ffff, 0x0003ffff, 0x0001ffff, 0x0000ffff, 0x00007fff, 0x00003fff,
-      0x00001fff, 0x00000fff, 0x000007ff, 0x000003ff, 0x000001ff,
+      0x007fffffdddddddd, 0x003fffffaaaaaaaa, 0x001fffffaaaaaaaa,
+      0x000fffff,         0x0007ffff,         0x0003ffff,
+      0x0001ffff,         0x0000ffff,         0x00007fff,
+      0x00003fff,         0x00001fff,         0x00000fff,
+      0x000007ff,         0x000003ff,         0x000001ff,
       0x00003fffffffffff, 0x00001fffffffffff, 0x00000fffffffffff,
       0x000007ffffffffff, 0x000003ffffffffff, 0x000001ffffffffff,
       0x8000008000000000, 0x8000008000000001, 0x8000000000000400,
-      0x8000000000000401, 0x0000000000000020,
-      // Bit pattern of a quiet NaN and signaling NaN, with or without
-      // additional payload.
-      0x7ff8000000000000, 0x7ff0000000000000, 0x7ff8123456789abc,
-      0x7ff7654321fedcba};
+      0x8000000000000401, 0x0000000000000020};
 
   static constexpr Vector<const uint64_t> uint64_vector() {
     return ArrayVector(uint64_array);
