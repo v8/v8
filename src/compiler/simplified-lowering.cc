@@ -2345,6 +2345,7 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kClassOf:
       case IrOpcode::kTypeOf: {
         return VisitUnop(node, UseInfo::AnyTagged(),
                          MachineRepresentation::kTaggedPointer);
@@ -2990,7 +2991,6 @@ class RepresentationSelector {
 // All JavaScript operators except JSToNumber have uniform handling.
 #define OPCODE_CASE(name) case IrOpcode::k##name:
         JS_SIMPLE_BINOP_LIST(OPCODE_CASE)
-        JS_OTHER_UNOP_LIST(OPCODE_CASE)
         JS_OBJECT_OP_LIST(OPCODE_CASE)
         JS_CONTEXT_OP_LIST(OPCODE_CASE)
         JS_OTHER_OP_LIST(OPCODE_CASE)

@@ -385,8 +385,11 @@ Reduction JSIntrinsicLowering::ReduceTheHole(Node* node) {
 
 Reduction JSIntrinsicLowering::ReduceClassOf(Node* node) {
   RelaxEffectsAndControls(node);
+  // The ClassOf operator has a single value input and control input.
+  Node* control_input = NodeProperties::GetControlInput(node, 0);
   node->TrimInputCount(2);
-  NodeProperties::ChangeOp(node, javascript()->ClassOf());
+  node->ReplaceInput(1, control_input);
+  NodeProperties::ChangeOp(node, simplified()->ClassOf());
   return Changed(node);
 }
 

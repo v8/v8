@@ -675,7 +675,7 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is Boolean.
       CheckTypeIs(node, Type::Boolean());
       break;
-    case IrOpcode::kJSClassOf:
+    case IrOpcode::kClassOf:
       // Type is InternaliedString \/ Null.
       CheckTypeIs(node, Type::InternalizedStringOrNull());
       break;

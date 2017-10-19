@@ -369,6 +369,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ReferenceEqual();
 
   const Operator* TypeOf();
+  const Operator* ClassOf();
 
   const Operator* ToBoolean(ToBooleanHints hints);
 
