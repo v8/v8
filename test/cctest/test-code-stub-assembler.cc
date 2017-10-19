@@ -2911,7 +2911,7 @@ TEST(CloneFixedArrayCOW) {
   CHECK_EQ(*source, result);
 }
 
-TEST(CloneFixedArrayCOWForceCopy) {
+TEST(ExtractFixedArrayCOWForceCopy) {
   Isolate* isolate(CcTest::InitIsolateOnce());
   const int kNumParams = 1;
   CodeAssemblerTester asm_tester(isolate, kNumParams);
@@ -2919,8 +2919,9 @@ TEST(CloneFixedArrayCOWForceCopy) {
     CodeStubAssembler m(asm_tester.state());
     CodeStubAssembler::ExtractFixedArrayFlags flags;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays;
-    flags |= CodeStubAssembler::ExtractFixedArrayFlag::kForceCOWCopy;
-    m.Return(m.CloneFixedArray(m.Parameter(0), flags));
+    m.Return(m.ExtractFixedArray(m.Parameter(0), m.SmiConstant(0), nullptr,
+                                 nullptr, flags,
+                                 CodeStubAssembler::SMI_PARAMETERS));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -2944,10 +2945,12 @@ TEST(ExtractFixedArraySimple) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    m.Return(m.ExtractFixedArray(
-        m.Parameter(0), m.Parameter(1), m.Parameter(2), nullptr,
-        CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays,
-        CodeStubAssembler::SMI_PARAMETERS));
+    CodeStubAssembler::ExtractFixedArrayFlags flags;
+    flags |= CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays;
+    flags |= CodeStubAssembler::ExtractFixedArrayFlag::kDontCopyCOW;
+    m.Return(m.ExtractFixedArray(m.Parameter(0), m.Parameter(1), m.Parameter(2),
+                                 nullptr, flags,
+                                 CodeStubAssembler::SMI_PARAMETERS));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -2969,10 +2972,12 @@ TEST(ExtractFixedArraySimpleSmiConstant) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    m.Return(m.ExtractFixedArray(
-        m.Parameter(0), m.SmiConstant(1), m.SmiConstant(2), nullptr,
-        CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays,
-        CodeStubAssembler::SMI_PARAMETERS));
+    CodeStubAssembler::ExtractFixedArrayFlags flags;
+    flags |= CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays;
+    flags |= CodeStubAssembler::ExtractFixedArrayFlag::kDontCopyCOW;
+    m.Return(m.ExtractFixedArray(m.Parameter(0), m.SmiConstant(1),
+                                 m.SmiConstant(2), nullptr, flags,
+                                 CodeStubAssembler::SMI_PARAMETERS));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
@@ -2991,10 +2996,12 @@ TEST(ExtractFixedArraySimpleIntPtrConstant) {
   CodeAssemblerTester asm_tester(isolate, kNumParams);
   {
     CodeStubAssembler m(asm_tester.state());
-    m.Return(m.ExtractFixedArray(
-        m.Parameter(0), m.IntPtrConstant(1), m.IntPtrConstant(2), nullptr,
-        CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays,
-        CodeStubAssembler::INTPTR_PARAMETERS));
+    CodeStubAssembler::ExtractFixedArrayFlags flags;
+    flags |= CodeStubAssembler::ExtractFixedArrayFlag::kAllFixedArrays;
+    flags |= CodeStubAssembler::ExtractFixedArrayFlag::kDontCopyCOW;
+    m.Return(m.ExtractFixedArray(m.Parameter(0), m.IntPtrConstant(1),
+                                 m.IntPtrConstant(2), nullptr, flags,
+                                 CodeStubAssembler::INTPTR_PARAMETERS));
   }
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 

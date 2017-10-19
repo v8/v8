@@ -335,7 +335,6 @@ void PromiseBuiltinsAssembler::AppendPromiseCallback(int offset, Node* promise,
 
   ExtractFixedArrayFlags flags;
   flags |= ExtractFixedArrayFlag::kFixedArrays;
-  flags |= ExtractFixedArrayFlag::kForceCOWCopy;
   Node* new_elements =
       ExtractFixedArray(elements, nullptr, length, new_capacity, flags, mode);
 

@@ -730,7 +730,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   Node* CloneFastJSArray(Node* context, Node* array,
                          ParameterMode mode = INTPTR_PARAMETERS,
-                         Node* capacity = nullptr,
                          Node* allocation_site = nullptr);
 
   Node* ExtractFastJSArray(Node* context, Node* array, Node* begin, Node* count,
@@ -807,11 +806,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   enum class ExtractFixedArrayFlag {
     kFixedArrays = 1,
     kFixedDoubleArrays = 2,
-    // Forcing COW copying removes special COW handling, resulting in better
-    // code if the source array has already been validated to not be COW.
-    kForceCOWCopy = 4,
+    kDontCopyCOW = 4,
     kNewSpaceAllocationOnly = 8,
-    kAllFixedArrays = kFixedArrays | kFixedDoubleArrays
+    kAllFixedArrays = kFixedArrays | kFixedDoubleArrays,
+    kAllFixedArraysDontCopyCOW = kAllFixedArrays | kDontCopyCOW
   };
 
   typedef base::Flags<ExtractFixedArrayFlag> ExtractFixedArrayFlags;
@@ -855,9 +853,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // kAllFixedArrays, the generated code is more compact and efficient if the
   // caller can specify whether only FixedArrays or FixedDoubleArrays will be
   // passed as the |source| parameter.
-  Node* CloneFixedArray(
-      Node* source,
-      ExtractFixedArrayFlags flags = ExtractFixedArrayFlag::kAllFixedArrays) {
+  Node* CloneFixedArray(Node* source,
+                        ExtractFixedArrayFlags flags =
+                            ExtractFixedArrayFlag::kAllFixedArraysDontCopyCOW) {
     ParameterMode mode = OptimalParameterMode();
     return ExtractFixedArray(source, IntPtrOrSmiConstant(0, mode), nullptr,
                              nullptr, flags, mode);

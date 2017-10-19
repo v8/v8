@@ -1961,7 +1961,6 @@ class GrowableFixedArray {
 
     CodeStubAssembler::ExtractFixedArrayFlags flags;
     flags |= CodeStubAssembler::ExtractFixedArrayFlag::kFixedArrays;
-    flags |= CodeStubAssembler::ExtractFixedArrayFlag::kForceCOWCopy;
     Node* to_array = a->ExtractFixedArray(from_array, nullptr, element_count,
                                           new_capacity, flags);
 

@@ -374,12 +374,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowArrayLiteral(
       allocation_site_mode == TRACK_ALLOCATION_SITE ? allocation_site : nullptr;
 
   CSA_ASSERT(this, IsJSArrayMap(LoadMap(boilerplate)));
-  Node* boilerplate_elements = LoadElements(boilerplate);
   ParameterMode mode = OptimalParameterMode();
-  Node* capacity =
-      TaggedToParameter(LoadFixedArrayBaseLength(boilerplate_elements), mode);
-  return CloneFastJSArray(context, boilerplate, mode, capacity,
-                          allocation_site);
+  return CloneFastJSArray(context, boilerplate, mode, allocation_site);
 }
 
 TF_BUILTIN(CreateShallowArrayLiteral, ConstructorBuiltinsAssembler) {
@@ -505,8 +501,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
                          IsFixedCOWArrayMap(LoadMap(boilerplate_elements))));
     ExtractFixedArrayFlags flags;
     flags |= ExtractFixedArrayFlag::kAllFixedArrays;
-    flags |= ExtractFixedArrayFlag::kForceCOWCopy;
     flags |= ExtractFixedArrayFlag::kNewSpaceAllocationOnly;
+    flags |= ExtractFixedArrayFlag::kDontCopyCOW;
     var_elements.Bind(CloneFixedArray(boilerplate_elements, flags));
     Goto(&done);
     BIND(&done);
