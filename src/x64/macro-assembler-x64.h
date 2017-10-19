@@ -67,6 +67,57 @@ struct SmiIndex {
   ScaleFactor scale;
 };
 
+enum StackArgumentsAccessorReceiverMode {
+  ARGUMENTS_CONTAIN_RECEIVER,
+  ARGUMENTS_DONT_CONTAIN_RECEIVER
+};
+
+class StackArgumentsAccessor BASE_EMBEDDED {
+ public:
+  StackArgumentsAccessor(Register base_reg, int argument_count_immediate,
+                         StackArgumentsAccessorReceiverMode receiver_mode =
+                             ARGUMENTS_CONTAIN_RECEIVER,
+                         int extra_displacement_to_last_argument = 0)
+      : base_reg_(base_reg),
+        argument_count_reg_(no_reg),
+        argument_count_immediate_(argument_count_immediate),
+        receiver_mode_(receiver_mode),
+        extra_displacement_to_last_argument_(
+            extra_displacement_to_last_argument) {}
+
+  StackArgumentsAccessor(Register base_reg, Register argument_count_reg,
+                         StackArgumentsAccessorReceiverMode receiver_mode =
+                             ARGUMENTS_CONTAIN_RECEIVER,
+                         int extra_displacement_to_last_argument = 0)
+      : base_reg_(base_reg),
+        argument_count_reg_(argument_count_reg),
+        argument_count_immediate_(0),
+        receiver_mode_(receiver_mode),
+        extra_displacement_to_last_argument_(
+            extra_displacement_to_last_argument) {}
+
+  StackArgumentsAccessor(Register base_reg,
+                         const ParameterCount& parameter_count,
+                         StackArgumentsAccessorReceiverMode receiver_mode =
+                             ARGUMENTS_CONTAIN_RECEIVER,
+                         int extra_displacement_to_last_argument = 0);
+
+  Operand GetArgumentOperand(int index);
+  Operand GetReceiverOperand() {
+    DCHECK(receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER);
+    return GetArgumentOperand(0);
+  }
+
+ private:
+  const Register base_reg_;
+  const Register argument_count_reg_;
+  const int argument_count_immediate_;
+  const StackArgumentsAccessorReceiverMode receiver_mode_;
+  const int extra_displacement_to_last_argument_;
+
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StackArgumentsAccessor);
+};
+
 class TurboAssembler : public Assembler {
  public:
   TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,

@@ -24,6 +24,42 @@
 namespace v8 {
 namespace internal {
 
+Operand StackArgumentsAccessor::GetArgumentOperand(int index) {
+  DCHECK_GE(index, 0);
+  int receiver = (receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER) ? 1 : 0;
+  int displacement_to_last_argument =
+      base_reg_ == rsp ? kPCOnStackSize : kFPOnStackSize + kPCOnStackSize;
+  displacement_to_last_argument += extra_displacement_to_last_argument_;
+  if (argument_count_reg_ == no_reg) {
+    // argument[0] is at base_reg_ + displacement_to_last_argument +
+    // (argument_count_immediate_ + receiver - 1) * kPointerSize.
+    DCHECK_GT(argument_count_immediate_ + receiver, 0);
+    return Operand(
+        base_reg_,
+        displacement_to_last_argument +
+            (argument_count_immediate_ + receiver - 1 - index) * kPointerSize);
+  } else {
+    // argument[0] is at base_reg_ + displacement_to_last_argument +
+    // argument_count_reg_ * times_pointer_size + (receiver - 1) * kPointerSize.
+    return Operand(
+        base_reg_, argument_count_reg_, times_pointer_size,
+        displacement_to_last_argument + (receiver - 1 - index) * kPointerSize);
+  }
+}
+
+StackArgumentsAccessor::StackArgumentsAccessor(
+    Register base_reg, const ParameterCount& parameter_count,
+    StackArgumentsAccessorReceiverMode receiver_mode,
+    int extra_displacement_to_last_argument)
+    : base_reg_(base_reg),
+      argument_count_reg_(parameter_count.is_reg() ? parameter_count.reg()
+                                                   : no_reg),
+      argument_count_immediate_(
+          parameter_count.is_immediate() ? parameter_count.immediate() : 0),
+      receiver_mode_(receiver_mode),
+      extra_displacement_to_last_argument_(
+          extra_displacement_to_last_argument) {}
+
 MacroAssembler::MacroAssembler(Isolate* isolate, void* buffer, int size,
                                CodeObjectRequired create_code_object)
     : TurboAssembler(isolate, buffer, size, create_code_object) {}

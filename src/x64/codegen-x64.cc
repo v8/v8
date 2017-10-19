@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/x64/codegen-x64.h"
-
 #if V8_TARGET_ARCH_X64
 
 #include "src/codegen.h"
@@ -40,27 +38,6 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
 }
 
 #undef __
-
-Operand StackArgumentsAccessor::GetArgumentOperand(int index) {
-  DCHECK_GE(index, 0);
-  int receiver = (receiver_mode_ == ARGUMENTS_CONTAIN_RECEIVER) ? 1 : 0;
-  int displacement_to_last_argument =
-      base_reg_ == rsp ? kPCOnStackSize : kFPOnStackSize + kPCOnStackSize;
-  displacement_to_last_argument += extra_displacement_to_last_argument_;
-  if (argument_count_reg_ == no_reg) {
-    // argument[0] is at base_reg_ + displacement_to_last_argument +
-    // (argument_count_immediate_ + receiver - 1) * kPointerSize.
-    DCHECK_GT(argument_count_immediate_ + receiver, 0);
-    return Operand(base_reg_, displacement_to_last_argument +
-        (argument_count_immediate_ + receiver - 1 - index) * kPointerSize);
-  } else {
-    // argument[0] is at base_reg_ + displacement_to_last_argument +
-    // argument_count_reg_ * times_pointer_size + (receiver - 1) * kPointerSize.
-    return Operand(base_reg_, argument_count_reg_, times_pointer_size,
-        displacement_to_last_argument + (receiver - 1 - index) * kPointerSize);
-  }
-}
-
 
 }  // namespace internal
 }  // namespace v8

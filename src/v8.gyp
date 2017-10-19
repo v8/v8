@@ -1694,7 +1694,6 @@
             'x64/code-stubs-x64.cc',
             'x64/code-stubs-x64.h',
             'x64/codegen-x64.cc',
-            'x64/codegen-x64.h',
             'x64/cpu-x64.cc',
             'x64/deoptimizer-x64.cc',
             'x64/disasm-x64.cc',

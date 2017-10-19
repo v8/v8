@@ -8,10 +8,6 @@
 #include "src/code-stubs.h"
 #include "src/globals.h"
 
-#if V8_TARGET_ARCH_X64
-#include "src/x64/codegen-x64.h"  // NOLINT
-#endif
-
 namespace v8 {
 namespace internal {
 
