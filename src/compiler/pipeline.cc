@@ -12,6 +12,7 @@
 #include "src/base/adapters.h"
 #include "src/base/optional.h"
 #include "src/base/platform/elapsed-timer.h"
+#include "src/bootstrapper.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/compiler/basic-block-instrumentor.h"
@@ -454,6 +455,152 @@ class PipelineImpl final {
 };
 
 namespace {
+
+// Print function's source if it was not printed before.
+// Return a sequential id under which this function was printed.
+int PrintFunctionSource(CompilationInfo* info,
+                        std::vector<Handle<SharedFunctionInfo>>* printed,
+                        int inlining_id, Handle<SharedFunctionInfo> shared) {
+  // Outermost function has source id -1 and inlined functions take
+  // source ids starting from 0.
+  int source_id = -1;
+  if (inlining_id != SourcePosition::kNotInlined) {
+    for (unsigned i = 0; i < printed->size(); i++) {
+      if (printed->at(i).is_identical_to(shared)) {
+        return i;
+      }
+    }
+    source_id = static_cast<int>(printed->size());
+    printed->push_back(shared);
+  }
+
+  Isolate* isolate = info->isolate();
+  if (!shared->script()->IsUndefined(isolate)) {
+    Handle<Script> script(Script::cast(shared->script()), isolate);
+
+    if (!script->source()->IsUndefined(isolate)) {
+      CodeTracer::Scope tracing_scope(isolate->GetCodeTracer());
+      Object* source_name = script->name();
+      OFStream os(tracing_scope.file());
+      os << "--- FUNCTION SOURCE (";
+      if (source_name->IsString()) {
+        os << String::cast(source_name)->ToCString().get() << ":";
+      }
+      os << shared->DebugName()->ToCString().get() << ") id{";
+      os << info->optimization_id() << "," << source_id << "} start{";
+      os << shared->start_position() << "} ---\n";
+      {
+        DisallowHeapAllocation no_allocation;
+        int start = shared->start_position();
+        int len = shared->end_position() - start;
+        String::SubStringRange source(String::cast(script->source()), start,
+                                      len);
+        for (const auto& c : source) {
+          os << AsReversiblyEscapedUC16(c);
+        }
+      }
+
+      os << "\n--- END ---\n";
+    }
+  }
+
+  return source_id;
+}
+
+// Print information for the given inlining: which function was inlined and
+// where the inlining occurred.
+void PrintInlinedFunctionInfo(CompilationInfo* info, int source_id,
+                              int inlining_id,
+                              const CompilationInfo::InlinedFunctionHolder& h) {
+  CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
+  OFStream os(tracing_scope.file());
+  os << "INLINE (" << h.shared_info->DebugName()->ToCString().get() << ") id{"
+     << info->optimization_id() << "," << source_id << "} AS " << inlining_id
+     << " AT ";
+  const SourcePosition position = h.position.position;
+  if (position.IsKnown()) {
+    os << "<" << position.InliningId() << ":" << position.ScriptOffset() << ">";
+  } else {
+    os << "<?>";
+  }
+  os << std::endl;
+}
+
+// Print the source of all functions that participated in this optimizing
+// compilation. For inlined functions print source position of their inlining.
+void DumpParticipatingSource(CompilationInfo* info) {
+  AllowDeferredHandleDereference allow_deference_for_print_code;
+
+  std::vector<Handle<SharedFunctionInfo>> printed;
+  printed.reserve(info->inlined_functions().size());
+
+  PrintFunctionSource(info, &printed, SourcePosition::kNotInlined,
+                      info->shared_info());
+  const auto& inlined = info->inlined_functions();
+  for (unsigned id = 0; id < inlined.size(); id++) {
+    const int source_id =
+        PrintFunctionSource(info, &printed, id, inlined[id].shared_info);
+    PrintInlinedFunctionInfo(info, source_id, id, inlined[id]);
+  }
+}
+
+// Print the code after compiling it.
+void PrintCode(Handle<Code> code, CompilationInfo* info) {
+  if (FLAG_print_opt_source && info->IsOptimizing()) {
+    DumpParticipatingSource(info);
+  }
+
+#ifdef ENABLE_DISASSEMBLER
+  AllowDeferredHandleDereference allow_deference_for_print_code;
+  Isolate* isolate = info->isolate();
+  bool print_code =
+      isolate->bootstrapper()->IsActive()
+          ? FLAG_print_builtin_code
+          : (FLAG_print_code || (info->IsStub() && FLAG_print_code_stubs) ||
+             (info->IsOptimizing() && FLAG_print_opt_code &&
+              info->shared_info()->PassesFilter(FLAG_print_opt_code_filter)) ||
+             (info->IsWasm() && FLAG_print_wasm_code));
+  if (print_code) {
+    std::unique_ptr<char[]> debug_name = info->GetDebugName();
+    CodeTracer::Scope tracing_scope(info->isolate()->GetCodeTracer());
+    OFStream os(tracing_scope.file());
+
+    // Print the source code if available.
+    bool print_source = code->kind() == Code::OPTIMIZED_FUNCTION;
+    if (print_source) {
+      Handle<SharedFunctionInfo> shared = info->shared_info();
+      if (shared->script()->IsScript() &&
+          !Script::cast(shared->script())->source()->IsUndefined(isolate)) {
+        os << "--- Raw source ---\n";
+        StringCharacterStream stream(
+            String::cast(Script::cast(shared->script())->source()),
+            shared->start_position());
+        // fun->end_position() points to the last character in the stream. We
+        // need to compensate by adding one to calculate the length.
+        int source_len = shared->end_position() - shared->start_position() + 1;
+        for (int i = 0; i < source_len; i++) {
+          if (stream.HasMore()) {
+            os << AsReversiblyEscapedUC16(stream.GetNext());
+          }
+        }
+        os << "\n\n";
+      }
+    }
+    if (info->IsOptimizing()) {
+      os << "--- Optimized code ---\n"
+         << "optimization_id = " << info->optimization_id() << "\n";
+    } else {
+      os << "--- Code ---\n";
+    }
+    if (print_source) {
+      Handle<SharedFunctionInfo> shared = info->shared_info();
+      os << "source_position = " << shared->start_position() << "\n";
+    }
+    code->Disassemble(debug_name.get(), os);
+    os << "--- End code ---\n";
+  }
+#endif  // ENABLE_DISASSEMBLER
+}
 
 struct TurboCfgFile : public std::ofstream {
   explicit TurboCfgFile(Isolate* isolate)
@@ -2029,7 +2176,7 @@ Handle<Code> PipelineImpl::FinalizeCode() {
   }
 
   info()->SetCode(code);
-  v8::internal::CodeGenerator::PrintCode(code, info());
+  PrintCode(code, info());
 
   if (FLAG_trace_turbo) {
     TurboJsonFile json_of(info(), std::ios_base::app);

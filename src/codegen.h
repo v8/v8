@@ -11,17 +11,6 @@
 namespace v8 {
 namespace internal {
 
-class CompilationInfo;
-
-class CodeGenerator {
- public:
-  // Print the code after compiling it.
-  static void PrintCode(Handle<Code> code, CompilationInfo* info);
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CodeGenerator);
-};
-
 // Results of the library implementation of transcendental functions may differ
 // from the one we use in our generated code.  Therefore we use the same
 // generated code both in runtime and compiled code.
