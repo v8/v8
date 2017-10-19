@@ -370,6 +370,10 @@ class MemoryAccessThread : public v8::base::Thread {
   v8::Isolate* isolate_;
 };
 
+// TODO(rodolph.perfetta@arm.com): Enable this test for native hardware, see
+// http://crbug.com/v8/6963.
+#if defined(USE_SIMULATOR)
+
 TEST(simulator_invalidate_exclusive_access_threaded) {
   using Kind = MemoryAccess::Kind;
   using Size = MemoryAccess::Size;
@@ -417,6 +421,8 @@ TEST(simulator_invalidate_exclusive_access_threaded) {
   thread.Finish();
   thread.Join();
 }
+
+#endif  // USE_SIMULATOR
 
 TEST(simulator_vabs_32) {
   Isolate* isolate = CcTest::i_isolate();
