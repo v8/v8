@@ -36,6 +36,7 @@ const size_t kUint32Size = 4;
 const size_t kUint8Size = 1;
 #endif
 
+const int kPlaceholderSize = kUint32Size;
 const int kSkippableFunctionDataSize = 4 * kUint32Size + 1 * kUint8Size;
 
 class LanguageField : public BitField<LanguageMode, 0, 1> {};
@@ -224,9 +225,9 @@ void ProducedPreParsedScopeData::SaveScopeAllocationData(
   DCHECK(previously_produced_preparsed_scope_data_.is_null());
   // The data contains a uint32 (reserved space for scope_data_start) and
   // function data items, kSkippableFunctionDataSize each.
-  DCHECK_GE(byte_data_->size(), kUint32Size);
+  DCHECK_GE(byte_data_->size(), kPlaceholderSize);
   DCHECK_LE(byte_data_->size(), std::numeric_limits<uint32_t>::max());
-  DCHECK_EQ(byte_data_->size() % kSkippableFunctionDataSize, kUint32Size);
+  DCHECK_EQ(byte_data_->size() % kSkippableFunctionDataSize, kPlaceholderSize);
 
   if (bailed_out_) {
     return;
@@ -235,7 +236,7 @@ void ProducedPreParsedScopeData::SaveScopeAllocationData(
   uint32_t scope_data_start = static_cast<uint32_t>(byte_data_->size());
 
   // If there are no skippable inner functions, we don't need to save anything.
-  if (scope_data_start == kUint32Size) {
+  if (scope_data_start == kPlaceholderSize) {
     return;
   }
 
@@ -248,6 +249,10 @@ void ProducedPreParsedScopeData::SaveScopeAllocationData(
   byte_data_->WriteUint32(scope->end_position());
 
   SaveDataForScope(scope);
+}
+
+bool ProducedPreParsedScopeData::ContainsInnerFunctions() const {
+  return byte_data_->size() > kPlaceholderSize;
 }
 
 MaybeHandle<PreParsedScopeData> ProducedPreParsedScopeData::Serialize(
@@ -263,7 +268,7 @@ MaybeHandle<PreParsedScopeData> ProducedPreParsedScopeData::Serialize(
 
   DCHECK(!ThisOrParentBailedOut());
 
-  if (byte_data_->size() <= kUint32Size) {
+  if (byte_data_->size() <= kPlaceholderSize) {
     // The data contains only the placeholder.
     return MaybeHandle<PreParsedScopeData>();
   }
@@ -452,7 +457,7 @@ void ConsumedPreParsedScopeData::SetData(Handle<PreParsedScopeData> data) {
   DCHECK_EQ(scope_data_->ReadUint32(), kMagicValue);
 #endif
   // The first data item is scope_data_start. Skip over it.
-  scope_data_->SetPosition(kUint32Size);
+  scope_data_->SetPosition(kPlaceholderSize);
 }
 
 ProducedPreParsedScopeData*

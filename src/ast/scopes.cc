@@ -1542,7 +1542,10 @@ void DeclarationScope::AnalyzePartially(AstNodeFactory* ast_node_factory) {
   DCHECK(!force_eager_compilation_);
   VariableProxy* unresolved = nullptr;
 
-  if (!outer_scope_->is_script_scope() || FLAG_preparser_scope_analysis) {
+  if (!outer_scope_->is_script_scope() ||
+      (FLAG_preparser_scope_analysis &&
+       produced_preparsed_scope_data_ != nullptr &&
+       produced_preparsed_scope_data_->ContainsInnerFunctions())) {
     // Try to resolve unresolved variables for this Scope and migrate those
     // which cannot be resolved inside. It doesn't make sense to try to resolve
     // them in the outer Scopes here, because they are incomplete.

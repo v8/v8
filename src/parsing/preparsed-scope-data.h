@@ -142,6 +142,8 @@ class ProducedPreParsedScopeData : public ZoneObject {
   }
 #endif  // DEBUG
 
+  bool ContainsInnerFunctions() const;
+
   // If there is data (if the Scope contains skippable inner functions), move
   // the data into the heap and return a Handle to it; otherwise return a null
   // MaybeHandle.
