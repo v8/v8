@@ -945,13 +945,13 @@ static int TranslatePosition(int original_position,
   return original_position + position_diff;
 }
 
-void TranslateSourcePositionTable(Handle<AbstractCode> code,
+void TranslateSourcePositionTable(Handle<BytecodeArray> code,
                                   Handle<JSArray> position_change_array) {
   Isolate* isolate = code->GetIsolate();
   Zone zone(isolate->allocator(), ZONE_NAME);
   SourcePositionTableBuilder builder(&zone);
 
-  Handle<ByteArray> source_position_table(code->source_position_table());
+  Handle<ByteArray> source_position_table(code->SourcePositionTable());
   for (SourcePositionTableIterator iterator(*source_position_table);
        !iterator.done(); iterator.Advance()) {
     SourcePosition position = iterator.source_position();
@@ -962,7 +962,7 @@ void TranslateSourcePositionTable(Handle<AbstractCode> code,
   }
 
   Handle<ByteArray> new_source_position_table(
-      builder.ToSourcePositionTable(isolate, code));
+      builder.ToSourcePositionTable(isolate, Handle<AbstractCode>::cast(code)));
   code->set_source_position_table(*new_source_position_table);
 }
 }  // namespace
@@ -985,9 +985,8 @@ void LiveEdit::PatchFunctionPositions(Handle<JSArray> shared_info_array,
   info->set_function_token_position(new_function_token_pos);
 
   if (info->HasBytecodeArray()) {
-    TranslateSourcePositionTable(
-        Handle<AbstractCode>(AbstractCode::cast(info->bytecode_array())),
-        position_change_array);
+    TranslateSourcePositionTable(handle(info->bytecode_array()),
+                                 position_change_array);
   }
   if (info->HasBreakInfo()) {
     // Existing break points will be re-applied. Reset the debug info here.

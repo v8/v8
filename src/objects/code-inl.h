@@ -42,14 +42,6 @@ ByteArray* AbstractCode::source_position_table() {
   }
 }
 
-void AbstractCode::set_source_position_table(ByteArray* source_position_table) {
-  if (IsCode()) {
-    GetCode()->set_source_position_table(source_position_table);
-  } else {
-    GetBytecodeArray()->set_source_position_table(source_position_table);
-  }
-}
-
 Object* AbstractCode::stack_frame_cache() {
   Object* maybe_table;
   if (IsCode()) {

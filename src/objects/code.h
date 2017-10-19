@@ -560,9 +560,6 @@ class AbstractCode : public HeapObject {
   // Return the source position table.
   inline ByteArray* source_position_table();
 
-  // Set the source position table.
-  inline void set_source_position_table(ByteArray* source_position_table);
-
   inline Object* stack_frame_cache();
   static void SetStackFrameCache(Handle<AbstractCode> abstract_code,
                                  Handle<UnseededNumberDictionary> cache);
