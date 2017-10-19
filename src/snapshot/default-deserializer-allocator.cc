@@ -43,7 +43,7 @@ Address DefaultDeserializerAllocator::AllocateRaw(AllocationSpace space,
     DCHECK_EQ(Map::kSize, size);
     return allocated_maps_[next_map_index_++];
   } else {
-    DCHECK(space < kNumberOfPreallocatedSpaces);
+    DCHECK_LT(space, kNumberOfPreallocatedSpaces);
     Address address = high_water_[space];
     DCHECK_NOT_NULL(address);
     high_water_[space] += size;
@@ -84,7 +84,7 @@ Address DefaultDeserializerAllocator::Allocate(AllocationSpace space,
 }
 
 void DefaultDeserializerAllocator::MoveToNextChunk(AllocationSpace space) {
-  DCHECK(space < kNumberOfPreallocatedSpaces);
+  DCHECK_LT(space, kNumberOfPreallocatedSpaces);
   uint32_t chunk_index = current_chunk_[space];
   const Heap::Reservation& reservation = reservations_[space];
   // Make sure the current chunk is indeed exhausted.
@@ -136,7 +136,7 @@ void DefaultDeserializerAllocator::DecodeReservation(
 bool DefaultDeserializerAllocator::ReserveSpace() {
 #ifdef DEBUG
   for (int i = NEW_SPACE; i < kNumberOfSpaces; ++i) {
-    DCHECK(reservations_[i].size() > 0);
+    DCHECK_GT(reservations_[i].size(), 0);
   }
 #endif  // DEBUG
   DCHECK(allocated_maps_.empty());

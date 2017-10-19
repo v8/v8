@@ -434,7 +434,7 @@ ComparisonResult BigInt::CompareToDouble(Handle<BigInt> x, double y) {
     compare_mantissa = mantissa >> remaining_mantissa_bits;
     mantissa = mantissa << (64 - remaining_mantissa_bits);
   } else {
-    DCHECK(msd_topbit >= kMantissaTopBit);
+    DCHECK_GE(msd_topbit, kMantissaTopBit);
     compare_mantissa = mantissa << (msd_topbit - kMantissaTopBit);
     mantissa = 0;
   }
@@ -463,7 +463,7 @@ ComparisonResult BigInt::CompareToDouble(Handle<BigInt> x, double y) {
 
   // Integer parts are equal; check whether {y} has a fractional part.
   if (mantissa != 0) {
-    DCHECK(remaining_mantissa_bits > 0);
+    DCHECK_GT(remaining_mantissa_bits, 0);
     return AbsoluteLess(x_sign);
   }
   return ComparisonResult::kEqual;
