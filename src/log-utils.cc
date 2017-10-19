@@ -18,15 +18,26 @@ namespace internal {
 const char* const Log::kLogToTemporaryFile = "&";
 const char* const Log::kLogToConsole = "-";
 
-Log::Log(Logger* logger)
+// static
+FILE* Log::CreateOutputHandle(const char* file_name) {
+  // If we're logging anything, we need to open the log file.
+  if (!Log::InitLogAtStart()) {
+    return nullptr;
+  } else if (strcmp(file_name, kLogToConsole) == 0) {
+    return stdout;
+  } else if (strcmp(file_name, kLogToTemporaryFile) == 0) {
+    return base::OS::OpenTemporaryFile();
+  } else {
+    return base::OS::FOpen(file_name, base::OS::LogFileOpenMode);
+  }
+}
+
+Log::Log(Logger* logger, const char* file_name)
     : is_stopped_(false),
-      output_handle_(nullptr),
-      message_buffer_(nullptr),
-      logger_(logger) {}
-
-void Log::Initialize(const char* log_file_name) {
-  message_buffer_ = NewArray<char>(kMessageBufferSize);
-
+      output_handle_(Log::CreateOutputHandle(file_name)),
+      os_(output_handle_ == nullptr ? stdout : output_handle_),
+      format_buffer_(NewArray<char>(kMessageBufferSize)),
+      logger_(logger) {
   // --log-all enables all the log flags.
   if (FLAG_log_all) {
     FLAG_log_api = true;
@@ -40,49 +51,19 @@ void Log::Initialize(const char* log_file_name) {
   // --prof implies --log-code.
   if (FLAG_prof) FLAG_log_code = true;
 
-  // If we're logging anything, we need to open the log file.
-  if (Log::InitLogAtStart()) {
-    if (strcmp(log_file_name, kLogToConsole) == 0) {
-      OpenStdout();
-    } else if (strcmp(log_file_name, kLogToTemporaryFile) == 0) {
-      OpenTemporaryFile();
+  if (output_handle_ != nullptr) {
+    Log::MessageBuilder msg(this);
+    if (strlen(Version::GetEmbedder()) == 0) {
+      msg.Append("v8-version,%d,%d,%d,%d,%d", Version::GetMajor(),
+                 Version::GetMinor(), Version::GetBuild(), Version::GetPatch(),
+                 Version::IsCandidate());
     } else {
-      OpenFile(log_file_name);
+      msg.Append("v8-version,%d,%d,%d,%d,%s,%d", Version::GetMajor(),
+                 Version::GetMinor(), Version::GetBuild(), Version::GetPatch(),
+                 Version::GetEmbedder(), Version::IsCandidate());
     }
-
-    if (output_handle_ != nullptr) {
-      Log::MessageBuilder msg(this);
-      if (strlen(Version::GetEmbedder()) == 0) {
-        msg.Append("v8-version,%d,%d,%d,%d,%d", Version::GetMajor(),
-                   Version::GetMinor(), Version::GetBuild(),
-                   Version::GetPatch(), Version::IsCandidate());
-      } else {
-        msg.Append("v8-version,%d,%d,%d,%d,%s,%d", Version::GetMajor(),
-                   Version::GetMinor(), Version::GetBuild(),
-                   Version::GetPatch(), Version::GetEmbedder(),
-                   Version::IsCandidate());
-      }
-      msg.WriteToLogFile();
-    }
+    msg.WriteToLogFile();
   }
-}
-
-
-void Log::OpenStdout() {
-  DCHECK(!IsEnabled());
-  output_handle_ = stdout;
-}
-
-
-void Log::OpenTemporaryFile() {
-  DCHECK(!IsEnabled());
-  output_handle_ = base::OS::OpenTemporaryFile();
-}
-
-
-void Log::OpenFile(const char* name) {
-  DCHECK(!IsEnabled());
-  output_handle_ = base::OS::FOpen(name, base::OS::LogFileOpenMode);
 }
 
 FILE* Log::Close() {
@@ -96,74 +77,63 @@ FILE* Log::Close() {
   }
   output_handle_ = nullptr;
 
-  DeleteArray(message_buffer_);
-  message_buffer_ = nullptr;
+  DeleteArray(format_buffer_);
+  format_buffer_ = nullptr;
 
   is_stopped_ = false;
   return result;
 }
 
-
 Log::MessageBuilder::MessageBuilder(Log* log)
-  : log_(log),
-    lock_guard_(&log_->mutex_),
-    pos_(0) {
-  DCHECK_NOT_NULL(log_->message_buffer_);
+    : log_(log), lock_guard_(&log_->mutex_) {
+  DCHECK_NOT_NULL(log_->format_buffer_);
 }
 
 
 void Log::MessageBuilder::Append(const char* format, ...) {
-  Vector<char> buf(log_->message_buffer_ + pos_,
-                   Log::kMessageBufferSize - pos_);
   va_list args;
   va_start(args, format);
   AppendVA(format, args);
   va_end(args);
-  DCHECK_LE(pos_, Log::kMessageBufferSize);
 }
 
 
 void Log::MessageBuilder::AppendVA(const char* format, va_list args) {
-  Vector<char> buf(log_->message_buffer_ + pos_,
-                   Log::kMessageBufferSize - pos_);
-  int result = v8::internal::VSNPrintF(buf, format, args);
-
-  // Result is -1 if output was truncated.
-  if (result >= 0) {
-    pos_ += result;
-  } else {
-    pos_ = Log::kMessageBufferSize;
+  Vector<char> buf(log_->format_buffer_, Log::kMessageBufferSize);
+  int length = v8::internal::VSNPrintF(buf, format, args);
+  // {length} is -1 if output was truncated.
+  if (length == -1) {
+    length = Log::kMessageBufferSize;
   }
-  DCHECK_LE(pos_, Log::kMessageBufferSize);
-}
-
-
-void Log::MessageBuilder::Append(const char c) {
-  if (pos_ < Log::kMessageBufferSize) {
-    log_->message_buffer_[pos_++] = c;
-  }
-  DCHECK_LE(pos_, Log::kMessageBufferSize);
+  DCHECK_LE(length, Log::kMessageBufferSize);
+  AppendStringPart(log_->format_buffer_, length);
 }
 
 
 void Log::MessageBuilder::AppendDoubleQuotedString(const char* string) {
-  Append('"');
+  OFStream& os = log_->os_;
+  // TODO(cbruni): unify escaping.
+  os << '"';
   for (const char* p = string; *p != '\0'; p++) {
-    if (*p == '"') {
-      Append('\\');
-    }
-    Append(*p);
+    if (*p == '"') os << '\\';
+    os << *p;
   }
-  Append('"');
+  os << '"';
 }
 
+void Log::MessageBuilder::AppendDoubleQuotedString(String* string) {
+  OFStream& os = log_->os_;
+  os << '"';
+  // TODO(cbruni): unify escaping.
+  AppendEscapedString(string);
+  os << '"';
+}
 
-void Log::MessageBuilder::Append(String* str) {
+void Log::MessageBuilder::Append(String* string) {
   DisallowHeapAllocation no_gc;  // Ensure string stay valid.
-  int length = str->length();
-  for (int i = 0; i < length; i++) {
-    Append(static_cast<char>(str->Get(i)));
-  }
+  std::unique_ptr<char[]> characters =
+      string->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
+  log_->os_ << characters.get();
 }
 
 void Log::MessageBuilder::AppendAddress(Address addr) {
@@ -172,109 +142,69 @@ void Log::MessageBuilder::AppendAddress(Address addr) {
 
 void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
   DCHECK(symbol);
-  Append("symbol(");
+  OFStream& os = log_->os_;
+  os << "symbol(";
   if (!symbol->name()->IsUndefined(symbol->GetIsolate())) {
-    Append("\"");
+    os << "\"";
     AppendDetailed(String::cast(symbol->name()), false);
-    Append("\" ");
+    os << "\" ";
   }
-  Append("hash %x)", symbol->Hash());
+  os << "hash " << std::hex << symbol->Hash() << std::dec << ")";
 }
 
 
 void Log::MessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
   if (str == nullptr) return;
   DisallowHeapAllocation no_gc;  // Ensure string stay valid.
+  OFStream& os = log_->os_;
   int len = str->length();
-  if (len > 0x1000)
-    len = 0x1000;
+  if (len > 0x1000) len = 0x1000;
   if (show_impl_info) {
-    Append(str->IsOneByteRepresentation() ? 'a' : '2');
-    if (StringShape(str).IsExternal())
-      Append('e');
-    if (StringShape(str).IsInternalized())
-      Append('#');
-    Append(":%i:", str->length());
+    os << (str->IsOneByteRepresentation() ? 'a' : '2');
+    if (StringShape(str).IsExternal()) os << 'e';
+    if (StringShape(str).IsInternalized()) os << '#';
+    os << ':' << str->length() << ':';
   }
-  for (int i = 0; i < len; i++) {
-    uc32 c = str->Get(i);
-    if (c > 0xff) {
-      Append("\\u%04x", c);
-    } else if (c < 32 || c > 126) {
-      Append("\\x%02x", c);
-    } else if (c == ',') {
-      Append("\\,");
-    } else if (c == '\\') {
-      Append("\\\\");
-    } else if (c == '\"') {
-      Append("\"\"");
-    } else {
-      Append("%lc", c);
-    }
-  }
+  AppendEscapedString(str, len);
 }
 
-void Log::MessageBuilder::AppendUnbufferedHeapString(String* str) {
+void Log::MessageBuilder::AppendEscapedString(String* str) {
   if (str == nullptr) return;
-  DisallowHeapAllocation no_gc;  // Ensure string stay valid.
-  ScopedVector<char> buffer(16);
   int len = str->length();
+  AppendEscapedString(str, len);
+}
+
+void Log::MessageBuilder::AppendEscapedString(String* str, int len) {
+  DCHECK_LE(len, str->length());
+  DisallowHeapAllocation no_gc;  // Ensure string stay valid.
+  OFStream& os = log_->os_;
+  // TODO(cbruni): unify escaping.
   for (int i = 0; i < len; i++) {
     uc32 c = str->Get(i);
     if (c >= 32 && c <= 126) {
       if (c == '\"') {
-        AppendUnbufferedCString("\"\"");
+        os << "\"\"";
       } else if (c == '\\') {
-        AppendUnbufferedCString("\\\\");
+        os << "\\\\";
+      } else if (c == ',') {
+        os << "\\,";
       } else {
-        AppendUnbufferedChar(c);
+        os << static_cast<char>(c);
       }
     } else if (c > 0xff) {
-      int length = v8::internal::SNPrintF(buffer, "\\u%04x", c);
-      DCHECK_EQ(6, length);
-      log_->WriteToFile(buffer.start(), length);
+      Append("\\u%04x", c);
     } else {
-      DCHECK_LE(c, 0xffff);
-      int length = v8::internal::SNPrintF(buffer, "\\x%02x", c);
-      DCHECK_EQ(4, length);
-      log_->WriteToFile(buffer.start(), length);
+      DCHECK(c < 32 || (c > 126 && c <= 0xff));
+      Append("\\x%02x", c);
     }
   }
 }
 
-void Log::MessageBuilder::AppendUnbufferedChar(char c) {
-  log_->WriteToFile(&c, 1);
-}
-
-void Log::MessageBuilder::AppendUnbufferedCString(const char* str) {
-  log_->WriteToFile(str, static_cast<int>(strlen(str)));
-}
-
 void Log::MessageBuilder::AppendStringPart(const char* str, int len) {
-  if (pos_ + len > Log::kMessageBufferSize) {
-    len = Log::kMessageBufferSize - pos_;
-    DCHECK_GE(len, 0);
-    if (len == 0) return;
-  }
-  Vector<char> buf(log_->message_buffer_ + pos_,
-                   Log::kMessageBufferSize - pos_);
-  StrNCpy(buf, str, len);
-  pos_ += len;
-  DCHECK_LE(pos_, Log::kMessageBufferSize);
+  log_->os_.write(str, len);
 }
 
-void Log::MessageBuilder::WriteToLogFile() {
-  DCHECK_LE(pos_, Log::kMessageBufferSize);
-  // Assert that we do not already have a new line at the end.
-  DCHECK(pos_ == 0 || log_->message_buffer_[pos_ - 1] != '\n');
-  if (pos_ == Log::kMessageBufferSize) pos_--;
-  log_->message_buffer_[pos_++] = '\n';
-  const int written = log_->WriteToFile(log_->message_buffer_, pos_);
-  if (written != pos_) {
-    log_->stop();
-    log_->logger_->LogFailure();
-  }
-}
+void Log::MessageBuilder::WriteToLogFile() { log_->os_ << std::endl; }
 
 }  // namespace internal
 }  // namespace v8
