@@ -75,3 +75,27 @@
   assertEquals(0, foo(0, 1).length);
   assertEquals("bound bar", foo(1, 2).name)
 })();
+
+(function() {
+  function bar(f) { return f(1); }
+
+  function foo(g) { return bar(g.bind(null, 2)); }
+
+  assertEquals(3, foo((x, y) => x + y));
+  assertEquals(1, foo((x, y) => x - y));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(3, foo((x, y) => x + y));
+  assertEquals(1, foo((x, y) => x - y));
+})();
+
+(function() {
+  function add(x, y) { return x + y; }
+
+  function foo(a) { return a.map(add.bind(null, 1)); }
+
+  assertEquals([1, 2, 3], foo([0, 1, 2]));
+  assertEquals([2, 3, 4], foo([1, 2, 3]));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals([1, 2, 3], foo([0, 1, 2]));
+  assertEquals([2, 3, 4], foo([1, 2, 3]));
+})();

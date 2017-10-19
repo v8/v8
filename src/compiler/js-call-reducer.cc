@@ -1823,6 +1823,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* control = NodeProperties::GetControlInput(node);
   Node* effect = NodeProperties::GetEffectInput(node);
+  size_t arity = p.arity();
+  DCHECK_LE(2u, arity);
 
   // Try to specialize JSCall {node}s with constant {target}s.
   HeapObjectMatcher m(target);
@@ -1902,13 +1904,10 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       Handle<Object> bound_this(function->bound_this(), isolate());
       Handle<FixedArray> bound_arguments(function->bound_arguments(),
                                          isolate());
-      CallParameters const& p = CallParametersOf(node->op());
       ConvertReceiverMode const convert_mode =
           (bound_this->IsNullOrUndefined(isolate()))
               ? ConvertReceiverMode::kNullOrUndefined
               : ConvertReceiverMode::kNotNullOrUndefined;
-      size_t arity = p.arity();
-      DCHECK_LE(2u, arity);
       // Patch {node} to use [[BoundTargetFunction]] and [[BoundThis]].
       NodeProperties::ReplaceValueInput(
           node, jsgraph()->Constant(bound_target_function), 0);
@@ -1932,6 +1931,40 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     // Don't mess with other {node}s that have a constant {target}.
     // TODO(bmeurer): Also support proxies here.
     return NoChange();
+  }
+
+  // If {target} is the result of a JSCreateBoundFunction operation,
+  // we can just fold the construction and call the bound target
+  // function directly instead.
+  if (target->opcode() == IrOpcode::kJSCreateBoundFunction) {
+    Node* bound_target_function = NodeProperties::GetValueInput(target, 0);
+    Node* bound_this = NodeProperties::GetValueInput(target, 1);
+    int const bound_arguments_length =
+        static_cast<int>(CreateBoundFunctionParametersOf(target->op()).arity());
+
+    // Patch the {node} to use [[BoundTargetFunction]] and [[BoundThis]].
+    NodeProperties::ReplaceValueInput(node, bound_target_function, 0);
+    NodeProperties::ReplaceValueInput(node, bound_this, 1);
+
+    // Insert the [[BoundArguments]] for {node}.
+    for (int i = 0; i < bound_arguments_length; ++i) {
+      Node* value = NodeProperties::GetValueInput(target, 2 + i);
+      node->InsertInput(graph()->zone(), 2 + i, value);
+      arity++;
+    }
+
+    // Update the JSCall operator on {node}.
+    ConvertReceiverMode const convert_mode =
+        CanBeNullOrUndefined(bound_this)
+            ? ConvertReceiverMode::kAny
+            : ConvertReceiverMode::kNotNullOrUndefined;
+    NodeProperties::ChangeOp(
+        node, javascript()->Call(arity, p.frequency(), VectorSlotPair(),
+                                 convert_mode));
+
+    // Try to further reduce the JSCall {node}.
+    Reduction const reduction = ReduceJSCall(node);
+    return reduction.Changed() ? reduction : Changed(node);
   }
 
   // Extract feedback from the {node} using the CallICNexus.
