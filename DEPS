@@ -307,6 +307,7 @@ hooks = [
   },
   {
     # A change to a .gyp, .gypi, or to GYP itself should run the generator.
+    'name': 'regyp_if_needed',
     'pattern': '.',
     'action': ['python', 'v8/gypfiles/gyp_v8', '--running-as-hook'],
   },
