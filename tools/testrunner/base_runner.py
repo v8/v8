@@ -317,6 +317,7 @@ class BaseTestRunner(object):
       ('msan', build_config["is_msan"]),
       ('no_i18n', not build_config["v8_enable_i18n_support"]),
       ('no_snap', not build_config["v8_use_snapshot"]),
+      ('predictable', build_config["v8_enable_verify_predictable"]),
       ('tsan', build_config["is_tsan"]),
       ('ubsan_vptr', build_config["is_ubsan_vptr"]),
     ):

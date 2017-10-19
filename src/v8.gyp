@@ -2557,6 +2557,7 @@
             'is_ubsan_vptr=0',
             'target_cpu="<(target_arch)"',
             'v8_enable_i18n_support=<(v8_enable_i18n_support)',
+            'v8_enable_verify_predictable=<(v8_enable_verify_predictable)',
             'v8_target_cpu="<(v8_target_arch)"',
             'v8_use_snapshot=<(v8_use_snapshot)',
           ],
