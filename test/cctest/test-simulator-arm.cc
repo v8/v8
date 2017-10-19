@@ -38,13 +38,15 @@
 namespace v8 {
 namespace internal {
 
+#if defined(USE_SIMULATOR)
+
 #ifndef V8_TARGET_LITTLE_ENDIAN
 #error Expected ARM to be little-endian
 #endif
 
 // Define these function prototypes to match JSEntryFunction in execution.cc.
-typedef Object* (*F_iiiii)(int p0, int p1, int p2, int p3, int p4);
-typedef Object* (*F_piiii)(void* p0, int p1, int p2, int p3, int p4);
+typedef Object* (*F1)(int x, int p1, int p2, int p3, int p4);
+typedef Object* (*F3)(void* p0, int p1, int p2, int p3, int p4);
 
 #define __ assm.
 
@@ -168,22 +170,6 @@ void AssembleMemoryAccess(Assembler* assembler, MemoryAccess access,
   }
 }
 
-Address AssembleCode(std::function<void(Assembler&)> assemble) {
-  Isolate* isolate = CcTest::i_isolate();
-  Assembler assm(isolate, nullptr, 0);
-
-  assemble(assm);
-
-  __ bx(lr);
-
-  CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
-  return code->entry();
-}
-
-#if defined(USE_SIMULATOR)
 void AssembleLoadExcl(Assembler* assembler, MemoryAccess access,
                       Register value_reg, Register addr_reg) {
   DCHECK(access.kind == MemoryAccess::Kind::LoadExcl);
@@ -197,17 +183,33 @@ void AssembleStoreExcl(Assembler* assembler, MemoryAccess access,
   AssembleMemoryAccess(assembler, access, dest_reg, value_reg, addr_reg);
 }
 
+F3 AssembleCode(std::function<void(Assembler&)> assemble) {
+  Isolate* isolate = CcTest::i_isolate();
+  Assembler assm(isolate, nullptr, 0);
+
+  assemble(assm);
+
+  __ bx(lr);
+
+  CodeDesc desc;
+  assm.GetCode(isolate, &desc);
+  Handle<Code> code =
+      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+  F3 f = FUNCTION_CAST<F3>(code->entry());
+  return f;
+}
+
 void TestInvalidateExclusiveAccess(TestData initial_data, MemoryAccess access1,
                                    MemoryAccess access2, MemoryAccess access3,
                                    int expected_res, TestData expected_data) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  F_piiii f = FUNCTION_CAST<F_piiii>(AssembleCode([&](Assembler& assm) {
+  F3 f = AssembleCode([&](Assembler& assm) {
     AssembleLoadExcl(&assm, access1, r1, r1);
     AssembleMemoryAccess(&assm, access2, r3, r2, r1);
     AssembleStoreExcl(&assm, access3, r0, r3, r1);
-  }));
+  });
 
   TestData t = initial_data;
 
@@ -228,7 +230,6 @@ void TestInvalidateExclusiveAccess(TestData initial_data, MemoryAccess access1,
       break;
   }
 }
-#endif
 
 std::vector<Float32> Float32Inputs() {
   std::vector<Float32> inputs;
@@ -249,10 +250,6 @@ std::vector<Float64> Float64Inputs() {
 }
 
 }  // namespace
-
-// TODO(rodolph.perfetta@arm.com): Enable this test for native hardware, see
-// http://crbug.com/v8/6963.
-#if defined(USE_SIMULATOR)
 
 TEST(simulator_invalidate_exclusive_access) {
   using Kind = MemoryAccess::Kind;
@@ -290,14 +287,12 @@ TEST(simulator_invalidate_exclusive_access) {
                                 0, TestData(7));
 }
 
-#endif  // USE_SIMULATOR
-
 static int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
                                MemoryAccess access) {
   HandleScope scope(isolate);
-  F_piiii f = FUNCTION_CAST<F_piiii>(AssembleCode([&](Assembler& assm) {
+  F3 f = AssembleCode([&](Assembler& assm) {
     AssembleMemoryAccess(&assm, access, r0, r2, r1);
-  }));
+  });
 
   return reinterpret_cast<int>(
       CALL_GENERATED_CODE(isolate, f, test_data, 0, 0, 0, 0));
@@ -428,11 +423,11 @@ TEST(simulator_vabs_32) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  F_iiiii f = FUNCTION_CAST<F_iiiii>(AssembleCode([](Assembler& assm) {
+  F3 f = AssembleCode([](Assembler& assm) {
     __ vmov(s0, r0);
     __ vabs(s0, s0);
     __ vmov(r0, s0);
-  }));
+  });
 
   for (Float32 f32 : Float32Inputs()) {
     Float32 res = Float32::FromBits(reinterpret_cast<uint32_t>(
@@ -446,11 +441,11 @@ TEST(simulator_vabs_64) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  F_iiiii f = FUNCTION_CAST<F_iiiii>(AssembleCode([](Assembler& assm) {
+  F3 f = AssembleCode([](Assembler& assm) {
     __ vmov(d0, r0, r1);
     __ vabs(d0, d0);
     __ vmov(r1, r0, d0);
-  }));
+  });
 
   for (Float64 f64 : Float64Inputs()) {
     uint32_t p0 = static_cast<uint32_t>(f64.get_bits());
@@ -467,11 +462,11 @@ TEST(simulator_vneg_32) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  F_iiiii f = FUNCTION_CAST<F_iiiii>(AssembleCode([](Assembler& assm) {
+  F3 f = AssembleCode([](Assembler& assm) {
     __ vmov(s0, r0);
     __ vneg(s0, s0);
     __ vmov(r0, s0);
-  }));
+  });
 
   for (Float32 f32 : Float32Inputs()) {
     Float32 res = Float32::FromBits(reinterpret_cast<uint32_t>(
@@ -485,11 +480,11 @@ TEST(simulator_vneg_64) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
 
-  F_iiiii f = FUNCTION_CAST<F_iiiii>(AssembleCode([](Assembler& assm) {
+  F3 f = AssembleCode([](Assembler& assm) {
     __ vmov(d0, r0, r1);
     __ vneg(d0, d0);
     __ vmov(r1, r0, d0);
-  }));
+  });
 
   for (Float64 f64 : Float64Inputs()) {
     uint32_t p0 = static_cast<uint32_t>(f64.get_bits());
@@ -503,6 +498,8 @@ TEST(simulator_vneg_64) {
 }
 
 #undef __
+
+#endif  // USE_SIMULATOR
 
 }  // namespace internal
 }  // namespace v8
