@@ -35,6 +35,7 @@ CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
   if (parse_info->is_eval()) MarkAsEval();
   if (parse_info->is_native()) MarkAsNative();
   if (parse_info->will_serialize()) MarkAsSerializing();
+  if (parse_info->collect_type_profile()) MarkAsCollectTypeProfile();
 }
 
 CompilationInfo::CompilationInfo(Zone* zone, Isolate* isolate,
@@ -70,6 +71,7 @@ CompilationInfo::CompilationInfo(Vector<const char> debug_name,
       code_kind_(code_kind),
       mode_(mode),
       osr_offset_(BailoutId::None()),
+      feedback_vector_spec_(zone),
       zone_(zone),
       deferred_handles_(nullptr),
       dependencies_(isolate, zone),

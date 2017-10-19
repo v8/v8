@@ -36,7 +36,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
  public:
   BytecodeArrayBuilder(
       Isolate* isolate, Zone* zone, int parameter_count, int locals_count,
-      FunctionLiteral* literal = nullptr,
+      FeedbackVectorSpec* feedback_vector_spec = nullptr,
       SourcePositionTableBuilder::RecordingMode source_position_mode =
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS);
 
@@ -510,7 +510,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   friend class BytecodeNodeBuilder;
 
   const FeedbackVectorSpec* feedback_vector_spec() const {
-    return literal_->feedback_vector_spec();
+    return feedback_vector_spec_;
   }
 
   // Returns the current source position for the given |bytecode|.
@@ -567,7 +567,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   }
 
   Zone* zone_;
-  FunctionLiteral* literal_;
+  FeedbackVectorSpec* feedback_vector_spec_;
   bool bytecode_generated_;
   ConstantArrayBuilder constant_array_builder_;
   HandlerTableBuilder handler_table_builder_;

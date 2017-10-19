@@ -201,75 +201,11 @@ void VariableProxy::BindTo(Variable* var) {
   if (is_assigned()) var->set_maybe_assigned();
 }
 
-void VariableProxy::AssignFeedbackSlots(FeedbackVectorSpec* spec,
-                                        TypeofMode typeof_mode,
-                                        FeedbackSlotCache* cache) {
-  if (UsesVariableFeedbackSlot()) {
-    // VariableProxies that point to the same Variable within a function can
-    // make their loads from the same IC slot.
-    if (var()->IsUnallocated() || var()->mode() == DYNAMIC_GLOBAL) {
-      FeedbackSlot slot = cache->Get(typeof_mode, var());
-      if (!slot.IsInvalid()) {
-        variable_feedback_slot_ = slot;
-        return;
-      }
-      variable_feedback_slot_ = spec->AddLoadGlobalICSlot(typeof_mode);
-      cache->Put(typeof_mode, var(), variable_feedback_slot_);
-    } else {
-      variable_feedback_slot_ = spec->AddLoadICSlot();
-    }
-  }
-}
-
-static void AssignVectorSlots(Expression* expr, FeedbackVectorSpec* spec,
-                              LanguageMode language_mode,
-                              FeedbackSlot* out_slot) {
-  Property* property = expr->AsProperty();
-  LhsKind assign_type = Property::GetAssignType(property);
-  // TODO(ishell): consider using ICSlotCache for variables here.
-  if (assign_type == VARIABLE &&
-      expr->AsVariableProxy()->var()->IsUnallocated()) {
-    *out_slot = spec->AddStoreGlobalICSlot(language_mode);
-
-  } else if (assign_type == NAMED_PROPERTY) {
-    *out_slot = spec->AddStoreICSlot(language_mode);
-
-  } else if (assign_type == KEYED_PROPERTY) {
-    *out_slot = spec->AddKeyedStoreICSlot(language_mode);
-  }
-}
-
-void ForInStatement::AssignFeedbackSlots(FeedbackVectorSpec* spec,
-                                         LanguageMode language_mode,
-                                         FunctionKind kind,
-                                         FeedbackSlotCache* cache) {
-  AssignVectorSlots(each(), spec, language_mode, &each_slot_);
-  for_in_feedback_slot_ = spec->AddForInSlot();
-}
-
 Assignment::Assignment(NodeType node_type, Token::Value op, Expression* target,
                        Expression* value, int pos)
     : Expression(pos, node_type), target_(target), value_(value) {
   bit_field_ |= TokenField::encode(op);
 }
-
-void Assignment::AssignFeedbackSlots(FeedbackVectorSpec* spec,
-                                     LanguageMode language_mode,
-                                     FunctionKind kind,
-                                     FeedbackSlotCache* cache) {
-  AssignVectorSlots(target(), spec, language_mode, &slot_);
-}
-
-void CountOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
-                                         LanguageMode language_mode,
-                                         FunctionKind kind,
-                                         FeedbackSlotCache* cache) {
-  AssignVectorSlots(expression(), spec, language_mode, &slot_);
-  // Assign a slot to collect feedback about binary operations. Used only in
-  // ignition. Fullcodegen uses AstId to record type feedback.
-  binary_operation_slot_ = spec->AddInterpreterBinaryOpICSlot();
-}
-
 
 bool FunctionLiteral::ShouldEagerCompile() const {
   return scope()->ShouldEagerCompile();
@@ -332,16 +268,6 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
   }
 }
 
-FeedbackSlot LiteralProperty::GetStoreDataPropertySlot() const {
-  int offset = FunctionLiteral::NeedsHomeObject(value_) ? 1 : 0;
-  return GetSlot(offset);
-}
-
-void LiteralProperty::SetStoreDataPropertySlot(FeedbackSlot slot) {
-  int offset = FunctionLiteral::NeedsHomeObject(value_) ? 1 : 0;
-  return SetSlot(slot, offset);
-}
-
 bool LiteralProperty::NeedsSetFunctionName() const {
   return is_computed_name_ && (value_->IsAnonymousFunctionDefinition() ||
                                value_->IsConciseMethodDefinition() ||
@@ -355,27 +281,6 @@ ClassLiteralProperty::ClassLiteralProperty(Expression* key, Expression* value,
       kind_(kind),
       is_static_(is_static) {}
 
-void ClassLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
-                                       LanguageMode language_mode,
-                                       FunctionKind kind,
-                                       FeedbackSlotCache* cache) {
-  // This logic that computes the number of slots needed for vector store
-  // ICs must mirror BytecodeGenerator::VisitClassLiteral.
-  if (FunctionLiteral::NeedsHomeObject(constructor())) {
-    home_object_slot_ = spec->AddStoreICSlot(language_mode);
-  }
-
-  for (int i = 0; i < properties()->length(); i++) {
-    ClassLiteral::Property* property = properties()->at(i);
-    Expression* value = property->value();
-    if (FunctionLiteral::NeedsHomeObject(value)) {
-      property->SetSlot(spec->AddStoreICSlot(language_mode));
-    }
-    property->SetStoreDataPropertySlot(
-        spec->AddStoreDataPropertyInLiteralICSlot());
-  }
-}
-
 bool ObjectLiteral::Property::IsCompileTimeValue() const {
   return kind_ == CONSTANT ||
       (kind_ == MATERIALIZED_LITERAL &&
@@ -388,77 +293,6 @@ void ObjectLiteral::Property::set_emit_store(bool emit_store) {
 }
 
 bool ObjectLiteral::Property::emit_store() const { return emit_store_; }
-
-void ObjectLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
-                                        LanguageMode language_mode,
-                                        FunctionKind kind,
-                                        FeedbackSlotCache* cache) {
-  // The empty object literal doesn't need any feedback vector slot.
-  if (this->IsEmptyObjectLiteral()) return;
-
-  MaterializedLiteral::AssignFeedbackSlots(spec, language_mode, kind, cache);
-
-  // This logic that computes the number of slots needed for vector store
-  // ics must mirror FullCodeGenerator::VisitObjectLiteral.
-  int property_index = 0;
-  for (; property_index < properties()->length(); property_index++) {
-    ObjectLiteral::Property* property = properties()->at(property_index);
-    if (property->is_computed_name()) break;
-    if (property->IsCompileTimeValue()) continue;
-
-    Literal* key = property->key()->AsLiteral();
-    Expression* value = property->value();
-    switch (property->kind()) {
-      case ObjectLiteral::Property::SPREAD:
-      case ObjectLiteral::Property::CONSTANT:
-        UNREACHABLE();
-      case ObjectLiteral::Property::MATERIALIZED_LITERAL:
-      // Fall through.
-      case ObjectLiteral::Property::COMPUTED:
-        // It is safe to use [[Put]] here because the boilerplate already
-        // contains computed properties with an uninitialized value.
-        if (key->IsStringLiteral()) {
-          if (property->emit_store()) {
-            property->SetSlot(spec->AddStoreOwnICSlot());
-            if (FunctionLiteral::NeedsHomeObject(value)) {
-              property->SetSlot(spec->AddStoreICSlot(language_mode), 1);
-            }
-          }
-          break;
-        }
-        if (property->emit_store() && FunctionLiteral::NeedsHomeObject(value)) {
-          property->SetSlot(spec->AddStoreICSlot(language_mode));
-        }
-        break;
-      case ObjectLiteral::Property::PROTOTYPE:
-        break;
-      case ObjectLiteral::Property::GETTER:
-        if (property->emit_store() && FunctionLiteral::NeedsHomeObject(value)) {
-          property->SetSlot(spec->AddStoreICSlot(language_mode));
-        }
-        break;
-      case ObjectLiteral::Property::SETTER:
-        if (property->emit_store() && FunctionLiteral::NeedsHomeObject(value)) {
-          property->SetSlot(spec->AddStoreICSlot(language_mode));
-        }
-        break;
-    }
-  }
-
-  for (; property_index < properties()->length(); property_index++) {
-    ObjectLiteral::Property* property = properties()->at(property_index);
-
-    Expression* value = property->value();
-    if (!property->IsPrototype()) {
-      if (FunctionLiteral::NeedsHomeObject(value)) {
-        property->SetSlot(spec->AddStoreICSlot(language_mode));
-      }
-    }
-    property->SetStoreDataPropertySlot(
-        spec->AddStoreDataPropertyInLiteralICSlot());
-  }
-}
-
 
 void ObjectLiteral::CalculateEmitStore(Zone* zone) {
   const auto GETTER = ObjectLiteral::Property::GETTER;
@@ -757,26 +591,6 @@ void ArrayLiteral::RewindSpreads() {
   first_spread_index_ = -1;
 }
 
-void ArrayLiteral::AssignFeedbackSlots(FeedbackVectorSpec* spec,
-                                       LanguageMode language_mode,
-                                       FunctionKind kind,
-                                       FeedbackSlotCache* cache) {
-  MaterializedLiteral::AssignFeedbackSlots(spec, language_mode, kind, cache);
-
-  // This logic that computes the number of slots needed for vector store
-  // ics must mirror FullCodeGenerator::VisitArrayLiteral.
-  for (int array_index = 0; array_index < values()->length(); array_index++) {
-    Expression* subexpr = values()->at(array_index);
-    DCHECK(!subexpr->IsSpread());
-    if (CompileTimeValue::IsCompileTimeValue(subexpr)) continue;
-
-    // We'll reuse the same literal slot for all of the non-constant
-    // subexpressions that use a keyed store IC.
-    literal_slot_ = spec->AddKeyedStoreICSlot(language_mode);
-    return;
-  }
-}
-
 bool MaterializedLiteral::IsSimple() const {
   if (IsArrayLiteral()) return AsArrayLiteral()->is_simple();
   if (IsObjectLiteral()) return AsObjectLiteral()->is_simple();
@@ -847,42 +661,6 @@ Handle<TemplateObjectDescription> GetTemplateObject::GetOrBuildDescription(
       this->hash(), raw_strings, cooked_strings);
 }
 
-void UnaryOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
-                                         LanguageMode language_mode,
-                                         FunctionKind kind,
-                                         FeedbackSlotCache* cache) {
-  switch (op()) {
-    // Only unary plus, minus, and bitwise-not currently collect feedback.
-    case Token::ADD:
-    case Token::SUB:
-    case Token::BIT_NOT:
-      // Note that the slot kind remains "BinaryOp", as the operation
-      // is transformed into a binary operation in the BytecodeGenerator.
-      feedback_slot_ = spec->AddInterpreterBinaryOpICSlot();
-      return;
-    default:
-      return;
-  }
-}
-
-void BinaryOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
-                                          LanguageMode language_mode,
-                                          FunctionKind kind,
-                                          FeedbackSlotCache* cache) {
-  // Feedback vector slot is only used by interpreter for binary operations.
-  // Full-codegen uses AstId to record type feedback.
-  switch (op()) {
-    // Comma, logical_or and logical_and do not collect type feedback.
-    case Token::COMMA:
-    case Token::AND:
-    case Token::OR:
-      return;
-    default:
-      feedback_slot_ = spec->AddInterpreterBinaryOpICSlot();
-      return;
-  }
-}
-
 static bool IsCommutativeOperationWithSmiLiteral(Token::Value op) {
   // Add is not commutative due to potential for string addition.
   return op == Token::MUL || op == Token::BIT_AND || op == Token::BIT_OR ||
@@ -910,22 +688,6 @@ bool BinaryOperation::IsSmiLiteralOperation(Expression** subexpr,
 static bool IsTypeof(Expression* expr) {
   UnaryOperation* maybe_unary = expr->AsUnaryOperation();
   return maybe_unary != nullptr && maybe_unary->op() == Token::TYPEOF;
-}
-
-void CompareOperation::AssignFeedbackSlots(FeedbackVectorSpec* spec,
-                                           LanguageMode language_mode,
-                                           FunctionKind kind,
-                                           FeedbackSlotCache* cache_) {
-  // Feedback vector slot is only used by interpreter for binary operations.
-  // Full-codegen uses AstId to record type feedback.
-  switch (op()) {
-    // instanceof and in do not collect type feedback.
-    case Token::INSTANCEOF:
-    case Token::IN:
-      return;
-    default:
-      feedback_slot_ = spec->AddInterpreterCompareICSlot();
-  }
 }
 
 // Check for the pattern: typeof <expression> equals <string literal>.
@@ -976,7 +738,6 @@ bool CompareOperation::IsLiteralCompareUndefined(Expression** expr) {
          MatchLiteralCompareUndefined(right_, op(), left_, expr);
 }
 
-
 // Check for the pattern: null equals <expression>
 static bool MatchLiteralCompareNull(Expression* left,
                                     Token::Value op,
@@ -989,20 +750,9 @@ static bool MatchLiteralCompareNull(Expression* left,
   return false;
 }
 
-
 bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
   return MatchLiteralCompareNull(left_, op(), right_, expr) ||
          MatchLiteralCompareNull(right_, op(), left_, expr);
-}
-
-
-// ----------------------------------------------------------------------------
-// Recording of type feedback
-
-void Call::AssignFeedbackSlots(FeedbackVectorSpec* spec,
-                               LanguageMode language_mode, FunctionKind kind,
-                               FeedbackSlotCache* cache) {
-  ic_slot_ = spec->AddCallICSlot();
 }
 
 Call::CallType Call::GetCallType() const {
@@ -1034,13 +784,6 @@ Call::CallType Call::GetCallType() const {
 
 CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements)
     : label_(label), statements_(statements) {}
-
-void CaseClause::AssignFeedbackSlots(FeedbackVectorSpec* spec,
-                                     LanguageMode language_mode,
-                                     FunctionKind kind,
-                                     FeedbackSlotCache* cache) {
-  feedback_slot_ = spec->AddInterpreterCompareICSlot();
-}
 
 uint32_t Literal::Hash() {
   return raw_value()->IsString()

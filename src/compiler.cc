@@ -245,15 +245,14 @@ void EnsureFeedbackMetadata(CompilationInfo* compilation_info) {
   if (compilation_info->shared_info()->feedback_metadata()->length() == 0 ||
       !compilation_info->shared_info()->is_compiled()) {
     Handle<FeedbackMetadata> feedback_metadata = FeedbackMetadata::New(
-        compilation_info->isolate(),
-        compilation_info->literal()->feedback_vector_spec());
+        compilation_info->isolate(), compilation_info->feedback_vector_spec());
     compilation_info->shared_info()->set_feedback_metadata(*feedback_metadata);
   }
 
   // It's very important that recompiles do not alter the structure of the type
   // feedback vector. Verify that the structure fits the function literal.
   CHECK(!compilation_info->shared_info()->feedback_metadata()->SpecDiffersFrom(
-      compilation_info->literal()->feedback_vector_spec()));
+      compilation_info->feedback_vector_spec()));
 }
 
 bool UseAsmWasm(FunctionLiteral* literal, bool asm_wasm_broken) {
@@ -362,8 +361,7 @@ bool Renumber(ParseInfo* parse_info,
   RuntimeCallTimerScope runtimeTimer(parse_info->runtime_call_stats(),
                                      &RuntimeCallStats::CompileRenumber);
   return AstNumbering::Renumber(parse_info->stack_limit(), parse_info->zone(),
-                                parse_info->literal(), eager_literals,
-                                parse_info->collect_type_profile());
+                                parse_info->literal(), eager_literals);
 }
 
 std::unique_ptr<CompilationJob> PrepareAndExecuteUnoptimizedCompileJob(

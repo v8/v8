@@ -488,16 +488,6 @@ void CallPrinter::PrintLiteral(const AstRawString* value, bool quote) {
 
 #ifdef DEBUG
 
-// A helper for ast nodes that use FeedbackSlots.
-static int FormatSlotNode(Vector<char>* buf, Expression* node,
-                          const char* node_name, FeedbackSlot slot) {
-  int pos = SNPrintF(*buf, "%s", node_name);
-  if (!slot.IsInvalid()) {
-    pos += SNPrintF(*buf + pos, " Slot(%d)", slot.ToInt());
-  }
-  return pos;
-}
-
 const char* AstPrinter::Print(AstNode* node) {
   Init();
   Visit(node);
@@ -1018,11 +1008,9 @@ void AstPrinter::VisitLiteral(Literal* node) {
 
 void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
   IndentedScope indent(this, "REGEXP LITERAL", node->position());
-  EmbeddedVector<char, 128> buf;
-  SNPrintF(buf, "literal_slot = %d\n", node->literal_slot().ToInt());
-  PrintIndented(buf.start());
   PrintLiteralIndented("PATTERN", node->pattern(), false);
   int i = 0;
+  EmbeddedVector<char, 128> buf;
   if (node->flags() & RegExp::kGlobal) buf[i++] = 'g';
   if (node->flags() & RegExp::kIgnoreCase) buf[i++] = 'i';
   if (node->flags() & RegExp::kMultiline) buf[i++] = 'm';
@@ -1037,9 +1025,6 @@ void AstPrinter::VisitRegExpLiteral(RegExpLiteral* node) {
 
 void AstPrinter::VisitObjectLiteral(ObjectLiteral* node) {
   IndentedScope indent(this, "OBJ LITERAL", node->position());
-  EmbeddedVector<char, 128> buf;
-  SNPrintF(buf, "literal_slot = %d\n", node->literal_slot().ToInt());
-  PrintIndented(buf.start());
   PrintObjectProperties(node->properties());
 }
 
@@ -1082,10 +1067,6 @@ void AstPrinter::PrintObjectProperties(
 
 void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
   IndentedScope indent(this, "ARRAY LITERAL", node->position());
-
-  EmbeddedVector<char, 128> buf;
-  SNPrintF(buf, "literal_slot = %d\n", node->literal_slot().ToInt());
-  PrintIndented(buf.start());
   if (node->values()->length() > 0) {
     IndentedScope indent(this, "VALUES", node->position());
     for (int i = 0; i < node->values()->length(); i++) {
@@ -1097,8 +1078,7 @@ void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
 
 void AstPrinter::VisitVariableProxy(VariableProxy* node) {
   EmbeddedVector<char, 128> buf;
-  int pos =
-      FormatSlotNode(&buf, node, "VAR PROXY", node->VariableFeedbackSlot());
+  int pos = SNPrintF(buf, "VAR PROXY");
 
   if (!node->is_resolved()) {
     SNPrintF(buf + pos, " unresolved");
@@ -1169,7 +1149,7 @@ void AstPrinter::VisitThrow(Throw* node) {
 
 void AstPrinter::VisitProperty(Property* node) {
   EmbeddedVector<char, 128> buf;
-  FormatSlotNode(&buf, node, "PROPERTY", node->PropertyFeedbackSlot());
+  SNPrintF(buf, "PROPERTY");
   IndentedScope indent(this, buf.start(), node->position());
 
   Visit(node->obj());
@@ -1184,7 +1164,7 @@ void AstPrinter::VisitProperty(Property* node) {
 
 void AstPrinter::VisitCall(Call* node) {
   EmbeddedVector<char, 128> buf;
-  FormatSlotNode(&buf, node, "CALL", node->CallFeedbackICSlot());
+  SNPrintF(buf, "CALL");
   IndentedScope indent(this, buf.start());
 
   Visit(node->expression());

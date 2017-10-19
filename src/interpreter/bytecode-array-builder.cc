@@ -39,10 +39,10 @@ class RegisterTransferWriter final
 
 BytecodeArrayBuilder::BytecodeArrayBuilder(
     Isolate* isolate, Zone* zone, int parameter_count, int locals_count,
-    FunctionLiteral* literal,
+    FeedbackVectorSpec* feedback_vector_spec,
     SourcePositionTableBuilder::RecordingMode source_position_mode)
     : zone_(zone),
-      literal_(literal),
+      feedback_vector_spec_(feedback_vector_spec),
       bytecode_generated_(false),
       constant_array_builder_(zone),
       handler_table_builder_(zone),
@@ -692,14 +692,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadGlobal(const AstRawString* name,
                                                        int feedback_slot,
                                                        TypeofMode typeof_mode) {
   size_t name_index = GetConstantPoolEntry(name);
-  // Ensure that typeof mode is in sync with the IC slot kind if the function
-  // literal is available (not a unit test case).
-  // TODO(ishell): check only in debug mode.
-  if (literal_) {
-    FeedbackSlot slot = FeedbackVector::ToSlot(feedback_slot);
-    CHECK_EQ(GetTypeofModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
-             typeof_mode);
-  }
+  // Ensure that typeof mode is in sync with the IC slot kind.
+  DCHECK_EQ(GetTypeofModeFromSlotKind(feedback_vector_spec()->GetKind(
+                FeedbackVector::ToSlot(feedback_slot))),
+            typeof_mode);
   if (typeof_mode == INSIDE_TYPEOF) {
     OutputLdaGlobalInsideTypeof(name_index, feedback_slot);
   } else {
@@ -841,16 +837,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CollectTypeProfile(int position) {
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
     Register object, size_t name_index, int feedback_slot,
     LanguageMode language_mode) {
-#if DEBUG
-  // Ensure that language mode is in sync with the IC slot kind if the function
-  // literal is available (not a unit test case).
-  if (literal_) {
-    FeedbackSlot slot = FeedbackVector::ToSlot(feedback_slot);
-    DCHECK_EQ(
-        GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
-        language_mode);
-  }
-#endif
+  // Ensure that language mode is in sync with the IC slot kind.
+  DCHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(
+                FeedbackVector::ToSlot(feedback_slot))),
+            language_mode);
   OutputStaNamedProperty(object, name_index, feedback_slot);
   return *this;
 }
@@ -865,15 +855,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedProperty(
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedOwnProperty(
     Register object, const AstRawString* name, int feedback_slot) {
   size_t name_index = GetConstantPoolEntry(name);
-#if DEBUG
-  // Ensure that the store operation is in sync with the IC slot kind if
-  // the function literal is available (not a unit test case).
-  if (literal_) {
-    FeedbackSlot slot = FeedbackVector::ToSlot(feedback_slot);
-    DCHECK_EQ(FeedbackSlotKind::kStoreOwnNamed,
-              feedback_vector_spec()->GetKind(slot));
-  }
-#endif
+  // Ensure that the store operation is in sync with the IC slot kind.
+  DCHECK_EQ(
+      FeedbackSlotKind::kStoreOwnNamed,
+      feedback_vector_spec()->GetKind(FeedbackVector::ToSlot(feedback_slot)));
   OutputStaNamedOwnProperty(object, name_index, feedback_slot);
   return *this;
 }
@@ -881,16 +866,10 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreNamedOwnProperty(
 BytecodeArrayBuilder& BytecodeArrayBuilder::StoreKeyedProperty(
     Register object, Register key, int feedback_slot,
     LanguageMode language_mode) {
-#if DEBUG
-  // Ensure that language mode is in sync with the IC slot kind if the function
-  // literal is available (not a unit test case).
-  if (literal_) {
-    FeedbackSlot slot = FeedbackVector::ToSlot(feedback_slot);
-    DCHECK_EQ(
-        GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(slot)),
-        language_mode);
-  }
-#endif
+  // Ensure that language mode is in sync with the IC slot kind.
+  DCHECK_EQ(GetLanguageModeFromSlotKind(feedback_vector_spec()->GetKind(
+                FeedbackVector::ToSlot(feedback_slot))),
+            language_mode);
   OutputStaKeyedProperty(object, key, feedback_slot);
   return *this;
 }

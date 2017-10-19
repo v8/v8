@@ -26,7 +26,8 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
 using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
-  BytecodeArrayBuilder builder(isolate(), zone(), 1, 131);
+  FeedbackVectorSpec feedback_spec(zone());
+  BytecodeArrayBuilder builder(isolate(), zone(), 1, 131, &feedback_spec);
   Factory* factory = isolate()->factory();
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
@@ -81,12 +82,36 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   builder.MoveRegister(reg, other);
   builder.MoveRegister(reg, wide);
 
+  FeedbackSlot load_global_slot =
+      feedback_spec.AddLoadGlobalICSlot(NOT_INSIDE_TYPEOF);
+  FeedbackSlot load_global_typeof_slot =
+      feedback_spec.AddLoadGlobalICSlot(INSIDE_TYPEOF);
+  FeedbackSlot sloppy_store_global_slot =
+      feedback_spec.AddStoreGlobalICSlot(LanguageMode::kSloppy);
+  FeedbackSlot strict_store_global_slot =
+      feedback_spec.AddStoreGlobalICSlot(LanguageMode::kStrict);
+  FeedbackSlot load_slot = feedback_spec.AddLoadICSlot();
+  FeedbackSlot keyed_load_slot = feedback_spec.AddKeyedLoadICSlot();
+  FeedbackSlot sloppy_store_slot =
+      feedback_spec.AddStoreICSlot(LanguageMode::kSloppy);
+  FeedbackSlot strict_store_slot =
+      feedback_spec.AddStoreICSlot(LanguageMode::kStrict);
+  FeedbackSlot sloppy_keyed_store_slot =
+      feedback_spec.AddKeyedStoreICSlot(LanguageMode::kSloppy);
+  FeedbackSlot strict_keyed_store_slot =
+      feedback_spec.AddKeyedStoreICSlot(LanguageMode::kStrict);
+  FeedbackSlot store_own_slot = feedback_spec.AddStoreOwnICSlot();
+
   // Emit global load / store operations.
   const AstRawString* name = ast_factory.GetOneByteString("var_name");
-  builder.LoadGlobal(name, 1, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(name, 1, TypeofMode::INSIDE_TYPEOF)
-      .StoreGlobal(name, 1, LanguageMode::kSloppy)
-      .StoreGlobal(name, 1, LanguageMode::kStrict);
+  builder
+      .LoadGlobal(name, load_global_slot.ToInt(), TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(name, load_global_typeof_slot.ToInt(),
+                  TypeofMode::INSIDE_TYPEOF)
+      .StoreGlobal(name, sloppy_store_global_slot.ToInt(),
+                   LanguageMode::kSloppy)
+      .StoreGlobal(name, strict_store_global_slot.ToInt(),
+                   LanguageMode::kStrict);
 
   // Emit context operations.
   builder.PushContext(reg)
@@ -106,13 +131,17 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreContextSlot(Register::current_context(), 3, 0);
 
   // Emit load / store property operations.
-  builder.LoadNamedProperty(reg, name, 0)
-      .LoadKeyedProperty(reg, 0)
-      .StoreNamedProperty(reg, name, 0, LanguageMode::kSloppy)
-      .StoreKeyedProperty(reg, reg, 0, LanguageMode::kSloppy)
-      .StoreNamedProperty(reg, name, 0, LanguageMode::kStrict)
-      .StoreKeyedProperty(reg, reg, 0, LanguageMode::kStrict)
-      .StoreNamedOwnProperty(reg, name, 0);
+  builder.LoadNamedProperty(reg, name, load_slot.ToInt())
+      .LoadKeyedProperty(reg, keyed_load_slot.ToInt())
+      .StoreNamedProperty(reg, name, sloppy_store_slot.ToInt(),
+                          LanguageMode::kSloppy)
+      .StoreKeyedProperty(reg, reg, sloppy_keyed_store_slot.ToInt(),
+                          LanguageMode::kSloppy)
+      .StoreNamedProperty(reg, name, strict_store_slot.ToInt(),
+                          LanguageMode::kStrict)
+      .StoreKeyedProperty(reg, reg, strict_keyed_store_slot.ToInt(),
+                          LanguageMode::kStrict)
+      .StoreNamedOwnProperty(reg, name, store_own_slot.ToInt());
 
   // Emit load / store lookup slots.
   builder.LoadLookupSlot(name, TypeofMode::NOT_INSIDE_TYPEOF)
@@ -315,25 +344,6 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   }
   builder.LoadLiteral(Smi::FromInt(20000000));
   const AstRawString* wide_name = ast_factory.GetOneByteString("var_wide_name");
-
-  // Emit wide global load / store operations.
-  builder.LoadGlobal(name, 1024, TypeofMode::NOT_INSIDE_TYPEOF)
-      .LoadGlobal(name, 1024, TypeofMode::INSIDE_TYPEOF)
-      .LoadGlobal(name, 1024, TypeofMode::INSIDE_TYPEOF)
-      .StoreGlobal(name, 1024, LanguageMode::kSloppy)
-      .StoreGlobal(wide_name, 1, LanguageMode::kStrict);
-
-  // Emit extra wide global load.
-  builder.LoadGlobal(name, 1024 * 1024, TypeofMode::NOT_INSIDE_TYPEOF);
-
-  // Emit wide load / store property operations.
-  builder.LoadNamedProperty(reg, wide_name, 0)
-      .LoadKeyedProperty(reg, 2056)
-      .StoreNamedProperty(reg, wide_name, 0, LanguageMode::kSloppy)
-      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::kSloppy)
-      .StoreNamedProperty(reg, wide_name, 0, LanguageMode::kStrict)
-      .StoreKeyedProperty(reg, reg, 2056, LanguageMode::kStrict)
-      .StoreNamedOwnProperty(reg, wide_name, 0);
 
   builder.StoreDataPropertyInLiteral(reg, reg,
                                      DataPropertyInLiteralFlag::kNoFlags, 0);

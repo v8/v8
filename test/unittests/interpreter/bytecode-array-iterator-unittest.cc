@@ -22,7 +22,8 @@ class BytecodeArrayIteratorTest : public TestWithIsolateAndZone {
 TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
-  BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, 0);
+  FeedbackVectorSpec feedback_spec(zone());
+  BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
   const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
@@ -37,7 +38,10 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   Register param = Register::FromParameterIndex(2, builder.parameter_count());
   const AstRawString* name = ast_factory.GetOneByteString("abc");
   uint32_t name_index = 2;
-  uint32_t feedback_slot = 97;
+  uint32_t load_feedback_slot = feedback_spec.AddLoadICSlot().ToInt();
+  uint32_t forin_feedback_slot = feedback_spec.AddForInSlot().ToInt();
+  uint32_t load_global_feedback_slot =
+      feedback_spec.AddLoadGlobalICSlot(TypeofMode::NOT_INSIDE_TYPEOF).ToInt();
 
   builder.LoadLiteral(heap_num_0)
       .StoreAccumulatorInRegister(reg_0)
@@ -54,14 +58,15 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
       .LoadAccumulatorWithRegister(reg_0)
       .BinaryOperation(Token::Value::ADD, reg_0, 2)
       .StoreAccumulatorInRegister(reg_1)
-      .LoadNamedProperty(reg_1, name, feedback_slot)
+      .LoadNamedProperty(reg_1, name, load_feedback_slot)
       .BinaryOperation(Token::Value::ADD, reg_0, 3)
       .StoreAccumulatorInRegister(param)
       .CallRuntimeForPair(Runtime::kLoadLookupSlotForCall, param, pair)
-      .ForInPrepare(triple, feedback_slot)
+      .ForInPrepare(triple, forin_feedback_slot)
       .CallRuntime(Runtime::kLoadIC_Miss, reg_0)
       .Debugger()
-      .LoadGlobal(name, 0x10000000, TypeofMode::NOT_INSIDE_TYPEOF)
+      .LoadGlobal(name, load_global_feedback_slot,
+                  TypeofMode::NOT_INSIDE_TYPEOF)
       .Return();
 
   // Test iterator sees the expected output from the builder.
@@ -204,7 +209,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_1.index());
   EXPECT_EQ(iterator.GetIndexOperand(1), name_index);
-  EXPECT_EQ(iterator.GetIndexOperand(2), feedback_slot);
+  EXPECT_EQ(iterator.GetIndexOperand(2), load_feedback_slot);
   CHECK(!iterator.done());
   offset += Bytecodes::Size(Bytecode::kLdaNamedProperty, OperandScale::kSingle);
   iterator.Advance();
@@ -246,7 +251,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
   EXPECT_EQ(iterator.GetRegisterOperand(0).index(), reg_0.index());
   EXPECT_EQ(iterator.GetRegisterOperandRange(0), 3);
-  EXPECT_EQ(iterator.GetIndexOperand(1), feedback_slot);
+  EXPECT_EQ(iterator.GetIndexOperand(1), forin_feedback_slot);
   CHECK(!iterator.done());
   offset += Bytecodes::Size(Bytecode::kForInPrepare, OperandScale::kSingle);
   iterator.Advance();
@@ -270,11 +275,10 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
 
   EXPECT_EQ(iterator.current_bytecode(), Bytecode::kLdaGlobal);
   EXPECT_EQ(iterator.current_offset(), offset);
-  EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kQuadruple);
-  EXPECT_EQ(iterator.current_bytecode_size(), 10);
-  EXPECT_EQ(iterator.GetIndexOperand(1), 0x10000000u);
-  offset += Bytecodes::Size(Bytecode::kLdaGlobal, OperandScale::kQuadruple) +
-            kPrefixByteSize;
+  EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
+  EXPECT_EQ(iterator.current_bytecode_size(), 3);
+  EXPECT_EQ(iterator.GetIndexOperand(1), load_global_feedback_slot);
+  offset += Bytecodes::Size(Bytecode::kLdaGlobal, OperandScale::kSingle);
   iterator.Advance();
 
   EXPECT_EQ(iterator.current_bytecode(), Bytecode::kReturn);

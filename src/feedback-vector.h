@@ -285,7 +285,7 @@ class FeedbackVector : public HeapObject {
 };
 
 template <typename Derived>
-class FeedbackVectorSpecBase {
+class V8_EXPORT_PRIVATE FeedbackVectorSpecBase {
  public:
   FeedbackSlot AddCallICSlot() { return AddSlot(FeedbackSlotKind::kCall); }
 
@@ -332,11 +332,11 @@ class FeedbackVectorSpecBase {
                        : FeedbackSlotKind::kStoreKeyedSloppy);
   }
 
-  FeedbackSlot AddInterpreterBinaryOpICSlot() {
+  FeedbackSlot AddBinaryOpICSlot() {
     return AddSlot(FeedbackSlotKind::kBinaryOp);
   }
 
-  FeedbackSlot AddInterpreterCompareICSlot() {
+  FeedbackSlot AddCompareICSlot() {
     return AddSlot(FeedbackSlotKind::kCompareOp);
   }
 
@@ -389,7 +389,8 @@ class StaticFeedbackVectorSpec
   FeedbackSlotKind kinds_[kMaxLength];
 };
 
-class FeedbackVectorSpec : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
+class V8_EXPORT_PRIVATE FeedbackVectorSpec
+    : public FeedbackVectorSpecBase<FeedbackVectorSpec> {
  public:
   explicit FeedbackVectorSpec(Zone* zone) : slot_kinds_(zone) {
     slot_kinds_.reserve(16);

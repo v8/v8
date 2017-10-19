@@ -27,15 +27,15 @@ bytecodes: [
                 B(Mov), R(closure), R(0),
   /*   99 E> */ B(StackCheck),
   /*  104 S> */ B(LdaConstant), U8(0),
-  /*  111 E> */ B(LdaKeyedProperty), R(closure), U8(2),
+  /*  111 E> */ B(LdaKeyedProperty), R(closure), U8(1),
                 B(Star), R(4),
                 B(LdaConstant), U8(1),
                 B(Star), R(5),
                 B(Mov), R(this), R(3),
   /*  117 E> */ B(CallRuntime), U16(Runtime::kLoadFromSuper), R(3), U8(3),
                 B(Star), R(1),
-  /*  117 E> */ B(CallAnyReceiver), R(1), R(this), U8(1), U8(0),
-  /*  126 E> */ B(AddSmi), I8(1), U8(6),
+  /*  117 E> */ B(CallAnyReceiver), R(1), R(this), U8(1), U8(3),
+  /*  126 E> */ B(AddSmi), I8(1), U8(0),
   /*  130 S> */ B(Return),
 ]
 constant pool: [
