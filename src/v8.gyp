@@ -2329,7 +2329,6 @@
           'js/prologue.js',
           'js/v8natives.js',
           'js/array.js',
-          'js/string.js',
           'js/typedarray.js',
           'js/weak-collection.js',
           'js/messages.js',

@@ -1937,6 +1937,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     SimpleInstallFunction(string_fun, "fromCodePoint",
                           Builtins::kStringFromCodePoint, 1, false);
 
+    // Install the String.raw function.
+    SimpleInstallFunction(string_fun, "raw", Builtins::kStringRaw, 1, false);
+
     // Create the %StringPrototype%
     Handle<JSValue> prototype =
         Handle<JSValue>::cast(factory->NewJSObject(string_fun, TENURED));

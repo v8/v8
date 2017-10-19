@@ -1103,7 +1103,7 @@ TEST(SnapshotDataBlobWithWarmup) {
     // Running the warmup script has effect on whether functions are
     // pre-compiled, but does not pollute the context.
     CHECK(IsCompiled("Math.abs"));
-    CHECK(!IsCompiled("String.raw"));
+    CHECK(IsCompiled("String.raw"));
     CHECK(CompileRun("Math.random")->IsFunction());
   }
   isolate->Dispose();
@@ -1140,7 +1140,7 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     CHECK(IsCompiled("f"));
     CHECK(IsCompiled("Math.abs"));
     CHECK(!IsCompiled("g"));
-    CHECK(!IsCompiled("String.raw"));
+    CHECK(IsCompiled("String.raw"));
     CHECK(!IsCompiled("Array.prototype.sort"));
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }

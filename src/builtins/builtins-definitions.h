@@ -984,6 +984,8 @@ namespace internal {
       SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES6 #sec-string.prototype.valueof */                                      \
   TFJ(StringPrototypeValueOf, 0)                                               \
+  /* ES6 #sec-string.raw */                                                    \
+  CPP(StringRaw)                                                               \
   /* ES6 #sec-string.prototype-@@iterator */                                   \
   TFJ(StringPrototypeIterator, 0)                                              \
                                                                                \
