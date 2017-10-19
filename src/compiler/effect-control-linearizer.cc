@@ -1394,7 +1394,7 @@ Node* EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
 }
 
 Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
-  ZoneHandleSet<Map> const& maps = CompareMapsParametersOf(node->op());
+  ZoneHandleSet<Map> const& maps = CompareMapsParametersOf(node->op()).maps();
   size_t const map_count = maps.size();
   Node* value = node->InputAt(0);
 

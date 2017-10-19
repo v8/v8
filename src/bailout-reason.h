@@ -141,6 +141,7 @@ namespace internal {
   V(kUnexpectedReturnFromFrameDropper,                                         \
     "Unexpectedly returned from dropping frames")                              \
   V(kUnexpectedReturnFromThrow, "Unexpectedly returned from a throw")          \
+  V(kUnreachableCodeReached, "Reached unreachable code")                       \
   V(kVariableResolvedToWithContext, "Variable resolved to with context")       \
   V(kWithStatement, "WithStatement")                                           \
   V(kWrongFunctionContext, "Wrong context passed to function")                 \

@@ -24,12 +24,12 @@ class CommonOperatorBuilder;
 struct FieldAccess;
 class Graph;
 class JSGraph;
+class MapsParameterInfo;
 
 class V8_EXPORT_PRIVATE LoadElimination final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  LoadElimination(Editor* editor, JSGraph* jsgraph, Zone* zone)
-      : AdvancedReducer(editor), node_states_(zone), jsgraph_(jsgraph) {}
+  LoadElimination(Editor* editor, JSGraph* jsgraph, Zone* zone);
   ~LoadElimination() final {}
 
   const char* reducer_name() const override { return "LoadElimination"; }
@@ -188,49 +188,92 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   static size_t const kMaxTrackedFields = 32;
 
+  enum class MapSetComparisonResult {
+    kSubset,
+    kDisjoint,
+    kOther,
+  };
+
+  static MapSetComparisonResult CompareMapSets(ZoneHandleSet<Map> const& lhs,
+                                               ZoneHandleSet<Map> const& rhs);
+
+  class AbstractMapInfo {
+   public:
+    enum InfoValid { kMapsValid = 1 << 0, kInstanceTypeValid = 1 << 1 };
+    typedef base::Flags<InfoValid, uint8_t> Validity;
+
+    AbstractMapInfo();
+    explicit AbstractMapInfo(ZoneHandleSet<Map> const& maps);
+    explicit AbstractMapInfo(InstanceType instance_type);
+    explicit AbstractMapInfo(MapsParameterInfo const& info);
+
+    bool operator==(AbstractMapInfo const& other) const;
+    bool operator!=(AbstractMapInfo const& other) const;
+
+    ZoneHandleSet<Map> const& maps() const;
+    InstanceType instance_type() const;
+
+    bool maps_valid() const { return info_validity_ & kMapsValid; }
+    bool instance_type_valid() const {
+      return info_validity_ & kInstanceTypeValid;
+    }
+    bool empty() const { return info_validity_ == 0; }
+
+    AbstractMapInfo Merge(AbstractMapInfo const& other) const;
+
+    MapSetComparisonResult Compare(AbstractMapInfo const& other) const;
+
+   private:
+    AbstractMapInfo(ZoneHandleSet<Map> const& maps, InstanceType instance_type,
+                    Validity validity);
+
+    ZoneHandleSet<Map> maps_;
+    InstanceType instance_type_;
+    Validity info_validity_;
+  };
+
   // Abstract state to approximate the current map of an object along the
   // effect paths through the graph.
   class AbstractMaps final : public ZoneObject {
    public:
     explicit AbstractMaps(Zone* zone) : info_for_node_(zone) {}
-    AbstractMaps(Node* object, ZoneHandleSet<Map> maps, Zone* zone)
+    AbstractMaps(Node* object, AbstractMapInfo const& map_info, Zone* zone)
         : info_for_node_(zone) {
-      info_for_node_.insert(std::make_pair(object, maps));
+      info_for_node_.insert(std::make_pair(object, map_info));
     }
 
-    AbstractMaps const* Extend(Node* object, ZoneHandleSet<Map> maps,
+    AbstractMaps const* Extend(Node* object, AbstractMapInfo const& maps,
                                Zone* zone) const;
     bool Lookup(Node* object, ZoneHandleSet<Map>* object_maps) const;
+    bool Lookup(Node* object, AbstractMapInfo* maps_info) const;
     AbstractMaps const* Kill(const AliasStateInfo& alias_info,
                              Zone* zone) const;
     bool Equals(AbstractMaps const* that) const {
       return this == that || this->info_for_node_ == that->info_for_node_;
     }
     AbstractMaps const* Merge(AbstractMaps const* that, Zone* zone) const;
+    AbstractMaps const* KillMutableState(Zone* zone) const;
 
     void Print() const;
 
    private:
-    ZoneMap<Node*, ZoneHandleSet<Map>> info_for_node_;
+    ZoneMap<Node*, AbstractMapInfo> info_for_node_;
   };
 
   class AbstractState final : public ZoneObject {
    public:
-    AbstractState() {
-      for (size_t i = 0; i < arraysize(fields_); ++i) {
-        fields_[i] = nullptr;
-      }
-    }
-
     bool Equals(AbstractState const* that) const;
     void Merge(AbstractState const* that, Zone* zone);
 
     AbstractState const* AddMaps(Node* object, ZoneHandleSet<Map> maps,
                                  Zone* zone) const;
+    AbstractState const* AddMaps(Node* object, AbstractMapInfo const& map_info,
+                                 Zone* zone) const;
     AbstractState const* KillMaps(Node* object, Zone* zone) const;
     AbstractState const* KillMaps(const AliasStateInfo& alias_info,
                                   Zone* zone) const;
     bool LookupMaps(Node* object, ZoneHandleSet<Map>* object_maps) const;
+    bool LookupMaps(Node* object, AbstractMapInfo* object_maps) const;
 
     AbstractState const* AddField(Node* object, size_t index, Node* value,
                                   MaybeHandle<Name> name, Zone* zone) const;
@@ -254,13 +297,28 @@ class V8_EXPORT_PRIVATE LoadElimination final
     AbstractState const* AddCheck(Node* node, Zone* zone) const;
     Node* LookupCheck(Node* node) const;
 
+    AbstractState const* KillMutableState(Zone* zone) const;
+
+    bool is_unreachable() const { return is_unreachable_; }
+
     void Print() const;
 
+    static AbstractState Unreachable();
+    static AbstractState Empty();
+
    private:
+    AbstractState() : is_unreachable_(false) {
+      for (size_t i = 0; i < arraysize(fields_); ++i) {
+        fields_[i] = nullptr;
+      }
+    }
+
     AbstractChecks const* checks_ = nullptr;
     AbstractElements const* elements_ = nullptr;
     AbstractField const* fields_[kMaxTrackedFields];
     AbstractMaps const* maps_ = nullptr;
+
+    bool is_unreachable_;
   };
 
   class AbstractStateForEffectNodes final : public ZoneObject {
@@ -304,12 +362,14 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   CommonOperatorBuilder* common() const;
   AbstractState const* empty_state() const { return &empty_state_; }
+  AbstractState const* unreachable_state() const { return &unreachable_state_; }
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* zone() const { return node_states_.zone(); }
 
   AbstractState const empty_state_;
+  AbstractState const unreachable_state_;
   AbstractStateForEffectNodes node_states_;
   JSGraph* const jsgraph_;
 
