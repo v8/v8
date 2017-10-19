@@ -855,52 +855,6 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSToBoolean(Node* node) {
-  Node* const input = node->InputAt(0);
-  Type* const input_type = NodeProperties::GetType(input);
-  if (input_type->Is(Type::Boolean())) {
-    // JSToBoolean(x:boolean) => x
-    return Replace(input);
-  } else if (input_type->Is(Type::OrderedNumber())) {
-    // JSToBoolean(x:ordered-number) => BooleanNot(NumberEqual(x,#0))
-    node->ReplaceInput(0, graph()->NewNode(simplified()->NumberEqual(), input,
-                                           jsgraph()->ZeroConstant()));
-    node->TrimInputCount(1);
-    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
-    return Changed(node);
-  } else if (input_type->Is(Type::Number())) {
-    // JSToBoolean(x:number) => NumberToBoolean(x)
-    node->TrimInputCount(1);
-    NodeProperties::ChangeOp(node, simplified()->NumberToBoolean());
-    return Changed(node);
-  } else if (input_type->Is(Type::DetectableReceiverOrNull())) {
-    // JSToBoolean(x:detectable receiver \/ null)
-    //   => BooleanNot(ReferenceEqual(x,#null))
-    node->ReplaceInput(0, graph()->NewNode(simplified()->ReferenceEqual(),
-                                           input, jsgraph()->NullConstant()));
-    node->TrimInputCount(1);
-    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
-    return Changed(node);
-  } else if (input_type->Is(Type::ReceiverOrNullOrUndefined())) {
-    // JSToBoolean(x:receiver \/ null \/ undefined)
-    //   => BooleanNot(ObjectIsUndetectable(x))
-    node->ReplaceInput(
-        0, graph()->NewNode(simplified()->ObjectIsUndetectable(), input));
-    node->TrimInputCount(1);
-    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
-    return Changed(node);
-  } else if (input_type->Is(Type::String())) {
-    // JSToBoolean(x:string) => BooleanNot(ReferenceEqual(x,""))
-    node->ReplaceInput(0,
-                       graph()->NewNode(simplified()->ReferenceEqual(), input,
-                                        jsgraph()->EmptyStringConstant()));
-    node->TrimInputCount(1);
-    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
-    return Changed(node);
-  }
-  return NoChange();
-}
-
 Reduction JSTypedLowering::ReduceJSToInteger(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);
   Type* const input_type = NodeProperties::GetType(input);
@@ -2265,8 +2219,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSHasInPrototypeChain(node);
     case IrOpcode::kJSOrdinaryHasInstance:
       return ReduceJSOrdinaryHasInstance(node);
-    case IrOpcode::kJSToBoolean:
-      return ReduceJSToBoolean(node);
     case IrOpcode::kJSToInteger:
       return ReduceJSToInteger(node);
     case IrOpcode::kJSToLength:

@@ -433,14 +433,6 @@ TEST_MONOTONICITY(ToString)
 TEST_MONOTONICITY(ClassOf)
 #undef TEST_MONOTONICITY
 
-// JS UNOPs with ToBooleanHint
-#define TEST_MONOTONICITY(name)                               \
-  TEST_F(TyperTest, Monotonicity_##name) {                    \
-    TestUnaryMonotonicity(javascript_.name(ToBooleanHint())); \
-  }
-TEST_MONOTONICITY(ToBoolean)
-#undef TEST_MONOTONICITY
-
 // JS BINOPs with CompareOperationHint
 #define TEST_MONOTONICITY(name)                                           \
   TEST_F(TyperTest, Monotonicity_##name) {                                \
@@ -496,6 +488,14 @@ TEST_MONOTONICITY(ObjectIsString)
 TEST_MONOTONICITY(ObjectIsSymbol)
 TEST_MONOTONICITY(ObjectIsUndetectable)
 TEST_MONOTONICITY(TypeOf)
+#undef TEST_MONOTONICITY
+
+// SIMPLIFIED UNOPs with ToBooleanHint
+#define TEST_MONOTONICITY(name)                               \
+  TEST_F(TyperTest, Monotonicity_##name) {                    \
+    TestUnaryMonotonicity(simplified_.name(ToBooleanHint())); \
+  }
+TEST_MONOTONICITY(ToBoolean)
 #undef TEST_MONOTONICITY
 
 // SIMPLIFIED BINOPs without hint, with Number input restriction

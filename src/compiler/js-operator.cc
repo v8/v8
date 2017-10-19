@@ -58,11 +58,6 @@ ConvertReceiverMode ConvertReceiverModeOf(Operator const* op) {
 }
 
 
-ToBooleanHints ToBooleanHintsOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kJSToBoolean, op->opcode());
-  return OpParameter<ToBooleanHints>(op);
-}
-
 std::ostream& operator<<(std::ostream& os,
                          ConstructForwardVarargsParameters const& p) {
   return os << p.arity() << ", " << p.start_index();
@@ -755,15 +750,6 @@ const Operator* JSOperatorBuilder::StoreDataPropertyInLiteral(
       "JSStoreDataPropertyInLiteral",  // name
       4, 1, 1, 0, 1, 0,                // counts
       parameters);                     // parameter
-}
-
-const Operator* JSOperatorBuilder::ToBoolean(ToBooleanHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<ToBooleanHints>(  //--
-      IrOpcode::kJSToBoolean, Operator::kPure,    // opcode
-      "JSToBoolean",                              // name
-      1, 0, 0, 1, 0, 0,                           // inputs/outputs
-      hints);                                     // parameter
 }
 
 const Operator* JSOperatorBuilder::CallForwardVarargs(size_t arity,

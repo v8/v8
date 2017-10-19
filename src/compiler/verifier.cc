@@ -563,7 +563,7 @@ void Verifier::Visitor::Check(Node* node) {
       CheckTypeIs(node, Type::Number());
       break;
 
-    case IrOpcode::kJSToBoolean:
+    case IrOpcode::kToBoolean:
       // Type is Boolean.
       CheckTypeIs(node, Type::Boolean());
       break;

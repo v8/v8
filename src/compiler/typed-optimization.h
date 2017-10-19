@@ -51,6 +51,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceSpeculativeToNumber(Node* node);
   Reduction ReduceCheckNotTaggedHole(Node* node);
   Reduction ReduceTypeOf(Node* node);
+  Reduction ReduceToBoolean(Node* node);
 
   CompilationDependencies* dependencies() const { return dependencies_; }
   Factory* factory() const;

@@ -57,7 +57,7 @@ bool CanBePrimitive(Node* node) {
 bool CanBeNullOrUndefined(Node* node) {
   if (CanBePrimitive(node)) {
     switch (node->opcode()) {
-      case IrOpcode::kJSToBoolean:
+      case IrOpcode::kToBoolean:
       case IrOpcode::kJSToInteger:
       case IrOpcode::kJSToLength:
       case IrOpcode::kJSToName:
@@ -137,13 +137,11 @@ Reduction JSCallReducer::ReduceBooleanConstructor(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
 
-  // Replace the {node} with a proper {JSToBoolean} operator.
+  // Replace the {node} with a proper {ToBoolean} operator.
   DCHECK_LE(2u, p.arity());
   Node* value = (p.arity() == 2) ? jsgraph()->UndefinedConstant()
                                  : NodeProperties::GetValueInput(node, 2);
-  Node* context = NodeProperties::GetContextInput(node);
-  value = graph()->NewNode(javascript()->ToBoolean(ToBooleanHint::kAny), value,
-                           context);
+  value = graph()->NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), value);
   ReplaceWithValue(node, value);
   return Replace(value);
 }
@@ -1321,8 +1319,8 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
   // We have to coerce callback_value to boolean, and only store the element in
   // a if it's true. The checkpoint above protects against the case that
   // growing {a} fails.
-  to = DoFilterPostCallbackWork(kind, context, &control, &effect, a, to,
-                                element, callback_value);
+  to = DoFilterPostCallbackWork(kind, &control, &effect, a, to, element,
+                                callback_value);
   k = next_k;
 
   loop->ReplaceInput(1, control);
@@ -1345,12 +1343,12 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
   return Replace(a);
 }
 
-Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node* context,
-                                              Node** control, Node** effect,
-                                              Node* a, Node* to, Node* element,
+Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
+                                              Node** effect, Node* a, Node* to,
+                                              Node* element,
                                               Node* callback_value) {
   Node* boolean_result = graph()->NewNode(
-      javascript()->ToBoolean(ToBooleanHint::kAny), callback_value, context);
+      simplified()->ToBoolean(ToBooleanHint::kAny), callback_value);
 
   Node* check_boolean_result =
       graph()->NewNode(simplified()->ReferenceEqual(), boolean_result,

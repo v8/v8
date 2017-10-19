@@ -15,6 +15,7 @@
 #include "src/handles.h"
 #include "src/machine-type.h"
 #include "src/objects.h"
+#include "src/type-hints.h"
 #include "src/zone/zone-handle-set.h"
 
 namespace v8 {
@@ -172,6 +173,9 @@ inline size_t hash_value(GrowFastElementsMode mode) {
 std::ostream& operator<<(std::ostream&, GrowFastElementsMode);
 
 GrowFastElementsMode GrowFastElementsModeOf(const Operator*) WARN_UNUSED_RESULT;
+
+// The ToBooleanHints are used as parameter by ToBoolean operators.
+ToBooleanHints ToBooleanHintsOf(Operator const* op);
 
 // A descriptor for elements kind transitions.
 class ElementsTransition final {
@@ -365,6 +369,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* ReferenceEqual();
 
   const Operator* TypeOf();
+
+  const Operator* ToBoolean(ToBooleanHints hints);
 
   const Operator* StringEqual();
   const Operator* StringLessThan();

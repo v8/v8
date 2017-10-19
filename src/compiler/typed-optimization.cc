@@ -103,6 +103,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceSelect(node);
     case IrOpcode::kTypeOf:
       return ReduceTypeOf(node);
+    case IrOpcode::kToBoolean:
+      return ReduceToBoolean(node);
     case IrOpcode::kSpeculativeToNumber:
       return ReduceSpeculativeToNumber(node);
     default:
@@ -386,6 +388,52 @@ Reduction TypedOptimization::ReduceTypeOf(Node* node) {
         Object::TypeOf(isolate(), type->AsHeapConstant()->Value())));
   }
 
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceToBoolean(Node* node) {
+  Node* const input = node->InputAt(0);
+  Type* const input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::Boolean())) {
+    // ToBoolean(x:boolean) => x
+    return Replace(input);
+  } else if (input_type->Is(Type::OrderedNumber())) {
+    // SToBoolean(x:ordered-number) => BooleanNot(NumberEqual(x,#0))
+    node->ReplaceInput(0, graph()->NewNode(simplified()->NumberEqual(), input,
+                                           jsgraph()->ZeroConstant()));
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
+    return Changed(node);
+  } else if (input_type->Is(Type::Number())) {
+    // ToBoolean(x:number) => NumberToBoolean(x)
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->NumberToBoolean());
+    return Changed(node);
+  } else if (input_type->Is(Type::DetectableReceiverOrNull())) {
+    // ToBoolean(x:detectable receiver \/ null)
+    //   => BooleanNot(ReferenceEqual(x,#null))
+    node->ReplaceInput(0, graph()->NewNode(simplified()->ReferenceEqual(),
+                                           input, jsgraph()->NullConstant()));
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
+    return Changed(node);
+  } else if (input_type->Is(Type::ReceiverOrNullOrUndefined())) {
+    // ToBoolean(x:receiver \/ null \/ undefined)
+    //   => BooleanNot(ObjectIsUndetectable(x))
+    node->ReplaceInput(
+        0, graph()->NewNode(simplified()->ObjectIsUndetectable(), input));
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
+    return Changed(node);
+  } else if (input_type->Is(Type::String())) {
+    // ToBoolean(x:string) => BooleanNot(ReferenceEqual(x,""))
+    node->ReplaceInput(0,
+                       graph()->NewNode(simplified()->ReferenceEqual(), input,
+                                        jsgraph()->EmptyStringConstant()));
+    node->TrimInputCount(1);
+    NodeProperties::ChangeOp(node, simplified()->BooleanNot());
+    return Changed(node);
+  }
   return NoChange();
 }
 

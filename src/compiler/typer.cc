@@ -1094,8 +1094,7 @@ Type* Typer::Visitor::TypeTypeOf(Node* node) {
 
 // JS conversion operators.
 
-
-Type* Typer::Visitor::TypeJSToBoolean(Node* node) {
+Type* Typer::Visitor::TypeToBoolean(Node* node) {
   return TypeUnaryOp(node, ToBoolean);
 }
 

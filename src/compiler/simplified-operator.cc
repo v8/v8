@@ -102,6 +102,10 @@ std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
   return os;
 }
 
+ToBooleanHints ToBooleanHintsOf(Operator const* op) {
+  DCHECK_EQ(IrOpcode::kToBoolean, op->opcode());
+  return OpParameter<ToBooleanHints>(op);
+}
 
 const FieldAccess& FieldAccessOf(const Operator* op) {
   DCHECK_NOT_NULL(op);
@@ -1027,6 +1031,15 @@ const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(
       "TransitionElementsKind",                       // name
       1, 1, 1, 0, 1, 0,                               // counts
       transition);                                    // parameter
+}
+
+const Operator* SimplifiedOperatorBuilder::ToBoolean(ToBooleanHints hints) {
+  // TODO(turbofan): Cache most important versions of this operator.
+  return new (zone()) Operator1<ToBooleanHints>(  //--
+      IrOpcode::kToBoolean, Operator::kPure,      // opcode
+      "ToBoolean",                                // name
+      1, 0, 0, 1, 0, 0,                           // inputs/outputs
+      hints);                                     // parameter
 }
 
 namespace {

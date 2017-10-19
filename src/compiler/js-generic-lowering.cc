@@ -126,15 +126,6 @@ void JSGenericLowering::LowerJSStrictEqual(Node* node) {
                       Operator::kEliminatable);
 }
 
-void JSGenericLowering::LowerJSToBoolean(Node* node) {
-  // The ToBoolean conversion doesn't need the current context.
-  NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());
-  Callable callable = Builtins::CallableFor(isolate(), Builtins::kToBoolean);
-  node->AppendInput(zone(), graph()->start());
-  ReplaceWithStubCall(node, callable, CallDescriptor::kNoAllocate,
-                      Operator::kEliminatable);
-}
-
 void JSGenericLowering::LowerJSClassOf(Node* node) {
   // The %_ClassOf intrinsic doesn't need the current context.
   NodeProperties::ReplaceContextInput(node, jsgraph()->NoContextConstant());

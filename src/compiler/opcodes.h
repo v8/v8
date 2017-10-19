@@ -116,7 +116,6 @@
   V(JSOrdinaryHasInstance)
 
 #define JS_CONVERSION_UNOP_LIST(V) \
-  V(JSToBoolean)                   \
   V(JSToInteger)                   \
   V(JSToLength)                    \
   V(JSToName)                      \
@@ -357,6 +356,7 @@
   V(TransitionAndStoreElement)          \
   V(TransitionAndStoreNumberElement)    \
   V(TransitionAndStoreNonNumberElement) \
+  V(ToBoolean)                          \
   V(ObjectIsArrayBufferView)            \
   V(ObjectIsCallable)                   \
   V(ObjectIsConstructor)                \

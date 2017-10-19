@@ -89,9 +89,6 @@ size_t hash_value(VectorSlotPair const&);
 ConvertReceiverMode ConvertReceiverModeOf(Operator const* op);
 
 
-// The ToBooleanHints are used as parameter by JSToBoolean operators.
-ToBooleanHints ToBooleanHintsOf(Operator const* op);
-
 // Defines the flags for a JavaScript call forwarding parameters. This
 // is used as parameter by JSConstructForwardVarargs operators.
 class ConstructForwardVarargsParameters final {
@@ -659,7 +656,6 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Divide();
   const Operator* Modulus();
 
-  const Operator* ToBoolean(ToBooleanHints hints);
   const Operator* ToInteger();
   const Operator* ToLength();
   const Operator* ToName();

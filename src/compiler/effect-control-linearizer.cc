@@ -828,6 +828,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kArgumentsLength:
       result = LowerArgumentsLength(node);
       break;
+    case IrOpcode::kToBoolean:
+      result = LowerToBoolean(node);
+      break;
     case IrOpcode::kTypeOf:
       result = LowerTypeOf(node);
       break;
@@ -2263,6 +2266,18 @@ Node* EffectControlLinearizer::LowerTypeOf(Node* node) {
   Node* obj = node->InputAt(0);
   Callable const callable = Builtins::CallableFor(isolate(), Builtins::kTypeof);
   // TODO(mvstanton): is it okay to ignore the properties from the operator?
+  Operator::Properties const properties = Operator::kEliminatable;
+  CallDescriptor::Flags const flags = CallDescriptor::kNoAllocate;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
+  return __ Call(desc, __ HeapConstant(callable.code()), obj,
+                 __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::LowerToBoolean(Node* node) {
+  Node* obj = node->InputAt(0);
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtins::kToBoolean);
   Operator::Properties const properties = Operator::kEliminatable;
   CallDescriptor::Flags const flags = CallDescriptor::kNoAllocate;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
