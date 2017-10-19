@@ -169,8 +169,6 @@ class Logger : public CodeEventListener {
   void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
                        AbstractCode* code, SharedFunctionInfo* shared,
                        Name* source, int line, int column);
-  void CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                       AbstractCode* code, int args_count);
   // Emits a code deoptimization event.
   void CodeDisableOptEvent(AbstractCode* code, SharedFunctionInfo* shared);
   void CodeMovingGCEvent();
@@ -375,8 +373,6 @@ class CodeEventLogger : public CodeEventListener {
                        const char* comment) override;
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                        Name* name) override;
-  void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
-                       int args_count) override;
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,
                        SharedFunctionInfo* shared, Name* name) override;
   void CodeCreateEvent(LogEventsAndTags tag, AbstractCode* code,

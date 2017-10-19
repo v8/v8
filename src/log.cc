@@ -198,13 +198,6 @@ void CodeEventLogger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   LogRecordedBuffer(code, shared, name_buffer_->get(), name_buffer_->size());
 }
 
-void CodeEventLogger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                      AbstractCode* code, int args_count) {
-  name_buffer_->Init(tag);
-  name_buffer_->AppendInt(args_count);
-  LogRecordedBuffer(code, nullptr, name_buffer_->get(), name_buffer_->size());
-}
-
 void CodeEventLogger::RegExpCodeCreateEvent(AbstractCode* code,
                                             String* source) {
   name_buffer_->Init(CodeEventListener::REG_EXP_TAG);
@@ -1247,16 +1240,6 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
       msg.AppendUnbufferedCString(os.str().c_str());
     }
   }
-}
-
-void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                             AbstractCode* code, int args_count) {
-  if (!is_logging_code_events()) return;
-  if (!FLAG_log_code || !log_->IsEnabled()) return;
-  Log::MessageBuilder msg(log_);
-  AppendCodeCreateHeader(&msg, tag, code, &timer_);
-  msg.Append("\"args_count: %d\"", args_count);
-  msg.WriteToLogFile();
 }
 
 void Logger::CodeDisableOptEvent(AbstractCode* code,

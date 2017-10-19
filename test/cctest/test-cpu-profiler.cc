@@ -151,11 +151,8 @@ TEST(CodeEvents) {
 
   i::AbstractCode* aaa_code = CreateCode(&env);
   i::AbstractCode* comment_code = CreateCode(&env);
-  i::AbstractCode* args5_code = CreateCode(&env);
   i::AbstractCode* comment2_code = CreateCode(&env);
   i::AbstractCode* moved_code = CreateCode(&env);
-  i::AbstractCode* args3_code = CreateCode(&env);
-  i::AbstractCode* args4_code = CreateCode(&env);
 
   CpuProfilesCollection* profiles = new CpuProfilesCollection(isolate);
   ProfileGenerator* generator = new ProfileGenerator(profiles);
@@ -175,12 +172,9 @@ TEST(CodeEvents) {
                                     *aaa_name);
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment_code,
                                     "comment");
-  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, args5_code, 5);
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, comment2_code,
                                     "comment2");
   profiler_listener.CodeMoveEvent(comment2_code, moved_code->address());
-  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, args3_code, 3);
-  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, args4_code, 4);
 
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(processor, aaa_code->address());
@@ -198,10 +192,6 @@ TEST(CodeEvents) {
       generator->code_map()->FindEntry(comment_code->address());
   CHECK(comment);
   CHECK_EQ(0, strcmp("comment", comment->name()));
-
-  CodeEntry* args5 = generator->code_map()->FindEntry(args5_code->address());
-  CHECK(args5);
-  CHECK_EQ(0, strcmp("5", args5->name()));
 
   CHECK(!generator->code_map()->FindEntry(comment2_code->address()));
 
@@ -238,7 +228,7 @@ TEST(TickEvents) {
   profiler_listener.AddObserver(&profiler);
 
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame1_code, "bbb");
-  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, 5);
+  profiler_listener.CodeCreateEvent(i::Logger::STUB_TAG, frame2_code, "ccc");
   profiler_listener.CodeCreateEvent(i::Logger::BUILTIN_TAG, frame3_code, "ddd");
 
   EnqueueTickSampleEvent(processor, frame1_code->instruction_start());
@@ -264,7 +254,7 @@ TEST(TickEvents) {
   const std::vector<ProfileNode*>* top_down_bbb_children =
       top_down_root_children->back()->children();
   CHECK_EQ(1, top_down_bbb_children->size());
-  CHECK_EQ(0, strcmp("5", top_down_bbb_children->back()->entry()->name()));
+  CHECK_EQ(0, strcmp("ccc", top_down_bbb_children->back()->entry()->name()));
   const std::vector<ProfileNode*>* top_down_stub_children =
       top_down_bbb_children->back()->children();
   CHECK_EQ(1, top_down_stub_children->size());

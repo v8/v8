@@ -114,20 +114,6 @@ void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   DispatchCodeEvent(evt_rec);
 }
 
-void ProfilerListener::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
-                                       AbstractCode* code, int args_count) {
-  CodeEventsContainer evt_rec(CodeEventRecord::CODE_CREATION);
-  CodeCreateEventRecord* rec = &evt_rec.CodeCreateEventRecord_;
-  rec->start = code->address();
-  rec->entry = NewCodeEntry(
-      tag, GetName(args_count), "args_count: ", CodeEntry::kEmptyResourceName,
-      CpuProfileNode::kNoLineNumberInfo, CpuProfileNode::kNoColumnNumberInfo,
-      nullptr, code->instruction_start());
-  RecordInliningInfo(rec->entry, code);
-  rec->size = code->ExecutableSize();
-  DispatchCodeEvent(evt_rec);
-}
-
 void ProfilerListener::CodeMoveEvent(AbstractCode* from, Address to) {
   CodeEventsContainer evt_rec(CodeEventRecord::CODE_MOVE);
   CodeMoveEventRecord* rec = &evt_rec.CodeMoveEventRecord_;
