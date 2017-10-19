@@ -958,16 +958,18 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 };
 
 template <FixedArrayVisitationMode fixed_array_mode,
-          TraceRetainingPathMode retaining_path_mode>
+          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 class MarkingVisitor final
     : public HeapVisitor<
-          int, MarkingVisitor<fixed_array_mode, retaining_path_mode>> {
+          int,
+          MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>> {
  public:
-  typedef HeapVisitor<int,
-                      MarkingVisitor<fixed_array_mode, retaining_path_mode>>
+  typedef HeapVisitor<
+      int, MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>>
       Parent;
 
-  V8_INLINE explicit MarkingVisitor(MarkCompactCollector* collector);
+  V8_INLINE MarkingVisitor(MarkCompactCollector* collector,
+                           MarkingState* marking_state);
 
   V8_INLINE bool ShouldVisitMapPointer() { return false; }
 
@@ -1007,9 +1009,7 @@ class MarkingVisitor final
   // Marks the object grey and pushes it on the marking work list.
   V8_INLINE void MarkObject(HeapObject* host, HeapObject* obj);
 
-  MajorAtomicMarkingState* marking_state() {
-    return this->collector_->atomic_marking_state();
-  }
+  MarkingState* marking_state() { return marking_state_; }
 
   MarkCompactCollector::MarkingWorklist* marking_worklist() {
     return this->heap_->incremental_marking()->marking_worklist();
@@ -1017,14 +1017,8 @@ class MarkingVisitor final
 
   Heap* const heap_;
   MarkCompactCollector* const collector_;
+  MarkingState* const marking_state_;
 };
-
-using MarkCompactMarkingVisitor =
-    MarkingVisitor<FixedArrayVisitationMode::kRegular,
-                   TraceRetainingPathMode::kEnabled>;
-using IncrementalMarkingMarkingVisitor =
-    MarkingVisitor<FixedArrayVisitationMode::kIncremental,
-                   TraceRetainingPathMode::kDisabled>;
 
 class EvacuationScope {
  public:

@@ -348,6 +348,10 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
 // MarkCompactCollectorBase, MinorMarkCompactCollector, MarkCompactCollector
 // =============================================================================
 
+using MarkCompactMarkingVisitor =
+    MarkingVisitor<FixedArrayVisitationMode::kRegular,
+                   TraceRetainingPathMode::kEnabled, MajorAtomicMarkingState>;
+
 namespace {
 
 // This root visitor walks all roots and creates items bundling objects that
@@ -1771,7 +1775,7 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
 
 void MarkCompactCollector::ProcessMarkingWorklist() {
   HeapObject* object;
-  MarkCompactMarkingVisitor visitor(this);
+  MarkCompactMarkingVisitor visitor(this, atomic_marking_state());
   while ((object = marking_worklist()->Pop()) != nullptr) {
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
@@ -2822,7 +2826,7 @@ void MarkCompactCollector::TrimEnumCache(Map* map,
 
 
 void MarkCompactCollector::ProcessWeakCollections() {
-  MarkCompactMarkingVisitor visitor(this);
+  MarkCompactMarkingVisitor visitor(this, atomic_marking_state());
   Object* weak_collection_obj = heap()->encountered_weak_collections();
   while (weak_collection_obj != Smi::kZero) {
     JSWeakCollection* weak_collection =

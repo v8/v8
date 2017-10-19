@@ -23,6 +23,11 @@
 namespace v8 {
 namespace internal {
 
+using IncrementalMarkingMarkingVisitor =
+    MarkingVisitor<FixedArrayVisitationMode::kIncremental,
+                   TraceRetainingPathMode::kDisabled,
+                   IncrementalMarking::MarkingState>;
+
 void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
                                         size_t size) {
   Heap* heap = incremental_marking_.heap();
@@ -700,7 +705,8 @@ int IncrementalMarking::VisitObject(Map* map, HeapObject* obj) {
   }
   DCHECK(marking_state()->IsBlack(obj));
   WhiteToGreyAndPush(map);
-  IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector());
+  IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector(),
+                                           marking_state());
   return visitor.Visit(map, obj);
 }
 
@@ -719,7 +725,8 @@ void IncrementalMarking::RevisitObject(HeapObject* obj) {
   }
   Map* map = obj->map();
   WhiteToGreyAndPush(map);
-  IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector());
+  IncrementalMarkingMarkingVisitor visitor(heap()->mark_compact_collector(),
+                                           marking_state());
   visitor.Visit(map, obj);
 }
 

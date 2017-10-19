@@ -2451,7 +2451,7 @@ class Heap {
   friend class IncrementalMarkingJob;
   friend class LargeObjectSpace;
   template <FixedArrayVisitationMode fixed_array_mode,
-            TraceRetainingPathMode retaining_path_mode>
+            TraceRetainingPathMode retaining_path_mode, typename MarkingState>
   friend class MarkingVisitor;
   friend class MarkCompactCollector;
   friend class MarkCompactCollectorBase;
