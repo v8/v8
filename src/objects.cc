@@ -54,6 +54,7 @@
 #include "src/map-updater.h"
 #include "src/messages.h"
 #include "src/objects-body-descriptors-inl.h"
+#include "src/objects/bigint.h"
 #include "src/objects/code-inl.h"
 #include "src/objects/compilation-cache-inl.h"
 #include "src/objects/debug-objects-inl.h"
@@ -534,10 +535,8 @@ Maybe<ComparisonResult> Object::Compare(Handle<Object> x, Handle<Object> y) {
 
 // static
 Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
-  // This is the generic version of Abstract Equality Comparison; a version in
-  // JavaScript land is available in the EqualStub and NotEqualStub. Whenever
-  // you change something functionality wise in here, remember to update the
-  // TurboFan code stubs as well.
+  // This is the generic version of Abstract Equality Comparison. Must be in
+  // sync with CodeStubAssembler::Equal.
   while (true) {
     if (x->IsNumber()) {
       if (y->IsNumber()) {
@@ -546,6 +545,8 @@ Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
         return Just(NumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
       } else if (y->IsString()) {
         return Just(NumberEquals(x, String::ToNumber(Handle<String>::cast(y))));
+      } else if (y->IsBigInt()) {
+        return Just(BigInt::EqualToNumber(Handle<BigInt>::cast(y), x));
       } else if (y->IsJSReceiver()) {
         if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
                  .ToHandle(&y)) {
@@ -564,6 +565,9 @@ Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
       } else if (y->IsBoolean()) {
         x = String::ToNumber(Handle<String>::cast(x));
         return Just(NumberEquals(*x, Handle<Oddball>::cast(y)->to_number()));
+      } else if (y->IsBigInt()) {
+        return Just(BigInt::EqualToString(Handle<BigInt>::cast(y),
+                                          Handle<String>::cast(x)));
       } else if (y->IsJSReceiver()) {
         if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
                  .ToHandle(&y)) {
@@ -580,6 +584,9 @@ Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
       } else if (y->IsString()) {
         y = String::ToNumber(Handle<String>::cast(y));
         return Just(NumberEquals(Handle<Oddball>::cast(x)->to_number(), *y));
+      } else if (y->IsBigInt()) {
+        x = Oddball::ToNumber(Handle<Oddball>::cast(x));
+        return Just(BigInt::EqualToNumber(Handle<BigInt>::cast(y), x));
       } else if (y->IsJSReceiver()) {
         if (!JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(y))
                  .ToHandle(&y)) {
@@ -600,6 +607,11 @@ Maybe<bool> Object::Equals(Handle<Object> x, Handle<Object> y) {
       } else {
         return Just(false);
       }
+    } else if (x->IsBigInt()) {
+      if (y->IsBigInt()) {
+        return Just(BigInt::EqualToBigInt(BigInt::cast(*x), BigInt::cast(*y)));
+      }
+      return Equals(y, x);
     } else if (x->IsJSReceiver()) {
       if (y->IsJSReceiver()) {
         return Just(x.is_identical_to(y));
@@ -10616,7 +10628,6 @@ int ParseDecimalInteger(const uint8_t* s, int from, int to) {
 }
 
 }  // namespace
-
 
 // static
 Handle<Object> String::ToNumber(Handle<String> subject) {

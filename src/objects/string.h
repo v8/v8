@@ -14,6 +14,8 @@
 namespace v8 {
 namespace internal {
 
+class BigInt;
+
 enum AllowNullsFlag { ALLOW_NULLS, DISALLOW_NULLS };
 enum RobustnessFlag { ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL };
 

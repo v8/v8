@@ -8478,6 +8478,9 @@ void CodeStubAssembler::GenerateEqual_Same(Node* value, Label* if_equal,
         Goto(if_equal);
       }
 
+      // TODO(neis): Introduce BigInt CompareOperationFeedback and collect here
+      // and elsewhere?
+
       BIND(&if_valueisother);
       {
         CombineFeedback(var_type_feedback,
@@ -8508,6 +8511,10 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
   Label if_equal(this), if_notequal(this),
       do_rhsstringtonumber(this, Label::kDeferred), end(this);
   VARIABLE(result, MachineRepresentation::kTagged);
+
+  // We can avoid code duplication by exploiting the fact that abstract equality
+  // is symmetric.
+  Label use_symmetry(this);
 
   // Shared entry for floating point comparison.
   Label do_fcmp(this);
@@ -8595,14 +8602,16 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
                   SmiConstant(CompareOperationFeedback::kAny));
             }
 
-            // Load the instance type of the {rhs}.
+            // Further inspect {rhs}.
+            Label if_rhsisstring(this, Label::kDeferred), if_rhsisboolean(this),
+                if_rhsisbigint(this, Label::kDeferred),
+                if_rhsisreceiver(this, Label::kDeferred);
             Node* rhs_instance_type = LoadMapInstanceType(rhs_map);
-
-            // Check if the {rhs} is a String.
-            Label if_rhsisstring(this, Label::kDeferred),
-                if_rhsisnotstring(this);
-            Branch(IsStringInstanceType(rhs_instance_type), &if_rhsisstring,
-                   &if_rhsisnotstring);
+            GotoIf(IsStringInstanceType(rhs_instance_type), &if_rhsisstring);
+            GotoIf(IsBooleanMap(rhs_map), &if_rhsisboolean);
+            GotoIf(IsBigIntInstanceType(rhs_instance_type), &if_rhsisbigint);
+            Branch(IsJSReceiverInstanceType(rhs_instance_type),
+                   &if_rhsisreceiver, &if_notequal);
 
             BIND(&if_rhsisstring);
             {
@@ -8612,41 +8621,27 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
               Goto(&do_rhsstringtonumber);
             }
 
-            BIND(&if_rhsisnotstring);
+            BIND(&if_rhsisboolean);
             {
-              // Check if the {rhs} is a Boolean.
-              Label if_rhsisboolean(this), if_rhsisnotboolean(this);
-              Branch(IsBooleanMap(rhs_map), &if_rhsisboolean,
-                     &if_rhsisnotboolean);
+              // The {rhs} is a Boolean, load its number value.
+              var_rhs.Bind(LoadObjectField(rhs, Oddball::kToNumberOffset));
+              Goto(&loop);
+            }
 
-              BIND(&if_rhsisboolean);
-              {
-                // The {rhs} is a Boolean, load its number value.
-                var_rhs.Bind(LoadObjectField(rhs, Oddball::kToNumberOffset));
-                Goto(&loop);
-              }
+            BIND(&if_rhsisbigint);
+            {
+              result.Bind(CallRuntime(Runtime::kBigIntEqualToNumber,
+                                      NoContextConstant(), rhs, lhs));
+              Goto(&end);
+            }
 
-              BIND(&if_rhsisnotboolean);
-              {
-                // Check if the {rhs} is a Receiver.
-                STATIC_ASSERT(LAST_JS_RECEIVER_TYPE == LAST_TYPE);
-                Label if_rhsisreceiver(this, Label::kDeferred),
-                    if_rhsisnotreceiver(this);
-                Branch(IsJSReceiverInstanceType(rhs_instance_type),
-                       &if_rhsisreceiver, &if_rhsisnotreceiver);
-
-                BIND(&if_rhsisreceiver);
-                {
-                  // Convert {rhs} to a primitive first (passing no hint).
-                  Callable callable =
-                      CodeFactory::NonPrimitiveToPrimitive(isolate());
-                  var_rhs.Bind(CallStub(callable, context, rhs));
-                  Goto(&loop);
-                }
-
-                BIND(&if_rhsisnotreceiver);
-                Goto(&if_notequal);
-              }
+            BIND(&if_rhsisreceiver);
+            {
+              // Convert {rhs} to a primitive first (passing no hint).
+              Callable callable =
+                  CodeFactory::NonPrimitiveToPrimitive(isolate());
+              var_rhs.Bind(CallStub(callable, context, rhs));
+              Goto(&loop);
             }
           }
         }
@@ -8654,327 +8649,299 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
 
       BIND(&if_lhsisnotsmi);
       {
-        // Check if {rhs} is a Smi or a HeapObject.
-        Label if_rhsissmi(this), if_rhsisnotsmi(this);
-        Branch(TaggedIsSmi(rhs), &if_rhsissmi, &if_rhsisnotsmi);
+        GotoIf(TaggedIsSmi(rhs), &use_symmetry);
 
-        BIND(&if_rhsissmi);
-        {
-          // The {lhs} is a HeapObject and the {rhs} is a Smi; swapping {lhs}
-          // and {rhs} is not observable and doesn't matter for the result, so
-          // we can just swap them and use the Smi handling above (for {lhs}
-          // being a Smi).
-          var_lhs.Bind(rhs);
-          var_rhs.Bind(lhs);
-          Goto(&loop);
+        // {rhs} is a HeapObject. Further inspect {lhs}.
+        Label if_lhsissymbol(this), if_lhsisheapnumber(this),
+            if_lhsisstring(this), if_lhsisbigint(this, Label::kDeferred),
+            if_lhsisoddball(this), if_lhsisreceiver(this);
+
+        // Both {lhs} and {rhs} are HeapObjects, load their maps
+        // and their instance types.
+        Node* lhs_map = LoadMap(lhs);
+        Node* rhs_map = LoadMap(rhs);
+
+        // Load the instance types of {lhs} and {rhs}.
+        Node* lhs_instance_type = LoadMapInstanceType(lhs_map);
+        Node* rhs_instance_type = LoadMapInstanceType(rhs_map);
+
+        // Dispatch based on the instance type of {lhs}.
+        size_t const kNumCases = FIRST_NONSTRING_TYPE + 4;
+        Label* case_labels[kNumCases];
+        int32_t case_values[kNumCases];
+        for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
+          case_labels[i] = new Label(this);
+          case_values[i] = i;
+        }
+        case_values[FIRST_NONSTRING_TYPE + 0] = SYMBOL_TYPE;
+        case_labels[FIRST_NONSTRING_TYPE + 0] = &if_lhsissymbol;
+        case_values[FIRST_NONSTRING_TYPE + 1] = HEAP_NUMBER_TYPE;
+        case_labels[FIRST_NONSTRING_TYPE + 1] = &if_lhsisheapnumber;
+        case_values[FIRST_NONSTRING_TYPE + 2] = BIGINT_TYPE;
+        case_labels[FIRST_NONSTRING_TYPE + 2] = &if_lhsisbigint;
+        case_values[FIRST_NONSTRING_TYPE + 3] = ODDBALL_TYPE;
+        case_labels[FIRST_NONSTRING_TYPE + 3] = &if_lhsisoddball;
+        Switch(lhs_instance_type, &if_lhsisreceiver, case_values, case_labels,
+               arraysize(case_values));
+        for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
+          BIND(case_labels[i]);
+          Goto(&if_lhsisstring);
+          delete case_labels[i];
         }
 
-        BIND(&if_rhsisnotsmi);
+        BIND(&if_lhsisstring);
         {
-          Label if_lhsisstring(this), if_lhsisnumber(this),
-              if_lhsissymbol(this), if_lhsisoddball(this),
-              if_lhsisreceiver(this);
+          // Check if {rhs} is also a String.
+          Label if_rhsisstring(this, Label::kDeferred);
+          GotoIfNot(IsStringInstanceType(rhs_instance_type), &use_symmetry);
 
-          // Both {lhs} and {rhs} are HeapObjects, load their maps
-          // and their instance types.
-          Node* lhs_map = LoadMap(lhs);
-          Node* rhs_map = LoadMap(rhs);
-
-          // Load the instance types of {lhs} and {rhs}.
-          Node* lhs_instance_type = LoadMapInstanceType(lhs_map);
-          Node* rhs_instance_type = LoadMapInstanceType(rhs_map);
-
-          // Dispatch based on the instance type of {lhs}.
-          size_t const kNumCases = FIRST_NONSTRING_TYPE + 3;
-          Label* case_labels[kNumCases];
-          int32_t case_values[kNumCases];
-          for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
-            case_labels[i] = new Label(this);
-            case_values[i] = i;
+          // Both {lhs} and {rhs} are of type String, just do the
+          // string comparison then.
+          result.Bind(CallBuiltin(Builtins::kStringEqual, context, lhs, rhs));
+          if (var_type_feedback != nullptr) {
+            Node* lhs_feedback = CollectFeedbackForString(lhs_instance_type);
+            Node* rhs_feedback = CollectFeedbackForString(rhs_instance_type);
+            CombineFeedback(var_type_feedback,
+                            SmiOr(lhs_feedback, rhs_feedback));
           }
-          case_labels[FIRST_NONSTRING_TYPE + 0] = &if_lhsisnumber;
-          case_values[FIRST_NONSTRING_TYPE + 0] = HEAP_NUMBER_TYPE;
-          case_labels[FIRST_NONSTRING_TYPE + 1] = &if_lhsissymbol;
-          case_values[FIRST_NONSTRING_TYPE + 1] = SYMBOL_TYPE;
-          case_labels[FIRST_NONSTRING_TYPE + 2] = &if_lhsisoddball;
-          case_values[FIRST_NONSTRING_TYPE + 2] = ODDBALL_TYPE;
-          Switch(lhs_instance_type, &if_lhsisreceiver, case_values, case_labels,
-                 arraysize(case_values));
-          for (int32_t i = 0; i < FIRST_NONSTRING_TYPE; ++i) {
-            BIND(case_labels[i]);
-            Goto(&if_lhsisstring);
-            delete case_labels[i];
-          }
+          Goto(&end);
+        }
 
-          BIND(&if_lhsisstring);
+        BIND(&if_lhsisheapnumber);
+        {
+          // Check if {rhs} is also a HeapNumber.
+          Label if_rhsisheapnumber(this), if_rhsisnotheapnumber(this);
+          Branch(Word32Equal(lhs_instance_type, rhs_instance_type),
+                 &if_rhsisheapnumber, &if_rhsisnotheapnumber);
+
+          BIND(&if_rhsisheapnumber);
           {
-            // Check if {rhs} is also a String.
-            Label if_rhsisstring(this, Label::kDeferred),
-                if_rhsisnotstring(this);
-            Branch(IsStringInstanceType(rhs_instance_type), &if_rhsisstring,
-                   &if_rhsisnotstring);
+            // Convert {lhs} and {rhs} to floating point values, and
+            // perform a floating point comparison.
+            var_fcmp_lhs.Bind(LoadHeapNumberValue(lhs));
+            var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
+            if (var_type_feedback != nullptr) {
+              CombineFeedback(var_type_feedback,
+                              SmiConstant(CompareOperationFeedback::kNumber));
+            }
+            Goto(&do_fcmp);
+          }
+
+          BIND(&if_rhsisnotheapnumber);
+          {
+            // The {lhs} is a Number, the {rhs} is some other HeapObject.
+            Label if_rhsisstring(this, Label::kDeferred), if_rhsisboolean(this);
+
+            if (var_type_feedback != nullptr) {
+              // The {lhs} is number and {rhs} is not Smi or HeapNumber.
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kAny));
+            }
+            GotoIf(IsStringInstanceType(rhs_instance_type), &if_rhsisstring);
+            GotoIf(IsBooleanMap(rhs_map), &if_rhsisboolean);
+            GotoIf(IsBigIntInstanceType(rhs_instance_type), &use_symmetry);
+            Branch(IsJSReceiverInstanceType(rhs_instance_type), &use_symmetry,
+                   &if_notequal);
 
             BIND(&if_rhsisstring);
             {
-              // Both {lhs} and {rhs} are of type String, just do the
-              // string comparison then.
-              result.Bind(
-                  CallBuiltin(Builtins::kStringEqual, context, lhs, rhs));
-              if (var_type_feedback != nullptr) {
-                Node* lhs_feedback =
-                    CollectFeedbackForString(lhs_instance_type);
-                Node* rhs_feedback =
-                    CollectFeedbackForString(rhs_instance_type);
-                CombineFeedback(var_type_feedback,
-                                SmiOr(lhs_feedback, rhs_feedback));
-              }
-              Goto(&end);
+              // The {lhs} is a HeapNumber and the {rhs} is a String; we need
+              // to convert the {rhs} to a Number.
+              Goto(&do_rhsstringtonumber);
             }
 
-            BIND(&if_rhsisnotstring);
+            BIND(&if_rhsisboolean);
             {
-              // The {lhs} is a String and the {rhs} is some other HeapObject.
-              // Swapping {lhs} and {rhs} is not observable and doesn't matter
-              // for the result, so we can just swap them and use the String
-              // handling below (for {rhs} being a String).
-              var_lhs.Bind(rhs);
-              var_rhs.Bind(lhs);
-              if (var_type_feedback != nullptr) {
-                var_type_feedback->Bind(
-                    SmiConstant(CompareOperationFeedback::kAny));
-              }
+              // The {rhs} is a Boolean, convert it to a Smi first.
+              var_rhs.Bind(LoadObjectField(rhs, Oddball::kToNumberOffset));
+              Goto(&loop);
+            }
+          }
+        }
+
+        BIND(&if_lhsisbigint);
+        {
+          if (var_type_feedback != nullptr) {
+            var_type_feedback->Bind(
+                SmiConstant(CompareOperationFeedback::kAny));
+          }
+
+          Label if_rhsisheapnumber(this), if_rhsisbigint(this),
+              if_rhsisstring(this), if_rhsisboolean(this);
+          GotoIf(IsHeapNumberMap(rhs_map), &if_rhsisheapnumber);
+          GotoIf(IsBigIntInstanceType(rhs_instance_type), &if_rhsisbigint);
+          GotoIf(IsStringInstanceType(rhs_instance_type), &if_rhsisstring);
+          GotoIf(IsBooleanMap(rhs_map), &if_rhsisboolean);
+          Branch(IsJSReceiverInstanceType(rhs_instance_type), &use_symmetry,
+                 &if_notequal);
+
+          BIND(&if_rhsisheapnumber);
+          {
+            result.Bind(CallRuntime(Runtime::kBigIntEqualToNumber,
+                                    NoContextConstant(), lhs, rhs));
+            Goto(&end);
+          }
+
+          BIND(&if_rhsisbigint);
+          {
+            result.Bind(CallRuntime(Runtime::kBigIntEqual, NoContextConstant(),
+                                    lhs, rhs));
+            Goto(&end);
+          }
+
+          BIND(&if_rhsisstring);
+          {
+            result.Bind(CallRuntime(Runtime::kBigIntEqualToString,
+                                    NoContextConstant(), lhs, rhs));
+            Goto(&end);
+          }
+
+          BIND(&if_rhsisboolean);
+          {
+            var_rhs.Bind(LoadObjectField(rhs, Oddball::kToNumberOffset));
+            Goto(&loop);
+          }
+        }
+
+        BIND(&if_lhsisoddball);
+        {
+          if (var_type_feedback != nullptr) {
+            var_type_feedback->Bind(
+                SmiConstant(CompareOperationFeedback::kAny));
+          }
+
+          // The {lhs} is an Oddball and {rhs} is some other HeapObject.
+          Label if_lhsisboolean(this), if_lhsisnotboolean(this);
+          Node* boolean_map = BooleanMapConstant();
+          Branch(WordEqual(lhs_map, boolean_map), &if_lhsisboolean,
+                 &if_lhsisnotboolean);
+
+          BIND(&if_lhsisboolean);
+          {
+            // The {lhs} is a Boolean, check if {rhs} is also a Boolean.
+            Label if_rhsisboolean(this), if_rhsisnotboolean(this);
+            Branch(WordEqual(rhs_map, boolean_map), &if_rhsisboolean,
+                   &if_rhsisnotboolean);
+
+            BIND(&if_rhsisboolean);
+            {
+              // Both {lhs} and {rhs} are distinct Boolean values.
+              Goto(&if_notequal);
+            }
+
+            BIND(&if_rhsisnotboolean);
+            {
+              // Convert the {lhs} to a Number first.
+              var_lhs.Bind(LoadObjectField(lhs, Oddball::kToNumberOffset));
               Goto(&loop);
             }
           }
 
-          BIND(&if_lhsisnumber);
+          BIND(&if_lhsisnotboolean);
           {
-            // Check if {rhs} is also a HeapNumber.
-            Label if_rhsisnumber(this), if_rhsisnotnumber(this);
-            Branch(Word32Equal(lhs_instance_type, rhs_instance_type),
-                   &if_rhsisnumber, &if_rhsisnotnumber);
+            // The {lhs} is either Null or Undefined; check if the {rhs} is
+            // undetectable (i.e. either also Null or Undefined or some
+            // undetectable JSReceiver).
+            Branch(IsUndetectableMap(rhs_map), &if_equal, &if_notequal);
+          }
+        }
 
-            BIND(&if_rhsisnumber);
-            {
-              // Convert {lhs} and {rhs} to floating point values, and
-              // perform a floating point comparison.
-              var_fcmp_lhs.Bind(LoadHeapNumberValue(lhs));
-              var_fcmp_rhs.Bind(LoadHeapNumberValue(rhs));
-              if (var_type_feedback != nullptr) {
-                CombineFeedback(var_type_feedback,
-                                SmiConstant(CompareOperationFeedback::kNumber));
-              }
-              Goto(&do_fcmp);
+        BIND(&if_lhsissymbol);
+        {
+          // Check if the {rhs} is a JSReceiver.
+          Label if_rhsisreceiver(this), if_rhsisnotreceiver(this);
+          Branch(IsJSReceiverInstanceType(rhs_instance_type), &if_rhsisreceiver,
+                 &if_rhsisnotreceiver);
+
+          BIND(&if_rhsisreceiver);
+          {
+            // The {lhs} is a Primitive and the {rhs} is a JSReceiver.
+            // Swapping {lhs} and {rhs} is not observable and doesn't
+            // matter for the result, so we can just swap them and use
+            // the JSReceiver handling below (for {lhs} being a JSReceiver).
+            if (var_type_feedback != nullptr) {
+              var_type_feedback->Bind(
+                  SmiConstant(CompareOperationFeedback::kAny));
             }
-
-            BIND(&if_rhsisnotnumber);
-            {
-              // The {lhs} is a Number, the {rhs} is some other HeapObject.
-              Label if_rhsisstring(this, Label::kDeferred),
-                  if_rhsisnotstring(this);
-
-              if (var_type_feedback != nullptr) {
-                // The {lhs} is number and {rhs} is not Smi or HeapNumber.
-                var_type_feedback->Bind(
-                    SmiConstant(CompareOperationFeedback::kAny));
-              }
-              Branch(IsStringInstanceType(rhs_instance_type), &if_rhsisstring,
-                     &if_rhsisnotstring);
-
-              BIND(&if_rhsisstring);
-              {
-                // The {rhs} is a String and the {lhs} is a HeapNumber; we need
-                // to convert the {rhs} to a Number and compare the output to
-                // the Number on the {lhs}.
-                Goto(&do_rhsstringtonumber);
-              }
-
-              BIND(&if_rhsisnotstring);
-              {
-                // Check if the {rhs} is a JSReceiver.
-                Label if_rhsisreceiver(this), if_rhsisnotreceiver(this);
-                STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-                Branch(IsJSReceiverInstanceType(rhs_instance_type),
-                       &if_rhsisreceiver, &if_rhsisnotreceiver);
-
-                BIND(&if_rhsisreceiver);
-                {
-                  // The {lhs} is a Primitive and the {rhs} is a JSReceiver.
-                  // Swapping {lhs} and {rhs} is not observable and doesn't
-                  // matter for the result, so we can just swap them and use
-                  // the JSReceiver handling below (for {lhs} being a
-                  // JSReceiver).
-                  var_lhs.Bind(rhs);
-                  var_rhs.Bind(lhs);
-                  Goto(&loop);
-                }
-
-                BIND(&if_rhsisnotreceiver);
-                {
-                  // Check if {rhs} is a Boolean.
-                  Label if_rhsisboolean(this), if_rhsisnotboolean(this);
-                  Branch(IsBooleanMap(rhs_map), &if_rhsisboolean,
-                         &if_rhsisnotboolean);
-
-                  BIND(&if_rhsisboolean);
-                  {
-                    // The {rhs} is a Boolean, convert it to a Smi first.
-                    var_rhs.Bind(
-                        LoadObjectField(rhs, Oddball::kToNumberOffset));
-                    Goto(&loop);
-                  }
-
-                  BIND(&if_rhsisnotboolean);
-                  Goto(&if_notequal);
-                }
-              }
-            }
+            Goto(&use_symmetry);
           }
 
-          BIND(&if_lhsisoddball);
+          BIND(&if_rhsisnotreceiver);
+          {
+            // The {rhs} is not a JSReceiver and also not the same Symbol
+            // as the {lhs}, so this equality check is considered false.
+            if (var_type_feedback != nullptr) {
+              Label if_rhsissymbol(this), if_rhsisnotsymbol(this);
+              Branch(IsSymbolInstanceType(rhs_instance_type), &if_rhsissymbol,
+                     &if_rhsisnotsymbol);
+
+              BIND(&if_rhsissymbol);
+              {
+                CombineFeedback(var_type_feedback,
+                                SmiConstant(CompareOperationFeedback::kSymbol));
+                Goto(&if_notequal);
+              }
+
+              BIND(&if_rhsisnotsymbol);
+              {
+                var_type_feedback->Bind(
+                    SmiConstant(CompareOperationFeedback::kAny));
+                Goto(&if_notequal);
+              }
+            } else {
+              Goto(&if_notequal);
+            }
+          }
+        }
+
+        BIND(&if_lhsisreceiver);
+        {
+          CSA_ASSERT(this, IsJSReceiverInstanceType(lhs_instance_type));
+          // Check if the {rhs} is also a JSReceiver.
+          Label if_rhsisreceiver(this), if_rhsisnotreceiver(this);
+          STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+          Branch(IsJSReceiverInstanceType(rhs_instance_type), &if_rhsisreceiver,
+                 &if_rhsisnotreceiver);
+
+          BIND(&if_rhsisreceiver);
+          {
+            if (var_type_feedback != nullptr) {
+              // The {lhs} and {rhs} are receivers.
+              CombineFeedback(var_type_feedback,
+                              SmiConstant(CompareOperationFeedback::kReceiver));
+            }
+
+            // Both {lhs} and {rhs} are different JSReceiver references, so
+            // this cannot be considered equal.
+            Goto(&if_notequal);
+          }
+
+          BIND(&if_rhsisnotreceiver);
           {
             if (var_type_feedback != nullptr) {
               var_type_feedback->Bind(
                   SmiConstant(CompareOperationFeedback::kAny));
             }
 
-            // The {lhs} is an Oddball and {rhs} is some other HeapObject.
-            Label if_lhsisboolean(this), if_lhsisnotboolean(this);
-            Node* boolean_map = BooleanMapConstant();
-            Branch(WordEqual(lhs_map, boolean_map), &if_lhsisboolean,
-                   &if_lhsisnotboolean);
+            // Check if {rhs} is Null or Undefined (an undetectable check
+            // is sufficient here, since we already know that {rhs} is not
+            // a JSReceiver).
+            Label if_rhsisundetectable(this),
+                if_rhsisnotundetectable(this, Label::kDeferred);
+            Branch(IsUndetectableMap(rhs_map), &if_rhsisundetectable,
+                   &if_rhsisnotundetectable);
 
-            BIND(&if_lhsisboolean);
+            BIND(&if_rhsisundetectable);
+            Branch(IsUndetectableMap(lhs_map), &if_equal, &if_notequal);
+
+            BIND(&if_rhsisnotundetectable);
             {
-              // The {lhs} is a Boolean, check if {rhs} is also a Boolean.
-              Label if_rhsisboolean(this), if_rhsisnotboolean(this);
-              Branch(WordEqual(rhs_map, boolean_map), &if_rhsisboolean,
-                     &if_rhsisnotboolean);
-
-              BIND(&if_rhsisboolean);
-              {
-                // Both {lhs} and {rhs} are distinct Boolean values.
-                Goto(&if_notequal);
-              }
-
-              BIND(&if_rhsisnotboolean);
-              {
-                // Convert the {lhs} to a Number first.
-                var_lhs.Bind(LoadObjectField(lhs, Oddball::kToNumberOffset));
-                Goto(&loop);
-              }
-            }
-
-            BIND(&if_lhsisnotboolean);
-            {
-              // The {lhs} is either Null or Undefined; check if the {rhs} is
-              // undetectable (i.e. either also Null or Undefined or some
-              // undetectable JSReceiver).
-              Branch(IsUndetectableMap(rhs_map), &if_equal, &if_notequal);
-            }
-          }
-
-          BIND(&if_lhsissymbol);
-          {
-            // Check if the {rhs} is a JSReceiver.
-            Label if_rhsisreceiver(this), if_rhsisnotreceiver(this);
-            Branch(IsJSReceiverInstanceType(rhs_instance_type),
-                   &if_rhsisreceiver, &if_rhsisnotreceiver);
-
-            BIND(&if_rhsisreceiver);
-            {
-              // The {lhs} is a Primitive and the {rhs} is a JSReceiver.
-              // Swapping {lhs} and {rhs} is not observable and doesn't
-              // matter for the result, so we can just swap them and use
-              // the JSReceiver handling below (for {lhs} being a JSReceiver).
-              if (var_type_feedback != nullptr) {
-                var_type_feedback->Bind(
-                    SmiConstant(CompareOperationFeedback::kAny));
-              }
-              var_lhs.Bind(rhs);
-              var_rhs.Bind(lhs);
+              // The {rhs} is some Primitive different from Null and
+              // Undefined, need to convert {lhs} to Primitive first.
+              Callable callable =
+                  CodeFactory::NonPrimitiveToPrimitive(isolate());
+              var_lhs.Bind(CallStub(callable, context, lhs));
               Goto(&loop);
-            }
-
-            BIND(&if_rhsisnotreceiver);
-            {
-              // The {rhs} is not a JSReceiver and also not the same Symbol
-              // as the {lhs}, so this equality check is considered false.
-              if (var_type_feedback != nullptr) {
-                Label if_rhsissymbol(this), if_rhsisnotsymbol(this);
-                Branch(IsSymbolInstanceType(rhs_instance_type), &if_rhsissymbol,
-                       &if_rhsisnotsymbol);
-
-                BIND(&if_rhsissymbol);
-                {
-                  CombineFeedback(
-                      var_type_feedback,
-                      SmiConstant(CompareOperationFeedback::kSymbol));
-                  Goto(&if_notequal);
-                }
-
-                BIND(&if_rhsisnotsymbol);
-                {
-                  var_type_feedback->Bind(
-                      SmiConstant(CompareOperationFeedback::kAny));
-                  Goto(&if_notequal);
-                }
-              } else {
-                Goto(&if_notequal);
-              }
-            }
-          }
-
-          BIND(&if_lhsisreceiver);
-          {
-            CSA_ASSERT(this, IsJSReceiverInstanceType(lhs_instance_type));
-            // Check if the {rhs} is also a JSReceiver.
-            Label if_rhsisreceiver(this), if_rhsisnotreceiver(this);
-            STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
-            Branch(IsJSReceiverInstanceType(rhs_instance_type),
-                   &if_rhsisreceiver, &if_rhsisnotreceiver);
-
-            BIND(&if_rhsisreceiver);
-            {
-              if (var_type_feedback != nullptr) {
-                // The {lhs} and {rhs} are receivers.
-                CombineFeedback(
-                    var_type_feedback,
-                    SmiConstant(CompareOperationFeedback::kReceiver));
-              }
-
-              // Both {lhs} and {rhs} are different JSReceiver references, so
-              // this cannot be considered equal.
-              Goto(&if_notequal);
-            }
-
-            BIND(&if_rhsisnotreceiver);
-            {
-              if (var_type_feedback != nullptr) {
-                var_type_feedback->Bind(
-                    SmiConstant(CompareOperationFeedback::kAny));
-              }
-
-              // Check if {rhs} is Null or Undefined (an undetectable check
-              // is sufficient here, since we already know that {rhs} is not
-              // a JSReceiver).
-              Label if_rhsisundetectable(this),
-                  if_rhsisnotundetectable(this, Label::kDeferred);
-              Branch(IsUndetectableMap(rhs_map), &if_rhsisundetectable,
-                     &if_rhsisnotundetectable);
-
-              BIND(&if_rhsisundetectable);
-              Branch(IsUndetectableMap(lhs_map), &if_equal, &if_notequal);
-
-              BIND(&if_rhsisnotundetectable);
-              {
-                // The {rhs} is some Primitive different from Null and
-                // Undefined, need to convert {lhs} to Primitive first.
-                Callable callable =
-                    CodeFactory::NonPrimitiveToPrimitive(isolate());
-                var_lhs.Bind(CallStub(callable, context, lhs));
-                Goto(&loop);
-              }
             }
           }
         }
@@ -8986,6 +8953,13 @@ Node* CodeStubAssembler::Equal(Node* lhs, Node* rhs, Node* context,
       var_rhs.Bind(CallBuiltin(Builtins::kStringToNumber, context, rhs));
       Goto(&loop);
     }
+  }
+
+  BIND(&use_symmetry);
+  {
+    var_lhs.Bind(rhs);
+    var_rhs.Bind(lhs);
+    Goto(&loop);
   }
 
   BIND(&do_fcmp);

@@ -21,6 +21,25 @@ RUNTIME_FUNCTION(Runtime_BigIntEqual) {
   bool result = lhs->IsBigInt() && rhs->IsBigInt() &&
                 BigInt::EqualToBigInt(BigInt::cast(*lhs), BigInt::cast(*rhs));
   return *isolate->factory()->ToBoolean(result);
+  // TODO(neis): Remove IsBigInt checks?
+}
+
+RUNTIME_FUNCTION(Runtime_BigIntEqualToNumber) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 0);
+  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
+  bool result = BigInt::EqualToNumber(lhs, rhs);
+  return *isolate->factory()->ToBoolean(result);
+}
+
+RUNTIME_FUNCTION(Runtime_BigIntEqualToString) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(2, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 0);
+  CONVERT_ARG_HANDLE_CHECKED(String, rhs, 1);
+  bool result = BigInt::EqualToString(lhs, rhs);
+  return *isolate->factory()->ToBoolean(result);
 }
 
 RUNTIME_FUNCTION(Runtime_BigIntToBoolean) {
