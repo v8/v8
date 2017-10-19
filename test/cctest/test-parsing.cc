@@ -6309,7 +6309,7 @@ TEST(ModuleParsingInternals) {
     }
   }
 
-  CHECK_EQ(3, descriptor->special_exports().length());
+  CHECK_EQ(3, descriptor->special_exports().size());
   CheckEntry(descriptor->special_exports().at(0), "b", nullptr, "a", 0);
   CheckEntry(descriptor->special_exports().at(1), nullptr, nullptr, nullptr, 2);
   CheckEntry(descriptor->special_exports().at(2), "bb", nullptr, "aa",
@@ -6355,7 +6355,7 @@ TEST(ModuleParsingInternals) {
     CheckEntry(entry, "y", "x", nullptr, -1);
   }
 
-  CHECK_EQ(2, descriptor->namespace_imports().length());
+  CHECK_EQ(2, descriptor->namespace_imports().size());
   CheckEntry(descriptor->namespace_imports().at(0), nullptr, "loo", nullptr, 4);
   CheckEntry(descriptor->namespace_imports().at(1), nullptr, "foob", nullptr,
              4);

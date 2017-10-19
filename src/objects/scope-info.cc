@@ -854,8 +854,8 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   }
 
   // Serialize special exports.
-  Handle<FixedArray> special_exports =
-      isolate->factory()->NewFixedArray(descr->special_exports().length());
+  Handle<FixedArray> special_exports = isolate->factory()->NewFixedArray(
+      static_cast<int>(descr->special_exports().size()));
   {
     int i = 0;
     for (auto entry : descr->special_exports()) {
@@ -865,8 +865,8 @@ Handle<ModuleInfo> ModuleInfo::New(Isolate* isolate, Zone* zone,
   }
 
   // Serialize namespace imports.
-  Handle<FixedArray> namespace_imports =
-      isolate->factory()->NewFixedArray(descr->namespace_imports().length());
+  Handle<FixedArray> namespace_imports = isolate->factory()->NewFixedArray(
+      static_cast<int>(descr->namespace_imports().size()));
   {
     int i = 0;
     for (auto entry : descr->namespace_imports()) {
