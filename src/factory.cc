@@ -1783,16 +1783,20 @@ Handle<Code> Factory::NewCodeRaw(int object_size, bool immovable) {
                      Code);
 }
 
-Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Kind kind,
-                              Handle<Object> self_ref,
-                              MaybeHandle<HandlerTable> maybe_handler_table,
-                              MaybeHandle<DeoptimizationData> maybe_deopt_data,
-                              bool immovable) {
+Handle<Code> Factory::NewCode(
+    const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
+    MaybeHandle<HandlerTable> maybe_handler_table,
+    MaybeHandle<ByteArray> maybe_source_position_table,
+    MaybeHandle<DeoptimizationData> maybe_deopt_data, bool immovable) {
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
 
   Handle<HandlerTable> handler_table =
       maybe_handler_table.is_null() ? HandlerTable::Empty(isolate())
                                     : maybe_handler_table.ToHandleChecked();
+  Handle<ByteArray> source_position_table =
+      maybe_source_position_table.is_null()
+          ? empty_byte_array()
+          : maybe_source_position_table.ToHandleChecked();
   Handle<DeoptimizationData> deopt_data =
       maybe_deopt_data.is_null() ? DeoptimizationData::Empty(isolate())
                                  : maybe_deopt_data.ToHandleChecked();
@@ -1831,7 +1835,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Kind kind,
   code->set_raw_type_feedback_info(Smi::kZero);
   code->set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
   code->set_handler_table(*handler_table);
-  code->set_source_position_table(*empty_byte_array(), SKIP_WRITE_BARRIER);
+  code->set_source_position_table(*source_position_table);
   code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
   code->set_builtin_index(-1);
   code->set_trap_handler_index(Smi::FromInt(-1));

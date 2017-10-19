@@ -13,6 +13,7 @@
 namespace v8 {
 namespace internal {
 
+class BytecodeArray;
 class SourcePositionTableBuilder;
 
 namespace interpreter {

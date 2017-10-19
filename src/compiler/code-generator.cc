@@ -290,6 +290,10 @@ Handle<Code> CodeGenerator::FinalizeCode() {
     }
   }
 
+  // Allocate the source position table.
+  Handle<ByteArray> source_positions =
+      source_position_table_builder_.ToSourcePositionTable(isolate());
+
   // Allocate deoptimization data.
   Handle<DeoptimizationData> deopt_data = GenerateDeoptimizationData();
 
@@ -300,17 +304,18 @@ Handle<Code> CodeGenerator::FinalizeCode() {
     unwinding_info_writer_.eh_frame_writer()->GetEhFrame(&desc);
   }
 
-  Handle<Code> result = isolate()->factory()->NewCode(
-      desc, info()->code_kind(), Handle<Object>(), table, deopt_data, false);
+  Handle<Code> result =
+      isolate()->factory()->NewCode(desc, info()->code_kind(), Handle<Object>(),
+                                    table, source_positions, deopt_data, false);
   isolate()->counters()->total_compiled_code_size()->Increment(
       result->instruction_size());
   result->set_is_turbofanned(true);
   result->set_stack_slots(frame()->GetTotalFrameSlotCount());
   result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
-  Handle<ByteArray> source_positions =
-      source_position_table_builder_.ToSourcePositionTable(
-          isolate(), Handle<AbstractCode>::cast(result));
-  result->set_source_position_table(*source_positions);
+
+  LOG_CODE_EVENT(isolate(),
+                 CodeLinePosInfoRecordEvent(*Handle<AbstractCode>::cast(result),
+                                            *source_positions));
 
   return result;
 }

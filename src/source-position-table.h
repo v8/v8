@@ -14,8 +14,6 @@
 namespace v8 {
 namespace internal {
 
-class AbstractCode;
-class BytecodeArray;
 class ByteArray;
 template <typename T>
 class Handle;
@@ -43,8 +41,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
   void AddPosition(size_t code_offset, SourcePosition source_position,
                    bool is_statement);
 
-  Handle<ByteArray> ToSourcePositionTable(Isolate* isolate,
-                                          Handle<AbstractCode> code);
+  Handle<ByteArray> ToSourcePositionTable(Isolate* isolate);
 
  private:
   void AddEntry(const PositionTableEntry& entry);

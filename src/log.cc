@@ -1280,7 +1280,7 @@ void Logger::CodeMoveEvent(AbstractCode* from, Address to) {
 
 void Logger::CodeLinePosInfoRecordEvent(AbstractCode* code,
                                         ByteArray* source_position_table) {
-  if (jit_logger_) {
+  if (jit_logger_ && source_position_table->length() > 0) {
     void* jit_handler_data = jit_logger_->StartCodePosInfoEvent();
     for (SourcePositionTableIterator iter(source_position_table); !iter.done();
          iter.Advance()) {

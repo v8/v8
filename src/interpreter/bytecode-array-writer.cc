@@ -45,14 +45,16 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
   int frame_size = register_count * kPointerSize;
   Handle<FixedArray> constant_pool =
       constant_array_builder()->ToFixedArray(isolate);
+  Handle<ByteArray> source_position_table =
+      source_position_table_builder()->ToSourcePositionTable(isolate);
   Handle<BytecodeArray> bytecode_array = isolate->factory()->NewBytecodeArray(
       bytecode_size, &bytecodes()->front(), frame_size, parameter_count,
       constant_pool);
   bytecode_array->set_handler_table(*handler_table);
-  Handle<ByteArray> source_position_table =
-      source_position_table_builder()->ToSourcePositionTable(
-          isolate, Handle<AbstractCode>::cast(bytecode_array));
   bytecode_array->set_source_position_table(*source_position_table);
+  LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(
+                              *Handle<AbstractCode>::cast(bytecode_array),
+                              *source_position_table));
   return bytecode_array;
 }
 

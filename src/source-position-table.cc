@@ -4,7 +4,6 @@
 
 #include "src/source-position-table.h"
 
-#include "src/log.h"
 #include "src/objects-inl.h"
 #include "src/objects.h"
 
@@ -138,7 +137,7 @@ void SourcePositionTableBuilder::AddEntry(const PositionTableEntry& entry) {
 }
 
 Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
-    Isolate* isolate, Handle<AbstractCode> code) {
+    Isolate* isolate) {
   if (bytes_.empty()) return isolate->factory()->empty_byte_array();
   DCHECK(!Omit());
 
@@ -146,8 +145,6 @@ Handle<ByteArray> SourcePositionTableBuilder::ToSourcePositionTable(
       static_cast<int>(bytes_.size()), TENURED);
 
   MemCopy(table->GetDataStartAddress(), &*bytes_.begin(), bytes_.size());
-
-  LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(*code, *table));
 
 #ifdef ENABLE_SLOW_DCHECKS
   // Brute force testing: Record all positions and decode

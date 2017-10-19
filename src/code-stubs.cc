@@ -129,7 +129,7 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   masm.GetCode(isolate(), &desc);
   // Copy the generated code into a heap object.
   Handle<Code> new_object = factory->NewCode(
-      desc, Code::STUB, masm.CodeObject(), table,
+      desc, Code::STUB, masm.CodeObject(), table, MaybeHandle<ByteArray>(),
       DeoptimizationData::Empty(isolate()), NeedsImmovableCode());
   return new_object;
 }

@@ -5,7 +5,6 @@
 #include "src/v8.h"
 
 #include "src/objects.h"
-#include "src/objects/code.h"
 #include "src/source-position-table.h"
 #include "test/unittests/test-utils.h"
 
@@ -36,8 +35,7 @@ TEST_F(SourcePositionTableTest, EncodeStatement) {
 
   // To test correctness, we rely on the assertions in ToSourcePositionTable().
   // (Also below.)
-  CHECK(!builder.ToSourcePositionTable(isolate(), Handle<AbstractCode>())
-             .is_null());
+  CHECK(!builder.ToSourcePositionTable(isolate()).is_null());
 }
 
 TEST_F(SourcePositionTableTest, EncodeStatementDuplicates) {
@@ -49,8 +47,7 @@ TEST_F(SourcePositionTableTest, EncodeStatementDuplicates) {
 
   // To test correctness, we rely on the assertions in ToSourcePositionTable().
   // (Also below.)
-  CHECK(!builder.ToSourcePositionTable(isolate(), Handle<AbstractCode>())
-             .is_null());
+  CHECK(!builder.ToSourcePositionTable(isolate()).is_null());
 }
 
 TEST_F(SourcePositionTableTest, EncodeExpression) {
@@ -58,8 +55,7 @@ TEST_F(SourcePositionTableTest, EncodeExpression) {
   for (size_t i = 0; i < arraysize(offsets); i++) {
     builder.AddPosition(offsets[i], toPos(offsets[i]), false);
   }
-  CHECK(!builder.ToSourcePositionTable(isolate(), Handle<AbstractCode>())
-             .is_null());
+  CHECK(!builder.ToSourcePositionTable(isolate()).is_null());
 }
 
 TEST_F(SourcePositionTableTest, EncodeAscending) {
@@ -88,8 +84,7 @@ TEST_F(SourcePositionTableTest, EncodeAscending) {
     }
   }
 
-  CHECK(!builder.ToSourcePositionTable(isolate(), Handle<AbstractCode>())
-             .is_null());
+  CHECK(!builder.ToSourcePositionTable(isolate()).is_null());
 }
 
 }  // namespace interpreter

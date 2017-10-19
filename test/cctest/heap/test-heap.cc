@@ -5778,7 +5778,7 @@ Handle<Code> GenerateDummyImmovableCode(Isolate* isolate) {
   const bool kImmovable = true;
   Handle<Code> code = isolate->factory()->NewCode(
       desc, Code::STUB, Handle<Code>(), HandlerTable::Empty(isolate),
-      DeoptimizationData::Empty(isolate), kImmovable);
+      MaybeHandle<ByteArray>(), DeoptimizationData::Empty(isolate), kImmovable);
   CHECK(code->IsCode());
 
   return code;
