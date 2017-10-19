@@ -133,38 +133,18 @@ DEFINE_OPERATORS_FOR_FLAGS(CheckMapsFlags)
 
 std::ostream& operator<<(std::ostream&, CheckMapsFlags);
 
-class MapsParameterInfo {
- public:
-  explicit MapsParameterInfo(ZoneHandleSet<Map> const& maps);
-
-  Maybe<InstanceType> instance_type() const { return instance_type_; }
-  ZoneHandleSet<Map> const& maps() const { return maps_; }
-
- private:
-  ZoneHandleSet<Map> const maps_;
-  Maybe<InstanceType> instance_type_;
-};
-
-std::ostream& operator<<(std::ostream&, MapsParameterInfo const&);
-
-bool operator==(MapsParameterInfo const&, MapsParameterInfo const&);
-bool operator!=(MapsParameterInfo const&, MapsParameterInfo const&);
-
-size_t hash_value(MapsParameterInfo const&);
-
 // A descriptor for map checks.
 class CheckMapsParameters final {
  public:
   CheckMapsParameters(CheckMapsFlags flags, ZoneHandleSet<Map> const& maps)
-      : flags_(flags), maps_info_(maps) {}
+      : flags_(flags), maps_(maps) {}
 
   CheckMapsFlags flags() const { return flags_; }
-  ZoneHandleSet<Map> const& maps() const { return maps_info_.maps(); }
-  MapsParameterInfo const& maps_info() const { return maps_info_; }
+  ZoneHandleSet<Map> const& maps() const { return maps_; }
 
  private:
   CheckMapsFlags const flags_;
-  MapsParameterInfo const maps_info_;
+  ZoneHandleSet<Map> const maps_;
 };
 
 bool operator==(CheckMapsParameters const&, CheckMapsParameters const&);
@@ -176,10 +156,8 @@ std::ostream& operator<<(std::ostream&, CheckMapsParameters const&);
 CheckMapsParameters const& CheckMapsParametersOf(Operator const*)
     WARN_UNUSED_RESULT;
 
-MapsParameterInfo const& MapGuardMapsOf(Operator const*) WARN_UNUSED_RESULT;
-
 // Parameters for CompareMaps operator.
-MapsParameterInfo const& CompareMapsParametersOf(Operator const*)
+ZoneHandleSet<Map> const& CompareMapsParametersOf(Operator const*)
     WARN_UNUSED_RESULT;
 
 // A descriptor for growing elements backing stores.
@@ -437,7 +415,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckBounds();
   const Operator* CheckMaps(CheckMapsFlags, ZoneHandleSet<Map>);
   const Operator* CompareMaps(ZoneHandleSet<Map>);
-  const Operator* MapGuard(ZoneHandleSet<Map> maps);
 
   const Operator* CheckHeapObject();
   const Operator* CheckInternalizedString();

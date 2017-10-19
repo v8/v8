@@ -840,7 +840,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
           for (auto receiver_map : receiver_maps) {
             maps.insert(receiver_map, graph()->zone());
           }
-          this_effect = graph()->NewNode(simplified()->MapGuard(maps), receiver,
+          this_effect = graph()->NewNode(common()->MapGuard(maps), receiver,
                                          this_effect, this_control);
         }
       }
@@ -1196,7 +1196,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
           this_control = graph()->NewNode(common()->IfTrue(), branch);
 
           // Introduce a MapGuard to learn from this on the effect chain.
-          this_effect = graph()->NewNode(simplified()->MapGuard(maps), receiver,
+          this_effect = graph()->NewNode(common()->MapGuard(maps), receiver,
                                          this_effect, this_control);
         }
 

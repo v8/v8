@@ -96,15 +96,6 @@ class ZoneHandleSet final {
     return true;
   }
 
-  bool contains(Handle<T> other) const {
-    if (data_ == kEmptyTag) return false;
-    if ((data_ & kTagMask) == kSingletonTag) {
-      return singleton() == bit_cast<T**>(other.address());
-    }
-    DCHECK_EQ(kListTag, data_ & kTagMask);
-    return list()->Contains(bit_cast<T**>(other.address()));
-  }
-
   void remove(Handle<T> handle, Zone* zone) {
     // TODO(bmeurer): Optimize this case.
     ZoneHandleSet<T> that;

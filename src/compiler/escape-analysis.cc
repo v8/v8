@@ -661,8 +661,8 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
         if (Node* map = current->Get(map_field)) {
           Type* const map_type = NodeProperties::GetType(map);
           if (map_type->IsHeapConstant() &&
-              params.maps().contains(
-                  bit_cast<Handle<Map>>(map_type->AsHeapConstant()->Value()))) {
+              params.maps().contains(ZoneHandleSet<Map>(bit_cast<Handle<Map>>(
+                  map_type->AsHeapConstant()->Value())))) {
             current->MarkForDeletion();
             break;
           }
@@ -683,7 +683,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
           vobject->FieldAt(HeapObject::kMapOffset).To(&map_field)) {
         if (Node* object_map = current->Get(map_field)) {
           current->SetReplacement(LowerCompareMapsWithoutLoad(
-              object_map, CompareMapsParametersOf(op).maps(), jsgraph));
+              object_map, CompareMapsParametersOf(op), jsgraph));
           break;
         } else {
           // If the variable has no value, we have not reached the fixed-point

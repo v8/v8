@@ -374,19 +374,8 @@ void LoadElimination::AbstractField::Print() const {
 bool LoadElimination::AbstractMaps::Lookup(
     Node* object, ZoneHandleSet<Map>* object_maps) const {
   for (auto pair : info_for_node_) {
-    if (MustAlias(object, pair.first) && pair.second.maps_valid()) {
-      *object_maps = pair.second.maps();
-      return true;
-    }
-  }
-  return false;
-}
-
-bool LoadElimination::AbstractMaps::Lookup(Node* object,
-                                           AbstractMapInfo* maps_info) const {
-  for (auto pair : info_for_node_) {
     if (MustAlias(object, pair.first)) {
-      *maps_info = pair.second;
+      *object_maps = pair.second;
       return true;
     }
   }
@@ -396,92 +385,15 @@ bool LoadElimination::AbstractMaps::Lookup(Node* object,
 LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Kill(
     const AliasStateInfo& alias_info, Zone* zone) const {
   for (auto pair : this->info_for_node_) {
-    if (alias_info.MayAlias(pair.first) && pair.second.maps_valid()) {
+    if (alias_info.MayAlias(pair.first)) {
       AbstractMaps* that = new (zone) AbstractMaps(zone);
       for (auto pair : this->info_for_node_) {
-        if (!alias_info.MayAlias(pair.first)) {
-          // Keep the elements that cannto alias.
-          that->info_for_node_.insert(pair);
-        } else if (pair.second.instance_type_valid()) {
-          // Instance type information cannot be invalidated, so we just
-          // throw away the map part.
-          that->info_for_node_.insert(std::make_pair(
-              pair.first, AbstractMapInfo(pair.second.instance_type())));
-        }
+        if (!alias_info.MayAlias(pair.first)) that->info_for_node_.insert(pair);
       }
       return that;
     }
   }
   return this;
-}
-
-LoadElimination::AbstractMapInfo::AbstractMapInfo()
-    : instance_type_(FIRST_TYPE), info_validity_(0) {}
-
-LoadElimination::AbstractMapInfo::AbstractMapInfo(
-    ZoneHandleSet<Map> const& maps)
-    : maps_(maps), instance_type_(FIRST_TYPE), info_validity_(kMapsValid) {
-  DCHECK(!maps.is_empty());
-}
-
-LoadElimination::AbstractMapInfo::AbstractMapInfo(InstanceType instance_type)
-    : instance_type_(instance_type), info_validity_(kInstanceTypeValid) {}
-
-LoadElimination::AbstractMapInfo::AbstractMapInfo(MapsParameterInfo const& info)
-    : maps_(info.maps()),
-      instance_type_(FIRST_TYPE),
-      info_validity_(kMapsValid) {
-  InstanceType instance_type;
-  if (info.instance_type().To(&instance_type)) {
-    instance_type_ = instance_type;
-    info_validity_ |= kInstanceTypeValid;
-  }
-}
-
-LoadElimination::AbstractMapInfo::AbstractMapInfo(
-    ZoneHandleSet<Map> const& maps, InstanceType instance_type,
-    Validity validity)
-    : maps_(maps), instance_type_(instance_type), info_validity_(validity) {}
-
-bool LoadElimination::AbstractMapInfo::operator==(
-    AbstractMapInfo const& other) const {
-  return info_validity_ == other.info_validity_ &&
-         instance_type_ == other.instance_type_ && maps_ == other.maps_;
-}
-
-bool LoadElimination::AbstractMapInfo::operator!=(
-    AbstractMapInfo const& other) const {
-  return !(*this == other);
-}
-
-ZoneHandleSet<Map> const& LoadElimination::AbstractMapInfo::maps() const {
-  DCHECK(info_validity_ & kMapsValid);
-  return maps_;
-}
-
-InstanceType LoadElimination::AbstractMapInfo::instance_type() const {
-  DCHECK(info_validity_ & kInstanceTypeValid);
-  return instance_type_;
-}
-
-LoadElimination::AbstractMapInfo LoadElimination::AbstractMapInfo::Merge(
-    AbstractMapInfo const& other) const {
-  // Merge the map information and the instance type information.
-  Validity validity = info_validity_ & other.info_validity_;
-  ZoneHandleSet<Map> merged_maps;
-  InstanceType merged_instance_type = FIRST_TYPE;
-  if ((validity & kInstanceTypeValid) &&
-      instance_type() == other.instance_type()) {
-    merged_instance_type = instance_type_;
-  } else {
-    validity &= ~Validity(kInstanceTypeValid);
-  }
-  if ((validity & kMapsValid) && maps() == other.maps()) {
-    merged_maps = maps_;
-  } else {
-    validity &= ~Validity(kMapsValid);
-  }
-  return AbstractMapInfo(merged_maps, merged_instance_type, validity);
 }
 
 LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Merge(
@@ -490,62 +402,30 @@ LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Merge(
   AbstractMaps* copy = new (zone) AbstractMaps(zone);
   for (auto this_it : this->info_for_node_) {
     Node* this_object = this_it.first;
-    AbstractMapInfo const& this_maps_info = this_it.second;
+    ZoneHandleSet<Map> this_maps = this_it.second;
     auto that_it = that->info_for_node_.find(this_object);
-    if (that_it == that->info_for_node_.end()) continue;
-    AbstractMapInfo const& that_maps_info = that_it->second;
-
-    // Merge the map information and the instance type information.
-    AbstractMapInfo merged = this_maps_info.Merge(that_maps_info);
-    if (!merged.empty()) {
-      copy->info_for_node_.insert({this_object, merged});
+    if (that_it != that->info_for_node_.end() && that_it->second == this_maps) {
+      copy->info_for_node_.insert(this_it);
     }
   }
   return copy;
 }
 
 LoadElimination::AbstractMaps const* LoadElimination::AbstractMaps::Extend(
-    Node* object, AbstractMapInfo const& map_info, Zone* zone) const {
+    Node* object, ZoneHandleSet<Map> maps, Zone* zone) const {
   AbstractMaps* that = new (zone) AbstractMaps(zone);
   that->info_for_node_ = this->info_for_node_;
-  that->info_for_node_[object] = map_info;
+  that->info_for_node_.insert(std::make_pair(object, maps));
   return that;
-}
-
-LoadElimination::AbstractMaps const*
-LoadElimination::AbstractMaps::KillMutableState(Zone* zone) const {
-  for (auto pair : this->info_for_node_) {
-    if (pair.second.maps_valid()) {
-      // We have the map part valid, so we have to invalidate.
-      AbstractMaps* that = nullptr;  // Allocated lazily.
-      for (auto pair : this->info_for_node_) {
-        if (pair.second.instance_type_valid()) {
-          if (that == nullptr) {
-            that = new (zone) AbstractMaps(zone);
-          }
-          that->info_for_node_.insert(std::make_pair(
-              pair.first, AbstractMapInfo(pair.second.instance_type())));
-        }
-      }
-      return that;
-    }
-  }
-  return this;
 }
 
 void LoadElimination::AbstractMaps::Print() const {
   for (auto pair : info_for_node_) {
+    PrintF("    #%d:%s\n", pair.first->id(), pair.first->op()->mnemonic());
     OFStream os(stdout);
-    os << "    #" << pair.first->id() << ":" << pair.first->op()->mnemonic()
-       << std::endl;
-    if (pair.second.maps_valid()) {
-      ZoneHandleSet<Map> const& maps = pair.second.maps();
-      for (size_t i = 0; i < maps.size(); ++i) {
-        os << "     - " << Brief(*maps.at(i)) << std::endl;
-      }
-    }
-    if (pair.second.instance_type_valid()) {
-      os << "     Instance type: " << pair.second.instance_type() << std::endl;
+    ZoneHandleSet<Map> const& maps = pair.second;
+    for (size_t i = 0; i < maps.size(); ++i) {
+      os << "     - " << Brief(*maps[i]) << "\n";
     }
   }
 }
@@ -620,34 +500,8 @@ Node* LoadElimination::AbstractState::LookupCheck(Node* node) const {
   return this->checks_ ? this->checks_->Lookup(node) : nullptr;
 }
 
-LoadElimination::AbstractState const*
-LoadElimination::AbstractState::KillMutableState(Zone* zone) const {
-  if (is_unreachable()) return this;
-
-  AbstractMaps const* new_maps =
-      maps_ ? maps_->KillMutableState(zone) : nullptr;
-
-  // If the state is unchanged, just return the existing one.
-  if (new_maps == maps_ && checks_ == nullptr && elements_ == nullptr) {
-    bool all_fields_empty = true;
-    for (size_t i = 0; i < arraysize(fields_); ++i) {
-      if (fields_[i] != nullptr) {
-        all_fields_empty = false;
-        break;
-      }
-    }
-    if (all_fields_empty) return this;
-  }
-
-  AbstractState* new_state = new (zone) AbstractState();
-  new_state->maps_ = new_maps;
-  return new_state;
-}
-
 LoadElimination::AbstractState const* LoadElimination::AbstractState::AddCheck(
     Node* node, Zone* zone) const {
-  if (is_unreachable()) return this;
-
   AbstractState* that = new (zone) AbstractState(*this);
   if (that->checks_) {
     that->checks_ = that->checks_->Extend(node, zone);
@@ -662,35 +516,19 @@ bool LoadElimination::AbstractState::LookupMaps(
   return this->maps_ && this->maps_->Lookup(object, object_map);
 }
 
-bool LoadElimination::AbstractState::LookupMaps(
-    Node* object, AbstractMapInfo* map_info) const {
-  return this->maps_ && this->maps_->Lookup(object, map_info);
-}
-
 LoadElimination::AbstractState const* LoadElimination::AbstractState::AddMaps(
     Node* object, ZoneHandleSet<Map> maps, Zone* zone) const {
-  if (is_unreachable()) return this;
-  AbstractMapInfo map_info(maps);
-  return AddMaps(object, map_info, zone);
-}
-
-LoadElimination::AbstractState const* LoadElimination::AbstractState::AddMaps(
-    Node* object, AbstractMapInfo const& map_info, Zone* zone) const {
-  if (is_unreachable()) return this;
-
   AbstractState* that = new (zone) AbstractState(*this);
   if (that->maps_) {
-    that->maps_ = that->maps_->Extend(object, map_info, zone);
+    that->maps_ = that->maps_->Extend(object, maps, zone);
   } else {
-    that->maps_ = new (zone) AbstractMaps(object, map_info, zone);
+    that->maps_ = new (zone) AbstractMaps(object, maps, zone);
   }
   return that;
 }
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::KillMaps(
     const AliasStateInfo& alias_info, Zone* zone) const {
-  if (is_unreachable()) return this;
-
   if (this->maps_) {
     AbstractMaps const* that_maps = this->maps_->Kill(alias_info, zone);
     if (this->maps_ != that_maps) {
@@ -704,8 +542,6 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillMaps(
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::KillMaps(
     Node* object, Zone* zone) const {
-  if (is_unreachable()) return this;
-
   AliasStateInfo alias_info(this, object);
   return KillMaps(alias_info, zone);
 }
@@ -723,8 +559,6 @@ LoadElimination::AbstractState::AddElement(Node* object, Node* index,
                                            Node* value,
                                            MachineRepresentation representation,
                                            Zone* zone) const {
-  if (is_unreachable()) return this;
-
   AbstractState* that = new (zone) AbstractState(*this);
   if (that->elements_) {
     that->elements_ =
@@ -739,8 +573,6 @@ LoadElimination::AbstractState::AddElement(Node* object, Node* index,
 LoadElimination::AbstractState const*
 LoadElimination::AbstractState::KillElement(Node* object, Node* index,
                                             Zone* zone) const {
-  if (is_unreachable()) return this;
-
   if (this->elements_) {
     AbstractElements const* that_elements =
         this->elements_->Kill(object, index, zone);
@@ -756,8 +588,6 @@ LoadElimination::AbstractState::KillElement(Node* object, Node* index,
 LoadElimination::AbstractState const* LoadElimination::AbstractState::AddField(
     Node* object, size_t index, Node* value, MaybeHandle<Name> name,
     Zone* zone) const {
-  if (is_unreachable()) return this;
-
   AbstractState* that = new (zone) AbstractState(*this);
   if (that->fields_[index]) {
     that->fields_[index] =
@@ -770,8 +600,6 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::AddField(
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
     Node* object, size_t index, MaybeHandle<Name> name, Zone* zone) const {
-  if (is_unreachable()) return this;
-
   AliasStateInfo alias_info(this, object);
   return KillField(alias_info, index, name, zone);
 }
@@ -779,8 +607,6 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
 LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
     const AliasStateInfo& alias_info, size_t index, MaybeHandle<Name> name,
     Zone* zone) const {
-  if (is_unreachable()) return this;
-
   if (AbstractField const* this_field = this->fields_[index]) {
     this_field = this_field->Kill(alias_info, name, zone);
     if (this->fields_[index] != this_field) {
@@ -795,8 +621,6 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
 LoadElimination::AbstractState const*
 LoadElimination::AbstractState::KillFields(Node* object, MaybeHandle<Name> name,
                                            Zone* zone) const {
-  if (is_unreachable()) return this;
-
   AliasStateInfo alias_info(this, object);
   for (size_t i = 0;; ++i) {
     if (i == arraysize(fields_)) return this;
@@ -842,10 +666,6 @@ bool LoadElimination::AliasStateInfo::MayAlias(Node* other) const {
 }
 
 void LoadElimination::AbstractState::Print() const {
-  if (is_unreachable()) {
-    PrintF("   Unreachable\n");
-  }
-
   if (checks_) {
     PrintF("   checks:\n");
     checks_->Print();
@@ -864,18 +684,6 @@ void LoadElimination::AbstractState::Print() const {
       field->Print();
     }
   }
-}
-
-// static
-LoadElimination::AbstractState LoadElimination::AbstractState::Empty() {
-  return AbstractState();
-}
-
-// static
-LoadElimination::AbstractState LoadElimination::AbstractState::Unreachable() {
-  AbstractState unreachable;
-  unreachable.is_unreachable_ = true;
-  return unreachable;
 }
 
 LoadElimination::AbstractState const*
@@ -904,112 +712,52 @@ Reduction LoadElimination::ReduceArrayBufferWasNeutered(Node* node) {
   return UpdateState(node, state);
 }
 
-// static
-LoadElimination::MapSetComparisonResult LoadElimination::CompareMapSets(
-    ZoneHandleSet<Map> const& lhs, ZoneHandleSet<Map> const& rhs) {
-  DCHECK(!lhs.is_empty());
-  DCHECK(!rhs.is_empty());
-
-  MapSetComparisonResult result = rhs.contains(lhs.at(0))
-                                      ? MapSetComparisonResult::kSubset
-                                      : MapSetComparisonResult::kDisjoint;
-
-  for (size_t i = 1; i < lhs.size(); i++) {
-    MapSetComparisonResult current = rhs.contains(lhs.at(i))
-                                         ? MapSetComparisonResult::kSubset
-                                         : MapSetComparisonResult::kDisjoint;
-    if (current != result) {
-      return MapSetComparisonResult::kOther;
-    }
-  }
-  return result;
-}
-
-LoadElimination::MapSetComparisonResult
-LoadElimination::AbstractMapInfo::Compare(AbstractMapInfo const& other) const {
-  // If we have map information, decide based on that.
-  if (maps_valid() && other.maps_valid()) {
-    return CompareMapSets(maps(), other.maps());
-  }
-  // If we do not have maps, try to use the instance types.
-  if (instance_type_valid() && other.instance_type_valid() &&
-      instance_type() != other.instance_type()) {
-    return MapSetComparisonResult::kDisjoint;
-  }
-  return MapSetComparisonResult::kOther;
-}
-
 Reduction LoadElimination::ReduceMapGuard(Node* node) {
-  AbstractMapInfo guarded_maps(MapGuardMapsOf(node->op()));
-  Node* const object = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  AbstractState const* state = node_states_.Get(effect);
-  if (state == nullptr) return NoChange();
-  AbstractMapInfo state_info;
-  if (state->LookupMaps(object, &state_info)) {
-    switch (state_info.Compare(guarded_maps)) {
-      case MapSetComparisonResult::kSubset:
-        return Replace(effect);
-      case MapSetComparisonResult::kDisjoint:
-        state = unreachable_state();
-        break;
-      case MapSetComparisonResult::kOther:
-        break;
-    }
-    state = state->KillMaps(object, zone());
-    // TODO(turbofan): Compute the intersection.
-  }
-  state = state->AddMaps(object, guarded_maps, zone());
-  return UpdateState(node, state);
-}
-
-Reduction LoadElimination::ReduceCheckMaps(Node* node) {
-  AbstractMapInfo checked_maps(CheckMapsParametersOf(node->op()).maps_info());
-  Node* const object = NodeProperties::GetValueInput(node, 0);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  AbstractState const* state = node_states_.Get(effect);
-  if (state == nullptr) return NoChange();
-  AbstractMapInfo map_info;
-  if (state->LookupMaps(object, &map_info)) {
-    switch (map_info.Compare(checked_maps)) {
-      case MapSetComparisonResult::kSubset:
-        return Replace(effect);
-      case MapSetComparisonResult::kDisjoint: {
-        state = unreachable_state();
-        break;
-      }
-      case MapSetComparisonResult::kOther:
-        break;
-    }
-    state = state->KillMaps(object, zone());
-    // TODO(turbofan): Compute the intersection.
-  }
-  state = state->AddMaps(object, checked_maps, zone());
-  return UpdateState(node, state);
-}
-
-Reduction LoadElimination::ReduceCompareMaps(Node* node) {
-  AbstractMapInfo compared_maps(CompareMapsParametersOf(node->op()));
+  ZoneHandleSet<Map> const maps = MapGuardMapsOf(node->op());
   Node* const object = NodeProperties::GetValueInput(node, 0);
   Node* const effect = NodeProperties::GetEffectInput(node);
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
-  AbstractMapInfo map_info;
-  if (state->LookupMaps(object, &map_info)) {
-    switch (map_info.Compare(compared_maps)) {
-      case MapSetComparisonResult::kSubset: {
-        Node* value = jsgraph()->TrueConstant();
-        ReplaceWithValue(node, value, effect);
-        return Replace(value);
-      }
-      case MapSetComparisonResult::kDisjoint: {
-        Node* value = jsgraph()->FalseConstant();
-        ReplaceWithValue(node, value, effect);
-        return Replace(value);
-      }
-      case MapSetComparisonResult::kOther:
-        break;
+  ZoneHandleSet<Map> object_maps;
+  if (state->LookupMaps(object, &object_maps)) {
+    if (maps.contains(object_maps)) return Replace(effect);
+    state = state->KillMaps(object, zone());
+    // TODO(turbofan): Compute the intersection.
+  }
+  state = state->AddMaps(object, maps, zone());
+  return UpdateState(node, state);
+}
+
+Reduction LoadElimination::ReduceCheckMaps(Node* node) {
+  ZoneHandleSet<Map> const maps = CheckMapsParametersOf(node->op()).maps();
+  Node* const object = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+  ZoneHandleSet<Map> object_maps;
+  if (state->LookupMaps(object, &object_maps)) {
+    if (maps.contains(object_maps)) return Replace(effect);
+    state = state->KillMaps(object, zone());
+    // TODO(turbofan): Compute the intersection.
+  }
+  state = state->AddMaps(object, maps, zone());
+  return UpdateState(node, state);
+}
+
+Reduction LoadElimination::ReduceCompareMaps(Node* node) {
+  ZoneHandleSet<Map> const maps = CompareMapsParametersOf(node->op());
+  Node* const object = NodeProperties::GetValueInput(node, 0);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  AbstractState const* state = node_states_.Get(effect);
+  if (state == nullptr) return NoChange();
+  ZoneHandleSet<Map> object_maps;
+  if (state->LookupMaps(object, &object_maps)) {
+    if (maps.contains(object_maps)) {
+      Node* value = jsgraph()->TrueConstant();
+      ReplaceWithValue(node, value, effect);
+      return Replace(value);
     }
+    // TODO(turbofan): Compute the intersection.
   }
   return UpdateState(node, state);
 }
@@ -1089,7 +837,7 @@ Reduction LoadElimination::ReduceTransitionElementsKind(Node* node) {
       // {node} is fully redundant (independent of what {source_map} is).
       return Replace(effect);
     }
-    if (object_maps.contains(source_map)) {
+    if (object_maps.contains(ZoneHandleSet<Map>(source_map))) {
       object_maps.remove(source_map, zone());
       object_maps.insert(target_map, zone());
       AliasStateInfo alias_info(state, object, source_map);
@@ -1338,29 +1086,9 @@ Reduction LoadElimination::ReduceEffectPhi(Node* node) {
 
   // Shortcut for the case when we do not know anything about some input.
   int const input_count = node->op()->EffectInputCount();
-  for (int i = 0; i < input_count; ++i) {
-    Node* effect = NodeProperties::GetEffectInput(node, i);
-    AbstractState const* input_state = node_states_.Get(effect);
-    if (input_state == nullptr) return NoChange();
-
-    if (input_state->is_unreachable()) {
-      // The state is unreachable, so we connect the control to the
-      // end.
-      Node* input_control = NodeProperties::GetControlInput(control, i);
-      effect = graph()->NewNode(jsgraph()->simplified()->RuntimeAbort(
-                                    BailoutReason::kUnreachableCodeReached),
-                                effect, input_control);
-      input_control =
-          graph()->NewNode(common()->Throw(), effect, input_control);
-      NodeProperties::MergeControlToEnd(graph(), common(), input_control);
-      Revisit(graph()->end());
-
-      // Update the merge node with unreachable control input, and trigger
-      // revisit so that dead code elimination prunes the merge and its phis.
-      control->ReplaceInput(i, jsgraph()->Dead());
-      Revisit(control);
-      return NoChange();
-    }
+  for (int i = 1; i < input_count; ++i) {
+    Node* const effect = NodeProperties::GetEffectInput(node, i);
+    if (node_states_.Get(effect) == nullptr) return NoChange();
   }
 
   // Make a copy of the first input's state and merge with the state
@@ -1398,7 +1126,7 @@ Reduction LoadElimination::ReduceOtherNode(Node* node) {
       if (state == nullptr) return NoChange();
       // Check if this {node} has some uncontrolled side effects.
       if (!node->op()->HasProperty(Operator::kNoWrite)) {
-        state = state->KillMutableState(zone());
+        state = empty_state();
       }
       return UpdateState(node, state);
     } else {
@@ -1508,7 +1236,7 @@ LoadElimination::AbstractState const* LoadElimination::ComputeLoopState(
             break;
           }
           default:
-            return state->KillMutableState(zone());
+            return empty_state();
         }
       }
       for (int i = 0; i < current->op()->EffectInputCount(); ++i) {
@@ -1606,13 +1334,6 @@ int LoadElimination::FieldIndexOf(FieldAccess const& access) {
   }
   return FieldIndexOf(access.offset);
 }
-
-LoadElimination::LoadElimination(Editor* editor, JSGraph* jsgraph, Zone* zone)
-    : AdvancedReducer(editor),
-      empty_state_(AbstractState::Empty()),
-      unreachable_state_(AbstractState::Unreachable()),
-      node_states_(zone),
-      jsgraph_(jsgraph) {}
 
 CommonOperatorBuilder* LoadElimination::common() const {
   return jsgraph()->common();
