@@ -627,7 +627,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckBounds(node, frame_state);
       break;
     case IrOpcode::kCheckMaps:
-      result = LowerCheckMaps(node, frame_state);
+      LowerCheckMaps(node, frame_state);
       break;
     case IrOpcode::kCompareMaps:
       result = LowerCompareMaps(node);
@@ -651,7 +651,7 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
       result = LowerCheckInternalizedString(node, frame_state);
       break;
     case IrOpcode::kCheckIf:
-      result = LowerCheckIf(node, frame_state);
+      LowerCheckIf(node, frame_state);
       break;
     case IrOpcode::kCheckedInt32Add:
       result = LowerCheckedInt32Add(node, frame_state);
@@ -891,6 +891,14 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     default:
       return false;
   }
+
+  if ((result ? 1 : 0) != node->op()->ValueOutputCount()) {
+    V8_Fatal(__FILE__, __LINE__,
+             "Effect control linearizer lowering of '%s':"
+             " value output count does not agree.",
+             node->op()->mnemonic());
+  }
+
   *effect = gasm()->ExtractCurrentEffect();
   *control = gasm()->ExtractCurrentControl();
   NodeProperties::ReplaceUses(node, result, *effect, *control);
@@ -1234,7 +1242,7 @@ Node* EffectControlLinearizer::LowerCheckBounds(Node* node, Node* frame_state) {
   return index;
 }
 
-Node* EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
+void EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
   CheckMapsParameters const& p = CheckMapsParametersOf(node->op());
   Node* value = node->InputAt(0);
 
@@ -1319,7 +1327,6 @@ Node* EffectControlLinearizer::LowerCheckMaps(Node* node, Node* frame_state) {
     __ Goto(&done);
     __ Bind(&done);
   }
-  return value;
 }
 
 Node* EffectControlLinearizer::LowerCompareMaps(Node* node) {
@@ -1441,11 +1448,10 @@ Node* EffectControlLinearizer::LowerCheckInternalizedString(Node* node,
   return value;
 }
 
-Node* EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state) {
+void EffectControlLinearizer::LowerCheckIf(Node* node, Node* frame_state) {
   Node* value = node->InputAt(0);
   __ DeoptimizeIfNot(DeoptimizeKind::kEager, DeoptimizeReasonOf(node->op()),
                      value, frame_state);
-  return value;
 }
 
 Node* EffectControlLinearizer::LowerCheckedInt32Add(Node* node,
