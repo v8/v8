@@ -2258,38 +2258,31 @@ void MacroAssembler::CheckDebugHook(Register fun, Register new_target,
       ExternalReference::debug_hook_on_function_call_address(isolate());
   Mov(x4, Operand(debug_hook_active));
   Ldrsb(x4, MemOperand(x4));
-  CompareAndBranch(x4, Operand(0), eq, &skip_hook);
+  Cbz(x4, &skip_hook);
   {
     FrameScope frame(this,
                      has_frame() ? StackFrame::NONE : StackFrame::INTERNAL);
-    if (expected.is_reg()) {
-      SmiTag(expected.reg());
-      Push(expected.reg());
-    }
-    if (actual.is_reg()) {
-      SmiTag(actual.reg());
-      Push(actual.reg());
-    }
-    if (new_target.is_valid()) {
-      Push(new_target);
-    }
-    Push(fun, padreg);
+
+    Register expected_reg = padreg;
+    Register actual_reg = padreg;
+    if (expected.is_reg()) expected_reg = expected.reg();
+    if (actual.is_reg()) actual_reg = actual.reg();
+    if (!new_target.is_valid()) new_target = padreg;
+
+    // Save values on stack.
+    SmiTag(expected_reg);
+    SmiTag(actual_reg);
+    Push(expected_reg, actual_reg, new_target, fun);
+
     PushArgument(fun);
     CallRuntime(Runtime::kDebugOnFunctionCall);
-    Pop(padreg, fun);
-    if (new_target.is_valid()) {
-      Pop(new_target);
-    }
-    if (actual.is_reg()) {
-      Pop(actual.reg());
-      SmiUntag(actual.reg());
-    }
-    if (expected.is_reg()) {
-      Pop(expected.reg());
-      SmiUntag(expected.reg());
-    }
+
+    // Restore values from stack.
+    Pop(fun, new_target, actual_reg, expected_reg);
+    SmiUntag(actual_reg);
+    SmiUntag(expected_reg);
   }
-  bind(&skip_hook);
+  Bind(&skip_hook);
 }
 
 void MacroAssembler::InvokeFunctionCode(Register function, Register new_target,
