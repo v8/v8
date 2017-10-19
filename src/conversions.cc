@@ -218,7 +218,7 @@ class StringToIntHelper {
   }
 
   // Subclasses get access to internal state:
-  enum State { kRunning, kError, kJunk, kZero, kDone };
+  enum State { kRunning, kError, kJunk, kEmpty, kZero, kDone };
 
   Isolate* isolate() { return isolate_; }
   int radix() { return radix_; }
@@ -291,7 +291,7 @@ void StringToIntHelper::DetectRadixInternal(Char current, int length) {
   UnicodeCache* unicode_cache = isolate_->unicode_cache();
 
   if (!AdvanceToNonspace(unicode_cache, &current, end)) {
-    return set_state(kJunk);
+    return set_state(kEmpty);
   }
 
   if (*current == '+') {
@@ -432,6 +432,7 @@ class NumberParseIntHelper : public StringToIntHelper {
     ParseInt();
     switch (state()) {
       case kJunk:
+      case kEmpty:
         return JunkStringValue();
       case kZero:
         return SignedZero(negative());
@@ -837,17 +838,32 @@ double StringToInt(Isolate* isolate, Handle<String> string, int radix) {
 
 class BigIntParseIntHelper : public StringToIntHelper {
  public:
+  // Configures what to return for empty or whitespace-only input strings.
+  enum class EmptyStringResult { kSyntaxError, kZero, kUnreachable };
+
   // Used for BigInt.parseInt API, where the input is a Heap-allocated String.
-  BigIntParseIntHelper(Isolate* isolate, Handle<String> string, int radix)
-      : StringToIntHelper(isolate, string, radix) {}
+  BigIntParseIntHelper(Isolate* isolate, Handle<String> string, int radix,
+                       EmptyStringResult empty_string_result)
+      : StringToIntHelper(isolate, string, radix),
+        empty_string_result_(empty_string_result) {}
 
   // Used for parsing BigInt literals, where the input is a buffer of
   // one-byte ASCII digits, along with an optional radix prefix.
   BigIntParseIntHelper(Isolate* isolate, const uint8_t* string, int length)
-      : StringToIntHelper(isolate, string, length) {}
+      : StringToIntHelper(isolate, string, length),
+        empty_string_result_(EmptyStringResult::kUnreachable) {}
 
   MaybeHandle<BigInt> GetResult() {
     ParseInt();
+    if (state() == kEmpty) {
+      if (empty_string_result_ == EmptyStringResult::kSyntaxError) {
+        set_state(kJunk);
+      } else if (empty_string_result_ == EmptyStringResult::kZero) {
+        set_state(kZero);
+      } else {
+        UNREACHABLE();
+      }
+    }
     switch (state()) {
       case kJunk:
         THROW_NEW_ERROR(isolate(),
@@ -861,6 +877,7 @@ class BigIntParseIntHelper : public StringToIntHelper {
         result_->set_sign(negative());
         result_->RightTrim();
         return result_;
+      case kEmpty:
       case kRunning:
         break;
     }
@@ -888,15 +905,24 @@ class BigIntParseIntHelper : public StringToIntHelper {
 
  private:
   Handle<BigInt> result_;
+  EmptyStringResult empty_string_result_;
 };
 
-MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string,
+MaybeHandle<BigInt> BigIntParseInt(Isolate* isolate, Handle<String> string,
                                    int radix) {
-  BigIntParseIntHelper helper(isolate, string, radix);
+  BigIntParseIntHelper helper(
+      isolate, string, radix,
+      BigIntParseIntHelper::EmptyStringResult::kSyntaxError);
   return helper.GetResult();
 }
 
-MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, const char* string) {
+MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string) {
+  BigIntParseIntHelper helper(isolate, string, 10,
+                              BigIntParseIntHelper::EmptyStringResult::kZero);
+  return helper.GetResult();
+}
+
+MaybeHandle<BigInt> BigIntLiteral(Isolate* isolate, const char* string) {
   BigIntParseIntHelper helper(isolate, reinterpret_cast<const uint8_t*>(string),
                               static_cast<int>(strlen(string)));
   return helper.GetResult();

@@ -261,7 +261,7 @@ void AstValue::Internalize(Isolate* isolate) {
     case BIGINT:
       // TODO(adamk): Don't check-fail on conversion failure; instead
       // check for errors during parsing and throw at that point.
-      set_value(StringToBigInt(isolate, bigint_buffer_).ToHandleChecked());
+      set_value(BigIntLiteral(isolate, bigint_buffer_).ToHandleChecked());
       break;
     case BOOLEAN:
       if (bool_) {

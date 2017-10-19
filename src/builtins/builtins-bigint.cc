@@ -65,7 +65,7 @@ BUILTIN(BigIntParseInt) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewSyntaxError(MessageTemplate::kToRadixFormatRange));
   }
-  RETURN_RESULT_OR_FAILURE(isolate, StringToBigInt(isolate, subject, radix32));
+  RETURN_RESULT_OR_FAILURE(isolate, BigIntParseInt(isolate, subject, radix32));
 }
 
 BUILTIN(BigIntAsUintN) {

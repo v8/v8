@@ -66,25 +66,25 @@ TEST_F(BigIntWithIsolate, CompareToDouble) {
   // Same bit length, difference in first digit.
   double big_double = 4428155326412785451008.0;
   Handle<BigInt> big =
-      StringToBigInt(isolate(), "0xF10D00000000000000").ToHandleChecked();
+      BigIntLiteral(isolate(), "0xF10D00000000000000").ToHandleChecked();
   Compare(big, big_double, ComparisonResult::kGreaterThan);
-  big = StringToBigInt(isolate(), "0xE00D00000000000000").ToHandleChecked();
+  big = BigIntLiteral(isolate(), "0xE00D00000000000000").ToHandleChecked();
   Compare(big, big_double, ComparisonResult::kLessThan);
 
   double other_double = -13758438578910658560.0;
   Handle<BigInt> other =
-      StringToBigInt(isolate(), "-0xBEEFC1FE00000000").ToHandleChecked();
+      BigIntLiteral(isolate(), "-0xBEEFC1FE00000000").ToHandleChecked();
   Compare(other, other_double, ComparisonResult::kGreaterThan);
-  other = StringToBigInt(isolate(), "-0xBEEFCBFE00000000").ToHandleChecked();
+  other = BigIntLiteral(isolate(), "-0xBEEFCBFE00000000").ToHandleChecked();
   Compare(other, other_double, ComparisonResult::kLessThan);
 
   // Same bit length, difference in non-first digit.
-  big = StringToBigInt(isolate(), "0xF00D00000000000001").ToHandleChecked();
+  big = BigIntLiteral(isolate(), "0xF00D00000000000001").ToHandleChecked();
   Compare(big, big_double, ComparisonResult::kGreaterThan);
-  big = StringToBigInt(isolate(), "0xF00A00000000000000").ToHandleChecked();
+  big = BigIntLiteral(isolate(), "0xF00A00000000000000").ToHandleChecked();
   Compare(big, big_double, ComparisonResult::kLessThan);
 
-  other = StringToBigInt(isolate(), "-0xBEEFCAFE00000001").ToHandleChecked();
+  other = BigIntLiteral(isolate(), "-0xBEEFCAFE00000001").ToHandleChecked();
   Compare(other, other_double, ComparisonResult::kLessThan);
 
   // Same bit length, difference in fractional part.
@@ -93,17 +93,17 @@ TEST_F(BigIntWithIsolate, CompareToDouble) {
   big = factory->NewBigIntFromInt(0xF00D00);
   Compare(big, 15731968.125, ComparisonResult::kLessThan);
   Compare(big, 15731967.875, ComparisonResult::kGreaterThan);
-  big = StringToBigInt(isolate(), "0x123456789ab").ToHandleChecked();
+  big = BigIntLiteral(isolate(), "0x123456789ab").ToHandleChecked();
   Compare(big, 1250999896491.125, ComparisonResult::kLessThan);
 
   // Equality!
   Compare(one, 1, ComparisonResult::kEqual);
   Compare(minus_one, -1, ComparisonResult::kEqual);
-  big = StringToBigInt(isolate(), "0xF00D00000000000000").ToHandleChecked();
+  big = BigIntLiteral(isolate(), "0xF00D00000000000000").ToHandleChecked();
   Compare(big, big_double, ComparisonResult::kEqual);
 
   Handle<BigInt> two_52 =
-      StringToBigInt(isolate(), "0x10000000000000").ToHandleChecked();
+      BigIntLiteral(isolate(), "0x10000000000000").ToHandleChecked();
   Compare(two_52, 4503599627370496.0, ComparisonResult::kEqual);
 }
 

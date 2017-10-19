@@ -90,9 +90,8 @@ const six = BigInt(6);
   assertFalse(%Equal(one, 1.0000000000001));
   assertFalse(%Equal(1.0000000000001, one));
 
-  // TODO(neis): Empty string must get converted to 0n.
-  //assertTrue(%Equal(zero, ""));
-  //assertTrue(%Equal("", zero));
+  assertTrue(%Equal(zero, ""));
+  assertTrue(%Equal("", zero));
   assertTrue(%Equal(one, "1"));
   assertTrue(%Equal("1", one));
 
@@ -141,10 +140,12 @@ const six = BigInt(6);
   assertFalse(one == 1.0000000000001);
   assertFalse(1.0000000000001 == one);
 
-  //assertTrue(zero == "");
-  //assertTrue("" == zero);
+  assertTrue(zero == "");
+  assertTrue("" == zero);
+  assertTrue(zero == " \t\r\n");
   assertTrue(one == "1");
   assertTrue("1" == one);
+  assertFalse(" \t\r\n" == one);
 
   assertTrue(one == {valueOf() { return true }});
   assertTrue({valueOf() { return true }} == one);
@@ -191,8 +192,8 @@ const six = BigInt(6);
   assertTrue(%NotEqual(one, 1.0000000000001));
   assertTrue(%NotEqual(1.0000000000001, one));
 
-  //assertFalse(%NotEqual(zero, ""));
-  //assertFalse(%NotEqual("", zero));
+  assertFalse(%NotEqual(zero, ""));
+  assertFalse(%NotEqual("", zero));
   assertFalse(%NotEqual(one, "1"));
   assertFalse(%NotEqual("1", one));
 
@@ -241,8 +242,8 @@ const six = BigInt(6);
   assertTrue(one != 1.0000000000001);
   assertTrue(1.0000000000001 != one);
 
-  //assertFalse(zero != "");
-  //assertFalse("" != zero);
+  assertFalse(zero != "");
+  assertFalse("" != zero);
   assertFalse(one != "1");
   assertFalse("1" != one);
 

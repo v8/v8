@@ -305,7 +305,7 @@ MaybeHandle<BigInt> BigInt::Decrement(Handle<BigInt> x) {
 bool BigInt::EqualToString(Handle<BigInt> x, Handle<String> y) {
   Isolate* isolate = x->GetIsolate();
   // a. Let n be StringToBigInt(y).
-  MaybeHandle<BigInt> maybe_n = StringToBigInt(isolate, y, 10);
+  MaybeHandle<BigInt> maybe_n = StringToBigInt(isolate, y);
   // b. If n is NaN, return false.
   Handle<BigInt> n;
   if (!maybe_n.ToHandle(&n)) {
