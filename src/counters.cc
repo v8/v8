@@ -476,7 +476,7 @@ const int RuntimeCallStats::counters_count =
 // static
 void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
                              CounterId counter_id) {
-  DCHECK(stats->IsCalledOnTheSameThread());
+  CHECK(stats->IsCalledOnTheSameThread());
   RuntimeCallCounter* counter = &(stats->*counter_id);
   DCHECK_NOT_NULL(counter->name());
   timer->Start(counter, stats->current_timer_.Value());
@@ -486,7 +486,7 @@ void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
 
 // static
 void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
-  DCHECK(stats->IsCalledOnTheSameThread());
+  CHECK(stats->IsCalledOnTheSameThread());
   if (stats->current_timer_.Value() != timer) {
     // The branch is added to catch a crash crbug.com/760649
     RuntimeCallTimer* stack_top = stats->current_timer_.Value();
