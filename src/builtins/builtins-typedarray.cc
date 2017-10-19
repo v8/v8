@@ -436,6 +436,11 @@ BUILTIN(TypedArrayPrototypeSet) {
   Handle<Object> offset = args.atOrUndefined(isolate, 2);
   const char* method = "%TypedArray%.prototype.set";
 
+  if (!target->IsJSTypedArray()) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewTypeError(MessageTemplate::kNotTypedArray));
+  }
+
   if (offset->IsUndefined(isolate)) {
     offset = Handle<Object>(Smi::kZero, isolate);
   } else {
@@ -451,11 +456,6 @@ BUILTIN(TypedArrayPrototypeSet) {
   if (offset->Number() > Smi::kMaxValue) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewRangeError(MessageTemplate::kTypedArraySetSourceTooLarge));
-  }
-
-  if (!target->IsJSTypedArray()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kNotTypedArray));
   }
 
   Handle<JSTypedArray> target_array = Handle<JSTypedArray>::cast(target);
