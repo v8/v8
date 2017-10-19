@@ -14,7 +14,6 @@
 namespace v8 {
 namespace internal {
 
-
 SimpleStringBuilder::SimpleStringBuilder(int size) {
   buffer_ = Vector<char>::New(size);
   position_ = 0;

@@ -5,6 +5,9 @@
 #ifndef V8_UTILS_H_
 #define V8_UTILS_H_
 
+#if defined(V8_OS_AIX)
+#include <fenv.h>  // NOLINT(build/c++11)
+#endif
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -208,6 +211,27 @@ inline double Floor(double x) {
   if (x == 0) return x;  // Fix for issue 3477.
 #endif
   return std::floor(x);
+}
+
+inline double Modulo(double x, double y) {
+#if defined(V8_OS_WIN)
+  // Workaround MS fmod bugs. ECMA-262 says:
+  // dividend is finite and divisor is an infinity => result equals dividend
+  // dividend is a zero and divisor is nonzero finite => result equals dividend
+  if (!(std::isfinite(x) && (!std::isfinite(y) && !std::isnan(y))) &&
+      !(x == 0 && (y != 0 && std::isfinite(y)))) {
+    x = fmod(x, y);
+  }
+  return x;
+#elif defined(V8_OS_AIX)
+  // AIX raises an underflow exception for (Number.MIN_VALUE % Number.MAX_VALUE)
+  feclearexcept(FE_ALL_EXCEPT);
+  double result = std::fmod(x, y);
+  int exception = fetestexcept(FE_UNDERFLOW);
+  return (exception ? x : result);
+#else
+  return std::fmod(x, y);
+#endif
 }
 
 inline double Pow(double x, double y) {

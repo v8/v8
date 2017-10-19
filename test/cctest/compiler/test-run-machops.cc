@@ -3690,7 +3690,7 @@ TEST(RunFloat64Mod) {
   m.Return(m.Float64Mod(m.Parameter(0), m.Parameter(1)));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(modulo(*i, *j), m.Call(*i, *j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(Modulo(*i, *j), m.Call(*i, *j)); }
   }
 }
 
@@ -4034,7 +4034,7 @@ TEST(RunFloat64ModP) {
   bt.AddReturn(m.Float64Mod(bt.param0, bt.param1));
 
   FOR_FLOAT64_INPUTS(i) {
-    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(modulo(*i, *j), bt.call(*i, *j)); }
+    FOR_FLOAT64_INPUTS(j) { CHECK_DOUBLE_EQ(Modulo(*i, *j), bt.call(*i, *j)); }
   }
 }
 

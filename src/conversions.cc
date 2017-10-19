@@ -1263,7 +1263,7 @@ char* DoubleToRadixCString(double value, int radix) {
     buffer[--integer_cursor] = '0';
   }
   do {
-    double remainder = modulo(integer, radix);
+    double remainder = Modulo(integer, radix);
     buffer[--integer_cursor] = chars[static_cast<int>(remainder)];
     integer = (integer - remainder) / radix;
   } while (integer > 0);

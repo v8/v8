@@ -1006,7 +1006,7 @@ ExternalReference ExternalReference::wasm_clear_thread_in_wasm_flag(
 
 static void f64_mod_wrapper(double* param0, double* param1) {
   WriteDoubleValue(param0,
-                   modulo(ReadDoubleValue(param0), ReadDoubleValue(param1)));
+                   Modulo(ReadDoubleValue(param0), ReadDoubleValue(param1)));
 }
 
 ExternalReference ExternalReference::f64_mod_wrapper_function(
@@ -1507,6 +1507,8 @@ double power_double_double(double x, double y) {
   return Pow(x, y);
 }
 
+double modulo_double_double(double x, double y) { return Modulo(x, y); }
+
 ExternalReference ExternalReference::power_double_double_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(isolate,
@@ -1516,9 +1518,8 @@ ExternalReference ExternalReference::power_double_double_function(
 
 ExternalReference ExternalReference::mod_two_doubles_operation(
     Isolate* isolate) {
-  return ExternalReference(Redirect(isolate,
-                                    FUNCTION_ADDR(modulo),
-                                    BUILTIN_FP_FP_CALL));
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(modulo_double_double), BUILTIN_FP_FP_CALL));
 }
 
 ExternalReference ExternalReference::debug_last_step_action_address(

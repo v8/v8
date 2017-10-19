@@ -4,10 +4,6 @@
 
 #include "src/codegen.h"
 
-#if defined(V8_OS_AIX)
-#include <fenv.h>  // NOLINT(build/c++11)
-#endif
-
 #include <memory>
 
 #include "src/bootstrapper.h"
@@ -19,33 +15,6 @@
 
 namespace v8 {
 namespace internal {
-
-
-#if defined(V8_OS_WIN)
-double modulo(double x, double y) {
-  // Workaround MS fmod bugs. ECMA-262 says:
-  // dividend is finite and divisor is an infinity => result equals dividend
-  // dividend is a zero and divisor is nonzero finite => result equals dividend
-  if (!(std::isfinite(x) && (!std::isfinite(y) && !std::isnan(y))) &&
-      !(x == 0 && (y != 0 && std::isfinite(y)))) {
-    x = fmod(x, y);
-  }
-  return x;
-}
-#else  // POSIX
-
-double modulo(double x, double y) {
-#if defined(V8_OS_AIX)
-  // AIX raises an underflow exception for (Number.MIN_VALUE % Number.MAX_VALUE)
-  feclearexcept(FE_ALL_EXCEPT);
-  double result = std::fmod(x, y);
-  int exception = fetestexcept(FE_UNDERFLOW);
-  return (exception ? x : result);
-#else
-  return std::fmod(x, y);
-#endif
-}
-#endif  // defined(V8_OS_WIN)
 
 
 #define UNARY_MATH_FUNCTION(name, generator)                             \

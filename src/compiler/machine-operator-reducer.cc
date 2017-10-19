@@ -465,7 +465,7 @@ Reduction MachineOperatorReducer::Reduce(Node* node) {
         return Replace(m.left().node());
       }
       if (m.IsFoldable()) {  // K % K => K
-        return ReplaceFloat64(modulo(m.left().Value(), m.right().Value()));
+        return ReplaceFloat64(Modulo(m.left().Value(), m.right().Value()));
       }
       break;
     }

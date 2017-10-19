@@ -302,6 +302,7 @@ int32_t shift_right(int32_t x, int32_t y) { return x >> (y & 0x1f); }
 int32_t bit_or(int32_t x, int32_t y) { return x | y; }
 int32_t bit_and(int32_t x, int32_t y) { return x & y; }
 int32_t bit_xor(int32_t x, int32_t y) { return x ^ y; }
+double modulo_double_double(double x, double y) { return Modulo(x, y); }
 
 }  // namespace
 
@@ -329,7 +330,7 @@ TEST_F(TyperTest, TypeJSDivide) {
 }
 
 TEST_F(TyperTest, TypeJSModulus) {
-  TestBinaryArithOp(javascript_.Modulus(), modulo);
+  TestBinaryArithOp(javascript_.Modulus(), modulo_double_double);
 }
 
 TEST_F(TyperTest, TypeJSBitwiseOr) {

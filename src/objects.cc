@@ -689,7 +689,7 @@ MaybeHandle<Object> Object::Modulus(Isolate* isolate, Handle<Object> lhs,
     ASSIGN_RETURN_ON_EXCEPTION(isolate, lhs, Object::ToNumber(lhs), Object);
     ASSIGN_RETURN_ON_EXCEPTION(isolate, rhs, Object::ToNumber(rhs), Object);
   }
-  return isolate->factory()->NewNumber(modulo(lhs->Number(), rhs->Number()));
+  return isolate->factory()->NewNumber(Modulo(lhs->Number(), rhs->Number()));
 }
 
 
