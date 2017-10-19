@@ -312,6 +312,7 @@ class BaseTestRunner(object):
     # trying to use inconsistent options.
     for param, value in (
       ('asan', build_config["is_asan"]),
+      ('cfi_vptr', build_config["is_cfi"]),
       ('dcheck_always_on', build_config["dcheck_always_on"]),
       ('gcov_coverage', build_config["is_gcov_coverage"]),
       ('msan', build_config["is_msan"]),
