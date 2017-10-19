@@ -99,3 +99,15 @@
   assertEquals([1, 2, 3], foo([0, 1, 2]));
   assertEquals([2, 3, 4], foo([1, 2, 3]));
 })();
+
+(function() {
+  const add = (x, y) => x + y;
+  const inc = add.bind(null, 1);
+
+  function foo(inc) { return inc(1); }
+
+  assertEquals(2, foo(inc));
+  assertEquals(2, foo(inc));
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(2, foo(inc));
+})();

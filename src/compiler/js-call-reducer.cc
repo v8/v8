@@ -1985,7 +1985,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
     if (!ShouldUseCallICFeedback(target)) return NoChange();
 
     Handle<WeakCell> cell = Handle<WeakCell>::cast(feedback);
-    if (cell->value()->IsJSFunction()) {
+    if (cell->value()->IsCallable()) {
       Node* target_function =
           jsgraph()->Constant(handle(cell->value(), isolate()));
 
