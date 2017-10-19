@@ -1218,15 +1218,21 @@ DEFINE_VALUE_IMPLICATION(single_threaded, wasm_num_compilation_tasks, 0)
 //
 
 DEFINE_BOOL(single_threaded, false, "disable the use of background tasks")
+DEFINE_IMPLICATION(single_threaded, single_threaded_gc)
 DEFINE_NEG_IMPLICATION(single_threaded, concurrent_recompilation)
-DEFINE_NEG_IMPLICATION(single_threaded, concurrent_marking)
-DEFINE_NEG_IMPLICATION(single_threaded, concurrent_sweeping)
-DEFINE_NEG_IMPLICATION(single_threaded, minor_mc_parallel_marking)
-DEFINE_NEG_IMPLICATION(single_threaded, parallel_compaction)
-DEFINE_NEG_IMPLICATION(single_threaded, parallel_pointer_update)
-DEFINE_NEG_IMPLICATION(single_threaded, parallel_scavenge)
-DEFINE_NEG_IMPLICATION(single_threaded, concurrent_store_buffer)
 DEFINE_NEG_IMPLICATION(single_threaded, compiler_dispatcher)
+
+//
+// Parallel and concurrent GC (Orinoco) related flags.
+//
+DEFINE_BOOL(single_threaded_gc, false, "disable the use of background gc tasks")
+DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_marking)
+DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_sweeping)
+DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_compaction)
+DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_pointer_update)
+DEFINE_NEG_IMPLICATION(single_threaded_gc, parallel_scavenge)
+DEFINE_NEG_IMPLICATION(single_threaded_gc, concurrent_store_buffer)
+DEFINE_NEG_IMPLICATION(single_threaded_gc, minor_mc_parallel_marking)
 
 #undef FLAG
 
