@@ -2645,7 +2645,9 @@ class RepresentationSelector {
           if (lower()) DeferReplacement(node, node->InputAt(0));
         } else if (InputIs(node, Type::String())) {
           VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kTagged);
-          if (lower()) lowering->DoStringToNumber(node);
+          if (lower()) {
+            NodeProperties::ChangeOp(node, simplified()->StringToNumber());
+          }
         } else if (truncation.IsUsedAsWord32()) {
           if (InputIs(node, Type::NumberOrOddball())) {
             VisitUnop(node, UseInfo::TruncatingWord32(),
@@ -3643,20 +3645,6 @@ void SimplifiedLowering::DoShift(Node* node, Operator const* op,
                                            jsgraph()->Int32Constant(0x1f)));
   }
   ChangeToPureOp(node, op);
-}
-
-void SimplifiedLowering::DoStringToNumber(Node* node) {
-  Operator::Properties properties = Operator::kEliminatable;
-  Callable callable =
-      Builtins::CallableFor(isolate(), Builtins::kStringToNumber);
-  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
-  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
-  node->InsertInput(graph()->zone(), 0,
-                    jsgraph()->HeapConstant(callable.code()));
-  node->AppendInput(graph()->zone(), jsgraph()->NoContextConstant());
-  node->AppendInput(graph()->zone(), graph()->start());
-  NodeProperties::ChangeOp(node, common()->Call(desc));
 }
 
 void SimplifiedLowering::DoIntegral32ToBit(Node* node) {

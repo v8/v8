@@ -320,6 +320,7 @@
   V(PlainPrimitiveToWord32)             \
   V(PlainPrimitiveToFloat64)            \
   V(BooleanNot)                         \
+  V(StringToNumber)                     \
   V(StringCharAt)                       \
   V(StringCharCodeAt)                   \
   V(SeqStringCharCodeAt)                \

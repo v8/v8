@@ -35,7 +35,6 @@ class SimplifiedLowering final {
   void DoJSToNumberTruncatesToWord32(Node* node,
                                      RepresentationSelector* selector);
   void DoShift(Node* node, Operator const* op, Type* rhs_type);
-  void DoStringToNumber(Node* node);
   void DoIntegral32ToBit(Node* node);
   void DoOrderedNumberToBit(Node* node);
   void DoNumberToBit(Node* node);

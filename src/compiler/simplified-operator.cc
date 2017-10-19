@@ -549,6 +549,7 @@ DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
   V(NumberToUint32, Operator::kNoProperties, 1, 0)               \
   V(NumberToUint8Clamped, Operator::kNoProperties, 1, 0)         \
   V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)             \
+  V(StringToNumber, Operator::kNoProperties, 1, 0)               \
   V(StringCharAt, Operator::kNoProperties, 2, 1)                 \
   V(StringCharCodeAt, Operator::kNoProperties, 2, 1)             \
   V(SeqStringCharCodeAt, Operator::kNoProperties, 2, 1)          \

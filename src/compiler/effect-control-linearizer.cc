@@ -855,6 +855,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStringIndexOf:
       result = LowerStringIndexOf(node);
       break;
+    case IrOpcode::kStringToNumber:
+      result = LowerStringToNumber(node);
+      break;
     case IrOpcode::kStringCharAt:
       result = LowerStringCharAt(node);
       break;
@@ -2477,6 +2480,19 @@ Node* EffectControlLinearizer::LowerArrayBufferWasNeutered(Node* node) {
                        __ Int32Constant(JSArrayBuffer::WasNeutered::kMask)),
           __ Int32Constant(0)),
       __ Int32Constant(0));
+}
+
+Node* EffectControlLinearizer::LowerStringToNumber(Node* node) {
+  Node* string = node->InputAt(0);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtins::kStringToNumber);
+  Operator::Properties properties = Operator::kEliminatable;
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
+  return __ Call(desc, __ HeapConstant(callable.code()), string,
+                 __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerStringCharAt(Node* node) {

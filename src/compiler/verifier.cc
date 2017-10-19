@@ -967,6 +967,11 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 1, Type::String());
       CheckTypeIs(node, Type::Boolean());
       break;
+    case IrOpcode::kStringToNumber:
+      // String -> Number
+      CheckValueInputIs(node, 0, Type::String());
+      CheckTypeIs(node, Type::Number());
+      break;
     case IrOpcode::kStringCharAt:
       // (String, Unsigned32) -> String
       CheckValueInputIs(node, 0, Type::String());

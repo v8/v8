@@ -389,6 +389,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
 
   const Operator* SpeculativeToNumber(NumberOperationHint hint);
 
+  const Operator* StringToNumber();
   const Operator* PlainPrimitiveToNumber();
   const Operator* PlainPrimitiveToWord32();
   const Operator* PlainPrimitiveToFloat64();
