@@ -1804,9 +1804,7 @@ function formatDate(formatter, dateValue) {
     dateMs = TO_NUMBER(dateValue);
   }
 
-  if (!NUMBER_IS_FINITE(dateMs)) throw %make_range_error(kDateRange);
-
-  return %InternalDateFormat(formatter, new GlobalDate(dateMs));
+  return %InternalDateFormat(formatter, dateMs);
 }
 
 DEFINE_METHOD(
@@ -1828,9 +1826,7 @@ DEFINE_METHOD(
       dateMs = TO_NUMBER(dateValue);
     }
 
-    if (!NUMBER_IS_FINITE(dateMs)) throw %make_range_error(kDateRange);
-
-    return %InternalDateFormatToParts(this, new GlobalDate(dateMs));
+    return %InternalDateFormatToParts(this, dateMs);
   }
 );
 
