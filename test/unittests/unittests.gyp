@@ -36,6 +36,7 @@
       'base/sys-info-unittest.cc',
       'base/template-utils-unittest.cc',
       'base/utils/random-number-generator-unittest.cc',
+      'bigint-unittest.cc',
       'cancelable-tasks-unittest.cc',
       'char-predicates-unittest.cc',
       "code-stub-assembler-unittest.cc",

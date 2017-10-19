@@ -17,7 +17,7 @@ namespace internal {
 
 // UNDER CONSTRUCTION!
 // Arbitrary precision integers in JavaScript.
-class BigInt : public HeapObject {
+class V8_EXPORT_PRIVATE BigInt : public HeapObject {
  public:
   // Implementation of the Spec methods, see:
   // https://tc39.github.io/proposal-bigint/#sec-numeric-types
@@ -36,21 +36,28 @@ class BigInt : public HeapObject {
                                               Handle<BigInt> y);
   static MaybeHandle<BigInt> UnsignedRightShift(Handle<BigInt> x,
                                                 Handle<BigInt> y);
-  static bool LessThan(Handle<BigInt> x, Handle<BigInt> y);
-  static bool Equal(BigInt* x, BigInt* y);
+  // More convenient version of "bool LessThan(x, y)".
+  static ComparisonResult CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y);
+  static bool EqualToBigInt(BigInt* x, BigInt* y);
   static Handle<BigInt> BitwiseAnd(Handle<BigInt> x, Handle<BigInt> y);
   static Handle<BigInt> BitwiseXor(Handle<BigInt> x, Handle<BigInt> y);
   static Handle<BigInt> BitwiseOr(Handle<BigInt> x, Handle<BigInt> y);
 
+  // Other parts of the public interface.
   static MaybeHandle<BigInt> Increment(Handle<BigInt> x);
   static MaybeHandle<BigInt> Decrement(Handle<BigInt> x);
 
-  // Other parts of the public interface.
   bool ToBoolean() { return !is_zero(); }
   uint32_t Hash() {
     // TODO(jkummerow): Improve this. At least use length and sign.
     return is_zero() ? 0 : ComputeIntegerHash(static_cast<uint32_t>(digit(0)));
   }
+
+  static bool EqualToString(Handle<BigInt> x, Handle<String> y);
+  static bool EqualToNumber(Handle<BigInt> x, Handle<Object> y);
+  static ComparisonResult CompareToNumber(Handle<BigInt> x, Handle<Object> y);
+  // Exposed for tests, do not call directly. Use CompareToNumber() instead.
+  static ComparisonResult CompareToDouble(Handle<BigInt> x, double y);
 
   DECL_CAST(BigInt)
   DECL_VERIFIER(BigInt)

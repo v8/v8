@@ -19,7 +19,7 @@ RUNTIME_FUNCTION(Runtime_BigIntEqual) {
   CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
   bool result = lhs->IsBigInt() && rhs->IsBigInt() &&
-                BigInt::Equal(BigInt::cast(*lhs), BigInt::cast(*rhs));
+                BigInt::EqualToBigInt(BigInt::cast(*lhs), BigInt::cast(*rhs));
   return *isolate->factory()->ToBoolean(result);
 }
 

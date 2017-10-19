@@ -113,7 +113,8 @@ MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string,
 //   0x -> hex
 //   0o -> octal
 //   0b -> binary
-MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, const char* string);
+V8_EXPORT_PRIVATE MaybeHandle<BigInt> StringToBigInt(Isolate* isolate,
+                                                     const char* string);
 
 const int kDoubleToCStringMinBufferSize = 100;
 

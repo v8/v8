@@ -627,7 +627,7 @@ bool Object::StrictEquals(Object* that) {
     return String::cast(this)->Equals(String::cast(that));
   } else if (this->IsBigInt()) {
     if (!that->IsBigInt()) return false;
-    return BigInt::Equal(BigInt::cast(this), BigInt::cast(that));
+    return BigInt::EqualToBigInt(BigInt::cast(this), BigInt::cast(that));
   }
   return this == that;
 }
@@ -2437,7 +2437,7 @@ bool Object::SameValue(Object* other) {
     return String::cast(this)->Equals(String::cast(other));
   }
   if (IsBigInt() && other->IsBigInt()) {
-    return BigInt::Equal(BigInt::cast(this), BigInt::cast(other));
+    return BigInt::EqualToBigInt(BigInt::cast(this), BigInt::cast(other));
   }
   return false;
 }
@@ -2457,7 +2457,7 @@ bool Object::SameValueZero(Object* other) {
     return String::cast(this)->Equals(String::cast(other));
   }
   if (IsBigInt() && other->IsBigInt()) {
-    return BigInt::Equal(BigInt::cast(this), BigInt::cast(other));
+    return BigInt::EqualToBigInt(BigInt::cast(this), BigInt::cast(other));
   }
   return false;
 }
