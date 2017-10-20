@@ -483,19 +483,17 @@ Maybe<bool> ValueSerializer::WriteJSReceiver(Handle<JSReceiver> receiver) {
         // Only write WebAssembly modules if not disabled by a flag.
         return WriteWasmModule(Handle<WasmModuleObject>::cast(receiver));
       }
-      goto error;
+      break;
     case WASM_MEMORY_TYPE:
       if (FLAG_experimental_wasm_threads) {
-        // Only write WebAssembly modules if not disabled by a flag.
         return WriteWasmMemory(Handle<WasmMemoryObject>::cast(receiver));
       }
-      goto error;
-
-    error:
+      break;
     default:
-      ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
-      return Nothing<bool>();
+      break;
   }
+
+  ThrowDataCloneError(MessageTemplate::kDataCloneError, receiver);
   return Nothing<bool>();
 }
 
