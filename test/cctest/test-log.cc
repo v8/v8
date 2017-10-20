@@ -70,7 +70,7 @@ static const char* StrNStr(const char* s1, const char* s2, size_t n) {
 
 // Look for a log line which starts with {prefix} and ends with {suffix}.
 static const char* FindLogLine(i::Vector<const char>* log, const char* prefix,
-                               const char* suffix) {
+                               const char* suffix = nullptr) {
   const char* start = log->start();
   const char* end = start + log->length();
   CHECK_EQ(end[0], '\0');
@@ -79,6 +79,7 @@ static const char* FindLogLine(i::Vector<const char>* log, const char* prefix,
   while (start < end) {
     const char* prefixResult = StrNStr(start, prefix, (end - start));
     if (!prefixResult) return NULL;
+    if (suffix == nullptr) return prefixResult;
     const char* suffixResult =
         StrNStr(prefixResult, suffix, (end - prefixResult));
     if (!suffixResult) return NULL;
@@ -122,6 +123,8 @@ class ScopedLoggerInitializer {
 
   Logger* logger() { return logger_; }
 
+  void PrintLog() { printf("%s", log_.start()); }
+
   v8::Local<v8::String> GetLogString() {
     return v8::String::NewFromUtf8(isolate_, log_.start(),
                                    v8::NewStringType::kNormal, log_.length())
@@ -134,7 +137,7 @@ class ScopedLoggerInitializer {
     CHECK(exists);
   }
 
-  const char* FindLine(const char* prefix, const char* suffix) {
+  const char* FindLine(const char* prefix, const char* suffix = nullptr) {
     return FindLogLine(&log_, prefix, suffix);
   }
 
@@ -176,6 +179,9 @@ TEST(FindLogLine) {
       "prefix4 suffix4";
   // Make sure the vector contains the terminating \0 character.
   i::Vector<const char> log(string, strlen(string));
+  CHECK(FindLogLine(&log, "prefix1, stuff,   suffix1"));
+  CHECK(FindLogLine(&log, "prefix1, stuff"));
+  CHECK(FindLogLine(&log, "prefix1"));
   CHECK(FindLogLine(&log, "prefix1", "suffix1"));
   CHECK(FindLogLine(&log, "prefix1", "suffix1"));
   CHECK(!FindLogLine(&log, "prefix2", "suffix2"));
@@ -651,6 +657,43 @@ TEST(Issue539892) {
 
     // Must not crash.
     logger.LogCompiledFunctions();
+  }
+  isolate->Dispose();
+}
+
+TEST(LogAll) {
+  SETUP_FLAGS();
+  i::FLAG_log_all = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+
+  {
+    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+
+    // Function that will
+    const char* source_text =
+        "function testAddFn(a,b) { return a + b };"
+        "let result;"
+        "for (let i = 0; i < 100000; i++) { result = testAddFn(i, i); };"
+        "testAddFn('1', 1);"
+        "for (let i = 0; i < 100000; i++) { result = testAddFn('1', i); }";
+    CompileRun(source_text);
+
+    logger.StopLogging();
+
+    // We should find at least one code-creation even for testAddFn();
+    CHECK(logger.FindLine("api,v8::Context::New"));
+    CHECK(logger.FindLine("timer-event-start", "V8.CompileCode"));
+    CHECK(logger.FindLine("timer-event-end", "V8.CompileCode"));
+    CHECK(logger.FindLine("code-creation,Script", ":1:1"));
+    CHECK(logger.FindLine("api,v8::Script::Run"));
+    CHECK(logger.FindLine("code-creation,LazyCompile,", "testAddFn"));
+    if (i::FLAG_opt && !i::FLAG_always_opt) {
+      CHECK(logger.FindLine("code-deopt,", "soft"));
+      CHECK(logger.FindLine("timer-event-start", "V8.DeoptimizeCode"));
+      CHECK(logger.FindLine("timer-event-end", "V8.DeoptimizeCode"));
+    }
   }
   isolate->Dispose();
 }

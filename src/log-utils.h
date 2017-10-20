@@ -13,6 +13,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/platform/mutex.h"
 #include "src/flags.h"
+#include "src/ostreams.h"
 
 namespace v8 {
 namespace internal {
@@ -22,8 +23,7 @@ class Logger;
 // Functions and data for performing output of log messages.
 class Log {
  public:
-  // Performs process-wide initialization.
-  void Initialize(const char* log_file_name);
+  Log(Logger* log, const char* log_file_name);
 
   // Disables logging, but preserves acquired resources.
   void stop() { is_stopped_ = true; }
@@ -66,11 +66,9 @@ class Log {
     // Append string data to the log message.
     void PRINTF_FORMAT(2, 0) AppendVA(const char* format, va_list args);
 
-    // Append a character to the log message.
-    void Append(const char c);
-
     // Append double quoted string to the log message.
     void AppendDoubleQuotedString(const char* string);
+    void AppendDoubleQuotedString(String* string);
 
     // Append a heap string.
     void Append(String* str);
@@ -88,37 +86,32 @@ class Log {
     // Helpers for appending char, C-string and heap string without
     // buffering. This is useful for entries that can exceed the 2kB
     // limit.
-    void AppendUnbufferedChar(char c);
-    void AppendUnbufferedCString(const char* str);
-    void AppendUnbufferedHeapString(String* source);
+    void AppendEscapedString(String* source);
+    void AppendEscapedString(String* source, int len);
 
-    // Write the log message to the log file currently opened.
+    // Delegate insertion to the underlying {log_}.
+    template <typename T>
+    MessageBuilder& operator<<(T value) {
+      log_->os_ << value;
+      return *this;
+    }
+
+    // Finish the current log line an flush the it to the log file.
     void WriteToLogFile();
 
    private:
     Log* log_;
     base::LockGuard<base::Mutex> lock_guard_;
-    int pos_;
   };
 
  private:
-  explicit Log(Logger* logger);
-
-  // Opens stdout for logging.
-  void OpenStdout();
-
-  // Opens file for logging.
-  void OpenFile(const char* name);
-
-  // Opens a temporary file for logging.
-  void OpenTemporaryFile();
+  static FILE* CreateOutputHandle(const char* file_name);
 
   // Implementation of writing to a log file.
   int WriteToFile(const char* msg, int length) {
     DCHECK_NOT_NULL(output_handle_);
-    size_t rv = fwrite(msg, 1, length, output_handle_);
-    DCHECK_EQ(length, rv);
-    USE(rv);
+    os_.write(msg, length);
+    DCHECK(!os_.bad());
     return length;
   }
 
@@ -128,6 +121,7 @@ class Log {
   // When logging is active output_handle_ is used to store a pointer to log
   // destination.  mutex_ should be acquired before using output_handle_.
   FILE* output_handle_;
+  OFStream os_;
 
   // mutex_ is a Mutex used for enforcing exclusive
   // access to the formatting buffer and the log file or log memory buffer.
@@ -135,7 +129,7 @@ class Log {
 
   // Buffer used for formatting log messages. This is a singleton buffer and
   // mutex_ should be acquired before using it.
-  char* message_buffer_;
+  char* format_buffer_;
 
   Logger* logger_;
 

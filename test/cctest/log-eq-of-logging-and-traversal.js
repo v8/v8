@@ -187,6 +187,13 @@ if (typeof result !== "string") {
                (c[2] ? c[2] : "---") + " " +
                (c[3] ? c[3] : "---"));
     }
+    out.push("================================================")
+    out.push("MAKE SURE TO USE A CLEAN ISOLATiE!");
+    out.push("Use tools/test.py");
+    out.push("================================================")
+    out.push("*   Lines are the same");
+    out.push("--- Line is missing"
+    out.push("================================================")
   }
   result[0] ? true : out.join("\n");
 } else {
