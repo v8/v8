@@ -42,7 +42,7 @@
     {
       'target_name': 'v8',
       'dependencies_traverse': 1,
-      'dependencies': ['v8_maybe_snapshot', 'v8_dump_build_config'],
+      'dependencies': ['v8_maybe_snapshot', 'v8_dump_build_config#target'],
       'conditions': [
         ['want_separate_host_toolset==1', {
           'toolsets': ['host', 'target'],
@@ -2524,13 +2524,6 @@
       'type': 'none',
       'variables': {
       },
-      'conditions': [
-        [ 'want_separate_host_toolset==1', {
-          'toolsets': ['host'],
-        }, {
-          'toolsets': ['target'],
-        }]
-      ],
       'actions': [
         {
           'action_name': 'v8_dump_build_config',
