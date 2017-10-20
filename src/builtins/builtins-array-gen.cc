@@ -92,8 +92,9 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 
   void FilterResultGenerator() {
     // 7. Let A be ArraySpeciesCreate(O, 0).
-    Node* len = SmiConstant(0);
-    ArraySpeciesCreate(len);
+    // This version of ArraySpeciesCreate will create with the correct
+    // ElementsKind in the fast case.
+    ArraySpeciesCreate();
   }
 
   Node* FilterProcessor(Node* k_value, Node* k) {
@@ -743,7 +744,55 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   }
 
   // Perform ArraySpeciesCreate (ES6 #sec-arrayspeciescreate).
-  void ArraySpeciesCreate(Node* len) {
+  // This version is specialized to create a zero length array
+  // of the elements kind of the input array.
+  void ArraySpeciesCreate() {
+    Label runtime(this, Label::kDeferred), done(this);
+
+    TNode<Smi> len = SmiConstant(0);
+    TNode<Map> original_map = LoadMap(o());
+    GotoIfNot(
+        InstanceTypeEqual(LoadMapInstanceType(original_map), JS_ARRAY_TYPE),
+        &runtime);
+
+    GotoIfNot(IsPrototypeInitialArrayPrototype(context(), original_map),
+              &runtime);
+
+    Node* species_protector = SpeciesProtectorConstant();
+    Node* value =
+        LoadObjectField(species_protector, PropertyCell::kValueOffset);
+    TNode<Smi> const protector_invalid =
+        SmiConstant(Isolate::kProtectorInvalid);
+    GotoIf(WordEqual(value, protector_invalid), &runtime);
+
+    // Respect the ElementsKind of the input array.
+    TNode<Int32T> elements_kind = LoadMapElementsKind(original_map);
+    GotoIfNot(IsFastElementsKind(elements_kind), &runtime);
+    TNode<Context> native_context = CAST(LoadNativeContext(context()));
+    TNode<Map> array_map =
+        CAST(LoadJSArrayElementsMap(elements_kind, native_context));
+    TNode<JSArray> array =
+        CAST(AllocateJSArray(GetInitialFastElementsKind(), array_map, len, len,
+                             nullptr, CodeStubAssembler::SMI_PARAMETERS));
+    a_.Bind(array);
+
+    Goto(&done);
+
+    BIND(&runtime);
+    {
+      // 5. Let A be ? ArraySpeciesCreate(O, len).
+      Node* constructor =
+          CallRuntime(Runtime::kArraySpeciesConstructor, context(), o());
+      a_.Bind(ConstructJS(CodeFactory::Construct(isolate()), context(),
+                          constructor, len));
+      Goto(&fully_spec_compliant_);
+    }
+
+    BIND(&done);
+  }
+
+  // Perform ArraySpeciesCreate (ES6 #sec-arrayspeciescreate).
+  void ArraySpeciesCreate(SloppyTNode<Smi> len) {
     Label runtime(this, Label::kDeferred), done(this);
 
     Node* const original_map = LoadMap(o());
@@ -769,8 +818,9 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     // element in the input array (maybe the callback deletes an element).
     const ElementsKind elements_kind =
         GetHoleyElementsKind(GetInitialFastElementsKind());
-    Node* const native_context = LoadNativeContext(context());
-    Node* array_map = LoadJSArrayElementsMap(elements_kind, native_context);
+    TNode<Context> native_context = CAST(LoadNativeContext(context()));
+    TNode<Map> array_map =
+        CAST(LoadJSArrayElementsMap(elements_kind, native_context));
     a_.Bind(AllocateJSArray(PACKED_SMI_ELEMENTS, array_map, len, len, nullptr,
                             CodeStubAssembler::SMI_PARAMETERS));
 
