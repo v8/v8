@@ -71,21 +71,19 @@ struct ScopedTimer {
 // ----------------------------------------------------------------------------
 // Implementation of CompilationJob
 
-CompilationJob::CompilationJob(Isolate* isolate, ParseInfo* parse_info,
+CompilationJob::CompilationJob(uintptr_t stack_limit, ParseInfo* parse_info,
                                CompilationInfo* compilation_info,
                                const char* compiler_name, State initial_state)
     : parse_info_(parse_info),
       compilation_info_(compilation_info),
-      isolate_thread_id_(isolate->thread_id()),
       compiler_name_(compiler_name),
       state_(initial_state),
-      stack_limit_(isolate->stack_guard()->real_climit()),
-      executed_on_background_thread_(false) {}
+      stack_limit_(stack_limit) {}
 
 CompilationJob::Status CompilationJob::PrepareJob() {
   DCHECK(
       ThreadId::Current().Equals(compilation_info()->isolate()->thread_id()));
-  DisallowJavascriptExecution no_js(isolate());
+  DisallowJavascriptExecution no_js(compilation_info()->isolate());
 
   if (FLAG_trace_opt && compilation_info()->IsOptimizing()) {
     OFStream os(stdout);
@@ -102,20 +100,10 @@ CompilationJob::Status CompilationJob::PrepareJob() {
 }
 
 CompilationJob::Status CompilationJob::ExecuteJob() {
-  base::Optional<DisallowHeapAllocation> no_allocation;
-  base::Optional<DisallowHandleAllocation> no_handles;
-  base::Optional<DisallowHandleDereference> no_deref;
-  base::Optional<DisallowCodeDependencyChange> no_dependency_change;
-  if (can_execute_on_background_thread()) {
-    no_allocation.emplace();
-    no_handles.emplace();
-    no_deref.emplace();
-    no_dependency_change.emplace();
-    executed_on_background_thread_ =
-        !ThreadId::Current().Equals(isolate_thread_id_);
-  } else {
-    DCHECK(ThreadId::Current().Equals(isolate_thread_id_));
-  }
+  DisallowHeapAllocation no_allocation;
+  DisallowHandleAllocation no_handles;
+  DisallowHandleDereference no_deref;
+  DisallowCodeDependencyChange no_dependency_change;
 
   // Delegate to the underlying implementation.
   DCHECK_EQ(state(), State::kReadyToExecute);
@@ -127,7 +115,7 @@ CompilationJob::Status CompilationJob::FinalizeJob() {
   DCHECK(
       ThreadId::Current().Equals(compilation_info()->isolate()->thread_id()));
   DisallowCodeDependencyChange no_dependency_change;
-  DisallowJavascriptExecution no_js(isolate());
+  DisallowJavascriptExecution no_js(compilation_info()->isolate());
   DCHECK(!compilation_info()->dependencies()->HasAborted());
 
   // Delegate to the underlying implementation.
@@ -158,7 +146,7 @@ void CompilationJob::RecordUnoptimizedCompilationStats() const {
     code_size = compilation_info()->code()->SizeIncludingMetadata();
   }
 
-  Counters* counters = isolate()->counters();
+  Counters* counters = compilation_info()->isolate()->counters();
   // TODO(4280): Rename counters from "baseline" to "unoptimized" eventually.
   counters->total_baseline_code_size()->Increment(code_size);
   counters->total_baseline_compile_count()->Increment(1);
@@ -189,10 +177,6 @@ void CompilationJob::RecordOptimizedCompilationStats() const {
     PrintF("Compiled: %d functions with %d byte source size in %fms.\n",
            compiled_functions, code_size, compilation_time);
   }
-}
-
-Isolate* CompilationJob::isolate() const {
-  return compilation_info()->isolate();
 }
 
 // ----------------------------------------------------------------------------

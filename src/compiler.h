@@ -164,9 +164,8 @@ class V8_EXPORT_PRIVATE CompilationJob {
     kSucceeded,
     kFailed,
   };
-
-  CompilationJob(Isolate* isolate, ParseInfo* parse_info, CompilationInfo* info,
-                 const char* compiler_name,
+  CompilationJob(uintptr_t stack_limit, ParseInfo* parse_info,
+                 CompilationInfo* compilation_info, const char* compiler_name,
                  State initial_state = State::kReadyToPrepare);
   virtual ~CompilationJob() {}
 
@@ -191,20 +190,12 @@ class V8_EXPORT_PRIVATE CompilationJob {
   void RecordOptimizedCompilationStats() const;
   void RecordUnoptimizedCompilationStats() const;
 
-  virtual bool can_execute_on_background_thread() const { return true; }
-
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
   uintptr_t stack_limit() const { return stack_limit_; }
 
-  bool executed_on_background_thread() const {
-    DCHECK_IMPLIES(!can_execute_on_background_thread(),
-                   !executed_on_background_thread_);
-    return executed_on_background_thread_;
-  }
   State state() const { return state_; }
   ParseInfo* parse_info() const { return parse_info_; }
   CompilationInfo* compilation_info() const { return compilation_info_; }
-  Isolate* isolate() const;
   virtual size_t AllocatedMemory() const { return 0; }
 
  protected:
@@ -217,14 +208,12 @@ class V8_EXPORT_PRIVATE CompilationJob {
   // TODO(6409): Remove parse_info once Fullcode and AstGraphBuilder are gone.
   ParseInfo* parse_info_;
   CompilationInfo* compilation_info_;
-  ThreadId isolate_thread_id_;
   base::TimeDelta time_taken_to_prepare_;
   base::TimeDelta time_taken_to_execute_;
   base::TimeDelta time_taken_to_finalize_;
   const char* compiler_name_;
   State state_;
   uintptr_t stack_limit_;
-  bool executed_on_background_thread_;
 
   MUST_USE_RESULT Status UpdateState(Status status, State next_state) {
     if (status == SUCCEEDED) {

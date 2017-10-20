@@ -367,7 +367,6 @@ void UnoptimizedCompileJob::PrepareToCompileOnMainThread(Isolate* isolate) {
     return;
   }
 
-  CHECK(compilation_job_->can_execute_on_background_thread());
   status_ = Status::kReadyToCompile;
 }
 

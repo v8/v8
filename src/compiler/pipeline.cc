@@ -737,12 +737,13 @@ class PipelineCompilationJob final : public CompilationJob {
                          Handle<JSFunction> function)
       // Note that the CompilationInfo is not initialized at the time we pass it
       // to the CompilationJob constructor, but it is not dereferenced there.
-      : CompilationJob(function->GetIsolate(), parse_info, &compilation_info_,
-                       "TurboFan"),
+      : CompilationJob(parse_info->stack_limit(), parse_info,
+                       &compilation_info_, "TurboFan"),
+        isolate_(function->GetIsolate()),
         parse_info_(parse_info),
-        zone_stats_(function->GetIsolate()->allocator()),
-        compilation_info_(parse_info_.get()->zone(), function->GetIsolate(),
-                          shared_info, function),
+        zone_stats_(isolate_->allocator()),
+        compilation_info_(parse_info_.get()->zone(), isolate_, shared_info,
+                          function),
         pipeline_statistics_(CreatePipelineStatistics(
             parse_info_->script(), compilation_info(), &zone_stats_)),
         data_(&zone_stats_, compilation_info(), pipeline_statistics_.get()),
@@ -754,10 +755,13 @@ class PipelineCompilationJob final : public CompilationJob {
   Status ExecuteJobImpl() final;
   Status FinalizeJobImpl() final;
 
+  Isolate* isolate() { return isolate_; }
+
   // Registers weak object to optimized code dependencies.
   void RegisterWeakObjectsInOptimizedCode(Handle<Code> code);
 
  private:
+  Isolate* isolate_;
   std::unique_ptr<ParseInfo> parse_info_;
   ZoneStats zone_stats_;
   CompilationInfo compilation_info_;
@@ -889,8 +893,8 @@ class PipelineWasmCompilationJob final : public CompilationJob {
       SourcePositionTable* source_positions,
       ZoneVector<trap_handler::ProtectedInstructionData>* protected_insts,
       bool asmjs_origin)
-      : CompilationJob(info->isolate(), nullptr, info, "TurboFan",
-                       State::kReadyToExecute),
+      : CompilationJob(info->isolate()->stack_guard()->real_climit(), nullptr,
+                       info, "TurboFan", State::kReadyToExecute),
         zone_stats_(info->isolate()->allocator()),
         pipeline_statistics_(CreatePipelineStatistics(Handle<Script>::null(),
                                                       info, &zone_stats_)),

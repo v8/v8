@@ -188,7 +188,8 @@ class AsmJsCompilationJob final : public CompilationJob {
  public:
   explicit AsmJsCompilationJob(ParseInfo* parse_info, FunctionLiteral* literal,
                                Isolate* isolate)
-      : CompilationJob(isolate, parse_info, &compilation_info_, "AsmJs"),
+      : CompilationJob(parse_info->stack_limit(), parse_info,
+                       &compilation_info_, "AsmJs"),
         zone_(isolate->allocator(), ZONE_NAME),
         compilation_info_(&zone_, isolate, parse_info, literal),
         module_(nullptr),

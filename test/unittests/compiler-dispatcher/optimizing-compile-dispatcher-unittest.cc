@@ -26,7 +26,8 @@ namespace {
 class BlockingCompilationJob : public CompilationJob {
  public:
   BlockingCompilationJob(Isolate* isolate, Handle<JSFunction> function)
-      : CompilationJob(isolate, &parse_info_, &info_, "BlockingCompilationJob",
+      : CompilationJob(isolate->stack_guard()->real_climit(), &parse_info_,
+                       &info_, "BlockingCompilationJob",
                        State::kReadyToExecute),
         shared_(function->shared()),
         parse_info_(shared_),
