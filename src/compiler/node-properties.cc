@@ -362,7 +362,7 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
       case IrOpcode::kMapGuard: {
         Node* const object = GetValueInput(effect, 0);
         if (IsSame(receiver, object)) {
-          *maps_return = MapGuardMapsOf(effect->op());
+          *maps_return = MapGuardMapsOf(effect->op()).maps();
           return result;
         }
         break;
