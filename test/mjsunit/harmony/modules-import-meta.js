@@ -3,13 +3,25 @@
 // found in the LICENSE file.
 
 // MODULE
-// Flags: --harmony-import-meta
+// Flags: --harmony-import-meta --no-lazy
 
 import foreign, { url as otherUrl } from './modules-skip-export-import-meta.js';
 
 assertEquals("object", typeof import.meta);
 assertEquals(null, Object.getPrototypeOf(import.meta));
 assertSame(import.meta, import.meta);
+
+const loadImportMetaArrow = () => import.meta;
+assertSame(loadImportMetaArrow(), import.meta);
+function loadImportMetaFn() {
+  try {
+    throw new Error('force catch code path for nested context');
+  } catch (e) {
+    return import.meta;
+  }
+}
+loadImportMetaFn();
+assertSame(loadImportMetaFn(), import.meta);
 
 // This property isn't part of the spec itself but is mentioned as an example
 assertMatches(/\/modules-import-meta\.js$/, import.meta.url);

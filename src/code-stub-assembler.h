@@ -594,6 +594,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                          int slot_index,
                                          SloppyTNode<Object> value);
   TNode<Context> LoadNativeContext(SloppyTNode<Context> context);
+  // Calling this is only valid if there's a module context in the chain.
+  TNode<Context> LoadModuleContext(SloppyTNode<Context> context);
 
   TNode<Map> LoadJSArrayElementsMap(ElementsKind kind,
                                     SloppyTNode<Context> native_context);

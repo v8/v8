@@ -1678,6 +1678,33 @@ TNode<Context> CodeStubAssembler::LoadNativeContext(
       LoadContextElement(context, Context::NATIVE_CONTEXT_INDEX));
 }
 
+TNode<Context> CodeStubAssembler::LoadModuleContext(
+    SloppyTNode<Context> context) {
+  Node* module_map = LoadRoot(Heap::kModuleContextMapRootIndex);
+  Variable cur_context(this, MachineRepresentation::kTaggedPointer);
+  cur_context.Bind(context);
+
+  Label context_found(this);
+
+  Variable* context_search_loop_variables[1] = {&cur_context};
+  Label context_search(this, 1, context_search_loop_variables);
+
+  // Loop until cur_context->map() is module_map.
+  Goto(&context_search);
+  BIND(&context_search);
+  {
+    CSA_ASSERT(this, Word32BinaryNot(IsNativeContext(cur_context.value())));
+    GotoIf(WordEqual(LoadMap(cur_context.value()), module_map), &context_found);
+
+    cur_context.Bind(
+        LoadContextElement(cur_context.value(), Context::PREVIOUS_INDEX));
+    Goto(&context_search);
+  }
+
+  BIND(&context_found);
+  return UncheckedCast<Context>(cur_context.value());
+}
+
 TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
     SloppyTNode<Int32T> kind, SloppyTNode<Context> native_context) {
   CSA_ASSERT(this, IsFastElementsKind(kind));

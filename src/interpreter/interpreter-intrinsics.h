@@ -22,6 +22,7 @@ namespace interpreter {
   V(GeneratorGetResumeMode, generator_get_resume_mode, 1)             \
   V(GeneratorGetInputOrDebugPos, generator_get_input_or_debug_pos, 1) \
   V(GeneratorClose, generator_close, 1)                               \
+  V(GetImportMetaObject, get_import_meta_object, 0)                   \
   V(Call, call, -1)                                                   \
   V(ClassOf, class_of, 1)                                             \
   V(CreateIterResultObject, create_iter_result_object, 2)             \

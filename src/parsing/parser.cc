@@ -385,7 +385,7 @@ Expression* Parser::FunctionSentExpression(int pos) {
 
 Expression* Parser::ImportMetaExpression(int pos) {
   return factory()->NewCallRuntime(
-      Runtime::kGetImportMetaObject,
+      Runtime::kInlineGetImportMetaObject,
       new (zone()) ZoneList<Expression*>(0, zone()), pos);
 }
 

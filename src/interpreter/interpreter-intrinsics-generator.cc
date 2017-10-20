@@ -11,6 +11,8 @@
 #include "src/interpreter/bytecodes.h"
 #include "src/interpreter/interpreter-assembler.h"
 #include "src/interpreter/interpreter-intrinsics.h"
+#include "src/objects-inl.h"
+#include "src/objects/module.h"
 
 namespace v8 {
 namespace internal {
@@ -425,6 +427,28 @@ Node* IntrinsicsGenerator::GeneratorClose(Node* args_reg, Node* arg_count,
       generator, JSGeneratorObject::kContinuationOffset,
       __ SmiConstant(JSGeneratorObject::kGeneratorClosed));
   return __ UndefinedConstant();
+}
+
+Node* IntrinsicsGenerator::GetImportMetaObject(Node* args_reg, Node* arg_count,
+                                               Node* context) {
+  Node* const module_context = __ LoadModuleContext(context);
+  Node* const module =
+      __ LoadContextElement(module_context, Context::EXTENSION_INDEX);
+  Node* const import_meta =
+      __ LoadObjectField(module, Module::kImportMetaOffset);
+
+  InterpreterAssembler::Variable return_value(assembler_,
+                                              MachineRepresentation::kTagged);
+  return_value.Bind(import_meta);
+
+  InterpreterAssembler::Label end(assembler_);
+  __ GotoIfNot(__ IsTheHole(import_meta), &end);
+
+  return_value.Bind(__ CallRuntime(Runtime::kGetImportMetaObject, context));
+  __ Goto(&end);
+
+  __ BIND(&end);
+  return return_value.value();
 }
 
 Node* IntrinsicsGenerator::AsyncGeneratorReject(Node* input, Node* arg_count,
