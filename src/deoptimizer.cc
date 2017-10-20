@@ -1569,7 +1569,6 @@ void Deoptimizer::DoComputeBuiltinContinuation(
 
   BailoutId bailout_id = translated_frame->node_id();
   Builtins::Name builtin_name = Builtins::GetBuiltinFromBailoutId(bailout_id);
-  DCHECK(!Builtins::IsLazy(builtin_name));
   Code* builtin = isolate()->builtins()->builtin(builtin_name);
   Callable continuation_callable =
       Builtins::CallableFor(isolate(), builtin_name);

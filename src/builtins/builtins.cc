@@ -197,16 +197,6 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
           BUILTIN_CODE(isolate, ArrayMapLoopLazyDeoptContinuation);
       return Callable(code, BuiltinDescriptor(isolate));
     }
-    case kArrayFilterLoopEagerDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayFilterLoopEagerDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayFilterLoopLazyDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayFilterLoopLazyDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
     default:
       UNREACHABLE();
   }
@@ -245,8 +235,6 @@ bool Builtins::IsLazy(int index) {
     case kArrayForEachLoopLazyDeoptContinuation:   // https://crbug.com/v8/6786.
     case kArrayMapLoopEagerDeoptContinuation:      // https://crbug.com/v8/6786.
     case kArrayMapLoopLazyDeoptContinuation:       // https://crbug.com/v8/6786.
-    case kArrayFilterLoopEagerDeoptContinuation:   // https://crbug.com/v8/6786.
-    case kArrayFilterLoopLazyDeoptContinuation:    // https://crbug.com/v8/6786.
     case kCheckOptimizationMarker:
     case kCompileLazy:
     case kDeserializeLazy:
