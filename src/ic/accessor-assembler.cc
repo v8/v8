@@ -2285,15 +2285,47 @@ void AccessorAssembler::KeyedLoadIC(const LoadICParameters* p) {
   BIND(&try_polymorphic_name);
   {
     // We might have a name in feedback, and a fixed array in the next slot.
+    Node* name = p->name;
     Comment("KeyedLoadIC_try_polymorphic_name");
-    GotoIfNot(WordEqual(feedback, p->name), &miss);
-    // If the name comparison succeeded, we know we have a fixed array with
-    // at least one map/handler pair.
-    Node* array = LoadFeedbackVectorSlot(p->vector, p->slot, kPointerSize,
-                                         SMI_PARAMETERS);
-    HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler, &miss,
-                          1);
+    VARIABLE(var_name, MachineRepresentation::kTagged, name);
+    VARIABLE(var_index, MachineType::PointerRepresentation());
+    Label if_polymorphic_name(this, &var_name), if_internalized(this),
+        if_notinternalized(this, Label::kDeferred);
+
+    // Fast-case: The recorded {feedback} matches the {name}.
+    GotoIf(WordEqual(feedback, name), &if_polymorphic_name);
+
+    // Try to internalize the {name} if it isn't already.
+    TryToName(name, &miss, &var_index, &if_internalized, &var_name, &miss,
+              &if_notinternalized);
+
+    BIND(&if_internalized);
+    {
+      // The {var_name} now contains a unique name.
+      Branch(WordEqual(feedback, var_name.value()), &if_polymorphic_name,
+             &miss);
+    }
+
+    BIND(&if_notinternalized);
+    {
+      // Try to internalize the {name}.
+      Node* function = ExternalConstant(
+          ExternalReference::try_internalize_string_function(isolate()));
+      var_name.Bind(CallCFunction1(MachineType::AnyTagged(),
+                                   MachineType::AnyTagged(), function, name));
+      Goto(&if_internalized);
+    }
+
+    BIND(&if_polymorphic_name);
+    {
+      // If the name comparison succeeded, we know we have a fixed array with
+      // at least one map/handler pair.
+      Node* name = var_name.value();
+      TailCallBuiltin(Builtins::kKeyedLoadIC_PolymorphicName, p->context,
+                      p->receiver, name, p->slot, p->vector);
+    }
   }
+
   BIND(&miss);
   {
     Comment("KeyedLoadIC_miss");
@@ -2352,6 +2384,46 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
     // TODO(jkummerow): Should we use the GetProperty TF stub instead?
     TailCallRuntime(Runtime::kKeyedGetProperty, p->context, p->receiver,
                     p->name);
+  }
+}
+
+void AccessorAssembler::KeyedLoadICPolymorphicName(const LoadICParameters* p) {
+  VARIABLE(var_handler, MachineRepresentation::kTagged);
+  Label if_handler(this, &var_handler), miss(this, Label::kDeferred);
+
+  Node* receiver = p->receiver;
+  Node* receiver_map = LoadReceiverMap(receiver);
+  Node* name = p->name;
+  Node* vector = p->vector;
+  Node* slot = p->slot;
+  Node* context = p->context;
+
+  // When we get here, we know that the {name} matches the recorded
+  // feedback name in the {vector} and can safely be used for the
+  // LoadIC handler logic below.
+  CSA_ASSERT(this, IsName(name));
+  CSA_ASSERT(this, Word32BinaryNot(IsDeprecatedMap(receiver_map)));
+  CSA_ASSERT(this, WordEqual(name, LoadFeedbackVectorSlot(vector, slot, 0,
+                                                          SMI_PARAMETERS)));
+
+  // Check if we have a matching handler for the {receiver_map}.
+  Node* array =
+      LoadFeedbackVectorSlot(vector, slot, kPointerSize, SMI_PARAMETERS);
+  HandlePolymorphicCase(receiver_map, array, &if_handler, &var_handler, &miss,
+                        1);
+
+  BIND(&if_handler);
+  {
+    ExitPoint direct_exit(this);
+    HandleLoadICHandlerCase(p, var_handler.value(), &miss, &direct_exit,
+                            kOnlyProperties);
+  }
+
+  BIND(&miss);
+  {
+    Comment("KeyedLoadIC_miss");
+    TailCallRuntime(Runtime::kKeyedLoadIC_Miss, context, receiver, name, slot,
+                    vector);
   }
 }
 
@@ -2707,6 +2779,19 @@ void AccessorAssembler::GenerateKeyedLoadIC_Megamorphic() {
 
   LoadICParameters p(context, receiver, name, slot, vector);
   KeyedLoadICGeneric(&p);
+}
+
+void AccessorAssembler::GenerateKeyedLoadIC_PolymorphicName() {
+  typedef LoadWithVectorDescriptor Descriptor;
+
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* name = Parameter(Descriptor::kName);
+  Node* slot = Parameter(Descriptor::kSlot);
+  Node* vector = Parameter(Descriptor::kVector);
+  Node* context = Parameter(Descriptor::kContext);
+
+  LoadICParameters p(context, receiver, name, slot, vector);
+  KeyedLoadICPolymorphicName(&p);
 }
 
 void AccessorAssembler::GenerateStoreIC() {

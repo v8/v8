@@ -22,7 +22,6 @@ namespace internal {
   V(ExpectedSmi, "Expected smi")                                               \
   V(ForcedDeoptToRuntime, "Forced deopt to runtime")                           \
   V(Hole, "hole")                                                              \
-  V(IndexNameMismatch, "index and name do not match in access")                \
   V(InstanceMigrationFailed, "instance migration failed")                      \
   V(InsufficientTypeFeedbackForCall, "Insufficient type feedback for call")    \
   V(InsufficientTypeFeedbackForCallWithArguments,                              \
@@ -78,6 +77,7 @@ namespace internal {
   V(ValueMismatch, "value mismatch")                                           \
   V(WrongInstanceType, "wrong instance type")                                  \
   V(WrongMap, "wrong map")                                                     \
+  V(WrongName, "wrong name")                                                   \
   V(UndefinedOrNullInForIn, "null or undefined in for-in")                     \
   V(UndefinedOrNullInToObject, "null or undefined in ToObject")
 

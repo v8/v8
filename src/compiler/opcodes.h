@@ -340,6 +340,8 @@
   V(CheckHeapObject)                    \
   V(CheckFloat64Hole)                   \
   V(CheckNotTaggedHole)                 \
+  V(CheckEqualsInternalizedString)      \
+  V(CheckEqualsSymbol)                  \
   V(CompareMaps)                        \
   V(ConvertTaggedHoleToUndefined)       \
   V(TypeOf)                             \

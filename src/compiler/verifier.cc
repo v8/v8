@@ -1242,6 +1242,7 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kCheckSymbol:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Symbol());
+      break;
 
     case IrOpcode::kCheckedInt32Add:
     case IrOpcode::kCheckedInt32Sub:
@@ -1273,6 +1274,17 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kConvertTaggedHoleToUndefined:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::NonInternal());
+      break;
+
+    case IrOpcode::kCheckEqualsInternalizedString:
+      CheckValueInputIs(node, 0, Type::InternalizedString());
+      CheckValueInputIs(node, 1, Type::Any());
+      CheckNotTyped(node);
+      break;
+    case IrOpcode::kCheckEqualsSymbol:
+      CheckValueInputIs(node, 0, Type::Symbol());
+      CheckValueInputIs(node, 1, Type::Any());
+      CheckNotTyped(node);
       break;
 
     case IrOpcode::kLoadFieldByIndex:

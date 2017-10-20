@@ -1944,6 +1944,12 @@ Type* Typer::Visitor::TypeConvertTaggedHoleToUndefined(Node* node) {
   return typer_->operation_typer()->ConvertTaggedHoleToUndefined(type);
 }
 
+Type* Typer::Visitor::TypeCheckEqualsInternalizedString(Node* node) {
+  UNREACHABLE();
+}
+
+Type* Typer::Visitor::TypeCheckEqualsSymbol(Node* node) { UNREACHABLE(); }
+
 Type* Typer::Visitor::TypeAllocate(Node* node) {
   return AllocateTypeOf(node->op());
 }

@@ -601,28 +601,30 @@ DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
   V(SpeculativeNumberLessThan)                \
   V(SpeculativeNumberLessThanOrEqual)
 
-#define CHECKED_OP_LIST(V)             \
-  V(CheckBounds, 2, 1)                 \
-  V(CheckHeapObject, 1, 1)             \
-  V(CheckInternalizedString, 1, 1)     \
-  V(CheckNumber, 1, 1)                 \
-  V(CheckReceiver, 1, 1)               \
-  V(CheckSmi, 1, 1)                    \
-  V(CheckString, 1, 1)                 \
-  V(CheckSeqString, 1, 1)              \
-  V(CheckSymbol, 1, 1)                 \
-  V(CheckNotTaggedHole, 1, 1)          \
-  V(CheckedInt32Add, 2, 1)             \
-  V(CheckedInt32Sub, 2, 1)             \
-  V(CheckedInt32Div, 2, 1)             \
-  V(CheckedInt32Mod, 2, 1)             \
-  V(CheckedUint32Div, 2, 1)            \
-  V(CheckedUint32Mod, 2, 1)            \
-  V(CheckedUint32ToInt32, 1, 1)        \
-  V(CheckedUint32ToTaggedSigned, 1, 1) \
-  V(CheckedInt32ToTaggedSigned, 1, 1)  \
-  V(CheckedTaggedSignedToInt32, 1, 1)  \
-  V(CheckedTaggedToTaggedSigned, 1, 1) \
+#define CHECKED_OP_LIST(V)               \
+  V(CheckBounds, 2, 1)                   \
+  V(CheckHeapObject, 1, 1)               \
+  V(CheckInternalizedString, 1, 1)       \
+  V(CheckNumber, 1, 1)                   \
+  V(CheckReceiver, 1, 1)                 \
+  V(CheckSmi, 1, 1)                      \
+  V(CheckString, 1, 1)                   \
+  V(CheckSeqString, 1, 1)                \
+  V(CheckSymbol, 1, 1)                   \
+  V(CheckNotTaggedHole, 1, 1)            \
+  V(CheckEqualsInternalizedString, 2, 0) \
+  V(CheckEqualsSymbol, 2, 0)             \
+  V(CheckedInt32Add, 2, 1)               \
+  V(CheckedInt32Sub, 2, 1)               \
+  V(CheckedInt32Div, 2, 1)               \
+  V(CheckedInt32Mod, 2, 1)               \
+  V(CheckedUint32Div, 2, 1)              \
+  V(CheckedUint32Mod, 2, 1)              \
+  V(CheckedUint32ToInt32, 1, 1)          \
+  V(CheckedUint32ToTaggedSigned, 1, 1)   \
+  V(CheckedInt32ToTaggedSigned, 1, 1)    \
+  V(CheckedTaggedSignedToInt32, 1, 1)    \
+  V(CheckedTaggedToTaggedSigned, 1, 1)   \
   V(CheckedTaggedToTaggedPointer, 1, 1)
 
 struct SimplifiedOperatorGlobalCache final {

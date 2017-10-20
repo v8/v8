@@ -464,11 +464,7 @@ Reduction JSNativeContextSpecialization::ReduceGlobalAccess(
 
   // Ensure that {index} matches the specified {name} (if {index} is given).
   if (index != nullptr) {
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), index,
-                                   jsgraph()->HeapConstant(name));
-    effect = graph()->NewNode(
-        simplified()->CheckIf(DeoptimizeReason::kIndexNameMismatch), check,
-        effect, control);
+    effect = BuildCheckEqualsName(name, index, effect, control);
   }
 
   // Check if we have a {receiver} to validate. If so, we need to check that
@@ -706,11 +702,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
 
   // Ensure that {index} matches the specified {name} (if {index} is given).
   if (index != nullptr) {
-    Node* check = graph()->NewNode(simplified()->ReferenceEqual(), index,
-                                   jsgraph()->HeapConstant(name));
-    effect = graph()->NewNode(
-        simplified()->CheckIf(DeoptimizeReason::kIndexNameMismatch), check,
-        effect, control);
+    effect = BuildCheckEqualsName(name, index, effect, control);
   }
 
   // Collect call nodes to rewire exception edges.
@@ -2452,6 +2444,18 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
     a.Store(AccessBuilder::ForFixedArraySlot(i), values[i]);
   }
   return a.Finish();
+}
+
+Node* JSNativeContextSpecialization::BuildCheckEqualsName(Handle<Name> name,
+                                                          Node* value,
+                                                          Node* effect,
+                                                          Node* control) {
+  DCHECK(name->IsUniqueName());
+  Operator const* const op =
+      name->IsSymbol() ? simplified()->CheckEqualsSymbol()
+                       : simplified()->CheckEqualsInternalizedString();
+  return graph()->NewNode(op, jsgraph()->HeapConstant(name), value, effect,
+                          control);
 }
 
 bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(

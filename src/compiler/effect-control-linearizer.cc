@@ -820,6 +820,12 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kConvertTaggedHoleToUndefined:
       result = LowerConvertTaggedHoleToUndefined(node);
       break;
+    case IrOpcode::kCheckEqualsInternalizedString:
+      LowerCheckEqualsInternalizedString(node, frame_state);
+      break;
+    case IrOpcode::kCheckEqualsSymbol:
+      LowerCheckEqualsSymbol(node, frame_state);
+      break;
     case IrOpcode::kPlainPrimitiveToNumber:
       result = LowerPlainPrimitiveToNumber(node);
       break;
@@ -2779,6 +2785,87 @@ Node* EffectControlLinearizer::LowerConvertTaggedHoleToUndefined(Node* node) {
 
   __ Bind(&done);
   return done.PhiAt(0);
+}
+
+void EffectControlLinearizer::LowerCheckEqualsInternalizedString(
+    Node* node, Node* frame_state) {
+  Node* exp = node->InputAt(0);
+  Node* val = node->InputAt(1);
+
+  auto if_same = __ MakeLabel();
+  auto if_notsame = __ MakeDeferredLabel();
+  auto if_thinstring = __ MakeLabel();
+  auto if_notthinstring = __ MakeLabel();
+
+  // Check if {exp} and {val} are the same, which is the likely case.
+  __ Branch(__ WordEqual(exp, val), &if_same, &if_notsame);
+
+  __ Bind(&if_notsame);
+  {
+    // Now {val} could still be a non-internalized String that matches {exp}.
+    __ DeoptimizeIf(DeoptimizeReason::kWrongName, ObjectIsSmi(val),
+                    frame_state);
+    Node* val_map = __ LoadField(AccessBuilder::ForMap(), val);
+    Node* val_instance_type =
+        __ LoadField(AccessBuilder::ForMapInstanceType(), val_map);
+
+    // Check for the common case of ThinString first.
+    __ GotoIf(__ Word32Equal(val_instance_type,
+                             __ Int32Constant(THIN_ONE_BYTE_STRING_TYPE)),
+              &if_thinstring);
+    __ Branch(
+        __ Word32Equal(val_instance_type, __ Int32Constant(THIN_STRING_TYPE)),
+        &if_thinstring, &if_notthinstring);
+
+    __ Bind(&if_notthinstring);
+    {
+      // Check that the {val} is a non-internalized String, if it's anything
+      // else it cannot match the recorded feedback {exp} anyways.
+      __ DeoptimizeIfNot(
+          DeoptimizeReason::kWrongName,
+          __ Word32Equal(__ Word32And(val_instance_type,
+                                      __ Int32Constant(kIsNotStringMask |
+                                                       kIsNotInternalizedMask)),
+                         __ Int32Constant(kStringTag | kNotInternalizedTag)),
+          frame_state);
+
+      // Try to find the {val} in the string table.
+      MachineSignature::Builder builder(graph()->zone(), 1, 1);
+      builder.AddReturn(MachineType::AnyTagged());
+      builder.AddParam(MachineType::AnyTagged());
+      Node* try_internalize_string_function = __ ExternalConstant(
+          ExternalReference::try_internalize_string_function(isolate()));
+      CallDescriptor const* const desc =
+          Linkage::GetSimplifiedCDescriptor(graph()->zone(), builder.Build());
+      Node* val_internalized =
+          __ Call(common()->Call(desc), try_internalize_string_function, val);
+
+      // Now see if the results match.
+      __ DeoptimizeIfNot(DeoptimizeReason::kWrongName,
+                         __ WordEqual(exp, val_internalized), frame_state);
+      __ Goto(&if_same);
+    }
+
+    __ Bind(&if_thinstring);
+    {
+      // The {val} is a ThinString, let's check the actual value.
+      Node* val_actual =
+          __ LoadField(AccessBuilder::ForThinStringActual(), val);
+      __ DeoptimizeIfNot(DeoptimizeReason::kWrongName,
+                         __ WordEqual(exp, val_actual), frame_state);
+      __ Goto(&if_same);
+    }
+  }
+
+  __ Bind(&if_same);
+}
+
+void EffectControlLinearizer::LowerCheckEqualsSymbol(Node* node,
+                                                     Node* frame_state) {
+  Node* exp = node->InputAt(0);
+  Node* val = node->InputAt(1);
+  Node* check = __ WordEqual(exp, val);
+  __ DeoptimizeIfNot(DeoptimizeReason::kWrongName, check, frame_state);
 }
 
 Node* EffectControlLinearizer::AllocateHeapNumberWithValue(Node* value) {

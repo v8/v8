@@ -2887,6 +2887,10 @@ class RepresentationSelector {
         }
         return;
       }
+      case IrOpcode::kCheckEqualsSymbol:
+      case IrOpcode::kCheckEqualsInternalizedString:
+        return VisitBinop(node, UseInfo::AnyTagged(),
+                          MachineRepresentation::kNone);
       case IrOpcode::kMapGuard:
         // Eliminate MapGuard nodes here.
         return VisitUnused(node);

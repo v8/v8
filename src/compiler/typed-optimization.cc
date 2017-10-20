@@ -85,6 +85,10 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReduceCheckString(node);
     case IrOpcode::kCheckSeqString:
       return ReduceCheckSeqString(node);
+    case IrOpcode::kCheckEqualsInternalizedString:
+      return ReduceCheckEqualsInternalizedString(node);
+    case IrOpcode::kCheckEqualsSymbol:
+      return ReduceCheckEqualsSymbol(node);
     case IrOpcode::kLoadField:
       return ReduceLoadField(node);
     case IrOpcode::kNumberCeil:
@@ -198,6 +202,28 @@ Reduction TypedOptimization::ReduceCheckSeqString(Node* node) {
     ReplaceWithValue(node, input);
     return Replace(input);
   }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceCheckEqualsInternalizedString(Node* node) {
+  Node* const exp = NodeProperties::GetValueInput(node, 0);
+  Type* const exp_type = NodeProperties::GetType(exp);
+  Node* const val = NodeProperties::GetValueInput(node, 1);
+  Type* const val_type = NodeProperties::GetType(val);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  if (val_type->Is(exp_type)) return Replace(effect);
+  // TODO(turbofan): Should we also try to optimize the
+  // non-internalized String case for {val} here?
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceCheckEqualsSymbol(Node* node) {
+  Node* const exp = NodeProperties::GetValueInput(node, 0);
+  Type* const exp_type = NodeProperties::GetType(exp);
+  Node* const val = NodeProperties::GetValueInput(node, 1);
+  Type* const val_type = NodeProperties::GetType(val);
+  Node* const effect = NodeProperties::GetEffectInput(node);
+  if (val_type->Is(exp_type)) return Replace(effect);
   return NoChange();
 }
 

@@ -201,6 +201,7 @@ namespace internal {
   TFH(LoadICProtoArrayThrowIfNonexistent, LoadICProtoArray)                    \
   TFH(KeyedLoadIC_Megamorphic, LoadWithVector)                                 \
   TFH(KeyedLoadIC_Miss, LoadWithVector)                                        \
+  TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \
   TFH(KeyedLoadIC_Slow, LoadWithVector)                                        \
   TFH(KeyedLoadIC_IndexedString, LoadWithVector)                               \
   TFH(KeyedStoreIC_Megamorphic, StoreWithVector)                               \
