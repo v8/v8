@@ -727,8 +727,8 @@ void TypedArrayBuiltinsAssembler::GenerateTypedArrayPrototypeIterationMethod(
 
   Node* map = LoadMap(receiver);
   Node* instance_type = LoadMapInstanceType(map);
-  GotoIf(Word32NotEqual(instance_type, Int32Constant(JS_TYPED_ARRAY_TYPE)),
-         &throw_bad_receiver);
+  GotoIfNot(InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE),
+            &throw_bad_receiver);
 
   // Check if the {receiver}'s JSArrayBuffer was neutered.
   Node* receiver_buffer =

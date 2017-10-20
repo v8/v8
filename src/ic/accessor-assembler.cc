@@ -1632,8 +1632,7 @@ void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
          slow);
   Node* elements = LoadElements(receiver);
   Node* elements_kind = LoadMapElementsKind(receiver_map);
-  Node* is_jsarray_condition =
-      Word32Equal(instance_type, Int32Constant(JS_ARRAY_TYPE));
+  Node* is_jsarray_condition = InstanceTypeEqual(instance_type, JS_ARRAY_TYPE);
   VARIABLE(var_double_value, MachineRepresentation::kFloat64);
   Label rebox_double(this, &var_double_value);
 
@@ -1777,8 +1776,8 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
     BIND(&loop);
     {
       // Bailout if it can be an integer indexed exotic case.
-      GotoIf(Word32Equal(var_holder_instance_type.value(),
-                         Int32Constant(JS_TYPED_ARRAY_TYPE)),
+      GotoIf(InstanceTypeEqual(var_holder_instance_type.value(),
+                               JS_TYPED_ARRAY_TYPE),
              slow);
       Node* proto = LoadMapPrototype(var_holder_map.value());
       GotoIf(WordEqual(proto, NullConstant()), &return_undefined);
@@ -1810,7 +1809,7 @@ void AccessorAssembler::GenericPropertyLoad(Node* receiver, Node* receiver_map,
   BIND(&special_receiver);
   {
     // TODO(jkummerow): Consider supporting JSModuleNamespace.
-    GotoIfNot(Word32Equal(instance_type, Int32Constant(JS_PROXY_TYPE)), slow);
+    GotoIfNot(InstanceTypeEqual(instance_type, JS_PROXY_TYPE), slow);
 
     direct_exit.ReturnCallStub(
         Builtins::CallableFor(isolate(), Builtins::kProxyGetProperty),
@@ -2076,7 +2075,7 @@ void AccessorAssembler::LoadIC_Noninlined(const LoadICParameters* p,
 }
 
 void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
-  Label miss(this);
+  Label miss(this, Label::kDeferred);
   Node* receiver = p->receiver;
   GotoIf(TaggedIsSmi(receiver), &miss);
   Node* receiver_map = LoadMap(receiver);
@@ -2090,9 +2089,9 @@ void AccessorAssembler::LoadIC_Uninitialized(const LoadICParameters* p) {
   {
     // Special case for Function.prototype load, because it's very common
     // for ICs that are only executed once (MyFunc.prototype.foo = ...).
-    Label not_function_prototype(this);
-    GotoIf(Word32NotEqual(instance_type, Int32Constant(JS_FUNCTION_TYPE)),
-           &not_function_prototype);
+    Label not_function_prototype(this, Label::kDeferred);
+    GotoIfNot(InstanceTypeEqual(instance_type, JS_FUNCTION_TYPE),
+              &not_function_prototype);
     GotoIfNot(IsPrototypeString(p->name), &not_function_prototype);
 
     // if (!(has_prototype_slot() && !has_non_instance_prototype())) use generic

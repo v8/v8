@@ -747,9 +747,9 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     Label runtime(this, Label::kDeferred), done(this);
 
     Node* const original_map = LoadMap(o());
-    GotoIf(Word32NotEqual(LoadMapInstanceType(original_map),
-                          Int32Constant(JS_ARRAY_TYPE)),
-           &runtime);
+    GotoIfNot(
+        InstanceTypeEqual(LoadMapInstanceType(original_map), JS_ARRAY_TYPE),
+        &runtime);
 
     GotoIfNot(IsPrototypeInitialArrayPrototype(context(), original_map),
               &runtime);
@@ -2253,8 +2253,8 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
   BIND(&if_isfastarray);
   {
-    CSA_ASSERT(this, Word32Equal(LoadMapInstanceType(array_map),
-                                 Int32Constant(JS_ARRAY_TYPE)));
+    CSA_ASSERT(
+        this, InstanceTypeEqual(LoadMapInstanceType(array_map), JS_ARRAY_TYPE));
 
     Node* length = LoadJSArrayLength(array);
 

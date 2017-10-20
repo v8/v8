@@ -1321,8 +1321,7 @@ Node* InterpreterAssembler::TaggedToWord32OrBigIntWithFeedback(
       // only reach this path on the first pass when the feedback is kNone.
       CSA_ASSERT(this, SmiEqual(var_type_feedback->value(),
                                 SmiConstant(BinaryOperationFeedback::kNone)));
-      GotoIf(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)),
-             &is_oddball);
+      GotoIf(InstanceTypeEqual(instance_type, ODDBALL_TYPE), &is_oddball);
 
       // Not an oddball either -> convert to Numeric.
       var_value.Bind(

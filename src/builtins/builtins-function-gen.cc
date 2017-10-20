@@ -30,9 +30,8 @@ TF_BUILTIN(FastFunctionPrototypeBind, CodeStubAssembler) {
   {
     Node* instance_type = LoadMapInstanceType(receiver_map);
     GotoIfNot(
-        Word32Or(
-            Word32Equal(instance_type, Int32Constant(JS_FUNCTION_TYPE)),
-            Word32Equal(instance_type, Int32Constant(JS_BOUND_FUNCTION_TYPE))),
+        Word32Or(InstanceTypeEqual(instance_type, JS_FUNCTION_TYPE),
+                 InstanceTypeEqual(instance_type, JS_BOUND_FUNCTION_TYPE)),
         &slow);
   }
 

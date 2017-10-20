@@ -236,8 +236,8 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     Node* intptr_index, Node* value, Node* context, Label* slow,
     UpdateLength update_length) {
   if (update_length != kDontChangeLength) {
-    CSA_ASSERT(this, Word32Equal(LoadMapInstanceType(receiver_map),
-                                 Int32Constant(JS_ARRAY_TYPE)));
+    CSA_ASSERT(this, InstanceTypeEqual(LoadMapInstanceType(receiver_map),
+                                       JS_ARRAY_TYPE));
     // Check if the length property is writable. The fast check is only
     // supported for fast properties.
     GotoIf(IsDictionaryMap(receiver_map), slow);
@@ -437,7 +437,7 @@ void KeyedStoreGenericAssembler::EmitGenericElementStore(
   BIND(&if_fast);
 
   Label if_array(this);
-  GotoIf(Word32Equal(instance_type, Int32Constant(JS_ARRAY_TYPE)), &if_array);
+  GotoIf(InstanceTypeEqual(instance_type, JS_ARRAY_TYPE), &if_array);
   {
     Node* capacity = SmiUntag(LoadFixedArrayBaseLength(elements));
     Branch(UintPtrLessThan(intptr_index, capacity), &if_in_bounds, &if_grow);
@@ -593,8 +593,7 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
 
     BIND(&next_proto);
     // Bailout if it can be an integer indexed exotic case.
-    GotoIf(Word32Equal(instance_type, Int32Constant(JS_TYPED_ARRAY_TYPE)),
-           bailout);
+    GotoIf(InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE), bailout);
     Node* proto = LoadMapPrototype(holder_map);
     GotoIf(WordEqual(proto, NullConstant()), &ok_to_write);
     var_holder.Bind(proto);

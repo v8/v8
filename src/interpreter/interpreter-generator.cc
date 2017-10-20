@@ -1207,8 +1207,8 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
       GotoIf(IsHeapNumberMap(map), &if_heapnumber);
       Node* instance_type = LoadMapInstanceType(map);
       GotoIf(IsBigIntInstanceType(instance_type), &if_bigint);
-      Branch(Word32Equal(instance_type, Int32Constant(ODDBALL_TYPE)),
-             &if_oddball, &if_other);
+      Branch(InstanceTypeEqual(instance_type, ODDBALL_TYPE), &if_oddball,
+             &if_other);
 
       BIND(&if_smi);
       {
