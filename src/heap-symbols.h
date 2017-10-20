@@ -214,8 +214,7 @@
   V(call_site_frame_index_symbol)           \
   V(console_context_id_symbol)              \
   V(console_context_name_symbol)            \
-  V(class_end_position_symbol)              \
-  V(class_start_position_symbol)            \
+  V(class_positions_symbol)                 \
   V(detailed_stack_trace_symbol)            \
   V(elements_transition_symbol)             \
   V(error_end_pos_symbol)                   \

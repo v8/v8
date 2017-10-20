@@ -13118,16 +13118,16 @@ Handle<String> JSFunction::ToString(Handle<JSFunction> function) {
   }
 
   // Check if we should print {function} as a class.
-  Handle<Object> class_start_position = JSReceiver::GetDataProperty(
-      function, isolate->factory()->class_start_position_symbol());
-  if (class_start_position->IsSmi()) {
-    Handle<Object> class_end_position = JSReceiver::GetDataProperty(
-        function, isolate->factory()->class_end_position_symbol());
+  Handle<Object> maybe_class_positions = JSReceiver::GetDataProperty(
+      function, isolate->factory()->class_positions_symbol());
+  if (maybe_class_positions->IsTuple2()) {
+    Tuple2* class_positions = Tuple2::cast(*maybe_class_positions);
+    int start_position = Smi::ToInt(class_positions->value1());
+    int end_position = Smi::ToInt(class_positions->value2());
     Handle<String> script_source(
         String::cast(Script::cast(shared_info->script())->source()), isolate);
-    return isolate->factory()->NewSubString(
-        script_source, Handle<Smi>::cast(class_start_position)->value(),
-        Handle<Smi>::cast(class_end_position)->value());
+    return isolate->factory()->NewSubString(script_source, start_position,
+                                            end_position);
   }
 
   // Check if we have source code for the {function}.

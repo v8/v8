@@ -166,18 +166,18 @@ static MaybeHandle<Object> DefineClass(Isolate* isolate,
                         constructor, DONT_ENUM);
 
   // Install private properties that are used to construct the FunctionToString.
-  RETURN_ON_EXCEPTION(
-      isolate,
-      Object::SetProperty(
-          constructor, isolate->factory()->class_start_position_symbol(),
-          handle(Smi::FromInt(start_position), isolate), LanguageMode::kStrict),
-      Object);
-  RETURN_ON_EXCEPTION(
-      isolate,
-      Object::SetProperty(
-          constructor, isolate->factory()->class_end_position_symbol(),
-          handle(Smi::FromInt(end_position), isolate), LanguageMode::kStrict),
-      Object);
+  {
+    Handle<Smi> start(Smi::FromInt(start_position), isolate);
+    Handle<Smi> end(Smi::FromInt(end_position), isolate);
+    Handle<Tuple2> class_positions =
+        isolate->factory()->NewTuple2(start, end, NOT_TENURED);
+    RETURN_ON_EXCEPTION(
+        isolate,
+        Object::SetProperty(constructor,
+                            isolate->factory()->class_positions_symbol(),
+                            class_positions, LanguageMode::kStrict),
+        Object);
+  }
 
   // Caller already has access to constructor, so return the prototype.
   return prototype;
