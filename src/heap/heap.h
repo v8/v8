@@ -1647,11 +1647,7 @@ class Heap {
 
   static const int kInitialFeedbackCapacity = 256;
 
-#ifdef V8_TARGET_ARCH_ARM
-  static const int kMaxScavengerTasks = 2;
-#else
   static const int kMaxScavengerTasks = 8;
-#endif
 
   Heap();
 
