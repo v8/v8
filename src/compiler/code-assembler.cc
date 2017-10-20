@@ -39,7 +39,20 @@
 
 namespace v8 {
 namespace internal {
+
+constexpr MachineType MachineTypeOf<Smi>::value;
+constexpr MachineType MachineTypeOf<Object>::value;
+
 namespace compiler {
+
+static_assert(std::is_convertible<TNode<Number>, TNode<Object>>::value,
+              "test subtyping");
+static_assert(std::is_convertible<TNode<UnionT<Smi, HeapNumber>>,
+                                  TNode<UnionT<Smi, HeapObject>>>::value,
+              "test subtyping");
+static_assert(
+    !std::is_convertible<TNode<UnionT<Smi, HeapObject>>, TNode<Number>>::value,
+    "test subtyping");
 
 CodeAssemblerState::CodeAssemblerState(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
@@ -219,8 +232,8 @@ TNode<IntPtrT> CodeAssembler::IntPtrConstant(intptr_t value) {
   return UncheckedCast<IntPtrT>(raw_assembler()->IntPtrConstant(value));
 }
 
-TNode<Object> CodeAssembler::NumberConstant(double value) {
-  return UncheckedCast<Object>(raw_assembler()->NumberConstant(value));
+TNode<Number> CodeAssembler::NumberConstant(double value) {
+  return UncheckedCast<Number>(raw_assembler()->NumberConstant(value));
 }
 
 TNode<Smi> CodeAssembler::SmiConstant(Smi* value) {
@@ -789,21 +802,24 @@ TNode<UintPtrT> CodeAssembler::ChangeUint32ToWord(SloppyTNode<Word32T> value) {
     return UncheckedCast<UintPtrT>(
         raw_assembler()->ChangeUint32ToUint64(value));
   }
-  return UncheckedCast<UintPtrT>(value);
+  return ReinterpretCast<UintPtrT>(value);
 }
 
 TNode<IntPtrT> CodeAssembler::ChangeInt32ToIntPtr(SloppyTNode<Word32T> value) {
   if (raw_assembler()->machine()->Is64()) {
-    return UncheckedCast<IntPtrT>(raw_assembler()->ChangeInt32ToInt64(value));
+    return ReinterpretCast<IntPtrT>(raw_assembler()->ChangeInt32ToInt64(value));
   }
-  return UncheckedCast<IntPtrT>(value);
+  return ReinterpretCast<IntPtrT>(value);
 }
 
-Node* CodeAssembler::ChangeFloat64ToUintPtr(Node* value) {
+TNode<UintPtrT> CodeAssembler::ChangeFloat64ToUintPtr(
+    SloppyTNode<Float64T> value) {
   if (raw_assembler()->machine()->Is64()) {
-    return raw_assembler()->ChangeFloat64ToUint64(value);
+    return ReinterpretCast<UintPtrT>(
+        raw_assembler()->ChangeFloat64ToUint64(value));
   }
-  return raw_assembler()->ChangeFloat64ToUint32(value);
+  return ReinterpretCast<UintPtrT>(
+      raw_assembler()->ChangeFloat64ToUint32(value));
 }
 
 Node* CodeAssembler::RoundIntPtrToFloat64(Node* value) {

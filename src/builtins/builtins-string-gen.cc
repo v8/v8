@@ -16,8 +16,8 @@ namespace internal {
 
 typedef CodeStubAssembler::RelationalComparisonMode RelationalComparisonMode;
 typedef compiler::Node Node;
-template <class A>
-using TNode = compiler::TNode<A>;
+template <class T>
+using TNode = compiler::TNode<T>;
 
 Node* StringBuiltinsAssembler::DirectStringData(Node* string,
                                                 Node* string_instance_type) {

@@ -38,25 +38,25 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
     Node* result;
     switch (op) {
       case Token::BIT_AND:
-        result = ChangeInt32ToTagged(Word32And(left32, right32));
+        result = ChangeInt32ToTagged(Signed(Word32And(left32, right32)));
         break;
       case Token::BIT_OR:
-        result = ChangeInt32ToTagged(Word32Or(left32, right32));
+        result = ChangeInt32ToTagged(Signed(Word32Or(left32, right32)));
         break;
       case Token::BIT_XOR:
-        result = ChangeInt32ToTagged(Word32Xor(left32, right32));
+        result = ChangeInt32ToTagged(Signed(Word32Xor(left32, right32)));
         break;
       case Token::SHL:
         result = ChangeInt32ToTagged(
-            Word32Shl(left32, Word32And(right32, Int32Constant(0x1f))));
+            Signed(Word32Shl(left32, Word32And(right32, Int32Constant(0x1f)))));
         break;
       case Token::SAR:
         result = ChangeInt32ToTagged(
-            Word32Sar(left32, Word32And(right32, Int32Constant(0x1f))));
+            Signed(Word32Sar(left32, Word32And(right32, Int32Constant(0x1f)))));
         break;
       case Token::SHR:
-        result = ChangeUint32ToTagged(
-            Word32Shr(left32, Word32And(right32, Int32Constant(0x1f))));
+        result = ChangeUint32ToTagged(Unsigned(
+            Word32Shr(left32, Word32And(right32, Int32Constant(0x1f)))));
         break;
       default:
         UNREACHABLE();

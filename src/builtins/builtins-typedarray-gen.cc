@@ -98,7 +98,8 @@ compiler::Node* TypedArrayBuiltinsAssembler::LoadMapForType(Node* array) {
 // need to convert the float heap number to an intptr.
 compiler::Node* TypedArrayBuiltinsAssembler::CalculateExternalPointer(
     Node* backing_store, Node* byte_offset) {
-  return IntPtrAdd(backing_store, ChangeNumberToIntPtr(byte_offset));
+  return IntPtrAdd(backing_store,
+                   ChangeNonnegativeNumberToUintPtr(byte_offset));
 }
 
 // Setup the TypedArray which is under construction.
@@ -595,7 +596,7 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
 
     Node* byte_length = SmiMul(length, element_size);
     CSA_ASSERT(this, ByteLengthIsValid(byte_length));
-    Node* byte_length_intptr = ChangeNumberToIntPtr(byte_length);
+    Node* byte_length_intptr = ChangeNonnegativeNumberToUintPtr(byte_length);
     CSA_ASSERT(this, UintPtrLessThanOrEqual(
                          byte_length_intptr,
                          IntPtrConstant(FixedTypedArrayBase::kMaxByteLength)));

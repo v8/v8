@@ -4440,7 +4440,11 @@ HEAP_TEST(Regress538257) {
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
   create_params.constraints.set_max_semi_space_size_in_kb(1024);
+#ifdef DEBUG
+  create_params.constraints.set_max_old_space_size(20);
+#else
   create_params.constraints.set_max_old_space_size(6);
+#endif
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   isolate->Enter();

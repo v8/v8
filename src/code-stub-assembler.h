@@ -73,10 +73,10 @@ enum class PrimitiveType { kBoolean, kNumber, kString, kSymbol };
 class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
  public:
   using Node = compiler::Node;
-  template <class A>
-  using TNode = compiler::TNode<A>;
-  template <class A>
-  using SloppyTNode = compiler::SloppyTNode<A>;
+  template <class T>
+  using TNode = compiler::TNode<T>;
+  template <class T>
+  using SloppyTNode = compiler::SloppyTNode<T>;
 
   CodeStubAssembler(compiler::CodeAssemblerState* state);
 
@@ -421,6 +421,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Load a field from an object on the heap.
   Node* LoadObjectField(SloppyTNode<HeapObject> object, int offset,
                         MachineType rep);
+  template <class T, typename std::enable_if<
+                         std::is_convertible<TNode<T>, TNode<Object>>::value,
+                         int>::type = 0>
+  TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
+    return CAST(LoadObjectField(object, offset, MachineTypeOf<T>::value));
+  }
+  template <class T, typename std::enable_if<
+                         std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
+                         int>::type = 0>
+  TNode<T> LoadObjectField(TNode<HeapObject> object, int offset) {
+    return UncheckedCast<T>(
+        LoadObjectField(object, offset, MachineTypeOf<T>::value));
+  }
   TNode<Object> LoadObjectField(SloppyTNode<HeapObject> object, int offset) {
     return UncheckedCast<Object>(
         LoadObjectField(object, offset, MachineType::AnyTagged()));
@@ -510,14 +523,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<BoolT> IsDictionaryMap(SloppyTNode<Map> map);
 
   // Load the hash field of a name as an uint32 value.
-  Node* LoadNameHashField(Node* name);
+  TNode<Uint32T> LoadNameHashField(SloppyTNode<Name> name);
   // Load the hash value of a name as an uint32 value.
   // If {if_hash_not_computed} label is specified then it also checks if
   // hash is actually computed.
-  Node* LoadNameHash(Node* name, Label* if_hash_not_computed = nullptr);
+  TNode<Uint32T> LoadNameHash(SloppyTNode<Name> name,
+                              Label* if_hash_not_computed = nullptr);
 
   // Load length field of a String object.
-  Node* LoadStringLength(Node* object);
+  TNode<Smi> LoadStringLength(SloppyTNode<String> object);
   // Loads a pointer to the sequential String char array.
   Node* PointerToSeqStringData(Node* seq_string);
   // Load value field of a JSValue object.
@@ -588,7 +602,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* LoadJSFunctionPrototype(Node* function, Label* if_bailout);
 
   // Store the floating point value of a HeapNumber.
-  Node* StoreHeapNumberValue(Node* object, Node* value);
+  void StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
+                            SloppyTNode<Float64T> value);
   // Store a field to an object on the heap.
   Node* StoreObjectField(Node* object, int offset, Node* value);
   Node* StoreObjectField(Node* object, Node* offset, Node* value);
@@ -664,9 +679,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                        WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Allocate a HeapNumber without initializing its value.
-  Node* AllocateHeapNumber(MutableMode mode = IMMUTABLE);
+  TNode<HeapNumber> AllocateHeapNumber(MutableMode mode = IMMUTABLE);
   // Allocate a HeapNumber with a specific value.
-  Node* AllocateHeapNumberWithValue(Node* value, MutableMode mode = IMMUTABLE);
+  TNode<HeapNumber> AllocateHeapNumberWithValue(SloppyTNode<Float64T> value,
+                                                MutableMode mode = IMMUTABLE);
   // Allocate a SeqOneByteString with the given length.
   Node* AllocateSeqOneByteString(int length, AllocationFlags flags = kNone);
   Node* AllocateSeqOneByteString(Node* context, Node* length,
@@ -932,11 +948,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* TruncateHeapNumberValueToWord32(Node* object);
 
   // Conversions.
-  Node* ChangeFloat64ToTagged(Node* value);
-  Node* ChangeInt32ToTagged(Node* value);
-  Node* ChangeUint32ToTagged(Node* value);
-  Node* ChangeNumberToFloat64(Node* value);
-  Node* ChangeNumberToIntPtr(Node* value);
+  TNode<Number> ChangeFloat64ToTagged(SloppyTNode<Float64T> value);
+  TNode<Number> ChangeInt32ToTagged(SloppyTNode<Int32T> value);
+  TNode<Number> ChangeUint32ToTagged(SloppyTNode<Uint32T> value);
+  TNode<Float64T> ChangeNumberToFloat64(SloppyTNode<Number> value);
+  TNode<UintPtrT> ChangeNonnegativeNumberToUintPtr(SloppyTNode<Number> value);
 
   Node* TimesPointerSize(Node* value);
 
@@ -1115,21 +1131,25 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Type conversion helpers.
   // Convert a String to a Number.
-  Node* StringToNumber(Node* context, Node* input);
+  TNode<Number> StringToNumber(SloppyTNode<Context> context,
+                               SloppyTNode<String> input);
   Node* NumberToString(Node* context, Node* input);
   // Convert an object to a name.
   Node* ToName(Node* context, Node* input);
   // Convert a Non-Number object to a Number.
-  Node* NonNumberToNumber(Node* context, Node* input);
+  TNode<Number> NonNumberToNumber(SloppyTNode<Context> context,
+                                  SloppyTNode<HeapObject> input);
   // Convert a Non-Number object to a Numeric.
-  Node* NonNumberToNumeric(Node* context, Node* input);
+  TNode<Numeric> NonNumberToNumeric(SloppyTNode<Context> context,
+                                    SloppyTNode<HeapObject> input);
   // Convert any object to a Number.
-  Node* ToNumber(Node* context, Node* input);
+  TNode<Number> ToNumber(SloppyTNode<Context> context,
+                         SloppyTNode<Object> input);
 
   // Converts |input| to one of 2^32 integer values in the range 0 through
   // 2^32-1, inclusive.
   // ES#sec-touint32
-  TNode<Object> ToUint32(SloppyTNode<Context> context,
+  TNode<Number> ToUint32(SloppyTNode<Context> context,
                          SloppyTNode<Object> input);
 
   // Convert any object to a String.
@@ -1155,7 +1175,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ToLength_Inline(Node* const context, Node* const input);
 
   // Convert any object to an Integer.
-  TNode<Object> ToInteger(SloppyTNode<Context> context,
+  TNode<Number> ToInteger(SloppyTNode<Context> context,
                           SloppyTNode<Object> input,
                           ToIntegerTruncationMode mode = kNoTruncation);
 
@@ -1855,10 +1875,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 class CodeStubArguments {
  public:
   typedef compiler::Node Node;
-  template <class A>
-  using TNode = compiler::TNode<A>;
-  template <class A>
-  using SloppyTNode = compiler::SloppyTNode<A>;
+  template <class T>
+  using TNode = compiler::TNode<T>;
+  template <class T>
+  using SloppyTNode = compiler::SloppyTNode<T>;
   enum ReceiverMode { kHasReceiver, kNoReceiver };
 
   // |argc| is an intptr value which specifies the number of arguments passed

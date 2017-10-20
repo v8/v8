@@ -10,8 +10,8 @@ namespace v8 {
 namespace internal {
 
 using compiler::Node;
-template <class A>
-using TNode = compiler::TNode<A>;
+template <class T>
+using TNode = compiler::TNode<T>;
 
 CodeStubAssembler::CodeStubAssembler(compiler::CodeAssemblerState* state)
     : compiler::CodeAssembler(state) {
@@ -753,9 +753,9 @@ Node* CodeStubAssembler::TrySmiDiv(Node* dividend, Node* divisor,
 TNode<Int32T> CodeStubAssembler::TruncateWordToWord32(
     SloppyTNode<IntPtrT> value) {
   if (Is64()) {
-    return TruncateInt64ToInt32(UncheckedCast<Int64T>(value));
+    return TruncateInt64ToInt32(ReinterpretCast<Int64T>(value));
   }
-  return UncheckedCast<Int32T>(value);
+  return ReinterpretCast<Int32T>(value);
 }
 
 TNode<BoolT> CodeStubAssembler::TaggedIsSmi(SloppyTNode<Object> a) {
@@ -1437,23 +1437,24 @@ Node* CodeStubAssembler::LoadMapEnumLength(SloppyTNode<Map> map) {
   return DecodeWordFromWord32<Map::EnumLengthBits>(bit_field3);
 }
 
-Node* CodeStubAssembler::LoadNameHashField(Node* name) {
+TNode<Uint32T> CodeStubAssembler::LoadNameHashField(SloppyTNode<Name> name) {
   CSA_ASSERT(this, IsName(name));
-  return LoadObjectField(name, Name::kHashFieldOffset, MachineType::Uint32());
+  return LoadObjectField<Uint32T>(name, Name::kHashFieldOffset);
 }
 
-Node* CodeStubAssembler::LoadNameHash(Node* name, Label* if_hash_not_computed) {
-  Node* hash_field = LoadNameHashField(name);
+TNode<Uint32T> CodeStubAssembler::LoadNameHash(SloppyTNode<Name> name,
+                                               Label* if_hash_not_computed) {
+  TNode<Uint32T> hash_field = LoadNameHashField(name);
   if (if_hash_not_computed != nullptr) {
     GotoIf(IsSetWord32(hash_field, Name::kHashNotComputedMask),
            if_hash_not_computed);
   }
-  return Word32Shr(hash_field, Int32Constant(Name::kHashShift));
+  return Unsigned(Word32Shr(hash_field, Int32Constant(Name::kHashShift)));
 }
 
-Node* CodeStubAssembler::LoadStringLength(Node* object) {
+TNode<Smi> CodeStubAssembler::LoadStringLength(SloppyTNode<String> object) {
   CSA_ASSERT(this, IsString(object));
-  return LoadObjectField(object, String::kLengthOffset);
+  return LoadObjectField<Smi>(object, String::kLengthOffset);
 }
 
 Node* CodeStubAssembler::PointerToSeqStringData(Node* seq_string) {
@@ -1715,9 +1716,10 @@ Node* CodeStubAssembler::LoadJSFunctionPrototype(Node* function,
   return var_result.value();
 }
 
-Node* CodeStubAssembler::StoreHeapNumberValue(Node* object, Node* value) {
-  return StoreObjectFieldNoWriteBarrier(object, HeapNumber::kValueOffset, value,
-                                        MachineRepresentation::kFloat64);
+void CodeStubAssembler::StoreHeapNumberValue(SloppyTNode<HeapNumber> object,
+                                             SloppyTNode<Float64T> value) {
+  StoreObjectFieldNoWriteBarrier(object, HeapNumber::kValueOffset, value,
+                                 MachineRepresentation::kFloat64);
 }
 
 Node* CodeStubAssembler::StoreObjectField(
@@ -2009,18 +2011,18 @@ Node* CodeStubAssembler::StoreCellValue(Node* cell, Node* value,
   }
 }
 
-Node* CodeStubAssembler::AllocateHeapNumber(MutableMode mode) {
+TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumber(MutableMode mode) {
   Node* result = Allocate(HeapNumber::kSize, kNone);
   Heap::RootListIndex heap_map_index =
       mode == IMMUTABLE ? Heap::kHeapNumberMapRootIndex
                         : Heap::kMutableHeapNumberMapRootIndex;
   StoreMapNoWriteBarrier(result, heap_map_index);
-  return result;
+  return UncheckedCast<HeapNumber>(result);
 }
 
-Node* CodeStubAssembler::AllocateHeapNumberWithValue(Node* value,
-                                                     MutableMode mode) {
-  Node* result = AllocateHeapNumber(mode);
+TNode<HeapNumber> CodeStubAssembler::AllocateHeapNumberWithValue(
+    SloppyTNode<Float64T> value, MutableMode mode) {
+  TNode<HeapNumber> result = AllocateHeapNumber(mode);
   StoreHeapNumberValue(result, value);
   return result;
 }
@@ -2914,8 +2916,8 @@ void CodeStubAssembler::FillFixedArrayWithValue(
   DCHECK_IMPLIES(is_double, value_root_index == Heap::kTheHoleValueRootIndex);
   STATIC_ASSERT(kHoleNanLower32 == kHoleNanUpper32);
   Node* double_hole =
-      Is64() ? UncheckedCast<UintPtrT>(Int64Constant(kHoleNanInt64))
-             : UncheckedCast<UintPtrT>(Int32Constant(kHoleNanLower32));
+      Is64() ? ReinterpretCast<UintPtrT>(Int64Constant(kHoleNanInt64))
+             : ReinterpretCast<UintPtrT>(Int32Constant(kHoleNanLower32));
   Node* value = LoadRoot(value_root_index);
 
   BuildFastFixedArrayForEach(
@@ -2976,8 +2978,8 @@ void CodeStubAssembler::CopyFixedArrayElements(
       !needs_write_barrier && (Is64() || IsDoubleElementsKind(from_kind) ==
                                              IsDoubleElementsKind(to_kind));
   Node* double_hole =
-      Is64() ? UncheckedCast<UintPtrT>(Int64Constant(kHoleNanInt64))
-             : UncheckedCast<UintPtrT>(Int32Constant(kHoleNanLower32));
+      Is64() ? ReinterpretCast<UintPtrT>(Int64Constant(kHoleNanInt64))
+             : ReinterpretCast<UintPtrT>(Int32Constant(kHoleNanLower32));
 
   if (doubles_to_objects_conversion) {
     // If the copy might trigger a GC, make sure that the FixedArray is
@@ -3439,9 +3441,10 @@ Node* CodeStubAssembler::TruncateHeapNumberValueToWord32(Node* object) {
   return TruncateFloat64ToWord32(value);
 }
 
-Node* CodeStubAssembler::ChangeFloat64ToTagged(Node* value) {
-  Node* value32 = RoundFloat64ToInt32(value);
-  Node* value64 = ChangeInt32ToFloat64(value32);
+TNode<Number> CodeStubAssembler::ChangeFloat64ToTagged(
+    SloppyTNode<Float64T> value) {
+  TNode<Int32T> value32 = RoundFloat64ToInt32(value);
+  TNode<Float64T> value64 = ChangeInt32ToFloat64(value32);
 
   Label if_valueisint32(this), if_valueisheapnumber(this), if_join(this);
 
@@ -3457,70 +3460,71 @@ Node* CodeStubAssembler::ChangeFloat64ToTagged(Node* value) {
   BIND(&if_valueisnotequal);
   Goto(&if_valueisheapnumber);
 
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(Number, var_result);
   BIND(&if_valueisint32);
   {
     if (Is64()) {
-      Node* result =
-          SmiTag(UncheckedCast<IntPtrT>(ChangeInt32ToInt64(value32)));
-      var_result.Bind(result);
+      TNode<Smi> result = SmiTag(ChangeInt32ToIntPtr(value32));
+      var_result = result;
       Goto(&if_join);
     } else {
-      Node* pair = Int32AddWithOverflow(value32, value32);
-      Node* overflow = Projection(1, pair);
+      TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(value32, value32);
+      TNode<BoolT> overflow = Projection<1>(pair);
       Label if_overflow(this, Label::kDeferred), if_notoverflow(this);
       Branch(overflow, &if_overflow, &if_notoverflow);
       BIND(&if_overflow);
       Goto(&if_valueisheapnumber);
       BIND(&if_notoverflow);
       {
-        Node* result = BitcastWordToTaggedSigned(Projection(0, pair));
-        var_result.Bind(result);
+        TNode<IntPtrT> result = ChangeInt32ToIntPtr(Projection<0>(pair));
+        var_result = BitcastWordToTaggedSigned(result);
         Goto(&if_join);
       }
     }
   }
   BIND(&if_valueisheapnumber);
   {
-    Node* result = AllocateHeapNumberWithValue(value);
-    var_result.Bind(result);
+    var_result = AllocateHeapNumberWithValue(value);
     Goto(&if_join);
   }
   BIND(&if_join);
-  return var_result.value();
+  return var_result;
 }
 
-Node* CodeStubAssembler::ChangeInt32ToTagged(Node* value) {
+TNode<Number> CodeStubAssembler::ChangeInt32ToTagged(
+    SloppyTNode<Int32T> value) {
   if (Is64()) {
-    return SmiTag(UncheckedCast<IntPtrT>(ChangeInt32ToInt64(value)));
+    return SmiTag(ChangeInt32ToIntPtr(value));
   }
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-  Node* pair = Int32AddWithOverflow(value, value);
-  Node* overflow = Projection(1, pair);
+  TVARIABLE(Number, var_result);
+  TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(value, value);
+  TNode<BoolT> overflow = Projection<1>(pair);
   Label if_overflow(this, Label::kDeferred), if_notoverflow(this),
       if_join(this);
   Branch(overflow, &if_overflow, &if_notoverflow);
   BIND(&if_overflow);
   {
-    Node* value64 = ChangeInt32ToFloat64(value);
-    Node* result = AllocateHeapNumberWithValue(value64);
-    var_result.Bind(result);
+    TNode<Float64T> value64 = ChangeInt32ToFloat64(value);
+    TNode<HeapNumber> result = AllocateHeapNumberWithValue(value64);
+    var_result = result;
   }
   Goto(&if_join);
   BIND(&if_notoverflow);
   {
-    Node* result = BitcastWordToTaggedSigned(Projection(0, pair));
-    var_result.Bind(result);
+    TNode<Smi> result =
+        BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
+    var_result = result;
   }
   Goto(&if_join);
   BIND(&if_join);
-  return var_result.value();
+  return var_result;
 }
 
-Node* CodeStubAssembler::ChangeUint32ToTagged(Node* value) {
+TNode<Number> CodeStubAssembler::ChangeUint32ToTagged(
+    SloppyTNode<Uint32T> value) {
   Label if_overflow(this, Label::kDeferred), if_not_overflow(this),
       if_join(this);
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(Number, var_result);
   // If {value} > 2^31 - 1, we need to store it in a HeapNumber.
   Branch(Uint32LessThan(Int32Constant(Smi::kMaxValue), value), &if_overflow,
          &if_not_overflow);
@@ -3528,30 +3532,33 @@ Node* CodeStubAssembler::ChangeUint32ToTagged(Node* value) {
   BIND(&if_not_overflow);
   {
     if (Is64()) {
-      var_result.Bind(
-          SmiTag(UncheckedCast<IntPtrT>(ChangeUint32ToUint64(value))));
+      var_result =
+          SmiTag(ReinterpretCast<IntPtrT>(ChangeUint32ToUint64(value)));
     } else {
       // If tagging {value} results in an overflow, we need to use a HeapNumber
       // to represent it.
-      Node* pair = Int32AddWithOverflow(value, value);
-      Node* overflow = Projection(1, pair);
+      // TODO(tebbi): This overflow can never happen.
+      TNode<PairT<Int32T, BoolT>> pair = Int32AddWithOverflow(
+          UncheckedCast<Int32T>(value), UncheckedCast<Int32T>(value));
+      TNode<BoolT> overflow = Projection<1>(pair);
       GotoIf(overflow, &if_overflow);
 
-      Node* result = BitcastWordToTaggedSigned(Projection(0, pair));
-      var_result.Bind(result);
+      TNode<Smi> result =
+          BitcastWordToTaggedSigned(ChangeInt32ToIntPtr(Projection<0>(pair)));
+      var_result = result;
     }
   }
   Goto(&if_join);
 
   BIND(&if_overflow);
   {
-    Node* float64_value = ChangeUint32ToFloat64(value);
-    var_result.Bind(AllocateHeapNumberWithValue(float64_value));
+    TNode<Float64T> float64_value = ChangeUint32ToFloat64(value);
+    var_result = AllocateHeapNumberWithValue(float64_value);
   }
   Goto(&if_join);
 
   BIND(&if_join);
-  return var_result.value();
+  return var_result;
 }
 
 Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
@@ -3612,42 +3619,47 @@ Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
   return var_value.value();
 }
 
-Node* CodeStubAssembler::ChangeNumberToFloat64(Node* value) {
+TNode<Float64T> CodeStubAssembler::ChangeNumberToFloat64(
+    SloppyTNode<Number> value) {
+  // TODO(tebbi): Remove assert once argument is TNode instead of SloppyTNode.
   CSA_SLOW_ASSERT(this, IsNumber(value));
-  VARIABLE(result, MachineRepresentation::kFloat64);
+  TVARIABLE(Float64T, result);
   Label smi(this);
   Label done(this, &result);
   GotoIf(TaggedIsSmi(value), &smi);
-  result.Bind(
-      LoadObjectField(value, HeapNumber::kValueOffset, MachineType::Float64()));
+  result = LoadHeapNumberValue(CAST(value));
   Goto(&done);
 
   BIND(&smi);
   {
-    result.Bind(SmiToFloat64(value));
+    result = SmiToFloat64(CAST(value));
     Goto(&done);
   }
 
   BIND(&done);
-  return result.value();
+  return result;
 }
 
-Node* CodeStubAssembler::ChangeNumberToIntPtr(Node* value) {
+TNode<UintPtrT> CodeStubAssembler::ChangeNonnegativeNumberToUintPtr(
+    SloppyTNode<Number> value) {
+  // TODO(tebbi): Remove assert once argument is TNode instead of SloppyTNode.
   CSA_SLOW_ASSERT(this, IsNumber(value));
-  VARIABLE(result, MachineType::PointerRepresentation());
+  TVARIABLE(UintPtrT, result);
   Label smi(this), done(this, &result);
   GotoIf(TaggedIsSmi(value), &smi);
 
-  CSA_ASSERT(this, IsHeapNumber(value));
-  result.Bind(ChangeFloat64ToUintPtr(LoadHeapNumberValue(value)));
+  TNode<HeapNumber> value_hn = CAST(value);
+  result = ChangeFloat64ToUintPtr(LoadHeapNumberValue(value_hn));
   Goto(&done);
 
   BIND(&smi);
-  result.Bind(SmiToWord(value));
+  TNode<Smi> value_smi = CAST(value);
+  CSA_SLOW_ASSERT(this, SmiLessThan(SmiConstant(-1), value_smi));
+  result = UncheckedCast<UintPtrT>(SmiToWord(value_smi));
   Goto(&done);
 
   BIND(&done);
-  return result.value();
+  return result;
 }
 
 Node* CodeStubAssembler::TimesPointerSize(Node* value) {
@@ -4995,30 +5007,30 @@ Node* CodeStubAssembler::StringFromCodePoint(Node* codepoint,
   return var_result.value();
 }
 
-Node* CodeStubAssembler::StringToNumber(Node* context, Node* input) {
+TNode<Number> CodeStubAssembler::StringToNumber(SloppyTNode<Context> context,
+                                                SloppyTNode<String> input) {
   CSA_SLOW_ASSERT(this, IsString(input));
   Label runtime(this, Label::kDeferred);
   Label end(this);
 
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  TVARIABLE(Number, var_result);
 
   // Check if string has a cached array index.
-  Node* hash = LoadNameHashField(input);
+  TNode<Uint32T> hash = LoadNameHashField(input);
   GotoIf(IsSetWord32(hash, Name::kDoesNotContainCachedArrayIndexMask),
          &runtime);
 
-  var_result.Bind(
-      SmiTag(DecodeWordFromWord32<String::ArrayIndexValueBits>(hash)));
+  var_result = SmiTag(DecodeWordFromWord32<String::ArrayIndexValueBits>(hash));
   Goto(&end);
 
   BIND(&runtime);
   {
-    var_result.Bind(CallRuntime(Runtime::kStringToNumber, context, input));
+    var_result = CAST(CallRuntime(Runtime::kStringToNumber, context, input));
     Goto(&end);
   }
 
   BIND(&end);
-  return var_result.value();
+  return var_result;
 }
 
 Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
@@ -5251,47 +5263,54 @@ Node* CodeStubAssembler::NonNumberToNumberOrNumeric(Node* context, Node* input,
   return var_result.value();
 }
 
-Node* CodeStubAssembler::NonNumberToNumber(Node* context, Node* input) {
-  return NonNumberToNumberOrNumeric(context, input,
-                                    Object::Conversion::kToNumber);
+TNode<Number> CodeStubAssembler::NonNumberToNumber(
+    SloppyTNode<Context> context, SloppyTNode<HeapObject> input) {
+  return CAST(NonNumberToNumberOrNumeric(context, input,
+                                         Object::Conversion::kToNumber));
 }
 
-Node* CodeStubAssembler::NonNumberToNumeric(Node* context, Node* input) {
-  return NonNumberToNumberOrNumeric(context, input,
-                                    Object::Conversion::kToNumeric);
+TNode<Numeric> CodeStubAssembler::NonNumberToNumeric(
+    SloppyTNode<Context> context, SloppyTNode<HeapObject> input) {
+  Node* result = NonNumberToNumberOrNumeric(context, input,
+                                            Object::Conversion::kToNumeric);
+  CSA_SLOW_ASSERT(this, IsNumeric(result));
+  return UncheckedCast<Numeric>(result);
 }
 
-Node* CodeStubAssembler::ToNumber(Node* context, Node* input) {
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+TNode<Number> CodeStubAssembler::ToNumber(SloppyTNode<Context> context,
+                                          SloppyTNode<Object> input) {
+  TVARIABLE(Number, var_result);
   Label end(this);
 
   Label not_smi(this, Label::kDeferred);
   GotoIfNot(TaggedIsSmi(input), &not_smi);
-  var_result.Bind(input);
+  TNode<Smi> input_smi = CAST(input);
+  var_result = input_smi;
   Goto(&end);
 
   BIND(&not_smi);
   {
     Label not_heap_number(this, Label::kDeferred);
-    GotoIfNot(IsHeapNumber(input), &not_heap_number);
+    TNode<HeapObject> input_ho = CAST(input);
+    GotoIfNot(IsHeapNumber(input_ho), &not_heap_number);
 
-    var_result.Bind(input);
+    TNode<HeapNumber> input_hn = CAST(input_ho);
+    var_result = input_hn;
     Goto(&end);
 
     BIND(&not_heap_number);
     {
-      var_result.Bind(NonNumberToNumber(context, input));
+      var_result = NonNumberToNumber(context, input_ho);
       Goto(&end);
     }
   }
 
   BIND(&end);
-  CSA_ASSERT(this, IsNumber(var_result.value()));
-  return var_result.value();
+  return var_result;
 }
 
 // ES#sec-touint32
-TNode<Object> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
+TNode<Number> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
                                           SloppyTNode<Object> input) {
   Node* const float_zero = Float64Constant(0.0);
   Node* const float_two_32 = Float64Constant(static_cast<double>(1ULL << 32));
@@ -5390,8 +5409,7 @@ TNode<Object> CodeStubAssembler::ToUint32(SloppyTNode<Context> context,
   }
 
   BIND(&out);
-  CSA_ASSERT(this, IsNumber(var_result.value()));
-  return UncheckedCast<Object>(var_result.value());
+  return CAST(var_result.value());
 }
 
 TNode<String> CodeStubAssembler::ToString(SloppyTNode<Context> context,
@@ -5537,11 +5555,11 @@ Node* CodeStubAssembler::ToLength_Inline(Node* const context,
       MachineRepresentation::kTagged);
 }
 
-TNode<Object> CodeStubAssembler::ToInteger(SloppyTNode<Context> context,
+TNode<Number> CodeStubAssembler::ToInteger(SloppyTNode<Context> context,
                                            SloppyTNode<Object> input,
                                            ToIntegerTruncationMode mode) {
   // We might need to loop once for ToNumber conversion.
-  VARIABLE(var_arg, MachineRepresentation::kTagged, input);
+  TVARIABLE(Object, var_arg, input);
   Label loop(this, &var_arg), out(this);
   Goto(&loop);
   BIND(&loop);
@@ -5550,7 +5568,7 @@ TNode<Object> CodeStubAssembler::ToInteger(SloppyTNode<Context> context,
     Label return_zero(this, Label::kDeferred);
 
     // Load the current {arg} value.
-    Node* arg = var_arg.value();
+    TNode<Object> arg = var_arg;
 
     // Check if {arg} is a Smi.
     GotoIf(TaggedIsSmi(arg), &out);
@@ -5562,39 +5580,40 @@ TNode<Object> CodeStubAssembler::ToInteger(SloppyTNode<Context> context,
 
     BIND(&if_argisheapnumber);
     {
+      TNode<HeapNumber> arg_hn = CAST(arg);
       // Load the floating-point value of {arg}.
-      Node* arg_value = LoadHeapNumberValue(arg);
+      Node* arg_value = LoadHeapNumberValue(arg_hn);
 
       // Check if {arg} is NaN.
       GotoIfNot(Float64Equal(arg_value, arg_value), &return_zero);
 
       // Truncate {arg} towards zero.
-      Node* value = Float64Trunc(arg_value);
+      TNode<Float64T> value = Float64Trunc(arg_value);
 
       if (mode == kTruncateMinusZero) {
         // Truncate -0.0 to 0.
         GotoIf(Float64Equal(value, Float64Constant(0.0)), &return_zero);
       }
 
-      var_arg.Bind(ChangeFloat64ToTagged(value));
+      var_arg = ChangeFloat64ToTagged(value);
       Goto(&out);
     }
 
     BIND(&if_argisnotheapnumber);
     {
       // Need to convert {arg} to a Number first.
-      var_arg.Bind(CallBuiltin(Builtins::kNonNumberToNumber, context, arg));
+      var_arg = UncheckedCast<Object>(
+          CallBuiltin(Builtins::kNonNumberToNumber, context, arg));
       Goto(&loop);
     }
 
     BIND(&return_zero);
-    var_arg.Bind(SmiConstant(0));
+    var_arg = SmiConstant(0);
     Goto(&out);
   }
 
   BIND(&out);
-  CSA_SLOW_ASSERT(this, IsNumber(var_arg.value()));
-  return UncheckedCast<Object>(var_arg.value());
+  return CAST(var_arg);
 }
 
 TNode<Uint32T> CodeStubAssembler::DecodeWord32(SloppyTNode<Word32T> word32,
