@@ -1633,57 +1633,64 @@ Node* CodeStubAssembler::LoadDoubleWithHoleCheck(Node* base, Node* offset,
   return Load(machine_type, base, offset);
 }
 
-Node* CodeStubAssembler::LoadContextElement(Node* context, int slot_index) {
+TNode<Object> CodeStubAssembler::LoadContextElement(
+    SloppyTNode<Context> context, int slot_index) {
   int offset = Context::SlotOffset(slot_index);
-  return Load(MachineType::AnyTagged(), context, IntPtrConstant(offset));
+  return UncheckedCast<Object>(
+      Load(MachineType::AnyTagged(), context, IntPtrConstant(offset)));
 }
 
-Node* CodeStubAssembler::LoadContextElement(Node* context, Node* slot_index) {
+TNode<Object> CodeStubAssembler::LoadContextElement(
+    SloppyTNode<Context> context, SloppyTNode<IntPtrT> slot_index) {
   Node* offset =
       IntPtrAdd(TimesPointerSize(slot_index),
                 IntPtrConstant(Context::kHeaderSize - kHeapObjectTag));
-  return Load(MachineType::AnyTagged(), context, offset);
+  return UncheckedCast<Object>(Load(MachineType::AnyTagged(), context, offset));
 }
 
-Node* CodeStubAssembler::StoreContextElement(Node* context, int slot_index,
-                                             Node* value) {
+void CodeStubAssembler::StoreContextElement(SloppyTNode<Context> context,
+                                            int slot_index,
+                                            SloppyTNode<Object> value) {
   int offset = Context::SlotOffset(slot_index);
-  return Store(context, IntPtrConstant(offset), value);
+  Store(context, IntPtrConstant(offset), value);
 }
 
-Node* CodeStubAssembler::StoreContextElement(Node* context, Node* slot_index,
-                                             Node* value) {
+void CodeStubAssembler::StoreContextElement(SloppyTNode<Context> context,
+                                            SloppyTNode<IntPtrT> slot_index,
+                                            SloppyTNode<Object> value) {
   Node* offset =
       IntPtrAdd(TimesPointerSize(slot_index),
                 IntPtrConstant(Context::kHeaderSize - kHeapObjectTag));
-  return Store(context, offset, value);
+  Store(context, offset, value);
 }
 
-Node* CodeStubAssembler::StoreContextElementNoWriteBarrier(Node* context,
-                                                           int slot_index,
-                                                           Node* value) {
+void CodeStubAssembler::StoreContextElementNoWriteBarrier(
+    SloppyTNode<Context> context, int slot_index, SloppyTNode<Object> value) {
   int offset = Context::SlotOffset(slot_index);
-  return StoreNoWriteBarrier(MachineRepresentation::kTagged, context,
-                             IntPtrConstant(offset), value);
+  StoreNoWriteBarrier(MachineRepresentation::kTagged, context,
+                      IntPtrConstant(offset), value);
 }
 
-Node* CodeStubAssembler::LoadNativeContext(Node* context) {
-  return LoadContextElement(context, Context::NATIVE_CONTEXT_INDEX);
+TNode<Context> CodeStubAssembler::LoadNativeContext(
+    SloppyTNode<Context> context) {
+  return UncheckedCast<Context>(
+      LoadContextElement(context, Context::NATIVE_CONTEXT_INDEX));
 }
 
-Node* CodeStubAssembler::LoadJSArrayElementsMap(Node* kind,
-                                                Node* native_context) {
+TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
+    SloppyTNode<Int32T> kind, SloppyTNode<Context> native_context) {
   CSA_ASSERT(this, IsFastElementsKind(kind));
   CSA_ASSERT(this, IsNativeContext(native_context));
   Node* offset = IntPtrAdd(IntPtrConstant(Context::FIRST_JS_ARRAY_MAP_SLOT),
                            ChangeInt32ToIntPtr(kind));
-  return LoadContextElement(native_context, offset);
+  return UncheckedCast<Map>(LoadContextElement(native_context, offset));
 }
 
-Node* CodeStubAssembler::LoadJSArrayElementsMap(ElementsKind kind,
-                                                Node* native_context) {
+TNode<Map> CodeStubAssembler::LoadJSArrayElementsMap(
+    ElementsKind kind, SloppyTNode<Context> native_context) {
   CSA_ASSERT(this, IsNativeContext(native_context));
-  return LoadContextElement(native_context, Context::ArrayMapIndex(kind));
+  return UncheckedCast<Map>(
+      LoadContextElement(native_context, Context::ArrayMapIndex(kind)));
 }
 
 Node* CodeStubAssembler::LoadJSFunctionPrototype(Node* function,

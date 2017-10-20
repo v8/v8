@@ -565,16 +565,24 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
       ParameterMode parameter_mode = INTPTR_PARAMETERS);
 
   // Context manipulation
-  Node* LoadContextElement(Node* context, int slot_index);
-  Node* LoadContextElement(Node* context, Node* slot_index);
-  Node* StoreContextElement(Node* context, int slot_index, Node* value);
-  Node* StoreContextElement(Node* context, Node* slot_index, Node* value);
-  Node* StoreContextElementNoWriteBarrier(Node* context, int slot_index,
-                                          Node* value);
-  Node* LoadNativeContext(Node* context);
+  TNode<Object> LoadContextElement(SloppyTNode<Context> context,
+                                   int slot_index);
+  TNode<Object> LoadContextElement(SloppyTNode<Context> context,
+                                   SloppyTNode<IntPtrT> slot_index);
+  void StoreContextElement(SloppyTNode<Context> context, int slot_index,
+                           SloppyTNode<Object> value);
+  void StoreContextElement(SloppyTNode<Context> context,
+                           SloppyTNode<IntPtrT> slot_index,
+                           SloppyTNode<Object> value);
+  void StoreContextElementNoWriteBarrier(SloppyTNode<Context> context,
+                                         int slot_index,
+                                         SloppyTNode<Object> value);
+  TNode<Context> LoadNativeContext(SloppyTNode<Context> context);
 
-  Node* LoadJSArrayElementsMap(ElementsKind kind, Node* native_context);
-  Node* LoadJSArrayElementsMap(Node* kind, Node* native_context);
+  TNode<Map> LoadJSArrayElementsMap(ElementsKind kind,
+                                    SloppyTNode<Context> native_context);
+  TNode<Map> LoadJSArrayElementsMap(SloppyTNode<Int32T> kind,
+                                    SloppyTNode<Context> native_context);
 
   // Load the "prototype" property of a JSFunction.
   Node* LoadJSFunctionPrototype(Node* function, Label* if_bailout);
