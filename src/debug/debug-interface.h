@@ -456,7 +456,7 @@ class StackTraceIterator {
   virtual void Advance() = 0;
 
   virtual int GetContextId() const = 0;
-  virtual v8::Local<v8::Value> GetReceiver() const = 0;
+  virtual v8::MaybeLocal<v8::Value> GetReceiver() const = 0;
   virtual v8::Local<v8::Value> GetReturnValue() const = 0;
   virtual v8::Local<v8::String> GetFunctionName() const = 0;
   virtual v8::Local<v8::debug::Script> GetScript() const = 0;

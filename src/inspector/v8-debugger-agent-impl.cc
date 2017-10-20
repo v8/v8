@@ -1177,16 +1177,19 @@ Response V8DebuggerAgentImpl::currentCallFrames(
     Response res = buildScopes(scopeIterator.get(), injectedScript, &scopes);
     if (!res.isSuccess()) return res;
 
-    std::unique_ptr<RemoteObject> receiver;
+    std::unique_ptr<RemoteObject> protocolReceiver;
     if (injectedScript) {
-      res = injectedScript->wrapObject(iterator->GetReceiver(),
-                                       kBacktraceObjectGroup, false, false,
-                                       &receiver);
-      if (!res.isSuccess()) return res;
-    } else {
-      receiver = RemoteObject::create()
-                     .setType(RemoteObject::TypeEnum::Undefined)
-                     .build();
+      v8::Local<v8::Value> receiver;
+      if (iterator->GetReceiver().ToLocal(&receiver)) {
+        res = injectedScript->wrapObject(receiver, kBacktraceObjectGroup, false,
+                                         false, &protocolReceiver);
+        if (!res.isSuccess()) return res;
+      }
+    }
+    if (!protocolReceiver) {
+      protocolReceiver = RemoteObject::create()
+                             .setType(RemoteObject::TypeEnum::Undefined)
+                             .build();
     }
 
     v8::Local<v8::debug::Script> script = iterator->GetScript();
@@ -1213,7 +1216,7 @@ Response V8DebuggerAgentImpl::currentCallFrames(
             .setLocation(std::move(location))
             .setUrl(url)
             .setScopeChain(std::move(scopes))
-            .setThis(std::move(receiver))
+            .setThis(std::move(protocolReceiver))
             .build();
 
     v8::Local<v8::Function> func = iterator->GetFunction();
