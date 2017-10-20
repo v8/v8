@@ -202,11 +202,12 @@ class Map : public HeapObject {
   //     - there is no property array.
   //     - value * kPointerSize is the actual object size without the slack.
   // Otherwise:
-  //     - there is slack in the object.
+  //     - there is no slack in the object.
   //     - the property array has value slack slots.
   // Note that this encoding requires that H = JSObject::kFieldsAdded.
   inline int used_instance_size_in_words() const;
   inline void set_used_instance_size_in_words(int value);
+  inline int UsedInstanceSize() const;
 
   inline int UnusedPropertyFields() const;
   // Updates the counters tracking unused fields in the object.

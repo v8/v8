@@ -3116,6 +3116,16 @@ void Map::set_used_instance_size_in_words(int value) {
   VerifyUnusedPropertyFields();
 }
 
+int Map::UsedInstanceSize() const {
+  int words = used_instance_size_in_words();
+  if (words < JSObject::kFieldsAdded) {
+    // All in-object properties are used and the words is tracking the slack
+    // in the property array.
+    return instance_size();
+  }
+  return words * kPointerSize;
+}
+
 void Map::SetInObjectUnusedPropertyFields(int value) {
   STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kPointerSize);
   if (!IsJSObjectMap()) {
