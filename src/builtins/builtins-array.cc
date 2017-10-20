@@ -773,7 +773,7 @@ bool IterateElementsSlow(Isolate* isolate, Handle<JSReceiver> receiver,
                          uint32_t length, ArrayConcatVisitor* visitor) {
   FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, i = 0, i, i < length, ++i, {
     Maybe<bool> maybe = JSReceiver::HasElement(receiver, i);
-    if (!maybe.IsJust()) return false;
+    if (maybe.IsNothing()) return false;
     if (maybe.FromJust()) {
       Handle<Object> element_value;
       ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -836,7 +836,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
           if (!visitor->visit(j, element_value)) return false;
         } else {
           Maybe<bool> maybe = JSReceiver::HasElement(array, j);
-          if (!maybe.IsJust()) return false;
+          if (maybe.IsNothing()) return false;
           if (maybe.FromJust()) {
             // Call GetElement on array, not its prototype, or getters won't
             // have the correct receiver.
@@ -871,7 +871,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
           if (!visitor->visit(j, element_value)) return false;
         } else {
           Maybe<bool> maybe = JSReceiver::HasElement(array, j);
-          if (!maybe.IsJust()) return false;
+          if (maybe.IsNothing()) return false;
           if (maybe.FromJust()) {
             // Call GetElement on array, not its prototype, or getters won't
             // have the correct receiver.

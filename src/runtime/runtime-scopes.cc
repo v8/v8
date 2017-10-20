@@ -69,7 +69,7 @@ Object* DeclareGlobal(
   }
   LookupIterator it(global, name, global, lookup_config);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  if (!maybe.IsJust()) return isolate->heap()->exception();
+  if (maybe.IsNothing()) return isolate->heap()->exception();
 
   if (it.IsFound()) {
     PropertyAttributes old_attributes = maybe.FromJust();
@@ -684,7 +684,7 @@ static Object* FindNameClash(Handle<ScopeInfo> scope_info,
       LookupIterator it(global_object, name, global_object,
                         LookupIterator::OWN_SKIP_INTERCEPTOR);
       Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-      if (!maybe.IsJust()) return isolate->heap()->exception();
+      if (maybe.IsNothing()) return isolate->heap()->exception();
       if ((maybe.FromJust() & DONT_DELETE) != 0) {
         // ES#sec-globaldeclarationinstantiation 5.a:
         // If envRec.HasVarDeclaration(name) is true, throw a SyntaxError

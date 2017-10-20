@@ -294,7 +294,7 @@ RUNTIME_FUNCTION(Runtime_ObjectHasOwnProperty) {
 
     Maybe<bool> result =
         JSReceiver::HasOwnProperty(Handle<JSProxy>::cast(object), key);
-    if (!result.IsJust()) return isolate->heap()->exception();
+    if (result.IsNothing()) return isolate->heap()->exception();
     return isolate->heap()->ToBoolean(result.FromJust());
 
   } else if (object->IsString()) {
@@ -467,7 +467,7 @@ RUNTIME_FUNCTION(Runtime_AddNamedProperty) {
   DCHECK(!name->ToArrayIndex(&index));
   LookupIterator it(object, name, object, LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  if (!maybe.IsJust()) return isolate->heap()->exception();
+  if (maybe.IsNothing()) return isolate->heap()->exception();
   DCHECK(!it.IsFound());
 #endif
 
@@ -493,7 +493,7 @@ RUNTIME_FUNCTION(Runtime_AddElement) {
   LookupIterator it(isolate, object, index, object,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
   Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-  if (!maybe.IsJust()) return isolate->heap()->exception();
+  if (maybe.IsNothing()) return isolate->heap()->exception();
   DCHECK(!it.IsFound());
 
   if (object->IsJSArray()) {
@@ -598,7 +598,7 @@ RUNTIME_FUNCTION(Runtime_HasProperty) {
 
   // Lookup the {name} on {receiver}.
   Maybe<bool> maybe = JSReceiver::HasProperty(receiver, name);
-  if (!maybe.IsJust()) return isolate->heap()->exception();
+  if (maybe.IsNothing()) return isolate->heap()->exception();
   return isolate->heap()->ToBoolean(maybe.FromJust());
 }
 

@@ -2798,7 +2798,7 @@ MaybeLocal<Value> v8::TryCatch::StackTrace(Local<Context> context) const {
   i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
   i::Handle<i::String> name = isolate->factory()->stack_string();
   Maybe<bool> maybe = i::JSReceiver::HasProperty(obj, name);
-  has_pending_exception = !maybe.IsJust();
+  has_pending_exception = maybe.IsNothing();
   RETURN_ON_FAILED_EXECUTION(Value);
   if (!maybe.FromJust()) return v8::Local<Value>();
   Local<Value> result;

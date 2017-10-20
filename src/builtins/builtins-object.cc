@@ -52,7 +52,7 @@ BUILTIN(ObjectPrototypePropertyIsEnumerable) {
       isolate, object, JSReceiver::ToObject(isolate, args.receiver()));
   Maybe<PropertyAttributes> maybe =
       JSReceiver::GetOwnPropertyAttributes(object, name);
-  if (!maybe.IsJust()) return isolate->heap()->exception();
+  if (maybe.IsNothing()) return isolate->heap()->exception();
   if (maybe.FromJust() == ABSENT) return isolate->heap()->false_value();
   return isolate->heap()->ToBoolean((maybe.FromJust() & DONT_ENUM) == 0);
 }

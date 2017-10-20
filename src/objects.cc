@@ -4776,7 +4776,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         } else {
           Maybe<PropertyAttributes> maybe_attributes =
               JSObject::GetPropertyAttributesWithInterceptor(it);
-          if (!maybe_attributes.IsJust()) return Nothing<bool>();
+          if (maybe_attributes.IsNothing()) return Nothing<bool>();
           if ((maybe_attributes.FromJust() & READ_ONLY) != 0) {
             return WriteToReadOnlyProperty(it, value, should_throw);
           }
@@ -6106,7 +6106,7 @@ Maybe<PropertyAttributes> JSReceiver::GetPropertyAttributes(
       case LookupIterator::INTERCEPTOR: {
         Maybe<PropertyAttributes> result =
             JSObject::GetPropertyAttributesWithInterceptor(it);
-        if (!result.IsJust()) return result;
+        if (result.IsNothing()) return result;
         if (result.FromJust() != ABSENT) return result;
         break;
       }
@@ -6768,7 +6768,7 @@ MaybeHandle<Object> JSReceiver::DefineProperties(Isolate* isolate,
         isolate, props, next_key, &success, LookupIterator::OWN);
     DCHECK(success);
     Maybe<PropertyAttributes> maybe = JSReceiver::GetPropertyAttributes(&it);
-    if (!maybe.IsJust()) return MaybeHandle<Object>();
+    if (maybe.IsNothing()) return MaybeHandle<Object>();
     PropertyAttributes attrs = maybe.FromJust();
     // 7c. If propDesc is not undefined and propDesc.[[Enumerable]] is true:
     if (attrs == ABSENT) continue;
@@ -6798,7 +6798,7 @@ MaybeHandle<Object> JSReceiver::DefineProperties(Isolate* isolate,
         DefineOwnProperty(isolate, Handle<JSReceiver>::cast(object),
                           desc->name(), desc, THROW_ON_ERROR);
     // 8d. ReturnIfAbrupt(status).
-    if (!status.IsJust()) return MaybeHandle<Object>();
+    if (status.IsNothing()) return MaybeHandle<Object>();
     CHECK(status.FromJust());
   }
   // 9. Return o.
