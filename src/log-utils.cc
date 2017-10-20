@@ -51,19 +51,17 @@ Log::Log(Logger* logger, const char* file_name)
   // --prof implies --log-code.
   if (FLAG_prof) FLAG_log_code = true;
 
-  if (output_handle_ != nullptr) {
-    Log::MessageBuilder msg(this);
-    if (strlen(Version::GetEmbedder()) == 0) {
-      msg.Append("v8-version,%d,%d,%d,%d,%d", Version::GetMajor(),
-                 Version::GetMinor(), Version::GetBuild(), Version::GetPatch(),
-                 Version::IsCandidate());
-    } else {
-      msg.Append("v8-version,%d,%d,%d,%d,%s,%d", Version::GetMajor(),
-                 Version::GetMinor(), Version::GetBuild(), Version::GetPatch(),
-                 Version::GetEmbedder(), Version::IsCandidate());
-    }
-    msg.WriteToLogFile();
+  if (output_handle_ == nullptr) return;
+  Log::MessageBuilder msg(this);
+  LogSeparator kNext = LogSeparator::kSeparator;
+  msg << "v8-version" << kNext << Version::GetMajor() << kNext
+      << Version::GetMinor() << kNext << Version::GetBuild() << kNext
+      << Version::GetPatch();
+  if (strlen(Version::GetEmbedder()) != 0) {
+    msg << kNext << Version::GetEmbedder();
   }
+  msg << kNext << Version::IsCandidate();
+  msg.WriteToLogFile();
 }
 
 FILE* Log::Close() {
@@ -102,38 +100,16 @@ void Log::MessageBuilder::AppendVA(const char* format, va_list args) {
   Vector<char> buf(log_->format_buffer_, Log::kMessageBufferSize);
   int length = v8::internal::VSNPrintF(buf, format, args);
   // {length} is -1 if output was truncated.
-  if (length == -1) {
-    length = Log::kMessageBufferSize;
-  }
+  if (length == -1) length = Log::kMessageBufferSize;
   DCHECK_LE(length, Log::kMessageBufferSize);
   AppendStringPart(log_->format_buffer_, length);
-}
-
-
-void Log::MessageBuilder::AppendDoubleQuotedString(const char* string) {
-  OFStream& os = log_->os_;
-  // TODO(cbruni): unify escaping.
-  os << '"';
-  for (const char* p = string; *p != '\0'; p++) {
-    if (*p == '"') os << '\\';
-    os << *p;
-  }
-  os << '"';
-}
-
-void Log::MessageBuilder::AppendDoubleQuotedString(String* string) {
-  OFStream& os = log_->os_;
-  os << '"';
-  // TODO(cbruni): unify escaping.
-  AppendEscapedString(string);
-  os << '"';
 }
 
 void Log::MessageBuilder::Append(String* string) {
   DisallowHeapAllocation no_gc;  // Ensure string stay valid.
   std::unique_ptr<char[]> characters =
       string->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  log_->os_ << characters.get();
+  AppendString(characters.get());
 }
 
 void Log::MessageBuilder::AppendAddress(Address addr) {
@@ -152,59 +128,115 @@ void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
   os << "hash " << std::hex << symbol->Hash() << std::dec << ")";
 }
 
-
 void Log::MessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
   if (str == nullptr) return;
   DisallowHeapAllocation no_gc;  // Ensure string stay valid.
   OFStream& os = log_->os_;
-  int len = str->length();
-  if (len > 0x1000) len = 0x1000;
+  int limit = str->length();
+  if (limit > 0x1000) limit = 0x1000;
   if (show_impl_info) {
     os << (str->IsOneByteRepresentation() ? 'a' : '2');
     if (StringShape(str).IsExternal()) os << 'e';
     if (StringShape(str).IsInternalized()) os << '#';
     os << ':' << str->length() << ':';
   }
-  AppendEscapedString(str, len);
+  AppendStringPart(str, limit);
 }
 
-void Log::MessageBuilder::AppendEscapedString(String* str) {
+void Log::MessageBuilder::AppendString(String* str) {
   if (str == nullptr) return;
   int len = str->length();
-  AppendEscapedString(str, len);
+  AppendStringPart(str, len);
 }
 
-void Log::MessageBuilder::AppendEscapedString(String* str, int len) {
+void Log::MessageBuilder::AppendString(const char* string) {
+  for (const char* p = string; *p != '\0'; p++) {
+    this->AppendCharacter(*p);
+  }
+}
+
+void Log::MessageBuilder::AppendStringPart(String* str, int len) {
   DCHECK_LE(len, str->length());
   DisallowHeapAllocation no_gc;  // Ensure string stay valid.
-  OFStream& os = log_->os_;
   // TODO(cbruni): unify escaping.
   for (int i = 0; i < len; i++) {
     uc32 c = str->Get(i);
-    if (c >= 32 && c <= 126) {
-      if (c == '\"') {
-        os << "\"\"";
-      } else if (c == '\\') {
-        os << "\\\\";
-      } else if (c == ',') {
-        os << "\\,";
-      } else {
-        os << static_cast<char>(c);
-      }
-    } else if (c > 0xff) {
-      Append("\\u%04x", c);
+    if (c <= 0xff) {
+      AppendCharacter(static_cast<char>(c));
     } else {
-      DCHECK(c < 32 || (c > 126 && c <= 0xff));
-      Append("\\x%02x", c);
+      // Escape any non-ascii range characters.
+      Append("\\u%04x", c);
     }
   }
 }
 
 void Log::MessageBuilder::AppendStringPart(const char* str, int len) {
-  log_->os_.write(str, len);
+  for (int i = 0; i < len; i++) {
+    DCHECK_NE(str[i], '\0');
+    this->AppendCharacter(str[i]);
+  }
+}
+
+void Log::MessageBuilder::AppendCharacter(char c) {
+  OFStream& os = log_->os_;
+  // A log entry (separate by commas) cannot contain commas or line-brakes.
+  if (c >= 32 && c <= 126) {
+    if (c == ',') {
+      // Escape commas directly.
+      os << "\x2c";
+    } else {
+      // Directly append any printable ascii character.
+      os << c;
+    }
+  } else {
+    // Escape any non-printable haracters.
+    Append("\\x%02x", c);
+  }
 }
 
 void Log::MessageBuilder::WriteToLogFile() { log_->os_ << std::endl; }
+
+template <>
+Log::MessageBuilder& Log::MessageBuilder::operator<<<const char*>(
+    const char* string) {
+  this->AppendString(string);
+  return *this;
+}
+
+template <>
+Log::MessageBuilder& Log::MessageBuilder::operator<<<char>(char c) {
+  this->AppendCharacter(c);
+  return *this;
+}
+
+template <>
+Log::MessageBuilder& Log::MessageBuilder::operator<<<String*>(String* string) {
+  this->AppendString(string);
+  return *this;
+}
+
+template <>
+Log::MessageBuilder& Log::MessageBuilder::operator<<<Symbol*>(Symbol* symbol) {
+  this->AppendSymbolName(symbol);
+  return *this;
+}
+
+template <>
+Log::MessageBuilder& Log::MessageBuilder::operator<<<Name*>(Name* name) {
+  if (name->IsString()) {
+    this->AppendString(String::cast(name));
+  } else {
+    this->AppendSymbolName(Symbol::cast(name));
+  }
+  return *this;
+}
+
+template <>
+Log::MessageBuilder& Log::MessageBuilder::operator<<<LogSeparator>(
+    LogSeparator separator) {
+  log_->os_ << ',';
+  return *this;
+}
 
 }  // namespace internal
 }  // namespace v8

@@ -20,11 +20,12 @@ namespace internal {
 
 class Logger;
 
+enum class LogSeparator { kSeparator };
+
 // Functions and data for performing output of log messages.
 class Log {
  public:
   Log(Logger* log, const char* log_file_name);
-
   // Disables logging, but preserves acquired resources.
   void stop() { is_stopped_ = true; }
 
@@ -66,10 +67,6 @@ class Log {
     // Append string data to the log message.
     void PRINTF_FORMAT(2, 0) AppendVA(const char* format, va_list args);
 
-    // Append double quoted string to the log message.
-    void AppendDoubleQuotedString(const char* string);
-    void AppendDoubleQuotedString(String* string);
-
     // Append a heap string.
     void Append(String* str);
 
@@ -80,16 +77,18 @@ class Log {
 
     void AppendDetailed(String* str, bool show_impl_info);
 
-    // Append a portion of a string.
+    // Append and escape a full string.
+    void AppendString(String* source);
+    void AppendString(const char* string);
+
+    // Append and escpae a portion of a string.
+    void AppendStringPart(String* source, int len);
     void AppendStringPart(const char* str, int len);
 
-    // Helpers for appending char, C-string and heap string without
-    // buffering. This is useful for entries that can exceed the 2kB
-    // limit.
-    void AppendEscapedString(String* source);
-    void AppendEscapedString(String* source, int len);
+    void AppendCharacter(const char character);
 
     // Delegate insertion to the underlying {log_}.
+    // All appened srings are escaped to maintain one-line log entries.
     template <typename T>
     MessageBuilder& operator<<(T value) {
       log_->os_ << value;
@@ -136,6 +135,20 @@ class Log {
   friend class Logger;
 };
 
+template <>
+Log::MessageBuilder& Log::MessageBuilder::operator<<<LogSeparator>(
+    LogSeparator separator);
+template <>
+Log::MessageBuilder& Log::MessageBuilder::operator<<<const char*>(
+    const char* string);
+template <>
+Log::MessageBuilder& Log::MessageBuilder::operator<<<char>(char c);
+template <>
+Log::MessageBuilder& Log::MessageBuilder::operator<<<String*>(String* string);
+template <>
+Log::MessageBuilder& Log::MessageBuilder::operator<<<Symbol*>(Symbol* symbol);
+template <>
+Log::MessageBuilder& Log::MessageBuilder::operator<<<Name*>(Name* name);
 
 }  // namespace internal
 }  // namespace v8

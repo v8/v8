@@ -14,6 +14,7 @@
 #include "src/base/platform/platform.h"
 #include "src/code-events.h"
 #include "src/isolate.h"
+#include "src/log-utils.h"
 #include "src/objects.h"
 
 namespace v8 {
@@ -94,6 +95,9 @@ class Ticker;
 class Logger : public CodeEventListener {
  public:
   enum StartEnd { START = 0, END = 1, STAMP = 2 };
+
+  // The separator is used to write an unescaped "," into the log.
+  static const LogSeparator kNext = LogSeparator::kSeparator;
 
   // Acquires resources for logging if the right flags are set.
   bool SetUp(Isolate* isolate);
@@ -276,8 +280,6 @@ class Logger : public CodeEventListener {
   // Emits a profiler tick event. Used by the profiler thread.
   void TickEvent(TickSample* sample, bool overflow);
   void RuntimeCallTimerEvent();
-
-  PRINTF_FORMAT(2, 3) void ApiEvent(const char* format, ...);
 
   // Logs a StringEvent regardless of whether FLAG_log is true.
   void UncheckedStringEvent(const char* name, const char* value);
