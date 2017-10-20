@@ -5,7 +5,7 @@
 #if V8_TARGET_ARCH_PPC
 
 #include "src/assembler-inl.h"
-#include "src/codegen.h"
+#include "src/code-stubs.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"

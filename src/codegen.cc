@@ -4,7 +4,10 @@
 
 #include "src/codegen.h"
 
+#include <cmath>
 #include <memory>
+
+#include "src/flags.h"
 
 namespace v8 {
 namespace internal {

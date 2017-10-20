@@ -7,7 +7,6 @@
 #include "src/arguments.h"
 #include "src/base/bits.h"
 #include "src/bootstrapper.h"
-#include "src/codegen.h"
 #include "src/isolate-inl.h"
 
 namespace v8 {

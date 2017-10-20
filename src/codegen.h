@@ -5,7 +5,6 @@
 #ifndef V8_CODEGEN_H_
 #define V8_CODEGEN_H_
 
-#include "src/code-stubs.h"
 #include "src/globals.h"
 
 namespace v8 {

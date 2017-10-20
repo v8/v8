@@ -13,6 +13,7 @@
 #include "src/base/bits.h"
 #include "src/codegen.h"
 #include "src/disasm.h"
+#include "src/macro-assembler.h"
 #include "src/mips64/constants-mips64.h"
 #include "src/mips64/simulator-mips64.h"
 #include "src/ostreams.h"

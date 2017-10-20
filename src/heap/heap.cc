@@ -15,7 +15,7 @@
 #include "src/base/once.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/bootstrapper.h"
-#include "src/codegen.h"
+#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 #include "src/conversions.h"

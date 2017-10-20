@@ -25,7 +25,6 @@
 #include "src/bootstrapper.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stubs.h"
-#include "src/codegen.h"
 #include "src/compilation-dependencies.h"
 #include "src/compiler.h"
 #include "src/counters-inl.h"

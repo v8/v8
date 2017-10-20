@@ -21,7 +21,7 @@
 #include "src/basic-block-profiler.h"
 #include "src/bootstrapper.h"
 #include "src/cancelable-task.h"
-#include "src/codegen.h"
+#include "src/code-stubs.h"
 #include "src/compilation-cache.h"
 #include "src/compilation-statistics.h"
 #include "src/compiler-dispatcher/compiler-dispatcher.h"

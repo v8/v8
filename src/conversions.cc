@@ -11,7 +11,6 @@
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/char-predicates-inl.h"
-#include "src/codegen.h"
 #include "src/dtoa.h"
 #include "src/factory.h"
 #include "src/handles.h"

@@ -4,7 +4,6 @@
 
 #if V8_TARGET_ARCH_X64
 
-#include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/objects-inl.h"
 #include "src/register-configuration.h"

@@ -8,7 +8,7 @@
 #include "src/allocation.h"
 #include "src/assembler.h"
 #include "src/callable.h"
-#include "src/codegen.h"
+#include "src/code-stubs.h"
 #include "src/globals.h"
 #include "src/interface-descriptors.h"
 #include "src/parsing/token.h"

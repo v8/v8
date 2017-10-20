@@ -7,7 +7,6 @@
 #include "src/api-arguments.h"
 #include "src/bootstrapper.h"
 #include "src/code-stubs.h"
-#include "src/codegen.h"
 #include "src/counters.h"
 #include "src/double.h"
 #include "src/frame-constants.h"

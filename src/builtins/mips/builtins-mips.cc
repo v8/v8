@@ -4,7 +4,7 @@
 
 #if V8_TARGET_ARCH_MIPS
 
-#include "src/codegen.h"
+#include "src/code-stubs.h"
 #include "src/counters.h"
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"

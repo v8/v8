@@ -7,7 +7,6 @@
 #include "src/base/bits.h"
 #include "src/base/division-by-constant.h"
 #include "src/base/ieee754.h"
-#include "src/codegen.h"
 #include "src/compiler/diamond.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/js-graph.h"

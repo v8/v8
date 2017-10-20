@@ -5,7 +5,6 @@
 #if V8_TARGET_ARCH_X64
 
 #include "src/code-factory.h"
-#include "src/codegen.h"
 #include "src/counters.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"

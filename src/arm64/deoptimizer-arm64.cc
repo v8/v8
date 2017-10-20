@@ -5,7 +5,6 @@
 #include "src/api.h"
 #include "src/arm64/assembler-arm64-inl.h"
 #include "src/arm64/macro-assembler-arm64-inl.h"
-#include "src/codegen.h"
 #include "src/deoptimizer.h"
 #include "src/frame-constants.h"
 #include "src/register-configuration.h"

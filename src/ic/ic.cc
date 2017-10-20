@@ -9,7 +9,6 @@
 #include "src/api.h"
 #include "src/arguments.h"
 #include "src/base/bits.h"
-#include "src/codegen.h"
 #include "src/conversions.h"
 #include "src/execution.h"
 #include "src/field-type.h"

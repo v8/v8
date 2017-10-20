@@ -9,7 +9,6 @@
 
 #include "src/ast/prettyprinter.h"
 #include "src/bootstrapper.h"
-#include "src/codegen.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/counters-inl.h"
