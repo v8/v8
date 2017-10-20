@@ -221,12 +221,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Dispatch bytecode as wide operand variant.
   void DispatchWide(OperandScale operand_scale);
 
-  // Truncate tagged |value| to word32, or find that it is a BigInt and jump
-  // to {bigint}, and store the type feedback in |var_type_feedback|.
-  compiler::Node* TaggedToWord32OrBigIntWithFeedback(
-      compiler::Node* context, compiler::Node* value,
-      Variable* var_type_feedback, Label* bigint, Variable* var_bigint_result);
-
   // Abort with the given bailout reason.
   void Abort(BailoutReason bailout_reason);
   void AbortIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,

@@ -946,17 +946,23 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
 
     VARIABLE(var_left_feedback, MachineRepresentation::kTaggedSigned);
     VARIABLE(var_right_feedback, MachineRepresentation::kTaggedSigned);
+    VARIABLE(var_left_word32, MachineRepresentation::kWord32);
+    VARIABLE(var_right_word32, MachineRepresentation::kWord32);
     VARIABLE(var_left_bigint, MachineRepresentation::kTagged, left);
-    VARIABLE(var_right_bigint, MachineRepresentation::kTagged, right);
+    VARIABLE(var_right_bigint, MachineRepresentation::kTagged);
+    Label if_left_number(this), do_number_op(this);
     Label if_left_bigint(this), do_bigint_op(this);
 
-    Node* left32 = TaggedToWord32OrBigIntWithFeedback(
-        context, left, &var_left_feedback, &if_left_bigint, &var_left_bigint);
-    Node* right32 = TaggedToWord32OrBigIntWithFeedback(
-        context, right, &var_right_feedback, &do_bigint_op, &var_right_bigint);
-
-    // Numbers case.
-    Node* result = BitwiseOp(left32, right32, bitwise_op);
+    TaggedToWord32OrBigIntWithFeedback(context, left, &if_left_number,
+                                       &var_left_word32, &if_left_bigint,
+                                       &var_left_bigint, &var_left_feedback);
+    BIND(&if_left_number);
+    TaggedToWord32OrBigIntWithFeedback(context, right, &do_number_op,
+                                       &var_right_word32, &do_bigint_op,
+                                       &var_right_bigint, &var_right_feedback);
+    BIND(&do_number_op);
+    Node* result = BitwiseOp(var_left_word32.value(), var_right_word32.value(),
+                             bitwise_op);
     Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
                                           BinaryOperationFeedback::kSignedSmall,
                                           BinaryOperationFeedback::kNumber);
@@ -969,11 +975,8 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
 
     // BigInt cases.
     BIND(&if_left_bigint);
-    // TODO(jkummerow): NumberBuiltinsAssembler::BitwiseOp inlines the
-    // relevant bits of this. Find a way to unify the approaches.
-    TaggedToWord32OrBigIntWithFeedback(context, right, &var_right_feedback,
-                                       &do_bigint_op, &var_right_bigint);
-    Goto(&do_bigint_op);
+    TaggedToNumericWithFeedback(context, right, &do_bigint_op,
+                                &var_right_bigint, &var_right_feedback);
 
     BIND(&do_bigint_op);
     SetAccumulator(
@@ -992,12 +995,16 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     Node* context = GetContext();
 
     VARIABLE(var_left_feedback, MachineRepresentation::kTaggedSigned);
+    VARIABLE(var_left_word32, MachineRepresentation::kWord32);
     VARIABLE(var_left_bigint, MachineRepresentation::kTagged);
-    Label if_bigint_mix(this);
+    Label do_smi_op(this), if_bigint_mix(this);
 
-    Node* left32 = TaggedToWord32OrBigIntWithFeedback(
-        context, left, &var_left_feedback, &if_bigint_mix, &var_left_bigint);
-    Node* result = BitwiseOp(left32, SmiToWord32(right), bitwise_op);
+    TaggedToWord32OrBigIntWithFeedback(context, left, &do_smi_op,
+                                       &var_left_word32, &if_bigint_mix,
+                                       &var_left_bigint, &var_left_feedback);
+    BIND(&do_smi_op);
+    Node* result =
+        BitwiseOp(var_left_word32.value(), SmiToWord32(right), bitwise_op);
     Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
                                           BinaryOperationFeedback::kSignedSmall,
                                           BinaryOperationFeedback::kNumber);
@@ -1009,30 +1016,6 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     BIND(&if_bigint_mix);
     UpdateFeedback(var_left_feedback.value(), feedback_vector, slot_index);
     ThrowTypeError(context, MessageTemplate::kBigIntMixedTypes);
-  }
-
- private:
-  Node* BitwiseOp(Node* left32, Node* right32, Token::Value bitwise_op) {
-    switch (bitwise_op) {
-      case Token::BIT_AND:
-        return ChangeInt32ToTagged(Signed(Word32And(left32, right32)));
-      case Token::BIT_OR:
-        return ChangeInt32ToTagged(Signed(Word32Or(left32, right32)));
-      case Token::BIT_XOR:
-        return ChangeInt32ToTagged(Signed(Word32Xor(left32, right32)));
-      case Token::SHL:
-        return ChangeInt32ToTagged(
-            Signed(Word32Shl(left32, Word32And(right32, Int32Constant(0x1f)))));
-      case Token::SAR:
-        return ChangeInt32ToTagged(
-            Signed(Word32Sar(left32, Word32And(right32, Int32Constant(0x1f)))));
-      case Token::SHR:
-        return ChangeUint32ToTagged(Unsigned(
-            Word32Shr(left32, Word32And(right32, Int32Constant(0x1f)))));
-      default:
-        break;
-    }
-    UNREACHABLE();
   }
 };
 
@@ -1117,15 +1100,16 @@ IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
   Node* feedback_vector = LoadFeedbackVector();
   Node* context = GetContext();
 
+  VARIABLE(var_word32, MachineRepresentation::kWord32);
   VARIABLE(var_feedback, MachineRepresentation::kTaggedSigned);
   VARIABLE(var_bigint, MachineRepresentation::kTagged);
-  Label if_bigint(this);
-  Node* truncated_value = TaggedToWord32OrBigIntWithFeedback(
-      context, operand, &var_feedback, &if_bigint, &var_bigint);
+  Label if_number(this), if_bigint(this);
+  TaggedToWord32OrBigIntWithFeedback(context, operand, &if_number, &var_word32,
+                                     &if_bigint, &var_bigint, &var_feedback);
 
   // Number case.
-  Node* value = Word32Not(truncated_value);
-  Node* result = ChangeInt32ToTagged(value);
+  BIND(&if_number);
+  Node* result = ChangeInt32ToTagged(Signed(Word32Not(var_word32.value())));
   Node* result_type = SelectSmiConstant(TaggedIsSmi(result),
                                         BinaryOperationFeedback::kSignedSmall,
                                         BinaryOperationFeedback::kNumber);

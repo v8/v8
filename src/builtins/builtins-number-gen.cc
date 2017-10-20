@@ -21,58 +21,29 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   template <typename Descriptor>
-  void BitwiseOp(Token::Value op) {
+  void EmitBitwiseOp(Token::Value op) {
     Node* left = Parameter(Descriptor::kLeft);
     Node* right = Parameter(Descriptor::kRight);
     Node* context = Parameter(Descriptor::kContext);
 
+    VARIABLE(var_left_word32, MachineRepresentation::kWord32);
+    VARIABLE(var_right_word32, MachineRepresentation::kWord32);
     VARIABLE(var_left_bigint, MachineRepresentation::kTagged, left);
-    VARIABLE(var_right_bigint, MachineRepresentation::kTagged, right);
+    VARIABLE(var_right_bigint, MachineRepresentation::kTagged);
+    Label if_left_number(this), do_number_op(this);
     Label if_left_bigint(this), do_bigint_op(this);
 
-    Node* left32 = TaggedToWord32OrBigInt(context, left, &if_left_bigint,
-                                          &var_left_bigint);
-    Node* right32 = TaggedToWord32OrBigInt(context, right, &do_bigint_op,
-                                           &var_right_bigint);
-    // Number case.
-    Node* result;
-    switch (op) {
-      case Token::BIT_AND:
-        result = ChangeInt32ToTagged(Signed(Word32And(left32, right32)));
-        break;
-      case Token::BIT_OR:
-        result = ChangeInt32ToTagged(Signed(Word32Or(left32, right32)));
-        break;
-      case Token::BIT_XOR:
-        result = ChangeInt32ToTagged(Signed(Word32Xor(left32, right32)));
-        break;
-      case Token::SHL:
-        result = ChangeInt32ToTagged(
-            Signed(Word32Shl(left32, Word32And(right32, Int32Constant(0x1f)))));
-        break;
-      case Token::SAR:
-        result = ChangeInt32ToTagged(
-            Signed(Word32Sar(left32, Word32And(right32, Int32Constant(0x1f)))));
-        break;
-      case Token::SHR:
-        result = ChangeUint32ToTagged(Unsigned(
-            Word32Shr(left32, Word32And(right32, Int32Constant(0x1f)))));
-        break;
-      default:
-        UNREACHABLE();
-    }
-    Return(result);
+    TaggedToWord32OrBigInt(context, left, &if_left_number, &var_left_word32,
+                           &if_left_bigint, &var_left_bigint);
+    BIND(&if_left_number);
+    TaggedToWord32OrBigInt(context, right, &do_number_op, &var_right_word32,
+                           &do_bigint_op, &var_right_bigint);
+    BIND(&do_number_op);
+    Return(BitwiseOp(var_left_word32.value(), var_right_word32.value(), op));
 
     // BigInt cases.
     BIND(&if_left_bigint);
-    GotoIf(TaggedIsSmi(right), &do_bigint_op);
-    Node* right_map = LoadMap(right);
-    GotoIf(IsHeapNumberMap(right_map), &do_bigint_op);
-    Node* right_type = LoadMapInstanceType(right_map);
-    GotoIf(IsBigIntInstanceType(right_type), &do_bigint_op);
-    var_right_bigint.Bind(
-        CallBuiltin(Builtins::kNonNumberToNumeric, context, right));
-    Goto(&do_bigint_op);
+    TaggedToNumeric(context, right, &do_bigint_op, &var_right_bigint);
 
     BIND(&do_bigint_op);
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context,
@@ -93,47 +64,6 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
   void BinaryOp(Label* smis, Variable* var_left, Variable* var_right,
                 Label* doubles, Variable* var_left_double,
                 Variable* var_right_double, Label* bigints);
-
-  // Similar to CodeStubAssembler::TruncateTaggedToWord32, but BigInt aware.
-  // Jumps to {bigint} with {var_bigint_result} populated if it encounters
-  // a BigInt.
-  Node* TaggedToWord32OrBigInt(Node* context, Node* value, Label* bigint,
-                               Variable* var_bigint_result) {
-    // We might need to loop once due to ToNumeric conversion.
-    VARIABLE(var_value, MachineRepresentation::kTagged, value);
-    VARIABLE(var_result, MachineRepresentation::kWord32);
-    Label loop(this, &var_value), done(this, &var_result);
-    Goto(&loop);
-    BIND(&loop);
-    {
-      value = var_value.value();
-      Label not_smi(this), is_heap_number(this), is_bigint(this);
-      GotoIf(TaggedIsNotSmi(value), &not_smi);
-      // {value} is a Smi.
-      var_result.Bind(SmiToWord32(value));
-      Goto(&done);
-
-      BIND(&not_smi);
-      Node* map = LoadMap(value);
-      GotoIf(IsHeapNumberMap(map), &is_heap_number);
-      Node* instance_type = LoadMapInstanceType(map);
-      GotoIf(IsBigIntInstanceType(instance_type), &is_bigint);
-      // Neither HeapNumber nor BigInt -> convert to Numeric.
-      var_value.Bind(
-          CallBuiltin(Builtins::kNonNumberToNumeric, context, value));
-      Goto(&loop);
-
-      BIND(&is_heap_number);
-      var_result.Bind(TruncateHeapNumberValueToWord32(value));
-      Goto(&done);
-
-      BIND(&is_bigint);
-      var_bigint_result->Bind(value);
-      Goto(bigint);
-    }
-    BIND(&done);
-    return var_result.value();
-  }
 };
 
 // ES6 #sec-number.isfinite
@@ -920,27 +850,27 @@ TF_BUILTIN(Modulus, NumberBuiltinsAssembler) {
 }
 
 TF_BUILTIN(ShiftLeft, NumberBuiltinsAssembler) {
-  BitwiseOp<Descriptor>(Token::SHL);
+  EmitBitwiseOp<Descriptor>(Token::SHL);
 }
 
 TF_BUILTIN(ShiftRight, NumberBuiltinsAssembler) {
-  BitwiseOp<Descriptor>(Token::SAR);
+  EmitBitwiseOp<Descriptor>(Token::SAR);
 }
 
 TF_BUILTIN(ShiftRightLogical, NumberBuiltinsAssembler) {
-  BitwiseOp<Descriptor>(Token::SHR);
+  EmitBitwiseOp<Descriptor>(Token::SHR);
 }
 
 TF_BUILTIN(BitwiseAnd, NumberBuiltinsAssembler) {
-  BitwiseOp<Descriptor>(Token::BIT_AND);
+  EmitBitwiseOp<Descriptor>(Token::BIT_AND);
 }
 
 TF_BUILTIN(BitwiseOr, NumberBuiltinsAssembler) {
-  BitwiseOp<Descriptor>(Token::BIT_OR);
+  EmitBitwiseOp<Descriptor>(Token::BIT_OR);
 }
 
 TF_BUILTIN(BitwiseXor, NumberBuiltinsAssembler) {
-  BitwiseOp<Descriptor>(Token::BIT_XOR);
+  EmitBitwiseOp<Descriptor>(Token::BIT_XOR);
 }
 
 TF_BUILTIN(LessThan, NumberBuiltinsAssembler) {
