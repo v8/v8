@@ -1038,14 +1038,11 @@ RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
   return isolate->heap()->undefined_value();
 }
 
-
 RUNTIME_FUNCTION(Runtime_ToObject) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, object, 0);
-  RETURN_RESULT_OR_FAILURE(isolate, Object::ToObject(isolate, object));
+  // Runtime call is implemented in InterpreterIntrinsics and lowered in
+  // JSIntrinsicLowering.
+  UNREACHABLE();
 }
-
 
 RUNTIME_FUNCTION(Runtime_ToPrimitive) {
   HandleScope scope(isolate);
