@@ -1747,7 +1747,9 @@ void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
-  DCHECK_EQ(expr->scope()->outer_scope(), current_scope());
+  // TODO(gsathya): Fix the DCHECK once class literals use do expressions.
+  DCHECK(expr->scope()->outer_scope() == current_scope() ||
+         FLAG_harmony_class_fields);
   uint8_t flags = CreateClosureFlags::Encode(
       expr->pretenure(), closure_scope()->is_function_scope());
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
@@ -1880,6 +1882,36 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
         break;
       }
     }
+  }
+}
+
+void BytecodeGenerator::VisitInitializeClassFieldsStatement(
+    InitializeClassFieldsStatement* expr) {
+  Register constructor(builder()->Receiver());
+
+  if (expr->needs_home_object()) {
+    FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
+    builder()
+        ->LoadAccumulatorWithRegister(constructor)
+        .StoreHomeObjectProperty(Register::function_closure(),
+                                 feedback_index(slot), language_mode());
+  }
+
+  Register key = register_allocator()->NewRegister();
+  Register value = register_allocator()->NewRegister();
+
+  // TODO(gsathya): Fix evaluation order for computed properties.
+  for (int i = 0; i < expr->fields()->length(); i++) {
+    ClassLiteral::Property* property = expr->fields()->at(i);
+    BuildLoadPropertyKey(property, key);
+    DataPropertyInLiteralFlags flags = DataPropertyInLiteralFlag::kNoFlags;
+    FeedbackSlot slot = feedback_spec()->AddStoreDataPropertyInLiteralICSlot();
+
+    VisitForRegisterValue(property->value(), value);
+    VisitSetHomeObject(value, constructor, property);
+
+    builder()->LoadAccumulatorWithRegister(value).StoreDataPropertyInLiteral(
+        constructor, key, flags, feedback_index(slot));
   }
 }
 

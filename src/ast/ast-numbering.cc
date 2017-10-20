@@ -302,6 +302,13 @@ void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
   }
 }
 
+void AstNumberingVisitor::VisitInitializeClassFieldsStatement(
+    InitializeClassFieldsStatement* node) {
+  for (int i = 0; i < node->fields()->length(); i++) {
+    VisitLiteralProperty(node->fields()->at(i));
+  }
+}
+
 void AstNumberingVisitor::VisitObjectLiteral(ObjectLiteral* node) {
   for (int i = 0; i < node->properties()->length(); i++) {
     VisitLiteralProperty(node->properties()->at(i));

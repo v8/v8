@@ -335,6 +335,10 @@ void Processor::VisitDebuggerStatement(DebuggerStatement* node) {
   replacement_ = node;
 }
 
+void Processor::VisitInitializeClassFieldsStatement(
+    InitializeClassFieldsStatement* node) {
+  replacement_ = node;
+}
 
 // Expressions are never visited.
 #define DEF_VISIT(type)                                         \

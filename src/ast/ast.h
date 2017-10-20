@@ -61,7 +61,8 @@ namespace internal {
   V(WithStatement)                \
   V(TryCatchStatement)            \
   V(TryFinallyStatement)          \
-  V(DebuggerStatement)
+  V(DebuggerStatement)            \
+  V(InitializeClassFieldsStatement)
 
 #define LITERAL_NODE_LIST(V) \
   V(RegExpLiteral)           \
@@ -2270,6 +2271,25 @@ class ClassLiteralProperty final : public LiteralProperty {
   bool is_static_;
 };
 
+class InitializeClassFieldsStatement final : public Statement {
+ public:
+  typedef ClassLiteralProperty Property;
+  ZoneList<Property*>* fields() const { return fields_; }
+  bool needs_home_object() const { return needs_home_object_; }
+
+ private:
+  friend class AstNodeFactory;
+
+  InitializeClassFieldsStatement(ZoneList<Property*>* fields,
+                                 bool needs_home_object, int pos)
+      : Statement(pos, kInitializeClassFieldsStatement),
+        fields_(fields),
+        needs_home_object_(needs_home_object) {}
+
+  ZoneList<Property*>* fields_;
+  bool needs_home_object_;
+};
+
 class ClassLiteral final : public Expression {
  public:
   typedef ClassLiteralProperty Property;
@@ -3135,6 +3155,12 @@ class AstNodeFactory final BASE_EMBEDDED {
 
   ImportCallExpression* NewImportCallExpression(Expression* args, int pos) {
     return new (zone_) ImportCallExpression(args, pos);
+  }
+
+  InitializeClassFieldsStatement* NewInitializeClassFieldsStatement(
+      ZoneList<ClassLiteralProperty*>* args, bool needs_home_object, int pos) {
+    return new (zone_)
+        InitializeClassFieldsStatement(args, needs_home_object, pos);
   }
 
   Zone* zone() const { return zone_; }

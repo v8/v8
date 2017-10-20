@@ -3166,11 +3166,12 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     return;
   }
 
-  if (property->kind() == ClassLiteralProperty::FIELD) {
+  if (property->kind() == ClassLiteralProperty::FIELD && is_static) {
     DCHECK(allow_harmony_class_fields());
-    // TODO(littledan): Implement class fields
+    class_info->static_fields->Add(property, zone());
+  } else {
+    class_info->properties->Add(property, zone());
   }
-  class_info->properties->Add(property, zone());
 }
 
 // This method generates a ClassLiteral AST node.
@@ -3209,7 +3210,64 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
 
   AddFunctionForNameInference(class_info->constructor);
 
-  return class_literal;
+  Expression* result = class_literal;
+
+  if (class_info->static_fields->length() > 0) {
+    // The class literal is rewritten to:
+    // do {
+    //    temp = class { .. };
+    //    %_Call(function() { ... static class fields initializer ... }, temp);
+    //    temp;
+    // }
+    Block* do_block = factory()->NewBlock(2, false);
+
+    Variable* class_var = NewTemporary(ast_value_factory()->empty_string());
+    {
+      // temp = class { .. };
+      VariableProxy* class_proxy = factory()->NewVariableProxy(class_var);
+
+      Assignment* assign_class_proxy = factory()->NewAssignment(
+          Token::ASSIGN, class_proxy, class_literal, kNoSourcePosition);
+      do_block->statements()->Add(factory()->NewExpressionStatement(
+                                      assign_class_proxy, kNoSourcePosition),
+                                  zone());
+    }
+
+    FunctionLiteral* initializer;
+    {
+      // function() { .. static class fields initializer .. }
+      ZoneList<Statement*>* statements = NewStatementList(1);
+      InitializeClassFieldsStatement* class_fields =
+          factory()->NewInitializeClassFieldsStatement(
+              class_info->static_fields,
+              class_info->field_scope->NeedsHomeObject(), kNoSourcePosition);
+      statements->Add(class_fields, zone());
+      initializer = factory()->NewFunctionLiteral(
+          ast_value_factory()->empty_string(), class_info->field_scope,
+          statements, 0, 0, 0, FunctionLiteral::kNoDuplicateParameters,
+          FunctionLiteral::kAnonymousExpression,
+          FunctionLiteral::kShouldEagerCompile,
+          class_info->field_scope->start_position(), true,
+          GetNextFunctionLiteralId());
+    }
+
+    {
+      // %_Call(function() { .. initializer .. }, temp);
+      auto args = new (zone()) ZoneList<Expression*>(2, zone());
+      args->Add(initializer, zone());
+      args->Add(factory()->NewVariableProxy(class_var), zone());
+
+      Expression* call = factory()->NewCallRuntime(Runtime::kInlineCall, args,
+                                                   kNoSourcePosition);
+      do_block->statements()->Add(
+          factory()->NewExpressionStatement(call, kNoSourcePosition), zone());
+    }
+
+    result = factory()->NewDoExpression(do_block, class_var,
+                                        class_literal->position());
+  }
+
+  return result;
 }
 
 void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {

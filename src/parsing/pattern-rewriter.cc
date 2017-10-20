@@ -772,6 +772,7 @@ NOT_A_PATTERN(WithStatement)
 NOT_A_PATTERN(Yield)
 NOT_A_PATTERN(YieldStar)
 NOT_A_PATTERN(Await)
+NOT_A_PATTERN(InitializeClassFieldsStatement)
 
 #undef NOT_A_PATTERN
 }  // namespace internal

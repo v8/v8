@@ -563,19 +563,23 @@ class ParserBase {
         : variable(nullptr),
           extends(parser->impl()->NullExpression()),
           properties(parser->impl()->NewClassPropertyList(4)),
+          static_fields(parser->impl()->NewClassPropertyList(4)),
           constructor(parser->impl()->NullExpression()),
           has_seen_constructor(false),
           has_name_static_property(false),
           has_static_computed_names(false),
-          is_anonymous(false) {}
+          is_anonymous(false),
+          field_scope(nullptr) {}
     Variable* variable;
     ExpressionT extends;
     typename Types::ClassPropertyList properties;
+    typename Types::ClassPropertyList static_fields;
     FunctionLiteralT constructor;
     bool has_seen_constructor;
     bool has_name_static_property;
     bool has_static_computed_names;
     bool is_anonymous;
+    DeclarationScope* field_scope;
   };
 
   DeclarationScope* NewScriptScope() const {
@@ -1088,9 +1092,10 @@ class ParserBase {
                                 bool* ok);
   ExpressionT ParseObjectLiteral(bool* ok);
   ClassLiteralPropertyT ParseClassPropertyDefinition(
-      ClassLiteralChecker* checker, bool has_extends, bool* is_computed_name,
-      bool* has_seen_constructor, ClassLiteralProperty::Kind* property_kind,
-      bool* is_static, bool* has_name_static_property, bool* ok);
+      ClassLiteralChecker* checker, ClassInfo* class_info, bool has_extends,
+      bool* is_computed_name, bool* has_seen_constructor,
+      ClassLiteralProperty::Kind* property_kind, bool* is_static,
+      bool* has_name_static_property, bool* ok);
   FunctionLiteralT ParseClassFieldForInitializer(bool has_initializer,
                                                  bool* ok);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
@@ -2226,9 +2231,10 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
 template <typename Impl>
 typename ParserBase<Impl>::ClassLiteralPropertyT
 ParserBase<Impl>::ParseClassPropertyDefinition(
-    ClassLiteralChecker* checker, bool has_extends, bool* is_computed_name,
-    bool* has_seen_constructor, ClassLiteralProperty::Kind* property_kind,
-    bool* is_static, bool* has_name_static_property, bool* ok) {
+    ClassLiteralChecker* checker, ClassInfo* class_info, bool has_extends,
+    bool* is_computed_name, bool* has_seen_constructor,
+    ClassLiteralProperty::Kind* property_kind, bool* is_static,
+    bool* has_name_static_property, bool* ok) {
   DCHECK_NOT_NULL(has_seen_constructor);
   DCHECK_NOT_NULL(has_name_static_property);
   bool is_get = false;
@@ -2284,12 +2290,31 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
     case PropertyKind::kValueProperty:
       if (allow_harmony_class_fields()) {
         bool has_initializer = Check(Token::ASSIGN);
-        ExpressionT function_literal = ParseClassFieldForInitializer(
-            has_initializer, CHECK_OK_CUSTOM(NullLiteralProperty));
+        ExpressionT initializer;
+        if (class_info->field_scope == nullptr) {
+          class_info->field_scope =
+              NewFunctionScope(FunctionKind::kConciseMethod);
+          // TODO(gsathya): Make scopes be non contiguous.
+          class_info->field_scope->set_start_position(
+              scanner()->location().end_pos);
+          scope()->SetLanguageMode(LanguageMode::kStrict);
+        }
+        if (has_initializer) {
+          FunctionState initializer_state(&function_state_, &scope_,
+                                          class_info->field_scope);
+          ExpressionClassifier expression_classifier(this);
+          initializer =
+              ParseAssignmentExpression(true, CHECK_OK_CUSTOM(NullExpression));
+          impl()->RewriteNonPattern(CHECK_OK_CUSTOM(NullExpression));
+        } else {
+          initializer = factory()->NewUndefinedLiteral(kNoSourcePosition);
+        }
+        class_info->field_scope->set_end_position(
+            scanner()->location().end_pos);
         ExpectSemicolon(CHECK_OK_CUSTOM(NullLiteralProperty));
         *property_kind = ClassLiteralProperty::FIELD;
         ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
-            name_expression, function_literal, *property_kind, *is_static,
+            name_expression, initializer, *property_kind, *is_static,
             *is_computed_name);
         impl()->SetFunctionNameFromPropertyName(result, name);
         return result;
@@ -4448,7 +4473,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
     // property.
     bool is_constructor = !class_info.has_seen_constructor;
     ClassLiteralPropertyT property = ParseClassPropertyDefinition(
-        &checker, has_extends, &is_computed_name,
+        &checker, &class_info, has_extends, &is_computed_name,
         &class_info.has_seen_constructor, &property_kind, &is_static,
         &class_info.has_name_static_property, CHECK_OK);
     if (!class_info.has_static_computed_names && is_static &&

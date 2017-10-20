@@ -198,6 +198,12 @@ void CallPrinter::VisitClassLiteral(ClassLiteral* node) {
   }
 }
 
+void CallPrinter::VisitInitializeClassFieldsStatement(
+    InitializeClassFieldsStatement* node) {
+  for (int i = 0; i < node->fields()->length(); i++) {
+    Find(node->fields()->at(i)->value());
+  }
+}
 
 void CallPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {}
 
@@ -949,6 +955,12 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
     PrintIndentedVisit("EXTENDS", node->extends());
   }
   PrintClassProperties(node->properties());
+}
+
+void AstPrinter::VisitInitializeClassFieldsStatement(
+    InitializeClassFieldsStatement* node) {
+  IndentedScope indent(this, "INITIALIZE CLASS FIELDS", node->position());
+  PrintClassProperties(node->fields());
 }
 
 void AstPrinter::PrintClassProperties(
