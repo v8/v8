@@ -61,9 +61,10 @@ macro IS_RECEIVER(arg) = (%_IsJSReceiver(arg));
 # Macro for ES queries of the type: "IsCallable(O)"
 macro IS_CALLABLE(arg) = (typeof(arg) === 'function');
 
-# Macro for ES6 CheckObjectCoercible
-# Will throw a TypeError of the form "[functionName] called on null or undefined".
-macro CHECK_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL(%IS_VAR(arg)) || IS_UNDEFINED(arg)) throw %make_type_error(kCalledOnNullOrUndefined, functionName);
+# Macro for ES RequireObjectCoercible
+# https://tc39.github.io/ecma262/#sec-requireobjectcoercible
+# Throws a TypeError of the form "[functionName] called on null or undefined".
+macro REQUIRE_OBJECT_COERCIBLE(arg, functionName) = if (IS_NULL(%IS_VAR(arg)) || IS_UNDEFINED(arg)) throw %make_type_error(kCalledOnNullOrUndefined, functionName);
 
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro TO_BOOLEAN(arg) = (!!(arg));

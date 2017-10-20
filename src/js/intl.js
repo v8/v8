@@ -1810,7 +1810,7 @@ function formatDate(formatter, dateValue) {
 DEFINE_METHOD(
   GlobalIntlDateTimeFormat.prototype,
   formatToParts(dateValue) {
-    CHECK_OBJECT_COERCIBLE(this, "Intl.DateTimeFormat.prototype.formatToParts");
+    REQUIRE_OBJECT_COERCIBLE(this, "Intl.DateTimeFormat.prototype.formatToParts");
     if (!IS_OBJECT(this)) {
       throw %make_type_error(kCalledOnNonObject, this);
     }
@@ -2111,12 +2111,12 @@ DEFINE_METHODS_LEN(
   GlobalString.prototype,
   {
     toLocaleLowerCase(locales) {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleLowerCase");
+      REQUIRE_OBJECT_COERCIBLE(this, "String.prototype.toLocaleLowerCase");
       return LocaleConvertCase(TO_STRING(this), locales, false);
     }
 
     toLocaleUpperCase(locales) {
-      CHECK_OBJECT_COERCIBLE(this, "String.prototype.toLocaleUpperCase");
+      REQUIRE_OBJECT_COERCIBLE(this, "String.prototype.toLocaleUpperCase");
       return LocaleConvertCase(TO_STRING(this), locales, true);
     }
   },
