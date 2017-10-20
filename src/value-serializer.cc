@@ -1582,7 +1582,6 @@ MaybeHandle<JSSet> ValueDeserializer::ReadJSSet() {
 MaybeHandle<JSArrayBuffer> ValueDeserializer::ReadJSArrayBuffer() {
   uint32_t id = next_id_++;
   uint32_t byte_length;
-  Vector<const uint8_t> bytes;
   if (!ReadVarint<uint32_t>().To(&byte_length) ||
       byte_length > static_cast<size_t>(end_ - position_)) {
     return MaybeHandle<JSArrayBuffer>();
