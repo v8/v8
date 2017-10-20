@@ -3719,11 +3719,7 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
   Descriptor d = Descriptor::DataField(name, index, attributes, constness,
                                        representation, wrapped_type);
   Handle<Map> new_map = Map::CopyAddDescriptor(map, &d, flag);
-  int unused_property_fields = new_map->unused_property_fields() - 1;
-  if (unused_property_fields < 0) {
-    unused_property_fields += JSObject::kFieldsAdded;
-  }
-  new_map->set_unused_property_fields(unused_property_fields);
+  new_map->AccountAddedPropertyField();
   return new_map;
 }
 
@@ -3797,7 +3793,7 @@ bool Map::TransitionRequiresSynchronizationWithGC(Map* target) const {
 bool Map::InstancesNeedRewriting(Map* target) const {
   int target_number_of_fields = target->NumberOfFields();
   int target_inobject = target->GetInObjectProperties();
-  int target_unused = target->unused_property_fields();
+  int target_unused = target->UnusedPropertyFields();
   int old_number_of_fields;
 
   return InstancesNeedRewriting(target, target_number_of_fields,
@@ -3897,7 +3893,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     PropertyDetails details = new_map->GetLastDescriptorDetails();
     int target_index = details.field_index() - new_map->GetInObjectProperties();
     int property_array_length = object->property_array()->length();
-    bool have_space = old_map->unused_property_fields() > 0 ||
+    bool have_space = old_map->UnusedPropertyFields() > 0 ||
                       (details.location() == kField && target_index >= 0 &&
                        property_array_length > target_index);
     // Either new_map adds an kDescriptor property, or a kField property for
@@ -3925,7 +3921,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
 
     // This migration is a transition from a map that has run out of property
     // space. Extend the backing store.
-    int grow_by = new_map->unused_property_fields() + 1;
+    int grow_by = new_map->UnusedPropertyFields() + 1;
     Handle<PropertyArray> old_storage(object->property_array());
     Handle<PropertyArray> new_storage =
         isolate->factory()->CopyPropertyArrayAndGrow(old_storage, grow_by);
@@ -3954,7 +3950,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
   int old_number_of_fields;
   int number_of_fields = new_map->NumberOfFields();
   int inobject = new_map->GetInObjectProperties();
-  int unused = new_map->unused_property_fields();
+  int unused = new_map->UnusedPropertyFields();
 
   // Nothing to do if no functions were converted to fields and no smis were
   // converted to doubles.
@@ -4337,11 +4333,7 @@ Handle<Map> Map::CopyGeneralizeAllFields(Handle<Map> map,
           attributes, Representation::Tagged());
       descriptors->Replace(modify_index, &d);
       if (details.location() != kField) {
-        int unused_property_fields = new_map->unused_property_fields() - 1;
-        if (unused_property_fields < 0) {
-          unused_property_fields += JSObject::kFieldsAdded;
-        }
-        new_map->set_unused_property_fields(unused_property_fields);
+        new_map->AccountAddedPropertyField();
       }
     } else {
       DCHECK(details.attributes() == attributes);
@@ -5863,7 +5855,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
   }
   int number_of_fields = map->NumberOfFields();
   int inobject = map->GetInObjectProperties();
-  int unused = map->unused_property_fields();
+  int unused = map->UnusedPropertyFields();
   int total_size = number_of_fields + unused;
   int external = total_size - inobject;
   // Allocate mutable double boxes if necessary. It is always necessary if we
@@ -6246,7 +6238,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
     DisallowHeapAllocation no_gc;
     DCHECK_LE(unused_property_fields, inobject_props);
     // Transform the object.
-    new_map->set_unused_property_fields(inobject_props);
+    new_map->SetInObjectUnusedPropertyFields(inobject_props);
     object->synchronized_set_map(*new_map);
     object->SetProperties(isolate->heap()->empty_fixed_array());
     // Check that it really works.
@@ -6329,7 +6321,11 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
   DisallowHeapAllocation no_gc;
   new_map->InitializeDescriptors(*descriptors, *layout_descriptor);
-  new_map->set_unused_property_fields(unused_property_fields);
+  if (number_of_allocated_fields == 0) {
+    new_map->SetInObjectUnusedPropertyFields(unused_property_fields);
+  } else {
+    new_map->SetOutOfObjectUnusedPropertyFields(unused_property_fields);
+  }
 
   // Transform the object.
   object->synchronized_set_map(*new_map);
@@ -9102,7 +9098,7 @@ Handle<Map> Map::CopyNormalized(Handle<Map> map,
       mode == CLEAR_INOBJECT_PROPERTIES ? 0 : map->GetInObjectProperties());
   // Clear the unused_property_fields explicitly as this field should not
   // be accessed for normalized maps.
-  result->set_unused_property_fields(0);
+  result->SetInObjectUnusedPropertyFields(0);
   result->set_dictionary_map(true);
   result->set_migration_target(false);
   result->set_may_have_interesting_symbols(true);
@@ -9171,7 +9167,7 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
   Handle<Map> result = RawCopy(map, instance_size, inobject_properties);
 
   // Please note instance_type and instance_size are set when allocated.
-  result->set_unused_property_fields(unused_property_fields);
+  result->SetInObjectUnusedPropertyFields(unused_property_fields);
 
   int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors > 0) {
@@ -9180,8 +9176,8 @@ Handle<Map> Map::CopyInitialMap(Handle<Map> map, int instance_size,
                               map->GetLayoutDescriptor());
     result->SetNumberOfOwnDescriptors(number_of_own_descriptors);
 
-    DCHECK_EQ(result->NumberOfFields(), result->GetInObjectProperties() -
-                                            result->unused_property_fields());
+    DCHECK_EQ(result->NumberOfFields(),
+              result->GetInObjectProperties() - result->UnusedPropertyFields());
   }
 
   return result;
@@ -9195,7 +9191,7 @@ Handle<Map> Map::CopyDropDescriptors(Handle<Map> map) {
 
   // Please note instance_type and instance_size are set when allocated.
   if (map->IsJSObjectMap()) {
-    result->set_unused_property_fields(map->unused_property_fields());
+    result->CopyUnusedPropertyFields(*map);
   }
   map->NotifyLeafMapLayoutChange();
   return result;
@@ -9377,7 +9373,7 @@ Handle<Map> Map::AddMissingTransitions(
   // all the other intermediate maps are created.
   Handle<Map> last_map = CopyDropDescriptors(split_map);
   last_map->InitializeDescriptors(*descriptors, *full_layout_descriptor);
-  last_map->set_unused_property_fields(0);
+  last_map->SetInObjectUnusedPropertyFields(0);
 
   // During creation of intermediate maps we violate descriptors sharing
   // invariant since the last map is not yet connected to the transition tree
@@ -9407,16 +9403,11 @@ void Map::InstallDescriptors(Handle<Map> parent, Handle<Map> child,
 
   child->set_instance_descriptors(*descriptors);
   child->SetNumberOfOwnDescriptors(new_descriptor + 1);
-
-  int unused_property_fields = parent->unused_property_fields();
+  child->CopyUnusedPropertyFields(*parent);
   PropertyDetails details = descriptors->GetDetails(new_descriptor);
   if (details.location() == kField) {
-    unused_property_fields = parent->unused_property_fields() - 1;
-    if (unused_property_fields < 0) {
-      unused_property_fields += JSObject::kFieldsAdded;
-    }
+    child->AccountAddedPropertyField();
   }
-  child->set_unused_property_fields(unused_property_fields);
 
   if (FLAG_unbox_double_fields) {
     Handle<LayoutDescriptor> layout_descriptor =
@@ -9508,7 +9499,7 @@ Handle<Map> Map::AsLanguageMode(Handle<Map> initial_map,
   Handle<Map> map =
       Map::CopyInitialMap(function_map, initial_map->instance_size(),
                           initial_map->GetInObjectProperties(),
-                          initial_map->unused_property_fields());
+                          initial_map->UnusedPropertyFields());
   map->SetConstructor(initial_map->GetConstructor());
   map->set_prototype(initial_map->prototype());
   map->set_construction_counter(initial_map->construction_counter());
@@ -9583,9 +9574,9 @@ Handle<Map> Map::Create(Isolate* isolate, int inobject_properties) {
       JSObject::kHeaderSize + kPointerSize * inobject_properties;
 
   // Adjust the map with the extra inobject properties.
-  copy->SetInObjectProperties(inobject_properties);
-  copy->set_unused_property_fields(inobject_properties);
   copy->set_instance_size(new_instance_size);
+  copy->SetInObjectProperties(inobject_properties);
+  copy->SetInObjectUnusedPropertyFields(inobject_properties);
   copy->set_visitor_id(Map::GetVisitorId(*copy));
   return copy;
 }
@@ -10014,7 +10005,11 @@ Handle<Map> Map::CopyReplaceDescriptor(Handle<Map> map,
                                        int insertion_index,
                                        TransitionFlag flag) {
   Handle<Name> key = descriptor->GetKey();
-  DCHECK(*key == descriptors->GetKey(insertion_index));
+  DCHECK_EQ(*key, descriptors->GetKey(insertion_index));
+  // This function does not support replacing property fields as
+  // that would break property field counters.
+  DCHECK_NE(kField, descriptor->GetDetails().location());
+  DCHECK_NE(kField, descriptors->GetDetails(insertion_index).location());
 
   Handle<DescriptorArray> new_descriptors = DescriptorArray::CopyUpTo(
       descriptors, map->NumberOfOwnDescriptors());
@@ -12309,7 +12304,7 @@ void JSFunction::EnsureLiterals(Handle<JSFunction> function) {
 }
 
 static void GetMinInobjectSlack(Map* map, void* data) {
-  int slack = map->unused_property_fields();
+  int slack = map->UnusedPropertyFields();
   if (*reinterpret_cast<int*>(data) > slack) {
     *reinterpret_cast<int*>(data) = slack;
   }
@@ -12337,7 +12332,7 @@ void Map::CompleteInobjectSlackTracking() {
   // Has to be an initial map.
   DCHECK(GetBackPointer()->IsUndefined(GetIsolate()));
 
-  int slack = unused_property_fields();
+  int slack = UnusedPropertyFields();
   DisallowHeapAllocation no_gc;
   TransitionsAccessor transitions(this, &no_gc);
   transitions.TraverseTransitionTree(&GetMinInobjectSlack, &slack);
@@ -12965,7 +12960,7 @@ MaybeHandle<Map> JSFunction::GetDerivedMap(Isolate* isolate,
       int embedder_fields =
           JSObject::GetEmbedderFieldCount(*constructor_initial_map);
       int pre_allocated = constructor_initial_map->GetInObjectProperties() -
-                          constructor_initial_map->unused_property_fields();
+                          constructor_initial_map->UnusedPropertyFields();
       int instance_size;
       int in_object_properties;
       CalculateInstanceSizeForDerivedClass(function, instance_type,
@@ -13846,7 +13841,7 @@ void SharedFunctionInfo::SetConstructStub(Code* code) {
 
 void Map::StartInobjectSlackTracking() {
   DCHECK(!IsInobjectSlackTrackingInProgress());
-  if (unused_property_fields() == 0) return;
+  if (UnusedPropertyFields() == 0) return;
   set_construction_counter(Map::kSlackTrackingCounterStart);
 }
 

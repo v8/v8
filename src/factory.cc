@@ -1921,7 +1921,7 @@ Handle<JSGlobalObject> Factory::NewJSGlobalObject(
 
   // Make sure we don't have a ton of pre-allocated slots in the
   // global objects. They will be unused once we normalize the object.
-  DCHECK_EQ(map->unused_property_fields(), 0);
+  DCHECK_EQ(map->UnusedPropertyFields(), 0);
   DCHECK_EQ(map->GetInObjectProperties(), 0);
 
   // Initial size of the backing store to avoid resize of the storage during

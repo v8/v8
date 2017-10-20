@@ -2327,9 +2327,8 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   }
   // GetVisitorId requires a properly initialized LayoutDescriptor.
   map->set_visitor_id(Map::GetVisitorId(map));
-  map->clear_unused();
   map->set_inobject_properties_or_constructor_function_index(0);
-  map->set_unused_property_fields(0);
+  map->SetInObjectUnusedPropertyFields(0);
   map->set_bit_field(0);
   map->set_bit_field2(0);
   int bit_field3 = Map::EnumLengthBits::encode(kInvalidEnumCacheSentinel) |
@@ -2355,14 +2354,13 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   map->set_prototype(null_value(), SKIP_WRITE_BARRIER);
   map->set_constructor_or_backpointer(null_value(), SKIP_WRITE_BARRIER);
   map->set_instance_size(instance_size);
-  map->clear_unused();
   map->set_inobject_properties_or_constructor_function_index(
       inobject_properties);
   map->set_dependent_code(DependentCode::cast(empty_fixed_array()),
                           SKIP_WRITE_BARRIER);
   map->set_weak_cell_cache(Smi::kZero);
   map->set_raw_transitions(Smi::kZero);
-  map->set_unused_property_fields(inobject_properties);
+  map->SetInObjectUnusedPropertyFields(inobject_properties);
   map->set_instance_descriptors(empty_descriptor_array());
   if (FLAG_unbox_double_fields) {
     map->set_layout_descriptor(LayoutDescriptor::FastPointerLayout());

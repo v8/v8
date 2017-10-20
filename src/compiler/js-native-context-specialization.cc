@@ -1912,7 +1912,7 @@ JSNativeContextSpecialization::BuildPropertyStore(
       // with this transitioning store.
       Handle<Map> original_map(Map::cast(transition_map->GetBackPointer()),
                                isolate());
-      if (original_map->unused_property_fields() == 0) {
+      if (original_map->UnusedPropertyFields() == 0) {
         DCHECK(!field_index.is_inobject());
 
         // Reallocate the properties {storage}.
@@ -2393,7 +2393,7 @@ Node* JSNativeContextSpecialization::BuildExtendPropertiesBackingStore(
   // difficult for escape analysis to get rid of the backing stores used
   // for intermediate states of chains of property additions. That makes
   // it unclear what the best approach is here.
-  DCHECK_EQ(0, map->unused_property_fields());
+  DCHECK_EQ(0, map->UnusedPropertyFields());
   // Compute the length of the old {properties} and the new properties.
   int length = map->NextFreePropertyIndex() - map->GetInObjectProperties();
   int new_length = length + JSObject::kFieldsAdded;

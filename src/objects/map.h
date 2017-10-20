@@ -94,7 +94,10 @@ typedef std::vector<Handle<Map>> MapHandles;
 //      |          | If Map for an Object type:                  |
 //      |          |   number of in-object properties            |
 //      +----------+---------------------------------------------+
-//      | Byte     | unused                                      |
+//      | Byte     | [used_instance_size_in_words]               |
+//      |          | For JSObject in fast mode this byte encodes |
+//      |          | the size of the object that includes only   |
+//      |          | the used property fields.                   |
 //      +----------+---------------------------------------------+
 //      | Byte     | [visitor_id]                                |
 // +----+----------+---------------------------------------------+
@@ -162,9 +165,6 @@ class Map : public HeapObject {
   inline int instance_size() const;
   inline void set_instance_size(int value);
 
-  // Only to clear an unused byte, remove once byte is used.
-  inline void clear_unused();
-
   // [inobject_properties_or_constructor_function_index]: Provides access
   // to the inobject properties in case of JSObject maps, or the constructor
   // function index in case of primitive maps.
@@ -194,6 +194,30 @@ class Map : public HeapObject {
   // instance (only used for JSObject in fast mode).
   inline int unused_property_fields() const;
   inline void set_unused_property_fields(int value);
+
+  // This byte encodes the instance size without the slack.
+  // Let H be JSObject::kHeaderSize / kPointerSize.
+  // If value >= H then:
+  //     - all field properties are stored in the object.
+  //     - there is no property array.
+  //     - value * kPointerSize is the actual object size without the slack.
+  // Otherwise:
+  //     - there is slack in the object.
+  //     - the property array has value slack slots.
+  // Note that this encoding requires that H = JSObject::kFieldsAdded.
+  inline int used_instance_size_in_words() const;
+  inline void set_used_instance_size_in_words(int value);
+
+  inline int UnusedPropertyFields() const;
+  // Updates the counters tracking unused fields in the object.
+  inline void SetInObjectUnusedPropertyFields(int unused_property_fields);
+  // Updates the counters tracking unused fields in the property array.
+  inline void SetOutOfObjectUnusedPropertyFields(int unused_property_fields);
+  inline void CopyUnusedPropertyFields(Map* map);
+  inline void AccountAddedPropertyField();
+  inline void AccountAddedOutOfObjectPropertyField(
+      int unused_in_property_array);
+  inline void VerifyUnusedPropertyFields() const;
 
   // Bit field.
   inline byte bit_field() const;
@@ -737,9 +761,9 @@ class Map : public HeapObject {
   static const int kInObjectPropertiesOrConstructorFunctionIndexByte = 1;
   static const int kInObjectPropertiesOrConstructorFunctionIndexOffset =
       kInstanceSizesOffset + kInObjectPropertiesOrConstructorFunctionIndexByte;
-  // Note there is one byte available for use here.
-  static const int kUnusedByte = 2;
-  static const int kUnusedOffset = kInstanceSizesOffset + kUnusedByte;
+  static const int kUsedInstanceSizeInWordsByte = 2;
+  static const int kUsedInstanceSizeInWordsOffset =
+      kInstanceSizesOffset + kUsedInstanceSizeInWordsByte;
   static const int kVisitorIdByte = 3;
   static const int kVisitorIdOffset = kInstanceSizesOffset + kVisitorIdByte;
 
@@ -757,6 +781,8 @@ class Map : public HeapObject {
   static const int kInstanceTypeAndBitFieldOffset =
       kInstanceAttributesOffset + 0;
   static const int kBitField2Offset = kInstanceAttributesOffset + 2;
+  // TODO(ulan): Free this byte after unused_property_fields are computed using
+  // the used_instance_size_in_words() byte.
   static const int kUnusedPropertyFieldsOffset = kInstanceAttributesOffset + 3;
 
   STATIC_ASSERT(kInstanceTypeAndBitFieldOffset ==

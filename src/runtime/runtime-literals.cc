@@ -373,7 +373,7 @@ struct ObjectBoilerplate {
       // TODO(cbruni): avoid making the boilerplate fast again, the clone stub
       // supports dict-mode objects directly.
       JSObject::MigrateSlowToFast(boilerplate,
-                                  boilerplate->map()->unused_property_fields(),
+                                  boilerplate->map()->UnusedPropertyFields(),
                                   "FastLiteral");
     }
     return boilerplate;

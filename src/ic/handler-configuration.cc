@@ -259,7 +259,7 @@ Handle<Object> StoreHandler::StoreTransition(Isolate* isolate,
       } else {
         DCHECK_EQ(kField, details.location());
         bool extend_storage = Map::cast(transition_map->GetBackPointer())
-                                  ->unused_property_fields() == 0;
+                                  ->UnusedPropertyFields() == 0;
 
         FieldIndex index =
             FieldIndex::ForDescriptor(*transition_map, descriptor);

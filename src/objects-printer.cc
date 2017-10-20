@@ -565,7 +565,7 @@ void Map::MapPrint(std::ostream& os) {  // NOLINT
     os << "\n - inobject properties: " << GetInObjectProperties();
   }
   os << "\n - elements kind: " << ElementsKindToString(elements_kind());
-  os << "\n - unused property fields: " << unused_property_fields();
+  os << "\n - unused property fields: " << UnusedPropertyFields();
   os << "\n - enum length: ";
   if (EnumLength() == kInvalidEnumCacheSentinel) {
     os << "invalid";

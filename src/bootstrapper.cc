@@ -797,8 +797,12 @@ Handle<Map> CreateNonConstructorMap(Handle<Map> source_map,
   // Ensure the resulting map has prototype slot (it is necessary for storing
   // inital map even when the prototype property is not required).
   if (!map->has_prototype_slot()) {
+    // Re-set the unused property fields after changing the instance size.
+    // TODO(ulan): Do not change instance size after map creation.
+    int unused_property_fields = map->UnusedPropertyFields();
     map->set_instance_size(map->instance_size() + kPointerSize);
     map->set_has_prototype_slot(true);
+    map->SetInObjectUnusedPropertyFields(unused_property_fields);
   }
   map->set_is_constructor(false);
   Map::SetPrototype(map, prototype);
@@ -3323,9 +3327,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // not have a prototype property.
     Handle<Map> proxy_function_map =
         Map::Copy(isolate->strict_function_without_prototype_map(), "Proxy");
+    // Re-set the unused property fields after changing the instance size.
+    // TODO(ulan): Do not change instance size after map creation.
+    int unused_property_fields = proxy_function_map->UnusedPropertyFields();
     proxy_function_map->set_instance_size(JSFunction::kSizeWithPrototype);
     proxy_function_map->set_has_prototype_slot(true);
     proxy_function_map->set_is_constructor(true);
+    proxy_function_map->SetInObjectUnusedPropertyFields(unused_property_fields);
 
     Handle<String> name = factory->Proxy_string();
     Handle<Code> code(BUILTIN_CODE(isolate, ProxyConstructor));

@@ -326,16 +326,15 @@ void JSObject::JSObjectVerify() {
     int actual_unused_property_fields = map()->GetInObjectProperties() +
                                         property_array()->length() -
                                         map()->NextFreePropertyIndex();
-    if (map()->unused_property_fields() != actual_unused_property_fields) {
+    if (map()->UnusedPropertyFields() != actual_unused_property_fields) {
       // There are two reasons why this can happen:
       // - in the middle of StoreTransitionStub when the new extended backing
       //   store is already set into the object and the allocation of the
       //   MutableHeapNumber triggers GC while the map isn't updated yet.
       // - deletion of the last property can leave additional backing store
       //   capacity behind.
-      CHECK_GT(actual_unused_property_fields, map()->unused_property_fields());
-      int delta =
-          actual_unused_property_fields - map()->unused_property_fields();
+      CHECK_GT(actual_unused_property_fields, map()->UnusedPropertyFields());
+      int delta = actual_unused_property_fields - map()->UnusedPropertyFields();
       CHECK_EQ(0, delta % JSObject::kFieldsAdded);
     }
     DescriptorArray* descriptors = map()->instance_descriptors();
@@ -432,7 +431,7 @@ void Map::DictionaryMapVerify() {
   CHECK(is_dictionary_map());
   CHECK_EQ(kInvalidEnumCacheSentinel, EnumLength());
   CHECK_EQ(GetHeap()->empty_descriptor_array(), instance_descriptors());
-  CHECK_EQ(0, unused_property_fields());
+  CHECK_EQ(0, UnusedPropertyFields());
   CHECK_EQ(Map::GetVisitorId(this), visitor_id());
 }
 
@@ -1450,7 +1449,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
   if (HasFastProperties()) {
     info->number_of_objects_with_fast_properties_++;
     info->number_of_fast_used_fields_   += map()->NextFreePropertyIndex();
-    info->number_of_fast_unused_fields_ += map()->unused_property_fields();
+    info->number_of_fast_unused_fields_ += map()->UnusedPropertyFields();
   } else if (IsJSGlobalObject()) {
     GlobalDictionary* dict = JSGlobalObject::cast(this)->global_dictionary();
     info->number_of_slow_used_properties_ += dict->NumberOfElements();
