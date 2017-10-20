@@ -590,6 +590,35 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
   heap_->always_allocate_scope_count_.Decrement(1);
 }
 
+CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
+    : heap_(heap) {
+  if (FLAG_write_protect_code_memory) {
+    heap_->code_space()->SetReadAndWritable();
+  }
+}
+
+CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
+  if (FLAG_write_protect_code_memory) {
+    heap_->code_space()->SetReadAndExecutable();
+  }
+}
+
+CodePageMemoryModificationScope::CodePageMemoryModificationScope(
+    MemoryChunk* chunk)
+    : chunk_(chunk) {
+  if (FLAG_write_protect_code_memory &&
+      chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+    chunk_->SetReadAndWritable();
+  }
+}
+
+CodePageMemoryModificationScope::~CodePageMemoryModificationScope() {
+  if (FLAG_write_protect_code_memory &&
+      chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+    chunk_->SetReadAndExecutable();
+  }
+}
+
 }  // namespace internal
 }  // namespace v8
 

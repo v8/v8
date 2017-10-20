@@ -177,18 +177,18 @@ class V8_BASE_EXPORT OS {
   // PROT_NONE, which also prevents it from being committed.
   static void* AllocateGuarded(const size_t requested);
 
-  // This is the granularity at which the ProtectCode(...) call can set page
-  // permissions.
+  // This is the granularity at which the SetReadAndExecutable(...) call can
+  // set page permissions.
   static intptr_t CommitPageSize();
 
-  // Mark code segments non-writable.
-  static void ProtectCode(void* address, const size_t size);
+  // Mark a region of memory executable and readable but not writable.
+  static void SetReadAndExecutable(void* address, const size_t size);
 
   // Assign memory as a guard page so that access will cause an exception.
   static void Guard(void* address, const size_t size);
 
-  // Make a region of memory readable and writable.
-  static void Unprotect(void* address, const size_t size);
+  // Make a region of memory non-executable but readable and writable.
+  static void SetReadAndWritable(void* address, const size_t size, bool commit);
 
   // Generate a random address to be used for hinting mmap().
   static void* GetRandomMmapAddr();

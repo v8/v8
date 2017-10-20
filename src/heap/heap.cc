@@ -1914,6 +1914,8 @@ void Heap::Scavenge() {
     job.AddTask(new ScavengingTask(this, scavengers[i], &barrier));
   }
 
+  CodeSpaceMemoryModificationScope code_modification(this);
+
   RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
       this, [&job](MemoryChunk* chunk) {
         job.AddItem(new PageScavengingItem(chunk));
@@ -3046,6 +3048,7 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
 
 
 AllocationResult Heap::CopyCode(Code* code) {
+  CodeSpaceMemoryModificationScope code_modification(this);
   AllocationResult allocation;
 
   HeapObject* result = nullptr;

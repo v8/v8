@@ -366,6 +366,8 @@ class MemoryChunk {
       + kPointerSize  // AtomicValue high_water_mark_
       + kPointerSize  // base::RecursiveMutex* mutex_
       + kPointerSize  // base::AtomicWord concurrent_sweeping_
+      + kPointerSize  // base::Mutex* page_protection_change_mutex_
+      + kPointerSize  // unitptr_t write_unprotect_counter_
       + kSizetSize    // size_t allocated_bytes_
       + kSizetSize    // size_t wasted_memory_
       + kPointerSize  // AtomicValue next_chunk_
@@ -627,6 +629,9 @@ class MemoryChunk {
   // MemoryChunk::synchronized_heap() to simulate the barrier.
   void InitializationMemoryFence();
 
+  void SetReadAndExecutable();
+  void SetReadAndWritable();
+
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,
@@ -678,6 +683,16 @@ class MemoryChunk {
   base::RecursiveMutex* mutex_;
 
   base::AtomicValue<ConcurrentSweepingState> concurrent_sweeping_;
+
+  base::Mutex* page_protection_change_mutex_;
+
+  // This field is only relevant for code pages. It depicts the number of
+  // times a component requested this page to be read+writeable. The
+  // counter is decremented when a component resets to read+executable.
+  // If Value() == 0 => The memory is read and executable.
+  // If Value() >= 1 => The Memory is read and writable.
+  // The maximum value can right now only be 2.
+  uintptr_t write_unprotect_counter_;
 
   // Byte allocated on the page, which includes all objects on the page
   // and the linear allocation area.
@@ -2114,6 +2129,9 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   // Remove a page if it has at least |size_in_bytes| bytes available that can
   // be used for allocation.
   Page* RemovePageSafe(int size_in_bytes);
+
+  void SetReadAndExecutable();
+  void SetReadAndWritable();
 
 #ifdef VERIFY_HEAP
   // Verify integrity of this space.

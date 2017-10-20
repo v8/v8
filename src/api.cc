@@ -519,7 +519,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
         return;
       }
       case v8::ArrayBuffer::Allocator::Protection::kReadWrite: {
-        base::OS::Unprotect(data, length);
+        base::OS::SetReadAndWritable(data, length, true);
         return;
       }
     }

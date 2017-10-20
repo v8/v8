@@ -1810,6 +1810,7 @@ Handle<Code> Factory::NewCode(const CodeDesc& desc, Code::Kind kind,
   }
   int obj_size = Code::SizeFor(RoundUp(body_size, kObjectAlignment));
 
+  CodeSpaceMemoryModificationScope code_allocation(isolate()->heap());
   Handle<Code> code = NewCodeRaw(obj_size, immovable);
   DCHECK(!isolate()->heap()->memory_allocator()->code_range()->valid() ||
          isolate()->heap()->memory_allocator()->code_range()->contains(

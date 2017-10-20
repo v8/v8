@@ -3733,6 +3733,7 @@ void MarkCompactCollector::Sweeper::AddSweptPageSafe(PagedSpace* space,
 void MarkCompactCollector::Evacuate() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE);
   base::LockGuard<base::Mutex> guard(heap()->relocation_mutex());
+  CodeSpaceMemoryModificationScope code_modifcation(heap());
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_PROLOGUE);
@@ -4419,6 +4420,11 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
     base::LockGuard<base::RecursiveMutex> guard(page->mutex());
     // If this page was already swept in the meantime, we can return here.
     if (page->SweepingDone()) return 0;
+
+    // If the page is a code page, the CodePageMemoryModificationScope changes
+    // the page protection mode from read+execute to read+write while sweeping.
+    CodePageMemoryModificationScope code_page_scope(page);
+
     DCHECK_EQ(Page::kSweepingPending,
               page->concurrent_sweeping_state().Value());
     page->concurrent_sweeping_state().SetValue(Page::kSweepingInProgress);

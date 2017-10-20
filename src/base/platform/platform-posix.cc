@@ -116,14 +116,13 @@ void OS::Free(void* address, const size_t size) {
   DCHECK_EQ(result, 0);
 }
 
-
-// Get rid of writable permission on code allocations.
-void OS::ProtectCode(void* address, const size_t size) {
+void OS::SetReadAndExecutable(void* address, const size_t size) {
 #if V8_OS_CYGWIN
   DWORD old_protect;
-  VirtualProtect(address, size, PAGE_EXECUTE_READ, &old_protect);
+  CHECK_NOT_NULL(
+      VirtualProtect(address, size, PAGE_EXECUTE_READ, &old_protect));
 #else
-  mprotect(address, size, PROT_READ | PROT_EXEC);
+  CHECK_EQ(0, mprotect(address, size, PROT_READ | PROT_EXEC));
 #endif
 }
 
@@ -141,12 +140,12 @@ void OS::Guard(void* address, const size_t size) {
 #endif  // !V8_OS_FUCHSIA
 
 // Make a region of memory readable and writable.
-void OS::Unprotect(void* address, const size_t size) {
+void OS::SetReadAndWritable(void* address, const size_t size, bool commit) {
 #if V8_OS_CYGWIN
   DWORD oldprotect;
-  VirtualProtect(address, size, PAGE_READWRITE, &oldprotect);
+  CHECK_NOT_NULL(VirtualProtect(address, size, PAGE_READWRITE, &oldprotect));
 #else
-  mprotect(address, size, PROT_READ | PROT_WRITE);
+  CHECK_EQ(0, mprotect(address, size, PROT_READ | PROT_WRITE));
 #endif
 }
 

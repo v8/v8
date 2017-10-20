@@ -814,9 +814,10 @@ intptr_t OS::CommitPageSize() {
   return 4096;
 }
 
-void OS::ProtectCode(void* address, const size_t size) {
+void OS::SetReadAndExecutable(void* address, const size_t size) {
   DWORD old_protect;
-  VirtualProtect(address, size, PAGE_EXECUTE_READ, &old_protect);
+  CHECK_NE(NULL,
+           VirtualProtect(address, size, PAGE_EXECUTE_READ, &old_protect));
 }
 
 void OS::Guard(void* address, const size_t size) {
@@ -824,9 +825,13 @@ void OS::Guard(void* address, const size_t size) {
   VirtualProtect(address, size, PAGE_NOACCESS, &oldprotect);
 }
 
-void OS::Unprotect(void* address, const size_t size) {
-  LPVOID result = VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE);
-  USE(result);
+void OS::SetReadAndWritable(void* address, const size_t size, bool commit) {
+  if (commit) {
+    CHECK(VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE));
+  } else {
+    DWORD oldprotect;
+    CHECK_NE(NULL, VirtualProtect(address, size, PAGE_READWRITE, &oldprotect));
+  }
 }
 
 // static

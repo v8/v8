@@ -2519,6 +2519,23 @@ class AlwaysAllocateScope {
   Heap* heap_;
 };
 
+class CodeSpaceMemoryModificationScope {
+ public:
+  explicit inline CodeSpaceMemoryModificationScope(Heap* heap);
+  inline ~CodeSpaceMemoryModificationScope();
+
+ private:
+  Heap* heap_;
+};
+
+class CodePageMemoryModificationScope {
+ public:
+  explicit inline CodePageMemoryModificationScope(MemoryChunk* chunk);
+  inline ~CodePageMemoryModificationScope();
+
+ private:
+  MemoryChunk* chunk_;
+};
 
 // Visitor class to verify interior pointers in spaces that do not contain
 // or care about intergenerational references. All heap object pointers have to

@@ -42,7 +42,7 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
          !RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, actual_size);
-  base::OS::ProtectCode(buffer, actual_size);
+  base::OS::SetReadAndExecutable(buffer, actual_size);
   return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 #endif
 }
