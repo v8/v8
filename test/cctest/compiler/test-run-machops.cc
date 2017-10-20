@@ -9,6 +9,7 @@
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/boxed-float.h"
 #include "src/codegen.h"
 #include "src/objects-inl.h"
 #include "src/utils.h"
@@ -6297,17 +6298,17 @@ TEST(RunCallCFunction9) {
 
 TEST(RunBitcastInt64ToFloat64) {
   int64_t input = 1;
-  double output = 0.0;
+  Float64 output;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      &output, MachineRepresentation::kFloat64,
+      output.get_bits_address(), MachineRepresentation::kFloat64,
       m.BitcastInt64ToFloat64(m.LoadFromPointer(&input, MachineType::Int64())));
   m.Return(m.Int32Constant(11));
   FOR_INT64_INPUTS(i) {
     input = *i;
     CHECK_EQ(11, m.Call());
-    double expected = bit_cast<double>(input);
-    CHECK_EQ(bit_cast<int64_t>(expected), bit_cast<int64_t>(output));
+    Float64 expected = Float64::FromBits(input);
+    CHECK_EQ(expected.get_bits(), output.get_bits());
   }
 }
 
@@ -6694,17 +6695,17 @@ TEST(RunRoundUint32ToFloat32) {
 
 TEST(RunBitcastInt32ToFloat32) {
   int32_t input = 1;
-  float output = 0.0;
+  Float32 output;
   RawMachineAssemblerTester<int32_t> m;
   m.StoreToPointer(
-      &output, MachineRepresentation::kFloat32,
+      output.get_bits_address(), MachineRepresentation::kFloat32,
       m.BitcastInt32ToFloat32(m.LoadFromPointer(&input, MachineType::Int32())));
   m.Return(m.Int32Constant(11));
   FOR_INT32_INPUTS(i) {
     input = *i;
     CHECK_EQ(11, m.Call());
-    float expected = bit_cast<float>(input);
-    CHECK_EQ(bit_cast<int32_t>(expected), bit_cast<int32_t>(output));
+    Float32 expected = Float32::FromBits(input);
+    CHECK_EQ(expected.get_bits(), output.get_bits());
   }
 }
 

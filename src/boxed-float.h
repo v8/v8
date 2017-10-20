@@ -43,6 +43,10 @@ class Float32 {
     return std::isnan(get_scalar());
   }
 
+  // Return a pointer to the field storing the bit pattern. Used in code
+  // generation tests to store generated values there directly.
+  uint32_t* get_bits_address() { return &bit_pattern_; }
+
   static constexpr Float32 FromBits(uint32_t bits) { return Float32(bits); }
 
  private:
@@ -78,6 +82,11 @@ class Float64 {
     // because this does not change the is_nan property.
     return std::isnan(get_scalar());
   }
+
+  // Return a pointer to the field storing the bit pattern. Used in code
+  // generation tests to store generated values there directly.
+  uint64_t* get_bits_address() { return &bit_pattern_; }
+
   static constexpr Float64 FromBits(uint64_t bits) { return Float64(bits); }
 
  private:
