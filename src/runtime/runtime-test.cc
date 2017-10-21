@@ -43,8 +43,9 @@ bool IsWasmCompileAllowed(v8::Isolate* isolate, v8::Local<v8::Value> value,
   DCHECK_GT(g_PerIsolateWasmControls.Get().count(isolate), 0);
   const WasmCompileControls& ctrls = g_PerIsolateWasmControls.Get().at(isolate);
   return (is_async && ctrls.AllowAnySizeForAsync) ||
-         (v8::Local<v8::ArrayBuffer>::Cast(value)->ByteLength() <=
-          ctrls.MaxWasmBufferSize);
+         (value->IsArrayBuffer() &&
+          v8::Local<v8::ArrayBuffer>::Cast(value)->ByteLength() <=
+              ctrls.MaxWasmBufferSize);
 }
 
 // Use the compile controls for instantiation, too
