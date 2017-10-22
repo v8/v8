@@ -24,6 +24,7 @@ class CommonOperatorBuilder;
 struct FieldAccess;
 class Graph;
 class JSGraph;
+class MapsParameterInfo;
 
 class V8_EXPORT_PRIVATE LoadElimination final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
@@ -196,27 +197,64 @@ class V8_EXPORT_PRIVATE LoadElimination final
   static MapSetComparisonResult CompareMapSets(ZoneHandleSet<Map> const& lhs,
                                                ZoneHandleSet<Map> const& rhs);
 
+  class AbstractMapInfo {
+   public:
+    enum InfoValid { kMapsValid = 1 << 0, kInstanceTypeValid = 1 << 1 };
+    typedef base::Flags<InfoValid, uint8_t> Validity;
+
+    AbstractMapInfo();
+    explicit AbstractMapInfo(ZoneHandleSet<Map> const& maps);
+    explicit AbstractMapInfo(InstanceType instance_type);
+    explicit AbstractMapInfo(MapsParameterInfo const& info);
+
+    bool operator==(AbstractMapInfo const& other) const;
+    bool operator!=(AbstractMapInfo const& other) const;
+
+    ZoneHandleSet<Map> const& maps() const;
+    InstanceType instance_type() const;
+
+    bool maps_valid() const { return info_validity_ & kMapsValid; }
+    bool instance_type_valid() const {
+      return info_validity_ & kInstanceTypeValid;
+    }
+    bool empty() const { return info_validity_ == 0; }
+
+    AbstractMapInfo Merge(AbstractMapInfo const& other) const;
+
+    MapSetComparisonResult Compare(AbstractMapInfo const& other) const;
+
+   private:
+    AbstractMapInfo(ZoneHandleSet<Map> const& maps, InstanceType instance_type,
+                    Validity validity);
+
+    ZoneHandleSet<Map> maps_;
+    InstanceType instance_type_;
+    Validity info_validity_;
+  };
+
   // Abstract state to approximate the current map of an object along the
   // effect paths through the graph.
   class AbstractMaps final : public ZoneObject {
    public:
     explicit AbstractMaps(Zone* zone);
-    AbstractMaps(Node* object, ZoneHandleSet<Map> maps, Zone* zone);
+    AbstractMaps(Node* object, AbstractMapInfo const& map_info, Zone* zone);
 
-    AbstractMaps const* Extend(Node* object, ZoneHandleSet<Map> maps,
+    AbstractMaps const* Extend(Node* object, AbstractMapInfo const& maps,
                                Zone* zone) const;
     bool Lookup(Node* object, ZoneHandleSet<Map>* object_maps) const;
+    bool Lookup(Node* object, AbstractMapInfo* maps_info) const;
     AbstractMaps const* Kill(const AliasStateInfo& alias_info,
                              Zone* zone) const;
     bool Equals(AbstractMaps const* that) const {
       return this == that || this->info_for_node_ == that->info_for_node_;
     }
     AbstractMaps const* Merge(AbstractMaps const* that, Zone* zone) const;
+    AbstractMaps const* KillMutableState(Zone* zone) const;
 
     void Print() const;
 
    private:
-    ZoneMap<Node*, ZoneHandleSet<Map>> info_for_node_;
+    ZoneMap<Node*, AbstractMapInfo> info_for_node_;
   };
 
   class AbstractState final : public ZoneObject {
@@ -226,10 +264,13 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
     AbstractState const* SetMaps(Node* object, ZoneHandleSet<Map> maps,
                                  Zone* zone) const;
+    AbstractState const* SetMaps(Node* object, AbstractMapInfo const& map_info,
+                                 Zone* zone) const;
     AbstractState const* KillMaps(Node* object, Zone* zone) const;
     AbstractState const* KillMaps(const AliasStateInfo& alias_info,
                                   Zone* zone) const;
     bool LookupMaps(Node* object, ZoneHandleSet<Map>* object_maps) const;
+    bool LookupMaps(Node* object, AbstractMapInfo* map_info) const;
 
     AbstractState const* AddField(Node* object, size_t index, Node* value,
                                   MaybeHandle<Name> name, Zone* zone) const;
@@ -252,6 +293,8 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
     AbstractState const* AddCheck(Node* node, Zone* zone) const;
     Node* LookupCheck(Node* node) const;
+
+    AbstractState const* KillMutableState(Zone* zone) const;
 
     bool is_unreachable() const { return is_unreachable_; }
 
