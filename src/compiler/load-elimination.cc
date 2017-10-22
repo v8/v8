@@ -525,6 +525,8 @@ Node* LoadElimination::AbstractState::LookupCheck(Node* node) const {
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::AddCheck(
     Node* node, Zone* zone) const {
+  if (is_unreachable()) return this;
+
   AbstractState* that = new (zone) AbstractState(*this);
   if (that->checks_) {
     that->checks_ = that->checks_->Extend(node, zone);
@@ -541,6 +543,8 @@ bool LoadElimination::AbstractState::LookupMaps(
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::SetMaps(
     Node* object, ZoneHandleSet<Map> maps, Zone* zone) const {
+  if (is_unreachable()) return this;
+
   AbstractState* that = new (zone) AbstractState(*this);
   if (that->maps_) {
     that->maps_ = that->maps_->Extend(object, maps, zone);
@@ -552,6 +556,8 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::SetMaps(
 
 LoadElimination::AbstractState const* LoadElimination::AbstractState::KillMaps(
     const AliasStateInfo& alias_info, Zone* zone) const {
+  if (is_unreachable()) return this;
+
   if (this->maps_) {
     AbstractMaps const* that_maps = this->maps_->Kill(alias_info, zone);
     if (this->maps_ != that_maps) {
@@ -582,6 +588,8 @@ LoadElimination::AbstractState::AddElement(Node* object, Node* index,
                                            Node* value,
                                            MachineRepresentation representation,
                                            Zone* zone) const {
+  if (is_unreachable()) return this;
+
   AbstractState* that = new (zone) AbstractState(*this);
   if (that->elements_) {
     that->elements_ =
@@ -596,6 +604,8 @@ LoadElimination::AbstractState::AddElement(Node* object, Node* index,
 LoadElimination::AbstractState const*
 LoadElimination::AbstractState::KillElement(Node* object, Node* index,
                                             Zone* zone) const {
+  if (is_unreachable()) return this;
+
   if (this->elements_) {
     AbstractElements const* that_elements =
         this->elements_->Kill(object, index, zone);
@@ -611,6 +621,8 @@ LoadElimination::AbstractState::KillElement(Node* object, Node* index,
 LoadElimination::AbstractState const* LoadElimination::AbstractState::AddField(
     Node* object, size_t index, Node* value, MaybeHandle<Name> name,
     Zone* zone) const {
+  if (is_unreachable()) return this;
+
   AbstractState* that = new (zone) AbstractState(*this);
   if (that->fields_[index]) {
     that->fields_[index] =
@@ -630,6 +642,8 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
 LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
     const AliasStateInfo& alias_info, size_t index, MaybeHandle<Name> name,
     Zone* zone) const {
+  if (is_unreachable()) return this;
+
   if (AbstractField const* this_field = this->fields_[index]) {
     this_field = this_field->Kill(alias_info, name, zone);
     if (this->fields_[index] != this_field) {
@@ -644,6 +658,8 @@ LoadElimination::AbstractState const* LoadElimination::AbstractState::KillField(
 LoadElimination::AbstractState const*
 LoadElimination::AbstractState::KillFields(Node* object, MaybeHandle<Name> name,
                                            Zone* zone) const {
+  if (is_unreachable()) return this;
+
   AliasStateInfo alias_info(this, object);
   for (size_t i = 0;; ++i) {
     if (i == arraysize(fields_)) return this;
@@ -691,6 +707,10 @@ bool LoadElimination::AliasStateInfo::MayAlias(Node* other) const {
 }
 
 void LoadElimination::AbstractState::Print() const {
+  if (is_unreachable()) {
+    PrintF("   Unreachable\n");
+  }
+
   if (checks_) {
     PrintF("   checks:\n");
     checks_->Print();
@@ -709,6 +729,18 @@ void LoadElimination::AbstractState::Print() const {
       field->Print();
     }
   }
+}
+
+// static
+LoadElimination::AbstractState LoadElimination::AbstractState::Empty() {
+  return AbstractState();
+}
+
+// static
+LoadElimination::AbstractState LoadElimination::AbstractState::Unreachable() {
+  AbstractState unreachable;
+  unreachable.is_unreachable_ = true;
+  return unreachable;
 }
 
 LoadElimination::AbstractState const*
@@ -737,6 +769,27 @@ Reduction LoadElimination::ReduceArrayBufferWasNeutered(Node* node) {
   return UpdateState(node, state);
 }
 
+// static
+LoadElimination::MapSetComparisonResult LoadElimination::CompareMapSets(
+    ZoneHandleSet<Map> const& lhs, ZoneHandleSet<Map> const& rhs) {
+  DCHECK(!lhs.is_empty());
+  DCHECK(!rhs.is_empty());
+
+  MapSetComparisonResult result = rhs.contains(ZoneHandleSet<Map>(lhs.at(0)))
+                                      ? MapSetComparisonResult::kSubset
+                                      : MapSetComparisonResult::kDisjoint;
+
+  for (size_t i = 1; i < lhs.size(); i++) {
+    MapSetComparisonResult current = rhs.contains(ZoneHandleSet<Map>(lhs.at(i)))
+                                         ? MapSetComparisonResult::kSubset
+                                         : MapSetComparisonResult::kDisjoint;
+    if (current != result) {
+      return MapSetComparisonResult::kOther;
+    }
+  }
+  return result;
+}
+
 Reduction LoadElimination::ReduceMapGuard(Node* node) {
   ZoneHandleSet<Map> const maps = MapGuardMapsOf(node->op()).maps();
   Node* const object = NodeProperties::GetValueInput(node, 0);
@@ -745,7 +798,15 @@ Reduction LoadElimination::ReduceMapGuard(Node* node) {
   if (state == nullptr) return NoChange();
   ZoneHandleSet<Map> object_maps;
   if (state->LookupMaps(object, &object_maps)) {
-    if (maps.contains(object_maps)) return Replace(effect);
+    switch (CompareMapSets(object_maps, maps)) {
+      case MapSetComparisonResult::kSubset:
+        return Replace(effect);
+      case MapSetComparisonResult::kDisjoint:
+        state = unreachable_state();
+        break;
+      case MapSetComparisonResult::kOther:
+        break;
+    }
     // TODO(turbofan): Compute the intersection.
   }
   state = state->SetMaps(object, maps, zone());
@@ -760,7 +821,15 @@ Reduction LoadElimination::ReduceCheckMaps(Node* node) {
   if (state == nullptr) return NoChange();
   ZoneHandleSet<Map> object_maps;
   if (state->LookupMaps(object, &object_maps)) {
-    if (maps.contains(object_maps)) return Replace(effect);
+    switch (CompareMapSets(object_maps, maps)) {
+      case MapSetComparisonResult::kSubset:
+        return Replace(effect);
+      case MapSetComparisonResult::kDisjoint:
+        state = unreachable_state();
+        break;
+      case MapSetComparisonResult::kOther:
+        break;
+    }
     // TODO(turbofan): Compute the intersection.
   }
   state = state->SetMaps(object, maps, zone());
@@ -775,12 +844,20 @@ Reduction LoadElimination::ReduceCompareMaps(Node* node) {
   if (state == nullptr) return NoChange();
   ZoneHandleSet<Map> object_maps;
   if (state->LookupMaps(object, &object_maps)) {
-    if (maps.contains(object_maps)) {
-      Node* value = jsgraph()->TrueConstant();
-      ReplaceWithValue(node, value, effect);
-      return Replace(value);
+    switch (CompareMapSets(object_maps, maps)) {
+      case MapSetComparisonResult::kSubset: {
+        Node* value = jsgraph()->TrueConstant();
+        ReplaceWithValue(node, value, effect);
+        return Replace(value);
+      }
+      case MapSetComparisonResult::kDisjoint: {
+        Node* value = jsgraph()->FalseConstant();
+        ReplaceWithValue(node, value, effect);
+        return Replace(value);
+      }
+      case MapSetComparisonResult::kOther:
+        break;
     }
-    // TODO(turbofan): Compute the intersection.
   }
   return UpdateState(node, state);
 }
@@ -1106,9 +1183,29 @@ Reduction LoadElimination::ReduceEffectPhi(Node* node) {
 
   // Shortcut for the case when we do not know anything about some input.
   int const input_count = node->op()->EffectInputCount();
-  for (int i = 1; i < input_count; ++i) {
-    Node* const effect = NodeProperties::GetEffectInput(node, i);
-    if (node_states_.Get(effect) == nullptr) return NoChange();
+  for (int i = 0; i < input_count; ++i) {
+    Node* effect = NodeProperties::GetEffectInput(node, i);
+    AbstractState const* input_state = node_states_.Get(effect);
+    if (input_state == nullptr) return NoChange();
+
+    if (input_state->is_unreachable()) {
+      // The state is unreachable, so we connect the control to the
+      // end.
+      Node* input_control = NodeProperties::GetControlInput(control, i);
+      effect = graph()->NewNode(jsgraph()->simplified()->RuntimeAbort(
+                                    BailoutReason::kUnreachableCodeReached),
+                                effect, input_control);
+      input_control =
+          graph()->NewNode(common()->Throw(), effect, input_control);
+      NodeProperties::MergeControlToEnd(graph(), common(), input_control);
+      Revisit(graph()->end());
+
+      // Update the merge node with unreachable control input, and trigger
+      // revisit so that dead code elimination prunes the merge and its phis.
+      control->ReplaceInput(i, jsgraph()->Dead());
+      Revisit(control);
+      return NoChange();
+    }
   }
 
   // Make a copy of the first input's state and merge with the state
@@ -1130,6 +1227,13 @@ Reduction LoadElimination::ReduceEffectPhi(Node* node) {
 
   return UpdateState(node, state_with_phis);
 }
+
+LoadElimination::LoadElimination(Editor* editor, JSGraph* jsgraph, Zone* zone)
+    : AdvancedReducer(editor),
+      empty_state_(AbstractState::Empty()),
+      unreachable_state_(AbstractState::Unreachable()),
+      node_states_(zone),
+      jsgraph_(jsgraph) {}
 
 Reduction LoadElimination::ReduceStart(Node* node) {
   return UpdateState(node, empty_state());

@@ -28,8 +28,7 @@ class JSGraph;
 class V8_EXPORT_PRIVATE LoadElimination final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  LoadElimination(Editor* editor, JSGraph* jsgraph, Zone* zone)
-      : AdvancedReducer(editor), node_states_(zone), jsgraph_(jsgraph) {}
+  LoadElimination(Editor* editor, JSGraph* jsgraph, Zone* zone);
   ~LoadElimination() final {}
 
   const char* reducer_name() const override { return "LoadElimination"; }
@@ -188,6 +187,15 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   static size_t const kMaxTrackedFields = 32;
 
+  enum class MapSetComparisonResult {
+    kSubset,
+    kDisjoint,
+    kOther,
+  };
+
+  static MapSetComparisonResult CompareMapSets(ZoneHandleSet<Map> const& lhs,
+                                               ZoneHandleSet<Map> const& rhs);
+
   // Abstract state to approximate the current map of an object along the
   // effect paths through the graph.
   class AbstractMaps final : public ZoneObject {
@@ -213,12 +221,6 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   class AbstractState final : public ZoneObject {
    public:
-    AbstractState() {
-      for (size_t i = 0; i < arraysize(fields_); ++i) {
-        fields_[i] = nullptr;
-      }
-    }
-
     bool Equals(AbstractState const* that) const;
     void Merge(AbstractState const* that, Zone* zone);
 
@@ -251,13 +253,26 @@ class V8_EXPORT_PRIVATE LoadElimination final
     AbstractState const* AddCheck(Node* node, Zone* zone) const;
     Node* LookupCheck(Node* node) const;
 
+    bool is_unreachable() const { return is_unreachable_; }
+
     void Print() const;
 
+    static AbstractState Unreachable();
+    static AbstractState Empty();
+
    private:
+    AbstractState() {
+      for (size_t i = 0; i < arraysize(fields_); ++i) {
+        fields_[i] = nullptr;
+      }
+    }
+
     AbstractChecks const* checks_ = nullptr;
     AbstractElements const* elements_ = nullptr;
     AbstractField const* fields_[kMaxTrackedFields];
     AbstractMaps const* maps_ = nullptr;
+
+    bool is_unreachable_ = false;
   };
 
   class AbstractStateForEffectNodes final : public ZoneObject {
@@ -301,12 +316,14 @@ class V8_EXPORT_PRIVATE LoadElimination final
 
   CommonOperatorBuilder* common() const;
   AbstractState const* empty_state() const { return &empty_state_; }
+  AbstractState const* unreachable_state() const { return &unreachable_state_; }
   Factory* factory() const;
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* zone() const { return node_states_.zone(); }
 
   AbstractState const empty_state_;
+  AbstractState const unreachable_state_;
   AbstractStateForEffectNodes node_states_;
   JSGraph* const jsgraph_;
 
