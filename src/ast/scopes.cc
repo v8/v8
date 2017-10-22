@@ -1444,16 +1444,6 @@ bool Scope::NeedsScopeInfo() const {
   return NeedsContext();
 }
 
-ModuleScope* Scope::GetModuleScope() {
-  Scope* scope = this;
-  DCHECK(!scope->is_script_scope());
-  while (!scope->is_module_scope()) {
-    scope = scope->outer_scope();
-    DCHECK_NOT_NULL(scope);
-  }
-  return scope->AsModuleScope();
-}
-
 DeclarationScope* Scope::GetReceiverScope() {
   Scope* scope = this;
   while (!scope->is_script_scope() &&

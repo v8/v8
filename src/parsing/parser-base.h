@@ -251,7 +251,7 @@ class ParserBase {
 
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
              v8::Extension* extension, AstValueFactory* ast_value_factory,
-             RuntimeCallStats* runtime_call_stats,
+             RuntimeCallStats* runtime_call_stats, bool parsing_module,
              bool parsing_on_main_thread = true)
       : scope_(nullptr),
         original_scope_(nullptr),
@@ -262,7 +262,7 @@ class ParserBase {
         ast_node_factory_(ast_value_factory, zone),
         runtime_call_stats_(runtime_call_stats),
         parsing_on_main_thread_(parsing_on_main_thread),
-        parsing_module_(false),
+        parsing_module_(parsing_module),
         stack_limit_(stack_limit),
         zone_(zone),
         classifier_(nullptr),
@@ -1486,7 +1486,7 @@ class ParserBase {
   typename Types::Factory ast_node_factory_;
   RuntimeCallStats* runtime_call_stats_;
   bool parsing_on_main_thread_;
-  bool parsing_module_;
+  const bool parsing_module_;
   uintptr_t stack_limit_;
 
   // Parser base's private field members.

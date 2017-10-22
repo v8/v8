@@ -1383,10 +1383,11 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         CcTest::i_isolate()->heap()->HashSeed());
     i::PreParser preparser(&zone, &scanner, stack_limit, &ast_value_factory,
                            &pending_error_handler,
-                           isolate->counters()->runtime_call_stats());
+                           isolate->counters()->runtime_call_stats(),
+                           is_module);
     SetParserFlags(&preparser, flags);
     scanner.Initialize(stream.get(), is_module);
-    i::PreParser::PreParseResult result = preparser.PreParseProgram(is_module);
+    i::PreParser::PreParseResult result = preparser.PreParseProgram();
     CHECK_EQ(i::PreParser::kPreParseSuccess, result);
   }
 

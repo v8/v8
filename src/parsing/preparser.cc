@@ -87,7 +87,7 @@ PreParserIdentifier PreParser::GetSymbol() const {
   return symbol;
 }
 
-PreParser::PreParseResult PreParser::PreParseProgram(bool is_module) {
+PreParser::PreParseResult PreParser::PreParseProgram() {
   DCHECK_NULL(scope_);
   DeclarationScope* scope = NewScriptScope();
 #ifdef DEBUG
@@ -97,13 +97,12 @@ PreParser::PreParseResult PreParser::PreParseProgram(bool is_module) {
   // ModuleDeclarationInstantiation for Source Text Module Records creates a
   // new Module Environment Record whose outer lexical environment record is
   // the global scope.
-  if (is_module) scope = NewModuleScope(scope);
+  if (parsing_module_) scope = NewModuleScope(scope);
 
   FunctionState top_scope(&function_state_, &scope_, scope);
   original_scope_ = scope_;
   bool ok = true;
   int start_position = scanner()->peek_location().beg_pos;
-  parsing_module_ = is_module;
   PreParserStatementList body;
   ParseStatementList(body, Token::EOS, &ok);
   original_scope_ = nullptr;
@@ -119,11 +118,10 @@ PreParser::PreParseResult PreParser::PreParseProgram(bool is_module) {
 PreParser::PreParseResult PreParser::PreParseFunction(
     const AstRawString* function_name, FunctionKind kind,
     FunctionLiteral::FunctionType function_type,
-    DeclarationScope* function_scope, bool parsing_module,
-    bool is_inner_function, bool may_abort, int* use_counts,
+    DeclarationScope* function_scope, bool is_inner_function, bool may_abort,
+    int* use_counts,
     ProducedPreParsedScopeData** produced_preparsed_scope_data) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
-  parsing_module_ = parsing_module;
   use_counts_ = use_counts;
   DCHECK(!track_unresolved_variables_);
   track_unresolved_variables_ = is_inner_function;

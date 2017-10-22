@@ -1102,6 +1102,7 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
     if (!context->IsNativeContext()) {
       parse_info.set_outer_scope_info(handle(context->scope_info()));
     }
+    DCHECK(!parse_info.is_module());
 
     if (!CompileToplevel(&parse_info, isolate).ToHandle(&shared_info)) {
       return MaybeHandle<JSFunction>();

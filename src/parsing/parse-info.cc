@@ -53,13 +53,14 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   set_end_position(shared->end_position());
   function_literal_id_ = shared->function_literal_id();
   set_language_mode(shared->language_mode());
-  set_module(shared->kind() == FunctionKind::kModule);
   set_asm_wasm_broken(shared->is_asm_wasm_broken());
 
   Handle<Script> script(Script::cast(shared->script()));
   set_script(script);
   set_native(script->type() == Script::TYPE_NATIVE);
   set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
+  set_module(script->origin_options().IsModule());
+  DCHECK(!(is_eval() && is_module()));
 
   Handle<HeapObject> scope_info(shared->outer_scope_info());
   if (!scope_info->IsTheHole(isolate) &&
@@ -90,6 +91,8 @@ ParseInfo::ParseInfo(Handle<Script> script)
 
   set_native(script->type() == Script::TYPE_NATIVE);
   set_eval(script->compilation_type() == Script::COMPILATION_TYPE_EVAL);
+  set_module(script->origin_options().IsModule());
+  DCHECK(!(is_eval() && is_module()));
 
   set_collect_type_profile(script->GetIsolate()->is_collecting_type_profile() &&
                            script->IsUserJavaScript());
@@ -114,7 +117,6 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   p->set_end_position(shared->end_position());
   p->function_literal_id_ = shared->function_literal_id();
   p->set_language_mode(shared->language_mode());
-  p->set_module(shared->kind() == FunctionKind::kModule);
 
   // BUG(5946): This function exists as a workaround until we can
   // get rid of %SetCode in our native functions. The ParseInfo
@@ -126,6 +128,8 @@ ParseInfo* ParseInfo::AllocateWithoutScript(Handle<SharedFunctionInfo> shared) {
   // We tolerate a ParseInfo without a Script in this case.
   p->set_native(true);
   p->set_eval(false);
+  p->set_module(false);
+  DCHECK_NE(shared->kind(), FunctionKind::kModule);
 
   Handle<HeapObject> scope_info(shared->outer_scope_info());
   if (!scope_info->IsTheHole(isolate) &&

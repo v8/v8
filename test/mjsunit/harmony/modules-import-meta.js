@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // MODULE
-// Flags: --harmony-import-meta --no-lazy
+// Flags: --harmony-import-meta
 
 import foreign, { url as otherUrl } from './modules-skip-export-import-meta.js';
 

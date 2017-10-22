@@ -472,7 +472,7 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
 Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
                          info->extension(), info->GetOrCreateAstValueFactory(),
-                         info->runtime_call_stats(), true),
+                         info->runtime_call_stats(), info->is_module(), true),
       scanner_(info->unicode_cache(), use_counts_),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
@@ -537,7 +537,6 @@ void Parser::DeserializeScopeChain(
     scope = Scope::DeserializeScopeChain(
         zone(), *outer_scope_info, script_scope, ast_value_factory(),
         Scope::DeserializationMode::kScopesOnly);
-    DCHECK(!info->is_module() || scope->is_module_scope());
   }
   original_scope_ = scope;
 }
@@ -630,7 +629,6 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
   {
     Scope* outer = original_scope_;
     DCHECK_NOT_NULL(outer);
-    parsing_module_ = info->is_module();
     if (info->is_eval()) {
       outer = NewEvalScope(outer);
     } else if (parsing_module_) {
@@ -648,6 +646,7 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
     bool ok = true;
     int beg_pos = scanner()->location().beg_pos;
     if (parsing_module_) {
+      DCHECK(info->is_module());
       // Declare the special module parameter.
       auto name = ast_value_factory()->empty_string();
       bool is_duplicate = false;
@@ -2775,8 +2774,8 @@ Parser::LazyParsingResult Parser::SkipFunction(
   DCHECK(!is_inner_function || !may_abort);
 
   PreParser::PreParseResult result = reusable_preparser()->PreParseFunction(
-      function_name, kind, function_type, function_scope, parsing_module_,
-      is_inner_function, may_abort, use_counts_, produced_preparsed_scope_data);
+      function_name, kind, function_type, function_scope, is_inner_function,
+      may_abort, use_counts_, produced_preparsed_scope_data);
 
   // Return immediately if pre-parser decided to abort parsing.
   if (result == PreParser::kPreParseAbort) return kLazyParsingAborted;

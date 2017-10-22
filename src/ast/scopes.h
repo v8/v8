@@ -442,9 +442,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
   // 'this' is bound, and what determines the function kind.
   DeclarationScope* GetReceiverScope();
 
-  // Find the module scope, assuming there is one.
-  ModuleScope* GetModuleScope();
-
   // Find the innermost outer scope that needs a context.
   Scope* GetOuterScopeWithContext();
 
