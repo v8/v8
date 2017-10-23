@@ -447,6 +447,7 @@
            '../../tools/consarray.js',
            '../../tools/profile.js',
            '../../tools/profile_view.js',
+           '../../tools/arguments.js',
            '../../tools/logreader.js',
            'log-eq-of-logging-and-traversal.js',
         ],
