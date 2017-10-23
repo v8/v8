@@ -1589,6 +1589,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Update the type feedback vector.
   void UpdateFeedback(Node* feedback, Node* feedback_vector, Node* slot_id);
 
+  // Report that there was a feedback update, performing any tasks that should
+  // be done after a feedback update.
+  void ReportFeedbackUpdate(SloppyTNode<FeedbackVector> feedback_vector,
+                            SloppyTNode<IntPtrT> slot_id, const char* reason);
+
   // Combine the new feedback with the existing_feedback.
   void CombineFeedback(Variable* existing_feedback, Node* feedback);
 

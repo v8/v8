@@ -83,6 +83,9 @@ declare_args() {
   # Sets -dV8_TRACE_IGNITION.
   v8_enable_trace_ignition = false
 
+  # Sets -dV8_TRACE_FEEDBACK_UPDATES.
+  v8_enable_trace_feedback_updates = false
+
   # Sets -dV8_CONCURRENT_MARKING
   v8_enable_concurrent_marking = true
 
@@ -269,6 +272,9 @@ config("features") {
   }
   if (v8_enable_trace_ignition) {
     defines += [ "V8_TRACE_IGNITION" ]
+  }
+  if (v8_enable_trace_feedback_updates) {
+    defines += [ "V8_TRACE_FEEDBACK_UPDATES" ]
   }
   if (v8_enable_v8_checks) {
     defines += [ "V8_ENABLE_CHECKS" ]

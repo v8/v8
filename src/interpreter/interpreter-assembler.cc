@@ -669,10 +669,7 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
       }
       BIND(&done_loop);
       CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id), target);
-      // Reset profiler ticks.
-      StoreObjectFieldNoWriteBarrier(feedback_vector,
-                                     FeedbackVector::kProfilerTicksOffset,
-                                     SmiConstant(0));
+      ReportFeedbackUpdate(feedback_vector, slot_id, "Call:Initialize");
       Goto(&done);
     }
 
@@ -686,10 +683,8 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);
-      // Reset profiler ticks.
-      StoreObjectFieldNoWriteBarrier(feedback_vector,
-                                     FeedbackVector::kProfilerTicksOffset,
-                                     SmiConstant(0));
+      ReportFeedbackUpdate(feedback_vector, slot_id,
+                           "Call:TransitionMegamorphic");
       Goto(&done);
     }
   }
@@ -873,10 +868,8 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
       {
         var_site.Bind(CreateAllocationSiteInFeedbackVector(feedback_vector,
                                                            SmiTag(slot_id)));
-        // Reset profiler ticks.
-        StoreObjectFieldNoWriteBarrier(feedback_vector,
-                                       FeedbackVector::kProfilerTicksOffset,
-                                       SmiConstant(0));
+        ReportFeedbackUpdate(feedback_vector, slot_id,
+                             "Construct:CreateAllocationSite");
         Goto(&construct_array);
       }
 
@@ -884,10 +877,8 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
       {
         CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id),
                                        new_target);
-        // Reset profiler ticks.
-        StoreObjectFieldNoWriteBarrier(feedback_vector,
-                                       FeedbackVector::kProfilerTicksOffset,
-                                       SmiConstant(0));
+        ReportFeedbackUpdate(feedback_vector, slot_id,
+                             "Construct:CreateWeakCell");
         Goto(&construct);
       }
     }
@@ -902,10 +893,8 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);
-      // Reset profiler ticks.
-      StoreObjectFieldNoWriteBarrier(feedback_vector,
-                                     FeedbackVector::kProfilerTicksOffset,
-                                     SmiConstant(0));
+      ReportFeedbackUpdate(feedback_vector, slot_id,
+                           "Construct:TransitionMegamorphic");
       Goto(&construct);
     }
   }
@@ -1007,10 +996,8 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
 
       CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id),
                                      new_target);
-      // Reset profiler ticks.
-      StoreObjectFieldNoWriteBarrier(feedback_vector,
-                                     FeedbackVector::kProfilerTicksOffset,
-                                     SmiConstant(0));
+      ReportFeedbackUpdate(feedback_vector, slot_id,
+                           "ConstructWithSpread:Initialize");
       Goto(&construct);
     }
 
@@ -1024,10 +1011,8 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
           feedback_vector, slot_id,
           HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())),
           SKIP_WRITE_BARRIER);
-      // Reset profiler ticks.
-      StoreObjectFieldNoWriteBarrier(feedback_vector,
-                                     FeedbackVector::kProfilerTicksOffset,
-                                     SmiConstant(0));
+      ReportFeedbackUpdate(feedback_vector, slot_id,
+                           "ConstructWithSpread:TransitionMegamorphic");
       Goto(&construct);
     }
   }

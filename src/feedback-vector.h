@@ -232,6 +232,8 @@ class FeedbackVector : public HeapObject {
   DECL_PRINTER(FeedbackVector)
   DECL_VERIFIER(FeedbackVector)
 
+  void FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot);  // NOLINT
+
   // Clears the vector slots. Return true if feedback has changed.
   bool ClearSlots(Isolate* isolate);
 
@@ -281,6 +283,9 @@ class FeedbackVector : public HeapObject {
  private:
   static void AddToVectorsForProfilingTools(Isolate* isolate,
                                             Handle<FeedbackVector> vector);
+
+  void FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot,
+                         FeedbackSlotKind kind);  // NOLINT
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FeedbackVector);
 };

@@ -745,81 +745,8 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
     FeedbackSlot slot = iter.Next();
     FeedbackSlotKind kind = iter.kind();
 
-    os << "\n Slot " << slot << " " << kind;
-    os << " ";
-    switch (kind) {
-      case FeedbackSlotKind::kLoadProperty: {
-        LoadICNexus nexus(this, slot);
-        os << Code::ICState2String(nexus.StateFromFeedback());
-        break;
-      }
-      case FeedbackSlotKind::kLoadGlobalInsideTypeof:
-      case FeedbackSlotKind::kLoadGlobalNotInsideTypeof: {
-        LoadGlobalICNexus nexus(this, slot);
-        os << Code::ICState2String(nexus.StateFromFeedback());
-        break;
-      }
-      case FeedbackSlotKind::kLoadKeyed: {
-        KeyedLoadICNexus nexus(this, slot);
-        os << Code::ICState2String(nexus.StateFromFeedback());
-        break;
-      }
-      case FeedbackSlotKind::kCall: {
-        CallICNexus nexus(this, slot);
-        os << Code::ICState2String(nexus.StateFromFeedback());
-        break;
-      }
-      case FeedbackSlotKind::kStoreNamedSloppy:
-      case FeedbackSlotKind::kStoreNamedStrict:
-      case FeedbackSlotKind::kStoreOwnNamed:
-      case FeedbackSlotKind::kStoreGlobalSloppy:
-      case FeedbackSlotKind::kStoreGlobalStrict: {
-        StoreICNexus nexus(this, slot);
-        os << Code::ICState2String(nexus.StateFromFeedback());
-        break;
-      }
-      case FeedbackSlotKind::kStoreKeyedSloppy:
-      case FeedbackSlotKind::kStoreKeyedStrict: {
-        KeyedStoreICNexus nexus(this, slot);
-        os << Code::ICState2String(nexus.StateFromFeedback());
-        break;
-      }
-      case FeedbackSlotKind::kBinaryOp: {
-        BinaryOpICNexus nexus(this, slot);
-        os << Code::ICState2String(nexus.StateFromFeedback()) << " ("
-           << nexus.GetBinaryOperationFeedback() << ")";
-        break;
-      }
-      case FeedbackSlotKind::kCompareOp: {
-        CompareICNexus nexus(this, slot);
-        os << Code::ICState2String(nexus.StateFromFeedback()) << " ("
-           << nexus.GetCompareOperationFeedback() << ")";
-        break;
-      }
-      case FeedbackSlotKind::kForIn: {
-        ForInICNexus nexus(this, slot);
-        os << Code::ICState2String(nexus.StateFromFeedback());
-        break;
-      }
-      case FeedbackSlotKind::kInstanceOf: {
-        InstanceOfICNexus nexus(this, slot);
-        os << Code::ICState2String(nexus.StateFromFeedback());
-        break;
-      }
-      case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
-        StoreDataPropertyInLiteralICNexus nexus(this, slot);
-        os << Code::ICState2String(nexus.StateFromFeedback());
-        break;
-      }
-      case FeedbackSlotKind::kCreateClosure:
-      case FeedbackSlotKind::kLiteral:
-      case FeedbackSlotKind::kTypeProfile:
-        break;
-      case FeedbackSlotKind::kInvalid:
-      case FeedbackSlotKind::kKindsNumber:
-        UNREACHABLE();
-        break;
-    }
+    os << "\n Slot " << slot << " " << kind << " ";
+    FeedbackSlotPrint(os, slot, kind);
 
     int entry_size = iter.entry_size();
     for (int i = 0; i < entry_size; i++) {
@@ -830,6 +757,85 @@ void FeedbackVector::FeedbackVectorPrint(std::ostream& os) {  // NOLINT
   os << "\n";
 }
 
+void FeedbackVector::FeedbackSlotPrint(std::ostream& os,
+                                       FeedbackSlot slot) {  // NOLINT
+  FeedbackSlotPrint(os, slot, GetKind(slot));
+}
+
+void FeedbackVector::FeedbackSlotPrint(std::ostream& os, FeedbackSlot slot,
+                                       FeedbackSlotKind kind) {  // NOLINT
+  switch (kind) {
+    case FeedbackSlotKind::kLoadProperty: {
+      LoadICNexus nexus(this, slot);
+      os << Code::ICState2String(nexus.StateFromFeedback());
+      break;
+    }
+    case FeedbackSlotKind::kLoadGlobalInsideTypeof:
+    case FeedbackSlotKind::kLoadGlobalNotInsideTypeof: {
+      LoadGlobalICNexus nexus(this, slot);
+      os << Code::ICState2String(nexus.StateFromFeedback());
+      break;
+    }
+    case FeedbackSlotKind::kLoadKeyed: {
+      KeyedLoadICNexus nexus(this, slot);
+      os << Code::ICState2String(nexus.StateFromFeedback());
+      break;
+    }
+    case FeedbackSlotKind::kCall: {
+      CallICNexus nexus(this, slot);
+      os << Code::ICState2String(nexus.StateFromFeedback());
+      break;
+    }
+    case FeedbackSlotKind::kStoreNamedSloppy:
+    case FeedbackSlotKind::kStoreNamedStrict:
+    case FeedbackSlotKind::kStoreOwnNamed:
+    case FeedbackSlotKind::kStoreGlobalSloppy:
+    case FeedbackSlotKind::kStoreGlobalStrict: {
+      StoreICNexus nexus(this, slot);
+      os << Code::ICState2String(nexus.StateFromFeedback());
+      break;
+    }
+    case FeedbackSlotKind::kStoreKeyedSloppy:
+    case FeedbackSlotKind::kStoreKeyedStrict: {
+      KeyedStoreICNexus nexus(this, slot);
+      os << Code::ICState2String(nexus.StateFromFeedback());
+      break;
+    }
+    case FeedbackSlotKind::kBinaryOp: {
+      BinaryOpICNexus nexus(this, slot);
+      os << "BinaryOp:" << nexus.GetBinaryOperationFeedback();
+      break;
+    }
+    case FeedbackSlotKind::kCompareOp: {
+      CompareICNexus nexus(this, slot);
+      os << "CompareOp:" << nexus.GetCompareOperationFeedback();
+      break;
+    }
+    case FeedbackSlotKind::kForIn: {
+      ForInICNexus nexus(this, slot);
+      os << "ForIn:" << nexus.GetForInFeedback();
+      break;
+    }
+    case FeedbackSlotKind::kInstanceOf: {
+      InstanceOfICNexus nexus(this, slot);
+      os << Code::ICState2String(nexus.StateFromFeedback());
+      break;
+    }
+    case FeedbackSlotKind::kStoreDataPropertyInLiteral: {
+      StoreDataPropertyInLiteralICNexus nexus(this, slot);
+      os << Code::ICState2String(nexus.StateFromFeedback());
+      break;
+    }
+    case FeedbackSlotKind::kCreateClosure:
+    case FeedbackSlotKind::kLiteral:
+    case FeedbackSlotKind::kTypeProfile:
+      break;
+    case FeedbackSlotKind::kInvalid:
+    case FeedbackSlotKind::kKindsNumber:
+      UNREACHABLE();
+      break;
+  }
+}
 
 void JSValue::JSValuePrint(std::ostream& os) {  // NOLINT
   JSObjectPrintHeader(os, this, "JSValue");

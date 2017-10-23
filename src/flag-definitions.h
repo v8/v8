@@ -331,6 +331,11 @@ DEFINE_STRING(print_bytecode_filter, "*",
 DEFINE_BOOL(trace_ignition, false,
             "trace the bytecodes executed by the ignition interpreter")
 #endif
+#ifdef V8_TRACE_FEEDBACK_UPDATES
+DEFINE_BOOL(
+    trace_feedback_updates, false,
+    "trace updates to feedback vectors during ignition interpreter execution.")
+#endif
 DEFINE_BOOL(trace_ignition_codegen, false,
             "trace the codegen of ignition interpreter bytecode handlers")
 DEFINE_BOOL(trace_ignition_dispatches, false,

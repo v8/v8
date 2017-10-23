@@ -64,7 +64,8 @@ class IC {
 
   // Nofity the IC system that a feedback has changed.
   static void OnFeedbackChanged(Isolate* isolate, FeedbackVector* vector,
-                                JSFunction* host_function);
+                                FeedbackSlot slot, JSFunction* host_function,
+                                const char* reason);
 
  protected:
   Address fp() const { return fp_; }

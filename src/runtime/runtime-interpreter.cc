@@ -173,5 +173,40 @@ RUNTIME_FUNCTION(Runtime_InterpreterTraceBytecodeExit) {
 
 #endif
 
+#ifdef V8_TRACE_FEEDBACK_UPDATES
+
+RUNTIME_FUNCTION(Runtime_InterpreterTraceUpdateFeedback) {
+  if (!FLAG_trace_feedback_updates) {
+    return isolate->heap()->undefined_value();
+  }
+
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  CONVERT_SMI_ARG_CHECKED(slot, 1);
+  CONVERT_ARG_CHECKED(String, reason, 2);
+
+  int slot_count = function->feedback_vector()->metadata()->slot_count();
+
+  OFStream os(stdout);
+  os << "[Feedback slot " << slot << "/" << slot_count << " in ";
+  function->shared()->ShortPrint(os);
+  os << " updated to ";
+  function->feedback_vector()->FeedbackSlotPrint(os, FeedbackSlot(slot));
+  os << " - ";
+
+  StringCharacterStream stream(reason);
+  while (stream.HasMore()) {
+    uint16_t character = stream.GetNext();
+    PrintF("%c", character);
+  }
+
+  os << "]" << std::endl;
+
+  return isolate->heap()->undefined_value();
+}
+
+#endif
+
 }  // namespace internal
 }  // namespace v8

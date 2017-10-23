@@ -7195,13 +7195,27 @@ void CodeStubAssembler::UpdateFeedback(Node* feedback, Node* feedback_vector,
   {
     StoreFeedbackVectorSlot(feedback_vector, slot_id, combined_feedback,
                             SKIP_WRITE_BARRIER);
-    // Reset profiler ticks.
-    StoreObjectFieldNoWriteBarrier(
-        feedback_vector, FeedbackVector::kProfilerTicksOffset, SmiConstant(0));
+    ReportFeedbackUpdate(feedback_vector, slot_id, "UpdateFeedback");
     Goto(&end);
   }
 
   BIND(&end);
+}
+
+void CodeStubAssembler::ReportFeedbackUpdate(
+    SloppyTNode<FeedbackVector> feedback_vector, SloppyTNode<IntPtrT> slot_id,
+    const char* reason) {
+  // Reset profiler ticks.
+  StoreObjectFieldNoWriteBarrier(
+      feedback_vector, FeedbackVector::kProfilerTicksOffset, Int32Constant(0),
+      MachineRepresentation::kWord32);
+
+#ifdef V8_TRACE_FEEDBACK_UPDATES
+  // Trace the update.
+  CallRuntime(Runtime::kInterpreterTraceUpdateFeedback, NoContextConstant(),
+              LoadFromParentFrame(JavaScriptFrameConstants::kFunctionOffset),
+              SmiTag(slot_id), StringConstant(reason));
+#endif  // V8_TRACE_FEEDBACK_UPDATES
 }
 
 void CodeStubAssembler::CombineFeedback(Variable* existing_feedback,
