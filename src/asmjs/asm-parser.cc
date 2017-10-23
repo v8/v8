@@ -14,6 +14,7 @@
 #include "src/base/optional.h"
 #include "src/flags.h"
 #include "src/parsing/scanner.h"
+#include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
@@ -781,6 +782,11 @@ void AsmJsParser::ValidateFunction() {
     current_function_builder_->AddLocal(kWasmI32);
   }
 
+  // Check against limit on number of local variables.
+  if (locals.size() + function_temp_locals_used_ > kV8MaxWasmFunctionLocals) {
+    FAIL("Number of local variables exceeds internal limit");
+  }
+
   // End function
   current_function_builder_->Emit(kExprEnd);
 
@@ -866,6 +872,7 @@ void AsmJsParser::ValidateFunctionParams(ZoneVector<AsmType*>* params) {
 // 6.4 ValidateFunction - locals
 void AsmJsParser::ValidateFunctionLocals(size_t param_count,
                                          ZoneVector<ValueType>* locals) {
+  DCHECK(locals->empty());
   // Local Variables.
   while (Peek(TOK(var))) {
     scanner_.EnterLocalScope();
