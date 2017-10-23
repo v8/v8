@@ -356,7 +356,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(ALIASED_ARGUMENTS_ENTRY_TYPE)                               \
   V(PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE)                     \
   V(PROMISE_REACTION_JOB_INFO_TYPE)                             \
-  V(PROMISE_CAPABILITY_TYPE)                                    \
   V(DEBUG_INFO_TYPE)                                            \
   V(STACK_FRAME_INFO_TYPE)                                      \
   V(PROTOTYPE_INFO_TYPE)                                        \
@@ -377,6 +376,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(PROPERTY_CELL_TYPE)                                         \
   V(SMALL_ORDERED_HASH_MAP_TYPE)                                \
   V(SMALL_ORDERED_HASH_SET_TYPE)                                \
+  V(UNUSED_AND_RESERVED_TYPE)                                   \
                                                                 \
   V(JS_PROXY_TYPE)                                              \
   V(JS_GLOBAL_OBJECT_TYPE)                                      \
@@ -539,7 +539,6 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
     promise_resolve_thenable_job_info)                                       \
   V(PROMISE_REACTION_JOB_INFO, PromiseReactionJobInfo,                       \
     promise_reaction_job_info)                                               \
-  V(PROMISE_CAPABILITY, PromiseCapability, promise_capability)               \
   V(DEBUG_INFO, DebugInfo, debug_info)                                       \
   V(STACK_FRAME_INFO, StackFrameInfo, stack_frame_info)                      \
   V(PROTOTYPE_INFO, PrototypeInfo, prototype_info)                           \
@@ -709,7 +708,6 @@ enum InstanceType : uint8_t {
   ALIASED_ARGUMENTS_ENTRY_TYPE,
   PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE,
   PROMISE_REACTION_JOB_INFO_TYPE,
-  PROMISE_CAPABILITY_TYPE,
   DEBUG_INFO_TYPE,
   STACK_FRAME_INFO_TYPE,
   PROTOTYPE_INFO_TYPE,
@@ -730,6 +728,8 @@ enum InstanceType : uint8_t {
   PROPERTY_CELL_TYPE,
   SMALL_ORDERED_HASH_MAP_TYPE,
   SMALL_ORDERED_HASH_SET_TYPE,
+  // TODO(mstarzinger,v8::6792): Will be used for code data container.
+  UNUSED_AND_RESERVED_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
@@ -1064,6 +1064,7 @@ template <class C> inline bool Is(Object* obj);
   V(ObjectHashTable)                      \
   V(Oddball)                              \
   V(PreParsedScopeData)                   \
+  V(PromiseCapability)                    \
   V(PropertyArray)                        \
   V(PropertyCell)                         \
   V(PropertyDescriptorObject)             \
@@ -3358,7 +3359,45 @@ class Struct: public HeapObject {
   void BriefPrintDetails(std::ostream& os);
 };
 
-class PromiseCapability : public Struct {
+class Tuple2 : public Struct {
+ public:
+  DECL_ACCESSORS(value1, Object)
+  DECL_ACCESSORS(value2, Object)
+
+  DECL_CAST(Tuple2)
+
+  // Dispatched behavior.
+  DECL_PRINTER(Tuple2)
+  DECL_VERIFIER(Tuple2)
+  void BriefPrintDetails(std::ostream& os);
+
+  static const int kValue1Offset = HeapObject::kHeaderSize;
+  static const int kValue2Offset = kValue1Offset + kPointerSize;
+  static const int kSize = kValue2Offset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple2);
+};
+
+class Tuple3 : public Tuple2 {
+ public:
+  DECL_ACCESSORS(value3, Object)
+
+  DECL_CAST(Tuple3)
+
+  // Dispatched behavior.
+  DECL_PRINTER(Tuple3)
+  DECL_VERIFIER(Tuple3)
+  void BriefPrintDetails(std::ostream& os);
+
+  static const int kValue3Offset = Tuple2::kSize;
+  static const int kSize = kValue3Offset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple3);
+};
+
+class PromiseCapability : public Tuple3 {
  public:
   DECL_CAST(PromiseCapability)
   DECL_PRINTER(PromiseCapability)
@@ -3368,10 +3407,10 @@ class PromiseCapability : public Struct {
   DECL_ACCESSORS(resolve, Object)
   DECL_ACCESSORS(reject, Object)
 
-  static const int kPromiseOffset = Struct::kHeaderSize;
-  static const int kResolveOffset = kPromiseOffset + kPointerSize;
-  static const int kRejectOffset = kResolveOffset + kPointerSize;
-  static const int kSize = kRejectOffset + kPointerSize;
+  static const int kPromiseOffset = Tuple3::kValue1Offset;
+  static const int kResolveOffset = Tuple3::kValue2Offset;
+  static const int kRejectOffset = Tuple3::kValue3Offset;
+  static const int kSize = Tuple3::kSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PromiseCapability);
@@ -3516,44 +3555,6 @@ class PrototypeInfo : public Struct {
   DECL_ACCESSORS(object_create_map, Object)
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(PrototypeInfo);
-};
-
-class Tuple2 : public Struct {
- public:
-  DECL_ACCESSORS(value1, Object)
-  DECL_ACCESSORS(value2, Object)
-
-  DECL_CAST(Tuple2)
-
-  // Dispatched behavior.
-  DECL_PRINTER(Tuple2)
-  DECL_VERIFIER(Tuple2)
-  void BriefPrintDetails(std::ostream& os);
-
-  static const int kValue1Offset = HeapObject::kHeaderSize;
-  static const int kValue2Offset = kValue1Offset + kPointerSize;
-  static const int kSize = kValue2Offset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple2);
-};
-
-class Tuple3 : public Tuple2 {
- public:
-  DECL_ACCESSORS(value3, Object)
-
-  DECL_CAST(Tuple3)
-
-  // Dispatched behavior.
-  DECL_PRINTER(Tuple3)
-  DECL_VERIFIER(Tuple3)
-  void BriefPrintDetails(std::ostream& os);
-
-  static const int kValue3Offset = Tuple2::kSize;
-  static const int kSize = kValue3Offset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(Tuple3);
 };
 
 // Pair used to store both a ScopeInfo and an extension object in the extension

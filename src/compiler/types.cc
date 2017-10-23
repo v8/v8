@@ -236,7 +236,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
 
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
-    case PROMISE_CAPABILITY_TYPE:
     case JS_PROMISE_TYPE:
     case WASM_MODULE_TYPE:
     case WASM_INSTANCE_TYPE:
@@ -306,6 +305,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case TUPLE3_TYPE:
     case CONTEXT_EXTENSION_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
+    case UNUSED_AND_RESERVED_TYPE:
       UNREACHABLE();
   }
   UNREACHABLE();

@@ -3907,7 +3907,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case JS_MAP_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
-    case PROMISE_CAPABILITY_TYPE:
+    case UNUSED_AND_RESERVED_TYPE:
     case JS_PROMISE_TYPE:
     case JS_PROXY_TYPE:
     case MAP_TYPE:

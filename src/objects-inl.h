@@ -312,6 +312,8 @@ bool HeapObject::IsJSWeakCollection() const {
 
 bool HeapObject::IsJSCollection() const { return IsJSMap() || IsJSSet(); }
 
+bool HeapObject::IsPromiseCapability() const { return IsTuple3(); }
+
 bool HeapObject::IsDescriptorArray() const { return IsFixedArray(); }
 
 bool HeapObject::IsPropertyDescriptorObject() const { return IsFixedArray(); }

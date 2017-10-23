@@ -2284,7 +2284,7 @@ TEST(CreatePromiseGetCapabilitiesExecutorContext) {
   Node* const context = m.Parameter(kNumParams + 2);
   Node* const native_context = m.LoadNativeContext(context);
 
-  Node* const map = m.LoadRoot(Heap::kPromiseCapabilityMapRootIndex);
+  Node* const map = m.LoadRoot(Heap::kTuple3MapRootIndex);
   Node* const capability = m.AllocateStruct(map);
   m.StoreObjectFieldNoWriteBarrier(
       capability, PromiseCapability::kPromiseOffset, m.UndefinedConstant());
@@ -2631,7 +2631,7 @@ TEST(AllocateStruct) {
   FunctionTester ft(asm_tester.GenerateCode(), kNumParams);
 
   Handle<Map> maps[] = {
-      handle(isolate->heap()->promise_capability_map(), isolate),
+      handle(isolate->heap()->tuple3_map(), isolate),
       handle(isolate->heap()->tuple2_map(), isolate),
   };
 

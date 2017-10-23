@@ -110,7 +110,7 @@ Node* PromiseBuiltinsAssembler::NewPromiseCapability(Node* context,
 
   Node* native_context = LoadNativeContext(context);
 
-  Node* map = LoadRoot(Heap::kPromiseCapabilityMapRootIndex);
+  Node* map = LoadRoot(Heap::kTuple3MapRootIndex);
   Node* capability = AllocateStruct(map);
 
   VARIABLE(var_result, MachineRepresentation::kTagged);
