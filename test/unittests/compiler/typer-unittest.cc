@@ -454,6 +454,10 @@ TEST_MONOTONICITY(GreaterThanOrEqual)
 TEST_MONOTONICITY(Add)
 #undef TEST_MONOTONICITY
 
+TEST_F(TyperTest, Monotonicity_InstanceOf) {
+  TestBinaryMonotonicity(javascript_.InstanceOf(VectorSlotPair()));
+}
+
 // JS BINOPS without hint
 #define TEST_MONOTONICITY(name)                 \
   TEST_F(TyperTest, Monotonicity_##name) {      \
@@ -469,7 +473,6 @@ TEST_MONOTONICITY(Subtract)
 TEST_MONOTONICITY(Multiply)
 TEST_MONOTONICITY(Divide)
 TEST_MONOTONICITY(Modulus)
-TEST_MONOTONICITY(InstanceOf)
 TEST_MONOTONICITY(OrdinaryHasInstance)
 #undef TEST_MONOTONICITY
 

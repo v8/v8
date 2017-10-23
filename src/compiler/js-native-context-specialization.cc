@@ -152,6 +152,7 @@ Reduction JSNativeContextSpecialization::ReduceJSGetSuperConstructor(
 
 Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   DCHECK_EQ(IrOpcode::kJSInstanceOf, node->opcode());
+  FeedbackParameter const& p = FeedbackParameterOf(node->op());
   Node* object = NodeProperties::GetValueInput(node, 0);
   Node* constructor = NodeProperties::GetValueInput(node, 1);
   Node* context = NodeProperties::GetContextInput(node);
@@ -159,10 +160,18 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
   Node* frame_state = NodeProperties::GetFrameStateInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
-  // Check if the right hand side is a known {receiver}.
+  // Check if the right hand side is a known {receiver}, or
+  // we have feedback from the InstanceOfIC.
+  Handle<JSObject> receiver;
   HeapObjectMatcher m(constructor);
-  if (!m.HasValue() || !m.Value()->IsJSObject()) return NoChange();
-  Handle<JSObject> receiver = Handle<JSObject>::cast(m.Value());
+  if (m.HasValue() && m.Value()->IsJSObject()) {
+    receiver = Handle<JSObject>::cast(m.Value());
+  } else if (p.feedback().IsValid()) {
+    InstanceOfICNexus nexus(p.feedback().vector(), p.feedback().slot());
+    if (!nexus.GetConstructorFeedback().ToHandle(&receiver)) return NoChange();
+  } else {
+    return NoChange();
+  }
   Handle<Map> receiver_map(receiver->map(), isolate());
 
   // Compute property access info for @@hasInstance on {receiver}.
@@ -187,6 +196,10 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
         access_builder.AssumePrototypesStable(
             native_context(), access_info.receiver_maps(), holder);
       }
+
+      // Check that {constructor} is actually {receiver}.
+      constructor = access_builder.BuildCheckValue(constructor, &effect,
+                                                   control, receiver);
 
       // Monomorphic property access.
       access_builder.BuildCheckMaps(constructor, &effect, control,
@@ -225,6 +238,10 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
                                           field_index);
     }
     DCHECK(constant->IsCallable());
+
+    // Check that {constructor} is actually {receiver}.
+    constructor =
+        access_builder.BuildCheckValue(constructor, &effect, control, receiver);
 
     // Monomorphic property access.
     access_builder.BuildCheckMaps(constructor, &effect, control,
@@ -360,7 +377,7 @@ Reduction JSNativeContextSpecialization::ReduceJSOrdinaryHasInstance(
     NodeProperties::ReplaceValueInput(node, object, 0);
     NodeProperties::ReplaceValueInput(
         node, jsgraph()->HeapConstant(bound_target_function), 1);
-    NodeProperties::ChangeOp(node, javascript()->InstanceOf());
+    NodeProperties::ChangeOp(node, javascript()->InstanceOf(VectorSlotPair()));
     Reduction const reduction = ReduceJSInstanceOf(node);
     return reduction.Changed() ? reduction : Changed(node);
   }

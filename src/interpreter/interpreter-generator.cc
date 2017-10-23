@@ -1891,16 +1891,23 @@ IGNITION_HANDLER(TestIn, InterpreterAssembler) {
   Dispatch();
 }
 
-// TestInstanceOf <src>
+// TestInstanceOf <src> <feedback_slot>
 //
 // Test if the object referenced by the <src> register is an an instance of type
 // referenced by the accumulator.
 IGNITION_HANDLER(TestInstanceOf, InterpreterAssembler) {
-  Node* reg_index = BytecodeOperandReg(0);
-  Node* name = LoadRegister(reg_index);
-  Node* object = GetAccumulator();
+  Node* object_reg = BytecodeOperandReg(0);
+  Node* object = LoadRegister(object_reg);
+  Node* callable = GetAccumulator();
+  Node* slot_id = BytecodeOperandIdx(1);
+  Node* feedback_vector = LoadFeedbackVector();
   Node* context = GetContext();
-  SetAccumulator(InstanceOf(name, object, context));
+
+  // Record feedback for the {callable} in the {feedback_vector}.
+  CollectCallableFeedback(callable, context, feedback_vector, slot_id);
+
+  // Perform the actual instanceof operation.
+  SetAccumulator(InstanceOf(object, callable, context));
   Dispatch();
 }
 

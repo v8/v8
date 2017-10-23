@@ -208,7 +208,8 @@ namespace interpreter {
   V(TestGreaterThanOrEqual, AccumulatorUse::kReadWrite, OperandType::kReg,     \
     OperandType::kIdx)                                                         \
   V(TestEqualStrictNoFeedback, AccumulatorUse::kReadWrite, OperandType::kReg)  \
-  V(TestInstanceOf, AccumulatorUse::kReadWrite, OperandType::kReg)             \
+  V(TestInstanceOf, AccumulatorUse::kReadWrite, OperandType::kReg,             \
+    OperandType::kIdx)                                                         \
   V(TestIn, AccumulatorUse::kReadWrite, OperandType::kReg)                     \
   V(TestUndetectable, AccumulatorUse::kReadWrite)                              \
   V(TestNull, AccumulatorUse::kReadWrite)                                      \

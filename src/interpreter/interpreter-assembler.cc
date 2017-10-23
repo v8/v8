@@ -581,64 +581,55 @@ void InterpreterAssembler::CallEpilogue() {
   }
 }
 
-Node* InterpreterAssembler::IncrementCallCount(Node* feedback_vector,
-                                               Node* slot_id) {
+void InterpreterAssembler::IncrementCallCount(Node* feedback_vector,
+                                              Node* slot_id) {
   Comment("increment call count");
   Node* call_count =
       LoadFeedbackVectorSlot(feedback_vector, slot_id, kPointerSize);
   Node* new_count = SmiAdd(call_count, SmiConstant(1));
   // Count is Smi, so we don't need a write barrier.
-  return StoreFeedbackVectorSlot(feedback_vector, slot_id, new_count,
-                                 SKIP_WRITE_BARRIER, kPointerSize);
+  StoreFeedbackVectorSlot(feedback_vector, slot_id, new_count,
+                          SKIP_WRITE_BARRIER, kPointerSize);
 }
 
-void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
-                                               Node* feedback_vector,
-                                               Node* slot_id) {
+void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
+                                                   Node* feedback_vector,
+                                                   Node* slot_id) {
   Label extra_checks(this, Label::kDeferred), done(this);
-
-  // Increment the call count.
-  IncrementCallCount(feedback_vector, slot_id);
 
   // Check if we have monomorphic {target} feedback already.
   Node* feedback_element = LoadFeedbackVectorSlot(feedback_vector, slot_id);
   Node* feedback_value = LoadWeakCellValueUnchecked(feedback_element);
-  Branch(WordEqual(target, feedback_value), &done, &extra_checks);
+  Comment("check if monomorphic");
+  Node* is_monomorphic = WordEqual(target, feedback_value);
+  GotoIf(is_monomorphic, &done);
+
+  // Check if it is a megamorphic {target}.
+  Comment("check if megamorphic");
+  Node* is_megamorphic =
+      WordEqual(feedback_element,
+                HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
+  Branch(is_megamorphic, &done, &extra_checks);
 
   BIND(&extra_checks);
   {
-    Label check_initialized(this), initialize(this), mark_megamorphic(this);
-
-    // Check if it is a megamorphic {target}.
-    Comment("check if megamorphic");
-    Node* is_megamorphic =
-        WordEqual(feedback_element,
-                  HeapConstant(FeedbackVector::MegamorphicSentinel(isolate())));
-    GotoIf(is_megamorphic, &done);
+    Label initialize(this), mark_megamorphic(this);
 
     Comment("check if weak cell");
-    Node* is_weak_cell = WordEqual(LoadMap(feedback_element),
-                                   LoadRoot(Heap::kWeakCellMapRootIndex));
-    GotoIfNot(is_weak_cell, &check_initialized);
+    Node* is_uninitialized = WordEqual(
+        feedback_element,
+        HeapConstant(FeedbackVector::UninitializedSentinel(isolate())));
+    GotoIf(is_uninitialized, &initialize);
+    CSA_ASSERT(this, IsWeakCell(feedback_element));
 
     // If the weak cell is cleared, we have a new chance to become monomorphic.
     Comment("check if weak cell is cleared");
     Node* is_smi = TaggedIsSmi(feedback_value);
     Branch(is_smi, &initialize, &mark_megamorphic);
 
-    BIND(&check_initialized);
-    {
-      // Check if it is uninitialized.
-      Comment("check if uninitialized");
-      Node* is_uninitialized = WordEqual(
-          feedback_element, LoadRoot(Heap::kuninitialized_symbolRootIndex));
-      Branch(is_uninitialized, &initialize, &mark_megamorphic);
-    }
-
     BIND(&initialize);
     {
-      // Check if {target} is a JSFunction in the current native
-      // context.
+      // Check if {target} is a JSFunction in the current native context.
       Comment("check if function in same native context");
       GotoIf(TaggedIsSmi(target), &mark_megamorphic);
       // Check if the {target} is a JSFunction or JSBoundFunction
@@ -704,6 +695,16 @@ void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
   }
 
   BIND(&done);
+}
+
+void InterpreterAssembler::CollectCallFeedback(Node* target, Node* context,
+                                               Node* feedback_vector,
+                                               Node* slot_id) {
+  // Increment the call count.
+  IncrementCallCount(feedback_vector, slot_id);
+
+  // Collect the callable {target} feedback.
+  CollectCallableFeedback(target, context, feedback_vector, slot_id);
 }
 
 void InterpreterAssembler::CallJSAndDispatch(

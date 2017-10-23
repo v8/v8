@@ -167,6 +167,19 @@ void PropertyAccessBuilder::BuildCheckMaps(
                              *effect, control);
 }
 
+Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Node** effect,
+                                             Node* control,
+                                             Handle<HeapObject> value) {
+  HeapObjectMatcher m(receiver);
+  if (m.Is(value)) return receiver;
+  Node* expected = jsgraph()->HeapConstant(value);
+  Node* check =
+      graph()->NewNode(simplified()->ReferenceEqual(), receiver, expected);
+  *effect = graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kNoReason),
+                             check, *effect, control);
+  return expected;
+}
+
 void PropertyAccessBuilder::AssumePrototypesStable(
     Handle<Context> native_context,
     std::vector<Handle<Map>> const& receiver_maps, Handle<JSObject> holder) {

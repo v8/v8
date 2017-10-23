@@ -44,6 +44,7 @@ FeedbackVector* FeedbackVector::cast(Object* obj) {
 int FeedbackMetadata::GetSlotSize(FeedbackSlotKind kind) {
   switch (kind) {
     case FeedbackSlotKind::kForIn:
+    case FeedbackSlotKind::kInstanceOf:
     case FeedbackSlotKind::kCompareOp:
     case FeedbackSlotKind::kBinaryOp:
     case FeedbackSlotKind::kLiteral:
@@ -288,6 +289,16 @@ void FeedbackVector::ComputeCounts(int* with_type_info, int* generic,
           gen++;
         }
         if (hint != ForInHint::kNone) {
+          with++;
+        }
+        total++;
+        break;
+      }
+      case FeedbackSlotKind::kInstanceOf: {
+        if (obj->IsWeakCell()) {
+          with++;
+        } else if (obj == megamorphic_sentinel) {
+          gen++;
           with++;
         }
         total++;

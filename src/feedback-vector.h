@@ -48,6 +48,7 @@ enum class FeedbackSlotKind {
   kCreateClosure,
   kLiteral,
   kForIn,
+  kInstanceOf,
 
   kKindsNumber  // Last value indicating number of kinds.
 };
@@ -341,6 +342,10 @@ class V8_EXPORT_PRIVATE FeedbackVectorSpecBase {
   }
 
   FeedbackSlot AddForInSlot() { return AddSlot(FeedbackSlotKind::kForIn); }
+
+  FeedbackSlot AddInstanceOfSlot() {
+    return AddSlot(FeedbackSlotKind::kInstanceOf);
+  }
 
   FeedbackSlot AddLiteralSlot() { return AddSlot(FeedbackSlotKind::kLiteral); }
 
@@ -811,6 +816,31 @@ class ForInICNexus final : public FeedbackNexus {
 
   InlineCacheState StateFromFeedback() const final;
   ForInHint GetForInFeedback() const;
+
+  int ExtractMaps(MapHandles* maps) const final { return 0; }
+  MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {
+    return MaybeHandle<Code>();
+  }
+  bool FindHandlers(ObjectHandles* code_list, int length = -1) const final {
+    return length == 0;
+  }
+};
+
+class InstanceOfICNexus final : public FeedbackNexus {
+ public:
+  InstanceOfICNexus(Handle<FeedbackVector> vector, FeedbackSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackSlotKind::kInstanceOf, vector->GetKind(slot));
+  }
+  InstanceOfICNexus(FeedbackVector* vector, FeedbackSlot slot)
+      : FeedbackNexus(vector, slot) {
+    DCHECK_EQ(FeedbackSlotKind::kInstanceOf, vector->GetKind(slot));
+  }
+
+  void ConfigureUninitialized() final;
+
+  InlineCacheState StateFromFeedback() const final;
+  MaybeHandle<JSObject> GetConstructorFeedback() const;
 
   int ExtractMaps(MapHandles* maps) const final { return 0; }
   MaybeHandle<Object> FindHandlerForMap(Handle<Map> map) const final {

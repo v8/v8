@@ -193,6 +193,8 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "TypeProfile";
     case FeedbackSlotKind::kForIn:
       return "ForIn";
+    case FeedbackSlotKind::kInstanceOf:
+      return "InstanceOf";
     case FeedbackSlotKind::kKindsNumber:
       break;
   }
@@ -282,6 +284,7 @@ Handle<FeedbackVector> FeedbackVector::New(Isolate* isolate,
       case FeedbackSlotKind::kStoreKeyedStrict:
       case FeedbackSlotKind::kStoreDataPropertyInLiteral:
       case FeedbackSlotKind::kTypeProfile:
+      case FeedbackSlotKind::kInstanceOf:
         vector->set(index, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
         break;
 
@@ -448,9 +451,17 @@ bool FeedbackVector::ClearSlots(Isolate* isolate) {
           // Set(slot, Smi::kZero);
           break;
         }
-        case FeedbackSlotKind::kCreateClosure: {
-          case FeedbackSlotKind::kTypeProfile:
-            break;
+        case FeedbackSlotKind::kInstanceOf: {
+          InstanceOfICNexus nexus(this, slot);
+          if (!nexus.IsCleared()) {
+            nexus.Clear();
+            feedback_updated = true;
+          }
+          break;
+        }
+        case FeedbackSlotKind::kCreateClosure:
+        case FeedbackSlotKind::kTypeProfile: {
+          break;
         }
         case FeedbackSlotKind::kLiteral: {
           Set(slot, Smi::kZero, SKIP_WRITE_BARRIER);
@@ -953,6 +964,32 @@ InlineCacheState ForInICNexus::StateFromFeedback() const {
 ForInHint ForInICNexus::GetForInFeedback() const {
   int feedback = Smi::ToInt(GetFeedback());
   return ForInHintFromFeedback(feedback);
+}
+
+void InstanceOfICNexus::ConfigureUninitialized() {
+  SetFeedback(*FeedbackVector::UninitializedSentinel(GetIsolate()),
+              SKIP_WRITE_BARRIER);
+}
+
+InlineCacheState InstanceOfICNexus::StateFromFeedback() const {
+  Isolate* isolate = GetIsolate();
+  Object* feedback = GetFeedback();
+
+  if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
+    return UNINITIALIZED;
+  } else if (feedback == *FeedbackVector::MegamorphicSentinel(isolate)) {
+    return MEGAMORPHIC;
+  }
+  return MONOMORPHIC;
+}
+
+MaybeHandle<JSObject> InstanceOfICNexus::GetConstructorFeedback() const {
+  Isolate* isolate = GetIsolate();
+  Object* feedback = GetFeedback();
+  if (feedback->IsWeakCell() && !WeakCell::cast(feedback)->cleared()) {
+    return handle(JSObject::cast(WeakCell::cast(feedback)->value()), isolate);
+  }
+  return MaybeHandle<JSObject>();
 }
 
 InlineCacheState StoreDataPropertyInLiteralICNexus::StateFromFeedback() const {

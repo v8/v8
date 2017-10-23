@@ -246,6 +246,18 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
       }
       break;
     }
+    case IrOpcode::kJSInstanceOf: {
+      DCHECK(!slot.IsInvalid());
+      InstanceOfICNexus nexus(feedback_vector(), slot);
+      if (Node* node = TryBuildSoftDeopt(
+              nexus, effect, control,
+              DeoptimizeReason::kInsufficientTypeFeedbackForCompareOperation)) {
+        return LoweringResult::Exit(node);
+      }
+      // TODO(turbofan): Should we generally support early lowering of
+      // JSInstanceOf operators here?
+      break;
+    }
     case IrOpcode::kJSBitwiseOr:
     case IrOpcode::kJSBitwiseXor:
     case IrOpcode::kJSBitwiseAnd:

@@ -286,6 +286,7 @@ std::ostream& operator<<(std::ostream& os, FeedbackParameter const& p) {
 
 FeedbackParameter const& FeedbackParameterOf(const Operator* op) {
   DCHECK(op->opcode() == IrOpcode::kJSCreateEmptyLiteralArray ||
+         op->opcode() == IrOpcode::kJSInstanceOf ||
          op->opcode() == IrOpcode::kJSStoreDataPropertyInLiteral);
   return OpParameter<FeedbackParameter>(op);
 }
@@ -593,7 +594,6 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(CreateKeyValueArray, Operator::kEliminatable, 2, 1)         \
   V(HasProperty, Operator::kNoProperties, 2, 1)                 \
   V(HasInPrototypeChain, Operator::kNoProperties, 2, 1)         \
-  V(InstanceOf, Operator::kNoProperties, 2, 1)                  \
   V(OrdinaryHasInstance, Operator::kNoProperties, 2, 1)         \
   V(ForInEnumerate, Operator::kNoProperties, 1, 1)              \
   V(LoadMessage, Operator::kNoThrow | Operator::kNoWrite, 0, 1) \
@@ -883,6 +883,15 @@ const Operator* JSOperatorBuilder::LoadProperty(
       "JSLoadProperty",                                    // name
       2, 1, 1, 1, 1, 2,                                    // counts
       access);                                             // parameter
+}
+
+const Operator* JSOperatorBuilder::InstanceOf(VectorSlotPair const& feedback) {
+  FeedbackParameter parameter(feedback);
+  return new (zone()) Operator1<FeedbackParameter>(      // --
+      IrOpcode::kJSInstanceOf, Operator::kNoProperties,  // opcode
+      "JSInstanceOf",                                    // name
+      2, 1, 1, 1, 1, 2,                                  // counts
+      parameter);                                        // parameter
 }
 
 const Operator* JSOperatorBuilder::ForInNext(ForInMode mode) {

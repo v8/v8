@@ -493,6 +493,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(
     case Token::Value::GTE:
       OutputTestGreaterThanOrEqual(reg, feedback_slot);
       break;
+    case Token::Value::INSTANCEOF:
+      OutputTestInstanceOf(reg, feedback_slot);
+      break;
     default:
       UNREACHABLE();
   }
@@ -504,9 +507,6 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::CompareOperation(Token::Value op,
   switch (op) {
     case Token::Value::EQ_STRICT:
       OutputTestEqualStrictNoFeedback(reg);
-      break;
-    case Token::Value::INSTANCEOF:
-      OutputTestInstanceOf(reg);
       break;
     case Token::Value::IN:
       OutputTestIn(reg);
