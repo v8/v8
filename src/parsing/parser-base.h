@@ -4358,6 +4358,13 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
         formal_parameters.scope->ResetAfterPreparsing(ast_value_factory_,
                                                       false);
 
+        // Discard any queued destructuring assignments which appeared
+        // in this function's parameter list.
+        FunctionState* parent_state = function_state.outer();
+        DCHECK_NOT_NULL(parent_state);
+        DCHECK_GE(parent_state->destructuring_assignments_to_rewrite().length(),
+                  rewritable_length);
+        parent_state->RewindDestructuringAssignments(rewritable_length);
       } else {
         Consume(Token::LBRACE);
         body = impl()->NewStatementList(8);
@@ -4393,14 +4400,6 @@ ParserBase<Impl>::ParseArrowFunctionLiteral(
                               scanner()->location().end_pos, CHECK_OK);
     }
     impl()->CheckConflictingVarDeclarations(formal_parameters.scope, CHECK_OK);
-
-    if (is_lazy_top_level_function) {
-      FunctionState* parent_state = function_state.outer();
-      DCHECK_NOT_NULL(parent_state);
-      DCHECK_GE(parent_state->destructuring_assignments_to_rewrite().length(),
-                rewritable_length);
-      parent_state->RewindDestructuringAssignments(rewritable_length);
-    }
 
     impl()->RewriteDestructuringAssignments();
   }
