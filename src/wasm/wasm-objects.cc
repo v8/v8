@@ -322,6 +322,7 @@ namespace {
 Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
                                        Handle<JSArrayBuffer> old_buffer,
                                        uint32_t pages, uint32_t maximum_pages) {
+  if (!old_buffer->is_growable()) return Handle<JSArrayBuffer>::null();
   Address old_mem_start = nullptr;
   uint32_t old_size = 0;
   if (!old_buffer.is_null()) {
@@ -466,6 +467,7 @@ int32_t WasmMemoryObject::Grow(Isolate* isolate,
                                Handle<WasmMemoryObject> memory_object,
                                uint32_t pages) {
   Handle<JSArrayBuffer> old_buffer(memory_object->array_buffer());
+  if (!old_buffer->is_growable()) return -1;
   uint32_t old_size = 0;
   CHECK(old_buffer->byte_length()->ToUint32(&old_size));
   DCHECK_EQ(0, old_size % WasmModule::kPageSize);

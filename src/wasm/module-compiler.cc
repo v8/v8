@@ -1793,7 +1793,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     Handle<JSArrayBuffer> memory = memory_.ToHandleChecked();
     // Set externally passed ArrayBuffer non neuterable.
     memory->set_is_neuterable(false);
-    memory->set_is_wasm_buffer(true);
 
     DCHECK_IMPLIES(trap_handler::UseTrapHandler(),
                    module_->is_asm_js() || memory->has_guard_region());
