@@ -790,7 +790,8 @@ class DoubleToIStub : public PlatformCodeStub {
  public:
   DoubleToIStub(Isolate* isolate, Register destination)
       : PlatformCodeStub(isolate) {
-    minor_key_ = DestinationRegisterBits::encode(destination.code());
+    minor_key_ = DestinationRegisterBits::encode(destination.code()) |
+                 SSE3Bits::encode(CpuFeatures::IsSupported(SSE3) ? 1 : 0);
   }
 
   bool SometimesSetsUpAFrame() override { return false; }
@@ -803,7 +804,8 @@ class DoubleToIStub : public PlatformCodeStub {
   static const int kBitsPerRegisterNumber = 6;
   STATIC_ASSERT((1L << kBitsPerRegisterNumber) >= Register::kNumRegisters);
   class DestinationRegisterBits
-      : public BitField<int, 0, kBitsPerRegisterNumber> {};  // NOLINT
+      : public BitField<int, 0, kBitsPerRegisterNumber> {};
+  class SSE3Bits : public BitField<int, kBitsPerRegisterNumber, 1> {};
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DoubleToI, PlatformCodeStub);
