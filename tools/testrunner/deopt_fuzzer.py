@@ -9,11 +9,9 @@ from os.path import join
 import json
 import math
 import multiprocessing
-import optparse
 import os
 import random
 import shlex
-import subprocess
 import sys
 import time
 
@@ -28,38 +26,13 @@ from testrunner.local import verbose
 from testrunner.objects import context
 
 
-# Base dir of the v8 checkout to be used as cwd.
-BASE_DIR = (
-    os.path.dirname(
-      os.path.dirname(
-        os.path.dirname(
-          os.path.abspath(__file__)))))
-
-ARCH_GUESS = utils.DefaultArch()
 DEFAULT_TESTS = ["mjsunit", "webkit"]
 TIMEOUT_DEFAULT = 60
 TIMEOUT_SCALEFACTOR = {"debug"   : 4,
                        "release" : 1 }
 
-MODE_FLAGS = {
-    "debug"   : ["--nohard-abort", "--enable-slow-asserts",
-                 "--verify-heap", "--noconcurrent-recompilation"],
-    "release" : ["--nohard-abort", "--noconcurrent-recompilation"]}
-
-SUPPORTED_ARCHS = ["android_arm",
-                   "android_ia32",
-                   "arm",
-                   "ia32",
-                   "ppc",
-                   "ppc64",
-                   "s390",
-                   "s390x",
-                   "mipsel",
-                   "x64"]
 # Double the timeout for these:
-SLOW_ARCHS = ["android_arm",
-              "android_ia32",
-              "arm",
+SLOW_ARCHS = ["arm",
               "mipsel"]
 MAX_DEOPT = 1000000000
 DISTRIBUTION_MODES = ["smooth", "random"]
@@ -132,100 +105,57 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
                                      options.distribution_factor2)
 
 
-  def _build_options(self):
-    result = optparse.OptionParser()
-    result.add_option("--arch",
-                      help=("The architecture to run tests for, "
-                            "'auto' or 'native' for auto-detect"),
-                      default="ia32,x64,arm")
-    result.add_option("--arch-and-mode",
-                      help="Architecture and mode in the format 'arch.mode'",
-                      default=None)
-    result.add_option("--asan",
-                      help="Regard test expectations for ASAN",
-                      default=False, action="store_true")
-    result.add_option("--buildbot",
-                      help="Adapt to path structure used on buildbots",
-                      default=False, action="store_true")
-    result.add_option("--dcheck-always-on",
-                      help="Indicates that V8 was compiled with DCHECKs"
-                      " enabled",
-                      default=False, action="store_true")
-    result.add_option("--command-prefix",
+  def _add_parser_options(self, parser):
+    parser.add_option("--command-prefix",
                       help="Prepended to each shell command used to run a test",
                       default="")
-    result.add_option("--coverage", help=("Exponential test coverage "
+    parser.add_option("--coverage", help=("Exponential test coverage "
                       "(range 0.0, 1.0) - 0.0: one test, 1.0 all tests (slow)"),
                       default=0.4, type="float")
-    result.add_option("--coverage-lift", help=("Lifts test coverage for tests "
+    parser.add_option("--coverage-lift", help=("Lifts test coverage for tests "
                       "with a small number of deopt points (range 0, inf)"),
                       default=20, type="int")
-    result.add_option("--distribution-factor1", help=("Factor of the first "
+    parser.add_option("--distribution-factor1", help=("Factor of the first "
                       "derivation of the distribution function"), default=2.0,
                       type="float")
-    result.add_option("--distribution-factor2", help=("Factor of the second "
+    parser.add_option("--distribution-factor2", help=("Factor of the second "
                       "derivation of the distribution function"), default=0.7,
                       type="float")
-    result.add_option("--distribution-mode", help=("How to select deopt points "
+    parser.add_option("--distribution-mode", help=("How to select deopt points "
                       "for a given test (smooth|random)"),
                       default="smooth")
-    result.add_option("--dump-results-file", help=("Dump maximum number of "
+    parser.add_option("--dump-results-file", help=("Dump maximum number of "
                       "deopt points per test to a file"))
-    result.add_option("--extra-flags",
+    parser.add_option("--extra-flags",
                       help="Additional flags to pass to each test command",
                       default="")
-    result.add_option("--isolates", help="Whether to test isolates",
+    parser.add_option("--isolates", help="Whether to test isolates",
                       default=False, action="store_true")
-    result.add_option("-j", help="The number of parallel tasks to run",
+    parser.add_option("-j", help="The number of parallel tasks to run",
                       default=0, type="int")
-    result.add_option("-m", "--mode",
-                      help="The test modes in which to run (comma-separated)",
-                      default="release,debug")
-    result.add_option("--outdir", help="Base directory with compile output",
-                      default="out")
-    result.add_option("-p", "--progress",
+    parser.add_option("-p", "--progress",
                       help=("The style of progress indicator"
                             " (verbose, dots, color, mono)"),
                       choices=progress.PROGRESS_INDICATORS.keys(),
                       default="mono")
-    result.add_option("--shard-count",
+    parser.add_option("--shard-count",
                       help="Split testsuites into this number of shards",
                       default=1, type="int")
-    result.add_option("--shard-run",
+    parser.add_option("--shard-run",
                       help="Run this shard from the split up tests.",
                       default=1, type="int")
-    result.add_option("--shell-dir", help="Directory containing executables",
-                      default="")
-    result.add_option("--seed", help="The seed for the random distribution",
+    parser.add_option("--seed", help="The seed for the random distribution",
                       type="int")
-    result.add_option("-t", "--timeout", help="Timeout in seconds",
+    parser.add_option("-t", "--timeout", help="Timeout in seconds",
                       default= -1, type="int")
-    result.add_option("-v", "--verbose", help="Verbose output",
+    parser.add_option("-v", "--verbose", help="Verbose output",
                       default=False, action="store_true")
-    result.add_option("--random-seed", default=0, dest="random_seed",
+    parser.add_option("--random-seed", default=0, dest="random_seed",
                       help="Default seed for initializing random generator")
-    return result
+    return parser
 
 
   def _process_options(self, options):
-    # Architecture and mode related stuff.
-    if options.arch_and_mode:
-      tokens = options.arch_and_mode.split(".")
-      options.arch = tokens[0]
-      options.mode = tokens[1]
-    options.mode = options.mode.split(",")
-    for mode in options.mode:
-      if not mode.lower() in ["debug", "release"]:
-        print "Unknown mode %s" % mode
-        return False
-    if options.arch in ["auto", "native"]:
-      options.arch = ARCH_GUESS
-    options.arch = options.arch.split(",")
-    for arch in options.arch:
-      if not arch in SUPPORTED_ARCHS:
-        print "Unknown architecture %s" % arch
-        return False
-
     # Special processing of other options, sorted alphabetically.
     options.command_prefix = shlex.split(options.command_prefix)
     options.extra_flags = shlex.split(options.extra_flags)
@@ -270,20 +200,11 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
       count += 1
     return shard
 
-  # TODO(majeski): reuse baseclass code
-  def execute(self):
+  def _do_execute(self, options, args):
     # Use the v8 root as cwd as some test cases use "load" with relative paths.
-    os.chdir(BASE_DIR)
+    os.chdir(base_runner.BASE_DIR)
 
-    parser = self._build_options()
-    (options, args) = parser.parse_args()
-    if not self._process_options(options):
-      parser.print_help()
-      return 1
-
-    exit_code = 0
-
-    suite_paths = utils.GetSuitePaths(join(BASE_DIR, "test"))
+    suite_paths = utils.GetSuitePaths(join(base_runner.BASE_DIR, "test"))
 
     if len(args) == 0:
       suite_paths = [ s for s in suite_paths if s in DEFAULT_TESTS ]
@@ -298,18 +219,14 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
     suites = []
     for root in suite_paths:
       suite = testsuite.TestSuite.LoadTestSuite(
-          os.path.join(BASE_DIR, "test", root))
+          os.path.join(base_runner.BASE_DIR, "test", root))
       if suite:
         suites.append(suite)
 
-    for mode in options.mode:
-      for arch in options.arch:
-        try:
-          code = self._execute(arch, mode, args, options, suites, BASE_DIR)
-          exit_code = exit_code or code
-        except KeyboardInterrupt:
-          return 2
-    return exit_code
+    try:
+      return self._execute(args, options, suites)
+    except KeyboardInterrupt:
+      return 2
 
 
   def _calculate_n_tests(self, m, options):
@@ -323,33 +240,26 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
     return int(math.pow(m, (m * c + l) / (m + l)))
 
 
-  def _execute(self, arch, mode, args, options, suites, workspace):
-    print(">>> Running tests for %s.%s" % (arch, mode))
+  def _execute(self, args, options, suites):
+    print(">>> Running tests for %s.%s" % (self.build_config.arch,
+                                           self.build_config.mode))
 
     dist = self._distribution(options)
 
-    shell_dir = options.shell_dir
-    if not shell_dir:
-      if options.buildbot:
-        shell_dir = os.path.join(workspace, options.outdir, mode)
-        mode = mode.lower()
-      else:
-        shell_dir = os.path.join(workspace, options.outdir,
-                                "%s.%s" % (arch, mode))
-    shell_dir = os.path.relpath(shell_dir)
-
     # Populate context object.
-    mode_flags = MODE_FLAGS[mode]
+    mode_flags = base_runner.MODES[self.build_config.mode]['flags']
     timeout = options.timeout
     if timeout == -1:
       # Simulators are slow, therefore allow a longer default timeout.
-      if arch in SLOW_ARCHS:
+      if self.build_config.arch in SLOW_ARCHS:
         timeout = 2 * TIMEOUT_DEFAULT;
       else:
         timeout = TIMEOUT_DEFAULT;
 
-    timeout *= TIMEOUT_SCALEFACTOR[mode]
-    ctx = context.Context(arch, mode, shell_dir,
+    timeout *= TIMEOUT_SCALEFACTOR[self.build_config.mode]
+    ctx = context.Context(self.build_config.arch,
+                          self.build_config.mode,
+                          self.shell_dir,
                           mode_flags, options.verbose,
                           timeout, options.isolates,
                           options.command_prefix,
@@ -366,25 +276,26 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
 
     # Find available test suites and read test cases from them.
     variables = {
-      "arch": arch,
-      "asan": options.asan,
+      "arch": self.build_config.arch,
+      "asan": self.build_config.asan,
+      "byteorder": sys.byteorder,
+      "dcheck_always_on": self.build_config.dcheck_always_on,
       "deopt_fuzzer": True,
       "gc_stress": False,
-      "gcov_coverage": False,
+      "gcov_coverage": self.build_config.gcov_coverage,
       "isolates": options.isolates,
-      "mode": mode,
-      "no_i18n": False,
-      "no_snap": False,
-      "simulator": utils.UseSimulator(arch),
-      "system": utils.GuessOS(),
-      "tsan": False,
-      "msan": False,
-      "dcheck_always_on": options.dcheck_always_on,
-      "novfp3": False,
-      "predictable": False,
-      "byteorder": sys.byteorder,
+      "mode": base_runner.MODES[self.build_config.mode]["status_mode"],
+      "msan": self.build_config.msan,
       "no_harness": False,
-      "ubsan_vptr": False,
+      "no_i18n": self.build_config.no_i18n,
+      "no_snap": self.build_config.no_snap,
+      "novfp3": False,
+      "predictable": self.build_config.predictable,
+      "simulator": utils.UseSimulator(self.build_config.arch),
+      "simulator_run": False,
+      "system": utils.GuessOS(),
+      "tsan": self.build_config.tsan,
+      "ubsan_vptr": self.build_config.ubsan_vptr,
     }
     num_tests = 0
     test_id = 0
