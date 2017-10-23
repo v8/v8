@@ -1486,7 +1486,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                          Label* if_found, Variable* var_value,
                          Variable* var_details, Variable* var_raw_value,
                          Label* if_not_found, Label* if_bailout,
-                         GetOwnPropertyMode mode = kCallJSGetter);
+                         GetOwnPropertyMode mode);
 
   Node* GetProperty(Node* context, Node* receiver, Handle<Name> name) {
     return GetProperty(context, receiver, HeapConstant(name));
