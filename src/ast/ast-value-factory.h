@@ -429,7 +429,6 @@ class AstValueFactory {
   const AstValue* NewSmi(uint32_t number);
   V8_EXPORT_PRIVATE const AstValue* NewBigInt(const char* number);
   const AstValue* NewBoolean(bool b);
-  const AstValue* NewStringList(ZoneList<const AstRawString*>* strings);
   const AstValue* NewNull();
   const AstValue* NewUndefined();
   const AstValue* NewTheHole();
