@@ -712,7 +712,13 @@ class ModuleDecoderImpl : public Decoder {
     uint32_t functions_count = consume_u32v("functions count");
     CheckFunctionsCount(functions_count, pos);
     for (uint32_t i = 0; ok() && i < functions_count; ++i) {
+      const byte* pos = pc();
       uint32_t size = consume_u32v("body size");
+      if (size > kV8MaxWasmFunctionSize) {
+        errorf(pos, "size %u > maximum function size %zu", size,
+               kV8MaxWasmFunctionSize);
+        return;
+      }
       uint32_t offset = pc_offset();
       consume_bytes(size, "function body");
       if (failed()) break;

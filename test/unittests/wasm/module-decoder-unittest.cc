@@ -1503,6 +1503,31 @@ TEST_F(WasmModuleVerifyTest, Regression_738097) {
   EXPECT_FAILURE(data);
 }
 
+TEST_F(WasmModuleVerifyTest, FunctionBodySizeLimit) {
+  const uint32_t delta = 3;
+  for (uint32_t body_size = kV8MaxWasmFunctionSize - delta;
+       body_size < kV8MaxWasmFunctionSize + delta; body_size++) {
+    byte data[] = {
+        SIGNATURES_SECTION(1, SIG_ENTRY_v_v),  // --
+        FUNCTION_SIGNATURES_SECTION(1, 0),     // --
+        kCodeSectionCode,                      // code section
+        U32V_5(1 + body_size + 5),             // section size
+        1,                                     // # functions
+        U32V_5(body_size)                      // body size
+    };
+    size_t total = sizeof(data) + body_size;
+    byte* buffer = reinterpret_cast<byte*>(calloc(1, total));
+    memcpy(buffer, data, sizeof(data));
+    ModuleResult result = DecodeModule(buffer, buffer + total);
+    if (body_size <= kV8MaxWasmFunctionSize) {
+      EXPECT_TRUE(result.ok());
+    } else {
+      EXPECT_FALSE(result.ok());
+    }
+    free(buffer);
+  }
+}
+
 TEST_F(WasmModuleVerifyTest, FunctionBodies_empty) {
   static const byte data[] = {
       EMPTY_SIGNATURES_SECTION,           // --
