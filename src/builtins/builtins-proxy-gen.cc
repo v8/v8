@@ -494,7 +494,7 @@ void ProxiesCodeStubAssembler::CheckGetSetTrapResult(
   Node* instance_type = LoadInstanceType(target);
   TryGetOwnProperty(context, target, target, map, instance_type, name,
                     &if_found_value, &var_value, &var_details, &var_raw_value,
-                    check_passed, &check_in_runtime, kReturnAccessorPair);
+                    check_passed, &check_in_runtime);
 
   BIND(&if_found_value);
   {
