@@ -41,7 +41,7 @@ bool BuiltinSerializerAllocator::BackReferenceIsAlreadyAllocated(
 
 std::vector<SerializedData::Reservation>
 BuiltinSerializerAllocator::EncodeReservations() const {
-  return {};
+  return std::vector<SerializedData::Reservation>();
 }
 
 void BuiltinSerializerAllocator::OutputStatistics() {
