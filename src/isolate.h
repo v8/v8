@@ -751,6 +751,8 @@ class Isolate {
       Handle<Object> caller);
   Handle<FixedArray> GetDetailedStackTrace(Handle<JSObject> error_object);
 
+  Address GetAbstractPC(int* line, int* column);
+
   // Returns if the given context may access the given global object. If
   // the result is false, the pending exception is guaranteed to be
   // set.

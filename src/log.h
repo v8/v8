@@ -191,9 +191,8 @@ class Logger : public CodeEventListener {
   void CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
                       int fp_to_sp_delta);
 
-  void ICEvent(const char* type, bool keyed, const Address pc, int line,
-               int column, Map* map, Object* key, char old_state,
-               char new_state, const char* modifier,
+  void ICEvent(const char* type, bool keyed, Map* map, Object* key,
+               char old_state, char new_state, const char* modifier,
                const char* slow_stub_reason);
 
   // ==== Events logged by --log-gc. ====

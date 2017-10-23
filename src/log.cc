@@ -1330,14 +1330,16 @@ void Logger::TickEvent(v8::TickSample* sample, bool overflow) {
   msg.WriteToLogFile();
 }
 
-void Logger::ICEvent(const char* type, bool keyed, const Address pc, int line,
-                     int column, Map* map, Object* key, char old_state,
-                     char new_state, const char* modifier,
+void Logger::ICEvent(const char* type, bool keyed, Map* map, Object* key,
+                     char old_state, char new_state, const char* modifier,
                      const char* slow_stub_reason) {
   if (!log_->IsEnabled() || !FLAG_trace_ic) return;
   Log::MessageBuilder msg(log_);
   if (keyed) msg << "Keyed";
   msg << type << kNext;
+  int line;
+  int column;
+  Address pc = isolate_->GetAbstractPC(&line, &column);
   msg.AppendAddress(pc);
   msg << kNext << line << kNext << column << kNext << old_state << kNext
       << new_state << kNext << reinterpret_cast<void*>(map) << kNext;

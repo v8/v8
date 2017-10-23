@@ -71,36 +71,6 @@ void IC::TraceIC(const char* type, Handle<Object> name) {
   }
 }
 
-Address IC::GetAbstractPC(int* line, int* column) const {
-  JavaScriptFrameIterator it(isolate());
-
-  JavaScriptFrame* frame = it.frame();
-  DCHECK(!frame->is_builtin());
-  int position = frame->position();
-
-  Object* maybe_script = frame->function()->shared()->script();
-  if (maybe_script->IsScript()) {
-    Handle<Script> script(Script::cast(maybe_script), isolate());
-    Script::PositionInfo info;
-    Script::GetPositionInfo(script, position, &info, Script::WITH_OFFSET);
-    *line = info.line + 1;
-    *column = info.column + 1;
-  } else {
-    *line = position;
-    *column = -1;
-  }
-
-  if (frame->is_interpreted()) {
-    InterpretedFrame* iframe = static_cast<InterpretedFrame*>(frame);
-    Address bytecode_start =
-        reinterpret_cast<Address>(iframe->GetBytecodeArray()) - kHeapObjectTag +
-        BytecodeArray::kHeaderSize;
-    return bytecode_start + iframe->GetBytecodeOffset();
-  }
-
-  return frame->pc();
-}
-
 void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
                  State new_state) {
   if (V8_LIKELY(!FLAG_ic_stats)) return;
@@ -119,10 +89,7 @@ void IC::TraceIC(const char* type, Handle<Object> name, State old_state,
 
   if (!(FLAG_ic_stats &
         v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
-    int line;
-    int column;
-    Address pc = GetAbstractPC(&line, &column);
-    LOG(isolate(), ICEvent(type, is_keyed(), pc, line, column, map, *name,
+    LOG(isolate(), ICEvent(type, is_keyed(), map, *name,
                            TransitionMarkFromState(old_state),
                            TransitionMarkFromState(new_state), modifier,
                            slow_stub_reason_));

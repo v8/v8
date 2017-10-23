@@ -72,7 +72,6 @@ class IC {
 
   void set_slow_stub_reason(const char* reason) { slow_stub_reason_ = reason; }
 
-  Address GetAbstractPC(int* line, int* column) const;
   Isolate* isolate() const { return isolate_; }
 
   // Get the caller function object.
