@@ -1605,6 +1605,66 @@ TF_BUILTIN(ArrayFilterLoopContinuation, ArrayBuiltinCodeStubAssembler) {
       &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
 
+TF_BUILTIN(ArrayFilterLoopEagerDeoptContinuation,
+           ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* array = Parameter(Descriptor::kArray);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+  Node* to = Parameter(Descriptor::kTo);
+
+  Callable stub(
+      Builtins::CallableFor(isolate(), Builtins::kArrayFilterLoopContinuation));
+  Return(CallStub(stub, context, receiver, callbackfn, this_arg, array,
+                  receiver, initial_k, len, to));
+}
+
+TF_BUILTIN(ArrayFilterLoopLazyDeoptContinuation,
+           ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* receiver = Parameter(Descriptor::kReceiver);
+  Node* callbackfn = Parameter(Descriptor::kCallbackFn);
+  Node* this_arg = Parameter(Descriptor::kThisArg);
+  Node* array = Parameter(Descriptor::kArray);
+  Node* initial_k = Parameter(Descriptor::kInitialK);
+  Node* len = Parameter(Descriptor::kLength);
+  Node* value_k = Parameter(Descriptor::kValueK);
+  Node* result = Parameter(Descriptor::kResult);
+
+  VARIABLE(to, MachineRepresentation::kTagged, Parameter(Descriptor::kTo));
+
+  // This custom lazy deopt point is right after the callback. filter() needs
+  // to pick up at the next step, which is setting the callback result in
+  // the output array. After incrementing k and to, we can glide into the loop
+  // continuation builtin.
+
+  Label true_continue(this, &to), false_continue(this);
+
+  // iii. If selected is true, then...
+  BranchIfToBooleanIsTrue(result, &true_continue, &false_continue);
+  BIND(&true_continue);
+  {
+    // 1. Perform ? CreateDataPropertyOrThrow(A, ToString(to), kValue).
+    CallRuntime(Runtime::kCreateDataProperty, context, array, to.value(),
+                value_k);
+    // 2. Increase to by 1.
+    to.Bind(NumberInc(to.value()));
+    Goto(&false_continue);
+  }
+  BIND(&false_continue);
+
+  // Increment k.
+  initial_k = NumberInc(initial_k);
+
+  Callable stub(
+      Builtins::CallableFor(isolate(), Builtins::kArrayFilterLoopContinuation));
+  Return(CallStub(stub, context, receiver, callbackfn, this_arg, array,
+                  receiver, initial_k, len, to.value()));
+}
+
 TF_BUILTIN(ArrayFilter, ArrayBuiltinCodeStubAssembler) {
   Node* argc =
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));

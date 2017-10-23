@@ -67,70 +67,78 @@ function assertNotHoley(obj, name_opt) {
   assertEquals(false, isHoley(obj), name_opt);
 }
 
-var a;
-// Packed literal arrays.
-obj = [1, 2, 3];
-a = obj.filter(x => false);
-assertKind(elements_kind.fast_smi_only, a);
-assertNotHoley(a);
+// Create a new closure that inlines Array.prototype.filter().
+function create(a) {
+  return function() {
+    return a.filter(x => false);
+  }
+}
 
-obj = [true, true, false];
-a = obj.filter(x => false);
-assertKind(elements_kind.fast, a);
-assertNotHoley(a);
+function runTest(test, kind, holey_predicate) {
 
-obj = [1.0, 1.5, 3.5];
-a = obj.filter(x => false);
-assertKind(elements_kind.fast_double, a);
-assertNotHoley(a);
+  // Verify built-in implementation produces correct results.
+  let a = test();
+  assertKind(kind, a);
+  holey_predicate(a);
+  test();
+  test();
+  %OptimizeFunctionOnNextCall(test);
 
-// Holey literal arrays.
-obj = [1,, 3]; obj[1] = 2;
-a = obj.filter(x => false);
-assertKind(elements_kind.fast_smi_only, a);
-assertHoley(a);
+  // Now for optimized code.
+  a = test();
+  assertKind(kind, a);
+  holey_predicate(a);
+}
 
-obj = [true,, false]; obj[1] = true;
-a = obj.filter(x => false);
-assertKind(elements_kind.fast, a);
-assertHoley(a);
+function chooseHoleyPredicate(a) {
+  return isHoley(a) ? assertHoley : assertNotHoley;
+}
 
-obj = [1.0,, 3.5]; obj[1] = 1.5;
-a = obj.filter(x => false);
-assertKind(elements_kind.fast_double, a);
-assertHoley(a);
+(function() {
+  let data = [];
 
-// Packed constructed arrays.
-obj = new Array(1, 2, 3);
-a = obj.filter(x => false);
-assertKind(elements_kind.fast_smi_only, a);
-assertNotHoley(a);
+  // Packed literal arrays.
+  data.push(() => [1, 2, 3]);
+  data.push(() => [true, true, false]);
+  data.push(() => [1.0, 1.5, 3.5]);
+  // Holey literal arrays.
+  data.push(() => { let obj = [1,, 3]; obj[1] = 2; return obj; });
+  data.push(() => { let obj = [true,, false]; obj[1] = true; return obj; });
+  data.push(() => { let obj = [1.0,, 3.5]; obj[1] = 1.5; return obj; });
+  // Packed constructed arrays.
+  data.push(() => new Array(1, 2, 3));
+  data.push(() => new Array(true, true, false));
+  data.push(() => new Array(1.0, 1.5, 3.5));
 
-obj = new Array(true, true, false);
-a = obj.filter(x => false);
-assertKind(elements_kind.fast, a);
-assertNotHoley(a);
+  // Holey constructed arrays.
+  data.push(() => {
+    let obj = new Array(3);
+    obj[0] = 1;
+    obj[1] = 2;
+    obj[2] = 3;
+    return obj;
+  });
 
-obj = new Array(1.0, 1.5, 3.5);
-a = obj.filter(x => false);
-assertKind(elements_kind.fast_double, a);
-assertNotHoley(a);
+  data.push(() => {
+    let obj = new Array(3);
+    obj[0] = true;
+    obj[1] = true;
+    obj[2] = false;
+    return obj;
+  });
 
-// Holey constructed arrays.
-obj = new Array(3);
-obj[0] = 1; obj[1] = 2; obj[2] = 3;
-a = obj.filter(x => false);
-assertKind(elements_kind.fast_smi_only, a);
-assertHoley(a);
+  data.push(() => {
+    let obj = new Array(3);
+    obj[0] = 1.0;
+    obj[1] = 1.5;
+    obj[2] = 3.5;
+    return obj;
+  });
 
-obj = new Array(3);
-obj[0] = true; obj[1] = true; obj[2] = false;
-a = obj.filter(x => false);
-assertKind(elements_kind.fast, a);
-assertHoley(a);
-
-obj = new Array(3);
-obj[0] = 1.0; obj[1] = 1.5; obj[2] = 3.5;
-a = obj.filter(x => false);
-assertKind(elements_kind.fast_double, a);
-assertHoley(a);
+  for (datum of data) {
+    let a = datum();
+    // runTest(create(a), getKind(a), chooseHoleyPredicate(a));
+    let f = function() { return a.filter(x => false); }
+    runTest(f, getKind(a), chooseHoleyPredicate(a));
+   }
+})();
