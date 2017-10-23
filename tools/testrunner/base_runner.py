@@ -195,8 +195,6 @@ class BaseTestRunner(object):
     parser.add_option("-m", "--mode",
                       help="The test mode in which to run (uppercase for ninja"
                       " and buildbot builds): %s" % MODES.keys())
-    parser.add_option("--shell", help="DEPRECATED! use --shell-dir",
-                      default="")
     parser.add_option("--shell-dir", help="Directory containing executables",
                       default="")
 
@@ -277,14 +275,7 @@ class BaseTestRunner(object):
   def _set_shell_dir(self, options):
     self.shell_dir = options.shell_dir
     if not self.shell_dir:
-      # TODO(majeski): drop this option
-      if options.shell:
-        print "Warning: --shell is deprecated, use --shell-dir instead."
-        self.shell_dir = os.path.dirname(options.shell)
-      else:
-        # If an output dir with a build was passed, test directly in that
-        # directory.
-        self.shell_dir = os.path.join(BASE_DIR, self.outdir)
+      self.shell_dir = os.path.join(BASE_DIR, self.outdir)
       if not os.path.exists(self.shell_dir):
           raise Exception('Could not find shell_dir: "%s"' % self.shell_dir)
 
