@@ -689,6 +689,80 @@ Reduction JSCallReducer::ReduceReflectGetPrototypeOf(Node* node) {
   return ReduceObjectGetPrototype(node, target);
 }
 
+// ES section #sec-reflect.get
+Reduction JSCallReducer::ReduceReflectGet(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& p = CallParametersOf(node->op());
+  int arity = static_cast<int>(p.arity() - 2);
+  if (arity != 2) return NoChange();
+  Node* target = NodeProperties::GetValueInput(node, 2);
+  Node* key = NodeProperties::GetValueInput(node, 3);
+  Node* context = NodeProperties::GetContextInput(node);
+  Node* frame_state = NodeProperties::GetFrameStateInput(node);
+  Node* effect = NodeProperties::GetEffectInput(node);
+  Node* control = NodeProperties::GetControlInput(node);
+
+  // Check whether {target} is a JSReceiver.
+  Node* check = graph()->NewNode(simplified()->ObjectIsReceiver(), target);
+  Node* branch =
+      graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+
+  // Throw an appropriate TypeError if the {target} is not a JSReceiver.
+  Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+  Node* efalse = effect;
+  {
+    if_false = efalse = graph()->NewNode(
+        javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
+        jsgraph()->Constant(MessageTemplate::kCalledOnNonObject),
+        jsgraph()->HeapConstant(
+            factory()->NewStringFromAsciiChecked("Reflect.get")),
+        context, frame_state, efalse, if_false);
+  }
+
+  // Otherwise just use the existing GetPropertyStub.
+  Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+  Node* etrue = effect;
+  Node* vtrue;
+  {
+    Callable callable = CodeFactory::GetProperty(isolate());
+    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), callable.descriptor(), 0,
+        CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
+        MachineType::AnyTagged(), 1);
+    Node* stub_code = jsgraph()->HeapConstant(callable.code());
+    vtrue = etrue = if_true =
+        graph()->NewNode(common()->Call(desc), stub_code, target, key, context,
+                         frame_state, etrue, if_true);
+  }
+
+  // Rewire potential exception edges.
+  Node* on_exception = nullptr;
+  if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+    // Create appropriate {IfException} and {IfSuccess} nodes.
+    Node* extrue = graph()->NewNode(common()->IfException(), etrue, if_true);
+    if_true = graph()->NewNode(common()->IfSuccess(), if_true);
+    Node* exfalse = graph()->NewNode(common()->IfException(), efalse, if_false);
+    if_false = graph()->NewNode(common()->IfSuccess(), if_false);
+
+    // Join the exception edges.
+    Node* merge = graph()->NewNode(common()->Merge(2), extrue, exfalse);
+    Node* ephi =
+        graph()->NewNode(common()->EffectPhi(2), extrue, exfalse, merge);
+    Node* phi =
+        graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                         extrue, exfalse, merge);
+    ReplaceWithValue(on_exception, phi, ephi, merge);
+  }
+
+  // Connect the throwing path to end.
+  if_false = graph()->NewNode(common()->Throw(), efalse, if_false);
+  NodeProperties::MergeControlToEnd(graph(), common(), if_false);
+
+  // Continue on the regular path.
+  ReplaceWithValue(node, vtrue, etrue, if_true);
+  return Changed(vtrue);
+}
+
 // ES section #sec-reflect.has
 Reduction JSCallReducer::ReduceReflectHas(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
@@ -1595,6 +1669,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceReflectApply(node);
         case Builtins::kReflectConstruct:
           return ReduceReflectConstruct(node);
+        case Builtins::kReflectGet:
+          return ReduceReflectGet(node);
         case Builtins::kReflectGetPrototypeOf:
           return ReduceReflectGetPrototypeOf(node);
         case Builtins::kReflectHas:

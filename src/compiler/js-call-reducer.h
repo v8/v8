@@ -69,6 +69,7 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceObjectPrototypeIsPrototypeOf(Node* node);
   Reduction ReduceReflectApply(Node* node);
   Reduction ReduceReflectConstruct(Node* node);
+  Reduction ReduceReflectGet(Node* node);
   Reduction ReduceReflectGetPrototypeOf(Node* node);
   Reduction ReduceReflectHas(Node* node);
   Reduction ReduceArrayForEach(Handle<JSFunction> function, Node* node);
