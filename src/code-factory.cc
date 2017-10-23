@@ -335,6 +335,18 @@ Callable CodeFactory::ArrayShift(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::ExtractFastJSArray(Isolate* isolate) {
+  return Callable(BUILTIN_CODE(isolate, ExtractFastJSArray),
+                  ExtractFastJSArrayDescriptor(isolate));
+}
+
+// static
+Callable CodeFactory::CloneFastJSArray(Isolate* isolate) {
+  return Callable(BUILTIN_CODE(isolate, CloneFastJSArray),
+                  CloneFastJSArrayDescriptor(isolate));
+}
+
+// static
 Callable CodeFactory::ArrayPush(Isolate* isolate) {
   return Callable(BUILTIN_CODE(isolate, ArrayPush), BuiltinDescriptor(isolate));
 }

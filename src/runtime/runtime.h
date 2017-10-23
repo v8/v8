@@ -36,22 +36,23 @@ namespace internal {
 // A variable number of arguments is specified by a -1, additional restrictions
 // are specified by inline comments
 
-#define FOR_EACH_INTRINSIC_ARRAY(F) \
-  F(TransitionElementsKind, 2, 1)   \
-  F(RemoveArrayHoles, 2, 1)         \
-  F(MoveArrayContents, 2, 1)        \
-  F(EstimateNumberOfElements, 1, 1) \
-  F(GetArrayKeys, 2, 1)             \
-  F(NewArray, -1 /* >= 3 */, 1)     \
-  F(FunctionBind, -1, 1)            \
-  F(NormalizeElements, 1, 1)        \
-  F(GrowArrayElements, 2, 1)        \
-  F(HasComplexElements, 1, 1)       \
-  F(IsArray, 1, 1)                  \
-  F(ArrayIsArray, 1, 1)             \
-  F(ArraySpeciesConstructor, 1, 1)  \
-  F(ArrayIncludes_Slow, 3, 1)       \
-  F(ArrayIndexOf, 3, 1)             \
+#define FOR_EACH_INTRINSIC_ARRAY(F)      \
+  F(TransitionElementsKind, 2, 1)        \
+  F(RemoveArrayHoles, 2, 1)              \
+  F(MoveArrayContents, 2, 1)             \
+  F(EstimateNumberOfElements, 1, 1)      \
+  F(GetArrayKeys, 2, 1)                  \
+  F(TrySliceSimpleNonFastElements, 3, 1) \
+  F(NewArray, -1 /* >= 3 */, 1)          \
+  F(FunctionBind, -1, 1)                 \
+  F(NormalizeElements, 1, 1)             \
+  F(GrowArrayElements, 2, 1)             \
+  F(HasComplexElements, 1, 1)            \
+  F(IsArray, 1, 1)                       \
+  F(ArrayIsArray, 1, 1)                  \
+  F(ArraySpeciesConstructor, 1, 1)       \
+  F(ArrayIncludes_Slow, 3, 1)            \
+  F(ArrayIndexOf, 3, 1)                  \
   F(SpreadIterablePrepare, 1, 1)
 
 #define FOR_EACH_INTRINSIC_ATOMICS(F)           \

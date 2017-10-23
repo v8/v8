@@ -264,10 +264,14 @@ namespace internal {
   TFJ(FastArrayShift, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
   /* ES6 #sec-array.prototype.slice */                                         \
   CPP(ArraySlice)                                                              \
+  TFJ(FastArraySlice, SharedFunctionInfo::kDontAdaptArgumentsSentinel)         \
   /* ES6 #sec-array.prototype.splice */                                        \
   CPP(ArraySplice)                                                             \
   /* ES6 #sec-array.prototype.unshift */                                       \
   CPP(ArrayUnshift)                                                            \
+  /* Support for Array.from and other array-copying idioms */                  \
+  TFS(CloneFastJSArray, kSource)                                               \
+  TFS(ExtractFastJSArray, kSource, kBegin, kCount)                             \
   /* ES6 #sec-array.prototype.foreach */                                       \
   TFS(ArrayForEachLoopContinuation, kReceiver, kCallbackFn, kThisArg, kArray,  \
       kObject, kInitialK, kLength, kTo)                                        \

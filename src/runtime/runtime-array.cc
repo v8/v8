@@ -378,6 +378,45 @@ RUNTIME_FUNCTION(Runtime_GetArrayKeys) {
   return *isolate->factory()->NewJSArrayWithElements(keys);
 }
 
+RUNTIME_FUNCTION(Runtime_TrySliceSimpleNonFastElements) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSReceiver, receiver, 0);
+  CONVERT_SMI_ARG_CHECKED(first, 1);
+  CONVERT_SMI_ARG_CHECKED(count, 2);
+  uint32_t length = first + count;
+
+  // Only handle elements kinds that have a ElementsAccessor Slice
+  // implementation.
+  if (receiver->IsJSArray()) {
+    // This "fastish" path must make sure the destination array is a JSArray.
+    if (!isolate->IsArraySpeciesLookupChainIntact() ||
+        !JSArray::cast(*receiver)->HasArrayPrototype(isolate)) {
+      return Smi::FromInt(0);
+    }
+  } else {
+    Map* map = receiver->map();
+    Context* context = *isolate->native_context();
+    if (map != context->sloppy_arguments_map() &&
+        map != context->strict_arguments_map() &&
+        map != context->fast_aliased_arguments_map() &&
+        map != context->slow_aliased_arguments_map()) {
+      return Smi::FromInt(0);
+    }
+  }
+
+  // This "fastish" path must also ensure that elements are simple (no
+  // geters/setters), no elements on prototype chain.
+  Handle<JSObject> object(Handle<JSObject>::cast(receiver));
+  if (!JSObject::PrototypeHasNoElements(isolate, *object) ||
+      object->HasComplexElements()) {
+    return Smi::FromInt(0);
+  }
+
+  ElementsAccessor* accessor = object->GetElementsAccessor();
+  return *accessor->Slice(object, first, length);
+}
+
 RUNTIME_FUNCTION(Runtime_NewArray) {
   HandleScope scope(isolate);
   DCHECK_LE(3, args.length());

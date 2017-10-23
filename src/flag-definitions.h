@@ -739,6 +739,8 @@ DEFINE_BOOL(expose_trigger_failure, false, "expose trigger-failure extension")
 DEFINE_INT(stack_trace_limit, 10, "number of stack frames to capture")
 DEFINE_BOOL(builtins_in_stack_traces, false,
             "show built-in functions in stack traces")
+DEFINE_BOOL(enable_experimental_builtins, false,
+            "enable new csa-based experimental builtins")
 
 // builtins.cc
 DEFINE_BOOL(allow_unsafe_function_constructor, false,

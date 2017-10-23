@@ -1085,6 +1085,319 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
   }
 }
 
+class FastArraySliceCodeStubAssembler : public CodeStubAssembler {
+ public:
+  explicit FastArraySliceCodeStubAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+  Node* HandleFastSlice(Node* context, Node* array, Node* from, Node* count,
+                        Label* slow) {
+    VARIABLE(result, MachineRepresentation::kTagged);
+    Label done(this);
+
+    GotoIf(TaggedIsNotSmi(from), slow);
+    GotoIf(TaggedIsNotSmi(count), slow);
+
+    Label try_fast_arguments(this), try_simple_slice(this);
+
+    Node* map = LoadMap(array);
+    GotoIfNot(IsJSArrayMap(map), &try_fast_arguments);
+
+    // Check prototype chain if receiver does not have packed elements
+    GotoIfNot(IsPrototypeInitialArrayPrototype(context, map), slow);
+
+    GotoIf(IsArrayProtectorCellInvalid(), slow);
+
+    GotoIf(IsSpeciesProtectorCellInvalid(), slow);
+
+    // Bailout if receiver has slow elements.
+    Node* elements_kind = LoadMapElementsKind(map);
+    GotoIfNot(IsFastElementsKind(elements_kind), &try_simple_slice);
+
+    result.Bind(CallStub(CodeFactory::ExtractFastJSArray(isolate()), context,
+                         array, from, count));
+    Goto(&done);
+
+    BIND(&try_fast_arguments);
+
+    Node* const native_context = LoadNativeContext(context);
+    Node* const fast_aliasted_arguments_map = LoadContextElement(
+        native_context, Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX);
+    GotoIf(WordNotEqual(map, fast_aliasted_arguments_map), &try_simple_slice);
+
+    Node* sloppy_elements = LoadElements(array);
+    Node* sloppy_elements_length = LoadFixedArrayBaseLength(sloppy_elements);
+    Node* parameter_map_length =
+        SmiSub(sloppy_elements_length,
+               SmiConstant(SloppyArgumentsElements::kParameterMapStart));
+    VARIABLE(index_out, MachineType::PointerRepresentation());
+
+    int max_fast_elements =
+        (kMaxRegularHeapObjectSize - FixedArray::kHeaderSize - JSArray::kSize -
+         AllocationMemento::kSize) /
+        kPointerSize;
+    GotoIf(SmiAboveOrEqual(count, SmiConstant(max_fast_elements)),
+           &try_simple_slice);
+
+    Node* end = SmiAdd(from, count);
+
+    Node* unmapped_elements = LoadFixedArrayElement(
+        sloppy_elements, SloppyArgumentsElements::kArgumentsIndex);
+    Node* unmapped_elements_length =
+        LoadFixedArrayBaseLength(unmapped_elements);
+
+    GotoIf(SmiGreaterThan(end, unmapped_elements_length), slow);
+
+    Node* array_map = LoadJSArrayElementsMap(HOLEY_ELEMENTS, native_context);
+    result.Bind(AllocateJSArray(HOLEY_ELEMENTS, array_map, count, count,
+                                nullptr, SMI_PARAMETERS));
+
+    index_out.Bind(IntPtrConstant(0));
+    Node* result_elements = LoadElements(result.value());
+    Node* from_mapped = SmiMin(parameter_map_length, from);
+    Node* to = SmiMin(parameter_map_length, end);
+    Node* arguments_context = LoadFixedArrayElement(
+        sloppy_elements, SloppyArgumentsElements::kContextIndex);
+    VariableList var_list({&index_out}, zone());
+    BuildFastLoop(
+        var_list, from_mapped, to,
+        [this, result_elements, arguments_context, sloppy_elements,
+         &index_out](Node* current) {
+          Node* context_index = LoadFixedArrayElement(
+              sloppy_elements, current,
+              kPointerSize * SloppyArgumentsElements::kParameterMapStart,
+              SMI_PARAMETERS);
+          Node* argument =
+              LoadContextElement(arguments_context, SmiUntag(context_index));
+          StoreFixedArrayElement(result_elements, index_out.value(), argument,
+                                 SKIP_WRITE_BARRIER);
+          index_out.Bind(IntPtrAdd(index_out.value(), IntPtrConstant(1)));
+        },
+        1, SMI_PARAMETERS, IndexAdvanceMode::kPost);
+
+    Node* unmapped_from = SmiMin(SmiMax(parameter_map_length, from), end);
+
+    BuildFastLoop(
+        var_list, unmapped_from, end,
+        [this, unmapped_elements, result_elements, &index_out](Node* current) {
+          Node* argument = LoadFixedArrayElement(unmapped_elements, current, 0,
+                                                 SMI_PARAMETERS);
+          StoreFixedArrayElement(result_elements, index_out.value(), argument,
+                                 SKIP_WRITE_BARRIER);
+          index_out.Bind(IntPtrAdd(index_out.value(), IntPtrConstant(1)));
+        },
+        1, SMI_PARAMETERS, IndexAdvanceMode::kPost);
+
+    Goto(&done);
+
+    BIND(&try_simple_slice);
+    Node* simple_result = CallRuntime(Runtime::kTrySliceSimpleNonFastElements,
+                                      context, array, from, count);
+    GotoIfNumber(simple_result, slow);
+    result.Bind(simple_result);
+
+    Goto(&done);
+
+    BIND(&done);
+    return result.value();
+  }
+
+  void CopyOneElement(Node* context, Node* o, Node* a, Node* p_k, Variable& n) {
+    // b. Let kPresent be HasProperty(O, Pk).
+    // c. ReturnIfAbrupt(kPresent).
+    Node* k_present = HasProperty(o, p_k, context, kHasProperty);
+
+    // d. If kPresent is true, then
+    Label done_element(this);
+    GotoIf(WordNotEqual(k_present, TrueConstant()), &done_element);
+
+    // i. Let kValue be Get(O, Pk).
+    // ii. ReturnIfAbrupt(kValue).
+    Node* k_value = GetProperty(context, o, p_k);
+
+    // iii. Let status be CreateDataPropertyOrThrow(A, ToString(n), kValue).
+    // iv. ReturnIfAbrupt(status).
+    CallRuntime(Runtime::kCreateDataProperty, context, a, n.value(), k_value);
+
+    Goto(&done_element);
+    BIND(&done_element);
+  }
+};
+
+TF_BUILTIN(FastArraySlice, FastArraySliceCodeStubAssembler) {
+  Node* const argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  Node* const context = Parameter(BuiltinDescriptor::kContext);
+  Label slow(this, Label::kDeferred), fast_elements_kind(this);
+
+  CodeStubArguments args(this, argc);
+  Node* receiver = args.GetReceiver();
+
+  VARIABLE(o, MachineRepresentation::kTagged);
+  VARIABLE(len, MachineRepresentation::kTagged);
+  Label length_done(this), generic_length(this), check_arguments_length(this),
+      load_arguments_length(this);
+
+  GotoIf(TaggedIsSmi(receiver), &generic_length);
+  GotoIfNot(IsJSArray(receiver), &check_arguments_length);
+
+  o.Bind(receiver);
+  len.Bind(LoadJSArrayLength(receiver));
+
+  // Check for the array clone case. There can be no arguments to slice, the
+  // array prototype chain must be intact and have no elements, the array has to
+  // have fast elements.
+  GotoIf(WordNotEqual(argc, IntPtrConstant(0)), &length_done);
+
+  Label clone(this);
+  BranchIfFastJSArrayForCopy(receiver, context, &clone, &length_done);
+  BIND(&clone);
+
+  args.PopAndReturn(
+      CallStub(CodeFactory::CloneFastJSArray(isolate()), context, receiver));
+
+  BIND(&check_arguments_length);
+
+  Node* map = LoadMap(receiver);
+  Node* native_context = LoadNativeContext(context);
+  GotoIfContextElementEqual(map, native_context,
+                            Context::FAST_ALIASED_ARGUMENTS_MAP_INDEX,
+                            &load_arguments_length);
+  GotoIfContextElementEqual(map, native_context,
+                            Context::SLOW_ALIASED_ARGUMENTS_MAP_INDEX,
+                            &load_arguments_length);
+  GotoIfContextElementEqual(map, native_context,
+                            Context::STRICT_ARGUMENTS_MAP_INDEX,
+                            &load_arguments_length);
+  GotoIfContextElementEqual(map, native_context,
+                            Context::SLOPPY_ARGUMENTS_MAP_INDEX,
+                            &load_arguments_length);
+
+  Goto(&generic_length);
+
+  BIND(&load_arguments_length);
+  Node* arguments_length =
+      LoadObjectField(receiver, JSArgumentsObject::kLengthOffset);
+  GotoIf(TaggedIsNotSmi(arguments_length), &generic_length);
+  o.Bind(receiver);
+  len.Bind(arguments_length);
+  Goto(&length_done);
+
+  BIND(&generic_length);
+  // 1. Let O be ToObject(this value).
+  // 2. ReturnIfAbrupt(O).
+  o.Bind(CallBuiltin(Builtins::kToObject, context, receiver));
+
+  // 3. Let len be ToLength(Get(O, "length")).
+  // 4. ReturnIfAbrupt(len).
+  len.Bind(ToLength_Inline(
+      context,
+      GetProperty(context, o.value(), isolate()->factory()->length_string())));
+  Goto(&length_done);
+
+  BIND(&length_done);
+
+  // 5. Let relativeStart be ToInteger(start).
+  // 6. ReturnIfAbrupt(relativeStart).
+  Node* arg0 = args.GetOptionalArgumentValue(0, SmiConstant(0));
+  Node* relative_start = ToInteger(context, arg0);
+
+  // 7. If relativeStart < 0, let k be max((len + relativeStart),0);
+  //    else let k be min(relativeStart, len.value()).
+  VARIABLE(k, MachineRepresentation::kTagged);
+  Label relative_start_positive(this), relative_start_done(this);
+  GotoIfNumberGreaterThanOrEqual(relative_start, SmiConstant(0),
+                                 &relative_start_positive);
+  k.Bind(NumberMax(NumberAdd(len.value(), relative_start), NumberConstant(0)));
+  Goto(&relative_start_done);
+  BIND(&relative_start_positive);
+  k.Bind(NumberMin(relative_start, len.value()));
+  Goto(&relative_start_done);
+  BIND(&relative_start_done);
+
+  // 8. If end is undefined, let relativeEnd be len;
+  //    else let relativeEnd be ToInteger(end).
+  // 9. ReturnIfAbrupt(relativeEnd).
+  Node* end = args.GetOptionalArgumentValue(1, UndefinedConstant());
+  Label end_undefined(this), end_done(this);
+  VARIABLE(relative_end, MachineRepresentation::kTagged);
+  GotoIf(WordEqual(end, UndefinedConstant()), &end_undefined);
+  relative_end.Bind(ToInteger(context, end));
+  Goto(&end_done);
+  BIND(&end_undefined);
+  relative_end.Bind(len.value());
+  Goto(&end_done);
+  BIND(&end_done);
+
+  // 10. If relativeEnd < 0, let final be max((len + relativeEnd),0);
+  //     else let final be min(relativeEnd, len).
+  VARIABLE(final, MachineRepresentation::kTagged);
+  Label relative_end_positive(this), relative_end_done(this);
+  GotoIfNumberGreaterThanOrEqual(relative_end.value(), NumberConstant(0),
+                                 &relative_end_positive);
+  final.Bind(NumberMax(NumberAdd(len.value(), relative_end.value()),
+                       NumberConstant(0)));
+  Goto(&relative_end_done);
+  BIND(&relative_end_positive);
+  final.Bind(NumberMin(relative_end.value(), len.value()));
+  Goto(&relative_end_done);
+  BIND(&relative_end_done);
+
+  // 11. Let count be max(final – k, 0).
+  Node* count =
+      NumberMax(NumberSub(final.value(), k.value()), NumberConstant(0));
+
+  // Handle FAST_ELEMENTS
+  Label non_fast(this);
+  Node* fast_result =
+      HandleFastSlice(context, o.value(), k.value(), count, &non_fast);
+  args.PopAndReturn(fast_result);
+
+  // 12. Let A be ArraySpeciesCreate(O, count).
+  // 13. ReturnIfAbrupt(A).
+  BIND(&non_fast);
+
+  Node* constructor =
+      CallRuntime(Runtime::kArraySpeciesConstructor, context, o.value());
+  Node* a = ConstructJS(CodeFactory::Construct(isolate()), context, constructor,
+                        count);
+
+  // 14. Let n be 0.
+  VARIABLE(n, MachineRepresentation::kTagged);
+  n.Bind(SmiConstant(0));
+
+  Label loop(this, {&k, &n});
+  Label after_loop(this);
+  Goto(&loop);
+  BIND(&loop);
+  {
+    // 15. Repeat, while k < final
+    GotoIfNumberGreaterThanOrEqual(k.value(), final.value(), &after_loop);
+
+    Node* p_k = k.value();  //  ToString(context, k.value()) is no-op
+
+    CopyOneElement(context, o.value(), a, p_k, n);
+
+    // e. Increase k by 1.
+    k.Bind(NumberInc(k.value()));
+
+    // f. Increase n by 1.
+    n.Bind(NumberInc(n.value()));
+
+    Goto(&loop);
+  }
+
+  BIND(&after_loop);
+
+  // 16. Let setStatus be Set(A, "length", n, true).
+  // 17. ReturnIfAbrupt(setStatus).
+  CallRuntime(Runtime::kSetProperty, context, a,
+              HeapConstant(isolate()->factory()->length_string()), n.value(),
+              SmiConstant(static_cast<int>(LanguageMode::kStrict)));
+
+  args.PopAndReturn(a);
+}
+
 TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
@@ -1241,6 +1554,30 @@ TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
     TailCallStub(CodeFactory::ArrayShift(isolate()), context, target,
                  UndefinedConstant(), argc);
   }
+}
+
+TF_BUILTIN(ExtractFastJSArray, ArrayBuiltinCodeStubAssembler) {
+  ParameterMode mode = OptimalParameterMode();
+  Node* context = Parameter(Descriptor::kContext);
+  Node* array = Parameter(Descriptor::kSource);
+  Node* begin = TaggedToParameter(Parameter(Descriptor::kBegin), mode);
+  Node* count = TaggedToParameter(Parameter(Descriptor::kCount), mode);
+
+  CSA_ASSERT(this, IsJSArray(array));
+  CSA_ASSERT(this, Word32BinaryNot(IsArrayProtectorCellInvalid()));
+
+  Return(ExtractFastJSArray(context, array, begin, count, mode));
+}
+
+TF_BUILTIN(CloneFastJSArray, ArrayBuiltinCodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* array = Parameter(Descriptor::kSource);
+
+  CSA_ASSERT(this, IsJSArray(array));
+  CSA_ASSERT(this, Word32BinaryNot(IsArrayProtectorCellInvalid()));
+
+  ParameterMode mode = OptimalParameterMode();
+  Return(CloneFastJSArray(context, array, mode));
 }
 
 TF_BUILTIN(ArrayForEachLoopContinuation, ArrayBuiltinCodeStubAssembler) {

@@ -1429,6 +1429,37 @@ class DictionaryElementsAccessor
     UNREACHABLE();
   }
 
+  static Handle<JSObject> SliceImpl(Handle<JSObject> receiver, uint32_t start,
+                                    uint32_t end) {
+    Isolate* isolate = receiver->GetIsolate();
+    uint32_t result_length = end < start ? 0u : end - start;
+
+    // Result must also be a dictionary.
+    Handle<JSArray> result_array =
+        isolate->factory()->NewJSArray(0, HOLEY_ELEMENTS);
+    JSObject::NormalizeElements(result_array);
+    result_array->set_length(Smi::FromInt(result_length));
+    Handle<SeededNumberDictionary> source_dict(
+        SeededNumberDictionary::cast(receiver->elements()));
+    int entry_count = source_dict->Capacity();
+    for (int i = 0; i < entry_count; i++) {
+      Object* key = source_dict->KeyAt(i);
+      if (!key->IsUndefined(isolate)) {
+        uint64_t key_value = NumberToInt64(key);
+        if (key_value >= start && key_value < end) {
+          Handle<SeededNumberDictionary> dest_dict(
+              SeededNumberDictionary::cast(result_array->elements()));
+          Handle<Object> value(source_dict->ValueAt(i), isolate);
+          PropertyDetails details = source_dict->DetailsAt(i);
+          PropertyAttributes attr = details.attributes();
+          AddImpl(result_array, static_cast<uint32_t>(key_value), value, attr,
+                  0);
+        }
+      }
+    }
+
+    return result_array;
+  }
 
   static void DeleteImpl(Handle<JSObject> obj, uint32_t entry) {
     Handle<SeededNumberDictionary> dict(
@@ -3741,6 +3772,29 @@ class SloppyArgumentsElementsAccessor
     }
     return Just<int64_t>(-1);
   }
+
+  static Handle<JSObject> SliceImpl(Handle<JSObject> receiver, uint32_t start,
+                                    uint32_t end) {
+    Isolate* isolate = receiver->GetIsolate();
+    uint32_t result_len = end < start ? 0u : end - start;
+    Handle<JSArray> result_array =
+        isolate->factory()->NewJSArray(HOLEY_ELEMENTS, result_len, result_len);
+    DisallowHeapAllocation no_gc;
+    FixedArray* elements = FixedArray::cast(result_array->elements());
+    FixedArray* parameters = FixedArray::cast(receiver->elements());
+    uint32_t insertion_index = 0;
+    for (uint32_t i = start; i < end; i++) {
+      uint32_t entry = GetEntryForIndexImpl(isolate, *receiver, parameters, i,
+                                            ALL_PROPERTIES);
+      if (entry != kMaxUInt32 && HasEntryImpl(isolate, parameters, entry)) {
+        elements->set(insertion_index, *GetImpl(isolate, parameters, entry));
+      } else {
+        elements->set_the_hole(isolate, insertion_index);
+      }
+      insertion_index++;
+    }
+    return result_array;
+  }
 };
 
 
@@ -3864,29 +3918,6 @@ class FastSloppyArgumentsElementsAccessor
                                          FixedArrayBase* store) {
     SloppyArgumentsElements* elements = SloppyArgumentsElements::cast(store);
     return Handle<FixedArray>(elements->arguments(), isolate);
-  }
-
-  static Handle<JSObject> SliceImpl(Handle<JSObject> receiver, uint32_t start,
-                                    uint32_t end) {
-    Isolate* isolate = receiver->GetIsolate();
-    uint32_t result_len = end < start ? 0u : end - start;
-    Handle<JSArray> result_array =
-        isolate->factory()->NewJSArray(HOLEY_ELEMENTS, result_len, result_len);
-    DisallowHeapAllocation no_gc;
-    FixedArray* elements = FixedArray::cast(result_array->elements());
-    FixedArray* parameters = FixedArray::cast(receiver->elements());
-    uint32_t insertion_index = 0;
-    for (uint32_t i = start; i < end; i++) {
-      uint32_t entry = GetEntryForIndexImpl(isolate, *receiver, parameters, i,
-                                            ALL_PROPERTIES);
-      if (entry != kMaxUInt32 && HasEntryImpl(isolate, parameters, entry)) {
-        elements->set(insertion_index, *GetImpl(isolate, parameters, entry));
-      } else {
-        elements->set_the_hole(isolate, insertion_index);
-      }
-      insertion_index++;
-    }
-    return result_array;
   }
 
   static Handle<SeededNumberDictionary> NormalizeImpl(

@@ -48,6 +48,9 @@
   # This test non-deterministically runs out of memory on Windows ia32.
   'regress/regress-crbug-160010': [SKIP],
 
+  # This test should be skipped until the new CSA-based slice is activated.
+  'splice-proxy': [SKIP],
+
   # Issue 3784: setters-on-elements is flaky
   'setters-on-elements': [PASS, FAIL],
 
