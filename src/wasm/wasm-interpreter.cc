@@ -7,6 +7,7 @@
 #include "src/wasm/wasm-interpreter.h"
 
 #include "src/assembler-inl.h"
+#include "src/boxed-float.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/conversions.h"
 #include "src/identity-map.h"
@@ -133,14 +134,14 @@ namespace wasm {
   V(I64Ctz, uint64_t)            \
   V(I64Popcnt, uint64_t)         \
   V(I64Eqz, uint64_t)            \
-  V(F32Abs, float)               \
-  V(F32Neg, float)               \
+  V(F32Abs, Float32)             \
+  V(F32Neg, Float32)             \
   V(F32Ceil, float)              \
   V(F32Floor, float)             \
   V(F32Trunc, float)             \
   V(F32NearestInt, float)        \
-  V(F64Abs, double)              \
-  V(F64Neg, double)              \
+  V(F64Abs, Float64)             \
+  V(F64Neg, Float64)             \
   V(F64Ceil, double)             \
   V(F64Floor, double)            \
   V(F64Trunc, double)            \
@@ -412,12 +413,12 @@ inline int32_t ExecuteI64Eqz(uint64_t val, TrapReason* trap) {
   return val == 0 ? 1 : 0;
 }
 
-inline float ExecuteF32Abs(float a, TrapReason* trap) {
-  return bit_cast<float>(bit_cast<uint32_t>(a) & 0x7fffffff);
+inline Float32 ExecuteF32Abs(Float32 a, TrapReason* trap) {
+  return Float32::FromBits(a.get_bits() & 0x7fffffff);
 }
 
-inline float ExecuteF32Neg(float a, TrapReason* trap) {
-  return bit_cast<float>(bit_cast<uint32_t>(a) ^ 0x80000000);
+inline Float32 ExecuteF32Neg(Float32 a, TrapReason* trap) {
+  return Float32::FromBits(a.get_bits() ^ 0x80000000);
 }
 
 inline float ExecuteF32Ceil(float a, TrapReason* trap) { return ceilf(a); }
@@ -435,12 +436,12 @@ inline float ExecuteF32Sqrt(float a, TrapReason* trap) {
   return result;
 }
 
-inline double ExecuteF64Abs(double a, TrapReason* trap) {
-  return bit_cast<double>(bit_cast<uint64_t>(a) & 0x7fffffffffffffff);
+inline Float64 ExecuteF64Abs(Float64 a, TrapReason* trap) {
+  return Float64::FromBits(a.get_bits() & 0x7fffffffffffffff);
 }
 
-inline double ExecuteF64Neg(double a, TrapReason* trap) {
-  return bit_cast<double>(bit_cast<uint64_t>(a) ^ 0x8000000000000000);
+inline Float64 ExecuteF64Neg(Float64 a, TrapReason* trap) {
+  return Float64::FromBits(a.get_bits() ^ 0x8000000000000000);
 }
 
 inline double ExecuteF64Ceil(double a, TrapReason* trap) { return ceil(a); }
@@ -578,8 +579,8 @@ inline float ExecuteF32ConvertF64(double a, TrapReason* trap) {
   return static_cast<float>(a);
 }
 
-inline float ExecuteF32ReinterpretI32(int32_t a, TrapReason* trap) {
-  return bit_cast<float>(a);
+inline Float32 ExecuteF32ReinterpretI32(int32_t a, TrapReason* trap) {
+  return Float32::FromBits(a);
 }
 
 inline double ExecuteF64SConvertI32(int32_t a, TrapReason* trap) {
@@ -606,16 +607,16 @@ inline double ExecuteF64ConvertF32(float a, TrapReason* trap) {
   return static_cast<double>(a);
 }
 
-inline double ExecuteF64ReinterpretI64(int64_t a, TrapReason* trap) {
-  return bit_cast<double>(a);
+inline Float64 ExecuteF64ReinterpretI64(int64_t a, TrapReason* trap) {
+  return Float64::FromBits(a);
 }
 
 inline int32_t ExecuteI32ReinterpretF32(WasmValue a) {
-  return a.to_unchecked<int32_t>();
+  return a.to_f32_boxed().get_bits();
 }
 
 inline int64_t ExecuteI64ReinterpretF64(WasmValue a) {
-  return a.to_unchecked<int64_t>();
+  return a.to_f64_boxed().get_bits();
 }
 
 enum InternalOpcode {
@@ -2000,7 +2001,7 @@ class ThreadImpl {
 #define EXECUTE_OTHER_UNOP(name, ctype)              \
   case kExpr##name: {                                \
     TrapReason trap = kTrapCount;                    \
-    volatile ctype val = Pop().to<ctype>();          \
+    ctype val = Pop().to<ctype>();                   \
     WasmValue result(Execute##name(val, &trap));     \
     if (trap != kTrapCount) return DoTrap(trap, pc); \
     Push(result);                                    \

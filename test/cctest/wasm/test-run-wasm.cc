@@ -1034,9 +1034,6 @@ WASM_EXEC_TEST(BrTable_loop_target) {
 
 WASM_EXEC_TEST(F32ReinterpretI32) {
   WasmRunner<int32_t> r(execution_mode);
-  // TODO(clemensh): Reenable this test after fixing crbug.com/v8/6954.
-  if (execution_mode == kExecuteInterpreted) return;
-
   int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
 
   BUILD(r, WASM_I32_REINTERPRET_F32(
@@ -1051,9 +1048,6 @@ WASM_EXEC_TEST(F32ReinterpretI32) {
 
 WASM_EXEC_TEST(I32ReinterpretF32) {
   WasmRunner<int32_t, int32_t> r(execution_mode);
-  // TODO(clemensh): Reenable this test after fixing crbug.com/v8/6954.
-  if (execution_mode == kExecuteInterpreted) return;
-
   int32_t* memory = r.builder().AddMemoryElems<int32_t>(8);
 
   BUILD(r, WASM_STORE_MEM(MachineType::Float32(), WASM_ZERO,
