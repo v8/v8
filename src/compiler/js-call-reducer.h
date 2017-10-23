@@ -86,6 +86,24 @@ class JSCallReducer final : public AdvancedReducer {
 
   Reduction ReduceSoftDeoptimize(Node* node, DeoptimizeReason reason);
 
+  // If {fncallback} is not callable, throw a TypeError.
+  // {control} is altered, and new nodes {check_fail} and {check_throw} are
+  // returned. {check_fail} is the control branch where IsCallable failed,
+  // and {check_throw} is the call to throw a TypeError in that
+  // branch.
+  void WireInCallbackIsCallableCheck(Node* fncallback, Node* context,
+                                     Node* check_frame_state, Node* effect,
+                                     Node** control, Node** check_fail,
+                                     Node** check_throw);
+  void RewirePostCallbackExceptionEdges(Node* check_throw, Node* on_exception,
+                                        Node* effect, Node** check_fail,
+                                        Node** control);
+
+  // Load receiver[k], first bounding k by receiver array length.
+  // k is thusly changed, and the effect is changed as well.
+  Node* SafeLoadElement(ElementsKind kind, Node* receiver, Node* control,
+                        Node** effect, Node** k);
+
   Graph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Isolate* isolate() const;
