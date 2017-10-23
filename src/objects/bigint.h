@@ -184,10 +184,8 @@ class V8_EXPORT_PRIVATE BigInt : public HeapObject {
   inline digit_t digit(int n) const;
   inline void set_digit(int n, digit_t value);
 
-  bool is_zero() {
-    DCHECK(length() > 0 || !sign());  // There is no -0n.
-    return length() == 0;
-  }
+  bool is_zero() const { return length() == 0; }
+
   static const int kBitfieldOffset = HeapObject::kHeaderSize;
   static const int kDigitsOffset = kBitfieldOffset + kPointerSize;
   static const int kHeaderSize = kDigitsOffset;

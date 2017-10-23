@@ -1214,7 +1214,13 @@ void AsyncGeneratorRequest::AsyncGeneratorRequestVerify() {
   next()->ObjectVerify();
 }
 
-void BigInt::BigIntVerify() { CHECK(IsBigInt()); }
+void BigInt::BigIntVerify() {
+  CHECK(IsBigInt());
+  CHECK_GE(length(), 0);
+  CHECK_IMPLIES(is_zero(), !sign());  // There is no -0n.
+  // TODO(neis): Somewhere check that MSD is non-zero. Doesn't hold during some
+  // operations that allocate which is why we can't test it here.
+}
 
 void JSModuleNamespace::JSModuleNamespaceVerify() {
   CHECK(IsJSModuleNamespace());
