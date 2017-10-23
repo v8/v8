@@ -1665,10 +1665,7 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
               ->compiled_module());
       int func_index = elements->WasmFunctionIndex(i)->value();
       int code_offset = elements->Offset(i)->value();
-      // TODO(wasm): Clean this up (bug 5007).
-      int byte_offset = code_offset < 0
-                            ? (-1 - code_offset)
-                            : elements->Code(i)->SourcePosition(code_offset);
+      int byte_offset = elements->Code(i)->SourcePosition(code_offset);
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&
           elements->Flags(i)->value() & FrameArray::kAsmJsAtNumberConversion;

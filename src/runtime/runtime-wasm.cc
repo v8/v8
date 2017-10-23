@@ -79,68 +79,17 @@ RUNTIME_FUNCTION(Runtime_WasmGrowMemory) {
       WasmInstanceObject::GrowMemory(isolate, instance, delta_pages));
 }
 
-Object* ThrowRuntimeError(Isolate* isolate, int message_id, int byte_offset,
-                          bool patch_source_position) {
+RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
+  DCHECK_EQ(1, args.length());
+  CONVERT_SMI_ARG_CHECKED(message_id, 0);
+  ClearThreadInWasmScope clear_wasm_flag(isolate->context() == nullptr);
+
   HandleScope scope(isolate);
   DCHECK_NULL(isolate->context());
   isolate->set_context(GetWasmContextOnStackTop(isolate));
   Handle<Object> error_obj = isolate->factory()->NewWasmRuntimeError(
       static_cast<MessageTemplate::Template>(message_id));
-
-  if (!patch_source_position) {
-    return isolate->Throw(*error_obj);
-  }
-
-  // For wasm traps, the byte offset (a.k.a source position) can not be
-  // determined from relocation info, since the explicit checks for traps
-  // converge in one singe block which calls this runtime function.
-  // We hence pass the byte offset explicitely, and patch it into the top-most
-  // frame (a wasm frame) on the collected stack trace.
-  // TODO(wasm): This implementation is temporary, see bug #5007:
-  // https://bugs.chromium.org/p/v8/issues/detail?id=5007
-  Handle<JSObject> error = Handle<JSObject>::cast(error_obj);
-  Handle<Object> stack_trace_obj = JSReceiver::GetDataProperty(
-      error, isolate->factory()->stack_trace_symbol());
-  // Patch the stack trace (array of <receiver, function, code, position>).
-  if (stack_trace_obj->IsJSArray()) {
-    Handle<FrameArray> stack_elements(
-        FrameArray::cast(JSArray::cast(*stack_trace_obj)->elements()));
-    DCHECK(stack_elements->Code(0)->kind() == AbstractCode::WASM_FUNCTION);
-    DCHECK_LE(0, stack_elements->Offset(0)->value());
-    stack_elements->SetOffset(0, Smi::FromInt(-1 - byte_offset));
-  }
-
-  // Patch the detailed stack trace (array of JSObjects with various
-  // properties).
-  Handle<Object> detailed_stack_trace_obj = JSReceiver::GetDataProperty(
-      error, isolate->factory()->detailed_stack_trace_symbol());
-  if (detailed_stack_trace_obj->IsFixedArray()) {
-    Handle<FixedArray> stack_elements(
-        FixedArray::cast(*detailed_stack_trace_obj));
-    DCHECK_GE(stack_elements->length(), 1);
-    Handle<StackFrameInfo> top_frame(
-        StackFrameInfo::cast(stack_elements->get(0)));
-    if (top_frame->column_number()) {
-      top_frame->set_column_number(byte_offset + 1);
-    }
-  }
-
   return isolate->Throw(*error_obj);
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowWasmErrorFromTrapIf) {
-  DCHECK_EQ(1, args.length());
-  CONVERT_SMI_ARG_CHECKED(message_id, 0);
-  ClearThreadInWasmScope clear_wasm_flag(isolate->context() == nullptr);
-  return ThrowRuntimeError(isolate, message_id, 0, false);
-}
-
-RUNTIME_FUNCTION(Runtime_ThrowWasmError) {
-  DCHECK_EQ(2, args.length());
-  CONVERT_SMI_ARG_CHECKED(message_id, 0);
-  CONVERT_SMI_ARG_CHECKED(byte_offset, 1);
-  ClearThreadInWasmScope clear_wasm_flag(isolate->context() == nullptr);
-  return ThrowRuntimeError(isolate, message_id, byte_offset, true);
 }
 
 RUNTIME_FUNCTION(Runtime_ThrowWasmStackOverflow) {

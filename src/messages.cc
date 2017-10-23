@@ -709,9 +709,7 @@ MaybeHandle<String> WasmStackFrame::ToString() {
 }
 
 int WasmStackFrame::GetPosition() const {
-  if (IsInterpreted()) return offset_;
-  // TODO(wasm): Clean this up (bug 5007).
-  return (offset_ < 0) ? (-1 - offset_) : code_->SourcePosition(offset_);
+  return IsInterpreted() ? offset_ : code_->SourcePosition(offset_);
 }
 
 Handle<Object> WasmStackFrame::Null() const {

@@ -646,8 +646,7 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_WASM(F)   \
   F(WasmGrowMemory, 1, 1)            \
-  F(ThrowWasmError, 2, 1)            \
-  F(ThrowWasmErrorFromTrapIf, 1, 1)  \
+  F(ThrowWasmError, 1, 1)            \
   F(ThrowWasmStackOverflow, 0, 1)    \
   F(WasmThrowTypeError, 0, 1)        \
   F(WasmThrowCreate, 2, 1)           \
