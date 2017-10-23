@@ -1160,14 +1160,17 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
                           OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  // {smi_op} signature: (Node* smi_value, Variable* var_feedback,
-  // Label* do_float_op, Variable* var_float) => Node* tagged result.
-  // {float_op} signature: (Node* float_value) => Node* float_result.
-  // {bigint_op} signature: (Node* bigint_value) => Node* tagged_result.
-  void UnaryOpWithFeedback(
-      std::function<Node*(Node*, Variable*, Label*, Variable*)> smi_op,
-      std::function<Node*(Node*)> float_op,
-      std::function<Node*(Node*)> bigint_op) {
+  virtual ~UnaryNumericOpAssembler() {}
+
+  // Must return a tagged value.
+  virtual Node* SmiOp(Node* smi_value, Variable* var_feedback,
+                      Label* do_float_op, Variable* var_float) = 0;
+  // Must return a Float64 value.
+  virtual Node* FloatOp(Node* float_value) = 0;
+  // Must return a tagged value.
+  virtual Node* BigIntOp(Node* bigint_value) = 0;
+
+  void UnaryOpWithFeedback() {
     VARIABLE(var_value, MachineRepresentation::kTagged, GetAccumulator());
     Node* slot_index = BytecodeOperandIdx(0);
     Node* feedback_vector = LoadFeedbackVector();
@@ -1197,7 +1200,7 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
       BIND(&if_smi);
       {
         var_result.Bind(
-            smi_op(value, &var_feedback, &do_float_op, &var_float_value));
+            SmiOp(value, &var_feedback, &do_float_op, &var_float_value));
         Goto(&end);
       }
 
@@ -1209,7 +1212,7 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
 
       BIND(&if_bigint);
       {
-        var_result.Bind(bigint_op(value));
+        var_result.Bind(BigIntOp(value));
         var_feedback.Bind(SmiOr(var_feedback.value(),
                                 SmiConstant(BinaryOperationFeedback::kBigInt)));
         Goto(&end);
@@ -1247,7 +1250,7 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
       var_feedback.Bind(SmiOr(var_feedback.value(),
                               SmiConstant(BinaryOperationFeedback::kNumber)));
       var_result.Bind(
-          AllocateHeapNumberWithValue(float_op(var_float_value.value())));
+          AllocateHeapNumberWithValue(FloatOp(var_float_value.value())));
       Goto(&end);
     }
 
@@ -1256,85 +1259,54 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
     SetAccumulator(var_result.value());
     Dispatch();
   }
+};
 
-  void IncDecWithFeedback(Token::Value op) {
-    DCHECK(op == Token::INC || op == Token::DEC);
-    UnaryOpWithFeedback(
-        [=](Node* smi_value, Variable* var_feedback, Label* do_float_op,
-            Variable* var_float) {
-          // Try fast Smi operation first.
-          Node* value = BitcastTaggedToWord(smi_value);
-          Node* one = BitcastTaggedToWord(SmiConstant(1));
-          Node* pair = op == Token::INC ? IntPtrAddWithOverflow(value, one)
-                                        : IntPtrSubWithOverflow(value, one);
-          Node* overflow = Projection(1, pair);
+class NegateAssemblerImpl : public UnaryNumericOpAssembler {
+ public:
+  explicit NegateAssemblerImpl(CodeAssemblerState* state, Bytecode bytecode,
+                               OperandScale operand_scale)
+      : UnaryNumericOpAssembler(state, bytecode, operand_scale) {}
 
-          // Check if the Smi operation overflowed.
-          Label if_overflow(this), if_notoverflow(this);
-          Branch(overflow, &if_overflow, &if_notoverflow);
+  Node* SmiOp(Node* smi_value, Variable* var_feedback, Label* do_float_op,
+              Variable* var_float) override {
+    VARIABLE(var_result, MachineRepresentation::kTagged);
+    Label if_zero(this), if_min_smi(this), end(this);
+    // Return -0 if operand is 0.
+    GotoIf(SmiEqual(smi_value, SmiConstant(0)), &if_zero);
 
-          BIND(&if_overflow);
-          {
-            var_float->Bind(SmiToFloat64(smi_value));
-            Goto(do_float_op);
-          }
+    // Special-case the minimum Smi to avoid overflow.
+    GotoIf(SmiEqual(smi_value, SmiConstant(Smi::kMinValue)), &if_min_smi);
 
-          BIND(&if_notoverflow);
-          var_feedback->Bind(
-              SmiOr(var_feedback->value(),
-                    SmiConstant(BinaryOperationFeedback::kSignedSmall)));
-          return BitcastWordToTaggedSigned(Projection(0, pair));
-        },
-        [=](Node* float_value) {
-          return op == Token::INC
-                     ? Float64Add(float_value, Float64Constant(1.0))
-                     : Float64Sub(float_value, Float64Constant(1.0));
-        },
-        [=](Node* bigint_value) {
-          return CallRuntime(Runtime::kBigIntUnaryOp, GetContext(),
-                             bigint_value, SmiConstant(op));
-        });
+    // Else simply subtract operand from 0.
+    var_feedback->Bind(SmiConstant(BinaryOperationFeedback::kSignedSmall));
+    var_result.Bind(SmiSub(SmiConstant(0), smi_value));
+    Goto(&end);
+
+    BIND(&if_zero);
+    var_feedback->Bind(SmiConstant(BinaryOperationFeedback::kNumber));
+    var_result.Bind(MinusZeroConstant());
+    Goto(&end);
+
+    BIND(&if_min_smi);
+    var_float->Bind(SmiToFloat64(smi_value));
+    Goto(do_float_op);
+
+    BIND(&end);
+    return var_result.value();
+  }
+
+  Node* FloatOp(Node* float_value) override { return Float64Neg(float_value); }
+
+  Node* BigIntOp(Node* bigint_value) override {
+    return CallRuntime(Runtime::kBigIntUnaryOp, GetContext(), bigint_value,
+                       SmiConstant(Token::SUB));
   }
 };
 
 // Negate <feedback_slot>
 //
 // Perform arithmetic negation on the accumulator.
-IGNITION_HANDLER(Negate, UnaryNumericOpAssembler) {
-  UnaryOpWithFeedback(
-      [=](Node* operand, Variable* var_feedback, Label* do_float_op,
-          Variable* var_float) {
-        VARIABLE(var_result, MachineRepresentation::kTagged);
-        Label if_zero(this), if_min_smi(this), end(this);
-        // Return -0 if operand is 0.
-        GotoIf(SmiEqual(operand, SmiConstant(0)), &if_zero);
-
-        // Special-case the minimum Smi to avoid overflow.
-        GotoIf(SmiEqual(operand, SmiConstant(Smi::kMinValue)), &if_min_smi);
-
-        // Else simply subtract operand from 0.
-        var_feedback->Bind(SmiConstant(BinaryOperationFeedback::kSignedSmall));
-        var_result.Bind(SmiSub(SmiConstant(0), operand));
-        Goto(&end);
-
-        BIND(&if_zero);
-        var_feedback->Bind(SmiConstant(BinaryOperationFeedback::kNumber));
-        var_result.Bind(MinusZeroConstant());
-        Goto(&end);
-
-        BIND(&if_min_smi);
-        var_float->Bind(SmiToFloat64(operand));
-        Goto(do_float_op);
-
-        BIND(&end);
-        return var_result.value();
-      },
-      [=](Node* float_value) { return Float64Neg(float_value); },
-      [=](Node* bigint_value) {
-        return CallRuntime(Runtime::kBigIntUnaryOp, GetContext(), bigint_value,
-                           SmiConstant(Token::SUB));
-      });
-}
+IGNITION_HANDLER(Negate, NegateAssemblerImpl) { UnaryOpWithFeedback(); }
 
 // ToName <dst>
 //
@@ -1374,19 +1346,76 @@ IGNITION_HANDLER(ToObject, InterpreterAssembler) {
   Dispatch();
 }
 
+class IncDecAssembler : public UnaryNumericOpAssembler {
+ public:
+  explicit IncDecAssembler(CodeAssemblerState* state, Bytecode bytecode,
+                           OperandScale operand_scale)
+      : UnaryNumericOpAssembler(state, bytecode, operand_scale) {}
+
+  Token::Value op() {
+    DCHECK(op_ == Token::INC || op_ == Token::DEC);
+    return op_;
+  }
+
+  Node* SmiOp(Node* smi_value, Variable* var_feedback, Label* do_float_op,
+              Variable* var_float) override {
+    // Try fast Smi operation first.
+    Node* value = BitcastTaggedToWord(smi_value);
+    Node* one = BitcastTaggedToWord(SmiConstant(1));
+    Node* pair = op() == Token::INC ? IntPtrAddWithOverflow(value, one)
+                                    : IntPtrSubWithOverflow(value, one);
+    Node* overflow = Projection(1, pair);
+
+    // Check if the Smi operation overflowed.
+    Label if_overflow(this), if_notoverflow(this);
+    Branch(overflow, &if_overflow, &if_notoverflow);
+
+    BIND(&if_overflow);
+    {
+      var_float->Bind(SmiToFloat64(smi_value));
+      Goto(do_float_op);
+    }
+
+    BIND(&if_notoverflow);
+    var_feedback->Bind(
+        SmiOr(var_feedback->value(),
+              SmiConstant(BinaryOperationFeedback::kSignedSmall)));
+    return BitcastWordToTaggedSigned(Projection(0, pair));
+  }
+
+  Node* FloatOp(Node* float_value) override {
+    return op() == Token::INC ? Float64Add(float_value, Float64Constant(1.0))
+                              : Float64Sub(float_value, Float64Constant(1.0));
+  }
+
+  Node* BigIntOp(Node* bigint_value) override {
+    return CallRuntime(Runtime::kBigIntUnaryOp, GetContext(), bigint_value,
+                       SmiConstant(op()));
+  }
+
+  void IncWithFeedback() {
+    op_ = Token::INC;
+    UnaryOpWithFeedback();
+  }
+
+  void DecWithFeedback() {
+    op_ = Token::DEC;
+    UnaryOpWithFeedback();
+  }
+
+ private:
+  Token::Value op_ = Token::ILLEGAL;
+};
+
 // Inc
 //
 // Increments value in the accumulator by one.
-IGNITION_HANDLER(Inc, UnaryNumericOpAssembler) {
-  IncDecWithFeedback(Token::INC);
-}
+IGNITION_HANDLER(Inc, IncDecAssembler) { IncWithFeedback(); }
 
 // Dec
 //
 // Decrements value in the accumulator by one.
-IGNITION_HANDLER(Dec, UnaryNumericOpAssembler) {
-  IncDecWithFeedback(Token::DEC);
-}
+IGNITION_HANDLER(Dec, IncDecAssembler) { DecWithFeedback(); }
 
 // LogicalNot
 //
