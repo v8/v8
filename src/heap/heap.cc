@@ -5299,7 +5299,31 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
     // start marking immediately.
     return IncrementalMarkingLimit::kHardLimit;
   }
+
+  if (FLAG_stress_incremental_marking_percentage > 0) {
+    double gained_since_last_gc =
+        PromotedSinceLastGC() +
+        (external_memory_ - external_memory_at_last_mark_compact_);
+    double size_before_gc = PromotedTotalSize() - gained_since_last_gc;
+    double bytes_to_limit = old_generation_allocation_limit_ - size_before_gc;
+    if (bytes_to_limit > 0) {
+      double current_percent = (gained_since_last_gc / bytes_to_limit) * 100.0;
+
+      if (FLAG_trace_incremental_marking) {
+        isolate()->PrintWithTimestamp(
+            "[IncrementalMarking] %.2lf%% of the memory limit reached\n",
+            current_percent);
+      }
+
+      if (static_cast<int>(current_percent) >=
+          FLAG_stress_incremental_marking_percentage) {
+        return IncrementalMarkingLimit::kHardLimit;
+      }
+    }
+  }
+
   size_t old_generation_space_available = OldGenerationSpaceAvailable();
+
   if (old_generation_space_available > new_space_->Capacity()) {
     return IncrementalMarkingLimit::kNoLimit;
   }

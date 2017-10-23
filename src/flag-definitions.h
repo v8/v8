@@ -674,6 +674,8 @@ DEFINE_BOOL(stress_compaction, false,
             "--force_marking_deque_overflows)")
 DEFINE_BOOL(stress_incremental_marking, false,
             "force incremental marking for small heaps and run it more often")
+DEFINE_INT(stress_incremental_marking_percentage, 0,
+           "force incremental marking after X percent of the standard limit")
 DEFINE_BOOL(manual_evacuation_candidates_selection, false,
             "Test mode only flag. It allows an unit test to select evacuation "
             "candidates pages (requires --stress_compaction).")
