@@ -114,6 +114,7 @@ MaybeHandle<BigInt> BigInt::Remainder(Handle<BigInt> x, Handle<BigInt> y) {
     AbsoluteDivLarge(x, y, nullptr, &remainder);
   }
   remainder->set_sign(x->sign());
+  remainder->RightTrim();
   return remainder;
 }
 
@@ -1018,6 +1019,12 @@ Handle<BigInt> BigInt::SpecialLeftShift(Handle<BigInt> x, int shift,
   int result_length = mode == kAlwaysAddOneDigit ? n + 1 : n;
   Handle<BigInt> result =
       x->GetIsolate()->factory()->NewBigIntRaw(result_length);
+  if (shift == 0) {
+    for (int i = 0; i < n; i++) result->set_digit(i, x->digit(i));
+    if (mode == kAlwaysAddOneDigit) result->set_digit(n, 0);
+    return result;
+  }
+  DCHECK_GT(shift, 0);
   digit_t carry = 0;
   for (int i = 0; i < n; i++) {
     digit_t d = x->digit(i);
