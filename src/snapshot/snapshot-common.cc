@@ -108,6 +108,10 @@ Code* Snapshot::DeserializeBuiltin(Isolate* isolate, int builtin_id) {
            Builtins::name(builtin_id), bytes, ms);
   }
 
+  if (isolate->logger()->is_logging_code_events() || isolate->is_profiling()) {
+    isolate->logger()->LogCodeObject(code);
+  }
+
   return code;
 }
 

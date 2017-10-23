@@ -254,6 +254,9 @@ class Logger : public CodeEventListener {
   // Callback from Log, stops profiling in case of insufficient resources.
   void LogFailure();
 
+  // Used for logging stubs found in the snapshot.
+  void LogCodeObject(Object* code_object);
+
  private:
   explicit Logger(Isolate* isolate);
   ~Logger();
@@ -269,9 +272,6 @@ class Logger : public CodeEventListener {
   // Internal configurable move event.
   void MoveEventInternal(CodeEventListener::LogEventsAndTags event,
                          Address from, Address to);
-
-  // Used for logging stubs found in the snapshot.
-  void LogCodeObject(Object* code_object);
 
   // Helper method. It resets name_buffer_ and add tag name into it.
   void InitNameBuffer(CodeEventListener::LogEventsAndTags tag);
