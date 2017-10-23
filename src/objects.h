@@ -964,7 +964,8 @@ template <class C> inline bool Is(Object* obj);
   V(LayoutDescriptor)       \
   V(HeapObject)             \
   V(Primitive)              \
-  V(Number)
+  V(Number)                 \
+  V(Numeric)
 
 #define HEAP_OBJECT_ORDINARY_TYPE_LIST(V) \
   V(AbstractCode)                         \

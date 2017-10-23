@@ -324,7 +324,7 @@ Handle<String> Object::NoSideEffectsToString(Isolate* isolate,
                                              Handle<Object> input) {
   DisallowJavascriptExecution no_js(isolate);
 
-  if (input->IsString() || input->IsNumber() || input->IsOddball()) {
+  if (input->IsString() || input->IsNumeric() || input->IsOddball()) {
     return Object::ToString(isolate, input).ToHandleChecked();
   } else if (input->IsFunction()) {
     // -- F u n c t i o n

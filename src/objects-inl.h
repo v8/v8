@@ -265,6 +265,8 @@ bool HeapObject::IsExternalTwoByteString() const {
 
 bool Object::IsNumber() const { return IsSmi() || IsHeapNumber(); }
 
+bool Object::IsNumeric() const { return IsNumber() || IsBigInt(); }
+
 bool HeapObject::IsFiller() const {
   InstanceType instance_type = map()->instance_type();
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;

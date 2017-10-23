@@ -57,6 +57,7 @@ TEST(NoSideEffectsToString) {
   CheckBoolean(isolate, true, "true");
   CheckBoolean(isolate, false, "false");
   CheckBoolean(isolate, false, "false");
+  CheckObject(isolate, factory->NewBigIntFromInt(42), "42");
   CheckObject(isolate, factory->undefined_value(), "undefined");
   CheckObject(isolate, factory->null_value(), "null");
 
