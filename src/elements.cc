@@ -3368,6 +3368,8 @@ class TypedElementsAccessor
         Handle<JSTypedArray>::cast(destination);
     DCHECK_LE(offset + length, destination_ta->length_value());
 
+    if (length == 0) return *isolate->factory()->undefined_value();
+
     // All conversions from TypedArrays can be done without allocation.
     if (source->IsJSTypedArray()) {
       Handle<JSTypedArray> source_ta = Handle<JSTypedArray>::cast(source);
