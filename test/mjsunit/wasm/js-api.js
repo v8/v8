@@ -889,3 +889,17 @@ assertInstantiateSuccess(importingModuleBinary, {'': {f: () => {}}});
 assertInstantiateSuccess(importingModuleBinary.buffer, {'': {f: () => {}}});
 assertInstantiateSuccess(
     memoryImportingModuleBinary, {'': {'my_memory': scratch_memory}});
+
+(function TestSubclassing() {
+  class M extends WebAssembly.Module { }
+  assertThrows(() => new M());
+
+  class I extends WebAssembly.Instance { }
+  assertThrows(() => new I());
+
+  class T extends WebAssembly.Table { }
+  assertThrows(() => new T());
+
+  class Y extends WebAssembly.Memory { }
+  assertThrows(() => new Y());
+})();
