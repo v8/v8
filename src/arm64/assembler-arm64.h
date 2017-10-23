@@ -280,6 +280,12 @@ class Register : public CPURegister {
     return Register::Create(code, kXRegSizeInBits);
   }
 
+  template <int code>
+  static Register from_code() {
+    // Always return an X register.
+    return Register::Create<code, kXRegSizeInBits>();
+  }
+
   // End of V8 compatibility section -----------------------
   //
  private:

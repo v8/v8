@@ -15,7 +15,7 @@
 namespace v8 {
 namespace internal {
 
-enum class MachineRepresentation {
+enum class MachineRepresentation : uint8_t {
   kNone,
   kBit,
   kWord8,
@@ -41,7 +41,7 @@ static_assert(static_cast<int>(MachineRepresentation::kLastRepresentation) <
 
 const char* MachineReprToString(MachineRepresentation);
 
-enum class MachineSemantic {
+enum class MachineSemantic : uint8_t {
   kNone,
   kBool,
   kInt32,

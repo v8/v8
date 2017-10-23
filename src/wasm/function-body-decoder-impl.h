@@ -459,6 +459,8 @@ struct ControlBase {
               bool merge_reached = false)
       : kind(kind), stack_depth(stack_depth), pc(pc), merge(merge_reached) {}
 
+  uint32_t break_arity() const { return is_loop() ? 0 : merge.arity; }
+
   // Check whether the current block is reachable.
   bool reachable() const { return reachability == kReachable; }
 
@@ -1221,6 +1223,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   inline uint32_t stack_size() const {
+    DCHECK_GE(kMaxUInt32, stack_.size());
     return static_cast<uint32_t>(stack_.size());
   }
 
@@ -1520,7 +1523,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               }
               // Check that label types match up.
               Control* c = control_at(target);
-              uint32_t arity = c->is_loop() ? 0 : c->merge.arity;
+              uint32_t arity = c->break_arity();
               if (i == 0) {
                 br_arity = arity;
               } else if (!VALIDATE(br_arity == arity)) {
