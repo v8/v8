@@ -311,4 +311,14 @@ hooks = [
     'pattern': '.',
     'action': ['python', 'v8/gypfiles/gyp_v8', '--running-as-hook'],
   },
+  # Download and initialize "vpython" VirtualEnv environment packages.
+  {
+    'name': 'vpython_common',
+    'pattern': '.',
+    'condition': 'checkout_android',
+    'action': [ 'vpython',
+                '-vpython-spec', 'v8/.vpython',
+                '-vpython-tool', 'install',
+    ],
+  },
 ]
