@@ -277,6 +277,37 @@ const six = BigInt(6);
   assertThrows(() => +One, TypeError);
 }
 
+// ToObject
+{
+  const ToObject = x => (new Function("", "return this")).call(x);
+
+  function test(x) {
+    const X = ToObject(x);
+    assertEquals(typeof x, "bigint");
+    assertEquals(typeof X, 'object');
+    assertEquals(X.constructor, BigInt);
+    assertTrue(X == x);
+  }
+
+  test(0n);
+  test(-1n);
+  test(1n);
+  test(2343423423423423423424234234234235234524353453452345324523452345234534n);
+}{
+  function test(x) {
+    const X = Object(x);
+    assertEquals(typeof x, "bigint");
+    assertEquals(typeof X, 'object');
+    assertEquals(X.constructor, BigInt);
+    assertTrue(X == x);
+  }
+
+  test(0n);
+  test(-1n);
+  test(1n);
+  test(2343423423423423423424234234234235234524353453452345324523452345234534n);
+}
+
 // Literals
 {
   // Invalid literals.
