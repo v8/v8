@@ -156,7 +156,6 @@ CODE_ACCESSORS(handler_table, FixedArray, kHandlerTableOffset)
 CODE_ACCESSORS(deoptimization_data, FixedArray, kDeoptimizationDataOffset)
 CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
 CODE_ACCESSORS(trap_handler_index, Smi, kTrapHandlerIndex)
-CODE_ACCESSORS(raw_type_feedback_info, Object, kTypeFeedbackInfoOffset)
 CODE_ACCESSORS(next_code_link, Object, kNextCodeLinkOffset)
 #undef CODE_ACCESSORS
 
@@ -165,10 +164,6 @@ void Code::WipeOutHeader() {
   WRITE_FIELD(this, kHandlerTableOffset, nullptr);
   WRITE_FIELD(this, kDeoptimizationDataOffset, nullptr);
   WRITE_FIELD(this, kSourcePositionTableOffset, nullptr);
-  // Do not wipe out major/minor keys on a code stub or IC
-  if (!READ_FIELD(this, kTypeFeedbackInfoOffset)->IsSmi()) {
-    WRITE_FIELD(this, kTypeFeedbackInfoOffset, nullptr);
-  }
   WRITE_FIELD(this, kNextCodeLinkOffset, nullptr);
 }
 
@@ -189,13 +184,12 @@ ByteArray* Code::SourcePositionTable() const {
 
 uint32_t Code::stub_key() const {
   DCHECK(is_stub());
-  Smi* smi_key = Smi::cast(raw_type_feedback_info());
-  return static_cast<uint32_t>(smi_key->value());
+  return READ_UINT32_FIELD(this, kStubKeyOffset);
 }
 
 void Code::set_stub_key(uint32_t key) {
-  DCHECK(is_stub());
-  set_raw_type_feedback_info(Smi::FromInt(key));
+  DCHECK(is_stub() || key == 0);  // Allow zero initialization.
+  WRITE_UINT32_FIELD(this, kStubKeyOffset, key);
 }
 
 byte* Code::instruction_start() const {
@@ -297,10 +291,6 @@ void Code::set_raw_kind_specific_flags1(int value) {
   WRITE_INT_FIELD(this, kKindSpecificFlags1Offset, value);
 }
 
-void Code::set_raw_kind_specific_flags2(int value) {
-  WRITE_INT_FIELD(this, kKindSpecificFlags2Offset, value);
-}
-
 inline bool Code::is_interpreter_trampoline_builtin() const {
   Builtins* builtins = GetIsolate()->builtins();
   bool is_interpreter_trampoline =
@@ -333,25 +323,24 @@ inline void Code::set_has_unwinding_info(bool state) {
 }
 
 inline bool Code::has_tagged_params() const {
-  int flags = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
+  int flags = READ_UINT32_FIELD(this, kFlagsOffset);
   return HasTaggedStackField::decode(flags);
 }
 
 inline void Code::set_has_tagged_params(bool value) {
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
+  int previous = READ_UINT32_FIELD(this, kFlagsOffset);
   int updated = HasTaggedStackField::update(previous, value);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
+  WRITE_UINT32_FIELD(this, kFlagsOffset, updated);
 }
 
 inline bool Code::is_turbofanned() const {
-  return IsTurbofannedField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+  return IsTurbofannedField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
 }
 
 inline void Code::set_is_turbofanned(bool value) {
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int previous = READ_UINT32_FIELD(this, kFlagsOffset);
   int updated = IsTurbofannedField::update(previous, value);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+  WRITE_UINT32_FIELD(this, kFlagsOffset, updated);
 }
 
 inline bool Code::can_have_weak_objects() const {
@@ -427,31 +416,27 @@ bool Code::is_builtin() const { return builtin_index() != -1; }
 
 unsigned Code::stack_slots() const {
   DCHECK(is_turbofanned());
-  return StackSlotsField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags1Offset));
+  return StackSlotsField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
 }
 
 void Code::set_stack_slots(unsigned slots) {
-  CHECK(slots <= (1 << kStackSlotsBitCount));
+  CHECK(slots <= StackSlotsField::kMax);
   DCHECK(is_turbofanned());
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags1Offset);
+  int previous = READ_UINT32_FIELD(this, kFlagsOffset);
   int updated = StackSlotsField::update(previous, slots);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags1Offset, updated);
+  WRITE_UINT32_FIELD(this, kFlagsOffset, updated);
 }
 
 unsigned Code::safepoint_table_offset() const {
   DCHECK(is_turbofanned());
-  return SafepointTableOffsetField::decode(
-      READ_UINT32_FIELD(this, kKindSpecificFlags2Offset));
+  return READ_UINT32_FIELD(this, kSafepointTableOffsetOffset);
 }
 
 void Code::set_safepoint_table_offset(unsigned offset) {
-  CHECK(offset <= (1 << kSafepointTableOffsetBitCount));
-  DCHECK(is_turbofanned());
+  CHECK(offset <= std::numeric_limits<uint32_t>::max());
+  DCHECK(is_turbofanned() || offset == 0);  // Allow zero initialization.
   DCHECK(IsAligned(offset, static_cast<unsigned>(kIntSize)));
-  int previous = READ_UINT32_FIELD(this, kKindSpecificFlags2Offset);
-  int updated = SafepointTableOffsetField::update(previous, offset);
-  WRITE_UINT32_FIELD(this, kKindSpecificFlags2Offset, updated);
+  WRITE_UINT32_FIELD(this, kSafepointTableOffsetOffset, offset);
 }
 
 bool Code::marked_for_deoptimization() const {

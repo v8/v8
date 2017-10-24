@@ -164,12 +164,7 @@ class Code : public HeapObject {
   // objects.
   DECL_ACCESSORS(trap_handler_index, Smi)
 
-  // [raw_type_feedback_info]: This field stores various things, depending on
-  // the kind of the code object.
-  //   STUB and ICs       => major/minor key as Smi.
-  // TODO(mvstanton): rename raw_type_feedback_info to stub_key, since the
-  // field is no longer overloaded.
-  DECL_ACCESSORS(raw_type_feedback_info, Object)
+  // [stub_key]: The major/minor key of a code stub.
   inline uint32_t stub_key() const;
   inline void set_stub_key(uint32_t key);
 
@@ -196,7 +191,6 @@ class Code : public HeapObject {
   inline bool is_wasm_code() const;
 
   inline void set_raw_kind_specific_flags1(int value);
-  inline void set_raw_kind_specific_flags2(int value);
 
   // Testers for interpreter builtins.
   inline bool is_interpreter_trampoline_builtin() const;
@@ -436,16 +430,15 @@ class Code : public HeapObject {
       kHandlerTableOffset + kPointerSize;
   static const int kSourcePositionTableOffset =
       kDeoptimizationDataOffset + kPointerSize;
-  // For FUNCTION kind, we store the type feedback info here.
-  static const int kTypeFeedbackInfoOffset =
+  static const int kNextCodeLinkOffset =
       kSourcePositionTableOffset + kPointerSize;
-  static const int kNextCodeLinkOffset = kTypeFeedbackInfoOffset + kPointerSize;
   static const int kInstructionSizeOffset = kNextCodeLinkOffset + kPointerSize;
   static const int kFlagsOffset = kInstructionSizeOffset + kIntSize;
   static const int kKindSpecificFlags1Offset = kFlagsOffset + kIntSize;
-  static const int kKindSpecificFlags2Offset =
+  static const int kSafepointTableOffsetOffset =
       kKindSpecificFlags1Offset + kIntSize;
-  static const int kConstantPoolOffset = kKindSpecificFlags2Offset + kIntSize;
+  static const int kStubKeyOffset = kSafepointTableOffsetOffset + kIntSize;
+  static const int kConstantPoolOffset = kStubKeyOffset + kIntSize;
   static const int kBuiltinIndexOffset =
       kConstantPoolOffset + kConstantPoolSize;
   static const int kTrapHandlerIndex = kBuiltinIndexOffset + kIntSize;
@@ -468,33 +461,28 @@ class Code : public HeapObject {
   // Flags layout.  BitField<type, shift, size>.
   class HasUnwindingInfoField : public BitField<bool, 0, 1> {};
   class KindField : public BitField<Kind, HasUnwindingInfoField::kNext, 5> {};
-  STATIC_ASSERT(NUMBER_OF_KINDS <= KindField::kMax);
+  class HasTaggedStackField : public BitField<bool, KindField::kNext, 1> {};
+  class IsTurbofannedField
+      : public BitField<bool, HasTaggedStackField::kNext, 1> {};
+  class StackSlotsField : public BitField<int, IsTurbofannedField::kNext, 24> {
+  };
+  static_assert(NUMBER_OF_KINDS <= KindField::kMax, "Code::KindField size");
+  static_assert(StackSlotsField::kNext <= 32, "Code::flags field exhausted");
 
   // KindSpecificFlags1 layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
-  static const int kStackSlotsFirstBit = 0;
-  static const int kStackSlotsBitCount = 24;
-  static const int kMarkedForDeoptimizationBit =
-      kStackSlotsFirstBit + kStackSlotsBitCount;
+  static const int kMarkedForDeoptimizationBit = 0;
   static const int kDeoptAlreadyCountedBit = kMarkedForDeoptimizationBit + 1;
-  static const int kIsTurbofannedBit = kDeoptAlreadyCountedBit + 1;
-  static const int kCanHaveWeakObjects = kIsTurbofannedBit + 1;
+  static const int kCanHaveWeakObjects = kDeoptAlreadyCountedBit + 1;
   // Could be moved to overlap previous bits when we need more space.
   static const int kIsConstructStub = kCanHaveWeakObjects + 1;
   static const int kIsPromiseRejection = kIsConstructStub + 1;
   static const int kIsExceptionCaught = kIsPromiseRejection + 1;
-
-  STATIC_ASSERT(kStackSlotsFirstBit + kStackSlotsBitCount <= 32);
   STATIC_ASSERT(kIsExceptionCaught + 1 <= 32);
 
-  class StackSlotsField
-      : public BitField<int, kStackSlotsFirstBit, kStackSlotsBitCount> {
-  };  // NOLINT
   class MarkedForDeoptimizationField
       : public BitField<bool, kMarkedForDeoptimizationBit, 1> {};  // NOLINT
   class DeoptAlreadyCountedField
       : public BitField<bool, kDeoptAlreadyCountedBit, 1> {};  // NOLINT
-  class IsTurbofannedField : public BitField<bool, kIsTurbofannedBit, 1> {
-  };  // NOLINT
   class CanHaveWeakObjectsField
       : public BitField<bool, kCanHaveWeakObjects, 1> {};  // NOLINT
   class IsConstructStubField : public BitField<bool, kIsConstructStub, 1> {
@@ -503,22 +491,6 @@ class Code : public HeapObject {
       : public BitField<bool, kIsPromiseRejection, 1> {};  // NOLINT
   class IsExceptionCaughtField : public BitField<bool, kIsExceptionCaught, 1> {
   };  // NOLINT
-
-  // KindSpecificFlags2 layout (ALL)
-  static const int kHasTaggedStackBit = 0;
-  class HasTaggedStackField : public BitField<bool, kHasTaggedStackBit, 1> {};
-
-  // KindSpecificFlags2 layout (STUB and OPTIMIZED_FUNCTION)
-  static const int kSafepointTableOffsetFirstBit = kHasTaggedStackBit + 1;
-  static const int kSafepointTableOffsetBitCount = 30;
-
-  STATIC_ASSERT(kSafepointTableOffsetFirstBit + kSafepointTableOffsetBitCount <=
-                32);
-  STATIC_ASSERT(1 + kSafepointTableOffsetBitCount <= 32);
-
-  class SafepointTableOffsetField
-      : public BitField<int, kSafepointTableOffsetFirstBit,
-                        kSafepointTableOffsetBitCount> {};  // NOLINT
 
   static const int kArgumentsBits = 16;
   static const int kMaxArguments = (1 << kArgumentsBits) - 1;

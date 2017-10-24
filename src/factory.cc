@@ -1829,10 +1829,10 @@ Handle<Code> Factory::NewCode(
   code->initialize_flags(kind);
   code->set_has_unwinding_info(has_unwinding_info);
   code->set_raw_kind_specific_flags1(0);
-  code->set_raw_kind_specific_flags2(0);
+  code->set_safepoint_table_offset(0);
   code->set_has_tagged_params(true);
   code->set_deoptimization_data(*deopt_data);
-  code->set_raw_type_feedback_info(Smi::kZero);
+  code->set_stub_key(0);
   code->set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
   code->set_handler_table(*handler_table);
   code->set_source_position_table(*source_position_table);
