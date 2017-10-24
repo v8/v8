@@ -42,8 +42,8 @@ class Scavenger {
   size_t bytes_copied() const { return copied_size_; }
   size_t bytes_promoted() const { return promoted_size_; }
 
-  void AnnounceLockedPage(MemoryChunk* chunk) {
-    allocator_.AnnounceLockedPage(chunk);
+  void PreferredSweepingPage(MemoryChunk* chunk) {
+    allocator_.PreferredSweepingPage(chunk);
   }
 
  private:
@@ -55,6 +55,8 @@ class Scavenger {
   inline Heap* heap() { return heap_; }
 
   inline void PageMemoryFence(Object* object);
+
+  void AddPageToSweeperIfNecessary(MemoryChunk* page);
 
   // Potentially scavenges an object referenced from |slot_address| if it is
   // indeed a HeapObject and resides in from space.

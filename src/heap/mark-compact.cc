@@ -630,6 +630,29 @@ MarkCompactCollector::Sweeper::PauseOrCompleteScope::~PauseOrCompleteScope() {
   sweeper_->StartSweeperTasks();
 }
 
+MarkCompactCollector::Sweeper::FilterSweepingPagesScope::
+    FilterSweepingPagesScope(
+        MarkCompactCollector::Sweeper* sweeper,
+        const PauseOrCompleteScope& pause_or_complete_scope)
+    : sweeper_(sweeper),
+      pause_or_complete_scope_(pause_or_complete_scope),
+      sweeping_in_progress_(sweeper_->sweeping_in_progress()) {
+  USE(pause_or_complete_scope_);
+  if (!sweeping_in_progress_) return;
+
+  old_space_sweeping_list_ = std::move(sweeper_->sweeping_list_[OLD_SPACE]);
+  sweeper_->sweeping_list_[OLD_SPACE].clear();
+}
+
+MarkCompactCollector::Sweeper::FilterSweepingPagesScope::
+    ~FilterSweepingPagesScope() {
+  DCHECK_EQ(sweeping_in_progress_, sweeper_->sweeping_in_progress());
+  if (!sweeping_in_progress_) return;
+
+  sweeper_->sweeping_list_[OLD_SPACE] = std::move(old_space_sweeping_list_);
+  // old_space_sweeping_list_ does not need to be cleared as we don't use it.
+}
+
 class MarkCompactCollector::Sweeper::SweeperTask final : public CancelableTask {
  public:
   SweeperTask(Isolate* isolate, Sweeper* sweeper,
@@ -3767,12 +3790,12 @@ void MarkCompactCollector::Evacuate() {
     for (Page* p : new_space_evacuation_pages_) {
       if (p->IsFlagSet(Page::PAGE_NEW_NEW_PROMOTION)) {
         p->ClearFlag(Page::PAGE_NEW_NEW_PROMOTION);
-        sweeper().AddPage(p->owner()->identity(), p);
+        sweeper().AddPage(p->owner()->identity(), p, Sweeper::REGULAR);
       } else if (p->IsFlagSet(Page::PAGE_NEW_OLD_PROMOTION)) {
         p->ClearFlag(Page::PAGE_NEW_OLD_PROMOTION);
         p->ForAllFreeListCategories(
             [](FreeListCategory* category) { DCHECK(!category->is_linked()); });
-        sweeper().AddPage(p->owner()->identity(), p);
+        sweeper().AddPage(p->owner()->identity(), p, Sweeper::REGULAR);
       }
     }
     new_space_evacuation_pages_.clear();
@@ -3784,7 +3807,7 @@ void MarkCompactCollector::Evacuate() {
       SkipList* list = p->skip_list();
       if (list != nullptr) list->Clear();
       if (p->IsFlagSet(Page::COMPACTION_WAS_ABORTED)) {
-        sweeper().AddPage(p->owner()->identity(), p);
+        sweeper().AddPage(p->owner()->identity(), p, Sweeper::REGULAR);
         p->ClearFlag(Page::COMPACTION_WAS_ABORTED);
       }
     }
@@ -4455,9 +4478,20 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
   return max_freed;
 }
 
-void MarkCompactCollector::Sweeper::AddPage(AllocationSpace space, Page* page) {
+void MarkCompactCollector::Sweeper::AddPage(
+    AllocationSpace space, Page* page,
+    MarkCompactCollector::Sweeper::AddPageMode mode) {
+  base::LockGuard<base::Mutex> guard(&mutex_);
   DCHECK(!FLAG_concurrent_sweeping || !AreSweeperTasksRunning());
-  PrepareToBeSweptPage(space, page);
+  if (mode == Sweeper::REGULAR) {
+    DCHECK_EQ(Page::kSweepingDone, page->concurrent_sweeping_state().Value());
+    PrepareToBeSweptPage(space, page);
+  } else {
+    // Page has been temporarily removed from the sweeper. Accounting already
+    // happened when the page was initially added, so it is skipped here.
+    DCHECK_EQ(Sweeper::READD_TEMPORARY_REMOVED_PAGE, mode);
+  }
+  DCHECK_EQ(Page::kSweepingPending, page->concurrent_sweeping_state().Value());
   sweeping_list_[space].push_back(page);
 }
 
@@ -4528,7 +4562,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
       unused_page_present = true;
     }
 
-    sweeper().AddPage(space->identity(), p);
+    sweeper().AddPage(space->identity(), p, Sweeper::REGULAR);
     will_be_swept++;
   }
 

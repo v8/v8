@@ -1914,16 +1914,26 @@ void Heap::Scavenge() {
     job.AddTask(new ScavengingTask(this, scavengers[i], &barrier));
   }
 
-  CodeSpaceMemoryModificationScope code_modification(this);
-
-  RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
-      this, [&job](MemoryChunk* chunk) {
-        job.AddItem(new PageScavengingItem(chunk));
-      });
-
   {
-    MarkCompactCollector::Sweeper::PauseOrCompleteScope sweeper_scope(
-        &mark_compact_collector()->sweeper());
+    CodeSpaceMemoryModificationScope code_modification(this);
+    MarkCompactCollector::Sweeper* sweeper =
+        &mark_compact_collector()->sweeper();
+    // Pause the concurrent sweeper.
+    MarkCompactCollector::Sweeper::PauseOrCompleteScope pause_scope(sweeper);
+    // Filter out pages from the sweeper that need to be processed for old to
+    // new slots by the Scavenger. After processing, the Scavenger adds back
+    // pages that are still unsweeped. This way the Scavenger has exclusive
+    // access to the slots of a page and can completely avoid any locks on
+    // the page itself.
+    MarkCompactCollector::Sweeper::FilterSweepingPagesScope filter_scope(
+        sweeper, pause_scope);
+    filter_scope.FilterOldSpaceSweepingPages(
+        [](Page* page) { return !page->ContainsSlots<OLD_TO_NEW>(); });
+    RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+        this, [&job](MemoryChunk* chunk) {
+          job.AddItem(new PageScavengingItem(chunk));
+        });
+
     RootScavengeVisitor root_scavenge_visitor(this, scavengers[kMainThreadId]);
 
     {
@@ -1961,11 +1971,11 @@ void Heap::Scavenge() {
           &root_scavenge_visitor);
       scavengers[kMainThreadId]->Process();
     }
-  }
 
-  for (int i = 0; i < num_scavenge_tasks; i++) {
-    scavengers[i]->Finalize();
-    delete scavengers[i];
+    for (int i = 0; i < num_scavenge_tasks; i++) {
+      scavengers[i]->Finalize();
+      delete scavengers[i];
+    }
   }
 
   UpdateNewSpaceReferencesInExternalStringTable(

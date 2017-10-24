@@ -458,6 +458,12 @@ class MemoryChunk {
 
   inline void set_skip_list(SkipList* skip_list) { skip_list_ = skip_list; }
 
+  template <RememberedSetType type>
+  bool ContainsSlots() {
+    return slot_set<type>() != nullptr || typed_slot_set<type>() != nullptr ||
+           invalidated_slots() != nullptr;
+  }
+
   template <RememberedSetType type, AccessMode access_mode = AccessMode::ATOMIC>
   SlotSet* slot_set() {
     if (access_mode == AccessMode::ATOMIC)
@@ -2197,10 +2203,8 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
 
-  // Sets the page that is currently locked by the task using the space. This
-  // page will be preferred for sweeping to avoid a potential deadlock where
-  // multiple tasks hold locks on pages while trying to sweep each others pages.
-  void AnnounceLockedPage(Page* page) { locked_page_ = page; }
+  // This page will be preferred for sweeping.
+  void PreferredSweepingPage(Page* page) { preferred_sweeping_page_ = page; }
 
   Address ComputeLimit(Address start, Address end, size_t size_in_bytes);
   void SetAllocationInfo(Address top, Address limit);
@@ -2278,7 +2282,7 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   // Mutex guarding any concurrent access to the space.
   base::Mutex space_mutex_;
 
-  Page* locked_page_;
+  Page* preferred_sweeping_page_;
   Address top_on_previous_step_;
 
   friend class IncrementalMarking;

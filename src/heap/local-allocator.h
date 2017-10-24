@@ -73,14 +73,12 @@ class LocalAllocator {
     }
   }
 
-  void AnnounceLockedPage(MemoryChunk* chunk) {
+  void PreferredSweepingPage(MemoryChunk* chunk) {
     const AllocationSpace space = chunk->owner()->identity();
-    // There are no allocations on large object and map space and hence we
-    // cannot announce that we locked a page there.
-    if (space == LO_SPACE || space == MAP_SPACE) return;
+    // Only announce preferred pages for OLD_SPACE.
+    if (space != OLD_SPACE) return;
 
-    DCHECK(space != NEW_SPACE);
-    compaction_spaces_.Get(space)->AnnounceLockedPage(
+    compaction_spaces_.Get(space)->PreferredSweepingPage(
         reinterpret_cast<Page*>(chunk));
   }
 

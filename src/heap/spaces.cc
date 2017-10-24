@@ -1427,7 +1427,7 @@ PagedSpace::PagedSpace(Heap* heap, AllocationSpace space,
     : Space(heap, space, executable),
       anchor_(this),
       free_list_(this),
-      locked_page_(nullptr),
+      preferred_sweeping_page_(nullptr),
       top_on_previous_step_(0) {
   area_size_ = MemoryAllocator::PageAreaSize(space);
   accounting_stats_.Clear();
@@ -3266,10 +3266,11 @@ bool PagedSpace::RawSlowAllocateRaw(int size_in_bytes) {
     // Retry the free list allocation.
     if (free_list_.Allocate(static_cast<size_t>(size_in_bytes))) return true;
 
-    if (locked_page_ != nullptr) {
-      DCHECK_EQ(locked_page_->owner()->identity(), identity());
-      collector->sweeper().ParallelSweepPage(locked_page_, identity());
-      locked_page_ = nullptr;
+    if (preferred_sweeping_page_ != nullptr) {
+      DCHECK_EQ(preferred_sweeping_page_->owner()->identity(), identity());
+      collector->sweeper().ParallelSweepPage(preferred_sweeping_page_,
+                                             identity());
+      preferred_sweeping_page_ = nullptr;
       if (free_list_.Allocate(static_cast<size_t>(size_in_bytes))) return true;
     }
 

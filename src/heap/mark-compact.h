@@ -593,8 +593,11 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
   class Sweeper {
    public:
+    typedef std::deque<Page*> SweepingList;
+    typedef std::vector<Page*> SweptList;
+
     // Pauses the sweeper tasks or completes sweeping.
-    class PauseOrCompleteScope {
+    class PauseOrCompleteScope final {
      public:
       explicit PauseOrCompleteScope(Sweeper* sweeper);
       ~PauseOrCompleteScope();
@@ -603,21 +606,51 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       Sweeper* const sweeper_;
     };
 
+    // Temporary filters old space sweeping lists. Requires the concurrent
+    // sweeper to be paused. Allows for pages to be added to the sweeper while
+    // in this scope. Note that the original list of sweeping pages is restored
+    // after exiting this scope.
+    class FilterSweepingPagesScope final {
+     public:
+      explicit FilterSweepingPagesScope(
+          Sweeper* sweeper,
+          const PauseOrCompleteScope& pause_or_complete_scope);
+      ~FilterSweepingPagesScope();
+
+      template <typename Callback>
+      void FilterOldSpaceSweepingPages(Callback callback) {
+        if (!sweeping_in_progress_) return;
+
+        SweepingList* sweeper_list = &sweeper_->sweeping_list_[OLD_SPACE];
+        // Iteration here is from most free space to least free space.
+        for (auto it = old_space_sweeping_list_.begin();
+             it != old_space_sweeping_list_.end(); it++) {
+          if (callback(*it)) {
+            sweeper_list->push_back(*it);
+          }
+        }
+      }
+
+     private:
+      Sweeper* const sweeper_;
+      SweepingList old_space_sweeping_list_;
+      const PauseOrCompleteScope& pause_or_complete_scope_;
+      bool sweeping_in_progress_;
+    };
+
     enum FreeListRebuildingMode { REBUILD_FREE_LIST, IGNORE_FREE_LIST };
     enum ClearOldToNewSlotsMode {
       DO_NOT_CLEAR,
       CLEAR_REGULAR_SLOTS,
       CLEAR_TYPED_SLOTS
     };
-
-    typedef std::deque<Page*> SweepingList;
-    typedef std::vector<Page*> SweptList;
+    enum AddPageMode { REGULAR, READD_TEMPORARY_REMOVED_PAGE };
 
     int RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
                  FreeSpaceTreatmentMode free_space_mode);
 
-    explicit Sweeper(Heap* heap,
-                     MarkCompactCollector::NonAtomicMarkingState* marking_state)
+    Sweeper(Heap* heap,
+            MarkCompactCollector::NonAtomicMarkingState* marking_state)
         : heap_(heap),
           marking_state_(marking_state),
           num_tasks_(0),
@@ -628,7 +661,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
     bool sweeping_in_progress() const { return sweeping_in_progress_; }
 
-    void AddPage(AllocationSpace space, Page* page);
+    void AddPage(AllocationSpace space, Page* page, AddPageMode mode);
 
     int ParallelSweepSpace(AllocationSpace identity, int required_freed_bytes,
                            int max_pages = 0);
