@@ -275,6 +275,7 @@ class ErrorUtils : public AllStatic {
     "The comparison function must be either a function or undefined")          \
   T(BigIntMixedTypes,                                                          \
     "Cannot mix BigInt and other types, use explicit conversions")             \
+  T(BigIntSerializeJSON, "Do not know how to serialize a BigInt")              \
   T(BigIntShr, "BigInts have no unsigned right shift, use >> instead")         \
   T(BigIntToNumber, "Cannot convert a BigInt value to a number")               \
   T(CalledNonCallable, "% is not a function")                                  \

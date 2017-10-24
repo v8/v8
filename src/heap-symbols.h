@@ -28,6 +28,7 @@
   V(regexp_to_string, "[object RegExp]")                           \
   V(string_to_string, "[object String]")                           \
   V(bigint_string, "bigint")                                       \
+  V(BigInt_string, "BigInt")                                       \
   V(bind_string, "bind")                                           \
   V(boolean_string, "boolean")                                     \
   V(Boolean_string, "Boolean")                                     \
