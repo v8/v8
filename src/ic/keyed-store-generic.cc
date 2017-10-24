@@ -529,6 +529,7 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
   BIND(&loop);
   {
     Node* holder = var_holder.value();
+    GotoIf(IsNull(holder), &ok_to_write);
     Node* holder_map = var_holder_map.value();
     Node* instance_type = LoadMapInstanceType(holder_map);
     Label next_proto(this);
@@ -595,7 +596,6 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
     // Bailout if it can be an integer indexed exotic case.
     GotoIf(InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE), bailout);
     Node* proto = LoadMapPrototype(holder_map);
-    GotoIf(WordEqual(proto, NullConstant()), &ok_to_write);
     var_holder.Bind(proto);
     var_holder_map.Bind(LoadMap(proto));
     Goto(&loop);
@@ -890,8 +890,14 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
       LookupPropertyOnPrototypeChain(receiver_map, p->name, &accessor,
                                      &var_accessor_pair, &var_accessor_holder,
                                      &readonly, slow);
-      Add<NameDictionary>(properties, p->name, p->value, slow);
+      Label add_dictionary_property_slow(this);
+      Add<NameDictionary>(properties, p->name, p->value,
+                          &add_dictionary_property_slow);
       Return(p->value);
+
+      BIND(&add_dictionary_property_slow);
+      TailCallRuntime(Runtime::kAddDictionaryProperty, p->context, p->receiver,
+                      p->name, p->value);
     }
   }
 
