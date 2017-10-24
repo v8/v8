@@ -71,11 +71,11 @@ class WasmValue {
 #define DECLARE_CAST(name, localtype, ctype, ...) \
   template <>                                     \
   inline ctype WasmValue::to_unchecked() const {  \
-    return to_##name();                           \
+    return to_##name##_unchecked();               \
   }                                               \
   template <>                                     \
   inline ctype WasmValue::to() const {            \
-    return to_##name##_unchecked();               \
+    return to_##name();                           \
   }
 FOREACH_WASMVAL_TYPE(DECLARE_CAST)
 #undef DECLARE_CAST
