@@ -495,13 +495,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     TemplateLiteral(Zone* zone, int pos)
         : cooked_(8, zone), raw_(8, zone), expressions_(8, zone), pos_(pos) {}
 
-    const ZoneList<Literal*>* cooked() const { return &cooked_; }
-    const ZoneList<Literal*>* raw() const { return &raw_; }
+    const ZoneList<const AstRawString*>* cooked() const { return &cooked_; }
+    const ZoneList<const AstRawString*>* raw() const { return &raw_; }
     const ZoneList<Expression*>* expressions() const { return &expressions_; }
     int position() const { return pos_; }
 
-    void AddTemplateSpan(Literal* cooked, Literal* raw, int end, Zone* zone) {
-      DCHECK_NOT_NULL(cooked);
+    void AddTemplateSpan(const AstRawString* cooked, const AstRawString* raw,
+                         int end, Zone* zone) {
       DCHECK_NOT_NULL(raw);
       cooked_.Add(cooked, zone);
       raw_.Add(raw, zone);
@@ -513,8 +513,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     }
 
    private:
-    ZoneList<Literal*> cooked_;
-    ZoneList<Literal*> raw_;
+    ZoneList<const AstRawString*> cooked_;
+    ZoneList<const AstRawString*> raw_;
     ZoneList<Expression*> expressions_;
     int pos_;
   };

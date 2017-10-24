@@ -3504,17 +3504,13 @@ Parser::TemplateLiteralState Parser::OpenTemplateLiteral(int pos) {
 void Parser::AddTemplateSpan(TemplateLiteralState* state, bool should_cook,
                              bool tail) {
   DCHECK(should_cook || allow_harmony_template_escapes());
-  int pos = scanner()->location().beg_pos;
   int end = scanner()->location().end_pos - (tail ? 1 : 2);
-  const AstRawString* trv = scanner()->CurrentRawSymbol(ast_value_factory());
-  Literal* raw = factory()->NewStringLiteral(trv, pos);
+  const AstRawString* raw = scanner()->CurrentRawSymbol(ast_value_factory());
   if (should_cook) {
-    const AstRawString* tv = scanner()->CurrentSymbol(ast_value_factory());
-    Literal* cooked = factory()->NewStringLiteral(tv, pos);
+    const AstRawString* cooked = scanner()->CurrentSymbol(ast_value_factory());
     (*state)->AddTemplateSpan(cooked, raw, end, zone());
   } else {
-    (*state)->AddTemplateSpan(factory()->NewUndefinedLiteral(pos), raw, end,
-                              zone());
+    (*state)->AddTemplateSpan(nullptr, raw, end, zone());
   }
 }
 
@@ -3529,19 +3525,21 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
                                          Expression* tag) {
   TemplateLiteral* lit = *state;
   int pos = lit->position();
-  const ZoneList<Literal*>* cooked_strings = lit->cooked();
-  const ZoneList<Literal*>* raw_strings = lit->raw();
+  const ZoneList<const AstRawString*>* cooked_strings = lit->cooked();
+  const ZoneList<const AstRawString*>* raw_strings = lit->raw();
   const ZoneList<Expression*>* expressions = lit->expressions();
   DCHECK_EQ(cooked_strings->length(), raw_strings->length());
   DCHECK_EQ(cooked_strings->length(), expressions->length() + 1);
 
   if (!tag) {
     // Build tree of BinaryOps to simplify code-generation
-    Expression* expr = cooked_strings->at(0);
+    Expression* expr =
+        factory()->NewStringLiteral(cooked_strings->at(0), kNoSourcePosition);
     int i = 0;
     while (i < expressions->length()) {
       Expression* sub = expressions->at(i++);
-      Expression* cooked_str = cooked_strings->at(i);
+      const AstRawString* cooked_str = cooked_strings->at(i);
+      DCHECK_NOT_NULL(cooked_str);
 
       // Let middle be ToString(sub).
       ZoneList<Expression*>* args =
@@ -3551,17 +3549,18 @@ Expression* Parser::CloseTemplateLiteral(TemplateLiteralState* state, int start,
                                                      args, sub->position());
 
       expr = factory()->NewBinaryOperation(
-          Token::ADD, factory()->NewBinaryOperation(
-                          Token::ADD, expr, middle, expr->position()),
-          cooked_str, sub->position());
+          Token::ADD,
+          factory()->NewBinaryOperation(Token::ADD, expr, middle,
+                                        expr->position()),
+          factory()->NewStringLiteral(cooked_str, kNoSourcePosition),
+          sub->position());
     }
     return expr;
   } else {
     // GetTemplateObject
     const int32_t hash = ComputeTemplateLiteralHash(lit);
-    Expression* template_object = factory()->NewGetTemplateObject(
-        const_cast<ZoneList<Literal*>*>(cooked_strings),
-        const_cast<ZoneList<Literal*>*>(raw_strings), hash, pos);
+    Expression* template_object =
+        factory()->NewGetTemplateObject(cooked_strings, raw_strings, hash, pos);
 
     // Call TagFn
     ZoneList<Expression*>* call_args =
@@ -3587,7 +3586,7 @@ uint32_t HalfAvalance(uint32_t a) {
 }  // namespace
 
 int32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
-  const ZoneList<Literal*>* raw_strings = lit->raw();
+  const ZoneList<const AstRawString*>* raw_strings = lit->raw();
   int total = raw_strings->length();
   DCHECK_GT(total, 0);
 
@@ -3599,8 +3598,7 @@ int32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
           running_hash, "${}", 3);
     }
 
-    const AstRawString* raw_string =
-        raw_strings->at(index)->AsLiteral()->AsRawString();
+    const AstRawString* raw_string = raw_strings->at(index);
     if (raw_string->is_one_byte()) {
       const char* data = reinterpret_cast<const char*>(raw_string->raw_data());
       running_hash = StringHasher::ComputeRunningHashOneByte(
