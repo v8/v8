@@ -586,21 +586,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(const Scope* scope) {
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
     const AstValue* ast_value) {
-  if (ast_value->IsSmi()) {
-    return LoadLiteral(ast_value->AsSmi());
-  } else if (ast_value->IsUndefined()) {
-    return LoadUndefined();
-  } else if (ast_value->IsTrue()) {
-    return LoadTrue();
-  } else if (ast_value->IsFalse()) {
-    return LoadFalse();
-  } else if (ast_value->IsNull()) {
-    return LoadNull();
-  } else if (ast_value->IsTheHole()) {
-    return LoadTheHole();
-  } else if (ast_value->IsString()) {
-    return LoadLiteral(ast_value->AsString());
-  } else if (ast_value->IsHeapNumber() || ast_value->IsBigInt()) {
+  DCHECK(ast_value->IsHeapNumber() || ast_value->IsBigInt() ||
+         ast_value->IsSymbol());
+  if (ast_value->IsHeapNumber() || ast_value->IsBigInt()) {
     size_t entry = GetConstantPoolEntry(ast_value);
     OutputLdaConstant(entry);
     return *this;

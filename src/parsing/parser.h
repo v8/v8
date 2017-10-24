@@ -685,8 +685,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     ExpressionStatement* e_stat = statement->AsExpressionStatement();
     if (e_stat == nullptr) return false;
     Literal* literal = e_stat->expression()->AsLiteral();
-    if (literal == nullptr || !literal->raw_value()->IsString()) return false;
-    return arg == nullptr || literal->raw_value()->AsString() == arg;
+    if (literal == nullptr || !literal->IsString()) return false;
+    return arg == nullptr || literal->AsRawString() == arg;
   }
 
   V8_INLINE void GetDefaultStrings(

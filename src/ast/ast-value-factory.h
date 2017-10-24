@@ -209,12 +209,6 @@ class AstValue : public ZoneObject {
     return Smi::FromInt(smi_);
   }
 
-  bool ToUint32(uint32_t* value) const;
-
-  bool EqualsString(const AstRawString* string) const {
-    return type_ == STRING && string_ == string;
-  }
-
   bool IsPropertyName() const;
 
   V8_EXPORT_PRIVATE bool BooleanValue() const;

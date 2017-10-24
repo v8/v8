@@ -179,19 +179,6 @@ AstValue::AstValue(double n) : next_(nullptr) {
   }
 }
 
-bool AstValue::ToUint32(uint32_t* value) const {
-  if (IsSmi()) {
-    int num = smi_;
-    if (num < 0) return false;
-    *value = static_cast<uint32_t>(num);
-    return true;
-  }
-  if (IsHeapNumber()) {
-    return DoubleToUint32IfEqualToSelf(number_, value);
-  }
-  return false;
-}
-
 bool AstValue::IsPropertyName() const {
   if (type_ == STRING) {
     uint32_t index;

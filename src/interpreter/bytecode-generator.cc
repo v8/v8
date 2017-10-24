@@ -1967,9 +1967,25 @@ void BytecodeGenerator::VisitConditional(Conditional* expr) {
 
 void BytecodeGenerator::VisitLiteral(Literal* expr) {
   if (!execution_result()->IsEffect()) {
-    const AstValue* raw_value = expr->raw_value();
-    builder()->LoadLiteral(raw_value);
-    if (raw_value->IsTrue() || raw_value->IsFalse()) {
+    if (expr->IsSmi()) {
+      builder()->LoadLiteral(expr->AsSmiLiteral());
+    } else if (expr->IsUndefined()) {
+      builder()->LoadUndefined();
+    } else if (expr->IsTrue()) {
+      builder()->LoadTrue();
+    } else if (expr->IsFalse()) {
+      builder()->LoadFalse();
+    } else if (expr->IsNull()) {
+      builder()->LoadNull();
+    } else if (expr->IsTheHole()) {
+      builder()->LoadTheHole();
+    } else if (expr->IsString()) {
+      builder()->LoadLiteral(expr->AsRawString());
+    } else {
+      // TODO(adamk): Get rid of this case.
+      builder()->LoadLiteral(expr->raw_value());
+    }
+    if (expr->IsTrue() || expr->IsFalse()) {
       execution_result()->SetResultIsBoolean();
     }
   }

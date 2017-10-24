@@ -90,15 +90,15 @@ MaterializedLiteral* AstNode::AsMaterializedLiteral() {
 #undef RETURN_NODE
 
 bool Expression::IsSmiLiteral() const {
-  return IsLiteral() && AsLiteral()->raw_value()->IsSmi();
+  return IsLiteral() && AsLiteral()->IsSmi();
 }
 
 bool Expression::IsNumberLiteral() const {
-  return IsLiteral() && AsLiteral()->raw_value()->IsNumber();
+  return IsLiteral() && AsLiteral()->IsNumber();
 }
 
 bool Expression::IsStringLiteral() const {
-  return IsLiteral() && AsLiteral()->raw_value()->IsString();
+  return IsLiteral() && AsLiteral()->IsString();
 }
 
 bool Expression::IsPropertyName() const {
@@ -106,12 +106,15 @@ bool Expression::IsPropertyName() const {
 }
 
 bool Expression::IsNullLiteral() const {
-  if (!IsLiteral()) return false;
-  return AsLiteral()->raw_value()->IsNull();
+  return IsLiteral() && AsLiteral()->IsNull();
+}
+
+bool Expression::IsTheHoleLiteral() const {
+  return IsLiteral() && AsLiteral()->IsTheHole();
 }
 
 bool Expression::IsUndefinedLiteral() const {
-  if (IsLiteral() && AsLiteral()->raw_value()->IsUndefined()) return true;
+  if (IsLiteral() && AsLiteral()->IsUndefined()) return true;
 
   const VariableProxy* var_proxy = AsVariableProxy();
   if (var_proxy == nullptr) return false;
@@ -255,9 +258,8 @@ ObjectLiteralProperty::ObjectLiteralProperty(AstValueFactory* ast_value_factory,
                                              Expression* key, Expression* value,
                                              bool is_computed_name)
     : LiteralProperty(key, value, is_computed_name), emit_store_(true) {
-  if (!is_computed_name &&
-      key->AsLiteral()->raw_value()->EqualsString(
-          ast_value_factory->proto_string())) {
+  if (!is_computed_name && key->AsLiteral()->IsString() &&
+      key->AsLiteral()->AsRawString() == ast_value_factory->proto_string()) {
     kind_ = PROTOTYPE;
   } else if (value_->AsMaterializedLiteral() != nullptr) {
     kind_ = MATERIALIZED_LITERAL;
@@ -373,7 +375,7 @@ int ObjectLiteral::InitDepthAndFlags() {
       needs_initial_allocation_site |= literal->NeedsInitialAllocationSite();
     }
 
-    const AstValue* key = property->key()->AsLiteral()->raw_value();
+    Literal* key = property->key()->AsLiteral();
     Expression* value = property->value();
 
     bool is_compile_time_value = CompileTimeValue::IsCompileTimeValue(value);
@@ -384,10 +386,10 @@ int ObjectLiteral::InitDepthAndFlags() {
     // much larger than the number of elements, creating an object
     // literal with fast elements will be a waste of space.
     uint32_t element_index = 0;
-    if (key->IsString() && key->AsString()->AsArrayIndex(&element_index)) {
+    if (key->IsString() && key->AsRawString()->AsArrayIndex(&element_index)) {
       max_element_index = Max(element_index, max_element_index);
       elements++;
-    } else if (key->ToUint32(&element_index) && element_index != kMaxUInt32) {
+    } else if (key->ToArrayIndex(&element_index)) {
       max_element_index = Max(element_index, max_element_index);
       elements++;
     }
@@ -785,17 +787,33 @@ Call::CallType Call::GetCallType() const {
 CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements)
     : label_(label), statements_(statements) {}
 
+bool Literal::ToUint32(uint32_t* value) const {
+  if (IsSmi()) {
+    int num = AsSmiLiteral()->value();
+    if (num < 0) return false;
+    *value = static_cast<uint32_t>(num);
+    return true;
+  }
+  if (IsNumber()) {
+    return DoubleToUint32IfEqualToSelf(AsNumber(), value);
+  }
+  return false;
+}
+
+bool Literal::ToArrayIndex(uint32_t* value) const {
+  return ToUint32(value) && *value != kMaxUInt32;
+}
+
 uint32_t Literal::Hash() {
-  return raw_value()->IsString()
-             ? raw_value()->AsString()->Hash()
-             : ComputeLongHash(double_to_uint64(raw_value()->AsNumber()));
+  return IsString() ? AsRawString()->Hash()
+                    : ComputeLongHash(double_to_uint64(AsNumber()));
 }
 
 
 // static
 bool Literal::Match(void* literal1, void* literal2) {
-  const AstValue* x = static_cast<Literal*>(literal1)->raw_value();
-  const AstValue* y = static_cast<Literal*>(literal2)->raw_value();
+  const AstValue* x = static_cast<Literal*>(literal1)->value_;
+  const AstValue* y = static_cast<Literal*>(literal2)->value_;
   return (x->IsString() && y->IsString() && x->AsString() == y->AsString()) ||
          (x->IsNumber() && y->IsNumber() && x->AsNumber() == y->AsNumber());
 }

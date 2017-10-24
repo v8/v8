@@ -57,8 +57,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreAccumulatorInRegister(reg)
       .LoadLiteral(Smi::FromInt(10000000))
       .StoreAccumulatorInRegister(reg)
-      .LoadLiteral(
-          ast_factory.NewString(ast_factory.GetOneByteString("A constant")))
+      .LoadLiteral(ast_factory.GetOneByteString("A constant"))
       .StoreAccumulatorInRegister(reg)
       .LoadUndefined()
       .StoreAccumulatorInRegister(reg)
@@ -517,10 +516,9 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
 
   const AstValue* heap_num_1 = ast_factory.NewNumber(3.14);
   const AstValue* heap_num_2 = ast_factory.NewNumber(5.2);
-  const AstValue* string =
-      ast_factory.NewString(ast_factory.GetOneByteString("foo"));
-  const AstValue* string_copy =
-      ast_factory.NewString(ast_factory.GetOneByteString("foo"));
+  const AstValue* heap_num_2_copy = ast_factory.NewNumber(5.2);
+  const AstRawString* string = ast_factory.GetOneByteString("foo");
+  const AstRawString* string_copy = ast_factory.GetOneByteString("foo");
 
   builder.LoadLiteral(heap_num_1)
       .LoadLiteral(heap_num_2)
@@ -528,12 +526,13 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
       .LoadLiteral(heap_num_1)
       .LoadLiteral(heap_num_1)
       .LoadLiteral(string_copy)
+      .LoadLiteral(heap_num_2_copy)
       .Return();
 
   ast_factory.Internalize(isolate());
   Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
-  // Should only have one entry for each identical constant.
-  CHECK_EQ(array->constant_pool()->length(), 3);
+  // Should only have one entry for each identical string constant.
+  EXPECT_EQ(4, array->constant_pool()->length());
 }
 
 TEST_F(BytecodeArrayBuilderTest, ForwardJumps) {

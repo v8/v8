@@ -390,6 +390,27 @@ TEST(InterpreterBinaryOpsHeapNumber) {
   }
 }
 
+namespace {
+// Follows the same logic as BytecodeGraphBuilder::VisitLiteral().
+void LoadLiteralForTest(BytecodeArrayBuilder* builder, const AstValue* value) {
+  if (value->IsString()) {
+    builder->LoadLiteral(value->AsString());
+  } else if (value->IsSmi()) {
+    builder->LoadLiteral(value->AsSmi());
+  } else if (value->IsUndefined()) {
+    builder->LoadUndefined();
+  } else if (value->IsNull()) {
+    builder->LoadNull();
+  } else if (value->IsTrue()) {
+    builder->LoadTrue();
+  } else if (value->IsFalse()) {
+    builder->LoadFalse();
+  } else {
+    builder->LoadLiteral(value);
+  }
+}
+}  // namespace
+
 TEST(InterpreterStringAdd) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
@@ -442,11 +463,9 @@ TEST(InterpreterStringAdd) {
         NewFeedbackMetadata(isolate, &feedback_spec);
 
     Register reg(0);
-    builder.LoadLiteral(test_cases[i].lhs)
-        .StoreAccumulatorInRegister(reg)
-        .LoadLiteral(test_cases[i].rhs)
-        .BinaryOperation(Token::Value::ADD, reg, GetIndex(slot))
-        .Return();
+    builder.LoadLiteral(test_cases[i].lhs).StoreAccumulatorInRegister(reg);
+    LoadLiteralForTest(&builder, test_cases[i].rhs);
+    builder.BinaryOperation(Token::Value::ADD, reg, GetIndex(slot)).Return();
     ast_factory.Internalize(isolate);
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -659,11 +678,10 @@ TEST(InterpreterBinaryOpTypeFeedback) {
         i::NewFeedbackMetadata(isolate, &feedback_spec);
 
     Register reg(0);
-    builder.LoadLiteral(test_case.arg1)
-        .StoreAccumulatorInRegister(reg)
-        .LoadLiteral(test_case.arg2)
-        .BinaryOperation(test_case.op, reg, GetIndex(slot0))
-        .Return();
+    LoadLiteralForTest(&builder, test_case.arg1);
+    builder.StoreAccumulatorInRegister(reg);
+    LoadLiteralForTest(&builder, test_case.arg2);
+    builder.BinaryOperation(test_case.op, reg, GetIndex(slot0)).Return();
 
     ast_factory.Internalize(isolate);
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -772,8 +790,8 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
         i::NewFeedbackMetadata(isolate, &feedback_spec);
 
     Register reg(0);
-    builder.LoadLiteral(test_case.arg1)
-        .StoreAccumulatorInRegister(reg)
+    LoadLiteralForTest(&builder, test_case.arg1);
+    builder.StoreAccumulatorInRegister(reg)
         .LoadLiteral(Smi::FromInt(test_case.arg2))
         .BinaryOperation(test_case.op, reg, GetIndex(slot0))
         .Return();
@@ -1359,25 +1377,25 @@ TEST(InterpreterCall) {
         .StoreAccumulatorInRegister(reg)
         .LoadAccumulatorWithRegister(builder.Receiver())
         .StoreAccumulatorInRegister(args[0])
-        .LoadLiteral(ast_factory.NewString(ast_factory.GetOneByteString("a")))
+        .LoadLiteral(ast_factory.GetOneByteString("a"))
         .StoreAccumulatorInRegister(args[1])
-        .LoadLiteral(ast_factory.NewString(ast_factory.GetOneByteString("b")))
+        .LoadLiteral(ast_factory.GetOneByteString("b"))
         .StoreAccumulatorInRegister(args[2])
-        .LoadLiteral(ast_factory.NewString(ast_factory.GetOneByteString("c")))
+        .LoadLiteral(ast_factory.GetOneByteString("c"))
         .StoreAccumulatorInRegister(args[3])
-        .LoadLiteral(ast_factory.NewString(ast_factory.GetOneByteString("d")))
+        .LoadLiteral(ast_factory.GetOneByteString("d"))
         .StoreAccumulatorInRegister(args[4])
-        .LoadLiteral(ast_factory.NewString(ast_factory.GetOneByteString("e")))
+        .LoadLiteral(ast_factory.GetOneByteString("e"))
         .StoreAccumulatorInRegister(args[5])
-        .LoadLiteral(ast_factory.NewString(ast_factory.GetOneByteString("f")))
+        .LoadLiteral(ast_factory.GetOneByteString("f"))
         .StoreAccumulatorInRegister(args[6])
-        .LoadLiteral(ast_factory.NewString(ast_factory.GetOneByteString("g")))
+        .LoadLiteral(ast_factory.GetOneByteString("g"))
         .StoreAccumulatorInRegister(args[7])
-        .LoadLiteral(ast_factory.NewString(ast_factory.GetOneByteString("h")))
+        .LoadLiteral(ast_factory.GetOneByteString("h"))
         .StoreAccumulatorInRegister(args[8])
-        .LoadLiteral(ast_factory.NewString(ast_factory.GetOneByteString("i")))
+        .LoadLiteral(ast_factory.GetOneByteString("i"))
         .StoreAccumulatorInRegister(args[9])
-        .LoadLiteral(ast_factory.NewString(ast_factory.GetOneByteString("j")))
+        .LoadLiteral(ast_factory.GetOneByteString("j"))
         .StoreAccumulatorInRegister(args[10]);
 
     builder.CallProperty(reg, args, call_slot_index);
@@ -1854,9 +1872,9 @@ static void LoadStringAndAddSpace(BytecodeArrayBuilder* builder,
   Register string_reg = builder->register_allocator()->NewRegister();
 
   (*builder)
-      .LoadLiteral(ast_factory->NewString(ast_factory->GetOneByteString(cstr)))
+      .LoadLiteral(ast_factory->GetOneByteString(cstr))
       .StoreAccumulatorInRegister(string_reg)
-      .LoadLiteral(ast_factory->NewString(ast_factory->GetOneByteString(" ")))
+      .LoadLiteral(ast_factory->GetOneByteString(" "))
       .BinaryOperation(Token::Value::ADD, string_reg,
                        GetIndex(string_add_slot));
 }
@@ -1913,8 +1931,7 @@ TEST(InterpreterMixedComparisons) {
 
               if (string_type == kInternalizedStringConstant) {
                 // rhs string is internalized.
-                builder.LoadLiteral(ast_factory.NewString(
-                    ast_factory.GetOneByteString(rhs_cstr)));
+                builder.LoadLiteral(ast_factory.GetOneByteString(rhs_cstr));
               } else {
                 CHECK_EQ(string_type, kComputedString);
                 // rhs string is not internalized (append a space to the end).
@@ -1928,8 +1945,7 @@ TEST(InterpreterMixedComparisons) {
 
               if (string_type == kInternalizedStringConstant) {
                 // lhs string is internalized
-                builder.LoadLiteral(ast_factory.NewString(
-                    ast_factory.GetOneByteString(lhs_cstr)));
+                builder.LoadLiteral(ast_factory.GetOneByteString(lhs_cstr));
               } else {
                 CHECK_EQ(string_type, kComputedString);
                 // lhs string is not internalized (append a space to the end).
@@ -2211,9 +2227,8 @@ TEST(InterpreterUnaryNotNonBoolean) {
     BytecodeArrayBuilder builder(isolate, zone, 1, 0);
 
     Register r0(0);
-    builder.LoadLiteral(object_type_tuples[i].first);
-    builder.LogicalNot(ToBooleanMode::kConvertToBoolean);
-    builder.Return();
+    LoadLiteralForTest(&builder, object_type_tuples[i].first);
+    builder.LogicalNot(ToBooleanMode::kConvertToBoolean).Return();
     ast_factory.Internalize(isolate);
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
     InterpreterTester tester(isolate, bytecode_array);

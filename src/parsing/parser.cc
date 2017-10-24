@@ -245,10 +245,9 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
 bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
                                                     Expression* y,
                                                     Token::Value op, int pos) {
-  if ((*x)->AsLiteral() && (*x)->AsLiteral()->raw_value()->IsNumber() &&
-      y->AsLiteral() && y->AsLiteral()->raw_value()->IsNumber()) {
-    double x_val = (*x)->AsLiteral()->raw_value()->AsNumber();
-    double y_val = y->AsLiteral()->raw_value()->AsNumber();
+  if ((*x)->IsNumberLiteral() && y->IsNumberLiteral()) {
+    double x_val = (*x)->AsLiteral()->AsNumber();
+    double y_val = y->AsLiteral()->AsNumber();
     switch (op) {
       case Token::ADD:
         *x = factory()->NewNumberLiteral(x_val + y_val, pos);
@@ -311,13 +310,12 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
 Expression* Parser::BuildUnaryExpression(Expression* expression,
                                          Token::Value op, int pos) {
   DCHECK_NOT_NULL(expression);
-  if (expression->IsLiteral()) {
-    const AstValue* literal = expression->AsLiteral()->raw_value();
+  const Literal* literal = expression->AsLiteral();
+  if (literal != nullptr) {
     if (op == Token::NOT) {
       // Convert the literal to a boolean condition and negate it.
-      bool condition = literal->BooleanValue();
-      return factory()->NewBooleanLiteral(!condition, pos);
-    } else if (literal->IsNumber()) {
+      return factory()->NewBooleanLiteral(literal->ToBooleanIsFalse(), pos);
+    } else if (literal->IsNumberLiteral()) {
       // Compute some expressions involving only number literals.
       double value = literal->AsNumber();
       switch (op) {
@@ -3548,7 +3546,7 @@ int32_t Parser::ComputeTemplateLiteralHash(const TemplateLiteral* lit) {
     }
 
     const AstRawString* raw_string =
-        raw_strings->at(index)->AsLiteral()->raw_value()->AsString();
+        raw_strings->at(index)->AsLiteral()->AsRawString();
     if (raw_string->is_one_byte()) {
       const char* data = reinterpret_cast<const char*>(raw_string->raw_data());
       running_hash = StringHasher::ComputeRunningHashOneByte(
@@ -3912,8 +3910,7 @@ Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
       // %AppendElement($R, value)
       // or, in case of a hole,
       // ++($R.length)
-      if (!value->IsLiteral() ||
-          !value->AsLiteral()->raw_value()->IsTheHole()) {
+      if (!value->IsTheHoleLiteral()) {
         ZoneList<Expression*>* append_element_args = NewExpressionList(2);
         append_element_args->Add(factory()->NewVariableProxy(result), zone());
         append_element_args->Add(value, zone());

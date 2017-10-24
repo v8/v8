@@ -228,6 +228,9 @@ class Expression : public AstNode {
   // True iff the expression is the null literal.
   bool IsNullLiteral() const;
 
+  // True iff the expression is the hole literal.
+  bool IsTheHoleLiteral() const;
+
   // True if we can prove that the expression is the undefined literal. Note
   // that this also checks for loads of the global "undefined" variable.
   bool IsUndefinedLiteral() const;
@@ -992,13 +995,36 @@ class Literal final : public Expression {
     return value_->AsString();
   }
 
-  Smi* AsSmiLiteral() {
-    DCHECK(IsSmiLiteral());
-    return raw_value()->AsSmi();
+  bool IsSmi() const { return value_->IsSmi(); }
+  Smi* AsSmiLiteral() const {
+    DCHECK(IsSmi());
+    return value_->AsSmi();
   }
 
-  bool ToBooleanIsTrue() const { return raw_value()->BooleanValue(); }
-  bool ToBooleanIsFalse() const { return !raw_value()->BooleanValue(); }
+  bool IsNumber() const { return value_->IsNumber(); }
+  double AsNumber() const {
+    DCHECK(IsNumber());
+    return value_->AsNumber();
+  }
+
+  bool IsString() const { return value_->IsString(); }
+  const AstRawString* AsRawString() {
+    DCHECK(IsString());
+    return value_->AsString();
+  }
+
+  bool IsNull() const { return value_->IsNull(); }
+  bool IsUndefined() const { return value_->IsUndefined(); }
+  bool IsTheHole() const { return value_->IsTheHole(); }
+
+  bool IsTrue() const { return value_->IsTrue(); }
+  bool IsFalse() const { return value_->IsFalse(); }
+
+  bool ToBooleanIsTrue() const { return value_->BooleanValue(); }
+  bool ToBooleanIsFalse() const { return !value_->BooleanValue(); }
+
+  bool ToUint32(uint32_t* value) const;
+  bool ToArrayIndex(uint32_t* value) const;
 
   Handle<Object> value() const { return value_->value(); }
   const AstValue* raw_value() const { return value_; }

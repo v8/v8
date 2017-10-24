@@ -539,7 +539,7 @@ void PatternRewriter::VisitArrayLiteral(ArrayLiteral* node,
     }
     block_->statements()->Add(if_not_done, zone());
 
-    if (!(value->IsLiteral() && value->AsLiteral()->raw_value()->IsTheHole())) {
+    if (!value->IsTheHoleLiteral()) {
       {
         // completion = kAbruptCompletion;
         Expression* proxy = factory()->NewVariableProxy(completion);
