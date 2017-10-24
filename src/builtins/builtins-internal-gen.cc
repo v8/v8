@@ -235,10 +235,11 @@ class RecordWriteCodeStubAssembler : public CodeStubAssembler {
     Node* cell;
     Node* mask;
     GetMarkBit(object, &cell, &mask);
+    mask = TruncateWordToWord32(mask);
     // Non-white has 1 for the first bit, so we only need to check for the first
     // bit.
-    return WordEqual(WordAnd(Load(MachineType::Pointer(), cell), mask),
-                     IntPtrConstant(0));
+    return Word32Equal(Word32And(Load(MachineType::Int32(), cell), mask),
+                       Int32Constant(0));
   }
 
   void GetMarkBit(Node* object, Node** cell, Node** mask) {
