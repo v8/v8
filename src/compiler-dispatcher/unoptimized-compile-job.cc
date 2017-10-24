@@ -319,7 +319,8 @@ void UnoptimizedCompileJob::FinalizeParsingOnMainThread(Isolate* isolate) {
   }
 
   if (parse_info_->literal() == nullptr) {
-    parser_->ReportErrors(isolate, script);
+    parse_info_->pending_error_handler()->ReportErrors(
+        isolate, script, parse_info_->ast_value_factory());
     status_ = Status::kFailed;
   } else {
     parse_info_->literal()->scope()->AttachOuterScopeInfo(parse_info_.get(),

@@ -14,6 +14,19 @@
 namespace v8 {
 namespace internal {
 
+void PendingCompilationErrorHandler::ReportErrors(
+    Isolate* isolate, Handle<Script> script,
+    AstValueFactory* ast_value_factory) {
+  if (stack_overflow()) {
+    isolate->StackOverflow();
+  } else {
+    DCHECK(has_pending_error());
+    // Internalize ast values for throwing the pending error.
+    ast_value_factory->Internalize(isolate);
+    ThrowPendingError(isolate, script);
+  }
+}
+
 Handle<String> PendingCompilationErrorHandler::ArgumentString(
     Isolate* isolate) {
   if (arg_ != nullptr) return arg_->string();

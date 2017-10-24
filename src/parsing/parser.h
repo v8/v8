@@ -17,7 +17,6 @@
 #include "src/parsing/preparse-data-format.h"
 #include "src/parsing/preparse-data.h"
 #include "src/parsing/preparser.h"
-#include "src/pending-compilation-error-handler.h"
 #include "src/utils.h"
 
 namespace v8 {
@@ -31,6 +30,7 @@ class ParseInfo;
 class ScriptData;
 class ParserTarget;
 class ParserTargetScope;
+class PendingCompilationErrorHandler;
 class PreParsedScopeData;
 
 class FunctionEntry BASE_EMBEDDED {
@@ -210,8 +210,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void DeserializeScopeChain(ParseInfo* info,
                              MaybeHandle<ScopeInfo> maybe_outer_scope_info);
 
-  // Handle errors detected during parsing
-  void ReportErrors(Isolate* isolate, Handle<Script> script);
   // Move statistics to Isolate
   void UpdateStatistics(Isolate* isolate, Handle<Script> script);
   void HandleSourceURLComments(Isolate* isolate, Handle<Script> script);
@@ -286,7 +284,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (reusable_preparser_ == nullptr) {
       reusable_preparser_ =
           new PreParser(zone(), &scanner_, stack_limit_, ast_value_factory(),
-                        &pending_error_handler_, runtime_call_stats_,
+                        pending_error_handler(), runtime_call_stats_,
                         parsing_module_, parsing_on_main_thread_);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
       SET_ALLOW(natives);
@@ -807,9 +805,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       // and we want to report the stack overflow later.
       return;
     }
-    pending_error_handler_.ReportMessageAt(source_location.beg_pos,
-                                           source_location.end_pos, message,
-                                           arg, error_type);
+    pending_error_handler()->ReportMessageAt(source_location.beg_pos,
+                                             source_location.end_pos, message,
+                                             arg, error_type);
   }
 
   V8_INLINE void ReportMessageAt(Scanner::Location source_location,
@@ -823,9 +821,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       // and we want to report the stack overflow later.
       return;
     }
-    pending_error_handler_.ReportMessageAt(source_location.beg_pos,
-                                           source_location.end_pos, message,
-                                           arg, error_type);
+    pending_error_handler()->ReportMessageAt(source_location.beg_pos,
+                                             source_location.end_pos, message,
+                                             arg, error_type);
   }
 
   // "null" return type creators.
@@ -1106,8 +1104,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   ScriptCompiler::CompileOptions compile_options_;
   ParseData* cached_parse_data_;
-
-  PendingCompilationErrorHandler pending_error_handler_;
 
   // Other information which will be stored in Parser and moved to Isolate after
   // parsing.

@@ -252,6 +252,7 @@ class ParserBase {
   ParserBase(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
              v8::Extension* extension, AstValueFactory* ast_value_factory,
              RuntimeCallStats* runtime_call_stats, bool parsing_module,
+             PendingCompilationErrorHandler* pending_error_handler,
              bool parsing_on_main_thread = true)
       : scope_(nullptr),
         original_scope_(nullptr),
@@ -264,10 +265,10 @@ class ParserBase {
         parsing_on_main_thread_(parsing_on_main_thread),
         parsing_module_(parsing_module),
         stack_limit_(stack_limit),
+        pending_error_handler_(pending_error_handler),
         zone_(zone),
         classifier_(nullptr),
         scanner_(scanner),
-        stack_overflow_(false),
         default_eager_compile_hint_(FunctionLiteral::kShouldLazyCompile),
         function_literal_id_(0),
         allow_natives_(false),
@@ -646,11 +647,13 @@ class ParserBase {
   AstValueFactory* ast_value_factory() const { return ast_value_factory_; }
   int position() const { return scanner_->location().beg_pos; }
   int peek_position() const { return scanner_->peek_location().beg_pos; }
-  bool stack_overflow() const { return stack_overflow_; }
-  void set_stack_overflow() { stack_overflow_ = true; }
+  bool stack_overflow() const {
+    return pending_error_handler()->stack_overflow();
+  }
+  void set_stack_overflow() { pending_error_handler()->set_stack_overflow(); }
 
   INLINE(Token::Value peek()) {
-    if (stack_overflow_) return Token::ILLEGAL;
+    if (stack_overflow()) return Token::ILLEGAL;
     return scanner()->peek();
   }
 
@@ -662,18 +665,18 @@ class ParserBase {
   }
 
   INLINE(Token::Value PeekAhead()) {
-    if (stack_overflow_) return Token::ILLEGAL;
+    if (stack_overflow()) return Token::ILLEGAL;
     return scanner()->PeekAhead();
   }
 
   INLINE(Token::Value Next()) {
-    if (stack_overflow_) return Token::ILLEGAL;
+    if (stack_overflow()) return Token::ILLEGAL;
     {
       if (GetCurrentStackPosition() < stack_limit_) {
         // Any further calls to Next or peek will return the illegal token.
         // The current call must return the next token, which might already
         // have been peek'ed.
-        stack_overflow_ = true;
+        set_stack_overflow();
       }
     }
     return scanner()->Next();
@@ -883,6 +886,13 @@ class ParserBase {
   }
   bool is_resumable() const {
     return IsResumableFunction(function_state_->kind());
+  }
+
+  const PendingCompilationErrorHandler* pending_error_handler() const {
+    return pending_error_handler_;
+  }
+  PendingCompilationErrorHandler* pending_error_handler() {
+    return pending_error_handler_;
   }
 
   // Report syntax errors.
@@ -1493,6 +1503,7 @@ class ParserBase {
   bool parsing_on_main_thread_;
   const bool parsing_module_;
   uintptr_t stack_limit_;
+  PendingCompilationErrorHandler* pending_error_handler_;
 
   // Parser base's private field members.
 
@@ -1501,7 +1512,6 @@ class ParserBase {
   ExpressionClassifier* classifier_;
 
   Scanner* scanner_;
-  bool stack_overflow_;
 
   FunctionLiteral::EagerCompileHint default_eager_compile_hint_;
 

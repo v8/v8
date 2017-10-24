@@ -884,10 +884,10 @@ class PreParser : public ParserBase<PreParser> {
             bool parsing_on_main_thread = true)
       : ParserBase<PreParser>(zone, scanner, stack_limit, nullptr,
                               ast_value_factory, runtime_call_stats,
-                              parsing_module, parsing_on_main_thread),
+                              parsing_module, pending_error_handler,
+                              parsing_on_main_thread),
         use_counts_(nullptr),
         track_unresolved_variables_(false),
-        pending_error_handler_(pending_error_handler),
         produced_preparsed_scope_data_(nullptr) {}
 
   static bool IsPreParser() { return true; }
@@ -939,6 +939,10 @@ class PreParser : public ParserBase<PreParser> {
   // just stay where we are.
   bool AllowsLazyParsingWithoutUnresolvedVariables() const { return false; }
   bool parse_lazily() const { return false; }
+
+  PendingCompilationErrorHandler* pending_error_handler() {
+    return pending_error_handler_;
+  }
 
   V8_INLINE LazyParsingResult
   SkipFunction(const AstRawString* name, FunctionKind kind,
@@ -1411,9 +1415,9 @@ class PreParser : public ParserBase<PreParser> {
                                  MessageTemplate::Template message,
                                  const char* arg = nullptr,
                                  ParseErrorType error_type = kSyntaxError) {
-    pending_error_handler_->ReportMessageAt(source_location.beg_pos,
-                                            source_location.end_pos, message,
-                                            arg, error_type);
+    pending_error_handler()->ReportMessageAt(source_location.beg_pos,
+                                             source_location.end_pos, message,
+                                             arg, error_type);
   }
 
   V8_INLINE void ReportMessageAt(Scanner::Location source_location,
@@ -1671,7 +1675,6 @@ class PreParser : public ParserBase<PreParser> {
   int* use_counts_;
   bool track_unresolved_variables_;
   PreParserLogger log_;
-  PendingCompilationErrorHandler* pending_error_handler_;
 
   ProducedPreParsedScopeData* produced_preparsed_scope_data_;
 };

@@ -472,7 +472,8 @@ Expression* Parser::NewV8Intrinsic(const AstRawString* name,
 Parser::Parser(ParseInfo* info)
     : ParserBase<Parser>(info->zone(), &scanner_, info->stack_limit(),
                          info->extension(), info->GetOrCreateAstValueFactory(),
-                         info->runtime_call_stats(), info->is_module(), true),
+                         info->runtime_call_stats(), info->is_module(),
+                         info->pending_error_handler(), true),
       scanner_(info->unicode_cache(), use_counts_),
       reusable_preparser_(nullptr),
       mode_(PARSE_EAGERLY),  // Lazy mode must be set explicitly.
@@ -667,9 +668,8 @@ FunctionLiteral* Parser::DoParseProgram(ParseInfo* info) {
           zone());
 
       ParseModuleItemList(body, &ok);
-      ok = ok &&
-           module()->Validate(this->scope()->AsModuleScope(),
-                              &pending_error_handler_, zone());
+      ok = ok && module()->Validate(this->scope()->AsModuleScope(),
+                                    pending_error_handler(), zone());
     } else {
       // Don't count the mode in the use counters--give the program a chance
       // to enable script-wide strict mode below.
@@ -2785,7 +2785,7 @@ Parser::LazyParsingResult Parser::SkipFunction(
     *ok = false;
     return kLazyParsingComplete;
   }
-  if (pending_error_handler_.has_pending_error()) {
+  if (pending_error_handler()->has_pending_error()) {
     *ok = false;
     return kLazyParsingComplete;
   }
@@ -3371,17 +3371,6 @@ void Parser::HandleSourceURLComments(Isolate* isolate, Handle<Script> script) {
   Handle<String> source_mapping_url = scanner_.SourceMappingUrl(isolate);
   if (!source_mapping_url.is_null()) {
     script->set_source_mapping_url(*source_mapping_url);
-  }
-}
-
-void Parser::ReportErrors(Isolate* isolate, Handle<Script> script) {
-  if (stack_overflow()) {
-    isolate->StackOverflow();
-  } else {
-    DCHECK(pending_error_handler_.has_pending_error());
-    // Internalize ast values for throwing the pending error.
-    ast_value_factory()->Internalize(isolate);
-    pending_error_handler_.ThrowPendingError(isolate, script);
   }
 }
 

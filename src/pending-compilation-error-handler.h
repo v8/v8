@@ -14,6 +14,7 @@ namespace v8 {
 namespace internal {
 
 class AstRawString;
+class AstValueFactory;
 class Isolate;
 class Script;
 
@@ -23,6 +24,7 @@ class PendingCompilationErrorHandler {
  public:
   PendingCompilationErrorHandler()
       : has_pending_error_(false),
+        stack_overflow_(false),
         start_position_(-1),
         end_position_(-1),
         message_(MessageTemplate::kNone),
@@ -58,15 +60,27 @@ class PendingCompilationErrorHandler {
     error_type_ = error_type;
   }
 
+  bool stack_overflow() const { return stack_overflow_; }
+
+  void set_stack_overflow() {
+    has_pending_error_ = true;
+    stack_overflow_ = true;
+  }
+
   bool has_pending_error() const { return has_pending_error_; }
 
-  void ThrowPendingError(Isolate* isolate, Handle<Script> script);
+  // Handle errors detected during parsing.
+  void ReportErrors(Isolate* isolate, Handle<Script> script,
+                    AstValueFactory* ast_value_factory);
+
   Handle<String> FormatMessage(Isolate* isolate);
 
  private:
+  void ThrowPendingError(Isolate* isolate, Handle<Script> script);
   Handle<String> ArgumentString(Isolate* isolate);
 
   bool has_pending_error_;
+  bool stack_overflow_;
   int start_position_;
   int end_position_;
   MessageTemplate::Template message_;

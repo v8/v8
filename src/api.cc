@@ -2614,7 +2614,8 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
 
   source->info->set_script(script);
   if (source->info->literal() == nullptr) {
-    source->parser->ReportErrors(isolate, script);
+    source->info->pending_error_handler()->ReportErrors(
+        isolate, script, source->info->ast_value_factory());
   }
   source->parser->UpdateStatistics(isolate, script);
   source->info->UpdateStatisticsAfterBackgroundParse(isolate);
