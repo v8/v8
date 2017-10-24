@@ -2390,14 +2390,14 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlock1) {
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
-  EXPECT_VERIFIES(i_ii, WASM_BLOCK_TT(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+  EXPECT_VERIFIES(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
                   kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_TT(f0, WASM_NOP), kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_TT(f0, WASM_GET_LOCAL(0)), kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_TT(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                                     WASM_GET_LOCAL(0)),
+  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_NOP), kExprI32Add);
+  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0)), kExprI32Add);
+  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                                    WASM_GET_LOCAL(0)),
                  kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_TT(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
                  kExprF32Add);
 }
 
@@ -2406,16 +2406,16 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlock2) {
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
-  EXPECT_VERIFIES(i_ii, WASM_BLOCK_TT(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+  EXPECT_VERIFIES(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
                   WASM_I32_ADD(WASM_NOP, WASM_NOP));
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_TT(f0, WASM_NOP),
+  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_NOP),
                  WASM_I32_ADD(WASM_NOP, WASM_NOP));
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_TT(f0, WASM_GET_LOCAL(0)),
+  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0)),
                  WASM_I32_ADD(WASM_NOP, WASM_NOP));
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_TT(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                                     WASM_GET_LOCAL(0)),
+  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                                    WASM_GET_LOCAL(0)),
                  WASM_I32_ADD(WASM_NOP, WASM_NOP));
-  EXPECT_FAILURE(i_ii, WASM_BLOCK_TT(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
                  WASM_F32_ADD(WASM_NOP, WASM_NOP));
 }
 
@@ -2424,10 +2424,10 @@ TEST_F(FunctionBodyDecoderTest, MultiValBlockBr) {
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
-  EXPECT_FAILURE(
-      i_ii, WASM_BLOCK_TT(f0, WASM_GET_LOCAL(0), WASM_BR(0)), kExprI32Add);
-  EXPECT_VERIFIES(i_ii, WASM_BLOCK_TT(f0, WASM_GET_LOCAL(0),
-                                      WASM_GET_LOCAL(1), WASM_BR(0)),
+  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0), WASM_BR(0)),
+                 kExprI32Add);
+  EXPECT_VERIFIES(i_ii, WASM_BLOCK_X(f0, WASM_GET_LOCAL(0),
+                                     WASM_GET_LOCAL(1), WASM_BR(0)),
                   kExprI32Add);
 }
 
@@ -2436,14 +2436,14 @@ TEST_F(FunctionBodyDecoderTest, MultiValLoop1) {
   TestModuleBuilder builder;
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
-  EXPECT_VERIFIES(i_ii, WASM_LOOP_TT(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+  EXPECT_VERIFIES(i_ii, WASM_LOOP_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
                   kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_LOOP_TT(f0, WASM_NOP), kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_LOOP_TT(f0, WASM_GET_LOCAL(0)), kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_LOOP_TT(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
-                                    WASM_GET_LOCAL(0)),
+  EXPECT_FAILURE(i_ii, WASM_LOOP_X(f0, WASM_NOP), kExprI32Add);
+  EXPECT_FAILURE(i_ii, WASM_LOOP_X(f0, WASM_GET_LOCAL(0)), kExprI32Add);
+  EXPECT_FAILURE(i_ii, WASM_LOOP_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                                   WASM_GET_LOCAL(0)),
                  kExprI32Add);
-  EXPECT_FAILURE(i_ii, WASM_LOOP_TT(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+  EXPECT_FAILURE(i_ii, WASM_LOOP_X(f0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
                  kExprF32Add);
 }
 
@@ -2453,61 +2453,161 @@ TEST_F(FunctionBodyDecoderTest, MultiValIf) {
   module = builder.module();
   byte f0 = builder.AddSignature(sigs.ii_v());
   EXPECT_VERIFIES(
-      i_ii, WASM_IF_ELSE_TT(f0, WASM_GET_LOCAL(0),
-                            WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                            WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
+      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                           WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
       kExprI32Add);
   EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_TT(f0, WASM_GET_LOCAL(0), WASM_NOP, WASM_NOP),
+      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0), WASM_NOP, WASM_NOP),
       kExprI32Add);
   EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_TT(f0, WASM_GET_LOCAL(0),
-                            WASM_NOP,
-                            WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
+      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                           WASM_NOP,
+                           WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
       kExprI32Add);
   EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_TT(f0, WASM_GET_LOCAL(0),
-                            WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                            WASM_NOP),
+      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                           WASM_NOP),
       kExprI32Add);
   EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_TT(f0, WASM_GET_LOCAL(0),
-                            WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                           WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
       kExprI32Add);
   EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_TT(f0, WASM_GET_LOCAL(0),
-                            WASM_GET_LOCAL(0),
-                            WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
+      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                           WASM_GET_LOCAL(0),
+                           WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
       kExprI32Add);
   EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_TT(f0, WASM_GET_LOCAL(0),
-                            WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                            WASM_GET_LOCAL(1)),
+      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                           WASM_GET_LOCAL(1)),
       kExprI32Add);
   EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_TT(f0, WASM_GET_LOCAL(0),
-                            WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
-                                     WASM_GET_LOCAL(0)),
-                            WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0),
-                                     WASM_GET_LOCAL(0))),
+      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
+                                    WASM_GET_LOCAL(0)),
+                           WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0),
+                                    WASM_GET_LOCAL(0))),
       kExprI32Add);
   EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_TT(f0, WASM_GET_LOCAL(0),
-                            WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
-                                     WASM_GET_LOCAL(0)),
-                            WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
+      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0),
+                                    WASM_GET_LOCAL(0)),
+                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1))),
       kExprI32Add);
   EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_TT(f0, WASM_GET_LOCAL(0),
-                            WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                            WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(1),
-                                     WASM_GET_LOCAL(1))),
+      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                           WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(1),
+                                    WASM_GET_LOCAL(1))),
       kExprI32Add);
   EXPECT_FAILURE(
-      i_ii, WASM_IF_ELSE_TT(f0, WASM_GET_LOCAL(0),
-                            WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                            WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
+      i_ii, WASM_IF_ELSE_X(f0, WASM_GET_LOCAL(0),
+                           WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                           WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
       kExprF32Add);
+}
+
+TEST_F(FunctionBodyDecoderTest, BlockParam) {
+  EXPERIMENTAL_FLAG_SCOPE(mv);
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte f1 = builder.AddSignature(sigs.i_i());
+  byte f2 = builder.AddSignature(sigs.i_ii());
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
+                  WASM_BLOCK_X(f1, WASM_GET_LOCAL(1),
+                               WASM_I32_ADD(WASM_NOP, WASM_NOP)));
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                  WASM_BLOCK_X(f2, WASM_I32_ADD(WASM_NOP, WASM_NOP)));
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                  WASM_BLOCK_X(f1, WASM_NOP),
+                  WASM_I32_ADD(WASM_NOP, WASM_NOP));
+  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f1, WASM_NOP),
+                 WASM_RETURN1(WASM_GET_LOCAL(0)));
+  EXPECT_FAILURE(i_ii, WASM_BLOCK_X(f1, WASM_GET_LOCAL(0)),
+                 WASM_RETURN1(WASM_GET_LOCAL(0)));
+  EXPECT_FAILURE(i_ii, WASM_GET_LOCAL(0),
+                 WASM_BLOCK_X(f2, WASM_I32_ADD(WASM_NOP, WASM_NOP)),
+                 WASM_RETURN1(WASM_GET_LOCAL(0)));
+  EXPECT_FAILURE(i_ii, WASM_GET_LOCAL(0),
+                 WASM_BLOCK_X(f1, WASM_F32_NEG(WASM_NOP)),
+                 WASM_RETURN1(WASM_GET_LOCAL(0)));
+}
+
+TEST_F(FunctionBodyDecoderTest, LoopParam) {
+  EXPERIMENTAL_FLAG_SCOPE(mv);
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte f1 = builder.AddSignature(sigs.i_i());
+  byte f2 = builder.AddSignature(sigs.i_ii());
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
+                  WASM_LOOP_X(f1, WASM_GET_LOCAL(1),
+                              WASM_I32_ADD(WASM_NOP, WASM_NOP)));
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                  WASM_LOOP_X(f2, WASM_I32_ADD(WASM_NOP, WASM_NOP)));
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                  WASM_LOOP_X(f1, WASM_NOP),
+                  WASM_I32_ADD(WASM_NOP, WASM_NOP));
+  EXPECT_FAILURE(i_ii, WASM_LOOP_X(f1, WASM_NOP),
+                 WASM_RETURN1(WASM_GET_LOCAL(0)));
+  EXPECT_FAILURE(i_ii, WASM_LOOP_X(f1, WASM_GET_LOCAL(0)),
+                 WASM_RETURN1(WASM_GET_LOCAL(0)));
+  EXPECT_FAILURE(i_ii, WASM_GET_LOCAL(0),
+                 WASM_LOOP_X(f2, WASM_I32_ADD(WASM_NOP, WASM_NOP)),
+                 WASM_RETURN1(WASM_GET_LOCAL(0)));
+  EXPECT_FAILURE(i_ii, WASM_GET_LOCAL(0),
+                 WASM_LOOP_X(f1, WASM_F32_NEG(WASM_NOP)),
+                 WASM_RETURN1(WASM_GET_LOCAL(0)));
+}
+
+TEST_F(FunctionBodyDecoderTest, LoopParamBr) {
+  EXPERIMENTAL_FLAG_SCOPE(mv);
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte f1 = builder.AddSignature(sigs.i_i());
+  byte f2 = builder.AddSignature(sigs.i_ii());
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
+                  WASM_LOOP_X(f1, WASM_BR(0)));
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
+                  WASM_LOOP_X(f1, WASM_BRV(0, WASM_GET_LOCAL(1))));
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                  WASM_LOOP_X(f2, WASM_BR(0)));
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
+                  WASM_LOOP_X(f1, WASM_BLOCK_X(f1, WASM_BR(1))));
+  EXPECT_FAILURE(i_ii, WASM_GET_LOCAL(0),
+                 WASM_LOOP_X(f1, WASM_BLOCK(WASM_BR(1))),
+                 WASM_RETURN1(WASM_GET_LOCAL(0)));
+  EXPECT_FAILURE(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                 WASM_LOOP_X(f2, WASM_BLOCK_X(f1, WASM_BR(1))),
+                 WASM_RETURN1(WASM_GET_LOCAL(0)));
+}
+
+TEST_F(FunctionBodyDecoderTest, IfParam) {
+  EXPERIMENTAL_FLAG_SCOPE(mv);
+  TestModuleBuilder builder;
+  module = builder.module();
+  byte f1 = builder.AddSignature(sigs.i_i());
+  byte f2 = builder.AddSignature(sigs.i_ii());
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
+                  WASM_IF_X(f1, WASM_GET_LOCAL(0),
+                            WASM_I32_ADD(WASM_NOP, WASM_GET_LOCAL(1))));
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0),
+                  WASM_IF_ELSE_X(f1, WASM_GET_LOCAL(0),
+                                 WASM_I32_ADD(WASM_NOP, WASM_GET_LOCAL(1)),
+                                 WASM_I32_EQZ(WASM_NOP)));
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                  WASM_IF_ELSE_X(f2, WASM_GET_LOCAL(0),
+                                 WASM_I32_ADD(WASM_NOP, WASM_NOP),
+                                 WASM_I32_MUL(WASM_NOP, WASM_NOP)));
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                  WASM_IF_X(f1, WASM_GET_LOCAL(0), WASM_NOP),
+                  WASM_I32_ADD(WASM_NOP, WASM_NOP));
+  EXPECT_VERIFIES(i_ii, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1),
+                  WASM_IF_ELSE_X(f1, WASM_GET_LOCAL(0),
+                                 WASM_NOP, WASM_I32_EQZ(WASM_NOP)),
+                  WASM_I32_ADD(WASM_NOP, WASM_NOP));
 }
 
 TEST_F(FunctionBodyDecoderTest, Regression709741) {

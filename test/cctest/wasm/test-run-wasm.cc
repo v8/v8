@@ -120,7 +120,7 @@ WASM_EXEC_TEST(Int32Add_P2) {
 WASM_EXEC_TEST(Int32Add_block1) {
   EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
-      WASM_BLOCK_TT(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+      WASM_BLOCK_X(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
       kExprI32Add};
   RunInt32AddTest(execution_mode, code, sizeof(code));
 }
@@ -128,7 +128,7 @@ WASM_EXEC_TEST(Int32Add_block1) {
 WASM_EXEC_TEST(Int32Add_block2) {
   EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
-      WASM_BLOCK_TT(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), kExprBr, DEPTH_0),
+      WASM_BLOCK_X(0, WASM_GET_LOCAL(0), WASM_GET_LOCAL(1), kExprBr, DEPTH_0),
       kExprI32Add};
   RunInt32AddTest(execution_mode, code, sizeof(code));
 }
@@ -136,9 +136,9 @@ WASM_EXEC_TEST(Int32Add_block2) {
 WASM_EXEC_TEST(Int32Add_multi_if) {
   EXPERIMENTAL_FLAG_SCOPE(mv);
   static const byte code[] = {
-      WASM_IF_ELSE_TT(0, WASM_GET_LOCAL(0),
-                      WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
-                      WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
+      WASM_IF_ELSE_X(0, WASM_GET_LOCAL(0),
+                     WASM_SEQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(1)),
+                     WASM_SEQ(WASM_GET_LOCAL(1), WASM_GET_LOCAL(0))),
       kExprI32Add};
   RunInt32AddTest(execution_mode, code, sizeof(code));
 }

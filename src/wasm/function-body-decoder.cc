@@ -27,11 +27,6 @@ namespace wasm {
 
 namespace {
 
-template <typename T>
-Vector<T> vec2vec(ZoneVector<T>& vec) {
-  return Vector<T>(vec.data(), vec.size());
-}
-
 // An SsaEnv environment carries the current local variable renaming
 // as well as the current effect and control dependency in the TF graph.
 // It maintains a control state that tracks whether the environment
@@ -173,6 +168,12 @@ class WasmGraphBuildingInterface {
     // The continue environment is the inner environment.
     SetEnv(PrepareForLoop(decoder, finish_try_env));
     ssa_env_->SetNotMerged();
+    if (!decoder->ok()) return;
+    // Wrap input merge into phis.
+    for (unsigned i = 0; i < block->start_merge.arity; ++i) {
+      Value& val = block->start_merge[i];
+      val.node = builder_->Phi(val.type, 1, &val.node, block->end_env->control);
+    }
   }
 
   void Try(Decoder* decoder, Control* block) {
@@ -206,14 +207,11 @@ class WasmGraphBuildingInterface {
 
   void FallThruTo(Decoder* decoder, Control* c) {
     DCHECK(!c->is_loop());
-    MergeValuesInto(decoder, c);
+    MergeValuesInto(decoder, c, &c->end_merge);
   }
 
   void PopControl(Decoder* decoder, Control* block) {
     if (!block->is_loop()) SetEnv(block->end_env);
-    if (block->is_onearmed_if()) {
-      Goto(decoder, block->false_env, block->end_env);
-    }
   }
 
   void EndControl(Decoder* decoder, Control* block) { ssa_env_->Kill(); }
@@ -304,12 +302,8 @@ class WasmGraphBuildingInterface {
     ssa_env_->control = merge;
   }
 
-  void BreakTo(Decoder* decoder, Control* target) {
-    if (target->is_loop()) {
-      Goto(decoder, ssa_env_, target->end_env);
-    } else {
-      MergeValuesInto(decoder, target);
-    }
+  void Br(Decoder* decoder, Control* target) {
+    MergeValuesInto(decoder, target, target->br_merge());
   }
 
   void BrIf(Decoder* decoder, const Value& cond, Control* target) {
@@ -318,7 +312,7 @@ class WasmGraphBuildingInterface {
     fenv->SetNotMerged();
     BUILD(BranchNoHint, cond.node, &tenv->control, &fenv->control);
     ssa_env_ = tenv;
-    BreakTo(decoder, target);
+    Br(decoder, target);
     ssa_env_ = fenv;
   }
 
@@ -327,7 +321,7 @@ class WasmGraphBuildingInterface {
     if (operand.table_count == 0) {
       // Only a default target. Do the equivalent of br.
       uint32_t target = BranchTableIterator<validate>(decoder, operand).next();
-      BreakTo(decoder, decoder->control_at(target));
+      Br(decoder, decoder->control_at(target));
       return;
     }
 
@@ -344,7 +338,7 @@ class WasmGraphBuildingInterface {
       ssa_env_ = Split(decoder, copy);
       ssa_env_->control = (i == operand.table_count) ? BUILD(IfDefault, sw)
                                                      : BUILD(IfValue, i, sw);
-      BreakTo(decoder, decoder->control_at(target));
+      Br(decoder, decoder->control_at(target));
     }
     DCHECK(decoder->ok());
     ssa_env_ = break_env;
@@ -618,7 +612,8 @@ class WasmGraphBuildingInterface {
     }
   }
 
-  void MergeValuesInto(Decoder* decoder, Control* c) {
+  void MergeValuesInto(Decoder* decoder, Control* c, Merge<Value>* merge) {
+    DCHECK(merge == &c->start_merge || merge == &c->end_merge);
     if (!ssa_env_->go()) return;
 
     SsaEnv* target = c->end_env;
@@ -627,10 +622,10 @@ class WasmGraphBuildingInterface {
 
     uint32_t avail =
         decoder->stack_size() - decoder->control_at(0)->stack_depth;
-    uint32_t start = avail >= c->merge.arity ? 0 : c->merge.arity - avail;
-    for (uint32_t i = start; i < c->merge.arity; ++i) {
-      auto& val = decoder->GetMergeValueFromStack(c, i);
-      auto& old = c->merge[i];
+    uint32_t start = avail >= merge->arity ? 0 : merge->arity - avail;
+    for (uint32_t i = start; i < merge->arity; ++i) {
+      auto& val = decoder->GetMergeValueFromStack(c, merge, i);
+      auto& old = (*merge)[i];
       DCHECK_NOT_NULL(val.node);
       DCHECK(val.type == old.type || val.type == kWasmVar);
       old.node = first ? val.node

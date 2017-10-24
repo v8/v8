@@ -191,7 +191,7 @@ class LiftoffCompiler {
   }
 
   void FallThruTo(Decoder* decoder, Control* c) {
-    if (c->merge.reached) {
+    if (c->end_merge.reached) {
       __ MergeFullStackWith(c->label_state);
     } else {
       c->label_state.Split(*__ cache_state());
@@ -199,7 +199,7 @@ class LiftoffCompiler {
   }
 
   void PopControl(Decoder* decoder, Control* c) {
-    if (!c->is_loop() && c->merge.reached) {
+    if (!c->is_loop() && c->end_merge.reached) {
       __ cache_state()->Steal(c->label_state);
     }
     if (!c->label->is_bound()) {
@@ -383,12 +383,12 @@ class LiftoffCompiler {
     unsupported(decoder, "select");
   }
 
-  void BreakTo(Decoder* decoder, Control* target) {
-    if (!target->merge.reached) {
+  void Br(Decoder* decoder, Control* target) {
+    if (!target->br_merge()->reached) {
       target->label_state.InitMerge(*__ cache_state(), __ num_locals(),
-                                    target->break_arity());
+                                    target->br_merge()->arity);
     }
-    __ MergeStackWith(target->label_state, target->break_arity());
+    __ MergeStackWith(target->label_state, target->br_merge()->arity);
     __ jmp(target->label.get());
   }
 
@@ -397,7 +397,7 @@ class LiftoffCompiler {
     Register value = __ PopToRegister(kWasmI32);
     __ JumpIfZero(value, &cont_false);
 
-    BreakTo(decoder, target);
+    Br(decoder, target);
     __ bind(&cont_false);
   }
 

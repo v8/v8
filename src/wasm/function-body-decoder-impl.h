@@ -81,10 +81,11 @@ struct WasmException;
   V(I32AtomicStore8U, Uint8)    \
   V(I32AtomicStore16U, Uint16)
 
-template <typename T>
-Vector<T> vec2vec(std::vector<T>& vec) {
+template <typename T, typename Allocator>
+Vector<T> vec2vec(std::vector<T, Allocator>& vec) {
   return Vector<T>(vec.data(), vec.size());
 }
+
 
 // Helpers for decoding different kinds of operands which follow bytecodes.
 template <Decoder::ValidateFlag validate>
@@ -446,20 +447,18 @@ enum Reachability : uint8_t {
 // An entry on the control stack (i.e. if, block, loop, or try).
 template <typename Value>
 struct ControlBase {
-  Reachability reachability = kReachable;
   ControlKind kind;
   uint32_t stack_depth;  // stack height at the beginning of the construct.
   const byte* pc;
+  Reachability reachability = kReachable;
 
-  // Values merged into the end of this control construct.
-  Merge<Value> merge;
+  // Values merged into the start or end of this control construct.
+  Merge<Value> start_merge;
+  Merge<Value> end_merge;
 
   ControlBase() = default;
-  ControlBase(ControlKind kind, uint32_t stack_depth, const byte* pc,
-              bool merge_reached = false)
-      : kind(kind), stack_depth(stack_depth), pc(pc), merge(merge_reached) {}
-
-  uint32_t break_arity() const { return is_loop() ? 0 : merge.arity; }
+  ControlBase(ControlKind kind, uint32_t stack_depth, const byte* pc)
+      : kind(kind), stack_depth(stack_depth), pc(pc) {}
 
   // Check whether the current block is reachable.
   bool reachable() const { return reachability == kReachable; }
@@ -484,6 +483,10 @@ struct ControlBase {
   bool is_incomplete_try() const { return kind == kControlTry; }
   bool is_try_catch() const { return kind == kControlTryCatch; }
 
+  inline Merge<Value>* br_merge() {
+    return is_loop() ? &this->start_merge : &this->end_merge;
+  }
+
   // Named constructors.
   static ControlBase Block(const byte* pc, uint32_t stack_depth) {
     return {kControlBlock, stack_depth, pc};
@@ -493,8 +496,8 @@ struct ControlBase {
     return {kControlIf, stack_depth, pc};
   }
 
-  static ControlBase Loop(const byte* pc, uint32_t stack_depth, bool reached) {
-    return {kControlLoop, stack_depth, pc, reached};
+  static ControlBase Loop(const byte* pc, uint32_t stack_depth) {
+    return {kControlLoop, stack_depth, pc};
   }
 
   static ControlBase Try(const byte* pc, uint32_t stack_depth) {
@@ -575,7 +578,7 @@ struct ControlWithNamedConstructors : public ControlBase<Value> {
   F(Unreachable)                                                               \
   F(Select, const Value& cond, const Value& fval, const Value& tval,           \
     Value* result)                                                             \
-  F(BreakTo, Control* target)                                                  \
+  F(Br, Control* target)                                                       \
   F(BrIf, const Value& cond, Control* target)                                  \
   F(BrTable, const BranchTableOperand<validate>& operand, const Value& key)    \
   F(Else, Control* if_block)                                                   \
@@ -1128,6 +1131,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
         local_type_vec_(zone),
         stack_(zone),
         control_(zone),
+        args_(zone),
         last_end_found_(false) {
     this->local_types_ = &local_type_vec_;
   }
@@ -1232,10 +1236,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return &stack_[stack_.size() - depth - 1];
   }
 
-  inline Value& GetMergeValueFromStack(Control* c, uint32_t i) {
-    DCHECK_GT(c->merge.arity, i);
-    DCHECK_GE(stack_.size(), c->stack_depth + c->merge.arity);
-    return stack_[stack_.size() - c->merge.arity + i];
+  inline Value& GetMergeValueFromStack(
+      Control* c, Merge<Value>* merge, uint32_t i) {
+    DCHECK(merge == &c->start_merge || merge == &c->end_merge);
+    DCHECK_GT(merge->arity, i);
+    DCHECK_GE(stack_.size(), c->stack_depth + merge->arity);
+    return stack_[stack_.size() - merge->arity + i];
   }
 
  private:
@@ -1248,6 +1254,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   ZoneVector<ValueType> local_type_vec_;  // types of local variables.
   ZoneVector<Value> stack_;               // stack of values.
   ZoneVector<Control> control_;           // stack of blocks, loops, and ifs.
+  ZoneVector<Value> args_;                // parameters of current block or call
   bool last_end_found_;
 
   bool CheckHasMemory() {
@@ -1276,17 +1283,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     // Set up initial function block.
     {
       auto* c = PushBlock();
-      c->merge.arity = static_cast<uint32_t>(this->sig_->return_count());
-
-      if (c->merge.arity == 1) {
-        c->merge.vals.first = Value::New(this->pc_, this->sig_->GetReturn(0));
-      } else if (c->merge.arity > 1) {
-        c->merge.vals.array = zone_->NewArray<Value>(c->merge.arity);
-        for (unsigned i = 0; i < c->merge.arity; i++) {
-          c->merge.vals.array[i] =
-              Value::New(this->pc_, this->sig_->GetReturn(i));
-        }
-      }
+      InitMerge(&c->end_merge,
+                static_cast<uint32_t>(this->sig_->return_count()),
+                [&] (uint32_t i) {
+                    return Value::New(this->pc_, this->sig_->GetReturn(i)); });
       CALL_INTERFACE(StartFunctionBody, c);
     }
 
@@ -1311,10 +1311,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprBlock: {
             BlockTypeOperand<validate> operand(this, this->pc_);
             if (!LookupBlockType(&operand)) break;
+            PopArgs(operand.sig);
             auto* block = PushBlock();
-            SetBlockType(block, operand);
-            len = 1 + operand.length;
+            SetBlockType(block, operand, args_);
             CALL_INTERFACE_IF_REACHABLE(Block, block);
+            PushMergeValues(block, &block->start_merge);
+            len = 1 + operand.length;
             break;
           }
           case kExprRethrow: {
@@ -1328,10 +1330,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             ExceptionIndexOperand<Decoder::kValidate> operand(this, this->pc_);
             len = 1 + operand.length;
             if (!this->Validate(this->pc_, operand)) break;
-            std::vector<Value> args;
-            PopArgs(operand.exception->ToFunctionSig(), &args);
+            PopArgs(operand.exception->ToFunctionSig());
             CALL_INTERFACE_IF_REACHABLE(Throw, operand, &control_.back(),
-                                        vec2vec(args));
+                                        vec2vec(args_));
             EndControl();
             break;
           }
@@ -1339,10 +1340,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             CHECK_PROTOTYPE_OPCODE(eh);
             BlockTypeOperand<validate> operand(this, this->pc_);
             if (!LookupBlockType(&operand)) break;
+            PopArgs(operand.sig);
             auto* try_block = PushTry();
-            SetBlockType(try_block, operand);
+            SetBlockType(try_block, operand, args_);
             len = 1 + operand.length;
             CALL_INTERFACE_IF_REACHABLE(Try, try_block);
+            PushMergeValues(try_block, &try_block->start_merge);
             break;
           }
           case kExprCatch: {
@@ -1391,21 +1394,25 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           case kExprLoop: {
             BlockTypeOperand<validate> operand(this, this->pc_);
             if (!LookupBlockType(&operand)) break;
+            PopArgs(operand.sig);
             auto* block = PushLoop();
-            SetBlockType(&control_.back(), operand);
+            SetBlockType(&control_.back(), operand, args_);
             len = 1 + operand.length;
             CALL_INTERFACE_IF_REACHABLE(Loop, block);
+            PushMergeValues(block, &block->start_merge);
             break;
           }
           case kExprIf: {
             BlockTypeOperand<validate> operand(this, this->pc_);
             if (!LookupBlockType(&operand)) break;
             auto cond = Pop(0, kWasmI32);
+            PopArgs(operand.sig);
             if (!this->ok()) break;
             auto* if_block = PushIf();
-            SetBlockType(if_block, operand);
+            SetBlockType(if_block, operand, args_);
             CALL_INTERFACE_IF_REACHABLE(If, cond, if_block);
             len = 1 + operand.length;
+            PushMergeValues(if_block, &if_block->start_merge);
             break;
           }
           case kExprElse: {
@@ -1424,8 +1431,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             }
             c->kind = kControlIfElse;
             FallThruTo(c);
-            stack_.resize(c->stack_depth);
             CALL_INTERFACE_IF_PARENT_REACHABLE(Else, c);
+            PushMergeValues(c, &c->start_merge);
             c->reachability = control_at(1)->innerReachability();
             break;
           }
@@ -1435,30 +1442,21 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               return;
             }
             Control* c = &control_.back();
-            if (c->is_loop()) {
-              // A loop just leaves the values on the stack.
-              TypeCheckFallThru(c);
-              PopControl(c);
-              break;
-            }
-            if (c->is_onearmed_if()) {
-              // The merge point is reached if the if is not taken.
-              if (control_at(1)->reachable()) c->merge.reached = true;
-              // End the true branch of a one-armed if.
-              if (!VALIDATE(c->unreachable() ||
-                            stack_.size() == c->stack_depth)) {
-                this->error("end of if expected empty stack");
-                stack_.resize(c->stack_depth);
-              }
-              if (!VALIDATE(c->merge.arity == 0)) {
-                this->error("non-void one-armed if");
-              }
-            } else if (!VALIDATE(!c->is_incomplete_try())) {
+            if (!VALIDATE(!c->is_incomplete_try())) {
               this->error(this->pc_, "missing catch in try");
               break;
             }
+            if (c->is_onearmed_if()) {
+              // Emulate empty else arm.
+              FallThruTo(c);
+              CALL_INTERFACE_IF_PARENT_REACHABLE(Else, c);
+              PushMergeValues(c, &c->start_merge);
+              c->reachability = control_at(1)->innerReachability();
+            }
+
             FallThruTo(c);
-            PushEndValues(c);
+            // A loop just leaves the values on the stack.
+            if (!c->is_loop()) PushMergeValues(c, &c->end_merge);
 
             if (control_.size() == 1) {
               // If at the last (implicit) control, check we are at end.
@@ -1490,8 +1488,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             if (!this->Validate(this->pc_, operand, control_.size())) break;
             Control* c = control_at(operand.depth);
             if (!TypeCheckBreak(c)) break;
-            CALL_INTERFACE_IF_REACHABLE(BreakTo, c);
-            if (control_.back().reachable()) c->merge.reached = true;
+            CALL_INTERFACE_IF_REACHABLE(Br, c);
+            BreakTo(c);
             len = 1 + operand.length;
             EndControl();
             break;
@@ -1503,7 +1501,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             Control* c = control_at(operand.depth);
             if (!TypeCheckBreak(c)) break;
             CALL_INTERFACE_IF_REACHABLE(BrIf, cond, c);
-            if (control_.back().reachable()) c->merge.reached = true;
+            BreakTo(c);
             len = 1 + operand.length;
             break;
           }
@@ -1523,7 +1521,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
               }
               // Check that label types match up.
               Control* c = control_at(target);
-              uint32_t arity = c->break_arity();
+              uint32_t arity = c->br_merge()->arity;
               if (i == 0) {
                 br_arity = arity;
               } else if (!VALIDATE(br_arity == arity)) {
@@ -1533,7 +1531,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                              i, br_arity, arity);
               }
               if (!TypeCheckBreak(c)) break;
-              if (control_.back().reachable()) c->merge.reached = true;
+              BreakTo(c);
             }
 
             CALL_INTERFACE_IF_REACHABLE(BrTable, operand, key);
@@ -1726,10 +1724,9 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             len = 1 + operand.length;
             if (!this->Validate(this->pc_, operand)) break;
             // TODO(clemensh): Better memory management.
-            std::vector<Value> args;
-            PopArgs(operand.sig, &args);
+            PopArgs(operand.sig);
             auto* returns = PushReturns(operand.sig);
-            CALL_INTERFACE_IF_REACHABLE(CallDirect, operand, args.data(),
+            CALL_INTERFACE_IF_REACHABLE(CallDirect, operand, args_.data(),
                                         returns);
             break;
           }
@@ -1738,12 +1735,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             len = 1 + operand.length;
             if (!this->Validate(this->pc_, operand)) break;
             auto index = Pop(0, kWasmI32);
-            // TODO(clemensh): Better memory management.
-            std::vector<Value> args;
-            PopArgs(operand.sig, &args);
+            PopArgs(operand.sig);
             auto* returns = PushReturns(operand.sig);
             CALL_INTERFACE_IF_REACHABLE(CallIndirect, index, operand,
-                                        args.data(), returns);
+                                        args_.data(), returns);
             break;
           }
           case kSimdPrefix: {
@@ -1804,7 +1799,8 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             default:
               break;
           }
-          PrintF("%u", c.merge.arity);
+          if (c.start_merge.arity) PrintF("%u-", c.end_merge.arity);
+          PrintF("%u", c.end_merge.arity);
           if (!c.reachable()) PrintF("%c", c.unreachable() ? '*' : '#');
         }
         PrintF(" | ");
@@ -1872,25 +1868,34 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return true;
   }
 
-  void SetBlockType(Control* c, BlockTypeOperand<validate>& operand) {
-    c->merge.arity = operand.out_arity();
-    if (c->merge.arity == 1) {
-      c->merge.vals.first = Value::New(this->pc_, operand.out_type(0));
-    } else if (c->merge.arity > 1) {
-      c->merge.vals.array = zone_->NewArray<Value>(c->merge.arity);
-      for (unsigned i = 0; i < c->merge.arity; i++) {
-        c->merge.vals.array[i] = Value::New(this->pc_, operand.out_type(i));
+  template<typename func>
+  void InitMerge(Merge<Value>* merge, uint32_t arity, func get_val) {
+    merge->arity = arity;
+    if (arity == 1) {
+      merge->vals.first = get_val(0);
+    } else if (arity > 1) {
+      merge->vals.array = zone_->NewArray<Value>(arity);
+      for (unsigned i = 0; i < arity; i++) {
+        merge->vals.array[i] = get_val(i);
       }
     }
   }
 
-  // TODO(clemensh): Better memory management.
-  void PopArgs(FunctionSig* sig, std::vector<Value>* result) {
-    DCHECK(result->empty());
-    int count = static_cast<int>(sig->parameter_count());
-    result->resize(count);
+  void SetBlockType(Control* c, BlockTypeOperand<validate>& operand,
+                    ZoneVector<Value>& params) {
+    InitMerge(&c->end_merge, operand.out_arity(),
+              [&] (uint32_t i) {
+                  return Value::New(this->pc_, operand.out_type(i)); });
+    InitMerge(&c->start_merge, operand.in_arity(),
+              [&] (uint32_t i) { return params[i]; });
+  }
+
+  // Pops arguments as required by signature into {args_}.
+  V8_INLINE void PopArgs(FunctionSig* sig) {
+    int count = sig ? static_cast<int>(sig->parameter_count()) : 0;
+    args_.resize(count);
     for (int i = count - 1; i >= 0; --i) {
-      (*result)[i] = Pop(i, sig->GetParam(i));
+      args_[i] = Pop(i, sig->GetParam(i));
     }
   }
 
@@ -1905,6 +1910,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     control_.emplace_back(std::move(new_control));
     Control* c = &control_.back();
     c->reachability = reachability;
+    c->start_merge.reached = c->reachable();
     return c;
   }
 
@@ -1912,8 +1918,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return PushControl(Control::Block(this->pc_, stack_size()));
   }
   Control* PushLoop() {
-    return PushControl(
-        Control::Loop(this->pc_, stack_size(), control_.back().reachable()));
+    return PushControl(Control::Loop(this->pc_, stack_size()));
   }
   Control* PushIf() {
     return PushControl(Control::If(this->pc_, stack_size()));
@@ -1926,7 +1931,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   void PopControl(Control* c) {
     DCHECK_EQ(c, &control_.back());
     CALL_INTERFACE_IF_PARENT_REACHABLE(PopControl, c);
-    bool reached = c->is_loop() ? c->reachable() : c->merge.reached;
+    bool reached = c->end_merge.reached;
     control_.pop_back();
     // If the parent block was reachable before, but the popped control does not
     // return to here, this block becomes indirectly unreachable.
@@ -2078,11 +2083,10 @@ class WasmFullDecoder : public WasmDecoder<validate> {
           this->error("invalid simd opcode");
           break;
         }
-        std::vector<Value> args;
-        PopArgs(sig, &args);
-        auto* result =
+        PopArgs(sig);
+        auto* results =
             sig->return_count() == 0 ? nullptr : Push(GetReturnType(sig));
-        CALL_INTERFACE_IF_REACHABLE(SimdOp, opcode, vec2vec(args), result);
+        CALL_INTERFACE_IF_REACHABLE(SimdOp, opcode, vec2vec(args_), results);
       }
     }
     return len;
@@ -2113,20 +2117,16 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 #undef CASE_ATOMIC_OP
         default:
           this->error("invalid atomic opcode");
-          break;
+          return 0;
       }
-      // TODO(clemensh): Better memory management here.
-      std::vector<Value> args(sig->parameter_count());
       MemoryAccessOperand<validate> operand(
           this, this->pc_ + 1, ElementSizeLog2Of(memtype.representation()));
       len += operand.length;
-      for (int i = static_cast<int>(sig->parameter_count() - 1); i >= 0; --i) {
-        args[i] = Pop(i, sig->GetParam(i));
-      }
+      PopArgs(sig);
       auto result = ret_type == MachineRepresentation::kNone
                         ? nullptr
                         : Push(GetReturnType(sig));
-      CALL_INTERFACE_IF_REACHABLE(AtomicOp, opcode, vec2vec(args), operand,
+      CALL_INTERFACE_IF_REACHABLE(AtomicOp, opcode, vec2vec(args_), operand,
                                   result);
     } else {
       this->error("invalid atomic opcode");
@@ -2135,19 +2135,17 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   }
 
   void DoReturn(Control* c, bool implicit) {
-    // TODO(clemensh): Optimize memory usage here (it will be mostly 0 or 1
-    // returned values).
     int return_count = static_cast<int>(this->sig_->return_count());
-    std::vector<Value> values(return_count);
+    args_.resize(return_count);
 
     // Pop return values off the stack in reverse order.
     for (int i = return_count - 1; i >= 0; --i) {
-      values[i] = Pop(i, this->sig_->GetReturn(i));
+      args_[i] = Pop(i, this->sig_->GetReturn(i));
     }
 
-    if (this->ok() && (c->reachable() || (implicit && c->merge.reached))) {
-      CALL_INTERFACE(DoReturn, vec2vec(values), implicit);
-    }
+    // Simulate that an implicit return morally comes after the current block.
+    if (implicit && c->end_merge.reached) c->reachability = kReachable;
+    CALL_INTERFACE_IF_REACHABLE(DoReturn, vec2vec(args_), implicit);
 
     EndControl();
   }
@@ -2158,17 +2156,18 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     return &stack_.back();
   }
 
-  void PushEndValues(Control* c) {
+  void PushMergeValues(Control* c, Merge<Value>* merge) {
     DCHECK_EQ(c, &control_.back());
+    DCHECK(merge == &c->start_merge || merge == &c->end_merge);
     stack_.resize(c->stack_depth);
-    if (c->merge.arity == 1) {
-      stack_.push_back(c->merge.vals.first);
+    if (merge->arity == 1) {
+      stack_.push_back(merge->vals.first);
     } else {
-      for (unsigned i = 0; i < c->merge.arity; i++) {
-        stack_.push_back(c->merge.vals.array[i]);
+      for (unsigned i = 0; i < merge->arity; i++) {
+        stack_.push_back(merge->vals.array[i]);
       }
     }
-    DCHECK_EQ(c->stack_depth + c->merge.arity, stack_.size());
+    DCHECK_EQ(c->stack_depth + merge->arity, stack_.size());
   }
 
   Value* PushReturns(FunctionSig* sig) {
@@ -2211,22 +2210,26 @@ class WasmFullDecoder : public WasmDecoder<validate> {
 
   int startrel(const byte* ptr) { return static_cast<int>(ptr - this->start_); }
 
+  inline void BreakTo(Control* c) {
+    if (control_.back().reachable()) c->br_merge()->reached = true;
+  }
+
   void FallThruTo(Control* c) {
-    DCHECK(!c->is_loop());
     DCHECK_EQ(c, &control_.back());
     if (!TypeCheckFallThru(c)) return;
     if (!c->reachable()) return;
 
-    CALL_INTERFACE(FallThruTo, c);
-    c->merge.reached = true;
+    if (!c->is_loop()) CALL_INTERFACE(FallThruTo, c);
+    c->end_merge.reached = true;
   }
 
-  bool TypeCheckMergeValues(Control* c) {
-    DCHECK_GE(stack_.size(), c->stack_depth + c->merge.arity);
-    // Typecheck the topmost {c->merge.arity} values on the stack.
-    for (uint32_t i = 0; i < c->merge.arity; ++i) {
-      auto& val = GetMergeValueFromStack(c, i);
-      auto& old = c->merge[i];
+  bool TypeCheckMergeValues(Control* c, Merge<Value>* merge) {
+    DCHECK(merge == &c->start_merge || merge == &c->end_merge);
+    DCHECK_GE(stack_.size(), c->stack_depth + merge->arity);
+    // Typecheck the topmost {merge->arity} values on the stack.
+    for (uint32_t i = 0; i < merge->arity; ++i) {
+      auto& val = GetMergeValueFromStack(c, merge, i);
+      auto& old = (*merge)[i];
       if (val.type != old.type) {
         // If {val.type} is polymorphic, which results from unreachable, make
         // it more specific by using the merge value's expected type.
@@ -2247,7 +2250,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
   bool TypeCheckFallThru(Control* c) {
     DCHECK_EQ(c, &control_.back());
     if (!validate) return true;
-    uint32_t expected = c->merge.arity;
+    uint32_t expected = c->end_merge.arity;
     DCHECK_GE(stack_.size(), c->stack_depth);
     uint32_t actual = static_cast<uint32_t>(stack_.size()) - c->stack_depth;
     // Fallthrus must match the arity of the control exactly.
@@ -2259,16 +2262,12 @@ class WasmFullDecoder : public WasmDecoder<validate> {
       return false;
     }
 
-    return TypeCheckMergeValues(c);
+    return TypeCheckMergeValues(c, &c->end_merge);
   }
 
   bool TypeCheckBreak(Control* c) {
-    if (c->is_loop()) {
-      // This is the inner loop block, which does not have a value.
-      return true;
-    }
     // Breaks must have at least the number of values expected; can have more.
-    uint32_t expected = c->merge.arity;
+    uint32_t expected = c->br_merge()->arity;
     DCHECK_GE(stack_.size(), control_.back().stack_depth);
     uint32_t actual =
         static_cast<uint32_t>(stack_.size()) - control_.back().stack_depth;
@@ -2278,7 +2277,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
                    expected, startrel(c->pc), actual);
       return false;
     }
-    return TypeCheckMergeValues(c);
+    return TypeCheckMergeValues(c, c->br_merge());
   }
 
   inline bool InsertUnreachablesIfNecessary(uint32_t expected,
