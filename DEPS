@@ -28,6 +28,10 @@ deps = {
     'url': Var('chromium_url') + '/catapult.git' + '@' + '22e74ebb13a5b87981c4a2f6a8594390f2496d0b',
     'condition': 'checkout_android',
   },
+  'v8/third_party/colorama/src': {
+    'url': Var('chromium_url') + '/external/colorama.git' + '@' + '799604a1041e9b3bc5d2789ecbd7e8db2e18e6b8',
+    'condition': 'checkout_android',
+  },
   'v8/third_party/jinja2':
     Var('chromium_url') + '/chromium/src/third_party/jinja2.git' + '@' + 'd34383206fa42d52faa10bb9931d6d538f3a57e0',
   'v8/third_party/markupsafe':
