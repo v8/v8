@@ -894,6 +894,12 @@ enum FixedArraySubInstanceType {
       LAST_FIXED_ARRAY_SUB_TYPE = WEAK_NEW_SPACE_OBJECT_TO_CODE_SUB_TYPE
 };
 
+enum class RelationalComparisonMode {
+  kLessThan,
+  kLessThanOrEqual,
+  kGreaterThan,
+  kGreaterThanOrEqual
+};
 
 // TODO(bmeurer): Remove this in favor of the ComparisonResult below.
 enum CompareResult {
@@ -904,7 +910,6 @@ enum CompareResult {
   NOT_EQUAL = GREATER
 };
 
-
 // Result of an abstract relational comparison of x and y, implemented according
 // to ES6 section 7.2.11 Abstract Relational Comparison.
 enum class ComparisonResult {
@@ -913,6 +918,24 @@ enum class ComparisonResult {
   kGreaterThan,  // x > y
   kUndefined     // at least one of x or y was undefined or NaN
 };
+
+// (Returns false whenever {result} is kUndefined.)
+static inline bool ComparisonResultToBool(RelationalComparisonMode mode,
+                                          ComparisonResult result) {
+  switch (mode) {
+    case RelationalComparisonMode::kLessThan:
+      return result == ComparisonResult::kLessThan;
+    case RelationalComparisonMode::kLessThanOrEqual:
+      return result == ComparisonResult::kLessThan ||
+             result == ComparisonResult::kEqual;
+    case RelationalComparisonMode::kGreaterThan:
+      return result == ComparisonResult::kGreaterThan;
+    case RelationalComparisonMode::kGreaterThanOrEqual:
+      return result == ComparisonResult::kGreaterThan ||
+             result == ComparisonResult::kEqual;
+  }
+  UNREACHABLE();
+}
 
 class AbstractCode;
 class AccessorPair;

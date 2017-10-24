@@ -71,6 +71,8 @@ namespace internal {
 
 #define FOR_EACH_INTRINSIC_BIGINT(F) \
   F(BigIntBinaryOp, 3, 1)            \
+  F(BigIntCompareToBigInt, 3, 1)     \
+  F(BigIntCompareToNumber, 3, 1)     \
   F(BigIntEqual, 2, 1)               \
   F(BigIntEqualToNumber, 2, 1)       \
   F(BigIntEqualToString, 2, 1)       \

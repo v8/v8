@@ -874,19 +874,22 @@ TF_BUILTIN(BitwiseXor, NumberBuiltinsAssembler) {
 }
 
 TF_BUILTIN(LessThan, NumberBuiltinsAssembler) {
-  RelationalComparisonBuiltin<Descriptor>(kLessThan);
+  RelationalComparisonBuiltin<Descriptor>(RelationalComparisonMode::kLessThan);
 }
 
 TF_BUILTIN(LessThanOrEqual, NumberBuiltinsAssembler) {
-  RelationalComparisonBuiltin<Descriptor>(kLessThanOrEqual);
+  RelationalComparisonBuiltin<Descriptor>(
+      RelationalComparisonMode::kLessThanOrEqual);
 }
 
 TF_BUILTIN(GreaterThan, NumberBuiltinsAssembler) {
-  RelationalComparisonBuiltin<Descriptor>(kGreaterThan);
+  RelationalComparisonBuiltin<Descriptor>(
+      RelationalComparisonMode::kGreaterThan);
 }
 
 TF_BUILTIN(GreaterThanOrEqual, NumberBuiltinsAssembler) {
-  RelationalComparisonBuiltin<Descriptor>(kGreaterThanOrEqual);
+  RelationalComparisonBuiltin<Descriptor>(
+      RelationalComparisonMode::kGreaterThanOrEqual);
 }
 
 TF_BUILTIN(Equal, CodeStubAssembler) {

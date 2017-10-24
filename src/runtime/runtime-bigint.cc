@@ -13,6 +13,30 @@
 namespace v8 {
 namespace internal {
 
+RUNTIME_FUNCTION(Runtime_BigIntCompareToBigInt) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Smi, mode, 0);
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 1);
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, rhs, 2);
+  bool result = ComparisonResultToBool(
+      static_cast<RelationalComparisonMode>(mode->value()),
+      BigInt::CompareToBigInt(lhs, rhs));
+  return *isolate->factory()->ToBoolean(result);
+}
+
+RUNTIME_FUNCTION(Runtime_BigIntCompareToNumber) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(3, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(Smi, mode, 0);
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 2);
+  bool result = ComparisonResultToBool(
+      static_cast<RelationalComparisonMode>(mode->value()),
+      BigInt::CompareToNumber(lhs, rhs));
+  return *isolate->factory()->ToBoolean(result);
+}
+
 RUNTIME_FUNCTION(Runtime_BigIntEqual) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
@@ -22,6 +46,7 @@ RUNTIME_FUNCTION(Runtime_BigIntEqual) {
                 BigInt::EqualToBigInt(BigInt::cast(*lhs), BigInt::cast(*rhs));
   return *isolate->factory()->ToBoolean(result);
   // TODO(neis): Remove IsBigInt checks?
+  // TODO(neis): Rename to BigIntEqualToBigInt.
 }
 
 RUNTIME_FUNCTION(Runtime_BigIntEqualToNumber) {

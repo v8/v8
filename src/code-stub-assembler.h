@@ -1720,13 +1720,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void InitializeFieldsWithRoot(Node* object, Node* start_offset,
                                 Node* end_offset, Heap::RootListIndex root);
 
-  enum RelationalComparisonMode {
-    kLessThan,
-    kLessThanOrEqual,
-    kGreaterThan,
-    kGreaterThanOrEqual
-  };
-
   Node* RelationalComparison(RelationalComparisonMode mode, Node* lhs,
                              Node* rhs, Node* context,
                              Variable* var_type_feedback = nullptr);

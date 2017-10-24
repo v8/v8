@@ -1818,20 +1818,22 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
         result = StrictEqual(lhs, rhs, &var_type_feedback);
         break;
       case Token::LT:
-        result = RelationalComparison(CodeStubAssembler::kLessThan, lhs, rhs,
-                                      context, &var_type_feedback);
-        break;
-      case Token::GT:
-        result = RelationalComparison(CodeStubAssembler::kGreaterThan, lhs, rhs,
-                                      context, &var_type_feedback);
-        break;
-      case Token::LTE:
-        result = RelationalComparison(CodeStubAssembler::kLessThanOrEqual, lhs,
+        result = RelationalComparison(RelationalComparisonMode::kLessThan, lhs,
                                       rhs, context, &var_type_feedback);
         break;
-      case Token::GTE:
-        result = RelationalComparison(CodeStubAssembler::kGreaterThanOrEqual,
+      case Token::GT:
+        result = RelationalComparison(RelationalComparisonMode::kGreaterThan,
                                       lhs, rhs, context, &var_type_feedback);
+        break;
+      case Token::LTE:
+        result =
+            RelationalComparison(RelationalComparisonMode::kLessThanOrEqual,
+                                 lhs, rhs, context, &var_type_feedback);
+        break;
+      case Token::GTE:
+        result =
+            RelationalComparison(RelationalComparisonMode::kGreaterThanOrEqual,
+                                 lhs, rhs, context, &var_type_feedback);
         break;
       default:
         UNREACHABLE();

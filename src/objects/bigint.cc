@@ -174,11 +174,13 @@ ComparisonResult UnequalSign(bool left_negative) {
   return left_negative ? ComparisonResult::kLessThan
                        : ComparisonResult::kGreaterThan;
 }
+
 // Produces result for |x| > |y|, with {both_negative} == sign(x) == sign(y);
 ComparisonResult AbsoluteGreater(bool both_negative) {
   return both_negative ? ComparisonResult::kLessThan
                        : ComparisonResult::kGreaterThan;
 }
+
 // Produces result for |x| < |y|, with {both_negative} == sign(x) == sign(y).
 ComparisonResult AbsoluteLess(bool both_negative) {
   return both_negative ? ComparisonResult::kGreaterThan
@@ -187,6 +189,7 @@ ComparisonResult AbsoluteLess(bool both_negative) {
 
 }  // namespace
 
+// (Never returns kUndefined.)
 ComparisonResult BigInt::CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y) {
   bool x_sign = x->sign();
   if (x_sign != y->sign()) return UnequalSign(x_sign);
@@ -195,6 +198,25 @@ ComparisonResult BigInt::CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y) {
   if (result > 0) return AbsoluteGreater(x_sign);
   if (result < 0) return AbsoluteLess(x_sign);
   return ComparisonResult::kEqual;
+}
+
+bool BigInt::CompareToBigIntReturnBool(RelationalComparisonMode mode,
+                                       Handle<BigInt> x, Handle<BigInt> y) {
+  ComparisonResult result = CompareToBigInt(x, y);
+  DCHECK_NE(result, ComparisonResult::kUndefined);
+  switch (mode) {
+    case RelationalComparisonMode::kLessThan:
+      return result == ComparisonResult::kLessThan;
+    case RelationalComparisonMode::kLessThanOrEqual:
+      return result == ComparisonResult::kLessThan ||
+             result == ComparisonResult::kEqual;
+    case RelationalComparisonMode::kGreaterThan:
+      return result == ComparisonResult::kGreaterThan;
+    case RelationalComparisonMode::kGreaterThanOrEqual:
+      return result == ComparisonResult::kGreaterThan ||
+             result == ComparisonResult::kEqual;
+  }
+  UNREACHABLE();
 }
 
 bool BigInt::EqualToBigInt(BigInt* x, BigInt* y) {

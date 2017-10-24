@@ -128,6 +128,15 @@ TF_BUILTIN(NonNumberToNumeric, CodeStubAssembler) {
   Return(NonNumberToNumeric(context, input));
 }
 
+TF_BUILTIN(ToNumeric, CodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
+
+  Return(Select(IsNumber(input), [=] { return input; },
+                [=] { return NonNumberToNumeric(context, input); },
+                MachineRepresentation::kTagged));
+}
+
 // ES6 section 7.1.3 ToNumber ( argument )
 TF_BUILTIN(ToNumber, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);

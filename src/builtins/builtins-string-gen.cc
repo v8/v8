@@ -14,7 +14,6 @@
 namespace v8 {
 namespace internal {
 
-typedef CodeStubAssembler::RelationalComparisonMode RelationalComparisonMode;
 typedef compiler::Node Node;
 template <class T>
 using TNode = compiler::TNode<T>;

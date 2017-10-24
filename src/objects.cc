@@ -491,7 +491,6 @@ ComparisonResult NumberCompare(double x, double y) {
   }
 }
 
-
 bool NumberEquals(double x, double y) {
   // Must check explicitly for NaN's on Windows, but -0 works fine.
   if (std::isnan(x)) return false;
@@ -499,18 +498,25 @@ bool NumberEquals(double x, double y) {
   return x == y;
 }
 
-
 bool NumberEquals(const Object* x, const Object* y) {
   return NumberEquals(x->Number(), y->Number());
 }
-
 
 bool NumberEquals(Handle<Object> x, Handle<Object> y) {
   return NumberEquals(*x, *y);
 }
 
-}  // namespace
+ComparisonResult Invert(ComparisonResult result) {
+  if (result == ComparisonResult::kLessThan) {
+    return ComparisonResult::kGreaterThan;
+  }
+  if (result == ComparisonResult::kGreaterThan) {
+    return ComparisonResult::kLessThan;
+  }
+  return result;
+}
 
+}  // anonymous namespace
 
 // static
 Maybe<ComparisonResult> Object::Compare(Handle<Object> x, Handle<Object> y) {
@@ -525,10 +531,23 @@ Maybe<ComparisonResult> Object::Compare(Handle<Object> x, Handle<Object> y) {
         String::Compare(Handle<String>::cast(x), Handle<String>::cast(y)));
   }
   // ES6 section 7.2.11 Abstract Relational Comparison step 6.
-  if (!Object::ToNumber(x).ToHandle(&x) || !Object::ToNumber(y).ToHandle(&y)) {
+  if (!Object::ToNumeric(x).ToHandle(&x) ||
+      !Object::ToNumeric(y).ToHandle(&y)) {
     return Nothing<ComparisonResult>();
   }
-  return Just(NumberCompare(x->Number(), y->Number()));
+
+  bool x_is_number = x->IsNumber();
+  bool y_is_number = y->IsNumber();
+  if (x_is_number && y_is_number) {
+    return Just(NumberCompare(x->Number(), y->Number()));
+  } else if (!x_is_number && !y_is_number) {
+    return Just(BigInt::CompareToBigInt(Handle<BigInt>::cast(x),
+                                        Handle<BigInt>::cast(y)));
+  } else if (x_is_number) {
+    return Just(Invert(BigInt::CompareToNumber(Handle<BigInt>::cast(y), x)));
+  } else {
+    return Just(BigInt::CompareToNumber(Handle<BigInt>::cast(x), y));
+  }
 }
 
 

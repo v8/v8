@@ -342,3 +342,137 @@ const six = BigInt(6);
   assertTrue(%SameValueZero(one, one));
   assertTrue(%SameValueZero(one, another_one));
 }
+
+// Abstract comparison
+{
+  let undef = Symbol();
+
+  assertEquals(%Compare(zero, zero, undef), 0);
+
+  assertEquals(%Compare(zero, one, undef), -1);
+  assertEquals(%Compare(one, zero, undef), +1);
+
+  assertEquals(%Compare(minus_one, one, undef), -1);
+  assertEquals(%Compare(one, minus_one, undef), +1);
+
+  assertEquals(%Compare(zero, -0, undef), 0);
+  assertEquals(%Compare(-0, zero, undef), 0);
+
+  assertEquals(%Compare(zero, 0, undef), 0);
+  assertEquals(%Compare(0, zero, undef), 0);
+
+  assertEquals(%Compare(minus_one, 1, undef), -1);
+  assertEquals(%Compare(1, minus_one, undef), +1);
+
+  assertEquals(%Compare(six, NaN, undef), undef);
+  assertEquals(%Compare(NaN, six, undef), undef);
+
+  assertEquals(%Compare(six, Infinity, undef), -1);
+  assertEquals(%Compare(Infinity, six, undef), +1);
+
+  assertEquals(%Compare(six, -Infinity, undef), +1);
+  assertEquals(%Compare(-Infinity, six, undef), -1);
+
+  assertEquals(%Compare(six, 5.99999999, undef), +1);
+  assertEquals(%Compare(5.99999999, six, undef), -1);
+
+  assertEquals(%Compare(zero, "", undef), 0);
+  assertEquals(%Compare("", zero, undef), 0);
+
+  assertEquals(%Compare(minus_one, "\t-1 ", undef), 0);
+  assertEquals(%Compare("\t-1 ", minus_one, undef), 0);
+
+  assertEquals(%Compare(minus_one, "-0x1", undef), undef);
+  assertEquals(%Compare("-0x1", minus_one, undef), undef);
+
+  const unsafe = "9007199254740993";  // 2**53 + 1
+  assertEquals(%Compare(BigInt.parseInt(unsafe), unsafe, undef), +1);
+  assertEquals(%Compare(unsafe, BigInt.parseInt(unsafe), undef), -1);
+
+  assertThrows(() => %Compare(six, Symbol(6), undef), TypeError);
+  assertThrows(() => %Compare(Symbol(6), six, undef), TypeError);
+
+  assertEquals(%Compare(six, {valueOf() {return Object(5)},
+                              toString() {return 6}}, undef), 0);
+  assertEquals(%Compare({valueOf() {return Object(5)},
+                         toString() {return 6}}, six, undef), 0);
+}{
+  assertFalse(zero < zero);
+  assertTrue(zero <= zero);
+
+  assertTrue(zero < one);
+  assertTrue(zero <= one);
+  assertFalse(one < zero);
+  assertFalse(one <= zero);
+
+  assertTrue(minus_one < one);
+  assertTrue(minus_one <= one);
+  assertFalse(one < minus_one);
+  assertFalse(one <= minus_one);
+
+  assertFalse(zero < -0);
+  assertTrue(zero <= -0);
+  assertFalse(-0 < zero);
+  assertTrue(-0 <= zero);
+
+  assertFalse(zero < 0);
+  assertTrue(zero <= 0);
+  assertFalse(0 < zero);
+  assertTrue(0 <= zero);
+
+  assertTrue(minus_one < 1);
+  assertTrue(minus_one <= 1);
+  assertFalse(1 < minus_one);
+  assertFalse(1 <= minus_one);
+
+  assertFalse(six < NaN);
+  assertFalse(six <= NaN);
+  assertFalse(NaN < six);
+  assertFalse(NaN <= six);
+
+  assertTrue(six < Infinity);
+  assertTrue(six <= Infinity);
+  assertFalse(Infinity < six);
+  assertFalse(Infinity <= six);
+
+  assertFalse(six < -Infinity);
+  assertFalse(six <= -Infinity);
+  assertTrue(-Infinity < six);
+  assertTrue(-Infinity <= six);
+
+  assertFalse(six < 5.99999999);
+  assertFalse(six <= 5.99999999);
+  assertTrue(5.99999999 < six);
+  assertTrue(5.99999999 <= six);
+
+  assertFalse(zero < "");
+  assertTrue(zero <= "");
+  assertFalse("" < zero);
+  assertTrue("" <= zero);
+
+  assertFalse(minus_one < "\t-1 ");
+  assertTrue(minus_one <= "\t-1 ");
+  assertFalse("\t-1 " < minus_one);
+  assertTrue("\t-1 " <= minus_one);
+
+  assertFalse(minus_one < "-0x1");
+  assertFalse(minus_one <= "-0x1");
+  assertFalse("-0x1" < minus_one);
+  assertFalse("-0x1" <= minus_one);
+
+  const unsafe = "9007199254740993";  // 2**53 + 1
+  assertFalse(BigInt.parseInt(unsafe) < unsafe);
+  assertFalse(BigInt.parseInt(unsafe) <= unsafe);
+  assertTrue(unsafe < BigInt.parseInt(unsafe));
+  assertTrue(unsafe <= BigInt.parseInt(unsafe));
+
+  assertThrows(() => six < Symbol(6), TypeError);
+  assertThrows(() => six <= Symbol(6), TypeError);
+  assertThrows(() => Symbol(6) < six, TypeError);
+  assertThrows(() => Symbol(6) <= six, TypeError);
+
+  assertFalse(six < {valueOf() {return Object(5)}, toString() {return 6}});
+  assertTrue(six <= {valueOf() {return Object(5)}, toString() {return 6}});
+  assertFalse({valueOf() {return Object(5)}, toString() {return 6}} < six);
+  assertTrue({valueOf() {return Object(5)}, toString() {return 6}} <= six);
+}
