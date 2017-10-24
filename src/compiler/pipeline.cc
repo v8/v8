@@ -1743,8 +1743,21 @@ struct VerifyGraphPhase {
 
   void Run(PipelineData* data, Zone* temp_zone, const bool untyped,
            bool values_only = false) {
+    Verifier::CodeType code_type;
+    switch (data->info()->code_kind()) {
+      case Code::WASM_FUNCTION:
+      case Code::WASM_TO_JS_FUNCTION:
+      case Code::JS_TO_WASM_FUNCTION:
+      case Code::WASM_INTERPRETER_ENTRY:
+      case Code::C_WASM_ENTRY:
+        code_type = Verifier::kWasm;
+        break;
+      default:
+        code_type = Verifier::kDefault;
+    }
     Verifier::Run(data->graph(), !untyped ? Verifier::TYPED : Verifier::UNTYPED,
-                  values_only ? Verifier::kValuesOnly : Verifier::kAll);
+                  values_only ? Verifier::kValuesOnly : Verifier::kAll,
+                  code_type);
   }
 };
 

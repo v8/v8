@@ -353,7 +353,7 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
     }
 
     CompilationInfo info(ArrayVector("testing"), isolate, graph()->zone(),
-                         Code::STUB);
+                         Code::WASM_FUNCTION);
     code_ = compiler::Pipeline::GenerateCodeForTesting(&info, descriptor,
                                                        graph(), nullptr);
     CHECK(!code_.is_null());
