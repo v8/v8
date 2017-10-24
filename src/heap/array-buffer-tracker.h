@@ -101,7 +101,14 @@ class LocalArrayBufferTracker {
   size_t retained_size() const { return retained_size_; }
 
  private:
-  typedef std::unordered_set<JSArrayBuffer*> TrackingData;
+  class Hasher {
+   public:
+    size_t operator()(JSArrayBuffer* buffer) const {
+      return reinterpret_cast<size_t>(buffer) >> 3;
+    }
+  };
+
+  typedef std::unordered_set<JSArrayBuffer*, Hasher> TrackingData;
 
   Heap* heap_;
   // The set contains raw heap pointers which are removed by the GC upon
