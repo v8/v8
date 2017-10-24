@@ -741,10 +741,32 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
                                             &receiver, &effect, control) &&
         !access_builder.TryBuildNumberCheck(access_info.receiver_maps(),
                                             &receiver, &effect, control)) {
-      receiver =
-          access_builder.BuildCheckHeapObject(receiver, &effect, control);
-      access_builder.BuildCheckMaps(receiver, &effect, control,
-                                    access_info.receiver_maps());
+      if (HasNumberMaps(access_info.receiver_maps())) {
+        // We need to also let Smi {receiver}s through in this case, so
+        // we construct a diamond, guarded by the Sminess of the {receiver}
+        // and if {receiver} is not a Smi just emit a sequence of map checks.
+        Node* check = graph()->NewNode(simplified()->ObjectIsSmi(), receiver);
+        Node* branch = graph()->NewNode(common()->Branch(), check, control);
+
+        Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+        Node* etrue = effect;
+
+        Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+        Node* efalse = effect;
+        {
+          access_builder.BuildCheckMaps(receiver, &efalse, if_false,
+                                        access_info.receiver_maps());
+        }
+
+        control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+        effect =
+            graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
+      } else {
+        receiver =
+            access_builder.BuildCheckHeapObject(receiver, &effect, control);
+        access_builder.BuildCheckMaps(receiver, &effect, control,
+                                      access_info.receiver_maps());
+      }
     }
 
     // Generate the actual property access.
