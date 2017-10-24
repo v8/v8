@@ -1251,6 +1251,10 @@ class HeapObjectRequest {
 // and best performance in optimized code.
 template <typename SubType, int kAfterLastRegister>
 class RegisterBase {
+  // Internal enum class; used for calling constexpr methods, where we need to
+  // pass an integral type as template parameter.
+  enum class RegisterCode : int { kFirst = 0, kAfterLast = kAfterLastRegister };
+
  public:
   static constexpr int kCode_no_reg = -1;
   static constexpr int kNumRegisters = kAfterLastRegister;
@@ -1263,10 +1267,32 @@ class RegisterBase {
     return SubType{code};
   }
 
+  constexpr operator RegisterCode() const {
+    return static_cast<RegisterCode>(reg_code_);
+  }
+
+  template <RegisterCode reg_code>
+  static constexpr int code() {
+    static_assert(
+        reg_code >= RegisterCode::kFirst && reg_code < RegisterCode::kAfterLast,
+        "must be valid reg");
+    return static_cast<int>(reg_code);
+  }
+
+  template <RegisterCode reg_code>
+  static constexpr int bit() {
+    return 1 << code<reg_code>();
+  }
+
   static SubType from_code(int code) {
     DCHECK_LE(0, code);
     DCHECK_GT(kNumRegisters, code);
     return SubType{code};
+  }
+
+  template <RegisterCode... reg_codes>
+  static constexpr RegList ListOf() {
+    return CombineRegLists(RegisterBase::bit<reg_codes>()...);
   }
 
   bool is_valid() const { return reg_code_ != kCode_no_reg; }

@@ -87,22 +87,6 @@ namespace internal {
   V(xmm6)                               \
   V(xmm7)
 
-// Note that the bit values must match those used in actual instruction encoding
-const int kNumRegs = 8;
-
-// Caller-saved registers
-const RegList kJSCallerSaved =
-    1 << 0 |  // eax
-    1 << 1 |  // ecx
-    1 << 2 |  // edx
-    1 << 3 |  // ebx - used as a caller-saved register in JavaScript code
-    1 << 7;   // edi - callee function
-
-const int kNumJSCallerSaved = 5;
-
-// Number of registers for which space is reserved in safepoints.
-const int kNumSafepointRegisters = 8;
-
 enum RegisterCode {
 #define REGISTER_CODE(R) kRegCode_##R,
   GENERAL_REGISTERS(REGISTER_CODE)
@@ -155,6 +139,21 @@ typedef XMMRegister Simd128Register;
 DOUBLE_REGISTERS(DEFINE_REGISTER)
 #undef DEFINE_REGISTER
 constexpr DoubleRegister no_double_reg = DoubleRegister::no_reg();
+
+// Note that the bit values must match those used in actual instruction encoding
+constexpr int kNumRegs = 8;
+
+// Caller-saved registers
+constexpr RegList kJSCallerSaved =
+    Register::ListOf<eax, ecx, edx,
+                     ebx,  // used as a caller-saved register in JavaScript code
+                     edi   // callee function
+                     >();
+
+constexpr int kNumJSCallerSaved = 5;
+
+// Number of registers for which space is reserved in safepoints.
+constexpr int kNumSafepointRegisters = 8;
 
 enum Condition {
   // any value < 0 is considered no_condition

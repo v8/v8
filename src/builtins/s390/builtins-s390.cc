@@ -2557,12 +2557,11 @@ void Builtins::Generate_WasmCompileLazy(MacroAssembler* masm) {
     // Save all parameter registers (see wasm-linkage.cc). They might be
     // overwritten in the runtime call below. We don't have any callee-saved
     // registers in wasm, so no need to store anything else.
-    const RegList gp_regs =
-        r2.bit() | r3.bit() | r4.bit() | r5.bit() | r6.bit();
+    constexpr RegList gp_regs = Register::ListOf<r2, r3, r4, r5, r6>();
 #if V8_TARGET_ARCH_S390X
-    const RegList fp_regs = d0.bit() | d2.bit() | d4.bit() | d6.bit();
+    constexpr RegList fp_regs = DoubleRegister::ListOf<d0, d2, d4, d6>();
 #else
-    const RegList fp_regs = d0.bit() | d2.bit();
+    constexpr RegList fp_regs = DoubleRegister::ListOf<d0, d2>();
 #endif
     __ MultiPush(gp_regs);
     __ MultiPushDoubles(fp_regs);
