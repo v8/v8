@@ -2534,6 +2534,7 @@ class CodePageMemoryModificationScope {
 
  private:
   MemoryChunk* chunk_;
+  bool scope_active_;
 };
 
 // Visitor class to verify interior pointers in spaces that do not contain

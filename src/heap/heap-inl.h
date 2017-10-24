@@ -605,16 +605,19 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
 
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(
     MemoryChunk* chunk)
-    : chunk_(chunk) {
-  if (FLAG_write_protect_code_memory &&
-      chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+    : chunk_(chunk),
+      scope_active_(FLAG_write_protect_code_memory &&
+                    chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+  if (scope_active_) {
+    DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
+           (chunk_->owner()->identity() == LO_SPACE &&
+            chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)));
     chunk_->SetReadAndWritable();
   }
 }
 
 CodePageMemoryModificationScope::~CodePageMemoryModificationScope() {
-  if (FLAG_write_protect_code_memory &&
-      chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+  if (scope_active_) {
     chunk_->SetReadAndExecutable();
   }
 }

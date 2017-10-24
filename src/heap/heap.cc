@@ -1915,7 +1915,6 @@ void Heap::Scavenge() {
   }
 
   {
-    CodeSpaceMemoryModificationScope code_modification(this);
     MarkCompactCollector::Sweeper* sweeper =
         &mark_compact_collector()->sweeper();
     // Pause the concurrent sweeper.
