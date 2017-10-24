@@ -1794,6 +1794,8 @@
             's390/macro-assembler-s390.h',
             's390/simulator-s390.cc',
             's390/simulator-s390.h',
+            'wasm/baseline/s390/liftoff-assembler-s390-defs.h',
+            'wasm/baseline/s390/liftoff-assembler-s390.h',
           ],
         }],
         ['OS=="win"', {

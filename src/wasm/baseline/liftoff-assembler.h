@@ -31,6 +31,8 @@
 #include "src/wasm/baseline/mips/liftoff-assembler-mips-defs.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/wasm/baseline/mips64/liftoff-assembler-mips64-defs.h"
+#elif V8_TARGET_ARCH_S390
+#include "src/wasm/baseline/s390/liftoff-assembler-s390-defs.h"
 #else
 #error Unsupported architecture.
 #endif
@@ -307,6 +309,8 @@ class LiftoffAssembler : public TurboAssembler {
 #include "src/wasm/baseline/mips/liftoff-assembler-mips.h"
 #elif V8_TARGET_ARCH_MIPS64
 #include "src/wasm/baseline/mips64/liftoff-assembler-mips64.h"
+#elif V8_TARGET_ARCH_S390
+#include "src/wasm/baseline/s390/liftoff-assembler-s390.h"
 #else
 #error Unsupported architecture.
 #endif
