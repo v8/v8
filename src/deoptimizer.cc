@@ -3908,7 +3908,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case JS_MAP_TYPE:
     case JS_WEAK_MAP_TYPE:
     case JS_WEAK_SET_TYPE:
-    case UNUSED_AND_RESERVED_TYPE:
     case JS_PROMISE_TYPE:
     case JS_PROXY_TYPE:
     case MAP_TYPE:
@@ -3947,6 +3946,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case WEAK_CELL_TYPE:
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
+    case CODE_DATA_CONTAINER_TYPE:
     case PROTOTYPE_INFO_TYPE:
     case TUPLE2_TYPE:
     case TUPLE3_TYPE:

@@ -238,6 +238,9 @@ void HeapObject::HeapObjectVerify() {
     case SMALL_ORDERED_HASH_MAP_TYPE:
       SmallOrderedHashMap::cast(this)->SmallOrderedHashTableVerify();
       break;
+    case CODE_DATA_CONTAINER_TYPE:
+      CodeDataContainer::cast(this)->CodeDataContainerVerify();
+      break;
 
 #define MAKE_STRUCT_CASE(NAME, Name, name) \
   case NAME##_TYPE:                        \
@@ -832,6 +835,9 @@ void WeakCell::WeakCellVerify() {
   VerifyObjectField(kValueOffset);
 }
 
+void CodeDataContainer::CodeDataContainerVerify() {
+  CHECK(IsCodeDataContainer());
+}
 
 void Code::CodeVerify() {
   CHECK(IsAligned(reinterpret_cast<intptr_t>(instruction_start()),

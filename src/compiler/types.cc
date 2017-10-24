@@ -305,7 +305,7 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case TUPLE3_TYPE:
     case CONTEXT_EXTENSION_TYPE:
     case ASYNC_GENERATOR_REQUEST_TYPE:
-    case UNUSED_AND_RESERVED_TYPE:
+    case CODE_DATA_CONTAINER_TYPE:
       UNREACHABLE();
   }
   UNREACHABLE();

@@ -15,6 +15,7 @@ namespace internal {
 
 class ByteArray;
 class BytecodeArray;
+class CodeDataContainer;
 
 // HandlerTable is a fixed array containing entries for exception handlers in
 // the code object it is associated with. The tables comes in two flavors:
@@ -157,8 +158,10 @@ class Code : public HeapObject {
   // [source_position_table]: ByteArray for the source positions table or
   // SourcePositionTableWithFrameCache.
   DECL_ACCESSORS(source_position_table, Object)
-
   inline ByteArray* SourcePositionTable() const;
+
+  // [code_data_container]: A container indirection for all mutable fields.
+  DECL_ACCESSORS(code_data_container, CodeDataContainer)
 
   // [trap_handler_index]: An index into the trap handler's master list of code
   // objects.
@@ -189,8 +192,6 @@ class Code : public HeapObject {
   inline bool is_stub() const;
   inline bool is_optimized_code() const;
   inline bool is_wasm_code() const;
-
-  inline void set_raw_kind_specific_flags1(int value);
 
   // Testers for interpreter builtins.
   inline bool is_interpreter_trampoline_builtin() const;
@@ -430,13 +431,13 @@ class Code : public HeapObject {
       kHandlerTableOffset + kPointerSize;
   static const int kSourcePositionTableOffset =
       kDeoptimizationDataOffset + kPointerSize;
-  static const int kNextCodeLinkOffset =
+  static const int kCodeDataContainerOffset =
       kSourcePositionTableOffset + kPointerSize;
+  static const int kNextCodeLinkOffset =
+      kCodeDataContainerOffset + kPointerSize;
   static const int kInstructionSizeOffset = kNextCodeLinkOffset + kPointerSize;
   static const int kFlagsOffset = kInstructionSizeOffset + kIntSize;
-  static const int kKindSpecificFlags1Offset = kFlagsOffset + kIntSize;
-  static const int kSafepointTableOffsetOffset =
-      kKindSpecificFlags1Offset + kIntSize;
+  static const int kSafepointTableOffsetOffset = kFlagsOffset + kIntSize;
   static const int kStubKeyOffset = kSafepointTableOffsetOffset + kIntSize;
   static const int kConstantPoolOffset = kStubKeyOffset + kIntSize;
   static const int kBuiltinIndexOffset =
@@ -459,38 +460,32 @@ class Code : public HeapObject {
   class BodyDescriptor;
 
   // Flags layout.  BitField<type, shift, size>.
-  class HasUnwindingInfoField : public BitField<bool, 0, 1> {};
-  class KindField : public BitField<Kind, HasUnwindingInfoField::kNext, 5> {};
-  class HasTaggedStackField : public BitField<bool, KindField::kNext, 1> {};
-  class IsTurbofannedField
-      : public BitField<bool, HasTaggedStackField::kNext, 1> {};
-  class StackSlotsField : public BitField<int, IsTurbofannedField::kNext, 24> {
-  };
+#define CODE_FLAGS_BIT_FIELDS(V, _)    \
+  V(HasUnwindingInfoField, bool, 1, _) \
+  V(KindField, Kind, 5, _)             \
+  V(HasTaggedStackField, bool, 1, _)   \
+  V(IsTurbofannedField, bool, 1, _)    \
+  V(StackSlotsField, int, 24, _)
+  DEFINE_BIT_FIELDS(CODE_FLAGS_BIT_FIELDS)
+#undef CODE_FLAGS_BIT_FIELDS
   static_assert(NUMBER_OF_KINDS <= KindField::kMax, "Code::KindField size");
   static_assert(StackSlotsField::kNext <= 32, "Code::flags field exhausted");
 
-  // KindSpecificFlags1 layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
-  static const int kMarkedForDeoptimizationBit = 0;
-  static const int kDeoptAlreadyCountedBit = kMarkedForDeoptimizationBit + 1;
-  static const int kCanHaveWeakObjects = kDeoptAlreadyCountedBit + 1;
-  // Could be moved to overlap previous bits when we need more space.
-  static const int kIsConstructStub = kCanHaveWeakObjects + 1;
-  static const int kIsPromiseRejection = kIsConstructStub + 1;
-  static const int kIsExceptionCaught = kIsPromiseRejection + 1;
-  STATIC_ASSERT(kIsExceptionCaught + 1 <= 32);
+  // KindSpecificFlags layout (STUB, BUILTIN and OPTIMIZED_FUNCTION)
+#define CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS(V, _) \
+  V(MarkedForDeoptimizationField, bool, 1, _)     \
+  V(DeoptAlreadyCountedField, bool, 1, _)         \
+  V(CanHaveWeakObjectsField, bool, 1, _)          \
+  V(IsConstructStubField, bool, 1, _)             \
+  V(IsPromiseRejectionField, bool, 1, _)          \
+  V(IsExceptionCaughtField, bool, 1, _)
+  DEFINE_BIT_FIELDS(CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS)
+#undef CODE_KIND_SPECIFIC_FLAGS_BIT_FIELDS
+  static_assert(IsExceptionCaughtField::kNext <= 32, "KindSpecificFlags full");
 
-  class MarkedForDeoptimizationField
-      : public BitField<bool, kMarkedForDeoptimizationBit, 1> {};  // NOLINT
-  class DeoptAlreadyCountedField
-      : public BitField<bool, kDeoptAlreadyCountedBit, 1> {};  // NOLINT
-  class CanHaveWeakObjectsField
-      : public BitField<bool, kCanHaveWeakObjects, 1> {};  // NOLINT
-  class IsConstructStubField : public BitField<bool, kIsConstructStub, 1> {
-  };  // NOLINT
-  class IsPromiseRejectionField
-      : public BitField<bool, kIsPromiseRejection, 1> {};  // NOLINT
-  class IsExceptionCaughtField : public BitField<bool, kIsExceptionCaught, 1> {
-  };  // NOLINT
+  // The {marked_for_deoptimization} field is accessed from generated code.
+  static const int kMarkedForDeoptimizationBit =
+      MarkedForDeoptimizationField::kShift;
 
   static const int kArgumentsBits = 16;
   static const int kMaxArguments = (1 << kArgumentsBits) - 1;
@@ -502,6 +497,29 @@ class Code : public HeapObject {
   bool is_exception_caught() const;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
+};
+
+// CodeDataContainer is a container for all mutable fields associated with its
+// referencing {Code} object. Since {Code} objects reside on write-protected
+// pages within the heap, its header fields need to be immutable. There always
+// is a 1-to-1 relation between {Code} and {CodeDataContainer}, the referencing
+// field {Code::code_data_container} itself is immutable.
+class CodeDataContainer : public HeapObject {
+ public:
+  DECL_INT_ACCESSORS(kind_specific_flags)
+
+  DECL_CAST(CodeDataContainer)
+
+  // Dispatched behavior.
+  DECL_PRINTER(CodeDataContainer)
+  DECL_VERIFIER(CodeDataContainer)
+
+  static const int kKindSpecificFlagsOffset = HeapObject::kHeaderSize;
+  static const int kUnalignedSize = kKindSpecificFlagsOffset + kIntSize;
+  static const int kSize = OBJECT_POINTER_ALIGN(kUnalignedSize);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(CodeDataContainer);
 };
 
 class AbstractCode : public HeapObject {
