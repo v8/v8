@@ -425,3 +425,63 @@ const six = BigInt(6);
   assertTrue(a-- === zero);
   assertTrue(a === minus_one);
 }
+
+// ToPropertyKey
+{
+  let obj = {};
+  assertEquals(obj[0n], undefined);
+  assertEquals(obj[0n] = 42, 42);
+  assertEquals(obj[0n], 42);
+  assertEquals(obj[0], 42);
+  obj[0]++;
+  assertEquals(obj[1n - 1n], 43);
+  assertEquals(Reflect.get(obj, -0n), 43);
+  assertEquals(obj[{toString() {return 0n}}], 43);
+  assertEquals(Reflect.ownKeys(obj), ["0"]);
+}{
+  let obj = {};
+  const unsafe = 9007199254740993n;
+  assertEquals(obj[unsafe] = 23, 23);
+  assertEquals(obj[unsafe], 23);
+  assertEquals(Reflect.ownKeys(obj), ["9007199254740993"]);
+  assertEquals(obj[9007199254740993], undefined);
+  delete obj[unsafe];
+  assertEquals(Reflect.ownKeys(obj), []);
+}{
+  let arr = [];
+  assertFalse(4n in arr);
+  arr[4n] = 42;
+  assertTrue(4n in arr);
+  let enumkeys = 0;
+  for (const key in arr) {
+    enumkeys++;
+    assertSame(key, "4");
+  }
+  assertEquals(enumkeys, 1);
+}{
+  let str = "blubb";
+  assertEquals(str[2n], "u");
+  assertThrows(() => str.slice(2n), TypeError);
+}{
+  let obj = {};
+  let key = 0;
+
+  function set_key(x) { obj[key] = x }
+  set_key("aaa");
+  set_key("bbb");
+  key = 0n;
+  set_key("ccc");
+  assertEquals(obj[key], "ccc");
+
+  function get_key() { return obj[key] }
+  assertEquals(get_key(), "ccc");
+  assertEquals(get_key(), "ccc");
+  key = 0;
+  assertEquals(get_key(), "ccc");
+}{
+  assertSame(%ToName(0n), "0");
+  assertSame(%ToName(-0n), "0");
+
+  const unsafe = 9007199254740993n;
+  assertSame(%ToName(unsafe), "9007199254740993");
+}
