@@ -1107,6 +1107,28 @@ WasmValue ToWebAssemblyValue(Isolate* isolate, Handle<Object> value,
   }
 }
 
+// Like a static_cast from src to dst, but specialized for boxed floats.
+template <typename dst, typename src>
+struct converter {
+  dst operator()(src val) const { return static_cast<dst>(val); }
+};
+template <>
+struct converter<Float64, uint64_t> {
+  Float64 operator()(uint64_t val) const { return Float64::FromBits(val); }
+};
+template <>
+struct converter<Float32, uint32_t> {
+  Float32 operator()(uint32_t val) const { return Float32::FromBits(val); }
+};
+template <>
+struct converter<uint64_t, Float64> {
+  uint64_t operator()(Float64 val) const { return val.get_bits(); }
+};
+template <>
+struct converter<uint32_t, Float32> {
+  uint32_t operator()(Float32 val) const { return val.get_bits(); }
+};
+
 // Responsible for executing code directly.
 class ThreadImpl {
   struct Activation {
@@ -1450,7 +1472,8 @@ class ThreadImpl {
       return false;
     }
     byte* addr = wasm_context_->mem_start + operand.offset + index;
-    WasmValue result(static_cast<ctype>(ReadLittleEndianValue<mtype>(addr)));
+    WasmValue result(
+        converter<ctype, mtype>{}(ReadLittleEndianValue<mtype>(addr)));
 
     Push(result);
     len = 1 + operand.length;
@@ -1478,12 +1501,15 @@ class ThreadImpl {
       return false;
     }
     byte* addr = wasm_context_->mem_start + operand.offset + index;
-    WriteLittleEndianValue<mtype>(addr, static_cast<mtype>(val.to<ctype>()));
+    WriteLittleEndianValue<mtype>(addr,
+                                  converter<mtype, ctype>{}(val.to<ctype>()));
     len = 1 + operand.length;
 
-    if (std::is_same<float, ctype>::value) {
+    if (std::is_same<float, ctype>::value ||
+        std::is_same<Float32, ctype>::value) {
       possible_nondeterminism_ |= std::isnan(val.to<float>());
-    } else if (std::is_same<double, ctype>::value) {
+    } else if (std::is_same<double, ctype>::value ||
+               std::is_same<Float64, ctype>::value) {
       possible_nondeterminism_ |= std::isnan(val.to<double>());
     }
 
@@ -1848,8 +1874,8 @@ class ThreadImpl {
           LOAD_CASE(I64LoadMem32U, int64_t, uint32_t, kWord32);
           LOAD_CASE(I32LoadMem, int32_t, int32_t, kWord32);
           LOAD_CASE(I64LoadMem, int64_t, int64_t, kWord64);
-          LOAD_CASE(F32LoadMem, float, float, kFloat32);
-          LOAD_CASE(F64LoadMem, double, double, kFloat64);
+          LOAD_CASE(F32LoadMem, Float32, uint32_t, kFloat32);
+          LOAD_CASE(F64LoadMem, Float64, uint64_t, kFloat64);
 #undef LOAD_CASE
 
 #define STORE_CASE(name, ctype, mtype, rep)                      \
@@ -1867,8 +1893,8 @@ class ThreadImpl {
           STORE_CASE(I64StoreMem32, int64_t, int32_t, kWord32);
           STORE_CASE(I32StoreMem, int32_t, int32_t, kWord32);
           STORE_CASE(I64StoreMem, int64_t, int64_t, kWord64);
-          STORE_CASE(F32StoreMem, float, float, kFloat32);
-          STORE_CASE(F64StoreMem, double, double, kFloat64);
+          STORE_CASE(F32StoreMem, Float32, uint32_t, kFloat32);
+          STORE_CASE(F64StoreMem, Float64, uint64_t, kFloat64);
 #undef STORE_CASE
 
 #define ASMJS_LOAD_CASE(name, ctype, mtype, defval)                 \
