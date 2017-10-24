@@ -350,7 +350,8 @@ class YoungGenerationEvacuationVerifier : public EvacuationVerifier {
 
 using MarkCompactMarkingVisitor =
     MarkingVisitor<FixedArrayVisitationMode::kRegular,
-                   TraceRetainingPathMode::kEnabled, MajorAtomicMarkingState>;
+                   TraceRetainingPathMode::kEnabled,
+                   MarkCompactCollector::MarkingState>;
 
 namespace {
 
@@ -1779,7 +1780,7 @@ void MarkCompactCollector::MarkStringTable(
     ObjectVisitor* custom_root_body_visitor) {
   StringTable* string_table = heap()->string_table();
   // Mark the string table itself.
-  if (atomic_marking_state()->WhiteToBlack(string_table)) {
+  if (marking_state()->WhiteToBlack(string_table)) {
     // Explicitly mark the prefix.
     string_table->IteratePrefix(custom_root_body_visitor);
   }
@@ -1798,13 +1799,13 @@ void MarkCompactCollector::MarkRoots(RootVisitor* root_visitor,
 
 void MarkCompactCollector::ProcessMarkingWorklist() {
   HeapObject* object;
-  MarkCompactMarkingVisitor visitor(this, atomic_marking_state());
+  MarkCompactMarkingVisitor visitor(this, marking_state());
   while ((object = marking_worklist()->Pop()) != nullptr) {
     DCHECK(!object->IsFiller());
     DCHECK(object->IsHeapObject());
     DCHECK(heap()->Contains(object));
-    DCHECK(!(atomic_marking_state()->IsWhite(object)));
-    atomic_marking_state()->GreyToBlack(object);
+    DCHECK(!(marking_state()->IsWhite(object)));
+    marking_state()->GreyToBlack(object);
     Map* map = object->map();
     MarkObject(object, map);
     visitor.Visit(map, object);
@@ -2849,7 +2850,7 @@ void MarkCompactCollector::TrimEnumCache(Map* map,
 
 
 void MarkCompactCollector::ProcessWeakCollections() {
-  MarkCompactMarkingVisitor visitor(this, atomic_marking_state());
+  MarkCompactMarkingVisitor visitor(this, marking_state());
   Object* weak_collection_obj = heap()->encountered_weak_collections();
   while (weak_collection_obj != Smi::kZero) {
     JSWeakCollection* weak_collection =

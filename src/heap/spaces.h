@@ -724,6 +724,7 @@ class MemoryChunk {
   friend class ConcurrentMarkingState;
   friend class IncrementalMarkingState;
   friend class MajorAtomicMarkingState;
+  friend class MajorMarkingState;
   friend class MajorNonAtomicMarkingState;
   friend class MemoryAllocator;
   friend class MemoryChunkValidator;
