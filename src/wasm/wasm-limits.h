@@ -29,7 +29,7 @@ constexpr size_t kV8MaxWasmDataSegments = 100000;
 constexpr size_t kV8MaxWasmMemoryPages = 32767;  // ~ 2 GiB
 constexpr size_t kV8MaxWasmStringSize = 100000;
 constexpr size_t kV8MaxWasmModuleSize = 1024 * 1024 * 1024;  // = 1 GiB
-constexpr size_t kV8MaxWasmFunctionSize = 128 * 1024;
+constexpr size_t kV8MaxWasmFunctionSize = 7654321;
 constexpr size_t kV8MaxWasmFunctionLocals = 50000;
 constexpr size_t kV8MaxWasmFunctionParams = 1000;
 constexpr size_t kV8MaxWasmFunctionMultiReturns = 1000;
