@@ -1611,8 +1611,7 @@ void PreParsedScopeData::PreParsedScopeDataPrint(std::ostream& os) {  // NOLINT
 
 #endif  // OBJECT_PRINT
 
-#if V8_TRACE_MAPS
-
+// TODO(cbruni): remove once the new maptracer is in place.
 void Name::NameShortPrint() {
   if (this->IsString()) {
     PrintF("%s", String::cast(this)->ToCString().get());
@@ -1627,7 +1626,7 @@ void Name::NameShortPrint() {
   }
 }
 
-
+// TODO(cbruni): remove once the new maptracer is in place.
 int Name::NameShortPrint(Vector<char> str) {
   if (this->IsString()) {
     return SNPrintF(str, "%s", String::cast(this)->ToCString().get());
@@ -1641,8 +1640,6 @@ int Name::NameShortPrint(Vector<char> str) {
     }
   }
 }
-
-#endif  // V8_TRACE_MAPS
 
 #if defined(DEBUG) || defined(OBJECT_PRINT)
 // This method is only meant to be called from gdb for debugging purposes.

@@ -6245,13 +6245,11 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
 
   NotifyMapChange(old_map, new_map, isolate);
 
-#if V8_TRACE_MAPS
   if (FLAG_trace_maps) {
     PrintF("[TraceMaps: SlowToFast from= %p to= %p reason= %s ]\n",
            reinterpret_cast<void*>(*old_map), reinterpret_cast<void*>(*new_map),
            reason);
   }
-#endif
 
   if (instance_descriptor_length == 0) {
     DisallowHeapAllocation no_gc;
@@ -9092,13 +9090,11 @@ Handle<Map> Map::Normalize(Handle<Map> fast_map, PropertyNormalizationMode mode,
       cache->Set(fast_map, new_map, cell);
       isolate->counters()->maps_normalized()->Increment();
     }
-#if V8_TRACE_MAPS
     if (FLAG_trace_maps) {
       PrintF("[TraceMaps: Normalize from= %p to= %p reason= %s ]\n",
              reinterpret_cast<void*>(*fast_map),
              reinterpret_cast<void*>(*new_map), reason);
     }
-#endif
   }
   fast_map->NotifyLeafMapLayoutChange();
   return new_map;
@@ -9263,8 +9259,6 @@ Handle<Map> Map::ShareDescriptor(Handle<Map> map,
   return result;
 }
 
-#if V8_TRACE_MAPS
-
 // static
 void Map::TraceTransition(const char* what, Map* from, Map* to, Name* name) {
   if (FLAG_trace_maps) {
@@ -9289,8 +9283,6 @@ void Map::TraceAllTransitions(Map* map) {
   }
 }
 
-#endif  // V8_TRACE_MAPS
-
 void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
                             Handle<Name> name, SimpleTransitionFlag flag) {
   Isolate* isolate = parent->GetIsolate();
@@ -9314,14 +9306,10 @@ void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
   }
   if (parent->is_prototype_map()) {
     DCHECK(child->is_prototype_map());
-#if V8_TRACE_MAPS
     Map::TraceTransition("NoTransition", *parent, *child, *name);
-#endif
   } else {
     TransitionsAccessor(parent).Insert(name, child, flag);
-#if V8_TRACE_MAPS
     Map::TraceTransition("Transition", *parent, *child, *name);
-#endif
   }
 }
 
@@ -9356,7 +9344,6 @@ Handle<Map> Map::CopyReplaceDescriptors(
   } else {
     result->InitializeDescriptors(*descriptors, *layout_descriptor);
   }
-#if V8_TRACE_MAPS
   if (FLAG_trace_maps &&
       // Mirror conditions above that did not call ConnectTransition().
       (map->is_prototype_map() ||
@@ -9366,8 +9353,6 @@ Handle<Map> Map::CopyReplaceDescriptors(
            reinterpret_cast<void*>(*map), reinterpret_cast<void*>(*result),
            reason);
   }
-#endif
-
   return result;
 }
 
@@ -9553,13 +9538,11 @@ Handle<Map> Map::CopyForTransition(Handle<Map> map, const char* reason) {
     new_map->InitializeDescriptors(*new_descriptors, *new_layout_descriptor);
   }
 
-#if V8_TRACE_MAPS
   if (FLAG_trace_maps) {
     PrintF("[TraceMaps: CopyForTransition from= %p to= %p reason= %s ]\n",
            reinterpret_cast<void*>(*map), reinterpret_cast<void*>(*new_map),
            reason);
   }
-#endif
 
   return new_map;
 }
@@ -12810,13 +12793,15 @@ void JSFunction::SetInitialMap(Handle<JSFunction> function, Handle<Map> map,
   if (map->prototype() != *prototype) Map::SetPrototype(map, prototype);
   function->set_prototype_or_initial_map(*map);
   map->SetConstructor(*function);
-#if V8_TRACE_MAPS
   if (FLAG_trace_maps) {
+    int sfi_id = -1;
+#if V8_SFI_HAS_UNIQUE_ID
+    sfi_id = function->shared()->unique_id();
+#endif  // V8_SFI_HAS_UNIQUE_ID
     PrintF("[TraceMaps: InitialMap map= %p SFI= %d_%s ]\n",
-           reinterpret_cast<void*>(*map), function->shared()->unique_id(),
+           reinterpret_cast<void*>(*map), sfi_id,
            function->shared()->DebugName()->ToCString().get());
   }
-#endif
 }
 
 

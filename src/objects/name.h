@@ -57,10 +57,8 @@ class Name : public HeapObject {
   DECL_CAST(Name)
 
   DECL_PRINTER(Name)
-#if V8_TRACE_MAPS
   void NameShortPrint();
   int NameShortPrint(Vector<char> str);
-#endif
 
   // Layout description.
   static const int kHashFieldSlot = HeapObject::kHeaderSize;
@@ -188,9 +186,8 @@ class Symbol : public Name {
  private:
   const char* PrivateSymbolToName() const;
 
-#if V8_TRACE_MAPS
+  // TODO(cbruni): remove once the new maptracer is in place.
   friend class Name;  // For PrivateSymbolToName.
-#endif
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(Symbol);
 };
