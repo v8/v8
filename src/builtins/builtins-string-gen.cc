@@ -1033,10 +1033,6 @@ void StringIncludesIndexOfAssembler::Generate(SearchVariant variant) {
   }
 }
 
-compiler::Node* StringBuiltinsAssembler::IsNullOrUndefined(Node* const value) {
-  return Word32Or(IsUndefined(value), IsNull(value));
-}
-
 void StringBuiltinsAssembler::RequireObjectCoercible(Node* const context,
                                                      Node* const value,
                                                      const char* method_name) {
@@ -1703,7 +1699,7 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
 
   // 5. If end is undefined, let intEnd be len;
   var_end.Bind(length);
-  GotoIf(WordEqual(end, UndefinedConstant()), &out);
+  GotoIf(IsUndefined(end), &out);
 
   // else let intEnd be ? ToInteger(end).
   Node* const end_int =
@@ -1889,8 +1885,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
   // Default to {string_length} if {length} is undefined.
   {
     Label if_isundefined(this, Label::kDeferred), if_isnotundefined(this);
-    Branch(WordEqual(length, UndefinedConstant()), &if_isundefined,
-           &if_isnotundefined);
+    Branch(IsUndefined(length), &if_isundefined, &if_isnotundefined);
 
     BIND(&if_isundefined);
     var_length.Bind(string_length);
@@ -2037,7 +2032,7 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
   // Conversion and bounds-checks for {end}.
   {
     var_end.Bind(length);
-    GotoIf(WordEqual(end, UndefinedConstant()), &out);
+    GotoIf(IsUndefined(end), &out);
 
     var_end.Bind(ToSmiBetweenZeroAnd(context, end, length));
 

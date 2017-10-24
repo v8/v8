@@ -363,10 +363,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     // TODO(danno): Seriously? Do we really need to throw the exact error
     // message on null and undefined so that the webkit tests pass?
     Label throw_null_undefined_exception(this, Label::kDeferred);
-    GotoIf(WordEqual(receiver(), NullConstant()),
-           &throw_null_undefined_exception);
-    GotoIf(WordEqual(receiver(), UndefinedConstant()),
-           &throw_null_undefined_exception);
+    GotoIf(IsNullOrUndefined(receiver()), &throw_null_undefined_exception);
 
     // By the book: taken directly from the ECMAScript 2015 specification
 
@@ -859,8 +856,7 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
 TF_BUILTIN(FastArrayPop, CodeStubAssembler) {
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
-  CSA_ASSERT(this, WordEqual(Parameter(BuiltinDescriptor::kNewTarget),
-                             UndefinedConstant()));
+  CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
   Node* receiver = args.GetReceiver();
@@ -969,8 +965,7 @@ TF_BUILTIN(FastArrayPush, CodeStubAssembler) {
   // arguments are reordered.
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
-  CSA_ASSERT(this, WordEqual(Parameter(BuiltinDescriptor::kNewTarget),
-                             UndefinedConstant()));
+  CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
   Node* receiver = args.GetReceiver();
@@ -1401,8 +1396,7 @@ TF_BUILTIN(FastArraySlice, FastArraySliceCodeStubAssembler) {
 TF_BUILTIN(FastArrayShift, CodeStubAssembler) {
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
-  CSA_ASSERT(this, WordEqual(Parameter(BuiltinDescriptor::kNewTarget),
-                             UndefinedConstant()));
+  CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
   Node* receiver = args.GetReceiver();
@@ -2730,7 +2724,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
     Label if_istypedarray(this), if_isgeneric(this);
 
     // If a is undefined, return CreateIterResultObject(undefined, true)
-    GotoIf(WordEqual(array, UndefinedConstant()), &allocate_iterator_result);
+    GotoIf(IsUndefined(array), &allocate_iterator_result);
 
     Node* array_type = LoadInstanceType(array);
     Branch(InstanceTypeEqual(array_type, JS_TYPED_ARRAY_TYPE), &if_istypedarray,

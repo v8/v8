@@ -509,8 +509,7 @@ void AccessorAssembler::HandleLoadICProtoHandlerCase(
   {
     Label load_from_cached_holder(this), done(this);
 
-    Branch(WordEqual(maybe_holder_cell, NullConstant()), &done,
-           &load_from_cached_holder);
+    Branch(IsNull(maybe_holder_cell), &done, &load_from_cached_holder);
 
     BIND(&load_from_cached_holder);
     {
@@ -593,7 +592,7 @@ Node* AccessorAssembler::EmitLoadICProtoArrayCheck(const LoadICParameters* p,
 
   VARIABLE(var_holder, MachineRepresentation::kTagged, p->receiver);
   Label done(this);
-  GotoIf(WordEqual(maybe_holder_cell, NullConstant()), &done);
+  GotoIf(IsNull(maybe_holder_cell), &done);
 
   {
     // For regular holders, having passed the receiver map check and the

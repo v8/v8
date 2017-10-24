@@ -108,7 +108,7 @@ void KeyedStoreGenericAssembler::BranchIfPrototypesHaveNonFastElements(
   {
     Node* map = var_map.value();
     Node* prototype = LoadMapPrototype(map);
-    GotoIf(WordEqual(prototype, NullConstant()), only_fast_elements);
+    GotoIf(IsNull(prototype), only_fast_elements);
     Node* prototype_map = LoadMap(prototype);
     var_map.Bind(prototype_map);
     Node* instance_type = LoadMapInstanceType(prototype_map);
@@ -596,6 +596,7 @@ void KeyedStoreGenericAssembler::LookupPropertyOnPrototypeChain(
     // Bailout if it can be an integer indexed exotic case.
     GotoIf(InstanceTypeEqual(instance_type, JS_TYPED_ARRAY_TYPE), bailout);
     Node* proto = LoadMapPrototype(holder_map);
+    GotoIf(IsNull(proto), &ok_to_write);
     var_holder.Bind(proto);
     var_holder_map.Bind(LoadMap(proto));
     Goto(&loop);

@@ -302,8 +302,7 @@ Node* PromiseBuiltinsAssembler::SpeciesConstructor(Node* context, Node* object,
       GetProperty(context, constructor, isolate->factory()->species_symbol());
 
   // 6. If S is either undefined or null, return defaultConstructor.
-  GotoIf(IsUndefined(species), &out);
-  GotoIf(WordEqual(species, NullConstant()), &out);
+  GotoIf(IsNullOrUndefined(species), &out);
 
   // 7. If IsConstructor(S) is true, return S.
   Label throw_error(this);
@@ -1456,14 +1455,12 @@ TF_BUILTIN(PromiseGetCapabilitiesExecutor, PromiseBuiltinsAssembler) {
   Node* const capability = LoadContextElement(context, kCapabilitySlot);
 
   Label if_alreadyinvoked(this, Label::kDeferred);
-  GotoIf(WordNotEqual(
-             LoadObjectField(capability, PromiseCapability::kResolveOffset),
-             UndefinedConstant()),
-         &if_alreadyinvoked);
-  GotoIf(WordNotEqual(
-             LoadObjectField(capability, PromiseCapability::kRejectOffset),
-             UndefinedConstant()),
-         &if_alreadyinvoked);
+  GotoIfNot(IsUndefined(
+                LoadObjectField(capability, PromiseCapability::kResolveOffset)),
+            &if_alreadyinvoked);
+  GotoIfNot(IsUndefined(
+                LoadObjectField(capability, PromiseCapability::kRejectOffset)),
+            &if_alreadyinvoked);
 
   StoreObjectField(capability, PromiseCapability::kResolveOffset, resolve);
   StoreObjectField(capability, PromiseCapability::kRejectOffset, reject);

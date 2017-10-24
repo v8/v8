@@ -803,7 +803,7 @@ void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
   {
     Node* map = var_map.value();
     Node* prototype = LoadMapPrototype(map);
-    GotoIf(WordEqual(prototype, NullConstant()), definitely_no_elements);
+    GotoIf(IsNull(prototype), definitely_no_elements);
     Node* prototype_map = LoadMap(prototype);
     // Pessimistically assume elements if a Proxy, Special API Object,
     // or JSValue wrapper is found on the prototype chain. After this
@@ -3686,23 +3686,11 @@ Node* CodeStubAssembler::ToThisString(Node* context, Node* value,
     BIND(&if_valueisnotstring);
     {
       // Check if the {value} is null.
-      Label if_valueisnullorundefined(this, Label::kDeferred),
-          if_valueisnotnullorundefined(this, Label::kDeferred),
-          if_valueisnotnull(this, Label::kDeferred);
-      Branch(WordEqual(value, NullConstant()), &if_valueisnullorundefined,
-             &if_valueisnotnull);
-      BIND(&if_valueisnotnull);
-      {
-        // Check if the {value} is undefined.
-        Branch(WordEqual(value, UndefinedConstant()),
-               &if_valueisnullorundefined, &if_valueisnotnullorundefined);
-        BIND(&if_valueisnotnullorundefined);
-        {
-          // Convert the {value} to a String.
-          var_value.Bind(CallBuiltin(Builtins::kToString, context, value));
-          Goto(&if_valueisstring);
-        }
-      }
+      Label if_valueisnullorundefined(this, Label::kDeferred);
+      GotoIf(IsNullOrUndefined(value), &if_valueisnullorundefined);
+      // Convert the {value} to a String.
+      var_value.Bind(CallBuiltin(Builtins::kToString, context, value));
+      Goto(&if_valueisstring);
 
       BIND(&if_valueisnullorundefined);
       {
@@ -4100,6 +4088,10 @@ Node* CodeStubAssembler::IsNullOrJSReceiver(Node* object) {
   return Word32Or(IsJSReceiver(object), IsNull(object));
 }
 
+Node* CodeStubAssembler::IsNullOrUndefined(Node* const value) {
+  return Word32Or(IsUndefined(value), IsNull(value));
+}
+
 Node* CodeStubAssembler::IsJSGlobalProxyInstanceType(Node* instance_type) {
   return InstanceTypeEqual(instance_type, JS_GLOBAL_PROXY_TYPE);
 }
@@ -4489,8 +4481,7 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
     Label if_entryisundefined(this, Label::kDeferred),
         if_entryisnotundefined(this);
     Node* entry = LoadFixedArrayElement(cache, code_index);
-    Branch(WordEqual(entry, UndefinedConstant()), &if_entryisundefined,
-           &if_entryisnotundefined);
+    Branch(IsUndefined(entry), &if_entryisundefined, &if_entryisnotundefined);
 
     BIND(&if_entryisundefined);
     {
@@ -7024,9 +7015,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
 
       Node* proto = LoadMapPrototype(holder_map);
 
-      Label if_not_null(this);
-      Branch(WordEqual(proto, NullConstant()), if_end, &if_not_null);
-      BIND(&if_not_null);
+      GotoIf(IsNull(proto), if_end);
 
       Node* map = LoadMap(proto);
       Node* instance_type = LoadMapInstanceType(map);
@@ -7059,9 +7048,7 @@ void CodeStubAssembler::TryPrototypeChainLookup(
 
       Node* proto = LoadMapPrototype(var_holder_map.value());
 
-      Label if_not_null(this);
-      Branch(WordEqual(proto, NullConstant()), if_end, &if_not_null);
-      BIND(&if_not_null);
+      GotoIf(IsNull(proto), if_end);
 
       Node* map = LoadMap(proto);
       Node* instance_type = LoadMapInstanceType(map);

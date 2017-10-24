@@ -63,7 +63,6 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
 
   Node* IndexOfDollarChar(Node* const context, Node* const string);
 
-  Node* IsNullOrUndefined(Node* const value);
   void RequireObjectCoercible(Node* const context, Node* const value,
                               const char* method_name);
 

@@ -1744,7 +1744,7 @@ TF_BUILTIN(WeakMapLookupHashIndex, CollectionsBuiltinsAssembler) {
         IntPtrAdd(index, IntPtrConstant(WeakHashTable::kElementsStartIndex));
 
     Node* current = LoadFixedArrayElement(table, index);
-    GotoIf(WordEqual(current, UndefinedConstant()), &if_not_found);
+    GotoIf(IsUndefined(current), &if_not_found);
     GotoIf(WordEqual(current, key), &if_found);
 
     // See HashTable::NextProbe().

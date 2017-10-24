@@ -2066,7 +2066,7 @@ IGNITION_HANDLER(TestTypeOf, InterpreterAssembler) {
     GotoIf(TaggedIsSmi(object), &if_false);
 
     // If the object is null then return true.
-    GotoIf(WordEqual(object, NullConstant()), &if_true);
+    GotoIf(IsNull(object), &if_true);
 
     // Check if the object is a receiver type and is not undefined or callable.
     Node* map = LoadMap(object);

@@ -1056,6 +1056,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSReceiverMap(Node* map);
   Node* IsJSReceiver(Node* object);
   Node* IsNullOrJSReceiver(Node* object);
+  Node* IsNullOrUndefined(Node* object);
   Node* IsJSRegExp(Node* object);
   Node* IsJSTypedArray(Node* object);
   Node* IsJSValueInstanceType(Node* instance_type);

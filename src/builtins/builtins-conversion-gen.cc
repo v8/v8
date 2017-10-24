@@ -33,9 +33,7 @@ void ConversionBuiltinsAssembler::Generate_NonPrimitiveToPrimitive(
 
   // Check if {exotic_to_prim} is neither null nor undefined.
   Label ordinary_to_primitive(this);
-  GotoIf(WordEqual(exotic_to_prim, NullConstant()), &ordinary_to_primitive);
-  GotoIf(WordEqual(exotic_to_prim, UndefinedConstant()),
-         &ordinary_to_primitive);
+  GotoIf(IsNullOrUndefined(exotic_to_prim), &ordinary_to_primitive);
   {
     // Invoke the {exotic_to_prim} method on the {input} with a string
     // representation of the {hint}.

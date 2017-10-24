@@ -577,7 +577,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       no_properties(this);
   {
     Comment("Argument 1 check: prototype");
-    GotoIf(WordEqual(prototype, NullConstant()), &prototype_valid);
+    GotoIf(IsNull(prototype), &prototype_valid);
     BranchIfJSReceiver(prototype, &prototype_valid, &call_runtime);
   }
 
@@ -587,7 +587,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     // Check that we have a simple object
     GotoIf(TaggedIsSmi(properties), &call_runtime);
     // Undefined implies no properties.
-    GotoIf(WordEqual(properties, UndefinedConstant()), &no_properties);
+    GotoIf(IsUndefined(properties), &no_properties);
     Node* properties_map = LoadMap(properties);
     GotoIf(IsSpecialReceiverMap(properties_map), &call_runtime);
     // Stay on the fast path only if there are no elements.
@@ -608,7 +608,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
     VARIABLE(properties, MachineRepresentation::kTagged);
     Label non_null_proto(this), instantiate_map(this), good(this);
 
-    Branch(WordEqual(prototype, NullConstant()), &good, &non_null_proto);
+    Branch(IsNull(prototype), &good, &non_null_proto);
 
     BIND(&good);
     {
@@ -634,7 +634,7 @@ TF_BUILTIN(ObjectCreate, ObjectBuiltinsAssembler) {
       Comment("Load ObjectCreateMap from PrototypeInfo");
       Node* weak_cell =
           LoadObjectField(prototype_info, PrototypeInfo::kObjectCreateMap);
-      GotoIf(WordEqual(weak_cell, UndefinedConstant()), &call_runtime);
+      GotoIf(IsUndefined(weak_cell), &call_runtime);
       map.Bind(LoadWeakCellValue(weak_cell, &call_runtime));
       Goto(&instantiate_map);
     }
@@ -769,8 +769,7 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
 TF_BUILTIN(ObjectGetOwnPropertyDescriptor, ObjectBuiltinsAssembler) {
   Node* argc = Parameter(BuiltinDescriptor::kArgumentsCount);
   Node* context = Parameter(BuiltinDescriptor::kContext);
-  CSA_ASSERT(this, WordEqual(Parameter(BuiltinDescriptor::kNewTarget),
-                             UndefinedConstant()));
+  CSA_ASSERT(this, IsUndefined(Parameter(BuiltinDescriptor::kNewTarget)));
 
   CodeStubArguments args(this, ChangeInt32ToIntPtr(argc));
   Node* object = args.GetOptionalArgumentValue(0);
