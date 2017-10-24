@@ -105,17 +105,6 @@ void Log::MessageBuilder::AppendVA(const char* format, va_list args) {
   AppendStringPart(log_->format_buffer_, length);
 }
 
-void Log::MessageBuilder::Append(String* string) {
-  DisallowHeapAllocation no_gc;  // Ensure string stay valid.
-  std::unique_ptr<char[]> characters =
-      string->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
-  AppendString(characters.get());
-}
-
-void Log::MessageBuilder::AppendAddress(Address addr) {
-  Append("0x%" V8PRIxPTR, reinterpret_cast<intptr_t>(addr));
-}
-
 void Log::MessageBuilder::AppendSymbolName(Symbol* symbol) {
   DCHECK(symbol);
   OFStream& os = log_->os_;
@@ -200,6 +189,15 @@ template <>
 Log::MessageBuilder& Log::MessageBuilder::operator<<<const char*>(
     const char* string) {
   this->AppendString(string);
+  return *this;
+}
+
+template <>
+Log::MessageBuilder& Log::MessageBuilder::operator<<<void*>(void* pointer) {
+  OFStream& os = log_->os_;
+  // Manually format the pointer since on Windows we do not consistently
+  // get a "0x" prefix.
+  os << "0x" << std::hex << reinterpret_cast<intptr_t>(pointer) << std::dec;
   return *this;
 }
 

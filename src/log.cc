@@ -828,8 +828,8 @@ void Logger::CodeDeoptEvent(Code* code, DeoptKind kind, Address pc,
   Deoptimizer::DeoptInfo info = Deoptimizer::GetDeoptInfo(code, pc);
   Log::MessageBuilder msg(log_);
   msg << "code-deopt" << kNext << timer_.Elapsed().InMicroseconds() << kNext
-      << code->CodeSize() << kNext;
-  msg.AppendAddress(code->instruction_start());
+      << code->CodeSize() << kNext
+      << reinterpret_cast<void*>(code->instruction_start());
 
   // Deoptimization position.
   std::ostringstream deopt_location;
@@ -969,9 +969,9 @@ void Logger::CallbackEventInternal(const char* prefix, Name* name,
   Log::MessageBuilder msg(log_);
   msg << kLogEventsNames[CodeEventListener::CODE_CREATION_EVENT] << kNext
       << kLogEventsNames[CodeEventListener::CALLBACK_TAG] << kNext << -2
-      << kNext << timer_.Elapsed().InMicroseconds() << kNext;
-  msg.AppendAddress(entry_point);
-  msg << kNext << 1 << kNext << prefix << name;
+      << kNext << timer_.Elapsed().InMicroseconds() << kNext
+      << reinterpret_cast<void*>(entry_point) << kNext << 1 << kNext << prefix
+      << name;
   msg.WriteToLogFile();
 }
 
@@ -997,9 +997,9 @@ void AppendCodeCreateHeader(Log::MessageBuilder& msg,
                             AbstractCode* code, base::ElapsedTimer* timer) {
   msg << kLogEventsNames[CodeEventListener::CODE_CREATION_EVENT]
       << Logger::kNext << kLogEventsNames[tag] << Logger::kNext << code->kind()
-      << Logger::kNext << timer->Elapsed().InMicroseconds() << Logger::kNext;
-  msg.AppendAddress(code->instruction_start());
-  msg << Logger::kNext << code->instruction_size() << Logger::kNext;
+      << Logger::kNext << timer->Elapsed().InMicroseconds() << Logger::kNext
+      << reinterpret_cast<void*>(code->instruction_start()) << Logger::kNext
+      << code->instruction_size() << Logger::kNext;
 }
 
 }  // namespace
@@ -1036,9 +1036,8 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
 
   Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(msg, tag, code, &timer_);
-  msg << name << kNext;
-  msg.AppendAddress(shared->address());
-  msg << kNext << ComputeMarker(shared, code);
+  msg << name << kNext << reinterpret_cast<void*>(shared->address()) << kNext
+      << ComputeMarker(shared, code);
   msg.WriteToLogFile();
 }
 
@@ -1055,9 +1054,8 @@ void Logger::CodeCreateEvent(CodeEventListener::LogEventsAndTags tag,
   Log::MessageBuilder msg(log_);
   AppendCodeCreateHeader(msg, tag, code, &timer_);
   msg << shared->DebugName() << " " << source << ":" << line << ":" << column
-      << kNext;
-  msg.AppendAddress(shared->address());
-  msg << kNext << ComputeMarker(shared, code);
+      << kNext << reinterpret_cast<void*>(shared->address()) << kNext
+      << ComputeMarker(shared, code);
   msg.WriteToLogFile();
 
   if (!FLAG_log_source_code) return;
@@ -1236,10 +1234,8 @@ void Logger::MoveEventInternal(CodeEventListener::LogEventsAndTags event,
                                Address from, Address to) {
   if (!FLAG_log_code || !log_->IsEnabled()) return;
   Log::MessageBuilder msg(log_);
-  msg << kLogEventsNames[event] << kNext;
-  msg.AppendAddress(from);
-  msg << kNext;
-  msg.AppendAddress(to);
+  msg << kLogEventsNames[event] << kNext << reinterpret_cast<void*>(from)
+      << kNext << reinterpret_cast<void*>(to);
   msg.WriteToLogFile();
 }
 
@@ -1336,13 +1332,12 @@ void Logger::ICEvent(const char* type, bool keyed, Map* map, Object* key,
   if (!log_->IsEnabled() || !FLAG_trace_ic) return;
   Log::MessageBuilder msg(log_);
   if (keyed) msg << "Keyed";
-  msg << type << kNext;
   int line;
   int column;
   Address pc = isolate_->GetAbstractPC(&line, &column);
-  msg.AppendAddress(pc);
-  msg << kNext << line << kNext << column << kNext << old_state << kNext
-      << new_state << kNext << reinterpret_cast<void*>(map) << kNext;
+  msg << type << kNext << reinterpret_cast<void*>(pc) << kNext << line << kNext
+      << column << kNext << old_state << kNext << new_state << kNext
+      << reinterpret_cast<void*>(map) << kNext;
   if (key->IsSmi()) {
     msg << Smi::ToInt(key);
   } else if (key->IsNumber()) {
