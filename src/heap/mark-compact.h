@@ -1011,8 +1011,8 @@ class MarkingVisitor final
 
   MarkingState* marking_state() { return marking_state_; }
 
-  MarkCompactCollector::MarkingWorklist* marking_worklist() {
-    return this->heap_->incremental_marking()->marking_worklist();
+  MarkCompactCollector::MarkingWorklist* marking_worklist() const {
+    return collector_->marking_worklist();
   }
 
   Heap* const heap_;

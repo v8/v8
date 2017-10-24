@@ -230,7 +230,7 @@ void MarkingVisitor<fixed_array_mode, retaining_path_mode,
                     MarkingState>::MarkObject(HeapObject* host,
                                               HeapObject* object) {
   if (marking_state()->WhiteToGrey(object)) {
-    collector_->marking_worklist()->Push(object);
+    marking_worklist()->Push(object);
     if (retaining_path_mode == TraceRetainingPathMode::kEnabled &&
         V8_UNLIKELY(FLAG_track_retaining_path)) {
       heap_->AddRetainer(host, object);
