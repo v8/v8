@@ -13,12 +13,8 @@ namespace wasm {
 
 static constexpr bool kLiftoffAssemblerImplementedOnThisPlatform = true;
 
-static constexpr RegList kLiftoffAssemblerGpCacheRegs = 1 << 0 |  // rax
-                                                        1 << 1 |  // rcx
-                                                        1 << 2 |  // rdx
-                                                        1 << 3 |  // rbx
-                                                        1 << 6 |  // rsi
-                                                        1 << 7;   // rdi
+static constexpr RegList kLiftoffAssemblerGpCacheRegs =
+    Register::ListOf<rax, rcx, rdx, rbx, rsi, rdi>();
 
 }  // namespace wasm
 }  // namespace internal
