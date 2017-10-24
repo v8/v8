@@ -2111,7 +2111,7 @@ class PageMarkingItem : public MarkingItem {
   virtual ~PageMarkingItem() { global_slots_->Increment(slots_); }
 
   void Process(YoungGenerationMarkingTask* task) override {
-    base::LockGuard<base::RecursiveMutex> guard(chunk_->mutex());
+    base::LockGuard<base::Mutex> guard(chunk_->mutex());
     MarkUntypedPointers(task);
     MarkTypedPointers(task);
   }
@@ -3909,7 +3909,7 @@ class RememberedSetUpdatingItem : public UpdatingItem {
   virtual ~RememberedSetUpdatingItem() {}
 
   void Process() override {
-    base::LockGuard<base::RecursiveMutex> guard(chunk_->mutex());
+    base::LockGuard<base::Mutex> guard(chunk_->mutex());
     UpdateUntypedPointers();
     UpdateTypedPointers();
   }
@@ -4441,7 +4441,7 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
 
   int max_freed = 0;
   {
-    base::LockGuard<base::RecursiveMutex> guard(page->mutex());
+    base::LockGuard<base::Mutex> guard(page->mutex());
     // If this page was already swept in the meantime, we can return here.
     if (page->SweepingDone()) return 0;
 

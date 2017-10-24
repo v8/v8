@@ -4678,7 +4678,7 @@ void CollectSlots(MemoryChunk* chunk, Address start, Address end,
 
 void Heap::VerifyRememberedSetFor(HeapObject* object) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(object->address());
-  base::LockGuard<base::RecursiveMutex> lock_guard(chunk->mutex());
+  base::LockGuard<base::Mutex> lock_guard(chunk->mutex());
   Address start = object->address();
   Address end = start + object->Size();
   std::set<Address> old_to_new;
