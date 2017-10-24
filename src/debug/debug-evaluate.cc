@@ -293,7 +293,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(SubString)                       \
   V(RegExpInternalReplace)           \
   /* BigInts */                      \
-  V(BigIntEqual)                     \
+  V(BigIntEqualToBigInt)             \
   V(BigIntToBoolean)                 \
   /* Literals */                     \
   V(CreateArrayLiteral)              \

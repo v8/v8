@@ -546,8 +546,8 @@ TNode<Object> CodeStubAssembler::NumberMax(SloppyTNode<Object> a,
   // TODO(danno): This could be optimized by specifically handling smi cases.
   VARIABLE(result, MachineRepresentation::kTagged);
   Label done(this), greater_than_equal_a(this), greater_than_equal_b(this);
-  GotoIfNumberGreaterThanOrEqual(a, b, &greater_than_equal_a);
-  GotoIfNumberGreaterThanOrEqual(b, a, &greater_than_equal_b);
+  GotoIfNumericGreaterThanOrEqual(a, b, &greater_than_equal_a);
+  GotoIfNumericGreaterThanOrEqual(b, a, &greater_than_equal_b);
   result.Bind(NanConstant());
   Goto(&done);
   BIND(&greater_than_equal_a);
@@ -565,8 +565,8 @@ TNode<Object> CodeStubAssembler::NumberMin(SloppyTNode<Object> a,
   // TODO(danno): This could be optimized by specifically handling smi cases.
   VARIABLE(result, MachineRepresentation::kTagged);
   Label done(this), greater_than_equal_a(this), greater_than_equal_b(this);
-  GotoIfNumberGreaterThanOrEqual(a, b, &greater_than_equal_a);
-  GotoIfNumberGreaterThanOrEqual(b, a, &greater_than_equal_b);
+  GotoIfNumericGreaterThanOrEqual(a, b, &greater_than_equal_a);
+  GotoIfNumericGreaterThanOrEqual(b, a, &greater_than_equal_b);
   result.Bind(NanConstant());
   Goto(&done);
   BIND(&greater_than_equal_a);
@@ -4387,12 +4387,13 @@ Node* CodeStubAssembler::IsNumberArrayIndex(Node* number) {
   Label check_upper_bound(this), check_is_integer(this), out(this),
       return_false(this);
 
-  GotoIfNumberGreaterThanOrEqual(number, NumberConstant(0), &check_upper_bound);
+  GotoIfNumericGreaterThanOrEqual(number, NumberConstant(0),
+                                  &check_upper_bound);
   Goto(&return_false);
 
   BIND(&check_upper_bound);
-  GotoIfNumberGreaterThanOrEqual(number, NumberConstant(kMaxUInt32),
-                                 &return_false);
+  GotoIfNumericGreaterThanOrEqual(number, NumberConstant(kMaxUInt32),
+                                  &return_false);
   Goto(&check_is_integer);
 
   BIND(&check_is_integer);
@@ -8196,9 +8197,8 @@ void CodeStubAssembler::BranchIfNumericRelationalComparison(
   }
 }
 
-// TODO(neis): Rename to GotoIfNumeric...?
-void CodeStubAssembler::GotoIfNumberGreaterThanOrEqual(Node* lhs, Node* rhs,
-                                                       Label* if_true) {
+void CodeStubAssembler::GotoIfNumericGreaterThanOrEqual(Node* lhs, Node* rhs,
+                                                        Label* if_true) {
   Label if_false(this);
   BranchIfNumericRelationalComparison(
       RelationalComparisonMode::kGreaterThanOrEqual, lhs, rhs, if_true,
@@ -8973,8 +8973,8 @@ Node* CodeStubAssembler::Equal(Node* left, Node* right, Node* context,
 
         BIND(&if_right_bigint);
         {
-          result.Bind(CallRuntime(Runtime::kBigIntEqual, NoContextConstant(),
-                                  left, right));
+          result.Bind(CallRuntime(Runtime::kBigIntEqualToBigInt,
+                                  NoContextConstant(), left, right));
           Goto(&end);
         }
 
@@ -9147,7 +9147,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
   //         }
   //       } else if (lhs->IsBigInt()) {
   //         if (rhs->IsBigInt()) {
-  //           return %BigIntEqual(lhs, rhs);
+  //           return %BigIntEqualToBigInt(lhs, rhs);
   //         } else {
   //           return false;
   //         }
@@ -9331,7 +9331,7 @@ Node* CodeStubAssembler::StrictEqual(Node* lhs, Node* rhs,
                     WordEqual(var_type_feedback->value(),
                               SmiConstant(CompareOperationFeedback::kAny)));
               }
-              result.Bind(CallRuntime(Runtime::kBigIntEqual,
+              result.Bind(CallRuntime(Runtime::kBigIntEqualToBigInt,
                                       NoContextConstant(), lhs, rhs));
               Goto(&end);
             }
@@ -9516,8 +9516,8 @@ void CodeStubAssembler::BranchIfSameValue(Node* lhs, Node* rhs, Label* if_true,
       BIND(&if_lhsisbigint);
       {
         GotoIfNot(IsBigInt(rhs), if_false);
-        Node* const result =
-            CallRuntime(Runtime::kBigIntEqual, NoContextConstant(), lhs, rhs);
+        Node* const result = CallRuntime(Runtime::kBigIntEqualToBigInt,
+                                         NoContextConstant(), lhs, rhs);
         Branch(IsTrue(result), if_true, if_false);
       }
     }

@@ -37,16 +37,13 @@ RUNTIME_FUNCTION(Runtime_BigIntCompareToNumber) {
   return *isolate->factory()->ToBoolean(result);
 }
 
-RUNTIME_FUNCTION(Runtime_BigIntEqual) {
+RUNTIME_FUNCTION(Runtime_BigIntEqualToBigInt) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, lhs, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, rhs, 1);
-  bool result = lhs->IsBigInt() && rhs->IsBigInt() &&
-                BigInt::EqualToBigInt(BigInt::cast(*lhs), BigInt::cast(*rhs));
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 0);
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, rhs, 1);
+  bool result = BigInt::EqualToBigInt(*lhs, *rhs);
   return *isolate->factory()->ToBoolean(result);
-  // TODO(neis): Remove IsBigInt checks?
-  // TODO(neis): Rename to BigIntEqualToBigInt.
 }
 
 RUNTIME_FUNCTION(Runtime_BigIntEqualToNumber) {

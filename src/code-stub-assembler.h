@@ -1735,7 +1735,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     Branch(IsAccessorPair(value), if_accessor_pair, if_not_accessor_pair);
   }
 
-  void GotoIfNumberGreaterThanOrEqual(Node* lhs, Node* rhs, Label* if_false);
+  void GotoIfNumericGreaterThanOrEqual(Node* lhs, Node* rhs, Label* if_false);
 
   Node* Equal(Node* lhs, Node* rhs, Node* context,
               Variable* var_type_feedback = nullptr);

@@ -640,8 +640,8 @@ void CollectionsBuiltinsAssembler::SameValueZeroBigInt(Node* key,
   GotoIf(TaggedIsSmi(candidate_key), if_not_same);
   GotoIfNot(IsBigInt(candidate_key), if_not_same);
 
-  Branch(WordEqual(CallRuntime(Runtime::kBigIntEqual, NoContextConstant(), key,
-                               candidate_key),
+  Branch(WordEqual(CallRuntime(Runtime::kBigIntEqualToBigInt,
+                               NoContextConstant(), key, candidate_key),
                    TrueConstant()),
          if_same, if_not_same);
 }

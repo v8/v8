@@ -532,11 +532,11 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
     {
       if (direction == ForEachDirection::kForward) {
         // 8. Repeat, while k < len
-        GotoIfNumberGreaterThanOrEqual(k(), len_, &after_loop);
+        GotoIfNumericGreaterThanOrEqual(k(), len_, &after_loop);
       } else {
         // OR
         // 10. Repeat, while k >= 0
-        GotoIfNumberGreaterThanOrEqual(SmiConstant(-1), k(), &after_loop);
+        GotoIfNumericGreaterThanOrEqual(SmiConstant(-1), k(), &after_loop);
       }
 
       Label done_element(this, &to_);
@@ -1301,8 +1301,8 @@ TF_BUILTIN(FastArraySlice, FastArraySliceCodeStubAssembler) {
   //    else let k be min(relativeStart, len.value()).
   VARIABLE(k, MachineRepresentation::kTagged);
   Label relative_start_positive(this), relative_start_done(this);
-  GotoIfNumberGreaterThanOrEqual(relative_start, SmiConstant(0),
-                                 &relative_start_positive);
+  GotoIfNumericGreaterThanOrEqual(relative_start, SmiConstant(0),
+                                  &relative_start_positive);
   k.Bind(NumberMax(NumberAdd(len.value(), relative_start), NumberConstant(0)));
   Goto(&relative_start_done);
   BIND(&relative_start_positive);
@@ -1328,8 +1328,8 @@ TF_BUILTIN(FastArraySlice, FastArraySliceCodeStubAssembler) {
   //     else let final be min(relativeEnd, len).
   VARIABLE(final, MachineRepresentation::kTagged);
   Label relative_end_positive(this), relative_end_done(this);
-  GotoIfNumberGreaterThanOrEqual(relative_end.value(), NumberConstant(0),
-                                 &relative_end_positive);
+  GotoIfNumericGreaterThanOrEqual(relative_end.value(), NumberConstant(0),
+                                  &relative_end_positive);
   final.Bind(NumberMax(NumberAdd(len.value(), relative_end.value()),
                        NumberConstant(0)));
   Goto(&relative_end_done);
@@ -1367,7 +1367,7 @@ TF_BUILTIN(FastArraySlice, FastArraySliceCodeStubAssembler) {
   BIND(&loop);
   {
     // 15. Repeat, while k < final
-    GotoIfNumberGreaterThanOrEqual(k.value(), final.value(), &after_loop);
+    GotoIfNumericGreaterThanOrEqual(k.value(), final.value(), &after_loop);
 
     Node* p_k = k.value();  //  ToString(context, k.value()) is no-op
 
@@ -2371,10 +2371,16 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
     {
       GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
                 &return_not_found);
+
       Node* element_k = LoadFixedArrayElement(elements, index_var.value());
-      TNode<Object> result = CallRuntime(Runtime::kBigIntEqual, context,
+      Label continue_loop(this);
+      GotoIf(TaggedIsSmi(element_k), &continue_loop);
+      GotoIfNot(IsBigInt(element_k), &continue_loop);
+      TNode<Object> result = CallRuntime(Runtime::kBigIntEqualToBigInt, context,
                                          search_element, element_k);
-      GotoIf(WordEqual(result, TrueConstant()), &return_found);
+      Branch(WordEqual(result, TrueConstant()), &return_found, &continue_loop);
+
+      BIND(&continue_loop);
       Increment(&index_var);
       Goto(&bigint_loop);
     }
@@ -2782,7 +2788,7 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
         length = var_length.value();
       }
 
-      GotoIfNumberGreaterThanOrEqual(index, length, &set_done);
+      GotoIfNumericGreaterThanOrEqual(index, length, &set_done);
 
       StoreObjectField(iterator, JSArrayIterator::kNextIndexOffset,
                        NumberInc(index));
