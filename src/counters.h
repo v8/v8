@@ -1244,10 +1244,12 @@ class RuntimeCallTimerScope {
   /* Total count of functions compiled using the baseline compiler. */         \
   SC(total_baseline_compile_count, V8.TotalBaselineCompileCount)
 
-#define STATS_COUNTER_TS_LIST(SC)                         \
-  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes) \
-  SC(wasm_reloc_size, V8.WasmRelocBytes)                  \
-  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions)
+#define STATS_COUNTER_TS_LIST(SC)                                    \
+  SC(wasm_generated_code_size, V8.WasmGeneratedCodeBytes)            \
+  SC(wasm_reloc_size, V8.WasmRelocBytes)                             \
+  SC(wasm_lazily_compiled_functions, V8.WasmLazilyCompiledFunctions) \
+  SC(liftoff_compiled_functions, V8.LiftoffCompiledFunctions)        \
+  SC(liftoff_unsupported_functions, V8.LiftoffUnsupportedFunctions)
 
 // This file contains all the v8 counters that are in use.
 class Counters : public std::enable_shared_from_this<Counters> {

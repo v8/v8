@@ -12,6 +12,7 @@
 #include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/trap-handler/trap-handler.h"
+#include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-opcodes.h"
@@ -73,55 +74,81 @@ enum RuntimeExceptionSupport : bool {
 
 class WasmCompilationUnit final {
  public:
+  enum class CompilationMode : uint8_t { kLiftoff, kTurbofan };
+  static CompilationMode GetDefaultCompilationMode();
+
   // If constructing from a background thread, pass in a Counters*, and ensure
   // that the Counters live at least as long as this compilation unit (which
   // typically means to hold a std::shared_ptr<Counters>).
   // If no such pointer is passed, Isolate::counters() will be called. This is
   // only allowed to happen on the foreground thread.
   WasmCompilationUnit(Isolate*, ModuleEnv*, wasm::FunctionBody, wasm::WasmName,
-                      int index, Handle<Code> centry_stub, Counters* = nullptr,
+                      int index, Handle<Code> centry_stub,
+                      CompilationMode = GetDefaultCompilationMode(),
+                      Counters* = nullptr,
                       RuntimeExceptionSupport = kRuntimeExceptionSupport,
                       bool lower_simd = false);
+
+  ~WasmCompilationUnit();
 
   int func_index() const { return func_index_; }
 
   void ExecuteCompilation();
-  MaybeHandle<Code> FinishCompilation(wasm::ErrorThrower* thrower);
+  MaybeHandle<Code> FinishCompilation(wasm::ErrorThrower*);
 
   static MaybeHandle<Code> CompileWasmFunction(
-      wasm::ErrorThrower* thrower, Isolate* isolate,
-      const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
-      const wasm::WasmFunction* function);
+      wasm::ErrorThrower*, Isolate*, const wasm::ModuleWireBytes&, ModuleEnv*,
+      const wasm::WasmFunction*, CompilationMode = GetDefaultCompilationMode());
 
-  void set_memory_cost(size_t memory_cost) { memory_cost_ = memory_cost; }
   size_t memory_cost() const { return memory_cost_; }
 
  private:
+  struct LiftoffData {
+    wasm::LiftoffAssembler asm_;
+    explicit LiftoffData(Isolate* isolate) : asm_(isolate) {}
+  };
+  struct TurbofanData {
+    // The graph zone is deallocated at the end of ExecuteCompilation by virtue
+    // of it being zone allocated.
+    JSGraph* jsgraph_ = nullptr;
+    // The compilation_zone_, info_, and job_ fields need to survive past
+    // ExecuteCompilation, onto FinishCompilation (which happens on the main
+    // thread).
+    std::unique_ptr<Zone> compilation_zone_;
+    std::unique_ptr<CompilationInfo> info_;
+    std::unique_ptr<CompilationJob> job_;
+    wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
+  };
+
+  // Turbofan.
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
-  Counters* counters() { return counters_; }
+  void ExecuteTurbofanCompilation();
+  MaybeHandle<Code> FinishTurbofanCompilation(wasm::ErrorThrower*);
+
+  // Liftoff.
+  bool ExecuteLiftoffCompilation();
+  MaybeHandle<Code> FinishLiftoffCompilation(wasm::ErrorThrower*);
 
   Isolate* isolate_;
   ModuleEnv* env_;
   wasm::FunctionBody func_body_;
   wasm::WasmName func_name_;
   Counters* counters_;
-  // The graph zone is deallocated at the end of ExecuteCompilation by virtue of
-  // it being zone allocated.
-  JSGraph* jsgraph_ = nullptr;
-  // the compilation_zone_, info_, and job_ fields need to survive past
-  // ExecuteCompilation, onto FinishCompilation (which happens on the main
-  // thread).
-  std::unique_ptr<Zone> compilation_zone_;
-  std::unique_ptr<CompilationInfo> info_;
-  std::unique_ptr<CompilationJob> job_;
   Handle<Code> centry_stub_;
   int func_index_;
-  wasm::Result<wasm::DecodeStruct*> graph_construction_result_;
   // See WasmGraphBuilder::runtime_exception_support_.
   RuntimeExceptionSupport runtime_exception_support_;
   bool ok_ = true;
   size_t memory_cost_ = 0;
   bool lower_simd_;
+  CompilationMode mode_;
+  // {liftoff_} is valid if mode_ == kLiftoff, tf_ if mode_ == kTurbofan.
+  union {
+    LiftoffData liftoff_;
+    TurbofanData tf_;
+  };
+
+  Counters* counters() { return counters_; }
 
   DISALLOW_COPY_AND_ASSIGN(WasmCompilationUnit);
 };

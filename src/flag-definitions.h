@@ -505,6 +505,8 @@ DEFINE_BOOL(trace_wasm_streaming, false,
 DEFINE_INT(trace_wasm_ast_start, 0,
            "start function for wasm AST trace (inclusive)")
 DEFINE_INT(trace_wasm_ast_end, 0, "end function for wasm AST trace (exclusive)")
+DEFINE_BOOL(liftoff, false,
+            "enable liftoff, the experimental wasm baseline compiler")
 DEFINE_BOOL(trace_liftoff, false, "trace liftoff, the wasm baseline compiler")
 DEFINE_UINT(skip_compiling_wasm_funcs, 0, "start compiling at function N")
 DEFINE_BOOL(wasm_break_on_decoder_error, false,

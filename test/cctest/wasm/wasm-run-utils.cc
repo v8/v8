@@ -409,8 +409,10 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
                          func_wire_bytes.start(), func_wire_bytes.end()};
   compiler::WasmCompilationUnit unit(
       isolate(), &module_env, func_body, func_name, function_->func_index,
-      CEntryStub(isolate(), 1).GetCode(), isolate()->counters(),
-      builder_->runtime_exception_support(), builder_->lower_simd());
+      CEntryStub(isolate(), 1).GetCode(),
+      compiler::WasmCompilationUnit::GetDefaultCompilationMode(),
+      isolate()->counters(), builder_->runtime_exception_support(),
+      builder_->lower_simd());
   unit.ExecuteCompilation();
   Handle<Code> code = unit.FinishCompilation(&thrower).ToHandleChecked();
   CHECK(!thrower.error());

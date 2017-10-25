@@ -4623,17 +4623,17 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
   // Create a TF graph during decoding.
 
   SourcePositionTable* source_position_table =
-      new (jsgraph_->zone()) SourcePositionTable(jsgraph_->graph());
-  WasmGraphBuilder builder(env_, jsgraph_->zone(), jsgraph_, centry_stub_,
-                           func_body_.sig, source_position_table,
+      new (tf_.jsgraph_->zone()) SourcePositionTable(tf_.jsgraph_->graph());
+  WasmGraphBuilder builder(env_, tf_.jsgraph_->zone(), tf_.jsgraph_,
+                           centry_stub_, func_body_.sig, source_position_table,
                            runtime_exception_support_);
-  graph_construction_result_ =
+  tf_.graph_construction_result_ =
       wasm::BuildTFGraph(isolate_->allocator(), &builder, func_body_);
 
-  if (graph_construction_result_.failed()) {
+  if (tf_.graph_construction_result_.failed()) {
     if (FLAG_trace_wasm_compiler) {
       OFStream os(stdout);
-      os << "Compilation failed: " << graph_construction_result_.error_msg()
+      os << "Compilation failed: " << tf_.graph_construction_result_.error_msg()
          << std::endl;
     }
     return nullptr;
@@ -4643,7 +4643,7 @@ SourcePositionTable* WasmCompilationUnit::BuildGraphForWasmFunction(
 
   if (builder.has_simd() &&
       (!CpuFeatures::SupportsWasmSimd128() || lower_simd_)) {
-    SimdScalarLowering(jsgraph_, func_body_.sig).LowerGraph();
+    SimdScalarLowering(tf_.jsgraph_, func_body_.sig).LowerGraph();
   }
 
   if (func_index_ >= FLAG_trace_wasm_ast_start &&
@@ -4674,13 +4674,21 @@ Vector<const char> GetDebugName(Zone* zone, wasm::WasmName name, int index) {
   memcpy(index_name, name_vector.start(), name_len);
   return Vector<const char>(index_name, name_len);
 }
+
 }  // namespace
+
+// static
+WasmCompilationUnit::CompilationMode
+WasmCompilationUnit::GetDefaultCompilationMode() {
+  return FLAG_liftoff ? WasmCompilationUnit::CompilationMode::kLiftoff
+                      : WasmCompilationUnit::CompilationMode::kTurbofan;
+}
 
 WasmCompilationUnit::WasmCompilationUnit(
     Isolate* isolate, ModuleEnv* env, wasm::FunctionBody body,
     wasm::WasmName name, int index, Handle<Code> centry_stub,
-    Counters* counters, RuntimeExceptionSupport exception_support,
-    bool lower_simd)
+    CompilationMode mode, Counters* counters,
+    RuntimeExceptionSupport exception_support, bool lower_simd)
     : isolate_(isolate),
       env_(env),
       func_body_(body),
@@ -4689,7 +4697,28 @@ WasmCompilationUnit::WasmCompilationUnit(
       centry_stub_(centry_stub),
       func_index_(index),
       runtime_exception_support_(exception_support),
-      lower_simd_(lower_simd) {}
+      lower_simd_(lower_simd),
+      mode_(mode) {
+  switch (mode_) {
+    case WasmCompilationUnit::CompilationMode::kLiftoff:
+      new (&liftoff_) LiftoffData(isolate);
+      break;
+    case WasmCompilationUnit::CompilationMode::kTurbofan:
+      new (&tf_) TurbofanData();
+      break;
+  }
+}
+
+WasmCompilationUnit::~WasmCompilationUnit() {
+  switch (mode_) {
+    case WasmCompilationUnit::CompilationMode::kLiftoff:
+      liftoff_.~LiftoffData();
+      break;
+    case WasmCompilationUnit::CompilationMode::kTurbofan:
+      tf_.~TurbofanData();
+      break;
+  }
+}
 
 void WasmCompilationUnit::ExecuteCompilation() {
   auto timed_histogram = env_->module->is_wasm()
@@ -4706,13 +4735,28 @@ void WasmCompilationUnit::ExecuteCompilation() {
     }
   }
 
+  switch (mode_) {
+    case WasmCompilationUnit::CompilationMode::kLiftoff:
+      if (ExecuteLiftoffCompilation()) break;
+      // Otherwise, fall back to turbofan.
+      liftoff_.~LiftoffData();
+      mode_ = WasmCompilationUnit::CompilationMode::kTurbofan;
+      new (&tf_) TurbofanData();
+    // fall-through
+    case WasmCompilationUnit::CompilationMode::kTurbofan:
+      ExecuteTurbofanCompilation();
+      break;
+  }
+}
+
+void WasmCompilationUnit::ExecuteTurbofanCompilation() {
   double decode_ms = 0;
   size_t node_count = 0;
 
   // Scope for the {graph_zone}.
   {
     Zone graph_zone(isolate_->allocator(), ZONE_NAME);
-    jsgraph_ = new (&graph_zone) JSGraph(
+    tf_.jsgraph_ = new (&graph_zone) JSGraph(
         isolate_, new (&graph_zone) Graph(&graph_zone),
         new (&graph_zone) CommonOperatorBuilder(&graph_zone), nullptr, nullptr,
         new (&graph_zone) MachineOperatorBuilder(
@@ -4722,39 +4766,39 @@ void WasmCompilationUnit::ExecuteCompilation() {
     SourcePositionTable* source_positions =
         BuildGraphForWasmFunction(&decode_ms);
 
-    if (graph_construction_result_.failed()) {
+    if (tf_.graph_construction_result_.failed()) {
       ok_ = false;
       return;
     }
 
     base::ElapsedTimer pipeline_timer;
     if (FLAG_trace_wasm_decode_time) {
-      node_count = jsgraph_->graph()->NodeCount();
+      node_count = tf_.jsgraph_->graph()->NodeCount();
       pipeline_timer.Start();
     }
 
-    compilation_zone_.reset(new Zone(isolate_->allocator(), ZONE_NAME));
+    tf_.compilation_zone_.reset(new Zone(isolate_->allocator(), ZONE_NAME));
 
     // Run the compiler pipeline to generate machine code.
     CallDescriptor* descriptor =
-        GetWasmCallDescriptor(compilation_zone_.get(), func_body_.sig);
-    if (jsgraph_->machine()->Is32()) {
+        GetWasmCallDescriptor(tf_.compilation_zone_.get(), func_body_.sig);
+    if (tf_.jsgraph_->machine()->Is32()) {
       descriptor =
-          GetI32WasmCallDescriptor(compilation_zone_.get(), descriptor);
+          GetI32WasmCallDescriptor(tf_.compilation_zone_.get(), descriptor);
     }
-    info_.reset(new CompilationInfo(
-        GetDebugName(compilation_zone_.get(), func_name_, func_index_),
-        isolate_, compilation_zone_.get(), Code::WASM_FUNCTION));
+    tf_.info_.reset(new CompilationInfo(
+        GetDebugName(tf_.compilation_zone_.get(), func_name_, func_index_),
+        isolate_, tf_.compilation_zone_.get(), Code::WASM_FUNCTION));
     ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions(
-        compilation_zone_.get());
+        tf_.compilation_zone_.get());
 
-    job_.reset(Pipeline::NewWasmCompilationJob(
-        info_.get(), jsgraph_, descriptor, source_positions,
+    tf_.job_.reset(Pipeline::NewWasmCompilationJob(
+        tf_.info_.get(), tf_.jsgraph_, descriptor, source_positions,
         &protected_instructions, env_->module->origin()));
-    ok_ = job_->ExecuteJob() == CompilationJob::SUCCEEDED;
+    ok_ = tf_.job_->ExecuteJob() == CompilationJob::SUCCEEDED;
     // TODO(bradnelson): Improve histogram handling of size_t.
     counters()->wasm_compile_function_peak_memory_bytes()->AddSample(
-        static_cast<int>(jsgraph_->graph()->zone()->allocation_size()));
+        static_cast<int>(tf_.jsgraph_->graph()->zone()->allocation_size()));
 
     if (FLAG_trace_wasm_decode_time) {
       double pipeline_ms = pipeline_timer.Elapsed().InMillisecondsF();
@@ -4765,19 +4809,32 @@ void WasmCompilationUnit::ExecuteCompilation() {
           node_count, pipeline_ms);
     }
     // The graph zone is about to get out of scope. Avoid invalid references.
-    jsgraph_ = nullptr;
+    tf_.jsgraph_ = nullptr;
   }
 
   // Record the memory cost this unit places on the system until
   // it is finalized.
-  size_t cost = job_->AllocatedMemory();
-  set_memory_cost(cost);
+  memory_cost_ = tf_.job_->AllocatedMemory();
 }
+
+// WasmCompilationUnit::ExecuteLiftoffCompilation() is defined in
+// liftoff-compiler.cc.
 
 MaybeHandle<Code> WasmCompilationUnit::FinishCompilation(
     wasm::ErrorThrower* thrower) {
+  switch (mode_) {
+    case WasmCompilationUnit::CompilationMode::kLiftoff:
+      return FinishLiftoffCompilation(thrower);
+    case WasmCompilationUnit::CompilationMode::kTurbofan:
+      return FinishTurbofanCompilation(thrower);
+  }
+  UNREACHABLE();
+}
+
+MaybeHandle<Code> WasmCompilationUnit::FinishTurbofanCompilation(
+    wasm::ErrorThrower* thrower) {
   if (!ok_) {
-    if (graph_construction_result_.failed()) {
+    if (tf_.graph_construction_result_.failed()) {
       // Add the function as another context for the exception.
       EmbeddedVector<char, 128> message;
       if (func_name_.start() == nullptr) {
@@ -4787,7 +4844,7 @@ MaybeHandle<Code> WasmCompilationUnit::FinishCompilation(
         SNPrintF(message, "Compiling wasm function #%d:%.*s failed",
                  func_index_, trunc_name.length(), trunc_name.start());
       }
-      thrower->CompileFailed(message.start(), graph_construction_result_);
+      thrower->CompileFailed(message.start(), tf_.graph_construction_result_);
     }
 
     return {};
@@ -4796,10 +4853,10 @@ MaybeHandle<Code> WasmCompilationUnit::FinishCompilation(
   if (FLAG_trace_wasm_decode_time) {
     codegen_timer.Start();
   }
-  if (job_->FinalizeJob() != CompilationJob::SUCCEEDED) {
+  if (tf_.job_->FinalizeJob() != CompilationJob::SUCCEEDED) {
     return Handle<Code>::null();
   }
-  Handle<Code> code = info_->code();
+  Handle<Code> code = tf_.info_->code();
   DCHECK(!code.is_null());
 
   if (must_record_function_compilation(isolate_)) {
@@ -4819,18 +4876,45 @@ MaybeHandle<Code> WasmCompilationUnit::FinishCompilation(
   return code;
 }
 
+MaybeHandle<Code> WasmCompilationUnit::FinishLiftoffCompilation(
+    wasm::ErrorThrower* thrower) {
+  CodeDesc desc;
+  liftoff_.asm_.GetCode(isolate_, &desc);
+  Handle<Code> code;
+  code = isolate_->factory()->NewCode(desc, Code::WASM_FUNCTION, code);
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_print_code || FLAG_print_wasm_code) {
+    // TODO(wasm): Use proper log files, here and elsewhere.
+    OFStream os(stdout);
+    os << "--- Wasm liftoff code ---\n";
+    EmbeddedVector<char, 32> func_name;
+    func_name.Truncate(SNPrintF(func_name, "wasm#%d-liftoff", func_index_));
+    code->Disassemble(func_name.start(), os);
+    os << "--- End code ---\n";
+  }
+#endif
+
+  if (isolate_->logger()->is_logging_code_events() ||
+      isolate_->is_profiling()) {
+    RecordFunctionCompilation(CodeEventListener::FUNCTION_TAG, isolate_, code,
+                              "wasm#%d-liftoff", func_index_);
+  }
+
+  return code;
+}
+
 // static
 MaybeHandle<Code> WasmCompilationUnit::CompileWasmFunction(
     wasm::ErrorThrower* thrower, Isolate* isolate,
     const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
-    const wasm::WasmFunction* function) {
+    const wasm::WasmFunction* function, CompilationMode mode) {
   wasm::FunctionBody function_body{
       function->sig, function->code.offset(),
       wire_bytes.start() + function->code.offset(),
       wire_bytes.start() + function->code.end_offset()};
   WasmCompilationUnit unit(
       isolate, env, function_body, wire_bytes.GetNameOrNull(function),
-      function->func_index, CEntryStub(isolate, 1).GetCode());
+      function->func_index, CEntryStub(isolate, 1).GetCode(), mode);
   unit.ExecuteCompilation();
   return unit.FinishCompilation(thrower);
 }

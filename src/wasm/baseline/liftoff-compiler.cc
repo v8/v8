@@ -480,10 +480,44 @@ class LiftoffCompiler {
 };
 
 }  // namespace
+}  // namespace wasm
+
+bool compiler::WasmCompilationUnit::ExecuteLiftoffCompilation() {
+  base::ElapsedTimer compile_timer;
+  if (FLAG_trace_wasm_decode_time) {
+    compile_timer.Start();
+  }
+
+  Zone zone(isolate_->allocator(), "LiftoffCompilationZone");
+  const wasm::WasmModule* module = env_ ? env_->module : nullptr;
+  auto* call_desc = compiler::GetWasmCallDescriptor(&zone, func_body_.sig);
+  wasm::WasmFullDecoder<wasm::Decoder::kValidate, wasm::LiftoffCompiler>
+      decoder(&zone, module, func_body_, &liftoff_.asm_, call_desc, env_);
+  decoder.Decode();
+  if (!decoder.interface().ok()) {
+    // Liftoff compilation failed.
+    isolate_->counters()->liftoff_unsupported_functions()->Increment();
+    return false;
+  }
+  if (decoder.failed()) return false;  // Validation error
+
+  if (FLAG_trace_wasm_decode_time) {
+    double compile_ms = compile_timer.Elapsed().InMillisecondsF();
+    PrintF(
+        "wasm-compilation liftoff phase 1 ok: %u bytes, %0.3f ms decode and "
+        "compile\n",
+        static_cast<unsigned>(func_body_.end - func_body_.start), compile_ms);
+  }
+
+  // Record the memory cost this unit places on the system until
+  // it is finalized.
+  memory_cost_ = liftoff_.asm_.pc_offset();
+  isolate_->counters()->liftoff_compiled_functions()->Increment();
+  return true;
+}
 
 #undef __
 #undef TRACE
 
-}  // namespace wasm
 }  // namespace internal
 }  // namespace v8

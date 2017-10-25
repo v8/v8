@@ -89,6 +89,7 @@ class ModuleCompiler {
           wasm::FunctionBody{function->sig, buffer_offset, bytes.begin(),
                              bytes.end()},
           name, function->func_index, compiler_->centry_stub_,
+          compiler::WasmCompilationUnit::GetDefaultCompilationMode(),
           compiler_->counters()));
     }
 
@@ -966,7 +967,7 @@ void ModuleCompiler::OnBackgroundTaskStopped() {
   DCHECK_LE(stopped_compilation_tasks_, num_background_tasks_);
 }
 
-// Run by each compilation task The no_finisher_callback is called
+// Run by each compilation task. The no_finisher_callback is called
 // within the result_mutex_ lock when no finishing task is running,
 // i.e. when the finisher_is_running_ flag is not set.
 bool ModuleCompiler::FetchAndExecuteCompilationUnit(
