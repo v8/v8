@@ -1794,7 +1794,8 @@ Handle<Code> Factory::NewCode(
     const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
     MaybeHandle<HandlerTable> maybe_handler_table,
     MaybeHandle<ByteArray> maybe_source_position_table,
-    MaybeHandle<DeoptimizationData> maybe_deopt_data, bool immovable) {
+    MaybeHandle<DeoptimizationData> maybe_deopt_data, bool immovable,
+    bool is_turbofanned, int stack_slots, int safepoint_table_offset) {
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
   Handle<CodeDataContainer> data_container = NewCodeDataContainer(0);
 
@@ -1836,7 +1837,9 @@ Handle<Code> Factory::NewCode(
   code->set_relocation_info(*reloc_info);
   code->initialize_flags(kind);
   code->set_has_unwinding_info(has_unwinding_info);
-  code->set_safepoint_table_offset(0);
+  code->set_is_turbofanned(is_turbofanned);
+  code->set_stack_slots(stack_slots);
+  code->set_safepoint_table_offset(safepoint_table_offset);
   code->set_code_data_container(*data_container);
   code->set_has_tagged_params(true);
   code->set_deoptimization_data(*deopt_data);

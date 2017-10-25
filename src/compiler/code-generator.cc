@@ -304,14 +304,12 @@ Handle<Code> CodeGenerator::FinalizeCode() {
     unwinding_info_writer_.eh_frame_writer()->GetEhFrame(&desc);
   }
 
-  Handle<Code> result =
-      isolate()->factory()->NewCode(desc, info()->code_kind(), Handle<Object>(),
-                                    table, source_positions, deopt_data, false);
+  Handle<Code> result = isolate()->factory()->NewCode(
+      desc, info()->code_kind(), Handle<Object>(), table, source_positions,
+      deopt_data, false, true, frame()->GetTotalFrameSlotCount(),
+      safepoints()->GetCodeOffset());
   isolate()->counters()->total_compiled_code_size()->Increment(
       result->instruction_size());
-  result->set_is_turbofanned(true);
-  result->set_stack_slots(frame()->GetTotalFrameSlotCount());
-  result->set_safepoint_table_offset(safepoints()->GetCodeOffset());
 
   LOG_CODE_EVENT(isolate(),
                  CodeLinePosInfoRecordEvent(*Handle<AbstractCode>::cast(result),

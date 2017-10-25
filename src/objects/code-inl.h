@@ -420,7 +420,7 @@ unsigned Code::stack_slots() const {
 
 void Code::set_stack_slots(unsigned slots) {
   CHECK(slots <= StackSlotsField::kMax);
-  DCHECK(is_turbofanned());
+  DCHECK(is_turbofanned() || slots == 0);  // Allow zero initialization.
   int previous = READ_UINT32_FIELD(this, kFlagsOffset);
   int updated = StackSlotsField::update(previous, slots);
   WRITE_UINT32_FIELD(this, kFlagsOffset, updated);
