@@ -1017,7 +1017,7 @@ void BigInt::InplaceRightShift(int shift) {
   DCHECK_GE(shift, 0);
   DCHECK_LT(shift, kDigitBits);
   DCHECK_GT(length(), 0);
-  DCHECK_EQ(digit(0) & ((1 << shift) - 1), 0);
+  DCHECK_EQ(digit(0) & ((static_cast<digit_t>(1) << shift) - 1), 0);
   if (shift == 0) return;
   digit_t carry = digit(0) >> shift;
   int last = length() - 1;
@@ -1129,7 +1129,8 @@ Handle<BigInt> BigInt::RightShiftByAbsolute(Handle<BigInt> x,
   // large enough up front, it avoids having to do a second allocation later.
   bool must_round_down = false;
   if (sign) {
-    if ((x->digit(digit_shift) & ((1 << bits_shift) - 1)) != 0) {
+    const digit_t mask = (static_cast<digit_t>(1) << bits_shift) - 1;
+    if ((x->digit(digit_shift) & mask) != 0) {
       must_round_down = true;
     } else {
       for (int i = 0; i < digit_shift; i++) {
