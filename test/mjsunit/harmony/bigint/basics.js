@@ -230,8 +230,7 @@ const six = BigInt(6);
   assertEquals(Object(zero).valueOf(), another_zero);
   assertThrows(() => { return BigInt.prototype.valueOf.call("string"); },
                TypeError);
-  // TODO(jkummerow): Add tests for (new BigInt(...)).valueOf() when we
-  // can construct BigInt wrappers.
+  assertEquals(-42n, Object(-42n).valueOf());
 }
 
 // ToBoolean
