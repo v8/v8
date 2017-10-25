@@ -13864,12 +13864,6 @@ void ObjectVisitor::VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) {
 }
 
 
-void Code::InvalidateRelocation() {
-  InvalidateEmbeddedObjects();
-  set_relocation_info(GetHeap()->empty_byte_array());
-}
-
-
 void Code::InvalidateEmbeddedObjects() {
   HeapObject* undefined = GetHeap()->undefined_value();
   int mode_mask = RelocInfo::ModeMask(RelocInfo::EMBEDDED_OBJECT);

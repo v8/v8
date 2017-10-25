@@ -146,7 +146,6 @@ class Code : public HeapObject {
 
   // [relocation_info]: Code relocation information
   DECL_ACCESSORS(relocation_info, ByteArray)
-  void InvalidateRelocation();
   void InvalidateEmbeddedObjects();
 
   // [handler_table]: Fixed array containing offsets of exception handlers.
