@@ -671,6 +671,9 @@ class V8_EXPORT_PRIVATE Factory final {
   // Create an External object for V8's external API.
   Handle<JSObject> NewExternal(void* value);
 
+  // Creates a new CodeDataContainer for a Code object.
+  Handle<CodeDataContainer> NewCodeDataContainer(int flags);
+
   // The reference to the Code object is stored in self_reference.
   // This allows generated code to reference its own Code object
   // by containing this handle.

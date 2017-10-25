@@ -172,6 +172,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case CODE_TYPE:
       Code::cast(this)->CodePrint(os);
       break;
+    case CODE_DATA_CONTAINER_TYPE:
+      CodeDataContainer::cast(this)->CodeDataContainerPrint(os);
+      break;
     case JS_PROXY_TYPE:
       JSProxy::cast(this)->JSProxyPrint(os);
       break;
@@ -1277,6 +1280,11 @@ void Code::CodePrint(std::ostream& os) {  // NOLINT
 #endif
 }
 
+void CodeDataContainer::CodeDataContainerPrint(std::ostream& os) {  // NOLINT
+  HeapObject::PrintHeader(os, "CodeDataContainer");
+  os << "\n - kind_specific_flags: " << kind_specific_flags();
+  os << "\n";
+}
 
 void Foreign::ForeignPrint(std::ostream& os) {  // NOLINT
   os << "foreign address : " << reinterpret_cast<void*>(foreign_address());

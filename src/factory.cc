@@ -1776,6 +1776,13 @@ Handle<JSObject> Factory::NewExternal(void* value) {
   return external;
 }
 
+Handle<CodeDataContainer> Factory::NewCodeDataContainer(int flags) {
+  Handle<CodeDataContainer> data_container =
+      New<CodeDataContainer>(code_data_container_map(), OLD_SPACE);
+  data_container->set_kind_specific_flags(flags);
+  data_container->clear_padding();
+  return data_container;
+}
 
 Handle<Code> Factory::NewCodeRaw(int object_size, bool immovable) {
   CALL_HEAP_FUNCTION(isolate(),
@@ -1789,6 +1796,7 @@ Handle<Code> Factory::NewCode(
     MaybeHandle<ByteArray> maybe_source_position_table,
     MaybeHandle<DeoptimizationData> maybe_deopt_data, bool immovable) {
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
+  Handle<CodeDataContainer> data_container = NewCodeDataContainer(0);
 
   Handle<HandlerTable> handler_table =
       maybe_handler_table.is_null() ? HandlerTable::Empty(isolate())
@@ -1828,8 +1836,8 @@ Handle<Code> Factory::NewCode(
   code->set_relocation_info(*reloc_info);
   code->initialize_flags(kind);
   code->set_has_unwinding_info(has_unwinding_info);
-  code->set_raw_kind_specific_flags1(0);
   code->set_safepoint_table_offset(0);
+  code->set_code_data_container(*data_container);
   code->set_has_tagged_params(true);
   code->set_deoptimization_data(*deopt_data);
   code->set_stub_key(0);
@@ -1877,9 +1885,10 @@ Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {
 }
 
 Handle<Code> Factory::CopyCode(Handle<Code> code) {
+  Handle<CodeDataContainer> data_container =
+      NewCodeDataContainer(code->code_data_container()->kind_specific_flags());
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->CopyCode(*code),
-                     Code);
+                     isolate()->heap()->CopyCode(*code, *data_container), Code);
 }
 
 

@@ -925,7 +925,7 @@ void CodeGenerator::AssembleTailCallAfterGap(Instruction* instr,
 // to:
 //    1. load the address of the current instruction;
 //    2. read from memory the word that contains that bit, which can be found in
-//       the first set of flags ({kKindSpecificFlags1Offset});
+//       the flags in the referenced {CodeDataContainer} object;
 //    3. test kMarkedForDeoptimizationBit in those flags; and
 //    4. if it is not zero then it jumps to the builtin.
 void CodeGenerator::BailoutIfDeoptimized() {
@@ -937,8 +937,9 @@ void CodeGenerator::BailoutIfDeoptimized() {
   // to use a call and then use a pop, thus pushing the return address to
   // the stack and then popping it into the register.
   __ pop(ecx);
-  int offset = Code::kKindSpecificFlags1Offset - (Code::kHeaderSize + pc);
-  __ test(Operand(ecx, offset),
+  int offset = Code::kCodeDataContainerOffset - (Code::kHeaderSize + pc);
+  __ mov(ecx, Operand(ecx, offset));
+  __ test(FieldOperand(ecx, CodeDataContainer::kKindSpecificFlagsOffset),
           Immediate(1 << Code::kMarkedForDeoptimizationBit));
   Handle<Code> code = isolate()->builtins()->builtin_handle(
       Builtins::kCompileLazyDeoptimizedCode);
