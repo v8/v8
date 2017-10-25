@@ -4789,12 +4789,10 @@ void WasmCompilationUnit::ExecuteTurbofanCompilation() {
     tf_.info_.reset(new CompilationInfo(
         GetDebugName(tf_.compilation_zone_.get(), func_name_, func_index_),
         isolate_, tf_.compilation_zone_.get(), Code::WASM_FUNCTION));
-    ZoneVector<trap_handler::ProtectedInstructionData> protected_instructions(
-        tf_.compilation_zone_.get());
 
     tf_.job_.reset(Pipeline::NewWasmCompilationJob(
         tf_.info_.get(), tf_.jsgraph_, descriptor, source_positions,
-        &protected_instructions, env_->module->origin()));
+        &protected_instructions_, env_->module->origin()));
     ok_ = tf_.job_->ExecuteJob() == CompilationJob::SUCCEEDED;
     // TODO(bradnelson): Improve histogram handling of size_t.
     counters()->wasm_compile_function_peak_memory_bytes()->AddSample(
@@ -4873,7 +4871,25 @@ MaybeHandle<Code> WasmCompilationUnit::FinishTurbofanCompilation(
            codegen_ms);
   }
 
+  PackProtectedInstructions(code);
   return code;
+}
+
+void WasmCompilationUnit::PackProtectedInstructions(Handle<Code> code) const {
+  if (protected_instructions_.empty()) return;
+  DCHECK_LT(protected_instructions_.size(), std::numeric_limits<int>::max());
+  const int num_instructions = static_cast<int>(protected_instructions_.size());
+  Handle<FixedArray> fn_protected = isolate_->factory()->NewFixedArray(
+      num_instructions * Code::kTrapDataSize, TENURED);
+  for (int i = 0; i < num_instructions; ++i) {
+    const trap_handler::ProtectedInstructionData& instruction =
+        protected_instructions_[i];
+    fn_protected->set(Code::kTrapDataSize * i + Code::kTrapCodeOffset,
+                      Smi::FromInt(instruction.instr_offset));
+    fn_protected->set(Code::kTrapDataSize * i + Code::kTrapLandingOffset,
+                      Smi::FromInt(instruction.landing_offset));
+  }
+  code->set_protected_instructions(*fn_protected);
 }
 
 MaybeHandle<Code> WasmCompilationUnit::FinishLiftoffCompilation(
@@ -4900,6 +4916,7 @@ MaybeHandle<Code> WasmCompilationUnit::FinishLiftoffCompilation(
                               "wasm#%d-liftoff", func_index_);
   }
 
+  PackProtectedInstructions(code);
   return code;
 }
 

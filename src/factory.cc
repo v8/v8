@@ -1847,6 +1847,7 @@ Handle<Code> Factory::NewCode(
   code->set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
   code->set_handler_table(*handler_table);
   code->set_source_position_table(*source_position_table);
+  code->set_protected_instructions(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
   code->set_builtin_index(-1);
   code->set_trap_handler_index(Smi::FromInt(-1));

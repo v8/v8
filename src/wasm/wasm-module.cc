@@ -76,22 +76,29 @@ void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
 
     byte* base = code->entry();
 
-    const int mode_mask =
-        RelocInfo::ModeMask(RelocInfo::WASM_PROTECTED_INSTRUCTION_LANDING);
-    for (RelocIterator it(code, mode_mask); !it.done(); it.next()) {
+    FixedArray* protected_instructions = code->protected_instructions();
+    DCHECK(protected_instructions != nullptr);
+    for (int i = 0; i < protected_instructions->length();
+         i += Code::kTrapDataSize) {
       trap_handler::ProtectedInstructionData data;
-      data.instr_offset = static_cast<uint32_t>(it.rinfo()->data());
-      data.landing_offset = static_cast<uint32_t>(it.rinfo()->pc() - base);
-      // Check that now over-/underflow happened.
-      DCHECK_EQ(it.rinfo()->data(), data.instr_offset);
-      DCHECK_EQ(it.rinfo()->pc() - base, data.landing_offset);
+      data.instr_offset =
+          protected_instructions
+              ->GetValueChecked<Smi>(isolate, i + Code::kTrapCodeOffset)
+              ->value();
+      data.landing_offset =
+          protected_instructions
+              ->GetValueChecked<Smi>(isolate, i + Code::kTrapLandingOffset)
+              ->value();
       unpacked.emplace_back(data);
     }
+
     if (unpacked.empty()) continue;
 
     const int index = RegisterHandlerData(base, code->instruction_size(),
                                           unpacked.size(), &unpacked[0]);
+
     unpacked.clear();
+
     // TODO(eholk): if index is negative, fail.
     DCHECK_LE(0, index);
     code->set_trap_handler_index(Smi::FromInt(index));

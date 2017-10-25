@@ -160,6 +160,10 @@ class Code : public HeapObject {
   DECL_ACCESSORS(source_position_table, Object)
   inline ByteArray* SourcePositionTable() const;
 
+  // [protected instructions]: Array containing list of protected
+  // instructions and corresponding landing pad offset.
+  DECL_ACCESSORS(protected_instructions, FixedArray)
+
   // [code_data_container]: A container indirection for all mutable fields.
   DECL_ACCESSORS(code_data_container, CodeDataContainer)
 
@@ -431,8 +435,10 @@ class Code : public HeapObject {
       kHandlerTableOffset + kPointerSize;
   static const int kSourcePositionTableOffset =
       kDeoptimizationDataOffset + kPointerSize;
-  static const int kCodeDataContainerOffset =
+  static const int kProtectedInstructionsOffset =
       kSourcePositionTableOffset + kPointerSize;
+  static const int kCodeDataContainerOffset =
+      kProtectedInstructionsOffset + kPointerSize;
   static const int kNextCodeLinkOffset =
       kCodeDataContainerOffset + kPointerSize;
   static const int kInstructionSizeOffset = kNextCodeLinkOffset + kPointerSize;
@@ -454,6 +460,8 @@ class Code : public HeapObject {
   // The serializer needs to copy bytes starting from here verbatim.
   // Objects embedded into code is visited via reloc info.
   static const int kDataStart = kInstructionSizeOffset;
+
+  enum TrapFields { kTrapCodeOffset, kTrapLandingOffset, kTrapDataSize };
 
   inline int GetUnwindingInfoSizeOffset() const;
 

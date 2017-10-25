@@ -116,7 +116,7 @@ class PipelineData {
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info, JSGraph* jsgraph,
                PipelineStatistics* pipeline_statistics,
                SourcePositionTable* source_positions,
-               ZoneVector<trap_handler::ProtectedInstructionData>*
+               std::vector<trap_handler::ProtectedInstructionData>*
                    protected_instructions)
       : isolate_(info->isolate()),
         info_(info),
@@ -136,8 +136,7 @@ class PipelineData {
         codegen_zone_(codegen_zone_scope_.zone()),
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
-        protected_instructions_(protected_instructions) {
-  }
+        protected_instructions_(protected_instructions) {}
 
   // For machine graph testing entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info, Graph* graph,
@@ -249,7 +248,7 @@ class PipelineData {
     source_position_output_ = source_position_output;
   }
 
-  ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions()
+  std::vector<trap_handler::ProtectedInstructionData>* protected_instructions()
       const {
     return protected_instructions_;
   }
@@ -337,9 +336,10 @@ class PipelineData {
 
   void InitializeCodeGenerator(Linkage* linkage) {
     DCHECK_NULL(code_generator_);
-    code_generator_ = new CodeGenerator(
-        codegen_zone(), frame(), linkage, sequence(), info(), osr_helper_,
-        start_source_position_, jump_optimization_info_);
+    code_generator_ =
+        new CodeGenerator(codegen_zone(), frame(), linkage, sequence(), info(),
+                          osr_helper_, start_source_position_,
+                          jump_optimization_info_, protected_instructions_);
   }
 
   void BeginPhaseKind(const char* phase_kind_name) {
@@ -410,7 +410,7 @@ class PipelineData {
   // Source position output for --trace-turbo.
   std::string source_position_output_;
 
-  ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions_ =
+  std::vector<trap_handler::ProtectedInstructionData>* protected_instructions_ =
       nullptr;
 
   JumpOptimizationInfo* jump_optimization_info_ = nullptr;
@@ -891,7 +891,7 @@ class PipelineWasmCompilationJob final : public CompilationJob {
   explicit PipelineWasmCompilationJob(
       CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
       SourcePositionTable* source_positions,
-      ZoneVector<trap_handler::ProtectedInstructionData>* protected_insts,
+      std::vector<trap_handler::ProtectedInstructionData>* protected_insts,
       bool asmjs_origin)
       : CompilationJob(info->isolate()->stack_guard()->real_climit(), nullptr,
                        info, "TurboFan", State::kReadyToExecute),
@@ -2037,7 +2037,7 @@ CompilationJob* Pipeline::NewCompilationJob(Handle<JSFunction> function,
 CompilationJob* Pipeline::NewWasmCompilationJob(
     CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
     SourcePositionTable* source_positions,
-    ZoneVector<trap_handler::ProtectedInstructionData>* protected_instructions,
+    std::vector<trap_handler::ProtectedInstructionData>* protected_instructions,
     wasm::ModuleOrigin asmjs_origin) {
   return new PipelineWasmCompilationJob(info, jsgraph, descriptor,
                                         source_positions,

@@ -47,7 +47,7 @@ class Pipeline : public AllStatic {
   static CompilationJob* NewWasmCompilationJob(
       CompilationInfo* info, JSGraph* jsgraph, CallDescriptor* descriptor,
       SourcePositionTable* source_positions,
-      ZoneVector<trap_handler::ProtectedInstructionData>*
+      std::vector<trap_handler::ProtectedInstructionData>*
           protected_instructions,
       wasm::ModuleOrigin wasm_origin);
 

@@ -103,6 +103,8 @@ class WasmCompilationUnit final {
   size_t memory_cost() const { return memory_cost_; }
 
  private:
+  void PackProtectedInstructions(Handle<Code> code) const;
+
   struct LiftoffData {
     wasm::LiftoffAssembler asm_;
     explicit LiftoffData(Isolate* isolate) : asm_(isolate) {}
@@ -141,6 +143,7 @@ class WasmCompilationUnit final {
   bool ok_ = true;
   size_t memory_cost_ = 0;
   bool lower_simd_;
+  std::vector<trap_handler::ProtectedInstructionData> protected_instructions_;
   CompilationMode mode_;
   // {liftoff_} is valid if mode_ == kLiftoff, tf_ if mode_ == kTurbofan.
   union {

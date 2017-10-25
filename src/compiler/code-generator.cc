@@ -36,11 +36,12 @@ class CodeGenerator::JumpTable final : public ZoneObject {
   size_t const target_count_;
 };
 
-CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
-                             InstructionSequence* code, CompilationInfo* info,
-                             base::Optional<OsrHelper> osr_helper,
-                             int start_source_position,
-                             JumpOptimizationInfo* jump_opt)
+CodeGenerator::CodeGenerator(
+    Zone* codegen_zone, Frame* frame, Linkage* linkage,
+    InstructionSequence* code, CompilationInfo* info,
+    base::Optional<OsrHelper> osr_helper, int start_source_position,
+    JumpOptimizationInfo* jump_opt,
+    std::vector<trap_handler::ProtectedInstructionData>* protected_instructions)
     : zone_(codegen_zone),
       frame_access_state_(nullptr),
       linkage_(linkage),
@@ -69,6 +70,7 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
       optimized_out_literal_id_(-1),
       source_position_table_builder_(zone(),
                                      info->SourcePositionRecordingMode()),
+      protected_instructions_(protected_instructions),
       result_(kSuccess) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {
     new (&labels_[i]) Label;
@@ -79,6 +81,15 @@ CodeGenerator::CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
 }
 
 Isolate* CodeGenerator::isolate() const { return info_->isolate(); }
+
+void CodeGenerator::AddProtectedInstructionLanding(uint32_t instr_offset,
+                                                   uint32_t landing_offset) {
+  if (protected_instructions_ != nullptr) {
+    trap_handler::ProtectedInstructionData data = {instr_offset,
+                                                   landing_offset};
+    protected_instructions_->emplace_back(data);
+  }
+}
 
 void CodeGenerator::CreateFrameAccessState(Frame* frame) {
   FinishFrame(frame);

@@ -365,7 +365,6 @@ class RelocInfo {
     // GC'ed.
     WASM_CONTEXT_REFERENCE,
     WASM_FUNCTION_TABLE_SIZE_REFERENCE,
-    WASM_PROTECTED_INSTRUCTION_LANDING,
     WASM_GLOBAL_HANDLE,
 
     RUNTIME_ENTRY,
@@ -470,9 +469,6 @@ class RelocInfo {
   }
   static inline bool IsWasmPtrReference(Mode mode) {
     return mode == WASM_CONTEXT_REFERENCE || mode == WASM_GLOBAL_HANDLE;
-  }
-  static inline bool IsWasmProtectedLanding(Mode mode) {
-    return mode == WASM_PROTECTED_INSTRUCTION_LANDING;
   }
 
   static inline int ModeMask(Mode mode) { return 1 << mode; }

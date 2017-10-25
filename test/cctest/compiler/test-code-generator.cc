@@ -764,7 +764,7 @@ class CodeGeneratorTester {
         frame_(environment->test_descriptor()->CalculateFixedFrameSize()),
         generator_(environment->main_zone(), &frame_, &linkage_,
                    environment->code(), &info_, base::Optional<OsrHelper>(),
-                   kNoSourcePosition, nullptr) {
+                   kNoSourcePosition, nullptr, nullptr) {
     // Force a frame to be created.
     generator_.frame_access_state()->MarkHasFrame(true);
     generator_.AssembleConstructFrame();

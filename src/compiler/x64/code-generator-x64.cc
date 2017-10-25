@@ -288,7 +288,7 @@ class WasmOutOfLineTrap final : public OutOfLineCode {
   // TODO(eholk): Refactor this method to take the code generator as a
   // parameter.
   void Generate() final {
-    __ RecordProtectedInstructionLanding(pc_);
+    gen_->AddProtectedInstructionLanding(pc_, __ pc_offset());
 
     if (frame_elided_) {
       __ EnterFrame(StackFrame::WASM_COMPILED);
