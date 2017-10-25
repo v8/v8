@@ -368,7 +368,6 @@ Handle<JSArrayBuffer> GrowMemoryBuffer(Isolate* isolate,
 // May GC, because SetSpecializationMemInfoFrom may GC
 void SetInstanceMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
                        Handle<JSArrayBuffer> buffer) {
-  instance->set_memory_buffer(*buffer);
   auto wasm_context = instance->wasm_context()->get();
   wasm_context->mem_start = reinterpret_cast<byte*>(buffer->backing_store());
   wasm_context->mem_size = buffer->byte_length()->Number();
@@ -385,19 +384,21 @@ void SetInstanceMemory(Isolate* isolate, Handle<WasmInstanceObject> instance,
 
 }  // namespace
 
-Handle<WasmMemoryObject> WasmMemoryObject::New(Isolate* isolate,
-                                               Handle<JSArrayBuffer> buffer,
-                                               int32_t maximum) {
+Handle<WasmMemoryObject> WasmMemoryObject::New(
+    Isolate* isolate, MaybeHandle<JSArrayBuffer> maybe_buffer,
+    int32_t maximum) {
   Handle<JSFunction> memory_ctor(
       isolate->native_context()->wasm_memory_constructor());
   auto memory_obj = Handle<WasmMemoryObject>::cast(
       isolate->factory()->NewJSObject(memory_ctor, TENURED));
 
-  if (buffer.is_null()) {
+  Handle<JSArrayBuffer> buffer;
+  if (maybe_buffer.is_null()) {
     // If no buffer was provided, create a 0-length one.
     buffer = wasm::SetupArrayBuffer(isolate, nullptr, 0, nullptr, 0, false,
                                     trap_handler::UseTrapHandler());
   } else {
+    buffer = maybe_buffer.ToHandleChecked();
     // Paranoid check that the buffer size makes sense.
     uint32_t mem_size = 0;
     CHECK(buffer->byte_length()->ToUint32(&mem_size));
@@ -532,8 +533,8 @@ Handle<WasmInstanceObject> WasmInstanceObject::New(
 }
 
 int32_t WasmInstanceObject::GetMemorySize() {
-  if (!has_memory_buffer()) return 0;
-  uint32_t bytes = memory_buffer()->byte_length()->Number();
+  if (!has_memory_object()) return 0;
+  uint32_t bytes = memory_object()->array_buffer()->byte_length()->Number();
   DCHECK_EQ(0, bytes % WasmModule::kPageSize);
   return bytes / WasmModule::kPageSize;
 }

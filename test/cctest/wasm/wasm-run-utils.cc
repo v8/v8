@@ -37,7 +37,6 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   CHECK(!test_module_.has_memory);
   CHECK_NULL(mem_start_);
   CHECK_EQ(0, mem_size_);
-  DCHECK(!instance_object_->has_memory_buffer());
   DCHECK(!instance_object_->has_memory_object());
   test_module_.has_memory = true;
   const bool enable_guard_regions =
@@ -47,7 +46,6 @@ byte* TestingModuleBuilder::AddMemory(uint32_t size) {
   Handle<JSArrayBuffer> new_buffer =
       wasm::NewArrayBuffer(isolate_, alloc_size, enable_guard_regions);
   CHECK(!new_buffer.is_null());
-  instance_object_->set_memory_buffer(*new_buffer);
   mem_start_ = reinterpret_cast<byte*>(new_buffer->backing_store());
   mem_size_ = size;
   CHECK(size == 0 || mem_start_);

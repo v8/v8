@@ -693,7 +693,8 @@ TEST(TestInterruptLoop) {
                                   {}, {})
             .ToHandleChecked();
 
-    Handle<JSArrayBuffer> memory(instance->memory_buffer(), isolate);
+    Handle<JSArrayBuffer> memory(instance->memory_object()->array_buffer(),
+                                 isolate);
     int32_t* memory_array = reinterpret_cast<int32_t*>(memory->backing_store());
 
     InterruptThread thread(isolate, memory_array);
@@ -1087,7 +1088,8 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
                                   ModuleWireBytes(buffer.begin(), buffer.end()),
                                   {}, {})
             .ToHandleChecked();
-    Handle<JSArrayBuffer> memory(instance->memory_buffer(), isolate);
+    Handle<JSArrayBuffer> memory(instance->memory_object()->array_buffer(),
+                                 isolate);
     Handle<WasmMemoryObject> mem_obj(instance->memory_object(), isolate);
     void* const old_allocation_base = memory->allocation_base();
     size_t const old_allocation_length = memory->allocation_length();
@@ -1106,7 +1108,7 @@ TEST(Run_WasmModule_Buffer_Externalized_GrowMem) {
     wasm::DetachMemoryBuffer(isolate, memory, free_memory);
     CHECK_EQ(16, result);
     memory = handle(mem_obj->array_buffer());
-    instance->set_memory_buffer(*memory);
+    instance->memory_object()->set_array_buffer(*memory);
     // Externalize should make no difference without the JS API as in this case
     // the buffer is not detached.
     v8::Utils::ToLocal(memory)->Externalize();

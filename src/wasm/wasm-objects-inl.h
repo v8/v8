@@ -48,8 +48,6 @@ ACCESSORS(WasmInstanceObject, compiled_module, WasmCompiledModule,
 ACCESSORS(WasmInstanceObject, exports_object, JSObject, kExportsObjectOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, memory_object, WasmMemoryObject,
                    kMemoryObjectOffset)
-OPTIONAL_ACCESSORS(WasmInstanceObject, memory_buffer, JSArrayBuffer,
-                   kMemoryBufferOffset)
 ACCESSORS(WasmInstanceObject, globals_buffer, JSArrayBuffer,
           kGlobalsBufferOffset)
 OPTIONAL_ACCESSORS(WasmInstanceObject, debug_info, WasmDebugInfo,

@@ -159,7 +159,7 @@ class WasmMemoryObject : public JSObject {
   inline bool has_maximum_pages();
 
   V8_EXPORT_PRIVATE static Handle<WasmMemoryObject> New(
-      Isolate* isolate, Handle<JSArrayBuffer> buffer, int32_t maximum);
+      Isolate* isolate, MaybeHandle<JSArrayBuffer> buffer, int32_t maximum);
 
   static int32_t Grow(Isolate*, Handle<WasmMemoryObject>, uint32_t pages);
   static void SetupNewBufferWithSameBackingStore(
@@ -175,7 +175,6 @@ class WasmInstanceObject : public JSObject {
   DECL_ACCESSORS(compiled_module, WasmCompiledModule)
   DECL_ACCESSORS(exports_object, JSObject)
   DECL_OPTIONAL_ACCESSORS(memory_object, WasmMemoryObject)
-  DECL_OPTIONAL_ACCESSORS(memory_buffer, JSArrayBuffer)
   DECL_OPTIONAL_ACCESSORS(globals_buffer, JSArrayBuffer)
   DECL_OPTIONAL_ACCESSORS(debug_info, WasmDebugInfo)
   DECL_OPTIONAL_ACCESSORS(function_tables, FixedArray)
@@ -190,7 +189,6 @@ class WasmInstanceObject : public JSObject {
     kCompiledModuleIndex,
     kExportsObjectIndex,
     kMemoryObjectIndex,
-    kMemoryBufferIndex,
     kGlobalsBufferIndex,
     kDebugInfoIndex,
     kFunctionTablesIndex,
@@ -205,7 +203,6 @@ class WasmInstanceObject : public JSObject {
   DEF_OFFSET(CompiledModule)
   DEF_OFFSET(ExportsObject)
   DEF_OFFSET(MemoryObject)
-  DEF_OFFSET(MemoryBuffer)
   DEF_OFFSET(GlobalsBuffer)
   DEF_OFFSET(DebugInfo)
   DEF_OFFSET(FunctionTables)

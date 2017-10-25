@@ -1841,9 +1841,6 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
     mem_start = static_cast<Address>(memory->backing_store());
     CHECK(memory->byte_length()->ToUint32(&mem_size));
     LoadDataSegments(mem_start, mem_size);
-    // Just like with globals, we need to keep both the JSArrayBuffer
-    // and save the start pointer.
-    instance->set_memory_buffer(*memory);
   }
 
   //--------------------------------------------------------------------------
@@ -1851,9 +1848,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   //--------------------------------------------------------------------------
   if (module_->has_memory && !instance->has_memory_object()) {
     Handle<WasmMemoryObject> memory_object = WasmMemoryObject::New(
-        isolate_,
-        instance->has_memory_buffer() ? handle(instance->memory_buffer())
-                                      : Handle<JSArrayBuffer>::null(),
+        isolate_, memory_,
         module_->maximum_pages != 0 ? module_->maximum_pages : -1);
     instance->set_memory_object(*memory_object);
   }

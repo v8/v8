@@ -414,10 +414,11 @@ class InterpreterHandle {
     // TODO(clemensh): Add globals to the global scope.
     Handle<JSObject> global_scope_object =
         isolate_->factory()->NewJSObjectWithNullProto();
-    if (instance->has_memory_buffer()) {
+    if (instance->has_memory_object()) {
       Handle<String> name = isolate_->factory()->InternalizeOneByteString(
           STATIC_CHAR_VECTOR("memory"));
-      Handle<JSArrayBuffer> memory_buffer(instance->memory_buffer(), isolate_);
+      Handle<JSArrayBuffer> memory_buffer(
+          instance->memory_object()->array_buffer(), isolate_);
       uint32_t byte_length;
       CHECK(memory_buffer->byte_length()->ToUint32(&byte_length));
       Handle<JSTypedArray> uint8_array = isolate_->factory()->NewJSTypedArray(
