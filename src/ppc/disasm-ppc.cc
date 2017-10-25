@@ -601,19 +601,19 @@ void Decoder::DecodeExt2(Instruction* instr) {
       return;
     }
     case LFSX: {
-      Format(instr, "lfsx    'rt, 'ra, 'rb");
+      Format(instr, "lfsx    'Dt, 'ra, 'rb");
       return;
     }
     case LFSUX: {
-      Format(instr, "lfsux   'rt, 'ra, 'rb");
+      Format(instr, "lfsux   'Dt, 'ra, 'rb");
       return;
     }
     case LFDX: {
-      Format(instr, "lfdx    'rt, 'ra, 'rb");
+      Format(instr, "lfdx    'Dt, 'ra, 'rb");
       return;
     }
     case LFDUX: {
-      Format(instr, "lfdux   'rt, 'ra, 'rb");
+      Format(instr, "lfdux   'Dt, 'ra, 'rb");
       return;
     }
     case STFSX: {

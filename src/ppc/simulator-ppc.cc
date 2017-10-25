@@ -2242,7 +2242,19 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
       intptr_t rb_val = get_register(rb);
       int32_t val = ReadW(ra_val + rb_val, instr);
       float* fptr = reinterpret_cast<float*>(&val);
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+      // Conversion using double changes sNan to qNan on ia32/x64
+      if ((val & 0x7f800000) == 0x7f800000) {
+        int64_t dval = static_cast<int64_t>(val);
+        dval = ((dval & 0xc0000000) << 32) | ((dval & 0x40000000) << 31) |
+               ((dval & 0x40000000) << 30) | ((dval & 0x7fffffff) << 29) | 0x0;
+        set_d_register(frt, dval);
+      } else {
+        set_d_register_from_double(frt, static_cast<double>(*fptr));
+      }
+#else
       set_d_register_from_double(frt, static_cast<double>(*fptr));
+#endif
       if (opcode == LFSUX) {
         DCHECK_NE(ra, 0);
         set_register(ra, ra_val + rb_val);
@@ -2273,6 +2285,20 @@ void Simulator::ExecuteGeneric(Instruction* instr) {
         intptr_t rb_val = get_register(rb);
         float frs_val = static_cast<float>(get_double_from_d_register(frs));
         int32_t* p = reinterpret_cast<int32_t*>(&frs_val);
+#if V8_HOST_ARCH_IA32 || V8_HOST_ARCH_X64
+        // Conversion using double changes sNan to qNan on ia32/x64
+        int32_t sval = 0;
+        int64_t dval = get_d_register(frs);
+        if ((dval & 0x7ff0000000000000) == 0x7ff0000000000000) {
+          sval = ((dval & 0xc000000000000000) >> 32) |
+                 ((dval & 0x07ffffffe0000000) >> 29);
+          p = &sval;
+        } else {
+          p = reinterpret_cast<int32_t*>(&frs_val);
+        }
+#else
+        p = reinterpret_cast<int32_t*>(&frs_val);
+#endif
         WriteW(ra_val + rb_val, *p, instr);
         if (opcode == STFSUX) {
           DCHECK_NE(ra, 0);
