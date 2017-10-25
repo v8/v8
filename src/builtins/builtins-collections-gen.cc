@@ -29,6 +29,7 @@ class CollectionsBuiltinsAssembler : public CodeStubAssembler {
   Node* AllocateJSCollectionIterator(Node* context, int map_index,
                                      Node* collection);
 
+  Node* GetExistingHashForReceiver(Node* const receiver);
   Node* GetHash(Node* const key);
   Node* CallGetHashRaw(Node* const key);
   Node* CallGetOrCreateHashRaw(Node* const key);
@@ -471,31 +472,71 @@ Node* CollectionsBuiltinsAssembler::CallGetHashRaw(Node* const key) {
   return SmiUntag(result);
 }
 
-Node* CollectionsBuiltinsAssembler::GetHash(Node* const key) {
-  VARIABLE(var_result, MachineType::PointerRepresentation());
-  Label if_jsobject(this), other(this), done(this);
-  Node* instance_type = LoadMapInstanceType(LoadMap(key));
-  Branch(IsJSObjectInstanceType(instance_type), &if_jsobject, &other);
+Node* CollectionsBuiltinsAssembler::GetExistingHashForReceiver(
+    Node* const receiver) {
+  VARIABLE(var_hash, MachineType::PointerRepresentation());
+  Label done(this), if_smi(this), if_property_array(this),
+      if_property_dictionary(this), if_fixed_array(this);
 
-  BIND(&if_jsobject);
+  Node* properties_or_hash =
+      LoadObjectField(receiver, JSReceiver::kPropertiesOrHashOffset);
+  GotoIf(TaggedIsSmi(properties_or_hash), &if_smi);
+  Node* properties_instance_type = LoadInstanceType(properties_or_hash);
+  GotoIf(InstanceTypeEqual(properties_instance_type, PROPERTY_ARRAY_TYPE),
+         &if_property_array);
+  Branch(InstanceTypeEqual(properties_instance_type, HASH_TABLE_TYPE),
+         &if_property_dictionary, &if_fixed_array);
+
+  BIND(&if_fixed_array);
   {
-    Node* hash = LoadHashForJSObject(key, instance_type);
-    // TODO(gsathya): Change all uses of -1 to PropertyArray::kNoHashSentinel.
-    var_result.Bind(SelectConstant(
-        Word32Equal(hash, Int32Constant(PropertyArray::kNoHashSentinel)),
-        IntPtrConstant(-1), ChangeInt32ToIntPtr(hash),
-        MachineType::PointerRepresentation()));
+    var_hash.Bind(IntPtrConstant(PropertyArray::kNoHashSentinel));
     Goto(&done);
   }
 
-  BIND(&other);
+  BIND(&if_smi);
   {
-    var_result.Bind(CallGetHashRaw(key));
+    var_hash.Bind(SmiToWord(properties_or_hash));
+    Goto(&done);
+  }
+
+  BIND(&if_property_array);
+  {
+    Node* length_and_hash = LoadAndUntagObjectField(
+        properties_or_hash, PropertyArray::kLengthAndHashOffset);
+    var_hash.Bind(DecodeWord<PropertyArray::HashField>(length_and_hash));
+    Goto(&done);
+  }
+
+  BIND(&if_property_dictionary);
+  {
+    var_hash.Bind(SmiToWord(LoadFixedArrayElement(
+        properties_or_hash, NameDictionary::kObjectHashIndex)));
     Goto(&done);
   }
 
   BIND(&done);
-  return var_result.value();
+  return var_hash.value();
+}
+
+Node* CollectionsBuiltinsAssembler::GetHash(Node* const key) {
+  VARIABLE(var_hash, MachineType::PointerRepresentation());
+  Label if_receiver(this), if_other(this), done(this);
+  Branch(IsJSReceiver(key), &if_receiver, &if_other);
+
+  BIND(&if_receiver);
+  {
+    var_hash.Bind(GetExistingHashForReceiver(key));
+    Goto(&done);
+  }
+
+  BIND(&if_other);
+  {
+    var_hash.Bind(CallGetHashRaw(key));
+    Goto(&done);
+  }
+
+  BIND(&done);
+  return var_hash.value();
 }
 
 void CollectionsBuiltinsAssembler::SameValueZeroSmi(Node* key_smi,
@@ -590,6 +631,7 @@ void CollectionsBuiltinsAssembler::FindOrderedHashTableEntryForOtherKey(
     Node* context, Node* table, Node* key, Variable* result, Label* entry_found,
     Label* not_found) {
   Node* hash = GetHash(key);
+  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(hash, IntPtrConstant(0)));
   result->Bind(hash);
   FindOrderedHashTableEntry<CollectionType>(
       table, hash,
@@ -972,8 +1014,8 @@ TF_BUILTIN(MapPrototypeSet, CollectionsBuiltinsAssembler) {
   BIND(&not_found);
   {
     // If we have a hash code, we can start adding the new entry.
-    GotoIf(IntPtrGreaterThanOrEqual(entry_start_position_or_hash.value(),
-                                    IntPtrConstant(0)),
+    GotoIf(IntPtrGreaterThan(entry_start_position_or_hash.value(),
+                             IntPtrConstant(0)),
            &add_entry);
 
     // Otherwise, go to runtime to compute the hash code.
@@ -1138,8 +1180,8 @@ TF_BUILTIN(SetPrototypeAdd, CollectionsBuiltinsAssembler) {
   BIND(&not_found);
   {
     // If we have a hash code, we can start adding the new entry.
-    GotoIf(IntPtrGreaterThanOrEqual(entry_start_position_or_hash.value(),
-                                    IntPtrConstant(0)),
+    GotoIf(IntPtrGreaterThan(entry_start_position_or_hash.value(),
+                             IntPtrConstant(0)),
            &add_entry);
 
     // Otherwise, go to runtime to compute the hash code.
@@ -1724,7 +1766,7 @@ TF_BUILTIN(WeakMapLookupHashIndex, CollectionsBuiltinsAssembler) {
 
   Node* const hash = GetHash(key);
 
-  GotoIf(IntPtrLessThan(hash, IntPtrConstant(0)), &if_not_found);
+  GotoIf(WordEqual(hash, IntPtrConstant(0)), &if_not_found);
 
   // See HashTable::FirstProbe().
   Node* entry = WordAnd(hash, mask);

@@ -3744,7 +3744,6 @@ ACCESSORS(JSGlobalObject, native_context, Context, kNativeContextOffset)
 ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
-ACCESSORS(JSGlobalProxy, hash, Object, kHashOffset)
 
 ACCESSORS(AccessorInfo, name, Object, kNameOffset)
 SMI_ACCESSORS(AccessorInfo, flag, kFlagOffset)
@@ -4229,7 +4228,6 @@ bool JSFunction::is_compiled() {
 
 ACCESSORS(JSProxy, target, JSReceiver, kTargetOffset)
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
-ACCESSORS(JSProxy, hash, Object, kHashOffset)
 
 bool JSProxy::IsRevoked() const { return !handler()->IsJSReceiver(); }
 
@@ -4681,16 +4679,6 @@ bool JSGlobalProxy::IsDetachedFrom(JSGlobalObject* global) const {
 inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
   DCHECK_GE(embedder_field_count, 0);
   return kSize + embedder_field_count * kPointerSize;
-}
-
-Smi* JSReceiver::GetOrCreateIdentityHash(Isolate* isolate) {
-  return IsJSProxy() ? JSProxy::cast(this)->GetOrCreateIdentityHash(isolate)
-                     : JSObject::cast(this)->GetOrCreateIdentityHash(isolate);
-}
-
-Object* JSReceiver::GetIdentityHash(Isolate* isolate) {
-  return IsJSProxy() ? JSProxy::cast(this)->GetIdentityHash()
-                     : JSObject::cast(this)->GetIdentityHash(isolate);
 }
 
 

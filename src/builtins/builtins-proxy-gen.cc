@@ -67,8 +67,6 @@ Node* ProxiesCodeStubAssembler::AllocateProxy(Node* target, Node* handler,
                        Heap::kEmptyPropertyDictionaryRootIndex);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kTargetOffset, target);
   StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHandlerOffset, handler);
-  StoreObjectFieldNoWriteBarrier(proxy, JSProxy::kHashOffset,
-                                 UndefinedConstant());
 
   return proxy;
 }

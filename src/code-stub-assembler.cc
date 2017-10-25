@@ -1229,61 +1229,6 @@ Node* CodeStubAssembler::TaggedDoesntHaveInstanceType(Node* any_tagged,
                 MachineRepresentation::kBit);
 }
 
-TNode<Int32T> CodeStubAssembler::LoadHashForJSObject(
-    SloppyTNode<JSObject> jsobject, SloppyTNode<Int32T> instance_type) {
-  VARIABLE(var_hash, MachineRepresentation::kWord32);
-  Label if_global_proxy(this, Label::kDeferred);
-  GotoIf(IsJSGlobalProxyInstanceType(instance_type), &if_global_proxy);
-
-  Node* properties_or_hash =
-      LoadObjectField(jsobject, JSObject::kPropertiesOrHashOffset);
-
-  Label if_smi(this);
-  GotoIf(TaggedIsSmi(properties_or_hash), &if_smi);
-
-  Node* type = LoadInstanceType(properties_or_hash);
-  Label if_property_array(this), if_property_dictionary(this), done(this);
-  GotoIf(InstanceTypeEqual(type, PROPERTY_ARRAY_TYPE), &if_property_array);
-  GotoIf(InstanceTypeEqual(type, HASH_TABLE_TYPE), &if_property_dictionary);
-
-  var_hash.Bind(Int32Constant(PropertyArray::kNoHashSentinel));
-  Goto(&done);
-
-  BIND(&if_smi);
-  {
-    var_hash.Bind(SmiToWord32(properties_or_hash));
-    Goto(&done);
-  }
-
-  BIND(&if_property_array);
-  {
-    Node* length_and_hash_int32 = LoadAndUntagToWord32ObjectField(
-        properties_or_hash, PropertyArray::kLengthAndHashOffset);
-    var_hash.Bind(
-        DecodeWord32<PropertyArray::HashField>(length_and_hash_int32));
-    Goto(&done);
-  }
-
-  BIND(&if_property_dictionary);
-  {
-    var_hash.Bind(SmiToWord32(LoadFixedArrayElement(
-        properties_or_hash, NameDictionary::kObjectHashIndex)));
-    Goto(&done);
-  }
-
-  BIND(&if_global_proxy);
-  {
-    Node* hash = LoadObjectField(jsobject, JSGlobalProxy::kHashOffset);
-    var_hash.Bind(SelectConstant(TaggedIsSmi(hash), SmiToWord32(hash),
-                                 Int32Constant(PropertyArray::kNoHashSentinel),
-                                 MachineRepresentation::kWord32));
-    Goto(&done);
-  }
-
-  BIND(&done);
-  return UncheckedCast<Int32T>(var_hash.value());
-}
-
 TNode<HeapObject> CodeStubAssembler::LoadFastProperties(
     SloppyTNode<JSObject> object) {
   CSA_SLOW_ASSERT(this, Word32Not(IsDictionaryMap(LoadMap(object))));

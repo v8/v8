@@ -925,8 +925,6 @@ void JSProxy::JSProxyPrint(std::ostream& os) {  // NOLINT
   target()->ShortPrint(os);
   os << "\n - handler = ";
   handler()->ShortPrint(os);
-  os << "\n - hash = ";
-  hash()->ShortPrint(os);
   os << "\n";
 }
 
@@ -1186,7 +1184,6 @@ void JSGlobalProxy::JSGlobalProxyPrint(std::ostream& os) {  // NOLINT
   if (!GetIsolate()->bootstrapper()->IsActive()) {
     os << "\n - native context = " << Brief(native_context());
   }
-  os << "\n - hash = " << Brief(hash());
   JSObjectPrintBody(os, this);
 }
 

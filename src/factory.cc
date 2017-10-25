@@ -2477,7 +2477,6 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<JSReceiver> target,
   result->initialize_properties();
   result->set_target(*target);
   result->set_handler(*handler);
-  result->set_hash(*undefined_value(), SKIP_WRITE_BARRIER);
   return result;
 }
 
@@ -2501,7 +2500,8 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
   Handle<Map> old_map(object->map(), isolate());
 
   // The proxy's hash should be retained across reinitialization.
-  Handle<Object> hash(object->hash(), isolate());
+  Handle<Object> raw_properties_or_hash(object->raw_properties_or_hash(),
+                                        isolate());
 
   if (old_map->is_prototype_map()) {
     map = Map::Copy(map, "CopyAsPrototypeForJSGlobalProxy");
@@ -2515,9 +2515,6 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
   DCHECK(map->instance_size() == old_map->instance_size());
   DCHECK(map->instance_type() == old_map->instance_type());
 
-  // Allocate the backing storage for the properties.
-  Handle<FixedArray> properties = empty_fixed_array();
-
   // In order to keep heap in consistent state there must be no allocations
   // before object re-initialization is finished.
   DisallowHeapAllocation no_allocation;
@@ -2527,10 +2524,7 @@ void Factory::ReinitializeJSGlobalProxy(Handle<JSGlobalProxy> object,
 
   Heap* heap = isolate()->heap();
   // Reinitialize the object from the constructor map.
-  heap->InitializeJSObjectFromMap(*object, *properties, *map);
-
-  // Restore the saved hash.
-  object->set_hash(*hash);
+  heap->InitializeJSObjectFromMap(*object, *raw_properties_or_hash, *map);
 }
 
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(

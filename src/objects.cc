@@ -6499,22 +6499,8 @@ void JSReceiver::SetProperties(HeapObject* properties) {
   set_raw_properties_or_hash(new_properties);
 }
 
-template <typename ProxyType>
-Smi* GetOrCreateIdentityHashHelper(Isolate* isolate, ProxyType* proxy) {
+Object* JSReceiver::GetIdentityHash(Isolate* isolate) {
   DisallowHeapAllocation no_gc;
-  Object* maybe_hash = proxy->hash();
-  if (maybe_hash->IsSmi()) return Smi::cast(maybe_hash);
-
-  Smi* hash = Smi::FromInt(isolate->GenerateIdentityHash(Smi::kMaxValue));
-  proxy->set_hash(hash);
-  return hash;
-}
-
-Object* JSObject::GetIdentityHash(Isolate* isolate) {
-  DisallowHeapAllocation no_gc;
-  if (IsJSGlobalProxy()) {
-    return JSGlobalProxy::cast(this)->hash();
-  }
 
   int hash = GetIdentityHashHelper(isolate, this);
   if (hash == PropertyArray::kNoHashSentinel) {
@@ -6524,11 +6510,8 @@ Object* JSObject::GetIdentityHash(Isolate* isolate) {
   return Smi::FromInt(hash);
 }
 
-Smi* JSObject::GetOrCreateIdentityHash(Isolate* isolate) {
+Smi* JSReceiver::GetOrCreateIdentityHash(Isolate* isolate) {
   DisallowHeapAllocation no_gc;
-  if (IsJSGlobalProxy()) {
-    return GetOrCreateIdentityHashHelper(isolate, JSGlobalProxy::cast(this));
-  }
 
   Object* hash_obj = GetIdentityHash(isolate);
   if (!hash_obj->IsUndefined(isolate)) {
@@ -6541,13 +6524,6 @@ Smi* JSObject::GetOrCreateIdentityHash(Isolate* isolate) {
   SetIdentityHash(hash);
   return Smi::FromInt(hash);
 }
-
-Object* JSProxy::GetIdentityHash() { return hash(); }
-
-Smi* JSProxy::GetOrCreateIdentityHash(Isolate* isolate) {
-  return GetOrCreateIdentityHashHelper(isolate, this);
-}
-
 
 Maybe<bool> JSObject::DeletePropertyWithInterceptor(LookupIterator* it,
                                                     ShouldThrow should_throw) {

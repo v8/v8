@@ -2191,11 +2191,11 @@ class JSReceiver: public HeapObject {
 
   // Retrieves a permanent object identity hash code. The undefined value might
   // be returned in case no hash was created yet.
-  inline Object* GetIdentityHash(Isolate* isolate);
+  Object* GetIdentityHash(Isolate* isolate);
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
-  inline Smi* GetOrCreateIdentityHash(Isolate* isolate);
+  Smi* GetOrCreateIdentityHash(Isolate* isolate);
 
   // Stores the hash code. The hash passed in must be masked with
   // JSReceiver::kHashMask.
@@ -2723,10 +2723,6 @@ class JSObject: public JSReceiver {
   bool ReferencesObjectFromElements(FixedArray* elements,
                                     ElementsKind kind,
                                     Object* object);
-
-  Object* GetIdentityHash(Isolate* isolate);
-
-  Smi* GetOrCreateIdentityHash(Isolate* isolate);
 
   // Helper for fast versions of preventExtensions, seal, and freeze.
   // attrs is one of NONE, SEALED, or FROZEN (depending on the operation).
@@ -4148,9 +4144,6 @@ class JSGlobalProxy : public JSObject {
   // It is null value if this object is not used by any context.
   DECL_ACCESSORS(native_context, Object)
 
-  // [hash]: The hash code property (undefined if not initialized yet).
-  DECL_ACCESSORS(hash, Object)
-
   DECL_CAST(JSGlobalProxy)
 
   inline bool IsDetachedFrom(JSGlobalObject* global) const;
@@ -4163,8 +4156,7 @@ class JSGlobalProxy : public JSObject {
 
   // Layout description.
   static const int kNativeContextOffset = JSObject::kHeaderSize;
-  static const int kHashOffset = kNativeContextOffset + kPointerSize;
-  static const int kSize = kHashOffset + kPointerSize;
+  static const int kSize = kNativeContextOffset + kPointerSize;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSGlobalProxy);
@@ -4903,8 +4895,6 @@ class JSProxy: public JSReceiver {
   DECL_ACCESSORS(handler, Object)
   // [target]: The target property.
   DECL_ACCESSORS(target, JSReceiver)
-  // [hash]: The hash code property (undefined if not initialized yet).
-  DECL_ACCESSORS(hash, Object)
 
   static MaybeHandle<Context> GetFunctionRealm(Handle<JSProxy> proxy);
 
@@ -4993,8 +4983,7 @@ class JSProxy: public JSReceiver {
   // Layout description.
   static const int kTargetOffset = JSReceiver::kHeaderSize;
   static const int kHandlerOffset = kTargetOffset + kPointerSize;
-  static const int kHashOffset = kHandlerOffset + kPointerSize;
-  static const int kSize = kHashOffset + kPointerSize;
+  static const int kSize = kHandlerOffset + kPointerSize;
 
   // kTargetOffset aliases with the elements of JSObject. The fact that
   // JSProxy::target is a Javascript value which cannot be confused with an
@@ -5006,10 +4995,6 @@ class JSProxy: public JSReceiver {
       BodyDescriptor;
   // No weak fields.
   typedef BodyDescriptor BodyDescriptorWeak;
-
-  Object* GetIdentityHash();
-
-  Smi* GetOrCreateIdentityHash(Isolate* isolate);
 
   static Maybe<bool> SetPrivateProperty(Isolate* isolate, Handle<JSProxy> proxy,
                                         Handle<Symbol> private_name,
