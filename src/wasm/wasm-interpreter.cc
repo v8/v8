@@ -178,27 +178,6 @@ namespace wasm {
 
 namespace {
 
-// CachedInstanceInfo encapsulates globals and memory buffer runtime information
-// for a wasm instance. The interpreter caches that information when
-// constructed, copying it from the {WasmInstanceObject}. It expects it be
-// notified on changes to it, e.g. {GrowMemory}. We cache it because interpreter
-// perf is sensitive to accesses to this information.
-//
-// TODO(wasm): other runtime information, such as indirect function table, or
-// code table (incl. imports) is currently handled separately. Consider
-// unifying, if possible, with {ModuleEnv}.
-
-struct CachedInstanceInfo {
-  CachedInstanceInfo(byte* globals, byte* mem, uint32_t size)
-      : globals_start(globals), mem_start(mem), mem_size(size) {}
-  // We do not expect the location of the globals buffer to
-  // change for an instance.
-  byte* const globals_start = nullptr;
-  // The memory buffer may change because of GrowMemory
-  byte* mem_start = nullptr;
-  uint32_t mem_size = 0;
-};
-
 inline int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) {
     *trap = kTrapDivByZero;
