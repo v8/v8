@@ -275,7 +275,6 @@ class ParserBase {
         allow_harmony_do_expressions_(false),
         allow_harmony_function_sent_(false),
         allow_harmony_class_fields_(false),
-        allow_harmony_object_rest_spread_(false),
         allow_harmony_dynamic_import_(false),
         allow_harmony_import_meta_(false),
         allow_harmony_async_iteration_(false),
@@ -289,7 +288,6 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_function_sent);
   ALLOW_ACCESSORS(harmony_class_fields);
-  ALLOW_ACCESSORS(harmony_object_rest_spread);
   ALLOW_ACCESSORS(harmony_dynamic_import);
   ALLOW_ACCESSORS(harmony_import_meta);
   ALLOW_ACCESSORS(harmony_async_iteration);
@@ -1519,7 +1517,6 @@ class ParserBase {
   bool allow_harmony_do_expressions_;
   bool allow_harmony_function_sent_;
   bool allow_harmony_class_fields_;
-  bool allow_harmony_object_rest_spread_;
   bool allow_harmony_dynamic_import_;
   bool allow_harmony_import_meta_;
   bool allow_harmony_async_iteration_;
@@ -2190,8 +2187,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParsePropertyName(
     }
 
     case Token::ELLIPSIS:
-      if (allow_harmony_object_rest_spread() && !*is_generator && !*is_async &&
-          !*is_get && !*is_set) {
+      if (!*is_generator && !*is_async && !*is_get && !*is_set) {
         *name = impl()->NullIdentifier();
         Consume(Token::ELLIPSIS);
         expression = ParseAssignmentExpression(true, CHECK_OK);
@@ -2476,7 +2472,6 @@ ParserBase<Impl>::ParseObjectPropertyDefinition(ObjectLiteralChecker* checker,
 
   switch (kind) {
     case PropertyKind::kSpreadProperty:
-      DCHECK(allow_harmony_object_rest_spread());
       DCHECK(!is_get && !is_set && !is_generator && !is_async &&
              !*is_computed_name);
       DCHECK(name_token == Token::ELLIPSIS);

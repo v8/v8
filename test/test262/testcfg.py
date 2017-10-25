@@ -41,8 +41,6 @@ from testrunner.objects import testcase
 
 # TODO(littledan): move the flag mapping into the status file
 FEATURE_FLAGS = {
-  'object-rest': '--harmony-object-rest-spread',
-  'object-spread': '--harmony-object-rest-spread',
   'async-iteration': '--harmony-async-iteration',
   'regexp-named-groups': '--harmony-regexp-named-captures',
   'regexp-unicode-property-escapes': '--harmony-regexp-property',
