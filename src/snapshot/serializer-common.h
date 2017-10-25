@@ -192,9 +192,8 @@ class SerializerDeserializer : public RootVisitor {
   // Used for embedder-allocated backing stores for TypedArrays.
   static const int kOffHeapBackingStore = 0x1c;
 
-  // Used to encode deoptimizer entry code.
-  static const int kDeoptimizerEntryPlain = 0x1d;
-  static const int kDeoptimizerEntryFromCode = 0x1e;
+  // 0x1d, 0x1e unused.
+
   // Used for embedder-provided serialization data for embedder fields.
   static const int kEmbedderFieldsData = 0x1f;
 
