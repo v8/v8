@@ -1747,9 +1747,7 @@ void BytecodeGenerator::VisitDebuggerStatement(DebuggerStatement* stmt) {
 }
 
 void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
-  // TODO(gsathya): Fix the DCHECK once class literals use do expressions.
-  DCHECK(expr->scope()->outer_scope() == current_scope() ||
-         FLAG_harmony_class_fields);
+  DCHECK(expr->scope()->outer_scope() == current_scope());
   uint8_t flags = CreateClosureFlags::Encode(
       expr->pretenure(), closure_scope()->is_function_scope());
   size_t entry = builder()->AllocateDeferredConstantPoolEntry();
@@ -1786,6 +1784,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
 
   VisitClassLiteralProperties(expr, constructor, prototype);
   BuildClassLiteralNameProperty(expr, constructor);
+  // TODO(gsathya): Run this after initializing class static fields.
   builder()->CallRuntime(Runtime::kToFastProperties, constructor);
   // Assign to class variable.
   if (expr->class_variable() != nullptr) {
@@ -1793,6 +1792,17 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
            expr->class_variable()->IsContextSlot());
     BuildVariableAssignment(expr->class_variable(), Token::INIT,
                             HoleCheckMode::kElided);
+  }
+
+  if (expr->static_fields_initializer() != nullptr) {
+    RegisterList args = register_allocator()->NewRegisterList(1);
+    Register initializer = register_allocator()->NewRegister();
+    VisitForRegisterValue(expr->static_fields_initializer(), initializer);
+    builder()
+        ->MoveRegister(constructor, args[0])
+        .CallProperty(initializer, args,
+                      feedback_index(feedback_spec()->AddCallICSlot()))
+        .LoadAccumulatorWithRegister(constructor);
   }
 }
 

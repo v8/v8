@@ -304,6 +304,9 @@ void AstNumberingVisitor::VisitForStatement(ForStatement* node) {
 void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
   if (node->extends()) Visit(node->extends());
   if (node->constructor()) Visit(node->constructor());
+  if (node->static_fields_initializer() != nullptr) {
+    Visit(node->static_fields_initializer());
+  }
   for (int i = 0; i < node->properties()->length(); i++) {
     VisitLiteralProperty(node->properties()->at(i));
   }

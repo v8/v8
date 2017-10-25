@@ -1170,6 +1170,9 @@ class PreParser : public ParserBase<PreParser> {
       FunctionState function_state(&function_state_, &scope_, function_scope);
       GetNextFunctionLiteralId();
     }
+    if (class_info->has_static_class_fields) {
+      GetNextFunctionLiteralId();
+    }
     return PreParserExpression::Default();
   }
 

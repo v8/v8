@@ -2411,21 +2411,30 @@ class ClassLiteral final : public Expression {
     return is_anonymous_expression();
   }
 
+  FunctionLiteral* static_fields_initializer() const {
+    return static_fields_initializer_;
+  }
+
+  void set_static_fields_initializer(FunctionLiteral* initializer) {
+    static_fields_initializer_ = initializer;
+  }
+
  private:
   friend class AstNodeFactory;
 
   ClassLiteral(Scope* scope, Variable* class_variable, Expression* extends,
                FunctionLiteral* constructor, ZoneList<Property*>* properties,
-               int start_position, int end_position,
-               bool has_name_static_property, bool has_static_computed_names,
-               bool is_anonymous)
+               FunctionLiteral* static_fields_initializer, int start_position,
+               int end_position, bool has_name_static_property,
+               bool has_static_computed_names, bool is_anonymous)
       : Expression(start_position, kClassLiteral),
         end_position_(end_position),
         scope_(scope),
         class_variable_(class_variable),
         extends_(extends),
         constructor_(constructor),
-        properties_(properties) {
+        properties_(properties),
+        static_fields_initializer_(static_fields_initializer) {
     bit_field_ |= HasNameStaticProperty::encode(has_name_static_property) |
                   HasStaticComputedNames::encode(has_static_computed_names) |
                   IsAnonymousExpression::encode(is_anonymous);
@@ -2437,6 +2446,7 @@ class ClassLiteral final : public Expression {
   Expression* extends_;
   FunctionLiteral* constructor_;
   ZoneList<Property*>* properties_;
+  FunctionLiteral* static_fields_initializer_;
 
   class HasNameStaticProperty
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
@@ -3196,14 +3206,15 @@ class AstNodeFactory final BASE_EMBEDDED {
                                 Expression* extends,
                                 FunctionLiteral* constructor,
                                 ZoneList<ClassLiteral::Property*>* properties,
+                                FunctionLiteral* static_fields_initializer,
                                 int start_position, int end_position,
                                 bool has_name_static_property,
                                 bool has_static_computed_names,
                                 bool is_anonymous) {
-    return new (zone_)
-        ClassLiteral(scope, variable, extends, constructor, properties,
-                     start_position, end_position, has_name_static_property,
-                     has_static_computed_names, is_anonymous);
+    return new (zone_) ClassLiteral(
+        scope, variable, extends, constructor, properties,
+        static_fields_initializer, start_position, end_position,
+        has_name_static_property, has_static_computed_names, is_anonymous);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,

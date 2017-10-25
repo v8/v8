@@ -45,6 +45,12 @@ void Reparenter::VisitClassLiteral(ClassLiteral* class_literal) {
   // scope on its scope chain.
   DCHECK_EQ(class_literal->constructor()->scope()->outer_scope(),
             class_literal->scope());
+
+  if (class_literal->static_fields_initializer() != nullptr) {
+    DCHECK_EQ(
+        class_literal->static_fields_initializer()->scope()->outer_scope(),
+        class_literal->scope());
+  }
 #if DEBUG
   // The same goes for the rest of the class, but we do some
   // sanity checking in debug mode.

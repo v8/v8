@@ -201,6 +201,9 @@ void AstExpressionRewriter::VisitClassLiteral(ClassLiteral* node) {
     AST_REWRITE_PROPERTY(Expression, node, extends);
   }
   AST_REWRITE_PROPERTY(FunctionLiteral, node, constructor);
+  if (node->static_fields_initializer() != nullptr) {
+    AST_REWRITE_PROPERTY(FunctionLiteral, node, static_fields_initializer);
+  }
   ZoneList<typename ClassLiteral::Property*>* properties = node->properties();
   for (int i = 0; i < properties->length(); i++) {
     VisitLiteralProperty(properties->at(i));

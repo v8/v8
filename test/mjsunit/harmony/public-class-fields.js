@@ -216,33 +216,45 @@
 }
 
 
+{
+  let C  = class {
+    static c;
+  };
 
-// {
-//   let C  = class {
-//     static c;
-//   };
+  assertEquals("C", C.name);
+}
 
-//   assertEquals("C", C.name);
-// }
+{
+  class C {
+    static c = new C;
+  }
 
-// {
-//   class C {
-//     static c = new C;
-//   }
+  assertTrue(C.c instanceof C);
+}
 
-//   assertTrue(c instanceof C);
-// }
+(function test() {
+  function makeC() {
+    var x = 1;
 
-// (function test() {
-//   function makeC() {
-//     var x = 1;
+    return class {
+      static a = () => () => x;
+    }
+  }
 
-//     return class {
-//       static a = () => () => x;
-//     }
-//   }
+  let C = makeC();
+  let f = C.a();
+  assertEquals(1, f());
+})()
 
-//   let C = makeC();
-//   let f = C.a();
-//   assertEquals(1, f());
-// })()
+{
+  var c = "c";
+  class C {
+    static ["a"] = 1;
+    static ["b"];
+    static [c];
+  }
+
+  assertEquals(1, C.a);
+  assertEquals(undefined, C.b);
+  assertEquals(undefined, C.c);
+}
