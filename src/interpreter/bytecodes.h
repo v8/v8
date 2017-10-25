@@ -443,7 +443,7 @@ enum class Bytecode : uint8_t {
 #undef COUNT_BYTECODE
 };
 
-class V8_EXPORT_PRIVATE Bytecodes final {
+class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
  public:
   // The maximum number of operands a bytecode may have.
   static const int kMaxOperands = 5;
@@ -830,6 +830,26 @@ class V8_EXPORT_PRIVATE Bytecodes final {
         return 0;
     }
     UNREACHABLE();
+  }
+
+  // Returns true, iff the given bytecode reuses an existing handler. If so,
+  // the bytecode of the reused handler is written into {reused}.
+  static bool ReusesExistingHandler(Bytecode bytecode, Bytecode* reused) {
+    switch (bytecode) {
+      case Bytecode::kLdaImmutableContextSlot:
+        STATIC_ASSERT(static_cast<int>(Bytecode::kLdaContextSlot) <
+                      static_cast<int>(Bytecode::kLdaImmutableContextSlot));
+        *reused = Bytecode::kLdaContextSlot;
+        return true;
+      case Bytecode::kLdaImmutableCurrentContextSlot:
+        STATIC_ASSERT(
+            static_cast<int>(Bytecode::kLdaCurrentContextSlot) <
+            static_cast<int>(Bytecode::kLdaImmutableCurrentContextSlot));
+        *reused = Bytecode::kLdaCurrentContextSlot;
+        return true;
+      default:
+        return false;
+    }
   }
 
   // Returns the size of |operand_type| for |operand_scale|.

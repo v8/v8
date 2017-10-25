@@ -64,25 +64,16 @@ void SetupInterpreter::InstallBytecodeHandlers(Interpreter* interpreter) {
 bool SetupInterpreter::ReuseExistingHandler(Address* dispatch_table,
                                             Bytecode bytecode,
                                             OperandScale operand_scale) {
-  size_t index = Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
-  switch (bytecode) {
-    case Bytecode::kLdaImmutableContextSlot:
-      STATIC_ASSERT(static_cast<int>(Bytecode::kLdaContextSlot) <
-                    static_cast<int>(Bytecode::kLdaImmutableContextSlot));
-      dispatch_table[index] = dispatch_table[Interpreter::GetDispatchTableIndex(
-          Bytecode::kLdaContextSlot, operand_scale)];
-      return true;
-    case Bytecode::kLdaImmutableCurrentContextSlot:
-      STATIC_ASSERT(
-          static_cast<int>(Bytecode::kLdaCurrentContextSlot) <
-          static_cast<int>(Bytecode::kLdaImmutableCurrentContextSlot));
-      dispatch_table[index] = dispatch_table[Interpreter::GetDispatchTableIndex(
-          Bytecode::kLdaCurrentContextSlot, operand_scale)];
-      return true;
-    default:
-      return false;
+  Bytecode reused_bytecode;
+  if (!Bytecodes::ReusesExistingHandler(bytecode, &reused_bytecode)) {
+    return false;
   }
-  return false;
+
+  size_t index = Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
+  dispatch_table[index] = dispatch_table[Interpreter::GetDispatchTableIndex(
+      reused_bytecode, operand_scale)];
+
+  return true;
 }
 
 // static
