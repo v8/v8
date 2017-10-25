@@ -408,8 +408,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* StringToUpperCaseIntl();
 
   const Operator* FindOrderedHashMapEntry();
-  const Operator* FindOrderedHashMapEntryForReceiverKey();
-  const Operator* FindOrderedHashMapEntryForSigned32Key();
+  const Operator* FindOrderedHashMapEntryForInt32Key();
 
   const Operator* SpeculativeToNumber(NumberOperationHint hint);
 

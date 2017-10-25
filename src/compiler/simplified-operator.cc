@@ -722,23 +722,14 @@ struct SimplifiedOperatorGlobalCache final {
   };
   FindOrderedHashMapEntryOperator kFindOrderedHashMapEntry;
 
-  struct FindOrderedHashMapEntryForReceiverKeyOperator final : public Operator {
-    FindOrderedHashMapEntryForReceiverKeyOperator()
-        : Operator(IrOpcode::kFindOrderedHashMapEntryForReceiverKey,
+  struct FindOrderedHashMapEntryForInt32KeyOperator final : public Operator {
+    FindOrderedHashMapEntryForInt32KeyOperator()
+        : Operator(IrOpcode::kFindOrderedHashMapEntryForInt32Key,
                    Operator::kEliminatable,
-                   "FindOrderedHashMapEntryForReceiverKey", 2, 1, 1, 1, 1, 0) {}
+                   "FindOrderedHashMapEntryForInt32Key", 2, 1, 1, 1, 1, 0) {}
   };
-  FindOrderedHashMapEntryForReceiverKeyOperator
-      kFindOrderedHashMapEntryForReceiverKey;
-
-  struct FindOrderedHashMapEntryForSigned32KeyOperator final : public Operator {
-    FindOrderedHashMapEntryForSigned32KeyOperator()
-        : Operator(IrOpcode::kFindOrderedHashMapEntryForSigned32Key,
-                   Operator::kEliminatable,
-                   "FindOrderedHashMapEntryForSigned32Key", 2, 1, 1, 1, 1, 0) {}
-  };
-  FindOrderedHashMapEntryForSigned32KeyOperator
-      kFindOrderedHashMapEntryForSigned32Key;
+  FindOrderedHashMapEntryForInt32KeyOperator
+      kFindOrderedHashMapEntryForInt32Key;
 
   struct ArgumentsFrameOperator final : public Operator {
     ArgumentsFrameOperator()
@@ -917,8 +908,7 @@ CHECKED_OP_LIST(GET_FROM_CACHE)
 GET_FROM_CACHE(ArrayBufferWasNeutered)
 GET_FROM_CACHE(ArgumentsFrame)
 GET_FROM_CACHE(FindOrderedHashMapEntry)
-GET_FROM_CACHE(FindOrderedHashMapEntryForReceiverKey)
-GET_FROM_CACHE(FindOrderedHashMapEntryForSigned32Key)
+GET_FROM_CACHE(FindOrderedHashMapEntryForInt32Key)
 GET_FROM_CACHE(LoadFieldByIndex)
 #undef GET_FROM_CACHE
 

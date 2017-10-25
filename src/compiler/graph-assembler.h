@@ -34,7 +34,6 @@ namespace compiler {
 #define PURE_ASSEMBLER_MACH_BINOP_LIST(V) \
   V(WordShl)                              \
   V(WordSar)                              \
-  V(WordShr)                              \
   V(WordAnd)                              \
   V(Word32Or)                             \
   V(Word32And)                            \

@@ -862,11 +862,8 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kFindOrderedHashMapEntry:
       result = LowerFindOrderedHashMapEntry(node);
       break;
-    case IrOpcode::kFindOrderedHashMapEntryForReceiverKey:
-      result = LowerFindOrderedHashMapEntryForReceiverKey(node);
-      break;
-    case IrOpcode::kFindOrderedHashMapEntryForSigned32Key:
-      result = LowerFindOrderedHashMapEntryForSigned32Key(node);
+    case IrOpcode::kFindOrderedHashMapEntryForInt32Key:
+      result = LowerFindOrderedHashMapEntryForInt32Key(node);
       break;
     case IrOpcode::kTransitionAndStoreNumberElement:
       LowerTransitionAndStoreNumberElement(node);
@@ -3961,9 +3958,44 @@ Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundTruncate(Node* node) {
   return Just(done.PhiAt(0));
 }
 
-template <typename Predicate>
-Node* EffectControlLinearizer::BuildFindOrderedHashMapEntry(
-    Node* table, Node* hash, Predicate const& predicate) {
+Node* EffectControlLinearizer::LowerFindOrderedHashMapEntry(Node* node) {
+  Node* table = NodeProperties::GetValueInput(node, 0);
+  Node* key = NodeProperties::GetValueInput(node, 1);
+
+  {
+    Callable const callable =
+        Builtins::CallableFor(isolate(), Builtins::kFindOrderedHashMapEntry);
+    Operator::Properties const properties = node->op()->properties();
+    CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
+    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+        isolate(), graph()->zone(), callable.descriptor(), 0, flags,
+        properties);
+    return __ Call(desc, __ HeapConstant(callable.code()), table, key,
+                   __ NoContextConstant());
+  }
+}
+
+Node* EffectControlLinearizer::ComputeIntegerHash(Node* value) {
+  // See v8::internal::ComputeIntegerHash()
+  value = __ Int32Add(__ Word32Xor(value, __ Int32Constant(0xffffffff)),
+                      __ Word32Shl(value, __ Int32Constant(15)));
+  value = __ Word32Xor(value, __ Word32Shr(value, __ Int32Constant(12)));
+  value = __ Int32Add(value, __ Word32Shl(value, __ Int32Constant(2)));
+  value = __ Word32Xor(value, __ Word32Shr(value, __ Int32Constant(4)));
+  value = __ Int32Mul(value, __ Int32Constant(2057));
+  value = __ Word32Xor(value, __ Word32Shr(value, __ Int32Constant(16)));
+  value = __ Word32And(value, __ Int32Constant(0x3fffffff));
+  return value;
+}
+
+Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForInt32Key(
+    Node* node) {
+  Node* table = NodeProperties::GetValueInput(node, 0);
+  Node* key = NodeProperties::GetValueInput(node, 1);
+
+  // Compute the integer hash code.
+  Node* hash = ChangeUint32ToUintPtr(ComputeIntegerHash(key));
+
   Node* number_of_buckets = ChangeSmiToIntPtr(__ LoadField(
       AccessBuilder::ForOrderedHashTableBaseNumberOfBuckets(), table));
   hash = __ WordAnd(hash, __ IntSub(number_of_buckets, __ IntPtrConstant(1)));
@@ -3994,7 +4026,20 @@ Node* EffectControlLinearizer::BuildFindOrderedHashMapEntry(
 
     auto if_match = __ MakeLabel();
     auto if_notmatch = __ MakeLabel();
-    predicate(candidate_key, &if_match, &if_notmatch);
+    auto if_notsmi = __ MakeDeferredLabel();
+    __ GotoIfNot(ObjectIsSmi(candidate_key), &if_notsmi);
+    __ Branch(__ Word32Equal(ChangeSmiToInt32(candidate_key), key), &if_match,
+              &if_notmatch);
+
+    __ Bind(&if_notsmi);
+    __ GotoIfNot(
+        __ WordEqual(__ LoadField(AccessBuilder::ForMap(), candidate_key),
+                     __ HeapNumberMapConstant()),
+        &if_notmatch);
+    __ Branch(__ Float64Equal(__ LoadField(AccessBuilder::ForHeapNumberValue(),
+                                           candidate_key),
+                              __ ChangeInt32ToFloat64(key)),
+              &if_match, &if_notmatch);
 
     __ Bind(&if_match);
     {
@@ -4017,138 +4062,6 @@ Node* EffectControlLinearizer::BuildFindOrderedHashMapEntry(
 
   __ Bind(&done);
   return done.PhiAt(0);
-}
-
-Node* EffectControlLinearizer::LowerFindOrderedHashMapEntry(Node* node) {
-  Node* table = NodeProperties::GetValueInput(node, 0);
-  Node* key = NodeProperties::GetValueInput(node, 1);
-
-  {
-    Callable const callable =
-        Builtins::CallableFor(isolate(), Builtins::kFindOrderedHashMapEntry);
-    Operator::Properties const properties = node->op()->properties();
-    CallDescriptor::Flags const flags = CallDescriptor::kNoFlags;
-    CallDescriptor* desc = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), callable.descriptor(), 0, flags,
-        properties);
-    return __ Call(desc, __ HeapConstant(callable.code()), table, key,
-                   __ NoContextConstant());
-  }
-}
-
-Node* EffectControlLinearizer::GetExistingHashForReceiver(Node* receiver) {
-  auto done = __ MakeLabel(MachineType::PointerRepresentation());
-  auto if_smi = __ MakeLabel();
-  auto if_fixed_array = __ MakeLabel();
-  auto if_property_array = __ MakeLabel();
-  auto if_property_dictionary = __ MakeLabel();
-
-  // Dispatch depending on the {receiver}s "properties or hash" field.
-  Node* properties_or_hash =
-      __ LoadField(AccessBuilder::ForJSObjectPropertiesOrHash(), receiver);
-  __ GotoIf(ObjectIsSmi(properties_or_hash), &if_smi);
-  Node* properties_map =
-      __ LoadField(AccessBuilder::ForMap(), properties_or_hash);
-  Node* properties_instance_type =
-      __ LoadField(AccessBuilder::ForMapInstanceType(), properties_map);
-  __ GotoIf(__ Word32Equal(properties_instance_type,
-                           __ Int32Constant(PROPERTY_ARRAY_TYPE)),
-            &if_property_array);
-  __ Branch(__ Word32Equal(properties_instance_type,
-                           __ Int32Constant(HASH_TABLE_TYPE)),
-            &if_property_dictionary, &if_fixed_array);
-
-  __ Bind(&if_smi);
-  {
-    Node* hash = ChangeSmiToIntPtr(properties_or_hash);
-    __ Goto(&done, hash);
-  }
-
-  __ Bind(&if_fixed_array);
-  {
-    Node* hash = __ Int32Constant(PropertyArray::kNoHashSentinel);
-    __ Goto(&done, hash);
-  }
-
-  __ Bind(&if_property_array);
-  {
-    Node* length_and_hash = ChangeSmiToIntPtr(__ LoadField(
-        AccessBuilder::ForPropertyArrayLengthAndHash(), properties_or_hash));
-    Node* hash = __ WordShr(
-        length_and_hash, __ IntPtrConstant(PropertyArray::HashField::kShift));
-    __ Goto(&done, hash);
-  }
-
-  __ Bind(&if_property_dictionary);
-  {
-    Node* hash = ChangeSmiToIntPtr(__ LoadField(
-        AccessBuilder::ForDictionaryObjectHashIndex(), properties_or_hash));
-    __ Goto(&done, hash);
-  }
-
-  __ Bind(&done);
-  return done.PhiAt(0);
-}
-
-Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForReceiverKey(
-    Node* node) {
-  Node* table = NodeProperties::GetValueInput(node, 0);
-  Node* key = NodeProperties::GetValueInput(node, 1);
-
-  // Compute the hash code for the {key}.
-  Node* hash = GetExistingHashForReceiver(key);
-
-  // Search for the entry with the given {key}.
-  return BuildFindOrderedHashMapEntry(
-      table, hash,
-      [=](Node* candidate_key, GraphAssemblerLabel<0>* if_match,
-          GraphAssemblerLabel<0>* if_notmatch) {
-        __ Branch(__ WordEqual(candidate_key, key), if_match, if_notmatch);
-      });
-}
-
-Node* EffectControlLinearizer::ComputeIntegerHash(Node* value) {
-  // See v8::internal::ComputeIntegerHash()
-  value = __ Int32Add(__ Word32Xor(value, __ Int32Constant(0xffffffff)),
-                      __ Word32Shl(value, __ Int32Constant(15)));
-  value = __ Word32Xor(value, __ Word32Shr(value, __ Int32Constant(12)));
-  value = __ Int32Add(value, __ Word32Shl(value, __ Int32Constant(2)));
-  value = __ Word32Xor(value, __ Word32Shr(value, __ Int32Constant(4)));
-  value = __ Int32Mul(value, __ Int32Constant(2057));
-  value = __ Word32Xor(value, __ Word32Shr(value, __ Int32Constant(16)));
-  value = __ Word32And(value, __ Int32Constant(0x3fffffff));
-  return value;
-}
-
-Node* EffectControlLinearizer::LowerFindOrderedHashMapEntryForSigned32Key(
-    Node* node) {
-  Node* table = NodeProperties::GetValueInput(node, 0);
-  Node* key = NodeProperties::GetValueInput(node, 1);
-
-  // Compute the integer hash code for the {key}.
-  Node* hash = ChangeUint32ToUintPtr(ComputeIntegerHash(key));
-
-  // Search for the entry with the given {key}.
-  return BuildFindOrderedHashMapEntry(
-      table, hash,
-      [=](Node* candidate_key, GraphAssemblerLabel<0>* if_match,
-          GraphAssemblerLabel<0>* if_notmatch) {
-        auto if_notsmi = __ MakeDeferredLabel();
-        __ GotoIfNot(ObjectIsSmi(candidate_key), &if_notsmi);
-        __ Branch(__ Word32Equal(ChangeSmiToInt32(candidate_key), key),
-                  if_match, if_notmatch);
-
-        __ Bind(&if_notsmi);
-        __ GotoIfNot(
-            __ WordEqual(__ LoadField(AccessBuilder::ForMap(), candidate_key),
-                         __ HeapNumberMapConstant()),
-            if_notmatch);
-        __ Branch(
-            __ Float64Equal(__ LoadField(AccessBuilder::ForHeapNumberValue(),
-                                         candidate_key),
-                            __ ChangeInt32ToFloat64(key)),
-            if_match, if_notmatch);
-      });
 }
 
 #undef __

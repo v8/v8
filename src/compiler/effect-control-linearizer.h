@@ -134,8 +134,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   void LowerStoreTypedElement(Node* node);
   void LowerStoreSignedSmallElement(Node* node);
   Node* LowerFindOrderedHashMapEntry(Node* node);
-  Node* LowerFindOrderedHashMapEntryForReceiverKey(Node* node);
-  Node* LowerFindOrderedHashMapEntryForSigned32Key(Node* node);
+  Node* LowerFindOrderedHashMapEntryForInt32Key(Node* node);
   void LowerTransitionAndStoreElement(Node* node);
   void LowerTransitionAndStoreNumberElement(Node* node);
   void LowerTransitionAndStoreNonNumberElement(Node* node);
@@ -154,11 +153,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
                                                  Node* value,
                                                  Node* frame_state);
   Node* BuildFloat64RoundDown(Node* value);
-  template <typename Predicate>
-  Node* BuildFindOrderedHashMapEntry(Node* table, Node* hash,
-                                     Predicate const& predicate);
   Node* ComputeIntegerHash(Node* value);
-  Node* GetExistingHashForReceiver(Node* receiver);
   Node* LowerStringComparison(Callable const& callable, Node* node);
   Node* IsElementsKindGreaterThan(Node* kind, ElementsKind reference_kind);
 
