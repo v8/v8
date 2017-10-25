@@ -220,21 +220,6 @@ InjectedScript.prototype = {
     },
 
     /**
-     * @param {!Array<!Object>} array
-     * @param {string} property
-     * @param {string} groupName
-     * @param {boolean} forceValueType
-     * @param {boolean} generatePreview
-     */
-    wrapPropertyInArray: function(array, property, groupName, forceValueType, generatePreview)
-    {
-        for (var i = 0; i < array.length; ++i) {
-            if (typeof array[i] === "object" && property in array[i])
-                array[i][property] = this.wrapObject(array[i][property], groupName, forceValueType, generatePreview);
-        }
-    },
-
-    /**
      * @param {!Object} table
      * @param {!Array.<string>|string|boolean} columns
      * @return {!RuntimeAgent.RemoteObject}
