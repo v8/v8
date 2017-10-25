@@ -1076,12 +1076,14 @@ Handle<Object> WasmValueToNumber(Factory* factory, WasmValue val,
 
 // Convert JS value to WebAssembly, spec here:
 // https://github.com/WebAssembly/design/blob/master/JS.md#towebassemblyvalue
+// Return WasmValue() (i.e. of type kWasmStmt) on failure. In that case, an
+// exception will be pending on the isolate.
 WasmValue ToWebAssemblyValue(Isolate* isolate, Handle<Object> value,
                              wasm::ValueType type) {
   switch (type) {
     case kWasmI32: {
       MaybeHandle<Object> maybe_i32 = Object::ToInt32(isolate, value);
-      // TODO(clemensh): Handle failure here (unwind).
+      if (maybe_i32.is_null()) return {};
       int32_t value;
       CHECK(maybe_i32.ToHandleChecked()->ToInt32(&value));
       return WasmValue(value);
@@ -1091,13 +1093,13 @@ WasmValue ToWebAssemblyValue(Isolate* isolate, Handle<Object> value,
       UNREACHABLE();
     case kWasmF32: {
       MaybeHandle<Object> maybe_number = Object::ToNumber(value);
-      // TODO(clemensh): Handle failure here (unwind).
+      if (maybe_number.is_null()) return {};
       return WasmValue(
           static_cast<float>(maybe_number.ToHandleChecked()->Number()));
     }
     case kWasmF64: {
       MaybeHandle<Object> maybe_number = Object::ToNumber(value);
-      // TODO(clemensh): Handle failure here (unwind).
+      if (maybe_number.is_null()) return {};
       return WasmValue(maybe_number.ToHandleChecked()->Number());
     }
     default:
@@ -1264,7 +1266,7 @@ class ThreadImpl {
   WasmInterpreter::Thread::ExceptionHandlingResult HandleException(
       Isolate* isolate) {
     DCHECK(isolate->has_pending_exception());
-    // TODO(wasm): Add wasm exception handling (would return true).
+    // TODO(wasm): Add wasm exception handling (would return HANDLED).
     USE(isolate->pending_exception());
     TRACE("----- UNWIND -----\n");
     DCHECK_LT(0, activations_.size());
@@ -2209,7 +2211,10 @@ class ThreadImpl {
     if (signature->return_count() > 0) {
       // TODO(wasm): Handle multiple returns.
       DCHECK_EQ(1, signature->return_count());
-      Push(ToWebAssemblyValue(isolate, retval, signature->GetReturn()));
+      WasmValue value =
+          ToWebAssemblyValue(isolate, retval, signature->GetReturn());
+      if (value.type() == kWasmStmt) return TryHandleException(isolate);
+      Push(value);
     }
     return {ExternalCallResult::EXTERNAL_RETURNED};
   }

@@ -398,3 +398,26 @@ function checkStack(stack, expected_lines) {
     run(x => (x - 18));
   }
 })();
+
+(function testImportThrowsOnToNumber() {
+  const builder = new WasmModuleBuilder();
+  builder.addImport('mod', 'func', kSig_i_v);
+  builder.addFunction('main', kSig_i_v)
+      .addBody([kExprCallFunction, 0])
+      .exportFunc();
+  var num_callback_calls = 0;
+  const callback = () => {
+    ++num_callback_calls;
+    return Symbol()
+  };
+  var instance = builder.instantiate({mod: {func: callback}});
+  // Test that this does not mess up internal state by executing it three times.
+  for (var i = 0; i < 3; ++i) {
+    var interpreted_before = %WasmNumInterpretedCalls(instance);
+    assertThrows(
+        () => instance.exports.main(), TypeError,
+        'Cannot convert a Symbol value to a number');
+    assertEquals(interpreted_before + 1, %WasmNumInterpretedCalls(instance));
+    assertEquals(i + 1, num_callback_calls);
+  }
+})();
