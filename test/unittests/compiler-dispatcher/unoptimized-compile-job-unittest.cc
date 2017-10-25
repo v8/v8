@@ -202,8 +202,12 @@ TEST_F(UnoptimizedCompileJobTest, CompileAndRun) {
 
 TEST_F(UnoptimizedCompileJobTest, CompileFailureToAnalyse) {
   std::string raw_script("() { var a = ");
-  for (int i = 0; i < 100000; i++) {
-    raw_script += "'x' + ";
+  for (int i = 0; i < 500000; i++) {
+    // TODO(leszeks): Figure out a more "unit-test-y" way of forcing an analysis
+    // failure than a binop stack overflow.
+
+    // Alternate + and - to avoid n-ary operation nodes.
+    raw_script += "'x' + 'x' - ";
   }
   raw_script += " 'x'; }";
   test::ScriptResource script(raw_script.c_str(), strlen(raw_script.c_str()));
@@ -229,8 +233,9 @@ TEST_F(UnoptimizedCompileJobTest, CompileFailureToAnalyse) {
 
 TEST_F(UnoptimizedCompileJobTest, CompileFailureToFinalize) {
   std::string raw_script("() { var a = ");
-  for (int i = 0; i < 1000; i++) {
-    raw_script += "'x' + ";
+  for (int i = 0; i < 500; i++) {
+    // Alternate + and - to avoid n-ary operation nodes.
+    raw_script += "'x' + 'x' - ";
   }
   raw_script += " 'x'; }";
   test::ScriptResource script(raw_script.c_str(), strlen(raw_script.c_str()));

@@ -307,6 +307,38 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
   return false;
 }
 
+bool Parser::CollapseNaryExpression(Expression** x, Expression* y,
+                                    Token::Value op, int pos) {
+  // Filter out unsupported ops.
+  // TODO(leszeks): Support AND, OR and COMMA in bytecode generator.
+  if (!Token::IsBinaryOp(op) || op == Token::AND || op == Token::OR ||
+      op == Token::EXP || op == Token::COMMA)
+    return false;
+
+  // Convert *x into an nary operation with the given op, returning false if
+  // this is not possible.
+  NaryOperation* nary = nullptr;
+  if ((*x)->IsBinaryOperation()) {
+    BinaryOperation* binop = (*x)->AsBinaryOperation();
+    if (binop->op() != op) return false;
+
+    nary = factory()->NewNaryOperation(op, binop->left(), binop->right(),
+                                       binop->position());
+    *x = nary;
+  } else if ((*x)->IsNaryOperation()) {
+    nary = (*x)->AsNaryOperation();
+    if (nary->op() != op) return false;
+  } else {
+    return false;
+  }
+
+  // Append our current expression to the nary operation.
+  // TODO(leszeks): Do some literal collapsing here if we're appending Smi or
+  // String literals.
+  nary->AddSubsequent(y, pos);
+  return true;
+}
+
 Expression* Parser::BuildUnaryExpression(Expression* expression,
                                          Token::Value op, int pos) {
   DCHECK_NOT_NULL(expression);

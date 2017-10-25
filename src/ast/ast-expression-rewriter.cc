@@ -346,6 +346,14 @@ void AstExpressionRewriter::VisitBinaryOperation(BinaryOperation* node) {
   AST_REWRITE_PROPERTY(Expression, node, right);
 }
 
+void AstExpressionRewriter::VisitNaryOperation(NaryOperation* node) {
+  REWRITE_THIS(node);
+  AST_REWRITE_PROPERTY(Expression, node, first);
+  for (size_t i = 0; i < node->subsequent_length(); ++i) {
+    AST_REWRITE(Expression, node->subsequent(i),
+                node->set_subsequent(i, replacement));
+  }
+}
 
 void AstExpressionRewriter::VisitCompareOperation(CompareOperation* node) {
   REWRITE_THIS(node);

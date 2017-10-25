@@ -444,6 +444,15 @@ void AstTraversalVisitor<Subclass>::VisitBinaryOperation(
 }
 
 template <class Subclass>
+void AstTraversalVisitor<Subclass>::VisitNaryOperation(NaryOperation* expr) {
+  PROCESS_EXPRESSION(expr);
+  RECURSE_EXPRESSION(Visit(expr->first()));
+  for (size_t i = 0; i < expr->subsequent_length(); ++i) {
+    RECURSE_EXPRESSION(Visit(expr->subsequent(i)));
+  }
+}
+
+template <class Subclass>
 void AstTraversalVisitor<Subclass>::VisitCompareOperation(
     CompareOperation* expr) {
   PROCESS_EXPRESSION(expr);

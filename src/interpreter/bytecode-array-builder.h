@@ -459,11 +459,15 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   }
 
   void SetExpressionPosition(Expression* expr) {
-    if (expr->position() == kNoSourcePosition) return;
+    SetExpressionPosition(expr->position());
+  }
+
+  void SetExpressionPosition(int position) {
+    if (position == kNoSourcePosition) return;
     if (!latest_source_info_.is_statement()) {
       // Ensure the current expression position is overwritten with the
       // latest value.
-      latest_source_info_.MakeExpressionPosition(expr->position());
+      latest_source_info_.MakeExpressionPosition(position);
     }
   }
 

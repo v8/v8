@@ -3124,6 +3124,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
         }
       } else if (op == Token::EXP) {
         x = impl()->RewriteExponentiation(x, y, pos);
+      } else if (impl()->CollapseNaryExpression(&x, y, op, pos)) {
+        continue;
       } else {
         // We have a "normal" binary operation.
         x = factory()->NewBinaryOperation(op, x, y, pos);

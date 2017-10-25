@@ -221,6 +221,13 @@ void AstNumberingVisitor::VisitBinaryOperation(BinaryOperation* node) {
   Visit(node->right());
 }
 
+void AstNumberingVisitor::VisitNaryOperation(NaryOperation* node) {
+  Visit(node->first());
+  for (size_t i = 0; i < node->subsequent_length(); ++i) {
+    Visit(node->subsequent(i));
+  }
+}
+
 void AstNumberingVisitor::VisitCompareOperation(CompareOperation* node) {
   Visit(node->left());
   Visit(node->right());

@@ -439,8 +439,9 @@ TEST_F(CompilerDispatcherTest, IdleTaskException) {
 
   std::string func_name("f" STR(__LINE__));
   std::string script("function g() { function " + func_name + "(x) { var a = ");
-  for (int i = 0; i < 1000; i++) {
-    script += "'x' + ";
+  for (int i = 0; i < 500; i++) {
+    // Alternate + and - to avoid n-ary operation nodes.
+    script += "'x' + 'x' - ";
   }
   script += " 'x'; }; return " + func_name + "; } g();";
   Handle<JSFunction> f =
@@ -579,8 +580,9 @@ TEST_F(CompilerDispatcherTest, FinishNowException) {
 
   std::string func_name("f" STR(__LINE__));
   std::string script("function g() { function " + func_name + "(x) { var a = ");
-  for (int i = 0; i < 1000; i++) {
-    script += "'x' + ";
+  for (int i = 0; i < 500; i++) {
+    // Alternate + and - to avoid n-ary operation nodes.
+    script += "'x' + 'x' - ";
   }
   script += " 'x'; }; return " + func_name + "; } g();";
   Handle<JSFunction> f =

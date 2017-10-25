@@ -1295,6 +1295,12 @@ class PreParser : public ParserBase<PreParser> {
     return false;
   }
 
+  V8_INLINE bool CollapseNaryExpression(PreParserExpression* x,
+                                        PreParserExpression y, Token::Value op,
+                                        int pos) {
+    return false;
+  }
+
   V8_INLINE PreParserExpression BuildUnaryExpression(
       const PreParserExpression& expression, Token::Value op, int pos) {
     return PreParserExpression::Default();

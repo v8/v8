@@ -726,6 +726,7 @@ void PatternRewriter::VisitProperty(v8::internal::Property* node) {
   void PatternRewriter::Visit##Node(v8::internal::Node*) { UNREACHABLE(); }
 
 NOT_A_PATTERN(BinaryOperation)
+NOT_A_PATTERN(NaryOperation)
 NOT_A_PATTERN(Block)
 NOT_A_PATTERN(BreakStatement)
 NOT_A_PATTERN(Call)

@@ -74,6 +74,7 @@ namespace internal {
   V(Assignment)                 \
   V(Await)                      \
   V(BinaryOperation)            \
+  V(NaryOperation)              \
   V(Call)                       \
   V(CallNew)                    \
   V(CallRuntime)                \
@@ -1751,6 +1752,73 @@ class BinaryOperation final : public Expression {
       : public BitField<Token::Value, Expression::kNextBitFieldIndex, 7> {};
 };
 
+class NaryOperation final : public Expression {
+ public:
+  Token::Value op() const { return OperatorField::decode(bit_field_); }
+  Expression* first() const { return first_; }
+  void set_first(Expression* e) { first_ = e; }
+  Expression* subsequent(size_t index) const {
+    if (index == 0) return second_;
+    return subsequent_[index - 1].expression;
+  }
+  Expression* set_subsequent(size_t index, Expression* e) {
+    if (index == 0) return second_ = e;
+    return subsequent_[index - 1].expression = e;
+  }
+
+  size_t subsequent_length() const { return 1 + subsequent_.size(); }
+  int subsequent_op_position(size_t index) const {
+    if (index == 0) return position();
+    return subsequent_[index - 1].op_position;
+  }
+
+  void AddSubsequent(Expression* expr, int pos) {
+    subsequent_.emplace_back(expr, pos);
+  }
+
+ private:
+  friend class AstNodeFactory;
+
+  NaryOperation(Zone* zone, Token::Value op, Expression* first,
+                Expression* second, int pos)
+      : Expression(pos, kNaryOperation),
+        first_(first),
+        second_(second),
+        subsequent_(zone) {
+    bit_field_ |= OperatorField::encode(op);
+    DCHECK(Token::IsBinaryOp(op));
+    DCHECK_NE(op, Token::EXP);
+  }
+
+  // Nary operations store the first operation (and so first two child
+  // expressions) inline, where the position of the first operation is the
+  // position of this expression. Subsequent child expressions are stored
+  // out-of-line, along with with their operation's position and feedback slot.
+  //
+  // So an nary add:
+  //
+  //    expr + expr + expr + expr + ...
+  //
+  // is stored as:
+  //
+  //    (expr + expr) [(+ expr), (+ expr), ...]
+  //    '-----.-----' '-----------.-----------'
+  //        this        subsequent entry list
+
+  Expression* first_;
+  Expression* second_;
+
+  struct NaryOperationEntry {
+    Expression* expression;
+    int op_position;
+    NaryOperationEntry(Expression* e, int pos)
+        : expression(e), op_position(pos) {}
+  };
+  ZoneVector<NaryOperationEntry> subsequent_;
+
+  class OperatorField
+      : public BitField<Token::Value, Expression::kNextBitFieldIndex, 7> {};
+};
 
 class CountOperation final : public Expression {
  public:
@@ -3001,6 +3069,11 @@ class AstNodeFactory final BASE_EMBEDDED {
                                       Expression* right,
                                       int pos) {
     return new (zone_) BinaryOperation(op, left, right, pos);
+  }
+
+  NaryOperation* NewNaryOperation(Token::Value op, Expression* first,
+                                  Expression* second, int pos) {
+    return new (zone_) NaryOperation(zone_, op, first, second, pos);
   }
 
   CountOperation* NewCountOperation(Token::Value op,

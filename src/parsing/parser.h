@@ -757,6 +757,13 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   bool ShortcutNumericLiteralBinaryExpression(Expression** x, Expression* y,
                                               Token::Value op, int pos);
 
+  // Returns true if we have a binary operation between a binary/n-ary
+  // expression (with the same operation) and a value, which can be collapsed
+  // into a single n-ary expression. In that case, *x will be changed to an
+  // n-ary expression.
+  bool CollapseNaryExpression(Expression** x, Expression* y, Token::Value op,
+                              int pos);
+
   // Rewrites the following types of unary expressions:
   // not <literal> -> true / false
   // + <numeric literal> -> <numeric literal>

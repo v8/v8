@@ -75,6 +75,12 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitLogicalOrExpression(BinaryOperation* binop);
   void VisitLogicalAndExpression(BinaryOperation* binop);
 
+  // Dispatched from VisitNaryOperation.
+  void VisitNaryArithmeticExpression(NaryOperation* expr);
+  void VisitNaryCommaExpression(NaryOperation* expr);
+  void VisitNaryLogicalOrExpression(NaryOperation* expr);
+  void VisitNaryLogicalAndExpression(NaryOperation* expr);
+
   // Dispatched from VisitUnaryOperation.
   void VisitVoid(UnaryOperation* expr);
   void VisitTypeOf(UnaryOperation* expr);
