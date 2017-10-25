@@ -103,38 +103,37 @@ load("test/wasm-js/test/harness/wasm-constants.js");
 load("test/wasm-js/test/harness/wasm-module-builder.js");
 load("test/wasm-js/test/js-api/jsapi.js");
 
-assertPromiseFulfills(last_promise)
-  .then(_ => {
-    if (failures.length > 0) {
-      let unexpected = false;
-      print("Some tests FAILED:");
-      for (let i in failures) {
-        if (known_failures[failures[i]]) {
-          print(`  ${failures[i]} [KNOWN: ${known_failures[failures[i]]}]`);
-        } else {
-          print(`  ${failures[i]}`);
-          unexpected = true;
-        }
-      }
-      if (unexpected_successes.length > 0) {
+assertPromiseResult(last_promise, _ => {
+  if (failures.length > 0) {
+    let unexpected = false;
+    print("Some tests FAILED:");
+    for (let i in failures) {
+      if (known_failures[failures[i]]) {
+        print(`  ${failures[i]} [KNOWN: ${known_failures[failures[i]]}]`);
+      } else {
+        print(`  ${failures[i]}`);
         unexpected = true;
-        print("");
-        print("Unexpected successes:");
-        for(let i in unexpected_successes) {
-          print(`  ${unexpected_successes[i]}`);
-        }
-        print("Some tests SUCCEEDED but were known failures. If you've fixed " +
-              "the bug, please remove the test from the known failures list.")
-      }
-      if (unexpected) {
-        print("\n");
-        print("   #############################################################");
-        print("   #                                                           #");
-        print("   # Unexpected outcome. Did you forget to run 'gclient sync'? #");
-        print("   #                                                           #");
-        print("   #############################################################");
-        print("\n");
-        assertUnreachable("Unexpected outcome");
       }
     }
-  });
+    if (unexpected_successes.length > 0) {
+      unexpected = true;
+      print("");
+      print("Unexpected successes:");
+      for(let i in unexpected_successes) {
+        print(`  ${unexpected_successes[i]}`);
+      }
+      print("Some tests SUCCEEDED but were known failures. If you've fixed " +
+            "the bug, please remove the test from the known failures list.")
+    }
+    if (unexpected) {
+      print("\n");
+      print("   #############################################################");
+      print("   #                                                           #");
+      print("   # Unexpected outcome. Did you forget to run 'gclient sync'? #");
+      print("   #                                                           #");
+      print("   #############################################################");
+      print("\n");
+      assertUnreachable("Unexpected outcome");
+    }
+  }
+});

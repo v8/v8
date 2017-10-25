@@ -85,10 +85,9 @@ builder.appendToTable([0]);
 let buffer = builder.toBuffer();
 
 // Test async compilation and instantiation.
-assertPromiseFulfills(WebAssembly.instantiate(buffer))
-  .then(pair => {
-    testTrapLocations(pair.instance, 6);
-  });
+assertPromiseResult(WebAssembly.instantiate(buffer), pair => {
+  testTrapLocations(pair.instance, 6);
+});
 
 // Test sync compilation and instantiation.
 testTrapLocations(builder.instantiate(), 4);

@@ -27,7 +27,8 @@ function getBuilder() {
 (function AsyncTest() {
   var builder = getBuilder();
   var buffer = builder.toBuffer();
-  assertPromiseFulfills(WebAssembly.instantiate(buffer))
-      .then(pair => pair.instance.exports.main())
-      .then(result => assertEquals(kReturnValue, result));
+  assertPromiseResult(
+    WebAssembly.instantiate(buffer)
+      .then(pair => pair.instance.exports.main(), assertUnreachable)
+      .then(result => assertEquals(kReturnValue, result), assertUnreachable));
 })();

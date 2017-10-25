@@ -7,22 +7,22 @@
 load('test/mjsunit/wasm/wasm-constants.js');
 load('test/mjsunit/wasm/wasm-module-builder.js');
 
-const importingModuleBinary1 = (() => {
-  const builder = new WasmModuleBuilder();
+let importingModuleBinary1 = (() => {
+  var builder = new WasmModuleBuilder();
   builder.addImport('', 'f', kSig_i_v);
   return new Int8Array(builder.toBuffer());
 })();
 
-const importingModuleBinary2 = (() => {
-  const builder = new WasmModuleBuilder();
+let importingModuleBinary2 = (() => {
+  var builder = new WasmModuleBuilder();
   builder.addImport('', 'f', kSig_i_v);
   builder.addFunction('g', kSig_v_v)
     .addBody([kExprNop]);
   return new Int8Array(builder.toBuffer());
 })();
 
-const importingModuleBinary3 = (() => {
-  const builder = new WasmModuleBuilder();
+let importingModuleBinary3 = (() => {
+  var builder = new WasmModuleBuilder();
   builder.addImport('', 'f', kSig_i_v);
   builder.addImport('', 'f2', kSig_i_v);
   builder.addFunction('g', kSig_v_v)
@@ -30,15 +30,15 @@ const importingModuleBinary3 = (() => {
   return new Int8Array(builder.toBuffer());
 })();
 
-const importingModuleBinary4 = (() => {
-  const builder = new WasmModuleBuilder();
+let importingModuleBinary4 = (() => {
+  var builder = new WasmModuleBuilder();
   builder.addFunction('g', kSig_v_v)
     .addBody([kExprNop]);
   return new Int8Array(builder.toBuffer());
 })();
 
 const complexImportingModuleBinary1 = (() => {
-  const builder = new WasmModuleBuilder();
+  let builder = new WasmModuleBuilder();
 
   builder.addImport('a', 'b', kSig_v_v);
   builder.addImportedMemory('c', 'd', 1);
@@ -50,7 +50,7 @@ const complexImportingModuleBinary1 = (() => {
 })();
 
 const complexImportingModuleBinary2 = (() => {
-  const builder = new WasmModuleBuilder();
+  let builder = new WasmModuleBuilder();
 
   builder.addImport('a', 'b', kSig_v_v);
   builder.addImportedMemory('c', 'd', 1);
@@ -61,7 +61,7 @@ const complexImportingModuleBinary2 = (() => {
   return builder.toBuffer();
 })();
 
-const tests = [
+var tests = [
   importingModuleBinary1,
   importingModuleBinary2,
   importingModuleBinary3,
@@ -70,7 +70,9 @@ const tests = [
   complexImportingModuleBinary2
 ];
 
-for (const test of tests) {
-  assertPromiseFulfills(WebAssembly.compile(test))
-    .then(m => { assertTrue(m instanceof WebAssembly.Module) });
+for (var index in tests) {
+  assertPromiseResult(
+    WebAssembly.compile(tests[index]),
+    m => assertTrue(m instanceof WebAssembly.Module),
+    assertUnreachable);
 }

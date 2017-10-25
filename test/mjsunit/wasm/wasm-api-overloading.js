@@ -5,21 +5,29 @@
 load("test/mjsunit/wasm/wasm-constants.js");
 load("test/mjsunit/wasm/wasm-module-builder.js");
 
-const buffer = (() => {
-  const builder = new WasmModuleBuilder();
+let buffer = (() => {
+  let builder = new WasmModuleBuilder();
   builder.addFunction("f", kSig_i_v)
     .addBody([kExprI32Const, 42])
     .exportAs("f");
   return builder.toBuffer();
 })();
 
-const module = new WebAssembly.Module(buffer);
-const wrapper = [module];
+var module = new WebAssembly.Module(buffer);
+var wrapper = [module];
 
-assertThrows(() => {
-  WebAssembly.instantiateStreaming(wrapper);
-}, TypeError);
+try {
+  assertPromiseResult(
+    WebAssembly.instantiateStreaming(wrapper),
+    assertUnreachable, assertUnreachable);
+} catch (e) {
+  assertTrue(e instanceof TypeError);
+}
 
-assertThrows(() => {
-  WebAssembly.compileStreaming(wrapper);
-}, TypeError);
+try {
+  assertPromiseResult(
+    WebAssembly.compileStreaming(wrapper),
+    assertUnreachable, assertUnreachable);
+} catch (e) {
+  assertTrue(e instanceof TypeError);
+}

@@ -23,7 +23,7 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
 
   var buffer = builder.toBuffer();
   // Start the compilation but do not wait for the promise to resolve
-  // with assertPromise*. This should not cause a crash.
+  // with assertPromiseResult. This should not cause a crash.
   WebAssembly.compile(buffer).then(
     () => { print("success")},
     () => { print("failed"); });

@@ -12,8 +12,9 @@ const bytes = new Uint8Array([
   0x08, 0x01, 0x06, 0x00, 0x41, 0x01, 0x40, 0x00, 0x0b
 ]);
 
-assertPromiseFulfills(WebAssembly.compile(bytes))
-  .then(module => {
-    print('promise resolved: ' + module);
-    new WebAssembly.Instance(module).exports.grow();
-  });
+assertPromiseResult(
+    WebAssembly.compile(bytes),
+    module => {
+      print('promise resolved: ' + module);
+      new WebAssembly.Instance(module).exports.grow();
+    });
