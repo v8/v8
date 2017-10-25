@@ -35,18 +35,43 @@ function TestExpressionDepth(depth, expression, prologue, epilogue) {
 }
 
 function RunTest(name, expression, prologue, epilogue) {
-  var depth;
+  var low_depth = 0;
+  var high_depth = 1;
+
+  // Find the upper limit where depth breaks down.
   try {
-    for (depth = 0; depth < 20000; depth += 100) {
-      TestExpressionDepth(depth, expression, prologue, epilogue);
+    while (high_depth <= 65536) {
+      TestExpressionDepth(high_depth, expression, prologue, epilogue);
+      low_depth = high_depth;
+      high_depth *= 4;
     }
+    // Looks like we can't get the depth to break down, just report
+    // the maximum depth tested.
+    print(name +  '-ExpressionDepth(Score): ' + low_depth);
+    return;
   } catch (e) {
     if (!e instanceof RangeError) {
       print(name +  '-ExpressionDepth(Score): ERROR');
       return;
     }
   }
-  print(name + '-ExpressionDepth(Score): ' + depth);
+
+  // Binary search the actual limit.
+  while (low_depth + 1 < high_depth) {
+    var mid_depth = Math.round((low_depth + high_depth) / 2);
+    try {
+      TestExpressionDepth(mid_depth, expression, prologue, epilogue);
+      low_depth = mid_depth;
+    } catch (e) {
+      if (!e instanceof RangeError) {
+        print(name +  '-ExpressionDepth(Score): ERROR');
+        return;
+      }
+      high_depth = mid_depth;
+    }
+  }
+
+  print(name + '-ExpressionDepth(Score): ' + low_depth);
 }
 
 function AddTest(name, expression, in_test) {
