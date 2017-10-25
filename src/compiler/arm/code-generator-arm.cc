@@ -2426,7 +2426,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         // Ensure byte indices are in [0, 31] so masks are never NaNs.
         four_lanes &= 0x1F1F1F1F;
         __ vmov(SwVfpRegister::from_code(scratch_s_base + j),
-                Float32(four_lanes));
+                Float32::FromBits(four_lanes));
       }
       NeonListOperand table(table_base, table_size);
       if (dst != src0 && dst != src1) {
@@ -3025,7 +3025,7 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
         __ str(temp, dst);
       } else {
         SwVfpRegister dst = g.ToFloatRegister(destination);
-        __ vmov(dst, Float32(src.ToFloat32AsInt()));
+        __ vmov(dst, Float32::FromBits(src.ToFloat32AsInt()));
       }
     } else {
       DCHECK_EQ(Constant::kFloat64, src.type());
