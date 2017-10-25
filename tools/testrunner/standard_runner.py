@@ -73,13 +73,9 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     def __init__(self):
         super(StandardTestRunner, self).__init__()
 
+        self.sancov_dir = None
+
     def _do_execute(self, options, args):
-      # Use the v8 root as cwd as some test cases use "load" with relative
-      # paths.
-      os.chdir(base_runner.BASE_DIR)
-
-      self._setup_env(options)
-
       if options.swarming:
         # Swarming doesn't print how isolated commands are called. Lets make
         # this less cryptic by printing it ourselves.
@@ -248,7 +244,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
     def _process_options(self, options):
       global VARIANTS
 
-      # Special processing of other options, sorted alphabetically.
+      if options.sancov_dir:
+        self.sancov_dir = options.sancov_dir
+        if not os.path.exists(self.sancov_dir):
+          print("sancov-dir %s doesn't exist" % self.sancov_dir)
+          raise base_runner.TestRunnerError()
 
       if options.buildbot:
         options.network = False
@@ -337,71 +337,17 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         base_runner.TEST_MAP["bot_default"].remove("intl")
         base_runner.TEST_MAP["default"].remove("intl")
 
-    def _setup_env(self, options):
-      """Setup additional environment variables."""
+    def _setup_env(self):
+      super(StandardTestRunner, self)._setup_env()
 
-      # Many tests assume an English interface.
-      os.environ['LANG'] = 'en_US.UTF-8'
+      symbolizer_option = self._get_external_symbolizer_option()
 
-      external_symbolizer_path = os.path.join(
-          base_runner.BASE_DIR,
-          'third_party',
-          'llvm-build',
-          'Release+Asserts',
-          'bin',
-          'llvm-symbolizer',
-      )
-      if utils.IsWindows():
-        # Quote, because sanitizers might confuse colon as option separator.
-        external_symbolizer_path = '"%s.exe"' % external_symbolizer_path
-      symbolizer = 'external_symbolizer_path=%s' % external_symbolizer_path
-
-      if self.build_config.asan:
-        asan_options = [symbolizer, "allow_user_segv_handler=1"]
-        if not utils.GuessOS() in ['macos', 'windows']:
-          # LSAN is not available on mac and windows.
-          asan_options.append('detect_leaks=1')
-        os.environ['ASAN_OPTIONS'] = ":".join(asan_options)
-
-      if options.sancov_dir:
-        assert os.path.exists(options.sancov_dir)
+      if self.sancov_dir:
         os.environ['ASAN_OPTIONS'] = ":".join([
           'coverage=1',
-          'coverage_dir=%s' % options.sancov_dir,
-          symbolizer,
+          'coverage_dir=%s' % self.sancov_dir,
+          symbolizer_option,
           "allow_user_segv_handler=1",
-        ])
-
-      if self.build_config.cfi_vptr:
-        os.environ['UBSAN_OPTIONS'] = ":".join([
-          'print_stacktrace=1',
-          'print_summary=1',
-          'symbolize=1',
-          symbolizer,
-        ])
-
-      if self.build_config.ubsan_vptr:
-        os.environ['UBSAN_OPTIONS'] = ":".join([
-          'print_stacktrace=1',
-          symbolizer,
-        ])
-
-      if self.build_config.msan:
-        os.environ['MSAN_OPTIONS'] = symbolizer
-
-      if self.build_config.tsan:
-        suppressions_file = os.path.join(
-            base_runner.BASE_DIR,
-            'tools',
-            'sanitizers',
-            'tsan_suppressions.txt')
-        os.environ['TSAN_OPTIONS'] = " ".join([
-          symbolizer,
-          'suppressions=%s' % suppressions_file,
-          'exit_code=0',
-          'report_thread_leaks=0',
-          'history_size=7',
-          'report_destroy_locked=0',
         ])
 
     def _random_seed(self):
@@ -446,7 +392,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                             self.build_config.predictable,
                             options.no_harness,
                             use_perf_data=not options.swarming,
-                            sancov_dir=options.sancov_dir)
+                            sancov_dir=self.sancov_dir)
 
       # TODO(all): Combine "simulator" and "simulator_run".
       # TODO(machenbach): In GN we can derive simulator run from
@@ -593,7 +539,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
               "generated with failure information.")
         exit_code = 0
 
-      if options.sancov_dir:
+      if self.sancov_dir:
         # If tests ran with sanitizer coverage, merge coverage files in the end.
         try:
           print "Merging sancov files."
@@ -601,7 +547,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
             sys.executable,
             join(
               base_runner.BASE_DIR, "tools", "sanitizers", "sancov_merger.py"),
-            "--coverage-dir=%s" % options.sancov_dir])
+            "--coverage-dir=%s" % self.sancov_dir])
         except:
           print >> sys.stderr, "Error: Merging sancov files failed."
           exit_code = 1

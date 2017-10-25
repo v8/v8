@@ -201,9 +201,6 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
     return shard
 
   def _do_execute(self, options, args):
-    # Use the v8 root as cwd as some test cases use "load" with relative paths.
-    os.chdir(base_runner.BASE_DIR)
-
     suite_paths = utils.GetSuitePaths(join(base_runner.BASE_DIR, "test"))
 
     if len(args) == 0:

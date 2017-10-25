@@ -166,6 +166,7 @@ class BaseTestRunner(object):
         parser.print_help()
         raise
 
+      self._setup_env()
       return self._do_execute(options, args)
     except TestRunnerError:
       return 1
@@ -320,6 +321,71 @@ class BaseTestRunner(object):
 
   def _process_options(self, options):
     pass
+
+  def _setup_env(self):
+    # Use the v8 root as cwd as some test cases use "load" with relative paths.
+    os.chdir(BASE_DIR)
+
+    # Many tests assume an English interface.
+    os.environ['LANG'] = 'en_US.UTF-8'
+
+    symbolizer_option = self._get_external_symbolizer_option()
+
+    if self.build_config.asan:
+      asan_options = [symbolizer_option, "allow_user_segv_handler=1"]
+      if not utils.GuessOS() in ['macos', 'windows']:
+        # LSAN is not available on mac and windows.
+        asan_options.append('detect_leaks=1')
+      os.environ['ASAN_OPTIONS'] = ":".join(asan_options)
+
+    if self.build_config.cfi_vptr:
+      os.environ['UBSAN_OPTIONS'] = ":".join([
+        'print_stacktrace=1',
+        'print_summary=1',
+        'symbolize=1',
+        symbolizer_option,
+      ])
+
+    if self.build_config.ubsan_vptr:
+      os.environ['UBSAN_OPTIONS'] = ":".join([
+        'print_stacktrace=1',
+        symbolizer_option,
+      ])
+
+    if self.build_config.msan:
+      os.environ['MSAN_OPTIONS'] = symbolizer_option
+
+    if self.build_config.tsan:
+      suppressions_file = os.path.join(
+          BASE_DIR,
+          'tools',
+          'sanitizers',
+          'tsan_suppressions.txt')
+      os.environ['TSAN_OPTIONS'] = " ".join([
+        symbolizer_option,
+        'suppressions=%s' % suppressions_file,
+        'exit_code=0',
+        'report_thread_leaks=0',
+        'history_size=7',
+        'report_destroy_locked=0',
+      ])
+
+  def _get_external_symbolizer_option(self):
+    external_symbolizer_path = os.path.join(
+        BASE_DIR,
+        'third_party',
+        'llvm-build',
+        'Release+Asserts',
+        'bin',
+        'llvm-symbolizer',
+    )
+
+    if utils.IsWindows():
+      # Quote, because sanitizers might confuse colon as option separator.
+      external_symbolizer_path = '"%s.exe"' % external_symbolizer_path
+
+    return 'external_symbolizer_path=%s' % external_symbolizer_path
+
 
   # TODO(majeski): remove options & args parameters
   def _do_execute(self, options, args):
