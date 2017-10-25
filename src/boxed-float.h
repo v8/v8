@@ -55,8 +55,7 @@ static_assert(IS_TRIVIALLY_COPYABLE(Float32),
               "Float32 should be trivially copyable");
 
 // Safety wrapper for a 64-bit floating-point value to make sure we don't lose
-// the exact bit pattern during deoptimization when passing this value. Note
-// that there is intentionally no way to construct it from a {double} value.
+// the exact bit pattern during deoptimization when passing this value.
 // TODO(ahaas): Unify this class with Double in double.h
 class Float64 {
  public:
