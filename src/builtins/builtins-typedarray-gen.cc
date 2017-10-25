@@ -357,7 +357,7 @@ TF_BUILTIN(TypedArrayConstructByLength, TypedArrayBuiltinsAssembler) {
   CSA_ASSERT(this, IsJSTypedArray(holder));
   CSA_ASSERT(this, TaggedIsPositiveSmi(element_size));
 
-  Node* initialize = BooleanConstant(true);
+  Node* initialize = TrueConstant();
 
   Label invalid_length(this);
 
@@ -560,7 +560,7 @@ TF_BUILTIN(TypedArrayConstructByArrayLike, TypedArrayBuiltinsAssembler) {
   CSA_ASSERT(this, TaggedIsSmi(element_size));
   Node* context = Parameter(Descriptor::kContext);
 
-  Node* initialize = BooleanConstant(false);
+  Node* initialize = FalseConstant();
 
   Label invalid_length(this), fill(this), fast_copy(this);
 

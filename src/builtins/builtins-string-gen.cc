@@ -420,12 +420,12 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
   switch (mode) {
     case RelationalComparisonMode::kLessThan:
     case RelationalComparisonMode::kLessThanOrEqual:
-      Return(BooleanConstant(true));
+      Return(TrueConstant());
       break;
 
     case RelationalComparisonMode::kGreaterThan:
     case RelationalComparisonMode::kGreaterThanOrEqual:
-      Return(BooleanConstant(false));
+      Return(FalseConstant());
       break;
   }
 
@@ -433,12 +433,12 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
   switch (mode) {
     case RelationalComparisonMode::kLessThan:
     case RelationalComparisonMode::kGreaterThan:
-      Return(BooleanConstant(false));
+      Return(FalseConstant());
       break;
 
     case RelationalComparisonMode::kLessThanOrEqual:
     case RelationalComparisonMode::kGreaterThanOrEqual:
-      Return(BooleanConstant(true));
+      Return(TrueConstant());
       break;
   }
 
@@ -446,12 +446,12 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
   switch (mode) {
     case RelationalComparisonMode::kLessThan:
     case RelationalComparisonMode::kLessThanOrEqual:
-      Return(BooleanConstant(false));
+      Return(FalseConstant());
       break;
 
     case RelationalComparisonMode::kGreaterThan:
     case RelationalComparisonMode::kGreaterThanOrEqual:
-      Return(BooleanConstant(true));
+      Return(TrueConstant());
       break;
   }
 }
@@ -2333,7 +2333,7 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
   VARIABLE(var_done, MachineRepresentation::kTagged);
 
   var_value.Bind(UndefinedConstant());
-  var_done.Bind(BooleanConstant(true));
+  var_done.Bind(TrueConstant());
 
   Label throw_bad_receiver(this), next_codepoint(this), return_result(this);
 
@@ -2361,7 +2361,7 @@ TF_BUILTIN(StringIteratorPrototypeNext, StringBuiltinsAssembler) {
     Node* length = LoadStringLength(value);
     StoreObjectFieldNoWriteBarrier(iterator, JSStringIterator::kNextIndexOffset,
                                    SmiAdd(position, length));
-    var_done.Bind(BooleanConstant(false));
+    var_done.Bind(FalseConstant());
     Goto(&return_result);
   }
 

@@ -1046,7 +1046,7 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
   Label if_smi(this), if_notsmi(this), if_heapnumber(this, Label::kDeferred),
       if_bigint(this, Label::kDeferred);
   // Rule out false {value}.
-  GotoIf(WordEqual(value, BooleanConstant(false)), if_false);
+  GotoIf(WordEqual(value, FalseConstant()), if_false);
 
   // Check if {value} is a Smi or a HeapObject.
   Branch(TaggedIsSmi(value), &if_smi, &if_notsmi);
@@ -1090,7 +1090,7 @@ void CodeStubAssembler::BranchIfToBooleanIsTrue(Node* value, Label* if_true,
       Node* result =
           CallRuntime(Runtime::kBigIntToBoolean, NoContextConstant(), value);
       CSA_ASSERT(this, IsBoolean(result));
-      Branch(WordEqual(result, BooleanConstant(true)), if_true, if_false);
+      Branch(WordEqual(result, TrueConstant()), if_true, if_false);
     }
   }
 }
@@ -8669,13 +8669,13 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
 
   BIND(&return_true);
   {
-    result.Bind(BooleanConstant(true));
+    result.Bind(TrueConstant());
     Goto(&end);
   }
 
   BIND(&return_false);
   {
-    result.Bind(BooleanConstant(false));
+    result.Bind(FalseConstant());
     Goto(&end);
   }
 
@@ -9600,13 +9600,13 @@ Node* CodeStubAssembler::HasProperty(Node* object, Node* key, Node* context,
 
   BIND(&return_true);
   {
-    result.Bind(BooleanConstant(true));
+    result.Bind(TrueConstant());
     Goto(&end);
   }
 
   BIND(&return_false);
   {
-    result.Bind(BooleanConstant(false));
+    result.Bind(FalseConstant());
     Goto(&end);
   }
 

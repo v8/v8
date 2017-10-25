@@ -12,7 +12,6 @@
 #include "src/code-events.h"
 #include "src/code-factory.h"
 #include "src/debug/debug.h"
-#include "src/factory.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/ic/binary-op-assembler.h"
 #include "src/interpreter/bytecode-flags.h"
@@ -1426,17 +1425,15 @@ IGNITION_HANDLER(ToBooleanLogicalNot, InterpreterAssembler) {
   Node* value = GetAccumulator();
   Variable result(this, MachineRepresentation::kTagged);
   Label if_true(this), if_false(this), end(this);
-  Node* true_value = BooleanConstant(true);
-  Node* false_value = BooleanConstant(false);
   BranchIfToBooleanIsTrue(value, &if_true, &if_false);
   BIND(&if_true);
   {
-    result.Bind(false_value);
+    result.Bind(FalseConstant());
     Goto(&end);
   }
   BIND(&if_false);
   {
-    result.Bind(true_value);
+    result.Bind(TrueConstant());
     Goto(&end);
   }
   BIND(&end);
@@ -1452,8 +1449,8 @@ IGNITION_HANDLER(LogicalNot, InterpreterAssembler) {
   Node* value = GetAccumulator();
   Variable result(this, MachineRepresentation::kTagged);
   Label if_true(this), if_false(this), end(this);
-  Node* true_value = BooleanConstant(true);
-  Node* false_value = BooleanConstant(false);
+  Node* true_value = TrueConstant();
+  Node* false_value = FalseConstant();
   Branch(WordEqual(value, true_value), &if_true, &if_false);
   BIND(&if_true);
   {
@@ -1462,10 +1459,7 @@ IGNITION_HANDLER(LogicalNot, InterpreterAssembler) {
   }
   BIND(&if_false);
   {
-    if (FLAG_debug_code) {
-      AbortIfWordNotEqual(value, false_value,
-                          BailoutReason::kExpectedBooleanValue);
-    }
+    CSA_ASSERT(this, WordEqual(value, false_value));
     result.Bind(true_value);
     Goto(&end);
   }
@@ -1951,7 +1945,7 @@ IGNITION_HANDLER(TestUndetectable, InterpreterAssembler) {
   Node* object = GetAccumulator();
 
   // If the object is an Smi then return false.
-  SetAccumulator(BooleanConstant(false));
+  SetAccumulator(FalseConstant());
   GotoIf(TaggedIsSmi(object), &end);
 
   // If it is a HeapObject, load the map and check for undetectable bit.
@@ -1968,8 +1962,7 @@ IGNITION_HANDLER(TestUndetectable, InterpreterAssembler) {
 // Test if the value in accumulator is strictly equal to null.
 IGNITION_HANDLER(TestNull, InterpreterAssembler) {
   Node* object = GetAccumulator();
-  Node* null_value = HeapConstant(isolate()->factory()->null_value());
-  Node* result = SelectBooleanConstant(WordEqual(object, null_value));
+  Node* result = SelectBooleanConstant(WordEqual(object, NullConstant()));
   SetAccumulator(result);
   Dispatch();
 }
@@ -1979,8 +1972,7 @@ IGNITION_HANDLER(TestNull, InterpreterAssembler) {
 // Test if the value in the accumulator is strictly equal to undefined.
 IGNITION_HANDLER(TestUndefined, InterpreterAssembler) {
   Node* object = GetAccumulator();
-  Node* undefined_value = HeapConstant(isolate()->factory()->undefined_value());
-  Node* result = SelectBooleanConstant(WordEqual(object, undefined_value));
+  Node* result = SelectBooleanConstant(WordEqual(object, UndefinedConstant()));
   SetAccumulator(result);
   Dispatch();
 }
@@ -2036,8 +2028,8 @@ IGNITION_HANDLER(TestTypeOf, InterpreterAssembler) {
   BIND(&if_boolean);
   {
     Comment("IfBoolean");
-    GotoIf(WordEqual(object, BooleanConstant(true)), &if_true);
-    Branch(WordEqual(object, BooleanConstant(false)), &if_true, &if_false);
+    GotoIf(WordEqual(object, TrueConstant()), &if_true);
+    Branch(WordEqual(object, FalseConstant()), &if_true, &if_false);
   }
   BIND(&if_undefined);
   {
@@ -2086,12 +2078,12 @@ IGNITION_HANDLER(TestTypeOf, InterpreterAssembler) {
 
   BIND(&if_false);
   {
-    SetAccumulator(BooleanConstant(false));
+    SetAccumulator(FalseConstant());
     Goto(&end);
   }
   BIND(&if_true);
   {
-    SetAccumulator(BooleanConstant(true));
+    SetAccumulator(TrueConstant());
     Goto(&end);
   }
   BIND(&end);
@@ -2124,10 +2116,9 @@ IGNITION_HANDLER(JumpConstant, InterpreterAssembler) {
 IGNITION_HANDLER(JumpIfTrue, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* relative_jump = BytecodeOperandUImmWord(0);
-  Node* true_value = BooleanConstant(true);
   CSA_ASSERT(this, TaggedIsNotSmi(accumulator));
   CSA_ASSERT(this, IsBoolean(accumulator));
-  JumpIfWordEqual(accumulator, true_value, relative_jump);
+  JumpIfWordEqual(accumulator, TrueConstant(), relative_jump);
 }
 
 // JumpIfTrueConstant <idx>
@@ -2139,10 +2130,9 @@ IGNITION_HANDLER(JumpIfTrueConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* index = BytecodeOperandIdx(0);
   Node* relative_jump = LoadAndUntagConstantPoolEntry(index);
-  Node* true_value = BooleanConstant(true);
   CSA_ASSERT(this, TaggedIsNotSmi(accumulator));
   CSA_ASSERT(this, IsBoolean(accumulator));
-  JumpIfWordEqual(accumulator, true_value, relative_jump);
+  JumpIfWordEqual(accumulator, TrueConstant(), relative_jump);
 }
 
 // JumpIfFalse <imm>
@@ -2153,10 +2143,9 @@ IGNITION_HANDLER(JumpIfTrueConstant, InterpreterAssembler) {
 IGNITION_HANDLER(JumpIfFalse, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* relative_jump = BytecodeOperandUImmWord(0);
-  Node* false_value = BooleanConstant(false);
   CSA_ASSERT(this, TaggedIsNotSmi(accumulator));
   CSA_ASSERT(this, IsBoolean(accumulator));
-  JumpIfWordEqual(accumulator, false_value, relative_jump);
+  JumpIfWordEqual(accumulator, FalseConstant(), relative_jump);
 }
 
 // JumpIfFalseConstant <idx>
@@ -2168,10 +2157,9 @@ IGNITION_HANDLER(JumpIfFalseConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
   Node* index = BytecodeOperandIdx(0);
   Node* relative_jump = LoadAndUntagConstantPoolEntry(index);
-  Node* false_value = BooleanConstant(false);
   CSA_ASSERT(this, TaggedIsNotSmi(accumulator));
   CSA_ASSERT(this, IsBoolean(accumulator));
-  JumpIfWordEqual(accumulator, false_value, relative_jump);
+  JumpIfWordEqual(accumulator, FalseConstant(), relative_jump);
 }
 
 // JumpIfToBooleanTrue <imm>
@@ -2244,9 +2232,8 @@ IGNITION_HANDLER(JumpIfToBooleanFalseConstant, InterpreterAssembler) {
 // referenced by the accumulator is the null constant.
 IGNITION_HANDLER(JumpIfNull, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
-  Node* null_value = HeapConstant(isolate()->factory()->null_value());
   Node* relative_jump = BytecodeOperandUImmWord(0);
-  JumpIfWordEqual(accumulator, null_value, relative_jump);
+  JumpIfWordEqual(accumulator, NullConstant(), relative_jump);
 }
 
 // JumpIfNullConstant <idx>
@@ -2255,10 +2242,9 @@ IGNITION_HANDLER(JumpIfNull, InterpreterAssembler) {
 // pool if the object referenced by the accumulator is the null constant.
 IGNITION_HANDLER(JumpIfNullConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
-  Node* null_value = HeapConstant(isolate()->factory()->null_value());
   Node* index = BytecodeOperandIdx(0);
   Node* relative_jump = LoadAndUntagConstantPoolEntry(index);
-  JumpIfWordEqual(accumulator, null_value, relative_jump);
+  JumpIfWordEqual(accumulator, NullConstant(), relative_jump);
 }
 
 // JumpIfNotNull <imm>
@@ -2267,9 +2253,8 @@ IGNITION_HANDLER(JumpIfNullConstant, InterpreterAssembler) {
 // referenced by the accumulator is not the null constant.
 IGNITION_HANDLER(JumpIfNotNull, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
-  Node* null_value = HeapConstant(isolate()->factory()->null_value());
   Node* relative_jump = BytecodeOperandUImmWord(0);
-  JumpIfWordNotEqual(accumulator, null_value, relative_jump);
+  JumpIfWordNotEqual(accumulator, NullConstant(), relative_jump);
 }
 
 // JumpIfNotNullConstant <idx>
@@ -2278,10 +2263,9 @@ IGNITION_HANDLER(JumpIfNotNull, InterpreterAssembler) {
 // pool if the object referenced by the accumulator is not the null constant.
 IGNITION_HANDLER(JumpIfNotNullConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
-  Node* null_value = HeapConstant(isolate()->factory()->null_value());
   Node* index = BytecodeOperandIdx(0);
   Node* relative_jump = LoadAndUntagConstantPoolEntry(index);
-  JumpIfWordNotEqual(accumulator, null_value, relative_jump);
+  JumpIfWordNotEqual(accumulator, NullConstant(), relative_jump);
 }
 
 // JumpIfUndefined <imm>
@@ -2290,9 +2274,8 @@ IGNITION_HANDLER(JumpIfNotNullConstant, InterpreterAssembler) {
 // referenced by the accumulator is the undefined constant.
 IGNITION_HANDLER(JumpIfUndefined, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
-  Node* undefined_value = HeapConstant(isolate()->factory()->undefined_value());
   Node* relative_jump = BytecodeOperandUImmWord(0);
-  JumpIfWordEqual(accumulator, undefined_value, relative_jump);
+  JumpIfWordEqual(accumulator, UndefinedConstant(), relative_jump);
 }
 
 // JumpIfUndefinedConstant <idx>
@@ -2301,10 +2284,9 @@ IGNITION_HANDLER(JumpIfUndefined, InterpreterAssembler) {
 // pool if the object referenced by the accumulator is the undefined constant.
 IGNITION_HANDLER(JumpIfUndefinedConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
-  Node* undefined_value = HeapConstant(isolate()->factory()->undefined_value());
   Node* index = BytecodeOperandIdx(0);
   Node* relative_jump = LoadAndUntagConstantPoolEntry(index);
-  JumpIfWordEqual(accumulator, undefined_value, relative_jump);
+  JumpIfWordEqual(accumulator, UndefinedConstant(), relative_jump);
 }
 
 // JumpIfNotUndefined <imm>
@@ -2313,9 +2295,8 @@ IGNITION_HANDLER(JumpIfUndefinedConstant, InterpreterAssembler) {
 // referenced by the accumulator is not the undefined constant.
 IGNITION_HANDLER(JumpIfNotUndefined, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
-  Node* undefined_value = HeapConstant(isolate()->factory()->undefined_value());
   Node* relative_jump = BytecodeOperandUImmWord(0);
-  JumpIfWordNotEqual(accumulator, undefined_value, relative_jump);
+  JumpIfWordNotEqual(accumulator, UndefinedConstant(), relative_jump);
 }
 
 // JumpIfNotUndefinedConstant <idx>
@@ -2325,10 +2306,9 @@ IGNITION_HANDLER(JumpIfNotUndefined, InterpreterAssembler) {
 // constant.
 IGNITION_HANDLER(JumpIfNotUndefinedConstant, InterpreterAssembler) {
   Node* accumulator = GetAccumulator();
-  Node* undefined_value = HeapConstant(isolate()->factory()->undefined_value());
   Node* index = BytecodeOperandIdx(0);
   Node* relative_jump = LoadAndUntagConstantPoolEntry(index);
-  JumpIfWordNotEqual(accumulator, undefined_value, relative_jump);
+  JumpIfWordNotEqual(accumulator, UndefinedConstant(), relative_jump);
 }
 
 // JumpIfJSReceiver <imm>
@@ -2835,10 +2815,9 @@ IGNITION_HANDLER(Return, InterpreterAssembler) {
 // Throws an exception if the value in the accumulator is TheHole.
 IGNITION_HANDLER(ThrowReferenceErrorIfHole, InterpreterAssembler) {
   Node* value = GetAccumulator();
-  Node* the_hole_value = HeapConstant(isolate()->factory()->the_hole_value());
 
   Label throw_error(this, Label::kDeferred);
-  GotoIf(WordEqual(value, the_hole_value), &throw_error);
+  GotoIf(WordEqual(value, TheHoleConstant()), &throw_error);
   Dispatch();
 
   BIND(&throw_error);
@@ -2855,10 +2834,9 @@ IGNITION_HANDLER(ThrowReferenceErrorIfHole, InterpreterAssembler) {
 // Throws an exception if the value in the accumulator is TheHole.
 IGNITION_HANDLER(ThrowSuperNotCalledIfHole, InterpreterAssembler) {
   Node* value = GetAccumulator();
-  Node* the_hole_value = HeapConstant(isolate()->factory()->the_hole_value());
 
   Label throw_error(this, Label::kDeferred);
-  GotoIf(WordEqual(value, the_hole_value), &throw_error);
+  GotoIf(WordEqual(value, TheHoleConstant()), &throw_error);
   Dispatch();
 
   BIND(&throw_error);
@@ -2875,10 +2853,9 @@ IGNITION_HANDLER(ThrowSuperNotCalledIfHole, InterpreterAssembler) {
 // TheHole.
 IGNITION_HANDLER(ThrowSuperAlreadyCalledIfNotHole, InterpreterAssembler) {
   Node* value = GetAccumulator();
-  Node* the_hole_value = HeapConstant(isolate()->factory()->the_hole_value());
 
   Label throw_error(this, Label::kDeferred);
-  GotoIf(WordNotEqual(value, the_hole_value), &throw_error);
+  GotoIf(WordNotEqual(value, TheHoleConstant()), &throw_error);
   Dispatch();
 
   BIND(&throw_error);
@@ -3098,12 +3075,12 @@ IGNITION_HANDLER(ForInContinue, InterpreterAssembler) {
   Branch(WordEqual(index, cache_length), &if_true, &if_false);
   BIND(&if_true);
   {
-    SetAccumulator(BooleanConstant(false));
+    SetAccumulator(FalseConstant());
     Goto(&end);
   }
   BIND(&if_false);
   {
-    SetAccumulator(BooleanConstant(true));
+    SetAccumulator(TrueConstant());
     Goto(&end);
   }
   BIND(&end);

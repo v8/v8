@@ -2134,10 +2134,10 @@ TF_BUILTIN(ArrayIsArray, CodeStubAssembler) {
          &return_false);
 
   BIND(&return_true);
-  Return(BooleanConstant(true));
+  Return(TrueConstant());
 
   BIND(&return_false);
-  Return(BooleanConstant(false));
+  Return(FalseConstant());
 
   BIND(&call_runtime);
   Return(CallRuntime(Runtime::kArrayIsArray, context, object));
@@ -2359,8 +2359,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
       BIND(&runtime);
       TNode<Object> result = CallRuntime(Runtime::kStringEqual, context,
                                          search_element_string, element_k);
-      Branch(WordEqual(BooleanConstant(true), result), &return_found,
-             &continue_loop);
+      Branch(WordEqual(result, TrueConstant()), &return_found, &continue_loop);
 
       BIND(&continue_loop);
       Increment(&index_var);

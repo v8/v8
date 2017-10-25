@@ -157,10 +157,10 @@ TF_BUILTIN(ObjectPrototypeHasOwnProperty, ObjectBuiltinsAssembler) {
   Branch(IsName(key), &return_false, &call_runtime);
 
   BIND(&return_true);
-  Return(BooleanConstant(true));
+  Return(TrueConstant());
 
   BIND(&return_false);
-  Return(BooleanConstant(false));
+  Return(FalseConstant());
 
   BIND(&call_runtime);
   Return(CallRuntime(Runtime::kObjectHasOwnProperty, context, object, key));

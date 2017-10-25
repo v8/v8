@@ -84,10 +84,10 @@ TF_BUILTIN(NumberIsFinite, CodeStubAssembler) {
                        &return_true);
 
   BIND(&return_true);
-  Return(BooleanConstant(true));
+  Return(TrueConstant());
 
   BIND(&return_false);
-  Return(BooleanConstant(false));
+  Return(FalseConstant());
 }
 
 TF_BUILTIN(AllocateHeapNumber, CodeStubAssembler) {
@@ -118,10 +118,10 @@ TF_BUILTIN(NumberIsInteger, CodeStubAssembler) {
          &return_true, &return_false);
 
   BIND(&return_true);
-  Return(BooleanConstant(true));
+  Return(TrueConstant());
 
   BIND(&return_false);
-  Return(BooleanConstant(false));
+  Return(FalseConstant());
 }
 
 // ES6 #sec-number.isnan
@@ -141,10 +141,10 @@ TF_BUILTIN(NumberIsNaN, CodeStubAssembler) {
   BranchIfFloat64IsNaN(number_value, &return_true, &return_false);
 
   BIND(&return_true);
-  Return(BooleanConstant(true));
+  Return(TrueConstant());
 
   BIND(&return_false);
-  Return(BooleanConstant(false));
+  Return(FalseConstant());
 }
 
 // ES6 #sec-number.issafeinteger
@@ -176,10 +176,10 @@ TF_BUILTIN(NumberIsSafeInteger, CodeStubAssembler) {
          &return_true, &return_false);
 
   BIND(&return_true);
-  Return(BooleanConstant(true));
+  Return(TrueConstant());
 
   BIND(&return_false);
-  Return(BooleanConstant(false));
+  Return(FalseConstant());
 }
 
 // ES6 #sec-number.parsefloat

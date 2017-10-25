@@ -910,7 +910,7 @@ void PromiseBuiltinsAssembler::BranchIfAccessCheckFailed(
   {
     Branch(WordEqual(CallRuntime(Runtime::kAllowDynamicFunction, context,
                                  promise_constructor),
-                     BooleanConstant(true)),
+                     TrueConstant()),
            &has_access, if_noaccess);
   }
 

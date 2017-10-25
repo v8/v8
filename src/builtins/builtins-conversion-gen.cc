@@ -229,10 +229,10 @@ TF_BUILTIN(ToBoolean, CodeStubAssembler) {
   BranchIfToBooleanIsTrue(value, &return_true, &return_false);
 
   BIND(&return_true);
-  Return(BooleanConstant(true));
+  Return(TrueConstant());
 
   BIND(&return_false);
-  Return(BooleanConstant(false));
+  Return(FalseConstant());
 }
 
 // ES6 section 7.1.2 ToBoolean ( argument )
@@ -245,10 +245,10 @@ TF_BUILTIN(ToBooleanLazyDeoptContinuation, CodeStubAssembler) {
   BranchIfToBooleanIsTrue(value, &return_true, &return_false);
 
   BIND(&return_true);
-  Return(BooleanConstant(true));
+  Return(TrueConstant());
 
   BIND(&return_false);
-  Return(BooleanConstant(false));
+  Return(FalseConstant());
 }
 
 TF_BUILTIN(ToLength, CodeStubAssembler) {

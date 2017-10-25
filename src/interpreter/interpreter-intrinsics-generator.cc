@@ -142,13 +142,13 @@ Node* IntrinsicsGenerator::IsInstanceType(Node* input, int type) {
 
   __ BIND(&return_true);
   {
-    return_value.Bind(__ BooleanConstant(true));
+    return_value.Bind(__ TrueConstant());
     __ Goto(&end);
   }
 
   __ BIND(&return_false);
   {
-    return_value.Bind(__ BooleanConstant(false));
+    return_value.Bind(__ FalseConstant());
     __ Goto(&end);
   }
 
@@ -175,13 +175,13 @@ Node* IntrinsicsGenerator::IsJSReceiver(Node* input, Node* arg_count,
 
   __ BIND(&return_true);
   {
-    return_value.Bind(__ BooleanConstant(true));
+    return_value.Bind(__ TrueConstant());
     __ Goto(&end);
   }
 
   __ BIND(&return_false);
   {
-    return_value.Bind(__ BooleanConstant(false));
+    return_value.Bind(__ FalseConstant());
     __ Goto(&end);
   }
 
@@ -236,13 +236,13 @@ Node* IntrinsicsGenerator::IsSmi(Node* input, Node* arg_count, Node* context) {
   __ Branch(__ TaggedIsSmi(arg), &if_smi, &if_not_smi);
   __ BIND(&if_smi);
   {
-    return_value.Bind(__ BooleanConstant(true));
+    return_value.Bind(__ TrueConstant());
     __ Goto(&end);
   }
 
   __ BIND(&if_not_smi);
   {
-    return_value.Bind(__ BooleanConstant(false));
+    return_value.Bind(__ FalseConstant());
     __ Goto(&end);
   }
 
