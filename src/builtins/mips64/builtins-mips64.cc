@@ -774,9 +774,8 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     // Check if the optimized code is marked for deopt. If it is, call the
     // runtime to clear it.
     Label found_deoptimized_code;
-    __ Ld(a5, FieldMemOperand(optimized_code_entry,
-                              Code::kCodeDataContainerOffset));
-    __ Lw(a5, FieldMemOperand(a5, CodeDataContainer::kKindSpecificFlagsOffset));
+    __ Lw(a5, FieldMemOperand(optimized_code_entry,
+                              Code::kKindSpecificFlags1Offset));
     __ And(a5, a5, Operand(1 << Code::kMarkedForDeoptimizationBit));
     __ Branch(&found_deoptimized_code, ne, a5, Operand(zero_reg));
 

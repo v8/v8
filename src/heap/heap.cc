@@ -3054,7 +3054,8 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
   return code;
 }
 
-AllocationResult Heap::CopyCode(Code* code, CodeDataContainer* data_container) {
+
+AllocationResult Heap::CopyCode(Code* code) {
   CodeSpaceMemoryModificationScope code_modification(this);
   AllocationResult allocation;
 
@@ -3070,19 +3071,17 @@ AllocationResult Heap::CopyCode(Code* code, CodeDataContainer* data_container) {
   CopyBlock(new_addr, old_addr, obj_size);
   Code* new_code = Code::cast(result);
 
-  // Set the {CodeDataContainer}, it cannot be shared.
-  new_code->set_code_data_container(data_container);
-
-  // Clear the trap handler index since they can't be shared between code. We
-  // have to do this before calling Relocate because relocate would adjust the
-  // base pointer for the old code.
-  new_code->set_trap_handler_index(Smi::FromInt(trap_handler::kInvalidIndex));
-
   // Relocate the copy.
   DCHECK(IsAligned(bit_cast<intptr_t>(new_code->address()), kCodeAlignment));
   DCHECK(!memory_allocator()->code_range()->valid() ||
          memory_allocator()->code_range()->contains(code->address()) ||
          obj_size <= code_space()->AreaSize());
+
+  // Clear the trap handler index since they can't be shared between code. We
+  // have to do this before calling Relocate becauase relocate would adjust the
+  // base pointer for the old code.
+  new_code->set_trap_handler_index(Smi::FromInt(trap_handler::kInvalidIndex));
+
   new_code->Relocate(new_addr - old_addr);
   // We have to iterate over the object and process its pointers when black
   // allocation is on.

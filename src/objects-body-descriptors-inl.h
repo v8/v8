@@ -355,8 +355,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   STATIC_ASSERT(kDeoptimizationDataOffset + kPointerSize ==
                 kSourcePositionTableOffset);
   STATIC_ASSERT(kSourcePositionTableOffset + kPointerSize ==
-                kCodeDataContainerOffset);
-  STATIC_ASSERT(kCodeDataContainerOffset + kPointerSize == kNextCodeLinkOffset);
+                kNextCodeLinkOffset);
 
   static bool IsValidSlot(HeapObject* obj, int offset) {
     // Slots in code can't be invalid because we never trim code objects.
@@ -538,7 +537,6 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
                                                                       p3);
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
-    case CODE_DATA_CONTAINER_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
     case FREE_SPACE_TYPE:

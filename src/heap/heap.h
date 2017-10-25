@@ -37,7 +37,6 @@ class TestMemoryAllocatorScope;
 }  // namespace heap
 
 class BytecodeArray;
-class CodeDataContainer;
 class JSArrayBuffer;
 
 using v8::MemoryPressureLevel;
@@ -107,7 +106,6 @@ using v8::MemoryPressureLevel;
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
-  V(Map, code_data_container_map, CodeDataContainerMap)                        \
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, external_map, ExternalMap)                                            \
   V(Map, bytecode_array_map, BytecodeArrayMap)                                 \
@@ -2000,8 +1998,7 @@ class Heap {
   AllocateBytecodeArray(int length, const byte* raw_bytecodes, int frame_size,
                         int parameter_count, FixedArray* constant_pool);
 
-  MUST_USE_RESULT AllocationResult CopyCode(Code* code,
-                                            CodeDataContainer* data_container);
+  MUST_USE_RESULT AllocationResult CopyCode(Code* code);
 
   MUST_USE_RESULT AllocationResult
   CopyBytecodeArray(BytecodeArray* bytecode_array);

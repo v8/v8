@@ -827,10 +827,7 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     // runtime to clear it.
     Label found_deoptimized_code;
     __ Ldr(scratch2, FieldMemOperand(optimized_code_entry,
-                                     Code::kCodeDataContainerOffset));
-    __ Ldr(
-        scratch2,
-        FieldMemOperand(scratch2, CodeDataContainer::kKindSpecificFlagsOffset));
+                                     Code::kKindSpecificFlags1Offset));
     __ TestAndBranchIfAnySet(scratch2, 1 << Code::kMarkedForDeoptimizationBit,
                              &found_deoptimized_code);
 

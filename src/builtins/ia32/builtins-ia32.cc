@@ -712,20 +712,18 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     __ mov(optimized_code_entry,
            FieldOperand(optimized_code_entry, WeakCell::kValueOffset));
     __ JumpIfSmi(optimized_code_entry, &fallthrough);
-    __ push(eax);
-    __ push(edx);
 
     // Check if the optimized code is marked for deopt. If it is, bailout to a
     // given label.
     Label found_deoptimized_code;
-    __ mov(eax,
-           FieldOperand(optimized_code_entry, Code::kCodeDataContainerOffset));
-    __ test(FieldOperand(eax, CodeDataContainer::kKindSpecificFlagsOffset),
+    __ test(FieldOperand(optimized_code_entry, Code::kKindSpecificFlags1Offset),
             Immediate(1 << Code::kMarkedForDeoptimizationBit));
     __ j(not_zero, &found_deoptimized_code);
 
     // Optimized code is good, get it into the closure and link the closure into
     // the optimized functions list, then tail call the optimized code.
+    __ push(eax);
+    __ push(edx);
     // The feedback vector is no longer used, so re-use it as a scratch
     // register.
     ReplaceClosureCodeWithOptimizedCode(masm, optimized_code_entry, closure,
@@ -738,8 +736,6 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
     // Optimized code slot contains deoptimized code, evict it and re-enter the
     // closure's code.
     __ bind(&found_deoptimized_code);
-    __ pop(edx);
-    __ pop(eax);
     GenerateTailCallToReturnedCode(masm, Runtime::kEvictOptimizedCodeSlot);
   }
 

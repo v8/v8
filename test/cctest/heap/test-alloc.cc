@@ -84,8 +84,8 @@ AllocationResult HeapTester::AllocateAfterFailures() {
   // Test that we can allocate in old pointer space and code space.
   heap::SimulateFullSpace(heap->code_space());
   heap->AllocateFixedArray(100, TENURED).ToObjectChecked();
-  Code* illegal = CcTest::i_isolate()->builtins()->builtin(Builtins::kIllegal);
-  heap->CopyCode(illegal, illegal->code_data_container()).ToObjectChecked();
+  heap->CopyCode(CcTest::i_isolate()->builtins()->builtin(
+      Builtins::kIllegal)).ToObjectChecked();
 
   // Return success.
   return heap->true_value();

@@ -376,7 +376,7 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(PROPERTY_CELL_TYPE)                                         \
   V(SMALL_ORDERED_HASH_MAP_TYPE)                                \
   V(SMALL_ORDERED_HASH_SET_TYPE)                                \
-  V(CODE_DATA_CONTAINER_TYPE)                                   \
+  V(UNUSED_AND_RESERVED_TYPE)                                   \
                                                                 \
   V(JS_PROXY_TYPE)                                              \
   V(JS_GLOBAL_OBJECT_TYPE)                                      \
@@ -728,7 +728,8 @@ enum InstanceType : uint8_t {
   PROPERTY_CELL_TYPE,
   SMALL_ORDERED_HASH_MAP_TYPE,
   SMALL_ORDERED_HASH_SET_TYPE,
-  CODE_DATA_CONTAINER_TYPE,
+  // TODO(mstarzinger,v8::6792): Will be used for code data container.
+  UNUSED_AND_RESERVED_TYPE,
 
   // All the following types are subtypes of JSReceiver, which corresponds to
   // objects in the JS sense. The first and the last type in this range are
@@ -1004,7 +1005,6 @@ template <class C> inline bool Is(Object* obj);
   V(CallHandlerInfo)                      \
   V(Cell)                                 \
   V(Code)                                 \
-  V(CodeDataContainer)                    \
   V(CompilationCacheTable)                \
   V(ConsString)                           \
   V(ConstantElementsPair)                 \
