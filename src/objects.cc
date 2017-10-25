@@ -2398,11 +2398,12 @@ Object* GetSimpleHash(Object* object) {
   if (object->IsHeapNumber()) {
     double num = HeapNumber::cast(object)->value();
     if (std::isnan(num)) return Smi::FromInt(Smi::kMaxValue);
-    if (i::IsMinusZero(num)) num = 0;
-    if (IsSmiDouble(num)) {
-      return Smi::FromInt(FastD2I(num))->GetHash();
-    }
-    uint32_t hash = ComputeLongHash(double_to_uint64(num));
+    // Use ComputeIntegerHash for all values in Signed32 range, including -0,
+    // which is considered equal to 0 because collections use SameValueZero.
+    int32_t inum = FastD2I(num);
+    uint32_t hash = (FastI2D(inum) == num)
+                        ? ComputeIntegerHash(inum)
+                        : ComputeLongHash(double_to_uint64(num));
     return Smi::FromInt(hash & Smi::kMaxValue);
   }
   if (object->IsName()) {
