@@ -1713,24 +1713,35 @@ void Builtins::Generate_FunctionPrototypeApply(MacroAssembler* masm) {
   // arguments from the stack (including the receiver), and push thisArg (if
   // present) instead.
   {
-    // Claim (2 - argc) dummy arguments from the stack, to put the stack in a
-    // consistent state for a simple pop operation.
-    __ Claim(2);
-    __ Drop(argc);
+    Register saved_argc = x10;
+    Register scratch = x11;
 
-    // ----------- S t a t e -------------
-    //  -- x0       : argc
-    //  -- jssp[0]  : argArray (dummy value if argc <= 1)
-    //  -- jssp[8]  : thisArg  (dummy value if argc == 0)
-    //  -- jssp[16] : receiver
-    // -----------------------------------
-    __ Cmp(argc, 1);
-    __ Pop(arg_array, this_arg);               // Overwrites argc.
-    __ CmovX(this_arg, undefined_value, lo);   // undefined if argc == 0.
-    __ CmovX(arg_array, undefined_value, ls);  // undefined if argc <= 1.
+    // Push two undefined values on the stack, to put it in a consistent state
+    // so that we can always read three arguments from it.
+    __ Push(undefined_value, undefined_value);
 
-    __ Peek(receiver, 0);
-    __ Poke(this_arg, 0);
+    // The state of the stack (with arrows pointing to the slots we will read)
+    // is as follows:
+    //
+    //       argc = 0               argc = 1                argc = 2
+    // -> sp[16]: receiver    -> sp[24]: receiver     -> sp[32]: receiver
+    // -> sp[8]:  undefined   -> sp[16]: this_arg     -> sp[24]: this_arg
+    // -> sp[0]:  undefined   -> sp[8]:  undefined    -> sp[16]: arg_array
+    //                           sp[0]:  undefined       sp[8]:  undefined
+    //                                                   sp[0]:  undefined
+    //
+    // There are now always three arguments to read, in the slots starting from
+    // slot argc.
+    __ SlotAddress(scratch, argc);
+
+    __ Mov(saved_argc, argc);
+    __ Ldp(arg_array, this_arg, MemOperand(scratch));  // Overwrites argc.
+    __ Ldr(receiver, MemOperand(scratch, 2 * kPointerSize));
+
+    __ Drop(2);  // Drop the undefined values we pushed above.
+    __ DropArguments(saved_argc, TurboAssembler::kCountExcludesReceiver);
+
+    __ PushArgument(this_arg);
   }
 
   // ----------- S t a t e -------------
@@ -1831,26 +1842,44 @@ void Builtins::Generate_ReflectApply(MacroAssembler* masm) {
   // remove all arguments from the stack (including the receiver), and push
   // thisArgument (if present) instead.
   {
-    // Claim (3 - argc) dummy arguments from the stack, to put the stack in a
-    // consistent state for a simple pop operation.
-    __ Claim(3);
-    __ Drop(argc);
+    // Push four undefined values on the stack, to put it in a consistent state
+    // so that we can always read the three arguments we need from it. The
+    // fourth value is used for stack alignment.
+    __ Push(undefined_value, undefined_value, undefined_value, undefined_value);
 
-    // ----------- S t a t e -------------
-    //  -- x0       : argc
-    //  -- jssp[0]  : argumentsList (dummy value if argc <= 2)
-    //  -- jssp[8]  : thisArgument  (dummy value if argc <= 1)
-    //  -- jssp[16] : target        (dummy value if argc == 0)
-    //  -- jssp[24] : receiver
-    // -----------------------------------
-    __ Adds(x10, argc, 0);  // Preserve argc, and set the Z flag if it is zero.
-    __ Pop(arguments_list, this_argument, target);  // Overwrites argc.
-    __ CmovX(target, undefined_value, eq);          // undefined if argc == 0.
-    __ Cmp(x10, 2);
-    __ CmovX(this_argument, undefined_value, lo);   // undefined if argc <= 1.
-    __ CmovX(arguments_list, undefined_value, ls);  // undefined if argc <= 2.
+    // The state of the stack (with arrows pointing to the slots we will read)
+    // is as follows:
+    //
+    //       argc = 0               argc = 1                argc = 2
+    //    sp[32]: receiver       sp[40]: receiver        sp[48]: receiver
+    // -> sp[24]: undefined   -> sp[32]: target       -> sp[40]: target
+    // -> sp[16]: undefined   -> sp[24]: undefined    -> sp[32]: this_argument
+    // -> sp[8]:  undefined   -> sp[16]: undefined    -> sp[24]: undefined
+    //    sp[0]:  undefined      sp[8]:  undefined       sp[16]: undefined
+    //                           sp[0]:  undefined       sp[8]:  undefined
+    //                                                   sp[0]:  undefined
+    //       argc = 3
+    //    sp[56]: receiver
+    // -> sp[48]: target
+    // -> sp[40]: this_argument
+    // -> sp[32]: arguments_list
+    //    sp[24]: undefined
+    //    sp[16]: undefined
+    //    sp[8]:  undefined
+    //    sp[0]:  undefined
+    //
+    // There are now always three arguments to read, in the slots starting from
+    // slot (argc + 1).
+    Register scratch = x10;
+    __ SlotAddress(scratch, argc);
+    __ Ldp(arguments_list, this_argument,
+           MemOperand(scratch, 1 * kPointerSize));
+    __ Ldr(target, MemOperand(scratch, 3 * kPointerSize));
 
-    __ Poke(this_argument, 0);  // Overwrite receiver.
+    __ Drop(4);  // Drop the undefined values we pushed above.
+    __ DropArguments(argc, TurboAssembler::kCountExcludesReceiver);
+
+    __ PushArgument(this_argument);
   }
 
   // ----------- S t a t e -------------
@@ -1891,26 +1920,47 @@ void Builtins::Generate_ReflectConstruct(MacroAssembler* masm) {
   // arguments from the stack (including the receiver), and push thisArgument
   // (if present) instead.
   {
-    // Claim (3 - argc) dummy arguments from the stack, to put the stack in a
-    // consistent state for a simple pop operation.
-    __ Claim(3);
-    __ Drop(argc);
+    // Push four undefined values on the stack, to put it in a consistent state
+    // so that we can always read the three arguments we need from it. The
+    // fourth value is used for stack alignment.
+    __ Push(undefined_value, undefined_value, undefined_value, undefined_value);
 
-    // ----------- S t a t e -------------
-    //  -- x0       : argc
-    //  -- jssp[0]  : new.target    (dummy value if argc <= 2)
-    //  -- jssp[8]  : argumentsList (dummy value if argc <= 1)
-    //  -- jssp[16] : target        (dummy value if argc == 0)
-    //  -- jssp[24] : receiver
-    // -----------------------------------
-    __ Adds(x10, argc, 0);  // Preserve argc, and set the Z flag if it is zero.
-    __ Pop(new_target, arguments_list, target);  // Overwrites argc.
-    __ CmovX(target, undefined_value, eq);       // undefined if argc == 0.
-    __ Cmp(x10, 2);
-    __ CmovX(arguments_list, undefined_value, lo);  // undefined if argc <= 1.
-    __ CmovX(new_target, target, ls);               // target if argc <= 2.
+    // The state of the stack (with arrows pointing to the slots we will read)
+    // is as follows:
+    //
+    //       argc = 0               argc = 1                argc = 2
+    //    sp[32]: receiver       sp[40]: receiver        sp[48]: receiver
+    // -> sp[24]: undefined   -> sp[32]: target       -> sp[40]: target
+    // -> sp[16]: undefined   -> sp[24]: undefined    -> sp[32]: arguments_list
+    // -> sp[8]:  undefined   -> sp[16]: undefined    -> sp[24]: undefined
+    //    sp[0]:  undefined      sp[8]:  undefined       sp[16]: undefined
+    //                           sp[0]:  undefined       sp[8]:  undefined
+    //                                                   sp[0]:  undefined
+    //       argc = 3
+    //    sp[56]: receiver
+    // -> sp[48]: target
+    // -> sp[40]: arguments_list
+    // -> sp[32]: new_target
+    //    sp[24]: undefined
+    //    sp[16]: undefined
+    //    sp[8]:  undefined
+    //    sp[0]:  undefined
+    //
+    // There are now always three arguments to read, in the slots starting from
+    // slot (argc + 1).
+    Register scratch = x10;
+    __ SlotAddress(scratch, argc);
+    __ Ldp(new_target, arguments_list, MemOperand(scratch, 1 * kPointerSize));
+    __ Ldr(target, MemOperand(scratch, 3 * kPointerSize));
 
-    __ Poke(undefined_value, 0);  // Overwrite receiver.
+    __ Cmp(argc, 2);
+    __ CmovX(new_target, target, ls);  // target if argc <= 2.
+
+    __ Drop(4);  // Drop the undefined values we pushed above.
+    __ DropArguments(argc, TurboAssembler::kCountExcludesReceiver);
+
+    // Push receiver (undefined).
+    __ PushArgument(undefined_value);
   }
 
   // ----------- S t a t e -------------
