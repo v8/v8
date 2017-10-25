@@ -24,6 +24,8 @@
 
 python_version: "2.7"
 
+# Needed by third_party/catapult/devil/devil, which is imported by
+# build/android/test_runner.py when running performance tests.
 wheel: <
   name: "infra/python/wheels/psutil/${vpython_platform}"
   version: "version:5.2.2"
