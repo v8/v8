@@ -540,7 +540,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_natives(FLAG_allow_natives_syntax || info->is_native());
   set_allow_harmony_do_expressions(FLAG_harmony_do_expressions);
   set_allow_harmony_function_sent(FLAG_harmony_function_sent);
-  set_allow_harmony_restrictive_generators(FLAG_harmony_restrictive_generators);
   set_allow_harmony_class_fields(FLAG_harmony_class_fields);
   set_allow_harmony_object_rest_spread(FLAG_harmony_object_rest_spread);
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
@@ -1433,8 +1432,8 @@ Variable* Parser::Declare(Declaration* declaration,
   }
   bool sloppy_mode_block_scope_function_redefinition = false;
   Variable* variable = scope->DeclareVariable(
-      declaration, mode, init, allow_harmony_restrictive_generators(),
-      &sloppy_mode_block_scope_function_redefinition, ok);
+      declaration, mode, init, &sloppy_mode_block_scope_function_redefinition,
+      ok);
   if (!*ok) {
     // If we only have the start position of a proxy, we can't highlight the
     // whole variable name.  Pretend its length is 1 so that we highlight at

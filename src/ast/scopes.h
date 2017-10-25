@@ -196,7 +196,6 @@ class V8_EXPORT_PRIVATE Scope : public NON_EXPORTED_BASE(ZoneObject) {
 
   Variable* DeclareVariable(Declaration* declaration, VariableMode mode,
                             InitializationFlag init,
-                            bool allow_harmony_restrictive_generators,
                             bool* sloppy_mode_block_scope_function_redefinition,
                             bool* ok);
 

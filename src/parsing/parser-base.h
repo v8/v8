@@ -274,7 +274,6 @@ class ParserBase {
         allow_natives_(false),
         allow_harmony_do_expressions_(false),
         allow_harmony_function_sent_(false),
-        allow_harmony_restrictive_generators_(false),
         allow_harmony_class_fields_(false),
         allow_harmony_object_rest_spread_(false),
         allow_harmony_dynamic_import_(false),
@@ -289,7 +288,6 @@ class ParserBase {
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_function_sent);
-  ALLOW_ACCESSORS(harmony_restrictive_generators);
   ALLOW_ACCESSORS(harmony_class_fields);
   ALLOW_ACCESSORS(harmony_object_rest_spread);
   ALLOW_ACCESSORS(harmony_dynamic_import);
@@ -1520,7 +1518,6 @@ class ParserBase {
   bool allow_natives_;
   bool allow_harmony_do_expressions_;
   bool allow_harmony_function_sent_;
-  bool allow_harmony_restrictive_generators_;
   bool allow_harmony_class_fields_;
   bool allow_harmony_object_rest_spread_;
   bool allow_harmony_dynamic_import_;
@@ -4028,9 +4025,9 @@ ParserBase<Impl>::ParseHoistableDeclaration(
   // sloppy_block_function_map. Don't add them to the map for async functions.
   // Generators are also supposed to be prohibited; currently doing this behind
   // a flag and UseCounting violations to assess web compatibility.
-  bool is_sloppy_block_function =
-      is_sloppy(language_mode()) && !scope()->is_declaration_scope() &&
-      !is_async && !(allow_harmony_restrictive_generators() && is_generator);
+  bool is_sloppy_block_function = is_sloppy(language_mode()) &&
+                                  !scope()->is_declaration_scope() &&
+                                  !is_async && !is_generator;
 
   return impl()->DeclareFunction(variable_name, function, mode, pos,
                                  is_sloppy_block_function, names, ok);

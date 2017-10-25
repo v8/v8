@@ -223,8 +223,6 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 #define HARMONY_SHIPPING_BASE(V)                                         \
   V(harmony_strict_legacy_accessor_builtins,                             \
     "treat __defineGetter__ and related functions as strict")            \
-  V(harmony_restrictive_generators,                                      \
-    "harmony restrictions on generator declarations")                    \
   V(harmony_object_rest_spread, "harmony object rest spread properties") \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")              \
   V(harmony_regexp_dotall, "harmony regexp dotAll flag")                 \

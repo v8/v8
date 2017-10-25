@@ -605,12 +605,10 @@ void DeclarationScope::HoistSloppyBlockFunctions(AstNodeFactory* factory) {
       auto declaration =
           factory->NewVariableDeclaration(proxy, kNoSourcePosition);
       // Based on the preceding checks, it doesn't matter what we pass as
-      // allow_harmony_restrictive_generators and
       // sloppy_mode_block_scope_function_redefinition.
       bool ok = true;
       DeclareVariable(declaration, VAR,
-                      Variable::DefaultInitializationFlag(VAR), false, nullptr,
-                      &ok);
+                      Variable::DefaultInitializationFlag(VAR), nullptr, &ok);
       DCHECK(ok);
     } else {
       DCHECK(is_being_lazily_parsed_);
@@ -1078,7 +1076,6 @@ Variable* Scope::DeclareLocal(const AstRawString* name, VariableMode mode,
 
 Variable* Scope::DeclareVariable(
     Declaration* declaration, VariableMode mode, InitializationFlag init,
-    bool allow_harmony_restrictive_generators,
     bool* sloppy_mode_block_scope_function_redefinition, bool* ok) {
   DCHECK(IsDeclaredVariableMode(mode));
   DCHECK(!already_resolved_);
@@ -1087,8 +1084,8 @@ Variable* Scope::DeclareVariable(
 
   if (mode == VAR && !is_declaration_scope()) {
     return GetDeclarationScope()->DeclareVariable(
-        declaration, mode, init, allow_harmony_restrictive_generators,
-        sloppy_mode_block_scope_function_redefinition, ok);
+        declaration, mode, init, sloppy_mode_block_scope_function_redefinition,
+        ok);
   }
   DCHECK(!is_catch_scope());
   DCHECK(!is_with_scope());
@@ -1149,8 +1146,7 @@ Variable* Scope::DeclareVariable(
                             map->Lookup(const_cast<AstRawString*>(name),
                                         name->Hash()) != nullptr &&
                             !IsAsyncFunction(function_kind) &&
-                            !(allow_harmony_restrictive_generators &&
-                              IsGeneratorFunction(function_kind));
+                            !IsGeneratorFunction(function_kind);
       }
       if (duplicate_allowed) {
         *sloppy_mode_block_scope_function_redefinition = true;

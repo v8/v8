@@ -1311,7 +1311,6 @@ enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
   kAllowHarmonyFunctionSent,
-  kAllowHarmonyRestrictiveGenerators,
   kAllowHarmonyClassFields,
   kAllowHarmonyObjectRestSpread,
   kAllowHarmonyDynamicImport,
@@ -1329,8 +1328,6 @@ enum ParserSyncTestResult {
 void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
   i::FLAG_harmony_function_sent = flags.Contains(kAllowHarmonyFunctionSent);
-  i::FLAG_harmony_restrictive_generators =
-      flags.Contains(kAllowHarmonyRestrictiveGenerators);
   i::FLAG_harmony_class_fields = flags.Contains(kAllowHarmonyClassFields);
   i::FLAG_harmony_object_rest_spread =
       flags.Contains(kAllowHarmonyObjectRestSpread);
@@ -1345,8 +1342,6 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
   parser->set_allow_natives(flags.Contains(kAllowNatives));
   parser->set_allow_harmony_function_sent(
       flags.Contains(kAllowHarmonyFunctionSent));
-  parser->set_allow_harmony_restrictive_generators(
-      flags.Contains(kAllowHarmonyRestrictiveGenerators));
   parser->set_allow_harmony_class_fields(
       flags.Contains(kAllowHarmonyClassFields));
   parser->set_allow_harmony_object_rest_spread(
@@ -8795,14 +8790,11 @@ TEST(NoDuplicateGeneratorsInBlock) {
   const char* error_data[] = {"function* x() {} function* x() {}",
                               "function x() {} function* x() {}",
                               "function* x() {} function x() {}", nullptr};
-  static const ParserFlag always_flags[] = {kAllowHarmonyRestrictiveGenerators};
   // The preparser doesn't enforce the restriction, so turn it off.
   bool test_preparser = false;
-  RunParserSyncTest(block_context_data, error_data, kError, nullptr, 0,
-                    always_flags, arraysize(always_flags), nullptr, 0, false,
-                    test_preparser);
-  RunParserSyncTest(top_level_context_data, error_data, kSuccess, nullptr, 0,
-                    always_flags, arraysize(always_flags));
+  RunParserSyncTest(block_context_data, error_data, kError, nullptr, 0, nullptr,
+                    0, nullptr, 0, false, test_preparser);
+  RunParserSyncTest(top_level_context_data, error_data, kSuccess);
 }
 
 TEST(NoDuplicateAsyncFunctionInBlock) {
