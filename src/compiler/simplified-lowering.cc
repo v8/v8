@@ -2962,13 +2962,21 @@ class RepresentationSelector {
 
       case IrOpcode::kFindOrderedHashMapEntry: {
         Type* const key_type = TypeOf(node->InputAt(1));
-        if (key_type->Is(Type::Signed32OrMinusZero())) {
+        if (key_type->Is(Type::Receiver())) {
+          VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TaggedPointer(),
+                     MachineRepresentation::kWord32);
+          if (lower()) {
+            NodeProperties::ChangeOp(
+                node, lowering->simplified()
+                          ->FindOrderedHashMapEntryForReceiverKey());
+          }
+        } else if (key_type->Is(Type::Signed32OrMinusZero())) {
           VisitBinop(node, UseInfo::AnyTagged(), UseInfo::TruncatingWord32(),
                      MachineRepresentation::kWord32);
           if (lower()) {
             NodeProperties::ChangeOp(
-                node,
-                lowering->simplified()->FindOrderedHashMapEntryForInt32Key());
+                node, lowering->simplified()
+                          ->FindOrderedHashMapEntryForSigned32Key());
           }
         } else {
           VisitBinop(node, UseInfo::AnyTagged(),

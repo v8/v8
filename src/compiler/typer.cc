@@ -2085,7 +2085,11 @@ Type* Typer::Visitor::TypeFindOrderedHashMapEntry(Node* node) {
   return Type::Range(-1.0, FixedArray::kMaxLength, zone());
 }
 
-Type* Typer::Visitor::TypeFindOrderedHashMapEntryForInt32Key(Node* node) {
+Type* Typer::Visitor::TypeFindOrderedHashMapEntryForReceiverKey(Node* node) {
+  return Type::Range(-1.0, FixedArray::kMaxLength, zone());
+}
+
+Type* Typer::Visitor::TypeFindOrderedHashMapEntryForSigned32Key(Node* node) {
   return Type::Range(-1.0, FixedArray::kMaxLength, zone());
 }
 

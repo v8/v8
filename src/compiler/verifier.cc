@@ -1053,9 +1053,14 @@ void Verifier::Visitor::Check(Node* node) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::SignedSmall());
       break;
-    case IrOpcode::kFindOrderedHashMapEntryForInt32Key:
+    case IrOpcode::kFindOrderedHashMapEntryForReceiverKey:
       CheckValueInputIs(node, 0, Type::Any());
-      CheckValueInputIs(node, 1, Type::Signed32());
+      CheckValueInputIs(node, 1, Type::Receiver());
+      CheckTypeIs(node, Type::SignedSmall());
+      break;
+    case IrOpcode::kFindOrderedHashMapEntryForSigned32Key:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Signed32OrMinusZero());
       CheckTypeIs(node, Type::SignedSmall());
       break;
     case IrOpcode::kArgumentsLength:
