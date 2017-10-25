@@ -11,7 +11,6 @@
 #include "src/field-type.h"
 #include "src/messages.h"
 #include "src/objects-inl.h"
-#include "src/parsing/token.h"
 #include "src/property-descriptor.h"
 #include "src/string-hasher.h"
 #include "src/transitions.h"

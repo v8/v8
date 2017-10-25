@@ -11,7 +11,6 @@
 #include "src/code-stubs.h"
 #include "src/globals.h"
 #include "src/interface-descriptors.h"
-#include "src/parsing/token.h"
 
 namespace v8 {
 namespace internal {
@@ -40,7 +39,7 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable FrameDropperTrampoline(Isolate* isolate);
   static Callable HandleDebuggerStatement(Isolate* isolate);
 
-  static Callable BinaryOperation(Isolate* isolate, Token::Value op);
+  static Callable BinaryOperation(Isolate* isolate, Operation op);
 
   static Callable ApiGetter(Isolate* isolate);
 
@@ -57,7 +56,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
   static Callable StringAdd(Isolate* isolate,
                             StringAddFlags flags = STRING_ADD_CHECK_NONE,
                             PretenureFlag pretenure_flag = NOT_TENURED);
-  static Callable StringCompare(Isolate* isolate, Token::Value token);
 
   static Callable FastNewFunctionContext(Isolate* isolate,
                                          ScopeType scope_type);

@@ -200,25 +200,6 @@ ComparisonResult BigInt::CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y) {
   return ComparisonResult::kEqual;
 }
 
-bool BigInt::CompareToBigIntReturnBool(RelationalComparisonMode mode,
-                                       Handle<BigInt> x, Handle<BigInt> y) {
-  ComparisonResult result = CompareToBigInt(x, y);
-  DCHECK_NE(result, ComparisonResult::kUndefined);
-  switch (mode) {
-    case RelationalComparisonMode::kLessThan:
-      return result == ComparisonResult::kLessThan;
-    case RelationalComparisonMode::kLessThanOrEqual:
-      return result == ComparisonResult::kLessThan ||
-             result == ComparisonResult::kEqual;
-    case RelationalComparisonMode::kGreaterThan:
-      return result == ComparisonResult::kGreaterThan;
-    case RelationalComparisonMode::kGreaterThanOrEqual:
-      return result == ComparisonResult::kGreaterThan ||
-             result == ComparisonResult::kEqual;
-  }
-  UNREACHABLE();
-}
-
 bool BigInt::EqualToBigInt(BigInt* x, BigInt* y) {
   if (x->sign() != y->sign()) return false;
   if (x->length() != y->length()) return false;

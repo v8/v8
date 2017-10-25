@@ -285,7 +285,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void GotoIfNotNumber(Node* value, Label* is_not_number);
   void GotoIfNumber(Node* value, Label* is_number);
 
-  Node* BitwiseOp(Node* left32, Node* right32, Token::Value bitwise_op);
+  Node* BitwiseOp(Node* left32, Node* right32, Operation bitwise_op);
 
   // Allocate an object of the given size.
   Node* AllocateInNewSpace(Node* size, AllocationFlags flags = kNone);
@@ -1718,13 +1718,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void InitializeFieldsWithRoot(Node* object, Node* start_offset,
                                 Node* end_offset, Heap::RootListIndex root);
 
-  Node* RelationalComparison(RelationalComparisonMode mode, Node* lhs,
-                             Node* rhs, Node* context,
+  Node* RelationalComparison(Operation op, Node* lhs, Node* rhs, Node* context,
                              Variable* var_type_feedback = nullptr);
 
-  void BranchIfNumericRelationalComparison(RelationalComparisonMode mode,
-                                           Node* lhs, Node* rhs, Label* if_true,
-                                           Label* if_false);
+  void BranchIfNumericRelationalComparison(Operation op, Node* lhs, Node* rhs,
+                                           Label* if_true, Label* if_false);
 
   void BranchIfAccessorPair(Node* value, Label* if_accessor_pair,
                             Label* if_not_accessor_pair) {

@@ -779,7 +779,7 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
     Node* const key =
         HeapConstant(isolate->factory()->promise_handled_by_symbol());
     CallRuntime(Runtime::kSetProperty, context, result, key, promise,
-                SmiConstant(Smi::FromEnum(LanguageMode::kStrict)));
+                SmiConstant(LanguageMode::kStrict));
     Goto(&enqueue);
 
     // 12. Perform EnqueueJob("PromiseJobs",
@@ -960,8 +960,7 @@ void PromiseBuiltinsAssembler::SetForwardingHandlerIfTrue(
   GotoIfNot(condition, &done);
   CallRuntime(Runtime::kSetProperty, context, object(),
               HeapConstant(factory()->promise_forwarding_handler_symbol()),
-              TrueConstant(),
-              SmiConstant(Smi::FromEnum(LanguageMode::kStrict)));
+              TrueConstant(), SmiConstant(LanguageMode::kStrict));
   Goto(&done);
   BIND(&done);
 }
@@ -975,7 +974,7 @@ void PromiseBuiltinsAssembler::SetPromiseHandledByIfTrue(
   GotoIfNot(HasInstanceType(promise, JS_PROMISE_TYPE), &done);
   CallRuntime(Runtime::kSetProperty, context, promise,
               HeapConstant(factory()->promise_handled_by_symbol()),
-              handled_by(), SmiConstant(Smi::FromEnum(LanguageMode::kStrict)));
+              handled_by(), SmiConstant(LanguageMode::kStrict));
   Goto(&done);
   BIND(&done);
 }

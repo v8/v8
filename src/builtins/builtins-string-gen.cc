@@ -296,8 +296,10 @@ void StringBuiltinsAssembler::StringEqual_Core(
   }
 }
 
-void StringBuiltinsAssembler::GenerateStringRelationalComparison(
-    Node* context, Node* left, Node* right, RelationalComparisonMode mode) {
+void StringBuiltinsAssembler::GenerateStringRelationalComparison(Node* context,
+                                                                 Node* left,
+                                                                 Node* right,
+                                                                 Operation op) {
   VARIABLE(var_left, MachineRepresentation::kTagged, left);
   VARIABLE(var_right, MachineRepresentation::kTagged, right);
 
@@ -400,59 +402,67 @@ void StringBuiltinsAssembler::GenerateStringRelationalComparison(
     MaybeDerefIndirectStrings(&var_left, lhs_instance_type, &var_right,
                               rhs_instance_type, &restart);
     // TODO(bmeurer): Add support for two byte string relational comparisons.
-    switch (mode) {
-      case RelationalComparisonMode::kLessThan:
+    switch (op) {
+      case Operation::kLessThan:
         TailCallRuntime(Runtime::kStringLessThan, context, lhs, rhs);
         break;
-      case RelationalComparisonMode::kLessThanOrEqual:
+      case Operation::kLessThanOrEqual:
         TailCallRuntime(Runtime::kStringLessThanOrEqual, context, lhs, rhs);
         break;
-      case RelationalComparisonMode::kGreaterThan:
+      case Operation::kGreaterThan:
         TailCallRuntime(Runtime::kStringGreaterThan, context, lhs, rhs);
         break;
-      case RelationalComparisonMode::kGreaterThanOrEqual:
+      case Operation::kGreaterThanOrEqual:
         TailCallRuntime(Runtime::kStringGreaterThanOrEqual, context, lhs, rhs);
         break;
+      default:
+        UNREACHABLE();
     }
   }
 
   BIND(&if_less);
-  switch (mode) {
-    case RelationalComparisonMode::kLessThan:
-    case RelationalComparisonMode::kLessThanOrEqual:
+  switch (op) {
+    case Operation::kLessThan:
+    case Operation::kLessThanOrEqual:
       Return(TrueConstant());
       break;
 
-    case RelationalComparisonMode::kGreaterThan:
-    case RelationalComparisonMode::kGreaterThanOrEqual:
+    case Operation::kGreaterThan:
+    case Operation::kGreaterThanOrEqual:
       Return(FalseConstant());
       break;
+    default:
+      UNREACHABLE();
   }
 
   BIND(&if_equal);
-  switch (mode) {
-    case RelationalComparisonMode::kLessThan:
-    case RelationalComparisonMode::kGreaterThan:
+  switch (op) {
+    case Operation::kLessThan:
+    case Operation::kGreaterThan:
       Return(FalseConstant());
       break;
 
-    case RelationalComparisonMode::kLessThanOrEqual:
-    case RelationalComparisonMode::kGreaterThanOrEqual:
+    case Operation::kLessThanOrEqual:
+    case Operation::kGreaterThanOrEqual:
       Return(TrueConstant());
       break;
+    default:
+      UNREACHABLE();
   }
 
   BIND(&if_greater);
-  switch (mode) {
-    case RelationalComparisonMode::kLessThan:
-    case RelationalComparisonMode::kLessThanOrEqual:
+  switch (op) {
+    case Operation::kLessThan:
+    case Operation::kLessThanOrEqual:
       Return(FalseConstant());
       break;
 
-    case RelationalComparisonMode::kGreaterThan:
-    case RelationalComparisonMode::kGreaterThanOrEqual:
+    case Operation::kGreaterThan:
+    case Operation::kGreaterThanOrEqual:
       Return(TrueConstant());
       break;
+    default:
+      UNREACHABLE();
   }
 }
 
@@ -468,15 +478,15 @@ TF_BUILTIN(StringLessThan, StringBuiltinsAssembler) {
   Node* left = Parameter(Descriptor::kLeft);
   Node* right = Parameter(Descriptor::kRight);
   GenerateStringRelationalComparison(context, left, right,
-                                     RelationalComparisonMode::kLessThan);
+                                     Operation::kLessThan);
 }
 
 TF_BUILTIN(StringLessThanOrEqual, StringBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* left = Parameter(Descriptor::kLeft);
   Node* right = Parameter(Descriptor::kRight);
-  GenerateStringRelationalComparison(
-      context, left, right, RelationalComparisonMode::kLessThanOrEqual);
+  GenerateStringRelationalComparison(context, left, right,
+                                     Operation::kLessThanOrEqual);
 }
 
 TF_BUILTIN(StringGreaterThan, StringBuiltinsAssembler) {
@@ -484,15 +494,15 @@ TF_BUILTIN(StringGreaterThan, StringBuiltinsAssembler) {
   Node* left = Parameter(Descriptor::kLeft);
   Node* right = Parameter(Descriptor::kRight);
   GenerateStringRelationalComparison(context, left, right,
-                                     RelationalComparisonMode::kGreaterThan);
+                                     Operation::kGreaterThan);
 }
 
 TF_BUILTIN(StringGreaterThanOrEqual, StringBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* left = Parameter(Descriptor::kLeft);
   Node* right = Parameter(Descriptor::kRight);
-  GenerateStringRelationalComparison(
-      context, left, right, RelationalComparisonMode::kGreaterThanOrEqual);
+  GenerateStringRelationalComparison(context, left, right,
+                                     Operation::kGreaterThanOrEqual);
 }
 
 TF_BUILTIN(StringCharAt, CodeStubAssembler) {
@@ -2113,8 +2123,8 @@ void StringTrimAssembler::Generate(String::TrimMode mode,
                 SubStringFlags::FROM_TO_ARE_BOUNDED));
 
   BIND(&if_runtime);
-  arguments.PopAndReturn(CallRuntime(Runtime::kStringTrim, context, string,
-                                     SmiConstant(Smi::FromEnum(mode))));
+  arguments.PopAndReturn(
+      CallRuntime(Runtime::kStringTrim, context, string, SmiConstant(mode)));
 
   BIND(&return_emptystring);
   arguments.PopAndReturn(EmptyStringConstant());

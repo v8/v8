@@ -84,6 +84,24 @@
 namespace v8 {
 namespace internal {
 
+bool ComparisonResultToBool(Operation op, ComparisonResult result) {
+  switch (op) {
+    case Operation::kLessThan:
+      return result == ComparisonResult::kLessThan;
+    case Operation::kLessThanOrEqual:
+      return result == ComparisonResult::kLessThan ||
+             result == ComparisonResult::kEqual;
+    case Operation::kGreaterThan:
+      return result == ComparisonResult::kGreaterThan;
+    case Operation::kGreaterThanOrEqual:
+      return result == ComparisonResult::kGreaterThan ||
+             result == ComparisonResult::kEqual;
+    default:
+      break;
+  }
+  UNREACHABLE();
+}
+
 std::ostream& operator<<(std::ostream& os, InstanceType instance_type) {
   switch (instance_type) {
 #define WRITE_TYPE(TYPE) \
@@ -506,7 +524,7 @@ bool NumberEquals(Handle<Object> x, Handle<Object> y) {
   return NumberEquals(*x, *y);
 }
 
-ComparisonResult Invert(ComparisonResult result) {
+ComparisonResult Reverse(ComparisonResult result) {
   if (result == ComparisonResult::kLessThan) {
     return ComparisonResult::kGreaterThan;
   }
@@ -544,7 +562,7 @@ Maybe<ComparisonResult> Object::Compare(Handle<Object> x, Handle<Object> y) {
     return Just(BigInt::CompareToBigInt(Handle<BigInt>::cast(x),
                                         Handle<BigInt>::cast(y)));
   } else if (x_is_number) {
-    return Just(Invert(BigInt::CompareToNumber(Handle<BigInt>::cast(y), x)));
+    return Just(Reverse(BigInt::CompareToNumber(Handle<BigInt>::cast(y), x)));
   } else {
     return Just(BigInt::CompareToNumber(Handle<BigInt>::cast(x), y));
   }

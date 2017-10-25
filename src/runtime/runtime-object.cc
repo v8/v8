@@ -1123,32 +1123,6 @@ RUNTIME_FUNCTION(Runtime_SameValueZero) {
   return isolate->heap()->ToBoolean(x->SameValueZero(y));
 }
 
-
-// TODO(bmeurer): Kill this special wrapper and use TF compatible LessThan,
-// GreaterThan, etc. which return true or false.
-RUNTIME_FUNCTION(Runtime_Compare) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, x, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, y, 1);
-  CONVERT_ARG_HANDLE_CHECKED(Object, ncr, 2);
-  Maybe<ComparisonResult> result = Object::Compare(x, y);
-  if (result.IsJust()) {
-    switch (result.FromJust()) {
-      case ComparisonResult::kLessThan:
-        return Smi::FromInt(LESS);
-      case ComparisonResult::kEqual:
-        return Smi::FromInt(EQUAL);
-      case ComparisonResult::kGreaterThan:
-        return Smi::FromInt(GREATER);
-      case ComparisonResult::kUndefined:
-        return *ncr;
-    }
-    UNREACHABLE();
-  }
-  return isolate->heap()->exception();
-}
-
 RUNTIME_FUNCTION(Runtime_HasInPrototypeChain) {
   HandleScope scope(isolate);
   DCHECK_EQ(2, args.length());

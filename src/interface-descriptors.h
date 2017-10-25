@@ -62,7 +62,6 @@ class PlatformInterfaceDescriptor;
   V(StringAdd)                        \
   V(StringCharAt)                     \
   V(StringCharCodeAt)                 \
-  V(StringCompare)                    \
   V(ForInPrepare)                     \
   V(GetProperty)                      \
   V(ArgumentAdaptor)                  \
@@ -738,15 +737,6 @@ class StringCharCodeAtDescriptor final : public CallInterfaceDescriptor {
   DEFINE_PARAMETERS(kReceiver, kPosition)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(StringCharCodeAtDescriptor,
                                                CallInterfaceDescriptor)
-};
-
-class StringCompareDescriptor : public CallInterfaceDescriptor {
- public:
-  DEFINE_PARAMETERS(kLeft, kRight)
-  DECLARE_DESCRIPTOR(StringCompareDescriptor, CallInterfaceDescriptor)
-
-  static const Register LeftRegister();
-  static const Register RightRegister();
 };
 
 class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {

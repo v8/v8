@@ -285,25 +285,6 @@ RUNTIME_FUNCTION(Runtime_StringCharCodeAt) {
   return Smi::FromInt(subject->Get(i));
 }
 
-RUNTIME_FUNCTION(Runtime_StringCompare) {
-  HandleScope handle_scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
-  CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  isolate->counters()->string_compare_runtime()->Increment();
-  switch (String::Compare(x, y)) {
-    case ComparisonResult::kLessThan:
-      return Smi::FromInt(LESS);
-    case ComparisonResult::kEqual:
-      return Smi::FromInt(EQUAL);
-    case ComparisonResult::kGreaterThan:
-      return Smi::FromInt(GREATER);
-    case ComparisonResult::kUndefined:
-      break;
-  }
-  UNREACHABLE();
-}
-
 RUNTIME_FUNCTION(Runtime_StringBuilderConcat) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());

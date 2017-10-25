@@ -119,7 +119,7 @@ void RegExpBuiltinsAssembler::SlowStoreLastIndex(Node* context, Node* regexp,
   // Store through runtime.
   // TODO(ishell): Use SetPropertyStub here once available.
   Node* const name = HeapConstant(isolate()->factory()->lastIndex_string());
-  Node* const language_mode = SmiConstant(Smi::FromEnum(LanguageMode::kStrict));
+  Node* const language_mode = SmiConstant(LanguageMode::kStrict);
   CallRuntime(Runtime::kSetProperty, context, regexp, name, value,
               language_mode);
 }

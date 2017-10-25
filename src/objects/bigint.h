@@ -38,8 +38,6 @@ class V8_EXPORT_PRIVATE BigInt : public HeapObject {
                                                 Handle<BigInt> y);
   // More convenient version of "bool LessThan(x, y)".
   static ComparisonResult CompareToBigInt(Handle<BigInt> x, Handle<BigInt> y);
-  static bool CompareToBigIntReturnBool(RelationalComparisonMode mode,
-                                        Handle<BigInt> x, Handle<BigInt> y);
   static bool EqualToBigInt(BigInt* x, BigInt* y);
   static Handle<BigInt> BitwiseAnd(Handle<BigInt> x, Handle<BigInt> y);
   static Handle<BigInt> BitwiseXor(Handle<BigInt> x, Handle<BigInt> y);
@@ -58,8 +56,6 @@ class V8_EXPORT_PRIVATE BigInt : public HeapObject {
   static bool EqualToString(Handle<BigInt> x, Handle<String> y);
   static bool EqualToNumber(Handle<BigInt> x, Handle<Object> y);
   static ComparisonResult CompareToNumber(Handle<BigInt> x, Handle<Object> y);
-  static bool CompareToNumberReturnBool(RelationalComparisonMode mode,
-                                        Handle<BigInt> x, Handle<Object> y);
   // Exposed for tests, do not call directly. Use CompareToNumber() instead.
   static ComparisonResult CompareToDouble(Handle<BigInt> x, double y);
 

@@ -536,8 +536,7 @@ TF_BUILTIN(DeleteProperty, DeletePropertyBaseAssembler) {
     BIND(&dont_delete);
     {
       STATIC_ASSERT(LanguageModeSize == 2);
-      GotoIf(SmiNotEqual(language_mode,
-                         SmiConstant(Smi::FromEnum(LanguageMode::kSloppy))),
+      GotoIf(SmiNotEqual(language_mode, SmiConstant(LanguageMode::kSloppy)),
              &slow);
       Return(FalseConstant());
     }

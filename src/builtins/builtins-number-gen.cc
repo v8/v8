@@ -6,7 +6,6 @@
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
 #include "src/ic/binary-op-assembler.h"
-#include "src/parsing/token.h"
 
 namespace v8 {
 namespace internal {
@@ -21,7 +20,7 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   template <typename Descriptor>
-  void EmitBitwiseOp(Token::Value op) {
+  void EmitBitwiseOp(Operation op) {
     Node* left = Parameter(Descriptor::kLeft);
     Node* right = Parameter(Descriptor::kRight);
     Node* context = Parameter(Descriptor::kContext);
@@ -52,12 +51,12 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
   }
 
   template <typename Descriptor>
-  void RelationalComparisonBuiltin(RelationalComparisonMode mode) {
+  void RelationalComparisonBuiltin(Operation op) {
     Node* lhs = Parameter(Descriptor::kLeft);
     Node* rhs = Parameter(Descriptor::kRight);
     Node* context = Parameter(Descriptor::kContext);
 
-    Return(RelationalComparison(mode, lhs, rhs, context));
+    Return(RelationalComparison(op, lhs, rhs, context));
   }
 
   template <typename Descriptor>
@@ -583,7 +582,7 @@ TF_BUILTIN(Add, AddStubAssembler) {
   BIND(&do_bigint_add);
   {
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
-                       var_right.value(), SmiConstant(Token::ADD)));
+                       var_right.value(), SmiConstant(Operation::kAdd)));
   }
 
   BIND(&do_double_add);
@@ -710,7 +709,7 @@ TF_BUILTIN(Subtract, NumberBuiltinsAssembler) {
   {
     Node* context = Parameter(Descriptor::kContext);
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
-                       var_right.value(), SmiConstant(Token::SUB)));
+                       var_right.value(), SmiConstant(Operation::kSubtract)));
   }
 }
 
@@ -736,7 +735,7 @@ TF_BUILTIN(Multiply, NumberBuiltinsAssembler) {
   {
     Node* context = Parameter(Descriptor::kContext);
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
-                       var_right.value(), SmiConstant(Token::MUL)));
+                       var_right.value(), SmiConstant(Operation::kMultiply)));
   }
 }
 
@@ -820,7 +819,7 @@ TF_BUILTIN(Divide, NumberBuiltinsAssembler) {
   {
     Node* context = Parameter(Descriptor::kContext);
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
-                       var_right.value(), SmiConstant(Token::DIV)));
+                       var_right.value(), SmiConstant(Operation::kDivide)));
   }
 }
 
@@ -845,51 +844,48 @@ TF_BUILTIN(Modulus, NumberBuiltinsAssembler) {
   {
     Node* context = Parameter(Descriptor::kContext);
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
-                       var_right.value(), SmiConstant(Token::MOD)));
+                       var_right.value(), SmiConstant(Operation::kModulus)));
   }
 }
 
 TF_BUILTIN(ShiftLeft, NumberBuiltinsAssembler) {
-  EmitBitwiseOp<Descriptor>(Token::SHL);
+  EmitBitwiseOp<Descriptor>(Operation::kShiftLeft);
 }
 
 TF_BUILTIN(ShiftRight, NumberBuiltinsAssembler) {
-  EmitBitwiseOp<Descriptor>(Token::SAR);
+  EmitBitwiseOp<Descriptor>(Operation::kShiftRight);
 }
 
 TF_BUILTIN(ShiftRightLogical, NumberBuiltinsAssembler) {
-  EmitBitwiseOp<Descriptor>(Token::SHR);
+  EmitBitwiseOp<Descriptor>(Operation::kShiftRightLogical);
 }
 
 TF_BUILTIN(BitwiseAnd, NumberBuiltinsAssembler) {
-  EmitBitwiseOp<Descriptor>(Token::BIT_AND);
+  EmitBitwiseOp<Descriptor>(Operation::kBitwiseAnd);
 }
 
 TF_BUILTIN(BitwiseOr, NumberBuiltinsAssembler) {
-  EmitBitwiseOp<Descriptor>(Token::BIT_OR);
+  EmitBitwiseOp<Descriptor>(Operation::kBitwiseOr);
 }
 
 TF_BUILTIN(BitwiseXor, NumberBuiltinsAssembler) {
-  EmitBitwiseOp<Descriptor>(Token::BIT_XOR);
+  EmitBitwiseOp<Descriptor>(Operation::kBitwiseXor);
 }
 
 TF_BUILTIN(LessThan, NumberBuiltinsAssembler) {
-  RelationalComparisonBuiltin<Descriptor>(RelationalComparisonMode::kLessThan);
+  RelationalComparisonBuiltin<Descriptor>(Operation::kLessThan);
 }
 
 TF_BUILTIN(LessThanOrEqual, NumberBuiltinsAssembler) {
-  RelationalComparisonBuiltin<Descriptor>(
-      RelationalComparisonMode::kLessThanOrEqual);
+  RelationalComparisonBuiltin<Descriptor>(Operation::kLessThanOrEqual);
 }
 
 TF_BUILTIN(GreaterThan, NumberBuiltinsAssembler) {
-  RelationalComparisonBuiltin<Descriptor>(
-      RelationalComparisonMode::kGreaterThan);
+  RelationalComparisonBuiltin<Descriptor>(Operation::kGreaterThan);
 }
 
 TF_BUILTIN(GreaterThanOrEqual, NumberBuiltinsAssembler) {
-  RelationalComparisonBuiltin<Descriptor>(
-      RelationalComparisonMode::kGreaterThanOrEqual);
+  RelationalComparisonBuiltin<Descriptor>(Operation::kGreaterThanOrEqual);
 }
 
 TF_BUILTIN(Equal, CodeStubAssembler) {

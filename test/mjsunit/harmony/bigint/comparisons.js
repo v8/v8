@@ -347,55 +347,80 @@ const six = BigInt(6);
 {
   let undef = Symbol();
 
-  assertEquals(%Compare(zero, zero, undef), 0);
+  assertTrue(%Equal(zero, zero));
+  assertTrue(%GreaterThanOrEqual(zero, zero));
 
-  assertEquals(%Compare(zero, one, undef), -1);
-  assertEquals(%Compare(one, zero, undef), +1);
+  assertTrue(%LessThan(zero, one));
+  assertTrue(%GreaterThan(one, zero));
 
-  assertEquals(%Compare(minus_one, one, undef), -1);
-  assertEquals(%Compare(one, minus_one, undef), +1);
+  assertTrue(%LessThan(minus_one, one));
+  assertTrue(%GreaterThan(one, minus_one));
 
-  assertEquals(%Compare(zero, -0, undef), 0);
-  assertEquals(%Compare(-0, zero, undef), 0);
+  assertTrue(%Equal(zero, -0));
+  assertTrue(%LessThanOrEqual(zero, -0));
+  assertTrue(%GreaterThanOrEqual(zero, -0));
+  assertTrue(%Equal(-0, zero));
+  assertTrue(%LessThanOrEqual(-0, zero));
+  assertTrue(%GreaterThanOrEqual(-0, zero));
 
-  assertEquals(%Compare(zero, 0, undef), 0);
-  assertEquals(%Compare(0, zero, undef), 0);
+  assertTrue(%Equal(zero, 0));
+  assertTrue(%Equal(0, zero));
 
-  assertEquals(%Compare(minus_one, 1, undef), -1);
-  assertEquals(%Compare(1, minus_one, undef), +1);
+  assertTrue(%LessThan(minus_one, 1));
+  assertTrue(%GreaterThan(1, minus_one));
 
-  assertEquals(%Compare(six, NaN, undef), undef);
-  assertEquals(%Compare(NaN, six, undef), undef);
+  assertFalse(%LessThan(six, NaN));
+  assertFalse(%GreaterThan(six, NaN));
+  assertFalse(%Equal(six, NaN));
+  assertFalse(%LessThan(NaN, six));
+  assertFalse(%GreaterThan(NaN, six));
+  assertFalse(%Equal(NaN, six));
 
-  assertEquals(%Compare(six, Infinity, undef), -1);
-  assertEquals(%Compare(Infinity, six, undef), +1);
+  assertTrue(%LessThan(six, Infinity));
+  assertTrue(%GreaterThan(Infinity, six));
 
-  assertEquals(%Compare(six, -Infinity, undef), +1);
-  assertEquals(%Compare(-Infinity, six, undef), -1);
+  assertTrue(%GreaterThan(six, -Infinity));
+  assertTrue(%LessThan(-Infinity, six));
 
-  assertEquals(%Compare(six, 5.99999999, undef), +1);
-  assertEquals(%Compare(5.99999999, six, undef), -1);
+  assertTrue(%GreaterThan(six, 5.99999999));
+  assertTrue(%LessThan(5.99999999, six));
 
-  assertEquals(%Compare(zero, "", undef), 0);
-  assertEquals(%Compare("", zero, undef), 0);
+  assertTrue(%Equal(zero, ""));
+  assertTrue(%LessThanOrEqual(zero, ""));
+  assertTrue(%GreaterThanOrEqual(zero, ""));
+  assertTrue(%Equal("", zero));
+  assertTrue(%LessThanOrEqual("", zero));
+  assertTrue(%GreaterThanOrEqual("", zero));
 
-  assertEquals(%Compare(minus_one, "\t-1 ", undef), 0);
-  assertEquals(%Compare("\t-1 ", minus_one, undef), 0);
+  assertTrue(%Equal(minus_one, "\t-1 "));
+  assertTrue(%LessThanOrEqual(minus_one, "\t-1 "));
+  assertTrue(%GreaterThanOrEqual(minus_one, "\t-1 "));
+  assertTrue(%Equal("\t-1 ", minus_one));
+  assertTrue(%LessThanOrEqual("\t-1 ", minus_one));
+  assertTrue(%GreaterThanOrEqual("\t-1 ", minus_one));
 
-  assertEquals(%Compare(minus_one, "-0x1", undef), undef);
-  assertEquals(%Compare("-0x1", minus_one, undef), undef);
+  assertFalse(%LessThan(minus_one, "-0x1"));
+  assertFalse(%GreaterThan(minus_one, "-0x1"));
+  assertFalse(%Equal(minus_one, "-0x1"));
+  assertFalse(%LessThan("-0x1", minus_one));
+  assertFalse(%GreaterThan("-0x1", minus_one));
+  assertFalse(%Equal("-0x1", minus_one));
 
   const unsafe = "9007199254740993";  // 2**53 + 1
-  assertEquals(%Compare(BigInt.parseInt(unsafe), unsafe, undef), +1);
-  assertEquals(%Compare(unsafe, BigInt.parseInt(unsafe), undef), -1);
+  assertTrue(%GreaterThan(BigInt.parseInt(unsafe), unsafe));
+  assertTrue(%LessThan(unsafe, BigInt.parseInt(unsafe)));
 
-  assertThrows(() => %Compare(six, Symbol(6), undef), TypeError);
-  assertThrows(() => %Compare(Symbol(6), six, undef), TypeError);
+  assertThrows(() => %LessThan(six, Symbol(6)), TypeError);
+  assertThrows(() => %LessThan(Symbol(6), six), TypeError);
 
-  assertEquals(%Compare(six, {valueOf() {return Object(5)},
-                              toString() {return 6}}, undef), 0);
-  assertEquals(%Compare({valueOf() {return Object(5)},
-                         toString() {return 6}}, six, undef), 0);
+  var value_five_string_six = {
+      valueOf() { return Object(5); },
+      toString() { return 6; }
+  };
+  assertTrue(%LessThanOrEqual(six, value_five_string_six));
+  assertTrue(%GreaterThanOrEqual(six, value_five_string_six));
+  assertTrue(%LessThanOrEqual(value_five_string_six, six));
+  assertTrue(%GreaterThanOrEqual(value_five_string_six, six));
 }{
   assertFalse(zero < zero);
   assertTrue(zero <= zero);

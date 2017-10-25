@@ -126,8 +126,7 @@ Node* AsyncBuiltinsAssembler::Await(
       Node* const key =
           HeapConstant(factory()->promise_forwarding_handler_symbol());
       CallRuntime(Runtime::kSetProperty, context, on_reject, key,
-                  TrueConstant(),
-                  SmiConstant(Smi::FromEnum(LanguageMode::kStrict)));
+                  TrueConstant(), SmiConstant(LanguageMode::kStrict));
 
       GotoIf(IsFalse(is_predicted_as_caught), &common);
       PromiseSetHandledHint(value);
@@ -141,7 +140,7 @@ Node* AsyncBuiltinsAssembler::Await(
 
     Node* const key = HeapConstant(factory()->promise_handled_by_symbol());
     CallRuntime(Runtime::kSetProperty, context, throwaway, key, outer_promise,
-                SmiConstant(Smi::FromEnum(LanguageMode::kStrict)));
+                SmiConstant(LanguageMode::kStrict));
   }
 
   Goto(&do_perform_promise_then);

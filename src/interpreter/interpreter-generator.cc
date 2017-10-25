@@ -935,7 +935,7 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
                                       OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  void BitwiseBinaryOpWithFeedback(Token::Value bitwise_op) {
+  void BitwiseBinaryOpWithFeedback(Operation bitwise_op) {
     Node* reg_index = BytecodeOperandReg(0);
     Node* left = LoadRegister(reg_index);
     Node* right = GetAccumulator();
@@ -986,7 +986,7 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
     Dispatch();
   }
 
-  void BitwiseBinaryOpWithSmi(Token::Value bitwise_op) {
+  void BitwiseBinaryOpWithSmi(Operation bitwise_op) {
     Node* left = GetAccumulator();
     Node* right = BytecodeOperandImmSmi(0);
     Node* slot_index = BytecodeOperandIdx(1);
@@ -1022,21 +1022,21 @@ class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {
 //
 // BitwiseOr register <src> to accumulator.
 IGNITION_HANDLER(BitwiseOr, InterpreterBitwiseBinaryOpAssembler) {
-  BitwiseBinaryOpWithFeedback(Token::BIT_OR);
+  BitwiseBinaryOpWithFeedback(Operation::kBitwiseOr);
 }
 
 // BitwiseXor <src>
 //
 // BitwiseXor register <src> to accumulator.
 IGNITION_HANDLER(BitwiseXor, InterpreterBitwiseBinaryOpAssembler) {
-  BitwiseBinaryOpWithFeedback(Token::BIT_XOR);
+  BitwiseBinaryOpWithFeedback(Operation::kBitwiseXor);
 }
 
 // BitwiseAnd <src>
 //
 // BitwiseAnd register <src> to accumulator.
 IGNITION_HANDLER(BitwiseAnd, InterpreterBitwiseBinaryOpAssembler) {
-  BitwiseBinaryOpWithFeedback(Token::BIT_AND);
+  BitwiseBinaryOpWithFeedback(Operation::kBitwiseAnd);
 }
 
 // ShiftLeft <src>
@@ -1046,7 +1046,7 @@ IGNITION_HANDLER(BitwiseAnd, InterpreterBitwiseBinaryOpAssembler) {
 // before the operation. 5 lsb bits from the accumulator are used as count
 // i.e. <src> << (accumulator & 0x1F).
 IGNITION_HANDLER(ShiftLeft, InterpreterBitwiseBinaryOpAssembler) {
-  BitwiseBinaryOpWithFeedback(Token::SHL);
+  BitwiseBinaryOpWithFeedback(Operation::kShiftLeft);
 }
 
 // ShiftRight <src>
@@ -1056,7 +1056,7 @@ IGNITION_HANDLER(ShiftLeft, InterpreterBitwiseBinaryOpAssembler) {
 // accumulator to uint32 before the operation. 5 lsb bits from the accumulator
 // are used as count i.e. <src> >> (accumulator & 0x1F).
 IGNITION_HANDLER(ShiftRight, InterpreterBitwiseBinaryOpAssembler) {
-  BitwiseBinaryOpWithFeedback(Token::SAR);
+  BitwiseBinaryOpWithFeedback(Operation::kShiftRight);
 }
 
 // ShiftRightLogical <src>
@@ -1066,28 +1066,28 @@ IGNITION_HANDLER(ShiftRight, InterpreterBitwiseBinaryOpAssembler) {
 // uint32 before the operation 5 lsb bits from the accumulator are used as
 // count i.e. <src> << (accumulator & 0x1F).
 IGNITION_HANDLER(ShiftRightLogical, InterpreterBitwiseBinaryOpAssembler) {
-  BitwiseBinaryOpWithFeedback(Token::SHR);
+  BitwiseBinaryOpWithFeedback(Operation::kShiftRightLogical);
 }
 
 // BitwiseOrSmi <imm>
 //
 // BitwiseOrSmi accumulator with <imm>.
 IGNITION_HANDLER(BitwiseOrSmi, InterpreterBitwiseBinaryOpAssembler) {
-  BitwiseBinaryOpWithSmi(Token::BIT_OR);
+  BitwiseBinaryOpWithSmi(Operation::kBitwiseOr);
 }
 
 // BitwiseXorSmi <imm>
 //
 // BitwiseXorSmi accumulator with <imm>.
 IGNITION_HANDLER(BitwiseXorSmi, InterpreterBitwiseBinaryOpAssembler) {
-  BitwiseBinaryOpWithSmi(Token::BIT_XOR);
+  BitwiseBinaryOpWithSmi(Operation::kBitwiseXor);
 }
 
 // BitwiseAndSmi <imm>
 //
 // BitwiseAndSmi accumulator with <imm>.
 IGNITION_HANDLER(BitwiseAndSmi, InterpreterBitwiseBinaryOpAssembler) {
-  BitwiseBinaryOpWithSmi(Token::BIT_AND);
+  BitwiseBinaryOpWithSmi(Operation::kBitwiseAnd);
 }
 
 // BitwiseNot <feedback_slot>
@@ -1122,7 +1122,8 @@ IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
   UpdateFeedback(SmiConstant(BinaryOperationFeedback::kBigInt), feedback_vector,
                  slot_index);
   SetAccumulator(CallRuntime(Runtime::kBigIntUnaryOp, context,
-                             var_bigint.value(), SmiConstant(Token::BIT_NOT)));
+                             var_bigint.value(),
+                             SmiConstant(Operation::kBitwiseNot)));
   Dispatch();
 }
 
@@ -1132,7 +1133,7 @@ IGNITION_HANDLER(BitwiseNot, InterpreterAssembler) {
 // The accumulator is converted to an int32 before the operation. The 5
 // lsb bits from <imm> are used as count i.e. <src> << (<imm> & 0x1F).
 IGNITION_HANDLER(ShiftLeftSmi, InterpreterBitwiseBinaryOpAssembler) {
-  BitwiseBinaryOpWithSmi(Token::SHL);
+  BitwiseBinaryOpWithSmi(Operation::kShiftLeft);
 }
 
 // ShiftRightSmi <imm>
@@ -1141,7 +1142,7 @@ IGNITION_HANDLER(ShiftLeftSmi, InterpreterBitwiseBinaryOpAssembler) {
 // extended. The accumulator is converted to an int32 before the operation. The
 // 5 lsb bits from <imm> are used as count i.e. <src> >> (<imm> & 0x1F).
 IGNITION_HANDLER(ShiftRightSmi, InterpreterBitwiseBinaryOpAssembler) {
-  BitwiseBinaryOpWithSmi(Token::SAR);
+  BitwiseBinaryOpWithSmi(Operation::kShiftRight);
 }
 
 // ShiftRightLogicalSmi <imm>
@@ -1150,7 +1151,7 @@ IGNITION_HANDLER(ShiftRightSmi, InterpreterBitwiseBinaryOpAssembler) {
 // extended. The accumulator is converted to an int32 before the operation. The
 // 5 lsb bits from <imm> are used as count i.e. <src> >>> (<imm> & 0x1F).
 IGNITION_HANDLER(ShiftRightLogicalSmi, InterpreterBitwiseBinaryOpAssembler) {
-  BitwiseBinaryOpWithSmi(Token::SHR);
+  BitwiseBinaryOpWithSmi(Operation::kShiftRightLogical);
 }
 
 class UnaryNumericOpAssembler : public InterpreterAssembler {
@@ -1298,7 +1299,7 @@ class NegateAssemblerImpl : public UnaryNumericOpAssembler {
 
   Node* BigIntOp(Node* bigint_value) override {
     return CallRuntime(Runtime::kBigIntUnaryOp, GetContext(), bigint_value,
-                       SmiConstant(Token::SUB));
+                       SmiConstant(Operation::kNegate));
   }
 };
 
@@ -1351,8 +1352,8 @@ class IncDecAssembler : public UnaryNumericOpAssembler {
                            OperandScale operand_scale)
       : UnaryNumericOpAssembler(state, bytecode, operand_scale) {}
 
-  Token::Value op() {
-    DCHECK(op_ == Token::INC || op_ == Token::DEC);
+  Operation op() {
+    DCHECK(op_ == Operation::kIncrement || op_ == Operation::kDecrement);
     return op_;
   }
 
@@ -1361,8 +1362,9 @@ class IncDecAssembler : public UnaryNumericOpAssembler {
     // Try fast Smi operation first.
     Node* value = BitcastTaggedToWord(smi_value);
     Node* one = BitcastTaggedToWord(SmiConstant(1));
-    Node* pair = op() == Token::INC ? IntPtrAddWithOverflow(value, one)
-                                    : IntPtrSubWithOverflow(value, one);
+    Node* pair = op() == Operation::kIncrement
+                     ? IntPtrAddWithOverflow(value, one)
+                     : IntPtrSubWithOverflow(value, one);
     Node* overflow = Projection(1, pair);
 
     // Check if the Smi operation overflowed.
@@ -1383,8 +1385,9 @@ class IncDecAssembler : public UnaryNumericOpAssembler {
   }
 
   Node* FloatOp(Node* float_value) override {
-    return op() == Token::INC ? Float64Add(float_value, Float64Constant(1.0))
-                              : Float64Sub(float_value, Float64Constant(1.0));
+    return op() == Operation::kIncrement
+               ? Float64Add(float_value, Float64Constant(1.0))
+               : Float64Sub(float_value, Float64Constant(1.0));
   }
 
   Node* BigIntOp(Node* bigint_value) override {
@@ -1393,17 +1396,17 @@ class IncDecAssembler : public UnaryNumericOpAssembler {
   }
 
   void IncWithFeedback() {
-    op_ = Token::INC;
+    op_ = Operation::kIncrement;
     UnaryOpWithFeedback();
   }
 
   void DecWithFeedback() {
-    op_ = Token::DEC;
+    op_ = Operation::kDecrement;
     UnaryOpWithFeedback();
   }
 
  private:
-  Token::Value op_ = Token::ILLEGAL;
+  Operation op_ = Operation::kEqual;  // Dummy initialization.
 };
 
 // Inc
@@ -1796,7 +1799,7 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
                                 OperandScale operand_scale)
       : InterpreterAssembler(state, bytecode, operand_scale) {}
 
-  void CompareOpWithFeedback(Token::Value compare_op) {
+  void CompareOpWithFeedback(Operation compare_op) {
     Node* reg_index = BytecodeOperandReg(0);
     Node* lhs = LoadRegister(reg_index);
     Node* rhs = GetAccumulator();
@@ -1805,29 +1808,18 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
     Variable var_type_feedback(this, MachineRepresentation::kTagged);
     Node* result;
     switch (compare_op) {
-      case Token::EQ:
+      case Operation::kEqual:
         result = Equal(lhs, rhs, context, &var_type_feedback);
         break;
-      case Token::EQ_STRICT:
+      case Operation::kStrictEqual:
         result = StrictEqual(lhs, rhs, &var_type_feedback);
         break;
-      case Token::LT:
-        result = RelationalComparison(RelationalComparisonMode::kLessThan, lhs,
-                                      rhs, context, &var_type_feedback);
-        break;
-      case Token::GT:
-        result = RelationalComparison(RelationalComparisonMode::kGreaterThan,
-                                      lhs, rhs, context, &var_type_feedback);
-        break;
-      case Token::LTE:
-        result =
-            RelationalComparison(RelationalComparisonMode::kLessThanOrEqual,
-                                 lhs, rhs, context, &var_type_feedback);
-        break;
-      case Token::GTE:
-        result =
-            RelationalComparison(RelationalComparisonMode::kGreaterThanOrEqual,
-                                 lhs, rhs, context, &var_type_feedback);
+      case Operation::kLessThan:
+      case Operation::kGreaterThan:
+      case Operation::kLessThanOrEqual:
+      case Operation::kGreaterThanOrEqual:
+        result = RelationalComparison(compare_op, lhs, rhs, context,
+                                      &var_type_feedback);
         break;
       default:
         UNREACHABLE();
@@ -1845,28 +1837,28 @@ class InterpreterCompareOpAssembler : public InterpreterAssembler {
 //
 // Test if the value in the <src> register equals the accumulator.
 IGNITION_HANDLER(TestEqual, InterpreterCompareOpAssembler) {
-  CompareOpWithFeedback(Token::Value::EQ);
+  CompareOpWithFeedback(Operation::kEqual);
 }
 
 // TestEqualStrict <src>
 //
 // Test if the value in the <src> register is strictly equal to the accumulator.
 IGNITION_HANDLER(TestEqualStrict, InterpreterCompareOpAssembler) {
-  CompareOpWithFeedback(Token::Value::EQ_STRICT);
+  CompareOpWithFeedback(Operation::kStrictEqual);
 }
 
 // TestLessThan <src>
 //
 // Test if the value in the <src> register is less than the accumulator.
 IGNITION_HANDLER(TestLessThan, InterpreterCompareOpAssembler) {
-  CompareOpWithFeedback(Token::Value::LT);
+  CompareOpWithFeedback(Operation::kLessThan);
 }
 
 // TestGreaterThan <src>
 //
 // Test if the value in the <src> register is greater than the accumulator.
 IGNITION_HANDLER(TestGreaterThan, InterpreterCompareOpAssembler) {
-  CompareOpWithFeedback(Token::Value::GT);
+  CompareOpWithFeedback(Operation::kGreaterThan);
 }
 
 // TestLessThanOrEqual <src>
@@ -1874,7 +1866,7 @@ IGNITION_HANDLER(TestGreaterThan, InterpreterCompareOpAssembler) {
 // Test if the value in the <src> register is less than or equal to the
 // accumulator.
 IGNITION_HANDLER(TestLessThanOrEqual, InterpreterCompareOpAssembler) {
-  CompareOpWithFeedback(Token::Value::LTE);
+  CompareOpWithFeedback(Operation::kLessThanOrEqual);
 }
 
 // TestGreaterThanOrEqual <src>
@@ -1882,7 +1874,7 @@ IGNITION_HANDLER(TestLessThanOrEqual, InterpreterCompareOpAssembler) {
 // Test if the value in the <src> register is greater than or equal to the
 // accumulator.
 IGNITION_HANDLER(TestGreaterThanOrEqual, InterpreterCompareOpAssembler) {
-  CompareOpWithFeedback(Token::Value::GTE);
+  CompareOpWithFeedback(Operation::kGreaterThanOrEqual);
 }
 
 // TestEqualStrictNoFeedback <src>

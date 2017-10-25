@@ -429,7 +429,6 @@ namespace internal {
   F(ToName, 1, 1)                                               \
   F(SameValue, 2, 1)                                            \
   F(SameValueZero, 2, 1)                                        \
-  F(Compare, 3, 1)                                              \
   F(HasInPrototypeChain, 2, 1)                                  \
   F(CreateIterResultObject, 2, 1)                               \
   F(CreateDataProperty, 3, 1)                                   \
@@ -534,7 +533,6 @@ namespace internal {
   F(StringAdd, 2, 1)                      \
   F(InternalizeString, 1, 1)              \
   F(StringCharCodeAt, 2, 1)               \
-  F(StringCompare, 2, 1)                  \
   F(StringBuilderConcat, 3, 1)            \
   F(StringBuilderJoin, 3, 1)              \
   F(SparseJoinWithSeparator, 3, 1)        \

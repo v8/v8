@@ -2685,9 +2685,9 @@ TEST(BranchIfNumericRelationalComparison) {
   {
     CodeStubAssembler m(asm_tester.state());
     Label return_true(&m), return_false(&m);
-    m.BranchIfNumericRelationalComparison(
-        RelationalComparisonMode::kGreaterThanOrEqual, m.Parameter(0),
-        m.Parameter(1), &return_true, &return_false);
+    m.BranchIfNumericRelationalComparison(Operation::kGreaterThanOrEqual,
+                                          m.Parameter(0), m.Parameter(1),
+                                          &return_true, &return_false);
     m.BIND(&return_true);
     m.Return(m.BooleanConstant(true));
     m.BIND(&return_false);

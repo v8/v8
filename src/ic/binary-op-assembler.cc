@@ -193,7 +193,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kBigInt));
     var_result.Bind(CallRuntime(Runtime::kBigIntBinaryOp, context, lhs, rhs,
-                                SmiConstant(Token::ADD)));
+                                SmiConstant(Operation::kAdd)));
     Goto(&end);
   }
 
@@ -224,7 +224,7 @@ Node* BinaryOpAssembler::Generate_AddWithFeedback(Node* context, Node* lhs,
 Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
     Node* context, Node* lhs, Node* rhs, Node* slot_id, Node* feedback_vector,
     const SmiOperation& smiOperation, const FloatOperation& floatOperation,
-    Token::Value opcode, bool rhs_is_smi) {
+    Operation op, bool rhs_is_smi) {
   Label do_float_operation(this), end(this), call_stub(this),
       check_rhsisoddball(this, Label::kDeferred), call_with_any_feedback(this),
       if_lhsisnotnumber(this, Label::kDeferred),
@@ -373,7 +373,7 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   {
     var_type_feedback.Bind(SmiConstant(BinaryOperationFeedback::kBigInt));
     var_result.Bind(CallRuntime(Runtime::kBigIntBinaryOp, context, lhs, rhs,
-                                SmiConstant(opcode)));
+                                SmiConstant(op)));
     Goto(&end);
   }
 
@@ -386,17 +386,17 @@ Node* BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
   BIND(&call_stub);
   {
     Node* result;
-    switch (opcode) {
-      case Token::SUB:
+    switch (op) {
+      case Operation::kSubtract:
         result = CallBuiltin(Builtins::kSubtract, context, lhs, rhs);
         break;
-      case Token::MUL:
+      case Operation::kMultiply:
         result = CallBuiltin(Builtins::kMultiply, context, lhs, rhs);
         break;
-      case Token::DIV:
+      case Operation::kDivide:
         result = CallBuiltin(Builtins::kDivide, context, lhs, rhs);
         break;
-      case Token::MOD:
+      case Operation::kModulus:
         result = CallBuiltin(Builtins::kModulus, context, lhs, rhs);
         break;
       default:
@@ -455,7 +455,7 @@ Node* BinaryOpAssembler::Generate_SubtractWithFeedback(Node* context, Node* lhs,
   };
   return Generate_BinaryOperationWithFeedback(
       context, lhs, rhs, slot_id, feedback_vector, smiFunction, floatFunction,
-      Token::SUB, rhs_is_smi);
+      Operation::kSubtract, rhs_is_smi);
 }
 
 Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
@@ -474,7 +474,7 @@ Node* BinaryOpAssembler::Generate_MultiplyWithFeedback(Node* context, Node* lhs,
   };
   return Generate_BinaryOperationWithFeedback(
       context, lhs, rhs, slot_id, feedback_vector, smiFunction, floatFunction,
-      Token::MUL, rhs_is_smi);
+      Operation::kMultiply, rhs_is_smi);
 }
 
 Node* BinaryOpAssembler::Generate_DivideWithFeedback(
@@ -508,7 +508,7 @@ Node* BinaryOpAssembler::Generate_DivideWithFeedback(
   };
   return Generate_BinaryOperationWithFeedback(
       context, dividend, divisor, slot_id, feedback_vector, smiFunction,
-      floatFunction, Token::DIV, rhs_is_smi);
+      floatFunction, Operation::kDivide, rhs_is_smi);
 }
 
 Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
@@ -526,7 +526,7 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
   };
   return Generate_BinaryOperationWithFeedback(
       context, dividend, divisor, slot_id, feedback_vector, smiFunction,
-      floatFunction, Token::MOD, rhs_is_smi);
+      floatFunction, Operation::kModulus, rhs_is_smi);
 }
 
 }  // namespace internal

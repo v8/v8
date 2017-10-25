@@ -13,7 +13,6 @@
 #include "src/base/macros.h"
 #include "src/builtins/builtins.h"
 #include "src/interpreter/bytecodes.h"
-#include "src/parsing/token.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {

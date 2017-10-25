@@ -57,9 +57,6 @@ const Register StoreTransitionDescriptor::SlotRegister() { return rdi; }
 const Register StoreTransitionDescriptor::VectorRegister() { return rbx; }
 const Register StoreTransitionDescriptor::MapRegister() { return r11; }
 
-const Register StringCompareDescriptor::LeftRegister() { return rdx; }
-const Register StringCompareDescriptor::RightRegister() { return rax; }
-
 const Register ApiGetterDescriptor::HolderRegister() { return rcx; }
 const Register ApiGetterDescriptor::CallbackRegister() { return rbx; }
 

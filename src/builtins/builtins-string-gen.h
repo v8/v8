@@ -46,8 +46,7 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
 
   void GenerateStringEqual(Node* context, Node* left, Node* right);
   void GenerateStringRelationalComparison(Node* context, Node* left,
-                                          Node* right,
-                                          RelationalComparisonMode mode);
+                                          Node* right, Operation op);
 
   TNode<Smi> ToSmiBetweenZeroAnd(SloppyTNode<Context> context,
                                  SloppyTNode<Object> value,

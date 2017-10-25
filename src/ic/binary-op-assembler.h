@@ -49,7 +49,7 @@ class BinaryOpAssembler : public CodeStubAssembler {
   Node* Generate_BinaryOperationWithFeedback(
       Node* context, Node* lhs, Node* rhs, Node* slot_id, Node* feedback_vector,
       const SmiOperation& smiOperation, const FloatOperation& floatOperation,
-      Token::Value opcode, bool rhs_is_smi);
+      Operation op, bool rhs_is_smi);
 };
 
 }  // namespace internal

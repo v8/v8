@@ -629,6 +629,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   TNode<Number> NumberConstant(double value);
   TNode<Smi> SmiConstant(Smi* value);
   TNode<Smi> SmiConstant(int value);
+  template <typename E,
+            typename = typename std::enable_if<std::is_enum<E>::value>::type>
+  TNode<Smi> SmiConstant(E value) {
+    STATIC_ASSERT(sizeof(E) <= sizeof(int));
+    return SmiConstant(static_cast<int>(value));
+  }
   TNode<HeapObject> UntypedHeapConstant(Handle<HeapObject> object);
   template <class Type>
   TNode<Type> HeapConstant(Handle<Type> object) {

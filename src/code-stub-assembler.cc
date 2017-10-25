@@ -8036,8 +8036,7 @@ void CodeStubAssembler::InitializeFieldsWithRoot(
 }
 
 void CodeStubAssembler::BranchIfNumericRelationalComparison(
-    RelationalComparisonMode mode, Node* lhs, Node* rhs, Label* if_true,
-    Label* if_false) {
+    Operation op, Node* lhs, Node* rhs, Label* if_true, Label* if_false) {
   CSA_SLOW_ASSERT(this, IsNumber(lhs));
   CSA_SLOW_ASSERT(this, IsNumber(rhs));
 
@@ -8062,19 +8061,21 @@ void CodeStubAssembler::BranchIfNumericRelationalComparison(
     BIND(&if_rhsissmi);
     {
       // Both {lhs} and {rhs} are Smi, so just perform a fast Smi comparison.
-      switch (mode) {
-        case RelationalComparisonMode::kLessThan:
+      switch (op) {
+        case Operation::kLessThan:
           BranchIfSmiLessThan(lhs, rhs, if_true, if_false);
           break;
-        case RelationalComparisonMode::kLessThanOrEqual:
+        case Operation::kLessThanOrEqual:
           BranchIfSmiLessThanOrEqual(lhs, rhs, if_true, if_false);
           break;
-        case RelationalComparisonMode::kGreaterThan:
+        case Operation::kGreaterThan:
           BranchIfSmiLessThan(rhs, lhs, if_true, if_false);
           break;
-        case RelationalComparisonMode::kGreaterThanOrEqual:
+        case Operation::kGreaterThanOrEqual:
           BranchIfSmiLessThanOrEqual(rhs, lhs, if_true, if_false);
           break;
+        default:
+          UNREACHABLE();
       }
     }
 
@@ -8125,19 +8126,21 @@ void CodeStubAssembler::BranchIfNumericRelationalComparison(
     Node* rhs = var_fcmp_rhs.value();
 
     // Perform a fast floating point comparison.
-    switch (mode) {
-      case RelationalComparisonMode::kLessThan:
+    switch (op) {
+      case Operation::kLessThan:
         Branch(Float64LessThan(lhs, rhs), if_true, if_false);
         break;
-      case RelationalComparisonMode::kLessThanOrEqual:
+      case Operation::kLessThanOrEqual:
         Branch(Float64LessThanOrEqual(lhs, rhs), if_true, if_false);
         break;
-      case RelationalComparisonMode::kGreaterThan:
+      case Operation::kGreaterThan:
         Branch(Float64GreaterThan(lhs, rhs), if_true, if_false);
         break;
-      case RelationalComparisonMode::kGreaterThanOrEqual:
+      case Operation::kGreaterThanOrEqual:
         Branch(Float64GreaterThanOrEqual(lhs, rhs), if_true, if_false);
         break;
+      default:
+        UNREACHABLE();
     }
   }
 }
@@ -8145,31 +8148,31 @@ void CodeStubAssembler::BranchIfNumericRelationalComparison(
 void CodeStubAssembler::GotoIfNumericGreaterThanOrEqual(Node* lhs, Node* rhs,
                                                         Label* if_true) {
   Label if_false(this);
-  BranchIfNumericRelationalComparison(
-      RelationalComparisonMode::kGreaterThanOrEqual, lhs, rhs, if_true,
-      &if_false);
+  BranchIfNumericRelationalComparison(Operation::kGreaterThanOrEqual, lhs, rhs,
+                                      if_true, &if_false);
   BIND(&if_false);
 }
 
 namespace {
-RelationalComparisonMode Invert(RelationalComparisonMode mode) {
-  switch (mode) {
-    case RelationalComparisonMode::kLessThan:
-      return RelationalComparisonMode::kGreaterThan;
-    case RelationalComparisonMode::kLessThanOrEqual:
-      return RelationalComparisonMode::kGreaterThanOrEqual;
-    case RelationalComparisonMode::kGreaterThan:
-      return RelationalComparisonMode::kLessThan;
-    case RelationalComparisonMode::kGreaterThanOrEqual:
-      return RelationalComparisonMode::kLessThanOrEqual;
+Operation Reverse(Operation op) {
+  switch (op) {
+    case Operation::kLessThan:
+      return Operation::kGreaterThan;
+    case Operation::kLessThanOrEqual:
+      return Operation::kGreaterThanOrEqual;
+    case Operation::kGreaterThan:
+      return Operation::kLessThan;
+    case Operation::kGreaterThanOrEqual:
+      return Operation::kLessThanOrEqual;
+    default:
+      break;
   }
   UNREACHABLE();
 }
 }  // anonymous namespace
 
-Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
-                                              Node* lhs, Node* rhs,
-                                              Node* context,
+Node* CodeStubAssembler::RelationalComparison(Operation op, Node* lhs,
+                                              Node* rhs, Node* context,
                                               Variable* var_type_feedback) {
   Label return_true(this), return_false(this), end(this);
   VARIABLE(result, MachineRepresentation::kTagged);
@@ -8221,19 +8224,21 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
           CombineFeedback(var_type_feedback,
                           SmiConstant(CompareOperationFeedback::kSignedSmall));
         }
-        switch (mode) {
-          case RelationalComparisonMode::kLessThan:
+        switch (op) {
+          case Operation::kLessThan:
             BranchIfSmiLessThan(lhs, rhs, &return_true, &return_false);
             break;
-          case RelationalComparisonMode::kLessThanOrEqual:
+          case Operation::kLessThanOrEqual:
             BranchIfSmiLessThanOrEqual(lhs, rhs, &return_true, &return_false);
             break;
-          case RelationalComparisonMode::kGreaterThan:
+          case Operation::kGreaterThan:
             BranchIfSmiLessThan(rhs, lhs, &return_true, &return_false);
             break;
-          case RelationalComparisonMode::kGreaterThanOrEqual:
+          case Operation::kGreaterThanOrEqual:
             BranchIfSmiLessThanOrEqual(rhs, lhs, &return_true, &return_false);
             break;
+          default:
+            UNREACHABLE();
         }
       }
 
@@ -8256,9 +8261,9 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
         if (var_type_feedback != nullptr) {
           var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kAny));
         }
-        result.Bind(
-            CallRuntime(Runtime::kBigIntCompareToNumber, NoContextConstant(),
-                        SmiConstant(static_cast<int>(Invert(mode))), rhs, lhs));
+        result.Bind(CallRuntime(Runtime::kBigIntCompareToNumber,
+                                NoContextConstant(), SmiConstant(Reverse(op)),
+                                rhs, lhs));
         Goto(&end);
       }
 
@@ -8313,9 +8318,9 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
             var_type_feedback->Bind(
                 SmiConstant(CompareOperationFeedback::kAny));
           }
-          result.Bind(
-              CallRuntime(Runtime::kBigIntCompareToNumber, NoContextConstant(),
-                          SmiConstant(static_cast<int>(mode)), lhs, rhs));
+          result.Bind(CallRuntime(Runtime::kBigIntCompareToNumber,
+                                  NoContextConstant(), SmiConstant(op), lhs,
+                                  rhs));
           Goto(&end);
         }
 
@@ -8380,9 +8385,9 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
               var_type_feedback->Bind(
                   SmiConstant(CompareOperationFeedback::kAny));
             }
-            result.Bind(CallRuntime(
-                Runtime::kBigIntCompareToNumber, NoContextConstant(),
-                SmiConstant(static_cast<int>(Invert(mode))), rhs, lhs));
+            result.Bind(CallRuntime(Runtime::kBigIntCompareToNumber,
+                                    NoContextConstant(),
+                                    SmiConstant(Reverse(op)), rhs, lhs));
             Goto(&end);
           }
 
@@ -8419,17 +8424,17 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
 
           BIND(&if_rhsisheapnumber);
           {
-            result.Bind(CallRuntime(
-                Runtime::kBigIntCompareToNumber, NoContextConstant(),
-                SmiConstant(static_cast<int>(mode)), lhs, rhs));
+            result.Bind(CallRuntime(Runtime::kBigIntCompareToNumber,
+                                    NoContextConstant(), SmiConstant(op), lhs,
+                                    rhs));
             Goto(&end);
           }
 
           BIND(&if_rhsisbigint);
           {
-            result.Bind(CallRuntime(
-                Runtime::kBigIntCompareToBigInt, NoContextConstant(),
-                SmiConstant(static_cast<int>(mode)), lhs, rhs));
+            result.Bind(CallRuntime(Runtime::kBigIntCompareToBigInt,
+                                    NoContextConstant(), SmiConstant(op), lhs,
+                                    rhs));
             Goto(&end);
           }
 
@@ -8463,27 +8468,29 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
               CombineFeedback(var_type_feedback,
                               SmiConstant(CompareOperationFeedback::kString));
             }
-            switch (mode) {
-              case RelationalComparisonMode::kLessThan:
+            switch (op) {
+              case Operation::kLessThan:
                 result.Bind(
                     CallBuiltin(Builtins::kStringLessThan, context, lhs, rhs));
                 Goto(&end);
                 break;
-              case RelationalComparisonMode::kLessThanOrEqual:
+              case Operation::kLessThanOrEqual:
                 result.Bind(CallBuiltin(Builtins::kStringLessThanOrEqual,
                                         context, lhs, rhs));
                 Goto(&end);
                 break;
-              case RelationalComparisonMode::kGreaterThan:
+              case Operation::kGreaterThan:
                 result.Bind(CallBuiltin(Builtins::kStringGreaterThan, context,
                                         lhs, rhs));
                 Goto(&end);
                 break;
-              case RelationalComparisonMode::kGreaterThanOrEqual:
+              case Operation::kGreaterThanOrEqual:
                 result.Bind(CallBuiltin(Builtins::kStringGreaterThanOrEqual,
                                         context, lhs, rhs));
                 Goto(&end);
                 break;
+              default:
+                UNREACHABLE();
             }
           }
 
@@ -8595,20 +8602,22 @@ Node* CodeStubAssembler::RelationalComparison(RelationalComparisonMode mode,
     Node* rhs = var_fcmp_rhs.value();
 
     // Perform a fast floating point comparison.
-    switch (mode) {
-      case RelationalComparisonMode::kLessThan:
+    switch (op) {
+      case Operation::kLessThan:
         Branch(Float64LessThan(lhs, rhs), &return_true, &return_false);
         break;
-      case RelationalComparisonMode::kLessThanOrEqual:
+      case Operation::kLessThanOrEqual:
         Branch(Float64LessThanOrEqual(lhs, rhs), &return_true, &return_false);
         break;
-      case RelationalComparisonMode::kGreaterThan:
+      case Operation::kGreaterThan:
         Branch(Float64GreaterThan(lhs, rhs), &return_true, &return_false);
         break;
-      case RelationalComparisonMode::kGreaterThanOrEqual:
+      case Operation::kGreaterThanOrEqual:
         Branch(Float64GreaterThanOrEqual(lhs, rhs), &return_true,
                &return_false);
         break;
+      default:
+        UNREACHABLE();
     }
   }
 
@@ -10020,21 +10029,21 @@ void CodeStubAssembler::GotoIfNumber(Node* input, Label* is_number) {
 }
 
 Node* CodeStubAssembler::BitwiseOp(Node* left32, Node* right32,
-                                   Token::Value bitwise_op) {
+                                   Operation bitwise_op) {
   switch (bitwise_op) {
-    case Token::BIT_AND:
+    case Operation::kBitwiseAnd:
       return ChangeInt32ToTagged(Signed(Word32And(left32, right32)));
-    case Token::BIT_OR:
+    case Operation::kBitwiseOr:
       return ChangeInt32ToTagged(Signed(Word32Or(left32, right32)));
-    case Token::BIT_XOR:
+    case Operation::kBitwiseXor:
       return ChangeInt32ToTagged(Signed(Word32Xor(left32, right32)));
-    case Token::SHL:
+    case Operation::kShiftLeft:
       return ChangeInt32ToTagged(
           Signed(Word32Shl(left32, Word32And(right32, Int32Constant(0x1f)))));
-    case Token::SAR:
+    case Operation::kShiftRight:
       return ChangeInt32ToTagged(
           Signed(Word32Sar(left32, Word32And(right32, Int32Constant(0x1f)))));
-    case Token::SHR:
+    case Operation::kShiftRightLogical:
       return ChangeUint32ToTagged(
           Unsigned(Word32Shr(left32, Word32And(right32, Int32Constant(0x1f)))));
     default:
