@@ -1545,12 +1545,12 @@ WASM_EXEC_TEST(UnalignedInt64Store) {
     for (size_t i = 0; i < sizeof(__buf); i++) vec.push_back(__buf[i]); \
   } while (false)
 
-static void CompileCallIndirectMany(ValueType param) {
+static void CompileCallIndirectMany(WasmExecutionMode mode, ValueType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; num_params++) {
-    WasmRunner<void> r(kExecuteCompiled);
+    WasmRunner<void> r(mode);
     FunctionSig* sig = sigs.many(r.zone(), kWasmStmt, param, num_params);
 
     r.builder().AddSignature(sig);
@@ -1570,7 +1570,9 @@ static void CompileCallIndirectMany(ValueType param) {
   }
 }
 
-TEST(Compile_Wasm_CallIndirect_Many_i64) { CompileCallIndirectMany(kWasmI64); }
+WASM_EXEC_TEST(Compile_Wasm_CallIndirect_Many_i64) {
+  CompileCallIndirectMany(execution_mode, kWasmI64);
+}
 
 static void Run_WasmMixedCall_N(WasmExecutionMode execution_mode, int start) {
   const int kExpected = 6333;

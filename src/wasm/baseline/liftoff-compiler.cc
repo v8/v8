@@ -87,10 +87,6 @@ class LiftoffCompiler {
   }
 
   void StartFunction(Decoder* decoder) {
-    if (!kLiftoffAssemblerImplementedOnThisPlatform) {
-      unsupported(decoder, "platform");
-      return;
-    }
     int num_locals = decoder->NumLocals();
     __ set_num_locals(num_locals);
     for (int i = 0; i < num_locals; ++i) {
@@ -99,6 +95,10 @@ class LiftoffCompiler {
   }
 
   void StartFunctionBody(Decoder* decoder, Control* block) {
+    if (!kLiftoffAssemblerImplementedOnThisPlatform) {
+      unsupported(decoder, "platform");
+      return;
+    }
     __ EnterFrame(StackFrame::WASM_COMPILED);
     __ ReserveStackSpace(kPointerSize *
                          (__ num_locals() + kMaxValueStackHeight));

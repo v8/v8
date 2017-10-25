@@ -265,8 +265,8 @@ std::vector<WasmValue> wasmVec(Args... args) {
 
 }  // namespace
 
-TEST(WasmCollectPossibleBreakpoints) {
-  WasmRunner<int> runner(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(WasmCollectPossibleBreakpoints) {
+  WasmRunner<int> runner(execution_mode);
 
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_ZERO, WASM_ONE));
 
@@ -290,8 +290,8 @@ TEST(WasmCollectPossibleBreakpoints) {
   CheckLocationsFail(instance->compiled_module(), {0, 9}, {1, 0});
 }
 
-TEST(WasmSimpleBreak) {
-  WasmRunner<int> runner(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(WasmSimpleBreak) {
+  WasmRunner<int> runner(execution_mode);
   Isolate* isolate = runner.main_isolate();
 
   BUILD(runner, WASM_NOP, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3)));
@@ -311,8 +311,8 @@ TEST(WasmSimpleBreak) {
   CHECK_EQ(14, result);
 }
 
-TEST(WasmSimpleStepping) {
-  WasmRunner<int> runner(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(WasmSimpleStepping) {
+  WasmRunner<int> runner(execution_mode);
   BUILD(runner, WASM_I32_ADD(WASM_I32V_1(11), WASM_I32V_1(3)));
 
   Isolate* isolate = runner.main_isolate();
@@ -338,8 +338,8 @@ TEST(WasmSimpleStepping) {
   CHECK_EQ(14, result);
 }
 
-TEST(WasmStepInAndOut) {
-  WasmRunner<int, int> runner(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(WasmStepInAndOut) {
+  WasmRunner<int, int> runner(execution_mode);
   WasmFunctionCompiler& f2 = runner.NewFunction<void>();
   f2.AllocateLocal(ValueType::kWord32);
 
@@ -378,8 +378,8 @@ TEST(WasmStepInAndOut) {
              .is_null());
 }
 
-TEST(WasmGetLocalsAndStack) {
-  WasmRunner<void, int> runner(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(WasmGetLocalsAndStack) {
+  WasmRunner<void, int> runner(execution_mode);
   runner.AllocateLocal(ValueType::kWord64);
   runner.AllocateLocal(ValueType::kFloat32);
   runner.AllocateLocal(ValueType::kFloat64);

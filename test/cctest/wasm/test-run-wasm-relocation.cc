@@ -17,8 +17,8 @@ namespace internal {
 namespace wasm {
 namespace test_run_wasm_relocation {
 
-TEST(RunPatchWasmContext) {
-  WasmRunner<uint32_t, uint32_t> r(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(RunPatchWasmContext) {
+  WasmRunner<uint32_t, uint32_t> r(execution_mode);
   Isolate* isolate = CcTest::i_isolate();
 
   r.builder().AddGlobal<uint32_t>();

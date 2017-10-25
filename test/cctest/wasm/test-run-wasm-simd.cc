@@ -35,7 +35,7 @@ typedef int8_t (*Int8ShiftOp)(int8_t, int);
   void RunWasm_##name##_Impl(WasmExecutionMode execution_mode); \
   TEST(RunWasm_##name##_compiled) {                             \
     EXPERIMENTAL_FLAG_SCOPE(simd);                              \
-    RunWasm_##name##_Impl(kExecuteCompiled);                    \
+    RunWasm_##name##_Impl(kExecuteTurbofan);                    \
   }                                                             \
   TEST(RunWasm_##name##_simd_lowered) {                         \
     EXPERIMENTAL_FLAG_SCOPE(simd);                              \
@@ -47,7 +47,7 @@ typedef int8_t (*Int8ShiftOp)(int8_t, int);
   void RunWasm_##name##_Impl(WasmExecutionMode execution_mode); \
   TEST(RunWasm_##name##_compiled) {                             \
     EXPERIMENTAL_FLAG_SCOPE(simd);                              \
-    RunWasm_##name##_Impl(kExecuteCompiled);                    \
+    RunWasm_##name##_Impl(kExecuteTurbofan);                    \
   }                                                             \
   void RunWasm_##name##_Impl(WasmExecutionMode execution_mode)
 

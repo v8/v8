@@ -1867,30 +1867,30 @@ WASM_EXEC_TEST(Unreachable0b) {
   CHECK_EQ(7, r.Call(1));
 }
 
-TEST(Build_Wasm_Unreachable1) {
-  WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(Build_Wasm_Unreachable1) {
+  WasmRunner<int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_UNREACHABLE);
 }
 
-TEST(Build_Wasm_Unreachable2) {
-  WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(Build_Wasm_Unreachable2) {
+  WasmRunner<int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_UNREACHABLE, WASM_UNREACHABLE);
 }
 
-TEST(Build_Wasm_Unreachable3) {
-  WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(Build_Wasm_Unreachable3) {
+  WasmRunner<int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_UNREACHABLE, WASM_UNREACHABLE, WASM_UNREACHABLE);
 }
 
-TEST(Build_Wasm_UnreachableIf1) {
-  WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(Build_Wasm_UnreachableIf1) {
+  WasmRunner<int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_UNREACHABLE,
         WASM_IF(WASM_GET_LOCAL(0), WASM_SEQ(WASM_GET_LOCAL(0), WASM_DROP)),
         WASM_ZERO);
 }
 
-TEST(Build_Wasm_UnreachableIf2) {
-  WasmRunner<int32_t, int32_t> r(kExecuteCompiled);
+WASM_COMPILED_EXEC_TEST(Build_Wasm_UnreachableIf2) {
+  WasmRunner<int32_t, int32_t> r(execution_mode);
   BUILD(r, WASM_UNREACHABLE,
         WASM_IF_ELSE_I(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0), WASM_UNREACHABLE));
 }
@@ -2931,12 +2931,12 @@ WASM_EXEC_TEST(F32CopySign) {
   }
 }
 
-static void CompileCallIndirectMany(ValueType param) {
+static void CompileCallIndirectMany(WasmExecutionMode mode, ValueType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
   TestSignatures sigs;
   for (byte num_params = 0; num_params < 40; ++num_params) {
-    WasmRunner<void> r(kExecuteCompiled);
+    WasmRunner<void> r(mode);
     FunctionSig* sig = sigs.many(r.zone(), kWasmStmt, param, num_params);
 
     r.builder().AddSignature(sig);
@@ -2956,11 +2956,17 @@ static void CompileCallIndirectMany(ValueType param) {
   }
 }
 
-TEST(Compile_Wasm_CallIndirect_Many_i32) { CompileCallIndirectMany(kWasmI32); }
+WASM_COMPILED_EXEC_TEST(Compile_Wasm_CallIndirect_Many_i32) {
+  CompileCallIndirectMany(execution_mode, kWasmI32);
+}
 
-TEST(Compile_Wasm_CallIndirect_Many_f32) { CompileCallIndirectMany(kWasmF32); }
+WASM_COMPILED_EXEC_TEST(Compile_Wasm_CallIndirect_Many_f32) {
+  CompileCallIndirectMany(execution_mode, kWasmF32);
+}
 
-TEST(Compile_Wasm_CallIndirect_Many_f64) { CompileCallIndirectMany(kWasmF64); }
+WASM_COMPILED_EXEC_TEST(Compile_Wasm_CallIndirect_Many_f64) {
+  CompileCallIndirectMany(execution_mode, kWasmF64);
+}
 
 WASM_EXEC_TEST(Int32RemS_dead) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);

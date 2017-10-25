@@ -22,6 +22,7 @@ TestingModuleBuilder::TestingModuleBuilder(
       mem_start_(nullptr),
       mem_size_(0),
       interpreter_(nullptr),
+      execution_mode_(mode),
       runtime_exception_support_(exception_support),
       lower_simd_(mode == kExecuteSimdLowered) {
   WasmJs::Install(isolate_, true);
@@ -407,12 +408,14 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
 
   FunctionBody func_body{function_->sig, function_->code.offset(),
                          func_wire_bytes.start(), func_wire_bytes.end()};
+  compiler::WasmCompilationUnit::CompilationMode comp_mode =
+      builder_->execution_mode() == WasmExecutionMode::kExecuteLiftoff
+          ? compiler::WasmCompilationUnit::CompilationMode::kLiftoff
+          : compiler::WasmCompilationUnit::CompilationMode::kTurbofan;
   compiler::WasmCompilationUnit unit(
       isolate(), &module_env, func_body, func_name, function_->func_index,
-      CEntryStub(isolate(), 1).GetCode(),
-      compiler::WasmCompilationUnit::GetDefaultCompilationMode(),
-      isolate()->counters(), builder_->runtime_exception_support(),
-      builder_->lower_simd());
+      CEntryStub(isolate(), 1).GetCode(), comp_mode, isolate()->counters(),
+      builder_->runtime_exception_support(), builder_->lower_simd());
   unit.ExecuteCompilation();
   Handle<Code> code = unit.FinishCompilation(&thrower).ToHandleChecked();
   CHECK(!thrower.error());
