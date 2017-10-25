@@ -3985,8 +3985,13 @@ void BytecodeGenerator::VisitCommaExpression(BinaryOperation* binop) {
 }
 
 void BytecodeGenerator::VisitNaryCommaExpression(NaryOperation* expr) {
-  // TODO(leszeks): Implement
-  UNREACHABLE();
+  DCHECK_GT(expr->subsequent_length(), 0);
+
+  VisitForEffect(expr->first());
+  for (size_t i = 0; i < expr->subsequent_length() - 1; ++i) {
+    VisitForEffect(expr->subsequent(i));
+  }
+  Visit(expr->subsequent(expr->subsequent_length() - 1));
 }
 
 void BytecodeGenerator::BuildLogicalTest(Token::Value token, Expression* left,

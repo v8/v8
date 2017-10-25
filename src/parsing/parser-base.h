@@ -1975,6 +1975,9 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
     if (impl()->IsNull(result)) {
       // First time through the loop.
       result = right;
+    } else if (impl()->CollapseNaryExpression(&result, right, Token::COMMA,
+                                              comma_pos)) {
+      // Do nothing, "result" is already updated.
     } else {
       result =
           factory()->NewBinaryOperation(Token::COMMA, result, right, comma_pos);

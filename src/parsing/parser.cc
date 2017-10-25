@@ -310,9 +310,9 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
 bool Parser::CollapseNaryExpression(Expression** x, Expression* y,
                                     Token::Value op, int pos) {
   // Filter out unsupported ops.
-  // TODO(leszeks): Support AND, OR and COMMA in bytecode generator.
+  // TODO(leszeks): Support AND and OR in bytecode generator.
   if (!Token::IsBinaryOp(op) || op == Token::AND || op == Token::OR ||
-      op == Token::EXP || op == Token::COMMA)
+      op == Token::EXP)
     return false;
 
   // Convert *x into an nary operation with the given op, returning false if
@@ -2397,6 +2397,7 @@ void Parser::AddArrowFunctionFormalParameters(
     ParserFormalParameters* parameters, Expression* expr, int end_pos,
     bool* ok) {
   // ArrowFunctionFormals ::
+  //    Nary(Token::COMMA, VariableProxy*, Tail)
   //    Binary(Token::COMMA, NonTailArrowFunctionFormals, Tail)
   //    Tail
   // NonTailArrowFunctionFormals ::
@@ -2406,9 +2407,30 @@ void Parser::AddArrowFunctionFormalParameters(
   //    VariableProxy
   //    Spread(VariableProxy)
   //
-  // As we need to visit the parameters in left-to-right order, we recurse on
-  // the left-hand side of comma expressions.
+  // We need to visit the parameters in left-to-right order
   //
+
+  // For the Nary case, we simply visit the parameters in a loop.
+  if (expr->IsNaryOperation()) {
+    NaryOperation* nary = expr->AsNaryOperation();
+    // The classifier has already run, so we know that the expression is a valid
+    // arrow function formals production.
+    DCHECK_EQ(nary->op(), Token::COMMA);
+    // Each op position is the end position of the *previous* expr, with the
+    // second (i.e. first "subsequent") op position being the end position of
+    // the first child expression.
+    Expression* next = nary->first();
+    for (size_t i = 0; i < nary->subsequent_length(); ++i) {
+      AddArrowFunctionFormalParameters(
+          parameters, next, nary->subsequent_op_position(i), CHECK_OK_VOID);
+      next = nary->subsequent(i);
+    }
+    AddArrowFunctionFormalParameters(parameters, next, end_pos, CHECK_OK_VOID);
+    return;
+  }
+
+  // For the binary case, we recurse on the left-hand side of binary comma
+  // expressions.
   if (expr->IsBinaryOperation()) {
     BinaryOperation* binop = expr->AsBinaryOperation();
     // The classifier has already run, so we know that the expression is a valid
