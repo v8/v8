@@ -88,9 +88,22 @@ class MessageTestSuite(testsuite.TestSuite):
     return (string.startswith("==") or string.startswith("**") or
             string.startswith("ANDROID"))
 
+  def _GetExpectedFail(self, testcase):
+    path = testcase.path
+    while path:
+      (head, tail) = os.path.split(path)
+      if tail == "fail":
+        return True
+      path = head
+    return False
+
   def IsFailureOutput(self, testcase):
     output = testcase.output
     testpath = testcase.path
+    expected_fail = self._GetExpectedFail(testcase)
+    fail = testcase.output.exit_code != 0
+    if expected_fail != fail:
+      return True
     expected_path = os.path.join(self.root, testpath + ".out")
     expected_lines = []
     # Can't use utils.ReadLinesFrom() here because it strips whitespace.

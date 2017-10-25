@@ -4,4 +4,4 @@
 //
 // MODULE
 
-import {a} from "../mjsunit/modules-skip-7.js";
+import {a} from "../../mjsunit/modules-skip-7.js";
