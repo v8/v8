@@ -1708,6 +1708,7 @@ Handle<Object> KeyedStoreIC::StoreElementHandler(
     stub =
         StoreFastElementStub(isolate(), is_jsarray, elements_kind, store_mode)
             .GetCode();
+    if (receiver_map->has_fixed_typed_array_elements()) return stub;
   } else {
     TRACE_HANDLER_STATS(isolate(), KeyedStoreIC_StoreElementStub);
     DCHECK_EQ(DICTIONARY_ELEMENTS, elements_kind);
