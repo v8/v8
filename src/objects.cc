@@ -18260,7 +18260,7 @@ void SmallOrderedHashTable<Derived>::Initialize(Isolate* isolate,
                   capacity * Derived::kEntrySize);
   } else {
     for (int i = 0; i < capacity; i++) {
-      for (int j = 0; j < Derived::kEntrySize; i++) {
+      for (int j = 0; j < Derived::kEntrySize; j++) {
         SetDataEntry(i, j, isolate->heap()->the_hole_value());
       }
     }
