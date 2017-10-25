@@ -132,9 +132,8 @@ Handle<JSObject> MakeFakeBreakpoint(Isolate* isolate, int position) {
   desc.set_value(triggered_fun);
   Handle<String> name =
       isolate->factory()->InternalizeUtf8String(CStrVector("isTriggered"));
-  CHECK(
-      JSObject::DefineOwnProperty(isolate, obj, name, &desc, Object::DONT_THROW)
-          .FromMaybe(false));
+  CHECK(JSObject::DefineOwnProperty(isolate, obj, name, &desc, kDontThrow)
+            .FromMaybe(false));
   return obj;
 }
 

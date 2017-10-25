@@ -437,9 +437,8 @@ class ArrayConcatVisitor {
 
     if (!is_fixed_array()) {
       LookupIterator it(isolate_, storage_, index, LookupIterator::OWN);
-      MAYBE_RETURN(
-          JSReceiver::CreateDataProperty(&it, elm, Object::THROW_ON_ERROR),
-          false);
+      MAYBE_RETURN(JSReceiver::CreateDataProperty(&it, elm, kThrowOnError),
+                   false);
       return true;
     }
 

@@ -4395,7 +4395,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
   i::LookupIterator it = i::LookupIterator::PropertyOrElement(
       isolate, self, key_obj, self, i::LookupIterator::OWN);
   Maybe<bool> result =
-      i::JSReceiver::CreateDataProperty(&it, value_obj, i::Object::DONT_THROW);
+      i::JSReceiver::CreateDataProperty(&it, value_obj, i::kDontThrow);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
@@ -4413,7 +4413,7 @@ Maybe<bool> v8::Object::CreateDataProperty(v8::Local<v8::Context> context,
 
   i::LookupIterator it(isolate, self, index, self, i::LookupIterator::OWN);
   Maybe<bool> result =
-      i::JSReceiver::CreateDataProperty(&it, value_obj, i::Object::DONT_THROW);
+      i::JSReceiver::CreateDataProperty(&it, value_obj, i::kDontThrow);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;
@@ -4531,8 +4531,8 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
     ENTER_V8(isolate, context, Object, DefineOwnProperty, Nothing<bool>(),
              i::HandleScope);
     Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
-        isolate, self, key_obj, &desc, i::Object::DONT_THROW);
-    // Even though we said DONT_THROW, there might be accessors that do throw.
+        isolate, self, key_obj, &desc, i::kDontThrow);
+    // Even though we said kDontThrow, there might be accessors that do throw.
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return success;
   } else {
@@ -4541,7 +4541,7 @@ Maybe<bool> v8::Object::DefineOwnProperty(v8::Local<v8::Context> context,
     ENTER_V8_NO_SCRIPT(isolate, context, Object, DefineOwnProperty,
                        Nothing<bool>(), i::HandleScope);
     Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
-        isolate, self, key_obj, &desc, i::Object::DONT_THROW);
+        isolate, self, key_obj, &desc, i::kDontThrow);
     RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
     return success;
   }
@@ -4557,8 +4557,7 @@ Maybe<bool> v8::Object::DefineProperty(v8::Local<v8::Context> context,
   i::Handle<i::Name> key_obj = Utils::OpenHandle(*key);
 
   Maybe<bool> success = i::JSReceiver::DefineOwnProperty(
-      isolate, self, key_obj, &descriptor.get_private()->desc,
-      i::Object::DONT_THROW);
+      isolate, self, key_obj, &descriptor.get_private()->desc, i::kDontThrow);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return success;
 }
@@ -4612,7 +4611,7 @@ Maybe<bool> v8::Object::SetPrivate(Local<Context> context, Local<Private> key,
     desc.set_value(value_obj);
     return i::JSProxy::SetPrivateProperty(
         isolate, i::Handle<i::JSProxy>::cast(self),
-        i::Handle<i::Symbol>::cast(key_obj), &desc, i::Object::DONT_THROW);
+        i::Handle<i::Symbol>::cast(key_obj), &desc, i::kDontThrow);
   }
   auto js_object = i::Handle<i::JSObject>::cast(self);
   i::LookupIterator it(js_object, key_obj, js_object);
@@ -4736,8 +4735,8 @@ Maybe<bool> v8::Object::SetPrototype(Local<Context> context,
   // We do not allow exceptions thrown while setting the prototype
   // to propagate outside.
   TryCatch try_catch(reinterpret_cast<v8::Isolate*>(isolate));
-  auto result = i::JSReceiver::SetPrototype(self, value_obj, false,
-                                            i::Object::THROW_ON_ERROR);
+  auto result =
+      i::JSReceiver::SetPrototype(self, value_obj, false, i::kThrowOnError);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return Just(true);
@@ -4847,8 +4846,8 @@ Maybe<bool> v8::Object::SetIntegrityLevel(Local<Context> context,
   auto self = Utils::OpenHandle(this);
   i::JSReceiver::IntegrityLevel i_level =
       level == IntegrityLevel::kFrozen ? i::FROZEN : i::SEALED;
-  Maybe<bool> result = i::JSReceiver::SetIntegrityLevel(
-      self, i_level, i::Object::THROW_ON_ERROR);
+  Maybe<bool> result =
+      i::JSReceiver::SetIntegrityLevel(self, i_level, i::kThrowOnError);
   has_pending_exception = result.IsNothing();
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   return result;

@@ -851,7 +851,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
         ns, name, Accessors::ModuleNamespaceEntryInfo(isolate, name, attr),
         PropertyDetails(kAccessor, attr, PropertyCellType::kMutable));
   }
-  JSObject::PreventExtensions(ns, THROW_ON_ERROR).ToChecked();
+  JSObject::PreventExtensions(ns, kThrowOnError).ToChecked();
 
   // Optimize the namespace object as a prototype, for two reasons:
   // - The object's map is guaranteed not to be shared. ICs rely on this.

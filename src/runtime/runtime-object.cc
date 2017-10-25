@@ -409,9 +409,8 @@ RUNTIME_FUNCTION(Runtime_InternalSetPrototype) {
       CHECK_EQ(*function_map, function->map());
     }
   }
-  MAYBE_RETURN(
-      JSReceiver::SetPrototype(obj, prototype, false, Object::THROW_ON_ERROR),
-      isolate->heap()->exception());
+  MAYBE_RETURN(JSReceiver::SetPrototype(obj, prototype, false, kThrowOnError),
+               isolate->heap()->exception());
   return *obj;
 }
 
@@ -799,9 +798,9 @@ RUNTIME_FUNCTION(Runtime_DefineDataPropertyInLiteral) {
       isolate, object, name, object, LookupIterator::OWN);
   // Cannot fail since this should only be called when
   // creating an object literal.
-  CHECK(JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attrs,
-                                                    Object::DONT_THROW)
-            .IsJust());
+  CHECK(
+      JSObject::DefineOwnPropertyIgnoreAttributes(&it, value, attrs, kDontThrow)
+          .IsJust());
   return *object;
 }
 
@@ -1009,7 +1008,7 @@ RUNTIME_FUNCTION(Runtime_DefineMethodsInternal) {
     }
 
     Maybe<bool> success = JSReceiver::DefineOwnProperty(
-        isolate, target, key, &descriptor, Object::DONT_THROW);
+        isolate, target, key, &descriptor, kDontThrow);
     CHECK(success.FromJust());
   }
   return isolate->heap()->undefined_value();
@@ -1155,9 +1154,8 @@ RUNTIME_FUNCTION(Runtime_CreateDataProperty) {
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, o, key, &success, LookupIterator::OWN);
   if (!success) return isolate->heap()->exception();
-  MAYBE_RETURN(
-      JSReceiver::CreateDataProperty(&it, value, Object::THROW_ON_ERROR),
-      isolate->heap()->exception());
+  MAYBE_RETURN(JSReceiver::CreateDataProperty(&it, value, kThrowOnError),
+               isolate->heap()->exception());
   return *value;
 }
 

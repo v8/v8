@@ -843,15 +843,18 @@ class BigIntParseIntHelper : public StringToIntHelper {
 
   // Used for BigInt.parseInt API, where the input is a Heap-allocated String.
   BigIntParseIntHelper(Isolate* isolate, Handle<String> string, int radix,
-                       EmptyStringResult empty_string_result)
+                       EmptyStringResult empty_string_result,
+                       ShouldThrow should_throw)
       : StringToIntHelper(isolate, string, radix),
-        empty_string_result_(empty_string_result) {}
+        empty_string_result_(empty_string_result),
+        should_throw_(should_throw) {}
 
   // Used for parsing BigInt literals, where the input is a buffer of
   // one-byte ASCII digits, along with an optional radix prefix.
   BigIntParseIntHelper(Isolate* isolate, const uint8_t* string, int length)
       : StringToIntHelper(isolate, string, length),
-        empty_string_result_(EmptyStringResult::kUnreachable) {}
+        empty_string_result_(EmptyStringResult::kUnreachable),
+        should_throw_(kDontThrow) {}
 
   MaybeHandle<BigInt> GetResult() {
     ParseInt();
@@ -866,12 +869,19 @@ class BigIntParseIntHelper : public StringToIntHelper {
     }
     switch (state()) {
       case kJunk:
-        THROW_NEW_ERROR(isolate(),
-                        NewSyntaxError(MessageTemplate::kBigIntInvalidString),
-                        BigInt);
+        if (should_throw_ == kThrowOnError) {
+          THROW_NEW_ERROR(isolate(),
+                          NewSyntaxError(MessageTemplate::kBigIntInvalidString),
+                          BigInt);
+        } else {
+          DCHECK_EQ(should_throw_, kDontThrow);
+          return MaybeHandle<BigInt>();
+        }
       case kZero:
         return isolate()->factory()->NewBigIntFromInt(0);
       case kError:
+        DCHECK_EQ(should_throw_ == kThrowOnError,
+                  isolate()->has_pending_exception());
         return MaybeHandle<BigInt>();
       case kDone:
         result_->set_sign(negative());
@@ -892,7 +902,7 @@ class BigIntParseIntHelper : public StringToIntHelper {
     // junk before allocating the result?
     int charcount = length() - cursor();
     MaybeHandle<BigInt> maybe =
-        BigInt::AllocateFor(isolate(), radix(), charcount);
+        BigInt::AllocateFor(isolate(), radix(), charcount, should_throw_);
     if (!maybe.ToHandle(&result_)) {
       set_state(kError);
     }
@@ -906,19 +916,21 @@ class BigIntParseIntHelper : public StringToIntHelper {
  private:
   Handle<BigInt> result_;
   EmptyStringResult empty_string_result_;
+  ShouldThrow should_throw_;
 };
 
 MaybeHandle<BigInt> BigIntParseInt(Isolate* isolate, Handle<String> string,
                                    int radix) {
   BigIntParseIntHelper helper(
       isolate, string, radix,
-      BigIntParseIntHelper::EmptyStringResult::kSyntaxError);
+      BigIntParseIntHelper::EmptyStringResult::kSyntaxError, kThrowOnError);
   return helper.GetResult();
 }
 
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string) {
   BigIntParseIntHelper helper(isolate, string, 10,
-                              BigIntParseIntHelper::EmptyStringResult::kZero);
+                              BigIntParseIntHelper::EmptyStringResult::kZero,
+                              kDontThrow);
   return helper.GetResult();
 }
 

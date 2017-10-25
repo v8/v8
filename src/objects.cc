@@ -1613,7 +1613,7 @@ MaybeHandle<Object> Object::GetPropertyWithAccessor(LookupIterator* it) {
     }
 
     PropertyCallbackArguments args(isolate, info->data(), *receiver, *holder,
-                                   Object::DONT_THROW);
+                                   kDontThrow);
     Handle<Object> result = args.Call(call_fun, name);
     RETURN_EXCEPTION_IF_SCHEDULED_EXCEPTION(isolate, Object);
     if (result.is_null()) return isolate->factory()->undefined_value();
@@ -1730,7 +1730,7 @@ Maybe<bool> Object::SetPropertyWithAccessor(LookupIterator* it,
     // (signalling an exception) or a boolean Oddball.
     RETURN_VALUE_IF_SCHEDULED_EXCEPTION(isolate, Nothing<bool>());
     if (result.is_null()) return Just(true);
-    DCHECK(result->BooleanValue() || should_throw == DONT_THROW);
+    DCHECK(result->BooleanValue() || should_throw == kDontThrow);
     return Just(result->BooleanValue());
   }
 
@@ -1840,7 +1840,7 @@ MaybeHandle<Object> GetPropertyWithInterceptorInternal(
         isolate, receiver, Object::ConvertReceiver(isolate, receiver), Object);
   }
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                 *holder, Object::DONT_THROW);
+                                 *holder, kDontThrow);
 
   if (it->IsElement()) {
     uint32_t index = it->index();
@@ -1884,7 +1884,7 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
                                      Nothing<PropertyAttributes>());
   }
   PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                 *holder, Object::DONT_THROW);
+                                 *holder, kDontThrow);
   if (!interceptor->query()->IsUndefined(isolate)) {
     Handle<Object> result;
     if (it->IsElement()) {
@@ -1930,7 +1930,7 @@ Maybe<PropertyAttributes> GetPropertyAttributesWithInterceptorInternal(
 
 Maybe<bool> SetPropertyWithInterceptorInternal(
     LookupIterator* it, Handle<InterceptorInfo> interceptor,
-    Object::ShouldThrow should_throw, Handle<Object> value) {
+    ShouldThrow should_throw, Handle<Object> value) {
   Isolate* isolate = it->isolate();
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
@@ -1974,7 +1974,7 @@ Maybe<bool> SetPropertyWithInterceptorInternal(
 
 Maybe<bool> DefinePropertyWithInterceptorInternal(
     LookupIterator* it, Handle<InterceptorInfo> interceptor,
-    Object::ShouldThrow should_throw, PropertyDescriptor& desc) {
+    ShouldThrow should_throw, PropertyDescriptor& desc) {
   Isolate* isolate = it->isolate();
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
@@ -2303,9 +2303,8 @@ MUST_USE_RESULT Maybe<bool> FastAssign(
       LookupIterator it = LookupIterator::PropertyOrElement(
           isolate, target, next_key, &success, LookupIterator::OWN);
       CHECK(success);
-      CHECK(
-          JSObject::CreateDataProperty(&it, prop_value, Object::THROW_ON_ERROR)
-              .FromJust());
+      CHECK(JSObject::CreateDataProperty(&it, prop_value, kThrowOnError)
+                .FromJust());
     }
   }
 
@@ -2366,8 +2365,7 @@ Maybe<bool> JSReceiver::SetOrCopyDataProperties(
         LookupIterator it = LookupIterator::PropertyOrElement(
             isolate, target, next_key, &success, LookupIterator::OWN);
         CHECK(success);
-        CHECK(JSObject::CreateDataProperty(&it, prop_value,
-                                           Object::THROW_ON_ERROR)
+        CHECK(JSObject::CreateDataProperty(&it, prop_value, kThrowOnError)
                   .FromJust());
       }
     }
@@ -4785,7 +4783,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
   it->UpdateProtector();
   DCHECK(it->IsFound());
   ShouldThrow should_throw =
-      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
+      is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
 
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
@@ -4883,7 +4881,7 @@ Maybe<bool> Object::SetProperty(LookupIterator* it, Handle<Object> value,
   }
 
   ShouldThrow should_throw =
-      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
+      is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
   return AddDataProperty(it, value, NONE, should_throw, store_mode);
 }
 
@@ -4906,7 +4904,7 @@ Maybe<bool> Object::SetSuperProperty(LookupIterator* it, Handle<Object> value,
   // property.
 
   ShouldThrow should_throw =
-      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
+      is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
 
   if (!it->GetReceiver()->IsJSReceiver()) {
     return WriteToReadOnlyProperty(it, value, should_throw);
@@ -5611,7 +5609,7 @@ Maybe<bool> JSProxy::SetProperty(Handle<JSProxy> proxy, Handle<Name> name,
   Factory* factory = isolate->factory();
   Handle<String> trap_name = factory->set_string();
   ShouldThrow should_throw =
-      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
+      is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
 
   if (proxy->IsRevoked()) {
     isolate->Throw(
@@ -5658,7 +5656,7 @@ Maybe<bool> JSProxy::DeletePropertyOrElement(Handle<JSProxy> proxy,
                                              LanguageMode language_mode) {
   DCHECK(!name->IsPrivate());
   ShouldThrow should_throw =
-      is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
+      is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
   Isolate* isolate = proxy->GetIsolate();
   STACK_CHECK(isolate, Nothing<bool>());
   Factory* factory = isolate->factory();
@@ -5996,7 +5994,7 @@ void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
   DCHECK(!it.IsFound());
   DCHECK(object->map()->is_extensible() || name->IsPrivate());
 #endif
-  CHECK(AddDataProperty(&it, value, attributes, THROW_ON_ERROR,
+  CHECK(AddDataProperty(&it, value, attributes, kThrowOnError,
                         CERTAINLY_NOT_STORE_FROM_KEYED)
             .IsJust());
 }
@@ -6009,8 +6007,8 @@ void JSObject::AddProperty(Handle<JSObject> object, Handle<Name> name,
 MaybeHandle<Object> JSObject::DefineOwnPropertyIgnoreAttributes(
     LookupIterator* it, Handle<Object> value, PropertyAttributes attributes,
     AccessorInfoHandling handling) {
-  MAYBE_RETURN_NULL(DefineOwnPropertyIgnoreAttributes(
-      it, value, attributes, THROW_ON_ERROR, handling));
+  MAYBE_RETURN_NULL(DefineOwnPropertyIgnoreAttributes(it, value, attributes,
+                                                      kThrowOnError, handling));
   return value;
 }
 
@@ -6648,7 +6646,7 @@ Maybe<bool> JSReceiver::DeleteProperty(LookupIterator* it,
         return Just(false);
       case LookupIterator::INTERCEPTOR: {
         ShouldThrow should_throw =
-            is_sloppy(language_mode) ? DONT_THROW : THROW_ON_ERROR;
+            is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
         Maybe<bool> result =
             JSObject::DeletePropertyWithInterceptor(it, should_throw);
         // An exception was thrown in the interceptor. Propagate.
@@ -6732,7 +6730,7 @@ Object* JSReceiver::DefineProperty(Isolate* isolate, Handle<Object> object,
   }
   // 6. Let success be DefinePropertyOrThrow(O,key, desc).
   Maybe<bool> success = DefineOwnProperty(
-      isolate, Handle<JSReceiver>::cast(object), key, &desc, THROW_ON_ERROR);
+      isolate, Handle<JSReceiver>::cast(object), key, &desc, kThrowOnError);
   // 7. ReturnIfAbrupt(success).
   MAYBE_RETURN(success, isolate->heap()->exception());
   CHECK(success.FromJust());
@@ -6809,7 +6807,7 @@ MaybeHandle<Object> JSReceiver::DefineProperties(Isolate* isolate,
     // 8c. Let status be DefinePropertyOrThrow(O, P, desc).
     Maybe<bool> status =
         DefineOwnProperty(isolate, Handle<JSReceiver>::cast(object),
-                          desc->name(), desc, THROW_ON_ERROR);
+                          desc->name(), desc, kThrowOnError);
     // 8d. ReturnIfAbrupt(status).
     if (status.IsNothing()) return MaybeHandle<Object>();
     CHECK(status.FromJust());
@@ -7294,7 +7292,7 @@ Maybe<bool> JSArray::DefineOwnProperty(Isolate* isolate, Handle<JSArray> o,
     Maybe<bool> succeeded =
         OrdinaryDefineOwnProperty(isolate, o, name, desc, should_throw);
     // 3h. Assert: succeeded is not an abrupt completion.
-    //     In our case, if should_throw == THROW_ON_ERROR, it can be!
+    //     In our case, if should_throw == kThrowOnError, it can be!
     // 3i. If succeeded is false, return false.
     if (succeeded.IsNothing() || !succeeded.FromJust()) return succeeded;
     // 3j. If index >= oldLen, then:
@@ -7536,7 +7534,7 @@ Maybe<bool> JSProxy::DefineOwnProperty(Isolate* isolate, Handle<JSProxy> proxy,
     //      targetDesc) is false, throw a TypeError exception.
     Maybe<bool> valid =
         IsCompatiblePropertyDescriptor(isolate, extensible_target, desc,
-                                       &target_desc, property_name, DONT_THROW);
+                                       &target_desc, property_name, kDontThrow);
     MAYBE_RETURN(valid, Nothing<bool>());
     if (!valid.FromJust()) {
       isolate->Throw(*isolate->factory()->NewTypeError(
@@ -7629,7 +7627,7 @@ Maybe<bool> GetPropertyDescriptorWithInterceptor(LookupIterator* it,
       }
 
       PropertyCallbackArguments args(isolate, interceptor->data(), *receiver,
-                                     *holder, Object::DONT_THROW);
+                                     *holder, kDontThrow);
       if (it->IsElement()) {
         uint32_t index = it->index();
         v8::IndexedPropertyDescriptorCallback descriptorCallback =
@@ -7821,7 +7819,7 @@ Maybe<bool> JSProxy::GetOwnPropertyDescriptor(Isolate* isolate,
   //     resultDesc, targetDesc).
   Maybe<bool> valid =
       IsCompatiblePropertyDescriptor(isolate, extensible_target.FromJust(),
-                                     desc, &target_desc, name, DONT_THROW);
+                                     desc, &target_desc, name, kDontThrow);
   MAYBE_RETURN(valid, Nothing<bool>());
   // 16. If valid is false, throw a TypeError exception.
   if (!valid.FromJust()) {
@@ -8027,7 +8025,7 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Handle<JSReceiver> receiver,
     for (int i = 0; i < keys->length(); ++i) {
       Handle<Object> key(keys->get(i), isolate);
       MAYBE_RETURN(
-          DefineOwnProperty(isolate, receiver, key, &no_conf, THROW_ON_ERROR),
+          DefineOwnProperty(isolate, receiver, key, &no_conf, kThrowOnError),
           Nothing<bool>());
     }
     return Just(true);
@@ -8045,7 +8043,7 @@ Maybe<bool> JSReceiver::SetIntegrityLevel(Handle<JSReceiver> receiver,
               ? no_conf
               : no_conf_no_write;
       MAYBE_RETURN(
-          DefineOwnProperty(isolate, receiver, key, &desc, THROW_ON_ERROR),
+          DefineOwnProperty(isolate, receiver, key, &desc, kThrowOnError),
           Nothing<bool>());
     }
   }
@@ -15289,7 +15287,7 @@ MaybeHandle<Object> JSObject::AddDataElement(Handle<JSObject> object,
                                              Handle<Object> value,
                                              PropertyAttributes attributes) {
   MAYBE_RETURN_NULL(
-      AddDataElement(object, index, value, attributes, THROW_ON_ERROR));
+      AddDataElement(object, index, value, attributes, kThrowOnError));
   return value;
 }
 

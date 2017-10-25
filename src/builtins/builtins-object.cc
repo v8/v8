@@ -118,8 +118,8 @@ Object* ObjectDefineAccessor(Isolate* isolate, Handle<Object> object,
   // throwing an exception.
   Maybe<bool> success = JSReceiver::DefineOwnProperty(
       isolate, receiver, name, &desc,
-      FLAG_harmony_strict_legacy_accessor_builtins ? Object::THROW_ON_ERROR
-                                                   : Object::DONT_THROW);
+      FLAG_harmony_strict_legacy_accessor_builtins ? kThrowOnError
+                                                   : kDontThrow);
   MAYBE_RETURN(success, isolate->heap()->exception());
   if (!success.FromJust()) {
     isolate->CountUsage(v8::Isolate::kDefineGetterOrSetterWouldThrow);
@@ -242,7 +242,7 @@ BUILTIN(ObjectFreeze) {
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   if (object->IsJSReceiver()) {
     MAYBE_RETURN(JSReceiver::SetIntegrityLevel(Handle<JSReceiver>::cast(object),
-                                               FROZEN, Object::THROW_ON_ERROR),
+                                               FROZEN, kThrowOnError),
                  isolate->heap()->exception());
   }
   return *object;
@@ -287,9 +287,8 @@ BUILTIN(ObjectSetPrototypeOf) {
 
   // 4. Let status be ? O.[[SetPrototypeOf]](proto).
   // 5. If status is false, throw a TypeError exception.
-  MAYBE_RETURN(
-      JSReceiver::SetPrototype(receiver, proto, true, Object::THROW_ON_ERROR),
-      isolate->heap()->exception());
+  MAYBE_RETURN(JSReceiver::SetPrototype(receiver, proto, true, kThrowOnError),
+               isolate->heap()->exception());
 
   // 6. Return O.
   return *receiver;
@@ -332,9 +331,8 @@ BUILTIN(ObjectPrototypeSetProto) {
 
   // 4. Let status be ? O.[[SetPrototypeOf]](proto).
   // 5. If status is false, throw a TypeError exception.
-  MAYBE_RETURN(
-      JSReceiver::SetPrototype(receiver, proto, true, Object::THROW_ON_ERROR),
-      isolate->heap()->exception());
+  MAYBE_RETURN(JSReceiver::SetPrototype(receiver, proto, true, kThrowOnError),
+               isolate->heap()->exception());
 
   // Return undefined.
   return isolate->heap()->undefined_value();
@@ -459,8 +457,8 @@ BUILTIN(ObjectGetOwnPropertyDescriptors) {
 
     LookupIterator it = LookupIterator::PropertyOrElement(
         isolate, descriptors, key, descriptors, LookupIterator::OWN);
-    Maybe<bool> success = JSReceiver::CreateDataProperty(&it, from_descriptor,
-                                                         Object::DONT_THROW);
+    Maybe<bool> success =
+        JSReceiver::CreateDataProperty(&it, from_descriptor, kDontThrow);
     CHECK(success.FromJust());
   }
 
@@ -473,7 +471,7 @@ BUILTIN(ObjectPreventExtensions) {
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   if (object->IsJSReceiver()) {
     MAYBE_RETURN(JSReceiver::PreventExtensions(Handle<JSReceiver>::cast(object),
-                                               Object::THROW_ON_ERROR),
+                                               kThrowOnError),
                  isolate->heap()->exception());
   }
   return *object;
@@ -485,7 +483,7 @@ BUILTIN(ObjectSeal) {
   Handle<Object> object = args.atOrUndefined(isolate, 1);
   if (object->IsJSReceiver()) {
     MAYBE_RETURN(JSReceiver::SetIntegrityLevel(Handle<JSReceiver>::cast(object),
-                                               SEALED, Object::THROW_ON_ERROR),
+                                               SEALED, kThrowOnError),
                  isolate->heap()->exception());
   }
   return *object;

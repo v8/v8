@@ -80,7 +80,7 @@ class PropertyCallbackArguments
   static const int kShouldThrowOnErrorIndex = T::kShouldThrowOnErrorIndex;
 
   PropertyCallbackArguments(Isolate* isolate, Object* data, Object* self,
-                            JSObject* holder, Object::ShouldThrow should_throw)
+                            JSObject* holder, ShouldThrow should_throw)
       : Super(isolate) {
     Object** values = this->begin();
     values[T::kThisIndex] = self;
@@ -88,7 +88,7 @@ class PropertyCallbackArguments
     values[T::kDataIndex] = data;
     values[T::kIsolateIndex] = reinterpret_cast<Object*>(isolate);
     values[T::kShouldThrowOnErrorIndex] =
-        Smi::FromInt(should_throw == Object::THROW_ON_ERROR ? 1 : 0);
+        Smi::FromInt(should_throw == kThrowOnError ? 1 : 0);
 
     // Here the hole is set as default value.
     // It cannot escape into js as it's removed in Call below.

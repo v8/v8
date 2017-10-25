@@ -664,8 +664,7 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY))
       .Assert();
 
-  if (JSObject::PreventExtensions(function, Object::THROW_ON_ERROR)
-          .IsNothing()) {
+  if (JSObject::PreventExtensions(function, kThrowOnError).IsNothing()) {
     DCHECK(false);
   }
 
@@ -1330,11 +1329,11 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
 
       Handle<JSFunction> global_error = isolate->error_function();
       CHECK(JSReceiver::SetPrototype(error_fun, global_error, false,
-                                     Object::THROW_ON_ERROR)
+                                     kThrowOnError)
                 .FromMaybe(false));
       CHECK(JSReceiver::SetPrototype(prototype,
                                      handle(global_error->prototype(), isolate),
-                                     false, Object::THROW_ON_ERROR)
+                                     false, kThrowOnError)
                 .FromMaybe(false));
     }
   }
@@ -3575,12 +3574,11 @@ void Genesis::InstallTypedArray(const char* name, ElementsKind elements_kind,
       0, prototype, Builtins::kIllegal);
   result->initial_map()->set_elements_kind(elements_kind);
 
-  CHECK(JSObject::SetPrototype(result, typed_array_function, false,
-                               Object::DONT_THROW)
+  CHECK(JSObject::SetPrototype(result, typed_array_function, false, kDontThrow)
             .FromJust());
 
   CHECK(JSObject::SetPrototype(prototype, typed_array_prototype, false,
-                               Object::DONT_THROW)
+                               kDontThrow)
             .FromJust());
   *fun = result;
 }

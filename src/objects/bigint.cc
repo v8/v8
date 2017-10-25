@@ -313,8 +313,7 @@ bool BigInt::EqualToString(Handle<BigInt> x, Handle<String> y) {
   // b. If n is NaN, return false.
   Handle<BigInt> n;
   if (!maybe_n.ToHandle(&n)) {
-    DCHECK(isolate->has_pending_exception());
-    isolate->clear_pending_exception();
+    DCHECK(!isolate->has_pending_exception());
     return false;
   }
   // c. Return the result of x == n.
@@ -1203,30 +1202,32 @@ static const int kBitsPerCharTableShift = 5;
 static const size_t kBitsPerCharTableMultiplier = 1u << kBitsPerCharTableShift;
 
 MaybeHandle<BigInt> BigInt::AllocateFor(Isolate* isolate, int radix,
-                                        int charcount) {
+                                        int charcount,
+                                        ShouldThrow should_throw) {
   DCHECK(2 <= radix && radix <= 36);
   DCHECK_GE(charcount, 0);
   size_t bits_per_char = kMaxBitsPerChar[radix];
   size_t chars = static_cast<size_t>(charcount);
   const int roundup = kBitsPerCharTableMultiplier - 1;
-  if ((std::numeric_limits<size_t>::max() - roundup) / bits_per_char < chars) {
+  if (chars <= (std::numeric_limits<size_t>::max() - roundup) / bits_per_char) {
+    size_t bits_min = bits_per_char * chars;
+    // Divide by 32 (see table), rounding up.
+    bits_min = (bits_min + roundup) >> kBitsPerCharTableShift;
+    if (bits_min <= static_cast<size_t>(kMaxInt)) {
+      // Divide by kDigitsBits, rounding up.
+      int length = (static_cast<int>(bits_min) + kDigitBits - 1) / kDigitBits;
+      if (length <= BigInt::kMaxLength) {
+        return isolate->factory()->NewBigInt(length);
+      }
+    }
+  }
+  // All the overflow/maximum checks above fall through to here.
+  if (should_throw == kThrowOnError) {
     THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
                     BigInt);
+  } else {
+    return MaybeHandle<BigInt>();
   }
-  size_t bits_min = bits_per_char * chars;
-  // Divide by 32 (see table), rounding up.
-  bits_min = (bits_min + roundup) >> kBitsPerCharTableShift;
-  if (bits_min > static_cast<size_t>(kMaxInt)) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
-                    BigInt);
-  }
-  // Divide by kDigitsBits, rounding up.
-  int length = (static_cast<int>(bits_min) + kDigitBits - 1) / kDigitBits;
-  if (length > BigInt::kMaxLength) {
-    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
-                    BigInt);
-  }
-  return isolate->factory()->NewBigInt(length);
 }
 
 void BigInt::RightTrim() {

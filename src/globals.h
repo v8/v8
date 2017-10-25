@@ -715,6 +715,8 @@ enum WhereToStart { kStartAtReceiver, kStartAtPrototype };
 
 enum ResultSentinel { kNotFound = -1, kUnsupported = -2 };
 
+enum ShouldThrow { kThrowOnError, kDontThrow };
+
 // The Store Buffer (GC).
 typedef enum {
   kStoreBufferFullEvent,

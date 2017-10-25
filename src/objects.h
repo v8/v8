@@ -1151,13 +1151,11 @@ class Object {
     CERTAINLY_NOT_STORE_FROM_KEYED
   };
 
-  enum ShouldThrow { THROW_ON_ERROR, DONT_THROW };
-
   enum class Conversion { kToNumber, kToNumeric };
 
 #define RETURN_FAILURE(isolate, should_throw, call) \
   do {                                              \
-    if ((should_throw) == DONT_THROW) {             \
+    if ((should_throw) == kDontThrow) {             \
       return Just(false);                           \
     } else {                                        \
       isolate->Throw(*isolate->factory()->call);    \
@@ -1376,10 +1374,10 @@ class Object {
   V8_EXPORT_PRIVATE MUST_USE_RESULT static MaybeHandle<Object> GetProperty(
       LookupIterator* it);
 
-  // ES6 [[Set]] (when passed DONT_THROW)
+  // ES6 [[Set]] (when passed kDontThrow)
   // Invariants for this and related functions (unless stated otherwise):
   // 1) When the result is Nothing, an exception is pending.
-  // 2) When passed THROW_ON_ERROR, the result is never Just(false).
+  // 2) When passed kThrowOnError, the result is never Just(false).
   // In some cases, an exception is thrown regardless of the ShouldThrow
   // argument.  These cases are either in accordance with the spec or not
   // covered by it (eg., concerning API callbacks).
@@ -2076,7 +2074,7 @@ class JSReceiver: public HeapObject {
       Isolate* isolate, Handle<JSReceiver> object, Handle<Object> key,
       PropertyDescriptor* desc, ShouldThrow should_throw);
 
-  // ES6 7.3.4 (when passed DONT_THROW)
+  // ES6 7.3.4 (when passed kDontThrow)
   MUST_USE_RESULT static Maybe<bool> CreateDataProperty(
       LookupIterator* it, Handle<Object> value, ShouldThrow should_throw);
 
@@ -2107,7 +2105,7 @@ class JSReceiver: public HeapObject {
 
   typedef PropertyAttributes IntegrityLevel;
 
-  // ES6 7.3.14 (when passed DONT_THROW)
+  // ES6 7.3.14 (when passed kDontThrow)
   // 'level' must be SEALED or FROZEN.
   MUST_USE_RESULT static Maybe<bool> SetIntegrityLevel(
       Handle<JSReceiver> object, IntegrityLevel lvl, ShouldThrow should_throw);
@@ -2117,7 +2115,7 @@ class JSReceiver: public HeapObject {
   MUST_USE_RESULT static Maybe<bool> TestIntegrityLevel(
       Handle<JSReceiver> object, IntegrityLevel lvl);
 
-  // ES6 [[PreventExtensions]] (when passed DONT_THROW)
+  // ES6 [[PreventExtensions]] (when passed kDontThrow)
   MUST_USE_RESULT static Maybe<bool> PreventExtensions(
       Handle<JSReceiver> object, ShouldThrow should_throw);
 
@@ -2315,7 +2313,7 @@ class JSObject: public JSReceiver {
   // cannot.
   MUST_USE_RESULT static Maybe<bool> CreateDataProperty(
       LookupIterator* it, Handle<Object> value,
-      ShouldThrow should_throw = DONT_THROW);
+      ShouldThrow should_throw = kDontThrow);
 
   static void AddProperty(Handle<JSObject> object, Handle<Name> name,
                           Handle<Object> value, PropertyAttributes attributes);
@@ -4886,7 +4884,7 @@ class JSProxy: public JSReceiver {
   // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
   MUST_USE_RESULT static Maybe<bool> IsArray(Handle<JSProxy> proxy);
 
-  // ES6 9.5.4 (when passed DONT_THROW)
+  // ES6 9.5.4 (when passed kDontThrow)
   MUST_USE_RESULT static Maybe<bool> PreventExtensions(
       Handle<JSProxy> proxy, ShouldThrow should_throw);
 

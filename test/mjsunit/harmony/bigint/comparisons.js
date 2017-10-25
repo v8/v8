@@ -94,6 +94,8 @@ const six = BigInt(6);
   assertTrue(%Equal("", zero));
   assertTrue(%Equal(one, "1"));
   assertTrue(%Equal("1", one));
+  assertFalse(%Equal(one, "a"));
+  assertFalse(%Equal("a", one));
 
   assertTrue(%Equal(one, {valueOf() { return true }}));
   assertTrue(%Equal({valueOf() { return true }}, one));
@@ -146,6 +148,8 @@ const six = BigInt(6);
   assertTrue(one == "1");
   assertTrue("1" == one);
   assertFalse(" \t\r\n" == one);
+  assertFalse(one == "a");
+  assertFalse("a" == one);
 
   assertTrue(one == {valueOf() { return true }});
   assertTrue({valueOf() { return true }} == one);
@@ -196,6 +200,8 @@ const six = BigInt(6);
   assertFalse(%NotEqual("", zero));
   assertFalse(%NotEqual(one, "1"));
   assertFalse(%NotEqual("1", one));
+  assertTrue(%NotEqual(one, "a"));
+  assertTrue(%NotEqual("a", one));
 
   assertFalse(%NotEqual(one, {valueOf() { return true }}));
   assertFalse(%NotEqual({valueOf() { return true }}, one));
@@ -246,6 +252,8 @@ const six = BigInt(6);
   assertFalse("" != zero);
   assertFalse(one != "1");
   assertFalse("1" != one);
+  assertTrue(one != "a");
+  assertTrue("a" != one);
 
   assertFalse(one != {valueOf() { return true }});
   assertFalse({valueOf() { return true }} != one);

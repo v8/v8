@@ -2235,8 +2235,8 @@ RUNTIME_FUNCTION(Runtime_StoreCallbackProperty) {
       FUNCTION_CAST<v8::AccessorNameSetterCallback>(setter_address);
   DCHECK_NOT_NULL(fun);
 
-  Object::ShouldThrow should_throw =
-      is_sloppy(language_mode) ? Object::DONT_THROW : Object::THROW_ON_ERROR;
+  ShouldThrow should_throw =
+      is_sloppy(language_mode) ? kDontThrow : kThrowOnError;
   PropertyCallbackArguments custom_args(isolate, callback->data(), *receiver,
                                         *holder, should_throw);
   custom_args.Call(fun, name, value);
@@ -2263,7 +2263,7 @@ RUNTIME_FUNCTION(Runtime_LoadPropertyWithInterceptor) {
 
   InterceptorInfo* interceptor = holder->GetNamedInterceptor();
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                      *holder, Object::DONT_THROW);
+                                      *holder, kDontThrow);
 
   v8::GenericNamedPropertyGetterCallback getter =
       v8::ToCData<v8::GenericNamedPropertyGetterCallback>(
@@ -2319,7 +2319,7 @@ RUNTIME_FUNCTION(Runtime_StorePropertyWithInterceptor) {
   InterceptorInfo* interceptor = receiver->GetNamedInterceptor();
   DCHECK(!interceptor->non_masking());
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                      *receiver, Object::DONT_THROW);
+                                      *receiver, kDontThrow);
 
   v8::GenericNamedPropertySetterCallback setter =
       v8::ToCData<v8::GenericNamedPropertySetterCallback>(
@@ -2354,7 +2354,7 @@ RUNTIME_FUNCTION(Runtime_LoadElementWithInterceptor) {
 
   InterceptorInfo* interceptor = receiver->GetIndexedInterceptor();
   PropertyCallbackArguments arguments(isolate, interceptor->data(), *receiver,
-                                      *receiver, Object::DONT_THROW);
+                                      *receiver, kDontThrow);
 
   v8::IndexedPropertyGetterCallback getter =
       v8::ToCData<v8::IndexedPropertyGetterCallback>(interceptor->getter());

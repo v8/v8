@@ -2639,7 +2639,7 @@ void InstanceBuilder::ProcessExports(
     }
 
     v8::Maybe<bool> status = JSReceiver::DefineOwnProperty(
-        isolate_, export_to, name, &desc, Object::THROW_ON_ERROR);
+        isolate_, export_to, name, &desc, kThrowOnError);
     if (!status.IsJust()) {
       TruncatedUserString<> trunc_name(name->GetCharVector<uint8_t>());
       thrower_->LinkError("export of %.*s failed.", trunc_name.length(),
@@ -2650,8 +2650,8 @@ void InstanceBuilder::ProcessExports(
   DCHECK_EQ(export_index, weak_exported_functions->length());
 
   if (module_->is_wasm()) {
-    v8::Maybe<bool> success = JSReceiver::SetIntegrityLevel(
-        exports_object, FROZEN, Object::DONT_THROW);
+    v8::Maybe<bool> success =
+        JSReceiver::SetIntegrityLevel(exports_object, FROZEN, kDontThrow);
     DCHECK(success.FromMaybe(false));
     USE(success);
   }

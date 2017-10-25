@@ -97,7 +97,8 @@ class V8_EXPORT_PRIVATE BigInt : public HeapObject {
   // Private helpers for public methods.
   static Handle<BigInt> Copy(Handle<BigInt> source);
   static MaybeHandle<BigInt> AllocateFor(Isolate* isolate, int radix,
-                                         int charcount);
+                                         int charcount,
+                                         ShouldThrow should_throw);
   void RightTrim();
 
   static Handle<BigInt> AbsoluteAdd(Handle<BigInt> x, Handle<BigInt> y,

@@ -841,7 +841,7 @@ RUNTIME_FUNCTION(Runtime_DeleteLookupSlot) {
 namespace {
 
 MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
-                                   Object::ShouldThrow should_throw,
+                                   ShouldThrow should_throw,
                                    Handle<Object>* receiver_return = nullptr) {
   Isolate* const isolate = name->GetIsolate();
 
@@ -892,7 +892,7 @@ MaybeHandle<Object> LoadLookupSlot(Handle<String> name,
     return value;
   }
 
-  if (should_throw == Object::THROW_ON_ERROR) {
+  if (should_throw == kThrowOnError) {
     // The property doesn't exist - throw exception.
     THROW_NEW_ERROR(
         isolate, NewReferenceError(MessageTemplate::kNotDefined, name), Object);
@@ -910,8 +910,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlot) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  RETURN_RESULT_OR_FAILURE(isolate,
-                           LoadLookupSlot(name, Object::THROW_ON_ERROR));
+  RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(name, kThrowOnError));
 }
 
 
@@ -919,7 +918,7 @@ RUNTIME_FUNCTION(Runtime_LoadLookupSlotInsideTypeof) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, name, 0);
-  RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(name, Object::DONT_THROW));
+  RETURN_RESULT_OR_FAILURE(isolate, LoadLookupSlot(name, kDontThrow));
 }
 
 
@@ -931,7 +930,7 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_LoadLookupSlotForCall) {
   Handle<Object> value;
   Handle<Object> receiver;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, value, LoadLookupSlot(name, Object::THROW_ON_ERROR, &receiver),
+      isolate, value, LoadLookupSlot(name, kThrowOnError, &receiver),
       MakePair(isolate->heap()->exception(), nullptr));
   return MakePair(*value, *receiver);
 }
