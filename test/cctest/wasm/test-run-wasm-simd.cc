@@ -1166,8 +1166,6 @@ WASM_SIMD_COMPILED_TEST(I16x8ConvertI32x4) {
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
         // V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 void RunI16x8BinOpTest(WasmExecutionMode execution_mode, WasmOpcode simd_op,
                        Int16BinOp expected_op) {
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(execution_mode);
@@ -1203,6 +1201,8 @@ WASM_SIMD_TEST(I16x8SubSaturateS) {
   RunI16x8BinOpTest(execution_mode, kExprI16x8SubSaturateS, SubSaturate);
 }
 
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
+    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(I16x8Mul) {
   RunI16x8BinOpTest(execution_mode, kExprI16x8Mul, Mul);
 }
@@ -1291,6 +1291,8 @@ WASM_SIMD_TEST(I16x8LtU) {
 WASM_SIMD_TEST(I16x8LeU) {
   RunI16x8CompareOpTest(execution_mode, kExprI16x8LeU, UnsignedLessEqual);
 }
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
+        // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 void RunI16x8ShiftOpTest(WasmExecutionMode execution_mode, WasmOpcode simd_op,
                          Int16ShiftOp expected_op, int shift) {
@@ -1318,6 +1320,8 @@ WASM_SIMD_TEST(I16x8ShrU) {
   RunI16x8ShiftOpTest(execution_mode, kExprI16x8ShrU, LogicalShiftRight, 1);
 }
 
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
+    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 void RunI8x16UnOpTest(WasmExecutionMode execution_mode, WasmOpcode simd_op,
                       Int8UnOp expected_op) {
   WasmRunner<int32_t, int32_t, int32_t> r(execution_mode);

@@ -1915,14 +1915,21 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I32x4MinU)             \
   V(I32x4MaxU)             \
   V(I32x4GtU)              \
-  V(I32x4GeU)
+  V(I32x4GeU)              \
+  V(I16x8Add)              \
+  V(I16x8AddSaturateS)     \
+  V(I16x8Sub)              \
+  V(I16x8SubSaturateS)
 
 #define SIMD_UNOP_LIST(V) V(I32x4Neg)
 
 #define SIMD_SHIFT_OPCODES(V) \
   V(I32x4Shl)                 \
   V(I32x4ShrS)                \
-  V(I32x4ShrU)
+  V(I32x4ShrU)                \
+  V(I16x8Shl)                 \
+  V(I16x8ShrS)                \
+  V(I16x8ShrU)
 
 #define VISIT_SIMD_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \

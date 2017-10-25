@@ -2221,6 +2221,76 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputOperand(2), i.InputInt8(1));
       break;
     }
+    case kSSEI16x8Shl: {
+      __ psllw(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kAVXI16x8Shl: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpsllw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputInt8(1));
+      break;
+    }
+    case kSSEI16x8ShrS: {
+      __ psraw(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kAVXI16x8ShrS: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpsraw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputInt8(1));
+      break;
+    }
+    case kSSEI16x8Add: {
+      __ paddw(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI16x8Add: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpaddw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kSSEI16x8AddSaturateS: {
+      __ paddsw(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI16x8AddSaturateS: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpaddsw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
+      break;
+    }
+    case kSSEI16x8Sub: {
+      __ psubw(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI16x8Sub: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpsubw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputOperand(1));
+      break;
+    }
+    case kSSEI16x8SubSaturateS: {
+      __ psubsw(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI16x8SubSaturateS: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpsubsw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                 i.InputOperand(1));
+      break;
+    }
+    case kSSEI16x8ShrU: {
+      __ psrlw(i.OutputSimd128Register(), i.InputInt8(1));
+      break;
+    }
+    case kAVXI16x8ShrU: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpsrlw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                i.InputInt8(1));
+      break;
+    }
     case kIA32I8x16Splat: {
       XMMRegister dst = i.OutputSimd128Register();
       __ Movd(dst, i.InputOperand(0));
