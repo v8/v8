@@ -310,10 +310,7 @@ bool Parser::ShortcutNumericLiteralBinaryExpression(Expression** x,
 bool Parser::CollapseNaryExpression(Expression** x, Expression* y,
                                     Token::Value op, int pos) {
   // Filter out unsupported ops.
-  // TODO(leszeks): Support AND and OR in bytecode generator.
-  if (!Token::IsBinaryOp(op) || op == Token::AND || op == Token::OR ||
-      op == Token::EXP)
-    return false;
+  if (!Token::IsBinaryOp(op) || op == Token::EXP) return false;
 
   // Convert *x into an nary operation with the given op, returning false if
   // this is not possible.

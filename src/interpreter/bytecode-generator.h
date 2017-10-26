@@ -170,10 +170,22 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void VisitForInAssignment(Expression* expr);
   void VisitModuleNamespaceImports();
 
-  // Builds a logical OR/AND within a test context by rewiring the jumps based
+  // Visit a logical OR/AND within a test context, rewiring the jumps based
   // on the expression values.
-  void BuildLogicalTest(Token::Value token, Expression* left,
+  void VisitLogicalTest(Token::Value token, Expression* left,
                         Expression* right);
+  void VisitNaryLogicalTest(Token::Value token, NaryOperation* expr);
+  // Visit a (non-RHS) test for a logical op, which falls through if the test
+  // fails or jumps to the appropriate labels if it succeeds.
+  void VisitLogicalTestSubExpression(Token::Value token, Expression* expr,
+                                     BytecodeLabels* then_labels,
+                                     BytecodeLabels* else_labels);
+
+  // Helpers for binary and nary logical op value expressions.
+  bool VisitLogicalOrSubExpression(Expression* expr,
+                                   BytecodeLabels* end_labels);
+  bool VisitLogicalAndSubExpression(Expression* expr,
+                                    BytecodeLabels* end_labels);
 
   // Visit the header/body of a loop iteration.
   void VisitIterationHeader(IterationStatement* stmt,
