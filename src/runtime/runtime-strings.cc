@@ -663,16 +663,10 @@ RUNTIME_FUNCTION(Runtime_StringLessThan) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  switch (String::Compare(x, y)) {
-    case ComparisonResult::kLessThan:
-      return isolate->heap()->true_value();
-    case ComparisonResult::kEqual:
-    case ComparisonResult::kGreaterThan:
-      return isolate->heap()->false_value();
-    case ComparisonResult::kUndefined:
-      break;
-  }
-  UNREACHABLE();
+  ComparisonResult result = String::Compare(x, y);
+  DCHECK_NE(result, ComparisonResult::kUndefined);
+  return isolate->heap()->ToBoolean(
+      ComparisonResultToBool(Operation::kLessThan, result));
 }
 
 RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
@@ -680,16 +674,10 @@ RUNTIME_FUNCTION(Runtime_StringLessThanOrEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  switch (String::Compare(x, y)) {
-    case ComparisonResult::kEqual:
-    case ComparisonResult::kLessThan:
-      return isolate->heap()->true_value();
-    case ComparisonResult::kGreaterThan:
-      return isolate->heap()->false_value();
-    case ComparisonResult::kUndefined:
-      break;
-  }
-  UNREACHABLE();
+  ComparisonResult result = String::Compare(x, y);
+  DCHECK_NE(result, ComparisonResult::kUndefined);
+  return isolate->heap()->ToBoolean(
+      ComparisonResultToBool(Operation::kLessThanOrEqual, result));
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
@@ -697,16 +685,10 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThan) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  switch (String::Compare(x, y)) {
-    case ComparisonResult::kGreaterThan:
-      return isolate->heap()->true_value();
-    case ComparisonResult::kEqual:
-    case ComparisonResult::kLessThan:
-      return isolate->heap()->false_value();
-    case ComparisonResult::kUndefined:
-      break;
-  }
-  UNREACHABLE();
+  ComparisonResult result = String::Compare(x, y);
+  DCHECK_NE(result, ComparisonResult::kUndefined);
+  return isolate->heap()->ToBoolean(
+      ComparisonResultToBool(Operation::kGreaterThan, result));
 }
 
 RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
@@ -714,16 +696,10 @@ RUNTIME_FUNCTION(Runtime_StringGreaterThanOrEqual) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(String, x, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, y, 1);
-  switch (String::Compare(x, y)) {
-    case ComparisonResult::kEqual:
-    case ComparisonResult::kGreaterThan:
-      return isolate->heap()->true_value();
-    case ComparisonResult::kLessThan:
-      return isolate->heap()->false_value();
-    case ComparisonResult::kUndefined:
-      break;
-  }
-  UNREACHABLE();
+  ComparisonResult result = String::Compare(x, y);
+  DCHECK_NE(result, ComparisonResult::kUndefined);
+  return isolate->heap()->ToBoolean(
+      ComparisonResultToBool(Operation::kGreaterThanOrEqual, result));
 }
 
 RUNTIME_FUNCTION(Runtime_StringEqual) {
