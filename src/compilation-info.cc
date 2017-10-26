@@ -78,7 +78,6 @@ CompilationInfo::CompilationInfo(Vector<const char> debug_name,
       bailout_reason_(kNoReason),
       parameter_count_(0),
       optimization_id_(-1),
-      osr_expr_stack_height_(-1),
       debug_name_(debug_name) {}
 
 CompilationInfo::~CompilationInfo() {

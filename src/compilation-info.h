@@ -214,16 +214,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
     return optimization_id_;
   }
 
-  int osr_expr_stack_height() {
-    DCHECK_GE(osr_expr_stack_height_, 0);
-    return osr_expr_stack_height_;
-  }
-  void set_osr_expr_stack_height(int height) {
-    DCHECK_EQ(osr_expr_stack_height_, -1);
-    osr_expr_stack_height_ = height;
-    DCHECK_GE(osr_expr_stack_height_, 0);
-  }
-
   bool has_simple_parameters();
 
   struct InlinedFunctionHolder {
@@ -331,8 +321,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   int parameter_count_;
 
   int optimization_id_;
-
-  int osr_expr_stack_height_;
 
   // The current OSR frame for specialization or {nullptr}.
   JavaScriptFrame* osr_frame_ = nullptr;
