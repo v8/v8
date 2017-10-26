@@ -3405,6 +3405,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<Map> map =
         factory->NewMap(JS_BOUND_FUNCTION_TYPE, JSBoundFunction::kSize,
                         TERMINAL_FAST_ELEMENTS_KIND, 0);
+    map->SetConstructor(native_context()->object_function());
     map->set_is_callable();
     Map::SetPrototype(map, empty_function);
 

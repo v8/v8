@@ -2432,6 +2432,9 @@ MaybeHandle<JSBoundFunction> Factory::NewJSBoundFunction(
       isolate(), prototype,
       JSReceiver::GetPrototype(isolate(), target_function), JSBoundFunction);
 
+  SaveContext save(isolate());
+  isolate()->set_context(*target_function->GetCreationContext());
+
   // Create the [[BoundArguments]] for the result.
   Handle<FixedArray> bound_arguments;
   if (bound_args.length() == 0) {

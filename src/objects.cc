@@ -3675,9 +3675,6 @@ Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
 
 Handle<Context> JSReceiver::GetCreationContext() {
   JSReceiver* receiver = this;
-  while (receiver->IsJSBoundFunction()) {
-    receiver = JSBoundFunction::cast(receiver)->bound_target_function();
-  }
   // Externals are JSObjects with null as a constructor.
   DCHECK(!receiver->IsExternal());
   Object* constructor = receiver->map()->GetConstructor();
