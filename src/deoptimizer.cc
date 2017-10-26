@@ -24,9 +24,15 @@ namespace v8 {
 namespace internal {
 
 static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
-  return allocator->AllocateChunk(Deoptimizer::GetMaxDeoptTableSize(),
-                                  MemoryAllocator::GetCommitPageSize(),
-                                  EXECUTABLE, nullptr);
+  MemoryChunk* chunk = allocator->AllocateChunk(
+      Deoptimizer::GetMaxDeoptTableSize(), MemoryAllocator::GetCommitPageSize(),
+      EXECUTABLE, nullptr);
+  if (FLAG_write_protect_code_memory) {
+    // TODO(hpayer): Ensure code memory chunk allocation gives us rx by default.
+    chunk->SetReadAndWritable();
+    chunk->SetReadAndExecutable();
+  }
+  return chunk;
 }
 
 DeoptimizerData::DeoptimizerData(MemoryAllocator* allocator)
@@ -2009,6 +2015,11 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   MemoryChunk* chunk = data->deopt_entry_code_[type];
+
+  // TODO(mstarzinger,6792): This code-space modification section should be
+  // moved into {Heap} eventually and a safe wrapper be provided.
+  CodePageMemoryModificationScope modification_scope(chunk);
+
   CHECK(static_cast<int>(Deoptimizer::GetMaxDeoptTableSize()) >=
         desc.instr_size);
   if (!chunk->CommitArea(desc.instr_size)) {
