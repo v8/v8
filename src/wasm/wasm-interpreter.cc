@@ -123,7 +123,9 @@ namespace wasm {
   V(I32AsmjsDivS, int32_t)     \
   V(I32AsmjsDivU, uint32_t)    \
   V(I32AsmjsRemS, int32_t)     \
-  V(I32AsmjsRemU, uint32_t)
+  V(I32AsmjsRemU, uint32_t)    \
+  V(F32CopySign, Float32)      \
+  V(F64CopySign, Float64)
 
 #define FOREACH_OTHER_UNOP(V)    \
   V(I32Clz, uint32_t)            \
@@ -177,6 +179,9 @@ namespace wasm {
   V(F64Sqrt, double)
 
 namespace {
+
+constexpr uint32_t kFloat32SignBitMask = uint32_t{1} << 31;
+constexpr uint64_t kFloat64SignBitMask = uint64_t{1} << 63;
 
 inline int32_t ExecuteI32DivS(int32_t a, int32_t b, TrapReason* trap) {
   if (b == 0) {
@@ -304,8 +309,9 @@ inline float ExecuteF32Max(float a, float b, TrapReason* trap) {
   return JSMax(a, b);
 }
 
-inline float ExecuteF32CopySign(float a, float b, TrapReason* trap) {
-  return copysignf(a, b);
+inline Float32 ExecuteF32CopySign(Float32 a, Float32 b, TrapReason* trap) {
+  return Float32::FromBits((a.get_bits() & ~kFloat32SignBitMask) |
+                           (b.get_bits() & kFloat32SignBitMask));
 }
 
 inline double ExecuteF64Min(double a, double b, TrapReason* trap) {
@@ -316,8 +322,9 @@ inline double ExecuteF64Max(double a, double b, TrapReason* trap) {
   return JSMax(a, b);
 }
 
-inline double ExecuteF64CopySign(double a, double b, TrapReason* trap) {
-  return copysign(a, b);
+inline Float64 ExecuteF64CopySign(Float64 a, Float64 b, TrapReason* trap) {
+  return Float64::FromBits((a.get_bits() & ~kFloat64SignBitMask) |
+                           (b.get_bits() & kFloat64SignBitMask));
 }
 
 inline int32_t ExecuteI32AsmjsDivS(int32_t a, int32_t b, TrapReason* trap) {
@@ -393,11 +400,11 @@ inline int32_t ExecuteI64Eqz(uint64_t val, TrapReason* trap) {
 }
 
 inline Float32 ExecuteF32Abs(Float32 a, TrapReason* trap) {
-  return Float32::FromBits(a.get_bits() & 0x7fffffff);
+  return Float32::FromBits(a.get_bits() & ~kFloat32SignBitMask);
 }
 
 inline Float32 ExecuteF32Neg(Float32 a, TrapReason* trap) {
-  return Float32::FromBits(a.get_bits() ^ 0x80000000);
+  return Float32::FromBits(a.get_bits() ^ kFloat32SignBitMask);
 }
 
 inline float ExecuteF32Ceil(float a, TrapReason* trap) { return ceilf(a); }
@@ -416,11 +423,11 @@ inline float ExecuteF32Sqrt(float a, TrapReason* trap) {
 }
 
 inline Float64 ExecuteF64Abs(Float64 a, TrapReason* trap) {
-  return Float64::FromBits(a.get_bits() & 0x7fffffffffffffff);
+  return Float64::FromBits(a.get_bits() & ~kFloat64SignBitMask);
 }
 
 inline Float64 ExecuteF64Neg(Float64 a, TrapReason* trap) {
-  return Float64::FromBits(a.get_bits() ^ 0x8000000000000000);
+  return Float64::FromBits(a.get_bits() ^ kFloat64SignBitMask);
 }
 
 inline double ExecuteF64Ceil(double a, TrapReason* trap) { return ceil(a); }
@@ -1110,6 +1117,20 @@ struct converter<uint32_t, Float32> {
   uint32_t operator()(Float32 val) const { return val.get_bits(); }
 };
 
+template <typename T>
+V8_INLINE bool has_nondeterminism(T val) {
+  static_assert(!std::is_floating_point<T>::value, "missing specialization");
+  return false;
+}
+template <>
+V8_INLINE bool has_nondeterminism<float>(float val) {
+  return std::isnan(val);
+}
+template <>
+V8_INLINE bool has_nondeterminism<double>(double val) {
+  return std::isnan(val);
+}
+
 // Responsible for executing code directly.
 class ThreadImpl {
   struct Activation {
@@ -1474,7 +1495,7 @@ class ThreadImpl {
                     MachineRepresentation rep) {
     MemoryAccessOperand<Decoder::kNoValidate> operand(decoder, code->at(pc),
                                                       sizeof(ctype));
-    WasmValue val = Pop();
+    ctype val = Pop().to<ctype>();
 
     uint32_t index = Pop().to<uint32_t>();
     if (!BoundsCheck<mtype>(wasm_context_->mem_size, operand.offset, index)) {
@@ -1482,17 +1503,8 @@ class ThreadImpl {
       return false;
     }
     byte* addr = wasm_context_->mem_start + operand.offset + index;
-    WriteLittleEndianValue<mtype>(addr,
-                                  converter<mtype, ctype>{}(val.to<ctype>()));
+    WriteLittleEndianValue<mtype>(addr, converter<mtype, ctype>{}(val));
     len = 1 + operand.length;
-
-    if (std::is_same<float, ctype>::value ||
-        std::is_same<Float32, ctype>::value) {
-      possible_nondeterminism_ |= std::isnan(val.to<float>());
-    } else if (std::is_same<double, ctype>::value ||
-               std::is_same<Float64, ctype>::value) {
-      possible_nondeterminism_ |= std::isnan(val.to<double>());
-    }
 
     if (FLAG_wasm_trace_memory) {
       tracing::TraceMemoryOperation(
@@ -1950,69 +1962,48 @@ class ThreadImpl {
         case kExprI32ReinterpretF32: {
           WasmValue val = Pop();
           Push(WasmValue(ExecuteI32ReinterpretF32(val)));
-          possible_nondeterminism_ |= std::isnan(val.to<float>());
           break;
         }
         case kExprI64ReinterpretF64: {
           WasmValue val = Pop();
           Push(WasmValue(ExecuteI64ReinterpretF64(val)));
-          possible_nondeterminism_ |= std::isnan(val.to<double>());
           break;
         }
 #define EXECUTE_SIMPLE_BINOP(name, ctype, op)               \
   case kExpr##name: {                                       \
     WasmValue rval = Pop();                                 \
     WasmValue lval = Pop();                                 \
-    WasmValue result(lval.to<ctype>() op rval.to<ctype>()); \
-    Push(result);                                           \
+    auto result = lval.to<ctype>() op rval.to<ctype>();     \
+    possible_nondeterminism_ |= has_nondeterminism(result); \
+    Push(WasmValue(result));                                \
     break;                                                  \
   }
           FOREACH_SIMPLE_BINOP(EXECUTE_SIMPLE_BINOP)
 #undef EXECUTE_SIMPLE_BINOP
 
-#define EXECUTE_OTHER_BINOP(name, ctype)                \
-  case kExpr##name: {                                   \
-    TrapReason trap = kTrapCount;                       \
-    volatile ctype rval = Pop().to<ctype>();            \
-    volatile ctype lval = Pop().to<ctype>();            \
-    WasmValue result(Execute##name(lval, rval, &trap)); \
-    if (trap != kTrapCount) return DoTrap(trap, pc);    \
-    Push(result);                                       \
-    break;                                              \
+#define EXECUTE_OTHER_BINOP(name, ctype)                    \
+  case kExpr##name: {                                       \
+    TrapReason trap = kTrapCount;                           \
+    ctype rval = Pop().to<ctype>();                         \
+    ctype lval = Pop().to<ctype>();                         \
+    auto result = Execute##name(lval, rval, &trap);         \
+    possible_nondeterminism_ |= has_nondeterminism(result); \
+    if (trap != kTrapCount) return DoTrap(trap, pc);        \
+    Push(WasmValue(result));                                \
+    break;                                                  \
   }
           FOREACH_OTHER_BINOP(EXECUTE_OTHER_BINOP)
 #undef EXECUTE_OTHER_BINOP
 
-        case kExprF32CopySign: {
-          // Handle kExprF32CopySign separately because it may introduce
-          // observable non-determinism.
-          TrapReason trap = kTrapCount;
-          volatile float rval = Pop().to<float>();
-          volatile float lval = Pop().to<float>();
-          WasmValue result(ExecuteF32CopySign(lval, rval, &trap));
-          Push(result);
-          possible_nondeterminism_ |= std::isnan(rval);
-          break;
-        }
-        case kExprF64CopySign: {
-          // Handle kExprF32CopySign separately because it may introduce
-          // observable non-determinism.
-          TrapReason trap = kTrapCount;
-          volatile double rval = Pop().to<double>();
-          volatile double lval = Pop().to<double>();
-          WasmValue result(ExecuteF64CopySign(lval, rval, &trap));
-          Push(result);
-          possible_nondeterminism_ |= std::isnan(rval);
-          break;
-        }
-#define EXECUTE_OTHER_UNOP(name, ctype)              \
-  case kExpr##name: {                                \
-    TrapReason trap = kTrapCount;                    \
-    ctype val = Pop().to<ctype>();                   \
-    WasmValue result(Execute##name(val, &trap));     \
-    if (trap != kTrapCount) return DoTrap(trap, pc); \
-    Push(result);                                    \
-    break;                                           \
+#define EXECUTE_OTHER_UNOP(name, ctype)                     \
+  case kExpr##name: {                                       \
+    TrapReason trap = kTrapCount;                           \
+    ctype val = Pop().to<ctype>();                          \
+    auto result = Execute##name(val, &trap);                \
+    possible_nondeterminism_ |= has_nondeterminism(result); \
+    if (trap != kTrapCount) return DoTrap(trap, pc);        \
+    Push(WasmValue(result));                                \
+    break;                                                  \
   }
           FOREACH_OTHER_UNOP(EXECUTE_OTHER_UNOP)
 #undef EXECUTE_OTHER_UNOP

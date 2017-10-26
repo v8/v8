@@ -335,7 +335,7 @@ TEST(TestPossibleNondeterminism) {
     r.Call(1048575.5f);
     CHECK(!r.possible_nondeterminism());
     r.Call(std::numeric_limits<float>::quiet_NaN());
-    CHECK(r.possible_nondeterminism());
+    CHECK(!r.possible_nondeterminism());
   }
   {
     WasmRunner<int64_t, double> r(kExecuteInterpreted);
@@ -343,7 +343,7 @@ TEST(TestPossibleNondeterminism) {
     r.Call(16.0);
     CHECK(!r.possible_nondeterminism());
     r.Call(std::numeric_limits<double>::quiet_NaN());
-    CHECK(r.possible_nondeterminism());
+    CHECK(!r.possible_nondeterminism());
   }
   {
     WasmRunner<float, float> r(kExecuteInterpreted);
@@ -351,7 +351,7 @@ TEST(TestPossibleNondeterminism) {
     r.Call(16.0f);
     CHECK(!r.possible_nondeterminism());
     r.Call(std::numeric_limits<double>::quiet_NaN());
-    CHECK(r.possible_nondeterminism());
+    CHECK(!r.possible_nondeterminism());
   }
   {
     WasmRunner<double, double> r(kExecuteInterpreted);
@@ -359,7 +359,7 @@ TEST(TestPossibleNondeterminism) {
     r.Call(16.0);
     CHECK(!r.possible_nondeterminism());
     r.Call(std::numeric_limits<double>::quiet_NaN());
-    CHECK(r.possible_nondeterminism());
+    CHECK(!r.possible_nondeterminism());
   }
   {
     int32_t index = 16;
@@ -371,7 +371,7 @@ TEST(TestPossibleNondeterminism) {
     r.Call(1345.3456f);
     CHECK(!r.possible_nondeterminism());
     r.Call(std::numeric_limits<float>::quiet_NaN());
-    CHECK(r.possible_nondeterminism());
+    CHECK(!r.possible_nondeterminism());
   }
   {
     int32_t index = 16;
@@ -381,6 +381,54 @@ TEST(TestPossibleNondeterminism) {
                             WASM_GET_LOCAL(0)),
           WASM_I32V(index));
     r.Call(1345.3456);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(std::numeric_limits<double>::quiet_NaN());
+    CHECK(!r.possible_nondeterminism());
+  }
+  {
+    WasmRunner<float, float> r(kExecuteInterpreted);
+    BUILD(r, WASM_F32_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+    r.Call(1048575.5f);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(std::numeric_limits<float>::quiet_NaN());
+    CHECK(r.possible_nondeterminism());
+  }
+  {
+    WasmRunner<double, double> r(kExecuteInterpreted);
+    BUILD(r, WASM_F64_ADD(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+    r.Call(16.0);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(std::numeric_limits<double>::quiet_NaN());
+    CHECK(r.possible_nondeterminism());
+  }
+  {
+    WasmRunner<int32_t, float> r(kExecuteInterpreted);
+    BUILD(r, WASM_F32_EQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+    r.Call(16.0);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(std::numeric_limits<float>::quiet_NaN());
+    CHECK(!r.possible_nondeterminism());
+  }
+  {
+    WasmRunner<int32_t, double> r(kExecuteInterpreted);
+    BUILD(r, WASM_F64_EQ(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+    r.Call(16.0);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(std::numeric_limits<double>::quiet_NaN());
+    CHECK(!r.possible_nondeterminism());
+  }
+  {
+    WasmRunner<float, float> r(kExecuteInterpreted);
+    BUILD(r, WASM_F32_MIN(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+    r.Call(1048575.5f);
+    CHECK(!r.possible_nondeterminism());
+    r.Call(std::numeric_limits<float>::quiet_NaN());
+    CHECK(r.possible_nondeterminism());
+  }
+  {
+    WasmRunner<double, double> r(kExecuteInterpreted);
+    BUILD(r, WASM_F64_MAX(WASM_GET_LOCAL(0), WASM_GET_LOCAL(0)));
+    r.Call(16.0);
     CHECK(!r.possible_nondeterminism());
     r.Call(std::numeric_limits<double>::quiet_NaN());
     CHECK(r.possible_nondeterminism());

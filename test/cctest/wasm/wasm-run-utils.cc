@@ -417,8 +417,9 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
       CEntryStub(isolate(), 1).GetCode(), comp_mode, isolate()->counters(),
       builder_->runtime_exception_support(), builder_->lower_simd());
   unit.ExecuteCompilation();
-  Handle<Code> code = unit.FinishCompilation(&thrower).ToHandleChecked();
+  MaybeHandle<Code> maybe_code = unit.FinishCompilation(&thrower);
   CHECK(!thrower.error());
+  Handle<Code> code = maybe_code.ToHandleChecked();
 
   // Manually add the deoptimization info that would otherwise be added
   // during instantiation. Deopt data holds <WeakCell<wasm_instance>,
