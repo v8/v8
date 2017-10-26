@@ -92,10 +92,9 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
     int accessor_index) {
   DCHECK(accessor_holder != scratch);
   DCHECK(optimization.is_simple_api_call());
+  Isolate* isolate = masm->isolate();
 
   __ PopReturnAddressTo(scratch);
-  // accessor_holder
-  __ Push(accessor_holder);
   // receiver
   __ Push(receiver);
   // Write the arguments to stack frame.
@@ -110,7 +109,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   // Abi for CallApiCallbackStub.
   Register callee = rdi;
   Register data = rbx;
-  Register holder = rcx;
+  Register holder_reg = rcx;
   Register api_function_address = rdx;
   scratch = no_reg;
 
@@ -123,18 +122,17 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   optimization.LookupHolderOfExpectedType(receiver_map, &holder_lookup);
   switch (holder_lookup) {
     case CallOptimization::kHolderIsReceiver:
-      __ Move(holder, receiver);
+      __ Move(holder_reg, receiver);
       break;
     case CallOptimization::kHolderFound:
-      __ movp(holder, FieldOperand(receiver, HeapObject::kMapOffset));
-      __ movp(holder, FieldOperand(holder, Map::kPrototypeOffset));
+      __ movp(holder_reg, FieldOperand(receiver, HeapObject::kMapOffset));
+      __ movp(holder_reg, FieldOperand(holder_reg, Map::kPrototypeOffset));
       break;
     case CallOptimization::kHolderNotFound:
       UNREACHABLE();
       break;
   }
 
-  Isolate* isolate = masm->isolate();
   Handle<CallHandlerInfo> api_call_info = optimization.api_call_info();
   // Put call data in place.
   if (api_call_info->data()->IsUndefined(isolate)) {
@@ -248,29 +246,6 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Label* label,
     __ bind(label);
     __ Move(this->name(), name);
   }
-}
-
-void PropertyHandlerCompiler::GenerateAccessCheck(
-    Handle<WeakCell> native_context_cell, Register scratch1, Register scratch2,
-    Label* miss, bool compare_native_contexts_only) {
-  Label done;
-  // Load current native context.
-  __ movp(scratch1, NativeContextOperand());
-  // Load expected native context.
-  __ LoadWeakValue(scratch2, native_context_cell, miss);
-  __ cmpp(scratch1, scratch2);
-
-  if (!compare_native_contexts_only) {
-    __ j(equal, &done);
-
-    // Compare security tokens of current and expected native contexts.
-    __ movp(scratch1, ContextOperand(scratch1, Context::SECURITY_TOKEN_INDEX));
-    __ movp(scratch2, ContextOperand(scratch2, Context::SECURITY_TOKEN_INDEX));
-    __ cmpp(scratch1, scratch2);
-  }
-  __ j(not_equal, miss);
-
-  __ bind(&done);
 }
 
 Register PropertyHandlerCompiler::CheckPrototypes(

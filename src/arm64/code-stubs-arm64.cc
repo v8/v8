@@ -1706,7 +1706,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   //  -- ...
   //  -- sp[(argc - 1) * 8]  : first argument
   //  -- sp[argc * 8]        : receiver
-  //  -- sp[(argc + 1) * 8]  : accessor_holder
   // -----------------------------------
 
   Register callee = x0;
@@ -1741,35 +1740,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ Push(undef, undef, isolate_reg, holder);
 
   // Enter a new context.
-  if (is_lazy()) {
-    // ----------- S t a t e -------------------------------------
-    //  -- sp[0]                                 : holder
-    //  -- ...
-    //  -- sp[(FCA::kArgsLength - 1) * 8]        : new_target
-    //  -- sp[FCA::kArgsLength * 8]              : last argument
-    //  -- ...
-    //  -- sp[(FCA::kArgsLength + argc - 1) * 8] : first argument
-    //  -- sp[(FCA::kArgsLength + argc) * 8]     : receiver
-    //  -- sp[(FCA::kArgsLength + argc + 1) * 8] : accessor_holder
-    // -----------------------------------------------------------
-
-    // Load context from accessor_holder.
-    Register accessor_holder = context;
-    Register scratch = undef;
-    Register scratch2 = callee;
-    __ Ldr(accessor_holder,
-           MemOperand(__ StackPointer(),
-                      (FCA::kArgsLength + 1 + argc()) * kPointerSize));
-    // Look for the constructor if |accessor_holder| is not a function.
-    Label skip_looking_for_constructor;
-    __ Ldr(scratch, FieldMemOperand(accessor_holder, HeapObject::kMapOffset));
-    __ Ldrb(scratch2, FieldMemOperand(scratch, Map::kBitFieldOffset));
-    __ Tst(scratch2, Operand(1 << Map::kIsConstructor));
-    __ B(ne, &skip_looking_for_constructor);
-    __ GetMapConstructor(context, scratch, scratch, scratch2);
-    __ Bind(&skip_looking_for_constructor);
-    __ Ldr(context, FieldMemOperand(context, JSFunction::kContextOffset));
-  } else {
+  if (!is_lazy()) {
     // Load context from callee.
     __ Ldr(context, FieldMemOperand(callee, JSFunction::kContextOffset));
   }
@@ -1817,8 +1788,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // The number of arguments might be odd, but will be padded when calling the
   // stub. We do not round up stack_space here, this will be done in
   // CallApiFunctionAndReturn.
-  const int stack_space = argc() + FCA::kArgsLength + 2;
-  DCHECK_EQ((stack_space - argc()) % 2, 0);
+  const int stack_space = (argc() + 1) + FCA::kArgsLength;
+  DCHECK_EQ((stack_space - (argc() + 1)) % 2, 0);
   const int spill_offset = 1 + kApiStackSpace;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, stack_space,
                            spill_offset, return_value_operand,

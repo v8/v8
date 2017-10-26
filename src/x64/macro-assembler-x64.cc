@@ -2180,19 +2180,6 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
   }
 }
 
-void MacroAssembler::GetMapConstructor(Register result, Register map,
-                                       Register temp) {
-  Label done, loop;
-  movp(result, FieldOperand(map, Map::kConstructorOrBackPointerOffset));
-  bind(&loop);
-  JumpIfSmi(result, &done, Label::kNear);
-  CmpObjectType(result, MAP_TYPE, temp);
-  j(not_equal, &done, Label::kNear);
-  movp(result, FieldOperand(result, Map::kConstructorOrBackPointerOffset));
-  jmp(&loop);
-  bind(&done);
-}
-
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {

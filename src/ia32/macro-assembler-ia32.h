@@ -590,13 +590,6 @@ class MacroAssembler : public TurboAssembler {
   void PopStackHandler();
 
   // ---------------------------------------------------------------------------
-  // Support functions.
-
-  // Machine code version of Map::GetConstructor().
-  // |temp| holds |result|'s map when done.
-  void GetMapConstructor(Register result, Register map, Register temp);
-
-  // ---------------------------------------------------------------------------
   // Runtime calls
 
   // Call a code stub.  Generate the code if necessary.

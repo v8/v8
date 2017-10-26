@@ -782,6 +782,10 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
         }
 
         CallOptimization call_optimization(getter);
+        if (call_optimization.IsCrossContextLazyAccessorPair(
+                isolate()->raw_native_context(), holder->map())) {
+          return slow_stub();
+        }
         if (call_optimization.is_simple_api_call()) {
           if (!call_optimization.IsCompatibleReceiverMap(map, holder) ||
               !holder->HasFastProperties()) {
@@ -919,8 +923,8 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup) {
   DCHECK(accessors->IsAccessorPair());
   DCHECK(holder->HasFastProperties());
   DCHECK(!GetHostFunction()->shared()->HasBreakInfo());
-  Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
-                        isolate());
+  Handle<Object> getter(AccessorPair::cast(*accessors)->getter(), isolate());
+
   CallOptimization call_optimization(getter);
   NamedLoadHandlerCompiler compiler(isolate(), map, holder);
   DCHECK(call_optimization.is_simple_api_call());
@@ -1412,12 +1416,18 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
           return slow_stub();
         }
         CallOptimization call_optimization(setter);
+        if (call_optimization.IsCrossContextLazyAccessorPair(
+                isolate()->raw_native_context(), holder->map())) {
+          return slow_stub();
+        }
         if (call_optimization.is_simple_api_call()) {
           if (call_optimization.IsCompatibleReceiver(receiver, holder)) {
             break;  // Custom-compiled handler.
           }
           TRACE_GENERIC_IC("incompatible receiver");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+          return slow_stub();
+        } else if (setter->IsFunctionTemplateInfo()) {
           return slow_stub();
         }
         break;  // Custom-compiled handler.
@@ -1513,8 +1523,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup) {
   }
 
   DCHECK(accessors->IsAccessorPair());
-  Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
-                        isolate());
+  Handle<Object> setter(AccessorPair::cast(*accessors)->setter(), isolate());
   DCHECK(setter->IsJSFunction() || setter->IsFunctionTemplateInfo());
   CallOptimization call_optimization(setter);
   NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);

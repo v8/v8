@@ -72,25 +72,12 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
                                         Handle<Name> name, Register scratch,
                                         Label* miss);
 
-  // Generates check that current native context has the same access rights
-  // as the given |native_context_cell|.
-  // If |compare_native_contexts_only| is true then access check is considered
-  // passed if the execution-time native context is equal to contents of
-  // |native_context_cell|.
-  // If |compare_native_contexts_only| is false then access check is considered
-  // passed if the execution-time native context is equal to contents of
-  // |native_context_cell| or security tokens of both contexts are equal.
-  void GenerateAccessCheck(Handle<WeakCell> native_context_cell,
-                           Register scratch1, Register scratch2, Label* miss,
-                           bool compare_native_contexts_only);
-
   // Generates code that verifies that the property holder has not changed
   // (checking maps of objects in the prototype chain for fast and global
   // objects or doing negative lookup for slow objects, ensures that the
   // property cells for global objects are still empty) and checks that the map
-  // of the holder has not changed. If necessary the function also generates
-  // code for security check in case of global object holders. Helps to make
-  // sure that the current IC is still valid.
+  // of the holder has not changed. Helps to make sure that the current IC is
+  // still valid.
   //
   // The scratch and holder registers are always clobbered, but the object
   // register is only clobbered if it the same as the holder register. The

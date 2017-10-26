@@ -1527,19 +1527,6 @@ void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
   JumpIfSmi(value, miss);
 }
 
-void MacroAssembler::GetMapConstructor(Register result, Register map,
-                                       Register temp, Register temp2) {
-  Label done, loop;
-  LoadP(result, FieldMemOperand(map, Map::kConstructorOrBackPointerOffset));
-  bind(&loop);
-  JumpIfSmi(result, &done);
-  CompareObjectType(result, temp, temp2, MAP_TYPE);
-  bne(&done);
-  LoadP(result, FieldMemOperand(result, Map::kConstructorOrBackPointerOffset));
-  b(&loop);
-  bind(&done);
-}
-
 void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
   DCHECK(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
