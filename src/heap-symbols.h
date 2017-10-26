@@ -350,6 +350,7 @@
   F(MINOR_MC_SWEEPING)                               \
   F(SCAVENGER_FAST_PROMOTE)                          \
   F(SCAVENGER_SCAVENGE)                              \
+  F(SCAVENGER_PROCESS_ARRAY_BUFFERS)                 \
   F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_IDENTIFY) \
   F(SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS)  \
   F(SCAVENGER_SCAVENGE_PARALLEL)                     \

@@ -1998,8 +1998,10 @@ void Heap::Scavenge() {
   // Set age mark.
   new_space_->set_age_mark(new_space_->top());
 
-  ArrayBufferTracker::FreeDeadInNewSpace(this);
-
+  {
+    TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_PROCESS_ARRAY_BUFFERS);
+    ArrayBufferTracker::FreeDeadInNewSpace(this);
+  }
   RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(this, [](MemoryChunk* chunk) {
     if (chunk->SweepingDone()) {
       RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);

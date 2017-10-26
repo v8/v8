@@ -461,6 +461,7 @@ void GCTracer::PrintNVP() const {
           "heap.external_weak_global_handles=%.2f "
           "fast_promote=%.2f "
           "scavenge=%.2f "
+          "scavenge.process_array_buffers=%.2f "
           "scavenge.roots=%.2f "
           "scavenge.weak=%.2f "
           "scavenge.weak_global_handles.identify=%.2f "
@@ -503,6 +504,7 @@ void GCTracer::PrintNVP() const {
           current_.scopes[Scope::HEAP_EXTERNAL_WEAK_GLOBAL_HANDLES],
           current_.scopes[Scope::SCAVENGER_FAST_PROMOTE],
           current_.scopes[Scope::SCAVENGER_SCAVENGE],
+          current_.scopes[Scope::SCAVENGER_PROCESS_ARRAY_BUFFERS],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_ROOTS],
           current_.scopes[Scope::SCAVENGER_SCAVENGE_WEAK],
           current_
