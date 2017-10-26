@@ -203,11 +203,6 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
-  int VisitCodeDataContainer(Map* map, CodeDataContainer* object) {
-    bailout_.Push(object);
-    return 0;
-  }
-
   // ===========================================================================
   // Objects with weak fields and/or side-effectiful visitation.
   // ===========================================================================
@@ -226,6 +221,14 @@ class ConcurrentMarkingVisitor final
     int size = AllocationSite::BodyDescriptorWeak::SizeOf(map, object);
     VisitMapPointer(object, object->map_slot());
     AllocationSite::BodyDescriptorWeak::IterateBody(object, size, this);
+    return size;
+  }
+
+  int VisitCodeDataContainer(Map* map, CodeDataContainer* object) {
+    if (!ShouldVisit(object)) return 0;
+    int size = CodeDataContainer::BodyDescriptorWeak::SizeOf(map, object);
+    VisitMapPointer(object, object->map_slot());
+    CodeDataContainer::BodyDescriptorWeak::IterateBody(object, size, this);
     return size;
   }
 
