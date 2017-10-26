@@ -199,12 +199,14 @@ RUNTIME_FUNCTION(Runtime_DefineClass) {
 
 namespace {
 void InstallClassNameAccessor(Isolate* isolate, Handle<JSObject> object) {
+  Handle<String> name = isolate->factory()->name_string();
   PropertyAttributes attrs =
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
   // Cannot fail since this should only be called when creating an object
   // literal.
   CHECK(!JSObject::SetAccessor(
-             object, Accessors::FunctionNameInfo(object->GetIsolate(), attrs))
+             object, name, Accessors::FunctionNameInfo(object->GetIsolate()),
+             attrs)
              .is_null());
 }
 }  // anonymous namespace

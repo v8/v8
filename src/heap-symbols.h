@@ -161,10 +161,8 @@
   V(set_space_string, "set ")                                      \
   V(set_string, "set")                                             \
   V(Set_string, "Set")                                             \
-  V(source_mapping_url_string, "source_mapping_url")               \
   V(source_string, "source")                                       \
   V(sourceText_string, "sourceText")                               \
-  V(source_url_string, "source_url")                               \
   V(stack_string, "stack")                                         \
   V(stackTraceLimit_string, "stackTraceLimit")                     \
   V(star_default_star_string, "*default*")                         \

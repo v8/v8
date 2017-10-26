@@ -20,10 +20,9 @@ namespace internal {
 
 Handle<AccessorInfo> Accessors::MakeAccessor(
     Isolate* isolate, Handle<Name> name, AccessorNameGetterCallback getter,
-    AccessorNameBooleanSetterCallback setter, PropertyAttributes attributes) {
+    AccessorNameBooleanSetterCallback setter) {
   Factory* factory = isolate->factory();
   Handle<AccessorInfo> info = factory->NewAccessorInfo();
-  info->set_property_attributes(attributes);
   info->set_all_can_read(false);
   info->set_all_can_write(false);
   info->set_is_special_data_property(true);
@@ -135,12 +134,9 @@ void Accessors::ArgumentsIteratorGetter(
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
-
-Handle<AccessorInfo> Accessors::ArgumentsIteratorInfo(
-    Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::ArgumentsIteratorInfo(Isolate* isolate) {
   Handle<Name> name = isolate->factory()->iterator_symbol();
-  return MakeAccessor(isolate, name, &ArgumentsIteratorGetter, nullptr,
-                      attributes);
+  return MakeAccessor(isolate, name, &ArgumentsIteratorGetter, nullptr);
 }
 
 
@@ -220,14 +216,9 @@ void Accessors::ArrayLengthSetter(
   }
 }
 
-
-Handle<AccessorInfo> Accessors::ArrayLengthInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
-  return MakeAccessor(isolate,
-                      isolate->factory()->length_string(),
-                      &ArrayLengthGetter,
-                      &ArrayLengthSetter,
-                      attributes);
+Handle<AccessorInfo> Accessors::ArrayLengthInfo(Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->length_string(),
+                      &ArrayLengthGetter, &ArrayLengthSetter);
 }
 
 //
@@ -268,10 +259,10 @@ void Accessors::ModuleNamespaceEntrySetter(
   }
 }
 
-Handle<AccessorInfo> Accessors::ModuleNamespaceEntryInfo(
-    Isolate* isolate, Handle<String> name, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::ModuleNamespaceEntryInfo(Isolate* isolate,
+                                                         Handle<String> name) {
   return MakeAccessor(isolate, name, &ModuleNamespaceEntryGetter,
-                      &ModuleNamespaceEntrySetter, attributes);
+                      &ModuleNamespaceEntrySetter);
 }
 
 
@@ -302,11 +293,9 @@ void Accessors::StringLengthGetter(
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(result, isolate)));
 }
 
-
-Handle<AccessorInfo> Accessors::StringLengthInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::StringLengthInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
-                      &StringLengthGetter, nullptr, attributes);
+                      &StringLengthGetter, nullptr);
 }
 
 
@@ -327,13 +316,10 @@ void Accessors::ScriptColumnOffsetGetter(
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
-
-Handle<AccessorInfo> Accessors::ScriptColumnOffsetInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::ScriptColumnOffsetInfo(Isolate* isolate) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
       STATIC_CHAR_VECTOR("column_offset")));
-  return MakeAccessor(isolate, name, &ScriptColumnOffsetGetter, nullptr,
-                      attributes);
+  return MakeAccessor(isolate, name, &ScriptColumnOffsetGetter, nullptr);
 }
 
 
@@ -353,12 +339,10 @@ void Accessors::ScriptIdGetter(
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(id, isolate)));
 }
 
-
-Handle<AccessorInfo> Accessors::ScriptIdInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::ScriptIdInfo(Isolate* isolate) {
   Handle<String> name(
       isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("id")));
-  return MakeAccessor(isolate, name, &ScriptIdGetter, nullptr, attributes);
+  return MakeAccessor(isolate, name, &ScriptIdGetter, nullptr);
 }
 
 
@@ -378,11 +362,9 @@ void Accessors::ScriptNameGetter(
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(source, isolate)));
 }
 
-
-Handle<AccessorInfo> Accessors::ScriptNameInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::ScriptNameInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->name_string(),
-                      &ScriptNameGetter, nullptr, attributes);
+                      &ScriptNameGetter, nullptr);
 }
 
 
@@ -402,11 +384,9 @@ void Accessors::ScriptSourceGetter(
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(source, isolate)));
 }
 
-
-Handle<AccessorInfo> Accessors::ScriptSourceInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::ScriptSourceInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->source_string(),
-                      &ScriptSourceGetter, nullptr, attributes);
+                      &ScriptSourceGetter, nullptr);
 }
 
 
@@ -427,13 +407,10 @@ void Accessors::ScriptLineOffsetGetter(
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
-
-Handle<AccessorInfo> Accessors::ScriptLineOffsetInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::ScriptLineOffsetInfo(Isolate* isolate) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
       STATIC_CHAR_VECTOR("line_offset")));
-  return MakeAccessor(isolate, name, &ScriptLineOffsetGetter, nullptr,
-                      attributes);
+  return MakeAccessor(isolate, name, &ScriptLineOffsetGetter, nullptr);
 }
 
 
@@ -454,12 +431,10 @@ void Accessors::ScriptTypeGetter(
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
-
-Handle<AccessorInfo> Accessors::ScriptTypeInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::ScriptTypeInfo(Isolate* isolate) {
   Handle<String> name(
       isolate->factory()->InternalizeOneByteString(STATIC_CHAR_VECTOR("type")));
-  return MakeAccessor(isolate, name, &ScriptTypeGetter, nullptr, attributes);
+  return MakeAccessor(isolate, name, &ScriptTypeGetter, nullptr);
 }
 
 
@@ -480,13 +455,10 @@ void Accessors::ScriptCompilationTypeGetter(
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
-
-Handle<AccessorInfo> Accessors::ScriptCompilationTypeInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::ScriptCompilationTypeInfo(Isolate* isolate) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
       STATIC_CHAR_VECTOR("compilation_type")));
-  return MakeAccessor(isolate, name, &ScriptCompilationTypeGetter, nullptr,
-                      attributes);
+  return MakeAccessor(isolate, name, &ScriptCompilationTypeGetter, nullptr);
 }
 
 
@@ -506,11 +478,10 @@ void Accessors::ScriptSourceUrlGetter(
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(url, isolate)));
 }
 
-
-Handle<AccessorInfo> Accessors::ScriptSourceUrlInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
-  return MakeAccessor(isolate, isolate->factory()->source_url_string(),
-                      &ScriptSourceUrlGetter, nullptr, attributes);
+Handle<AccessorInfo> Accessors::ScriptSourceUrlInfo(Isolate* isolate) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("source_url")));
+  return MakeAccessor(isolate, name, &ScriptSourceUrlGetter, nullptr);
 }
 
 
@@ -531,11 +502,10 @@ void Accessors::ScriptSourceMappingUrlGetter(
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(url, isolate)));
 }
 
-
-Handle<AccessorInfo> Accessors::ScriptSourceMappingUrlInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
-  return MakeAccessor(isolate, isolate->factory()->source_mapping_url_string(),
-                      &ScriptSourceMappingUrlGetter, nullptr, attributes);
+Handle<AccessorInfo> Accessors::ScriptSourceMappingUrlInfo(Isolate* isolate) {
+  Handle<String> name(isolate->factory()->InternalizeOneByteString(
+      STATIC_CHAR_VECTOR("source_mapping_url")));
+  return MakeAccessor(isolate, name, &ScriptSourceMappingUrlGetter, nullptr);
 }
 
 
@@ -555,13 +525,10 @@ void Accessors::ScriptContextDataGetter(
   info.GetReturnValue().Set(Utils::ToLocal(Handle<Object>(res, isolate)));
 }
 
-
-Handle<AccessorInfo> Accessors::ScriptContextDataInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::ScriptContextDataInfo(Isolate* isolate) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
       STATIC_CHAR_VECTOR("context_data")));
-  return MakeAccessor(isolate, name, &ScriptContextDataGetter, nullptr,
-                      attributes);
+  return MakeAccessor(isolate, name, &ScriptContextDataGetter, nullptr);
 }
 
 
@@ -591,13 +558,10 @@ void Accessors::ScriptEvalFromScriptGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-
-Handle<AccessorInfo> Accessors::ScriptEvalFromScriptInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::ScriptEvalFromScriptInfo(Isolate* isolate) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
       STATIC_CHAR_VECTOR("eval_from_script")));
-  return MakeAccessor(isolate, name, &ScriptEvalFromScriptGetter, nullptr,
-                      attributes);
+  return MakeAccessor(isolate, name, &ScriptEvalFromScriptGetter, nullptr);
 }
 
 
@@ -621,13 +585,12 @@ void Accessors::ScriptEvalFromScriptPositionGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-
 Handle<AccessorInfo> Accessors::ScriptEvalFromScriptPositionInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+    Isolate* isolate) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
       STATIC_CHAR_VECTOR("eval_from_script_position")));
   return MakeAccessor(isolate, name, &ScriptEvalFromScriptPositionGetter,
-                      nullptr, attributes);
+                      nullptr);
 }
 
 
@@ -654,13 +617,12 @@ void Accessors::ScriptEvalFromFunctionNameGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-
 Handle<AccessorInfo> Accessors::ScriptEvalFromFunctionNameInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+    Isolate* isolate) {
   Handle<String> name(isolate->factory()->InternalizeOneByteString(
       STATIC_CHAR_VECTOR("eval_from_function_name")));
-  return MakeAccessor(isolate, name, &ScriptEvalFromFunctionNameGetter, nullptr,
-                      attributes);
+  return MakeAccessor(isolate, name, &ScriptEvalFromFunctionNameGetter,
+                      nullptr);
 }
 
 
@@ -704,14 +666,9 @@ void Accessors::FunctionPrototypeSetter(
   info.GetReturnValue().Set(true);
 }
 
-
-Handle<AccessorInfo> Accessors::FunctionPrototypeInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
-  return MakeAccessor(isolate,
-                      isolate->factory()->prototype_string(),
-                      &FunctionPrototypeGetter,
-                      &FunctionPrototypeSetter,
-                      attributes);
+Handle<AccessorInfo> Accessors::FunctionPrototypeInfo(Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->prototype_string(),
+                      &FunctionPrototypeGetter, &FunctionPrototypeSetter);
 }
 
 
@@ -735,11 +692,9 @@ void Accessors::FunctionLengthGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-Handle<AccessorInfo> Accessors::FunctionLengthInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::FunctionLengthInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
-                      &FunctionLengthGetter, &ReconfigureToDataProperty,
-                      attributes);
+                      &FunctionLengthGetter, &ReconfigureToDataProperty);
 }
 
 
@@ -759,11 +714,9 @@ void Accessors::FunctionNameGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-Handle<AccessorInfo> Accessors::FunctionNameInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::FunctionNameInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->name_string(),
-                      &FunctionNameGetter, &ReconfigureToDataProperty,
-                      attributes);
+                      &FunctionNameGetter, &ReconfigureToDataProperty);
 }
 
 
@@ -910,11 +863,9 @@ void Accessors::FunctionArgumentsGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-
-Handle<AccessorInfo> Accessors::FunctionArgumentsInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::FunctionArgumentsInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->arguments_string(),
-                      &FunctionArgumentsGetter, nullptr, attributes);
+                      &FunctionArgumentsGetter, nullptr);
 }
 
 
@@ -1088,11 +1039,9 @@ void Accessors::FunctionCallerGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-
-Handle<AccessorInfo> Accessors::FunctionCallerInfo(
-      Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::FunctionCallerInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->caller_string(),
-                      &FunctionCallerGetter, nullptr, attributes);
+                      &FunctionCallerGetter, nullptr);
 }
 
 
@@ -1118,11 +1067,9 @@ void Accessors::BoundFunctionLengthGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-Handle<AccessorInfo> Accessors::BoundFunctionLengthInfo(
-    Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::BoundFunctionLengthInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->length_string(),
-                      &BoundFunctionLengthGetter, &ReconfigureToDataProperty,
-                      attributes);
+                      &BoundFunctionLengthGetter, &ReconfigureToDataProperty);
 }
 
 //
@@ -1145,11 +1092,9 @@ void Accessors::BoundFunctionNameGetter(
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 
-Handle<AccessorInfo> Accessors::BoundFunctionNameInfo(
-    Isolate* isolate, PropertyAttributes attributes) {
+Handle<AccessorInfo> Accessors::BoundFunctionNameInfo(Isolate* isolate) {
   return MakeAccessor(isolate, isolate->factory()->name_string(),
-                      &BoundFunctionNameGetter, &ReconfigureToDataProperty,
-                      attributes);
+                      &BoundFunctionNameGetter, &ReconfigureToDataProperty);
 }
 
 //
@@ -1262,12 +1207,9 @@ void Accessors::ErrorStackSetter(
   Accessors::ReconfigureToDataProperty(name, val, info);
 }
 
-Handle<AccessorInfo> Accessors::ErrorStackInfo(Isolate* isolate,
-                                               PropertyAttributes attributes) {
-  Handle<AccessorInfo> info =
-      MakeAccessor(isolate, isolate->factory()->stack_string(),
-                   &ErrorStackGetter, &ErrorStackSetter, attributes);
-  return info;
+Handle<AccessorInfo> Accessors::ErrorStackInfo(Isolate* isolate) {
+  return MakeAccessor(isolate, isolate->factory()->stack_string(),
+                      &ErrorStackGetter, &ErrorStackSetter);
 }
 
 }  // namespace internal

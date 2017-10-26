@@ -212,7 +212,10 @@ MaybeHandle<JSObject> ConfigureInstance(Isolate* isolate, Handle<JSObject> obj,
     // Install accumulated accessors.
     for (int i = 0; i < valid_descriptors; i++) {
       Handle<AccessorInfo> accessor(AccessorInfo::cast(array->get(i)));
-      JSObject::SetAccessor(obj, accessor).Assert();
+      Handle<Name> name(Name::cast(accessor->name()), isolate);
+      JSObject::SetAccessor(obj, name, accessor,
+                            accessor->initial_property_attributes())
+          .Assert();
     }
   }
 

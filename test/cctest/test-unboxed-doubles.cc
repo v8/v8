@@ -118,7 +118,7 @@ static Handle<DescriptorArray> CreateDescriptorArray(Isolate* isolate,
     Descriptor d;
     if (kind == PROP_ACCESSOR_INFO) {
       Handle<AccessorInfo> info =
-          Accessors::MakeAccessor(isolate, name, nullptr, nullptr, NONE);
+          Accessors::MakeAccessor(isolate, name, nullptr, nullptr);
       d = Descriptor::AccessorConstant(name, info, NONE);
 
     } else {
@@ -642,7 +642,7 @@ static Handle<LayoutDescriptor> TestLayoutDescriptorAppend(
     Descriptor d;
     if (kind == PROP_ACCESSOR_INFO) {
       Handle<AccessorInfo> info =
-          Accessors::MakeAccessor(isolate, name, nullptr, nullptr, NONE);
+          Accessors::MakeAccessor(isolate, name, nullptr, nullptr);
       d = Descriptor::AccessorConstant(name, info, NONE);
 
     } else {

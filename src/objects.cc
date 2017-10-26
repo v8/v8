@@ -5209,25 +5209,13 @@ static int AppendUniqueCallbacks(Handle<TemplateList> callbacks,
                                  int valid_descriptors) {
   int nof_callbacks = callbacks->length();
 
-  Isolate* isolate = array->GetIsolate();
-  // Ensure the keys are unique names before writing them into the
-  // instance descriptor. Since it may cause a GC, it has to be done before we
-  // temporarily put the heap in an invalid state while appending descriptors.
-  for (int i = 0; i < nof_callbacks; ++i) {
-    Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->get(i)));
-    if (entry->name()->IsUniqueName()) continue;
-    Handle<String> key =
-        isolate->factory()->InternalizeString(
-            Handle<String>(String::cast(entry->name())));
-    entry->set_name(*key);
-  }
-
   // Fill in new callback descriptors.  Process the callbacks from
   // back to front so that the last callback with a given name takes
   // precedence over previously added callbacks with that name.
   for (int i = nof_callbacks - 1; i >= 0; i--) {
     Handle<AccessorInfo> entry(AccessorInfo::cast(callbacks->get(i)));
     Handle<Name> key(Name::cast(entry->name()));
+    DCHECK(key->IsUniqueName());
     // Check if a descriptor with this name already exists before writing.
     if (!T::Contains(key, entry, valid_descriptors, array)) {
       T::Insert(key, entry, valid_descriptors, array);
@@ -5237,27 +5225,6 @@ static int AppendUniqueCallbacks(Handle<TemplateList> callbacks,
 
   return valid_descriptors;
 }
-
-struct DescriptorArrayAppender {
-  typedef DescriptorArray Array;
-  static bool Contains(Handle<Name> key,
-                       Handle<AccessorInfo> entry,
-                       int valid_descriptors,
-                       Handle<DescriptorArray> array) {
-    DisallowHeapAllocation no_gc;
-    return array->Search(*key, valid_descriptors) != DescriptorArray::kNotFound;
-  }
-  static void Insert(Handle<Name> key,
-                     Handle<AccessorInfo> entry,
-                     int valid_descriptors,
-                     Handle<DescriptorArray> array) {
-    DisallowHeapAllocation no_gc;
-    Descriptor d =
-        Descriptor::AccessorConstant(key, entry, entry->property_attributes());
-    array->Append(&d);
-  }
-};
-
 
 struct FixedArrayAppender {
   typedef FixedArray Array;
@@ -5278,17 +5245,6 @@ struct FixedArrayAppender {
     array->set(valid_descriptors, *entry);
   }
 };
-
-
-void Map::AppendCallbackDescriptors(Handle<Map> map,
-                                    Handle<Object> descriptors) {
-  int nof = map->NumberOfOwnDescriptors();
-  Handle<DescriptorArray> array(map->instance_descriptors());
-  Handle<TemplateList> callbacks = Handle<TemplateList>::cast(descriptors);
-  DCHECK_GE(array->NumberOfSlackDescriptors(), callbacks->length());
-  nof = AppendUniqueCallbacks<DescriptorArrayAppender>(callbacks, array, nof);
-  map->SetNumberOfOwnDescriptors(nof);
-}
 
 
 int AccessorInfo::AppendUnique(Handle<Object> descriptors,
@@ -8919,11 +8875,11 @@ MaybeHandle<Object> JSObject::DefineAccessor(LookupIterator* it,
   return isolate->factory()->undefined_value();
 }
 
-
 MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
-                                          Handle<AccessorInfo> info) {
+                                          Handle<Name> name,
+                                          Handle<AccessorInfo> info,
+                                          PropertyAttributes attributes) {
   Isolate* isolate = object->GetIsolate();
-  Handle<Name> name(Name::cast(info->name()), isolate);
 
   LookupIterator it = LookupIterator::PropertyOrElement(
       isolate, object, name, LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -8955,7 +8911,7 @@ MaybeHandle<Object> JSObject::SetAccessor(Handle<JSObject> object,
     return it.factory()->undefined_value();
   }
 
-  it.TransitionToAccessorPair(info, info->property_attributes());
+  it.TransitionToAccessorPair(info, attributes);
 
   return object;
 }

@@ -60,19 +60,18 @@ BUILTIN(ErrorCaptureStackTrace) {
 
   // Add the stack accessors.
 
-  Handle<AccessorInfo> error_stack =
-      Accessors::ErrorStackInfo(isolate, DONT_ENUM);
+  Handle<AccessorInfo> error_stack = Accessors::ErrorStackInfo(isolate);
+  Handle<Name> name(Name::cast(error_stack->name()), isolate);
 
   // Explicitly check for frozen objects. Other access checks are performed by
   // the LookupIterator in SetAccessor below.
   if (!JSObject::IsExtensible(object)) {
     return isolate->Throw(*isolate->factory()->NewTypeError(
-        MessageTemplate::kDefineDisallowed,
-        handle(error_stack->name(), isolate)));
+        MessageTemplate::kDefineDisallowed, name));
   }
 
-  RETURN_FAILURE_ON_EXCEPTION(isolate,
-                              JSObject::SetAccessor(object, error_stack));
+  RETURN_FAILURE_ON_EXCEPTION(
+      isolate, JSObject::SetAccessor(object, name, error_stack, DONT_ENUM));
   return isolate->heap()->undefined_value();
 }
 

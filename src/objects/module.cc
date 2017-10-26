@@ -848,7 +848,7 @@ Handle<JSModuleNamespace> Module::GetModuleNamespace(Handle<Module> module) {
                                 "JSModuleNamespace");
   for (const auto& name : names) {
     JSObject::SetNormalizedProperty(
-        ns, name, Accessors::ModuleNamespaceEntryInfo(isolate, name, attr),
+        ns, name, Accessors::ModuleNamespaceEntryInfo(isolate, name),
         PropertyDetails(kAccessor, attr, PropertyCellType::kMutable));
   }
   JSObject::PreventExtensions(ns, kThrowOnError).ToChecked();

@@ -3745,8 +3745,8 @@ ACCESSORS(JSGlobalObject, global_proxy, JSObject, kGlobalProxyOffset)
 
 ACCESSORS(JSGlobalProxy, native_context, Object, kNativeContextOffset)
 
-ACCESSORS(AccessorInfo, name, Object, kNameOffset)
-SMI_ACCESSORS(AccessorInfo, flag, kFlagOffset)
+ACCESSORS(AccessorInfo, name, Name, kNameOffset)
+SMI_ACCESSORS(AccessorInfo, flags, kFlagsOffset)
 ACCESSORS(AccessorInfo, expected_receiver_type, Object,
           kExpectedReceiverTypeOffset)
 
@@ -4681,58 +4681,17 @@ inline int JSGlobalProxy::SizeWithEmbedderFields(int embedder_field_count) {
   return kSize + embedder_field_count * kPointerSize;
 }
 
-
-bool AccessorInfo::all_can_read() {
-  return BooleanBit::get(flag(), kAllCanReadBit);
-}
-
-
-void AccessorInfo::set_all_can_read(bool value) {
-  set_flag(BooleanBit::set(flag(), kAllCanReadBit, value));
-}
-
-
-bool AccessorInfo::all_can_write() {
-  return BooleanBit::get(flag(), kAllCanWriteBit);
-}
-
-
-void AccessorInfo::set_all_can_write(bool value) {
-  set_flag(BooleanBit::set(flag(), kAllCanWriteBit, value));
-}
-
-
-bool AccessorInfo::is_special_data_property() {
-  return BooleanBit::get(flag(), kSpecialDataProperty);
-}
-
-
-void AccessorInfo::set_is_special_data_property(bool value) {
-  set_flag(BooleanBit::set(flag(), kSpecialDataProperty, value));
-}
-
-bool AccessorInfo::replace_on_access() {
-  return BooleanBit::get(flag(), kReplaceOnAccess);
-}
-
-void AccessorInfo::set_replace_on_access(bool value) {
-  set_flag(BooleanBit::set(flag(), kReplaceOnAccess, value));
-}
-
-bool AccessorInfo::is_sloppy() { return BooleanBit::get(flag(), kIsSloppy); }
-
-void AccessorInfo::set_is_sloppy(bool value) {
-  set_flag(BooleanBit::set(flag(), kIsSloppy, value));
-}
-
-PropertyAttributes AccessorInfo::property_attributes() {
-  return AttributesField::decode(static_cast<uint32_t>(flag()));
-}
-
-
-void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
-  set_flag(AttributesField::update(flag(), attributes));
-}
+BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_read,
+                    AccessorInfo::AllCanReadBit)
+BIT_FIELD_ACCESSORS(AccessorInfo, flags, all_can_write,
+                    AccessorInfo::AllCanWriteBit)
+BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_special_data_property,
+                    AccessorInfo::IsSpecialDataPropertyBit)
+BIT_FIELD_ACCESSORS(AccessorInfo, flags, replace_on_access,
+                    AccessorInfo::ReplaceOnAccessBit)
+BIT_FIELD_ACCESSORS(AccessorInfo, flags, is_sloppy, AccessorInfo::IsSloppyBit)
+BIT_FIELD_ACCESSORS(AccessorInfo, flags, initial_property_attributes,
+                    AccessorInfo::InitialAttributesBits)
 
 bool FunctionTemplateInfo::IsTemplateFor(JSObject* object) {
   return IsTemplateFor(object->map());

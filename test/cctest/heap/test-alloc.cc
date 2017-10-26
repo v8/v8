@@ -129,8 +129,7 @@ void TestSetter(v8::Local<v8::Name> name, v8::Local<v8::Value> value,
 Handle<AccessorInfo> TestAccessorInfo(
       Isolate* isolate, PropertyAttributes attributes) {
   Handle<String> name = isolate->factory()->NewStringFromStaticChars("get");
-  return Accessors::MakeAccessor(isolate, name, &TestGetter, &TestSetter,
-                                 attributes);
+  return Accessors::MakeAccessor(isolate, name, &TestGetter, &TestSetter);
 }
 
 

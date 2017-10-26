@@ -1204,18 +1204,12 @@ void V8HeapExplorer::ExtractAccessorInfoReferences(
   SetInternalReference(accessor_info, entry, "expected_receiver_type",
                        accessor_info->expected_receiver_type(),
                        AccessorInfo::kExpectedReceiverTypeOffset);
-  if (accessor_info->IsAccessorInfo()) {
-    AccessorInfo* executable_accessor_info = AccessorInfo::cast(accessor_info);
-    SetInternalReference(executable_accessor_info, entry, "getter",
-                         executable_accessor_info->getter(),
-                         AccessorInfo::kGetterOffset);
-    SetInternalReference(executable_accessor_info, entry, "setter",
-                         executable_accessor_info->setter(),
-                         AccessorInfo::kSetterOffset);
-    SetInternalReference(executable_accessor_info, entry, "data",
-                         executable_accessor_info->data(),
-                         AccessorInfo::kDataOffset);
-  }
+  SetInternalReference(accessor_info, entry, "getter", accessor_info->getter(),
+                       AccessorInfo::kGetterOffset);
+  SetInternalReference(accessor_info, entry, "setter", accessor_info->setter(),
+                       AccessorInfo::kSetterOffset);
+  SetInternalReference(accessor_info, entry, "data", accessor_info->data(),
+                       AccessorInfo::kDataOffset);
 }
 
 void V8HeapExplorer::ExtractAccessorPairReferences(

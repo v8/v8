@@ -58,13 +58,10 @@ class Handle;
 class Accessors : public AllStatic {
  public:
   // Accessor descriptors.
-#define ACCESSOR_INFO_DECLARATION(name)                   \
-  static void name##Getter(                               \
-      v8::Local<v8::Name> name,                           \
-      const v8::PropertyCallbackInfo<v8::Value>& info);   \
-  static Handle<AccessorInfo> name##Info(                 \
-      Isolate* isolate,                                   \
-      PropertyAttributes attributes);
+#define ACCESSOR_INFO_DECLARATION(name)                                      \
+  static void name##Getter(v8::Local<v8::Name> name,                         \
+                           const v8::PropertyCallbackInfo<v8::Value>& info); \
+  static Handle<AccessorInfo> name##Info(Isolate* isolate);
   ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
 
@@ -77,8 +74,8 @@ class Accessors : public AllStatic {
   static void ModuleNamespaceEntryGetter(
       v8::Local<v8::Name> name,
       const v8::PropertyCallbackInfo<v8::Value>& info);
-  static Handle<AccessorInfo> ModuleNamespaceEntryInfo(
-      Isolate* isolate, Handle<String> name, PropertyAttributes attributes);
+  static Handle<AccessorInfo> ModuleNamespaceEntryInfo(Isolate* isolate,
+                                                       Handle<String> name);
 
   enum DescriptorId {
 #define ACCESSOR_INFO_DECLARATION(name) \
@@ -111,7 +108,7 @@ class Accessors : public AllStatic {
 
   static Handle<AccessorInfo> MakeAccessor(
       Isolate* isolate, Handle<Name> name, AccessorNameGetterCallback getter,
-      AccessorNameBooleanSetterCallback setter, PropertyAttributes attributes);
+      AccessorNameBooleanSetterCallback setter);
 };
 
 }  // namespace internal

@@ -2399,8 +2399,8 @@ class JSObject: public JSReceiver {
 
   // Defines an AccessorInfo property on the given object.
   MUST_USE_RESULT static MaybeHandle<Object> SetAccessor(
-      Handle<JSObject> object,
-      Handle<AccessorInfo> info);
+      Handle<JSObject> object, Handle<Name> name, Handle<AccessorInfo> info,
+      PropertyAttributes attributes);
 
   // The result must be checked first for exceptions. If there's no exception,
   // the output parameter |done| indicates whether the interceptor has a result
@@ -5182,8 +5182,8 @@ class Foreign: public HeapObject {
 // This shadows the accessor in the prototype.
 class AccessorInfo: public Struct {
  public:
-  DECL_ACCESSORS(name, Object)
-  DECL_INT_ACCESSORS(flag)
+  DECL_ACCESSORS(name, Name)
+  DECL_INT_ACCESSORS(flags)
   DECL_ACCESSORS(expected_receiver_type, Object)
   // This directly points at a foreign C function to be used from the runtime.
   DECL_ACCESSORS(getter, Object)
@@ -5200,23 +5200,17 @@ class AccessorInfo: public Struct {
   // Dispatched behavior.
   DECL_PRINTER(AccessorInfo)
 
-  inline bool all_can_read();
-  inline void set_all_can_read(bool value);
+  DECL_BOOLEAN_ACCESSORS(all_can_read)
+  DECL_BOOLEAN_ACCESSORS(all_can_write)
+  DECL_BOOLEAN_ACCESSORS(is_special_data_property)
+  DECL_BOOLEAN_ACCESSORS(replace_on_access)
+  DECL_BOOLEAN_ACCESSORS(is_sloppy)
 
-  inline bool all_can_write();
-  inline void set_all_can_write(bool value);
-
-  inline bool is_special_data_property();
-  inline void set_is_special_data_property(bool value);
-
-  inline bool replace_on_access();
-  inline void set_replace_on_access(bool value);
-
-  inline bool is_sloppy();
-  inline void set_is_sloppy(bool value);
-
-  inline PropertyAttributes property_attributes();
-  inline void set_property_attributes(PropertyAttributes attributes);
+  // The property attributes used when an API object template is instantiated
+  // for the first time. Changing of this value afterwards does not affect
+  // the actual attributes of a property.
+  inline PropertyAttributes initial_property_attributes() const;
+  inline void set_initial_property_attributes(PropertyAttributes attributes);
 
   // Checks whether the given receiver is compatible with this accessor.
   static bool IsCompatibleReceiverMap(Isolate* isolate,
@@ -5235,26 +5229,34 @@ class AccessorInfo: public Struct {
                           Handle<FixedArray> array,
                           int valid_descriptors);
 
-  static const int kNameOffset = HeapObject::kHeaderSize;
-  static const int kFlagOffset = kNameOffset + kPointerSize;
-  static const int kExpectedReceiverTypeOffset = kFlagOffset + kPointerSize;
-  static const int kSetterOffset = kExpectedReceiverTypeOffset + kPointerSize;
-  static const int kGetterOffset = kSetterOffset + kPointerSize;
-  static const int kJsGetterOffset = kGetterOffset + kPointerSize;
-  static const int kDataOffset = kJsGetterOffset + kPointerSize;
-  static const int kSize = kDataOffset + kPointerSize;
+// Layout description.
+#define ACCESSOR_INFO_FIELDS(V)                \
+  V(kNameOffset, kPointerSize)                 \
+  V(kFlagsOffset, kPointerSize)                \
+  V(kExpectedReceiverTypeOffset, kPointerSize) \
+  V(kSetterOffset, kPointerSize)               \
+  V(kGetterOffset, kPointerSize)               \
+  V(kJsGetterOffset, kPointerSize)             \
+  V(kDataOffset, kPointerSize)                 \
+  V(kSize, 0)
 
+  DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, ACCESSOR_INFO_FIELDS)
+#undef ACCESSOR_INFO_FIELDS
 
  private:
   inline bool HasExpectedReceiverType();
 
-  // Bit positions in flag.
-  static const int kAllCanReadBit = 0;
-  static const int kAllCanWriteBit = 1;
-  static const int kSpecialDataProperty = 2;
-  static const int kIsSloppy = 3;
-  static const int kReplaceOnAccess = 4;
-  class AttributesField : public BitField<PropertyAttributes, 5, 3> {};
+// Bit positions in |flags|.
+#define ACCESSOR_INFO_FLAGS_BIT_FIELDS(V, _) \
+  V(AllCanReadBit, bool, 1, _)               \
+  V(AllCanWriteBit, bool, 1, _)              \
+  V(IsSpecialDataPropertyBit, bool, 1, _)    \
+  V(IsSloppyBit, bool, 1, _)                 \
+  V(ReplaceOnAccessBit, bool, 1, _)          \
+  V(InitialAttributesBits, PropertyAttributes, 3, _)
+
+  DEFINE_BIT_FIELDS(ACCESSOR_INFO_FLAGS_BIT_FIELDS)
+#undef ACCESSOR_INFO_FLAGS_BIT_FIELDS
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
 };

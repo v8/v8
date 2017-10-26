@@ -1292,7 +1292,7 @@ void Foreign::ForeignPrint(std::ostream& os) {  // NOLINT
 void AccessorInfo::AccessorInfoPrint(std::ostream& os) {  // NOLINT
   HeapObject::PrintHeader(os, "AccessorInfo");
   os << "\n - name: " << Brief(name());
-  os << "\n - flag: " << flag();
+  os << "\n - flags: " << flags();
   os << "\n - getter: " << Brief(getter());
   os << "\n - setter: " << Brief(setter());
   os << "\n - js_getter: " << Brief(js_getter());

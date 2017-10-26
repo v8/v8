@@ -1467,29 +1467,14 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
 }
 
 
-static i::Handle<i::AccessorInfo> SetAccessorInfoProperties(
-    i::Handle<i::AccessorInfo> obj, v8::Local<Name> name,
-    v8::AccessControl settings, v8::PropertyAttribute attributes,
-    v8::Local<AccessorSignature> signature) {
-  obj->set_name(*Utils::OpenHandle(*name));
-  if (settings & ALL_CAN_READ) obj->set_all_can_read(true);
-  if (settings & ALL_CAN_WRITE) obj->set_all_can_write(true);
-  obj->set_property_attributes(static_cast<i::PropertyAttributes>(attributes));
-  if (!signature.IsEmpty()) {
-    obj->set_expected_receiver_type(*Utils::OpenHandle(*signature));
-  }
-  return obj;
-}
-
 namespace {
 
 template <typename Getter, typename Setter>
 i::Handle<i::AccessorInfo> MakeAccessorInfo(
-    v8::Local<Name> name, Getter getter, Setter setter, v8::Local<Value> data,
-    v8::AccessControl settings, v8::PropertyAttribute attributes,
+    i::Isolate* isolate, v8::Local<Name> name, Getter getter, Setter setter,
+    v8::Local<Value> data, v8::AccessControl settings,
     v8::Local<AccessorSignature> signature, bool is_special_data_property,
     bool replace_on_access) {
-  i::Isolate* isolate = Utils::OpenHandle(*name)->GetIsolate();
   i::Handle<i::AccessorInfo> obj = isolate->factory()->NewAccessorInfo();
   SET_FIELD_WRAPPED(obj, set_getter, getter);
   DCHECK_IMPLIES(replace_on_access,
@@ -1506,7 +1491,19 @@ i::Handle<i::AccessorInfo> MakeAccessorInfo(
   obj->set_data(*Utils::OpenHandle(*data));
   obj->set_is_special_data_property(is_special_data_property);
   obj->set_replace_on_access(replace_on_access);
-  return SetAccessorInfoProperties(obj, name, settings, attributes, signature);
+  i::Handle<i::Name> accessor_name = Utils::OpenHandle(*name);
+  if (!accessor_name->IsUniqueName()) {
+    accessor_name = isolate->factory()->InternalizeString(
+        i::Handle<i::String>::cast(accessor_name));
+  }
+  obj->set_name(*accessor_name);
+  if (settings & ALL_CAN_READ) obj->set_all_can_read(true);
+  if (settings & ALL_CAN_WRITE) obj->set_all_can_write(true);
+  obj->set_initial_property_attributes(i::NONE);
+  if (!signature.IsEmpty()) {
+    obj->set_expected_receiver_type(*Utils::OpenHandle(*signature));
+  }
+  return obj;
 }
 
 }  // namespace
@@ -1658,7 +1655,7 @@ static i::Handle<i::FunctionTemplateInfo> EnsureConstructor(
 }
 
 template <typename Getter, typename Setter, typename Data, typename Template>
-static bool TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
+static void TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
                                 Getter getter, Setter setter, Data data,
                                 AccessControl settings,
                                 PropertyAttribute attribute,
@@ -1669,12 +1666,12 @@ static bool TemplateSetAccessor(Template* template_obj, v8::Local<Name> name,
   auto isolate = info->GetIsolate();
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
-  auto obj =
-      MakeAccessorInfo(name, getter, setter, data, settings, attribute,
-                       signature, is_special_data_property, replace_on_access);
-  if (obj.is_null()) return false;
-  i::ApiNatives::AddNativeDataProperty(isolate, info, obj);
-  return true;
+  i::Handle<i::AccessorInfo> accessor_info =
+      MakeAccessorInfo(isolate, name, getter, setter, data, settings, signature,
+                       is_special_data_property, replace_on_access);
+  accessor_info->set_initial_property_attributes(
+      static_cast<i::PropertyAttributes>(attribute));
+  i::ApiNatives::AddNativeDataProperty(isolate, info, accessor_info);
 }
 
 
@@ -4979,13 +4976,18 @@ static Maybe<bool> ObjectSetAccessor(Local<Context> context, Object* self,
   i::Handle<i::JSObject> obj =
       i::Handle<i::JSObject>::cast(Utils::OpenHandle(self));
   v8::Local<AccessorSignature> signature;
-  auto info = MakeAccessorInfo(name, getter, setter, data, settings, attributes,
-                               signature, is_special_data_property, false);
+  i::Handle<i::AccessorInfo> info =
+      MakeAccessorInfo(isolate, name, getter, setter, data, settings, signature,
+                       is_special_data_property, false);
   if (info.is_null()) return Nothing<bool>();
   bool fast = obj->HasFastProperties();
   i::Handle<i::Object> result;
+
+  i::Handle<i::Name> accessor_name(info->name(), isolate);
+  i::PropertyAttributes attrs = static_cast<i::PropertyAttributes>(attributes);
   has_pending_exception =
-      !i::JSObject::SetAccessor(obj, info).ToHandle(&result);
+      !i::JSObject::SetAccessor(obj, accessor_name, info, attrs)
+           .ToHandle(&result);
   RETURN_ON_FAILED_EXECUTION_PRIMITIVE(bool);
   if (result->IsUndefined(obj->GetIsolate())) return Just(false);
   if (fast) {
