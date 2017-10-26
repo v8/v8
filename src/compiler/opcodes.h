@@ -168,7 +168,6 @@
   V(JSCallWithArrayLike)            \
   V(JSCallWithSpread)               \
   V(JSCallRuntime)                  \
-  V(JSConvertReceiver)              \
   V(JSForInEnumerate)               \
   V(JSForInNext)                    \
   V(JSForInPrepare)                 \
@@ -339,6 +338,7 @@
   V(CheckEqualsInternalizedString)      \
   V(CheckEqualsSymbol)                  \
   V(CompareMaps)                        \
+  V(ConvertReceiver)                    \
   V(ConvertTaggedHoleToUndefined)       \
   V(TypeOf)                             \
   V(ClassOf)                            \

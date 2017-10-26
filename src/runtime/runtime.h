@@ -240,7 +240,6 @@ namespace internal {
   F(SetNativeFlag, 1, 1)                   \
   F(IsConstructor, 1, 1)                   \
   F(Call, -1 /* >= 2 */, 1)                \
-  F(ConvertReceiver, 1, 1)                 \
   F(IsFunction, 1, 1)                      \
   F(FunctionToString, 1, 1)
 

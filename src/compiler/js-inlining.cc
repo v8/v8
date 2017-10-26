@@ -272,6 +272,7 @@ namespace {
 bool NeedsConvertReceiver(Node* receiver, Node* effect) {
   // Check if the {receiver} is already a JSReceiver.
   switch (receiver->opcode()) {
+    case IrOpcode::kConvertReceiver:
     case IrOpcode::kJSConstruct:
     case IrOpcode::kJSConstructWithSpread:
     case IrOpcode::kJSCreate:
@@ -284,7 +285,6 @@ bool NeedsConvertReceiver(Node* receiver, Node* effect) {
     case IrOpcode::kJSCreateLiteralArray:
     case IrOpcode::kJSCreateLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
-    case IrOpcode::kJSConvertReceiver:
     case IrOpcode::kJSGetSuperConstructor:
     case IrOpcode::kJSToObject: {
       return false;
@@ -709,11 +709,13 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       is_sloppy(shared_info->language_mode()) && !shared_info->native()) {
     Node* effect = NodeProperties::GetEffectInput(node);
     if (NeedsConvertReceiver(call.receiver(), effect)) {
-      const CallParameters& p = CallParametersOf(node->op());
-      Node* convert = effect =
-          graph()->NewNode(javascript()->ConvertReceiver(p.convert_mode()),
-                           call.receiver(), context, effect, start);
-      NodeProperties::ReplaceValueInput(node, convert, 1);
+      CallParameters const& p = CallParametersOf(node->op());
+      Node* global_proxy = jsgraph()->HeapConstant(
+          handle(info_->native_context()->global_proxy()));
+      Node* receiver = effect =
+          graph()->NewNode(simplified()->ConvertReceiver(p.convert_mode()),
+                           call.receiver(), global_proxy, effect, start);
+      NodeProperties::ReplaceValueInput(node, receiver, 1);
       NodeProperties::ReplaceEffectInput(node, effect);
     }
   }

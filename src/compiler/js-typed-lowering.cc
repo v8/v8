@@ -1362,165 +1362,6 @@ Reduction JSTypedLowering::ReduceJSStoreModule(Node* node) {
   return Changed(value);
 }
 
-Reduction JSTypedLowering::ReduceJSConvertReceiver(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSConvertReceiver, node->opcode());
-  ConvertReceiverMode mode = ConvertReceiverModeOf(node->op());
-  Node* receiver = NodeProperties::GetValueInput(node, 0);
-  Type* receiver_type = NodeProperties::GetType(receiver);
-  Node* context = NodeProperties::GetContextInput(node);
-  Type* context_type = NodeProperties::GetType(context);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
-
-  // Check if {receiver} is known to be a receiver.
-  if (receiver_type->Is(Type::Receiver())) {
-    ReplaceWithValue(node, receiver, effect, control);
-    return Replace(receiver);
-  }
-
-  // If the {receiver} is known to be null or undefined, we can just replace it
-  // with the global proxy unconditionally.
-  if (receiver_type->Is(Type::NullOrUndefined()) ||
-      mode == ConvertReceiverMode::kNullOrUndefined) {
-    if (context_type->IsHeapConstant()) {
-      Handle<JSObject> global_proxy(
-          Handle<Context>::cast(context_type->AsHeapConstant()->Value())
-              ->global_proxy(),
-          isolate());
-      receiver = jsgraph()->Constant(global_proxy);
-    } else {
-      Node* native_context = effect = graph()->NewNode(
-          javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-          context, effect);
-      receiver = effect = graph()->NewNode(
-          javascript()->LoadContext(0, Context::GLOBAL_PROXY_INDEX, true),
-          native_context, effect);
-    }
-    ReplaceWithValue(node, receiver, effect, control);
-    return Replace(receiver);
-  }
-
-  // If {receiver} cannot be null or undefined we can skip a few checks.
-  if (!receiver_type->Maybe(Type::NullOrUndefined()) ||
-      mode == ConvertReceiverMode::kNotNullOrUndefined) {
-    Node* check = graph()->NewNode(simplified()->ObjectIsReceiver(), receiver);
-    Node* branch =
-        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
-
-    Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
-    Node* etrue = effect;
-    Node* rtrue = receiver;
-
-    Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
-    Node* efalse = effect;
-    Node* rfalse;
-    {
-      // Convert {receiver} using the ToObjectStub. The call does not require a
-      // frame-state in this case, because neither null nor undefined is passed.
-      Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
-      CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
-          isolate(), graph()->zone(), callable.descriptor(), 0,
-          CallDescriptor::kNoFlags, node->op()->properties());
-      rfalse = efalse = graph()->NewNode(
-          common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
-          receiver, context, efalse);
-    }
-
-    control = graph()->NewNode(common()->Merge(2), if_true, if_false);
-    effect = graph()->NewNode(common()->EffectPhi(2), etrue, efalse, control);
-
-    // Morph the {node} into an appropriate Phi.
-    ReplaceWithValue(node, node, effect, control);
-    node->ReplaceInput(0, rtrue);
-    node->ReplaceInput(1, rfalse);
-    node->ReplaceInput(2, control);
-    node->TrimInputCount(3);
-    NodeProperties::ChangeOp(node,
-                             common()->Phi(MachineRepresentation::kTagged, 2));
-    return Changed(node);
-  }
-
-  // Check if {receiver} is already a JSReceiver.
-  Node* check0 = graph()->NewNode(simplified()->ObjectIsReceiver(), receiver);
-  Node* branch0 =
-      graph()->NewNode(common()->Branch(BranchHint::kTrue), check0, control);
-  Node* if_true0 = graph()->NewNode(common()->IfTrue(), branch0);
-  Node* if_false0 = graph()->NewNode(common()->IfFalse(), branch0);
-
-  // Check {receiver} for undefined.
-  Node* check1 = graph()->NewNode(simplified()->ReferenceEqual(), receiver,
-                                  jsgraph()->UndefinedConstant());
-  Node* branch1 =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check1, if_false0);
-  Node* if_true1 = graph()->NewNode(common()->IfTrue(), branch1);
-  Node* if_false1 = graph()->NewNode(common()->IfFalse(), branch1);
-
-  // Check {receiver} for null.
-  Node* check2 = graph()->NewNode(simplified()->ReferenceEqual(), receiver,
-                                  jsgraph()->NullConstant());
-  Node* branch2 =
-      graph()->NewNode(common()->Branch(BranchHint::kFalse), check2, if_false1);
-  Node* if_true2 = graph()->NewNode(common()->IfTrue(), branch2);
-  Node* if_false2 = graph()->NewNode(common()->IfFalse(), branch2);
-
-  // We just use {receiver} directly.
-  Node* if_noop = if_true0;
-  Node* enoop = effect;
-  Node* rnoop = receiver;
-
-  // Convert {receiver} using ToObject.
-  Node* if_convert = if_false2;
-  Node* econvert = effect;
-  Node* rconvert;
-  {
-    // Convert {receiver} using the ToObjectStub. The call does not require a
-    // frame-state in this case, because neither null nor undefined is passed.
-    Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
-    CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
-        isolate(), graph()->zone(), callable.descriptor(), 0,
-        CallDescriptor::kNoFlags, node->op()->properties());
-    rconvert = econvert = graph()->NewNode(
-        common()->Call(desc), jsgraph()->HeapConstant(callable.code()),
-        receiver, context, econvert);
-  }
-
-  // Replace {receiver} with global proxy of {context}.
-  Node* if_global = graph()->NewNode(common()->Merge(2), if_true1, if_true2);
-  Node* eglobal = effect;
-  Node* rglobal;
-  {
-    if (context_type->IsHeapConstant()) {
-      Handle<JSObject> global_proxy(
-          Handle<Context>::cast(context_type->AsHeapConstant()->Value())
-              ->global_proxy(),
-          isolate());
-      rglobal = jsgraph()->Constant(global_proxy);
-    } else {
-      Node* native_context = eglobal = graph()->NewNode(
-          javascript()->LoadContext(0, Context::NATIVE_CONTEXT_INDEX, true),
-          context, eglobal);
-      rglobal = eglobal = graph()->NewNode(
-          javascript()->LoadContext(0, Context::GLOBAL_PROXY_INDEX, true),
-          native_context, eglobal);
-    }
-  }
-
-  control =
-      graph()->NewNode(common()->Merge(3), if_noop, if_convert, if_global);
-  effect = graph()->NewNode(common()->EffectPhi(3), enoop, econvert, eglobal,
-                            control);
-  // Morph the {node} into an appropriate Phi.
-  ReplaceWithValue(node, node, effect, control);
-  node->ReplaceInput(0, rnoop);
-  node->ReplaceInput(1, rconvert);
-  node->ReplaceInput(2, rglobal);
-  node->ReplaceInput(3, control);
-  node->TrimInputCount(4);
-  NodeProperties::ChangeOp(node,
-                           common()->Phi(MachineRepresentation::kTagged, 3));
-  return Changed(node);
-}
-
 namespace {
 
 void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
@@ -1781,9 +1622,11 @@ Reduction JSTypedLowering::ReduceJSCall(Node* node) {
     // Check if we need to convert the {receiver}.
     if (is_sloppy(shared->language_mode()) && !shared->native() &&
         !receiver_type->Is(Type::Receiver())) {
+      Node* global_proxy =
+          jsgraph()->HeapConstant(handle(function->global_proxy()));
       receiver = effect =
-          graph()->NewNode(javascript()->ConvertReceiver(convert_mode),
-                           receiver, context, effect, control);
+          graph()->NewNode(simplified()->ConvertReceiver(convert_mode),
+                           receiver, global_proxy, effect, control);
       NodeProperties::ReplaceValueInput(node, receiver, 1);
     }
 
@@ -2241,8 +2084,6 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceJSLoadModule(node);
     case IrOpcode::kJSStoreModule:
       return ReduceJSStoreModule(node);
-    case IrOpcode::kJSConvertReceiver:
-      return ReduceJSConvertReceiver(node);
     case IrOpcode::kJSConstructForwardVarargs:
       return ReduceJSConstructForwardVarargs(node);
     case IrOpcode::kJSConstruct:

@@ -139,6 +139,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   void LowerTransitionAndStoreNumberElement(Node* node);
   void LowerTransitionAndStoreNonNumberElement(Node* node);
   void LowerRuntimeAbort(Node* node);
+  Node* LowerConvertReceiver(Node* node);
 
   // Lowering of optional operators.
   Maybe<Node*> LowerFloat64RoundUp(Node* node);

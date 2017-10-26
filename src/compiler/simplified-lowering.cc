@@ -457,6 +457,10 @@ class RepresentationSelector {
       SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_CASE)
 #undef DECLARE_CASE
 
+      case IrOpcode::kConvertReceiver:
+        new_type = op_typer_.ConvertReceiver(FeedbackTypeOf(node->InputAt(0)));
+        break;
+
       case IrOpcode::kPlainPrimitiveToNumber:
         new_type = op_typer_.ToNumber(FeedbackTypeOf(node->InputAt(0)));
         break;
@@ -2638,6 +2642,24 @@ class RepresentationSelector {
                      TruncatingUseInfoFromRepresentation(rep));  // value
         ProcessRemainingInputs(node, 5);
         SetOutput(node, MachineRepresentation::kNone);
+        return;
+      }
+      case IrOpcode::kConvertReceiver: {
+        Type* input_type = TypeOf(node->InputAt(0));
+        VisitBinop(node, UseInfo::AnyTagged(),
+                   MachineRepresentation::kTaggedPointer);
+        if (lower()) {
+          // Try to optimize the {node} based on the input type.
+          if (input_type->Is(Type::Receiver())) {
+            DeferReplacement(node, node->InputAt(0));
+          } else if (input_type->Is(Type::NullOrUndefined())) {
+            DeferReplacement(node, node->InputAt(1));
+          } else if (!input_type->Maybe(Type::NullOrUndefined())) {
+            NodeProperties::ChangeOp(
+                node, lowering->simplified()->ConvertReceiver(
+                          ConvertReceiverMode::kNotNullOrUndefined));
+          }
+        }
         return;
       }
       case IrOpcode::kPlainPrimitiveToNumber: {

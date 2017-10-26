@@ -52,12 +52,6 @@ size_t hash_value(VectorSlotPair const& p) {
 }
 
 
-ConvertReceiverMode ConvertReceiverModeOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kJSConvertReceiver, op->opcode());
-  return OpParameter<ConvertReceiverMode>(op);
-}
-
-
 std::ostream& operator<<(std::ostream& os,
                          ConstructForwardVarargsParameters const& p) {
   return os << p.arity() << ", " << p.start_index();
@@ -854,15 +848,6 @@ const Operator* JSOperatorBuilder::ConstructWithSpread(
       "JSConstructWithSpread",                                    // name
       parameters.arity(), 1, 1, 1, 1, 2,                          // counts
       parameters);                                                // parameter
-}
-
-const Operator* JSOperatorBuilder::ConvertReceiver(
-    ConvertReceiverMode convert_mode) {
-  return new (zone()) Operator1<ConvertReceiverMode>(         // --
-      IrOpcode::kJSConvertReceiver, Operator::kEliminatable,  // opcode
-      "JSConvertReceiver",                                    // name
-      1, 1, 1, 1, 1, 0,                                       // counts
-      convert_mode);                                          // parameter
 }
 
 const Operator* JSOperatorBuilder::LoadNamed(Handle<Name> name,

@@ -1699,10 +1699,6 @@ Type* Typer::Visitor::TypeJSCallRuntime(Node* node) {
 }
 
 
-Type* Typer::Visitor::TypeJSConvertReceiver(Node* node) {
-  return Type::Receiver();
-}
-
 Type* Typer::Visitor::TypeJSForInEnumerate(Node* node) {
   return Type::OtherInternal();
 }
@@ -1937,6 +1933,11 @@ Type* Typer::Visitor::TypeCheckNotTaggedHole(Node* node) {
   Type* type = Operand(node, 0);
   type = Type::Intersect(type, Type::NonInternal(), zone());
   return type;
+}
+
+Type* Typer::Visitor::TypeConvertReceiver(Node* node) {
+  Type* arg = Operand(node, 0);
+  return typer_->operation_typer_.ConvertReceiver(arg);
 }
 
 Type* Typer::Visitor::TypeConvertTaggedHoleToUndefined(Node* node) {

@@ -74,6 +74,7 @@ namespace compiler {
 #define JSGRAPH_SINGLETON_CONSTANT_LIST(V) \
   V(TrueConstant)                          \
   V(FalseConstant)                         \
+  V(NullConstant)                          \
   V(HeapNumberMapConstant)                 \
   V(NoContextConstant)                     \
   V(EmptyStringConstant)                   \

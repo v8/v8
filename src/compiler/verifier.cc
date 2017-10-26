@@ -735,7 +735,6 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kJSConstruct:
     case IrOpcode::kJSConstructWithArrayLike:
     case IrOpcode::kJSConstructWithSpread:
-    case IrOpcode::kJSConvertReceiver:
       // Type is Receiver.
       CheckTypeIs(node, Type::Receiver());
       break;
@@ -1260,6 +1259,13 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kCheckSymbol:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Symbol());
+      break;
+
+    case IrOpcode::kConvertReceiver:
+      // (Any, Any) -> Receiver
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Any());
+      CheckTypeIs(node, Type::Receiver());
       break;
 
     case IrOpcode::kCheckedInt32Add:

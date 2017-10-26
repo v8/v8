@@ -241,6 +241,18 @@ Type* OperationTyper::MultiplyRanger(Type* lhs, Type* rhs) {
                          : range;
 }
 
+Type* OperationTyper::ConvertReceiver(Type* type) {
+  if (type->Is(Type::Receiver())) return type;
+  bool const maybe_primitive = type->Maybe(Type::Primitive());
+  type = Type::Intersect(type, Type::Receiver(), zone());
+  if (maybe_primitive) {
+    // ConvertReceiver maps null and undefined to the JSGlobalProxy of the
+    // target function, and all other primitives are wrapped into a JSValue.
+    type = Type::Union(type, Type::OtherObject(), zone());
+  }
+  return type;
+}
+
 Type* OperationTyper::ToNumber(Type* type) {
   if (type->Is(Type::Number())) return type;
   if (type->Is(Type::NullOrUndefined())) {

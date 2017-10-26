@@ -73,6 +73,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
     }
   }
   switch (node->opcode()) {
+    case IrOpcode::kConvertReceiver:
+      return ReduceConvertReceiver(node);
     case IrOpcode::kCheckHeapObject:
       return ReduceCheckHeapObject(node);
     case IrOpcode::kCheckNotTaggedHole:
@@ -128,6 +130,20 @@ MaybeHandle<Map> GetStableMapFromObjectType(Type* object_type) {
 }
 
 }  // namespace
+
+Reduction TypedOptimization::ReduceConvertReceiver(Node* node) {
+  Node* const value = NodeProperties::GetValueInput(node, 0);
+  Type* const value_type = NodeProperties::GetType(value);
+  Node* const global_proxy = NodeProperties::GetValueInput(node, 1);
+  if (value_type->Is(Type::Receiver())) {
+    ReplaceWithValue(node, value);
+    return Replace(value);
+  } else if (value_type->Is(Type::NullOrUndefined())) {
+    ReplaceWithValue(node, global_proxy);
+    return Replace(global_proxy);
+  }
+  return NoChange();
+}
 
 Reduction TypedOptimization::ReduceCheckHeapObject(Node* node) {
   Node* const input = NodeProperties::GetValueInput(node, 0);

@@ -93,6 +93,7 @@ namespace {
 
 bool NeedsCheckHeapObject(Node* receiver) {
   switch (receiver->opcode()) {
+    case IrOpcode::kConvertReceiver:
     case IrOpcode::kHeapConstant:
     case IrOpcode::kJSCreate:
     case IrOpcode::kJSCreateArguments:
@@ -105,7 +106,6 @@ bool NeedsCheckHeapObject(Node* receiver) {
     case IrOpcode::kJSCreateEmptyLiteralObject:
     case IrOpcode::kJSCreateLiteralRegExp:
     case IrOpcode::kJSCreateGeneratorObject:
-    case IrOpcode::kJSConvertReceiver:
     case IrOpcode::kJSConstructForwardVarargs:
     case IrOpcode::kJSConstruct:
     case IrOpcode::kJSConstructWithArrayLike:

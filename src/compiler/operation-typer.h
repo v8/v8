@@ -40,6 +40,7 @@ class V8_EXPORT_PRIVATE OperationTyper {
 #define DECLARE_METHOD(Name) Type* Name(Type* type);
   SIMPLIFIED_NUMBER_UNOP_LIST(DECLARE_METHOD)
   SIMPLIFIED_SPECULATIVE_NUMBER_UNOP_LIST(DECLARE_METHOD)
+  DECLARE_METHOD(ConvertReceiver)
 #undef DECLARE_METHOD
 
 // Number binary operators.

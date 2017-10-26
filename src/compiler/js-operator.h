@@ -85,10 +85,6 @@ bool operator!=(VectorSlotPair const&, VectorSlotPair const&);
 size_t hash_value(VectorSlotPair const&);
 
 
-// The ConvertReceiverMode is used as parameter by JSConvertReceiver operators.
-ConvertReceiverMode ConvertReceiverModeOf(Operator const* op);
-
-
 // Defines the flags for a JavaScript call forwarding parameters. This
 // is used as parameter by JSConstructForwardVarargs operators.
 class ConstructForwardVarargsParameters final {
@@ -707,8 +703,6 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ConstructWithSpread(
       uint32_t arity, CallFrequency frequency = CallFrequency(),
       VectorSlotPair const& feedback = VectorSlotPair());
-
-  const Operator* ConvertReceiver(ConvertReceiverMode convert_mode);
 
   const Operator* LoadProperty(VectorSlotPair const& feedback);
   const Operator* LoadNamed(Handle<Name> name, VectorSlotPair const& feedback);

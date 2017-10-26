@@ -675,10 +675,6 @@ void JSGenericLowering::LowerJSCallRuntime(Node* node) {
   ReplaceWithRuntimeCall(node, p.id(), static_cast<int>(p.arity()));
 }
 
-void JSGenericLowering::LowerJSConvertReceiver(Node* node) {
-  ReplaceWithRuntimeCall(node, Runtime::kConvertReceiver);
-}
-
 void JSGenericLowering::LowerJSForInNext(Node* node) {
   UNREACHABLE();  // Eliminated in typed lowering.
 }

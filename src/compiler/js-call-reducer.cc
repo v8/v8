@@ -26,6 +26,7 @@ namespace {
 
 bool CanBePrimitive(Node* node) {
   switch (node->opcode()) {
+    case IrOpcode::kConvertReceiver:
     case IrOpcode::kJSCreate:
     case IrOpcode::kJSCreateArguments:
     case IrOpcode::kJSCreateArray:
@@ -42,7 +43,6 @@ bool CanBePrimitive(Node* node) {
     case IrOpcode::kJSConstruct:
     case IrOpcode::kJSConstructWithArrayLike:
     case IrOpcode::kJSConstructWithSpread:
-    case IrOpcode::kJSConvertReceiver:
     case IrOpcode::kJSGetSuperConstructor:
     case IrOpcode::kJSToObject:
       return false;

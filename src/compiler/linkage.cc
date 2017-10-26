@@ -144,7 +144,6 @@ bool Linkage::NeedsFrameStateInput(Runtime::FunctionId function) {
     // deoptimize are whitelisted here and can be called without a FrameState.
     case Runtime::kAbort:
     case Runtime::kAllocateInTargetSpace:
-    case Runtime::kConvertReceiver:
     case Runtime::kCreateIterResultObject:
     case Runtime::kGeneratorGetContinuation:
     case Runtime::kIncBlockCounter:

@@ -88,6 +88,9 @@ V8_EXPORT_PRIVATE ElementAccess const& ElementAccessOf(const Operator* op)
 
 ExternalArrayType ExternalArrayTypeOf(const Operator* op) WARN_UNUSED_RESULT;
 
+// The ConvertReceiverMode is used as parameter by ConvertReceiver operators.
+ConvertReceiverMode ConvertReceiverModeOf(Operator const* op);
+
 enum class CheckFloat64HoleMode : uint8_t {
   kNeverReturnHole,  // Never return the hole (deoptimize instead).
   kAllowReturnHole   // Allow to return the hole (signaling NaN).
@@ -466,6 +469,8 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckedTaggedToTaggedSigned();
   const Operator* CheckedTaggedToTaggedPointer();
   const Operator* CheckedTruncateTaggedToWord32(CheckTaggedInputMode);
+
+  const Operator* ConvertReceiver(ConvertReceiverMode);
 
   const Operator* CheckFloat64Hole(CheckFloat64HoleMode);
   const Operator* CheckNotTaggedHole();

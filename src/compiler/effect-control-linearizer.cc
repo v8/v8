@@ -877,6 +877,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kRuntimeAbort:
       LowerRuntimeAbort(node);
       break;
+    case IrOpcode::kConvertReceiver:
+      result = LowerConvertReceiver(node);
+      break;
     case IrOpcode::kFloat64RoundUp:
       if (!LowerFloat64RoundUp(node).To(&result)) {
         return false;
@@ -3630,6 +3633,93 @@ void EffectControlLinearizer::LowerRuntimeAbort(Node* node) {
   __ Call(desc, __ CEntryStubConstant(1), jsgraph()->SmiConstant(reason),
           __ ExternalConstant(ExternalReference(id, isolate())),
           __ Int32Constant(1), __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::LowerConvertReceiver(Node* node) {
+  ConvertReceiverMode const mode = ConvertReceiverModeOf(node->op());
+  Node* value = node->InputAt(0);
+  Node* global_proxy = node->InputAt(1);
+
+  switch (mode) {
+    case ConvertReceiverMode::kNullOrUndefined: {
+      return global_proxy;
+    }
+    case ConvertReceiverMode::kNotNullOrUndefined: {
+      auto convert_to_object = __ MakeDeferredLabel();
+      auto done_convert = __ MakeLabel(MachineRepresentation::kTagged);
+
+      // Check if {value} is already a JSReceiver.
+      __ GotoIf(ObjectIsSmi(value), &convert_to_object);
+      STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+      Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+      Node* value_instance_type =
+          __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+      Node* check = __ Uint32LessThan(
+          value_instance_type, __ Uint32Constant(FIRST_JS_RECEIVER_TYPE));
+      __ GotoIf(check, &convert_to_object);
+      __ Goto(&done_convert, value);
+
+      // Wrap the primitive {value} into a JSValue.
+      __ Bind(&convert_to_object);
+      Operator::Properties properties = Operator::kEliminatable;
+      Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
+      CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+      CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+          isolate(), graph()->zone(), callable.descriptor(), 0, flags,
+          properties);
+      Node* native_context = __ LoadField(
+          AccessBuilder::ForJSGlobalProxyNativeContext(), global_proxy);
+      Node* result = __ Call(desc, __ HeapConstant(callable.code()), value,
+                             native_context);
+      __ Goto(&done_convert, result);
+
+      __ Bind(&done_convert);
+      return done_convert.PhiAt(0);
+    }
+    case ConvertReceiverMode::kAny: {
+      auto convert_to_object = __ MakeDeferredLabel();
+      auto convert_global_proxy = __ MakeDeferredLabel();
+      auto done_convert = __ MakeLabel(MachineRepresentation::kTagged);
+
+      // Check if {value} is already a JSReceiver, or null/undefined.
+      __ GotoIf(ObjectIsSmi(value), &convert_to_object);
+      STATIC_ASSERT(LAST_TYPE == LAST_JS_RECEIVER_TYPE);
+      Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+      Node* value_instance_type =
+          __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+      Node* check = __ Uint32LessThan(
+          value_instance_type, __ Uint32Constant(FIRST_JS_RECEIVER_TYPE));
+      __ GotoIf(check, &convert_to_object);
+      __ Goto(&done_convert, value);
+
+      // Wrap the primitive {value} into a JSValue.
+      __ Bind(&convert_to_object);
+      __ GotoIf(__ WordEqual(value, __ UndefinedConstant()),
+                &convert_global_proxy);
+      __ GotoIf(__ WordEqual(value, __ NullConstant()), &convert_global_proxy);
+      Operator::Properties properties = Operator::kEliminatable;
+      Callable callable = Builtins::CallableFor(isolate(), Builtins::kToObject);
+      CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+      CallDescriptor const* const desc = Linkage::GetStubCallDescriptor(
+          isolate(), graph()->zone(), callable.descriptor(), 0, flags,
+          properties);
+      Node* native_context = __ LoadField(
+          AccessBuilder::ForJSGlobalProxyNativeContext(), global_proxy);
+      Node* result = __ Call(desc, __ HeapConstant(callable.code()), value,
+                             native_context);
+      __ Goto(&done_convert, result);
+
+      // Replace the {value} with the {global_proxy}.
+      __ Bind(&convert_global_proxy);
+      __ Goto(&done_convert, global_proxy);
+
+      __ Bind(&done_convert);
+      return done_convert.PhiAt(0);
+    }
+  }
+
+  UNREACHABLE();
+  return nullptr;
 }
 
 Maybe<Node*> EffectControlLinearizer::LowerFloat64RoundUp(Node* node) {

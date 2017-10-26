@@ -220,15 +220,6 @@ RUNTIME_FUNCTION(Runtime_Call) {
 }
 
 
-// ES6 section 9.2.1.2, OrdinaryCallBindThis for sloppy callee.
-RUNTIME_FUNCTION(Runtime_ConvertReceiver) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 0);
-  return *Object::ConvertReceiver(isolate, receiver).ToHandleChecked();
-}
-
-
 RUNTIME_FUNCTION(Runtime_IsFunction) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());

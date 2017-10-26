@@ -711,6 +711,16 @@ FieldAccess AccessBuilder::ForJSGlobalObjectNativeContext() {
 }
 
 // static
+FieldAccess AccessBuilder::ForJSGlobalProxyNativeContext() {
+  FieldAccess access = {
+      kTaggedBase,         JSGlobalProxy::kNativeContextOffset,
+      Handle<Name>(),      MaybeHandle<Map>(),
+      Type::Internal(),    MachineType::TaggedPointer(),
+      kPointerWriteBarrier};
+  return access;
+}
+
+// static
 FieldAccess AccessBuilder::ForJSArrayIteratorObject() {
   FieldAccess access = {kTaggedBase,
                         JSArrayIterator::kIteratedObjectOffset,
