@@ -597,8 +597,6 @@ class WeakHashTable : public HashTable<WeakHashTable, WeakHashTableShape<2>> {
                                                    Handle<HeapObject> key,
                                                    Handle<HeapObject> value);
 
-  static Handle<FixedArray> GetValues(Handle<WeakHashTable> table);
-
  private:
   friend class MarkCompactCollector;
 
