@@ -1345,12 +1345,21 @@ void V8HeapExplorer::ExtractFixedArrayReferences(int entry, FixedArray* array) {
     return;
   }
   switch (it->second) {
-    case JS_WEAK_COLLECTION_SUB_TYPE:
-      for (int i = 0, l = array->length(); i < l; ++i) {
-        SetWeakReference(array, entry, i, array->get(i),
-                         array->OffsetOfElementAt(i));
+    case JS_WEAK_COLLECTION_SUB_TYPE: {
+      WeakHashTable* table = WeakHashTable::cast(array);
+      for (int i = 0, capacity = table->Capacity(); i < capacity; ++i) {
+        int key_index =
+            WeakHashTable::EntryToIndex(i) + WeakHashTable::kEntryKeyIndex;
+        int value_index = WeakHashTable::EntryToValueIndex(i);
+        SetWeakReference(table, entry, key_index, table->get(key_index),
+                         table->OffsetOfElementAt(key_index));
+        SetInternalReference(table, entry, value_index, table->get(value_index),
+                             table->OffsetOfElementAt(value_index));
+        // TODO(alph): Add a strong link (shortcut?) from key to value per
+        //             WeakMap the key was added to. See crbug.com/778739
       }
       break;
+    }
 
     // TODO(alph): Add special processing for other types of FixedArrays.
 
