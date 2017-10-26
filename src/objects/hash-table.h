@@ -597,15 +597,17 @@ class WeakHashTable : public HashTable<WeakHashTable, WeakHashTableShape<2>> {
                                                    Handle<HeapObject> key,
                                                    Handle<HeapObject> value);
 
-  // Returns the index to the value of an entry.
-  static inline int EntryToValueIndex(int entry) {
-    return EntryToIndex(entry) + 1;
-  }
+  static Handle<FixedArray> GetValues(Handle<WeakHashTable> table);
 
  private:
   friend class MarkCompactCollector;
 
   void AddEntry(int entry, Handle<WeakCell> key, Handle<HeapObject> value);
+
+  // Returns the index to the value of an entry.
+  static inline int EntryToValueIndex(int entry) {
+    return EntryToIndex(entry) + 1;
+  }
 };
 
 // This is similar to the OrderedHashTable, except for the memory
