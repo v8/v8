@@ -836,6 +836,9 @@ void WeakCell::WeakCellVerify() {
 
 void CodeDataContainer::CodeDataContainerVerify() {
   CHECK(IsCodeDataContainer());
+  VerifyObjectField(kNextCodeLinkOffset);
+  CHECK(next_code_link()->IsCode() ||
+        next_code_link()->IsUndefined(GetIsolate()));
 }
 
 void Code::CodeVerify() {

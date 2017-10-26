@@ -160,7 +160,6 @@ CODE_ACCESSORS(source_position_table, Object, kSourcePositionTableOffset)
 CODE_ACCESSORS(protected_instructions, FixedArray, kProtectedInstructionsOffset)
 CODE_ACCESSORS(code_data_container, CodeDataContainer, kCodeDataContainerOffset)
 CODE_ACCESSORS(trap_handler_index, Smi, kTrapHandlerIndex)
-CODE_ACCESSORS(next_code_link, Object, kNextCodeLinkOffset)
 #undef CODE_ACCESSORS
 
 void Code::WipeOutHeader() {
@@ -170,7 +169,6 @@ void Code::WipeOutHeader() {
   WRITE_FIELD(this, kSourcePositionTableOffset, nullptr);
   WRITE_FIELD(this, kProtectedInstructionsOffset, nullptr);
   WRITE_FIELD(this, kCodeDataContainerOffset, nullptr);
-  WRITE_FIELD(this, kNextCodeLinkOffset, nullptr);
 }
 
 void Code::clear_padding() {
@@ -196,6 +194,14 @@ uint32_t Code::stub_key() const {
 void Code::set_stub_key(uint32_t key) {
   DCHECK(is_stub() || key == 0);  // Allow zero initialization.
   WRITE_UINT32_FIELD(this, kStubKeyOffset, key);
+}
+
+Object* Code::next_code_link() const {
+  return code_data_container()->next_code_link();
+}
+
+void Code::set_next_code_link(Object* value) {
+  code_data_container()->set_next_code_link(value);
 }
 
 byte* Code::instruction_start() const {
@@ -526,6 +532,7 @@ bool Code::IsWeakObjectInOptimizedCode(Object* object) {
 }
 
 INT_ACCESSORS(CodeDataContainer, kind_specific_flags, kKindSpecificFlagsOffset)
+ACCESSORS(CodeDataContainer, next_code_link, Object, kNextCodeLinkOffset)
 
 void CodeDataContainer::clear_padding() {
   memset(address() + kUnalignedSize, 0, kSize - kUnalignedSize);

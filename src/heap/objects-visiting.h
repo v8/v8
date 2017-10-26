@@ -28,6 +28,7 @@ class JSRegExp;
   V(BytecodeArray)               \
   V(Cell)                        \
   V(Code)                        \
+  V(CodeDataContainer)           \
   V(ConsString)                  \
   V(FeedbackVector)              \
   V(FixedArray)                  \

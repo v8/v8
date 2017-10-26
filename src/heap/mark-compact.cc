@@ -1187,8 +1187,8 @@ class MarkCompactCollector::CustomRootBodyMarkingVisitor final
 
   // VisitEmbedderPointer is defined by ObjectVisitor to call VisitPointers.
 
-  // Skip the weak next code link in a code object.
-  void VisitNextCodeLink(Code* host, Object** p) override {}
+  // Skip the weak next code link for code objects.
+  void VisitNextCodeLink(CodeDataContainer* host, Object** p) override {}
 
  private:
   void MarkObject(HeapObject* host, Object* object) {

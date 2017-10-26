@@ -10,6 +10,7 @@
 namespace v8 {
 namespace internal {
 
+class CodeDataContainer;
 class Object;
 
 #define ROOT_ID_LIST(V)                                                    \
@@ -91,8 +92,8 @@ class ObjectVisitor BASE_EMBEDDED {
     VisitPointers(host, p, p + 1);
   }
 
-  // Visit weak next_code_link in Code object.
-  virtual void VisitNextCodeLink(Code* host, Object** p);
+  // Visit the weak next code link for code objects.
+  virtual void VisitNextCodeLink(CodeDataContainer* host, Object** p);
 
   // To allow lazy clearing of inline caches the visitor has
   // a rich interface for iterating over Code objects..

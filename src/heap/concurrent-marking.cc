@@ -203,6 +203,11 @@ class ConcurrentMarkingVisitor final
     return 0;
   }
 
+  int VisitCodeDataContainer(Map* map, CodeDataContainer* object) {
+    bailout_.Push(object);
+    return 0;
+  }
+
   // ===========================================================================
   // Objects with weak fields and/or side-effectiful visitation.
   // ===========================================================================

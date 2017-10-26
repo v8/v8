@@ -175,8 +175,9 @@ class Code : public HeapObject {
   inline void set_stub_key(uint32_t key);
 
   // [next_code_link]: Link for lists of optimized or deoptimized code.
-  // Note that storage for this field is overlapped with typefeedback_info.
-  DECL_ACCESSORS(next_code_link, Object)
+  // Note that this field is stored in the {CodeDataContainer} to be mutable.
+  inline Object* next_code_link() const;
+  inline void set_next_code_link(Object* value);
 
   // [constant_pool offset]: Offset of the constant pool.
   // Valid for FLAG_enable_embedded_constant_pool only
@@ -438,9 +439,8 @@ class Code : public HeapObject {
       kSourcePositionTableOffset + kPointerSize;
   static const int kCodeDataContainerOffset =
       kProtectedInstructionsOffset + kPointerSize;
-  static const int kNextCodeLinkOffset =
+  static const int kInstructionSizeOffset =
       kCodeDataContainerOffset + kPointerSize;
-  static const int kInstructionSizeOffset = kNextCodeLinkOffset + kPointerSize;
   static const int kFlagsOffset = kInstructionSizeOffset + kIntSize;
   static const int kSafepointTableOffsetOffset = kFlagsOffset + kIntSize;
   static const int kStubKeyOffset = kSafepointTableOffsetOffset + kIntSize;
@@ -513,6 +513,7 @@ class Code : public HeapObject {
 // field {Code::code_data_container} itself is immutable.
 class CodeDataContainer : public HeapObject {
  public:
+  DECL_ACCESSORS(next_code_link, Object)
   DECL_INT_ACCESSORS(kind_specific_flags)
 
   // Clear uninitialized padding space. This ensures that the snapshot content
@@ -525,9 +526,13 @@ class CodeDataContainer : public HeapObject {
   DECL_PRINTER(CodeDataContainer)
   DECL_VERIFIER(CodeDataContainer)
 
-  static const int kKindSpecificFlagsOffset = HeapObject::kHeaderSize;
+  static const int kNextCodeLinkOffset = HeapObject::kHeaderSize;
+  static const int kKindSpecificFlagsOffset =
+      kNextCodeLinkOffset + kPointerSize;
   static const int kUnalignedSize = kKindSpecificFlagsOffset + kIntSize;
   static const int kSize = OBJECT_POINTER_ALIGN(kUnalignedSize);
+
+  class BodyDescriptor;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CodeDataContainer);

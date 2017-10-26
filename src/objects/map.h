@@ -23,6 +23,7 @@ namespace internal {
   V(BytecodeArray)         \
   V(Cell)                  \
   V(Code)                  \
+  V(CodeDataContainer)     \
   V(ConsString)            \
   V(DataObject)            \
   V(FeedbackVector)        \

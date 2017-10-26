@@ -1658,7 +1658,8 @@ bool V8HeapExplorer::IsEssentialHiddenReference(Object* parent,
   if (parent->IsAllocationSite() &&
       field_offset == AllocationSite::kWeakNextOffset)
     return false;
-  if (parent->IsCode() && field_offset == Code::kNextCodeLinkOffset)
+  if (parent->IsCodeDataContainer() &&
+      field_offset == CodeDataContainer::kNextCodeLinkOffset)
     return false;
   if (parent->IsContext() &&
       field_offset == Context::OffsetOfElementAt(Context::NEXT_CONTEXT_LINK))

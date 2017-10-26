@@ -1050,7 +1050,7 @@ class MarkingVisitor final
   V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
   V8_INLINE void VisitCodeTarget(Code* host, RelocInfo* rinfo) final;
   // Skip weak next code link.
-  V8_INLINE void VisitNextCodeLink(Code* host, Object** p) final {}
+  V8_INLINE void VisitNextCodeLink(CodeDataContainer* host, Object** p) final {}
 
  private:
   // Granularity in which FixedArrays are scanned if |fixed_array_mode|

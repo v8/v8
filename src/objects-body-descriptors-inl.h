@@ -358,7 +358,7 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
                 kProtectedInstructionsOffset);
   STATIC_ASSERT(kProtectedInstructionsOffset + kPointerSize ==
                 kCodeDataContainerOffset);
-  STATIC_ASSERT(kCodeDataContainerOffset + kPointerSize == kNextCodeLinkOffset);
+  STATIC_ASSERT(kCodeDataContainerOffset + kPointerSize == kDataStart);
 
   static bool IsValidSlot(HeapObject* obj, int offset) {
     // Slots in code can't be invalid because we never trim code objects.
@@ -374,12 +374,8 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
                     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
                     RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
 
-    IteratePointers(obj, kRelocationInfoOffset, kNextCodeLinkOffset, v);
-    v->VisitNextCodeLink(Code::cast(obj),
-                         HeapObject::RawField(obj, kNextCodeLinkOffset));
-
     // GC does not visit data/code in the header and in the body directly.
-    STATIC_ASSERT(Code::kNextCodeLinkOffset + kPointerSize == kDataStart);
+    IteratePointers(obj, kRelocationInfoOffset, kDataStart, v);
 
     RelocIterator it(Code::cast(obj), mode_mask);
     Isolate* isolate = obj->GetIsolate();
@@ -397,6 +393,25 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   static inline int SizeOf(Map* map, HeapObject* object) {
     return reinterpret_cast<Code*>(object)->CodeSize();
   }
+};
+
+class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
+ public:
+  static bool IsValidSlot(HeapObject* obj, int offset) { return true; }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(HeapObject* obj, ObjectVisitor* v) {
+    v->VisitNextCodeLink(CodeDataContainer::cast(obj),
+                         HeapObject::RawField(obj, kNextCodeLinkOffset));
+  }
+
+  template <typename ObjectVisitor>
+  static inline void IterateBody(HeapObject* obj, int object_size,
+                                 ObjectVisitor* v) {
+    IterateBody(obj, v);
+  }
+
+  static inline int SizeOf(Map* map, HeapObject* obj) { return kSize; }
 };
 
 class SeqOneByteString::BodyDescriptor final : public BodyDescriptorBase {
@@ -538,9 +553,10 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
       return Op::template apply<
           SmallOrderedHashTable<SmallOrderedHashMap>::BodyDescriptor>(p1, p2,
                                                                       p3);
+    case CODE_DATA_CONTAINER_TYPE:
+      return Op::template apply<CodeDataContainer::BodyDescriptor>(p1, p2, p3);
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
-    case CODE_DATA_CONTAINER_TYPE:
     case FILLER_TYPE:
     case BYTE_ARRAY_TYPE:
     case FREE_SPACE_TYPE:

@@ -1779,6 +1779,7 @@ Handle<JSObject> Factory::NewExternal(void* value) {
 Handle<CodeDataContainer> Factory::NewCodeDataContainer(int flags) {
   Handle<CodeDataContainer> data_container =
       New<CodeDataContainer>(code_data_container_map(), OLD_SPACE);
+  data_container->set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
   data_container->set_kind_specific_flags(flags);
   data_container->clear_padding();
   return data_container;
@@ -1844,7 +1845,6 @@ Handle<Code> Factory::NewCode(
   code->set_has_tagged_params(true);
   code->set_deoptimization_data(*deopt_data);
   code->set_stub_key(0);
-  code->set_next_code_link(*undefined_value(), SKIP_WRITE_BARRIER);
   code->set_handler_table(*handler_table);
   code->set_source_position_table(*source_position_table);
   code->set_protected_instructions(*empty_fixed_array(), SKIP_WRITE_BARRIER);

@@ -3191,6 +3191,9 @@ VisitorId Map::GetVisitorId(Map* map) {
     case SMALL_ORDERED_HASH_SET_TYPE:
       return kVisitSmallOrderedHashSet;
 
+    case CODE_DATA_CONTAINER_TYPE:
+      return kVisitCodeDataContainer;
+
     case JS_OBJECT_TYPE:
     case JS_ERROR_TYPE:
     case JS_ARGUMENTS_TYPE:
@@ -3238,7 +3241,6 @@ VisitorId Map::GetVisitorId(Map* map) {
     case FOREIGN_TYPE:
     case HEAP_NUMBER_TYPE:
     case MUTABLE_HEAP_NUMBER_TYPE:
-    case CODE_DATA_CONTAINER_TYPE:
       return kVisitDataObject;
 
     case BIGINT_TYPE:
