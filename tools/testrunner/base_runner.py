@@ -73,6 +73,26 @@ MODES = {
   },
 }
 
+SUPPORTED_ARCHS = [
+  "android_arm",
+  "android_arm64",
+  "android_ia32",
+  "android_x64",
+  "arm",
+  "ia32",
+  "mips",
+  "mipsel",
+  "mips64",
+  "mips64el",
+  "s390",
+  "s390x",
+  "ppc",
+  "ppc64",
+  "x64",
+  "x32",
+  "arm64",
+]
+
 # Map of test name synonyms to lists of test suites. Should be ordered by
 # expected runtimes (suites with slow test cases first). These groups are
 # invoked in separate steps on the bots.
@@ -125,58 +145,37 @@ class TestRunnerError(Exception):
   pass
 
 
-class BuildConfig(object):
-  def __init__(self, build_config):
-    # In V8 land, GN's x86 is called ia32.
-    if build_config['v8_target_cpu'] == 'x86':
-      self.arch = 'ia32'
-    else:
-      self.arch = build_config['v8_target_cpu']
-
-    self.mode = 'debug' if build_config['is_debug'] else 'release'
-    self.asan = build_config['is_asan']
-    self.cfi_vptr = build_config['is_cfi']
-    self.dcheck_always_on = build_config['dcheck_always_on']
-    self.gcov_coverage = build_config['is_gcov_coverage']
-    self.msan = build_config['is_msan']
-    self.no_i18n = not build_config['v8_enable_i18n_support']
-    self.no_snap = not build_config['v8_use_snapshot']
-    self.predictable = build_config['v8_enable_verify_predictable']
-    self.tsan = build_config['is_tsan']
-    self.ubsan_vptr = build_config['is_ubsan_vptr']
-
-
 class BaseTestRunner(object):
   def __init__(self):
     self.outdir = None
-    self.shell_dir = None
-    self.build_config = None
+
+    self.arch = None
+    self.mode = None
+
+    self.auto_detect = None
 
   def execute(self):
     try:
-      parser = self._create_parser()
-      options, args = self._parse_args(parser)
-
-      self._load_build_config(options)
-
-      try:
-        self._process_default_options(options)
-        self._process_options(options)
-      except TestRunnerError:
-        parser.print_help()
-        raise
-
+      options, args = self._parse_args()
       return self._do_execute(options, args)
     except TestRunnerError:
       return 1
 
-  def _create_parser(self):
+  def _parse_args(self):
     parser = optparse.OptionParser()
     parser.usage = '%prog [options] [tests]'
     parser.description = """TESTS: %s""" % (TEST_MAP["default"])
     self._add_parser_default_options(parser)
     self._add_parser_options(parser)
-    return parser
+    options, args = parser.parse_args()
+    try:
+      self._process_default_options(options)
+      self._process_options(options)
+    except TestRunnerError:
+      parser.print_help()
+      raise
+
+    return options, args
 
   def _add_parser_default_options(self, parser):
     parser.add_option("--gn", help="Scan out.gn for the last built"
@@ -188,53 +187,48 @@ class BaseTestRunner(object):
                       help="Adapt to path structure used on buildbots",
                       default=False, action="store_true")
     parser.add_option("--arch",
-                      help="The architecture to run tests for: %s")
+                      help=("The architecture to run tests for, "
+                            "'auto' or 'native' for auto-detect: %s" %
+                            SUPPORTED_ARCHS))
     parser.add_option("-m", "--mode",
                       help="The test mode in which to run (uppercase for ninja"
                       " and buildbot builds): %s" % MODES.keys())
-    parser.add_option("--shell", help="DEPRECATED! use --shell-dir",
-                      default="")
-    parser.add_option("--shell-dir", help="Directory containing executables",
-                      default="")
 
   def _add_parser_options(self, parser):
     pass
 
-  def _parse_args(self, parser):
-    options, args = parser.parse_args()
+  def _process_default_options(self, options):
+    # Try to autodetect configuration based on the build if GN was used.
+    # This can't be ovveridden by cmd-line arguments.
+    if options.gn:
+      outdir = self._get_gn_outdir()
+    else:
+      outdir = options.outdir
 
-    if any(map(lambda v: v and ',' in v,
-                [options.arch, options.mode])):
-      print 'Multiple arch/mode are deprecated'
+    self.auto_detect = self._read_build_config(outdir, options)
+    if not self.auto_detect:
+      if any(map(lambda v: v and ',' in v,
+                 [options.arch, options.mode])):
+        print 'Multiple arch/mode are deprecated'
+        raise TestRunnerError()
+
+      self.outdir = outdir
+      if not options.arch or not options.mode:
+        print('Autodetect mode is not available and therefore '
+              '--arch and --mode options are required')
+        raise TestRunnerError()
+      self.arch = options.arch
+      self.mode = options.mode
+
+    if not self._buildbot_to_v8_mode(self.mode) in MODES:
+      print "Unknown mode %s" % self.mode
       raise TestRunnerError()
 
-    return options, args
-
-  def _load_build_config(self, options):
-    for outdir in self._possible_outdirs(options):
-      try:
-        self.build_config = self._do_load_build_config(
-          outdir, options.mode, options.buildbot)
-      except TestRunnerError:
-        pass
-
-    if not self.build_config:
-      print 'Failed to load build config'
-      raise TestRunnerError
-
-    print 'Build found: %s' % self.outdir
-
-  # Returns possible build paths in order: gn, outdir, outdir/arch.mode
-  def _possible_outdirs(self, options):
-    if options.gn:
-      yield self._get_gn_outdir()
-      return
-
-    yield options.outdir
-    if options.arch and options.mode:
-      yield os.path.join(options.outdir,
-                         '%s.%s' % (options.arch, options.mode))
-    return
+    if self.arch in ["auto", "native"]:
+      self.arch = ARCH_GUESS
+    if not self.arch in SUPPORTED_ARCHS:
+      print "Unknown architecture %s" % self.arch
+      raise TestRunnerError()
 
   def _get_gn_outdir(self):
     gn_out_dir = os.path.join(BASE_DIR, DEFAULT_OUT_GN)
@@ -251,21 +245,25 @@ class BaseTestRunner(object):
       print(">>> Latest GN build found: %s" % latest_config)
       return os.path.join(DEFAULT_OUT_GN, latest_config)
 
-  def _do_load_build_config(self, outdir, mode, is_buildbot):
-    if is_buildbot:
+  # Auto-detect test configurations based on the build (GN only).
+  # sets:
+  #   - arch
+  #   - mode
+  #   - outdir
+  def _read_build_config(self, outdir, options):
+    if options.buildbot:
       build_config_path = os.path.join(
-        BASE_DIR, outdir, mode, "v8_build_config.json")
+        BASE_DIR, outdir, options.mode, "v8_build_config.json")
     else:
       build_config_path = os.path.join(
         BASE_DIR, outdir, "v8_build_config.json")
+
     if not os.path.exists(build_config_path):
-      print('Missing build config in the output directory (%s)' %
-            build_config_path)
-      raise TestRunnerError()
+      return False
 
     with open(build_config_path) as f:
       try:
-        build_config_json = json.load(f)
+        build_config = json.load(f)
       except Exception:
         print("%s exists but contains invalid json. Is your build up-to-date?"
               % build_config_path)
@@ -276,24 +274,71 @@ class BaseTestRunner(object):
     # This ensures that we'll also take the build products from there.
     self.outdir = os.path.dirname(build_config_path)
 
-    return BuildConfig(build_config_json)
+    # In V8 land, GN's x86 is called ia32.
+    if build_config["v8_target_cpu"] == "x86":
+      build_config["v8_target_cpu"] = "ia32"
 
-  def _process_default_options(self, options):
-    # We don't use the mode for more path-magic.
-    # Therefore transform the buildbot mode here to fix build_config value.
-    if options.buildbot and options.mode:
+    if options.mode:
+      # In auto-detect mode we don't use the mode for more path-magic.
+      # Therefore transform the buildbot mode here to fit to the GN build
+      # config.
       options.mode = self._buildbot_to_v8_mode(options.mode)
 
-    def check_consistency(name, option_val, cfg_val):
-      if option_val and option_val != cfg_val:
-        print('Attempted to set %s to %s while build config is %s.' % (
-              name, option_val, cfg_val))
+    # TODO(majeski): merge next two loops and put everything in self.
+
+    # Get options from the build config. Sanity check that we're not trying to
+    # use inconsistent options.
+    for param, value in (
+      ('arch', build_config["v8_target_cpu"]),
+      ('mode', 'debug' if build_config["is_debug"] else 'release'),
+    ):
+      cmd_line_value = getattr(options, param)
+      if (cmd_line_value not in [None, True, False] and
+          cmd_line_value != value):
+        # TODO(machenbach): This is for string options only. Requires
+        # options  to not have default values. We should make this more
+        # modular and implement it in our own version of the option parser.
+        print("Attempted to set %s to %s, while build is %s." %
+              (param, cmd_line_value, value))
         raise TestRunnerError()
+      if cmd_line_value == True and value == False:
+        print("Attempted to turn on %s, but it's not available." % param)
+        raise TestRunnerError()
+      if cmd_line_value != value:
+        print(">>> Auto-detected %s=%s" % (param, value))
+      setattr(self, param, value)
 
-    check_consistency('arch', options.arch, self.build_config.arch)
-    check_consistency('mode', options.mode, self.build_config.mode)
+    # Update options based on the build config. Sanity check that we're not
+    # trying to use inconsistent options.
+    for param, value in (
+      ('asan', build_config["is_asan"]),
+      ('cfi_vptr', build_config["is_cfi"]),
+      ('dcheck_always_on', build_config["dcheck_always_on"]),
+      ('gcov_coverage', build_config["is_gcov_coverage"]),
+      ('msan', build_config["is_msan"]),
+      ('no_i18n', not build_config["v8_enable_i18n_support"]),
+      ('no_snap', not build_config["v8_use_snapshot"]),
+      ('predictable', build_config["v8_enable_verify_predictable"]),
+      ('tsan', build_config["is_tsan"]),
+      ('ubsan_vptr', build_config["is_ubsan_vptr"]),
+    ):
+      cmd_line_value = getattr(options, param)
+      if (cmd_line_value not in [None, True, False] and
+          cmd_line_value != value):
+        # TODO(machenbach): This is for string options only. Requires
+        # options  to not have default values. We should make this more
+        # modular and implement it in our own version of the option parser.
+        print("Attempted to set %s to %s, while build is %s." %
+              (param, cmd_line_value, value))
+        raise TestRunnerError()
+      if cmd_line_value == True and value == False:
+        print("Attempted to turn on %s, but it's not available." % param)
+        raise TestRunnerError()
+      if cmd_line_value != value:
+        print(">>> Auto-detected %s=%s" % (param, value))
+      setattr(options, param, value)
 
-    self._set_shell_dir(options)
+    return True
 
   def _buildbot_to_v8_mode(self, config):
     """Convert buildbot build configs to configs understood by the v8 runner.
@@ -303,20 +348,6 @@ class BaseTestRunner(object):
     """
     mode = config[:-4] if config.endswith('_x64') else config
     return mode.lower()
-
-  def _set_shell_dir(self, options):
-    self.shell_dir = options.shell_dir
-    if not self.shell_dir:
-      # TODO(majeski): drop this option
-      if options.shell:
-        print "Warning: --shell is deprecated, use --shell-dir instead."
-        self.shell_dir = os.path.dirname(options.shell)
-      else:
-        # If an output dir with a build was passed, test directly in that
-        # directory.
-        self.shell_dir = os.path.join(BASE_DIR, self.outdir)
-      if not os.path.exists(self.shell_dir):
-          raise Exception('Could not find shell_dir: "%s"' % self.shell_dir)
 
   def _process_options(self, options):
     pass
