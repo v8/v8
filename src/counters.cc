@@ -514,8 +514,9 @@ void RuntimeCallStats::Add(RuntimeCallStats* other) {
 // static
 void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
                                                CounterId counter_id) {
+  // When RCS are enabled dynamically there might be no stats or timer set up.
+  if (stats == nullptr) return;
   RuntimeCallTimer* timer = stats->current_timer_.Value();
-  // When RCS are enabled dynamically there might be no current timer set up.
   if (timer == nullptr) return;
   RuntimeCallCounter* counter = &(stats->*counter_id);
   timer->set_counter(counter);
