@@ -40,6 +40,7 @@
   V(Regress658718)                                        \
   V(Regress670675)                                        \
   V(Regress5831)                                          \
+  V(Regress777177)                                        \
   V(RegressMissingWriteBarrierInAllocate)                 \
   V(WriteBarriersInCopyJSObject)
 

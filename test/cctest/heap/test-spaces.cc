@@ -80,8 +80,6 @@ class TestCodeRangeScope {
   DISALLOW_COPY_AND_ASSIGN(TestCodeRangeScope);
 };
 
-namespace test_spaces {
-
 static void VerifyMemoryChunk(Isolate* isolate,
                               Heap* heap,
                               CodeRange* code_range,
@@ -135,7 +133,6 @@ static void VerifyMemoryChunk(Isolate* isolate,
   memory_allocator->TearDown();
   delete memory_allocator;
 }
-
 
 TEST(Regress3540) {
   Isolate* isolate = CcTest::i_isolate();
@@ -562,7 +559,6 @@ UNINITIALIZED_TEST(AllocationObserver) {
   isolate->Dispose();
 }
 
-
 UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
@@ -598,6 +594,49 @@ UNINITIALIZED_TEST(InlineAllocationObserverCadence) {
     CHECK_EQ(observer2.count(), 28);
   }
   isolate->Dispose();
+}
+
+HEAP_TEST(Regress777177) {
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = isolate->heap();
+  HandleScope scope(isolate);
+  PagedSpace* old_space = heap->old_space();
+  Observer observer(128);
+  old_space->AddAllocationObserver(&observer);
+
+  int area_size = old_space->AreaSize();
+  int max_object_size = kMaxRegularHeapObjectSize;
+  int filler_size = area_size - max_object_size;
+
+  {
+    // Ensure a new linear allocation area on a fresh page.
+    AlwaysAllocateScope always_allocate(isolate);
+    heap::SimulateFullSpace(old_space);
+    AllocationResult result = old_space->AllocateRaw(filler_size, kWordAligned);
+    HeapObject* obj = result.ToObjectChecked();
+    heap->CreateFillerObjectAt(obj->address(), filler_size,
+                               ClearRecordedSlots::kNo);
+  }
+
+  {
+    // Allocate all bytes of the linear allocation area. This moves top_ and
+    // top_on_previous_step_ to the next page.
+    AllocationResult result =
+        old_space->AllocateRaw(max_object_size, kWordAligned);
+    HeapObject* obj = result.ToObjectChecked();
+    // Simulate allocation folding moving the top pointer back.
+    old_space->SetTopAndLimit(obj->address(), old_space->limit());
+  }
+
+  {
+    // This triggers assert in crbug.com/777177.
+    AllocationResult result = old_space->AllocateRaw(filler_size, kWordAligned);
+    HeapObject* obj = result.ToObjectChecked();
+    heap->CreateFillerObjectAt(obj->address(), filler_size,
+                               ClearRecordedSlots::kNo);
+  }
+  old_space->RemoveAllocationObserver(&observer);
 }
 
 TEST(ShrinkPageToHighWaterMarkFreeSpaceEnd) {
@@ -704,7 +743,6 @@ TEST(ShrinkPageToHighWaterMarkTwoWordFiller) {
   CHECK_EQ(0u, shrunk);
 }
 
-}  // namespace test_spaces
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
