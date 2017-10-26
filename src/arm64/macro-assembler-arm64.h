@@ -2031,13 +2031,6 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Garbage collector support (GC).
 
-  // Record in the remembered set the fact that we have a pointer to new space
-  // at the address pointed to by the addr register. Only works if addr is not
-  // in new space.
-  void RememberedSetHelper(Register object,  // Used for debug code.
-                           Register addr, Register scratch1,
-                           SaveFPRegsMode save_fp);
-
   // Push and pop the registers that can hold pointers, as defined by the
   // RegList constant kSafepointSavedRegisters.
   void PushSafepointRegisters();
@@ -2045,18 +2038,6 @@ class MacroAssembler : public TurboAssembler {
 
   void CheckPageFlag(const Register& object, const Register& scratch, int mask,
                      Condition cc, Label* condition_met);
-
-  // Check if object is in new space and jump accordingly.
-  // Register 'object' is preserved.
-  void JumpIfNotInNewSpace(Register object,
-                           Label* branch) {
-    InNewSpace(object, ne, branch);
-  }
-
-  void JumpIfInNewSpace(Register object,
-                        Label* branch) {
-    InNewSpace(object, eq, branch);
-  }
 
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
@@ -2077,36 +2058,6 @@ class MacroAssembler : public TurboAssembler {
       LinkRegisterStatus lr_status, SaveFPRegsMode save_fp,
       RememberedSetAction remembered_set_action = EMIT_REMEMBERED_SET,
       SmiCheck smi_check = INLINE_SMI_CHECK);
-
-  // Checks the color of an object.  If the object is white we jump to the
-  // incremental marker.
-  void JumpIfWhite(Register value, Register scratch1, Register scratch2,
-                   Register scratch3, Register scratch4, Label* value_is_white);
-
-  // Helper for finding the mark bits for an address.
-  // Note that the behaviour slightly differs from other architectures.
-  // On exit:
-  //  - addr_reg is unchanged.
-  //  - The bitmap register points at the word with the mark bits.
-  //  - The shift register contains the index of the first color bit for this
-  //    object in the bitmap.
-  inline void GetMarkBits(Register addr_reg,
-                          Register bitmap_reg,
-                          Register shift_reg);
-
-  // Check if an object has a given incremental marking color.
-  void HasColor(Register object,
-                Register scratch0,
-                Register scratch1,
-                Label* has_color,
-                int first_bit,
-                int second_bit);
-
-  void JumpIfBlack(Register object,
-                   Register scratch0,
-                   Register scratch1,
-                   Label* on_black);
-
 
   // ---------------------------------------------------------------------------
   // Debugging.

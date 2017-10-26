@@ -1620,15 +1620,6 @@ void MacroAssembler::LoadAccessor(Register dst, Register holder,
   Ldr(dst, FieldMemOperand(dst, offset));
 }
 
-void MacroAssembler::InNewSpace(Register object,
-                                Condition cond,
-                                Label* branch) {
-  DCHECK(cond == eq || cond == ne);
-  UseScratchRegisterScope temps(this);
-  CheckPageFlag(object, temps.AcquireSameSizeAs(object),
-                MemoryChunk::kIsInNewSpaceMask, cond, branch);
-}
-
 void TurboAssembler::AssertSmi(Register object, BailoutReason reason) {
   if (emit_debug_code()) {
     STATIC_ASSERT(kSmiTag == 0);
@@ -1636,7 +1627,6 @@ void TurboAssembler::AssertSmi(Register object, BailoutReason reason) {
     Check(eq, reason);
   }
 }
-
 
 void MacroAssembler::AssertNotSmi(Register object, BailoutReason reason) {
   if (emit_debug_code()) {
@@ -2797,44 +2787,6 @@ bool TurboAssembler::AllowThisStubCall(CodeStub* stub) {
   return has_frame() || !stub->SometimesSetsUpAFrame();
 }
 
-void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
-                                         Register address, Register scratch1,
-                                         SaveFPRegsMode fp_mode) {
-  DCHECK(!AreAliased(object, address, scratch1));
-  Label done, store_buffer_overflow;
-  if (emit_debug_code()) {
-    Label ok;
-    JumpIfNotInNewSpace(object, &ok);
-    Abort(kRememberedSetPointerInNewSpace);
-    bind(&ok);
-  }
-  UseScratchRegisterScope temps(this);
-  Register scratch2 = temps.AcquireX();
-
-  // Load store buffer top.
-  Mov(scratch2, ExternalReference::store_buffer_top(isolate()));
-  Ldr(scratch1, MemOperand(scratch2));
-  // Store pointer to buffer and increment buffer top.
-  Str(address, MemOperand(scratch1, kPointerSize, PostIndex));
-  // Write back new top of buffer.
-  Str(scratch1, MemOperand(scratch2));
-  // Call stub on end of buffer.
-  // Check for end of buffer.
-  Tst(scratch1, StoreBuffer::kStoreBufferMask);
-  B(eq, &store_buffer_overflow);
-  Ret();
-
-  Bind(&store_buffer_overflow);
-  Push(lr);
-  StoreBufferOverflowStub store_buffer_overflow_stub(isolate(), fp_mode);
-  CallStub(&store_buffer_overflow_stub);
-  Pop(lr);
-
-  Bind(&done);
-  Ret();
-}
-
-
 void MacroAssembler::PopSafepointRegisters() {
   const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
   DCHECK_GE(num_unsaved, 0);
@@ -3060,13 +3012,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   if (lr_status == kLRHasNotBeenSaved) {
     Push(padreg, lr);
   }
-#ifdef V8_CSA_WRITE_BARRIER
   CallRecordWriteStub(object, address, remembered_set_action, fp_mode);
-#else
-  RecordWriteStub stub(isolate(), object, value, address, remembered_set_action,
-                       fp_mode);
-  CallStub(&stub);
-#endif
   if (lr_status == kLRHasNotBeenSaved) {
     Pop(lr, padreg);
   }
@@ -3084,120 +3030,6 @@ void MacroAssembler::RecordWrite(Register object, Register address,
     Mov(address, Operand(bit_cast<int64_t>(kZapValue + 12)));
     Mov(value, Operand(bit_cast<int64_t>(kZapValue + 16)));
   }
-}
-
-
-void MacroAssembler::AssertHasValidColor(const Register& reg) {
-  if (emit_debug_code()) {
-    // The bit sequence is backward. The first character in the string
-    // represents the least significant bit.
-    DCHECK_EQ(strcmp(Marking::kImpossibleBitPattern, "01"), 0);
-
-    Label color_is_valid;
-    Tbnz(reg, 0, &color_is_valid);
-    Tbz(reg, 1, &color_is_valid);
-    Abort(kUnexpectedColorFound);
-    Bind(&color_is_valid);
-  }
-}
-
-
-void MacroAssembler::GetMarkBits(Register addr_reg,
-                                 Register bitmap_reg,
-                                 Register shift_reg) {
-  DCHECK(!AreAliased(addr_reg, bitmap_reg, shift_reg));
-  DCHECK(addr_reg.Is64Bits() && bitmap_reg.Is64Bits() && shift_reg.Is64Bits());
-  // addr_reg is divided into fields:
-  // |63        page base        20|19    high      8|7   shift   3|2  0|
-  // 'high' gives the index of the cell holding color bits for the object.
-  // 'shift' gives the offset in the cell for this object's color.
-  const int kShiftBits = kPointerSizeLog2 + Bitmap::kBitsPerCellLog2;
-  UseScratchRegisterScope temps(this);
-  Register temp = temps.AcquireX();
-  Ubfx(temp, addr_reg, kShiftBits, kPageSizeBits - kShiftBits);
-  Bic(bitmap_reg, addr_reg, Page::kPageAlignmentMask);
-  Add(bitmap_reg, bitmap_reg, Operand(temp, LSL, Bitmap::kBytesPerCellLog2));
-  // bitmap_reg:
-  // |63        page base        20|19 zeros 15|14      high      3|2  0|
-  Ubfx(shift_reg, addr_reg, kPointerSizeLog2, Bitmap::kBitsPerCellLog2);
-}
-
-
-void MacroAssembler::HasColor(Register object,
-                              Register bitmap_scratch,
-                              Register shift_scratch,
-                              Label* has_color,
-                              int first_bit,
-                              int second_bit) {
-  // See mark-compact.h for color definitions.
-  DCHECK(!AreAliased(object, bitmap_scratch, shift_scratch));
-
-  GetMarkBits(object, bitmap_scratch, shift_scratch);
-  Ldr(bitmap_scratch, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  // Shift the bitmap down to get the color of the object in bits [1:0].
-  Lsr(bitmap_scratch, bitmap_scratch, shift_scratch);
-
-  AssertHasValidColor(bitmap_scratch);
-
-  // These bit sequences are backwards. The first character in the string
-  // represents the least significant bit.
-  DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
-  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
-  DCHECK_EQ(strcmp(Marking::kGreyBitPattern, "10"), 0);
-
-  // Check for the color.
-  if (first_bit == 0) {
-    // Checking for white.
-    DCHECK_EQ(second_bit, 0);
-    // We only need to test the first bit.
-    Tbz(bitmap_scratch, 0, has_color);
-  } else {
-    Label other_color;
-    // Checking for grey or black.
-    Tbz(bitmap_scratch, 0, &other_color);
-    if (second_bit == 0) {
-      Tbz(bitmap_scratch, 1, has_color);
-    } else {
-      Tbnz(bitmap_scratch, 1, has_color);
-    }
-    Bind(&other_color);
-  }
-
-  // Fall through if it does not have the right color.
-}
-
-
-void MacroAssembler::JumpIfBlack(Register object,
-                                 Register scratch0,
-                                 Register scratch1,
-                                 Label* on_black) {
-  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
-  HasColor(object, scratch0, scratch1, on_black, 1, 1);  // kBlackBitPattern.
-}
-
-void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
-                                 Register shift_scratch, Register load_scratch,
-                                 Register length_scratch,
-                                 Label* value_is_white) {
-  DCHECK(!AreAliased(
-      value, bitmap_scratch, shift_scratch, load_scratch, length_scratch));
-
-  // These bit sequences are backwards. The first character in the string
-  // represents the least significant bit.
-  DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
-  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
-  DCHECK_EQ(strcmp(Marking::kGreyBitPattern, "10"), 0);
-
-  GetMarkBits(value, bitmap_scratch, shift_scratch);
-  Ldr(load_scratch, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  Lsr(load_scratch, load_scratch, shift_scratch);
-
-  AssertHasValidColor(load_scratch);
-
-  // If the value is black or grey we don't need to do anything.
-  // Since both black and grey have a 1 in the first position and white does
-  // not have a 1 there we only need to check one bit.
-  Tbz(load_scratch, 0, value_is_white);
 }
 
 void TurboAssembler::Assert(Condition cond, BailoutReason reason) {

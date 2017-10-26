@@ -176,15 +176,6 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
 }
 
 
-void MacroAssembler::InNewSpace(Register object,
-                                Register scratch,
-                                Condition cc,
-                                Label* branch) {
-  DCHECK(cc == eq || cc == ne);
-  CheckPageFlag(object, scratch, MemoryChunk::kIsInNewSpaceMask, cc, branch);
-}
-
-
 // Clobbers object, dst, value, and ra, if (ra_status == kRAHasBeenSaved)
 // The register 'object' contains a heap object pointer.  The heap object
 // tag is shifted away.
@@ -336,13 +327,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   if (ra_status == kRAHasNotBeenSaved) {
     push(ra);
   }
-#ifdef V8_CSA_WRITE_BARRIER
   CallRecordWriteStub(object, address, remembered_set_action, fp_mode);
-#else
-  RecordWriteStub stub(isolate(), object, value, address, remembered_set_action,
-                       fp_mode);
-  CallStub(&stub);
-#endif
   if (ra_status == kRAHasNotBeenSaved) {
     pop(ra);
   }
@@ -365,40 +350,6 @@ void MacroAssembler::RecordWrite(Register object, Register address,
     li(value, Operand(bit_cast<int64_t>(kZapValue + 16)));
   }
 }
-
-void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
-                                         Register address, Register scratch,
-                                         SaveFPRegsMode fp_mode) {
-  Label done;
-  if (emit_debug_code()) {
-    Label ok;
-    JumpIfNotInNewSpace(object, scratch, &ok);
-    stop("Remembered set pointer is in new space");
-    bind(&ok);
-  }
-  // Load store buffer top.
-  ExternalReference store_buffer =
-      ExternalReference::store_buffer_top(isolate());
-  li(t8, Operand(store_buffer));
-  Ld(scratch, MemOperand(t8));
-  // Store pointer to buffer and increment buffer top.
-  Sd(address, MemOperand(scratch));
-  Daddu(scratch, scratch, kPointerSize);
-  // Write back new top of buffer.
-  Sd(scratch, MemOperand(t8));
-  // Call stub on end of buffer.
-  // Check for end of buffer.
-  And(t8, scratch, Operand(StoreBuffer::kStoreBufferMask));
-  DCHECK(scratch != t8);
-  Ret(ne, t8, Operand(zero_reg));
-  push(ra);
-  StoreBufferOverflowStub store_buffer_overflow(isolate(), fp_mode);
-  CallStub(&store_buffer_overflow);
-  pop(ra);
-  bind(&done);
-  Ret();
-}
-
 
 // ---------------------------------------------------------------------------
 // Instruction macros.
@@ -5542,84 +5493,6 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
   Ld(scratch, MemOperand(scratch, MemoryChunk::kFlagsOffset));
   And(scratch, scratch, Operand(mask));
   Branch(condition_met, cc, scratch, Operand(zero_reg));
-}
-
-
-void MacroAssembler::JumpIfBlack(Register object,
-                                 Register scratch0,
-                                 Register scratch1,
-                                 Label* on_black) {
-  HasColor(object, scratch0, scratch1, on_black, 1, 1);  // kBlackBitPattern.
-  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
-}
-
-
-void MacroAssembler::HasColor(Register object,
-                              Register bitmap_scratch,
-                              Register mask_scratch,
-                              Label* has_color,
-                              int first_bit,
-                              int second_bit) {
-  DCHECK(!AreAliased(object, bitmap_scratch, mask_scratch, t8));
-  DCHECK(!AreAliased(object, bitmap_scratch, mask_scratch, t9));
-
-  GetMarkBits(object, bitmap_scratch, mask_scratch);
-
-  Label other_color;
-  // Note that we are using two 4-byte aligned loads.
-  LoadWordPair(t9, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  And(t8, t9, Operand(mask_scratch));
-  Branch(&other_color, first_bit == 1 ? eq : ne, t8, Operand(zero_reg));
-  // Shift left 1 by adding.
-  Daddu(mask_scratch, mask_scratch, Operand(mask_scratch));
-  And(t8, t9, Operand(mask_scratch));
-  Branch(has_color, second_bit == 1 ? ne : eq, t8, Operand(zero_reg));
-
-  bind(&other_color);
-}
-
-
-void MacroAssembler::GetMarkBits(Register addr_reg,
-                                 Register bitmap_reg,
-                                 Register mask_reg) {
-  DCHECK(!AreAliased(addr_reg, bitmap_reg, mask_reg, no_reg));
-  // addr_reg is divided into fields:
-  // |63        page base        20|19    high      8|7   shift   3|2  0|
-  // 'high' gives the index of the cell holding color bits for the object.
-  // 'shift' gives the offset in the cell for this object's color.
-  And(bitmap_reg, addr_reg, Operand(~Page::kPageAlignmentMask));
-  Ext(mask_reg, addr_reg, kPointerSizeLog2, Bitmap::kBitsPerCellLog2);
-  const int kLowBits = kPointerSizeLog2 + Bitmap::kBitsPerCellLog2;
-  Ext(t8, addr_reg, kLowBits, kPageSizeBits - kLowBits);
-  Dlsa(bitmap_reg, bitmap_reg, t8, Bitmap::kBytesPerCellLog2);
-  li(t8, Operand(1));
-  dsllv(mask_reg, t8, mask_reg);
-}
-
-
-void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
-                                 Register mask_scratch, Register load_scratch,
-                                 Label* value_is_white) {
-  DCHECK(!AreAliased(value, bitmap_scratch, mask_scratch, t8));
-  GetMarkBits(value, bitmap_scratch, mask_scratch);
-
-  // If the value is black or grey we don't need to do anything.
-  DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
-  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
-  DCHECK_EQ(strcmp(Marking::kGreyBitPattern, "10"), 0);
-  DCHECK_EQ(strcmp(Marking::kImpossibleBitPattern, "01"), 0);
-
-  // Since both black and grey have a 1 in the first position and white does
-  // not have a 1 there we only need to check one bit.
-  // Note that we are using a 4-byte aligned 8-byte load.
-  if (emit_debug_code()) {
-    LoadWordPair(load_scratch,
-                 MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  } else {
-    Lwu(load_scratch, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  }
-  And(t8, mask_scratch, load_scratch);
-  Branch(value_is_white, eq, t8, Operand(zero_reg));
 }
 
 

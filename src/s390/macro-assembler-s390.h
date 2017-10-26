@@ -1288,30 +1288,6 @@ class MacroAssembler : public TurboAssembler {
                                             Condition cond = al);
   void JumpToJSEntry(Register target);
 
-  // Check if object is in new space.  Jumps if the object is not in new space.
-  // The register scratch can be object itself, but scratch will be clobbered.
-  void JumpIfNotInNewSpace(Register object, Register scratch, Label* branch) {
-    InNewSpace(object, scratch, eq, branch);
-  }
-
-  // Check if object is in new space.  Jumps if the object is in new space.
-  // The register scratch can be object itself, but it will be clobbered.
-  void JumpIfInNewSpace(Register object, Register scratch, Label* branch) {
-    InNewSpace(object, scratch, ne, branch);
-  }
-
-  // Check if an object has a given incremental marking color.
-  void HasColor(Register object, Register scratch0, Register scratch1,
-                Label* has_color, int first_bit, int second_bit);
-
-  void JumpIfBlack(Register object, Register scratch0, Register scratch1,
-                   Label* on_black);
-
-  // Checks the color of an object.  If the object is white we jump to the
-  // incremental marker.
-  void JumpIfWhite(Register value, Register scratch1, Register scratch2,
-                   Register scratch3, Label* value_is_white);
-
   // Notify the garbage collector that we wrote a pointer into an object.
   // |object| is the object being stored into, |value| is the object being
   // stored.  value and scratch registers are clobbered by the operation.
@@ -1348,17 +1324,6 @@ class MacroAssembler : public TurboAssembler {
   void InvokePrologue(const ParameterCount& expected,
                       const ParameterCount& actual, Label* done,
                       bool* definitely_mismatches, InvokeFlag flag);
-
-  // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
-  void InNewSpace(Register object, Register scratch,
-                  Condition cond,  // eq for new space, ne otherwise.
-                  Label* branch);
-
-  // Helper for finding the mark bits for an address.  Afterwards, the
-  // bitmap register points at the word with the mark bits and the mask
-  // the position of the first bit.  Leaves addr_reg unchanged.
-  inline void GetMarkBits(Register addr_reg, Register bitmap_reg,
-                          Register mask_reg);
 
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);

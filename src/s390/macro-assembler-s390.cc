@@ -330,12 +330,6 @@ void TurboAssembler::LoadRoot(Register destination, Heap::RootListIndex index,
   LoadP(destination, MemOperand(kRootRegister, index << kPointerSizeLog2), r0);
 }
 
-void MacroAssembler::InNewSpace(Register object, Register scratch,
-                                Condition cond, Label* branch) {
-  DCHECK(cond == eq || cond == ne);
-  CheckPageFlag(object, scratch, MemoryChunk::kIsInNewSpaceMask, cond, branch);
-}
-
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, Register dst,
                                       LinkRegisterStatus lr_status,
@@ -475,13 +469,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
   if (lr_status == kLRHasNotBeenSaved) {
     push(r14);
   }
-#ifdef V8_CSA_WRITE_BARRIER
   CallRecordWriteStub(object, address, remembered_set_action, fp_mode);
-#else
-  RecordWriteStub stub(isolate(), object, value, address, remembered_set_action,
-                       fp_mode);
-  CallStub(&stub);
-#endif
   if (lr_status == kLRHasNotBeenSaved) {
     pop(r14);
   }
@@ -499,39 +487,6 @@ void MacroAssembler::RecordWrite(Register object, Register address,
     mov(address, Operand(bit_cast<intptr_t>(kZapValue + 12)));
     mov(value, Operand(bit_cast<intptr_t>(kZapValue + 16)));
   }
-}
-
-void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
-                                         Register address, Register scratch,
-                                         SaveFPRegsMode fp_mode) {
-  Label done;
-  if (emit_debug_code()) {
-    Label ok;
-    JumpIfNotInNewSpace(object, scratch, &ok);
-    stop("Remembered set pointer is in new space");
-    bind(&ok);
-  }
-  // Load store buffer top.
-  ExternalReference store_buffer =
-      ExternalReference::store_buffer_top(isolate());
-  mov(ip, Operand(store_buffer));
-  LoadP(scratch, MemOperand(ip));
-  // Store pointer to buffer and increment buffer top.
-  StoreP(address, MemOperand(scratch));
-  AddP(scratch, Operand(kPointerSize));
-  // Write back new top of buffer.
-  StoreP(scratch, MemOperand(ip));
-  // Call stub on end of buffer.
-  // Check for end of buffer.
-  AndP(scratch, Operand(StoreBuffer::kStoreBufferMask));
-
-  bne(&done, Label::kNear);
-  push(r14);
-  StoreBufferOverflowStub store_buffer_overflow(isolate(), fp_mode);
-  CallStub(&store_buffer_overflow);
-  pop(r14);
-  bind(&done);
-  Ret();
 }
 
 void TurboAssembler::PushCommonFrame(Register marker_reg) {
@@ -1910,77 +1865,6 @@ void TurboAssembler::CheckPageFlag(
   if (cc == eq) {
     beq(condition_met);
   }
-}
-
-void MacroAssembler::JumpIfBlack(Register object, Register scratch0,
-                                 Register scratch1, Label* on_black) {
-  HasColor(object, scratch0, scratch1, on_black, 1, 1);  // kBlackBitPattern.
-  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
-}
-
-void MacroAssembler::HasColor(Register object, Register bitmap_scratch,
-                              Register mask_scratch, Label* has_color,
-                              int first_bit, int second_bit) {
-  DCHECK(!AreAliased(object, bitmap_scratch, mask_scratch, no_reg));
-
-  GetMarkBits(object, bitmap_scratch, mask_scratch);
-
-  Label other_color, word_boundary;
-  LoadlW(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  // Test the first bit
-  AndP(r0, ip, mask_scratch /*, SetRC*/);  // Should be okay to remove rc
-  b(first_bit == 1 ? eq : ne, &other_color, Label::kNear);
-  // Shift left 1
-  // May need to load the next cell
-  sll(mask_scratch, Operand(1) /*, SetRC*/);
-  LoadAndTest32(mask_scratch, mask_scratch);
-  beq(&word_boundary, Label::kNear);
-  // Test the second bit
-  AndP(r0, ip, mask_scratch /*, SetRC*/);  // Should be okay to remove rc
-  b(second_bit == 1 ? ne : eq, has_color);
-  b(&other_color, Label::kNear);
-
-  bind(&word_boundary);
-  LoadlW(ip, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize + kIntSize));
-  AndP(r0, ip, Operand(1));
-  b(second_bit == 1 ? ne : eq, has_color);
-  bind(&other_color);
-}
-
-void MacroAssembler::GetMarkBits(Register addr_reg, Register bitmap_reg,
-                                 Register mask_reg) {
-  DCHECK(!AreAliased(addr_reg, bitmap_reg, mask_reg, no_reg));
-  LoadRR(bitmap_reg, addr_reg);
-  nilf(bitmap_reg, Operand(~Page::kPageAlignmentMask));
-  const int kLowBits = kPointerSizeLog2 + Bitmap::kBitsPerCellLog2;
-  ExtractBitRange(mask_reg, addr_reg, kLowBits - 1, kPointerSizeLog2);
-  ExtractBitRange(ip, addr_reg, kPageSizeBits - 1, kLowBits);
-  ShiftLeftP(ip, ip, Operand(Bitmap::kBytesPerCellLog2));
-  AddP(bitmap_reg, ip);
-  LoadRR(ip, mask_reg);  // Have to do some funky reg shuffling as
-                         // 31-bit shift left clobbers on s390.
-  LoadImmP(mask_reg, Operand(1));
-  ShiftLeftP(mask_reg, mask_reg, ip);
-}
-
-void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
-                                 Register mask_scratch, Register load_scratch,
-                                 Label* value_is_white) {
-  DCHECK(!AreAliased(value, bitmap_scratch, mask_scratch, ip));
-  GetMarkBits(value, bitmap_scratch, mask_scratch);
-
-  // If the value is black or grey we don't need to do anything.
-  DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
-  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
-  DCHECK_EQ(strcmp(Marking::kGreyBitPattern, "10"), 0);
-  DCHECK_EQ(strcmp(Marking::kImpossibleBitPattern, "01"), 0);
-
-  // Since both black and grey have a 1 in the first position and white does
-  // not have a 1 there we only need to check one bit.
-  LoadlW(load_scratch, MemOperand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  LoadRR(r0, load_scratch);
-  AndP(r0, mask_scratch);
-  beq(value_is_white);
 }
 
 void MacroAssembler::LoadInstanceDescriptors(Register map,

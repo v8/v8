@@ -2918,7 +2918,6 @@ bool Isolate::Init(StartupDeserializer* des) {
     // cannot be serialized into the snapshot have been generated.
     HandleScope scope(this);
     CodeStub::GenerateFPStubs(this);
-    StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(this);
   }
 
   initialized_from_snapshot_ = (des != nullptr);

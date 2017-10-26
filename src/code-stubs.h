@@ -37,8 +37,6 @@ class Node;
   V(JSEntry)                                  \
   V(MathPow)                                  \
   V(ProfileEntryHook)                         \
-  V(RecordWrite)                              \
-  V(StoreBufferOverflow)                      \
   V(StoreSlowElement)                         \
   V(NameDictionaryLookup)                     \
   /* --- TurboFanCodeStubs --- */             \
@@ -1053,25 +1051,6 @@ class ProfileEntryHookStub : public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(ProfileEntryHook, PlatformCodeStub);
 };
 
-
-class StoreBufferOverflowStub : public PlatformCodeStub {
- public:
-  StoreBufferOverflowStub(Isolate* isolate, SaveFPRegsMode save_fp)
-      : PlatformCodeStub(isolate) {
-    minor_key_ = SaveDoublesBits::encode(save_fp == kSaveFPRegs);
-  }
-
-  static void GenerateFixedRegStubsAheadOfTime(Isolate* isolate);
-  bool SometimesSetsUpAFrame() override { return false; }
-
- private:
-  bool save_doubles() const { return SaveDoublesBits::decode(minor_key_); }
-
-  class SaveDoublesBits : public BitField<bool, 0, 1> {};
-
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(StoreBufferOverflow, PlatformCodeStub);
-};
 
 #undef DEFINE_CALL_INTERFACE_DESCRIPTOR
 #undef DEFINE_PLATFORM_CODE_STUB

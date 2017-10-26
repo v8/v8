@@ -310,45 +310,8 @@ bool IncrementalMarking::CanBeActivated() {
 }
 
 
-void IncrementalMarking::ActivateGeneratedStub(Code* stub) {
-  DCHECK(RecordWriteStub::GetMode(stub) == RecordWriteStub::STORE_BUFFER_ONLY);
-
-  if (!IsMarking()) {
-    // Initially stub is generated in STORE_BUFFER_ONLY mode thus
-    // we don't need to do anything if incremental marking is
-    // not active.
-  } else if (IsCompacting()) {
-    RecordWriteStub::Patch(stub, RecordWriteStub::INCREMENTAL_COMPACTION);
-  } else {
-    RecordWriteStub::Patch(stub, RecordWriteStub::INCREMENTAL);
-  }
-}
-
-static void PatchIncrementalMarkingRecordWriteStubs(
-    Heap* heap, RecordWriteStub::Mode mode) {
-  UnseededNumberDictionary* stubs = heap->code_stubs();
-
-  int capacity = stubs->Capacity();
-  Isolate* isolate = heap->isolate();
-  for (int i = 0; i < capacity; i++) {
-    Object* k = stubs->KeyAt(i);
-    if (stubs->IsKey(isolate, k)) {
-      uint32_t key = NumberToUint32(k);
-
-      if (CodeStub::MajorKeyFromKey(key) == CodeStub::RecordWrite) {
-        Object* e = stubs->ValueAt(i);
-        if (e->IsCode()) {
-          RecordWriteStub::Patch(Code::cast(e), mode);
-        }
-      }
-    }
-  }
-}
-
 void IncrementalMarking::Deactivate() {
   DeactivateIncrementalWriteBarrier();
-  PatchIncrementalMarkingRecordWriteStubs(heap_,
-                                          RecordWriteStub::STORE_BUFFER_ONLY);
 }
 
 void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
@@ -437,12 +400,6 @@ void IncrementalMarking::StartMarking() {
              GCTracer::Scope::MC_INCREMENTAL_WRAPPER_PROLOGUE);
     heap_->local_embedder_heap_tracer()->TracePrologue();
   }
-
-  RecordWriteStub::Mode mode = is_compacting_
-                                   ? RecordWriteStub::INCREMENTAL_COMPACTION
-                                   : RecordWriteStub::INCREMENTAL;
-
-  PatchIncrementalMarkingRecordWriteStubs(heap_, mode);
 
   ActivateIncrementalWriteBarrier();
 

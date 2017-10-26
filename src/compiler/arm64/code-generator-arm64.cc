@@ -340,14 +340,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       unwinding_info_writer_->MarkLinkRegisterOnTopOfStack(__ pc_offset(),
                                                            __ StackPointer());
     }
-#ifdef V8_CSA_WRITE_BARRIER
     __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
                            save_fp_mode);
-#else
-    __ CallStubDelayed(
-        new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
-                                    remembered_set_action, save_fp_mode));
-#endif
     if (must_save_lr_) {
       __ Pop(lr);
       unwinding_info_writer_->MarkPopLinkRegisterFromTopOfStack(__ pc_offset());

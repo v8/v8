@@ -184,33 +184,6 @@ void RestoreRegistersStateStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StoreBufferOverflowStub::Generate(MacroAssembler* masm) {
-  // We don't allow a GC during a store buffer overflow so there is no need to
-  // store the registers in any particular way, but we do have to store and
-  // restore them.
-  __ MultiPush(kJSCallerSaved | ra.bit());
-  if (save_doubles()) {
-    __ MultiPushFPU(kCallerSavedFPU);
-  }
-  const int argument_count = 1;
-  const int fp_argument_count = 0;
-  const Register scratch = a1;
-
-  AllowExternalCallThatCantCauseGC scope(masm);
-  __ PrepareCallCFunction(argument_count, fp_argument_count, scratch);
-  __ li(a0, Operand(ExternalReference::isolate_address(isolate())));
-  __ CallCFunction(
-      ExternalReference::store_buffer_overflow_function(isolate()),
-      argument_count);
-  if (save_doubles()) {
-    __ MultiPopFPU(kCallerSavedFPU);
-  }
-
-  __ MultiPop(kJSCallerSaved | ra.bit());
-  __ Ret();
-}
-
-
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = MathPowTaggedDescriptor::exponent();
   DCHECK(exponent == a2);
@@ -338,7 +311,6 @@ bool CEntryStub::NeedsImmovableCode() {
 
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
-  StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
   StoreRegistersStateStub::GenerateAheadOfTime(isolate);
   RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
@@ -362,7 +334,6 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
   // Generate if not already in cache.
   SaveFPRegsMode mode = kSaveFPRegs;
   CEntryStub(isolate, 1, mode).GetCode();
-  StoreBufferOverflowStub(isolate, mode).GetCode();
 }
 
 
@@ -862,223 +833,6 @@ void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
   __ bind(&not_in_dictionary);
   __ Ret(USE_DELAY_SLOT);
   __ mov(result, zero_reg);
-}
-
-
-void StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(
-    Isolate* isolate) {
-  StoreBufferOverflowStub stub1(isolate, kDontSaveFPRegs);
-  stub1.GetCode();
-  // Hydrogen code stubs need stub2 at snapshot time.
-  StoreBufferOverflowStub stub2(isolate, kSaveFPRegs);
-  stub2.GetCode();
-}
-
-RecordWriteStub::Mode RecordWriteStub::GetMode(Code* stub) {
-  Instr first_instruction = Assembler::instr_at(stub->instruction_start());
-  Instr second_instruction = Assembler::instr_at(stub->instruction_start() +
-                                                 2 * Assembler::kInstrSize);
-
-  if (Assembler::IsBeq(first_instruction)) {
-    return INCREMENTAL;
-  }
-
-  DCHECK(Assembler::IsBne(first_instruction));
-
-  if (Assembler::IsBeq(second_instruction)) {
-    return INCREMENTAL_COMPACTION;
-  }
-
-  DCHECK(Assembler::IsBne(second_instruction));
-
-  return STORE_BUFFER_ONLY;
-}
-
-void RecordWriteStub::Patch(Code* stub, Mode mode) {
-  MacroAssembler masm(stub->GetIsolate(), stub->instruction_start(),
-                      stub->instruction_size(), CodeObjectRequired::kNo);
-  switch (mode) {
-    case STORE_BUFFER_ONLY:
-      DCHECK(GetMode(stub) == INCREMENTAL ||
-             GetMode(stub) == INCREMENTAL_COMPACTION);
-      PatchBranchIntoNop(&masm, 0);
-      PatchBranchIntoNop(&masm, 2 * Assembler::kInstrSize);
-      break;
-    case INCREMENTAL:
-      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
-      PatchNopIntoBranch(&masm, 0);
-      break;
-    case INCREMENTAL_COMPACTION:
-      DCHECK(GetMode(stub) == STORE_BUFFER_ONLY);
-      PatchNopIntoBranch(&masm, 2 * Assembler::kInstrSize);
-      break;
-  }
-  DCHECK(GetMode(stub) == mode);
-  Assembler::FlushICache(stub->GetIsolate(), stub->instruction_start(),
-                         4 * Assembler::kInstrSize);
-}
-
-// Takes the input in 3 registers: address_ value_ and object_.  A pointer to
-// the value has just been written into the object, now this stub makes sure
-// we keep the GC informed.  The word in the object where the value has been
-// written is in the address register.
-void RecordWriteStub::Generate(MacroAssembler* masm) {
-  Label skip_to_incremental_noncompacting;
-  Label skip_to_incremental_compacting;
-
-  // The first two branch+nop instructions are generated with labels so as to
-  // get the offset fixed up correctly by the bind(Label*) call.  We patch it
-  // back and forth between a "bne zero_reg, zero_reg, ..." (a nop in this
-  // position) and the "beq zero_reg, zero_reg, ..." when we start and stop
-  // incremental heap marking.
-  // See RecordWriteStub::Patch for details.
-  __ beq(zero_reg, zero_reg, &skip_to_incremental_noncompacting);
-  __ nop();
-  __ beq(zero_reg, zero_reg, &skip_to_incremental_compacting);
-  __ nop();
-
-  if (remembered_set_action() == EMIT_REMEMBERED_SET) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
-  }
-  __ Ret();
-
-  __ bind(&skip_to_incremental_noncompacting);
-  GenerateIncremental(masm, INCREMENTAL);
-
-  __ bind(&skip_to_incremental_compacting);
-  GenerateIncremental(masm, INCREMENTAL_COMPACTION);
-
-  // Initial mode of the stub is expected to be STORE_BUFFER_ONLY.
-  // Will be checked in IncrementalMarking::ActivateGeneratedStub.
-
-  PatchBranchIntoNop(masm, 0);
-  PatchBranchIntoNop(masm, 2 * Assembler::kInstrSize);
-}
-
-
-void RecordWriteStub::GenerateIncremental(MacroAssembler* masm, Mode mode) {
-  regs_.Save(masm);
-
-  if (remembered_set_action() == EMIT_REMEMBERED_SET) {
-    Label dont_need_remembered_set;
-
-    __ lw(regs_.scratch0(), MemOperand(regs_.address(), 0));
-    __ JumpIfNotInNewSpace(regs_.scratch0(),  // Value.
-                           regs_.scratch0(),
-                           &dont_need_remembered_set);
-
-    __ JumpIfInNewSpace(regs_.object(), regs_.scratch0(),
-                        &dont_need_remembered_set);
-
-    // First notify the incremental marker if necessary, then update the
-    // remembered set.
-    CheckNeedsToInformIncrementalMarker(
-        masm, kUpdateRememberedSetOnNoNeedToInformIncrementalMarker, mode);
-    InformIncrementalMarker(masm);
-    regs_.Restore(masm);
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
-
-    __ bind(&dont_need_remembered_set);
-  }
-
-  CheckNeedsToInformIncrementalMarker(
-      masm, kReturnOnNoNeedToInformIncrementalMarker, mode);
-  InformIncrementalMarker(masm);
-  regs_.Restore(masm);
-  __ Ret();
-}
-
-
-void RecordWriteStub::InformIncrementalMarker(MacroAssembler* masm) {
-  regs_.SaveCallerSaveRegisters(masm, save_fp_regs_mode());
-  int argument_count = 3;
-  __ PrepareCallCFunction(argument_count, regs_.scratch0());
-  Register address = a0 == regs_.address() ? regs_.scratch0() : regs_.address();
-  DCHECK(address != regs_.object());
-  DCHECK(address != a0);
-  __ Move(address, regs_.address());
-  __ Move(a0, regs_.object());
-  __ Move(a1, address);
-  __ li(a2, Operand(ExternalReference::isolate_address(isolate())));
-
-  AllowExternalCallThatCantCauseGC scope(masm);
-  __ CallCFunction(
-      ExternalReference::incremental_marking_record_write_function(isolate()),
-      argument_count);
-  regs_.RestoreCallerSaveRegisters(masm, save_fp_regs_mode());
-}
-
-void RecordWriteStub::Activate(Code* code) {
-  code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
-}
-
-void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
-    MacroAssembler* masm,
-    OnNoNeedToInformIncrementalMarker on_no_need,
-    Mode mode) {
-  Label need_incremental;
-  Label need_incremental_pop_scratch;
-
-#ifndef V8_CONCURRENT_MARKING
-  Label on_black;
-  // Let's look at the color of the object:  If it is not black we don't have
-  // to inform the incremental marker.
-  __ JumpIfBlack(regs_.object(), regs_.scratch0(), regs_.scratch1(), &on_black);
-
-  regs_.Restore(masm);
-  if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
-  } else {
-    __ Ret();
-  }
-
-  __ bind(&on_black);
-#endif
-
-  // Get the value from the slot.
-  __ lw(regs_.scratch0(), MemOperand(regs_.address(), 0));
-
-  if (mode == INCREMENTAL_COMPACTION) {
-    Label ensure_not_white;
-
-    __ CheckPageFlag(regs_.scratch0(),  // Contains value.
-                     regs_.scratch1(),  // Scratch.
-                     MemoryChunk::kEvacuationCandidateMask,
-                     eq,
-                     &ensure_not_white);
-
-    __ CheckPageFlag(regs_.object(),
-                     regs_.scratch1(),  // Scratch.
-                     MemoryChunk::kSkipEvacuationSlotsRecordingMask,
-                     eq,
-                     &need_incremental);
-
-    __ bind(&ensure_not_white);
-  }
-
-  // We need extra registers for this, so we push the object and the address
-  // register temporarily.
-  __ Push(regs_.object(), regs_.address());
-  __ JumpIfWhite(regs_.scratch0(),  // The value.
-                 regs_.scratch1(),  // Scratch.
-                 regs_.object(),    // Scratch.
-                 regs_.address(),   // Scratch.
-                 &need_incremental_pop_scratch);
-  __ Pop(regs_.object(), regs_.address());
-
-  regs_.Restore(masm);
-  if (on_no_need == kUpdateRememberedSetOnNoNeedToInformIncrementalMarker) {
-    __ RememberedSetHelper(object(), address(), value(), save_fp_regs_mode());
-  } else {
-    __ Ret();
-  }
-
-  __ bind(&need_incremental_pop_scratch);
-  __ Pop(regs_.object(), regs_.address());
-
-  __ bind(&need_incremental);
-
-  // Fall through when we need to inform the incremental marker.
 }
 
 void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,

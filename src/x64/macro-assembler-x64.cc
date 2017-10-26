@@ -220,50 +220,6 @@ void TurboAssembler::CompareRoot(const Operand& with,
   cmpp(with, kScratchRegister);
 }
 
-void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
-                                         Register addr, Register scratch,
-                                         SaveFPRegsMode save_fp) {
-  if (emit_debug_code()) {
-    Label ok;
-    JumpIfNotInNewSpace(object, scratch, &ok, Label::kNear);
-    int3();
-    bind(&ok);
-  }
-  // Load store buffer top.
-  ExternalReference store_buffer =
-      ExternalReference::store_buffer_top(isolate());
-  DCHECK_NE(scratch, kScratchRegister);
-  Move(kScratchRegister, store_buffer);
-  movp(scratch, Operand(kScratchRegister, 0));
-  // Store pointer to buffer.
-  movp(Operand(scratch, 0), addr);
-  // Increment buffer top.
-  addp(scratch, Immediate(kPointerSize));
-  // Write back new top of buffer.
-  movp(Operand(kScratchRegister, 0), scratch);
-  // Call stub on end of buffer.
-  Label done;
-  // Check for end of buffer.
-  testp(scratch, Immediate(StoreBuffer::kStoreBufferMask));
-  Label buffer_overflowed;
-  j(equal, &buffer_overflowed, Label::kNear);
-  ret(0);
-  bind(&buffer_overflowed);
-  StoreBufferOverflowStub store_buffer_overflow(isolate(), save_fp);
-  CallStub(&store_buffer_overflow);
-  ret(0);
-}
-
-
-void MacroAssembler::InNewSpace(Register object,
-                                Register scratch,
-                                Condition cc,
-                                Label* branch,
-                                Label::Distance distance) {
-  CheckPageFlag(object, scratch, MemoryChunk::kIsInNewSpaceMask, cc, branch,
-                distance);
-}
-
 void MacroAssembler::RecordWriteField(Register object, int offset,
                                       Register value, Register dst,
                                       SaveFPRegsMode save_fp,
@@ -399,13 +355,7 @@ void MacroAssembler::RecordWrite(Register object, Register address,
                 &done,
                 Label::kNear);
 
-#ifdef V8_CSA_WRITE_BARRIER
   CallRecordWriteStub(object, address, remembered_set_action, fp_mode);
-#else
-  RecordWriteStub stub(isolate(), object, value, address, remembered_set_action,
-                       fp_mode);
-  CallStub(&stub);
-#endif
 
   bind(&done);
 
@@ -2755,69 +2705,6 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
   }
   j(cc, condition_met, condition_met_distance);
 }
-
-
-void MacroAssembler::JumpIfBlack(Register object,
-                                 Register bitmap_scratch,
-                                 Register mask_scratch,
-                                 Label* on_black,
-                                 Label::Distance on_black_distance) {
-  DCHECK(!AreAliased(object, bitmap_scratch, mask_scratch, rcx));
-
-  GetMarkBits(object, bitmap_scratch, mask_scratch);
-
-  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
-  // The mask_scratch register contains a 1 at the position of the first bit
-  // and a 1 at a position of the second bit. All other positions are zero.
-  movp(rcx, mask_scratch);
-  andp(rcx, Operand(bitmap_scratch, MemoryChunk::kHeaderSize));
-  cmpp(mask_scratch, rcx);
-  j(equal, on_black, on_black_distance);
-}
-
-
-void MacroAssembler::GetMarkBits(Register addr_reg,
-                                 Register bitmap_reg,
-                                 Register mask_reg) {
-  DCHECK(!AreAliased(addr_reg, bitmap_reg, mask_reg, rcx));
-  movp(bitmap_reg, addr_reg);
-  // Sign extended 32 bit immediate.
-  andp(bitmap_reg, Immediate(~Page::kPageAlignmentMask));
-  movp(rcx, addr_reg);
-  int shift =
-      Bitmap::kBitsPerCellLog2 + kPointerSizeLog2 - Bitmap::kBytesPerCellLog2;
-  shrl(rcx, Immediate(shift));
-  andp(rcx,
-       Immediate((Page::kPageAlignmentMask >> shift) &
-                 ~(Bitmap::kBytesPerCell - 1)));
-
-  addp(bitmap_reg, rcx);
-  movp(rcx, addr_reg);
-  shrl(rcx, Immediate(kPointerSizeLog2));
-  andp(rcx, Immediate((1 << Bitmap::kBitsPerCellLog2) - 1));
-  movl(mask_reg, Immediate(3));
-  shlp_cl(mask_reg);
-}
-
-
-void MacroAssembler::JumpIfWhite(Register value, Register bitmap_scratch,
-                                 Register mask_scratch, Label* value_is_white,
-                                 Label::Distance distance) {
-  DCHECK(!AreAliased(value, bitmap_scratch, mask_scratch, rcx));
-  GetMarkBits(value, bitmap_scratch, mask_scratch);
-
-  // If the value is black or grey we don't need to do anything.
-  DCHECK_EQ(strcmp(Marking::kWhiteBitPattern, "00"), 0);
-  DCHECK_EQ(strcmp(Marking::kBlackBitPattern, "11"), 0);
-  DCHECK_EQ(strcmp(Marking::kGreyBitPattern, "10"), 0);
-  DCHECK_EQ(strcmp(Marking::kImpossibleBitPattern, "01"), 0);
-
-  // Since both black and grey have a 1 in the first position and white does
-  // not have a 1 there we only need to check one bit.
-  testp(Operand(bitmap_scratch, MemoryChunk::kHeaderSize), mask_scratch);
-  j(zero, value_is_white, distance);
-}
-
 }  // namespace internal
 }  // namespace v8
 

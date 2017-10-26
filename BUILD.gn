@@ -89,9 +89,6 @@ declare_args() {
   # Sets -dV8_CONCURRENT_MARKING
   v8_enable_concurrent_marking = false
 
-  # Sets -dV8_CSA_WRITE_BARRIER
-  v8_enable_csa_write_barrier = true
-
   # Build the snapshot with unwinding information for perf.
   # Sets -dV8_USE_SNAPSHOT_WITH_UNWINDING_INFO.
   v8_perf_prof_unwinding_info = false
@@ -305,9 +302,6 @@ config("features") {
   }
   if (v8_enable_concurrent_marking) {
     defines += [ "V8_CONCURRENT_MARKING" ]
-  }
-  if (v8_enable_csa_write_barrier) {
-    defines += [ "V8_CSA_WRITE_BARRIER" ]
   }
   if (v8_check_microtasks_scopes_consistency) {
     defines += [ "V8_CHECK_MICROTASKS_SCOPES_CONSISTENCY" ]

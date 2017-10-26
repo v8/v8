@@ -237,20 +237,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
       __ mflr(scratch0_);
       __ Push(scratch0_);
     }
-#ifdef V8_CSA_WRITE_BARRIER
     __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
                            save_fp_mode);
-#else
-    if (must_save_lr_ && FLAG_enable_embedded_constant_pool) {
-      __ CallStubDelayed(
-          new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
-                                      remembered_set_action, save_fp_mode));
-    } else {
-      __ CallStubDelayed(
-          new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
-                                      remembered_set_action, save_fp_mode));
-    }
-#endif
     if (must_save_lr_) {
       // We need to save and restore lr if the frame was elided.
       __ Pop(scratch0_);

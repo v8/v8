@@ -282,14 +282,8 @@ class OutOfLineRecordWrite final : public OutOfLineCode {
                                              : OMIT_REMEMBERED_SET;
     SaveFPRegsMode const save_fp_mode =
         frame()->DidAllocateDoubleRegisters() ? kSaveFPRegs : kDontSaveFPRegs;
-#ifdef V8_CSA_WRITE_BARRIER
     __ CallRecordWriteStub(object_, scratch1_, remembered_set_action,
                            save_fp_mode);
-#else
-    __ CallStubDelayed(
-        new (zone_) RecordWriteStub(nullptr, object_, scratch0_, scratch1_,
-                                    remembered_set_action, save_fp_mode));
-#endif
   }
 
  private:
