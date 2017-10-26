@@ -1651,6 +1651,8 @@ void Heap::MarkCompact() {
 
   uint64_t size_of_objects_before_gc = SizeOfObjects();
 
+  CodeSpaceMemoryModificationScope code_modifcation(this);
+
   mark_compact_collector()->Prepare();
 
   ms_count_++;

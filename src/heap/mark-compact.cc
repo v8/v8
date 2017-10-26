@@ -3754,7 +3754,6 @@ void MarkCompactCollector::Sweeper::AddSweptPageSafe(PagedSpace* space,
 void MarkCompactCollector::Evacuate() {
   TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE);
   base::LockGuard<base::Mutex> guard(heap()->relocation_mutex());
-  CodeSpaceMemoryModificationScope code_modifcation(heap());
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_EVACUATE_PROLOGUE);
