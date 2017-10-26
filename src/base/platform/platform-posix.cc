@@ -73,6 +73,7 @@ bool g_hard_abort = false;
 
 const char* g_gc_fake_mmap = nullptr;
 
+#if !V8_OS_FUCHSIA
 #if V8_OS_MACOSX
 // kMmapFd is used to pass vm_alloc flags to tag the region with the user
 // defined tag 255 This helps identify V8-allocated regions in memory analysis
@@ -95,6 +96,7 @@ int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   }
   UNREACHABLE();
 }
+#endif  // !V8_OS_FUCHSIA
 
 }  // namespace
 
