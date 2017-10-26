@@ -7,8 +7,27 @@
 #include "src/base/platform/platform.h"
 #include "test/cctest/cctest.h"
 
-#ifdef V8_CC_GNU
+using OS = v8::base::OS;
 
+namespace v8 {
+namespace internal {
+
+TEST(OSReserveMemory) {
+  size_t mem_size = 0;
+  void* mem_addr = OS::ReserveAlignedRegion(1 * MB, OS::AllocateAlignment(),
+                                            OS::GetRandomMmapAddr(), &mem_size);
+  CHECK_NE(0, mem_size);
+  CHECK_NOT_NULL(mem_addr);
+  size_t block_size = 4 * KB;
+  CHECK(OS::CommitRegion(mem_addr, block_size, false));
+  // Check whether we can write to memory.
+  int* addr = static_cast<int*>(mem_addr);
+  addr[KB - 1] = 2;
+  CHECK(OS::UncommitRegion(mem_addr, block_size));
+  OS::ReleaseRegion(mem_addr, mem_size);
+}
+
+#ifdef V8_CC_GNU
 static uintptr_t sp_addr = 0;
 
 void GetStackPointer(const v8::FunctionCallbackInfo<v8::Value>& args) {
@@ -40,7 +59,6 @@ void GetStackPointer(const v8::FunctionCallbackInfo<v8::Value>& args) {
       args.GetIsolate(), static_cast<uint32_t>(sp_addr)));
 }
 
-
 TEST(StackAlignment) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope handle_scope(isolate);
@@ -64,7 +82,9 @@ TEST(StackAlignment) {
       foo->Call(isolate->GetCurrentContext(), global_object, 0, nullptr)
           .ToLocalChecked();
   CHECK_EQ(0u, result->Uint32Value(isolate->GetCurrentContext()).FromJust() %
-                   v8::base::OS::ActivationFrameAlignment());
+                   OS::ActivationFrameAlignment());
 }
-
 #endif  // V8_CC_GNU
+
+}  // namespace internal
+}  // namespace v8

@@ -346,13 +346,6 @@ v8_source_set("cctest_sources") {
     ]
   }
 
-  if (is_linux) {
-    # TODO(machenbach): Translate 'or OS=="qnx"' from gyp.
-    sources += [ "test-platform-linux.cc" ]
-  } else if (is_win) {
-    sources += [ "test-platform-win32.cc" ]
-  }
-
   configs = [
     "../..:external_config",
     "../..:internal_config_base",

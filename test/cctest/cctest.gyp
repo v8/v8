@@ -395,15 +395,7 @@
             '<@(cctest_sources_mips64el)',
           ],
         }],
-        [ 'OS=="linux" or OS=="qnx"', {
-          'sources': [
-            'test-platform-linux.cc',
-          ],
-        }],
         [ 'OS=="win"', {
-          'sources': [
-            'test-platform-win32.cc',
-          ],
           'msvs_settings': {
             'VCCLCompilerTool': {
               # MSVS wants this for gay-{precision,shortest}.cc.
