@@ -169,8 +169,7 @@ TEST(Regress3540) {
   delete memory_allocator;
 }
 
-
-static unsigned int Pseudorandom() {
+static unsigned int PseudorandomAreaSize() {
   static uint32_t lo = 2345;
   lo = 18273 * (lo & 0xFFFFF) + (lo >> 16);
   return lo & 0xFFFFF;
@@ -185,8 +184,8 @@ TEST(MemoryChunk) {
   size_t initial_commit_area_size, second_commit_area_size;
 
   for (int i = 0; i < 100; i++) {
-    initial_commit_area_size = Pseudorandom();
-    second_commit_area_size = Pseudorandom();
+    initial_commit_area_size = PseudorandomAreaSize();
+    second_commit_area_size = PseudorandomAreaSize();
 
     // With CodeRange.
     CodeRange* code_range = new CodeRange(isolate);
