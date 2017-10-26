@@ -28,7 +28,6 @@ from testrunner.network import network_execution
 from testrunner.objects import context
 
 
-
 TIMEOUT_DEFAULT = 60
 
 # Variants ordered by expected runtime (slowest first).
@@ -60,11 +59,7 @@ GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",
                    "--concurrent-recompilation"]
 
 # Double the timeout for these:
-SLOW_ARCHS = ["android_arm",
-              "android_arm64",
-              "android_ia32",
-              "android_x64",
-              "arm",
+SLOW_ARCHS = ["arm",
               "mips",
               "mipsel",
               "mips64",
@@ -133,22 +128,15 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         s.PrepareSources()
 
       try:
-        return self._execute(self.arch, self.mode, args, options, suites)
+        return self._execute(args, options, suites)
       except KeyboardInterrupt:
         return 2
 
     def _add_parser_options(self, parser):
-      parser.add_option("--asan",
-                        help="Regard test expectations for ASAN",
-                        default=False, action="store_true")
       parser.add_option("--sancov-dir",
                         help="Directory where to collect coverage data")
       parser.add_option("--cfi-vptr",
                         help="Run tests with UBSAN cfi_vptr option.",
-                        default=False, action="store_true")
-      parser.add_option("--dcheck-always-on",
-                        help="Indicates that V8 was compiled with DCHECKs"
-                        " enabled",
                         default=False, action="store_true")
       parser.add_option("--novfp3",
                         help="Indicates that V8 was compiled without VFP3"
@@ -165,9 +153,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       parser.add_option("--gc-stress",
                         help="Switch on GC stress mode",
                         default=False, action="store_true")
-      parser.add_option("--gcov-coverage",
-                        help="Uses executables instrumented for gcov coverage",
-                        default=False, action="store_true")
       parser.add_option("--command-prefix",
                         help="Prepended to each shell command used to run a"
                         " test",
@@ -182,9 +167,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       parser.add_option("--no-harness", "--noharness",
                         help="Run without test harness of a given suite",
                         default=False, action="store_true")
-      parser.add_option("--no-i18n", "--noi18n",
-                        help="Skip internationalization tests",
-                        default=False, action="store_true")
       parser.add_option("--network", help="Distribute tests on the network",
                         default=False, dest="network", action="store_true")
       parser.add_option("--no-network", "--nonetwork",
@@ -193,9 +175,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       parser.add_option("--no-presubmit", "--nopresubmit",
                         help='Skip presubmit checks (deprecated)',
                         default=False, dest="no_presubmit", action="store_true")
-      parser.add_option("--no-snap", "--nosnap",
-                        help='Test a build compiled without snapshot.',
-                        default=False, dest="no_snap", action="store_true")
       parser.add_option("--no-sorting", "--nosorting",
                         help="Don't sort tests according to duration of last"
                         " run.",
@@ -210,9 +189,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         default=False, action="store_true",
                         help="Use exhaustive set of default variants:"
                         " \"%s\"" % ",".join(EXHAUSTIVE_VARIANTS))
-      parser.add_option("--predictable",
-                        help="Compare output of several reruns of each test",
-                        default=False, action="store_true")
       parser.add_option("-p", "--progress",
                         help=("The style of progress indicator"
                               " (verbose, dots, color, mono)"),
@@ -240,10 +216,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       parser.add_option("--shard-run",
                         help="Run this shard from the split up tests.",
                         default=1, type="int")
-      parser.add_option("--shell", help="DEPRECATED! use --shell-dir",
-                        default="")
-      parser.add_option("--shell-dir", help="Directory containing executables",
-                        default="")
       parser.add_option("--dont-skip-slow-simulator-tests",
                         help="Don't skip more slow tests when using a"
                         " simulator.",
@@ -256,9 +228,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         default=False, action="store_true")
       parser.add_option("-t", "--timeout", help="Timeout in seconds",
                         default=TIMEOUT_DEFAULT, type="int")
-      parser.add_option("--tsan",
-                        help="Regard test expectations for TSAN",
-                        default=False, action="store_true")
       parser.add_option("-v", "--verbose", help="Verbose output",
                         default=False, action="store_true")
       parser.add_option("--valgrind", help="Run tests through valgrind",
@@ -275,12 +244,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       parser.add_option("--random-seed-stress-count", default=1, type="int",
                         dest="random_seed_stress_count",
                         help="Number of runs with different random seeds")
-      parser.add_option("--ubsan-vptr",
-                        help="Regard test expectations for UBSanVptr",
-                        default=False, action="store_true")
-      parser.add_option("--msan",
-                        help="Regard test expectations for UBSanVptr",
-                        default=False, action="store_true")
 
     def _process_options(self, options):
       global VARIANTS
@@ -299,7 +262,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if options.gc_stress:
         options.extra_flags += GC_STRESS_FLAGS
 
-      if options.asan:
+      if self.build_config.asan:
         options.extra_flags.append("--invoke-weak-callbacks")
         options.extra_flags.append("--omit-quit")
 
@@ -314,7 +277,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       # TODO(machenbach): Figure out how to test a bigger subset of variants on
       # msan.
-      if options.msan:
+      if self.build_config.msan:
         VARIANTS = ["default"]
 
       if options.j == 0:
@@ -349,7 +312,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         if not set(VARIANTS).issubset(ALL_VARIANTS):
           print "All variants must be in %s" % str(ALL_VARIANTS)
           raise base_runner.TestRunnerError()
-      if options.predictable:
+      if self.build_config.predictable:
         VARIANTS = ["default"]
         options.extra_flags.append("--predictable")
         options.extra_flags.append("--verify_predictable")
@@ -358,10 +321,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       # Dedupe.
       VARIANTS = list(set(VARIANTS))
 
-      if not options.shell_dir:
-        if options.shell:
-          print "Warning: --shell is deprecated, use --shell-dir instead."
-          options.shell_dir = os.path.dirname(options.shell)
       if options.valgrind:
         run_valgrind = os.path.join("tools", "run-valgrind.py")
         # This is OK for distributed running, so we don't need to disable
@@ -374,7 +333,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           raise base_runner.TestRunnerError()
       CheckTestMode("slow test", options.slow_tests)
       CheckTestMode("pass|fail test", options.pass_fail_tests)
-      if options.no_i18n:
+      if self.build_config.no_i18n:
         base_runner.TEST_MAP["bot_default"].remove("intl")
         base_runner.TEST_MAP["default"].remove("intl")
 
@@ -397,7 +356,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         external_symbolizer_path = '"%s.exe"' % external_symbolizer_path
       symbolizer = 'external_symbolizer_path=%s' % external_symbolizer_path
 
-      if options.asan:
+      if self.build_config.asan:
         asan_options = [symbolizer, "allow_user_segv_handler=1"]
         if not utils.GuessOS() in ['macos', 'windows']:
           # LSAN is not available on mac and windows.
@@ -413,7 +372,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           "allow_user_segv_handler=1",
         ])
 
-      if options.cfi_vptr:
+      if self.build_config.cfi_vptr:
         os.environ['UBSAN_OPTIONS'] = ":".join([
           'print_stacktrace=1',
           'print_summary=1',
@@ -421,16 +380,16 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           symbolizer,
         ])
 
-      if options.ubsan_vptr:
+      if self.build_config.ubsan_vptr:
         os.environ['UBSAN_OPTIONS'] = ":".join([
           'print_stacktrace=1',
           symbolizer,
         ])
 
-      if options.msan:
+      if self.build_config.msan:
         os.environ['MSAN_OPTIONS'] = symbolizer
 
-      if options.tsan:
+      if self.build_config.tsan:
         suppressions_file = os.path.join(
             base_runner.BASE_DIR,
             'tools',
@@ -451,57 +410,36 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         seed = random.SystemRandom().randint(-2147483648, 2147483647)
       return seed
 
-    def _execute(self, arch, mode, args, options, suites):
-      print(">>> Running tests for %s.%s" % (arch, mode))
-
-      shell_dir = options.shell_dir
-      if not shell_dir:
-        if self.auto_detect:
-          # If an output dir with a build was passed, test directly in that
-          # directory.
-          shell_dir = os.path.join(base_runner.BASE_DIR, self.outdir)
-        elif options.buildbot:
-          # TODO(machenbach): Get rid of different output folder location on
-          # buildbot. Currently this is capitalized Release and Debug.
-          shell_dir = os.path.join(base_runner.BASE_DIR, self.outdir, mode)
-          mode = self._buildbot_to_v8_mode(mode)
-        else:
-          shell_dir = os.path.join(
-              base_runner.BASE_DIR,
-              self.outdir,
-              "%s.%s" % (arch, base_runner.MODES[mode]["output_folder"]),
-          )
-      if not os.path.exists(shell_dir):
-          raise Exception('Could not find shell_dir: "%s"' % shell_dir)
-
+    def _execute(self, args, options, suites):
+      print(">>> Running tests for %s.%s" % (self.build_config.arch,
+                                             self.mode_name))
       # Populate context object.
-      mode_flags = base_runner.MODES[mode]["flags"]
 
       # Simulators are slow, therefore allow a longer timeout.
-      if arch in SLOW_ARCHS:
+      if self.build_config.arch in SLOW_ARCHS:
         options.timeout *= 2
 
-      options.timeout *= base_runner.MODES[mode]["timeout_scalefactor"]
+      options.timeout *= self.mode_options.timeout_scalefactor
 
-      if options.predictable:
+      if self.build_config.predictable:
         # Predictable mode is slower.
         options.timeout *= 2
 
-      ctx = context.Context(arch,
-                            base_runner.MODES[mode]["execution_mode"],
-                            shell_dir,
-                            mode_flags,
+      ctx = context.Context(self.build_config.arch,
+                            self.mode_options.execution_mode,
+                            self.shell_dir,
+                            self.mode_options.flags,
                             options.verbose,
                             options.timeout,
                             options.isolates,
                             options.command_prefix,
                             options.extra_flags,
-                            options.no_i18n,
+                            self.build_config.no_i18n,
                             options.random_seed,
                             options.no_sorting,
                             options.rerun_failures_count,
                             options.rerun_failures_max,
-                            options.predictable,
+                            self.build_config.predictable,
                             options.no_harness,
                             use_perf_data=not options.swarming,
                             sancov_dir=options.sancov_dir)
@@ -509,32 +447,35 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       # TODO(all): Combine "simulator" and "simulator_run".
       # TODO(machenbach): In GN we can derive simulator run from
       # target_arch != v8_target_arch in the dumped build config.
-      simulator_run = not options.dont_skip_simulator_slow_tests and \
-          arch in ['arm64', 'arm', 'mipsel', 'mips', 'mips64', 'mips64el', \
-                  'ppc', 'ppc64', 's390', 's390x'] and \
-          bool(base_runner.ARCH_GUESS) and arch != base_runner.ARCH_GUESS
+      simulator_run = (
+        not options.dont_skip_simulator_slow_tests and
+        self.build_config.arch in [
+          'arm64', 'arm', 'mipsel', 'mips', 'mips64', 'mips64el', 'ppc',
+          'ppc64', 's390', 's390x'] and
+        bool(base_runner.ARCH_GUESS) and
+        self.build_config.arch != base_runner.ARCH_GUESS)
       # Find available test suites and read test cases from them.
       variables = {
-        "arch": arch,
-        "asan": options.asan,
+        "arch": self.build_config.arch,
+        "asan": self.build_config.asan,
+        "byteorder": sys.byteorder,
+        "dcheck_always_on": self.build_config.dcheck_always_on,
         "deopt_fuzzer": False,
         "gc_stress": options.gc_stress,
-        "gcov_coverage": options.gcov_coverage,
+        "gcov_coverage": self.build_config.gcov_coverage,
         "isolates": options.isolates,
-        "mode": base_runner.MODES[mode]["status_mode"],
-        "no_i18n": options.no_i18n,
-        "no_snap": options.no_snap,
-        "simulator_run": simulator_run,
-        "simulator": utils.UseSimulator(arch),
-        "system": utils.GuessOS(),
-        "tsan": options.tsan,
-        "msan": options.msan,
-        "dcheck_always_on": options.dcheck_always_on,
-        "novfp3": options.novfp3,
-        "predictable": options.predictable,
-        "byteorder": sys.byteorder,
+        "mode": self.mode_options.status_mode,
+        "msan": self.build_config.msan,
         "no_harness": options.no_harness,
-        "ubsan_vptr": options.ubsan_vptr,
+        "no_i18n": self.build_config.no_i18n,
+        "no_snap": self.build_config.no_snap,
+        "novfp3": options.novfp3,
+        "predictable": self.build_config.predictable,
+        "simulator": utils.UseSimulator(self.build_config.arch),
+        "simulator_run": simulator_run,
+        "system": utils.GuessOS(),
+        "tsan": self.build_config.tsan,
+        "ubsan_vptr": self.build_config.ubsan_vptr,
       }
       all_tests = []
       num_tests = 0
@@ -601,8 +542,8 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if options.json_test_results:
         progress_indicator.Register(progress.JsonTestProgressIndicator(
           options.json_test_results,
-          arch,
-          base_runner.MODES[mode]["execution_mode"],
+          self.build_config.arch,
+          self.mode_options.execution_mode,
           ctx.random_seed))
       if options.flakiness_results:
         progress_indicator.Register(progress.FlakinessTestProgressIndicator(
