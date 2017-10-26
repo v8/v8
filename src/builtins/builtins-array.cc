@@ -48,28 +48,6 @@ inline bool ClampedToInteger(Isolate* isolate, Object* object, int* out) {
   return false;
 }
 
-inline bool GetSloppyArgumentsLength(Isolate* isolate, Handle<JSObject> object,
-                                     int* out) {
-  Context* context = *isolate->native_context();
-  Map* map = object->map();
-  if (map != context->sloppy_arguments_map() &&
-      map != context->strict_arguments_map() &&
-      map != context->fast_aliased_arguments_map()) {
-    return false;
-  }
-  DCHECK(object->HasFastElements() || object->HasFastArgumentsElements());
-  Object* len_obj = object->InObjectPropertyAt(JSArgumentsObject::kLengthIndex);
-  if (!len_obj->IsSmi()) return false;
-  *out = Max(0, Smi::ToInt(len_obj));
-
-  FixedArray* parameters = FixedArray::cast(object->elements());
-  if (object->HasSloppyArgumentsElements()) {
-    FixedArray* arguments = FixedArray::cast(parameters->get(1));
-    return *out <= arguments->length();
-  }
-  return *out <= parameters->length();
-}
-
 inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
                                               JSArray* receiver) {
   return JSObject::PrototypeHasNoElements(isolate, receiver);
@@ -281,8 +259,8 @@ BUILTIN(ArraySlice) {
     }
     len = Smi::ToInt(array->length());
   } else if (receiver->IsJSObject() &&
-             GetSloppyArgumentsLength(isolate, Handle<JSObject>::cast(receiver),
-                                      &len)) {
+             JSSloppyArgumentsObject::GetSloppyArgumentsLength(
+                 isolate, Handle<JSObject>::cast(receiver), &len)) {
     // Array.prototype.slice.call(arguments, ...) is quite a common idiom
     // (notably more than 50% of invocations in Web apps).
     // Treat it in C++ as well.

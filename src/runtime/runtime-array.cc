@@ -395,12 +395,11 @@ RUNTIME_FUNCTION(Runtime_TrySliceSimpleNonFastElements) {
       return Smi::FromInt(0);
     }
   } else {
-    Map* map = receiver->map();
-    Context* context = *isolate->native_context();
-    if (map != context->sloppy_arguments_map() &&
-        map != context->strict_arguments_map() &&
-        map != context->fast_aliased_arguments_map() &&
-        map != context->slow_aliased_arguments_map()) {
+    int len;
+    if (!receiver->IsJSObject() ||
+        !JSSloppyArgumentsObject::GetSloppyArgumentsLength(
+            isolate, Handle<JSObject>::cast(receiver), &len) ||
+        (length > static_cast<uint32_t>(len))) {
       return Smi::FromInt(0);
     }
   }
