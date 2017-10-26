@@ -609,7 +609,10 @@ CodePageMemoryModificationScope::CodePageMemoryModificationScope(
       scope_active_(FLAG_write_protect_code_memory &&
                     chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
   if (scope_active_) {
-    DCHECK(chunk_->owner()->identity() == CODE_SPACE ||
+    // TODO(hpayer): owner() can only be null if we use the MemoryChunk outside
+    // of spaces. We actually should not do that and we should untangle this.
+    DCHECK(chunk_->owner() == nullptr ||
+           chunk_->owner()->identity() == CODE_SPACE ||
            (chunk_->owner()->identity() == LO_SPACE &&
             chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)));
     chunk_->SetReadAndWritable();
