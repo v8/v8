@@ -1796,7 +1796,8 @@ Handle<Code> Factory::NewCode(
     MaybeHandle<HandlerTable> maybe_handler_table,
     MaybeHandle<ByteArray> maybe_source_position_table,
     MaybeHandle<DeoptimizationData> maybe_deopt_data, bool immovable,
-    bool is_turbofanned, int stack_slots, int safepoint_table_offset) {
+    uint32_t stub_key, bool is_turbofanned, int stack_slots,
+    int safepoint_table_offset) {
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
   Handle<CodeDataContainer> data_container = NewCodeDataContainer(0);
 
@@ -1844,7 +1845,7 @@ Handle<Code> Factory::NewCode(
   code->set_code_data_container(*data_container);
   code->set_has_tagged_params(true);
   code->set_deoptimization_data(*deopt_data);
-  code->set_stub_key(0);
+  code->set_stub_key(stub_key);
   code->set_handler_table(*handler_table);
   code->set_source_position_table(*source_position_table);
   code->set_protected_instructions(*empty_fixed_array(), SKIP_WRITE_BARRIER);

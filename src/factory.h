@@ -685,8 +685,9 @@ class V8_EXPORT_PRIVATE Factory final {
                            MaybeHandle<ByteArray>(),
                        MaybeHandle<DeoptimizationData> maybe_deopt_data =
                            MaybeHandle<DeoptimizationData>(),
-                       bool immovable = false, bool is_turbofanned = false,
-                       int stack_slots = 0, int safepoint_table_offset = 0);
+                       bool immovable = false, uint32_t stub_key = 0,
+                       bool is_turbofanned = false, int stack_slots = 0,
+                       int safepoint_table_offset = 0);
 
   // Allocates a new, empty code object for use by builtin deserialization. The
   // given {size} argument specifies the size of the entire code object.

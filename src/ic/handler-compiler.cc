@@ -19,10 +19,11 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Handle<Name> name) {
   // Create code object in the heap.
   CodeDesc desc;
   masm()->GetCode(isolate(), &desc);
-  Handle<Code> code =
-      factory()->NewCode(desc, Code::STUB, masm()->CodeObject());
+  Handle<Code> code = factory()->NewCode(
+      desc, Code::STUB, masm()->CodeObject(), MaybeHandle<HandlerTable>(),
+      MaybeHandle<ByteArray>(), MaybeHandle<DeoptimizationData>(),
+      CodeStub::NoCacheKey());
   DCHECK(code->is_stub());
-  code->set_stub_key(CodeStub::NoCacheKey());
 #ifdef ENABLE_DISASSEMBLER
   if (FLAG_print_code_stubs) {
     char* raw_name = !name.is_null() && name->IsString()

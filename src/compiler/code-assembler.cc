@@ -56,14 +56,14 @@ static_assert(
 
 CodeAssemblerState::CodeAssemblerState(
     Isolate* isolate, Zone* zone, const CallInterfaceDescriptor& descriptor,
-    Code::Kind kind, const char* name, size_t result_size)
+    Code::Kind kind, const char* name, size_t result_size, uint32_t stub_key)
     : CodeAssemblerState(
           isolate, zone,
           Linkage::GetStubCallDescriptor(
               isolate, zone, descriptor, descriptor.GetStackParameterCount(),
               CallDescriptor::kNoFlags, Operator::kNoProperties,
               MachineType::AnyTagged(), result_size),
-          kind, name) {}
+          kind, name, stub_key) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        int parameter_count, Code::Kind kind,
@@ -74,11 +74,12 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        kind == Code::BUILTIN
                                            ? CallDescriptor::kPushArgumentCount
                                            : CallDescriptor::kNoFlags),
-          kind, name) {}
+          kind, name, 0) {}
 
 CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
                                        CallDescriptor* call_descriptor,
-                                       Code::Kind kind, const char* name)
+                                       Code::Kind kind, const char* name,
+                                       uint32_t stub_key)
     : raw_assembler_(new RawMachineAssembler(
           isolate, new (zone) Graph(zone), call_descriptor,
           MachineType::PointerRepresentation(),
@@ -86,6 +87,7 @@ CodeAssemblerState::CodeAssemblerState(Isolate* isolate, Zone* zone,
           InstructionSelector::AlignmentRequirements())),
       kind_(kind),
       name_(name),
+      stub_key_(stub_key),
       code_generated_(false),
       variables_(zone) {}
 
@@ -174,7 +176,8 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
 
   Handle<Code> code = Pipeline::GenerateCodeForCodeStub(
       rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-      state->kind_, state->name_, should_optimize_jumps ? &jump_opt : nullptr);
+      state->kind_, state->name_, state->stub_key_,
+      should_optimize_jumps ? &jump_opt : nullptr);
 
   if (jump_opt.is_optimizable()) {
     jump_opt.set_optimizing();
@@ -182,7 +185,7 @@ Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
     // Regenerate machine code
     code = Pipeline::GenerateCodeForCodeStub(
         rasm->isolate(), rasm->call_descriptor(), rasm->graph(), schedule,
-        state->kind_, state->name_, &jump_opt);
+        state->kind_, state->name_, state->stub_key_, &jump_opt);
   }
 
   state->code_generated_ = true;

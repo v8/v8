@@ -157,6 +157,7 @@ class PipelineData {
         register_allocation_zone_scope_(zone_stats_, ZONE_NAME),
         register_allocation_zone_(register_allocation_zone_scope_.zone()),
         jump_optimization_info_(jump_opt) {}
+
   // For register allocation testing entry point.
   PipelineData(ZoneStats* zone_stats, CompilationInfo* info,
                InstructionSequence* sequence)
@@ -1923,14 +1924,13 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
   return ScheduleAndSelectInstructions(linkage, true);
 }
 
-Handle<Code> Pipeline::GenerateCodeForCodeStub(Isolate* isolate,
-                                               CallDescriptor* call_descriptor,
-                                               Graph* graph, Schedule* schedule,
-                                               Code::Kind kind,
-                                               const char* debug_name,
-                                               JumpOptimizationInfo* jump_opt) {
+Handle<Code> Pipeline::GenerateCodeForCodeStub(
+    Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
+    Schedule* schedule, Code::Kind kind, const char* debug_name,
+    uint32_t stub_key, JumpOptimizationInfo* jump_opt) {
   CompilationInfo info(CStrVector(debug_name), isolate, graph->zone(), kind);
   if (isolate->serializer_enabled()) info.MarkAsSerializing();
+  info.set_stub_key(stub_key);
 
   // Construct a pipeline for scheduling and code generation.
   ZoneStats zone_stats(isolate->allocator());

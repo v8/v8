@@ -277,11 +277,6 @@ class CodeStub : public ZoneObject {
   void GenerateAssembly(compiler::CodeAssemblerState* state) const override; \
   DEFINE_CODE_STUB(NAME, SUPER)
 
-#define DEFINE_HANDLER_CODE_STUB(NAME, SUPER) \
- public:                                      \
-  Handle<Code> GenerateCode() override;       \
-  DEFINE_CODE_STUB(NAME, SUPER)
-
 #define DEFINE_CALL_INTERFACE_DESCRIPTOR(NAME)                          \
  public:                                                                \
   typedef NAME##Descriptor Descriptor;                                  \
@@ -1093,7 +1088,6 @@ class StoreBufferOverflowStub : public PlatformCodeStub {
 
 #undef DEFINE_CALL_INTERFACE_DESCRIPTOR
 #undef DEFINE_PLATFORM_CODE_STUB
-#undef DEFINE_HANDLER_CODE_STUB
 #undef DEFINE_CODE_STUB
 #undef DEFINE_CODE_STUB_BASE
 

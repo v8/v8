@@ -88,6 +88,8 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   Handle<JSFunction> closure() const { return closure_; }
   Handle<Code> code() const { return code_; }
   Code::Kind code_kind() const { return code_kind_; }
+  uint32_t stub_key() const { return stub_key_; }
+  void set_stub_key(uint32_t stub_key) { stub_key_ = stub_key; }
   BailoutId osr_offset() const { return osr_offset_; }
   JavaScriptFrame* osr_frame() const { return osr_frame_; }
   int num_parameters() const;
@@ -281,6 +283,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   unsigned flags_;
 
   Code::Kind code_kind_;
+  uint32_t stub_key_;
 
   Handle<SharedFunctionInfo> shared_info_;
 

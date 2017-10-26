@@ -130,7 +130,7 @@ Handle<Code> PlatformCodeStub::GenerateCode() {
   // Copy the generated code into a heap object.
   Handle<Code> new_object = factory->NewCode(
       desc, Code::STUB, masm.CodeObject(), table, MaybeHandle<ByteArray>(),
-      DeoptimizationData::Empty(isolate()), NeedsImmovableCode());
+      DeoptimizationData::Empty(isolate()), NeedsImmovableCode(), GetKey());
   return new_object;
 }
 
@@ -150,7 +150,7 @@ Handle<Code> CodeStub::GetCode() {
     CanonicalHandleScope canonical(isolate());
 
     Handle<Code> new_object = GenerateCode();
-    new_object->set_stub_key(GetKey());
+    DCHECK_EQ(GetKey(), new_object->stub_key());
     RecordCodeGeneration(new_object);
 
 #ifdef ENABLE_DISASSEMBLER
@@ -302,7 +302,7 @@ Handle<Code> TurboFanCodeStub::GenerateCode() {
   Zone zone(isolate()->allocator(), ZONE_NAME);
   CallInterfaceDescriptor descriptor(GetCallInterfaceDescriptor());
   compiler::CodeAssemblerState state(isolate(), &zone, descriptor, Code::STUB,
-                                     name);
+                                     name, 1, GetKey());
   GenerateAssembly(&state);
   return compiler::CodeAssembler::GenerateCode(&state);
 }
