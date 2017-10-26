@@ -45,6 +45,15 @@ int MarkingVisitor<fixed_array_mode, retaining_path_mode,
 
 template <FixedArrayVisitationMode fixed_array_mode,
           TraceRetainingPathMode retaining_path_mode, typename MarkingState>
+int MarkingVisitor<fixed_array_mode, retaining_path_mode, MarkingState>::
+    VisitCodeDataContainer(Map* map, CodeDataContainer* object) {
+  int size = CodeDataContainer::BodyDescriptorWeak::SizeOf(map, object);
+  CodeDataContainer::BodyDescriptorWeak::IterateBody(object, size, this);
+  return size;
+}
+
+template <FixedArrayVisitationMode fixed_array_mode,
+          TraceRetainingPathMode retaining_path_mode, typename MarkingState>
 int MarkingVisitor<fixed_array_mode, retaining_path_mode,
                    MarkingState>::VisitFixedArray(Map* map,
                                                   FixedArray* object) {

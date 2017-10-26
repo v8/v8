@@ -20,9 +20,5 @@ const char* const VisitorSynchronization::kTagNames
     [VisitorSynchronization::kNumberOfSyncTags] = {ROOT_ID_LIST(DECLARE_TAG)};
 #undef DECLARE_TAG
 
-void ObjectVisitor::VisitNextCodeLink(CodeDataContainer* host, Object** p) {
-  VisitPointers(host, p, p + 1);
-}
-
 }  // namespace internal
 }  // namespace v8

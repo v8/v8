@@ -1034,6 +1034,7 @@ class MarkingVisitor final
 
   V8_INLINE int VisitAllocationSite(Map* map, AllocationSite* object);
   V8_INLINE int VisitBytecodeArray(Map* map, BytecodeArray* object);
+  V8_INLINE int VisitCodeDataContainer(Map* map, CodeDataContainer* object);
   V8_INLINE int VisitFixedArray(Map* map, FixedArray* object);
   V8_INLINE int VisitJSApiObject(Map* map, JSObject* object);
   V8_INLINE int VisitJSFunction(Map* map, JSFunction* object);
@@ -1049,8 +1050,6 @@ class MarkingVisitor final
                                Object** end) final;
   V8_INLINE void VisitEmbeddedPointer(Code* host, RelocInfo* rinfo) final;
   V8_INLINE void VisitCodeTarget(Code* host, RelocInfo* rinfo) final;
-  // Skip weak next code link.
-  V8_INLINE void VisitNextCodeLink(CodeDataContainer* host, Object** p) final {}
 
  private:
   // Granularity in which FixedArrays are scanned if |fixed_array_mode|

@@ -92,11 +92,8 @@ class ObjectVisitor BASE_EMBEDDED {
     VisitPointers(host, p, p + 1);
   }
 
-  // Visit the weak next code link for code objects.
-  virtual void VisitNextCodeLink(CodeDataContainer* host, Object** p);
-
   // To allow lazy clearing of inline caches the visitor has
-  // a rich interface for iterating over Code objects..
+  // a rich interface for iterating over Code objects ...
 
   // Visits a code target in the instruction stream.
   virtual void VisitCodeTarget(Code* host, RelocInfo* rinfo);

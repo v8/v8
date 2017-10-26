@@ -395,25 +395,6 @@ class Code::BodyDescriptor final : public BodyDescriptorBase {
   }
 };
 
-class CodeDataContainer::BodyDescriptor final : public BodyDescriptorBase {
- public:
-  static bool IsValidSlot(HeapObject* obj, int offset) { return true; }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(HeapObject* obj, ObjectVisitor* v) {
-    v->VisitNextCodeLink(CodeDataContainer::cast(obj),
-                         HeapObject::RawField(obj, kNextCodeLinkOffset));
-  }
-
-  template <typename ObjectVisitor>
-  static inline void IterateBody(HeapObject* obj, int object_size,
-                                 ObjectVisitor* v) {
-    IterateBody(obj, v);
-  }
-
-  static inline int SizeOf(Map* map, HeapObject* obj) { return kSize; }
-};
-
 class SeqOneByteString::BodyDescriptor final : public BodyDescriptorBase {
  public:
   static bool IsValidSlot(HeapObject* obj, int offset) { return false; }

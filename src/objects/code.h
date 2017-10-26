@@ -532,7 +532,19 @@ class CodeDataContainer : public HeapObject {
   static const int kUnalignedSize = kKindSpecificFlagsOffset + kIntSize;
   static const int kSize = OBJECT_POINTER_ALIGN(kUnalignedSize);
 
-  class BodyDescriptor;
+  // During mark compact we need to take special care for weak fields.
+  static const int kPointerFieldsStrongEndOffset = kNextCodeLinkOffset;
+  static const int kPointerFieldsWeakEndOffset = kKindSpecificFlagsOffset;
+
+  // Ignores weakness.
+  typedef FixedBodyDescriptor<HeapObject::kHeaderSize,
+                              kPointerFieldsWeakEndOffset, kSize>
+      BodyDescriptor;
+
+  // Respects weakness.
+  typedef FixedBodyDescriptor<HeapObject::kHeaderSize,
+                              kPointerFieldsStrongEndOffset, kSize>
+      BodyDescriptorWeak;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CodeDataContainer);
