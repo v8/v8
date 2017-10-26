@@ -151,6 +151,8 @@ const six = BigInt(6);
   assertFalse(one == "a");
   assertFalse("a" == one);
 
+  assertTrue(zero == "00000000000000" + "0");
+
   assertTrue(one == {valueOf() { return true }});
   assertTrue({valueOf() { return true }} == one);
   assertFalse(two == {valueOf() { return true }});

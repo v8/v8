@@ -57,6 +57,7 @@ RUNTIME_FUNCTION(Runtime_BigIntEqualToString) {
   DCHECK_EQ(2, args.length());
   CONVERT_ARG_HANDLE_CHECKED(BigInt, lhs, 0);
   CONVERT_ARG_HANDLE_CHECKED(String, rhs, 1);
+  rhs = String::Flatten(rhs);
   bool result = BigInt::EqualToString(lhs, rhs);
   return *isolate->factory()->ToBoolean(result);
 }
