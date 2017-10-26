@@ -5,6 +5,7 @@
 #include "src/snapshot/serializer.h"
 
 #include "src/assembler-inl.h"
+#include "src/interpreter/interpreter.h"
 #include "src/objects/map.h"
 #include "src/snapshot/builtin-serializer-allocator.h"
 #include "src/snapshot/natives.h"
@@ -92,8 +93,9 @@ bool Serializer<AllocatorT>::MustBeDeferred(HeapObject* object) {
 template <class AllocatorT>
 void Serializer<AllocatorT>::VisitRootPointers(Root root, Object** start,
                                                Object** end) {
-  // Builtins are serialized in a separate pass by the BuiltinSerializer.
-  if (root == Root::kBuiltins) return;
+  // Builtins and bytecode handlers are serialized in a separate pass by the
+  // BuiltinSerializer.
+  if (root == Root::kBuiltins || root == Root::kDispatchTable) return;
 
   for (Object** current = start; current < end; current++) {
     if ((*current)->IsSmi()) {
@@ -208,6 +210,13 @@ bool Serializer<AllocatorT>::SerializeBuiltinReference(
   sink_.PutInt(builtin_index, "builtin_index");
 
   return true;
+}
+
+// static
+template <class AllocatorT>
+bool Serializer<AllocatorT>::ObjectIsBytecodeHandler(HeapObject* obj) {
+  if (!obj->IsCode()) return false;
+  return (Code::cast(obj)->kind() == Code::BYTECODE_HANDLER);
 }
 
 template <class AllocatorT>

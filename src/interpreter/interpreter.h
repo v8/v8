@@ -19,13 +19,14 @@ namespace v8 {
 namespace internal {
 
 class Isolate;
+class BuiltinDeserializerAllocator;
 class Callable;
 class CompilationInfo;
 class CompilationJob;
 class FunctionLiteral;
 class ParseInfo;
-class SetupIsolateDelegate;
 class RootVisitor;
+class SetupIsolateDelegate;
 
 namespace interpreter {
 
@@ -41,8 +42,12 @@ class Interpreter {
                                            FunctionLiteral* literal,
                                            Isolate* isolate);
 
-  // Return bytecode handler for |bytecode|.
+  // Return bytecode handler for |bytecode| and |operand_scale|.
   Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);
+
+  // Set the bytecode handler for |bytecode| and |operand_scale|.
+  void SetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale,
+                          Code* handler);
 
   // GC support.
   void IterateDispatchTable(RootVisitor* v);
@@ -51,6 +56,8 @@ class Interpreter {
   const char* LookupNameOfBytecodeHandler(Code* code);
 
   V8_EXPORT_PRIVATE Local<v8::Object> GetDispatchCountersObject();
+
+  bool IsDispatchTableInitialized() const;
 
   Address dispatch_table_address() {
     return reinterpret_cast<Address>(&dispatch_table_[0]);
@@ -66,14 +73,13 @@ class Interpreter {
  private:
   friend class SetupInterpreter;
   friend class v8::internal::SetupIsolateDelegate;
+  friend class v8::internal::BuiltinDeserializerAllocator;
 
   uintptr_t GetDispatchCounter(Bytecode from, Bytecode to) const;
 
   // Get dispatch table index of bytecode.
   static size_t GetDispatchTableIndex(Bytecode bytecode,
                                       OperandScale operand_scale);
-
-  bool IsDispatchTableInitialized();
 
   static const int kNumberOfWideVariants = BytecodeOperands::kOperandScaleCount;
   static const int kDispatchTableSize = kNumberOfWideVariants * (kMaxUInt8 + 1);

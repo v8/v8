@@ -96,6 +96,14 @@ Code* Interpreter::GetBytecodeHandler(Bytecode bytecode,
   return Code::GetCodeFromTargetAddress(code_entry);
 }
 
+void Interpreter::SetBytecodeHandler(Bytecode bytecode,
+                                     OperandScale operand_scale,
+                                     Code* handler) {
+  DCHECK(handler->kind() == Code::BYTECODE_HANDLER);
+  size_t index = GetDispatchTableIndex(bytecode, operand_scale);
+  dispatch_table_[index] = handler->entry();
+}
+
 // static
 size_t Interpreter::GetDispatchTableIndex(Bytecode bytecode,
                                           OperandScale operand_scale) {
@@ -241,7 +249,7 @@ CompilationJob* Interpreter::NewCompilationJob(ParseInfo* parse_info,
   return new InterpreterCompilationJob(parse_info, literal, isolate);
 }
 
-bool Interpreter::IsDispatchTableInitialized() {
+bool Interpreter::IsDispatchTableInitialized() const {
   return dispatch_table_[0] != nullptr;
 }
 

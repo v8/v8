@@ -53,6 +53,8 @@ void PartialSerializer::Serialize(Object** o, bool include_global_proxy) {
 
 void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
+  DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
+
   BuiltinReferenceSerializationMode mode =
       startup_serializer_->clear_function_code() ? kCanonicalizeCompileLazy
                                                  : kDefault;

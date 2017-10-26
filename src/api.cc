@@ -749,7 +749,7 @@ StartupData SnapshotCreator::CreateBlob(
   // cache and thus needs to happen before SerializeWeakReferencesAndDeferred
   // is called below.
   i::BuiltinSerializer builtin_serializer(isolate, &startup_serializer);
-  builtin_serializer.SerializeBuiltins();
+  builtin_serializer.SerializeBuiltinsAndHandlers();
 
   startup_serializer.SerializeWeakReferencesAndDeferred();
   can_be_rehashed = can_be_rehashed && startup_serializer.can_be_rehashed();

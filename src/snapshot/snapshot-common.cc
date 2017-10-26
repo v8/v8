@@ -350,7 +350,8 @@ Vector<const byte> BuiltinSnapshotData::Payload() const {
   uint32_t reservations_size =
       GetHeaderValue(kNumReservationsOffset) * kUInt32Size;
   const byte* payload = data_ + kHeaderSize + reservations_size;
-  int builtin_offsets_size = Builtins::builtin_count * kUInt32Size;
+  const int builtin_offsets_size =
+      BuiltinSnapshotUtils::kNumberOfCodeObjects * kUInt32Size;
   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + payload_length);
   DCHECK_GT(payload_length, builtin_offsets_size);
@@ -361,13 +362,15 @@ Vector<const uint32_t> BuiltinSnapshotData::BuiltinOffsets() const {
   uint32_t reservations_size =
       GetHeaderValue(kNumReservationsOffset) * kUInt32Size;
   const byte* payload = data_ + kHeaderSize + reservations_size;
-  int builtin_offsets_size = Builtins::builtin_count * kUInt32Size;
+  const int builtin_offsets_size =
+      BuiltinSnapshotUtils::kNumberOfCodeObjects * kUInt32Size;
   uint32_t payload_length = GetHeaderValue(kPayloadLengthOffset);
   DCHECK_EQ(data_ + size_, payload + payload_length);
   DCHECK_GT(payload_length, builtin_offsets_size);
   const uint32_t* data = reinterpret_cast<const uint32_t*>(
       payload + payload_length - builtin_offsets_size);
-  return Vector<const uint32_t>(data, Builtins::builtin_count);
+  return Vector<const uint32_t>(data,
+                                BuiltinSnapshotUtils::kNumberOfCodeObjects);
 }
 
 }  // namespace internal

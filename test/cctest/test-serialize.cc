@@ -138,7 +138,7 @@ static StartupBlobs Serialize(v8::Isolate* isolate) {
   ser.SerializeStrongReferences();
 
   i::BuiltinSerializer builtin_serializer(internal_isolate, &ser);
-  builtin_serializer.SerializeBuiltins();
+  builtin_serializer.SerializeBuiltinsAndHandlers();
 
   ser.SerializeWeakReferencesAndDeferred();
   SnapshotData startup_snapshot(&ser);
@@ -385,7 +385,7 @@ static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
     partial_serializer.Serialize(&raw_context, false);
 
     i::BuiltinSerializer builtin_serializer(isolate, &startup_serializer);
-    builtin_serializer.SerializeBuiltins();
+    builtin_serializer.SerializeBuiltinsAndHandlers();
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
 
@@ -510,7 +510,7 @@ static void PartiallySerializeCustomContext(
     partial_serializer.Serialize(&raw_context, false);
 
     i::BuiltinSerializer builtin_serializer(isolate, &startup_serializer);
-    builtin_serializer.SerializeBuiltins();
+    builtin_serializer.SerializeBuiltinsAndHandlers();
 
     startup_serializer.SerializeWeakReferencesAndDeferred();
 

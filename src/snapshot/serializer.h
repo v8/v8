@@ -194,6 +194,9 @@ class Serializer : public SerializerDeserializer {
       HeapObject* obj, HowToCode how_to_code, WhereToPoint where_to_point,
       int skip, BuiltinReferenceSerializationMode mode = kDefault);
 
+  // Returns true if the given heap object is a bytecode handler code object.
+  static bool ObjectIsBytecodeHandler(HeapObject* obj);
+
   inline void FlushSkip(int skip) {
     if (skip != 0) {
       sink_.Put(kSkip, "SkipFromSerializeObject");

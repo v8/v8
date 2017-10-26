@@ -28,6 +28,7 @@ StartupSerializer::~StartupSerializer() {
 
 void StartupSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
                                         WhereToPoint where_to_point, int skip) {
+  DCHECK(!ObjectIsBytecodeHandler(obj));  // Only referenced in dispatch table.
   DCHECK(!obj->IsJSFunction());
 
   if (clear_function_code() && obj->IsBytecodeArray()) {

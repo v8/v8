@@ -169,7 +169,8 @@ bool DefaultDeserializerAllocator::ReserveSpace(
   }
 
   Heap::Reservation builtin_reservations =
-      builtin_deserializer->allocator()->CreateReservationsForEagerBuiltins();
+      builtin_deserializer->allocator()
+          ->CreateReservationsForEagerBuiltinsAndHandlers();
   DCHECK(!builtin_reservations.empty());
 
   for (const auto& c : builtin_reservations) {
@@ -199,7 +200,7 @@ bool DefaultDeserializerAllocator::ReserveSpace(
       merged_reservations[CODE_SPACE].pop_back();
     }
 
-    builtin_deserializer->allocator()->InitializeBuiltinsTable(
+    builtin_deserializer->allocator()->InitializeFromReservations(
         builtin_reservations);
   }
 

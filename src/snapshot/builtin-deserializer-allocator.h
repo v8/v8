@@ -18,8 +18,11 @@ template <class AllocatorT>
 class Deserializer;
 
 class BuiltinDeserializer;
+class BuiltinSnapshotUtils;
 
 class BuiltinDeserializerAllocator final {
+  using BSU = BuiltinSnapshotUtils;
+
  public:
   BuiltinDeserializerAllocator(
       Deserializer<BuiltinDeserializerAllocator>* deserializer);
@@ -59,8 +62,8 @@ class BuiltinDeserializerAllocator final {
   // deserialization.
   // TODO(jgruber): Refactor reservation/allocation logic in deserializers to
   // make this less messy.
-  Heap::Reservation CreateReservationsForEagerBuiltins();
-  void InitializeBuiltinsTable(const Heap::Reservation& reservation);
+  Heap::Reservation CreateReservationsForEagerBuiltinsAndHandlers();
+  void InitializeFromReservations(const Heap::Reservation& reservation);
 
   // Creates reservations and initializes the builtins table in preparation for
   // lazily deserializing a single builtin.
@@ -85,9 +88,14 @@ class BuiltinDeserializerAllocator final {
   void InitializeBuiltinFromReservation(const Heap::Chunk& chunk,
                                         int builtin_id);
 
+  // As above, but for interpreter bytecode handlers.
+  void InitializeHandlerFromReservation(
+      const Heap::Chunk& chunk, interpreter::Bytecode bytecode,
+      interpreter::OperandScale operand_scale);
+
 #ifdef DEBUG
-  void RegisterBuiltinReservation(int builtin_id);
-  void RegisterBuiltinAllocation(int builtin_id);
+  void RegisterCodeObjectReservation(int code_object_id);
+  void RegisterCodeObjectAllocation(int code_object_id);
   std::unordered_set<int> unused_reservations_;
 #endif
 
