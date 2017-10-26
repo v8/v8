@@ -17,9 +17,6 @@ class CallOptimization BASE_EMBEDDED {
  public:
   explicit CallOptimization(Handle<Object> function);
 
-  bool IsCrossContextLazyAccessorPair(Context* native_context,
-                                      Map* holder_map) const;
-
   bool is_constant_call() const { return !constant_function_.is_null(); }
 
   Handle<JSFunction> constant_function() const {

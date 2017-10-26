@@ -1483,6 +1483,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   //  -- ...
   //  -- sp[(argc - 1) * 4]  : first argument
   //  -- sp[argc * 4]        : receiver
+  //  -- sp[(argc + 1) * 4]  : accessor_holder
   // -----------------------------------
 
   Register callee = r0;
@@ -1530,7 +1531,32 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ push(holder);
 
   // enter a new context
-  if (!is_lazy()) {
+  if (is_lazy()) {
+    // ----------- S t a t e -------------------------------------
+    //  -- sp[0]                                 : holder
+    //  -- ...
+    //  -- sp[(FCA::kArgsLength - 1) * 4]        : new_target
+    //  -- sp[FCA::kArgsLength * 4]              : last argument
+    //  -- ...
+    //  -- sp[(FCA::kArgsLength + argc - 1) * 4] : first argument
+    //  -- sp[(FCA::kArgsLength + argc) * 4]     : receiver
+    //  -- sp[(FCA::kArgsLength + argc + 1) * 4] : accessor_holder
+    // -----------------------------------------------------------
+
+    // load context from accessor_holder
+    Register accessor_holder = context;
+    __ ldr(accessor_holder,
+           MemOperand(sp, (FCA::kArgsLength + 1 + argc()) * kPointerSize));
+    // Look for the constructor if |accessor_holder| is not a function.
+    Label skip_looking_for_constructor;
+    __ ldr(scratch0, FieldMemOperand(accessor_holder, HeapObject::kMapOffset));
+    __ ldrb(scratch1, FieldMemOperand(scratch0, Map::kBitFieldOffset));
+    __ tst(scratch1, Operand(1 << Map::kIsConstructor));
+    __ b(ne, &skip_looking_for_constructor);
+    __ GetMapConstructor(context, scratch0, scratch0, scratch1);
+    __ bind(&skip_looking_for_constructor);
+    __ ldr(context, FieldMemOperand(context, JSFunction::kContextOffset));
+  } else {
     // load context from callee
     __ ldr(context, FieldMemOperand(callee, JSFunction::kContextOffset));
   }
@@ -1573,7 +1599,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
     return_value_offset = 2 + FCA::kReturnValueOffset;
   }
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
-  const int stack_space = argc() + FCA::kArgsLength + 1;
+  const int stack_space = argc() + FCA::kArgsLength + 2;
   MemOperand* stack_space_operand = nullptr;
 
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, stack_space,

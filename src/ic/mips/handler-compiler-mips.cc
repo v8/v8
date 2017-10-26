@@ -169,6 +169,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
     int accessor_index) {
   DCHECK(accessor_holder != scratch_in);
   DCHECK(receiver != scratch_in);
+  __ push(accessor_holder);
   __ push(receiver);
   // Write the arguments to stack frame.
   if (is_store) {
@@ -245,6 +246,27 @@ void NamedStoreHandlerCompiler::GenerateRestoreName(Label* label,
     __ bind(label);
     __ li(this->name(), Operand(name));
   }
+}
+
+void PropertyHandlerCompiler::GenerateAccessCheck(
+    Handle<WeakCell> native_context_cell, Register scratch1, Register scratch2,
+    Label* miss, bool compare_native_contexts_only) {
+  Label done;
+  // Load current native context.
+  __ lw(scratch1, NativeContextMemOperand());
+  // Load expected native context.
+  __ LoadWeakValue(scratch2, native_context_cell, miss);
+
+  if (!compare_native_contexts_only) {
+    __ Branch(&done, eq, scratch1, Operand(scratch2));
+
+    // Compare security tokens of current and expected native contexts.
+    __ lw(scratch1, ContextMemOperand(scratch1, Context::SECURITY_TOKEN_INDEX));
+    __ lw(scratch2, ContextMemOperand(scratch2, Context::SECURITY_TOKEN_INDEX));
+  }
+  __ Branch(miss, ne, scratch1, Operand(scratch2));
+
+  __ bind(&done);
 }
 
 Register PropertyHandlerCompiler::CheckPrototypes(

@@ -50,6 +50,20 @@ Handle<Code> PropertyHandlerCompiler::GetCode(Handle<Name> name) {
 Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
                                                   Handle<Name> name,
                                                   Label* miss) {
+  if (map()->IsPrimitiveMap() || map()->IsJSGlobalProxyMap()) {
+    // If the receiver is a global proxy and if we get to this point then
+    // the compile-time (current) native context has access to global proxy's
+    // native context. Since access rights revocation is not supported at all,
+    // we can generate a check that an execution-time native context is either
+    // the same as compile-time native context or has the same access token.
+    Handle<Context> native_context = isolate()->native_context();
+    Handle<WeakCell> weak_cell(native_context->self_weak_cell(), isolate());
+
+    bool compare_native_contexts_only = map()->IsPrimitiveMap();
+    GenerateAccessCheck(weak_cell, scratch1(), scratch2(), miss,
+                        compare_native_contexts_only);
+  }
+
   // Check that the maps starting from the prototype haven't changed.
   return CheckPrototypes(object_reg, scratch1(), scratch2(), scratch3(), name,
                          miss);
@@ -61,6 +75,12 @@ Register NamedLoadHandlerCompiler::FrontendHeader(Register object_reg,
 Register NamedStoreHandlerCompiler::FrontendHeader(Register object_reg,
                                                    Handle<Name> name,
                                                    Label* miss) {
+  if (map()->IsJSGlobalProxyMap()) {
+    Handle<Context> native_context = isolate()->native_context();
+    Handle<WeakCell> weak_cell(native_context->self_weak_cell(), isolate());
+    GenerateAccessCheck(weak_cell, scratch1(), scratch2(), miss, false);
+  }
+
   return CheckPrototypes(object_reg, this->name(), scratch1(), scratch2(), name,
                          miss);
 }
@@ -95,10 +115,9 @@ Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
     GenerateTailCall(masm(), slow_stub);
   }
-  Register holder_reg = Frontend(name);
+  Register holder = Frontend(name);
   GenerateApiAccessorCall(masm(), call_optimization, map(), receiver(),
-                          scratch2(), false, no_reg, holder_reg,
-                          accessor_index);
+                          scratch2(), false, no_reg, holder, accessor_index);
   return GetCode(name);
 }
 
@@ -119,12 +138,12 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
     GenerateTailCall(masm(), slow_stub);
   }
-  Register holder_reg = Frontend(name);
+  Register holder = Frontend(name);
   if (Descriptor::kPassLastArgsOnStack) {
     __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
   }
   GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
-                          receiver(), scratch2(), true, value(), holder_reg,
+                          receiver(), scratch2(), true, value(), holder,
                           accessor_index);
   return GetCode(name);
 }

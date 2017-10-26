@@ -1483,6 +1483,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   //  -- ...
   //  -- rsp[argc * 8]       : first argument
   //  -- rsp[(argc + 1) * 8] : receiver
+  //  -- rsp[(argc + 2) * 8] : accessor_holder
   // -----------------------------------
 
   Register callee = rdi;
@@ -1531,7 +1532,33 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   // enter a new context
   int argc = this->argc();
-  if (!this->is_lazy()) {
+  if (this->is_lazy()) {
+    // ----------- S t a t e -------------------------------------
+    //  -- rsp[0]                                 : holder
+    //  -- ...
+    //  -- rsp[(FCA::kArgsLength - 1) * 8]        : new_target
+    //  -- rsp[FCA::kArgsLength * 8]              : last argument
+    //  -- ...
+    //  -- rsp[(FCA::kArgsLength + argc - 1) * 8] : first argument
+    //  -- rsp[(FCA::kArgsLength + argc) * 8]     : receiver
+    //  -- rsp[(FCA::kArgsLength + argc + 1) * 8] : accessor_holder
+    // -----------------------------------------------------------
+
+    // load context from accessor_holder
+    Register accessor_holder = context;
+    Register scratch2 = callee;
+    __ movp(accessor_holder,
+            MemOperand(rsp, (argc + FCA::kArgsLength + 1) * kPointerSize));
+    // Look for the constructor if |accessor_holder| is not a function.
+    Label skip_looking_for_constructor;
+    __ movp(scratch, FieldOperand(accessor_holder, HeapObject::kMapOffset));
+    __ testb(FieldOperand(scratch, Map::kBitFieldOffset),
+             Immediate(1 << Map::kIsConstructor));
+    __ j(not_zero, &skip_looking_for_constructor, Label::kNear);
+    __ GetMapConstructor(context, scratch, scratch2);
+    __ bind(&skip_looking_for_constructor);
+    __ movp(context, FieldOperand(context, JSFunction::kContextOffset));
+  } else {
     // load context from callee
     __ movp(context, FieldOperand(callee, JSFunction::kContextOffset));
   }
@@ -1579,7 +1606,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
       FCA::kArgsLength - FCA::kContextSaveIndex);
   Operand return_value_operand = args_from_rbp.GetArgumentOperand(
       this->is_store() ? 0 : FCA::kArgsLength - FCA::kReturnValueOffset);
-  const int stack_space = argc + FCA::kArgsLength + 1;
+  const int stack_space = argc + FCA::kArgsLength + 2;
   Operand* stack_space_operand = nullptr;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, callback_arg,
                            stack_space, stack_space_operand,

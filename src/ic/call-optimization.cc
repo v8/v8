@@ -20,14 +20,6 @@ CallOptimization::CallOptimization(Handle<Object> function) {
   }
 }
 
-bool CallOptimization::IsCrossContextLazyAccessorPair(Context* native_context,
-                                                      Map* holder_map) const {
-  DCHECK(native_context->IsNativeContext());
-  if (is_constant_call()) return false;
-  JSFunction* constructor = JSFunction::cast(holder_map->GetConstructor());
-  return native_context != constructor->context()->native_context();
-}
-
 Handle<JSObject> CallOptimization::LookupHolderOfExpectedType(
     Handle<Map> object_map, HolderLookup* holder_lookup) const {
   DCHECK(is_simple_api_call());

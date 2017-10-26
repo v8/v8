@@ -1700,7 +1700,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), call_interface_descriptor,
       call_interface_descriptor.GetStackParameterCount() + argc +
-          1 /* implicit receiver */,
+          1 /* implicit receiver */ + 1 /* accessor holder */,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
       MachineType::AnyTagged(), 1);
 
@@ -1712,8 +1712,9 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   Node* code = jsgraph()->HeapConstant(stub.GetCode());
 
   // Add CallApiCallbackStub's register argument as well.
-  Node* inputs[11] = {code, target, data, holder, function_reference, receiver};
-  int index = 6 + argc;
+  Node* inputs[12] = {code,   target,  data, holder, function_reference,
+                      holder, receiver};
+  int index = 7 + argc;
   inputs[index++] = context;
   inputs[index++] = frame_state;
   inputs[index++] = *effect;
@@ -1721,7 +1722,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   // This needs to stay here because of the edge case described in
   // http://crbug.com/675648.
   if (value != nullptr) {
-    inputs[6] = value;
+    inputs[7] = value;
   }
 
   return *effect = *control =
