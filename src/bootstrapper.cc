@@ -4361,10 +4361,11 @@ void Genesis::InitializeGlobal_harmony_regexp_dotall() {
 void Genesis::InitializeGlobal_harmony_bigint() {
   if (!FLAG_harmony_bigint) return;
 
+  Factory* factory = isolate()->factory();
   Handle<JSGlobalObject> global(native_context()->global_object());
-  Handle<JSFunction> bigint_fun = InstallFunction(
-      global, "BigInt", JS_VALUE_TYPE, JSValue::kSize, 0,
-      isolate()->factory()->the_hole_value(), Builtins::kBigIntConstructor);
+  Handle<JSFunction> bigint_fun =
+      InstallFunction(global, "BigInt", JS_VALUE_TYPE, JSValue::kSize, 0,
+                      factory->the_hole_value(), Builtins::kBigIntConstructor);
   bigint_fun->shared()->DontAdaptArguments();
   bigint_fun->shared()->SetConstructStub(
       *BUILTIN_CODE(isolate(), BigIntConstructor_ConstructStub));
@@ -4400,6 +4401,10 @@ void Genesis::InitializeGlobal_harmony_bigint() {
   // valueOf()
   SimpleInstallFunction(prototype, "valueOf", Builtins::kBigIntPrototypeValueOf,
                         0, false);
+  // @@toStringTag
+  JSObject::AddProperty(prototype, factory->to_string_tag_symbol(),
+                        factory->BigInt_string(),
+                        static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY));
 }
 
 #ifdef V8_INTL_SUPPORT

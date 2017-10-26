@@ -20,6 +20,32 @@ const six = BigInt(6);
   assertSame(BigInt, BigInt.prototype.constructor)
 }
 
+// BigInt.prototype[Symbol.toStringTag]
+{
+  const toStringTag = Object.getOwnPropertyDescriptor(
+      BigInt.prototype, Symbol.toStringTag);
+  assertTrue(toStringTag.configurable);
+  assertFalse(toStringTag.enumerable);
+  assertFalse(toStringTag.writable);
+  assertEquals("BigInt", toStringTag.value);
+}
+
+// Object.prototype.toString
+{
+  const toString = Object.prototype.toString;
+
+  assertEquals("[object BigInt]", toString.call(42n));
+  assertEquals("[object BigInt]", toString.call(Object(42n)));
+
+  delete BigInt.prototype[Symbol.toStringTag];
+  assertEquals("[object Object]", toString.call(42n));
+  assertEquals("[object Object]", toString.call(Object(42n)));
+
+  BigInt.prototype[Symbol.toStringTag] = "foo";
+  assertEquals("[object foo]", toString.call(42n));
+  assertEquals("[object foo]", toString.call(Object(42n)));
+}
+
 // typeof
 {
   assertEquals(typeof zero, "bigint");

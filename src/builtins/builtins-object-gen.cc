@@ -303,7 +303,7 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
       if_error(this), if_function(this), if_number(this, Label::kDeferred),
       if_object(this), if_primitive(this), if_proxy(this, Label::kDeferred),
       if_regexp(this), if_string(this), if_symbol(this, Label::kDeferred),
-      if_value(this);
+      if_value(this), if_bigint(this, Label::kDeferred);
 
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* context = Parameter(Descriptor::kContext);
@@ -427,19 +427,19 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
 
   BIND(&if_primitive);
   {
-    Label return_null(this), return_undefined(this);
+    Label return_undefined(this);
 
     GotoIf(IsStringInstanceType(receiver_instance_type), &if_string);
+    GotoIf(IsBigIntInstanceType(receiver_instance_type), &if_bigint);
     GotoIf(IsBooleanMap(receiver_map), &if_boolean);
     GotoIf(IsHeapNumberMap(receiver_map), &if_number);
     GotoIf(IsSymbolMap(receiver_map), &if_symbol);
-    Branch(IsUndefined(receiver), &return_undefined, &return_null);
+    GotoIf(IsUndefined(receiver), &return_undefined);
+    CSA_ASSERT(this, IsNull(receiver));
+    Return(LoadRoot(Heap::knull_to_stringRootIndex));
 
     BIND(&return_undefined);
     Return(LoadRoot(Heap::kundefined_to_stringRootIndex));
-
-    BIND(&return_null);
-    Return(LoadRoot(Heap::knull_to_stringRootIndex));
   }
 
   BIND(&if_proxy);
@@ -507,6 +507,20 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
     Goto(&checkstringtag);
   }
 
+  BIND(&if_bigint);
+  {
+    Node* native_context = LoadNativeContext(context);
+    Node* bigint_constructor =
+        LoadContextElement(native_context, Context::BIGINT_FUNCTION_INDEX);
+    Node* bigint_initial_map = LoadObjectField(
+        bigint_constructor, JSFunction::kPrototypeOrInitialMapOffset);
+    Node* bigint_prototype =
+        LoadObjectField(bigint_initial_map, Map::kPrototypeOffset);
+    var_default.Bind(LoadRoot(Heap::kobject_to_stringRootIndex));
+    var_holder.Bind(bigint_prototype);
+    Goto(&checkstringtag);
+  }
+
   BIND(&if_value);
   {
     Node* receiver_value = LoadJSValueValue(receiver);
@@ -514,7 +528,12 @@ TF_BUILTIN(ObjectPrototypeToString, ObjectBuiltinsAssembler) {
     Node* receiver_value_map = LoadMap(receiver_value);
     GotoIf(IsHeapNumberMap(receiver_value_map), &if_number);
     GotoIf(IsBooleanMap(receiver_value_map), &if_boolean);
-    Branch(IsSymbolMap(receiver_value_map), &if_symbol, &if_string);
+    GotoIf(IsSymbolMap(receiver_value_map), &if_symbol);
+    Node* receiver_value_instance_type =
+        LoadMapInstanceType(receiver_value_map);
+    GotoIf(IsBigIntInstanceType(receiver_value_instance_type), &if_bigint);
+    CSA_ASSERT(this, IsStringInstanceType(receiver_value_instance_type));
+    Goto(&if_string);
   }
 
   BIND(&checkstringtag);
