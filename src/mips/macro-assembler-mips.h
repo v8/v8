@@ -1035,7 +1035,7 @@ class MacroAssembler : public TurboAssembler {
 
   // Leave the current exit frame.
   void LeaveExitFrame(bool save_doubles, Register arg_count,
-                      bool restore_context, bool do_return = NO_EMIT_RETURN,
+                      bool do_return = NO_EMIT_RETURN,
                       bool argument_count_is_length = false);
 
   // Make sure the stack is aligned. Only emits code in debug mode.
@@ -1087,11 +1087,6 @@ class MacroAssembler : public TurboAssembler {
 
   // -------------------------------------------------------------------------
   // Support functions.
-
-  // Machine code version of Map::GetConstructor().
-  // |temp| holds |result|'s map when done, and |temp2| its instance type.
-  void GetMapConstructor(Register result, Register map, Register temp,
-                         Register temp2);
 
   void GetObjectType(Register function,
                      Register map,

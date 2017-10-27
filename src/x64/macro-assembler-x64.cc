@@ -2180,19 +2180,6 @@ void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
   }
 }
 
-void MacroAssembler::GetMapConstructor(Register result, Register map,
-                                       Register temp) {
-  Label done, loop;
-  movp(result, FieldOperand(map, Map::kConstructorOrBackPointerOffset));
-  bind(&loop);
-  JumpIfSmi(result, &done, Label::kNear);
-  CmpObjectType(result, MAP_TYPE, temp);
-  j(not_equal, &done, Label::kNear);
-  movp(result, FieldOperand(result, Map::kConstructorOrBackPointerOffset));
-  jmp(&loop);
-  bind(&done);
-}
-
 void MacroAssembler::IncrementCounter(StatsCounter* counter, int value) {
   DCHECK_GT(value, 0);
   if (FLAG_native_code_counters && counter->Enabled()) {
@@ -2625,26 +2612,22 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
     leave();
   }
 
-  LeaveExitFrameEpilogue(true);
+  LeaveExitFrameEpilogue();
 }
 
-
-void MacroAssembler::LeaveApiExitFrame(bool restore_context) {
+void MacroAssembler::LeaveApiExitFrame() {
   movp(rsp, rbp);
   popq(rbp);
 
-  LeaveExitFrameEpilogue(restore_context);
+  LeaveExitFrameEpilogue();
 }
 
-
-void MacroAssembler::LeaveExitFrameEpilogue(bool restore_context) {
+void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address(IsolateAddressId::kContextAddress,
                                     isolate());
   Operand context_operand = ExternalOperand(context_address);
-  if (restore_context) {
-    movp(rsi, context_operand);
-  }
+  movp(rsi, context_operand);
 #ifdef DEBUG
   movp(context_operand, Immediate(0));
 #endif

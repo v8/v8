@@ -774,17 +774,14 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, bool pop_arguments) {
     leave();
   }
 
-  LeaveExitFrameEpilogue(true);
+  LeaveExitFrameEpilogue();
 }
 
-
-void MacroAssembler::LeaveExitFrameEpilogue(bool restore_context) {
+void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.
   ExternalReference context_address(IsolateAddressId::kContextAddress,
                                     isolate());
-  if (restore_context) {
-    mov(esi, Operand::StaticVariable(context_address));
-  }
+  mov(esi, Operand::StaticVariable(context_address));
 #ifdef DEBUG
   mov(Operand::StaticVariable(context_address), Immediate(0));
 #endif
@@ -795,12 +792,11 @@ void MacroAssembler::LeaveExitFrameEpilogue(bool restore_context) {
   mov(Operand::StaticVariable(c_entry_fp_address), Immediate(0));
 }
 
-
-void MacroAssembler::LeaveApiExitFrame(bool restore_context) {
+void MacroAssembler::LeaveApiExitFrame() {
   mov(esp, ebp);
   pop(ebp);
 
-  LeaveExitFrameEpilogue(restore_context);
+  LeaveExitFrameEpilogue();
 }
 
 
@@ -827,19 +823,6 @@ void MacroAssembler::PopStackHandler() {
   add(esp, Immediate(StackHandlerConstants::kSize - kPointerSize));
 }
 
-
-void MacroAssembler::GetMapConstructor(Register result, Register map,
-                                       Register temp) {
-  Label done, loop;
-  mov(result, FieldOperand(map, Map::kConstructorOrBackPointerOffset));
-  bind(&loop);
-  JumpIfSmi(result, &done, Label::kNear);
-  CmpObjectType(result, MAP_TYPE, temp);
-  j(not_equal, &done, Label::kNear);
-  mov(result, FieldOperand(result, Map::kConstructorOrBackPointerOffset));
-  jmp(&loop);
-  bind(&done);
-}
 
 void MacroAssembler::CallStub(CodeStub* stub) {
   DCHECK(AllowThisStubCall(stub));  // Calls are not allowed in some stubs.

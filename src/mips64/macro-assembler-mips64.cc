@@ -4452,19 +4452,6 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
 // ---------------------------------------------------------------------------
 // Support functions.
 
-void MacroAssembler::GetMapConstructor(Register result, Register map,
-                                       Register temp, Register temp2) {
-  Label done, loop;
-  ld(result, FieldMemOperand(map, Map::kConstructorOrBackPointerOffset));
-  bind(&loop);
-  JumpIfSmi(result, &done);
-  GetObjectType(result, temp, temp2);
-  Branch(&done, ne, temp2, Operand(MAP_TYPE));
-  ld(result, FieldMemOperand(result, Map::kConstructorOrBackPointerOffset));
-  Branch(&loop);
-  bind(&done);
-}
-
 void MacroAssembler::GetObjectType(Register object,
                                    Register map,
                                    Register type_reg) {
@@ -5020,9 +5007,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space,
   Sd(scratch, MemOperand(fp, ExitFrameConstants::kSPOffset));
 }
 
-
 void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
-                                    bool restore_context, bool do_return,
+                                    bool do_return,
                                     bool argument_count_is_length) {
   // Optionally restore all double registers.
   if (save_doubles) {
@@ -5042,11 +5028,10 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   Sd(zero_reg, MemOperand(t8));
 
   // Restore current context from top and clear it in debug mode.
-  if (restore_context) {
-    li(t8, Operand(ExternalReference(IsolateAddressId::kContextAddress,
-                                     isolate())));
-    Ld(cp, MemOperand(t8));
-  }
+  li(t8,
+     Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
+  Ld(cp, MemOperand(t8));
+
 #ifdef DEBUG
   li(t8,
      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));

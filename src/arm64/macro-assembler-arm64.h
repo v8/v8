@@ -1892,11 +1892,6 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Support functions.
 
-  // Machine code version of Map::GetConstructor().
-  // |temp| holds |result|'s map when done, and |temp2| its instance type.
-  void GetMapConstructor(Register result, Register map, Register temp,
-                         Register temp2);
-
   // Compare object type for heap object.  heap_object contains a non-Smi
   // whose object type should be compared with the given type.  This both
   // sets the flags and leaves the object type in the type_reg register.
@@ -2018,9 +2013,7 @@ class MacroAssembler : public TurboAssembler {
   //  * The stack pointer is reset to jssp.
   //
   // The stack pointer must be csp on entry.
-  void LeaveExitFrame(bool save_doubles,
-                      const Register& scratch,
-                      bool restore_context);
+  void LeaveExitFrame(bool save_doubles, const Register& scratch);
 
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst) {

@@ -110,7 +110,6 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   DCHECK(!AreAliased(receiver, scratch));
 
   MacroAssembler::PushPopQueue queue(masm);
-  queue.Queue(accessor_holder);
   queue.Queue(receiver);
   // Write the arguments to the stack frame.
   if (is_store) {

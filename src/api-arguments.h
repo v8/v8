@@ -159,7 +159,6 @@ class FunctionCallbackArguments
       T::kReturnValueDefaultValueIndex;
   static const int kIsolateIndex = T::kIsolateIndex;
   static const int kCalleeIndex = T::kCalleeIndex;
-  static const int kContextSaveIndex = T::kContextSaveIndex;
   static const int kNewTargetIndex = T::kNewTargetIndex;
 
   FunctionCallbackArguments(internal::Isolate* isolate, internal::Object* data,
@@ -173,7 +172,6 @@ class FunctionCallbackArguments
     values[T::kCalleeIndex] = callee;
     values[T::kHolderIndex] = holder;
     values[T::kNewTargetIndex] = new_target;
-    values[T::kContextSaveIndex] = isolate->heap()->the_hole_value();
     values[T::kIsolateIndex] = reinterpret_cast<internal::Object*>(isolate);
     // Here the hole is set as default value.
     // It cannot escape into js as it's remove in Call below.

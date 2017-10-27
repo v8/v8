@@ -652,7 +652,7 @@ class MacroAssembler : public TurboAssembler {
 
   // Leave the current exit frame. Expects/provides the return value in
   // register rax (untouched).
-  void LeaveApiExitFrame(bool restore_context);
+  void LeaveApiExitFrame();
 
   // Push and pop the registers that can hold pointers.
   void PushSafepointRegisters() { Pushad(); }
@@ -910,10 +910,6 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Support functions.
 
-  // Machine code version of Map::GetConstructor().
-  // |temp| holds |result|'s map when done.
-  void GetMapConstructor(Register result, Register map, Register temp);
-
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst) {
     LoadNativeContextSlot(Context::GLOBAL_PROXY_INDEX, dst);
@@ -992,7 +988,7 @@ class MacroAssembler : public TurboAssembler {
   // accessible via StackSpaceOperand.
   void EnterExitFrameEpilogue(int arg_stack_space, bool save_doubles);
 
-  void LeaveExitFrameEpilogue(bool restore_context);
+  void LeaveExitFrameEpilogue();
 
   // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
   void InNewSpace(Register object,

@@ -1065,11 +1065,6 @@ class MacroAssembler : public TurboAssembler {
   // ---------------------------------------------------------------------------
   // Support functions.
 
-  // Machine code version of Map::GetConstructor().
-  // |temp| holds |result|'s map when done, and |temp2| its instance type.
-  void GetMapConstructor(Register result, Register map, Register temp,
-                         Register temp2);
-
   // Compare object type for heap object.  heap_object contains a non-Smi
   // whose object type should be compared with the given type.  This both
   // sets the flags and leaves the object type in the type_reg register.
@@ -1187,7 +1182,6 @@ class MacroAssembler : public TurboAssembler {
   // Expect the number of values, pushed prior to the exit frame, to
   // remove in a register (or no_reg, if there is nothing to remove).
   void LeaveExitFrame(bool save_doubles, Register argument_count,
-                      bool restore_context,
                       bool argument_count_is_length = false);
 
   // Load the global proxy from the current context.

@@ -445,7 +445,12 @@ bool AccessInfoFactory::ComputePropertyAccessInfo(
               isolate());
           if (!accessor->IsJSFunction()) {
             CallOptimization optimization(accessor);
+            if (optimization.IsCrossContextLazyAccessorPair(*native_context_,
+                                                            *map)) {
+              return false;
+            }
             if (!optimization.is_simple_api_call()) return false;
+
             CallOptimization::HolderLookup lookup;
             holder =
                 optimization.LookupHolderOfExpectedType(receiver_map, &lookup);

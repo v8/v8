@@ -457,7 +457,7 @@ class MacroAssembler : public TurboAssembler {
 
   // Leave the current exit frame. Expects the return value in
   // register eax (untouched).
-  void LeaveApiExitFrame(bool restore_context);
+  void LeaveApiExitFrame();
 
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst);
@@ -590,13 +590,6 @@ class MacroAssembler : public TurboAssembler {
   void PopStackHandler();
 
   // ---------------------------------------------------------------------------
-  // Support functions.
-
-  // Machine code version of Map::GetConstructor().
-  // |temp| holds |result|'s map when done.
-  void GetMapConstructor(Register result, Register map, Register temp);
-
-  // ---------------------------------------------------------------------------
   // Runtime calls
 
   // Call a code stub.  Generate the code if necessary.
@@ -683,7 +676,7 @@ class MacroAssembler : public TurboAssembler {
   void EnterExitFramePrologue(StackFrame::Type frame_type);
   void EnterExitFrameEpilogue(int argc, bool save_doubles);
 
-  void LeaveExitFrameEpilogue(bool restore_context);
+  void LeaveExitFrameEpilogue();
 
   // Helper for implementing JumpIfNotInNewSpace and JumpIfInNewSpace.
   void InNewSpace(Register object, Register scratch, Condition cc,

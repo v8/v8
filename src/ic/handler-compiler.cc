@@ -110,12 +110,16 @@ Register PropertyHandlerCompiler::Frontend(Handle<Name> name) {
 
 Handle<Code> NamedLoadHandlerCompiler::CompileLoadCallback(
     Handle<Name> name, const CallOptimization& call_optimization,
-    int accessor_index, Handle<Code> slow_stub) {
+    Handle<Context> context, int accessor_index, Handle<Code> slow_stub) {
   DCHECK(call_optimization.is_simple_api_call());
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
     GenerateTailCall(masm(), slow_stub);
   }
   Register holder = Frontend(name);
+
+  Handle<WeakCell> cell = factory()->NewWeakCell(context);
+  __ GetWeakValue(JavaScriptFrame::context_register(), cell);
+
   GenerateApiAccessorCall(masm(), call_optimization, map(), receiver(),
                           scratch2(), false, no_reg, holder, accessor_index);
   return GetCode(name);
@@ -133,8 +137,8 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
 
 Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
     Handle<JSObject> object, Handle<Name> name,
-    const CallOptimization& call_optimization, int accessor_index,
-    Handle<Code> slow_stub) {
+    const CallOptimization& call_optimization, Handle<Context> context,
+    int accessor_index, Handle<Code> slow_stub) {
   if (V8_UNLIKELY(FLAG_runtime_stats)) {
     GenerateTailCall(masm(), slow_stub);
   }
@@ -142,6 +146,10 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
   if (Descriptor::kPassLastArgsOnStack) {
     __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
   }
+
+  Handle<WeakCell> cell = factory()->NewWeakCell(context);
+  __ GetWeakValue(JavaScriptFrame::context_register(), cell);
+
   GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
                           receiver(), scratch2(), true, value(), holder,
                           accessor_index);

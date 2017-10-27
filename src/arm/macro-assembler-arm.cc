@@ -1267,7 +1267,6 @@ int TurboAssembler::ActivationFrameAlignment() {
 
 
 void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
-                                    bool restore_context,
                                     bool argument_count_is_length) {
   ConstantPoolUnavailableScope constant_pool_unavailable(this);
   UseScratchRegisterScope temps(this);
@@ -1288,11 +1287,9 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   str(r3, MemOperand(scratch));
 
   // Restore current context from top and clear it in debug mode.
-  if (restore_context) {
-    mov(scratch, Operand(ExternalReference(IsolateAddressId::kContextAddress,
-                                           isolate())));
-    ldr(cp, MemOperand(scratch));
-  }
+  mov(scratch,
+      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
+  ldr(cp, MemOperand(scratch));
 #ifdef DEBUG
   mov(scratch,
       Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
@@ -1654,19 +1651,6 @@ void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
                                    Label* miss) {
   GetWeakValue(value, cell);
   JumpIfSmi(value, miss);
-}
-
-void MacroAssembler::GetMapConstructor(Register result, Register map,
-                                       Register temp, Register temp2) {
-  Label done, loop;
-  ldr(result, FieldMemOperand(map, Map::kConstructorOrBackPointerOffset));
-  bind(&loop);
-  JumpIfSmi(result, &done);
-  CompareObjectType(result, temp, temp2, MAP_TYPE);
-  b(ne, &done);
-  ldr(result, FieldMemOperand(result, Map::kConstructorOrBackPointerOffset));
-  b(&loop);
-  bind(&done);
 }
 
 void MacroAssembler::CallStub(CodeStub* stub,

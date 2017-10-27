@@ -1631,8 +1631,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   CallInterfaceDescriptor cid = stub.GetCallInterfaceDescriptor();
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), cid,
-      cid.GetStackParameterCount() + argc +
-          2 /* implicit receiver + accessor_holder */,
+      cid.GetStackParameterCount() + argc + 1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
       MachineType::AnyTagged(), 1);
   ApiFunction api_function(v8::ToCData<Address>(call_handler_info->callback()));
@@ -1647,8 +1646,7 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   node->InsertInput(graph()->zone(), 3, holder);
   node->InsertInput(graph()->zone(), 4,
                     jsgraph()->ExternalConstant(function_reference));
-  node->InsertInput(graph()->zone(), 5, holder /* as accessor_holder */);
-  node->ReplaceInput(6, receiver);
+  node->ReplaceInput(5, receiver);
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   return Changed(node);
 }

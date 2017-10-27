@@ -1081,7 +1081,6 @@ int TurboAssembler::ActivationFrameAlignment() {
 }
 
 void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
-                                    bool restore_context,
                                     bool argument_count_is_length) {
   // Optionally restore all double registers.
   if (save_doubles) {
@@ -1098,11 +1097,10 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
   StoreP(MemOperand(ip), Operand(0, kRelocInfo_NONEPTR), r0);
 
   // Restore current context from top and clear it in debug mode.
-  if (restore_context) {
-    mov(ip, Operand(ExternalReference(IsolateAddressId::kContextAddress,
-                                      isolate())));
-    LoadP(cp, MemOperand(ip));
-  }
+  mov(ip,
+      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
+  LoadP(cp, MemOperand(ip));
+
 #ifdef DEBUG
   mov(ip,
       Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
@@ -1457,19 +1455,6 @@ void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
                                    Label* miss) {
   GetWeakValue(value, cell);
   JumpIfSmi(value, miss);
-}
-
-void MacroAssembler::GetMapConstructor(Register result, Register map,
-                                       Register temp, Register temp2) {
-  Label done, loop;
-  LoadP(result, FieldMemOperand(map, Map::kConstructorOrBackPointerOffset));
-  bind(&loop);
-  JumpIfSmi(result, &done);
-  CompareObjectType(result, temp, temp2, MAP_TYPE);
-  bne(&done);
-  LoadP(result, FieldMemOperand(result, Map::kConstructorOrBackPointerOffset));
-  b(&loop);
-  bind(&done);
 }
 
 void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {

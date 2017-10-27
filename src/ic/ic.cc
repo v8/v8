@@ -948,15 +948,17 @@ Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup) {
   DCHECK(accessors->IsAccessorPair());
   DCHECK(holder->HasFastProperties());
   DCHECK(!GetHostFunction()->shared()->HasBreakInfo());
-  Handle<Object> getter(Handle<AccessorPair>::cast(accessors)->getter(),
-                        isolate());
+  Handle<Object> getter(AccessorPair::cast(*accessors)->getter(), isolate());
+
   CallOptimization call_optimization(getter);
   NamedLoadHandlerCompiler compiler(isolate(), map, holder);
   DCHECK(call_optimization.is_simple_api_call());
   TRACE_HANDLER_STATS(isolate(), LoadIC_LoadCallback);
   int index = lookup->GetAccessorIndex();
   Handle<Code> code = compiler.CompileLoadCallback(
-      lookup->name(), call_optimization, index, slow_stub());
+      lookup->name(), call_optimization,
+      handle(call_optimization.GetAccessorContext(holder->map())), index,
+      slow_stub());
   return code;
 }
 
@@ -1448,6 +1450,10 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
           TRACE_GENERIC_IC("incompatible receiver");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return slow_stub();
+        } else if (setter->IsFunctionTemplateInfo()) {
+          TRACE_GENERIC_IC("setter non-simple template");
+          TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
+          return slow_stub();
         }
         break;  // Custom-compiled handler.
       }
@@ -1542,8 +1548,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup) {
   }
 
   DCHECK(accessors->IsAccessorPair());
-  Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
-                        isolate());
+  Handle<Object> setter(AccessorPair::cast(*accessors)->setter(), isolate());
   DCHECK(setter->IsJSFunction() || setter->IsFunctionTemplateInfo());
   CallOptimization call_optimization(setter);
   NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
@@ -1551,8 +1556,9 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup) {
     DCHECK(call_optimization.IsCompatibleReceiver(receiver, holder));
     TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
     Handle<Code> code = compiler.CompileStoreCallback(
-        receiver, lookup->name(), call_optimization, lookup->GetAccessorIndex(),
-        slow_stub());
+        receiver, lookup->name(), call_optimization,
+        handle(call_optimization.GetAccessorContext(holder->map())),
+        lookup->GetAccessorIndex(), slow_stub());
     return code;
   }
   TRACE_HANDLER_STATS(isolate(), StoreIC_StoreViaSetter);

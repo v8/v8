@@ -117,7 +117,6 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
                           kPointerSize));
   }
   // Write the receiver and arguments to stack frame.
-  __ push(accessor_holder);
   __ push(receiver);
   if (is_store) {
     DCHECK(!AreAliased(receiver, scratch, store_parameter));

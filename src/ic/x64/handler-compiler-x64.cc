@@ -94,8 +94,6 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   DCHECK(optimization.is_simple_api_call());
 
   __ PopReturnAddressTo(scratch);
-  // accessor_holder
-  __ Push(accessor_holder);
   // receiver
   __ Push(receiver);
   // Write the arguments to stack frame.

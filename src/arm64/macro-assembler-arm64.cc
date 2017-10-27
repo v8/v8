@@ -2607,8 +2607,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
 
 // Leave the current exit frame.
 void MacroAssembler::LeaveExitFrame(bool restore_doubles,
-                                    const Register& scratch,
-                                    bool restore_context) {
+                                    const Register& scratch) {
   DCHECK(csp.Is(StackPointer()));
 
   if (restore_doubles) {
@@ -2616,11 +2615,9 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
   }
 
   // Restore the context pointer from the top frame.
-  if (restore_context) {
-    Mov(scratch, Operand(ExternalReference(IsolateAddressId::kContextAddress,
-                                           isolate())));
-    Ldr(cp, MemOperand(scratch));
-  }
+  Mov(scratch,
+      Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
+  Ldr(cp, MemOperand(scratch));
 
   if (emit_debug_code()) {
     // Also emit debug code to clear the cp in the top frame.
@@ -2719,19 +2716,6 @@ void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
   Ldrb(result, FieldMemOperand(map, Map::kBitField2Offset));
   // Retrieve elements_kind from bit field 2.
   DecodeField<Map::ElementsKindBits>(result);
-}
-
-void MacroAssembler::GetMapConstructor(Register result, Register map,
-                                       Register temp, Register temp2) {
-  Label done, loop;
-  Ldr(result, FieldMemOperand(map, Map::kConstructorOrBackPointerOffset));
-  Bind(&loop);
-  JumpIfSmi(result, &done);
-  CompareObjectType(result, temp, temp2, MAP_TYPE);
-  B(ne, &done);
-  Ldr(result, FieldMemOperand(result, Map::kConstructorOrBackPointerOffset));
-  B(&loop);
-  Bind(&done);
 }
 
 void MacroAssembler::CompareRoot(const Register& obj,

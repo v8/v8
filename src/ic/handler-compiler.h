@@ -120,7 +120,8 @@ class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
 
   Handle<Code> CompileLoadCallback(Handle<Name> name,
                                    const CallOptimization& call_optimization,
-                                   int accessor_index, Handle<Code> slow_stub);
+                                   Handle<Context> context, int accessor_index,
+                                   Handle<Code> slow_stub);
 
   static void GenerateLoadViaGetterForDeopt(MacroAssembler* masm);
 
@@ -159,7 +160,8 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                     LanguageMode language_mode);
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     const CallOptimization& call_optimization,
-                                    int accessor_index, Handle<Code> slow_stub);
+                                    Handle<Context> context, int accessor_index,
+                                    Handle<Code> slow_stub);
   Handle<Code> CompileStoreViaSetter(Handle<JSObject> object, Handle<Name> name,
                                      int accessor_index,
                                      int expected_arguments);
