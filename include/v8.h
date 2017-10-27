@@ -3709,8 +3709,6 @@ class FunctionCallbackInfo {
   V8_INLINE int Length() const;
   /** Accessor for the available arguments. */
   V8_INLINE Local<Value> operator[](int i) const;
-  V8_INLINE V8_DEPRECATED("Use Data() to explicitly pass Callee instead",
-                          Local<Function> Callee() const);
   /** Returns the receiver. This corresponds to the "this" value. */
   V8_INLINE Local<Object> This() const;
   /**
@@ -3735,7 +3733,7 @@ class FunctionCallbackInfo {
   /** The ReturnValue for the call. */
   V8_INLINE ReturnValue<T> GetReturnValue() const;
   // This shouldn't be public, but the arm compiler needs it.
-  static const int kArgsLength = 7;
+  static const int kArgsLength = 6;
 
  protected:
   friend class internal::FunctionCallbackArguments;
@@ -3746,8 +3744,7 @@ class FunctionCallbackInfo {
   static const int kReturnValueDefaultValueIndex = 2;
   static const int kReturnValueIndex = 3;
   static const int kDataIndex = 4;
-  static const int kCalleeIndex = 5;
-  static const int kNewTargetIndex = 6;
+  static const int kNewTargetIndex = 5;
 
   V8_INLINE FunctionCallbackInfo(internal::Object** implicit_args,
                                  internal::Object** values, int length);
@@ -9573,13 +9570,6 @@ template<typename T>
 Local<Value> FunctionCallbackInfo<T>::operator[](int i) const {
   if (i < 0 || length_ <= i) return Local<Value>(*Undefined(GetIsolate()));
   return Local<Value>(reinterpret_cast<Value*>(values_ - i));
-}
-
-
-template<typename T>
-Local<Function> FunctionCallbackInfo<T>::Callee() const {
-  return Local<Function>(reinterpret_cast<Function*>(
-      &implicit_args_[kCalleeIndex]));
 }
 
 

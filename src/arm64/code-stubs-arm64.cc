@@ -1710,9 +1710,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   typedef FunctionCallbackArguments FCA;
 
-  STATIC_ASSERT(FCA::kArgsLength == 7);
-  STATIC_ASSERT(FCA::kNewTargetIndex == 6);
-  STATIC_ASSERT(FCA::kCalleeIndex == 5);
+  STATIC_ASSERT(FCA::kArgsLength == 6);
+  STATIC_ASSERT(FCA::kNewTargetIndex == 5);
   STATIC_ASSERT(FCA::kDataIndex == 4);
   STATIC_ASSERT(FCA::kReturnValueOffset == 3);
   STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
@@ -1722,8 +1721,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   Register undef = x7;
   __ LoadRoot(undef, Heap::kUndefinedValueRootIndex);
 
-  // Push alignment filler, new target, callee and call data.
-  __ Push(undef, undef, callee, call_data);
+  // Push new target, call data.
+  __ Push(undef, call_data);
 
   Register isolate_reg = x5;
   __ Mov(isolate_reg, ExternalReference::isolate_address(masm->isolate()));
@@ -1758,9 +1757,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // Arguments is after the return address.
   __ SlotAddress(x0, 1);
   // FunctionCallbackInfo::implicit_args_ and FunctionCallbackInfo::values_
-  // + 1 to account for the alignment filler.
-  __ Add(x10, args,
-         Operand((FCA::kArgsLength - 1 + argc() + 1) * kPointerSize));
+  __ Add(x10, args, Operand((FCA::kArgsLength - 1 + argc()) * kPointerSize));
   __ Stp(args, x10, MemOperand(x0, 0 * kPointerSize));
   // FunctionCallbackInfo::length_ = argc
   __ Mov(x10, argc());
@@ -1780,10 +1777,10 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
   // The number of arguments might be odd, but will be padded when calling the
   // stub. We do not round up stack_space to account for odd argc here, this
-  // will be done in CallApiFunctionAndReturn. The current frame needs to be
-  // aligned here, which is why we push a filler before FCA.
-  const int stack_space = (argc() + 1) + FCA::kArgsLength + 1;
+  // will be done in CallApiFunctionAndReturn.
+  const int stack_space = (argc() + 1) + FCA::kArgsLength;
 
+  // The current frame needs to be aligned.
   DCHECK_EQ((stack_space - (argc() + 1)) % 2, 0);
   const int spill_offset = 1 + kApiStackSpace;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, stack_space,

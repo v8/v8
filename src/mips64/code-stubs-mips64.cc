@@ -1595,9 +1595,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   typedef FunctionCallbackArguments FCA;
 
-  STATIC_ASSERT(FCA::kArgsLength == 7);
-  STATIC_ASSERT(FCA::kNewTargetIndex == 6);
-  STATIC_ASSERT(FCA::kCalleeIndex == 5);
+  STATIC_ASSERT(FCA::kArgsLength == 6);
+  STATIC_ASSERT(FCA::kNewTargetIndex == 5);
   STATIC_ASSERT(FCA::kDataIndex == 4);
   STATIC_ASSERT(FCA::kReturnValueOffset == 3);
   STATIC_ASSERT(FCA::kReturnValueDefaultValueIndex == 2);
@@ -1607,8 +1606,8 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // new target
   __ PushRoot(Heap::kUndefinedValueRootIndex);
 
-  // callee and call data.
-  __ Push(callee, call_data);
+  // call data.
+  __ Push(call_data);
 
   Register scratch = call_data;
   __ LoadRoot(scratch, Heap::kUndefinedValueRootIndex);
