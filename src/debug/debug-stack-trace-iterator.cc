@@ -29,7 +29,6 @@ DebugStackTraceIterator::DebugStackTraceIterator(Isolate* isolate, int index)
       is_top_frame_(true) {
   if (iterator_.done()) return;
   std::vector<FrameSummary> frames;
-  frames.reserve(FLAG_max_inlining_levels + 1);
   iterator_.frame()->Summarize(&frames);
   inlined_frame_index_ = static_cast<int>(frames.size());
   Advance();
@@ -61,7 +60,6 @@ void DebugStackTraceIterator::Advance() {
     iterator_.Advance();
     if (iterator_.done()) break;
     std::vector<FrameSummary> frames;
-    frames.reserve(FLAG_max_inlining_levels + 1);
     iterator_.frame()->Summarize(&frames);
     inlined_frame_index_ = static_cast<int>(frames.size());
   }
