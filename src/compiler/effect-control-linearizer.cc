@@ -1433,16 +1433,12 @@ Node* EffectControlLinearizer::LowerCheckSeqString(Node* node,
   Node* value_instance_type =
       __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
 
-  Node* is_string = __ Uint32LessThan(value_instance_type,
-                                      __ Uint32Constant(FIRST_NONSTRING_TYPE));
-  Node* is_sequential =
-      __ Word32Equal(__ Word32And(value_instance_type,
-                                  __ Int32Constant(kStringRepresentationMask)),
-                     __ Int32Constant(kSeqStringTag));
-  Node* is_sequential_string = __ Word32And(is_string, is_sequential);
-
-  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, is_sequential_string,
-                     frame_state);
+  Node* check = __ Word32Equal(
+      __ Word32And(
+          value_instance_type,
+          __ Int32Constant(kStringRepresentationMask | kIsNotStringMask)),
+      __ Int32Constant(kSeqStringTag | kStringTag));
+  __ DeoptimizeIfNot(DeoptimizeReason::kWrongInstanceType, check, frame_state);
   return value;
 }
 
