@@ -1342,7 +1342,7 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
   Map::EnsureDescriptorSlack(initial_map, 1);
 
   {
-    Handle<AccessorInfo> info = Accessors::ErrorStackInfo(isolate);
+    Handle<AccessorInfo> info = factory->error_stack_accessor();
     Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                 info, DONT_ENUM);
     initial_map->AppendDescriptor(&d);
@@ -1617,9 +1617,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         DONT_ENUM | DONT_DELETE);
 
     {  // Add length.
-      Handle<AccessorInfo> info = Accessors::ArrayLengthInfo(isolate);
-      Descriptor d =
-          Descriptor::AccessorConstant(factory->length_string(), info, attribs);
+      Descriptor d = Descriptor::AccessorConstant(
+          factory->length_string(), factory->array_length_accessor(), attribs);
       initial_map->AppendDescriptor(&d);
     }
 
@@ -1927,9 +1926,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         DONT_ENUM | DONT_DELETE | READ_ONLY);
 
     {  // Add length.
-      Handle<AccessorInfo> info = Accessors::StringLengthInfo(isolate);
-      Descriptor d =
-          Descriptor::AccessorConstant(factory->length_string(), info, attribs);
+      Descriptor d = Descriptor::AccessorConstant(
+          factory->length_string(), factory->string_length_accessor(), attribs);
       string_map->AppendDescriptor(&d);
     }
 
@@ -3409,16 +3407,16 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Map::EnsureDescriptorSlack(map, 2);
 
     {  // length
-      Handle<AccessorInfo> info = Accessors::BoundFunctionLengthInfo(isolate);
-      Descriptor d = Descriptor::AccessorConstant(factory->length_string(),
-                                                  info, roc_attribs);
+      Descriptor d = Descriptor::AccessorConstant(
+          factory->length_string(), factory->bound_function_length_accessor(),
+          roc_attribs);
       map->AppendDescriptor(&d);
     }
 
     {  // name
-      Handle<AccessorInfo> info = Accessors::BoundFunctionNameInfo(isolate);
-      Descriptor d = Descriptor::AccessorConstant(factory->name_string(), info,
-                                                  roc_attribs);
+      Descriptor d = Descriptor::AccessorConstant(
+          factory->name_string(), factory->bound_function_name_accessor(),
+          roc_attribs);
       map->AppendDescriptor(&d);
     }
     native_context()->set_bound_function_without_constructor_map(*map);
@@ -3983,63 +3981,63 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
     {  // column_offset
-      Handle<AccessorInfo> info = Accessors::ScriptColumnOffsetInfo(isolate);
+      Handle<AccessorInfo> info = factory->script_column_offset_accessor();
       Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                   info, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     {  // id
-      Handle<AccessorInfo> info = Accessors::ScriptIdInfo(isolate);
+      Handle<AccessorInfo> info = factory->script_id_accessor();
       Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                   info, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     {  // name
-      Handle<AccessorInfo> info = Accessors::ScriptNameInfo(isolate);
+      Handle<AccessorInfo> info = factory->script_name_accessor();
       Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                   info, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     {  // line_offset
-      Handle<AccessorInfo> info = Accessors::ScriptLineOffsetInfo(isolate);
+      Handle<AccessorInfo> info = factory->script_line_offset_accessor();
       Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                   info, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     {  // source
-      Handle<AccessorInfo> info = Accessors::ScriptSourceInfo(isolate);
+      Handle<AccessorInfo> info = factory->script_source_accessor();
       Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                   info, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     {  // type
-      Handle<AccessorInfo> info = Accessors::ScriptTypeInfo(isolate);
+      Handle<AccessorInfo> info = factory->script_type_accessor();
       Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                   info, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     {  // compilation_type
-      Handle<AccessorInfo> info = Accessors::ScriptCompilationTypeInfo(isolate);
+      Handle<AccessorInfo> info = factory->script_compilation_type_accessor();
       Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                   info, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     {  // context_data
-      Handle<AccessorInfo> info = Accessors::ScriptContextDataInfo(isolate);
+      Handle<AccessorInfo> info = factory->script_context_data_accessor();
       Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                   info, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     {  // eval_from_script
-      Handle<AccessorInfo> info = Accessors::ScriptEvalFromScriptInfo(isolate);
+      Handle<AccessorInfo> info = factory->script_eval_from_script_accessor();
       Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                   info, attribs);
       script_map->AppendDescriptor(&d);
@@ -4047,7 +4045,7 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
 
     {  // eval_from_script_position
       Handle<AccessorInfo> info =
-          Accessors::ScriptEvalFromScriptPositionInfo(isolate);
+          factory->script_eval_from_script_position_accessor();
       Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                   info, attribs);
       script_map->AppendDescriptor(&d);
@@ -4055,22 +4053,21 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
 
     {  // eval_from_function_name
       Handle<AccessorInfo> info =
-          Accessors::ScriptEvalFromFunctionNameInfo(isolate);
+          factory->script_eval_from_function_name_accessor();
       Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                   info, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     {  // source_url
-      Handle<AccessorInfo> info = Accessors::ScriptSourceUrlInfo(isolate);
+      Handle<AccessorInfo> info = factory->script_source_url_accessor();
       Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                   info, attribs);
       script_map->AppendDescriptor(&d);
     }
 
     {  // source_mapping_url
-      Handle<AccessorInfo> info =
-          Accessors::ScriptSourceMappingUrlInfo(isolate);
+      Handle<AccessorInfo> info = factory->script_source_mapping_url_accessor();
       Descriptor d = Descriptor::AccessorConstant(handle(info->name(), isolate),
                                                   info, attribs);
       script_map->AppendDescriptor(&d);
@@ -4510,9 +4507,9 @@ Handle<JSFunction> Genesis::InstallInternalArray(Handle<JSObject> target,
       DONT_ENUM | DONT_DELETE);
 
   {  // Add length.
-    Handle<AccessorInfo> info = Accessors::ArrayLengthInfo(isolate());
-    Descriptor d =
-        Descriptor::AccessorConstant(factory()->length_string(), info, attribs);
+    Descriptor d = Descriptor::AccessorConstant(
+        factory()->length_string(), factory()->array_length_accessor(),
+        attribs);
     initial_map->AppendDescriptor(&d);
   }
 
@@ -4823,7 +4820,7 @@ bool Genesis::InstallNatives(GlobalContextType context_type) {
   {
     PropertyAttributes attribs = DONT_ENUM;
     Handle<AccessorInfo> arguments_iterator =
-        Accessors::ArgumentsIteratorInfo(isolate());
+        factory()->arguments_iterator_accessor();
     {
       Descriptor d = Descriptor::AccessorConstant(factory()->iterator_symbol(),
                                                   arguments_iterator, attribs);

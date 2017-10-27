@@ -13,6 +13,7 @@
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
 #include "include/v8.h"
+#include "src/accessors.h"
 #include "src/allocation.h"
 #include "src/assert-scope.h"
 #include "src/base/atomic-utils.h"
@@ -551,11 +552,16 @@ class Heap {
                     WELL_KNOWN_SYMBOL_LIST(SYMBOL_INDEX_DECLARATION)
 #undef SYMBOL_INDEX_DECLARATION
 
+#define ACCESSOR_INDEX_DECLARATION(accessor_name, AccessorName) \
+  k##AccessorName##AccessorRootIndex,
+                        ACCESSOR_INFO_LIST(ACCESSOR_INDEX_DECLARATION)
+#undef ACCESSOR_INDEX_DECLARATION
+
 // Utility type maps
 #define DECLARE_STRUCT_MAP(NAME, Name, name) k##Name##MapRootIndex,
-                        STRUCT_LIST(DECLARE_STRUCT_MAP)
+                            STRUCT_LIST(DECLARE_STRUCT_MAP)
 #undef DECLARE_STRUCT_MAP
-                            kStringTableRootIndex,
+                                kStringTableRootIndex,
 
 #define ROOT_INDEX_DECLARATION(type, name, camel_name) k##camel_name##RootIndex,
     SMI_ROOT_LIST(ROOT_INDEX_DECLARATION)
@@ -797,7 +803,7 @@ class Heap {
   // Support for the API.
   //
 
-  bool CreateApiObjects();
+  void CreateApiObjects();
 
   // Implements the corresponding V8 API function.
   bool IdleNotification(double deadline_in_seconds);
@@ -1019,6 +1025,11 @@ class Heap {
   PUBLIC_SYMBOL_LIST(SYMBOL_ACCESSOR)
   WELL_KNOWN_SYMBOL_LIST(SYMBOL_ACCESSOR)
 #undef SYMBOL_ACCESSOR
+
+#define ACCESSOR_INFO_ACCESSOR(accessor_name, AccessorName) \
+  inline AccessorInfo* accessor_name##_accessor();
+  ACCESSOR_INFO_LIST(ACCESSOR_INFO_ACCESSOR)
+#undef ACCESSOR_INFO_ACCESSOR
 
   Object* root(RootListIndex index) { return roots_[index]; }
   Handle<Object> root_handle(RootListIndex index) {
@@ -1726,6 +1737,7 @@ class Heap {
                                    AllocationSite* allocation_site);
 
   bool CreateInitialMaps();
+  void CreateInternalAccessorInfoObjects();
   void CreateInitialObjects();
 
   // These five Create*EntryStub functions are here and forced to not be inlined

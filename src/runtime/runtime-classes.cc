@@ -205,8 +205,7 @@ void InstallClassNameAccessor(Isolate* isolate, Handle<JSObject> object) {
   // Cannot fail since this should only be called when creating an object
   // literal.
   CHECK(!JSObject::SetAccessor(
-             object, name, Accessors::FunctionNameInfo(object->GetIsolate()),
-             attrs)
+             object, name, isolate->factory()->function_name_accessor(), attrs)
              .is_null());
 }
 }  // anonymous namespace

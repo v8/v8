@@ -4,6 +4,7 @@
 
 #include "src/setup-isolate.h"
 
+#include "src/accessors.h"
 #include "src/ast/context-slot-cache.h"
 #include "src/compilation-cache.h"
 #include "src/contexts.h"
@@ -35,10 +36,11 @@ bool SetupIsolateDelegate::SetupHeapInternal(Heap* heap) {
 bool Heap::CreateHeapObjects() {
   // Create initial maps.
   if (!CreateInitialMaps()) return false;
-  if (!CreateApiObjects()) return false;
+  CreateApiObjects();
 
   // Create initial objects
   CreateInitialObjects();
+  CreateInternalAccessorInfoObjects();
   CHECK_EQ(0u, gc_count_);
 
   set_native_contexts_list(undefined_value());
@@ -363,18 +365,16 @@ bool Heap::CreateInitialMaps() {
   return true;
 }
 
-bool Heap::CreateApiObjects() {
-  HandleScope scope(isolate());
-  set_message_listeners(*TemplateList::New(isolate(), 2));
-  HeapObject* obj = nullptr;
-  {
-    AllocationResult allocation = AllocateStruct(INTERCEPTOR_INFO_TYPE);
-    if (!allocation.To(&obj)) return false;
-  }
-  InterceptorInfo* info = InterceptorInfo::cast(obj);
+void Heap::CreateApiObjects() {
+  Isolate* isolate = this->isolate();
+  HandleScope scope(isolate);
+
+  set_message_listeners(*TemplateList::New(isolate, 2));
+
+  Handle<InterceptorInfo> info = Handle<InterceptorInfo>::cast(
+      isolate->factory()->NewStruct(INTERCEPTOR_INFO_TYPE, TENURED));
   info->set_flags(0);
-  set_noop_interceptor_info(info);
-  return true;
+  set_noop_interceptor_info(*info);
 }
 
 void Heap::CreateInitialObjects() {
@@ -628,6 +628,18 @@ void Heap::CreateInitialObjects() {
 
   // Initialize compilation cache.
   isolate_->compilation_cache()->Clear();
+}
+
+void Heap::CreateInternalAccessorInfoObjects() {
+  Isolate* isolate = this->isolate();
+  HandleScope scope(isolate);
+  Handle<AccessorInfo> acessor_info;
+
+#define INIT_ACCESSOR_INFO(accessor_name, AccessorName)        \
+  acessor_info = Accessors::Make##AccessorName##Info(isolate); \
+  roots_[k##AccessorName##AccessorRootIndex] = *acessor_info;
+  ACCESSOR_INFO_LIST(INIT_ACCESSOR_INFO)
+#undef INIT_ACCESSOR_INFO
 }
 
 }  // namespace internal

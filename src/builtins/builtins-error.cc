@@ -60,7 +60,7 @@ BUILTIN(ErrorCaptureStackTrace) {
 
   // Add the stack accessors.
 
-  Handle<AccessorInfo> error_stack = Accessors::ErrorStackInfo(isolate);
+  Handle<AccessorInfo> error_stack = isolate->factory()->error_stack_accessor();
   Handle<Name> name(Name::cast(error_stack->name()), isolate);
 
   // Explicitly check for frozen objects. Other access checks are performed by

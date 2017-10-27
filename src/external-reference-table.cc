@@ -392,8 +392,9 @@ void ExternalReferenceTable::AddAccessors(Isolate* isolate) {
   };
 
   static const AccessorRefTable getters[] = {
-#define ACCESSOR_INFO_DECLARATION(name) \
-  {FUNCTION_ADDR(&Accessors::name##Getter), "Accessors::" #name "Getter"},
+#define ACCESSOR_INFO_DECLARATION(accessor_name, AccessorName) \
+  {FUNCTION_ADDR(&Accessors::AccessorName##Getter),            \
+   "Accessors::" #AccessorName "Getter"}, /* NOLINT(whitespace/indent) */
       ACCESSOR_INFO_LIST(ACCESSOR_INFO_DECLARATION)
 #undef ACCESSOR_INFO_DECLARATION
   };
@@ -401,7 +402,7 @@ void ExternalReferenceTable::AddAccessors(Isolate* isolate) {
 #define ACCESSOR_SETTER_DECLARATION(name) \
   { FUNCTION_ADDR(&Accessors::name), "Accessors::" #name},
       ACCESSOR_SETTER_LIST(ACCESSOR_SETTER_DECLARATION)
-#undef ACCESSOR_INFO_DECLARATION
+#undef ACCESSOR_SETTER_DECLARATION
   };
 
   for (unsigned i = 0; i < arraysize(getters); ++i) {
@@ -449,3 +450,5 @@ void ExternalReferenceTable::AddStubCache(Isolate* isolate) {
 
 }  // namespace internal
 }  // namespace v8
+
+#undef SYMBOLIZE_FUNCTION
