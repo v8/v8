@@ -483,6 +483,63 @@ MaybeHandle<String> BigInt::ToString(Handle<BigInt> bigint, int radix) {
   return ToStringGeneric(bigint, radix);
 }
 
+namespace {
+
+bool IsSafeInteger(Handle<HeapNumber> number) {
+  double value = number->value();
+  if (std::isnan(value) || std::isinf(value)) return false;
+
+  // Let integer be ! ToInteger(value).
+  // If ! SameValueZero(integer, value) is false, return false.
+  if (DoubleToInteger(value) != value) return false;
+
+  return std::abs(value) <= kMaxSafeInteger;
+}
+
+}  // anonymous namespace
+
+MaybeHandle<BigInt> BigInt::FromNumber(Isolate* isolate,
+                                       Handle<Object> number) {
+  DCHECK(number->IsNumber());
+  if (number->IsSmi()) {
+    return isolate->factory()->NewBigIntFromInt(Smi::cast(*number)->value());
+  }
+  if (!IsSafeInteger(Handle<HeapNumber>::cast(number))) {
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kBigIntFromNumber, number),
+                    BigInt);
+  }
+  return isolate->factory()->NewBigIntFromSafeInteger(
+      Handle<HeapNumber>::cast(number)->value());
+}
+
+MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
+  if (obj->IsJSReceiver()) {
+    ASSIGN_RETURN_ON_EXCEPTION(
+        isolate, obj,
+        JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(obj),
+                                ToPrimitiveHint::kNumber),
+        BigInt);
+  }
+
+  if (obj->IsBoolean()) {
+    return isolate->factory()->NewBigIntFromInt(obj->BooleanValue());
+  }
+  if (obj->IsBigInt()) {
+    return Handle<BigInt>::cast(obj);
+  }
+  if (obj->IsString()) {
+    Handle<BigInt> n;
+    if (StringToBigInt(isolate, Handle<String>::cast(obj)).ToHandle(&n)) {
+      return n;
+    }
+    // ... else fall through.
+  }
+
+  THROW_NEW_ERROR(
+      isolate, NewSyntaxError(MessageTemplate::kBigIntFromObject, obj), BigInt);
+}
+
 void BigInt::Initialize(int length, bool zero_initialize) {
   set_length(length);
   set_sign(false);

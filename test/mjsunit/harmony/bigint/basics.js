@@ -20,6 +20,34 @@ const six = BigInt(6);
   assertSame(BigInt, BigInt.prototype.constructor)
 }
 
+// ToBigInt, NumberToBigInt, BigInt
+{
+  assertThrows(() => BigInt(undefined), SyntaxError);
+  assertThrows(() => BigInt(null), SyntaxError);
+  assertThrows(() => BigInt({}), SyntaxError);
+  assertThrows(() => BigInt("foo"), SyntaxError);
+}{
+  assertSame(BigInt(true), 1n);
+  assertSame(BigInt(false), 0n);
+  assertSame(BigInt(""), 0n);
+  assertSame(BigInt(" 42"), 42n);
+  assertSame(BigInt(-0), 0n);
+  assertSame(BigInt(42), 42n);
+  assertSame(BigInt(42n), 42n);
+  assertSame(BigInt(Object(42n)), 42n);
+  assertSame(BigInt(2**53 - 1), 9007199254740991n);
+  assertSame(BigInt(Object(2**53 - 1)), 9007199254740991n);
+  assertSame(BigInt([]), 0n);
+}{
+  assertThrows(() => BigInt(NaN), RangeError);
+  assertThrows(() => BigInt(-Infinity), RangeError);
+  assertThrows(() => BigInt(+Infinity), RangeError);
+  assertThrows(() => BigInt(4.00000001), RangeError);
+  assertThrows(() => BigInt(Object(4.00000001)), RangeError);
+  assertThrows(() => BigInt(2**53), RangeError);
+  assertThrows(() => BigInt(2**1000), RangeError);
+}
+
 // BigInt.prototype[Symbol.toStringTag]
 {
   const toStringTag = Object.getOwnPropertyDescriptor(

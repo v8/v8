@@ -15,12 +15,18 @@ BUILTIN(BigIntConstructor) {
   HandleScope scope(isolate);
   Handle<Object> value = args.atOrUndefined(isolate, 1);
 
-  // TODO(jkummerow): Implement properly.
+  if (value->IsJSReceiver()) {
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, value,
+        JSReceiver::ToPrimitive(Handle<JSReceiver>::cast(value),
+                                ToPrimitiveHint::kNumber));
+  }
 
-  // Dummy implementation only takes Smi args.
-  if (!value->IsSmi()) return isolate->heap()->undefined_value();
-  int num = Smi::ToInt(*value);
-  return *isolate->factory()->NewBigIntFromInt(num);
+  if (value->IsNumber()) {
+    RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromNumber(isolate, value));
+  } else {
+    RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromObject(isolate, value));
+  }
 }
 
 BUILTIN(BigIntConstructor_ConstructStub) {

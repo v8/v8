@@ -74,6 +74,13 @@ class V8_EXPORT_PRIVATE BigInt : public HeapObject {
 
   static MaybeHandle<String> ToString(Handle<BigInt> bigint, int radix = 10);
 
+  // ECMAScript's NumberToBigInt
+  static MaybeHandle<BigInt> FromNumber(Isolate* isolate,
+                                        Handle<Object> number);
+
+  // ECMAScript's ToBigInt (throws for Number input)
+  static MaybeHandle<BigInt> FromObject(Isolate* isolate, Handle<Object> obj);
+
   // The maximum length that the current implementation supports would be
   // kMaxInt / kDigitBits. However, we use a lower limit for now, because
   // raising it later is easier than lowering it.

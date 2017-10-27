@@ -1423,6 +1423,29 @@ Handle<BigInt> Factory::NewBigIntRaw(int length, PretenureFlag pretenure) {
       BigInt);
 }
 
+Handle<BigInt> Factory::NewBigIntFromSafeInteger(double value,
+                                                 PretenureFlag pretenure) {
+  if (value == 0) return NewBigInt(0);
+
+  uint64_t absolute = std::abs(value);
+
+#if V8_TARGET_ARCH_64_BIT
+  static_assert(sizeof(BigInt::digit_t) == sizeof(uint64_t),
+                "unexpected BigInt digit size");
+  Handle<BigInt> result = NewBigIntRaw(1);
+  result->set_digit(0, absolute);
+#else
+  static_assert(sizeof(BigInt::digit_t) == sizeof(uint32_t),
+                "unexpected BigInt digit size");
+  Handle<BigInt> result = NewBigIntRaw(2);
+  result->set_digit(0, absolute);
+  result->set_digit(1, absolute >> 32);
+#endif
+
+  result->set_sign(value < 0);  // Treats -0 like 0.
+  return result;
+}
+
 Handle<BigInt> Factory::NewBigIntFromInt(int value, PretenureFlag pretenure) {
   if (value == 0) return NewBigInt(0);
   Handle<BigInt> result = NewBigIntRaw(1);

@@ -491,6 +491,8 @@ class V8_EXPORT_PRIVATE Factory final {
                               PretenureFlag pretenure = NOT_TENURED);
   Handle<BigInt> NewBigIntFromInt(int value,
                                   PretenureFlag pretenure = NOT_TENURED);
+  Handle<BigInt> NewBigIntFromSafeInteger(
+      double value, PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSWeakMap> NewJSWeakMap();
 
