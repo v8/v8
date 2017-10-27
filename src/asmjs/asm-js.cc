@@ -145,12 +145,11 @@ void ReportCompilationSuccess(Handle<Script> script, int position,
 }
 
 // Hook to report failed execution of {AsmJs::CompileAsmViaWasm} phase.
-void ReportCompilationFailure(Handle<Script> script, int position,
+void ReportCompilationFailure(ParseInfo* parse_info, int position,
                               const char* reason) {
   if (FLAG_suppress_asm_messages) return;
-  Vector<const char> text = CStrVector(reason);
-  Report(script, position, text, MessageTemplate::kAsmJsInvalid,
-         v8::Isolate::kMessageWarning);
+  parse_info->pending_error_handler()->ReportWarningAt(
+      position, position, MessageTemplate::kAsmJsInvalid, reason);
 }
 
 // Hook to report successful execution of {AsmJs::InstantiateAsmWasm} phase.
@@ -240,17 +239,11 @@ CompilationJob::Status AsmJsCompilationJob::ExecuteJobImpl() {
   stream->Seek(compilation_info()->literal()->start_position());
   wasm::AsmJsParser parser(&translate_zone, stack_limit(), stream);
   if (!parser.Run()) {
-    // TODO(rmcilroy): Temporarily allow heap access here until we have a
-    // mechanism for delaying pending messages.
-    DCHECK(
-        ThreadId::Current().Equals(compilation_info()->isolate()->thread_id()));
-    AllowHeapAllocation allow_allocation;
-    AllowHandleAllocation allow_handles;
-    allow_deref.emplace();
-
     DCHECK(!compilation_info()->isolate()->has_pending_exception());
-    ReportCompilationFailure(parse_info()->script(), parser.failure_location(),
-                             parser.failure_message());
+    if (!FLAG_suppress_asm_messages) {
+      ReportCompilationFailure(parse_info(), parser.failure_location(),
+                               parser.failure_message());
+    }
     return FAILED;
   }
   module_ = new (compile_zone) wasm::ZoneBuffer(compile_zone);

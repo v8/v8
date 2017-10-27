@@ -1428,7 +1428,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
     // Check that preparser and parser produce the same error.
     if (test_preparser && !ignore_error_msg) {
       i::Handle<i::String> preparser_message =
-          pending_error_handler.FormatMessage(CcTest::i_isolate());
+          pending_error_handler.FormatErrorMessageForTest(CcTest::i_isolate());
       if (!i::String::Equals(message_string, preparser_message)) {
         v8::base::OS::Print(
             "Expected parser and preparser to produce the same error on:\n"
@@ -1449,7 +1449,7 @@ void TestParserSyncWithFlags(i::Handle<i::String> source,
         "\t%s\n"
         "However, the parser succeeded",
         source->ToCString().get(),
-        pending_error_handler.FormatMessage(CcTest::i_isolate())
+        pending_error_handler.FormatErrorMessageForTest(CcTest::i_isolate())
             ->ToCString()
             .get());
     CHECK(false);

@@ -443,6 +443,13 @@ bool FinalizeUnoptimizedCode(
       return false;
     }
   }
+
+  // Report any warnings generated during compilation.
+  if (parse_info->pending_error_handler()->has_pending_warnings()) {
+    parse_info->pending_error_handler()->ReportWarnings(isolate,
+                                                        parse_info->script());
+  }
+
   return true;
 }
 
