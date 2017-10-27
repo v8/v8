@@ -1652,28 +1652,19 @@ int Name::NameShortPrint(Vector<char> str) {
   }
 }
 
-#if defined(DEBUG) || defined(OBJECT_PRINT)
-// This method is only meant to be called from gdb for debugging purposes.
-// Since the string can also be in two-byte encoding, non-Latin1 characters
-// will be ignored in the output.
-char* String::ToAsciiArray() {
-  // Static so that subsequent calls frees previously allocated space.
-  // This also means that previous results will be overwritten.
-  static char* buffer = nullptr;
-  if (buffer != nullptr) delete[] buffer;
-  buffer = new char[length() + 1];
-  WriteToFlat(this, reinterpret_cast<uint8_t*>(buffer), 0, length());
-  buffer[length()] = 0;
-  return buffer;
+void Map::PrintMapDetails(std::ostream& os, JSObject* holder) {
+  DisallowHeapAllocation no_gc;
+#ifdef OBJECT_PRINT
+  this->MapPrint(os);
+#else
+  os << "Map=" << reinterpret_cast<void*>(this);
+#endif
+  os << "\n";
+  instance_descriptors()->PrintDescriptors(os);
+  if (is_dictionary_map() && holder != nullptr) {
+    os << holder->property_dictionary() << "\n";
+  }
 }
-
-
-void DescriptorArray::Print() {
-  OFStream os(stdout);
-  this->PrintDescriptors(os);
-  os << std::flush;
-}
-
 
 void DescriptorArray::PrintDescriptors(std::ostream& os) {  // NOLINT
   HandleScope scope(GetIsolate());
@@ -1715,6 +1706,26 @@ void DescriptorArray::PrintDescriptorDetails(std::ostream& os, int descriptor,
   }
 }
 
+#if defined(DEBUG) || defined(OBJECT_PRINT)
+// This method is only meant to be called from gdb for debugging purposes.
+// Since the string can also be in two-byte encoding, non-Latin1 characters
+// will be ignored in the output.
+char* String::ToAsciiArray() {
+  // Static so that subsequent calls frees previously allocated space.
+  // This also means that previous results will be overwritten.
+  static char* buffer = nullptr;
+  if (buffer != nullptr) delete[] buffer;
+  buffer = new char[length() + 1];
+  WriteToFlat(this, reinterpret_cast<uint8_t*>(buffer), 0, length());
+  buffer[length()] = 0;
+  return buffer;
+}
+
+void DescriptorArray::Print() {
+  OFStream os(stdout);
+  this->PrintDescriptors(os);
+  os << std::flush;
+}
 // static
 void TransitionsAccessor::PrintOneTransition(std::ostream& os, Name* key,
                                              Map* target, Object* raw_target) {

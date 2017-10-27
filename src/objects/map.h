@@ -833,8 +833,7 @@ class Map : public HeapObject {
   // Returns true if given field is unboxed double.
   inline bool IsUnboxedDoubleField(FieldIndex index) const;
 
-  static void TraceTransition(const char* what, Map* from, Map* to, Name* name);
-  static void TraceAllTransitions(Map* map);
+  void PrintMapDetails(std::ostream& os, JSObject* holder = nullptr);
 
   static inline Handle<Map> AddMissingTransitionsForTesting(
       Handle<Map> split_map, Handle<DescriptorArray> descriptors,

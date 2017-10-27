@@ -1352,6 +1352,65 @@ void Logger::ICEvent(const char* type, bool keyed, Map* map, Object* key,
   msg.WriteToLogFile();
 }
 
+void Logger::LogAllTransitions(Map* map) {
+  DisallowHeapAllocation no_gc;
+  if (!log_->IsEnabled() || !FLAG_trace_maps) return;
+  TransitionsAccessor transitions(map, &no_gc);
+  int num_transitions = transitions.NumberOfTransitions();
+  for (int i = 0; i < num_transitions; ++i) {
+    Map* target = transitions.GetTarget(i);
+    Name* key = transitions.GetKey(i);
+    MapDetails(target);
+    MapEvent("Transition", map, target, nullptr, key);
+    LogAllTransitions(target);
+  }
+}
+
+void Logger::MapEvent(const char* type, Map* from, Map* to, const char* reason,
+                      HeapObject* name_or_sfi) {
+  DisallowHeapAllocation no_gc;
+  if (!log_->IsEnabled() || !FLAG_trace_maps) return;
+  // TODO(cbruni): Remove once --trace-maps is fully migrated.
+  if (from) MapDetails(from);
+  if (to) MapDetails(to);
+  int line = -1;
+  int column = -1;
+  Address pc = 0;
+  if (!isolate_->bootstrapper()->IsActive()) {
+    pc = isolate_->GetAbstractPC(&line, &column);
+  }
+  Log::MessageBuilder msg(log_);
+  msg << "map" << kNext << type << kNext << timer_.Elapsed().InMicroseconds()
+      << kNext << reinterpret_cast<void*>(from) << kNext
+      << reinterpret_cast<void*>(to) << kNext << reinterpret_cast<void*>(pc)
+      << kNext << line << kNext << column << kNext << reason << kNext;
+
+  if (name_or_sfi) {
+    if (name_or_sfi->IsName()) {
+      msg << Name::cast(name_or_sfi);
+    } else if (name_or_sfi->IsSharedFunctionInfo()) {
+      SharedFunctionInfo* sfi = SharedFunctionInfo::cast(name_or_sfi);
+      msg << sfi->DebugName();
+#if V8_SFI_HAS_UNIQUE_ID
+      msg << " " << sfi->unique_id();
+#endif  // V8_SFI_HAS_UNIQUE_ID
+    }
+  }
+  msg.WriteToLogFile();
+}
+
+void Logger::MapDetails(Map* map) {
+  if (!log_->IsEnabled() || !FLAG_trace_maps) return;
+  DisallowHeapAllocation no_gc;
+  Log::MessageBuilder msg(log_);
+  msg << "map-details" << kNext << timer_.Elapsed().InMicroseconds() << kNext
+      << reinterpret_cast<void*>(map) << kNext;
+  std::ostringstream buffer;
+  map->PrintMapDetails(buffer);
+  msg << buffer.str().c_str();
+  msg.WriteToLogFile();
+}
+
 void Logger::StopProfiler() {
   if (!log_->IsEnabled()) return;
   if (profiler_ != nullptr) {

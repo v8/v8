@@ -5353,14 +5353,13 @@ Genesis::Genesis(
     isolate->set_context(*native_context());
     isolate->counters()->contexts_created_by_snapshot()->Increment();
     if (FLAG_trace_maps) {
+      DisallowHeapAllocation no_gc;
       Handle<JSFunction> object_fun = isolate->object_function();
-      int sfi_id = -1;
-#if V8_SFI_HAS_UNIQUE_ID
-      sfi_id = object_fun->shared()->unique_id();
-#endif  // V8_SFI_HAS_UNIQUE_ID
-      PrintF("[TraceMap: InitialMap map= %p SFI= %d_Object ]\n",
-             reinterpret_cast<void*>(object_fun->initial_map()), sfi_id);
-      Map::TraceAllTransitions(object_fun->initial_map());
+      Map* initial_map = object_fun->initial_map();
+      LOG(isolate, MapDetails(initial_map));
+      LOG(isolate, MapEvent("InitialMap", nullptr, initial_map, "Object",
+                            object_fun->shared()));
+      LOG(isolate, LogAllTransitions(initial_map));
     }
 
     if (context_snapshot_index == 0) {

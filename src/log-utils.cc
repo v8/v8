@@ -139,6 +139,7 @@ void Log::MessageBuilder::AppendString(String* str) {
 }
 
 void Log::MessageBuilder::AppendString(const char* string) {
+  if (string == nullptr) return;
   for (const char* p = string; *p != '\0'; p++) {
     this->AppendCharacter(*p);
   }

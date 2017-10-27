@@ -697,3 +697,34 @@ TEST(LogAll) {
   }
   isolate->Dispose();
 }
+
+TEST(TraceMaps) {
+  SETUP_FLAGS();
+  i::FLAG_trace_maps = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    // Try to create many different kind of maps to make sure the logging won't
+    // crash. More detailed tests are implemented separately.
+    const char* source_text =
+        "let a = {};"
+        "for (let i = 0; i < 500; i++) { a['p'+i] = i };"
+        "class Test { constructor(i) { this.a = 1; this['p'+i] = 1; }};"
+        "let t = new Test();"
+        "t.b = 1; t.c = 1; t.d = 3;"
+        "for (let i = 0; i < 100; i++) { t = new Test(i) };"
+        "t.b = {};";
+    CompileRun(source_text);
+
+    logger.StopLogging();
+
+    // Mostly superficial checks.
+    CHECK(logger.FindLine("map,InitialMap", ",0x"));
+    CHECK(logger.FindLine("map,Transition", ",0x"));
+    CHECK(logger.FindLine("map-details", ",0x"));
+  }
+  i::FLAG_trace_maps = false;
+  isolate->Dispose();
+}

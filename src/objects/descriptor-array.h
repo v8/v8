@@ -141,15 +141,14 @@ class DescriptorArray : public FixedArray {
   static const int kEntryValueIndex = 2;
   static const int kEntrySize = 3;
 
+  // Print all the descriptors.
+  void PrintDescriptors(std::ostream& os);  // NOLINT
+  void PrintDescriptorDetails(std::ostream& os, int descriptor,
+                              PropertyDetails::PrintMode mode);
+
 #if defined(DEBUG) || defined(OBJECT_PRINT)
   // For our gdb macros, we should perhaps change these in the future.
   void Print();
-
-  // Print all the descriptors.
-  void PrintDescriptors(std::ostream& os);  // NOLINT
-
-  void PrintDescriptorDetails(std::ostream& os, int descriptor,
-                              PropertyDetails::PrintMode mode);
 #endif
 
 #ifdef DEBUG
