@@ -73,32 +73,8 @@ bool g_hard_abort = false;
 
 const char* g_gc_fake_mmap = nullptr;
 
-#if !V8_OS_FUCHSIA
-#if V8_OS_MACOSX
-// kMmapFd is used to pass vm_alloc flags to tag the region with the user
-// defined tag 255 This helps identify V8-allocated regions in memory analysis
-// tools like vmmap(1).
-const int kMmapFd = VM_MAKE_TAG(255);
-#else   // !V8_OS_MACOSX
-const int kMmapFd = -1;
-#endif  // !V8_OS_MACOSX
-
-const int kMmapFdOffset = 0;
-
-int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
-  switch (access) {
-    case OS::MemoryPermission::kNoAccess:
-      return PROT_NONE;
-    case OS::MemoryPermission::kReadWrite:
-      return PROT_READ | PROT_WRITE;
-    case OS::MemoryPermission::kReadWriteExecute:
-      return PROT_READ | PROT_WRITE | PROT_EXEC;
-  }
-  UNREACHABLE();
-}
-#endif  // !V8_OS_FUCHSIA
-
 }  // namespace
+
 
 int OS::ActivationFrameAlignment() {
 #if V8_TARGET_ARCH_ARM
@@ -119,6 +95,7 @@ int OS::ActivationFrameAlignment() {
 #endif
 }
 
+
 intptr_t OS::CommitPageSize() {
   static intptr_t page_size = getpagesize();
   return page_size;
@@ -132,25 +109,11 @@ void* OS::Allocate(const size_t requested, size_t* allocated,
                       hint);
 }
 
-// TODO(bbudge) Move Cygwin and Fuschia stuff into platform-specific files.
-#if !V8_OS_FUCHSIA
-void* OS::Allocate(const size_t requested, size_t* allocated,
-                   OS::MemoryPermission access, void* hint) {
-  const size_t msize = RoundUp(requested, AllocateAlignment());
-  int prot = GetProtectionFromMemoryPermission(access);
-  void* mbase = mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, kMmapFd,
-                     kMmapFdOffset);
-  if (mbase == MAP_FAILED) return nullptr;
-  *allocated = msize;
-  return mbase;
-}
-#endif  // !V8_OS_FUCHSIA
-
 void OS::Free(void* address, const size_t size) {
   // TODO(1240712): munmap has a return value which is ignored here.
   int result = munmap(address, size);
   USE(result);
-  DCHECK_EQ(0, result);
+  DCHECK_EQ(result, 0);
 }
 
 void OS::SetReadAndExecutable(void* address, const size_t size) {
@@ -162,6 +125,7 @@ void OS::SetReadAndExecutable(void* address, const size_t size) {
   CHECK_EQ(0, mprotect(address, size, PROT_READ | PROT_EXEC));
 #endif
 }
+
 
 // Create guard pages.
 #if !V8_OS_FUCHSIA
@@ -185,114 +149,6 @@ void OS::SetReadAndWritable(void* address, const size_t size, bool commit) {
 #endif
 }
 
-#if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
-// static
-void* OS::ReserveRegion(size_t size, void* hint) {
-  int map_flags = MAP_PRIVATE | MAP_ANONYMOUS;
-#if !V8_OS_AIX && !V8_OS_FREEBSD && !V8_OS_QNX
-  map_flags |= MAP_NORESERVE;
-#endif
-#if V8_OS_QNX
-  map_flags |= MAP_LAZY;
-#endif  // V8_OS_QNX
-  void* result = mmap(hint, size, PROT_NONE, map_flags, kMmapFd, kMmapFdOffset);
-  if (result == MAP_FAILED) return nullptr;
-
-  return result;
-}
-
-// static
-void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
-                               size_t* allocated) {
-  DCHECK_EQ(0, alignment % OS::AllocateAlignment());
-  hint = AlignedAddress(hint, alignment);
-  size_t request_size =
-      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* result = ReserveRegion(request_size, hint);
-  if (result == nullptr) {
-    *allocated = 0;
-    return nullptr;
-  }
-
-  uint8_t* base = static_cast<uint8_t*>(result);
-  uint8_t* aligned_base = RoundUp(base, alignment);
-  DCHECK_LE(base, aligned_base);
-
-  // Unmap extra memory reserved before and after the desired block.
-  if (aligned_base != base) {
-    size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    OS::Free(base, prefix_size);
-    request_size -= prefix_size;
-  }
-
-  size_t aligned_size = RoundUp(size, OS::AllocateAlignment());
-  DCHECK_LE(aligned_size, request_size);
-
-  if (aligned_size != request_size) {
-    size_t suffix_size = request_size - aligned_size;
-    OS::Free(aligned_base + aligned_size, suffix_size);
-    request_size -= suffix_size;
-  }
-
-  DCHECK(aligned_size == request_size);
-
-  *allocated = aligned_size;
-  return static_cast<void*>(aligned_base);
-}
-
-// static
-bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-#if !V8_OS_AIX
-  if (MAP_FAILED == mmap(address, size, prot,
-                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, kMmapFd,
-                         kMmapFdOffset)) {
-    return false;
-  }
-#else
-  if (mprotect(base, size, prot) == -1) return false;
-#endif  // !V8_OS_AIX
-  return true;
-}
-
-// static
-bool OS::UncommitRegion(void* address, size_t size) {
-#if !V8_OS_AIX
-  int map_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED;
-#if !V8_OS_FREEBSD && !V8_OS_QNX
-  map_flags |= MAP_NORESERVE;
-#endif  // !V8_OS_FREEBSD && !V8_OS_QNX
-#if V8_OS_QNX
-  map_flags |= MAP_LAZY;
-#endif  // V8_OS_QNX
-  return mmap(address, size, PROT_NONE, map_flags, kMmapFd, kMmapFdOffset) !=
-         MAP_FAILED;
-#else   // V8_OS_AIX
-  return mprotect(base, size, PROT_NONE) != -1;
-#endif  // V8_OS_AIX
-}
-
-// static
-bool OS::ReleaseRegion(void* address, size_t size) {
-  return munmap(address, size) == 0;
-}
-
-// static
-bool OS::ReleasePartialRegion(void* address, size_t size) {
-  return munmap(address, size) == 0;
-}
-
-// static
-bool OS::HasLazyCommits() {
-#if V8_OS_AIX || V8_OS_LINUX || V8_OS_MACOSX
-  return true;
-#else
-  // TODO(bbudge) Return true for all POSIX platforms.
-  return false;
-#endif
-}
-#endif  // !V8_OS_CYGWIN && !V8_OS_FUCHSIA
-
 static LazyInstance<RandomNumberGenerator>::type
     platform_random_number_generator = LAZY_INSTANCE_INITIALIZER;
 
@@ -305,6 +161,7 @@ void OS::Initialize(int64_t random_seed, bool hard_abort,
   g_gc_fake_mmap = gc_fake_mmap;
 }
 
+
 const char* OS::GetGCFakeMMapFile() {
   return g_gc_fake_mmap;
 }
@@ -313,7 +170,7 @@ void* OS::GetRandomMmapAddr() {
 #if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
     defined(THREAD_SANITIZER)
   // Dynamic tools do not support custom mmap addresses.
-  return nullptr;
+  return NULL;
 #endif
   uintptr_t raw_addr;
   platform_random_number_generator.Pointer()->NextBytes(&raw_addr,
@@ -888,6 +745,18 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
   int result = pthread_setspecific(pthread_key, value);
   DCHECK_EQ(0, result);
   USE(result);
+}
+
+int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
+  switch (access) {
+    case OS::MemoryPermission::kNoAccess:
+      return PROT_NONE;
+    case OS::MemoryPermission::kReadWrite:
+      return PROT_READ | PROT_WRITE;
+    case OS::MemoryPermission::kReadWriteExecute:
+      return PROT_READ | PROT_WRITE | PROT_EXEC;
+  }
+  UNREACHABLE();
 }
 
 }  // namespace base

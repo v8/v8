@@ -80,6 +80,16 @@ double CygwinTimezoneCache::LocalTimeOffset() {
                              (loc->tm_isdst > 0 ? 3600 * msPerSecond : 0));
 }
 
+void* OS::Allocate(const size_t requested, size_t* allocated,
+                   OS::MemoryPermission access, void* hint) {
+  const size_t msize = RoundUp(requested, sysconf(_SC_PAGESIZE));
+  int prot = GetProtectionFromMemoryPermission(access);
+  void* mbase = mmap(nullptr, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+  if (mbase == MAP_FAILED) return nullptr;
+  *allocated = msize;
+  return mbase;
+}
+
 // static
 void* OS::ReserveRegion(size_t size, void* hint) {
   return RandomizedVirtualAlloc(size, MEM_RESERVE, PAGE_NOACCESS, hint);
