@@ -153,22 +153,28 @@ class Test262TestSuite(testsuite.TestSuite):
                 SKIPPED_FEATURES.intersection(
                     self.GetTestRecord(case).get("features", []))) == 0]
 
-  def GetFlagsForTestCase(self, testcase, context):
-    return (testcase.flags + context.mode_flags + self.harness +
-            ([os.path.join(self.root, "harness-agent.js")]
-             if testcase.path.startswith('built-ins/Atomics') else []) +
-            self.GetIncludesForTest(testcase) +
-            (["--module"] if "module" in self.GetTestRecord(testcase) else []) +
-            [self.GetPathForTest(testcase)] +
-            (["--throws"] if "negative" in self.GetTestRecord(testcase)
-                          else []) +
-            (["--allow-natives-syntax"]
-             if "detachArrayBuffer.js" in
-                self.GetTestRecord(testcase).get("includes", [])
-             else []) +
-            ([flag for flag in testcase.outcomes if flag.startswith("--")]) +
-            ([flag for (feature, flag) in FEATURE_FLAGS.items()
-              if feature in self.GetTestRecord(testcase).get("features", [])]))
+  def GetParametersForTestCase(self, testcase, context):
+    files = (
+        list(self.harness) +
+        ([os.path.join(self.root, "harness-agent.js")]
+         if testcase.path.startswith('built-ins/Atomics') else []) +
+        self.GetIncludesForTest(testcase) +
+        (["--module"] if "module" in self.GetTestRecord(testcase) else []) +
+        [self.GetPathForTest(testcase)]
+    )
+    flags = (
+        testcase.flags + context.mode_flags +
+        (["--throws"] if "negative" in self.GetTestRecord(testcase)
+                      else []) +
+        (["--allow-natives-syntax"]
+         if "detachArrayBuffer.js" in
+            self.GetTestRecord(testcase).get("includes", [])
+         else []) +
+        ([flag for flag in testcase.outcomes if flag.startswith("--")]) +
+        ([flag for (feature, flag) in FEATURE_FLAGS.items()
+          if feature in self.GetTestRecord(testcase).get("features", [])])
+    )
+    return files, flags
 
   def _VariantGeneratorFactory(self):
     return Test262VariantGenerator
@@ -201,12 +207,8 @@ class Test262TestSuite(testsuite.TestSuite):
 
   def GetIncludesForTest(self, testcase):
     test_record = self.GetTestRecord(testcase)
-    if "includes" in test_record:
-      return [os.path.join(self.BasePath(filename), filename)
-              for filename in test_record.get("includes", [])]
-    else:
-      includes = []
-    return includes
+    return [os.path.join(self.BasePath(filename), filename)
+            for filename in test_record.get("includes", [])]
 
   def GetPathForTest(self, testcase):
     filename = os.path.join(self.localtestroot, testcase.path + ".js")

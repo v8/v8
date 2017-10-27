@@ -62,9 +62,9 @@ class WebkitTestSuite(testsuite.TestSuite):
           tests.append(test)
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
+  def GetParametersForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
-    flags = [] + context.mode_flags
+    flags = testcase.flags + context.mode_flags
     flags_match = re.findall(FLAGS_PATTERN, source)
     for match in flags_match:
       flags += match.strip().split()
@@ -88,12 +88,13 @@ class WebkitTestSuite(testsuite.TestSuite):
     files.append(testfilename)
     files.append(os.path.join(self.root, "resources/standalone-post.js"))
 
-    flags += files
+    all_files = []
+    all_files += files
     if context.isolates:
-      flags.append("--isolate")
-      flags += files
+      all_files.append("--isolate")
+      all_files += files
 
-    return testcase.flags + flags
+    return all_files, flags
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, testcase.path + self.suffix())

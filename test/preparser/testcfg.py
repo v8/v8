@@ -71,8 +71,8 @@ class PreparserTestSuite(testsuite.TestSuite):
       self._ParsePythonTestTemplates(result, f)
     return result
 
-  def GetFlagsForTestCase(self, testcase, context):
-    return testcase.flags
+  def GetParametersForTestCase(self, testcase, context):
+    return [], testcase.flags
 
   def GetSourceForTest(self, testcase):
     assert testcase.flags[0] == "-e"

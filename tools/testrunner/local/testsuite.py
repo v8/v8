@@ -257,7 +257,8 @@ class TestSuite(object):
           break
     self.tests = filtered
 
-  def GetFlagsForTestCase(self, testcase, context):
+  def GetParametersForTestCase(self, testcase, context):
+    """Returns a tuple of (files, flags) for this test case."""
     raise NotImplementedError
 
   def GetSourceForTest(self, testcase):
@@ -348,11 +349,11 @@ class GoogleTestSuite(TestSuite):
     tests.sort(key=lambda t: t.path)
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
-    return (testcase.flags + ["--gtest_filter=" + testcase.path] +
-            ["--gtest_random_seed=%s" % context.random_seed] +
-            ["--gtest_print_time=0"] +
-            context.mode_flags)
+  def GetParametersForTestCase(self, testcase, context):
+    return [], (testcase.flags + ["--gtest_filter=" + testcase.path] +
+                ["--gtest_random_seed=%s" % context.random_seed] +
+                ["--gtest_print_time=0"] +
+                context.mode_flags)
 
   def _VariantGeneratorFactory(self):
     return StandardVariantGenerator

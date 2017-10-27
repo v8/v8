@@ -63,18 +63,18 @@ class MessageTestSuite(testsuite.TestSuite):
     return super(MessageTestSuite, self).CreateVariantGenerator(
         variants + ["preparser"])
 
-  def GetFlagsForTestCase(self, testcase, context):
+  def GetParametersForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
-    result = []
+    files = []
+    if MODULE_PATTERN.search(source):
+      files.append("--module")
+    files.append(os.path.join(self.root, testcase.path + ".js"))
+    flags = testcase.flags + context.mode_flags
     flags_match = re.findall(FLAGS_PATTERN, source)
     for match in flags_match:
-      result += match.strip().split()
-    result += context.mode_flags
-    if MODULE_PATTERN.search(source):
-      result.append("--module")
-    result = [x for x in result if x not in INVALID_FLAGS]
-    result.append(os.path.join(self.root, testcase.path + ".js"))
-    return testcase.flags + result
+      flags += match.strip().split()
+    flags = [x for x in flags if x not in INVALID_FLAGS]
+    return files, flags
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, testcase.path + self.suffix())

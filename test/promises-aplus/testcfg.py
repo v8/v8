@@ -71,11 +71,14 @@ class PromiseAplusTestSuite(testsuite.TestSuite):
             os.listdir(os.path.join(self.root, TEST_NAME, 'lib', 'tests'))
             if fname.endswith('.js')]
 
-  def GetFlagsForTestCase(self, testcase, context):
-    return (testcase.flags + context.mode_flags + ['--allow-natives-syntax'] +
-            self.helper_files_pre +
-            [os.path.join(self.test_files_root, testcase.path + '.js')] +
-            self.helper_files_post)
+  def GetParametersForTestCase(self, testcase, context):
+    files = (
+        self.helper_files_pre +
+        [os.path.join(self.test_files_root, testcase.path + '.js')] +
+        self.helper_files_post
+    )
+    flags = testcase.flags + context.mode_flags + ['--allow-natives-syntax']
+    return files, flags
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, TEST_NAME,

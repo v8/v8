@@ -92,11 +92,16 @@ def GetCommand(test, context):
     shell += ".exe"
   if context.random_seed:
     d8testflag += ["--random-seed=%s" % context.random_seed]
-  cmd = (context.command_prefix +
-         [os.path.abspath(os.path.join(context.shell_dir, shell))] +
-         d8testflag +
-         test.suite.GetFlagsForTestCase(test, context) +
-         context.extra_flags)
+  files, flags = test.suite.GetParametersForTestCase(test, context)
+  cmd = (
+      context.command_prefix +
+      [os.path.abspath(os.path.join(context.shell_dir, shell))] +
+      d8testflag +
+      files +
+      context.extra_flags +
+      # Flags from test cases can overwrite extra cmd-line flags.
+      flags
+  )
   return cmd
 
 

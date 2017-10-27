@@ -39,16 +39,17 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
           tests.append(test)
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
+  def GetParametersForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
-    flags = [] + context.mode_flags
+    flags = testcase.flags + context.mode_flags
     flags_match = re.findall(FLAGS_PATTERN, source)
     for match in flags_match:
       flags += shlex.split(match.strip())
-    testname = testcase.path.split(os.path.sep)[-1]
-    testfilename = os.path.join(self.root, testcase.path + self.suffix())
-    protocoltestfilename = os.path.join(self.root, PROTOCOL_TEST_JS)
-    return testcase.flags + flags + [ protocoltestfilename, testfilename ]
+    files = [
+      os.path.join(self.root, PROTOCOL_TEST_JS),
+      os.path.join(self.root, testcase.path + self.suffix()),
+    ]
+    return files, flags
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, testcase.path + self.suffix())

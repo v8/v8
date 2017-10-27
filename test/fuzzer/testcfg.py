@@ -40,9 +40,9 @@ class FuzzerTestSuite(testsuite.TestSuite):
     tests.sort()
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
+  def GetParametersForTestCase(self, testcase, context):
     suite, name = testcase.path.split('/')
-    return [os.path.join(self.root, suite, name)]
+    return [os.path.join(self.root, suite, name)], []
 
   def _VariantGeneratorFactory(self):
     return FuzzerVariantGenerator

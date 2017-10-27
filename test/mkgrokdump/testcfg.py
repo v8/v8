@@ -18,8 +18,8 @@ class MkGrokdump(testsuite.TestSuite):
     test = testcase.TestCase(self, self.shell())
     return [test]
 
-  def GetFlagsForTestCase(self, testcase, context):
-    return []
+  def GetParametersForTestCase(self, testcase, context):
+    return [], []
 
   def IsFailureOutput(self, testcase):
     output = testcase.output

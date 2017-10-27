@@ -61,9 +61,8 @@ class CcTestSuite(testsuite.TestSuite):
     tests.sort(key=lambda t: t.path)
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
-    testname = testcase.path.split(os.path.sep)[-1]
-    return (testcase.flags + [testcase.path] + context.mode_flags)
+  def GetParametersForTestCase(self, testcase, context):
+    return [testcase.path], testcase.flags + context.mode_flags
 
   def shell(self):
     return "cctest"

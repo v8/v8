@@ -117,27 +117,27 @@ class BenchmarksTestSuite(testsuite.TestSuite):
       tests.append(testcase.TestCase(self, test))
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
-    result = []
-    result += context.mode_flags
+  def GetParametersForTestCase(self, testcase, context):
+    files = []
     if testcase.path.startswith("kraken"):
-      result.append(os.path.join(self.testroot, "%s-data.js" % testcase.path))
-      result.append(os.path.join(self.testroot, "%s.js" % testcase.path))
+      files.append(os.path.join(self.testroot, "%s-data.js" % testcase.path))
+      files.append(os.path.join(self.testroot, "%s.js" % testcase.path))
     elif testcase.path.startswith("octane"):
-      result.append(os.path.join(self.testroot, "octane/base.js"))
-      result.append(os.path.join(self.testroot, "%s.js" % testcase.path))
+      files.append(os.path.join(self.testroot, "octane/base.js"))
+      files.append(os.path.join(self.testroot, "%s.js" % testcase.path))
       if testcase.path.startswith("octane/gbemu"):
-        result.append(os.path.join(self.testroot, "octane/gbemu-part2.js"))
+        files.append(os.path.join(self.testroot, "octane/gbemu-part2.js"))
       elif testcase.path.startswith("octane/typescript"):
-        result.append(os.path.join(self.testroot,
-                                   "octane/typescript-compiler.js"))
-        result.append(os.path.join(self.testroot, "octane/typescript-input.js"))
+        files.append(os.path.join(self.testroot,
+                                  "octane/typescript-compiler.js"))
+        files.append(os.path.join(self.testroot, "octane/typescript-input.js"))
       elif testcase.path.startswith("octane/zlib"):
-        result.append(os.path.join(self.testroot, "octane/zlib-data.js"))
-      result += ["-e", "BenchmarkSuite.RunSuites({});"]
+        files.append(os.path.join(self.testroot, "octane/zlib-data.js"))
+      files += ["-e", "BenchmarkSuite.RunSuites({});"]
     elif testcase.path.startswith("sunspider"):
-      result.append(os.path.join(self.testroot, "%s.js" % testcase.path))
-    return testcase.flags + result
+      files.append(os.path.join(self.testroot, "%s.js" % testcase.path))
+
+    return files, testcase.flags + context.mode_flags
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.testroot, testcase.path + ".js")

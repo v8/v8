@@ -60,9 +60,9 @@ class MjsunitTestSuite(testsuite.TestSuite):
           tests.append(test)
     return tests
 
-  def GetFlagsForTestCase(self, testcase, context):
+  def GetParametersForTestCase(self, testcase, context):
+    flags = testcase.flags + context.mode_flags
     source = self.GetSourceForTest(testcase)
-    flags = [] + context.mode_flags
     flags_match = re.findall(FLAGS_PATTERN, source)
     for match in flags_match:
       flags += match.strip().split()
@@ -90,10 +90,11 @@ class MjsunitTestSuite(testsuite.TestSuite):
       files.append("--module")
     files.append(testfilename)
 
-    flags += files
+    all_files = []
+    all_files += files
     if context.isolates:
-      flags.append("--isolate")
-      flags += files
+      all_files.append("--isolate")
+      all_files += files
 
     env_match = ENV_PATTERN.search(source)
     if env_match:
@@ -101,7 +102,7 @@ class MjsunitTestSuite(testsuite.TestSuite):
         var, value = env_pair.split('=')
         testcase.env[var] = value
 
-    return testcase.flags + flags
+    return all_files, flags
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, testcase.path + self.suffix())
