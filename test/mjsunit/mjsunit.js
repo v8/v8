@@ -192,6 +192,12 @@ var failWithMessage;
   var ArrayPrototypeMap = Array.prototype.map;
   var ArrayPrototypePush = Array.prototype.push;
 
+  var BigIntPrototypeValueOf;
+  // TODO(neis): Remove try-catch once BigInts are enabled by default.
+  try {
+    BigIntPrototypeValueOf = BigInt.prototype.valueOf;
+  } catch(e) {}
+
   function classOf(object) {
     // Argument must not be null or undefined.
     var string = ObjectPrototypeToString.call(object);
@@ -204,6 +210,8 @@ var failWithMessage;
     switch (classOf(value)) {
       case "Number":
         return NumberPrototypeValueOf.call(value);
+      case "BigInt":
+        return BigIntPrototypeValueOf.call(value);
       case "String":
         return StringPrototypeValueOf.call(value);
       case "Boolean":
@@ -223,6 +231,8 @@ var failWithMessage;
       case "number":
         if (value === 0 && (1 / value) < 0) return "-0";
         // FALLTHROUGH.
+      case "bigint":
+        return String(value) + "n";
       case "boolean":
       case "undefined":
       case "function":
@@ -233,6 +243,7 @@ var failWithMessage;
         var objectClass = classOf(value);
         switch (objectClass) {
           case "Number":
+          case "BigInt":
           case "String":
           case "Boolean":
           case "Date":
@@ -346,7 +357,8 @@ var failWithMessage;
       return true;
     }
     if (objectClass === "String" || objectClass === "Number" ||
-      objectClass === "Boolean" || objectClass === "Date") {
+      objectClass === "BigInt" || objectClass === "Boolean" ||
+      objectClass === "Date") {
       if (ValueOf(a) !== ValueOf(b)) return false;
     }
     return deepObjectEquals(a, b);
