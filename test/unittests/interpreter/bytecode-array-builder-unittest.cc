@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <limits>
+
 #include "src/v8.h"
 
 #include "src/ast/scopes.h"
@@ -339,7 +341,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Wide constant pool loads
   for (int i = 0; i < 256; i++) {
     // Emit junk in constant pool to force wide constant pool index.
-    builder.LoadLiteral(ast_factory.NewNumber(2.5321 + i));
+    builder.LoadLiteral(2.5321 + i);
   }
   builder.LoadLiteral(Smi::FromInt(20000000));
   const AstRawString* wide_name = ast_factory.GetOneByteString("var_wide_name");
@@ -514,9 +516,9 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
 
-  const AstValue* heap_num_1 = ast_factory.NewNumber(3.14);
-  const AstValue* heap_num_2 = ast_factory.NewNumber(5.2);
-  const AstValue* heap_num_2_copy = ast_factory.NewNumber(5.2);
+  double heap_num_1 = 3.14;
+  double heap_num_2 = 5.2;
+  double nan = std::numeric_limits<double>::quiet_NaN();
   const AstRawString* string = ast_factory.GetOneByteString("foo");
   const AstRawString* string_copy = ast_factory.GetOneByteString("foo");
 
@@ -525,13 +527,15 @@ TEST_F(BytecodeArrayBuilderTest, Constants) {
       .LoadLiteral(string)
       .LoadLiteral(heap_num_1)
       .LoadLiteral(heap_num_1)
+      .LoadLiteral(nan)
       .LoadLiteral(string_copy)
-      .LoadLiteral(heap_num_2_copy)
+      .LoadLiteral(heap_num_2)
+      .LoadLiteral(nan)
       .Return();
 
   ast_factory.Internalize(isolate());
   Handle<BytecodeArray> array = builder.ToBytecodeArray(isolate());
-  // Should only have one entry for each identical string constant.
+  // Should only have one entry for each identical constant.
   EXPECT_EQ(4, array->constant_pool()->length());
 }
 

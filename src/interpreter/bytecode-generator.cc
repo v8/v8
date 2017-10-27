@@ -1977,8 +1977,11 @@ void BytecodeGenerator::VisitConditional(Conditional* expr) {
 
 void BytecodeGenerator::VisitLiteral(Literal* expr) {
   if (!execution_result()->IsEffect()) {
+    // TODO(adamk): Make this a switch statement.
     if (expr->IsSmi()) {
       builder()->LoadLiteral(expr->AsSmiLiteral());
+    } else if (expr->IsNumber()) {
+      builder()->LoadLiteral(expr->AsNumber());
     } else if (expr->IsUndefined()) {
       builder()->LoadUndefined();
     } else if (expr->IsTrue()) {
@@ -1991,9 +1994,10 @@ void BytecodeGenerator::VisitLiteral(Literal* expr) {
       builder()->LoadTheHole();
     } else if (expr->IsString()) {
       builder()->LoadLiteral(expr->AsRawString());
-    } else {
-      // TODO(adamk): Get rid of this case.
-      builder()->LoadLiteral(expr->raw_value());
+    } else if (expr->IsSymbol()) {
+      builder()->LoadLiteral(expr->AsSymbol());
+    } else if (expr->IsBigInt()) {
+      builder()->LoadLiteral(expr->AsBigInt());
     }
     if (expr->IsTrue() || expr->IsFalse()) {
       execution_result()->SetResultIsBoolean();

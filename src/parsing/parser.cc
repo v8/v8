@@ -437,7 +437,7 @@ Literal* Parser::ExpressionFromLiteral(Token::Value token, int pos) {
     }
     case Token::BIGINT:
       return factory()->NewBigIntLiteral(
-          scanner()->CurrentLiteralAsCString(zone()), pos);
+          AstBigInt(scanner()->CurrentLiteralAsCString(zone())), pos);
     default:
       DCHECK(false);
   }

@@ -26,8 +26,8 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
-  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
-  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
+  double heap_num_0 = 2.718;
+  double heap_num_1 = 2.0 * Smi::kMaxValue;
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -78,8 +78,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_bytecode(), Bytecode::kLdaConstant);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  CHECK(iterator.GetConstantForIndexOperand(0).is_identical_to(
-      heap_num_0->value()));
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_0);
   CHECK(!iterator.done());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   iterator.Advance();
@@ -96,8 +95,7 @@ TEST_F(BytecodeArrayIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_bytecode(), Bytecode::kLdaConstant);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  CHECK(iterator.GetConstantForIndexOperand(0).is_identical_to(
-      heap_num_1->value()));
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_1);
   CHECK(!iterator.done());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   iterator.Advance();

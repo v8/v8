@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/ast/ast-value-factory.h"
+#include "src/ast/ast.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate-inl.h"
 #include "src/zone/zone.h"
@@ -16,27 +17,34 @@ class AstValueTest : public TestWithIsolateAndZone {
  protected:
   AstValueTest()
       : ast_value_factory_(zone(), i_isolate()->ast_string_constants(),
-                           i_isolate()->heap()->HashSeed()) {}
+                           i_isolate()->heap()->HashSeed()),
+        ast_node_factory_(&ast_value_factory_, zone()) {}
+
+  Literal* NewBigInt(const char* str) {
+    return ast_node_factory_.NewBigIntLiteral(AstBigInt(str),
+                                              kNoSourcePosition);
+  }
 
   AstValueFactory ast_value_factory_;
+  AstNodeFactory ast_node_factory_;
 };
 
-TEST_F(AstValueTest, BigIntBooleanValue) {
-  EXPECT_FALSE(ast_value_factory_.NewBigInt("0")->BooleanValue());
-  EXPECT_FALSE(ast_value_factory_.NewBigInt("0b0")->BooleanValue());
-  EXPECT_FALSE(ast_value_factory_.NewBigInt("0o0")->BooleanValue());
-  EXPECT_FALSE(ast_value_factory_.NewBigInt("0x0")->BooleanValue());
-  EXPECT_FALSE(ast_value_factory_.NewBigInt("0b000")->BooleanValue());
-  EXPECT_FALSE(ast_value_factory_.NewBigInt("0o00000")->BooleanValue());
-  EXPECT_FALSE(ast_value_factory_.NewBigInt("0x000000000")->BooleanValue());
+TEST_F(AstValueTest, BigIntToBooleanIsTrue) {
+  EXPECT_FALSE(NewBigInt("0")->ToBooleanIsTrue());
+  EXPECT_FALSE(NewBigInt("0b0")->ToBooleanIsTrue());
+  EXPECT_FALSE(NewBigInt("0o0")->ToBooleanIsTrue());
+  EXPECT_FALSE(NewBigInt("0x0")->ToBooleanIsTrue());
+  EXPECT_FALSE(NewBigInt("0b000")->ToBooleanIsTrue());
+  EXPECT_FALSE(NewBigInt("0o00000")->ToBooleanIsTrue());
+  EXPECT_FALSE(NewBigInt("0x000000000")->ToBooleanIsTrue());
 
-  EXPECT_TRUE(ast_value_factory_.NewBigInt("3")->BooleanValue());
-  EXPECT_TRUE(ast_value_factory_.NewBigInt("0b1")->BooleanValue());
-  EXPECT_TRUE(ast_value_factory_.NewBigInt("0o6")->BooleanValue());
-  EXPECT_TRUE(ast_value_factory_.NewBigInt("0xa")->BooleanValue());
-  EXPECT_TRUE(ast_value_factory_.NewBigInt("0b0000001")->BooleanValue());
-  EXPECT_TRUE(ast_value_factory_.NewBigInt("0o00005000")->BooleanValue());
-  EXPECT_TRUE(ast_value_factory_.NewBigInt("0x0000d00c0")->BooleanValue());
+  EXPECT_TRUE(NewBigInt("3")->ToBooleanIsTrue());
+  EXPECT_TRUE(NewBigInt("0b1")->ToBooleanIsTrue());
+  EXPECT_TRUE(NewBigInt("0o6")->ToBooleanIsTrue());
+  EXPECT_TRUE(NewBigInt("0xa")->ToBooleanIsTrue());
+  EXPECT_TRUE(NewBigInt("0b0000001")->ToBooleanIsTrue());
+  EXPECT_TRUE(NewBigInt("0o00005000")->ToBooleanIsTrue());
+  EXPECT_TRUE(NewBigInt("0x0000d00c0")->ToBooleanIsTrue());
 }
 
 }  // namespace internal

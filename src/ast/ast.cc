@@ -14,7 +14,7 @@
 #include "src/builtins/builtins.h"
 #include "src/code-stubs.h"
 #include "src/contexts.h"
-#include "src/conversions.h"
+#include "src/conversions-inl.h"
 #include "src/double.h"
 #include "src/elements.h"
 #include "src/objects-inl.h"
@@ -421,11 +421,11 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
       continue;
     }
 
-    Handle<Object> key = property->key()->AsLiteral()->value();
+    Literal* key = property->key()->AsLiteral();
 
     uint32_t element_index = 0;
     if (key->ToArrayIndex(&element_index) ||
-        (key->IsString() && String::cast(*key)->AsArrayIndex(&element_index))) {
+        (key->IsString() && key->AsRawString()->AsArrayIndex(&element_index))) {
       index_keys++;
     }
   }
@@ -454,7 +454,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
     // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
     // value for COMPUTED properties, the real value is filled in at
     // runtime. The enumeration order is maintained.
-    Handle<Object> key = property->key()->AsLiteral()->value();
+    Handle<Object> key = property->key()->AsLiteral()->BuildValue(isolate);
     Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
 
     uint32_t element_index = 0;
@@ -603,7 +603,7 @@ bool MaterializedLiteral::IsSimple() const {
 Handle<Object> MaterializedLiteral::GetBoilerplateValue(Expression* expression,
                                                         Isolate* isolate) {
   if (expression->IsLiteral()) {
-    return expression->AsLiteral()->value();
+    return expression->AsLiteral()->BuildValue(isolate);
   }
   if (CompileTimeValue::IsCompileTimeValue(expression)) {
     return CompileTimeValue::GetValue(isolate, expression);
@@ -792,21 +792,88 @@ Call::CallType Call::GetCallType() const {
 CaseClause::CaseClause(Expression* label, ZoneList<Statement*>* statements)
     : label_(label), statements_(statements) {}
 
+bool Literal::IsPropertyName() const {
+  if (type() != kString) return false;
+  uint32_t index;
+  return !string_->AsArrayIndex(&index);
+}
+
 bool Literal::ToUint32(uint32_t* value) const {
-  if (IsSmi()) {
-    int num = AsSmiLiteral()->value();
-    if (num < 0) return false;
-    *value = static_cast<uint32_t>(num);
-    return true;
+  switch (type()) {
+    case kSmi:
+      if (smi_ < 0) return false;
+      *value = static_cast<uint32_t>(smi_);
+      return true;
+    case kHeapNumber:
+      return DoubleToUint32IfEqualToSelf(AsNumber(), value);
+    default:
+      return false;
   }
-  if (IsNumber()) {
-    return DoubleToUint32IfEqualToSelf(AsNumber(), value);
-  }
-  return false;
 }
 
 bool Literal::ToArrayIndex(uint32_t* value) const {
   return ToUint32(value) && *value != kMaxUInt32;
+}
+
+Handle<Object> Literal::BuildValue(Isolate* isolate) const {
+  switch (type()) {
+    case kSmi:
+      return handle(Smi::FromInt(smi_), isolate);
+    case kHeapNumber:
+      return isolate->factory()->NewNumber(number_);
+    case kString:
+      return string_->string();
+    case kSymbol:
+      return isolate->factory()->home_object_symbol();
+    case kTrue:
+      return isolate->factory()->true_value();
+    case kFalse:
+      return isolate->factory()->false_value();
+    case kNull:
+      return isolate->factory()->null_value();
+    case kUndefined:
+      return isolate->factory()->undefined_value();
+    case kTheHole:
+      return isolate->factory()->the_hole_value();
+    case kBigInt:
+      return BigIntLiteral(isolate, bigint_.c_str()).ToHandleChecked();
+  }
+  UNREACHABLE();
+}
+
+bool Literal::ToBooleanIsTrue() const {
+  switch (type()) {
+    case kSmi:
+      return smi_ != 0;
+    case kHeapNumber:
+      return DoubleToBoolean(number_);
+    case kString:
+      return !string_->IsEmpty();
+    case kNull:
+    case kUndefined:
+      return false;
+    case kTrue:
+      return true;
+    case kFalse:
+      return false;
+    case kBigInt: {
+      const char* bigint_str = bigint_.c_str();
+      size_t length = strlen(bigint_str);
+      DCHECK_GT(length, 0);
+      if (length == 1 && bigint_str[0] == '0') return false;
+      // Skip over any radix prefix; BigInts with length > 1 only
+      // begin with zero if they include a radix.
+      for (size_t i = (bigint_str[0] == '0') ? 2 : 0; i < length; ++i) {
+        if (bigint_str[i] != '0') return true;
+      }
+      return false;
+    }
+    case kSymbol:
+      return true;
+    case kTheHole:
+      UNREACHABLE();
+  }
+  UNREACHABLE();
 }
 
 uint32_t Literal::Hash() {
@@ -816,11 +883,20 @@ uint32_t Literal::Hash() {
 
 
 // static
-bool Literal::Match(void* literal1, void* literal2) {
-  const AstValue* x = static_cast<Literal*>(literal1)->value_;
-  const AstValue* y = static_cast<Literal*>(literal2)->value_;
-  return (x->IsString() && y->IsString() && x->AsString() == y->AsString()) ||
+bool Literal::Match(void* a, void* b) {
+  Literal* x = static_cast<Literal*>(a);
+  Literal* y = static_cast<Literal*>(b);
+  return (x->IsString() && y->IsString() &&
+          x->AsRawString() == y->AsRawString()) ||
          (x->IsNumber() && y->IsNumber() && x->AsNumber() == y->AsNumber());
+}
+
+Literal* AstNodeFactory::NewNumberLiteral(double number, int pos) {
+  int int_value;
+  if (DoubleToSmiInteger(number, &int_value)) {
+    return NewSmiLiteral(int_value, pos);
+  }
+  return new (zone_) Literal(number, pos);
 }
 
 const char* CallRuntime::debug_name() {

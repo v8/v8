@@ -219,7 +219,9 @@ void CallPrinter::VisitConditional(Conditional* node) {
 
 
 void CallPrinter::VisitLiteral(Literal* node) {
-  PrintLiteral(node->value(), true);
+  // TODO(adamk): Teach Literal how to print its values without
+  // allocating on the heap.
+  PrintLiteral(node->BuildValue(isolate_), true);
 }
 
 
@@ -285,10 +287,13 @@ void CallPrinter::VisitThrow(Throw* node) { Find(node->exception()); }
 void CallPrinter::VisitProperty(Property* node) {
   Expression* key = node->key();
   Literal* literal = key->AsLiteral();
-  if (literal != nullptr && literal->value()->IsInternalizedString()) {
+  if (literal != nullptr &&
+      literal->BuildValue(isolate_)->IsInternalizedString()) {
     Find(node->obj(), true);
     Print(".");
-    PrintLiteral(literal->value(), false);
+    // TODO(adamk): Teach Literal how to print its values without
+    // allocating on the heap.
+    PrintLiteral(literal->BuildValue(isolate_), false);
   } else {
     Find(node->obj(), true);
     Print("[");
@@ -1023,9 +1028,10 @@ void AstPrinter::VisitConditional(Conditional* node) {
 }
 
 
-// TODO(svenpanne) Start with IndentedScope.
 void AstPrinter::VisitLiteral(Literal* node) {
-  PrintLiteralIndented("LITERAL", node->value(), true);
+  // TODO(adamk): Teach Literal how to print its values without
+  // allocating on the heap.
+  PrintLiteralIndented("LITERAL", node->BuildValue(isolate_), true);
 }
 
 
@@ -1177,8 +1183,11 @@ void AstPrinter::VisitProperty(Property* node) {
 
   Visit(node->obj());
   Literal* literal = node->key()->AsLiteral();
-  if (literal != nullptr && literal->value()->IsInternalizedString()) {
-    PrintLiteralIndented("NAME", literal->value(), false);
+  if (literal != nullptr &&
+      literal->BuildValue(isolate_)->IsInternalizedString()) {
+    // TODO(adamk): Teach Literal how to print its values without
+    // allocating on the heap.
+    PrintLiteralIndented("NAME", literal->BuildValue(isolate_), false);
   } else {
     PrintIndentedVisit("KEY", node->key());
   }

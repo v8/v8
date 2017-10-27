@@ -26,8 +26,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
-  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
-  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
+  double heap_num_0 = 2.718;
+  double heap_num_1 = 2.0 * Smi::kMaxValue;
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -80,8 +80,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidAfterEnd) {
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
-  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
-  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
+  double heap_num_0 = 2.718;
+  double heap_num_1 = 2.0 * Smi::kMaxValue;
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -134,8 +134,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
-  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
-  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
+  double heap_num_0 = 2.718;
+  double heap_num_1 = 2.0 * Smi::kMaxValue;
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -181,8 +181,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), 0);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_TRUE(iterator.GetConstantForIndexOperand(0).is_identical_to(
-      heap_num_0->value()));
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_0);
   ASSERT_TRUE(iterator.IsValid());
 }
 
@@ -193,8 +192,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesLast) {
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
-  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
-  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
+  double heap_num_0 = 2.718;
+  double heap_num_1 = 2.0 * Smi::kMaxValue;
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -252,8 +251,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
-  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
-  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
+  double heap_num_0 = 2.718;
+  double heap_num_1 = 2.0 * Smi::kMaxValue;
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -329,8 +328,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_TRUE(iterator.GetConstantForIndexOperand(0).is_identical_to(
-      heap_num_1->value()));
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_1);
   ASSERT_TRUE(iterator.IsValid());
 
   iterator.GoToIndex(18);
@@ -438,8 +436,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
-  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
-  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
+  double heap_num_0 = 2.718;
+  double heap_num_1 = 2.0 * Smi::kMaxValue;
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -487,8 +485,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_TRUE(iterator.GetConstantForIndexOperand(0).is_identical_to(
-      heap_num_0->value()));
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_0);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   ++iterator;
@@ -507,8 +504,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_TRUE(iterator.GetConstantForIndexOperand(0).is_identical_to(
-      heap_num_1->value()));
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_1);
   ASSERT_TRUE(iterator.IsValid());
   offset += Bytecodes::Size(Bytecode::kLdaConstant, OperandScale::kSingle);
   ++iterator;
@@ -719,8 +715,8 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
-  const AstValue* heap_num_0 = ast_factory.NewNumber(2.718);
-  const AstValue* heap_num_1 = ast_factory.NewNumber(2.0 * Smi::kMaxValue);
+  double heap_num_0 = 2.718;
+  double heap_num_1 = 2.0 * Smi::kMaxValue;
   Smi* zero = Smi::kZero;
   Smi* smi_0 = Smi::FromInt(64);
   Smi* smi_1 = Smi::FromInt(-65536);
@@ -969,8 +965,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_index(), 2);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_TRUE(iterator.GetConstantForIndexOperand(0).is_identical_to(
-      heap_num_1->value()));
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_1);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
 
@@ -989,8 +984,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   EXPECT_EQ(iterator.current_index(), 0);
   EXPECT_EQ(iterator.current_offset(), offset);
   EXPECT_EQ(iterator.current_operand_scale(), OperandScale::kSingle);
-  EXPECT_TRUE(iterator.GetConstantForIndexOperand(0).is_identical_to(
-      heap_num_0->value()));
+  EXPECT_EQ(iterator.GetConstantForIndexOperand(0)->Number(), heap_num_0);
   ASSERT_TRUE(iterator.IsValid());
   --iterator;
   ASSERT_FALSE(iterator.IsValid());

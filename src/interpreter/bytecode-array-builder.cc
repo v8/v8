@@ -571,6 +571,12 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
   return *this;
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(double value) {
+  size_t entry = GetConstantPoolEntry(value);
+  OutputLdaConstant(entry);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
     const AstRawString* raw_string) {
   size_t entry = GetConstantPoolEntry(raw_string);
@@ -584,27 +590,22 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(const Scope* scope) {
   return *this;
 }
 
-BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(
-    const AstValue* ast_value) {
-  DCHECK(ast_value->IsHeapNumber() || ast_value->IsBigInt() ||
-         ast_value->IsSymbol());
-  if (ast_value->IsHeapNumber() || ast_value->IsBigInt()) {
-    size_t entry = GetConstantPoolEntry(ast_value);
-    OutputLdaConstant(entry);
-    return *this;
-  } else {
-    // This should be the only ast value type left.
-    DCHECK(ast_value->IsSymbol());
-    size_t entry;
-    switch (ast_value->AsSymbol()) {
-      case AstSymbol::kHomeObjectSymbol:
-        entry = HomeObjectSymbolConstantPoolEntry();
-        break;
-        // No default case so that we get a warning if AstSymbol changes
-    }
-    OutputLdaConstant(entry);
-    return *this;
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(AstBigInt bigint) {
+  size_t entry = GetConstantPoolEntry(bigint);
+  OutputLdaConstant(entry);
+  return *this;
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadLiteral(AstSymbol symbol) {
+  size_t entry;
+  switch (symbol) {
+    case AstSymbol::kHomeObjectSymbol:
+      entry = HomeObjectSymbolConstantPoolEntry();
+      break;
+      // No default case so that we get a warning if AstSymbol changes
   }
+  OutputLdaConstant(entry);
+  return *this;
 }
 
 BytecodeArrayBuilder& BytecodeArrayBuilder::LoadUndefined() {
@@ -1416,13 +1417,16 @@ size_t BytecodeArrayBuilder::GetConstantPoolEntry(
   return constant_array_builder()->Insert(raw_string);
 }
 
-size_t BytecodeArrayBuilder::GetConstantPoolEntry(const AstValue* heap_number) {
-  DCHECK(heap_number->IsHeapNumber() || heap_number->IsBigInt());
-  return constant_array_builder()->Insert(heap_number);
+size_t BytecodeArrayBuilder::GetConstantPoolEntry(AstBigInt bigint) {
+  return constant_array_builder()->Insert(bigint);
 }
 
 size_t BytecodeArrayBuilder::GetConstantPoolEntry(const Scope* scope) {
   return constant_array_builder()->Insert(scope);
+}
+
+size_t BytecodeArrayBuilder::GetConstantPoolEntry(double number) {
+  return constant_array_builder()->Insert(number);
 }
 
 #define ENTRY_GETTER(NAME, ...)                            \

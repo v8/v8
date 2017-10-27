@@ -71,9 +71,11 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
   // Constant loads to accumulator.
   BytecodeArrayBuilder& LoadConstantPoolEntry(size_t entry);
   BytecodeArrayBuilder& LoadLiteral(v8::internal::Smi* value);
+  BytecodeArrayBuilder& LoadLiteral(double value);
   BytecodeArrayBuilder& LoadLiteral(const AstRawString* raw_string);
   BytecodeArrayBuilder& LoadLiteral(const Scope* scope);
-  BytecodeArrayBuilder& LoadLiteral(const AstValue* ast_value);
+  BytecodeArrayBuilder& LoadLiteral(AstBigInt bigint);
+  BytecodeArrayBuilder& LoadLiteral(AstSymbol symbol);
   BytecodeArrayBuilder& LoadUndefined();
   BytecodeArrayBuilder& LoadNull();
   BytecodeArrayBuilder& LoadTheHole();
@@ -440,8 +442,9 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
 
   // Gets a constant pool entry.
   size_t GetConstantPoolEntry(const AstRawString* raw_string);
-  size_t GetConstantPoolEntry(const AstValue* heap_number);
+  size_t GetConstantPoolEntry(AstBigInt bigint);
   size_t GetConstantPoolEntry(const Scope* scope);
+  size_t GetConstantPoolEntry(double number);
 #define ENTRY_GETTER(NAME, ...) size_t NAME##ConstantPoolEntry();
   SINGLETON_CONSTANT_ENTRY_TYPES(ENTRY_GETTER)
 #undef ENTRY_GETTER
