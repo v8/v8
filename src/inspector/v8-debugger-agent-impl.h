@@ -100,6 +100,8 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       int scopeNumber, const String16& variableName,
       std::unique_ptr<protocol::Runtime::CallArgument> newValue,
       const String16& callFrame) override;
+  Response setReturnValue(
+      std::unique_ptr<protocol::Runtime::CallArgument> newValue) override;
   Response setAsyncCallStackDepth(int depth) override;
   Response setBlackboxPatterns(
       std::unique_ptr<protocol::Array<String16>> patterns) override;

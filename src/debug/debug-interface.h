@@ -485,6 +485,8 @@ void QueryObjects(v8::Local<v8::Context> context,
 void GlobalLexicalScopeNames(v8::Local<v8::Context> context,
                              v8::PersistentValueVector<v8::String>* names);
 
+void SetReturnValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
+
 }  // namespace debug
 }  // namespace v8
 

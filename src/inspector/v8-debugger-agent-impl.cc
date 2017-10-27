@@ -1058,11 +1058,35 @@ Response V8DebuggerAgentImpl::setVariableValue(
   if (scopeNumber != 0) {
     return Response::Error("Could not find scope with given number");
   }
+
   if (!scopeIterator->SetVariableValue(toV8String(m_isolate, variableName),
                                        newValue) ||
       scope.tryCatch().HasCaught()) {
     return Response::InternalError();
   }
+  return Response::OK();
+}
+
+Response V8DebuggerAgentImpl::setReturnValue(
+    std::unique_ptr<protocol::Runtime::CallArgument> protocolNewValue) {
+  if (!enabled()) return Response::Error(kDebuggerNotEnabled);
+  if (!isPaused()) return Response::Error(kDebuggerNotPaused);
+  auto iterator = v8::debug::StackTraceIterator::Create(m_isolate);
+  if (iterator->Done()) {
+    return Response::Error("Could not find top call frame");
+  }
+  if (iterator->GetReturnValue().IsEmpty()) {
+    return Response::Error(
+        "Could not update return value at non-return position");
+  }
+  InjectedScript::ContextScope scope(m_session, iterator->GetContextId());
+  Response response = scope.initialize();
+  if (!response.isSuccess()) return response;
+  v8::Local<v8::Value> newValue;
+  response = scope.injectedScript()->resolveCallArgument(protocolNewValue.get(),
+                                                         &newValue);
+  if (!response.isSuccess()) return response;
+  v8::debug::SetReturnValue(m_isolate, newValue);
   return Response::OK();
 }
 

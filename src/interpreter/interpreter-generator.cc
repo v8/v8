@@ -2863,9 +2863,12 @@ IGNITION_HANDLER(Debugger, InterpreterAssembler) {
   IGNITION_HANDLER(Name, InterpreterAssembler) {                           \
     Node* context = GetContext();                                          \
     Node* accumulator = GetAccumulator();                                  \
-    Node* original_handler =                                               \
+    Node* result_pair =                                                    \
         CallRuntime(Runtime::kDebugBreakOnBytecode, context, accumulator); \
+    Node* return_value = Projection(0, result_pair);                       \
+    Node* original_handler = Projection(1, result_pair);                   \
     MaybeDropFrames(context);                                              \
+    SetAccumulator(return_value);                                          \
     DispatchToBytecodeHandler(original_handler);                           \
   }
 DEBUG_BREAK_BYTECODE_LIST(DEBUG_BREAK);

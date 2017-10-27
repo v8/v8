@@ -26,11 +26,13 @@
 namespace v8 {
 namespace internal {
 
-RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
+RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
   HandleScope scope(isolate);
+  // Return value can be changed by debugger. Last set value will be used as
+  // return value.
   ReturnValueScope result_scope(isolate->debug());
   isolate->debug()->set_return_value(*value);
 
@@ -53,8 +55,9 @@ RUNTIME_FUNCTION(Runtime_DebugBreakOnBytecode) {
     // sees the return bytecode rather than the DebugBreak.
     interpreted_frame->PatchBytecodeArray(bytecode_array);
   }
-  return isolate->interpreter()->GetBytecodeHandler(
-      bytecode, interpreter::OperandScale::kSingle);
+  return MakePair(isolate->debug()->return_value(),
+                  isolate->interpreter()->GetBytecodeHandler(
+                      bytecode, interpreter::OperandScale::kSingle));
 }
 
 
