@@ -1072,5 +1072,14 @@ RUNTIME_FUNCTION(Runtime_WasmTraceMemory) {
   return isolate->heap()->undefined_value();
 }
 
+RUNTIME_FUNCTION(Runtime_IsLiftoffFunction) {
+  HandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  CHECK(WasmExportedFunction::IsWasmExportedFunction(*function));
+  Handle<Code> wasm_code = WasmExportedFunction::cast(*function)->GetWasmCode();
+  return isolate->heap()->ToBoolean(!wasm_code->is_turbofanned());
+}
+
 }  // namespace internal
 }  // namespace v8
