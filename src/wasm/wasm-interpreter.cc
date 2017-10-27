@@ -1453,7 +1453,7 @@ class ThreadImpl {
     //         ^ 0                     ^ sp_
     DCHECK_LE(dest, sp_);
     DCHECK_LE(dest + arity, sp_);
-    if (arity) memcpy(dest, sp_ - arity, arity * sizeof(*sp_));
+    if (arity) memmove(dest, sp_ - arity, arity * sizeof(*sp_));
     sp_ = dest + arity;
   }
 

@@ -122,6 +122,9 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // Collect the output-value projection for the given output index.
   static Node* FindProjection(Node* node, size_t projection_index);
 
+  // Collect the value projections from a node.
+  static void CollectValueProjections(Node* node, Node** proj, size_t count);
+
   // Collect the branch-related projections from a node, such as IfTrue,
   // IfFalse, IfSuccess, IfException, IfValue and IfDefault.
   //  - Branch: [ IfTrue, IfFalse ]

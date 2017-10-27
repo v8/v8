@@ -277,6 +277,23 @@ Node* NodeProperties::FindProjection(Node* node, size_t projection_index) {
 
 
 // static
+void NodeProperties::CollectValueProjections(Node* node, Node** projections,
+                                             size_t projection_count) {
+#ifdef DEBUG
+  for (size_t index = 0; index < projection_count; ++index) {
+    DCHECK_NULL(projections[index]);
+  }
+#endif
+  for (Edge const edge : node->use_edges()) {
+    if (!IsValueEdge(edge)) continue;
+    Node* use = edge.from();
+    DCHECK_EQ(IrOpcode::kProjection, use->opcode());
+    projections[ProjectionIndexOf(use->op())] = use;
+  }
+}
+
+
+// static
 void NodeProperties::CollectControlProjections(Node* node, Node** projections,
                                                size_t projection_count) {
 #ifdef DEBUG

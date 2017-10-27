@@ -923,6 +923,25 @@ WASM_EXEC_TEST(CallI64Parameter) {
   }
 }
 
+WASM_EXEC_TEST(CallI64Return) {
+  ValueType return_types[3];  // TODO(rossberg): support more in the future
+  for (int i = 0; i < 3; i++) return_types[i] = kWasmI64;
+  return_types[1] = kWasmI32;
+  FunctionSig sig(2, 1, return_types);
+
+  WasmRunner<int64_t> r(execution_mode);
+  // Build the target function.
+  WasmFunctionCompiler& t = r.NewFunction(&sig);
+  BUILD(t, WASM_GET_LOCAL(0), WASM_I32V(7));
+
+  // Build the first calling function.
+  BUILD(r,
+        WASM_CALL_FUNCTION(
+            t.function_index(), WASM_I64V(0xbcd12340000000b)), WASM_DROP);
+
+  CHECK_EQ(0xbcd12340000000b, r.Call());
+}
+
 void TestI64Binop(WasmExecutionMode execution_mode, WasmOpcode opcode,
                   int64_t expected, int64_t a, int64_t b) {
   {

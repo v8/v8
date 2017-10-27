@@ -231,3 +231,92 @@ load("test/mjsunit/wasm/wasm-module-builder.js");
   assertEquals(instance.exports.main(8, 3), 5);
   assertEquals(instance.exports.main(0, 3), 3);
 })();
+
+(function MultiResultTest() {
+  print("MultiResultTest");
+  let builder = new WasmModuleBuilder();
+  let sig_i_ii = builder.addType(kSig_i_ii);
+  let sig_iii_ii = builder.addType(kSig_iii_ii);
+
+  builder.addFunction("callee", kSig_iii_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kExprI32Sub]);
+  builder.addFunction("main", kSig_i_ii)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 1,
+      kExprCallFunction, 0,
+      kExprI32Mul,
+      kExprI32Add])
+    .exportAs("main");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertEquals(instance.exports.main(0, 0), 0);
+  assertEquals(instance.exports.main(1, 0), 1);
+  assertEquals(instance.exports.main(2, 0), 2);
+  assertEquals(instance.exports.main(0, 1), -1);
+  assertEquals(instance.exports.main(0, 2), -4);
+  assertEquals(instance.exports.main(3, 4), -1);
+  assertEquals(instance.exports.main(4, 3), 7);
+})();
+
+(function MultiReturnTest() {
+  print("MultiReturnTest");
+  let builder = new WasmModuleBuilder();
+  let sig_i_i = builder.addType(kSig_i_i);
+  let sig_ii_i = builder.addType(kSig_ii_i);
+
+  builder.addFunction("callee", kSig_ii_i)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 0,
+      kExprGetLocal, 0,
+      kExprI32Add,
+      kExprReturn]);
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprCallFunction, 0,
+      kExprI32Mul])
+    .exportAs("main");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertEquals(instance.exports.main(0), 0);
+  assertEquals(instance.exports.main(1), 2);
+  assertEquals(instance.exports.main(2), 8);
+  assertEquals(instance.exports.main(10), 200);
+})();
+
+(function MultiBrReturnTest() {
+  print("MultiBrReturnTest");
+  let builder = new WasmModuleBuilder();
+  let sig_i_i = builder.addType(kSig_i_i);
+  let sig_ii_i = builder.addType(kSig_ii_i);
+
+  builder.addFunction("callee", kSig_ii_i)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprGetLocal, 0,
+      kExprGetLocal, 0,
+      kExprI32Add,
+      kExprBr, 0]);
+  builder.addFunction("main", kSig_i_i)
+    .addBody([
+      kExprGetLocal, 0,
+      kExprCallFunction, 0,
+      kExprI32Mul])
+    .exportAs("main");
+
+  let module = new WebAssembly.Module(builder.toBuffer());
+  let instance = new WebAssembly.Instance(module);
+  assertEquals(instance.exports.main(0), 0);
+  assertEquals(instance.exports.main(1), 2);
+  assertEquals(instance.exports.main(2), 8);
+  assertEquals(instance.exports.main(10), 200);
+})();
