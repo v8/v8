@@ -585,27 +585,24 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ B(&stepping_prepared);
 }
 
-// Clobbers x10, x15; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm, Register argc) {
+static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
+                                        Label* stack_overflow) {
+  DCHECK(masm->StackPointer().Is(jssp));
+
+  UseScratchRegisterScope temps(masm);
+  Register scratch = temps.AcquireX();
+
   // Check the stack for overflow.
   // We are not trying to catch interruptions (e.g. debug break and
   // preemption) here, so the "real stack limit" is checked.
   Label enough_stack_space;
-  __ LoadRoot(x10, Heap::kRealStackLimitRootIndex);
-  // Make x10 the space we have left. The stack might already be overflowed
-  // here which will cause x10 to become negative.
-  // TODO(jbramley): Check that the stack usage here is safe.
-  __ Sub(x10, jssp, x10);
+  __ LoadRoot(scratch, Heap::kRealStackLimitRootIndex);
+  // Make scratch the space we have left. The stack might already be overflowed
+  // here which will cause scratch to become negative.
+  __ Sub(scratch, masm->StackPointer(), scratch);
   // Check if the arguments will overflow the stack.
-  __ Cmp(x10, Operand(argc, LSL, kPointerSizeLog2));
-  __ B(gt, &enough_stack_space);
-  __ CallRuntime(Runtime::kThrowStackOverflow);
-  // We should never return from the APPLY_OVERFLOW builtin.
-  if (__ emit_debug_code()) {
-    __ Unreachable();
-  }
-
-  __ Bind(&enough_stack_space);
+  __ Cmp(scratch, Operand(num_args, LSL, kPointerSizeLog2));
+  __ B(le, stack_overflow);
 }
 
 // Input:
@@ -643,7 +640,15 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Push(function, receiver);
 
     // Check if we have enough stack space to push all arguments.
-    Generate_CheckStackOverflow(masm, argc);
+    Label enough_stack_space, stack_overflow;
+    Generate_StackOverflowCheck(masm, argc, &stack_overflow);
+    __ B(&enough_stack_space);
+
+    __ Bind(&stack_overflow);
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    __ Unreachable();
+
+    __ Bind(&enough_stack_space);
 
     // Copy arguments to the stack in a loop, in reverse order.
     // x3: argc.
@@ -1068,44 +1073,70 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ B(&bytecode_array_loaded);
 }
 
-static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
-                                        Register scratch,
-                                        Label* stack_overflow) {
-  // Check the stack for overflow.
-  // We are not trying to catch interruptions (e.g. debug break and
-  // preemption) here, so the "real stack limit" is checked.
-  Label enough_stack_space;
-  __ LoadRoot(scratch, Heap::kRealStackLimitRootIndex);
-  // Make scratch the space we have left. The stack might already be overflowed
-  // here which will cause scratch to become negative.
-  __ Sub(scratch, jssp, scratch);
-  // Check if the arguments will overflow the stack.
-  __ Cmp(scratch, Operand(num_args, LSL, kPointerSizeLog2));
-  __ B(le, stack_overflow);
-}
-
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
-                                         Register num_args, Register index,
-                                         Register last_arg, Register stack_addr,
-                                         Register scratch) {
-  __ Mov(scratch, num_args);
-  __ lsl(scratch, scratch, kPointerSizeLog2);
-  __ sub(last_arg, index, scratch);
+                                         Register num_args,
+                                         Register first_arg_index,
+                                         Register spread_arg_out,
+                                         ConvertReceiverMode receiver_mode,
+                                         InterpreterPushArgsMode mode) {
+  Register last_arg_addr = x10;
+  Register stack_addr = x11;
+  Register slots_to_claim = x12;
+  Register slots_to_copy = x13;  // May include receiver, unlike num_args.
 
-  // Set stack pointer and where to stop.
-  __ Mov(stack_addr, jssp);
-  __ Claim(scratch, 1);
+  DCHECK(!AreAliased(num_args, first_arg_index, last_arg_addr, stack_addr,
+                     slots_to_claim, slots_to_copy));
+  // spread_arg_out may alias with the first_arg_index input.
+  DCHECK(!AreAliased(spread_arg_out, last_arg_addr, stack_addr, slots_to_claim,
+                     slots_to_copy));
 
-  // Push the arguments.
-  Label loop_header, loop_check;
-  __ B(&loop_check);
-  __ Bind(&loop_header);
-  // TODO(rmcilroy): Push two at a time once we ensure we keep stack aligned.
-  __ Ldr(scratch, MemOperand(index, -kPointerSize, PostIndex));
-  __ Str(scratch, MemOperand(stack_addr, -kPointerSize, PreIndex));
-  __ Bind(&loop_check);
-  __ Cmp(index, last_arg);
-  __ B(gt, &loop_header);
+  // Add one slot for the receiver.
+  __ Add(slots_to_claim, num_args, 1);
+
+  if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
+    // Exclude final spread from slots to claim and the number of arguments.
+    __ Sub(slots_to_claim, slots_to_claim, 1);
+    __ Sub(num_args, num_args, 1);
+  }
+
+  // Add a stack check before pushing arguments.
+  Label stack_overflow, done;
+  Generate_StackOverflowCheck(masm, slots_to_claim, &stack_overflow);
+  __ B(&done);
+  __ Bind(&stack_overflow);
+  __ TailCallRuntime(Runtime::kThrowStackOverflow);
+  __ Unreachable();
+  __ Bind(&done);
+
+  // TODO(arm64): Claim one extra slot for padding and store padreg to the
+  // padding slot.
+  __ Claim(slots_to_claim);
+
+  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
+    // Store "undefined" as the receiver arg if we need to.
+    Register receiver = x14;
+    __ LoadRoot(receiver, Heap::kUndefinedValueRootIndex);
+    __ SlotAddress(stack_addr, num_args);
+    __ Str(receiver, MemOperand(stack_addr));
+    __ Mov(slots_to_copy, num_args);
+  } else {
+    // If we're not given an explicit receiver to store, we'll need to copy it
+    // together with the rest of the arguments.
+    __ Add(slots_to_copy, num_args, 1);
+  }
+
+  __ Sub(last_arg_addr, first_arg_index,
+         Operand(slots_to_copy, LSL, kPointerSizeLog2));
+  __ Add(last_arg_addr, last_arg_addr, kPointerSize);
+
+  // Load the final spread argument into spread_arg_out, if necessary.
+  if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
+    __ Ldr(spread_arg_out, MemOperand(last_arg_addr, -kPointerSize));
+  }
+
+  // Copy the rest of the arguments.
+  __ SlotAddress(stack_addr, 0);
+  __ CopyDoubleWords(stack_addr, last_arg_addr, slots_to_copy);
 }
 
 // static
@@ -1119,28 +1150,16 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
   //          they are to be pushed onto the stack.
   //  -- x1 : the target to call (can be any Object).
   // -----------------------------------
-  Label stack_overflow;
 
-  // Add one for the receiver.
-  __ Add(x3, x0, 1);
-
-  // Add a stack check before pushing arguments.
-  Generate_StackOverflowCheck(masm, x3, x6, &stack_overflow);
-
-  // Push "undefined" as the receiver arg if we need to.
-  if (receiver_mode == ConvertReceiverMode::kNullOrUndefined) {
-    __ LoadRoot(x10, Heap::kUndefinedValueRootIndex);
-    __ Push(x10);
-    __ Mov(x3, x0);  // Argument count is correct.
-  }
-
-  // Push the arguments. x2, x4, x5, x6 will be modified.
-  Generate_InterpreterPushArgs(masm, x3, x2, x4, x5, x6);
-
-  if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
-    __ Pop(x2);         // Pass the spread in a register
-    __ Sub(x0, x0, 1);  // Subtract one for spread
-  }
+  // Push the arguments. num_args may be updated according to mode.
+  // spread_arg_out will be updated to contain the last spread argument, when
+  // mode == InterpreterPushArgsMode::kWithFinalSpread.
+  Register num_args = x0;
+  Register first_arg_index = x2;
+  Register spread_arg_out =
+      (mode == InterpreterPushArgsMode::kWithFinalSpread) ? x2 : no_reg;
+  Generate_InterpreterPushArgs(masm, num_args, first_arg_index, spread_arg_out,
+                               receiver_mode, mode);
 
   // Call the target.
   if (mode == InterpreterPushArgsMode::kJSFunction) {
@@ -1154,12 +1173,6 @@ void Builtins::Generate_InterpreterPushArgsThenCallImpl(
     __ Jump(masm->isolate()->builtins()->Call(ConvertReceiverMode::kAny),
             RelocInfo::CODE_TARGET);
   }
-
-  __ bind(&stack_overflow);
-  {
-    __ TailCallRuntime(Runtime::kThrowStackOverflow);
-    __ Unreachable();
-  }
 }
 
 // static
@@ -1172,23 +1185,17 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
   // -- x2 : allocation site feedback if available, undefined otherwise
   // -- x4 : address of the first argument
   // -----------------------------------
-  Label stack_overflow;
+  __ AssertUndefinedOrAllocationSite(x2);
 
-  // Push a slot for the receiver.
-  __ Push(xzr);
-
-  // Add a stack check before pushing arguments.
-  Generate_StackOverflowCheck(masm, x0, x7, &stack_overflow);
-
-  // Push the arguments. x5, x4, x6, x7 will be modified.
-  Generate_InterpreterPushArgs(masm, x0, x4, x5, x6, x7);
-
-  if (mode == InterpreterPushArgsMode::kWithFinalSpread) {
-    __ Pop(x2);         // Pass the spread in a register
-    __ Sub(x0, x0, 1);  // Subtract one for spread
-  } else {
-    __ AssertUndefinedOrAllocationSite(x2, x6);
-  }
+  // Push the arguments. num_args may be updated according to mode.
+  // spread_arg_out will be updated to contain the last spread argument, when
+  // mode == InterpreterPushArgsMode::kWithFinalSpread.
+  Register num_args = x0;
+  Register first_arg_index = x4;
+  Register spread_arg_out =
+      (mode == InterpreterPushArgsMode::kWithFinalSpread) ? x2 : no_reg;
+  Generate_InterpreterPushArgs(masm, num_args, first_arg_index, spread_arg_out,
+                               ConvertReceiverMode::kNullOrUndefined, mode);
 
   if (mode == InterpreterPushArgsMode::kJSFunction) {
     __ AssertFunction(x1);
@@ -1207,12 +1214,6 @@ void Builtins::Generate_InterpreterPushArgsThenConstructImpl(
     DCHECK_EQ(InterpreterPushArgsMode::kOther, mode);
     // Call the constructor with x0, x1, and x3 unmodified.
     __ Jump(BUILTIN_CODE(masm->isolate(), Construct), RelocInfo::CODE_TARGET);
-  }
-
-  __ bind(&stack_overflow);
-  {
-    __ TailCallRuntime(Runtime::kThrowStackOverflow);
-    __ Unreachable();
   }
 }
 
@@ -2129,14 +2130,14 @@ void Builtins::Generate_CallOrConstructForwardVarargs(MacroAssembler* masm,
   __ B(le, &stack_done);
   {
     // Check for stack overflow.
-    Generate_StackOverflowCheck(masm, x6, x2, &stack_overflow);
+    Generate_StackOverflowCheck(masm, x6, &stack_overflow);
 
     // Forward the arguments from the caller frame.
     {
       Label loop;
       __ Add(x5, x5, kPointerSize);
       __ Add(x0, x0, x6);
-      __ bind(&loop);
+      __ Bind(&loop);
       {
         __ Ldr(x4, MemOperand(x5, x6, LSL, kPointerSizeLog2));
         __ Push(x4);
@@ -2625,7 +2626,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
   // number of actual arguments and the receiver.
   __ RecordComment("-- Stack check --");
   __ Add(scratch1, argc_expected, 2);
-  Generate_StackOverflowCheck(masm, scratch1, scratch2, &stack_overflow);
+  Generate_StackOverflowCheck(masm, scratch1, &stack_overflow);
 
   // Round up number of slots to be even, to maintain stack alignment.
   __ RecordComment("-- Allocate callee frame slots --");

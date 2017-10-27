@@ -395,33 +395,30 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
-// Clobbers ecx, edx, edi; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm) {
-  // eax   : the number of items to be pushed to the stack
-  //
+static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
+                                        Register scratch1, Register scratch2,
+                                        Label* stack_overflow,
+                                        bool include_receiver = false) {
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-  Label okay;
   ExternalReference real_stack_limit =
       ExternalReference::address_of_real_stack_limit(masm->isolate());
-  __ mov(edi, Operand::StaticVariable(real_stack_limit));
-  // Make ecx the space we have left. The stack might already be overflowed
-  // here which will cause ecx to become negative.
-  __ mov(ecx, esp);
-  __ sub(ecx, edi);
-  // Make edx the space we need for the array when it is unrolled onto the
+  __ mov(scratch1, Operand::StaticVariable(real_stack_limit));
+  // Make scratch2 the space we have left. The stack might already be overflowed
+  // here which will cause scratch2 to become negative.
+  __ mov(scratch2, esp);
+  __ sub(scratch2, scratch1);
+  // Make scratch1 the space we need for the array when it is unrolled onto the
   // stack.
-  __ mov(edx, eax);
-  __ shl(edx, kPointerSizeLog2);
+  __ mov(scratch1, num_args);
+  if (include_receiver) {
+    __ add(scratch1, Immediate(1));
+  }
+  __ shl(scratch1, kPointerSizeLog2);
   // Check if the arguments will overflow the stack.
-  __ cmp(ecx, edx);
-  __ j(greater, &okay);  // Signed comparison.
-
-  // Out of stack space.
-  __ CallRuntime(Runtime::kThrowStackOverflow);
-
-  __ bind(&okay);
+  __ cmp(scratch2, scratch1);
+  __ j(less_equal, stack_overflow);  // Signed comparison.
 }
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
@@ -448,8 +445,17 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ mov(ebx, Operand(ebx, EntryFrameConstants::kArgvOffset));
 
     // Check if we have enough stack space to push all arguments.
-    // Expects argument count in eax. Clobbers ecx, edx, edi.
-    Generate_CheckStackOverflow(masm);
+    // Argument count in eax. Clobbers ecx and edx.
+    Label enough_stack_space, stack_overflow;
+    Generate_StackOverflowCheck(masm, eax, ecx, edx, &stack_overflow);
+    __ jmp(&enough_stack_space);
+
+    __ bind(&stack_overflow);
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    // This should be unreachable.
+    __ int3();
+
+    __ bind(&enough_stack_space);
 
     // Copy arguments to the stack in a loop.
     Label loop, entry;
@@ -960,32 +966,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ jmp(&bytecode_array_loaded);
 }
 
-
-static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
-                                        Register scratch1, Register scratch2,
-                                        Label* stack_overflow,
-                                        bool include_receiver = false) {
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  ExternalReference real_stack_limit =
-      ExternalReference::address_of_real_stack_limit(masm->isolate());
-  __ mov(scratch1, Operand::StaticVariable(real_stack_limit));
-  // Make scratch2 the space we have left. The stack might already be overflowed
-  // here which will cause scratch2 to become negative.
-  __ mov(scratch2, esp);
-  __ sub(scratch2, scratch1);
-  // Make scratch1 the space we need for the array when it is unrolled onto the
-  // stack.
-  __ mov(scratch1, num_args);
-  if (include_receiver) {
-    __ add(scratch1, Immediate(1));
-  }
-  __ shl(scratch1, kPointerSizeLog2);
-  // Check if the arguments will overflow the stack.
-  __ cmp(scratch2, scratch1);
-  __ j(less_equal, stack_overflow);  // Signed comparison.
-}
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
                                          Register array_limit,

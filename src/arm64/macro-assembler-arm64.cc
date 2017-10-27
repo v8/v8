@@ -1708,9 +1708,10 @@ void MacroAssembler::AssertGeneratorObject(Register object) {
   Check(eq, kOperandIsNotAGeneratorObject);
 }
 
-void MacroAssembler::AssertUndefinedOrAllocationSite(Register object,
-                                                     Register scratch) {
+void MacroAssembler::AssertUndefinedOrAllocationSite(Register object) {
   if (emit_debug_code()) {
+    UseScratchRegisterScope temps(this);
+    Register scratch = temps.AcquireX();
     Label done_checking;
     AssertNotSmi(object);
     JumpIfRoot(object, Heap::kUndefinedValueRootIndex, &done_checking);

@@ -1419,7 +1419,7 @@ void ArrayConstructorStub::Generate(MacroAssembler* masm) {
 
     // We should either have undefined in the allocation_site register or a
     // valid AllocationSite.
-    __ AssertUndefinedOrAllocationSite(allocation_site, x10);
+    __ AssertUndefinedOrAllocationSite(allocation_site);
   }
 
   // Enter the context of the Array function.

@@ -1807,7 +1807,7 @@ class MacroAssembler : public TurboAssembler {
 
   // Abort execution if argument is not undefined or an AllocationSite, enabled
   // via --debug-code.
-  void AssertUndefinedOrAllocationSite(Register object, Register scratch);
+  void AssertUndefinedOrAllocationSite(Register object);
 
   void JumpIfHeapNumber(Register object, Label* on_heap_number,
                         SmiCheckType smi_check_type = DONT_DO_SMI_CHECK);

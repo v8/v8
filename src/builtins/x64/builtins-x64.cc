@@ -400,31 +400,23 @@ void Builtins::Generate_ConstructedNonConstructable(MacroAssembler* masm) {
   __ CallRuntime(Runtime::kThrowConstructedNonConstructable);
 }
 
-// Clobbers rcx, r11, kScratchRegister; preserves all other registers.
-static void Generate_CheckStackOverflow(MacroAssembler* masm) {
-  // rax   : the number of items to be pushed to the stack
-  //
+static void Generate_StackOverflowCheck(
+    MacroAssembler* masm, Register num_args, Register scratch,
+    Label* stack_overflow,
+    Label::Distance stack_overflow_distance = Label::kFar) {
   // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
-  Label okay;
   __ LoadRoot(kScratchRegister, Heap::kRealStackLimitRootIndex);
-  __ movp(rcx, rsp);
-  // Make rcx the space we have left. The stack might already be overflowed
-  // here which will cause rcx to become negative.
-  __ subp(rcx, kScratchRegister);
-  // Make r11 the space we need for the array when it is unrolled onto the
-  // stack.
-  __ movp(r11, rax);
-  __ shlq(r11, Immediate(kPointerSizeLog2));
+  __ movp(scratch, rsp);
+  // Make scratch the space we have left. The stack might already be overflowed
+  // here which will cause scratch to become negative.
+  __ subp(scratch, kScratchRegister);
+  __ sarp(scratch, Immediate(kPointerSizeLog2));
   // Check if the arguments will overflow the stack.
-  __ cmpp(rcx, r11);
-  __ j(greater, &okay);  // Signed comparison.
-
-  // Out of stack space.
-  __ CallRuntime(Runtime::kThrowStackOverflow);
-
-  __ bind(&okay);
+  __ cmpp(scratch, num_args);
+  // Signed comparison.
+  __ j(less_equal, stack_overflow, stack_overflow_distance);
 }
 
 static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
@@ -524,8 +516,17 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // rdx : new.target
 
     // Check if we have enough stack space to push all arguments.
-    // Expects argument count in rax. Clobbers rcx, r11.
-    Generate_CheckStackOverflow(masm);
+    // Argument count in rax. Clobbers rcx.
+    Label enough_stack_space, stack_overflow;
+    Generate_StackOverflowCheck(masm, rax, rcx, &stack_overflow, Label::kNear);
+    __ jmp(&enough_stack_space);
+
+    __ bind(&stack_overflow);
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    // This should be unreachable.
+    __ int3();
+
+    __ bind(&enough_stack_space);
 
     // Copy arguments to the stack in a loop.
     // Register rbx points to array of pointers to handle locations.
@@ -1033,25 +1034,6 @@ void Builtins::Generate_InterpreterEntryTrampoline(MacroAssembler* masm) {
   __ movp(kInterpreterBytecodeArrayRegister,
           FieldOperand(rcx, DebugInfo::kDebugBytecodeArrayOffset));
   __ jmp(&bytecode_array_loaded);
-}
-
-static void Generate_StackOverflowCheck(
-    MacroAssembler* masm, Register num_args, Register scratch,
-    Label* stack_overflow,
-    Label::Distance stack_overflow_distance = Label::kFar) {
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  __ LoadRoot(kScratchRegister, Heap::kRealStackLimitRootIndex);
-  __ movp(scratch, rsp);
-  // Make scratch the space we have left. The stack might already be overflowed
-  // here which will cause scratch to become negative.
-  __ subp(scratch, kScratchRegister);
-  __ sarp(scratch, Immediate(kPointerSizeLog2));
-  // Check if the arguments will overflow the stack.
-  __ cmpp(scratch, num_args);
-  // Signed comparison.
-  __ j(less_equal, stack_overflow, stack_overflow_distance);
 }
 
 static void Generate_InterpreterPushArgs(MacroAssembler* masm,
