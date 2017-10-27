@@ -50,6 +50,7 @@ class V8_EXPORT_PRIVATE TypedOptimization final
   Reduction ReduceNumberToUint8Clamped(Node* node);
   Reduction ReducePhi(Node* node);
   Reduction ReduceReferenceEqual(Node* node);
+  Reduction ReduceSameValue(Node* node);
   Reduction ReduceSelect(Node* node);
   Reduction ReduceSpeculativeToNumber(Node* node);
   Reduction ReduceCheckNotTaggedHole(Node* node);

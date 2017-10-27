@@ -518,6 +518,20 @@ Reduction JSCallReducer::ReduceObjectGetPrototypeOf(Node* node) {
   return ReduceObjectGetPrototype(node, object);
 }
 
+// ES section #sec-object.is
+Reduction JSCallReducer::ReduceObjectIs(Node* node) {
+  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
+  CallParameters const& params = CallParametersOf(node->op());
+  int const argc = static_cast<int>(params.arity() - 2);
+  Node* lhs = (argc >= 1) ? NodeProperties::GetValueInput(node, 2)
+                          : jsgraph()->UndefinedConstant();
+  Node* rhs = (argc >= 2) ? NodeProperties::GetValueInput(node, 3)
+                          : jsgraph()->UndefinedConstant();
+  Node* value = graph()->NewNode(simplified()->SameValue(), lhs, rhs);
+  ReplaceWithValue(node, value);
+  return Replace(value);
+}
+
 // ES6 section B.2.2.1.1 get Object.prototype.__proto__
 Reduction JSCallReducer::ReduceObjectPrototypeGetProto(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
@@ -1946,6 +1960,8 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceObjectConstructor(node);
         case Builtins::kObjectGetPrototypeOf:
           return ReduceObjectGetPrototypeOf(node);
+        case Builtins::kObjectIs:
+          return ReduceObjectIs(node);
         case Builtins::kObjectPrototypeGetProto:
           return ReduceObjectPrototypeGetProto(node);
         case Builtins::kObjectPrototypeHasOwnProperty:

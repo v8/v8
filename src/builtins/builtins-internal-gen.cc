@@ -593,5 +593,19 @@ TF_BUILTIN(ForInFilter, CodeStubAssembler) {
   Return(UndefinedConstant());
 }
 
+TF_BUILTIN(SameValue, CodeStubAssembler) {
+  Node* lhs = Parameter(Descriptor::kLeft);
+  Node* rhs = Parameter(Descriptor::kRight);
+
+  Label if_true(this), if_false(this);
+  BranchIfSameValue(lhs, rhs, &if_true, &if_false);
+
+  BIND(&if_true);
+  Return(TrueConstant());
+
+  BIND(&if_false);
+  Return(FalseConstant());
+}
+
 }  // namespace internal
 }  // namespace v8

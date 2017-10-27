@@ -426,6 +426,7 @@ class RepresentationSelector {
     break;                                                       \
   }
       SIMPLIFIED_NUMBER_BINOP_LIST(DECLARE_CASE)
+      DECLARE_CASE(SameValue)
 #undef DECLARE_CASE
 
 #define DECLARE_CASE(Name)                                                \
@@ -2347,6 +2348,12 @@ class RepresentationSelector {
         if (lower()) {
           NodeProperties::ChangeOp(node, lowering->machine()->WordEqual());
         }
+        return;
+      }
+      case IrOpcode::kSameValue: {
+        if (truncation.IsUnused()) return VisitUnused(node);
+        VisitBinop(node, UseInfo::AnyTagged(),
+                   MachineRepresentation::kTaggedPointer);
         return;
       }
       case IrOpcode::kClassOf:

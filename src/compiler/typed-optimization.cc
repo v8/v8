@@ -105,6 +105,8 @@ Reduction TypedOptimization::Reduce(Node* node) {
       return ReducePhi(node);
     case IrOpcode::kReferenceEqual:
       return ReduceReferenceEqual(node);
+    case IrOpcode::kSameValue:
+      return ReduceSameValue(node);
     case IrOpcode::kSelect:
       return ReduceSelect(node);
     case IrOpcode::kTypeOf:
@@ -353,6 +355,52 @@ Reduction TypedOptimization::ReduceReferenceEqual(Node* node) {
             ->Is(NodeProperties::GetType(node))) {
       return Replace(jsgraph()->FalseConstant());
     }
+  }
+  return NoChange();
+}
+
+Reduction TypedOptimization::ReduceSameValue(Node* node) {
+  DCHECK_EQ(IrOpcode::kSameValue, node->opcode());
+  Node* const lhs = NodeProperties::GetValueInput(node, 0);
+  Node* const rhs = NodeProperties::GetValueInput(node, 1);
+  Type* const lhs_type = NodeProperties::GetType(lhs);
+  Type* const rhs_type = NodeProperties::GetType(rhs);
+  if (lhs == rhs) {
+    // SameValue(x,x) => #true
+    return Replace(jsgraph()->TrueConstant());
+  } else if (lhs_type->Is(Type::Unique()) && rhs_type->Is(Type::Unique())) {
+    // SameValue(x:unique,y:unique) => ReferenceEqual(x,y)
+    NodeProperties::ChangeOp(node, simplified()->ReferenceEqual());
+    return Changed(node);
+  } else if (lhs_type->Is(Type::String()) && rhs_type->Is(Type::String())) {
+    // SameValue(x:string,y:string) => StringEqual(x,y)
+    NodeProperties::ChangeOp(node, simplified()->StringEqual());
+    return Changed(node);
+  } else if (lhs_type->Is(Type::MinusZero())) {
+    // SameValue(x:minus-zero,y) => ObjectIsMinusZero(y)
+    node->RemoveInput(0);
+    NodeProperties::ChangeOp(node, simplified()->ObjectIsMinusZero());
+    return Changed(node);
+  } else if (rhs_type->Is(Type::MinusZero())) {
+    // SameValue(x,y:minus-zero) => ObjectIsMinusZero(x)
+    node->RemoveInput(1);
+    NodeProperties::ChangeOp(node, simplified()->ObjectIsMinusZero());
+    return Changed(node);
+  } else if (lhs_type->Is(Type::NaN())) {
+    // SameValue(x:nan,y) => ObjectIsNaN(y)
+    node->RemoveInput(0);
+    NodeProperties::ChangeOp(node, simplified()->ObjectIsNaN());
+    return Changed(node);
+  } else if (rhs_type->Is(Type::NaN())) {
+    // SameValue(x,y:nan) => ObjectIsNaN(x)
+    node->RemoveInput(1);
+    NodeProperties::ChangeOp(node, simplified()->ObjectIsNaN());
+    return Changed(node);
+  } else if (lhs_type->Is(Type::PlainNumber()) &&
+             rhs_type->Is(Type::PlainNumber())) {
+    // SameValue(x:plain-number,y:plain-number) => NumberEqual(x,y)
+    NodeProperties::ChangeOp(node, simplified()->NumberEqual());
+    return Changed(node);
   }
   return NoChange();
 }

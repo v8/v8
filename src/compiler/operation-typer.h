@@ -49,6 +49,9 @@ class V8_EXPORT_PRIVATE OperationTyper {
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(DECLARE_METHOD)
 #undef DECLARE_METHOD
 
+  // Comparison operators.
+  Type* SameValue(Type* lhs, Type* rhs);
+
   // Check operators.
   Type* CheckFloat64Hole(Type* type);
   Type* CheckNumber(Type* type);

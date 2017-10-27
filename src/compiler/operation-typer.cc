@@ -1058,6 +1058,42 @@ Type* OperationTyper::FalsifyUndefined(ComparisonOutcome outcome) {
   return singleton_true();
 }
 
+namespace {
+
+Type* JSType(Type* type) {
+  if (type->Is(Type::Boolean())) return Type::Boolean();
+  if (type->Is(Type::String())) return Type::String();
+  if (type->Is(Type::Number())) return Type::Number();
+  if (type->Is(Type::Undefined())) return Type::Undefined();
+  if (type->Is(Type::Null())) return Type::Null();
+  if (type->Is(Type::Symbol())) return Type::Symbol();
+  if (type->Is(Type::Receiver())) return Type::Receiver();  // JS "Object"
+  return Type::Any();
+}
+
+}  // namespace
+
+Type* OperationTyper::SameValue(Type* lhs, Type* rhs) {
+  if (!JSType(lhs)->Maybe(JSType(rhs))) return singleton_false();
+  if (lhs->Is(Type::NaN())) {
+    if (rhs->Is(Type::NaN())) return singleton_true();
+    if (!rhs->Maybe(Type::NaN())) return singleton_false();
+  } else if (rhs->Is(Type::NaN())) {
+    if (!lhs->Maybe(Type::NaN())) return singleton_false();
+  }
+  if (lhs->Is(Type::MinusZero())) {
+    if (rhs->Is(Type::MinusZero())) return singleton_true();
+    if (!rhs->Maybe(Type::MinusZero())) return singleton_false();
+  } else if (rhs->Is(Type::MinusZero())) {
+    if (!lhs->Maybe(Type::MinusZero())) return singleton_false();
+  }
+  if (lhs->Is(Type::OrderedNumber()) && rhs->Is(Type::OrderedNumber()) &&
+      (lhs->Max() < rhs->Min() || lhs->Min() > rhs->Max())) {
+    return singleton_false();
+  }
+  return Type::Boolean();
+}
+
 Type* OperationTyper::CheckFloat64Hole(Type* type) {
   if (type->Maybe(Type::Hole())) {
     // Turn "the hole" into undefined.

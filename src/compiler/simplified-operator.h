@@ -392,6 +392,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* SpeculativeNumberEqual(NumberOperationHint hint);
 
   const Operator* ReferenceEqual();
+  const Operator* SameValue();
 
   const Operator* TypeOf();
   const Operator* ClassOf();

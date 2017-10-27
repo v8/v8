@@ -2325,52 +2325,6 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
   return Replace(value);
 }
 
-// ES #sec-object.is
-Reduction JSBuiltinReducer::ReduceObjectIs(Node* node) {
-  // TODO(turbofan): At some point we should probably introduce a new
-  // SameValue simplified operator (and also a StrictEqual simplified
-  // operator) and create unified handling in SimplifiedLowering.
-  JSCallReduction r(node);
-  if (r.GetJSCallArity() == 2 && r.left() == r.right()) {
-    // Object.is(x,x) => #true
-    Node* value = jsgraph()->TrueConstant();
-    return Replace(value);
-  } else if (r.InputsMatchTwo(Type::Unique(), Type::Unique())) {
-    // Object.is(x:Unique,y:Unique) => ReferenceEqual(x,y)
-    Node* left = r.GetJSCallInput(0);
-    Node* right = r.GetJSCallInput(1);
-    Node* value = graph()->NewNode(simplified()->ReferenceEqual(), left, right);
-    return Replace(value);
-  } else if (r.InputsMatchTwo(Type::MinusZero(), Type::Any())) {
-    // Object.is(x:MinusZero,y) => ObjectIsMinusZero(y)
-    Node* input = r.GetJSCallInput(1);
-    Node* value = graph()->NewNode(simplified()->ObjectIsMinusZero(), input);
-    return Replace(value);
-  } else if (r.InputsMatchTwo(Type::Any(), Type::MinusZero())) {
-    // Object.is(x,y:MinusZero) => ObjectIsMinusZero(x)
-    Node* input = r.GetJSCallInput(0);
-    Node* value = graph()->NewNode(simplified()->ObjectIsMinusZero(), input);
-    return Replace(value);
-  } else if (r.InputsMatchTwo(Type::NaN(), Type::Any())) {
-    // Object.is(x:NaN,y) => ObjectIsNaN(y)
-    Node* input = r.GetJSCallInput(1);
-    Node* value = graph()->NewNode(simplified()->ObjectIsNaN(), input);
-    return Replace(value);
-  } else if (r.InputsMatchTwo(Type::Any(), Type::NaN())) {
-    // Object.is(x,y:NaN) => ObjectIsNaN(x)
-    Node* input = r.GetJSCallInput(0);
-    Node* value = graph()->NewNode(simplified()->ObjectIsNaN(), input);
-    return Replace(value);
-  } else if (r.InputsMatchTwo(Type::String(), Type::String())) {
-    // Object.is(x:String,y:String) => StringEqual(x,y)
-    Node* left = r.GetJSCallInput(0);
-    Node* right = r.GetJSCallInput(1);
-    Node* value = graph()->NewNode(simplified()->StringEqual(), left, right);
-    return Replace(value);
-  }
-  return NoChange();
-}
-
 // ES6 section 21.1.2.1 String.fromCharCode ( ...codeUnits )
 Reduction JSBuiltinReducer::ReduceStringFromCharCode(Node* node) {
   JSCallReduction r(node);
@@ -2987,9 +2941,6 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       break;
     case kObjectCreate:
       reduction = ReduceObjectCreate(node);
-      break;
-    case kObjectIs:
-      reduction = ReduceObjectIs(node);
       break;
     case kSetEntries:
       return ReduceCollectionIterator(

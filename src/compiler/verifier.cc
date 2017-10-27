@@ -1030,6 +1030,12 @@ void Verifier::Visitor::Check(Node* node) {
       // (Any, Unique) -> Boolean
       CheckTypeIs(node, Type::Boolean());
       break;
+    case IrOpcode::kSameValue:
+      // (Any, Any) -> Boolean
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckValueInputIs(node, 1, Type::Any());
+      CheckTypeIs(node, Type::Boolean());
+      break;
 
     case IrOpcode::kObjectIsArrayBufferView:
     case IrOpcode::kObjectIsCallable:

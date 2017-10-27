@@ -700,6 +700,7 @@ namespace internal {
   TFC(GreaterThan, Compare, 1)                                                 \
   TFC(GreaterThanOrEqual, Compare, 1)                                          \
   TFC(Equal, Compare, 1)                                                       \
+  TFC(SameValue, Compare, 1)                                                   \
   TFC(StrictEqual, Compare, 1)                                                 \
                                                                                \
   /* Object */                                                                 \

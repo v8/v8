@@ -64,6 +64,7 @@ class JSCallReducer final : public AdvancedReducer {
   Reduction ReduceObjectConstructor(Node* node);
   Reduction ReduceObjectGetPrototype(Node* node, Node* object);
   Reduction ReduceObjectGetPrototypeOf(Node* node);
+  Reduction ReduceObjectIs(Node* node);
   Reduction ReduceObjectPrototypeGetProto(Node* node);
   Reduction ReduceObjectPrototypeHasOwnProperty(Node* node);
   Reduction ReduceObjectPrototypeIsPrototypeOf(Node* node);
