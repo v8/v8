@@ -305,6 +305,9 @@
   'js1_5/Regress/regress-317476': [FAIL],
   'js1_5/Regress/regress-314401': [FAIL],
 
+  # d8 implements setTimeout, but not clearTimeout.
+  'js1_5/GC/regress-319980-01': [FAIL],
+
   # Any local 'arguments' variable should not be allowed to shadow the value
   # returned via the indirect 'arguments' property accessor.
   'js1_4/Functions/function-001': [FAIL_OK],

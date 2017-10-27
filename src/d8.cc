@@ -595,6 +595,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   try_catch.SetVerbose(true);
 
   MaybeLocal<Value> maybe_result;
+  bool success = true;
   {
     PerIsolateData* data = PerIsolateData::Get(isolate);
     Local<Context> realm =
@@ -608,7 +609,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       return false;
     }
     maybe_result = script->Run(realm);
-    EmptyMessageQueues(isolate);
+    if (!EmptyMessageQueues(isolate)) success = false;
     data->realm_current_ = data->realm_switch_;
   }
   Local<Value> result;
@@ -634,7 +635,7 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       printf("\n");
     }
   }
-  return true;
+  return success;
 }
 
 namespace {
@@ -2910,7 +2911,7 @@ void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
 }
 
 namespace {
-void ProcessMessages(Isolate* isolate,
+bool ProcessMessages(Isolate* isolate,
                      std::function<platform::MessageLoopBehavior()> behavior) {
   Platform* platform = GetDefaultPlatform();
   while (true) {
@@ -2932,9 +2933,10 @@ void ProcessMessages(Isolate* isolate,
     Context::Scope context_scope(context);
     if (callback->Call(context, Undefined(isolate), 0, nullptr).IsEmpty()) {
       Shell::ReportException(isolate, &try_catch);
-      return;
+      return false;
     }
   }
+  return true;
 }
 }  // anonymous namespace
 
@@ -2948,9 +2950,9 @@ void Shell::CompleteMessageLoop(Isolate* isolate) {
   });
 }
 
-void Shell::EmptyMessageQueues(Isolate* isolate) {
-  ProcessMessages(isolate,
-                  []() { return platform::MessageLoopBehavior::kDoNotWait; });
+bool Shell::EmptyMessageQueues(Isolate* isolate) {
+  return ProcessMessages(
+      isolate, []() { return platform::MessageLoopBehavior::kDoNotWait; });
 }
 
 class Serializer : public ValueSerializer::Delegate {

@@ -358,7 +358,7 @@ class Shell : public i::AllStatic {
   static void Exit(int exit_code);
   static void OnExit(Isolate* isolate);
   static void CollectGarbage(Isolate* isolate);
-  static void EmptyMessageQueues(Isolate* isolate);
+  static bool EmptyMessageQueues(Isolate* isolate);
   static void EnsureEventLoopInitialized(Isolate* isolate);
   static void CompleteMessageLoop(Isolate* isolate);
 
