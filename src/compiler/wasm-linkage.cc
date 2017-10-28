@@ -119,7 +119,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // == s390 ===================================================================
 // ===========================================================================
 #define GP_PARAM_REGISTERS r6, r2, r3, r4, r5
-#define GP_RETURN_REGISTERS r2, r3
+#define GP_RETURN_REGISTERS r2, r3, r4
 #define FP_PARAM_REGISTERS d0, d2
 #define FP_RETURN_REGISTERS d0, d2
 
