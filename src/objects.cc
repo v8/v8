@@ -6775,7 +6775,6 @@ MaybeHandle<Object> JSReceiver::DefineProperties(Isolate* isolate,
   return object;
 }
 
-
 // static
 Maybe<bool> JSReceiver::DefineOwnProperty(Isolate* isolate,
                                           Handle<JSReceiver> object,

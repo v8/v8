@@ -7053,6 +7053,7 @@ class V8_EXPORT Isolate {
     kConstructorNonUndefinedPrimitiveReturn = 39,
     kLabeledExpressionStatement = 40,
     kLineOrParagraphSeparatorAsLineTerminator = 41,
+    kIndexAccessor = 42,
 
     // If you add new values here, you'll also need to update Chromium's:
     // UseCounter.h, V8PerIsolateData.cpp, histograms.xml

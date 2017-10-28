@@ -630,6 +630,7 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
 
   if (IsElement()) {
     // TODO(verwaest): Move code into the element accessor.
+    isolate_->CountUsage(v8::Isolate::kIndexAccessor);
     Handle<SeededNumberDictionary> dictionary =
         JSObject::NormalizeElements(receiver);
 

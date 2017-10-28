@@ -142,6 +142,55 @@ TEST(LabeledExpressionStatement) {
   CHECK_EQ(2, use_counts[v8::Isolate::kLabeledExpressionStatement]);
 }
 
+TEST(IndexAccessorUseCount) {
+  i::FLAG_harmony_strict_legacy_accessor_builtins = false;
+  v8::Isolate* isolate = CcTest::isolate();
+  v8::HandleScope scope(isolate);
+  LocalContext env;
+  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
+  global_use_counts = use_counts;
+  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
+
+  // Adding accessor to named property does not increment kIndexAccessor
+  CompileRun(
+      "var a = {};"
+      "function dummy(){}"
+      "Object.defineProperty(a, 'test', { get: dummy, set: dummy });");
+  CHECK_EQ(0, use_counts[v8::Isolate::kIndexAccessor]);
+
+  // Setting index to value does not increment kIndexAccessor
+  CompileRun(
+      "var a = {};"
+      "Object.defineProperty(a, '0', { value: 0 });");
+  CHECK_EQ(0, use_counts[v8::Isolate::kIndexAccessor]);
+
+  // Non-integer number index not increment kIndexAccessor
+  CompileRun(
+      "var a = {};"
+      "Object.defineProperty(a, '2.5', { value: 0 });");
+  CHECK_EQ(0, use_counts[v8::Isolate::kIndexAccessor]);
+
+  // Setting index accessor increments count
+  CompileRun(
+      "var a = {};"
+      "function dummy(){}"
+      "Object.defineProperty(a, '0', { get : dummy, set : dummy });");
+  CHECK_EQ(1, use_counts[v8::Isolate::kIndexAccessor]);
+
+  // Setting index accessor on array increments count
+  CompileRun(
+      "var a = [];"
+      "function dummy(){}"
+      "Object.defineProperty(a, '0', { get : dummy, set : dummy });");
+  CHECK_EQ(2, use_counts[v8::Isolate::kIndexAccessor]);
+
+  // __defineGetter__ increments count
+  CompileRun(
+      "var a = [];"
+      "function dummy(){}"
+      "a.__defineGetter__('0', dummy);");
+  CHECK_EQ(3, use_counts[v8::Isolate::kIndexAccessor]);
+}
 }  // namespace test_usecounters
 }  // namespace internal
 }  // namespace v8
