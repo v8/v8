@@ -5198,8 +5198,9 @@ Node* CodeStubAssembler::ToName(Node* context, Node* value) {
   return var_result.value();
 }
 
-Node* CodeStubAssembler::NonNumberToNumberOrNumeric(Node* context, Node* input,
-                                                    Object::Conversion mode) {
+Node* CodeStubAssembler::NonNumberToNumberOrNumeric(
+    Node* context, Node* input, Object::Conversion mode,
+    BigIntHandling bigint_handling) {
   CSA_ASSERT(this, Word32BinaryNot(TaggedIsSmi(input)));
   CSA_ASSERT(this, Word32BinaryNot(IsHeapNumber(input)));
 
@@ -5239,7 +5240,13 @@ Node* CodeStubAssembler::NonNumberToNumberOrNumeric(Node* context, Node* input,
       Goto(&end);
     } else {
       DCHECK_EQ(mode, Object::Conversion::kToNumber);
-      Goto(&if_inputisother);
+      if (bigint_handling == BigIntHandling::kThrow) {
+        Goto(&if_inputisother);
+      } else {
+        DCHECK_EQ(bigint_handling, BigIntHandling::kConvertToNumber);
+        var_result.Bind(CallRuntime(Runtime::kBigIntToNumber, context, input));
+        Goto(&end);
+      }
     }
 
     BIND(&if_inputisoddball);
@@ -5306,9 +5313,10 @@ Node* CodeStubAssembler::NonNumberToNumberOrNumeric(Node* context, Node* input,
 }
 
 TNode<Number> CodeStubAssembler::NonNumberToNumber(
-    SloppyTNode<Context> context, SloppyTNode<HeapObject> input) {
-  return CAST(NonNumberToNumberOrNumeric(context, input,
-                                         Object::Conversion::kToNumber));
+    SloppyTNode<Context> context, SloppyTNode<HeapObject> input,
+    BigIntHandling bigint_handling) {
+  return CAST(NonNumberToNumberOrNumeric(
+      context, input, Object::Conversion::kToNumber, bigint_handling));
 }
 
 TNode<Numeric> CodeStubAssembler::NonNumberToNumeric(
@@ -5320,7 +5328,8 @@ TNode<Numeric> CodeStubAssembler::NonNumberToNumeric(
 }
 
 TNode<Number> CodeStubAssembler::ToNumber(SloppyTNode<Context> context,
-                                          SloppyTNode<Object> input) {
+                                          SloppyTNode<Object> input,
+                                          BigIntHandling bigint_handling) {
   TVARIABLE(Number, var_result);
   Label end(this);
 
@@ -5342,7 +5351,7 @@ TNode<Number> CodeStubAssembler::ToNumber(SloppyTNode<Context> context,
 
     BIND(&not_heap_number);
     {
-      var_result = NonNumberToNumber(context, input_ho);
+      var_result = NonNumberToNumber(context, input_ho, bigint_handling);
       Goto(&end);
     }
   }

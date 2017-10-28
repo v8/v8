@@ -1151,6 +1151,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* StringFromCodePoint(Node* codepoint, UnicodeEncoding encoding);
 
   // Type conversion helpers.
+  enum class BigIntHandling { kConvertToNumber, kThrow };
   // Convert a String to a Number.
   TNode<Number> StringToNumber(SloppyTNode<Context> context,
                                SloppyTNode<String> input);
@@ -1158,14 +1159,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Convert an object to a name.
   Node* ToName(Node* context, Node* input);
   // Convert a Non-Number object to a Number.
-  TNode<Number> NonNumberToNumber(SloppyTNode<Context> context,
-                                  SloppyTNode<HeapObject> input);
+  TNode<Number> NonNumberToNumber(
+      SloppyTNode<Context> context, SloppyTNode<HeapObject> input,
+      BigIntHandling bigint_handling = BigIntHandling::kThrow);
   // Convert a Non-Number object to a Numeric.
   TNode<Numeric> NonNumberToNumeric(SloppyTNode<Context> context,
                                     SloppyTNode<HeapObject> input);
   // Convert any object to a Number.
-  TNode<Number> ToNumber(SloppyTNode<Context> context,
-                         SloppyTNode<Object> input);
+  // Conforms to ES#sec-tonumber if {bigint_handling} == kThrow.
+  // With {bigint_handling} == kConvertToNumber, matches behavior of
+  // tc39.github.io/proposal-bigint/#sec-number-constructor-number-value.
+  TNode<Number> ToNumber(
+      SloppyTNode<Context> context, SloppyTNode<Object> input,
+      BigIntHandling bigint_handling = BigIntHandling::kThrow);
 
   // Converts |input| to one of 2^32 integer values in the range 0 through
   // 2^32-1, inclusive.
@@ -1885,8 +1891,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   static const int kElementLoopUnrollThreshold = 8;
 
-  Node* NonNumberToNumberOrNumeric(Node* context, Node* input,
-                                   Object::Conversion mode);
+  // {convert_bigint} is only meaningful when {mode} == kToNumber.
+  Node* NonNumberToNumberOrNumeric(
+      Node* context, Node* input, Object::Conversion mode,
+      BigIntHandling bigint_handling = BigIntHandling::kThrow);
 
   enum class Feedback { kCollect, kNone };
   template <Feedback feedback>

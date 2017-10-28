@@ -69,6 +69,13 @@ RUNTIME_FUNCTION(Runtime_BigIntToBoolean) {
   return *isolate->factory()->ToBoolean(bigint->ToBoolean());
 }
 
+RUNTIME_FUNCTION(Runtime_BigIntToNumber) {
+  HandleScope scope(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_ARG_HANDLE_CHECKED(BigInt, x, 0);
+  return *BigInt::ToNumber(x);
+}
+
 RUNTIME_FUNCTION(Runtime_BigIntBinaryOp) {
   HandleScope scope(isolate);
   DCHECK_EQ(3, args.length());

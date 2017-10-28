@@ -73,6 +73,10 @@ class V8_EXPORT_PRIVATE BigInt : public HeapObject {
   void Initialize(int length, bool zero_initialize);
 
   static MaybeHandle<String> ToString(Handle<BigInt> bigint, int radix = 10);
+  // "The Number value for x", see:
+  // https://tc39.github.io/ecma262/#sec-ecmascript-language-types-number-type
+  // Returns a Smi or HeapNumber.
+  static Handle<Object> ToNumber(Handle<BigInt> x);
 
   // ECMAScript's NumberToBigInt
   static MaybeHandle<BigInt> FromNumber(Isolate* isolate,
@@ -107,6 +111,11 @@ class V8_EXPORT_PRIVATE BigInt : public HeapObject {
                                          int charcount,
                                          ShouldThrow should_throw);
   void RightTrim();
+
+  static double ToDouble(Handle<BigInt> x);
+  enum Rounding { kRoundDown, kTie, kRoundUp };
+  static Rounding DecideRounding(Handle<BigInt> x, int mantissa_bits_unset,
+                                 int digit_index, uint64_t current_digit);
 
   static Handle<BigInt> AbsoluteAdd(Handle<BigInt> x, Handle<BigInt> y,
                                     bool result_sign);

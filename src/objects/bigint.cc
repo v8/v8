@@ -540,6 +540,106 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
       isolate, NewSyntaxError(MessageTemplate::kBigIntFromObject, obj), BigInt);
 }
 
+Handle<Object> BigInt::ToNumber(Handle<BigInt> x) {
+  Isolate* isolate = x->GetIsolate();
+  if (x->is_zero()) return Handle<Smi>(Smi::kZero, isolate);
+  if (x->length() == 1 && x->digit(0) < Smi::kMaxValue) {
+    int value = static_cast<int>(x->digit(0));
+    if (x->sign()) value = -value;
+    return Handle<Smi>(Smi::FromInt(value), isolate);
+  }
+  double result = ToDouble(x);
+  return isolate->factory()->NewHeapNumber(result);
+}
+
+double BigInt::ToDouble(Handle<BigInt> x) {
+  if (x->is_zero()) return 0.0;
+  int x_length = x->length();
+  digit_t x_msd = x->digit(x_length - 1);
+  int msd_leading_zeros = base::bits::CountLeadingZeros(x_msd);
+  int x_bitlength = x_length * kDigitBits - msd_leading_zeros;
+  if (x_bitlength > 1024) return x->sign() ? -V8_INFINITY : V8_INFINITY;
+  uint64_t exponent = x_bitlength - 1;
+  // We need the most significant bit shifted to the position of a double's
+  // "hidden bit". We also need to hide that MSB, so we shift it out.
+  uint64_t current_digit = x_msd;
+  int digit_index = x_length - 1;
+  int shift = msd_leading_zeros + 1 + (64 - kDigitBits);
+  DCHECK_LE(1, shift);
+  DCHECK_LE(shift, 64);
+  uint64_t mantissa = (shift == 64) ? 0 : current_digit << shift;
+  mantissa >>= 12;
+  int mantissa_bits_unset = shift - 12;
+  // If not all mantissa bits are defined yet, get more digits as needed.
+  if (mantissa_bits_unset >= kDigitBits && digit_index > 0) {
+    digit_index--;
+    current_digit = static_cast<uint64_t>(x->digit(digit_index));
+    mantissa |= (current_digit << (mantissa_bits_unset - kDigitBits));
+    mantissa_bits_unset -= kDigitBits;
+  }
+  if (mantissa_bits_unset > 0 && digit_index > 0) {
+    DCHECK_LT(mantissa_bits_unset, kDigitBits);
+    digit_index--;
+    current_digit = static_cast<uint64_t>(x->digit(digit_index));
+    mantissa |= (current_digit >> (kDigitBits - mantissa_bits_unset));
+    mantissa_bits_unset -= kDigitBits;
+  }
+  // If there are unconsumed digits left, we may have to round.
+  Rounding rounding =
+      DecideRounding(x, mantissa_bits_unset, digit_index, current_digit);
+  if (rounding == kRoundUp || (rounding == kTie && (mantissa & 1) == 1)) {
+    mantissa++;
+    // Incrementing the mantissa can overflow the mantissa bits. In that case
+    // the new mantissa will be all zero (plus hidden bit).
+    if ((mantissa >> Double::kPhysicalSignificandSize) != 0) {
+      mantissa = 0;
+      exponent++;
+      // Incrementing the exponent can overflow too.
+      if (exponent > 1023) {
+        return x->sign() ? -V8_INFINITY : V8_INFINITY;
+      }
+    }
+  }
+  // Assemble the result.
+  uint64_t sign_bit = x->sign() ? (static_cast<uint64_t>(1) << 63) : 0;
+  exponent = (exponent + 0x3FF) << Double::kPhysicalSignificandSize;
+  uint64_t double_bits = sign_bit | exponent | mantissa;
+  return bit_cast<double>(double_bits);
+}
+
+// This is its own function to keep control flow sane. The meaning of the
+// parameters is defined by {ToDouble}'s local variable usage.
+BigInt::Rounding BigInt::DecideRounding(Handle<BigInt> x,
+                                        int mantissa_bits_unset,
+                                        int digit_index,
+                                        uint64_t current_digit) {
+  if (mantissa_bits_unset > 0) return kRoundDown;
+  int top_unconsumed_bit;
+  if (mantissa_bits_unset < 0) {
+    // There are unconsumed bits in {current_digit}.
+    top_unconsumed_bit = -mantissa_bits_unset - 1;
+  } else {
+    DCHECK_EQ(mantissa_bits_unset, 0);
+    // {current_digit} fit the mantissa exactly; look at the next digit.
+    if (digit_index == 0) return kRoundDown;
+    digit_index--;
+    current_digit = static_cast<uint64_t>(x->digit(digit_index));
+    top_unconsumed_bit = kDigitBits - 1;
+  }
+  // If the most significant remaining bit is 0, round down.
+  uint64_t bitmask = static_cast<uint64_t>(1) << top_unconsumed_bit;
+  if ((current_digit & bitmask) == 0) {
+    return kRoundDown;
+  }
+  // If any other remaining bit is set, round up.
+  bitmask -= 1;
+  if ((current_digit & bitmask) != 0) return kRoundUp;
+  for (; digit_index >= 0; digit_index--) {
+    if (x->digit(digit_index) != 0) return kRoundUp;
+  }
+  return kTie;
+}
+
 void BigInt::Initialize(int length, bool zero_initialize) {
   set_length(length);
   set_sign(false);

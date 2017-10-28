@@ -295,6 +295,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   /* BigInts */                      \
   V(BigIntEqualToBigInt)             \
   V(BigIntToBoolean)                 \
+  V(BigIntToNumber)                  \
   /* Literals */                     \
   V(CreateArrayLiteral)              \
   V(CreateObjectLiteral)             \

@@ -701,7 +701,8 @@ TF_BUILTIN(NumberConstructor, ConstructorBuiltinsAssembler) {
   GotoIf(IntPtrEqual(IntPtrConstant(0), argc), &return_zero);
 
   Node* context = Parameter(BuiltinDescriptor::kContext);
-  args.PopAndReturn(ToNumber(context, args.AtIndex(0)));
+  args.PopAndReturn(
+      ToNumber(context, args.AtIndex(0), BigIntHandling::kConvertToNumber));
 
   BIND(&return_zero);
   args.PopAndReturn(SmiConstant(0));
@@ -717,28 +718,19 @@ TF_BUILTIN(NumberConstructor_ConstructStub, ConstructorBuiltinsAssembler) {
       ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  Label return_zero(this), wrap(this);
+  Label wrap(this);
 
-  VARIABLE(var_result, MachineRepresentation::kTagged);
+  VARIABLE(var_result, MachineRepresentation::kTagged, SmiConstant(0));
 
-  GotoIf(IntPtrEqual(IntPtrConstant(0), argc), &return_zero);
-  {
-    var_result.Bind(ToNumber(context, args.AtIndex(0)));
-    Goto(&wrap);
-  }
-
-  BIND(&return_zero);
-  {
-    var_result.Bind(SmiConstant(0));
-    Goto(&wrap);
-  }
+  GotoIf(IntPtrEqual(IntPtrConstant(0), argc), &wrap);
+  var_result.Bind(
+      ToNumber(context, args.AtIndex(0), BigIntHandling::kConvertToNumber));
+  Goto(&wrap);
 
   BIND(&wrap);
-  {
-    Node* result = EmitFastNewObject(context, target, new_target);
-    StoreObjectField(result, JSValue::kValueOffset, var_result.value());
-    args.PopAndReturn(result);
-  }
+  Node* result = EmitFastNewObject(context, target, new_target);
+  StoreObjectField(result, JSValue::kValueOffset, var_result.value());
+  args.PopAndReturn(result);
 }
 
 Node* ConstructorBuiltinsAssembler::EmitConstructString(Node* argc,
