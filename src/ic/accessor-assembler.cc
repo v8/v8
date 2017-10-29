@@ -1623,12 +1623,12 @@ void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
 
   ExitPoint direct_exit(this);
 
-  Label if_element_hole(this), if_oob(this);
+  Label if_custom(this), if_element_hole(this), if_oob(this);
   // Receivers requiring non-standard element accesses (interceptors, access
   // checks, strings and string wrappers, proxies) are handled in the runtime.
   GotoIf(Int32LessThanOrEqual(instance_type,
                               Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
-         slow);
+         &if_custom);
   Node* elements = LoadElements(receiver);
   Node* elements_kind = LoadMapElementsKind(receiver_map);
   Node* is_jsarray_condition = InstanceTypeEqual(instance_type, JS_ARRAY_TYPE);
@@ -1663,6 +1663,18 @@ void AccessorAssembler::GenericElementLoad(Node* receiver, Node* receiver_map,
 
     BIND(&return_undefined);
     Return(UndefinedConstant());
+  }
+
+  BIND(&if_custom);
+  {
+    Comment("check if string");
+    GotoIfNot(IsStringInstanceType(instance_type), slow);
+    Comment("load string character");
+    Node* length = LoadAndUntagObjectField(receiver, String::kLengthOffset);
+    GotoIfNot(UintPtrLessThan(index, length), slow);
+    IncrementCounter(isolate()->counters()->ic_keyed_load_generic_smi(), 1);
+    TailCallBuiltin(Builtins::kStringCharAt, NoContextConstant(), receiver,
+                    index);
   }
 }
 
