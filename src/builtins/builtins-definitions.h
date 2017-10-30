@@ -1090,12 +1090,15 @@ namespace internal {
   TFJ(WeakMapGet, 1, kKey)                                                     \
   TFJ(WeakMapHas, 1, kKey)                                                     \
   TFJ(WeakMapPrototypeSet, 2, kKey, kValue)                                    \
+  TFJ(WeakMapPrototypeDelete, 1, kKey)                                         \
                                                                                \
   /* WeakSet */                                                                \
   TFJ(WeakSetHas, 1, kKey)                                                     \
   TFJ(WeakSetPrototypeAdd, 1, kValue)                                          \
+  TFJ(WeakSetPrototypeDelete, 1, kValue)                                       \
                                                                                \
   /* WeakSet / WeakMap Helpers */                                              \
+  TFS(WeakCollectionDelete, kCollection, kKey)                                 \
   TFS(WeakCollectionSet, kCollection, kKey, kValue)                            \
                                                                                \
   /* AsyncGenerator */                                                         \

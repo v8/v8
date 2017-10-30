@@ -181,8 +181,18 @@ test(function() {
 TypeError);
 
 test(function() {
+  WeakSet.prototype.delete.call([]);
+}, "Method WeakSet.prototype.delete called on incompatible receiver [object Array]",
+TypeError);
+
+test(function() {
   WeakMap.prototype.set.call([]);
 }, "Method WeakMap.prototype.set called on incompatible receiver [object Array]",
+TypeError);
+
+test(function() {
+  WeakMap.prototype.delete.call([]);
+}, "Method WeakMap.prototype.delete called on incompatible receiver [object Array]",
 TypeError);
 
 // kNonCallableInInstanceOfCheck

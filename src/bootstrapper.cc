@@ -3292,6 +3292,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Setup %WeakMapPrototype%.
     Handle<JSObject> prototype(JSObject::cast(cons->instance_prototype()));
 
+    SimpleInstallFunction(prototype, "delete",
+                          Builtins::kWeakMapPrototypeDelete, 1, true);
     SimpleInstallFunction(prototype, "get", Builtins::kWeakMapGet, 1, true);
     SimpleInstallFunction(prototype, "has", Builtins::kWeakMapHas, 1, true);
     SimpleInstallFunction(prototype, "set", Builtins::kWeakMapPrototypeSet, 2,
@@ -3312,6 +3314,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // Setup %WeakSetPrototype%.
     Handle<JSObject> prototype(JSObject::cast(cons->instance_prototype()));
 
+    SimpleInstallFunction(prototype, "delete",
+                          Builtins::kWeakSetPrototypeDelete, 1, true);
     SimpleInstallFunction(prototype, "has", Builtins::kWeakSetHas, 1, true);
     SimpleInstallFunction(prototype, "add", Builtins::kWeakSetPrototypeAdd, 1,
                           true);

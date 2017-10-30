@@ -1901,11 +1901,43 @@ TNode<Word32T> WeakCollectionsBuiltinsAssembler::InsufficientCapacityToAdd(
                         capacity));
 }
 
+void WeakCollectionsBuiltinsAssembler::RemoveEntry(
+    TNode<Object> table, TNode<IntPtrT> key_index,
+    TNode<IntPtrT> number_of_elements) {
+  // See ObjectHashTable::RemoveEntry().
+  TNode<IntPtrT> value_index = ValueIndexFromKeyIndex(key_index);
+  StoreFixedArrayElement(table, key_index, TheHoleConstant());
+  StoreFixedArrayElement(table, value_index, TheHoleConstant());
+
+  // See HashTableBase::ElementRemoved().
+  TNode<IntPtrT> number_of_deleted = LoadNumberOfDeleted(table, 1);
+  StoreFixedArrayElement(table, ObjectHashTable::kNumberOfElementsIndex,
+                         SmiFromWord(number_of_elements), SKIP_WRITE_BARRIER);
+  StoreFixedArrayElement(table, ObjectHashTable::kNumberOfDeletedElementsIndex,
+                         SmiFromWord(number_of_deleted), SKIP_WRITE_BARRIER);
+}
+
 TNode<BoolT> WeakCollectionsBuiltinsAssembler::ShouldRehash(
     TNode<IntPtrT> number_of_elements, TNode<IntPtrT> number_of_deleted) {
   // Rehash if more than 33% of the entries are deleted.
   return IntPtrGreaterThanOrEqual(WordShl(number_of_deleted, 1),
                                   number_of_elements);
+}
+
+TNode<Word32T> WeakCollectionsBuiltinsAssembler::ShouldShrink(
+    TNode<IntPtrT> capacity, TNode<IntPtrT> number_of_elements) {
+  // See HashTable::Shrink().
+  TNode<IntPtrT> quarter_capacity = WordShr(capacity, 2);
+  return Word32And(
+      // Shrink to fit the number of elements if only a quarter of the
+      // capacity is filled with elements.
+      IntPtrLessThanOrEqual(number_of_elements, quarter_capacity),
+
+      // Allocate a new dictionary with room for at least the current
+      // number of elements. The allocation method will make sure that
+      // there is extra room in the dictionary for additions. Don't go
+      // lower than room for 16 elements.
+      IntPtrGreaterThanOrEqual(number_of_elements, IntPtrConstant(16)));
 }
 
 TNode<IntPtrT> WeakCollectionsBuiltinsAssembler::ValueIndexFromKeyIndex(
@@ -1978,6 +2010,37 @@ TF_BUILTIN(WeakMapHas, WeakCollectionsBuiltinsAssembler) {
   Return(FalseConstant());
 }
 
+// Helper that removes the entry with a given key from the backing store
+// (ObjectHashTable) of a WeakMap or WeakSet.
+TF_BUILTIN(WeakCollectionDelete, WeakCollectionsBuiltinsAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> collection = CAST(Parameter(Descriptor::kCollection));
+  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
+
+  Label call_runtime(this), if_not_found(this);
+
+  GotoIf(TaggedIsSmi(key), &if_not_found);
+  GotoIfNot(IsJSReceiver(key), &if_not_found);
+
+  TNode<IntPtrT> hash = LoadJSReceiverIdentityHash(key, &if_not_found);
+  TNode<Object> table = LoadTable(collection);
+  TNode<IntPtrT> capacity = LoadTableCapacity(table);
+  TNode<IntPtrT> key_index =
+      FindKeyIndexForKey(table, key, hash, EntryMask(capacity), &if_not_found);
+  TNode<IntPtrT> number_of_elements = LoadNumberOfElements(table, -1);
+  GotoIf(ShouldShrink(capacity, number_of_elements), &call_runtime);
+
+  RemoveEntry(table, key_index, number_of_elements);
+  Return(TrueConstant());
+
+  BIND(&if_not_found);
+  Return(FalseConstant());
+
+  BIND(&call_runtime);
+  Return(CallRuntime(Runtime::kWeakCollectionDelete, context, collection, key,
+                     SmiTag(hash)));
+}
+
 // Helper that sets the key and value to the backing store (ObjectHashTable) of
 // a WeakMap or WeakSet.
 TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
@@ -2030,6 +2093,17 @@ TF_BUILTIN(WeakCollectionSet, WeakCollectionsBuiltinsAssembler) {
   }
 }
 
+TF_BUILTIN(WeakMapPrototypeDelete, CodeStubAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Object> key = CAST(Parameter(Descriptor::kKey));
+
+  ThrowIfNotInstanceType(context, receiver, JS_WEAK_MAP_TYPE,
+                         "WeakMap.prototype.delete");
+
+  Return(CallBuiltin(Builtins::kWeakCollectionDelete, context, receiver, key));
+}
+
 TF_BUILTIN(WeakMapPrototypeSet, CodeStubAssembler) {
   TNode<Context> context = CAST(Parameter(Descriptor::kContext));
   TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
@@ -2067,6 +2141,18 @@ TF_BUILTIN(WeakSetPrototypeAdd, CodeStubAssembler) {
 
   BIND(&throw_invalid_value);
   ThrowTypeError(context, MessageTemplate::kInvalidWeakSetValue, value);
+}
+
+TF_BUILTIN(WeakSetPrototypeDelete, CodeStubAssembler) {
+  TNode<Context> context = CAST(Parameter(Descriptor::kContext));
+  TNode<Object> receiver = CAST(Parameter(Descriptor::kReceiver));
+  TNode<Object> value = CAST(Parameter(Descriptor::kValue));
+
+  ThrowIfNotInstanceType(context, receiver, JS_WEAK_SET_TYPE,
+                         "WeakSet.prototype.delete");
+
+  Return(
+      CallBuiltin(Builtins::kWeakCollectionDelete, context, receiver, value));
 }
 
 TF_BUILTIN(WeakSetHas, WeakCollectionsBuiltinsAssembler) {

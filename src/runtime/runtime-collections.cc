@@ -116,10 +116,18 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionDelete) {
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_SMI_ARG_CHECKED(hash, 2)
-  CHECK(key->IsJSReceiver() || key->IsSymbol());
+
+#ifdef DEBUG
+  DCHECK(key->IsJSReceiver());
+  DCHECK(ObjectHashTableShape::IsLive(isolate, *key));
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  CHECK(table->IsKey(isolate, *key));
+  // Should only be called when shrinking the table is necessary. See
+  // HashTable::Shrink().
+  DCHECK(table->NumberOfElements() - 1 <= (table->Capacity() >> 2) &&
+         table->NumberOfElements() - 1 >= 16);
+#endif
+
   bool was_present = JSWeakCollection::Delete(weak_collection, key, hash);
   return isolate->heap()->ToBoolean(was_present);
 }
