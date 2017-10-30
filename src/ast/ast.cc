@@ -90,7 +90,7 @@ MaterializedLiteral* AstNode::AsMaterializedLiteral() {
 #undef RETURN_NODE
 
 bool Expression::IsSmiLiteral() const {
-  return IsLiteral() && AsLiteral()->IsSmi();
+  return IsLiteral() && AsLiteral()->type() == Literal::kSmi;
 }
 
 bool Expression::IsNumberLiteral() const {
@@ -98,7 +98,7 @@ bool Expression::IsNumberLiteral() const {
 }
 
 bool Expression::IsStringLiteral() const {
-  return IsLiteral() && AsLiteral()->IsString();
+  return IsLiteral() && AsLiteral()->type() == Literal::kString;
 }
 
 bool Expression::IsPropertyName() const {
@@ -106,15 +106,15 @@ bool Expression::IsPropertyName() const {
 }
 
 bool Expression::IsNullLiteral() const {
-  return IsLiteral() && AsLiteral()->IsNull();
+  return IsLiteral() && AsLiteral()->type() == Literal::kNull;
 }
 
 bool Expression::IsTheHoleLiteral() const {
-  return IsLiteral() && AsLiteral()->IsTheHole();
+  return IsLiteral() && AsLiteral()->type() == Literal::kTheHole;
 }
 
 bool Expression::IsUndefinedLiteral() const {
-  if (IsLiteral() && AsLiteral()->IsUndefined()) return true;
+  if (IsLiteral() && AsLiteral()->type() == Literal::kUndefined) return true;
 
   const VariableProxy* var_proxy = AsVariableProxy();
   if (var_proxy == nullptr) return false;
@@ -825,10 +825,8 @@ Handle<Object> Literal::BuildValue(Isolate* isolate) const {
       return string_->string();
     case kSymbol:
       return isolate->factory()->home_object_symbol();
-    case kTrue:
-      return isolate->factory()->true_value();
-    case kFalse:
-      return isolate->factory()->false_value();
+    case kBoolean:
+      return isolate->factory()->ToBoolean(boolean_);
     case kNull:
       return isolate->factory()->null_value();
     case kUndefined:
@@ -852,10 +850,8 @@ bool Literal::ToBooleanIsTrue() const {
     case kNull:
     case kUndefined:
       return false;
-    case kTrue:
-      return true;
-    case kFalse:
-      return false;
+    case kBoolean:
+      return boolean_;
     case kBigInt: {
       const char* bigint_str = bigint_.c_str();
       size_t length = strlen(bigint_str);

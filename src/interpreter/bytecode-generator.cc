@@ -1976,32 +1976,36 @@ void BytecodeGenerator::VisitConditional(Conditional* expr) {
 }
 
 void BytecodeGenerator::VisitLiteral(Literal* expr) {
-  if (!execution_result()->IsEffect()) {
-    // TODO(adamk): Make this a switch statement.
-    if (expr->IsSmi()) {
+  if (execution_result()->IsEffect()) return;
+  switch (expr->type()) {
+    case Literal::kSmi:
       builder()->LoadLiteral(expr->AsSmiLiteral());
-    } else if (expr->IsNumber()) {
+      break;
+    case Literal::kHeapNumber:
       builder()->LoadLiteral(expr->AsNumber());
-    } else if (expr->IsUndefined()) {
+      break;
+    case Literal::kUndefined:
       builder()->LoadUndefined();
-    } else if (expr->IsTrue()) {
-      builder()->LoadTrue();
-    } else if (expr->IsFalse()) {
-      builder()->LoadFalse();
-    } else if (expr->IsNull()) {
-      builder()->LoadNull();
-    } else if (expr->IsTheHole()) {
-      builder()->LoadTheHole();
-    } else if (expr->IsString()) {
-      builder()->LoadLiteral(expr->AsRawString());
-    } else if (expr->IsSymbol()) {
-      builder()->LoadLiteral(expr->AsSymbol());
-    } else if (expr->IsBigInt()) {
-      builder()->LoadLiteral(expr->AsBigInt());
-    }
-    if (expr->IsTrue() || expr->IsFalse()) {
+      break;
+    case Literal::kBoolean:
+      builder()->LoadBoolean(expr->ToBooleanIsTrue());
       execution_result()->SetResultIsBoolean();
-    }
+      break;
+    case Literal::kNull:
+      builder()->LoadNull();
+      break;
+    case Literal::kTheHole:
+      builder()->LoadTheHole();
+      break;
+    case Literal::kString:
+      builder()->LoadLiteral(expr->AsRawString());
+      break;
+    case Literal::kSymbol:
+      builder()->LoadLiteral(expr->AsSymbol());
+      break;
+    case Literal::kBigInt:
+      builder()->LoadLiteral(expr->AsBigInt());
+      break;
   }
 }
 

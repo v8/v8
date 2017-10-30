@@ -987,6 +987,20 @@ class SloppyBlockFunctionStatement final : public Statement {
 
 class Literal final : public Expression {
  public:
+  enum Type {
+    kSmi,
+    kHeapNumber,
+    kBigInt,
+    kString,
+    kSymbol,
+    kBoolean,
+    kUndefined,
+    kNull,
+    kTheHole,
+  };
+
+  Type type() const { return TypeField::decode(bit_field_); }
+
   // Returns true if literal represents a property name (i.e. cannot be parsed
   // as array indices).
   bool IsPropertyName() const;
@@ -995,12 +1009,12 @@ class Literal final : public Expression {
     return string_;
   }
 
-  bool IsSmi() const { return type() == kSmi; }
   Smi* AsSmiLiteral() const {
     DCHECK_EQ(kSmi, type());
     return Smi::FromInt(smi_);
   }
 
+  // Returns true if literal represents a Number.
   bool IsNumber() const { return type() == kHeapNumber || type() == kSmi; }
   double AsNumber() const {
     DCHECK(IsNumber());
@@ -1014,30 +1028,21 @@ class Literal final : public Expression {
     }
   }
 
-  bool IsBigInt() const { return type() == kBigInt; }
   AstBigInt AsBigInt() const {
-    DCHECK(IsBigInt());
+    DCHECK_EQ(type(), kBigInt);
     return bigint_;
   }
 
   bool IsString() const { return type() == kString; }
   const AstRawString* AsRawString() {
-    DCHECK(IsString());
+    DCHECK_EQ(type(), kString);
     return string_;
   }
 
-  bool IsSymbol() const { return type() == kSymbol; }
   AstSymbol AsSymbol() {
-    DCHECK(IsSymbol());
+    DCHECK_EQ(type(), kSymbol);
     return symbol_;
   }
-
-  bool IsNull() const { return type() == kNull; }
-  bool IsUndefined() const { return type() == kUndefined; }
-  bool IsTheHole() const { return type() == kTheHole; }
-
-  bool IsTrue() const { return type() == kTrue; }
-  bool IsFalse() const { return type() == kFalse; }
 
   V8_EXPORT_PRIVATE bool ToBooleanIsTrue() const;
   bool ToBooleanIsFalse() const { return !ToBooleanIsTrue(); }
@@ -1057,22 +1062,7 @@ class Literal final : public Expression {
  private:
   friend class AstNodeFactory;
 
-  enum Type {
-    kSmi,
-    kHeapNumber,
-    kBigInt,
-    kString,
-    kSymbol,
-    kUndefined,
-    kNull,
-    kTheHole,
-    kTrue,
-    kFalse
-  };
-
   class TypeField : public BitField<Type, Expression::kNextBitFieldIndex, 4> {};
-
-  Type type() const { return TypeField::decode(bit_field_); }
 
   Literal(int smi, int position) : Expression(position, kLiteral), smi_(smi) {
     bit_field_ = TypeField::update(bit_field_, kSmi);
@@ -1098,9 +1088,13 @@ class Literal final : public Expression {
     bit_field_ = TypeField::update(bit_field_, kSymbol);
   }
 
+  Literal(bool boolean, int position)
+      : Expression(position, kLiteral), boolean_(boolean) {
+    bit_field_ = TypeField::update(bit_field_, kBoolean);
+  }
+
   Literal(Type type, int position) : Expression(position, kLiteral) {
-    DCHECK(type == kNull || type == kUndefined || type == kTheHole ||
-           type == kTrue || type == kFalse);
+    DCHECK(type == kNull || type == kUndefined || type == kTheHole);
     bit_field_ = TypeField::update(bit_field_, type);
   }
 
@@ -1110,6 +1104,7 @@ class Literal final : public Expression {
     double number_;
     AstSymbol symbol_;
     AstBigInt bigint_;
+    bool boolean_;
   };
 };
 
@@ -3031,10 +3026,7 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   Literal* NewBooleanLiteral(bool b, int pos) {
-    if (b) {
-      return new (zone_) Literal(Literal::kTrue, pos);
-    }
-    return new (zone_) Literal(Literal::kFalse, pos);
+    return new (zone_) Literal(b, pos);
   }
 
   Literal* NewNullLiteral(int pos) {
