@@ -2771,10 +2771,6 @@ group("v8_clusterfuzz") {
       ":d8(//build/toolchain/linux:clang_x86_v8_arm)",
     ]
   }
-
-  if (v8_test_isolation_mode != "noop") {
-    deps += [ "tools::run-deopt-fuzzer_run" ]
-  }
 }
 
 group("v8_archive") {
