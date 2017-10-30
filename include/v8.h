@@ -984,9 +984,6 @@ class V8_EXPORT Data {
 };
 
 /**
- * This is an unfinished experimental feature, and is only exposed
- * here for internal testing purposes. DO NOT USE.
- *
  * A container type that holds relevant metadata for module loading.
  *
  * This is passed back to the embedder as part of
@@ -1008,9 +1005,6 @@ class V8_EXPORT ScriptOrModule {
 };
 
 /**
- * This is an unfinished experimental feature, and is only exposed
- * here for internal testing purposes. DO NOT USE.
- *
  * An array to hold Primitive values. This is used by the embedder to
  * pass host defined options to the ScriptOptions during compilation.
  *
@@ -7112,9 +7106,6 @@ class V8_EXPORT Isolate {
       AbortOnUncaughtExceptionCallback callback);
 
   /**
-   * This is an unfinished experimental feature, and is only exposed
-   * here for internal testing purposes. DO NOT USE.
-   *
    * This specifies the callback called by the upcoming dynamic
    * import() language feature to load modules.
    */
