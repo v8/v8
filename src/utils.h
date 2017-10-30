@@ -5,9 +5,6 @@
 #ifndef V8_UTILS_H_
 #define V8_UTILS_H_
 
-#if defined(V8_OS_AIX)
-#include <fenv.h>  // NOLINT(build/c++11)
-#endif
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
@@ -24,6 +21,10 @@
 #include "src/globals.h"
 #include "src/vector.h"
 #include "src/zone/zone.h"
+
+#if defined(V8_OS_AIX)
+#include <fenv.h>  // NOLINT(build/c++11)
+#endif
 
 namespace v8 {
 namespace internal {
