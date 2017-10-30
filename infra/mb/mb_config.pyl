@@ -412,7 +412,7 @@
     'gn_release_x64_concurrent_marking': [
       'gn', 'release_bot', 'x64', 'v8_enable_concurrent_marking', 'swarming'],
     'gn_release_x64_correctness_fuzzer' : [
-      'gn', 'release_bot', 'x64', 'v8_correctness_fuzzer'],
+      'gn', 'release_bot', 'x64', 'v8_correctness_fuzzer', 'swarming'],
     'gn_release_x64_fuchsia': [
       'gn', 'release_bot', 'x64', 'fuchsia', 'swarming'],
     'gn_release_x64_fuchsia_trybot': [
