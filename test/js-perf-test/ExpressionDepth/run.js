@@ -24,6 +24,7 @@ AddTest('Add', '+');
 AddTest('Sub', '-');
 AddTest('BitwiseOr', '|');
 AddTestCustomPrologue('StringConcat', '+', '"string" +');
+AddTestCustomPrologue('TemplateString', '} ${', '`${', '}`');
 
 function TestExpressionDepth(depth, expression, prologue, epilogue) {
   var func = '(function f(a) {\n' + prologue;
@@ -84,6 +85,6 @@ function AddTest(name, expression, in_test) {
   RunTest(name, expression, prologue, epilogue);
 }
 
-function AddTestCustomPrologue(name, expression, prologue) {
-  RunTest(name, expression, prologue, '');
+function AddTestCustomPrologue(name, expression, prologue, epilogue='') {
+  RunTest(name, expression, prologue, epilogue);
 }

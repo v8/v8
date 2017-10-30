@@ -1822,18 +1822,15 @@ class NaryOperation final : public Expression {
   Expression* first() const { return first_; }
   void set_first(Expression* e) { first_ = e; }
   Expression* subsequent(size_t index) const {
-    if (index == 0) return second_;
-    return subsequent_[index - 1].expression;
+    return subsequent_[index].expression;
   }
   Expression* set_subsequent(size_t index, Expression* e) {
-    if (index == 0) return second_ = e;
-    return subsequent_[index - 1].expression = e;
+    return subsequent_[index].expression = e;
   }
 
-  size_t subsequent_length() const { return 1 + subsequent_.size(); }
+  size_t subsequent_length() const { return subsequent_.size(); }
   int subsequent_op_position(size_t index) const {
-    if (index == 0) return position();
-    return subsequent_[index - 1].op_position;
+    return subsequent_[index].op_position;
   }
 
   void AddSubsequent(Expression* expr, int pos) {
@@ -1844,33 +1841,32 @@ class NaryOperation final : public Expression {
   friend class AstNodeFactory;
 
   NaryOperation(Zone* zone, Token::Value op, Expression* first,
-                Expression* second, int pos)
-      : Expression(pos, kNaryOperation),
+                size_t initial_subsequent_size)
+      : Expression(kNoSourcePosition, kNaryOperation),
         first_(first),
-        second_(second),
         subsequent_(zone) {
     bit_field_ |= OperatorField::encode(op);
     DCHECK(Token::IsBinaryOp(op));
     DCHECK_NE(op, Token::EXP);
+    subsequent_.reserve(initial_subsequent_size);
   }
 
-  // Nary operations store the first operation (and so first two child
-  // expressions) inline, where the position of the first operation is the
-  // position of this expression. Subsequent child expressions are stored
-  // out-of-line, along with with their operation's position and feedback slot.
+  // Nary operations store the first (lhs) child expression inline, and the
+  // child expressions (rhs of each op) are stored out-of-line, along with
+  // their operation's position. Note that the Nary operation expression's
+  // position has no meaning.
   //
   // So an nary add:
   //
-  //    expr + expr + expr + expr + ...
+  //    expr + expr + expr + ...
   //
   // is stored as:
   //
-  //    (expr + expr) [(+ expr), (+ expr), ...]
-  //    '-----.-----' '-----------.-----------'
-  //        this        subsequent entry list
+  //    (expr) [(+ expr), (+ expr), ...]
+  //    '-.--' '-----------.-----------'
+  //    first    subsequent entry list
 
   Expression* first_;
-  Expression* second_;
 
   struct NaryOperationEntry {
     Expression* expression;
@@ -3148,8 +3144,8 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   NaryOperation* NewNaryOperation(Token::Value op, Expression* first,
-                                  Expression* second, int pos) {
-    return new (zone_) NaryOperation(zone_, op, first, second, pos);
+                                  size_t initial_subsequent_size) {
+    return new (zone_) NaryOperation(zone_, op, first, initial_subsequent_size);
   }
 
   CountOperation* NewCountOperation(Token::Value op,
