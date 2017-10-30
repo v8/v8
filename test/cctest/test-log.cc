@@ -138,7 +138,22 @@ class ScopedLoggerInitializer {
   }
 
   const char* FindLine(const char* prefix, const char* suffix = nullptr) {
+    // Make sure that StopLogging() has been called before.
+    CHECK(log_.size());
     return FindLogLine(&log_, prefix, suffix);
+  }
+
+  // Find all log lines specified by the {prefix, suffix} pairs and ensure they
+  // occurr in the specified order.
+  void FindLogLines(const char* pairs[][2], size_t limit) {
+    const char* last_position = FindLine(pairs[0][0], pairs[0][1]);
+    CHECK(last_position);
+    for (size_t i = 1; i < limit; i++) {
+      const char* position = FindLine(pairs[i][0], pairs[i][1]);
+      // Check that all string positions are in order.
+      CHECK_LT(last_position, position);
+      last_position = position;
+    }
   }
 
   void LogCompiledFunctions() { logger_->LogCompiledFunctions(); }
@@ -726,5 +741,38 @@ TEST(TraceMaps) {
     CHECK(logger.FindLine("map-details", ",0x"));
   }
   i::FLAG_trace_maps = false;
+  isolate->Dispose();
+}
+
+TEST(ConsoleTimeEvents) {
+  SETUP_FLAGS();
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    // Test that console time events are properly logged
+    const char* source_text =
+        "console.time();"
+        "console.timeEnd();"
+        "console.timeStamp();"
+        "console.time('timerEvent1');"
+        "console.timeEnd('timerEvent1');"
+        "console.timeStamp('timerEvent2');"
+        "console.timeStamp('timerEvent3');";
+    CompileRun(source_text);
+
+    logger.StopLogging();
+
+    const char* pairs[][2] = {{"timer-event-start,default,", nullptr},
+                              {"timer-event-end,default,", nullptr},
+                              {"timer-event,default,", nullptr},
+                              {"timer-event-start,timerEvent1,", nullptr},
+                              {"timer-event-end,timerEvent1,", nullptr},
+                              {"timer-event,timerEvent2,", nullptr},
+                              {"timer-event,timerEvent3,", nullptr}};
+    logger.FindLogLines(pairs, arraysize(pairs));
+  }
+
   isolate->Dispose();
 }
