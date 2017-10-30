@@ -255,13 +255,24 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
     BIND(&if_indexed_string);
     {
+      Label if_oob(this, Label::kDeferred);
+
       Comment("indexed string");
       Node* intptr_index = TryToIntptr(p->name, miss);
       Node* length = SmiUntag(LoadStringLength(holder));
-      GotoIf(UintPtrGreaterThanOrEqual(intptr_index, length), miss);
+      GotoIf(UintPtrGreaterThanOrEqual(intptr_index, length), &if_oob);
       Node* code = StringCharCodeAt(holder, intptr_index, INTPTR_PARAMETERS);
       Node* result = StringFromCharCode(code);
       Return(result);
+
+      BIND(&if_oob);
+      Node* allow_out_of_bounds =
+          IsSetWord<LoadHandler::AllowOutOfBoundsBits>(handler_word);
+      GotoIfNot(allow_out_of_bounds, miss);
+      // TODO(bmeurer): This is going to be renamed to NoElementsProtector
+      // in a follow-up CL.
+      GotoIf(IsArrayProtectorCellInvalid(), miss);
+      Return(UndefinedConstant());
     }
 
     BIND(&if_property);

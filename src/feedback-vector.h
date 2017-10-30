@@ -709,6 +709,7 @@ class KeyedLoadICNexus : public FeedbackNexus {
 
   void Clear() override { ConfigurePremonomorphic(); }
 
+  KeyedAccessLoadMode GetKeyedAccessLoadMode() const;
   IcCheckType GetKeyType() const;
   InlineCacheState StateFromFeedback() const override;
   Name* FindFirstName() const override;

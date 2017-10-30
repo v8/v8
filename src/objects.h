@@ -175,6 +175,11 @@ namespace internal {
 struct InliningPosition;
 class PropertyDescriptorObject;
 
+enum KeyedAccessLoadMode {
+  STANDARD_LOAD,
+  LOAD_IGNORE_OUT_OF_BOUNDS,
+};
+
 enum KeyedAccessStoreMode {
   STANDARD_STORE,
   STORE_TRANSITION_TO_OBJECT,

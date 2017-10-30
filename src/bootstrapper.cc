@@ -1947,6 +1947,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         Handle<JSValue>::cast(factory->NewJSObject(string_fun, TENURED));
     prototype->set_value(isolate->heap()->empty_string());
     JSFunction::SetPrototype(string_fun, prototype);
+    native_context()->set_initial_string_prototype(*prototype);
 
     // Install the "constructor" property on the {prototype}.
     JSObject::AddProperty(prototype, factory->constructor_string(), string_fun,

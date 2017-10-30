@@ -108,8 +108,10 @@ Handle<Smi> LoadHandler::LoadElement(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Smi> LoadHandler::LoadIndexedString(Isolate* isolate) {
-  int config = KindBits::encode(kIndexedString);
+Handle<Smi> LoadHandler::LoadIndexedString(Isolate* isolate,
+                                           bool allow_out_of_bounds) {
+  int config = KindBits::encode(kIndexedString) |
+               AllowOutOfBoundsBits::encode(allow_out_of_bounds);
   return handle(Smi::FromInt(config), isolate);
 }
 

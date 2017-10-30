@@ -1887,7 +1887,8 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
 
     // Ensure that notifications fire if the array or object prototypes are
     // normalizing.
-    if (IsSmiOrObjectElementsKind(kind)) {
+    if (IsSmiOrObjectElementsKind(kind) ||
+        kind == FAST_STRING_WRAPPER_ELEMENTS) {
       isolate->UpdateArrayProtectorOnNormalizeElements(object);
     }
 
@@ -4151,6 +4152,13 @@ class StringWrapperElementsAccessor
                                          uint32_t capacity) {
     Handle<FixedArrayBase> old_elements(object->elements());
     ElementsKind from_kind = object->GetElementsKind();
+    if (from_kind == FAST_STRING_WRAPPER_ELEMENTS) {
+      // The optimizing compiler relies on the prototype lookups of String
+      // objects always returning undefined. If there's a store to the
+      // initial String.prototype object, make sure all the optimizations
+      // are invalidated.
+      object->GetIsolate()->UpdateArrayProtectorOnSetLength(object);
+    }
     // This method should only be called if there's a reason to update the
     // elements.
     DCHECK(from_kind == SLOW_STRING_WRAPPER_ELEMENTS ||

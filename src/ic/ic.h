@@ -288,15 +288,18 @@ class KeyedLoadIC : public LoadIC {
 
  protected:
   // receiver is HeapObject because it could be a String or a JSObject
-  void UpdateLoadElement(Handle<HeapObject> receiver);
+  void UpdateLoadElement(Handle<HeapObject> receiver,
+                         KeyedAccessLoadMode load_mode);
 
  private:
   friend class IC;
 
-  Handle<Object> LoadElementHandler(Handle<Map> receiver_map);
+  Handle<Object> LoadElementHandler(Handle<Map> receiver_map,
+                                    KeyedAccessLoadMode load_mode);
 
   void LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
-                                      ObjectHandles* handlers);
+                                      ObjectHandles* handlers,
+                                      KeyedAccessLoadMode load_mode);
 };
 
 

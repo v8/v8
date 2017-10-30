@@ -858,6 +858,30 @@ Name* KeyedStoreICNexus::FindFirstName() const {
   return nullptr;
 }
 
+KeyedAccessLoadMode KeyedLoadICNexus::GetKeyedAccessLoadMode() const {
+  KeyedAccessLoadMode mode = STANDARD_LOAD;
+  MapHandles maps;
+  ObjectHandles handlers;
+
+  if (GetKeyType() == PROPERTY) return mode;
+
+  ExtractMaps(&maps);
+  FindHandlers(&handlers, static_cast<int>(maps.size()));
+  for (Handle<Object> const& handler : handlers) {
+    if (handler->IsSmi()) {
+      int const raw_handler = Handle<Smi>::cast(handler)->value();
+      if (LoadHandler::KindBits::decode(raw_handler) ==
+              LoadHandler::kIndexedString &&
+          LoadHandler::AllowOutOfBoundsBits::decode(raw_handler)) {
+        mode = LOAD_IGNORE_OUT_OF_BOUNDS;
+        break;
+      }
+    }
+  }
+
+  return mode;
+}
+
 KeyedAccessStoreMode KeyedStoreICNexus::GetKeyedAccessStoreMode() const {
   KeyedAccessStoreMode mode = STANDARD_STORE;
   MapHandles maps;

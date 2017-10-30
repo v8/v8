@@ -1352,7 +1352,7 @@ class Isolate {
 
  protected:
   explicit Isolate(bool enable_serializer);
-  bool IsArrayOrObjectPrototype(Object* object);
+  bool IsArrayOrObjectOrStringPrototype(Object* object);
 
  private:
   friend struct GlobalState;
