@@ -370,6 +370,7 @@ bool ComputeLocation(Isolate* isolate, MessageLocation* target) {
     // baseline code. For optimized code this will use the deoptimization
     // information to get canonical location information.
     std::vector<FrameSummary> frames;
+    frames.reserve(FLAG_max_inlining_levels + 1);
     it.frame()->Summarize(&frames);
     auto& summary = frames.back().AsJavaScript();
     Handle<SharedFunctionInfo> shared(summary.function()->shared());
