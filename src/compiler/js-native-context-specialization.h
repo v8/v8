@@ -145,9 +145,9 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                  Node** control,
                                  ZoneVector<Node*>* if_exceptions,
                                  PropertyAccessInfo const& access_info);
-  Node* InlineApiCall(Node* receiver, Node* holder, Node* context, Node* target,
-                      Node* frame_state, Node* value, Node** effect,
-                      Node** control, Handle<SharedFunctionInfo> shared_info,
+  Node* InlineApiCall(Node* receiver, Node* holder, Node* frame_state,
+                      Node* value, Node** effect, Node** control,
+                      Handle<SharedFunctionInfo> shared_info,
                       Handle<FunctionTemplateInfo> function_template_info);
 
   // Construct the appropriate subgraph for element access.

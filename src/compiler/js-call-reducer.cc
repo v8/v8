@@ -1562,8 +1562,8 @@ Node* JSCallReducer::SafeLoadElement(ElementsKind kind, Node* receiver,
   return element;
 }
 
-Reduction JSCallReducer::ReduceCallApiFunction(
-    Node* node, Handle<FunctionTemplateInfo> function_template_info) {
+Reduction JSCallReducer::ReduceCallApiFunction(Node* node,
+                                               Handle<JSFunction> function) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
   CallParameters const& p = CallParametersOf(node->op());
   int const argc = static_cast<int>(p.arity()) - 2;
@@ -1571,6 +1571,10 @@ Reduction JSCallReducer::ReduceCallApiFunction(
                        ? jsgraph()->HeapConstant(global_proxy())
                        : NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
+
+  Handle<FunctionTemplateInfo> function_template_info(
+      FunctionTemplateInfo::cast(function->shared()->function_data()));
+  Handle<Context> context(function->context());
 
   // CallApiCallbackStub expects the target in a register, so we count it out,
   // and counts the receiver as an implicit argument, so we count the receiver
@@ -1627,13 +1631,13 @@ Reduction JSCallReducer::ReduceCallApiFunction(
   Handle<CallHandlerInfo> call_handler_info(
       CallHandlerInfo::cast(function_template_info->call_code()), isolate());
   Handle<Object> data(call_handler_info->data(), isolate());
-  CallApiCallbackStub stub(isolate(), argc, false);
+  CallApiCallbackStub stub(isolate(), argc);
   CallInterfaceDescriptor cid = stub.GetCallInterfaceDescriptor();
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
       isolate(), graph()->zone(), cid,
       cid.GetStackParameterCount() + argc + 1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
-      MachineType::AnyTagged(), 1);
+      MachineType::AnyTagged(), 1, Linkage::kNoContext);
   ApiFunction api_function(v8::ToCData<Address>(call_handler_info->callback()));
   Node* holder = lookup == CallOptimization::kHolderFound
                      ? jsgraph()->HeapConstant(api_holder)
@@ -1642,11 +1646,14 @@ Reduction JSCallReducer::ReduceCallApiFunction(
       &api_function, ExternalReference::DIRECT_API_CALL, isolate());
   node->InsertInput(graph()->zone(), 0,
                     jsgraph()->HeapConstant(stub.GetCode()));
+  node->ReplaceInput(1, jsgraph()->Constant(context));
   node->InsertInput(graph()->zone(), 2, jsgraph()->Constant(data));
   node->InsertInput(graph()->zone(), 3, holder);
   node->InsertInput(graph()->zone(), 4,
                     jsgraph()->ExternalConstant(function_reference));
   node->ReplaceInput(5, receiver);
+  // Remove context input.
+  node->RemoveInput(6 + argc);
   NodeProperties::ChangeOp(node, common()->Call(call_descriptor));
   return Changed(node);
 }
@@ -1989,9 +1996,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
       }
 
       if (!FLAG_runtime_stats && shared->IsApiFunction()) {
-        Handle<FunctionTemplateInfo> function_template_info(
-            FunctionTemplateInfo::cast(shared->function_data()), isolate());
-        return ReduceCallApiFunction(node, function_template_info);
+        return ReduceCallApiFunction(node, function);
       }
     } else if (m.Value()->IsJSBoundFunction()) {
       Handle<JSBoundFunction> function =

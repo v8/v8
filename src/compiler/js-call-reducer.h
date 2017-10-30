@@ -54,8 +54,7 @@ class JSCallReducer final : public AdvancedReducer {
  private:
   Reduction ReduceArrayConstructor(Node* node);
   Reduction ReduceBooleanConstructor(Node* node);
-  Reduction ReduceCallApiFunction(
-      Node* node, Handle<FunctionTemplateInfo> function_template_info);
+  Reduction ReduceCallApiFunction(Node* node, Handle<JSFunction> function);
   Reduction ReduceNumberConstructor(Node* node);
   Reduction ReduceFunctionPrototypeApply(Node* node);
   Reduction ReduceFunctionPrototypeBind(Node* node);

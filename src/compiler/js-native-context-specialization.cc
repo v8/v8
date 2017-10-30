@@ -1612,9 +1612,8 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
         access_info.holder().is_null()
             ? receiver
             : jsgraph()->Constant(access_info.holder().ToHandleChecked());
-    value =
-        InlineApiCall(receiver, holder, context, target, frame_state0, nullptr,
-                      effect, control, shared_info, function_template_info);
+    value = InlineApiCall(receiver, holder, frame_state0, nullptr, effect,
+                          control, shared_info, function_template_info);
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -1664,9 +1663,8 @@ Node* JSNativeContextSpecialization::InlinePropertySetterCall(
         access_info.holder().is_null()
             ? receiver
             : jsgraph()->Constant(access_info.holder().ToHandleChecked());
-    value =
-        InlineApiCall(receiver, holder, context, target, frame_state0, value,
-                      effect, control, shared_info, function_template_info);
+    value = InlineApiCall(receiver, holder, frame_state0, value, effect,
+                          control, shared_info, function_template_info);
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -1681,9 +1679,8 @@ Node* JSNativeContextSpecialization::InlinePropertySetterCall(
 }
 
 Node* JSNativeContextSpecialization::InlineApiCall(
-    Node* receiver, Node* holder, Node* context, Node* target,
-    Node* frame_state, Node* value, Node** effect, Node** control,
-    Handle<SharedFunctionInfo> shared_info,
+    Node* receiver, Node* holder, Node* frame_state, Node* value, Node** effect,
+    Node** control, Handle<SharedFunctionInfo> shared_info,
     Handle<FunctionTemplateInfo> function_template_info) {
   Handle<CallHandlerInfo> call_handler_info = handle(
       CallHandlerInfo::cast(function_template_info->call_code()), isolate());
@@ -1692,9 +1689,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   // Only setters have a value.
   int const argc = value == nullptr ? 0 : 1;
   // The stub always expects the receiver as the first param on the stack.
-  CallApiCallbackStub stub(
-      isolate(), argc,
-      true /* FunctionTemplateInfo doesn't have an associated context. */);
+  CallApiCallbackStub stub(isolate(), argc);
   CallInterfaceDescriptor call_interface_descriptor =
       stub.GetCallInterfaceDescriptor();
   CallDescriptor* call_descriptor = Linkage::GetStubCallDescriptor(
@@ -1702,7 +1697,7 @@ Node* JSNativeContextSpecialization::InlineApiCall(
       call_interface_descriptor.GetStackParameterCount() + argc +
           1 /* implicit receiver */,
       CallDescriptor::kNeedsFrameState, Operator::kNoProperties,
-      MachineType::AnyTagged(), 1);
+      MachineType::AnyTagged(), 1, Linkage::kNoContext);
 
   Node* data = jsgraph()->Constant(call_data_object);
   ApiFunction function(v8::ToCData<Address>(call_handler_info->callback()));
@@ -1712,9 +1707,10 @@ Node* JSNativeContextSpecialization::InlineApiCall(
   Node* code = jsgraph()->HeapConstant(stub.GetCode());
 
   // Add CallApiCallbackStub's register argument as well.
-  Node* inputs[11] = {code, target, data, holder, function_reference, receiver};
+  Node* context = jsgraph()->Constant(native_context());
+  Node* inputs[10] = {code,    context, data, holder, function_reference,
+                      receiver};
   int index = 6 + argc;
-  inputs[index++] = context;
   inputs[index++] = frame_state;
   inputs[index++] = *effect;
   inputs[index++] = *control;

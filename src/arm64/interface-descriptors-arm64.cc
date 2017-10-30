@@ -295,10 +295,10 @@ void ApiCallbackDescriptor::InitializePlatformSpecific(
       PlatformInterfaceDescriptor(CAN_INLINE_TARGET_ADDRESS);
 
   Register registers[] = {
-      x0,  // callee
-      x4,  // call_data
-      x2,  // holder
-      x1,  // api_function_address
+      JavaScriptFrame::context_register(),  // callee context
+      x4,                                   // call_data
+      x2,                                   // holder
+      x1,                                   // api_function_address
   };
   data->InitializePlatformSpecific(arraysize(registers), registers,
                                    &default_descriptor);

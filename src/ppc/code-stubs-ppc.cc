@@ -1576,7 +1576,6 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
 
 void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // ----------- S t a t e -------------
-  //  -- r3                  : callee
   //  -- r7                  : call_data
   //  -- r5                  : holder
   //  -- r4                  : api_function_address
@@ -1588,11 +1587,9 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   //  -- sp[argc * 4]        : receiver
   // -----------------------------------
 
-  Register callee = r3;
   Register call_data = r7;
   Register holder = r5;
   Register api_function_address = r4;
-  Register context = cp;
 
   typedef FunctionCallbackArguments FCA;
 
@@ -1621,12 +1618,6 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   __ push(scratch);
   // holder
   __ push(holder);
-
-  // Enter a new context
-  if (!is_lazy()) {
-    // Load context from callee
-    __ LoadP(context, FieldMemOperand(callee, JSFunction::kContextOffset));
-  }
 
   // Prepare arguments.
   __ mr(scratch, sp);

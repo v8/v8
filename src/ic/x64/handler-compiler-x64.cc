@@ -157,7 +157,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
           RelocInfo::EXTERNAL_REFERENCE);
 
   // Jump to stub.
-  CallApiCallbackStub stub(isolate, is_store, !optimization.is_constant_call());
+  CallApiCallbackStub stub(isolate, is_store);
   __ TailCallStub(&stub);
 }
 
