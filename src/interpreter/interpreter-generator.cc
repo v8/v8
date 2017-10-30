@@ -2731,20 +2731,9 @@ IGNITION_HANDLER(CreateRestParameter, InterpreterAssembler) {
 //
 // Performs a stack guard check.
 IGNITION_HANDLER(StackCheck, InterpreterAssembler) {
-  Label ok(this), stack_check_interrupt(this, Label::kDeferred);
-
-  Node* interrupt = StackCheckTriggeredInterrupt();
-  Branch(interrupt, &stack_check_interrupt, &ok);
-
-  BIND(&ok);
+  Node* context = GetContext();
+  PerformStackCheck(context);
   Dispatch();
-
-  BIND(&stack_check_interrupt);
-  {
-    Node* context = GetContext();
-    CallRuntime(Runtime::kStackGuard, context);
-    Dispatch();
-  }
 }
 
 // SetPendingMessage

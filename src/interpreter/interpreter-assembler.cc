@@ -1295,14 +1295,6 @@ void InterpreterAssembler::UpdateInterruptBudgetOnReturn() {
   UpdateInterruptBudget(profiling_weight, true);
 }
 
-Node* InterpreterAssembler::StackCheckTriggeredInterrupt() {
-  Node* sp = LoadStackPointer();
-  Node* stack_limit = Load(
-      MachineType::Pointer(),
-      ExternalConstant(ExternalReference::address_of_stack_limit(isolate())));
-  return UintPtrLessThan(sp, stack_limit);
-}
-
 Node* InterpreterAssembler::LoadOSRNestingLevel() {
   return LoadObjectField(BytecodeArrayTaggedPointer(),
                          BytecodeArray::kOSRNestingLevelOffset,

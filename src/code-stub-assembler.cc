@@ -10709,5 +10709,25 @@ void CodeStubAssembler::Print(const char* prefix, Node* tagged_value) {
   CallRuntime(Runtime::kDebugPrint, NoContextConstant(), tagged_value);
 }
 
+void CodeStubAssembler::PerformStackCheck(Node* context) {
+  Label ok(this), stack_check_interrupt(this, Label::kDeferred);
+
+  Node* sp = LoadStackPointer();
+  Node* stack_limit = Load(
+      MachineType::Pointer(),
+      ExternalConstant(ExternalReference::address_of_stack_limit(isolate())));
+  Node* interrupt = UintPtrLessThan(sp, stack_limit);
+
+  Branch(interrupt, &stack_check_interrupt, &ok);
+
+  BIND(&stack_check_interrupt);
+  {
+    CallRuntime(Runtime::kStackGuard, context);
+    Goto(&ok);
+  }
+
+  BIND(&ok);
+}
+
 }  // namespace internal
 }  // namespace v8

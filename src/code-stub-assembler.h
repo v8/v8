@@ -1823,6 +1823,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
     Unreachable();
   }
 
+  void PerformStackCheck(Node* context);
+
  protected:
   void DescriptorLookup(Node* unique_name, Node* descriptors, Node* bitfield3,
                         Label* if_found, Variable* var_name_index,

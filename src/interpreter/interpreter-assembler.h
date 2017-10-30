@@ -208,9 +208,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void JumpIfWordNotEqual(compiler::Node* lhs, compiler::Node* rhs,
                           compiler::Node* jump_offset);
 
-  // Returns true if the stack guard check triggers an interrupt.
-  compiler::Node* StackCheckTriggeredInterrupt();
-
   // Updates the profiler interrupt budget for a return.
   void UpdateInterruptBudgetOnReturn();
 
