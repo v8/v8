@@ -3293,6 +3293,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     SimpleInstallFunction(prototype, "get", Builtins::kWeakMapGet, 1, true);
     SimpleInstallFunction(prototype, "has", Builtins::kWeakMapHas, 1, true);
+    SimpleInstallFunction(prototype, "set", Builtins::kWeakMapPrototypeSet, 2,
+                          true);
 
     JSObject::AddProperty(
         prototype, factory->to_string_tag_symbol(),
@@ -3310,6 +3312,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     Handle<JSObject> prototype(JSObject::cast(cons->instance_prototype()));
 
     SimpleInstallFunction(prototype, "has", Builtins::kWeakSetHas, 1, true);
+    SimpleInstallFunction(prototype, "add", Builtins::kWeakSetPrototypeAdd, 1,
+                          true);
 
     JSObject::AddProperty(
         prototype, factory->to_string_tag_symbol(),

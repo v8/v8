@@ -269,6 +269,8 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "orderedhashmap_gethash_raw");
   Add(ExternalReference::get_or_create_hash_raw(isolate).address(),
       "get_or_create_hash_raw");
+  Add(ExternalReference::jsreceiver_create_identity_hash(isolate).address(),
+      "jsreceiver_create_identity_hash");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),

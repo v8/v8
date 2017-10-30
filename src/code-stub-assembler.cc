@@ -1382,6 +1382,63 @@ Node* CodeStubAssembler::LoadMapEnumLength(SloppyTNode<Map> map) {
   return DecodeWordFromWord32<Map::EnumLengthBits>(bit_field3);
 }
 
+TNode<IntPtrT> CodeStubAssembler::LoadJSReceiverIdentityHash(
+    SloppyTNode<Object> receiver, Label* if_no_hash) {
+  TVARIABLE(IntPtrT, var_hash);
+  Label done(this), if_smi(this), if_property_array(this),
+      if_property_dictionary(this), if_fixed_array(this);
+
+  TNode<Object> properties_or_hash =
+      LoadObjectField(TNode<HeapObject>::UncheckedCast(receiver),
+                      JSReceiver::kPropertiesOrHashOffset);
+  GotoIf(TaggedIsSmi(properties_or_hash), &if_smi);
+
+  TNode<HeapObject> properties =
+      TNode<HeapObject>::UncheckedCast(properties_or_hash);
+  TNode<Int32T> properties_instance_type = LoadInstanceType(properties);
+
+  GotoIf(InstanceTypeEqual(properties_instance_type, PROPERTY_ARRAY_TYPE),
+         &if_property_array);
+  Branch(InstanceTypeEqual(properties_instance_type, HASH_TABLE_TYPE),
+         &if_property_dictionary, &if_fixed_array);
+
+  BIND(&if_fixed_array);
+  {
+    var_hash = IntPtrConstant(PropertyArray::kNoHashSentinel);
+    Goto(&done);
+  }
+
+  BIND(&if_smi);
+  {
+    var_hash = SmiUntag(TNode<Smi>::UncheckedCast(properties_or_hash));
+    Goto(&done);
+  }
+
+  BIND(&if_property_array);
+  {
+    TNode<IntPtrT> length_and_hash = LoadAndUntagObjectField(
+        properties, PropertyArray::kLengthAndHashOffset);
+    var_hash = TNode<IntPtrT>::UncheckedCast(
+        DecodeWord<PropertyArray::HashField>(length_and_hash));
+    Goto(&done);
+  }
+
+  BIND(&if_property_dictionary);
+  {
+    var_hash = SmiUntag(
+        LoadFixedArrayElement(properties, NameDictionary::kObjectHashIndex));
+    Goto(&done);
+  }
+
+  BIND(&done);
+  if (if_no_hash != nullptr) {
+    GotoIf(
+        IntPtrEqual(var_hash, IntPtrConstant(PropertyArray::kNoHashSentinel)),
+        if_no_hash);
+  }
+  return var_hash;
+}
+
 TNode<Uint32T> CodeStubAssembler::LoadNameHashField(SloppyTNode<Name> name) {
   CSA_ASSERT(this, IsName(name));
   return LoadObjectField<Uint32T>(name, Name::kHashFieldOffset);

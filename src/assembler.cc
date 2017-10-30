@@ -1391,6 +1391,13 @@ ExternalReference ExternalReference::get_or_create_hash_raw(Isolate* isolate) {
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
 }
 
+ExternalReference ExternalReference::jsreceiver_create_identity_hash(
+    Isolate* isolate) {
+  typedef Smi* (*CreateIdentityHash)(Isolate * isolate, JSReceiver * key);
+  CreateIdentityHash f = JSReceiver::CreateIdentityHash;
+  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+}
+
 ExternalReference ExternalReference::try_internalize_string_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(

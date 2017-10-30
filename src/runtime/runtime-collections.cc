@@ -130,12 +130,20 @@ RUNTIME_FUNCTION(Runtime_WeakCollectionSet) {
   DCHECK_EQ(4, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSWeakCollection, weak_collection, 0);
   CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
-  CHECK(key->IsJSReceiver() || key->IsSymbol());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_SMI_ARG_CHECKED(hash, 3)
+
+#ifdef DEBUG
+  DCHECK(key->IsJSReceiver());
+  DCHECK(ObjectHashTableShape::IsLive(isolate, *key));
   Handle<ObjectHashTable> table(
       ObjectHashTable::cast(weak_collection->table()));
-  CHECK(table->IsKey(isolate, *key));
+  // Should only be called when rehashing or resizing the table is necessary.
+  // See ObjectHashTable::Put() and HashTable::HasSufficientCapacityToAdd().
+  DCHECK((table->NumberOfDeletedElements() << 1) > table->NumberOfElements() ||
+         !table->HasSufficientCapacityToAdd(1));
+#endif
+
   JSWeakCollection::Set(weak_collection, key, value, hash);
   return *weak_collection;
 }

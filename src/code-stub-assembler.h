@@ -512,6 +512,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Object> LoadMapConstructor(SloppyTNode<Map> map);
   // Load the EnumLength of a Map.
   Node* LoadMapEnumLength(SloppyTNode<Map> map);
+  // Load the identity hash of a JSRececiver.
+  TNode<IntPtrT> LoadJSReceiverIdentityHash(SloppyTNode<Object> receiver,
+                                            Label* if_no_hash = nullptr);
 
   // This is only used on a newly allocated PropertyArray which
   // doesn't have an existing hash.

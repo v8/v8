@@ -175,6 +175,16 @@ test(function() {
 }, "Method Set.prototype.add called on incompatible receiver [object Array]",
 TypeError);
 
+test(function() {
+  WeakSet.prototype.add.call([]);
+}, "Method WeakSet.prototype.add called on incompatible receiver [object Array]",
+TypeError);
+
+test(function() {
+  WeakMap.prototype.set.call([]);
+}, "Method WeakMap.prototype.set called on incompatible receiver [object Array]",
+TypeError);
+
 // kNonCallableInInstanceOfCheck
 test(function() {
   1 instanceof {};
@@ -197,6 +207,24 @@ test(function() {
 test(function() {
   1 in 1;
 }, "Cannot use 'in' operator to search for '1' in 1", TypeError);
+
+// kInvalidWeakMapKey
+test(function() {
+  new WeakMap([[1, 1]]);
+}, "Invalid value used as weak map key", TypeError);
+
+test(function() {
+  new WeakMap().set(1, 1);
+}, "Invalid value used as weak map key", TypeError);
+
+// kInvalidWeakSetValue
+test(function() {
+  new WeakSet([1]);
+}, "Invalid value used in weak set", TypeError);
+
+test(function() {
+  new WeakSet().add(1);
+}, "Invalid value used in weak set", TypeError);
 
 // kIteratorResultNotAnObject
 test(function() {

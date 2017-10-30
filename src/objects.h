@@ -2162,6 +2162,7 @@ class JSReceiver: public HeapObject {
 
   // Retrieves a permanent object identity hash code. May create and store a
   // hash code if needed and none exists.
+  static Smi* CreateIdentityHash(Isolate* isolate, JSReceiver* key);
   Smi* GetOrCreateIdentityHash(Isolate* isolate);
 
   // Stores the hash code. The hash passed in must be masked with
