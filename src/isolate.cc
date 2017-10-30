@@ -390,7 +390,6 @@ class FrameArrayBuilder {
 
   void AppendStandardFrame(StandardFrame* frame) {
     std::vector<FrameSummary> frames;
-    frames.reserve(FLAG_max_inlining_levels + 1);
     frame->Summarize(&frames);
     // A standard frame may include many summarized frames (due to inlining).
     for (size_t i = frames.size(); i != 0 && !full(); i--) {
@@ -802,7 +801,6 @@ Handle<FixedArray> Isolate::CaptureCurrentStackTrace(
     // Set initial size to the maximum inlining level + 1 for the outermost
     // function.
     std::vector<FrameSummary> frames;
-    frames.reserve(FLAG_max_inlining_levels + 1);
     frame->Summarize(&frames);
     for (size_t i = frames.size(); i != 0 && frames_seen < limit; i--) {
       FrameSummary& frame = frames[i - 1];
@@ -1601,7 +1599,6 @@ bool Isolate::ComputeLocation(MessageLocation* target) {
   // baseline code. For optimized code this will use the deoptimization
   // information to get canonical location information.
   std::vector<FrameSummary> frames;
-  frames.reserve(FLAG_max_inlining_levels + 1);
   frame->Summarize(&frames);
   FrameSummary& summary = frames.back();
   int pos = summary.SourcePosition();
