@@ -434,6 +434,7 @@ RUNTIME_FUNCTION(Runtime_GetFrameCount) {
   }
 
   std::vector<FrameSummary> frames;
+  frames.reserve(FLAG_max_inlining_levels + 1);
   for (StackTraceFrameIterator it(isolate, id); !it.done(); it.Advance()) {
     frames.clear();
     it.frame()->Summarize(&frames);

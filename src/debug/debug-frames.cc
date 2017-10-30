@@ -236,6 +236,7 @@ int DebugFrameHelper::FindIndexedNonNativeFrame(StackTraceFrameIterator* it,
   int count = -1;
   for (; !it->done(); it->Advance()) {
     std::vector<FrameSummary> frames;
+    frames.reserve(FLAG_max_inlining_levels + 1);
     it->frame()->Summarize(&frames);
     for (size_t i = frames.size(); i != 0; i--) {
       // Omit functions from native and extension scripts.
