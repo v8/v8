@@ -51,11 +51,11 @@ RUNTIME_FUNCTION(Runtime_GetPropertyWithReceiver) {
 
   DCHECK_EQ(3, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 2);
 
-  bool success;
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, receiver, name,
+  bool success = false;
+  LookupIterator it = LookupIterator::PropertyOrElement(isolate, receiver, key,
                                                         &success, holder);
   if (!success) {
     DCHECK(isolate->has_pending_exception());
@@ -69,15 +69,18 @@ RUNTIME_FUNCTION(Runtime_SetPropertyWithReceiver) {
 
   DCHECK_EQ(5, args.length());
   CONVERT_ARG_HANDLE_CHECKED(JSReceiver, holder, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, name, 1);
+  CONVERT_ARG_HANDLE_CHECKED(Object, key, 1);
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 2);
   CONVERT_ARG_HANDLE_CHECKED(Object, receiver, 3);
   CONVERT_LANGUAGE_MODE_ARG_CHECKED(language_mode, 4);
 
-  bool success;
-  LookupIterator it = LookupIterator::PropertyOrElement(isolate, receiver, name,
+  bool success = false;
+  LookupIterator it = LookupIterator::PropertyOrElement(isolate, receiver, key,
                                                         &success, holder);
-
+  if (!success) {
+    DCHECK(isolate->has_pending_exception());
+    return isolate->heap()->exception();
+  }
   Maybe<bool> result = Object::SetSuperProperty(
       &it, value, language_mode, Object::MAY_BE_STORE_FROM_KEYED);
   MAYBE_RETURN(result, isolate->heap()->exception());
