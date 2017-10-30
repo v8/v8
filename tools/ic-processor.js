@@ -156,7 +156,8 @@ IcProcessor.prototype.processPropertyIC = function (
   var entry = this.profile_.findEntry(pc);
   print(type + " (" + old_state + "->" + new_state + modifier + ") at " +
         this.formatName(entry) + ":" + line + ":" + column + " " + name +
-        " (map 0x" + map.toString(16) + ")");
+        " (map 0x" + map.toString(16) + ")" +
+        (slow_reason ? " " + slow_reason : ""));
 }
 
 
