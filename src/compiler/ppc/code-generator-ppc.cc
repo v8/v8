@@ -2425,6 +2425,8 @@ void CodeGenerator::AssembleReturn(InstructionOperand* pop) {
       AssembleDeconstructFrame();
     }
   }
+  // Constant pool is unavailable since the frame has been destructed
+  ConstantPoolUnavailableScope constant_pool_unavailable(tasm());
   if (pop->IsImmediate()) {
     DCHECK_EQ(Constant::kInt32, g.ToConstant(pop).type());
     pop_count += g.ToConstant(pop).ToInt32();
