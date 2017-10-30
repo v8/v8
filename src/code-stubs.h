@@ -631,26 +631,17 @@ class CallApiCallbackStub : public PlatformCodeStub {
   static const int kArgBits = 3;
   static const int kArgMax = (1 << kArgBits) - 1;
 
-  // CallApiCallbackStub for regular setters and getters.
-  CallApiCallbackStub(Isolate* isolate, bool is_store)
-      : CallApiCallbackStub(isolate, is_store ? 1 : 0, is_store) {}
-
-  // CallApiCallbackStub for callback functions.
   CallApiCallbackStub(Isolate* isolate, int argc)
-      : CallApiCallbackStub(isolate, argc, false) {}
-
- private:
-  CallApiCallbackStub(Isolate* isolate, int argc, bool is_store)
       : PlatformCodeStub(isolate) {
-    CHECK(0 <= argc && argc <= kArgMax);
-    minor_key_ = IsStoreBits::encode(is_store) | ArgumentBits::encode(argc);
+    CHECK_LE(0, argc);
+    CHECK_LE(argc, kArgMax);
+    minor_key_ = ArgumentBits::encode(argc);
   }
 
-  bool is_store() const { return IsStoreBits::decode(minor_key_); }
+ private:
   int argc() const { return ArgumentBits::decode(minor_key_); }
 
-  class IsStoreBits: public BitField<bool, 0, 1> {};
-  class ArgumentBits : public BitField<int, 1, kArgBits> {};
+  class ArgumentBits : public BitField<int, 0, kArgBits> {};
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(ApiCallback);
   DEFINE_PLATFORM_CODE_STUB(CallApiCallback, PlatformCodeStub);

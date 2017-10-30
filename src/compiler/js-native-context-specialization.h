@@ -140,11 +140,11 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                                  Node** control,
                                  ZoneVector<Node*>* if_exceptions,
                                  PropertyAccessInfo const& access_info);
-  Node* InlinePropertySetterCall(Node* receiver, Node* value, Node* context,
-                                 Node* frame_state, Node** effect,
-                                 Node** control,
-                                 ZoneVector<Node*>* if_exceptions,
-                                 PropertyAccessInfo const& access_info);
+  void InlinePropertySetterCall(Node* receiver, Node* value, Node* context,
+                                Node* frame_state, Node** effect,
+                                Node** control,
+                                ZoneVector<Node*>* if_exceptions,
+                                PropertyAccessInfo const& access_info);
   Node* InlineApiCall(Node* receiver, Node* holder, Node* frame_state,
                       Node* value, Node** effect, Node** control,
                       Handle<SharedFunctionInfo> shared_info,

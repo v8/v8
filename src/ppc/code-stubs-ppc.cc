@@ -1654,12 +1654,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   AllowExternalCallThatCantCauseGC scope(masm);
   // Stores return the first js argument
-  int return_value_offset = 0;
-  if (is_store()) {
-    return_value_offset = 2 + FCA::kArgsLength;
-  } else {
-    return_value_offset = 2 + FCA::kReturnValueOffset;
-  }
+  int return_value_offset = 2 + FCA::kReturnValueOffset;
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
   const int stack_space = argc() + FCA::kArgsLength + 1;
   MemOperand* stack_space_operand = nullptr;

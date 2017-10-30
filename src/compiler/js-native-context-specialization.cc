@@ -1627,7 +1627,7 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
   return value;
 }
 
-Node* JSNativeContextSpecialization::InlinePropertySetterCall(
+void JSNativeContextSpecialization::InlinePropertySetterCall(
     Node* receiver, Node* value, Node* context, Node* frame_state,
     Node** effect, Node** control, ZoneVector<Node*>* if_exceptions,
     PropertyAccessInfo const& access_info) {
@@ -1663,8 +1663,8 @@ Node* JSNativeContextSpecialization::InlinePropertySetterCall(
         access_info.holder().is_null()
             ? receiver
             : jsgraph()->Constant(access_info.holder().ToHandleChecked());
-    value = InlineApiCall(receiver, holder, frame_state0, value, effect,
-                          control, shared_info, function_template_info);
+    InlineApiCall(receiver, holder, frame_state0, value, effect, control,
+                  shared_info, function_template_info);
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
   if (if_exceptions != nullptr) {
@@ -1675,7 +1675,6 @@ Node* JSNativeContextSpecialization::InlinePropertySetterCall(
     if_exceptions->push_back(if_exception);
     *control = if_success;
   }
-  return value;
 }
 
 Node* JSNativeContextSpecialization::InlineApiCall(
@@ -1807,9 +1806,8 @@ JSNativeContextSpecialization::BuildPropertyStore(
                          check, effect, control);
     value = constant_value;
   } else if (access_info.IsAccessorConstant()) {
-    value =
-        InlinePropertySetterCall(receiver, value, context, frame_state, &effect,
-                                 &control, if_exceptions, access_info);
+    InlinePropertySetterCall(receiver, value, context, frame_state, &effect,
+                             &control, if_exceptions, access_info);
   } else {
     DCHECK(access_info.IsDataField() || access_info.IsDataConstantField());
     FieldIndex const field_index = access_info.field_index();

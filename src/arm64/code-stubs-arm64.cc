@@ -1759,12 +1759,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
 
   AllowExternalCallThatCantCauseGC scope(masm);
   // Stores return the first js argument
-  int return_value_offset = 0;
-  if (is_store()) {
-    return_value_offset = 2 + FCA::kArgsLength;
-  } else {
-    return_value_offset = 2 + FCA::kReturnValueOffset;
-  }
+  int return_value_offset = 2 + FCA::kReturnValueOffset;
   MemOperand return_value_operand(fp, return_value_offset * kPointerSize);
   // The number of arguments might be odd, but will be padded when calling the
   // stub. We do not round up stack_space to account for odd argc here, this

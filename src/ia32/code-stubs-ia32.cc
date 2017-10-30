@@ -1499,12 +1499,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
       ExternalReference::invoke_function_callback(masm->isolate());
 
   // Stores return the first js argument
-  int return_value_offset = 0;
-  if (is_store()) {
-    return_value_offset = 2 + FCA::kArgsLength;
-  } else {
-    return_value_offset = 2 + FCA::kReturnValueOffset;
-  }
+  int return_value_offset = 2 + FCA::kReturnValueOffset;
   Operand return_value_operand(ebp, return_value_offset * kPointerSize);
   const int stack_space = argc() + FCA::kArgsLength + 1;
   Operand* stack_space_operand = nullptr;

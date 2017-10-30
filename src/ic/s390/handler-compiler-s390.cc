@@ -230,7 +230,7 @@ void PropertyHandlerCompiler::GenerateApiAccessorCall(
   __ mov(api_function_address, Operand(ref));
 
   // Jump to stub.
-  CallApiCallbackStub stub(isolate, is_store);
+  CallApiCallbackStub stub(isolate, is_store ? 1 : 0);
   __ TailCallStub(&stub);
 }
 

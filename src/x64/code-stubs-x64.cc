@@ -1555,7 +1555,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   StackArgumentsAccessor args_from_rbp(rbp, FCA::kArgsLength + 1,
                                        ARGUMENTS_DONT_CONTAIN_RECEIVER);
   Operand return_value_operand = args_from_rbp.GetArgumentOperand(
-      this->is_store() ? 0 : FCA::kArgsLength - FCA::kReturnValueOffset);
+      FCA::kArgsLength - FCA::kReturnValueOffset);
   const int stack_space = argc + FCA::kArgsLength + 1;
   Operand* stack_space_operand = nullptr;
   CallApiFunctionAndReturn(masm, api_function_address, thunk_ref, callback_arg,
