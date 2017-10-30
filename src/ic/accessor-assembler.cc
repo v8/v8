@@ -216,10 +216,13 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
   Node* handler_word = SmiUntag(smi_handler);
   Node* handler_kind = DecodeWord<LoadHandler::KindBits>(handler_word);
   if (support_elements == kSupportElements) {
-    Label property(this);
-    GotoIfNot(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kElement)),
-              &property);
+    Label if_element(this), if_indexed_string(this), if_property(this);
+    GotoIf(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kElement)),
+           &if_element);
+    Branch(WordEqual(handler_kind, IntPtrConstant(LoadHandler::kIndexedString)),
+           &if_indexed_string, &if_property);
 
+    BIND(&if_element);
     Comment("element_load");
     Node* intptr_index = TryToIntptr(p->name, miss);
     Node* elements = LoadElements(holder);
@@ -250,7 +253,18 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       exit_point->Return(UndefinedConstant());
     }
 
-    BIND(&property);
+    BIND(&if_indexed_string);
+    {
+      Comment("indexed string");
+      Node* intptr_index = TryToIntptr(p->name, miss);
+      Node* length = SmiUntag(LoadStringLength(holder));
+      GotoIf(UintPtrGreaterThanOrEqual(intptr_index, length), miss);
+      Node* code = StringCharCodeAt(holder, intptr_index, INTPTR_PARAMETERS);
+      Node* result = StringFromCharCode(code);
+      Return(result);
+    }
+
+    BIND(&if_property);
     Comment("property_load");
   }
 

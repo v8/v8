@@ -19,6 +19,7 @@ class LoadHandler {
  public:
   enum Kind {
     kElement,
+    kIndexedString,
     kNormal,
     kGlobal,
     kField,
@@ -158,6 +159,9 @@ class LoadHandler {
                                         ElementsKind elements_kind,
                                         bool convert_hole_to_undefined,
                                         bool is_js_array);
+
+  // Creates a Smi-handler for loading from a String.
+  static inline Handle<Smi> LoadIndexedString(Isolate* isolate);
 
  private:
   // Sets DoAccessCheckOnReceiverBits in given Smi-handler. The receiver

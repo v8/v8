@@ -828,10 +828,10 @@ class RuntimeCallTimer final {
   V(TestCounter3)
 
 #define FOR_EACH_HANDLER_COUNTER(V)              \
-  V(KeyedLoadIC_LoadIndexedStringStub)           \
   V(KeyedLoadIC_LoadIndexedInterceptorStub)      \
   V(KeyedLoadIC_KeyedLoadSloppyArgumentsStub)    \
   V(KeyedLoadIC_LoadElementDH)                   \
+  V(KeyedLoadIC_LoadIndexedStringDH)             \
   V(KeyedLoadIC_SlowStub)                        \
   V(KeyedStoreIC_ElementsTransitionAndStoreStub) \
   V(KeyedStoreIC_KeyedStoreSloppyArgumentsStub)  \

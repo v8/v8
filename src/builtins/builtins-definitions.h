@@ -204,7 +204,6 @@ namespace internal {
   TFH(KeyedLoadIC_Miss, LoadWithVector)                                        \
   TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \
   TFH(KeyedLoadIC_Slow, LoadWithVector)                                        \
-  TFH(KeyedLoadIC_IndexedString, LoadWithVector)                               \
   TFH(KeyedStoreIC_Megamorphic, StoreWithVector)                               \
   TFH(KeyedStoreIC_Miss, StoreWithVector)                                      \
   TFH(KeyedStoreIC_Slow, StoreWithVector)                                      \

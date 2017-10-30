@@ -108,6 +108,11 @@ Handle<Smi> LoadHandler::LoadElement(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> LoadHandler::LoadIndexedString(Isolate* isolate) {
+  int config = KindBits::encode(kIndexedString);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> StoreHandler::StoreGlobalProxy(Isolate* isolate) {
   int config = KindBits::encode(kStoreGlobalProxy);
   return handle(Smi::FromInt(config), isolate);

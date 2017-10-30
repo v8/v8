@@ -1060,11 +1060,11 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedInterceptorStub);
     return LoadIndexedInterceptorStub(isolate()).GetCode();
   }
-  if (receiver_map->IsStringMap()) {
-    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedStringStub);
-    return BUILTIN_CODE(isolate(), KeyedLoadIC_IndexedString);
-  }
   InstanceType instance_type = receiver_map->instance_type();
+  if (instance_type < FIRST_NONSTRING_TYPE) {
+    TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadIndexedStringDH);
+    return LoadHandler::LoadIndexedString(isolate());
+  }
   if (instance_type < FIRST_JS_RECEIVER_TYPE) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_SlowStub);
     return BUILTIN_CODE(isolate(), KeyedLoadIC_Slow);
