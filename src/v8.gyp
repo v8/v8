@@ -1179,6 +1179,7 @@
         'objects/js-regexp.h',
         'objects/js-regexp-inl.h',
         'objects/literal-objects.cc',
+        'objects/literal-objects-inl.h',
         'objects/literal-objects.h',
         'objects/map-inl.h',
         'objects/map.h',

@@ -1808,6 +1808,7 @@ v8_source_set("v8_base") {
     "src/objects/js-array.h",
     "src/objects/js-regexp-inl.h",
     "src/objects/js-regexp.h",
+    "src/objects/literal-objects-inl.h",
     "src/objects/literal-objects.cc",
     "src/objects/literal-objects.h",
     "src/objects/map-inl.h",

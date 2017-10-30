@@ -151,6 +151,8 @@ bool HeapObject::IsJSGeneratorObject() const {
 
 bool HeapObject::IsBoilerplateDescription() const { return IsFixedArray(); }
 
+bool HeapObject::IsClassBoilerplate() const { return IsFixedArray(); }
+
 bool HeapObject::IsExternal() const {
   return map()->FindRootMap() == GetHeap()->external_map();
 }
