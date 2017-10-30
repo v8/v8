@@ -308,8 +308,7 @@ class WasmGraphBuilder {
                             int index);
   void BuildWasmToWasmWrapper(Handle<Code> target,
                               Address new_wasm_context_address);
-  void BuildWasmInterpreterEntry(uint32_t func_index,
-                                 Handle<WasmInstanceObject> instance);
+  void BuildWasmInterpreterEntry(uint32_t func_index);
   void BuildCWasmEntry(Address wasm_context_address);
 
   Node* ToJS(Node* node, wasm::ValueType type);

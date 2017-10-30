@@ -30,7 +30,6 @@ WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   Address pc =
       Memory::Address_at(entry + StandardFrameConstants::kCallerPCOffset);
   Code* code = isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
-  DCHECK_EQ(Code::WASM_FUNCTION, code->kind());
   WasmInstanceObject* owning_instance =
       WasmInstanceObject::GetOwningInstance(code);
   CHECK_NOT_NULL(owning_instance);
@@ -225,11 +224,11 @@ RUNTIME_FUNCTION(Runtime_WasmExceptionSetElement) {
 }
 
 RUNTIME_FUNCTION(Runtime_WasmRunInterpreter) {
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(2, args.length());
   HandleScope scope(isolate);
-  CONVERT_ARG_HANDLE_CHECKED(WasmInstanceObject, instance, 0);
-  CONVERT_NUMBER_CHECKED(int32_t, func_index, Int32, args[1]);
-  CONVERT_ARG_HANDLE_CHECKED(Object, arg_buffer_obj, 2);
+  CONVERT_NUMBER_CHECKED(int32_t, func_index, Int32, args[0]);
+  CONVERT_ARG_HANDLE_CHECKED(Object, arg_buffer_obj, 1);
+  Handle<WasmInstanceObject> instance(GetWasmInstanceOnStackTop(isolate));
 
   // The arg buffer is the raw pointer to the caller's stack. It looks like a
   // Smi (lowest bit not set, as checked by IsSmi), but is no valid Smi. We just

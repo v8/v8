@@ -3049,8 +3049,7 @@ void WasmGraphBuilder::BuildWasmToWasmWrapper(Handle<Code> target,
   MergeControlToEnd(jsgraph(), tail_call);
 }
 
-void WasmGraphBuilder::BuildWasmInterpreterEntry(
-    uint32_t func_index, Handle<WasmInstanceObject> instance) {
+void WasmGraphBuilder::BuildWasmInterpreterEntry(uint32_t func_index) {
   int param_count = static_cast<int>(sig_->parameter_count());
 
   // Build the start and the parameter nodes.
@@ -3095,7 +3094,6 @@ void WasmGraphBuilder::BuildWasmInterpreterEntry(
   // like a Smi (lowest bit not set). In the runtime function however, don't
   // call Smi::value on it, but just cast it to a byte pointer.
   Node* parameters[] = {
-      jsgraph()->HeapConstant(instance),   // wasm instance
       jsgraph()->SmiConstant(func_index),  // function index
       arg_buffer,                          // argument buffer
   };
@@ -4499,7 +4497,7 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
                            CEntryStub(isolate, 1).GetCode(), sig);
   builder.set_control_ptr(&control);
   builder.set_effect_ptr(&effect);
-  builder.BuildWasmInterpreterEntry(func_index, instance);
+  builder.BuildWasmInterpreterEntry(func_index);
 
   Handle<Code> code = Handle<Code>::null();
   {

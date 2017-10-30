@@ -661,7 +661,7 @@ namespace internal {
   F(WasmGetExceptionRuntimeId, 0, 1) \
   F(WasmExceptionSetElement, 2, 1)   \
   F(WasmExceptionGetElement, 1, 1)   \
-  F(WasmRunInterpreter, 3, 1)        \
+  F(WasmRunInterpreter, 2, 1)        \
   F(WasmStackGuard, 0, 1)            \
   F(WasmCompileLazy, 0, 1)
 
