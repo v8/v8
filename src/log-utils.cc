@@ -46,6 +46,7 @@ Log::Log(Logger* logger, const char* file_name)
     FLAG_log_suspect = true;
     FLAG_log_handles = true;
     FLAG_log_internal_timer_events = true;
+    FLAG_log_function_events = true;
   }
 
   // --prof implies --log-code.

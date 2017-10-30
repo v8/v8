@@ -179,42 +179,73 @@ void CompilationJob::RecordOptimizedCompilationStats() const {
   }
 }
 
+void CompilationJob::RecordFunctionCompilation(
+    CodeEventListener::LogEventsAndTags tag) const {
+  // Log the code generation. If source information is available include
+  // script name and line number. Check explicitly whether logging is
+  // enabled as finding the line number is not free.
+  CompilationInfo* compilation_info = this->compilation_info();
+  Isolate* isolate = compilation_info->isolate();
+  if (!isolate->logger()->is_logging_code_events() &&
+      !isolate->is_profiling() && !FLAG_log_function_events) {
+    return;
+  }
+
+  Handle<SharedFunctionInfo> shared = compilation_info->shared_info();
+  Handle<Script> script = parse_info()->script();
+  Handle<AbstractCode> abstract_code =
+      compilation_info->has_bytecode_array()
+          ? Handle<AbstractCode>::cast(compilation_info->bytecode_array())
+          : Handle<AbstractCode>::cast(compilation_info->code());
+
+  if (abstract_code.is_identical_to(
+          BUILTIN_CODE(compilation_info->isolate(), CompileLazy))) {
+    return;
+  }
+
+  int line_num = Script::GetLineNumber(script, shared->start_position()) + 1;
+  int column_num =
+      Script::GetColumnNumber(script, shared->start_position()) + 1;
+  String* script_name = script->name()->IsString()
+                            ? String::cast(script->name())
+                            : isolate->heap()->empty_string();
+  CodeEventListener::LogEventsAndTags log_tag =
+      Logger::ToNativeByScript(tag, *script);
+  PROFILE(isolate, CodeCreateEvent(log_tag, *abstract_code, *shared,
+                                   script_name, line_num, column_num));
+  if (!FLAG_log_function_events) return;
+
+  DisallowHeapAllocation no_gc;
+
+  double ms = time_taken_to_prepare_.InMillisecondsF();
+  ms += time_taken_to_execute_.InMillisecondsF();
+  ms += time_taken_to_finalize_.InMillisecondsF();
+
+  std::string name = compilation_info->IsOptimizing() ? "optimize" : "compile";
+  switch (tag) {
+    case CodeEventListener::EVAL_TAG:
+      name += "-eval";
+      break;
+    case CodeEventListener::SCRIPT_TAG:
+      break;
+    case CodeEventListener::LAZY_COMPILE_TAG:
+      name += "-lazy";
+      break;
+    case CodeEventListener::FUNCTION_TAG:
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  LOG(isolate, FunctionEvent(name.c_str(), nullptr, script->id(), ms,
+                             shared->start_position(), shared->end_position(),
+                             shared->name()));
+}
+
 // ----------------------------------------------------------------------------
 // Local helper methods that make up the compilation pipeline.
 
 namespace {
-
-void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
-                               Handle<Script> script,
-                               CompilationInfo* compilation_info) {
-  // Log the code generation. If source information is available include
-  // script name and line number. Check explicitly whether logging is
-  // enabled as finding the line number is not free.
-  if (compilation_info->isolate()->logger()->is_logging_code_events() ||
-      compilation_info->isolate()->is_profiling()) {
-    Handle<SharedFunctionInfo> shared = compilation_info->shared_info();
-    Handle<AbstractCode> abstract_code =
-        compilation_info->has_bytecode_array()
-            ? Handle<AbstractCode>::cast(compilation_info->bytecode_array())
-            : Handle<AbstractCode>::cast(compilation_info->code());
-    if (abstract_code.is_identical_to(
-            BUILTIN_CODE(compilation_info->isolate(), CompileLazy))) {
-      return;
-    }
-    int line_num = Script::GetLineNumber(script, shared->start_position()) + 1;
-    int column_num =
-        Script::GetColumnNumber(script, shared->start_position()) + 1;
-    String* script_name =
-        script->name()->IsString()
-            ? String::cast(script->name())
-            : compilation_info->isolate()->heap()->empty_string();
-    CodeEventListener::LogEventsAndTags log_tag =
-        Logger::ToNativeByScript(tag, *script);
-    PROFILE(compilation_info->isolate(),
-            CodeCreateEvent(log_tag, *abstract_code, *shared, script_name,
-                            line_num, column_num));
-  }
-}
 
 void EnsureFeedbackMetadata(CompilationInfo* compilation_info) {
   DCHECK(compilation_info->has_shared_info());
@@ -333,7 +364,7 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job) {
       log_tag = parse_info->lazy_compile() ? CodeEventListener::LAZY_COMPILE_TAG
                                            : CodeEventListener::FUNCTION_TAG;
     }
-    RecordFunctionCompilation(log_tag, parse_info->script(), compilation_info);
+    job->RecordFunctionCompilation(log_tag);
     job->RecordUnoptimizedCompilationStats();
   }
   return status;
@@ -536,8 +567,7 @@ bool GetOptimizedCodeNow(CompilationJob* job) {
   job->RecordOptimizedCompilationStats();
   DCHECK(!isolate->has_pending_exception());
   InsertCodeIntoOptimizedCodeCache(compilation_info);
-  RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
-                            job->parse_info()->script(), compilation_info);
+  job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG);
   return true;
 }
 
@@ -713,8 +743,7 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job) {
       job->RetryOptimization(kBailedOutDueToDependencyChange);
     } else if (job->FinalizeJob() == CompilationJob::SUCCEEDED) {
       job->RecordOptimizedCompilationStats();
-      RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG,
-                                job->parse_info()->script(), compilation_info);
+      job->RecordFunctionCompilation(CodeEventListener::LAZY_COMPILE_TAG);
       InsertCodeIntoOptimizedCodeCache(compilation_info);
       if (FLAG_trace_opt) {
         PrintF("[completed optimizing ");

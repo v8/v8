@@ -776,3 +776,32 @@ TEST(ConsoleTimeEvents) {
 
   isolate->Dispose();
 }
+
+TEST(LogFunctionEvents) {
+  SETUP_FLAGS();
+  i::FLAG_log_function_events = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    // Try to create many different kind of maps to make sure the logging won't
+    // crash. More detailed tests are implemented separately.
+    const char* source_text =
+        "function lazyNotExecutedFunction() { return 'lazy' };"
+        "function lazyFunction() { return 'lazy' };"
+        "lazyFunction();"
+        "(function eagerFunction(){ return 'eager' })();";
+    CompileRun(source_text);
+
+    logger.StopLogging();
+
+    // TODO(cbruni): Extend with parsing/first-execution log statements.
+    CHECK_NULL(
+        logger.FindLine("function,compile-lazy,", ",lazyNotExecutedFunction"));
+    CHECK(logger.FindLine("function,compile-lazy,", ",lazyFunction"));
+    CHECK(logger.FindLine("function,compile,", ",eagerFunction"));
+  }
+  i::FLAG_log_function_events = false;
+  isolate->Dispose();
+}

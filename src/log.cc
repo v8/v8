@@ -1264,6 +1264,50 @@ void Logger::SuspectReadEvent(Name* name, Object* obj) {
   msg.WriteToLogFile();
 }
 
+namespace {
+void AppendFunctionMessage(Log::MessageBuilder& msg, const char* reason,
+                           Script* script, int script_id, double time_delta,
+                           int start_position, int end_position,
+                           base::ElapsedTimer* timer) {
+  msg << "function" << Logger::kNext << reason << Logger::kNext;
+  if (script) {
+    if (script->name()->IsString()) {
+      msg << String::cast(script->name());
+    }
+    msg << Logger::kNext << script->id();
+  } else {
+    msg << Logger::kNext << script_id;
+  }
+  msg << Logger::kNext << start_position << Logger::kNext << end_position
+      << Logger::kNext << time_delta << Logger::kNext
+      << timer->Elapsed().InMicroseconds() << Logger::kNext;
+}
+}  // namespace
+
+void Logger::FunctionEvent(const char* reason, Script* script, int script_id,
+                           double time_delta, int start_position,
+                           int end_position, String* function_name) {
+  if (!log_->IsEnabled() || !FLAG_log_function_events) return;
+  Log::MessageBuilder msg(log_);
+  AppendFunctionMessage(msg, reason, script, script_id, time_delta,
+                        start_position, end_position, &timer_);
+  if (function_name) msg << function_name;
+  msg.WriteToLogFile();
+}
+
+void Logger::FunctionEvent(const char* reason, Script* script, int script_id,
+                           double time_delta, int start_position,
+                           int end_position, const char* function_name,
+                           int function_name_length) {
+  if (!log_->IsEnabled() || !FLAG_log_function_events) return;
+  Log::MessageBuilder msg(log_);
+  AppendFunctionMessage(msg, reason, script, script_id, time_delta,
+                        start_position, end_position, &timer_);
+  if (function_name_length > 0) {
+    msg.AppendStringPart(function_name, function_name_length);
+  }
+  msg.WriteToLogFile();
+}
 
 void Logger::HeapSampleBeginEvent(const char* space, const char* kind) {
   if (!log_->IsEnabled() || !FLAG_log_gc) return;

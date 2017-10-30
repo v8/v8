@@ -1097,6 +1097,9 @@ DEFINE_BOOL(log_gc, false,
 DEFINE_BOOL(log_handles, false, "Log global handle events.")
 DEFINE_BOOL(log_suspect, false, "Log suspect operations.")
 DEFINE_BOOL(log_source_code, false, "Log source code.")
+DEFINE_BOOL(log_function_events, false,
+            "Log function events "
+            "(parse, compile, execute) separately.")
 DEFINE_BOOL(prof, false,
             "Log statistical profiling information (implies --log-code).")
 
