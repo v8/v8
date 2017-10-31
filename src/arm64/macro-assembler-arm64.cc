@@ -2479,13 +2479,21 @@ void TurboAssembler::EnterFrame(StackFrame::Type type) {
     // csp[1] : type
     // csp[0] : for alignment
   } else {
+    DCHECK_EQ(type, StackFrame::CONSTRUCT);
     DCHECK(jssp.Is(StackPointer()));
     Mov(type_reg, StackFrame::TypeToMarker(type));
-    Push(lr, fp, type_reg);
-    Add(fp, jssp, TypedFrameConstants::kFixedFrameSizeFromFp);
-    // jssp[2] : lr
-    // jssp[1] : fp
-    // jssp[0] : type
+
+    // Users of this frame type push a context pointer after the type field,
+    // so do it here to keep the stack pointer aligned.
+    Push(lr, fp, type_reg, cp);
+
+    // The context pointer isn't part of the fixed frame, so add an extra slot
+    // to account for it.
+    Add(fp, jssp, TypedFrameConstants::kFixedFrameSizeFromFp + kPointerSize);
+    // jssp[3] : lr
+    // jssp[2] : fp
+    // jssp[1] : type
+    // jssp[0] : cp
   }
 }
 

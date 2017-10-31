@@ -203,32 +203,49 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
   // Enter a construct frame.
   {
     FrameScope scope(masm, StackFrame::CONSTRUCT);
+    Label already_aligned;
+    Register argc = x0;
 
-    // Add slots for the context, tagged argc and receiver.
+    if (__ emit_debug_code()) {
+      // Check that FrameScope pushed the context on to the stack already.
+      __ Peek(x2, 0);
+      __ Cmp(x2, cp);
+      __ Check(eq, kUnexpectedValue);
+    }
+
+    // Add slots for the tagged argc and receiver, and round up to maintain
+    // alignment.
     Register slot_count = x2;
-    __ Add(slot_count, x0, 3);
+    Register slot_count_without_rounding = x12;
+    __ Add(slot_count_without_rounding, argc, 3);
+    __ Bic(slot_count, slot_count_without_rounding, 1);
     __ Claim(slot_count);
 
     // Preserve the incoming parameters on the stack.
     __ LoadRoot(x10, Heap::kTheHoleValueRootIndex);
-    __ SmiTag(x11, x0);
+    __ SmiTag(x11, argc);
 
-    // Compute a pointer to the slot immediately above the newly claimed area
-    // of stack.
-    __ SlotAddress(x2, slot_count);
+    // Compute a pointer to the slot immediately above the location on the
+    // stack to which arguments will be later copied.
+    __ SlotAddress(x2, argc);
 
-    // Poke the the hole (receiver), number of arguments (tagged) and the
-    // context into the three highest slots.
-    __ Stp(x11, cp, MemOperand(x2, -2 * kPointerSize));
-    __ Str(x10, MemOperand(x2, -3 * kPointerSize));
+    // Poke the hole (receiver) and number of arguments (tagged) into the
+    // highest claimed slots, with padding between them if argc was odd.
+    __ Stp(x10, x11, MemOperand(x2));
+    __ Tbnz(slot_count_without_rounding, 0, &already_aligned);
+
+    // Overwrite the previously written argc with padding, and store argc at the
+    // next highest slot.
+    __ Stp(padreg, x11, MemOperand(x2, 1 * kPointerSize));
+    __ Bind(&already_aligned);
 
     // Copy arguments to the expression stack.
     {
       Register count = x2;
       Register dst = x10;
       Register src = x11;
-      __ Mov(count, x0);
-      __ Mov(dst, __ StackPointer());
+      __ Mov(count, argc);
+      __ SlotAddress(dst, 0);
       __ Add(src, fp, StandardFrameConstants::kCallerSPOffset);
       __ CopyDoubleWords(dst, src, count);
     }
@@ -241,23 +258,26 @@ void Generate_JSBuiltinsConstructStubHelper(MacroAssembler* masm) {
     //  --             ...
     //  -- sp[(n-1)*kPointerSize]: argument 0
     //  -- sp[(n+0)*kPointerSize]: the hole (receiver)
-    //  -- sp[(n+1)*kPointerSize]: number of arguments (tagged)
-    //  -- sp[(n+2)*kPointerSize]: context
+    //  -- sp[(n+1)*kPointerSize]: optional padding, depending on argc.
+    //  -- sp[(n+1+(argc&1))*kPointerSize]: number of arguments (tagged)
+    //  -- sp[(n+2+(argc&1))*kPointerSize]: context (pushed by FrameScope)
     // -----------------------------------
 
     // Call the function.
-    ParameterCount actual(x0);
+    ParameterCount actual(argc);
     __ InvokeFunction(x1, x3, actual, CALL_FUNCTION);
 
     // Restore the context from the frame.
     __ Ldr(cp, MemOperand(fp, ConstructFrameConstants::kContextOffset));
-    // Restore smi-tagged arguments count from the frame.
-    __ Peek(x1, 0);
+    // Restore smi-tagged arguments count from the frame. Use fp relative
+    // addressing to avoid the circular dependency between padding existence and
+    // argc parity.
+    __ Ldrsw(x1,
+             UntagSmiMemOperand(fp, ConstructFrameConstants::kLengthOffset));
     // Leave construct frame.
   }
 
   // Remove caller arguments from the stack and return.
-  __ SmiUntag(x1);
   __ DropArguments(x1, TurboAssembler::kCountExcludesReceiver);
   __ Ret();
 }
@@ -274,22 +294,29 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
-  ASM_LOCATION("Builtins::Generate_JSConstructStubHelper");
+  ASM_LOCATION("Builtins::Generate_JSConstructStubGeneric");
 
   // Enter a construct frame.
   {
     FrameScope scope(masm, StackFrame::CONSTRUCT);
     Label post_instantiation_deopt_entry, not_create_implicit_receiver;
 
+    if (__ emit_debug_code()) {
+      // Check that FrameScope pushed the context on to the stack already.
+      __ Peek(x2, 0);
+      __ Cmp(x2, cp);
+      __ Check(eq, kUnexpectedValue);
+    }
+
     // Preserve the incoming parameters on the stack.
     __ SmiTag(x0);
-    __ Push(cp, x0, x1, x3);
+    __ Push(x0, x1, x3);
 
     // ----------- S t a t e -------------
     //  --        sp[0*kPointerSize]: new target
     //  -- x1 and sp[1*kPointerSize]: constructor function
     //  --        sp[2*kPointerSize]: number of arguments (tagged)
-    //  --        sp[3*kPointerSize]: context
+    //  --        sp[3*kPointerSize]: context (pushed by FrameScope)
     // -----------------------------------
 
     __ Ldr(x4, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
@@ -430,7 +457,8 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
 
     __ Bind(&leave_frame);
     // Restore smi-tagged arguments count from the frame.
-    __ Ldr(w1, UntagSmiMemOperand(fp, ConstructFrameConstants::kLengthOffset));
+    __ Ldrsw(x1,
+             UntagSmiMemOperand(fp, ConstructFrameConstants::kLengthOffset));
     // Leave construct frame.
   }
   // Remove caller arguments from the stack and return.
