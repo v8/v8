@@ -834,6 +834,8 @@ Handle<Object> Literal::BuildValue(Isolate* isolate) const {
     case kTheHole:
       return isolate->factory()->the_hole_value();
     case kBigInt:
+      // This should never fail: the parser will never create a BigInt
+      // literal that cannot be allocated.
       return BigIntLiteral(isolate, bigint_.c_str()).ToHandleChecked();
   }
   UNREACHABLE();

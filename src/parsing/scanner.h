@@ -667,10 +667,6 @@ class Scanner {
   bool is_literal_one_byte() const {
     return !current_.literal_chars || current_.literal_chars->is_one_byte();
   }
-  int literal_length() const {
-    if (current_.literal_chars) return current_.literal_chars->length();
-    return Token::StringLength(current_.token);
-  }
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
   Vector<const uint8_t> next_literal_one_byte_string() const {

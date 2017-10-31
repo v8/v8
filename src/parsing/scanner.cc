@@ -13,6 +13,7 @@
 #include "src/ast/ast-value-factory.h"
 #include "src/char-predicates-inl.h"
 #include "src/conversions-inl.h"
+#include "src/objects/bigint.h"
 #include "src/parsing/duplicate-finder.h"  // For Scanner::FindSymbol
 #include "src/unicode-cache-inl.h"
 
@@ -1333,6 +1334,17 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
   bool is_bigint = false;
   if (allow_harmony_bigint() && c0_ == 'n' && !seen_period &&
       (kind == DECIMAL || kind == HEX || kind == OCTAL || kind == BINARY)) {
+    // Check that the literal is within our limits for BigInt length.
+    // For simplicity, use 4 bits per character to calculate the maximum
+    // allowed literal length.
+    static const int kMaxBigIntCharacters = BigInt::kMaxLengthBits / 4;
+    int length = source_pos() - start_pos - (kind != DECIMAL ? 2 : 0);
+    if (length > kMaxBigIntCharacters) {
+      ReportScannerError(Location(start_pos, source_pos()),
+                         MessageTemplate::kBigIntTooBig);
+      return Token::ILLEGAL;
+    }
+
     is_bigint = true;
     Advance();
   } else if (c0_ == 'e' || c0_ == 'E') {
@@ -1365,6 +1377,7 @@ Token::Value Scanner::ScanNumber(bool seen_period) {
     octal_pos_ = Location(start_pos, source_pos());
     octal_message_ = MessageTemplate::kStrictDecimalWithLeadingZero;
   }
+
   return is_bigint ? Token::BIGINT : Token::NUMBER;
 }
 

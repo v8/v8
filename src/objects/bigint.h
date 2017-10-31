@@ -89,7 +89,8 @@ class V8_EXPORT_PRIVATE BigInt : public HeapObject {
   // kMaxInt / kDigitBits. However, we use a lower limit for now, because
   // raising it later is easier than lowering it.
   // Support up to 1 million bits.
-  static const int kMaxLength = 1024 * 1024 / (kPointerSize * kBitsPerByte);
+  static const int kMaxLengthBits = 1024 * 1024;
+  static const int kMaxLength = kMaxLengthBits / (kPointerSize * kBitsPerByte);
 
   class BodyDescriptor;
 
@@ -190,9 +191,9 @@ class V8_EXPORT_PRIVATE BigInt : public HeapObject {
     return static_cast<digit_t>(~x) == 0;
   }
 
-  static const int kMaxLengthBits = 20;
-  STATIC_ASSERT(kMaxLength <= ((1 << kMaxLengthBits) - 1));
-  class LengthBits : public BitField<int, 0, kMaxLengthBits> {};
+  static const int kLengthFieldBits = 20;
+  STATIC_ASSERT(kMaxLength <= ((1 << kLengthFieldBits) - 1));
+  class LengthBits : public BitField<int, 0, kLengthFieldBits> {};
   class SignBits : public BitField<bool, LengthBits::kNext, 1> {};
 
   // Low-level accessors.

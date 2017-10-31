@@ -381,8 +381,8 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
     case Tag::kHeapNumber:
       return isolate->factory()->NewNumber(heap_number_);
     case Tag::kBigInt:
-      // TODO(adamk): Don't check-fail on conversion failure; instead
-      // check for errors during parsing and throw at that point.
+      // This should never fail: the parser will never create a BigInt
+      // literal that cannot be allocated.
       return BigIntLiteral(isolate, bigint_.c_str()).ToHandleChecked();
     case Tag::kScope:
       return scope_->scope_info();
