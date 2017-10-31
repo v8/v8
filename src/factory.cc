@@ -3133,7 +3133,6 @@ Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
   Handle<Map> map = NewMap(JS_FUNCTION_TYPE, JSFunction::kSizeWithPrototype);
   map->set_has_prototype_slot(true);
   map->set_is_constructor(true);
-  map->set_is_prototype_map(true);
   map->set_is_callable();
   Map::SetPrototype(map, empty_function);
 
@@ -3142,8 +3141,8 @@ Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
   //
   Map::EnsureDescriptorSlack(map, 2);
 
-  PropertyAttributes ro_attribs =
-      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
+  PropertyAttributes rw_attribs =
+      static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE);
   PropertyAttributes roc_attribs =
       static_cast<PropertyAttributes>(DONT_ENUM | READ_ONLY);
 
@@ -3157,7 +3156,7 @@ Handle<Map> Factory::CreateClassFunctionMap(Handle<JSFunction> empty_function) {
   {
     // Add prototype accessor.
     Descriptor d = Descriptor::AccessorConstant(
-        prototype_string(), function_prototype_accessor(), ro_attribs);
+        prototype_string(), function_prototype_accessor(), rw_attribs);
     map->AppendDescriptor(&d);
   }
   return map;

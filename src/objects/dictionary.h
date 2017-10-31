@@ -171,10 +171,6 @@ class BaseNameDictionary : public Dictionary<Derived, Shape> {
   // Ensure enough space for n additional elements.
   static Handle<Derived> EnsureCapacity(Handle<Derived> dictionary, int n);
 
-  MUST_USE_RESULT static Handle<Derived> AddNoUpdateNextEnumerationIndex(
-      Handle<Derived> dictionary, Key key, Handle<Object> value,
-      PropertyDetails details, int* entry_out = nullptr);
-
   MUST_USE_RESULT static Handle<Derived> Add(Handle<Derived> dictionary,
                                              Key key, Handle<Object> value,
                                              PropertyDetails details,
