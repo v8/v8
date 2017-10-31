@@ -602,7 +602,7 @@
 
   # take too long with the simulator.
   'regress/regress-1132': [SKIP],
-  'regress/regress-740784': [PASS, SLOW],
+  'regress/regress-740784': [SKIP],
   'regress/regress-91008': [PASS, SLOW],
   'regress/regress-1257': [PASS, SLOW],
   'harmony/regexp-property-lu-ui': [PASS, SLOW],
