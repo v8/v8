@@ -476,7 +476,7 @@ const int RuntimeCallStats::counters_count =
 // static
 void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
                              CounterId counter_id) {
-  CHECK(stats->IsCalledOnTheSameThread());
+  DCHECK(stats->IsCalledOnTheSameThread());
   RuntimeCallCounter* counter = &(stats->*counter_id);
   DCHECK_NOT_NULL(counter->name());
   timer->Start(counter, stats->current_timer());
@@ -486,17 +486,10 @@ void RuntimeCallStats::Enter(RuntimeCallStats* stats, RuntimeCallTimer* timer,
 
 // static
 void RuntimeCallStats::Leave(RuntimeCallStats* stats, RuntimeCallTimer* timer) {
-  CHECK(stats->IsCalledOnTheSameThread());
+  DCHECK(stats->IsCalledOnTheSameThread());
   RuntimeCallTimer* stack_top = stats->current_timer();
   if (stack_top == nullptr) return;  // Missing timer is a result of Reset().
-  if (stack_top != timer) {
-    // The branch is added to catch a crash crbug.com/760649
-    EmbeddedVector<char, 200> text;
-    SNPrintF(text, "ERROR: Leaving counter '%s', stack top '%s'.\n",
-             timer->name(), stack_top->name());
-    USE(text);
-    CHECK(false);
-  }
+  CHECK(stack_top == timer);
   stats->current_timer_.SetValue(timer->Stop());
   RuntimeCallTimer* cur_timer = stats->current_timer();
   stats->current_counter_.SetValue(cur_timer ? cur_timer->counter() : nullptr);
@@ -514,6 +507,7 @@ void RuntimeCallStats::Add(RuntimeCallStats* other) {
 // static
 void RuntimeCallStats::CorrectCurrentCounterId(RuntimeCallStats* stats,
                                                CounterId counter_id) {
+  DCHECK(stats->IsCalledOnTheSameThread());
   // When RCS are enabled dynamically there might be no stats or timer set up.
   if (stats == nullptr) return;
   RuntimeCallTimer* timer = stats->current_timer_.Value();
