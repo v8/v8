@@ -426,56 +426,32 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   }
 
   // weak_wasm_module may have been cleared, meaning the module object
-  // was GC-ed. In that case, there won't be any new instances created,
-  // and we don't need to maintain the links between instances.
+  // was GC-ed. We still want to maintain the links between instances, to
+  // release the WasmCompiledModule corresponding to the WasmModuleInstance
+  // being finalized here.
+  WasmModuleObject* wasm_module = nullptr;
   if (!weak_wasm_module->cleared()) {
-    WasmModuleObject* wasm_module =
-        WasmModuleObject::cast(weak_wasm_module->value());
+    wasm_module = WasmModuleObject::cast(weak_wasm_module->value());
     WasmCompiledModule* current_template = wasm_module->compiled_module();
 
     TRACE("chain before {\n");
     TRACE_CHAIN(current_template);
     TRACE("}\n");
 
-    DCHECK(!current_template->has_weak_prev_instance());
-    WeakCell* next = compiled_module->maybe_ptr_to_weak_next_instance();
-    WeakCell* prev = compiled_module->maybe_ptr_to_weak_prev_instance();
-
+    DCHECK(!current_template->has_prev_instance());
     if (current_template == compiled_module) {
-      if (next == nullptr) {
+      if (!compiled_module->has_next_instance()) {
         WasmCompiledModule::Reset(isolate, compiled_module);
       } else {
-        WasmCompiledModule* next_compiled_module =
-            WasmCompiledModule::cast(next->value());
         WasmModuleObject::cast(wasm_module)
-            ->set_compiled_module(next_compiled_module);
-        DCHECK_NULL(prev);
-        next_compiled_module->reset_weak_prev_instance();
-      }
-    } else {
-      DCHECK(!(prev == nullptr && next == nullptr));
-      // the only reason prev or next would be cleared is if the
-      // respective objects got collected, but if that happened,
-      // we would have relinked the list.
-      if (prev != nullptr) {
-        DCHECK(!prev->cleared());
-        if (next == nullptr) {
-          WasmCompiledModule::cast(prev->value())->reset_weak_next_instance();
-        } else {
-          WasmCompiledModule::cast(prev->value())
-              ->set_ptr_to_weak_next_instance(next);
-        }
-      }
-      if (next != nullptr) {
-        DCHECK(!next->cleared());
-        if (prev == nullptr) {
-          WasmCompiledModule::cast(next->value())->reset_weak_prev_instance();
-        } else {
-          WasmCompiledModule::cast(next->value())
-              ->set_ptr_to_weak_prev_instance(prev);
-        }
+            ->set_compiled_module(compiled_module->ptr_to_next_instance());
       }
     }
+  }
+
+  compiled_module->RemoveFromChain();
+
+  if (wasm_module != nullptr) {
     TRACE("chain after {\n");
     TRACE_CHAIN(wasm_module->compiled_module());
     TRACE("}\n");
@@ -1930,35 +1906,17 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   {
     Handle<Object> global_handle =
         isolate_->global_handles()->Create(*instance);
-    Handle<WeakCell> link_to_clone = factory->NewWeakCell(compiled_module_);
     Handle<WeakCell> link_to_owning_instance = factory->NewWeakCell(instance);
-    MaybeHandle<WeakCell> link_to_original;
-    MaybeHandle<WasmCompiledModule> original;
     if (!owner.is_null()) {
-      // prepare the data needed for publishing in a chain, but don't link
-      // just yet, because
-      // we want all the publishing to happen free from GC interruptions, and
-      // so we do it in
-      // one GC-free scope afterwards.
-      original = handle(owner.ToHandleChecked()->compiled_module());
-      link_to_original = factory->NewWeakCell(original.ToHandleChecked());
-    }
-    // Publish the new instance to the instances chain.
-    {
+      // Publish the new instance to the instances chain.
       DisallowHeapAllocation no_gc;
-      if (!link_to_original.is_null()) {
-        compiled_module_->set_weak_next_instance(
-            link_to_original.ToHandleChecked());
-        original.ToHandleChecked()->set_weak_prev_instance(link_to_clone);
-        compiled_module_->set_weak_wasm_module(
-            original.ToHandleChecked()->weak_wasm_module());
-      }
-      module_object_->set_compiled_module(*compiled_module_);
-      compiled_module_->set_weak_owning_instance(link_to_owning_instance);
-      GlobalHandles::MakeWeak(
-          global_handle.location(), global_handle.location(),
-          instance_finalizer_callback_, v8::WeakCallbackType::kFinalizer);
+      compiled_module_->InsertInChain(*module_object_);
     }
+    module_object_->set_compiled_module(*compiled_module_);
+    compiled_module_->set_weak_owning_instance(link_to_owning_instance);
+    GlobalHandles::MakeWeak(global_handle.location(), global_handle.location(),
+                            instance_finalizer_callback_,
+                            v8::WeakCallbackType::kFinalizer);
   }
 
   //--------------------------------------------------------------------------

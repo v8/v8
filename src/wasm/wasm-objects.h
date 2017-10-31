@@ -393,8 +393,8 @@ class WasmCompiledModule : public FixedArray {
   MACRO(CONST_OBJECT, FixedArray, empty_function_tables)      \
   MACRO(CONST_OBJECT, FixedArray, empty_signature_tables)     \
   MACRO(SMALL_CONST_NUMBER, uint32_t, initial_pages)          \
-  MACRO(WEAK_LINK, WasmCompiledModule, next_instance)         \
-  MACRO(WEAK_LINK, WasmCompiledModule, prev_instance)         \
+  MACRO(WASM_OBJECT, WasmCompiledModule, next_instance)       \
+  MACRO(WASM_OBJECT, WasmCompiledModule, prev_instance)       \
   MACRO(WEAK_LINK, JSObject, owning_instance)                 \
   MACRO(WEAK_LINK, WasmModuleObject, wasm_module)
 
@@ -430,6 +430,8 @@ class WasmCompiledModule : public FixedArray {
   static void Reset(Isolate* isolate, WasmCompiledModule* module);
 
   uint32_t default_mem_size() const;
+  void InsertInChain(WasmModuleObject*);
+  void RemoveFromChain();
 
 #define DECLARATION(KIND, TYPE, NAME) WCM_##KIND(TYPE, NAME)
   WCM_PROPERTY_TABLE(DECLARATION)

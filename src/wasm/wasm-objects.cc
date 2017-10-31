@@ -62,25 +62,17 @@ class CompiledModulesIterator
   void Advance() {
     DCHECK(!current_.is_null());
     if (!is_backwards_) {
-      if (current_->has_weak_next_instance()) {
-        WeakCell* weak_next = current_->ptr_to_weak_next_instance();
-        if (!weak_next->cleared()) {
-          current_ =
-              handle(WasmCompiledModule::cast(weak_next->value()), isolate_);
-          return;
-        }
+      if (current_->has_next_instance()) {
+        current_ = current_->next_instance();
+        return;
       }
       // No more modules in next-links, now try the previous-links.
       is_backwards_ = true;
       current_ = start_module_;
     }
-    if (current_->has_weak_prev_instance()) {
-      WeakCell* weak_prev = current_->ptr_to_weak_prev_instance();
-      if (!weak_prev->cleared()) {
-        current_ =
-            handle(WasmCompiledModule::cast(weak_prev->value()), isolate_);
-        return;
-      }
+    if (current_->has_prev_instance()) {
+      current_ = current_->prev_instance();
+      return;
     }
     current_ = Handle<WasmCompiledModule>::null();
   }
@@ -179,8 +171,8 @@ void WasmModuleObject::ValidateStateForTesting(
   WasmCompiledModule* compiled_module = module_obj->compiled_module();
   CHECK(compiled_module->has_weak_wasm_module());
   CHECK_EQ(compiled_module->ptr_to_weak_wasm_module()->value(), *module_obj);
-  CHECK(!compiled_module->has_weak_prev_instance());
-  CHECK(!compiled_module->has_weak_next_instance());
+  CHECK(!compiled_module->has_prev_instance());
+  CHECK(!compiled_module->has_next_instance());
   CHECK(!compiled_module->has_weak_owning_instance());
 }
 
@@ -589,16 +581,16 @@ void WasmInstanceObject::ValidateInstancesChainForTesting(
   Object* prev = nullptr;
   int found_instances = compiled_module->has_weak_owning_instance() ? 1 : 0;
   WasmCompiledModule* current_instance = compiled_module;
-  while (current_instance->has_weak_next_instance()) {
-    CHECK((prev == nullptr && !current_instance->has_weak_prev_instance()) ||
-          current_instance->ptr_to_weak_prev_instance()->value() == prev);
+  while (current_instance->has_next_instance()) {
+    CHECK((prev == nullptr && !current_instance->has_prev_instance()) ||
+          current_instance->ptr_to_prev_instance() == prev);
     CHECK_EQ(current_instance->ptr_to_weak_wasm_module()->value(), *module_obj);
     CHECK(current_instance->ptr_to_weak_owning_instance()
               ->value()
               ->IsWasmInstanceObject());
     prev = current_instance;
-    current_instance = WasmCompiledModule::cast(
-        current_instance->ptr_to_weak_next_instance()->value());
+    current_instance =
+        WasmCompiledModule::cast(current_instance->ptr_to_next_instance());
     ++found_instances;
     CHECK_LE(found_instances, instance_count);
   }
@@ -998,8 +990,8 @@ Handle<WasmCompiledModule> WasmCompiledModule::Clone(
   ret->InitId();
   ret->set_code_table(code_copy);
   ret->reset_weak_owning_instance();
-  ret->reset_weak_next_instance();
-  ret->reset_weak_prev_instance();
+  ret->reset_next_instance();
+  ret->reset_prev_instance();
   ret->reset_weak_exported_functions();
   return ret;
 }
@@ -1169,13 +1161,34 @@ void WasmCompiledModule::PrintInstancesChain() {
   if (!FLAG_trace_wasm_instances) return;
   for (WasmCompiledModule* current = this; current != nullptr;) {
     PrintF("->%d", current->instance_id());
-    if (!current->has_weak_next_instance()) break;
-    DCHECK(!current->ptr_to_weak_next_instance()->cleared());
-    current =
-        WasmCompiledModule::cast(current->ptr_to_weak_next_instance()->value());
+    if (!current->has_next_instance()) break;
+    current = current->ptr_to_next_instance();
   }
   PrintF("\n");
 #endif
+}
+
+void WasmCompiledModule::InsertInChain(WasmModuleObject* module) {
+  DisallowHeapAllocation no_gc;
+  WasmCompiledModule* original = module->compiled_module();
+  set_ptr_to_next_instance(original);
+  original->set_ptr_to_prev_instance(this);
+  set_weak_wasm_module(original->weak_wasm_module());
+}
+
+void WasmCompiledModule::RemoveFromChain() {
+  DisallowHeapAllocation no_gc;
+  Isolate* isolate = GetIsolate();
+
+  Object* next = get(kID_next_instance);
+  Object* prev = get(kID_prev_instance);
+
+  if (!prev->IsUndefined(isolate)) {
+    WasmCompiledModule::cast(prev)->set(kID_next_instance, next);
+  }
+  if (!next->IsUndefined(isolate)) {
+    WasmCompiledModule::cast(next)->set(kID_prev_instance, prev);
+  }
 }
 
 void WasmCompiledModule::ReinitializeAfterDeserialization(
