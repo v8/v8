@@ -4570,8 +4570,9 @@ void JSReceiver::initialize_properties() {
 }
 
 bool JSReceiver::HasFastProperties() const {
-  DCHECK_EQ(raw_properties_or_hash()->IsDictionary(),
-            map()->is_dictionary_map());
+  DCHECK(
+      raw_properties_or_hash()->IsSmi() ||
+      (raw_properties_or_hash()->IsDictionary() == map()->is_dictionary_map()));
   return !map()->is_dictionary_map();
 }
 
