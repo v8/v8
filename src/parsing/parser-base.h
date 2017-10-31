@@ -3565,6 +3565,12 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseImportExpressions(
     return impl()->ImportMetaExpression(pos);
   }
   Expect(Token::LPAREN, CHECK_OK);
+  if (peek() == Token::RPAREN) {
+    impl()->ReportMessageAt(scanner()->location(),
+                            MessageTemplate::kImportMissingSpecifier);
+    *ok = false;
+    return impl()->NullExpression();
+  }
   ExpressionT arg = ParseAssignmentExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
   return factory()->NewImportCallExpression(arg, pos);
