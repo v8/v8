@@ -228,11 +228,11 @@ var failWithMessage;
     switch (typeof value) {
       case "string":
         return JSON.stringify(value);
+      case "bigint":
+        return String(value) + "n";
       case "number":
         if (value === 0 && (1 / value) < 0) return "-0";
         // FALLTHROUGH.
-      case "bigint":
-        return String(value) + "n";
       case "boolean":
       case "undefined":
       case "function":
