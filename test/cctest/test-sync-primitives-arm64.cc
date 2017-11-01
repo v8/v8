@@ -36,6 +36,19 @@
 namespace v8 {
 namespace internal {
 
+// These tests rely on the behaviour specific to the simulator so we cannot
+// expect the same results on real hardware. The reason for this is that our
+// simulation of synchronisation primitives is more conservative than the
+// reality.
+// For example:
+//   ldxr x1, [x2] ; Load acquire at address x2; x2 is now marked as exclusive.
+//   ldr x0, [x4]  ; This is a normal load, and at a different address.
+//                 ; However, any memory accesses can potentially clear the
+//                 ; exclusivity (See ARM DDI 0487B.a B2.9.5). This is unlikely
+//                 ; on real hardware but to be conservative, the simulator
+//                 ; always does it.
+//   stxr w3, x1, [x2] ; As a result, this will always fail in the simulator but
+//                     ; will likely succeed on hardware.
 #if defined(USE_SIMULATOR)
 
 #ifndef V8_TARGET_LITTLE_ENDIAN
@@ -80,9 +93,11 @@ struct TestData {
   int dummy;
 };
 
-static void AssembleMemoryAccess(MacroAssembler* assembler, MemoryAccess access,
-                                 Register dest_reg, Register value_reg,
-                                 Register addr_reg) {
+namespace {
+
+void AssembleMemoryAccess(MacroAssembler* assembler, MemoryAccess access,
+                          Register dest_reg, Register value_reg,
+                          Register addr_reg) {
   MacroAssembler& masm = *assembler;
   __ Add(addr_reg, x0, Operand(access.offset));
 
@@ -162,22 +177,22 @@ static void AssembleMemoryAccess(MacroAssembler* assembler, MemoryAccess access,
   }
 }
 
-static void AssembleLoadExcl(MacroAssembler* assembler, MemoryAccess access,
-                             Register value_reg, Register addr_reg) {
+void AssembleLoadExcl(MacroAssembler* assembler, MemoryAccess access,
+                      Register value_reg, Register addr_reg) {
   DCHECK(access.kind == MemoryAccess::Kind::LoadExcl);
   AssembleMemoryAccess(assembler, access, no_reg, value_reg, addr_reg);
 }
 
-static void AssembleStoreExcl(MacroAssembler* assembler, MemoryAccess access,
-                              Register dest_reg, Register value_reg,
-                              Register addr_reg) {
+void AssembleStoreExcl(MacroAssembler* assembler, MemoryAccess access,
+                       Register dest_reg, Register value_reg,
+                       Register addr_reg) {
   DCHECK(access.kind == MemoryAccess::Kind::StoreExcl);
   AssembleMemoryAccess(assembler, access, dest_reg, value_reg, addr_reg);
 }
 
-static void TestInvalidateExclusiveAccess(
-    TestData initial_data, MemoryAccess access1, MemoryAccess access2,
-    MemoryAccess access3, int expected_res, TestData expected_data) {
+void TestInvalidateExclusiveAccess(TestData initial_data, MemoryAccess access1,
+                                   MemoryAccess access2, MemoryAccess access3,
+                                   int expected_res, TestData expected_data) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope scope(isolate);
   MacroAssembler masm(isolate, nullptr, 0,
@@ -192,6 +207,7 @@ static void TestInvalidateExclusiveAccess(
   masm.GetCode(isolate, &desc);
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
+
   TestData t = initial_data;
   Simulator::CallArgument args[] = {
       Simulator::CallArgument(reinterpret_cast<uintptr_t>(&t)),
@@ -214,6 +230,8 @@ static void TestInvalidateExclusiveAccess(
       break;
   }
 }
+
+}  // namespace
 
 TEST(simulator_invalidate_exclusive_access) {
   using Kind = MemoryAccess::Kind;
@@ -251,8 +269,10 @@ TEST(simulator_invalidate_exclusive_access) {
                                 0, TestData(7));
 }
 
-static int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
-                               MemoryAccess access) {
+namespace {
+
+int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
+                        MemoryAccess access) {
   HandleScope scope(isolate);
   MacroAssembler masm(isolate, nullptr, 0,
                       v8::internal::CodeObjectRequired::kYes);
@@ -269,6 +289,8 @@ static int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
   Simulator::current(isolate)->CallVoid(code->entry(), args);
   return Simulator::current(isolate)->wreg(0);
 }
+
+}  // namespace
 
 class MemoryAccessThread : public v8::base::Thread {
  public:
