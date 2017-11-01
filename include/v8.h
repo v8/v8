@@ -1435,6 +1435,21 @@ class V8_EXPORT ScriptCompiler {
   };
 
   /**
+   * The reason for which we are not requesting or providing a code cache.
+   */
+  enum NoCacheReason {
+    kNoCacheNoReason = 0,
+    kNoCacheBecauseCachingDisabled,
+    kNoCacheBecauseNoResource,
+    kNoCacheBecauseInlineScript,
+    kNoCacheBecauseModule,
+    kNoCacheBecauseStreamingSource,
+    kNoCacheBecauseInspector,
+    kNoCacheBecauseScriptTooSmall,
+    kNoCacheBecauseCacheTooCold,
+  };
+
+  /**
    * Compiles the specified script (context-independent).
    * Cached data as part of the source object can be optionally produced to be
    * consumed later to speed up compilation of identical source scripts.
@@ -1450,10 +1465,12 @@ class V8_EXPORT ScriptCompiler {
   static V8_DEPRECATED("Use maybe version",
                        Local<UnboundScript> CompileUnbound(
                            Isolate* isolate, Source* source,
-                           CompileOptions options = kNoCompileOptions));
+                           CompileOptions options = kNoCompileOptions,
+                           NoCacheReason no_cache_reason = kNoCacheNoReason));
   static V8_WARN_UNUSED_RESULT MaybeLocal<UnboundScript> CompileUnboundScript(
       Isolate* isolate, Source* source,
-      CompileOptions options = kNoCompileOptions);
+      CompileOptions options = kNoCompileOptions,
+      NoCacheReason no_cache_reason = kNoCacheNoReason);
 
   /**
    * Compiles the specified script (bound to current context).
@@ -1469,10 +1486,12 @@ class V8_EXPORT ScriptCompiler {
   static V8_DEPRECATED(
       "Use maybe version",
       Local<Script> Compile(Isolate* isolate, Source* source,
-                            CompileOptions options = kNoCompileOptions));
+                            CompileOptions options = kNoCompileOptions,
+                            NoCacheReason no_cache_reason = kNoCacheNoReason));
   static V8_WARN_UNUSED_RESULT MaybeLocal<Script> Compile(
       Local<Context> context, Source* source,
-      CompileOptions options = kNoCompileOptions);
+      CompileOptions options = kNoCompileOptions,
+      NoCacheReason no_cache_reason = kNoCacheNoReason);
 
   /**
    * Returns a task which streams script data into V8, or NULL if the script
@@ -1562,7 +1581,8 @@ class V8_EXPORT ScriptCompiler {
 
  private:
   static V8_WARN_UNUSED_RESULT MaybeLocal<UnboundScript> CompileUnboundInternal(
-      Isolate* isolate, Source* source, CompileOptions options);
+      Isolate* isolate, Source* source, CompileOptions options,
+      NoCacheReason no_cache_reason);
 };
 
 

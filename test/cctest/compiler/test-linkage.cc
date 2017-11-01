@@ -38,7 +38,8 @@ static Handle<JSFunction> Compile(const char* source) {
           source_code, MaybeHandle<String>(), 0, 0, v8::ScriptOriginOptions(),
           MaybeHandle<Object>(), Handle<Context>(isolate->native_context()),
           nullptr, nullptr, v8::ScriptCompiler::kNoCompileOptions,
-          NOT_NATIVES_CODE, MaybeHandle<FixedArray>())
+          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
+          MaybeHandle<FixedArray>())
           .ToHandleChecked();
   return isolate->factory()->NewFunctionFromSharedFunctionInfo(
       shared, isolate->native_context());

@@ -216,6 +216,10 @@ class Histogram {
 
   const char* name() { return name_; }
 
+  int min() const { return min_; }
+  int max() const { return max_; }
+  int num_buckets() const { return num_buckets_; }
+
  protected:
   Histogram() {}
   Histogram(const char* name, int min, int max, int num_buckets,
@@ -286,6 +290,29 @@ class TimedHistogramScope {
   Isolate* isolate_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(TimedHistogramScope);
+};
+
+// Helper class for scoping a TimedHistogram, where the histogram is selected at
+// stop time rather than start time.
+// TODO(leszeks): This is heavily reliant on TimedHistogram::Start() doing
+// nothing but starting the timer, and TimedHistogram::Stop() logging the sample
+// correctly even if Start() was not called. This happens to be true iff Stop()
+// is passed a null isolate, but that's an implementation detail of
+// TimedHistogram, and we shouldn't rely on it.
+class LazyTimedHistogramScope {
+ public:
+  LazyTimedHistogramScope() : histogram_(nullptr) { timer_.Start(); }
+  ~LazyTimedHistogramScope() {
+    // We should set the histogram before this scope exits.
+    DCHECK_NOT_NULL(histogram_);
+    histogram_->Stop(&timer_, nullptr);
+  }
+
+  void set_histogram(TimedHistogram* histogram) { histogram_ = histogram; }
+
+ private:
+  base::ElapsedTimer timer_;
+  TimedHistogram* histogram_;
 };
 
 // A HistogramTimer allows distributions of non-nested timed results
@@ -1030,7 +1057,8 @@ class RuntimeCallTimerScope {
   HR(asm_wasm_translation_throughput, V8.AsmWasmTranslationThroughput, 1, 100, \
      20)                                                                       \
   HR(wasm_lazy_compilation_throughput, V8.WasmLazyCompilationThroughput, 1,    \
-     10000, 50)
+     10000, 50)                                                                \
+  HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 12, 13)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
@@ -1088,7 +1116,25 @@ class RuntimeCallTimerScope {
   HT(wasm_instantiate_wasm_module_time,                                        \
      V8.WasmInstantiateModuleMicroSeconds.wasm, 10000000, MICROSECOND)         \
   HT(wasm_instantiate_asm_module_time,                                         \
-     V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)
+     V8.WasmInstantiateModuleMicroSeconds.asm, 10000000, MICROSECOND)          \
+  /* Total compilation time incl. caching/parsing for various cache states. */ \
+  HT(compile_script_with_produce_cache,                                        \
+     V8.CompileScriptMicroSeconds.ProduceCache, 1000000, MICROSECOND)          \
+  HT(compile_script_with_isolate_cache_hit,                                    \
+     V8.CompileScriptMicroSeconds.IsolateCacheHit, 1000000, MICROSECOND)       \
+  HT(compile_script_with_consume_cache,                                        \
+     V8.CompileScriptMicroSeconds.ConsumeCache, 1000000, MICROSECOND)          \
+  HT(compile_script_consume_failed,                                            \
+     V8.CompileScriptMicroSeconds.ConsumeCache.Failed, 1000000, MICROSECOND)   \
+  HT(compile_script_no_cache_other,                                            \
+     V8.CompileScriptMicroSeconds.NoCache.Other, 1000000, MICROSECOND)         \
+  HT(compile_script_no_cache_because_inline_script,                            \
+     V8.CompileScriptMicroSeconds.NoCache.InlineScript, 1000000, MICROSECOND)  \
+  HT(compile_script_no_cache_because_script_too_small,                         \
+     V8.CompileScriptMicroSeconds.NoCache.ScriptTooSmall, 1000000,             \
+     MICROSECOND)                                                              \
+  HT(compile_script_no_cache_because_cache_too_cold,                           \
+     V8.CompileScriptMicroSeconds.NoCache.CacheTooCold, 1000000, MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)

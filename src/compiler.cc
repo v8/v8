@@ -1226,14 +1226,176 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromString(
       parameters_end_pos, eval_scope_position, eval_position);
 }
 
+namespace {
+
+struct ScriptCompileTimerScope {
+ public:
+  enum class CacheBehaviour {
+    kProduceCodeCache,
+    kHitIsolateCache,
+    kConsumeCodeCache,
+    kConsumeCodeCacheFailed,
+    kNoCacheBecauseInlineScript,
+    kNoCacheBecauseScriptTooSmall,
+    kNoCacheBecauseCacheTooCold,
+    kNoCacheNoReason,
+    kNoCacheBecauseNoResource,
+    kNoCacheBecauseInspector,
+    kNoCacheBecauseCachingDisabled,
+    kNoCacheBecauseModule,
+    kNoCacheBecauseStreamingSource,
+    kCount
+  };
+
+  explicit ScriptCompileTimerScope(
+      Isolate* isolate, ScriptCompiler::NoCacheReason no_cache_reason)
+      : isolate_(isolate),
+        all_scripts_histogram_scope_(isolate->counters()->compile_script(),
+                                     true),
+        no_cache_reason_(no_cache_reason),
+        hit_isolate_cache_(false),
+        producing_code_cache_(false),
+        consuming_code_cache_(false),
+        consuming_code_cache_failed_(false) {}
+
+  ~ScriptCompileTimerScope() {
+    CacheBehaviour cache_behaviour = GetCacheBehaviour();
+
+    Histogram* cache_behaviour_histogram =
+        isolate_->counters()->compile_script_cache_behaviour();
+    // Sanity check that the histogram has exactly one bin per enum entry.
+    DCHECK_EQ(0, cache_behaviour_histogram->min());
+    DCHECK_EQ(static_cast<int>(CacheBehaviour::kCount),
+              cache_behaviour_histogram->max() + 1);
+    DCHECK_EQ(static_cast<int>(CacheBehaviour::kCount),
+              cache_behaviour_histogram->num_buckets());
+    cache_behaviour_histogram->AddSample(static_cast<int>(cache_behaviour));
+
+    histogram_scope_.set_histogram(
+        GetCacheBehaviourTimedHistogram(cache_behaviour));
+  }
+
+  void set_hit_isolate_cache() { hit_isolate_cache_ = true; }
+
+  void set_producing_code_cache() { producing_code_cache_ = true; }
+
+  void set_consuming_code_cache() { consuming_code_cache_ = true; }
+
+  void set_consuming_code_cache_failed() {
+    consuming_code_cache_failed_ = true;
+  }
+
+ private:
+  Isolate* isolate_;
+  LazyTimedHistogramScope histogram_scope_;
+  // TODO(leszeks): This timer is the sum of the other times, consider removing
+  // it to save space.
+  HistogramTimerScope all_scripts_histogram_scope_;
+  ScriptCompiler::NoCacheReason no_cache_reason_;
+  bool hit_isolate_cache_;
+  bool producing_code_cache_;
+  bool consuming_code_cache_;
+  bool consuming_code_cache_failed_;
+
+  CacheBehaviour GetCacheBehaviour() {
+    if (producing_code_cache_) {
+      // Even if we hit the isolate's compilation cache, we currently recompile
+      // when we want to produce the code cache.
+      return CacheBehaviour::kProduceCodeCache;
+    }
+
+    if (hit_isolate_cache_) {
+      // There's probably no need to distinguish the different isolate cache
+      // hits.
+      return CacheBehaviour::kHitIsolateCache;
+    }
+
+    if (consuming_code_cache_) {
+      if (consuming_code_cache_failed_) {
+        return CacheBehaviour::kConsumeCodeCacheFailed;
+      }
+      return CacheBehaviour::kConsumeCodeCache;
+    }
+
+    switch (no_cache_reason_) {
+      case ScriptCompiler::kNoCacheBecauseInlineScript:
+        return CacheBehaviour::kNoCacheBecauseInlineScript;
+      case ScriptCompiler::kNoCacheBecauseScriptTooSmall:
+        return CacheBehaviour::kNoCacheBecauseScriptTooSmall;
+      case ScriptCompiler::kNoCacheBecauseCacheTooCold:
+        return CacheBehaviour::kNoCacheBecauseCacheTooCold;
+      case ScriptCompiler::kNoCacheNoReason:
+        return CacheBehaviour::kNoCacheNoReason;
+      case ScriptCompiler::kNoCacheBecauseNoResource:
+        return CacheBehaviour::kNoCacheBecauseNoResource;
+      case ScriptCompiler::kNoCacheBecauseInspector:
+        return CacheBehaviour::kNoCacheBecauseInspector;
+      case ScriptCompiler::kNoCacheBecauseCachingDisabled:
+        return CacheBehaviour::kNoCacheBecauseCachingDisabled;
+      case ScriptCompiler::kNoCacheBecauseModule:
+        return CacheBehaviour::kNoCacheBecauseModule;
+      case ScriptCompiler::kNoCacheBecauseStreamingSource:
+        return CacheBehaviour::kNoCacheBecauseStreamingSource;
+    }
+    UNREACHABLE();
+  }
+
+  TimedHistogram* GetCacheBehaviourTimedHistogram(
+      CacheBehaviour cache_behaviour) {
+    switch (cache_behaviour) {
+      case CacheBehaviour::kProduceCodeCache:
+        return isolate_->counters()->compile_script_with_produce_cache();
+      case CacheBehaviour::kHitIsolateCache:
+        return isolate_->counters()->compile_script_with_isolate_cache_hit();
+      case CacheBehaviour::kConsumeCodeCacheFailed:
+        return isolate_->counters()->compile_script_consume_failed();
+      case CacheBehaviour::kConsumeCodeCache:
+        return isolate_->counters()->compile_script_with_consume_cache();
+
+      case CacheBehaviour::kNoCacheBecauseInlineScript:
+        return isolate_->counters()
+            ->compile_script_no_cache_because_inline_script();
+      case CacheBehaviour::kNoCacheBecauseScriptTooSmall:
+        return isolate_->counters()
+            ->compile_script_no_cache_because_script_too_small();
+      case CacheBehaviour::kNoCacheBecauseCacheTooCold:
+        return isolate_->counters()
+            ->compile_script_no_cache_because_cache_too_cold();
+
+      // Aggregate all the other "no cache" counters into a single histogram, to
+      // save space.
+      case CacheBehaviour::kNoCacheNoReason:
+      case CacheBehaviour::kNoCacheBecauseNoResource:
+      case CacheBehaviour::kNoCacheBecauseInspector:
+      case CacheBehaviour::kNoCacheBecauseCachingDisabled:
+      // TODO(leszeks): Consider counting separately once modules are more
+      // common.
+      case CacheBehaviour::kNoCacheBecauseModule:
+      // TODO(leszeks): Count separately or remove entirely once we have
+      // background compilation.
+      case CacheBehaviour::kNoCacheBecauseStreamingSource:
+        return isolate_->counters()->compile_script_no_cache_other();
+
+      case CacheBehaviour::kCount:
+        UNREACHABLE();
+    }
+    UNREACHABLE();
+  }
+};
+
+}  // namespace
+
 MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     Handle<String> source, MaybeHandle<Object> maybe_script_name,
     int line_offset, int column_offset, ScriptOriginOptions resource_options,
     MaybeHandle<Object> maybe_source_map_url, Handle<Context> context,
     v8::Extension* extension, ScriptData** cached_data,
-    ScriptCompiler::CompileOptions compile_options, NativesFlag natives,
+    ScriptCompiler::CompileOptions compile_options,
+    ScriptCompiler::NoCacheReason no_cache_reason, NativesFlag natives,
     MaybeHandle<FixedArray> maybe_host_defined_options) {
   Isolate* isolate = source->GetIsolate();
+  ScriptCompileTimerScope compile_timer(isolate, no_cache_reason);
+
   if (compile_options == ScriptCompiler::kNoCompileOptions) {
     cached_data = nullptr;
   } else if (compile_options == ScriptCompiler::kProduceParserCache ||
@@ -1265,6 +1427,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     if (!pair.has_shared() &&
         compile_options == ScriptCompiler::kConsumeCodeCache &&
         !isolate->debug()->is_loaded()) {
+      compile_timer.set_consuming_code_cache();
       // Then check cached code provided by embedder.
       HistogramTimerScope timer(isolate->counters()->compile_deserialize());
       RuntimeCallTimerScope runtimeTimer(isolate,
@@ -1286,9 +1449,11 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
         return inner_result;
       }
       // Deserializer failed. Fall through to compile.
+      compile_timer.set_consuming_code_cache_failed();
     } else {
       if (pair.has_shared()) {
         maybe_result = MaybeHandle<SharedFunctionInfo>(pair.shared(), isolate);
+        compile_timer.set_hit_isolate_cache();
       }
       if (pair.has_vector()) {
         vector = Handle<Cell>(pair.vector(), isolate);
@@ -1364,6 +1529,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
                                    vector);
       if (ShouldProduceCodeCache(compile_options) &&
           !ContainsAsmModule(script)) {
+        compile_timer.set_producing_code_cache();
+
         HistogramTimerScope histogram_timer(
             isolate->counters()->compile_serialize());
         RuntimeCallTimerScope runtimeTimer(isolate,

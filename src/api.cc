@@ -2273,7 +2273,8 @@ MaybeLocal<Value> Module::Evaluate(Local<Context> context) {
 }
 
 MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
-    Isolate* v8_isolate, Source* source, CompileOptions options) {
+    Isolate* v8_isolate, Source* source, CompileOptions options,
+    NoCacheReason no_cache_reason) {
   auto isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
   ENTER_V8_NO_SCRIPT(isolate, v8_isolate->GetCurrentContext(), ScriptCompiler,
@@ -2298,102 +2299,97 @@ MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundInternal(
 
   i::Handle<i::String> str = Utils::OpenHandle(*(source->source_string));
   i::Handle<i::SharedFunctionInfo> result;
-  {
-    i::HistogramTimerScope total(isolate->counters()->compile_script(), true);
-    TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileScript");
-    i::MaybeHandle<i::Object> name_obj;
-    i::MaybeHandle<i::Object> source_map_url;
-    i::MaybeHandle<i::FixedArray> host_defined_options =
-        isolate->factory()->empty_fixed_array();
-    int line_offset = 0;
-    int column_offset = 0;
-    if (!source->resource_name.IsEmpty()) {
-      name_obj = Utils::OpenHandle(*(source->resource_name));
-    }
-    if (!source->host_defined_options.IsEmpty()) {
-      host_defined_options = Utils::OpenHandle(*(source->host_defined_options));
-    }
-    if (!source->resource_line_offset.IsEmpty()) {
-      line_offset = static_cast<int>(source->resource_line_offset->Value());
-    }
-    if (!source->resource_column_offset.IsEmpty()) {
-      column_offset =
-          static_cast<int>(source->resource_column_offset->Value());
-    }
-    if (!source->source_map_url.IsEmpty()) {
-      source_map_url = Utils::OpenHandle(*(source->source_map_url));
-    }
-    i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
-        i::Compiler::GetSharedFunctionInfoForScript(
-            str, name_obj, line_offset, column_offset, source->resource_options,
-            source_map_url, isolate->native_context(), nullptr, &script_data,
-            options, i::NOT_NATIVES_CODE, host_defined_options);
-    has_pending_exception = !maybe_function_info.ToHandle(&result);
-    if (has_pending_exception && script_data != nullptr) {
-      // This case won't happen during normal operation; we have compiled
-      // successfully and produced cached data, and but the second compilation
-      // of the same source code fails.
-      delete script_data;
-      script_data = nullptr;
-    }
-    RETURN_ON_FAILED_EXECUTION(UnboundScript);
-
-    if (produce_cache && script_data != nullptr) {
-      // script_data now contains the data that was generated. source will
-      // take the ownership.
-      source->cached_data = new CachedData(
-          script_data->data(), script_data->length(), CachedData::BufferOwned);
-      script_data->ReleaseDataOwnership();
-    } else if (options == kConsumeParserCache || options == kConsumeCodeCache) {
-      source->cached_data->rejected = script_data->rejected();
-    }
-    delete script_data;
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileScript");
+  i::MaybeHandle<i::Object> name_obj;
+  i::MaybeHandle<i::Object> source_map_url;
+  i::MaybeHandle<i::FixedArray> host_defined_options =
+      isolate->factory()->empty_fixed_array();
+  int line_offset = 0;
+  int column_offset = 0;
+  if (!source->resource_name.IsEmpty()) {
+    name_obj = Utils::OpenHandle(*(source->resource_name));
   }
+  if (!source->host_defined_options.IsEmpty()) {
+    host_defined_options = Utils::OpenHandle(*(source->host_defined_options));
+  }
+  if (!source->resource_line_offset.IsEmpty()) {
+    line_offset = static_cast<int>(source->resource_line_offset->Value());
+  }
+  if (!source->resource_column_offset.IsEmpty()) {
+    column_offset = static_cast<int>(source->resource_column_offset->Value());
+  }
+  if (!source->source_map_url.IsEmpty()) {
+    source_map_url = Utils::OpenHandle(*(source->source_map_url));
+  }
+  i::MaybeHandle<i::SharedFunctionInfo> maybe_function_info =
+      i::Compiler::GetSharedFunctionInfoForScript(
+          str, name_obj, line_offset, column_offset, source->resource_options,
+          source_map_url, isolate->native_context(), nullptr, &script_data,
+          options, no_cache_reason, i::NOT_NATIVES_CODE, host_defined_options);
+  has_pending_exception = !maybe_function_info.ToHandle(&result);
+  if (has_pending_exception && script_data != nullptr) {
+    // This case won't happen during normal operation; we have compiled
+    // successfully and produced cached data, and but the second compilation
+    // of the same source code fails.
+    delete script_data;
+    script_data = nullptr;
+  }
+  RETURN_ON_FAILED_EXECUTION(UnboundScript);
+
+  if (produce_cache && script_data != nullptr) {
+    // script_data now contains the data that was generated. source will
+    // take the ownership.
+    source->cached_data = new CachedData(
+        script_data->data(), script_data->length(), CachedData::BufferOwned);
+    script_data->ReleaseDataOwnership();
+  } else if (options == kConsumeParserCache || options == kConsumeCodeCache) {
+    source->cached_data->rejected = script_data->rejected();
+  }
+  delete script_data;
   RETURN_ESCAPED(ToApiHandle<UnboundScript>(result));
 }
 
-
 MaybeLocal<UnboundScript> ScriptCompiler::CompileUnboundScript(
-    Isolate* v8_isolate, Source* source, CompileOptions options) {
+    Isolate* v8_isolate, Source* source, CompileOptions options,
+    NoCacheReason no_cache_reason) {
   Utils::ApiCheck(
       !source->GetResourceOptions().IsModule(),
       "v8::ScriptCompiler::CompileUnboundScript",
       "v8::ScriptCompiler::CompileModule must be used to compile modules");
-  return CompileUnboundInternal(v8_isolate, source, options);
+  return CompileUnboundInternal(v8_isolate, source, options, no_cache_reason);
 }
 
-
-Local<UnboundScript> ScriptCompiler::CompileUnbound(Isolate* v8_isolate,
-                                                    Source* source,
-                                                    CompileOptions options) {
+Local<UnboundScript> ScriptCompiler::CompileUnbound(
+    Isolate* v8_isolate, Source* source, CompileOptions options,
+    NoCacheReason no_cache_reason) {
   Utils::ApiCheck(
       !source->GetResourceOptions().IsModule(),
       "v8::ScriptCompiler::CompileUnbound",
       "v8::ScriptCompiler::CompileModule must be used to compile modules");
-  RETURN_TO_LOCAL_UNCHECKED(CompileUnboundInternal(v8_isolate, source, options),
-                            UnboundScript);
+  RETURN_TO_LOCAL_UNCHECKED(
+      CompileUnboundInternal(v8_isolate, source, options, no_cache_reason),
+      UnboundScript);
 }
-
 
 MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
                                            Source* source,
-                                           CompileOptions options) {
+                                           CompileOptions options,
+                                           NoCacheReason no_cache_reason) {
   Utils::ApiCheck(
       !source->GetResourceOptions().IsModule(), "v8::ScriptCompiler::Compile",
       "v8::ScriptCompiler::CompileModule must be used to compile modules");
   auto isolate = context->GetIsolate();
-  auto maybe = CompileUnboundInternal(isolate, source, options);
+  auto maybe =
+      CompileUnboundInternal(isolate, source, options, no_cache_reason);
   Local<UnboundScript> result;
   if (!maybe.ToLocal(&result)) return MaybeLocal<Script>();
   v8::Context::Scope scope(context);
   return result->BindToCurrentContext();
 }
 
-
-Local<Script> ScriptCompiler::Compile(
-    Isolate* v8_isolate,
-    Source* source,
-    CompileOptions options) {
+Local<Script> ScriptCompiler::Compile(Isolate* v8_isolate, Source* source,
+                                      CompileOptions options,
+                                      NoCacheReason no_cache_reason) {
   auto context = v8_isolate->GetCurrentContext();
   RETURN_TO_LOCAL_UNCHECKED(Compile(context, source, options), Script);
 }
@@ -2405,7 +2401,8 @@ MaybeLocal<Module> ScriptCompiler::CompileModule(Isolate* isolate,
   Utils::ApiCheck(source->GetResourceOptions().IsModule(),
                   "v8::ScriptCompiler::CompileModule",
                   "Invalid ScriptOrigin: is_module must be true");
-  auto maybe = CompileUnboundInternal(isolate, source, kNoCompileOptions);
+  auto maybe = CompileUnboundInternal(isolate, source, kNoCompileOptions,
+                                      kNoCacheBecauseModule);
   Local<UnboundScript> unbound;
   if (!maybe.ToLocal(&unbound)) return MaybeLocal<Module>();
 
@@ -9980,6 +9977,7 @@ MaybeLocal<UnboundScript> debug::CompileInspectorScript(Isolate* v8_isolate,
             str, i::MaybeHandle<i::Object>(), 0, 0, origin_options,
             i::MaybeHandle<i::Object>(), isolate->native_context(), nullptr,
             &script_data, ScriptCompiler::kNoCompileOptions,
+            ScriptCompiler::kNoCacheBecauseInspector,
             i::FLAG_expose_inspector_scripts ? i::NOT_NATIVES_CODE
                                              : i::INSPECTOR_CODE,
             i::MaybeHandle<i::FixedArray>());

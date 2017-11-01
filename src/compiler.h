@@ -114,6 +114,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       MaybeHandle<Object> maybe_source_map_url, Handle<Context> context,
       v8::Extension* extension, ScriptData** cached_data,
       ScriptCompiler::CompileOptions compile_options,
+      ScriptCompiler::NoCacheReason no_cache_reason,
       NativesFlag is_natives_code,
       MaybeHandle<FixedArray> maybe_host_defined_options);
 

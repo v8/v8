@@ -1207,7 +1207,8 @@ static Handle<SharedFunctionInfo> CompileScript(
   return Compiler::GetSharedFunctionInfoForScript(
              source, name, 0, 0, v8::ScriptOriginOptions(), Handle<Object>(),
              Handle<Context>(isolate->native_context()), nullptr, cached_data,
-             options, NOT_NATIVES_CODE, Handle<FixedArray>())
+             options, ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
+             Handle<FixedArray>())
       .ToHandleChecked();
 }
 
@@ -2100,7 +2101,8 @@ TEST(Regress503552) {
           source, MaybeHandle<String>(), 0, 0, v8::ScriptOriginOptions(),
           MaybeHandle<Object>(), Handle<Context>(isolate->native_context()),
           nullptr, &script_data, v8::ScriptCompiler::kProduceCodeCache,
-          NOT_NATIVES_CODE, MaybeHandle<FixedArray>())
+          ScriptCompiler::kNoCacheNoReason, NOT_NATIVES_CODE,
+          MaybeHandle<FixedArray>())
           .ToHandleChecked();
   delete script_data;
 
