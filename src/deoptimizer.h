@@ -205,14 +205,12 @@ class TranslatedFrame {
 
   static void AdvanceIterator(std::deque<TranslatedValue>::iterator* iter);
 
-  TranslatedFrame(Kind kind, Isolate* isolate,
-                  SharedFunctionInfo* shared_info = nullptr, int height = 0)
+  TranslatedFrame(Kind kind, SharedFunctionInfo* shared_info = nullptr,
+                  int height = 0)
       : kind_(kind),
         node_id_(BailoutId::None()),
         raw_shared_info_(shared_info),
-        height_(height),
-        isolate_(isolate) {}
-
+        height_(height) {}
 
   void Add(const TranslatedValue& value) { values_.push_back(value); }
   void Handlify();
@@ -222,7 +220,6 @@ class TranslatedFrame {
   SharedFunctionInfo* raw_shared_info_;
   Handle<SharedFunctionInfo> shared_info_;
   int height_;
-  Isolate* isolate_;
 
   typedef std::deque<TranslatedValue> ValuesContainer;
 
