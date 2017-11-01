@@ -20,11 +20,15 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                         Node* match_start_index, Node* match_end_index,
                         Node* replace_string);
   void StringEqual_Core(Node* context, Node* lhs, Node* lhs_instance_type,
-                        Node* lhs_length, Node* rhs, Node* rhs_instance_type,
+                        Node* rhs, Node* rhs_instance_type, Node* length,
                         Label* if_equal, Label* if_not_equal,
-                        Label* if_notbothdirectonebyte);
+                        Label* if_indirect);
 
  protected:
+  void StringEqual_Loop(Node* lhs, Node* lhs_instance_type,
+                        MachineType lhs_type, Node* rhs,
+                        Node* rhs_instance_type, MachineType rhs_type,
+                        Node* length, Label* if_equal, Label* if_not_equal);
   Node* DirectStringData(Node* string, Node* string_instance_type);
 
   void DispatchOnStringEncodings(Node* const lhs_instance_type,

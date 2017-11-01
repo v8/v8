@@ -534,6 +534,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // Load length field of a String object.
   TNode<Smi> LoadStringLength(SloppyTNode<String> object);
+  // Load length field of a String object as intptr_t value.
+  TNode<IntPtrT> LoadAndUntagStringLength(SloppyTNode<String> object);
   // Loads a pointer to the sequential String char array.
   Node* PointerToSeqStringData(Node* seq_string);
   // Load value field of a JSValue object.

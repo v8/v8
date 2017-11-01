@@ -1459,6 +1459,11 @@ TNode<Smi> CodeStubAssembler::LoadStringLength(SloppyTNode<String> object) {
   return LoadObjectField<Smi>(object, String::kLengthOffset);
 }
 
+TNode<IntPtrT> CodeStubAssembler::LoadAndUntagStringLength(
+    SloppyTNode<String> object) {
+  return SmiUntag(LoadStringLength(object));
+}
+
 Node* CodeStubAssembler::PointerToSeqStringData(Node* seq_string) {
   CSA_ASSERT(this, IsString(seq_string));
   CSA_ASSERT(this,
@@ -4422,7 +4427,7 @@ TNode<Uint32T> CodeStubAssembler::StringCharCodeAt(
   // Translate the {index} into a Word.
   index = ParameterToWord(index, parameter_mode);
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(index, IntPtrConstant(0)));
-  CSA_ASSERT(this, IntPtrLessThan(index, SmiUntag(LoadStringLength(string))));
+  CSA_ASSERT(this, IntPtrLessThan(index, LoadAndUntagStringLength(string)));
 
   VARIABLE(var_result, MachineRepresentation::kWord32);
 

@@ -162,33 +162,13 @@ void StringBuiltinsAssembler::ConvertAndBoundsCheckStartArgument(
 
 void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
                                                   Node* right) {
-  // Here's pseudo-code for the algorithm below:
-  //
-  // if (lhs->length() != rhs->length()) return false;
-  // restart:
-  // if (lhs == rhs) return true;
-  // if (lhs->IsInternalizedString() && rhs->IsInternalizedString()) {
-  //   return false;
-  // }
-  // if (lhs->IsSeqOneByteString() && rhs->IsSeqOneByteString()) {
-  //   for (i = 0; i != lhs->length(); ++i) {
-  //     if (lhs[i] != rhs[i]) return false;
-  //   }
-  //   return true;
-  // }
-  // if (lhs and/or rhs are indirect strings) {
-  //   unwrap them and restart from the "restart:" label;
-  // }
-  // return %StringEqual(lhs, rhs);
-
   VARIABLE(var_left, MachineRepresentation::kTagged, left);
   VARIABLE(var_right, MachineRepresentation::kTagged, right);
-  Variable* input_vars[2] = {&var_left, &var_right};
-  Label if_equal(this), if_notequal(this), if_notbothdirectonebytestrings(this),
-      restart(this, 2, input_vars);
+  Label if_equal(this), if_notequal(this), if_indirect(this, Label::kDeferred),
+      restart(this, {&var_left, &var_right});
 
-  Node* lhs_length = LoadStringLength(left);
-  Node* rhs_length = LoadStringLength(right);
+  Node* lhs_length = LoadAndUntagStringLength(left);
+  Node* rhs_length = LoadAndUntagStringLength(right);
 
   // Strings with different lengths cannot be equal.
   GotoIf(WordNotEqual(lhs_length, rhs_length), &if_notequal);
@@ -201,11 +181,10 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
   Node* lhs_instance_type = LoadInstanceType(lhs);
   Node* rhs_instance_type = LoadInstanceType(rhs);
 
-  StringEqual_Core(context, lhs, lhs_instance_type, lhs_length, rhs,
-                   rhs_instance_type, &if_equal, &if_notequal,
-                   &if_notbothdirectonebytestrings);
+  StringEqual_Core(context, lhs, lhs_instance_type, rhs, rhs_instance_type,
+                   lhs_length, &if_equal, &if_notequal, &if_indirect);
 
-  BIND(&if_notbothdirectonebytestrings);
+  BIND(&if_indirect);
   {
     // Try to unwrap indirect strings, restart the above attempt on success.
     MaybeDerefIndirectStrings(&var_left, lhs_instance_type, &var_right,
@@ -223,13 +202,13 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
 }
 
 void StringBuiltinsAssembler::StringEqual_Core(
-    Node* context, Node* lhs, Node* lhs_instance_type, Node* lhs_length,
-    Node* rhs, Node* rhs_instance_type, Label* if_equal, Label* if_not_equal,
-    Label* if_notbothdirectonebyte) {
+    Node* context, Node* lhs, Node* lhs_instance_type, Node* rhs,
+    Node* rhs_instance_type, Node* length, Label* if_equal, Label* if_not_equal,
+    Label* if_indirect) {
   CSA_ASSERT(this, IsString(lhs));
   CSA_ASSERT(this, IsString(rhs));
-  CSA_ASSERT(this, WordEqual(LoadStringLength(lhs), lhs_length));
-  CSA_ASSERT(this, WordEqual(LoadStringLength(rhs), lhs_length));
+  CSA_ASSERT(this, WordEqual(LoadAndUntagStringLength(lhs), length));
+  CSA_ASSERT(this, WordEqual(LoadAndUntagStringLength(rhs), length));
   // Fast check to see if {lhs} and {rhs} refer to the same String object.
   GotoIf(WordEqual(lhs, rhs), if_equal);
 
@@ -248,33 +227,75 @@ void StringBuiltinsAssembler::StringEqual_Core(
                      Int32Constant(kBothInternalizedTag)),
          if_not_equal);
 
-  // Check that both {lhs} and {rhs} are flat one-byte strings, and that
-  // in case of ExternalStrings the data pointer is cached..
+  // Check if both {lhs} and {rhs} are direct strings, and that in case of
+  // ExternalStrings the data pointer is cached.
   STATIC_ASSERT(kShortExternalStringTag != 0);
-  int const kBothDirectOneByteStringMask =
-      kStringEncodingMask | kIsIndirectStringMask | kShortExternalStringMask |
-      ((kStringEncodingMask | kIsIndirectStringMask | kShortExternalStringMask)
-       << 8);
-  int const kBothDirectOneByteStringTag =
-      kOneByteStringTag | (kOneByteStringTag << 8);
+  STATIC_ASSERT(kIsIndirectStringTag != 0);
+  int const kBothDirectStringMask =
+      kIsIndirectStringMask | kShortExternalStringMask |
+      ((kIsIndirectStringMask | kShortExternalStringMask) << 8);
   GotoIfNot(Word32Equal(Word32And(both_instance_types,
-                                  Int32Constant(kBothDirectOneByteStringMask)),
-                        Int32Constant(kBothDirectOneByteStringTag)),
-            if_notbothdirectonebyte);
+                                  Int32Constant(kBothDirectStringMask)),
+                        Int32Constant(0)),
+            if_indirect);
 
-  // At this point we know that we have two direct one-byte strings.
+  // Dispatch based on the {lhs} and {rhs} string encoding.
+  int const kBothStringEncodingMask =
+      kStringEncodingMask | (kStringEncodingMask << 8);
+  int const kOneOneByteStringTag = kOneByteStringTag | (kOneByteStringTag << 8);
+  int const kTwoTwoByteStringTag = kTwoByteStringTag | (kTwoByteStringTag << 8);
+  int const kOneTwoByteStringTag = kOneByteStringTag | (kTwoByteStringTag << 8);
+  Label if_oneonebytestring(this), if_twotwobytestring(this),
+      if_onetwobytestring(this), if_twoonebytestring(this);
+  Node* masked_instance_types =
+      Word32And(both_instance_types, Int32Constant(kBothStringEncodingMask));
+  GotoIf(
+      Word32Equal(masked_instance_types, Int32Constant(kOneOneByteStringTag)),
+      &if_oneonebytestring);
+  GotoIf(
+      Word32Equal(masked_instance_types, Int32Constant(kTwoTwoByteStringTag)),
+      &if_twotwobytestring);
+  Branch(
+      Word32Equal(masked_instance_types, Int32Constant(kOneTwoByteStringTag)),
+      &if_onetwobytestring, &if_twoonebytestring);
+
+  BIND(&if_oneonebytestring);
+  StringEqual_Loop(lhs, lhs_instance_type, MachineType::Uint8(), rhs,
+                   rhs_instance_type, MachineType::Uint8(), length, if_equal,
+                   if_not_equal);
+
+  BIND(&if_twotwobytestring);
+  StringEqual_Loop(lhs, lhs_instance_type, MachineType::Uint16(), rhs,
+                   rhs_instance_type, MachineType::Uint16(), length, if_equal,
+                   if_not_equal);
+
+  BIND(&if_onetwobytestring);
+  StringEqual_Loop(lhs, lhs_instance_type, MachineType::Uint8(), rhs,
+                   rhs_instance_type, MachineType::Uint16(), length, if_equal,
+                   if_not_equal);
+
+  BIND(&if_twoonebytestring);
+  StringEqual_Loop(lhs, lhs_instance_type, MachineType::Uint16(), rhs,
+                   rhs_instance_type, MachineType::Uint8(), length, if_equal,
+                   if_not_equal);
+}
+
+void StringBuiltinsAssembler::StringEqual_Loop(
+    Node* lhs, Node* lhs_instance_type, MachineType lhs_type, Node* rhs,
+    Node* rhs_instance_type, MachineType rhs_type, Node* length,
+    Label* if_equal, Label* if_not_equal) {
+  CSA_ASSERT(this, IsString(lhs));
+  CSA_ASSERT(this, IsString(rhs));
+  CSA_ASSERT(this, WordEqual(LoadAndUntagStringLength(lhs), length));
+  CSA_ASSERT(this, WordEqual(LoadAndUntagStringLength(rhs), length));
 
   // Compute the effective offset of the first character.
   Node* lhs_data = DirectStringData(lhs, lhs_instance_type);
   Node* rhs_data = DirectStringData(rhs, rhs_instance_type);
 
-  // Compute the first offset after the string from the length.
-  Node* length = SmiUntag(lhs_length);
-
   // Loop over the {lhs} and {rhs} strings to see if they are equal.
-  VARIABLE(var_offset, MachineType::PointerRepresentation());
+  VARIABLE(var_offset, MachineType::PointerRepresentation(), IntPtrConstant(0));
   Label loop(this, &var_offset);
-  var_offset.Bind(IntPtrConstant(0));
   Goto(&loop);
   BIND(&loop);
   {
@@ -284,8 +305,12 @@ void StringBuiltinsAssembler::StringEqual_Core(
     GotoIf(WordEqual(offset, length), if_equal);
 
     // Load the next characters from {lhs} and {rhs}.
-    Node* lhs_value = Load(MachineType::Uint8(), lhs_data, offset);
-    Node* rhs_value = Load(MachineType::Uint8(), rhs_data, offset);
+    Node* lhs_value =
+        Load(lhs_type, lhs_data,
+             WordShl(offset, ElementSizeLog2Of(lhs_type.representation())));
+    Node* rhs_value =
+        Load(rhs_type, rhs_data,
+             WordShl(offset, ElementSizeLog2Of(rhs_type.representation())));
 
     // Check if the characters match.
     GotoIf(Word32NotEqual(lhs_value, rhs_value), if_not_equal);
@@ -788,8 +813,8 @@ void StringBuiltinsAssembler::StringIndexOf(
   VARIABLE(var_needle_byte, MachineType::PointerRepresentation(), int_zero);
   VARIABLE(var_string_addr, MachineType::PointerRepresentation(), int_zero);
 
-  Node* const search_length = SmiUntag(LoadStringLength(search_string));
-  Node* const subject_length = SmiUntag(LoadStringLength(subject_string));
+  Node* const search_length = LoadAndUntagStringLength(search_string);
+  Node* const subject_length = LoadAndUntagStringLength(subject_string);
   Node* const start_position = IntPtrMax(SmiUntag(position), int_zero);
 
   Label zero_length_needle(this), return_minus_1(this);
@@ -2093,7 +2118,7 @@ void StringTrimAssembler::Generate(String::TrimMode mode,
 
   // Check that {receiver} is coercible to Object and convert it to a String.
   Node* const string = ToThisString(context, receiver, method_name);
-  Node* const string_length = SmiUntag(LoadStringLength(string));
+  Node* const string_length = LoadAndUntagStringLength(string);
 
   ToDirectStringAssembler to_direct(state(), string);
   to_direct.TryToDirect(&if_runtime);
