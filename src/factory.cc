@@ -835,7 +835,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
     return MakeOrFindTwoCharacterString(isolate(), c1, c2);
   }
 
-  if (length < SlicedString::kMinLength) {
+  if (!FLAG_string_slices || length < SlicedString::kMinLength) {
     if (str->IsOneByteRepresentation()) {
       Handle<SeqOneByteString> result =
           NewRawOneByteString(length).ToHandleChecked();

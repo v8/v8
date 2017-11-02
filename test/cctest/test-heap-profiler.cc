@@ -402,6 +402,7 @@ TEST(HeapSnapshotHeapNumbers) {
 
 
 TEST(HeapSnapshotSlicedString) {
+  if (!i::FLAG_string_slices) return;
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   v8::HeapProfiler* heap_profiler = env->GetIsolate()->GetHeapProfiler();

@@ -4625,36 +4625,38 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
   // encoding at this point.
   Label external_string(this);
   {
-    Label next(this);
+    if (FLAG_string_slices) {
+      Label next(this);
 
-    // Short slice.  Copy instead of slicing.
-    GotoIf(SmiLessThan(substr_length, SmiConstant(SlicedString::kMinLength)),
-           &next);
+      // Short slice.  Copy instead of slicing.
+      GotoIf(SmiLessThan(substr_length, SmiConstant(SlicedString::kMinLength)),
+             &next);
 
-    // Allocate new sliced string.
+      // Allocate new sliced string.
 
-    Counters* counters = isolate()->counters();
-    IncrementCounter(counters->sub_string_native(), 1);
+      Counters* counters = isolate()->counters();
+      IncrementCounter(counters->sub_string_native(), 1);
 
-    Label one_byte_slice(this), two_byte_slice(this);
-    Branch(IsOneByteStringInstanceType(to_direct.instance_type()),
-           &one_byte_slice, &two_byte_slice);
+      Label one_byte_slice(this), two_byte_slice(this);
+      Branch(IsOneByteStringInstanceType(to_direct.instance_type()),
+             &one_byte_slice, &two_byte_slice);
 
-    BIND(&one_byte_slice);
-    {
-      var_result.Bind(
-          AllocateSlicedOneByteString(substr_length, direct_string, offset));
-      Goto(&end);
+      BIND(&one_byte_slice);
+      {
+        var_result.Bind(
+            AllocateSlicedOneByteString(substr_length, direct_string, offset));
+        Goto(&end);
+      }
+
+      BIND(&two_byte_slice);
+      {
+        var_result.Bind(
+            AllocateSlicedTwoByteString(substr_length, direct_string, offset));
+        Goto(&end);
+      }
+
+      BIND(&next);
     }
-
-    BIND(&two_byte_slice);
-    {
-      var_result.Bind(
-          AllocateSlicedTwoByteString(substr_length, direct_string, offset));
-      Goto(&end);
-    }
-
-    BIND(&next);
 
     // The subject string can only be external or sequential string of either
     // encoding at this point.
@@ -4663,6 +4665,7 @@ Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
     var_result.Bind(AllocAndCopyStringCharacters(
         context, direct_string, instance_type, offset, substr_length));
 
+    Counters* counters = isolate()->counters();
     IncrementCounter(counters->sub_string_native(), 1);
 
     Goto(&end);
@@ -4790,7 +4793,7 @@ Node* ToDirectStringAssembler::TryToDirect(Label* if_bailout) {
   // Sliced string. Fetch parent and correct start index by offset.
   BIND(&if_issliced);
   {
-    if (flags_ & kDontUnpackSlicedStrings) {
+    if (!FLAG_string_slices || (flags_ & kDontUnpackSlicedStrings)) {
       Goto(if_bailout);
     } else {
       Node* const string = var_string_.value();
