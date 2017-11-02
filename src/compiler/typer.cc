@@ -915,37 +915,9 @@ Type* Typer::Visitor::JSEqualTyper(Type* lhs, Type* rhs, Typer* t) {
   return Type::Boolean();
 }
 
-
-static Type* JSType(Type* type) {
-  if (type->Is(Type::Boolean())) return Type::Boolean();
-  if (type->Is(Type::String())) return Type::String();
-  if (type->Is(Type::Number())) return Type::Number();
-  if (type->Is(Type::Undefined())) return Type::Undefined();
-  if (type->Is(Type::Null())) return Type::Null();
-  if (type->Is(Type::Symbol())) return Type::Symbol();
-  if (type->Is(Type::Receiver())) return Type::Receiver();  // JS "Object"
-  return Type::Any();
-}
-
-
 Type* Typer::Visitor::JSStrictEqualTyper(Type* lhs, Type* rhs, Typer* t) {
-  if (!JSType(lhs)->Maybe(JSType(rhs))) return t->singleton_false_;
-  if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return t->singleton_false_;
-  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number()) &&
-      (lhs->Max() < rhs->Min() || lhs->Min() > rhs->Max())) {
-    return t->singleton_false_;
-  }
-  if ((lhs->Is(Type::Hole()) || rhs->Is(Type::Hole())) && !lhs->Maybe(rhs)) {
-    return t->singleton_false_;
-  }
-  if (lhs->IsHeapConstant() && rhs->Is(lhs)) {
-    // Types are equal and are inhabited only by a single semantic value,
-    // which is not nan due to the earlier check.
-    return t->singleton_true_;
-  }
-  return Type::Boolean();
+  return t->operation_typer()->StrictEqual(lhs, rhs);
 }
-
 
 // The EcmaScript specification defines the four relational comparison operators
 // (<, <=, >=, >) with the help of a single abstract one.  It behaves like <

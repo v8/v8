@@ -51,6 +51,7 @@ class V8_EXPORT_PRIVATE OperationTyper {
 
   // Comparison operators.
   Type* SameValue(Type* lhs, Type* rhs);
+  Type* StrictEqual(Type* lhs, Type* rhs);
 
   // Check operators.
   Type* CheckFloat64Hole(Type* type);
