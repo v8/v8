@@ -1144,6 +1144,12 @@
                 "returns": [
                     { "name": "profile", "$ref": "SamplingHeapProfile", "description": "Recorded sampling heap profile." }
                 ]
+            },
+            {
+                "name": "getSamplingProfile",
+                "returns": [
+                    { "name": "profile", "$ref": "SamplingHeapProfile", "description": "Return the sampling profile being collected." }
+                ]
             }
         ],
         "events": [
