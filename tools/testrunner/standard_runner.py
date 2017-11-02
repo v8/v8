@@ -373,7 +373,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       ctx = context.Context(self.build_config.arch,
                             self.mode_options.execution_mode,
-                            self.shell_dir,
+                            self.outdir,
                             self.mode_options.flags,
                             options.verbose,
                             options.timeout,

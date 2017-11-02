@@ -153,7 +153,6 @@ class BuildConfig(object):
 class BaseTestRunner(object):
   def __init__(self):
     self.outdir = None
-    self.shell_dir = None
     self.build_config = None
     self.mode_name = None
     self.mode_options = None
@@ -195,12 +194,12 @@ class BaseTestRunner(object):
                       help="Adapt to path structure used on buildbots",
                       default=False, action="store_true")
     parser.add_option("--arch",
-                      help="The architecture to run tests for: %s")
+                      help="The architecture to run tests for")
     parser.add_option("-m", "--mode",
                       help="The test mode in which to run (uppercase for ninja"
                       " and buildbot builds): %s" % MODES.keys())
-    parser.add_option("--shell-dir", help="Directory containing executables",
-                      default="")
+    parser.add_option("--shell-dir", help="DEPRECATED! Executables from build "
+                      "directory will be used")
 
   def _add_parser_options(self, parser):
     pass
@@ -311,7 +310,9 @@ class BaseTestRunner(object):
         options.arch, self.build_config.arch))
       raise TestRunnerError()
 
-    self._set_shell_dir(options)
+    if options.shell_dir:
+      print('Warning: --shell-dir is deprecated. Searching for executables in '
+            'build directory (%s) instead.' % self.outdir)
 
   def _buildbot_to_v8_mode(self, config):
     """Convert buildbot build configs to configs understood by the v8 runner.
@@ -321,13 +322,6 @@ class BaseTestRunner(object):
     """
     mode = config[:-4] if config.endswith('_x64') else config
     return mode.lower()
-
-  def _set_shell_dir(self, options):
-    self.shell_dir = options.shell_dir
-    if not self.shell_dir:
-      self.shell_dir = os.path.join(BASE_DIR, self.outdir)
-    if not os.path.exists(self.shell_dir):
-        raise Exception('Could not find shell_dir: "%s"' % self.shell_dir)
 
   def _process_options(self, options):
     pass

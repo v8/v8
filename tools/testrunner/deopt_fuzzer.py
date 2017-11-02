@@ -253,7 +253,7 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
     timeout *= self.mode_options.timeout_scalefactor
     ctx = context.Context(self.build_config.arch,
                           self.mode_options.execution_mode,
-                          self.shell_dir,
+                          self.outdir,
                           self.mode_options.flags, options.verbose,
                           timeout, options.isolates,
                           options.command_prefix,
