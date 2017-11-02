@@ -316,7 +316,7 @@ DEFINE_VALUE_IMPLICATION(optimize_for_size, max_semi_space_size, 1)
 
 // Flags for data representation optimizations
 DEFINE_BOOL(unbox_double_arrays, true, "automatically unbox arrays of doubles")
-DEFINE_BOOL_READONLY(string_slices, true, "use string slices")
+DEFINE_BOOL_READONLY(string_slices, false, "use string slices")
 
 // Flags for Ignition.
 DEFINE_BOOL(ignition_elide_noneffectful_bytecodes, true,
