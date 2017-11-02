@@ -330,6 +330,10 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re,
                             sample_subject, is_one_byte);
   if (result.error_message != nullptr) {
     // Unable to compile regexp.
+    if (FLAG_abort_on_stack_or_string_length_overflow &&
+        strncmp(result.error_message, "Stack overflow", 15) == 0) {
+      FATAL("Aborting on stack overflow");
+    }
     Handle<String> error_message = isolate->factory()->NewStringFromUtf8(
         CStrVector(result.error_message)).ToHandleChecked();
     ThrowRegExpException(re, error_message);
