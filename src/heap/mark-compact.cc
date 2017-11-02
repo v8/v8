@@ -2545,6 +2545,7 @@ void MarkCompactCollector::MarkLiveObjects() {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_EPHEMERAL);
       ProcessEphemeralMarking(false);
+      DCHECK(marking_worklist()->IsEmpty());
     }
 
     // The objects reachable from the roots, weak maps or object groups
@@ -2561,12 +2562,12 @@ void MarkCompactCollector::MarkLiveObjects() {
           &IsUnmarkedHeapObject);
       ProcessMarkingWorklist();
     }
-    // Then we mark the objects.
 
     {
       TRACE_GC(heap()->tracer(),
                GCTracer::Scope::MC_MARK_WEAK_CLOSURE_WEAK_ROOTS);
-      heap()->isolate()->global_handles()->IterateWeakRoots(&root_visitor);
+      heap()->isolate()->global_handles()->IterateWeakRootsForFinalizers(
+          &root_visitor);
       ProcessMarkingWorklist();
     }
 
@@ -2582,6 +2583,12 @@ void MarkCompactCollector::MarkLiveObjects() {
         TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_WRAPPER_EPILOGUE);
         heap()->local_embedder_heap_tracer()->TraceEpilogue();
       }
+      DCHECK(marking_worklist()->IsEmpty());
+    }
+
+    {
+      heap()->isolate()->global_handles()->IterateWeakRootsForPhantomHandles(
+          &IsUnmarkedHeapObject);
     }
   }
 
