@@ -48,9 +48,6 @@ constexpr uint64_t kWasmMaxHeapOffset =
         std::numeric_limits<uint32_t>::max())  // maximum base value
     + std::numeric_limits<uint32_t>::max();    // maximum index value
 
-// Limit the control stack size of the C++ wasm interpreter.
-constexpr size_t kV8MaxWasmInterpretedStackSize = 64 * 1024;
-
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
