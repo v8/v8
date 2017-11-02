@@ -37,6 +37,10 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
     T* candidate = reinterpret_cast<T*>(list);
 
     Object* retained = retainer->RetainAs(list);
+
+    // Move to the next element before the WeakNext is cleared.
+    list = WeakListVisitor<T>::WeakNext(candidate);
+
     if (retained != nullptr) {
       if (head == undefined) {
         // First element in the list.
@@ -63,9 +67,6 @@ Object* VisitWeakList(Heap* heap, Object* list, WeakObjectRetainer* retainer) {
     } else {
       WeakListVisitor<T>::VisitPhantomObject(heap, candidate);
     }
-
-    // Move to next element in the list.
-    list = WeakListVisitor<T>::WeakNext(candidate);
   }
 
   // Terminate the list if there is one or more elements.
@@ -103,7 +104,11 @@ struct WeakListVisitor<Code> {
 
   static void VisitLiveObject(Heap*, Code*, WeakObjectRetainer*) {}
 
-  static void VisitPhantomObject(Heap*, Code*) {}
+  static void VisitPhantomObject(Heap* heap, Code* code) {
+    // Even though the code is dying, its code_data_container can still be
+    // alive. Clear the next_code_link slot to avoid a dangling pointer.
+    SetWeakNext(code, heap->undefined_value());
+  }
 };
 
 

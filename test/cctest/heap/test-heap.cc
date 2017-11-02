@@ -3909,6 +3909,30 @@ TEST(NextCodeLinkIsWeak) {
   CHECK_EQ(code_chain_length_before - 1, code_chain_length_after);
 }
 
+TEST(NextCodeLinkInCodeDataContainerIsCleared) {
+  FLAG_always_opt = false;
+  FLAG_allow_natives_syntax = true;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  v8::internal::Heap* heap = CcTest::heap();
+
+  if (!isolate->use_optimizer()) return;
+  HandleScope outer_scope(heap->isolate());
+  Handle<CodeDataContainer> code_data_container;
+  {
+    HandleScope scope(heap->isolate());
+    Handle<JSFunction> mortal1 =
+        OptimizeDummyFunction(CcTest::isolate(), "mortal1");
+    Handle<JSFunction> mortal2 =
+        OptimizeDummyFunction(CcTest::isolate(), "mortal2");
+    CHECK_EQ(mortal2->code()->next_code_link(), mortal1->code());
+    code_data_container = scope.CloseAndEscape(
+        Handle<CodeDataContainer>(mortal2->code()->code_data_container()));
+    CompileRun("mortal1 = null; mortal2 = null;");
+  }
+  CcTest::CollectAllAvailableGarbage();
+  CHECK(code_data_container->next_code_link()->IsUndefined(isolate));
+}
 
 static Handle<Code> DummyOptimizedCode(Isolate* isolate) {
   i::byte buffer[i::Assembler::kMinimalBufferSize];
