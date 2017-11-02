@@ -87,7 +87,7 @@ declare_args() {
   v8_enable_trace_feedback_updates = false
 
   # Sets -dV8_CONCURRENT_MARKING
-  v8_enable_concurrent_marking = false
+  v8_enable_concurrent_marking = true
 
   # Sets -dV8_CSA_WRITE_BARRIER
   v8_enable_csa_write_barrier = true
