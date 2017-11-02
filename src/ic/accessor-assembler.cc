@@ -2400,14 +2400,26 @@ void AccessorAssembler::KeyedLoadICGeneric(const LoadICParameters* p) {
   BIND(&if_notunique);
   {
     if (FLAG_internalize_on_the_fly) {
-      Label not_in_string_table(this);
-      TryInternalizeString(p->name, &if_index, &var_index, &if_unique_name,
-                           &var_unique, &not_in_string_table, &slow);
+      // Ideally we could return undefined directly here if the name is not
+      // found in the string table, i.e. it was never internalized, but that
+      // invariant doesn't hold with named property interceptors (at this
+      // point), so we take the {slow} path instead.
+      Label if_in_string_table(this);
+      TryInternalizeString(p->name, &if_index, &var_index, &if_in_string_table,
+                           &var_unique, &slow, &slow);
 
-      BIND(&not_in_string_table);
-      // If the string was not found in the string table, then no object can
-      // have a property with that name.
-      Return(UndefinedConstant());
+      BIND(&if_in_string_table);
+      {
+        // TODO(bmeurer): We currently use a version of GenericPropertyLoad
+        // here, where we don't try to probe the megamorphic stub cache after
+        // successfully internalizing the incoming string. Past experiments
+        // with this have shown that it causes too much traffic on the stub
+        // cache. We may want to re-evaluate that in the future.
+        LoadICParameters pp = *p;
+        pp.name = var_unique.value();
+        GenericPropertyLoad(receiver, receiver_map, instance_type, &pp, &slow,
+                            kDontUseStubCache);
+      }
     } else {
       Goto(&slow);
     }
