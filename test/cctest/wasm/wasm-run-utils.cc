@@ -29,7 +29,7 @@ TestingModuleBuilder::TestingModuleBuilder(
   test_module_.globals_size = kMaxGlobalsSize;
   memset(globals_data_, 0, sizeof(globals_data_));
   instance_object_ = InitInstanceObject();
-  if (mode == kExecuteInterpreted) {
+  if (mode == kExecuteInterpreter) {
     interpreter_ = WasmDebugInfo::SetupForTesting(instance_object_);
   }
 }

@@ -48,9 +48,10 @@ constexpr uint32_t kMaxFunctions = 10;
 constexpr uint32_t kMaxGlobalsSize = 128;
 
 enum WasmExecutionMode {
-  kExecuteInterpreted,
+  kExecuteInterpreter,
   kExecuteTurbofan,
   kExecuteLiftoff,
+  // TODO(bug:7028): Introduce another enum for simd lowering.
   kExecuteSimdLowered
 };
 
@@ -481,30 +482,30 @@ class WasmRunner : public WasmRunnerBase {
 // A macro to define tests that run in different engine configurations.
 #define WASM_EXEC_TEST(name)                                               \
   void RunWasm_##name(WasmExecutionMode execution_mode);                   \
-  TEST(RunWasmTFCompiled_##name) { RunWasm_##name(kExecuteTurbofan); }     \
-  TEST(RunWasmLiftoffCompiled_##name) { RunWasm_##name(kExecuteLiftoff); } \
-  TEST(RunWasmInterpreted_##name) { RunWasm_##name(kExecuteInterpreted); } \
+  TEST(RunWasmTurbofan_##name) { RunWasm_##name(kExecuteTurbofan); }       \
+  TEST(RunWasmLiftoff_##name) { RunWasm_##name(kExecuteLiftoff); }         \
+  TEST(RunWasmInterpreter_##name) { RunWasm_##name(kExecuteInterpreter); } \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
-#define WASM_COMPILED_EXEC_TEST(name)                                      \
-  void RunWasm_##name(WasmExecutionMode execution_mode);                   \
-  TEST(RunWasmTFCompiled_##name) { RunWasm_##name(kExecuteTurbofan); }     \
-  TEST(RunWasmLiftoffCompiled_##name) { RunWasm_##name(kExecuteLiftoff); } \
+#define WASM_COMPILED_EXEC_TEST(name)                                \
+  void RunWasm_##name(WasmExecutionMode execution_mode);             \
+  TEST(RunWasmTurbofan_##name) { RunWasm_##name(kExecuteTurbofan); } \
+  TEST(RunWasmLiftoff_##name) { RunWasm_##name(kExecuteLiftoff); }   \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
 #define WASM_EXEC_TEST_WITH_TRAP(name)                   \
   void RunWasm_##name(WasmExecutionMode execution_mode); \
-  TEST(RunWasmCompiled_##name) {                         \
+  TEST(RunWasmTurbofan_##name) {                         \
     if (trap_handler::UseTrapHandler()) return;          \
     RunWasm_##name(kExecuteTurbofan);                    \
   }                                                      \
-  TEST(RunWasmLiftoffCompiled_##name) {                  \
+  TEST(RunWasmLiftoff_##name) {                          \
     if (trap_handler::UseTrapHandler()) return;          \
     RunWasm_##name(kExecuteLiftoff);                     \
   }                                                      \
-  TEST(RunWasmInterpreted_##name) {                      \
+  TEST(RunWasmInterpreter_##name) {                      \
     if (trap_handler::UseTrapHandler()) return;          \
-    RunWasm_##name(kExecuteInterpreted);                 \
+    RunWasm_##name(kExecuteInterpreter);                 \
   }                                                      \
   void RunWasm_##name(WasmExecutionMode execution_mode)
 
