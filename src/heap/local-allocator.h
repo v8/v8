@@ -73,15 +73,6 @@ class LocalAllocator {
     }
   }
 
-  void PreferredSweepingPage(MemoryChunk* chunk) {
-    const AllocationSpace space = chunk->owner()->identity();
-    // Only announce preferred pages for OLD_SPACE.
-    if (space != OLD_SPACE) return;
-
-    compaction_spaces_.Get(space)->PreferredSweepingPage(
-        reinterpret_cast<Page*>(chunk));
-  }
-
  private:
   AllocationResult AllocateInNewSpace(int object_size,
                                       AllocationAlignment alignment) {

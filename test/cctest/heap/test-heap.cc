@@ -5954,6 +5954,48 @@ UNINITIALIZED_TEST(ReinitializeStringHashSeed) {
   }
 }
 
+HEAP_TEST(Regress779503) {
+  // The following regression test ensures that the Scavenger does not allocate
+  // over invalid slots. More specific, the Scavenger should not sweep a page
+  // that it currently processes because it might allocate over the currently
+  // processed slot.
+  const int kArraySize = 2048;
+  CcTest::InitializeVM();
+  Isolate* isolate = CcTest::i_isolate();
+  Heap* heap = CcTest::heap();
+  heap::SealCurrentObjects(heap);
+  {
+    HandleScope handle_scope(isolate);
+    // The byte array filled with kHeapObjectTag ensures that we cannot read
+    // from the slot again and interpret it as heap value. Doing so will crash.
+    Handle<ByteArray> byte_array = isolate->factory()->NewByteArray(kArraySize);
+    CHECK(heap->InNewSpace(*byte_array));
+    for (int i = 0; i < kArraySize; i++) {
+      byte_array->set(i, kHeapObjectTag);
+    }
+
+    {
+      HandleScope handle_scope(isolate);
+      // The FixedArray in old space serves as space for slots.
+      Handle<FixedArray> fixed_array =
+          isolate->factory()->NewFixedArray(kArraySize, TENURED);
+      CHECK(!heap->InNewSpace(*fixed_array));
+      for (int i = 0; i < kArraySize; i++) {
+        fixed_array->set(i, *byte_array);
+      }
+    }
+    // Delay sweeper tasks to allow the scavenger to sweep the page it is
+    // currently scavenging.
+    CcTest::heap()->delay_sweeper_tasks_for_testing_ = true;
+    CcTest::CollectGarbage(OLD_SPACE);
+    CHECK(heap->InNewSpace(*byte_array));
+  }
+  // Scavenging and sweeping the same page will crash as slots will be
+  // overridden.
+  CcTest::CollectGarbage(NEW_SPACE);
+  CcTest::heap()->delay_sweeper_tasks_for_testing_ = false;
+}
+
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8

@@ -42,10 +42,6 @@ class Scavenger {
   size_t bytes_copied() const { return copied_size_; }
   size_t bytes_promoted() const { return promoted_size_; }
 
-  void PreferredSweepingPage(MemoryChunk* chunk) {
-    allocator_.PreferredSweepingPage(chunk);
-  }
-
  private:
   // Number of objects to process before interrupting for potentially waking
   // up other tasks.

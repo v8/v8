@@ -2204,9 +2204,6 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
 
   std::unique_ptr<ObjectIterator> GetObjectIterator() override;
 
-  // This page will be preferred for sweeping.
-  void PreferredSweepingPage(Page* page) { preferred_sweeping_page_ = page; }
-
   Address ComputeLimit(Address start, Address end, size_t size_in_bytes);
   void SetAllocationInfo(Address top, Address limit);
 
@@ -2283,7 +2280,6 @@ class V8_EXPORT_PRIVATE PagedSpace : NON_EXPORTED_BASE(public Space) {
   // Mutex guarding any concurrent access to the space.
   base::Mutex space_mutex_;
 
-  Page* preferred_sweeping_page_;
   Address top_on_previous_step_;
 
   friend class IncrementalMarking;

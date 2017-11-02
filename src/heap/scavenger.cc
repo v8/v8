@@ -96,8 +96,6 @@ void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
 }
 
 void Scavenger::ScavengePage(MemoryChunk* page) {
-  PreferredSweepingPage(page);
-
   CodePageMemoryModificationScope memory_modification_scope(page);
   RememberedSet<OLD_TO_NEW>::Iterate(
       page,
