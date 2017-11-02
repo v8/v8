@@ -244,8 +244,6 @@
       'test-run-wasm-relocation-x64.cc',
     ],
     'cctest_sources_arm': [  ### gcmole(arch:arm) ###
-      'assembler-helper-arm.cc',
-      'assembler-helper-arm.h',
       'test-assembler-arm.cc',
       'test-code-stubs.cc',
       'test-code-stubs.h',
@@ -253,7 +251,7 @@
       'test-disasm-arm.cc',
       'test-macro-assembler-arm.cc',
       'test-run-wasm-relocation-arm.cc',
-      'test-sync-primitives-arm.cc',
+      'test-simulator-arm.cc',
     ],
     'cctest_sources_arm64': [  ### gcmole(arch:arm64) ###
       'test-utils-arm64.cc',
@@ -267,7 +265,7 @@
       'test-javascript-arm64.cc',
       'test-js-arm64-variables.cc',
       'test-run-wasm-relocation-arm64.cc',
-      'test-sync-primitives-arm64.cc',
+      'test-simulator-arm64.cc',
     ],
     'cctest_sources_s390': [  ### gcmole(arch:s390) ###
       'test-assembler-s390.cc',

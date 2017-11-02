@@ -249,8 +249,6 @@ v8_source_set("cctest_sources") {
 
   if (v8_current_cpu == "arm") {
     sources += [  ### gcmole(arch:arm) ###
-      "assembler-helper-arm.cc",
-      "assembler-helper-arm.h",
       "test-assembler-arm.cc",
       "test-code-stubs-arm.cc",
       "test-code-stubs.cc",
@@ -258,7 +256,7 @@ v8_source_set("cctest_sources") {
       "test-disasm-arm.cc",
       "test-macro-assembler-arm.cc",
       "test-run-wasm-relocation-arm.cc",
-      "test-sync-primitives-arm.cc",
+      "test-simulator-arm.cc",
     ]
   } else if (v8_current_cpu == "arm64") {
     sources += [  ### gcmole(arch:arm64) ###
@@ -271,7 +269,7 @@ v8_source_set("cctest_sources") {
       "test-javascript-arm64.cc",
       "test-js-arm64-variables.cc",
       "test-run-wasm-relocation-arm64.cc",
-      "test-sync-primitives-arm64.cc",
+      "test-simulator-arm64.cc",
       "test-utils-arm64.cc",
       "test-utils-arm64.h",
     ]
