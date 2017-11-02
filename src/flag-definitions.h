@@ -304,7 +304,7 @@ DEFINE_BOOL(trace_block_coverage, false,
 DEFINE_BOOL(feedback_normalization, false,
             "feed back normalization to constructors")
 // TODO(jkummerow): This currently adds too much load on the stub cache.
-DEFINE_BOOL_READONLY(internalize_on_the_fly, false,
+DEFINE_BOOL_READONLY(internalize_on_the_fly, true,
                      "internalize string keys for generic keyed ICs on the fly")
 
 // Flags for optimization types.
