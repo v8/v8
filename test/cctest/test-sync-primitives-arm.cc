@@ -26,8 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "src/v8.h"
+#include "test/cctest/assembler-helper-arm.h"
 #include "test/cctest/cctest.h"
-#include "test/cctest/compiler/value-helper.h"
 
 #include "src/arm/simulator-arm.h"
 #include "src/assembler-inl.h"
@@ -38,13 +38,24 @@
 namespace v8 {
 namespace internal {
 
+// These tests rely on the behaviour specific to the simulator so we cannot
+// expect the same results on real hardware. The reason for this is that our
+// simulation of synchronisation primitives is more conservative than the
+// reality.
+// For example:
+//   ldrex r1, [r2] ; Load acquire at address r2; r2 is now marked as exclusive.
+//   ldr r0, [r4]   ; This is a normal load, and at a different address.
+//                  ; However, any memory accesses can potentially clear the
+//                  ; exclusivity (See ARM DDI 0406C.c A3.4.5). This is unlikely
+//                  ; on real hardware but to be conservative, the simulator
+//                  ; always does it.
+//   strex r3, r1, [r2] ; As a result, this will always fail in the simulator
+//                      ; but will likely succeed on hardware.
+#if defined(USE_SIMULATOR)
+
 #ifndef V8_TARGET_LITTLE_ENDIAN
 #error Expected ARM to be little-endian
 #endif
-
-// Define these function prototypes to match JSEntryFunction in execution.cc.
-typedef Object* (*F_iiiii)(int p0, int p1, int p2, int p3, int p4);
-typedef Object* (*F_piiii)(void* p0, int p1, int p2, int p3, int p4);
 
 #define __ assm.
 
@@ -168,22 +179,6 @@ void AssembleMemoryAccess(Assembler* assembler, MemoryAccess access,
   }
 }
 
-Address AssembleCode(std::function<void(Assembler&)> assemble) {
-  Isolate* isolate = CcTest::i_isolate();
-  Assembler assm(isolate, nullptr, 0);
-
-  assemble(assm);
-
-  __ bx(lr);
-
-  CodeDesc desc;
-  assm.GetCode(isolate, &desc);
-  Handle<Code> code =
-      isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
-  return code->entry();
-}
-
-#if defined(USE_SIMULATOR)
 void AssembleLoadExcl(Assembler* assembler, MemoryAccess access,
                       Register value_reg, Register addr_reg) {
   DCHECK(access.kind == MemoryAccess::Kind::LoadExcl);
@@ -228,31 +223,8 @@ void TestInvalidateExclusiveAccess(TestData initial_data, MemoryAccess access1,
       break;
   }
 }
-#endif
-
-std::vector<Float32> Float32Inputs() {
-  std::vector<Float32> inputs;
-  FOR_FLOAT32_INPUTS(f) {
-    inputs.push_back(Float32::FromBits(bit_cast<uint32_t>(*f)));
-  }
-  FOR_UINT32_INPUTS(bits) { inputs.push_back(Float32::FromBits(*bits)); }
-  return inputs;
-}
-
-std::vector<Float64> Float64Inputs() {
-  std::vector<Float64> inputs;
-  FOR_FLOAT64_INPUTS(f) {
-    inputs.push_back(Float64::FromBits(bit_cast<uint64_t>(*f)));
-  }
-  FOR_UINT64_INPUTS(bits) { inputs.push_back(Float64::FromBits(*bits)); }
-  return inputs;
-}
 
 }  // namespace
-
-// TODO(rodolph.perfetta@arm.com): Enable this test for native hardware, see
-// http://crbug.com/v8/6963.
-#if defined(USE_SIMULATOR)
 
 TEST(simulator_invalidate_exclusive_access) {
   using Kind = MemoryAccess::Kind;
@@ -290,10 +262,10 @@ TEST(simulator_invalidate_exclusive_access) {
                                 0, TestData(7));
 }
 
-#endif  // USE_SIMULATOR
+namespace {
 
-static int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
-                               MemoryAccess access) {
+int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
+                        MemoryAccess access) {
   HandleScope scope(isolate);
   F_piiii f = FUNCTION_CAST<F_piiii>(AssembleCode([&](Assembler& assm) {
     AssembleMemoryAccess(&assm, access, r0, r2, r1);
@@ -302,6 +274,8 @@ static int ExecuteMemoryAccess(Isolate* isolate, TestData* test_data,
   return reinterpret_cast<int>(
       CALL_GENERATED_CODE(isolate, f, test_data, 0, 0, 0, 0));
 }
+
+}  // namespace
 
 class MemoryAccessThread : public v8::base::Thread {
  public:
@@ -370,10 +344,6 @@ class MemoryAccessThread : public v8::base::Thread {
   v8::Isolate* isolate_;
 };
 
-// TODO(rodolph.perfetta@arm.com): Enable this test for native hardware, see
-// http://crbug.com/v8/6963.
-#if defined(USE_SIMULATOR)
-
 TEST(simulator_invalidate_exclusive_access_threaded) {
   using Kind = MemoryAccess::Kind;
   using Size = MemoryAccess::Size;
@@ -422,87 +392,9 @@ TEST(simulator_invalidate_exclusive_access_threaded) {
   thread.Join();
 }
 
-#endif  // USE_SIMULATOR
-
-TEST(simulator_vabs_32) {
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  F_iiiii f = FUNCTION_CAST<F_iiiii>(AssembleCode([](Assembler& assm) {
-    __ vmov(s0, r0);
-    __ vabs(s0, s0);
-    __ vmov(r0, s0);
-  }));
-
-  for (Float32 f32 : Float32Inputs()) {
-    Float32 res = Float32::FromBits(reinterpret_cast<uint32_t>(
-        CALL_GENERATED_CODE(isolate, f, f32.get_bits(), 0, 0, 0, 0)));
-    Float32 exp = Float32::FromBits(f32.get_bits() & ~(1 << 31));
-    CHECK_EQ(exp.get_bits(), res.get_bits());
-  }
-}
-
-TEST(simulator_vabs_64) {
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  F_iiiii f = FUNCTION_CAST<F_iiiii>(AssembleCode([](Assembler& assm) {
-    __ vmov(d0, r0, r1);
-    __ vabs(d0, d0);
-    __ vmov(r1, r0, d0);
-  }));
-
-  for (Float64 f64 : Float64Inputs()) {
-    uint32_t p0 = static_cast<uint32_t>(f64.get_bits());
-    uint32_t p1 = static_cast<uint32_t>(f64.get_bits() >> 32);
-    uint32_t res = reinterpret_cast<uint32_t>(
-        CALL_GENERATED_CODE(isolate, f, p0, p1, 0, 0, 0));
-    Float64 exp = Float64::FromBits(f64.get_bits() & ~(1ull << 63));
-    // We just get back the top word, so only compare that one.
-    CHECK_EQ(exp.get_bits() >> 32, res);
-  }
-}
-
-TEST(simulator_vneg_32) {
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  F_iiiii f = FUNCTION_CAST<F_iiiii>(AssembleCode([](Assembler& assm) {
-    __ vmov(s0, r0);
-    __ vneg(s0, s0);
-    __ vmov(r0, s0);
-  }));
-
-  for (Float32 f32 : Float32Inputs()) {
-    Float32 res = Float32::FromBits(reinterpret_cast<uint32_t>(
-        CALL_GENERATED_CODE(isolate, f, f32.get_bits(), 0, 0, 0, 0)));
-    Float32 exp = Float32::FromBits(f32.get_bits() ^ (1 << 31));
-    CHECK_EQ(exp.get_bits(), res.get_bits());
-  }
-}
-
-TEST(simulator_vneg_64) {
-  Isolate* isolate = CcTest::i_isolate();
-  HandleScope scope(isolate);
-
-  F_iiiii f = FUNCTION_CAST<F_iiiii>(AssembleCode([](Assembler& assm) {
-    __ vmov(d0, r0, r1);
-    __ vneg(d0, d0);
-    __ vmov(r1, r0, d0);
-  }));
-
-  for (Float64 f64 : Float64Inputs()) {
-    uint32_t p0 = static_cast<uint32_t>(f64.get_bits());
-    uint32_t p1 = static_cast<uint32_t>(f64.get_bits() >> 32);
-    uint32_t res = reinterpret_cast<uint32_t>(
-        CALL_GENERATED_CODE(isolate, f, p0, p1, 0, 0, 0));
-    Float64 exp = Float64::FromBits(f64.get_bits() ^ (1ull << 63));
-    // We just get back the top word, so only compare that one.
-    CHECK_EQ(exp.get_bits() >> 32, res);
-  }
-}
-
 #undef __
+
+#endif  // defined(USE_SIMULATOR)
 
 }  // namespace internal
 }  // namespace v8
