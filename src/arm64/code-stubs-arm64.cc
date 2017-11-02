@@ -479,10 +479,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   ExternalReference pending_handler_context_address(
       IsolateAddressId::kPendingHandlerContextAddress, isolate());
-  ExternalReference pending_handler_code_address(
-      IsolateAddressId::kPendingHandlerCodeAddress, isolate());
-  ExternalReference pending_handler_offset_address(
-      IsolateAddressId::kPendingHandlerOffsetAddress, isolate());
+  ExternalReference pending_handler_entrypoint_address(
+      IsolateAddressId::kPendingHandlerEntrypointAddress, isolate());
   ExternalReference pending_handler_fp_address(
       IsolateAddressId::kPendingHandlerFPAddress, isolate());
   ExternalReference pending_handler_sp_address(
@@ -524,12 +522,8 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Bind(&not_js_frame);
 
   // Compute the handler entry address and jump to it.
-  __ Mov(x10, Operand(pending_handler_code_address));
+  __ Mov(x10, Operand(pending_handler_entrypoint_address));
   __ Ldr(x10, MemOperand(x10));
-  __ Mov(x11, Operand(pending_handler_offset_address));
-  __ Ldr(x11, MemOperand(x11));
-  __ Add(x10, x10, Code::kHeaderSize - kHeapObjectTag);
-  __ Add(x10, x10, x11);
   __ Br(x10);
 }
 

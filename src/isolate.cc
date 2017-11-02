@@ -1221,12 +1221,13 @@ Object* Isolate::ReThrow(Object* exception) {
 Object* Isolate::UnwindAndFindHandler() {
   Object* exception = pending_exception();
 
-  auto FoundHandler = [&](Context* context, Code* code, intptr_t offset,
-                          Address handler_sp, Address handler_fp) {
+  auto FoundHandler = [&](Context* context, Address instruction_start,
+                          intptr_t handler_offset, Address handler_sp,
+                          Address handler_fp) {
     // Store information to be consumed by the CEntryStub.
     thread_local_top()->pending_handler_context_ = context;
-    thread_local_top()->pending_handler_code_ = code;
-    thread_local_top()->pending_handler_offset_ = offset;
+    thread_local_top()->pending_handler_entrypoint_ =
+        instruction_start + handler_offset;
     thread_local_top()->pending_handler_fp_ = handler_fp;
     thread_local_top()->pending_handler_sp_ = handler_sp;
 
@@ -1258,9 +1259,10 @@ Object* Isolate::UnwindAndFindHandler() {
 
         // Gather information from the handler.
         Code* code = frame->LookupCode();
-        return FoundHandler(
-            nullptr, code, Smi::ToInt(code->handler_table()->get(0)),
-            handler->address() + StackHandlerConstants::kSize, 0);
+        return FoundHandler(nullptr, code->instruction_start(),
+                            Smi::ToInt(code->handler_table()->get(0)),
+                            handler->address() + StackHandlerConstants::kSize,
+                            0);
       }
 
       case StackFrame::WASM_COMPILED: {
@@ -1286,8 +1288,8 @@ Object* Isolate::UnwindAndFindHandler() {
         trap_handler::SetThreadInWasm();
 
         set_wasm_caught_exception(exception);
-        return FoundHandler(nullptr, frame->LookupCode(), offset, return_sp,
-                            frame->fp());
+        return FoundHandler(nullptr, frame->LookupCode()->instruction_start(),
+                            offset, return_sp, frame->fp());
       }
 
       case StackFrame::OPTIMIZED: {
@@ -1318,7 +1320,8 @@ Object* Isolate::UnwindAndFindHandler() {
           set_deoptimizer_lazy_throw(true);
         }
 
-        return FoundHandler(nullptr, code, offset, return_sp, frame->fp());
+        return FoundHandler(nullptr, code->instruction_start(), offset,
+                            return_sp, frame->fp());
       }
 
       case StackFrame::STUB: {
@@ -1341,7 +1344,8 @@ Object* Isolate::UnwindAndFindHandler() {
                             StandardFrameConstants::kFixedFrameSizeAboveFp -
                             stack_slots * kPointerSize;
 
-        return FoundHandler(nullptr, code, offset, return_sp, frame->fp());
+        return FoundHandler(nullptr, code->instruction_start(), offset,
+                            return_sp, frame->fp());
       }
 
       case StackFrame::INTERPRETED: {
@@ -1373,7 +1377,8 @@ Object* Isolate::UnwindAndFindHandler() {
 
         Code* code =
             builtins()->builtin(Builtins::kInterpreterEnterBytecodeDispatch);
-        return FoundHandler(context, code, 0, return_sp, frame->fp());
+        return FoundHandler(context, code->instruction_start(), 0, return_sp,
+                            frame->fp());
       }
 
       case StackFrame::BUILTIN:
