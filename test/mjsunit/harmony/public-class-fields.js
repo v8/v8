@@ -258,3 +258,59 @@
   assertEquals(undefined, C.b);
   assertEquals(undefined, C.c);
 }
+
+{
+  var log = [];
+  function eval(i) {
+    log.push(i);
+    return i;
+  }
+
+  class C {
+    static [eval(1)] = eval(6);
+    static [eval(2)] = eval(7);
+    [eval(3)]() { eval(9);}
+    static [eval(4)] = eval(8);
+    static [eval(5)]() { throw new Error('should not execute');};
+  }
+
+  var c = new C;
+  c[3]();
+  assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], log);
+}
+
+
+
+function x() {
+
+  // This tests lazy parsing.
+  return function() {
+    var log = [];
+    function eval(i) {
+      log.push(i);
+      return i;
+    }
+
+    class C {
+      static [eval(1)] = eval(6);
+      static [eval(2)] = eval(7);
+      [eval(3)]() { eval(9);}
+      static [eval(4)] = eval(8);
+      static [eval(5)]() { throw new Error('should not execute');};
+    }
+
+    var c = new C;
+    c[3]();
+    assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], log);
+  }
+}
+
+{
+  class C {}
+  class D {
+    static [C];
+  }
+
+  assertThrows(() => { class X { static [X] } });
+  assertEquals(undefined, D[C]);
+}

@@ -1852,6 +1852,16 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
           .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &done)
           .CallRuntime(Runtime::kThrowStaticPrototypeError)
           .Bind(&done);
+
+      if (property->kind() == ClassLiteral::Property::FIELD) {
+        DCHECK_NOT_NULL(property->computed_name_var());
+        builder()->LoadAccumulatorWithRegister(key);
+        BuildVariableAssignment(property->computed_name_var(), Token::INIT,
+                                HoleCheckMode::kElided);
+        // We don't define the field here, but instead do it in the
+        // initializer function.
+        continue;
+      }
     }
 
     VisitForRegisterValue(property->value(), value);
@@ -1910,10 +1920,20 @@ void BytecodeGenerator::VisitInitializeClassFieldsStatement(
   Register key = register_allocator()->NewRegister();
   Register value = register_allocator()->NewRegister();
 
-  // TODO(gsathya): Fix evaluation order for computed properties.
   for (int i = 0; i < expr->fields()->length(); i++) {
     ClassLiteral::Property* property = expr->fields()->at(i);
-    BuildLoadPropertyKey(property, key);
+
+    if (property->is_computed_name()) {
+      Variable* var = property->computed_name_var();
+      DCHECK_NOT_NULL(var);
+      // The computed name is already evaluated and stored in a
+      // variable at class definition time.
+      BuildVariableLoad(var, HoleCheckMode::kElided);
+      builder()->StoreAccumulatorInRegister(key);
+    } else {
+      BuildLoadPropertyKey(property, key);
+    }
+
     DataPropertyInLiteralFlags flags = DataPropertyInLiteralFlag::kNoFlags;
     FeedbackSlot slot = feedback_spec()->AddStoreDataPropertyInLiteralICSlot();
 

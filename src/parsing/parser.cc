@@ -3194,6 +3194,16 @@ void Parser::DeclareClassVariable(const AstRawString* name,
   }
 }
 
+namespace {
+
+const AstRawString* ClassFieldVariableName(AstValueFactory* ast_value_factory,
+                                           int index) {
+  std::string name = ".class-field-" + std::to_string(index);
+  return ast_value_factory->GetOneByteString(name.c_str());
+}
+
+}  // namespace
+
 // This method declares a property of the given class.  It updates the
 // following fields of class_info, as appropriate:
 //   - constructor
@@ -3216,6 +3226,33 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
   if (property->kind() == ClassLiteralProperty::FIELD && is_static) {
     DCHECK(allow_harmony_class_fields());
     class_info->static_fields->Add(property, zone());
+    if (property->is_computed_name()) {
+      int index = class_info->static_fields->length();
+      // We create a synthetic variable name here so that scope
+      // analysis doesn't dedupe the vars.
+      //
+      // TODO(gsathya): Ideally, this should just bypass scope
+      // analysis and allocate a slot directly on the context. We
+      // should just store this index in the AST, instead of storing
+      // the variable.
+      const AstRawString* synthetic_name =
+          ClassFieldVariableName(ast_value_factory(), index);
+      VariableProxy* proxy =
+          factory()->NewVariableProxy(synthetic_name, NORMAL_VARIABLE);
+      Declaration* declaration =
+          factory()->NewVariableDeclaration(proxy, kNoSourcePosition);
+      Variable* computed_name_var =
+          Declare(declaration, DeclarationDescriptor::NORMAL, CONST,
+                  Variable::DefaultInitializationFlag(CONST), ok);
+      // Force context allocation because the computed property
+      // variable will accessed from inside the initializer
+      // function. We don't actually create a VariableProxy in the
+      // initializer function scope referring to this variable so
+      // scope analysis is unable to figure this out for us.
+      computed_name_var->ForceContextAllocation();
+      property->set_computed_name_var(computed_name_var);
+      class_info->properties->Add(property, zone());
+    }
   } else {
     class_info->properties->Add(property, zone());
   }

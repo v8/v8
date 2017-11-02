@@ -2415,6 +2415,9 @@ class ClassLiteralProperty final : public LiteralProperty {
 
   bool is_static() const { return is_static_; }
 
+  void set_computed_name_var(Variable* var) { computed_name_var_ = var; }
+  Variable* computed_name_var() const { return computed_name_var_; }
+
  private:
   friend class AstNodeFactory;
 
@@ -2423,6 +2426,7 @@ class ClassLiteralProperty final : public LiteralProperty {
 
   Kind kind_;
   bool is_static_;
+  Variable* computed_name_var_;
 };
 
 class InitializeClassFieldsStatement final : public Statement {
