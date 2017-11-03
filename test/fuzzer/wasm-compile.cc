@@ -112,6 +112,17 @@ class WasmGenerator {
     };
   }
 
+  struct GeneratorRecursionScope {
+    explicit GeneratorRecursionScope(WasmGenerator* gen) : gen(gen) {
+      ++gen->recursion_depth;
+    }
+    ~GeneratorRecursionScope() {
+      DCHECK_GT(gen->recursion_depth, 0);
+      --gen->recursion_depth;
+    }
+    WasmGenerator* gen;
+  };
+
  public:
   explicit WasmGenerator(WasmFunctionBuilder* fn) : builder_(fn) {}
 
@@ -130,11 +141,19 @@ class WasmGenerator {
  private:
   WasmFunctionBuilder* builder_;
   std::vector<ValueType> blocks_;
+  uint32_t recursion_depth = 0;
+
+  static constexpr uint32_t kMaxRecursionDepth = 64;
+
+  bool recursion_limit_reached() {
+    return recursion_depth >= kMaxRecursionDepth;
+  }
 };
 
 template <>
 void WasmGenerator::Generate<kWasmI32>(DataRange data) {
-  if (data.size() <= sizeof(uint32_t)) {
+  GeneratorRecursionScope rec_scope(this);
+  if (recursion_limit_reached() || data.size() <= sizeof(uint32_t)) {
     builder_->EmitI32Const(data.get<uint32_t>());
   } else {
     const std::function<void(DataRange)> alternates[] = {
@@ -206,7 +225,8 @@ void WasmGenerator::Generate<kWasmI32>(DataRange data) {
 
 template <>
 void WasmGenerator::Generate<kWasmI64>(DataRange data) {
-  if (data.size() <= sizeof(uint64_t)) {
+  GeneratorRecursionScope rec_scope(this);
+  if (recursion_limit_reached() || data.size() <= sizeof(uint64_t)) {
     builder_->EmitI64Const(data.get<int64_t>());
   } else {
     const std::function<void(DataRange)> alternates[] = {
@@ -245,7 +265,8 @@ void WasmGenerator::Generate<kWasmI64>(DataRange data) {
 
 template <>
 void WasmGenerator::Generate<kWasmF32>(DataRange data) {
-  if (data.size() <= sizeof(float)) {
+  GeneratorRecursionScope rec_scope(this);
+  if (recursion_limit_reached() || data.size() <= sizeof(float)) {
     builder_->EmitF32Const(data.get<float>());
   } else {
     const std::function<void(DataRange)> alternates[] = {
@@ -265,7 +286,8 @@ void WasmGenerator::Generate<kWasmF32>(DataRange data) {
 
 template <>
 void WasmGenerator::Generate<kWasmF64>(DataRange data) {
-  if (data.size() <= sizeof(double)) {
+  GeneratorRecursionScope rec_scope(this);
+  if (recursion_limit_reached() || data.size() <= sizeof(double)) {
     builder_->EmitF64Const(data.get<double>());
   } else {
     const std::function<void(DataRange)> alternates[] = {
