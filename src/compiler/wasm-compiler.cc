@@ -4719,6 +4719,11 @@ WasmCompilationUnit::~WasmCompilationUnit() {
 }
 
 void WasmCompilationUnit::ExecuteCompilation() {
+  auto size_histogram = env_->module->is_wasm()
+                            ? counters()->wasm_wasm_function_size_bytes()
+                            : counters()->wasm_asm_function_size_bytes();
+  size_histogram->AddSample(
+      static_cast<int>(func_body_.end - func_body_.start));
   auto timed_histogram = env_->module->is_wasm()
                              ? counters()->wasm_compile_wasm_function_time()
                              : counters()->wasm_compile_asm_function_time();
