@@ -515,7 +515,8 @@ class SeqOneByteString : public SeqString {
   }
 
   // Maximal memory usage for a single sequential one-byte string.
-  static const int kMaxSize = OBJECT_POINTER_ALIGN(kMaxLength + kHeaderSize);
+  static const int kMaxCharsSize = kMaxLength;
+  static const int kMaxSize = OBJECT_POINTER_ALIGN(kMaxCharsSize + kHeaderSize);
   STATIC_ASSERT((kMaxSize - kHeaderSize) >= String::kMaxLength);
 
   class BodyDescriptor;
@@ -561,8 +562,8 @@ class SeqTwoByteString : public SeqString {
   }
 
   // Maximal memory usage for a single sequential two-byte string.
-  static const int kMaxSize =
-      OBJECT_POINTER_ALIGN(kMaxLength * 2 + kHeaderSize);
+  static const int kMaxCharsSize = kMaxLength * 2;
+  static const int kMaxSize = OBJECT_POINTER_ALIGN(kMaxCharsSize + kHeaderSize);
   STATIC_ASSERT(static_cast<int>((kMaxSize - kHeaderSize) / sizeof(uint16_t)) >=
                 String::kMaxLength);
 

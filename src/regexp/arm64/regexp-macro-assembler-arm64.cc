@@ -788,9 +788,9 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
   // Find negative length (offset of start relative to end).
   __ Sub(x10, input_start(), input_end());
   if (masm_->emit_debug_code()) {
-    // Check that the input string length is < 2^30.
+    // Check that the size of the input string chars is in range.
     __ Neg(x11, x10);
-    __ Cmp(x11, (1<<30) - 1);
+    __ Cmp(x11, SeqTwoByteString::kMaxCharsSize);
     __ Check(ls, kInputStringTooLong);
   }
   __ Mov(current_input_offset(), w10);
@@ -853,8 +853,8 @@ Handle<HeapObject> RegExpMacroAssemblerARM64::GetCode(Handle<String> source) {
       // Get string length.
       __ Sub(x10, input_end(), input_start());
       if (masm_->emit_debug_code()) {
-        // Check that the input string length is < 2^30.
-        __ Cmp(x10, (1<<30) - 1);
+        // Check that the size of the input string chars is in range.
+        __ Cmp(x10, SeqTwoByteString::kMaxCharsSize);
         __ Check(ls, kInputStringTooLong);
       }
       // input_start has a start_offset offset on entry. We need to include
