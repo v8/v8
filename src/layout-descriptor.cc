@@ -10,7 +10,7 @@
 #include "src/handles-inl.h"
 #include "src/objects-inl.h"
 
-using v8::base::bits::CountTrailingZeros32;
+using v8::base::bits::CountTrailingZeros;
 
 namespace v8 {
 namespace internal {
@@ -144,7 +144,7 @@ bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
   bool is_tagged = (value & layout_mask) == 0;
   if (!is_tagged) value = ~value;  // Count set bits instead of cleared bits.
   value = value & ~(layout_mask - 1);  // Clear bits we are not interested in.
-  int sequence_length = CountTrailingZeros32(value) - layout_bit_index;
+  int sequence_length = CountTrailingZeros(value) - layout_bit_index;
 
   if (layout_bit_index + sequence_length == kBitsPerLayoutWord) {
     // This is a contiguous sequence till the end of current word, proceed
@@ -157,7 +157,7 @@ bool LayoutDescriptor::IsTagged(int field_index, int max_sequence_length,
         bool cur_is_tagged = (value & 1) == 0;
         if (cur_is_tagged != is_tagged) break;
         if (!is_tagged) value = ~value;  // Count set bits instead.
-        int cur_sequence_length = CountTrailingZeros32(value);
+        int cur_sequence_length = CountTrailingZeros(value);
         sequence_length += cur_sequence_length;
         if (sequence_length >= max_sequence_length) break;
         if (cur_sequence_length != kBitsPerLayoutWord) break;

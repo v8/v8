@@ -154,11 +154,11 @@ RUNTIME_FUNCTION(Runtime_SmiLexicographicCompare) {
   // integer comes first in the lexicographic order.
 
   // From http://graphics.stanford.edu/~seander/bithacks.html#IntegerLog10
-  int x_log2 = 31 - base::bits::CountLeadingZeros32(x_scaled);
+  int x_log2 = 31 - base::bits::CountLeadingZeros(x_scaled);
   int x_log10 = ((x_log2 + 1) * 1233) >> 12;
   x_log10 -= x_scaled < kPowersOf10[x_log10];
 
-  int y_log2 = 31 - base::bits::CountLeadingZeros32(y_scaled);
+  int y_log2 = 31 - base::bits::CountLeadingZeros(y_scaled);
   int y_log10 = ((y_log2 + 1) * 1233) >> 12;
   y_log10 -= y_scaled < kPowersOf10[y_log10];
 

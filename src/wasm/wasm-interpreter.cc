@@ -368,11 +368,11 @@ inline uint32_t ExecuteI32AsmjsUConvertF64(double a, TrapReason* trap) {
 }
 
 int32_t ExecuteI32Clz(uint32_t val, TrapReason* trap) {
-  return base::bits::CountLeadingZeros32(val);
+  return base::bits::CountLeadingZeros(val);
 }
 
 uint32_t ExecuteI32Ctz(uint32_t val, TrapReason* trap) {
-  return base::bits::CountTrailingZeros32(val);
+  return base::bits::CountTrailingZeros(val);
 }
 
 uint32_t ExecuteI32Popcnt(uint32_t val, TrapReason* trap) {
@@ -384,11 +384,11 @@ inline uint32_t ExecuteI32Eqz(uint32_t val, TrapReason* trap) {
 }
 
 int64_t ExecuteI64Clz(uint64_t val, TrapReason* trap) {
-  return base::bits::CountLeadingZeros64(val);
+  return base::bits::CountLeadingZeros(val);
 }
 
 inline uint64_t ExecuteI64Ctz(uint64_t val, TrapReason* trap) {
-  return base::bits::CountTrailingZeros64(val);
+  return base::bits::CountTrailingZeros(val);
 }
 
 inline int64_t ExecuteI64Popcnt(uint64_t val, TrapReason* trap) {

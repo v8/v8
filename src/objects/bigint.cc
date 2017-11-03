@@ -1414,7 +1414,7 @@ MaybeHandle<String> BigInt::ToStringBasePowerOfTwo(Handle<BigInt> x,
 
   const int length = x->length();
   const bool sign = x->sign();
-  const int bits_per_char = base::bits::CountTrailingZeros32(radix);
+  const int bits_per_char = base::bits::CountTrailingZeros(radix);
   const int char_mask = radix - 1;
   // Compute the length of the resulting string: divide the bit length of the
   // BigInt by the number of bits representable per character (rounding up).
