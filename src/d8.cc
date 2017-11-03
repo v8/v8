@@ -285,6 +285,13 @@ Worker* GetWorkerFromInternalField(Isolate* isolate, Local<Object> object) {
   return worker;
 }
 
+base::Thread::Options GetThreadOptions(const char* name) {
+  // On some systems (OSX 10.6) the stack size default is 0.5Mb or less
+  // which is not enough to parse the big literal expressions used in tests.
+  // The stack size should be at least StackGuard::kLimitSize + some
+  // OS-specific padding for thread startup code.  2Mbytes seems to be enough.
+  return base::Thread::Options(name, 2 * MB);
+}
 
 }  // namespace
 
@@ -501,6 +508,53 @@ bool CounterMap::Match(void* key1, void* key2) {
   return strcmp(name1, name2) == 0;
 }
 
+// Dummy external source stream which returns the whole source in one go.
+class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
+ public:
+  explicit DummySourceStream(Local<String> source) : done_(false) {
+    source_length_ = source->Utf8Length();
+    source_buffer_.reset(new uint8_t[source_length_]);
+    source->WriteUtf8(reinterpret_cast<char*>(source_buffer_.get()),
+                      source_length_);
+  }
+
+  virtual size_t GetMoreData(const uint8_t** src) {
+    if (done_) {
+      return 0;
+    }
+    *src = source_buffer_.release();
+    done_ = true;
+
+    return source_length_;
+  }
+
+ private:
+  int source_length_;
+  std::unique_ptr<uint8_t[]> source_buffer_;
+  bool done_;
+};
+
+class BackgroundCompileThread : public base::Thread {
+ public:
+  BackgroundCompileThread(Isolate* isolate, Local<String> source)
+      : base::Thread(GetThreadOptions("BackgroundCompileThread")),
+        source_(source),
+        streamed_source_(new DummySourceStream(source),
+                         v8::ScriptCompiler::StreamedSource::UTF8),
+        task_(v8::ScriptCompiler::StartStreamingScript(isolate,
+                                                       &streamed_source_)) {}
+
+  void Run() override { task_->Run(); }
+
+  v8::ScriptCompiler::StreamedSource* streamed_source() {
+    return &streamed_source_;
+  }
+
+ private:
+  Local<String> source_;
+  v8::ScriptCompiler::StreamedSource streamed_source_;
+  std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task_;
+};
 
 ScriptCompiler::CachedData* CompileForCachedData(
     Local<String> source, Local<Value> name,
@@ -606,13 +660,36 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     Local<Context> realm =
         Local<Context>::New(isolate, data->realms_[data->realm_current_]);
     Context::Scope context_scope(realm);
+    MaybeLocal<Script> maybe_script;
+    if (options.stress_background_compile) {
+      // Start a background thread compiling the script.
+      BackgroundCompileThread background_compile_thread(isolate, source);
+      background_compile_thread.Start();
+
+      // In parallel, compile on the main thread to flush out any data races.
+      {
+        TryCatch ignore_try_catch(isolate);
+        Shell::CompileString(isolate, source, name, options.compile_options);
+      }
+
+      // Join with background thread and finalize compilation.
+      background_compile_thread.Join();
+      ScriptOrigin origin(name);
+      maybe_script = v8::ScriptCompiler::Compile(
+          isolate->GetCurrentContext(),
+          background_compile_thread.streamed_source(), source, origin);
+    } else {
+      maybe_script =
+          Shell::CompileString(isolate, source, name, options.compile_options);
+    }
+
     Local<Script> script;
-    if (!Shell::CompileString(isolate, source, name, options.compile_options)
-             .ToLocal(&script)) {
+    if (!maybe_script.ToLocal(&script)) {
       // Print errors that happened during compilation.
       if (report_exceptions) ReportException(isolate, &try_catch);
       return false;
     }
+
     maybe_result = script->Run(realm);
     if (!EmptyMessageQueues(isolate)) success = false;
     data->realm_current_ = data->realm_switch_;
@@ -2442,14 +2519,8 @@ Local<String> SourceGroup::ReadFile(Isolate* isolate, const char* name) {
   return Shell::ReadFile(isolate, name);
 }
 
-
-base::Thread::Options SourceGroup::GetThreadOptions() {
-  // On some systems (OSX 10.6) the stack size default is 0.5Mb or less
-  // which is not enough to parse the big literal expressions used in tests.
-  // The stack size should be at least StackGuard::kLimitSize + some
-  // OS-specific padding for thread startup code.  2Mbytes seems to be enough.
-  return base::Thread::Options("IsolateThread", 2 * MB);
-}
+SourceGroup::IsolateThread::IsolateThread(SourceGroup* group)
+    : base::Thread(GetThreadOptions("IsolateThread")), group_(group) {}
 
 void SourceGroup::ExecuteInThread() {
   Isolate::CreateParams create_params;
@@ -2719,6 +2790,13 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--stress-deopt") == 0) {
       options.stress_deopt = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--stress-background-compile") == 0) {
+      options.stress_background_compile = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--nostress-background-compile") == 0 ||
+               strcmp(argv[i], "--no-stress-background-compile") == 0) {
+      options.stress_background_compile = false;
       argv[i] = nullptr;
     } else if (strcmp(argv[i], "--mock-arraybuffer-allocator") == 0) {
       options.mock_arraybuffer_allocator = true;

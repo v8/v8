@@ -120,8 +120,7 @@ class SourceGroup {
  private:
   class IsolateThread : public base::Thread {
    public:
-    explicit IsolateThread(SourceGroup* group)
-        : base::Thread(GetThreadOptions()), group_(group) {}
+    explicit IsolateThread(SourceGroup* group);
 
     virtual void Run() {
       group_->ExecuteInThread();
@@ -131,7 +130,6 @@ class SourceGroup {
     SourceGroup* group_;
   };
 
-  static base::Thread::Options GetThreadOptions();
   void ExecuteInThread();
 
   base::Semaphore next_semaphore_;
@@ -297,6 +295,7 @@ class ShellOptions {
         enable_inspector(false),
         num_isolates(1),
         compile_options(v8::ScriptCompiler::kNoCompileOptions),
+        stress_background_compile(false),
         isolate_sources(nullptr),
         icu_data_file(nullptr),
         natives_blob(nullptr),
@@ -329,6 +328,7 @@ class ShellOptions {
   bool enable_inspector;
   int num_isolates;
   v8::ScriptCompiler::CompileOptions compile_options;
+  bool stress_background_compile;
   SourceGroup* isolate_sources;
   const char* icu_data_file;
   const char* natives_blob;
