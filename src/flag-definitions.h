@@ -959,7 +959,6 @@ DEFINE_BOOL(serialization_statistics, false,
 
 // Regexp
 DEFINE_BOOL(regexp_optimization, true, "generate optimized regexp code")
-DEFINE_BOOL(regexp_mode_modifiers, false, "enable inline flags in regexp.")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_BOOL(testing_bool_flag, true, "testing_bool_flag")
