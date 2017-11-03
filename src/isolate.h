@@ -335,6 +335,7 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Communication channel between Isolate::FindHandler and the CEntryStub.
   Context* pending_handler_context_;
   Address pending_handler_entrypoint_;
+  Address pending_handler_constant_pool_;
   Address pending_handler_fp_;
   Address pending_handler_sp_;
 
@@ -619,6 +620,7 @@ class Isolate {
 
   THREAD_LOCAL_TOP_ADDRESS(Context*, pending_handler_context)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_entrypoint)
+  THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_constant_pool)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_fp)
   THREAD_LOCAL_TOP_ADDRESS(Address, pending_handler_sp)
 

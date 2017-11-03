@@ -470,10 +470,10 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   ExternalReference pending_handler_context_address(
       IsolateAddressId::kPendingHandlerContextAddress, isolate());
-  ExternalReference pending_handler_code_address(
-      IsolateAddressId::kPendingHandlerCodeAddress, isolate());
-  ExternalReference pending_handler_offset_address(
-      IsolateAddressId::kPendingHandlerOffsetAddress, isolate());
+  ExternalReference pending_handler_entrypoint_address(
+      IsolateAddressId::kPendingHandlerEntrypointAddress, isolate());
+  ExternalReference pending_handler_constant_pool_address(
+      IsolateAddressId::kPendingHandlerConstantPoolAddress, isolate());
   ExternalReference pending_handler_fp_address(
       IsolateAddressId::kPendingHandlerFPAddress, isolate());
   ExternalReference pending_handler_sp_address(
@@ -510,15 +510,13 @@ void CEntryStub::Generate(MacroAssembler* masm) {
 
   // Compute the handler entry address and jump to it.
   ConstantPoolUnavailableScope constant_pool_unavailable(masm);
-  __ mov(r4, Operand(pending_handler_code_address));
-  __ LoadP(r4, MemOperand(r4));
-  __ mov(r5, Operand(pending_handler_offset_address));
-  __ LoadP(r5, MemOperand(r5));
-  __ addi(r4, r4, Operand(Code::kHeaderSize - kHeapObjectTag));  // Code start
+  __ mov(ip, Operand(pending_handler_entrypoint_address));
+  __ LoadP(ip, MemOperand(ip));
   if (FLAG_enable_embedded_constant_pool) {
-    __ LoadConstantPoolPointerRegisterFromCodeTargetAddress(r4);
+    __ mov(kConstantPoolRegister,
+           Operand(pending_handler_constant_pool_address));
+    __ LoadP(kConstantPoolRegister, MemOperand(kConstantPoolRegister));
   }
-  __ add(ip, r4, r5);
   __ Jump(ip);
 }
 
