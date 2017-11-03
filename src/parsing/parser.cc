@@ -3291,9 +3291,8 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
     // function() { .. static class fields initializer .. }
     ZoneList<Statement*>* statements = NewStatementList(1);
     InitializeClassFieldsStatement* class_fields =
-        factory()->NewInitializeClassFieldsStatement(
-            class_info->static_fields,
-            class_info->field_scope->NeedsHomeObject(), kNoSourcePosition);
+        factory()->NewInitializeClassFieldsStatement(class_info->static_fields,
+                                                     kNoSourcePosition);
     statements->Add(class_fields, zone());
     static_fields_initializer = factory()->NewFunctionLiteral(
         ast_value_factory()->empty_string(), class_info->field_scope,

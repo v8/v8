@@ -1798,6 +1798,15 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
     RegisterList args = register_allocator()->NewRegisterList(1);
     Register initializer = register_allocator()->NewRegister();
     VisitForRegisterValue(expr->static_fields_initializer(), initializer);
+
+    if (FunctionLiteral::NeedsHomeObject(expr->static_fields_initializer())) {
+      FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
+      builder()
+          ->LoadAccumulatorWithRegister(constructor)
+          .StoreHomeObjectProperty(initializer, feedback_index(slot),
+                                   language_mode());
+    }
+
     builder()
         ->MoveRegister(constructor, args[0])
         .CallProperty(initializer, args,
@@ -1908,15 +1917,6 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
 void BytecodeGenerator::VisitInitializeClassFieldsStatement(
     InitializeClassFieldsStatement* expr) {
   Register constructor(builder()->Receiver());
-
-  if (expr->needs_home_object()) {
-    FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
-    builder()
-        ->LoadAccumulatorWithRegister(constructor)
-        .StoreHomeObjectProperty(Register::function_closure(),
-                                 feedback_index(slot), language_mode());
-  }
-
   Register key = register_allocator()->NewRegister();
   Register value = register_allocator()->NewRegister();
 

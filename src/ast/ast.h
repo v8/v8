@@ -2433,19 +2433,14 @@ class InitializeClassFieldsStatement final : public Statement {
  public:
   typedef ClassLiteralProperty Property;
   ZoneList<Property*>* fields() const { return fields_; }
-  bool needs_home_object() const { return needs_home_object_; }
 
  private:
   friend class AstNodeFactory;
 
-  InitializeClassFieldsStatement(ZoneList<Property*>* fields,
-                                 bool needs_home_object, int pos)
-      : Statement(pos, kInitializeClassFieldsStatement),
-        fields_(fields),
-        needs_home_object_(needs_home_object) {}
+  InitializeClassFieldsStatement(ZoneList<Property*>* fields, int pos)
+      : Statement(pos, kInitializeClassFieldsStatement), fields_(fields) {}
 
   ZoneList<Property*>* fields_;
-  bool needs_home_object_;
 };
 
 class ClassLiteral final : public Expression {
@@ -3334,9 +3329,8 @@ class AstNodeFactory final BASE_EMBEDDED {
   }
 
   InitializeClassFieldsStatement* NewInitializeClassFieldsStatement(
-      ZoneList<ClassLiteralProperty*>* args, bool needs_home_object, int pos) {
-    return new (zone_)
-        InitializeClassFieldsStatement(args, needs_home_object, pos);
+      ZoneList<ClassLiteralProperty*>* args, int pos) {
+    return new (zone_) InitializeClassFieldsStatement(args, pos);
   }
 
   Zone* zone() const { return zone_; }
