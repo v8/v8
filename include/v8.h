@@ -7074,9 +7074,13 @@ class V8_EXPORT Isolate {
     kLabeledExpressionStatement = 40,
     kLineOrParagraphSeparatorAsLineTerminator = 41,
     kIndexAccessor = 42,
+    kErrorCaptureStackTrace = 43,
+    kErrorPrepareStackTrace = 44,
+    kErrorStackTraceLimit = 45,
 
     // If you add new values here, you'll also need to update Chromium's:
-    // UseCounter.h, V8PerIsolateData.cpp, histograms.xml
+    // web_feature.mojom, UseCounterCallback.cpp, and enums.xml. V8 changes to
+    // this list need to be landed first, then changes on the Chromium side.
     kUseCounterFeatureCount  // This enum value must be last.
   };
 

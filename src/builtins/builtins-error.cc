@@ -42,6 +42,8 @@ BUILTIN(ErrorCaptureStackTrace) {
   HandleScope scope(isolate);
   Handle<Object> object_obj = args.atOrUndefined(isolate, 1);
 
+  isolate->CountUsage(v8::Isolate::kErrorCaptureStackTrace);
+
   if (!object_obj->IsJSObject()) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kInvalidArgument, object_obj));

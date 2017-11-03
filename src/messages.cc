@@ -952,6 +952,8 @@ MaybeHandle<Object> ErrorUtils::FormatStackTrace(Isolate* isolate,
   if (prepare_stack_trace->IsJSFunction() && !in_recursion) {
     PrepareStackTraceScope scope(isolate);
 
+    isolate->CountUsage(v8::Isolate::kErrorPrepareStackTrace);
+
     Handle<JSArray> sites;
     ASSIGN_RETURN_ON_EXCEPTION(isolate, sites, GetStackFrames(isolate, elems),
                                Object);

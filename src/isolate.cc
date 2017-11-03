@@ -568,6 +568,11 @@ bool GetStackTraceLimit(Isolate* isolate, int* result) {
 
   // Ensure that limit is not negative.
   *result = Max(FastD2IChecked(stack_trace_limit->Number()), 0);
+
+  if (*result != FLAG_stack_trace_limit) {
+    isolate->CountUsage(v8::Isolate::kErrorStackTraceLimit);
+  }
+
   return true;
 }
 
