@@ -36,11 +36,41 @@ class InterpreterCompilationJob final : public CompilationJob {
   Status FinalizeJobImpl() final;
 
  private:
+  class TimerScope final {
+   public:
+    explicit TimerScope(RuntimeCallCounter* counter)
+        : runtime_stats_enabled_(FLAG_runtime_stats) {
+      if (V8_UNLIKELY(runtime_stats_enabled_ && counter != nullptr)) {
+        timer_.Start(counter, nullptr);
+      }
+    }
+
+    ~TimerScope() {
+      if (V8_UNLIKELY(runtime_stats_enabled_)) {
+        timer_.Stop();
+      }
+    }
+
+   private:
+    RuntimeCallTimer timer_;
+    bool runtime_stats_enabled_;
+
+    DISALLOW_COPY_AND_ASSIGN(TimerScope);
+  };
+
+  bool executed_on_background_thread() {
+    // TODO(rmcilroy): Fix once we create InterpreterCompilationJob on
+    // background thread.
+    return false;
+  }
+
   BytecodeGenerator* generator() { return &generator_; }
 
   Zone zone_;
   CompilationInfo compilation_info_;
   BytecodeGenerator generator_;
+  RuntimeCallStats* runtime_call_stats_;
+  RuntimeCallCounter background_execute_counter_;
 
   DISALLOW_COPY_AND_ASSIGN(InterpreterCompilationJob);
 };
@@ -151,26 +181,24 @@ InterpreterCompilationJob::InterpreterCompilationJob(ParseInfo* parse_info,
                                                      FunctionLiteral* literal,
                                                      Isolate* isolate)
     : CompilationJob(parse_info->stack_limit(), parse_info, &compilation_info_,
-                     "Ignition", State::kReadyToExecute),
+                     "Ignition"),
       zone_(isolate->allocator(), ZONE_NAME),
       compilation_info_(&zone_, isolate, parse_info, literal),
-      generator_(&compilation_info_) {}
+      generator_(&compilation_info_),
+      runtime_call_stats_(isolate->counters()->runtime_call_stats()),
+      background_execute_counter_("CompileBackgroundIgnition") {}
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::PrepareJobImpl() {
-  UNREACHABLE();  // Prepare should always be skipped.
+  MaybePrintAst(parse_info(), compilation_info());
   return SUCCEEDED;
 }
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
+  TimerScope runtimeTimer(
+      executed_on_background_thread() ? &background_execute_counter_ : nullptr);
   RuntimeCallTimerScope runtimeTimerScope(
-      parse_info()->runtime_call_stats(),
-      parse_info()->on_background_thread()
-          ? &RuntimeCallStats::CompileBackgroundIgnition
-          : &RuntimeCallStats::CompileIgnition);
-
-  // Print AST if flag is enabled. Note, if compiling on a background thread
-  // then ASTs from different functions may be intersperse when printed.
-  MaybePrintAst(parse_info(), compilation_info());
+      !executed_on_background_thread() ? runtime_call_stats_ : nullptr,
+      &RuntimeCallStats::CompileIgnition);
 
   // TODO(lpy): add support for background compilation RCS trace.
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
@@ -184,8 +212,14 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
 }
 
 InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl() {
+  // Add background runtime call stats.
+  if (V8_UNLIKELY(FLAG_runtime_stats && executed_on_background_thread())) {
+    runtime_call_stats_->CompileBackgroundIgnition.Add(
+        &background_execute_counter_);
+  }
+
   RuntimeCallTimerScope runtimeTimerScope(
-      parse_info()->runtime_call_stats(),
+      !executed_on_background_thread() ? runtime_call_stats_ : nullptr,
       &RuntimeCallStats::CompileIgnitionFinalization);
 
   Handle<BytecodeArray> bytecodes = generator()->FinalizeBytecode(

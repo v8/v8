@@ -2607,25 +2607,19 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
   }
 
   source->info->set_script(script);
+  if (source->info->literal() == nullptr) {
+    source->info->pending_error_handler()->ReportErrors(
+        isolate, script, source->info->ast_value_factory());
+  }
   source->parser->UpdateStatistics(isolate, script);
   source->info->UpdateStatisticsAfterBackgroundParse(isolate);
   source->parser->HandleSourceURLComments(isolate, script);
 
   i::Handle<i::SharedFunctionInfo> result;
-  if (source->info->literal() == nullptr) {
-    // Parsing has failed - report error messages.
-    source->info->pending_error_handler()->ReportErrors(
-        isolate, script, source->info->ast_value_factory());
-  } else {
-    // Parsing has succeeded - finalize compile.
-    if (i::FLAG_background_compile) {
-      result = i::Compiler::GetSharedFunctionInfoForBackgroundCompile(
-          script, source->info.get(), str->length(),
-          source->outer_function_job.get(), &source->inner_function_jobs);
-    } else {
-      result = i::Compiler::GetSharedFunctionInfoForStreamedScript(
-          script, source->info.get(), str->length());
-    }
+  if (source->info->literal() != nullptr) {
+    // Parsing has succeeded.
+    result = i::Compiler::GetSharedFunctionInfoForStreamedScript(
+        script, source->info.get(), str->length());
   }
   has_pending_exception = result.is_null();
   if (has_pending_exception) isolate->ReportPendingMessages();
