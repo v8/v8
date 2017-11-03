@@ -137,20 +137,7 @@ void Interpreter::IterateDispatchTable(RootVisitor* v) {
 namespace {
 
 void MaybePrintAst(ParseInfo* parse_info, CompilationInfo* compilation_info) {
-  Isolate* isolate = compilation_info->isolate();
-  bool print_ast = isolate->bootstrapper()->IsActive() ? FLAG_print_builtin_ast
-                                                       : FLAG_print_ast;
-  if (!print_ast) return;
-
-  // Requires internalizing the AST, so make sure we are on the main thread and
-  // allow handle dereference and allocations.
-  // TODO(rmcilroy): Make ast-printer print ast raw strings instead of
-  // internalized strings to avoid internalizing here.
-  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
-  AllowHandleDereference allow_deref;
-  AllowHandleAllocation allow_handles;
-  AllowHeapAllocation allow_gc;
-  parse_info->ast_value_factory()->Internalize(isolate);
+  if (!FLAG_print_ast) return;
 
   OFStream os(stdout);
   std::unique_ptr<char[]> name = compilation_info->GetDebugName();
@@ -158,7 +145,8 @@ void MaybePrintAst(ParseInfo* parse_info, CompilationInfo* compilation_info) {
      << compilation_info->GetDebugName().get() << "]" << std::endl;
 #ifdef DEBUG
   os << "--- AST ---" << std::endl
-     << AstPrinter(isolate).PrintProgram(compilation_info->literal())
+     << AstPrinter(parse_info->stack_limit())
+            .PrintProgram(compilation_info->literal())
      << std::endl;
 #endif  // DEBUG
 }
