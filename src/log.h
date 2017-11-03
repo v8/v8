@@ -342,16 +342,15 @@ class Logger : public CodeEventListener {
   friend class CpuProfiler;
 };
 
-#define TIMER_EVENTS_LIST(V)     \
-  V(RecompileSynchronous, true)  \
-  V(RecompileConcurrent, true)   \
-  V(CompileIgnition, true)       \
-  V(CompileFullCode, true)       \
-  V(OptimizeCode, true)          \
-  V(CompileCode, true)           \
-  V(CompileCodeBackground, true) \
-  V(DeoptimizeCode, true)        \
-  V(Execute, true)               \
+#define TIMER_EVENTS_LIST(V)    \
+  V(RecompileSynchronous, true) \
+  V(RecompileConcurrent, true)  \
+  V(CompileIgnition, true)      \
+  V(CompileFullCode, true)      \
+  V(OptimizeCode, true)         \
+  V(CompileCode, true)          \
+  V(DeoptimizeCode, true)       \
+  V(Execute, true)              \
   V(External, true)
 
 #define V(TimerName, expose)                          \

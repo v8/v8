@@ -5,7 +5,6 @@
 #ifndef V8_COMPILER_H_
 #define V8_COMPILER_H_
 
-#include <forward_list>
 #include <memory>
 
 #include "src/allocation.h"
@@ -28,8 +27,6 @@ template <typename T>
 class ThreadedList;
 template <typename T>
 class ThreadedListZoneEntry;
-
-typedef std::forward_list<std::unique_ptr<CompilationJob>> CompilationJobList;
 
 // The V8 compiler API.
 //
@@ -57,11 +54,9 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static bool CompileOptimized(Handle<JSFunction> function, ConcurrencyMode);
   static MaybeHandle<JSArray> CompileForLiveEdit(Handle<Script> script);
 
-  // Compile top level code on a background thread. Should be finalized by
-  // GetSharedFunctionInfoForBackgroundCompile.
-  static std::unique_ptr<CompilationJob> CompileTopLevelOnBackgroundThread(
-      ParseInfo* parse_info, Isolate* isolate,
-      CompilationJobList* inner_function_jobs);
+  // Prepare a compilation job for unoptimized code. Requires ParseAndAnalyse.
+  static CompilationJob* PrepareUnoptimizedCompilationJob(ParseInfo* parse_info,
+                                                          Isolate* isolate);
 
   // Generate and install code from previously queued compilation job.
   static bool FinalizeCompilationJob(CompilationJob* job);
@@ -132,13 +127,6 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static Handle<SharedFunctionInfo> GetSharedFunctionInfo(FunctionLiteral* node,
                                                           Handle<Script> script,
                                                           Isolate* isolate);
-
-  // Create a shared function info object for a Script that has already been
-  // compiled on a background thread.
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfoForBackgroundCompile(
-      Handle<Script> script, ParseInfo* parse_info, int source_length,
-      CompilationJob* outer_function_job,
-      CompilationJobList* inner_function_jobs);
 
   // Create a shared function info object for a native function literal.
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForNative(
