@@ -17,6 +17,7 @@
 #include "src/visitors.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/wasm-objects-inl.h"
+#include "src/zone/zone-containers.h"
 
 namespace v8 {
 namespace internal {
@@ -2119,12 +2120,12 @@ static StackFrame* AllocateFrameCopy(StackFrame* frame, Zone* zone) {
 
 
 Vector<StackFrame*> CreateStackMap(Isolate* isolate, Zone* zone) {
-  ZoneList<StackFrame*> list(10, zone);
+  ZoneVector<StackFrame*> frames(zone);
   for (StackFrameIterator it(isolate); !it.done(); it.Advance()) {
     StackFrame* frame = AllocateFrameCopy(it.frame(), zone);
-    list.Add(frame, zone);
+    frames.push_back(frame);
   }
-  return list.ToVector();
+  return Vector<StackFrame*>(frames.data(), frames.size());
 }
 
 

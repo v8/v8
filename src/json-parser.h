@@ -144,7 +144,7 @@ class JsonParser BASE_EMBEDDED {
   Zone* zone() { return &zone_; }
 
   void CommitStateToJsonObject(Handle<JSObject> json_object, Handle<Map> map,
-                               ZoneList<Handle<Object> >* properties);
+                               ZoneVector<Handle<Object>>* properties);
 
   Handle<String> source_;
   int source_length_;
