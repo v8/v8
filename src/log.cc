@@ -668,10 +668,9 @@ void Profiler::Engage() {
 
   std::vector<base::OS::SharedLibraryAddress> addresses =
       base::OS::GetSharedLibraryAddresses();
-  for (size_t i = 0; i < addresses.size(); ++i) {
-    LOG(isolate_,
-        SharedLibraryEvent(addresses[i].library_path, addresses[i].start,
-                           addresses[i].end, addresses[i].aslr_slide));
+  for (const auto& address : addresses) {
+    LOG(isolate_, SharedLibraryEvent(address.library_path, address.start,
+                                     address.end, address.aslr_slide));
   }
 
   // Start thread processing the profiler buffer.
