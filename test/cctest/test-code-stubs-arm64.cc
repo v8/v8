@@ -47,8 +47,9 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
                                               Register destination_reg) {
   // Allocate an executable page of memory.
   size_t actual_size = 4 * Assembler::kMinimalBufferSize;
-  byte* buffer = static_cast<byte*>(
-      v8::base::OS::Allocate(actual_size, &actual_size, true));
+  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
+      actual_size, &actual_size,
+      v8::base::OS::MemoryPermission::kReadWriteExecute));
   CHECK(buffer);
   HandleScope handles(isolate);
   MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),

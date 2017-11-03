@@ -122,7 +122,7 @@ TEST(AlignedAllocOOM) {
   // On failure, this won't return, since an AlignedAlloc failure is fatal.
   // In that case, behavior is checked in OnAlignedAllocOOM before exit.
   void* result = v8::internal::AlignedAlloc(GetHugeMemoryAmount(),
-                                            v8::base::OS::AllocateAlignment());
+                                            v8::base::OS::AllocatePageSize());
   // On a few systems, allocation somehow succeeds.
   CHECK_EQ(result == nullptr, platform.oom_callback_called);
 }
@@ -143,7 +143,7 @@ TEST(AlignedAllocVirtualMemoryOOM) {
   CHECK(!platform.oom_callback_called);
   v8::internal::VirtualMemory result;
   bool success = v8::internal::AlignedAllocVirtualMemory(
-      GetHugeMemoryAmount(), v8::base::OS::AllocateAlignment(), nullptr,
+      GetHugeMemoryAmount(), v8::base::OS::AllocatePageSize(), nullptr,
       &result);
   // On a few systems, allocation somehow succeeds.
   CHECK_IMPLIES(success, result.IsReserved());

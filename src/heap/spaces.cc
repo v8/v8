@@ -119,9 +119,7 @@ bool CodeRange::SetUp(size_t requested) {
 
   VirtualMemory reservation;
   if (!AlignedAllocVirtualMemory(
-          requested,
-          Max(kCodeRangeAreaAlignment,
-              static_cast<size_t>(base::OS::AllocateAlignment())),
+          requested, Max(kCodeRangeAreaAlignment, base::OS::AllocatePageSize()),
           base::OS::GetRandomMmapAddr(), &reservation)) {
     return false;
   }
@@ -2403,7 +2401,7 @@ bool SemiSpace::GrowTo(size_t new_capacity) {
   DCHECK_LE(new_capacity, maximum_capacity_);
   DCHECK_GT(new_capacity, current_capacity_);
   const size_t delta = new_capacity - current_capacity_;
-  DCHECK(IsAligned(delta, base::OS::AllocateAlignment()));
+  DCHECK(IsAligned(delta, base::OS::AllocatePageSize()));
   const int delta_pages = static_cast<int>(delta / Page::kPageSize);
   Page* last_page = anchor()->prev_page();
   DCHECK_NE(last_page, anchor());
@@ -2447,7 +2445,7 @@ bool SemiSpace::ShrinkTo(size_t new_capacity) {
   DCHECK_LT(new_capacity, current_capacity_);
   if (is_committed()) {
     const size_t delta = current_capacity_ - new_capacity;
-    DCHECK(IsAligned(delta, base::OS::AllocateAlignment()));
+    DCHECK(IsAligned(delta, base::OS::AllocatePageSize()));
     int delta_pages = static_cast<int>(delta / Page::kPageSize);
     Page* new_last_page;
     Page* last_page;

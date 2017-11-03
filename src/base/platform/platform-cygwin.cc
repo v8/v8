@@ -89,9 +89,9 @@ void* OS::ReserveRegion(size_t size, void* hint) {
 void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
                                size_t* allocated) {
   hint = AlignedAddress(hint, alignment);
-  DCHECK_EQ(alignment % OS::AllocateAlignment(), 0);
+  DCHECK_EQ(alignment % OS::AllocatePageSize(), 0);
   size_t request_size =
-      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
+      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocatePageSize()));
   void* address = ReserveRegion(request_size, hint);
   if (address == nullptr) {
     *allocated = 0;

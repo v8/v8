@@ -21,8 +21,8 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   return nullptr;
 #else
   size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  byte* buffer = static_cast<byte*>(base::OS::Allocate(
+      1 * KB, &actual_size, base::OS::MemoryPermission::kReadWriteExecute));
   if (buffer == nullptr) return nullptr;
 
   MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),

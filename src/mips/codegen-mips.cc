@@ -24,8 +24,8 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
   return stub;
 #else
   size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(3 * KB, &actual_size, true));
+  byte* buffer = static_cast<byte*>(base::OS::Allocate(
+      3 * KB, &actual_size, base::OS::MemoryPermission::kReadWriteExecute));
   if (buffer == nullptr) return stub;
 
   // This code assumes that cache lines are 32 bytes and if the cache line is
@@ -556,8 +556,8 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   return nullptr;
 #else
   size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  byte* buffer = static_cast<byte*>(base::OS::Allocate(
+      1 * KB, &actual_size, base::OS::MemoryPermission::kReadWriteExecute));
   if (buffer == nullptr) return nullptr;
 
   MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),

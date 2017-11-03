@@ -27,7 +27,7 @@ void* TryAllocateBackingStore(Isolate* isolate, size_t size,
     allocation_length = RoundUp(kWasmMaxHeapOffset, base::OS::CommitPageSize());
     DCHECK_EQ(0, size % base::OS::CommitPageSize());
 
-    // AllocateGuarded makes the whole region inaccessible by default.
+    // The Reserve makes the whole region inaccessible by default.
     allocation_base =
         isolate->array_buffer_allocator()->Reserve(allocation_length);
     if (allocation_base == nullptr) {

@@ -161,25 +161,23 @@ class V8_BASE_EXPORT OS {
   // here even though most systems support additional modes.
   enum class MemoryPermission { kNoAccess, kReadWrite, kReadWriteExecute };
 
-  // Allocate/Free memory used by JS heap. Permissions are set according to the
-  // is_* flags. Returns the address of allocated memory, or nullptr if failed.
+  // Gets the page granularity for Allocate. Addresses returned by Allocate are
+  // aligned to this size.
+  static size_t AllocatePageSize();
+
+  // Gets the granularity at which the permissions and commit calls can be made.
+  static size_t CommitPageSize();
+
+  // Generate a random address to be used for hinting allocation calls.
+  static void* GetRandomMmapAddr();
+
+  // Allocates memory. Permissions are set according to the access argument.
+  // Returns the address of the allocated memory, or nullptr on failure.
   static void* Allocate(const size_t requested, size_t* allocated,
                         MemoryPermission access, void* hint = nullptr);
-  // Allocate/Free memory used by JS heap. Pages are readable/writable, but
-  // they are not guaranteed to be executable unless 'executable' is true.
-  // Returns the address of allocated memory, or nullptr if failed.
-  static void* Allocate(const size_t requested, size_t* allocated,
-                        bool is_executable, void* hint = nullptr);
+
+  // Frees memory allocated by a call to Allocate.
   static void Free(void* address, const size_t size);
-
-  // Allocates a region of memory that is inaccessible. On Windows this reserves
-  // but does not commit the memory. On POSIX systems it allocates memory as
-  // PROT_NONE, which also prevents it from being committed.
-  static void* AllocateGuarded(const size_t requested);
-
-  // This is the granularity at which the SetReadAndExecutable(...) call can
-  // set page permissions.
-  static intptr_t CommitPageSize();
 
   // Mark a region of memory executable and readable but not writable.
   static void SetReadAndExecutable(void* address, const size_t size);
@@ -189,12 +187,6 @@ class V8_BASE_EXPORT OS {
 
   // Make a region of memory non-executable but readable and writable.
   static void SetReadAndWritable(void* address, const size_t size, bool commit);
-
-  // Generate a random address to be used for hinting mmap().
-  static void* GetRandomMmapAddr();
-
-  // Get the Alignment guaranteed by Allocate().
-  static size_t AllocateAlignment();
 
   static void* ReserveRegion(size_t size, void* hint);
 

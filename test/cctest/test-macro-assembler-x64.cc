@@ -52,6 +52,15 @@ typedef int (*F0)();
 
 #define __ masm->
 
+byte* AllocateExecutablePage(int* actual_size) {
+  size_t allocated = 0;
+  void* result =
+      v8::base::OS::Allocate(Assembler::kMinimalBufferSize, &allocated,
+                             v8::base::OS::MemoryPermission::kReadWriteExecute);
+  CHECK(result);
+  *actual_size = static_cast<int>(allocated);
+  return static_cast<byte*>(result);
+}
 
 static void EntryCode(MacroAssembler* masm) {
   // Smi constant register is callee save.
@@ -98,14 +107,11 @@ static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi* value) {
 
 // Test that we can move a Smi value literally into a register.
 TEST(SmiMove) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   EntryCode(masm);
@@ -184,14 +190,11 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 
 // Test that we can compare smis for equality (and more).
 TEST(SmiCompare) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize * 2, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -233,14 +236,11 @@ TEST(SmiCompare) {
 
 
 TEST(Integer32ToSmi) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -333,14 +333,11 @@ TEST(Integer32ToSmi) {
 }
 
 TEST(SmiCheck) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -433,14 +430,11 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
 }
 
 TEST(SmiIndex) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize * 5, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -469,14 +463,11 @@ TEST(OperandOffset) {
   uint32_t data[256];
   for (uint32_t i = 0; i < 256; i++) { data[i] = i * 0x01010101; }
 
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize * 2, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -820,15 +811,13 @@ TEST(OperandOffset) {
 
 
 TEST(LoadAndStoreWithRepresentation) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
+
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   EntryCode(masm);
   __ subq(rsp, Immediate(1 * kPointerSize));
@@ -1089,14 +1078,11 @@ void TestFloat64x2Neg(MacroAssembler* masm, Label* exit, double x, double y) {
 }
 
 TEST(SIMDMacros) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize * 2, &actual_size, true));
-  CHECK(buffer);
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(actual_size),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;

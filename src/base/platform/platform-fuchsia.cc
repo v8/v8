@@ -46,10 +46,10 @@ void* OS::ReserveRegion(size_t size, void* hint) {
 // static
 void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
                                size_t* allocated) {
-  DCHECK_EQ(alignment % OS::AllocateAlignment(), 0);
+  DCHECK_EQ(alignment % OS::AllocatePageSize(), 0);
   hint = AlignedAddress(hint, alignment);
   size_t request_size =
-      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
+      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocatePageSize()));
 
   zx_handle_t vmo;
   if (zx_vmo_create(request_size, 0, &vmo) != ZX_OK) {
@@ -82,7 +82,7 @@ void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
     request_size -= prefix_size;
   }
 
-  size_t aligned_size = RoundUp(size, OS::AllocateAlignment());
+  size_t aligned_size = RoundUp(size, OS::AllocatePageSize());
   DCHECK_LE(aligned_size, request_size);
 
   if (aligned_size != request_size) {

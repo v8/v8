@@ -24,8 +24,8 @@ MemCopyUint8Function CreateMemCopyUint8Function(Isolate* isolate,
   return stub;
 #else
   size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  byte* buffer = static_cast<byte*>(base::OS::Allocate(
+      1 * KB, &actual_size, base::OS::MemoryPermission::kReadWriteExecute));
   if (buffer == nullptr) return stub;
 
   MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
@@ -183,8 +183,8 @@ MemCopyUint16Uint8Function CreateMemCopyUint16Uint8Function(
   return stub;
 #else
   size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  byte* buffer = static_cast<byte*>(base::OS::Allocate(
+      1 * KB, &actual_size, base::OS::MemoryPermission::kReadWriteExecute));
   if (buffer == nullptr) return stub;
 
   MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
@@ -272,8 +272,8 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   return nullptr;
 #else
   size_t actual_size;
-  byte* buffer =
-      static_cast<byte*>(base::OS::Allocate(1 * KB, &actual_size, true));
+  byte* buffer = static_cast<byte*>(base::OS::Allocate(
+      1 * KB, &actual_size, base::OS::MemoryPermission::kReadWriteExecute));
   if (buffer == nullptr) return nullptr;
 
   MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),

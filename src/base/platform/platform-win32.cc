@@ -674,24 +674,9 @@ void OS::StrNCpy(char* dest, int length, const char* src, size_t n) {
 #undef _TRUNCATE
 #undef STRUNCATE
 
-
-// Get the system's page size used by VirtualAlloc() or the next power
-// of two. The reason for always returning a power of two is that the
-// rounding up in OS::Allocate expects that.
-static size_t GetPageSize() {
-  static size_t page_size = 0;
-  if (page_size == 0) {
-    SYSTEM_INFO info;
-    GetSystemInfo(&info);
-    page_size = base::bits::RoundUpToPowerOfTwo32(info.dwPageSize);
-  }
-  return page_size;
-}
-
-
 // The allocation alignment is the guaranteed alignment for
 // VirtualAlloc'ed blocks of memory.
-size_t OS::AllocateAlignment() {
+size_t OS::AllocatePageSize() {
   static size_t allocate_alignment = 0;
   if (allocate_alignment == 0) {
     SYSTEM_INFO info;
@@ -699,6 +684,17 @@ size_t OS::AllocateAlignment() {
     allocate_alignment = info.dwAllocationGranularity;
   }
   return allocate_alignment;
+}
+
+size_t OS::CommitPageSize() {
+  static size_t page_size = 0;
+  if (page_size == 0) {
+    SYSTEM_INFO info;
+    GetSystemInfo(&info);
+    page_size = info.dwPageSize;
+    DCHECK_EQ(4096, page_size);
+  }
+  return page_size;
 }
 
 static LazyInstance<RandomNumberGenerator>::type
@@ -764,17 +760,9 @@ static void* RandomizedVirtualAlloc(size_t size, int action, int protection,
 }  // namespace
 
 void* OS::Allocate(const size_t requested, size_t* allocated,
-                   bool is_executable, void* hint) {
-  return OS::Allocate(requested, allocated,
-                      is_executable ? OS::MemoryPermission::kReadWriteExecute
-                                    : OS::MemoryPermission::kReadWrite,
-                      hint);
-}
-
-void* OS::Allocate(const size_t requested, size_t* allocated,
                    OS::MemoryPermission access, void* hint) {
   // VirtualAlloc rounds allocated size to page size automatically.
-  size_t msize = RoundUp(requested, static_cast<int>(GetPageSize()));
+  size_t msize = RoundUp(requested, static_cast<int>(AllocatePageSize()));
 
   // Windows XP SP2 allows Data Excution Prevention (DEP).
   int prot = PAGE_NOACCESS;
@@ -798,7 +786,7 @@ void* OS::Allocate(const size_t requested, size_t* allocated,
 
   if (mbase == NULL) return NULL;
 
-  DCHECK_EQ(reinterpret_cast<uintptr_t>(mbase) % OS::AllocateAlignment(), 0);
+  DCHECK_EQ(reinterpret_cast<uintptr_t>(mbase) % OS::AllocatePageSize(), 0);
 
   *allocated = msize;
   return mbase;
@@ -808,10 +796,6 @@ void OS::Free(void* address, const size_t size) {
   // TODO(1240712): VirtualFree has a return value which is ignored here.
   VirtualFree(address, 0, MEM_RELEASE);
   USE(size);
-}
-
-intptr_t OS::CommitPageSize() {
-  return 4096;
 }
 
 void OS::SetReadAndExecutable(void* address, const size_t size) {
@@ -841,10 +825,10 @@ void* OS::ReserveRegion(size_t size, void* hint) {
 
 void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
                                size_t* allocated) {
-  DCHECK_EQ(alignment % OS::AllocateAlignment(), 0);
+  DCHECK_EQ(alignment % OS::AllocatePageSize(), 0);
   hint = AlignedAddress(hint, alignment);
   size_t request_size =
-      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocateAlignment()));
+      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocatePageSize()));
   void* address = ReserveRegion(request_size, hint);
   if (address == nullptr) {
     *allocated = 0;

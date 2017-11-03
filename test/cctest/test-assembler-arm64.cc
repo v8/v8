@@ -174,15 +174,15 @@ static void InitializeVM() {
 
 #else  // ifdef USE_SIMULATOR.
 // Run the test on real hardware or models.
-#define SETUP_SIZE(buf_size)                                            \
-  Isolate* isolate = CcTest::i_isolate();                               \
-  HandleScope scope(isolate);                                           \
-  CHECK_NOT_NULL(isolate);                                              \
-  size_t actual_size;                                                   \
-  byte* buf = static_cast<byte*>(                                       \
-      v8::base::OS::Allocate(buf_size, &actual_size, true));            \
-  MacroAssembler masm(isolate, buf, static_cast<unsigned>(actual_size), \
-                      v8::internal::CodeObjectRequired::kYes);          \
+#define SETUP_SIZE(buf_size)                                                   \
+  Isolate* isolate = CcTest::i_isolate();                                      \
+  HandleScope scope(isolate);                                                  \
+  CHECK_NOT_NULL(isolate);                                                     \
+  size_t actual_size;                                                          \
+  byte* buf = static_cast<byte*>(v8::base::OS::Allocate(                       \
+      buf_size, &actual_size, base::OS::MemoryPermission::kReadWriteExecute)); \
+  MacroAssembler masm(isolate, buf, static_cast<unsigned>(actual_size),        \
+                      v8::internal::CodeObjectRequired::kYes);                 \
   RegisterDump core;
 
 #define RESET()                                                                \
@@ -15655,3 +15655,23 @@ TEST(internal_reference_linked) {
 
 }  // namespace internal
 }  // namespace v8
+
+#undef __
+#undef BUF_SIZE
+#undef SETUP
+#undef INIT_V8
+#undef SETUP_SIZE
+#undef RESET
+#undef START_AFTER_RESET
+#undef START
+#undef RUN
+#undef END
+#undef TEARDOWN
+#undef CHECK_EQUAL_NZCV
+#undef CHECK_EQUAL_REGISTERS
+#undef CHECK_EQUAL_32
+#undef CHECK_EQUAL_FP32
+#undef CHECK_EQUAL_64
+#undef CHECK_EQUAL_FP64
+#undef CHECK_EQUAL_128
+#undef CHECK_CONSTANT_POOL_SIZE

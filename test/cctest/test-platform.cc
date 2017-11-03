@@ -14,7 +14,7 @@ namespace internal {
 
 TEST(OSReserveMemory) {
   size_t mem_size = 0;
-  void* mem_addr = OS::ReserveAlignedRegion(1 * MB, OS::AllocateAlignment(),
+  void* mem_addr = OS::ReserveAlignedRegion(1 * MB, OS::AllocatePageSize(),
                                             OS::GetRandomMmapAddr(), &mem_size);
   CHECK_NE(0, mem_size);
   CHECK_NOT_NULL(mem_addr);
