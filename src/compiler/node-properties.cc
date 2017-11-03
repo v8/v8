@@ -365,12 +365,26 @@ NodeProperties::InferReceiverMapsResult NodeProperties::InferReceiverMaps(
     Node* receiver, Node* effect, ZoneHandleSet<Map>* maps_return) {
   HeapObjectMatcher m(receiver);
   if (m.HasValue()) {
-    Handle<Map> receiver_map(m.Value()->map());
-    if (receiver_map->is_stable()) {
-      // The {receiver_map} is only reliable when we install a stability
-      // code dependency.
-      *maps_return = ZoneHandleSet<Map>(receiver_map);
-      return kUnreliableReceiverMaps;
+    Handle<HeapObject> receiver = m.Value();
+    Isolate* const isolate = m.Value()->GetIsolate();
+    // We don't use ICs for the Array.prototype and the Object.prototype
+    // because the runtime has to be able to intercept them properly, so
+    // we better make sure that TurboFan doesn't outsmart the system here
+    // by storing to elements of either prototype directly.
+    //
+    // TODO(bmeurer): This can be removed once the Array.prototype and
+    // Object.prototype have NO_ELEMENTS elements kind.
+    if (!isolate->IsInAnyContext(*receiver,
+                                 Context::INITIAL_ARRAY_PROTOTYPE_INDEX) &&
+        !isolate->IsInAnyContext(*receiver,
+                                 Context::INITIAL_OBJECT_PROTOTYPE_INDEX)) {
+      Handle<Map> receiver_map(receiver->map(), isolate);
+      if (receiver_map->is_stable()) {
+        // The {receiver_map} is only reliable when we install a stability
+        // code dependency.
+        *maps_return = ZoneHandleSet<Map>(receiver_map);
+        return kUnreliableReceiverMaps;
+      }
     }
   }
   InferReceiverMapsResult result = kReliableReceiverMaps;
