@@ -530,14 +530,16 @@ MaybeHandle<BigInt> BigInt::FromObject(Isolate* isolate, Handle<Object> obj) {
   }
   if (obj->IsString()) {
     Handle<BigInt> n;
-    if (StringToBigInt(isolate, Handle<String>::cast(obj)).ToHandle(&n)) {
-      return n;
+    if (!StringToBigInt(isolate, Handle<String>::cast(obj)).ToHandle(&n)) {
+      THROW_NEW_ERROR(isolate,
+                      NewSyntaxError(MessageTemplate::kBigIntFromObject, obj),
+                      BigInt);
     }
-    // ... else fall through.
+    return n;
   }
 
   THROW_NEW_ERROR(
-      isolate, NewSyntaxError(MessageTemplate::kBigIntFromObject, obj), BigInt);
+      isolate, NewTypeError(MessageTemplate::kBigIntFromObject, obj), BigInt);
 }
 
 Handle<Object> BigInt::ToNumber(Handle<BigInt> x) {

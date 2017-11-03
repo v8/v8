@@ -22,8 +22,8 @@ const six = BigInt(6);
 
 // ToBigInt, NumberToBigInt, BigInt
 {
-  assertThrows(() => BigInt(undefined), SyntaxError);
-  assertThrows(() => BigInt(null), SyntaxError);
+  assertThrows(() => BigInt(undefined), TypeError);
+  assertThrows(() => BigInt(null), TypeError);
   assertThrows(() => BigInt({}), SyntaxError);
   assertThrows(() => BigInt("foo"), SyntaxError);
 }{
