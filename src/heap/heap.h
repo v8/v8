@@ -412,6 +412,8 @@ enum class FixedArrayVisitationMode { kRegular, kIncremental };
 
 enum class TraceRetainingPathMode { kEnabled, kDisabled };
 
+enum class RetainingPathOption { kDefault, kTrackEphemeralPath };
+
 enum class GarbageCollectionReason {
   kUnknown = 0,
   kAllocationFailure = 1,
@@ -1520,7 +1522,8 @@ class Heap {
   // Adds the given object to the weak table of retaining path targets.
   // On each GC if the marker discovers the object, it will print the retaining
   // path. This requires --track-retaining-path flag.
-  void AddRetainingPathTarget(Handle<HeapObject> object);
+  void AddRetainingPathTarget(Handle<HeapObject> object,
+                              RetainingPathOption option);
 
 // =============================================================================
 #ifdef VERIFY_HEAP
@@ -2211,9 +2214,12 @@ class Heap {
   // ===========================================================================
 
   void AddRetainer(HeapObject* retainer, HeapObject* object);
+  void AddEphemeralRetainer(HeapObject* retainer, HeapObject* object);
   void AddRetainingRoot(Root root, HeapObject* object);
-  bool IsRetainingPathTarget(HeapObject* object);
-  void PrintRetainingPath(HeapObject* object);
+  // Returns true if the given object is a target of retaining path tracking.
+  // Stores the option corresponding to the object in the provided *option.
+  bool IsRetainingPathTarget(HeapObject* object, RetainingPathOption* option);
+  void PrintRetainingPath(HeapObject* object, RetainingPathOption option);
 
   // The amount of external memory registered through the API.
   int64_t external_memory_;
@@ -2452,6 +2458,12 @@ class Heap {
 
   std::map<HeapObject*, HeapObject*> retainer_;
   std::map<HeapObject*, Root> retaining_root_;
+  // If an object is retained by an ephemeron, then the retaining key of the
+  // ephemeron is stored in this map.
+  std::map<HeapObject*, HeapObject*> ephemeral_retainer_;
+  // For each index inthe retaining_path_targets_ array this map
+  // stores the option of the corresponding target.
+  std::map<int, RetainingPathOption> retaining_path_target_option_;
 
   // Classes in "heap" can be friends.
   friend class AlwaysAllocateScope;

@@ -650,12 +650,25 @@ RUNTIME_FUNCTION(Runtime_DebugTrace) {
 
 RUNTIME_FUNCTION(Runtime_DebugTrackRetainingPath) {
   HandleScope scope(isolate);
-  DCHECK_EQ(1, args.length());
+  DCHECK_LE(1, args.length());
+  DCHECK_GE(2, args.length());
   if (!FLAG_track_retaining_path) {
     PrintF("DebugTrackRetainingPath requires --track-retaining-path flag.\n");
   } else {
     CONVERT_ARG_HANDLE_CHECKED(HeapObject, object, 0);
-    isolate->heap()->AddRetainingPathTarget(object);
+    RetainingPathOption option = RetainingPathOption::kDefault;
+    if (args.length() == 2) {
+      CONVERT_ARG_HANDLE_CHECKED(String, str, 1);
+      const char track_ephemeral_path[] = "track-ephemeral-path";
+      if (str->IsOneByteEqualTo(STATIC_CHAR_VECTOR(track_ephemeral_path))) {
+        option = RetainingPathOption::kTrackEphemeralPath;
+      } else if (str->length() != 0) {
+        PrintF("Unexpected second argument of DebugTrackRetainingPath.\n");
+        PrintF("Expected an empty string or '%s', got '%s'.\n",
+               track_ephemeral_path, str->ToCString().get());
+      }
+    }
+    isolate->heap()->AddRetainingPathTarget(object, option);
   }
   return isolate->heap()->undefined_value();
 }

@@ -583,7 +583,7 @@ namespace internal {
   F(SetAllocationTimeout, -1 /* 2 || 3 */, 1) \
   F(DebugPrint, 1, 1)                         \
   F(DebugTrace, 0, 1)                         \
-  F(DebugTrackRetainingPath, 1, 1)            \
+  F(DebugTrackRetainingPath, -1, 1)           \
   F(PrintWithNameForAssert, 2, 1)             \
   F(GetExceptionDetails, 1, 1)                \
   F(GlobalPrint, 1, 1)                        \

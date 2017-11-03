@@ -2889,6 +2889,11 @@ void MarkCompactCollector::ProcessWeakCollections() {
           RecordSlot(table, key_slot, *key_slot);
           Object** value_slot =
               table->RawFieldOfElementAt(ObjectHashTable::EntryToValueIndex(i));
+          if (V8_UNLIKELY(FLAG_track_retaining_path) &&
+              (*value_slot)->IsHeapObject()) {
+            heap()->AddEphemeralRetainer(heap_object,
+                                         HeapObject::cast(*value_slot));
+          }
           visitor.VisitPointer(table, value_slot);
         }
       }
