@@ -996,6 +996,12 @@ static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
   return key;
 }
 
+bool KeyedLoadIC::CanChangeToAllowOutOfBounds(Handle<Map> receiver_map) {
+  Handle<Object> handler;
+  return nexus()->FindHandlerForMap(receiver_map).ToHandle(&handler) &&
+         LoadHandler::GetKeyedAccessLoadMode(*handler) == STANDARD_LOAD;
+}
+
 void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
                                     KeyedAccessLoadMode load_mode) {
   Handle<Map> receiver_map(receiver->map(), isolate());
@@ -1041,12 +1047,11 @@ void KeyedLoadIC::UpdateLoadElement(Handle<HeapObject> receiver,
   // Determine the list of receiver maps that this call site has seen,
   // adding the map that was just encountered.
   if (!AddOneReceiverMapIfMissing(&target_receiver_maps, receiver_map)) {
-    // If the {receiver_map} is a primitive String map, we can only get
-    // here if the access was out of bounds (and the IC was not in that
-    // state already). In that case just go on and update the handler
-    // appropriately below.
-    if (!receiver_map->IsStringMap() ||
-        load_mode != LOAD_IGNORE_OUT_OF_BOUNDS) {
+    // If the {receiver_map} previously had a handler that didn't handle
+    // out-of-bounds access, but can generally handle it, we can just go
+    // on and update the handler appropriately below.
+    if (load_mode != LOAD_IGNORE_OUT_OF_BOUNDS ||
+        !CanChangeToAllowOutOfBounds(receiver_map)) {
       // If the miss wasn't due to an unseen map, a polymorphic stub
       // won't help, use the generic stub.
       TRACE_GENERIC_IC("same map added twice");
@@ -1103,7 +1108,7 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
   if (elements_kind == DICTIONARY_ELEMENTS) {
     TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
     return LoadHandler::LoadElement(isolate(), elements_kind, false,
-                                    is_js_array);
+                                    is_js_array, load_mode);
   }
   DCHECK(IsFastElementsKind(elements_kind) ||
          IsFixedTypedArrayElementsKind(elements_kind));
@@ -1114,7 +1119,8 @@ Handle<Object> KeyedLoadIC::LoadElementHandler(Handle<Map> receiver_map,
           isolate()->raw_native_context()->GetInitialJSArrayMap(elements_kind);
   TRACE_HANDLER_STATS(isolate(), KeyedLoadIC_LoadElementDH);
   return LoadHandler::LoadElement(isolate(), elements_kind,
-                                  convert_hole_to_undefined, is_js_array);
+                                  convert_hole_to_undefined, is_js_array,
+                                  load_mode);
 }
 
 void KeyedLoadIC::LoadElementPolymorphicHandlers(
@@ -1149,17 +1155,42 @@ bool IsOutOfBoundsAccess(Handle<Object> receiver, uint32_t index) {
     JSArray::cast(*receiver)->length()->ToArrayLength(&length);
   } else if (receiver->IsString()) {
     length = String::cast(*receiver)->length();
-  } else {
+  } else if (receiver->IsJSObject()) {
     length = JSObject::cast(*receiver)->elements()->length();
+  } else {
+    return false;
   }
   return index >= length;
 }
 
 KeyedAccessLoadMode GetLoadMode(Handle<Object> receiver, uint32_t index) {
-  if (receiver->IsString() && IsOutOfBoundsAccess(receiver, index)) {
-    Isolate* isolate = Handle<String>::cast(receiver)->GetIsolate();
-    if (isolate->IsFastArrayConstructorPrototypeChainIntact()) {
+  if (IsOutOfBoundsAccess(receiver, index)) {
+    if (receiver->IsJSTypedArray()) {
+      // For JSTypedArray we never lookup elements in the prototype chain.
       return LOAD_IGNORE_OUT_OF_BOUNDS;
+    }
+
+    // For other {receiver}s we need to check the "no elements" protector.
+    Isolate* isolate = Handle<HeapObject>::cast(receiver)->GetIsolate();
+    if (isolate->IsFastArrayConstructorPrototypeChainIntact()) {
+      if (receiver->IsString()) {
+        // ToObject(receiver) will have the initial String.prototype.
+        return LOAD_IGNORE_OUT_OF_BOUNDS;
+      }
+      if (receiver->IsJSObject()) {
+        // For other JSObjects (including JSArrays) we can only continue if
+        // the {receiver}s prototype is either the initial Object.prototype
+        // or the initial Array.prototype, which are both guarded by the
+        // "no elements" protector checked above.
+        Handle<Object> receiver_prototype(
+            JSObject::cast(*receiver)->map()->prototype(), isolate);
+        if (isolate->IsInAnyContext(*receiver_prototype,
+                                    Context::INITIAL_ARRAY_PROTOTYPE_INDEX) ||
+            isolate->IsInAnyContext(*receiver_prototype,
+                                    Context::INITIAL_OBJECT_PROTOTYPE_INDEX)) {
+          return LOAD_IGNORE_OUT_OF_BOUNDS;
+        }
+      }
     }
   }
   return STANDARD_LOAD;

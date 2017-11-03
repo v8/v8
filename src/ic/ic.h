@@ -300,6 +300,11 @@ class KeyedLoadIC : public LoadIC {
   void LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
                                       ObjectHandles* handlers,
                                       KeyedAccessLoadMode load_mode);
+
+  // Returns true if the receiver_map has a kElement or kIndexedString
+  // handler in the nexus currently but didn't yet allow out of bounds
+  // accesses.
+  bool CanChangeToAllowOutOfBounds(Handle<Map> receiver_map);
 };
 
 

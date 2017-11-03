@@ -230,12 +230,12 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
         IsSetWord<LoadHandler::IsJsArrayBits>(handler_word);
     Node* elements_kind =
         DecodeWord32FromWord<LoadHandler::ElementsKindBits>(handler_word);
-    Label if_hole(this), unimplemented_elements_kind(this);
-    Label* out_of_bounds = miss;
+    Label if_hole(this), unimplemented_elements_kind(this),
+        if_oob(this, Label::kDeferred);
     EmitElementLoad(holder, elements, elements_kind, intptr_index,
                     is_jsarray_condition, &if_hole, &rebox_double,
-                    &var_double_value, &unimplemented_elements_kind,
-                    out_of_bounds, miss, exit_point);
+                    &var_double_value, &unimplemented_elements_kind, &if_oob,
+                    miss, exit_point);
 
     BIND(&unimplemented_elements_kind);
     {
@@ -243,6 +243,28 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       // Crash if we get here.
       DebugBreak();
       Goto(miss);
+    }
+
+    BIND(&if_oob);
+    {
+      Comment("out of bounds elements access");
+      Label return_undefined(this);
+
+      // Check if we're allowed to handle OOB accesses.
+      Node* allow_out_of_bounds =
+          IsSetWord<LoadHandler::AllowOutOfBoundsBits>(handler_word);
+      GotoIfNot(allow_out_of_bounds, miss);
+
+      // For typed arrays we never lookup elements in the prototype chain.
+      GotoIf(IsJSTypedArray(holder), &return_undefined);
+
+      // For all other receivers we need to check that the prototype chain
+      // doesn't contain any elements.
+      BranchIfPrototypesHaveNoElements(LoadMap(holder), &return_undefined,
+                                       miss);
+
+      BIND(&return_undefined);
+      exit_point->Return(UndefinedConstant());
     }
 
     BIND(&if_hole);

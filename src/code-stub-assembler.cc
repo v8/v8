@@ -805,18 +805,35 @@ void CodeStubAssembler::BranchIfPrototypesHaveNoElements(
     Node* prototype = LoadMapPrototype(map);
     GotoIf(IsNull(prototype), definitely_no_elements);
     Node* prototype_map = LoadMap(prototype);
+    Node* prototype_instance_type = LoadMapInstanceType(prototype_map);
+
     // Pessimistically assume elements if a Proxy, Special API Object,
     // or JSValue wrapper is found on the prototype chain. After this
     // instance type check, it's not necessary to check for interceptors or
     // access checks.
-    GotoIf(Int32LessThanOrEqual(LoadMapInstanceType(prototype_map),
+    Label if_custom(this, Label::kDeferred), if_notcustom(this);
+    Branch(Int32LessThanOrEqual(prototype_instance_type,
                                 Int32Constant(LAST_CUSTOM_ELEMENTS_RECEIVER)),
-           possibly_elements);
-    Node* prototype_elements = LoadElements(prototype);
-    var_map.Bind(prototype_map);
-    GotoIf(WordEqual(prototype_elements, empty_fixed_array), &loop_body);
-    Branch(WordEqual(prototype_elements, empty_slow_element_dictionary),
-           &loop_body, possibly_elements);
+           &if_custom, &if_notcustom);
+
+    BIND(&if_custom);
+    {
+      // For string JSValue wrappers we still support the checks as long
+      // as they wrap the empty string.
+      GotoIfNot(InstanceTypeEqual(prototype_instance_type, JS_VALUE_TYPE),
+                possibly_elements);
+      Node* prototype_value = LoadJSValueValue(prototype);
+      Branch(IsEmptyString(prototype_value), &if_notcustom, possibly_elements);
+    }
+
+    BIND(&if_notcustom);
+    {
+      Node* prototype_elements = LoadElements(prototype);
+      var_map.Bind(prototype_map);
+      GotoIf(WordEqual(prototype_elements, empty_fixed_array), &loop_body);
+      Branch(WordEqual(prototype_elements, empty_slow_element_dictionary),
+             &loop_body, possibly_elements);
+    }
   }
 }
 

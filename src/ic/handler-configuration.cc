@@ -210,6 +210,20 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
 }
 
 // static
+KeyedAccessLoadMode LoadHandler::GetKeyedAccessLoadMode(Object* handler) {
+  DisallowHeapAllocation no_gc;
+  if (handler->IsSmi()) {
+    int const raw_handler = Smi::cast(handler)->value();
+    Kind const kind = KindBits::decode(raw_handler);
+    if ((kind == kElement || kind == kIndexedString) &&
+        AllowOutOfBoundsBits::decode(raw_handler)) {
+      return LOAD_IGNORE_OUT_OF_BOUNDS;
+    }
+  }
+  return STANDARD_LOAD;
+}
+
+// static
 Handle<Object> StoreHandler::StoreElementTransition(
     Isolate* isolate, Handle<Map> receiver_map, Handle<Map> transition,
     KeyedAccessStoreMode store_mode) {

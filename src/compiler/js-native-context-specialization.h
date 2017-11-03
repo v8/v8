@@ -153,12 +153,10 @@ class JSNativeContextSpecialization final : public AdvancedReducer {
                       Handle<FunctionTemplateInfo> function_template_info);
 
   // Construct the appropriate subgraph for element access.
-  ValueEffectControl BuildElementAccess(Node* receiver, Node* index,
-                                        Node* value, Node* effect,
-                                        Node* control,
-                                        ElementAccessInfo const& access_info,
-                                        AccessMode access_mode,
-                                        KeyedAccessStoreMode store_mode);
+  ValueEffectControl BuildElementAccess(
+      Node* receiver, Node* index, Node* value, Node* effect, Node* control,
+      ElementAccessInfo const& access_info, AccessMode access_mode,
+      KeyedAccessLoadMode load_mode, KeyedAccessStoreMode store_mode);
 
   // Construct appropriate subgraph to load from a String.
   Node* BuildIndexedStringLoad(Node* receiver, Node* index, Node* length,

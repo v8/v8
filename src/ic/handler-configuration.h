@@ -70,19 +70,20 @@ class LoadHandler {
   STATIC_ASSERT(FieldOffsetBits::kNext <= kSmiValueSize);
 
   //
+  // Encoding when KindBits contains kElement or kIndexedString.
+  //
+  class AllowOutOfBoundsBits : public BitField<bool, KindBits::kNext, 1> {};
+
+  //
   // Encoding when KindBits contains kElement.
   //
-  class IsJsArrayBits : public BitField<bool, KindBits::kNext, 1> {};
+  class IsJsArrayBits : public BitField<bool, AllowOutOfBoundsBits::kNext, 1> {
+  };
   class ConvertHoleBits : public BitField<bool, IsJsArrayBits::kNext, 1> {};
   class ElementsKindBits
       : public BitField<ElementsKind, ConvertHoleBits::kNext, 8> {};
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(ElementsKindBits::kNext <= kSmiValueSize);
-
-  //
-  // Encoding when KindBits contains kIndexedString.
-  //
-  class AllowOutOfBoundsBits : public BitField<bool, KindBits::kNext, 1> {};
 
   //
   // Encoding when KindBits contains kModuleExport.
@@ -163,11 +164,15 @@ class LoadHandler {
   static inline Handle<Smi> LoadElement(Isolate* isolate,
                                         ElementsKind elements_kind,
                                         bool convert_hole_to_undefined,
-                                        bool is_js_array);
+                                        bool is_js_array,
+                                        KeyedAccessLoadMode load_mode);
 
   // Creates a Smi-handler for loading from a String.
   static inline Handle<Smi> LoadIndexedString(Isolate* isolate,
-                                              bool allow_out_of_bounds);
+                                              KeyedAccessLoadMode load_mode);
+
+  // Decodes the KeyedAccessLoadMode from a {handler}.
+  static KeyedAccessLoadMode GetKeyedAccessLoadMode(Object* handler);
 
  private:
   // Sets DoAccessCheckOnReceiverBits in given Smi-handler. The receiver
