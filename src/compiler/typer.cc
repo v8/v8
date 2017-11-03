@@ -289,6 +289,7 @@ class Typer::Visitor : public Reducer {
 
   static Type* ObjectIsArrayBufferView(Type*, Typer*);
   static Type* ObjectIsCallable(Type*, Typer*);
+  static Type* ObjectIsConstructor(Type*, Typer*);
   static Type* ObjectIsDetectableCallable(Type*, Typer*);
   static Type* ObjectIsMinusZero(Type*, Typer*);
   static Type* ObjectIsNaN(Type*, Typer*);
@@ -519,6 +520,12 @@ Type* Typer::Visitor::ObjectIsArrayBufferView(Type* type, Typer* t) {
 
 Type* Typer::Visitor::ObjectIsCallable(Type* type, Typer* t) {
   if (type->Is(Type::Callable())) return t->singleton_true_;
+  if (!type->Maybe(Type::Callable())) return t->singleton_false_;
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::ObjectIsConstructor(Type* type, Typer* t) {
+  // TODO(turbofan): Introduce a Type::Constructor?
   if (!type->Maybe(Type::Callable())) return t->singleton_false_;
   return Type::Boolean();
 }
@@ -1984,6 +1991,10 @@ Type* Typer::Visitor::TypeObjectIsArrayBufferView(Node* node) {
 
 Type* Typer::Visitor::TypeObjectIsCallable(Node* node) {
   return TypeUnaryOp(node, ObjectIsCallable);
+}
+
+Type* Typer::Visitor::TypeObjectIsConstructor(Node* node) {
+  return TypeUnaryOp(node, ObjectIsConstructor);
 }
 
 Type* Typer::Visitor::TypeObjectIsDetectableCallable(Node* node) {

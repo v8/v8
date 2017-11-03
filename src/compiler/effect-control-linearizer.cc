@@ -718,6 +718,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kObjectIsCallable:
       result = LowerObjectIsCallable(node);
       break;
+    case IrOpcode::kObjectIsConstructor:
+      result = LowerObjectIsConstructor(node);
+      break;
     case IrOpcode::kObjectIsDetectableCallable:
       result = LowerObjectIsDetectableCallable(node);
       break;
@@ -1922,6 +1925,31 @@ Node* EffectControlLinearizer::LowerObjectIsCallable(Node* node) {
   Node* vfalse = __ Word32Equal(
       __ Int32Constant(1 << Map::kIsCallable),
       __ Word32And(value_bit_field, __ Int32Constant(1 << Map::kIsCallable)));
+  __ Goto(&done, vfalse);
+
+  __ Bind(&if_smi);
+  __ Goto(&done, __ Int32Constant(0));
+
+  __ Bind(&done);
+  return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerObjectIsConstructor(Node* node) {
+  Node* value = node->InputAt(0);
+
+  auto if_smi = __ MakeDeferredLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kBit);
+
+  Node* check = ObjectIsSmi(value);
+  __ GotoIf(check, &if_smi);
+
+  Node* value_map = __ LoadField(AccessBuilder::ForMap(), value);
+  Node* value_bit_field =
+      __ LoadField(AccessBuilder::ForMapBitField(), value_map);
+  Node* vfalse =
+      __ Word32Equal(__ Int32Constant(1 << Map::kIsConstructor),
+                     __ Word32And(value_bit_field,
+                                  __ Int32Constant(1 << Map::kIsConstructor)));
   __ Goto(&done, vfalse);
 
   __ Bind(&if_smi);

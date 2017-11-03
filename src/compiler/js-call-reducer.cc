@@ -1298,6 +1298,56 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   } else {
     NodeProperties::ChangeOp(
         node, javascript()->Construct(arity + 2, frequency, feedback));
+    Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
+    Node* frame_state = NodeProperties::GetFrameStateInput(node);
+    Node* context = NodeProperties::GetContextInput(node);
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+
+    // Check whether the given new target value is a constructor function. The
+    // replacement {JSConstruct} operator only checks the passed target value
+    // but relies on the new target value to be implicitly valid.
+    Node* check =
+        graph()->NewNode(simplified()->ObjectIsConstructor(), new_target);
+    Node* check_branch =
+        graph()->NewNode(common()->Branch(BranchHint::kTrue), check, control);
+    Node* check_fail = graph()->NewNode(common()->IfFalse(), check_branch);
+    Node* check_throw = check_fail =
+        graph()->NewNode(javascript()->CallRuntime(Runtime::kThrowTypeError, 2),
+                         jsgraph()->Constant(MessageTemplate::kNotConstructor),
+                         new_target, context, frame_state, effect, check_fail);
+    control = graph()->NewNode(common()->IfTrue(), check_branch);
+    NodeProperties::ReplaceControlInput(node, control);
+
+    // Rewire potential exception edges.
+    Node* on_exception = nullptr;
+    if (NodeProperties::IsExceptionalCall(node, &on_exception)) {
+      // Create appropriate {IfException}  and {IfSuccess} nodes.
+      Node* if_exception =
+          graph()->NewNode(common()->IfException(), check_throw, check_fail);
+      check_fail = graph()->NewNode(common()->IfSuccess(), check_fail);
+
+      // Join the exception edges.
+      Node* merge =
+          graph()->NewNode(common()->Merge(2), if_exception, on_exception);
+      Node* ephi = graph()->NewNode(common()->EffectPhi(2), if_exception,
+                                    on_exception, merge);
+      Node* phi =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           if_exception, on_exception, merge);
+      ReplaceWithValue(on_exception, phi, ephi, merge);
+      merge->ReplaceInput(1, on_exception);
+      ephi->ReplaceInput(1, on_exception);
+      phi->ReplaceInput(1, on_exception);
+    }
+
+    // The above %ThrowTypeError runtime call is an unconditional throw, making
+    // it impossible to return a successful completion in this case. We simply
+    // connect the successful completion to the graph end.
+    Node* terminate =
+        graph()->NewNode(common()->Throw(), check_throw, check_fail);
+    NodeProperties::MergeControlToEnd(graph(), common(), terminate);
+
     Reduction const reduction = ReduceJSConstruct(node);
     return reduction.Changed() ? reduction : Changed(node);
   }

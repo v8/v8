@@ -2683,6 +2683,11 @@ class RepresentationSelector {
         VisitObjectIs(node, Type::Callable(), lowering);
         return;
       }
+      case IrOpcode::kObjectIsConstructor: {
+        // TODO(turbofan): Introduce a Type::Constructor?
+        VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
+        return;
+      }
       case IrOpcode::kObjectIsDetectableCallable: {
         VisitObjectIs(node, Type::DetectableCallable(), lowering);
         return;

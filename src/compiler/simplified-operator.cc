@@ -501,6 +501,7 @@ BailoutReason BailoutReasonOf(const Operator* op) {
   V(TruncateTaggedToFloat64, Operator::kNoProperties, 1, 0)      \
   V(ObjectIsArrayBufferView, Operator::kNoProperties, 1, 0)      \
   V(ObjectIsCallable, Operator::kNoProperties, 1, 0)             \
+  V(ObjectIsConstructor, Operator::kNoProperties, 1, 0)          \
   V(ObjectIsDetectableCallable, Operator::kNoProperties, 1, 0)   \
   V(ObjectIsMinusZero, Operator::kNoProperties, 1, 0)            \
   V(ObjectIsNaN, Operator::kNoProperties, 1, 0)                  \
