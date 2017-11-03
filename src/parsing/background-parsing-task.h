@@ -10,6 +10,7 @@
 #include "include/v8.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/semaphore.h"
+#include "src/compiler.h"
 #include "src/parsing/parse-info.h"
 #include "src/unicode-cache.h"
 
@@ -41,6 +42,10 @@ struct StreamedSource {
   std::unique_ptr<ParseInfo> info;
   std::unique_ptr<Parser> parser;
 
+  // Data needed for finalizing compilation after background compilation.
+  std::unique_ptr<CompilationJob> outer_function_job;
+  CompilationJobList inner_function_jobs;
+
   // Prevent copying.
   StreamedSource(const StreamedSource&) = delete;
   StreamedSource& operator=(const StreamedSource&) = delete;
@@ -58,7 +63,9 @@ class BackgroundParsingTask : public ScriptCompiler::ScriptStreamingTask {
   StreamedSource* source_;  // Not owned.
   int stack_size_;
   ScriptData* script_data_;
+  Isolate* isolate_;
 };
+
 }  // namespace internal
 }  // namespace v8
 

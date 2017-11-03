@@ -81,6 +81,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kIsAsmWasmBroken, is_asm_wasm_broken, set_asm_wasm_broken)
   FLAG_ACCESSOR(kBlockCoverageEnabled, block_coverage_enabled,
                 set_block_coverage_enabled)
+  FLAG_ACCESSOR(kOnBackgroundThread, on_background_thread,
+                set_on_background_thread)
 #undef FLAG_ACCESSOR
 
   void set_parse_restriction(ParseRestriction restriction) {
@@ -254,6 +256,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kCollectTypeProfile = 1 << 11,
     kBlockCoverageEnabled = 1 << 12,
     kIsAsmWasmBroken = 1 << 13,
+    kOnBackgroundThread = 1 << 14,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
