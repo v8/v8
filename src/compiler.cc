@@ -379,10 +379,11 @@ bool Renumber(ParseInfo* parse_info,
 }
 
 std::unique_ptr<CompilationJob> PrepareAndExecuteUnoptimizedCompileJob(
-    ParseInfo* parse_info, FunctionLiteral* literal, Isolate* isolate) {
+    ParseInfo* parse_info, FunctionLiteral* literal,
+    AccountingAllocator* allocator) {
   if (UseAsmWasm(literal, parse_info->is_asm_wasm_broken())) {
     std::unique_ptr<CompilationJob> asm_job(
-        AsmJs::NewCompilationJob(parse_info, literal, isolate->allocator()));
+        AsmJs::NewCompilationJob(parse_info, literal, allocator));
     if (asm_job->ExecuteJob() == CompilationJob::SUCCEEDED) {
       return asm_job;
     }
@@ -394,7 +395,7 @@ std::unique_ptr<CompilationJob> PrepareAndExecuteUnoptimizedCompileJob(
   }
   std::unique_ptr<CompilationJob> job(
       interpreter::Interpreter::NewCompilationJob(parse_info, literal,
-                                                  isolate->allocator()));
+                                                  allocator));
 
   if (job->ExecuteJob() == CompilationJob::SUCCEEDED) {
     return job;
@@ -402,17 +403,13 @@ std::unique_ptr<CompilationJob> PrepareAndExecuteUnoptimizedCompileJob(
   return std::unique_ptr<CompilationJob>();  // Compilation failed, return null.
 }
 
-// TODO(rmcilroy): Remove |isolate| once CompilationJob doesn't need it.
 std::unique_ptr<CompilationJob> GenerateUnoptimizedCode(
-    ParseInfo* parse_info, Isolate* isolate,
+    ParseInfo* parse_info, AccountingAllocator* allocator,
     CompilationJobList* inner_function_jobs) {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
   DCHECK(inner_function_jobs->empty());
-
-  DCHECK_IMPLIES(parse_info->consumed_preparsed_scope_data()->HasData(),
-                 ThreadId::Current().Equals(isolate->thread_id()));
 
   Compiler::EagerInnerFunctionLiterals inner_literals;
   if (!Compiler::Analyze(parse_info, &inner_literals)) {
@@ -422,7 +419,7 @@ std::unique_ptr<CompilationJob> GenerateUnoptimizedCode(
   // Prepare and execute compilation of the outer-most function.
   std::unique_ptr<CompilationJob> outer_function_job(
       PrepareAndExecuteUnoptimizedCompileJob(parse_info, parse_info->literal(),
-                                             isolate));
+                                             allocator));
   if (!outer_function_job) return std::unique_ptr<CompilationJob>();
 
   // Prepare and execute compilation jobs for eager inner functions.
@@ -430,7 +427,7 @@ std::unique_ptr<CompilationJob> GenerateUnoptimizedCode(
     FunctionLiteral* inner_literal = it->value();
     std::unique_ptr<CompilationJob> inner_job(
         PrepareAndExecuteUnoptimizedCompileJob(parse_info, inner_literal,
-                                               isolate));
+                                               allocator));
     if (!inner_job) return std::unique_ptr<CompilationJob>();
     inner_function_jobs->emplace_front(std::move(inner_job));
   }
@@ -804,6 +801,8 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(ParseInfo* parse_info,
                                                 Isolate* isolate) {
   TimerEventScope<TimerEventCompileCode> top_level_timer(isolate);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
+  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
+
   PostponeInterruptsScope postpone(isolate);
   DCHECK(!isolate->native_context().is_null());
   RuntimeCallTimerScope runtimeTimer(
@@ -826,8 +825,8 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(ParseInfo* parse_info,
 
   // Generate the unoptimized bytecode or asm-js data.
   CompilationJobList inner_function_jobs;
-  std::unique_ptr<CompilationJob> outer_function_job(
-      GenerateUnoptimizedCode(parse_info, isolate, &inner_function_jobs));
+  std::unique_ptr<CompilationJob> outer_function_job(GenerateUnoptimizedCode(
+      parse_info, isolate->allocator(), &inner_function_jobs));
   if (!outer_function_job) {
     if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return MaybeHandle<SharedFunctionInfo>();
@@ -881,6 +880,7 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
   DCHECK(!shared_info->is_compiled());
 
   Isolate* isolate = shared_info->GetIsolate();
+  DCHECK(ThreadId::Current().Equals(isolate->thread_id()));
   DCHECK(!isolate->has_pending_exception());
   DCHECK(!shared_info->HasBytecodeArray());
   VMState<BYTECODE_COMPILER> state(isolate);
@@ -921,8 +921,8 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
 
   // Generate the unoptimized bytecode or asm-js data.
   CompilationJobList inner_function_jobs;
-  std::unique_ptr<CompilationJob> outer_function_job(
-      GenerateUnoptimizedCode(&parse_info, isolate, &inner_function_jobs));
+  std::unique_ptr<CompilationJob> outer_function_job(GenerateUnoptimizedCode(
+      &parse_info, isolate->allocator(), &inner_function_jobs));
   if (!outer_function_job) {
     return FailWithPendingException(isolate, flag);
   }
@@ -1591,12 +1591,11 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
 }
 
 std::unique_ptr<CompilationJob> Compiler::CompileTopLevelOnBackgroundThread(
-    ParseInfo* parse_info, Isolate* isolate,
+    ParseInfo* parse_info, AccountingAllocator* allocator,
     CompilationJobList* inner_function_jobs) {
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
-  TimerEventScope<TimerEventCompileCode> top_level_timer(isolate);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.CompileCodeBackground");
   RuntimeCallTimerScope runtimeTimer(
@@ -1608,9 +1607,12 @@ std::unique_ptr<CompilationJob> Compiler::CompileTopLevelOnBackgroundThread(
   parse_info->set_language_mode(
       stricter_language_mode(parse_info->language_mode(), language_mode));
 
+  // Can't access scope info data off-main-thread.
+  DCHECK(!parse_info->consumed_preparsed_scope_data()->HasData());
+
   // Generate the unoptimized bytecode or asm-js data.
   std::unique_ptr<CompilationJob> outer_function_job(
-      GenerateUnoptimizedCode(parse_info, isolate, inner_function_jobs));
+      GenerateUnoptimizedCode(parse_info, allocator, inner_function_jobs));
   return outer_function_job;
 }
 

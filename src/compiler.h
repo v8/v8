@@ -60,7 +60,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Compile top level code on a background thread. Should be finalized by
   // GetSharedFunctionInfoForBackgroundCompile.
   static std::unique_ptr<CompilationJob> CompileTopLevelOnBackgroundThread(
-      ParseInfo* parse_info, Isolate* isolate,
+      ParseInfo* parse_info, AccountingAllocator* allocator,
       CompilationJobList* inner_function_jobs);
 
   // Generate and install code from previously queued compilation job.

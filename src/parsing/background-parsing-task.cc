@@ -57,7 +57,7 @@ BackgroundParsingTask::BackgroundParsingTask(
       stricter_language_mode(info->language_mode(), language_mode));
 
   source->info.reset(info);
-  isolate_ = isolate;
+  allocator_ = isolate->allocator();
 
   // Parser needs to stay alive for finalizing the parsing on the main
   // thread.
@@ -84,7 +84,7 @@ void BackgroundParsingTask::Run() {
   if (FLAG_background_compile && source_->info->literal() != nullptr) {
     // Parsing has succeeded, compile.
     source_->outer_function_job = Compiler::CompileTopLevelOnBackgroundThread(
-        source_->info.get(), isolate_, &source_->inner_function_jobs);
+        source_->info.get(), allocator_, &source_->inner_function_jobs);
   }
 
   if (script_data_ != nullptr) {
