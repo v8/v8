@@ -28,8 +28,6 @@
 #ifndef V8_AST_AST_VALUE_FACTORY_H_
 #define V8_AST_AST_VALUE_FACTORY_H_
 
-#include <forward_list>
-
 #include "src/base/hashmap.h"
 #include "src/conversions.h"
 #include "src/factory.h"
@@ -152,8 +150,6 @@ class AstConsString final : public ZoneObject {
     DCHECK_NOT_NULL(string_);
     return Handle<String>(string_);
   }
-
-  std::forward_list<const AstRawString*> ToRawStrings() const;
 
  private:
   friend class AstValueFactory;

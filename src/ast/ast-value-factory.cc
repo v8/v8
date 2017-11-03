@@ -168,20 +168,6 @@ void AstConsString::Internalize(Isolate* isolate) {
   set_string(tmp);
 }
 
-std::forward_list<const AstRawString*> AstConsString::ToRawStrings() const {
-  std::forward_list<const AstRawString*> result;
-  if (IsEmpty()) {
-    return result;
-  }
-
-  result.emplace_front(segment_.string);
-  for (AstConsString::Segment* current = segment_.next; current != nullptr;
-       current = current->next) {
-    result.emplace_front(current->string);
-  }
-  return result;
-}
-
 AstStringConstants::AstStringConstants(Isolate* isolate, uint32_t hash_seed)
     : zone_(isolate->allocator(), ZONE_NAME),
       string_table_(AstRawString::Compare),

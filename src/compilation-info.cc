@@ -130,7 +130,8 @@ bool CompilationInfo::has_simple_parameters() {
 
 std::unique_ptr<char[]> CompilationInfo::GetDebugName() const {
   if (literal()) {
-    return literal()->GetDebugName();
+    AllowHandleDereference allow_deref;
+    return literal()->debug_name()->ToCString();
   }
   if (!shared_info().is_null()) {
     return shared_info()->DebugName()->ToCString();
