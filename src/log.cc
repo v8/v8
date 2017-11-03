@@ -562,8 +562,8 @@ class Profiler: public base::Thread {
   virtual void Run();
 
   // Pause and Resume TickSample data collection.
-  void pause() { paused_ = true; }
-  void resume() { paused_ = false; }
+  void Pause() { paused_ = true; }
+  void Resume() { paused_ = false; }
 
  private:
   // Waits for a signal and removes profiling data.
@@ -588,7 +588,7 @@ class Profiler: public base::Thread {
   int head_;  // Index to the buffer head.
   base::Atomic32 tail_;             // Index to the buffer tail.
   bool overflow_;  // Tell whether a buffer overflow has occurred.
-  // Sempahore used for buffer synchronization.
+  // Semaphore used for buffer synchronization.
   base::Semaphore buffer_semaphore_;
 
   // Tells whether profiler is engaged, that is, processing thread is stated.
@@ -646,9 +646,8 @@ class Ticker: public sampler::Sampler {
   SamplingThread* sampling_thread_;
 };
 
-
 //
-// Profiler implementation.
+// Profiler implementation when invoking with --prof.
 //
 Profiler::Profiler(Isolate* isolate)
     : base::Thread(Options("v8:Profiler")),
@@ -699,7 +698,7 @@ void Profiler::Disengage() {
   base::Relaxed_Store(&running_, 0);
   v8::TickSample sample;
   // Reset 'paused_' flag, otherwise semaphore may not be signalled.
-  resume();
+  Resume();
   Insert(&sample);
   Join();
 
@@ -1458,7 +1457,7 @@ void Logger::MapDetails(Map* map) {
 void Logger::StopProfiler() {
   if (!log_->IsEnabled()) return;
   if (profiler_ != nullptr) {
-    profiler_->pause();
+    profiler_->Pause();
     is_logging_ = false;
     removeCodeEventListener(this);
   }
