@@ -52,10 +52,10 @@ T CompareExchange(T initial, T a, T b) {
   return a;
 }
 
-void RunU32BinOp(WasmExecutionMode mode, WasmOpcode wasm_op,
+void RunU32BinOp(WasmExecutionMode execution_mode, WasmOpcode wasm_op,
                  Uint32BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t, uint32_t> r(mode);
+  WasmRunner<uint32_t, uint32_t> r(execution_mode);
   uint32_t* memory = r.builder().AddMemoryElems<uint32_t>(8);
   r.builder().SetHasSharedMemory();
 
@@ -73,22 +73,22 @@ void RunU32BinOp(WasmExecutionMode mode, WasmOpcode wasm_op,
   }
 }
 
-WASM_COMPILED_EXEC_TEST(I32AtomicAdd) {
+WASM_EXEC_TEST(I32AtomicAdd) {
   RunU32BinOp(execution_mode, kExprI32AtomicAdd, Add);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicSub) {
+WASM_EXEC_TEST(I32AtomicSub) {
   RunU32BinOp(execution_mode, kExprI32AtomicSub, Sub);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicAnd) {
+WASM_EXEC_TEST(I32AtomicAnd) {
   RunU32BinOp(execution_mode, kExprI32AtomicAnd, And);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicOr) {
+WASM_EXEC_TEST(I32AtomicOr) {
   RunU32BinOp(execution_mode, kExprI32AtomicOr, Or);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicXor) {
+WASM_EXEC_TEST(I32AtomicXor) {
   RunU32BinOp(execution_mode, kExprI32AtomicXor, Xor);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicExchange) {
+WASM_EXEC_TEST(I32AtomicExchange) {
   RunU32BinOp(execution_mode, kExprI32AtomicExchange, Exchange);
 }
 
@@ -113,29 +113,29 @@ void RunU16BinOp(WasmExecutionMode mode, WasmOpcode wasm_op,
   }
 }
 
-WASM_COMPILED_EXEC_TEST(I32AtomicAdd16U) {
+WASM_EXEC_TEST(I32AtomicAdd16U) {
   RunU16BinOp(execution_mode, kExprI32AtomicAdd16U, Add);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicSub16U) {
+WASM_EXEC_TEST(I32AtomicSub16U) {
   RunU16BinOp(execution_mode, kExprI32AtomicSub16U, Sub);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicAnd16U) {
+WASM_EXEC_TEST(I32AtomicAnd16U) {
   RunU16BinOp(execution_mode, kExprI32AtomicAnd16U, And);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicOr16U) {
+WASM_EXEC_TEST(I32AtomicOr16U) {
   RunU16BinOp(execution_mode, kExprI32AtomicOr16U, Or);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicXor16U) {
+WASM_EXEC_TEST(I32AtomicXor16U) {
   RunU16BinOp(execution_mode, kExprI32AtomicXor16U, Xor);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicExchange16U) {
+WASM_EXEC_TEST(I32AtomicExchange16U) {
   RunU16BinOp(execution_mode, kExprI32AtomicExchange16U, Exchange);
 }
 
-void RunU8BinOp(WasmExecutionMode mode, WasmOpcode wasm_op,
+void RunU8BinOp(WasmExecutionMode execution_mode, WasmOpcode wasm_op,
                 Uint8BinOp expected_op) {
   EXPERIMENTAL_FLAG_SCOPE(threads);
-  WasmRunner<uint32_t, uint32_t> r(mode);
+  WasmRunner<uint32_t, uint32_t> r(execution_mode);
   r.builder().SetHasSharedMemory();
   uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(8);
 
@@ -153,22 +153,22 @@ void RunU8BinOp(WasmExecutionMode mode, WasmOpcode wasm_op,
   }
 }
 
-WASM_COMPILED_EXEC_TEST(I32AtomicAdd8U) {
+WASM_EXEC_TEST(I32AtomicAdd8U) {
   RunU8BinOp(execution_mode, kExprI32AtomicAdd8U, Add);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicSub8U) {
+WASM_EXEC_TEST(I32AtomicSub8U) {
   RunU8BinOp(execution_mode, kExprI32AtomicSub8U, Sub);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicAnd8U) {
+WASM_EXEC_TEST(I32AtomicAnd8U) {
   RunU8BinOp(execution_mode, kExprI32AtomicAnd8U, And);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicOr8U) {
+WASM_EXEC_TEST(I32AtomicOr8U) {
   RunU8BinOp(execution_mode, kExprI32AtomicOr8U, Or);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicXor8U) {
+WASM_EXEC_TEST(I32AtomicXor8U) {
   RunU8BinOp(execution_mode, kExprI32AtomicXor8U, Xor);
 }
-WASM_COMPILED_EXEC_TEST(I32AtomicExchange8U) {
+WASM_EXEC_TEST(I32AtomicExchange8U) {
   RunU8BinOp(execution_mode, kExprI32AtomicExchange8U, Exchange);
 }
 

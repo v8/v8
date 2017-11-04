@@ -405,6 +405,9 @@ FunctionSig* WasmOpcodes::Signature(WasmOpcode opcode) {
   if (opcode >> 8 == kSimdPrefix) {
     return const_cast<FunctionSig*>(
         kSimpleExprSigs[kSimdExprSigTable[opcode & 0xff]]);
+  } else if (opcode >> 8 == kAtomicPrefix) {
+    return const_cast<FunctionSig*>(
+        kSimpleExprSigs[kAtomicExprSigTable[opcode & 0xff]]);
   } else {
     DCHECK_GT(kSimpleExprSigTable.size(), opcode);
     return const_cast<FunctionSig*>(
@@ -416,11 +419,6 @@ FunctionSig* WasmOpcodes::AsmjsSignature(WasmOpcode opcode) {
   DCHECK_GT(kSimpleAsmjsExprSigTable.size(), opcode);
   return const_cast<FunctionSig*>(
       kSimpleExprSigs[kSimpleAsmjsExprSigTable[opcode]]);
-}
-
-FunctionSig* WasmOpcodes::AtomicSignature(WasmOpcode opcode) {
-  return const_cast<FunctionSig*>(
-      kSimpleExprSigs[kAtomicExprSigTable[opcode & 0xff]]);
 }
 
 int WasmOpcodes::TrapReasonToMessageId(TrapReason reason) {
