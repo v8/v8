@@ -1185,8 +1185,8 @@ void TurboAssembler::Move(XMMRegister dst, uint64_t src) {
   if (src == 0) {
     Xorpd(dst, dst);
   } else {
-    unsigned nlz = base::bits::CountLeadingZeros(src);
-    unsigned ntz = base::bits::CountTrailingZeros(src);
+    unsigned nlz = base::bits::CountLeadingZeros64(src);
+    unsigned ntz = base::bits::CountTrailingZeros64(src);
     unsigned pop = base::bits::CountPopulation(src);
     DCHECK_NE(0u, pop);
     if (pop == 64) {
