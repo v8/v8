@@ -2295,7 +2295,8 @@ JSNativeContextSpecialization::BuildElementAccess(
     if (IsGrowStoreMode(store_mode)) {
       // For growing stores we validate the {index} below.
       DCHECK_EQ(AccessMode::kStore, access_mode);
-    } else if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS) {
+    } else if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS &&
+               CanTreatHoleAsUndefined(receiver_maps)) {
       // Check that the {index} is a valid array index, we do the actual
       // bounds check below and just skip the store below if it's out of
       // bounds for the {receiver}.
