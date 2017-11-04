@@ -783,6 +783,11 @@
               # over the place.
               '-fno-strict-aliasing',
             ],
+          }, {
+            'cflags' : [
+              # TODO(hans): https://crbug.com/767059
+              '-Wno-tautological-constant-compare',
+            ],
           }],
           [ 'clang==1 and (v8_target_arch=="x64" or v8_target_arch=="arm64" \
             or v8_target_arch=="mips64el")', {
