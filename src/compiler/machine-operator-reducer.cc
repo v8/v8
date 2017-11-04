@@ -121,7 +121,7 @@ Node* MachineOperatorReducer::Uint32Div(Node* dividend, uint32_t divisor) {
   DCHECK_LT(0u, divisor);
   // If the divisor is even, we can avoid using the expensive fixup by shifting
   // the dividend upfront.
-  unsigned const shift = base::bits::CountTrailingZeros(divisor);
+  unsigned const shift = base::bits::CountTrailingZeros32(divisor);
   dividend = Word32Shr(dividend, shift);
   divisor >>= shift;
   // Compute the magic number for the (shifted) divisor.
@@ -1181,7 +1181,7 @@ Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
       Uint32BinopMatcher mleft(m.left().node());
       if (mleft.right().HasValue() &&
           (mleft.right().Value() & 0x1f) >=
-              base::bits::CountTrailingZeros(mask)) {
+              base::bits::CountTrailingZeros32(mask)) {
         // (x << L) & (-1 << K) => x << L iff L >= K
         return Replace(mleft.node());
       }
@@ -1222,7 +1222,7 @@ Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
       }
       if (mleft.left().IsWord32Shl()) {
         Int32BinopMatcher mleftleft(mleft.left().node());
-        if (mleftleft.right().Is(base::bits::CountTrailingZeros(mask))) {
+        if (mleftleft.right().Is(base::bits::CountTrailingZeros32(mask))) {
           // (y << L + x) & (-1 << L) => (x & (-1 << L)) + y << L
           node->ReplaceInput(0,
                              Word32And(mleft.right().node(), m.right().node()));
@@ -1234,7 +1234,7 @@ Reduction MachineOperatorReducer::ReduceWord32And(Node* node) {
       }
       if (mleft.right().IsWord32Shl()) {
         Int32BinopMatcher mleftright(mleft.right().node());
-        if (mleftright.right().Is(base::bits::CountTrailingZeros(mask))) {
+        if (mleftright.right().Is(base::bits::CountTrailingZeros32(mask))) {
           // (x + y << L) & (-1 << L) => (x & (-1 << L)) + y << L
           node->ReplaceInput(0,
                              Word32And(mleft.left().node(), m.right().node()));

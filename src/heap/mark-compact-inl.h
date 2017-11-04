@@ -402,7 +402,7 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
     HeapObject* object = nullptr;
     int size = 0;
     while (current_cell_ != 0) {
-      uint32_t trailing_zeros = base::bits::CountTrailingZeros(current_cell_);
+      uint32_t trailing_zeros = base::bits::CountTrailingZeros32(current_cell_);
       Address addr = cell_base_ + trailing_zeros * kPointerSize;
 
       // Clear the first bit of the found object..
