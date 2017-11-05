@@ -49,12 +49,13 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void breakProgramOnAssert(int targetContextGroupId);
 
   void setPauseOnNextStatement(bool, int targetContextGroupId);
-  void stepIntoStatement(int targetContextGroupId);
+  void stepIntoStatement(int targetContextGroupId, bool breakOnAsyncCall);
   void stepOverStatement(int targetContextGroupId);
   void stepOutOfFunction(int targetContextGroupId);
   void scheduleStepIntoAsync(
       std::unique_ptr<ScheduleStepIntoAsyncCallback> callback,
       int targetContextGroupId);
+  void pauseOnAsyncTask(int targetContextGroupId, void* task);
 
   Response continueToLocation(int targetContextGroupId,
                               V8DebuggerScript* script,
@@ -106,6 +107,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
   void setMaxAsyncTaskStacksForTest(int limit);
   void dumpAsyncTaskStacksStateForTest();
+
+  void* scheduledAsyncTask() { return m_scheduledAsyncTask; }
 
  private:
   void clearContinueToLocation();
@@ -202,6 +205,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
   bool m_breakRequested = false;
 
   v8::debug::ExceptionBreakState m_pauseOnExceptionsState;
+  bool m_pauseOnAsyncCall = false;
+  void* m_scheduledAsyncTask = nullptr;
 
   WasmTranslation m_wasmTranslation;
 

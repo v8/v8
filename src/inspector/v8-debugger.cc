@@ -185,6 +185,7 @@ void V8Debugger::disable() {
   clearContinueToLocation();
   allAsyncTasksCanceled();
   m_taskWithScheduledBreak = nullptr;
+  m_pauseOnAsyncCall = false;
   m_wasmTranslation.Clear();
   v8::debug::SetDebugDelegate(m_isolate, nullptr);
   v8::debug::SetOutOfMemoryCallback(m_isolate, nullptr, nullptr);
@@ -284,10 +285,12 @@ void V8Debugger::breakProgramOnAssert(int targetContextGroupId) {
   v8::debug::BreakRightNow(m_isolate);
 }
 
-void V8Debugger::stepIntoStatement(int targetContextGroupId) {
+void V8Debugger::stepIntoStatement(int targetContextGroupId,
+                                   bool breakOnAsyncCall) {
   DCHECK(isPaused());
   DCHECK(targetContextGroupId);
   m_targetContextGroupId = targetContextGroupId;
+  m_pauseOnAsyncCall = breakOnAsyncCall;
   v8::debug::PrepareStep(m_isolate, v8::debug::StepIn);
   continueProgram(targetContextGroupId);
 }
@@ -319,6 +322,12 @@ void V8Debugger::scheduleStepIntoAsync(
   }
   m_targetContextGroupId = targetContextGroupId;
   m_stepIntoAsyncCallback = std::move(callback);
+}
+
+void V8Debugger::pauseOnAsyncTask(int targetContextGroupId, void* task) {
+  DCHECK(targetContextGroupId);
+  m_targetContextGroupId = targetContextGroupId;
+  m_taskWithScheduledBreak = task;
 }
 
 Response V8Debugger::continueToLocation(
@@ -387,6 +396,8 @@ void V8Debugger::handleProgramBreak(
     m_stepIntoAsyncCallback.reset();
   }
   m_breakRequested = false;
+  m_pauseOnAsyncCall = false;
+  m_taskWithScheduledBreak = nullptr;
 
   bool scheduledOOMBreak = m_scheduledOOMBreak;
   bool scheduledAssertBreak = m_scheduledAssertBreak;
@@ -758,8 +769,8 @@ void V8Debugger::asyncTaskStarted(void* task) {
 }
 
 void V8Debugger::asyncTaskFinished(void* task) {
-  asyncTaskFinishedForStack(task);
   asyncTaskFinishedForStepping(task);
+  asyncTaskFinishedForStack(task);
 }
 
 void V8Debugger::asyncTaskScheduledForStack(const String16& taskName,
@@ -835,6 +846,12 @@ void V8Debugger::asyncTaskFinishedForStack(void* task) {
 }
 
 void V8Debugger::asyncTaskCandidateForStepping(void* task) {
+  if (m_pauseOnAsyncCall) {
+    m_scheduledAsyncTask = task;
+    breakProgram(m_targetContextGroupId);
+    m_scheduledAsyncTask = nullptr;
+    return;
+  }
   if (!m_stepIntoAsyncCallback) return;
   DCHECK(m_targetContextGroupId);
   if (currentContextGroupId() != m_targetContextGroupId) return;
@@ -846,6 +863,8 @@ void V8Debugger::asyncTaskCandidateForStepping(void* task) {
 
 void V8Debugger::asyncTaskStartedForStepping(void* task) {
   if (m_breakRequested) return;
+  // TODO(kozyatinskiy): we should search task in async chain to support
+  // blackboxing.
   if (task != m_taskWithScheduledBreak) return;
   v8::debug::DebugBreak(m_isolate);
 }

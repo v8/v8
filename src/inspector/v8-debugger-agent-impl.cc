@@ -951,10 +951,11 @@ Response V8DebuggerAgentImpl::stepOver() {
   return Response::OK();
 }
 
-Response V8DebuggerAgentImpl::stepInto() {
+Response V8DebuggerAgentImpl::stepInto(Maybe<bool> inBreakOnAsyncCall) {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
   m_session->releaseObjectGroup(kBacktraceObjectGroup);
-  m_debugger->stepIntoStatement(m_session->contextGroupId());
+  m_debugger->stepIntoStatement(m_session->contextGroupId(),
+                                inBreakOnAsyncCall.fromMaybe(false));
   return Response::OK();
 }
 
@@ -973,6 +974,17 @@ void V8DebuggerAgentImpl::scheduleStepIntoAsync(
   }
   m_debugger->scheduleStepIntoAsync(std::move(callback),
                                     m_session->contextGroupId());
+}
+
+Response V8DebuggerAgentImpl::pauseOnAsyncTask(const String16& inAsyncTaskId) {
+  bool isOk = false;
+  int64_t task = inAsyncTaskId.toInteger64(&isOk);
+  if (!isOk) {
+    return Response::Error("Invalid asyncTaskId");
+  }
+  m_debugger->pauseOnAsyncTask(m_session->contextGroupId(),
+                               reinterpret_cast<void*>(task));
+  return Response::OK();
 }
 
 Response V8DebuggerAgentImpl::setPauseOnExceptions(
@@ -1476,9 +1488,18 @@ void V8DebuggerAgentImpl::didPause(
   std::unique_ptr<Array<CallFrame>> protocolCallFrames;
   Response response = currentCallFrames(&protocolCallFrames);
   if (!response.isSuccess()) protocolCallFrames = Array<CallFrame>::create();
+
+  Maybe<String16> scheduledAsyncTaskId;
+  void* rawScheduledAsyncTask = m_debugger->scheduledAsyncTask();
+  if (rawScheduledAsyncTask) {
+    String16Builder builder;
+    builder.appendNumber(reinterpret_cast<size_t>(rawScheduledAsyncTask));
+    scheduledAsyncTaskId = builder.toString();
+  }
+
   m_frontend.paused(std::move(protocolCallFrames), breakReason,
                     std::move(breakAuxData), std::move(hitBreakpointIds),
-                    currentAsyncStackTrace());
+                    currentAsyncStackTrace(), std::move(scheduledAsyncTaskId));
 }
 
 void V8DebuggerAgentImpl::didContinue() {

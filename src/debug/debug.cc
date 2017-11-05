@@ -1861,9 +1861,7 @@ void Debug::OnAsyncTaskEvent(debug::PromiseDebugActionType type, int id,
                              int parent_id) {
   if (in_debug_scope() || ignore_events()) return;
   if (!debug_delegate_) return;
-  SuppressDebug while_processing(this);
   PostponeInterruptsScope no_interrupts(isolate_);
-  DisableBreak no_recursive_break(this);
   bool created_by_user = false;
   if (type == debug::kDebugPromiseCreated) {
     JavaScriptFrameIterator it(isolate_);

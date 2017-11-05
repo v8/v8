@@ -84,10 +84,11 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   Response pause() override;
   Response resume() override;
   Response stepOver() override;
-  Response stepInto() override;
+  Response stepInto(Maybe<bool> inBreakOnAsyncCall) override;
   Response stepOut() override;
   void scheduleStepIntoAsync(
       std::unique_ptr<ScheduleStepIntoAsyncCallback> callback) override;
+  Response pauseOnAsyncTask(const String16& inAsyncTaskId) override;
   Response setPauseOnExceptions(const String16& pauseState) override;
   Response evaluateOnCallFrame(
       const String16& callFrameId, const String16& expression,
