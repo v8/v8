@@ -21,6 +21,36 @@ class RegExpNode;
 class RegExpTree;
 class BoyerMooreLookahead;
 
+inline bool IgnoreCase(JSRegExp::Flags flags) {
+  return (flags & JSRegExp::kIgnoreCase) != 0;
+}
+
+inline bool IsUnicode(JSRegExp::Flags flags) {
+  return (flags & JSRegExp::kUnicode) != 0;
+}
+
+inline bool IsSticky(JSRegExp::Flags flags) {
+  return (flags & JSRegExp::kSticky) != 0;
+}
+
+inline bool IsGlobal(JSRegExp::Flags flags) {
+  return (flags & JSRegExp::kGlobal) != 0;
+}
+
+inline bool DotAll(JSRegExp::Flags flags) {
+  return (flags & JSRegExp::kDotAll) != 0;
+}
+
+inline bool Multiline(JSRegExp::Flags flags) {
+  return (flags & JSRegExp::kMultiline) != 0;
+}
+
+inline bool NeedsUnicodeCaseEquivalents(JSRegExp::Flags flags) {
+  // Both unicode and ignore_case flags are set. We need to use ICU to find
+  // the closure over case equivalents.
+  return IsUnicode(flags) && IgnoreCase(flags);
+}
+
 class RegExpImpl {
  public:
   // Whether V8 is compiled with native regexp support or not.
@@ -495,9 +525,7 @@ class RegExpNode: public ZoneObject {
   // If we know that the input is one-byte then there are some nodes that can
   // never match.  This method returns a node that can be substituted for
   // itself, or nullptr if the node can never match.
-  virtual RegExpNode* FilterOneByte(int depth, bool ignore_case) {
-    return this;
-  }
+  virtual RegExpNode* FilterOneByte(int depth) { return this; }
   // Helper for FilterOneByte.
   RegExpNode* replacement() {
     DCHECK(info()->replacement_calculated);
@@ -569,7 +597,7 @@ class SeqRegExpNode: public RegExpNode {
       : RegExpNode(on_success->zone()), on_success_(on_success) { }
   RegExpNode* on_success() { return on_success_; }
   void set_on_success(RegExpNode* node) { on_success_ = node; }
-  virtual RegExpNode* FilterOneByte(int depth, bool ignore_case);
+  virtual RegExpNode* FilterOneByte(int depth);
   virtual void FillInBMInfo(Isolate* isolate, int offset, int budget,
                             BoyerMooreLookahead* bm, bool not_at_start) {
     on_success_->FillInBMInfo(isolate, offset, budget - 1, bm, not_at_start);
@@ -577,7 +605,7 @@ class SeqRegExpNode: public RegExpNode {
   }
 
  protected:
-  RegExpNode* FilterSuccessor(int depth, bool ignore_case);
+  RegExpNode* FilterSuccessor(int depth);
 
  private:
   RegExpNode* on_success_;
@@ -682,13 +710,15 @@ class TextNode: public SeqRegExpNode {
   static TextNode* CreateForCharacterRanges(Zone* zone,
                                             ZoneList<CharacterRange>* ranges,
                                             bool read_backward,
-                                            RegExpNode* on_success);
+                                            RegExpNode* on_success,
+                                            JSRegExp::Flags flags);
   // Create TextNode for a surrogate pair with a range given for the
   // lead and the trail surrogate each.
   static TextNode* CreateForSurrogatePair(Zone* zone, CharacterRange lead,
                                           CharacterRange trail,
                                           bool read_backward,
-                                          RegExpNode* on_success);
+                                          RegExpNode* on_success,
+                                          JSRegExp::Flags flags);
   virtual void Accept(NodeVisitor* visitor);
   virtual void Emit(RegExpCompiler* compiler, Trace* trace);
   virtual int EatsAtLeast(int still_to_find, int budget, bool not_at_start);
@@ -705,7 +735,7 @@ class TextNode: public SeqRegExpNode {
   virtual void FillInBMInfo(Isolate* isolate, int offset, int budget,
                             BoyerMooreLookahead* bm, bool not_at_start);
   void CalculateOffsets();
-  virtual RegExpNode* FilterOneByte(int depth, bool ignore_case);
+  virtual RegExpNode* FilterOneByte(int depth);
 
  private:
   enum TextEmitPassType {
@@ -715,7 +745,7 @@ class TextNode: public SeqRegExpNode {
     CASE_CHARACTER_MATCH,        // Case-independent single character check.
     CHARACTER_CLASS_MATCH        // Character class.
   };
-  static bool SkipPass(int pass, bool ignore_case);
+  static bool SkipPass(TextEmitPassType pass, bool ignore_case);
   static const int kFirstRealPass = SIMPLE_CHARACTER_MATCH;
   static const int kLastPass = CHARACTER_CLASS_MATCH;
   void TextEmitPass(RegExpCompiler* compiler,
@@ -779,11 +809,12 @@ class AssertionNode: public SeqRegExpNode {
 
 class BackReferenceNode: public SeqRegExpNode {
  public:
-  BackReferenceNode(int start_reg, int end_reg, bool read_backward,
-                    RegExpNode* on_success)
+  BackReferenceNode(int start_reg, int end_reg, JSRegExp::Flags flags,
+                    bool read_backward, RegExpNode* on_success)
       : SeqRegExpNode(on_success),
         start_reg_(start_reg),
         end_reg_(end_reg),
+        flags_(flags),
         read_backward_(read_backward) {}
   virtual void Accept(NodeVisitor* visitor);
   int start_register() { return start_reg_; }
@@ -805,6 +836,7 @@ class BackReferenceNode: public SeqRegExpNode {
  private:
   int start_reg_;
   int end_reg_;
+  JSRegExp::Flags flags_;
   bool read_backward_;
 };
 
@@ -929,7 +961,7 @@ class ChoiceNode: public RegExpNode {
   virtual bool try_to_emit_quick_check_for_alternative(bool is_first) {
     return true;
   }
-  virtual RegExpNode* FilterOneByte(int depth, bool ignore_case);
+  virtual RegExpNode* FilterOneByte(int depth);
   virtual bool read_backward() { return false; }
 
  protected:
@@ -1001,7 +1033,7 @@ class NegativeLookaroundChoiceNode : public ChoiceNode {
   virtual bool try_to_emit_quick_check_for_alternative(bool is_first) {
     return !is_first;
   }
-  virtual RegExpNode* FilterOneByte(int depth, bool ignore_case);
+  virtual RegExpNode* FilterOneByte(int depth);
 };
 
 
@@ -1028,7 +1060,7 @@ class LoopChoiceNode: public ChoiceNode {
   bool body_can_be_zero_length() { return body_can_be_zero_length_; }
   virtual bool read_backward() { return read_backward_; }
   virtual void Accept(NodeVisitor* visitor);
-  virtual RegExpNode* FilterOneByte(int depth, bool ignore_case);
+  virtual RegExpNode* FilterOneByte(int depth);
 
  private:
   // AddAlternative is made private for loop nodes because alternatives
@@ -1435,11 +1467,8 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 //   +-------+        +------------+
 class Analysis: public NodeVisitor {
  public:
-  Analysis(Isolate* isolate, JSRegExp::Flags flags, bool is_one_byte)
-      : isolate_(isolate),
-        flags_(flags),
-        is_one_byte_(is_one_byte),
-        error_message_(nullptr) {}
+  Analysis(Isolate* isolate, bool is_one_byte)
+      : isolate_(isolate), is_one_byte_(is_one_byte), error_message_(nullptr) {}
   void EnsureAnalyzed(RegExpNode* node);
 
 #define DECLARE_VISIT(Type)                                          \
@@ -1459,12 +1488,8 @@ FOR_EACH_NODE_TYPE(DECLARE_VISIT)
 
   Isolate* isolate() const { return isolate_; }
 
-  bool ignore_case() const { return (flags_ & JSRegExp::kIgnoreCase) != 0; }
-  bool unicode() const { return (flags_ & JSRegExp::kUnicode) != 0; }
-
  private:
   Isolate* isolate_;
-  JSRegExp::Flags flags_;
   bool is_one_byte_;
   const char* error_message_;
 
