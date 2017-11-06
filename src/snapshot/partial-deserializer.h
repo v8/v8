@@ -33,9 +33,6 @@ class PartialDeserializer final : public Deserializer<> {
 
   void DeserializeEmbedderFields(
       v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer);
-
-  // Rehash after deserializing a context.
-  void RehashContext(Context* context);
 };
 
 }  // namespace internal

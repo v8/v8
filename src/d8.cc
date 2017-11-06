@@ -515,7 +515,9 @@ ScriptCompiler::CachedData* CompileForCachedData(
   }
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+  i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
   Isolate* temp_isolate = Isolate::New(create_params);
+  i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
   temp_isolate->SetHostImportModuleDynamicallyCallback(
       Shell::HostImportModuleDynamically);
   temp_isolate->SetHostInitializeImportMetaObjectCallback(

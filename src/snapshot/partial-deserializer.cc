@@ -53,7 +53,7 @@ MaybeHandle<Object> PartialDeserializer::Deserialize(
   // new code, which also has to be flushed from instruction cache.
   CHECK_EQ(start_address, code_space->top());
 
-  if (FLAG_rehash_snapshot && can_rehash()) RehashContext(Context::cast(root));
+  if (FLAG_rehash_snapshot && can_rehash()) Rehash();
 
   return Handle<Object>(root, isolate);
 }
@@ -84,13 +84,5 @@ void PartialDeserializer::DeserializeEmbedderFields(
     delete[] data;
   }
 }
-
-void PartialDeserializer::RehashContext(Context* context) {
-  DCHECK(can_rehash());
-  for (const auto& array : transition_arrays()) array->Sort();
-  context->global_object()->global_dictionary()->Rehash();
-  SortMapDescriptors();
-}
-
 }  // namespace internal
 }  // namespace v8

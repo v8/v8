@@ -88,15 +88,14 @@ class Deserializer : public SerializerDeserializer {
   const std::vector<Handle<Script>>& new_scripts() const {
     return new_scripts_;
   }
-  const std::vector<TransitionArray*>& transition_arrays() const {
-    return transition_arrays_;
-  }
 
   AllocatorT* allocator() { return &allocator_; }
   bool deserializing_user_code() const { return deserializing_user_code_; }
   bool can_rehash() const { return can_rehash_; }
 
   bool IsLazyDeserializationEnabled() const;
+
+  void Rehash();
 
  private:
   void VisitRootPointers(Root root, Object** start, Object** end) override;
@@ -147,7 +146,6 @@ class Deserializer : public SerializerDeserializer {
   std::vector<CallHandlerInfo*> call_handler_infos_;
   std::vector<Handle<String>> new_internalized_strings_;
   std::vector<Handle<Script>> new_scripts_;
-  std::vector<TransitionArray*> transition_arrays_;
   std::vector<byte*> off_heap_backing_stores_;
 
   AllocatorT allocator_;
@@ -155,6 +153,7 @@ class Deserializer : public SerializerDeserializer {
 
   // TODO(6593): generalize rehashing, and remove this flag.
   bool can_rehash_;
+  std::vector<HeapObject*> to_rehash_;
 
 #ifdef DEBUG
   uint32_t num_api_references_;
