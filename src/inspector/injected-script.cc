@@ -279,8 +279,9 @@ std::unique_ptr<InjectedScript> InjectedScript::create(
   if (!inspectedContext->inspector()
            ->compileAndRunInternalScript(
                context, toV8String(isolate, injectedScriptSource))
-           .ToLocal(&value))
+           .ToLocal(&value)) {
     return nullptr;
+  }
   DCHECK(value->IsFunction());
   v8::Local<v8::Object> scriptHostWrapper =
       V8InjectedScriptHost::create(context, inspectedContext->inspector());

@@ -487,6 +487,17 @@ void GlobalLexicalScopeNames(v8::Local<v8::Context> context,
 
 void SetReturnValue(v8::Isolate* isolate, v8::Local<v8::Value> value);
 
+enum class NativeAccessorType {
+  None = 0,
+  HasGetter = 1 << 0,
+  HasSetter = 1 << 1,
+  IsBuiltin = 1 << 2
+};
+
+int GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
+                                v8::Local<v8::Object> object,
+                                v8::Local<v8::Name> name);
+
 }  // namespace debug
 }  // namespace v8
 

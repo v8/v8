@@ -10194,6 +10194,41 @@ void debug::SetReturnValue(v8::Isolate* v8_isolate,
   isolate->debug()->set_return_value(*Utils::OpenHandle(*value));
 }
 
+int debug::GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
+                                       v8::Local<v8::Object> v8_object,
+                                       v8::Local<v8::Name> v8_name) {
+  i::Handle<i::JSReceiver> object = Utils::OpenHandle(*v8_object);
+  i::Handle<i::Name> name = Utils::OpenHandle(*v8_name);
+  uint32_t index;
+  if (name->AsArrayIndex(&index)) {
+    return static_cast<int>(debug::NativeAccessorType::None);
+  }
+  i::LookupIterator it =
+      i::LookupIterator(object, name, i::LookupIterator::OWN);
+  if (!it.IsFound()) return static_cast<int>(debug::NativeAccessorType::None);
+  if (it.state() != i::LookupIterator::ACCESSOR) {
+    return static_cast<int>(debug::NativeAccessorType::None);
+  }
+  i::Handle<i::Object> structure = it.GetAccessors();
+  if (!structure->IsAccessorInfo()) {
+    return static_cast<int>(debug::NativeAccessorType::None);
+  }
+  auto isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  int result = 0;
+#define IS_BUILTIN_ACESSOR(name, _)                         \
+  if (*structure == *isolate->factory()->name##_accessor()) \
+    result |= static_cast<int>(debug::NativeAccessorType::IsBuiltin);
+  ACCESSOR_INFO_LIST(IS_BUILTIN_ACESSOR)
+#undef IS_BUILTIN_ACESSOR
+  i::Handle<i::AccessorInfo> accessor_info =
+      i::Handle<i::AccessorInfo>::cast(structure);
+  if (accessor_info->getter())
+    result |= static_cast<int>(debug::NativeAccessorType::HasGetter);
+  if (accessor_info->setter())
+    result |= static_cast<int>(debug::NativeAccessorType::HasSetter);
+  return result;
+}
+
 Local<String> CpuProfileNode::GetFunctionName() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   i::Isolate* isolate = node->isolate();

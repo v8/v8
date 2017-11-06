@@ -688,6 +688,9 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
         ToV8String(isolate, "markObjectAsNotInspectable"),
         v8::FunctionTemplate::New(
             isolate, &InspectorExtension::MarkObjectAsNotInspectable));
+    inspector->Set(ToV8String(isolate, "createObjectWithAccessor"),
+                   v8::FunctionTemplate::New(
+                       isolate, &InspectorExtension::CreateObjectWithAccessor));
     global->Set(ToV8String(isolate, "inspector"), inspector);
   }
 
@@ -826,6 +829,39 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
         ->SetPrivate(isolate->GetCurrentContext(), notInspectablePrivate,
                      v8::True(isolate))
         .ToChecked();
+  }
+
+  static void CreateObjectWithAccessor(
+      const v8::FunctionCallbackInfo<v8::Value>& args) {
+    if (args.Length() != 2 || !args[0]->IsString() || !args[1]->IsBoolean()) {
+      fprintf(stderr,
+              "Internal error: createObjectWithAccessor('accessor name', "
+              "hasSetter)\n");
+      Exit();
+    }
+    v8::Isolate* isolate = args.GetIsolate();
+    v8::Local<v8::ObjectTemplate> templ = v8::ObjectTemplate::New(isolate);
+    if (args[1].As<v8::Boolean>()->Value()) {
+      templ->SetAccessor(v8::Local<v8::String>::Cast(args[0]), AccessorGetter,
+                         AccessorSetter);
+    } else {
+      templ->SetAccessor(v8::Local<v8::String>::Cast(args[0]), AccessorGetter);
+    }
+    args.GetReturnValue().Set(
+        templ->NewInstance(isolate->GetCurrentContext()).ToLocalChecked());
+  }
+
+  static void AccessorGetter(v8::Local<v8::String> property,
+                             const v8::PropertyCallbackInfo<v8::Value>& info) {
+    v8::Isolate* isolate = info.GetIsolate();
+    isolate->ThrowException(ToV8String(isolate, "Getter is called"));
+  }
+
+  static void AccessorSetter(v8::Local<v8::String> property,
+                             v8::Local<v8::Value> value,
+                             const v8::PropertyCallbackInfo<void>& info) {
+    v8::Isolate* isolate = info.GetIsolate();
+    isolate->ThrowException(ToV8String(isolate, "Setter is called"));
   }
 };
 
