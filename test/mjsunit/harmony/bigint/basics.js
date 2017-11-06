@@ -18,6 +18,15 @@ const six = BigInt(6);
 // BigInt
 {
   assertSame(BigInt, BigInt.prototype.constructor)
+}{
+  assertThrows(() => new BigInt, TypeError);
+  assertThrows(() => new BigInt(), TypeError);
+  assertThrows(() => new BigInt(0), TypeError);
+  assertThrows(() => new BigInt(0n), TypeError);
+  assertThrows(() => new BigInt("0"), TypeError);
+}{
+  class C extends BigInt { constructor() { throw 42 } };
+  assertThrowsEquals(() => new C, 42);
 }
 
 // ToBigInt, NumberToBigInt, BigInt

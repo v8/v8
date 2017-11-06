@@ -31,19 +31,9 @@ BUILTIN(BigIntConstructor) {
 
 BUILTIN(BigIntConstructor_ConstructStub) {
   HandleScope scope(isolate);
-  Handle<Object> value = args.atOrUndefined(isolate, 1);
-  Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Handle<JSReceiver>::cast(args.new_target());
-  DCHECK(*target == target->native_context()->bigint_function());
-  Handle<JSObject> result;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, result,
-                                     JSObject::New(target, new_target));
-
-  // TODO(jkummerow): Implement.
-  USE(value);
-  USE(result);
-
-  UNIMPLEMENTED();
+  THROW_NEW_ERROR_RETURN_FAILURE(
+      isolate, NewTypeError(MessageTemplate::kNotConstructor,
+                            isolate->factory()->BigInt_string()));
 }
 
 BUILTIN(BigIntParseInt) {
