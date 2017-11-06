@@ -49,6 +49,10 @@ V8_EXPORT_PRIVATE void AsyncInstantiate(Isolate* isolate,
                                         Handle<WasmModuleObject> module_object,
                                         MaybeHandle<JSReceiver> imports);
 
+V8_EXPORT_PRIVATE void CompileJsToWasmWrappers(
+    Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
+    Counters* counters);
+
 // Triggered by the WasmCompileLazy builtin.
 // Walks the stack (top three frames) to determine the wasm instance involved
 // and which function to compile.

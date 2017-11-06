@@ -1577,18 +1577,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   }
 
   // Compile JS->wasm wrappers for exported functions.
-  JSToWasmWrapperCache js_to_wasm_cache;
-  int wrapper_index = 0;
-  for (auto exp : module_->export_table) {
-    if (exp.kind != kExternalFunction) continue;
-    Handle<Code> wasm_code = EnsureExportedLazyDeoptData(
-        isolate_, Handle<WasmInstanceObject>::null(), code_table, exp.index);
-    Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
-        isolate_, module_, wasm_code, exp.index);
-    export_wrappers->set(wrapper_index, *wrapper_code);
-    RecordStats(*wrapper_code, counters());
-    ++wrapper_index;
-  }
+  CompileJsToWasmWrappers(isolate_, compiled_module, counters());
   return WasmModuleObject::New(isolate_, compiled_module);
 }
 
@@ -3332,21 +3321,8 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
   void RunInForeground() override {
     TRACE_COMPILE("(6) Compile wrappers...\n");
     // Compile JS->wasm wrappers for exported functions.
-    JSToWasmWrapperCache js_to_wasm_cache;
-    int wrapper_index = 0;
-    WasmModule* module = job_->compiled_module_->module();
-    for (auto exp : module->export_table) {
-      if (exp.kind != kExternalFunction) continue;
-      Handle<Code> wasm_code(Code::cast(job_->code_table_->get(exp.index)),
-                             job_->isolate_);
-      Handle<Code> wrapper_code =
-          js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(job_->isolate_, module,
-                                                         wasm_code, exp.index);
-      job_->export_wrappers_->set(wrapper_index, *wrapper_code);
-      RecordStats(*wrapper_code, job_->counters());
-      ++wrapper_index;
-    }
-
+    CompileJsToWasmWrappers(job_->isolate_, job_->compiled_module_,
+                            job_->counters());
     job_->DoSync<FinishModule>();
   }
 };
@@ -3516,6 +3492,25 @@ void AsyncStreamingProcessor::OnError(DecodeResult result) {
 void AsyncStreamingProcessor::OnAbort() {
   TRACE_STREAMING("Abort stream...\n");
   job_->Abort();
+}
+
+void CompileJsToWasmWrappers(Isolate* isolate,
+                             Handle<WasmCompiledModule> compiled_module,
+                             Counters* counters) {
+  JSToWasmWrapperCache js_to_wasm_cache;
+  int wrapper_index = 0;
+  Handle<FixedArray> export_wrappers = compiled_module->export_wrappers();
+  for (auto exp : compiled_module->module()->export_table) {
+    if (exp.kind != kExternalFunction) continue;
+    Handle<Code> wasm_code =
+        EnsureExportedLazyDeoptData(isolate, Handle<WasmInstanceObject>::null(),
+                                    compiled_module->code_table(), exp.index);
+    Handle<Code> wrapper_code = js_to_wasm_cache.CloneOrCompileJSToWasmWrapper(
+        isolate, compiled_module->module(), wasm_code, exp.index);
+    export_wrappers->set(wrapper_index, *wrapper_code);
+    RecordStats(*wrapper_code, counters);
+    ++wrapper_index;
+  }
 }
 
 }  // namespace wasm
