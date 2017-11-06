@@ -77,8 +77,7 @@
       'V8 Win32 ASAN': 'gn_release_x86_asan_no_lsan',
       'V8 Win64': 'gn_release_x64_minimal_symbols',
       'V8 Win64 - debug': 'gn_debug_x64_minimal_symbols',
-      # TODO(machenbach): Rename bot to msvc.
-      'V8 Win64 - clang': 'gn_release_x64_msvc',
+      'V8 Win64 - msvc': 'gn_release_x64_msvc',
       # Mac.
       'V8 Mac': 'gn_release_x86',
       'V8 Mac - debug': 'gn_debug_x86',
@@ -219,7 +218,7 @@
       'v8_win_nosnap_shared_rel_ng':
         'gn_release_x86_no_snap_shared_minimal_symbols',
       # TODO(machenbach): Rename bot to msvc.
-      'v8_win64_clang_compile_rel': 'gn_release_x64_msvc',
+      'v8_win64_msvc_compile_rel': 'gn_release_x64_msvc',
       'v8_win64_dbg': 'gn_debug_x64_minimal_symbols',
       'v8_win64_rel_ng': 'gn_release_x64_trybot',
       'v8_mac_rel_ng': 'gn_release_x86_trybot',
