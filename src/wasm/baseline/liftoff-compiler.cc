@@ -239,7 +239,7 @@ class LiftoffCompiler {
     Register rhs_reg = pinned_regs.pin(__ PopToRegister(kWasmI32, pinned_regs));
     Register lhs_reg = __ PopToRegister(kWasmI32, pinned_regs);
     (asm_->*emit_fn)(target_reg, lhs_reg, rhs_reg);
-    __ PushRegister(std::move(target_reg));
+    __ PushRegister(target_reg);
   }
 
   void I32Const(Decoder* decoder, Value* result, int32_t value) {

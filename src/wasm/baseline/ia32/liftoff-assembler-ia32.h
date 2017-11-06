@@ -42,10 +42,6 @@ void LiftoffAssembler::LoadConstant(Register reg, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::MoveToReturnRegister(Register reg) {
-  if (reg != eax) mov(eax, reg);
-}
-
 void LiftoffAssembler::Load(Register dst, Address addr,
                             RelocInfo::Mode reloc_mode) {
   mov(dst, Operand(reinterpret_cast<uint32_t>(addr), reloc_mode));
@@ -76,6 +72,10 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
   }
 }
 
+void LiftoffAssembler::MoveToReturnRegister(Register reg) {
+  if (reg != eax) mov(eax, reg);
+}
+
 void LiftoffAssembler::Spill(uint32_t index, Register reg) {
   // TODO(clemensh): Handle different types here.
   mov(liftoff::GetStackSlot(index), reg);
@@ -92,28 +92,39 @@ void LiftoffAssembler::Fill(Register reg, uint32_t index) {
 }
 
 void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {
-  if (lhs.code() != dst.code()) {
+  if (lhs != dst) {
     lea(dst, Operand(lhs, rhs, times_1, 0));
   } else {
     add(dst, rhs);
   }
 }
 
-#define DEFAULT_I32_BINOP(name, internal_name)                       \
+void LiftoffAssembler::emit_i32_sub(Register dst, Register lhs, Register rhs) {
+  if (dst == rhs) {
+    neg(dst);
+    add(dst, lhs);
+  } else {
+    if (dst != lhs) mov(dst, lhs);
+    sub(dst, rhs);
+  }
+}
+
+#define COMMUTATIVE_I32_BINOP(name, instruction)                     \
   void LiftoffAssembler::emit_i32_##name(Register dst, Register lhs, \
                                          Register rhs) {             \
-    if (lhs.code() != dst.code()) {                                  \
-      mov(dst, lhs);                                                 \
+    if (dst == rhs) {                                                \
+      instruction(dst, lhs);                                         \
+    } else {                                                         \
+      if (dst != lhs) mov(dst, lhs);                                 \
+      instruction(dst, rhs);                                         \
     }                                                                \
-    internal_name(dst, rhs);                                         \
   }
 
 // clang-format off
-DEFAULT_I32_BINOP(sub, sub)
-DEFAULT_I32_BINOP(mul, imul)
-DEFAULT_I32_BINOP(and, and_)
-DEFAULT_I32_BINOP(or, or_)
-DEFAULT_I32_BINOP(xor, xor_)
+COMMUTATIVE_I32_BINOP(mul, imul)
+COMMUTATIVE_I32_BINOP(and, and_)
+COMMUTATIVE_I32_BINOP(or, or_)
+COMMUTATIVE_I32_BINOP(xor, xor_)
 // clang-format on
 
 #undef DEFAULT_I32_BINOP
