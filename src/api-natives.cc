@@ -694,8 +694,8 @@ Handle<JSFunction> ApiNatives::CreateApiFunction(
       break;
   }
 
-  Handle<Map> map =
-      isolate->factory()->NewMap(type, instance_size, HOLEY_SMI_ELEMENTS);
+  Handle<Map> map = isolate->factory()->NewMap(type, instance_size,
+                                               TERMINAL_FAST_ELEMENTS_KIND);
   JSFunction::SetInitialMap(result, map, Handle<JSObject>::cast(prototype));
 
   // Mark as undetectable if needed.

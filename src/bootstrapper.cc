@@ -1633,9 +1633,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     array_function->shared()->SetConstructStub(*code);
 
     // Set up %ArrayPrototype%.
+    // The %ArrayPrototype% has TERMINAL_FAST_ELEMENTS_KIND in order to ensure
+    // that constant functions stay constant after turning prototype to setup
+    // mode and back when constant field tracking is enabled.
     Handle<JSArray> proto =
-        Handle<JSArray>::cast(factory->NewJSObject(array_function, TENURED));
-    JSArray::Initialize(proto, 0);
+        factory->NewJSArray(0, TERMINAL_FAST_ELEMENTS_KIND, TENURED);
     JSFunction::SetPrototype(array_function, proto);
     native_context()->set_initial_array_prototype(*proto);
 

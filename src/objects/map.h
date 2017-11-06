@@ -465,6 +465,17 @@ class Map : public HeapObject {
                                                  Representation representation,
                                                  FieldType* field_type);
 
+  // Generalizes constness, representation and field_type if the given elements
+  // kind is a fast and transitionable by stubs / optimized code.
+  // This generalization is necessary in order to ensure that elements kind
+  // transitions performed by stubs / optimized code don't silently transition
+  // kMutable fields back to kConst state or fields with HeapObject
+  // representation and "Any" type back to "Class" type.
+  static inline void GeneralizeIfTransitionableFastElementsKind(
+      Isolate* isolate, ElementsKind elements_kind,
+      PropertyConstness* constness, Representation* representation,
+      Handle<FieldType>* field_type);
+
   static Handle<Map> ReconfigureProperty(Handle<Map> map, int modify_index,
                                          PropertyKind new_kind,
                                          PropertyAttributes new_attributes,

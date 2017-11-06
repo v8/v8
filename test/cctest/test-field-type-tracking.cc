@@ -110,6 +110,20 @@ class Expectations {
     CHECK(index < MAX_PROPERTIES);
     kinds_[index] = kind;
     locations_[index] = location;
+    if (kind == kData && location == kField &&
+        IsTransitionableFastElementsKind(elements_kind_) &&
+        Map::IsInplaceGeneralizableField(constness, representation,
+                                         FieldType::cast(*value))) {
+      // Maps with transitionable elements kinds must have non in-place
+      // generalizable fields.
+      if (FLAG_track_constant_fields && FLAG_modify_map_inplace &&
+          constness == kConst) {
+        constness = kMutable;
+      }
+      if (representation.IsHeapObject() && !FieldType::cast(*value)->IsAny()) {
+        value = FieldType::Any(isolate_);
+      }
+    }
     constnesses_[index] = constness;
     attributes_[index] = attributes;
     representations_[index] = representation;
@@ -318,27 +332,14 @@ class Expectations {
   Handle<Map> AddDataField(Handle<Map> map, PropertyAttributes attributes,
                            PropertyConstness constness,
                            Representation representation,
-                           Handle<FieldType> heap_type) {
+                           Handle<FieldType> field_type) {
     CHECK_EQ(number_of_properties_, map->NumberOfOwnDescriptors());
     int property_index = number_of_properties_++;
-    PropertyConstness expected_constness = constness;
-    Representation expected_representation = representation;
-    Handle<FieldType> expected_heap_type = heap_type;
-    if (IsTransitionableFastElementsKind(map->elements_kind())) {
-      // Maps with transitionable elements kinds must have non in-place
-      // generalizable fields.
-      if (FLAG_track_constant_fields && FLAG_modify_map_inplace) {
-        expected_constness = kMutable;
-      }
-      if (representation.IsHeapObject() && heap_type->IsClass()) {
-        expected_heap_type = FieldType::Any(isolate_);
-      }
-    }
-    SetDataField(property_index, attributes, expected_constness,
-                 expected_representation, expected_heap_type);
+    SetDataField(property_index, attributes, constness, representation,
+                 field_type);
 
     Handle<String> name = MakeName("prop", property_index);
-    return Map::CopyWithField(map, name, heap_type, attributes, constness,
+    return Map::CopyWithField(map, name, field_type, attributes, constness,
                               representation, INSERT_TRANSITION)
         .ToHandleChecked();
   }
@@ -1991,7 +1992,6 @@ TEST(ReconfigureElementsKind_GeneralizeHeapObjFieldToHeapObj) {
         {kConst, Representation::HeapObject(), current_type},
         {kConst, Representation::HeapObject(), new_type},
         {kConst, Representation::HeapObject(), expected_type});
-
     if (FLAG_modify_map_inplace) {
       // kConst to kMutable migration does not create a new map, therefore
       // trivial generalization.

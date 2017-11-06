@@ -3735,19 +3735,13 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
   int index = map->NextFreePropertyIndex();
 
   if (map->instance_type() == JS_CONTEXT_EXTENSION_OBJECT_TYPE) {
+    constness = kMutable;
     representation = Representation::Tagged();
     type = FieldType::Any(isolate);
-  } else if (IsTransitionableFastElementsKind(map->elements_kind()) &&
-             IsInplaceGeneralizableField(constness, representation, *type)) {
-    // We don't support propagation of field generalization through elements
-    // kind transitions because they are inserted into the transition tree
-    // before field transitions. In order to avoid complexity of handling
-    // such a case we ensure that all maps with transitionable elements kinds
-    // do not have fields that can be generalized in-place (without creation
-    // of a new map).
-    DCHECK(representation.IsHeapObject());
-    type = FieldType::Any(isolate);
   }
+
+  Map::GeneralizeIfTransitionableFastElementsKind(
+      isolate, map->elements_kind(), &constness, &representation, &type);
 
   Handle<Object> wrapped_type(WrapFieldType(type));
 
@@ -6250,6 +6244,9 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   Handle<PropertyArray> fields =
       factory->NewPropertyArray(number_of_allocated_fields);
 
+  bool is_transitionable_elements_kind =
+      IsTransitionableFastElementsKind(old_map->elements_kind());
+
   // Fill in the instance descriptor and the fields.
   int current_offset = 0;
   for (int i = 0; i < instance_descriptor_length; i++) {
@@ -6277,8 +6274,14 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
         d = Descriptor::DataConstant(key, handle(value, isolate),
                                      details.attributes());
       } else {
+        // Ensure that we make constant field only when elements kind is not
+        // transitionable.
+        PropertyConstness constness =
+            FLAG_track_constant_fields && !is_transitionable_elements_kind
+                ? kConst
+                : kMutable;
         d = Descriptor::DataField(
-            key, current_offset, details.attributes(), kDefaultFieldConstness,
+            key, current_offset, details.attributes(), constness,
             // TODO(verwaest): value->OptimalRepresentation();
             Representation::Tagged(), FieldType::Any(isolate));
       }
