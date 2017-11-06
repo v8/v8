@@ -104,9 +104,6 @@ using v8::MemoryPressureLevel;
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
   V(Map, ordered_hash_table_map, OrderedHashTableMap)                          \
-  V(Map, name_dictionary_map, NameDictionaryMap)                               \
-  V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
-  V(Map, seeded_number_dictionary_map, SeededNumberDictionaryMap)              \
   V(Map, unseeded_number_dictionary_map, UnseededNumberDictionaryMap)          \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
@@ -314,7 +311,6 @@ using v8::MemoryPressureLevel;
   V(ForeignMap)                         \
   V(FreeSpaceMap)                       \
   V(FunctionContextMap)                 \
-  V(GlobalDictionaryMap)                \
   V(GlobalPropertyCellMap)              \
   V(HashTableMap)                       \
   V(HeapNumberMap)                      \
@@ -331,7 +327,6 @@ using v8::MemoryPressureLevel;
   V(ModuleContextMap)                   \
   V(ModuleInfoMap)                      \
   V(MutableHeapNumberMap)               \
-  V(NameDictionaryMap)                  \
   V(NanValue)                           \
   V(NativeContextMap)                   \
   V(NoClosuresCellMap)                  \
@@ -342,13 +337,12 @@ using v8::MemoryPressureLevel;
   V(OptimizedOut)                       \
   V(OrderedHashTableMap)                \
   V(PropertyArrayMap)                   \
-  V(ScopeInfoMap)                       \
-  V(ScriptContextMap)                   \
-  V(SeededNumberDictionaryMap)          \
-  V(SharedFunctionInfoMap)              \
-  V(SloppyArgumentsElementsMap)         \
   V(SmallOrderedHashMapMap)             \
   V(SmallOrderedHashSetMap)             \
+  V(ScopeInfoMap)                       \
+  V(ScriptContextMap)                   \
+  V(SharedFunctionInfoMap)              \
+  V(SloppyArgumentsElementsMap)         \
   V(SpeciesProtector)                   \
   V(StaleRegister)                      \
   V(StringLengthProtector)              \
@@ -364,7 +358,6 @@ using v8::MemoryPressureLevel;
   V(UndefinedValue)                     \
   V(UninitializedMap)                   \
   V(UninitializedValue)                 \
-  V(UnseededNumberDictionaryMap)        \
   V(WeakCellMap)                        \
   V(WithContextMap)                     \
   PRIVATE_SYMBOL_LIST(V)

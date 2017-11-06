@@ -123,8 +123,8 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   CHECK(!obj->IsMap());
   // There should be no references to the global object embedded.
   CHECK(!obj->IsJSGlobalProxy() && !obj->IsJSGlobalObject());
-  // Embedded FixedArrays that need rehashing must support rehashing.
-  CHECK_IMPLIES(obj->NeedsRehashing(), obj->CanBeRehashed());
+  // There should be no hash table embedded. They would require rehashing.
+  CHECK(!obj->IsHashTable());
   // We expect no instantiated function objects or contexts.
   CHECK(!obj->IsJSFunction() && !obj->IsContext());
 

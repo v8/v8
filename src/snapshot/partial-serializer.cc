@@ -17,6 +17,7 @@ PartialSerializer::PartialSerializer(
     : Serializer(isolate),
       startup_serializer_(startup_serializer),
       serialize_embedder_fields_(callback),
+      rehashable_global_dictionary_(nullptr),
       can_be_rehashed_(true) {
   InitializeCodeAddressMap();
 }
@@ -41,6 +42,8 @@ void PartialSerializer::Serialize(Object** o, bool include_global_proxy) {
   // Reset math random cache to get fresh random numbers.
   context->set_math_random_index(Smi::kZero);
   context->set_math_random_cache(isolate()->heap()->undefined_value());
+  DCHECK_NULL(rehashable_global_dictionary_);
+  rehashable_global_dictionary_ = context->global_object()->global_dictionary();
 
   VisitRootPointer(Root::kPartialSnapshotCache, o);
   SerializeDeferredObjects();
@@ -101,7 +104,7 @@ void PartialSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
     }
   }
 
-  CheckRehashability(obj);
+  if (obj->IsHashTable()) CheckRehashability(obj);
 
   // Object has not yet been serialized.  Serialize it here.
   ObjectSerializer serializer(this, obj, &sink_, how_to_code, where_to_point);
@@ -152,10 +155,17 @@ void PartialSerializer::SerializeEmbedderFields() {
   sink_.Put(kSynchronize, "Finished with embedder fields data");
 }
 
-void PartialSerializer::CheckRehashability(HeapObject* obj) {
+void PartialSerializer::CheckRehashability(HeapObject* table) {
+  DCHECK(table->IsHashTable());
   if (!can_be_rehashed_) return;
-  if (!obj->NeedsRehashing()) return;
-  if (obj->CanBeRehashed()) return;
+  if (table->IsUnseededNumberDictionary()) return;
+  if (table->IsOrderedHashMap() &&
+      OrderedHashMap::cast(table)->NumberOfElements() == 0) {
+    return;
+  }
+  // We can only correctly rehash if the global dictionary is the only hash
+  // table that we deserialize.
+  if (table == rehashable_global_dictionary_) return;
   can_be_rehashed_ = false;
 }
 

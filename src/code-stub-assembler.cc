@@ -2394,8 +2394,8 @@ Node* CodeStubAssembler::AllocateNameDictionaryWithCapacity(Node* capacity) {
   Node* result = AllocateInNewSpace(store_size);
   Comment("Initialize NameDictionary");
   // Initialize FixedArray fields.
-  DCHECK(Heap::RootIsImmortalImmovable(Heap::kNameDictionaryMapRootIndex));
-  StoreMapNoWriteBarrier(result, Heap::kNameDictionaryMapRootIndex);
+  DCHECK(Heap::RootIsImmortalImmovable(Heap::kHashTableMapRootIndex));
+  StoreMapNoWriteBarrier(result, Heap::kHashTableMapRootIndex);
   StoreObjectFieldNoWriteBarrier(result, FixedArray::kLengthOffset,
                                  SmiFromWord(length));
   // Initialized HashTable fields.

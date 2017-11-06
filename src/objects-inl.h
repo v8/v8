@@ -424,17 +424,11 @@ bool HeapObject::IsDictionary() const {
   return IsHashTable() && this != GetHeap()->string_table();
 }
 
-bool HeapObject::IsGlobalDictionary() const {
-  return map() == GetHeap()->global_dictionary_map();
-}
+bool Object::IsNameDictionary() const { return IsDictionary(); }
 
-bool HeapObject::IsNameDictionary() const {
-  return map() == GetHeap()->name_dictionary_map();
-}
+bool Object::IsGlobalDictionary() const { return IsDictionary(); }
 
-bool HeapObject::IsSeededNumberDictionary() const {
-  return map() == GetHeap()->seeded_number_dictionary_map();
-}
+bool Object::IsSeededNumberDictionary() const { return IsDictionary(); }
 
 bool HeapObject::IsUnseededNumberDictionary() const {
   return map() == GetHeap()->unseeded_number_dictionary_map();
@@ -1963,19 +1957,6 @@ AllocationAlignment HeapObject::RequiredAlignment() const {
   return kWordAligned;
 }
 
-bool HeapObject::NeedsRehashing() const {
-  switch (map()->instance_type()) {
-    case HASH_TABLE_TYPE:
-      return !IsUnseededNumberDictionary();
-    case TRANSITION_ARRAY_TYPE:
-      return TransitionArray::cast(this)->number_of_entries() > 1;
-    case SMALL_ORDERED_HASH_MAP_TYPE:
-    case SMALL_ORDERED_HASH_SET_TYPE:
-      return true;
-    default:
-      return false;
-  }
-}
 
 void FixedArray::set(int index,
                      Object* value,
@@ -4798,15 +4779,7 @@ Object* GlobalDictionaryShape::Unwrap(Object* object) {
   return PropertyCell::cast(object)->name();
 }
 
-Map* GlobalDictionaryShape::GetMap(Isolate* isolate) {
-  return isolate->heap()->global_dictionary_map();
-}
-
 Name* NameDictionary::NameAt(int entry) { return Name::cast(KeyAt(entry)); }
-
-Map* NameDictionaryShape::GetMap(Isolate* isolate) {
-  return isolate->heap()->name_dictionary_map();
-}
 
 PropertyCell* GlobalDictionary::CellAt(int entry) {
   DCHECK(KeyAt(entry)->IsPropertyCell());
@@ -4868,9 +4841,6 @@ uint32_t SeededNumberDictionaryShape::HashForObject(Isolate* isolate,
                             isolate->heap()->HashSeed());
 }
 
-Map* SeededNumberDictionaryShape::GetMap(Isolate* isolate) {
-  return isolate->heap()->seeded_number_dictionary_map();
-}
 
 Handle<Object> NumberDictionaryShape::AsHandle(Isolate* isolate, uint32_t key) {
   return isolate->factory()->NewNumberFromUint(key);

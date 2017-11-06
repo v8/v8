@@ -75,7 +75,7 @@ class StartupSerializer : public Serializer<> {
   // roots. In the second pass, we serialize the rest.
   bool RootShouldBeSkipped(int root_index);
 
-  void CheckRehashability(HeapObject* obj);
+  void CheckRehashability(HeapObject* hashtable);
 
   const bool clear_function_code_;
   bool serializing_immortal_immovables_roots_;

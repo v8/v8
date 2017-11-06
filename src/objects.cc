@@ -3630,55 +3630,6 @@ String* JSReceiver::class_name() {
   return GetHeap()->Object_string();
 }
 
-bool HeapObject::CanBeRehashed() const {
-  DCHECK(NeedsRehashing());
-  switch (map()->instance_type()) {
-    case HASH_TABLE_TYPE:
-      return IsNameDictionary() || IsGlobalDictionary() ||
-             IsSeededNumberDictionary();
-    case TRANSITION_ARRAY_TYPE:
-      return true;
-    case SMALL_ORDERED_HASH_MAP_TYPE:
-      return SmallOrderedHashMap::cast(this)->NumberOfElements() == 0;
-    case SMALL_ORDERED_HASH_SET_TYPE:
-      return SmallOrderedHashMap::cast(this)->NumberOfElements() == 0;
-    default:
-      return false;
-  }
-  return false;
-}
-
-void HeapObject::RehashBasedOnMap() {
-  switch (map()->instance_type()) {
-    case HASH_TABLE_TYPE:
-      if (IsNameDictionary()) {
-        NameDictionary::cast(this)->Rehash();
-      } else if (IsSeededNumberDictionary()) {
-        SeededNumberDictionary::cast(this)->Rehash();
-      } else if (IsGlobalDictionary()) {
-        GlobalDictionary::cast(this)->Rehash();
-      } else {
-        // TODO(6593): Some hash tables cannot yet be rehashed based on the map,
-        // and are handled explicitly in StartupDeserializer::RehashHeap.
-        if (this == GetHeap()->empty_ordered_hash_table()) break;
-        if (this == GetHeap()->weak_object_to_code_table()) break;
-        if (this == GetHeap()->string_table()) break;
-        UNREACHABLE();
-      }
-      break;
-    case TRANSITION_ARRAY_TYPE:
-      TransitionArray::cast(this)->Sort();
-      break;
-    case SMALL_ORDERED_HASH_MAP_TYPE:
-      DCHECK_EQ(0, SmallOrderedHashMap::cast(this)->NumberOfElements());
-      break;
-    case SMALL_ORDERED_HASH_SET_TYPE:
-      DCHECK_EQ(0, SmallOrderedHashSet::cast(this)->NumberOfElements());
-      break;
-    default:
-      break;
-  }
-}
 
 // static
 Handle<String> JSReceiver::GetConstructorName(Handle<JSReceiver> receiver) {
@@ -6485,12 +6436,8 @@ int GetIdentityHashHelper(Isolate* isolate, JSReceiver* object) {
     return PropertyArray::cast(properties)->Hash();
   }
 
-  if (properties->IsNameDictionary()) {
+  if (properties->IsDictionary()) {
     return NameDictionary::cast(properties)->Hash();
-  }
-
-  if (properties->IsGlobalDictionary()) {
-    return GlobalDictionary::cast(properties)->Hash();
   }
 
 #ifdef DEBUG

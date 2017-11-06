@@ -129,7 +129,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
            FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
   // Check that the properties array is a dictionary.
   __ LoadP(map, FieldMemOperand(properties, HeapObject::kMapOffset));
-  __ CompareRoot(map, Heap::kNameDictionaryMapRootIndex);
+  __ CompareRoot(map, Heap::kHashTableMapRootIndex);
   __ bne(miss_label);
 
   // Restore the temporarily used register.

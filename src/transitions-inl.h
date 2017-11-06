@@ -9,9 +9,6 @@
 
 #include "src/ic/handler-configuration-inl.h"
 
-// Has to be the last include (doesn't have include guards):
-#include "src/objects/object-macros.h"
-
 namespace v8 {
 namespace internal {
 
@@ -34,7 +31,12 @@ TransitionArray* TransitionsAccessor::transitions() {
   return TransitionArray::cast(raw_transitions_);
 }
 
-CAST_ACCESSOR(TransitionArray)
+// static
+TransitionArray* TransitionArray::cast(Object* object) {
+  DCHECK(object->IsTransitionArray());
+  return reinterpret_cast<TransitionArray*>(object);
+}
+
 
 bool TransitionArray::HasPrototypeTransitions() {
   return get(kPrototypeTransitionsIndex) != Smi::kZero;
@@ -212,7 +214,5 @@ void TransitionArray::SetNumberOfTransitions(int number_of_transitions) {
 
 }  // namespace internal
 }  // namespace v8
-
-#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_TRANSITIONS_INL_H_

@@ -79,7 +79,6 @@ MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
     DeserializeDeferredObjects();
     FlushICacheForNewCodeObjectsAndRecordEmbeddedObjects();
     result = Handle<HeapObject>(HeapObject::cast(root));
-    Rehash();
     allocator()->RegisterDeserializedObjectsForBlackAllocation();
   }
   CommitPostProcessedObjects();

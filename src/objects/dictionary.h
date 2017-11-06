@@ -112,7 +112,6 @@ class NameDictionaryShape : public BaseDictionaryShape<Handle<Name>> {
   static inline uint32_t Hash(Isolate* isolate, Handle<Name> key);
   static inline uint32_t HashForObject(Isolate* isolate, Object* object);
   static inline Handle<Object> AsHandle(Isolate* isolate, Handle<Name> key);
-  static inline Map* GetMap(Isolate* isolate);
   static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const int kEntryValueIndex = 1;
@@ -208,7 +207,6 @@ class GlobalDictionaryShape : public NameDictionaryShape {
   static inline Object* Unwrap(Object* key);
   static inline bool IsKey(Isolate* isolate, Object* k);
   static inline bool IsLive(Isolate* isolate, Object* key);
-  static inline Map* GetMap(Isolate* isolate);
 };
 
 class GlobalDictionary
@@ -237,8 +235,6 @@ class SeededNumberDictionaryShape : public NumberDictionaryShape {
 
   static inline uint32_t Hash(Isolate* isolate, uint32_t key);
   static inline uint32_t HashForObject(Isolate* isolate, Object* object);
-
-  static inline Map* GetMap(Isolate* isolate);
 };
 
 class UnseededNumberDictionaryShape : public NumberDictionaryShape {

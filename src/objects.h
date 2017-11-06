@@ -1013,7 +1013,6 @@ template <class C> inline bool Is(Object* obj);
   V(FrameArray)                           \
   V(FreeSpace)                            \
   V(Function)                             \
-  V(GlobalDictionary)                     \
   V(HandlerTable)                         \
   V(HeapNumber)                           \
   V(InternalizedString)                   \
@@ -1057,7 +1056,6 @@ template <class C> inline bool Is(Object* obj);
   V(ModuleInfo)                           \
   V(MutableHeapNumber)                    \
   V(Name)                                 \
-  V(NameDictionary)                       \
   V(NativeContext)                        \
   V(NormalizedMapCache)                   \
   V(ObjectHashSet)                        \
@@ -1071,7 +1069,6 @@ template <class C> inline bool Is(Object* obj);
   V(RegExpMatchInfo)                      \
   V(ScopeInfo)                            \
   V(ScriptContextTable)                   \
-  V(SeededNumberDictionary)               \
   V(SeqOneByteString)                     \
   V(SeqString)                            \
   V(SeqTwoByteString)                     \
@@ -1185,6 +1182,9 @@ class Object {
   // ES6, #sec-isarray.  NOT to be confused with %_IsArray.
   INLINE(MUST_USE_RESULT static Maybe<bool> IsArray(Handle<Object> object));
 
+  INLINE(bool IsNameDictionary() const);
+  INLINE(bool IsGlobalDictionary() const);
+  INLINE(bool IsSeededNumberDictionary() const);
   INLINE(bool IsOrderedHashSet() const);
   INLINE(bool IsOrderedHashMap() const);
   INLINE(bool IsSmallOrderedHashTable() const);
@@ -1815,19 +1815,6 @@ class HeapObject: public Object {
 #endif
 
   inline AllocationAlignment RequiredAlignment() const;
-
-  // Whether the object needs rehashing. That is the case if the object's
-  // content depends on FLAG_hash_seed. When the object is deserialized into
-  // a heap with a different hash seed, these objects need to adapt.
-  inline bool NeedsRehashing() const;
-
-  // Rehashing support is not implemented for all objects that need rehashing.
-  // With objects that need rehashing but cannot be rehashed, rehashing has to
-  // be disabled.
-  bool CanBeRehashed() const;
-
-  // Rehash the object based on the layout inferred from its map.
-  void RehashBasedOnMap();
 
   // Layout description.
   // First field in a heap object is map.

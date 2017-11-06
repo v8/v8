@@ -73,7 +73,7 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
   // to display the builtin names.
   PrintDisassembledCodeObjects();
 
-  if (FLAG_rehash_snapshot && can_rehash()) RehashHeap();
+  if (FLAG_rehash_snapshot && can_rehash()) Rehash();
 }
 
 void StartupDeserializer::FlushICacheForNewIsolate() {
@@ -105,12 +105,12 @@ void StartupDeserializer::PrintDisassembledCodeObjects() {
 #endif
 }
 
-void StartupDeserializer::RehashHeap() {
+void StartupDeserializer::Rehash() {
   DCHECK(FLAG_rehash_snapshot && can_rehash());
   isolate()->heap()->InitializeHashSeed();
   isolate()->heap()->string_table()->Rehash();
   isolate()->heap()->weak_object_to_code_table()->Rehash();
-  Rehash();
+  SortMapDescriptors();
 }
 
 }  // namespace internal

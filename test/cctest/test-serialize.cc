@@ -2721,7 +2721,7 @@ TEST(SnapshotCreatorIncludeGlobalProxy) {
   delete[] blob.data;
 }
 
-UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
+UNINITIALIZED_TEST(ReinitializeStringHashSeedNotRehashable) {
   DisableAlwaysOpt();
   i::FLAG_rehash_snapshot = true;
   i::FLAG_hash_seed = 42;
@@ -2734,12 +2734,13 @@ UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
       v8::HandleScope handle_scope(isolate);
       v8::Local<v8::Context> context = v8::Context::New(isolate);
       v8::Context::Scope context_scope(context);
-      // Create an object with an ordered hash table.
+      // Create dictionary mode object.
       CompileRun(
-          "var m = new Map();"
-          "m.set('a', 1);"
-          "m.set('b', 2);");
-      ExpectInt32("m.get('b')", 2);
+          "var a = {};"
+          "a.b = 1;"
+          "a.c = 2;"
+          "delete a.b;");
+      ExpectInt32("a.c", 2);
       creator.SetDefaultContext(context);
     }
     blob =
@@ -2759,74 +2760,7 @@ UNINITIALIZED_TEST(ReinitializeHashSeedNotRehashable) {
     v8::Local<v8::Context> context = v8::Context::New(isolate);
     CHECK(!context.IsEmpty());
     v8::Context::Scope context_scope(context);
-    ExpectInt32("m.get('b')", 2);
-  }
-  isolate->Dispose();
-  delete[] blob.data;
-}
-
-UNINITIALIZED_TEST(ReinitializeHashSeedRehashable) {
-  DisableAlwaysOpt();
-  i::FLAG_rehash_snapshot = true;
-  i::FLAG_hash_seed = 42;
-  i::FLAG_allow_natives_syntax = true;
-  v8::StartupData blob;
-  {
-    v8::SnapshotCreator creator;
-    v8::Isolate* isolate = creator.GetIsolate();
-    {
-      v8::HandleScope handle_scope(isolate);
-      v8::Local<v8::Context> context = v8::Context::New(isolate);
-      v8::Context::Scope context_scope(context);
-      // Create dictionary mode object.
-      CompileRun(
-          "var a = new Array(10000);"
-          "%NormalizeElements(a);"
-          "a[133] = 1;"
-          "a[177] = 2;"
-          "a[971] = 3;"
-          "a[7997] = 4;"
-          "a[2111] = 5;"
-          "var o = {};"
-          "%OptimizeObjectForAddingMultipleProperties(o, 3);"
-          "o.a = 1;"
-          "o.b = 2;"
-          "o.c = 3;");
-      i::Handle<i::Object> i_a = v8::Utils::OpenHandle(*CompileRun("a"));
-      i::Handle<i::Object> i_o = v8::Utils::OpenHandle(*CompileRun("o"));
-      CHECK(i_a->IsJSArray());
-      CHECK(i_a->IsJSObject());
-      CHECK(!i::Handle<i::JSArray>::cast(i_a)->HasFastElements());
-      CHECK(!i::Handle<i::JSObject>::cast(i_o)->HasFastProperties());
-      ExpectInt32("a[2111]", 5);
-      ExpectInt32("o.c", 3);
-      creator.SetDefaultContext(context);
-    }
-    blob =
-        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
-  }
-
-  i::FLAG_hash_seed = 1337;
-  v8::Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
-  create_params.snapshot_blob = &blob;
-  v8::Isolate* isolate = v8::Isolate::New(create_params);
-  {
-    // Check that rehashing has been performed.
-    CHECK_EQ(1337, reinterpret_cast<i::Isolate*>(isolate)->heap()->HashSeed());
-    v8::Isolate::Scope isolate_scope(isolate);
-    v8::HandleScope handle_scope(isolate);
-    v8::Local<v8::Context> context = v8::Context::New(isolate);
-    CHECK(!context.IsEmpty());
-    v8::Context::Scope context_scope(context);
-    i::Handle<i::Object> i_a = v8::Utils::OpenHandle(*CompileRun("a"));
-    i::Handle<i::Object> i_o = v8::Utils::OpenHandle(*CompileRun("o"));
-    CHECK(i_a->IsJSArray());
-    CHECK(i_a->IsJSObject());
-    CHECK(!i::Handle<i::JSArray>::cast(i_a)->HasFastElements());
-    CHECK(!i::Handle<i::JSObject>::cast(i_o)->HasFastProperties());
-    ExpectInt32("a[2111]", 5);
-    ExpectInt32("o.c", 3);
+    ExpectInt32("a.c", 2);
   }
   isolate->Dispose();
   delete[] blob.data;

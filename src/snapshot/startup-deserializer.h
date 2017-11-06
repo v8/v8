@@ -26,7 +26,7 @@ class StartupDeserializer final : public Deserializer<> {
   void PrintDisassembledCodeObjects();
 
   // Rehash after deserializing an isolate.
-  void RehashHeap();
+  void Rehash();
 
   const BuiltinSnapshotData* builtin_data_;
 };
