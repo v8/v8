@@ -136,43 +136,33 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
   stack_state.resize(stack_base + arity);
   auto slot = stack_state.begin();
 
-  // Compute list of all registers holding local values.
-  PinnedRegisterScope locals_regs;
-  for (auto local_it = source.stack_state.begin(),
-            local_end = source.stack_state.begin() + num_locals;
-       local_it != local_end; ++local_it) {
-    if (local_it->is_reg()) locals_regs.pin(local_it->reg);
-  }
-
-  RegList used_regs = 0;
-  auto InitStackSlot = [&](const VarState& src, bool needs_unique_reg) {
+  // TODO(clemensh): Avoid using registers which are already in use in source.
+  PinnedRegisterScope used_regs;
+  auto InitStackSlot = [this, &used_regs, &slot](const VarState& src) {
     Register reg = no_reg;
-    if (src.is_reg() &&
-        (!needs_unique_reg || (used_regs & src.reg.bit()) == 0)) {
+    if (src.is_reg() && !used_regs.has(src.reg)) {
       reg = src.reg;
-    } else if (has_unused_register(locals_regs)) {
-      reg = unused_register(locals_regs);
+    } else if (has_unused_register(used_regs)) {
+      reg = unused_register(used_regs);
     } else {
+      // Keep this a stack slot (which is the initial value).
       DCHECK(slot->is_stack());
       return;
     }
     *slot = VarState(reg);
     ++slot;
     inc_used(reg);
-    used_regs |= reg.bit();
+    used_regs.pin(reg);
   };
+
   auto source_slot = source.stack_state.begin();
-  // Ensure that locals do not share the same register.
-  for (uint32_t i = 0; i < num_locals; ++i, ++source_slot) {
-    InitStackSlot(*source_slot, true);
-  }
-  for (uint32_t i = num_locals; i < stack_base; ++i, ++source_slot) {
-    InitStackSlot(*source_slot, false);
+  for (uint32_t i = 0; i < stack_base; ++i, ++source_slot) {
+    InitStackSlot(*source_slot);
   }
   DCHECK_GE(source.stack_height(), stack_base + arity);
   source_slot = source.stack_state.end() - arity;
   for (uint32_t i = 0; i < arity; ++i, ++source_slot) {
-    InitStackSlot(*source_slot, true);
+    InitStackSlot(*source_slot);
   }
   DCHECK_EQ(slot, stack_state.end());
   last_spilled_reg = source.last_spilled_reg;

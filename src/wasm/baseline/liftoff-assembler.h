@@ -57,6 +57,7 @@ class LiftoffAssembler : public TurboAssembler {
     }
 
     RegList pinned_regs() const { return pinned_regs_; }
+    bool has(Register reg) const { return (pinned_regs_ & reg.bit()) != 0; }
 
    private:
     RegList pinned_regs_ = 0;
@@ -102,6 +103,7 @@ class LiftoffAssembler : public TurboAssembler {
   static_assert(IS_TRIVIALLY_COPYABLE(VarState),
                 "VarState should be trivially copyable");
 
+  // TODO(clemensh): Make this a proper class.
   struct CacheState {
     MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(CacheState);
 
