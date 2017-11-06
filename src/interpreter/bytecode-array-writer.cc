@@ -53,7 +53,7 @@ Handle<BytecodeArray> BytecodeArrayWriter::ToBytecodeArray(
   bytecode_array->set_handler_table(*handler_table);
   bytecode_array->set_source_position_table(*source_position_table);
   LOG_CODE_EVENT(isolate, CodeLinePosInfoRecordEvent(
-                              *Handle<AbstractCode>::cast(bytecode_array),
+                              bytecode_array->GetFirstBytecodeAddress(),
                               *source_position_table));
   return bytecode_array;
 }

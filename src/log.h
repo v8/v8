@@ -188,7 +188,7 @@ class Logger : public CodeEventListener {
   // Emits a code move event.
   void CodeMoveEvent(AbstractCode* from, Address to);
   // Emits a code line info record event.
-  void CodeLinePosInfoRecordEvent(AbstractCode* code,
+  void CodeLinePosInfoRecordEvent(Address code_start,
                                   ByteArray* source_position_table);
 
   void SharedFunctionInfoMoveEvent(Address from, Address to);

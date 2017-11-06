@@ -965,7 +965,7 @@ void TranslateSourcePositionTable(Handle<BytecodeArray> code,
       builder.ToSourcePositionTable(isolate));
   code->set_source_position_table(*new_source_position_table);
   LOG_CODE_EVENT(isolate,
-                 CodeLinePosInfoRecordEvent(*Handle<AbstractCode>::cast(code),
+                 CodeLinePosInfoRecordEvent(code->GetFirstBytecodeAddress(),
                                             *new_source_position_table));
 }
 }  // namespace

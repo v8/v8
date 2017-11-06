@@ -323,7 +323,7 @@ Handle<Code> CodeGenerator::FinalizeCode() {
       result->instruction_size());
 
   LOG_CODE_EVENT(isolate(),
-                 CodeLinePosInfoRecordEvent(*Handle<AbstractCode>::cast(result),
+                 CodeLinePosInfoRecordEvent(result->instruction_start(),
                                             *source_positions));
 
   return result;

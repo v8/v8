@@ -420,7 +420,7 @@ class JitLogger : public CodeEventLogger {
                                JitCodeEvent::PositionType position_type);
 
   void* StartCodePosInfoEvent();
-  void EndCodePosInfoEvent(AbstractCode* code, void* jit_handler_data);
+  void EndCodePosInfoEvent(Address start_address, void* jit_handler_data);
 
  private:
   void LogRecordedBuffer(AbstractCode* code, SharedFunctionInfo* shared,
@@ -496,12 +496,12 @@ void* JitLogger::StartCodePosInfoEvent() {
   return event.user_data;
 }
 
-void JitLogger::EndCodePosInfoEvent(AbstractCode* code,
+void JitLogger::EndCodePosInfoEvent(Address start_address,
                                     void* jit_handler_data) {
   JitCodeEvent event;
   memset(&event, 0, sizeof(event));
   event.type = JitCodeEvent::CODE_END_LINE_INFO_RECORDING;
-  event.code_start = code->instruction_start();
+  event.code_start = start_address;
   event.user_data = jit_handler_data;
 
   code_event_handler_(&event);
@@ -1181,7 +1181,7 @@ void Logger::CodeMoveEvent(AbstractCode* from, Address to) {
   MoveEventInternal(CodeEventListener::CODE_MOVE_EVENT, from->address(), to);
 }
 
-void Logger::CodeLinePosInfoRecordEvent(AbstractCode* code,
+void Logger::CodeLinePosInfoRecordEvent(Address code_start,
                                         ByteArray* source_position_table) {
   if (jit_logger_) {
     void* jit_handler_data = jit_logger_->StartCodePosInfoEvent();
@@ -1197,7 +1197,7 @@ void Logger::CodeLinePosInfoRecordEvent(AbstractCode* code,
           jit_handler_data, iter.code_offset(),
           iter.source_position().ScriptOffset(), JitCodeEvent::POSITION);
     }
-    jit_logger_->EndCodePosInfoEvent(code, jit_handler_data);
+    jit_logger_->EndCodePosInfoEvent(code_start, jit_handler_data);
   }
 }
 
