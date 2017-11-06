@@ -137,10 +137,7 @@ size_t OS::AllocatePageSize() {
   return static_cast<size_t>(sysconf(_SC_PAGESIZE));
 }
 
-size_t OS::CommitPageSize() {
-  static size_t page_size = getpagesize();
-  return page_size;
-}
+size_t OS::CommitPageSize() { return sysconf(_SC_PAGESIZE); }
 
 void* OS::GetRandomMmapAddr() {
 #if defined(ADDRESS_SANITIZER) || defined(MEMORY_SANITIZER) || \
@@ -240,12 +237,12 @@ void OS::SetReadAndExecutable(void* address, const size_t size) {
 
 // Create guard pages.
 #if !V8_OS_FUCHSIA
-void OS::Guard(void* address, const size_t size) {
+bool OS::Guard(void* address, const size_t size) {
 #if V8_OS_CYGWIN
   DWORD oldprotect;
-  VirtualProtect(address, size, PAGE_NOACCESS, &oldprotect);
+  return VirtualProtect(address, size, PAGE_NOACCESS, &oldprotect);
 #else
-  mprotect(address, size, PROT_NONE);
+  return 0 == mprotect(address, size, PROT_NONE);
 #endif
 }
 #endif  // !V8_OS_FUCHSIA

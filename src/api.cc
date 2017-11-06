@@ -504,7 +504,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
         return Free(data, length);
       }
       case v8::ArrayBuffer::Allocator::AllocationMode::kReservation: {
-        base::OS::ReleaseRegion(data, length);
+        CHECK(base::OS::ReleaseRegion(data, length));
         return;
       }
     }
@@ -515,7 +515,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
       v8::ArrayBuffer::Allocator::Protection protection) {
     switch (protection) {
       case v8::ArrayBuffer::Allocator::Protection::kNoAccess: {
-        base::OS::Guard(data, length);
+        CHECK(base::OS::Guard(data, length));
         return;
       }
       case v8::ArrayBuffer::Allocator::Protection::kReadWrite: {

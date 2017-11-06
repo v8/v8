@@ -179,11 +179,19 @@ class V8_BASE_EXPORT OS {
   // Frees memory allocated by a call to Allocate.
   static void Free(void* address, const size_t size);
 
+  static inline bool IsPageAligned(void* address) {
+    return reinterpret_cast<uintptr_t>(address) % CommitPageSize() == 0;
+  }
+  static inline bool IsPageAlignedRange(void* address, size_t length) {
+    return IsPageAligned(address) &&
+           IsPageAligned(static_cast<char*>(address) + length);
+  }
+
   // Mark a region of memory executable and readable but not writable.
   static void SetReadAndExecutable(void* address, const size_t size);
 
   // Assign memory as a guard page so that access will cause an exception.
-  static void Guard(void* address, const size_t size);
+  static V8_WARN_UNUSED_RESULT bool Guard(void* address, const size_t size);
 
   // Make a region of memory non-executable but readable and writable.
   static void SetReadAndWritable(void* address, const size_t size, bool commit);
@@ -197,14 +205,16 @@ class V8_BASE_EXPORT OS {
   static void* ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
                                     size_t* allocated);
 
-  static bool CommitRegion(void* address, size_t size, bool is_executable);
+  static V8_WARN_UNUSED_RESULT bool CommitRegion(void* address, size_t size,
+                                                 bool is_executable);
 
-  static bool UncommitRegion(void* address, size_t size);
+  static V8_WARN_UNUSED_RESULT bool UncommitRegion(void* address, size_t size);
 
-  static bool ReleaseRegion(void* address, size_t size);
+  static V8_WARN_UNUSED_RESULT bool ReleaseRegion(void* address, size_t size);
 
   // Release part of a reserved address range.
-  static bool ReleasePartialRegion(void* address, size_t size);
+  static V8_WARN_UNUSED_RESULT bool ReleasePartialRegion(void* address,
+                                                         size_t size);
 
   static bool HasLazyCommits();
 

@@ -443,9 +443,7 @@ void MemoryAllocator::FreeMemory(Address base, size_t size,
     code_range()->FreeRawMemory(base, size);
   } else {
     DCHECK(executable == NOT_EXECUTABLE || !code_range()->valid());
-    bool result = base::OS::ReleaseRegion(base, size);
-    USE(result);
-    DCHECK(result);
+    CHECK(base::OS::ReleaseRegion(base, size));
   }
 }
 
