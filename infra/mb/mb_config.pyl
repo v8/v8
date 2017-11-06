@@ -77,8 +77,8 @@
       'V8 Win32 ASAN': 'gn_release_x86_asan_no_lsan',
       'V8 Win64': 'gn_release_x64_minimal_symbols',
       'V8 Win64 - debug': 'gn_debug_x64_minimal_symbols',
-      # TODO(machenbach): Switch plugins on when errors are fixed.
-      'V8 Win64 - clang': 'gn_release_x64_clang',
+      # TODO(machenbach): Rename bot to msvc.
+      'V8 Win64 - clang': 'gn_release_x64_msvc',
       # Mac.
       'V8 Mac': 'gn_release_x86',
       'V8 Mac - debug': 'gn_debug_x86',
@@ -218,7 +218,8 @@
       'v8_win_rel_ng': 'gn_release_x86_trybot',
       'v8_win_nosnap_shared_rel_ng':
         'gn_release_x86_no_snap_shared_minimal_symbols',
-      'v8_win64_clang_compile_rel': 'gn_release_x64_clang',
+      # TODO(machenbach): Rename bot to msvc.
+      'v8_win64_clang_compile_rel': 'gn_release_x64_msvc',
       'v8_win64_dbg': 'gn_debug_x64_minimal_symbols',
       'v8_win64_rel_ng': 'gn_release_x64_trybot',
       'v8_mac_rel_ng': 'gn_release_x86_trybot',
@@ -407,8 +408,8 @@
       'gn', 'release_bot', 'x64', 'cfi', 'swarming'],
     'gn_release_x64_cfi_clusterfuzz': [
       'gn', 'release_bot', 'x64', 'cfi_clusterfuzz'],
-    'gn_release_x64_clang': [
-      'gn', 'release_bot', 'x64', 'clang', 'swarming'],
+    'gn_release_x64_msvc': [
+      'gn', 'release_bot', 'x64', 'msvc', 'swarming'],
     'gn_release_x64_concurrent_marking': [
       'gn', 'release_bot', 'x64', 'v8_enable_concurrent_marking', 'swarming'],
     'gn_release_x64_correctness_fuzzer' : [
@@ -664,6 +665,10 @@
     'msan_no_origins': {
       'gn_args': ('is_msan=true msan_track_origins=0 '
                   'use_prebuilt_instrumented_libraries=true'),
+    },
+
+    'msvc': {
+      'gn_args': 'is_clang=false',
     },
 
     # TODO(machenbach): Remove when http://crbug.com/738814 is resolved.
