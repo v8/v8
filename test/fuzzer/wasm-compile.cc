@@ -76,45 +76,85 @@ class DataRange {
 
 class WasmGenerator {
   template <WasmOpcode Op, ValueType... Args>
-  std::function<void(DataRange)> op() {
-    return [this](DataRange data) {
-      Generate<Args...>(data);
-      builder_->Emit(Op);
-    };
+  void op(DataRange data) {
+    Generate<Args...>(data);
+    builder_->Emit(Op);
   }
 
   template <ValueType T>
-  std::function<void(DataRange)> block() {
-    return [this](DataRange data) {
-      blocks_.push_back(T);
-      builder_->EmitWithU8(
-          kExprBlock, static_cast<uint8_t>(WasmOpcodes::ValueTypeCodeFor(T)));
-      Generate<T>(data);
-      builder_->Emit(kExprEnd);
-      blocks_.pop_back();
-    };
+  void block(DataRange data) {
+    blocks_.push_back(T);
+    builder_->EmitWithU8(
+        kExprBlock, static_cast<uint8_t>(WasmOpcodes::ValueTypeCodeFor(T)));
+    Generate<T>(data);
+    builder_->Emit(kExprEnd);
+    blocks_.pop_back();
   }
 
   template <ValueType T>
-  std::function<void(DataRange)> block_br() {
-    return [this](DataRange data) {
-      blocks_.push_back(T);
-      builder_->EmitWithU8(
-          kExprBlock, static_cast<uint8_t>(WasmOpcodes::ValueTypeCodeFor(T)));
+  void block_br(DataRange data) {
+    blocks_.push_back(T);
+    builder_->EmitWithU8(
+        kExprBlock, static_cast<uint8_t>(WasmOpcodes::ValueTypeCodeFor(T)));
 
-      const uint32_t target_block = data.get<uint32_t>() % blocks_.size();
-      const ValueType break_type = blocks_[target_block];
+    const uint32_t target_block = data.get<uint32_t>() % blocks_.size();
+    const ValueType break_type = blocks_[target_block];
 
-      Generate(break_type, data);
-      builder_->EmitWithI32V(kExprBr, target_block);
-      builder_->Emit(kExprEnd);
-      blocks_.pop_back();
-    };
+    Generate(break_type, data);
+    builder_->EmitWithI32V(kExprBr, target_block);
+    builder_->Emit(kExprEnd);
+    blocks_.pop_back();
+  }
+
+  template <WasmOpcode memory_op, ValueType arg_type = kWasmStmt>
+  void memop(DataRange data) {
+    const auto align = data.get<uint32_t>();
+    const auto offset = data.get<uint32_t>();
+
+    if (arg_type == kWasmStmt) {
+      // Generate the index
+      Generate<kWasmI32>(data);
+    } else {
+      const auto parts = data.split();
+
+      // Generate the index
+      Generate<kWasmI32>(parts.first);
+      // Generate the value
+      Generate<arg_type>(parts.second);
+    }
+
+    builder_->Emit(memory_op);
+    builder_->EmitU32V(align);
+    builder_->EmitU32V(offset);
+  }
+
+  template <ValueType T1, ValueType T2>
+  void sequence(DataRange data) {
+    const auto parts = data.split();
+    Generate<T1>(parts.first);
+    Generate<T2>(parts.second);
+  }
+
+  void current_memory(DataRange data) {
+    builder_->EmitWithU8(kExprMemorySize, 0);
+  }
+
+  using generate_fn = void (WasmGenerator::*const)(DataRange);
+
+  template <size_t N>
+  void GenerateOneOf(generate_fn (&alternates)[N], DataRange data) {
+    static_assert(N < std::numeric_limits<uint8_t>::max(),
+                  "Too many alternates. Replace with a bigger type if needed.");
+    const auto which = data.get<uint8_t>();
+
+    generate_fn alternate = alternates[which % N];
+    (this->*alternate)(data);
   }
 
   struct GeneratorRecursionScope {
     explicit GeneratorRecursionScope(WasmGenerator* gen) : gen(gen) {
       ++gen->recursion_depth;
+      DCHECK_LE(gen->recursion_depth, kMaxRecursionDepth);
     }
     ~GeneratorRecursionScope() {
       DCHECK_GT(gen->recursion_depth, 0);
@@ -122,39 +162,6 @@ class WasmGenerator {
     }
     WasmGenerator* gen;
   };
-
-  template <WasmOpcode memory_op, ValueType arg_type = kWasmStmt>
-  std::function<void(DataRange)> memop() {
-    return [this](DataRange data) {
-      const auto align = data.get<uint32_t>();
-      const auto offset = data.get<uint32_t>();
-
-      if (arg_type == kWasmStmt) {
-        // Generate the index
-        Generate<kWasmI32>(data);
-      } else {
-        const auto parts = data.split();
-
-        // Generate the index
-        Generate<kWasmI32>(parts.first);
-        // Generate the value
-        Generate<arg_type>(parts.second);
-      }
-
-      builder_->Emit(memory_op);
-      builder_->EmitU32V(align);
-      builder_->EmitU32V(offset);
-    };
-  }
-
-  template <ValueType T1, ValueType T2>
-  std::function<void(DataRange)> sequence() {
-    return [this](DataRange data) {
-      const auto parts = data.split();
-      Generate<T1>(parts.first);
-      Generate<T2>(parts.second);
-    };
-  }
 
  public:
   explicit WasmGenerator(WasmFunctionBuilder* fn) : builder_(fn) {}
@@ -186,28 +193,24 @@ class WasmGenerator {
 template <>
 void WasmGenerator::Generate<kWasmStmt>(DataRange data) {
   GeneratorRecursionScope rec_scope(this);
-  if (!recursion_limit_reached() && data.size() > 0) {
-    const std::function<void(DataRange)> alternates[] = {
-        block<kWasmStmt>(),
-        block_br<kWasmStmt>(),
+  if (recursion_limit_reached() || data.size() == 0) return;
 
-        memop<kExprI32StoreMem, kWasmI32>(),
-        memop<kExprI32StoreMem8, kWasmI32>(),
-        memop<kExprI32StoreMem16, kWasmI32>(),
-        memop<kExprI64StoreMem, kWasmI32>(),
-        memop<kExprI64StoreMem8, kWasmI64>(),
-        memop<kExprI64StoreMem16, kWasmI64>(),
-        memop<kExprI64StoreMem32, kWasmI64>(),
-        memop<kExprF32StoreMem, kWasmF32>(),
-        memop<kExprF64StoreMem, kWasmF64>(),
-    };
+  constexpr generate_fn alternates[] = {
+      &WasmGenerator::block<kWasmStmt>,
+      &WasmGenerator::block_br<kWasmStmt>,
 
-    static_assert(arraysize(alternates) < std::numeric_limits<uint8_t>::max(),
-                  "Too many alternates. Replace with a bigger type if needed.");
-    const auto which = data.get<uint8_t>();
+      &WasmGenerator::memop<kExprI32StoreMem, kWasmI32>,
+      &WasmGenerator::memop<kExprI32StoreMem8, kWasmI32>,
+      &WasmGenerator::memop<kExprI32StoreMem16, kWasmI32>,
+      &WasmGenerator::memop<kExprI64StoreMem, kWasmI32>,
+      &WasmGenerator::memop<kExprI64StoreMem8, kWasmI64>,
+      &WasmGenerator::memop<kExprI64StoreMem16, kWasmI64>,
+      &WasmGenerator::memop<kExprI64StoreMem32, kWasmI64>,
+      &WasmGenerator::memop<kExprF32StoreMem, kWasmF32>,
+      &WasmGenerator::memop<kExprF64StoreMem, kWasmF64>,
+  };
 
-    alternates[which % arraysize(alternates)](data);
-  }
+  GenerateOneOf(alternates, data);
 }
 
 template <>
@@ -215,82 +218,81 @@ void WasmGenerator::Generate<kWasmI32>(DataRange data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data.size() <= sizeof(uint32_t)) {
     builder_->EmitI32Const(data.get<uint32_t>());
-  } else {
-    const std::function<void(DataRange)> alternates[] = {
-        sequence<kWasmStmt, kWasmI32>(),
-
-        op<kExprI32Eqz, kWasmI32>(),  //
-        op<kExprI32Eq, kWasmI32, kWasmI32>(),
-        op<kExprI32Ne, kWasmI32, kWasmI32>(),
-        op<kExprI32LtS, kWasmI32, kWasmI32>(),
-        op<kExprI32LtU, kWasmI32, kWasmI32>(),
-        op<kExprI32GeS, kWasmI32, kWasmI32>(),
-        op<kExprI32GeU, kWasmI32, kWasmI32>(),
-
-        op<kExprI64Eqz, kWasmI64>(),  //
-        op<kExprI64Eq, kWasmI64, kWasmI64>(),
-        op<kExprI64Ne, kWasmI64, kWasmI64>(),
-        op<kExprI64LtS, kWasmI64, kWasmI64>(),
-        op<kExprI64LtU, kWasmI64, kWasmI64>(),
-        op<kExprI64GeS, kWasmI64, kWasmI64>(),
-        op<kExprI64GeU, kWasmI64, kWasmI64>(),
-
-        op<kExprF32Eq, kWasmF32, kWasmF32>(),
-        op<kExprF32Ne, kWasmF32, kWasmF32>(),
-        op<kExprF32Lt, kWasmF32, kWasmF32>(),
-        op<kExprF32Ge, kWasmF32, kWasmF32>(),
-
-        op<kExprF64Eq, kWasmF64, kWasmF64>(),
-        op<kExprF64Ne, kWasmF64, kWasmF64>(),
-        op<kExprF64Lt, kWasmF64, kWasmF64>(),
-        op<kExprF64Ge, kWasmF64, kWasmF64>(),
-
-        op<kExprI32Add, kWasmI32, kWasmI32>(),
-        op<kExprI32Sub, kWasmI32, kWasmI32>(),
-        op<kExprI32Mul, kWasmI32, kWasmI32>(),
-
-        op<kExprI32DivS, kWasmI32, kWasmI32>(),
-        op<kExprI32DivU, kWasmI32, kWasmI32>(),
-        op<kExprI32RemS, kWasmI32, kWasmI32>(),
-        op<kExprI32RemU, kWasmI32, kWasmI32>(),
-
-        op<kExprI32And, kWasmI32, kWasmI32>(),
-        op<kExprI32Ior, kWasmI32, kWasmI32>(),
-        op<kExprI32Xor, kWasmI32, kWasmI32>(),
-        op<kExprI32Shl, kWasmI32, kWasmI32>(),
-        op<kExprI32ShrU, kWasmI32, kWasmI32>(),
-        op<kExprI32ShrS, kWasmI32, kWasmI32>(),
-        op<kExprI32Ror, kWasmI32, kWasmI32>(),
-        op<kExprI32Rol, kWasmI32, kWasmI32>(),
-
-        op<kExprI32Clz, kWasmI32>(),  //
-        op<kExprI32Ctz, kWasmI32>(),  //
-        op<kExprI32Popcnt, kWasmI32>(),
-
-        op<kExprI32ConvertI64, kWasmI64>(),  //
-        op<kExprI32SConvertF32, kWasmF32>(),
-        op<kExprI32UConvertF32, kWasmF32>(),
-        op<kExprI32SConvertF64, kWasmF64>(),
-        op<kExprI32UConvertF64, kWasmF64>(),
-        op<kExprI32ReinterpretF32, kWasmF32>(),
-
-        block<kWasmI32>(), block_br<kWasmI32>(),
-
-        memop<kExprI32LoadMem>(), memop<kExprI32LoadMem8S>(),
-        memop<kExprI32LoadMem8U>(), memop<kExprI32LoadMem16S>(),
-        memop<kExprI32LoadMem16U>(),
-
-        // current_memory
-        [this](DataRange) { builder_->EmitWithU8(kExprMemorySize, 0); }
-        // TODO(eholk): add grow_memory too
-    };
-
-    static_assert(arraysize(alternates) < std::numeric_limits<uint8_t>::max(),
-                  "Too many alternates. Replace with a bigger type if needed.");
-    const auto which = data.get<uint8_t>();
-
-    alternates[which % arraysize(alternates)](data);
+    return;
   }
+
+  constexpr generate_fn alternates[] = {
+      &WasmGenerator::sequence<kWasmStmt, kWasmI32>,
+
+      &WasmGenerator::op<kExprI32Eqz, kWasmI32>,
+      &WasmGenerator::op<kExprI32Eq, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32Ne, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32LtS, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32LtU, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32GeS, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32GeU, kWasmI32, kWasmI32>,
+
+      &WasmGenerator::op<kExprI64Eqz, kWasmI64>,
+      &WasmGenerator::op<kExprI64Eq, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64Ne, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64LtS, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64LtU, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64GeS, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64GeU, kWasmI64, kWasmI64>,
+
+      &WasmGenerator::op<kExprF32Eq, kWasmF32, kWasmF32>,
+      &WasmGenerator::op<kExprF32Ne, kWasmF32, kWasmF32>,
+      &WasmGenerator::op<kExprF32Lt, kWasmF32, kWasmF32>,
+      &WasmGenerator::op<kExprF32Ge, kWasmF32, kWasmF32>,
+
+      &WasmGenerator::op<kExprF64Eq, kWasmF64, kWasmF64>,
+      &WasmGenerator::op<kExprF64Ne, kWasmF64, kWasmF64>,
+      &WasmGenerator::op<kExprF64Lt, kWasmF64, kWasmF64>,
+      &WasmGenerator::op<kExprF64Ge, kWasmF64, kWasmF64>,
+
+      &WasmGenerator::op<kExprI32Add, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32Sub, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32Mul, kWasmI32, kWasmI32>,
+
+      &WasmGenerator::op<kExprI32DivS, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32DivU, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32RemS, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32RemU, kWasmI32, kWasmI32>,
+
+      &WasmGenerator::op<kExprI32And, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32Ior, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32Xor, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32Shl, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32ShrU, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32ShrS, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32Ror, kWasmI32, kWasmI32>,
+      &WasmGenerator::op<kExprI32Rol, kWasmI32, kWasmI32>,
+
+      &WasmGenerator::op<kExprI32Clz, kWasmI32>,
+      &WasmGenerator::op<kExprI32Ctz, kWasmI32>,
+      &WasmGenerator::op<kExprI32Popcnt, kWasmI32>,
+
+      &WasmGenerator::op<kExprI32ConvertI64, kWasmI64>,
+      &WasmGenerator::op<kExprI32SConvertF32, kWasmF32>,
+      &WasmGenerator::op<kExprI32UConvertF32, kWasmF32>,
+      &WasmGenerator::op<kExprI32SConvertF64, kWasmF64>,
+      &WasmGenerator::op<kExprI32UConvertF64, kWasmF64>,
+      &WasmGenerator::op<kExprI32ReinterpretF32, kWasmF32>,
+
+      &WasmGenerator::block<kWasmI32>,
+      &WasmGenerator::block_br<kWasmI32>,
+
+      &WasmGenerator::memop<kExprI32LoadMem>,
+      &WasmGenerator::memop<kExprI32LoadMem8S>,
+      &WasmGenerator::memop<kExprI32LoadMem8U>,
+      &WasmGenerator::memop<kExprI32LoadMem16S>,
+      &WasmGenerator::memop<kExprI32LoadMem16U>,
+
+      &WasmGenerator::current_memory,
+      // TODO(eholk): add grow_memory too
+  };
+
+  GenerateOneOf(alternates, data);
 }
 
 template <>
@@ -298,49 +300,46 @@ void WasmGenerator::Generate<kWasmI64>(DataRange data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data.size() <= sizeof(uint64_t)) {
     builder_->EmitI64Const(data.get<int64_t>());
-  } else {
-    const std::function<void(DataRange)> alternates[] = {
-        sequence<kWasmStmt, kWasmI64>(),
-
-        op<kExprI64Add, kWasmI64, kWasmI64>(),
-        op<kExprI64Sub, kWasmI64, kWasmI64>(),
-        op<kExprI64Mul, kWasmI64, kWasmI64>(),
-
-        op<kExprI64DivS, kWasmI64, kWasmI64>(),
-        op<kExprI64DivU, kWasmI64, kWasmI64>(),
-        op<kExprI64RemS, kWasmI64, kWasmI64>(),
-        op<kExprI64RemU, kWasmI64, kWasmI64>(),
-
-        op<kExprI64And, kWasmI64, kWasmI64>(),
-        op<kExprI64Ior, kWasmI64, kWasmI64>(),
-        op<kExprI64Xor, kWasmI64, kWasmI64>(),
-        op<kExprI64Shl, kWasmI64, kWasmI64>(),
-        op<kExprI64ShrU, kWasmI64, kWasmI64>(),
-        op<kExprI64ShrS, kWasmI64, kWasmI64>(),
-        op<kExprI64Ror, kWasmI64, kWasmI64>(),
-        op<kExprI64Rol, kWasmI64, kWasmI64>(),
-
-        op<kExprI64Clz, kWasmI64>(),
-        op<kExprI64Ctz, kWasmI64>(),
-        op<kExprI64Popcnt, kWasmI64>(),
-
-        block<kWasmI64>(),
-        block_br<kWasmI64>(),
-
-        memop<kExprI64LoadMem>(),
-        memop<kExprI64LoadMem8S>(),
-        memop<kExprI64LoadMem8U>(),
-        memop<kExprI64LoadMem16S>(),
-        memop<kExprI64LoadMem16U>(),
-        memop<kExprI64LoadMem32S>(),
-        memop<kExprI64LoadMem32U>()};
-
-    static_assert(arraysize(alternates) < std::numeric_limits<uint8_t>::max(),
-                  "Too many alternates. Replace with a bigger type if needed.");
-    const auto which = data.get<uint8_t>();
-
-    alternates[which % arraysize(alternates)](data);
+    return;
   }
+
+  constexpr generate_fn alternates[] = {
+      &WasmGenerator::sequence<kWasmStmt, kWasmI64>,
+
+      &WasmGenerator::op<kExprI64Add, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64Sub, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64Mul, kWasmI64, kWasmI64>,
+
+      &WasmGenerator::op<kExprI64DivS, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64DivU, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64RemS, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64RemU, kWasmI64, kWasmI64>,
+
+      &WasmGenerator::op<kExprI64And, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64Ior, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64Xor, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64Shl, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64ShrU, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64ShrS, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64Ror, kWasmI64, kWasmI64>,
+      &WasmGenerator::op<kExprI64Rol, kWasmI64, kWasmI64>,
+
+      &WasmGenerator::op<kExprI64Clz, kWasmI64>,
+      &WasmGenerator::op<kExprI64Ctz, kWasmI64>,
+      &WasmGenerator::op<kExprI64Popcnt, kWasmI64>,
+
+      &WasmGenerator::block<kWasmI64>,
+      &WasmGenerator::block_br<kWasmI64>,
+
+      &WasmGenerator::memop<kExprI64LoadMem>,
+      &WasmGenerator::memop<kExprI64LoadMem8S>,
+      &WasmGenerator::memop<kExprI64LoadMem8U>,
+      &WasmGenerator::memop<kExprI64LoadMem16S>,
+      &WasmGenerator::memop<kExprI64LoadMem16U>,
+      &WasmGenerator::memop<kExprI64LoadMem32S>,
+      &WasmGenerator::memop<kExprI64LoadMem32U>};
+
+  GenerateOneOf(alternates, data);
 }
 
 template <>
@@ -348,25 +347,22 @@ void WasmGenerator::Generate<kWasmF32>(DataRange data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data.size() <= sizeof(float)) {
     builder_->EmitF32Const(data.get<float>());
-  } else {
-    const std::function<void(DataRange)> alternates[] = {
-        sequence<kWasmStmt, kWasmF32>(),
-
-        op<kExprF32Add, kWasmF32, kWasmF32>(),
-        op<kExprF32Sub, kWasmF32, kWasmF32>(),
-        op<kExprF32Mul, kWasmF32, kWasmF32>(),
-
-        block<kWasmF32>(),
-        block_br<kWasmF32>(),
-
-        memop<kExprF32LoadMem>()};
-
-    static_assert(arraysize(alternates) < std::numeric_limits<uint8_t>::max(),
-                  "Too many alternates. Replace with a bigger type if needed.");
-    const auto which = data.get<uint8_t>();
-
-    alternates[which % arraysize(alternates)](data);
+    return;
   }
+
+  constexpr generate_fn alternates[] = {
+      &WasmGenerator::sequence<kWasmStmt, kWasmF32>,
+
+      &WasmGenerator::op<kExprF32Add, kWasmF32, kWasmF32>,
+      &WasmGenerator::op<kExprF32Sub, kWasmF32, kWasmF32>,
+      &WasmGenerator::op<kExprF32Mul, kWasmF32, kWasmF32>,
+
+      &WasmGenerator::block<kWasmF32>,
+      &WasmGenerator::block_br<kWasmF32>,
+
+      &WasmGenerator::memop<kExprF32LoadMem>};
+
+  GenerateOneOf(alternates, data);
 }
 
 template <>
@@ -374,25 +370,22 @@ void WasmGenerator::Generate<kWasmF64>(DataRange data) {
   GeneratorRecursionScope rec_scope(this);
   if (recursion_limit_reached() || data.size() <= sizeof(double)) {
     builder_->EmitF64Const(data.get<double>());
-  } else {
-    const std::function<void(DataRange)> alternates[] = {
-        sequence<kWasmStmt, kWasmF64>(),
-
-        op<kExprF64Add, kWasmF64, kWasmF64>(),
-        op<kExprF64Sub, kWasmF64, kWasmF64>(),
-        op<kExprF64Mul, kWasmF64, kWasmF64>(),
-
-        block<kWasmF64>(),
-        block_br<kWasmF64>(),
-
-        memop<kExprF64LoadMem>()};
-
-    static_assert(arraysize(alternates) < std::numeric_limits<uint8_t>::max(),
-                  "Too many alternates. Replace with a bigger type if needed.");
-    const auto which = data.get<uint8_t>();
-
-    alternates[which % arraysize(alternates)](data);
+    return;
   }
+
+  constexpr generate_fn alternates[] = {
+      &WasmGenerator::sequence<kWasmStmt, kWasmF64>,
+
+      &WasmGenerator::op<kExprF64Add, kWasmF64, kWasmF64>,
+      &WasmGenerator::op<kExprF64Sub, kWasmF64, kWasmF64>,
+      &WasmGenerator::op<kExprF64Mul, kWasmF64, kWasmF64>,
+
+      &WasmGenerator::block<kWasmF64>,
+      &WasmGenerator::block_br<kWasmF64>,
+
+      &WasmGenerator::memop<kExprF64LoadMem>};
+
+  GenerateOneOf(alternates, data);
 }
 
 void WasmGenerator::Generate(ValueType type, DataRange data) {
