@@ -2133,8 +2133,6 @@ TEST(CreatePromiseResolvingFunctionsContext) {
   CHECK_EQ(isolate->native_context()->closure(), context_js->closure());
   CHECK_EQ(isolate->heap()->the_hole_value(), context_js->extension());
   CHECK_EQ(*isolate->native_context(), context_js->native_context());
-  CHECK_EQ(Smi::FromInt(0),
-           context_js->get(PromiseBuiltinsAssembler::kAlreadyVisitedSlot));
   CHECK(context_js->get(PromiseBuiltinsAssembler::kPromiseSlot)->IsJSPromise());
   CHECK_EQ(isolate->heap()->false_value(),
            context_js->get(PromiseBuiltinsAssembler::kDebugEventSlot));

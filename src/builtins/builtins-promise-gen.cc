@@ -221,8 +221,6 @@ Node* PromiseBuiltinsAssembler::CreatePromiseResolvingFunctionsContext(
     Node* promise, Node* debug_event, Node* native_context) {
   Node* const context =
       CreatePromiseContext(native_context, kPromiseContextLength);
-  StoreContextElementNoWriteBarrier(context, kAlreadyVisitedSlot,
-                                    SmiConstant(0));
   StoreContextElementNoWriteBarrier(context, kPromiseSlot, promise);
   StoreContextElementNoWriteBarrier(context, kDebugEventSlot, debug_event);
   return context;
@@ -979,37 +977,39 @@ void PromiseBuiltinsAssembler::SetPromiseHandledByIfTrue(
   BIND(&done);
 }
 
+void PromiseBuiltinsAssembler::PerformFulfillClosure(Node* context, Node* value,
+                                                     bool should_resolve) {
+  Label out(this);
+
+  // 2. Let promise be F.[[Promise]].
+  Node* const promise_slot = IntPtrConstant(kPromiseSlot);
+  Node* const promise = LoadContextElement(context, promise_slot);
+
+  // We use `undefined` as a marker to know that this callback was
+  // already called.
+  GotoIf(IsUndefined(promise), &out);
+
+  if (should_resolve) {
+    InternalResolvePromise(context, promise, value);
+  } else {
+    Node* const debug_event =
+        LoadContextElement(context, IntPtrConstant(kDebugEventSlot));
+    InternalPromiseReject(context, promise, value, debug_event);
+  }
+
+  StoreContextElement(context, promise_slot, UndefinedConstant());
+  Goto(&out);
+
+  BIND(&out);
+}
+
 // ES#sec-promise-reject-functions
 // Promise Reject Functions
 TF_BUILTIN(PromiseRejectClosure, PromiseBuiltinsAssembler) {
   Node* const value = Parameter(Descriptor::kValue);
   Node* const context = Parameter(Descriptor::kContext);
 
-  Label out(this);
-
-  // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  int has_already_visited_slot = kAlreadyVisitedSlot;
-
-  Node* const has_already_visited =
-      LoadContextElement(context, has_already_visited_slot);
-
-  // 4. If alreadyResolved.[[Value]] is true, return undefined.
-  GotoIf(SmiEqual(has_already_visited, SmiConstant(1)), &out);
-
-  // 5.Set alreadyResolved.[[Value]] to true.
-  StoreContextElementNoWriteBarrier(context, has_already_visited_slot,
-                                    SmiConstant(1));
-
-  // 2. Let promise be F.[[Promise]].
-  Node* const promise =
-      LoadContextElement(context, IntPtrConstant(kPromiseSlot));
-  Node* const debug_event =
-      LoadContextElement(context, IntPtrConstant(kDebugEventSlot));
-
-  InternalPromiseReject(context, promise, value, debug_event);
-  Return(UndefinedConstant());
-
-  BIND(&out);
+  PerformFulfillClosure(context, value, false);
   Return(UndefinedConstant());
 }
 
@@ -1153,29 +1153,7 @@ TF_BUILTIN(PromiseResolveClosure, PromiseBuiltinsAssembler) {
   Node* const value = Parameter(Descriptor::kValue);
   Node* const context = Parameter(Descriptor::kContext);
 
-  Label out(this);
-
-  // 3. Let alreadyResolved be F.[[AlreadyResolved]].
-  int has_already_visited_slot = kAlreadyVisitedSlot;
-
-  Node* const has_already_visited =
-      LoadContextElement(context, has_already_visited_slot);
-
-  // 4. If alreadyResolved.[[Value]] is true, return undefined.
-  GotoIf(SmiEqual(has_already_visited, SmiConstant(1)), &out);
-
-  // 5.Set alreadyResolved.[[Value]] to true.
-  StoreContextElementNoWriteBarrier(context, has_already_visited_slot,
-                                    SmiConstant(1));
-
-  // 2. Let promise be F.[[Promise]].
-  Node* const promise =
-      LoadContextElement(context, IntPtrConstant(kPromiseSlot));
-
-  InternalResolvePromise(context, promise, value);
-  Return(UndefinedConstant());
-
-  BIND(&out);
+  PerformFulfillClosure(context, value, true);
   Return(UndefinedConstant());
 }
 
