@@ -143,6 +143,11 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   __ Ret();
 }
 
+void StoreRegistersStateStub::Generate(MacroAssembler* masm) {
+  __ PushSafepointRegisters();
+  __ b(r14);
+}
+
 void RestoreRegistersStateStub::Generate(MacroAssembler* masm) {
   __ PopSafepointRegisters();
   __ b(r14);
@@ -259,7 +264,6 @@ bool CEntryStub::NeedsImmovableCode() { return true; }
 
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
-  StoreBufferOverflowStub::GenerateFixedRegStubsAheadOfTime(isolate);
   CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
   StoreRegistersStateStub::GenerateAheadOfTime(isolate);
   RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
@@ -279,7 +283,6 @@ void RestoreRegistersStateStub::GenerateAheadOfTime(Isolate* isolate) {
 void CodeStub::GenerateFPStubs(Isolate* isolate) {
   SaveFPRegsMode mode = kSaveFPRegs;
   CEntryStub(isolate, 1, mode).GetCode();
-  StoreBufferOverflowStub(isolate, mode).GetCode();
 }
 
 void CEntryStub::GenerateAheadOfTime(Isolate* isolate) {

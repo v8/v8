@@ -149,6 +149,10 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   __ Ret();
 }
 
+void StoreRegistersStateStub::Generate(MacroAssembler* masm) {
+  __ PushSafepointRegisters();
+  __ blr();
+}
 
 void RestoreRegistersStateStub::Generate(MacroAssembler* masm) {
   __ PopSafepointRegisters();
