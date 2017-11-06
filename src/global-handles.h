@@ -161,7 +161,9 @@ class GlobalHandles {
 
   // Iterates over weak independent or unmodified handles.
   // See the note above.
-  void IterateNewSpaceWeakUnmodifiedRoots(RootVisitor* v);
+  void IterateNewSpaceWeakUnmodifiedRootsForFinalizers(RootVisitor* v);
+  void IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
+      RootVisitor* v, WeakSlotCallbackWithHeap should_reset_handle);
 
   // Identify unmodified objects that are in weak state and marks them
   // unmodified

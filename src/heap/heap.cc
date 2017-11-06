@@ -1723,7 +1723,7 @@ void Heap::CheckNewSpaceExpansionCriteria() {
 }
 
 static bool IsUnscavengedHeapObject(Heap* heap, Object** p) {
-  return heap->InNewSpace(*p) &&
+  return heap->InFromSpace(*p) &&
          !HeapObject::cast(*p)->map_word().IsForwardingAddress();
 }
 
@@ -1958,9 +1958,18 @@ void Heap::Scavenge() {
                GCTracer::Scope::SCAVENGER_SCAVENGE_WEAK_GLOBAL_HANDLES_PROCESS);
       isolate()->global_handles()->MarkNewSpaceWeakUnmodifiedObjectsPending(
           &IsUnscavengedHeapObject);
-      isolate()->global_handles()->IterateNewSpaceWeakUnmodifiedRoots(
-          &root_scavenge_visitor);
+      isolate()
+          ->global_handles()
+          ->IterateNewSpaceWeakUnmodifiedRootsForFinalizers(
+              &root_scavenge_visitor);
       scavengers[kMainThreadId]->Process();
+
+      DCHECK(copied_list.IsGlobalEmpty());
+      DCHECK(promotion_list.IsGlobalEmpty());
+      isolate()
+          ->global_handles()
+          ->IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
+              &root_scavenge_visitor, &IsUnscavengedHeapObject);
     }
 
     for (int i = 0; i < num_scavenge_tasks; i++) {

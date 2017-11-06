@@ -703,24 +703,49 @@ void GlobalHandles::MarkNewSpaceWeakUnmodifiedObjectsPending(
     DCHECK(node->is_in_new_space_list());
     if ((node->is_independent() || !node->is_active()) && node->IsWeak() &&
         is_unscavenged(isolate_->heap(), node->location())) {
-      node->MarkPending();
+      if (!node->IsPhantomCallback() && !node->IsPhantomResetHandle()) {
+        node->MarkPending();
+      }
     }
   }
 }
 
-void GlobalHandles::IterateNewSpaceWeakUnmodifiedRoots(RootVisitor* v) {
+void GlobalHandles::IterateNewSpaceWeakUnmodifiedRootsForFinalizers(
+    RootVisitor* v) {
   for (Node* node : new_space_nodes_) {
     DCHECK(node->is_in_new_space_list());
     if ((node->is_independent() || !node->is_active()) &&
-        node->IsWeakRetainer()) {
-      // Pending weak phantom handles die immediately. Everything else survives.
-      if (node->IsPendingPhantomResetHandle()) {
-        node->ResetPhantomHandle();
-        ++number_of_phantom_handle_resets_;
-      } else if (node->IsPendingPhantomCallback()) {
-        node->CollectPhantomCallbackData(isolate(),
-                                         &pending_phantom_callbacks_);
+        node->IsWeakRetainer() && (node->state() == Node::PENDING)) {
+      DCHECK(!node->IsPhantomCallback());
+      DCHECK(!node->IsPhantomResetHandle());
+      // Finalizers need to survive.
+      v->VisitRootPointer(Root::kGlobalHandles, node->location());
+    }
+  }
+}
+
+void GlobalHandles::IterateNewSpaceWeakUnmodifiedRootsForPhantomHandles(
+    RootVisitor* v, WeakSlotCallbackWithHeap should_reset_handle) {
+  for (Node* node : new_space_nodes_) {
+    DCHECK(node->is_in_new_space_list());
+    if ((node->is_independent() || !node->is_active()) &&
+        node->IsWeakRetainer() && (node->state() != Node::PENDING)) {
+      DCHECK(node->IsPhantomResetHandle() || node->IsPhantomCallback());
+      if (should_reset_handle(isolate_->heap(), node->location())) {
+        if (node->IsPhantomResetHandle()) {
+          node->MarkPending();
+          node->ResetPhantomHandle();
+          ++number_of_phantom_handle_resets_;
+
+        } else if (node->IsPhantomCallback()) {
+          node->MarkPending();
+          node->CollectPhantomCallbackData(isolate(),
+                                           &pending_phantom_callbacks_);
+        } else {
+          UNREACHABLE();
+        }
       } else {
+        // Node survived and needs to be visited.
         v->VisitRootPointer(Root::kGlobalHandles, node->location());
       }
     }

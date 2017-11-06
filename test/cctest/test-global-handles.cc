@@ -192,12 +192,9 @@ void ResurrectingFinalizer(
   data.GetParameter()->ClearWeak();
 }
 
-}  // namespace
-
-TEST(Regress772299) {
-  CcTest::InitializeVM();
-  v8::Isolate* isolate = CcTest::isolate();
-
+template <typename GCFunction>
+void TestFinalizerKeepsPhantomAlive(v8::Isolate* isolate,
+                                    GCFunction gc_function) {
   v8::Global<v8::Object> g1, g2;
   {
     v8::HandleScope scope(isolate);
@@ -205,6 +202,10 @@ TEST(Regress772299) {
         v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
     v8::Local<v8::Object> o2 =
         v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
+    CHECK(reinterpret_cast<Isolate*>(isolate)->heap()->InNewSpace(
+        *v8::Utils::OpenHandle(v8::Object::Cast(*o1))));
+    CHECK(reinterpret_cast<Isolate*>(isolate)->heap()->InNewSpace(
+        *v8::Utils::OpenHandle(v8::Object::Cast(*o2))));
     o1->Set(isolate->GetCurrentContext(), v8_str("link"), o2).FromJust();
     g1.Reset(isolate, o1);
     g2.Reset(isolate, o2);
@@ -215,11 +216,34 @@ TEST(Regress772299) {
     g2.SetWeak();
   }
 
-  CcTest::CollectAllAvailableGarbage();
+  gc_function(&g1, &g2);
   // Both, g1 and g2, should stay alive as the finalizer resurrects the root
   // object that transitively keeps the other one alive.
   CHECK(!g1.IsEmpty());
   CHECK(!g2.IsEmpty());
+}
+
+}  // namespace
+
+TEST(FinalizerKeepsPhantomAliveOnMarkCompact) {
+  // See crbug.com/772299.
+  CcTest::InitializeVM();
+  TestFinalizerKeepsPhantomAlive(
+      CcTest::isolate(),
+      [](v8::Global<v8::Object>* g1, v8::Global<v8::Object>* g2) {
+        CcTest::CollectAllAvailableGarbage();
+      });
+}
+
+TEST(FinalizerKeepsPhantomAliveOnScavenge) {
+  CcTest::InitializeVM();
+  TestFinalizerKeepsPhantomAlive(
+      CcTest::isolate(),
+      [](v8::Global<v8::Object>* g1, v8::Global<v8::Object>* g2) {
+        g1->MarkIndependent();
+        g2->MarkIndependent();
+        CcTest::CollectGarbage(i::NEW_SPACE);
+      });
 }
 
 }  // namespace internal
