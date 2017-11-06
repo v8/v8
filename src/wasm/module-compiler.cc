@@ -524,9 +524,8 @@ MaybeHandle<WasmInstanceObject> SyncCompileAndInstantiate(
   DCHECK_EQ(thrower->error(), module.is_null());
   if (module.is_null()) return {};
 
-  return SyncInstantiate(isolate, thrower, module.ToHandleChecked(),
-                         Handle<JSReceiver>::null(),
-                         Handle<JSArrayBuffer>::null());
+  return SyncInstantiate(isolate, thrower, module.ToHandleChecked(), imports,
+                         memory);
 }
 
 void RejectPromise(Isolate* isolate, Handle<Context> context,
