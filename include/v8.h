@@ -442,7 +442,7 @@ class WeakCallbackInfo {
     return embedder_fields_[1];
   }
 
-  V8_DEPRECATED("Not realiable once SetSecondPassCallback() was used.",
+  V8_DEPRECATED("Not reliable once SetSecondPassCallback() was used.",
                 bool IsFirstPass() const) {
     return callback_ != nullptr;
   }
@@ -5272,7 +5272,7 @@ typedef void (*GenericNamedPropertySetterCallback)(
  * defineProperty().
  *
  * Use `info.GetReturnValue().Set(value)` to set the property attributes. The
- * value is an interger encoding a `v8::PropertyAttribute`.
+ * value is an integer encoding a `v8::PropertyAttribute`.
  *
  * \param property The name of the property for which the request was
  * intercepted.
@@ -5996,7 +5996,7 @@ class V8_EXPORT ObjectTemplate : public Template {
   bool IsImmutableProto();
 
   /**
-   * Makes the ObjectTempate for an immutable prototype exotic object, with an
+   * Makes the ObjectTemplate for an immutable prototype exotic object, with an
    * immutable __proto__.
    */
   void SetImmutableProto();
@@ -6303,7 +6303,7 @@ typedef MaybeLocal<Promise> (*HostImportModuleDynamicallyCallback)(
 
 /**
  * HostInitializeImportMetaObjectCallback is called the first time import.meta
- * is accessed for a module. Subsequent acccess will reuse the same value.
+ * is accessed for a module. Subsequent access will reuse the same value.
  *
  * The method combines two implementation-defined abstract operations into one:
  * HostGetImportMetaProperties and HostFinalizeImportMeta.
