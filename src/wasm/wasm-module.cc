@@ -99,6 +99,9 @@ void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
 
     unpacked.clear();
 
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+
     // TODO(eholk): if index is negative, fail.
     DCHECK_LE(0, index);
     code->set_trap_handler_index(Smi::FromInt(index));

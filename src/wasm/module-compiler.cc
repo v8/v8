@@ -234,6 +234,8 @@ class JSToWasmWrapperCache {
     int cached_idx = sig_map_.Find(func->sig);
     if (cached_idx >= 0) {
       Handle<Code> code = isolate->factory()->CopyCode(code_cache_[cached_idx]);
+      // TODO(6792): No longer needed once WebAssembly code is off heap.
+      CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
       // Now patch the call to wasm code.
       for (RelocIterator it(*code, RelocInfo::kCodeTargetMask);; it.next()) {
         DCHECK(!it.done());
@@ -402,6 +404,8 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   WeakCell* weak_wasm_module = compiled_module->ptr_to_weak_wasm_module();
 
   if (trap_handler::UseTrapHandler()) {
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
     Handle<FixedArray> code_table = compiled_module->code_table();
     for (int i = 0; i < code_table->length(); ++i) {
       Handle<Code> code = code_table->GetValueChecked<Code>(isolate, i);
@@ -658,6 +662,8 @@ Handle<Code> CompileLazy(Isolate* isolate) {
       DCHECK(exp_table->get(exp_index) == *lazy_compile_code);
       exp_table->set(exp_index, *compiled_code);
     }
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
     // After processing, remove the list of exported entries, such that we don't
     // do the patching redundantly.
     Handle<FixedArray> new_deopt_data =
@@ -740,6 +746,9 @@ void LazyCompilationOrchestrator::CompileFunction(
   // module creation time, and return a function that always traps here.
   CHECK(!thrower.error());
   Handle<Code> code = maybe_code.ToHandleChecked();
+
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
 
   Handle<FixedArray> deopt_data = isolate->factory()->NewFixedArray(2, TENURED);
   Handle<WeakCell> weak_instance = isolate->factory()->NewWeakCell(instance);
@@ -836,6 +845,8 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
 
   if (is_js_to_wasm || patch_caller) {
     DisallowHeapAllocation no_gc;
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
     // Now patch the code object with all functions which are now compiled.
     int idx = 0;
     for (RelocIterator it(*caller, RelocInfo::kCodeTargetMask); !it.done();
@@ -1236,6 +1247,10 @@ Handle<Code> EnsureExportedLazyDeoptData(Isolate* isolate,
            code->builtin_index() == Builtins::kIllegal);
     return code;
   }
+
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+
   // deopt_data:
   //   #0: weak instance
   //   #1: func_index
@@ -1274,6 +1289,9 @@ Handle<Code> EnsureTableExportLazyDeoptData(
   Handle<Code> code =
       EnsureExportedLazyDeoptData(isolate, instance, code_table, func_index);
   if (code->builtin_index() != Builtins::kWasmCompileLazy) return code;
+
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
 
   // deopt_data:
   // #0: weak instance
@@ -1334,6 +1352,8 @@ Handle<Code> MakeWasmToWasmWrapper(
   Handle<Code> wrapper_code = compiler::CompileWasmToWasmWrapper(
       isolate, wasm_code, *sig, imported_function->function_index(),
       new_wasm_context_address);
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   // Set the deoptimization data for the WasmToWasm wrapper. This is
   // needed by the interpreter to find the imported instance for
   // a cross-instance call.
@@ -1665,6 +1685,9 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
             // If this code object has deoptimization data, then we need a
             // unique copy to attach updated deoptimization data.
             if (orig_code->deoptimization_data()->length() > 0) {
+              // TODO(6792): No longer needed once WebAssembly code is off heap.
+              CodeSpaceMemoryModificationScope modification_scope(
+                  isolate_->heap());
               Handle<Code> code = factory->CopyCode(orig_code);
               Handle<FixedArray> deopt_data =
                   factory->NewFixedArray(2, TENURED);
@@ -1847,6 +1870,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
        i < num_functions; ++i) {
     Handle<Code> code = handle(Code::cast(code_table->get(i)), isolate_);
     if (code->kind() == Code::WASM_FUNCTION) {
+      // TODO(6792): No longer needed once WebAssembly code is off heap.
+      CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
       Handle<FixedArray> deopt_data = factory->NewFixedArray(2, TENURED);
       deopt_data->set(0, *weak_link);
       deopt_data->set(1, Smi::FromInt(i));

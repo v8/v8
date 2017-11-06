@@ -39,19 +39,24 @@ WASM_COMPILED_EXEC_TEST(RunPatchWasmContext) {
   WasmContext new_wasm_context = {0, 0,
                                   reinterpret_cast<byte*>(new_global_data)};
 
-  // Patch in a new WasmContext that points to the new global data.
-  int filter = 1 << RelocInfo::WASM_CONTEXT_REFERENCE;
-  bool patched = false;
-  Handle<Code> code = r.GetWrapperCode();
-  for (RelocIterator it(*code, filter); !it.done(); it.next()) {
-    CHECK_EQ(old_wasm_context_address, it.rinfo()->wasm_context_reference());
-    it.rinfo()->set_wasm_context_reference(
-        isolate, reinterpret_cast<Address>(&new_wasm_context));
-    patched = true;
+  {
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+
+    // Patch in a new WasmContext that points to the new global data.
+    int filter = 1 << RelocInfo::WASM_CONTEXT_REFERENCE;
+    bool patched = false;
+    Handle<Code> code = r.GetWrapperCode();
+    for (RelocIterator it(*code, filter); !it.done(); it.next()) {
+      CHECK_EQ(old_wasm_context_address, it.rinfo()->wasm_context_reference());
+      it.rinfo()->set_wasm_context_reference(
+          isolate, reinterpret_cast<Address>(&new_wasm_context));
+      patched = true;
+    }
+    CHECK(patched);
+    Assembler::FlushICache(isolate, code->instruction_start(),
+                           code->instruction_size());
   }
-  CHECK(patched);
-  Assembler::FlushICache(isolate, code->instruction_start(),
-                         code->instruction_size());
 
   // Run with the new global data.
   CHECK_EQ(115, r.Call(115));

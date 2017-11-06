@@ -143,6 +143,9 @@ Code* BuildWithCodeStubAssemblerCS(Isolate* isolate,
 
 void SetupIsolateDelegate::AddBuiltin(Builtins* builtins, int index,
                                       Code* code) {
+  // TODO(mstarzinger,6792): This code-space modification section should be
+  // moved into {Heap} eventually and a safe wrapper be provided.
+  CodeSpaceMemoryModificationScope modification_scope(code->GetHeap());
   builtins->builtins_[index] = code;
   code->set_builtin_index(index);
 }
@@ -161,6 +164,9 @@ void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
 }
 
 void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
+  // TODO(mstarzinger,6792): This code-space modification section should be
+  // moved into {Heap} eventually and a safe wrapper be provided.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   // Replace references from all code objects to placeholders.
   Builtins* builtins = isolate->builtins();
   DisallowHeapAllocation no_gc;
@@ -272,6 +278,10 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
 
   BUILTIN_EXCEPTION_CAUGHT_PREDICTION_LIST(SET_EXCEPTION_CAUGHT_PREDICTION)
 #undef SET_EXCEPTION_CAUGHT_PREDICTION
+
+  // TODO(mstarzinger,6792): This code-space modification section should be
+  // moved into {Heap} eventually and a safe wrapper be provided.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
 
 #define SET_CODE_NON_TAGGED_PARAMS(Name)             \
   Code::cast(builtins->builtins_[Builtins::k##Name]) \

@@ -688,6 +688,8 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
     DCHECK_NULL(code_to_relocate.Find(old_code));
     code_to_relocate.Set(old_code, new_code);
   }
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   RedirectCallsitesInInstance(isolate, *instance, code_to_relocate);
 }
 

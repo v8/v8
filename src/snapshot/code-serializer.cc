@@ -242,6 +242,9 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
     return nothing;
   }
 
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+
   MaybeHandle<WasmCompiledModule> maybe_result =
       ObjectDeserializer::DeserializeWasmCompiledModule(isolate, &scd,
                                                         wire_bytes);
@@ -260,6 +263,8 @@ void WasmCompiledModuleSerializer::SerializeCodeObject(
   switch (kind) {
     case Code::WASM_FUNCTION:
     case Code::JS_TO_WASM_FUNCTION: {
+      // TODO(6792): No longer needed once WebAssembly code is off heap.
+      CodeSpaceMemoryModificationScope modification_scope(isolate()->heap());
       // Because the trap handler index is not meaningful across copies and
       // serializations, we need to serialize it as kInvalidIndex. We do this by
       // saving the old value, setting the index to kInvalidIndex and then

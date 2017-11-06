@@ -542,7 +542,7 @@ void MemoryChunk::SetReadAndExecutable() {
     return;
   }
   write_unprotect_counter_--;
-  DCHECK_LE(write_unprotect_counter_, 1);
+  DCHECK_LE(write_unprotect_counter_, 2);
   if (write_unprotect_counter_ == 0) {
     Address protect_start =
         address() + MemoryAllocator::CodePageAreaStartOffset();
@@ -563,7 +563,7 @@ void MemoryChunk::SetReadAndWritable() {
   // protection mode has to be atomic.
   base::LockGuard<base::Mutex> guard(page_protection_change_mutex_);
   write_unprotect_counter_++;
-  DCHECK_LE(write_unprotect_counter_, 2);
+  DCHECK_LE(write_unprotect_counter_, 3);
   if (write_unprotect_counter_ == 1) {
     Address unprotect_start =
         address() + MemoryAllocator::CodePageAreaStartOffset();
@@ -584,7 +584,7 @@ void MemoryChunk::SetReadWriteAndExecutable() {
   // protection mode has to be atomic.
   base::LockGuard<base::Mutex> guard(page_protection_change_mutex_);
   write_unprotect_counter_++;
-  DCHECK_LE(write_unprotect_counter_, 2);
+  DCHECK_LE(write_unprotect_counter_, 3);
   Address unprotect_start =
       address() + MemoryAllocator::CodePageAreaStartOffset();
   size_t unprotect_size = size() - MemoryAllocator::CodePageAreaStartOffset();

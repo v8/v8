@@ -421,6 +421,9 @@ void WasmFunctionCompiler::Build(const byte* start, const byte* end) {
   CHECK(!thrower.error());
   Handle<Code> code = maybe_code.ToHandleChecked();
 
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate()->heap());
+
   // Manually add the deoptimization info that would otherwise be added
   // during instantiation. Deopt data holds <WeakCell<wasm_instance>,
   // func_index>.

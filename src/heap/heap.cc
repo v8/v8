@@ -5361,6 +5361,7 @@ void Heap::DisableInlineAllocation() {
 
   // Update inline allocation limit for old spaces.
   PagedSpaces spaces(this);
+  CodeSpaceMemoryModificationScope modification_scope(this);
   for (PagedSpace* space = spaces.next(); space != nullptr;
        space = spaces.next()) {
     space->EmptyAllocationInfo();

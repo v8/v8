@@ -237,6 +237,10 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
   }
 #endif
 
+  // TODO(mstarzinger,6792): This code-space modification section should be
+  // moved into {Heap} eventually and a safe wrapper be provided.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+
   // We will use this set to mark those Code objects that are marked for
   // deoptimization and have not been found in stack frames.
   std::set<Code*> codes;

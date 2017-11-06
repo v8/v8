@@ -699,8 +699,8 @@ class MemoryChunk {
   // times a component requested this page to be read+writeable. The
   // counter is decremented when a component resets to read+executable.
   // If Value() == 0 => The memory is read and executable.
-  // If Value() >= 1 => The Memory is read and writable.
-  // The maximum value can right now only be 2.
+  // If Value() >= 1 => The Memory is read and writable (and maybe executable).
+  // The maximum value can right now only be 3.
   uintptr_t write_unprotect_counter_;
 
   // Byte allocated on the page, which includes all objects on the page
