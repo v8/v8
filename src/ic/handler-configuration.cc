@@ -99,25 +99,6 @@ int GetPrototypeCheckCount(Isolate* isolate, Handle<Map> receiver_map,
                                     Handle<FixedArray>(), 0);
 }
 
-enum class HolderCellRequest {
-  kGlobalPropertyCell,
-  kHolder,
-};
-
-Handle<WeakCell> HolderCell(Isolate* isolate, Handle<JSReceiver> holder,
-                            Handle<Name> name, HolderCellRequest request) {
-  if (request == HolderCellRequest::kGlobalPropertyCell) {
-    DCHECK(holder->IsJSGlobalObject());
-    Handle<JSGlobalObject> global = Handle<JSGlobalObject>::cast(holder);
-    GlobalDictionary* dict = global->global_dictionary();
-    int number = dict->FindEntry(name);
-    DCHECK_NE(NameDictionary::kNotFound, number);
-    Handle<PropertyCell> cell(dict->CellAt(number), isolate);
-    return isolate->factory()->NewWeakCell(cell);
-  }
-  return Map::GetOrCreatePrototypeWeakCell(holder, isolate);
-}
-
 }  // namespace
 
 // static
@@ -125,7 +106,8 @@ Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
                                               Handle<Map> receiver_map,
                                               Handle<JSReceiver> holder,
                                               Handle<Name> name,
-                                              Handle<Smi> smi_handler) {
+                                              Handle<Smi> smi_handler,
+                                              MaybeHandle<Object> maybe_data) {
   int checks_count =
       GetPrototypeCheckCount(isolate, receiver_map, holder, name);
   DCHECK_LE(0, checks_count);
@@ -144,23 +126,20 @@ Handle<Object> LoadHandler::LoadFromPrototype(Isolate* isolate,
       Map::GetOrCreatePrototypeChainValidityCell(receiver_map, isolate);
   DCHECK(!validity_cell.is_null());
 
-  // LoadIC dispatcher expects PropertyCell as a "holder" in case of kGlobal
-  // handler kind.
-  HolderCellRequest request = GetHandlerKind(*smi_handler) == kGlobal
-                                  ? HolderCellRequest::kGlobalPropertyCell
-                                  : HolderCellRequest::kHolder;
-
-  Handle<WeakCell> holder_cell = HolderCell(isolate, holder, name, request);
+  Handle<Object> data;
+  if (!maybe_data.ToHandle(&data)) {
+    data = Map::GetOrCreatePrototypeWeakCell(holder, isolate);
+  }
 
   if (checks_count == 0) {
-    return isolate->factory()->NewTuple3(holder_cell, smi_handler,
-                                         validity_cell, TENURED);
+    return isolate->factory()->NewTuple3(data, smi_handler, validity_cell,
+                                         TENURED);
   }
   Handle<FixedArray> handler_array(isolate->factory()->NewFixedArray(
       kFirstPrototypeIndex + checks_count, TENURED));
   handler_array->set(kSmiHandlerIndex, *smi_handler);
   handler_array->set(kValidityCellIndex, *validity_cell);
-  handler_array->set(kHolderCellIndex, *holder_cell);
+  handler_array->set(kDataIndex, *data);
   InitPrototypeChecks(isolate, receiver_map, holder, name, handler_array,
                       kFirstPrototypeIndex);
   return handler_array;
@@ -203,7 +182,7 @@ Handle<Object> LoadHandler::LoadFullChain(Isolate* isolate,
       LoadHandler::kFirstPrototypeIndex + checks_count, TENURED));
   handler_array->set(kSmiHandlerIndex, *smi_handler);
   handler_array->set(kValidityCellIndex, *validity_cell);
-  handler_array->set(kHolderCellIndex, *holder);
+  handler_array->set(kDataIndex, *holder);
   InitPrototypeChecks(isolate, receiver_map, end, name, handler_array,
                       kFirstPrototypeIndex);
   return handler_array;
@@ -328,7 +307,7 @@ Handle<Object> StoreHandler::StoreTransition(Isolate* isolate,
       factory->NewFixedArray(kFirstPrototypeIndex + checks_count, TENURED));
   handler_array->set(kSmiHandlerIndex, *smi_handler);
   handler_array->set(kValidityCellIndex, *validity_cell);
-  handler_array->set(kTransitionMapOrHolderCellIndex, *transition_cell);
+  handler_array->set(kDataIndex, *transition_cell);
   InitPrototypeChecks(isolate, receiver_map, holder, name, handler_array,
                       kFirstPrototypeIndex);
   return handler_array;
@@ -377,7 +356,7 @@ Handle<Object> StoreHandler::StoreProxy(Isolate* isolate,
       factory->NewFixedArray(kFirstPrototypeIndex + checks_count, TENURED));
   handler_array->set(kSmiHandlerIndex, *smi_handler);
   handler_array->set(kValidityCellIndex, *validity_cell);
-  handler_array->set(kTransitionMapOrHolderCellIndex, *holder_cell);
+  handler_array->set(kDataIndex, *holder_cell);
   InitPrototypeChecks(isolate, receiver_map, proxy, name, handler_array,
                       kFirstPrototypeIndex);
   return handler_array;

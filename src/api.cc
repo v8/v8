@@ -1372,9 +1372,6 @@ static Local<FunctionTemplate> FunctionTemplateNew(
   }
   obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (callback != 0) {
-    if (data.IsEmpty()) {
-      data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
-    }
     Utils::ToLocal(obj)->SetCallHandler(callback, data);
   }
   obj->set_length(length);
@@ -1455,10 +1452,11 @@ void FunctionTemplate::SetCallHandler(FunctionCallback callback,
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::TUPLE2_TYPE, i::TENURED);
+      isolate->factory()->NewStruct(i::TUPLE3_TYPE, i::TENURED);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
+  SET_FIELD_WRAPPED(obj, set_js_callback, obj->redirected_callback());
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
@@ -1909,10 +1907,11 @@ void ObjectTemplate::SetCallAsFunctionHandler(FunctionCallback callback,
   auto cons = EnsureConstructor(isolate, this);
   EnsureNotInstantiated(cons, "v8::ObjectTemplate::SetCallAsFunctionHandler");
   i::Handle<i::Struct> struct_obj =
-      isolate->factory()->NewStruct(i::TUPLE2_TYPE, i::TENURED);
+      isolate->factory()->NewStruct(i::TUPLE3_TYPE, i::TENURED);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
+  SET_FIELD_WRAPPED(obj, set_js_callback, obj->redirected_callback());
   if (data.IsEmpty()) {
     data = v8::Undefined(reinterpret_cast<v8::Isolate*>(isolate));
   }
@@ -8999,8 +8998,10 @@ void Isolate::EnqueueMicrotask(MicrotaskCallback microtask, void* data) {
   i::HandleScope scope(isolate);
   i::Handle<i::CallHandlerInfo> callback_info =
       i::Handle<i::CallHandlerInfo>::cast(
-          isolate->factory()->NewStruct(i::TUPLE2_TYPE, i::NOT_TENURED));
+          isolate->factory()->NewStruct(i::TUPLE3_TYPE, i::NOT_TENURED));
   SET_FIELD_WRAPPED(callback_info, set_callback, microtask);
+  SET_FIELD_WRAPPED(callback_info, set_js_callback,
+                    callback_info->redirected_callback());
   SET_FIELD_WRAPPED(callback_info, set_data, data);
   isolate->EnqueueMicrotask(callback_info);
 }

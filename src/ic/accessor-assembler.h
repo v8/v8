@@ -109,6 +109,8 @@ class AccessorAssembler : public CodeStubAssembler {
                          Node* feedback, Variable* var_handler,
                          Label* if_handler, Label* miss, ExitPoint* exit_point);
 
+  Node* LoadDescriptorValue(Node* map, Node* descriptor);
+
   void LoadIC_Uninitialized(const LoadICParameters* p);
   void LoadICProtoArray(const LoadICParameters* p, Node* handler,
                         bool throw_reference_error_if_nonexistent);

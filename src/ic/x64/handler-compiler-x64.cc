@@ -351,18 +351,6 @@ Register PropertyHandlerCompiler::CheckPrototypes(
 }
 
 
-void NamedLoadHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
-  if (!miss->is_unused()) {
-    Label success;
-    __ jmp(&success);
-    __ bind(miss);
-    PopVectorAndSlot();
-    TailCallBuiltin(masm(), Builtins::kLoadIC_Miss);
-    __ bind(&success);
-  }
-}
-
-
 void NamedStoreHandlerCompiler::FrontendFooter(Handle<Name> name, Label* miss) {
   if (!miss->is_unused()) {
     Label success;

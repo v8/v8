@@ -25,6 +25,9 @@ class LoadHandler {
     kField,
     kConstant,
     kAccessor,
+    kNativeDataProperty,
+    kApiGetter,
+    kApiGetterHolderIsPrototype,
     kInterceptor,
     kProxy,
     kNonExistent,
@@ -48,10 +51,8 @@ class LoadHandler {
   // Encoding when KindBits contains kForConstants.
   //
 
-  class IsAccessorInfoBits
-      : public BitField<bool, LookupOnReceiverBits::kNext, 1> {};
   // Index of a value entry in the descriptor array.
-  class DescriptorBits : public BitField<unsigned, IsAccessorInfoBits::kNext,
+  class DescriptorBits : public BitField<unsigned, LookupOnReceiverBits::kNext,
                                          kDescriptorIndexBitCount> {};
   // Make sure we don't overflow the smi.
   STATIC_ASSERT(DescriptorBits::kNext <= kSmiValueSize);
@@ -94,7 +95,7 @@ class LoadHandler {
   // The layout of an Tuple3 handler representing a load of a field from
   // prototype when prototype chain checks do not include non-existing lookups
   // or access checks.
-  static const int kHolderCellOffset = Tuple3::kValue1Offset;
+  static const int kDataOffset = Tuple3::kValue1Offset;
   static const int kSmiHandlerOffset = Tuple3::kValue2Offset;
   static const int kValidityCellOffset = Tuple3::kValue3Offset;
 
@@ -103,7 +104,7 @@ class LoadHandler {
   // access checks.
   static const int kSmiHandlerIndex = 0;
   static const int kValidityCellIndex = 1;
-  static const int kHolderCellIndex = 2;
+  static const int kDataIndex = 2;
   static const int kFirstPrototypeIndex = 3;
 
   // Decodes kind from Smi-handler.
@@ -131,8 +132,13 @@ class LoadHandler {
   // Creates a Smi-handler for calling a getter on a proxy.
   static inline Handle<Smi> LoadProxy(Isolate* isolate);
 
-  // Creates a Smi-handler for loading an Api getter property from fast object.
-  static inline Handle<Smi> LoadApiGetter(Isolate* isolate, int descriptor);
+  // Creates a Smi-handler for loading a native data property from fast object.
+  static inline Handle<Smi> LoadNativeDataProperty(Isolate* isolate,
+                                                   int descriptor);
+
+  // Creates a Smi-handler for calling a native getter on a fast object.
+  static inline Handle<Smi> LoadApiGetter(Isolate* isolate,
+                                          bool holder_is_receiver);
 
   // Creates a Smi-handler for loading a Module export.
   // |index| is the index to the "value" slot in the Module's "exports"
@@ -150,11 +156,10 @@ class LoadHandler {
   // Creates a data handler that represents a prototype chain check followed
   // by given Smi-handler that encoded a load from the holder.
   // Can be used only if GetPrototypeCheckCount() returns non negative value.
-  static Handle<Object> LoadFromPrototype(Isolate* isolate,
-                                          Handle<Map> receiver_map,
-                                          Handle<JSReceiver> holder,
-                                          Handle<Name> name,
-                                          Handle<Smi> smi_handler);
+  static Handle<Object> LoadFromPrototype(
+      Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
+      Handle<Name> name, Handle<Smi> smi_handler,
+      MaybeHandle<Object> maybe_data = MaybeHandle<Object>());
 
   // Creates a Smi-handler for loading a non-existent property. Works only as
   // a part of prototype chain check.
@@ -244,7 +249,7 @@ class StoreHandler {
   // The layout of an Tuple3 handler representing a transitioning store
   // when prototype chain checks do not include non-existing lookups or access
   // checks.
-  static const int kTransitionOrHolderCellOffset = Tuple3::kValue1Offset;
+  static const int kDataOffset = Tuple3::kValue1Offset;
   static const int kSmiHandlerOffset = Tuple3::kValue2Offset;
   static const int kValidityCellOffset = Tuple3::kValue3Offset;
 
@@ -256,7 +261,7 @@ class StoreHandler {
   // when prototype chain checks include non-existing lookups and access checks.
   static const int kSmiHandlerIndex = 0;
   static const int kValidityCellIndex = 1;
-  static const int kTransitionMapOrHolderCellIndex = 2;
+  static const int kDataIndex = 2;
   static const int kFirstPrototypeIndex = 3;
 
   // Creates a Smi-handler for storing a field to fast object.

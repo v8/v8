@@ -118,5 +118,13 @@ void SerializerDeserializer::RestoreExternalReferenceRedirectors(
   }
 }
 
+void SerializerDeserializer::RestoreExternalReferenceRedirectors(
+    const std::vector<CallHandlerInfo*>& call_handler_infos) {
+  for (CallHandlerInfo* info : call_handler_infos) {
+    Foreign::cast(info->js_callback())
+        ->set_foreign_address(info->redirected_callback());
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

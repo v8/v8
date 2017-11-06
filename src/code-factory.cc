@@ -46,6 +46,12 @@ Callable CodeFactory::ApiGetter(Isolate* isolate) {
 }
 
 // static
+Callable CodeFactory::CallApiCallback(Isolate* isolate, int argc) {
+  CallApiCallbackStub stub(isolate, argc);
+  return make_callable(stub);
+}
+
+// static
 Callable CodeFactory::LoadGlobalIC(Isolate* isolate, TypeofMode typeof_mode) {
   return Callable(
       typeof_mode == NOT_INSIDE_TYPEOF

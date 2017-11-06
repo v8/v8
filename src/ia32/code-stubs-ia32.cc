@@ -1205,7 +1205,7 @@ void CallApiCallbackStub::Generate(MacroAssembler* masm) {
   // return value default
   __ PushRoot(Heap::kUndefinedValueRootIndex);
   // isolate
-  __ push(Immediate(reinterpret_cast<int>(masm->isolate())));
+  __ push(Immediate(ExternalReference::isolate_address(isolate())));
   // holder
   __ push(holder);
 

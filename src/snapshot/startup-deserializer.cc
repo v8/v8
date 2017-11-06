@@ -42,6 +42,7 @@ void StartupDeserializer::DeserializeInto(Isolate* isolate) {
     isolate->heap()->IterateWeakRoots(this, VISIT_ALL);
     DeserializeDeferredObjects();
     RestoreExternalReferenceRedirectors(accessor_infos());
+    RestoreExternalReferenceRedirectors(call_handler_infos());
 
     // Deserialize eager builtins from the builtin snapshot. Note that deferred
     // objects must have been deserialized prior to this.

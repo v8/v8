@@ -1664,6 +1664,13 @@ Address AccessorInfo::redirected_getter() const {
   return redirect(GetIsolate(), accessor, ACCESSOR_GETTER);
 }
 
+Address CallHandlerInfo::redirected_callback() const {
+  Address address = v8::ToCData<Address>(callback());
+  ApiFunction fun(address);
+  ExternalReference::Type type = ExternalReference::DIRECT_API_CALL;
+  return ExternalReference(&fun, type, GetIsolate()).address();
+}
+
 bool AccessorInfo::IsCompatibleReceiverMap(Isolate* isolate,
                                            Handle<AccessorInfo> info,
                                            Handle<Map> map) {

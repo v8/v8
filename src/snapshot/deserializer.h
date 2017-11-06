@@ -79,6 +79,9 @@ class Deserializer : public SerializerDeserializer {
   const std::vector<AccessorInfo*>& accessor_infos() const {
     return accessor_infos_;
   }
+  const std::vector<CallHandlerInfo*>& call_handler_infos() const {
+    return call_handler_infos_;
+  }
   const std::vector<Handle<String>>& new_internalized_strings() const {
     return new_internalized_strings_;
   }
@@ -141,6 +144,7 @@ class Deserializer : public SerializerDeserializer {
 
   std::vector<Code*> new_code_objects_;
   std::vector<AccessorInfo*> accessor_infos_;
+  std::vector<CallHandlerInfo*> call_handler_infos_;
   std::vector<Handle<String>> new_internalized_strings_;
   std::vector<Handle<Script>> new_scripts_;
   std::vector<TransitionArray*> transition_arrays_;

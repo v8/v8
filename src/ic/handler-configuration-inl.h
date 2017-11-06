@@ -42,14 +42,12 @@ Handle<Smi> LoadHandler::LoadField(Isolate* isolate, FieldIndex field_index) {
 }
 
 Handle<Smi> LoadHandler::LoadConstant(Isolate* isolate, int descriptor) {
-  int config = KindBits::encode(kConstant) | IsAccessorInfoBits::encode(false) |
-               DescriptorBits::encode(descriptor);
+  int config = KindBits::encode(kConstant) | DescriptorBits::encode(descriptor);
   return handle(Smi::FromInt(config), isolate);
 }
 
 Handle<Smi> LoadHandler::LoadAccessor(Isolate* isolate, int descriptor) {
-  int config = KindBits::encode(kAccessor) | IsAccessorInfoBits::encode(false) |
-               DescriptorBits::encode(descriptor);
+  int config = KindBits::encode(kAccessor) | DescriptorBits::encode(descriptor);
   return handle(Smi::FromInt(config), isolate);
 }
 
@@ -58,9 +56,17 @@ Handle<Smi> LoadHandler::LoadProxy(Isolate* isolate) {
   return handle(Smi::FromInt(config), isolate);
 }
 
-Handle<Smi> LoadHandler::LoadApiGetter(Isolate* isolate, int descriptor) {
-  int config = KindBits::encode(kConstant) | IsAccessorInfoBits::encode(true) |
+Handle<Smi> LoadHandler::LoadNativeDataProperty(Isolate* isolate,
+                                                int descriptor) {
+  int config = KindBits::encode(kNativeDataProperty) |
                DescriptorBits::encode(descriptor);
+  return handle(Smi::FromInt(config), isolate);
+}
+
+Handle<Smi> LoadHandler::LoadApiGetter(Isolate* isolate,
+                                       bool holder_is_receiver) {
+  int config = KindBits::encode(
+      holder_is_receiver ? kApiGetter : kApiGetterHolderIsPrototype);
   return handle(Smi::FromInt(config), isolate);
 }
 
@@ -207,15 +213,14 @@ Handle<Smi> StoreHandler::TransitionToConstant(Isolate* isolate,
 // static
 WeakCell* StoreHandler::GetTransitionCell(Object* handler) {
   if (handler->IsTuple3()) {
-    STATIC_ASSERT(kTransitionOrHolderCellOffset == Tuple3::kValue1Offset);
+    STATIC_ASSERT(kDataOffset == Tuple3::kValue1Offset);
     WeakCell* cell = WeakCell::cast(Tuple3::cast(handler)->value1());
     DCHECK(!cell->cleared());
     return cell;
   }
 
   DCHECK(handler->IsFixedArray());
-  WeakCell* cell = WeakCell::cast(
-      FixedArray::cast(handler)->get(kTransitionMapOrHolderCellIndex));
+  WeakCell* cell = WeakCell::cast(FixedArray::cast(handler)->get(kDataIndex));
   DCHECK(!cell->cleared());
   return cell;
 }

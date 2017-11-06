@@ -112,27 +112,7 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
 
 class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
  public:
-  NamedLoadHandlerCompiler(Isolate* isolate, Handle<Map> map,
-                           Handle<JSObject> holder)
-      : PropertyHandlerCompiler(isolate, LOAD, map, holder) {}
-
-  virtual ~NamedLoadHandlerCompiler() {}
-
-  Handle<Code> CompileLoadCallback(Handle<Name> name,
-                                   const CallOptimization& call_optimization,
-                                   Handle<Context> context, int accessor_index,
-                                   Handle<Code> slow_stub);
-
   static void GenerateLoadViaGetterForDeopt(MacroAssembler* masm);
-
- protected:
-  virtual Register FrontendHeader(Register object_reg, Handle<Name> name,
-                                  Label* miss);
-
-  virtual void FrontendFooter(Handle<Name> name, Label* miss);
-
- private:
-  Register scratch3() { return registers_[4]; }
 };
 
 

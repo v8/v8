@@ -77,7 +77,7 @@ int PropertyDetails::field_width_in_words() const {
 TYPE_CHECKER(BreakPoint, TUPLE2_TYPE)
 TYPE_CHECKER(BreakPointInfo, TUPLE2_TYPE)
 TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
-TYPE_CHECKER(CallHandlerInfo, TUPLE2_TYPE)
+TYPE_CHECKER(CallHandlerInfo, TUPLE3_TYPE)
 TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(ConstantElementsPair, TUPLE2_TYPE)
 TYPE_CHECKER(CoverageInfo, FIXED_ARRAY_TYPE)
@@ -3871,6 +3871,7 @@ BOOL_ACCESSORS(InterceptorInfo, flags, all_can_read, kAllCanReadBit)
 BOOL_ACCESSORS(InterceptorInfo, flags, non_masking, kNonMasking)
 
 ACCESSORS(CallHandlerInfo, callback, Object, kCallbackOffset)
+ACCESSORS(CallHandlerInfo, js_callback, Object, kJsCallbackOffset)
 ACCESSORS(CallHandlerInfo, data, Object, kDataOffset)
 
 ACCESSORS(TemplateInfo, tag, Object, kTagOffset)

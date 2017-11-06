@@ -5386,15 +5386,19 @@ class InterceptorInfo: public Struct {
   DISALLOW_IMPLICIT_CONSTRUCTORS(InterceptorInfo);
 };
 
-class CallHandlerInfo : public Tuple2 {
+class CallHandlerInfo : public Tuple3 {
  public:
   DECL_ACCESSORS(callback, Object)
+  DECL_ACCESSORS(js_callback, Object)
   DECL_ACCESSORS(data, Object)
 
   DECL_CAST(CallHandlerInfo)
 
+  Address redirected_callback() const;
+
   static const int kCallbackOffset = kValue1Offset;
-  static const int kDataOffset = kValue2Offset;
+  static const int kJsCallbackOffset = kValue2Offset;
+  static const int kDataOffset = kValue3Offset;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(CallHandlerInfo);

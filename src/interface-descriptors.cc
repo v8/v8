@@ -579,7 +579,7 @@ void ArgumentAdaptorDescriptor::InitializePlatformIndependent(
 
 void ApiCallbackDescriptor::InitializePlatformIndependent(
     CallInterfaceDescriptorData* data) {
-  // kFunction, kCallData, kHolder, kApiFunctionAddress
+  // kTargetContext, kCallData, kHolder, kApiFunctionAddress
   MachineType machine_types[] = {
       MachineType::AnyTagged(), MachineType::AnyTagged(),
       MachineType::AnyTagged(), MachineType::Pointer()};

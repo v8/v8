@@ -749,7 +749,7 @@ class ArgumentAdaptorDescriptor : public CallInterfaceDescriptor {
 
 class ApiCallbackDescriptor : public CallInterfaceDescriptor {
  public:
-  DEFINE_PARAMETERS(kFunction, kCallData, kHolder, kApiFunctionAddress)
+  DEFINE_PARAMETERS(kTargetContext, kCallData, kHolder, kApiFunctionAddress)
   DECLARE_DESCRIPTOR_WITH_CUSTOM_FUNCTION_TYPE(ApiCallbackDescriptor,
                                                CallInterfaceDescriptor)
 };

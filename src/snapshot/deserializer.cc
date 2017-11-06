@@ -174,6 +174,10 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
     if (isolate_->external_reference_redirector()) {
       accessor_infos_.push_back(AccessorInfo::cast(obj));
     }
+  } else if (obj->IsCallHandlerInfo()) {
+    if (isolate_->external_reference_redirector()) {
+      call_handler_infos_.push_back(CallHandlerInfo::cast(obj));
+    }
   } else if (obj->IsExternalOneByteString()) {
     DCHECK(obj->map() == isolate_->heap()->native_source_string_map());
     ExternalOneByteString* string = ExternalOneByteString::cast(obj);
