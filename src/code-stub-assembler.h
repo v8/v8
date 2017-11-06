@@ -1517,11 +1517,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   template <class... TArgs>
   Node* CallBuiltin(Builtins::Name id, Node* context, TArgs... args) {
+    DCHECK_IMPLIES(Builtins::KindOf(id) == Builtins::TFJ,
+                   !Builtins::IsLazy(id));
     return CallStub(Builtins::CallableFor(isolate(), id), context, args...);
   }
 
   template <class... TArgs>
   Node* TailCallBuiltin(Builtins::Name id, Node* context, TArgs... args) {
+    DCHECK_IMPLIES(Builtins::KindOf(id) == Builtins::TFJ,
+                   !Builtins::IsLazy(id));
     return TailCallStub(Builtins::CallableFor(isolate(), id), context, args...);
   }
 
