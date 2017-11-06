@@ -2476,6 +2476,8 @@
         'heapobject_files': [
             'objects.h',
             'objects-inl.h',
+            'objects/code.h',
+            'objects/code-inl.h',
             'objects/js-array.h',
             'objects/js-array-inl.h',
             'objects/js-regexp.h',
