@@ -485,8 +485,7 @@ MaybeHandle<String> BigInt::ToString(Handle<BigInt> bigint, int radix) {
 
 namespace {
 
-bool IsSafeInteger(Handle<HeapNumber> number) {
-  double value = number->value();
+bool IsSafeInteger(double value) {
   if (std::isnan(value) || std::isinf(value)) return false;
 
   // Let integer be ! ToInteger(value).
@@ -504,7 +503,7 @@ MaybeHandle<BigInt> BigInt::FromNumber(Isolate* isolate,
   if (number->IsSmi()) {
     return isolate->factory()->NewBigIntFromInt(Smi::cast(*number)->value());
   }
-  if (!IsSafeInteger(Handle<HeapNumber>::cast(number))) {
+  if (!IsSafeInteger(Handle<HeapNumber>::cast(number)->value())) {
     THROW_NEW_ERROR(isolate,
                     NewRangeError(MessageTemplate::kBigIntFromNumber, number),
                     BigInt);
@@ -1586,6 +1585,64 @@ MaybeHandle<String> BigInt::ToStringGeneric(Handle<BigInt> x, int radix) {
   DCHECK(result->length() == pos);
   for (int i = 0; i < pos; i++) DCHECK_NE(chars[i], '?');
 #endif
+  return result;
+}
+
+Handle<BigInt> BigInt::AsUintN(uint64_t n, Handle<BigInt> x) {
+  DCHECK_LE(n, kMaxSafeInteger);
+  Handle<BigInt> result = AbsoluteAsUintN(n, x);
+  if (!x->sign()) return result;
+
+  // x is negative.
+  // Note that result == -x % 2^n.  We use the following facts:
+  // If result == 0, then x % 2^n == 0.
+  // If result != 0, then x % 2^n == 2^n - result.
+  if (result->is_zero()) return result;
+  return AbsoluteSub(PowerOfTwo(x->GetIsolate(), n), result, false);
+}
+
+Handle<BigInt> BigInt::AbsoluteAsUintN(uint64_t n, Handle<BigInt> x) {
+  DCHECK_LE(n, kMaxSafeInteger);
+  Isolate* isolate = x->GetIsolate();
+  if (n == 0) return isolate->factory()->NewBigIntFromInt(0);
+
+  uint64_t total_bits = x->length() * kDigitBits;
+  if (total_bits <= n) return x;
+  DCHECK_LE(n, kMaxInt);
+  int N = static_cast<int>(n);
+
+  int needed_digits = (N + (kDigitBits - 1)) / kDigitBits;
+  DCHECK_LE(needed_digits, x->length());
+  Handle<BigInt> result = isolate->factory()->NewBigIntRaw(needed_digits);
+
+  // Copy all digits except the MSD.
+  int last = needed_digits - 1;
+  for (int i = 0; i < last; i++) {
+    result->set_digit(i, x->digit(i));
+  }
+
+  // The MSD might contain extra bits that we don't want.
+  digit_t msd = x->digit(last);
+  digit_t mask = std::numeric_limits<digit_t>::max();
+  if (N % kDigitBits != 0) mask = mask >> (kDigitBits - (N % kDigitBits));
+  result->set_digit(last, msd & mask);
+
+  result->RightTrim();
+  return result;
+}
+
+Handle<BigInt> BigInt::PowerOfTwo(Isolate* isolate, uint64_t n) {
+  DCHECK_LE(n, kMaxSafeInteger);
+  STATIC_ASSERT(kMaxLengthBits < kMaxInt);
+  // Truncate n to (1 + kMaxLengthBits), such that it doesn't overflow int but
+  // still causes the allocation to fail if it was too large.
+  int needed_bits =
+      1 + static_cast<int>(std::min(n, static_cast<uint64_t>(kMaxLengthBits)));
+  int needed_digits = (needed_bits + (kDigitBits - 1)) / kDigitBits;
+  Handle<BigInt> result = isolate->factory()->NewBigInt(needed_digits);
+  // All bits are zero. Now set the "n-th" bit.
+  digit_t msd = static_cast<digit_t>(1) << (n % kDigitBits);
+  result->set_digit(needed_digits - 1, msd);
   return result;
 }
 

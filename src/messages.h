@@ -533,6 +533,7 @@ class ErrorUtils : public AllStatic {
   T(InvalidDataViewLength, "Invalid DataView length %")                        \
   T(InvalidOffset, "Start offset % is outside the bounds of the buffer")       \
   T(InvalidHint, "Invalid hint: %")                                            \
+  T(InvalidIndex, "Invalid value: not (convertible to) a safe integer")        \
   T(InvalidLanguageTag, "Invalid language tag: %")                             \
   T(InvalidWeakMapKey, "Invalid value used as weak map key")                   \
   T(InvalidWeakSetValue, "Invalid value used in weak set")                     \

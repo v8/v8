@@ -263,6 +263,100 @@ const six = BigInt(6);
   }
 }
 
+// .asUintN
+{
+  assertEquals(2, BigInt.asUintN.length);
+}{
+  assertEquals(0n, BigInt.asUintN(0, 0n));
+  assertEquals(0n, BigInt.asUintN(1, 0n));
+  assertEquals(0n, BigInt.asUintN(16, 0n));
+  assertEquals(0n, BigInt.asUintN(31, 0n));
+  assertEquals(0n, BigInt.asUintN(32, 0n));
+  assertEquals(0n, BigInt.asUintN(33, 0n));
+  assertEquals(0n, BigInt.asUintN(63, 0n));
+  assertEquals(0n, BigInt.asUintN(64, 0n));
+  assertEquals(0n, BigInt.asUintN(65, 0n));
+  assertEquals(0n, BigInt.asUintN(127, 0n));
+  assertEquals(0n, BigInt.asUintN(128, 0n));
+  assertEquals(0n, BigInt.asUintN(129, 0n));
+}{
+  assertEquals(0n, BigInt.asUintN(0, 42n));
+  assertEquals(0n, BigInt.asUintN(1, 42n));
+  assertEquals(42n, BigInt.asUintN(16, 42n));
+  assertEquals(42n, BigInt.asUintN(31, 42n));
+  assertEquals(42n, BigInt.asUintN(32, 42n));
+  assertEquals(42n, BigInt.asUintN(33, 42n));
+  assertEquals(42n, BigInt.asUintN(63, 42n));
+  assertEquals(42n, BigInt.asUintN(64, 42n));
+  assertEquals(42n, BigInt.asUintN(65, 42n));
+  assertEquals(42n, BigInt.asUintN(127, 42n));
+  assertEquals(42n, BigInt.asUintN(128, 42n));
+  assertEquals(42n, BigInt.asUintN(129, 42n));
+}{
+  assertEquals(0n, BigInt.asUintN(0, -42n));
+  assertEquals(0n, BigInt.asUintN(1, -42n));
+  assertEquals(65536n - 42n, BigInt.asUintN(16, -42n));
+  assertEquals(2147483648n - 42n, BigInt.asUintN(31, -42n));
+  assertEquals(4294967296n - 42n, BigInt.asUintN(32, -42n));
+  assertEquals(8589934592n - 42n, BigInt.asUintN(33, -42n));
+  assertEquals(9223372036854775808n - 42n, BigInt.asUintN(63, -42n));
+  assertEquals(18446744073709551616n - 42n, BigInt.asUintN(64, -42n));
+  assertEquals(36893488147419103232n - 42n, BigInt.asUintN(65, -42n));
+  // TODO(neis): Enable once we have exponentation.
+  // assertEquals(2n**127n - 42n, BigInt.asUintN(127, -42n));
+  // assertEquals(2n**128n - 42n, BigInt.asUintN(128, -42n));
+  // assertEquals(2n**129n - 42n, BigInt.asUintN(129, -42n));
+}{
+  assertEquals(0n, BigInt.asUintN(0, 4294967295n));
+  assertEquals(1n, BigInt.asUintN(1, 4294967295n));
+  assertEquals(65535n, BigInt.asUintN(16, 4294967295n));
+  assertEquals(2147483647n, BigInt.asUintN(31, 4294967295n));
+  assertEquals(4294967295n, BigInt.asUintN(32, 4294967295n));
+  assertEquals(4294967295n, BigInt.asUintN(33, 4294967295n));
+  assertEquals(4294967295n, BigInt.asUintN(63, 4294967295n));
+  assertEquals(4294967295n, BigInt.asUintN(64, 4294967295n));
+  assertEquals(4294967295n, BigInt.asUintN(65, 4294967295n));
+  assertEquals(4294967295n, BigInt.asUintN(127, 4294967295n));
+  assertEquals(4294967295n, BigInt.asUintN(128, 4294967295n));
+  assertEquals(4294967295n, BigInt.asUintN(129, 4294967295n));
+}{
+  assertEquals(0n, BigInt.asUintN(0, -4294967295n));
+  assertEquals(1n, BigInt.asUintN(1, -4294967295n));
+  assertEquals(1n, BigInt.asUintN(16, -4294967295n));
+  assertEquals(1n, BigInt.asUintN(31, -4294967295n));
+  assertEquals(1n, BigInt.asUintN(32, -4294967295n));
+  assertEquals(8589934592n - 4294967295n, BigInt.asUintN(33, -4294967295n));
+  assertEquals(9223372036854775808n - 4294967295n,
+      BigInt.asUintN(63, -4294967295n));
+  assertEquals(18446744073709551616n - 4294967295n,
+      BigInt.asUintN(64,-4294967295n));
+  assertEquals(36893488147419103232n - 4294967295n,
+      BigInt.asUintN(65, -4294967295n));
+  // TODO(neis): Enable once we have exponentation.
+  // assertEquals(2n**127n - 42n, BigInt.asUintN(127, -4294967295n));
+  // assertEquals(2n**128n - 42n, BigInt.asUintN(128, -4294967295n));
+  // assertEquals(2n**129n - 42n, BigInt.asUintN(129, -4294967295n));
+}{
+  assertEquals(42n, BigInt.asUintN(2**32, 42n));
+  assertEquals(4294967295n, BigInt.asUintN(2**32, 4294967295n));
+  assertEquals(4294967296n, BigInt.asUintN(2**32, 4294967296n));
+  assertEquals(4294967297n, BigInt.asUintN(2**32, 4294967297n));
+}{
+  assertEquals(
+      BigInt.parseInt("0x7234567812345678"),
+      BigInt.asUintN(63, BigInt.parseInt("0xf234567812345678")));
+}{
+  assertThrows(() => BigInt.asUintN(2n, 12n), TypeError);
+  assertThrows(() => BigInt.asUintN(-1, 0n), RangeError);
+  assertThrows(() => BigInt.asUintN(2**53, 0n), RangeError);
+  assertEquals(0n, BigInt.asUintN({}, 12n));
+  assertEquals(0n, BigInt.asUintN(2.9999, 12n));
+  assertEquals(4n, BigInt.asUintN(3.1234, 12n));
+}{
+  assertThrows(() => BigInt.asUintN(3, 12), TypeError);
+  assertEquals(4n, BigInt.asUintN(3, "12"));
+}
+
 // .parseInt
 {
   assertEquals("hellobigint", BigInt.parseInt("hellobigint", 32).toString(32));
