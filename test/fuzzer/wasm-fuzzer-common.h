@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef WASM_SECTION_FUZZERS_H_
-#define WASM_SECTION_FUZZERS_H_
+#ifndef WASM_FUZZER_COMMON_H_
+#define WASM_FUZZER_COMMON_H_
 
 #include <stddef.h>
 #include <stdint.h>
@@ -43,4 +43,4 @@ class WasmExecutionFuzzer {
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8
-#endif  // WASM_SECTION_FUZZERS_H_
+#endif  // WASM_FUZZER_COMMON_H_
