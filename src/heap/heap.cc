@@ -82,16 +82,6 @@ void Heap::SetConstructStubInvokeDeoptPCOffset(int pc_offset) {
   set_construct_stub_invoke_deopt_pc_offset(Smi::FromInt(pc_offset));
 }
 
-void Heap::SetGetterStubDeoptPCOffset(int pc_offset) {
-  DCHECK_EQ(Smi::kZero, getter_stub_deopt_pc_offset());
-  set_getter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
-}
-
-void Heap::SetSetterStubDeoptPCOffset(int pc_offset) {
-  DCHECK_EQ(Smi::kZero, setter_stub_deopt_pc_offset());
-  set_setter_stub_deopt_pc_offset(Smi::FromInt(pc_offset));
-}
-
 void Heap::SetInterpreterEntryReturnPCOffset(int pc_offset) {
   DCHECK_EQ(Smi::kZero, interpreter_entry_return_pc_offset());
   set_interpreter_entry_return_pc_offset(Smi::FromInt(pc_offset));

@@ -876,12 +876,6 @@ void CodeGenerator::BuildTranslationForFrameStateDescriptor(
           bailout_id, shared_info_id, parameter_count);
       break;
     }
-    case FrameStateType::kGetterStub:
-      translation->BeginGetterStubFrame(shared_info_id);
-      break;
-    case FrameStateType::kSetterStub:
-      translation->BeginSetterStubFrame(shared_info_id);
-      break;
   }
 
   TranslateFrameStateDescriptorOperands(descriptor, iter, state_combine,

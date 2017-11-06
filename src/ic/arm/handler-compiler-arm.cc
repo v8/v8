@@ -18,20 +18,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void NamedLoadHandlerCompiler::GenerateLoadViaGetterForDeopt(
-    MacroAssembler* masm) {
-  {
-    FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    // If we generate a global code snippet for deoptimization only, remember
-    // the place to continue after deoptimization.
-    masm->isolate()->heap()->SetGetterStubDeoptPCOffset(masm->pc_offset());
-    // Restore context register.
-    __ pop(cp);
-  }
-  __ Ret();
-}
-
-
 void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
     MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
     int accessor_index, int expected_arguments, Register scratch) {
@@ -41,39 +27,22 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
 
-    // Save context register
-    __ push(cp);
-    // Save value register, so we can restore it later.
-    __ push(value());
-
-    if (accessor_index >= 0) {
-      DCHECK(holder != scratch);
-      DCHECK(receiver != scratch);
-      DCHECK(value() != scratch);
-      // Call the JavaScript setter with receiver and value on the stack.
-      if (map->IsJSGlobalObjectMap()) {
-        // Swap in the global receiver.
-        __ ldr(scratch,
-               FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
-        receiver = scratch;
-      }
-      __ Push(receiver, value());
-      __ LoadAccessor(r1, holder, accessor_index, ACCESSOR_SETTER);
-      __ mov(r0, Operand(1));
-      __ Call(masm->isolate()->builtins()->CallFunction(
-                  ConvertReceiverMode::kNotNullOrUndefined),
-              RelocInfo::CODE_TARGET);
-    } else {
-      // If we generate a global code snippet for deoptimization only, remember
-      // the place to continue after deoptimization.
-      masm->isolate()->heap()->SetSetterStubDeoptPCOffset(masm->pc_offset());
+    DCHECK(holder != scratch);
+    DCHECK(receiver != scratch);
+    DCHECK(value() != scratch);
+    // Call the JavaScript setter with receiver and value on the stack.
+    if (map->IsJSGlobalObjectMap()) {
+      // Swap in the global receiver.
+      __ ldr(scratch,
+             FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
+      receiver = scratch;
     }
-
-    // We have to return the passed value, not the return value of the setter.
-    __ pop(r0);
-
-    // Restore context register.
-    __ pop(cp);
+    __ Push(receiver, value());
+    __ LoadAccessor(r1, holder, accessor_index, ACCESSOR_SETTER);
+    __ mov(r0, Operand(1));
+    __ Call(masm->isolate()->builtins()->CallFunction(
+                ConvertReceiverMode::kNotNullOrUndefined),
+            RelocInfo::CODE_TARGET);
   }
   __ Ret();
 }

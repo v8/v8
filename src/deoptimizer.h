@@ -121,8 +121,6 @@ class TranslatedFrame {
  public:
   enum Kind {
     kInterpretedFunction,
-    kGetter,
-    kSetter,
     kArgumentsAdaptor,
     kConstructStub,
     kBuiltinContinuation,
@@ -487,8 +485,6 @@ class Deoptimizer : public Malloced {
                                       int frame_index);
   void DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
                                    int frame_index);
-  void DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
-                                  int frame_index, bool is_setter_stub_frame);
   void DoComputeBuiltinContinuation(TranslatedFrame* translated_frame,
                                     int frame_index, bool java_script_frame);
 
@@ -827,8 +823,6 @@ class TranslationIterator BASE_EMBEDDED {
   V(BUILTIN_CONTINUATION_FRAME)             \
   V(JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME) \
   V(CONSTRUCT_STUB_FRAME)                   \
-  V(GETTER_STUB_FRAME)                      \
-  V(SETTER_STUB_FRAME)                      \
   V(ARGUMENTS_ADAPTOR_FRAME)                \
   V(DUPLICATED_OBJECT)                      \
   V(ARGUMENTS_ELEMENTS)                     \
@@ -879,8 +873,6 @@ class Translation BASE_EMBEDDED {
                                      unsigned height);
   void BeginJavaScriptBuiltinContinuationFrame(BailoutId bailout_id,
                                                int literal_id, unsigned height);
-  void BeginGetterStubFrame(int literal_id);
-  void BeginSetterStubFrame(int literal_id);
   void ArgumentsElements(CreateArgumentsType type);
   void ArgumentsLength(CreateArgumentsType type);
   void BeginCapturedObject(int length);

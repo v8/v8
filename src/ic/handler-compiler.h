@@ -110,12 +110,6 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
 };
 
 
-class NamedLoadHandlerCompiler : public PropertyHandlerCompiler {
- public:
-  static void GenerateLoadViaGetterForDeopt(MacroAssembler* masm);
-};
-
-
 class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
  public:
   // All store handlers use StoreWithVectorDescriptor calling convention.
@@ -150,11 +144,6 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
                                      Register receiver, Register holder,
                                      int accessor_index, int expected_arguments,
                                      Register scratch);
-
-  static void GenerateStoreViaSetterForDeopt(MacroAssembler* masm) {
-    GenerateStoreViaSetter(masm, Handle<Map>::null(), no_reg, no_reg, -1, -1,
-                           no_reg);
-  }
 
  protected:
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,

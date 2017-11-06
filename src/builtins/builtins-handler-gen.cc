@@ -93,10 +93,6 @@ TF_BUILTIN(LoadGlobalIC_Slow, CodeStubAssembler) {
   TailCallRuntime(Runtime::kLoadGlobalIC_Slow, context, name, slot, vector);
 }
 
-void Builtins::Generate_LoadIC_Getter_ForDeopt(MacroAssembler* masm) {
-  NamedLoadHandlerCompiler::GenerateLoadViaGetterForDeopt(masm);
-}
-
 TF_BUILTIN(LoadIC_FunctionPrototype, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
   Node* name = Parameter(Descriptor::kName);
@@ -139,10 +135,6 @@ TF_BUILTIN(StoreIC_Miss, CodeStubAssembler) {
 
   TailCallRuntime(Runtime::kStoreIC_Miss, context, value, slot, vector,
                   receiver, name);
-}
-
-void Builtins::Generate_StoreIC_Setter_ForDeopt(MacroAssembler* masm) {
-  NamedStoreHandlerCompiler::GenerateStoreViaSetterForDeopt(masm);
 }
 
 TF_BUILTIN(StoreGlobalIC_Slow, CodeStubAssembler) {

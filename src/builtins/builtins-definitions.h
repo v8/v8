@@ -211,14 +211,12 @@ namespace internal {
   TFH(LoadGlobalIC_Slow, LoadGlobalWithVector)                                 \
   TFH(LoadField, LoadField)                                                    \
   TFH(LoadIC_FunctionPrototype, LoadWithVector)                                \
-  ASM(LoadIC_Getter_ForDeopt)                                                  \
   TFH(LoadIC_Miss, LoadWithVector)                                             \
   TFH(LoadIC_Slow, LoadWithVector)                                             \
   TFH(LoadIC_StringLength, LoadWithVector)                                     \
   TFH(LoadIC_Uninitialized, LoadWithVector)                                    \
   TFH(StoreGlobalIC_Slow, StoreWithVector)                                     \
   TFH(StoreIC_Miss, StoreWithVector)                                           \
-  ASM(StoreIC_Setter_ForDeopt)                                                 \
   TFH(StoreIC_Uninitialized, StoreWithVector)                                  \
                                                                                \
   /* Promise helpers */                                                        \

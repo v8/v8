@@ -1520,6 +1520,7 @@ void BytecodeGenerator::VisitForInAssignment(Expression* expr) {
       FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
       builder()->StoreNamedProperty(object, name, feedback_index(slot),
                                     language_mode());
+      builder()->LoadAccumulatorWithRegister(value);
       break;
     }
     case KEYED_PROPERTY: {
@@ -1532,6 +1533,7 @@ void BytecodeGenerator::VisitForInAssignment(Expression* expr) {
       FeedbackSlot slot = feedback_spec()->AddKeyedStoreICSlot(language_mode());
       builder()->StoreKeyedProperty(object, key, feedback_index(slot),
                                     language_mode());
+      builder()->LoadAccumulatorWithRegister(value);
       break;
     }
     case NAMED_SUPER_PROPERTY: {
@@ -2706,14 +2708,30 @@ void BytecodeGenerator::VisitAssignment(Assignment* expr) {
     }
     case NAMED_PROPERTY: {
       FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
+      Register value;
+      if (!execution_result()->IsEffect()) {
+        value = register_allocator()->NewRegister();
+        builder()->StoreAccumulatorInRegister(value);
+      }
       builder()->StoreNamedProperty(object, name, feedback_index(slot),
                                     language_mode());
+      if (!execution_result()->IsEffect()) {
+        builder()->LoadAccumulatorWithRegister(value);
+      }
       break;
     }
     case KEYED_PROPERTY: {
       FeedbackSlot slot = feedback_spec()->AddKeyedStoreICSlot(language_mode());
+      Register value;
+      if (!execution_result()->IsEffect()) {
+        value = register_allocator()->NewRegister();
+        builder()->StoreAccumulatorInRegister(value);
+      }
       builder()->StoreKeyedProperty(object, key, feedback_index(slot),
                                     language_mode());
+      if (!execution_result()->IsEffect()) {
+        builder()->LoadAccumulatorWithRegister(value);
+      }
       break;
     }
     case NAMED_SUPER_PROPERTY: {
@@ -3745,14 +3763,30 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
     }
     case NAMED_PROPERTY: {
       FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
+      Register value;
+      if (!execution_result()->IsEffect()) {
+        value = register_allocator()->NewRegister();
+        builder()->StoreAccumulatorInRegister(value);
+      }
       builder()->StoreNamedProperty(object, name, feedback_index(slot),
                                     language_mode());
+      if (!execution_result()->IsEffect()) {
+        builder()->LoadAccumulatorWithRegister(value);
+      }
       break;
     }
     case KEYED_PROPERTY: {
       FeedbackSlot slot = feedback_spec()->AddKeyedStoreICSlot(language_mode());
+      Register value;
+      if (!execution_result()->IsEffect()) {
+        value = register_allocator()->NewRegister();
+        builder()->StoreAccumulatorInRegister(value);
+      }
       builder()->StoreKeyedProperty(object, key, feedback_index(slot),
                                     language_mode());
+      if (!execution_result()->IsEffect()) {
+        builder()->LoadAccumulatorWithRegister(value);
+      }
       break;
     }
     case NAMED_SUPER_PROPERTY: {

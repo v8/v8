@@ -631,8 +631,12 @@ class InterpreterStoreNamedPropertyAssembler : public InterpreterAssembler {
     Node* smi_slot = SmiTag(raw_slot);
     Node* feedback_vector = LoadFeedbackVector();
     Node* context = GetContext();
-    CallStub(ic.descriptor(), code_target, context, object, name, value,
-             smi_slot, feedback_vector);
+    Node* result = CallStub(ic.descriptor(), code_target, context, object, name,
+                            value, smi_slot, feedback_vector);
+    // It doesn't really matter what we write to the accumulator here, since we
+    // restore to the correct value on the outside. Storing the result means we
+    // don't need to keep unnecessary state alive across the callstub.
+    SetAccumulator(result);
     Dispatch();
   }
 };
@@ -673,8 +677,12 @@ IGNITION_HANDLER(StaKeyedProperty, InterpreterAssembler) {
   Node* smi_slot = SmiTag(raw_slot);
   Node* feedback_vector = LoadFeedbackVector();
   Node* context = GetContext();
-  CallStub(ic.descriptor(), code_target, context, object, name, value, smi_slot,
-           feedback_vector);
+  Node* result = CallStub(ic.descriptor(), code_target, context, object, name,
+                          value, smi_slot, feedback_vector);
+  // It doesn't really matter what we write to the accumulator here, since we
+  // restore to the correct value on the outside. Storing the result means we
+  // don't need to keep unnecessary state alive across the callstub.
+  SetAccumulator(result);
   Dispatch();
 }
 

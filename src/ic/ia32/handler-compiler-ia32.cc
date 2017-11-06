@@ -17,21 +17,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void NamedLoadHandlerCompiler::GenerateLoadViaGetterForDeopt(
-    MacroAssembler* masm) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    // If we generate a global code snippet for deoptimization only, remember
-    // the place to continue after deoptimization.
-    masm->isolate()->heap()->SetGetterStubDeoptPCOffset(masm->pc_offset());
-
-    // Restore context register.
-    __ pop(esi);
-  }
-  __ ret(0);
-}
-
-
 void PropertyHandlerCompiler::PushVectorAndSlot(Register vector,
                                                 Register slot) {
   MacroAssembler* masm = this->masm();
@@ -211,47 +196,24 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
-    // Save context register
-    __ push(esi);
-    // Save value register, so we can restore it later.
-    __ push(value());
-
-    if (accessor_index >= 0) {
-      DCHECK(holder != scratch);
-      DCHECK(receiver != scratch);
-      DCHECK(value() != scratch);
-      // Call the JavaScript setter with receiver and value on the stack.
-      if (map->IsJSGlobalObjectMap()) {
-        __ mov(scratch,
-               FieldOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
-        receiver = scratch;
-      }
-      __ push(receiver);
-      __ push(value());
-      __ LoadAccessor(edi, holder, accessor_index, ACCESSOR_SETTER);
-      __ Set(eax, 1);
-      __ Call(masm->isolate()->builtins()->CallFunction(
-                  ConvertReceiverMode::kNotNullOrUndefined),
-              RelocInfo::CODE_TARGET);
-    } else {
-      // If we generate a global code snippet for deoptimization only, remember
-      // the place to continue after deoptimization.
-      masm->isolate()->heap()->SetSetterStubDeoptPCOffset(masm->pc_offset());
+    DCHECK(holder != scratch);
+    DCHECK(receiver != scratch);
+    DCHECK(value() != scratch);
+    // Call the JavaScript setter with receiver and value on the stack.
+    if (map->IsJSGlobalObjectMap()) {
+      __ mov(scratch,
+             FieldOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
+      receiver = scratch;
     }
-
-    // We have to return the passed value, not the return value of the setter.
-    __ pop(eax);
-    // Restore context register.
-    __ pop(esi);
+    __ push(receiver);
+    __ push(value());
+    __ LoadAccessor(edi, holder, accessor_index, ACCESSOR_SETTER);
+    __ Set(eax, 1);
+    __ Call(masm->isolate()->builtins()->CallFunction(
+                ConvertReceiverMode::kNotNullOrUndefined),
+            RelocInfo::CODE_TARGET);
   }
-  if (accessor_index >= 0) {
-    __ ret(StoreWithVectorDescriptor::kStackArgumentsCount * kPointerSize);
-  } else {
-    // If we generate a global code snippet for deoptimization only, don't try
-    // to drop stack arguments for the StoreIC because they are not a part of
-    // expression stack and deoptimizer does not reconstruct them.
-    __ ret(0);
-  }
+  __ ret(StoreWithVectorDescriptor::kStackArgumentsCount * kPointerSize);
 }
 
 #undef __

@@ -14223,15 +14223,6 @@ void DeoptimizationData::DeoptimizationDataPrint(std::ostream& os) {  // NOLINT
           break;
         }
 
-        case Translation::GETTER_STUB_FRAME:
-        case Translation::SETTER_STUB_FRAME: {
-          int shared_info_id = iterator.Next();
-          Object* shared_info = LiteralArray()->get(shared_info_id);
-          os << "{function=" << Brief(SharedFunctionInfo::cast(shared_info)
-                                          ->DebugName()) << "}";
-          break;
-        }
-
         case Translation::REGISTER: {
           int reg_code = iterator.Next();
           os << "{input=" << converter.NameOfCPURegister(reg_code) << "}";

@@ -186,52 +186,23 @@ void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
 
-    // Save context register
-    __ pushq(rsi);
-    // Save value register, so we can restore it later.
-    __ Push(value());
-
-    if (accessor_index >= 0) {
-      DCHECK(holder != scratch);
-      DCHECK(receiver != scratch);
-      DCHECK(value() != scratch);
-      // Call the JavaScript setter with receiver and value on the stack.
-      if (map->IsJSGlobalObjectMap()) {
-        // Swap in the global receiver.
-        __ movp(scratch,
-                FieldOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
-        receiver = scratch;
-      }
-      __ Push(receiver);
-      __ Push(value());
-      __ LoadAccessor(rdi, holder, accessor_index, ACCESSOR_SETTER);
-      __ Set(rax, 1);
-      __ Call(masm->isolate()->builtins()->CallFunction(
-                  ConvertReceiverMode::kNotNullOrUndefined),
-              RelocInfo::CODE_TARGET);
-    } else {
-      // If we generate a global code snippet for deoptimization only, remember
-      // the place to continue after deoptimization.
-      masm->isolate()->heap()->SetSetterStubDeoptPCOffset(masm->pc_offset());
+    DCHECK(holder != scratch);
+    DCHECK(receiver != scratch);
+    DCHECK(value() != scratch);
+    // Call the JavaScript setter with receiver and value on the stack.
+    if (map->IsJSGlobalObjectMap()) {
+      // Swap in the global receiver.
+      __ movp(scratch,
+              FieldOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
+      receiver = scratch;
     }
-
-    // We have to return the passed value, not the return value of the setter.
-    __ Pop(rax);
-
-    // Restore context register.
-    __ popq(rsi);
-  }
-  __ ret(0);
-}
-
-void NamedLoadHandlerCompiler::GenerateLoadViaGetterForDeopt(
-    MacroAssembler* masm) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    // Remember the place to continue after deoptimization.
-    masm->isolate()->heap()->SetGetterStubDeoptPCOffset(masm->pc_offset());
-    // Restore context register.
-    __ popq(rsi);
+    __ Push(receiver);
+    __ Push(value());
+    __ LoadAccessor(rdi, holder, accessor_index, ACCESSOR_SETTER);
+    __ Set(rax, 1);
+    __ Call(masm->isolate()->builtins()->CallFunction(
+                ConvertReceiverMode::kNotNullOrUndefined),
+            RelocInfo::CODE_TARGET);
   }
   __ ret(0);
 }

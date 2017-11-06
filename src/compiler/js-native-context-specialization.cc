@@ -1583,26 +1583,13 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
   FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
   Handle<SharedFunctionInfo> shared_info =
       frame_info.shared_info().ToHandleChecked();
-  // We need a FrameState for the getter stub to restore the correct
-  // context before returning to fullcodegen.
-  FrameStateFunctionInfo const* frame_info0 =
-      common()->CreateFrameStateFunctionInfo(FrameStateType::kGetterStub, 1, 0,
-                                             shared_info);
-  Node* frame_state0 = graph()->NewNode(
-      common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
-                           frame_info0),
-      graph()->NewNode(common()->StateValues(1, SparseInputMask::Dense()),
-                       receiver),
-      jsgraph()->EmptyStateValues(), jsgraph()->EmptyStateValues(), context,
-      target, frame_state);
-
   // Introduce the call to the getter function.
   Node* value;
   if (access_info.constant()->IsJSFunction()) {
     value = *effect = *control = graph()->NewNode(
         jsgraph()->javascript()->Call(2, CallFrequency(), VectorSlotPair(),
                                       ConvertReceiverMode::kNotNullOrUndefined),
-        target, receiver, context, frame_state0, *effect, *control);
+        target, receiver, context, frame_state, *effect, *control);
   } else {
     DCHECK(access_info.constant()->IsFunctionTemplateInfo());
     Handle<FunctionTemplateInfo> function_template_info(
@@ -1612,7 +1599,7 @@ Node* JSNativeContextSpecialization::InlinePropertyGetterCall(
         access_info.holder().is_null()
             ? receiver
             : jsgraph()->Constant(access_info.holder().ToHandleChecked());
-    value = InlineApiCall(receiver, holder, frame_state0, nullptr, effect,
+    value = InlineApiCall(receiver, holder, frame_state, nullptr, effect,
                           control, shared_info, function_template_info);
   }
   // Remember to rewire the IfException edge if this is inside a try-block.
@@ -1635,25 +1622,12 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
   FrameStateInfo const& frame_info = OpParameter<FrameStateInfo>(frame_state);
   Handle<SharedFunctionInfo> shared_info =
       frame_info.shared_info().ToHandleChecked();
-  // We need a FrameState for the setter stub to restore the correct
-  // context and return the appropriate value to fullcodegen.
-  FrameStateFunctionInfo const* frame_info0 =
-      common()->CreateFrameStateFunctionInfo(FrameStateType::kSetterStub, 2, 0,
-                                             shared_info);
-  Node* frame_state0 = graph()->NewNode(
-      common()->FrameState(BailoutId::None(), OutputFrameStateCombine::Ignore(),
-                           frame_info0),
-      graph()->NewNode(common()->StateValues(2, SparseInputMask::Dense()),
-                       receiver, value),
-      jsgraph()->EmptyStateValues(), jsgraph()->EmptyStateValues(), context,
-      target, frame_state);
-
   // Introduce the call to the setter function.
   if (access_info.constant()->IsJSFunction()) {
     *effect = *control = graph()->NewNode(
         jsgraph()->javascript()->Call(3, CallFrequency(), VectorSlotPair(),
                                       ConvertReceiverMode::kNotNullOrUndefined),
-        target, receiver, value, context, frame_state0, *effect, *control);
+        target, receiver, value, context, frame_state, *effect, *control);
   } else {
     DCHECK(access_info.constant()->IsFunctionTemplateInfo());
     Handle<FunctionTemplateInfo> function_template_info(
@@ -1663,7 +1637,7 @@ void JSNativeContextSpecialization::InlinePropertySetterCall(
         access_info.holder().is_null()
             ? receiver
             : jsgraph()->Constant(access_info.holder().ToHandleChecked());
-    InlineApiCall(receiver, holder, frame_state0, value, effect, control,
+    InlineApiCall(receiver, holder, frame_state, value, effect, control,
                   shared_info, function_template_info);
   }
   // Remember to rewire the IfException edge if this is inside a try-block.

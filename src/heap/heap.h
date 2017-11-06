@@ -256,8 +256,6 @@ using v8::MemoryPressureLevel;
     ConstructStubCreateDeoptPCOffset)                                          \
   V(Smi, construct_stub_invoke_deopt_pc_offset,                                \
     ConstructStubInvokeDeoptPCOffset)                                          \
-  V(Smi, getter_stub_deopt_pc_offset, GetterStubDeoptPCOffset)                 \
-  V(Smi, setter_stub_deopt_pc_offset, SetterStubDeoptPCOffset)                 \
   V(Smi, interpreter_entry_return_pc_offset, InterpreterEntryReturnPCOffset)
 
 #define ROOT_LIST(V)  \
@@ -839,8 +837,6 @@ class Heap {
   void SetArgumentsAdaptorDeoptPCOffset(int pc_offset);
   void SetConstructStubCreateDeoptPCOffset(int pc_offset);
   void SetConstructStubInvokeDeoptPCOffset(int pc_offset);
-  void SetGetterStubDeoptPCOffset(int pc_offset);
-  void SetSetterStubDeoptPCOffset(int pc_offset);
   void SetInterpreterEntryReturnPCOffset(int pc_offset);
 
   void SetSerializedTemplates(FixedArray* templates);

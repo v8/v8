@@ -698,12 +698,6 @@ void Deoptimizer::DoComputeOutputFrames() {
       case TranslatedFrame::kConstructStub:
         DoComputeConstructStubFrame(translated_frame, frame_index);
         break;
-      case TranslatedFrame::kGetter:
-        DoComputeAccessorStubFrame(translated_frame, frame_index, false);
-        break;
-      case TranslatedFrame::kSetter:
-        DoComputeAccessorStubFrame(translated_frame, frame_index, true);
-        break;
       case TranslatedFrame::kBuiltinContinuation:
         DoComputeBuiltinContinuation(translated_frame, frame_index, false);
         break;
@@ -1310,191 +1304,6 @@ void Deoptimizer::DoComputeConstructStubFrame(TranslatedFrame* translated_frame,
   if (FLAG_enable_embedded_constant_pool) {
     intptr_t constant_pool_value =
         reinterpret_cast<intptr_t>(construct_stub->constant_pool());
-    output_frame->SetConstantPool(constant_pool_value);
-    if (is_topmost) {
-      Register constant_pool_reg =
-          JavaScriptFrame::constant_pool_pointer_register();
-      output_frame->SetRegister(constant_pool_reg.code(), fp_value);
-    }
-  }
-
-  // Clear the context register. The context might be a de-materialized object
-  // and will be materialized by {Runtime_NotifyDeoptimized}. For additional
-  // safety we use Smi(0) instead of the potential {arguments_marker} here.
-  if (is_topmost) {
-    intptr_t context_value = reinterpret_cast<intptr_t>(Smi::kZero);
-    Register context_reg = JavaScriptFrame::context_register();
-    output_frame->SetRegister(context_reg.code(), context_value);
-  }
-
-  // Set the continuation for the topmost frame.
-  if (is_topmost) {
-    Builtins* builtins = isolate_->builtins();
-    DCHECK_EQ(LAZY, bailout_type_);
-    Code* continuation = builtins->builtin(Builtins::kNotifyDeoptimized);
-    output_frame->SetContinuation(
-        reinterpret_cast<intptr_t>(continuation->entry()));
-  }
-}
-
-void Deoptimizer::DoComputeAccessorStubFrame(TranslatedFrame* translated_frame,
-                                             int frame_index,
-                                             bool is_setter_stub_frame) {
-  TranslatedFrame::iterator value_iterator = translated_frame->begin();
-  bool is_topmost = (output_count_ - 1 == frame_index);
-  // The accessor frame could become topmost only if we inlined an accessor
-  // call which does a tail call (otherwise the tail callee's frame would be
-  // the topmost one). So it could only be the LAZY case.
-  CHECK(!is_topmost || bailout_type_ == LAZY);
-  int input_index = 0;
-
-  // Skip accessor.
-  value_iterator++;
-  input_index++;
-  // The receiver (and the implicit return value, if any) are expected in
-  // registers by the LoadIC/StoreIC, so they don't belong to the output stack
-  // frame. This means that we have to use a height of 0.
-  unsigned height = 0;
-  unsigned height_in_bytes = height * kPointerSize;
-
-  // If the accessor frame appears to be topmost we should ensure that the
-  // value of result register is preserved during continuation execution.
-  // We do this here by "pushing" the result of the accessor function to the
-  // top of the reconstructed stack and then popping it in
-  // {Builtins::kNotifyDeoptimized}.
-  // For setter calls, since the result register is going to be overwritten
-  // anyway in the stub, we store a dummy value to pop into the result register
-  // to keep the code simpler.
-  if (is_topmost) {
-    height_in_bytes += kPointerSize;
-    if (PadTopOfStackRegister()) height_in_bytes += kPointerSize;
-  }
-
-  const char* kind = is_setter_stub_frame ? "setter" : "getter";
-  if (trace_scope_ != nullptr) {
-    PrintF(trace_scope_->file(),
-           "  translating %s stub => height=%u\n", kind, height_in_bytes);
-  }
-
-  // We need 1 stack entry for the return address and enough entries for the
-  // StackFrame::INTERNAL (FP, frame type, context, code object and constant
-  // pool (if enabled)- see MacroAssembler::EnterFrame).
-  // For a setter stub frame we need one additional entry for the implicit
-  // return value, see StoreStubCompiler::CompileStoreViaSetter.
-  unsigned fixed_frame_entries =
-      (StandardFrameConstants::kFixedFrameSize / kPointerSize) + 1 +
-      (is_setter_stub_frame ? 1 : 0);
-  unsigned fixed_frame_size = fixed_frame_entries * kPointerSize;
-  unsigned output_frame_size = height_in_bytes + fixed_frame_size;
-
-  // Allocate and store the output frame description.
-  FrameDescription* output_frame =
-      new (output_frame_size) FrameDescription(output_frame_size);
-
-  // A frame for an accessor stub can not be bottommost.
-  CHECK(frame_index > 0 && frame_index < output_count_);
-  CHECK_NULL(output_[frame_index]);
-  output_[frame_index] = output_frame;
-
-  // The top address of the frame is computed from the previous frame's top and
-  // this frame's size.
-  intptr_t top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
-  output_frame->SetTop(top_address);
-
-  unsigned output_offset = output_frame_size;
-
-  // Read caller's PC from the previous frame.
-  output_offset -= kPCOnStackSize;
-  intptr_t callers_pc = output_[frame_index - 1]->GetPc();
-  output_frame->SetCallerPc(output_offset, callers_pc);
-  DebugPrintOutputSlot(callers_pc, frame_index, output_offset, "caller's pc\n");
-
-  // Read caller's FP from the previous frame, and set this frame's FP.
-  output_offset -= kFPOnStackSize;
-  intptr_t value = output_[frame_index - 1]->GetFp();
-  output_frame->SetCallerFp(output_offset, value);
-  intptr_t fp_value = top_address + output_offset;
-  output_frame->SetFp(fp_value);
-  if (is_topmost) {
-    Register fp_reg = JavaScriptFrame::fp_register();
-    output_frame->SetRegister(fp_reg.code(), fp_value);
-  }
-  DebugPrintOutputSlot(value, frame_index, output_offset, "caller's fp\n");
-
-  if (FLAG_enable_embedded_constant_pool) {
-    // Read the caller's constant pool from the previous frame.
-    output_offset -= kPointerSize;
-    value = output_[frame_index - 1]->GetConstantPool();
-    output_frame->SetCallerConstantPool(output_offset, value);
-    DebugPrintOutputSlot(value, frame_index, output_offset,
-                         "caller's constant_pool\n");
-  }
-
-  // Set the frame type.
-  output_offset -= kPointerSize;
-  value = StackFrame::TypeToMarker(StackFrame::INTERNAL);
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "frame type ");
-  if (trace_scope_ != nullptr) {
-    PrintF(trace_scope_->file(), "(%s sentinel)\n", kind);
-  }
-
-  // Get Code object from accessor stub.
-  output_offset -= kPointerSize;
-  Builtins::Name name = is_setter_stub_frame ?
-      Builtins::kStoreIC_Setter_ForDeopt :
-      Builtins::kLoadIC_Getter_ForDeopt;
-  Code* accessor_stub = isolate_->builtins()->builtin(name);
-  value = reinterpret_cast<intptr_t>(accessor_stub);
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "code object\n");
-
-  // The context can be gotten from the previous frame.
-  output_offset -= kPointerSize;
-  value = output_[frame_index - 1]->GetContext();
-  output_frame->SetFrameSlot(output_offset, value);
-  DebugPrintOutputSlot(value, frame_index, output_offset, "context\n");
-
-  // Skip receiver.
-  value_iterator++;
-  input_index++;
-
-  if (is_setter_stub_frame) {
-    // The implicit return value was part of the artificial setter stub
-    // environment.
-    output_offset -= kPointerSize;
-    WriteTranslatedValueToOutput(&value_iterator, &input_index, frame_index,
-                                 output_offset);
-  }
-
-  if (is_topmost) {
-    if (PadTopOfStackRegister()) {
-      output_offset -= kPointerSize;
-      WriteValueToOutput(isolate()->heap()->the_hole_value(), 0, frame_index,
-                         output_offset, "padding ");
-    }
-    // Ensure the result is restored back when we return to the stub.
-    output_offset -= kPointerSize;
-    Register result_reg = kReturnRegister0;
-    value = input_->GetRegister(result_reg.code());
-    output_frame->SetFrameSlot(output_offset, value);
-    DebugPrintOutputSlot(value, frame_index, output_offset,
-                         "accessor result\n");
-  }
-
-  CHECK_EQ(0u, output_offset);
-
-  Smi* offset = is_setter_stub_frame ?
-      isolate_->heap()->setter_stub_deopt_pc_offset() :
-      isolate_->heap()->getter_stub_deopt_pc_offset();
-  intptr_t pc = reinterpret_cast<intptr_t>(
-      accessor_stub->instruction_start() + offset->value());
-  output_frame->SetPc(pc);
-
-  // Update constant pool.
-  if (FLAG_enable_embedded_constant_pool) {
-    intptr_t constant_pool_value =
-        reinterpret_cast<intptr_t>(accessor_stub->constant_pool());
     output_frame->SetConstantPool(constant_pool_value);
     if (is_topmost) {
       Register constant_pool_reg =
@@ -2138,18 +1947,6 @@ void Translation::BeginConstructStubFrame(BailoutId bailout_id, int literal_id,
 }
 
 
-void Translation::BeginGetterStubFrame(int literal_id) {
-  buffer_->Add(GETTER_STUB_FRAME);
-  buffer_->Add(literal_id);
-}
-
-
-void Translation::BeginSetterStubFrame(int literal_id) {
-  buffer_->Add(SETTER_STUB_FRAME);
-  buffer_->Add(literal_id);
-}
-
-
 void Translation::BeginArgumentsAdaptorFrame(int literal_id, unsigned height) {
   buffer_->Add(ARGUMENTS_ADAPTOR_FRAME);
   buffer_->Add(literal_id);
@@ -2268,8 +2065,6 @@ void Translation::StoreJSFrameFunction() {
 
 int Translation::NumberOfOperandsFor(Opcode opcode) {
   switch (opcode) {
-    case GETTER_STUB_FRAME:
-    case SETTER_STUB_FRAME:
     case DUPLICATED_OBJECT:
     case ARGUMENTS_ELEMENTS:
     case ARGUMENTS_LENGTH:
@@ -2825,13 +2620,6 @@ TranslatedFrame TranslatedFrame::InterpretedFrame(
 }
 
 
-TranslatedFrame TranslatedFrame::AccessorFrame(
-    Kind kind, SharedFunctionInfo* shared_info) {
-  DCHECK(kind == kSetter || kind == kGetter);
-  return TranslatedFrame(kind, shared_info);
-}
-
-
 TranslatedFrame TranslatedFrame::ArgumentsAdaptorFrame(
     SharedFunctionInfo* shared_info, int height) {
   return TranslatedFrame(kArgumentsAdaptor, shared_info, height);
@@ -2866,12 +2654,6 @@ int TranslatedFrame::GetValueCount() {
       // + 2 for function and context.
       return height_ + parameter_count + 2;
     }
-
-    case kGetter:
-      return 2;  // Function and receiver.
-
-    case kSetter:
-      return 3;  // Function, receiver and the value to set.
 
     case kArgumentsAdaptor:
     case kConstructStub:
@@ -2984,28 +2766,6 @@ TranslatedFrame TranslatedState::CreateNextTranslatedFrame(
       int height_with_context = height + 1;
       return TranslatedFrame::JavaScriptBuiltinContinuationFrame(
           bailout_id, shared_info, height_with_context);
-    }
-
-    case Translation::GETTER_STUB_FRAME: {
-      SharedFunctionInfo* shared_info =
-          SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
-      if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
-        PrintF(trace_file, "  reading getter frame %s; inputs:\n", name.get());
-      }
-      return TranslatedFrame::AccessorFrame(TranslatedFrame::kGetter,
-                                            shared_info);
-    }
-
-    case Translation::SETTER_STUB_FRAME: {
-      SharedFunctionInfo* shared_info =
-          SharedFunctionInfo::cast(literal_array->get(iterator->Next()));
-      if (trace_file != nullptr) {
-        std::unique_ptr<char[]> name = shared_info->DebugName()->ToCString();
-        PrintF(trace_file, "  reading setter frame %s; inputs:\n", name.get());
-      }
-      return TranslatedFrame::AccessorFrame(TranslatedFrame::kSetter,
-                                            shared_info);
     }
 
     case Translation::BEGIN:
@@ -3148,8 +2908,6 @@ int TranslatedState::CreateNextTranslatedValue(
     case Translation::INTERPRETED_FRAME:
     case Translation::ARGUMENTS_ADAPTOR_FRAME:
     case Translation::CONSTRUCT_STUB_FRAME:
-    case Translation::GETTER_STUB_FRAME:
-    case Translation::SETTER_STUB_FRAME:
     case Translation::JAVA_SCRIPT_BUILTIN_CONTINUATION_FRAME:
     case Translation::BUILTIN_CONTINUATION_FRAME:
       // Peeled off before getting here.
