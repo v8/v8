@@ -260,6 +260,17 @@ void OS::SetReadAndWritable(void* address, const size_t size, bool commit) {
 #endif
 }
 
+// Make a region of memory readable, writable, and executable.
+void OS::SetReadWriteAndExecutable(void* address, const size_t size) {
+#if V8_OS_CYGWIN
+  DWORD oldprotect;
+  CHECK_NOT_NULL(
+      VirtualProtect(address, size, PAGE_EXECUTE_READWRITE, &oldprotect));
+#else
+  CHECK_EQ(0, mprotect(address, size, PROT_READ | PROT_WRITE | PROT_EXEC));
+#endif
+}
+
 #if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
 // static
 void* OS::ReserveRegion(size_t size, void* hint) {

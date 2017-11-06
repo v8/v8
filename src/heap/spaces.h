@@ -638,6 +638,9 @@ class MemoryChunk {
   void SetReadAndExecutable();
   void SetReadAndWritable();
 
+  // TODO(hpayer): Remove this method. Memory should never be rwx.
+  void SetReadWriteAndExecutable();
+
  protected:
   static MemoryChunk* Initialize(Heap* heap, Address base, size_t size,
                                  Address area_start, Address area_end,

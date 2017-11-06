@@ -188,6 +188,10 @@ class V8_BASE_EXPORT OS {
   // Make a region of memory non-executable but readable and writable.
   static void SetReadAndWritable(void* address, const size_t size, bool commit);
 
+  // Make a region of memory read, write, and executable. Do not use this
+  // function. This is only a temporary function and will go away soon.
+  static void SetReadWriteAndExecutable(void* address, const size_t size);
+
   static void* ReserveRegion(size_t size, void* hint);
 
   static void* ReserveAlignedRegion(size_t size, size_t alignment, void* hint,

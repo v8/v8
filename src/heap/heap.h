@@ -2541,7 +2541,11 @@ class CodeSpaceMemoryModificationScope {
 
 class CodePageMemoryModificationScope {
  public:
-  explicit inline CodePageMemoryModificationScope(MemoryChunk* chunk);
+  enum CodePageModificationMode { READ_WRITE, READ_WRITE_EXECUTABLE };
+  // TODO(hpayer): Remove set_executable from the constructor. Code pages should
+  // never be executable and writable at the same time.
+  inline CodePageMemoryModificationScope(MemoryChunk* chunk,
+                                         CodePageModificationMode mode);
   inline ~CodePageMemoryModificationScope();
 
  private:

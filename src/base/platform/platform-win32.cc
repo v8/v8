@@ -818,6 +818,13 @@ void OS::SetReadAndWritable(void* address, const size_t size, bool commit) {
   }
 }
 
+// Make a region of memory readable, writable, and executable.
+void OS::SetReadWriteAndExecutable(void* address, const size_t size) {
+  DWORD oldprotect;
+  CHECK_NE(NULL,
+           VirtualProtect(address, size, PAGE_EXECUTE_READWRITE, &oldprotect));
+}
+
 // static
 void* OS::ReserveRegion(size_t size, void* hint) {
   return RandomizedVirtualAlloc(size, MEM_RESERVE, PAGE_NOACCESS, hint);

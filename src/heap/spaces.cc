@@ -574,6 +574,25 @@ void MemoryChunk::SetReadAndWritable() {
   }
 }
 
+void MemoryChunk::SetReadWriteAndExecutable() {
+  DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
+  // TODO(hpayer): owner() can only be null if we use the MemoryChunk outside
+  // of spaces. We actually should not do that and we should untangle this.
+  DCHECK(owner() == nullptr || owner()->identity() == CODE_SPACE ||
+         owner()->identity() == LO_SPACE);
+  // Incrementing the write_unprotect_counter_ and changing the page
+  // protection mode has to be atomic.
+  base::LockGuard<base::Mutex> guard(page_protection_change_mutex_);
+  write_unprotect_counter_++;
+  DCHECK_LE(write_unprotect_counter_, 2);
+  Address unprotect_start =
+      address() + MemoryAllocator::CodePageAreaStartOffset();
+  size_t unprotect_size = size() - MemoryAllocator::CodePageAreaStartOffset();
+  DCHECK(
+      IsAddressAligned(unprotect_start, MemoryAllocator::GetCommitPageSize()));
+  base::OS::SetReadWriteAndExecutable(unprotect_start, unprotect_size);
+}
+
 MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      Address area_start, Address area_end,
                                      Executability executable, Space* owner,
