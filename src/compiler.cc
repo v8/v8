@@ -1244,6 +1244,7 @@ struct ScriptCompileTimerScope {
     kNoCacheBecauseCachingDisabled,
     kNoCacheBecauseModule,
     kNoCacheBecauseStreamingSource,
+    kNoCacheBecauseExtension,
     kCount
   };
 
@@ -1336,6 +1337,8 @@ struct ScriptCompileTimerScope {
         return CacheBehaviour::kNoCacheBecauseModule;
       case ScriptCompiler::kNoCacheBecauseStreamingSource:
         return CacheBehaviour::kNoCacheBecauseStreamingSource;
+      case ScriptCompiler::kNoCacheBecauseExtension:
+        return CacheBehaviour::kNoCacheBecauseExtension;
     }
     UNREACHABLE();
   }
@@ -1374,6 +1377,7 @@ struct ScriptCompileTimerScope {
       // TODO(leszeks): Count separately or remove entirely once we have
       // background compilation.
       case CacheBehaviour::kNoCacheBecauseStreamingSource:
+      case CacheBehaviour::kNoCacheBecauseExtension:
         return isolate_->counters()->compile_script_no_cache_other();
 
       case CacheBehaviour::kCount:

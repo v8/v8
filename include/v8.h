@@ -1447,6 +1447,7 @@ class V8_EXPORT ScriptCompiler {
     kNoCacheBecauseInspector,
     kNoCacheBecauseScriptTooSmall,
     kNoCacheBecauseCacheTooCold,
+    kNoCacheBecauseExtension,
   };
 
   /**
