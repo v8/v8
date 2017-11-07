@@ -106,7 +106,7 @@ using v8::MemoryPressureLevel;
   V(Map, ordered_hash_table_map, OrderedHashTableMap)                          \
   V(Map, name_dictionary_map, NameDictionaryMap)                               \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
-  V(Map, seeded_number_dictionary_map, NumberDictionaryMap)                    \
+  V(Map, number_dictionary_map, NumberDictionaryMap)                           \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \

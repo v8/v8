@@ -290,7 +290,7 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, ordered_hash_table)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, name_dictionary)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, global_dictionary)
-    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, seeded_number_dictionary)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, number_dictionary)
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, function_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, catch_context)

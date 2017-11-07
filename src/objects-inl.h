@@ -433,7 +433,7 @@ bool HeapObject::IsNameDictionary() const {
 }
 
 bool HeapObject::IsNumberDictionary() const {
-  return map() == GetHeap()->seeded_number_dictionary_map();
+  return map() == GetHeap()->number_dictionary_map();
 }
 
 bool HeapObject::IsStringTable() const { return IsHashTable(); }
@@ -4845,7 +4845,7 @@ uint32_t NumberDictionaryShape::HashForObject(Isolate* isolate, Object* other) {
 }
 
 Map* NumberDictionaryShape::GetMap(Isolate* isolate) {
-  return isolate->heap()->seeded_number_dictionary_map();
+  return isolate->heap()->number_dictionary_map();
 }
 
 Handle<Object> NumberDictionaryShape::AsHandle(Isolate* isolate, uint32_t key) {
