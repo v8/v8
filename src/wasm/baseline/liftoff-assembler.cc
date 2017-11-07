@@ -147,6 +147,7 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
     } else {
       // Keep this a stack slot (which is the initial value).
       DCHECK(slot->is_stack());
+      ++slot;
       return;
     }
     *slot = VarState(reg);

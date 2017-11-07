@@ -191,7 +191,7 @@ class LiftoffAssembler : public TurboAssembler {
   }
 
   uint32_t GetNumUses(Register reg) const {
-    DCHECK_GT(CacheState::kMaxRegisterCode, reg.code());
+    DCHECK_GE(CacheState::kMaxRegisterCode, reg.code());
     return cache_state_.register_use_count[reg.code()];
   }
 
