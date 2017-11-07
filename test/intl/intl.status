@@ -29,6 +29,8 @@
 [ALWAYS, {
   # TODO(jochen): The following test is flaky.
   'overrides/caching': [PASS, FAIL],
+  # Skip until ICU is rolled to 60.1.
+  'number-format/format-currency': [SKIP],
 }],  # ALWAYS
 
 ['variant == wasm_traps', {
