@@ -139,6 +139,8 @@ class WasmGenerator {
     builder_->EmitWithU8(kExprMemorySize, 0);
   }
 
+  void grow_memory(DataRange data);
+
   using generate_fn = void (WasmGenerator::*const)(DataRange);
 
   template <size_t N>
@@ -289,8 +291,7 @@ void WasmGenerator::Generate<kWasmI32>(DataRange data) {
       &WasmGenerator::memop<kExprI32LoadMem16U>,
 
       &WasmGenerator::current_memory,
-      // TODO(eholk): add grow_memory too
-  };
+      &WasmGenerator::grow_memory};
 
   GenerateOneOf(alternates, data);
 }
@@ -386,6 +387,11 @@ void WasmGenerator::Generate<kWasmF64>(DataRange data) {
       &WasmGenerator::memop<kExprF64LoadMem>};
 
   GenerateOneOf(alternates, data);
+}
+
+void WasmGenerator::grow_memory(DataRange data) {
+  Generate<kWasmI32>(data);
+  builder_->EmitWithU8(kExprGrowMemory, 0);
 }
 
 void WasmGenerator::Generate(ValueType type, DataRange data) {
