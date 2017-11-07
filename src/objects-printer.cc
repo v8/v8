@@ -386,7 +386,7 @@ void PrintFixedArrayElements(std::ostream& os, T* array) {
 
 void PrintDictionaryElements(std::ostream& os, FixedArrayBase* elements) {
   // Print some internal fields
-  SeededNumberDictionary* dict = SeededNumberDictionary::cast(elements);
+  NumberDictionary* dict = NumberDictionary::cast(elements);
   if (dict->requires_slow_elements()) {
     os << "\n   - requires_slow_elements";
   } else {

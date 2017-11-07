@@ -377,7 +377,7 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<SourcePositionTableWithFrameCache>
   NewSourcePositionTableWithFrameCache(
       Handle<ByteArray> source_position_table,
-      Handle<UnseededNumberDictionary> stack_frame_cache);
+      Handle<NumberDictionary> stack_frame_cache);
 
   // Foreign objects are pretenured when allocated by the bootstrapper.
   Handle<Foreign> NewForeign(Address addr,

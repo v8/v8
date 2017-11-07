@@ -223,15 +223,10 @@ consts_misc = [
     { 'name': 'namedictionary_prefix_start_index',
         'value': 'NameDictionary::kPrefixStartIndex' },
 
-    { 'name': 'seedednumberdictionaryshape_prefix_size',
-        'value': 'SeededNumberDictionaryShape::kPrefixSize' },
-    { 'name': 'seedednumberdictionaryshape_entry_size',
-        'value': 'SeededNumberDictionaryShape::kEntrySize' },
-
-    { 'name': 'unseedednumberdictionaryshape_prefix_size',
-        'value': 'UnseededNumberDictionaryShape::kPrefixSize' },
-    { 'name': 'unseedednumberdictionaryshape_entry_size',
-        'value': 'UnseededNumberDictionaryShape::kEntrySize' }
+    { 'name': 'numberdictionaryshape_prefix_size',
+        'value': 'NumberDictionaryShape::kPrefixSize' },
+    { 'name': 'numberdictionaryshape_entry_size',
+        'value': 'NumberDictionaryShape::kEntrySize' },
 ];
 
 #

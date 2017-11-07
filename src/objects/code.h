@@ -580,7 +580,7 @@ class AbstractCode : public HeapObject {
 
   inline Object* stack_frame_cache();
   static void SetStackFrameCache(Handle<AbstractCode> abstract_code,
-                                 Handle<UnseededNumberDictionary> cache);
+                                 Handle<NumberDictionary> cache);
   void DropStackFrameCache();
 
   // Returns the size of instructions and the metadata.

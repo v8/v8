@@ -165,8 +165,7 @@ MaybeHandle<JSObject> JSObjectWalkVisitor<ContextObject>::StructureWalk(
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      Handle<SeededNumberDictionary> element_dictionary(
-          copy->element_dictionary());
+      Handle<NumberDictionary> element_dictionary(copy->element_dictionary());
       int capacity = element_dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
         Object* raw = element_dictionary->ValueAt(i);

@@ -433,13 +433,12 @@ class ArrayConcatVisitor {
       // Fall-through to dictionary mode.
     }
     DCHECK(!fast_elements());
-    Handle<SeededNumberDictionary> dict(
-        SeededNumberDictionary::cast(*storage_));
+    Handle<NumberDictionary> dict(NumberDictionary::cast(*storage_));
     // The object holding this backing store has just been allocated, so
     // it cannot yet be used as a prototype.
     Handle<JSObject> not_a_prototype_holder;
-    Handle<SeededNumberDictionary> result =
-        SeededNumberDictionary::Set(dict, index, elm, not_a_prototype_holder);
+    Handle<NumberDictionary> result =
+        NumberDictionary::Set(dict, index, elm, not_a_prototype_holder);
     if (!result.is_identical_to(dict)) {
       // Dictionary needed to grow.
       clear_storage();
@@ -502,8 +501,8 @@ class ArrayConcatVisitor {
   void SetDictionaryMode() {
     DCHECK(fast_elements() && is_fixed_array());
     Handle<FixedArray> current_storage = storage_fixed_array();
-    Handle<SeededNumberDictionary> slow_storage(
-        SeededNumberDictionary::New(isolate_, current_storage->length()));
+    Handle<NumberDictionary> slow_storage(
+        NumberDictionary::New(isolate_, current_storage->length()));
     uint32_t current_length = static_cast<uint32_t>(current_storage->length());
     FOR_WITH_HANDLE_SCOPE(
         isolate_, uint32_t, i = 0, i, i < current_length, i++, {
@@ -512,9 +511,8 @@ class ArrayConcatVisitor {
             // The object holding this backing store has just been allocated, so
             // it cannot yet be used as a prototype.
             Handle<JSObject> not_a_prototype_holder;
-            Handle<SeededNumberDictionary> new_storage =
-                SeededNumberDictionary::Set(slow_storage, i, element,
-                                            not_a_prototype_holder);
+            Handle<NumberDictionary> new_storage = NumberDictionary::Set(
+                slow_storage, i, element, not_a_prototype_holder);
             if (!new_storage.is_identical_to(slow_storage)) {
               slow_storage = loop_scope.CloseAndEscape(new_storage);
             }
@@ -597,8 +595,7 @@ uint32_t EstimateElementCount(Handle<JSArray> array) {
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      SeededNumberDictionary* dictionary =
-          SeededNumberDictionary::cast(array->elements());
+      NumberDictionary* dictionary = NumberDictionary::cast(array->elements());
       Isolate* isolate = dictionary->GetIsolate();
       int capacity = dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
@@ -667,8 +664,7 @@ void CollectElementIndices(Handle<JSObject> object, uint32_t range,
     }
     case DICTIONARY_ELEMENTS: {
       DisallowHeapAllocation no_gc;
-      SeededNumberDictionary* dict =
-          SeededNumberDictionary::cast(object->elements());
+      NumberDictionary* dict = NumberDictionary::cast(object->elements());
       uint32_t capacity = dict->Capacity();
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, j = 0, j, j < capacity, j++, {
         Object* k = dict->KeyAt(j);
@@ -864,7 +860,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
     }
 
     case DICTIONARY_ELEMENTS: {
-      Handle<SeededNumberDictionary> dict(array->element_dictionary());
+      Handle<NumberDictionary> dict(array->element_dictionary());
       std::vector<uint32_t> indices;
       indices.reserve(dict->Capacity() / 2);
 
@@ -1071,7 +1067,7 @@ Object* Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     storage =
         isolate->factory()->NewFixedArrayWithHoles(estimate_result_length);
   } else if (is_array_species) {
-    storage = SeededNumberDictionary::New(isolate, estimate_nof);
+    storage = NumberDictionary::New(isolate, estimate_nof);
   } else {
     DCHECK(species->IsConstructor());
     Handle<Object> length(Smi::kZero, isolate);

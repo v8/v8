@@ -4307,12 +4307,12 @@ Node* CodeStubAssembler::IsHashTable(Node* object) {
 }
 
 Node* CodeStubAssembler::IsDictionary(Node* object) {
-  return Word32Or(IsHashTable(object), IsUnseededNumberDictionary(object));
+  return Word32Or(IsHashTable(object), IsNumberDictionary(object));
 }
 
-Node* CodeStubAssembler::IsUnseededNumberDictionary(Node* object) {
+Node* CodeStubAssembler::IsNumberDictionary(Node* object) {
   return WordEqual(LoadMap(object),
-                   LoadRoot(Heap::kUnseededNumberDictionaryMapRootIndex));
+                   LoadRoot(Heap::kNumberDictionaryMapRootIndex));
 }
 
 Node* CodeStubAssembler::IsJSFunctionInstanceType(Node* instance_type) {
@@ -5961,8 +5961,7 @@ Node* CodeStubAssembler::EntryToIndex(Node* entry, int field_index) {
 
 template Node* CodeStubAssembler::EntryToIndex<NameDictionary>(Node*, int);
 template Node* CodeStubAssembler::EntryToIndex<GlobalDictionary>(Node*, int);
-template Node* CodeStubAssembler::EntryToIndex<SeededNumberDictionary>(Node*,
-                                                                       int);
+template Node* CodeStubAssembler::EntryToIndex<NumberDictionary>(Node*, int);
 
 // This must be kept in sync with HashTableBase::ComputeCapacity().
 TNode<IntPtrT> CodeStubAssembler::HashTableComputeCapacity(
@@ -6117,22 +6116,19 @@ Node* CodeStubAssembler::ComputeIntegerHash(Node* key, Node* seed) {
   return Word32And(hash, Int32Constant(0x3fffffff));
 }
 
-template <typename Dictionary>
 void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary,
                                                Node* intptr_index,
                                                Label* if_found,
                                                Variable* var_entry,
                                                Label* if_not_found) {
-  CSA_ASSERT(this, IsDictionary(dictionary));
+  CSA_ASSERT(this, IsNumberDictionary(dictionary));
   DCHECK_EQ(MachineType::PointerRepresentation(), var_entry->rep());
   Comment("NumberDictionaryLookup");
 
-  Node* capacity = SmiUntag(GetCapacity<Dictionary>(dictionary));
+  Node* capacity = SmiUntag(GetCapacity<NumberDictionary>(dictionary));
   Node* mask = IntPtrSub(capacity, IntPtrConstant(1));
 
-  Node* int32_seed = std::is_same<Dictionary, SeededNumberDictionary>::value
-                         ? HashSeed()
-                         : Int32Constant(kZeroHashSeed);
+  Node* int32_seed = HashSeed();
   Node* hash = ChangeUint32ToWord(ComputeIntegerHash(intptr_index, int32_seed));
   Node* key_as_float64 = RoundIntPtrToFloat64(intptr_index);
 
@@ -6152,7 +6148,7 @@ void CodeStubAssembler::NumberDictionaryLookup(Node* dictionary,
   {
     Node* entry = var_entry->value();
 
-    Node* index = EntryToIndex<Dictionary>(entry);
+    Node* index = EntryToIndex<NumberDictionary>(entry);
     Node* current = LoadFixedArrayElement(dictionary, index);
     GotoIf(WordEqual(current, undefined), if_not_found);
     Label next_probe(this);
@@ -6948,8 +6944,8 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
 
     VARIABLE(var_entry, MachineType::PointerRepresentation());
     Node* elements = LoadElements(object);
-    NumberDictionaryLookup<SeededNumberDictionary>(
-        elements, intptr_index, if_found, &var_entry, if_not_found);
+    NumberDictionaryLookup(elements, intptr_index, if_found, &var_entry,
+                           if_not_found);
   }
   BIND(&if_isfaststringwrapper);
   {
@@ -6986,12 +6982,6 @@ void CodeStubAssembler::TryLookupElement(Node* object, Node* map,
     Goto(if_not_found);
   }
 }
-
-// Instantiate template methods to workaround GCC compilation issue.
-template void CodeStubAssembler::NumberDictionaryLookup<SeededNumberDictionary>(
-    Node*, Node*, Label*, Variable*, Label*);
-template void CodeStubAssembler::NumberDictionaryLookup<
-    UnseededNumberDictionary>(Node*, Node*, Label*, Variable*, Label*);
 
 void CodeStubAssembler::TryPrototypeChainLookup(
     Node* receiver, Node* key, const LookupInHolder& lookup_property_in_holder,

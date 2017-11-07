@@ -1060,26 +1060,26 @@ void CollectTypeProfileNexus::Collect(Handle<String> type, int position) {
   Object* const feedback = GetFeedback();
 
   // Map source position to collection of types
-  Handle<UnseededNumberDictionary> types;
+  Handle<NumberDictionary> types;
 
   if (feedback == *FeedbackVector::UninitializedSentinel(isolate)) {
-    types = UnseededNumberDictionary::New(isolate, 1);
+    types = NumberDictionary::New(isolate, 1);
   } else {
-    types = handle(UnseededNumberDictionary::cast(feedback));
+    types = handle(NumberDictionary::cast(feedback));
   }
 
   Handle<ArrayList> position_specific_types;
 
   int entry = types->FindEntry(position);
-  if (entry == UnseededNumberDictionary::kNotFound) {
+  if (entry == NumberDictionary::kNotFound) {
     position_specific_types = ArrayList::New(isolate, 1);
-    types = UnseededNumberDictionary::Set(
+    types = NumberDictionary::Set(
         types, position, ArrayList::Add(position_specific_types, type));
   } else {
     DCHECK(types->ValueAt(entry)->IsArrayList());
     position_specific_types = handle(ArrayList::cast(types->ValueAt(entry)));
     if (!InList(position_specific_types, type)) {  // Add type
-      types = UnseededNumberDictionary::Set(
+      types = NumberDictionary::Set(
           types, position, ArrayList::Add(position_specific_types, type));
     }
   }
@@ -1100,12 +1100,12 @@ std::vector<int> CollectTypeProfileNexus::GetSourcePositions() const {
     return source_positions;
   }
 
-  Handle<UnseededNumberDictionary> types = Handle<UnseededNumberDictionary>(
-      UnseededNumberDictionary::cast(feedback), isolate);
+  Handle<NumberDictionary> types =
+      Handle<NumberDictionary>(NumberDictionary::cast(feedback), isolate);
 
-  for (int index = UnseededNumberDictionary::kElementsStartIndex;
-       index < types->length(); index += UnseededNumberDictionary::kEntrySize) {
-    int key_index = index + UnseededNumberDictionary::kEntryKeyIndex;
+  for (int index = NumberDictionary::kElementsStartIndex;
+       index < types->length(); index += NumberDictionary::kEntrySize) {
+    int key_index = index + NumberDictionary::kEntryKeyIndex;
     Object* key = types->get(key_index);
     if (key->IsSmi()) {
       int position = Smi::cast(key)->value();
@@ -1125,11 +1125,11 @@ std::vector<Handle<String>> CollectTypeProfileNexus::GetTypesForSourcePositions(
     return types_for_position;
   }
 
-  Handle<UnseededNumberDictionary> types = Handle<UnseededNumberDictionary>(
-      UnseededNumberDictionary::cast(feedback), isolate);
+  Handle<NumberDictionary> types =
+      Handle<NumberDictionary>(NumberDictionary::cast(feedback), isolate);
 
   int entry = types->FindEntry(position);
-  if (entry == UnseededNumberDictionary::kNotFound) {
+  if (entry == NumberDictionary::kNotFound) {
     return types_for_position;
   }
   DCHECK(types->ValueAt(entry)->IsArrayList());
@@ -1146,17 +1146,16 @@ std::vector<Handle<String>> CollectTypeProfileNexus::GetTypesForSourcePositions(
 namespace {
 
 Handle<JSObject> ConvertToJSObject(Isolate* isolate,
-                                   Handle<UnseededNumberDictionary> feedback) {
+                                   Handle<NumberDictionary> feedback) {
   Handle<JSObject> type_profile =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  for (int index = UnseededNumberDictionary::kElementsStartIndex;
-       index < feedback->length();
-       index += UnseededNumberDictionary::kEntrySize) {
-    int key_index = index + UnseededNumberDictionary::kEntryKeyIndex;
+  for (int index = NumberDictionary::kElementsStartIndex;
+       index < feedback->length(); index += NumberDictionary::kEntrySize) {
+    int key_index = index + NumberDictionary::kEntryKeyIndex;
     Object* key = feedback->get(key_index);
     if (key->IsSmi()) {
-      int value_index = index + UnseededNumberDictionary::kEntryValueIndex;
+      int value_index = index + NumberDictionary::kEntryValueIndex;
 
       Handle<ArrayList> position_specific_types(
           ArrayList::cast(feedback->get(value_index)));
@@ -1183,8 +1182,7 @@ JSObject* CollectTypeProfileNexus::GetTypeProfile() const {
     return *isolate->factory()->NewJSObject(isolate->object_function());
   }
 
-  return *ConvertToJSObject(isolate,
-                            handle(UnseededNumberDictionary::cast(feedback)));
+  return *ConvertToJSObject(isolate, handle(NumberDictionary::cast(feedback)));
 }
 
 }  // namespace internal

@@ -71,9 +71,9 @@ void CodeStubDescriptor::Initialize(Register stack_parameter_count,
 
 
 bool CodeStub::FindCodeInCache(Code** code_out) {
-  UnseededNumberDictionary* stubs = isolate()->heap()->code_stubs();
+  NumberDictionary* stubs = isolate()->heap()->code_stubs();
   int index = stubs->FindEntry(isolate(), GetKey());
-  if (index != UnseededNumberDictionary::kNotFound) {
+  if (index != NumberDictionary::kNotFound) {
     *code_out = Code::cast(stubs->ValueAt(index));
     return true;
   }
@@ -97,10 +97,10 @@ void CodeStub::RecordCodeGeneration(Handle<Code> code) {
 
 void CodeStub::DeleteStubFromCacheForTesting() {
   Heap* heap = isolate_->heap();
-  Handle<UnseededNumberDictionary> dict(heap->code_stubs());
+  Handle<NumberDictionary> dict(heap->code_stubs());
   int entry = dict->FindEntry(GetKey());
-  DCHECK_NE(UnseededNumberDictionary::kNotFound, entry);
-  dict = UnseededNumberDictionary::DeleteEntry(dict, entry);
+  DCHECK_NE(NumberDictionary::kNotFound, entry);
+  dict = NumberDictionary::DeleteEntry(dict, entry);
   heap->SetRootCodeStubs(*dict);
 }
 
@@ -165,8 +165,8 @@ Handle<Code> CodeStub::GetCode() {
 #endif
 
     // Update the dictionary and the root in Heap.
-    Handle<UnseededNumberDictionary> dict = UnseededNumberDictionary::Set(
-        handle(heap->code_stubs()), GetKey(), new_object);
+    Handle<NumberDictionary> dict =
+        NumberDictionary::Set(handle(heap->code_stubs()), GetKey(), new_object);
     heap->SetRootCodeStubs(*dict);
     code = *new_object;
   }

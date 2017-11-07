@@ -432,12 +432,8 @@ bool HeapObject::IsNameDictionary() const {
   return map() == GetHeap()->name_dictionary_map();
 }
 
-bool HeapObject::IsSeededNumberDictionary() const {
+bool HeapObject::IsNumberDictionary() const {
   return map() == GetHeap()->seeded_number_dictionary_map();
-}
-
-bool HeapObject::IsUnseededNumberDictionary() const {
-  return map() == GetHeap()->unseeded_number_dictionary_map();
 }
 
 bool HeapObject::IsStringTable() const { return IsHashTable(); }
@@ -605,7 +601,7 @@ CAST_ACCESSOR(PropertyCell)
 CAST_ACCESSOR(PrototypeInfo)
 CAST_ACCESSOR(RegExpMatchInfo)
 CAST_ACCESSOR(ScopeInfo)
-CAST_ACCESSOR(SeededNumberDictionary)
+CAST_ACCESSOR(NumberDictionary)
 CAST_ACCESSOR(SmallOrderedHashMap)
 CAST_ACCESSOR(SmallOrderedHashSet)
 CAST_ACCESSOR(Smi)
@@ -621,7 +617,6 @@ CAST_ACCESSOR(TemplateObjectDescription)
 CAST_ACCESSOR(Tuple2)
 CAST_ACCESSOR(Tuple3)
 CAST_ACCESSOR(TypeFeedbackInfo)
-CAST_ACCESSOR(UnseededNumberDictionary)
 CAST_ACCESSOR(WeakCell)
 CAST_ACCESSOR(WeakFixedArray)
 CAST_ACCESSOR(WeakHashTable)
@@ -1965,10 +1960,9 @@ AllocationAlignment HeapObject::RequiredAlignment() const {
 
 bool HeapObject::NeedsRehashing() const {
   switch (map()->instance_type()) {
-    case HASH_TABLE_TYPE:
-      return !IsUnseededNumberDictionary();
     case TRANSITION_ARRAY_TYPE:
       return TransitionArray::cast(this)->number_of_entries() > 1;
+    case HASH_TABLE_TYPE:
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
       return true;
@@ -2505,14 +2499,13 @@ uint32_t StringTableShape::HashForObject(Isolate* isolate, Object* object) {
   return String::cast(object)->Hash();
 }
 
-bool SeededNumberDictionary::requires_slow_elements() {
+bool NumberDictionary::requires_slow_elements() {
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi()) return false;
   return 0 != (Smi::ToInt(max_index_object) & kRequiresSlowElementsMask);
 }
 
-
-uint32_t SeededNumberDictionary::max_number_key() {
+uint32_t NumberDictionary::max_number_key() {
   DCHECK(!requires_slow_elements());
   Object* max_index_object = get(kMaxNumberKeyIndex);
   if (!max_index_object->IsSmi()) return 0;
@@ -2520,8 +2513,7 @@ uint32_t SeededNumberDictionary::max_number_key() {
   return value >> kRequiresSlowElementsTagSize;
 }
 
-
-void SeededNumberDictionary::set_requires_slow_elements() {
+void NumberDictionary::set_requires_slow_elements() {
   set(kMaxNumberKeyIndex, Smi::FromInt(kRequiresSlowElementsMask));
 }
 
@@ -4009,7 +4001,7 @@ SMI_ACCESSORS(StackFrameInfo, id, kIdIndex)
 ACCESSORS(SourcePositionTableWithFrameCache, source_position_table, ByteArray,
           kSourcePositionTableIndex)
 ACCESSORS(SourcePositionTableWithFrameCache, stack_frame_cache,
-          UnseededNumberDictionary, kStackFrameCacheIndex)
+          NumberDictionary, kStackFrameCacheIndex)
 
 SMI_ACCESSORS(FunctionTemplateInfo, length, kLengthOffset)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
@@ -4478,10 +4470,9 @@ GlobalDictionary* JSGlobalObject::global_dictionary() {
   return GlobalDictionary::cast(raw_properties_or_hash());
 }
 
-
-SeededNumberDictionary* JSObject::element_dictionary() {
+NumberDictionary* JSObject::element_dictionary() {
   DCHECK(HasDictionaryElements() || HasSlowStringWrapperElements());
-  return SeededNumberDictionary::cast(elements());
+  return NumberDictionary::cast(elements());
 }
 
 // static
@@ -4843,32 +4834,17 @@ bool NumberDictionaryShape::IsMatch(uint32_t key, Object* other) {
   return key == static_cast<uint32_t>(other->Number());
 }
 
-uint32_t UnseededNumberDictionaryShape::Hash(Isolate* isolate, uint32_t key) {
-  return ComputeIntegerHash(key);
-}
-
-uint32_t UnseededNumberDictionaryShape::HashForObject(Isolate* isolate,
-                                                      Object* other) {
-  DCHECK(other->IsNumber());
-  return ComputeIntegerHash(static_cast<uint32_t>(other->Number()));
-}
-
-Map* UnseededNumberDictionaryShape::GetMap(Isolate* isolate) {
-  return isolate->heap()->unseeded_number_dictionary_map();
-}
-
-uint32_t SeededNumberDictionaryShape::Hash(Isolate* isolate, uint32_t key) {
+uint32_t NumberDictionaryShape::Hash(Isolate* isolate, uint32_t key) {
   return ComputeIntegerHash(key, isolate->heap()->HashSeed());
 }
 
-uint32_t SeededNumberDictionaryShape::HashForObject(Isolate* isolate,
-                                                    Object* other) {
+uint32_t NumberDictionaryShape::HashForObject(Isolate* isolate, Object* other) {
   DCHECK(other->IsNumber());
   return ComputeIntegerHash(static_cast<uint32_t>(other->Number()),
                             isolate->heap()->HashSeed());
 }
 
-Map* SeededNumberDictionaryShape::GetMap(Isolate* isolate) {
+Map* NumberDictionaryShape::GetMap(Isolate* isolate) {
   return isolate->heap()->seeded_number_dictionary_map();
 }
 

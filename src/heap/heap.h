@@ -106,8 +106,7 @@ using v8::MemoryPressureLevel;
   V(Map, ordered_hash_table_map, OrderedHashTableMap)                          \
   V(Map, name_dictionary_map, NameDictionaryMap)                               \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
-  V(Map, seeded_number_dictionary_map, SeededNumberDictionaryMap)              \
-  V(Map, unseeded_number_dictionary_map, UnseededNumberDictionaryMap)          \
+  V(Map, seeded_number_dictionary_map, NumberDictionaryMap)                    \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
@@ -188,7 +187,7 @@ using v8::MemoryPressureLevel;
   V(Script, empty_script, EmptyScript)                                         \
   V(Cell, undefined_cell, UndefinedCell)                                       \
   V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
-  V(SeededNumberDictionary, empty_slow_element_dictionary,                     \
+  V(NumberDictionary, empty_slow_element_dictionary,                           \
     EmptySlowElementDictionary)                                                \
   V(FixedArray, empty_ordered_hash_table, EmptyOrderedHashTable)               \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
@@ -221,7 +220,7 @@ using v8::MemoryPressureLevel;
   V(NameDictionary, api_symbol_table, ApiSymbolTable)                          \
   V(NameDictionary, api_private_symbol_table, ApiPrivateSymbolTable)           \
   V(Object, script_list, ScriptList)                                           \
-  V(UnseededNumberDictionary, code_stubs, CodeStubs)                           \
+  V(NumberDictionary, code_stubs, CodeStubs)                                   \
   V(FixedArray, materialized_objects, MaterializedObjects)                     \
   V(FixedArray, microtask_queue, MicrotaskQueue)                               \
   V(FixedArray, detached_contexts, DetachedContexts)                           \
@@ -342,7 +341,7 @@ using v8::MemoryPressureLevel;
   V(PropertyArrayMap)                   \
   V(ScopeInfoMap)                       \
   V(ScriptContextMap)                   \
-  V(SeededNumberDictionaryMap)          \
+  V(NumberDictionaryMap)                \
   V(SharedFunctionInfoMap)              \
   V(SloppyArgumentsElementsMap)         \
   V(SmallOrderedHashMapMap)             \
@@ -362,7 +361,6 @@ using v8::MemoryPressureLevel;
   V(UndefinedValue)                     \
   V(UninitializedMap)                   \
   V(UninitializedValue)                 \
-  V(UnseededNumberDictionaryMap)        \
   V(WeakCellMap)                        \
   V(WithContextMap)                     \
   PRIVATE_SYMBOL_LIST(V)
@@ -1051,7 +1049,7 @@ class Heap {
   Object** roots_array_start() { return roots_; }
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
-  void SetRootCodeStubs(UnseededNumberDictionary* value);
+  void SetRootCodeStubs(NumberDictionary* value);
 
   void SetRootMaterializedObjects(FixedArray* objects) {
     roots_[kMaterializedObjectsRootIndex] = objects;

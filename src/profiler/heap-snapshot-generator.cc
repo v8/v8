@@ -1463,7 +1463,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj, int entry) {
       }
     }
   } else if (js_obj->HasDictionaryElements()) {
-    SeededNumberDictionary* dictionary = js_obj->element_dictionary();
+    NumberDictionary* dictionary = js_obj->element_dictionary();
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);

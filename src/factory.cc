@@ -2812,7 +2812,7 @@ Handle<StackFrameInfo> Factory::NewStackFrameInfo() {
 Handle<SourcePositionTableWithFrameCache>
 Factory::NewSourcePositionTableWithFrameCache(
     Handle<ByteArray> source_position_table,
-    Handle<UnseededNumberDictionary> stack_frame_cache) {
+    Handle<NumberDictionary> stack_frame_cache) {
   Handle<SourcePositionTableWithFrameCache>
       source_position_table_with_frame_cache =
           Handle<SourcePositionTableWithFrameCache>::cast(

@@ -619,11 +619,10 @@ void LookupIterator::TransitionToAccessorPair(Handle<Object> pair,
   if (IsElement()) {
     // TODO(verwaest): Move code into the element accessor.
     isolate_->CountUsage(v8::Isolate::kIndexAccessor);
-    Handle<SeededNumberDictionary> dictionary =
-        JSObject::NormalizeElements(receiver);
+    Handle<NumberDictionary> dictionary = JSObject::NormalizeElements(receiver);
 
-    dictionary = SeededNumberDictionary::Set(dictionary, index_, pair, receiver,
-                                             details);
+    dictionary =
+        NumberDictionary::Set(dictionary, index_, pair, receiver, details);
     receiver->RequireSlowElements(*dictionary);
 
     if (receiver->HasSlowArgumentsElements()) {

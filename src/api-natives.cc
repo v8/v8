@@ -285,10 +285,10 @@ MaybeHandle<JSObject> ProbeInstantiationsCache(Isolate* isolate,
   } else if (caching_mode == CachingMode::kUnlimited ||
              (serial_number <=
               TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
-    Handle<UnseededNumberDictionary> slow_cache =
+    Handle<NumberDictionary> slow_cache =
         isolate->slow_template_instantiations_cache();
     int entry = slow_cache->FindEntry(serial_number);
-    if (entry == UnseededNumberDictionary::kNotFound) {
+    if (entry == NumberDictionary::kNotFound) {
       return MaybeHandle<JSObject>();
     }
     return handle(JSObject::cast(slow_cache->ValueAt(entry)), isolate);
@@ -313,10 +313,9 @@ void CacheTemplateInstantiation(Isolate* isolate, int serial_number,
   } else if (caching_mode == CachingMode::kUnlimited ||
              (serial_number <=
               TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
-    Handle<UnseededNumberDictionary> cache =
+    Handle<NumberDictionary> cache =
         isolate->slow_template_instantiations_cache();
-    auto new_cache =
-        UnseededNumberDictionary::Set(cache, serial_number, object);
+    auto new_cache = NumberDictionary::Set(cache, serial_number, object);
     if (*new_cache != *cache) {
       isolate->native_context()->set_slow_template_instantiations_cache(
           *new_cache);
@@ -335,11 +334,11 @@ void UncacheTemplateInstantiation(Isolate* isolate, int serial_number,
   } else if (caching_mode == CachingMode::kUnlimited ||
              (serial_number <=
               TemplateInfo::kSlowTemplateInstantiationsCacheSize)) {
-    Handle<UnseededNumberDictionary> cache =
+    Handle<NumberDictionary> cache =
         isolate->slow_template_instantiations_cache();
     int entry = cache->FindEntry(serial_number);
-    DCHECK_NE(UnseededNumberDictionary::kNotFound, entry);
-    cache = UnseededNumberDictionary::DeleteEntry(cache, entry);
+    DCHECK_NE(NumberDictionary::kNotFound, entry);
+    cache = NumberDictionary::DeleteEntry(cache, entry);
     isolate->native_context()->set_slow_template_instantiations_cache(*cache);
   }
 }

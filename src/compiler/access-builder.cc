@@ -1102,7 +1102,7 @@ ElementAccess AccessBuilder::ForOrderedHashMapEntryValue() {
 FieldAccess AccessBuilder::ForDictionaryMaxNumberKey() {
   FieldAccess access = {
       kTaggedBase,
-      FixedArray::OffsetOfElementAt(SeededNumberDictionary::kMaxNumberKeyIndex),
+      FixedArray::OffsetOfElementAt(NumberDictionary::kMaxNumberKeyIndex),
       MaybeHandle<Name>(),
       MaybeHandle<Map>(),
       Type::Any(),

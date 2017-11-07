@@ -923,7 +923,7 @@ void JSArray::JSArrayVerify() {
       CHECK(length()->ToArrayLength(&array_length));
     }
     if (array_length != 0) {
-      SeededNumberDictionary* dict = SeededNumberDictionary::cast(elements());
+      NumberDictionary* dict = NumberDictionary::cast(elements());
       // The dictionary can never have more elements than the array length + 1.
       // If the backing store grows the verification might be triggered with
       // the old length in place.
@@ -1506,7 +1506,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
     }
     case DICTIONARY_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS: {
-      SeededNumberDictionary* dict = element_dictionary();
+      NumberDictionary* dict = element_dictionary();
       info->number_of_slow_used_elements_ += dict->NumberOfElements();
       info->number_of_slow_unused_elements_ +=
           dict->Capacity() - dict->NumberOfElements();

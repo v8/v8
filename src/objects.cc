@@ -3634,8 +3634,7 @@ bool HeapObject::CanBeRehashed() const {
   DCHECK(NeedsRehashing());
   switch (map()->instance_type()) {
     case HASH_TABLE_TYPE:
-      return IsNameDictionary() || IsGlobalDictionary() ||
-             IsSeededNumberDictionary();
+      return IsNameDictionary() || IsGlobalDictionary() || IsNumberDictionary();
     case TRANSITION_ARRAY_TYPE:
       return true;
     case SMALL_ORDERED_HASH_MAP_TYPE:
@@ -3653,8 +3652,8 @@ void HeapObject::RehashBasedOnMap() {
     case HASH_TABLE_TYPE:
       if (IsNameDictionary()) {
         NameDictionary::cast(this)->Rehash();
-      } else if (IsSeededNumberDictionary()) {
-        SeededNumberDictionary::cast(this)->Rehash();
+      } else if (IsNumberDictionary()) {
+        NumberDictionary::cast(this)->Rehash();
       } else if (IsGlobalDictionary()) {
         GlobalDictionary::cast(this)->Rehash();
       } else {
@@ -6384,7 +6383,7 @@ void JSObject::MigrateSlowToFast(Handle<JSObject> object,
   DCHECK(object->HasFastProperties());
 }
 
-void JSObject::RequireSlowElements(SeededNumberDictionary* dictionary) {
+void JSObject::RequireSlowElements(NumberDictionary* dictionary) {
   if (dictionary->requires_slow_elements()) return;
   dictionary->set_requires_slow_elements();
   if (map()->is_prototype_map()) {
@@ -6394,9 +6393,7 @@ void JSObject::RequireSlowElements(SeededNumberDictionary* dictionary) {
   }
 }
 
-
-Handle<SeededNumberDictionary> JSObject::NormalizeElements(
-    Handle<JSObject> object) {
+Handle<NumberDictionary> JSObject::NormalizeElements(Handle<JSObject> object) {
   DCHECK(!object->HasFixedTypedArrayElements());
   Isolate* isolate = object->GetIsolate();
   bool is_sloppy_arguments = object->HasSloppyArgumentsElements();
@@ -6409,7 +6406,7 @@ Handle<SeededNumberDictionary> JSObject::NormalizeElements(
     }
 
     if (elements->IsDictionary()) {
-      return handle(SeededNumberDictionary::cast(elements), isolate);
+      return handle(NumberDictionary::cast(elements), isolate);
     }
   }
 
@@ -6417,7 +6414,7 @@ Handle<SeededNumberDictionary> JSObject::NormalizeElements(
          object->HasFastArgumentsElements() ||
          object->HasFastStringWrapperElements());
 
-  Handle<SeededNumberDictionary> dictionary =
+  Handle<NumberDictionary> dictionary =
       object->GetElementsAccessor()->Normalize(object);
 
   // Switch to using the dictionary as the backing storage for elements.
@@ -7877,8 +7874,7 @@ bool JSObject::ReferencesObjectFromElements(FixedArray* elements,
     }
   } else {
     DCHECK(kind == DICTIONARY_ELEMENTS || kind == SLOW_STRING_WRAPPER_ELEMENTS);
-    Object* key =
-        SeededNumberDictionary::cast(elements)->SlowReverseLookup(object);
+    Object* key = NumberDictionary::cast(elements)->SlowReverseLookup(object);
     if (!key->IsUndefined(isolate)) return true;
   }
   return false;
@@ -8128,7 +8124,7 @@ bool TestElementsIntegrityLevel(JSObject* object, PropertyAttributes level) {
 
   if (IsDictionaryElementsKind(kind)) {
     return TestDictionaryPropertiesIntegrityLevel(
-        SeededNumberDictionary::cast(object->elements()), object->GetIsolate(),
+        NumberDictionary::cast(object->elements()), object->GetIsolate(),
         level);
   }
 
@@ -8290,7 +8286,7 @@ Maybe<bool> JSObject::PreventExtensions(Handle<JSObject> object,
 
   if (!object->HasFixedTypedArrayElements()) {
     // If there are fast elements we normalize.
-    Handle<SeededNumberDictionary> dictionary = NormalizeElements(object);
+    Handle<NumberDictionary> dictionary = NormalizeElements(object);
     DCHECK(object->HasDictionaryElements() ||
            object->HasSlowArgumentsElements());
 
@@ -8446,7 +8442,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
     RETURN_FAILURE(isolate, should_throw, NewTypeError(message));
   }
 
-  Handle<SeededNumberDictionary> new_element_dictionary;
+  Handle<NumberDictionary> new_element_dictionary;
   if (!object->HasFixedTypedArrayElements() &&
       !object->HasDictionaryElements() &&
       !object->HasSlowStringWrapperElements()) {
@@ -8535,8 +8531,7 @@ Maybe<bool> JSObject::PreventExtensionsWithTransition(
   }
 
   if (object->elements() != isolate->heap()->empty_slow_element_dictionary()) {
-    Handle<SeededNumberDictionary> dictionary(object->element_dictionary(),
-                                              isolate);
+    Handle<NumberDictionary> dictionary(object->element_dictionary(), isolate);
     // Make sure we never go back to the fast case
     object->RequireSlowElements(*dictionary);
     if (attrs != NONE) {
@@ -8668,8 +8663,7 @@ bool JSObject::HasEnumerableElements() {
         return length > 0;
       }
     case DICTIONARY_ELEMENTS: {
-      SeededNumberDictionary* elements =
-          SeededNumberDictionary::cast(object->elements());
+      NumberDictionary* elements = NumberDictionary::cast(object->elements());
       return elements->NumberOfEnumerableProperties() > 0;
     }
     case FAST_SLOPPY_ARGUMENTS_ELEMENTS:
@@ -8886,7 +8880,7 @@ bool Map::DictionaryElementsInPrototypeChainOnly() {
     if (current->HasSlowArgumentsElements()) {
       FixedArray* parameter_map = FixedArray::cast(current->elements());
       Object* arguments = parameter_map->get(1);
-      if (SeededNumberDictionary::cast(arguments)->requires_slow_elements()) {
+      if (NumberDictionary::cast(arguments)->requires_slow_elements()) {
         return true;
       }
     }
@@ -13942,7 +13936,7 @@ SafepointEntry Code::GetSafepointEntry(Address pc) {
 namespace {
 template <typename Code>
 void SetStackFrameCacheCommon(Handle<Code> code,
-                              Handle<UnseededNumberDictionary> cache) {
+                              Handle<NumberDictionary> cache) {
   Handle<Object> maybe_table(code->source_position_table(), code->GetIsolate());
   if (maybe_table->IsSourcePositionTableWithFrameCache()) {
     Handle<SourcePositionTableWithFrameCache>::cast(maybe_table)
@@ -13960,7 +13954,7 @@ void SetStackFrameCacheCommon(Handle<Code> code,
 
 // static
 void AbstractCode::SetStackFrameCache(Handle<AbstractCode> abstract_code,
-                                      Handle<UnseededNumberDictionary> cache) {
+                                      Handle<NumberDictionary> cache) {
   if (abstract_code->IsCode()) {
     SetStackFrameCacheCommon(handle(abstract_code->GetCode()), cache);
   } else {
@@ -15184,10 +15178,9 @@ static bool ShouldConvertToSlowElements(JSObject* object, uint32_t capacity,
   // If the fast-case backing storage takes up much more memory than a
   // dictionary backing storage would, the object should have slow elements.
   int used_elements = object->GetFastElementsUsage();
-  uint32_t size_threshold =
-      SeededNumberDictionary::kPreferFastElementsSizeFactor *
-      SeededNumberDictionary::ComputeCapacity(used_elements) *
-      SeededNumberDictionary::kEntrySize;
+  uint32_t size_threshold = NumberDictionary::kPreferFastElementsSizeFactor *
+                            NumberDictionary::ComputeCapacity(used_elements) *
+                            NumberDictionary::kEntrySize;
   return size_threshold <= *new_capacity;
 }
 
@@ -15211,7 +15204,7 @@ static ElementsKind BestFittingFastElementsKind(JSObject* object) {
     return FAST_STRING_WRAPPER_ELEMENTS;
   }
   DCHECK(object->HasDictionaryElements());
-  SeededNumberDictionary* dictionary = object->element_dictionary();
+  NumberDictionary* dictionary = object->element_dictionary();
   ElementsKind kind = HOLEY_SMI_ELEMENTS;
   for (int i = 0; i < dictionary->Capacity(); i++) {
     Object* key = dictionary->KeyAt(i);
@@ -15227,9 +15220,8 @@ static ElementsKind BestFittingFastElementsKind(JSObject* object) {
   return kind;
 }
 
-
 static bool ShouldConvertToFastElements(JSObject* object,
-                                        SeededNumberDictionary* dictionary,
+                                        NumberDictionary* dictionary,
                                         uint32_t index,
                                         uint32_t* new_capacity) {
   // If properties with non-standard attributes or accessors were added, we
@@ -15251,7 +15243,7 @@ static bool ShouldConvertToFastElements(JSObject* object,
   *new_capacity = Max(index + 1, *new_capacity);
 
   uint32_t dictionary_size = static_cast<uint32_t>(dictionary->Capacity()) *
-                             SeededNumberDictionary::kEntrySize;
+                             NumberDictionary::kEntrySize;
 
   // Turn fast if the dictionary only saves 50% space.
   return 2 * dictionary_size >= *new_capacity;
@@ -15297,10 +15289,9 @@ Maybe<bool> JSObject::AddDataElement(Handle<JSObject> object, uint32_t index,
 
   if (attributes != NONE) {
     kind = dictionary_kind;
-  } else if (elements->IsSeededNumberDictionary()) {
-    kind = ShouldConvertToFastElements(*object,
-                                       SeededNumberDictionary::cast(elements),
-                                       index, &new_capacity)
+  } else if (elements->IsNumberDictionary()) {
+    kind = ShouldConvertToFastElements(
+               *object, NumberDictionary::cast(elements), index, &new_capacity)
                ? BestFittingFastElementsKind(*object)
                : dictionary_kind;
   } else if (ShouldConvertToSlowElements(
@@ -16322,14 +16313,11 @@ template class Dictionary<NameDictionary, NameDictionaryShape>;
 
 template class Dictionary<GlobalDictionary, GlobalDictionaryShape>;
 
-template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    HashTable<SeededNumberDictionary, SeededNumberDictionaryShape>;
+template class EXPORT_TEMPLATE_DEFINE(
+    V8_EXPORT_PRIVATE) HashTable<NumberDictionary, NumberDictionaryShape>;
 
 template class EXPORT_TEMPLATE_DEFINE(V8_EXPORT_PRIVATE)
-    Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>;
-
-template class Dictionary<UnseededNumberDictionary,
-                          UnseededNumberDictionaryShape>;
+    Dictionary<NumberDictionary, NumberDictionaryShape>;
 
 template Handle<NameDictionary>
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::New(
@@ -16339,19 +16327,12 @@ template Handle<GlobalDictionary>
 BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::New(
     Isolate*, int n, PretenureFlag pretenure, MinimumCapacity capacity_option);
 
-template Handle<SeededNumberDictionary>
-    Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::AtPut(
-        Handle<SeededNumberDictionary>, uint32_t, Handle<Object>,
-        PropertyDetails);
+template Handle<NumberDictionary>
+    Dictionary<NumberDictionary, NumberDictionaryShape>::AtPut(
+        Handle<NumberDictionary>, uint32_t, Handle<Object>, PropertyDetails);
 
-template Handle<UnseededNumberDictionary>
-    Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::AtPut(
-        Handle<UnseededNumberDictionary>, uint32_t, Handle<Object>,
-        PropertyDetails);
-
-template Object*
-Dictionary<SeededNumberDictionary,
-           SeededNumberDictionaryShape>::SlowReverseLookup(Object* value);
+template Object* Dictionary<
+    NumberDictionary, NumberDictionaryShape>::SlowReverseLookup(Object* value);
 
 template Object* Dictionary<
     NameDictionary, NameDictionaryShape>::SlowReverseLookup(Object* value);
@@ -16360,17 +16341,9 @@ template Handle<NameDictionary>
 Dictionary<NameDictionary, NameDictionaryShape>::DeleteEntry(
     Handle<NameDictionary>, int);
 
-template Handle<SeededNumberDictionary>
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::DeleteEntry(
-    Handle<SeededNumberDictionary>, int);
-
-template Handle<UnseededNumberDictionary>
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::
-    DeleteEntry(Handle<UnseededNumberDictionary>, int);
-
-template Handle<UnseededNumberDictionary>
-HashTable<UnseededNumberDictionary, UnseededNumberDictionaryShape>::New(
-    Isolate*, int, PretenureFlag, MinimumCapacity);
+template Handle<NumberDictionary>
+Dictionary<NumberDictionary, NumberDictionaryShape>::DeleteEntry(
+    Handle<NumberDictionary>, int);
 
 template Handle<NameDictionary>
 HashTable<NameDictionary, NameDictionaryShape>::New(Isolate*, int,
@@ -16385,10 +16358,6 @@ HashTable<ObjectHashSet, ObjectHashSetShape>::New(Isolate*, int n,
 template Handle<NameDictionary> HashTable<
     NameDictionary, NameDictionaryShape>::Shrink(Handle<NameDictionary>);
 
-template Handle<UnseededNumberDictionary>
-    HashTable<UnseededNumberDictionary, UnseededNumberDictionaryShape>::Shrink(
-        Handle<UnseededNumberDictionary>);
-
 template Handle<NameDictionary>
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::Add(
     Handle<NameDictionary>, Handle<Name>, Handle<Object>, PropertyDetails,
@@ -16401,15 +16370,9 @@ BaseNameDictionary<GlobalDictionary, GlobalDictionaryShape>::Add(
 
 template void HashTable<GlobalDictionary, GlobalDictionaryShape>::Rehash();
 
-template Handle<SeededNumberDictionary>
-Dictionary<SeededNumberDictionary, SeededNumberDictionaryShape>::Add(
-    Handle<SeededNumberDictionary>, uint32_t, Handle<Object>, PropertyDetails,
-    int*);
-
-template Handle<UnseededNumberDictionary>
-Dictionary<UnseededNumberDictionary, UnseededNumberDictionaryShape>::Add(
-    Handle<UnseededNumberDictionary>, uint32_t, Handle<Object>, PropertyDetails,
-    int*);
+template Handle<NumberDictionary>
+Dictionary<NumberDictionary, NumberDictionaryShape>::Add(
+    Handle<NumberDictionary>, uint32_t, Handle<Object>, PropertyDetails, int*);
 
 template Handle<NameDictionary>
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::EnsureCapacity(
@@ -16445,9 +16408,8 @@ template void
 BaseNameDictionary<NameDictionary, NameDictionaryShape>::CollectKeysTo(
     Handle<NameDictionary> dictionary, KeyAccumulator* keys);
 
-template int
-Dictionary<SeededNumberDictionary,
-           SeededNumberDictionaryShape>::NumberOfEnumerableProperties();
+template int Dictionary<NumberDictionary,
+                        NumberDictionaryShape>::NumberOfEnumerableProperties();
 
 namespace {
 
@@ -17478,7 +17440,7 @@ Handle<Derived> Dictionary<Derived, Shape>::Add(Handle<Derived> dictionary,
   return dictionary;
 }
 
-bool SeededNumberDictionary::HasComplexElements() {
+bool NumberDictionary::HasComplexElements() {
   if (!requires_slow_elements()) return false;
   Isolate* isolate = this->GetIsolate();
   int capacity = this->Capacity();
@@ -17493,8 +17455,8 @@ bool SeededNumberDictionary::HasComplexElements() {
   return false;
 }
 
-void SeededNumberDictionary::UpdateMaxNumberKey(
-    uint32_t key, Handle<JSObject> dictionary_holder) {
+void NumberDictionary::UpdateMaxNumberKey(uint32_t key,
+                                          Handle<JSObject> dictionary_holder) {
   DisallowHeapAllocation no_allocation;
   // If the dictionary requires slow elements an element has already
   // been added at a high index.
@@ -17516,15 +17478,14 @@ void SeededNumberDictionary::UpdateMaxNumberKey(
   }
 }
 
-Handle<SeededNumberDictionary> SeededNumberDictionary::Set(
-    Handle<SeededNumberDictionary> dictionary, uint32_t key,
-    Handle<Object> value, Handle<JSObject> dictionary_holder,
-    PropertyDetails details) {
+Handle<NumberDictionary> NumberDictionary::Set(
+    Handle<NumberDictionary> dictionary, uint32_t key, Handle<Object> value,
+    Handle<JSObject> dictionary_holder, PropertyDetails details) {
   dictionary->UpdateMaxNumberKey(key, dictionary_holder);
   return AtPut(dictionary, key, value, details);
 }
 
-void SeededNumberDictionary::CopyValuesTo(FixedArray* elements) {
+void NumberDictionary::CopyValuesTo(FixedArray* elements) {
   Isolate* isolate = this->GetIsolate();
   int pos = 0;
   int capacity = this->Capacity();
@@ -17537,13 +17498,6 @@ void SeededNumberDictionary::CopyValuesTo(FixedArray* elements) {
     }
   }
   DCHECK_EQ(pos, elements->length());
-}
-
-Handle<UnseededNumberDictionary> UnseededNumberDictionary::Set(
-    Handle<UnseededNumberDictionary> dictionary,
-    uint32_t key,
-    Handle<Object> value) {
-  return AtPut(dictionary, key, value, PropertyDetails::Empty());
 }
 
 template <typename Derived, typename Shape>

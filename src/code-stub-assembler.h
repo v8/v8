@@ -1019,17 +1019,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsAllocationSite(Node* object);
   Node* IsAnyHeapNumber(Node* object);
   Node* IsArrayIteratorInstanceType(Node* instance_type);
+  Node* IsArrayProtectorCellInvalid();
+  Node* IsBigIntInstanceType(Node* instance_type);
+  Node* IsBigInt(Node* object);
   Node* IsBoolean(Node* object);
-  Node* IsExtensibleMap(Node* map);
   Node* IsCallableMap(Node* map);
   Node* IsCallable(Node* object);
   Node* IsCell(Node* object);
   Node* IsConsStringInstanceType(Node* instance_type);
   Node* IsConstructorMap(Node* map);
   Node* IsConstructor(Node* object);
-  Node* IsFunctionWithPrototypeSlotMap(Node* map);
   Node* IsDeprecatedMap(Node* map);
   Node* IsDictionary(Node* object);
+  Node* IsExtensibleMap(Node* map);
   Node* IsExternalStringInstanceType(Node* instance_type);
   Node* IsFeedbackVector(Node* object);
   Node* IsFixedArray(Node* object);
@@ -1037,7 +1039,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsFixedArrayWithKindOrEmpty(Node* object, ElementsKind kind);
   Node* IsFixedDoubleArray(Node* object);
   Node* IsFixedTypedArray(Node* object);
-  Node* IsZeroOrFixedArray(Node* object);
+  Node* IsFunctionWithPrototypeSlotMap(Node* map);
   Node* IsHashTable(Node* object);
   Node* IsHeapNumber(Node* object);
   Node* IsIndirectStringInstanceType(Node* instance_type);
@@ -1048,17 +1050,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsJSFunctionInstanceType(Node* instance_type);
   Node* IsJSFunctionMap(Node* object);
   Node* IsJSFunction(Node* object);
+  Node* IsJSGlobalProxyInstanceType(Node* instance_type);
   Node* IsJSGlobalProxy(Node* object);
   Node* IsJSObjectInstanceType(Node* instance_type);
   Node* IsJSObjectMap(Node* map);
   Node* IsJSObject(Node* object);
-  Node* IsJSGlobalProxyInstanceType(Node* instance_type);
   Node* IsJSProxy(Node* object);
   Node* IsJSReceiverInstanceType(Node* instance_type);
   Node* IsJSReceiverMap(Node* map);
   Node* IsJSReceiver(Node* object);
-  Node* IsNullOrJSReceiver(Node* object);
-  Node* IsNullOrUndefined(Node* object);
   Node* IsJSRegExp(Node* object);
   Node* IsJSTypedArray(Node* object);
   Node* IsJSValueInstanceType(Node* instance_type);
@@ -1068,30 +1068,31 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsMutableHeapNumber(Node* object);
   Node* IsName(Node* object);
   Node* IsNativeContext(Node* object);
+  Node* IsNullOrJSReceiver(Node* object);
+  Node* IsNullOrUndefined(Node* object);
+  Node* IsNumberDictionary(Node* object);
   Node* IsOneByteStringInstanceType(Node* instance_type);
   Node* IsPrimitiveInstanceType(Node* instance_type);
   Node* IsPrivateSymbol(Node* object);
   Node* IsPropertyArray(Node* object);
   Node* IsPropertyCell(Node* object);
+  Node* IsPrototypeInitialArrayPrototype(Node* context, Node* map);
   Node* IsSequentialStringInstanceType(Node* instance_type);
-  inline Node* IsSharedFunctionInfo(Node* object) {
-    return IsSharedFunctionInfoMap(LoadMap(object));
-  }
   Node* IsShortExternalStringInstanceType(Node* instance_type);
   Node* IsSpecialReceiverInstanceType(Node* instance_type);
   Node* IsSpecialReceiverMap(Node* map);
+  Node* IsSpeciesProtectorCellInvalid();
   Node* IsStringInstanceType(Node* instance_type);
   Node* IsString(Node* object);
   Node* IsSymbolInstanceType(Node* instance_type);
   Node* IsSymbol(Node* object);
-  Node* IsBigIntInstanceType(Node* instance_type);
-  Node* IsBigInt(Node* object);
-  Node* IsUnseededNumberDictionary(Node* object);
-  Node* IsWeakCell(Node* object);
   Node* IsUndetectableMap(Node* map);
-  Node* IsArrayProtectorCellInvalid();
-  Node* IsSpeciesProtectorCellInvalid();
-  Node* IsPrototypeInitialArrayPrototype(Node* context, Node* map);
+  Node* IsWeakCell(Node* object);
+  Node* IsZeroOrFixedArray(Node* object);
+
+  inline Node* IsSharedFunctionInfo(Node* object) {
+    return IsSharedFunctionInfoMap(LoadMap(object));
+  }
 
   // True iff |object| is a Smi or a HeapNumber.
   Node* IsNumber(Node* object);
@@ -1466,7 +1467,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ComputeIntegerHash(Node* key);
   Node* ComputeIntegerHash(Node* key, Node* seed);
 
-  template <typename Dictionary>
   void NumberDictionaryLookup(Node* dictionary, Node* intptr_index,
                               Label* if_found, Variable* var_entry,
                               Label* if_not_found);

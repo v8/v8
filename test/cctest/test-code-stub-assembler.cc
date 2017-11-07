@@ -657,10 +657,7 @@ TEST(NameDictionaryLookup) { TestNameDictionaryLookup<NameDictionary>(); }
 
 TEST(GlobalDictionaryLookup) { TestNameDictionaryLookup<GlobalDictionary>(); }
 
-namespace {
-
-template <typename Dictionary>
-void TestNumberDictionaryLookup() {
+TEST(NumberDictionaryLookup) {
   Isolate* isolate(CcTest::InitIsolateOnce());
 
   const int kNumParams = 4;
@@ -678,8 +675,8 @@ void TestNumberDictionaryLookup() {
     Label if_found(&m), if_not_found(&m);
     Variable var_entry(&m, MachineType::PointerRepresentation());
 
-    m.NumberDictionaryLookup<Dictionary>(dictionary, key, &if_found, &var_entry,
-                                         &if_not_found);
+    m.NumberDictionaryLookup(dictionary, key, &if_found, &var_entry,
+                             &if_not_found);
     m.BIND(&if_found);
     m.GotoIfNot(
         m.WordEqual(expected_result, m.SmiConstant(Smi::FromInt(kFound))),
@@ -705,7 +702,8 @@ void TestNumberDictionaryLookup() {
   Handle<Object> expect_not_found(Smi::FromInt(kNotFound), isolate);
 
   const int kKeysCount = 1000;
-  Handle<Dictionary> dictionary = Dictionary::New(isolate, kKeysCount);
+  Handle<NumberDictionary> dictionary =
+      NumberDictionary::New(isolate, kKeysCount);
   uint32_t keys[kKeysCount];
 
   Handle<Object> fake_value(Smi::FromInt(42), isolate);
@@ -716,15 +714,16 @@ void TestNumberDictionaryLookup() {
   for (int i = 0; i < kKeysCount; i++) {
     int random_key = rand_gen.NextInt(Smi::kMaxValue);
     keys[i] = static_cast<uint32_t>(random_key);
-    if (dictionary->FindEntry(keys[i]) != Dictionary::kNotFound) continue;
+    if (dictionary->FindEntry(keys[i]) != NumberDictionary::kNotFound) continue;
 
-    dictionary = Dictionary::Add(dictionary, keys[i], fake_value, fake_details);
+    dictionary =
+        NumberDictionary::Add(dictionary, keys[i], fake_value, fake_details);
   }
 
   // Now try querying existing keys.
   for (int i = 0; i < kKeysCount; i++) {
     int entry = dictionary->FindEntry(keys[i]);
-    CHECK_NE(Dictionary::kNotFound, entry);
+    CHECK_NE(NumberDictionary::kNotFound, entry);
 
     Handle<Object> key(Smi::FromInt(keys[i]), isolate);
     Handle<Object> expected_entry(Smi::FromInt(entry), isolate);
@@ -735,22 +734,12 @@ void TestNumberDictionaryLookup() {
   for (int i = 0; i < kKeysCount;) {
     int random_key = rand_gen.NextInt(Smi::kMaxValue);
     int entry = dictionary->FindEntry(random_key);
-    if (entry != Dictionary::kNotFound) continue;
+    if (entry != NumberDictionary::kNotFound) continue;
     i++;
 
     Handle<Object> key(Smi::FromInt(random_key), isolate);
     ft.CheckTrue(dictionary, key, expect_not_found);
   }
-}
-
-}  // namespace
-
-TEST(SeededNumberDictionaryLookup) {
-  TestNumberDictionaryLookup<SeededNumberDictionary>();
-}
-
-TEST(UnseededNumberDictionaryLookup) {
-  TestNumberDictionaryLookup<UnseededNumberDictionary>();
 }
 
 namespace {

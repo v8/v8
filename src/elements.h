@@ -158,7 +158,7 @@ class ElementsAccessor {
 
   virtual Handle<Object> Shift(Handle<JSArray> receiver) = 0;
 
-  virtual Handle<SeededNumberDictionary> Normalize(Handle<JSObject> object) = 0;
+  virtual Handle<NumberDictionary> Normalize(Handle<JSObject> object) = 0;
 
   virtual uint32_t GetCapacity(JSObject* holder,
                                FixedArrayBase* backing_store) = 0;

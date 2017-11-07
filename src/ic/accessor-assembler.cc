@@ -1521,19 +1521,17 @@ void AccessorAssembler::EmitElementLoad(
     GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), out_of_bounds);
     VARIABLE(var_entry, MachineType::PointerRepresentation());
     Label if_found(this);
-    NumberDictionaryLookup<SeededNumberDictionary>(
-        elements, intptr_index, &if_found, &var_entry, if_hole);
+    NumberDictionaryLookup(elements, intptr_index, &if_found, &var_entry,
+                           if_hole);
     BIND(&if_found);
     // Check that the value is a data property.
-    Node* index = EntryToIndex<SeededNumberDictionary>(var_entry.value());
-    Node* details =
-        LoadDetailsByKeyIndex<SeededNumberDictionary>(elements, index);
+    Node* index = EntryToIndex<NumberDictionary>(var_entry.value());
+    Node* details = LoadDetailsByKeyIndex<NumberDictionary>(elements, index);
     Node* kind = DecodeWord32<PropertyDetails::KindField>(details);
     // TODO(jkummerow): Support accessors without missing?
     GotoIfNot(Word32Equal(kind, Int32Constant(kData)), miss);
     // Finally, load the value.
-    exit_point->Return(
-        LoadValueByKeyIndex<SeededNumberDictionary>(elements, index));
+    exit_point->Return(LoadValueByKeyIndex<NumberDictionary>(elements, index));
   }
 
   BIND(&if_typed_array);

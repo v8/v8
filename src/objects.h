@@ -1071,7 +1071,7 @@ template <class C> inline bool Is(Object* obj);
   V(RegExpMatchInfo)                      \
   V(ScopeInfo)                            \
   V(ScriptContextTable)                   \
-  V(SeededNumberDictionary)               \
+  V(NumberDictionary)                     \
   V(SeqOneByteString)                     \
   V(SeqString)                            \
   V(SeqTwoByteString)                     \
@@ -1096,7 +1096,6 @@ template <class C> inline bool Is(Object* obj);
   V(TypeFeedbackInfo)                     \
   V(Undetectable)                         \
   V(UniqueName)                           \
-  V(UnseededNumberDictionary)             \
   V(WasmInstanceObject)                   \
   V(WasmMemoryObject)                     \
   V(WasmModuleObject)                     \
@@ -2290,7 +2289,7 @@ class JSObject: public JSReceiver {
   inline bool HasSlowStringWrapperElements();
   bool HasEnumerableElements();
 
-  inline SeededNumberDictionary* element_dictionary();  // Gets slow elements.
+  inline NumberDictionary* element_dictionary();  // Gets slow elements.
 
   // Requires: HasFastElements().
   static void EnsureWritableFastElements(Handle<JSObject> object);
@@ -2525,11 +2524,10 @@ class JSObject: public JSReceiver {
                                   const char* reason);
 
   // Convert and update the elements backing store to be a
-  // SeededNumberDictionary dictionary.  Returns the backing after conversion.
-  static Handle<SeededNumberDictionary> NormalizeElements(
-      Handle<JSObject> object);
+  // NumberDictionary dictionary.  Returns the backing after conversion.
+  static Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object);
 
-  void RequireSlowElements(SeededNumberDictionary* dictionary);
+  void RequireSlowElements(NumberDictionary* dictionary);
 
   // Transform slow named properties to fast variants.
   static void MigrateSlowToFast(Handle<JSObject> object,
@@ -5664,7 +5662,7 @@ class StackFrameInfo : public Struct {
 class SourcePositionTableWithFrameCache : public Tuple2 {
  public:
   DECL_ACCESSORS(source_position_table, ByteArray)
-  DECL_ACCESSORS(stack_frame_cache, UnseededNumberDictionary)
+  DECL_ACCESSORS(stack_frame_cache, NumberDictionary)
 
   DECL_CAST(SourcePositionTableWithFrameCache)
 

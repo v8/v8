@@ -291,7 +291,6 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, name_dictionary)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, global_dictionary)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, seeded_number_dictionary)
-    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, unseeded_number_dictionary)
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, function_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, catch_context)
@@ -460,7 +459,7 @@ void Heap::CreateInitialObjects() {
 
   // Create the code_stubs dictionary. The initial size is set to avoid
   // expanding the dictionary during bootstrapping.
-  set_code_stubs(*UnseededNumberDictionary::New(isolate(), 128));
+  set_code_stubs(*NumberDictionary::New(isolate(), 128));
 
   {
     HandleScope scope(isolate());
@@ -552,9 +551,8 @@ void Heap::CreateInitialObjects() {
 
   set_script_list(Smi::kZero);
 
-  Handle<SeededNumberDictionary> slow_element_dictionary =
-      SeededNumberDictionary::New(isolate(), 1, TENURED,
-                                  USE_CUSTOM_MINIMUM_CAPACITY);
+  Handle<NumberDictionary> slow_element_dictionary =
+      NumberDictionary::New(isolate(), 1, TENURED, USE_CUSTOM_MINIMUM_CAPACITY);
   DCHECK(!slow_element_dictionary->HasSufficientCapacityToAdd(1));
   slow_element_dictionary->set_requires_slow_elements();
   set_empty_slow_element_dictionary(*slow_element_dictionary);

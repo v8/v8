@@ -367,7 +367,7 @@ void ObjectStatsCollector::RecordJSObjectDetails(JSObject* object) {
   FixedArrayBase* elements = object->elements();
   if (CanRecordFixedArray(heap_, elements) && !IsCowArray(heap_, elements)) {
     if (elements->IsDictionary() && SameLiveness(object, elements)) {
-      SeededNumberDictionary* dict = SeededNumberDictionary::cast(elements);
+      NumberDictionary* dict = NumberDictionary::cast(elements);
       RecordHashTableHelper(object, dict, DICTIONARY_ELEMENTS_SUB_TYPE);
     } else {
       if (IsHoleyElementsKind(object->GetElementsKind())) {
