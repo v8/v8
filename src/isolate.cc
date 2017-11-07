@@ -2391,6 +2391,7 @@ Isolate::Isolate(bool enable_serializer)
       // TODO(bmeurer) Initialized lazily because it depends on flags; can
       // be fixed once the default isolate cleanup is done.
       random_number_generator_(nullptr),
+      fuzzer_rng_(nullptr),
       rail_mode_(PERFORMANCE_ANIMATION),
       promise_hook_or_debug_is_active_(false),
       promise_hook_(nullptr),
@@ -2658,6 +2659,9 @@ Isolate::~Isolate() {
 
   delete random_number_generator_;
   random_number_generator_ = nullptr;
+
+  delete fuzzer_rng_;
+  fuzzer_rng_ = nullptr;
 
   delete debug_;
   debug_ = nullptr;
@@ -3307,17 +3311,24 @@ CallInterfaceDescriptorData* Isolate::call_descriptor_data(int index) {
   return &call_descriptor_data_[index];
 }
 
-
-base::RandomNumberGenerator* Isolate::random_number_generator() {
-  if (random_number_generator_ == nullptr) {
-    if (FLAG_random_seed != 0) {
-      random_number_generator_ =
-          new base::RandomNumberGenerator(FLAG_random_seed);
+static base::RandomNumberGenerator* ensure_rng_exists(
+    base::RandomNumberGenerator** rng, int seed) {
+  if (*rng == nullptr) {
+    if (seed != 0) {
+      *rng = new base::RandomNumberGenerator(seed);
     } else {
-      random_number_generator_ = new base::RandomNumberGenerator();
+      *rng = new base::RandomNumberGenerator();
     }
   }
-  return random_number_generator_;
+  return *rng;
+}
+
+base::RandomNumberGenerator* Isolate::random_number_generator() {
+  return ensure_rng_exists(&random_number_generator_, FLAG_random_seed);
+}
+
+base::RandomNumberGenerator* Isolate::fuzzer_rng() {
+  return ensure_rng_exists(&fuzzer_rng_, FLAG_fuzzer_random_seed);
 }
 
 int Isolate::GenerateIdentityHash(uint32_t mask) {

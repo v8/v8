@@ -1163,6 +1163,8 @@ class Isolate {
 
   V8_EXPORT_PRIVATE base::RandomNumberGenerator* random_number_generator();
 
+  V8_EXPORT_PRIVATE base::RandomNumberGenerator* fuzzer_rng();
+
   // Generates a random number that is non-zero when masked
   // with the provided mask.
   int GenerateIdentityHash(uint32_t mask);
@@ -1517,6 +1519,7 @@ class Isolate {
   CallInterfaceDescriptorData* call_descriptor_data_;
   AccessCompilerData* access_compiler_data_;
   base::RandomNumberGenerator* random_number_generator_;
+  base::RandomNumberGenerator* fuzzer_rng_;
   base::AtomicValue<RAILMode> rail_mode_;
   bool promise_hook_or_debug_is_active_;
   PromiseHook promise_hook_;
