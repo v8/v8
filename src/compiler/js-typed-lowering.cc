@@ -668,6 +668,7 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
 
   // Morph the {node} into a {FinishRegion}.
   ReplaceWithValue(node, node, node, control);
+  NodeProperties::SetType(value, NodeProperties::GetType(node));
   node->ReplaceInput(0, value);
   node->ReplaceInput(1, effect);
   node->TrimInputCount(2);
