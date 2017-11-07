@@ -682,9 +682,6 @@ DEFINE_BOOL(force_marking_deque_overflows, false,
 DEFINE_BOOL(stress_compaction, false,
             "stress the GC compactor to flush out bugs (implies "
             "--force_marking_deque_overflows)")
-DEFINE_INT(stress_compaction_percentage, 0,
-           "Stress GC compaction by selecting X percent of pages as evacuation "
-           "candidates. It overrides stress_compaction.")
 DEFINE_BOOL(stress_incremental_marking, false,
             "force incremental marking for small heaps and run it more often")
 DEFINE_INT(stress_incremental_marking_percentage, 0,
@@ -943,9 +940,6 @@ DEFINE_INT(hash_seed, 0,
            "(with snapshots this option cannot override the baked-in seed)")
 DEFINE_INT(random_seed, 0,
            "Default seed for initializing random generator "
-           "(0, the default, means to use system random).")
-DEFINE_INT(fuzzer_random_seed, 0,
-           "Default seed for initializing fuzzer random generator "
            "(0, the default, means to use system random).")
 DEFINE_BOOL(trace_rail, false, "trace RAIL mode")
 DEFINE_BOOL(print_all_exceptions, false,
