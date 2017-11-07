@@ -1556,18 +1556,19 @@ class ThreadImpl {
     break;                                                                    \
   }
 #else
-#define ATOMIC_BINOP_CASE(name, type, operation)                              \
-  case kExpr##name: {                                                         \
-    type val;                                                                 \
-    Address addr;                                                             \
-    if (!ExtractAtomicBinOpParams<type>(decoder, code, addr, pc, val, len)) { \
-      return false;                                                           \
-    }                                                                         \
-    static_assert(sizeof(std::atomic_##type) == sizeof(type),                 \
-                  "Size mismatch for types std::atomic_##type, and type");    \
-    result = WasmValue(                                                       \
-        std::operation(reinterpret_cast<std::atomic_##type*>(addr), val));    \
-    break;                                                                    \
+#define ATOMIC_BINOP_CASE(name, type, operation)                               \
+  case kExpr##name: {                                                          \
+    type val;                                                                  \
+    Address addr;                                                              \
+    if (!ExtractAtomicBinOpParams<type>(decoder, code, addr, pc, val, len)) {  \
+      return false;                                                            \
+    }                                                                          \
+    static_assert(sizeof(std::atomic<std::type>) == sizeof(type),              \
+                  "Size mismatch for types std::atomic<std::" #type            \
+                  ">, and " #type);                                            \
+    result = WasmValue(                                                        \
+        std::operation(reinterpret_cast<std::atomic<std::type>*>(addr), val)); \
+    break;                                                                     \
   }
 #endif
       ATOMIC_BINOP_CASE(I32AtomicAdd, uint32_t, atomic_fetch_add);
