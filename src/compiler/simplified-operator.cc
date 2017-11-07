@@ -510,7 +510,8 @@ PretenureFlag PretenureFlagOf(const Operator* op) {
       op->opcode() == IrOpcode::kNewSmiOrObjectElements) {
     return OpParameter<PretenureFlag>(op);
   }
-  DCHECK_EQ(IrOpcode::kAllocate, op->opcode());
+  DCHECK(op->opcode() == IrOpcode::kAllocate ||
+         op->opcode() == IrOpcode::kAllocateRaw);
   return OpParameter<AllocateParameters>(op).pretenure();
 }
 
@@ -1206,6 +1207,14 @@ const Operator* SimplifiedOperatorBuilder::Allocate(Type* type,
       IrOpcode::kAllocate,
       Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite, "Allocate",
       1, 1, 1, 1, 1, 0, AllocateParameters(type, pretenure));
+}
+
+const Operator* SimplifiedOperatorBuilder::AllocateRaw(
+    Type* type, PretenureFlag pretenure) {
+  return new (zone()) Operator1<AllocateParameters>(
+      IrOpcode::kAllocateRaw,
+      Operator::kNoDeopt | Operator::kNoThrow | Operator::kNoWrite,
+      "AllocateRaw", 1, 1, 1, 1, 1, 1, AllocateParameters(type, pretenure));
 }
 
 const Operator* SimplifiedOperatorBuilder::StringFromCodePoint(
