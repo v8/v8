@@ -601,12 +601,26 @@ CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
     : heap_(heap) {
   if (FLAG_write_protect_code_memory) {
     heap_->code_space()->SetReadAndWritable();
+    LargePage* page = heap_->lo_space()->first_page();
+    while (page != nullptr) {
+      if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+        page->SetReadAndWritable();
+      }
+      page = page->next_page();
+    }
   }
 }
 
 CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
   if (FLAG_write_protect_code_memory) {
     heap_->code_space()->SetReadAndExecutable();
+    LargePage* page = heap_->lo_space()->first_page();
+    while (page != nullptr) {
+      if (page->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
+        page->SetReadAndExecutable();
+      }
+      page = page->next_page();
+    }
   }
 }
 
