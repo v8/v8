@@ -109,15 +109,6 @@ class IC {
 
   void TraceHandlerCacheHitStats(LookupIterator* lookup);
 
-  // Compute the handler either by compiling or by retrieving a cached version.
-  Handle<Object> ComputeHandler(LookupIterator* lookup);
-  virtual Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) {
-    UNREACHABLE();
-  }
-  virtual Handle<Code> CompileHandler(LookupIterator* lookup) {
-    UNREACHABLE();
-  }
-
   void UpdateMonomorphicIC(Handle<Object> handler, Handle<Name> name);
   bool UpdatePolymorphicIC(Handle<Name> name, Handle<Object> code);
   void UpdateMegamorphicCache(Map* map, Name* name, Object* code);
@@ -251,13 +242,8 @@ class LoadIC : public IC {
   // lookup result.
   void UpdateCaches(LookupIterator* lookup);
 
-  Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
-
-  Handle<Code> CompileHandler(LookupIterator* lookup) override;
-
  private:
-  // Creates a data handler that represents a load of a field by given index.
-  static Handle<Smi> SimpleFieldLoad(Isolate* isolate, FieldIndex index);
+  Handle<Object> ComputeHandler(LookupIterator* lookup);
 
   friend class IC;
   friend class NamedLoadHandlerCompiler;
@@ -339,10 +325,10 @@ class StoreIC : public IC {
   void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
                     JSReceiver::StoreFromKeyed store_mode,
                     MaybeHandle<Object> cached_handler);
-  Handle<Object> GetMapIndependentHandler(LookupIterator* lookup) override;
-  Handle<Code> CompileHandler(LookupIterator* lookup) override;
 
  private:
+  Handle<Object> ComputeHandler(LookupIterator* lookup);
+
   friend class IC;
 
   bool created_new_transition_ = false;

@@ -752,6 +752,18 @@ void AccessorAssembler::JumpIfDataProperty(Node* details, Label* writable,
   // Fall through if it's an accessor property.
 }
 
+void AccessorAssembler::HandleStoreICNativeDataProperty(
+    const StoreICParameters* p, Node* holder, Node* handler_word) {
+  Node* descriptor = DecodeWord<StoreHandler::DescriptorBits>(handler_word);
+  Node* accessor_info = LoadDescriptorValue(LoadMap(holder), descriptor);
+  CSA_CHECK(this, IsAccessorInfo(accessor_info));
+
+  Node* language_mode = GetLanguageMode(p->vector, p->slot);
+
+  TailCallRuntime(Runtime::kStoreCallbackProperty, p->context, p->receiver,
+                  holder, accessor_info, p->name, p->value, language_mode);
+}
+
 void AccessorAssembler::HandleStoreICHandlerCase(
     const StoreICParameters* p, Node* handler, Label* miss,
     ElementSupport support_elements) {
@@ -804,16 +816,27 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     }
 
     BIND(&if_fast_smi);
-    Label data(this), accessor(this);
-    Branch(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kAccessor)),
-           &accessor, &data);
+    {
+      Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
 
-    BIND(&accessor);
-    HandleStoreAccessor(p, holder, handler_word);
+      Label data(this), accessor(this), native_data_property(this);
+      GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kAccessor)),
+             &accessor);
+      Branch(WordEqual(handler_kind,
+                       IntPtrConstant(StoreHandler::kNativeDataProperty)),
+             &native_data_property, &data);
 
-    // Handle non-transitioning field stores.
-    BIND(&data);
-    HandleStoreICSmiHandlerCase(handler_word, holder, p->value, nullptr, miss);
+      BIND(&accessor);
+      HandleStoreAccessor(p, holder, handler_word);
+
+      BIND(&native_data_property);
+      HandleStoreICNativeDataProperty(p, holder, handler_word);
+
+      BIND(&data);
+      // Handle non-transitioning field stores.
+      HandleStoreICSmiHandlerCase(handler_word, holder, p->value, nullptr,
+                                  miss);
+    }
 
     BIND(&if_proxy);
     HandleStoreToProxy(p, holder, miss, support_elements);
@@ -1070,7 +1093,8 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   }
   BIND(&if_holder_object);
   {
-    Label if_store_global_proxy(this), if_api_setter(this), if_accessor(this);
+    Label if_store_global_proxy(this), if_api_setter(this), if_accessor(this),
+        if_native_data_property(this);
     Node* holder = var_transition_map_or_holder.value();
 
     Node* smi_handler = smi_or_code;
@@ -1083,6 +1107,10 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kAccessor)),
            &if_accessor);
+
+    GotoIf(WordEqual(handler_kind,
+                     IntPtrConstant(StoreHandler::kNativeDataProperty)),
+           &if_native_data_property);
 
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kApiSetter)),
            &if_api_setter);
@@ -1097,6 +1125,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
     BIND(&if_accessor);
     HandleStoreAccessor(p, holder, handler_word);
+
+    BIND(&if_native_data_property);
+    HandleStoreICNativeDataProperty(p, holder, handler_word);
 
     BIND(&if_api_setter);
     {
@@ -1140,20 +1171,27 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   }
 }
 
+Node* AccessorAssembler::GetLanguageMode(Node* vector, Node* slot) {
+  VARIABLE(var_language_mode, MachineRepresentation::kTaggedSigned,
+           SmiConstant(LanguageMode::kStrict));
+  Label language_mode_determined(this);
+  BranchIfStrictMode(vector, slot, &language_mode_determined);
+  var_language_mode.Bind(SmiConstant(LanguageMode::kSloppy));
+  Goto(&language_mode_determined);
+  BIND(&language_mode_determined);
+  return var_language_mode.value();
+}
+
 void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
                                            Node* proxy, Label* miss,
                                            ElementSupport support_elements) {
   VARIABLE(var_index, MachineType::PointerRepresentation());
   VARIABLE(var_unique, MachineRepresentation::kTagged);
-  VARIABLE(var_language_mode, MachineRepresentation::kTaggedSigned,
-           SmiConstant(LanguageMode::kStrict));
 
-  Label if_index(this), if_unique_name(this), language_mode_determined(this),
+  Label if_index(this), if_unique_name(this),
       to_name_failed(this, Label::kDeferred);
-  BranchIfStrictMode(p->vector, p->slot, &language_mode_determined);
-  var_language_mode.Bind(SmiConstant(LanguageMode::kSloppy));
-  Goto(&language_mode_determined);
-  BIND(&language_mode_determined);
+
+  Node* language_mode = GetLanguageMode(p->vector, p->slot);
 
   if (support_elements == kSupportElements) {
     TryToName(p->name, &if_index, &var_index, &if_unique_name, &var_unique,
@@ -1161,8 +1199,7 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
 
     BIND(&if_unique_name);
     CallBuiltin(Builtins::kProxySetProperty, p->context, proxy,
-                var_unique.value(), p->value, p->receiver,
-                var_language_mode.value());
+                var_unique.value(), p->value, p->receiver, language_mode);
     Return(p->value);
 
     // The index case is handled earlier by the runtime.
@@ -1173,11 +1210,11 @@ void AccessorAssembler::HandleStoreToProxy(const StoreICParameters* p,
 
     BIND(&to_name_failed);
     TailCallRuntime(Runtime::kSetPropertyWithReceiver, p->context, proxy,
-                    p->name, p->value, p->receiver, var_language_mode.value());
+                    p->name, p->value, p->receiver, language_mode);
   } else {
     Node* name = ToName(p->context, p->name);
     TailCallBuiltin(Builtins::kProxySetProperty, p->context, proxy, name,
-                    p->value, p->receiver, var_language_mode.value());
+                    p->value, p->receiver, language_mode);
   }
 }
 

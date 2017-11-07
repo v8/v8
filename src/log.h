@@ -125,7 +125,6 @@ class Logger : public CodeEventListener {
   void StringEvent(const char* name, const char* value);
 
   // Emits an event with an int value -> (name, value).
-  void IntEvent(const char* name, int value);
   void IntPtrTEvent(const char* name, intptr_t value);
 
   // Emits an event with an handle value -> (name, location).
@@ -297,8 +296,7 @@ class Logger : public CodeEventListener {
   // Logs a StringEvent regardless of whether FLAG_log is true.
   void UncheckedStringEvent(const char* name, const char* value);
 
-  // Logs an IntEvent regardless of whether FLAG_log is true.
-  void UncheckedIntEvent(const char* name, int value);
+  // Logs an IntPtrTEvent regardless of whether FLAG_log is true.
   void UncheckedIntPtrTEvent(const char* name, intptr_t value);
 
   Isolate* isolate_;

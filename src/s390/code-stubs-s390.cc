@@ -11,7 +11,6 @@
 #include "src/code-stubs.h"
 #include "src/frame-constants.h"
 #include "src/frames.h"
-#include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
@@ -143,16 +142,6 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
   __ Ret();
 }
 
-void StoreRegistersStateStub::Generate(MacroAssembler* masm) {
-  __ PushSafepointRegisters();
-  __ b(r14);
-}
-
-void RestoreRegistersStateStub::Generate(MacroAssembler* masm) {
-  __ PopSafepointRegisters();
-  __ b(r14);
-}
-
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = MathPowTaggedDescriptor::exponent();
   DCHECK(exponent == r4);
@@ -265,19 +254,7 @@ bool CEntryStub::NeedsImmovableCode() { return true; }
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
   CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
-  StoreRegistersStateStub::GenerateAheadOfTime(isolate);
-  RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
-}
-
-void StoreRegistersStateStub::GenerateAheadOfTime(Isolate* isolate) {
-  StoreRegistersStateStub stub(isolate);
-  stub.GetCode();
-}
-
-void RestoreRegistersStateStub::GenerateAheadOfTime(Isolate* isolate) {
-  RestoreRegistersStateStub stub(isolate);
-  stub.GetCode();
 }
 
 void CodeStub::GenerateFPStubs(Isolate* isolate) {
@@ -663,146 +640,6 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm, Register target) {
 #endif
 
   __ call(GetCode(), RelocInfo::CODE_TARGET);  // Call the stub.
-}
-
-void NameDictionaryLookupStub::GenerateNegativeLookup(
-    MacroAssembler* masm, Label* miss, Label* done, Register receiver,
-    Register properties, Handle<Name> name, Register scratch0) {
-  DCHECK(name->IsUniqueName());
-  // If names of slots in range from 1 to kProbes - 1 for the hash value are
-  // not equal to the name and kProbes-th slot is not used (its name is the
-  // undefined value), it guarantees the hash table doesn't contain the
-  // property. It's true even if some slots represent deleted properties
-  // (their names are the hole value).
-  for (int i = 0; i < kInlinedProbes; i++) {
-    // scratch0 points to properties hash.
-    // Compute the masked index: (hash + i + i * i) & mask.
-    Register index = scratch0;
-    // Capacity is smi 2^n.
-    __ LoadP(index, FieldMemOperand(properties, kCapacityOffset));
-    __ SubP(index, Operand(1));
-    __ LoadSmiLiteral(
-        ip, Smi::FromInt(name->Hash() + NameDictionary::GetProbeOffset(i)));
-    __ AndP(index, ip);
-
-    // Scale the index by multiplying by the entry size.
-    STATIC_ASSERT(NameDictionary::kEntrySize == 3);
-    __ ShiftLeftP(ip, index, Operand(1));
-    __ AddP(index, ip);  // index *= 3.
-
-    Register entity_name = scratch0;
-    // Having undefined at this place means the name is not contained.
-    Register tmp = properties;
-    __ SmiToPtrArrayOffset(ip, index);
-    __ AddP(tmp, properties, ip);
-    __ LoadP(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
-
-    DCHECK(tmp != entity_name);
-    __ CompareRoot(entity_name, Heap::kUndefinedValueRootIndex);
-    __ beq(done);
-
-    // Stop if found the property.
-    __ CmpP(entity_name, Operand(Handle<Name>(name)));
-    __ beq(miss);
-
-    // Restore the properties.
-    __ LoadP(properties,
-             FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
-  }
-
-  const int spill_mask = (r0.bit() | r8.bit() | r7.bit() | r6.bit() | r5.bit() |
-                          r4.bit() | r3.bit() | r2.bit());
-
-  __ LoadRR(r0, r14);
-  __ MultiPush(spill_mask);
-
-  __ LoadP(r2, FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
-  __ mov(r3, Operand(Handle<Name>(name)));
-  NameDictionaryLookupStub stub(masm->isolate());
-  __ CallStub(&stub);
-  __ CmpP(r2, Operand::Zero());
-
-  __ MultiPop(spill_mask);  // MultiPop does not touch condition flags
-  __ LoadRR(r14, r0);
-
-  __ beq(done);
-  __ bne(miss);
-}
-
-void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
-  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
-  // we cannot call anything that could cause a GC from this stub.
-  // Registers:
-  //  result: NameDictionary to probe
-  //  r3: key
-  //  dictionary: NameDictionary to probe.
-  //  index: will hold an index of entry if lookup is successful.
-  //         might alias with result_.
-  // Returns:
-  //  result_ is zero if lookup failed, non zero otherwise.
-
-  Register result = r2;
-  Register dictionary = r2;
-  Register key = r3;
-  Register index = r4;
-  Register mask = r5;
-  Register hash = r6;
-  Register undefined = r7;
-  Register entry_key = r8;
-  Register scratch = r8;
-
-  Label in_dictionary, not_in_dictionary;
-
-  __ LoadP(mask, FieldMemOperand(dictionary, kCapacityOffset));
-  __ SmiUntag(mask);
-  __ SubP(mask, Operand(1));
-
-  __ LoadlW(hash, FieldMemOperand(key, String::kHashFieldOffset));
-
-  __ LoadRoot(undefined, Heap::kUndefinedValueRootIndex);
-
-  for (int i = kInlinedProbes; i < kTotalProbes; i++) {
-    // Compute the masked index: (hash + i + i * i) & mask.
-    // Capacity is smi 2^n.
-    if (i > 0) {
-      // Add the probe offset (i + i * i) left shifted to avoid right shifting
-      // the hash in a separate instruction. The value hash + i + i * i is right
-      // shifted in the following and instruction.
-      DCHECK_LT(NameDictionary::GetProbeOffset(i),
-                1 << (32 - Name::kHashFieldOffset));
-      __ AddP(index, hash,
-              Operand(NameDictionary::GetProbeOffset(i) << Name::kHashShift));
-    } else {
-      __ LoadRR(index, hash);
-    }
-    __ ShiftRight(r0, index, Operand(String::kHashShift));
-    __ AndP(index, r0, mask);
-
-    // Scale the index by multiplying by the entry size.
-    STATIC_ASSERT(NameDictionary::kEntrySize == 3);
-    __ ShiftLeftP(scratch, index, Operand(1));
-    __ AddP(index, scratch);  // index *= 3.
-
-    __ ShiftLeftP(scratch, index, Operand(kPointerSizeLog2));
-    __ AddP(index, dictionary, scratch);
-    __ LoadP(entry_key, FieldMemOperand(index, kElementsStartOffset));
-
-    // Having undefined at this place means the name is not contained.
-    __ CmpP(entry_key, undefined);
-    __ beq(&not_in_dictionary);
-
-    // Stop if found the property.
-    __ CmpP(entry_key, key);
-    __ beq(&in_dictionary);
-  }
-
-  __ bind(&in_dictionary);
-  __ LoadImmP(result, Operand(1));
-  __ Ret();
-
-  __ bind(&not_in_dictionary);
-  __ LoadImmP(result, Operand::Zero());
-  __ Ret();
 }
 
 void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,

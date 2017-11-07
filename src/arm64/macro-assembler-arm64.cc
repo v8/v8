@@ -2681,18 +2681,6 @@ void MacroAssembler::CompareInstanceType(Register map,
 }
 
 
-void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
-  Mov(value, Operand(cell));
-  Ldr(value, FieldMemOperand(value, WeakCell::kValueOffset));
-}
-
-
-void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
-                                   Label* miss) {
-  GetWeakValue(value, cell);
-  JumpIfSmi(value, miss);
-}
-
 void MacroAssembler::LoadElementsKindFromMap(Register result, Register map) {
   // Load the map's "bit field 2".
   Ldrb(result, FieldMemOperand(map, Map::kBitField2Offset));

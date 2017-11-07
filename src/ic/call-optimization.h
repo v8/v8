@@ -6,7 +6,6 @@
 #define V8_IC_CALL_OPTIMIZATION_H_
 
 #include "src/code-stubs.h"
-#include "src/ic/access-compiler.h"
 #include "src/macro-assembler.h"
 #include "src/objects.h"
 

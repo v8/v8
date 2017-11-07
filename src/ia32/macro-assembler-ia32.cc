@@ -1129,18 +1129,6 @@ int MacroAssembler::SafepointRegisterStackIndex(int reg_code) {
   return kNumSafepointRegisters - reg_code - 1;
 }
 
-void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
-  mov(value, cell);
-  mov(value, FieldOperand(value, WeakCell::kValueOffset));
-}
-
-
-void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
-                                   Label* miss) {
-  GetWeakValue(value, cell);
-  JumpIfSmi(value, miss);
-}
-
 void TurboAssembler::Ret() { ret(0); }
 
 void TurboAssembler::Ret(int bytes_dropped, Register scratch) {

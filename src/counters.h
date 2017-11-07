@@ -895,11 +895,12 @@ class RuntimeCallTimer final {
   V(StoreIC_StoreAccessorDH)                      \
   V(StoreIC_StoreAccessorOnPrototypeDH)           \
   V(StoreIC_StoreApiSetterOnPrototypeDH)          \
-  V(StoreIC_StoreCallback)                        \
   V(StoreIC_StoreFieldDH)                         \
   V(StoreIC_StoreGlobalDH)                        \
   V(StoreIC_StoreGlobalTransitionDH)              \
   V(StoreIC_StoreInterceptorStub)                 \
+  V(StoreIC_StoreNativeDataPropertyDH)            \
+  V(StoreIC_StoreNativeDataPropertyOnPrototypeDH) \
   V(StoreIC_StoreNormalDH)                        \
   V(StoreIC_StoreScriptContextFieldStub)          \
   V(StoreIC_StoreTransitionDH)
@@ -1236,8 +1237,6 @@ class RuntimeCallTimerScope {
   SC(cow_arrays_converted, V8.COWArraysConverted)                              \
   SC(constructed_objects, V8.ConstructedObjects)                               \
   SC(constructed_objects_runtime, V8.ConstructedObjectsRuntime)                \
-  SC(negative_lookups, V8.NegativeLookups)                                     \
-  SC(negative_lookups_miss, V8.NegativeLookupsMiss)                            \
   SC(megamorphic_stub_cache_probes, V8.MegamorphicStubCacheProbes)             \
   SC(megamorphic_stub_cache_misses, V8.MegamorphicStubCacheMisses)             \
   SC(megamorphic_stub_cache_updates, V8.MegamorphicStubCacheUpdates)           \

@@ -201,6 +201,7 @@ class StoreHandler {
     kTransitionToConstant = kConstField,
     kTransitionToField,
     kAccessor,
+    kNativeDataProperty,
     kApiSetter,
     kApiSetterHolderIsPrototype,
     kGlobalProxy,
@@ -274,6 +275,10 @@ class StoreHandler {
 
   static Handle<Smi> StoreTransition(Isolate* isolate,
                                      Handle<Map> transition_map);
+
+  // Creates a Smi-handler for storing a native data property on a fast object.
+  static inline Handle<Smi> StoreNativeDataProperty(Isolate* isolate,
+                                                    int descriptor);
 
   // Creates a Smi-handler for calling a setter on a fast object.
   static inline Handle<Smi> StoreAccessor(Isolate* isolate, int descriptor);

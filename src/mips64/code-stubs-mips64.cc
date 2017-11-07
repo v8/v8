@@ -10,7 +10,6 @@
 #include "src/frame-constants.h"
 #include "src/frames.h"
 #include "src/heap/heap-inl.h"
-#include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
@@ -167,21 +166,6 @@ void DoubleToIStub::Generate(MacroAssembler* masm) {
 }
 
 
-void StoreRegistersStateStub::Generate(MacroAssembler* masm) {
-  __ mov(t9, ra);
-  __ pop(ra);
-  __ PushSafepointRegisters();
-  __ Jump(t9);
-}
-
-
-void RestoreRegistersStateStub::Generate(MacroAssembler* masm) {
-  __ mov(t9, ra);
-  __ pop(ra);
-  __ PopSafepointRegisters();
-  __ Jump(t9);
-}
-
 void MathPowStub::Generate(MacroAssembler* masm) {
   const Register exponent = MathPowTaggedDescriptor::exponent();
   DCHECK(exponent == a2);
@@ -310,21 +294,7 @@ bool CEntryStub::NeedsImmovableCode() {
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
   CommonArrayConstructorStub::GenerateStubsAheadOfTime(isolate);
-  StoreRegistersStateStub::GenerateAheadOfTime(isolate);
-  RestoreRegistersStateStub::GenerateAheadOfTime(isolate);
   StoreFastElementStub::GenerateAheadOfTime(isolate);
-}
-
-
-void StoreRegistersStateStub::GenerateAheadOfTime(Isolate* isolate) {
-  StoreRegistersStateStub stub(isolate);
-  stub.GetCode();
-}
-
-
-void RestoreRegistersStateStub::GenerateAheadOfTime(Isolate* isolate) {
-  RestoreRegistersStateStub stub(isolate);
-  stub.GetCode();
 }
 
 
@@ -693,145 +663,6 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   __ Call(at);
 }
 
-
-void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
-                                                      Label* miss,
-                                                      Label* done,
-                                                      Register receiver,
-                                                      Register properties,
-                                                      Handle<Name> name,
-                                                      Register scratch0) {
-  DCHECK(name->IsUniqueName());
-  // If names of slots in range from 1 to kProbes - 1 for the hash value are
-  // not equal to the name and kProbes-th slot is not used (its name is the
-  // undefined value), it guarantees the hash table doesn't contain the
-  // property. It's true even if some slots represent deleted properties
-  // (their names are the hole value).
-  for (int i = 0; i < kInlinedProbes; i++) {
-    // scratch0 points to properties hash.
-    // Compute the masked index: (hash + i + i * i) & mask.
-    Register index = scratch0;
-    // Capacity is smi 2^n.
-    __ SmiLoadUntag(index, FieldMemOperand(properties, kCapacityOffset));
-    __ Dsubu(index, index, Operand(1));
-    __ And(index, index,
-           Operand(name->Hash() + NameDictionary::GetProbeOffset(i)));
-
-    // Scale the index by multiplying by the entry size.
-    STATIC_ASSERT(NameDictionary::kEntrySize == 3);
-    __ Dlsa(index, index, index, 1);  // index *= 3.
-
-    Register entity_name = scratch0;
-    // Having undefined at this place means the name is not contained.
-    STATIC_ASSERT(kSmiTagSize == 1);
-    Register tmp = properties;
-
-    __ Dlsa(tmp, properties, index, kPointerSizeLog2);
-    __ Ld(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
-
-    DCHECK(tmp != entity_name);
-    __ LoadRoot(tmp, Heap::kUndefinedValueRootIndex);
-    __ Branch(done, eq, entity_name, Operand(tmp));
-
-    // Load the hole ready for use below:
-    __ LoadRoot(tmp, Heap::kTheHoleValueRootIndex);
-
-    // Stop if found the property.
-    __ Branch(miss, eq, entity_name, Operand(Handle<Name>(name)));
-
-    // Restore the properties.
-    __ Ld(properties,
-          FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
-  }
-
-  const int spill_mask =
-      (ra.bit() | a6.bit() | a5.bit() | a4.bit() | a3.bit() |
-       a2.bit() | a1.bit() | a0.bit() | v0.bit());
-
-  __ MultiPush(spill_mask);
-  __ Ld(a0, FieldMemOperand(receiver, JSObject::kPropertiesOrHashOffset));
-  __ li(a1, Operand(Handle<Name>(name)));
-  NameDictionaryLookupStub stub(masm->isolate());
-  __ CallStub(&stub);
-  __ mov(at, v0);
-  __ MultiPop(spill_mask);
-
-  __ Branch(done, eq, at, Operand(zero_reg));
-  __ Branch(miss, ne, at, Operand(zero_reg));
-}
-
-void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
-  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
-  // we cannot call anything that could cause a GC from this stub.
-  // Registers:
-  //  result: NameDictionary to probe
-  //  a1: key
-  //  dictionary: NameDictionary to probe.
-  //  index: will hold an index of entry if lookup is successful.
-  //         might alias with result_.
-  // Returns:
-  //  result_ is zero if lookup failed, non zero otherwise.
-
-  Register result = v0;
-  Register dictionary = a0;
-  Register key = a1;
-  Register index = a2;
-  Register mask = a3;
-  Register hash = a4;
-  Register undefined = a5;
-  Register entry_key = a6;
-
-  Label in_dictionary, not_in_dictionary;
-
-  __ Ld(mask, FieldMemOperand(dictionary, kCapacityOffset));
-  __ SmiUntag(mask);
-  __ Dsubu(mask, mask, Operand(1));
-
-  __ Lwu(hash, FieldMemOperand(key, Name::kHashFieldOffset));
-
-  __ LoadRoot(undefined, Heap::kUndefinedValueRootIndex);
-
-  for (int i = kInlinedProbes; i < kTotalProbes; i++) {
-    // Compute the masked index: (hash + i + i * i) & mask.
-    // Capacity is smi 2^n.
-    if (i > 0) {
-      // Add the probe offset (i + i * i) left shifted to avoid right shifting
-      // the hash in a separate instruction. The value hash + i + i * i is right
-      // shifted in the following and instruction.
-      DCHECK_LT(NameDictionary::GetProbeOffset(i),
-                1 << (32 - Name::kHashFieldOffset));
-      __ Daddu(index, hash, Operand(
-          NameDictionary::GetProbeOffset(i) << Name::kHashShift));
-    } else {
-      __ mov(index, hash);
-    }
-    __ dsrl(index, index, Name::kHashShift);
-    __ And(index, mask, index);
-
-    // Scale the index by multiplying by the entry size.
-    STATIC_ASSERT(NameDictionary::kEntrySize == 3);
-    // index *= 3.
-    __ Dlsa(index, index, index, 1);
-
-    STATIC_ASSERT(kSmiTagSize == 1);
-    __ Dlsa(index, dictionary, index, kPointerSizeLog2);
-    __ Ld(entry_key, FieldMemOperand(index, kElementsStartOffset));
-
-    // Having undefined at this place means the name is not contained.
-    __ Branch(&not_in_dictionary, eq, entry_key, Operand(undefined));
-
-    // Stop if found the property.
-    __ Branch(&in_dictionary, eq, entry_key, Operand(key));
-  }
-
-  __ bind(&in_dictionary);
-  __ Ret(USE_DELAY_SLOT);
-  __ li(result, 1);
-
-  __ bind(&not_in_dictionary);
-  __ Ret(USE_DELAY_SLOT);
-  __ mov(result, zero_reg);
-}
 
 void ProfileEntryHookStub::MaybeCallEntryHookDelayed(TurboAssembler* tasm,
                                                      Zone* zone) {

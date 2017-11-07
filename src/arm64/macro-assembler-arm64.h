@@ -1665,18 +1665,6 @@ class MacroAssembler : public TurboAssembler {
   // csp must be aligned to 16 bytes.
   void PeekPair(const CPURegister& dst1, const CPURegister& dst2, int offset);
 
-  // Emit code that loads |parameter_index|'th parameter from the stack to
-  // the register according to the CallInterfaceDescriptor definition.
-  // |sp_to_caller_sp_offset_in_words| specifies the number of words pushed
-  // below the caller's sp.
-  template <class Descriptor>
-  void LoadParameterFromStack(
-      Register reg, typename Descriptor::ParameterIndices parameter_index,
-      int sp_to_ra_offset_in_words = 0) {
-    DCHECK(Descriptor::kPassLastArgsOnStack);
-    UNIMPLEMENTED();
-  }
-
   // Variants of Claim and Drop, where the 'count' parameter is a SMI held in a
   // register.
   inline void ClaimBySMI(const Register& count_smi,
@@ -1920,12 +1908,6 @@ class MacroAssembler : public TurboAssembler {
   void CompareInstanceType(Register map,
                            Register type_reg,
                            InstanceType type);
-
-  void GetWeakValue(Register value, Handle<WeakCell> cell);
-
-  // Load the value of the weak cell in the value register. Branch to the given
-  // miss label if the weak cell was cleared.
-  void LoadWeakValue(Register value, Handle<WeakCell> cell, Label* miss);
 
   // Load the elements kind field from a map, and return it in the result
   // register.

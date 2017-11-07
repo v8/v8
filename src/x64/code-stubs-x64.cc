@@ -12,7 +12,6 @@
 #include "src/frame-constants.h"
 #include "src/frames.h"
 #include "src/heap/heap-inl.h"
-#include "src/ic/handler-compiler.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
 #include "src/isolate.h"
@@ -21,8 +20,6 @@
 #include "src/regexp/jsregexp.h"
 #include "src/regexp/regexp-macro-assembler.h"
 #include "src/runtime/runtime.h"
-
-#include "src/x64/code-stubs-x64.h"  // Cannot be the first include.
 
 namespace v8 {
 namespace internal {
@@ -586,122 +583,6 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   __ popq(rbp);
   __ ret(0);
 }
-
-void NameDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
-                                                      Label* miss,
-                                                      Label* done,
-                                                      Register properties,
-                                                      Handle<Name> name,
-                                                      Register r0) {
-  DCHECK(name->IsUniqueName());
-  // If names of slots in range from 1 to kProbes - 1 for the hash value are
-  // not equal to the name and kProbes-th slot is not used (its name is the
-  // undefined value), it guarantees the hash table doesn't contain the
-  // property. It's true even if some slots represent deleted properties
-  // (their names are the hole value).
-  for (int i = 0; i < kInlinedProbes; i++) {
-    // r0 points to properties hash.
-    // Compute the masked index: (hash + i + i * i) & mask.
-    Register index = r0;
-    // Capacity is smi 2^n.
-    __ SmiToInteger32(index, FieldOperand(properties, kCapacityOffset));
-    __ decl(index);
-    __ andp(index,
-            Immediate(name->Hash() + NameDictionary::GetProbeOffset(i)));
-
-    // Scale the index by multiplying by the entry size.
-    STATIC_ASSERT(NameDictionary::kEntrySize == 3);
-    __ leap(index, Operand(index, index, times_2, 0));  // index *= 3.
-
-    Register entity_name = r0;
-    // Having undefined at this place means the name is not contained.
-    STATIC_ASSERT(kSmiTagSize == 1);
-    __ movp(entity_name, Operand(properties,
-                                 index,
-                                 times_pointer_size,
-                                 kElementsStartOffset - kHeapObjectTag));
-    __ Cmp(entity_name, masm->isolate()->factory()->undefined_value());
-    __ j(equal, done);
-
-    // Stop if found the property.
-    __ Cmp(entity_name, name);
-    __ j(equal, miss);
-  }
-
-  NameDictionaryLookupStub stub(masm->isolate(), properties, r0, r0);
-  __ Push(name);
-  __ Push(Immediate(name->Hash()));
-  __ CallStub(&stub);
-  __ testp(r0, r0);
-  __ j(not_zero, miss);
-  __ jmp(done);
-}
-
-void NameDictionaryLookupStub::Generate(MacroAssembler* masm) {
-  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
-  // we cannot call anything that could cause a GC from this stub.
-  // Stack frame on entry:
-  //  rsp[0 * kPointerSize] : return address.
-  //  rsp[1 * kPointerSize] : key's hash.
-  //  rsp[2 * kPointerSize] : key.
-  // Registers:
-  //  dictionary_: NameDictionary to probe.
-  //  result_: used as scratch.
-  //  index_: will hold an index of entry if lookup is successful.
-  //          might alias with result_.
-  // Returns:
-  //  result_ is zero if lookup failed, non zero otherwise.
-
-  Label in_dictionary, not_in_dictionary;
-
-  Register scratch = result();
-
-  __ SmiToInteger32(scratch, FieldOperand(dictionary(), kCapacityOffset));
-  __ decl(scratch);
-  __ Push(scratch);
-
-  // If names of slots in range from 1 to kProbes - 1 for the hash value are
-  // not equal to the name and kProbes-th slot is not used (its name is the
-  // undefined value), it guarantees the hash table doesn't contain the
-  // property. It's true even if some slots represent deleted properties
-  // (their names are the null value).
-  StackArgumentsAccessor args(rsp, 2, ARGUMENTS_DONT_CONTAIN_RECEIVER,
-                              kPointerSize);
-  for (int i = kInlinedProbes; i < kTotalProbes; i++) {
-    // Compute the masked index: (hash + i + i * i) & mask.
-    __ movp(scratch, args.GetArgumentOperand(1));
-    if (i > 0) {
-      __ addl(scratch, Immediate(NameDictionary::GetProbeOffset(i)));
-    }
-    __ andp(scratch, Operand(rsp, 0));
-
-    // Scale the index by multiplying by the entry size.
-    STATIC_ASSERT(NameDictionary::kEntrySize == 3);
-    __ leap(index(), Operand(scratch, scratch, times_2, 0));  // index *= 3.
-
-    // Having undefined at this place means the name is not contained.
-    __ movp(scratch, Operand(dictionary(), index(), times_pointer_size,
-                             kElementsStartOffset - kHeapObjectTag));
-
-    __ Cmp(scratch, isolate()->factory()->undefined_value());
-    __ j(equal, &not_in_dictionary);
-
-    // Stop if found the property.
-    __ cmpp(scratch, args.GetArgumentOperand(0));
-    __ j(equal, &in_dictionary);
-  }
-
-  __ bind(&in_dictionary);
-  __ movp(scratch, Immediate(1));
-  __ Drop(1);
-  __ ret(2 * kPointerSize);
-
-  __ bind(&not_in_dictionary);
-  __ movp(scratch, Immediate(0));
-  __ Drop(1);
-  __ ret(2 * kPointerSize);
-}
-
 
 void ProfileEntryHookStub::MaybeCallEntryHook(MacroAssembler* masm) {
   if (masm->isolate()->function_entry_hook() != nullptr) {

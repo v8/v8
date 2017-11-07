@@ -423,12 +423,6 @@ class MacroAssembler : public TurboAssembler {
   void PushSafepointRegisters() { pushad(); }
   void PopSafepointRegisters() { popad(); }
 
-  void GetWeakValue(Register value, Handle<WeakCell> cell);
-
-  // Load the value of the weak cell in the value register. Branch to the given
-  // miss label if the weak cell was cleared.
-  void LoadWeakValue(Register value, Handle<WeakCell> cell, Label* miss);
-
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
@@ -574,24 +568,6 @@ class MacroAssembler : public TurboAssembler {
 
   // ---------------------------------------------------------------------------
   // Utilities
-
-  // Emit code that loads |parameter_index|'th parameter from the stack to
-  // the register according to the CallInterfaceDescriptor definition.
-  // |sp_to_caller_sp_offset_in_words| specifies the number of words pushed
-  // below the caller's sp (on ia32 it's at least return address).
-  template <class Descriptor>
-  void LoadParameterFromStack(
-      Register reg, typename Descriptor::ParameterIndices parameter_index,
-      int sp_to_ra_offset_in_words = 1) {
-    DCHECK(Descriptor::kPassLastArgsOnStack);
-    DCHECK_LT(parameter_index, Descriptor::kParameterCount);
-    DCHECK_LE(Descriptor::kParameterCount - Descriptor::kStackArgumentsCount,
-              parameter_index);
-    int offset = (Descriptor::kParameterCount - parameter_index - 1 +
-                  sp_to_ra_offset_in_words) *
-                 kPointerSize;
-    mov(reg, Operand(esp, offset));
-  }
 
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the esp register.

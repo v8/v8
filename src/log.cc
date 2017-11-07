@@ -767,21 +767,8 @@ void Logger::UncheckedStringEvent(const char* name, const char* value) {
 }
 
 
-void Logger::IntEvent(const char* name, int value) {
-  if (FLAG_log) UncheckedIntEvent(name, value);
-}
-
-
 void Logger::IntPtrTEvent(const char* name, intptr_t value) {
   if (FLAG_log) UncheckedIntPtrTEvent(name, value);
-}
-
-
-void Logger::UncheckedIntEvent(const char* name, int value) {
-  if (!log_->IsEnabled()) return;
-  Log::MessageBuilder msg(log_);
-  msg << name << kNext << value;
-  msg.WriteToLogFile();
 }
 
 

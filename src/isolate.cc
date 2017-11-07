@@ -31,7 +31,6 @@
 #include "src/elements.h"
 #include "src/external-reference-table.h"
 #include "src/frames-inl.h"
-#include "src/ic/access-compiler-data.h"
 #include "src/ic/stub-cache.h"
 #include "src/interface-descriptors.h"
 #include "src/interpreter/interpreter.h"
@@ -2611,9 +2610,6 @@ Isolate::~Isolate() {
   delete[] call_descriptor_data_;
   call_descriptor_data_ = nullptr;
 
-  delete access_compiler_data_;
-  access_compiler_data_ = nullptr;
-
   delete regexp_stack_;
   regexp_stack_ = nullptr;
 
@@ -2789,7 +2785,6 @@ bool Isolate::Init(StartupDeserializer* des) {
   date_cache_ = new DateCache();
   call_descriptor_data_ =
       new CallInterfaceDescriptorData[CallDescriptors::NUMBER_OF_DESCRIPTORS];
-  access_compiler_data_ = new AccessCompilerData();
   cpu_profiler_ = new CpuProfiler(this);
   heap_profiler_ = new HeapProfiler(heap());
   interpreter_ = new interpreter::Interpreter(this);

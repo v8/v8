@@ -1473,19 +1473,6 @@ void TurboAssembler::Move(const Operand& dst, Handle<HeapObject> object,
   movp(dst, kScratchRegister);
 }
 
-void MacroAssembler::GetWeakValue(Register value, Handle<WeakCell> cell) {
-  Move(value, cell, RelocInfo::EMBEDDED_OBJECT);
-  movp(value, FieldOperand(value, WeakCell::kValueOffset));
-}
-
-
-void MacroAssembler::LoadWeakValue(Register value, Handle<WeakCell> cell,
-                                   Label* miss) {
-  GetWeakValue(value, cell);
-  JumpIfSmi(value, miss);
-}
-
-
 void MacroAssembler::Drop(int stack_elements) {
   if (stack_elements > 0) {
     addp(rsp, Immediate(stack_elements * kPointerSize));

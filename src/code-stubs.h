@@ -38,7 +38,6 @@ class Node;
   V(MathPow)                                  \
   V(ProfileEntryHook)                         \
   V(StoreSlowElement)                         \
-  V(NameDictionaryLookup)                     \
   /* --- TurboFanCodeStubs --- */             \
   V(ArrayNoArgumentConstructor)               \
   V(ArraySingleArgumentConstructor)           \
@@ -77,35 +76,23 @@ class Node;
 
 // List of code stubs only used on PPC platforms.
 #ifdef V8_TARGET_ARCH_PPC
-#define CODE_STUB_LIST_PPC(V) \
-  V(DirectCEntry)             \
-  V(StoreRegistersState)      \
-  V(RestoreRegistersState)
+#define CODE_STUB_LIST_PPC(V) V(DirectCEntry)
 #else
 #define CODE_STUB_LIST_PPC(V)
 #endif
 
 // List of code stubs only used on MIPS platforms.
 #if V8_TARGET_ARCH_MIPS
-#define CODE_STUB_LIST_MIPS(V) \
-  V(DirectCEntry)              \
-  V(RestoreRegistersState)     \
-  V(StoreRegistersState)
+#define CODE_STUB_LIST_MIPS(V) V(DirectCEntry)
 #elif V8_TARGET_ARCH_MIPS64
-#define CODE_STUB_LIST_MIPS(V) \
-  V(DirectCEntry)              \
-  V(RestoreRegistersState)     \
-  V(StoreRegistersState)
+#define CODE_STUB_LIST_MIPS(V) V(DirectCEntry)
 #else
 #define CODE_STUB_LIST_MIPS(V)
 #endif
 
 // List of code stubs only used on S390 platforms.
 #ifdef V8_TARGET_ARCH_S390
-#define CODE_STUB_LIST_S390(V) \
-  V(DirectCEntry)              \
-  V(StoreRegistersState)       \
-  V(RestoreRegistersState)
+#define CODE_STUB_LIST_S390(V) V(DirectCEntry)
 #else
 #define CODE_STUB_LIST_S390(V)
 #endif
@@ -430,9 +417,7 @@ class TurboFanCodeStub : public CodeStub {
 }  // namespace v8
 
 #if V8_TARGET_ARCH_IA32
-#include "src/ia32/code-stubs-ia32.h"
 #elif V8_TARGET_ARCH_X64
-#include "src/x64/code-stubs-x64.h"
 #elif V8_TARGET_ARCH_ARM64
 #include "src/arm64/code-stubs-arm64.h"
 #elif V8_TARGET_ARCH_ARM
@@ -718,7 +703,6 @@ class CEntryStub : public PlatformCodeStub {
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(CEntry, PlatformCodeStub);
 };
-
 
 class JSEntryStub : public PlatformCodeStub {
  public:

@@ -14,7 +14,6 @@
 #include "src/field-type.h"
 #include "src/frames-inl.h"
 #include "src/ic/call-optimization.h"
-#include "src/ic/handler-compiler.h"
 #include "src/ic/handler-configuration-inl.h"
 #include "src/ic/ic-inl.h"
 #include "src/ic/ic-stats.h"
@@ -642,11 +641,6 @@ void IC::PatchCache(Handle<Name> name, Handle<Object> handler) {
   }
 }
 
-Handle<Smi> LoadIC::SimpleFieldLoad(Isolate* isolate, FieldIndex index) {
-  TRACE_HANDLER_STATS(isolate, LoadIC_LoadFieldDH);
-  return LoadHandler::LoadField(isolate, index);
-}
-
 void LoadIC::UpdateCaches(LookupIterator* lookup) {
   if (state() == UNINITIALIZED && !IsLoadGlobalIC()) {
     // This is the first time we execute this inline cache. Set the target to
@@ -712,23 +706,13 @@ void IC::TraceHandlerCacheHitStats(LookupIterator* lookup) {
   }
 }
 
-Handle<Object> IC::ComputeHandler(LookupIterator* lookup) {
-  // Try to find a globally shared handler stub.
-  Handle<Object> shared_handler = GetMapIndependentHandler(lookup);
-  if (!shared_handler.is_null()) {
-    DCHECK(IC::IsHandler(*shared_handler));
-    return shared_handler;
-  }
-
-  return CompileHandler(lookup);
-}
-
-Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
+Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
   Handle<Object> receiver = lookup->GetReceiver();
   if (receiver->IsString() &&
       *lookup->name() == isolate()->heap()->length_string()) {
+    TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
     FieldIndex index = FieldIndex::ForInObjectOffset(String::kLengthOffset);
-    return SimpleFieldLoad(isolate(), index);
+    return LoadHandler::LoadField(isolate(), index);
   }
 
   if (receiver->IsStringWrapper() &&
@@ -787,8 +771,9 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
       int object_offset;
       if (Accessors::IsJSObjectFieldAccessor(map, lookup->name(),
                                              &object_offset)) {
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
         FieldIndex index = FieldIndex::ForInObjectOffset(object_offset, *map);
-        return SimpleFieldLoad(isolate(), index);
+        return LoadHandler::LoadField(isolate(), index);
       }
       if (holder->IsJSModuleNamespace()) {
         Handle<ObjectHashTable> exports(
@@ -920,7 +905,8 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
 
       } else if (lookup->property_details().location() == kField) {
         FieldIndex field = lookup->GetFieldIndex();
-        smi_handler = SimpleFieldLoad(isolate(), field);
+        smi_handler = LoadHandler::LoadField(isolate(), field);
+        TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
         if (receiver_is_holder) return smi_handler;
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldFromPrototypeDH);
       } else {
@@ -955,8 +941,6 @@ Handle<Object> LoadIC::GetMapIndependentHandler(LookupIterator* lookup) {
 
   return Handle<Code>::null();
 }
-
-Handle<Code> LoadIC::CompileHandler(LookupIterator* lookup) { UNREACHABLE(); }
 
 static Handle<Object> TryConvertKey(Handle<Object> key, Isolate* isolate) {
   // This helper implements a few common fast cases for converting
@@ -1424,7 +1408,7 @@ void StoreIC::UpdateCaches(LookupIterator* lookup, Handle<Object> value,
   TRACE_IC("StoreIC", lookup->name());
 }
 
-Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
+Handle<Object> StoreIC::ComputeHandler(LookupIterator* lookup) {
   switch (lookup->state()) {
     case LookupIterator::TRANSITION: {
       Handle<JSObject> holder = lookup->GetHolder<JSObject>();
@@ -1517,7 +1501,16 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return slow_stub();
         }
-        break;  // Custom-compiled handler.
+
+        Handle<Smi> smi_handler = StoreHandler::StoreNativeDataProperty(
+            isolate(), lookup->GetAccessorIndex());
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNativeDataPropertyDH);
+        if (receiver.is_identical_to(holder)) return smi_handler;
+        TRACE_HANDLER_STATS(isolate(),
+                            StoreIC_StoreNativeDataPropertyOnPrototypeDH);
+        return StoreHandler::StoreThroughPrototype(
+            isolate(), receiver_map(), holder, lookup->name(), smi_handler);
+
       } else if (accessors->IsAccessorPair()) {
         Handle<Object> setter(Handle<AccessorPair>::cast(accessors)->setter(),
                               isolate());
@@ -1627,35 +1620,6 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
       UNREACHABLE();
   }
   return Handle<Code>::null();
-}
-
-Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup) {
-  DCHECK_EQ(LookupIterator::ACCESSOR, lookup->state());
-
-  // This is currently guaranteed by checks in StoreIC::Store.
-  Handle<JSObject> receiver = Handle<JSObject>::cast(lookup->GetReceiver());
-  Handle<JSObject> holder = lookup->GetHolder<JSObject>();
-  DCHECK(!receiver->IsAccessCheckNeeded() || lookup->name()->IsPrivate());
-
-  DCHECK(holder->HasFastProperties());
-  Handle<Object> accessors = lookup->GetAccessors();
-
-  DCHECK(accessors->IsAccessorInfo());
-  Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
-  DCHECK_NOT_NULL(v8::ToCData<Address>(info->setter()));
-  DCHECK(!AccessorInfo::cast(*accessors)->is_special_data_property() ||
-         lookup->HolderIsReceiverOrHiddenPrototype());
-  DCHECK(
-      AccessorInfo::IsCompatibleReceiverMap(isolate(), info, receiver_map()));
-  TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
-  NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-  // TODO(ishell): don't hard-code language mode into the handler because
-  // this handler can be re-used through megamorphic stub cache for wrong
-  // language mode.
-  // Better pass vector/slot to Runtime::kStoreCallbackProperty and
-  // let it decode the language mode from the IC kind.
-  return compiler.CompileStoreCallback(receiver, lookup->name(), info,
-                                       language_mode());
 }
 
 void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,

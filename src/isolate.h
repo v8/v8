@@ -1126,8 +1126,6 @@ class Isolate {
   V8_EXPORT_PRIVATE CallInterfaceDescriptorData* call_descriptor_data(
       int index);
 
-  AccessCompilerData* access_compiler_data() { return access_compiler_data_; }
-
   void IterateDeferredHandles(RootVisitor* visitor);
   void LinkDeferredHandles(DeferredHandles* deferred_handles);
   void UnlinkDeferredHandles(DeferredHandles* deferred_handles);
@@ -1517,7 +1515,6 @@ class Isolate {
   std::vector<int> regexp_indices_;
   DateCache* date_cache_;
   CallInterfaceDescriptorData* call_descriptor_data_;
-  AccessCompilerData* access_compiler_data_;
   base::RandomNumberGenerator* random_number_generator_;
   base::RandomNumberGenerator* fuzzer_rng_;
   base::AtomicValue<RAILMode> rail_mode_;

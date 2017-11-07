@@ -186,6 +186,9 @@ class AccessorAssembler : public CodeStubAssembler {
                                  Representation representation, Node* value,
                                  Node* transition, Label* miss);
 
+  void HandleStoreICNativeDataProperty(const StoreICParameters* p, Node* holder,
+                                       Node* handler_word);
+
   void HandleStoreToProxy(const StoreICParameters* p, Node* proxy, Label* miss,
                           ElementSupport support_elements);
 
@@ -204,6 +207,8 @@ class AccessorAssembler : public CodeStubAssembler {
                            UseStubCache use_stub_cache = kUseStubCache);
 
   // Low-level helpers.
+
+  Node* GetLanguageMode(Node* vector, Node* slot);
 
   Node* PrepareValueForStore(Node* handler_word, Node* holder,
                              Representation representation, Node* transition,

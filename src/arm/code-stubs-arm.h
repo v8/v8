@@ -25,38 +25,6 @@ class DirectCEntryStub: public PlatformCodeStub {
   DEFINE_PLATFORM_CODE_STUB(DirectCEntry, PlatformCodeStub);
 };
 
-
-class NameDictionaryLookupStub: public PlatformCodeStub {
- public:
-  explicit NameDictionaryLookupStub(Isolate* isolate)
-      : PlatformCodeStub(isolate) {}
-
-  static void GenerateNegativeLookup(MacroAssembler* masm,
-                                     Label* miss,
-                                     Label* done,
-                                     Register receiver,
-                                     Register properties,
-                                     Handle<Name> name,
-                                     Register scratch0);
-
-  bool SometimesSetsUpAFrame() override { return false; }
-
- private:
-  static const int kInlinedProbes = 4;
-  static const int kTotalProbes = 20;
-
-  static const int kCapacityOffset =
-      NameDictionary::kHeaderSize +
-      NameDictionary::kCapacityIndex * kPointerSize;
-
-  static const int kElementsStartOffset =
-      NameDictionary::kHeaderSize +
-      NameDictionary::kElementsStartIndex * kPointerSize;
-
-  DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
-  DEFINE_PLATFORM_CODE_STUB(NameDictionaryLookup, PlatformCodeStub);
-};
-
 }  // namespace internal
 }  // namespace v8
 
