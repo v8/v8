@@ -1433,9 +1433,20 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
       if (store_target->IsJSGlobalObject()) {
         TRACE_HANDLER_STATS(isolate(), StoreIC_StoreGlobalTransitionDH);
 
-        Handle<Object> handler = StoreHandler::StoreTransition(
-            isolate(), receiver_map(), store_target, lookup->transition_cell(),
-            lookup->name());
+        if (receiver_map()->IsJSGlobalObject()) {
+          DCHECK(IsStoreGlobalIC());
+          DCHECK_EQ(*lookup->GetReceiver(), *holder);
+          DCHECK_EQ(*store_target, *holder);
+          return StoreHandler::StoreGlobal(isolate(),
+                                           lookup->transition_cell());
+        }
+
+        Handle<Smi> smi_handler = StoreHandler::StoreGlobalProxy(isolate());
+        Handle<WeakCell> cell =
+            isolate()->factory()->NewWeakCell(lookup->transition_cell());
+        Handle<Object> handler = StoreHandler::StoreThroughPrototype(
+            isolate(), receiver_map(), store_target, lookup->name(),
+            smi_handler, cell);
         return handler;
       }
       // Currently not handled by CompileStoreTransition.
@@ -1447,9 +1458,19 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
 
       DCHECK(lookup->IsCacheableTransition());
       Handle<Map> transition = lookup->transition_map();
-      TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransitionDH);
-      Handle<Object> handler = StoreHandler::StoreTransition(
-          isolate(), receiver_map(), holder, transition, lookup->name());
+
+      Handle<Smi> smi_handler;
+      if (transition->is_dictionary_map()) {
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreNormalDH);
+        smi_handler = StoreHandler::StoreNormal(isolate());
+      } else {
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreTransitionDH);
+        smi_handler = StoreHandler::StoreTransition(isolate(), transition);
+      }
+
+      Handle<WeakCell> cell = Map::WeakCellForMap(transition);
+      Handle<Object> handler = StoreHandler::StoreThroughPrototype(
+          isolate(), receiver_map(), holder, lookup->name(), smi_handler, cell);
       TransitionsAccessor(receiver_map())
           .UpdateHandler(*lookup->name(), *handler);
       return handler;
@@ -1508,7 +1529,26 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
         CallOptimization call_optimization(setter);
         if (call_optimization.is_simple_api_call()) {
           if (call_optimization.IsCompatibleReceiver(receiver, holder)) {
-            break;  // Custom-compiled handler.
+            CallOptimization::HolderLookup holder_lookup;
+            call_optimization.LookupHolderOfExpectedType(receiver_map(),
+                                                         &holder_lookup);
+
+            Handle<Smi> smi_handler = StoreHandler::StoreApiSetter(
+                isolate(),
+                holder_lookup == CallOptimization::kHolderIsReceiver);
+
+            Handle<Context> context(
+                call_optimization.GetAccessorContext(holder->map()));
+            Handle<WeakCell> context_cell =
+                isolate()->factory()->NewWeakCell(context);
+            Handle<WeakCell> data_cell = isolate()->factory()->NewWeakCell(
+                call_optimization.api_call_info());
+            Handle<Tuple2> data = isolate()->factory()->NewTuple2(
+                context_cell, data_cell, TENURED);
+            TRACE_HANDLER_STATS(isolate(), StoreIC_StoreApiSetterOnPrototypeDH);
+            return StoreHandler::StoreThroughPrototype(
+                isolate(), receiver_map(), holder, lookup->name(), smi_handler,
+                data);
           }
           TRACE_GENERIC_IC("incompatible receiver");
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
@@ -1615,15 +1655,7 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup) {
   DCHECK(setter->IsJSFunction() || setter->IsFunctionTemplateInfo());
   CallOptimization call_optimization(setter);
   NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-  if (call_optimization.is_simple_api_call()) {
-    DCHECK(call_optimization.IsCompatibleReceiver(receiver, holder));
-    TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
-    Handle<Code> code = compiler.CompileStoreCallback(
-        receiver, lookup->name(), call_optimization,
-        handle(call_optimization.GetAccessorContext(holder->map())),
-        lookup->GetAccessorIndex(), slow_stub());
-    return code;
-  }
+  DCHECK(!call_optimization.is_simple_api_call());
   TRACE_HANDLER_STATS(isolate(), StoreIC_StoreViaSetter);
   int expected_arguments =
       JSFunction::cast(*setter)->shared()->internal_formal_parameter_count();

@@ -95,28 +95,6 @@ Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
   return GetCode(name);
 }
 
-Handle<Code> NamedStoreHandlerCompiler::CompileStoreCallback(
-    Handle<JSObject> object, Handle<Name> name,
-    const CallOptimization& call_optimization, Handle<Context> context,
-    int accessor_index, Handle<Code> slow_stub) {
-  if (V8_UNLIKELY(FLAG_runtime_stats)) {
-    GenerateTailCall(masm(), slow_stub);
-  }
-  Register holder = Frontend(name);
-  if (Descriptor::kPassLastArgsOnStack) {
-    __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
-  }
-
-  Handle<WeakCell> cell = factory()->NewWeakCell(context);
-  __ GetWeakValue(JavaScriptFrame::context_register(), cell);
-
-  GenerateApiAccessorCall(masm(), call_optimization, handle(object->map()),
-                          receiver(), scratch2(), true, value(), holder,
-                          accessor_index);
-  return GetCode(name);
-}
-
-
 #undef __
 
 }  // namespace internal

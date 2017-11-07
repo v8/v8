@@ -169,7 +169,8 @@ void AccessorAssembler::HandleLoadField(Node* holder, Node* handler_word,
                                         Label* rebox_double,
                                         ExitPoint* exit_point) {
   Comment("field_load");
-  Node* offset = DecodeWord<LoadHandler::FieldOffsetBits>(handler_word);
+  Node* index = DecodeWord<LoadHandler::FieldIndexBits>(handler_word);
+  Node* offset = IntPtrMul(index, IntPtrConstant(kPointerSize));
 
   Label inobject(this), out_of_object(this);
   Branch(IsSetWord<LoadHandler::IsInobjectBits>(handler_word), &inobject,
@@ -769,19 +770,18 @@ void AccessorAssembler::HandleStoreICHandlerCase(
 
     Label if_fast_smi(this), if_proxy(this);
 
-    STATIC_ASSERT(StoreHandler::kStoreGlobalProxy + 1 ==
-                  StoreHandler::kStoreNormal);
-    STATIC_ASSERT(StoreHandler::kStoreNormal + 1 == StoreHandler::kProxy);
+    STATIC_ASSERT(StoreHandler::kGlobalProxy + 1 == StoreHandler::kNormal);
+    STATIC_ASSERT(StoreHandler::kNormal + 1 == StoreHandler::kProxy);
     STATIC_ASSERT(StoreHandler::kProxy + 1 == StoreHandler::kKindsNumber);
 
     Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
     GotoIf(IntPtrLessThan(handler_kind,
-                          IntPtrConstant(StoreHandler::kStoreGlobalProxy)),
+                          IntPtrConstant(StoreHandler::kGlobalProxy)),
            &if_fast_smi);
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kProxy)),
            &if_proxy);
-    CSA_ASSERT(this, WordEqual(handler_kind,
-                               IntPtrConstant(StoreHandler::kStoreNormal)));
+    CSA_ASSERT(this,
+               WordEqual(handler_kind, IntPtrConstant(StoreHandler::kNormal)));
     Node* properties = LoadSlowProperties(holder);
 
     VARIABLE(var_name_index, MachineType::PointerRepresentation());
@@ -891,17 +891,12 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
   Node* maybe_transition_cell =
       LoadObjectField(handler, StoreHandler::kDataOffset);
-  Label array_handler(this), tuple_handler(this);
-  Branch(TaggedIsSmi(maybe_transition_cell), &array_handler, &tuple_handler);
+  Label array_handler(this), do_store(this);
 
-  VARIABLE(var_transition_map_or_holder, MachineRepresentation::kTagged);
-  Label do_store(this), if_transition_map(this), if_holder_object(this);
-  BIND(&tuple_handler);
-  {
-    Node* transition = LoadWeakCellValue(maybe_transition_cell, miss);
-    var_transition_map_or_holder.Bind(transition);
-    Goto(&do_store);
-  }
+  VARIABLE(var_transition_map_or_holder, MachineRepresentation::kTagged,
+           maybe_transition_cell);
+
+  Branch(TaggedIsSmi(maybe_transition_cell), &array_handler, &do_store);
 
   BIND(&array_handler);
   {
@@ -942,15 +937,25 @@ void AccessorAssembler::HandleStoreICProtoHandler(
 
     Node* maybe_transition_cell =
         LoadFixedArrayElement(handler, StoreHandler::kDataIndex);
-    Node* transition = LoadWeakCellValue(maybe_transition_cell, miss);
-    var_transition_map_or_holder.Bind(transition);
+    var_transition_map_or_holder.Bind(maybe_transition_cell);
     Goto(&do_store);
   }
 
+  Label if_transition_map(this), if_holder_object(this);
+
   BIND(&do_store);
   {
-    Node* transition = var_transition_map_or_holder.value();
-    Branch(IsMap(transition), &if_transition_map, &if_holder_object);
+    Node* maybe_transition_cell = var_transition_map_or_holder.value();
+
+    Label unwrap_cell(this);
+    Branch(IsWeakCell(maybe_transition_cell), &unwrap_cell, &if_holder_object);
+
+    BIND(&unwrap_cell);
+    {
+      Node* maybe_transition = LoadWeakCellValue(maybe_transition_cell, miss);
+      var_transition_map_or_holder.Bind(maybe_transition);
+      Branch(IsMap(maybe_transition), &if_transition_map, &if_holder_object);
+    }
   }
 
   BIND(&if_transition_map);
@@ -981,11 +986,12 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     Node* handler_word = SmiUntag(smi_handler);
 
     Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
-    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kStoreNormal)),
+    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kNormal)),
            &if_store_normal);
     GotoIf(WordEqual(handler_kind,
                      IntPtrConstant(StoreHandler::kTransitionToConstant)),
            &if_transition_to_constant);
+
     CSA_ASSERT(this,
                WordEqual(handler_kind,
                          IntPtrConstant(StoreHandler::kTransitionToField)));
@@ -1043,7 +1049,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   }
   BIND(&if_holder_object);
   {
-    Label if_store_global_proxy(this);
+    Label if_store_global_proxy(this), if_api_setter(this);
     Node* holder = var_transition_map_or_holder.value();
 
     Node* smi_handler = smi_or_code;
@@ -1051,12 +1057,53 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     Node* handler_word = SmiUntag(smi_handler);
 
     Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
-    GotoIf(WordEqual(handler_kind,
-                     IntPtrConstant(StoreHandler::kStoreGlobalProxy)),
+    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kGlobalProxy)),
            &if_store_global_proxy);
+
+    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kApiSetter)),
+           &if_api_setter);
+
+    GotoIf(WordEqual(handler_kind,
+                     IntPtrConstant(StoreHandler::kApiSetterHolderIsPrototype)),
+           &if_api_setter);
+
     CSA_ASSERT(this,
                WordEqual(handler_kind, IntPtrConstant(StoreHandler::kProxy)));
     HandleStoreToProxy(p, holder, miss, support_elements);
+
+    BIND(&if_api_setter);
+    {
+      Comment("api_setter");
+      Node* context = LoadWeakCellValueUnchecked(
+          LoadObjectField(holder, Tuple2::kValue1Offset));
+      Node* call_handler_info = LoadWeakCellValueUnchecked(
+          LoadObjectField(holder, Tuple2::kValue2Offset));
+
+      Node* foreign = LoadObjectField(call_handler_info,
+                                      CallHandlerInfo::kJsCallbackOffset);
+      Node* callback = LoadObjectField(foreign, Foreign::kForeignAddressOffset,
+                                       MachineType::Pointer());
+      Node* data =
+          LoadObjectField(call_handler_info, CallHandlerInfo::kDataOffset);
+
+      VARIABLE(api_holder, MachineRepresentation::kTagged, p->receiver);
+      Label store(this);
+      GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kApiSetter)),
+             &store);
+
+      CSA_ASSERT(
+          this,
+          WordEqual(handler_kind,
+                    IntPtrConstant(StoreHandler::kApiSetterHolderIsPrototype)));
+
+      api_holder.Bind(LoadMapPrototype(LoadMap(p->receiver)));
+      Goto(&store);
+
+      BIND(&store);
+      Callable callable = CodeFactory::CallApiCallback(isolate(), 1);
+      Return(CallStub(callable, nullptr, context, data, api_holder.value(),
+                      callback, p->receiver, p->value));
+    }
 
     BIND(&if_store_global_proxy);
     {
@@ -1126,14 +1173,13 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(Node* handler_word,
   } else {
     if (FLAG_track_constant_fields) {
       CSA_ASSERT(
-          this,
-          Word32Or(WordEqual(handler_kind,
-                             IntPtrConstant(StoreHandler::kStoreField)),
-                   WordEqual(handler_kind,
-                             IntPtrConstant(StoreHandler::kStoreConstField))));
+          this, Word32Or(WordEqual(handler_kind,
+                                   IntPtrConstant(StoreHandler::kField)),
+                         WordEqual(handler_kind,
+                                   IntPtrConstant(StoreHandler::kConstField))));
     } else {
-      CSA_ASSERT(this, WordEqual(handler_kind,
-                                 IntPtrConstant(StoreHandler::kStoreField)));
+      CSA_ASSERT(this,
+                 WordEqual(handler_kind, IntPtrConstant(StoreHandler::kField)));
     }
   }
 #endif
@@ -1238,7 +1284,7 @@ Node* AccessorAssembler::PrepareValueForStore(Node* handler_word, Node* holder,
       // Skip field type check in favor of constant value check when storing
       // to constant field.
       GotoIf(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
-                       IntPtrConstant(StoreHandler::kStoreConstField)),
+                       IntPtrConstant(StoreHandler::kConstField)),
              &done);
     }
     Node* descriptor = DecodeWord<StoreHandler::DescriptorBits>(handler_word);
@@ -1312,7 +1358,8 @@ void AccessorAssembler::ExtendPropertiesBackingStore(Node* object,
     // Previous property deletion could have left behind unused backing store
     // capacity even for a map that think it doesn't have any unused fields.
     // Perform a bounds check to see if we actually have to grow the array.
-    Node* offset = DecodeWord<StoreHandler::FieldOffsetBits>(handler_word);
+    Node* index = DecodeWord<StoreHandler::FieldIndexBits>(handler_word);
+    Node* offset = IntPtrMul(index, IntPtrConstant(kPointerSize));
     Node* size = ElementOffsetFromIndex(var_length.value(), PACKED_ELEMENTS,
                                         mode, FixedArray::kHeaderSize);
     GotoIf(UintPtrLessThan(offset, size), &done);
@@ -1368,7 +1415,8 @@ void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
     property_storage = LoadFastProperties(object);
   }
 
-  Node* offset = DecodeWord<StoreHandler::FieldOffsetBits>(handler_word);
+  Node* index = DecodeWord<StoreHandler::FieldIndexBits>(handler_word);
+  Node* offset = IntPtrMul(index, IntPtrConstant(kPointerSize));
   if (representation.IsDouble()) {
     if (!FLAG_unbox_double_fields || !is_inobject) {
       if (transition_to_field) {
@@ -1389,7 +1437,7 @@ void AccessorAssembler::StoreNamedField(Node* handler_word, Node* object,
   if (FLAG_track_constant_fields && !transition_to_field) {
     Label done(this);
     GotoIfNot(WordEqual(DecodeWord<StoreHandler::KindBits>(handler_word),
-                        IntPtrConstant(StoreHandler::kStoreConstField)),
+                        IntPtrConstant(StoreHandler::kConstField)),
               &done);
     {
       if (store_value_as_double) {

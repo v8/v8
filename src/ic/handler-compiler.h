@@ -44,15 +44,6 @@ class PropertyHandlerCompiler : public PropertyAccessCompiler {
 
   void DiscardVectorAndSlot();
 
-  // TODO(verwaest): Make non-static.
-  static void GenerateApiAccessorCall(MacroAssembler* masm,
-                                      const CallOptimization& optimization,
-                                      Handle<Map> receiver_map,
-                                      Register receiver, Register scratch,
-                                      bool is_store, Register store_parameter,
-                                      Register accessor_holder,
-                                      int accessor_index);
-
   // Helper function used to check that the dictionary doesn't contain
   // the property. This function may return false negatives, so miss_label
   // must always call a backup property check that is complete.
@@ -132,10 +123,6 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     Handle<AccessorInfo> callback,
                                     LanguageMode language_mode);
-  Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
-                                    const CallOptimization& call_optimization,
-                                    Handle<Context> context, int accessor_index,
-                                    Handle<Code> slow_stub);
   Handle<Code> CompileStoreViaSetter(Handle<JSObject> object, Handle<Name> name,
                                      int accessor_index,
                                      int expected_arguments);

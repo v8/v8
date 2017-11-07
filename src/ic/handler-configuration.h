@@ -64,11 +64,10 @@ class LoadHandler {
   };
   class IsDoubleBits : public BitField<bool, IsInobjectBits::kNext, 1> {};
   // +1 here is to cover all possible JSObject header sizes.
-  class FieldOffsetBits
-      : public BitField<unsigned, IsDoubleBits::kNext,
-                        kDescriptorIndexBitCount + 1 + kPointerSizeLog2> {};
+  class FieldIndexBits : public BitField<unsigned, IsDoubleBits::kNext,
+                                         kDescriptorIndexBitCount + 1> {};
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(FieldOffsetBits::kNext <= kSmiValueSize);
+  STATIC_ASSERT(FieldIndexBits::kNext <= kSmiValueSize);
 
   //
   // Encoding when KindBits contains kElement or kIndexedString.
@@ -195,30 +194,32 @@ class LoadHandler {
 class StoreHandler {
  public:
   enum Kind {
-    kStoreElement,
-    kStoreField,
-    kStoreConstField,
+    kElement,
+    kField,
+    kConstField,
     // TODO(ishell): remove once constant field tracking is done.
-    kTransitionToConstant = kStoreConstField,
+    kTransitionToConstant = kConstField,
     kTransitionToField,
-    kStoreGlobalProxy,
-    kStoreNormal,
+    kApiSetter,
+    kApiSetterHolderIsPrototype,
+    kGlobalProxy,
+    kNormal,
     kProxy,
     kKindsNumber  // Keep last
   };
-  class KindBits : public BitField<Kind, 0, 3> {};
+  class KindBits : public BitField<Kind, 0, 4> {};
 
   enum FieldRepresentation { kSmi, kDouble, kHeapObject, kTagged };
 
   static inline bool IsHandler(Object* maybe_handler);
 
-  // Applicable to kStoreGlobalProxy, kProxy kinds.
+  // Applicable to kGlobalProxy, kProxy kinds.
 
   // Defines whether access rights check should be done on receiver object.
   class DoAccessCheckOnReceiverBits
       : public BitField<bool, KindBits::kNext, 1> {};
 
-  // Applicable to kStoreField, kTransitionToField and kTransitionToConstant
+  // Applicable to kField, kTransitionToField and kTransitionToConstant
   // kinds.
 
   // Index of a value entry in the descriptor array.
@@ -233,18 +234,18 @@ class StoreHandler {
   STATIC_ASSERT(DescriptorBits::kNext <= kSmiValueSize);
 
   //
-  // Encoding when KindBits contains kStoreField or kTransitionToField.
+  // Encoding when KindBits contains kField or kTransitionToField.
   //
   class ExtendStorageBits : public BitField<bool, DescriptorBits::kNext, 1> {};
   class IsInobjectBits : public BitField<bool, ExtendStorageBits::kNext, 1> {};
   class FieldRepresentationBits
       : public BitField<FieldRepresentation, IsInobjectBits::kNext, 2> {};
   // +1 here is to cover all possible JSObject header sizes.
-  class FieldOffsetBits
+  class FieldIndexBits
       : public BitField<unsigned, FieldRepresentationBits::kNext,
-                        kDescriptorIndexBitCount + 1 + kPointerSizeLog2> {};
+                        kDescriptorIndexBitCount + 1> {};
   // Make sure we don't overflow the smi.
-  STATIC_ASSERT(FieldOffsetBits::kNext <= kSmiValueSize);
+  STATIC_ASSERT(FieldIndexBits::kNext <= kSmiValueSize);
 
   // The layout of an Tuple3 handler representing a transitioning store
   // when prototype chain checks do not include non-existing lookups or access
@@ -270,11 +271,16 @@ class StoreHandler {
                                        PropertyConstness constness,
                                        Representation representation);
 
-  static Handle<Object> StoreTransition(Isolate* isolate,
-                                        Handle<Map> receiver_map,
-                                        Handle<JSObject> holder,
-                                        Handle<HeapObject> transition,
-                                        Handle<Name> name);
+  static Handle<Smi> StoreTransition(Isolate* isolate,
+                                     Handle<Map> transition_map);
+
+  // Creates a Smi-handler for calling a native setter on a fast object.
+  static inline Handle<Smi> StoreApiSetter(Isolate* isolate,
+                                           bool holder_is_receiver);
+
+  static Handle<Object> StoreThroughPrototype(
+      Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
+      Handle<Name> name, Handle<Smi> smi_handler, Handle<Object> data);
 
   static Handle<Object> StoreElementTransition(Isolate* isolate,
                                                Handle<Map> receiver_map,

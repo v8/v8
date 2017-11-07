@@ -892,6 +892,7 @@ class RuntimeCallTimer final {
   V(StoreIC_NonReceiver)                          \
   V(StoreIC_Premonomorphic)                       \
   V(StoreIC_SlowStub)                             \
+  V(StoreIC_StoreApiSetterOnPrototypeDH)          \
   V(StoreIC_StoreCallback)                        \
   V(StoreIC_StoreFieldDH)                         \
   V(StoreIC_StoreGlobalDH)                        \
