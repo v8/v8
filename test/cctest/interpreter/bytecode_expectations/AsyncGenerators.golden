@@ -425,7 +425,7 @@ bytecodes: [
                 B(TestEqualStrict), R(6), U8(17),
                 B(JumpIfFalse), U8(61),
                 B(Ldar), R(8),
-                B(TestTypeOf), U8(5),
+                B(TestTypeOf), U8(6),
                 B(JumpIfFalse), U8(4),
                 B(Jump), U8(18),
                 B(Wide), B(LdaSmi), I16(142),

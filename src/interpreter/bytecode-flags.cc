@@ -52,6 +52,8 @@ TestTypeOfFlags::LiteralFlag TestTypeOfFlags::GetFlagForLiteral(
     return LiteralFlag::kSymbol;
   } else if (raw_literal == ast_constants->boolean_string()) {
     return LiteralFlag::kBoolean;
+  } else if (raw_literal == ast_constants->bigint_string()) {
+    return LiteralFlag::kBigInt;
   } else if (raw_literal == ast_constants->undefined_string()) {
     return LiteralFlag::kUndefined;
   } else if (raw_literal == ast_constants->function_string()) {

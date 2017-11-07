@@ -54,6 +54,7 @@ class CreateClosureFlags {
   V(String, string)            \
   V(Symbol, symbol)            \
   V(Boolean, boolean)          \
+  V(BigInt, bigint)            \
   V(Undefined, undefined)      \
   V(Function, function)        \
   V(Object, object)            \

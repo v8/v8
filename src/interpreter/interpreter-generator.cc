@@ -2031,6 +2031,12 @@ IGNITION_HANDLER(TestTypeOf, InterpreterAssembler) {
     GotoIf(WordEqual(object, TrueConstant()), &if_true);
     Branch(WordEqual(object, FalseConstant()), &if_true, &if_false);
   }
+  BIND(&if_bigint);
+  {
+    Comment("IfBigInt");
+    GotoIf(TaggedIsSmi(object), &if_false);
+    Branch(IsBigInt(object), &if_true, &if_false);
+  }
   BIND(&if_undefined);
   {
     Comment("IfUndefined");

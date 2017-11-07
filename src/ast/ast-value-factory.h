@@ -195,6 +195,7 @@ class AstBigInt {
   F(arguments, "arguments")                     \
   F(async, "async")                             \
   F(await, "await")                             \
+  F(bigint, "bigint")                           \
   F(boolean, "boolean")                         \
   F(constructor, "constructor")                 \
   F(default, "default")                         \
