@@ -2273,23 +2273,6 @@ void TurboAssembler::CheckPageFlag(Register object, Register scratch, int mask,
   b(cc, condition_met);
 }
 
-void MacroAssembler::LoadInstanceDescriptors(Register map,
-                                             Register descriptors) {
-  ldr(descriptors, FieldMemOperand(map, Map::kDescriptorsOffset));
-}
-
-void MacroAssembler::LoadAccessor(Register dst, Register holder,
-                                  int accessor_index,
-                                  AccessorComponent accessor) {
-  ldr(dst, FieldMemOperand(holder, HeapObject::kMapOffset));
-  LoadInstanceDescriptors(dst, dst);
-  ldr(dst,
-      FieldMemOperand(dst, DescriptorArray::GetValueOffset(accessor_index)));
-  int offset = accessor == ACCESSOR_GETTER ? AccessorPair::kGetterOffset
-                                           : AccessorPair::kSetterOffset;
-  ldr(dst, FieldMemOperand(dst, offset));
-}
-
 Register GetRegisterThatIsNotOneOf(Register reg1,
                                    Register reg2,
                                    Register reg3,

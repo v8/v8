@@ -248,7 +248,8 @@ Handle<Smi> StoreHandler::StoreTransition(Isolate* isolate,
 // static
 Handle<Object> StoreHandler::StoreThroughPrototype(
     Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
-    Handle<Name> name, Handle<Smi> smi_handler, Handle<Object> data) {
+    Handle<Name> name, Handle<Smi> smi_handler,
+    MaybeHandle<Object> maybe_data) {
   int checks_count =
       GetPrototypeCheckCount(isolate, receiver_map, holder, name);
 
@@ -265,6 +266,11 @@ Handle<Object> StoreHandler::StoreThroughPrototype(
   if (validity_cell.is_null()) {
     DCHECK_EQ(0, checks_count);
     validity_cell = handle(Smi::kZero, isolate);
+  }
+
+  Handle<Object> data;
+  if (!maybe_data.ToHandle(&data)) {
+    data = Map::GetOrCreatePrototypeWeakCell(holder, isolate);
   }
 
   Factory* factory = isolate->factory();
@@ -346,9 +352,8 @@ Object* StoreHandler::ValidHandlerOrNull(Object* raw_handler, Name* name,
         int number = dict->FindEntry(isolate, name_handle);
         if (number != NameDictionary::kNotFound) {
           PropertyDetails details = dict->DetailsAt(number);
-          if (details.IsReadOnly() || details.kind() == kAccessor) {
-            return nullptr;
-          }
+          if (details.IsReadOnly()) return nullptr;
+          if (details.kind() == PropertyKind::kAccessor) return nullptr;
           break;
         }
       }

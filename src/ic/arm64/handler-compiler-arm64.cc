@@ -100,36 +100,6 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
   __ JumpIfNotRoot(scratch, Heap::kTheHoleValueRootIndex, miss);
 }
 
-void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
-    MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
-    int accessor_index, int expected_arguments, Register scratch) {
-  // ----------- S t a t e -------------
-  //  -- lr    : return address
-  // -----------------------------------
-  Label miss;
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    DCHECK(!AreAliased(holder, scratch));
-    DCHECK(!AreAliased(receiver, scratch));
-    DCHECK(!AreAliased(value(), scratch));
-    // Call the JavaScript setter with receiver and value on the stack.
-    if (map->IsJSGlobalObjectMap()) {
-      // Swap in the global receiver.
-      __ Ldr(scratch,
-             FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
-      receiver = scratch;
-    }
-    __ Push(receiver, value());
-    __ LoadAccessor(x1, holder, accessor_index, ACCESSOR_SETTER);
-    __ Mov(x0, 1);
-    __ Call(masm->isolate()->builtins()->CallFunction(
-                ConvertReceiverMode::kNotNullOrUndefined),
-            RelocInfo::CODE_TARGET);
-  }
-  __ Ret();
-}
-
 #undef __
 #define __ ACCESS_MASM(masm())
 

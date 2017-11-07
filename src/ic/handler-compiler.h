@@ -123,14 +123,6 @@ class NamedStoreHandlerCompiler : public PropertyHandlerCompiler {
   Handle<Code> CompileStoreCallback(Handle<JSObject> object, Handle<Name> name,
                                     Handle<AccessorInfo> callback,
                                     LanguageMode language_mode);
-  Handle<Code> CompileStoreViaSetter(Handle<JSObject> object, Handle<Name> name,
-                                     int accessor_index,
-                                     int expected_arguments);
-
-  static void GenerateStoreViaSetter(MacroAssembler* masm, Handle<Map> map,
-                                     Register receiver, Register holder,
-                                     int accessor_index, int expected_arguments,
-                                     Register scratch);
 
  protected:
   virtual Register FrontendHeader(Register object_reg, Handle<Name> name,

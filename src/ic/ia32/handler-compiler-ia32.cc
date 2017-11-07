@@ -101,40 +101,6 @@ void PropertyHandlerCompiler::GenerateCheckPropertyCell(
 }
 
 
-void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
-    MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
-    int accessor_index, int expected_arguments, Register scratch) {
-  // ----------- S t a t e -------------
-  //  -- esp[12] : value
-  //  -- esp[8]  : slot
-  //  -- esp[4]  : vector
-  //  -- esp[0]  : return address
-  // -----------------------------------
-  __ LoadParameterFromStack<Descriptor>(value(), Descriptor::kValue);
-
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    DCHECK(holder != scratch);
-    DCHECK(receiver != scratch);
-    DCHECK(value() != scratch);
-    // Call the JavaScript setter with receiver and value on the stack.
-    if (map->IsJSGlobalObjectMap()) {
-      __ mov(scratch,
-             FieldOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
-      receiver = scratch;
-    }
-    __ push(receiver);
-    __ push(value());
-    __ LoadAccessor(edi, holder, accessor_index, ACCESSOR_SETTER);
-    __ Set(eax, 1);
-    __ Call(masm->isolate()->builtins()->CallFunction(
-                ConvertReceiverMode::kNotNullOrUndefined),
-            RelocInfo::CODE_TARGET);
-  }
-  __ ret(StoreWithVectorDescriptor::kStackArgumentsCount * kPointerSize);
-}
-
 #undef __
 #define __ ACCESS_MASM(masm())
 

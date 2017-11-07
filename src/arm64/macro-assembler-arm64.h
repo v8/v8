@@ -1743,11 +1743,6 @@ class MacroAssembler : public TurboAssembler {
 
   static int SafepointRegisterStackIndex(int reg_code);
 
-  void LoadInstanceDescriptors(Register map,
-                               Register descriptors);
-  void LoadAccessor(Register dst, Register holder, int accessor_index,
-                    AccessorComponent accessor);
-
   template<typename Field>
   void DecodeField(Register dst, Register src) {
     static const int shift = Field::kShift;

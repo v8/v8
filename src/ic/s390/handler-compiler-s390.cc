@@ -17,35 +17,6 @@ namespace internal {
 
 #define __ ACCESS_MASM(masm)
 
-void NamedStoreHandlerCompiler::GenerateStoreViaSetter(
-    MacroAssembler* masm, Handle<Map> map, Register receiver, Register holder,
-    int accessor_index, int expected_arguments, Register scratch) {
-  // ----------- S t a t e -------------
-  //  -- lr    : return address
-  // -----------------------------------
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-
-    DCHECK(holder != scratch);
-    DCHECK(receiver != scratch);
-    DCHECK(value() != scratch);
-    // Call the JavaScript setter with receiver and value on the stack.
-    if (map->IsJSGlobalObjectMap()) {
-      // Swap in the global receiver.
-      __ LoadP(scratch,
-               FieldMemOperand(receiver, JSGlobalObject::kGlobalProxyOffset));
-      receiver = scratch;
-    }
-    __ Push(receiver, value());
-    __ LoadAccessor(r3, holder, accessor_index, ACCESSOR_SETTER);
-    __ LoadImmP(r2, Operand(1));
-    __ Call(masm->isolate()->builtins()->CallFunction(
-                ConvertReceiverMode::kNotNullOrUndefined),
-            RelocInfo::CODE_TARGET);
-  }
-  __ Ret();
-}
-
 void PropertyHandlerCompiler::PushVectorAndSlot(Register vector,
                                                 Register slot) {
   MacroAssembler* masm = this->masm();

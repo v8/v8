@@ -85,16 +85,6 @@ Register PropertyHandlerCompiler::Frontend(Handle<Name> name) {
   return reg;
 }
 
-Handle<Code> NamedStoreHandlerCompiler::CompileStoreViaSetter(
-    Handle<JSObject> object, Handle<Name> name, int accessor_index,
-    int expected_arguments) {
-  Register holder = Frontend(name);
-  GenerateStoreViaSetter(masm(), map(), receiver(), holder, accessor_index,
-                         expected_arguments, scratch2());
-
-  return GetCode(name);
-}
-
 #undef __
 
 }  // namespace internal

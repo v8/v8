@@ -892,6 +892,8 @@ class RuntimeCallTimer final {
   V(StoreIC_NonReceiver)                          \
   V(StoreIC_Premonomorphic)                       \
   V(StoreIC_SlowStub)                             \
+  V(StoreIC_StoreAccessorDH)                      \
+  V(StoreIC_StoreAccessorOnPrototypeDH)           \
   V(StoreIC_StoreApiSetterOnPrototypeDH)          \
   V(StoreIC_StoreCallback)                        \
   V(StoreIC_StoreFieldDH)                         \
@@ -900,8 +902,7 @@ class RuntimeCallTimer final {
   V(StoreIC_StoreInterceptorStub)                 \
   V(StoreIC_StoreNormalDH)                        \
   V(StoreIC_StoreScriptContextFieldStub)          \
-  V(StoreIC_StoreTransitionDH)                    \
-  V(StoreIC_StoreViaSetter)
+  V(StoreIC_StoreTransitionDH)
 
 class RuntimeCallStats final : public ZoneObject {
  public:

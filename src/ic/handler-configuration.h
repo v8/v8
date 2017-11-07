@@ -200,6 +200,7 @@ class StoreHandler {
     // TODO(ishell): remove once constant field tracking is done.
     kTransitionToConstant = kConstField,
     kTransitionToField,
+    kAccessor,
     kApiSetter,
     kApiSetterHolderIsPrototype,
     kGlobalProxy,
@@ -274,13 +275,17 @@ class StoreHandler {
   static Handle<Smi> StoreTransition(Isolate* isolate,
                                      Handle<Map> transition_map);
 
+  // Creates a Smi-handler for calling a setter on a fast object.
+  static inline Handle<Smi> StoreAccessor(Isolate* isolate, int descriptor);
+
   // Creates a Smi-handler for calling a native setter on a fast object.
   static inline Handle<Smi> StoreApiSetter(Isolate* isolate,
                                            bool holder_is_receiver);
 
   static Handle<Object> StoreThroughPrototype(
       Isolate* isolate, Handle<Map> receiver_map, Handle<JSReceiver> holder,
-      Handle<Name> name, Handle<Smi> smi_handler, Handle<Object> data);
+      Handle<Name> name, Handle<Smi> smi_handler,
+      MaybeHandle<Object> data = MaybeHandle<Object>());
 
   static Handle<Object> StoreElementTransition(Isolate* isolate,
                                                Handle<Map> receiver_map,

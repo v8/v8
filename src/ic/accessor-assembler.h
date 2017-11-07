@@ -189,6 +189,9 @@ class AccessorAssembler : public CodeStubAssembler {
   void HandleStoreToProxy(const StoreICParameters* p, Node* proxy, Label* miss,
                           ElementSupport support_elements);
 
+  void HandleStoreAccessor(const StoreICParameters* p, Node* holder,
+                           Node* handler_word);
+
   // KeyedLoadIC_Generic implementation.
 
   void GenericElementLoad(Node* receiver, Node* receiver_map,

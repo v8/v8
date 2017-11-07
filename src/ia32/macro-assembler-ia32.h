@@ -496,10 +496,6 @@ class MacroAssembler : public TurboAssembler {
     j(not_zero, smi_label, distance);
   }
 
-  void LoadInstanceDescriptors(Register map, Register descriptors);
-  void LoadAccessor(Register dst, Register holder, int accessor_index,
-                    AccessorComponent accessor);
-
   template<typename Field>
   void DecodeField(Register reg) {
     static const int shift = Field::kShift;

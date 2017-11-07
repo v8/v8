@@ -1558,7 +1558,16 @@ Handle<Object> StoreIC::GetMapIndependentHandler(LookupIterator* lookup) {
           TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
           return slow_stub();
         }
-        break;  // Custom-compiled handler.
+
+        Handle<Smi> smi_handler =
+            StoreHandler::StoreAccessor(isolate(), lookup->GetAccessorIndex());
+
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreAccessorDH);
+        if (receiver.is_identical_to(holder)) return smi_handler;
+        TRACE_HANDLER_STATS(isolate(), StoreIC_StoreAccessorOnPrototypeDH);
+
+        return StoreHandler::StoreThroughPrototype(
+            isolate(), receiver_map(), holder, lookup->name(), smi_handler);
       }
       TRACE_HANDLER_STATS(isolate(), StoreIC_SlowStub);
       return slow_stub();
@@ -1631,36 +1640,22 @@ Handle<Code> StoreIC::CompileHandler(LookupIterator* lookup) {
   DCHECK(holder->HasFastProperties());
   Handle<Object> accessors = lookup->GetAccessors();
 
-  if (accessors->IsAccessorInfo()) {
-    Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
-    DCHECK_NOT_NULL(v8::ToCData<Address>(info->setter()));
-    DCHECK(!AccessorInfo::cast(*accessors)->is_special_data_property() ||
-           lookup->HolderIsReceiverOrHiddenPrototype());
-    DCHECK(
-        AccessorInfo::IsCompatibleReceiverMap(isolate(), info, receiver_map()));
-    TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
-    NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-    // TODO(ishell): don't hard-code language mode into the handler because
-    // this handler can be re-used through megamorphic stub cache for wrong
-    // language mode.
-    // Better pass vector/slot to Runtime::kStoreCallbackProperty and
-    // let it decode the language mode from the IC kind.
-    Handle<Code> code = compiler.CompileStoreCallback(receiver, lookup->name(),
-                                                      info, language_mode());
-    return code;
-  }
-
-  DCHECK(accessors->IsAccessorPair());
-  Handle<Object> setter(AccessorPair::cast(*accessors)->setter(), isolate());
-  DCHECK(setter->IsJSFunction() || setter->IsFunctionTemplateInfo());
-  CallOptimization call_optimization(setter);
+  DCHECK(accessors->IsAccessorInfo());
+  Handle<AccessorInfo> info = Handle<AccessorInfo>::cast(accessors);
+  DCHECK_NOT_NULL(v8::ToCData<Address>(info->setter()));
+  DCHECK(!AccessorInfo::cast(*accessors)->is_special_data_property() ||
+         lookup->HolderIsReceiverOrHiddenPrototype());
+  DCHECK(
+      AccessorInfo::IsCompatibleReceiverMap(isolate(), info, receiver_map()));
+  TRACE_HANDLER_STATS(isolate(), StoreIC_StoreCallback);
   NamedStoreHandlerCompiler compiler(isolate(), receiver_map(), holder);
-  DCHECK(!call_optimization.is_simple_api_call());
-  TRACE_HANDLER_STATS(isolate(), StoreIC_StoreViaSetter);
-  int expected_arguments =
-      JSFunction::cast(*setter)->shared()->internal_formal_parameter_count();
-  return compiler.CompileStoreViaSetter(
-      receiver, lookup->name(), lookup->GetAccessorIndex(), expected_arguments);
+  // TODO(ishell): don't hard-code language mode into the handler because
+  // this handler can be re-used through megamorphic stub cache for wrong
+  // language mode.
+  // Better pass vector/slot to Runtime::kStoreCallbackProperty and
+  // let it decode the language mode from the IC kind.
+  return compiler.CompileStoreCallback(receiver, lookup->name(), info,
+                                       language_mode());
 }
 
 void KeyedStoreIC::UpdateStoreElement(Handle<Map> receiver_map,

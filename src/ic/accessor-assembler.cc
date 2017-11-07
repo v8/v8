@@ -804,7 +804,15 @@ void AccessorAssembler::HandleStoreICHandlerCase(
     }
 
     BIND(&if_fast_smi);
+    Label data(this), accessor(this);
+    Branch(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kAccessor)),
+           &accessor, &data);
+
+    BIND(&accessor);
+    HandleStoreAccessor(p, holder, handler_word);
+
     // Handle non-transitioning field stores.
+    BIND(&data);
     HandleStoreICSmiHandlerCase(handler_word, holder, p->value, nullptr, miss);
 
     BIND(&if_proxy);
@@ -861,6 +869,19 @@ void AccessorAssembler::HandleStoreICElementHandlerCase(
   StoreWithVectorDescriptor descriptor(isolate());
   TailCallStub(descriptor, code_handler, p->context, p->receiver, p->name,
                p->value, p->slot, p->vector);
+}
+
+void AccessorAssembler::HandleStoreAccessor(const StoreICParameters* p,
+                                            Node* holder, Node* handler_word) {
+  Comment("accessor_store");
+  Node* descriptor = DecodeWord<StoreHandler::DescriptorBits>(handler_word);
+  Node* accessor_pair = LoadDescriptorValue(LoadMap(holder), descriptor);
+  CSA_ASSERT(this, IsAccessorPair(accessor_pair));
+  Node* setter = LoadObjectField(accessor_pair, AccessorPair::kSetterOffset);
+  CSA_ASSERT(this, Word32BinaryNot(IsTheHole(setter)));
+
+  Callable callable = CodeFactory::Call(isolate());
+  Return(CallJS(callable, p->context, setter, p->receiver, p->value));
 }
 
 void AccessorAssembler::HandleStoreICProtoHandler(
@@ -1049,7 +1070,7 @@ void AccessorAssembler::HandleStoreICProtoHandler(
   }
   BIND(&if_holder_object);
   {
-    Label if_store_global_proxy(this), if_api_setter(this);
+    Label if_store_global_proxy(this), if_api_setter(this), if_accessor(this);
     Node* holder = var_transition_map_or_holder.value();
 
     Node* smi_handler = smi_or_code;
@@ -1059,6 +1080,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kGlobalProxy)),
            &if_store_global_proxy);
+
+    GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kAccessor)),
+           &if_accessor);
 
     GotoIf(WordEqual(handler_kind, IntPtrConstant(StoreHandler::kApiSetter)),
            &if_api_setter);
@@ -1070,6 +1094,9 @@ void AccessorAssembler::HandleStoreICProtoHandler(
     CSA_ASSERT(this,
                WordEqual(handler_kind, IntPtrConstant(StoreHandler::kProxy)));
     HandleStoreToProxy(p, holder, miss, support_elements);
+
+    BIND(&if_accessor);
+    HandleStoreAccessor(p, holder, handler_word);
 
     BIND(&if_api_setter);
     {
@@ -1159,7 +1186,6 @@ void AccessorAssembler::HandleStoreICSmiHandlerCase(Node* handler_word,
                                                     Node* transition,
                                                     Label* miss) {
   Comment(transition ? "transitioning field store" : "field store");
-
 #ifdef DEBUG
   Node* handler_kind = DecodeWord<StoreHandler::KindBits>(handler_word);
   if (transition) {

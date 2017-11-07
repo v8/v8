@@ -209,6 +209,11 @@ Handle<Smi> StoreHandler::TransitionToConstant(Isolate* isolate,
   return handle(Smi::FromInt(config), isolate);
 }
 
+Handle<Smi> StoreHandler::StoreAccessor(Isolate* isolate, int descriptor) {
+  int config = KindBits::encode(kAccessor) | DescriptorBits::encode(descriptor);
+  return handle(Smi::FromInt(config), isolate);
+}
+
 Handle<Smi> StoreHandler::StoreApiSetter(Isolate* isolate,
                                          bool holder_is_receiver) {
   int config = KindBits::encode(

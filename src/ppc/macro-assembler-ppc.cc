@@ -1960,24 +1960,6 @@ void TurboAssembler::ResetRoundingMode() {
 }
 
 
-void MacroAssembler::LoadInstanceDescriptors(Register map,
-                                             Register descriptors) {
-  LoadP(descriptors, FieldMemOperand(map, Map::kDescriptorsOffset));
-}
-
-void MacroAssembler::LoadAccessor(Register dst, Register holder,
-                                  int accessor_index,
-                                  AccessorComponent accessor) {
-  LoadP(dst, FieldMemOperand(holder, HeapObject::kMapOffset));
-  LoadInstanceDescriptors(dst, dst);
-  LoadP(dst,
-        FieldMemOperand(dst, DescriptorArray::GetValueOffset(accessor_index)));
-  const int getterOffset = AccessorPair::kGetterOffset;
-  const int setterOffset = AccessorPair::kSetterOffset;
-  int offset = ((accessor == ACCESSOR_GETTER) ? getterOffset : setterOffset);
-  LoadP(dst, FieldMemOperand(dst, offset));
-}
-
 ////////////////////////////////////////////////////////////////////////////////
 //
 // New MacroAssembler Interfaces added for PPC
