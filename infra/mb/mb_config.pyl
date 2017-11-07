@@ -110,7 +110,11 @@
     'client.v8.clusterfuzz': {
       'V8 Win32 ASAN - release builder':
         'gn_release_x86_asan_no_lsan_verify_heap',
-      'V8 Win32 ASAN - debug builder': 'gn_debug_x86_asan_no_lsan',
+      # Note this is called a debug builder, but it uses a release build
+      # configuration with dchecks (which enables DEBUG in V8), since win-asan
+      # debug is not supported.
+      'V8 Win32 ASAN - debug builder':
+        'gn_release_x86_asan_no_lsan_verify_heap_dchecks',
       'V8 Mac64 ASAN - release builder':
           'gn_release_x64_asan_no_lsan_edge_verify_heap',
       'V8 Mac64 ASAN - debug builder':
@@ -469,8 +473,6 @@
     # GN debug configs for x86.
     'gn_debug_x86': [
       'gn', 'debug_bot', 'x86', 'swarming'],
-    'gn_debug_x86_asan_no_lsan': [
-      'gn', 'debug_bot', 'x86', 'asan', 'clang', 'swarming'],
     'gn_debug_x86_minimal_symbols': [
       'gn', 'debug_bot', 'x86', 'minimal_symbols', 'swarming'],
     'gn_debug_x86_no_i18n': [
@@ -495,6 +497,9 @@
     'gn_release_x86_asan_no_lsan_verify_heap': [
       'gn', 'release_bot', 'x86', 'asan', 'clang', 'swarming',
       'v8_verify_heap'],
+    'gn_release_x86_asan_no_lsan_verify_heap_dchecks': [
+      'gn', 'release_bot', 'x86', 'asan', 'clang', 'swarming',
+      'dcheck_always_on', 'v8_enable_slow_dchecks', 'v8_verify_heap'],
     'gn_release_x86_disassembler': [
       'gn', 'release_bot', 'x86', 'v8_enable_disassembler'],
     'gn_release_x86_gcc': [
