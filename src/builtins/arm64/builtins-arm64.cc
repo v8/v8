@@ -682,6 +682,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   Register argc = x3;
   Register argv = x4;
   Register scratch = x10;
+  Register slots_to_claim = x11;
 
   ProfileEntryHookStub::MaybeCallEntryHook(masm);
 
@@ -696,12 +697,14 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     __ InitializeRootRegister();
 
-    // Push the function and the receiver onto the stack.
-    __ Push(function, receiver);
+    // Claim enough space for the arguments, the receiver and the function,
+    // including an optional slot of padding.
+    __ Add(slots_to_claim, argc, 3);
+    __ Bic(slots_to_claim, slots_to_claim, 1);
 
     // Check if we have enough stack space to push all arguments.
     Label enough_stack_space, stack_overflow;
-    Generate_StackOverflowCheck(masm, argc, &stack_overflow);
+    Generate_StackOverflowCheck(masm, slots_to_claim, &stack_overflow);
     __ B(&enough_stack_space);
 
     __ Bind(&stack_overflow);
@@ -709,6 +712,15 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ Unreachable();
 
     __ Bind(&enough_stack_space);
+    __ Claim(slots_to_claim);
+
+    // Store padding (which might be overwritten).
+    __ SlotAddress(scratch, slots_to_claim);
+    __ Str(padreg, MemOperand(scratch, -kPointerSize));
+
+    // Store receiver and function on the stack.
+    __ SlotAddress(scratch, argc);
+    __ Stp(receiver, function, MemOperand(scratch));
 
     // Copy arguments to the stack in a loop, in reverse order.
     // x3: argc.
@@ -718,12 +730,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Skip the argument set up if we have no arguments.
     __ Cbz(argc, &done);
 
-    // Set scratch to the current position of the stack pointer, which marks
-    // the end of the argument copy.
-    __ SlotAddress(scratch, 0);
-
-    // Claim enough space for the arguments.
-    __ Claim(argc);
+    // scratch has been set to point to the location of the receiver, which
+    // marks the end of the argument copy.
 
     __ Bind(&loop);
     // Load the handle.
