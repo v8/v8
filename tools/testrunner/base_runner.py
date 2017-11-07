@@ -336,10 +336,16 @@ class BaseTestRunner(object):
     symbolizer_option = self._get_external_symbolizer_option()
 
     if self.build_config.asan:
-      asan_options = [symbolizer_option, "allow_user_segv_handler=1"]
+      asan_options = [
+          symbolizer_option,
+          'allow_user_segv_handler=1',
+          'allocator_may_return_null=1',
+      ]
       if not utils.GuessOS() in ['macos', 'windows']:
         # LSAN is not available on mac and windows.
         asan_options.append('detect_leaks=1')
+      else:
+        asan_options.append('detect_leaks=0')
       os.environ['ASAN_OPTIONS'] = ":".join(asan_options)
 
     if self.build_config.cfi_vptr:

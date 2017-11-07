@@ -374,6 +374,9 @@
   # Flaky on ASAN builds: https://bugs.chromium.org/p/v8/issues/detail?id=6305
   'regress/regress-430201': [SKIP],
   'regress/regress-430201b': [SKIP],
+
+  # Stack overflow on windows.
+  'es8/regress/regress-624300': [PASS, ['system == windows', SKIP]],
 }],  # 'asan == True'
 
 ##############################################################################
