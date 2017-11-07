@@ -392,19 +392,44 @@ int32_t Serializer<AllocatorT>::ObjectSerializer::SerializeBackingStore(
   return static_cast<int32_t>(reference.off_heap_backing_store_index());
 }
 
-// When a JSArrayBuffer is neutered, the FixedTypedArray that points to the
-// same backing store does not know anything about it. This fixup step finds
-// neutered TypedArrays and clears the values in the FixedTypedArray so that
-// we don't try to serialize the now invalid backing store.
 template <class AllocatorT>
-void Serializer<AllocatorT>::ObjectSerializer::FixupIfNeutered() {
-  JSTypedArray* array = JSTypedArray::cast(object_);
-  if (!array->WasNeutered()) return;
+void Serializer<AllocatorT>::ObjectSerializer::SerializeJSTypedArray() {
+  JSTypedArray* typed_array = JSTypedArray::cast(object_);
+  FixedTypedArrayBase* elements =
+      FixedTypedArrayBase::cast(typed_array->elements());
 
-  FixedTypedArrayBase* fta = FixedTypedArrayBase::cast(array->elements());
-  DCHECK_NULL(fta->base_pointer());
-  fta->set_external_pointer(Smi::kZero);
-  fta->set_length(0);
+  if (!typed_array->WasNeutered()) {
+    bool off_heap = elements->base_pointer() == nullptr;
+
+    if (off_heap) {
+      // Explicitly serialize the backing store now.
+      JSArrayBuffer* buffer = JSArrayBuffer::cast(typed_array->buffer());
+      CHECK(buffer->byte_length()->IsSmi());
+      CHECK(typed_array->byte_offset()->IsSmi());
+      int32_t byte_length = NumberToInt32(buffer->byte_length());
+      int32_t byte_offset = NumberToInt32(typed_array->byte_offset());
+
+      // We need to calculate the backing store from the external pointer
+      // because the ArrayBuffer may already have been serialized.
+      void* backing_store = reinterpret_cast<void*>(
+          reinterpret_cast<intptr_t>(elements->external_pointer()) -
+          byte_offset);
+      int32_t ref = SerializeBackingStore(backing_store, byte_length);
+
+      // The external_pointer is the backing_store + typed_array->byte_offset.
+      // To properly share the buffer, we set the backing store ref here. On
+      // deserialization we re-add the byte_offset to external_pointer.
+      elements->set_external_pointer(Smi::FromInt(ref));
+    }
+  } else {
+    // When a JSArrayBuffer is neutered, the FixedTypedArray that points to the
+    // same backing store does not know anything about it. This fixup step finds
+    // neutered TypedArrays and clears the values in the FixedTypedArray so that
+    // we don't try to serialize the now invalid backing store.
+    elements->set_external_pointer(Smi::kZero);
+    elements->set_length(0);
+  }
+  SerializeObject();
 }
 
 template <class AllocatorT>
@@ -420,26 +445,6 @@ void Serializer<AllocatorT>::ObjectSerializer::SerializeJSArrayBuffer() {
   if (backing_store != nullptr) {
     int32_t ref = SerializeBackingStore(backing_store, byte_length);
     buffer->set_backing_store(Smi::FromInt(ref));
-  }
-  SerializeObject();
-}
-
-template <class AllocatorT>
-void Serializer<AllocatorT>::ObjectSerializer::SerializeFixedTypedArray() {
-  FixedTypedArrayBase* fta = FixedTypedArrayBase::cast(object_);
-  void* backing_store = fta->DataPtr();
-  // We cannot store byte_length larger than Smi range in the snapshot.
-  CHECK_LT(fta->ByteLength(), Smi::kMaxValue);
-  int32_t byte_length = static_cast<int32_t>(fta->ByteLength());
-
-  // The heap contains empty FixedTypedArrays for each type, with a byte_length
-  // of 0 (e.g. empty_fixed_uint8_array). These look like they are are 'on-heap'
-  // but have no data to copy, so we skip the backing store here.
-
-  // The embedder-allocated backing store only exists for the off-heap case.
-  if (byte_length > 0 && fta->base_pointer() == nullptr) {
-    int32_t ref = SerializeBackingStore(backing_store, byte_length);
-    fta->set_external_pointer(Smi::FromInt(ref));
   }
   SerializeObject();
 }
@@ -572,14 +577,11 @@ void Serializer<AllocatorT>::ObjectSerializer::Serialize() {
     SeqTwoByteString::cast(object_)->clear_padding();
   }
   if (object_->IsJSTypedArray()) {
-    FixupIfNeutered();
+    SerializeJSTypedArray();
+    return;
   }
   if (object_->IsJSArrayBuffer()) {
     SerializeJSArrayBuffer();
-    return;
-  }
-  if (object_->IsFixedTypedArrayBase()) {
-    SerializeFixedTypedArray();
     return;
   }
 

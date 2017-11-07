@@ -685,8 +685,10 @@ void TestInt32Expectations(const Int32Expectations& expectations) {
   }
 }
 
-void TypedArrayTestHelper(const char* code,
-                          const Int32Expectations& expectations) {
+void TypedArrayTestHelper(
+    const char* code, const Int32Expectations& expectations,
+    const char* code_to_run_after_restore = nullptr,
+    const Int32Expectations& after_restore_expectations = Int32Expectations()) {
   DisableAlwaysOpt();
   i::FLAG_allow_natives_syntax = true;
   v8::StartupData blob;
@@ -723,6 +725,10 @@ void TypedArrayTestHelper(const char* code,
     CHECK(deserialized_data.empty());  // We do not expect any embedder data.
     v8::Context::Scope c_scope(context);
     TestInt32Expectations(expectations);
+    if (code_to_run_after_restore) {
+      CompileRun(code_to_run_after_restore);
+    }
+    TestInt32Expectations(after_restore_expectations);
   }
   isolate->Dispose();
   delete[] blob.data;  // We can dispose of the snapshot blob now.
@@ -768,6 +774,25 @@ TEST(CustomSnapshotDataBlobSharedArrayBuffer) {
   };
 
   TypedArrayTestHelper(code, expectations);
+}
+
+TEST(CustomSnapshotDataBlobArrayBufferWithOffset) {
+  const char* code =
+      "var x = new Int32Array([12, 24, 48, 96]);"
+      "var y = new Int32Array(x.buffer, 4, 2)";
+  Int32Expectations expectations = {
+      std::make_tuple("x[1]", 24), std::make_tuple("x[2]", 48),
+      std::make_tuple("y[0]", 24), std::make_tuple("y[1]", 48),
+  };
+
+  // Verify that the typed arrays use the same buffer (not independent copies).
+  const char* code_to_run_after_restore = "x[2] = 57; y[0] = 42;";
+  Int32Expectations after_restore_expectations = {
+      std::make_tuple("x[1]", 42), std::make_tuple("y[1]", 57),
+  };
+
+  TypedArrayTestHelper(code, expectations, code_to_run_after_restore,
+                       after_restore_expectations);
 }
 
 TEST(CustomSnapshotDataBlobDataView) {

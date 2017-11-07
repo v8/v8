@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "src/objects/js-array.h"
 #include "src/snapshot/default-deserializer-allocator.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/snapshot/snapshot-source-sink.h"

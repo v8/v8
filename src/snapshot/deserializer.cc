@@ -207,6 +207,21 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
         NativesExternalStringResource::DecodeForDeserialization(
             string->resource()));
     isolate_->heap()->RegisterExternalString(string);
+  } else if (obj->IsJSTypedArray()) {
+    JSTypedArray* typed_array = JSTypedArray::cast(obj);
+    CHECK(typed_array->byte_offset()->IsSmi());
+    int32_t byte_offset = NumberToInt32(typed_array->byte_offset());
+    if (byte_offset > 0) {
+      FixedTypedArrayBase* elements =
+          FixedTypedArrayBase::cast(typed_array->elements());
+      // Must be off-heap layout.
+      DCHECK_NULL(elements->base_pointer());
+
+      void* pointer_with_offset = reinterpret_cast<void*>(
+          reinterpret_cast<intptr_t>(elements->external_pointer()) +
+          byte_offset);
+      elements->set_external_pointer(pointer_with_offset);
+    }
   } else if (obj->IsJSArrayBuffer()) {
     JSArrayBuffer* buffer = JSArrayBuffer::cast(obj);
     // Only fixup for the off-heap case.

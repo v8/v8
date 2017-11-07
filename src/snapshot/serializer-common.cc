@@ -106,7 +106,7 @@ void SerializerDeserializer::Iterate(Isolate* isolate, RootVisitor* visitor) {
 }
 
 bool SerializerDeserializer::CanBeDeferred(HeapObject* o) {
-  return !o->IsString() && !o->IsScript();
+  return !o->IsString() && !o->IsScript() && !o->IsJSTypedArray();
 }
 
 void SerializerDeserializer::RestoreExternalReferenceRedirectors(
