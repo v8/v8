@@ -1588,15 +1588,61 @@ MaybeHandle<String> BigInt::ToStringGeneric(Handle<BigInt> x, int radix) {
   return result;
 }
 
+Handle<BigInt> BigInt::AsIntN(uint64_t n, Handle<BigInt> x) {
+  DCHECK_LE(n, kMaxSafeInteger);
+  Isolate* isolate = x->GetIsolate();
+
+  Handle<BigInt> result = AbsoluteAsUintN(n, x);
+  if (result->is_zero()) return result;
+  DCHECK_NE(n, 0);
+  DCHECK(!x->is_zero());
+
+  // Compare abs(result) against 2^(n-1).
+  int comparison;
+  {
+    // 2^(n-1) needs n bits.
+    uint64_t power_length = (n + kDigitBits - 1) / kDigitBits;
+    if (static_cast<uint64_t>(result->length()) < power_length) {
+      comparison = -1;
+    } else {
+      DCHECK_EQ(result->length(), power_length);
+      DCHECK_LE(n, kMaxInt);
+      // TODO(neis): Ideally we shouldn't allocate here at all.
+      comparison = AbsoluteCompare(result, PowerOfTwo(isolate, n - 1));
+    }
+  }
+
+  if (!x->sign()) {
+    // x is positive.  Note that result == x mod 2^n.
+    if (comparison < 0) return result;
+    // Return (x mod 2^n) - 2^n, which is -(2^n - x mod 2^n).
+    return AbsoluteSub(PowerOfTwo(isolate, n), result, true);
+  }
+
+  // x is negative.  Note that abs(result) == -x mod 2^n.
+  // We use the following facts:
+  // a) (x mod 2^n) == 2^n - abs(result)
+  // b) (x mod 2^n) >= 2^(n-1)  iff
+  //    2^n - abs(result) >= 2^(n-1)  iff
+  //    2^(n-1) >= abs(result)  iff
+  //    comparison <= 0
+  if (comparison <= 0) {
+    // Return (x mod 2^n) - 2^n, which is -abs(result).
+    return result->sign() ? result : UnaryMinus(result);
+  }
+  // Return x mod 2^n.
+  return AbsoluteSub(PowerOfTwo(isolate, n), result, false);
+}
+
 Handle<BigInt> BigInt::AsUintN(uint64_t n, Handle<BigInt> x) {
   DCHECK_LE(n, kMaxSafeInteger);
   Handle<BigInt> result = AbsoluteAsUintN(n, x);
   if (!x->sign()) return result;
 
-  // x is negative.
-  // Note that result == -x % 2^n.  We use the following facts:
-  // If result == 0, then x % 2^n == 0.
-  // If result != 0, then x % 2^n == 2^n - result.
+  // x is negative.  Note that abs(result) == -x mod 2^n.
+  // We use the following facts:
+  // a) If result == 0, then (x mod 2^n) == 0.
+  // b) If result != 0, then (x mod 2^n) == 2^n - abs(result).
   if (result->is_zero()) return result;
   return AbsoluteSub(PowerOfTwo(x->GetIsolate(), n), result, false);
 }

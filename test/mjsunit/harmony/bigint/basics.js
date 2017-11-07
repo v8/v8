@@ -276,9 +276,146 @@ const six = BigInt(6);
   }
 }
 
-// .asUintN
+// BigInt.asIntN
+{
+  assertEquals(2, BigInt.asIntN.length);
+}{
+  assertEquals(254n, BigInt.asIntN(10, 254n));
+  assertEquals(255n, BigInt.asIntN(10, 255n));
+  assertEquals(256n, BigInt.asIntN(10, 256n));
+  assertEquals(257n, BigInt.asIntN(10, 257n));
+  assertEquals(510n, BigInt.asIntN(10, 510n));
+  assertEquals(511n, BigInt.asIntN(10, 511n));
+  assertEquals(-512n, BigInt.asIntN(10, 512n));
+  assertEquals(-511n, BigInt.asIntN(10, 513n));
+  assertEquals(-2n, BigInt.asIntN(10, 1022n));
+  assertEquals(-1n, BigInt.asIntN(10, 1023n));
+  assertEquals(0n, BigInt.asIntN(10, 1024n));
+  assertEquals(1n, BigInt.asIntN(10, 1025n));
+}{
+  assertEquals(-254n, BigInt.asIntN(10, -254n));
+  assertEquals(-255n, BigInt.asIntN(10, -255n));
+  assertEquals(-256n, BigInt.asIntN(10, -256n));
+  assertEquals(-257n, BigInt.asIntN(10, -257n));
+  assertEquals(-510n, BigInt.asIntN(10, -510n));
+  assertEquals(-511n, BigInt.asIntN(10, -511n));
+  assertEquals(-512n, BigInt.asIntN(10, -512n));
+  assertEquals(511n, BigInt.asIntN(10, -513n));
+  assertEquals(2n, BigInt.asIntN(10, -1022n));
+  assertEquals(1n, BigInt.asIntN(10, -1023n));
+  assertEquals(0n, BigInt.asIntN(10, -1024n));
+  assertEquals(-1n, BigInt.asIntN(10, -1025n));
+}{
+  assertEquals(0n, BigInt.asIntN(0, 0n));
+  assertEquals(0n, BigInt.asIntN(1, 0n));
+  assertEquals(0n, BigInt.asIntN(16, 0n));
+  assertEquals(0n, BigInt.asIntN(31, 0n));
+  assertEquals(0n, BigInt.asIntN(32, 0n));
+  assertEquals(0n, BigInt.asIntN(33, 0n));
+  assertEquals(0n, BigInt.asIntN(63, 0n));
+  assertEquals(0n, BigInt.asIntN(64, 0n));
+  assertEquals(0n, BigInt.asIntN(65, 0n));
+  assertEquals(0n, BigInt.asIntN(127, 0n));
+  assertEquals(0n, BigInt.asIntN(128, 0n));
+  assertEquals(0n, BigInt.asIntN(129, 0n));
+}{
+  assertEquals(0n, BigInt.asIntN(0, 42n));
+  assertEquals(0n, BigInt.asIntN(1, 42n));
+  assertEquals(42n, BigInt.asIntN(16, 42n));
+  assertEquals(42n, BigInt.asIntN(31, 42n));
+  assertEquals(42n, BigInt.asIntN(32, 42n));
+  assertEquals(42n, BigInt.asIntN(33, 42n));
+  assertEquals(42n, BigInt.asIntN(63, 42n));
+  assertEquals(42n, BigInt.asIntN(64, 42n));
+  assertEquals(42n, BigInt.asIntN(65, 42n));
+  assertEquals(42n, BigInt.asIntN(127, 42n));
+  assertEquals(42n, BigInt.asIntN(128, 42n));
+  assertEquals(42n, BigInt.asIntN(129, 42n));
+}{
+  assertEquals(0n, BigInt.asIntN(0, -42n));
+  assertEquals(0n, BigInt.asIntN(1, -42n));
+  assertEquals(-42n, BigInt.asIntN(16, -42n));
+  assertEquals(-42n, BigInt.asIntN(31, -42n));
+  assertEquals(-42n, BigInt.asIntN(32, -42n));
+  assertEquals(-42n, BigInt.asIntN(33, -42n));
+  assertEquals(-42n, BigInt.asIntN(63, -42n));
+  assertEquals(-42n, BigInt.asIntN(64, -42n));
+  assertEquals(-42n, BigInt.asIntN(65, -42n));
+  assertEquals(-42n, BigInt.asIntN(127, -42n));
+  assertEquals(-42n, BigInt.asIntN(128, -42n));
+  assertEquals(-42n, BigInt.asIntN(129, -42n));
+}{
+  assertEquals(0n, BigInt.asIntN(0, 4294967295n));
+  assertEquals(-1n, BigInt.asIntN(1, 4294967295n));
+  assertEquals(-1n, BigInt.asIntN(16, 4294967295n));
+  assertEquals(-1n, BigInt.asIntN(31, 4294967295n));
+  assertEquals(-1n, BigInt.asIntN(32, 4294967295n));
+  assertEquals(4294967295n, BigInt.asIntN(33, 4294967295n));
+  assertEquals(4294967295n, BigInt.asIntN(63, 4294967295n));
+  assertEquals(4294967295n, BigInt.asIntN(64, 4294967295n));
+  assertEquals(4294967295n, BigInt.asIntN(65, 4294967295n));
+  assertEquals(4294967295n, BigInt.asIntN(127, 4294967295n));
+  assertEquals(4294967295n, BigInt.asIntN(128, 4294967295n));
+  assertEquals(4294967295n, BigInt.asIntN(129, 4294967295n));
+}{
+  assertEquals(0n, BigInt.asIntN(0, -4294967295n));
+  assertEquals(-1n, BigInt.asIntN(1, -4294967295n));
+  assertEquals(1n, BigInt.asIntN(16, -4294967295n));
+  assertEquals(1n, BigInt.asIntN(31, -4294967295n));
+  assertEquals(1n, BigInt.asIntN(32, -4294967295n));
+  assertEquals(-4294967295n, BigInt.asIntN(33, -4294967295n));
+  assertEquals(-4294967295n, BigInt.asIntN(63, -4294967295n));
+  assertEquals(-4294967295n, BigInt.asIntN(64,-4294967295n));
+  assertEquals(-4294967295n, BigInt.asIntN(65, -4294967295n));
+  assertEquals(-4294967295n, BigInt.asIntN(127, -4294967295n));
+  assertEquals(-4294967295n, BigInt.asIntN(128, -4294967295n));
+  assertEquals(-4294967295n, BigInt.asIntN(129, -4294967295n));
+}{
+  assertEquals(42n, BigInt.asIntN(2**32, 42n));
+  assertEquals(4294967295n, BigInt.asIntN(2**32, 4294967295n));
+  assertEquals(4294967296n, BigInt.asIntN(2**32, 4294967296n));
+  assertEquals(4294967297n, BigInt.asIntN(2**32, 4294967297n));
+}{
+  assertThrows(() => BigInt.asIntN(2n, 12n), TypeError);
+  assertThrows(() => BigInt.asIntN(-1, 0n), RangeError);
+  assertThrows(() => BigInt.asIntN(2**53, 0n), RangeError);
+  assertEquals(0n, BigInt.asIntN({}, 12n));
+  assertEquals(0n, BigInt.asIntN(2.9999, 12n));
+  assertEquals(-4n, BigInt.asIntN(3.1234, 12n));
+}{
+  assertThrows(() => BigInt.asIntN(3, 12), TypeError);
+  assertEquals(-4n, BigInt.asIntN(3, "12"));
+}
+
+// BigInt.asUintN
 {
   assertEquals(2, BigInt.asUintN.length);
+}{
+  assertEquals(254n, BigInt.asUintN(10, 254n));
+  assertEquals(255n, BigInt.asUintN(10, 255n));
+  assertEquals(256n, BigInt.asUintN(10, 256n));
+  assertEquals(257n, BigInt.asUintN(10, 257n));
+  assertEquals(510n, BigInt.asUintN(10, 510n));
+  assertEquals(511n, BigInt.asUintN(10, 511n));
+  assertEquals(512n, BigInt.asUintN(10, 512n));
+  assertEquals(513n, BigInt.asUintN(10, 513n));
+  assertEquals(1022n, BigInt.asUintN(10, 1022n));
+  assertEquals(1023n, BigInt.asUintN(10, 1023n));
+  assertEquals(0n, BigInt.asUintN(10, 1024n));
+  assertEquals(1n, BigInt.asUintN(10, 1025n));
+}{
+  assertEquals(1024n - 254n, BigInt.asUintN(10, -254n));
+  assertEquals(1024n - 255n, BigInt.asUintN(10, -255n));
+  assertEquals(1024n - 256n, BigInt.asUintN(10, -256n));
+  assertEquals(1024n - 257n, BigInt.asUintN(10, -257n));
+  assertEquals(1024n - 510n, BigInt.asUintN(10, -510n));
+  assertEquals(1024n - 511n, BigInt.asUintN(10, -511n));
+  assertEquals(1024n - 512n, BigInt.asUintN(10, -512n));
+  assertEquals(1024n - 513n, BigInt.asUintN(10, -513n));
+  assertEquals(1024n - 1022n, BigInt.asUintN(10, -1022n));
+  assertEquals(1024n - 1023n, BigInt.asUintN(10, -1023n));
+  assertEquals(0n, BigInt.asUintN(10, -1024n));
+  assertEquals(1023n, BigInt.asUintN(10, -1025n));
 }{
   assertEquals(0n, BigInt.asUintN(0, 0n));
   assertEquals(0n, BigInt.asUintN(1, 0n));

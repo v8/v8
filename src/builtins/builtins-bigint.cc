@@ -86,11 +86,16 @@ BUILTIN(BigIntAsIntN) {
   Handle<Object> bits_obj = args.atOrUndefined(isolate, 1);
   Handle<Object> bigint_obj = args.atOrUndefined(isolate, 2);
 
-  // TODO(jkummerow): Implement.
-  USE(bits_obj);
-  USE(bigint_obj);
+  Handle<Object> bits;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, bits,
+      Object::ToIndex(isolate, bits_obj, MessageTemplate::kInvalidIndex));
 
-  UNIMPLEMENTED();
+  Handle<BigInt> bigint;
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
+                                     BigInt::FromObject(isolate, bigint_obj));
+
+  return *BigInt::AsIntN(bits->Number(), bigint);
 }
 
 BUILTIN(BigIntPrototypeToLocaleString) {

@@ -59,6 +59,7 @@ class V8_EXPORT_PRIVATE BigInt : public HeapObject {
   // Exposed for tests, do not call directly. Use CompareToNumber() instead.
   static ComparisonResult CompareToDouble(Handle<BigInt> x, double y);
 
+  static Handle<BigInt> AsIntN(uint64_t n, Handle<BigInt> x);
   static Handle<BigInt> AsUintN(uint64_t n, Handle<BigInt> x);
 
   DECL_CAST(BigInt)
