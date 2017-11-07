@@ -1382,6 +1382,9 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
   // Keep the switch value in a register until a case matches.
   Register tag = VisitForRegisterValue(stmt->tag());
+  FeedbackSlot slot = clauses->length() > 0
+                          ? feedback_spec()->AddCompareICSlot()
+                          : FeedbackSlot::Invalid();
 
   // Iterate over all cases and create nodes for label comparison.
   for (int i = 0; i < clauses->length(); i++) {
@@ -1395,9 +1398,8 @@ void BytecodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
 
     // Perform label comparison as if via '===' with tag.
     VisitForAccumulatorValue(clause->label());
-    builder()->CompareOperation(
-        Token::Value::EQ_STRICT, tag,
-        feedback_index(feedback_spec()->AddCompareICSlot()));
+    builder()->CompareOperation(Token::Value::EQ_STRICT, tag,
+                                feedback_index(slot));
     switch_builder.Case(ToBooleanMode::kAlreadyBoolean, i);
   }
 
