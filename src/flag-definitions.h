@@ -201,23 +201,13 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
   V(harmony_bigint, "harmony arbitrary precision integers")
 
 // Features that are complete (but still behind --harmony/es-staging flag).
-#define HARMONY_STAGED_BASE(V)                                          \
+#define HARMONY_STAGED(V)                                               \
   V(harmony_function_tostring, "harmony Function.prototype.toString")   \
   V(harmony_regexp_property, "harmony Unicode regexp property classes") \
   V(harmony_restrict_constructor_return,                                \
     "harmony disallow non undefined primitive return value from class " \
     "constructor")                                                      \
-  V(harmony_dynamic_import, "harmony dynamic import")                   \
-
-#ifdef V8_INTL_SUPPORT
-#define HARMONY_STAGED(V)           \
-  HARMONY_STAGED_BASE(V)            \
-  V(harmony_number_format_to_parts, \
-    "Intl.NumberFormat.prototype."  \
-    "formatToParts")
-#else
-#define HARMONY_STAGED(V) HARMONY_STAGED_BASE(V)
-#endif
+  V(harmony_dynamic_import, "harmony dynamic import")
 
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)                                         \
@@ -233,8 +223,10 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
   V(harmony_promise_finally, "harmony Promise.prototype.finally")
 
 #ifdef V8_INTL_SUPPORT
-#define HARMONY_SHIPPING(V) \
-  HARMONY_SHIPPING_BASE(V)  \
+#define HARMONY_SHIPPING(V)                      \
+  HARMONY_SHIPPING_BASE(V)                       \
+  V(harmony_number_format_to_parts,              \
+    "Intl.NumberFormat.prototype.formatToParts") \
   V(harmony_plural_rules, "Intl.PluralRules")
 #else
 #define HARMONY_SHIPPING(V) HARMONY_SHIPPING_BASE(V)
