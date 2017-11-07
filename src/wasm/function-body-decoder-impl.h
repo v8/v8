@@ -1283,6 +1283,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
     // Set up initial function block.
     {
       auto* c = PushBlock();
+      InitMerge(&c->start_merge, 0, [](uint32_t) -> Value { UNREACHABLE(); });
       InitMerge(&c->end_merge,
                 static_cast<uint32_t>(this->sig_->return_count()),
                 [&] (uint32_t i) {
@@ -1799,7 +1800,7 @@ class WasmFullDecoder : public WasmDecoder<validate> {
             default:
               break;
           }
-          if (c.start_merge.arity) PrintF("%u-", c.end_merge.arity);
+          if (c.start_merge.arity) PrintF("%u-", c.start_merge.arity);
           PrintF("%u", c.end_merge.arity);
           if (!c.reachable()) PrintF("%c", c.unreachable() ? '*' : '#');
         }
