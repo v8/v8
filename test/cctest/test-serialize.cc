@@ -60,7 +60,6 @@ namespace internal {
 void DisableLazyDeserialization() {
   // UNINITIALIZED tests do not set up the isolate sufficiently for lazy
   // deserialization to work.
-  // TODO(jgruber): Fix this. It may just be enough to set the snapshot_blob.
   FLAG_lazy_deserialization = false;
 }
 
@@ -205,7 +204,6 @@ UNINITIALIZED_TEST(StartupSerializerOnce) {
   StartupBlobs blobs = Serialize(isolate);
   isolate->Dispose();
   isolate = Deserialize(blobs);
-  blobs.Dispose();
   {
     v8::HandleScope handle_scope(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
@@ -216,6 +214,7 @@ UNINITIALIZED_TEST(StartupSerializerOnce) {
     SanityCheck(isolate);
   }
   isolate->Dispose();
+  blobs.Dispose();
 }
 
 UNINITIALIZED_TEST(StartupSerializerRootMapDependencies) {
@@ -275,7 +274,6 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
   isolate->Dispose();
   blobs1.Dispose();
   isolate = Deserialize(blobs2);
-  blobs2.Dispose();
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -286,6 +284,7 @@ UNINITIALIZED_TEST(StartupSerializerTwice) {
     SanityCheck(isolate);
   }
   isolate->Dispose();
+  blobs2.Dispose();
 }
 
 UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
@@ -295,7 +294,6 @@ UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
   StartupBlobs blobs = Serialize(isolate);
   isolate->Dispose();
   isolate = Deserialize(blobs);
-  blobs.Dispose();
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -312,6 +310,7 @@ UNINITIALIZED_TEST(StartupSerializerOnceRunScript) {
     CHECK_EQ(4, result.FromJust());
   }
   isolate->Dispose();
+  blobs.Dispose();
 }
 
 UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
@@ -323,7 +322,6 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
   isolate->Dispose();
   blobs1.Dispose();
   isolate = Deserialize(blobs2);
-  blobs2.Dispose();
   {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
@@ -339,6 +337,7 @@ UNINITIALIZED_TEST(StartupSerializerTwiceRunScript) {
     CHECK_EQ(4, result.FromJust());
   }
   isolate->Dispose();
+  blobs2.Dispose();
 }
 
 static void PartiallySerializeContext(Vector<const byte>* startup_blob_out,
@@ -411,7 +410,6 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
   StartupBlobs blobs = {startup_blob, builtin_blob};
   v8::Isolate* v8_isolate = InitializeFromBlob(blobs);
   CHECK(v8_isolate);
-  blobs.Dispose();
   {
     v8::Isolate::Scope isolate_scope(v8_isolate);
 
@@ -444,6 +442,7 @@ UNINITIALIZED_TEST(PartialSerializerContext) {
     partial_blob.Dispose();
   }
   v8_isolate->Dispose();
+  blobs.Dispose();
 }
 
 static void PartiallySerializeCustomContext(
@@ -536,7 +535,6 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
   StartupBlobs blobs = {startup_blob, builtin_blob};
   v8::Isolate* v8_isolate = InitializeFromBlob(blobs);
   CHECK(v8_isolate);
-  blobs.Dispose();
   {
     v8::Isolate::Scope isolate_scope(v8_isolate);
 
@@ -618,6 +616,7 @@ UNINITIALIZED_TEST(PartialSerializerCustomContext) {
     partial_blob.Dispose();
   }
   v8_isolate->Dispose();
+  blobs.Dispose();
 }
 
 TEST(CustomSnapshotDataBlob1) {
@@ -636,7 +635,6 @@ TEST(CustomSnapshotDataBlob1) {
     v8::Isolate::Scope i_scope(isolate1);
     v8::HandleScope h_scope(isolate1);
     v8::Local<v8::Context> context = v8::Context::New(isolate1);
-    delete[] data1.data;  // We can dispose of the snapshot blob now.
     v8::Context::Scope c_scope(context);
     v8::Maybe<int32_t> result =
         CompileRun("f()")->Int32Value(isolate1->GetCurrentContext());
@@ -644,6 +642,7 @@ TEST(CustomSnapshotDataBlob1) {
     CHECK(CompileRun("this.g")->IsUndefined());
   }
   isolate1->Dispose();
+  delete[] data1.data;  // We can dispose of the snapshot blob now.
 }
 
 struct InternalFieldData {
@@ -721,12 +720,12 @@ void TypedArrayTestHelper(const char* code,
         v8::MaybeLocal<v8::Value>(),
         v8::DeserializeInternalFieldsCallback(DeserializeInternalFields,
                                               reinterpret_cast<void*>(2017)));
-    delete[] blob.data;  // We can dispose of the snapshot blob now.
     CHECK(deserialized_data.empty());  // We do not expect any embedder data.
     v8::Context::Scope c_scope(context);
     TestInt32Expectations(expectations);
   }
   isolate->Dispose();
+  delete[] blob.data;  // We can dispose of the snapshot blob now.
 }
 
 TEST(CustomSnapshotDataBlobWithOffHeapTypedArray) {
@@ -790,7 +789,6 @@ TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
   Int32Expectations expectations = {std::make_tuple("x.buffer.byteLength", 0),
                                     std::make_tuple("x.length", 0)};
 
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   i::FLAG_allow_natives_syntax = true;
   v8::StartupData blob;
@@ -824,7 +822,6 @@ TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
         v8::MaybeLocal<v8::Value>(),
         v8::DeserializeInternalFieldsCallback(DeserializeInternalFields,
                                               reinterpret_cast<void*>(2017)));
-    delete[] blob.data;  // We can dispose of the snapshot blob now.
     v8::Context::Scope c_scope(context);
     TestInt32Expectations(expectations);
 
@@ -837,6 +834,7 @@ TEST(CustomSnapshotDataBlobNeuteredArrayBuffer) {
         FixedTypedArrayBase::cast(array->elements())->external_pointer());
   }
   isolate->Dispose();
+  delete[] blob.data;  // We can dispose of the snapshot blob now.
 }
 
 i::Handle<i::JSArrayBuffer> GetBufferFromTypedArray(
@@ -894,7 +892,6 @@ TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
         v8::MaybeLocal<v8::Value>(),
         v8::DeserializeInternalFieldsCallback(DeserializeInternalFields,
                                               reinterpret_cast<void*>(2017)));
-    delete[] blob.data;  // We can dispose of the snapshot blob now.
     v8::Context::Scope c_scope(context);
     TestInt32Expectations(expectations);
 
@@ -911,6 +908,7 @@ TEST(CustomSnapshotDataBlobOnOrOffHeapTypedArray) {
     CHECK_NOT_NULL(buffer->backing_store());
   }
   isolate->Dispose();
+  delete[] blob.data;  // We can dispose of the snapshot blob now.
 }
 
 TEST(CustomSnapshotDataBlob2) {
@@ -931,7 +929,6 @@ TEST(CustomSnapshotDataBlob2) {
     v8::Isolate::Scope i_scope(isolate2);
     v8::HandleScope h_scope(isolate2);
     v8::Local<v8::Context> context = v8::Context::New(isolate2);
-    delete[] data2.data;  // We can dispose of the snapshot blob now.
     v8::Context::Scope c_scope(context);
     v8::Maybe<int32_t> result =
         CompileRun("f()")->Int32Value(isolate2->GetCurrentContext());
@@ -940,6 +937,7 @@ TEST(CustomSnapshotDataBlob2) {
     CHECK_EQ(43, result.FromJust());
   }
   isolate2->Dispose();
+  delete[] data2.data;  // We can dispose of the snapshot blob now.
 }
 
 static void SerializationFunctionTemplate(
@@ -983,7 +981,6 @@ TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
     global->Set(isolate, "foo", property);
 
     v8::Local<v8::Context> context = v8::Context::New(isolate, nullptr, global);
-    delete[] data.data;  // We can dispose of the snapshot blob now.
     v8::Context::Scope c_scope(context);
     v8::Local<v8::Value> result = CompileRun(source2);
     v8::Maybe<bool> compare = v8_str("42")->Equals(
@@ -991,6 +988,7 @@ TEST(CustomSnapshotDataBlobOutdatedContextWithOverflow) {
     CHECK(compare.FromJust());
   }
   isolate->Dispose();
+  delete[] data.data;  // We can dispose of the snapshot blob now.
 }
 
 TEST(CustomSnapshotDataBlobWithLocker) {
@@ -1024,12 +1022,12 @@ TEST(CustomSnapshotDataBlobWithLocker) {
     v8::Isolate::Scope i_scope(isolate1);
     v8::HandleScope h_scope(isolate1);
     v8::Local<v8::Context> context = v8::Context::New(isolate1);
-    delete[] data1.data;  // We can dispose of the snapshot blob now.
     v8::Context::Scope c_scope(context);
     v8::Maybe<int32_t> result = CompileRun("f()")->Int32Value(context);
     CHECK_EQ(42, result.FromJust());
   }
   isolate1->Dispose();
+  delete[] data1.data;  // We can dispose of the snapshot blob now.
 }
 
 TEST(CustomSnapshotDataBlobStackOverflow) {
@@ -1056,7 +1054,6 @@ TEST(CustomSnapshotDataBlobStackOverflow) {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
-    delete[] data.data;  // We can dispose of the snapshot blob now.
     v8::Context::Scope c_scope(context);
     const char* test =
         "var sum = 0;"
@@ -1070,6 +1067,7 @@ TEST(CustomSnapshotDataBlobStackOverflow) {
     CHECK_EQ(9999 * 5000, result.FromJust());
   }
   isolate->Dispose();
+  delete[] data.data;  // We can dispose of the snapshot blob now.
 }
 
 bool IsCompiled(const char* name) {
@@ -1080,7 +1078,6 @@ bool IsCompiled(const char* name) {
 }
 
 TEST(SnapshotDataBlobWithWarmup) {
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   const char* warmup = "Math.abs(1); Math.random = 1;";
 
@@ -1098,7 +1095,6 @@ TEST(SnapshotDataBlobWithWarmup) {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
-    delete[] warm.data;
     v8::Context::Scope c_scope(context);
     // Running the warmup script has effect on whether functions are
     // pre-compiled, but does not pollute the context.
@@ -1107,10 +1103,10 @@ TEST(SnapshotDataBlobWithWarmup) {
     CHECK(CompileRun("Math.random")->IsFunction());
   }
   isolate->Dispose();
+  delete[] warm.data;
 }
 
 TEST(CustomSnapshotDataBlobWithWarmup) {
-  DisableLazyDeserialization();
   DisableAlwaysOpt();
   const char* source =
       "function f() { return Math.abs(1); }\n"
@@ -1133,7 +1129,6 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
-    delete[] warm.data;
     v8::Context::Scope c_scope(context);
     // Running the warmup script has effect on whether functions are
     // pre-compiled, but does not pollute the context.
@@ -1145,6 +1140,7 @@ TEST(CustomSnapshotDataBlobWithWarmup) {
     CHECK_EQ(5, CompileRun("a")->Int32Value(context).FromJust());
   }
   isolate->Dispose();
+  delete[] warm.data;
 }
 
 TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
@@ -1170,12 +1166,12 @@ TEST(CustomSnapshotDataBlobImmortalImmovableRoots) {
     v8::Isolate::Scope i_scope(isolate);
     v8::HandleScope h_scope(isolate);
     v8::Local<v8::Context> context = v8::Context::New(isolate);
-    delete[] data.data;  // We can dispose of the snapshot blob now.
     v8::Context::Scope c_scope(context);
     CHECK_EQ(7, CompileRun("a[0]()")->Int32Value(context).FromJust());
   }
   isolate->Dispose();
   source.Dispose();
+  delete[] data.data;  // We can dispose of the snapshot blob now.
 }
 
 TEST(TestThatAlwaysSucceeds) {
