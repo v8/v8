@@ -73,7 +73,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
   // Check that the properties array is a dictionary.
   __ cmp(FieldOperand(properties, HeapObject::kMapOffset),
-         Immediate(masm->isolate()->factory()->hash_table_map()));
+         Immediate(masm->isolate()->factory()->name_dictionary_map()));
   __ j(not_equal, miss_label);
 
   Label done;

@@ -108,7 +108,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
   // Check that the properties array is a dictionary.
   __ ldr(map, FieldMemOperand(properties, HeapObject::kMapOffset));
   Register tmp = properties;
-  __ LoadRoot(tmp, Heap::kHashTableMapRootIndex);
+  __ LoadRoot(tmp, Heap::kNameDictionaryMapRootIndex);
   __ cmp(map, tmp);
   __ b(ne, miss_label);
 

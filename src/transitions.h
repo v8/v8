@@ -12,6 +12,9 @@
 #include "src/objects/map.h"
 #include "src/objects/name.h"
 
+// Has to be the last include (doesn't have include guards):
+#include "src/objects/object-macros.h"
+
 namespace v8 {
 namespace internal {
 
@@ -205,7 +208,7 @@ class TransitionsAccessor {
 // [3 + number of transitions * kTransitionSize]: start of slack
 class TransitionArray : public FixedArray {
  public:
-  inline static TransitionArray* cast(Object* object);
+  DECL_CAST(TransitionArray)
 
   inline FixedArray* GetPrototypeTransitions();
   inline Object** GetPrototypeTransitionsSlot();
@@ -227,7 +230,7 @@ class TransitionArray : public FixedArray {
     return GetKey(transition_number);
   }
   int GetSortedKeyIndex(int transition_number) { return transition_number; }
-  inline int number_of_entries() { return number_of_transitions(); }
+  inline int number_of_entries() const { return number_of_transitions(); }
 #ifdef DEBUG
   bool IsSortedNoDuplicates(int valid_entries = -1);
 #endif
@@ -326,7 +329,7 @@ class TransitionArray : public FixedArray {
   int SearchDetails(int transition, PropertyKind kind,
                     PropertyAttributes attributes, int* out_insertion_index);
 
-  int number_of_transitions() {
+  int number_of_transitions() const {
     if (length() < kFirstIndex) return 0;
     return Smi::ToInt(get(kTransitionLengthIndex));
   }
@@ -362,8 +365,9 @@ class TransitionArray : public FixedArray {
   DISALLOW_IMPLICIT_CONSTRUCTORS(TransitionArray);
 };
 
-
 }  // namespace internal
 }  // namespace v8
+
+#include "src/objects/object-macros-undef.h"
 
 #endif  // V8_TRANSITIONS_H_

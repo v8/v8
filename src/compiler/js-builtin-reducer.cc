@@ -2262,7 +2262,7 @@ Reduction JSBuiltinReducer::ReduceObjectCreate(Node* node) {
   Node* properties = jsgraph()->EmptyFixedArrayConstant();
   if (instance_map->is_dictionary_map()) {
     // Allocated an empty NameDictionary as backing store for the properties.
-    Handle<Map> map(isolate()->heap()->hash_table_map(), isolate());
+    Handle<Map> map(isolate()->heap()->name_dictionary_map(), isolate());
     int capacity =
         NameDictionary::ComputeCapacity(NameDictionary::kInitialCapacity);
     DCHECK(base::bits::IsPowerOfTwo(capacity));

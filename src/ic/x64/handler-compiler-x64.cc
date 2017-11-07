@@ -74,7 +74,7 @@ void PropertyHandlerCompiler::GenerateDictionaryNegativeLookup(
 
   // Check that the properties array is a dictionary.
   __ CompareRoot(FieldOperand(properties, HeapObject::kMapOffset),
-                 Heap::kHashTableMapRootIndex);
+                 Heap::kNameDictionaryMapRootIndex);
   __ j(not_equal, miss_label);
 
   Label done;
