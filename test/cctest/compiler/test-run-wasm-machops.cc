@@ -24,6 +24,8 @@ static void UpdateFunctionTableSizeReferences(Handle<Code> code,
                                               uint32_t old_size,
                                               uint32_t new_size) {
   Isolate* isolate = CcTest::i_isolate();
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   bool modified = false;
   int mode_mask =
       RelocInfo::ModeMask(RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);

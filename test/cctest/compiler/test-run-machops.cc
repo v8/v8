@@ -6912,6 +6912,8 @@ TEST(Regression6640) {
   for (RelocIterator it(*code,
                         1 << RelocInfo::WASM_FUNCTION_TABLE_SIZE_REFERENCE);
        !it.done(); it.next()) {
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(code->GetHeap());
     it.rinfo()->update_wasm_function_table_size_reference(
         code->GetIsolate(), old_value, new_value, FLUSH_ICACHE_IF_NEEDED);
   }
