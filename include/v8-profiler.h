@@ -287,6 +287,13 @@ class V8_EXPORT CpuProfiler {
   static CpuProfiler* New(Isolate* isolate);
 
   /**
+   * Synchronously collect current stack sample in all profilers attached to
+   * the |isolate|. The call does not affect number of ticks recorded for
+   * the current top node.
+   */
+  static void CollectSample(Isolate* isolate);
+
+  /**
    * Disposes the CPU profiler object.
    */
   void Dispose();

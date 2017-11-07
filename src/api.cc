@@ -10508,6 +10508,11 @@ CpuProfiler* CpuProfiler::New(Isolate* isolate) {
 
 void CpuProfiler::Dispose() { delete reinterpret_cast<i::CpuProfiler*>(this); }
 
+// static
+void CpuProfiler::CollectSample(Isolate* isolate) {
+  i::CpuProfiler::CollectSample(reinterpret_cast<i::Isolate*>(isolate));
+}
+
 void CpuProfiler::SetSamplingInterval(int us) {
   DCHECK_GE(us, 0);
   return reinterpret_cast<i::CpuProfiler*>(this)->set_sampling_interval(
