@@ -108,6 +108,9 @@
       'V8 Random Deopt Fuzzer - debug': 'gn_debug_x64',
     },
     'client.v8.clusterfuzz': {
+      'V8 Win32 ASAN - release builder':
+        'gn_release_x86_asan_no_lsan_verify_heap',
+      'V8 Win32 ASAN - debug builder': 'gn_debug_x86_asan_no_lsan',
       'V8 Mac64 ASAN - release builder':
           'gn_release_x64_asan_no_lsan_edge_verify_heap',
       'V8 Mac64 ASAN - debug builder':
@@ -466,6 +469,8 @@
     # GN debug configs for x86.
     'gn_debug_x86': [
       'gn', 'debug_bot', 'x86', 'swarming'],
+    'gn_debug_x86_asan_no_lsan': [
+      'gn', 'debug_bot', 'x86', 'asan', 'clang', 'swarming'],
     'gn_debug_x86_minimal_symbols': [
       'gn', 'debug_bot', 'x86', 'minimal_symbols', 'swarming'],
     'gn_debug_x86_no_i18n': [
@@ -487,6 +492,9 @@
       'gn', 'release_bot', 'x86', 'swarming'],
     'gn_release_x86_asan_no_lsan': [
       'gn', 'release_bot', 'x86', 'asan', 'clang', 'swarming'],
+    'gn_release_x86_asan_no_lsan_verify_heap': [
+      'gn', 'release_bot', 'x86', 'asan', 'clang', 'swarming',
+      'v8_verify_heap'],
     'gn_release_x86_disassembler': [
       'gn', 'release_bot', 'x86', 'v8_enable_disassembler'],
     'gn_release_x86_gcc': [
