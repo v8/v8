@@ -128,7 +128,6 @@
           'gn_release_simulate_arm64_msan_no_origins_edge',
       'V8 Linux MSAN chained origins':
           'gn_release_simulate_arm64_msan_edge',
-      'V8 Linux64 UBSan - release builder': 'gn_release_x64_ubsan_recover',
       'V8 Linux64 UBSanVptr - release builder':
           'gn_release_x64_ubsan_vptr_recover_edge',
     },
@@ -435,8 +434,6 @@
       'minimal_symbols', 'swarming'],
     'gn_release_x64_tsan_minimal_symbols': [
       'gn', 'release_bot', 'x64', 'tsan', 'minimal_symbols', 'swarming'],
-    'gn_release_x64_ubsan_recover': [
-      'gn', 'release_bot', 'x64', 'ubsan_recover', 'swarming'],
     'gn_release_x64_ubsan_vptr': [
       'gn', 'release_bot', 'x64', 'ubsan_vptr', 'swarming'],
     'gn_release_x64_ubsan_vptr_recover_edge': [
@@ -753,11 +750,6 @@
     'tsan': {
       'gn_args': 'is_tsan=true',
       'gyp_defines': 'clang=1 tsan=1',
-    },
-
-    'ubsan_recover': {
-      # Ubsan with recovery.
-      'gn_args': 'is_ubsan=true is_ubsan_no_recover=false',
     },
 
     'ubsan_vptr': {
