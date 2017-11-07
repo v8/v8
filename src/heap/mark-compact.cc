@@ -2529,7 +2529,8 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   {
     TRACE_GC(heap()->tracer(), GCTracer::Scope::MC_MARK_MAIN);
-    if (FLAG_concurrent_marking) {
+    if (FLAG_parallel_marking) {
+      DCHECK(FLAG_concurrent_marking);
       heap_->concurrent_marking()->RescheduleTasksIfNeeded();
     }
     ProcessMarkingWorklist();
