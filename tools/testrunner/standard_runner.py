@@ -224,8 +224,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         default=False, action="store_true")
       parser.add_option("-t", "--timeout", help="Timeout in seconds",
                         default=TIMEOUT_DEFAULT, type="int")
-      parser.add_option("-v", "--verbose", help="Verbose output",
-                        default=False, action="store_true")
       parser.add_option("--valgrind", help="Run tests through valgrind",
                         default=False, action="store_true")
       parser.add_option("--warn-unused", help="Report unused rules",
@@ -250,8 +248,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           print("sancov-dir %s doesn't exist" % self.sancov_dir)
           raise base_runner.TestRunnerError()
 
-      if options.buildbot:
-        options.network = False
       if options.command_prefix and options.network:
         print("Specifying --command-prefix disables network distribution, "
               "running tests locally.")

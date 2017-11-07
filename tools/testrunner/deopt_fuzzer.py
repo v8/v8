@@ -146,8 +146,6 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
                       type="int")
     parser.add_option("-t", "--timeout", help="Timeout in seconds",
                       default= -1, type="int")
-    parser.add_option("-v", "--verbose", help="Verbose output",
-                      default=False, action="store_true")
     parser.add_option("--random-seed", default=0, dest="random_seed",
                       help="Default seed for initializing random generator")
     return parser

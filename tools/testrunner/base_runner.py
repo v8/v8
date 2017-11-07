@@ -149,6 +149,32 @@ class BuildConfig(object):
     self.tsan = build_config['is_tsan']
     self.ubsan_vptr = build_config['is_ubsan_vptr']
 
+  def __str__(self):
+    detected_options = []
+
+    if self.asan:
+      detected_options.append('asan')
+    if self.cfi_vptr:
+      detected_options.append('cfi_vptr')
+    if self.dcheck_always_on:
+      detected_options.append('dcheck_always_on')
+    if self.gcov_coverage:
+      detected_options.append('gcov_coverage')
+    if self.msan:
+      detected_options.append('msan')
+    if self.no_i18n:
+      detected_options.append('no_i18n')
+    if self.no_snap:
+      detected_options.append('no_snap')
+    if self.predictable:
+      detected_options.append('predictable')
+    if self.tsan:
+      detected_options.append('tsan')
+    if self.ubsan_vptr:
+      detected_options.append('ubsan_vptr')
+
+    return '\n'.join(detected_options)
+
 
 class BaseTestRunner(object):
   def __init__(self):
@@ -190,8 +216,7 @@ class BaseTestRunner(object):
                       default=False, action="store_true")
     parser.add_option("--outdir", help="Base directory with compile output",
                       default="out")
-    parser.add_option("--buildbot",
-                      help="Adapt to path structure used on buildbots",
+    parser.add_option("--buildbot", help="DEPRECATED!",
                       default=False, action="store_true")
     parser.add_option("--arch",
                       help="The architecture to run tests for")
@@ -200,6 +225,8 @@ class BaseTestRunner(object):
                       " and buildbot builds): %s" % MODES.keys())
     parser.add_option("--shell-dir", help="DEPRECATED! Executables from build "
                       "directory will be used")
+    parser.add_option("-v", "--verbose", help="Verbose output",
+                      default=False, action="store_true")
 
   def _add_parser_options(self, parser):
     pass
@@ -217,8 +244,7 @@ class BaseTestRunner(object):
   def _load_build_config(self, options):
     for outdir in self._possible_outdirs(options):
       try:
-        self.build_config = self._do_load_build_config(
-          outdir, options.mode, options.buildbot)
+        self.build_config = self._do_load_build_config(outdir, options.verbose)
       except TestRunnerError:
         pass
 
@@ -227,18 +253,32 @@ class BaseTestRunner(object):
       raise TestRunnerError
 
     print 'Build found: %s' % self.outdir
+    if str(self.build_config):
+      print '>>> Autodetected:'
+      print self.build_config
 
-  # Returns possible build paths in order: gn, outdir, outdir/arch.mode
+  # Returns possible build paths in order:
+  # gn
+  # outdir
+  # outdir/arch.mode
+  # Each path is provided in two versions: <path> and <path>/mode for buildbot.
   def _possible_outdirs(self, options):
-    if options.gn:
-      yield self._get_gn_outdir()
-      return
+    def outdirs():
+      if options.gn:
+        yield self._get_gn_outdir()
+        return
 
-    yield options.outdir
-    if options.arch and options.mode:
-      yield os.path.join(options.outdir,
-                         '%s.%s' % (options.arch, options.mode))
-    return
+      yield options.outdir
+      if options.arch and options.mode:
+        yield os.path.join(options.outdir,
+                          '%s.%s' % (options.arch, options.mode))
+
+    for outdir in outdirs():
+      yield os.path.join(BASE_DIR, outdir)
+
+      # buildbot option
+      if options.mode:
+        yield os.path.join(BASE_DIR, outdir, options.mode)
 
   def _get_gn_outdir(self):
     gn_out_dir = os.path.join(BASE_DIR, DEFAULT_OUT_GN)
@@ -255,14 +295,11 @@ class BaseTestRunner(object):
       print(">>> Latest GN build found: %s" % latest_config)
       return os.path.join(DEFAULT_OUT_GN, latest_config)
 
-  def _do_load_build_config(self, outdir, mode, is_buildbot):
-    if is_buildbot:
-      build_config_path = os.path.join(
-        BASE_DIR, outdir, mode, "v8_build_config.json")
-    else:
-      build_config_path = os.path.join(
-        BASE_DIR, outdir, "v8_build_config.json")
+  def _do_load_build_config(self, outdir, verbose=False):
+    build_config_path = os.path.join(outdir, "v8_build_config.json")
     if not os.path.exists(build_config_path):
+      if verbose:
+        print("Didn't find build config: %s" % build_config_path)
       raise TestRunnerError()
 
     with open(build_config_path) as f:
@@ -273,8 +310,7 @@ class BaseTestRunner(object):
               % build_config_path)
         raise TestRunnerError()
 
-    # In auto-detect mode the outdir is always where we found the build
-    # config.
+    # In auto-detect mode the outdir is always where we found the build config.
     # This ensures that we'll also take the build products from there.
     self.outdir = os.path.dirname(build_config_path)
 
@@ -283,7 +319,7 @@ class BaseTestRunner(object):
   def _process_default_options(self, options):
     # We don't use the mode for more path-magic.
     # Therefore transform the buildbot mode here to fix build_config value.
-    if options.buildbot and options.mode:
+    if options.mode:
       options.mode = self._buildbot_to_v8_mode(options.mode)
 
     build_config_mode = 'debug' if self.build_config.is_debug else 'release'
