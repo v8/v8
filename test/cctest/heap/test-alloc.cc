@@ -228,7 +228,6 @@ TEST(CodeRange) {
       // kMaxRegularHeapObjectSize.
       size_t requested = (kMaxRegularHeapObjectSize << (Pseudorandom() % 3)) +
                          Pseudorandom() % 5000 + 1;
-      requested = RoundUp(requested, MemoryAllocator::CodePageGuardSize());
       size_t allocated = 0;
 
       // The request size has to be at least 2 code guard pages larger than the

@@ -793,31 +793,28 @@ void* OS::Allocate(const size_t requested, size_t* allocated,
 }
 
 void OS::Free(void* address, const size_t size) {
-  DCHECK(IsPageAlignedRange(address, size));
-  CHECK(VirtualFree(address, 0, MEM_RELEASE));
+  // TODO(1240712): VirtualFree has a return value which is ignored here.
+  VirtualFree(address, 0, MEM_RELEASE);
   USE(size);
 }
 
 void OS::SetReadAndExecutable(void* address, const size_t size) {
-  DCHECK(IsPageAlignedRange(address, size));
   DWORD old_protect;
-  CHECK(VirtualProtect(address, size, PAGE_EXECUTE_READ, &old_protect));
+  CHECK_NE(NULL,
+           VirtualProtect(address, size, PAGE_EXECUTE_READ, &old_protect));
 }
 
-bool OS::Guard(void* address, const size_t size) {
-  DCHECK(IsPageAlignedRange(address, size));
-  // Windows requires guard pages to be committed, so we VirtualAlloc to both
-  // commit and change the protection.
-  return VirtualAlloc(address, size, MEM_COMMIT, PAGE_NOACCESS) == address;
+void OS::Guard(void* address, const size_t size) {
+  DWORD oldprotect;
+  VirtualProtect(address, size, PAGE_NOACCESS, &oldprotect);
 }
 
 void OS::SetReadAndWritable(void* address, const size_t size, bool commit) {
-  DCHECK(IsPageAlignedRange(address, size));
   if (commit) {
-    CHECK_NOT_NULL(VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE));
+    CHECK(VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE));
   } else {
     DWORD oldprotect;
-    CHECK(VirtualProtect(address, size, PAGE_READWRITE, &oldprotect));
+    CHECK_NE(NULL, VirtualProtect(address, size, PAGE_READWRITE, &oldprotect));
   }
 }
 
@@ -846,7 +843,9 @@ void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
   }
   uint8_t* base = RoundUp(static_cast<uint8_t*>(address), alignment);
   // Try reducing the size by freeing and then reallocating a specific area.
-  CHECK(ReleaseRegion(address, request_size));
+  bool result = ReleaseRegion(address, request_size);
+  USE(result);
+  DCHECK(result);
   address = VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
   if (address != nullptr) {
     request_size = size;
@@ -861,33 +860,31 @@ void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
   }
 
   *allocated = request_size;
-  return address;
+  return static_cast<void*>(address);
 }
 
 // static
 bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
-  DCHECK_NOT_NULL(address);
-  DCHECK(IsPageAlignedRange(address, size));
   int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  return VirtualAlloc(address, size, MEM_COMMIT, prot) == address;
+  if (NULL == VirtualAlloc(address, size, MEM_COMMIT, prot)) {
+    return false;
+  }
+  return true;
 }
 
 // static
 bool OS::UncommitRegion(void* address, size_t size) {
-  DCHECK(IsPageAlignedRange(address, size));
-  return VirtualFree(address, size, MEM_DECOMMIT);
+  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
 }
 
 // static
 bool OS::ReleaseRegion(void* address, size_t size) {
-  DCHECK(IsPageAlignedRange(address, size));
-  return VirtualFree(address, 0, MEM_RELEASE);
+  return VirtualFree(address, 0, MEM_RELEASE) != 0;
 }
 
 // static
 bool OS::ReleasePartialRegion(void* address, size_t size) {
-  DCHECK(IsPageAlignedRange(address, size));
-  return VirtualFree(address, size, MEM_DECOMMIT);
+  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
 }
 
 // static

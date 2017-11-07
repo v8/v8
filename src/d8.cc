@@ -142,7 +142,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   void Free(void* data, size_t length) override {
 #if USE_VM
     if (RoundToPageSize(&length)) {
-      CHECK(base::OS::ReleaseRegion(data, length));
+      base::OS::ReleaseRegion(data, length);
       return;
     }
 #endif
@@ -162,7 +162,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   void* VirtualMemoryAllocate(size_t length) {
     void* data = base::OS::ReserveRegion(length, nullptr);
     if (data && !base::OS::CommitRegion(data, length, false)) {
-      CHECK(base::OS::ReleaseRegion(data, length));
+      base::OS::ReleaseRegion(data, length);
       return nullptr;
     }
 #if defined(LEAK_SANITIZER)

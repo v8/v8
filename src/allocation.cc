@@ -122,7 +122,9 @@ VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
 
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
-    CHECK(base::OS::ReleaseRegion(address(), size()));
+    bool result = base::OS::ReleaseRegion(address(), size());
+    DCHECK(result);
+    USE(result);
   }
 }
 
@@ -143,7 +145,8 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 
 bool VirtualMemory::Guard(void* address) {
   CHECK(InVM(address, base::OS::CommitPageSize()));
-  return base::OS::Guard(address, base::OS::CommitPageSize());
+  base::OS::Guard(address, base::OS::CommitPageSize());
+  return true;
 }
 
 size_t VirtualMemory::ReleasePartial(void* free_start) {
@@ -160,7 +163,9 @@ size_t VirtualMemory::ReleasePartial(void* free_start) {
   __lsan_unregister_root_region(address_, size_);
   __lsan_register_root_region(address_, size_ - free_size);
 #endif
-  CHECK(base::OS::ReleasePartialRegion(free_start, free_size));
+  const bool result = base::OS::ReleasePartialRegion(free_start, free_size);
+  USE(result);
+  DCHECK(result);
   size_ -= free_size;
   return free_size;
 }
@@ -173,7 +178,9 @@ void VirtualMemory::Release() {
   size_t size = size_;
   CHECK(InVM(address, size));
   Reset();
-  CHECK(base::OS::ReleaseRegion(address, size));
+  bool result = base::OS::ReleaseRegion(address, size);
+  USE(result);
+  DCHECK(result);
 }
 
 void VirtualMemory::TakeControl(VirtualMemory* from) {
