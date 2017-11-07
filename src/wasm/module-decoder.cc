@@ -228,7 +228,6 @@ class WasmSectionIterator {
     section_code_ = decoder_.failed() ? kUnknownSectionCode
                                       : static_cast<SectionCode>(section_code);
 
-    TRACE("Section: %s\n", SectionName(section_code_));
     if (section_code_ == kUnknownSectionCode && section_end_ > decoder_.pc()) {
       // skip to the end of the unknown section.
       uint32_t remaining = static_cast<uint32_t>(section_end_ - decoder_.pc());
