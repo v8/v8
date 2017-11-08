@@ -439,6 +439,7 @@
         '-Wno-undefined-var-template',
         # TODO(yangguo): issue 5258
         '-Wno-nonportable-include-path',
+        '-Wno-tautological-constant-compare',
       ],
       'conditions':[
         ['OS=="android"', {

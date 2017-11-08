@@ -1392,11 +1392,10 @@ AsmType* AsmJsParser::NumericLiteral() {
     if (uvalue <= 0x7fffffff) {
       current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
       return AsmType::FixNum();
-    } else if (uvalue <= 0xffffffff) {
+    } else {
+      DCHECK_LE(uvalue, 0xffffffff);
       current_function_builder_->EmitI32Const(static_cast<int32_t>(uvalue));
       return AsmType::Unsigned();
-    } else {
-      FAILn("Integer numeric literal out of range.");
     }
   } else {
     FAILn("Expected numeric literal.");
