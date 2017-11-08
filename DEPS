@@ -9,15 +9,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + 'b5d131153dde07c76ddb5538e144553c7d6c19f2',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '65014692e26a03fa741f25c841657f56553eb2ae',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/icu':
-    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '4b5a7240d2dfa0cb5627f20a26ceffd67930d134',
+    Var('chromium_url') + '/chromium/deps/icu.git' + '@' + 'b31896655a701874d13e70cc24bca95e3e66a991',
   'v8/third_party/instrumented_libraries':
     Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'e07d437dc8b65ca96ebd3b7d4aa303cd2ec0ec45',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + 'df36429e1847e38fda6a7413ba1aa2cbafbc4a34',
+    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '73ddd64be624a6f935f312a72d2da7f0ed70daa5',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '0e9a47d74970bee1bbfc063c47215406f8918699',
   'v8/third_party/android_tools': {
