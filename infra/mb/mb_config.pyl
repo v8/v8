@@ -194,7 +194,6 @@
       'v8_fuchsia_rel_ng': 'gn_release_x64_fuchsia_trybot',
       'v8_linux_rel_ng': 'gn_release_x86_gcmole_trybot',
       'v8_linux_verify_csa_rel_ng': 'gn_release_x86_verify_csa',
-      'v8_linux_avx2_dbg': 'gn_debug_x86_trybot',
       'v8_linux_nodcheck_rel_ng': 'gn_release_x86_minimal_symbols',
       'v8_linux_dbg_ng': 'gn_debug_x86_trybot',
       'v8_linux_noi18n_rel_ng': 'gn_release_x86_no_i18n_trybot',
@@ -208,8 +207,6 @@
       'v8_linux64_rel_ng': 'gn_release_x64_trybot',
       'v8_linux64_verify_csa_rel_ng': 'gn_release_x64_verify_csa',
       'v8_linux64_gyp_rel_ng': 'gyp_release_x64',
-      'v8_linux64_avx2_rel_ng': 'gn_release_x64_trybot',
-      'v8_linux64_avx2_dbg': 'gn_debug_x64_trybot',
       'v8_linux64_asan_rel_ng': 'gn_release_x64_asan_minimal_symbols',
       'v8_linux64_msan_rel': 'gn_release_simulate_arm64_msan_minimal_symbols',
       'v8_linux64_sanitizer_coverage_rel':
@@ -468,8 +465,6 @@
       'gn', 'debug_bot', 'x64', 'gcc'],
     'gn_debug_x64_minimal_symbols': [
       'gn', 'debug_bot', 'x64', 'minimal_symbols', 'swarming'],
-    'gn_debug_x64_trybot': [
-      'gn', 'debug_trybot', 'x64', 'swarming'],
 
     # GN debug configs for x86.
     'gn_debug_x86': [
