@@ -167,8 +167,14 @@ bool IsWasmCodegenAllowed(Isolate* isolate, Handle<Context> context) {
   // separate callback that includes information about the module about to be
   // compiled. For the time being, pass an empty string as placeholder for the
   // sources.
-  return isolate->allow_code_gen_callback() == nullptr ||
-         isolate->allow_code_gen_callback()(
+  if (auto wasm_codegen_callback = isolate->allow_wasm_code_gen_callback()) {
+    return wasm_codegen_callback(
+        v8::Utils::ToLocal(context),
+        v8::Utils::ToLocal(isolate->factory()->empty_string()));
+  }
+  auto codegen_callback = isolate->allow_code_gen_callback();
+  return codegen_callback == nullptr ||
+         codegen_callback(
              v8::Utils::ToLocal(context),
              v8::Utils::ToLocal(isolate->factory()->empty_string()));
 }

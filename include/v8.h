@@ -6443,6 +6443,9 @@ typedef bool (*AllowCodeGenerationFromStringsCallback)(Local<Context> context,
 // --- WebAssembly compilation callbacks ---
 typedef bool (*ExtensionCallback)(const FunctionCallbackInfo<Value>&);
 
+typedef bool (*AllowWasmCodeGenerationCallback)(Local<Context> context,
+                                                Local<String> source);
+
 // --- Callback for APIs defined on v8-supported objects, but implemented
 // by the embedder. Example: WebAssembly.{compile|instantiate}Streaming ---
 typedef void (*ApiImplementationCallback)(const FunctionCallbackInfo<Value>&);
@@ -7738,6 +7741,13 @@ class V8_EXPORT Isolate {
    */
   void SetAllowCodeGenerationFromStringsCallback(
       AllowCodeGenerationFromStringsCallback callback);
+
+  /**
+   * Set the callback to invoke to check if wasm code generation should
+   * be allowed.
+   */
+  void SetAllowWasmCodeGenerationCallback(
+      AllowWasmCodeGenerationCallback callback);
 
   /**
    * Embedder over{ride|load} injection points for wasm APIs. The expectation

@@ -9186,27 +9186,18 @@ void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {
 }
 
 
-void Isolate::SetFatalErrorHandler(FatalErrorCallback that) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->set_exception_behavior(that);
-}
-
-void Isolate::SetOOMErrorHandler(OOMErrorCallback that) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->set_oom_behavior(that);
-}
-
-void Isolate::SetAllowCodeGenerationFromStringsCallback(
-    AllowCodeGenerationFromStringsCallback callback) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
-  isolate->set_allow_code_gen_callback(callback);
-}
-
 #define CALLBACK_SETTER(ExternalName, Type, InternalName)      \
   void Isolate::Set##ExternalName(Type callback) {             \
     i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this); \
     isolate->set_##InternalName(callback);                     \
   }
+
+CALLBACK_SETTER(FatalErrorHandler, FatalErrorCallback, exception_behavior)
+CALLBACK_SETTER(OOMErrorHandler, OOMErrorCallback, oom_behavior)
+CALLBACK_SETTER(AllowCodeGenerationFromStringsCallback,
+                AllowCodeGenerationFromStringsCallback, allow_code_gen_callback)
+CALLBACK_SETTER(AllowWasmCodeGenerationCallback,
+                AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback)
 
 CALLBACK_SETTER(WasmModuleCallback, ExtensionCallback, wasm_module_callback)
 CALLBACK_SETTER(WasmInstanceCallback, ExtensionCallback, wasm_instance_callback)

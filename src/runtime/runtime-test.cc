@@ -855,12 +855,18 @@ RUNTIME_FUNCTION(Runtime_DisallowCodegenFromStrings) {
   DCHECK_EQ(1, args.length());
   CONVERT_BOOLEAN_ARG_CHECKED(flag, 0);
   v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-  if (flag) {
-    v8_isolate->SetAllowCodeGenerationFromStringsCallback(
-        DisallowCodegenFromStringsCallback);
-  } else {
-    v8_isolate->SetAllowCodeGenerationFromStringsCallback(nullptr);
-  }
+  v8_isolate->SetAllowCodeGenerationFromStringsCallback(
+      flag ? DisallowCodegenFromStringsCallback : nullptr);
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_DisallowWasmCodegen) {
+  SealHandleScope shs(isolate);
+  DCHECK_EQ(1, args.length());
+  CONVERT_BOOLEAN_ARG_CHECKED(flag, 0);
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8_isolate->SetAllowWasmCodeGenerationCallback(
+      flag ? DisallowCodegenFromStringsCallback : nullptr);
   return isolate->heap()->undefined_value();
 }
 

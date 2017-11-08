@@ -420,6 +420,7 @@ typedef std::vector<HeapObject*> DebugObjectCache;
   V(OOMErrorCallback, oom_behavior, nullptr)                                  \
   V(LogEventCallback, event_logger, nullptr)                                  \
   V(AllowCodeGenerationFromStringsCallback, allow_code_gen_callback, nullptr) \
+  V(AllowWasmCodeGenerationCallback, allow_wasm_code_gen_callback, nullptr)   \
   V(ExtensionCallback, wasm_module_callback, &NoExtension)                    \
   V(ExtensionCallback, wasm_instance_callback, &NoExtension)                  \
   V(ApiImplementationCallback, wasm_compile_streaming_callback, nullptr)      \

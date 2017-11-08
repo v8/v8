@@ -218,6 +218,7 @@
       'wasm/test-run-wasm-relocation.cc',
       'wasm/test-run-wasm-simd.cc',
       'wasm/test-wasm-breakpoints.cc',
+      "wasm/test-wasm-codegen.cc",
       'wasm/test-wasm-interpreter-entry.cc',
       'wasm/test-wasm-stack.cc',
       'wasm/test-wasm-trap-position.cc',
