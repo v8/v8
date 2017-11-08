@@ -97,6 +97,27 @@ int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   }
   UNREACHABLE();
 }
+
+void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
+  const size_t actual_size = RoundUp(size, OS::AllocatePageSize());
+  int prot = GetProtectionFromMemoryPermission(access);
+  int flags = MAP_PRIVATE | MAP_ANONYMOUS;
+  if (access == OS::MemoryPermission::kNoAccess) {
+// TODO(bbudge) Improve readability by moving platform specific code into
+// helper functions.
+#if !V8_OS_AIX && !V8_OS_FREEBSD && !V8_OS_QNX
+    flags |= MAP_NORESERVE;
+#endif
+#if V8_OS_QNX
+    flags |= MAP_LAZY;
+#endif  // V8_OS_QNX
+  }
+  void* result =
+      mmap(address, actual_size, prot, flags, kMmapFd, kMmapFdOffset);
+  if (result == MAP_FAILED) return nullptr;
+  return result;
+}
+
 #endif  // !V8_OS_FUCHSIA
 
 }  // namespace
@@ -208,25 +229,48 @@ void* OS::GetRandomMmapAddr() {
 }
 
 // TODO(bbudge) Move Cygwin and Fuschia stuff into platform-specific files.
-#if !V8_OS_FUCHSIA
-void* OS::Allocate(const size_t requested, size_t* allocated,
-                   OS::MemoryPermission access, void* hint) {
-  const size_t msize = RoundUp(requested, AllocatePageSize());
-  int prot = GetProtectionFromMemoryPermission(access);
-  void* mbase = mmap(hint, msize, prot, MAP_PRIVATE | MAP_ANONYMOUS, kMmapFd,
-                     kMmapFdOffset);
-  if (mbase == MAP_FAILED) return nullptr;
-  *allocated = msize;
-  return mbase;
-}
-#endif  // !V8_OS_FUCHSIA
+#if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
+void* OS::Allocate(void* address, size_t size, size_t alignment,
+                   MemoryPermission access) {
+  size_t page_size = AllocatePageSize();
+  DCHECK_EQ(0, size % page_size);
+  DCHECK_EQ(0, alignment % page_size);
+  address = AlignedAddress(address, alignment);
+  // Add the maximum misalignment so we are guaranteed an aligned base address.
+  size_t request_size = size + (alignment - page_size);
+  void* result = base::Allocate(address, request_size, access);
+  if (result == nullptr) return nullptr;
 
+  // Unmap memory allocated before the aligned base address.
+  uint8_t* base = static_cast<uint8_t*>(result);
+  uint8_t* aligned_base = RoundUp(base, alignment);
+  if (aligned_base != base) {
+    DCHECK_LT(base, aligned_base);
+    size_t prefix_size = static_cast<size_t>(aligned_base - base);
+    OS::Free(base, prefix_size);
+    request_size -= prefix_size;
+  }
+  // Unmap memory allocated after the potentially unaligned end.
+  if (size != request_size) {
+    DCHECK_LT(size, request_size);
+    size_t suffix_size = request_size - size;
+    OS::Free(aligned_base + size, suffix_size);
+    request_size -= suffix_size;
+  }
+
+  DCHECK_EQ(size, request_size);
+  return static_cast<void*>(aligned_base);
+}
+#endif  // !V8_OS_CYGWIN && !V8_OS_FUCHSIA
+
+#if !V8_OS_CYGWIN
 void OS::Free(void* address, const size_t size) {
   // TODO(1240712): munmap has a return value which is ignored here.
   int result = munmap(address, size);
   USE(result);
   DCHECK_EQ(0, result);
 }
+#endif  // !V8_OS_CYGWIN
 
 void OS::SetReadAndExecutable(void* address, const size_t size) {
 #if V8_OS_CYGWIN
@@ -272,60 +316,6 @@ void OS::SetReadWriteAndExecutable(void* address, const size_t size) {
 }
 
 #if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
-// static
-void* OS::ReserveRegion(size_t size, void* hint) {
-  int map_flags = MAP_PRIVATE | MAP_ANONYMOUS;
-#if !V8_OS_AIX && !V8_OS_FREEBSD && !V8_OS_QNX
-  map_flags |= MAP_NORESERVE;
-#endif
-#if V8_OS_QNX
-  map_flags |= MAP_LAZY;
-#endif  // V8_OS_QNX
-  void* result = mmap(hint, size, PROT_NONE, map_flags, kMmapFd, kMmapFdOffset);
-  if (result == MAP_FAILED) return nullptr;
-
-  return result;
-}
-
-// static
-void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
-                               size_t* allocated) {
-  DCHECK_EQ(0, alignment % OS::AllocatePageSize());
-  hint = AlignedAddress(hint, alignment);
-  size_t request_size =
-      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocatePageSize()));
-  void* result = ReserveRegion(request_size, hint);
-  if (result == nullptr) {
-    *allocated = 0;
-    return nullptr;
-  }
-
-  uint8_t* base = static_cast<uint8_t*>(result);
-  uint8_t* aligned_base = RoundUp(base, alignment);
-  DCHECK_LE(base, aligned_base);
-
-  // Unmap extra memory reserved before and after the desired block.
-  if (aligned_base != base) {
-    size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    OS::Free(base, prefix_size);
-    request_size -= prefix_size;
-  }
-
-  size_t aligned_size = RoundUp(size, OS::AllocatePageSize());
-  DCHECK_LE(aligned_size, request_size);
-
-  if (aligned_size != request_size) {
-    size_t suffix_size = request_size - aligned_size;
-    OS::Free(aligned_base + aligned_size, suffix_size);
-    request_size -= suffix_size;
-  }
-
-  DCHECK(aligned_size == request_size);
-
-  *allocated = aligned_size;
-  return static_cast<void*>(aligned_base);
-}
-
 // static
 bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);

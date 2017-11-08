@@ -103,21 +103,28 @@ void AlignedFree(void *ptr) {
 #endif
 }
 
-VirtualMemory::VirtualMemory() : address_(nullptr), size_(0) {}
-
-VirtualMemory::VirtualMemory(size_t size, void* hint)
-    : address_(base::OS::ReserveRegion(size, hint)), size_(size) {
-#if defined(LEAK_SANITIZER)
-  __lsan_register_root_region(address_, size_);
-#endif
+byte* AllocateSystemPage(void* address, size_t* allocated) {
+  size_t page_size = base::OS::AllocatePageSize();
+  void* result = base::OS::Allocate(address, page_size, page_size,
+                                    base::OS::MemoryPermission::kReadWrite);
+  if (result != nullptr) *allocated = page_size;
+  return static_cast<byte*>(result);
 }
 
-VirtualMemory::VirtualMemory(size_t size, size_t alignment, void* hint)
+VirtualMemory::VirtualMemory() : address_(nullptr), size_(0) {}
+
+VirtualMemory::VirtualMemory(size_t size, void* hint, size_t alignment)
     : address_(nullptr), size_(0) {
-  address_ = base::OS::ReserveAlignedRegion(size, alignment, hint, &size_);
+  size_t page_size = base::OS::AllocatePageSize();
+  size_t alloc_size = RoundUp(size, page_size);
+  address_ = base::OS::Allocate(hint, alloc_size, alignment,
+                                base::OS::MemoryPermission::kNoAccess);
+  if (address_ != nullptr) {
+    size_ = alloc_size;
 #if defined(LEAK_SANITIZER)
-  __lsan_register_root_region(address_, size_);
+    __lsan_register_root_region(address_, size_);
 #endif
+  }
 }
 
 VirtualMemory::~VirtualMemory() {
@@ -205,14 +212,14 @@ bool AllocVirtualMemory(size_t size, void* hint, VirtualMemory* result) {
 
 bool AlignedAllocVirtualMemory(size_t size, size_t alignment, void* hint,
                                VirtualMemory* result) {
-  VirtualMemory first_try(size, alignment, hint);
+  VirtualMemory first_try(size, hint, alignment);
   if (first_try.IsReserved()) {
     result->TakeControl(&first_try);
     return true;
   }
 
   V8::GetCurrentPlatform()->OnCriticalMemoryPressure();
-  VirtualMemory second_try(size, alignment, hint);
+  VirtualMemory second_try(size, hint, alignment);
   result->TakeControl(&second_try);
   return result->IsReserved();
 }
