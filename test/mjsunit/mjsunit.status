@@ -263,7 +263,10 @@
   'wasm/js-api': [SKIP],
 
   # BUG(chromium:773631): Crashes flakily.
-  'wasm/streaming-trap-location': [SKIP]
+  'wasm/streaming-trap-location': [SKIP],
+
+  # BUG(v8:7049).
+  'wasm/interpreter-mixed': [PASS, ['arch == arm64', SKIP]],
 }],  # 'gc_stress == True'
 
 ##############################################################################
