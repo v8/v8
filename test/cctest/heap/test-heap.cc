@@ -5999,3 +5999,5 @@ HEAP_TEST(Regress779503) {
 }  // namespace heap
 }  // namespace internal
 }  // namespace v8
+
+#undef __

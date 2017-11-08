@@ -451,3 +451,5 @@ void RegisterDump::Dump(MacroAssembler* masm) {
 
 }  // namespace internal
 }  // namespace v8
+
+#undef __
