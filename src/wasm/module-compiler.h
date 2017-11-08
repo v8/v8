@@ -165,7 +165,6 @@ class AsyncCompileJob {
   Handle<WasmModuleObject> module_object_;
   Handle<WasmCompiledModule> compiled_module_;
   Handle<FixedArray> code_table_;
-  Handle<FixedArray> export_wrappers_;
   size_t outstanding_units_ = 0;
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;

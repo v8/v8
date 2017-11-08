@@ -3089,10 +3089,7 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
     // Initialize {code_table_} with the illegal builtin. All call sites
     // will be patched at instantiation.
     int code_table_size = static_cast<int>(module_->functions.size());
-    int export_wrapper_size = static_cast<int>(module_->num_exported_functions);
     job_->code_table_ = factory->NewFixedArray(code_table_size, TENURED);
-    job_->export_wrappers_ =
-        factory->NewFixedArray(export_wrapper_size, TENURED);
 
     for (int i = 0, e = module_->num_imported_functions; i < e; ++i) {
       job_->code_table_->set(i, *illegal_builtin);
@@ -3107,8 +3104,6 @@ class AsyncCompileJob::PrepareAndStartCompile : public CompileStep {
 
       centry_stub = Handle<Code>(*centry_stub, isolate);
       job_->code_table_ = Handle<FixedArray>(*job_->code_table_, isolate);
-      job_->export_wrappers_ =
-          Handle<FixedArray>(*job_->export_wrappers_, isolate);
       compiler::ModuleEnv* env = job_->module_env_.get();
       ReopenHandles(isolate, env->function_code);
       Handle<Code>* mut =
@@ -3297,9 +3292,13 @@ class AsyncCompileJob::FinishCompile : public CompileStep {
     // and information needed at instantiation time. This object needs to be
     // serializable. Instantiation may occur off a deserialized version of
     // this object.
+    int export_wrapper_size =
+        static_cast<int>(module_wrapper->get()->num_exported_functions);
+    Handle<FixedArray> export_wrappers =
+        job_->isolate_->factory()->NewFixedArray(export_wrapper_size, TENURED);
     job_->compiled_module_ =
         NewCompiledModule(job_->isolate_, shared, job_->code_table_,
-                          job_->export_wrappers_, job_->module_env_.get());
+                          export_wrappers, job_->module_env_.get());
     // Finish the wasm script now and make it public to the debugger.
     script->set_wasm_compiled_module(*job_->compiled_module_);
     job_->isolate_->debug()->OnAfterCompile(script);
