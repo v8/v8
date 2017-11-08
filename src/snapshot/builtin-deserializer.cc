@@ -80,7 +80,7 @@ void BuiltinDeserializer::DeserializeEagerBuiltinsAndHandlers() {
 
   BSU::ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
     // Bytecodes without a dedicated handler are patched up in a second pass.
-    if (!BSU::BytecodeHasDedicatedHandler(bytecode, operand_scale)) return;
+    if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
 
     // If lazy-deserialization is enabled and the current bytecode is lazy,
     // we write the generic LazyDeserialization handler into the dispatch table
@@ -95,24 +95,11 @@ void BuiltinDeserializer::DeserializeEagerBuiltinsAndHandlers() {
 
   // Patch up holes in the dispatch table.
 
-  DCHECK(BSU::BytecodeHasDedicatedHandler(Bytecode::kIllegal,
-                                          OperandScale::kSingle));
   Code* illegal_handler = interpreter->GetBytecodeHandler(
       Bytecode::kIllegal, OperandScale::kSingle);
 
   BSU::ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
-    if (BSU::BytecodeHasDedicatedHandler(bytecode, operand_scale)) return;
-
-    Bytecode maybe_reused_bytecode;
-    if (Bytecodes::ReusesExistingHandler(bytecode, &maybe_reused_bytecode)) {
-      interpreter->SetBytecodeHandler(
-          bytecode, operand_scale,
-          interpreter->GetBytecodeHandler(maybe_reused_bytecode,
-                                          operand_scale));
-      return;
-    }
-
-    DCHECK(!Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
+    if (Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
     interpreter->SetBytecodeHandler(bytecode, operand_scale, illegal_handler);
   });
 
@@ -158,7 +145,7 @@ Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
 Code* BuiltinDeserializer::DeserializeHandlerRaw(Bytecode bytecode,
                                                  OperandScale operand_scale) {
   DCHECK(!AllowHeapAllocation::IsAllowed());
-  DCHECK(BSU::BytecodeHasDedicatedHandler(bytecode, operand_scale));
+  DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
 
   const int code_object_id = BSU::BytecodeToIndex(bytecode, operand_scale);
   DeserializingCodeObjectScope scope(this, code_object_id);

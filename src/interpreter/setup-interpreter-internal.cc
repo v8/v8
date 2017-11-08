@@ -73,28 +73,11 @@ void SetupInterpreter::InstallBytecodeHandlers(Interpreter* interpreter) {
 }
 
 // static
-bool SetupInterpreter::ReuseExistingHandler(Address* dispatch_table,
-                                            Bytecode bytecode,
-                                            OperandScale operand_scale) {
-  Bytecode reused_bytecode;
-  if (!Bytecodes::ReusesExistingHandler(bytecode, &reused_bytecode)) {
-    return false;
-  }
-
-  size_t index = Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
-  dispatch_table[index] = dispatch_table[Interpreter::GetDispatchTableIndex(
-      reused_bytecode, operand_scale)];
-
-  return true;
-}
-
-// static
 void SetupInterpreter::InstallBytecodeHandler(Isolate* isolate,
                                               Address* dispatch_table,
                                               Bytecode bytecode,
                                               OperandScale operand_scale) {
   if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
-  if (ReuseExistingHandler(dispatch_table, bytecode, operand_scale)) return;
 
   size_t index = Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
   Handle<Code> code = GenerateBytecodeHandler(isolate, bytecode, operand_scale);

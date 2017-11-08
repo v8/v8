@@ -39,7 +39,7 @@ void BuiltinSerializer::SerializeBuiltinsAndHandlers() {
 
   BSU::ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
     SetHandlerOffset(bytecode, operand_scale, sink_.Position());
-    if (!BSU::BytecodeHasDedicatedHandler(bytecode, operand_scale)) return;
+    if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
 
     SerializeHandler(
         isolate()->interpreter()->GetBytecodeHandler(bytecode, operand_scale));

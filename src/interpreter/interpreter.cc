@@ -101,27 +101,14 @@ Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
            Bytecodes::ToString(bytecode, operand_scale).c_str());
   }
 
-  // Some handlers are reused for several bytecodes. If we encounter such a
-  // bytecode, find the canonical handler, deserialize it, and write it into all
-  // slots in the dispatch table that (re)use it.
-
-  Bytecode maybe_reused_bytecode;
-  const bool reuses_existing_handler =
-      Bytecodes::ReusesExistingHandler(bytecode, &maybe_reused_bytecode);
-
-  Bytecode handler_bytecode =
-      reuses_existing_handler ? maybe_reused_bytecode : bytecode;
-
-  DCHECK(Bytecodes::BytecodeHasHandler(handler_bytecode, operand_scale));
-  code =
-      Snapshot::DeserializeHandler(isolate_, handler_bytecode, operand_scale);
+  DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
+  code = Snapshot::DeserializeHandler(isolate_, bytecode, operand_scale);
 
   DCHECK(code->IsCode());
   DCHECK_EQ(code->kind(), Code::BYTECODE_HANDLER);
+  DCHECK(!isolate_->heap()->IsDeserializeLazyHandler(code));
 
-  for (Bytecode b : Bytecodes::AllBytecodesUsingHandler(handler_bytecode)) {
-    SetBytecodeHandler(b, operand_scale, code);
-  }
+  SetBytecodeHandler(bytecode, operand_scale, code);
 
   return code;
 }

@@ -95,7 +95,7 @@ BuiltinDeserializerAllocator::CreateReservationsForEagerBuiltinsAndHandlers() {
 
   BSU::ForEachBytecode(
       [=, &result](Bytecode bytecode, OperandScale operand_scale) {
-        if (!BSU::BytecodeHasDedicatedHandler(bytecode, operand_scale)) {
+        if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
           // Bytecodes without a handler don't require a reservation.
           return;
         } else if (FLAG_lazy_handler_deserialization &&
@@ -188,7 +188,7 @@ void BuiltinDeserializerAllocator::InitializeFromReservations(
 
   BSU::ForEachBytecode(
       [=, &reservation_index](Bytecode bytecode, OperandScale operand_scale) {
-        if (!BSU::BytecodeHasDedicatedHandler(bytecode, operand_scale)) {
+        if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
           // Bytecodes without a handler don't have a reservation.
           return;
         } else if (FLAG_lazy_handler_deserialization &&

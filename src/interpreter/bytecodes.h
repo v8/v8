@@ -840,46 +840,6 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
     UNREACHABLE();
   }
 
-  // Returns true, iff the given bytecode reuses an existing handler. If so,
-  // the bytecode of the reused handler is written into {reused}.
-  static bool ReusesExistingHandler(Bytecode bytecode, Bytecode* reused) {
-    switch (bytecode) {
-      case Bytecode::kLdaImmutableContextSlot:
-        STATIC_ASSERT(static_cast<int>(Bytecode::kLdaContextSlot) <
-                      static_cast<int>(Bytecode::kLdaImmutableContextSlot));
-        *reused = Bytecode::kLdaContextSlot;
-        return true;
-      case Bytecode::kLdaImmutableCurrentContextSlot:
-        STATIC_ASSERT(
-            static_cast<int>(Bytecode::kLdaCurrentContextSlot) <
-            static_cast<int>(Bytecode::kLdaImmutableCurrentContextSlot));
-        *reused = Bytecode::kLdaCurrentContextSlot;
-        return true;
-      default:
-        return false;
-    }
-  }
-
-  static std::vector<Bytecode> AllBytecodesUsingHandler(Bytecode bytecode) {
-    Bytecode dummy;
-    USE(dummy);
-    switch (bytecode) {
-      case Bytecode::kLdaContextSlot:
-        DCHECK(
-            ReusesExistingHandler(Bytecode::kLdaImmutableContextSlot, &dummy));
-        DCHECK_EQ(bytecode, dummy);
-        return {bytecode, Bytecode::kLdaImmutableContextSlot};
-      case Bytecode::kLdaCurrentContextSlot:
-        DCHECK(ReusesExistingHandler(Bytecode::kLdaImmutableCurrentContextSlot,
-                                     &dummy));
-        DCHECK_EQ(bytecode, dummy);
-        return {bytecode, Bytecode::kLdaImmutableCurrentContextSlot};
-      default:
-        DCHECK(!ReusesExistingHandler(bytecode, &dummy));
-        return {bytecode};
-    }
-  }
-
   // Returns the size of |operand_type| for |operand_scale|.
   static OperandSize SizeOfOperand(OperandType operand_type,
                                    OperandScale operand_scale) {

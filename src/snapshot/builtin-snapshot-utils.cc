@@ -63,19 +63,5 @@ void BuiltinSnapshotUtils::ForEachBytecode(
   }
 }
 
-// static
-bool BuiltinSnapshotUtils::BytecodeHasDedicatedHandler(
-    Bytecode bytecode, OperandScale operand_scale) {
-  // Some bytecodes don't have a handler. The dispatch table contains the
-  // kIllegal handler in these slots.
-  if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return false;
-
-  // Some handlers are reused for several bytecodes.
-  Bytecode dummy;
-  if (Bytecodes::ReusesExistingHandler(bytecode, &dummy)) return false;
-
-  return true;
-}
-
 }  // namespace internal
 }  // namespace v8

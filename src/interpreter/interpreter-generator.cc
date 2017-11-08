@@ -311,8 +311,14 @@ IGNITION_HANDLER(LdaContextSlot, InterpreterAssembler) {
 // Load the object in |slot_index| of the context at |depth| in the context
 // chain starting at |context| into the accumulator.
 IGNITION_HANDLER(LdaImmutableContextSlot, InterpreterAssembler) {
-  // Same as LdaContextSlot, should never be called.
-  UNREACHABLE();
+  Node* reg_index = BytecodeOperandReg(0);
+  Node* context = LoadRegister(reg_index);
+  Node* slot_index = BytecodeOperandIdx(1);
+  Node* depth = BytecodeOperandUImm(2);
+  Node* slot_context = GetContextAtDepth(context, depth);
+  Node* result = LoadContextElement(slot_context, slot_index);
+  SetAccumulator(result);
+  Dispatch();
 }
 
 // LdaCurrentContextSlot <slot_index>
@@ -330,8 +336,11 @@ IGNITION_HANDLER(LdaCurrentContextSlot, InterpreterAssembler) {
 //
 // Load the object in |slot_index| of the current context into the accumulator.
 IGNITION_HANDLER(LdaImmutableCurrentContextSlot, InterpreterAssembler) {
-  // Same as LdaCurrentContextSlot, should never be called.
-  UNREACHABLE();
+  Node* slot_index = BytecodeOperandIdx(0);
+  Node* slot_context = GetContext();
+  Node* result = LoadContextElement(slot_context, slot_index);
+  SetAccumulator(result);
+  Dispatch();
 }
 
 // StaContextSlot <context> <slot_index> <depth>
