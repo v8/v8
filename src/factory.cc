@@ -1883,6 +1883,7 @@ Handle<Code> Factory::NewCode(
       code->set_marked_for_deoptimization(false);
       break;
     case Code::JS_TO_WASM_FUNCTION:
+    case Code::C_WASM_ENTRY:
     case Code::WASM_FUNCTION:
       code->set_has_tagged_params(false);
       break;
