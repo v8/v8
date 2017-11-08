@@ -56,6 +56,18 @@ void SetupInterpreter::InstallBytecodeHandlers(Interpreter* interpreter) {
     }
   }
 
+  // Generate the DeserializeLazy handlers, one for each operand scale.
+  Heap* heap = interpreter->isolate_->heap();
+  DCHECK_EQ(Smi::kZero, heap->deserialize_lazy_handler());
+  heap->SetDeserializeLazyHandler(*GenerateDeserializeLazyHandler(
+      interpreter->isolate_, OperandScale::kSingle));
+  DCHECK_EQ(Smi::kZero, heap->deserialize_lazy_handler_wide());
+  heap->SetDeserializeLazyHandlerWide(*GenerateDeserializeLazyHandler(
+      interpreter->isolate_, OperandScale::kDouble));
+  DCHECK_EQ(Smi::kZero, heap->deserialize_lazy_handler_extra_wide());
+  heap->SetDeserializeLazyHandlerExtraWide(*GenerateDeserializeLazyHandler(
+      interpreter->isolate_, OperandScale::kQuadruple));
+
   // Initialization should have been successful.
   DCHECK(interpreter->IsDispatchTableInitialized());
 }

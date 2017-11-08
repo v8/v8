@@ -3243,6 +3243,71 @@ Handle<Code> GenerateBytecodeHandler(Isolate* isolate, Bytecode bytecode,
   return code;
 }
 
+namespace {
+
+// DeserializeLazy
+//
+// Deserialize the bytecode handler, store it in the dispatch table, and
+// finally jump there (preserving existing args).
+// We manually create a custom assembler instead of using the helper macros
+// above since no corresponding bytecode exists.
+class DeserializeLazyAssembler : public InterpreterAssembler {
+ public:
+  static const Bytecode kFakeBytecode = Bytecode::kIllegal;
+
+  explicit DeserializeLazyAssembler(compiler::CodeAssemblerState* state,
+                                    OperandScale operand_scale)
+      : InterpreterAssembler(state, kFakeBytecode, operand_scale) {}
+
+  static void Generate(compiler::CodeAssemblerState* state,
+                       OperandScale operand_scale) {
+    DeserializeLazyAssembler assembler(state, operand_scale);
+    state->SetInitialDebugInformation("DeserializeLazy", __FILE__, __LINE__);
+    assembler.GenerateImpl();
+  }
+
+ private:
+  void GenerateImpl() { DeserializeLazyAndDispatch(); }
+
+  DISALLOW_COPY_AND_ASSIGN(DeserializeLazyAssembler);
+};
+
+}  // namespace
+
+Handle<Code> GenerateDeserializeLazyHandler(Isolate* isolate,
+                                            OperandScale operand_scale) {
+  Zone zone(isolate->allocator(), ZONE_NAME);
+  const size_t return_count = 0;
+
+  std::string debug_name = std::string("DeserializeLazy");
+  if (operand_scale > OperandScale::kSingle) {
+    Bytecode prefix_bytecode =
+        Bytecodes::OperandScaleToPrefixBytecode(operand_scale);
+    debug_name = debug_name.append(Bytecodes::ToString(prefix_bytecode));
+  }
+
+  InterpreterDispatchDescriptor descriptor(isolate);
+  compiler::CodeAssemblerState state(isolate, &zone, descriptor,
+                                     Code::BYTECODE_HANDLER, debug_name.c_str(),
+                                     return_count);
+
+  DeserializeLazyAssembler::Generate(&state, operand_scale);
+  Handle<Code> code = compiler::CodeAssembler::GenerateCode(&state);
+  PROFILE(isolate,
+          CodeCreateEvent(CodeEventListener::BYTECODE_HANDLER_TAG,
+                          AbstractCode::cast(*code), debug_name.c_str()));
+
+#ifdef ENABLE_DISASSEMBLER
+  if (FLAG_trace_ignition_codegen) {
+    OFStream os(stdout);
+    code->Disassemble(debug_name.c_str(), os);
+    os << std::flush;
+  }
+#endif  // ENABLE_DISASSEMBLER
+
+  return code;
+}
+
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

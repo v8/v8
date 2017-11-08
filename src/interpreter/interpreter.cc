@@ -19,6 +19,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/parsing/parse-info.h"
 #include "src/setup-isolate.h"
+#include "src/snapshot/snapshot.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -85,6 +86,44 @@ Interpreter::Interpreter(Isolate* isolate) : isolate_(isolate) {
     memset(bytecode_dispatch_counters_table_.get(), 0,
            sizeof(uintptr_t) * kBytecodeCount * kBytecodeCount);
   }
+}
+
+Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
+    Bytecode bytecode, OperandScale operand_scale) {
+  Code* code = GetBytecodeHandler(bytecode, operand_scale);
+
+  // Already deserialized? Then just return the handler.
+  if (!isolate_->heap()->IsDeserializeLazyHandler(code)) return code;
+
+  DCHECK(FLAG_lazy_handler_deserialization);
+  if (FLAG_trace_lazy_deserialization) {
+    PrintF("Lazy-deserializing handler %s\n",
+           Bytecodes::ToString(bytecode, operand_scale).c_str());
+  }
+
+  // Some handlers are reused for several bytecodes. If we encounter such a
+  // bytecode, find the canonical handler, deserialize it, and write it into all
+  // slots in the dispatch table that (re)use it.
+
+  Bytecode maybe_reused_bytecode;
+  const bool reuses_existing_handler =
+      Bytecodes::ReusesExistingHandler(bytecode, &maybe_reused_bytecode);
+
+  Bytecode handler_bytecode =
+      reuses_existing_handler ? maybe_reused_bytecode : bytecode;
+
+  DCHECK(Bytecodes::BytecodeHasHandler(handler_bytecode, operand_scale));
+  code =
+      Snapshot::DeserializeHandler(isolate_, handler_bytecode, operand_scale);
+
+  DCHECK(code->IsCode());
+  DCHECK_EQ(code->kind(), Code::BYTECODE_HANDLER);
+
+  for (Bytecode b : Bytecodes::AllBytecodesUsingHandler(handler_bytecode)) {
+    SetBytecodeHandler(b, operand_scale, code);
+  }
+
+  return code;
 }
 
 Code* Interpreter::GetBytecodeHandler(Bytecode bytecode,

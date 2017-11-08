@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <iosfwd>
 #include <string>
+#include <vector>
 
 #include "src/globals.h"
 #include "src/interpreter/bytecode-operands.h"
@@ -675,6 +676,12 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
            bytecode == Bytecode::kDebugBreakWide;
   }
 
+  // Returns true if the bytecode can be lazily deserialized.
+  static constexpr bool IsLazy(Bytecode bytecode) {
+    // Currently, all handlers are deserialized lazily.
+    return true;
+  }
+
   // Returns the number of values which |bytecode| returns.
   static constexpr size_t ReturnCount(Bytecode bytecode) {
     return bytecode == Bytecode::kReturn ? 1 : 0;
@@ -850,6 +857,26 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
         return true;
       default:
         return false;
+    }
+  }
+
+  static std::vector<Bytecode> AllBytecodesUsingHandler(Bytecode bytecode) {
+    Bytecode dummy;
+    USE(dummy);
+    switch (bytecode) {
+      case Bytecode::kLdaContextSlot:
+        DCHECK(
+            ReusesExistingHandler(Bytecode::kLdaImmutableContextSlot, &dummy));
+        DCHECK_EQ(bytecode, dummy);
+        return {bytecode, Bytecode::kLdaImmutableContextSlot};
+      case Bytecode::kLdaCurrentContextSlot:
+        DCHECK(ReusesExistingHandler(Bytecode::kLdaImmutableCurrentContextSlot,
+                                     &dummy));
+        DCHECK_EQ(bytecode, dummy);
+        return {bytecode, Bytecode::kLdaImmutableCurrentContextSlot};
+      default:
+        DCHECK(!ReusesExistingHandler(bytecode, &dummy));
+        return {bytecode};
     }
   }
 

@@ -12,10 +12,8 @@
 namespace v8 {
 namespace internal {
 
-using interpreter::Bytecode;
 using interpreter::Bytecodes;
 using interpreter::Interpreter;
-using interpreter::OperandScale;
 
 // Tracks the code object currently being deserialized (required for
 // allocation).
@@ -60,7 +58,7 @@ void BuiltinDeserializer::DeserializeEagerBuiltinsAndHandlers() {
   for (int i = 0; i < BSU::kNumberOfBuiltins; i++) {
     if (IsLazyDeserializationEnabled() && Builtins::IsLazy(i)) {
       // Do nothing. These builtins have been replaced by DeserializeLazy in
-      // InitializeBuiltinsTable.
+      // InitializeFromReservations.
       DCHECK_EQ(builtins->builtin(Builtins::kDeserializeLazy),
                 builtins->builtin(i));
     } else {
@@ -77,17 +75,21 @@ void BuiltinDeserializer::DeserializeEagerBuiltinsAndHandlers() {
 
   // Deserialize bytecode handlers.
 
-  // The dispatch table has been initialized during memory reservation.
   Interpreter* interpreter = isolate()->interpreter();
-  DCHECK(isolate()->interpreter()->IsDispatchTableInitialized());
+  DCHECK(!isolate()->interpreter()->IsDispatchTableInitialized());
 
   BSU::ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
-    // TODO(jgruber): Replace with DeserializeLazy handler.
-
     // Bytecodes without a dedicated handler are patched up in a second pass.
     if (!BSU::BytecodeHasDedicatedHandler(bytecode, operand_scale)) return;
 
-    Code* code = DeserializeHandlerRaw(bytecode, operand_scale);
+    // If lazy-deserialization is enabled and the current bytecode is lazy,
+    // we write the generic LazyDeserialization handler into the dispatch table
+    // and deserialize later upon first use.
+    Code* code = (FLAG_lazy_handler_deserialization &&
+                  IsLazyDeserializationEnabled() && Bytecodes::IsLazy(bytecode))
+                     ? GetDeserializeLazyHandler(operand_scale)
+                     : DeserializeHandlerRaw(bytecode, operand_scale);
+
     interpreter->SetBytecodeHandler(bytecode, operand_scale, code);
   });
 
@@ -121,6 +123,13 @@ Code* BuiltinDeserializer::DeserializeBuiltin(int builtin_id) {
   allocator()->ReserveAndInitializeBuiltinsTableForBuiltin(builtin_id);
   DisallowHeapAllocation no_gc;
   return DeserializeBuiltinRaw(builtin_id);
+}
+
+Code* BuiltinDeserializer::DeserializeHandler(Bytecode bytecode,
+                                              OperandScale operand_scale) {
+  allocator()->ReserveForHandler(bytecode, operand_scale);
+  DisallowHeapAllocation no_gc;
+  return DeserializeHandlerRaw(bytecode, operand_scale);
 }
 
 Code* BuiltinDeserializer::DeserializeBuiltinRaw(int builtin_id) {
@@ -188,6 +197,21 @@ uint32_t BuiltinDeserializer::ExtractCodeObjectSize(int code_object_id) {
   source()->set_position(initial_position);
 
   return result;
+}
+
+Code* BuiltinDeserializer::GetDeserializeLazyHandler(
+    interpreter::OperandScale operand_scale) const {
+  STATIC_ASSERT(interpreter::BytecodeOperands::kOperandScaleCount == 3);
+  switch (operand_scale) {
+    case OperandScale::kSingle:
+      return Code::cast(isolate()->heap()->deserialize_lazy_handler());
+    case OperandScale::kDouble:
+      return Code::cast(isolate()->heap()->deserialize_lazy_handler_wide());
+    case OperandScale::kQuadruple:
+      return Code::cast(
+          isolate()->heap()->deserialize_lazy_handler_extra_wide());
+  }
+  UNREACHABLE();
 }
 
 }  // namespace internal

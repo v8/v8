@@ -526,7 +526,7 @@ RUNTIME_FUNCTION(Runtime_DeserializeLazy) {
   DCHECK_EQ(Builtins::TFJ, Builtins::KindOf(builtin_id));
 
   if (FLAG_trace_lazy_deserialization) {
-    PrintF("Lazy-deserializing %s\n", Builtins::name(builtin_id));
+    PrintF("Lazy-deserializing builtin %s\n", Builtins::name(builtin_id));
   }
 
   Code* code = Snapshot::DeserializeBuiltin(isolate, builtin_id);
