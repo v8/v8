@@ -3057,7 +3057,9 @@ void CodeGenerator::AssembleConstructFrame() {
     shrink_slots -= static_cast<int>(osr_helper()->UnoptimizedFrameSlots());
   }
 
+  const RegList saves = descriptor->CalleeSavedRegisters();
   const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+
   if (shrink_slots > 0) {
     if (info()->IsWasm() && shrink_slots > 128) {
       // For WebAssembly functions with big frames we have to do the stack
@@ -3089,7 +3091,13 @@ void CodeGenerator::AssembleConstructFrame() {
       __ AssertUnreachable(kUnexpectedReturnFromWasmTrap);
       __ bind(&done);
     }
-    __ subq(rsp, Immediate(shrink_slots * kPointerSize));
+
+    // Skip callee-saved slots, which are pushed below.
+    shrink_slots -= base::bits::CountPopulation(saves);
+    shrink_slots -= base::bits::CountPopulation(saves_fp);
+    if (shrink_slots > 0) {
+      __ subq(rsp, Immediate(shrink_slots * kPointerSize));
+    }
   }
 
   if (saves_fp != 0) {  // Save callee-saved XMM registers.
@@ -3107,7 +3115,6 @@ void CodeGenerator::AssembleConstructFrame() {
     }
   }
 
-  const RegList saves = descriptor->CalleeSavedRegisters();
   if (saves != 0) {  // Save callee-saved registers.
     for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
       if (!((1 << i) & saves)) continue;

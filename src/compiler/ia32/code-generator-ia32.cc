@@ -2805,16 +2805,18 @@ void CodeGenerator::AssembleConstructFrame() {
       __ AssertUnreachable(kUnexpectedReturnFromWasmTrap);
       __ bind(&done);
     }
-    __ sub(esp, Immediate(shrink_slots * kPointerSize));
+
+    // Skip callee-saved slots, which are pushed below.
+    shrink_slots -= base::bits::CountPopulation(saves);
+    if (shrink_slots > 0) {
+      __ sub(esp, Immediate(shrink_slots * kPointerSize));
+    }
   }
 
   if (saves != 0) {  // Save callee-saved registers.
     DCHECK(!info()->is_osr());
-    int pushed = 0;
     for (int i = Register::kNumRegisters - 1; i >= 0; i--) {
-      if (!((1 << i) & saves)) continue;
-      __ push(Register::from_code(i));
-      ++pushed;
+      if (((1 << i) & saves)) __ push(Register::from_code(i));
     }
   }
 }

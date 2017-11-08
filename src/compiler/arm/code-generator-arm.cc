@@ -2832,7 +2832,9 @@ void CodeGenerator::AssembleConstructFrame() {
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
   }
 
+  const RegList saves = descriptor->CalleeSavedRegisters();
   const RegList saves_fp = descriptor->CalleeSavedFPRegisters();
+
   if (shrink_slots > 0) {
     if (info()->IsWasm()) {
       if (shrink_slots > 128) {
@@ -2876,7 +2878,13 @@ void CodeGenerator::AssembleConstructFrame() {
         __ bind(&done);
       }
     }
-    __ sub(sp, sp, Operand(shrink_slots * kPointerSize));
+
+    // Skip callee-saved slots, which are pushed below.
+    shrink_slots -= base::bits::CountPopulation(saves);
+    shrink_slots -= 2 * base::bits::CountPopulation(saves_fp);
+    if (shrink_slots > 0) {
+      __ sub(sp, sp, Operand(shrink_slots * kPointerSize));
+    }
   }
 
   if (saves_fp != 0) {
@@ -2888,7 +2896,6 @@ void CodeGenerator::AssembleConstructFrame() {
     __ vstm(db_w, sp, DwVfpRegister::from_code(first),
             DwVfpRegister::from_code(last));
   }
-  const RegList saves = descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     // Save callee-saved registers.
     __ stm(db_w, sp, saves);

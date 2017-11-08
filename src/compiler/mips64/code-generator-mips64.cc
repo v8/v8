@@ -3725,18 +3725,22 @@ void CodeGenerator::AssembleConstructFrame() {
     shrink_slots -= osr_helper()->UnoptimizedFrameSlots();
   }
 
+  const RegList saves = descriptor->CalleeSavedRegisters();
+  const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
+
+  // Skip callee-saved slots, which are pushed below.
+  shrink_slots -= base::bits::CountPopulation(saves);
+  shrink_slots -= base::bits::CountPopulation(saves_fpu);
   if (shrink_slots > 0) {
     __ Dsubu(sp, sp, Operand(shrink_slots * kPointerSize));
   }
 
-  const RegList saves_fpu = descriptor->CalleeSavedFPRegisters();
   if (saves_fpu != 0) {
     // Save callee-saved FPU registers.
     __ MultiPushFPU(saves_fpu);
     DCHECK_EQ(kNumCalleeSavedFPU, base::bits::CountPopulation(saves_fpu));
   }
 
-  const RegList saves = descriptor->CalleeSavedRegisters();
   if (saves != 0) {
     // Save callee-saved registers.
     __ MultiPush(saves);
