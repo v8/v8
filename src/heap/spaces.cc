@@ -546,10 +546,9 @@ void MemoryChunk::SetReadAndExecutable() {
   if (write_unprotect_counter_ == 0) {
     Address protect_start =
         address() + MemoryAllocator::CodePageAreaStartOffset();
-    size_t protect_size = size() - MemoryAllocator::CodePageAreaStartOffset();
     DCHECK(
         IsAddressAligned(protect_start, MemoryAllocator::GetCommitPageSize()));
-    base::OS::SetReadAndExecutable(protect_start, protect_size);
+    base::OS::SetReadAndExecutable(protect_start, area_size());
   }
 }
 
@@ -567,10 +566,9 @@ void MemoryChunk::SetReadAndWritable() {
   if (write_unprotect_counter_ == 1) {
     Address unprotect_start =
         address() + MemoryAllocator::CodePageAreaStartOffset();
-    size_t unprotect_size = size() - MemoryAllocator::CodePageAreaStartOffset();
     DCHECK(IsAddressAligned(unprotect_start,
                             MemoryAllocator::GetCommitPageSize()));
-    base::OS::SetReadAndWritable(unprotect_start, unprotect_size, false);
+    base::OS::SetReadAndWritable(unprotect_start, area_size(), false);
   }
 }
 
@@ -587,10 +585,9 @@ void MemoryChunk::SetReadWriteAndExecutable() {
   DCHECK_LE(write_unprotect_counter_, 3);
   Address unprotect_start =
       address() + MemoryAllocator::CodePageAreaStartOffset();
-  size_t unprotect_size = size() - MemoryAllocator::CodePageAreaStartOffset();
   DCHECK(
       IsAddressAligned(unprotect_start, MemoryAllocator::GetCommitPageSize()));
-  base::OS::SetReadWriteAndExecutable(unprotect_start, unprotect_size);
+  base::OS::SetReadWriteAndExecutable(unprotect_start, area_size());
 }
 
 MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
