@@ -52,6 +52,16 @@ typedef int (*F0)();
 
 #define __ masm->
 
+byte* AllocateExecutablePage(int* actual_size) {
+  size_t allocated = 0;
+  void* result =
+      v8::base::OS::Allocate(Assembler::kMinimalBufferSize, &allocated,
+                             v8::base::OS::MemoryPermission::kReadWriteExecute);
+  CHECK(result);
+  *actual_size = static_cast<int>(allocated);
+  return static_cast<byte*>(result);
+}
+
 static void EntryCode(MacroAssembler* masm) {
   // Smi constant register is callee save.
   __ pushq(kRootRegister);
@@ -99,9 +109,9 @@ static void TestMoveSmi(MacroAssembler* masm, Label* exit, int id, Smi* value) {
 TEST(SmiMove) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
   EntryCode(masm);
@@ -182,9 +192,9 @@ void TestSmiCompare(MacroAssembler* masm, Label* exit, int id, int x, int y) {
 TEST(SmiCompare) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -228,9 +238,9 @@ TEST(SmiCompare) {
 TEST(Integer32ToSmi) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -325,9 +335,9 @@ TEST(Integer32ToSmi) {
 TEST(SmiCheck) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -422,9 +432,9 @@ void TestSmiIndex(MacroAssembler* masm, Label* exit, int id, int x) {
 TEST(SmiIndex) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -455,9 +465,9 @@ TEST(OperandOffset) {
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;
@@ -803,9 +813,9 @@ TEST(OperandOffset) {
 TEST(LoadAndStoreWithRepresentation) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
@@ -1070,9 +1080,9 @@ void TestFloat64x2Neg(MacroAssembler* masm, Label* exit, double x, double y) {
 TEST(SIMDMacros) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
 
   MacroAssembler* masm = &assembler;

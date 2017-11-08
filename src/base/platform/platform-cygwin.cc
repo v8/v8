@@ -34,18 +34,6 @@ namespace {
 // This causes VirtualMemory::Commit to not always commit the memory region
 // specified.
 
-int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
-  switch (access) {
-    case OS::MemoryPermission::kNoAccess:
-      return PAGE_NOACCESS;
-    case OS::MemoryPermission::kReadWrite:
-      return PAGE_READWRITE;
-    case OS::MemoryPermission::kReadWriteExecute:
-      return PAGE_EXECUTE_READWRITE;
-  }
-  UNREACHABLE();
-}
-
 static void* RandomizedVirtualAlloc(size_t size, int action, int protection,
                                     void* hint) {
   LPVOID base = nullptr;
@@ -92,44 +80,43 @@ double CygwinTimezoneCache::LocalTimeOffset() {
                              (loc->tm_isdst > 0 ? 3600 * msPerSecond : 0));
 }
 
-void* OS::Allocate(void* address, size_t size, size_t alignment,
-                   MemoryPermission access) {
-  size_t page_size = AllocatePageSize();
-  DCHECK_EQ(0, size % page_size);
-  DCHECK_EQ(0, alignment % page_size);
-  address = AlignedAddress(address, alignment);
-  // Add the maximum misalignment so we are guaranteed an aligned base address.
-  size_t request_size = size + (alignment - page_size);
-
-  int flags = (access == OS::MemoryPermission::kNoAccess)
-                  ? MEM_RESERVE
-                  : MEM_RESERVE | MEM_COMMIT;
-  int prot = GetProtectionFromMemoryPermission(access);
-
-  void* base = RandomizedVirtualAlloc(request_size, flags, prot, address);
-  if (base == nullptr) return nullptr;
-
-  uint8_t* aligned_base = RoundUp(static_cast<uint8_t*>(base), alignment);
-  int resize_attempts = 0;
-  const int kMaxResizeAttempts = 3;
-  while (aligned_base != base) {
-    // Try reducing the size by freeing and then re-allocating at the aligned
-    // base. Retry logic is needed since we may lose the memory due to a race.
-    Free(base, request_size);
-    if (resize_attempts == kMaxResizeAttempts) return nullptr;
-    base = RandomizedVirtualAlloc(size, flags, prot, aligned_base);
-    if (base == nullptr) return nullptr;
-    aligned_base = RoundUp(static_cast<uint8_t*>(base), alignment);
-    resize_attempts++;
-  }
-
-  return static_cast<void*>(aligned_base);
+// static
+void* OS::ReserveRegion(size_t size, void* hint) {
+  return RandomizedVirtualAlloc(size, MEM_RESERVE, PAGE_NOACCESS, hint);
 }
 
-void OS::Free(void* address, const size_t size) {
-  // TODO(1240712): VirtualFree has a return value which is ignored here.
-  VirtualFree(address, 0, MEM_RELEASE);
-  USE(size);
+// static
+void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
+                               size_t* allocated) {
+  hint = AlignedAddress(hint, alignment);
+  DCHECK_EQ(alignment % OS::AllocatePageSize(), 0);
+  size_t request_size =
+      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocatePageSize()));
+  void* address = ReserveRegion(request_size, hint);
+  if (address == nullptr) {
+    *allocated = 0;
+    return nullptr;
+  }
+  uint8_t* base = RoundUp(static_cast<uint8_t*>(address), alignment);
+  // Try reducing the size by freeing and then reallocating a specific area.
+  bool result = ReleaseRegion(address, request_size);
+  USE(result);
+  DCHECK(result);
+  address = VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
+  if (address != nullptr) {
+    request_size = size;
+    DCHECK(base == static_cast<uint8_t*>(address));
+  } else {
+    // Resizing failed, just go with a bigger area.
+    address = ReserveRegion(request_size, hint);
+    if (address == nullptr) {
+      *allocated = 0;
+      return nullptr;
+    }
+  }
+
+  *allocated = request_size;
+  return static_cast<void*>(address);
 }
 
 // static

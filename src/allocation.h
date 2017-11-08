@@ -76,22 +76,19 @@ class FreeStoreAllocationPolicy {
 void* AlignedAlloc(size_t size, size_t alignment);
 void AlignedFree(void *ptr);
 
-// Allocates a single system memory page with read/write permissions. The
-// address parameter is a hint. Returns the base address of the memory, or null
-// on failure. Permissions can be changed on the base address.
-byte* AllocateSystemPage(void* address, size_t* allocated);
-
 // Represents and controls an area of reserved memory.
 class V8_EXPORT_PRIVATE VirtualMemory {
  public:
   // Empty VirtualMemory object, controlling no reserved memory.
   VirtualMemory();
 
-  // Reserves virtual memory containing an area of the given size that is
-  // aligned per alignment. This may not be at the position returned by
-  // address().
-  VirtualMemory(size_t size, void* hint,
-                size_t alignment = base::OS::AllocatePageSize());
+  // Reserves virtual memory with size.
+  explicit VirtualMemory(size_t size, void* hint);
+
+  // Reserves virtual memory containing an area of the given size that
+  // is aligned per alignment. This may not be at the position returned
+  // by address().
+  VirtualMemory(size_t size, size_t alignment, void* hint);
 
   // Construct a virtual memory by assigning it some already mapped address
   // and size.
