@@ -1247,8 +1247,8 @@ Reduction JSCallReducer::ReduceArrayFilter(Handle<JSFunction> function,
 
   const ElementsKind kind = receiver_maps[0]->elements_kind();
 
-  // TODO(danno): Handle holey and double elements kinds.
-  if (!IsFastPackedElementsKind(kind) || IsDoubleElementsKind(kind)) {
+  // TODO(danno): Handle holey elements kinds.
+  if (!IsFastPackedElementsKind(kind)) {
     return NoChange();
   }
 
@@ -1467,10 +1467,9 @@ Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
         simplified()->LoadField(AccessBuilder::ForFixedArrayLength()), elements,
         etrue, if_true);
 
-    GrowFastElementsMode mode = GrowFastElementsMode::kSmiOrObjectElements;
-    // TODO(mvstanton): Make sure{flags} is correct when we handle{a} as a
-    // double output array.
-    DCHECK(!IsDoubleElementsKind(kind));
+    GrowFastElementsMode mode =
+        IsDoubleElementsKind(kind) ? GrowFastElementsMode::kDoubleElements
+                                   : GrowFastElementsMode::kSmiOrObjectElements;
     elements = etrue =
         graph()->NewNode(simplified()->MaybeGrowFastElements(mode), a, elements,
                          checked_to, elements_length, etrue, if_true);
