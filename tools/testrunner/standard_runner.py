@@ -24,7 +24,6 @@ from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.local import verbose
 from testrunner.local.variants import ALL_VARIANTS
-from testrunner.network import network_execution
 from testrunner.objects import context
 
 
@@ -163,11 +162,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       parser.add_option("--no-harness", "--noharness",
                         help="Run without test harness of a given suite",
                         default=False, action="store_true")
-      parser.add_option("--network", help="Distribute tests on the network",
-                        default=False, dest="network", action="store_true")
-      parser.add_option("--no-network", "--nonetwork",
-                        help="Don't distribute tests on the network",
-                        dest="network", action="store_false")
       parser.add_option("--no-presubmit", "--nopresubmit",
                         help='Skip presubmit checks (deprecated)',
                         default=False, dest="no_presubmit", action="store_true")
@@ -248,10 +242,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           print("sancov-dir %s doesn't exist" % self.sancov_dir)
           raise base_runner.TestRunnerError()
 
-      if options.command_prefix and options.network:
-        print("Specifying --command-prefix disables network distribution, "
-              "running tests locally.")
-        options.network = False
       options.command_prefix = shlex.split(options.command_prefix)
       options.extra_flags = sum(map(shlex.split, options.extra_flags), [])
 
@@ -319,8 +309,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
       if options.valgrind:
         run_valgrind = os.path.join("tools", "run-valgrind.py")
-        # This is OK for distributed running, so we don't need to disable
-        # network.
         options.command_prefix = (["python", "-u", run_valgrind] +
                                   options.command_prefix)
       def CheckTestMode(name, option):
@@ -473,7 +461,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if options.report:
         verbose.PrintReport(all_tests)
 
-      # Run the tests, either locally or distributed on the network.
+      # Run the tests.
       start_time = time.time()
       progress_indicator = progress.IndicatorNotifier()
       progress_indicator.Register(
@@ -491,32 +479,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         progress_indicator.Register(progress.FlakinessTestProgressIndicator(
             options.flakiness_results))
 
-      run_networked = options.network
-      if not run_networked:
-        if options.verbose:
-          print("Network distribution disabled, running tests locally.")
-      elif utils.GuessOS() != "linux":
-        print("Network distribution is only supported on Linux, sorry!")
-        run_networked = False
-      peers = []
-      if run_networked:
-        peers = network_execution.GetPeers()
-        if not peers:
-          print("No connection to distribution server; running tests locally.")
-          run_networked = False
-        elif len(peers) == 1:
-          print("No other peers on the network; running tests locally.")
-          run_networked = False
-        elif num_tests <= 100:
-          print("Less than 100 tests, running them locally.")
-          run_networked = False
-
-      if run_networked:
-        runner = network_execution.NetworkedRunner(
-          suites, progress_indicator, ctx, peers, base_runner.BASE_DIR)
-      else:
-        runner = execution.Runner(suites, progress_indicator, ctx)
-
+      runner = execution.Runner(suites, progress_indicator, ctx)
       exit_code = runner.Run(options.j)
       overall_duration = time.time() - start_time
 
