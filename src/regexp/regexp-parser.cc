@@ -1249,6 +1249,9 @@ bool IsSupportedBinaryProperty(UProperty property) {
     case UCHAR_PATTERN_WHITE_SPACE:
     case UCHAR_QUOTATION_MARK:
     case UCHAR_RADICAL:
+#if U_ICU_VERSION_MAJOR_NUM >= 60
+    case UCHAR_REGIONAL_INDICATOR:
+#endif
     case UCHAR_S_TERM:
     case UCHAR_SOFT_DOTTED:
     case UCHAR_TERMINAL_PUNCTUATION:

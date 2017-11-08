@@ -137,6 +137,9 @@ f(/\p{QMark}/u, "A");
 t(/\p{Radical}/u, "\u2FAD");
 f(/\p{Radical}/u, "A");
 
+t(/\p{Regional_Indicator}/u, "\u{1F1E6}");
+f(/\p{Regional_Indicator}/u, "A");
+
 t(/\p{Sentence_Terminal}/u, "!");
 f(/\p{STerm}/u, "A");
 

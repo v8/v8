@@ -449,9 +449,6 @@
   'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Katakana': [SKIP],
   'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Yi': [SKIP],
 
-  # TODO(mathias): Add support for Regional_Indicator now that ICU 60.1 has it.
-  'built-ins/RegExp/property-escapes/generated/Regional_Indicator': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6776
   'built-ins/Proxy/ownKeys/return-duplicate-entries-throws': [FAIL],
   'built-ins/Proxy/ownKeys/return-duplicate-symbol-entries-throws': [FAIL],
