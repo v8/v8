@@ -106,22 +106,13 @@ class WasmGenerator {
     blocks_.pop_back();
   }
 
-  template <WasmOpcode memory_op, ValueType arg_type = kWasmStmt>
+  template <WasmOpcode memory_op, ValueType... arg_types>
   void memop(DataRange data) {
     const auto align = data.get<uint32_t>();
     const auto offset = data.get<uint32_t>();
 
-    if (arg_type == kWasmStmt) {
-      // Generate the index
-      Generate<kWasmI32>(data);
-    } else {
-      const auto parts = data.split();
-
-      // Generate the index
-      Generate<kWasmI32>(parts.first);
-      // Generate the value
-      Generate<arg_type>(parts.second);
-    }
+    // Generate the index and the arguments, if any.
+    Generate<kWasmI32, arg_types...>(data);
 
     builder_->Emit(memory_op);
     builder_->EmitU32V(align);
@@ -130,9 +121,7 @@ class WasmGenerator {
 
   template <ValueType T1, ValueType T2>
   void sequence(DataRange data) {
-    const auto parts = data.split();
-    Generate<T1>(parts.first);
-    Generate<T2>(parts.second);
+    Generate<T1, T2>(data);
   }
 
   void current_memory(DataRange data) {
