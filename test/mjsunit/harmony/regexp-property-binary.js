@@ -71,8 +71,8 @@ f(/\p{Dia}/u, "1");
 t(/\p{Emoji}/u, "\u2603");
 f(/\p{Emoji}/u, "x");
 
-// t(/\p{Emoji_Component}/u, "\u2603");
-// f(/\p{Emoji_Component}/u, "x");
+t(/\p{Emoji_Component}/u, "\u{1F1E6}");
+f(/\p{Emoji_Component}/u, "x");
 
 t(/\p{Emoji_Modifier_Base}/u, "\u{1F6CC}");
 f(/\p{Emoji_Modifier_Base}/u, "x");

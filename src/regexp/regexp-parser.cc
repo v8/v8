@@ -1225,9 +1225,9 @@ bool IsSupportedBinaryProperty(UProperty property) {
     case UCHAR_DEPRECATED:
     case UCHAR_DIACRITIC:
     case UCHAR_EMOJI:
-    // TODO(yangguo): Uncomment this once we upgrade to ICU 60.
-    //                See https://ssl.icu-project.org/trac/ticket/13062
-    // case UCHAR_EMOJI_COMPONENT:
+#if U_ICU_VERSION_MAJOR_NUM >= 60
+    case UCHAR_EMOJI_COMPONENT:
+#endif
     case UCHAR_EMOJI_MODIFIER_BASE:
     case UCHAR_EMOJI_MODIFIER:
     case UCHAR_EMOJI_PRESENTATION:

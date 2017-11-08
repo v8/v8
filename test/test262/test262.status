@@ -438,9 +438,6 @@
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4743#c28
-  'built-ins/RegExp/property-escapes/generated/Emoji_Component': [FAIL],
-
   # ICU 59 uses Unicode 9 data; property escape tests were generated for Unicode 10
   'built-ins/RegExp/property-escapes/generated/*': [SKIP],
 
