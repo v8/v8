@@ -31,9 +31,7 @@ int FuzzWasmSection(SectionCode section, const uint8_t* data, size_t size) {
   i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   // Clear any pending exceptions from a prior run.
-  if (i_isolate->has_pending_exception()) {
-    i_isolate->clear_pending_exception();
-  }
+  i_isolate->clear_pending_exception();
 
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
@@ -119,9 +117,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
   i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   // Clear any pending exceptions from a prior run.
-  if (i_isolate->has_pending_exception()) {
-    i_isolate->clear_pending_exception();
-  }
+  i_isolate->clear_pending_exception();
 
   v8::Isolate::Scope isolate_scope(isolate);
   v8::HandleScope handle_scope(isolate);
@@ -223,10 +219,12 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
   // if the execution may have produced a NaN at some point.
   if (!possible_nondeterminism) {
     CHECK_EQ(expect_exception, i_isolate->has_pending_exception());
-    i_isolate->clear_pending_exception();
 
     if (!expect_exception) CHECK_EQ(result_interpreter, result_turbofan);
   }
+
+  // Clear any pending exceptions for the next run.
+  i_isolate->clear_pending_exception();
 
   int32_t result_liftoff;
   {
@@ -244,11 +242,12 @@ int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
   }
   if (!possible_nondeterminism) {
     CHECK_EQ(expect_exception, i_isolate->has_pending_exception());
-    i_isolate->clear_pending_exception();
 
     if (!expect_exception) CHECK_EQ(result_interpreter, result_liftoff);
   }
 
+  // Cleanup any pending exception.
+  i_isolate->clear_pending_exception();
   return 0;
 }
 
