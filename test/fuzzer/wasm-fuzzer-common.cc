@@ -22,8 +22,6 @@ namespace internal {
 namespace wasm {
 namespace fuzzer {
 
-static constexpr uint32_t kWasmCodeFuzzerHashSeed = 83;
-
 static constexpr const char* kNameString = "name";
 static constexpr size_t kNameStringLength = 4;
 
@@ -175,13 +173,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(
 
   bool validates = SyncValidate(i_isolate, wire_bytes);
 
-  if (compiles != validates) {
-    uint32_t hash = StringHasher::HashSequentialString(
-        data, static_cast<int>(size), kWasmCodeFuzzerHashSeed);
-    V8_Fatal(__FILE__, __LINE__,
-             "compiles != validates (%d vs %d); WasmCodeFuzzerHash=%x",
-             compiles, validates, hash);
-  }
+  CHECK_EQ(compiles, validates);
 
   if (!compiles) return 0;
 
@@ -232,13 +224,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(
     CHECK_EQ(expect_exception, i_isolate->has_pending_exception());
     i_isolate->clear_pending_exception();
 
-    if (!expect_exception && result_interpreter != result_turbofan) {
-      uint32_t hash = StringHasher::HashSequentialString(
-          data, static_cast<int>(size), kWasmCodeFuzzerHashSeed);
-      V8_Fatal(__FILE__, __LINE__,
-               "interpreter != turbofan (%x vs %x); WasmCodeFuzzerHash=%x",
-               result_interpreter, result_turbofan, hash);
-    }
+    if (!expect_exception) CHECK_EQ(result_interpreter, result_turbofan);
   }
 
   int32_t result_liftoff;
@@ -259,13 +245,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(
     CHECK_EQ(expect_exception, i_isolate->has_pending_exception());
     i_isolate->clear_pending_exception();
 
-    if (!expect_exception && result_interpreter != result_liftoff) {
-      uint32_t hash = StringHasher::HashSequentialString(
-          data, static_cast<int>(size), kWasmCodeFuzzerHashSeed);
-      V8_Fatal(__FILE__, __LINE__,
-               "interpreter != liftoff (%x vs %x); WasmCodeFuzzerHash=%x",
-               result_interpreter, result_liftoff, hash);
-    }
+    if (!expect_exception) CHECK_EQ(result_interpreter, result_liftoff);
   }
 
   return 0;
