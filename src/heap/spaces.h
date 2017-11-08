@@ -506,8 +506,6 @@ class MemoryChunk {
   Address area_end() { return area_end_; }
   size_t area_size() { return static_cast<size_t>(area_end() - area_start()); }
 
-  bool CommitArea(size_t requested);
-
   // Approximate amount of physical memory committed for this chunk.
   size_t CommittedPhysicalMemory();
 

@@ -85,7 +85,6 @@ static void VerifyMemoryChunk(Isolate* isolate,
                               CodeRange* code_range,
                               size_t reserve_area_size,
                               size_t commit_area_size,
-                              size_t second_commit_area_size,
                               Executability executable) {
   MemoryAllocator* memory_allocator = new MemoryAllocator(isolate);
   CHECK(memory_allocator->SetUp(heap->MaxReserved(), 0));
@@ -116,17 +115,6 @@ static void VerifyMemoryChunk(Isolate* isolate,
     CHECK(memory_chunk->area_end() <=
           memory_chunk->address() + memory_chunk->size());
     CHECK(static_cast<size_t>(memory_chunk->area_size()) == commit_area_size);
-
-    Address area_start = memory_chunk->area_start();
-
-    memory_chunk->CommitArea(second_commit_area_size);
-    CHECK(area_start == memory_chunk->area_start());
-    CHECK(memory_chunk->area_start() <
-          memory_chunk->address() + memory_chunk->size());
-    CHECK(memory_chunk->area_end() <=
-          memory_chunk->address() + memory_chunk->size());
-    CHECK(static_cast<size_t>(memory_chunk->area_size()) ==
-          second_commit_area_size);
 
     memory_allocator->Free<MemoryAllocator::kFull>(memory_chunk);
   }
@@ -181,11 +169,10 @@ TEST(MemoryChunk) {
   Heap* heap = isolate->heap();
 
   size_t reserve_area_size = 1 * MB;
-  size_t initial_commit_area_size, second_commit_area_size;
+  size_t initial_commit_area_size;
 
   for (int i = 0; i < 100; i++) {
     initial_commit_area_size = PseudorandomAreaSize();
-    second_commit_area_size = PseudorandomAreaSize();
 
     // With CodeRange.
     CodeRange* code_range = new CodeRange(isolate);
@@ -197,7 +184,6 @@ TEST(MemoryChunk) {
                       code_range,
                       reserve_area_size,
                       initial_commit_area_size,
-                      second_commit_area_size,
                       EXECUTABLE);
 
     VerifyMemoryChunk(isolate,
@@ -205,7 +191,6 @@ TEST(MemoryChunk) {
                       code_range,
                       reserve_area_size,
                       initial_commit_area_size,
-                      second_commit_area_size,
                       NOT_EXECUTABLE);
     delete code_range;
 
@@ -216,7 +201,6 @@ TEST(MemoryChunk) {
                       code_range,
                       reserve_area_size,
                       initial_commit_area_size,
-                      second_commit_area_size,
                       EXECUTABLE);
 
     VerifyMemoryChunk(isolate,
@@ -224,7 +208,6 @@ TEST(MemoryChunk) {
                       code_range,
                       reserve_area_size,
                       initial_commit_area_size,
-                      second_commit_area_size,
                       NOT_EXECUTABLE);
     delete code_range;
   }

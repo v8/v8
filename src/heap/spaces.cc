@@ -691,56 +691,6 @@ Page* Page::ConvertNewToOld(Page* old_page) {
   return new_page;
 }
 
-// Commit MemoryChunk area to the requested size.
-bool MemoryChunk::CommitArea(size_t requested) {
-  size_t guard_size =
-      IsFlagSet(IS_EXECUTABLE) ? MemoryAllocator::CodePageGuardSize() : 0;
-  size_t header_size = area_start() - address() - guard_size;
-  size_t commit_size =
-      ::RoundUp(header_size + requested, MemoryAllocator::GetCommitPageSize());
-  size_t committed_size = ::RoundUp(header_size + (area_end() - area_start()),
-                                    MemoryAllocator::GetCommitPageSize());
-
-  if (commit_size > committed_size) {
-    // Commit size should be less or equal than the reserved size.
-    DCHECK(commit_size <= size() - 2 * guard_size);
-    // Append the committed area.
-    Address start = address() + committed_size + guard_size;
-    size_t length = commit_size - committed_size;
-    if (reservation_.IsReserved()) {
-      Executability executable =
-          IsFlagSet(IS_EXECUTABLE) ? EXECUTABLE : NOT_EXECUTABLE;
-      if (!heap()->memory_allocator()->CommitMemory(start, length,
-                                                    executable)) {
-        return false;
-      }
-    } else {
-      CodeRange* code_range = heap_->memory_allocator()->code_range();
-      DCHECK(code_range->valid() && IsFlagSet(IS_EXECUTABLE));
-      if (!code_range->CommitRawMemory(start, length)) return false;
-    }
-
-    if (Heap::ShouldZapGarbage()) {
-      heap_->memory_allocator()->ZapBlock(start, length);
-    }
-  } else if (commit_size < committed_size) {
-    DCHECK_LT(0, commit_size);
-    // Shrink the committed area.
-    size_t length = committed_size - commit_size;
-    Address start = address() + committed_size + guard_size - length;
-    if (reservation_.IsReserved()) {
-      if (!reservation_.Uncommit(start, length)) return false;
-    } else {
-      CodeRange* code_range = heap_->memory_allocator()->code_range();
-      DCHECK(code_range->valid() && IsFlagSet(IS_EXECUTABLE));
-      if (!code_range->UncommitRawMemory(start, length)) return false;
-    }
-  }
-
-  area_end_ = area_start_ + requested;
-  return true;
-}
-
 size_t MemoryChunk::CommittedPhysicalMemory() {
   if (!base::OS::HasLazyCommits() || owner()->identity() == LO_SPACE)
     return size();
