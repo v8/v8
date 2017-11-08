@@ -12371,17 +12371,14 @@ void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
     JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "NormalizeAsPrototype");
   }
-  Handle<Map> previous_map(object->map());
   if (object->map()->is_prototype_map()) {
     if (object->map()->should_be_fast_prototype_map() &&
         !object->HasFastProperties()) {
       JSObject::MigrateSlowToFast(object, 0, "OptimizeAsPrototype");
     }
   } else {
-    if (object->map() == *previous_map) {
-      Handle<Map> new_map = Map::Copy(handle(object->map()), "CopyAsPrototype");
-      JSObject::MigrateToMap(object, new_map);
-    }
+    Handle<Map> new_map = Map::Copy(handle(object->map()), "CopyAsPrototype");
+    JSObject::MigrateToMap(object, new_map);
     object->map()->set_is_prototype_map(true);
 
     // Replace the pointer to the exact constructor with the Object function
