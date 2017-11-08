@@ -2823,7 +2823,7 @@ bool Isolate::Init(StartupDeserializer* des) {
   INTERFACE_DESCRIPTOR_LIST(INTERFACE_DESCRIPTOR)
 #undef INTERFACE_DESCRIPTOR
 
-  deoptimizer_data_ = new DeoptimizerData(heap()->memory_allocator());
+  deoptimizer_data_ = new DeoptimizerData(heap());
 
   const bool create_heap_objects = (des == nullptr);
   if (setup_delegate_ == nullptr) {

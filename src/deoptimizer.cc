@@ -23,32 +23,23 @@
 namespace v8 {
 namespace internal {
 
-static MemoryChunk* AllocateCodeChunk(MemoryAllocator* allocator) {
-  MemoryChunk* chunk = allocator->AllocateChunk(
-      Deoptimizer::GetMaxDeoptTableSize(), MemoryAllocator::GetCommitPageSize(),
-      EXECUTABLE, nullptr);
-  if (FLAG_write_protect_code_memory) {
-    // TODO(hpayer): Ensure code memory chunk allocation gives us rx by default.
-    chunk->SetReadAndWritable();
-    chunk->SetReadAndExecutable();
-  }
-  return chunk;
-}
-
-DeoptimizerData::DeoptimizerData(MemoryAllocator* allocator)
-    : allocator_(allocator), current_(nullptr) {
+DeoptimizerData::DeoptimizerData(Heap* heap) : heap_(heap), current_(nullptr) {
   for (int i = 0; i <= Deoptimizer::kLastBailoutType; ++i) {
-    deopt_entry_code_entries_[i] = -1;
-    deopt_entry_code_[i] = AllocateCodeChunk(allocator);
+    deopt_entry_code_[i] = nullptr;
   }
+  Code** start = &deopt_entry_code_[0];
+  Code** end = &deopt_entry_code_[Deoptimizer::kLastBailoutType + 1];
+  heap_->RegisterStrongRoots(reinterpret_cast<Object**>(start),
+                             reinterpret_cast<Object**>(end));
 }
 
 
 DeoptimizerData::~DeoptimizerData() {
   for (int i = 0; i <= Deoptimizer::kLastBailoutType; ++i) {
-    allocator_->Free<MemoryAllocator::kFull>(deopt_entry_code_[i]);
     deopt_entry_code_[i] = nullptr;
   }
+  Code** start = &deopt_entry_code_[0];
+  heap_->UnregisterStrongRoots(reinterpret_cast<Object**>(start));
 }
 
 
@@ -82,20 +73,6 @@ Deoptimizer* Deoptimizer::New(JSFunction* function,
   CHECK_NULL(isolate->deoptimizer_data()->current_);
   isolate->deoptimizer_data()->current_ = deoptimizer;
   return deoptimizer;
-}
-
-
-// No larger than 2K on all platforms
-static const int kDeoptTableMaxEpilogueCodeSize = 2 * KB;
-
-
-size_t Deoptimizer::GetMaxDeoptTableSize() {
-  int entries_size =
-      Deoptimizer::kMaxNumberOfEntries * Deoptimizer::table_entry_size_;
-  int commit_page_size = static_cast<int>(MemoryAllocator::GetCommitPageSize());
-  int page_count = ((kDeoptTableMaxEpilogueCodeSize + entries_size - 1) /
-                    commit_page_size) + 1;
-  return static_cast<size_t>(commit_page_size * page_count);
 }
 
 
@@ -521,22 +498,15 @@ void Deoptimizer::DeleteFrameDescriptions() {
 #endif  // DEBUG
 }
 
-
-Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate,
-                                            int id,
-                                            BailoutType type,
-                                            GetEntryMode mode) {
+Address Deoptimizer::GetDeoptimizationEntry(Isolate* isolate, int id,
+                                            BailoutType type) {
   CHECK_GE(id, 0);
   if (id >= kMaxNumberOfEntries) return nullptr;
-  if (mode == ENSURE_ENTRY_CODE) {
-    EnsureCodeForDeoptimizationEntry(isolate, type, id);
-  } else {
-    CHECK_EQ(mode, CALCULATE_ENTRY_ADDRESS);
-  }
   DeoptimizerData* data = isolate->deoptimizer_data();
   CHECK_LE(type, kLastBailoutType);
-  MemoryChunk* base = data->deopt_entry_code_[type];
-  return base->area_start() + (id * table_entry_size_);
+  CHECK_NOT_NULL(data->deopt_entry_code_[type]);
+  Code* code = data->deopt_entry_code_[type];
+  return code->instruction_start() + (id * table_entry_size_);
 }
 
 
@@ -544,8 +514,10 @@ int Deoptimizer::GetDeoptimizationId(Isolate* isolate,
                                      Address addr,
                                      BailoutType type) {
   DeoptimizerData* data = isolate->deoptimizer_data();
-  MemoryChunk* base = data->deopt_entry_code_[type];
-  Address start = base->area_start();
+  CHECK_LE(type, kLastBailoutType);
+  Code* code = data->deopt_entry_code_[type];
+  if (code == nullptr) return kNotDeoptimizationEntry;
+  Address start = code->instruction_start();
   if (addr < start ||
       addr >= start + (kMaxNumberOfEntries * table_entry_size_)) {
     return kNotDeoptimizationEntry;
@@ -1806,51 +1778,33 @@ unsigned Deoptimizer::ComputeIncomingArgumentSize(SharedFunctionInfo* shared) {
 }
 
 void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
-                                                   BailoutType type,
-                                                   int max_entry_id) {
-  // We cannot run this if the serializer is enabled because this will
-  // cause us to emit relocation information for the external
-  // references. This is fine because the deoptimizer's code section
-  // isn't meant to be serialized at all.
+                                                   BailoutType type) {
   CHECK(type == EAGER || type == SOFT || type == LAZY);
   DeoptimizerData* data = isolate->deoptimizer_data();
-  int entry_count = data->deopt_entry_code_entries_[type];
-  if (max_entry_id < entry_count) return;
-  entry_count = Max(entry_count, Deoptimizer::kMinNumberOfEntries);
-  while (max_entry_id >= entry_count) entry_count *= 2;
-  CHECK_LE(entry_count, Deoptimizer::kMaxNumberOfEntries);
+  if (data->deopt_entry_code_[type] != nullptr) return;
 
   MacroAssembler masm(isolate, nullptr, 16 * KB, CodeObjectRequired::kYes);
   masm.set_emit_debug_code(false);
-  GenerateDeoptimizationEntries(&masm, entry_count, type);
+  GenerateDeoptimizationEntries(&masm, kMaxNumberOfEntries, type);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
-  MemoryChunk* chunk = data->deopt_entry_code_[type];
+  // Allocate the code as immovable since the entry addresses will be used
+  // directly and there is no support for relocating them.
+  Handle<Code> code = isolate->factory()->NewCode(
+      desc, Code::STUB, Handle<Object>(), MaybeHandle<HandlerTable>(),
+      MaybeHandle<ByteArray>(), MaybeHandle<DeoptimizationData>(), true);
+  CHECK(isolate->heap()->IsImmovable(*code));
 
-  // TODO(mstarzinger,6792): This code-space modification section should be
-  // moved into {Heap} eventually and a safe wrapper be provided.
-  CodePageMemoryModificationScope modification_scope(
-      chunk, CodePageMemoryModificationScope::READ_WRITE);
-
-  CHECK(static_cast<int>(Deoptimizer::GetMaxDeoptTableSize()) >=
-        desc.instr_size);
-  if (!chunk->CommitArea(desc.instr_size)) {
-    V8::FatalProcessOutOfMemory(
-        "Deoptimizer::EnsureCodeForDeoptimizationEntry");
-  }
-  CopyBytes(chunk->area_start(), desc.buffer,
-            static_cast<size_t>(desc.instr_size));
-  Assembler::FlushICache(isolate, chunk->area_start(), desc.instr_size);
-
-  data->deopt_entry_code_entries_[type] = entry_count;
+  CHECK_NULL(data->deopt_entry_code_[type]);
+  data->deopt_entry_code_[type] = *code;
 }
 
 void Deoptimizer::EnsureCodeForMaxDeoptimizationEntries(Isolate* isolate) {
-  EnsureCodeForDeoptimizationEntry(isolate, EAGER, kMaxNumberOfEntries - 1);
-  EnsureCodeForDeoptimizationEntry(isolate, LAZY, kMaxNumberOfEntries - 1);
-  EnsureCodeForDeoptimizationEntry(isolate, SOFT, kMaxNumberOfEntries - 1);
+  EnsureCodeForDeoptimizationEntry(isolate, EAGER);
+  EnsureCodeForDeoptimizationEntry(isolate, LAZY);
+  EnsureCodeForDeoptimizationEntry(isolate, SOFT);
 }
 
 FrameDescription::FrameDescription(uint32_t frame_size, int parameter_count)

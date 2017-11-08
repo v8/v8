@@ -528,10 +528,7 @@ void MemoryChunk::InitializationMemoryFence() {
 
 void MemoryChunk::SetReadAndExecutable() {
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  // TODO(hpayer): owner() can only be null if we use the MemoryChunk outside
-  // of spaces. We actually should not do that and we should untangle this.
-  DCHECK(owner() == nullptr || owner()->identity() == CODE_SPACE ||
-         owner()->identity() == LO_SPACE);
+  DCHECK(owner()->identity() == CODE_SPACE || owner()->identity() == LO_SPACE);
   // Decrementing the write_unprotect_counter_ and changing the page
   // protection mode has to be atomic.
   base::LockGuard<base::Mutex> guard(page_protection_change_mutex_);
@@ -554,10 +551,7 @@ void MemoryChunk::SetReadAndExecutable() {
 
 void MemoryChunk::SetReadAndWritable() {
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  // TODO(hpayer): owner() can only be null if we use the MemoryChunk outside
-  // of spaces. We actually should not do that and we should untangle this.
-  DCHECK(owner() == nullptr || owner()->identity() == CODE_SPACE ||
-         owner()->identity() == LO_SPACE);
+  DCHECK(owner()->identity() == CODE_SPACE || owner()->identity() == LO_SPACE);
   // Incrementing the write_unprotect_counter_ and changing the page
   // protection mode has to be atomic.
   base::LockGuard<base::Mutex> guard(page_protection_change_mutex_);
@@ -574,10 +568,7 @@ void MemoryChunk::SetReadAndWritable() {
 
 void MemoryChunk::SetReadWriteAndExecutable() {
   DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  // TODO(hpayer): owner() can only be null if we use the MemoryChunk outside
-  // of spaces. We actually should not do that and we should untangle this.
-  DCHECK(owner() == nullptr || owner()->identity() == CODE_SPACE ||
-         owner()->identity() == LO_SPACE);
+  DCHECK(owner()->identity() == CODE_SPACE || owner()->identity() == LO_SPACE);
   // Incrementing the write_unprotect_counter_ and changing the page
   // protection mode has to be atomic.
   base::LockGuard<base::Mutex> guard(page_protection_change_mutex_);

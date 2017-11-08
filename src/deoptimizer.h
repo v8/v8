@@ -405,18 +405,8 @@ class Deoptimizer : public Malloced {
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
-
-  enum GetEntryMode {
-    CALCULATE_ENTRY_ADDRESS,
-    ENSURE_ENTRY_CODE
-  };
-
-
-  static Address GetDeoptimizationEntry(
-      Isolate* isolate,
-      int id,
-      BailoutType type,
-      GetEntryMode mode = ENSURE_ENTRY_CODE);
+  static Address GetDeoptimizationEntry(Isolate* isolate, int id,
+                                        BailoutType type);
   static int GetDeoptimizationId(Isolate* isolate,
                                  Address addr,
                                  BailoutType type);
@@ -459,11 +449,8 @@ class Deoptimizer : public Malloced {
     int count_;
   };
 
-  static size_t GetMaxDeoptTableSize();
-
   static void EnsureCodeForDeoptimizationEntry(Isolate* isolate,
-                                               BailoutType type,
-                                               int max_entry_id);
+                                               BailoutType type);
   static void EnsureCodeForMaxDeoptimizationEntries(Isolate* isolate);
 
   Isolate* isolate() const { return isolate_; }
@@ -770,13 +757,12 @@ class FrameDescription {
 
 class DeoptimizerData {
  public:
-  explicit DeoptimizerData(MemoryAllocator* allocator);
+  explicit DeoptimizerData(Heap* heap);
   ~DeoptimizerData();
 
  private:
-  MemoryAllocator* allocator_;
-  int deopt_entry_code_entries_[Deoptimizer::kLastBailoutType + 1];
-  MemoryChunk* deopt_entry_code_[Deoptimizer::kLastBailoutType + 1];
+  Heap* heap_;
+  Code* deopt_entry_code_[Deoptimizer::kLastBailoutType + 1];
 
   Deoptimizer* current_;
 

@@ -1968,6 +1968,7 @@ Handle<Code> Pipeline::GenerateCodeForTesting(CompilationInfo* info) {
   PipelineImpl pipeline(&data);
 
   Linkage linkage(Linkage::ComputeIncoming(data.instruction_zone(), info));
+  Deoptimizer::EnsureCodeForMaxDeoptimizationEntries(info->isolate());
 
   if (!pipeline.CreateGraph()) return Handle<Code>::null();
   if (!pipeline.OptimizeGraph(&linkage)) return Handle<Code>::null();
