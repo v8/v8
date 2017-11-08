@@ -6,7 +6,9 @@
 ALL_VARIANT_FLAGS = {
   "default": [[]],
   "stress": [["--stress-opt", "--always-opt"]],
-  "stress_incremental_marking":  [["--stress-incremental-marking"]],
+  # TODO(6792): Write protected code has been temporary added to the below
+  # variant until the feature has been enabled (or staged) by default.
+  "stress_incremental_marking":  [["--stress-incremental-marking", "--write-protect-code-memory"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
   # would not force optimization too. It turns into a Nop. Please see
   # https://chromium-review.googlesource.com/c/452620/ for more discussion.
@@ -19,7 +21,9 @@ ALL_VARIANT_FLAGS = {
 FAST_VARIANT_FLAGS = {
   "default": [[]],
   "stress": [["--stress-opt"]],
-  "stress_incremental_marking":  [["--stress-incremental-marking"]],
+  # TODO(6792): Write protected code has been temporary added to the below
+  # variant until the feature has been enabled (or staged) by default.
+  "stress_incremental_marking":  [["--stress-incremental-marking", "--write-protect-code-memory"]],
   # No optimization means disable all optimizations. OptimizeFunctionOnNextCall
   # would not force optimization too. It turns into a Nop. Please see
   # https://chromium-review.googlesource.com/c/452620/ for more discussion.
