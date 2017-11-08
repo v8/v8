@@ -461,6 +461,7 @@ Type* Typer::Visitor::ToInteger(Type* type, Typer* t) {
 Type* Typer::Visitor::ToLength(Type* type, Typer* t) {
   // ES6 section 7.1.15 ToLength ( argument )
   type = ToInteger(type, t);
+  if (!type->IsInhabited()) return Type::None();
   double min = type->Min();
   double max = type->Max();
   if (max <= 0.0) {

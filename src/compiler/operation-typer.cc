@@ -287,22 +287,24 @@ Type* OperationTyper::NumberAbs(Type* type) {
     return Type::None();
   }
 
-  bool const maybe_nan = type->Maybe(Type::NaN());
-  bool const maybe_minuszero = type->Maybe(Type::MinusZero());
   type = Type::Intersect(type, Type::PlainNumber(), zone());
-  double const max = type->Max();
-  double const min = type->Min();
-  if (min < 0) {
-    if (type->Is(cache_.kInteger)) {
-      type = Type::Range(0.0, std::max(std::fabs(min), std::fabs(max)), zone());
-    } else {
-      type = Type::PlainNumber();
+  if (type->IsInhabited()) {
+    double const max = type->Max();
+    double const min = type->Min();
+    if (min < 0) {
+      if (type->Is(cache_.kInteger)) {
+        type =
+            Type::Range(0.0, std::max(std::fabs(min), std::fabs(max)), zone());
+      } else {
+        type = Type::PlainNumber();
+      }
     }
   }
-  if (maybe_minuszero) {
+
+  if (type->Maybe(Type::NaN())) {
     type = Type::Union(type, cache_.kSingletonZero, zone());
   }
-  if (maybe_nan) {
+  if (type->Maybe(Type::MinusZero())) {
     type = Type::Union(type, Type::NaN(), zone());
   }
   return type;
@@ -682,6 +684,8 @@ Type* OperationTyper::NumberDivide(Type* lhs, Type* rhs) {
 Type* OperationTyper::NumberModulus(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
+
+  if (!lhs->IsInhabited() || !rhs->IsInhabited()) return Type::None();
 
   // Modulus can yield NaN if either {lhs} or {rhs} are NaN, or
   // {lhs} is not finite, or the {rhs} is a zero value.

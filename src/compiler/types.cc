@@ -67,13 +67,16 @@ bool Type::Contains(RangeType* range, i::Object* val) {
 // Min and Max computation.
 
 double Type::Min() {
+  DCHECK(this->IsInhabited());
   DCHECK(this->Is(Number()));
   if (this->IsBitset()) return BitsetType::Min(this->AsBitset());
   if (this->IsUnion()) {
     double min = +V8_INFINITY;
-    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+    for (int i = 1, n = this->AsUnion()->Length(); i < n; ++i) {
       min = std::min(min, this->AsUnion()->Get(i)->Min());
     }
+    Type* bitset = this->AsUnion()->Get(0);
+    if (bitset->IsInhabited()) min = std::min(min, bitset->Min());
     return min;
   }
   if (this->IsRange()) return this->AsRange()->Min();
@@ -83,13 +86,16 @@ double Type::Min() {
 }
 
 double Type::Max() {
+  DCHECK(this->IsInhabited());
   DCHECK(this->Is(Number()));
   if (this->IsBitset()) return BitsetType::Max(this->AsBitset());
   if (this->IsUnion()) {
     double max = -V8_INFINITY;
-    for (int i = 0, n = this->AsUnion()->Length(); i < n; ++i) {
+    for (int i = 1, n = this->AsUnion()->Length(); i < n; ++i) {
       max = std::max(max, this->AsUnion()->Get(i)->Max());
     }
+    Type* bitset = this->AsUnion()->Get(0);
+    if (bitset->IsInhabited()) max = std::max(max, bitset->Max());
     return max;
   }
   if (this->IsRange()) return this->AsRange()->Max();
