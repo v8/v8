@@ -131,6 +131,8 @@ class V8_EXPORT_PRIVATE BigInt : public HeapObject {
                                     bool result_sign);
   static Handle<BigInt> AbsoluteSub(Handle<BigInt> x, Handle<BigInt> y,
                                     bool result_sign);
+  static Handle<BigInt> AbsoluteSubFromPowerOfTwo(uint64_t n, Handle<BigInt> y,
+                                                  bool result_sign);
   static Handle<BigInt> AbsoluteAddOne(Handle<BigInt> x, bool sign,
                                        BigInt* result_storage = nullptr);
   static Handle<BigInt> AbsoluteSubOne(Handle<BigInt> x, int result_length);
@@ -151,6 +153,7 @@ class V8_EXPORT_PRIVATE BigInt : public HeapObject {
                                     BigInt* result_storage = nullptr);
 
   static int AbsoluteCompare(Handle<BigInt> x, Handle<BigInt> y);
+  static int AbsoluteCompareToPowerOfTwo(Handle<BigInt> x, uint64_t n);
 
   static void MultiplyAccumulate(Handle<BigInt> multiplicand,
                                  digit_t multiplier, Handle<BigInt> accumulator,

@@ -736,6 +736,23 @@ Handle<BigInt> BigInt::AbsoluteSub(Handle<BigInt> x, Handle<BigInt> y,
   return result;
 }
 
+// Computes 2^n - abs(y), assuming 2^n >= abs(y).
+Handle<BigInt> BigInt::AbsoluteSubFromPowerOfTwo(uint64_t n, Handle<BigInt> y,
+                                                 bool result_sign) {
+  Handle<BigInt> x = PowerOfTwo(y->GetIsolate(), n);
+  digit_t borrow = x->InplaceSub(*y, 0);
+  for (int i = y->length(); borrow != 0; ++i) {
+    DCHECK_LT(i, x->length());
+    digit_t new_borrow = 0;
+    digit_t new_digit = digit_sub(x->digit(i), borrow, &new_borrow);
+    x->set_digit(i, new_digit);
+    borrow = new_borrow;
+  }
+  x->set_sign(result_sign);
+  x->RightTrim();
+  return x;
+}
+
 // Adds 1 to the absolute value of {x} and sets the result's sign to {sign}.
 // {result_storage} is optional; if present, it will be used to store the
 // result, otherwise a new BigInt will be allocated for the result.
@@ -899,6 +916,32 @@ int BigInt::AbsoluteCompare(Handle<BigInt> x, Handle<BigInt> y) {
   while (i >= 0 && x->digit(i) == y->digit(i)) i--;
   if (i < 0) return 0;
   return x->digit(i) > y->digit(i) ? 1 : -1;
+}
+
+// Like AbsoluteCompare but only for y = 2^n.
+int BigInt::AbsoluteCompareToPowerOfTwo(Handle<BigInt> x, uint64_t n) {
+  DCHECK_LE(n, kMaxSafeInteger);
+
+  int x_length = x->length();
+  uint64_t y_length = (n + kDigitBits) / kDigitBits;
+
+  if (static_cast<uint64_t>(x_length) < y_length) return -1;
+  if (static_cast<uint64_t>(x_length) > y_length) return +1;
+  DCHECK_NE(x_length, 0);
+
+  digit_t x_msd = x->digit(x_length - 1);
+  digit_t y_msd = static_cast<digit_t>(1) << (n % kDigitBits);
+  if (x_msd < y_msd) {
+    return -1;
+  } else if (x_msd > y_msd) {
+    return +1;
+  }
+
+  for (int i = 0; i < x_length - 1; ++i) {
+    if (x->digit(i) != 0) return 1;
+  }
+
+  return 0;
 }
 
 // Multiplies {multiplicand} with {multiplier} and adds the result to
@@ -1590,33 +1633,19 @@ MaybeHandle<String> BigInt::ToStringGeneric(Handle<BigInt> x, int radix) {
 
 Handle<BigInt> BigInt::AsIntN(uint64_t n, Handle<BigInt> x) {
   DCHECK_LE(n, kMaxSafeInteger);
-  Isolate* isolate = x->GetIsolate();
 
   Handle<BigInt> result = AbsoluteAsUintN(n, x);
   if (result->is_zero()) return result;
   DCHECK_NE(n, 0);
   DCHECK(!x->is_zero());
 
-  // Compare abs(result) against 2^(n-1).
-  int comparison;
-  {
-    // 2^(n-1) needs n bits.
-    uint64_t power_length = (n + kDigitBits - 1) / kDigitBits;
-    if (static_cast<uint64_t>(result->length()) < power_length) {
-      comparison = -1;
-    } else {
-      DCHECK_EQ(result->length(), power_length);
-      DCHECK_LE(n, kMaxInt);
-      // TODO(neis): Ideally we shouldn't allocate here at all.
-      comparison = AbsoluteCompare(result, PowerOfTwo(isolate, n - 1));
-    }
-  }
+  int comparison = AbsoluteCompareToPowerOfTwo(result, n - 1);
 
   if (!x->sign()) {
     // x is positive.  Note that result == x mod 2^n.
     if (comparison < 0) return result;
     // Return (x mod 2^n) - 2^n, which is -(2^n - x mod 2^n).
-    return AbsoluteSub(PowerOfTwo(isolate, n), result, true);
+    return AbsoluteSubFromPowerOfTwo(n, result, true);
   }
 
   // x is negative.  Note that abs(result) == -x mod 2^n.
@@ -1631,7 +1660,7 @@ Handle<BigInt> BigInt::AsIntN(uint64_t n, Handle<BigInt> x) {
     return result->sign() ? result : UnaryMinus(result);
   }
   // Return x mod 2^n.
-  return AbsoluteSub(PowerOfTwo(isolate, n), result, false);
+  return AbsoluteSubFromPowerOfTwo(n, result, false);
 }
 
 Handle<BigInt> BigInt::AsUintN(uint64_t n, Handle<BigInt> x) {
@@ -1644,7 +1673,7 @@ Handle<BigInt> BigInt::AsUintN(uint64_t n, Handle<BigInt> x) {
   // a) If result == 0, then (x mod 2^n) == 0.
   // b) If result != 0, then (x mod 2^n) == 2^n - abs(result).
   if (result->is_zero()) return result;
-  return AbsoluteSub(PowerOfTwo(x->GetIsolate(), n), result, false);
+  return AbsoluteSubFromPowerOfTwo(n, result, false);
 }
 
 Handle<BigInt> BigInt::AbsoluteAsUintN(uint64_t n, Handle<BigInt> x) {
