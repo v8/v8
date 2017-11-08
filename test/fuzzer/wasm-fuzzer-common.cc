@@ -91,8 +91,8 @@ void InterpretAndExecuteModule(i::Isolate* isolate,
   testing::RunWasmModuleForTesting(isolate, instance, 0, nullptr);
 }
 
-int WasmExecutionFuzzer::FuzzWasmModule(
-    const uint8_t* data, size_t size) {
+int WasmExecutionFuzzer::FuzzWasmModule(const uint8_t* data, size_t size,
+                                        bool require_valid) {
   // Save the flag so that we can change it and restore it later.
   bool generate_test = FLAG_wasm_code_fuzzer_gen_test;
   if (generate_test) {
@@ -174,6 +174,7 @@ int WasmExecutionFuzzer::FuzzWasmModule(
   bool validates = SyncValidate(i_isolate, wire_bytes);
 
   CHECK_EQ(compiles, validates);
+  CHECK_IMPLIES(require_valid, validates);
 
   if (!compiles) return 0;
 

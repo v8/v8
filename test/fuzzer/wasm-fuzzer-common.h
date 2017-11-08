@@ -29,7 +29,8 @@ void InterpretAndExecuteModule(Isolate* isolate,
 class WasmExecutionFuzzer {
  public:
   virtual ~WasmExecutionFuzzer() {}
-  int FuzzWasmModule(const uint8_t* data, size_t size);
+  int FuzzWasmModule(const uint8_t* data, size_t size,
+                     bool require_valid = false);
 
  protected:
   virtual bool GenerateModule(

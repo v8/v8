@@ -101,15 +101,51 @@ class WasmGenerator {
     const ValueType break_type = blocks_[target_block];
 
     Generate(break_type, data);
-    builder_->EmitWithI32V(kExprBr, target_block);
+    builder_->EmitWithI32V(
+        kExprBr, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
     builder_->Emit(kExprEnd);
     blocks_.pop_back();
   }
 
+  // TODO(eholk): make this function constexpr once gcc supports it
+  static uint8_t max_alignment(WasmOpcode memop) {
+    switch (memop) {
+      case kExprI64LoadMem:
+      case kExprF64LoadMem:
+      case kExprI64StoreMem:
+      case kExprF64StoreMem:
+        return 3;
+      case kExprI32LoadMem:
+      case kExprI64LoadMem32S:
+      case kExprI64LoadMem32U:
+      case kExprF32LoadMem:
+      case kExprI32StoreMem:
+      case kExprI64StoreMem32:
+      case kExprF32StoreMem:
+        return 2;
+      case kExprI32LoadMem16S:
+      case kExprI32LoadMem16U:
+      case kExprI64LoadMem16S:
+      case kExprI64LoadMem16U:
+      case kExprI32StoreMem16:
+      case kExprI64StoreMem16:
+        return 1;
+      case kExprI32LoadMem8S:
+      case kExprI32LoadMem8U:
+      case kExprI64LoadMem8S:
+      case kExprI64LoadMem8U:
+      case kExprI32StoreMem8:
+      case kExprI64StoreMem8:
+        return 0;
+      default:
+        return 0;
+    }
+  }
+
   template <WasmOpcode memory_op, ValueType... arg_types>
   void memop(DataRange data) {
-    const auto align = data.get<uint32_t>();
-    const auto offset = data.get<uint32_t>();
+    const uint8_t align = data.get<uint8_t>() % (max_alignment(memory_op) + 1);
+    const uint32_t offset = data.get<uint32_t>();
 
     // Generate the index and the arguments, if any.
     Generate<kWasmI32, arg_types...>(data);
@@ -435,7 +471,8 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
 };
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  return WasmCompileFuzzer().FuzzWasmModule(data, size);
+  constexpr bool require_valid = true;
+  return WasmCompileFuzzer().FuzzWasmModule(data, size, require_valid);
 }
 
 }  // namespace fuzzer
