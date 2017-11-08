@@ -641,8 +641,8 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
         // types (which might confuse representation selection). We get
         // around this by refusing to constant-fold and escape-analyze
         // if the type is not inhabited.
-        if (NodeProperties::GetType(left)->IsInhabited() &&
-            NodeProperties::GetType(right)->IsInhabited()) {
+        if (!NodeProperties::GetType(left)->IsNone() &&
+            !NodeProperties::GetType(right)->IsNone()) {
           current->SetReplacement(replacement);
         } else {
           current->SetEscaped(left);

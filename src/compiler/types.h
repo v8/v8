@@ -246,7 +246,7 @@ class V8_EXPORT_PRIVATE BitsetType {
     return static_cast<bitset>(reinterpret_cast<uintptr_t>(this) ^ 1u);
   }
 
-  static bool IsInhabited(bitset bits) { return bits != kNone; }
+  static bool IsNone(bitset bits) { return bits == kNone; }
 
   static bool Is(bitset bits1, bitset bits2) {
     return (bits1 | bits2) == bits2;
@@ -581,7 +581,7 @@ class V8_EXPORT_PRIVATE Type {
   static Type* For(i::Handle<i::Map> map) { return For(*map); }
 
   // Predicates.
-  bool IsInhabited() { return BitsetType::IsInhabited(this->BitsetLub()); }
+  bool IsNone() { return this == None(); }
 
   bool Is(Type* that) { return this == that || this->SlowIs(that); }
   bool Maybe(Type* that);
@@ -644,7 +644,6 @@ class V8_EXPORT_PRIVATE Type {
   // Internal inspection.
   bool IsKind(TypeBase::Kind kind) { return TypeBase::IsKind(this, kind); }
 
-  bool IsNone() { return this == None(); }
   bool IsAny() { return this == Any(); }
   bool IsBitset() { return BitsetType::IsBitset(this); }
   bool IsUnion() { return IsKind(TypeBase::kUnion); }

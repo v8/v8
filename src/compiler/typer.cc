@@ -389,15 +389,15 @@ void Typer::Decorator::Decorate(Node* node) {
 
 Type* Typer::Visitor::TypeUnaryOp(Node* node, UnaryTyperFun f) {
   Type* input = Operand(node, 0);
-  return input->IsInhabited() ? f(input, typer_) : Type::None();
+  return input->IsNone() ? Type::None() : f(input, typer_);
 }
 
 
 Type* Typer::Visitor::TypeBinaryOp(Node* node, BinaryTyperFun f) {
   Type* left = Operand(node, 0);
   Type* right = Operand(node, 1);
-  return left->IsInhabited() && right->IsInhabited() ? f(left, right, typer_)
-                                                     : Type::None();
+  return left->IsNone() || right->IsNone() ? Type::None()
+                                           : f(left, right, typer_);
 }
 
 
@@ -461,7 +461,7 @@ Type* Typer::Visitor::ToInteger(Type* type, Typer* t) {
 Type* Typer::Visitor::ToLength(Type* type, Typer* t) {
   // ES6 section 7.1.15 ToLength ( argument )
   type = ToInteger(type, t);
-  if (!type->IsInhabited()) return Type::None();
+  if (type->IsNone()) return type;
   double min = type->Min();
   double max = type->Max();
   if (max <= 0.0) {
@@ -722,7 +722,7 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
   }
   // If we do not have enough type information for the initial value or
   // the increment, just return the initial value's type.
-  if (!initial_type->IsInhabited() ||
+  if (initial_type->IsNone() ||
       increment_type->Is(typer_->cache_.kSingletonZero)) {
     return initial_type;
   }
@@ -756,7 +756,7 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
       // If the type is not an integer, just skip the bound.
       if (!bound_type->Is(typer_->cache_.kInteger)) continue;
       // If the type is not inhabited, then we can take the initial value.
-      if (!bound_type->IsInhabited()) {
+      if (bound_type->IsNone()) {
         max = initial_type->Max();
         break;
       }
@@ -776,7 +776,7 @@ Type* Typer::Visitor::TypeInductionVariablePhi(Node* node) {
       // If the type is not an integer, just skip the bound.
       if (!bound_type->Is(typer_->cache_.kInteger)) continue;
       // If the type is not inhabited, then we can take the initial value.
-      if (!bound_type->IsInhabited()) {
+      if (bound_type->IsNone()) {
         min = initial_type->Min();
         break;
       }
@@ -1856,7 +1856,7 @@ Type* Typer::Visitor::TypeCheckBounds(Node* node) {
     index = Type::Union(index, typer_->cache_.kSingletonZero, zone());
   }
   index = Type::Intersect(index, Type::Integral32(), zone());
-  if (!index->IsInhabited() || !length->IsInhabited()) return Type::None();
+  if (index->IsNone() || length->IsNone()) return Type::None();
   double min = std::max(index->Min(), 0.0);
   double max = std::min(index->Max(), length->Max() - 1);
   if (max < min) return Type::None();

@@ -35,7 +35,7 @@ bool NoReturn(Node* node) {
   return node->opcode() == IrOpcode::kDead ||
          node->opcode() == IrOpcode::kUnreachable ||
          node->opcode() == IrOpcode::kDeadValue ||
-         !NodeProperties::GetTypeOrAny(node)->IsInhabited();
+         NodeProperties::GetTypeOrAny(node)->IsNone();
 }
 
 bool HasDeadInput(Node* node) {
@@ -210,7 +210,7 @@ Reduction DeadCodeElimination::ReducePhi(Node* node) {
   Reduction reduction = PropagateDeadControl(node);
   if (reduction.Changed()) return reduction;
   if (PhiRepresentationOf(node->op()) == MachineRepresentation::kNone ||
-      !NodeProperties::GetTypeOrAny(node)->IsInhabited()) {
+      NodeProperties::GetTypeOrAny(node)->IsNone()) {
     return Replace(dead_value());
   }
   return NoChange();

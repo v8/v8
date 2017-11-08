@@ -67,8 +67,8 @@ bool Type::Contains(RangeType* range, i::Object* val) {
 // Min and Max computation.
 
 double Type::Min() {
-  DCHECK(this->IsInhabited());
   DCHECK(this->Is(Number()));
+  DCHECK(!this->IsNone());
   if (this->IsBitset()) return BitsetType::Min(this->AsBitset());
   if (this->IsUnion()) {
     double min = +V8_INFINITY;
@@ -76,7 +76,7 @@ double Type::Min() {
       min = std::min(min, this->AsUnion()->Get(i)->Min());
     }
     Type* bitset = this->AsUnion()->Get(0);
-    if (bitset->IsInhabited()) min = std::min(min, bitset->Min());
+    if (!bitset->IsNone()) min = std::min(min, bitset->Min());
     return min;
   }
   if (this->IsRange()) return this->AsRange()->Min();
@@ -86,8 +86,8 @@ double Type::Min() {
 }
 
 double Type::Max() {
-  DCHECK(this->IsInhabited());
   DCHECK(this->Is(Number()));
+  DCHECK(!this->IsNone());
   if (this->IsBitset()) return BitsetType::Max(this->AsBitset());
   if (this->IsUnion()) {
     double max = -V8_INFINITY;
@@ -95,7 +95,7 @@ double Type::Max() {
       max = std::max(max, this->AsUnion()->Get(i)->Max());
     }
     Type* bitset = this->AsUnion()->Get(0);
-    if (bitset->IsInhabited()) max = std::max(max, bitset->Max());
+    if (!bitset->IsNone()) max = std::max(max, bitset->Max());
     return max;
   }
   if (this->IsRange()) return this->AsRange()->Max();
@@ -523,8 +523,7 @@ bool Type::SlowIs(Type* that) {
 bool Type::Maybe(Type* that) {
   DisallowHeapAllocation no_allocation;
 
-  if (!BitsetType::IsInhabited(this->BitsetLub() & that->BitsetLub()))
-    return false;
+  if (BitsetType::IsNone(this->BitsetLub() & that->BitsetLub())) return false;
 
   // (T1 \/ ... \/ Tn) overlaps T  if  (T1 overlaps T) \/ ... \/ (Tn overlaps T)
   if (this->IsUnion()) {
@@ -721,9 +720,7 @@ int Type::IntersectAux(Type* lhs, Type* rhs, UnionType* result, int size,
     return size;
   }
 
-  if (!BitsetType::IsInhabited(lhs->BitsetLub() & rhs->BitsetLub())) {
-    return size;
-  }
+  if (BitsetType::IsNone(lhs->BitsetLub() & rhs->BitsetLub())) return size;
 
   if (lhs->IsRange()) {
     if (rhs->IsBitset()) {

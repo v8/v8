@@ -42,7 +42,7 @@ Reduction TypedOptimization::Reduce(Node* node) {
     // eager deoptimization exit (i.e. {node} has an operator that doesn't have
     // the Operator::kNoDeopt property).
     Type* upper = NodeProperties::GetType(node);
-    if (upper->IsInhabited()) {
+    if (!upper->IsNone()) {
       if (upper->IsHeapConstant()) {
         Node* replacement =
             jsgraph()->Constant(upper->AsHeapConstant()->Value());

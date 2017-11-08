@@ -137,8 +137,7 @@ bool IsWord(MachineRepresentation rep) {
 Node* RepresentationChanger::GetRepresentationFor(
     Node* node, MachineRepresentation output_rep, Type* output_type,
     Node* use_node, UseInfo use_info) {
-  if (output_rep == MachineRepresentation::kNone &&
-      output_type->IsInhabited()) {
+  if (output_rep == MachineRepresentation::kNone && !output_type->IsNone()) {
     // The output representation should be set if the type is inhabited (i.e.,
     // if the value is possible).
     return TypeError(node, output_rep, output_type, use_info.representation());
