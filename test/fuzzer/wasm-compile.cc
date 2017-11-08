@@ -229,7 +229,7 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange data) {
       &WasmGenerator::memop<kExprI32StoreMem, kWasmI32>,
       &WasmGenerator::memop<kExprI32StoreMem8, kWasmI32>,
       &WasmGenerator::memop<kExprI32StoreMem16, kWasmI32>,
-      &WasmGenerator::memop<kExprI64StoreMem, kWasmI32>,
+      &WasmGenerator::memop<kExprI64StoreMem, kWasmI64>,
       &WasmGenerator::memop<kExprI64StoreMem8, kWasmI64>,
       &WasmGenerator::memop<kExprI64StoreMem16, kWasmI64>,
       &WasmGenerator::memop<kExprI64StoreMem32, kWasmI64>,
