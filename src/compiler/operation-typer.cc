@@ -1024,7 +1024,7 @@ Type* OperationTyper::SpeculativeToNumber(Type* type) {
 }
 
 Type* OperationTyper::ToPrimitive(Type* type) {
-  if (type->Is(Type::Primitive()) && !type->Maybe(Type::Receiver())) {
+  if (type->Is(Type::Primitive())) {
     return type;
   }
   return Type::Primitive();
