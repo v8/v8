@@ -1941,9 +1941,9 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
 
 void BytecodeGenerator::VisitInitializeClassFieldsStatement(
     InitializeClassFieldsStatement* expr) {
-  Register constructor(builder()->Receiver());
-  Register key = register_allocator()->NewRegister();
-  Register value = register_allocator()->NewRegister();
+  RegisterList args = register_allocator()->NewRegisterList(3);
+  Register constructor = args[0], key = args[1], value = args[2];
+  builder()->MoveRegister(builder()->Receiver(), constructor);
 
   for (int i = 0; i < expr->fields()->length(); i++) {
     ClassLiteral::Property* property = expr->fields()->at(i);
@@ -1959,14 +1959,10 @@ void BytecodeGenerator::VisitInitializeClassFieldsStatement(
       BuildLoadPropertyKey(property, key);
     }
 
-    DataPropertyInLiteralFlags flags = DataPropertyInLiteralFlag::kNoFlags;
-    FeedbackSlot slot = feedback_spec()->AddStoreDataPropertyInLiteralICSlot();
-
     VisitForRegisterValue(property->value(), value);
     VisitSetHomeObject(value, constructor, property);
 
-    builder()->LoadAccumulatorWithRegister(value).StoreDataPropertyInLiteral(
-        constructor, key, flags, feedback_index(slot));
+    builder()->CallRuntime(Runtime::kCreateDataProperty, args);
   }
 }
 

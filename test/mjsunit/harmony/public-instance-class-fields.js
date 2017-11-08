@@ -48,6 +48,14 @@
 
 {
   class C {
+    x = Object.freeze(this);
+    c = 42;
+  }
+  assertThrows(() => { new C; }, TypeError);
+}
+
+{
+  class C {
     c = this;
     d = () => this;
   }

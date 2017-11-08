@@ -43,6 +43,15 @@
 }
 
 {
+  assertThrows(() => {
+    class C {
+      static x = Object.freeze(this);
+      static c = 42;
+    }
+  }, TypeError);
+}
+
+{
   class C {
     static c = this;
     static d = () => this;
