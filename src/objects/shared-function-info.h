@@ -165,7 +165,6 @@ class SharedFunctionInfo : public HeapObject {
   // mainly used during optimization).
   inline bool HasLazyDeserializationBuiltinId() const;
   inline int lazy_deserialization_builtin_id() const;
-  inline void set_lazy_deserialization_builtin_id(int builtin_id);
 
   // [function identifier]: This field holds an additional identifier for the
   // function.

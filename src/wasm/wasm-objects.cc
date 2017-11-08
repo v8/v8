@@ -658,8 +658,9 @@ Handle<WasmExportedFunction> WasmExportedFunction::New(
       isolate->factory()->NewSharedFunctionInfo(name, export_wrapper, false);
   shared->set_length(arity);
   shared->set_internal_formal_parameter_count(arity);
-  Handle<JSFunction> js_function = isolate->factory()->NewFunction(
-      isolate->sloppy_function_map(), name, export_wrapper);
+  NewFunctionArgs args = NewFunctionArgs::ForWasm(
+      name, export_wrapper, isolate->sloppy_function_map());
+  Handle<JSFunction> js_function = isolate->factory()->NewFunction(args);
 
   js_function->set_shared(*shared);
   Handle<Symbol> instance_symbol(isolate->factory()->wasm_instance_symbol());

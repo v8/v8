@@ -10060,34 +10060,33 @@ Local<Function> debug::GetBuiltin(Isolate* v8_isolate, Builtin builtin) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(isolate);
   i::HandleScope handle_scope(isolate);
-  i::Builtins::Name name;
+  i::Builtins::Name builtin_id;
   switch (builtin) {
     case kObjectKeys:
-      name = i::Builtins::kObjectKeys;
+      builtin_id = i::Builtins::kObjectKeys;
       break;
     case kObjectGetPrototypeOf:
-      name = i::Builtins::kObjectGetPrototypeOf;
+      builtin_id = i::Builtins::kObjectGetPrototypeOf;
       break;
     case kObjectGetOwnPropertyDescriptor:
-      name = i::Builtins::kObjectGetOwnPropertyDescriptor;
+      builtin_id = i::Builtins::kObjectGetOwnPropertyDescriptor;
       break;
     case kObjectGetOwnPropertyNames:
-      name = i::Builtins::kObjectGetOwnPropertyNames;
+      builtin_id = i::Builtins::kObjectGetOwnPropertyNames;
       break;
     case kObjectGetOwnPropertySymbols:
-      name = i::Builtins::kObjectGetOwnPropertySymbols;
+      builtin_id = i::Builtins::kObjectGetOwnPropertySymbols;
       break;
     default:
       UNREACHABLE();
   }
-  i::Handle<i::Code> call_code(isolate->builtins()->builtin(name));
-  i::Handle<i::JSFunction> fun =
-      isolate->factory()->NewFunctionWithoutPrototype(
-          isolate->factory()->empty_string(), call_code,
-          i::LanguageMode::kSloppy);
-  if (i::Builtins::IsLazy(name)) {
-    fun->shared()->set_lazy_deserialization_builtin_id(name);
-  }
+
+  i::Handle<i::String> name = isolate->factory()->empty_string();
+  i::Handle<i::Code> code(isolate->builtins()->builtin(builtin_id));
+  i::NewFunctionArgs args = i::NewFunctionArgs::ForBuiltinWithoutPrototype(
+      name, code, builtin_id, i::LanguageMode::kSloppy);
+  i::Handle<i::JSFunction> fun = isolate->factory()->NewFunction(args);
+
   fun->shared()->DontAdaptArguments();
   return Utils::ToLocal(handle_scope.CloseAndEscape(fun));
 }

@@ -66,11 +66,11 @@ static Handle<AccessorPair> CreateAccessorPair(bool with_getter,
   Handle<AccessorPair> pair = factory->NewAccessorPair();
   Handle<String> empty_string = factory->empty_string();
   if (with_getter) {
-    Handle<JSFunction> func = factory->NewFunction(empty_string);
+    Handle<JSFunction> func = factory->NewFunctionForTest(empty_string);
     pair->set_getter(*func);
   }
   if (with_setter) {
-    Handle<JSFunction> func = factory->NewFunction(empty_string);
+    Handle<JSFunction> func = factory->NewFunctionForTest(empty_string);
     pair->set_setter(*func);
   }
   return pair;
@@ -1484,7 +1484,7 @@ TEST(ReconfigureDataFieldAttribute_SameDataConstantAfterTargetMap) {
     TestConfig() {
       Isolate* isolate = CcTest::i_isolate();
       Factory* factory = isolate->factory();
-      js_func_ = factory->NewFunction(factory->empty_string());
+      js_func_ = factory->NewFunctionForTest(factory->empty_string());
     }
 
     Handle<Map> AddPropertyAtBranch(int branch_id, Expectations& expectations,
@@ -1570,7 +1570,7 @@ TEST(ReconfigureDataFieldAttribute_DataConstantToAccConstantAfterTargetMap) {
     TestConfig() {
       Isolate* isolate = CcTest::i_isolate();
       Factory* factory = isolate->factory();
-      js_func_ = factory->NewFunction(factory->empty_string());
+      js_func_ = factory->NewFunctionForTest(factory->empty_string());
       pair_ = CreateAccessorPair(true, true);
     }
 
@@ -2641,7 +2641,8 @@ TEST(TransitionDataConstantToSameDataConstant) {
   Isolate* isolate = CcTest::i_isolate();
   Factory* factory = isolate->factory();
 
-  Handle<JSFunction> js_func = factory->NewFunction(factory->empty_string());
+  Handle<JSFunction> js_func =
+      factory->NewFunctionForTest(factory->empty_string());
   TransitionToDataConstantOperator transition_op(js_func);
 
   SameMapChecker checker;
@@ -2688,7 +2689,8 @@ TEST(TransitionDataConstantToDataField) {
   Factory* factory = isolate->factory();
   Handle<FieldType> any_type = FieldType::Any(isolate);
 
-  Handle<JSFunction> js_func1 = factory->NewFunction(factory->empty_string());
+  Handle<JSFunction> js_func1 =
+      factory->NewFunctionForTest(factory->empty_string());
   TransitionToDataConstantOperator transition_op1(js_func1);
 
   Handle<Object> value2 = isolate->factory()->NewHeapNumber(0);

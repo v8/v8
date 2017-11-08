@@ -108,17 +108,19 @@ BUILTIN(ConsoleTimeStamp) {
 
 namespace {
 void InstallContextFunction(Handle<JSObject> target, const char* name,
-                            Builtins::Name call, int context_id,
+                            Builtins::Name builtin_id, int context_id,
                             Handle<Object> context_name) {
   Factory* const factory = target->GetIsolate()->factory();
 
-  Handle<Code> call_code(target->GetIsolate()->builtins()->builtin(call));
+  Handle<Code> code(target->GetIsolate()->builtins()->builtin(builtin_id));
 
   Handle<String> name_string =
       Name::ToFunctionName(factory->InternalizeUtf8String(name))
           .ToHandleChecked();
-  Handle<JSFunction> fun = factory->NewFunctionWithoutPrototype(
-      name_string, call_code, LanguageMode::kSloppy);
+  NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
+      name_string, code, builtin_id, i::LanguageMode::kSloppy);
+  Handle<JSFunction> fun = factory->NewFunction(args);
+
   fun->shared()->set_native(true);
   fun->shared()->DontAdaptArguments();
   fun->shared()->set_length(1);
@@ -139,9 +141,13 @@ BUILTIN(ConsoleContext) {
 
   Factory* const factory = isolate->factory();
   Handle<String> name = factory->InternalizeUtf8String("Context");
-  Handle<JSFunction> cons = factory->NewFunction(name);
-  Handle<JSObject> empty = factory->NewJSObject(isolate->object_function());
-  JSFunction::SetPrototype(cons, empty);
+  NewFunctionArgs arguments = NewFunctionArgs::ForFunctionWithoutCode(
+      name, isolate->sloppy_function_map(), LanguageMode::kSloppy);
+  Handle<JSFunction> cons = factory->NewFunction(arguments);
+
+  Handle<JSObject> prototype = factory->NewJSObject(isolate->object_function());
+  JSFunction::SetPrototype(cons, prototype);
+
   Handle<JSObject> context = factory->NewJSObject(cons, TENURED);
   DCHECK(context->IsJSObject());
   int id = isolate->last_console_context_id() + 1;

@@ -782,8 +782,9 @@ Handle<JSFunction> WasmDebugInfo::GetCWasmEntry(
         isolate->factory()->NewSharedFunctionInfo(name, new_entry_code, false);
     shared->set_internal_formal_parameter_count(
         compiler::CWasmEntryParameters::kNumParameters);
-    Handle<JSFunction> new_entry = isolate->factory()->NewFunction(
-        isolate->sloppy_function_map(), name, new_entry_code);
+    NewFunctionArgs args = NewFunctionArgs::ForWasm(
+        name, new_entry_code, isolate->sloppy_function_map());
+    Handle<JSFunction> new_entry = isolate->factory()->NewFunction(args);
     new_entry->set_context(
         *debug_info->wasm_instance()->compiled_module()->native_context());
     new_entry->set_shared(*shared);

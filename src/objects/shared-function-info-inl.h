@@ -320,14 +320,6 @@ int SharedFunctionInfo::lazy_deserialization_builtin_id() const {
   return id;
 }
 
-void SharedFunctionInfo::set_lazy_deserialization_builtin_id(int builtin_id) {
-  DCHECK(function_data()->IsUndefined(GetIsolate()) ||
-         HasLazyDeserializationBuiltinId());
-  DCHECK(Builtins::IsBuiltinId(builtin_id));
-  DCHECK(Builtins::IsLazy(builtin_id));
-  set_function_data(Smi::FromInt(builtin_id));
-}
-
 bool SharedFunctionInfo::HasBuiltinFunctionId() {
   return function_identifier()->IsSmi();
 }

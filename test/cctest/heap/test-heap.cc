@@ -361,7 +361,7 @@ TEST(GarbageCollection) {
   {
     HandleScope inner_scope(isolate);
     // Allocate a function and keep it in global object's property.
-    Handle<JSFunction> function = factory->NewFunction(name);
+    Handle<JSFunction> function = factory->NewFunctionForTest(name);
     JSReceiver::SetProperty(global, name, function, LanguageMode::kSloppy)
         .Check();
     // Allocate an object.  Unrooted after leaving the scope.
@@ -927,7 +927,7 @@ TEST(FunctionAllocation) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<JSFunction> function = factory->NewFunction(name);
+  Handle<JSFunction> function = factory->NewFunctionForTest(name);
 
   Handle<Smi> twenty_three(Smi::FromInt(23), isolate);
   Handle<Smi> twenty_four(Smi::FromInt(24), isolate);
@@ -1029,7 +1029,7 @@ TEST(JSObjectMaps) {
 
   v8::HandleScope sc(CcTest::isolate());
   Handle<String> name = factory->InternalizeUtf8String("theFunction");
-  Handle<JSFunction> function = factory->NewFunction(name);
+  Handle<JSFunction> function = factory->NewFunctionForTest(name);
 
   Handle<String> prop_name = factory->InternalizeUtf8String("theSlot");
   Handle<JSObject> obj = factory->NewJSObject(function);

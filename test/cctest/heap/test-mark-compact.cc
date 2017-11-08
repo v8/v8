@@ -129,7 +129,7 @@ HEAP_TEST(MarkCompactCollector) {
   { HandleScope scope(isolate);
     // allocate a garbage
     Handle<String> func_name = factory->InternalizeUtf8String("theFunction");
-    Handle<JSFunction> function = factory->NewFunction(func_name);
+    Handle<JSFunction> function = factory->NewFunctionForTest(func_name);
     JSReceiver::SetProperty(global, func_name, function, LanguageMode::kSloppy)
         .Check();
 

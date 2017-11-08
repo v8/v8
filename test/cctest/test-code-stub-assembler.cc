@@ -891,7 +891,8 @@ TEST(TryHasOwnProperty) {
 
   {
     // Dictionary mode object.
-    Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
+    Handle<JSFunction> function =
+        factory->NewFunctionForTest(factory->empty_string());
     Handle<JSObject> object = factory->NewJSObject(function);
     AddProperties(object, names, arraysize(names));
     JSObject::NormalizeProperties(object, CLEAR_INOBJECT_PROPERTIES, 0, "test");
@@ -908,7 +909,8 @@ TEST(TryHasOwnProperty) {
 
   {
     // Global object.
-    Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
+    Handle<JSFunction> function =
+        factory->NewFunctionForTest(factory->empty_string());
     JSFunction::EnsureHasInitialMap(function);
     function->initial_map()->set_instance_type(JS_GLOBAL_OBJECT_TYPE);
     function->initial_map()->set_is_prototype_map(true);
@@ -958,7 +960,8 @@ TEST(TryHasOwnProperty) {
   }
 
   {
-    Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
+    Handle<JSFunction> function =
+        factory->NewFunctionForTest(factory->empty_string());
     Handle<JSProxy> object = factory->NewJSProxy(function, objects[0]);
     CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
     ft.CheckTrue(object, names[0], expect_bailout);
@@ -1031,11 +1034,11 @@ TEST(TryGetOwnProperty) {
       factory->NewPrivateSymbol(),
   };
   Handle<Object> values[] = {
-      factory->NewFunction(factory->empty_string()),
+      factory->NewFunctionForTest(factory->empty_string()),
       factory->NewSymbol(),
       factory->InternalizeUtf8String("a"),
       CreateAccessorPair(&ft, "() => 188;", "() => 199;"),
-      factory->NewFunction(factory->InternalizeUtf8String("bb")),
+      factory->NewFunctionForTest(factory->InternalizeUtf8String("bb")),
       factory->InternalizeUtf8String("ccc"),
       CreateAccessorPair(&ft, "() => 88;", nullptr),
       handle(Smi::FromInt(1), isolate),
@@ -1043,7 +1046,8 @@ TEST(TryGetOwnProperty) {
       CreateAccessorPair(&ft, nullptr, "() => 99;"),
       factory->NewHeapNumber(4.2),
       handle(Smi::FromInt(153), isolate),
-      factory->NewJSObject(factory->NewFunction(factory->empty_string())),
+      factory->NewJSObject(
+          factory->NewFunctionForTest(factory->empty_string())),
       factory->NewPrivateSymbol(),
   };
   STATIC_ASSERT(arraysize(values) < arraysize(names));
@@ -1093,7 +1097,8 @@ TEST(TryGetOwnProperty) {
 
   {
     // Dictionary mode object.
-    Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
+    Handle<JSFunction> function =
+        factory->NewFunctionForTest(factory->empty_string());
     Handle<JSObject> object = factory->NewJSObject(function);
     AddProperties(object, names, arraysize(names), values, arraysize(values),
                   rand_gen.NextInt());
@@ -1163,7 +1168,8 @@ TEST(TryGetOwnProperty) {
   }
 
   {
-    Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
+    Handle<JSFunction> function =
+        factory->NewFunctionForTest(factory->empty_string());
     Handle<JSProxy> object = factory->NewJSProxy(function, objects[0]);
     CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
     Handle<Object> value = ft.Call(object, names[0]).ToHandleChecked();
@@ -1395,7 +1401,8 @@ TEST(TryLookupElement) {
 
   {
     Handle<JSArray> handler = factory->NewJSArray(0);
-    Handle<JSFunction> function = factory->NewFunction(factory->empty_string());
+    Handle<JSFunction> function =
+        factory->NewFunctionForTest(factory->empty_string());
     Handle<JSProxy> object = factory->NewJSProxy(function, handler);
     CHECK_EQ(JS_PROXY_TYPE, object->map()->instance_type());
     ft.CheckTrue(object, smi0, expect_bailout);

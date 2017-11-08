@@ -29,6 +29,7 @@ class BoilerplateDescription;
 class ConstantElementsPair;
 class CoverageInfo;
 class DebugInfo;
+class NewFunctionArgs;
 class JSModuleNamespace;
 struct SourceRange;
 class PreParsedScopeData;
@@ -621,18 +622,14 @@ class V8_EXPORT_PRIVATE Factory final {
 
   Handle<JSGlobalProxy> NewUninitializedJSGlobalProxy(int size);
 
-  Handle<JSFunction> NewFunction(Handle<Map> map,
-                                 Handle<SharedFunctionInfo> info,
-                                 Handle<Object> context_or_undefined,
-                                 PretenureFlag pretenure = TENURED);
-  Handle<JSFunction> NewFunction(
-      Handle<String> name, Handle<Code> code, Handle<Object> prototype,
-      LanguageMode language_mode = LanguageMode::kSloppy,
-      MutableMode prototype_mutability = MUTABLE);
-  Handle<JSFunction> NewFunction(Handle<String> name);
-  Handle<JSFunction> NewFunctionWithoutPrototype(
-      Handle<String> name, Handle<Code> code,
-      LanguageMode language_mode = LanguageMode::kSloppy);
+  // Creates a new JSFunction according to the given args. This is the function
+  // you'll probably want to use when creating a JSFunction from the runtime.
+  Handle<JSFunction> NewFunction(const NewFunctionArgs& args);
+
+  // For testing only. Creates a sloppy function without code.
+  Handle<JSFunction> NewFunctionForTest(Handle<String> name);
+
+  // Function creation from SharedFunctionInfo.
 
   Handle<JSFunction> NewFunctionFromSharedFunctionInfo(
       Handle<Map> initial_map, Handle<SharedFunctionInfo> function_info,
@@ -651,16 +648,12 @@ class V8_EXPORT_PRIVATE Factory final {
       Handle<SharedFunctionInfo> function_info, Handle<Context> context,
       PretenureFlag pretenure = TENURED);
 
-  Handle<JSFunction> NewFunction(
-      Handle<String> name, Handle<Code> code, Handle<Object> prototype,
-      InstanceType type, int instance_size, int inobject_properties,
-      LanguageMode language_mode = LanguageMode::kSloppy,
-      MutableMode prototype_mutability = MUTABLE);
-  Handle<JSFunction> NewFunction(Handle<String> name, Handle<Code> code,
-                                 InstanceType type, int instance_size,
-                                 int inobject_properties);
-  Handle<JSFunction> NewFunction(Handle<Map> map, Handle<String> name,
-                                 MaybeHandle<Code> maybe_code);
+  // The choke-point for JSFunction creation. Handles allocation and
+  // initialization. All other utility methods call into this.
+  Handle<JSFunction> NewFunction(Handle<Map> map,
+                                 Handle<SharedFunctionInfo> info,
+                                 Handle<Object> context_or_undefined,
+                                 PretenureFlag pretenure = TENURED);
 
   // Create a serialized scope info.
   Handle<ScopeInfo> NewScopeInfo(int length);
@@ -768,7 +761,8 @@ class V8_EXPORT_PRIVATE Factory final {
       Handle<ScopeInfo> scope_info);
   Handle<SharedFunctionInfo> NewSharedFunctionInfo(
       MaybeHandle<String> name, MaybeHandle<Code> code, bool is_constructor,
-      FunctionKind kind = kNormalFunction);
+      FunctionKind kind = kNormalFunction,
+      int maybe_builtin_index = Builtins::kNoBuiltinId);
 
   Handle<SharedFunctionInfo> NewSharedFunctionInfoForLiteral(
       FunctionLiteral* literal, Handle<Script> script);
@@ -873,6 +867,59 @@ class V8_EXPORT_PRIVATE Factory final {
   // Create a JSArray with no elements and no length.
   Handle<JSArray> NewJSArray(ElementsKind elements_kind,
                              PretenureFlag pretenure = NOT_TENURED);
+};
+
+// Utility class to simplify argument handling around JSFunction creation.
+class NewFunctionArgs final {
+ public:
+  static NewFunctionArgs ForWasm(Handle<String> name, Handle<Code> code,
+                                 Handle<Map> map);
+  static NewFunctionArgs ForBuiltin(Handle<String> name, Handle<Code> code,
+                                    Handle<Map> map, int builtin_id);
+  static NewFunctionArgs ForFunctionWithoutCode(Handle<String> name,
+                                                Handle<Map> map,
+                                                LanguageMode language_mode);
+  static NewFunctionArgs ForBuiltinWithPrototype(
+      Handle<String> name, Handle<Code> code, Handle<Object> prototype,
+      InstanceType type, int instance_size, int inobject_properties,
+      int builtin_id, MutableMode prototype_mutability);
+  static NewFunctionArgs ForBuiltinWithoutPrototype(Handle<String> name,
+                                                    Handle<Code> code,
+                                                    int builtin_id,
+                                                    LanguageMode language_mode);
+
+  Handle<Map> GetMap(Isolate* isolate) const;
+
+ private:
+  NewFunctionArgs() {}  // Use the static factory constructors.
+
+  void SetShouldCreateAndSetInitialMap();
+  void SetShouldSetPrototype();
+  void SetShouldSetLanguageMode();
+
+  // Sentinel value.
+  static const int kUninitialized = -1;
+
+  Handle<String> name_;
+  MaybeHandle<Map> maybe_map_;
+  MaybeHandle<Code> maybe_code_;
+
+  bool should_create_and_set_initial_map_ = false;
+  InstanceType type_;
+  int instance_size_ = kUninitialized;
+  int inobject_properties_ = kUninitialized;
+
+  bool should_set_prototype_ = false;
+  MaybeHandle<Object> maybe_prototype_;
+
+  bool should_set_language_mode_ = false;
+  LanguageMode language_mode_;
+
+  int maybe_builtin_id_ = kUninitialized;
+
+  MutableMode prototype_mutability_;
+
+  friend class Factory;
 };
 
 }  // namespace internal

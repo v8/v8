@@ -346,11 +346,11 @@ namespace {
 
 // Non-construct case.
 V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
-    Isolate* isolate, Builtins::Name call, Handle<String> name, int len) {
-  Handle<Code> code = isolate->builtins()->builtin_handle(call);
-  Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfo(name, code, false);
-  shared->set_lazy_deserialization_builtin_id(call);
+    Isolate* isolate, Builtins::Name builtin_id, Handle<String> name, int len) {
+  Handle<Code> code = isolate->builtins()->builtin_handle(builtin_id);
+  const bool kNotConstructor = false;
+  Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
+      name, code, kNotConstructor, kNormalFunction, builtin_id);
   shared->set_internal_formal_parameter_count(len);
   shared->set_length(len);
   return shared;
@@ -358,14 +358,14 @@ V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
 
 // Construct case.
 V8_NOINLINE Handle<SharedFunctionInfo> SimpleCreateSharedFunctionInfo(
-    Isolate* isolate, Builtins::Name call, Handle<String> name,
+    Isolate* isolate, Builtins::Name builtin_id, Handle<String> name,
     Handle<String> instance_class_name, int len) {
-  Handle<Code> code = isolate->builtins()->builtin_handle(call);
-  Handle<SharedFunctionInfo> shared =
-      isolate->factory()->NewSharedFunctionInfo(name, code, false);
+  Handle<Code> code = isolate->builtins()->builtin_handle(builtin_id);
+  const bool kIsConstructor = true;
+  Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
+      name, code, kIsConstructor, kNormalFunction, builtin_id);
   shared->SetConstructStub(*BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
   shared->set_instance_class_name(*instance_class_name);
-  if (Builtins::IsLazy(call)) shared->set_lazy_deserialization_builtin_id(call);
   shared->set_internal_formal_parameter_count(len);
   shared->set_length(len);
   return shared;
@@ -392,20 +392,23 @@ V8_NOINLINE void InstallFunction(Handle<JSObject> target,
 V8_NOINLINE Handle<JSFunction> CreateFunction(
     Isolate* isolate, Handle<String> name, InstanceType type, int instance_size,
     int inobject_properties, MaybeHandle<Object> maybe_prototype,
-    Builtins::Name call) {
-  Factory* factory = isolate->factory();
-  Handle<Code> call_code(isolate->builtins()->builtin(call));
+    Builtins::Name builtin_id) {
+  Handle<Code> code(isolate->builtins()->builtin(builtin_id));
   Handle<Object> prototype;
-  Handle<JSFunction> result =
-      maybe_prototype.ToHandle(&prototype)
-          ? factory->NewFunction(name, call_code, prototype, type,
-                                 instance_size, inobject_properties,
-                                 LanguageMode::kStrict, IMMUTABLE)
-          : factory->NewFunctionWithoutPrototype(name, call_code,
-                                                 LanguageMode::kStrict);
-  if (Builtins::IsLazy(call)) {
-    result->shared()->set_lazy_deserialization_builtin_id(call);
+  Handle<JSFunction> result;
+
+  if (maybe_prototype.ToHandle(&prototype)) {
+    NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithPrototype(
+        name, code, prototype, type, instance_size, inobject_properties,
+        builtin_id, IMMUTABLE);
+
+    result = isolate->factory()->NewFunction(args);
+  } else {
+    NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
+        name, code, builtin_id, LanguageMode::kStrict);
+    result = isolate->factory()->NewFunction(args);
   }
+
   result->shared()->set_native(true);
   return result;
 }
@@ -592,9 +595,10 @@ Handle<JSFunction> Genesis::CreateEmptyFunction(Isolate* isolate) {
   // Allocate the empty function as the prototype for function according to
   // ES#sec-properties-of-the-function-prototype-object
   Handle<Code> code(BUILTIN_CODE(isolate, EmptyFunction));
-  Handle<JSFunction> empty_function =
-      factory->NewFunction(empty_function_map, factory->empty_string(), code);
-  empty_function->shared()->set_language_mode(LanguageMode::kStrict);
+  NewFunctionArgs args =
+      NewFunctionArgs::ForBuiltin(factory->empty_string(), code,
+                                  empty_function_map, Builtins::kEmptyFunction);
+  Handle<JSFunction> empty_function = factory->NewFunction(args);
 
   // --- E m p t y ---
   Handle<String> source = factory->NewStringFromStaticChars("() {}");
@@ -646,8 +650,9 @@ Handle<JSFunction> Genesis::GetThrowTypeErrorIntrinsic() {
   }
   Handle<String> name(factory()->empty_string());
   Handle<Code> code = BUILTIN_CODE(isolate(), StrictPoisonPillThrower);
-  Handle<JSFunction> function =
-      factory()->NewFunctionWithoutPrototype(name, code, LanguageMode::kStrict);
+  NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
+      name, code, Builtins::kStrictPoisonPillThrower, i::LanguageMode::kStrict);
+  Handle<JSFunction> function = factory()->NewFunction(args);
   function->shared()->DontAdaptArguments();
 
   // %ThrowTypeError% must not have a name property.
@@ -1184,9 +1189,10 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
     Handle<Code> code = BUILTIN_CODE(isolate(), Illegal);
     Handle<JSObject> prototype =
         factory()->NewFunctionPrototype(isolate()->object_function());
-    js_global_object_function =
-        factory()->NewFunction(name, code, prototype, JS_GLOBAL_OBJECT_TYPE,
-                               JSGlobalObject::kSize, 0, LanguageMode::kStrict);
+    NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithPrototype(
+        name, code, prototype, JS_GLOBAL_OBJECT_TYPE, JSGlobalObject::kSize, 0,
+        Builtins::kIllegal, MUTABLE);
+    js_global_object_function = factory()->NewFunction(args);
 #ifdef DEBUG
     LookupIterator it(prototype, factory()->constructor_string(),
                       LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -1214,9 +1220,11 @@ Handle<JSGlobalObject> Genesis::CreateNewGlobals(
   if (global_proxy_template.IsEmpty()) {
     Handle<String> name(factory()->empty_string());
     Handle<Code> code = BUILTIN_CODE(isolate(), Illegal);
-    global_proxy_function =
-        factory()->NewFunction(name, code, JS_GLOBAL_PROXY_TYPE,
-                               JSGlobalProxy::SizeWithEmbedderFields(0), 0);
+    NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithPrototype(
+        name, code, factory()->the_hole_value(), JS_GLOBAL_PROXY_TYPE,
+        JSGlobalProxy::SizeWithEmbedderFields(0), 0, Builtins::kIllegal,
+        MUTABLE);
+    global_proxy_function = factory()->NewFunction(args);
   } else {
     Handle<ObjectTemplateInfo> data =
         v8::Utils::OpenHandle(*global_proxy_template);
@@ -1351,10 +1359,14 @@ static void InstallError(Isolate* isolate, Handle<JSObject> global,
 
 namespace {
 
-void InstallMakeError(Isolate* isolate, Handle<Code> code, int context_index) {
-  Handle<JSFunction> function =
-      isolate->factory()->NewFunction(isolate->factory()->empty_string(), code,
-                                      JS_OBJECT_TYPE, JSObject::kHeaderSize, 0);
+void InstallMakeError(Isolate* isolate, int builtin_id, int context_index) {
+  Handle<Code> code(isolate->builtins()->builtin(builtin_id));
+  NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithPrototype(
+      isolate->factory()->empty_string(), code,
+      isolate->factory()->the_hole_value(), JS_OBJECT_TYPE,
+      JSObject::kHeaderSize, 0, builtin_id, MUTABLE);
+
+  Handle<JSFunction> function = isolate->factory()->NewFunction(args);
   function->shared()->DontAdaptArguments();
   isolate->native_context()->set(context_index, *function);
 }
@@ -2609,8 +2621,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- E r r o r
     InstallError(isolate, global, factory->Error_string(),
                  Context::ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate, BUILTIN_CODE(isolate, MakeError),
-                     Context::MAKE_ERROR_INDEX);
+    InstallMakeError(isolate, Builtins::kMakeError, Context::MAKE_ERROR_INDEX);
   }
 
   {  // -- E v a l E r r o r
@@ -2621,7 +2632,7 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- R a n g e E r r o r
     InstallError(isolate, global, factory->RangeError_string(),
                  Context::RANGE_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate, BUILTIN_CODE(isolate, MakeRangeError),
+    InstallMakeError(isolate, Builtins::kMakeRangeError,
                      Context::MAKE_RANGE_ERROR_INDEX);
   }
 
@@ -2633,21 +2644,21 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- S y n t a x E r r o r
     InstallError(isolate, global, factory->SyntaxError_string(),
                  Context::SYNTAX_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate, BUILTIN_CODE(isolate, MakeSyntaxError),
+    InstallMakeError(isolate, Builtins::kMakeSyntaxError,
                      Context::MAKE_SYNTAX_ERROR_INDEX);
   }
 
   {  // -- T y p e E r r o r
     InstallError(isolate, global, factory->TypeError_string(),
                  Context::TYPE_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate, BUILTIN_CODE(isolate, MakeTypeError),
+    InstallMakeError(isolate, Builtins::kMakeTypeError,
                      Context::MAKE_TYPE_ERROR_INDEX);
   }
 
   {  // -- U R I E r r o r
     InstallError(isolate, global, factory->URIError_string(),
                  Context::URI_ERROR_FUNCTION_INDEX);
-    InstallMakeError(isolate, BUILTIN_CODE(isolate, MakeURIError),
+    InstallMakeError(isolate, Builtins::kMakeURIError,
                      Context::MAKE_URI_ERROR_INDEX);
   }
 
@@ -2752,10 +2763,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
   {  // -- C o n s o l e
     Handle<String> name = factory->InternalizeUtf8String("console");
-    Handle<JSFunction> cons = factory->NewFunction(
-        isolate->strict_function_map(), name, MaybeHandle<Code>());
+    NewFunctionArgs args = NewFunctionArgs::ForFunctionWithoutCode(
+        name, isolate->strict_function_map(), LanguageMode::kStrict);
+    Handle<JSFunction> cons = factory->NewFunction(args);
+
     Handle<JSObject> empty = factory->NewJSObject(isolate->object_function());
     JSFunction::SetPrototype(cons, empty);
+
     Handle<JSObject> console = factory->NewJSObject(cons, TENURED);
     DCHECK(console->IsJSObject());
     JSObject::AddProperty(global, name, console, DONT_ENUM);
@@ -3345,8 +3359,10 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
 
     Handle<String> name = factory->Proxy_string();
     Handle<Code> code(BUILTIN_CODE(isolate, ProxyConstructor));
-    Handle<JSFunction> proxy_function =
-        factory->NewFunction(proxy_function_map, name, code);
+
+    NewFunctionArgs args = NewFunctionArgs::ForBuiltin(
+        name, code, proxy_function_map, Builtins::kProxyConstructor);
+    Handle<JSFunction> proxy_function = factory->NewFunction(args);
 
     JSFunction::SetInitialMap(proxy_function, isolate->proxy_map(),
                               factory->null_value());
@@ -3442,15 +3458,13 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     // This is done by introducing an anonymous function with
     // class_name equals 'Arguments'.
     Handle<String> arguments_string = factory->Arguments_string();
-    Handle<JSFunction> function = factory->NewFunction(
+    NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithPrototype(
         arguments_string, BUILTIN_CODE(isolate, Illegal),
-        isolate->initial_object_prototype(), LanguageMode::kStrict);
+        isolate->initial_object_prototype(), JS_ARGUMENTS_TYPE,
+        JSSloppyArgumentsObject::kSize, 2, Builtins::kIllegal, MUTABLE);
+    Handle<JSFunction> function = factory->NewFunction(args);
     function->shared()->set_instance_class_name(*arguments_string);
-
-    Handle<Map> map = factory->NewMap(
-        JS_ARGUMENTS_TYPE, JSSloppyArgumentsObject::kSize, PACKED_ELEMENTS, 2);
-    JSFunction::SetInitialMap(function, map,
-                              isolate->initial_object_prototype());
+    Handle<Map> map(function->initial_map());
 
     // Create the descriptor array for the arguments object.
     Map::EnsureDescriptorSlack(map, 2);
