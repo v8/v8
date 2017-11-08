@@ -561,24 +561,32 @@ class ParserBase {
           extends(parser->impl()->NullExpression()),
           properties(parser->impl()->NewClassPropertyList(4)),
           static_fields(parser->impl()->NewClassPropertyList(4)),
+          instance_fields(parser->impl()->NewClassPropertyList(4)),
           constructor(parser->impl()->NullExpression()),
           has_seen_constructor(false),
           has_name_static_property(false),
           has_static_computed_names(false),
           has_static_class_fields(false),
+          has_instance_class_fields(false),
           is_anonymous(false),
-          field_scope(nullptr) {}
+          static_fields_scope(nullptr),
+          instance_fields_scope(nullptr) {}
     Variable* variable;
     ExpressionT extends;
     typename Types::ClassPropertyList properties;
     typename Types::ClassPropertyList static_fields;
+    typename Types::ClassPropertyList instance_fields;
     FunctionLiteralT constructor;
+
+    // TODO(gsathya): Use a bitfield store all the booleans.
     bool has_seen_constructor;
     bool has_name_static_property;
     bool has_static_computed_names;
     bool has_static_class_fields;
+    bool has_instance_class_fields;
     bool is_anonymous;
-    DeclarationScope* field_scope;
+    DeclarationScope* static_fields_scope;
+    DeclarationScope* instance_fields_scope;
   };
 
   DeclarationScope* NewScriptScope() const {
@@ -1104,8 +1112,8 @@ class ParserBase {
       bool* is_computed_name, bool* has_seen_constructor,
       ClassLiteralProperty::Kind* property_kind, bool* is_static,
       bool* has_name_static_property, bool* ok);
-  FunctionLiteralT ParseClassFieldForInitializer(bool has_initializer,
-                                                 bool* ok);
+  ExpressionT ParseClassFieldInitializer(ClassInfo* class_info, bool is_static,
+                                         bool* ok);
   ObjectLiteralPropertyT ParseObjectPropertyDefinition(
       ObjectLiteralChecker* checker, bool* is_computed_name,
       bool* is_rest_property, bool* ok);
@@ -2297,31 +2305,10 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
     case PropertyKind::kShorthandProperty:
     case PropertyKind::kValueProperty:
       if (allow_harmony_class_fields()) {
-        bool has_initializer = Check(Token::ASSIGN);
-        ExpressionT initializer;
-        class_info->has_static_class_fields = true;
-        if (class_info->field_scope == nullptr) {
-          class_info->field_scope =
-              NewFunctionScope(FunctionKind::kConciseMethod);
-          // TODO(gsathya): Make scopes be non contiguous.
-          class_info->field_scope->set_start_position(
-              scanner()->location().end_pos);
-          scope()->SetLanguageMode(LanguageMode::kStrict);
-        }
-        if (has_initializer) {
-          FunctionState initializer_state(&function_state_, &scope_,
-                                          class_info->field_scope);
-          ExpressionClassifier expression_classifier(this);
-          initializer =
-              ParseAssignmentExpression(true, CHECK_OK_CUSTOM(NullExpression));
-          impl()->RewriteNonPattern(CHECK_OK_CUSTOM(NullExpression));
-        } else {
-          initializer = factory()->NewUndefinedLiteral(kNoSourcePosition);
-        }
-        class_info->field_scope->set_end_position(
-            scanner()->location().end_pos);
-        ExpectSemicolon(CHECK_OK_CUSTOM(NullLiteralProperty));
         *property_kind = ClassLiteralProperty::FIELD;
+        ExpressionT initializer = ParseClassFieldInitializer(
+            class_info, *is_static, CHECK_OK_CUSTOM(NullLiteralProperty));
+        ExpectSemicolon(CHECK_OK_CUSTOM(NullLiteralProperty));
         ClassLiteralPropertyT result = factory()->NewClassLiteralProperty(
             name_expression, initializer, *property_kind, *is_static,
             *is_computed_name);
@@ -2420,36 +2407,43 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
 }
 
 template <typename Impl>
-typename ParserBase<Impl>::FunctionLiteralT
-ParserBase<Impl>::ParseClassFieldForInitializer(bool has_initializer,
-                                                bool* ok) {
-  // Makes a concise method which evaluates and returns the initialized value
-  // (or undefined if absent).
-  FunctionKind kind = FunctionKind::kConciseMethod;
-  DeclarationScope* initializer_scope = NewFunctionScope(kind);
-  initializer_scope->set_start_position(scanner()->location().end_pos);
-  FunctionState initializer_state(&function_state_, &scope_, initializer_scope);
-  DCHECK_EQ(initializer_scope, scope());
-  scope()->SetLanguageMode(LanguageMode::kStrict);
-  ExpressionClassifier expression_classifier(this);
-  ExpressionT value;
-  if (has_initializer) {
-    value =
-        this->ParseAssignmentExpression(true, CHECK_OK_CUSTOM(NullExpression));
+typename ParserBase<Impl>::ExpressionT
+ParserBase<Impl>::ParseClassFieldInitializer(ClassInfo* class_info,
+                                             bool is_static, bool* ok) {
+  DeclarationScope* initializer_scope = is_static
+                                            ? class_info->static_fields_scope
+                                            : class_info->instance_fields_scope;
+
+  if (initializer_scope == nullptr) {
+    initializer_scope = NewFunctionScope(FunctionKind::kConciseMethod);
+    // TODO(gsathya): Make scopes be non contiguous.
+    initializer_scope->set_start_position(scanner()->location().end_pos);
+    initializer_scope->SetLanguageMode(LanguageMode::kStrict);
+  }
+
+  ExpressionT initializer;
+  if (Check(Token::ASSIGN)) {
+    FunctionState initializer_state(&function_state_, &scope_,
+                                    initializer_scope);
+    ExpressionClassifier expression_classifier(this);
+
+    initializer =
+        ParseAssignmentExpression(true, CHECK_OK_CUSTOM(NullExpression));
     impl()->RewriteNonPattern(CHECK_OK_CUSTOM(NullExpression));
   } else {
-    value = factory()->NewUndefinedLiteral(kNoSourcePosition);
+    initializer = factory()->NewUndefinedLiteral(kNoSourcePosition);
   }
+
   initializer_scope->set_end_position(scanner()->location().end_pos);
-  typename Types::StatementList body = impl()->NewStatementList(1);
-  body->Add(factory()->NewReturnStatement(value, kNoSourcePosition), zone());
-  FunctionLiteralT function_literal = factory()->NewFunctionLiteral(
-      impl()->EmptyIdentifierString(), initializer_scope, body,
-      initializer_state.expected_property_count(), 0, 0,
-      FunctionLiteral::kNoDuplicateParameters,
-      FunctionLiteral::kAnonymousExpression, default_eager_compile_hint_,
-      initializer_scope->start_position(), true, GetNextFunctionLiteralId());
-  return function_literal;
+  if (is_static) {
+    class_info->static_fields_scope = initializer_scope;
+    class_info->has_static_class_fields = true;
+  } else {
+    class_info->instance_fields_scope = initializer_scope;
+    class_info->has_instance_class_fields = true;
+  }
+
+  return initializer;
 }
 
 template <typename Impl>

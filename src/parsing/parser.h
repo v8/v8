@@ -354,6 +354,10 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                              FunctionLiteral* function, VariableMode mode,
                              int pos, bool is_sloppy_block_function,
                              ZoneList<const AstRawString*>* names, bool* ok);
+  Variable* CreateSyntheticContextVariable(const AstRawString* synthetic_name,
+                                           bool* ok);
+  FunctionLiteral* CreateInitializerFunction(
+      DeclarationScope* scope, ZoneList<ClassLiteral::Property*>* fields);
   V8_INLINE Statement* DeclareClass(const AstRawString* variable_name,
                                     Expression* value,
                                     ZoneList<const AstRawString*>* names,

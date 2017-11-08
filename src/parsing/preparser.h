@@ -1173,6 +1173,9 @@ class PreParser : public ParserBase<PreParser> {
     if (class_info->has_static_class_fields) {
       GetNextFunctionLiteralId();
     }
+    if (class_info->has_instance_class_fields) {
+      GetNextFunctionLiteralId();
+    }
     return PreParserExpression::Default();
   }
 

@@ -475,6 +475,9 @@ void AstTraversalVisitor<Subclass>::VisitClassLiteral(ClassLiteral* expr) {
   if (expr->static_fields_initializer() != nullptr) {
     RECURSE_EXPRESSION(Visit(expr->static_fields_initializer()));
   }
+  if (expr->instance_fields_initializer_function() != nullptr) {
+    RECURSE_EXPRESSION(Visit(expr->instance_fields_initializer_function()));
+  }
   ZoneList<ClassLiteralProperty*>* props = expr->properties();
   for (int i = 0; i < props->length(); ++i) {
     ClassLiteralProperty* prop = props->at(i);

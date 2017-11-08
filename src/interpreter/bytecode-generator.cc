@@ -1007,6 +1007,12 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   // Perform a stack-check before the body.
   builder()->StackCheck(info()->literal()->start_position());
 
+  if (IsBaseConstructor(function_kind()) &&
+      info()->literal()->instance_class_fields_initializer() != nullptr) {
+    BuildInstanceFieldInitialization(
+        info()->literal()->instance_class_fields_initializer());
+  }
+
   // Visit statements in the function body.
   VisitStatements(info()->literal()->body());
 
@@ -1798,10 +1804,23 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
                             HoleCheckMode::kElided);
   }
 
+  if (expr->instance_fields_initializer_function() != nullptr) {
+    Register initializer =
+        VisitForRegisterValue(expr->instance_fields_initializer_function());
+
+    // TODO(gsathya): Support super property access in instance field
+    // initializers.
+
+    builder()->LoadAccumulatorWithRegister(initializer);
+    BuildVariableAssignment(expr->instance_fields_initializer_var(),
+                            Token::INIT, HoleCheckMode::kElided);
+    builder()->LoadAccumulatorWithRegister(constructor);
+  }
+
   if (expr->static_fields_initializer() != nullptr) {
     RegisterList args = register_allocator()->NewRegisterList(1);
-    Register initializer = register_allocator()->NewRegister();
-    VisitForRegisterValue(expr->static_fields_initializer(), initializer);
+    Register initializer =
+        VisitForRegisterValue(expr->static_fields_initializer());
 
     if (FunctionLiteral::NeedsHomeObject(expr->static_fields_initializer())) {
       FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
@@ -1853,18 +1872,20 @@ void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
     }
 
     BuildLoadPropertyKey(property, key);
-    if (property->is_static() && property->is_computed_name()) {
-      // The static prototype property is read only. We handle the non computed
-      // property name case in the parser. Since this is the only case where we
-      // need to check for an own read only property we special case this so we
-      // do not need to do this for every property.
-      BytecodeLabel done;
-      builder()
-          ->LoadLiteral(ast_string_constants()->prototype_string())
-          .CompareOperation(Token::Value::EQ_STRICT, key)
-          .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &done)
-          .CallRuntime(Runtime::kThrowStaticPrototypeError)
-          .Bind(&done);
+    if (property->is_computed_name()) {
+      if (property->is_static()) {
+        // The static prototype property is read only. We handle the non
+        // computed property name case in the parser. Since this is the only
+        // case where we need to check for an own read only property we special
+        // case this so we do not need to do this for every property.
+        BytecodeLabel done;
+        builder()
+            ->LoadLiteral(ast_string_constants()->prototype_string())
+            .CompareOperation(Token::Value::EQ_STRICT, key)
+            .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &done)
+            .CallRuntime(Runtime::kThrowStaticPrototypeError)
+            .Bind(&done);
+      }
 
       if (property->kind() == ClassLiteral::Property::FIELD) {
         DCHECK_NOT_NULL(property->computed_name_var());
@@ -1947,6 +1968,19 @@ void BytecodeGenerator::VisitInitializeClassFieldsStatement(
     builder()->LoadAccumulatorWithRegister(value).StoreDataPropertyInLiteral(
         constructor, key, flags, feedback_index(slot));
   }
+}
+
+void BytecodeGenerator::BuildInstanceFieldInitialization(
+    Variable* initializer_var) {
+  RegisterList args = register_allocator()->NewRegisterList(1);
+  Register initializer = register_allocator()->NewRegister();
+  BuildVariableLoad(initializer_var, HoleCheckMode::kElided);
+
+  builder()
+      ->StoreAccumulatorInRegister(initializer)
+      .MoveRegister(builder()->Receiver(), args[0])
+      .CallProperty(initializer, args,
+                    feedback_index(feedback_spec()->AddCallICSlot()));
 }
 
 void BytecodeGenerator::BuildClassLiteralNameProperty(ClassLiteral* expr,

@@ -307,6 +307,9 @@ void AstNumberingVisitor::VisitClassLiteral(ClassLiteral* node) {
   if (node->static_fields_initializer() != nullptr) {
     Visit(node->static_fields_initializer());
   }
+  if (node->instance_fields_initializer_function() != nullptr) {
+    Visit(node->instance_fields_initializer_function());
+  }
   for (int i = 0; i < node->properties()->length(); i++) {
     VisitLiteralProperty(node->properties()->at(i));
   }

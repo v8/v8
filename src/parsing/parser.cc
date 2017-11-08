@@ -3204,6 +3204,20 @@ const AstRawString* ClassFieldVariableName(AstValueFactory* ast_value_factory,
 
 }  // namespace
 
+// TODO(gsathya): Ideally, this should just bypass scope analysis and
+// allocate a slot directly on the context. We should just store this
+// index in the AST, instead of storing the variable.
+Variable* Parser::CreateSyntheticContextVariable(const AstRawString* name,
+                                                 bool* ok) {
+  VariableProxy* proxy = factory()->NewVariableProxy(name, NORMAL_VARIABLE);
+  Declaration* declaration =
+      factory()->NewVariableDeclaration(proxy, kNoSourcePosition);
+  Variable* var = Declare(declaration, DeclarationDescriptor::NORMAL, CONST,
+                          Variable::DefaultInitializationFlag(CONST), CHECK_OK);
+  var->ForceContextAllocation();
+  return var;
+}
+
 // This method declares a property of the given class.  It updates the
 // following fields of class_info, as appropriate:
 //   - constructor
@@ -3223,39 +3237,45 @@ void Parser::DeclareClassProperty(const AstRawString* class_name,
     return;
   }
 
-  if (property->kind() == ClassLiteralProperty::FIELD && is_static) {
-    DCHECK(allow_harmony_class_fields());
+  if (property->kind() != ClassLiteralProperty::FIELD) {
+    class_info->properties->Add(property, zone());
+    return;
+  }
+
+  DCHECK(allow_harmony_class_fields());
+
+  if (is_static) {
     class_info->static_fields->Add(property, zone());
-    if (property->is_computed_name()) {
-      int index = class_info->static_fields->length();
-      // We create a synthetic variable name here so that scope
-      // analysis doesn't dedupe the vars.
-      //
-      // TODO(gsathya): Ideally, this should just bypass scope
-      // analysis and allocate a slot directly on the context. We
-      // should just store this index in the AST, instead of storing
-      // the variable.
-      const AstRawString* synthetic_name =
-          ClassFieldVariableName(ast_value_factory(), index);
-      VariableProxy* proxy =
-          factory()->NewVariableProxy(synthetic_name, NORMAL_VARIABLE);
-      Declaration* declaration =
-          factory()->NewVariableDeclaration(proxy, kNoSourcePosition);
-      Variable* computed_name_var =
-          Declare(declaration, DeclarationDescriptor::NORMAL, CONST,
-                  Variable::DefaultInitializationFlag(CONST), ok);
-      // Force context allocation because the computed property
-      // variable will accessed from inside the initializer
-      // function. We don't actually create a VariableProxy in the
-      // initializer function scope referring to this variable so
-      // scope analysis is unable to figure this out for us.
-      computed_name_var->ForceContextAllocation();
-      property->set_computed_name_var(computed_name_var);
-      class_info->properties->Add(property, zone());
-    }
   } else {
+    class_info->instance_fields->Add(property, zone());
+  }
+
+  int index = class_info->static_fields->length() +
+              class_info->instance_fields->length();
+
+  if (property->is_computed_name()) {
+    // We create a synthetic variable name here so that scope
+    // analysis doesn't dedupe the vars.
+    Variable* computed_name_var = CreateSyntheticContextVariable(
+        ClassFieldVariableName(ast_value_factory(), index), CHECK_OK_VOID);
+    property->set_computed_name_var(computed_name_var);
     class_info->properties->Add(property, zone());
   }
+}
+
+FunctionLiteral* Parser::CreateInitializerFunction(
+    DeclarationScope* scope, ZoneList<ClassLiteral::Property*>* fields) {
+  // function() { .. class fields initializer .. }
+  ZoneList<Statement*>* statements = NewStatementList(1);
+  InitializeClassFieldsStatement* static_fields =
+      factory()->NewInitializeClassFieldsStatement(fields, kNoSourcePosition);
+  statements->Add(static_fields, zone());
+  return factory()->NewFunctionLiteral(
+      ast_value_factory()->empty_string(), scope, statements, 0, 0, 0,
+      FunctionLiteral::kNoDuplicateParameters,
+      FunctionLiteral::kAnonymousExpression,
+      FunctionLiteral::kShouldEagerCompile, scope->start_position(), true,
+      GetNextFunctionLiteralId());
 }
 
 // This method generates a ClassLiteral AST node.
@@ -3288,25 +3308,31 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
 
   FunctionLiteral* static_fields_initializer = nullptr;
   if (class_info->has_static_class_fields) {
-    // function() { .. static class fields initializer .. }
-    ZoneList<Statement*>* statements = NewStatementList(1);
-    InitializeClassFieldsStatement* class_fields =
-        factory()->NewInitializeClassFieldsStatement(class_info->static_fields,
-                                                     kNoSourcePosition);
-    statements->Add(class_fields, zone());
-    static_fields_initializer = factory()->NewFunctionLiteral(
-        ast_value_factory()->empty_string(), class_info->field_scope,
-        statements, 0, 0, 0, FunctionLiteral::kNoDuplicateParameters,
-        FunctionLiteral::kAnonymousExpression,
-        FunctionLiteral::kShouldEagerCompile,
-        class_info->field_scope->start_position(), true,
-        GetNextFunctionLiteralId());
+    static_fields_initializer = CreateInitializerFunction(
+        class_info->static_fields_scope, class_info->static_fields);
+  }
+
+  FunctionLiteral* instance_fields_initializer_function = nullptr;
+  Variable* instance_fields_initializer_var = nullptr;
+  if (class_info->has_instance_class_fields) {
+    instance_fields_initializer_function = CreateInitializerFunction(
+        class_info->instance_fields_scope, class_info->instance_fields);
+
+    instance_fields_initializer_var = CreateSyntheticContextVariable(
+        ast_value_factory()->dot_instance_fields_initializer_string(),
+        CHECK_OK);
+    class_info->constructor->set_instance_class_fields_initializer(
+        instance_fields_initializer_var);
+
+    // TODO(gsathya): Add support for lazy parsing instance class fields.
+    class_info->constructor->SetShouldEagerCompile();
   }
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
       block_scope, class_info->variable, class_info->extends,
       class_info->constructor, class_info->properties,
-      static_fields_initializer, pos, end_pos,
+      static_fields_initializer, instance_fields_initializer_function,
+      instance_fields_initializer_var, pos, end_pos,
       class_info->has_name_static_property,
       class_info->has_static_computed_names, class_info->is_anonymous);
 

@@ -4,12 +4,19 @@
 
 // Flags: --harmony-class-fields
 
+"use strict";
+
 {
   class C {
     static a;
   }
 
   assertEquals(undefined, C.a);
+  let descriptor = Object.getOwnPropertyDescriptor(C, 'a');
+  assertTrue(C.hasOwnProperty('a'));
+  assertTrue(descriptor.writable);
+  assertTrue(descriptor.enumerable);
+  assertTrue(descriptor.configurable);
 
   let c = new C;
   assertEquals(undefined, c.a);
@@ -19,6 +26,7 @@
   let x = 'a';
   class C {
     static a;
+    static hasOwnProperty = function() { return 1; }
     static b = x;
     static c = 1;
   }
@@ -26,6 +34,7 @@
   assertEquals(undefined, C.a);
   assertEquals('a', C.b);
   assertEquals(1, C.c);
+  assertEquals(1, C.hasOwnProperty());
 
   let c = new C;
   assertEquals(undefined, c.a);
@@ -45,18 +54,6 @@
   let c = new C;
   assertEquals(undefined, c.c);
   assertEquals(undefined, c.d);
-}
-
-{
-  this.c = 1;
-  class C {
-    static c = this.c;
-  }
-
-  assertEquals(undefined, C.c);
-
-  let c = new C;
-  assertEquals(undefined, c.c);
 }
 
 {
@@ -140,7 +137,7 @@
 }
 
 {
-  d = function() { return new.target; }
+  let d = function() { return new.target; }
   class C {
     static c = d;
   }
@@ -247,7 +244,7 @@
 })()
 
 {
-  var c = "c";
+  let c = "c";
   class C {
     static ["a"] = 1;
     static ["b"];
@@ -260,21 +257,21 @@
 }
 
 {
-  var log = [];
-  function eval(i) {
+  let log = [];
+  function run(i) {
     log.push(i);
     return i;
   }
 
   class C {
-    static [eval(1)] = eval(6);
-    static [eval(2)] = eval(7);
-    [eval(3)]() { eval(9);}
-    static [eval(4)] = eval(8);
-    static [eval(5)]() { throw new Error('should not execute');};
+    static [run(1)] = run(6);
+    static [run(2)] = run(7);
+    [run(3)]() { run(9);}
+    static [run(4)] = run(8);
+    static [run(5)]() { throw new Error('should not execute');};
   }
 
-  var c = new C;
+  let c = new C;
   c[3]();
   assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], log);
 }
@@ -285,25 +282,26 @@ function x() {
 
   // This tests lazy parsing.
   return function() {
-    var log = [];
-    function eval(i) {
+    let log = [];
+    function run(i) {
       log.push(i);
       return i;
     }
 
     class C {
-      static [eval(1)] = eval(6);
-      static [eval(2)] = eval(7);
-      [eval(3)]() { eval(9);}
-      static [eval(4)] = eval(8);
-      static [eval(5)]() { throw new Error('should not execute');};
+      static [run(1)] = run(6);
+      static [run(2)] = run(7);
+      [run(3)]() { run(9);}
+      static [run(4)] = run(8);
+      static [run(5)]() { throw new Error('should not execute');};
     }
 
-    var c = new C;
+    let c = new C;
     c[3]();
     assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], log);
   }
 }
+x();
 
 {
   class C {}
