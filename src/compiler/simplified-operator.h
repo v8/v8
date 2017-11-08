@@ -517,8 +517,6 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* TransitionElementsKind(ElementsTransition transition);
 
   const Operator* Allocate(Type* type, PretenureFlag pretenure = NOT_TENURED);
-  const Operator* AllocateRaw(Type* type,
-                              PretenureFlag pretenure = NOT_TENURED);
 
   const Operator* LoadFieldByIndex();
   const Operator* LoadField(FieldAccess const&);

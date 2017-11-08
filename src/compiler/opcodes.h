@@ -346,7 +346,6 @@
   V(TypeOf)                             \
   V(ClassOf)                            \
   V(Allocate)                           \
-  V(AllocateRaw)                        \
   V(LoadFieldByIndex)                   \
   V(LoadField)                          \
   V(LoadElement)                        \

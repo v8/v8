@@ -1090,9 +1090,6 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kAllocate:
       CheckValueInputIs(node, 0, Type::PlainNumber());
       break;
-    case IrOpcode::kAllocateRaw:
-      // CheckValueInputIs(node, 0, Type::PlainNumber());
-      break;
     case IrOpcode::kEnsureWritableFastElements:
       CheckValueInputIs(node, 0, Type::Any());
       CheckValueInputIs(node, 1, Type::Internal());

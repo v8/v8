@@ -75,11 +75,7 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
   DCHECK_LT(0, node->op()->EffectInputCount());
   switch (node->opcode()) {
     case IrOpcode::kAllocate:
-      // Allocate nodes were purged from the graph in effect-control
-      // linearization.
-      UNREACHABLE();
-    case IrOpcode::kAllocateRaw:
-      return VisitAllocateRaw(node, state);
+      return VisitAllocate(node, state);
     case IrOpcode::kCall:
       return VisitCall(node, state);
     case IrOpcode::kCallWithCallerSavedRegisters:
@@ -114,9 +110,8 @@ void MemoryOptimizer::VisitNode(Node* node, AllocationState const* state) {
 
 #define __ gasm()->
 
-void MemoryOptimizer::VisitAllocateRaw(Node* node,
-                                       AllocationState const* state) {
-  DCHECK_EQ(IrOpcode::kAllocateRaw, node->opcode());
+void MemoryOptimizer::VisitAllocate(Node* node, AllocationState const* state) {
+  DCHECK_EQ(IrOpcode::kAllocate, node->opcode());
   Node* value;
   Node* size = node->InputAt(0);
   Node* effect = node->InputAt(1);
@@ -135,7 +130,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
       Node* const user = edge.from();
       if (user->opcode() == IrOpcode::kStoreField && edge.index() == 0) {
         Node* const child = user->InputAt(1);
-        if (child->opcode() == IrOpcode::kAllocateRaw &&
+        if (child->opcode() == IrOpcode::kAllocate &&
             PretenureFlagOf(child->op()) == NOT_TENURED) {
           NodeProperties::ChangeOp(child, node->op());
           break;
@@ -148,7 +143,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
       Node* const user = edge.from();
       if (user->opcode() == IrOpcode::kStoreField && edge.index() == 1) {
         Node* const parent = user->InputAt(0);
-        if (parent->opcode() == IrOpcode::kAllocateRaw &&
+        if (parent->opcode() == IrOpcode::kAllocate &&
             PretenureFlagOf(parent->op()) == TENURED) {
           pretenure = TENURED;
           break;
@@ -303,6 +298,7 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
 
   effect = __ ExtractCurrentEffect();
   control = __ ExtractCurrentControl();
+  USE(control);  // Floating control, dropped on the floor.
 
   // Replace all effect uses of {node} with the {effect}, enqueue the
   // effect uses for further processing, and replace all value uses of
@@ -311,11 +307,9 @@ void MemoryOptimizer::VisitAllocateRaw(Node* node,
     if (NodeProperties::IsEffectEdge(edge)) {
       EnqueueUse(edge.from(), edge.index(), state);
       edge.UpdateTo(effect);
-    } else if (NodeProperties::IsValueEdge(edge)) {
-      edge.UpdateTo(value);
     } else {
-      DCHECK(NodeProperties::IsControlEdge(edge));
-      edge.UpdateTo(control);
+      DCHECK(NodeProperties::IsValueEdge(edge));
+      edge.UpdateTo(value);
     }
   }
 
