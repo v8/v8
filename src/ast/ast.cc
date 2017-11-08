@@ -821,7 +821,7 @@ Handle<Object> Literal::BuildValue(Isolate* isolate) const {
     case kSmi:
       return handle(Smi::FromInt(smi_), isolate);
     case kHeapNumber:
-      return isolate->factory()->NewNumber(number_);
+      return isolate->factory()->NewNumber(number_, TENURED);
     case kString:
       return string_->string();
     case kSymbol:

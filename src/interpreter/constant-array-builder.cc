@@ -379,7 +379,7 @@ Handle<Object> ConstantArrayBuilder::Entry::ToHandle(Isolate* isolate) const {
     case Tag::kRawString:
       return raw_string_->string();
     case Tag::kHeapNumber:
-      return isolate->factory()->NewNumber(heap_number_);
+      return isolate->factory()->NewNumber(heap_number_, TENURED);
     case Tag::kBigInt:
       // This should never fail: the parser will never create a BigInt
       // literal that cannot be allocated.
