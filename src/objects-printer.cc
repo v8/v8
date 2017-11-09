@@ -491,6 +491,10 @@ static void JSObjectPrintHeader(std::ostream& os, JSObject* obj,
      << ElementsKindToString(obj->map()->elements_kind());
   if (obj->elements()->IsCowArray()) os << " (COW)";
   os << "]";
+  Object* hash = obj->GetHash();
+  if (hash->IsSmi()) {
+    os << "\n - hash = " << Brief(hash);
+  }
   if (obj->GetEmbedderFieldCount() > 0) {
     os << "\n - embedder fields: " << obj->GetEmbedderFieldCount();
   }
