@@ -284,6 +284,9 @@ Type* OperationTyper::NumberAbs(Type* type) {
   DCHECK(type->Is(Type::Number()));
   if (type->IsNone()) return type;
 
+  bool const maybe_nan = type->Maybe(Type::NaN());
+  bool const maybe_minuszero = type->Maybe(Type::MinusZero());
+
   type = Type::Intersect(type, Type::PlainNumber(), zone());
   if (!type->IsNone()) {
     double const max = type->Max();
@@ -298,10 +301,10 @@ Type* OperationTyper::NumberAbs(Type* type) {
     }
   }
 
-  if (type->Maybe(Type::NaN())) {
+  if (maybe_minuszero) {
     type = Type::Union(type, cache_.kSingletonZero, zone());
   }
-  if (type->Maybe(Type::MinusZero())) {
+  if (maybe_nan) {
     type = Type::Union(type, Type::NaN(), zone());
   }
   return type;
