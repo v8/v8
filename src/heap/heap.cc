@@ -3031,12 +3031,11 @@ AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
     Address address = result->address();
     MemoryChunk* chunk = MemoryChunk::FromAddress(address);
     // Code objects which should stay at a fixed address are allocated either
-    // in the first page of code space (objects on the first page of each space
-    // are never moved), in large object space, or (during snapshot creation)
-    // the containing page is marked as immovable.
-    if (!Heap::IsImmovable(result) &&
-        !code_space_->FirstPage()->Contains(address)) {
-      if (isolate()->serializer_enabled()) {
+    // in the first page of code space, in large object space, or (during
+    // snapshot creation) the containing page is marked as immovable.
+    if (!Heap::IsImmovable(result)) {
+      if (isolate()->serializer_enabled() ||
+          code_space_->FirstPage()->Contains(address)) {
         chunk->MarkNeverEvacuate();
       } else {
         // Discard the first code allocation, which was on a page where it could

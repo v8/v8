@@ -172,8 +172,7 @@ Handle<Code> CodeStub::GetCode() {
   }
 
   Activate(code);
-  DCHECK(!NeedsImmovableCode() || Heap::IsImmovable(code) ||
-         heap->code_space()->FirstPage()->Contains(code->address()));
+  DCHECK(!NeedsImmovableCode() || Heap::IsImmovable(code));
   return Handle<Code>(code, isolate());
 }
 
