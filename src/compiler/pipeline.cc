@@ -1509,7 +1509,7 @@ struct InstructionSelectionPhase {
         FLAG_turbo_instruction_scheduling
             ? InstructionSelector::kEnableScheduling
             : InstructionSelector::kDisableScheduling,
-        data->info()->will_serialize()
+        data->info()->isolate()->serializer_enabled()
             ? InstructionSelector::kEnableSerialization
             : InstructionSelector::kDisableSerialization);
     if (!selector.SelectInstructions()) {
@@ -1929,7 +1929,6 @@ Handle<Code> Pipeline::GenerateCodeForCodeStub(
     Schedule* schedule, Code::Kind kind, const char* debug_name,
     uint32_t stub_key, JumpOptimizationInfo* jump_opt) {
   CompilationInfo info(CStrVector(debug_name), isolate, graph->zone(), kind);
-  if (isolate->serializer_enabled()) info.MarkAsSerializing();
   info.set_stub_key(stub_key);
 
   // Construct a pipeline for scheduling and code generation.

@@ -39,16 +39,15 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   enum Flag {
     kIsEval = 1 << 0,
     kIsNative = 1 << 1,
-    kSerializing = 1 << 2,
-    kCollectTypeProfile = 1 << 3,
-    kAccessorInliningEnabled = 1 << 4,
-    kFunctionContextSpecializing = 1 << 5,
-    kInliningEnabled = 1 << 6,
-    kDisableFutureOptimization = 1 << 7,
-    kSplittingEnabled = 1 << 8,
-    kSourcePositionsEnabled = 1 << 9,
-    kBailoutOnUninitialized = 1 << 10,
-    kLoopPeelingEnabled = 1 << 11,
+    kCollectTypeProfile = 1 << 2,
+    kAccessorInliningEnabled = 1 << 3,
+    kFunctionContextSpecializing = 1 << 4,
+    kInliningEnabled = 1 << 5,
+    kDisableFutureOptimization = 1 << 6,
+    kSplittingEnabled = 1 << 7,
+    kSourcePositionsEnabled = 1 << 8,
+    kBailoutOnUninitialized = 1 << 9,
+    kLoopPeelingEnabled = 1 << 10,
   };
 
   // Construct a compilation info for unoptimized compilation.
@@ -108,9 +107,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   Handle<FixedArray> asm_wasm_data() const { return asm_wasm_data_; }
 
   // Flags used by unoptimized compilation.
-
-  void MarkAsSerializing() { SetFlag(kSerializing); }
-  bool will_serialize() const { return GetFlag(kSerializing); }
 
   void MarkAsEval() { SetFlag(kIsEval); }
   bool is_eval() const { return GetFlag(kIsEval); }

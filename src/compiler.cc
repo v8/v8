@@ -1528,11 +1528,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
     if (!context->IsNativeContext()) {
       parse_info.set_outer_scope_info(handle(context->scope_info()));
     }
-    if (ShouldProduceCodeCache(compile_options)) {
-      parse_info.set_will_serialize();
-      parse_info.set_eager(compile_options ==
-                           ScriptCompiler::kProduceFullCodeCache);
-    }
+    parse_info.set_eager(compile_options ==
+                         ScriptCompiler::kProduceFullCodeCache);
 
     parse_info.set_language_mode(
         stricter_language_mode(parse_info.language_mode(), language_mode));

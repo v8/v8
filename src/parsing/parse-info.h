@@ -75,7 +75,6 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kAllowLazyParsing, allow_lazy_parsing, set_allow_lazy_parsing)
   FLAG_ACCESSOR(kIsNamedExpression, is_named_expression,
                 set_is_named_expression)
-  FLAG_ACCESSOR(kSerializing, will_serialize, set_will_serialize)
   FLAG_ACCESSOR(kLazyCompile, lazy_compile, set_lazy_compile)
   FLAG_ACCESSOR(kCollectTypeProfile, collect_type_profile,
                 set_collect_type_profile)
@@ -252,11 +251,10 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kModule = 1 << 6,
     kAllowLazyParsing = 1 << 7,
     kIsNamedExpression = 1 << 8,
-    kSerializing = 1 << 9,
-    kLazyCompile = 1 << 10,
-    kCollectTypeProfile = 1 << 11,
-    kBlockCoverageEnabled = 1 << 12,
-    kIsAsmWasmBroken = 1 << 13,
+    kLazyCompile = 1 << 9,
+    kCollectTypeProfile = 1 << 10,
+    kBlockCoverageEnabled = 1 << 11,
+    kIsAsmWasmBroken = 1 << 12,
   };
 
   //------------- Inputs to parsing and scope analysis -----------------------
