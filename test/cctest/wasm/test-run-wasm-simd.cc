@@ -1201,8 +1201,6 @@ WASM_SIMD_TEST(I16x8SubSaturateS) {
   RunI16x8BinOpTest(execution_mode, kExprI16x8SubSaturateS, SubSaturate);
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(I16x8Mul) {
   RunI16x8BinOpTest(execution_mode, kExprI16x8Mul, Mul);
 }
@@ -1260,6 +1258,8 @@ WASM_SIMD_TEST(I16x8Ne) {
   RunI16x8CompareOpTest(execution_mode, kExprI16x8Ne, NotEqual);
 }
 
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
+    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(I16x8LtS) {
   RunI16x8CompareOpTest(execution_mode, kExprI16x8LtS, Less);
 }
