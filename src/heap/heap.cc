@@ -1469,6 +1469,11 @@ bool Heap::ReserveSpace(Reservation* reservations, std::vector<Address>* maps) {
         }
       }
       if (perform_gc) {
+        // We cannot perfom a GC with an uninitialized isolate. This check
+        // fails for example if the max old space size is chosen unwisely,
+        // so that we cannot allocate space to deserialize the initial heap.
+        CHECK_WITH_MSG(deserialization_complete_,
+                       "insufficient memory to create an Isolate");
         if (space == NEW_SPACE) {
           CollectGarbage(NEW_SPACE, GarbageCollectionReason::kDeserializer);
         } else {
