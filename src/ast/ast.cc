@@ -5,6 +5,7 @@
 #include "src/ast/ast.h"
 
 #include <cmath>  // For isfinite.
+#include <vector>
 
 #include "src/ast/compile-time-value.h"
 #include "src/ast/prettyprinter.h"
@@ -246,6 +247,34 @@ bool FunctionLiteral::NeedsHomeObject(Expression* expr) {
   if (expr == nullptr || !expr->IsFunctionLiteral()) return false;
   DCHECK_NOT_NULL(expr->AsFunctionLiteral()->scope());
   return expr->AsFunctionLiteral()->scope()->NeedsHomeObject();
+}
+
+std::unique_ptr<char[]> FunctionLiteral::GetDebugName() const {
+  const AstConsString* cons_string;
+  if (raw_name_ != nullptr && !raw_name_->IsEmpty()) {
+    cons_string = raw_name_;
+  } else if (raw_inferred_name_ != nullptr && !raw_inferred_name_->IsEmpty()) {
+    cons_string = raw_inferred_name_;
+  } else if (!inferred_name_.is_null()) {
+    AllowHandleDereference allow_deref;
+    return inferred_name_->ToCString();
+  } else {
+    return std::unique_ptr<char[]>(new char{'\0'});
+  }
+
+  // TODO(rmcilroy): Deal with two-character strings.
+  std::vector<char> result_vec;
+  std::forward_list<const AstRawString*> strings = cons_string->ToRawStrings();
+  for (const AstRawString* string : strings) {
+    if (!string->is_one_byte()) break;
+    for (int i = 0; i < string->length(); i++) {
+      result_vec.push_back(string->raw_data()[i]);
+    }
+  }
+  std::unique_ptr<char[]> result(new char[result_vec.size() + 1]);
+  memcpy(result.get(), result_vec.data(), result_vec.size());
+  result[result_vec.size()] = '\0';
+  return result;
 }
 
 ObjectLiteralProperty::ObjectLiteralProperty(Expression* key, Expression* value,
