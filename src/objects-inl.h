@@ -81,6 +81,7 @@ TYPE_CHECKER(CallHandlerInfo, TUPLE3_TYPE)
 TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(ConstantElementsPair, TUPLE2_TYPE)
 TYPE_CHECKER(CoverageInfo, FIXED_ARRAY_TYPE)
+TYPE_CHECKER(FeedbackVector, FEEDBACK_VECTOR_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(Foreign, FOREIGN_TYPE)
 TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
@@ -318,6 +319,14 @@ bool HeapObject::IsPromiseCapability() const { return IsTuple3(); }
 
 bool HeapObject::IsDescriptorArray() const { return IsFixedArray(); }
 
+// TODO(ishell): remove once we use |descriptor_array_map| for all
+// DescriptorArray objects.
+bool HeapObject::IsDescriptorArrayTemplate() const {
+  // We can't use descriptor_array_map() here because during deserialization
+  // we may call this function before the descriptor_array_map is deserialized.
+  return map() == GetHeap()->root(Heap::kDescriptorArrayMapRootIndex);
+}
+
 bool HeapObject::IsPropertyDescriptorObject() const { return IsFixedArray(); }
 
 bool HeapObject::IsEnumCache() const { return IsTuple2(); }
@@ -329,10 +338,6 @@ bool HeapObject::IsArrayList() const { return IsFixedArray(); }
 bool HeapObject::IsRegExpMatchInfo() const { return IsFixedArray(); }
 
 bool Object::IsLayoutDescriptor() const { return IsSmi() || IsByteArray(); }
-
-bool HeapObject::IsFeedbackVector() const {
-  return map() == GetHeap()->feedback_vector_map();
-}
 
 bool HeapObject::IsFeedbackMetadata() const { return IsFixedArray(); }
 
@@ -1960,6 +1965,11 @@ AllocationAlignment HeapObject::RequiredAlignment() const {
 
 bool HeapObject::NeedsRehashing() const {
   switch (map()->instance_type()) {
+    case FIXED_ARRAY_TYPE:
+      if (IsDescriptorArrayTemplate()) {
+        return DescriptorArray::cast(this)->number_of_descriptors() > 1;
+      }
+      return false;
     case TRANSITION_ARRAY_TYPE:
       return TransitionArray::cast(this)->number_of_entries() > 1;
     case HASH_TABLE_TYPE:
@@ -2044,17 +2054,15 @@ Object** FixedArray::RawFieldOfElementAt(int index) {
 ACCESSORS(EnumCache, keys, FixedArray, kKeysOffset)
 ACCESSORS(EnumCache, indices, FixedArray, kIndicesOffset)
 
-int DescriptorArray::number_of_descriptors() {
+int DescriptorArray::number_of_descriptors() const {
   return Smi::ToInt(get(kDescriptorLengthIndex));
 }
 
-
-int DescriptorArray::number_of_descriptors_storage() {
+int DescriptorArray::number_of_descriptors_storage() const {
   return (length() - kFirstIndex) / kEntrySize;
 }
 
-
-int DescriptorArray::NumberOfSlackDescriptors() {
+int DescriptorArray::NumberOfSlackDescriptors() const {
   return number_of_descriptors_storage() - number_of_descriptors();
 }
 
@@ -2063,8 +2071,7 @@ void DescriptorArray::SetNumberOfDescriptors(int number_of_descriptors) {
   set(kDescriptorLengthIndex, Smi::FromInt(number_of_descriptors));
 }
 
-
-inline int DescriptorArray::number_of_entries() {
+inline int DescriptorArray::number_of_entries() const {
   return number_of_descriptors();
 }
 

@@ -46,12 +46,12 @@ class EnumCache : public Tuple2 {
 class DescriptorArray : public FixedArray {
  public:
   // Returns the number of descriptors in the array.
-  inline int number_of_descriptors();
-  inline int number_of_descriptors_storage();
-  inline int NumberOfSlackDescriptors();
+  inline int number_of_descriptors() const;
+  inline int number_of_descriptors_storage() const;
+  inline int NumberOfSlackDescriptors() const;
 
   inline void SetNumberOfDescriptors(int number_of_descriptors);
-  inline int number_of_entries();
+  inline int number_of_entries() const;
 
   inline EnumCache* GetEnumCache();
 

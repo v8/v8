@@ -3635,6 +3635,8 @@ bool HeapObject::CanBeRehashed() const {
   switch (map()->instance_type()) {
     case HASH_TABLE_TYPE:
       return IsNameDictionary() || IsGlobalDictionary() || IsNumberDictionary();
+    case FIXED_ARRAY_TYPE:
+      return IsDescriptorArrayTemplate();
     case TRANSITION_ARRAY_TYPE:
       return true;
     case SMALL_ORDERED_HASH_MAP_TYPE:
@@ -3663,6 +3665,12 @@ void HeapObject::RehashBasedOnMap() {
         if (this == GetHeap()->weak_object_to_code_table()) break;
         if (this == GetHeap()->string_table()) break;
         UNREACHABLE();
+      }
+      break;
+    case FIXED_ARRAY_TYPE:
+      if (IsDescriptorArrayTemplate()) {
+        DCHECK_LE(1, DescriptorArray::cast(this)->number_of_descriptors());
+        DescriptorArray::cast(this)->Sort();
       }
       break;
     case TRANSITION_ARRAY_TYPE:
@@ -10340,7 +10348,8 @@ Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
   // Allocate the array of keys.
   Handle<FixedArray> result =
       factory->NewFixedArray(LengthFor(size), pretenure);
-
+  // TODO(ishell): set map to |descriptor_array_map| once we can use it for all
+  // descriptor arrays.
   result->set(kDescriptorLengthIndex, Smi::FromInt(number_of_descriptors));
   result->set(kEnumCacheIndex, isolate->heap()->empty_enum_cache());
   return Handle<DescriptorArray>::cast(result);
