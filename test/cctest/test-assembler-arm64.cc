@@ -174,14 +174,15 @@ static void InitializeVM() {
 
 #else  // ifdef USE_SIMULATOR.
 // Run the test on real hardware or models.
-#define SETUP_SIZE(buf_size)                                     \
-  Isolate* isolate = CcTest::i_isolate();                        \
-  HandleScope scope(isolate);                                    \
-  CHECK_NOT_NULL(isolate);                                       \
-  size_t allocated;                                              \
-  byte* buffer = AllocateAssemblerBuffer(&allocated);            \
-  MacroAssembler masm(isolate, buf, static_cast<int>(allocated), \
-                      v8::internal::CodeObjectRequired::kYes);   \
+#define SETUP_SIZE(buf_size)                                                   \
+  Isolate* isolate = CcTest::i_isolate();                                      \
+  HandleScope scope(isolate);                                                  \
+  CHECK_NOT_NULL(isolate);                                                     \
+  size_t actual_size;                                                          \
+  byte* buf = static_cast<byte*>(v8::base::OS::Allocate(                       \
+      buf_size, &actual_size, base::OS::MemoryPermission::kReadWriteExecute)); \
+  MacroAssembler masm(isolate, buf, static_cast<unsigned>(actual_size),        \
+                      v8::internal::CodeObjectRequired::kYes);                 \
   RegisterDump core;
 
 #define RESET()                                                                \
