@@ -218,8 +218,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         default=False, action="store_true")
       parser.add_option("-t", "--timeout", help="Timeout in seconds",
                         default=TIMEOUT_DEFAULT, type="int")
-      parser.add_option("--valgrind", help="Run tests through valgrind",
-                        default=False, action="store_true")
       parser.add_option("--warn-unused", help="Report unused rules",
                         default=False, action="store_true")
       parser.add_option("--junitout", help="File name of the JUnit output")
@@ -307,10 +305,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       # Dedupe.
       VARIANTS = list(set(VARIANTS))
 
-      if options.valgrind:
-        run_valgrind = os.path.join("tools", "run-valgrind.py")
-        options.command_prefix = (["python", "-u", run_valgrind] +
-                                  options.command_prefix)
       def CheckTestMode(name, option):
         if not option in ["run", "skip", "dontcare"]:
           print "Unknown %s mode %s" % (name, option)
