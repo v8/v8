@@ -154,10 +154,9 @@ class GlobalHandles {
   void IterateNewSpaceStrongAndDependentRootsAndIdentifyUnmodified(
       RootVisitor* v, size_t start, size_t end);
 
-  // Finds weak independent or unmodified handles satisfying
-  // the callback predicate and marks them as pending. See the note above.
+  // Marks weak unmodified handles satisfying |is_dead| as pending.
   void MarkNewSpaceWeakUnmodifiedObjectsPending(
-      WeakSlotCallbackWithHeap is_unscavenged);
+      WeakSlotCallbackWithHeap is_dead);
 
   // Iterates over weak independent or unmodified handles.
   // See the note above.
