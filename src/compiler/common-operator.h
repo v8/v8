@@ -346,8 +346,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   explicit CommonOperatorBuilder(Zone* zone);
 
   const Operator* Dead();
-  const Operator* DeadValue();
-  const Operator* Unreachable();
   const Operator* End(size_t control_input_count);
   const Operator* Branch(BranchHint = BranchHint::kNone);
   const Operator* IfTrue();

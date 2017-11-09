@@ -947,7 +947,7 @@ PipelineWasmCompilationJob::ExecuteJobImpl() {
     PipelineRunScope scope(data, "Wasm optimization");
     JSGraphReducer graph_reducer(data->jsgraph(), scope.zone());
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common(), scope.zone());
+                                              data->common());
     ValueNumberingReducer value_numbering(scope.zone(), data->graph()->zone());
     MachineOperatorReducer machine_reducer(data->jsgraph(), asmjs_origin_);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
@@ -1091,7 +1091,7 @@ struct InliningPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common(), temp_zone);
+                                              data->common());
     CheckpointElimination checkpoint_elimination(&graph_reducer);
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
                                          data->common(), data->machine());
@@ -1185,7 +1185,7 @@ struct TypedLoweringPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common(), temp_zone);
+                                              data->common());
     JSBuiltinReducer builtin_reducer(
         &graph_reducer, data->jsgraph(),
         data->info()->dependencies(), data->native_context());
@@ -1298,7 +1298,7 @@ struct EarlyOptimizationPhase {
   void Run(PipelineData* data, Zone* temp_zone) {
     JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common(), temp_zone);
+                                              data->common());
     SimplifiedOperatorReducer simple_reducer(&graph_reducer, data->jsgraph());
     RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
@@ -1329,48 +1329,50 @@ struct EffectControlLinearizationPhase {
   static const char* phase_name() { return "effect linearization"; }
 
   void Run(PipelineData* data, Zone* temp_zone) {
-    {
-      // The scheduler requires the graphs to be trimmed, so trim now.
-      // TODO(jarin) Remove the trimming once the scheduler can handle untrimmed
-      // graphs.
-      GraphTrimmer trimmer(temp_zone, data->graph());
-      NodeVector roots(temp_zone);
-      data->jsgraph()->GetCachedNodes(&roots);
-      trimmer.TrimGraph(roots.begin(), roots.end());
+    // The scheduler requires the graphs to be trimmed, so trim now.
+    // TODO(jarin) Remove the trimming once the scheduler can handle untrimmed
+    // graphs.
+    GraphTrimmer trimmer(temp_zone, data->graph());
+    NodeVector roots(temp_zone);
+    data->jsgraph()->GetCachedNodes(&roots);
+    trimmer.TrimGraph(roots.begin(), roots.end());
 
-      // Schedule the graph without node splitting so that we can
-      // fix the effect and control flow for nodes with low-level side
-      // effects (such as changing representation to tagged or
-      // 'floating' allocation regions.)
-      Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph(),
-                                                      Scheduler::kTempSchedule);
-      if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
-      TraceSchedule(data->info(), schedule);
+    // Schedule the graph without node splitting so that we can
+    // fix the effect and control flow for nodes with low-level side
+    // effects (such as changing representation to tagged or
+    // 'floating' allocation regions.)
+    Schedule* schedule = Scheduler::ComputeSchedule(temp_zone, data->graph(),
+                                                    Scheduler::kTempSchedule);
+    if (FLAG_turbo_verify) ScheduleVerifier::Run(schedule);
+    TraceSchedule(data->info(), schedule);
 
-      // Post-pass for wiring the control/effects
-      // - connect allocating representation changes into the control&effect
-      //   chains and lower them,
-      // - get rid of the region markers,
-      // - introduce effect phis and rewire effects to get SSA again.
-      EffectControlLinearizer linearizer(data->jsgraph(), schedule, temp_zone,
-                                         data->source_positions());
-      linearizer.Run();
-    }
-    {
-      // The {EffectControlLinearizer} might leave {Dead} nodes behind, so we
-      // run {DeadCodeElimination} to prune these parts of the graph.
-      // Also, the following store-store elimination phase greatly benefits from
-      // doing a common operator reducer and dead code elimination just before
-      // it, to eliminate conditional deopts with a constant condition.
-      JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
-      DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                                data->common(), temp_zone);
-      CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
-                                           data->common(), data->machine());
-      AddReducer(data, &graph_reducer, &dead_code_elimination);
-      AddReducer(data, &graph_reducer, &common_reducer);
-      graph_reducer.ReduceGraph();
-    }
+    // Post-pass for wiring the control/effects
+    // - connect allocating representation changes into the control&effect
+    //   chains and lower them,
+    // - get rid of the region markers,
+    // - introduce effect phis and rewire effects to get SSA again.
+    EffectControlLinearizer linearizer(data->jsgraph(), schedule, temp_zone,
+                                       data->source_positions());
+    linearizer.Run();
+  }
+};
+
+// The store-store elimination greatly benefits from doing a common operator
+// reducer and dead code elimination just before it, to eliminate conditional
+// deopts with a constant condition.
+
+struct DeadCodeEliminationPhase {
+  static const char* phase_name() { return "dead code elimination"; }
+
+  void Run(PipelineData* data, Zone* temp_zone) {
+    JSGraphReducer graph_reducer(data->jsgraph(), temp_zone);
+    DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
+                                              data->common());
+    CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
+                                         data->common(), data->machine());
+    AddReducer(data, &graph_reducer, &dead_code_elimination);
+    AddReducer(data, &graph_reducer, &common_reducer);
+    graph_reducer.ReduceGraph();
   }
 };
 
@@ -1395,7 +1397,7 @@ struct LoadEliminationPhase {
     BranchElimination branch_condition_elimination(&graph_reducer,
                                                    data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common(), temp_zone);
+                                              data->common());
     RedundancyElimination redundancy_elimination(&graph_reducer, temp_zone);
     LoadElimination load_elimination(&graph_reducer, data->jsgraph(),
                                      temp_zone);
@@ -1438,7 +1440,7 @@ struct LateOptimizationPhase {
     BranchElimination branch_condition_elimination(&graph_reducer,
                                                    data->jsgraph(), temp_zone);
     DeadCodeElimination dead_code_elimination(&graph_reducer, data->graph(),
-                                              data->common(), temp_zone);
+                                              data->common());
     ValueNumberingReducer value_numbering(temp_zone, data->graph()->zone());
     MachineOperatorReducer machine_reducer(data->jsgraph());
     CommonOperatorReducer common_reducer(&graph_reducer, data->graph(),
@@ -1892,6 +1894,9 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 
   Run<EffectControlLinearizationPhase>();
   RunPrintAndVerify("Effect and control linearized", true);
+
+  Run<DeadCodeEliminationPhase>();
+  RunPrintAndVerify("Dead code elimination", true);
 
   if (FLAG_turbo_store_elimination) {
     Run<StoreStoreEliminationPhase>();

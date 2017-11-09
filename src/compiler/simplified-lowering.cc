@@ -3027,7 +3027,6 @@ class RepresentationSelector {
       case IrOpcode::kOsrValue:
       case IrOpcode::kArgumentsElementsState:
       case IrOpcode::kArgumentsLengthState:
-      case IrOpcode::kUnreachable:
       case IrOpcode::kRuntimeAbort:
 // All JavaScript operators except JSToNumber have uniform handling.
 #define OPCODE_CASE(name) case IrOpcode::k##name:
@@ -3044,8 +3043,7 @@ class RepresentationSelector {
         VisitInputs(node);
         // Assume the output is tagged.
         return SetOutput(node, MachineRepresentation::kTagged);
-      case IrOpcode::kDeadValue:
-        return SetOutput(node, MachineRepresentation::kNone);
+
       default:
         V8_Fatal(
             __FILE__, __LINE__,
