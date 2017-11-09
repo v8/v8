@@ -605,7 +605,7 @@ class V8_EXPORT_PRIVATE Type {
   // Minimum and maximum of a numeric type.
   // These functions do not distinguish between -0 and +0.  If the type equals
   // kNaN, they return NaN; otherwise kNaN is ignored.  Only call these
-  // functions on subtypes of Number.
+  // functions on subtypes of Number, but not on None!
   double Min();
   double Max();
 

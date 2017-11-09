@@ -423,7 +423,9 @@ Type* OperationTyper::NumberSign(Type* type) {
   bool maybe_minuszero = type->Maybe(Type::MinusZero());
   bool maybe_nan = type->Maybe(Type::NaN());
   type = Type::Intersect(type, Type::PlainNumber(), zone());
-  if (type->Max() < 0.0) {
+  if (type->IsNone()) {
+    // Do nothing.
+  } else if (type->Max() < 0.0) {
     type = cache_.kSingletonMinusOne;
   } else if (type->Max() <= 0.0) {
     type = cache_.kMinusOneOrZero;
@@ -436,6 +438,7 @@ Type* OperationTyper::NumberSign(Type* type) {
   }
   if (maybe_minuszero) type = Type::Union(type, Type::MinusZero(), zone());
   if (maybe_nan) type = Type::Union(type, Type::NaN(), zone());
+  DCHECK(!type->IsNone());
   return type;
 }
 
@@ -657,7 +660,9 @@ Type* OperationTyper::NumberDivide(Type* lhs, Type* rhs) {
       ((lhs->Min() == -V8_INFINITY || lhs->Max() == +V8_INFINITY) &&
        (rhs->Min() == -V8_INFINITY || rhs->Max() == +V8_INFINITY));
   lhs = Type::Intersect(lhs, Type::OrderedNumber(), zone());
+  DCHECK(!lhs->IsNone());
   rhs = Type::Intersect(rhs, Type::OrderedNumber(), zone());
+  DCHECK(!rhs->IsNone());
 
   // Try to rule out -0.
   bool maybe_minuszero =
@@ -949,7 +954,9 @@ Type* OperationTyper::NumberMax(Type* lhs, Type* rhs) {
     type = Type::Union(type, Type::NaN(), zone());
   }
   lhs = Type::Intersect(lhs, Type::OrderedNumber(), zone());
+  DCHECK(!lhs->IsNone());
   rhs = Type::Intersect(rhs, Type::OrderedNumber(), zone());
+  DCHECK(!rhs->IsNone());
   if (lhs->Is(cache_.kInteger) && rhs->Is(cache_.kInteger)) {
     double max = std::max(lhs->Max(), rhs->Max());
     double min = std::max(lhs->Min(), rhs->Min());
@@ -973,7 +980,9 @@ Type* OperationTyper::NumberMin(Type* lhs, Type* rhs) {
     type = Type::Union(type, Type::NaN(), zone());
   }
   lhs = Type::Intersect(lhs, Type::OrderedNumber(), zone());
+  DCHECK(!lhs->IsNone());
   rhs = Type::Intersect(rhs, Type::OrderedNumber(), zone());
+  DCHECK(!rhs->IsNone());
   if (lhs->Is(cache_.kInteger) && rhs->Is(cache_.kInteger)) {
     double max = std::min(lhs->Max(), rhs->Max());
     double min = std::min(lhs->Min(), rhs->Min());

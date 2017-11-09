@@ -881,7 +881,7 @@ Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
   Type* input_type = NodeProperties::GetType(input);
   if (input_type->Is(type_cache_.kIntegerOrMinusZero)) {
-    if (input_type->Max() <= 0.0) {
+    if (input_type->IsNone() || input_type->Max() <= 0.0) {
       input = jsgraph()->ZeroConstant();
     } else if (input_type->Min() >= kMaxSafeInteger) {
       input = jsgraph()->Constant(kMaxSafeInteger);

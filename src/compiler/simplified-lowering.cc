@@ -557,8 +557,10 @@ class RepresentationSelector {
 
     Type* current_integer =
         Type::Intersect(current_type, integer, graph_zone());
+    DCHECK(!current_integer->IsNone());
     Type* previous_integer =
         Type::Intersect(previous_type, integer, graph_zone());
+    DCHECK(!previous_integer->IsNone());
 
     // Once we start weakening a node, we should always weaken.
     if (!GetInfo(node)->weakened()) {
@@ -2420,8 +2422,9 @@ class RepresentationSelector {
           VisitBinop(node, UseInfo::TruncatingWord32(),
                      MachineRepresentation::kWord32);
           if (lower()) {
-            if (index_type->Min() >= 0.0 &&
-                index_type->Max() < length_type->Min()) {
+            if (index_type->IsNone() || length_type->IsNone() ||
+                (index_type->Min() >= 0.0 &&
+                 index_type->Max() < length_type->Min())) {
               // The bounds check is redundant if we already know that
               // the index is within the bounds of [0.0, length[.
               DeferReplacement(node, node->InputAt(0));
