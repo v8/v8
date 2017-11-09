@@ -42,19 +42,17 @@
 namespace v8 {
 namespace internal {
 
-#define __ assm.
+#define __ masm.
 
 ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
                                               Register destination_reg) {
-  // Allocate an executable page of memory.
-  size_t actual_size;
-  byte* buffer = static_cast<byte*>(v8::base::OS::Allocate(
-      Assembler::kMinimalBufferSize, &actual_size,
-      v8::base::OS::MemoryPermission::kReadWriteExecute));
-  CHECK(buffer);
   HandleScope handles(isolate);
-  MacroAssembler assm(isolate, buffer, static_cast<int>(actual_size),
+
+  size_t allocated;
+  byte* buffer = AllocateAssemblerBuffer(&allocated);
+  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       v8::internal::CodeObjectRequired::kYes);
+
   DoubleToIStub stub(isolate, destination_reg);
   byte* start = stub.GetCode()->instruction_start();
 
@@ -109,7 +107,7 @@ ConvertDToIFunc MakeConvertDToIFuncTrampoline(Isolate* isolate,
   __ ret(kDoubleSize);
 
   CodeDesc desc;
-  assm.GetCode(isolate, &desc);
+  masm.GetCode(isolate, &desc);
   return reinterpret_cast<ConvertDToIFunc>(
       reinterpret_cast<intptr_t>(buffer));
 }

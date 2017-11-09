@@ -32,6 +32,7 @@
 
 #include "include/libplatform/libplatform.h"
 #include "include/v8-platform.h"
+#include "src/assembler.h"
 #include "src/debug/debug-interface.h"
 #include "src/factory.h"
 #include "src/flags.h"
@@ -565,6 +566,19 @@ static inline void CheckDoubleEquals(double expected, double actual) {
   const double kEpsilon = 1e-10;
   CHECK_LE(expected, actual + kEpsilon);
   CHECK_GE(expected, actual - kEpsilon);
+}
+
+static inline uint8_t* AllocateAssemblerBuffer(
+    size_t* allocated,
+    size_t requested = v8::internal::AssemblerBase::kMinimalBufferSize) {
+  size_t page_size = v8::base::OS::AllocatePageSize();
+  size_t alloc_size = RoundUp(requested, page_size);
+  void* result =
+      v8::base::OS::Allocate(nullptr, alloc_size, page_size,
+                             v8::base::OS::MemoryPermission::kReadWriteExecute);
+  CHECK(result);
+  *allocated = alloc_size;
+  return static_cast<uint8_t*>(result);
 }
 
 static v8::debug::DebugDelegate dummy_delegate;
