@@ -310,13 +310,14 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
 
     // Preserve the incoming parameters on the stack.
     __ SmiTag(x0);
-    __ Push(x0, x1, x3);
+    __ Push(x0, x1, padreg, x3);
 
     // ----------- S t a t e -------------
     //  --        sp[0*kPointerSize]: new target
-    //  -- x1 and sp[1*kPointerSize]: constructor function
-    //  --        sp[2*kPointerSize]: number of arguments (tagged)
-    //  --        sp[3*kPointerSize]: context (pushed by FrameScope)
+    //  --        sp[1*kPointerSize]: padding
+    //  -- x1 and sp[2*kPointerSize]: constructor function
+    //  --        sp[3*kPointerSize]: number of arguments (tagged)
+    //  --        sp[4*kPointerSize]: context (pushed by FrameScope)
     // -----------------------------------
 
     __ Ldr(x4, FieldMemOperand(x1, JSFunction::kSharedFunctionInfoOffset));
@@ -345,38 +346,50 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     // Deoptimizer enters here.
     masm->isolate()->heap()->SetConstructStubCreateDeoptPCOffset(
         masm->pc_offset());
+
     __ Bind(&post_instantiation_deopt_entry);
 
-    // Restore new target.
-    __ Peek(x3, 0);
+    // Restore new target from the top of the stack.
+    __ Peek(x3, 0 * kPointerSize);
 
     // Restore constructor function and argument count.
     __ Ldr(x1, MemOperand(fp, ConstructFrameConstants::kConstructorOffset));
     __ Ldrsw(x12,
              UntagSmiMemOperand(fp, ConstructFrameConstants::kLengthOffset));
 
+    // Copy arguments to the expression stack. The called function pops the
+    // receiver along with its arguments, so we need an extra receiver on the
+    // stack, in case we have to return it later.
+
+    // Overwrite the new target with a receiver.
+    __ Poke(x0, 0);
+
+    // Push two further copies of the receiver. One will be popped by the called
+    // function. The second acts as padding if the number of arguments plus
+    // receiver is odd - pushing receiver twice avoids branching. It also means
+    // that we don't have to handle the even and odd cases specially on
+    // InvokeFunction's return, as top of stack will be the receiver in either
+    // case.
+    __ Push(x0, x0);
+
     // ----------- S t a t e -------------
     //  --                        x3: new target
     //  --                       x12: number of arguments (untagged)
-    //  --        sp[0*kPointerSize]: implicit receiver
+    //  --        sp[0*kPointerSize]: implicit receiver (overwrite if argc odd)
     //  --        sp[1*kPointerSize]: implicit receiver
-    //  -- x1 and sp[2*kPointerSize]: constructor function
-    //  --        sp[3*kPointerSize]: number of arguments (tagged)
-    //  --        sp[4*kPointerSize]: context
+    //  --        sp[2*kPointerSize]: implicit receiver
+    //  -- x1 and sp[3*kPointerSize]: constructor function
+    //  --        sp[4*kPointerSize]: number of arguments (tagged)
+    //  --        sp[5*kPointerSize]: context
     // -----------------------------------
 
-    // Copy arguments to the expression stack. Increment the number of slots by
-    // one to account for the two copies of the receiver, where one overwrites
-    // the slot used by the new target.
-    __ Add(x10, x12, 1);
+    // Round the number of arguments down to the next even number, and claim
+    // slots for the arguments. If the number of arguments was odd, the last
+    // argument will overwrite one of the receivers pushed above.
+    __ Bic(x10, x12, 1);
     __ Claim(x10);
 
-    // Poke the allocated receiver to the stack. We need two copies
-    // because we may have to return the original one and the calling
-    // conventions dictate that the called function pops the receiver.
-    __ Poke(x0, Operand(x10, LSL, kPointerSizeLog2));
-    __ Poke(x0, Operand(x12, LSL, kPointerSizeLog2));
-
+    // Copy the arguments.
     {
       Register count = x2;
       Register dst = x10;
@@ -393,11 +406,17 @@ void Generate_JSConstructStubGeneric(MacroAssembler* masm,
     __ InvokeFunction(x1, x3, actual, CALL_FUNCTION);
 
     // ----------- S t a t e -------------
-    //  --                 x0: constructor result
+    // If argc is odd:
     //  -- sp[0*kPointerSize]: implicit receiver
     //  -- sp[1*kPointerSize]: constructor function
     //  -- sp[2*kPointerSize]: number of arguments
     //  -- sp[3*kPointerSize]: context
+    // If argc is even:
+    //  -- sp[0*kPointerSize]: implicit receiver
+    //  -- sp[1*kPointerSize]: implicit receiver
+    //  -- sp[2*kPointerSize]: constructor function
+    //  -- sp[3*kPointerSize]: number of arguments
+    //  -- sp[4*kPointerSize]: context
     // -----------------------------------
 
     // Store offset of return address for deoptimizer.
