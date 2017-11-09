@@ -284,7 +284,8 @@ TEST_F(BytecodeAnalysisTest, TryCatch) {
   builder.StoreAccumulatorInRegister(reg_0);
   expected_liveness.emplace_back(".LLL", "LLL.");
 
-  interpreter::TryCatchBuilder try_builder(&builder, HandlerTable::CAUGHT);
+  interpreter::TryCatchBuilder try_builder(&builder, nullptr, nullptr,
+                                           HandlerTable::CAUGHT);
   try_builder.BeginTry(reg_context);
   {
     // Gen r0.
