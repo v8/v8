@@ -3117,7 +3117,7 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
 
   // Call the function and profile it.
   heap_profiler->StartSamplingHeapProfiler(64);
-  for (int i = 0; i < 100; ++i) {
+  for (int i = 0; i < 80; ++i) {
     f->Call(env.local(), env->Global(), 0, nullptr).ToLocalChecked();
   }
 
@@ -3136,5 +3136,5 @@ TEST(SamplingHeapProfilerPretenuredInlineAllocations) {
     count += allocation.count;
   }
 
-  CHECK_GE(count, 9000);
+  CHECK_GE(count, 8000);
 }
