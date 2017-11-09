@@ -438,17 +438,6 @@
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-caller': [FAIL_SLOPPY],
   'built-ins/Object/internals/DefineOwnProperty/consistent-value-function-arguments': [FAIL_SLOPPY],
 
-  # ICU 60.1 has trouble with U+3000 and U+3012 for certain Script_Extensions
-  # https://bugs.chromium.org/p/v8/issues/detail?id=4743#c54
-  # https://ssl.icu-project.org/trac/ticket/13466
-  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Bopomofo': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Common': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Han': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Hangul': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Hiragana': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Katakana': [SKIP],
-  'built-ins/RegExp/property-escapes/generated/Script_Extensions_-_Yi': [SKIP],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=6776
   'built-ins/Proxy/ownKeys/return-duplicate-entries-throws': [FAIL],
   'built-ins/Proxy/ownKeys/return-duplicate-symbol-entries-throws': [FAIL],
