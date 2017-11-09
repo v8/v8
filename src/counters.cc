@@ -313,6 +313,9 @@ void Counters::ResetCreateHistogramFunction(CreateHistogramCallback f) {
 #undef HM
 }
 
+base::TimeTicks (*RuntimeCallTimer::Now)() =
+    &base::TimeTicks::HighResolutionNow;
+
 class RuntimeCallStatEntries {
  public:
   void Print(std::ostream& os) {

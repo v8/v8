@@ -614,11 +614,13 @@ class RuntimeCallTimer final {
   void Snapshot();
   inline RuntimeCallTimer* Stop();
 
+  // Make the time source configurable for testing purposes.
+  V8_EXPORT_PRIVATE static base::TimeTicks (*Now)();
+
  private:
   inline void Pause(base::TimeTicks now);
   inline void Resume(base::TimeTicks now);
   inline void CommitTimeToCounter();
-  inline base::TimeTicks Now();
 
   RuntimeCallCounter* counter_ = nullptr;
   base::AtomicValue<RuntimeCallTimer*> parent_;

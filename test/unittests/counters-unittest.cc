@@ -4,6 +4,7 @@
 
 #include <vector>
 
+#include "src/base/platform/time.h"
 #include "src/counters-inl.h"
 #include "src/counters.h"
 #include "src/handles-inl.h"
@@ -42,13 +43,24 @@ class AggregatedMemoryHistogramTest : public ::testing::Test {
   MockHistogram mock_;
 };
 
+static base::TimeTicks runtime_call_stats_test_time_ = base::TimeTicks();
+static base::TimeTicks RuntimeCallStatsTestNow() {
+  return runtime_call_stats_test_time_;
+}
+
 class RuntimeCallStatsTest : public ::testing::Test {
  public:
   RuntimeCallStatsTest() {
     FLAG_runtime_stats =
         v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE;
+    RuntimeCallTimer::Now = &RuntimeCallStatsTestNow;
+    // We need to set {time_} to a non-zero value since it would otherwise
+    // cause runtime call timers to think they are uninitialized.
+    Sleep(1);
   }
-  virtual ~RuntimeCallStatsTest() {}
+  virtual ~RuntimeCallStatsTest() {
+    RuntimeCallTimer::Now = &base::TimeTicks::HighResolutionNow;
+  }
 
   RuntimeCallStats* stats() { return &stats_; }
   RuntimeCallStats::CounterId counter_id() {
@@ -63,19 +75,17 @@ class RuntimeCallStatsTest : public ::testing::Test {
   RuntimeCallCounter* counter() { return &(stats()->*counter_id()); }
   RuntimeCallCounter* counter2() { return &(stats()->*counter_id2()); }
   RuntimeCallCounter* counter3() { return &(stats()->*counter_id3()); }
-  void Sleep(int32_t milliseconds) {
-    base::ElapsedTimer timer;
-    base::TimeDelta delta = base::TimeDelta::FromMilliseconds(milliseconds);
-    timer.Start();
-    while (!timer.HasExpired(delta)) {
-      base::OS::Sleep(base::TimeDelta::FromMicroseconds(0));
-    }
-  }
 
-  const uint32_t kEpsilonMs = 20;
+  void Sleep(int32_t milliseconds) {
+    base::TimeDelta delta = base::TimeDelta::FromMilliseconds(milliseconds);
+    time_ += delta;
+    runtime_call_stats_test_time_ =
+        base::TimeTicks::FromInternalValue(time_.InMicroseconds());
+  }
 
  private:
   RuntimeCallStats stats_;
+  base::TimeDelta time_;
 };
 
 }  // namespace
@@ -231,10 +241,6 @@ TEST_F(AggregatedMemoryHistogramTest, ManySamples2) {
   }
 }
 
-#define EXPECT_IN_RANGE(start, value, end) \
-  EXPECT_LE(start, value);                 \
-  EXPECT_GE(end, value)
-
 TEST_F(RuntimeCallStatsTest, RuntimeCallTimer) {
   RuntimeCallTimer timer;
 
@@ -251,7 +257,7 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimer) {
   Sleep(50);
   EXPECT_FALSE(timer.IsStarted());
   EXPECT_EQ(1, counter()->count());
-  EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(), 100 + kEpsilonMs);
+  EXPECT_EQ(100, counter()->time().InMilliseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, RuntimeCallTimerSubTimer) {
@@ -285,7 +291,7 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerSubTimer) {
   EXPECT_EQ(0, counter()->count());
   EXPECT_EQ(1, counter2()->count());
   EXPECT_EQ(0, counter()->time().InMilliseconds());
-  EXPECT_IN_RANGE(100, counter2()->time().InMilliseconds(), 100 + kEpsilonMs);
+  EXPECT_EQ(100, counter2()->time().InMilliseconds());
   EXPECT_EQ(&timer, stats()->current_timer());
 
   Sleep(100);
@@ -294,8 +300,8 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerSubTimer) {
   EXPECT_FALSE(timer.IsStarted());
   EXPECT_EQ(1, counter()->count());
   EXPECT_EQ(1, counter2()->count());
-  EXPECT_IN_RANGE(150, counter()->time().InMilliseconds(), 150 + kEpsilonMs);
-  EXPECT_IN_RANGE(100, counter2()->time().InMilliseconds(), 100 + kEpsilonMs);
+  EXPECT_EQ(150, counter()->time().InMilliseconds());
+  EXPECT_EQ(100, counter2()->time().InMilliseconds());
   EXPECT_EQ(nullptr, stats()->current_timer());
 }
 
@@ -323,15 +329,14 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerRecursive) {
   EXPECT_FALSE(timer2.IsStarted());
   EXPECT_TRUE(timer.IsStarted());
   EXPECT_EQ(1, counter()->count());
-  EXPECT_IN_RANGE(50, counter()->time().InMilliseconds(), 50 + kEpsilonMs);
+  EXPECT_EQ(50, counter()->time().InMilliseconds());
 
   Sleep(100);
 
   RuntimeCallStats::Leave(stats(), &timer);
   EXPECT_FALSE(timer.IsStarted());
   EXPECT_EQ(2, counter()->count());
-  EXPECT_IN_RANGE(150, counter()->time().InMilliseconds(),
-                  150 + 2 * kEpsilonMs);
+  EXPECT_EQ(150, counter()->time().InMilliseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, RuntimeCallTimerScope) {
@@ -341,14 +346,13 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerScope) {
   }
   Sleep(100);
   EXPECT_EQ(1, counter()->count());
-  EXPECT_IN_RANGE(50, counter()->time().InMilliseconds(), 50 + kEpsilonMs);
+  EXPECT_EQ(50, counter()->time().InMilliseconds());
   {
     RuntimeCallTimerScope scope(stats(), counter_id());
     Sleep(50);
   }
   EXPECT_EQ(2, counter()->count());
-  EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(),
-                  100 + 2 * kEpsilonMs);
+  EXPECT_EQ(100, counter()->time().InMilliseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, RuntimeCallTimerScopeRecursive) {
@@ -362,11 +366,10 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerScopeRecursive) {
       Sleep(50);
     }
     EXPECT_EQ(1, counter()->count());
-    EXPECT_IN_RANGE(50, counter()->time().InMilliseconds(), 50 + kEpsilonMs);
+    EXPECT_EQ(50, counter()->time().InMilliseconds());
   }
   EXPECT_EQ(2, counter()->count());
-  EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(),
-                  100 + 2 * kEpsilonMs);
+  EXPECT_EQ(100, counter()->time().InMilliseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, RenameTimer) {
@@ -384,13 +387,13 @@ TEST_F(RuntimeCallStatsTest, RenameTimer) {
     CHANGE_CURRENT_RUNTIME_COUNTER(stats(), TestCounter2);
     EXPECT_EQ(1, counter()->count());
     EXPECT_EQ(0, counter2()->count());
-    EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(), 100 + kEpsilonMs);
-    EXPECT_IN_RANGE(0, counter2()->time().InMilliseconds(), 0);
+    EXPECT_EQ(100, counter()->time().InMilliseconds());
+    EXPECT_EQ(0, counter2()->time().InMilliseconds());
   }
   EXPECT_EQ(1, counter()->count());
   EXPECT_EQ(1, counter2()->count());
-  EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(), 100 + kEpsilonMs);
-  EXPECT_IN_RANGE(50, counter2()->time().InMilliseconds(), 50 + kEpsilonMs);
+  EXPECT_EQ(100, counter()->time().InMilliseconds());
+  EXPECT_EQ(50, counter2()->time().InMilliseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, BasicPrintAndSnapshot) {
@@ -412,7 +415,7 @@ TEST_F(RuntimeCallStatsTest, BasicPrintAndSnapshot) {
   EXPECT_EQ(1, counter()->count());
   EXPECT_EQ(0, counter2()->count());
   EXPECT_EQ(0, counter3()->count());
-  EXPECT_IN_RANGE(50, counter()->time().InMilliseconds(), 50 + kEpsilonMs);
+  EXPECT_EQ(50, counter()->time().InMilliseconds());
   EXPECT_EQ(0, counter2()->time().InMilliseconds());
   EXPECT_EQ(0, counter3()->time().InMilliseconds());
 }
@@ -435,40 +438,35 @@ TEST_F(RuntimeCallStatsTest, PrintAndSnapshot) {
       stats()->Print(out);
       EXPECT_EQ(0, counter()->count());
       EXPECT_EQ(0, counter2()->count());
-      EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(),
-                      100 + kEpsilonMs);
-      EXPECT_IN_RANGE(50, counter2()->time().InMilliseconds(), 50 + kEpsilonMs);
+      EXPECT_EQ(100, counter()->time().InMilliseconds());
+      EXPECT_EQ(50, counter2()->time().InMilliseconds());
       // Calling Print several times shouldn't have a (big) impact on the
       // measured times.
       stats()->Print(out);
       EXPECT_EQ(0, counter()->count());
       EXPECT_EQ(0, counter2()->count());
-      EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(),
-                      100 + kEpsilonMs);
-      EXPECT_IN_RANGE(50, counter2()->time().InMilliseconds(), 50 + kEpsilonMs);
+      EXPECT_EQ(100, counter()->time().InMilliseconds());
+      EXPECT_EQ(50, counter2()->time().InMilliseconds());
 
       Sleep(50);
       stats()->Print(out);
       EXPECT_EQ(0, counter()->count());
       EXPECT_EQ(0, counter2()->count());
-      EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(),
-                      100 + kEpsilonMs);
-      EXPECT_IN_RANGE(100, counter2()->time().InMilliseconds(),
-                      100 + kEpsilonMs);
+      EXPECT_EQ(100, counter()->time().InMilliseconds());
+      EXPECT_EQ(100, counter2()->time().InMilliseconds());
       Sleep(50);
     }
     Sleep(50);
     EXPECT_EQ(0, counter()->count());
     EXPECT_EQ(1, counter2()->count());
-    EXPECT_IN_RANGE(100, counter()->time().InMilliseconds(), 100 + kEpsilonMs);
-    EXPECT_IN_RANGE(150, counter2()->time().InMilliseconds(), 150 + kEpsilonMs);
+    EXPECT_EQ(100, counter()->time().InMilliseconds());
+    EXPECT_EQ(150, counter2()->time().InMilliseconds());
     Sleep(50);
   }
   EXPECT_EQ(1, counter()->count());
   EXPECT_EQ(1, counter2()->count());
-  EXPECT_IN_RANGE(200, counter()->time().InMilliseconds(), 200 + kEpsilonMs);
-  EXPECT_IN_RANGE(150, counter2()->time().InMilliseconds(),
-                  150 + 2 * kEpsilonMs);
+  EXPECT_EQ(200, counter()->time().InMilliseconds());
+  EXPECT_EQ(150, counter2()->time().InMilliseconds());
 }
 
 TEST_F(RuntimeCallStatsTest, NestedScopes) {
@@ -499,9 +497,9 @@ TEST_F(RuntimeCallStatsTest, NestedScopes) {
   EXPECT_EQ(1, counter()->count());
   EXPECT_EQ(2, counter2()->count());
   EXPECT_EQ(2, counter3()->count());
-  EXPECT_IN_RANGE(250, counter()->time().InMilliseconds(), 250 + kEpsilonMs);
-  EXPECT_IN_RANGE(300, counter2()->time().InMilliseconds(), 300 + kEpsilonMs);
-  EXPECT_IN_RANGE(100, counter3()->time().InMilliseconds(), 100 + kEpsilonMs);
+  EXPECT_EQ(250, counter()->time().InMilliseconds());
+  EXPECT_EQ(300, counter2()->time().InMilliseconds());
+  EXPECT_EQ(100, counter3()->time().InMilliseconds());
 }
 
 }  // namespace internal

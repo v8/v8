@@ -577,7 +577,7 @@ static LazyDynamicInstance<TickClock, CreateHighResTickClockTrait,
                            ThreadSafeInitOnceTrait>::type high_res_tick_clock =
     LAZY_DYNAMIC_INSTANCE_INITIALIZER;
 
-
+// static
 TimeTicks TimeTicks::Now() {
   // Make sure we never return 0 here.
   TimeTicks ticks(tick_clock.Pointer()->Now());
@@ -585,7 +585,7 @@ TimeTicks TimeTicks::Now() {
   return ticks;
 }
 
-
+// static
 TimeTicks TimeTicks::HighResolutionNow() {
   // Make sure we never return 0 here.
   TimeTicks ticks(high_res_tick_clock.Pointer()->Now());
