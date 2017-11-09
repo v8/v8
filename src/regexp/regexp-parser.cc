@@ -16,6 +16,9 @@
 
 #ifdef V8_INTL_SUPPORT
 #include "unicode/uniset.h"
+// TODO(mathias): Remove this when we no longer need to check
+// `U_ICU_VERSION_MAJOR_NUM`.
+#include "unicode/uvernum.h"
 #endif  // V8_INTL_SUPPORT
 
 namespace v8 {
