@@ -203,23 +203,23 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 // Features that are complete (but still behind --harmony/es-staging flag).
 #define HARMONY_STAGED(V)                                               \
   V(harmony_function_tostring, "harmony Function.prototype.toString")   \
-  V(harmony_regexp_property, "harmony Unicode regexp property classes") \
   V(harmony_restrict_constructor_return,                                \
     "harmony disallow non undefined primitive return value from class " \
     "constructor")                                                      \
   V(harmony_dynamic_import, "harmony dynamic import")
 
 // Features that are shipping (turned on by default, but internal flag remains).
-#define HARMONY_SHIPPING_BASE(V)                                         \
-  V(harmony_strict_legacy_accessor_builtins,                             \
-    "treat __defineGetter__ and related functions as strict")            \
-  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")              \
-  V(harmony_regexp_dotall, "harmony regexp dotAll flag")                 \
-  V(harmony_regexp_lookbehind, "harmony regexp lookbehind")              \
-  V(harmony_regexp_named_captures, "harmony regexp named captures")      \
-  V(harmony_async_iteration, "harmony async iteration")                  \
-  V(harmony_template_escapes,                                            \
-    "harmony invalid escapes in tagged template literals")               \
+#define HARMONY_SHIPPING_BASE(V)                                        \
+  V(harmony_strict_legacy_accessor_builtins,                            \
+    "treat __defineGetter__ and related functions as strict")           \
+  V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
+  V(harmony_regexp_dotall, "harmony regexp dotAll flag")                \
+  V(harmony_regexp_lookbehind, "harmony regexp lookbehind")             \
+  V(harmony_regexp_named_captures, "harmony regexp named captures")     \
+  V(harmony_regexp_property, "harmony Unicode regexp property classes") \
+  V(harmony_async_iteration, "harmony async iteration")                 \
+  V(harmony_template_escapes,                                           \
+    "harmony invalid escapes in tagged template literals")              \
   V(harmony_promise_finally, "harmony Promise.prototype.finally")
 
 #ifdef V8_INTL_SUPPORT
