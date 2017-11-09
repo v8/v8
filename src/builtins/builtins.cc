@@ -170,43 +170,15 @@ Callable Builtins::CallableFor(Isolate* isolate, Name name) {
     BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, CASE_OTHER,
                  CASE_OTHER, CASE_OTHER, IGNORE_BUILTIN)
 #undef CASE_OTHER
-    case kConsoleAssert: {
+    case kArrayFilterLoopEagerDeoptContinuation:
+    case kArrayFilterLoopLazyDeoptContinuation:
+    case kArrayForEach:
+    case kArrayForEachLoopEagerDeoptContinuation:
+    case kArrayForEachLoopLazyDeoptContinuation:
+    case kArrayMapLoopEagerDeoptContinuation:
+    case kArrayMapLoopLazyDeoptContinuation:
+    case kConsoleAssert:
       return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayForEach: {
-      Handle<Code> code = BUILTIN_CODE(isolate, ArrayForEach);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayForEachLoopEagerDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayForEachLoopEagerDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayForEachLoopLazyDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayForEachLoopLazyDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayMapLoopEagerDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayMapLoopEagerDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayMapLoopLazyDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayMapLoopLazyDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayFilterLoopEagerDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayFilterLoopEagerDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
-    case kArrayFilterLoopLazyDeoptContinuation: {
-      Handle<Code> code =
-          BUILTIN_CODE(isolate, ArrayFilterLoopLazyDeoptContinuation);
-      return Callable(code, BuiltinDescriptor(isolate));
-    }
     default:
       UNREACHABLE();
   }
