@@ -1006,6 +1006,10 @@ class Literal final : public Expression {
   // Returns true if literal represents a property name (i.e. cannot be parsed
   // as array indices).
   bool IsPropertyName() const;
+
+  // Returns true if literal represents an array index.
+  bool AsArrayIndex(uint32_t* index) const;
+
   const AstRawString* AsRawPropertyName() {
     DCHECK(IsPropertyName());
     return string_;
