@@ -301,13 +301,6 @@ F FUNCTION_CAST(Address addr) {
 
 
 // -----------------------------------------------------------------------------
-// Forward declarations for frequently used classes
-// (sorted alphabetically)
-
-class FreeStoreAllocationPolicy;
-template <typename T, class P = FreeStoreAllocationPolicy> class List;
-
-// -----------------------------------------------------------------------------
 // Declarations for use in both the preparser and the rest of V8.
 
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
@@ -468,11 +461,9 @@ const uint32_t kQuietNaNHighBitsMask = 0xfff << (51 - 32);
 // Forward declarations for frequently used classes
 
 class AccessorInfo;
-class Allocation;
 class Arguments;
 class Assembler;
 class Code;
-class CodeGenerator;
 class CodeStub;
 class Context;
 class Debug;
@@ -482,6 +473,7 @@ class DescriptorArray;
 class TransitionArray;
 class ExternalReference;
 class FixedArray;
+class FreeStoreAllocationPolicy;
 class FunctionTemplateInfo;
 class MemoryChunk;
 class NumberDictionary;
