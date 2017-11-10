@@ -156,14 +156,13 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
         // Canonicalize the internalized string. If it already exists in the
         // string table, set it to forward to the existing one.
         StringTableInsertionKey key(string);
-        String* canonical = StringTable::LookupKeyIfExists(isolate_, &key);
-        if (canonical == nullptr) {
-          new_internalized_strings_.push_back(handle(string));
-          return string;
-        } else {
-          string->SetForwardedInternalizedString(canonical);
-          return canonical;
-        }
+        String* canonical =
+            StringTable::ForwardStringIfExists(isolate_, &key, string);
+
+        if (canonical != nullptr) return canonical;
+
+        new_internalized_strings_.push_back(handle(string));
+        return string;
       }
     } else if (obj->IsScript()) {
       new_scripts_.push_back(handle(Script::cast(obj)));
@@ -275,8 +274,8 @@ HeapObject* Deserializer<AllocatorT>::GetBackReferencedObject(int space) {
       break;
   }
 
-  if (deserializing_user_code() && obj->IsInternalizedString()) {
-    obj = String::cast(obj)->GetForwardedInternalizedString();
+  if (deserializing_user_code() && obj->IsThinString()) {
+    obj = ThinString::cast(obj)->actual();
   }
 
   hot_objects_.Add(obj);

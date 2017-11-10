@@ -437,11 +437,6 @@ class String : public Name {
   static Handle<FixedArray> CalculateLineEnds(Handle<String> string,
                                               bool include_ending_line);
 
-  // Use the hash field to forward to the canonical internalized string
-  // when deserializing an internalized string.
-  inline void SetForwardedInternalizedString(String* string);
-  inline String* GetForwardedInternalizedString();
-
  private:
   friend class Name;
   friend class StringTableInsertionKey;

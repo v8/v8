@@ -666,30 +666,6 @@ bool String::AsArrayIndex(uint32_t* index) {
   return SlowAsArrayIndex(index);
 }
 
-void String::SetForwardedInternalizedString(String* canonical) {
-  DCHECK(IsInternalizedString());
-  DCHECK(HasHashCode());
-  if (canonical == this) return;  // No need to forward.
-  DCHECK(SlowEquals(canonical));
-  DCHECK(canonical->IsInternalizedString());
-  DCHECK(canonical->HasHashCode());
-  WRITE_FIELD(this, kHashFieldSlot, canonical);
-  // Setting the hash field to a tagged value sets the LSB, causing the hash
-  // code to be interpreted as uninitialized.  We use this fact to recognize
-  // that we have a forwarded string.
-  DCHECK(!HasHashCode());
-}
-
-String* String::GetForwardedInternalizedString() {
-  DCHECK(IsInternalizedString());
-  if (HasHashCode()) return this;
-  String* canonical = String::cast(READ_FIELD(this, kHashFieldSlot));
-  DCHECK(canonical->IsInternalizedString());
-  DCHECK(SlowEquals(canonical));
-  DCHECK(canonical->HasHashCode());
-  return canonical;
-}
-
 String::SubStringRange::SubStringRange(String* string, int first, int length)
     : string_(string),
       first_(first),

@@ -16748,6 +16748,9 @@ void MigrateExternalStringResource(Isolate* isolate, String* from, String* to) {
 }
 
 void MakeStringThin(String* string, String* internalized, Isolate* isolate) {
+  DCHECK_NE(string, internalized);
+  DCHECK(internalized->IsInternalizedString());
+
   if (string->IsExternalString()) {
     if (internalized->IsExternalOneByteString()) {
       MigrateExternalStringResource<ExternalOneByteString>(isolate, string,
@@ -16763,23 +16766,21 @@ void MakeStringThin(String* string, String* internalized, Isolate* isolate) {
     }
   }
 
-  if (!string->IsInternalizedString()) {
-    DisallowHeapAllocation no_gc;
-    int old_size = string->Size();
-    isolate->heap()->NotifyObjectLayoutChange(string, old_size, no_gc);
-    bool one_byte = internalized->IsOneByteRepresentation();
-    Handle<Map> map = one_byte ? isolate->factory()->thin_one_byte_string_map()
-                               : isolate->factory()->thin_string_map();
-    DCHECK_GE(old_size, ThinString::kSize);
-    string->synchronized_set_map(*map);
-    ThinString* thin = ThinString::cast(string);
-    thin->set_actual(internalized);
-    Address thin_end = thin->address() + ThinString::kSize;
-    int size_delta = old_size - ThinString::kSize;
-    if (size_delta != 0) {
-      Heap* heap = isolate->heap();
-      heap->CreateFillerObjectAt(thin_end, size_delta, ClearRecordedSlots::kNo);
-    }
+  DisallowHeapAllocation no_gc;
+  int old_size = string->Size();
+  isolate->heap()->NotifyObjectLayoutChange(string, old_size, no_gc);
+  bool one_byte = internalized->IsOneByteRepresentation();
+  Handle<Map> map = one_byte ? isolate->factory()->thin_one_byte_string_map()
+                             : isolate->factory()->thin_string_map();
+  DCHECK_GE(old_size, ThinString::kSize);
+  string->synchronized_set_map(*map);
+  ThinString* thin = ThinString::cast(string);
+  thin->set_actual(internalized);
+  Address thin_end = thin->address() + ThinString::kSize;
+  int size_delta = old_size - ThinString::kSize;
+  if (size_delta != 0) {
+    Heap* heap = isolate->heap();
+    heap->CreateFillerObjectAt(thin_end, size_delta, ClearRecordedSlots::kNo);
   }
 }
 
@@ -16794,7 +16795,9 @@ Handle<String> StringTable::LookupString(Isolate* isolate,
   Handle<String> result = LookupKey(isolate, &key);
 
   if (FLAG_thin_strings) {
-    MakeStringThin(*string, *result, isolate);
+    if (!string->IsInternalizedString()) {
+      MakeStringThin(*string, *result, isolate);
+    }
   } else {  // !FLAG_thin_strings
     if (string->IsConsString()) {
       Handle<ConsString> cons = Handle<ConsString>::cast(string);
@@ -16989,6 +16992,7 @@ Object* StringTable::LookupStringIfExists_NoAllocate(String* string) {
     return Smi::FromInt(ResultSentinel::kUnsupported);
   }
 
+  DCHECK(!string->IsInternalizedString());
   int entry = table->FindEntry(isolate, &key, key.Hash());
   if (entry != kNotFound) {
     String* internalized = String::cast(table->KeyAt(entry));
@@ -17002,11 +17006,16 @@ Object* StringTable::LookupStringIfExists_NoAllocate(String* string) {
   return Smi::FromInt(ResultSentinel::kNotFound);
 }
 
-String* StringTable::LookupKeyIfExists(Isolate* isolate, StringTableKey* key) {
+String* StringTable::ForwardStringIfExists(Isolate* isolate,
+                                           StringTableKey* key,
+                                           String* string) {
   Handle<StringTable> table = isolate->factory()->string_table();
   int entry = table->FindEntry(isolate, key);
-  if (entry != kNotFound) return String::cast(table->KeyAt(entry));
-  return nullptr;
+  if (entry == kNotFound) return nullptr;
+
+  String* canonical = String::cast(table->KeyAt(entry));
+  if (canonical != string) MakeStringThin(string, canonical, isolate);
+  return canonical;
 }
 
 Handle<StringSet> StringSet::New(Isolate* isolate) {

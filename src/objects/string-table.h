@@ -59,7 +59,8 @@ class StringTable : public HashTable<StringTable, StringTableShape> {
   V8_EXPORT_PRIVATE static Handle<String> LookupString(Isolate* isolate,
                                                        Handle<String> key);
   static Handle<String> LookupKey(Isolate* isolate, StringTableKey* key);
-  static String* LookupKeyIfExists(Isolate* isolate, StringTableKey* key);
+  static String* ForwardStringIfExists(Isolate* isolate, StringTableKey* key,
+                                       String* string);
 
   // Looks up a string that is equal to the given string and returns
   // string handle if it is found, or an empty handle otherwise.
