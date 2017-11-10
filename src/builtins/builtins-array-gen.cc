@@ -1109,6 +1109,8 @@ class FastArraySliceCodeStubAssembler : public CodeStubAssembler {
     Node* elements_kind = LoadMapElementsKind(map);
     GotoIfNot(IsFastElementsKind(elements_kind), &try_simple_slice);
 
+    CSA_ASSERT(this, SmiGreaterThanOrEqual(from, SmiConstant(0)));
+
     result.Bind(CallStub(CodeFactory::ExtractFastJSArray(isolate()), context,
                          array, from, count));
     Goto(&done);
@@ -1133,6 +1135,8 @@ class FastArraySliceCodeStubAssembler : public CodeStubAssembler {
         kPointerSize;
     GotoIf(SmiAboveOrEqual(count, SmiConstant(max_fast_elements)),
            &try_simple_slice);
+
+    GotoIf(SmiLessThan(from, SmiConstant(0)), slow);
 
     Node* end = SmiAdd(from, count);
 
