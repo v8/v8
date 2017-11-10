@@ -465,12 +465,12 @@ TNode<WordT> CodeAssembler::IntPtrMul(SloppyTNode<WordT> left,
     if (is_right_constant) {
       return IntPtrConstant(left_constant * right_constant);
     }
-    if (left_constant == 1) {
-      return right;
+    if (base::bits::IsPowerOfTwo(left_constant)) {
+      return WordShl(right, WhichPowerOf2(left_constant));
     }
   } else if (is_right_constant) {
-    if (right_constant == 1) {
-      return left;
+    if (base::bits::IsPowerOfTwo(right_constant)) {
+      return WordShl(left, WhichPowerOf2(right_constant));
     }
   }
   return UncheckedCast<IntPtrT>(raw_assembler()->IntPtrMul(left, right));
