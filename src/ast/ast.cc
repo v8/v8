@@ -828,17 +828,6 @@ bool Literal::IsPropertyName() const {
   return !string_->AsArrayIndex(&index);
 }
 
-bool Literal::AsArrayIndex(uint32_t* index) const {
-  if (type() == kString) {
-    return string_->AsArrayIndex(index);
-  } else {
-    DCHECK_EQ(kSmi, type());
-    DCHECK_LE(0, smi_);
-    *index = smi_;
-    return true;
-  }
-}
-
 bool Literal::ToUint32(uint32_t* value) const {
   switch (type()) {
     case kSmi:

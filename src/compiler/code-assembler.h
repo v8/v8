@@ -191,7 +191,6 @@ enum class ObjectType {
 #undef ENUM_STRUCT_ELEMENT
 
 class AccessCheckNeeded;
-class ClassBoilerplate;
 class CompilationCacheTable;
 class Constructor;
 class Filler;
