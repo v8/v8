@@ -19,8 +19,6 @@ class BuiltinSnapshotData;
 class BuiltinDeserializer final
     : public Deserializer<BuiltinDeserializerAllocator> {
   using BSU = BuiltinSnapshotUtils;
-  using Bytecode = interpreter::Bytecode;
-  using OperandScale = interpreter::OperandScale;
 
  public:
   BuiltinDeserializer(Isolate* isolate, const BuiltinSnapshotData* data);
@@ -38,10 +36,6 @@ class BuiltinDeserializer final
   // lazily deserialized at runtime.
   Code* DeserializeBuiltin(int builtin_id);
 
-  // Deserializes the single given handler. This is used whenever a handler is
-  // lazily deserialized at runtime.
-  Code* DeserializeHandler(Bytecode bytecode, OperandScale operand_scale);
-
  private:
   // Deserializes the single given builtin. Assumes that reservations have
   // already been allocated.
@@ -49,7 +43,8 @@ class BuiltinDeserializer final
 
   // Deserializes the single given bytecode handler. Assumes that reservations
   // have already been allocated.
-  Code* DeserializeHandlerRaw(Bytecode bytecode, OperandScale operand_scale);
+  Code* DeserializeHandlerRaw(interpreter::Bytecode bytecode,
+                              interpreter::OperandScale operand_scale);
 
   // Extracts the size builtin Code objects (baked into the snapshot).
   uint32_t ExtractCodeObjectSize(int builtin_id);
@@ -61,9 +56,6 @@ class BuiltinDeserializer final
   }
 
   int CurrentCodeObjectId() const { return current_code_object_id_; }
-
-  // Convenience function to grab the handler off the heap's strong root list.
-  Code* GetDeserializeLazyHandler(OperandScale operand_scale) const;
 
  private:
   // Stores the code object currently being deserialized. The

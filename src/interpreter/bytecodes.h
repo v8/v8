@@ -8,7 +8,6 @@
 #include <cstdint>
 #include <iosfwd>
 #include <string>
-#include <vector>
 
 #include "src/globals.h"
 #include "src/interpreter/bytecode-operands.h"
@@ -676,12 +675,6 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
            bytecode == Bytecode::kDebugBreakWide;
   }
 
-  // Returns true if the bytecode can be lazily deserialized.
-  static constexpr bool IsLazy(Bytecode bytecode) {
-    // Currently, all handlers are deserialized lazily.
-    return true;
-  }
-
   // Returns the number of values which |bytecode| returns.
   static constexpr size_t ReturnCount(Bytecode bytecode) {
     return bytecode == Bytecode::kReturn ? 1 : 0;
@@ -838,6 +831,26 @@ class V8_EXPORT_PRIVATE Bytecodes final : public AllStatic {
         return 0;
     }
     UNREACHABLE();
+  }
+
+  // Returns true, iff the given bytecode reuses an existing handler. If so,
+  // the bytecode of the reused handler is written into {reused}.
+  static bool ReusesExistingHandler(Bytecode bytecode, Bytecode* reused) {
+    switch (bytecode) {
+      case Bytecode::kLdaImmutableContextSlot:
+        STATIC_ASSERT(static_cast<int>(Bytecode::kLdaContextSlot) <
+                      static_cast<int>(Bytecode::kLdaImmutableContextSlot));
+        *reused = Bytecode::kLdaContextSlot;
+        return true;
+      case Bytecode::kLdaImmutableCurrentContextSlot:
+        STATIC_ASSERT(
+            static_cast<int>(Bytecode::kLdaCurrentContextSlot) <
+            static_cast<int>(Bytecode::kLdaImmutableCurrentContextSlot));
+        *reused = Bytecode::kLdaCurrentContextSlot;
+        return true;
+      default:
+        return false;
+    }
   }
 
   // Returns the size of |operand_type| for |operand_scale|.

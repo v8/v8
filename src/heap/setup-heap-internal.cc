@@ -11,7 +11,6 @@
 #include "src/factory.h"
 #include "src/heap-symbols.h"
 #include "src/heap/heap.h"
-#include "src/interpreter/interpreter.h"
 #include "src/isolate.h"
 #include "src/layout-descriptor.h"
 #include "src/lookup-cache.h"
@@ -629,11 +628,6 @@ void Heap::CreateInitialObjects() {
   set_weak_stack_trace_list(Smi::kZero);
 
   set_noscript_shared_function_infos(Smi::kZero);
-
-  STATIC_ASSERT(interpreter::BytecodeOperands::kOperandScaleCount == 3);
-  set_deserialize_lazy_handler(Smi::kZero);
-  set_deserialize_lazy_handler_wide(Smi::kZero);
-  set_deserialize_lazy_handler_extra_wide(Smi::kZero);
 
   // Initialize context slot cache.
   isolate_->context_slot_cache()->Clear();

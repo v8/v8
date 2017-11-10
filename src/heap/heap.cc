@@ -2581,9 +2581,6 @@ bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {
     case kApiSymbolTableRootIndex:
     case kApiPrivateSymbolTableRootIndex:
     case kMessageListenersRootIndex:
-    case kDeserializeLazyHandlerRootIndex:
-    case kDeserializeLazyHandlerWideRootIndex:
-    case kDeserializeLazyHandlerExtraWideRootIndex:
 // Smi values
 #define SMI_ENTRY(type, name, Name) case k##Name##RootIndex:
       SMI_ROOT_LIST(SMI_ENTRY)
@@ -6247,23 +6244,6 @@ void Heap::UnregisterStrongRoots(Object** start) {
   }
 }
 
-bool Heap::IsDeserializeLazyHandler(Code* code) {
-  return (code == deserialize_lazy_handler() ||
-          code == deserialize_lazy_handler_wide() ||
-          code == deserialize_lazy_handler_extra_wide());
-}
-
-void Heap::SetDeserializeLazyHandler(Code* code) {
-  set_deserialize_lazy_handler(code);
-}
-
-void Heap::SetDeserializeLazyHandlerWide(Code* code) {
-  set_deserialize_lazy_handler_wide(code);
-}
-
-void Heap::SetDeserializeLazyHandlerExtraWide(Code* code) {
-  set_deserialize_lazy_handler_extra_wide(code);
-}
 
 size_t Heap::NumberOfTrackedHeapObjectTypes() {
   return ObjectStats::OBJECT_STATS_COUNT;

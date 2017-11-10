@@ -1527,18 +1527,6 @@ void InterpreterAssembler::ToNumberOrNumeric(Object::Conversion mode) {
   Dispatch();
 }
 
-void InterpreterAssembler::DeserializeLazyAndDispatch() {
-  Node* context = GetContext();
-  Node* bytecode_offset = BytecodeOffset();
-  Node* bytecode = LoadBytecode(bytecode_offset);
-
-  Node* target_handler =
-      CallRuntime(Runtime::kInterpreterDeserializeLazy, context,
-                  SmiTag(bytecode), SmiConstant(operand_scale()));
-
-  DispatchToBytecodeHandler(target_handler, bytecode_offset);
-}
-
 }  // namespace interpreter
 }  // namespace internal
 }  // namespace v8

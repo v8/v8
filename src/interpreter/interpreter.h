@@ -42,11 +42,6 @@ class Interpreter {
                                            FunctionLiteral* literal,
                                            Isolate* isolate);
 
-  // If the bytecode handler for |bytecode| and |operand_scale| has not yet
-  // been loaded, deserialize it. Then return the handler.
-  Code* GetAndMaybeDeserializeBytecodeHandler(Bytecode bytecode,
-                                              OperandScale operand_scale);
-
   // Return bytecode handler for |bytecode| and |operand_scale|.
   Code* GetBytecodeHandler(Bytecode bytecode, OperandScale operand_scale);
 

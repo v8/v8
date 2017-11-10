@@ -39,21 +39,11 @@ void BuiltinSerializer::SerializeBuiltinsAndHandlers() {
 
   BSU::ForEachBytecode([=](Bytecode bytecode, OperandScale operand_scale) {
     SetHandlerOffset(bytecode, operand_scale, sink_.Position());
-    if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
+    if (!BSU::BytecodeHasDedicatedHandler(bytecode, operand_scale)) return;
 
     SerializeHandler(
         isolate()->interpreter()->GetBytecodeHandler(bytecode, operand_scale));
   });
-
-  STATIC_ASSERT(BSU::kFirstHandlerIndex + BSU::kNumberOfHandlers ==
-                BSU::kNumberOfCodeObjects);
-
-  // The DeserializeLazy handlers are serialized by the StartupSerializer
-  // during strong root iteration.
-
-  DCHECK(isolate()->heap()->deserialize_lazy_handler()->IsCode());
-  DCHECK(isolate()->heap()->deserialize_lazy_handler_wide()->IsCode());
-  DCHECK(isolate()->heap()->deserialize_lazy_handler_extra_wide()->IsCode());
 
   // Pad with kNop since GetInt() might read too far.
   Pad();
@@ -84,7 +74,7 @@ void BuiltinSerializer::SerializeBuiltin(Code* code) {
 }
 
 void BuiltinSerializer::SerializeHandler(Code* code) {
-  DCHECK(ObjectIsBytecodeHandler(code));
+  DCHECK_EQ(Code::BYTECODE_HANDLER, code->kind());
   ObjectSerializer object_serializer(this, code, &sink_, kPlain,
                                      kStartOfObject);
   object_serializer.Serialize();

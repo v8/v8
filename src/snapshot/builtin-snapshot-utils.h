@@ -31,8 +31,8 @@ class BuiltinSnapshotUtils : public AllStatic {
 
   // The number of code objects in the builtin snapshot.
   // TODO(jgruber): This could be reduced by a bit since not every
-  // {bytecode, operand_scale} combination has an associated handler
-  // (see Bytecodes::BytecodeHasHandler).
+  // {bytecode, operand_scale} combination has an associated handler, and some
+  // handlers are reused (see BytecodeHasDedicatedHandler).
   static const int kNumberOfCodeObjects = kNumberOfBuiltins + kNumberOfHandlers;
 
   // Indexes into the offsets vector contained in snapshot.
@@ -48,6 +48,11 @@ class BuiltinSnapshotUtils : public AllStatic {
   // Iteration over all {bytecode,operand_scale} pairs. Implemented here since
   // (de)serialization depends on the iteration order.
   static void ForEachBytecode(std::function<void(Bytecode, OperandScale)> f);
+
+  // True, iff the given {bytecode,operand_scale} has a dedicated handler, where
+  // dedicated means: a handler exists, and it does not reuse another handler.
+  static bool BytecodeHasDedicatedHandler(Bytecode bytecode,
+                                          OperandScale operand_scale);
 };
 
 }  // namespace internal

@@ -1598,7 +1598,6 @@ void Logger::LogBytecodeHandlers() {
       interpreter::Bytecode bytecode = interpreter::Bytecodes::FromByte(index);
       if (interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
         Code* code = interpreter->GetBytecodeHandler(bytecode, operand_scale);
-        if (isolate_->heap()->IsDeserializeLazyHandler(code)) continue;
         std::string bytecode_name =
             interpreter::Bytecodes::ToString(bytecode, operand_scale);
         PROFILE(isolate_, CodeCreateEvent(

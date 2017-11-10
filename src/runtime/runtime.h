@@ -222,7 +222,6 @@ namespace internal {
 #define FOR_EACH_INTRINSIC_INTERPRETER(F)          \
   FOR_EACH_INTRINSIC_INTERPRETER_TRACE(F)          \
   FOR_EACH_INTRINSIC_INTERPRETER_TRACE_FEEDBACK(F) \
-  F(InterpreterDeserializeLazy, 2, 1)              \
   F(InterpreterNewClosure, 4, 1)
 
 #define FOR_EACH_INTRINSIC_FUNCTION(F)     \
