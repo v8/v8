@@ -31,15 +31,81 @@ namespace {
   } while (false)
 
 class StackTransferRecipe {
+  struct RegisterMove {
+    Register dst;
+    Register src;
+    constexpr RegisterMove(Register dst, Register src) : dst(dst), src(src) {}
+  };
+  struct RegisterLoad {
+    Register dst;
+    bool is_constant_load;  // otherwise load it from the stack.
+    union {
+      uint32_t stack_slot;
+      WasmValue constant;
+    };
+    RegisterLoad(Register dst, WasmValue constant)
+        : dst(dst), is_constant_load(true), constant(constant) {}
+    RegisterLoad(Register dst, uint32_t stack_slot)
+        : dst(dst), is_constant_load(false), stack_slot(stack_slot) {}
+  };
+
  public:
   explicit StackTransferRecipe(LiftoffAssembler* wasm_asm) : asm_(wasm_asm) {}
   ~StackTransferRecipe() { Execute(); }
 
   void Execute() {
-    // TODO(clemensh): Find suitable schedule.
-    for (RegisterMove& rm : register_moves) {
-      asm_->Move(rm.dst, rm.src);
+    // First, execute register moves. Then load constants and stack values into
+    // registers.
+
+    if ((move_dst_regs & move_src_regs) == 0) {
+      // No overlap in src and dst registers. Just execute the moves in any
+      // order.
+      for (RegisterMove& rm : register_moves) asm_->Move(rm.dst, rm.src);
+      register_moves.clear();
+    } else {
+      // Keep use counters of src registers.
+      constexpr size_t kRegArrSize =
+          LiftoffAssembler::CacheState::kMaxRegisterCode + 1;
+      uint32_t src_reg_use_count[kRegArrSize] = {0};
+      for (RegisterMove& rm : register_moves) {
+        ++src_reg_use_count[rm.src.code()];
+      }
+      // Now repeatedly iterate the list of register moves, and execute those
+      // whose dst register does not appear as src any more. The remaining moves
+      // are compacted during this iteration.
+      // If no more moves can be executed (because of a cycle), spill one
+      // register to the stack, add a RegisterLoad to reload it later, and
+      // continue.
+      uint32_t next_spill_slot = asm_->cache_state()->stack_height();
+      while (!register_moves.empty()) {
+        size_t executed_moves = 0;
+        for (auto& rm : register_moves) {
+          if (src_reg_use_count[rm.dst.code()] == 0) {
+            asm_->Move(rm.dst, rm.src);
+            ++executed_moves;
+            DCHECK_LT(0, src_reg_use_count[rm.src.code()]);
+            --src_reg_use_count[rm.src.code()];
+          } else if (executed_moves) {
+            // Compaction: Move not-executed moves to the beginning of the list.
+            (&rm)[-executed_moves] = rm;
+          }
+        }
+        if (executed_moves == 0) {
+          // There is a cycle. Spill one register, then continue.
+          Register spill_reg = register_moves.back().src;
+          asm_->Spill(next_spill_slot, spill_reg);
+          // Remember to reload that register later.
+          LoadStackSlot(spill_reg, next_spill_slot);
+          DCHECK_EQ(1, src_reg_use_count[spill_reg.code()]);
+          src_reg_use_count[spill_reg.code()] = 0;
+          ++next_spill_slot;
+          executed_moves = 1;
+        }
+        constexpr RegisterMove dummy(no_reg, no_reg);
+        register_moves.resize(register_moves.size() - executed_moves, dummy);
+      }
     }
+
     for (RegisterLoad& rl : register_loads) {
       if (rl.is_constant_load) {
         asm_->LoadConstant(rl.dst, rl.constant);
@@ -47,6 +113,7 @@ class StackTransferRecipe {
         asm_->Fill(rl.dst, rl.stack_slot);
       }
     }
+    register_loads.clear();
   }
 
   void TransferStackSlot(const LiftoffAssembler::CacheState& dst_state,
@@ -90,6 +157,9 @@ class StackTransferRecipe {
   }
 
   void MoveRegister(Register dst, Register src) {
+    DCHECK_EQ(0, move_dst_regs & dst.bit());
+    move_dst_regs |= dst.bit();
+    move_src_regs |= src.bit();
     register_moves.emplace_back(dst, src);
   }
 
@@ -102,27 +172,12 @@ class StackTransferRecipe {
   }
 
  private:
-  struct RegisterMove {
-    Register dst;
-    Register src;
-    RegisterMove(Register dst, Register src) : dst(dst), src(src) {}
-  };
-  struct RegisterLoad {
-    Register dst;
-    bool is_constant_load;  // otherwise load it from the stack.
-    union {
-      uint32_t stack_slot;
-      WasmValue constant;
-    };
-    RegisterLoad(Register dst, WasmValue constant)
-        : dst(dst), is_constant_load(true), constant(constant) {}
-    RegisterLoad(Register dst, uint32_t stack_slot)
-        : dst(dst), is_constant_load(false), stack_slot(stack_slot) {}
-  };
-
+  // TODO(clemensh): Avoid unconditionally allocating on the heap.
   std::vector<RegisterMove> register_moves;
   std::vector<RegisterLoad> register_loads;
-  LiftoffAssembler* asm_;
+  RegList move_dst_regs = 0;
+  RegList move_src_regs = 0;
+  LiftoffAssembler* const asm_;
 };
 
 }  // namespace
