@@ -479,7 +479,6 @@ class RelocInfo {
   Mode rmode() const {  return rmode_; }
   intptr_t data() const { return data_; }
   Code* host() const { return host_; }
-  void set_host(Code* host) { host_ = host; }
 
   // Apply a relocation by delta bytes. When the code object is moved, PC
   // relative addresses have to be updated as well as absolute addresses
@@ -612,6 +611,7 @@ class RelocInfo {
   Mode rmode_;
   intptr_t data_;
   Code* host_;
+  Address constant_pool_ = nullptr;
   friend class RelocIterator;
 };
 
@@ -677,6 +677,11 @@ class RelocIterator: public Malloced {
   // iteration iff bit k of mode_mask is set.
   explicit RelocIterator(Code* code, int mode_mask = -1);
   explicit RelocIterator(const CodeDesc& desc, int mode_mask = -1);
+  explicit RelocIterator(Vector<byte> instructions,
+                         Vector<const byte> reloc_info, Address const_pool,
+                         int mode_mask = -1);
+  RelocIterator(RelocIterator&&) = default;
+  RelocIterator& operator=(RelocIterator&&) = default;
 
   // Iteration
   bool done() const { return done_; }
@@ -711,8 +716,8 @@ class RelocIterator: public Malloced {
     return (mode_mask_ & (1 << mode)) ? (rinfo_.rmode_ = mode, true) : false;
   }
 
-  byte* pos_;
-  byte* end_;
+  const byte* pos_;
+  const byte* end_;
   RelocInfo rinfo_;
   bool done_;
   int mode_mask_;

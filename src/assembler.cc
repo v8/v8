@@ -552,6 +552,7 @@ RelocIterator::RelocIterator(Code* code, int mode_mask) {
   rinfo_.host_ = code;
   rinfo_.pc_ = code->instruction_start();
   rinfo_.data_ = 0;
+  rinfo_.constant_pool_ = code->constant_pool();
   // Relocation info is read backwards.
   pos_ = code->relocation_start() + code->relocation_size();
   end_ = code->relocation_start();
@@ -567,6 +568,21 @@ RelocIterator::RelocIterator(const CodeDesc& desc, int mode_mask) {
   // Relocation info is read backwards.
   pos_ = desc.buffer + desc.buffer_size;
   end_ = pos_ - desc.reloc_size;
+  done_ = false;
+  mode_mask_ = mode_mask;
+  if (mode_mask_ == 0) pos_ = end_;
+  next();
+}
+
+RelocIterator::RelocIterator(Vector<byte> instructions,
+                             Vector<const byte> reloc_info, Address const_pool,
+                             int mode_mask) {
+  rinfo_.pc_ = instructions.start();
+  rinfo_.data_ = 0;
+  rinfo_.constant_pool_ = const_pool;
+  // Relocation info is read backwards.
+  pos_ = reloc_info.start() + reloc_info.size();
+  end_ = reloc_info.start();
   done_ = false;
   mode_mask_ = mode_mask;
   if (mode_mask_ == 0) pos_ = end_;
