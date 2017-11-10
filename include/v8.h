@@ -583,7 +583,9 @@ template <class T> class PersistentBase {
 
   /**
    * Marks the reference to this object as active. The scavenge garbage
-   * collection should not reclaim the objects marked as active.
+   * collection should not reclaim the objects marked as active, even if the
+   * object held by the handle is otherwise unreachable.
+   *
    * This bit is cleared after the each garbage collection pass.
    */
   V8_INLINE void MarkActive();
