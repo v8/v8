@@ -160,6 +160,18 @@ const six = BigInt(6);
 
   assertFalse(Symbol() == zero);
   assertFalse(zero == Symbol());
+
+  assertTrue(one == "0b1");
+  assertTrue(" 0b1" == one);
+  assertTrue(one == "0o1");
+  assertTrue("0o1 " == one);
+  assertTrue(one == "\n0x1");
+  assertTrue("0x1" == one);
+
+  assertFalse(one == "1j");
+  assertFalse(one == "0b1ju");
+  assertFalse(one == "0o1jun");
+  assertFalse(one == "0x1junk");
 }{
   assertFalse(%NotEqual(zero, zero));
   assertFalse(%NotEqual(zero, another_zero));

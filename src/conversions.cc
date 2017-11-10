@@ -184,6 +184,12 @@ class StringToIntHelper {
     DCHECK(subject->IsFlat());
   }
 
+  // Used for the StringToBigInt operation.
+  StringToIntHelper(Isolate* isolate, Handle<String> subject)
+      : isolate_(isolate), subject_(subject) {
+    DCHECK(subject->IsFlat());
+  }
+
   // Used for parsing BigInt literals, where the input is a Zone-allocated
   // buffer of one-byte digits, along with an optional radix prefix.
   StringToIntHelper(Isolate* isolate, const uint8_t* subject, int length)
@@ -200,6 +206,13 @@ class StringToIntHelper {
 
   // Subclasses may override this.
   virtual void HandleSpecialCases() {}
+
+  // Subclass constructors should call these for configuration before calling
+  // ParseInt().
+  void set_allow_binary_and_octal_prefixes() {
+    allow_binary_and_octal_prefixes_ = true;
+  }
+  void set_disallow_trailing_junk() { allow_trailing_junk_ = false; }
 
   bool IsOneByte() const {
     return raw_one_byte_subject_ != nullptr ||
@@ -220,21 +233,16 @@ class StringToIntHelper {
   // Subclasses get access to internal state:
   enum State { kRunning, kError, kJunk, kEmpty, kZero, kDone };
 
+  enum class Sign { kNegative, kPositive, kNone };
+
   Isolate* isolate() { return isolate_; }
   int radix() { return radix_; }
   int cursor() { return cursor_; }
   int length() { return length_; }
-  bool negative() { return negative_; }
+  bool negative() { return sign_ == Sign::kNegative; }
+  Sign sign() { return sign_; }
   State state() { return state_; }
   void set_state(State state) { state_ = state; }
-
-  bool AllowOctalRadixPrefix() const {
-    return raw_one_byte_subject_ != nullptr;
-  }
-
-  bool AllowBinaryRadixPrefix() const {
-    return raw_one_byte_subject_ != nullptr;
-  }
 
  private:
   template <class Char>
@@ -248,8 +256,10 @@ class StringToIntHelper {
   int radix_ = 0;
   int cursor_ = 0;
   int length_ = 0;
-  bool negative_ = false;
+  Sign sign_ = Sign::kNone;
   bool leading_zero_ = false;
+  bool allow_binary_and_octal_prefixes_ = false;
+  bool allow_trailing_junk_ = true;
   State state_ = kRunning;
 };
 
@@ -300,12 +310,13 @@ void StringToIntHelper::DetectRadixInternal(Char current, int length) {
     if (current == end) {
       return set_state(kJunk);
     }
+    sign_ = Sign::kPositive;
   } else if (*current == '-') {
     ++current;
     if (current == end) {
       return set_state(kJunk);
     }
-    negative_ = true;
+    sign_ = Sign::kNegative;
   }
 
   if (radix_ == 0) {
@@ -318,12 +329,12 @@ void StringToIntHelper::DetectRadixInternal(Char current, int length) {
         radix_ = 16;
         ++current;
         if (current == end) return set_state(kJunk);
-      } else if (AllowOctalRadixPrefix() &&
+      } else if (allow_binary_and_octal_prefixes_ &&
                  (*current == 'o' || *current == 'O')) {
         radix_ = 8;
         ++current;
         DCHECK(current != end);
-      } else if (AllowBinaryRadixPrefix() &&
+      } else if (allow_binary_and_octal_prefixes_ &&
                  (*current == 'b' || *current == 'B')) {
         radix_ = 2;
         ++current;
@@ -419,6 +430,11 @@ void StringToIntHelper::ParseInternal(Char start) {
     // Update the value and skip the part in the string.
     ResultMultiplyAdd(multiplier, part);
   } while (!done);
+
+  if (!allow_trailing_junk_ &&
+      AdvanceToNonspace(isolate_->unicode_cache(), &current, end)) {
+    return set_state(kJunk);
+  }
 
   return set_state(kDone);
 }
@@ -838,30 +854,39 @@ double StringToInt(Isolate* isolate, Handle<String> string, int radix) {
 
 class BigIntParseIntHelper : public StringToIntHelper {
  public:
-  // Configures what to return for empty or whitespace-only input strings.
-  enum class EmptyStringResult { kSyntaxError, kZero, kUnreachable };
+  enum class Behavior { kParseInt, kStringToBigInt, kLiteral };
 
   // Used for BigInt.parseInt API, where the input is a Heap-allocated String.
-  BigIntParseIntHelper(Isolate* isolate, Handle<String> string, int radix,
-                       EmptyStringResult empty_string_result,
-                       ShouldThrow should_throw)
+  BigIntParseIntHelper(Isolate* isolate, Handle<String> string, int radix)
       : StringToIntHelper(isolate, string, radix),
-        empty_string_result_(empty_string_result),
-        should_throw_(should_throw) {}
+        behavior_(Behavior::kParseInt) {}
+
+  // Used for StringToBigInt operation (BigInt constructor and == operator).
+  BigIntParseIntHelper(Isolate* isolate, Handle<String> string)
+      : StringToIntHelper(isolate, string),
+        behavior_(Behavior::kStringToBigInt) {
+    set_allow_binary_and_octal_prefixes();
+    set_disallow_trailing_junk();
+  }
 
   // Used for parsing BigInt literals, where the input is a buffer of
   // one-byte ASCII digits, along with an optional radix prefix.
   BigIntParseIntHelper(Isolate* isolate, const uint8_t* string, int length)
       : StringToIntHelper(isolate, string, length),
-        empty_string_result_(EmptyStringResult::kUnreachable),
-        should_throw_(kDontThrow) {}
+        behavior_(Behavior::kLiteral) {
+    set_allow_binary_and_octal_prefixes();
+  }
 
   MaybeHandle<BigInt> GetResult() {
     ParseInt();
+    if (behavior_ == Behavior::kStringToBigInt && sign() != Sign::kNone &&
+        radix() != 10) {
+      return MaybeHandle<BigInt>();
+    }
     if (state() == kEmpty) {
-      if (empty_string_result_ == EmptyStringResult::kSyntaxError) {
+      if (behavior_ == Behavior::kParseInt) {
         set_state(kJunk);
-      } else if (empty_string_result_ == EmptyStringResult::kZero) {
+      } else if (behavior_ == Behavior::kStringToBigInt) {
         set_state(kZero);
       } else {
         UNREACHABLE();
@@ -869,18 +894,18 @@ class BigIntParseIntHelper : public StringToIntHelper {
     }
     switch (state()) {
       case kJunk:
-        if (should_throw_ == kThrowOnError) {
+        if (should_throw() == kThrowOnError) {
           THROW_NEW_ERROR(isolate(),
                           NewSyntaxError(MessageTemplate::kBigIntInvalidString),
                           BigInt);
         } else {
-          DCHECK_EQ(should_throw_, kDontThrow);
+          DCHECK_EQ(should_throw(), kDontThrow);
           return MaybeHandle<BigInt>();
         }
       case kZero:
         return isolate()->factory()->NewBigIntFromInt(0);
       case kError:
-        DCHECK_EQ(should_throw_ == kThrowOnError,
+        DCHECK_EQ(should_throw() == kThrowOnError,
                   isolate()->has_pending_exception());
         return MaybeHandle<BigInt>();
       case kDone:
@@ -901,8 +926,9 @@ class BigIntParseIntHelper : public StringToIntHelper {
     // Optimization opportunity: Would it makes sense to scan for trailing
     // junk before allocating the result?
     int charcount = length() - cursor();
+    // TODO(adamk): Pretenure if this is for a literal.
     MaybeHandle<BigInt> maybe =
-        BigInt::AllocateFor(isolate(), radix(), charcount, should_throw_);
+        BigInt::AllocateFor(isolate(), radix(), charcount, should_throw());
     if (!maybe.ToHandle(&result_)) {
       set_state(kError);
     }
@@ -914,23 +940,22 @@ class BigIntParseIntHelper : public StringToIntHelper {
   }
 
  private:
+  ShouldThrow should_throw() const {
+    return behavior_ == Behavior::kParseInt ? kThrowOnError : kDontThrow;
+  }
+
   Handle<BigInt> result_;
-  EmptyStringResult empty_string_result_;
-  ShouldThrow should_throw_;
+  Behavior behavior_;
 };
 
 MaybeHandle<BigInt> BigIntParseInt(Isolate* isolate, Handle<String> string,
                                    int radix) {
-  BigIntParseIntHelper helper(
-      isolate, string, radix,
-      BigIntParseIntHelper::EmptyStringResult::kSyntaxError, kThrowOnError);
+  BigIntParseIntHelper helper(isolate, string, radix);
   return helper.GetResult();
 }
 
 MaybeHandle<BigInt> StringToBigInt(Isolate* isolate, Handle<String> string) {
-  BigIntParseIntHelper helper(isolate, string, 10,
-                              BigIntParseIntHelper::EmptyStringResult::kZero,
-                              kDontThrow);
+  BigIntParseIntHelper helper(isolate, string);
   return helper.GetResult();
 }
 

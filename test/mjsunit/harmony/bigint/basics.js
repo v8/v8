@@ -35,11 +35,22 @@ const six = BigInt(6);
   assertThrows(() => BigInt(null), TypeError);
   assertThrows(() => BigInt({}), SyntaxError);
   assertThrows(() => BigInt("foo"), SyntaxError);
+
+  assertThrows(() => BigInt("1j"), SyntaxError);
+  assertThrows(() => BigInt("0b1ju"), SyntaxError);
+  assertThrows(() => BigInt("0o1jun"), SyntaxError);
+  assertThrows(() => BigInt("0x1junk"), SyntaxError);
 }{
   assertSame(BigInt(true), 1n);
   assertSame(BigInt(false), 0n);
   assertSame(BigInt(""), 0n);
   assertSame(BigInt(" 42"), 42n);
+  assertSame(BigInt("0b101010"), 42n);
+  assertSame(BigInt("  0b101011"), 43n);
+  assertSame(BigInt("0x2a  "), 42n);
+  assertSame(BigInt("    0x2b"), 43n);
+  assertSame(BigInt("0o52"), 42n);
+  assertSame(BigInt("     0o53\n"), 43n);
   assertSame(BigInt(-0), 0n);
   assertSame(BigInt(42), 42n);
   assertSame(BigInt(42n), 42n);
