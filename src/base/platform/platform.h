@@ -179,7 +179,7 @@ class V8_BASE_EXPORT OS {
                         MemoryPermission access);
 
   // Frees memory allocated by a call to Allocate.
-  static void Free(void* address, const size_t size);
+  static bool Free(void* address, const size_t size);
 
   // Mark a region of memory executable and readable but not writable.
   static void SetReadAndExecutable(void* address, const size_t size);
@@ -197,8 +197,6 @@ class V8_BASE_EXPORT OS {
   static bool CommitRegion(void* address, size_t size, bool is_executable);
 
   static bool UncommitRegion(void* address, size_t size);
-
-  static bool ReleaseRegion(void* address, size_t size);
 
   // Release part of a reserved address range.
   static bool ReleasePartialRegion(void* address, size_t size);

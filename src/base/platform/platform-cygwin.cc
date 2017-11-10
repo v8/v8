@@ -28,13 +28,13 @@ namespace base {
 
 namespace {
 
-// The VirtualMemory implementation is taken from platform-win32.cc.
+// The memory allocation implementation is taken from platform-win32.cc.
 // The mmap-based virtual memory implementation as it is used on most posix
 // platforms does not work well because Cygwin does not support MAP_FIXED.
-// This causes VirtualMemory::Commit to not always commit the memory region
+// This causes OS::CommitRegion to not always commit the memory region
 // specified.
 
-int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
+DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
       return PAGE_NOACCESS;
@@ -46,17 +46,17 @@ int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   UNREACHABLE();
 }
 
-static void* RandomizedVirtualAlloc(size_t size, int action, int protection,
-                                    void* hint) {
+void* RandomizedVirtualAlloc(size_t size, DWORD flags, DWORD protect,
+                             void* hint) {
   LPVOID base = nullptr;
 
-  if (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS) {
+  if (protect == PAGE_EXECUTE_READWRITE || protect == PAGE_NOACCESS) {
     // For exectutable pages try and randomize the allocation address
-    base = VirtualAlloc(hint, size, action, protection);
+    base = VirtualAlloc(hint, size, flags, protect);
   }
 
-  // After three attempts give up and let the OS find an address to use.
-  if (base == nullptr) base = VirtualAlloc(nullptr, size, action, protection);
+  // If that fails, let the OS find an address to use.
+  if (base == nullptr) base = VirtualAlloc(nullptr, size, flags, protect);
 
   return base;
 }
@@ -92,6 +92,7 @@ double CygwinTimezoneCache::LocalTimeOffset() {
                              (loc->tm_isdst > 0 ? 3600 * msPerSecond : 0));
 }
 
+// static
 void* OS::Allocate(void* address, size_t size, size_t alignment,
                    MemoryPermission access) {
   size_t page_size = AllocatePageSize();
@@ -101,12 +102,12 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   // Add the maximum misalignment so we are guaranteed an aligned base address.
   size_t request_size = size + (alignment - page_size);
 
-  int flags = (access == OS::MemoryPermission::kNoAccess)
-                  ? MEM_RESERVE
-                  : MEM_RESERVE | MEM_COMMIT;
-  int prot = GetProtectionFromMemoryPermission(access);
+  DWORD flags = (access == OS::MemoryPermission::kNoAccess)
+                    ? MEM_RESERVE
+                    : MEM_RESERVE | MEM_COMMIT;
+  DWORD protect = GetProtectionFromMemoryPermission(access);
 
-  void* base = RandomizedVirtualAlloc(request_size, flags, prot, address);
+  void* base = RandomizedVirtualAlloc(request_size, flags, protect, address);
   if (base == nullptr) return nullptr;
 
   uint8_t* aligned_base = RoundUp(static_cast<uint8_t*>(base), alignment);
@@ -117,7 +118,7 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
     // base. Retry logic is needed since we may lose the memory due to a race.
     Free(base, request_size);
     if (resize_attempts == kMaxResizeAttempts) return nullptr;
-    base = RandomizedVirtualAlloc(size, flags, prot, aligned_base);
+    base = RandomizedVirtualAlloc(size, flags, protect, aligned_base);
     if (base == nullptr) return nullptr;
     aligned_base = RoundUp(static_cast<uint8_t*>(base), alignment);
     resize_attempts++;
@@ -126,29 +127,20 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   return static_cast<void*>(aligned_base);
 }
 
-void OS::Free(void* address, const size_t size) {
-  // TODO(1240712): VirtualFree has a return value which is ignored here.
-  VirtualFree(address, 0, MEM_RELEASE);
-  USE(size);
+// static
+bool OS::Free(void* address, const size_t size) {
+  return VirtualFree(address, 0, MEM_RELEASE) != 0;
 }
 
 // static
 bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
-  int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  if (nullptr == VirtualAlloc(address, size, MEM_COMMIT, prot)) {
-    return false;
-  }
-  return true;
+  DWORD protect = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
+  return VirtualAlloc(address, size, MEM_COMMIT, protect) != nullptr;
 }
 
 // static
 bool OS::UncommitRegion(void* address, size_t size) {
   return VirtualFree(address, size, MEM_DECOMMIT) != 0;
-}
-
-// static
-bool OS::ReleaseRegion(void* address, size_t size) {
-  return VirtualFree(address, 0, MEM_RELEASE) != 0;
 }
 
 // static

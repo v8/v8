@@ -732,7 +732,7 @@ void* OS::GetRandomMmapAddr() {
 
 namespace {
 
-int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
+DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
     case OS::MemoryPermission::kNoAccess:
       return PAGE_NOACCESS;
@@ -744,8 +744,8 @@ int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   UNREACHABLE();
 }
 
-static void* RandomizedVirtualAlloc(size_t size, int action, int protection,
-                                    void* hint) {
+void* RandomizedVirtualAlloc(size_t size, DWORD flags, DWORD protect,
+                             void* hint) {
   LPVOID base = NULL;
   static BOOL use_aslr = -1;
 #ifdef V8_HOST_ARCH_32_BIT
@@ -758,19 +758,20 @@ static void* RandomizedVirtualAlloc(size_t size, int action, int protection,
 #endif
 
   if (use_aslr &&
-      (protection == PAGE_EXECUTE_READWRITE || protection == PAGE_NOACCESS)) {
+      (protect == PAGE_EXECUTE_READWRITE || protect == PAGE_NOACCESS)) {
     // For executable or reserved pages try to randomize the allocation address.
-    base = VirtualAlloc(hint, size, action, protection);
+    base = VirtualAlloc(hint, size, flags, protect);
   }
 
   // On failure, let the OS find an address to use.
-  if (base == NULL) base = VirtualAlloc(nullptr, size, action, protection);
+  if (base == NULL) base = VirtualAlloc(nullptr, size, flags, protect);
 
   return base;
 }
 
 }  // namespace
 
+// static
 void* OS::Allocate(void* address, size_t size, size_t alignment,
                    MemoryPermission access) {
   size_t page_size = AllocatePageSize();
@@ -783,9 +784,9 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   int flags = (access == OS::MemoryPermission::kNoAccess)
                   ? MEM_RESERVE
                   : MEM_RESERVE | MEM_COMMIT;
-  int prot = GetProtectionFromMemoryPermission(access);
+  int protect = GetProtectionFromMemoryPermission(access);
 
-  void* base = RandomizedVirtualAlloc(request_size, flags, prot, address);
+  void* base = RandomizedVirtualAlloc(request_size, flags, protect, address);
   if (base == nullptr) return nullptr;
 
   uint8_t* aligned_base = RoundUp(static_cast<uint8_t*>(base), alignment);
@@ -796,7 +797,7 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
     // base. Retry logic is needed since we may lose the memory due to a race.
     Free(base, request_size);
     if (resize_attempts == kMaxResizeAttempts) return nullptr;
-    base = RandomizedVirtualAlloc(size, flags, prot, aligned_base);
+    base = RandomizedVirtualAlloc(size, flags, protect, aligned_base);
     if (base == nullptr) return nullptr;
     aligned_base = RoundUp(static_cast<uint8_t*>(base), alignment);
     resize_attempts++;
@@ -805,10 +806,9 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   return static_cast<void*>(aligned_base);
 }
 
-void OS::Free(void* address, const size_t size) {
-  // TODO(1240712): VirtualFree has a return value which is ignored here.
-  VirtualFree(address, 0, MEM_RELEASE);
-  USE(size);
+// static
+bool OS::Free(void* address, const size_t size) {
+  return VirtualFree(address, 0, MEM_RELEASE) != 0;
 }
 
 void OS::SetReadAndExecutable(void* address, const size_t size) {
@@ -840,21 +840,13 @@ void OS::SetReadWriteAndExecutable(void* address, const size_t size) {
 
 // static
 bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
-  int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  if (NULL == VirtualAlloc(address, size, MEM_COMMIT, prot)) {
-    return false;
-  }
-  return true;
+  DWORD protect = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
+  return VirtualAlloc(address, size, MEM_COMMIT, protect) != nullptr;
 }
 
 // static
 bool OS::UncommitRegion(void* address, size_t size) {
   return VirtualFree(address, size, MEM_DECOMMIT) != 0;
-}
-
-// static
-bool OS::ReleaseRegion(void* address, size_t size) {
-  return VirtualFree(address, 0, MEM_RELEASE) != 0;
 }
 
 // static

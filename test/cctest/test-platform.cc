@@ -24,7 +24,7 @@ TEST(OSReserveMemory) {
   int* addr = static_cast<int*>(mem_addr);
   addr[KB - 1] = 2;
   CHECK(OS::UncommitRegion(mem_addr, commit_size));
-  OS::ReleaseRegion(mem_addr, page_size);
+  CHECK(OS::Free(mem_addr, page_size));
 }
 
 #ifdef V8_CC_GNU

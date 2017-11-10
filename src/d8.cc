@@ -142,7 +142,9 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   void Free(void* data, size_t length) override {
 #if USE_VM
     if (RoundToPageSize(&length)) {
-      base::OS::ReleaseRegion(data, length);
+      bool result = base::OS::Free(data, length);
+      DCHECK(result);
+      USE(result);
       return;
     }
 #endif

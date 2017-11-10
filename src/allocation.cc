@@ -129,9 +129,7 @@ VirtualMemory::VirtualMemory(size_t size, void* hint, size_t alignment)
 
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
-    bool result = base::OS::ReleaseRegion(address(), size());
-    DCHECK(result);
-    USE(result);
+    Release();
   }
 }
 
@@ -185,7 +183,7 @@ void VirtualMemory::Release() {
   size_t size = size_;
   CHECK(InVM(address, size));
   Reset();
-  bool result = base::OS::ReleaseRegion(address, size);
+  bool result = base::OS::Free(address, size);
   USE(result);
   DCHECK(result);
 }

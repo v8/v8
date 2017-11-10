@@ -74,6 +74,12 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
 }
 
 // static
+bool OS::Free(void* address, size_t size) {
+  return zx_vmar_unmap(zx_vmar_root_self(),
+                       reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
+}
+
+// static
 void OS::Guard(void* address, size_t size) {
   CHECK_EQ(ZX_OK, zx_vmar_protect(zx_vmar_root_self(),
                                   reinterpret_cast<uintptr_t>(address), size,
@@ -94,12 +100,6 @@ bool OS::UncommitRegion(void* address, size_t size) {
   return zx_vmar_protect(zx_vmar_root_self(),
                          reinterpret_cast<uintptr_t>(address), size,
                          0 /*no permissions*/) == ZX_OK;
-}
-
-// static
-bool OS::ReleaseRegion(void* address, size_t size) {
-  return zx_vmar_unmap(zx_vmar_root_self(),
-                       reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
 }
 
 // static

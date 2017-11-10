@@ -230,6 +230,7 @@ void* OS::GetRandomMmapAddr() {
 
 // TODO(bbudge) Move Cygwin and Fuschia stuff into platform-specific files.
 #if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
+// static
 void* OS::Allocate(void* address, size_t size, size_t alignment,
                    MemoryPermission access) {
   size_t page_size = AllocatePageSize();
@@ -261,16 +262,12 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   DCHECK_EQ(size, request_size);
   return static_cast<void*>(aligned_base);
 }
-#endif  // !V8_OS_CYGWIN && !V8_OS_FUCHSIA
 
-#if !V8_OS_CYGWIN
-void OS::Free(void* address, const size_t size) {
-  // TODO(1240712): munmap has a return value which is ignored here.
-  int result = munmap(address, size);
-  USE(result);
-  DCHECK_EQ(0, result);
+// static
+bool OS::Free(void* address, const size_t size) {
+  return munmap(address, size) == 0;
 }
-#endif  // !V8_OS_CYGWIN
+#endif  // !V8_OS_CYGWIN && !V8_OS_FUCHSIA
 
 void OS::SetReadAndExecutable(void* address, const size_t size) {
 #if V8_OS_CYGWIN
@@ -346,11 +343,6 @@ bool OS::UncommitRegion(void* address, size_t size) {
 #else   // V8_OS_AIX
   return mprotect(address, size, PROT_NONE) != -1;
 #endif  // V8_OS_AIX
-}
-
-// static
-bool OS::ReleaseRegion(void* address, size_t size) {
-  return munmap(address, size) == 0;
 }
 
 // static
