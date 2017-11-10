@@ -33,6 +33,10 @@
 
 {
   'WATCHLIST_DEFINITIONS': {
+    'api': {
+      'filepath': 'include/' \
+                  '|src/api\.(cc|h)$',
+    },
     'snapshot': {
       'filepath': 'src/snapshot/',
     },
@@ -83,6 +87,9 @@
   },
 
   'WATCHLISTS': {
+    'api': [
+      'adamk@chromium.org',
+    ],
     'snapshot': [
       'yangguo@chromium.org',
     ],
@@ -122,6 +129,7 @@
       'jbroman+watch@chromium.org',
     ],
     'parser': [
+      'adamk@chromium.org',
       'marja+watch@chromium.org',
     ],
     'tracing': [
