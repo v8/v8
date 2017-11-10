@@ -6378,7 +6378,7 @@ class JSTypedArray: public JSArrayBufferView {
   DECL_PRINTER(JSTypedArray)
   DECL_VERIFIER(JSTypedArray)
 
-  static const int kLengthOffset = kViewSize + kPointerSize;
+  static const int kLengthOffset = kViewSize;
   static const int kSize = kLengthOffset + kPointerSize;
 
   static const int kSizeWithEmbedderFields =
