@@ -2749,7 +2749,10 @@ group("v8_clusterfuzz") {
   }
 
   if (v8_test_isolation_mode != "noop") {
-    deps += [ "tools:run-deopt-fuzzer_run" ]
+    deps += [
+      "tools:run-deopt-fuzzer_run",
+      "tools:run-num-fuzzer_run",
+    ]
   }
 }
 
