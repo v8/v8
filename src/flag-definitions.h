@@ -960,7 +960,7 @@ DEFINE_VALUE_IMPLICATION(runtime_call_stats, runtime_stats, 1)
 // snapshot-common.cc
 DEFINE_BOOL(lazy_deserialization, true,
             "Deserialize code lazily from the snapshot.")
-DEFINE_BOOL(lazy_handler_deserialization, true,
+DEFINE_BOOL(lazy_handler_deserialization, false,
             "Deserialize bytecode handlers lazily from the snapshot.")
 DEFINE_IMPLICATION(lazy_handler_deserialization, lazy_deserialization)
 DEFINE_IMPLICATION(future, lazy_handler_deserialization)
