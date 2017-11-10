@@ -103,10 +103,11 @@ class WebkitTestSuite(testsuite.TestSuite):
 
   # TODO(machenbach): Share with test/message/testcfg.py
   def _IgnoreLine(self, string):
-    """Ignore empty lines, valgrind output and Android output."""
+    """Ignore empty lines, valgrind output, Android output and trace
+    incremental marking output."""
     if not string: return True
     return (string.startswith("==") or string.startswith("**") or
-            string.startswith("ANDROID") or
+            string.startswith("ANDROID") or "[IncrementalMarking]" in string or
             # FIXME(machenbach): The test driver shouldn't try to use slow
             # asserts if they weren't compiled. This fails in optdebug=2.
             string == "Warning: unknown flag --enable-slow-asserts." or
