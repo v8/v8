@@ -135,6 +135,7 @@
           'gn_release_simulate_arm64_msan_no_origins_edge',
       'V8 Linux MSAN chained origins':
           'gn_release_simulate_arm64_msan_edge',
+      'V8 Linux64 TSAN - release builder': 'gn_release_x64_tsan',
       'V8 Linux64 UBSanVptr - release builder':
           'gn_release_x64_ubsan_vptr_recover_edge',
     },
