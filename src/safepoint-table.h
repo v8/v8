@@ -90,6 +90,9 @@ class SafepointEntry BASE_EMBEDDED {
 class SafepointTable BASE_EMBEDDED {
  public:
   explicit SafepointTable(Code* code);
+  explicit SafepointTable(Address instruction_start,
+                          size_t safepoint_table_offset, uint32_t stack_slots,
+                          bool has_deopt = false);
 
   int size() const {
     return kHeaderSize + (length_ * (kFixedEntrySize + entry_size_));
@@ -113,7 +116,8 @@ class SafepointTable BASE_EMBEDDED {
     DCHECK(index < length_);
     unsigned info = Memory::uint32_at(GetInfoLocation(index));
     uint8_t* bits = &Memory::uint8_at(entries_ + (index * entry_size_));
-    int trampoline_pc = Memory::int_at(GetTrampolineLocation(index));
+    int trampoline_pc =
+        has_deopt_ ? Memory::int_at(GetTrampolineLocation(index)) : -1;
     return SafepointEntry(info, bits, trampoline_pc);
   }
 
@@ -151,12 +155,14 @@ class SafepointTable BASE_EMBEDDED {
                         uint8_t byte, int digits);
 
   DisallowHeapAllocation no_allocation_;
-  Code* code_;
+  Address instruction_start_;
+  uint32_t stack_slots_;
   unsigned length_;
   unsigned entry_size_;
 
   Address pc_and_deoptimization_indexes_;
   Address entries_;
+  bool has_deopt_;
 
   friend class SafepointTableBuilder;
   friend class SafepointEntry;
