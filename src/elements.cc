@@ -1452,8 +1452,8 @@ class DictionaryElementsAccessor
           Handle<Object> value(source_dict->ValueAt(i), isolate);
           PropertyDetails details = source_dict->DetailsAt(i);
           PropertyAttributes attr = details.attributes();
-          AddImpl(result_array, static_cast<uint32_t>(key_value), value, attr,
-                  0);
+          AddImpl(result_array, static_cast<uint32_t>(key_value) - start, value,
+                  attr, 0);
         }
       }
     }
