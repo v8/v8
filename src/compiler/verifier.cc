@@ -316,7 +316,22 @@ void Verifier::Visitor::Check(Node* node) {
       // Type is empty.
       CheckNotTyped(node);
       break;
-    case IrOpcode::kLoop:
+    case IrOpcode::kLoop: {
+      CHECK_EQ(control_count, input_count);
+      // Type is empty.
+      CheckNotTyped(node);
+      // All loops need to be connected to a {Terminate} node to ensure they
+      // stay connected to the graph end.
+      bool has_terminate = false;
+      for (const Node* use : node->uses()) {
+        if (use->opcode() == IrOpcode::kTerminate) {
+          has_terminate = true;
+          break;
+        }
+      }
+      CHECK(has_terminate);
+      break;
+    }
     case IrOpcode::kMerge:
       CHECK_EQ(control_count, input_count);
       // Type is empty.

@@ -285,6 +285,9 @@ void GraphAssembler::MergeState(GraphAssemblerLabel<sizeof...(Vars)>* label,
                                          current_control_);
       label->effect_ = graph()->NewNode(common()->EffectPhi(2), current_effect_,
                                         current_effect_, label->control_);
+      Node* terminate = graph()->NewNode(common()->Terminate(), label->effect_,
+                                         label->control_);
+      NodeProperties::MergeControlToEnd(graph(), common(), terminate);
       for (size_t i = 0; i < sizeof...(vars); i++) {
         label->bindings_[i] = graph()->NewNode(
             common()->Phi(label->representations_[i], 2), var_array[i + 1],
