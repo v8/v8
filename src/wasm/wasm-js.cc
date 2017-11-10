@@ -342,11 +342,13 @@ void WebAssemblyInstantiateToPairCallback(
 // new WebAssembly.Instance(module, imports) -> WebAssembly.Instance
 void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Isolate* isolate = args.GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->CountUsage(
+      v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
   MicrotasksScope does_not_run_microtasks(isolate,
                                           MicrotasksScope::kDoNotRunMicrotasks);
 
   HandleScope scope(args.GetIsolate());
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   if (i_isolate->wasm_instance_callback()(args)) return;
 
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
@@ -368,6 +370,8 @@ void WebAssemblyInstantiateStreaming(
     const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->CountUsage(
+      v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
   // we use i_isolate in DCHECKS in the ASSIGN statements.
   USE(i_isolate);
   MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
@@ -397,6 +401,8 @@ void WebAssemblyInstantiateStreaming(
 void WebAssemblyInstantiate(const v8::FunctionCallbackInfo<v8::Value>& args) {
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i_isolate->CountUsage(
+      v8::Isolate::UseCounterFeature::kWebAssemblyInstantiation);
   MicrotasksScope runs_microtasks(isolate, MicrotasksScope::kRunMicrotasks);
 
   i::wasm::ScheduledErrorThrower thrower(i_isolate,
