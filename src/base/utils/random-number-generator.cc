@@ -132,7 +132,7 @@ std::vector<uint64_t> RandomNumberGenerator::NextSample(uint64_t max,
   CHECK_LE(n, max);
 
   if (n == 0) {
-    return {};
+    return std::vector<uint64_t>();
   }
 
   // Choose to select or exclude, whatever needs fewer generator calls.
