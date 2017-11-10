@@ -8852,7 +8852,7 @@ class V8_EXPORT Context {
    * stack.
    * https://html.spec.whatwg.org/multipage/webappapis.html#backup-incumbent-settings-object-stack
    */
-  class BackupIncumbentScope {
+  class V8_EXPORT BackupIncumbentScope {
    public:
     /**
      * |backup_incumbent_context| is pushed onto the backup incumbent settings
