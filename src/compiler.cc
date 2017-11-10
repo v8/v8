@@ -1232,7 +1232,7 @@ struct ScriptCompileTimerScope {
  public:
   enum class CacheBehaviour {
     kProduceCodeCache,
-    kHitIsolateCache,
+    kHitIsolateCacheWhenNoCache,
     kConsumeCodeCache,
     kConsumeCodeCacheFailed,
     kNoCacheBecauseInlineScript,
@@ -1245,6 +1245,8 @@ struct ScriptCompileTimerScope {
     kNoCacheBecauseModule,
     kNoCacheBecauseStreamingSource,
     kNoCacheBecauseExtension,
+    kHitIsolateCacheWhenProduceCodeCache,
+    kHitIsolateCacheWhenConsumeCodeCache,
     kCount
   };
 
@@ -1300,22 +1302,26 @@ struct ScriptCompileTimerScope {
 
   CacheBehaviour GetCacheBehaviour() {
     if (producing_code_cache_) {
-      // Even if we hit the isolate's compilation cache, we currently recompile
-      // when we want to produce the code cache.
-      return CacheBehaviour::kProduceCodeCache;
+      if (hit_isolate_cache_) {
+        return CacheBehaviour::kHitIsolateCacheWhenProduceCodeCache;
+      } else {
+        return CacheBehaviour::kProduceCodeCache;
+      }
+    }
+
+    if (consuming_code_cache_) {
+      if (hit_isolate_cache_) {
+        return CacheBehaviour::kHitIsolateCacheWhenConsumeCodeCache;
+      } else if (consuming_code_cache_failed_) {
+        return CacheBehaviour::kConsumeCodeCacheFailed;
+      }
+      return CacheBehaviour::kConsumeCodeCache;
     }
 
     if (hit_isolate_cache_) {
       // There's probably no need to distinguish the different isolate cache
       // hits.
-      return CacheBehaviour::kHitIsolateCache;
-    }
-
-    if (consuming_code_cache_) {
-      if (consuming_code_cache_failed_) {
-        return CacheBehaviour::kConsumeCodeCacheFailed;
-      }
-      return CacheBehaviour::kConsumeCodeCache;
+      return CacheBehaviour::kHitIsolateCacheWhenNoCache;
     }
 
     switch (no_cache_reason_) {
@@ -1347,8 +1353,12 @@ struct ScriptCompileTimerScope {
       CacheBehaviour cache_behaviour) {
     switch (cache_behaviour) {
       case CacheBehaviour::kProduceCodeCache:
+      // Even if we hit the isolate's compilation cache, we currently recompile
+      // when we want to produce the code cache.
+      case CacheBehaviour::kHitIsolateCacheWhenProduceCodeCache:
         return isolate_->counters()->compile_script_with_produce_cache();
-      case CacheBehaviour::kHitIsolateCache:
+      case CacheBehaviour::kHitIsolateCacheWhenNoCache:
+      case CacheBehaviour::kHitIsolateCacheWhenConsumeCodeCache:
         return isolate_->counters()->compile_script_with_isolate_cache_hit();
       case CacheBehaviour::kConsumeCodeCacheFailed:
         return isolate_->counters()->compile_script_consume_failed();
