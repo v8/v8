@@ -33,6 +33,7 @@ struct SourceRange {
   V(Block)                       \
   V(CaseClause)                  \
   V(Conditional)                 \
+  V(Expression)                  \
   V(IfStatement)                 \
   V(IterationStatement)          \
   V(JumpStatement)               \
@@ -111,6 +112,20 @@ class ConditionalSourceRanges final : public AstNodeSourceRanges {
  private:
   SourceRange then_range_;
   SourceRange else_range_;
+};
+
+class ExpressionSourceRanges final : public AstNodeSourceRanges {
+ public:
+  explicit ExpressionSourceRanges(const SourceRange& body_range)
+      : body_range_(body_range) {}
+
+  SourceRange GetRange(SourceRangeKind kind) {
+    DCHECK_EQ(kind, SourceRangeKind::kBody);
+    return body_range_;
+  }
+
+ private:
+  SourceRange body_range_;
 };
 
 class IfStatementSourceRanges final : public AstNodeSourceRanges {

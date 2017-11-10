@@ -3079,6 +3079,7 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
     int prec, bool accept_IN, bool* ok) {
   DCHECK_GE(prec, 4);
+  SourceRange right_range;
   ExpressionT x = ParseUnaryExpression(CHECK_OK);
   for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
     // prec1 >= 4
@@ -3086,16 +3087,23 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
       impl()->RewriteNonPattern(CHECK_OK);
       BindingPatternUnexpectedToken();
       ArrowFormalParametersUnexpectedToken();
+
+      SourceRangeScope right_range_scope(scanner(), &right_range);
       Token::Value op = Next();
       int pos = position();
 
       const bool is_right_associative = op == Token::EXP;
       const int next_prec = is_right_associative ? prec1 : prec1 + 1;
       ExpressionT y = ParseBinaryExpression(next_prec, accept_IN, CHECK_OK);
+      right_range_scope.Finalize();
       impl()->RewriteNonPattern(CHECK_OK);
 
       if (impl()->ShortcutNumericLiteralBinaryExpression(&x, y, op, pos)) {
         continue;
+      }
+
+      if (op == Token::OR || op == Token::AND) {
+        impl()->RecordExpressionSourceRange(y, right_range);
       }
 
       // For now we distinguish between comparisons and other binary
