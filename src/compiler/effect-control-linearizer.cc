@@ -829,6 +829,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckEqualsInternalizedString:
       LowerCheckEqualsInternalizedString(node, frame_state);
       break;
+    case IrOpcode::kAllocate:
+      result = LowerAllocate(node);
+      break;
     case IrOpcode::kCheckEqualsSymbol:
       LowerCheckEqualsSymbol(node, frame_state);
       break;
@@ -1915,6 +1918,13 @@ Node* EffectControlLinearizer::LowerCheckedTruncateTaggedToWord32(
 
   __ Bind(&done);
   return done.PhiAt(0);
+}
+
+Node* EffectControlLinearizer::LowerAllocate(Node* node) {
+  Node* size = node->InputAt(0);
+  PretenureFlag pretenure = PretenureFlagOf(node->op());
+  Node* new_node = __ Allocate(pretenure, size);
+  return new_node;
 }
 
 Node* EffectControlLinearizer::LowerObjectIsArrayBufferView(Node* node) {

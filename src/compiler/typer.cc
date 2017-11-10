@@ -1938,6 +1938,8 @@ Type* Typer::Visitor::TypeAllocate(Node* node) {
   return AllocateTypeOf(node->op());
 }
 
+Type* Typer::Visitor::TypeAllocateRaw(Node* node) { UNREACHABLE(); }
+
 Type* Typer::Visitor::TypeLoadFieldByIndex(Node* node) {
   return Type::NonInternal();
 }
