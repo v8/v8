@@ -125,7 +125,7 @@ bool CodeRange::SetUp(size_t requested) {
   }
 
   // We are sure that we have mapped a block of requested addresses.
-  DCHECK_GE(reservation.size(), requested);
+  DCHECK(reservation.size() == requested);
   Address base = reinterpret_cast<Address>(reservation.address());
 
   // On some platforms, specifically Win64, we need to reserve some pages at
@@ -443,7 +443,7 @@ void MemoryAllocator::FreeMemory(Address base, size_t size,
     code_range()->FreeRawMemory(base, size);
   } else {
     DCHECK(executable == NOT_EXECUTABLE || !code_range()->valid());
-    bool result = base::OS::Free(base, size);
+    bool result = base::OS::ReleaseRegion(base, size);
     USE(result);
     DCHECK(result);
   }
@@ -456,10 +456,15 @@ Address MemoryAllocator::ReserveAlignedMemory(size_t size, size_t alignment,
   if (!AlignedAllocVirtualMemory(size, alignment, hint, &reservation))
     return nullptr;
 
-  Address result = static_cast<Address>(reservation.address());
+  const Address base =
+      ::RoundUp(static_cast<Address>(reservation.address()), alignment);
+  if (base + size != reservation.end()) {
+    const Address unused_start = ::RoundUp(base + size, GetCommitPageSize());
+    reservation.ReleasePartial(unused_start);
+  }
   size_.Increment(reservation.size());
   controller->TakeControl(&reservation);
-  return result;
+  return base;
 }
 
 Address MemoryAllocator::AllocateAlignedMemory(

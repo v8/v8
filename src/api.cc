@@ -489,15 +489,10 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   virtual void Free(void* data, size_t) { free(data); }
 
   virtual void* Reserve(size_t length) {
-    size_t page_size = base::OS::AllocatePageSize();
-    size_t allocated = RoundUp(length, page_size);
     void* address =
-        base::OS::Allocate(base::OS::GetRandomMmapAddr(), allocated, page_size,
-                           base::OS::MemoryPermission::kNoAccess);
+        base::OS::ReserveRegion(length, base::OS::GetRandomMmapAddr());
 #if defined(LEAK_SANITIZER)
-    if (address != nullptr) {
-      __lsan_register_root_region(address, allocated);
-    }
+    __lsan_register_root_region(address, length);
 #endif
     return address;
   }
@@ -509,9 +504,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
         return Free(data, length);
       }
       case v8::ArrayBuffer::Allocator::AllocationMode::kReservation: {
-        bool result = base::OS::Free(data, length);
-        DCHECK(result);
-        USE(result);
+        base::OS::ReleaseRegion(data, length);
         return;
       }
     }

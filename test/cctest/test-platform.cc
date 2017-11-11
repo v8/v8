@@ -13,18 +13,18 @@ namespace v8 {
 namespace internal {
 
 TEST(OSReserveMemory) {
-  size_t page_size = OS::AllocatePageSize();
-  void* mem_addr = OS::Allocate(OS::GetRandomMmapAddr(), 1 * MB, page_size,
-                                OS::MemoryPermission::kReadWrite);
-  CHECK_NE(0, page_size);
+  size_t mem_size = 0;
+  void* mem_addr = OS::ReserveAlignedRegion(1 * MB, OS::AllocatePageSize(),
+                                            OS::GetRandomMmapAddr(), &mem_size);
+  CHECK_NE(0, mem_size);
   CHECK_NOT_NULL(mem_addr);
-  size_t commit_size = OS::CommitPageSize();
-  CHECK(OS::CommitRegion(mem_addr, commit_size, false));
+  size_t block_size = 4 * KB;
+  CHECK(OS::CommitRegion(mem_addr, block_size, false));
   // Check whether we can write to memory.
   int* addr = static_cast<int*>(mem_addr);
   addr[KB - 1] = 2;
-  CHECK(OS::UncommitRegion(mem_addr, commit_size));
-  CHECK(OS::Free(mem_addr, page_size));
+  CHECK(OS::UncommitRegion(mem_addr, block_size));
+  OS::ReleaseRegion(mem_addr, mem_size);
 }
 
 #ifdef V8_CC_GNU

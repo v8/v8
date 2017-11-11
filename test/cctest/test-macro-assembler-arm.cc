@@ -45,16 +45,24 @@ typedef void* (*F)(int x, int y, int p2, int p3, int p4);
 typedef Object* (*F3)(void* p0, int p1, int p2, int p3, int p4);
 typedef int (*F5)(void*, void*, void*, void*, void*);
 
+byte* AllocateExecutablePage(int* actual_size) {
+  size_t allocated = 0;
+  void* result =
+      v8::base::OS::Allocate(Assembler::kMinimalBufferSize, &allocated,
+                             v8::base::OS::MemoryPermission::kReadWriteExecute);
+  CHECK(result);
+  *actual_size = static_cast<int>(allocated);
+  return static_cast<byte*>(result);
+}
+
 TEST(LoadAndStoreWithRepresentation) {
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
-
   __ sub(sp, sp, Operand(1 * kPointerSize));
   Label exit;
 
@@ -138,10 +146,9 @@ TEST(ExtractLane) {
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
 
@@ -279,10 +286,9 @@ TEST(ReplaceLane) {
 
   Isolate* isolate = CcTest::i_isolate();
   HandleScope handles(isolate);
-
-  size_t allocated;
-  byte* buffer = AllocateAssemblerBuffer(&allocated);
-  MacroAssembler assembler(isolate, buffer, static_cast<int>(allocated),
+  int actual_size;
+  byte* buffer = AllocateExecutablePage(&actual_size);
+  MacroAssembler assembler(isolate, buffer, actual_size,
                            v8::internal::CodeObjectRequired::kYes);
   MacroAssembler* masm = &assembler;  // Create a pointer for the __ macro.
 

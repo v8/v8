@@ -18,19 +18,42 @@ TimezoneCache* OS::CreateTimezoneCache() {
 }
 
 // static
-void* OS::Allocate(void* address, size_t size, size_t alignment,
-                   OS::MemoryPermission access) {
-  // Currently we only support reserving memory.
-  DCHECK_EQ(MemoryPermission::kNoAccess, access);
-  size_t page_size = OS::AllocatePageSize();
-  DCHECK_EQ(0, size % page_size);
-  DCHECK_EQ(0, alignment % page_size);
-  address = AlignedAddress(address, alignment);
-  // Add the maximum misalignment so we are guaranteed an aligned base address.
-  size_t request_size = size + (alignment - page_size);
+void* OS::Allocate(const size_t requested, size_t* allocated,
+                   OS::MemoryPermission access, void* hint) {
+  CHECK(false);  // TODO(scottmg): Port, https://crbug.com/731217.
+  return nullptr;
+}
+
+// static
+void OS::Guard(void* address, size_t size) {
+  CHECK_EQ(ZX_OK, zx_vmar_protect(zx_vmar_root_self(),
+                                  reinterpret_cast<uintptr_t>(address), size,
+                                  0 /*no permissions*/));
+}
+
+// static
+void* OS::ReserveRegion(size_t size, void* hint) {
+  zx_handle_t vmo;
+  if (zx_vmo_create(size, 0, &vmo) != ZX_OK) return nullptr;
+  uintptr_t result;
+  zx_status_t status = zx_vmar_map(zx_vmar_root_self(), 0, vmo, 0, size,
+                                   0 /*no permissions*/, &result);
+  zx_handle_close(vmo);
+  if (status != ZX_OK) return nullptr;
+  return reinterpret_cast<void*>(result);
+}
+
+// static
+void* OS::ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
+                               size_t* allocated) {
+  DCHECK_EQ(alignment % OS::AllocatePageSize(), 0);
+  hint = AlignedAddress(hint, alignment);
+  size_t request_size =
+      RoundUp(size + alignment, static_cast<intptr_t>(OS::AllocatePageSize()));
 
   zx_handle_t vmo;
   if (zx_vmo_create(request_size, 0, &vmo) != ZX_OK) {
+    *allocated = 0;
     return nullptr;
   }
   static const char kVirtualMemoryName[] = "v8-virtualmem";
@@ -43,25 +66,26 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   // so close the vmo either way.
   zx_handle_close(vmo);
   if (status != ZX_OK) {
+    *allocated = 0;
     return nullptr;
   }
 
   uint8_t* base = reinterpret_cast<uint8_t*>(reservation);
   uint8_t* aligned_base = RoundUp(base, alignment);
+  DCHECK_LE(base, aligned_base);
 
   // Unmap extra memory reserved before and after the desired block.
   if (aligned_base != base) {
-    DCHECK_LT(base, aligned_base);
     size_t prefix_size = static_cast<size_t>(aligned_base - base);
     zx_vmar_unmap(zx_vmar_root_self(), reinterpret_cast<uintptr_t>(base),
                   prefix_size);
     request_size -= prefix_size;
   }
 
-  size_t aligned_size = RoundUp(size, page_size);
+  size_t aligned_size = RoundUp(size, OS::AllocatePageSize());
+  DCHECK_LE(aligned_size, request_size);
 
   if (aligned_size != request_size) {
-    DCHECK_LT(aligned_size, request_size);
     size_t suffix_size = request_size - aligned_size;
     zx_vmar_unmap(zx_vmar_root_self(),
                   reinterpret_cast<uintptr_t>(aligned_base + aligned_size),
@@ -70,20 +94,9 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   }
 
   DCHECK(aligned_size == request_size);
+
+  *allocated = aligned_size;
   return static_cast<void*>(aligned_base);
-}
-
-// static
-bool OS::Free(void* address, size_t size) {
-  return zx_vmar_unmap(zx_vmar_root_self(),
-                       reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
-}
-
-// static
-void OS::Guard(void* address, size_t size) {
-  CHECK_EQ(ZX_OK, zx_vmar_protect(zx_vmar_root_self(),
-                                  reinterpret_cast<uintptr_t>(address), size,
-                                  0 /*no permissions*/));
 }
 
 // static
@@ -100,6 +113,12 @@ bool OS::UncommitRegion(void* address, size_t size) {
   return zx_vmar_protect(zx_vmar_root_self(),
                          reinterpret_cast<uintptr_t>(address), size,
                          0 /*no permissions*/) == ZX_OK;
+}
+
+// static
+bool OS::ReleaseRegion(void* address, size_t size) {
+  return zx_vmar_unmap(zx_vmar_root_self(),
+                       reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
 }
 
 // static

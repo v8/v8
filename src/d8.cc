@@ -142,9 +142,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   void Free(void* data, size_t length) override {
 #if USE_VM
     if (RoundToPageSize(&length)) {
-      bool result = base::OS::Free(data, length);
-      DCHECK(result);
-      USE(result);
+      base::OS::ReleaseRegion(data, length);
       return;
     }
 #endif
@@ -162,17 +160,16 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   }
 #if USE_VM
   void* VirtualMemoryAllocate(size_t length) {
-    size_t page_size = base::OS::AllocatePageSize();
-    size_t alloc_size = RoundUp(length, page_size);
-    void* address = base::OS::Allocate(nullptr, alloc_size, page_size,
-                                       base::OS::MemoryPermission::kReadWrite);
-    if (address != nullptr) {
-#if defined(LEAK_SANITIZER)
-      __lsan_register_root_region(address, alloc_size);
-#endif
-      MSAN_MEMORY_IS_INITIALIZED(address, alloc_size);
+    void* data = base::OS::ReserveRegion(length, nullptr);
+    if (data && !base::OS::CommitRegion(data, length, false)) {
+      base::OS::ReleaseRegion(data, length);
+      return nullptr;
     }
-    return address;
+#if defined(LEAK_SANITIZER)
+    __lsan_register_root_region(data, length);
+#endif
+    MSAN_MEMORY_IS_INITIALIZED(data, length);
+    return data;
   }
 #endif
 };
