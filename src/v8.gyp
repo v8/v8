@@ -581,8 +581,6 @@
         'assembler-inl.h',
         'assert-scope.h',
         'assert-scope.cc',
-        'ast/ast-expression-rewriter.cc',
-        'ast/ast-expression-rewriter.h',
         'ast/ast-function-literal-id-reindexer.cc',
         'ast/ast-function-literal-id-reindexer.h',
         'ast/ast-numbering.cc',

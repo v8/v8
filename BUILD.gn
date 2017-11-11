@@ -1205,8 +1205,6 @@ v8_source_set("v8_base") {
     "src/assembler.h",
     "src/assert-scope.cc",
     "src/assert-scope.h",
-    "src/ast/ast-expression-rewriter.cc",
-    "src/ast/ast-expression-rewriter.h",
     "src/ast/ast-function-literal-id-reindexer.cc",
     "src/ast/ast-function-literal-id-reindexer.h",
     "src/ast/ast-numbering.cc",

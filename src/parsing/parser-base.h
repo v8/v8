@@ -236,6 +236,7 @@ class ParserBase {
   typedef typename Types::ObjectLiteralProperty ObjectLiteralPropertyT;
   typedef typename Types::ClassLiteralProperty ClassLiteralPropertyT;
   typedef typename Types::Suspend SuspendExpressionT;
+  typedef typename Types::RewritableExpression RewritableExpressionT;
   typedef typename Types::ExpressionList ExpressionListT;
   typedef typename Types::FormalParameters FormalParametersT;
   typedef typename Types::Statement StatementT;
@@ -413,7 +414,7 @@ class ParserBase {
       return &reported_errors_;
     }
 
-    ZoneList<ExpressionT>* non_patterns_to_rewrite() {
+    ZoneList<RewritableExpressionT>* non_patterns_to_rewrite() {
       return &non_patterns_to_rewrite_;
     }
 
@@ -458,11 +459,12 @@ class ParserBase {
       destructuring_assignments_to_rewrite_.Add(pair, scope_->zone());
     }
 
-    void AddNonPatternForRewriting(ExpressionT expr, bool* ok) {
+    void AddNonPatternForRewriting(RewritableExpressionT expr, bool* ok) {
       non_patterns_to_rewrite_.Add(expr, scope_->zone());
       if (non_patterns_to_rewrite_.length() >=
-          std::numeric_limits<uint16_t>::max())
+          std::numeric_limits<uint16_t>::max()) {
         *ok = false;
+      }
     }
 
     // Properties count estimation.
@@ -473,7 +475,7 @@ class ParserBase {
     DeclarationScope* scope_;
 
     ZoneList<DestructuringAssignment> destructuring_assignments_to_rewrite_;
-    ZoneList<ExpressionT> non_patterns_to_rewrite_;
+    ZoneList<RewritableExpressionT> non_patterns_to_rewrite_;
 
     ZoneList<typename ExpressionClassifier::Error> reported_errors_;
 
@@ -2064,8 +2066,8 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
   ExpressionT result =
       factory()->NewArrayLiteral(values, first_spread_index, pos);
   if (first_spread_index >= 0) {
-    result = factory()->NewRewritableExpression(result);
-    impl()->QueueNonPatternForRewriting(result, ok);
+    auto rewritable = factory()->NewRewritableExpression(result);
+    impl()->QueueNonPatternForRewriting(rewritable, ok);
     if (!*ok) {
       // If the non-pattern rewriting mechanism is used in the future for
       // rewriting other things than spreads, this error message will have
@@ -2074,6 +2076,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
       ReportMessage(MessageTemplate::kTooManySpreads);
       return impl()->NullExpression();
     }
+    result = rewritable;
   }
   return result;
 }

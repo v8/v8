@@ -167,6 +167,7 @@ struct ParserTypes<Parser> {
   typedef ObjectLiteral::Property* ObjectLiteralProperty;
   typedef ClassLiteral::Property* ClassLiteralProperty;
   typedef v8::internal::Suspend* Suspend;
+  typedef v8::internal::RewritableExpression* RewritableExpression;
   typedef ZoneList<v8::internal::Expression*>* ExpressionList;
   typedef ZoneList<ObjectLiteral::Property*>* ObjectPropertyList;
   typedef ZoneList<ClassLiteral::Property*>* ClassPropertyList;
@@ -557,7 +558,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE Expression* RewriteAssignExponentiation(Expression* left,
                                                     Expression* right, int pos);
 
-  friend class NonPatternRewriter;
   V8_INLINE Expression* RewriteSpreads(ArrayLiteral* lit);
 
   // Rewrite expressions that are not used as patterns
@@ -565,7 +565,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
 
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
       Expression* assignment);
-  V8_INLINE void QueueNonPatternForRewriting(Expression* expr, bool* ok);
+  V8_INLINE void QueueNonPatternForRewriting(RewritableExpression* expr,
+                                             bool* ok);
 
   friend class InitializerRewriter;
   void RewriteParameterInitializer(Expression* expr);
@@ -996,7 +997,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return function_state_->GetReportedErrorList();
   }
 
-  V8_INLINE ZoneList<Expression*>* GetNonPatternList() const {
+  V8_INLINE ZoneList<RewritableExpression*>* GetNonPatternList() const {
     return function_state_->non_patterns_to_rewrite();
   }
 

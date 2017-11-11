@@ -8,7 +8,6 @@
 #include <memory>
 
 #include "src/api.h"
-#include "src/ast/ast-expression-rewriter.h"
 #include "src/ast/ast-function-literal-id-reindexer.h"
 #include "src/ast/ast-traversal-visitor.h"
 #include "src/ast/ast.h"
@@ -3826,53 +3825,18 @@ void Parser::RewriteAsyncFunctionBody(ZoneList<Statement*>* body, Block* block,
   body->Add(block, zone());
 }
 
-class NonPatternRewriter : public AstExpressionRewriter {
- public:
-  NonPatternRewriter(uintptr_t stack_limit, Parser* parser)
-      : AstExpressionRewriter(stack_limit), parser_(parser) {}
-  ~NonPatternRewriter() override {}
-
- private:
-  bool RewriteExpression(Expression* expr) override {
-    if (expr->IsRewritableExpression()) return true;
-    // Rewrite only what could have been a pattern but is not.
-    if (expr->IsArrayLiteral()) {
-      // Spread rewriting in array literals.
-      ArrayLiteral* lit = expr->AsArrayLiteral();
-      VisitExpressions(lit->values());
-      replacement_ = parser_->RewriteSpreads(lit);
-      return false;
-    }
-    if (expr->IsObjectLiteral()) {
-      return true;
-    }
-    if (expr->IsBinaryOperation() &&
-        expr->AsBinaryOperation()->op() == Token::COMMA) {
-      return true;
-    }
-    // Everything else does not need rewriting.
-    return false;
-  }
-
-  void VisitLiteralProperty(LiteralProperty* property) override {
-    if (property == nullptr) return;
-    // Do not rewrite (computed) key expressions
-    AST_REWRITE_PROPERTY(Expression, property, value);
-  }
-
-  Parser* parser_;
-};
-
 void Parser::RewriteNonPattern(bool* ok) {
   ValidateExpression(CHECK_OK_VOID);
   auto non_patterns_to_rewrite = function_state_->non_patterns_to_rewrite();
   int begin = classifier()->GetNonPatternBegin();
   int end = non_patterns_to_rewrite->length();
   if (begin < end) {
-    NonPatternRewriter rewriter(stack_limit_, this);
     for (int i = begin; i < end; i++) {
-      DCHECK(non_patterns_to_rewrite->at(i)->IsRewritableExpression());
-      rewriter.Rewrite(non_patterns_to_rewrite->at(i));
+      RewritableExpression* expr = non_patterns_to_rewrite->at(i);
+      // TODO(adamk): Make this more typesafe.
+      DCHECK(expr->expression()->IsArrayLiteral());
+      ArrayLiteral* lit = expr->expression()->AsArrayLiteral();
+      expr->Rewrite(RewriteSpreads(lit));
     }
     non_patterns_to_rewrite->Rewind(begin);
   }
@@ -4045,8 +4009,7 @@ void Parser::QueueDestructuringAssignmentForRewriting(Expression* expr) {
       DestructuringAssignment(expr, scope()));
 }
 
-void Parser::QueueNonPatternForRewriting(Expression* expr, bool* ok) {
-  DCHECK(expr->IsRewritableExpression());
+void Parser::QueueNonPatternForRewriting(RewritableExpression* expr, bool* ok) {
   function_state_->AddNonPatternForRewriting(expr, ok);
 }
 
