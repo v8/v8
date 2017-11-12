@@ -851,6 +851,25 @@ void CodeStubAssembler::BranchIfJSObject(Node* object, Label* if_true,
   Branch(IsJSObject(object), if_true, if_false);
 }
 
+TNode<BoolT> CodeStubAssembler::IsFastJSArray(SloppyTNode<Object> object,
+                                              SloppyTNode<Context> context) {
+  Label if_true(this), if_false(this, Label::kDeferred), exit(this);
+  BranchIfFastJSArray(object, context, &if_true, &if_false);
+  TVARIABLE(BoolT, var_result);
+  BIND(&if_true);
+  {
+    var_result = ReinterpretCast<BoolT>(Int32Constant(1));
+    Goto(&exit);
+  }
+  BIND(&if_false);
+  {
+    var_result = ReinterpretCast<BoolT>(Int32Constant(0));
+    Goto(&exit);
+  }
+  BIND(&exit);
+  return var_result;
+}
+
 void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
                                             Label* if_true, Label* if_false) {
   // Bailout if receiver is a Smi.
@@ -6034,8 +6053,8 @@ template Node* CodeStubAssembler::EntryToIndex<NumberDictionary>(Node*, int);
 // This must be kept in sync with HashTableBase::ComputeCapacity().
 TNode<IntPtrT> CodeStubAssembler::HashTableComputeCapacity(
     SloppyTNode<IntPtrT> at_least_space_for) {
-  Node* capacity = IntPtrRoundUpToPowerOfTwo32(IntPtrAdd(
-      at_least_space_for, WordShr(at_least_space_for, IntPtrConstant(1))));
+  Node* capacity = IntPtrRoundUpToPowerOfTwo32(
+      IntPtrAdd(at_least_space_for, WordShr(at_least_space_for, 1)));
   return IntPtrMax(capacity, IntPtrConstant(HashTableBase::kMinCapacity));
 }
 
@@ -10519,6 +10538,11 @@ void CodeStubArguments::PopAndReturn(Node* value) {
 Node* CodeStubAssembler::IsFastElementsKind(Node* elements_kind) {
   return Uint32LessThanOrEqual(elements_kind,
                                Int32Constant(LAST_FAST_ELEMENTS_KIND));
+}
+
+Node* CodeStubAssembler::IsFastSmiOrTaggedElementsKind(Node* elements_kind) {
+  return Uint32LessThanOrEqual(elements_kind,
+                               Int32Constant(TERMINAL_FAST_ELEMENTS_KIND));
 }
 
 Node* CodeStubAssembler::IsHoleyFastElementsKind(Node* elements_kind) {

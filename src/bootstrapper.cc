@@ -3300,11 +3300,18 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- W e a k M a p
-    Handle<JSFunction> cons =
-        InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
-                        0, factory->the_hole_value(), Builtins::kIllegal);
+    Handle<JSFunction> cons = InstallFunction(
+        global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize, 0,
+        factory->the_hole_value(), Builtins::kWeakMapConstructor);
     InstallWithIntrinsicDefaultProto(isolate, cons,
                                      Context::JS_WEAK_MAP_FUN_INDEX);
+
+    Handle<SharedFunctionInfo> shared(cons->shared(), isolate);
+    shared->SetConstructStub(*BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
+    shared->set_instance_class_name(isolate->heap()->WeakMap_string());
+    shared->DontAdaptArguments();
+    shared->set_length(0);
+
     // Setup %WeakMapPrototype%.
     Handle<JSObject> prototype(JSObject::cast(cons->instance_prototype()));
 
@@ -3322,11 +3329,18 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 
   {  // -- W e a k S e t
-    Handle<JSFunction> cons =
-        InstallFunction(global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize,
-                        0, factory->the_hole_value(), Builtins::kIllegal);
+    Handle<JSFunction> cons = InstallFunction(
+        global, "WeakSet", JS_WEAK_SET_TYPE, JSWeakSet::kSize, 0,
+        factory->the_hole_value(), Builtins::kWeakSetConstructor);
     InstallWithIntrinsicDefaultProto(isolate, cons,
                                      Context::JS_WEAK_SET_FUN_INDEX);
+
+    Handle<SharedFunctionInfo> shared(cons->shared(), isolate);
+    shared->SetConstructStub(*BUILTIN_CODE(isolate, JSBuiltinsConstructStub));
+    shared->set_instance_class_name(isolate->heap()->WeakSet_string());
+    shared->DontAdaptArguments();
+    shared->set_length(0);
+
     // Setup %WeakSetPrototype%.
     Handle<JSObject> prototype(JSObject::cast(cons->instance_prototype()));
 

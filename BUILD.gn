@@ -569,7 +569,6 @@ action("js2c") {
     "src/js/v8natives.js",
     "src/js/array.js",
     "src/js/typedarray.js",
-    "src/js/weak-collection.js",
     "src/js/messages.js",
     "src/js/spread.js",
     "src/js/proxy.js",

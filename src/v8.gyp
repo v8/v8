@@ -2326,7 +2326,6 @@
           'js/v8natives.js',
           'js/array.js',
           'js/typedarray.js',
-          'js/weak-collection.js',
           'js/messages.js',
           'js/spread.js',
           'js/proxy.js',

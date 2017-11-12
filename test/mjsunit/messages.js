@@ -124,8 +124,24 @@ test(function() {
 
 // kConstructorNotFunction
 test(function() {
+  Map();
+}, "Constructor Map requires 'new'", TypeError);
+
+test(function() {
+  Set();
+}, "Constructor Set requires 'new'", TypeError);
+
+test(function() {
   Uint16Array(1);
 }, "Constructor Uint16Array requires 'new'", TypeError);
+
+test(function() {
+  WeakSet();
+}, "Constructor WeakSet requires 'new'", TypeError);
+
+test(function() {
+  WeakMap();
+}, "Constructor WeakMap requires 'new'", TypeError);
 
 // kDataViewNotArrayBuffer
 test(function() {
@@ -327,9 +343,24 @@ test(function() {
 
 // kPropertyNotFunction
 test(function() {
+  Map.prototype.set = 0;
+  new Map([[1, 2]]);
+}, "'0' returned for property 'set' of object '#<Map>' is not a function", TypeError);
+
+test(function() {
   Set.prototype.add = 0;
-  new Set(1);
+  new Set([1]);
 }, "'0' returned for property 'add' of object '#<Set>' is not a function", TypeError);
+
+test(function() {
+  WeakMap.prototype.set = 0;
+  new WeakMap([[{}, 1]]);
+}, "'0' returned for property 'set' of object '#<WeakMap>' is not a function", TypeError);
+
+test(function() {
+  WeakSet.prototype.add = 0;
+  new WeakSet([{}]);
+}, "'0' returned for property 'add' of object '#<WeakSet>' is not a function", TypeError);
 
 // kProtoObjectOrNull
 test(function() {
