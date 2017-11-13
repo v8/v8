@@ -547,6 +547,12 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
                       &prepare_step_in_suspended_generator);
   __ Bind(&stepping_prepared);
 
+  // Check the stack for overflow. We are not trying to catch interruptions
+  // (i.e. debug break and preemption) here, so check the "real stack limit".
+  Label stack_overflow;
+  __ CompareRoot(jssp, Heap::kRealStackLimitRootIndex);
+  __ B(lo, &stack_overflow);
+
   // Get number of arguments for generator function.
   __ Ldr(x10, FieldMemOperand(x4, JSFunction::kSharedFunctionInfoOffset));
   __ Ldr(w10,
@@ -630,6 +636,13 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     __ Ldr(x4, FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
   }
   __ B(&stepping_prepared);
+
+  __ bind(&stack_overflow);
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kThrowStackOverflow);
+    __ Unreachable();  // This should be unreachable.
+  }
 }
 
 static void Generate_StackOverflowCheck(MacroAssembler* masm, Register num_args,
