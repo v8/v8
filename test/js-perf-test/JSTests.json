@@ -602,7 +602,7 @@
       "path": ["Inspector"],
       "main": "run.js",
       "resources": [ "debugger.js", "runtime.js" ],
-      "flags": ["--enable-inspector"],
+      "flags": ["--enable-inspector","--allow-natives-syntax"],
       "results_regexp": "^%s\\-Inspector\\(Score\\): (.+)$",
       "tests": [
         {"name": "Debugger.paused"},
