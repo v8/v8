@@ -163,16 +163,23 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   if (details.location() == kField) {
     isolate->heap()->NotifyObjectLayoutChange(*receiver, map->instance_size(),
                                               no_allocation);
-    Object* filler = isolate->heap()->one_pointer_filler_map();
     FieldIndex index = FieldIndex::ForPropertyIndex(map, details.field_index());
-    JSObject::cast(*receiver)->RawFastPropertyAtPut(index, filler);
-    // We must clear any recorded slot for the deleted property, because
-    // subsequent object modifications might put a raw double there.
-    // Slot clearing is the reason why this entire function cannot currently
-    // be implemented in the DeleteProperty stub.
-    if (index.is_inobject() && !map->IsUnboxedDoubleField(index)) {
-      isolate->heap()->ClearRecordedSlot(
-          *receiver, HeapObject::RawField(*receiver, index.offset()));
+    // Special case deleting the last out-of object property.
+    if (!index.is_inobject() && index.outobject_array_index() == 0) {
+      DCHECK(!Map::cast(backpointer)->HasOutOfObjectProperties());
+      // Clear out the properties backing store.
+      receiver->SetProperties(isolate->heap()->empty_fixed_array());
+    } else {
+      Object* filler = isolate->heap()->one_pointer_filler_map();
+      JSObject::cast(*receiver)->RawFastPropertyAtPut(index, filler);
+      // We must clear any recorded slot for the deleted property, because
+      // subsequent object modifications might put a raw double there.
+      // Slot clearing is the reason why this entire function cannot currently
+      // be implemented in the DeleteProperty stub.
+      if (index.is_inobject() && !map->IsUnboxedDoubleField(index)) {
+        isolate->heap()->ClearRecordedSlot(
+            *receiver, HeapObject::RawField(*receiver, index.offset()));
+      }
     }
   }
   // If the map was marked stable before, then there could be optimized code
@@ -182,6 +189,10 @@ bool DeleteObjectPropertyFast(Isolate* isolate, Handle<JSReceiver> receiver,
   map->NotifyLeafMapLayoutChange();
   // Finally, perform the map rollback.
   receiver->synchronized_set_map(Map::cast(backpointer));
+#if VERIFY_HEAP
+  receiver->HeapObjectVerify();
+  receiver->property_array()->PropertyArrayVerify();
+#endif
   return true;
 }
 

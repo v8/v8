@@ -458,6 +458,12 @@ void FixedArray::FixedArrayVerify() {
 }
 
 void PropertyArray::PropertyArrayVerify() {
+  if (length() == 0) {
+    CHECK_EQ(this, this->GetHeap()->empty_property_array());
+    return;
+  }
+  // There are no empty PropertyArrays.
+  CHECK_LT(0, length());
   for (int i = 0; i < length(); i++) {
     Object* e = get(i);
     VerifyPointer(e);

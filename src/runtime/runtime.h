@@ -633,6 +633,7 @@ namespace internal {
   F(WasmNumInterpretedCalls, 1, 1)            \
   F(RedirectToWasmInterpreter, 2, 1)          \
   F(WasmTraceMemory, 4, 1)                    \
+  F(CompleteInobjectSlackTracking, 1, 1)      \
   F(IsLiftoffFunction, 1, 1)
 
 #define FOR_EACH_INTRINSIC_TYPEDARRAY(F) \

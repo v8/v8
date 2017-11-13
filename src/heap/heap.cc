@@ -3724,7 +3724,10 @@ AllocationResult Heap::AllocateFixedArrayWithFiller(int length,
 
 AllocationResult Heap::AllocatePropertyArray(int length,
                                              PretenureFlag pretenure) {
+  // Allow length = 0 for the empty_property_array singleton.
   DCHECK_LE(0, length);
+  DCHECK_IMPLIES(length == 0, pretenure == TENURED);
+
   DCHECK(!InNewSpace(undefined_value()));
   HeapObject* result = nullptr;
   {

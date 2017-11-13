@@ -4175,9 +4175,7 @@ void MigrateFastToFast(Handle<JSObject> object, Handle<Map> new_map) {
     }
   }
 
-  if (external > 0) {
-    object->SetProperties(*array);
-  }
+  object->SetProperties(*array);
 
   // Create filler object past the new instance size.
   int new_instance_size = new_map->instance_size();
@@ -4379,6 +4377,10 @@ int Map::NumberOfFields() const {
     if (descriptors->GetDetails(i).location() == kField) result++;
   }
   return result;
+}
+
+bool Map::HasOutOfObjectProperties() const {
+  return GetInObjectProperties() < NumberOfFields();
 }
 
 void DescriptorArray::GeneralizeAllFields() {
@@ -5919,10 +5921,8 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
       storage = isolate->factory()->NewFixedArray(inobject);
     }
 
-    Handle<PropertyArray> array;
-    if (external > 0) {
-      array = isolate->factory()->NewPropertyArray(external);
-    }
+    Handle<PropertyArray> array =
+        isolate->factory()->NewPropertyArray(external);
 
     for (int i = 0; i < map->NumberOfOwnDescriptors(); i++) {
       PropertyDetails details = descriptors->GetDetails(i);
@@ -5938,9 +5938,7 @@ void JSObject::AllocateStorageForMap(Handle<JSObject> object, Handle<Map> map) {
       }
     }
 
-    if (external > 0) {
-      object->SetProperties(*array);
-    }
+    object->SetProperties(*array);
 
     if (!FLAG_unbox_double_fields) {
       for (int i = 0; i < inobject; i++) {
@@ -6464,13 +6462,16 @@ Object* SetHashAndUpdateProperties(HeapObject* properties, int hash) {
   DCHECK_NE(PropertyArray::kNoHashSentinel, hash);
   DCHECK(PropertyArray::HashField::is_valid(hash));
 
-  if (properties == properties->GetHeap()->empty_fixed_array() ||
-      properties == properties->GetHeap()->empty_property_dictionary()) {
+  Heap* heap = properties->GetHeap();
+  if (properties == heap->empty_fixed_array() ||
+      properties == heap->empty_property_array() ||
+      properties == heap->empty_property_dictionary()) {
     return Smi::FromInt(hash);
   }
 
   if (properties->IsPropertyArray()) {
     PropertyArray::cast(properties)->SetHash(hash);
+    DCHECK_LT(0, PropertyArray::cast(properties)->length());
     return properties;
   }
 
@@ -6522,6 +6523,9 @@ void JSReceiver::SetIdentityHash(int hash) {
 }
 
 void JSReceiver::SetProperties(HeapObject* properties) {
+  DCHECK_IMPLIES(properties->IsPropertyArray() &&
+                     PropertyArray::cast(properties)->length() == 0,
+                 properties == properties->GetHeap()->empty_property_array());
   DisallowHeapAllocation no_gc;
   Isolate* isolate = properties->GetIsolate();
   int hash = GetIdentityHashHelper(isolate, this);
