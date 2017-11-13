@@ -265,7 +265,8 @@
   'wasm/js-api': [SKIP],
 
   # BUG(chromium:773631): Crashes flakily.
-  'wasm/streaming-trap-location': [SKIP]
+  'wasm/streaming-trap-location': [SKIP],
+
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -599,6 +600,13 @@
   # Fails deopt_fuzzer due to --deopt_every_n_times
   'es6/array-iterator-turbo': [SKIP]
 }],  # 'deopt_fuzzer == True'
+
+##############################################################################
+['gc_fuzzer == True', {
+  'regress/regress-336820': [SKIP],
+  'regress/regress-748069': [SKIP],
+  'regress/regress-778668': [SKIP],
+}],  # 'gc_fuzzer == True'
 
 ##############################################################################
 ['predictable == True', {
