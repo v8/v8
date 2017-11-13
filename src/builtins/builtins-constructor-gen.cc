@@ -87,8 +87,9 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
       TimesPointerSize(LoadMapInstanceSize(function_map));
   Node* result = Allocate(instance_size_in_bytes);
   StoreMapNoWriteBarrier(result, function_map);
-  InitializeJSObjectBody(result, function_map, instance_size_in_bytes,
-                         JSFunction::kSizeWithoutPrototype);
+  InitializeJSObjectBodyNoSlackTracking(result, function_map,
+                                        instance_size_in_bytes,
+                                        JSFunction::kSizeWithoutPrototype);
 
   // Initialize the rest of the function.
   Node* empty_fixed_array = HeapConstant(factory->empty_fixed_array());
@@ -236,12 +237,8 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewObject(Node* context,
   }
 
   BIND(&instantiate_map);
-
-  Node* object = AllocateJSObjectFromMap(initial_map, properties.value());
-
-  // Perform in-object slack tracking if requested.
-  HandleSlackTracking(context, object, initial_map, JSObject::kHeaderSize);
-  return object;
+  return AllocateJSObjectFromMap(initial_map, properties.value(), nullptr,
+                                 kNone, kWithSlackTracking);
 }
 
 Node* ConstructorBuiltinsAssembler::EmitFastNewFunctionContext(

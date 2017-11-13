@@ -12328,11 +12328,11 @@ static void StopSlackTracking(Map* map, void* data) {
 }
 
 void Map::CompleteInobjectSlackTracking() {
+  DisallowHeapAllocation no_gc;
   // Has to be an initial map.
   DCHECK(GetBackPointer()->IsUndefined(GetIsolate()));
 
   int slack = UnusedPropertyFields();
-  DisallowHeapAllocation no_gc;
   TransitionsAccessor transitions(this, &no_gc);
   transitions.TraverseTransitionTree(&GetMinInobjectSlack, &slack);
   if (slack != 0) {

@@ -760,9 +760,9 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   Node* register_file = AllocateFixedArray(HOLEY_ELEMENTS, size);
   FillFixedArrayWithValue(HOLEY_ELEMENTS, register_file, IntPtrConstant(0),
                           size, Heap::kUndefinedValueRootIndex);
-
-  Node* const result = AllocateJSObjectFromMap(maybe_map);
-
+  // TODO(cbruni): support start_offset to avoid double initialization.
+  Node* result = AllocateJSObjectFromMap(maybe_map, nullptr, nullptr, kNone,
+                                         kWithSlackTracking);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kFunctionOffset,
                                  closure);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContextOffset,
@@ -774,7 +774,6 @@ TF_BUILTIN(CreateGeneratorObject, ObjectBuiltinsAssembler) {
   Node* executing = SmiConstant(JSGeneratorObject::kGeneratorExecuting);
   StoreObjectFieldNoWriteBarrier(result, JSGeneratorObject::kContinuationOffset,
                                  executing);
-  HandleSlackTracking(context, result, maybe_map, JSGeneratorObject::kSize);
   Return(result);
 
   BIND(&runtime);

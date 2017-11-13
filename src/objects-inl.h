@@ -4097,6 +4097,8 @@ bool Map::IsInobjectSlackTrackingInProgress() const {
 
 
 void Map::InobjectSlackTrackingStep() {
+  // Slack tracking should only be performed on an initial map.
+  DCHECK(GetBackPointer()->IsUndefined(GetIsolate()));
   if (!IsInobjectSlackTrackingInProgress()) return;
   int counter = construction_counter();
   set_construction_counter(counter - 1);

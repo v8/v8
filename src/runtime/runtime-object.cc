@@ -675,8 +675,8 @@ RUNTIME_FUNCTION(Runtime_NewObject) {
   RETURN_RESULT_OR_FAILURE(isolate, JSObject::New(target, new_target));
 }
 
-
-RUNTIME_FUNCTION(Runtime_FinalizeInstanceSize) {
+RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTrackingForMap) {
+  DisallowHeapAllocation no_gc;
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
 

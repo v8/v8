@@ -407,7 +407,7 @@ namespace internal {
   F(ToFastProperties, 1, 1)                                     \
   F(AllocateHeapNumber, 0, 1)                                   \
   F(NewObject, 2, 1)                                            \
-  F(FinalizeInstanceSize, 1, 1)                                 \
+  F(CompleteInobjectSlackTrackingForMap, 1, 1)                  \
   F(LoadMutableDouble, 2, 1)                                    \
   F(TryMigrateInstance, 1, 1)                                   \
   F(IsJSGlobalProxy, 1, 1)                                      \
