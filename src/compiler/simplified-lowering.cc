@@ -2735,6 +2735,10 @@ class RepresentationSelector {
         VisitUnop(node, UseInfo::AnyTagged(), MachineRepresentation::kBit);
         return;
       }
+      case IrOpcode::kObjectIsBigInt: {
+        VisitObjectIs(node, Type::BigInt(), lowering);
+        return;
+      }
       case IrOpcode::kObjectIsCallable: {
         VisitObjectIs(node, Type::Callable(), lowering);
         return;

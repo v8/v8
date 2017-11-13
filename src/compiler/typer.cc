@@ -288,6 +288,7 @@ class Typer::Visitor : public Reducer {
 #undef DECLARE_METHOD
 
   static Type* ObjectIsArrayBufferView(Type*, Typer*);
+  static Type* ObjectIsBigInt(Type*, Typer*);
   static Type* ObjectIsCallable(Type*, Typer*);
   static Type* ObjectIsConstructor(Type*, Typer*);
   static Type* ObjectIsDetectableCallable(Type*, Typer*);
@@ -517,6 +518,12 @@ Type* Typer::Visitor::ToString(Type* type, Typer* t) {
 Type* Typer::Visitor::ObjectIsArrayBufferView(Type* type, Typer* t) {
   // TODO(turbofan): Introduce a Type::ArrayBufferView?
   if (!type->Maybe(Type::OtherObject())) return t->singleton_false_;
+  return Type::Boolean();
+}
+
+Type* Typer::Visitor::ObjectIsBigInt(Type* type, Typer* t) {
+  if (type->Is(Type::BigInt())) return t->singleton_true_;
+  if (!type->Maybe(Type::BigInt())) return t->singleton_false_;
   return Type::Boolean();
 }
 
@@ -1991,6 +1998,10 @@ Type* Typer::Visitor::TypeStoreTypedElement(Node* node) {
 
 Type* Typer::Visitor::TypeObjectIsArrayBufferView(Node* node) {
   return TypeUnaryOp(node, ObjectIsArrayBufferView);
+}
+
+Type* Typer::Visitor::TypeObjectIsBigInt(Node* node) {
+  return TypeUnaryOp(node, ObjectIsBigInt);
 }
 
 Type* Typer::Visitor::TypeObjectIsCallable(Node* node) {

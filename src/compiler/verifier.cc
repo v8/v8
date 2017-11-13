@@ -1038,6 +1038,7 @@ void Verifier::Visitor::Check(Node* node) {
       break;
 
     case IrOpcode::kObjectIsArrayBufferView:
+    case IrOpcode::kObjectIsBigInt:
     case IrOpcode::kObjectIsCallable:
     case IrOpcode::kObjectIsConstructor:
     case IrOpcode::kObjectIsDetectableCallable:

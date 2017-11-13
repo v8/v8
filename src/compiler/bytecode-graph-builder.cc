@@ -2448,6 +2448,9 @@ void BytecodeGraphBuilder::VisitTestTypeOf() {
     case interpreter::TestTypeOfFlags::LiteralFlag::kSymbol:
       result = NewNode(simplified()->ObjectIsSymbol(), object);
       break;
+    case interpreter::TestTypeOfFlags::LiteralFlag::kBigInt:
+      result = NewNode(simplified()->ObjectIsBigInt(), object);
+      break;
     case interpreter::TestTypeOfFlags::LiteralFlag::kBoolean:
       result = NewNode(common()->Select(MachineRepresentation::kTagged),
                        NewNode(simplified()->ReferenceEqual(), object,
@@ -2475,10 +2478,6 @@ void BytecodeGraphBuilder::VisitTestTypeOf() {
           jsgraph()->TrueConstant(),
           graph()->NewNode(simplified()->ReferenceEqual(), object,
                            jsgraph()->NullConstant()));
-      break;
-    case interpreter::TestTypeOfFlags::LiteralFlag::kBigInt:
-      // TODO(neis): Implement.
-      UNIMPLEMENTED();
       break;
     case interpreter::TestTypeOfFlags::LiteralFlag::kOther:
       UNREACHABLE();  // Should never be emitted.

@@ -358,6 +358,7 @@
   V(TransitionAndStoreNonNumberElement) \
   V(ToBoolean)                          \
   V(ObjectIsArrayBufferView)            \
+  V(ObjectIsBigInt)                     \
   V(ObjectIsCallable)                   \
   V(ObjectIsConstructor)                \
   V(ObjectIsDetectableCallable)         \

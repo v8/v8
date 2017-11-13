@@ -481,6 +481,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* CheckEqualsSymbol();
 
   const Operator* ObjectIsArrayBufferView();
+  const Operator* ObjectIsBigInt();
   const Operator* ObjectIsCallable();
   const Operator* ObjectIsConstructor();
   const Operator* ObjectIsDetectableCallable();

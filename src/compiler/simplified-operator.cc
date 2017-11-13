@@ -618,6 +618,7 @@ DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
   V(TruncateTaggedToWord32, Operator::kNoProperties, 1, 0)       \
   V(TruncateTaggedToFloat64, Operator::kNoProperties, 1, 0)      \
   V(ObjectIsArrayBufferView, Operator::kNoProperties, 1, 0)      \
+  V(ObjectIsBigInt, Operator::kNoProperties, 1, 0)               \
   V(ObjectIsCallable, Operator::kNoProperties, 1, 0)             \
   V(ObjectIsConstructor, Operator::kNoProperties, 1, 0)          \
   V(ObjectIsDetectableCallable, Operator::kNoProperties, 1, 0)   \
