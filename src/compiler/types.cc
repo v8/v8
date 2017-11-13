@@ -179,6 +179,8 @@ Type::bitset BitsetType::Lub(i::Map* map) {
       return kInternalizedSeqString;
     case SYMBOL_TYPE:
       return kSymbol;
+    case BIGINT_TYPE:
+      return kBigInt;
     case ODDBALL_TYPE: {
       Heap* heap = map->GetHeap();
       if (map == heap->undefined_map()) return kUndefined;
@@ -281,7 +283,6 @@ Type::bitset BitsetType::Lub(i::Map* map) {
     case MODULE_TYPE:
     case MODULE_INFO_ENTRY_TYPE:
     case CELL_TYPE:
-    case BIGINT_TYPE:
       return kOtherInternal;
 
     // Remaining instance types are unsupported for now. If any of them do

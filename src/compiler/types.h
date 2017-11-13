@@ -129,6 +129,7 @@ namespace compiler {
   V(OtherInternal,            1u << 25)  \
   V(ExternalPointer,          1u << 26)  \
   V(Array,                    1u << 27)  \
+  V(BigInt,                   1u << 28)  \
   \
   V(Signed31,                     kUnsigned30 | kNegative31) \
   V(Signed32,                     kSigned31 | kOtherUnsigned31 | \
@@ -148,6 +149,7 @@ namespace compiler {
   V(OrderedNumber,                kPlainNumber | kMinusZero) \
   V(MinusZeroOrNaN,               kMinusZero | kNaN) \
   V(Number,                       kOrderedNumber | kNaN) \
+  V(Numeric,                      kNumber | kBigInt) \
   V(InternalizedString,           kInternalizedNonSeqString | \
                                   kInternalizedSeqString) \
   V(OtherString,                  kOtherNonSeqString | kOtherSeqString) \
@@ -174,7 +176,7 @@ namespace compiler {
                                   kNumber | kNullOrUndefined | kBoolean) \
   V(PlainPrimitive,               kNumberOrString | kBoolean | \
                                   kNullOrUndefined) \
-  V(Primitive,                    kSymbol | kPlainPrimitive) \
+  V(Primitive,                    kSymbol | kBigInt | kPlainPrimitive) \
   V(OtherUndetectableOrUndefined, kOtherUndetectable | kUndefined) \
   V(Proxy,                        kCallableProxy | kOtherProxy) \
   V(ArrayOrOtherObject,           kArray | kOtherObject) \

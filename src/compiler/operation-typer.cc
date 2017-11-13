@@ -1064,6 +1064,7 @@ Type* JSType(Type* type) {
   if (type->Is(Type::Boolean())) return Type::Boolean();
   if (type->Is(Type::String())) return Type::String();
   if (type->Is(Type::Number())) return Type::Number();
+  if (type->Is(Type::BigInt())) return Type::BigInt();
   if (type->Is(Type::Undefined())) return Type::Undefined();
   if (type->Is(Type::Null())) return Type::Null();
   if (type->Is(Type::Symbol())) return Type::Symbol();
