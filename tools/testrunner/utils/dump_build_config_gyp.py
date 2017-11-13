@@ -20,28 +20,35 @@ assert len(sys.argv) > 2
 
 GYP_GN_CONVERSION = {
   'is_component_build': {
-    '"shared_library"': 'true',
-    '"static_library"': 'false',
+    'shared_library': 'true',
+    'static_library': 'false',
   },
   'is_debug': {
-    '"Debug"': 'true',
-    '"Release"': 'false',
+    'Debug': 'true',
+    'Release': 'false',
   },
 }
 
 DEFAULT_CONVERSION ={
   '0': 'false',
   '1': 'true',
-  '"ia32"': '"x86"',
+  'ia32': 'x86',
 }
 
 def gyp_to_gn(key, value):
-  return GYP_GN_CONVERSION.get(key, DEFAULT_CONVERSION).get(value, value)
+  value = GYP_GN_CONVERSION.get(key, DEFAULT_CONVERSION).get(value, value)
+  value = value if value in ['true', 'false'] else '"{0}"'.format(value)
+  return value
 
 def as_json(kv):
   assert '=' in kv
   k, v = kv.split('=', 1)
-  return k, json.loads(gyp_to_gn(k, v))
+  v2 = gyp_to_gn(k, v)
+  try:
+    return k, json.loads(v2)
+  except ValueError as e:
+    print(k, v, v2)
+    raise e
 
 with open(sys.argv[1], 'w') as f:
   json.dump(dict(map(as_json, sys.argv[2:])), f)
