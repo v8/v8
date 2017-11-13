@@ -401,6 +401,9 @@
   'compiler/osr-one': [PASS, SLOW],
   'compiler/osr-two': [PASS, SLOW],
   'wasm/grow-memory': [PASS, SLOW],
+
+  # Slow test.
+  'regress/regress-779407': [PASS, SLOW],
 }],  # 'msan == True'
 
 ##############################################################################
