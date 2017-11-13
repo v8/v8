@@ -148,6 +148,9 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
                       default= -1, type="int")
     parser.add_option("--random-seed", default=0, dest="random_seed",
                       help="Default seed for initializing random generator")
+    parser.add_option("--fuzzer-random-seed", default=0,
+                      help="Default seed for initializing fuzzer random "
+                      "generator")
     return parser
 
 

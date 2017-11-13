@@ -284,7 +284,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
       analysis_flags = [
         # > 100% to not influence default incremental marking, but we need this
         # flag to print reached incremental marking limit.
-        '--stress_incremental_marking_percentage', '200',
+        '--stress_marking', '1000',
         '--trace_incremental_marking',
       ]
       s.tests = map(lambda t: t.CopyAddingFlags(t.variant, analysis_flags),
@@ -298,6 +298,10 @@ class GCFuzzer(base_runner.BaseTestRunner):
     test_results = dict()
     for s in suites:
       for t in s.tests:
+        # Skip failed tests.
+        if s.HasUnexpectedOutput(t):
+          print '%s failed, skipping' % t.path
+          continue
         max_limit = self._get_max_limit_reached(t)
         if max_limit:
           test_results[t.path] = max_limit
@@ -317,26 +321,27 @@ class GCFuzzer(base_runner.BaseTestRunner):
         max_percent = int(max_percent)
 
         # Calculate distribution.
-        im_count = self._calculate_n_tests(max_percent, options)
-        im_distribution = dist.Distribute(im_count, max_percent)
+        marking_count = self._calculate_n_tests(max_percent, options)
+        marking_distribution = dist.Distribute(marking_count, max_percent)
         if options.stress_compaction:
           compaction_count = self._calculate_n_tests(100, options)
           compaction_distribution = dist.Distribute(compaction_count, 100)
           distribution = itertools.product(
-            im_distribution, compaction_distribution)
+            marking_distribution, compaction_distribution)
         else:
           # 0 disables the second flag.
-          distribution = itertools.product(im_distribution, [0])
+          distribution = itertools.product(marking_distribution, [0])
 
         if options.verbose:
           distribution = list(distribution)
-          print "%s %s (max=%.02f)" % (t.path, distribution, max_percent)
-        for im, compaction in distribution:
+          print ("%s %s (max marking limit=%.02f)" %
+                 (t.path, distribution, test_results[t.path]))
+        for marking, compaction in distribution:
           fuzzing_flags = [
-            "--stress_incremental_marking_percentage", str(im),
+            "--stress_marking", str(marking),
             "--stress_compaction_percentage", str(compaction),
           ]
-          if options.random_seed:
+          if options.fuzzer_random_seed:
             fuzzing_flags += [
               '--fuzzer_random_seed', str(options.fuzzer_random_seed)
             ]
@@ -396,7 +401,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
 
   # Parses test stdout and returns what was the highest reached percent of the
   # incremental marking limit (0-100).
-  # Skips values above 100% since they already trigger incremental marking.
+  # Skips values >=100% since they already trigger incremental marking.
   @staticmethod
   def _get_max_limit_reached(test):
     def is_im_line(l):
