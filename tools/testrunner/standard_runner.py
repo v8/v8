@@ -385,6 +385,7 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         "byteorder": sys.byteorder,
         "dcheck_always_on": self.build_config.dcheck_always_on,
         "deopt_fuzzer": False,
+        "gc_fuzzer": False,
         "gc_stress": options.gc_stress,
         "gcov_coverage": self.build_config.gcov_coverage,
         "isolates": options.isolates,

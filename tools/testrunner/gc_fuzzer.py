@@ -361,6 +361,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
       "byteorder": sys.byteorder,
       "dcheck_always_on": self.build_config.dcheck_always_on,
       "deopt_fuzzer": False,
+      "gc_fuzzer": True,
       "gc_stress": False,
       "gcov_coverage": self.build_config.gcov_coverage,
       "isolates": options.isolates,
