@@ -664,7 +664,8 @@ class SourcePositionWrapper final : public Reducer {
 class JSGraphReducer final : public GraphReducer {
  public:
   JSGraphReducer(JSGraph* jsgraph, Zone* zone)
-      : GraphReducer(zone, jsgraph->graph(), jsgraph->Dead()) {}
+      : GraphReducer(zone, jsgraph->graph(),
+                     jsgraph->Dead(JSGraph::DeadCustomer::GraphReducer)) {}
   ~JSGraphReducer() final {}
 };
 

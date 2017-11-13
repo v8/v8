@@ -152,8 +152,26 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
   // dead accumulator.
   Node* SingleDeadTypedStateValues();
 
-  // Create a control node that serves as dependency for dead nodes.
-  Node* Dead();
+// Create a control node that serves as dependency for dead nodes.
+// TODO(mvstanton): We distinguish between different types of dead nodes
+// to track down bug chromium:780658. After fixing this bug, the
+// enum can be removed.
+#define CUSTOMER_LIST(V)   \
+  V(GraphBuilding)         \
+  V(TypeHint)              \
+  V(Inlining)              \
+  V(ContextSpecialization) \
+  V(EscapeAnalysis)        \
+  V(GraphReducer)          \
+  V(Unspecified)
+
+  enum DeadCustomer {
+#define DEFINE_DEAD_CUSTOMER_ENUM(name) name,
+    CUSTOMER_LIST(DEFINE_DEAD_CUSTOMER_ENUM)
+#undef DEFINE_DEAD_CUSTOMER_ENUM
+  };
+  Node* Dead(DeadCustomer which);
+  const char* WhichDeadNode(Node* node);
 
   CommonOperatorBuilder* common() const { return common_; }
   JSOperatorBuilder* javascript() const { return javascript_; }
@@ -195,8 +213,10 @@ class V8_EXPORT_PRIVATE JSGraph : public NON_EXPORTED_BASE(ZoneObject) {
     kNaNConstant,
     kEmptyStateValues,
     kSingleDeadTypedStateValues,
-    kDead,
-    kNumCachedNodes  // Must remain last.
+#define DEFINE_CACHED_DEAD_CUSTOMER_ENUM(name) kDead##name,
+    CUSTOMER_LIST(DEFINE_CACHED_DEAD_CUSTOMER_ENUM)
+#undef DEFINE_CACHED_DEAD_CUSTOMER_ENUM
+        kNumCachedNodes  // Must remain last.
   };
 
   Isolate* isolate_;

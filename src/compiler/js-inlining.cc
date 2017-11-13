@@ -179,7 +179,7 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
                        control_output);
     } else {
       ReplaceWithValue(exception_target, exception_target, exception_target,
-                       jsgraph()->Dead());
+                       jsgraph()->Dead(JSGraph::DeadCustomer::Inlining));
     }
   }
 
@@ -224,8 +224,9 @@ Reduction JSInliner::InlineCall(Node* call, Node* new_target, Node* context,
     ReplaceWithValue(call, value_output, effect_output, control_output);
     return Changed(value_output);
   } else {
-    ReplaceWithValue(call, jsgraph()->Dead(), jsgraph()->Dead(),
-                     jsgraph()->Dead());
+    ReplaceWithValue(call, jsgraph()->Dead(JSGraph::DeadCustomer::Inlining),
+                     jsgraph()->Dead(JSGraph::DeadCustomer::Inlining),
+                     jsgraph()->Dead(JSGraph::DeadCustomer::Inlining));
     return Changed(call);
   }
 }

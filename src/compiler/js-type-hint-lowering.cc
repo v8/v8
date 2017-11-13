@@ -428,7 +428,7 @@ Node* JSTypeHintLowering::TryBuildSoftDeopt(FeedbackNexus& nexus, Node* effect,
   if ((flags() & kBailoutOnUninitialized) && nexus.IsUninitialized()) {
     Node* deoptimize = jsgraph()->graph()->NewNode(
         jsgraph()->common()->Deoptimize(DeoptimizeKind::kSoft, reason),
-        jsgraph()->Dead(), effect, control);
+        jsgraph()->Dead(JSGraph::DeadCustomer::TypeHint), effect, control);
     Node* frame_state = NodeProperties::FindFrameStateBefore(deoptimize);
     deoptimize->ReplaceInput(0, frame_state);
     return deoptimize;

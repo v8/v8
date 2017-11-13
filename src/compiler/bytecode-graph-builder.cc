@@ -3191,7 +3191,7 @@ Node* BytecodeGraphBuilder::MakeNode(const Operator* op, int value_input_count,
       // The frame state will be inserted later. Here we misuse the {Dead} node
       // as a sentinel to be later overwritten with the real frame state by the
       // calls to {PrepareFrameState} within individual visitor methods.
-      *current_input++ = jsgraph()->Dead();
+      *current_input++ = jsgraph()->Dead(JSGraph::DeadCustomer::GraphBuilding);
     }
     if (has_effect) {
       *current_input++ = environment()->GetEffectDependency();
