@@ -163,6 +163,10 @@ void CodeAssembler::CallEpilogue() {
   }
 }
 
+bool CodeAssembler::Word32ShiftIsSafe() const {
+  return raw_assembler()->machine()->Word32ShiftIsSafe();
+}
+
 // static
 Handle<Code> CodeAssembler::GenerateCode(CodeAssemblerState* state) {
   DCHECK(!state->code_generated_);

@@ -1045,6 +1045,8 @@ class V8_EXPORT_PRIVATE CodeAssembler {
       const CodeAssemblerCallback& call_epilogue);
   void UnregisterCallGenerationCallbacks();
 
+  bool Word32ShiftIsSafe() const;
+
  private:
   RawMachineAssembler* raw_assembler() const;
 

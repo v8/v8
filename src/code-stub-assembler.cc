@@ -10144,14 +10144,20 @@ Node* CodeStubAssembler::BitwiseOp(Node* left32, Node* right32,
     case Operation::kBitwiseXor:
       return ChangeInt32ToTagged(Signed(Word32Xor(left32, right32)));
     case Operation::kShiftLeft:
-      return ChangeInt32ToTagged(
-          Signed(Word32Shl(left32, Word32And(right32, Int32Constant(0x1f)))));
+      if (!Word32ShiftIsSafe()) {
+        right32 = Word32And(right32, Int32Constant(0x1f));
+      }
+      return ChangeInt32ToTagged(Signed(Word32Shl(left32, right32)));
     case Operation::kShiftRight:
-      return ChangeInt32ToTagged(
-          Signed(Word32Sar(left32, Word32And(right32, Int32Constant(0x1f)))));
+      if (!Word32ShiftIsSafe()) {
+        right32 = Word32And(right32, Int32Constant(0x1f));
+      }
+      return ChangeInt32ToTagged(Signed(Word32Sar(left32, right32)));
     case Operation::kShiftRightLogical:
-      return ChangeUint32ToTagged(
-          Unsigned(Word32Shr(left32, Word32And(right32, Int32Constant(0x1f)))));
+      if (!Word32ShiftIsSafe()) {
+        right32 = Word32And(right32, Int32Constant(0x1f));
+      }
+      return ChangeUint32ToTagged(Unsigned(Word32Shr(left32, right32)));
     default:
       break;
   }
