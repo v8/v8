@@ -53,9 +53,7 @@ for (var i = 0; i < 1000; i++) {
 endTime = new Date();
 collatorTime = endTime.getTime() - startTime.getTime();
 
-// Difference is within 20%. collatorTime should be smaller,
-// but it can be noisy. Give an enough margin of error.
-assertTrue(collatorTime < cachedTime * 1.5);
+// Difference is within 20%.
+assertTrue(collatorTime < cachedTime);
 // Non-cached time is much slower, measured to 12.5 times.
 assertTrue(cachedTime < nonCachedTime);
-assertTrue(collatorTime < nonCachedTime);
