@@ -19,7 +19,7 @@
 namespace v8 {
 namespace internal {
 
-typedef TestWithContext OptimizingCompileDispatcherTest;
+typedef TestWithNativeContext OptimizingCompileDispatcherTest;
 
 namespace {
 
@@ -72,8 +72,8 @@ TEST_F(OptimizingCompileDispatcherTest, Construct) {
 }
 
 TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(test::RunJS(
-      isolate(), "function f() { function g() {}; return g;}; f();"));
+  Handle<JSFunction> fun =
+      RunJS<JSFunction>("function f() { function g() {}; return g;}; f();");
   BlockingCompilationJob* job = new BlockingCompilationJob(i_isolate(), fun);
 
   OptimizingCompileDispatcher dispatcher(i_isolate());

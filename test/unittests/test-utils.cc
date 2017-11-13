@@ -5,6 +5,8 @@
 #include "test/unittests/test-utils.h"
 
 #include "include/libplatform/libplatform.h"
+#include "include/v8.h"
+#include "src/api.h"
 #include "src/base/platform/time.h"
 #include "src/flags.h"
 #include "src/isolate.h"
@@ -50,31 +52,21 @@ void TestWithIsolate::TearDownTestCase() {
   Test::TearDownTestCase();
 }
 
+Local<Value> TestWithIsolate::RunJS(const char* source) {
+  Local<Script> script =
+      v8::Script::Compile(
+          isolate()->GetCurrentContext(),
+          v8::String::NewFromUtf8(isolate(), source, v8::NewStringType::kNormal)
+              .ToLocalChecked())
+          .ToLocalChecked();
+  return script->Run(isolate()->GetCurrentContext()).ToLocalChecked();
+}
 
 TestWithContext::TestWithContext()
     : context_(Context::New(isolate())), context_scope_(context_) {}
 
 
 TestWithContext::~TestWithContext() {}
-
-
-namespace base {
-namespace {
-
-inline int64_t GetRandomSeedFromFlag(int random_seed) {
-  return random_seed ? random_seed : TimeTicks::Now().ToInternalValue();
-}
-
-}  // namespace
-
-TestWithRandomNumberGenerator::TestWithRandomNumberGenerator()
-    : rng_(GetRandomSeedFromFlag(::v8::internal::FLAG_random_seed)) {}
-
-
-TestWithRandomNumberGenerator::~TestWithRandomNumberGenerator() {}
-
-}  // namespace base
-
 
 namespace internal {
 

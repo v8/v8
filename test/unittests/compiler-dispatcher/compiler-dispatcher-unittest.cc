@@ -62,18 +62,18 @@ class CompilerDispatcherTestFlags {
 
 SaveFlags* CompilerDispatcherTestFlags::save_flags_ = nullptr;
 
-class CompilerDispatcherTest : public TestWithContext {
+class CompilerDispatcherTest : public TestWithNativeContext {
  public:
   CompilerDispatcherTest() = default;
   ~CompilerDispatcherTest() override = default;
 
   static void SetUpTestCase() {
     CompilerDispatcherTestFlags::SetFlagsForTest();
-    TestWithContext::SetUpTestCase();
+    TestWithNativeContext ::SetUpTestCase();
   }
 
   static void TearDownTestCase() {
-    TestWithContext::TearDownTestCase();
+    TestWithNativeContext ::TearDownTestCase();
     CompilerDispatcherTestFlags::RestoreFlags();
   }
 
@@ -90,25 +90,6 @@ class CompilerDispatcherTest : public TestWithContext {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherTest);
-};
-
-class CompilerDispatcherTestWithoutContext : public v8::TestWithIsolate {
- public:
-  CompilerDispatcherTestWithoutContext() = default;
-  ~CompilerDispatcherTestWithoutContext() override = default;
-
-  static void SetUpTestCase() {
-    CompilerDispatcherTestFlags::SetFlagsForTest();
-    TestWithContext::SetUpTestCase();
-  }
-
-  static void TearDownTestCase() {
-    TestWithContext::TearDownTestCase();
-    CompilerDispatcherTestFlags::RestoreFlags();
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(CompilerDispatcherTestWithoutContext);
 };
 
 namespace {
@@ -311,8 +292,8 @@ TEST_F(CompilerDispatcherTest, IsEnqueued) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
+
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
@@ -329,8 +310,7 @@ TEST_F(CompilerDispatcherTest, FinishNow) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(shared->is_compiled());
@@ -358,7 +338,7 @@ TEST_F(CompilerDispatcherTest, FinishAllNow) {
     std::string script("function g() { function " + func_name +
                        "(x) { var a =  'x'; }; return " + func_name +
                        "; } g();");
-    f[i] = Handle<JSFunction>::cast(test::RunJS(isolate(), script.c_str()));
+    f[i] = RunJS<JSFunction>(script.c_str());
     shared[i] = Handle<SharedFunctionInfo>(f[i]->shared(), i_isolate());
     ASSERT_FALSE(shared[i]->is_compiled());
     ASSERT_TRUE(dispatcher.Enqueue(shared[i]));
@@ -378,8 +358,7 @@ TEST_F(CompilerDispatcherTest, IdleTask) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -399,8 +378,7 @@ TEST_F(CompilerDispatcherTest, IdleTaskSmallIdleTime) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -444,8 +422,7 @@ TEST_F(CompilerDispatcherTest, IdleTaskException) {
     script += "'x' + 'x' - ";
   }
   script += " 'x'; }; return " + func_name + "; } g();";
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script.c_str()));
+  Handle<JSFunction> f = RunJS<JSFunction>(script.c_str());
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -466,8 +443,7 @@ TEST_F(CompilerDispatcherTest, CompileOnBackgroundThread) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -510,8 +486,7 @@ TEST_F(CompilerDispatcherTest, FinishNowWithBackgroundTask) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -550,13 +525,11 @@ TEST_F(CompilerDispatcherTest, IdleTaskMultipleJobs) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script1[] = TEST_SCRIPT();
-  Handle<JSFunction> f1 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script1));
+  Handle<JSFunction> f1 = RunJS<JSFunction>(script1);
   Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
 
   const char script2[] = TEST_SCRIPT();
-  Handle<JSFunction> f2 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script2));
+  Handle<JSFunction> f2 = RunJS<JSFunction>(script2);
   Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -585,8 +558,7 @@ TEST_F(CompilerDispatcherTest, FinishNowException) {
     script += "'x' + 'x' - ";
   }
   script += " 'x'; }; return " + func_name + "; } g();";
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script.c_str()));
+  Handle<JSFunction> f = RunJS<JSFunction>(script.c_str());
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -608,8 +580,7 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllPendingBackgroundTask) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -651,13 +622,11 @@ TEST_F(CompilerDispatcherTest, AsyncAbortAllRunningBackgroundTask) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script1[] = TEST_SCRIPT();
-  Handle<JSFunction> f1 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script1));
+  Handle<JSFunction> f1 = RunJS<JSFunction>(script1);
   Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
 
   const char script2[] = TEST_SCRIPT();
-  Handle<JSFunction> f2 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script2));
+  Handle<JSFunction> f2 = RunJS<JSFunction>(script2);
   Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -733,8 +702,7 @@ TEST_F(CompilerDispatcherTest, FinishNowDuringAbortAll) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());
@@ -812,8 +780,7 @@ TEST_F(CompilerDispatcherTest, MemoryPressure) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   // Can't enqueue tasks under memory pressure.
@@ -860,8 +827,7 @@ TEST_F(CompilerDispatcherTest, MemoryPressureFromBackground) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_TRUE(dispatcher.Enqueue(shared));
@@ -892,8 +858,7 @@ TEST_F(CompilerDispatcherTest, EnqueueJob) {
   MockPlatform platform;
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
   std::unique_ptr<CompilerDispatcherJob> job(
       new UnoptimizedCompileJob(i_isolate(), dispatcher.tracer_.get(), shared,
@@ -912,8 +877,7 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStep) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
@@ -934,9 +898,8 @@ TEST_F(CompilerDispatcherTest, CompileLazyFinishesDispatcherJob) {
   // enqueued functions.
   CompilerDispatcher* dispatcher = i_isolate()->compiler_dispatcher();
 
-  const char source[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), source));
+  const char script[] = TEST_SCRIPT();
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(shared->is_compiled());
@@ -946,7 +909,7 @@ TEST_F(CompilerDispatcherTest, CompileLazyFinishesDispatcherJob) {
 
   // Now force the function to run and ensure CompileLazy finished and dequeues
   // it from the dispatcher.
-  test::RunJS(isolate(), "g()();");
+  RunJS("g()();");
   ASSERT_TRUE(shared->is_compiled());
   ASSERT_FALSE(dispatcher->IsEnqueued(shared));
 }
@@ -957,21 +920,19 @@ TEST_F(CompilerDispatcherTest, CompileLazy2FinishesDispatcherJob) {
   CompilerDispatcher* dispatcher = i_isolate()->compiler_dispatcher();
 
   const char source2[] = "function lazy2() { return 42; }; lazy2;";
-  Handle<JSFunction> lazy2 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), source2));
+  Handle<JSFunction> lazy2 = RunJS<JSFunction>(source2);
   Handle<SharedFunctionInfo> shared2(lazy2->shared(), i_isolate());
   ASSERT_FALSE(shared2->is_compiled());
 
   const char source1[] = "function lazy1() { return lazy2(); }; lazy1;";
-  Handle<JSFunction> lazy1 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), source1));
+  Handle<JSFunction> lazy1 = RunJS<JSFunction>(source1);
   Handle<SharedFunctionInfo> shared1(lazy1->shared(), i_isolate());
   ASSERT_FALSE(shared1->is_compiled());
 
   ASSERT_TRUE(dispatcher->Enqueue(shared1));
   ASSERT_TRUE(dispatcher->Enqueue(shared2));
 
-  test::RunJS(isolate(), "lazy1();");
+  RunJS("lazy1();");
   ASSERT_TRUE(shared1->is_compiled());
   ASSERT_TRUE(shared2->is_compiled());
   ASSERT_FALSE(dispatcher->IsEnqueued(shared1));
@@ -983,8 +944,7 @@ TEST_F(CompilerDispatcherTest, EnqueueAndStepTwice) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script[] = TEST_SCRIPT();
-  Handle<JSFunction> f =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script));
+  Handle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
@@ -1009,12 +969,10 @@ TEST_F(CompilerDispatcherTest, CompileMultipleOnBackgroundThread) {
   CompilerDispatcher dispatcher(i_isolate(), &platform, FLAG_stack_size);
 
   const char script1[] = TEST_SCRIPT();
-  Handle<JSFunction> f1 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script1));
+  Handle<JSFunction> f1 = RunJS<JSFunction>(script1);
   Handle<SharedFunctionInfo> shared1(f1->shared(), i_isolate());
   const char script2[] = TEST_SCRIPT();
-  Handle<JSFunction> f2 =
-      Handle<JSFunction>::cast(test::RunJS(isolate(), script2));
+  Handle<JSFunction> f2 = RunJS<JSFunction>(script2);
   Handle<SharedFunctionInfo> shared2(f2->shared(), i_isolate());
 
   ASSERT_FALSE(platform.IdleTaskPending());

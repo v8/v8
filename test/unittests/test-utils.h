@@ -8,8 +8,12 @@
 #include <vector>
 
 #include "include/v8.h"
+#include "src/api.h"
 #include "src/base/macros.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/handles.h"
+#include "src/objects-inl.h"
+#include "src/objects.h"
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 #include "testing/gtest-support.h"
@@ -18,7 +22,8 @@ namespace v8 {
 
 class ArrayBufferAllocator;
 
-
+// Use v8::internal::TestWithIsolate  if you are testing internals,
+// aka. directly work with Handles.
 class TestWithIsolate : public virtual ::testing::Test {
  public:
   TestWithIsolate();
@@ -29,6 +34,8 @@ class TestWithIsolate : public virtual ::testing::Test {
   v8::internal::Isolate* i_isolate() const {
     return reinterpret_cast<v8::internal::Isolate*>(isolate());
   }
+
+  Local<Value> RunJS(const char* source);
 
   static void SetUpTestCase();
   static void TearDownTestCase();
@@ -42,7 +49,8 @@ class TestWithIsolate : public virtual ::testing::Test {
   DISALLOW_COPY_AND_ASSIGN(TestWithIsolate);
 };
 
-
+// Use v8::internal::TestWithNativeContext if you are testing internals,
+// aka. directly work with Handles.
 class TestWithContext : public virtual TestWithIsolate {
  public:
   TestWithContext();
@@ -56,25 +64,6 @@ class TestWithContext : public virtual TestWithIsolate {
 
   DISALLOW_COPY_AND_ASSIGN(TestWithContext);
 };
-
-
-namespace base {
-
-class TestWithRandomNumberGenerator : public ::testing::Test {
- public:
-  TestWithRandomNumberGenerator();
-  virtual ~TestWithRandomNumberGenerator();
-
-  RandomNumberGenerator* rng() { return &rng_; }
-
- private:
-  RandomNumberGenerator rng_;
-
-  DISALLOW_COPY_AND_ASSIGN(TestWithRandomNumberGenerator);
-};
-
-}  // namespace base
-
 
 namespace internal {
 
@@ -90,6 +79,12 @@ class TestWithIsolate : public virtual ::v8::TestWithIsolate {
   Factory* factory() const;
   Isolate* isolate() const {
     return reinterpret_cast<Isolate*>(::v8::TestWithIsolate::isolate());
+  }
+  template <typename T = Object>
+  Handle<T> RunJS(const char* source) {
+    Handle<Object> result =
+        Utils::OpenHandle(*::v8::TestWithIsolate::RunJS(source));
+    return Handle<T>::cast(result);
   }
   base::RandomNumberGenerator* random_number_generator() const;
 
