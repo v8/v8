@@ -1802,6 +1802,8 @@ class Heap {
   inline void UpdateAllocationsHash(uint32_t value);
   void PrintAllocationsHash();
 
+  int NextStressMarkingLimit();
+
   void AddToRingBuffer(const char* string);
   void GetFromRingBuffer(char* buffer);
 
@@ -2292,6 +2294,10 @@ class Heap {
 
   // Running hash over allocations performed.
   uint32_t raw_allocations_hash_;
+
+  // Starts marking when stress_marking_percentage_% of the marking start limit
+  // is reached.
+  int stress_marking_percentage_;
 
   // How many mark-sweep collections happened.
   unsigned int ms_count_;

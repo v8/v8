@@ -5346,7 +5346,7 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
     return IncrementalMarkingLimit::kHardLimit;
   }
 
-  if (FLAG_stress_incremental_marking_percentage > 0) {
+  if (FLAG_stress_marking > 0) {
     double gained_since_last_gc =
         PromotedSinceLastGC() +
         (external_memory_ - external_memory_at_last_mark_compact_);
@@ -5361,8 +5361,8 @@ Heap::IncrementalMarkingLimit Heap::IncrementalMarkingLimitReached() {
             current_percent);
       }
 
-      if (static_cast<int>(current_percent) >=
-          FLAG_stress_incremental_marking_percentage) {
+      if (static_cast<int>(current_percent) >= stress_marking_percentage_) {
+        stress_marking_percentage_ = NextStressMarkingLimit();
         return IncrementalMarkingLimit::kHardLimit;
       }
     }
@@ -5514,6 +5514,10 @@ bool Heap::SetUp() {
   SetGetExternallyAllocatedMemoryInBytesCallback(
       DefaultGetExternallyAllocatedMemoryInBytesCallback);
 
+  if (FLAG_stress_marking > 0) {
+    stress_marking_percentage_ = NextStressMarkingLimit();
+  }
+
   return true;
 }
 
@@ -5550,6 +5554,9 @@ void Heap::PrintAllocationsHash() {
   PrintF("\n### Allocations = %u, hash = 0x%08x\n", allocations_count(), hash);
 }
 
+int Heap::NextStressMarkingLimit() {
+  return isolate()->fuzzer_rng()->NextInt(FLAG_stress_marking + 1);
+}
 
 void Heap::NotifyDeserializationComplete() {
   PagedSpaces spaces(this);
