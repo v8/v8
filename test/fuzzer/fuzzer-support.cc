@@ -32,8 +32,8 @@ FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
   v8::V8::SetFlagsFromCommandLine(argc, *argv, true);
   v8::V8::InitializeICUDefaultLocation((*argv)[0]);
   v8::V8::InitializeExternalStartupData((*argv)[0]);
-  platform_ = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform_);
+  platform_ = v8::platform::NewDefaultPlatform();
+  v8::V8::InitializePlatform(platform_.get());
   v8::V8::Initialize();
 
   allocator_ = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
@@ -47,7 +47,7 @@ FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
     context_.Reset(isolate_, v8::Context::New(isolate_));
   }
 
-  v8::platform::EnsureEventLoopInitialized(platform_, isolate_);
+  v8::platform::EnsureEventLoopInitialized(platform_.get(), isolate_);
 }
 
 FuzzerSupport::~FuzzerSupport() {
@@ -70,9 +70,6 @@ FuzzerSupport::~FuzzerSupport() {
 
   v8::V8::Dispose();
   v8::V8::ShutdownPlatform();
-
-  delete platform_;
-  platform_ = nullptr;
 }
 
 // static
@@ -90,7 +87,7 @@ v8::Local<v8::Context> FuzzerSupport::GetContext() {
 
 bool FuzzerSupport::PumpMessageLoop(
     v8::platform::MessageLoopBehavior behavior) {
-  return v8::platform::PumpMessageLoop(platform_, isolate_, behavior);
+  return v8::platform::PumpMessageLoop(platform_.get(), isolate_, behavior);
 }
 
 }  // namespace v8_fuzzer

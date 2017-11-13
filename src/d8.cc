@@ -252,12 +252,12 @@ class PredictablePlatform : public Platform {
   DISALLOW_COPY_AND_ASSIGN(PredictablePlatform);
 };
 
-v8::Platform* g_platform = nullptr;
+std::unique_ptr<v8::Platform> g_platform;
 
 v8::Platform* GetDefaultPlatform() {
   return i::FLAG_verify_predictable
-             ? static_cast<PredictablePlatform*>(g_platform)->platform()
-             : g_platform;
+             ? static_cast<PredictablePlatform*>(g_platform.get())->platform()
+             : g_platform.get();
 }
 
 static Local<Value> Throw(Isolate* isolate, const char* message) {
@@ -3210,25 +3210,26 @@ int Shell::Main(int argc, char* argv[]) {
           ? v8::platform::InProcessStackDumping::kDisabled
           : v8::platform::InProcessStackDumping::kEnabled;
 
-  platform::tracing::TracingController* tracing_controller = nullptr;
+  std::unique_ptr<platform::tracing::TracingController> tracing;
   if (options.trace_enabled && !i::FLAG_verify_predictable) {
+    tracing = base::make_unique<platform::tracing::TracingController>();
     trace_file.open("v8_trace.json");
-    tracing_controller = new platform::tracing::TracingController();
     platform::tracing::TraceBuffer* trace_buffer =
         platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
             platform::tracing::TraceBuffer::kRingBufferChunks,
             platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
-    tracing_controller->Initialize(trace_buffer);
+    tracing->Initialize(trace_buffer);
   }
 
-  g_platform = v8::platform::CreateDefaultPlatform(
+  platform::tracing::TracingController* tracing_controller = tracing.get();
+  g_platform = v8::platform::NewDefaultPlatform(
       0, v8::platform::IdleTaskSupport::kEnabled, in_process_stack_dumping,
-      tracing_controller);
+      std::move(tracing));
   if (i::FLAG_verify_predictable) {
-    g_platform = new PredictablePlatform(std::unique_ptr<Platform>(g_platform));
+    g_platform.reset(new PredictablePlatform(std::move(g_platform)));
   }
 
-  v8::V8::InitializePlatform(g_platform);
+  v8::V8::InitializePlatform(g_platform.get());
   v8::V8::Initialize();
   if (options.natives_blob || options.snapshot_blob) {
     v8::V8::InitializeExternalStartupData(options.natives_blob,
@@ -3343,7 +3344,6 @@ int Shell::Main(int argc, char* argv[]) {
   OnExit(isolate);
   V8::Dispose();
   V8::ShutdownPlatform();
-  delete g_platform;
 
   return result;
 }

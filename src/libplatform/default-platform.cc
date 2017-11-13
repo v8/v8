@@ -29,18 +29,28 @@ void PrintStackTrace() {
 
 }  // namespace
 
+std::unique_ptr<v8::Platform> NewDefaultPlatform(
+    int thread_pool_size, IdleTaskSupport idle_task_support,
+    InProcessStackDumping in_process_stack_dumping,
+    std::unique_ptr<v8::TracingController> tracing_controller) {
+  if (in_process_stack_dumping == InProcessStackDumping::kEnabled) {
+    v8::base::debug::EnableInProcessStackDumping();
+  }
+  std::unique_ptr<DefaultPlatform> platform(
+      new DefaultPlatform(idle_task_support, std::move(tracing_controller)));
+  platform->SetThreadPoolSize(thread_pool_size);
+  platform->EnsureInitialized();
+  return std::move(platform);
+}
+
 v8::Platform* CreateDefaultPlatform(
     int thread_pool_size, IdleTaskSupport idle_task_support,
     InProcessStackDumping in_process_stack_dumping,
     v8::TracingController* tracing_controller) {
-  if (in_process_stack_dumping == InProcessStackDumping::kEnabled) {
-    v8::base::debug::EnableInProcessStackDumping();
-  }
-  DefaultPlatform* platform =
-      new DefaultPlatform(idle_task_support, tracing_controller);
-  platform->SetThreadPoolSize(thread_pool_size);
-  platform->EnsureInitialized();
-  return platform;
+  return NewDefaultPlatform(
+             thread_pool_size, idle_task_support, in_process_stack_dumping,
+             std::unique_ptr<v8::TracingController>(tracing_controller))
+      .release();
 }
 
 bool PumpMessageLoop(v8::Platform* platform, v8::Isolate* isolate,
@@ -64,19 +74,19 @@ void SetTracingController(
     v8::Platform* platform,
     v8::platform::tracing::TracingController* tracing_controller) {
   static_cast<DefaultPlatform*>(platform)->SetTracingController(
-      tracing_controller);
+      std::unique_ptr<v8::TracingController>(tracing_controller));
 }
 
 const int DefaultPlatform::kMaxThreadPoolSize = 8;
 
-DefaultPlatform::DefaultPlatform(IdleTaskSupport idle_task_support,
-                                 v8::TracingController* tracing_controller)
+DefaultPlatform::DefaultPlatform(
+    IdleTaskSupport idle_task_support,
+    std::unique_ptr<v8::TracingController> tracing_controller)
     : initialized_(false),
       thread_pool_size_(0),
-      idle_task_support_(idle_task_support) {
-  if (tracing_controller) {
-    tracing_controller_.reset(tracing_controller);
-  } else {
+      idle_task_support_(idle_task_support),
+      tracing_controller_(std::move(tracing_controller)) {
+  if (!tracing_controller_) {
     tracing::TracingController* controller = new tracing::TracingController();
     controller->Initialize(nullptr);
     tracing_controller_.reset(controller);
@@ -287,9 +297,9 @@ TracingController* DefaultPlatform::GetTracingController() {
 }
 
 void DefaultPlatform::SetTracingController(
-    v8::TracingController* tracing_controller) {
-  DCHECK_NOT_NULL(tracing_controller);
-  tracing_controller_.reset(tracing_controller);
+    std::unique_ptr<v8::TracingController> tracing_controller) {
+  DCHECK_NOT_NULL(tracing_controller.get());
+  tracing_controller_ = std::move(tracing_controller);
 }
 
 size_t DefaultPlatform::NumberOfAvailableBackgroundThreads() {

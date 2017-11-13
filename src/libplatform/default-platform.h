@@ -31,7 +31,7 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
  public:
   explicit DefaultPlatform(
       IdleTaskSupport idle_task_support = IdleTaskSupport::kDisabled,
-      v8::TracingController* tracing_controller = nullptr);
+      std::unique_ptr<v8::TracingController> tracing_controller = {nullptr});
   virtual ~DefaultPlatform();
 
   void SetThreadPoolSize(int thread_pool_size);
@@ -45,7 +45,8 @@ class V8_PLATFORM_EXPORT DefaultPlatform : public NON_EXPORTED_BASE(Platform) {
 
   void RunIdleTasks(v8::Isolate* isolate, double idle_time_in_seconds);
 
-  void SetTracingController(v8::TracingController* tracing_controller);
+  void SetTracingController(
+      std::unique_ptr<v8::TracingController> tracing_controller);
 
   // v8::Platform implementation.
   size_t NumberOfAvailableBackgroundThreads() override;

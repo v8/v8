@@ -2131,17 +2131,19 @@ class CpuProfileEventChecker : public v8::platform::tracing::TraceWriter {
 
 TEST(TracingCpuProfiler) {
   v8::Platform* old_platform = i::V8::GetCurrentPlatform();
-  v8::Platform* default_platform = v8::platform::CreateDefaultPlatform();
-  i::V8::SetPlatformForTesting(default_platform);
+  std::unique_ptr<v8::Platform> default_platform =
+      v8::platform::NewDefaultPlatform();
+  i::V8::SetPlatformForTesting(default_platform.get());
 
-  v8::platform::tracing::TracingController tracing_controller;
-  static_cast<v8::platform::DefaultPlatform*>(default_platform)
-      ->SetTracingController(&tracing_controller);
+  auto tracing = base::make_unique<v8::platform::tracing::TracingController>();
+  v8::platform::tracing::TracingController* tracing_controller = tracing.get();
+  static_cast<v8::platform::DefaultPlatform*>(default_platform.get())
+      ->SetTracingController(std::move(tracing));
 
   CpuProfileEventChecker* event_checker = new CpuProfileEventChecker();
   TraceBuffer* ring_buffer =
       TraceBuffer::CreateTraceBufferRingBuffer(1, event_checker);
-  tracing_controller.Initialize(ring_buffer);
+  tracing_controller->Initialize(ring_buffer);
   TraceConfig* trace_config = new TraceConfig();
   trace_config->AddIncludedCategory(
       TRACE_DISABLED_BY_DEFAULT("v8.cpu_profiler"));
@@ -2149,10 +2151,10 @@ TEST(TracingCpuProfiler) {
   LocalContext env;
   v8::HandleScope scope(env->GetIsolate());
   {
-    tracing_controller.StartTracing(trace_config);
+    tracing_controller->StartTracing(trace_config);
     auto profiler = v8::TracingCpuProfiler::Create(env->GetIsolate());
     CompileRun("function foo() { } foo();");
-    tracing_controller.StopTracing();
+    tracing_controller->StopTracing();
     CompileRun("function bar() { } bar();");
   }
 

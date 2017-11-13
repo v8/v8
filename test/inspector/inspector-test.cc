@@ -869,8 +869,8 @@ class InspectorExtension : public IsolateData::SetupGlobalTask {
 
 int main(int argc, char* argv[]) {
   v8::V8::InitializeICUDefaultLocation(argv[0]);
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
+  std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
+  v8::V8::InitializePlatform(platform.get());
   v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::InitializeExternalStartupData(argv[0]);
   v8::V8::Initialize();

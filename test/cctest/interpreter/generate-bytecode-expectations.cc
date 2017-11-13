@@ -301,7 +301,7 @@ void ProgramOptions::PrintHeader(std::ostream& stream) const {  // NOLINT
 }
 
 V8InitializationScope::V8InitializationScope(const char* exec_path)
-    : platform_(v8::platform::CreateDefaultPlatform()) {
+    : platform_(v8::platform::NewDefaultPlatform()) {
   i::FLAG_always_opt = false;
   i::FLAG_allow_natives_syntax = true;
 

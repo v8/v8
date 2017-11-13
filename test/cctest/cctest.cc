@@ -263,8 +263,8 @@ int main(int argc, char* argv[]) {
   }
 
   v8::V8::InitializeICUDefaultLocation(argv[0]);
-  v8::Platform* platform = v8::platform::CreateDefaultPlatform();
-  v8::V8::InitializePlatform(platform);
+  std::unique_ptr<v8::Platform> platform(v8::platform::NewDefaultPlatform());
+  v8::V8::InitializePlatform(platform.get());
   v8::internal::FlagList::SetFlagsFromCommandLine(&argc, argv, true);
   v8::V8::Initialize();
   v8::V8::InitializeExternalStartupData(argv[0]);
@@ -334,7 +334,6 @@ int main(int argc, char* argv[]) {
   // TODO(svenpanne) See comment above.
   // if (!disable_automatic_dispose_) v8::V8::Dispose();
   v8::V8::ShutdownPlatform();
-  delete platform;
   return 0;
 }
 
