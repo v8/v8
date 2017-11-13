@@ -495,8 +495,6 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<BigInt> NewBigIntFromSafeInteger(
       double value, PretenureFlag pretenure = NOT_TENURED);
 
-  Handle<JSWeakMap> NewJSWeakMap();
-
   Handle<JSObject> NewArgumentsObject(Handle<JSFunction> callee, int length);
 
   // JS objects are pretenured when allocated by the bootstrapper and

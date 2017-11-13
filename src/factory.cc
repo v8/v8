@@ -2828,15 +2828,6 @@ Handle<JSObject> Factory::NewArgumentsObject(Handle<JSFunction> callee,
   return result;
 }
 
-
-Handle<JSWeakMap> Factory::NewJSWeakMap() {
-  // TODO(adamk): Currently the map is only created three times per
-  // isolate. If it's created more often, the map should be moved into the
-  // strong root list.
-  Handle<Map> map = NewMap(JS_WEAK_MAP_TYPE, JSWeakMap::kSize);
-  return Handle<JSWeakMap>::cast(NewJSObjectFromMap(map));
-}
-
 Handle<Map> Factory::ObjectLiteralMapFromCache(Handle<Context> native_context,
                                                int number_of_properties) {
   DCHECK(native_context->IsNativeContext());

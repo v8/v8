@@ -2087,20 +2087,6 @@ class V8_EXPORT ValueDeserializer {
   PrivateData* private_;
 };
 
-/**
- * A map whose keys are referenced weakly. It is similar to JavaScript WeakMap
- * but can be created without entering a v8::Context and hence shouldn't
- * escape to JavaScript.
- */
-class V8_EXPORT NativeWeakMap : public Data {
- public:
-  static Local<NativeWeakMap> New(Isolate* isolate);
-  void Set(Local<Value> key, Local<Value> value);
-  Local<Value> Get(Local<Value> key) const;
-  bool Has(Local<Value> key);
-  bool Delete(Local<Value> key);
-};
-
 
 // --- Value ---
 
