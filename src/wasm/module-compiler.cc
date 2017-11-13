@@ -1674,14 +1674,16 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
             // If this code object has deoptimization data, then we need a
             // unique copy to attach updated deoptimization data.
             if (orig_code->deoptimization_data()->length() > 0) {
-              // TODO(6792): No longer needed once WebAssembly code is off heap.
-              CodeSpaceMemoryModificationScope modification_scope(
-                  isolate_->heap());
               Handle<Code> code = factory->CopyCode(orig_code);
               Handle<FixedArray> deopt_data =
                   factory->NewFixedArray(2, TENURED);
               deopt_data->set(1, Smi::FromInt(i));
-              code->set_deoptimization_data(*deopt_data);
+              // TODO(6792): No longer needed once WebAssembly code is off heap.
+              {
+                CodeSpaceMemoryModificationScope modification_scope(
+                    isolate_->heap());
+                code->set_deoptimization_data(*deopt_data);
+              }
               code_table->set(i, *code);
             }
             break;
@@ -1859,11 +1861,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
        i < num_functions; ++i) {
     Handle<Code> code = handle(Code::cast(code_table->get(i)), isolate_);
     if (code->kind() == Code::WASM_FUNCTION) {
-      // TODO(6792): No longer needed once WebAssembly code is off heap.
-      CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
       Handle<FixedArray> deopt_data = factory->NewFixedArray(2, TENURED);
       deopt_data->set(0, *weak_link);
       deopt_data->set(1, Smi::FromInt(i));
+      // TODO(6792): No longer needed once WebAssembly code is off heap.
+      CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
       code->set_deoptimization_data(*deopt_data);
       continue;
     }
