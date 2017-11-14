@@ -14,14 +14,13 @@ namespace internal {
 
 #define __ masm.
 
-
 UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
-  size_t actual_size;
-  // Allocate buffer in executable space.
-  byte* buffer = static_cast<byte*>(base::OS::Allocate(
-      1 * KB, &actual_size, base::OS::MemoryPermission::kReadWriteExecute));
+  size_t allocated = 0;
+  byte* buffer =
+      AllocateSystemPage(isolate->heap()->GetRandomMmapAddr(), &allocated);
   if (buffer == nullptr) return nullptr;
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+
+  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       CodeObjectRequired::kNo);
   // esp[1 * kPointerSize]: raw double input
   // esp[0 * kPointerSize]: return address
@@ -39,8 +38,8 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   masm.GetCode(isolate, &desc);
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
-  Assembler::FlushICache(isolate, buffer, actual_size);
-  base::OS::SetReadAndExecutable(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, allocated);
+  base::OS::SetReadAndExecutable(buffer, allocated);
   return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 }
 
@@ -132,12 +131,12 @@ class LabelConverter {
 
 
 MemMoveFunction CreateMemMoveFunction(Isolate* isolate) {
-  size_t actual_size;
-  // Allocate buffer in executable space.
-  byte* buffer = static_cast<byte*>(base::OS::Allocate(
-      1 * KB, &actual_size, base::OS::MemoryPermission::kReadWriteExecute));
+  size_t allocated = 0;
+  byte* buffer =
+      AllocateSystemPage(isolate->heap()->GetRandomMmapAddr(), &allocated);
   if (buffer == nullptr) return nullptr;
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+
+  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       CodeObjectRequired::kNo);
   LabelConverter conv(buffer);
 
@@ -451,8 +450,8 @@ MemMoveFunction CreateMemMoveFunction(Isolate* isolate) {
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
-  Assembler::FlushICache(isolate, buffer, actual_size);
-  base::OS::SetReadAndExecutable(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, allocated);
+  base::OS::SetReadAndExecutable(buffer, allocated);
   // TODO(jkummerow): It would be nice to register this code creation event
   // with the PROFILE / GDBJIT system.
   return FUNCTION_CAST<MemMoveFunction>(buffer);

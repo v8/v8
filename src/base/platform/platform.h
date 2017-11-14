@@ -172,12 +172,14 @@ class V8_BASE_EXPORT OS {
   static void* GetRandomMmapAddr();
 
   // Allocates memory. Permissions are set according to the access argument.
-  // Returns the address of the allocated memory, or nullptr on failure.
-  static void* Allocate(const size_t requested, size_t* allocated,
-                        MemoryPermission access, void* hint = nullptr);
+  // The address parameter is a hint. The size and alignment parameters must be
+  // multiples of AllocatePageSize(). Returns the address of the allocated
+  // memory, with the specified size and alignment, or nullptr on failure.
+  static void* Allocate(void* address, size_t size, size_t alignment,
+                        MemoryPermission access);
 
   // Frees memory allocated by a call to Allocate.
-  static void Free(void* address, const size_t size);
+  static bool Free(void* address, const size_t size);
 
   // Mark a region of memory executable and readable but not writable.
   static void SetReadAndExecutable(void* address, const size_t size);
@@ -192,16 +194,9 @@ class V8_BASE_EXPORT OS {
   // function. This is only a temporary function and will go away soon.
   static void SetReadWriteAndExecutable(void* address, const size_t size);
 
-  static void* ReserveRegion(size_t size, void* hint);
-
-  static void* ReserveAlignedRegion(size_t size, size_t alignment, void* hint,
-                                    size_t* allocated);
-
   static bool CommitRegion(void* address, size_t size, bool is_executable);
 
   static bool UncommitRegion(void* address, size_t size);
-
-  static bool ReleaseRegion(void* address, size_t size);
 
   // Release part of a reserved address range.
   static bool ReleasePartialRegion(void* address, size_t size);

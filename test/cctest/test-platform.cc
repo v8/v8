@@ -12,19 +12,41 @@ using OS = v8::base::OS;
 namespace v8 {
 namespace internal {
 
-TEST(OSReserveMemory) {
-  size_t mem_size = 0;
-  void* mem_addr = OS::ReserveAlignedRegion(1 * MB, OS::AllocatePageSize(),
-                                            OS::GetRandomMmapAddr(), &mem_size);
-  CHECK_NE(0, mem_size);
+TEST(OSAllocateAndFree) {
+  size_t page_size = OS::AllocatePageSize();
+  CHECK_NE(0, page_size);
+
+  // A large allocation, aligned at native allocation granularity.
+  const size_t kAllocationSize = 1 * MB;
+  void* mem_addr = OS::Allocate(OS::GetRandomMmapAddr(), kAllocationSize,
+                                page_size, OS::MemoryPermission::kReadWrite);
   CHECK_NOT_NULL(mem_addr);
-  size_t block_size = 4 * KB;
-  CHECK(OS::CommitRegion(mem_addr, block_size, false));
+  CHECK(OS::Free(mem_addr, kAllocationSize));
+
+  // A large allocation, aligned significantly beyond native granularity.
+  const size_t kBigAlignment = 64 * MB;
+  void* aligned_mem_addr =
+      OS::Allocate(OS::GetRandomMmapAddr(), kAllocationSize, kBigAlignment,
+                   OS::MemoryPermission::kReadWrite);
+  CHECK_NOT_NULL(aligned_mem_addr);
+  CHECK_EQ(aligned_mem_addr, AlignedAddress(aligned_mem_addr, kBigAlignment));
+  CHECK(OS::Free(aligned_mem_addr, kAllocationSize));
+}
+
+TEST(OSReserveMemory) {
+  size_t page_size = OS::AllocatePageSize();
+  const size_t kAllocationSize = 1 * MB;
+  void* mem_addr = OS::Allocate(OS::GetRandomMmapAddr(), kAllocationSize,
+                                page_size, OS::MemoryPermission::kReadWrite);
+  CHECK_NE(0, page_size);
+  CHECK_NOT_NULL(mem_addr);
+  size_t commit_size = OS::CommitPageSize();
+  CHECK(OS::CommitRegion(mem_addr, commit_size, false));
   // Check whether we can write to memory.
   int* addr = static_cast<int*>(mem_addr);
   addr[KB - 1] = 2;
-  CHECK(OS::UncommitRegion(mem_addr, block_size));
-  OS::ReleaseRegion(mem_addr, mem_size);
+  CHECK(OS::UncommitRegion(mem_addr, commit_size));
+  CHECK(OS::Free(mem_addr, kAllocationSize));
 }
 
 #ifdef V8_CC_GNU

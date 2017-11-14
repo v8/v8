@@ -13,17 +13,15 @@ namespace internal {
 
 #define __ masm.
 
-
 UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
-  size_t actual_size;
-  // Allocate buffer in executable space.
-  byte* buffer = static_cast<byte*>(base::OS::Allocate(
-      1 * KB, &actual_size, base::OS::MemoryPermission::kReadWriteExecute,
-      isolate->heap()->GetRandomMmapAddr()));
+  size_t allocated = 0;
+  byte* buffer =
+      AllocateSystemPage(isolate->heap()->GetRandomMmapAddr(), &allocated);
   if (buffer == nullptr) return nullptr;
 
-  MacroAssembler masm(isolate, buffer, static_cast<int>(actual_size),
+  MacroAssembler masm(isolate, buffer, static_cast<int>(allocated),
                       CodeObjectRequired::kNo);
+
   // xmm0: raw double input.
   // Move double input into registers.
   __ Sqrtsd(xmm0, xmm0);
@@ -33,8 +31,8 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   masm.GetCode(isolate, &desc);
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
-  Assembler::FlushICache(isolate, buffer, actual_size);
-  base::OS::SetReadAndExecutable(buffer, actual_size);
+  Assembler::FlushICache(isolate, buffer, allocated);
+  base::OS::SetReadAndExecutable(buffer, allocated);
   return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 }
 
