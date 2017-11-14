@@ -6,6 +6,7 @@
 #define V8_INSPECTOR_V8DEBUGGER_H_
 
 #include <list>
+#include <unordered_map>
 #include <vector>
 
 #include "src/base/macros.h"
@@ -196,7 +197,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
   // V8Debugger owns all the async stacks, while most of the other references
   // are weak, which allows to collect some stacks when there are too many.
   std::list<std::shared_ptr<AsyncStackTrace>> m_allAsyncStacks;
-  std::map<int, std::weak_ptr<StackFrame>> m_framesCache;
+  std::unordered_map<int, std::weak_ptr<StackFrame>> m_framesCache;
 
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
   void* m_taskWithScheduledBreak = nullptr;
