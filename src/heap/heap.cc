@@ -867,6 +867,19 @@ void Heap::ProcessPretenuringFeedback() {
   }
 }
 
+void Heap::InvalidateCodeEmbeddedObjects(Code* code) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(code->address());
+  CodePageMemoryModificationScope modification_scope(
+      chunk, CodePageMemoryModificationScope::READ_WRITE);
+  code->InvalidateEmbeddedObjects();
+}
+
+void Heap::InvalidateCodeDeoptimizationData(Code* code) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(code->address());
+  CodePageMemoryModificationScope modification_scope(
+      chunk, CodePageMemoryModificationScope::READ_WRITE);
+  code->set_deoptimization_data(empty_fixed_array());
+}
 
 void Heap::DeoptMarkedAllocationSites() {
   // TODO(hpayer): If iterating over the allocation sites list becomes a
