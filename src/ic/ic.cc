@@ -711,7 +711,8 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
   if (receiver->IsString() &&
       *lookup->name() == isolate()->heap()->length_string()) {
     TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
-    FieldIndex index = FieldIndex::ForInObjectOffset(String::kLengthOffset);
+    FieldIndex index = FieldIndex::ForInObjectOffset(String::kLengthOffset,
+                                                     FieldIndex::kTagged);
     return LoadHandler::LoadField(isolate(), index);
   }
 
@@ -768,11 +769,9 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
       // Use simple field loads for some well-known callback properties.
       // The method will only return true for absolute truths based on the
       // receiver maps.
-      int object_offset;
-      if (Accessors::IsJSObjectFieldAccessor(map, lookup->name(),
-                                             &object_offset)) {
+      FieldIndex index;
+      if (Accessors::IsJSObjectFieldAccessor(map, lookup->name(), &index)) {
         TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
-        FieldIndex index = FieldIndex::ForInObjectOffset(object_offset, *map);
         return LoadHandler::LoadField(isolate(), index);
       }
       if (holder->IsJSModuleNamespace()) {

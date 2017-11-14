@@ -17,6 +17,7 @@ namespace internal {
 class AccessorInfo;
 template <typename T>
 class Handle;
+class FieldIndex;
 
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.
@@ -81,9 +82,9 @@ class Accessors : public AllStatic {
   static Handle<JSObject> FunctionGetArguments(Handle<JSFunction> object);
 
   // Returns true for properties that are accessors to object fields.
-  // If true, *object_offset contains offset of object field.
+  // If true, the matching FieldIndex is returned through |field_index|.
   static bool IsJSObjectFieldAccessor(Handle<Map> map, Handle<Name> name,
-                                      int* object_offset);
+                                      FieldIndex* field_index);
 
   // Create an AccessorInfo. The setter is optional (can be nullptr).
   //

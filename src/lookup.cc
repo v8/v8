@@ -778,11 +778,7 @@ FieldIndex LookupIterator::GetFieldIndex() const {
   DCHECK(holder_->HasFastProperties());
   DCHECK_EQ(kField, property_details_.location());
   DCHECK(!IsElement());
-  Map* holder_map = holder_->map();
-  int index =
-      holder_map->instance_descriptors()->GetFieldIndex(descriptor_number());
-  bool is_double = representation().IsDouble();
-  return FieldIndex::ForPropertyIndex(holder_map, index, is_double);
+  return FieldIndex::ForDescriptor(holder_->map(), descriptor_number());
 }
 
 Handle<FieldType> LookupIterator::GetFieldType() const {
