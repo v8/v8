@@ -2216,8 +2216,8 @@ class Heap {
   MUST_USE_RESULT AllocationResult
       AllocateForeign(Address address, PretenureFlag pretenure = NOT_TENURED);
 
-  MUST_USE_RESULT AllocationResult
-      AllocateCode(int object_size, bool immovable);
+  MUST_USE_RESULT AllocationResult AllocateCode(int object_size,
+                                                Movability movability);
 
   void set_force_oom(bool value) { force_oom_ = value; }
 

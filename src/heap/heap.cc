@@ -3066,14 +3066,13 @@ AllocationResult Heap::AllocateFixedTypedArray(int length,
   return elements;
 }
 
-
-AllocationResult Heap::AllocateCode(int object_size, bool immovable) {
+AllocationResult Heap::AllocateCode(int object_size, Movability movability) {
   DCHECK(IsAligned(static_cast<intptr_t>(object_size), kCodeAlignment));
   AllocationResult allocation = AllocateRaw(object_size, CODE_SPACE);
 
   HeapObject* result = nullptr;
   if (!allocation.To(&result)) return allocation;
-  if (immovable) {
+  if (movability == kImmovable) {
     Address address = result->address();
     MemoryChunk* chunk = MemoryChunk::FromAddress(address);
     // Code objects which should stay at a fixed address are allocated either

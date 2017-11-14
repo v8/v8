@@ -194,7 +194,7 @@ class CodeStub : public ZoneObject {
 
   // Returns whether the code generated for this stub needs to be allocated as
   // a fixed (non-moveable) code object.
-  virtual bool NeedsImmovableCode() { return false; }
+  virtual Movability NeedsImmovableCode() { return kMovable; }
 
   virtual void PrintName(std::ostream& os) const;        // NOLINT
   virtual void PrintBaseName(std::ostream& os) const;    // NOLINT
@@ -693,7 +693,7 @@ class CEntryStub : public PlatformCodeStub {
   bool is_builtin_exit() const { return FrameTypeBits::decode(minor_key_); }
   int result_size() const { return ResultSizeBits::decode(minor_key_); }
 
-  bool NeedsImmovableCode() override;
+  Movability NeedsImmovableCode() override;
 
   class SaveDoublesBits : public BitField<bool, 0, 1> {};
   class ArgvMode : public BitField<bool, 1, 1> {};

@@ -1792,9 +1792,9 @@ Handle<CodeDataContainer> Factory::NewCodeDataContainer(int flags) {
   return data_container;
 }
 
-Handle<Code> Factory::NewCodeRaw(int object_size, bool immovable) {
+Handle<Code> Factory::NewCodeRaw(int object_size, Movability movability) {
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateCode(object_size, immovable),
+                     isolate()->heap()->AllocateCode(object_size, movability),
                      Code);
 }
 
@@ -1802,7 +1802,7 @@ Handle<Code> Factory::NewCode(
     const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
     MaybeHandle<HandlerTable> maybe_handler_table,
     MaybeHandle<ByteArray> maybe_source_position_table,
-    MaybeHandle<DeoptimizationData> maybe_deopt_data, bool immovable,
+    MaybeHandle<DeoptimizationData> maybe_deopt_data, Movability movability,
     uint32_t stub_key, bool is_turbofanned, int stack_slots,
     int safepoint_table_offset) {
   Handle<ByteArray> reloc_info = NewByteArray(desc.reloc_size, TENURED);
@@ -1833,7 +1833,7 @@ Handle<Code> Factory::NewCode(
   int obj_size = Code::SizeFor(RoundUp(body_size, kObjectAlignment));
 
   CodeSpaceMemoryModificationScope code_allocation(isolate()->heap());
-  Handle<Code> code = NewCodeRaw(obj_size, immovable);
+  Handle<Code> code = NewCodeRaw(obj_size, movability);
   DCHECK(!isolate()->heap()->memory_allocator()->code_range()->valid() ||
          isolate()->heap()->memory_allocator()->code_range()->contains(
              code->address()) ||
@@ -1893,8 +1893,7 @@ Handle<Code> Factory::NewCode(
 }
 
 Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {
-  const bool kNotImmovable = false;
-  return NewCodeRaw(size, kNotImmovable);
+  return NewCodeRaw(size, kMovable);
 }
 
 Handle<Code> Factory::CopyCode(Handle<Code> code) {

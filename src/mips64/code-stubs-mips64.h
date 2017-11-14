@@ -19,7 +19,7 @@ class DirectCEntryStub : public PlatformCodeStub {
   void GenerateCall(MacroAssembler* masm, Register target);
 
  private:
-  bool NeedsImmovableCode() override { return true; }
+  Movability NeedsImmovableCode() override { return kImmovable; }
 
   DEFINE_NULL_CALL_INTERFACE_DESCRIPTOR();
   DEFINE_PLATFORM_CODE_STUB(DirectCEntry, PlatformCodeStub);

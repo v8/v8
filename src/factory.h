@@ -678,7 +678,7 @@ class V8_EXPORT_PRIVATE Factory final {
                            MaybeHandle<ByteArray>(),
                        MaybeHandle<DeoptimizationData> maybe_deopt_data =
                            MaybeHandle<DeoptimizationData>(),
-                       bool immovable = false, uint32_t stub_key = 0,
+                       Movability movability = kMovable, uint32_t stub_key = 0,
                        bool is_turbofanned = false, int stack_slots = 0,
                        int safepoint_table_offset = 0);
 
@@ -853,7 +853,7 @@ class V8_EXPORT_PRIVATE Factory final {
                                            PretenureFlag pretenure);
 
   // Creates a code object that is not yet fully initialized yet.
-  Handle<Code> NewCodeRaw(int object_size, bool immovable);
+  Handle<Code> NewCodeRaw(int object_size, Movability movability);
 
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.

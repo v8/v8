@@ -235,8 +235,7 @@ void CodeStub::GenerateFPStubs(Isolate* isolate) {
   USE(isolate);
 }
 
-
-bool CEntryStub::NeedsImmovableCode() {
+Movability CEntryStub::NeedsImmovableCode() {
   // CEntryStub stores the return address on the stack before calling into
   // C++ code. In some cases, the VM accesses this address, but it is not used
   // when the C++ code returns to the stub because LR holds the return address
@@ -245,7 +244,7 @@ bool CEntryStub::NeedsImmovableCode() {
   // TODO(jbramley): Whilst this is the only analysis that makes sense, I can't
   // find any comment to confirm this, and I don't hit any crashes whatever
   // this function returns. The anaylsis should be properly confirmed.
-  return true;
+  return kImmovable;
 }
 
 

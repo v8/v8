@@ -287,10 +287,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ Ret();
 }
 
-bool CEntryStub::NeedsImmovableCode() {
-  return true;
-}
-
+Movability CEntryStub::NeedsImmovableCode() { return kImmovable; }
 
 void CodeStub::GenerateStubsAheadOfTime(Isolate* isolate) {
   CEntryStub::GenerateAheadOfTime(isolate);
