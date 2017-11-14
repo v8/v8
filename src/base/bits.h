@@ -131,7 +131,8 @@ inline constexpr unsigned CountTrailingZeros64(uint64_t value) {
 
 // Returns true iff |value| is a power of 2.
 template <typename T,
-          typename = typename std::enable_if<std::is_integral<T>::value>::type>
+          typename = typename std::enable_if<std::is_integral<T>::value ||
+                                             std::is_enum<T>::value>::type>
 constexpr inline bool IsPowerOfTwo(T value) {
   return value > 0 && (value & (value - 1)) == 0;
 }

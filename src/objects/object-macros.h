@@ -12,17 +12,15 @@
 // for fields that can be written to and read from multiple threads at the same
 // time. See comments in src/base/atomicops.h for the memory ordering sematics.
 
-#define DECL_BOOLEAN_ACCESSORS(name) \
-  inline bool name() const;          \
-  inline void set_##name(bool value);
+#define DECL_PRIMITIVE_ACCESSORS(name, type) \
+  inline type name() const;                  \
+  inline void set_##name(type value);
 
-#define DECL_INT_ACCESSORS(name) \
-  inline int name() const;       \
-  inline void set_##name(int value);
+#define DECL_BOOLEAN_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, bool)
 
-#define DECL_INT32_ACCESSORS(name) \
-  inline int32_t name() const;     \
-  inline void set_##name(int32_t value);
+#define DECL_INT_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int)
+
+#define DECL_INT32_ACCESSORS(name) DECL_PRIMITIVE_ACCESSORS(name, int32_t)
 
 #define DECL_ACCESSORS(name, type)    \
   inline type* name() const;          \

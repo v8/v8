@@ -1372,7 +1372,6 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapInobjectProperties(
     SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   // See Map::GetInObjectProperties() for details.
-  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
   CSA_ASSERT(this, IsJSObjectMap(map));
   return ChangeInt32ToIntPtr(LoadObjectField(
       map, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
@@ -1383,9 +1382,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapConstructorFunctionIndex(
     SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
   // See Map::GetConstructorFunctionIndex() for details.
-  STATIC_ASSERT(FIRST_PRIMITIVE_TYPE == FIRST_TYPE);
-  CSA_ASSERT(this, Int32LessThanOrEqual(LoadMapInstanceType(map),
-                                        Int32Constant(LAST_PRIMITIVE_TYPE)));
+  CSA_ASSERT(this, IsPrimitiveInstanceType(LoadMapInstanceType(map)));
   return ChangeInt32ToIntPtr(LoadObjectField(
       map, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
       MachineType::Uint8()));

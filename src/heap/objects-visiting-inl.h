@@ -31,7 +31,7 @@ template <typename ResultType, typename ConcreteVisitor>
 ResultType HeapVisitor<ResultType, ConcreteVisitor>::Visit(Map* map,
                                                            HeapObject* object) {
   ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
-  switch (static_cast<VisitorId>(map->visitor_id())) {
+  switch (map->visitor_id()) {
 #define CASE(type)                   \
   case kVisit##type:                 \
     return visitor->Visit##type(map, \
