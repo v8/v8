@@ -68,6 +68,17 @@ TestWithContext::TestWithContext()
 
 TestWithContext::~TestWithContext() {}
 
+void TestWithContext::SetGlobalProperty(const char* name,
+                                        v8::Local<v8::Value> value) {
+  v8::Local<v8::String> property_name =
+      v8::String::NewFromUtf8(v8_isolate(), name, v8::NewStringType::kNormal)
+          .ToLocalChecked();
+  CHECK(v8_context()
+            ->Global()
+            ->Set(v8_context(), property_name, value)
+            .FromJust());
+}
+
 namespace internal {
 
 TestWithIsolate::~TestWithIsolate() {}

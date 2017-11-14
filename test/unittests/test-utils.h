@@ -29,7 +29,9 @@ class TestWithIsolate : public virtual ::testing::Test {
   TestWithIsolate();
   virtual ~TestWithIsolate();
 
-  Isolate* isolate() const { return isolate_; }
+  v8::Isolate* isolate() const { return v8_isolate(); }
+
+  v8::Isolate* v8_isolate() const { return isolate_; }
 
   v8::internal::Isolate* i_isolate() const {
     return reinterpret_cast<v8::internal::Isolate*>(isolate());
@@ -42,25 +44,28 @@ class TestWithIsolate : public virtual ::testing::Test {
 
  private:
   static v8::ArrayBuffer::Allocator* array_buffer_allocator_;
-  static Isolate* isolate_;
-  Isolate::Scope isolate_scope_;
-  HandleScope handle_scope_;
+  static v8::Isolate* isolate_;
+  v8::Isolate::Scope isolate_scope_;
+  v8::HandleScope handle_scope_;
 
   DISALLOW_COPY_AND_ASSIGN(TestWithIsolate);
 };
 
 // Use v8::internal::TestWithNativeContext if you are testing internals,
 // aka. directly work with Handles.
-class TestWithContext : public virtual TestWithIsolate {
+class TestWithContext : public virtual v8::TestWithIsolate {
  public:
   TestWithContext();
   virtual ~TestWithContext();
 
-  const Local<Context>& context() const { return context_; }
+  const Local<Context>& context() const { return v8_context(); }
+  const Local<Context>& v8_context() const { return context_; }
+
+  void SetGlobalProperty(const char* name, v8::Local<v8::Value> value);
 
  private:
   Local<Context> context_;
-  Context::Scope context_scope_;
+  v8::Context::Scope context_scope_;
 
   DISALLOW_COPY_AND_ASSIGN(TestWithContext);
 };
@@ -77,9 +82,7 @@ class TestWithIsolate : public virtual ::v8::TestWithIsolate {
   virtual ~TestWithIsolate();
 
   Factory* factory() const;
-  Isolate* isolate() const {
-    return reinterpret_cast<Isolate*>(::v8::TestWithIsolate::isolate());
-  }
+  Isolate* isolate() const { return i_isolate(); }
   template <typename T = Object>
   Handle<T> RunJS(const char* source) {
     Handle<Object> result =

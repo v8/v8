@@ -3033,8 +3033,7 @@ void Isolate::DumpAndResetStats() {
   turbo_statistics_ = nullptr;
   if (V8_UNLIKELY(FLAG_runtime_stats ==
                   v8::tracing::TracingCategoryObserver::ENABLED_BY_NATIVE)) {
-    OFStream os(stdout);
-    counters()->runtime_call_stats()->Print(os);
+    counters()->runtime_call_stats()->Print();
     counters()->runtime_call_stats()->Reset();
   }
 }

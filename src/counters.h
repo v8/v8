@@ -803,6 +803,7 @@ class RuntimeCallTimer final {
   V(FunctionCallback)                          \
   V(FunctionPrototypeGetter)                   \
   V(FunctionPrototypeSetter)                   \
+  V(FunctionLengthGetter)                      \
   V(GC_Custom_AllAvailableGarbage)             \
   V(GC_Custom_IncrementalMarkingObserver)      \
   V(GC_Custom_SlowAllocateRaw)                 \
@@ -956,6 +957,7 @@ class RuntimeCallStats final : public ZoneObject {
   // Add all entries from another stats object.
   void Add(RuntimeCallStats* other);
   V8_EXPORT_PRIVATE void Print(std::ostream& os);
+  V8_EXPORT_PRIVATE void Print();
   V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
 
   ThreadId thread_id() const { return thread_id_; }
