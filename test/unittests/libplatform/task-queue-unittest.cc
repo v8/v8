@@ -38,10 +38,9 @@ class TaskQueueThread final : public base::Thread {
 
 TEST(TaskQueueTest, Basic) {
   TaskQueue queue;
-  std::unique_ptr<Task> task(new MockTask());
-  Task* ptr = task.get();
-  queue.Append(std::move(task));
-  EXPECT_EQ(ptr, queue.GetNext().get());
+  MockTask task;
+  queue.Append(&task);
+  EXPECT_EQ(&task, queue.GetNext());
   queue.Terminate();
   EXPECT_THAT(queue.GetNext(), IsNull());
 }

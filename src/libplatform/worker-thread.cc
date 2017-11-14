@@ -22,8 +22,9 @@ WorkerThread::~WorkerThread() {
 
 
 void WorkerThread::Run() {
-  while (std::unique_ptr<Task> task = queue_->GetNext()) {
+  while (Task* task = queue_->GetNext()) {
     task->Run();
+    delete task;
   }
 }
 
