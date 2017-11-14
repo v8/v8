@@ -52,8 +52,12 @@ BackgroundParsingTask::BackgroundParsingTask(
     info->AllocateSourceRangeMap();
   }
   info->set_cached_data(&script_data_);
+  LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
+  info->set_language_mode(
+      stricter_language_mode(info->language_mode(), language_mode));
 
   source->info.reset(info);
+  isolate_ = isolate;
 
   // Parser needs to stay alive for finalizing the parsing on the main
   // thread.
@@ -67,12 +71,21 @@ void BackgroundParsingTask::Run() {
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
+  source_->info->set_on_background_thread(true);
+
   // Reset the stack limit of the parser to reflect correctly that we're on a
   // background thread.
+  uintptr_t old_stack_limit = source_->info->stack_limit();
   uintptr_t stack_limit = GetCurrentStackPosition() - stack_size_ * KB;
+  source_->info->set_stack_limit(stack_limit);
   source_->parser->set_stack_limit(stack_limit);
 
   source_->parser->ParseOnBackground(source_->info.get());
+  if (FLAG_background_compile && source_->info->literal() != nullptr) {
+    // Parsing has succeeded, compile.
+    source_->outer_function_job = Compiler::CompileTopLevelOnBackgroundThread(
+        source_->info.get(), isolate_, &source_->inner_function_jobs);
+  }
 
   if (script_data_ != nullptr) {
     source_->cached_data.reset(new ScriptCompiler::CachedData(
@@ -82,6 +95,9 @@ void BackgroundParsingTask::Run() {
     delete script_data_;
     script_data_ = nullptr;
   }
+
+  source_->info->set_on_background_thread(false);
+  source_->info->set_stack_limit(old_stack_limit);
 }
 
 }  // namespace internal

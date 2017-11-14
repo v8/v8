@@ -785,10 +785,13 @@ class RuntimeCallTimer final {
   V(ArrayLengthSetter)                         \
   V(BoundFunctionNameGetter)                   \
   V(BoundFunctionLengthGetter)                 \
+  V(CompileBackgroundAnalyse)                  \
+  V(CompileBackgroundEval)                     \
+  V(CompileBackgroundIgnition)                 \
+  V(CompileBackgroundScript)                   \
   V(CompileDeserialize)                        \
   V(CompileEval)                               \
   V(CompileAnalyse)                            \
-  V(CompileBackgroundIgnition)                 \
   V(CompileFunction)                           \
   V(CompileGetFromOptimizedCodeMap)            \
   V(CompileIgnition)                           \
