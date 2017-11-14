@@ -558,7 +558,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE Expression* RewriteAssignExponentiation(Expression* left,
                                                     Expression* right, int pos);
 
-  V8_INLINE Expression* RewriteSpreads(ArrayLiteral* lit);
+  Expression* RewriteSpreads(ArrayLiteral* lit);
 
   // Rewrite expressions that are not used as patterns
   V8_INLINE void RewriteNonPattern(bool* ok);
