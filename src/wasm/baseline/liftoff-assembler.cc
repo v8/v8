@@ -94,8 +94,8 @@ class StackTransferRecipe {
           // There is a cycle. Spill one register, then continue.
           Register spill_reg = register_moves.back().src;
           asm_->Spill(next_spill_slot, spill_reg);
-          // Remember to reload that register later.
-          LoadStackSlot(spill_reg, next_spill_slot);
+          // Remember to reload into the destination register later.
+          LoadStackSlot(register_moves.back().dst, next_spill_slot);
           DCHECK_EQ(1, src_reg_use_count[spill_reg.code()]);
           src_reg_use_count[spill_reg.code()] = 0;
           ++next_spill_slot;
@@ -189,38 +189,58 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
   DCHECK(stack_state.empty());
   DCHECK_GE(source.stack_height(), stack_base);
   stack_state.resize(stack_base + arity);
-  auto slot = stack_state.begin();
 
-  // TODO(clemensh): Avoid using registers which are already in use in source.
-  PinnedRegisterScope used_regs;
-  auto InitStackSlot = [this, &used_regs, &slot](const VarState& src) {
-    Register reg = no_reg;
-    if (src.is_reg() && !used_regs.has(src.reg)) {
-      reg = src.reg;
-    } else if (has_unused_register(used_regs)) {
-      reg = unused_register(used_regs);
+  // |------locals------|--(in between)--|--(discarded)--|----merge----|
+  //  <-- num_locals -->                 ^stack_base      <-- arity -->
+
+  // First, initialize merge slots and locals. Keep them in the registers which
+  // are being used in {source}, but avoid using a register multiple times. Use
+  // unused registers where necessary and possible.
+  for (int range = 0; range < 2; ++range) {
+    auto src_idx = range ? 0 : source.stack_state.size() - arity;
+    auto src_end = range ? num_locals : source.stack_state.size();
+    auto dst_idx = range ? 0 : stack_state.size() - arity;
+    for (; src_idx < src_end; ++src_idx, ++dst_idx) {
+      auto& dst = stack_state[dst_idx];
+      auto& src = source.stack_state[src_idx];
+      Register reg = no_reg;
+      if (src.is_reg() && is_free(src.reg)) {
+        reg = src.reg;
+      } else if (has_unused_register()) {
+        reg = unused_register();
+      } else {
+        // Keep this a stack slot (which is the initial value).
+        DCHECK(src.is_stack());
+        DCHECK(dst.is_stack());
+        continue;
+      }
+      dst = VarState(reg);
+      inc_used(reg);
+    }
+  }
+  // Last, initialize the section in between. Here, constants are allowed, but
+  // registers which are already used for the merge region or locals must be
+  // spilled.
+  for (uint32_t i = num_locals; i < stack_base; ++i) {
+    auto& dst = stack_state[i];
+    auto& src = source.stack_state[i];
+    if (src.is_reg()) {
+      if (is_used(src.reg)) {
+        // Keep this a stack slot (which is the initial value).
+        DCHECK(dst.is_stack());
+        continue;
+      }
+      dst = VarState(src.reg);
+      inc_used(src.reg);
+    } else if (src.is_const()) {
+      dst = src;
     } else {
       // Keep this a stack slot (which is the initial value).
-      DCHECK(slot->is_stack());
-      ++slot;
-      return;
+      DCHECK(src.is_stack());
+      DCHECK(dst.is_stack());
+      continue;
     }
-    *slot = VarState(reg);
-    ++slot;
-    inc_used(reg);
-    used_regs.pin(reg);
-  };
-
-  auto source_slot = source.stack_state.begin();
-  for (uint32_t i = 0; i < stack_base; ++i, ++source_slot) {
-    InitStackSlot(*source_slot);
   }
-  DCHECK_GE(source.stack_height(), stack_base + arity);
-  source_slot = source.stack_state.end() - arity;
-  for (uint32_t i = 0; i < arity; ++i, ++source_slot) {
-    InitStackSlot(*source_slot);
-  }
-  DCHECK_EQ(slot, stack_state.end());
   last_spilled_reg = source.last_spilled_reg;
 }
 

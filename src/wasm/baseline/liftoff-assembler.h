@@ -118,6 +118,9 @@ class LiftoffAssembler : public TurboAssembler {
     uint32_t stack_base = 0;
     Register last_spilled_reg = Register::from_code<0>();
 
+    // InitMerge: Initialize this CacheState from the {source} cache state, but
+    // make sure that other code paths can still jump here (i.e. avoid constants
+    // in the locals or the merge region as specified by {arity}).
     // TODO(clemensh): Don't copy the full parent state (this makes us N^2).
     void InitMerge(const CacheState& source, uint32_t num_locals,
                    uint32_t arity);
