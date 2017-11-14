@@ -241,6 +241,11 @@ using v8::MemoryPressureLevel;
   V(FixedArray, serialized_templates, SerializedTemplates)                     \
   V(FixedArray, serialized_global_proxy_sizes, SerializedGlobalProxySizes)     \
   V(TemplateList, message_listeners, MessageListeners)                         \
+  /* DeserializeLazy handlers for lazy bytecode deserialization */             \
+  V(Object, deserialize_lazy_handler, DeserializeLazyHandler)                  \
+  V(Object, deserialize_lazy_handler_wide, DeserializeLazyHandlerWide)         \
+  V(Object, deserialize_lazy_handler_extra_wide,                               \
+    DeserializeLazyHandlerExtraWide)                                           \
   /* JS Entries */                                                             \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)
@@ -1094,6 +1099,11 @@ class Heap {
 
   void RegisterStrongRoots(Object** start, Object** end);
   void UnregisterStrongRoots(Object** start);
+
+  bool IsDeserializeLazyHandler(Code* code);
+  void SetDeserializeLazyHandler(Code* code);
+  void SetDeserializeLazyHandlerWide(Code* code);
+  void SetDeserializeLazyHandlerExtraWide(Code* code);
 
   // ===========================================================================
   // Inline allocation. ========================================================

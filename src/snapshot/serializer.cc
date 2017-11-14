@@ -212,11 +212,12 @@ bool Serializer<AllocatorT>::SerializeBuiltinReference(
   return true;
 }
 
-// static
 template <class AllocatorT>
-bool Serializer<AllocatorT>::ObjectIsBytecodeHandler(HeapObject* obj) {
+bool Serializer<AllocatorT>::ObjectIsBytecodeHandler(HeapObject* obj) const {
   if (!obj->IsCode()) return false;
-  return (Code::cast(obj)->kind() == Code::BYTECODE_HANDLER);
+  Code* code = Code::cast(obj);
+  if (isolate()->heap()->IsDeserializeLazyHandler(code)) return false;
+  return (code->kind() == Code::BYTECODE_HANDLER);
 }
 
 template <class AllocatorT>

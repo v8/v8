@@ -19,6 +19,7 @@
 #include "src/objects/shared-function-info.h"
 #include "src/parsing/parse-info.h"
 #include "src/setup-isolate.h"
+#include "src/snapshot/snapshot.h"
 #include "src/visitors.h"
 
 namespace v8 {
@@ -85,6 +86,31 @@ Interpreter::Interpreter(Isolate* isolate) : isolate_(isolate) {
     memset(bytecode_dispatch_counters_table_.get(), 0,
            sizeof(uintptr_t) * kBytecodeCount * kBytecodeCount);
   }
+}
+
+Code* Interpreter::GetAndMaybeDeserializeBytecodeHandler(
+    Bytecode bytecode, OperandScale operand_scale) {
+  Code* code = GetBytecodeHandler(bytecode, operand_scale);
+
+  // Already deserialized? Then just return the handler.
+  if (!isolate_->heap()->IsDeserializeLazyHandler(code)) return code;
+
+  DCHECK(FLAG_lazy_handler_deserialization);
+  if (FLAG_trace_lazy_deserialization) {
+    PrintF("Lazy-deserializing handler %s\n",
+           Bytecodes::ToString(bytecode, operand_scale).c_str());
+  }
+
+  DCHECK(Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
+  code = Snapshot::DeserializeHandler(isolate_, bytecode, operand_scale);
+
+  DCHECK(code->IsCode());
+  DCHECK_EQ(code->kind(), Code::BYTECODE_HANDLER);
+  DCHECK(!isolate_->heap()->IsDeserializeLazyHandler(code));
+
+  SetBytecodeHandler(bytecode, operand_scale, code);
+
+  return code;
 }
 
 Code* Interpreter::GetBytecodeHandler(Bytecode bytecode,

@@ -12,14 +12,22 @@
 namespace v8 {
 namespace internal {
 
-using interpreter::Bytecode;
 using interpreter::Bytecodes;
 using interpreter::Interpreter;
-using interpreter::OperandScale;
 
 BuiltinDeserializerAllocator::BuiltinDeserializerAllocator(
     Deserializer<BuiltinDeserializerAllocator>* deserializer)
     : deserializer_(deserializer) {}
+
+BuiltinDeserializerAllocator::~BuiltinDeserializerAllocator() {
+  delete handler_allocations_;
+}
+
+namespace {
+int HandlerAllocationIndex(int code_object_id) {
+  return code_object_id - BuiltinSnapshotUtils::kFirstHandlerIndex;
+}
+}  // namespace
 
 Address BuiltinDeserializerAllocator::Allocate(AllocationSpace space,
                                                int size) {
@@ -36,18 +44,18 @@ Address BuiltinDeserializerAllocator::Allocate(AllocationSpace space,
     DCHECK(Internals::HasHeapObjectTag(obj));
     return HeapObject::cast(obj)->address();
   } else if (BSU::IsHandlerIndex(code_object_id)) {
-    Bytecode bytecode;
-    OperandScale operand_scale;
-    std::tie(bytecode, operand_scale) = BSU::BytecodeFromIndex(code_object_id);
-
-    Address* dispatch_table = isolate()->interpreter()->dispatch_table_;
-    const size_t index =
-        Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
-
-    Object* obj = HeapObject::FromAddress(dispatch_table[index]);
-    DCHECK(Internals::HasHeapObjectTag(obj));
-
-    return HeapObject::cast(obj)->address();
+    if (handler_allocation_ != nullptr) {
+      // Lazy deserialization.
+      DCHECK_NULL(handler_allocations_);
+      return handler_allocation_;
+    } else {
+      // Eager deserialization.
+      DCHECK_NULL(handler_allocation_);
+      DCHECK_NOT_NULL(handler_allocations_);
+      int index = HandlerAllocationIndex(code_object_id);
+      DCHECK_NOT_NULL(handler_allocations_->at(index));
+      return handler_allocations_->at(index);
+    }
   }
 
   UNREACHABLE();
@@ -59,8 +67,8 @@ BuiltinDeserializerAllocator::CreateReservationsForEagerBuiltinsAndHandlers() {
 
   // Reservations for builtins.
 
-  // DeserializeLazy is always the first reservation (to simplify logic in
-  // InitializeBuiltinsTable).
+  // DeserializeLazy is always the first builtin reservation (to simplify logic
+  // in InitializeBuiltinsTable).
   {
     DCHECK(!Builtins::IsLazy(Builtins::kDeserializeLazy));
     uint32_t builtin_size =
@@ -73,7 +81,7 @@ BuiltinDeserializerAllocator::CreateReservationsForEagerBuiltinsAndHandlers() {
     if (i == Builtins::kDeserializeLazy) continue;
 
     // Skip lazy builtins. These will be replaced by the DeserializeLazy code
-    // object in InitializeBuiltinsTable and thus require no reserved space.
+    // object in InitializeFromReservations and thus require no reserved space.
     if (deserializer()->IsLazyDeserializationEnabled() && Builtins::IsLazy(i)) {
       continue;
     }
@@ -87,9 +95,17 @@ BuiltinDeserializerAllocator::CreateReservationsForEagerBuiltinsAndHandlers() {
 
   BSU::ForEachBytecode(
       [=, &result](Bytecode bytecode, OperandScale operand_scale) {
-        // TODO(jgruber): Replace with DeserializeLazy handler.
-
-        if (!BSU::BytecodeHasDedicatedHandler(bytecode, operand_scale)) return;
+        if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
+          // Bytecodes without a handler don't require a reservation.
+          return;
+        } else if (FLAG_lazy_handler_deserialization &&
+                   deserializer()->IsLazyDeserializationEnabled() &&
+                   Bytecodes::IsLazy(bytecode)) {
+          // Skip lazy handlers. These will be replaced by the DeserializeLazy
+          // code object in InitializeFromReservations and thus require no
+          // reserved space.
+          return;
+        }
 
         const int index = BSU::BytecodeToIndex(bytecode, operand_scale);
         uint32_t handler_size = deserializer()->ExtractCodeObjectSize(index);
@@ -124,14 +140,10 @@ void BuiltinDeserializerAllocator::InitializeHandlerFromReservation(
 
   SkipList::Update(chunk.start, chunk.size);
 
-  Address* dispatch_table = isolate()->interpreter()->dispatch_table_;
-  const size_t index =
-      Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
-
-  // At this point, the HeapObject is not yet a Code object, and thus we don't
-  // initialize with code->entry() here. Once deserialization completes, this
-  // is overwritten with the final code->entry() value.
-  dispatch_table[index] = chunk.start;
+  DCHECK_NOT_NULL(handler_allocations_);
+  const int index =
+      HandlerAllocationIndex(BSU::BytecodeToIndex(bytecode, operand_scale));
+  handler_allocations_->at(index) = chunk.start;
 
 #ifdef DEBUG
   RegisterCodeObjectReservation(BSU::BytecodeToIndex(bytecode, operand_scale));
@@ -169,13 +181,23 @@ void BuiltinDeserializerAllocator::InitializeFromReservations(
     }
   }
 
-  // Initialize the interpreter dispatch table.
+  // Initialize interpreter bytecode handler reservations.
+
+  DCHECK_NULL(handler_allocations_);
+  handler_allocations_ = new std::vector<Address>(BSU::kNumberOfHandlers);
 
   BSU::ForEachBytecode(
       [=, &reservation_index](Bytecode bytecode, OperandScale operand_scale) {
-        // TODO(jgruber): Replace with DeserializeLazy handler.
+        if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) {
+          // Bytecodes without a handler don't have a reservation.
+          return;
+        } else if (FLAG_lazy_handler_deserialization &&
+                   deserializer()->IsLazyDeserializationEnabled() &&
+                   Bytecodes::IsLazy(bytecode)) {
+          // Likewise, bytecodes with lazy handlers don't either.
+          return;
+        }
 
-        if (!BSU::BytecodeHasDedicatedHandler(bytecode, operand_scale)) return;
         InitializeHandlerFromReservation(reservation[reservation_index],
                                          bytecode, operand_scale);
         reservation_index++;
@@ -211,6 +233,28 @@ void BuiltinDeserializerAllocator::ReserveAndInitializeBuiltinsTableForBuiltin(
 
 #ifdef DEBUG
   RegisterCodeObjectReservation(builtin_id);
+#endif
+}
+
+void BuiltinDeserializerAllocator::ReserveForHandler(
+    Bytecode bytecode, OperandScale operand_scale) {
+  DCHECK(AllowHeapAllocation::IsAllowed());
+  DCHECK(isolate()->interpreter()->IsDispatchTableInitialized());
+
+  const int code_object_id = BSU::BytecodeToIndex(bytecode, operand_scale);
+  const uint32_t handler_size =
+      deserializer()->ExtractCodeObjectSize(code_object_id);
+  DCHECK_LE(handler_size, MemoryAllocator::PageAreaSize(CODE_SPACE));
+
+  handler_allocation_ =
+      isolate()->factory()->NewCodeForDeserialization(handler_size)->address();
+
+// Note: After this point and until deserialization finishes, heap allocation
+// is disallowed. We currently can't safely assert this since we'd need to
+// pass the DisallowHeapAllocation scope out of this function.
+
+#ifdef DEBUG
+  RegisterCodeObjectReservation(code_object_id);
 #endif
 }
 

@@ -56,24 +56,20 @@ void SetupInterpreter::InstallBytecodeHandlers(Interpreter* interpreter) {
     }
   }
 
+  // Generate the DeserializeLazy handlers, one for each operand scale.
+  Heap* heap = interpreter->isolate_->heap();
+  DCHECK_EQ(Smi::kZero, heap->deserialize_lazy_handler());
+  heap->SetDeserializeLazyHandler(*GenerateDeserializeLazyHandler(
+      interpreter->isolate_, OperandScale::kSingle));
+  DCHECK_EQ(Smi::kZero, heap->deserialize_lazy_handler_wide());
+  heap->SetDeserializeLazyHandlerWide(*GenerateDeserializeLazyHandler(
+      interpreter->isolate_, OperandScale::kDouble));
+  DCHECK_EQ(Smi::kZero, heap->deserialize_lazy_handler_extra_wide());
+  heap->SetDeserializeLazyHandlerExtraWide(*GenerateDeserializeLazyHandler(
+      interpreter->isolate_, OperandScale::kQuadruple));
+
   // Initialization should have been successful.
   DCHECK(interpreter->IsDispatchTableInitialized());
-}
-
-// static
-bool SetupInterpreter::ReuseExistingHandler(Address* dispatch_table,
-                                            Bytecode bytecode,
-                                            OperandScale operand_scale) {
-  Bytecode reused_bytecode;
-  if (!Bytecodes::ReusesExistingHandler(bytecode, &reused_bytecode)) {
-    return false;
-  }
-
-  size_t index = Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
-  dispatch_table[index] = dispatch_table[Interpreter::GetDispatchTableIndex(
-      reused_bytecode, operand_scale)];
-
-  return true;
 }
 
 // static
@@ -82,7 +78,6 @@ void SetupInterpreter::InstallBytecodeHandler(Isolate* isolate,
                                               Bytecode bytecode,
                                               OperandScale operand_scale) {
   if (!Bytecodes::BytecodeHasHandler(bytecode, operand_scale)) return;
-  if (ReuseExistingHandler(dispatch_table, bytecode, operand_scale)) return;
 
   size_t index = Interpreter::GetDispatchTableIndex(bytecode, operand_scale);
   Handle<Code> code = GenerateBytecodeHandler(isolate, bytecode, operand_scale);

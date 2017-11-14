@@ -21,12 +21,17 @@
 #include "src/isolate-inl.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/runtime/runtime.h"
+#include "src/snapshot/snapshot.h"
 #include "src/wasm/wasm-objects-inl.h"
 
 namespace v8 {
 namespace internal {
 
 RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
+  using interpreter::Bytecode;
+  using interpreter::Bytecodes;
+  using interpreter::OperandScale;
+
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 0);
@@ -47,20 +52,22 @@ RUNTIME_FUNCTION_RETURN_PAIR(Runtime_DebugBreakOnBytecode) {
   SharedFunctionInfo* shared = interpreted_frame->function()->shared();
   BytecodeArray* bytecode_array = shared->bytecode_array();
   int bytecode_offset = interpreted_frame->GetBytecodeOffset();
-  interpreter::Bytecode bytecode =
-      interpreter::Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
-  if (bytecode == interpreter::Bytecode::kReturn) {
+  Bytecode bytecode = Bytecodes::FromByte(bytecode_array->get(bytecode_offset));
+  if (bytecode == Bytecode::kReturn) {
     // If we are returning, reset the bytecode array on the interpreted stack
     // frame to the non-debug variant so that the interpreter entry trampoline
     // sees the return bytecode rather than the DebugBreak.
     interpreted_frame->PatchBytecodeArray(bytecode_array);
   }
+
   // We do not have to deal with operand scale here. If the bytecode at the
   // break is prefixed by operand scaling, we would have patched over the
   // scaling prefix. We now simply dispatch to the handler for the prefix.
-  return MakePair(isolate->debug()->return_value(),
-                  isolate->interpreter()->GetBytecodeHandler(
-                      bytecode, interpreter::OperandScale::kSingle));
+  OperandScale operand_scale = OperandScale::kSingle;
+  Code* code = isolate->interpreter()->GetAndMaybeDeserializeBytecodeHandler(
+      bytecode, operand_scale);
+
+  return MakePair(isolate->debug()->return_value(), code);
 }
 
 

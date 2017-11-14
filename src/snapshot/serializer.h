@@ -195,7 +195,7 @@ class Serializer : public SerializerDeserializer {
       int skip, BuiltinReferenceSerializationMode mode = kDefault);
 
   // Returns true if the given heap object is a bytecode handler code object.
-  static bool ObjectIsBytecodeHandler(HeapObject* obj);
+  bool ObjectIsBytecodeHandler(HeapObject* obj) const;
 
   inline void FlushSkip(int skip) {
     if (skip != 0) {
