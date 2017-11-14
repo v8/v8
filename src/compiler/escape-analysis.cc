@@ -216,10 +216,7 @@ class EscapeAnalysisTracker : public ZoneObject {
             replacement->id());
     }
 
-    void MarkForDeletion() {
-      SetReplacement(
-          tracker_->jsgraph_->Dead(JSGraph::DeadCustomer::EscapeAnalysis));
-    }
+    void MarkForDeletion() { SetReplacement(tracker_->jsgraph_->Dead()); }
 
     ~Scope() {
       if (replacement_ != tracker_->replacements_[current_node()] ||
@@ -433,10 +430,7 @@ VariableTracker::State VariableTracker::MergeInputs(Node* effect_phi) {
         // must have been created by a previous reduction of this [effect_phi].
         for (int i = 0; i < arity; ++i) {
           NodeProperties::ReplaceValueInput(
-              old_value,
-              buffer_[i] ? buffer_[i]
-                         : graph_->Dead(JSGraph::DeadCustomer::EscapeAnalysis),
-              i);
+              old_value, buffer_[i] ? buffer_[i] : graph_->Dead(), i);
           // This change cannot affect the rest of the reducer, so there is no
           // need to trigger additional revisitations.
         }
@@ -546,8 +540,7 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       if (const VirtualObject* vobject = current->InitVirtualObject(size_int)) {
         // Initialize with dead nodes as a sentinel for uninitialized memory.
         for (Variable field : *vobject) {
-          current->Set(field,
-                       jsgraph->Dead(JSGraph::DeadCustomer::EscapeAnalysis));
+          current->Set(field, jsgraph->Dead());
         }
       }
       break;

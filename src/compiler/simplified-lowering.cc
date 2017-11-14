@@ -206,16 +206,6 @@ class InputUseInfos {
 
 #endif  // DEBUG
 
-// TODO(mvstanton): Remove after fixing chromium:780658.
-static void UnexpectedDeadOpcode(const char* file, int line,
-                                 const char* deadCode, Node* node) {
-  // Record the deadcode in the stack to ease minidump debugging.
-  const char* format_string = "Unexpected dead opcode %s, node #%i\n.";
-  char buffer[256];
-  snprintf(buffer, sizeof(buffer), format_string, deadCode, node->id());
-  V8_Fatal(file, line, format_string, deadCode, node->id());
-}
-
 bool CanOverflowSigned32(const Operator* op, Type* left, Type* right,
                          Zone* type_zone) {
   // We assume the inputs are checked Signed32 (or known statically
@@ -3057,11 +3047,6 @@ class RepresentationSelector {
         // Assume the output is tagged.
         return SetOutput(node, MachineRepresentation::kTagged);
 
-      case IrOpcode::kDead: {
-        const char* deadVersion = jsgraph_->WhichDeadNode(node);
-        UnexpectedDeadOpcode(__FILE__, __LINE__, deadVersion, node);
-        break;
-      }
       default:
         V8_Fatal(
             __FILE__, __LINE__,
@@ -3107,7 +3092,7 @@ class RepresentationSelector {
       DCHECK_EQ(0, node->op()->EffectOutputCount());
     }
 
-    node->ReplaceUses(jsgraph_->Dead(JSGraph::DeadCustomer::Unspecified));
+    node->ReplaceUses(jsgraph_->Dead());
 
     node->NullAllInputs();  // The {node} is now dead.
   }

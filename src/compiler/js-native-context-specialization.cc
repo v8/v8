@@ -890,8 +890,7 @@ Reduction JSNativeContextSpecialization::ReduceNamedAccess(
     // Generate the final merge point for all (polymorphic) branches.
     int const control_count = static_cast<int>(controls.size());
     if (control_count == 0) {
-      value = effect = control =
-          jsgraph()->Dead(JSGraph::DeadCustomer::ContextSpecialization);
+      value = effect = control = jsgraph()->Dead();
     } else if (control_count == 1) {
       value = values.front();
       effect = effects.front();
@@ -977,8 +976,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
   NamedAccess const& p = NamedAccessOf(node->op());
   Node* const receiver = NodeProperties::GetValueInput(node, 0);
-  Node* const value =
-      jsgraph()->Dead(JSGraph::DeadCustomer::ContextSpecialization);
+  Node* const value = jsgraph()->Dead();
 
   // Check if we have a constant receiver.
   HeapObjectMatcher m(receiver);
@@ -1245,8 +1243,7 @@ Reduction JSNativeContextSpecialization::ReduceElementAccess(
       // Generate the final merge point for all (polymorphic) branches.
       int const control_count = static_cast<int>(controls.size());
       if (control_count == 0) {
-        value = effect = control =
-            jsgraph()->Dead(JSGraph::DeadCustomer::ContextSpecialization);
+        value = effect = control = jsgraph()->Dead();
       } else if (control_count == 1) {
         value = values.front();
         effect = effects.front();
@@ -1445,7 +1442,7 @@ Reduction JSNativeContextSpecialization::ReduceJSLoadProperty(Node* node) {
   PropertyAccess const& p = PropertyAccessOf(node->op());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Node* name = NodeProperties::GetValueInput(node, 1);
-  Node* value = jsgraph()->Dead(JSGraph::DeadCustomer::ContextSpecialization);
+  Node* value = jsgraph()->Dead();
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 

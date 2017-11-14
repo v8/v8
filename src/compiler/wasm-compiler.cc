@@ -94,9 +94,7 @@ WasmGraphBuilder::WasmGraphBuilder(
   DCHECK_NOT_NULL(jsgraph_);
 }
 
-Node* WasmGraphBuilder::Error() {
-  return jsgraph()->Dead(JSGraph::DeadCustomer::Unspecified);
-}
+Node* WasmGraphBuilder::Error() { return jsgraph()->Dead(); }
 
 Node* WasmGraphBuilder::Start(unsigned params) {
   Node* start = graph()->NewNode(jsgraph()->common()->Start(params));

@@ -27,8 +27,7 @@ class BranchEliminationTest : public GraphTest {
     JSOperatorBuilder javascript(zone());
     JSGraph jsgraph(isolate(), graph(), common(), &javascript, nullptr,
                     machine());
-    GraphReducer graph_reducer(
-        zone(), graph(), jsgraph.Dead(JSGraph::DeadCustomer::Unspecified));
+    GraphReducer graph_reducer(zone(), graph(), jsgraph.Dead());
     BranchElimination branch_condition_elimination(&graph_reducer, &jsgraph,
                                                    zone());
     graph_reducer.AddReducer(&branch_condition_elimination);

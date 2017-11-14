@@ -390,9 +390,7 @@ void EffectControlLinearizer::Run() {
           // The input blocks do not have the same effect. We have
           // to create an effect phi node.
           inputs_buffer.clear();
-          inputs_buffer.resize(
-              block->PredecessorCount(),
-              jsgraph()->Dead(JSGraph::DeadCustomer::Unspecified));
+          inputs_buffer.resize(block->PredecessorCount(), jsgraph()->Dead());
           inputs_buffer.push_back(control);
           effect = graph()->NewNode(
               common()->EffectPhi(static_cast<int>(block->PredecessorCount())),

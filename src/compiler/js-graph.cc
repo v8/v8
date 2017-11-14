@@ -301,30 +301,10 @@ Node* JSGraph::SingleDeadTypedStateValues() {
                     SparseInputMask(SparseInputMask::kEndMarker << 1))));
 }
 
-Node* JSGraph::Dead(DeadCustomer which) {
-  switch (which) {
-#define RETURN_CUSTOMER_NODE(customer) \
-  case customer:                       \
-    return CACHED(kDead##customer, graph()->NewNode(common()->Dead()));
-
-    CUSTOMER_LIST(RETURN_CUSTOMER_NODE)
-#undef RETURN_CUSTOMER_NODE
-    default:
-      V8_Fatal(__FILE__, __LINE__, "Unexpected Which dead node detected");
-  }
-  return nullptr;
+Node* JSGraph::Dead() {
+  return CACHED(kDead, graph()->NewNode(common()->Dead()));
 }
 
-const char* JSGraph::WhichDeadNode(Node* node) {
-#define SEARCH_FOR_DEAD_CUSTOMER(name)      \
-  if (node == cached_nodes_[kDead##name]) { \
-    return #name;                           \
-  }
-
-  CUSTOMER_LIST(SEARCH_FOR_DEAD_CUSTOMER)
-#undef SEARCH_FOR_DEAD_CUSTOMER
-  return "Uncached dead node";
-}
 
 void JSGraph::GetCachedNodes(NodeVector* nodes) {
   cache_.GetCachedNodes(nodes);
@@ -334,8 +314,6 @@ void JSGraph::GetCachedNodes(NodeVector* nodes) {
     }
   }
 }
-
-#undef CACHED
 
 }  // namespace compiler
 }  // namespace internal

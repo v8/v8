@@ -540,15 +540,11 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
   }
 
   // Mark the control inputs dead, so that we can kill the merge.
-  node->ReplaceInput(input_count - 1,
-                     jsgraph()->Dead(JSGraph::DeadCustomer::Inlining));
-  callee->ReplaceInput(num_calls,
-                       jsgraph()->Dead(JSGraph::DeadCustomer::Inlining));
-  effect_phi->ReplaceInput(num_calls,
-                           jsgraph()->Dead(JSGraph::DeadCustomer::Inlining));
+  node->ReplaceInput(input_count - 1, jsgraph()->Dead());
+  callee->ReplaceInput(num_calls, jsgraph()->Dead());
+  effect_phi->ReplaceInput(num_calls, jsgraph()->Dead());
   if (checkpoint) {
-    checkpoint->ReplaceInput(2,
-                             jsgraph()->Dead(JSGraph::DeadCustomer::Inlining));
+    checkpoint->ReplaceInput(2, jsgraph()->Dead());
   }
 
   merge->Kill();

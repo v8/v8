@@ -74,7 +74,7 @@ Reduction EscapeAnalysisReducer::Reduce(Node* node) {
     DCHECK(node->opcode() != IrOpcode::kAllocate &&
            node->opcode() != IrOpcode::kFinishRegion);
     DCHECK_NE(replacement, node);
-    if (replacement != jsgraph()->Dead(JSGraph::DeadCustomer::EscapeAnalysis)) {
+    if (replacement != jsgraph()->Dead()) {
       replacement = MaybeGuard(node, replacement);
     }
     RelaxEffectsAndControls(node);
@@ -178,7 +178,7 @@ Node* EscapeAnalysisReducer::ReduceDeoptState(Node* node, Node* effect,
         Node* field =
             analysis_result().GetVirtualObjectField(vobject, offset, effect);
         CHECK_NOT_NULL(field);
-        if (field != jsgraph()->Dead(JSGraph::DeadCustomer::EscapeAnalysis)) {
+        if (field != jsgraph()->Dead()) {
           inputs.push_back(ReduceDeoptState(field, effect, deduplicator));
         }
       }
