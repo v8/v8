@@ -329,7 +329,8 @@ class V8_EXPORT CpuProfiler {
    * Recording the forced sample does not contribute to the aggregated
    * profile statistics.
    */
-  void CollectSample();
+  V8_DEPRECATED("Use static CollectSample(Isolate*) instead.",
+                void CollectSample());
 
   /**
    * Tells the profiler whether the embedder is idle.

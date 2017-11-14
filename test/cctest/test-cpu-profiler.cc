@@ -1473,7 +1473,7 @@ static const char* js_force_collect_sample_source =
     "}";
 
 static void CallCollectSample(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  i::ProfilerExtension::profiler()->CollectSample();
+  v8::CpuProfiler::CollectSample(info.GetIsolate());
 }
 
 TEST(CollectSampleAPI) {
