@@ -2012,17 +2012,22 @@ class RewritableExpression final : public Expression {
     set_rewritten();
   }
 
+  Scope* scope() const { return scope_; }
+  void set_scope(Scope* scope) { scope_ = scope; }
+
  private:
   friend class AstNodeFactory;
 
-  explicit RewritableExpression(Expression* expression)
+  RewritableExpression(Expression* expression, Scope* scope)
       : Expression(expression->position(), kRewritableExpression),
-        expr_(expression) {
+        expr_(expression),
+        scope_(scope) {
     bit_field_ |= IsRewrittenField::encode(false);
     DCHECK(!expression->IsRewritableExpression());
   }
 
   Expression* expr_;
+  Scope* scope_;
 
   class IsRewrittenField
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
@@ -3062,9 +3067,10 @@ class AstNodeFactory final BASE_EMBEDDED {
         Conditional(condition, then_expression, else_expression, position);
   }
 
-  RewritableExpression* NewRewritableExpression(Expression* expression) {
+  RewritableExpression* NewRewritableExpression(Expression* expression,
+                                                Scope* scope) {
     DCHECK_NOT_NULL(expression);
-    return new (zone_) RewritableExpression(expression);
+    return new (zone_) RewritableExpression(expression, scope);
   }
 
   Assignment* NewAssignment(Token::Value op,

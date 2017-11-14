@@ -564,7 +564,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   V8_INLINE void RewriteNonPattern(bool* ok);
 
   V8_INLINE void QueueDestructuringAssignmentForRewriting(
-      Expression* assignment);
+      RewritableExpression* assignment);
   V8_INLINE void QueueNonPatternForRewriting(RewritableExpression* expr,
                                              bool* ok);
 

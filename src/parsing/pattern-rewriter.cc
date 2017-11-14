@@ -131,7 +131,7 @@ void Parser::RewriteDestructuringAssignment(RewritableExpression* to_rewrite) {
 Expression* Parser::RewriteDestructuringAssignment(Assignment* assignment) {
   DCHECK_NOT_NULL(assignment);
   DCHECK_EQ(Token::ASSIGN, assignment->op());
-  auto to_rewrite = factory()->NewRewritableExpression(assignment);
+  auto to_rewrite = factory()->NewRewritableExpression(assignment, scope());
   RewriteDestructuringAssignment(to_rewrite);
   return to_rewrite->expression();
 }

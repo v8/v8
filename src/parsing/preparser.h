@@ -303,6 +303,7 @@ class PreParserExpression {
 
   int position() const { return kNoSourcePosition; }
   void set_function_token_position(int position) {}
+  void set_scope(Scope* scope) {}
 
  private:
   enum Type {
@@ -604,7 +605,7 @@ class PreParserFactory {
     return PreParserExpression::Default();
   }
   PreParserExpression NewRewritableExpression(
-      const PreParserExpression& expression) {
+      const PreParserExpression& expression, Scope* scope) {
     return expression;
   }
   PreParserExpression NewAssignment(Token::Value op,

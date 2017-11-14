@@ -3866,15 +3866,13 @@ void Parser::RewriteDestructuringAssignments() {
   for (int i = assignments.length() - 1; i >= 0; --i) {
     // Rewrite list in reverse, so that nested assignment patterns are rewritten
     // correctly.
-    const DestructuringAssignment& pair = assignments.at(i);
-    RewritableExpression* to_rewrite =
-        pair.assignment->AsRewritableExpression();
+    RewritableExpression* to_rewrite = assignments[i];
     DCHECK_NOT_NULL(to_rewrite);
     if (!to_rewrite->is_rewritten()) {
       // Since this function is called at the end of parsing the program,
       // pair.scope may already have been removed by FinalizeBlockScope in the
       // meantime.
-      Scope* scope = pair.scope->GetUnremovedScope();
+      Scope* scope = to_rewrite->scope()->GetUnremovedScope();
       BlockState block_state(&scope_, scope);
       RewriteDestructuringAssignment(to_rewrite);
     }
@@ -4020,10 +4018,9 @@ Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
   return factory()->NewDoExpression(do_block, result, lit->position());
 }
 
-void Parser::QueueDestructuringAssignmentForRewriting(Expression* expr) {
-  DCHECK(expr->IsRewritableExpression());
-  function_state_->AddDestructuringAssignment(
-      DestructuringAssignment(expr, scope()));
+void Parser::QueueDestructuringAssignmentForRewriting(
+    RewritableExpression* expr) {
+  function_state_->AddDestructuringAssignment(expr);
 }
 
 void Parser::QueueNonPatternForRewriting(RewritableExpression* expr, bool* ok) {

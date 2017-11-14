@@ -374,15 +374,6 @@ class ParserBase {
     Scope* const outer_scope_;
   };
 
-  struct DestructuringAssignment {
-   public:
-    DestructuringAssignment(ExpressionT expression, Scope* scope)
-        : assignment(expression), scope(scope) {}
-
-    ExpressionT assignment;
-    Scope* scope;
-  };
-
   class FunctionState final : public BlockState {
    public:
     FunctionState(FunctionState** function_state_stack, Scope** scope_stack,
@@ -404,12 +395,12 @@ class ParserBase {
     void SetDestructuringAssignmentsScope(int pos, Scope* scope) {
       for (int i = pos; i < destructuring_assignments_to_rewrite_.length();
            ++i) {
-        destructuring_assignments_to_rewrite_[i].scope = scope;
+        destructuring_assignments_to_rewrite_[i]->set_scope(scope);
       }
     }
 
-    const ZoneList<DestructuringAssignment>&
-        destructuring_assignments_to_rewrite() const {
+    const ZoneList<RewritableExpressionT>&
+    destructuring_assignments_to_rewrite() const {
       return destructuring_assignments_to_rewrite_;
     }
 
@@ -458,8 +449,8 @@ class ParserBase {
     };
 
    private:
-    void AddDestructuringAssignment(DestructuringAssignment pair) {
-      destructuring_assignments_to_rewrite_.Add(pair, scope_->zone());
+    void AddDestructuringAssignment(RewritableExpressionT expr) {
+      destructuring_assignments_to_rewrite_.Add(expr, scope_->zone());
     }
 
     void AddNonPatternForRewriting(RewritableExpressionT expr, bool* ok) {
@@ -477,7 +468,7 @@ class ParserBase {
     FunctionState* outer_function_state_;
     DeclarationScope* scope_;
 
-    ZoneList<DestructuringAssignment> destructuring_assignments_to_rewrite_;
+    ZoneList<RewritableExpressionT> destructuring_assignments_to_rewrite_;
     ZoneList<RewritableExpressionT> non_patterns_to_rewrite_;
 
     ZoneList<typename ExpressionClassifier::Error> reported_errors_;
@@ -2073,7 +2064,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseArrayLiteral(
   ExpressionT result =
       factory()->NewArrayLiteral(values, first_spread_index, pos);
   if (first_spread_index >= 0) {
-    auto rewritable = factory()->NewRewritableExpression(result);
+    auto rewritable = factory()->NewRewritableExpression(result, scope());
     impl()->QueueNonPatternForRewriting(rewritable, ok);
     if (!*ok) {
       // If the non-pattern rewriting mechanism is used in the future for
@@ -2980,8 +2971,9 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
   ExpressionT result = factory()->NewAssignment(op, expression, right, pos);
 
   if (is_destructuring_assignment) {
-    result = factory()->NewRewritableExpression(result);
-    impl()->QueueDestructuringAssignmentForRewriting(result);
+    auto rewritable = factory()->NewRewritableExpression(result, scope());
+    impl()->QueueDestructuringAssignmentForRewriting(rewritable);
+    result = rewritable;
   }
 
   return result;
