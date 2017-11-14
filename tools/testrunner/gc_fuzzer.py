@@ -33,75 +33,13 @@ TIMEOUT_DEFAULT = 60
 # Double the timeout for these:
 SLOW_ARCHS = ["arm",
               "mipsel"]
-DISTRIBUTION_MODES = ["smooth", "random"]
 
 
 class GCFuzzer(base_runner.BaseTestRunner):
   def __init__(self):
     super(GCFuzzer, self).__init__()
 
-  class RandomDistribution:
-    def __init__(self, seed=None):
-      seed = seed or random.randint(1, sys.maxint)
-      print "Using random distribution with seed %d" % seed
-      self._random = random.Random(seed)
-
-    def Distribute(self, n, m):
-      if n > m:
-        n = m
-      return self._random.sample(xrange(1, m + 1), n)
-
-  class SmoothDistribution:
-    """Distribute n numbers into the interval [1:m].
-    F1: Factor of the first derivation of the distribution function.
-    F2: Factor of the second derivation of the distribution function.
-    With F1 and F2 set to 0, the distribution will be equal.
-    """
-    def __init__(self, factor1=2.0, factor2=0.2):
-      self._factor1 = factor1
-      self._factor2 = factor2
-
-    def Distribute(self, n, m):
-      if n > m:
-        n = m
-      if n <= 1:
-        return [ 1 ]
-
-      result = []
-      x = 0.0
-      dx = 1.0
-      ddx = self._factor1
-      dddx = self._factor2
-      for i in range(0, n):
-        result += [ x ]
-        x += dx
-        dx += ddx
-        ddx += dddx
-
-      # Project the distribution into the interval [0:M].
-      result = [ x * m / result[-1] for x in result ]
-
-      # Equalize by n. The closer n is to m, the more equal will be the
-      # distribution.
-      for (i, x) in enumerate(result):
-        # The value of x if it was equally distributed.
-        equal_x = i / float(n - 1) * float(m - 1) + 1
-
-        # Difference factor between actual and equal distribution.
-        diff = 1 - (x / equal_x)
-
-        # Equalize x dependent on the number of values to distribute.
-        result[i] = int(x + (i + 1) * diff)
-      return result
-
-
-  def _distribution(self, options):
-    if options.distribution_mode == "random":
-      return self.RandomDistribution(options.seed)
-    if options.distribution_mode == "smooth":
-      return self.SmoothDistribution(options.distribution_factor1,
-                                     options.distribution_factor2)
-
+    self.fuzzer_rng = None
 
   def _add_parser_options(self, parser):
     parser.add_option("--command-prefix",
@@ -113,15 +51,6 @@ class GCFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--coverage-lift", help=("Lifts test coverage for tests "
                       "with a low memory size reached (range 0, inf)"),
                       default=20, type="int")
-    parser.add_option("--distribution-factor1", help=("Factor of the first "
-                      "derivation of the distribution function"), default=2.0,
-                      type="float")
-    parser.add_option("--distribution-factor2", help=("Factor of the second "
-                      "derivation of the distribution function"), default=0.7,
-                      type="float")
-    parser.add_option("--distribution-mode", help=("How to distribute flag "
-                      "values for a given test (smooth|random)"),
-                      default="smooth")
     parser.add_option("--dump-results-file", help="Dump maximum limit reached")
     parser.add_option("--extra-flags",
                       help="Additional flags to pass to each test command",
@@ -141,8 +70,6 @@ class GCFuzzer(base_runner.BaseTestRunner):
     parser.add_option("--shard-run",
                       help="Run this shard from the split up tests.",
                       default=1, type="int")
-    parser.add_option("--seed", help="The seed for the random distribution",
-                      type="int")
     parser.add_option("-t", "--timeout", help="Timeout in seconds",
                       default= -1, type="int")
     parser.add_option("--random-seed", default=0,
@@ -152,6 +79,11 @@ class GCFuzzer(base_runner.BaseTestRunner):
                       "generator")
     parser.add_option("--stress-compaction", default=False, action="store_true",
                       help="Enable stress_compaction_percentage flag")
+
+    parser.add_option("--distribution-factor1", help="DEPRECATED")
+    parser.add_option("--distribution-factor2", help="DEPRECATED")
+    parser.add_option("--distribution-mode", help="DEPRECATED")
+    parser.add_option("--seed", help="DEPRECATED")
     return parser
 
 
@@ -167,25 +99,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
     while options.fuzzer_random_seed == 0:
       options.fuzzer_random_seed = random.SystemRandom().randint(-2147483648,
                                                                  2147483647)
-    if not options.distribution_mode in DISTRIBUTION_MODES:
-      print "Unknown distribution mode %s" % options.distribution_mode
-      return False
-    if options.distribution_factor1 < 0.0:
-      print ("Distribution factor1 %s is out of range. Defaulting to 0.0"
-          % options.distribution_factor1)
-      options.distribution_factor1 = 0.0
-    if options.distribution_factor2 < 0.0:
-      print ("Distribution factor2 %s is out of range. Defaulting to 0.0"
-          % options.distribution_factor2)
-      options.distribution_factor2 = 0.0
-    if options.coverage < 0.0 or options.coverage > 1.0:
-      print ("Coverage %s is out of range. Defaulting to 0.4"
-          % options.coverage)
-      options.coverage = 0.4
-    if options.coverage_lift < 0:
-      print ("Coverage lift %s is out of range. Defaulting to 0"
-          % options.coverage_lift)
-      options.coverage_lift = 0
+    self.fuzzer_rng = random.Random(options.fuzzer_random_seed)
     return True
 
   def _shard_tests(self, tests, shard_count, shard_run):
@@ -242,8 +156,6 @@ class GCFuzzer(base_runner.BaseTestRunner):
   def _execute(self, args, options, suites):
     print(">>> Running tests for %s.%s" % (self.build_config.arch,
                                            self.mode_name))
-
-    dist = self._distribution(options)
 
     # Populate context object.
     timeout = options.timeout
@@ -320,30 +232,20 @@ class GCFuzzer(base_runner.BaseTestRunner):
           continue
         max_percent = int(max_percent)
 
-        # Calculate distribution.
-        marking_count = self._calculate_n_tests(max_percent, options)
-        marking_distribution = dist.Distribute(marking_count, max_percent)
-        if options.stress_compaction:
-          compaction_count = self._calculate_n_tests(100, options)
-          compaction_distribution = dist.Distribute(compaction_count, 100)
-          distribution = itertools.product(
-            marking_distribution, compaction_distribution)
-        else:
-          # 0 disables the second flag.
-          distribution = itertools.product(marking_distribution, [0])
+        subtests_count = self._calculate_n_tests(max_percent, options)
 
         if options.verbose:
-          distribution = list(distribution)
-          print ("%s %s (max marking limit=%.02f)" %
-                 (t.path, distribution, test_results[t.path]))
-        for marking, compaction in distribution:
+          print ('%s [x%d] (max marking limit=%.02f)' %
+                 (t.path, subtests_count, max_percent))
+        for _ in xrange(0, subtests_count):
+          fuzzer_seed = self._next_fuzzer_seed()
           fuzzing_flags = [
-            "--stress_marking", str(marking),
-            "--stress_compaction_percentage", str(compaction),
+            '--stress_marking', str(max_percent),
+            '--fuzzer_random_seed', str(fuzzer_seed),
           ]
-          if options.fuzzer_random_seed:
+          if options.stress_compaction:
             fuzzing_flags += [
-              '--fuzzer_random_seed', str(options.fuzzer_random_seed)
+              '--stress_compaction_percentage', '100',
             ]
           s.tests.append(t.CopyAddingFlags(t.variant, fuzzing_flags))
       num_tests += len(s.tests)
@@ -426,6 +328,12 @@ class GCFuzzer(base_runner.BaseTestRunner):
     if not percents:
       return None
     return max(percents)
+
+  def _next_fuzzer_seed(self):
+    fuzzer_seed = None
+    while not fuzzer_seed:
+      fuzzer_seed = self.fuzzer_rng.randint(-2147483648, 2147483647)
+    return fuzzer_seed
 
 
 if __name__ == '__main__':
