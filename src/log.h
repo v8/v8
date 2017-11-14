@@ -150,7 +150,7 @@ class Logger : public CodeEventListener {
   void FunctionEvent(const char* reason, Script* script, int script_id,
                      double time_delta_ms, int start_position, int end_position,
                      const char* function_name = nullptr,
-                     int function_name_length = 0);
+                     size_t function_name_length = 0);
 
   // ==== Events logged by --log-api. ====
   void ApiSecurityCheck();

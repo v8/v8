@@ -881,12 +881,13 @@ class PreParser : public ParserBase<PreParser> {
   PreParser(Zone* zone, Scanner* scanner, uintptr_t stack_limit,
             AstValueFactory* ast_value_factory,
             PendingCompilationErrorHandler* pending_error_handler,
-            RuntimeCallStats* runtime_call_stats, bool parsing_module = false,
+            RuntimeCallStats* runtime_call_stats, Logger* logger,
+            int script_id = -1, bool parsing_module = false,
             bool parsing_on_main_thread = true)
       : ParserBase<PreParser>(zone, scanner, stack_limit, nullptr,
-                              ast_value_factory, runtime_call_stats,
-                              parsing_module, pending_error_handler,
-                              parsing_on_main_thread),
+                              ast_value_factory, pending_error_handler,
+                              runtime_call_stats, logger, script_id,
+                              parsing_module, parsing_on_main_thread),
         use_counts_(nullptr),
         track_unresolved_variables_(false),
         produced_preparsed_scope_data_(nullptr) {}
@@ -914,7 +915,8 @@ class PreParser : public ParserBase<PreParser> {
       FunctionLiteral::FunctionType function_type,
       DeclarationScope* function_scope, bool track_unresolved_variables,
       bool may_abort, int* use_counts,
-      ProducedPreParsedScopeData** produced_preparser_scope_data);
+      ProducedPreParsedScopeData** produced_preparser_scope_data,
+      int script_id);
 
   ProducedPreParsedScopeData* produced_preparsed_scope_data() const {
     return produced_preparsed_scope_data_;

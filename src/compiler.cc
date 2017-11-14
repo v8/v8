@@ -239,7 +239,7 @@ void CompilationJob::RecordFunctionCompilation(
 
   LOG(isolate, FunctionEvent(name.c_str(), nullptr, script->id(), ms,
                              shared->start_position(), shared->end_position(),
-                             shared->name()));
+                             shared->DebugName()));
 }
 
 // ----------------------------------------------------------------------------

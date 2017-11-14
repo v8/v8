@@ -1283,7 +1283,7 @@ void Logger::FunctionEvent(const char* reason, Script* script, int script_id,
 void Logger::FunctionEvent(const char* reason, Script* script, int script_id,
                            double time_delta, int start_position,
                            int end_position, const char* function_name,
-                           int function_name_length) {
+                           size_t function_name_length) {
   if (!log_->IsEnabled() || !FLAG_log_function_events) return;
   Log::MessageBuilder msg(log_);
   AppendFunctionMessage(msg, reason, script, script_id, time_delta,

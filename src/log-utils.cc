@@ -161,8 +161,8 @@ void Log::MessageBuilder::AppendStringPart(String* str, int len) {
   }
 }
 
-void Log::MessageBuilder::AppendStringPart(const char* str, int len) {
-  for (int i = 0; i < len; i++) {
+void Log::MessageBuilder::AppendStringPart(const char* str, size_t len) {
+  for (size_t i = 0; i < len; i++) {
     DCHECK_NE(str[i], '\0');
     this->AppendCharacter(str[i]);
   }

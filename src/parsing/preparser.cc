@@ -119,12 +119,13 @@ PreParser::PreParseResult PreParser::PreParseFunction(
     const AstRawString* function_name, FunctionKind kind,
     FunctionLiteral::FunctionType function_type,
     DeclarationScope* function_scope, bool is_inner_function, bool may_abort,
-    int* use_counts,
-    ProducedPreParsedScopeData** produced_preparsed_scope_data) {
+    int* use_counts, ProducedPreParsedScopeData** produced_preparsed_scope_data,
+    int script_id) {
   DCHECK_EQ(FUNCTION_SCOPE, function_scope->scope_type());
   use_counts_ = use_counts;
   DCHECK(!track_unresolved_variables_);
   track_unresolved_variables_ = is_inner_function;
+  set_script_id(script_id);
 #ifdef DEBUG
   function_scope->set_is_being_lazily_parsed(true);
 #endif
@@ -277,6 +278,9 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
       runtime_call_stats_,
       counters[track_unresolved_variables_][parsing_on_main_thread_]);
 
+  base::ElapsedTimer timer;
+  if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
+
   DeclarationScope* function_scope = NewFunctionScope(kind);
   function_scope->SetLanguageMode(language_mode);
 
@@ -342,11 +346,23 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     produced_preparsed_scope_data_scope->MarkFunctionAsSkippable(
         end_position, GetLastFunctionLiteralId() - func_id);
   }
-  if (FLAG_trace_preparse) {
-    PrintF("  [%s]: %i-%i\n",
-           track_unresolved_variables_ ? "Preparse resolution"
-                                       : "Preparse no-resolution",
-           function_scope->start_position(), function_scope->end_position());
+  if (V8_UNLIKELY(FLAG_log_function_events)) {
+    double ms = timer.Elapsed().InMillisecondsF();
+    const char* event_name = track_unresolved_variables_
+                                 ? "preparse-resolution"
+                                 : "preparse-no-resolution";
+    // We might not always get a function name here. However, it can be easily
+    // reconstructed from the script id and the byte range in the log processor.
+    const char* name = "";
+    size_t name_byte_length = 0;
+    const AstRawString* string = function_name.string_;
+    if (string != nullptr) {
+      name = reinterpret_cast<const char*>(string->raw_data());
+      name_byte_length = string->byte_length();
+    }
+    logger_->FunctionEvent(
+        event_name, nullptr, script_id(), ms, function_scope->start_position(),
+        function_scope->end_position(), name, name_byte_length);
   }
 
   return Expression::Default();

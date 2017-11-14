@@ -285,8 +285,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     if (reusable_preparser_ == nullptr) {
       reusable_preparser_ =
           new PreParser(zone(), &scanner_, stack_limit_, ast_value_factory(),
-                        pending_error_handler(), runtime_call_stats_,
-                        parsing_module_, parsing_on_main_thread_);
+                        pending_error_handler(), runtime_call_stats_, logger_,
+                        -1, parsing_module_, parsing_on_main_thread_);
 #define SET_ALLOW(name) reusable_preparser_->set_allow_##name(allow_##name());
       SET_ALLOW(natives);
       SET_ALLOW(harmony_do_expressions);

@@ -68,11 +68,11 @@ static const char* StrNStr(const char* s1, const char* s2, size_t n) {
   return strstr(s1, s2);
 }
 
-// Look for a log line which starts with {prefix} and ends with {suffix}.
-static const char* FindLogLine(i::Vector<const char>* log, const char* prefix,
+static const char* FindLogLine(const char* start, const char* end,
+                               const char* prefix,
                                const char* suffix = nullptr) {
-  const char* start = log->start();
-  const char* end = start + log->length();
+  CHECK_LT(start, end);
+  // Look for a log line which starts with {prefix} and ends with {suffix}.
   CHECK_EQ(end[0], '\0');
   size_t prefixLength = strlen(prefix);
   // Loop through the input until we find /{prefix}[^\n]+{suffix}/.
@@ -123,7 +123,24 @@ class ScopedLoggerInitializer {
 
   Logger* logger() { return logger_; }
 
-  void PrintLog() { printf("%s", log_.start()); }
+  void PrintLog(int nofLines = 0) {
+    if (nofLines <= 0) {
+      printf("%s", log_.start());
+      return;
+    }
+    // Try to print the last {nofLines} of the log.
+    const char* start = log_.start();
+    const char* current = log_.end();
+    while (current > start && nofLines > 0) {
+      current--;
+      if (*current == '\n') nofLines--;
+    }
+    printf(
+        "======================================================\n"
+        "Last log lines:\n...%s\n"
+        "======================================================",
+        current);
+  }
 
   v8::Local<v8::String> GetLogString() {
     return v8::String::NewFromUtf8(isolate_, log_.start(),
@@ -137,21 +154,46 @@ class ScopedLoggerInitializer {
     CHECK(exists);
   }
 
-  const char* FindLine(const char* prefix, const char* suffix = nullptr) {
+  const char* FindLine(const char* prefix, const char* suffix = nullptr,
+                       const char* start = nullptr) {
     // Make sure that StopLogging() has been called before.
     CHECK(log_.size());
-    return FindLogLine(&log_, prefix, suffix);
+    if (start == nullptr) start = log_.start();
+    const char* end = log_.start() + log_.length();
+    return FindLogLine(start, end, prefix, suffix);
   }
 
   // Find all log lines specified by the {prefix, suffix} pairs and ensure they
   // occurr in the specified order.
-  void FindLogLines(const char* pairs[][2], size_t limit) {
-    const char* last_position = FindLine(pairs[0][0], pairs[0][1]);
+  void FindLogLines(const char* pairs[][2], size_t limit,
+                    const char* start = nullptr) {
+    const char* prefix = pairs[0][0];
+    const char* suffix = pairs[0][1];
+    const char* last_position = FindLine(prefix, suffix, start);
+    if (last_position == nullptr) {
+      PrintLog(50);
+      V8_Fatal(__FILE__, __LINE__, "Could not find log line: %s ... %s", prefix,
+               suffix);
+    }
     CHECK(last_position);
     for (size_t i = 1; i < limit; i++) {
-      const char* position = FindLine(pairs[i][0], pairs[i][1]);
+      prefix = pairs[i][0];
+      suffix = pairs[i][1];
+      const char* position = FindLine(prefix, suffix, start);
+      if (position == nullptr) {
+        PrintLog(50);
+        V8_Fatal(__FILE__, __LINE__, "Could not find log line: %s ... %s",
+                 prefix, suffix);
+      }
       // Check that all string positions are in order.
-      CHECK_LT(last_position, position);
+      if (position <= last_position) {
+        PrintLog(50);
+        V8_Fatal(__FILE__, __LINE__,
+                 "Log statements not in expected order (prev=%p, current=%p): "
+                 "%s ... %s",
+                 reinterpret_cast<const void*>(last_position),
+                 reinterpret_cast<const void*>(position), prefix, suffix);
+      }
       last_position = position;
     }
   }
@@ -192,21 +234,22 @@ TEST(FindLogLine) {
       "prefix2, stuff\n, suffix2\n"
       "prefix3suffix3\n"
       "prefix4 suffix4";
+  const char* end = string + strlen(string);
   // Make sure the vector contains the terminating \0 character.
-  i::Vector<const char> log(string, strlen(string));
-  CHECK(FindLogLine(&log, "prefix1, stuff,   suffix1"));
-  CHECK(FindLogLine(&log, "prefix1, stuff"));
-  CHECK(FindLogLine(&log, "prefix1"));
-  CHECK(FindLogLine(&log, "prefix1", "suffix1"));
-  CHECK(FindLogLine(&log, "prefix1", "suffix1"));
-  CHECK(!FindLogLine(&log, "prefix2", "suffix2"));
-  CHECK(!FindLogLine(&log, "prefix1", "suffix2"));
-  CHECK(!FindLogLine(&log, "prefix1", "suffix3"));
-  CHECK(FindLogLine(&log, "prefix3", "suffix3"));
-  CHECK(FindLogLine(&log, "prefix4", "suffix4"));
-  CHECK(!FindLogLine(&log, "prefix4", "suffix4XXXXXXXXXXXX"));
-  CHECK(!FindLogLine(&log, "prefix4XXXXXXXXXXXXXXXXXXXXXXxxx", "suffix4"));
-  CHECK(!FindLogLine(&log, "suffix", "suffix5XXXXXXXXXXXXXXXXXXXX"));
+  CHECK(FindLogLine(string, end, "prefix1, stuff,   suffix1"));
+  CHECK(FindLogLine(string, end, "prefix1, stuff"));
+  CHECK(FindLogLine(string, end, "prefix1"));
+  CHECK(FindLogLine(string, end, "prefix1", "suffix1"));
+  CHECK(FindLogLine(string, end, "prefix1", "suffix1"));
+  CHECK(!FindLogLine(string, end, "prefix2", "suffix2"));
+  CHECK(!FindLogLine(string, end, "prefix1", "suffix2"));
+  CHECK(!FindLogLine(string, end, "prefix1", "suffix3"));
+  CHECK(FindLogLine(string, end, "prefix3", "suffix3"));
+  CHECK(FindLogLine(string, end, "prefix4", "suffix4"));
+  CHECK(!FindLogLine(string, end, "prefix4", "suffix4XXXXXXXXXXXX"));
+  CHECK(
+      !FindLogLine(string, end, "prefix4XXXXXXXXXXXXXXXXXXXXXXxxx", "suffix4"));
+  CHECK(!FindLogLine(string, end, "suffix", "suffix5XXXXXXXXXXXXXXXXXXXX"));
 }
 
 // BUG(913). Need to implement support for profiling multiple VM threads.
@@ -785,22 +828,60 @@ TEST(LogFunctionEvents) {
   v8::Isolate* isolate = v8::Isolate::New(create_params);
   {
     ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
-    // Try to create many different kind of maps to make sure the logging won't
-    // crash. More detailed tests are implemented separately.
     const char* source_text =
         "function lazyNotExecutedFunction() { return 'lazy' };"
-        "function lazyFunction() { return 'lazy' };"
-        "lazyFunction();"
-        "(function eagerFunction(){ return 'eager' })();";
+        "function lazyFunction() { "
+        "  function lazyInnerFunction() { return 'lazy' };"
+        "  return lazyInnerFunction;"
+        "};"
+        "let innerFn = lazyFunction();"
+        "innerFn();"
+        "(function eagerFunction(){ return 'eager' })();"
+        "function Foo() { this.foo = function(){}; };"
+        "let i = new Foo(); i.foo();";
     CompileRun(source_text);
 
     logger.StopLogging();
 
-    // TODO(cbruni): Extend with parsing/first-execution log statements.
+    // TODO(cbruni): Extend with first-execution log statements.
     CHECK_NULL(
         logger.FindLine("function,compile-lazy,", ",lazyNotExecutedFunction"));
-    CHECK(logger.FindLine("function,compile-lazy,", ",lazyFunction"));
-    CHECK(logger.FindLine("function,compile,", ",eagerFunction"));
+    // Only consider the log starting from the first preparse statement on.
+    const char* start =
+        logger.FindLine("function,preparse-", ",lazyNotExecutedFunction");
+    const char* pairs[][2] = {
+        // Step 1: parsing top-level script, preparsing functions
+        {"function,preparse-", ",lazyNotExecutedFunction"},
+        // Missing name for preparsing lazyInnerFunction
+        // {"function,preparse-", nullptr},
+        {"function,preparse-", ",lazyFunction"},
+        {"function,full-parse,", ",eagerFunction"},
+        {"function,preparse-", ",Foo"},
+        // Missing name for inner preparsing of Foo.foo
+        // {"function,preparse-", nullptr},
+        // Missing name for top-level script.
+        {"function,parse-script,", nullptr},
+
+        // Step 2: compiling top-level script and eager functions
+        // - Compiling script without name.
+        {"function,compile,,", nullptr},
+        {"function,compile,", ",eagerFunction"},
+
+        // Step 3: start executing script
+        // Step 4. - lazy parse, lazy compiling and execute skipped functions
+        //         - execute eager functions.
+        {"function,parse-function,", ",lazyFunction"},
+        {"function,compile-lazy,", ",lazyFunction"},
+
+        {"function,parse-function,", ",lazyInnerFunction"},
+        {"function,compile-lazy,", ",lazyInnerFunction"},
+
+        {"function,parse-function,", ",Foo"},
+        {"function,compile-lazy,", ",Foo"},
+        {"function,parse-function,", ",Foo.foo"},
+        {"function,compile-lazy,", ",Foo.foo"},
+    };
+    logger.FindLogLines(pairs, arraysize(pairs), start);
   }
   i::FLAG_log_function_events = false;
   isolate->Dispose();

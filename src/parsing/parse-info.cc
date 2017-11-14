@@ -155,6 +155,7 @@ void ParseInfo::InitFromIsolate(Isolate* isolate) {
   set_stack_limit(isolate->stack_guard()->real_climit());
   set_unicode_cache(isolate->unicode_cache());
   set_runtime_call_stats(isolate->counters()->runtime_call_stats());
+  set_logger(isolate->logger());
   set_ast_string_constants(isolate->ast_string_constants());
   if (isolate->is_block_code_coverage()) set_block_coverage_enabled();
   if (isolate->is_collecting_type_profile()) set_collect_type_profile();

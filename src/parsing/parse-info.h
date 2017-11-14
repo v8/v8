@@ -28,6 +28,7 @@ class AstValueFactory;
 class DeclarationScope;
 class FunctionLiteral;
 class RuntimeCallStats;
+class Logger;
 class ScriptData;
 class SourceRangeMap;
 class UnicodeCache;
@@ -187,6 +188,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
   void set_runtime_call_stats(RuntimeCallStats* runtime_call_stats) {
     runtime_call_stats_ = runtime_call_stats;
   }
+  Logger* logger() const { return logger_; }
+  void set_logger(Logger* logger) { logger_ = logger; }
 
   void AllocateSourceRangeMap();
   SourceRangeMap* source_range_map() const { return source_range_map_; }
@@ -284,6 +287,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
   const class AstStringConstants* ast_string_constants_;
   const AstRawString* function_name_;
   RuntimeCallStats* runtime_call_stats_;
+  Logger* logger_;
   SourceRangeMap* source_range_map_;  // Used when block coverage is enabled.
 
   //----------- Output of parsing and scope analysis ------------------------

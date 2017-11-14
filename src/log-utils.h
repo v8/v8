@@ -78,7 +78,7 @@ class Log {
 
     // Append and escpae a portion of a string.
     void AppendStringPart(String* source, int len);
-    void AppendStringPart(const char* str, int len);
+    void AppendStringPart(const char* str, size_t len);
 
     void AppendCharacter(const char character);
 
