@@ -86,7 +86,7 @@ typedef std::vector<Handle<Map>> MapHandles;
 // +---------------+---------------------------------------------+
 // | TaggedPointer | map - Always a pointer to the MetaMap root  |
 // +---------------+---------------------------------------------+
-// | Int           | instance_sizes (the first int field)        |
+// | Int           | The first int field                         |
 //  `---+----------+---------------------------------------------+
 //      | Byte     | [instance_size]                             |
 //      +----------+---------------------------------------------+
@@ -102,10 +102,14 @@ typedef std::vector<Handle<Map>> MapHandles;
 //      +----------+---------------------------------------------+
 //      | Byte     | [visitor_id]                                |
 // +----+----------+---------------------------------------------+
-// | Int           | instance_attributes (second int field)      |
+// | Int           | The second int field                        |
 //  `---+----------+---------------------------------------------+
-//      | Word16   | [instance_type] in low byte                 |
-//      |          | [bit_field] in high byte                    |
+//      | Byte     | [instance_type]                             |
+//      +----------+---------------------------------------------+
+//      | Byte     | [unused_property_fields] number of unused   |
+//      |          | property fields in JSObject (for fast-mode) |
+//      +----------+---------------------------------------------+
+//      | Byte     | [bit_field]                                 |
 //      |          |   - has_non_instance_prototype (bit 0)      |
 //      |          |   - is_callable (bit 1)                     |
 //      |          |   - has_named_interceptor (bit 2)           |
@@ -119,11 +123,8 @@ typedef std::vector<Handle<Map>> MapHandles;
 //      |          |   - is_extensible (bit 0)                   |
 //      |          |   - is_prototype_map (bit 2)                |
 //      |          |   - elements_kind (bits 3..7)               |
-//      +----------+---------------------------------------------+
-//      | Byte     | [unused_property_fields] number of unused   |
-//      |          | property fields in JSObject (for fast-mode) |
 // +----+----------+---------------------------------------------+
-// | Word          | [bit_field3]                                |
+// | Int           | [bit_field3]                                |
 // |               |   - number_of_own_descriptors (bit 0..19)   |
 // |               |   - is_dictionary_map (bit 20)              |
 // |               |   - owns_descriptors (bit 21)               |
@@ -136,9 +137,10 @@ typedef std::vector<Handle<Map>> MapHandles;
 // |               |   - may_have_interesting_symbols (bit 28)   |
 // |               |   - construction_counter (bit 29..31)       |
 // |               |                                             |
-// |               | On systems with 64bit pointer types, there  |
+// +*************************************************************+
+// | Int           | On systems with 64bit pointer types, there  |
 // |               | is an unused 32bits after bit_field3        |
-// +---------------+---------------------------------------------+
+// +*************************************************************+
 // | TaggedPointer | [prototype]                                 |
 // +---------------+---------------------------------------------+
 // | TaggedPointer | [constructor_or_backpointer]                |
@@ -733,15 +735,21 @@ class Map : public HeapObject {
   V(kInObjectPropertiesOrConstructorFunctionIndexOffset, kUInt8Size)        \
   V(kUsedInstanceSizeInWordsOffset, kUInt8Size)                             \
   V(kVisitorIdOffset, kUInt8Size)                                           \
-  V(kInstanceAttributesOffset, kInt32Size)                                  \
-  V(kBitField3Offset, kPointerSize)                                         \
+  V(kInstanceTypeOffset, kUInt8Size)                                        \
+  /* TODO(ulan): Free this byte after unused_property_fields are */         \
+  /* computed using the used_instance_size_in_words() byte. */              \
+  V(kUnusedPropertyFieldsOffset, kUInt8Size)                                \
+  V(kBitFieldOffset, kUInt8Size)                                            \
+  V(kBitField2Offset, kUInt8Size)                                           \
+  V(kBitField3Offset, kUInt32Size)                                          \
+  V(k64BitArchPaddingOffset, kPointerSize == kUInt32Size ? 0 : kUInt32Size) \
   /* Pointer fields. */                                                     \
   V(kPointerFieldsBeginOffset, 0)                                           \
   V(kPrototypeOffset, kPointerSize)                                         \
   V(kConstructorOrBackPointerOffset, kPointerSize)                          \
   V(kTransitionsOrPrototypeInfoOffset, kPointerSize)                        \
   V(kDescriptorsOffset, kPointerSize)                                       \
-  V(kLayoutDescriptorOffset, (FLAG_unbox_double_fields ? kPointerSize : 0)) \
+  V(kLayoutDescriptorOffset, FLAG_unbox_double_fields ? kPointerSize : 0)   \
   V(kDependentCodeOffset, kPointerSize)                                     \
   V(kWeakCellCacheOffset, kPointerSize)                                     \
   V(kPointerFieldsEndOffset, 0)                                             \
@@ -751,26 +759,7 @@ class Map : public HeapObject {
   DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, MAP_FIELDS)
 #undef MAP_FIELDS
 
-// Byte offsets within kInstanceAttributesOffset attributes.
-#if V8_TARGET_LITTLE_ENDIAN
-  // Order instance type and bit field together such that they can be loaded
-  // together as a 16-bit word with instance type in the lower 8 bits regardless
-  // of endianess. Also provide endian-independent offset to that 16-bit word.
-  static const int kInstanceTypeOffset = kInstanceAttributesOffset + 0;
-  static const int kBitFieldOffset = kInstanceAttributesOffset + 1;
-#else
-  static const int kBitFieldOffset = kInstanceAttributesOffset + 0;
-  static const int kInstanceTypeOffset = kInstanceAttributesOffset + 1;
-#endif
-  static const int kInstanceTypeAndBitFieldOffset =
-      kInstanceAttributesOffset + 0;
-  static const int kBitField2Offset = kInstanceAttributesOffset + 2;
-  // TODO(ulan): Free this byte after unused_property_fields are computed using
-  // the used_instance_size_in_words() byte.
-  static const int kUnusedPropertyFieldsOffset = kInstanceAttributesOffset + 3;
-
-  STATIC_ASSERT(kInstanceTypeAndBitFieldOffset ==
-                Internals::kMapInstanceTypeAndBitFieldOffset);
+  STATIC_ASSERT(kInstanceTypeOffset == Internals::kMapInstanceTypeOffset);
 
   // Bit positions for bit field.
   static const int kHasNonInstancePrototype = 0;

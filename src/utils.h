@@ -455,7 +455,7 @@ class BitSetComputer {
 //
 // DEFINE_FIELD_OFFSET_CONSTANTS(HeapObject::kHeaderSize, MAP_FIELDS)
 //
-#define DEFINE_ONE_FIELD_OFFSET(Name, Size) Name, Name##End = Name + Size - 1,
+#define DEFINE_ONE_FIELD_OFFSET(Name, Size) Name, Name##End = Name + (Size)-1,
 
 #define DEFINE_FIELD_OFFSET_CONSTANTS(StartOffset, LIST_MACRO) \
   enum {                                                       \
