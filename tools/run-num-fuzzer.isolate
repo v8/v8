@@ -3,6 +3,9 @@
 # found in the LICENSE file.
 {
   'variables': {
+    'command': [
+      'run-deopt-fuzzer.py',
+    ],
     'files': [
       'run-deopt-fuzzer.py',
       'run-gc-fuzzer.py',
