@@ -911,18 +911,15 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
         AddEvacuationCandidate(p);
       }
     }
-  } else if (FLAG_stress_compaction_percentage > 0) {
-    size_t percent =
-        isolate()->fuzzer_rng()->NextInt(FLAG_stress_compaction_percentage + 1);
-
-    size_t pages_to_mark_count = percent * pages.size() / 100;
-    if (pages_to_mark_count) {
-      for (uint64_t i : isolate()->fuzzer_rng()->NextSample(
-               pages.size(), pages_to_mark_count)) {
-        candidate_count++;
-        total_live_bytes += pages[i].first;
-        AddEvacuationCandidate(pages[i].second);
-      }
+  } else if (FLAG_stress_compaction_random) {
+    double fraction = isolate()->fuzzer_rng()->NextDouble();
+    size_t pages_to_mark_count =
+        static_cast<size_t>(fraction * (pages.size() + 1));
+    for (uint64_t i : isolate()->fuzzer_rng()->NextSample(
+             pages.size(), pages_to_mark_count)) {
+      candidate_count++;
+      total_live_bytes += pages[i].first;
+      AddEvacuationCandidate(pages[i].second);
     }
   } else if (FLAG_stress_compaction) {
     for (size_t i = 0; i < pages.size(); i++) {

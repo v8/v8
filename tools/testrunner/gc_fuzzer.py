@@ -244,9 +244,7 @@ class GCFuzzer(base_runner.BaseTestRunner):
             '--fuzzer_random_seed', str(fuzzer_seed),
           ]
           if options.stress_compaction:
-            fuzzing_flags += [
-              '--stress_compaction_percentage', '100',
-            ]
+            fuzzing_flags.append('--stress_compaction_random')
           s.tests.append(t.CopyAddingFlags(t.variant, fuzzing_flags))
       num_tests += len(s.tests)
 
