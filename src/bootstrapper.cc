@@ -3759,7 +3759,7 @@ bool Genesis::CompileExtension(Isolate* isolate, v8::Extension* extension) {
             source, script_name, 0, 0, ScriptOriginOptions(),
             MaybeHandle<Object>(), context, extension, nullptr,
             ScriptCompiler::kNoCompileOptions,
-            ScriptCompiler::kNoCacheBecauseExtension, EXTENSION_CODE,
+            ScriptCompiler::kNoCacheBecauseV8Extension, EXTENSION_CODE,
             MaybeHandle<FixedArray>());
     if (!maybe_function_info.ToHandle(&function_info)) return false;
     cache->Add(name, function_info);
