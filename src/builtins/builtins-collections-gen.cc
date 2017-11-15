@@ -584,14 +584,10 @@ Node* CollectionsBuiltinsAssembler::AllocateOrderedHashTable() {
   // Allocate the table and add the proper map.
   const ElementsKind elements_kind = HOLEY_ELEMENTS;
   Node* const length_intptr = IntPtrConstant(kFixedArrayLength);
-  Node* const table = AllocateFixedArray(elements_kind, length_intptr);
-  CSA_ASSERT(this,
-             IntPtrLessThanOrEqual(
-                 length_intptr, IntPtrConstant(FixedArray::kMaxRegularLength)));
-  Heap::RootListIndex map_index = Heap::kOrderedHashTableMapRootIndex;
-  // TODO(gsathya): Directly store correct in AllocateFixedArray,
-  // instead of overwriting here.
-  StoreMapNoWriteBarrier(table, map_index);
+  Node* const fixed_array_map = LoadRoot(Heap::kOrderedHashTableMapRootIndex);
+  Node* const table =
+      AllocateFixedArray(elements_kind, length_intptr, INTPTR_PARAMETERS,
+                         kAllowLargeObjectAllocation, fixed_array_map);
 
   // Initialize the OrderedHashTable fields.
   const WriteBarrierMode barrier_mode = SKIP_WRITE_BARRIER;
@@ -2004,7 +2000,8 @@ TNode<Object> WeakCollectionsBuiltinsAssembler::AllocateTable(
 
   // See HashTable::NewInternal().
   TNode<IntPtrT> length = KeyIndexFromEntry(capacity);
-  TNode<Object> table = CAST(AllocateFixedArray(HOLEY_ELEMENTS, length));
+  TNode<Object> table = CAST(AllocateFixedArray(
+      HOLEY_ELEMENTS, length, INTPTR_PARAMETERS, kAllowLargeObjectAllocation));
 
   // See BaseShape::GetMap().
   StoreMapNoWriteBarrier(table, Heap::kHashTableMapRootIndex);

@@ -2820,7 +2820,7 @@ Node* CodeStubAssembler::AllocateFixedArray(ElementsKind kind,
   if (fixed_array_map != nullptr) {
     // Conservatively only skip the write barrier if there are no allocation
     // flags, this ensures that the object hasn't ended up in LOS. Note that the
-    // fixed array map is currently alwasys immortal and technically wouldn't
+    // fixed array map is currently always immortal and technically wouldn't
     // need the write barrier even in LOS, but it's better to not take chances
     // in case this invariant changes later, since it's difficult to enforce
     // locally here.
