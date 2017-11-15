@@ -1208,6 +1208,7 @@ class V8_EXPORT_PRIVATE CodeAssemblerState {
 
 #if DEBUG
   void PrintCurrentBlock(std::ostream& os);
+  bool InsideBlock();
 #endif  // DEBUG
   void SetInitialDebugInformation(const char* msg, const char* file, int line);
 

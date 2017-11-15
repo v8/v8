@@ -105,6 +105,8 @@ CodeAssembler::~CodeAssembler() {}
 void CodeAssemblerState::PrintCurrentBlock(std::ostream& os) {
   raw_assembler_->PrintCurrentBlock(os);
 }
+
+bool CodeAssemblerState::InsideBlock() { return raw_assembler_->InsideBlock(); }
 #endif
 
 void CodeAssemblerState::SetInitialDebugInformation(const char* msg,
@@ -1334,11 +1336,14 @@ Node* CodeAssemblerVariable::value() const {
   if (!IsBound()) {
     std::stringstream str;
     str << "#Use of unbound variable:"
+        << "#\n    Variable:      " << *this << "#\n    Current Block: ";
+    state_->PrintCurrentBlock(str);
+    FATAL(str.str().c_str());
+  }
+  if (!state_->InsideBlock()) {
+    std::stringstream str;
+    str << "#Accessing variable value outside a block:"
         << "#\n    Variable:      " << *this;
-    if (state_) {
-      str << "#\n    Current Block: ";
-      state_->PrintCurrentBlock(str);
-    }
     FATAL(str.str().c_str());
   }
 #endif  // DEBUG
