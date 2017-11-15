@@ -209,7 +209,7 @@ class InputUseInfos {
 bool CanOverflowSigned32(const Operator* op, Type* left, Type* right,
                          Zone* type_zone) {
   // We assume the inputs are checked Signed32 (or known statically
-  // to be Signed32). Technically, theinputs could also be minus zero, but
+  // to be Signed32). Technically, the inputs could also be minus zero, but
   // that cannot cause overflow.
   left = Type::Intersect(left, Type::Signed32(), type_zone);
   right = Type::Intersect(right, Type::Signed32(), type_zone);
@@ -227,6 +227,10 @@ bool CanOverflowSigned32(const Operator* op, Type* left, Type* right,
       UNREACHABLE();
   }
   return true;
+}
+
+bool IsSomePositiveOrderedNumber(Type* type) {
+  return type->Is(Type::OrderedNumber()) && !type->IsNone() && type->Min() > 0;
 }
 
 }  // namespace
@@ -1249,10 +1253,8 @@ class RepresentationSelector {
     // there is no need to return -0.
     CheckForMinusZeroMode mz_mode =
         truncation.IdentifiesZeroAndMinusZero() ||
-                (input0_type->Is(Type::OrderedNumber()) &&
-                 input0_type->Min() > 0) ||
-                (input1_type->Is(Type::OrderedNumber()) &&
-                 input1_type->Min() > 0)
+                IsSomePositiveOrderedNumber(input0_type) ||
+                IsSomePositiveOrderedNumber(input1_type)
             ? CheckForMinusZeroMode::kDontCheckForMinusZero
             : CheckForMinusZeroMode::kCheckForMinusZero;
 

@@ -116,15 +116,7 @@ Type* OperationTyper::Rangify(Type* type) {
   if (!type->Is(cache_.kInteger)) {
     return type;  // Give up on non-integer types.
   }
-  double min = type->Min();
-  double max = type->Max();
-  // Handle the degenerate case of empty bitset types (such as
-  // OtherUnsigned31 and OtherSigned32 on 64-bit architectures).
-  if (std::isnan(min)) {
-    DCHECK(std::isnan(max));
-    return type;
-  }
-  return Type::Range(min, max, zone());
+  return Type::Range(type->Min(), type->Max(), zone());
 }
 
 namespace {

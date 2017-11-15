@@ -461,8 +461,8 @@ Type* Typer::Visitor::ToInteger(Type* type, Typer* t) {
 // static
 Type* Typer::Visitor::ToLength(Type* type, Typer* t) {
   // ES6 section 7.1.15 ToLength ( argument )
-  type = ToInteger(type, t);
   if (type->IsNone()) return type;
+  type = ToInteger(type, t);
   double min = type->Min();
   double max = type->Max();
   if (max <= 0.0) {
@@ -1855,6 +1855,7 @@ Type* Typer::Visitor::TypeStringIndexOf(Node* node) { UNREACHABLE(); }
 Type* Typer::Visitor::TypeCheckBounds(Node* node) {
   Type* index = Operand(node, 0);
   Type* length = Operand(node, 1);
+  DCHECK(length->Is(Type::Unsigned31()));
   if (index->Maybe(Type::MinusZero())) {
     index = Type::Union(index, typer_->cache_.kSingletonZero, zone());
   }

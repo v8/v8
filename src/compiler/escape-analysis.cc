@@ -492,7 +492,7 @@ Maybe<int> OffsetOfElementsAccess(const Operator* op, Node* index_node) {
   DCHECK(op->opcode() == IrOpcode::kLoadElement ||
          op->opcode() == IrOpcode::kStoreElement);
   Type* index_type = NodeProperties::GetType(index_node);
-  if (!index_type->Is(Type::Number())) return Nothing<int>();
+  if (!index_type->Is(Type::OrderedNumber())) return Nothing<int>();
   double max = index_type->Max();
   double min = index_type->Min();
   int index = static_cast<int>(min);

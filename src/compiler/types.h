@@ -605,9 +605,9 @@ class V8_EXPORT_PRIVATE Type {
   TupleType* AsTuple() { return TupleType::cast(this); }
 
   // Minimum and maximum of a numeric type.
-  // These functions do not distinguish between -0 and +0.  If the type equals
-  // kNaN, they return NaN; otherwise kNaN is ignored.  Only call these
-  // functions on subtypes of Number, but not on None!
+  // These functions do not distinguish between -0 and +0.  NaN is ignored.
+  // Only call them on subtypes of Number whose intersection with OrderedNumber
+  // is not empty.
   double Min();
   double Max();
 
