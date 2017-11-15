@@ -1004,11 +1004,13 @@ size_t ModuleCompiler::InitializeCompilationUnits(
 }
 
 void ModuleCompiler::RestartCompilationTasks() {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate_);
+  std::shared_ptr<v8::TaskRunner> task_runner =
+      V8::GetCurrentPlatform()->GetBackgroundTaskRunner(v8_isolate);
+
   base::LockGuard<base::Mutex> guard(&tasks_mutex_);
   for (; stopped_compilation_tasks_ > 0; --stopped_compilation_tasks_) {
-    V8::GetCurrentPlatform()->CallOnBackgroundThread(
-        new CompilationTask(this),
-        v8::Platform::ExpectedRuntime::kShortRunningTask);
+    task_runner->PostTask(base::make_unique<CompilationTask>(this));
   }
 }
 
@@ -2833,6 +2835,10 @@ AsyncCompileJob::AsyncCompileJob(Isolate* isolate,
       async_counters_(isolate->async_counters()),
       bytes_copy_(std::move(bytes_copy)),
       wire_bytes_(bytes_copy_.get(), bytes_copy_.get() + length) {
+  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+  v8::Platform* platform = V8::GetCurrentPlatform();
+  foreground_task_runner_ = platform->GetForegroundTaskRunner(v8_isolate);
+  background_task_runner_ = platform->GetBackgroundTaskRunner(v8_isolate);
   // The handles for the context and promise must be deferred.
   DeferredHandleScope deferred(isolate);
   context_ = Handle<Context>(*context);
@@ -2974,11 +2980,7 @@ void AsyncCompileJob::StartForegroundTask() {
   ++num_pending_foreground_tasks_;
   DCHECK_EQ(1, num_pending_foreground_tasks_);
 
-  v8::Platform* platform = V8::GetCurrentPlatform();
-  // TODO(ahaas): This is a CHECK to debug issue 764313.
-  CHECK(platform);
-  platform->CallOnForegroundThread(reinterpret_cast<v8::Isolate*>(isolate_),
-                                   new CompileTask(this, true));
+  foreground_task_runner_->PostTask(base::make_unique<CompileTask>(this, true));
 }
 
 template <typename Step, typename... Args>
@@ -2988,8 +2990,8 @@ void AsyncCompileJob::DoSync(Args&&... args) {
 }
 
 void AsyncCompileJob::StartBackgroundTask() {
-  V8::GetCurrentPlatform()->CallOnBackgroundThread(
-      new CompileTask(this, false), v8::Platform::kShortRunningTask);
+  background_task_runner_->PostTask(
+      base::make_unique<CompileTask>(this, false));
 }
 
 void AsyncCompileJob::RestartBackgroundTasks() {

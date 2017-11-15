@@ -168,6 +168,9 @@ class AsyncCompileJob {
   size_t outstanding_units_ = 0;
   std::unique_ptr<CompileStep> step_;
   CancelableTaskManager background_task_manager_;
+
+  std::shared_ptr<v8::TaskRunner> foreground_task_runner_;
+  std::shared_ptr<v8::TaskRunner> background_task_runner_;
   // The number of background tasks which stopped executing within a step.
   base::AtomicNumber<size_t> stopped_tasks_{0};
 
