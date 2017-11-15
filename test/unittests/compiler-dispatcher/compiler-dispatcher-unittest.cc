@@ -99,6 +99,18 @@ class MockPlatform : public v8::Platform {
 
   size_t NumberOfAvailableBackgroundThreads() override { return 1; }
 
+  std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate* isolate) override {
+    constexpr bool is_foreground_task_runner = true;
+    return std::make_shared<MockTaskRunner>(this, is_foreground_task_runner);
+  }
+
+  std::shared_ptr<TaskRunner> GetBackgroundTaskRunner(
+      v8::Isolate* isolate) override {
+    constexpr bool is_foreground_task_runner = false;
+    return std::make_shared<MockTaskRunner>(this, is_foreground_task_runner);
+  }
+
   void CallOnBackgroundThread(Task* task,
                               ExpectedRuntime expected_runtime) override {
     base::LockGuard<base::Mutex> lock(&mutex_);
@@ -249,6 +261,43 @@ class MockPlatform : public v8::Platform {
     bool signal_;
 
     DISALLOW_COPY_AND_ASSIGN(TaskWrapper);
+  };
+
+  class MockTaskRunner final : public TaskRunner {
+   public:
+    MockTaskRunner(MockPlatform* platform, bool is_foreground_task_runner)
+        : platform_(platform),
+          is_foreground_task_runner_(is_foreground_task_runner) {}
+
+    void PostTask(std::unique_ptr<v8::Task> task) override {
+      base::LockGuard<base::Mutex> lock(&platform_->mutex_);
+      if (is_foreground_task_runner_) {
+        platform_->foreground_tasks_.push_back(task.release());
+      } else {
+        platform_->background_tasks_.push_back(task.release());
+      }
+    }
+
+    void PostDelayedTask(std::unique_ptr<Task> task,
+                         double delay_in_seconds) override {
+      UNREACHABLE();
+    };
+
+    void PostIdleTask(std::unique_ptr<IdleTask> task) override {
+      DCHECK(IdleTasksEnabled());
+      base::LockGuard<base::Mutex> lock(&platform_->mutex_);
+      ASSERT_TRUE(platform_->idle_task_ == nullptr);
+      platform_->idle_task_ = task.release();
+    }
+
+    bool IdleTasksEnabled() override {
+      // Idle tasks are enabled only in the foreground task runner.
+      return is_foreground_task_runner_;
+    };
+
+   private:
+    MockPlatform* platform_;
+    bool is_foreground_task_runner_;
   };
 
   double time_;
