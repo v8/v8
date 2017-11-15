@@ -79,6 +79,8 @@
 #define COMMON_OP_LIST(V) \
   CONSTANT_OP_LIST(V)     \
   INNER_OP_LIST(V)        \
+  V(Unreachable)          \
+  V(DeadValue)            \
   V(Dead)
 
 // Opcodes for JavaScript operators.
