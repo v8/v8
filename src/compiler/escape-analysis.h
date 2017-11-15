@@ -130,7 +130,10 @@ class VirtualObject : public Dependable {
     }
     CHECK(!HasEscaped());
     if (offset >= size()) {
-      // This can only happen in unreachable code.
+      // TODO(tebbi): Reading out-of-bounds can only happen in unreachable
+      // code. In this case, we have to mark the object as escaping to avoid
+      // dead nodes in the graph. This is a workaround that should be removed
+      // once we can handle dead nodes everywhere.
       return Nothing<Variable>();
     }
     return Just(fields_.at(offset / kPointerSize));
