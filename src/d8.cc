@@ -211,6 +211,18 @@ class PredictablePlatform : public Platform {
     DCHECK_NOT_NULL(platform_);
   }
 
+  std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate* isolate) override {
+    return platform_->GetForegroundTaskRunner(isolate);
+  }
+
+  std::shared_ptr<TaskRunner> GetBackgroundTaskRunner(
+      v8::Isolate* isolate) override {
+    // Return the foreground task runner here, so that all tasks get executed
+    // sequentially in a predictable order.
+    return platform_->GetForegroundTaskRunner(isolate);
+  }
+
   void CallOnBackgroundThread(Task* task,
                               ExpectedRuntime expected_runtime) override {
     // It's not defined when background tasks are being executed, so we can just
