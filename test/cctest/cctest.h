@@ -673,6 +673,16 @@ class TestPlatform : public v8::Platform {
     old_platform_->OnCriticalMemoryPressure();
   }
 
+  std::shared_ptr<v8::TaskRunner> GetForegroundTaskRunner(
+      v8::Isolate* isolate) override {
+    return old_platform_->GetForegroundTaskRunner(isolate);
+  }
+
+  std::shared_ptr<v8::TaskRunner> GetBackgroundTaskRunner(
+      v8::Isolate* isolate) override {
+    return old_platform_->GetBackgroundTaskRunner(isolate);
+  }
+
   void CallOnBackgroundThread(v8::Task* task,
                               ExpectedRuntime expected_runtime) override {
     old_platform_->CallOnBackgroundThread(task, expected_runtime);
