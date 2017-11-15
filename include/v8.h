@@ -579,7 +579,10 @@ template <class T> class PersistentBase {
    * independent handle should not assume that it will be preceded by a global
    * GC prologue callback or followed by a global GC epilogue callback.
    */
-  V8_INLINE void MarkIndependent();
+  V8_DEPRECATE_SOON(
+      "Objects are always considered independent. "
+      "Use MarkActive to avoid collecting otherwise dead weak handles.",
+      V8_INLINE void MarkIndependent());
 
   /**
    * Marks the reference to this object as active. The scavenge garbage
@@ -590,7 +593,8 @@ template <class T> class PersistentBase {
    */
   V8_INLINE void MarkActive();
 
-  V8_INLINE bool IsIndependent() const;
+  V8_DEPRECATE_SOON("See MarkIndependent.",
+                    V8_INLINE bool IsIndependent() const);
 
   /** Checks if the handle holds the only reference to an object. */
   V8_INLINE bool IsNearDeath() const;

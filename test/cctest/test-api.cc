@@ -7652,9 +7652,6 @@ void InternalFieldCallback(bool global_gc) {
 
     handle.SetWeak<v8::Persistent<v8::Object>>(
         &handle, CheckInternalFields, v8::WeakCallbackType::kInternalFields);
-    if (!global_gc) {
-      handle.MarkIndependent();
-    }
   }
   if (global_gc) {
     CcTest::CollectAllGarbage();

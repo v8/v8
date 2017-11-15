@@ -408,8 +408,6 @@ TEST(FinalizerKeepsPhantomAliveOnScavenge) {
   TestFinalizerKeepsPhantomAlive(
       CcTest::isolate(),
       [](v8::Global<v8::Object>* g1, v8::Global<v8::Object>* g2) {
-        g1->MarkIndependent();
-        g2->MarkIndependent();
         CcTest::CollectGarbage(i::NEW_SPACE);
       });
 }
@@ -471,7 +469,6 @@ TEST(GCFromWeakCallbacks) {
       fp.flag = false;
       fp.handle.SetWeak(&fp, gc_forcing_callback[inner_gc],
                         v8::WeakCallbackType::kParameter);
-      fp.handle.MarkIndependent();
       invoke_gc[outer_gc]();
       EmptyMessageQueues(isolate);
       CHECK(fp.flag);

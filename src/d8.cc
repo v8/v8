@@ -2281,7 +2281,6 @@ void Shell::ReadBuffer(const v8::FunctionCallbackInfo<v8::Value>& args) {
   data->handle.Reset(isolate, buffer);
   data->handle.SetWeak(data, ReadBufferWeakCallback,
                        v8::WeakCallbackType::kParameter);
-  data->handle.MarkIndependent();
   isolate->AdjustAmountOfExternalAllocatedMemory(length);
 
   args.GetReturnValue().Set(buffer);
