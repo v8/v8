@@ -214,6 +214,7 @@ namespace internal {
   TFH(LoadIC_Miss, LoadWithVector)                                             \
   TFH(LoadIC_Slow, LoadWithVector)                                             \
   TFH(LoadIC_StringLength, LoadWithVector)                                     \
+  TFH(LoadIC_StringWrapperLength, LoadWithVector)                              \
   TFH(LoadIC_Uninitialized, LoadWithVector)                                    \
   TFH(StoreGlobalIC_Slow, StoreWithVector)                                     \
   TFH(StoreIC_Miss, StoreWithVector)                                           \

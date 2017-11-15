@@ -20,15 +20,16 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                         Node* match_start_index, Node* match_end_index,
                         Node* replace_string);
   void StringEqual_Core(Node* context, Node* lhs, Node* lhs_instance_type,
-                        Node* rhs, Node* rhs_instance_type, Node* length,
-                        Label* if_equal, Label* if_not_equal,
-                        Label* if_indirect);
+                        Node* rhs, Node* rhs_instance_type,
+                        TNode<IntPtrT> length, Label* if_equal,
+                        Label* if_not_equal, Label* if_indirect);
 
  protected:
   void StringEqual_Loop(Node* lhs, Node* lhs_instance_type,
                         MachineType lhs_type, Node* rhs,
                         Node* rhs_instance_type, MachineType rhs_type,
-                        Node* length, Label* if_equal, Label* if_not_equal);
+                        TNode<IntPtrT> length, Label* if_equal,
+                        Label* if_not_equal);
   Node* DirectStringData(Node* string, Node* string_instance_type);
 
   void DispatchOnStringEncodings(Node* const lhs_instance_type,
@@ -57,8 +58,8 @@ class StringBuiltinsAssembler : public CodeStubAssembler {
                                  SloppyTNode<Smi> limit);
 
   TNode<Uint32T> LoadSurrogatePairAt(SloppyTNode<String> string,
-                                     SloppyTNode<Smi> length,
-                                     SloppyTNode<Smi> index,
+                                     SloppyTNode<IntPtrT> length,
+                                     SloppyTNode<IntPtrT> index,
                                      UnicodeEncoding encoding);
 
   void StringIndexOf(Node* const subject_string, Node* const search_string,

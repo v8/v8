@@ -536,10 +536,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<Uint32T> LoadNameHash(SloppyTNode<Name> name,
                               Label* if_hash_not_computed = nullptr);
 
-  // Load length field of a String object.
-  TNode<Smi> LoadStringLength(SloppyTNode<String> object);
   // Load length field of a String object as intptr_t value.
-  TNode<IntPtrT> LoadAndUntagStringLength(SloppyTNode<String> object);
+  TNode<IntPtrT> LoadStringLengthAsWord(SloppyTNode<String> object);
+  // Load length field of a String object as Smi value.
+  TNode<Smi> LoadStringLengthAsSmi(SloppyTNode<String> object);
   // Loads a pointer to the sequential String char array.
   Node* PointerToSeqStringData(Node* seq_string);
   // Load value field of a JSValue object.
@@ -701,36 +701,36 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                                                 MutableMode mode = IMMUTABLE);
   // Allocate a SeqOneByteString with the given length.
   Node* AllocateSeqOneByteString(int length, AllocationFlags flags = kNone);
-  Node* AllocateSeqOneByteString(Node* context, Node* length,
-                                 ParameterMode mode = INTPTR_PARAMETERS,
+  Node* AllocateSeqOneByteString(Node* context, TNode<Smi> length,
                                  AllocationFlags flags = kNone);
   // Allocate a SeqTwoByteString with the given length.
   Node* AllocateSeqTwoByteString(int length, AllocationFlags flags = kNone);
-  Node* AllocateSeqTwoByteString(Node* context, Node* length,
-                                 ParameterMode mode = INTPTR_PARAMETERS,
+  Node* AllocateSeqTwoByteString(Node* context, TNode<Smi> length,
                                  AllocationFlags flags = kNone);
 
   // Allocate a SlicedOneByteString with the given length, parent and offset.
   // |length| and |offset| are expected to be tagged.
-  Node* AllocateSlicedOneByteString(Node* length, Node* parent, Node* offset);
+  Node* AllocateSlicedOneByteString(TNode<Smi> length, Node* parent,
+                                    Node* offset);
   // Allocate a SlicedTwoByteString with the given length, parent and offset.
   // |length| and |offset| are expected to be tagged.
-  Node* AllocateSlicedTwoByteString(Node* length, Node* parent, Node* offset);
+  Node* AllocateSlicedTwoByteString(TNode<Smi> length, Node* parent,
+                                    Node* offset);
 
   // Allocate a one-byte ConsString with the given length, first and second
   // parts. |length| is expected to be tagged, and |first| and |second| are
   // expected to be one-byte strings.
-  Node* AllocateOneByteConsString(Node* length, Node* first, Node* second,
+  Node* AllocateOneByteConsString(TNode<Smi> length, Node* first, Node* second,
                                   AllocationFlags flags = kNone);
   // Allocate a two-byte ConsString with the given length, first and second
   // parts. |length| is expected to be tagged, and |first| and |second| are
   // expected to be two-byte strings.
-  Node* AllocateTwoByteConsString(Node* length, Node* first, Node* second,
+  Node* AllocateTwoByteConsString(TNode<Smi> length, Node* first, Node* second,
                                   AllocationFlags flags = kNone);
 
   // Allocate an appropriate one- or two-byte ConsString with the first and
   // second parts specified by |left| and |right|.
-  Node* NewConsString(Node* context, Node* length, Node* left, Node* right,
+  Node* NewConsString(Node* context, TNode<Smi> length, Node* left, Node* right,
                       AllocationFlags flags = kNone);
 
   Node* AllocateNameDictionary(int at_least_space_for);
@@ -911,15 +911,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // starting at the |from_index|'th character. |from_string| and |to_string|
   // can either be one-byte strings or two-byte strings, although if
   // |from_string| is two-byte, then |to_string| must be two-byte.
-  // |from_index|, |to_index| and |character_count| must be either Smis or
-  // intptr_ts depending on |mode| s.t. 0 <= |from_index| <= |from_index| +
-  // |character_count| <= from_string.length and 0 <= |to_index| <= |to_index| +
-  // |character_count| <= to_string.length.
+  // |from_index|, |to_index| and |character_count| must be intptr_ts s.t. 0 <=
+  // |from_index| <= |from_index| + |character_count| <= from_string.length and
+  // 0 <= |to_index| <= |to_index| + |character_count| <= to_string.length.
   void CopyStringCharacters(Node* from_string, Node* to_string,
-                            Node* from_index, Node* to_index,
-                            Node* character_count,
+                            TNode<IntPtrT> from_index, TNode<IntPtrT> to_index,
+                            TNode<IntPtrT> character_count,
                             String::Encoding from_encoding,
-                            String::Encoding to_encoding, ParameterMode mode);
+                            String::Encoding to_encoding);
 
   // Loads an element from |array| of |from_kind| elements by given |offset|
   // (NOTE: not index!), does a hole check if |if_hole| is provided and
@@ -994,7 +993,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Type conversions.
   // Throws a TypeError for {method_name} if {value} is not coercible to Object,
   // or returns the {value} converted to a String otherwise.
-  Node* ToThisString(Node* context, Node* value, char const* method_name);
+  TNode<String> ToThisString(Node* context, Node* value,
+                             char const* method_name);
   // Throws a TypeError for {method_name} if {value} is neither of the given
   // {primitive_type} nor a JSValue wrapping a value of {primitive_type}, or
   // returns the {value} (or wrapped value) otherwise.
@@ -1132,9 +1132,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
 
   // String helpers.
   // Load a character from a String (might flatten a ConsString).
-  TNode<Uint32T> StringCharCodeAt(
-      SloppyTNode<String> string, Node* index,
-      ParameterMode parameter_mode = SMI_PARAMETERS);
+  TNode<Uint32T> StringCharCodeAt(SloppyTNode<String> string,
+                                  SloppyTNode<IntPtrT> index);
   // Return the single character string with only {code}.
   Node* StringFromCharCode(Node* code);
 
@@ -1201,7 +1200,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Convert any object to a String.
   TNode<String> ToString(SloppyTNode<Context> context,
                          SloppyTNode<Object> input);
-  Node* ToString_Inline(Node* const context, Node* const input);
+  TNode<String> ToString_Inline(SloppyTNode<Context> context,
+                                SloppyTNode<Object> input);
 
   // Convert any object to a Primitive.
   Node* JSReceiverToPrimitive(Node* context, Node* input);
@@ -1818,7 +1818,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Support for printf-style debugging
   void Print(const char* s);
   void Print(const char* prefix, Node* tagged_value);
-  inline void Print(Node* tagged_value) { return Print(nullptr, tagged_value); }
+  inline void Print(SloppyTNode<Object> tagged_value) {
+    return Print(nullptr, tagged_value);
+  }
 
   template <class... TArgs>
   Node* MakeTypeError(MessageTemplate::Template message, Node* context,
@@ -1887,11 +1889,12 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* EmitKeyedSloppyArguments(Node* receiver, Node* key, Node* value,
                                  Label* bailout);
 
-  Node* AllocateSlicedString(Heap::RootListIndex map_root_index, Node* length,
-                             Node* parent, Node* offset);
+  Node* AllocateSlicedString(Heap::RootListIndex map_root_index,
+                             TNode<Smi> length, Node* parent, Node* offset);
 
-  Node* AllocateConsString(Heap::RootListIndex map_root_index, Node* length,
-                           Node* first, Node* second, AllocationFlags flags);
+  Node* AllocateConsString(Heap::RootListIndex map_root_index,
+                           TNode<Smi> length, Node* first, Node* second,
+                           AllocationFlags flags);
 
   // Implements DescriptorArray::number_of_entries.
   // Returns an untagged int32.
@@ -1905,8 +1908,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void GenerateEqual_Same(Node* value, Label* if_equal, Label* if_notequal,
                           Variable* var_type_feedback = nullptr);
   Node* AllocAndCopyStringCharacters(Node* context, Node* from,
-                                     Node* from_instance_type, Node* from_index,
-                                     Node* character_count);
+                                     Node* from_instance_type,
+                                     TNode<IntPtrT> from_index,
+                                     TNode<Smi> character_count);
 
   static const int kElementLoopUnrollThreshold = 8;
 

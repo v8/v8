@@ -710,16 +710,14 @@ Handle<Object> LoadIC::ComputeHandler(LookupIterator* lookup) {
   Handle<Object> receiver = lookup->GetReceiver();
   if (receiver->IsString() &&
       *lookup->name() == isolate()->heap()->length_string()) {
-    TRACE_HANDLER_STATS(isolate(), LoadIC_LoadFieldDH);
-    FieldIndex index = FieldIndex::ForInObjectOffset(String::kLengthOffset,
-                                                     FieldIndex::kTagged);
-    return LoadHandler::LoadField(isolate(), index);
+    TRACE_HANDLER_STATS(isolate(), LoadIC_StringLength);
+    return BUILTIN_CODE(isolate(), LoadIC_StringLength);
   }
 
   if (receiver->IsStringWrapper() &&
       *lookup->name() == isolate()->heap()->length_string()) {
-    TRACE_HANDLER_STATS(isolate(), LoadIC_StringLength);
-    return BUILTIN_CODE(isolate(), LoadIC_StringLength);
+    TRACE_HANDLER_STATS(isolate(), LoadIC_StringWrapperLength);
+    return BUILTIN_CODE(isolate(), LoadIC_StringWrapperLength);
   }
 
   // Use specialized code for getting prototype of functions.

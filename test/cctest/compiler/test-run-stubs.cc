@@ -101,12 +101,12 @@ class StubTester {
   FunctionTester tester_;
 };
 
-TEST(RunStringLengthStub) {
+TEST(RunStringWrapperLengthStub) {
   HandleAndZoneScope scope;
   Isolate* isolate = scope.main_isolate();
   Zone* zone = scope.main_zone();
 
-  StubTester tester(isolate, zone, Builtins::kLoadIC_StringLength);
+  StubTester tester(isolate, zone, Builtins::kLoadIC_StringWrapperLength);
 
   // Actuall call through to the stub, verifying its result.
   const char* testString = "Und das Lamm schrie HURZ!";

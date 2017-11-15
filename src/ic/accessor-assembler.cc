@@ -294,9 +294,9 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
 
       Comment("indexed string");
       Node* intptr_index = TryToIntptr(p->name, miss);
-      Node* length = SmiUntag(LoadStringLength(holder));
+      Node* length = LoadStringLengthAsWord(holder);
       GotoIf(UintPtrGreaterThanOrEqual(intptr_index, length), &if_oob);
-      Node* code = StringCharCodeAt(holder, intptr_index, INTPTR_PARAMETERS);
+      Node* code = StringCharCodeAt(holder, intptr_index);
       Node* result = StringFromCharCode(code);
       Return(result);
 

@@ -2342,7 +2342,8 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
       TNode<String> search_element_string = CAST(search_element);
       Label continue_loop(this), next_iteration(this, &index_var),
           slow_compare(this), runtime(this, Label::kDeferred);
-      Node* search_length = LoadAndUntagStringLength(search_element_string);
+      TNode<IntPtrT> search_length =
+          LoadStringLengthAsWord(search_element_string);
       Goto(&next_iteration);
       BIND(&next_iteration);
       GotoIfNot(UintPtrLessThan(index_var.value(), array_length),
@@ -2352,7 +2353,7 @@ void ArrayIncludesIndexofAssembler::Generate(SearchVariant variant) {
       GotoIf(WordEqual(search_element_string, element_k), &return_found);
       Node* element_k_type = LoadInstanceType(element_k);
       GotoIfNot(IsStringInstanceType(element_k_type), &continue_loop);
-      Branch(WordEqual(search_length, LoadAndUntagStringLength(element_k)),
+      Branch(WordEqual(search_length, LoadStringLengthAsWord(element_k)),
              &slow_compare, &continue_loop);
 
       BIND(&slow_compare);

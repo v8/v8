@@ -13,10 +13,14 @@ namespace v8 {
 namespace internal {
 
 TF_BUILTIN(LoadIC_StringLength, CodeStubAssembler) {
+  Node* string = Parameter(Descriptor::kReceiver);
+  Return(LoadStringLengthAsSmi(string));
+}
+
+TF_BUILTIN(LoadIC_StringWrapperLength, CodeStubAssembler) {
   Node* value = Parameter(Descriptor::kReceiver);
   Node* string = LoadJSValueValue(value);
-  Node* result = LoadStringLength(string);
-  Return(result);
+  Return(LoadStringLengthAsSmi(string));
 }
 
 TF_BUILTIN(KeyedLoadIC_Miss, CodeStubAssembler) {
