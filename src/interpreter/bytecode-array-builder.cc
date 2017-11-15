@@ -38,7 +38,7 @@ class RegisterTransferWriter final
 };
 
 BytecodeArrayBuilder::BytecodeArrayBuilder(
-    Isolate* isolate, Zone* zone, int parameter_count, int locals_count,
+    Zone* zone, int parameter_count, int locals_count,
     FeedbackVectorSpec* feedback_vector_spec,
     SourcePositionTableBuilder::RecordingMode source_position_mode)
     : zone_(zone),

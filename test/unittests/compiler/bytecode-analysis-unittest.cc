@@ -90,7 +90,7 @@ class BytecodeAnalysisTest : public TestWithIsolateAndZone {
 SaveFlags* BytecodeAnalysisTest::save_flags_ = nullptr;
 
 TEST_F(BytecodeAnalysisTest, EmptyBlock) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
+  interpreter::BytecodeArrayBuilder builder(zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -104,7 +104,7 @@ TEST_F(BytecodeAnalysisTest, EmptyBlock) {
 }
 
 TEST_F(BytecodeAnalysisTest, SimpleLoad) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
+  interpreter::BytecodeArrayBuilder builder(zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -121,7 +121,7 @@ TEST_F(BytecodeAnalysisTest, SimpleLoad) {
 }
 
 TEST_F(BytecodeAnalysisTest, StoreThenLoad) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
+  interpreter::BytecodeArrayBuilder builder(zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -141,7 +141,7 @@ TEST_F(BytecodeAnalysisTest, StoreThenLoad) {
 }
 
 TEST_F(BytecodeAnalysisTest, DiamondLoad) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
+  interpreter::BytecodeArrayBuilder builder(zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -178,7 +178,7 @@ TEST_F(BytecodeAnalysisTest, DiamondLoad) {
 }
 
 TEST_F(BytecodeAnalysisTest, DiamondLookupsAndBinds) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
+  interpreter::BytecodeArrayBuilder builder(zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -225,7 +225,7 @@ TEST_F(BytecodeAnalysisTest, DiamondLookupsAndBinds) {
 }
 
 TEST_F(BytecodeAnalysisTest, SimpleLoop) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
+  interpreter::BytecodeArrayBuilder builder(zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -273,7 +273,7 @@ TEST_F(BytecodeAnalysisTest, SimpleLoop) {
 }
 
 TEST_F(BytecodeAnalysisTest, TryCatch) {
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
+  interpreter::BytecodeArrayBuilder builder(zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -326,7 +326,7 @@ TEST_F(BytecodeAnalysisTest, DiamondInLoop) {
   // diamond should eventually propagate up the other path when the loop is
   // reprocessed.
 
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
+  interpreter::BytecodeArrayBuilder builder(zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);
@@ -396,7 +396,7 @@ TEST_F(BytecodeAnalysisTest, KillingLoopInsideLoop) {
   // still process the inner loop when processing the outer loop, to ensure that
   // r1 becomes live in 3 (via 5), but r0 stays dead (because of 4).
 
-  interpreter::BytecodeArrayBuilder builder(isolate(), zone(), 3, 3);
+  interpreter::BytecodeArrayBuilder builder(zone(), 3, 3);
   std::vector<std::pair<std::string, std::string>> expected_liveness;
 
   interpreter::Register reg_0(0);

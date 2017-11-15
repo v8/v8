@@ -705,19 +705,19 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
   }
 
   Handle<FixedArray> AllocateDeclarations(CompilationInfo* info,
-                                          Handle<Script> script) {
+                                          Handle<Script> script,
+                                          Isolate* isolate) {
     DCHECK(has_constant_pool_entry_);
     int array_index = 0;
-    Handle<FixedArray> data = info->isolate()->factory()->NewFixedArray(
+    Handle<FixedArray> data = isolate->factory()->NewFixedArray(
         static_cast<int>(declarations_.size() * 4), TENURED);
     for (const Declaration& declaration : declarations_) {
       FunctionLiteral* func = declaration.func;
       Handle<Object> initial_value;
       if (func == nullptr) {
-        initial_value = info->isolate()->factory()->undefined_value();
+        initial_value = isolate->factory()->undefined_value();
       } else {
-        initial_value =
-            Compiler::GetSharedFunctionInfo(func, script, info->isolate());
+        initial_value = Compiler::GetSharedFunctionInfo(func, script, isolate);
       }
 
       // Return a null handle if any initial values can't be created. Caller
@@ -728,7 +728,7 @@ class BytecodeGenerator::GlobalDeclarationsBuilder final : public ZoneObject {
       data->set(array_index++, Smi::FromInt(declaration.slot.ToInt()));
       Object* undefined_or_literal_slot;
       if (declaration.literal_slot.IsInvalid()) {
-        undefined_or_literal_slot = info->isolate()->heap()->undefined_value();
+        undefined_or_literal_slot = isolate->heap()->undefined_value();
       } else {
         undefined_or_literal_slot =
             Smi::FromInt(declaration.literal_slot.ToInt());
@@ -834,14 +834,15 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
   ZoneMap<Key, FeedbackSlot> map_;
 };
 
-BytecodeGenerator::BytecodeGenerator(CompilationInfo* info)
+BytecodeGenerator::BytecodeGenerator(
+    CompilationInfo* info, const AstStringConstants* ast_string_constants)
     : zone_(info->zone()),
       builder_(new (zone()) BytecodeArrayBuilder(
-          info->isolate(), info->zone(), info->num_parameters_including_this(),
+          info->zone(), info->num_parameters_including_this(),
           info->scope()->num_stack_slots(), info->feedback_vector_spec(),
           info->SourcePositionRecordingMode())),
       info_(info),
-      ast_string_constants_(info->isolate()->ast_string_constants()),
+      ast_string_constants_(ast_string_constants),
       closure_scope_(info->scope()),
       current_scope_(info->scope()),
       feedback_slot_cache_(new (zone()) FeedbackSlotCache(zone())),
@@ -898,7 +899,7 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
   // Build global declaration pair arrays.
   for (GlobalDeclarationsBuilder* globals_builder : global_declarations_) {
     Handle<FixedArray> declarations =
-        globals_builder->AllocateDeclarations(info(), script);
+        globals_builder->AllocateDeclarations(info(), script, isolate);
     if (declarations.is_null()) return SetStackOverflow();
     builder()->SetDeferredConstantPoolEntry(
         globals_builder->constant_pool_entry(), declarations);

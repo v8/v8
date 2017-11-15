@@ -24,7 +24,7 @@ class StubTester {
  public:
   StubTester(Isolate* isolate, Zone* zone, CodeStub* stub)
       : zone_(zone),
-        info_(ArrayVector("test"), isolate, zone, Code::STUB),
+        info_(ArrayVector("test"), zone, Code::STUB),
         interface_descriptor_(stub->GetCallInterfaceDescriptor()),
         descriptor_(Linkage::GetStubCallDescriptor(
             isolate, zone, interface_descriptor_,
@@ -37,7 +37,7 @@ class StubTester {
 
   StubTester(Isolate* isolate, Zone* zone, Builtins::Name name)
       : zone_(zone),
-        info_(ArrayVector("test"), isolate, zone, Code::STUB),
+        info_(ArrayVector("test"), zone, Code::STUB),
         interface_descriptor_(
             Builtins::CallableFor(isolate, name).descriptor()),
         descriptor_(Linkage::GetStubCallDescriptor(

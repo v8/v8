@@ -40,9 +40,7 @@ class BlockingCompilationJob : public CompilationJob {
   void Signal() { semaphore_.Signal(); }
 
   // CompilationJob implementation.
-  Status PrepareJobImpl() override {
-    UNREACHABLE();
-  }
+  Status PrepareJobImpl(Isolate* isolate) override { UNREACHABLE(); }
 
   Status ExecuteJobImpl() override {
     blocking_.SetValue(true);
@@ -51,7 +49,7 @@ class BlockingCompilationJob : public CompilationJob {
     return SUCCEEDED;
   }
 
-  Status FinalizeJobImpl() override { return SUCCEEDED; }
+  Status FinalizeJobImpl(Isolate* isolate) override { return SUCCEEDED; }
 
  private:
   Handle<SharedFunctionInfo> shared_;

@@ -32,6 +32,8 @@ class Zone;
 
 // CompilationInfo encapsulates some information known at compile time.  It
 // is constructed based on the resources available at compile-time.
+// TODO(rmcilroy): Split CompilationInfo into two classes, one for unoptimized
+// compilation and one for optimized compilation, since they don't share much.
 class V8_EXPORT_PRIVATE CompilationInfo final {
  public:
   // Various configuration flags for a compilation, as well as some properties
@@ -51,14 +53,13 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   };
 
   // Construct a compilation info for unoptimized compilation.
-  CompilationInfo(Zone* zone, Isolate* isolate, ParseInfo* parse_info,
-                  FunctionLiteral* literal);
+  CompilationInfo(Zone* zone, ParseInfo* parse_info, FunctionLiteral* literal);
   // Construct a compilation info for optimized compilation.
   CompilationInfo(Zone* zone, Isolate* isolate,
                   Handle<SharedFunctionInfo> shared,
                   Handle<JSFunction> closure);
   // Construct a compilation info for stub compilation (or testing).
-  CompilationInfo(Vector<const char> debug_name, Isolate* isolate, Zone* zone,
+  CompilationInfo(Vector<const char> debug_name, Zone* zone,
                   Code::Kind code_kind);
   ~CompilationInfo();
 
@@ -76,7 +77,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   DeclarationScope* scope() const;
 
-  Isolate* isolate() const { return isolate_; }
   Zone* zone() { return zone_; }
   bool is_osr() const { return !osr_offset_.IsNone(); }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
@@ -205,7 +205,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   BailoutReason bailout_reason() const { return bailout_reason_; }
 
-  CompilationDependencies* dependencies() { return &dependencies_; }
+  CompilationDependencies* dependencies() { return dependencies_.get(); }
 
   int optimization_id() const {
     DCHECK(IsOptimizing());
@@ -260,7 +260,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   enum Mode { BASE, OPTIMIZE, STUB };
 
   CompilationInfo(Vector<const char> debug_name, Code::Kind code_kind,
-                  Mode mode, Isolate* isolate, Zone* zone);
+                  Mode mode, Zone* zone);
 
   void SetMode(Mode mode) { mode_ = mode; }
 
@@ -272,7 +272,6 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
 
   bool GetFlag(Flag flag) const { return (flags_ & flag) != 0; }
 
-  Isolate* isolate_;
   FunctionLiteral* literal_;
   SourceRangeMap* source_range_map_;  // Used when block coverage is enabled.
 
@@ -310,7 +309,7 @@ class V8_EXPORT_PRIVATE CompilationInfo final {
   std::shared_ptr<DeferredHandles> deferred_handles_;
 
   // Dependencies for this compilation, e.g. stable maps.
-  CompilationDependencies dependencies_;
+  std::unique_ptr<CompilationDependencies> dependencies_;
 
   BailoutReason bailout_reason_;
 

@@ -79,7 +79,7 @@ class CodeGenerator final : public GapResolver::Assembler {
  public:
   explicit CodeGenerator(Zone* codegen_zone, Frame* frame, Linkage* linkage,
                          InstructionSequence* code, CompilationInfo* info,
-                         base::Optional<OsrHelper> osr_helper,
+                         Isolate* isolate, base::Optional<OsrHelper> osr_helper,
                          int start_source_position,
                          JumpOptimizationInfo* jump_opt,
                          std::vector<trap_handler::ProtectedInstructionData>*
@@ -94,7 +94,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   InstructionSequence* code() const { return code_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
   const Frame* frame() const { return frame_access_state_->frame(); }
-  Isolate* isolate() const;
+  Isolate* isolate() const { return isolate_; }
   Linkage* linkage() const { return linkage_; }
 
   Label* GetLabel(RpoNumber rpo) { return &labels_[rpo.ToSize()]; }
@@ -319,6 +319,7 @@ class CodeGenerator final : public GapResolver::Assembler {
   friend class CodeGeneratorTester;
 
   Zone* zone_;
+  Isolate* isolate_;
   FrameAccessState* frame_access_state_;
   Linkage* const linkage_;
   InstructionSequence* const code_;

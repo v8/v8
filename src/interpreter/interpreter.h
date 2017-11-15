@@ -40,7 +40,7 @@ class Interpreter {
   // Creates a compilation job which will generate bytecode for |literal|.
   static CompilationJob* NewCompilationJob(ParseInfo* parse_info,
                                            FunctionLiteral* literal,
-                                           Isolate* isolate);
+                                           AccountingAllocator* allocator);
 
   // If the bytecode handler for |bytecode| and |operand_scale| has not yet
   // been loaded, deserialize it. Then return the handler.

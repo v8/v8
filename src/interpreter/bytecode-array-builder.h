@@ -35,7 +35,7 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
     : public NON_EXPORTED_BASE(ZoneObject) {
  public:
   BytecodeArrayBuilder(
-      Isolate* isolate, Zone* zone, int parameter_count, int locals_count,
+      Zone* zone, int parameter_count, int locals_count,
       FeedbackVectorSpec* feedback_vector_spec = nullptr,
       SourcePositionTableBuilder::RecordingMode source_position_mode =
           SourcePositionTableBuilder::RECORD_SOURCE_POSITIONS);

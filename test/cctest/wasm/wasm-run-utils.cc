@@ -351,10 +351,10 @@ Handle<Code> WasmFunctionWrapper::GetWrapperCode() {
       r.LowerGraph();
     }
 
-    CompilationInfo info(ArrayVector("testing"), isolate, graph()->zone(),
+    CompilationInfo info(ArrayVector("testing"), graph()->zone(),
                          Code::C_WASM_ENTRY);
-    code_ = compiler::Pipeline::GenerateCodeForTesting(&info, descriptor,
-                                                       graph(), nullptr);
+    code_ = compiler::Pipeline::GenerateCodeForTesting(
+        &info, isolate, descriptor, graph(), nullptr);
     CHECK(!code_.is_null());
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code) {

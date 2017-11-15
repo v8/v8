@@ -758,13 +758,13 @@ class CodeGeneratorTester {
  public:
   explicit CodeGeneratorTester(TestEnvironment* environment)
       : zone_(environment->main_zone()),
-        info_(ArrayVector("test"), environment->main_isolate(),
-              environment->main_zone(), Code::STUB),
+        info_(ArrayVector("test"), environment->main_zone(), Code::STUB),
         linkage_(environment->test_descriptor()),
         frame_(environment->test_descriptor()->CalculateFixedFrameSize()),
         generator_(environment->main_zone(), &frame_, &linkage_,
-                   environment->code(), &info_, base::Optional<OsrHelper>(),
-                   kNoSourcePosition, nullptr, nullptr) {
+                   environment->code(), &info_, environment->main_isolate(),
+                   base::Optional<OsrHelper>(), kNoSourcePosition, nullptr,
+                   nullptr) {
     // Force a frame to be created.
     generator_.frame_access_state()->MarkHasFrame(true);
     generator_.AssembleConstructFrame();

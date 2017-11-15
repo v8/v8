@@ -64,7 +64,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       CompilationJobList* inner_function_jobs);
 
   // Generate and install code from previously queued compilation job.
-  static bool FinalizeCompilationJob(CompilationJob* job);
+  static bool FinalizeCompilationJob(CompilationJob* job, Isolate* isolate);
 
   // Give the compiler a chance to perform low-latency initialization tasks of
   // the given {function} on its instantiation. Note that only the runtime will
@@ -184,14 +184,14 @@ class V8_EXPORT_PRIVATE CompilationJob {
   virtual ~CompilationJob() {}
 
   // Prepare the compile job. Must be called on the main thread.
-  MUST_USE_RESULT Status PrepareJob();
+  MUST_USE_RESULT Status PrepareJob(Isolate* isolate);
 
   // Executes the compile job. Can be called on a background thread if
   // can_execute_on_background_thread() returns true.
   MUST_USE_RESULT Status ExecuteJob();
 
   // Finalizes the compile job. Must be called on the main thread.
-  MUST_USE_RESULT Status FinalizeJob();
+  MUST_USE_RESULT Status FinalizeJob(Isolate* isolate);
 
   // Report a transient failure, try again next time. Should only be called on
   // optimization compilation jobs.
@@ -202,8 +202,9 @@ class V8_EXPORT_PRIVATE CompilationJob {
   Status AbortOptimization(BailoutReason reason);
 
   void RecordOptimizedCompilationStats() const;
-  void RecordUnoptimizedCompilationStats() const;
-  void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag) const;
+  void RecordUnoptimizedCompilationStats(Isolate* isolate) const;
+  void RecordFunctionCompilation(CodeEventListener::LogEventsAndTags tag,
+                                 Isolate* isolate) const;
 
   void set_stack_limit(uintptr_t stack_limit) { stack_limit_ = stack_limit; }
   uintptr_t stack_limit() const { return stack_limit_; }
@@ -215,9 +216,9 @@ class V8_EXPORT_PRIVATE CompilationJob {
 
  protected:
   // Overridden by the actual implementation.
-  virtual Status PrepareJobImpl() = 0;
+  virtual Status PrepareJobImpl(Isolate* isolate) = 0;
   virtual Status ExecuteJobImpl() = 0;
-  virtual Status FinalizeJobImpl() = 0;
+  virtual Status FinalizeJobImpl(Isolate* isolate) = 0;
 
  private:
   // TODO(6409): Remove parse_info once Fullcode and AstGraphBuilder are gone.

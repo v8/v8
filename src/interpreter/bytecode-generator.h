@@ -28,7 +28,8 @@ class BytecodeJumpTable;
 
 class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
  public:
-  explicit BytecodeGenerator(CompilationInfo* info);
+  explicit BytecodeGenerator(CompilationInfo* info,
+                             const AstStringConstants* ast_string_constants);
 
   void GenerateBytecode(uintptr_t stack_limit);
   Handle<BytecodeArray> FinalizeBytecode(Isolate* isolate,

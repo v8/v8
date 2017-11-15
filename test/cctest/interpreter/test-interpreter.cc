@@ -35,7 +35,7 @@ TEST(InterpreterReturn) {
   Zone* zone = handles.main_zone();
   Handle<Object> undefined_value = isolate->factory()->undefined_value();
 
-  BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+  BytecodeArrayBuilder builder(zone, 1, 0);
   builder.Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -51,7 +51,7 @@ TEST(InterpreterLoadUndefined) {
   Zone* zone = handles.main_zone();
   Handle<Object> undefined_value = isolate->factory()->undefined_value();
 
-  BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+  BytecodeArrayBuilder builder(zone, 1, 0);
   builder.LoadUndefined().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -67,7 +67,7 @@ TEST(InterpreterLoadNull) {
   Zone* zone = handles.main_zone();
   Handle<Object> null_value = isolate->factory()->null_value();
 
-  BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+  BytecodeArrayBuilder builder(zone, 1, 0);
   builder.LoadNull().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -83,7 +83,7 @@ TEST(InterpreterLoadTheHole) {
   Zone* zone = handles.main_zone();
   Handle<Object> the_hole_value = isolate->factory()->the_hole_value();
 
-  BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+  BytecodeArrayBuilder builder(zone, 1, 0);
   builder.LoadTheHole().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -99,7 +99,7 @@ TEST(InterpreterLoadTrue) {
   Zone* zone = handles.main_zone();
   Handle<Object> true_value = isolate->factory()->true_value();
 
-  BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+  BytecodeArrayBuilder builder(zone, 1, 0);
   builder.LoadTrue().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -115,7 +115,7 @@ TEST(InterpreterLoadFalse) {
   Zone* zone = handles.main_zone();
   Handle<Object> false_value = isolate->factory()->false_value();
 
-  BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+  BytecodeArrayBuilder builder(zone, 1, 0);
   builder.LoadFalse().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -132,7 +132,7 @@ TEST(InterpreterLoadLiteral) {
 
   // Small Smis.
   for (int i = -128; i < 128; i++) {
-    BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+    BytecodeArrayBuilder builder(zone, 1, 0);
     builder.LoadLiteral(Smi::FromInt(i)).Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
 
@@ -144,7 +144,7 @@ TEST(InterpreterLoadLiteral) {
 
   // Large Smis.
   {
-    BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+    BytecodeArrayBuilder builder(zone, 1, 0);
 
     builder.LoadLiteral(Smi::FromInt(0x12345678)).Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -160,7 +160,7 @@ TEST(InterpreterLoadLiteral) {
     AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
                                 isolate->heap()->HashSeed());
 
-    BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+    BytecodeArrayBuilder builder(zone, 1, 0);
 
     builder.LoadLiteral(-2.1e19).Return();
 
@@ -178,7 +178,7 @@ TEST(InterpreterLoadLiteral) {
     AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
                                 isolate->heap()->HashSeed());
 
-    BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+    BytecodeArrayBuilder builder(zone, 1, 0);
 
     const AstRawString* raw_string = ast_factory.GetOneByteString("String");
     builder.LoadLiteral(raw_string).Return();
@@ -199,7 +199,7 @@ TEST(InterpreterLoadStoreRegisters) {
   Zone* zone = handles.main_zone();
   Handle<Object> true_value = isolate->factory()->true_value();
   for (int i = 0; i <= kMaxInt8; i++) {
-    BytecodeArrayBuilder builder(isolate, zone, 1, i + 1);
+    BytecodeArrayBuilder builder(zone, 1, i + 1);
 
     Register reg(i);
     builder.LoadTrue()
@@ -283,7 +283,7 @@ TEST(InterpreterShiftOpsSmi) {
         Zone* zone = handles.main_zone();
         Factory* factory = isolate->factory();
         FeedbackVectorSpec feedback_spec(zone);
-        BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+        BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
 
         FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
         Handle<i::FeedbackMetadata> metadata =
@@ -321,7 +321,7 @@ TEST(InterpreterBinaryOpsSmi) {
         Zone* zone = handles.main_zone();
         Factory* factory = isolate->factory();
         FeedbackVectorSpec feedback_spec(zone);
-        BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+        BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
 
         FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
         Handle<i::FeedbackMetadata> metadata =
@@ -360,7 +360,7 @@ TEST(InterpreterBinaryOpsHeapNumber) {
         Zone* zone = handles.main_zone();
         Factory* factory = isolate->factory();
         FeedbackVectorSpec feedback_spec(zone);
-        BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+        BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
 
         FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
         Handle<i::FeedbackMetadata> metadata =
@@ -482,7 +482,7 @@ TEST(InterpreterStringAdd) {
 
   for (size_t i = 0; i < arraysize(test_cases); i++) {
     FeedbackVectorSpec feedback_spec(zone);
-    BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+    BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
     FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
     Handle<i::FeedbackMetadata> metadata =
         NewFeedbackMetadata(isolate, &feedback_spec);
@@ -510,7 +510,7 @@ TEST(InterpreterParameter1) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
-  BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+  BytecodeArrayBuilder builder(zone, 1, 0);
 
   builder.LoadAccumulatorWithRegister(builder.Receiver()).Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(isolate);
@@ -536,7 +536,7 @@ TEST(InterpreterParameter8) {
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
                               isolate->heap()->HashSeed());
   FeedbackVectorSpec feedback_spec(zone);
-  BytecodeArrayBuilder builder(isolate, zone, 8, 0, &feedback_spec);
+  BytecodeArrayBuilder builder(zone, 8, 0, &feedback_spec);
 
   FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
   FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
@@ -685,7 +685,7 @@ TEST(InterpreterBinaryOpTypeFeedback) {
 
   for (const BinaryOpExpectation& test_case : kTestCases) {
     i::FeedbackVectorSpec feedback_spec(zone);
-    BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+    BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
 
     i::FeedbackSlot slot0 = feedback_spec.AddBinaryOpICSlot();
 
@@ -790,7 +790,7 @@ TEST(InterpreterBinaryOpSmiTypeFeedback) {
 
   for (const BinaryOpExpectation& test_case : kTestCases) {
     i::FeedbackVectorSpec feedback_spec(zone);
-    BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+    BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
 
     i::FeedbackSlot slot0 = feedback_spec.AddBinaryOpICSlot();
 
@@ -841,7 +841,7 @@ TEST(InterpreterUnaryOpFeedback) {
       {Token::Value::DEC, smi_one, smi_min, number, str}};
   for (TestCase const& test_case : kTestCases) {
     i::FeedbackVectorSpec feedback_spec(zone);
-    BytecodeArrayBuilder builder(isolate, zone, 4, 0, &feedback_spec);
+    BytecodeArrayBuilder builder(zone, 4, 0, &feedback_spec);
 
     i::FeedbackSlot slot0 = feedback_spec.AddBinaryOpICSlot();
     i::FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
@@ -905,7 +905,7 @@ TEST(InterpreterBitwiseTypeFeedback) {
 
   for (Token::Value op : kBitwiseBinaryOperators) {
     i::FeedbackVectorSpec feedback_spec(zone);
-    BytecodeArrayBuilder builder(isolate, zone, 4, 0, &feedback_spec);
+    BytecodeArrayBuilder builder(zone, 4, 0, &feedback_spec);
 
     i::FeedbackSlot slot0 = feedback_spec.AddBinaryOpICSlot();
     i::FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
@@ -955,7 +955,7 @@ TEST(InterpreterParameter1Assign) {
   HandleAndZoneScope handles;
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
-  BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+  BytecodeArrayBuilder builder(zone, 1, 0);
 
   builder.LoadLiteral(Smi::FromInt(5))
       .StoreAccumulatorInRegister(builder.Receiver())
@@ -1080,7 +1080,7 @@ TEST(InterpreterLoadNamedProperty) {
 
   const AstRawString* name = ast_factory.GetOneByteString("val");
 
-  BytecodeArrayBuilder builder(isolate, zone, 1, 0, &feedback_spec);
+  BytecodeArrayBuilder builder(zone, 1, 0, &feedback_spec);
 
   builder.LoadNamedProperty(builder.Receiver(), name, GetIndex(slot)).Return();
   ast_factory.Internalize(isolate);
@@ -1132,7 +1132,7 @@ TEST(InterpreterLoadKeyedProperty) {
 
   const AstRawString* key = ast_factory.GetOneByteString("key");
 
-  BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+  BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
 
   builder.LoadLiteral(key)
       .LoadKeyedProperty(builder.Receiver(), GetIndex(slot))
@@ -1174,7 +1174,7 @@ TEST(InterpreterStoreNamedProperty) {
 
   const AstRawString* name = ast_factory.GetOneByteString("val");
 
-  BytecodeArrayBuilder builder(isolate, zone, 1, 0, &feedback_spec);
+  BytecodeArrayBuilder builder(zone, 1, 0, &feedback_spec);
 
   builder.LoadLiteral(Smi::FromInt(999))
       .StoreNamedProperty(builder.Receiver(), name, GetIndex(slot),
@@ -1237,7 +1237,7 @@ TEST(InterpreterStoreKeyedProperty) {
 
   const AstRawString* name = ast_factory.GetOneByteString("val");
 
-  BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+  BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
 
   builder.LoadLiteral(name)
       .StoreAccumulatorInRegister(Register(0))
@@ -1295,7 +1295,7 @@ TEST(InterpreterCall) {
 
   // Check with no args.
   {
-    BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+    BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
     Register reg = builder.register_allocator()->NewRegister();
     RegisterList args = builder.register_allocator()->NewRegisterList(1);
     builder.LoadNamedProperty(builder.Receiver(), name, slot_index)
@@ -1319,7 +1319,7 @@ TEST(InterpreterCall) {
 
   // Check that receiver is passed properly.
   {
-    BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+    BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
     Register reg = builder.register_allocator()->NewRegister();
     RegisterList args = builder.register_allocator()->NewRegisterList(1);
     builder.LoadNamedProperty(builder.Receiver(), name, slot_index)
@@ -1344,7 +1344,7 @@ TEST(InterpreterCall) {
 
   // Check with two parameters (+ receiver).
   {
-    BytecodeArrayBuilder builder(isolate, zone, 1, 4, &feedback_spec);
+    BytecodeArrayBuilder builder(zone, 1, 4, &feedback_spec);
     Register reg = builder.register_allocator()->NewRegister();
     RegisterList args = builder.register_allocator()->NewRegisterList(3);
 
@@ -1377,7 +1377,7 @@ TEST(InterpreterCall) {
 
   // Check with 10 parameters (+ receiver).
   {
-    BytecodeArrayBuilder builder(isolate, zone, 1, 12, &feedback_spec);
+    BytecodeArrayBuilder builder(zone, 1, 12, &feedback_spec);
     Register reg = builder.register_allocator()->NewRegister();
     RegisterList args = builder.register_allocator()->NewRegisterList(11);
 
@@ -1455,7 +1455,7 @@ TEST(InterpreterJumps) {
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
   FeedbackVectorSpec feedback_spec(zone);
-  BytecodeArrayBuilder builder(isolate, zone, 1, 2, &feedback_spec);
+  BytecodeArrayBuilder builder(zone, 1, 2, &feedback_spec);
 
   FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
   FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
@@ -1492,7 +1492,7 @@ TEST(InterpreterConditionalJumps) {
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
   FeedbackVectorSpec feedback_spec(zone);
-  BytecodeArrayBuilder builder(isolate, zone, 1, 2, &feedback_spec);
+  BytecodeArrayBuilder builder(zone, 1, 2, &feedback_spec);
 
   FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
   FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
@@ -1542,7 +1542,7 @@ TEST(InterpreterConditionalJumps2) {
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
   FeedbackVectorSpec feedback_spec(zone);
-  BytecodeArrayBuilder builder(isolate, zone, 1, 2, &feedback_spec);
+  BytecodeArrayBuilder builder(zone, 1, 2, &feedback_spec);
 
   FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
   FeedbackSlot slot1 = feedback_spec.AddBinaryOpICSlot();
@@ -1593,7 +1593,7 @@ TEST(InterpreterJumpConstantWith16BitOperand) {
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
                               isolate->heap()->HashSeed());
   FeedbackVectorSpec feedback_spec(zone);
-  BytecodeArrayBuilder builder(isolate, zone, 1, 257, &feedback_spec);
+  BytecodeArrayBuilder builder(zone, 1, 257, &feedback_spec);
 
   FeedbackSlot slot = feedback_spec.AddBinaryOpICSlot();
   Handle<i::FeedbackMetadata> metadata =
@@ -1653,7 +1653,7 @@ TEST(InterpreterJumpWith32BitOperand) {
   Zone* zone = handles.main_zone();
   AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
                               isolate->heap()->HashSeed());
-  BytecodeArrayBuilder builder(isolate, zone, 1, 1);
+  BytecodeArrayBuilder builder(zone, 1, 1);
   Register reg(0);
   BytecodeLabel done;
 
@@ -1744,7 +1744,7 @@ TEST(InterpreterSmiComparisons) {
         Isolate* isolate = handles.main_isolate();
         Zone* zone = handles.main_zone();
         FeedbackVectorSpec feedback_spec(zone);
-        BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+        BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
 
         FeedbackSlot slot = feedback_spec.AddCompareICSlot();
         Handle<i::FeedbackMetadata> metadata =
@@ -1792,7 +1792,7 @@ TEST(InterpreterHeapNumberComparisons) {
                                     isolate->heap()->HashSeed());
 
         FeedbackVectorSpec feedback_spec(zone);
-        BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+        BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
 
         FeedbackSlot slot = feedback_spec.AddCompareICSlot();
         Handle<i::FeedbackMetadata> metadata =
@@ -1845,7 +1845,7 @@ TEST(InterpreterStringComparisons) {
         Handle<i::FeedbackMetadata> metadata =
             NewFeedbackMetadata(isolate, &feedback_spec);
 
-        BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+        BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
         Register r0(0);
         builder.LoadLiteral(ast_factory.GetOneByteString(lhs))
             .StoreAccumulatorInRegister(r0)
@@ -1921,7 +1921,7 @@ TEST(InterpreterMixedComparisons) {
             AstValueFactory ast_factory(zone, isolate->ast_string_constants(),
                                         isolate->heap()->HashSeed());
             FeedbackVectorSpec feedback_spec(zone);
-            BytecodeArrayBuilder builder(isolate, zone, 1, 0, &feedback_spec);
+            BytecodeArrayBuilder builder(zone, 1, 0, &feedback_spec);
 
             FeedbackSlot string_add_slot = feedback_spec.AddBinaryOpICSlot();
             FeedbackSlot slot = feedback_spec.AddCompareICSlot();
@@ -2096,7 +2096,7 @@ TEST(InterpreterCompareTypeOf) {
     LiteralFlag literal_flag = kLiterals[l];
     if (literal_flag == LiteralFlag::kOther) continue;
 
-    BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+    BytecodeArrayBuilder builder(zone, 1, 0);
     builder.LoadAccumulatorWithRegister(builder.Receiver())
         .CompareTypeOf(kLiterals[l])
         .Return();
@@ -2125,7 +2125,7 @@ TEST(InterpreterInstanceOf) {
   for (size_t i = 0; i < arraysize(cases); i++) {
     bool expected_value = (i == 0);
     FeedbackVectorSpec feedback_spec(zone);
-    BytecodeArrayBuilder builder(isolate, zone, 1, 1, &feedback_spec);
+    BytecodeArrayBuilder builder(zone, 1, 1, &feedback_spec);
 
     Register r0(0);
     size_t case_entry = builder.AllocateDeferredConstantPoolEntry();
@@ -2165,7 +2165,7 @@ TEST(InterpreterTestIn) {
   const char* properties[] = {"length", "fuzzle", "x", "0"};
   for (size_t i = 0; i < arraysize(properties); i++) {
     bool expected_value = (i == 0);
-    BytecodeArrayBuilder builder(isolate, zone, 1, 1);
+    BytecodeArrayBuilder builder(zone, 1, 1);
 
     Register r0(0);
     builder.LoadLiteral(ast_factory.GetOneByteString(properties[i]))
@@ -2193,7 +2193,7 @@ TEST(InterpreterUnaryNot) {
   Zone* zone = handles.main_zone();
   for (size_t i = 1; i < 10; i++) {
     bool expected_value = ((i & 1) == 1);
-    BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+    BytecodeArrayBuilder builder(zone, 1, 0);
 
     Register r0(0);
     builder.LoadFalse();
@@ -2230,7 +2230,7 @@ TEST(InterpreterUnaryNotNonBoolean) {
   };
 
   for (size_t i = 0; i < arraysize(object_type_tuples); i++) {
-    BytecodeArrayBuilder builder(isolate, zone, 1, 0);
+    BytecodeArrayBuilder builder(zone, 1, 0);
 
     Register r0(0);
     LoadLiteralForTest(&builder, object_type_tuples[i].first);
@@ -2277,7 +2277,7 @@ TEST(InterpreterCallRuntime) {
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
 
-  BytecodeArrayBuilder builder(isolate, zone, 1, 2);
+  BytecodeArrayBuilder builder(zone, 1, 2);
   RegisterList args = builder.register_allocator()->NewRegisterList(2);
 
   builder.LoadLiteral(Smi::FromInt(15))
@@ -2300,7 +2300,7 @@ TEST(InterpreterInvokeIntrinsic) {
   Isolate* isolate = handles.main_isolate();
   Zone* zone = handles.main_zone();
 
-  BytecodeArrayBuilder builder(isolate, zone, 1, 2);
+  BytecodeArrayBuilder builder(zone, 1, 2);
 
   builder.LoadLiteral(Smi::FromInt(15))
       .StoreAccumulatorInRegister(Register(0))

@@ -38,11 +38,12 @@ class CodeGenerator::JumpTable final : public ZoneObject {
 
 CodeGenerator::CodeGenerator(
     Zone* codegen_zone, Frame* frame, Linkage* linkage,
-    InstructionSequence* code, CompilationInfo* info,
+    InstructionSequence* code, CompilationInfo* info, Isolate* isolate,
     base::Optional<OsrHelper> osr_helper, int start_source_position,
     JumpOptimizationInfo* jump_opt,
     std::vector<trap_handler::ProtectedInstructionData>* protected_instructions)
     : zone_(codegen_zone),
+      isolate_(isolate),
       frame_access_state_(nullptr),
       linkage_(linkage),
       code_(code),
@@ -52,7 +53,7 @@ CodeGenerator::CodeGenerator(
       current_block_(RpoNumber::Invalid()),
       start_source_position_(start_source_position),
       current_source_position_(SourcePosition::Unknown()),
-      tasm_(info->isolate(), nullptr, 0, CodeObjectRequired::kNo),
+      tasm_(isolate, nullptr, 0, CodeObjectRequired::kNo),
       resolver_(this),
       safepoints_(zone()),
       handlers_(zone()),
@@ -79,8 +80,6 @@ CodeGenerator::CodeGenerator(
   CHECK_EQ(info->is_osr(), osr_helper_.has_value());
   tasm_.set_jump_optimization_info(jump_opt);
 }
-
-Isolate* CodeGenerator::isolate() const { return info_->isolate(); }
 
 void CodeGenerator::AddProtectedInstructionLanding(uint32_t instr_offset,
                                                    uint32_t landing_offset) {
@@ -603,16 +602,16 @@ void CodeGenerator::AssembleGaps(Instruction* instr) {
 namespace {
 
 Handle<PodArray<InliningPosition>> CreateInliningPositions(
-    CompilationInfo* info) {
+    CompilationInfo* info, Isolate* isolate) {
   const CompilationInfo::InlinedFunctionList& inlined_functions =
       info->inlined_functions();
   if (inlined_functions.size() == 0) {
     return Handle<PodArray<InliningPosition>>::cast(
-        info->isolate()->factory()->empty_byte_array());
+        isolate->factory()->empty_byte_array());
   }
   Handle<PodArray<InliningPosition>> inl_positions =
       PodArray<InliningPosition>::New(
-          info->isolate(), static_cast<int>(inlined_functions.size()), TENURED);
+          isolate, static_cast<int>(inlined_functions.size()), TENURED);
   for (size_t i = 0; i < inlined_functions.size(); ++i) {
     inl_positions->set(static_cast<int>(i), inlined_functions[i].position);
   }
@@ -652,7 +651,8 @@ Handle<DeoptimizationData> CodeGenerator::GenerateDeoptimizationData() {
   }
   data->SetLiteralArray(*literals);
 
-  Handle<PodArray<InliningPosition>> inl_pos = CreateInliningPositions(info);
+  Handle<PodArray<InliningPosition>> inl_pos =
+      CreateInliningPositions(info, isolate());
   data->SetInliningPositions(*inl_pos);
 
   if (info->is_osr()) {

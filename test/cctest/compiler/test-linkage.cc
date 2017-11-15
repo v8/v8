@@ -108,7 +108,7 @@ TEST(TestLinkageStubCall) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   Zone zone(isolate->allocator(), ZONE_NAME);
   Callable callable = Builtins::CallableFor(isolate, Builtins::kToNumber);
-  CompilationInfo info(ArrayVector("test"), isolate, &zone, Code::STUB);
+  CompilationInfo info(ArrayVector("test"), &zone, Code::STUB);
   CallDescriptor* descriptor = Linkage::GetStubCallDescriptor(
       isolate, &zone, callable.descriptor(), 0, CallDescriptor::kNoFlags,
       Operator::kNoProperties);

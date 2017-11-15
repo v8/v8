@@ -23,7 +23,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidBeforeStart) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   FeedbackVectorSpec feedback_spec(zone());
-  BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
+  BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
@@ -77,7 +77,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, InvalidAfterEnd) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   FeedbackVectorSpec feedback_spec(zone());
-  BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
+  BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
@@ -131,7 +131,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesFirst) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   FeedbackVectorSpec feedback_spec(zone());
-  BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
+  BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
@@ -189,7 +189,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, AccessesLast) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   FeedbackVectorSpec feedback_spec(zone());
-  BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
+  BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
@@ -248,7 +248,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, RandomAccessValid) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   FeedbackVectorSpec feedback_spec(zone());
-  BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
+  BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
@@ -433,7 +433,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArray) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   FeedbackVectorSpec feedback_spec(zone());
-  BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
+  BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
@@ -712,7 +712,7 @@ TEST_F(BytecodeArrayRandomIteratorTest, IteratesBytecodeArrayBackwards) {
   // Use a builder to create an array with containing multiple bytecodes
   // with 0, 1 and 2 operands.
   FeedbackVectorSpec feedback_spec(zone());
-  BytecodeArrayBuilder builder(isolate(), zone(), 3, 3, &feedback_spec);
+  BytecodeArrayBuilder builder(zone(), 3, 3, &feedback_spec);
   AstValueFactory ast_factory(zone(), isolate()->ast_string_constants(),
                               isolate()->heap()->HashSeed());
   double heap_num_0 = 2.718;
