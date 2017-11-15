@@ -19,7 +19,7 @@ const uint32_t kWasmMagic = 0x6d736100;
 const uint32_t kWasmVersion = 0x01;
 
 // Binary encoding of local types.
-enum ValueTypeCode {
+enum ValueTypeCode : uint8_t {
   kLocalVoid = 0x40,
   kLocalI32 = 0x7f,
   kLocalI64 = 0x7e,

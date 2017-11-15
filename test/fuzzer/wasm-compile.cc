@@ -81,30 +81,48 @@ class WasmGenerator {
     builder_->Emit(Op);
   }
 
+  class BlockScope {
+   public:
+    BlockScope(WasmGenerator* gen, WasmOpcode block_type, ValueType result_type,
+               ValueType br_type)
+        : gen_(gen) {
+      gen->blocks_.push_back(br_type);
+      gen->builder_->EmitWithU8(block_type,
+                                WasmOpcodes::ValueTypeCodeFor(result_type));
+    }
+
+    ~BlockScope() {
+      gen_->builder_->Emit(kExprEnd);
+      gen_->blocks_.pop_back();
+    }
+
+   private:
+    WasmGenerator* const gen_;
+  };
+
   template <ValueType T>
   void block(DataRange data) {
-    blocks_.push_back(T);
-    builder_->EmitWithU8(
-        kExprBlock, static_cast<uint8_t>(WasmOpcodes::ValueTypeCodeFor(T)));
+    BlockScope block_scope(this, kExprBlock, T, T);
     Generate<T>(data);
-    builder_->Emit(kExprEnd);
-    blocks_.pop_back();
   }
 
   template <ValueType T>
-  void block_br(DataRange data) {
-    blocks_.push_back(T);
-    builder_->EmitWithU8(
-        kExprBlock, static_cast<uint8_t>(WasmOpcodes::ValueTypeCodeFor(T)));
+  void loop(DataRange data) {
+    // When breaking to a loop header, don't provide any input value (hence
+    // kWasmStmt).
+    BlockScope block_scope(this, kExprLoop, T, kWasmStmt);
+    Generate<T>(data);
+  }
 
+  void br(DataRange data) {
+    // There is always at least the block representing the function body.
+    DCHECK(!blocks_.empty());
     const uint32_t target_block = data.get<uint32_t>() % blocks_.size();
     const ValueType break_type = blocks_[target_block];
 
     Generate(break_type, data);
     builder_->EmitWithI32V(
         kExprBr, static_cast<uint32_t>(blocks_.size()) - 1 - target_block);
-    builder_->Emit(kExprEnd);
-    blocks_.pop_back();
   }
 
   // TODO(eholk): make this function constexpr once gcc supports it
@@ -191,7 +209,10 @@ class WasmGenerator {
   };
 
  public:
-  explicit WasmGenerator(WasmFunctionBuilder* fn) : builder_(fn) {}
+  explicit WasmGenerator(WasmFunctionBuilder* fn) : builder_(fn) {
+    DCHECK_EQ(1, fn->signature()->return_count());
+    blocks_.push_back(fn->signature()->GetReturn(0));
+  }
 
   void Generate(ValueType type, DataRange data);
 
@@ -224,7 +245,8 @@ void WasmGenerator::Generate<kWasmStmt>(DataRange data) {
 
   constexpr generate_fn alternates[] = {
       &WasmGenerator::block<kWasmStmt>,
-      &WasmGenerator::block_br<kWasmStmt>,
+      &WasmGenerator::loop<kWasmStmt>,
+      &WasmGenerator::br,
 
       &WasmGenerator::memop<kExprI32StoreMem, kWasmI32>,
       &WasmGenerator::memop<kExprI32StoreMem8, kWasmI32>,
@@ -307,7 +329,7 @@ void WasmGenerator::Generate<kWasmI32>(DataRange data) {
       &WasmGenerator::op<kExprI32ReinterpretF32, kWasmF32>,
 
       &WasmGenerator::block<kWasmI32>,
-      &WasmGenerator::block_br<kWasmI32>,
+      &WasmGenerator::loop<kWasmI32>,
 
       &WasmGenerator::memop<kExprI32LoadMem>,
       &WasmGenerator::memop<kExprI32LoadMem8S>,
@@ -355,7 +377,7 @@ void WasmGenerator::Generate<kWasmI64>(DataRange data) {
       &WasmGenerator::op<kExprI64Popcnt, kWasmI64>,
 
       &WasmGenerator::block<kWasmI64>,
-      &WasmGenerator::block_br<kWasmI64>,
+      &WasmGenerator::loop<kWasmI64>,
 
       &WasmGenerator::memop<kExprI64LoadMem>,
       &WasmGenerator::memop<kExprI64LoadMem8S>,
@@ -384,7 +406,7 @@ void WasmGenerator::Generate<kWasmF32>(DataRange data) {
       &WasmGenerator::op<kExprF32Mul, kWasmF32, kWasmF32>,
 
       &WasmGenerator::block<kWasmF32>,
-      &WasmGenerator::block_br<kWasmF32>,
+      &WasmGenerator::loop<kWasmF32>,
 
       &WasmGenerator::memop<kExprF32LoadMem>};
 
@@ -407,7 +429,7 @@ void WasmGenerator::Generate<kWasmF64>(DataRange data) {
       &WasmGenerator::op<kExprF64Mul, kWasmF64, kWasmF64>,
 
       &WasmGenerator::block<kWasmF64>,
-      &WasmGenerator::block_br<kWasmF64>,
+      &WasmGenerator::loop<kWasmF64>,
 
       &WasmGenerator::memop<kExprF64LoadMem>};
 
@@ -452,8 +474,7 @@ class WasmCompileFuzzer : public WasmExecutionFuzzer {
     WasmGenerator gen(f);
     gen.Generate<kWasmI32>(DataRange(data, static_cast<uint32_t>(size)));
 
-    uint8_t end_opcode = kExprEnd;
-    f->EmitCode(&end_opcode, 1);
+    f->Emit(kExprEnd);
     builder.AddExport(CStrVector("main"), f);
 
     builder.SetMaxMemorySize(32);
