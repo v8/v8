@@ -98,6 +98,16 @@ class BaseCollectionsAssembler : public CodeStubAssembler {
 
   void GotoIfNotJSReceiver(Node* const obj, Label* if_not_receiver);
 
+  // Loads an element from a fixed array.  If the element is the hole, returns
+  // `undefined`.
+  TNode<Object> LoadAndNormalizeFixedArrayElement(TNode<Object> elements,
+                                                  TNode<IntPtrT> index);
+
+  // Loads an element from a fixed double array.  If the element is the hole,
+  // returns `undefined`.
+  TNode<Object> LoadAndNormalizeFixedDoubleArrayElement(TNode<Object> elements,
+                                                        TNode<IntPtrT> index);
+
   // Loads key and value variables with the first and second elements of an
   // array.  If the array lacks 2 elements, undefined is used.
   void LoadKeyValue(TNode<Context> context, TNode<Object> maybe_array,
@@ -110,6 +120,7 @@ TNode<Object> BaseCollectionsAssembler::AddConstructorEntry(
     Variant variant, TNode<Context> context, TNode<Object> collection,
     TNode<Object> add_function, TNode<Object> key_value, Label* if_exception,
     TVariable<Object>* var_exception) {
+  CSA_ASSERT(this, Word32BinaryNot(IsTheHole(key_value)));
   if (variant == kMap) {
     Label exit(this), if_notobject(this, Label::kDeferred);
     GotoIfNotJSReceiver(key_value, &if_notobject);
@@ -184,7 +195,8 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
   BIND(&if_smiorobjects);
   {
     auto set_entry = [&](Node* index) {
-      TNode<Object> element = CAST(LoadFixedArrayElement(elements, index));
+      TNode<Object> element = LoadAndNormalizeFixedArrayElement(
+          elements, UncheckedCast<IntPtrT>(index));
       AddConstructorEntry(variant, context, collection, add_func, element);
     };
     BuildFastLoop(IntPtrConstant(0), length, set_entry, 1,
@@ -204,11 +216,9 @@ void BaseCollectionsAssembler::AddConstructorEntriesFromFastJSArray(
                      AllocateHeapNumberWithValue(element));
     } else {
       auto set_entry = [&](Node* index) {
-        TNode<Float64T> element =
-            UncheckedCast<Float64T>(LoadFixedDoubleArrayElement(
-                elements, index, MachineType::Float64(), 0, INTPTR_PARAMETERS));
-        AddConstructorEntry(kSet, context, collection, add_func,
-                            AllocateHeapNumberWithValue(element));
+        TNode<Object> entry = LoadAndNormalizeFixedDoubleArrayElement(
+            elements, UncheckedCast<IntPtrT>(index));
+        AddConstructorEntry(kSet, context, collection, add_func, entry);
       };
       BuildFastLoop(IntPtrConstant(0), length, set_entry, 1,
                     ParameterMode::INTPTR_PARAMETERS, IndexAdvanceMode::kPost);
@@ -357,12 +367,41 @@ void BaseCollectionsAssembler::GotoIfNotJSReceiver(Node* const obj,
   GotoIfNot(IsJSReceiver(obj), if_not_receiver);
 }
 
+TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedArrayElement(
+    TNode<Object> elements, TNode<IntPtrT> index) {
+  TNode<Object> element = CAST(LoadFixedArrayElement(elements, index));
+  return Select<Object>(IsTheHole(element), [=] { return UndefinedConstant(); },
+                        [=] { return element; },
+                        MachineRepresentation::kTagged);
+}
+
+TNode<Object> BaseCollectionsAssembler::LoadAndNormalizeFixedDoubleArrayElement(
+    TNode<Object> elements, TNode<IntPtrT> index) {
+  TVARIABLE(Object, entry);
+  Label if_hole(this, Label::kDeferred), next(this);
+  TNode<Float64T> element = UncheckedCast<Float64T>(LoadFixedDoubleArrayElement(
+      elements, index, MachineType::Float64(), 0, INTPTR_PARAMETERS, &if_hole));
+  {  // not hole
+    entry = AllocateHeapNumberWithValue(element);
+    Goto(&next);
+  }
+  BIND(&if_hole);
+  {
+    entry = UndefinedConstant();
+    Goto(&next);
+  }
+  BIND(&next);
+  return entry;
+}
+
 void BaseCollectionsAssembler::LoadKeyValue(TNode<Context> context,
                                             TNode<Object> maybe_array,
                                             TVariable<Object>* key,
                                             TVariable<Object>* value,
                                             Label* if_exception,
                                             TVariable<Object>* var_exception) {
+  CSA_ASSERT(this, Word32BinaryNot(IsTheHole(maybe_array)));
+
   Label exit(this), if_fast(this), if_slow(this, Label::kDeferred);
   BranchIfFastJSArray(maybe_array, context, &if_fast, &if_slow);
   BIND(&if_fast);
@@ -387,14 +426,14 @@ void BaseCollectionsAssembler::LoadKeyValue(TNode<Context> context,
       }
       BIND(&if_one);
       {
-        *key = CAST(LoadFixedArrayElement(elements, 0));
+        *key = LoadAndNormalizeFixedArrayElement(elements, IntPtrConstant(0));
         *value = UndefinedConstant();
         Goto(&exit);
       }
       BIND(&if_two);
       {
-        *key = CAST(LoadFixedArrayElement(elements, 0));
-        *value = CAST(LoadFixedArrayElement(elements, 1));
+        *key = LoadAndNormalizeFixedArrayElement(elements, IntPtrConstant(0));
+        *value = LoadAndNormalizeFixedArrayElement(elements, IntPtrConstant(1));
         Goto(&exit);
       }
     }
@@ -410,20 +449,17 @@ void BaseCollectionsAssembler::LoadKeyValue(TNode<Context> context,
       }
       BIND(&if_one);
       {
-        *key = AllocateHeapNumberWithValue(LoadFixedDoubleArrayElement(
-            elements, IntPtrConstant(0), MachineType::Float64(), 0,
-            INTPTR_PARAMETERS));
+        *key = LoadAndNormalizeFixedDoubleArrayElement(elements,
+                                                       IntPtrConstant(0));
         *value = UndefinedConstant();
         Goto(&exit);
       }
       BIND(&if_two);
       {
-        *key = AllocateHeapNumberWithValue(LoadFixedDoubleArrayElement(
-            elements, IntPtrConstant(0), MachineType::Float64(), 0,
-            INTPTR_PARAMETERS));
-        *value = AllocateHeapNumberWithValue(LoadFixedDoubleArrayElement(
-            elements, IntPtrConstant(1), MachineType::Float64(), 0,
-            INTPTR_PARAMETERS));
+        *key = LoadAndNormalizeFixedDoubleArrayElement(elements,
+                                                       IntPtrConstant(0));
+        *value = LoadAndNormalizeFixedDoubleArrayElement(elements,
+                                                         IntPtrConstant(1));
         Goto(&exit);
       }
     }
