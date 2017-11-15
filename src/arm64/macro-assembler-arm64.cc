@@ -1499,40 +1499,53 @@ void TurboAssembler::CopySlots(Register dst, Register src,
   CopyDoubleWords(dst, src, slot_count);
 }
 
-void TurboAssembler::CopyDoubleWords(Register dst, Register src,
-                                     Register count) {
+void TurboAssembler::CopyDoubleWords(Register dst, Register src, Register count,
+                                     CopyDoubleWordsMode mode) {
   DCHECK(!AreAliased(dst, src, count));
 
   if (emit_debug_code()) {
-    // Copy requires dst < src || (dst - src) >= count.
-    Label dst_below_src;
-    Subs(dst, dst, src);
-    B(lt, &dst_below_src);
-    Cmp(dst, count);
+    Register pointer1 = dst;
+    Register pointer2 = src;
+    if (mode == kSrcLessThanDst) {
+      pointer1 = src;
+      pointer2 = dst;
+    }
+    // Copy requires pointer1 < pointer2 || (pointer1 - pointer2) >= count.
+    Label pointer1_below_pointer2;
+    Subs(pointer1, pointer1, pointer2);
+    B(lt, &pointer1_below_pointer2);
+    Cmp(pointer1, count);
     Check(ge, kOffsetOutOfRange);
-    Bind(&dst_below_src);
-    Add(dst, dst, src);
+    Bind(&pointer1_below_pointer2);
+    Add(pointer1, pointer1, pointer2);
   }
-
   static_assert(kPointerSize == kDRegSize,
                 "pointers must be the same size as doubles");
+
+  int direction = (mode == kDstLessThanSrc) ? 1 : -1;
   UseScratchRegisterScope scope(this);
   VRegister temp0 = scope.AcquireD();
   VRegister temp1 = scope.AcquireD();
 
-  Label pairs, done;
+  Label pairs, loop, done;
 
   Tbz(count, 0, &pairs);
-  Ldr(temp0, MemOperand(src, kPointerSize, PostIndex));
+  Ldr(temp0, MemOperand(src, direction * kPointerSize, PostIndex));
   Sub(count, count, 1);
-  Str(temp0, MemOperand(dst, kPointerSize, PostIndex));
+  Str(temp0, MemOperand(dst, direction * kPointerSize, PostIndex));
 
   Bind(&pairs);
+  if (mode == kSrcLessThanDst) {
+    // Adjust pointers for post-index ldp/stp with negative offset:
+    Sub(dst, dst, kPointerSize);
+    Sub(src, src, kPointerSize);
+  }
+  Bind(&loop);
   Cbz(count, &done);
-  Ldp(temp0, temp1, MemOperand(src, 2 * kPointerSize, PostIndex));
+  Ldp(temp0, temp1, MemOperand(src, 2 * direction * kPointerSize, PostIndex));
   Sub(count, count, 2);
-  Stp(temp0, temp1, MemOperand(dst, 2 * kPointerSize, PostIndex));
-  B(&pairs);
+  Stp(temp0, temp1, MemOperand(dst, 2 * direction * kPointerSize, PostIndex));
+  B(&loop);
 
   // TODO(all): large copies may benefit from using temporary Q registers
   // to copy four double words per iteration.

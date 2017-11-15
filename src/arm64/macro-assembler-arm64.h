@@ -669,11 +669,20 @@ class TurboAssembler : public Assembler {
   void CopySlots(Register dst, Register src, Register slot_count);
 
   // Copy count double words from the address in register src to the address
-  // in register dst. Address dst must be less than src, or the gap between
-  // them must be greater than or equal to count double words, otherwise the
-  // result is unpredictable. The function may corrupt its register arguments.
-  // The registers must not alias each other.
-  void CopyDoubleWords(Register dst, Register src, Register count);
+  // in register dst. There are two modes for this function:
+  // 1) Address dst must be less than src, or the gap between them must be
+  //    greater than or equal to count double words, otherwise the result is
+  //    unpredictable. This is the default mode.
+  // 2) Address src must be less than dst, or the gap between them must be
+  //    greater than or equal to count double words, otherwise the result is
+  //    undpredictable. In this mode, src and dst specify the last (highest)
+  //    address of the regions to copy from and to.
+  // The case where src == dst is not supported.
+  // The function may corrupt its register arguments. The registers must not
+  // alias each other.
+  enum CopyDoubleWordsMode { kDstLessThanSrc, kSrcLessThanDst };
+  void CopyDoubleWords(Register dst, Register src, Register count,
+                       CopyDoubleWordsMode mode = kDstLessThanSrc);
 
   // Calculate the address of a double word-sized slot at slot_offset from the
   // stack pointer, and write it to dst. Positive slot_offsets are at addresses

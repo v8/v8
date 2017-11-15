@@ -13404,6 +13404,204 @@ TEST(copy_slots_up) {
   TEARDOWN();
 }
 
+TEST(copy_double_words_downwards_even) {
+  INIT_V8();
+  SETUP();
+
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+  const uint64_t fours = 0x4444444444444444UL;
+
+  START();
+
+  __ Mov(jssp, __ StackPointer());
+  __ SetStackPointer(jssp);
+
+  // Test copying 12 slots up one slot.
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+  __ Mov(x4, fours);
+
+  __ Push(xzr);
+  __ Push(x1, x2, x3, x4);
+  __ Push(x1, x2, x1, x2);
+  __ Push(x3, x4, x3, x4);
+
+  __ SlotAddress(x5, 12);
+  __ SlotAddress(x6, 11);
+  __ Mov(x7, 12);
+  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+
+  __ Drop(1);
+  __ Pop(x4, x5, x6, x7);
+  __ Pop(x8, x9, x10, x11);
+  __ Pop(x12, x13, x14, x15);
+
+  __ Mov(csp, jssp);
+  __ SetStackPointer(csp);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(ones, x15);
+  CHECK_EQUAL_64(twos, x14);
+  CHECK_EQUAL_64(threes, x13);
+  CHECK_EQUAL_64(fours, x12);
+
+  CHECK_EQUAL_64(ones, x11);
+  CHECK_EQUAL_64(twos, x10);
+  CHECK_EQUAL_64(ones, x9);
+  CHECK_EQUAL_64(twos, x8);
+
+  CHECK_EQUAL_64(threes, x7);
+  CHECK_EQUAL_64(fours, x6);
+  CHECK_EQUAL_64(threes, x5);
+  CHECK_EQUAL_64(fours, x4);
+
+  TEARDOWN();
+}
+
+TEST(copy_double_words_downwards_odd) {
+  INIT_V8();
+  SETUP();
+
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+  const uint64_t fours = 0x4444444444444444UL;
+  const uint64_t fives = 0x5555555555555555UL;
+
+  START();
+
+  __ Mov(jssp, __ StackPointer());
+  __ SetStackPointer(jssp);
+
+  // Test copying 13 slots up one slot.
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+  __ Mov(x4, fours);
+  __ Mov(x5, fives);
+
+  __ Push(xzr, x5);
+  __ Push(x1, x2, x3, x4);
+  __ Push(x1, x2, x1, x2);
+  __ Push(x3, x4, x3, x4);
+
+  __ SlotAddress(x5, 13);
+  __ SlotAddress(x6, 12);
+  __ Mov(x7, 13);
+  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+
+  __ Drop(1);
+  __ Pop(x4);
+  __ Pop(x5, x6, x7, x8);
+  __ Pop(x9, x10, x11, x12);
+  __ Pop(x13, x14, x15, x16);
+
+  __ Mov(csp, jssp);
+  __ SetStackPointer(csp);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(fives, x16);
+
+  CHECK_EQUAL_64(ones, x15);
+  CHECK_EQUAL_64(twos, x14);
+  CHECK_EQUAL_64(threes, x13);
+  CHECK_EQUAL_64(fours, x12);
+
+  CHECK_EQUAL_64(ones, x11);
+  CHECK_EQUAL_64(twos, x10);
+  CHECK_EQUAL_64(ones, x9);
+  CHECK_EQUAL_64(twos, x8);
+
+  CHECK_EQUAL_64(threes, x7);
+  CHECK_EQUAL_64(fours, x6);
+  CHECK_EQUAL_64(threes, x5);
+  CHECK_EQUAL_64(fours, x4);
+
+  TEARDOWN();
+}
+
+TEST(copy_noop) {
+  INIT_V8();
+  SETUP();
+
+  const uint64_t ones = 0x1111111111111111UL;
+  const uint64_t twos = 0x2222222222222222UL;
+  const uint64_t threes = 0x3333333333333333UL;
+  const uint64_t fours = 0x4444444444444444UL;
+  const uint64_t fives = 0x5555555555555555UL;
+
+  START();
+
+  __ Mov(jssp, __ StackPointer());
+  __ SetStackPointer(jssp);
+
+  __ Mov(x1, ones);
+  __ Mov(x2, twos);
+  __ Mov(x3, threes);
+  __ Mov(x4, fours);
+  __ Mov(x5, fives);
+
+  __ Push(xzr, x5, x5, xzr);
+  __ Push(x3, x4, x3, x4);
+  __ Push(x1, x2, x1, x2);
+  __ Push(x1, x2, x3, x4);
+
+  // src < dst, count == 0
+  __ SlotAddress(x5, 3);
+  __ SlotAddress(x6, 2);
+  __ Mov(x7, 0);
+  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kSrcLessThanDst);
+
+  // dst < src, count == 0
+  __ SlotAddress(x5, 2);
+  __ SlotAddress(x6, 3);
+  __ Mov(x7, 0);
+  __ CopyDoubleWords(x5, x6, x7, TurboAssembler::kDstLessThanSrc);
+
+  __ Pop(x1, x2, x3, x4);
+  __ Pop(x5, x6, x7, x8);
+  __ Pop(x9, x10, x11, x12);
+  __ Pop(x13, x14, x15, x16);
+
+  __ Mov(csp, jssp);
+  __ SetStackPointer(csp);
+
+  END();
+
+  RUN();
+
+  CHECK_EQUAL_64(fours, x1);
+  CHECK_EQUAL_64(threes, x2);
+  CHECK_EQUAL_64(twos, x3);
+  CHECK_EQUAL_64(ones, x4);
+
+  CHECK_EQUAL_64(twos, x5);
+  CHECK_EQUAL_64(ones, x6);
+  CHECK_EQUAL_64(twos, x7);
+  CHECK_EQUAL_64(ones, x8);
+
+  CHECK_EQUAL_64(fours, x9);
+  CHECK_EQUAL_64(threes, x10);
+  CHECK_EQUAL_64(fours, x11);
+  CHECK_EQUAL_64(threes, x12);
+
+  CHECK_EQUAL_64(0, x13);
+  CHECK_EQUAL_64(fives, x14);
+  CHECK_EQUAL_64(fives, x15);
+  CHECK_EQUAL_64(0, x16);
+
+  TEARDOWN();
+}
+
 TEST(jump_both_smi) {
   INIT_V8();
   SETUP();
