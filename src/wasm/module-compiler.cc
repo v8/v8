@@ -615,8 +615,10 @@ Handle<Code> CompileLazy(Isolate* isolate) {
   Handle<WasmInstanceObject> instance;
   Handle<FixedArray> exp_deopt_data;
   int func_index = -1;
+  // If the lazy compile stub has deopt data, use that to determine the
+  // instance and function index. Otherwise this must be a wasm->wasm call
+  // within one instance, so extract the information from the caller.
   if (lazy_compile_code->deoptimization_data()->length() > 0) {
-    // Then it's an indirect call or via JS->wasm wrapper.
     DCHECK_LE(2, lazy_compile_code->deoptimization_data()->length());
     exp_deopt_data = handle(lazy_compile_code->deoptimization_data(), isolate);
     auto* weak_cell = WeakCell::cast(exp_deopt_data->get(0));
@@ -810,14 +812,20 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
     non_compiled_functions.push_back({0, exported_func_index});
   } else if (patch_caller) {
     DisallowHeapAllocation no_gc;
-    SeqOneByteString* module_bytes = compiled_module->module_bytes();
     SourcePositionTableIterator source_pos_iterator(
         caller->SourcePositionTable());
     DCHECK_EQ(2, caller->deoptimization_data()->length());
+    Handle<WeakCell> weak_caller_instance(
+        WeakCell::cast(caller->deoptimization_data()->get(0)), isolate);
+    Handle<WasmInstanceObject> caller_instance(
+        WasmInstanceObject::cast(weak_caller_instance->value()), isolate);
+    Handle<WasmCompiledModule> caller_module(caller_instance->compiled_module(),
+                                             isolate);
+    SeqOneByteString* module_bytes = caller_module->module_bytes();
     int caller_func_index = Smi::ToInt(caller->deoptimization_data()->get(1));
     const byte* func_bytes =
         module_bytes->GetChars() +
-        compiled_module->module()->functions[caller_func_index].code.offset();
+        caller_module->module()->functions[caller_func_index].code.offset();
     for (RelocIterator it(*caller, RelocInfo::kCodeTargetMask); !it.done();
          it.next()) {
       Code* callee =
