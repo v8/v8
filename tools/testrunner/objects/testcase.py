@@ -27,13 +27,11 @@
 
 
 class TestCase(object):
-  def __init__(self, suite, path, variant=None, flags=None,
-               override_shell=None):
+  def __init__(self, suite, path, variant=None, flags=None):
     self.suite = suite        # TestSuite object
     self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
     self.flags = flags or []  # list of strings, flags specific to this test
     self.variant = variant    # name of the used testing variant
-    self.override_shell = override_shell
     self.outcomes = frozenset([])
     self.output = None
     self.id = None  # int, used to map result back to TestCase instance
@@ -41,8 +39,7 @@ class TestCase(object):
     self.run = 1  # The nth time this test is executed.
 
   def CopyAddingFlags(self, variant, flags):
-    copy = TestCase(self.suite, self.path, variant, self.flags + flags,
-                    self.override_shell)
+    copy = TestCase(self.suite, self.path, variant, self.flags + flags)
     copy.outcomes = self.outcomes
     return copy
 
@@ -54,11 +51,6 @@ class TestCase(object):
 
   def GetLabel(self):
     return self.suitename() + "/" + self.suite.CommonTestName(self)
-
-  def shell(self):
-    if self.override_shell:
-      return self.override_shell
-    return self.suite.shell()
 
   def __getstate__(self):
     """Representation to pickle test cases.

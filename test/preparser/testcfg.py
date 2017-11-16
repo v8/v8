@@ -36,9 +36,6 @@ class PreparserTestSuite(testsuite.TestSuite):
   def __init__(self, name, root):
     super(PreparserTestSuite, self).__init__(name, root)
 
-  def shell(self):
-    return "d8"
-
   def _ParsePythonTestTemplates(self, result, filename):
     pathname = os.path.join(self.root, filename + ".pyt")
     def Test(name, source, expectation, extra_flags=[]):

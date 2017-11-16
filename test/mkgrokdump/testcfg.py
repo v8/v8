@@ -10,13 +10,17 @@ from testrunner.objects import testcase
 
 
 class MkGrokdump(testsuite.TestSuite):
+  SHELL = 'mkgrokdump'
 
   def __init__(self, name, root):
     super(MkGrokdump, self).__init__(name, root)
 
   def ListTests(self, context):
-    test = testcase.TestCase(self, self.shell())
+    test = testcase.TestCase(self, self.SHELL)
     return [test]
+
+  def GetShellForTestCase(self, testcase):
+    return self.SHELL
 
   def GetParametersForTestCase(self, testcase, context):
     return [], [], {}
@@ -41,9 +45,6 @@ class MkGrokdump(testsuite.TestSuite):
       output.stdout = diffstring
       return True
     return False
-
-  def shell(self):
-    return "mkgrokdump"
 
 def GetSuite(name, root):
   return MkGrokdump(name, root)

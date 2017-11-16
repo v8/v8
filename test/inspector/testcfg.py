@@ -17,7 +17,6 @@ EXPECTED_SUFFIX = "-expected.txt"
 RESOURCES_FOLDER = "resources"
 
 class InspectorProtocolTestSuite(testsuite.TestSuite):
-
   def __init__(self, name, root):
     super(InspectorProtocolTestSuite, self).__init__(name, root)
 
@@ -39,6 +38,9 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
           tests.append(test)
     return tests
 
+  def GetShellForTestCase(self, testcase):
+    return 'inspector-test'
+
   def GetParametersForTestCase(self, testcase, context):
     source = self.GetSourceForTest(testcase)
     flags = testcase.flags + context.mode_flags
@@ -55,9 +57,6 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
     filename = os.path.join(self.root, testcase.path + self.suffix())
     with open(filename) as f:
       return f.read()
-
-  def shell(self):
-    return "inspector-test"
 
   def _IgnoreLine(self, string):
     """Ignore empty lines, valgrind output and Android output."""

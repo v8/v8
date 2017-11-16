@@ -85,7 +85,7 @@ def MakeProcessContext(context, suite_names):
 
 def GetCommand(test, context):
   d8testflag = []
-  shell = test.shell()
+  shell = test.suite.GetShellForTestCase(test)
   if shell == "d8":
     d8testflag = ["--test"]
   if utils.IsWindows():
@@ -162,8 +162,9 @@ class TestJob(Job):
     failures).
     """
     if context.sancov_dir and output.pid is not None:
+      shell = self.test.suite.GetShellForTestCase(self.test)
       sancov_file = os.path.join(
-          context.sancov_dir, "%s.%d.sancov" % (self.test.shell(), output.pid))
+          context.sancov_dir, "%s.%d.sancov" % (shell, output.pid))
 
       # Some tests are expected to fail and don't produce coverage data.
       if os.path.exists(sancov_file):

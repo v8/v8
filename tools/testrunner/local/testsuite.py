@@ -90,9 +90,6 @@ class TestSuite(object):
     self.wildcards = None  # dictionary mapping test paths to list of outcomes
     self.total_duration = None  # float, assigned on demand
 
-  def shell(self):
-    return "d8"
-
   def suffix(self):
     return ".js"
 
@@ -257,6 +254,9 @@ class TestSuite(object):
           break
     self.tests = filtered
 
+  def GetShellForTestCase(self, testcase):
+    return 'd8'
+
   def GetParametersForTestCase(self, testcase, context):
     """Returns a tuple of (files, flags, env) for this test case."""
     raise NotImplementedError
@@ -313,7 +313,8 @@ class GoogleTestSuite(TestSuite):
     super(GoogleTestSuite, self).__init__(name, root)
 
   def ListTests(self, context):
-    shell = os.path.abspath(os.path.join(context.shell_dir, self.shell()))
+    shell = os.path.abspath(
+      os.path.join(context.shell_dir, self.GetShellForTestCase(None)))
     if utils.IsWindows():
       shell += ".exe"
 
@@ -361,5 +362,5 @@ class GoogleTestSuite(TestSuite):
   def _VariantGeneratorFactory(self):
     return StandardVariantGenerator
 
-  def shell(self):
+  def GetShellForTestCase(self, testcase):
     return self.name
