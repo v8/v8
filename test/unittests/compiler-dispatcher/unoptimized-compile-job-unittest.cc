@@ -84,18 +84,6 @@ TEST_F(UnoptimizedCompileJobTest, StateTransitions) {
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
   job->StepNextOnMainThread(isolate());
   ASSERT_FALSE(job->IsFailed());
-  ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kReadyToParse, job);
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kParsed, job);
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kReadyToAnalyze, job);
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kAnalyzed, job);
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kReadyToCompile, job);
   job->StepNextOnMainThread(isolate());
   ASSERT_FALSE(job->IsFailed());
@@ -128,39 +116,6 @@ TEST_F(UnoptimizedCompileJobTest, SyntaxError) {
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
 }
 
-TEST_F(UnoptimizedCompileJobTest, ScopeChain) {
-  const char script[] =
-      "function g() { var y = 1; function f(x) { return x * y }; return f; } "
-      "g();";
-  Handle<JSFunction> f = RunJS<JSFunction>(script);
-
-  std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
-      isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
-
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kReadyToCompile, job);
-
-  Variable* var = LookupVariableByName(job.get(), "x");
-  ASSERT_TRUE(var);
-  ASSERT_TRUE(var->IsParameter());
-
-  var = LookupVariableByName(job.get(), "y");
-  ASSERT_TRUE(var);
-  ASSERT_TRUE(var->IsContextSlot());
-
-  job->ResetOnMainThread(isolate());
-  ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kInitial, job);
-}
-
 TEST_F(UnoptimizedCompileJobTest, CompileAndRun) {
   const char script[] =
       "function g() {\n"
@@ -175,14 +130,6 @@ TEST_F(UnoptimizedCompileJobTest, CompileAndRun) {
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
       isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
 
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
   job->StepNextOnMainThread(isolate());
   ASSERT_FALSE(job->IsFailed());
   job->StepNextOnMainThread(isolate());
@@ -218,8 +165,6 @@ TEST_F(UnoptimizedCompileJobTest, CompileFailureToAnalyse) {
   job->StepNextOnMainThread(isolate());
   ASSERT_FALSE(job->IsFailed());
   job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
   ASSERT_TRUE(job->IsFailed());
   ASSERT_JOB_STATUS(UnoptimizedCompileJob::Status::kFailed, job);
   ASSERT_TRUE(isolate()->has_pending_exception());
@@ -241,14 +186,6 @@ TEST_F(UnoptimizedCompileJobTest, CompileFailureToFinalize) {
       isolate(), tracer(), test::CreateSharedFunctionInfo(isolate(), &script),
       50));
 
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
   job->StepNextOnMainThread(isolate());
   ASSERT_FALSE(job->IsFailed());
   job->StepNextOnMainThread(isolate());
@@ -296,14 +233,6 @@ TEST_F(UnoptimizedCompileJobTest, CompileOnBackgroundThread) {
 
   job->StepNextOnMainThread(isolate());
   ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
 
   base::Semaphore semaphore(0);
   CompileTask* background_task = new CompileTask(job.get(), &semaphore);
@@ -321,27 +250,16 @@ TEST_F(UnoptimizedCompileJobTest, CompileOnBackgroundThread) {
 
 TEST_F(UnoptimizedCompileJobTest, LazyInnerFunctions) {
   const char script[] =
-      "function g() {\n"
-      "  f = function() {\n"
-      "    e = (function() { return 42; });\n"
-      "    return e;\n"
-      "  };\n"
-      "  return f;\n"
-      "}\n"
-      "g();";
+      "f = function() {\n"
+      "  e = (function() { return 42; });\n"
+      "  return e;\n"
+      "};\n"
+      "f;";
   Handle<JSFunction> f = RunJS<JSFunction>(script);
 
   std::unique_ptr<UnoptimizedCompileJob> job(new UnoptimizedCompileJob(
       isolate(), tracer(), handle(f->shared()), FLAG_stack_size));
 
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
-  job->StepNextOnMainThread(isolate());
-  ASSERT_FALSE(job->IsFailed());
   job->StepNextOnMainThread(isolate());
   ASSERT_FALSE(job->IsFailed());
   job->StepNextOnMainThread(isolate());

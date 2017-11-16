@@ -34,12 +34,9 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
  public:
   enum class Status {
     kInitial,
-    kReadyToParse,
-    kParsed,
-    kReadyToAnalyze,
-    kAnalyzed,
     kReadyToCompile,
     kCompiled,
+    kReportErrors,
     kDone,
     kFailed,
   };
@@ -68,8 +65,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
   // StepNextOnMainThread and StepNextOnBackgroundThread could be used for the
   // next step.
   bool CanStepNextOnAnyThread() override {
-    return status() == Status::kReadyToParse ||
-           status() == Status::kReadyToCompile;
+    return status() == Status::kReadyToCompile;
   }
 
   // Step the job forward by one state on the main thread.
@@ -98,6 +94,7 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
   Status status_;
   int main_thread_id_;
   CompilerDispatcherTracer* tracer_;
+  AccountingAllocator* allocator_;
   Handle<Context> context_;            // Global handle.
   Handle<SharedFunctionInfo> shared_;  // Global handle.
   Handle<String> source_;              // Global handle.
@@ -115,26 +112,20 @@ class V8_EXPORT_PRIVATE UnoptimizedCompileJob : public CompilerDispatcherJob {
 
   bool trace_compiler_dispatcher_jobs_;
 
-  // Transition from kInitial to kReadyToParse.
-  void PrepareToParseOnMainThread(Isolate* isolate);
+  // Transition from kInitial to kReadyToCompile
+  void PrepareOnMainThread(Isolate* isolate);
 
-  // Transition from kReadyToParse to kParsed.
-  void Parse();
-
-  // Transition from kParsed to kReadyToAnalyze (or kFailed).
-  void FinalizeParsingOnMainThread(Isolate* isolate);
-
-  // Transition from kReadyToAnalyze to kAnalyzed (or kFailed).
-  void AnalyzeOnMainThread(Isolate* isolate);
-
-  // Transition from kAnalyzed to kReadyToCompile (or kFailed).
-  void PrepareToCompileOnMainThread(Isolate* isolate);
-
-  // Transition from kReadyToCompile to kCompiled.
-  void Compile();
+  // Transition from kReadyToCompile to kCompiled (or kReportErrors).
+  void Compile(bool on_background_thread);
 
   // Transition from kCompiled to kDone (or kFailed).
-  void FinalizeCompilingOnMainThread(Isolate* isolate);
+  void FinalizeOnMainThread(Isolate* isolate);
+
+  // Transition from kReportErrors to kFailed.
+  void ReportErrorsOnMainThread(Isolate* isolate);
+
+  // Free all resources.
+  void ResetDataOnMainThread(Isolate* isolate);
 
   DISALLOW_COPY_AND_ASSIGN(UnoptimizedCompileJob);
 };

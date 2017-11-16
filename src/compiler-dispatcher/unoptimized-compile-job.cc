@@ -70,11 +70,15 @@ UnoptimizedCompileJob::UnoptimizedCompileJob(Isolate* isolate,
     : status_(Status::kInitial),
       main_thread_id_(isolate->thread_id().ToInteger()),
       tracer_(tracer),
+      allocator_(isolate->allocator()),
       context_(isolate->global_handles()->Create(isolate->context())),
       shared_(isolate->global_handles()->Create(*shared)),
       max_stack_size_(max_stack_size),
       trace_compiler_dispatcher_jobs_(FLAG_trace_compiler_dispatcher_jobs) {
   DCHECK(!shared_->is_toplevel());
+  // TODO(rmcilroy): Handle functions with non-empty outer scope info.
+  DCHECK(shared_->outer_scope_info()->IsTheHole(isolate) ||
+         ScopeInfo::cast(shared_->outer_scope_info())->length() == 0);
   HandleScope scope(isolate);
   Handle<Script> script(Script::cast(shared_->script()), isolate);
   Handle<String> source(String::cast(script->source()), isolate);
@@ -118,25 +122,16 @@ void UnoptimizedCompileJob::StepNextOnMainThread(Isolate* isolate) {
 
   switch (status()) {
     case Status::kInitial:
-      return PrepareToParseOnMainThread(isolate);
-
-    case Status::kReadyToParse:
-      return Parse();
-
-    case Status::kParsed:
-      return FinalizeParsingOnMainThread(isolate);
-
-    case Status::kReadyToAnalyze:
-      return AnalyzeOnMainThread(isolate);
-
-    case Status::kAnalyzed:
-      return PrepareToCompileOnMainThread(isolate);
+      return PrepareOnMainThread(isolate);
 
     case Status::kReadyToCompile:
-      return Compile();
+      return Compile(false);
 
     case Status::kCompiled:
-      return FinalizeCompilingOnMainThread(isolate);
+      return FinalizeOnMainThread(isolate);
+
+    case Status::kReportErrors:
+      return ReportErrorsOnMainThread(isolate);
 
     case Status::kFailed:
     case Status::kDone:
@@ -148,26 +143,25 @@ void UnoptimizedCompileJob::StepNextOnMainThread(Isolate* isolate) {
 void UnoptimizedCompileJob::StepNextOnBackgroundThread() {
   DCHECK(CanStepNextOnAnyThread());
   switch (status()) {
-    case Status::kReadyToParse:
-      return Parse();
-
     case Status::kReadyToCompile:
-      return Compile();
+      return Compile(true);
 
     default:
       UNREACHABLE();
   }
 }
 
-void UnoptimizedCompileJob::PrepareToParseOnMainThread(Isolate* isolate) {
+void UnoptimizedCompileJob::PrepareOnMainThread(Isolate* isolate) {
   DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
   DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
   DCHECK_EQ(status(), Status::kInitial);
-  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToParse);
+  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepare);
+
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("UnoptimizedCompileJob[%p]: Preparing to parse\n",
            static_cast<void*>(this));
   }
+
   HandleScope scope(isolate);
   unicode_cache_.reset(new UnicodeCache());
   Handle<Script> script(Script::cast(shared_->script()), isolate);
@@ -267,142 +261,75 @@ void UnoptimizedCompileJob::PrepareToParseOnMainThread(Isolate* isolate) {
   Handle<String> name(shared_->name());
   parse_info_->set_function_name(
       parse_info_->ast_value_factory()->GetString(name));
-  status_ = Status::kReadyToParse;
+  status_ = Status::kReadyToCompile;
 }
 
-void UnoptimizedCompileJob::Parse() {
-  DCHECK_EQ(status(), Status::kReadyToParse);
+void UnoptimizedCompileJob::Compile(bool on_background_thread) {
+  DCHECK_EQ(status(), Status::kReadyToCompile);
   COMPILER_DISPATCHER_TRACE_SCOPE_WITH_NUM(
-      tracer_, kParse,
+      tracer_, kCompile,
       parse_info_->end_position() - parse_info_->start_position());
   if (trace_compiler_dispatcher_jobs_) {
-    PrintF("UnoptimizedCompileJob[%p]: Parsing\n", static_cast<void*>(this));
+    PrintF("UnoptimizedCompileJob[%p]: Compiling\n", static_cast<void*>(this));
   }
 
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;
 
+  parse_info_->set_on_background_thread(on_background_thread);
   uintptr_t stack_limit = GetCurrentStackPosition() - max_stack_size_ * KB;
-
   parser_->set_stack_limit(stack_limit);
+  parse_info_->set_stack_limit(stack_limit);
   parser_->ParseOnBackground(parse_info_.get());
-  status_ = Status::kParsed;
-}
-
-void UnoptimizedCompileJob::FinalizeParsingOnMainThread(Isolate* isolate) {
-  DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
-  DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
-  DCHECK_EQ(status(), Status::kParsed);
-  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kFinalizeParsing);
-  if (trace_compiler_dispatcher_jobs_) {
-    PrintF("UnoptimizedCompileJob[%p]: Finalizing parsing\n",
-           static_cast<void*>(this));
-  }
-
-  if (!source_.is_null()) {
-    i::GlobalHandles::Destroy(Handle<Object>::cast(source_).location());
-    source_ = Handle<String>::null();
-  }
-  if (!wrapper_.is_null()) {
-    i::GlobalHandles::Destroy(Handle<Object>::cast(wrapper_).location());
-    wrapper_ = Handle<String>::null();
-  }
-
-  Handle<Script> script(Script::cast(shared_->script()), isolate);
-  parse_info_->set_script(script);
-
-  if (!shared_->outer_scope_info()->IsTheHole(isolate) &&
-      ScopeInfo::cast(shared_->outer_scope_info())->length() > 0) {
-    Handle<ScopeInfo> outer_scope_info(
-        handle(ScopeInfo::cast(shared_->outer_scope_info())));
-    parse_info_->set_outer_scope_info(outer_scope_info);
-  }
 
   if (parse_info_->literal() == nullptr) {
-    parse_info_->pending_error_handler()->ReportErrors(
-        isolate, script, parse_info_->ast_value_factory());
-    status_ = Status::kFailed;
-  } else {
-    parse_info_->literal()->scope()->AttachOuterScopeInfo(parse_info_.get(),
-                                                          isolate);
-    status_ = Status::kReadyToAnalyze;
-  }
-  parser_->UpdateStatistics(isolate, script);
-  parse_info_->UpdateStatisticsAfterBackgroundParse(isolate);
-
-  parser_->HandleSourceURLComments(isolate, script);
-
-  parse_info_->set_unicode_cache(nullptr);
-  parser_.reset();
-  unicode_cache_.reset();
-}
-
-void UnoptimizedCompileJob::AnalyzeOnMainThread(Isolate* isolate) {
-  DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
-  DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
-  DCHECK_EQ(status(), Status::kReadyToAnalyze);
-  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kAnalyze);
-  if (trace_compiler_dispatcher_jobs_) {
-    PrintF("UnoptimizedCompileJob[%p]: Analyzing\n", static_cast<void*>(this));
-  }
-
-  if (Compiler::Analyze(parse_info_.get())) {
-    status_ = Status::kAnalyzed;
-  } else {
-    status_ = Status::kFailed;
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
-  }
-}
-
-void UnoptimizedCompileJob::PrepareToCompileOnMainThread(Isolate* isolate) {
-  DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
-  DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
-  DCHECK_EQ(status(), Status::kAnalyzed);
-  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kPrepareToCompile);
-
-  compilation_job_.reset(interpreter::Interpreter::NewCompilationJob(
-      parse_info_.get(), parse_info_->literal(), isolate->allocator()));
-
-  if (!compilation_job_.get()) {
-    if (!isolate->has_pending_exception()) isolate->StackOverflow();
-    status_ = Status::kFailed;
+    // Parser sets error in pending error handler.
+    status_ = Status::kReportErrors;
     return;
   }
 
-  status_ = Status::kReadyToCompile;
-}
-
-void UnoptimizedCompileJob::Compile() {
-  DCHECK_EQ(status(), Status::kReadyToCompile);
-  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kCompile);
-  if (trace_compiler_dispatcher_jobs_) {
-    PrintF("UnoptimizedCompileJob[%p]: Compiling\n", static_cast<void*>(this));
+  if (!Compiler::Analyze(parse_info_.get())) {
+    parse_info_->pending_error_handler()->set_stack_overflow();
+    status_ = Status::kReportErrors;
+    return;
   }
 
-  // Disallowing of handle dereference and heap access dealt with in
-  // CompilationJob::ExecuteJob.
+  compilation_job_.reset(interpreter::Interpreter::NewCompilationJob(
+      parse_info_.get(), parse_info_->literal(), allocator_));
 
-  uintptr_t stack_limit = GetCurrentStackPosition() - max_stack_size_ * KB;
-  compilation_job_->set_stack_limit(stack_limit);
+  if (!compilation_job_.get()) {
+    parse_info_->pending_error_handler()->set_stack_overflow();
+    status_ = Status::kReportErrors;
+    return;
+  }
 
-  CompilationJob::Status status = compilation_job_->ExecuteJob();
-  USE(status);
+  if (compilation_job_->ExecuteJob() != CompilationJob::SUCCEEDED) {
+    parse_info_->pending_error_handler()->set_stack_overflow();
+    status_ = Status::kReportErrors;
+    return;
+  }
 
-  // Always transition to kCompiled - errors will be reported by
-  // FinalizeCompilingOnMainThread.
   status_ = Status::kCompiled;
 }
 
-void UnoptimizedCompileJob::FinalizeCompilingOnMainThread(Isolate* isolate) {
+void UnoptimizedCompileJob::FinalizeOnMainThread(Isolate* isolate) {
   DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
   DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
   DCHECK_EQ(status(), Status::kCompiled);
-  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kFinalizeCompiling);
+  DCHECK_NOT_NULL(parse_info_->literal());
+  DCHECK_NOT_NULL(compilation_job_.get());
+  COMPILER_DISPATCHER_TRACE_SCOPE(tracer_, kFinalize);
   if (trace_compiler_dispatcher_jobs_) {
     PrintF("UnoptimizedCompileJob[%p]: Finalizing compiling\n",
            static_cast<void*>(this));
   }
+
+  Handle<Script> script(Script::cast(shared_->script()), isolate);
+  parse_info_->set_script(script);
+  parser_->UpdateStatistics(isolate, script);
+  parse_info_->UpdateStatisticsAfterBackgroundParse(isolate);
+  parser_->HandleSourceURLComments(isolate, script);
 
   {
     HandleScope scope(isolate);
@@ -421,16 +348,31 @@ void UnoptimizedCompileJob::FinalizeCompilingOnMainThread(Isolate* isolate) {
     }
   }
 
-  compilation_job_.reset();
-  parse_info_.reset();
-
+  ResetDataOnMainThread(isolate);
   status_ = Status::kDone;
 }
 
-void UnoptimizedCompileJob::ResetOnMainThread(Isolate* isolate) {
+void UnoptimizedCompileJob::ReportErrorsOnMainThread(Isolate* isolate) {
+  DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
+  DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
+  DCHECK_EQ(status(), Status::kReportErrors);
+
   if (trace_compiler_dispatcher_jobs_) {
-    PrintF("UnoptimizedCompileJob[%p]: Resetting\n", static_cast<void*>(this));
+    PrintF("UnoptimizedCompileJob[%p]: Reporting Errors\n",
+           static_cast<void*>(this));
   }
+
+  Handle<Script> script(Script::cast(shared_->script()), isolate);
+  parse_info_->pending_error_handler()->ReportErrors(
+      isolate, script, parse_info_->ast_value_factory());
+
+  ResetDataOnMainThread(isolate);
+  status_ = Status::kFailed;
+}
+
+void UnoptimizedCompileJob::ResetDataOnMainThread(Isolate* isolate) {
+  DCHECK_EQ(ThreadId::Current().ToInteger(), main_thread_id_);
+  DCHECK_EQ(isolate->thread_id().ToInteger(), main_thread_id_);
 
   compilation_job_.reset();
   parser_.reset();
@@ -449,34 +391,28 @@ void UnoptimizedCompileJob::ResetOnMainThread(Isolate* isolate) {
     i::GlobalHandles::Destroy(Handle<Object>::cast(wrapper_).location());
     wrapper_ = Handle<String>::null();
   }
+}
 
+void UnoptimizedCompileJob::ResetOnMainThread(Isolate* isolate) {
+  if (trace_compiler_dispatcher_jobs_) {
+    PrintF("UnoptimizedCompileJob[%p]: Resetting\n", static_cast<void*>(this));
+  }
+
+  ResetDataOnMainThread(isolate);
   status_ = Status::kInitial;
 }
 
 double UnoptimizedCompileJob::EstimateRuntimeOfNextStepInMs() const {
   switch (status()) {
     case Status::kInitial:
-      return tracer_->EstimatePrepareToParseInMs();
-
-    case Status::kReadyToParse:
-      return tracer_->EstimateParseInMs(parse_info_->end_position() -
-                                        parse_info_->start_position());
-
-    case Status::kParsed:
-      return tracer_->EstimateFinalizeParsingInMs();
-
-    case Status::kReadyToAnalyze:
-      return tracer_->EstimateAnalyzeInMs();
-
-    case Status::kAnalyzed:
-      return tracer_->EstimatePrepareToCompileInMs();
-
+      return tracer_->EstimatePrepareInMs();
     case Status::kReadyToCompile:
-      return tracer_->EstimateCompileInMs();
-
+      return tracer_->EstimateCompileInMs(parse_info_->end_position() -
+                                          parse_info_->start_position());
     case Status::kCompiled:
-      return tracer_->EstimateFinalizeCompilingInMs();
+      return tracer_->EstimateFinalizeInMs();
 
+    case Status::kReportErrors:
     case Status::kFailed:
     case Status::kDone:
       return 0.0;
