@@ -375,8 +375,7 @@
 
     # GN debug configs for arm.
     'gn_debug_arm': [
-      'gn', 'debug_bot', 'arm', 'crosscompile', 'hard_float', 'swarming',
-      'no_custom_libcxx'],
+      'gn', 'debug_bot', 'arm', 'crosscompile', 'hard_float', 'swarming'],
 
     # GN release configs for arm.
     'gn_release_arm': [
@@ -674,11 +673,6 @@
 
     'msvc': {
       'gn_args': 'is_clang=false',
-    },
-
-    # TODO(machenbach): Remove when http://crbug.com/738814 is resolved.
-    'no_custom_libcxx': {
-      'gn_args': 'use_custom_libcxx=false',
     },
 
     'release': {
