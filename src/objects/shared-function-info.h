@@ -137,7 +137,7 @@ class SharedFunctionInfo : public HeapObject {
 #endif
 
   // [instance class name]: class name for instances.
-  DECL_ACCESSORS(instance_class_name, Object)
+  DECL_ACCESSORS(instance_class_name, String)
 
   // [function data]: This field holds some additional data for function.
   // Currently it has one of:

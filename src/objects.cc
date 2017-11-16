@@ -1337,7 +1337,9 @@ Handle<SharedFunctionInfo> FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
   }
 
   result->set_length(info->length());
-  if (class_name->IsString()) result->set_instance_class_name(*class_name);
+  if (class_name->IsString()) {
+    result->set_instance_class_name(String::cast(*class_name));
+  }
   result->set_api_func_data(*info);
   result->DontAdaptArguments();
   DCHECK(result->IsApiFunction());

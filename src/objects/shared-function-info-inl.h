@@ -27,7 +27,7 @@ ACCESSORS(SharedFunctionInfo, raw_name, Object, kNameOffset)
 ACCESSORS(SharedFunctionInfo, construct_stub, Code, kConstructStubOffset)
 ACCESSORS(SharedFunctionInfo, feedback_metadata, FeedbackMetadata,
           kFeedbackMetadataOffset)
-ACCESSORS(SharedFunctionInfo, instance_class_name, Object,
+ACCESSORS(SharedFunctionInfo, instance_class_name, String,
           kInstanceClassNameOffset)
 ACCESSORS(SharedFunctionInfo, function_data, Object, kFunctionDataOffset)
 ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
