@@ -2521,9 +2521,25 @@ void BytecodeGraphBuilder::VisitToNumber() {
 }
 
 void BytecodeGraphBuilder::VisitToNumeric() {
-  // TODO(neis): This is currently only correct in the absence of bigints.
-  DCHECK(!FLAG_harmony_bigint);
-  VisitToNumber();
+  PrepareEagerCheckpoint();
+  Node* object = environment()->LookupAccumulator();
+
+  // If we have some kind of Number feedback, we do the same lowering as for
+  // ToNumber.
+  FeedbackSlot slot =
+      feedback_vector()->ToSlot(bytecode_iterator().GetIndexOperand(0));
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedToNumber(object, slot);
+
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    node = NewNode(javascript()->ToNumeric(), object);
+  }
+
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
 }
 
 void BytecodeGraphBuilder::VisitJump() { BuildJump(); }

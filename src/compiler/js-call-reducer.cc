@@ -63,6 +63,7 @@ bool CanBeNullOrUndefined(Node* node) {
       case IrOpcode::kJSToLength:
       case IrOpcode::kJSToName:
       case IrOpcode::kJSToNumber:
+      case IrOpcode::kJSToNumeric:
       case IrOpcode::kJSToString:
         return false;
       case IrOpcode::kHeapConstant: {

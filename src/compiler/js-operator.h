@@ -656,6 +656,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* ToLength();
   const Operator* ToName();
   const Operator* ToNumber();
+  const Operator* ToNumeric();
   const Operator* ToObject();
   const Operator* ToString();
 

@@ -120,6 +120,7 @@
   V(JSToLength)                    \
   V(JSToName)                      \
   V(JSToNumber)                    \
+  V(JSToNumeric)                   \
   V(JSToObject)                    \
   V(JSToString)
 

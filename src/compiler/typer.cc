@@ -270,6 +270,7 @@ class Typer::Visitor : public Reducer {
   static Type* ToLength(Type*, Typer*);
   static Type* ToName(Type*, Typer*);
   static Type* ToNumber(Type*, Typer*);
+  static Type* ToNumeric(Type*, Typer*);
   static Type* ToObject(Type*, Typer*);
   static Type* ToString(Type*, Typer*);
 #define DECLARE_METHOD(Name)                \
@@ -492,6 +493,10 @@ Type* Typer::Visitor::ToNumber(Type* type, Typer* t) {
   return t->operation_typer_.ToNumber(type);
 }
 
+// static
+Type* Typer::Visitor::ToNumeric(Type* type, Typer* t) {
+  return t->operation_typer_.ToNumeric(type);
+}
 
 // static
 Type* Typer::Visitor::ToObject(Type* type, Typer* t) {
@@ -1093,6 +1098,10 @@ Type* Typer::Visitor::TypeJSToName(Node* node) {
 
 Type* Typer::Visitor::TypeJSToNumber(Node* node) {
   return TypeUnaryOp(node, ToNumber);
+}
+
+Type* Typer::Visitor::TypeJSToNumeric(Node* node) {
+  return TypeUnaryOp(node, ToNumeric);
 }
 
 Type* Typer::Visitor::TypeJSToObject(Node* node) {

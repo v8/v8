@@ -631,6 +631,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       // Type is Number.
       CheckTypeIs(node, Type::Number());
       break;
+    case IrOpcode::kJSToNumeric:
+      // Type is Numeric.
+      CheckTypeIs(node, Type::Numeric());
+      break;
     case IrOpcode::kJSToString:
       // Type is String.
       CheckTypeIs(node, Type::String());

@@ -3719,7 +3719,7 @@ void BytecodeGenerator::VisitCountOperation(CountOperation* expr) {
     old_value = register_allocator()->NewRegister();
     // Convert old value into a number before saving it.
     // TODO(ignition): Think about adding proper PostInc/PostDec bytecodes
-    // instead of this ToNumber + Inc/Dec dance.
+    // instead of this ToNumeric + Inc/Dec dance.
     builder()
         ->ToNumeric(feedback_index(count_slot))
         .StoreAccumulatorInRegister(old_value);

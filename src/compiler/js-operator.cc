@@ -581,6 +581,7 @@ CompareOperationHint CompareOperationHintOf(const Operator* op) {
   V(ToLength, Operator::kNoProperties, 1, 1)                    \
   V(ToName, Operator::kNoProperties, 1, 1)                      \
   V(ToNumber, Operator::kNoProperties, 1, 1)                    \
+  V(ToNumeric, Operator::kNoProperties, 1, 1)                   \
   V(ToObject, Operator::kFoldable, 1, 1)                        \
   V(ToString, Operator::kNoProperties, 1, 1)                    \
   V(Create, Operator::kNoProperties, 2, 1)                      \

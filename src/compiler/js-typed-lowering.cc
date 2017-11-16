@@ -364,7 +364,7 @@ class JSBinopReduction final {
   Node* ConvertPlainPrimitiveToNumber(Node* node) {
     DCHECK(NodeProperties::GetType(node)->Is(Type::PlainPrimitive()));
     // Avoid inserting too many eager ToNumber() operations.
-    Reduction const reduction = lowering_->ReduceJSToNumberInput(node);
+    Reduction const reduction = lowering_->ReduceJSToNumberOrNumericInput(node);
     if (reduction.Changed()) return reduction.replacement();
     if (NodeProperties::GetType(node)->Is(Type::Number())) {
       return node;
@@ -900,8 +900,9 @@ Reduction JSTypedLowering::ReduceJSToLength(Node* node) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
-  // Try constant-folding of JSToNumber with constant inputs.
+Reduction JSTypedLowering::ReduceJSToNumberOrNumericInput(Node* input) {
+  // Try constant-folding of JSToNumber/JSToNumeric with constant inputs. Here
+  // we only cover cases where ToNumber and ToNumeric coincide.
   Type* input_type = NodeProperties::GetType(input);
   if (input_type->Is(Type::String())) {
     HeapObjectMatcher m(input);
@@ -933,10 +934,10 @@ Reduction JSTypedLowering::ReduceJSToNumberInput(Node* input) {
   return NoChange();
 }
 
-Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
+Reduction JSTypedLowering::ReduceJSToNumberOrNumeric(Node* node) {
   // Try to reduce the input first.
   Node* const input = node->InputAt(0);
-  Reduction reduction = ReduceJSToNumberInput(input);
+  Reduction reduction = ReduceJSToNumberOrNumericInput(input);
   if (reduction.Changed()) {
     ReplaceWithValue(node, reduction.replacement());
     return reduction;
@@ -945,6 +946,10 @@ Reduction JSTypedLowering::ReduceJSToNumber(Node* node) {
   if (input_type->Is(Type::PlainPrimitive())) {
     RelaxEffectsAndControls(node);
     node->TrimInputCount(1);
+    // For a PlainPrimitive, ToNumeric is the same as ToNumber.
+    Type* node_type = NodeProperties::GetType(node);
+    NodeProperties::SetType(
+        node, Type::Intersect(node_type, Type::Number(), graph()->zone()));
     NodeProperties::ChangeOp(node, simplified()->PlainPrimitiveToNumber());
     return Changed(node);
   }
@@ -2070,7 +2075,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSToName:
       return ReduceJSToName(node);
     case IrOpcode::kJSToNumber:
-      return ReduceJSToNumber(node);
+    case IrOpcode::kJSToNumeric:
+      return ReduceJSToNumberOrNumeric(node);
     case IrOpcode::kJSToString:
       return ReduceJSToString(node);
     case IrOpcode::kJSToObject:

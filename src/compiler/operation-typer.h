@@ -7,6 +7,7 @@
 
 #include "src/base/flags.h"
 #include "src/compiler/opcodes.h"
+#include "src/objects.h"
 
 namespace v8 {
 namespace internal {
@@ -31,9 +32,9 @@ class V8_EXPORT_PRIVATE OperationTyper {
   Type* Merge(Type* left, Type* right);
 
   Type* ToPrimitive(Type* type);
-
-  // Helpers for number operation typing.
   Type* ToNumber(Type* type);
+  Type* ToNumeric(Type* type);
+
   Type* WeakenRange(Type* current_range, Type* previous_range);
 
 // Number unary operators.
@@ -72,6 +73,8 @@ class V8_EXPORT_PRIVATE OperationTyper {
 
  private:
   typedef base::Flags<ComparisonOutcomeFlags> ComparisonOutcome;
+
+  Type* ToNumberOrNumeric(Object::Conversion mode, Type* type);
 
   ComparisonOutcome Invert(ComparisonOutcome);
   Type* Invert(Type*);
