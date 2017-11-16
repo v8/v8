@@ -5,6 +5,7 @@
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 
 #include "src/base/atomicops.h"
+#include "src/cancelable-task.h"
 #include "src/compilation-info.h"
 #include "src/compiler.h"
 #include "src/isolate.h"
@@ -34,11 +35,11 @@ void DisposeCompilationJob(CompilationJob* job, bool restore_function_code) {
 
 }  // namespace
 
-class OptimizingCompileDispatcher::CompileTask : public v8::Task {
+class OptimizingCompileDispatcher::CompileTask : public CancelableTask {
  public:
   explicit CompileTask(Isolate* isolate,
                        OptimizingCompileDispatcher* dispatcher)
-      : isolate_(isolate), dispatcher_(dispatcher) {
+      : CancelableTask(isolate), isolate_(isolate), dispatcher_(dispatcher) {
     base::LockGuard<base::Mutex> lock_guard(&dispatcher_->ref_count_mutex_);
     ++dispatcher_->ref_count_;
   }
@@ -47,7 +48,7 @@ class OptimizingCompileDispatcher::CompileTask : public v8::Task {
 
  private:
   // v8::Task overrides.
-  void Run() override {
+  void RunInternal() override {
     DisallowHeapAllocation no_allocation;
     DisallowHandleAllocation no_handles;
     DisallowHandleDereference no_deref;
