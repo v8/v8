@@ -83,7 +83,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // == mips ===================================================================
 // ===========================================================================
 #define GP_PARAM_REGISTERS a0, a1, a2, a3
-#define GP_RETURN_REGISTERS v0, v1
+#define GP_RETURN_REGISTERS v0, v1, t7
 #define FP_PARAM_REGISTERS f2, f4, f6, f8, f10, f12, f14
 #define FP_RETURN_REGISTERS f2, f4
 
@@ -92,7 +92,7 @@ LinkageLocation stackloc(int i, MachineType type) {
 // == mips64 =================================================================
 // ===========================================================================
 #define GP_PARAM_REGISTERS a0, a1, a2, a3, a4, a5, a6, a7
-#define GP_RETURN_REGISTERS v0, v1
+#define GP_RETURN_REGISTERS v0, v1, t3
 #define FP_PARAM_REGISTERS f2, f4, f6, f8, f10, f12, f14
 #define FP_RETURN_REGISTERS f2, f4
 
