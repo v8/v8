@@ -18,13 +18,16 @@ DefaultBackgroundTaskRunner::DefaultBackgroundTaskRunner(
 }
 
 DefaultBackgroundTaskRunner::~DefaultBackgroundTaskRunner() {
-  base::LockGuard<base::Mutex> guard(&lock_);
-  queue_.Terminate();
+  // This destructor is needed because we have unique_ptr to the WorkerThreads,
+  // und the {WorkerThread} class is forward declared in the header file.
 }
 
 void DefaultBackgroundTaskRunner::Terminate() {
   base::LockGuard<base::Mutex> guard(&lock_);
   terminated_ = true;
+  queue_.Terminate();
+  // Clearing the thread pool lets all worker threads join.
+  thread_pool_.clear();
 }
 
 void DefaultBackgroundTaskRunner::PostTask(std::unique_ptr<Task> task) {
