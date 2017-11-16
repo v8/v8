@@ -1786,8 +1786,9 @@ void Deoptimizer::EnsureCodeForDeoptimizationEntry(Isolate* isolate,
   // Allocate the code as immovable since the entry addresses will be used
   // directly and there is no support for relocating them.
   Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::STUB, Handle<Object>(), MaybeHandle<HandlerTable>(),
-      MaybeHandle<ByteArray>(), MaybeHandle<DeoptimizationData>(), kImmovable);
+      desc, Code::STUB, Handle<Object>(), Builtins::kNoBuiltinId,
+      MaybeHandle<HandlerTable>(), MaybeHandle<ByteArray>(),
+      MaybeHandle<DeoptimizationData>(), kImmovable);
   CHECK(Heap::IsImmovable(*code));
 
   CHECK_NULL(data->deopt_entry_code_[type]);

@@ -39,7 +39,7 @@ class CodeAssemblerTester {
   CodeAssemblerTester(Isolate* isolate, CallDescriptor* call_descriptor)
       : zone_(isolate->allocator(), ZONE_NAME),
         scope_(isolate),
-        state_(isolate, &zone_, call_descriptor, Code::STUB, "test", 0) {}
+        state_(isolate, &zone_, call_descriptor, Code::STUB, "test", 0, -1) {}
 
   CodeAssemblerState* state() { return &state_; }
 

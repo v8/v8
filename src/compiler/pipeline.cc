@@ -1927,8 +1927,9 @@ bool PipelineImpl::OptimizeGraph(Linkage* linkage) {
 Handle<Code> Pipeline::GenerateCodeForCodeStub(
     Isolate* isolate, CallDescriptor* call_descriptor, Graph* graph,
     Schedule* schedule, Code::Kind kind, const char* debug_name,
-    uint32_t stub_key, JumpOptimizationInfo* jump_opt) {
+    uint32_t stub_key, int32_t builtin_index, JumpOptimizationInfo* jump_opt) {
   CompilationInfo info(CStrVector(debug_name), graph->zone(), kind);
+  info.set_builtin_index(builtin_index);
   info.set_stub_key(stub_key);
 
   // Construct a pipeline for scheduling and code generation.

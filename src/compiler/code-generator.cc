@@ -315,8 +315,8 @@ Handle<Code> CodeGenerator::FinalizeCode() {
   }
 
   Handle<Code> result = isolate()->factory()->NewCode(
-      desc, info()->code_kind(), Handle<Object>(), table, source_positions,
-      deopt_data, kMovable, info()->stub_key(), true,
+      desc, info()->code_kind(), Handle<Object>(), info()->builtin_index(),
+      table, source_positions, deopt_data, kMovable, info()->stub_key(), true,
       frame()->GetTotalFrameSlotCount(), safepoints()->GetCodeOffset());
   isolate()->counters()->total_compiled_code_size()->Increment(
       result->instruction_size());

@@ -5802,8 +5802,9 @@ Handle<Code> GenerateDummyImmovableCode(Isolate* isolate) {
   CodeDesc desc;
   assm.GetCode(isolate, &desc);
   Handle<Code> code = isolate->factory()->NewCode(
-      desc, Code::STUB, Handle<Code>(), HandlerTable::Empty(isolate),
-      MaybeHandle<ByteArray>(), DeoptimizationData::Empty(isolate), kImmovable);
+      desc, Code::STUB, Handle<Code>(), Builtins::kNoBuiltinId,
+      HandlerTable::Empty(isolate), MaybeHandle<ByteArray>(),
+      DeoptimizationData::Empty(isolate), kImmovable);
   CHECK(code->IsCode());
 
   return code;

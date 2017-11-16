@@ -1800,7 +1800,7 @@ Handle<Code> Factory::NewCodeRaw(int object_size, Movability movability) {
 
 Handle<Code> Factory::NewCode(
     const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
-    MaybeHandle<HandlerTable> maybe_handler_table,
+    int32_t builtin_index, MaybeHandle<HandlerTable> maybe_handler_table,
     MaybeHandle<ByteArray> maybe_source_position_table,
     MaybeHandle<DeoptimizationData> maybe_deopt_data, Movability movability,
     uint32_t stub_key, bool is_turbofanned, int stack_slots,
@@ -1857,7 +1857,7 @@ Handle<Code> Factory::NewCode(
   code->set_source_position_table(*source_position_table);
   code->set_protected_instructions(*empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
-  code->set_builtin_index(-1);
+  code->set_builtin_index(builtin_index);
   code->set_trap_handler_index(Smi::FromInt(-1));
 
   switch (code->kind()) {

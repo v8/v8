@@ -672,6 +672,7 @@ class V8_EXPORT_PRIVATE Factory final {
   // by containing this handle.
   Handle<Code> NewCode(const CodeDesc& desc, Code::Kind kind,
                        Handle<Object> self_reference,
+                       int32_t builtin_index = Builtins::kNoBuiltinId,
                        MaybeHandle<HandlerTable> maybe_handler_table =
                            MaybeHandle<HandlerTable>(),
                        MaybeHandle<ByteArray> maybe_source_position_table =
