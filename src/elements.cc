@@ -1444,17 +1444,16 @@ class DictionaryElementsAccessor
     int entry_count = source_dict->Capacity();
     for (int i = 0; i < entry_count; i++) {
       Object* key = source_dict->KeyAt(i);
-      if (!key->IsUndefined(isolate)) {
-        uint64_t key_value = NumberToInt64(key);
-        if (key_value >= start && key_value < end) {
-          Handle<NumberDictionary> dest_dict(
-              NumberDictionary::cast(result_array->elements()));
-          Handle<Object> value(source_dict->ValueAt(i), isolate);
-          PropertyDetails details = source_dict->DetailsAt(i);
-          PropertyAttributes attr = details.attributes();
-          AddImpl(result_array, static_cast<uint32_t>(key_value) - start, value,
-                  attr, 0);
-        }
+      if (!source_dict->ToKey(isolate, i, &key)) continue;
+      uint64_t key_value = NumberToInt64(key);
+      if (key_value >= start && key_value < end) {
+        Handle<NumberDictionary> dest_dict(
+            NumberDictionary::cast(result_array->elements()));
+        Handle<Object> value(source_dict->ValueAt(i), isolate);
+        PropertyDetails details = source_dict->DetailsAt(i);
+        PropertyAttributes attr = details.attributes();
+        AddImpl(result_array, static_cast<uint32_t>(key_value) - start, value,
+                attr, 0);
       }
     }
 
