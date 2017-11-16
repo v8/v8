@@ -24,6 +24,13 @@ var MapObjectBenchmark = new BenchmarkSuite('Map-Object', [1000], [
   new Benchmark('Delete', false, false, 0, MapDeleteObject, MapSetupObject, MapTearDown),
 ]);
 
+var MapDoubleBenchmark = new BenchmarkSuite('Map-Double', [1000], [
+  new Benchmark('Set', false, false, 0, MapSetDouble, MapSetupDoubleBase, MapTearDown),
+  new Benchmark('Has', false, false, 0, MapHasDouble, MapSetupDouble, MapTearDown),
+  new Benchmark('Get', false, false, 0, MapGetDouble, MapSetupDouble, MapTearDown),
+  new Benchmark('Delete', false, false, 0, MapDeleteDouble, MapSetupDouble, MapTearDown),
+]);
+
 var MapObjectLargeBenchmark = new BenchmarkSuite('Map-Object-Set-Get-Large', [1e7], [
   new Benchmark('Set-Get', false, false, 0, MapSetGetObjectLarge,
                 MapSetupObjectBaseLarge, MapTearDown),
@@ -35,6 +42,13 @@ var MapIterationBenchmark = new BenchmarkSuite('Map-Iteration', [1000], [
 
 var MapIterationBenchmark = new BenchmarkSuite('Map-Iterator', [1000], [
   new Benchmark('Iterator', false, false, 0, MapIterator, MapSetupSmi, MapTearDown),
+]);
+
+var MapConstructorBenchmark = new BenchmarkSuite('Map-Constructor', [1000], [
+  new Benchmark('Smi', false, false, 0, MapConstructorSmi, SetupSmiKeyValuePairs, MapTearDown),
+  new Benchmark('String', false, false, 0, MapConstructorString, SetupStringKeyValuePairs, MapTearDown),
+  new Benchmark('Object', false, false, 0, MapConstructorObject, SetupObjectKeyValuePairs, MapTearDown),
+  new Benchmark('Double', false, false, 0, MapConstructorDouble, SetupDoubleKeyValuePairs, MapTearDown),
 ]);
 
 var map;
@@ -74,8 +88,22 @@ function MapSetupObject() {
   MapSetObject();
 }
 
+function MapSetupDoubleBase() {
+  SetupDoubleKeys();
+  map = new Map;
+}
+
+function MapSetupDouble() {
+  MapSetupDoubleBase();
+  MapSetDouble();
+}
+
 function MapTearDown() {
   map = null;
+}
+
+function MapConstructorSmi() {
+  map = new Map(keyValuePairs);
 }
 
 function MapSetSmi() {
@@ -119,6 +147,11 @@ function MapDeleteSmi() {
   }
 }
 
+
+function MapConstructorString() {
+  map = new Map(keyValuePairs);
+}
+
 function MapSetString() {
   for (var i = 0; i < N; i++) {
     map.set(keys[i], i);
@@ -158,6 +191,11 @@ function MapDeleteString() {
   for (var i = 0; i < N; i++) {
     map.delete(keys[i]);
   }
+}
+
+
+function MapConstructorObject() {
+  map = new Map(keyValuePairs);
 }
 
 function MapSetObject() {
@@ -215,6 +253,52 @@ function MapDeleteObject() {
     map.delete(keys[i]);
   }
 }
+
+
+function MapConstructorDouble() {
+  map = new Map(keyValuePairs);
+}
+
+function MapSetDouble() {
+  for (var i = 0; i < N; i++) {
+    map.set(keys[i], i);
+  }
+}
+
+function MapHasDouble() {
+  for (var i = 0; i < N; i++) {
+    if (!map.has(keys[i])) {
+      throw new Error();
+    }
+  }
+  for (var i = N; i < 2 * N; i++) {
+    if (map.has(keys[i])) {
+      throw new Error();
+    }
+  }
+}
+
+function MapGetDouble() {
+  for (var i = 0; i < N; i++) {
+    if (map.get(keys[i]) !== i) {
+      throw new Error();
+    }
+  }
+  for (var i = N; i < 2 * N; i++) {
+    if (map.get(keys[i]) !== undefined) {
+      throw new Error();
+    }
+  }
+}
+
+function MapDeleteDouble() {
+  // This is run more than once per setup so we will end up deleting items
+  // more than once. Therefore, we do not the return value of delete.
+  for (var i = 0; i < N; i++) {
+    map.delete(keys[i]);
+  }
+}
+
 
 function MapForEach() {
   map.forEach(function(v, k) {

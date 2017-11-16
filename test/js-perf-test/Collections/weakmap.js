@@ -19,6 +19,11 @@ var MapBenchmark = new BenchmarkSuite('WeakMapSetGet-Large', [1e7], [
                 WeakMapSetupBaseLarge, WeakMapTearDown),
 ]);
 
+var MapBenchmark = new BenchmarkSuite('WeakMap-Constructor', [1000], [
+  new Benchmark('Constructor', false, false, 0, WeakMapConstructor, SetupObjectKeyValuePairs,
+      WeakMapTearDown),
+]);
+
 
 var wm;
 
@@ -45,6 +50,10 @@ function WeakMapTearDown() {
   wm = null;
 }
 
+
+function WeakMapConstructor() {
+  wm = new WeakMap(keyValuePairs);
+}
 
 function WeakMapSet() {
   for (var i = 0; i < N; i++) {
