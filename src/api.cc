@@ -509,9 +509,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
         return Free(data, length);
       }
       case v8::ArrayBuffer::Allocator::AllocationMode::kReservation: {
-        bool result = base::OS::Free(data, length);
-        DCHECK(result);
-        USE(result);
+        CHECK(base::OS::Free(data, length));
         return;
       }
     }
@@ -526,7 +524,7 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
         (protection == v8::ArrayBuffer::Allocator::Protection::kReadWrite)
             ? base::OS::MemoryPermission::kReadWrite
             : base::OS::MemoryPermission::kNoAccess;
-    base::OS::SetPermissions(data, length, permission);
+    CHECK(base::OS::SetPermissions(data, length, permission));
   }
 };
 

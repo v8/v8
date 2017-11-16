@@ -253,14 +253,14 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   if (aligned_base != base) {
     DCHECK_LT(base, aligned_base);
     size_t prefix_size = static_cast<size_t>(aligned_base - base);
-    OS::Free(base, prefix_size);
+    CHECK(Free(base, prefix_size));
     request_size -= prefix_size;
   }
   // Unmap memory allocated after the potentially unaligned end.
   if (size != request_size) {
     DCHECK_LT(size, request_size);
     size_t suffix_size = request_size - size;
-    OS::Free(aligned_base + size, suffix_size);
+    CHECK(Free(aligned_base + size, suffix_size));
     request_size -= suffix_size;
   }
 
@@ -427,7 +427,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name,
 
 
 PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) OS::Free(memory_, size_);
+  if (memory_) CHECK(OS::Free(memory_, size_));
   fclose(file_);
 }
 

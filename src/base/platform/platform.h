@@ -179,24 +179,26 @@ class V8_BASE_EXPORT OS {
   // The address parameter is a hint. The size and alignment parameters must be
   // multiples of AllocatePageSize(). Returns the address of the allocated
   // memory, with the specified size and alignment, or nullptr on failure.
-  static void* Allocate(void* address, size_t size, size_t alignment,
-                        MemoryPermission access);
+  V8_WARN_UNUSED_RESULT static void* Allocate(void* address, size_t size,
+                                              size_t alignment,
+                                              MemoryPermission access);
 
   // Frees memory allocated by a call to Allocate. address and size must be
   // multiples of AllocatePageSize(). Returns true on success, otherwise false.
-  static bool Free(void* address, const size_t size);
+  V8_WARN_UNUSED_RESULT static bool Free(void* address, const size_t size);
 
   // Sets permissions according to the access argument. address and size must be
   // multiples of CommitPageSize(). Returns true on success, otherwise false.
-  static bool SetPermissions(void* address, size_t size,
-                             MemoryPermission access);
+  V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
+                                                   MemoryPermission access);
 
-  static bool CommitRegion(void* address, size_t size);
+  V8_WARN_UNUSED_RESULT static bool CommitRegion(void* address, size_t size);
 
-  static bool UncommitRegion(void* address, size_t size);
+  V8_WARN_UNUSED_RESULT static bool UncommitRegion(void* address, size_t size);
 
   // Release part of a reserved address range.
-  static bool ReleasePartialRegion(void* address, size_t size);
+  V8_WARN_UNUSED_RESULT static bool ReleasePartialRegion(void* address,
+                                                         size_t size);
 
   static bool HasLazyCommits();
 

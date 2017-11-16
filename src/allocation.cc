@@ -185,9 +185,7 @@ void VirtualMemory::Release() {
   size_t size = size_;
   CHECK(InVM(address, size));
   Reset();
-  bool result = base::OS::Free(address, size);
-  USE(result);
-  DCHECK(result);
+  CHECK(base::OS::Free(address, size));
 }
 
 void VirtualMemory::TakeControl(VirtualMemory* from) {

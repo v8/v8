@@ -443,9 +443,7 @@ void MemoryAllocator::FreeMemory(Address base, size_t size,
     code_range()->FreeRawMemory(base, size);
   } else {
     DCHECK(executable == NOT_EXECUTABLE || !code_range()->valid());
-    bool result = base::OS::Free(base, size);
-    USE(result);
-    DCHECK(result);
+    CHECK(base::OS::Free(base, size));
   }
 }
 
@@ -541,8 +539,8 @@ void MemoryChunk::SetReadAndExecutable() {
     size_t page_size = MemoryAllocator::GetCommitPageSize();
     DCHECK(IsAddressAligned(protect_start, page_size));
     size_t protect_size = RoundUp(area_size(), page_size);
-    base::OS::SetPermissions(protect_start, protect_size,
-                             base::OS::MemoryPermission::kReadExecute);
+    CHECK(base::OS::SetPermissions(protect_start, protect_size,
+                                   base::OS::MemoryPermission::kReadExecute));
   }
 }
 
@@ -560,8 +558,8 @@ void MemoryChunk::SetReadAndWritable() {
     size_t page_size = MemoryAllocator::GetCommitPageSize();
     DCHECK(IsAddressAligned(unprotect_start, page_size));
     size_t unprotect_size = RoundUp(area_size(), page_size);
-    base::OS::SetPermissions(unprotect_start, unprotect_size,
-                             base::OS::MemoryPermission::kReadWrite);
+    CHECK(base::OS::SetPermissions(unprotect_start, unprotect_size,
+                                   base::OS::MemoryPermission::kReadWrite));
   }
 }
 
@@ -578,8 +576,9 @@ void MemoryChunk::SetReadWriteAndExecutable() {
   size_t page_size = MemoryAllocator::GetCommitPageSize();
   DCHECK(IsAddressAligned(unprotect_start, page_size));
   size_t unprotect_size = RoundUp(area_size(), page_size);
-  base::OS::SetPermissions(unprotect_start, unprotect_size,
-                           base::OS::MemoryPermission::kReadWriteExecute);
+  CHECK(
+      base::OS::SetPermissions(unprotect_start, unprotect_size,
+                               base::OS::MemoryPermission::kReadWriteExecute));
 }
 
 MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
@@ -630,8 +629,9 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
       size_t page_size = MemoryAllocator::GetCommitPageSize();
       DCHECK(IsAddressAligned(area_start, page_size));
       size_t area_size = RoundUp(area_end - area_start, page_size);
-      base::OS::SetPermissions(area_start, area_size,
-                               base::OS::MemoryPermission::kReadWriteExecute);
+      CHECK(base::OS::SetPermissions(
+          area_start, area_size,
+          base::OS::MemoryPermission::kReadWriteExecute));
     }
   }
 
