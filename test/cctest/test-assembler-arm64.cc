@@ -213,7 +213,7 @@ static void InitializeVM() {
   __ Ret();                     \
   __ GetCode(masm.isolate(), nullptr);
 
-#define TEARDOWN() v8::base::OS::Free(buf, allocated);
+#define TEARDOWN() CHECK(v8::base::OS::Free(buf, allocated));
 
 #endif  // ifdef USE_SIMULATOR.
 

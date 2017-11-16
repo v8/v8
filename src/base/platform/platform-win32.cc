@@ -740,6 +740,8 @@ DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
       return PAGE_READWRITE;
     case OS::MemoryPermission::kReadWriteExecute:
       return PAGE_EXECUTE_READWRITE;
+    case OS::MemoryPermission::kReadExecute:
+      return PAGE_EXECUTE_READ;
   }
   UNREACHABLE();
 }
@@ -757,8 +759,7 @@ uint8_t* RandomizedVirtualAlloc(size_t size, DWORD flags, DWORD protect,
   use_aslr = TRUE;
 #endif
 
-  if (use_aslr &&
-      (protect == PAGE_EXECUTE_READWRITE || protect == PAGE_NOACCESS)) {
+  if (use_aslr && protect != PAGE_READWRITE) {
     // For executable or reserved pages try to randomize the allocation address.
     base = VirtualAlloc(hint, size, flags, protect);
   }
@@ -783,10 +784,10 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   // Add the maximum misalignment so we are guaranteed an aligned base address.
   size_t padded_size = size + (alignment - page_size);
 
-  int flags = (access == OS::MemoryPermission::kNoAccess)
-                  ? MEM_RESERVE
-                  : MEM_RESERVE | MEM_COMMIT;
-  int protect = GetProtectionFromMemoryPermission(access);
+  DWORD flags = (access == OS::MemoryPermission::kNoAccess)
+                    ? MEM_RESERVE
+                    : MEM_RESERVE | MEM_COMMIT;
+  DWORD protect = GetProtectionFromMemoryPermission(access);
 
   const int kMaxAttempts = 3;
   uint8_t* base = nullptr;
@@ -815,42 +816,27 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
 
 // static
 bool OS::Free(void* address, const size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocatePageSize());
+  // TODO(bbudge) Add DCHECK_EQ(0, size % AllocatePageSize()) when callers
+  // pass the correct size on Windows.
+  USE(size);
   return VirtualFree(address, 0, MEM_RELEASE) != 0;
 }
 
-void OS::SetReadAndExecutable(void* address, const size_t size) {
-  DWORD old_protect;
-  CHECK_NE(NULL,
-           VirtualProtect(address, size, PAGE_EXECUTE_READ, &old_protect));
-}
-
-void OS::Guard(void* address, const size_t size) {
-  DWORD oldprotect;
-  VirtualProtect(address, size, PAGE_NOACCESS, &oldprotect);
-}
-
-void OS::SetReadAndWritable(void* address, const size_t size, bool commit) {
-  if (commit) {
-    CHECK(VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE));
-  } else {
-    DWORD oldprotect;
-    CHECK_NE(NULL, VirtualProtect(address, size, PAGE_READWRITE, &oldprotect));
+// static
+bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+  if (access == MemoryPermission::kNoAccess) {
+    return VirtualFree(address, size, MEM_DECOMMIT) != 0;
   }
-}
-
-// Make a region of memory readable, writable, and executable.
-void OS::SetReadWriteAndExecutable(void* address, const size_t size) {
-  DWORD oldprotect;
-  CHECK_NE(NULL,
-           VirtualProtect(address, size, PAGE_EXECUTE_READWRITE, &oldprotect));
+  DWORD protect = GetProtectionFromMemoryPermission(access);
+  return VirtualAlloc(address, size, MEM_COMMIT, protect) != nullptr;
 }
 
 // static
 bool OS::CommitRegion(void* address, size_t size) {
-  if (NULL == VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE)) {
-    return false;
-  }
-  return true;
+  return VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE) != nullptr;
 }
 
 // static

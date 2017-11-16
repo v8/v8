@@ -150,12 +150,12 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
 #endif
     free(data);
   }
-  // If {length} is at least {VM_THRESHOLD}, round up to next page size
-  // and return {true}. Otherwise return {false}.
+  // If {length} is at least {VM_THRESHOLD}, round up to next page size and
+  // return {true}. Otherwise return {false}.
   bool RoundToPageSize(size_t* length) {
-    const size_t kPageSize = base::OS::CommitPageSize();
+    size_t page_size = base::OS::AllocatePageSize();
     if (*length >= VM_THRESHOLD && *length < TWO_GB) {
-      *length = ((*length + kPageSize - 1) / kPageSize) * kPageSize;
+      *length = RoundUp(*length, page_size);
       return true;
     }
     return false;
@@ -180,7 +180,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
 class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
   const size_t kAllocationLimit = 10 * MB;
   size_t get_actual_length(size_t length) const {
-    return length > kAllocationLimit ? base::OS::CommitPageSize() : length;
+    return length > kAllocationLimit ? base::OS::AllocatePageSize() : length;
   }
 
  public:

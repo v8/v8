@@ -29,7 +29,7 @@ namespace base {
 namespace {
 
 // The memory allocation implementation is taken from platform-win32.cc.
-// The mmap-based virtual memory implementation as it is used on most posix
+// The mmap-based memory allocation implementation as it is used on most posix
 // platforms does not work well because Cygwin does not support MAP_FIXED.
 // This causes OS::CommitRegion to not always commit the memory region
 // specified.
@@ -42,6 +42,8 @@ DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
       return PAGE_READWRITE;
     case OS::MemoryPermission::kReadWriteExecute:
       return PAGE_EXECUTE_READWRITE;
+    case OS::MemoryPermission::kReadExecute:
+      return PAGE_EXECUTE_READ;
   }
   UNREACHABLE();
 }
@@ -50,8 +52,8 @@ uint8_t* RandomizedVirtualAlloc(size_t size, DWORD flags, DWORD protect,
                                 void* hint) {
   LPVOID base = nullptr;
 
-  if (protect == PAGE_EXECUTE_READWRITE || protect == PAGE_NOACCESS) {
-    // For exectutable pages try and randomize the allocation address
+  // For executable or reserved pages try to use the address hint.
+  if (protect != PAGE_READWRITE) {
     base = VirtualAlloc(hint, size, flags, protect);
   }
 
@@ -137,15 +139,26 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
 
 // static
 bool OS::Free(void* address, const size_t size) {
+  DCHECK_EQ(0, static_cast<uintptr_t>(address) % AllocatePageSize());
+  DCHECK_EQ(0, size % AllocatePageSize());
+  USE(size);
   return VirtualFree(address, 0, MEM_RELEASE) != 0;
 }
 
 // static
-bool OS::CommitRegion(void* address, size_t size) {
-  if (nullptr == VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE)) {
-    return false;
+bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+  if (access == MemoryPermission::kNoAccess) {
+    return VirtualFree(address, size, MEM_DECOMMIT) != 0;
   }
-  return true;
+  DWORD protect = GetProtectionFromMemoryPermission(access);
+  return VirtualAlloc(address, size, MEM_COMMIT, protect) != nullptr;
+}
+
+// static
+bool OS::CommitRegion(void* address, size_t size) {
+  return VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE) != nullptr;
 }
 
 // static

@@ -184,7 +184,7 @@ class MemoryAllocationPermissionsTest : public ::testing::Test {
         OS::Allocate(nullptr, page_size, page_size, permission));
     ProbeMemory(buffer, MemoryAction::kRead, can_read);
     ProbeMemory(buffer, MemoryAction::kWrite, can_write);
-    OS::Free(buffer, page_size);
+    CHECK(OS::Free(buffer, page_size));
   }
 };
 

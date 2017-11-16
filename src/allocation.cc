@@ -149,9 +149,11 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 }
 
 bool VirtualMemory::Guard(void* address) {
-  CHECK(InVM(address, base::OS::CommitPageSize()));
-  base::OS::Guard(address, base::OS::CommitPageSize());
-  return true;
+  size_t page_size = base::OS::CommitPageSize();
+  CHECK(InVM(address, page_size));
+  bool result = base::OS::SetPermissions(address, page_size,
+                                         base::OS::MemoryPermission::kNoAccess);
+  return result;
 }
 
 size_t VirtualMemory::ReleasePartial(void* free_start) {

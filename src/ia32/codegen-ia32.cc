@@ -39,7 +39,8 @@ UnaryMathFunctionWithIsolate CreateSqrtFunction(Isolate* isolate) {
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
 
   Assembler::FlushICache(isolate, buffer, allocated);
-  base::OS::SetReadAndExecutable(buffer, allocated);
+  base::OS::SetPermissions(buffer, allocated,
+                           base::OS::MemoryPermission::kReadExecute);
   return FUNCTION_CAST<UnaryMathFunctionWithIsolate>(buffer);
 }
 
@@ -451,7 +452,8 @@ MemMoveFunction CreateMemMoveFunction(Isolate* isolate) {
   masm.GetCode(isolate, &desc);
   DCHECK(!RelocInfo::RequiresRelocation(isolate, desc));
   Assembler::FlushICache(isolate, buffer, allocated);
-  base::OS::SetReadAndExecutable(buffer, allocated);
+  base::OS::SetPermissions(buffer, allocated,
+                           base::OS::MemoryPermission::kReadExecute);
   // TODO(jkummerow): It would be nice to register this code creation event
   // with the PROFILE / GDBJIT system.
   return FUNCTION_CAST<MemMoveFunction>(buffer);

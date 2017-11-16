@@ -520,16 +520,13 @@ class ArrayBufferAllocator : public v8::ArrayBuffer::Allocator {
   virtual void SetProtection(
       void* data, size_t length,
       v8::ArrayBuffer::Allocator::Protection protection) {
-    switch (protection) {
-      case v8::ArrayBuffer::Allocator::Protection::kNoAccess: {
-        base::OS::Guard(data, length);
-        return;
-      }
-      case v8::ArrayBuffer::Allocator::Protection::kReadWrite: {
-        base::OS::SetReadAndWritable(data, length, true);
-        return;
-      }
-    }
+    DCHECK(protection == v8::ArrayBuffer::Allocator::Protection::kNoAccess ||
+           protection == v8::ArrayBuffer::Allocator::Protection::kReadWrite);
+    base::OS::MemoryPermission permission =
+        (protection == v8::ArrayBuffer::Allocator::Protection::kReadWrite)
+            ? base::OS::MemoryPermission::kReadWrite
+            : base::OS::MemoryPermission::kNoAccess;
+    base::OS::SetPermissions(data, length, permission);
   }
 };
 

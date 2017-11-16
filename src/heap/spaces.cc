@@ -538,9 +538,11 @@ void MemoryChunk::SetReadAndExecutable() {
   if (write_unprotect_counter_ == 0) {
     Address protect_start =
         address() + MemoryAllocator::CodePageAreaStartOffset();
-    DCHECK(
-        IsAddressAligned(protect_start, MemoryAllocator::GetCommitPageSize()));
-    base::OS::SetReadAndExecutable(protect_start, area_size());
+    size_t page_size = MemoryAllocator::GetCommitPageSize();
+    DCHECK(IsAddressAligned(protect_start, page_size));
+    size_t protect_size = RoundUp(area_size(), page_size);
+    base::OS::SetPermissions(protect_start, protect_size,
+                             base::OS::MemoryPermission::kReadExecute);
   }
 }
 
@@ -555,9 +557,11 @@ void MemoryChunk::SetReadAndWritable() {
   if (write_unprotect_counter_ == 1) {
     Address unprotect_start =
         address() + MemoryAllocator::CodePageAreaStartOffset();
-    DCHECK(IsAddressAligned(unprotect_start,
-                            MemoryAllocator::GetCommitPageSize()));
-    base::OS::SetReadAndWritable(unprotect_start, area_size(), false);
+    size_t page_size = MemoryAllocator::GetCommitPageSize();
+    DCHECK(IsAddressAligned(unprotect_start, page_size));
+    size_t unprotect_size = RoundUp(area_size(), page_size);
+    base::OS::SetPermissions(unprotect_start, unprotect_size,
+                             base::OS::MemoryPermission::kReadWrite);
   }
 }
 
@@ -571,9 +575,11 @@ void MemoryChunk::SetReadWriteAndExecutable() {
   DCHECK_LE(write_unprotect_counter_, 3);
   Address unprotect_start =
       address() + MemoryAllocator::CodePageAreaStartOffset();
-  DCHECK(
-      IsAddressAligned(unprotect_start, MemoryAllocator::GetCommitPageSize()));
-  base::OS::SetReadWriteAndExecutable(unprotect_start, area_size());
+  size_t page_size = MemoryAllocator::GetCommitPageSize();
+  DCHECK(IsAddressAligned(unprotect_start, page_size));
+  size_t unprotect_size = RoundUp(area_size(), page_size);
+  base::OS::SetPermissions(unprotect_start, unprotect_size,
+                           base::OS::MemoryPermission::kReadWriteExecute);
 }
 
 MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
@@ -621,7 +627,11 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
     if (FLAG_write_protect_code_memory) {
       chunk->write_unprotect_counter_ = 1;
     } else {
-      base::OS::SetReadWriteAndExecutable(area_start, area_end - area_start);
+      size_t page_size = MemoryAllocator::GetCommitPageSize();
+      DCHECK(IsAddressAligned(area_start, page_size));
+      size_t area_size = RoundUp(area_end - area_start, page_size);
+      base::OS::SetPermissions(area_start, area_size,
+                               base::OS::MemoryPermission::kReadWriteExecute);
     }
   }
 
@@ -1137,9 +1147,7 @@ size_t MemoryAllocator::CodePageGuardStartOffset() {
   return ::RoundUp(Page::kObjectStartOffset, GetCommitPageSize());
 }
 
-size_t MemoryAllocator::CodePageGuardSize() {
-  return static_cast<int>(GetCommitPageSize());
-}
+size_t MemoryAllocator::CodePageGuardSize() { return GetCommitPageSize(); }
 
 size_t MemoryAllocator::CodePageAreaStartOffset() {
   // We are guarding code pages: the first OS page after the header

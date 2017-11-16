@@ -13,6 +13,25 @@
 namespace v8 {
 namespace base {
 
+namespace {
+
+uint32_t GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
+  switch (access) {
+    case OS::MemoryPermission::kNoAccess:
+      return 0;  // no permissions
+    case OS::MemoryPermission::kReadWrite:
+      return ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_WRITE;
+    case OS::MemoryPermission::kReadWriteExecute:
+      return ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_WRITE |
+             ZX_VM_FLAG_PERM_EXECUTE;
+    case OS::MemoryPermission::kReadExecute:
+      return ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_EXECUTE;
+  }
+  UNREACHABLE();
+}
+
+}  // namespace
+
 TimezoneCache* OS::CreateTimezoneCache() {
   return new PosixDefaultTimezoneCache();
 }
@@ -20,8 +39,6 @@ TimezoneCache* OS::CreateTimezoneCache() {
 // static
 void* OS::Allocate(void* address, size_t size, size_t alignment,
                    OS::MemoryPermission access) {
-  // Currently we only support reserving memory.
-  DCHECK_EQ(MemoryPermission::kNoAccess, access);
   size_t page_size = OS::AllocatePageSize();
   DCHECK_EQ(0, size % page_size);
   DCHECK_EQ(0, alignment % page_size);
@@ -37,8 +54,9 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
   zx_object_set_property(vmo, ZX_PROP_NAME, kVirtualMemoryName,
                          strlen(kVirtualMemoryName));
   uintptr_t reservation;
+  uint32_t prot = GetProtectionFromMemoryPermission(access);
   zx_status_t status = zx_vmar_map(zx_vmar_root_self(), 0, vmo, 0, request_size,
-                                   0 /*no permissions*/, &reservation);
+                                   prot, &reservation);
   // Either the vmo is now referenced by the vmar, or we failed and are bailing,
   // so close the vmo either way.
   zx_handle_close(vmo);
@@ -74,16 +92,21 @@ void* OS::Allocate(void* address, size_t size, size_t alignment,
 }
 
 // static
-bool OS::Free(void* address, size_t size) {
+bool OS::Free(void* address, const size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % AllocatePageSize());
+  DCHECK_EQ(0, size % AllocatePageSize());
   return zx_vmar_unmap(zx_vmar_root_self(),
                        reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
 }
 
 // static
-void OS::Guard(void* address, size_t size) {
-  CHECK_EQ(ZX_OK, zx_vmar_protect(zx_vmar_root_self(),
-                                  reinterpret_cast<uintptr_t>(address), size,
-                                  0 /*no permissions*/));
+bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+  uint32_t prot = GetProtectionFromMemoryPermission(access);
+  return zx_vmar_protect(zx_vmar_root_self(),
+                         reinterpret_cast<uintptr_t>(address), size,
+                         prot) == ZX_OK;
 }
 
 // static

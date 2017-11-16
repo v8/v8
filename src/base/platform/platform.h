@@ -157,9 +157,13 @@ class V8_BASE_EXPORT OS {
   static PRINTF_FORMAT(1, 2) void PrintError(const char* format, ...);
   static PRINTF_FORMAT(1, 0) void VPrintError(const char* format, va_list args);
 
-  // Memory access permissions. Only the modes currently used by V8 are listed
-  // here even though most systems support additional modes.
-  enum class MemoryPermission { kNoAccess, kReadWrite, kReadWriteExecute };
+  enum class MemoryPermission {
+    kNoAccess,
+    kReadWrite,
+    // TODO(hpayer): Remove this flag. Memory should never be rwx.
+    kReadWriteExecute,
+    kReadExecute
+  };
 
   // Gets the page granularity for Allocate. Addresses returned by Allocate are
   // aligned to this size.
@@ -178,21 +182,14 @@ class V8_BASE_EXPORT OS {
   static void* Allocate(void* address, size_t size, size_t alignment,
                         MemoryPermission access);
 
-  // Frees memory allocated by a call to Allocate.
+  // Frees memory allocated by a call to Allocate. address and size must be
+  // multiples of AllocatePageSize(). Returns true on success, otherwise false.
   static bool Free(void* address, const size_t size);
 
-  // Mark a region of memory executable and readable but not writable.
-  static void SetReadAndExecutable(void* address, const size_t size);
-
-  // Assign memory as a guard page so that access will cause an exception.
-  static void Guard(void* address, const size_t size);
-
-  // Make a region of memory non-executable but readable and writable.
-  static void SetReadAndWritable(void* address, const size_t size, bool commit);
-
-  // Make a region of memory read, write, and executable. Do not use this
-  // function. This is only a temporary function and will go away soon.
-  static void SetReadWriteAndExecutable(void* address, const size_t size);
+  // Sets permissions according to the access argument. address and size must be
+  // multiples of CommitPageSize(). Returns true on success, otherwise false.
+  static bool SetPermissions(void* address, size_t size,
+                             MemoryPermission access);
 
   static bool CommitRegion(void* address, size_t size);
 
