@@ -1248,9 +1248,6 @@ Handle<Code> EnsureExportedLazyDeoptData(Isolate* isolate,
     return code;
   }
 
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-
   // deopt_data:
   //   #0: weak instance
   //   #1: func_index
@@ -1262,6 +1259,8 @@ Handle<Code> EnsureExportedLazyDeoptData(Isolate* isolate,
     code = isolate->factory()->CopyCode(code);
     code_table->set(func_index, *code);
     deopt_data = isolate->factory()->NewFixedArray(2, TENURED);
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
     code->set_deoptimization_data(*deopt_data);
     if (!instance.is_null()) {
       Handle<WeakCell> weak_instance =

@@ -131,7 +131,7 @@ bool CodeRange::SetUp(size_t requested) {
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space.
   if (reserved_area > 0) {
-    if (!reservation.Commit(base, reserved_area, true)) return false;
+    if (!reservation.Commit(base, reserved_area)) return false;
 
     base += reserved_area;
   }
@@ -414,7 +414,7 @@ bool MemoryAllocator::CanFreeMemoryChunk(MemoryChunk* chunk) {
 
 bool MemoryAllocator::CommitMemory(Address base, size_t size,
                                    Executability executable) {
-  if (!base::OS::CommitRegion(base, size, executable == EXECUTABLE)) {
+  if (!base::OS::CommitRegion(base, size)) {
     return false;
   }
   UpdateAllocatedSpaceLimits(base, base + size);
@@ -477,7 +477,7 @@ Address MemoryAllocator::AllocateAlignedMemory(
       base = nullptr;
     }
   } else {
-    if (reservation.Commit(base, commit_size, false)) {
+    if (reservation.Commit(base, commit_size)) {
       UpdateAllocatedSpaceLimits(base, base + commit_size);
     } else {
       base = nullptr;
@@ -618,6 +618,11 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
 
   if (executable == EXECUTABLE) {
     chunk->SetFlag(IS_EXECUTABLE);
+    if (FLAG_write_protect_code_memory) {
+      chunk->write_unprotect_counter_ = 1;
+    } else {
+      base::OS::SetReadWriteAndExecutable(area_start, area_end - area_start);
+    }
   }
 
   if (reservation != nullptr) {
@@ -1163,13 +1168,13 @@ bool MemoryAllocator::CommitExecutableMemory(VirtualMemory* vm, Address start,
   // Commit page header (not executable).
   Address header = start;
   size_t header_size = CodePageGuardStartOffset();
-  if (vm->Commit(header, header_size, false)) {
+  if (vm->Commit(header, header_size)) {
     // Create guard page after the header.
     if (vm->Guard(start + CodePageGuardStartOffset())) {
       // Commit page body (executable).
       Address body = start + CodePageAreaStartOffset();
       size_t body_size = commit_size - CodePageGuardStartOffset();
-      if (vm->Commit(body, body_size, true)) {
+      if (vm->Commit(body, body_size)) {
         // Create guard page before the end.
         if (vm->Guard(start + reserved_size - CodePageGuardSize())) {
           UpdateAllocatedSpaceLimits(start, start + CodePageAreaStartOffset() +

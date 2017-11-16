@@ -111,9 +111,6 @@ bool CodeSpecialization::ApplyToWholeInstance(
   bool changed = false;
   int func_index = module->num_imported_functions;
 
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(instance->GetHeap());
-
   // Patch all wasm functions.
   for (int num_wasm_functions = static_cast<int>(wasm_functions->size());
        func_index < num_wasm_functions; ++func_index) {
@@ -121,6 +118,9 @@ bool CodeSpecialization::ApplyToWholeInstance(
     if (wasm_function->kind() != Code::WASM_FUNCTION) continue;
     changed |= ApplyToWasmCode(wasm_function, icache_flush_mode);
   }
+
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(instance->GetHeap());
 
   // Patch all exported functions (JS_TO_WASM_FUNCTION).
   int reloc_mode = 0;

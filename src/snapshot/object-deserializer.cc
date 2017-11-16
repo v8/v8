@@ -67,6 +67,9 @@ ObjectDeserializer::DeserializeWasmCompiledModule(
 
 MaybeHandle<HeapObject> ObjectDeserializer::Deserialize(Isolate* isolate) {
   Initialize(isolate);
+
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+
   if (!allocator()->ReserveSpace()) return MaybeHandle<HeapObject>();
 
   DCHECK(deserializing_user_code());

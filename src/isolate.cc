@@ -2863,6 +2863,7 @@ bool Isolate::Init(StartupDeserializer* des) {
   // If we are deserializing, read the state into the now-empty heap.
   {
     AlwaysAllocateScope always_allocate(this);
+    CodeSpaceMemoryModificationScope modification_scope(&heap_);
 
     if (!create_heap_objects) des->DeserializeInto(this);
     load_stub_cache_->Initialize();

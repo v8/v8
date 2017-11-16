@@ -57,8 +57,7 @@ void StoreBuffer::SetUp() {
   }
 
   if (!reservation.Commit(reinterpret_cast<Address>(start_[0]),
-                          kStoreBufferSize * kStoreBuffers,
-                          false)) {  // Not executable.
+                          kStoreBufferSize * kStoreBuffers)) {
     V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
   current_ = 0;

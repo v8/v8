@@ -141,9 +141,11 @@ bool OS::Free(void* address, const size_t size) {
 }
 
 // static
-bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
-  DWORD protect = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  return VirtualAlloc(address, size, MEM_COMMIT, protect) != nullptr;
+bool OS::CommitRegion(void* address, size_t size) {
+  if (nullptr == VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE)) {
+    return false;
+  }
+  return true;
 }
 
 // static

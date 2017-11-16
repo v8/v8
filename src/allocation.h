@@ -129,7 +129,7 @@ class V8_EXPORT_PRIVATE VirtualMemory {
   size_t size() const { return size_; }
 
   // Commits real memory. Returns whether the operation succeeded.
-  bool Commit(void* address, size_t size, bool is_executable);
+  bool Commit(void* address, size_t size);
 
   // Uncommit real memory.  Returns whether the operation succeeded.
   bool Uncommit(void* address, size_t size);

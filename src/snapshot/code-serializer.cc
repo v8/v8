@@ -242,9 +242,6 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
     return nothing;
   }
 
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-
   MaybeHandle<WasmCompiledModule> maybe_result =
       ObjectDeserializer::DeserializeWasmCompiledModule(isolate, &scd,
                                                         wire_bytes);
@@ -252,6 +249,8 @@ MaybeHandle<FixedArray> WasmCompiledModuleSerializer::DeserializeWasmModule(
   Handle<WasmCompiledModule> result;
   if (!maybe_result.ToHandle(&result)) return nothing;
 
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   WasmCompiledModule::ReinitializeAfterDeserialization(isolate, result);
   DCHECK(WasmCompiledModule::IsWasmCompiledModule(*result));
   return result;

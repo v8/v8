@@ -138,9 +138,9 @@ void VirtualMemory::Reset() {
   size_ = 0;
 }
 
-bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
+bool VirtualMemory::Commit(void* address, size_t size) {
   CHECK(InVM(address, size));
-  return base::OS::CommitRegion(address, size, is_executable);
+  return base::OS::CommitRegion(address, size);
 }
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {

@@ -194,7 +194,7 @@ class V8_BASE_EXPORT OS {
   // function. This is only a temporary function and will go away soon.
   static void SetReadWriteAndExecutable(void* address, const size_t size);
 
-  static bool CommitRegion(void* address, size_t size, bool is_executable);
+  static bool CommitRegion(void* address, size_t size);
 
   static bool UncommitRegion(void* address, size_t size);
 

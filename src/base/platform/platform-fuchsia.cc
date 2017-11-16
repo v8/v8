@@ -87,12 +87,10 @@ void OS::Guard(void* address, size_t size) {
 }
 
 // static
-bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
-  uint32_t prot = ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_WRITE |
-                  (is_executable ? ZX_VM_FLAG_PERM_EXECUTE : 0);
+bool OS::CommitRegion(void* address, size_t size) {
   return zx_vmar_protect(zx_vmar_root_self(),
                          reinterpret_cast<uintptr_t>(address), size,
-                         prot) == ZX_OK;
+                         ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_WRITE) == ZX_OK;
 }
 
 // static

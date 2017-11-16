@@ -314,16 +314,15 @@ void OS::SetReadWriteAndExecutable(void* address, const size_t size) {
 
 #if !V8_OS_CYGWIN && !V8_OS_FUCHSIA
 // static
-bool OS::CommitRegion(void* address, size_t size, bool is_executable) {
-  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
+bool OS::CommitRegion(void* address, size_t size) {
 #if !V8_OS_AIX
-  if (MAP_FAILED == mmap(address, size, prot,
+  if (MAP_FAILED == mmap(address, size, PROT_READ | PROT_WRITE,
                          MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, kMmapFd,
                          kMmapFdOffset)) {
     return false;
   }
 #else
-  if (mprotect(address, size, prot) == -1) return false;
+  if (mprotect(address, size, PROT_READ | PROT_WRITE) == -1) return false;
 #endif  // !V8_OS_AIX
   return true;
 }
