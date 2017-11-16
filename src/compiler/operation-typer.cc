@@ -611,7 +611,7 @@ Type* OperationTyper::SpeculativeSafeIntegerAdd(Type* lhs, Type* rhs) {
   // In either case the result will be in the safe integer range, so we
   // can bake in the type here. This needs to be in sync with
   // SimplifiedLowering::VisitSpeculativeAdditiveOp.
-  return Type::Intersect(result, cache_.kSafeInteger, zone());
+  return Type::Intersect(result, cache_.kSafeIntegerOrMinusZero, zone());
 }
 
 Type* OperationTyper::SpeculativeSafeIntegerSubtract(Type* lhs, Type* rhs) {

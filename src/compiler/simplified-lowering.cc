@@ -1273,16 +1273,13 @@ class RepresentationSelector {
                                          SimplifiedLowering* lowering) {
     Type* left_upper = GetUpperBound(node->InputAt(0));
     Type* right_upper = GetUpperBound(node->InputAt(1));
-    // Only eliminate eliminate the node if the ToNumber conversion cannot
-    // cause any observable side-effect and if we know for sure that it
-    // is a number addition (we must exclude strings).
-    if (left_upper->Is(Type::NumberOrOddball()) &&
-        right_upper->Is(Type::NumberOrOddball())) {
-      if (truncation.IsUnused()) return VisitUnused(node);
-    }
 
     if (left_upper->Is(type_cache_.kAdditiveSafeIntegerOrMinusZero) &&
         right_upper->Is(type_cache_.kAdditiveSafeIntegerOrMinusZero)) {
+      // Only eliminate the node if its typing rule can be satisfied, namely
+      // that a safe integer is produced.
+      if (truncation.IsUnused()) return VisitUnused(node);
+
       // If we know how to interpret the result or if the users only care
       // about the low 32-bits, we can truncate to Word32 do a wrapping
       // addition.
