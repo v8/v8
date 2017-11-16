@@ -522,7 +522,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- x0 : the value to pass to the generator
   //  -- x1 : the JSGeneratorObject to resume
-  //  -- x2 : the resume mode (tagged)
   //  -- lr : return address
   // -----------------------------------
   __ AssertGeneratorObject(x1);
@@ -531,9 +530,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Str(x0, FieldMemOperand(x1, JSGeneratorObject::kInputOrDebugPosOffset));
   __ RecordWriteField(x1, JSGeneratorObject::kInputOrDebugPosOffset, x0, x3,
                       kLRHasNotBeenSaved, kDontSaveFPRegs);
-
-  // Store resume mode into generator object.
-  __ Str(x2, FieldMemOperand(x1, JSGeneratorObject::kResumeModeOffset));
 
   // Load suspended function and context.
   __ Ldr(x4, FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
@@ -578,7 +574,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // ----------- S t a t e -------------
   //  -- x1                       : the JSGeneratorObject to resume
-  //  -- x2                       : the resume mode (tagged)
   //  -- x4                       : generator function
   //  -- x10                      : argument count
   //  -- cp                       : generator context
@@ -629,10 +624,10 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Bind(&prepare_step_in_if_stepping);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(x1, x2);
+    __ Push(x1);
     __ PushArgument(x4);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
-    __ Pop(x2, x1);
+    __ Pop(x1);
     __ Ldr(x4, FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
   }
   __ B(&stepping_prepared);
@@ -640,9 +635,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ Bind(&prepare_step_in_suspended_generator);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(x1, x2);
+    __ Push(x1);
     __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
-    __ Pop(x2, x1);
+    __ Pop(x1);
     __ Ldr(x4, FieldMemOperand(x1, JSGeneratorObject::kFunctionOffset));
   }
   __ B(&stepping_prepared);

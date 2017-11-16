@@ -501,22 +501,18 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax    : the value to pass to the generator
-  //  -- ebx    : the JSGeneratorObject to resume
-  //  -- edx    : the resume mode (tagged)
+  //  -- edx    : the JSGeneratorObject to resume
   //  -- esp[0] : return address
   // -----------------------------------
-  __ AssertGeneratorObject(ebx);
+  __ AssertGeneratorObject(edx);
 
   // Store input value into generator object.
-  __ mov(FieldOperand(ebx, JSGeneratorObject::kInputOrDebugPosOffset), eax);
-  __ RecordWriteField(ebx, JSGeneratorObject::kInputOrDebugPosOffset, eax, ecx,
+  __ mov(FieldOperand(edx, JSGeneratorObject::kInputOrDebugPosOffset), eax);
+  __ RecordWriteField(edx, JSGeneratorObject::kInputOrDebugPosOffset, eax, ecx,
                       kDontSaveFPRegs);
 
-  // Store resume mode into generator object.
-  __ mov(FieldOperand(ebx, JSGeneratorObject::kResumeModeOffset), edx);
-
   // Load suspended function and context.
-  __ mov(edi, FieldOperand(ebx, JSGeneratorObject::kFunctionOffset));
+  __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   // Flood function if we are stepping.
@@ -530,7 +526,7 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // Flood function if we need to continue stepping in the suspended generator.
   ExternalReference debug_suspended_generator =
       ExternalReference::debug_suspended_generator_address(masm->isolate());
-  __ cmp(ebx, Operand::StaticVariable(debug_suspended_generator));
+  __ cmp(edx, Operand::StaticVariable(debug_suspended_generator));
   __ j(equal, &prepare_step_in_suspended_generator);
   __ bind(&stepping_prepared);
 
@@ -544,12 +540,11 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ PopReturnAddressTo(eax);
 
   // Push receiver.
-  __ Push(FieldOperand(ebx, JSGeneratorObject::kReceiverOffset));
+  __ Push(FieldOperand(edx, JSGeneratorObject::kReceiverOffset));
 
   // ----------- S t a t e -------------
   //  -- eax    : return address
-  //  -- ebx    : the JSGeneratorObject to resume
-  //  -- edx    : the resume mode (tagged)
+  //  -- edx    : the JSGeneratorObject to resume
   //  -- edi    : generator function
   //  -- esi    : generator context
   //  -- esp[0] : generator receiver
@@ -589,7 +584,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
     // We abuse new.target both to indicate that this is a resume call and to
     // pass in the generator object.  In ordinary calls, new.target is always
     // undefined because generator functions are non-constructable.
-    __ mov(edx, ebx);
     __ mov(ecx, FieldOperand(edi, JSFunction::kCodeOffset));
     __ add(ecx, Immediate(Code::kHeaderSize - kHeapObjectTag));
     __ jmp(ecx);
@@ -598,25 +592,21 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ bind(&prepare_step_in_if_stepping);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(ebx);
     __ Push(edx);
     __ Push(edi);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
     __ Pop(edx);
-    __ Pop(ebx);
-    __ mov(edi, FieldOperand(ebx, JSGeneratorObject::kFunctionOffset));
+    __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
   }
   __ jmp(&stepping_prepared);
 
   __ bind(&prepare_step_in_suspended_generator);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(ebx);
     __ Push(edx);
     __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
     __ Pop(edx);
-    __ Pop(ebx);
-    __ mov(edi, FieldOperand(ebx, JSGeneratorObject::kFunctionOffset));
+    __ mov(edi, FieldOperand(edx, JSGeneratorObject::kFunctionOffset));
   }
   __ jmp(&stepping_prepared);
 

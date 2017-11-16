@@ -564,7 +564,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- v0 : the value to pass to the generator
   //  -- a1 : the JSGeneratorObject to resume
-  //  -- a2 : the resume mode (tagged)
   //  -- ra : return address
   // -----------------------------------
 
@@ -574,9 +573,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ sw(v0, FieldMemOperand(a1, JSGeneratorObject::kInputOrDebugPosOffset));
   __ RecordWriteField(a1, JSGeneratorObject::kInputOrDebugPosOffset, v0, a3,
                       kRAHasNotBeenSaved, kDontSaveFPRegs);
-
-  // Store resume mode into generator object.
-  __ sw(a2, FieldMemOperand(a1, JSGeneratorObject::kResumeModeOffset));
 
   // Load suspended function and context.
   __ lw(t0, FieldMemOperand(a1, JSGeneratorObject::kFunctionOffset));
@@ -611,7 +607,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // ----------- S t a t e -------------
   //  -- a1    : the JSGeneratorObject to resume
-  //  -- a2    : the resume mode (tagged)
   //  -- t0    : generator function
   //  -- cp    : generator context
   //  -- ra    : return address
@@ -660,9 +655,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ bind(&prepare_step_in_if_stepping);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(a1, a2, t0);
+    __ Push(a1, t0);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
-    __ Pop(a1, a2);
+    __ Pop(a1);
   }
   __ Branch(USE_DELAY_SLOT, &stepping_prepared);
   __ lw(t0, FieldMemOperand(a1, JSGeneratorObject::kFunctionOffset));
@@ -670,9 +665,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ bind(&prepare_step_in_suspended_generator);
   {
     FrameScope scope(masm, StackFrame::INTERNAL);
-    __ Push(a1, a2);
+    __ Push(a1);
     __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
-    __ Pop(a1, a2);
+    __ Pop(a1);
   }
   __ Branch(USE_DELAY_SLOT, &stepping_prepared);
   __ lw(t0, FieldMemOperand(a1, JSGeneratorObject::kFunctionOffset));

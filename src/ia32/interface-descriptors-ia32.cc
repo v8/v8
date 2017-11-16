@@ -333,8 +333,7 @@ void ResumeGeneratorDescriptor::InitializePlatformSpecific(
     CallInterfaceDescriptorData* data) {
   Register registers[] = {
       eax,  // the value to pass to the generator
-      ebx,  // the JSGeneratorObject to resume
-      edx   // the resume mode (tagged)
+      edx   // the JSGeneratorObject to resume
   };
   data->InitializePlatformSpecific(arraysize(registers), registers);
 }
