@@ -2020,6 +2020,29 @@ void TurboAssembler::Call(ExternalReference target) {
   Call(temp);
 }
 
+void TurboAssembler::CallForDeoptimization(Address target,
+                                           RelocInfo::Mode rmode) {
+  DCHECK_EQ(rmode, RelocInfo::RUNTIME_ENTRY);
+
+  BlockPoolsScope scope(this);
+#ifdef DEBUG
+  Label start_call;
+  Bind(&start_call);
+#endif
+  UseScratchRegisterScope temps(this);
+  Register temp = temps.AcquireX();
+
+  // Deoptimisation table entries require the call address to be in x16, in
+  // order to compute the entry id.
+  DCHECK(temp.Is(x16));
+  Ldr(temp, Immediate(reinterpret_cast<intptr_t>(target), rmode));
+  Blr(temp);
+
+#ifdef DEBUG
+  AssertSizeOfCodeGeneratedSince(&start_call, CallSize(target, rmode));
+#endif
+}
+
 int TurboAssembler::CallSize(Register target) {
   USE(target);
   return kInstructionSize;
