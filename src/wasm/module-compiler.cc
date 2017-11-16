@@ -615,10 +615,8 @@ Handle<Code> CompileLazy(Isolate* isolate) {
   Handle<WasmInstanceObject> instance;
   Handle<FixedArray> exp_deopt_data;
   int func_index = -1;
-  // If the lazy compile stub has deopt data, use that to determine the
-  // instance and function index. Otherwise this must be a wasm->wasm call
-  // within one instance, so extract the information from the caller.
   if (lazy_compile_code->deoptimization_data()->length() > 0) {
+    // Then it's an indirect call or via JS->wasm wrapper.
     DCHECK_LE(2, lazy_compile_code->deoptimization_data()->length());
     exp_deopt_data = handle(lazy_compile_code->deoptimization_data(), isolate);
     auto* weak_cell = WeakCell::cast(exp_deopt_data->get(0));

@@ -679,21 +679,20 @@ Handle<Code> WasmExportedFunction::GetWasmCode() {
   Handle<Code> export_wrapper_code = handle(this->code());
   DCHECK_EQ(export_wrapper_code->kind(), Code::JS_TO_WASM_FUNCTION);
   int mask = RelocInfo::ModeMask(RelocInfo::CODE_TARGET);
-  auto IsWasmFunctionCode = [](Code* code) {
-    return code->kind() == Code::WASM_FUNCTION ||
-           code->kind() == Code::WASM_TO_JS_FUNCTION ||
-           code->kind() == Code::WASM_INTERPRETER_ENTRY ||
-           code->builtin_index() == Builtins::kWasmCompileLazy;
-  };
   for (RelocIterator it(*export_wrapper_code, mask);; it.next()) {
     DCHECK(!it.done());
     Code* target = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-    if (!IsWasmFunctionCode(target)) continue;
+    if (target->kind() != Code::WASM_FUNCTION &&
+        target->kind() != Code::WASM_TO_JS_FUNCTION &&
+        target->kind() != Code::WASM_INTERPRETER_ENTRY)
+      continue;
 // There should only be this one call to wasm code.
 #ifdef DEBUG
     for (it.next(); !it.done(); it.next()) {
       Code* code = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-      DCHECK(!IsWasmFunctionCode(code));
+      DCHECK(code->kind() != Code::WASM_FUNCTION &&
+             code->kind() != Code::WASM_TO_JS_FUNCTION &&
+             code->kind() != Code::WASM_INTERPRETER_ENTRY);
     }
 #endif
     return handle(target);
