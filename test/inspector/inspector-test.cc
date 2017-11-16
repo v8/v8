@@ -322,6 +322,8 @@ class UtilsExtension : public IsolateData::SetupGlobalTask {
     backend_runner_ = runner;
   }
 
+  static void ClearAllSessions() { channels_.clear(); }
+
  private:
   static TaskRunner* backend_runner_;
 
@@ -931,5 +933,6 @@ int main(int argc, char* argv[]) {
   backend_runner.Join();
 
   delete startup_data.data;
+  UtilsExtension::ClearAllSessions();
   return 0;
 }

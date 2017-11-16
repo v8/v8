@@ -30,7 +30,7 @@ class IsolateData : public v8_inspector::V8InspectorClient {
               v8::StartupData* startup_data, bool with_inspector);
   static IsolateData* FromContext(v8::Local<v8::Context> context);
 
-  v8::Isolate* isolate() const { return isolate_; }
+  v8::Isolate* isolate() const { return isolate_.get(); }
   TaskRunner* task_runner() const { return task_runner_; }
 
   // Setting things up.
@@ -109,9 +109,17 @@ class IsolateData : public v8_inspector::V8InspectorClient {
   bool isInspectableHeapObject(v8::Local<v8::Object>) override;
   void maxAsyncCallStackDepthChanged(int depth) override;
 
+  // The isolate gets deleted by its {Dispose} method, not by the default
+  // deleter. Therefore we have to define a custom deleter for the unique_ptr to
+  // call {Dispose}. We have to use the unique_ptr so that the isolate get
+  // disposed in the right order, relative to other member variables.
+  struct IsolateDeleter {
+    void operator()(v8::Isolate* isolate) const { isolate->Dispose(); }
+  };
+
   TaskRunner* task_runner_;
   SetupGlobalTasks setup_global_tasks_;
-  v8::Isolate* isolate_;
+  std::unique_ptr<v8::Isolate, IsolateDeleter> isolate_;
   std::unique_ptr<v8_inspector::V8Inspector> inspector_;
   int last_context_group_id_ = 0;
   std::map<int, v8::Global<v8::Context>> contexts_;
