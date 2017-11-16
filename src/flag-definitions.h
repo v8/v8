@@ -480,7 +480,7 @@ DEFINE_BOOL(wasm_disable_structured_cloning, false,
             "disable wasm structured cloning")
 DEFINE_INT(wasm_num_compilation_tasks, 10,
            "number of parallel compilation tasks for wasm")
-DEFINE_BOOL(wasm_async_compilation, false,
+DEFINE_BOOL(wasm_async_compilation, true,
             "enable actual asynchronous compilation for WebAssembly.compile")
 DEFINE_BOOL(wasm_stream_compilation, false,
             "enable streaming compilation for WebAssembly")
