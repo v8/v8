@@ -22,6 +22,16 @@
 }
 
 {
+  class C {
+    x = 1;
+    constructor() {}
+  }
+
+  let c = new C;
+  assertEquals(1, c.x);
+}
+
+{
   let x = 'a';
   class C {
     a;

@@ -1835,7 +1835,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
     // initializers.
 
     builder()->LoadAccumulatorWithRegister(initializer);
-    BuildVariableAssignment(expr->instance_fields_initializer_var(),
+    BuildVariableAssignment(expr->instance_fields_initializer_proxy()->var(),
                             Token::INIT, HoleCheckMode::kElided);
     builder()->LoadAccumulatorWithRegister(constructor);
   }
@@ -1990,10 +1990,10 @@ void BytecodeGenerator::VisitInitializeClassFieldsStatement(
 }
 
 void BytecodeGenerator::BuildInstanceFieldInitialization(
-    Variable* initializer_var) {
+    VariableProxy* initializer_proxy) {
   RegisterList args = register_allocator()->NewRegisterList(1);
   Register initializer = register_allocator()->NewRegister();
-  BuildVariableLoad(initializer_var, HoleCheckMode::kElided);
+  BuildVariableLoad(initializer_proxy->var(), HoleCheckMode::kElided);
 
   builder()
       ->StoreAccumulatorInRegister(initializer)

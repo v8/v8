@@ -212,7 +212,6 @@ FunctionLiteral* Parser::DefaultConstructor(const AstRawString* name,
       parameter_count, FunctionLiteral::kNoDuplicateParameters,
       FunctionLiteral::kAnonymousExpression, default_eager_compile_hint(), pos,
       true, GetNextFunctionLiteralId());
-
   return function_literal;
 }
 
@@ -924,10 +923,22 @@ FunctionLiteral* Parser::DoParseFunction(ParseInfo* info,
       DCHECK_EQ(scope(), outer);
       result = DefaultConstructor(raw_name, IsDerivedConstructor(kind),
                                   info->start_position(), info->end_position());
+      if (info->requires_instance_fields_initializer()) {
+        result->set_instance_class_fields_initializer(
+            result->scope()->NewUnresolved(
+                factory(),
+                ast_value_factory()->dot_instance_fields_initializer_string()));
+      }
     } else {
       result = ParseFunctionLiteral(
           raw_name, Scanner::Location::invalid(), kSkipFunctionNameCheck, kind,
           kNoSourcePosition, function_type, info->language_mode(), &ok);
+      if (info->requires_instance_fields_initializer()) {
+        result->set_instance_class_fields_initializer(
+            result->scope()->NewUnresolved(
+                factory(),
+                ast_value_factory()->dot_instance_fields_initializer_string()));
+      }
     }
     // Make sure the results agree.
     DCHECK(ok == (result != nullptr));
@@ -3326,26 +3337,25 @@ Expression* Parser::RewriteClassLiteral(Scope* block_scope,
   }
 
   FunctionLiteral* instance_fields_initializer_function = nullptr;
-  Variable* instance_fields_initializer_var = nullptr;
+  VariableProxy* instance_fields_initializer_proxy = nullptr;
   if (class_info->has_instance_class_fields) {
     instance_fields_initializer_function = CreateInitializerFunction(
         class_info->instance_fields_scope, class_info->instance_fields);
 
-    instance_fields_initializer_var = CreateSyntheticContextVariable(
+    Variable* instance_fields_initializer_var = CreateSyntheticContextVariable(
         ast_value_factory()->dot_instance_fields_initializer_string(),
         CHECK_OK);
+    instance_fields_initializer_proxy =
+        factory()->NewVariableProxy(instance_fields_initializer_var);
     class_info->constructor->set_instance_class_fields_initializer(
-        instance_fields_initializer_var);
-
-    // TODO(gsathya): Add support for lazy parsing instance class fields.
-    class_info->constructor->SetShouldEagerCompile();
+        instance_fields_initializer_proxy);
   }
 
   ClassLiteral* class_literal = factory()->NewClassLiteral(
       block_scope, class_info->variable, class_info->extends,
       class_info->constructor, class_info->properties,
       static_fields_initializer, instance_fields_initializer_function,
-      instance_fields_initializer_var, pos, end_pos,
+      instance_fields_initializer_proxy, pos, end_pos,
       class_info->has_name_static_property,
       class_info->has_static_computed_names, class_info->is_anonymous);
 

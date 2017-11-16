@@ -161,7 +161,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildClassLiteral(ClassLiteral* expr);
   void VisitNewTargetVariable(Variable* variable);
   void VisitThisFunctionVariable(Variable* variable);
-  void BuildInstanceFieldInitialization(Variable* initializer_var);
+  void BuildInstanceFieldInitialization(VariableProxy* initializer_proxy);
   void BuildGeneratorObjectVariableInitialization();
   void VisitBlockDeclarationsAndStatements(Block* stmt);
   void VisitFunctionClosureForContext();

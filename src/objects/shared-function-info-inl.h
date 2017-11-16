@@ -94,6 +94,9 @@ BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, native,
                     SharedFunctionInfo::IsNativeBit)
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints, is_asm_wasm_broken,
                     SharedFunctionInfo::IsAsmWasmBrokenBit)
+BIT_FIELD_ACCESSORS(SharedFunctionInfo, compiler_hints,
+                    requires_instance_fields_initializer,
+                    SharedFunctionInfo::RequiresInstanceFieldsInitializer)
 
 bool SharedFunctionInfo::optimization_disabled() const {
   return disable_optimization_reason() != BailoutReason::kNoReason;

@@ -79,6 +79,9 @@ class V8_EXPORT_PRIVATE ParseInfo {
   FLAG_ACCESSOR(kCollectTypeProfile, collect_type_profile,
                 set_collect_type_profile)
   FLAG_ACCESSOR(kIsAsmWasmBroken, is_asm_wasm_broken, set_asm_wasm_broken)
+  FLAG_ACCESSOR(kRequiresInstanceFieldsInitializer,
+                requires_instance_fields_initializer,
+                set_requires_instance_fields_initializer)
   FLAG_ACCESSOR(kBlockCoverageEnabled, block_coverage_enabled,
                 set_block_coverage_enabled)
   FLAG_ACCESSOR(kOnBackgroundThread, on_background_thread,
@@ -257,6 +260,7 @@ class V8_EXPORT_PRIVATE ParseInfo {
     kCollectTypeProfile = 1 << 10,
     kBlockCoverageEnabled = 1 << 11,
     kIsAsmWasmBroken = 1 << 12,
+    kRequiresInstanceFieldsInitializer = 1 << 13,
     kOnBackgroundThread = 1 << 14,
   };
 

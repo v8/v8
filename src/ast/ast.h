@@ -2291,10 +2291,10 @@ class FunctionLiteral final : public Expression {
     function_literal_id_ = function_literal_id;
   }
 
-  void set_instance_class_fields_initializer(Variable* initializer) {
+  void set_instance_class_fields_initializer(VariableProxy* initializer) {
     instance_class_fields_initializer_ = initializer;
   }
-  Variable* instance_class_fields_initializer() {
+  VariableProxy* instance_class_fields_initializer() {
     return instance_class_fields_initializer_;
   }
 
@@ -2356,7 +2356,7 @@ class FunctionLiteral final : public Expression {
   const AstConsString* raw_inferred_name_;
   Handle<String> inferred_name_;
   int function_literal_id_;
-  Variable* instance_class_fields_initializer_;
+  VariableProxy* instance_class_fields_initializer_;
   ProducedPreParsedScopeData* produced_preparsed_scope_data_;
 };
 
@@ -2431,8 +2431,8 @@ class ClassLiteral final : public Expression {
     return instance_fields_initializer_function_;
   }
 
-  Variable* instance_fields_initializer_var() const {
-    return instance_fields_initializer_var_;
+  VariableProxy* instance_fields_initializer_proxy() const {
+    return instance_fields_initializer_proxy_;
   }
 
  private:
@@ -2442,9 +2442,10 @@ class ClassLiteral final : public Expression {
                FunctionLiteral* constructor, ZoneList<Property*>* properties,
                FunctionLiteral* static_fields_initializer,
                FunctionLiteral* instance_fields_initializer_function,
-               Variable* instance_fields_initializer_var, int start_position,
-               int end_position, bool has_name_static_property,
-               bool has_static_computed_names, bool is_anonymous)
+               VariableProxy* instance_fields_initializer_proxy,
+               int start_position, int end_position,
+               bool has_name_static_property, bool has_static_computed_names,
+               bool is_anonymous)
       : Expression(start_position, kClassLiteral),
         end_position_(end_position),
         scope_(scope),
@@ -2455,7 +2456,7 @@ class ClassLiteral final : public Expression {
         static_fields_initializer_(static_fields_initializer),
         instance_fields_initializer_function_(
             instance_fields_initializer_function),
-        instance_fields_initializer_var_(instance_fields_initializer_var) {
+        instance_fields_initializer_proxy_(instance_fields_initializer_proxy) {
     bit_field_ |= HasNameStaticProperty::encode(has_name_static_property) |
                   HasStaticComputedNames::encode(has_static_computed_names) |
                   IsAnonymousExpression::encode(is_anonymous);
@@ -2469,7 +2470,7 @@ class ClassLiteral final : public Expression {
   ZoneList<Property*>* properties_;
   FunctionLiteral* static_fields_initializer_;
   FunctionLiteral* instance_fields_initializer_function_;
-  Variable* instance_fields_initializer_var_;
+  VariableProxy* instance_fields_initializer_proxy_;
   class HasNameStaticProperty
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
   class HasStaticComputedNames
@@ -3159,7 +3160,7 @@ class AstNodeFactory final BASE_EMBEDDED {
       ZoneList<ClassLiteral::Property*>* properties,
       FunctionLiteral* static_fields_initializer,
       FunctionLiteral* instance_fields_initializer_function,
-      Variable* instance_fields_initializer_var, int start_position,
+      VariableProxy* instance_fields_initializer_var, int start_position,
       int end_position, bool has_name_static_property,
       bool has_static_computed_names, bool is_anonymous) {
     return new (zone_) ClassLiteral(

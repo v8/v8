@@ -54,6 +54,8 @@ ParseInfo::ParseInfo(Handle<SharedFunctionInfo> shared)
   function_literal_id_ = shared->function_literal_id();
   set_language_mode(shared->language_mode());
   set_asm_wasm_broken(shared->is_asm_wasm_broken());
+  set_requires_instance_fields_initializer(
+      shared->requires_instance_fields_initializer());
 
   Handle<Script> script(Script::cast(shared->script()));
   set_script(script);
