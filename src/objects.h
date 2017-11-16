@@ -977,6 +977,7 @@ template <class C> inline bool Is(Object* obj);
   V(Callable)                             \
   V(CallHandlerInfo)                      \
   V(Cell)                                 \
+  V(ClassBoilerplate)                     \
   V(Code)                                 \
   V(CodeDataContainer)                    \
   V(CompilationCacheTable)                \
@@ -3933,6 +3934,8 @@ class JSFunction: public JSObject {
 
   static const int kLengthDescriptorIndex = 0;
   static const int kNameDescriptorIndex = 1;
+  // Home object descriptor index when function has a [[HomeObject]] slot.
+  static const int kMaybeHomeObjectDescriptorIndex = 2;
 
   // [context]: The context for this function.
   inline Context* context();

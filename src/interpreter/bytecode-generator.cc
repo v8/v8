@@ -18,6 +18,7 @@
 #include "src/interpreter/control-flow-builders.h"
 #include "src/objects-inl.h"
 #include "src/objects/debug-objects.h"
+#include "src/objects/literal-objects-inl.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/token.h"
 
@@ -812,7 +813,7 @@ BytecodeGenerator::BytecodeGenerator(
     CompilationInfo* info, const AstStringConstants* ast_string_constants)
     : zone_(info->zone()),
       builder_(new (zone()) BytecodeArrayBuilder(
-          info->zone(), info->num_parameters_including_this(),
+          zone(), info->num_parameters_including_this(),
           info->scope()->num_stack_slots(), info->feedback_vector_spec(),
           info->SourcePositionRecordingMode())),
       info_(info),
@@ -827,6 +828,7 @@ BytecodeGenerator::BytecodeGenerator(
       native_function_literals_(0, zone()),
       object_literals_(0, zone()),
       array_literals_(0, zone()),
+      class_literals_(0, zone()),
       template_objects_(0, zone()),
       execution_control_(nullptr),
       execution_context_(nullptr),
@@ -919,6 +921,14 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
     Handle<ConstantElementsPair> constant_elements =
         array_literal->GetOrBuildConstantElements(isolate);
     builder()->SetDeferredConstantPoolEntry(literal.second, constant_elements);
+  }
+
+  // Build class literal boilerplates.
+  for (std::pair<ClassLiteral*, size_t> literal : class_literals_) {
+    ClassLiteral* class_literal = literal.first;
+    Handle<ClassBoilerplate> class_boilerplate =
+        ClassBoilerplate::BuildClassBoilerplate(isolate, class_literal);
+    builder()->SetDeferredConstantPoolEntry(literal.second, class_boilerplate);
   }
 
   // Build template literals.
@@ -1764,35 +1774,74 @@ void BytecodeGenerator::VisitFunctionLiteral(FunctionLiteral* expr) {
 }
 
 void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
+  size_t class_boilerplate_entry =
+      builder()->AllocateDeferredConstantPoolEntry();
+  class_literals_.push_back(std::make_pair(expr, class_boilerplate_entry));
+
   VisitDeclarations(expr->scope()->declarations());
-  Register constructor = VisitForRegisterValue(expr->constructor());
+
   {
     RegisterAllocationScope register_scope(this);
-    RegisterList args = register_allocator()->NewRegisterList(4);
+    RegisterList args = register_allocator()->NewGrowableRegisterList();
+
+    Register class_boilerplate = register_allocator()->GrowRegisterList(&args);
+    Register class_constructor = register_allocator()->GrowRegisterList(&args);
+    Register super_class = register_allocator()->GrowRegisterList(&args);
+    DCHECK_EQ(ClassBoilerplate::kFirstDynamicArgumentIndex,
+              args.register_count());
+
     VisitForAccumulatorValueOrTheHole(expr->extends());
+    builder()->StoreAccumulatorInRegister(super_class);
+
+    VisitFunctionLiteral(expr->constructor());
     builder()
-        ->StoreAccumulatorInRegister(args[0])
-        .MoveRegister(constructor, args[1])
-        .LoadLiteral(Smi::FromInt(expr->start_position()))
-        .StoreAccumulatorInRegister(args[2])
-        .LoadLiteral(Smi::FromInt(expr->end_position()))
-        .StoreAccumulatorInRegister(args[3])
-        .CallRuntime(Runtime::kDefineClass, args);
-  }
-  Register prototype = register_allocator()->NewRegister();
-  builder()->StoreAccumulatorInRegister(prototype);
+        ->StoreAccumulatorInRegister(class_constructor)
+        .LoadConstantPoolEntry(class_boilerplate_entry)
+        .StoreAccumulatorInRegister(class_boilerplate);
 
-  if (FunctionLiteral::NeedsHomeObject(expr->constructor())) {
-    // Prototype is already in the accumulator.
-    FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
-    builder()->StoreHomeObjectProperty(constructor, feedback_index(slot),
-                                       language_mode());
-  }
+    // Create computed names and method values nodes to store into the literal.
+    for (int i = 0; i < expr->properties()->length(); i++) {
+      ClassLiteral::Property* property = expr->properties()->at(i);
+      if (property->is_computed_name()) {
+        Register key = register_allocator()->GrowRegisterList(&args);
 
-  VisitClassLiteralProperties(expr, constructor, prototype);
-  BuildClassLiteralNameProperty(expr, constructor);
-  // TODO(gsathya): Run this after initializing class static fields.
-  builder()->CallRuntime(Runtime::kToFastProperties, constructor);
+        BuildLoadPropertyKey(property, key);
+        if (property->is_static()) {
+          // The static prototype property is read only. We handle the non
+          // computed property name case in the parser. Since this is the only
+          // case where we need to check for an own read only property we
+          // special case this so we do not need to do this for every property.
+          BytecodeLabel done;
+          builder()
+              ->LoadLiteral(ast_string_constants()->prototype_string())
+              .CompareOperation(Token::Value::EQ_STRICT, key)
+              .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &done)
+              .CallRuntime(Runtime::kThrowStaticPrototypeError)
+              .Bind(&done);
+        }
+
+        if (property->kind() == ClassLiteral::Property::FIELD) {
+          // Initialize field's name variable with the computed name.
+          DCHECK_NOT_NULL(property->computed_name_var());
+          builder()->LoadAccumulatorWithRegister(key);
+          BuildVariableAssignment(property->computed_name_var(), Token::INIT,
+                                  HoleCheckMode::kElided);
+        }
+      }
+      if (property->kind() == ClassLiteral::Property::FIELD) {
+        // We don't compute field's value here, but instead do it in the
+        // initializer function.
+        continue;
+      }
+      Register value = register_allocator()->GrowRegisterList(&args);
+      VisitForRegisterValue(property->value(), value);
+    }
+
+    builder()->CallRuntime(Runtime::kDefineClass, args);
+  }
+  Register class_constructor = register_allocator()->NewRegister();
+  builder()->StoreAccumulatorInRegister(class_constructor);
+
   // Assign to class variable.
   if (expr->class_variable() != nullptr) {
     DCHECK(expr->class_variable()->IsStackLocal() ||
@@ -1811,7 +1860,6 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
     builder()->LoadAccumulatorWithRegister(initializer);
     BuildVariableAssignment(expr->instance_fields_initializer_proxy()->var(),
                             Token::INIT, HoleCheckMode::kElided);
-    builder()->LoadAccumulatorWithRegister(constructor);
   }
 
   if (expr->static_fields_initializer() != nullptr) {
@@ -1822,17 +1870,17 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
     if (FunctionLiteral::NeedsHomeObject(expr->static_fields_initializer())) {
       FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
       builder()
-          ->LoadAccumulatorWithRegister(constructor)
+          ->LoadAccumulatorWithRegister(class_constructor)
           .StoreHomeObjectProperty(initializer, feedback_index(slot),
                                    language_mode());
     }
 
     builder()
-        ->MoveRegister(constructor, args[0])
+        ->MoveRegister(class_constructor, args[0])
         .CallProperty(initializer, args,
-                      feedback_index(feedback_spec()->AddCallICSlot()))
-        .LoadAccumulatorWithRegister(constructor);
+                      feedback_index(feedback_spec()->AddCallICSlot()));
   }
+  builder()->LoadAccumulatorWithRegister(class_constructor);
 }
 
 void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
@@ -1844,95 +1892,6 @@ void BytecodeGenerator::VisitClassLiteral(ClassLiteral* expr) {
     BuildClassLiteral(expr);
   } else {
     BuildClassLiteral(expr);
-  }
-}
-
-void BytecodeGenerator::VisitClassLiteralProperties(ClassLiteral* expr,
-                                                    Register constructor,
-                                                    Register prototype) {
-  RegisterAllocationScope register_scope(this);
-  RegisterList args = register_allocator()->NewRegisterList(4);
-  Register receiver = args[0], key = args[1], value = args[2], attr = args[3];
-
-  bool attr_assigned = false;
-  Register old_receiver = Register::invalid_value();
-
-  // Create nodes to store method values into the literal.
-  for (int i = 0; i < expr->properties()->length(); i++) {
-    ClassLiteral::Property* property = expr->properties()->at(i);
-
-    // Set-up receiver.
-    Register new_receiver = property->is_static() ? constructor : prototype;
-    if (new_receiver != old_receiver) {
-      builder()->MoveRegister(new_receiver, receiver);
-      old_receiver = new_receiver;
-    }
-
-    BuildLoadPropertyKey(property, key);
-    if (property->is_computed_name()) {
-      if (property->is_static()) {
-        // The static prototype property is read only. We handle the non
-        // computed property name case in the parser. Since this is the only
-        // case where we need to check for an own read only property we special
-        // case this so we do not need to do this for every property.
-        BytecodeLabel done;
-        builder()
-            ->LoadLiteral(ast_string_constants()->prototype_string())
-            .CompareOperation(Token::Value::EQ_STRICT, key)
-            .JumpIfFalse(ToBooleanMode::kAlreadyBoolean, &done)
-            .CallRuntime(Runtime::kThrowStaticPrototypeError)
-            .Bind(&done);
-      }
-
-      if (property->kind() == ClassLiteral::Property::FIELD) {
-        DCHECK_NOT_NULL(property->computed_name_var());
-        builder()->LoadAccumulatorWithRegister(key);
-        BuildVariableAssignment(property->computed_name_var(), Token::INIT,
-                                HoleCheckMode::kElided);
-        // We don't define the field here, but instead do it in the
-        // initializer function.
-        continue;
-      }
-    }
-
-    VisitForRegisterValue(property->value(), value);
-    VisitSetHomeObject(value, receiver, property);
-
-    if (!attr_assigned) {
-      builder()
-          ->LoadLiteral(Smi::FromInt(DONT_ENUM))
-          .StoreAccumulatorInRegister(attr);
-      attr_assigned = true;
-    }
-
-    switch (property->kind()) {
-      case ClassLiteral::Property::METHOD: {
-        DataPropertyInLiteralFlags flags = DataPropertyInLiteralFlag::kDontEnum;
-        if (property->NeedsSetFunctionName()) {
-          flags |= DataPropertyInLiteralFlag::kSetFunctionName;
-        }
-
-        FeedbackSlot slot =
-            feedback_spec()->AddStoreDataPropertyInLiteralICSlot();
-        builder()
-            ->LoadAccumulatorWithRegister(value)
-            .StoreDataPropertyInLiteral(receiver, key, flags,
-                                        feedback_index(slot));
-        break;
-      }
-      case ClassLiteral::Property::GETTER: {
-        builder()->CallRuntime(Runtime::kDefineGetterPropertyUnchecked, args);
-        break;
-      }
-      case ClassLiteral::Property::SETTER: {
-        builder()->CallRuntime(Runtime::kDefineSetterPropertyUnchecked, args);
-        break;
-      }
-      case ClassLiteral::Property::FIELD: {
-        UNREACHABLE();
-        break;
-      }
-    }
   }
 }
 
@@ -1974,18 +1933,6 @@ void BytecodeGenerator::BuildInstanceFieldInitialization(
       .MoveRegister(builder()->Receiver(), args[0])
       .CallProperty(initializer, args,
                     feedback_index(feedback_spec()->AddCallICSlot()));
-}
-
-void BytecodeGenerator::BuildClassLiteralNameProperty(ClassLiteral* expr,
-                                                      Register literal) {
-  if (!expr->has_name_static_property() &&
-      expr->constructor()->has_shared_name()) {
-    Runtime::FunctionId runtime_id =
-        expr->has_static_computed_names()
-            ? Runtime::kInstallClassNameAccessorWithCheck
-            : Runtime::kInstallClassNameAccessor;
-    builder()->CallRuntime(runtime_id, literal);
-  }
 }
 
 void BytecodeGenerator::VisitNativeFunctionLiteral(

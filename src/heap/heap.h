@@ -288,6 +288,7 @@ using v8::MemoryPressureLevel;
   V(CatchContextMap)                    \
   V(CellMap)                            \
   V(CodeMap)                            \
+  V(DescriptorArrayMap)                 \
   V(EmptyByteArray)                     \
   V(EmptyDescriptorArray)               \
   V(EmptyFixedArray)                    \

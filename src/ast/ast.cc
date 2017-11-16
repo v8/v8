@@ -416,12 +416,11 @@ int ObjectLiteral::InitDepthAndFlags() {
     // much larger than the number of elements, creating an object
     // literal with fast elements will be a waste of space.
     uint32_t element_index = 0;
-    if (key->IsString() && key->AsRawString()->AsArrayIndex(&element_index)) {
+    if (key->AsArrayIndex(&element_index)) {
       max_element_index = Max(element_index, max_element_index);
       elements++;
-    } else if (key->ToArrayIndex(&element_index)) {
-      max_element_index = Max(element_index, max_element_index);
-      elements++;
+    } else {
+      DCHECK(key->IsPropertyName());
     }
 
     nof_properties++;
@@ -453,9 +452,7 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
 
     Literal* key = property->key()->AsLiteral();
 
-    uint32_t element_index = 0;
-    if (key->ToArrayIndex(&element_index) ||
-        (key->IsString() && key->AsRawString()->AsArrayIndex(&element_index))) {
+    if (!key->IsPropertyName()) {
       index_keys++;
     }
   }
@@ -484,15 +481,14 @@ void ObjectLiteral::BuildConstantProperties(Isolate* isolate) {
     // Add CONSTANT and COMPUTED properties to boilerplate. Use undefined
     // value for COMPUTED properties, the real value is filled in at
     // runtime. The enumeration order is maintained.
-    Handle<Object> key = property->key()->AsLiteral()->BuildValue(isolate);
-    Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
-
+    Literal* key_literal = property->key()->AsLiteral();
     uint32_t element_index = 0;
-    if (key->IsString() && String::cast(*key)->AsArrayIndex(&element_index)) {
-      key = isolate->factory()->NewNumberFromUint(element_index);
-    } else if (key->IsNumber() && !key->ToArrayIndex(&element_index)) {
-      key = isolate->factory()->NumberToString(key);
-    }
+    Handle<Object> key =
+        key_literal->AsArrayIndex(&element_index)
+            ? isolate->factory()->NewNumberFromUint(element_index)
+            : Handle<Object>::cast(key_literal->AsRawPropertyName()->string());
+
+    Handle<Object> value = GetBoilerplateValue(property->value(), isolate);
 
     // Add name, value pair to the fixed array.
     constant_properties->set(position++, *key);
@@ -830,6 +826,8 @@ bool Literal::IsPropertyName() const {
 
 bool Literal::ToUint32(uint32_t* value) const {
   switch (type()) {
+    case kString:
+      return string_->AsArrayIndex(value);
     case kSmi:
       if (smi_ < 0) return false;
       *value = static_cast<uint32_t>(smi_);
@@ -841,7 +839,7 @@ bool Literal::ToUint32(uint32_t* value) const {
   }
 }
 
-bool Literal::ToArrayIndex(uint32_t* value) const {
+bool Literal::AsArrayIndex(uint32_t* value) const {
   return ToUint32(value) && *value != kMaxUInt32;
 }
 

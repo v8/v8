@@ -505,9 +505,9 @@ handlers: [
 snippet: "
   export default (class {});
 "
-frame size: 8
+frame size: 6
 parameter count: 2
-bytecode array length: 140
+bytecode array length: 121
 bytecodes: [
                 B(Ldar), R(1),
                 B(JumpIfUndefined), U8(18),
@@ -548,19 +548,13 @@ bytecodes: [
   /*   26 S> */ B(Return),
                 B(Ldar), R(3),
                 B(StaCurrentContextSlot), U8(5),
-                B(CreateClosure), U8(4), U8(0), U8(0),
-                B(Star), R(3),
                 B(LdaTheHole),
+                B(Star), R(5),
+                B(CreateClosure), U8(5), U8(0), U8(0),
                 B(Star), R(4),
-                B(LdaSmi), I8(16),
-                B(Star), R(6),
-                B(LdaSmi), I8(24),
-                B(Star), R(7),
-                B(Mov), R(3), R(5),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(4),
-                B(Star), R(4),
-                B(CallRuntime), U16(Runtime::kInstallClassNameAccessor), R(3), U8(1),
-                B(CallRuntime), U16(Runtime::kToFastProperties), R(3), U8(1),
+                B(LdaConstant), U8(4),
+                B(Star), R(3),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
                 B(StaModuleVariable), I8(1), U8(0),
                 B(LdaCurrentContextSlot), U8(5),
   /*   26 S> */ B(Return),
@@ -570,6 +564,7 @@ constant pool: [
   FIXED_ARRAY_TYPE,
   Smi [10],
   Smi [7],
+  FIXED_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
 ]
 handlers: [

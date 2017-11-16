@@ -15633,6 +15633,7 @@ template <typename Derived, typename Shape>
 void Dictionary<Derived, Shape>::Print() {
   OFStream os(stdout);
   Print(os);
+  os << std::endl;
 }
 #endif
 
@@ -17427,6 +17428,23 @@ Handle<Derived> Dictionary<Derived, Shape>::AtPut(Handle<Derived> dictionary,
 }
 
 template <typename Derived, typename Shape>
+Handle<Derived>
+BaseNameDictionary<Derived, Shape>::AddNoUpdateNextEnumerationIndex(
+    Handle<Derived> dictionary, Key key, Handle<Object> value,
+    PropertyDetails details, int* entry_out) {
+  // Insert element at empty or deleted entry
+  return Dictionary<Derived, Shape>::Add(dictionary, key, value, details,
+                                         entry_out);
+}
+
+// GCC workaround: Explicitly instantiate template method for NameDictionary
+// to avoid "undefined reference" issues during linking.
+template Handle<NameDictionary>
+BaseNameDictionary<NameDictionary, NameDictionaryShape>::
+    AddNoUpdateNextEnumerationIndex(Handle<NameDictionary>, Handle<Name>,
+                                    Handle<Object>, PropertyDetails, int*);
+
+template <typename Derived, typename Shape>
 Handle<Derived> BaseNameDictionary<Derived, Shape>::Add(
     Handle<Derived> dictionary, Key key, Handle<Object> value,
     PropertyDetails details, int* entry_out) {
@@ -17437,7 +17455,7 @@ Handle<Derived> BaseNameDictionary<Derived, Shape>::Add(
   int index = dictionary->NextEnumerationIndex();
   details = details.set_index(index);
   dictionary->SetNextEnumerationIndex(index + 1);
-  return Dictionary<Derived, Shape>::Add(dictionary, key, value, details,
+  return AddNoUpdateNextEnumerationIndex(dictionary, key, value, details,
                                          entry_out);
 }
 
