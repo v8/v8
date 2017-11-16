@@ -79,6 +79,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerCheckedTaggedToTaggedSigned(Node* node, Node* frame_state);
   Node* LowerCheckedTaggedToTaggedPointer(Node* node, Node* frame_state);
   Node* LowerChangeTaggedToFloat64(Node* node);
+  void TruncateTaggedPointerToBit(Node* node, GraphAssemblerLabel<1>* done);
   Node* LowerTruncateTaggedToBit(Node* node);
   Node* LowerTruncateTaggedPointerToBit(Node* node);
   Node* LowerTruncateTaggedToFloat64(Node* node);
