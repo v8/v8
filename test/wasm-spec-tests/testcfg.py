@@ -28,7 +28,7 @@ class WasmSpecTestsTestSuite(testsuite.TestSuite):
   def GetParametersForTestCase(self, testcase, context):
     flags = testcase.flags + context.mode_flags
     files = [os.path.join(self.root, testcase.path + self.suffix())]
-    return files, flags
+    return files, flags, {}
 
 
 def GetSuite(name, root):

@@ -61,8 +61,11 @@ class MjsunitTestSuite(testsuite.TestSuite):
     return tests
 
   def GetParametersForTestCase(self, testcase, context):
-    flags = testcase.flags + context.mode_flags
     source = self.GetSourceForTest(testcase)
+
+    flags = testcase.flags + context.mode_flags
+    env = self._get_env(source)
+
     flags_match = re.findall(FLAGS_PATTERN, source)
     for match in flags_match:
       flags += match.strip().split()
@@ -80,8 +83,9 @@ class MjsunitTestSuite(testsuite.TestSuite):
               for f in files_list ]
     testfilename = os.path.join(self.root, testcase.path + self.suffix())
     if SELF_SCRIPT_PATTERN.search(source):
-      env = ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")]
-      files = env + files
+      files = (
+        ["-e", "TEST_FILE_NAME=\"%s\"" % testfilename.replace("\\", "\\\\")] +
+        files)
 
     if not context.no_harness and not NO_HARNESS_PATTERN.search(source):
       files.append(os.path.join(self.root, "mjsunit.js"))
@@ -90,19 +94,20 @@ class MjsunitTestSuite(testsuite.TestSuite):
       files.append("--module")
     files.append(testfilename)
 
-    all_files = []
-    all_files += files
+    all_files = list(files)
     if context.isolates:
-      all_files.append("--isolate")
-      all_files += files
+      all_files += ["--isolate"] + files
 
+    return all_files, flags, env
+
+  def _get_env(self, source):
     env_match = ENV_PATTERN.search(source)
+    env = {}
     if env_match:
       for env_pair in env_match.group(1).strip().split():
         var, value = env_pair.split('=')
-        testcase.env[var] = value
-
-    return all_files, flags
+        env[var] = value
+    return env
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, testcase.path + self.suffix())

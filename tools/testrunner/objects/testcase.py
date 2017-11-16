@@ -39,13 +39,11 @@ class TestCase(object):
     self.id = None  # int, used to map result back to TestCase instance
     self.duration = None  # assigned during execution
     self.run = 1  # The nth time this test is executed.
-    self.env = {}
 
   def CopyAddingFlags(self, variant, flags):
     copy = TestCase(self.suite, self.path, variant, self.flags + flags,
                     self.override_shell)
     copy.outcomes = self.outcomes
-    copy.env = self.env
     return copy
 
   def SetSuiteObject(self, suites):

@@ -19,7 +19,7 @@ class MkGrokdump(testsuite.TestSuite):
     return [test]
 
   def GetParametersForTestCase(self, testcase, context):
-    return [], []
+    return [], [], {}
 
   def IsFailureOutput(self, testcase):
     output = testcase.output

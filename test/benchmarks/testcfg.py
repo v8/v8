@@ -137,7 +137,7 @@ class BenchmarksTestSuite(testsuite.TestSuite):
     elif testcase.path.startswith("sunspider"):
       files.append(os.path.join(self.testroot, "%s.js" % testcase.path))
 
-    return files, testcase.flags + context.mode_flags
+    return files, testcase.flags + context.mode_flags, {}
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.testroot, testcase.path + ".js")

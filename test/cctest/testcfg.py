@@ -62,7 +62,7 @@ class CcTestSuite(testsuite.TestSuite):
     return tests
 
   def GetParametersForTestCase(self, testcase, context):
-    return [testcase.path], testcase.flags + context.mode_flags
+    return [testcase.path], testcase.flags + context.mode_flags, {}
 
   def shell(self):
     return "cctest"

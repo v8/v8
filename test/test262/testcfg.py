@@ -174,7 +174,7 @@ class Test262TestSuite(testsuite.TestSuite):
         ([flag for (feature, flag) in FEATURE_FLAGS.items()
           if feature in self.GetTestRecord(testcase).get("features", [])])
     )
-    return files, flags
+    return files, flags, {}
 
   def _VariantGeneratorFactory(self):
     return Test262VariantGenerator

@@ -71,7 +71,7 @@ class ProgressIndicator(object):
     }
 
   def _EscapeCommand(self, test):
-    command = execution.GetCommand(test, self.runner.context)
+    command, _ = execution.GetCommand(test, self.runner.context)
     parts = []
     for part in command:
       if ' ' in part:

@@ -74,7 +74,7 @@ class MessageTestSuite(testsuite.TestSuite):
     for match in flags_match:
       flags += match.strip().split()
     flags = [x for x in flags if x not in INVALID_FLAGS]
-    return files, flags
+    return files, flags, {}
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, testcase.path + self.suffix())

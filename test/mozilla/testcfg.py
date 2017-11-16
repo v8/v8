@@ -93,7 +93,7 @@ class MozillaTestSuite(testsuite.TestSuite):
         files.append(script)
     files.append(os.path.join(self.testroot, testfilename))
     flags = testcase.flags + context.mode_flags + ["--expose-gc"]
-    return files, flags
+    return files, flags, {}
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.testroot, testcase.path + ".js")

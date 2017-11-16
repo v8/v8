@@ -72,7 +72,7 @@ class PreparserTestSuite(testsuite.TestSuite):
     return result
 
   def GetParametersForTestCase(self, testcase, context):
-    return [], testcase.flags
+    return [], testcase.flags, {}
 
   def GetSourceForTest(self, testcase):
     assert testcase.flags[0] == "-e"

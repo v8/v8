@@ -49,7 +49,7 @@ class InspectorProtocolTestSuite(testsuite.TestSuite):
       os.path.join(self.root, PROTOCOL_TEST_JS),
       os.path.join(self.root, testcase.path + self.suffix()),
     ]
-    return files, flags
+    return files, flags, {}
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, testcase.path + self.suffix())

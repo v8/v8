@@ -42,7 +42,7 @@ class FuzzerTestSuite(testsuite.TestSuite):
 
   def GetParametersForTestCase(self, testcase, context):
     suite, name = testcase.path.split('/')
-    return [os.path.join(self.root, suite, name)], []
+    return [os.path.join(self.root, suite, name)], [], {}
 
   def _VariantGeneratorFactory(self):
     return FuzzerVariantGenerator

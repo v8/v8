@@ -78,7 +78,7 @@ class PromiseAplusTestSuite(testsuite.TestSuite):
         self.helper_files_post
     )
     flags = testcase.flags + context.mode_flags + ['--allow-natives-syntax']
-    return files, flags
+    return files, flags, {}
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, TEST_NAME,

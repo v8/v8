@@ -92,7 +92,7 @@ def GetCommand(test, context):
     shell += ".exe"
   if context.random_seed:
     d8testflag += ["--random-seed=%s" % context.random_seed]
-  files, flags = test.suite.GetParametersForTestCase(test, context)
+  files, flags, env = test.suite.GetParametersForTestCase(test, context)
   cmd = (
       context.command_prefix +
       [os.path.abspath(os.path.join(context.shell_dir, shell))] +
@@ -102,11 +102,11 @@ def GetCommand(test, context):
       # Flags from test cases can overwrite extra cmd-line flags.
       flags
   )
-  return cmd
+  return cmd, env
 
 
 def _GetInstructions(test, context):
-  command = GetCommand(test, context)
+  command, env = GetCommand(test, context)
   timeout = context.timeout
   if ("--stress-opt" in test.flags or
       "--stress-opt" in context.mode_flags or
@@ -116,9 +116,10 @@ def _GetInstructions(test, context):
     timeout *= 2
   # FIXME(machenbach): Make this more OO. Don't expose default outcomes or
   # the like.
+
   if statusfile.IsSlow(test.outcomes or [statusfile.PASS]):
     timeout *= 2
-  return Instructions(command, test.id, timeout, context.verbose, test.env)
+  return Instructions(command, test.id, timeout, context.verbose, env)
 
 
 class Job(object):

@@ -88,13 +88,11 @@ class WebkitTestSuite(testsuite.TestSuite):
     files.append(testfilename)
     files.append(os.path.join(self.root, "resources/standalone-post.js"))
 
-    all_files = []
-    all_files += files
+    all_files = list(files)
     if context.isolates:
-      all_files.append("--isolate")
-      all_files += files
+      all_files += ["--isolate"] + files
 
-    return all_files, flags
+    return all_files, flags, {}
 
   def GetSourceForTest(self, testcase):
     filename = os.path.join(self.root, testcase.path + self.suffix())

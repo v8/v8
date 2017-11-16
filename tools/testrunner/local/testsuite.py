@@ -258,7 +258,7 @@ class TestSuite(object):
     self.tests = filtered
 
   def GetParametersForTestCase(self, testcase, context):
-    """Returns a tuple of (files, flags) for this test case."""
+    """Returns a tuple of (files, flags, env) for this test case."""
     raise NotImplementedError
 
   def GetSourceForTest(self, testcase):
@@ -350,10 +350,13 @@ class GoogleTestSuite(TestSuite):
     return tests
 
   def GetParametersForTestCase(self, testcase, context):
-    return [], (testcase.flags + ["--gtest_filter=" + testcase.path] +
-                ["--gtest_random_seed=%s" % context.random_seed] +
-                ["--gtest_print_time=0"] +
-                context.mode_flags)
+    flags = (
+      testcase.flags +
+      ["--gtest_filter=" + testcase.path] +
+      ["--gtest_random_seed=%s" % context.random_seed] +
+      ["--gtest_print_time=0"] +
+      context.mode_flags)
+    return [], flags, {}
 
   def _VariantGeneratorFactory(self):
     return StandardVariantGenerator
