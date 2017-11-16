@@ -263,6 +263,11 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       Comment("out of bounds elements access");
       Label return_undefined(this);
 
+      // Negative indices aren't valid array indices (according to
+      // the ECMAScript specification), and are stored as properties
+      // in V8, not elements. So we cannot handle them here.
+      GotoIf(IntPtrLessThan(intptr_index, IntPtrConstant(0)), miss);
+
       // Check if we're allowed to handle OOB accesses.
       Node* allow_out_of_bounds =
           IsSetWord<LoadHandler::AllowOutOfBoundsBits>(handler_word);
