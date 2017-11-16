@@ -1886,10 +1886,10 @@ void JavaScriptFrame::Print(StringStream* accumulator,
   Context* context = NULL;
   if (this->context() != NULL && this->context()->IsContext()) {
     context = Context::cast(this->context());
-  }
-  while (context->IsWithContext()) {
-    context = context->previous();
-    DCHECK(context != NULL);
+    while (context->IsWithContext()) {
+      context = context->previous();
+      DCHECK(context != NULL);
+    }
   }
 
   // Print heap-allocated local variables.
