@@ -2338,6 +2338,16 @@ class ThreadImpl {
       offset += param_size;
     }
 
+    // Ensure that there is enough space in the arg_buffer to hold the return
+    // value(s).
+    uint32_t return_size = 0;
+    for (ValueType t : sig->returns()) {
+      return_size += 1 << ElementSizeLog2Of(t);
+    }
+    if (arg_buffer.size() < return_size) {
+      arg_buffer.resize(return_size);
+    }
+
     // Wrap the arg_buffer data pointer in a handle. As this is an aligned
     // pointer, to the GC it will look like a Smi.
     Handle<Object> arg_buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
