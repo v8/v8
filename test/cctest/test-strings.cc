@@ -1475,7 +1475,7 @@ TEST(StringReplaceAtomTwoByteResult) {
       "subject.replace(/~/g, replace);  ");
   CHECK(result->IsString());
   Handle<String> string = v8::Utils::OpenHandle(v8::String::Cast(*result));
-  CHECK(string->IsSeqTwoByteString());
+  CHECK(string->IsTwoByteRepresentation());
 
   v8::Local<v8::String> expected = v8_str("one_byte\x80only\x80string\x80");
   CHECK(expected->Equals(context.local(), result).FromJust());

@@ -2841,96 +2841,94 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
   // ToString({replace_value}) does not contain '$', i.e. we're doing a simple
   // string replacement.
 
-  Node* const int_zero = IntPtrConstant(0);
   Node* const smi_zero = SmiConstant(0);
+  const bool kIsFastPath = true;
 
   CSA_ASSERT(this, IsFastRegExp(context, regexp));
   CSA_ASSERT(this, IsString(replace_string));
   CSA_ASSERT(this, IsString(string));
 
-  Label out(this);
-  VARIABLE(var_result, MachineRepresentation::kTagged);
-
-  // Load the last match info.
-  Node* const native_context = LoadNativeContext(context);
-  Node* const last_match_info =
-      LoadContextElement(native_context, Context::REGEXP_LAST_MATCH_INFO_INDEX);
+  VARIABLE(var_result, MachineRepresentation::kTagged, EmptyStringConstant());
+  VARIABLE(var_match_indices, MachineRepresentation::kTagged);
+  VARIABLE(var_last_match_end, MachineRepresentation::kTagged, smi_zero);
+  VARIABLE(var_is_unicode, MachineRepresentation::kWord32, Int32Constant(0));
+  Variable* vars[] = {&var_result, &var_last_match_end};
+  Label out(this), loop(this, 2, vars), loop_end(this),
+      if_nofurthermatches(this);
 
   // Is {regexp} global?
-  Label if_isglobal(this), if_isnonglobal(this);
-  Node* const flags = LoadObjectField(regexp, JSRegExp::kFlagsOffset);
-  Node* const is_global =
-      WordAnd(SmiUntag(flags), IntPtrConstant(JSRegExp::kGlobal));
-  Branch(WordEqual(is_global, int_zero), &if_isnonglobal, &if_isglobal);
+  Node* const is_global = FastFlagGetter(regexp, JSRegExp::kGlobal);
+  GotoIfNot(is_global, &loop);
 
-  BIND(&if_isglobal);
-  {
-    // Hand off global regexps to runtime.
-    FastStoreLastIndex(regexp, smi_zero);
-    Node* const result =
-        CallRuntime(Runtime::kStringReplaceGlobalRegExpWithString, context,
-                    string, regexp, replace_string, last_match_info);
-    var_result.Bind(result);
-    Goto(&out);
-  }
+  var_is_unicode.Bind(FastFlagGetter(regexp, JSRegExp::kUnicode));
+  FastStoreLastIndex(regexp, smi_zero);
+  Goto(&loop);
 
-  BIND(&if_isnonglobal);
+  BIND(&loop);
   {
-    // Run exec, then manually construct the resulting string.
-    Label if_didnotmatch(this);
-    Node* const match_indices = RegExpPrototypeExecBodyWithoutResult(
-        context, regexp, string, &if_didnotmatch, true);
+    var_match_indices.Bind(RegExpPrototypeExecBodyWithoutResult(
+        context, regexp, string, &if_nofurthermatches, kIsFastPath));
 
     // Successful match.
     {
-      Node* const subject_start = smi_zero;
       Node* const match_start = LoadFixedArrayElement(
-          match_indices, RegExpMatchInfo::kFirstCaptureIndex);
+          var_match_indices.value(), RegExpMatchInfo::kFirstCaptureIndex);
       Node* const match_end = LoadFixedArrayElement(
-          match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
-      TNode<Smi> const subject_end = LoadStringLengthAsSmi(string);
+          var_match_indices.value(), RegExpMatchInfo::kFirstCaptureIndex + 1);
 
       Label if_replaceisempty(this), if_replaceisnotempty(this);
       TNode<Smi> const replace_length = LoadStringLengthAsSmi(replace_string);
-      Branch(SmiEqual(replace_length, SmiConstant(0)), &if_replaceisempty,
+      Branch(SmiEqual(replace_length, smi_zero), &if_replaceisempty,
              &if_replaceisnotempty);
 
       BIND(&if_replaceisempty);
       {
         // TODO(jgruber): We could skip many of the checks that using SubString
         // here entails.
-
         Node* const first_part =
-            SubString(context, string, subject_start, match_start);
-        Node* const second_part =
-            SubString(context, string, match_end, subject_end);
+            SubString(context, string, var_last_match_end.value(), match_start);
 
-        Node* const result = StringAdd(context, first_part, second_part);
+        Node* const result = StringAdd(context, var_result.value(), first_part);
         var_result.Bind(result);
-        Goto(&out);
+        Goto(&loop_end);
       }
 
       BIND(&if_replaceisnotempty);
       {
         Node* const first_part =
-            SubString(context, string, subject_start, match_start);
-        Node* const second_part = replace_string;
-        Node* const third_part =
-            SubString(context, string, match_end, subject_end);
+            SubString(context, string, var_last_match_end.value(), match_start);
 
-        Node* result = StringAdd(context, first_part, second_part);
-        result = StringAdd(context, result, third_part);
-
+        Node* result = StringAdd(context, var_result.value(), first_part);
+        result = StringAdd(context, result, replace_string);
         var_result.Bind(result);
-        Goto(&out);
+        Goto(&loop_end);
+      }
+
+      BIND(&loop_end);
+      {
+        var_last_match_end.Bind(match_end);
+        // Non-global case ends here after the first replacement.
+        GotoIfNot(is_global, &if_nofurthermatches);
+
+        GotoIf(SmiNotEqual(match_end, match_start), &loop);
+        // If match is the empty string, we have to increment lastIndex.
+        Node* const this_index = FastLoadLastIndex(regexp);
+        Node* const next_index = AdvanceStringIndex(
+            string, this_index, var_is_unicode.value(), kIsFastPath);
+        FastStoreLastIndex(regexp, next_index);
+        Goto(&loop);
       }
     }
+  }
 
-    BIND(&if_didnotmatch);
-    {
-      var_result.Bind(string);
-      Goto(&out);
-    }
+  BIND(&if_nofurthermatches);
+  {
+    TNode<Smi> const string_length = LoadStringLengthAsSmi(string);
+    Node* const last_part =
+        SubString(context, string, var_last_match_end.value(), string_length);
+    Node* const result = StringAdd(context, var_result.value(), last_part);
+    var_result.Bind(result);
+    Goto(&out);
   }
 
   BIND(&out);
@@ -3033,7 +3031,7 @@ TF_BUILTIN(RegExpPrototypeReplace, RegExpBuiltinsAssembler) {
   //   if (replace.contains("$")) {
   //     CallRuntime(RegExpReplace)
   //   } else {
-  //     ReplaceSimpleStringFastPath()  // Bails to runtime for global regexps.
+  //     ReplaceSimpleStringFastPath()
   //   }
   // }
 
