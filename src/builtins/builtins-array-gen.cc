@@ -1109,6 +1109,11 @@ class FastArraySliceCodeStubAssembler : public CodeStubAssembler {
     Node* elements_kind = LoadMapElementsKind(map);
     GotoIfNot(IsFastElementsKind(elements_kind), &try_simple_slice);
 
+    // Make sure that the length hasn't been changed by side-effect.
+    Node* array_length = LoadJSArrayLength(array);
+    GotoIf(TaggedIsNotSmi(array_length), slow);
+    GotoIf(SmiAbove(SmiAdd(from, count), array_length), slow);
+
     CSA_ASSERT(this, SmiGreaterThanOrEqual(from, SmiConstant(0)));
 
     result.Bind(CallStub(CodeFactory::ExtractFastJSArray(isolate()), context,
