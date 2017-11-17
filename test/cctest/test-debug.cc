@@ -37,6 +37,7 @@
 #include "src/deoptimizer.h"
 #include "src/frames.h"
 #include "src/objects-inl.h"
+#include "src/snapshot/snapshot.h"
 #include "src/utils.h"
 #include "test/cctest/cctest.h"
 
@@ -6619,15 +6620,20 @@ TEST(DebugCoverageWithScriptDataOutOfScope) {
 
 TEST(BuiltinsExceptionPrediction) {
   v8::Isolate* isolate = CcTest::isolate();
+  i::Isolate* iisolate = CcTest::i_isolate();
   v8::HandleScope handle_scope(isolate);
   v8::Context::New(isolate);
 
-  i::Builtins* builtins = CcTest::i_isolate()->builtins();
+  i::Builtins* builtins = iisolate->builtins();
   bool fail = false;
   for (int i = 0; i < i::Builtins::builtin_count; i++) {
     Code* builtin = builtins->builtin(i);
 
     if (builtin->kind() != Code::BUILTIN) continue;
+    if (builtin->builtin_index() == i::Builtins::kDeserializeLazy &&
+        i::Builtins::IsLazy(i)) {
+      builtin = i::Snapshot::DeserializeBuiltin(iisolate, i);
+    }
 
     auto prediction = builtin->GetBuiltinCatchPrediction();
     USE(prediction);
