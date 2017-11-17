@@ -1034,13 +1034,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
         new (zone()) ConditionalSourceRanges(then_range, else_range));
   }
 
-  V8_INLINE void RecordExpressionSourceRange(Expression* node,
-                                             const SourceRange& body_range) {
-    if (source_range_map_ == nullptr) return;
-    source_range_map_->Insert(node,
-                              new (zone()) ExpressionSourceRanges(body_range));
-  }
-
   V8_INLINE void RecordJumpStatementSourceRange(Statement* node,
                                                 int32_t continuation_position) {
     if (source_range_map_ == nullptr) return;

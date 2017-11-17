@@ -56,7 +56,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   class EffectResultScope;
   class FeedbackSlotCache;
   class GlobalDeclarationsBuilder;
-  class NArayCodeCoverageSlots;
   class RegisterAllocationScope;
   class TestResultScope;
   class ValueResultScope;
@@ -175,23 +174,20 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   // Visit a logical OR/AND within a test context, rewiring the jumps based
   // on the expression values.
-  void VisitLogicalTest(Token::Value token, Expression* left, Expression* right,
-                        int right_coverage_slot);
-  void VisitNaryLogicalTest(Token::Value token, NaryOperation* expr,
-                            const NArayCodeCoverageSlots* coverage_slots);
+  void VisitLogicalTest(Token::Value token, Expression* left,
+                        Expression* right);
+  void VisitNaryLogicalTest(Token::Value token, NaryOperation* expr);
   // Visit a (non-RHS) test for a logical op, which falls through if the test
   // fails or jumps to the appropriate labels if it succeeds.
   void VisitLogicalTestSubExpression(Token::Value token, Expression* expr,
                                      BytecodeLabels* then_labels,
-                                     BytecodeLabels* else_labels,
-                                     int coverage_slot);
+                                     BytecodeLabels* else_labels);
 
   // Helpers for binary and nary logical op value expressions.
-  bool VisitLogicalOrSubExpression(Expression* expr, BytecodeLabels* end_labels,
-                                   int coverage_slot);
+  bool VisitLogicalOrSubExpression(Expression* expr,
+                                   BytecodeLabels* end_labels);
   bool VisitLogicalAndSubExpression(Expression* expr,
-                                    BytecodeLabels* end_labels,
-                                    int coverage_slot);
+                                    BytecodeLabels* end_labels);
 
   // Visit the header/body of a loop iteration.
   void VisitIterationHeader(IterationStatement* stmt,
@@ -208,7 +204,6 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   void BuildLoadPropertyKey(LiteralProperty* property, Register out_reg);
 
   int AllocateBlockCoverageSlotIfEnabled(AstNode* node, SourceRangeKind kind);
-
   void BuildIncrementBlockCoverageCounterIfEnabled(AstNode* node,
                                                    SourceRangeKind kind);
   void BuildIncrementBlockCoverageCounterIfEnabled(int coverage_array_slot);
