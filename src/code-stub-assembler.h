@@ -505,9 +505,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   TNode<PrototypeInfo> LoadMapPrototypeInfo(SloppyTNode<Map> map,
                                             Label* if_has_no_proto_info);
   // Load the instance size of a Map.
-  TNode<IntPtrT> LoadMapInstanceSize(SloppyTNode<Map> map);
-  // Load the inobject properties count of a Map (valid only for JSObjects).
-  TNode<IntPtrT> LoadMapInobjectProperties(SloppyTNode<Map> map);
+  TNode<IntPtrT> LoadMapInstanceSizeInWords(SloppyTNode<Map> map);
+  // Load the inobject properties start of a Map (valid only for JSObjects).
+  TNode<IntPtrT> LoadMapInobjectPropertiesStartInWords(SloppyTNode<Map> map);
   // Load the constructor function index of a Map (only for primitive maps).
   TNode<IntPtrT> LoadMapConstructorFunctionIndex(SloppyTNode<Map> map);
   // Load the constructor of a Map (equivalent to Map::GetConstructor()).

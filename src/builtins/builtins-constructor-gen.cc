@@ -84,7 +84,7 @@ Node* ConstructorBuiltinsAssembler::EmitFastNewClosure(Node* shared_info,
 
   // Create a new closure from the given function info in new space
   Node* instance_size_in_bytes =
-      TimesPointerSize(LoadMapInstanceSize(function_map));
+      TimesPointerSize(LoadMapInstanceSizeInWords(function_map));
   Node* result = Allocate(instance_size_in_bytes);
   StoreMapNoWriteBarrier(result, function_map);
   InitializeJSObjectBodyNoSlackTracking(result, function_map,
@@ -508,7 +508,8 @@ Node* ConstructorBuiltinsAssembler::EmitCreateShallowObjectLiteral(
   // Ensure new-space allocation for a fresh JSObject so we can skip write
   // barriers when copying all object fields.
   STATIC_ASSERT(JSObject::kMaxInstanceSize < kMaxRegularHeapObjectSize);
-  Node* instance_size = TimesPointerSize(LoadMapInstanceSize(boilerplate_map));
+  Node* instance_size =
+      TimesPointerSize(LoadMapInstanceSizeInWords(boilerplate_map));
   Node* allocation_size = instance_size;
   bool needs_allocation_memento = FLAG_allocation_site_pretenuring;
   if (needs_allocation_memento) {

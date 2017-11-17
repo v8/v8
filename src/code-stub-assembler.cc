@@ -1362,19 +1362,20 @@ TNode<PrototypeInfo> CodeStubAssembler::LoadMapPrototypeInfo(
   return CAST(prototype_info);
 }
 
-TNode<IntPtrT> CodeStubAssembler::LoadMapInstanceSize(SloppyTNode<Map> map) {
-  CSA_SLOW_ASSERT(this, IsMap(map));
-  return ChangeInt32ToIntPtr(
-      LoadObjectField(map, Map::kInstanceSizeOffset, MachineType::Uint8()));
-}
-
-TNode<IntPtrT> CodeStubAssembler::LoadMapInobjectProperties(
+TNode<IntPtrT> CodeStubAssembler::LoadMapInstanceSizeInWords(
     SloppyTNode<Map> map) {
   CSA_SLOW_ASSERT(this, IsMap(map));
-  // See Map::GetInObjectProperties() for details.
+  return ChangeInt32ToIntPtr(LoadObjectField(
+      map, Map::kInstanceSizeInWordsOffset, MachineType::Uint8()));
+}
+
+TNode<IntPtrT> CodeStubAssembler::LoadMapInobjectPropertiesStartInWords(
+    SloppyTNode<Map> map) {
+  CSA_SLOW_ASSERT(this, IsMap(map));
+  // See Map::GetInObjectPropertiesStartInWords() for details.
   CSA_ASSERT(this, IsJSObjectMap(map));
   return ChangeInt32ToIntPtr(LoadObjectField(
-      map, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
+      map, Map::kInObjectPropertiesStartOrConstructorFunctionIndexOffset,
       MachineType::Uint8()));
 }
 
@@ -1384,7 +1385,7 @@ TNode<IntPtrT> CodeStubAssembler::LoadMapConstructorFunctionIndex(
   // See Map::GetConstructorFunctionIndex() for details.
   CSA_ASSERT(this, IsPrimitiveInstanceType(LoadMapInstanceType(map)));
   return ChangeInt32ToIntPtr(LoadObjectField(
-      map, Map::kInObjectPropertiesOrConstructorFunctionIndexOffset,
+      map, Map::kInObjectPropertiesStartOrConstructorFunctionIndexOffset,
       MachineType::Uint8()));
 }
 
@@ -2464,7 +2465,7 @@ Node* CodeStubAssembler::CopyNameDictionary(Node* dictionary,
 Node* CodeStubAssembler::AllocateStruct(Node* map, AllocationFlags flags) {
   Comment("AllocateStruct");
   CSA_ASSERT(this, IsMap(map));
-  Node* size = TimesPointerSize(LoadMapInstanceSize(map));
+  Node* size = TimesPointerSize(LoadMapInstanceSizeInWords(map));
   Node* object = Allocate(size, flags);
   StoreMapNoWriteBarrier(object, map);
   InitializeStructBody(object, map, size, Struct::kHeaderSize);
@@ -2492,7 +2493,7 @@ Node* CodeStubAssembler::AllocateJSObjectFromMap(
   CSA_ASSERT(this, Word32BinaryNot(IsJSFunctionMap(map)));
   CSA_ASSERT(this, Word32BinaryNot(InstanceTypeEqual(LoadMapInstanceType(map),
                                                      JS_GLOBAL_OBJECT_TYPE)));
-  Node* instance_size = TimesPointerSize(LoadMapInstanceSize(map));
+  Node* instance_size = TimesPointerSize(LoadMapInstanceSizeInWords(map));
   Node* object = AllocateInNewSpace(instance_size, flags);
   StoreMapNoWriteBarrier(object, map);
   InitializeJSObjectFromMap(object, map, instance_size, properties, elements,
@@ -6616,19 +6617,19 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
     Node* representation =
         DecodeWord32<PropertyDetails::RepresentationField>(details);
 
-    Node* inobject_properties = LoadMapInobjectProperties(map);
+    field_index =
+        IntPtrAdd(field_index, LoadMapInobjectPropertiesStartInWords(map));
+    Node* instance_size_in_words = LoadMapInstanceSizeInWords(map);
 
     Label if_inobject(this), if_backing_store(this);
     VARIABLE(var_double_value, MachineRepresentation::kFloat64);
     Label rebox_double(this, &var_double_value);
-    Branch(UintPtrLessThan(field_index, inobject_properties), &if_inobject,
+    Branch(UintPtrLessThan(field_index, instance_size_in_words), &if_inobject,
            &if_backing_store);
     BIND(&if_inobject);
     {
       Comment("if_inobject");
-      Node* field_offset = TimesPointerSize(
-          IntPtrAdd(IntPtrSub(LoadMapInstanceSize(map), inobject_properties),
-                    field_index));
+      Node* field_offset = TimesPointerSize(field_index);
 
       Label if_double(this), if_tagged(this);
       Branch(Word32NotEqual(representation,
@@ -6655,7 +6656,7 @@ void CodeStubAssembler::LoadPropertyFromFastObject(Node* object, Node* map,
     {
       Comment("if_backing_store");
       Node* properties = LoadFastProperties(object);
-      field_index = IntPtrSub(field_index, inobject_properties);
+      field_index = IntPtrSub(field_index, instance_size_in_words);
       Node* value = LoadFixedArrayElement(properties, field_index);
 
       Label if_double(this), if_tagged(this);

@@ -686,17 +686,17 @@ void KeyedStoreGenericAssembler::OverwriteExistingFastProperty(
                  slow);
   Node* field_index =
       DecodeWordFromWord32<PropertyDetails::FieldIndexField>(details);
-  Node* inobject_properties = LoadMapInobjectProperties(object_map);
+  field_index =
+      IntPtrAdd(field_index, LoadMapInobjectPropertiesStartInWords(object_map));
+  Node* instance_size_in_words = LoadMapInstanceSizeInWords(object_map);
 
   Label inobject(this), backing_store(this);
-  Branch(UintPtrLessThan(field_index, inobject_properties), &inobject,
+  Branch(UintPtrLessThan(field_index, instance_size_in_words), &inobject,
          &backing_store);
 
   BIND(&inobject);
   {
-    Node* field_offset = TimesPointerSize(IntPtrAdd(
-        IntPtrSub(LoadMapInstanceSize(object_map), inobject_properties),
-        field_index));
+    Node* field_offset = TimesPointerSize(field_index);
     Label tagged_rep(this), double_rep(this);
     Branch(Word32Equal(representation, Int32Constant(Representation::kDouble)),
            &double_rep, &tagged_rep);
@@ -722,7 +722,7 @@ void KeyedStoreGenericAssembler::OverwriteExistingFastProperty(
 
   BIND(&backing_store);
   {
-    Node* backing_store_index = IntPtrSub(field_index, inobject_properties);
+    Node* backing_store_index = IntPtrSub(field_index, instance_size_in_words);
     Label tagged_rep(this), double_rep(this);
     Branch(Word32Equal(representation, Int32Constant(Representation::kDouble)),
            &double_rep, &tagged_rep);

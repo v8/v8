@@ -2980,51 +2980,68 @@ void Map::set_visitor_id(VisitorId id) {
   WRITE_BYTE_FIELD(this, kVisitorIdOffset, static_cast<byte>(id));
 }
 
+int Map::instance_size_in_words() const {
+  return RELAXED_READ_BYTE_FIELD(this, kInstanceSizeInWordsOffset);
+}
+
+void Map::set_instance_size_in_words(int value) {
+  RELAXED_WRITE_BYTE_FIELD(this, kInstanceSizeInWordsOffset,
+                           static_cast<byte>(value));
+}
+
 int Map::instance_size() const {
-  return RELAXED_READ_BYTE_FIELD(this, kInstanceSizeOffset) << kPointerSizeLog2;
+  return instance_size_in_words() << kPointerSizeLog2;
 }
 
-int Map::inobject_properties_or_constructor_function_index() const {
+void Map::set_instance_size(int value) {
+  DCHECK_EQ(0, value & (kPointerSize - 1));
+  value >>= kPointerSizeLog2;
+  DCHECK(0 <= value && value < 256);
+  set_instance_size_in_words(value);
+}
+
+int Map::inobject_properties_start_or_constructor_function_index() const {
   return RELAXED_READ_BYTE_FIELD(
-      this, kInObjectPropertiesOrConstructorFunctionIndexOffset);
+      this, kInObjectPropertiesStartOrConstructorFunctionIndexOffset);
 }
 
-
-void Map::set_inobject_properties_or_constructor_function_index(int value) {
+void Map::set_inobject_properties_start_or_constructor_function_index(
+    int value) {
   DCHECK_LE(0, value);
   DCHECK_LT(value, 256);
-  RELAXED_WRITE_BYTE_FIELD(this,
-                           kInObjectPropertiesOrConstructorFunctionIndexOffset,
-                           static_cast<byte>(value));
+  RELAXED_WRITE_BYTE_FIELD(
+      this, kInObjectPropertiesStartOrConstructorFunctionIndexOffset,
+      static_cast<byte>(value));
+}
+
+int Map::GetInObjectPropertiesStartInWords() const {
+  DCHECK(IsJSObjectMap());
+  return inobject_properties_start_or_constructor_function_index();
+}
+
+void Map::SetInObjectPropertiesStartInWords(int value) {
+  DCHECK(IsJSObjectMap());
+  set_inobject_properties_start_or_constructor_function_index(value);
 }
 
 int Map::GetInObjectProperties() const {
   DCHECK(IsJSObjectMap());
-  return inobject_properties_or_constructor_function_index();
-}
-
-
-void Map::SetInObjectProperties(int value) {
-  DCHECK(IsJSObjectMap());
-  set_inobject_properties_or_constructor_function_index(value);
+  return instance_size_in_words() - GetInObjectPropertiesStartInWords();
 }
 
 int Map::GetConstructorFunctionIndex() const {
   DCHECK(IsPrimitiveMap());
-  return inobject_properties_or_constructor_function_index();
+  return inobject_properties_start_or_constructor_function_index();
 }
 
 
 void Map::SetConstructorFunctionIndex(int value) {
   DCHECK(IsPrimitiveMap());
-  set_inobject_properties_or_constructor_function_index(value);
+  set_inobject_properties_start_or_constructor_function_index(value);
 }
 
 int Map::GetInObjectPropertyOffset(int index) const {
-  // Adjust for the number of properties stored in the object.
-  index -= GetInObjectProperties();
-  DCHECK_LE(index, 0);
-  return instance_size() + (index * kPointerSize);
+  return (GetInObjectPropertiesStartInWords() + index) * kPointerSize;
 }
 
 
@@ -3098,15 +3115,6 @@ int HeapObject::SizeFromMap(Map* map) const {
   DCHECK(instance_type == CODE_TYPE);
   return reinterpret_cast<const Code*>(this)->CodeSize();
 }
-
-
-void Map::set_instance_size(int value) {
-  DCHECK_EQ(0, value & (kPointerSize - 1));
-  value >>= kPointerSizeLog2;
-  DCHECK(0 <= value && value < 256);
-  RELAXED_WRITE_BYTE_FIELD(this, kInstanceSizeOffset, static_cast<byte>(value));
-}
-
 
 InstanceType Map::instance_type() const {
   return static_cast<InstanceType>(READ_BYTE_FIELD(this, kInstanceTypeOffset));
@@ -3195,7 +3203,7 @@ void Map::AccountAddedPropertyField() {
   // Update used_instance_size_in_words.
   int value = used_instance_size_in_words();
   if (value >= JSObject::kFieldsAdded) {
-    if (value == instance_size() / kPointerSize) {
+    if (value == instance_size_in_words()) {
       AccountAddedOutOfObjectPropertyField(0);
     } else {
       // The property is added in-object, so simply increment the counter.
@@ -3225,7 +3233,7 @@ void Map::VerifyUnusedPropertyFields() const {
     int value = used_instance_size_in_words();
     int unused;
     if (value >= JSObject::kFieldsAdded) {
-      unused = instance_size() / kPointerSize - value;
+      unused = instance_size_in_words() - value;
     } else {
       // For out of object properties "used_instance_size_in_words" byte encodes
       // the slack in the property array.

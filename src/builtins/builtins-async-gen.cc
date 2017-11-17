@@ -57,7 +57,7 @@ Node* AsyncBuiltinsAssembler::Await(
       LoadObjectField(promise_fun, JSFunction::kPrototypeOrInitialMapOffset);
   // Assert that the JSPromise map has an instance size is
   // JSPromise::kSizeWithEmbedderFields.
-  CSA_ASSERT(this, WordEqual(LoadMapInstanceSize(promise_map),
+  CSA_ASSERT(this, WordEqual(LoadMapInstanceSizeInWords(promise_map),
                              IntPtrConstant(JSPromise::kSizeWithEmbedderFields /
                                             kPointerSize)));
   Node* const wrapped_value = InnerAllocate(base, kWrappedPromiseOffset);
@@ -158,7 +158,7 @@ void AsyncBuiltinsAssembler::InitializeNativeClosure(Node* context,
       native_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX);
   // Ensure that we don't have to initialize prototype_or_initial_map field of
   // JSFunction.
-  CSA_ASSERT(this, WordEqual(LoadMapInstanceSize(function_map),
+  CSA_ASSERT(this, WordEqual(LoadMapInstanceSizeInWords(function_map),
                              IntPtrConstant(JSFunction::kSizeWithoutPrototype /
                                             kPointerSize)));
   StoreMapNoWriteBarrier(function, function_map);
