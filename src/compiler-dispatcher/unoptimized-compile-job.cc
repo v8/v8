@@ -283,7 +283,7 @@ void UnoptimizedCompileJob::FinalizeOnMainThread(Isolate* isolate) {
   Handle<Script> script(Script::cast(shared_->script()), isolate);
   parse_info_->set_script(script);
   parser_->UpdateStatistics(isolate, script);
-  parse_info_->UpdateStatisticsAfterBackgroundParse(isolate);
+  parse_info_->UpdateBackgroundParseStatisticsOnMainThread(isolate);
   parser_->HandleSourceURLComments(isolate, script);
 
   {

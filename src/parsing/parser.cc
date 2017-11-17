@@ -3531,15 +3531,6 @@ void Parser::ParseOnBackground(ParseInfo* info) {
     if (result != nullptr) *info->cached_data() = logger.GetScriptData();
     log_ = nullptr;
   }
-  if (runtime_call_stats_ &&
-      (FLAG_runtime_stats &
-       v8::tracing::TracingCategoryObserver::ENABLED_BY_TRACING)) {
-    auto value = v8::tracing::TracedValue::Create();
-    runtime_call_stats_->Dump(value.get());
-    TRACE_EVENT_INSTANT1(TRACE_DISABLED_BY_DEFAULT("v8.runtime_stats"),
-                         "V8.RuntimeStats", TRACE_EVENT_SCOPE_THREAD,
-                         "runtime-call-stats", std::move(value));
-  }
 }
 
 Parser::TemplateLiteralState Parser::OpenTemplateLiteral(int pos) {

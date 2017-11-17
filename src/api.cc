@@ -2609,7 +2609,7 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
 
   source->info->set_script(script);
   source->parser->UpdateStatistics(isolate, script);
-  source->info->UpdateStatisticsAfterBackgroundParse(isolate);
+  source->info->UpdateBackgroundParseStatisticsOnMainThread(isolate);
   source->parser->HandleSourceURLComments(isolate, script);
 
   i::Handle<i::SharedFunctionInfo> result;

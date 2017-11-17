@@ -241,7 +241,8 @@ class V8_EXPORT_PRIVATE ParseInfo {
     }
   }
 
-  void UpdateStatisticsAfterBackgroundParse(Isolate* isolate);
+  void EmitBackgroundParseStatisticsOnBackgroundThread();
+  void UpdateBackgroundParseStatisticsOnMainThread(Isolate* isolate);
 
  private:
   // Various configuration flags for parsing.

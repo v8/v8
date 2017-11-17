@@ -96,6 +96,8 @@ void BackgroundParsingTask::Run() {
     script_data_ = nullptr;
   }
 
+  source_->info->EmitBackgroundParseStatisticsOnBackgroundThread();
+
   source_->info->set_on_background_thread(false);
   source_->info->set_stack_limit(old_stack_limit);
 }
