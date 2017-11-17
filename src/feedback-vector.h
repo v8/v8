@@ -586,7 +586,7 @@ class FeedbackNexus {
   virtual void Clear() { ConfigureUninitialized(); }
   virtual void ConfigureUninitialized();
   void ConfigurePremonomorphic();
-  void ConfigureMegamorphic(IcCheckType property_type);
+  bool ConfigureMegamorphic(IcCheckType property_type);
 
   inline Object* GetFeedback() const;
   inline Object* GetFeedbackExtra() const;

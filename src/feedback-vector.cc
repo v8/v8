@@ -524,12 +524,22 @@ void FeedbackNexus::ConfigurePremonomorphic() {
                    SKIP_WRITE_BARRIER);
 }
 
-void FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
+bool FeedbackNexus::ConfigureMegamorphic(IcCheckType property_type) {
+  DisallowHeapAllocation no_gc;
   Isolate* isolate = GetIsolate();
-  SetFeedback(*FeedbackVector::MegamorphicSentinel(isolate),
-              SKIP_WRITE_BARRIER);
-  SetFeedbackExtra(Smi::FromInt(static_cast<int>(property_type)),
-                   SKIP_WRITE_BARRIER);
+  bool changed = false;
+  Symbol* sentinel = *FeedbackVector::MegamorphicSentinel(isolate);
+  if (GetFeedback() != sentinel) {
+    SetFeedback(sentinel, SKIP_WRITE_BARRIER);
+    changed = true;
+  }
+
+  Smi* extra = Smi::FromInt(static_cast<int>(property_type));
+  if (changed || GetFeedbackExtra() != extra) {
+    SetFeedbackExtra(extra, SKIP_WRITE_BARRIER);
+    changed = true;
+  }
+  return changed;
 }
 
 InlineCacheState LoadICNexus::StateFromFeedback() const {

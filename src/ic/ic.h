@@ -90,7 +90,7 @@ class IC {
   }
 
   // Configure for most states.
-  void ConfigureVectorState(IC::State new_state, Handle<Object> key);
+  bool ConfigureVectorState(IC::State new_state, Handle<Object> key);
   // Configure the vector for MONOMORPHIC.
   void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
                             Handle<Object> handler);
