@@ -1132,14 +1132,6 @@ int JavaScriptBuiltinContinuationFrame::ComputeParametersCount() const {
   return Smi::ToInt(argc_object);
 }
 
-namespace {
-
-bool IsNonDeoptimizingAsmCode(Code* code, JSFunction* function) {
-  return code->is_turbofanned() && !function->shared()->HasBytecodeArray();
-}
-
-}  // namespace
-
 FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
     Isolate* isolate, Object* receiver, JSFunction* function,
     AbstractCode* abstract_code, int code_offset, bool is_constructor)
@@ -1150,8 +1142,7 @@ FrameSummary::JavaScriptFrameSummary::JavaScriptFrameSummary(
       code_offset_(code_offset),
       is_constructor_(is_constructor) {
   DCHECK(abstract_code->IsBytecodeArray() ||
-         Code::cast(abstract_code)->kind() != Code::OPTIMIZED_FUNCTION ||
-         IsNonDeoptimizingAsmCode(Code::cast(abstract_code), function));
+         Code::cast(abstract_code)->kind() != Code::OPTIMIZED_FUNCTION);
 }
 
 bool FrameSummary::JavaScriptFrameSummary::is_subject_to_debugging() const {
@@ -1327,8 +1318,7 @@ void OptimizedFrame::Summarize(std::vector<FrameSummary>* frames) const {
   // Delegate to JS frame in absence of turbofan deoptimization.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   Code* code = LookupCode();
-  if (code->kind() == Code::BUILTIN ||
-      IsNonDeoptimizingAsmCode(code, function())) {
+  if (code->kind() == Code::BUILTIN) {
     return JavaScriptFrame::Summarize(frames);
   }
 
@@ -1466,8 +1456,7 @@ void OptimizedFrame::GetFunctions(
   // Delegate to JS frame in absence of turbofan deoptimization.
   // TODO(turbofan): Revisit once we support deoptimization across the board.
   Code* code = LookupCode();
-  if (code->kind() == Code::BUILTIN ||
-      IsNonDeoptimizingAsmCode(code, function())) {
+  if (code->kind() == Code::BUILTIN) {
     return JavaScriptFrame::GetFunctions(functions);
   }
 

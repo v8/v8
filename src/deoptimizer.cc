@@ -198,14 +198,11 @@ void Deoptimizer::DeoptimizeMarkedCodeForContext(Context* context) {
       int deopt_index = safepoint.deoptimization_index();
 
       // Turbofan deopt is checked when we are patching addresses on stack.
-      bool is_non_deoptimizing_asm_code =
-          code->is_turbofanned() && !function->shared()->HasBytecodeArray();
       bool safe_if_deopt_triggered =
-          deopt_index != Safepoint::kNoDeoptimizationIndex ||
-          is_non_deoptimizing_asm_code;
+          deopt_index != Safepoint::kNoDeoptimizationIndex;
       bool is_builtin_code = code->kind() == Code::BUILTIN;
       DCHECK(topmost_optimized_code == nullptr || safe_if_deopt_triggered ||
-             is_non_deoptimizing_asm_code || is_builtin_code);
+             is_builtin_code);
       if (topmost_optimized_code == nullptr) {
         topmost_optimized_code = code;
         safe_to_deopt_topmost_optimized_code = safe_if_deopt_triggered;

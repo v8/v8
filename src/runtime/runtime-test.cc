@@ -127,12 +127,6 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeFunction) {
   // If the function is not optimized, just return.
   if (!function->IsOptimized()) return isolate->heap()->undefined_value();
 
-  // TODO(turbofan): Deoptimization from AstGraphBuilder is not supported.
-  if (function->code()->is_turbofanned() &&
-      !function->shared()->HasBytecodeArray()) {
-    return isolate->heap()->undefined_value();
-  }
-
   Deoptimizer::DeoptimizeFunction(*function);
 
   return isolate->heap()->undefined_value();
@@ -152,12 +146,6 @@ RUNTIME_FUNCTION(Runtime_DeoptimizeNow) {
 
   // If the function is not optimized, just return.
   if (!function->IsOptimized()) return isolate->heap()->undefined_value();
-
-  // TODO(turbofan): Deoptimization from AstGraphBuilder is not supported.
-  if (function->code()->is_turbofanned() &&
-      !function->shared()->HasBytecodeArray()) {
-    return isolate->heap()->undefined_value();
-  }
 
   Deoptimizer::DeoptimizeFunction(*function);
 
