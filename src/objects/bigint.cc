@@ -81,9 +81,14 @@ MaybeHandle<BigInt> BigInt::Divide(Handle<BigInt> x, Handle<BigInt> y) {
     return x->GetIsolate()->factory()->NewBigIntFromInt(0);
   }
   Handle<BigInt> quotient;
+  bool result_sign = x->sign() != y->sign();
   if (y->length() == 1) {
+    digit_t divisor = y->digit(0);
+    if (divisor == 1) {
+      return result_sign == x->sign() ? x : UnaryMinus(x);
+    }
     digit_t remainder;
-    AbsoluteDivSmall(x, y->digit(0), &quotient, &remainder);
+    AbsoluteDivSmall(x, divisor, &quotient, &remainder);
   } else {
     AbsoluteDivLarge(x, y, &quotient, nullptr);
   }
@@ -93,22 +98,25 @@ MaybeHandle<BigInt> BigInt::Divide(Handle<BigInt> x, Handle<BigInt> y) {
 }
 
 MaybeHandle<BigInt> BigInt::Remainder(Handle<BigInt> x, Handle<BigInt> y) {
+  Isolate* isolate = x->GetIsolate();
   // 1. If y is 0n, throw a RangeError exception.
   if (y->is_zero()) {
-    THROW_NEW_ERROR(y->GetIsolate(),
-                    NewRangeError(MessageTemplate::kBigIntDivZero), BigInt);
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntDivZero),
+                    BigInt);
   }
   // 2. Return the BigInt representing x modulo y.
   // See https://github.com/tc39/proposal-bigint/issues/84 though.
   if (AbsoluteCompare(x, y) < 0) return x;
   Handle<BigInt> remainder;
   if (y->length() == 1) {
+    digit_t divisor = y->digit(0);
+    if (divisor == 1) return isolate->factory()->NewBigIntFromInt(0);
     digit_t remainder_digit;
-    AbsoluteDivSmall(x, y->digit(0), nullptr, &remainder_digit);
+    AbsoluteDivSmall(x, divisor, nullptr, &remainder_digit);
     if (remainder_digit == 0) {
-      return x->GetIsolate()->factory()->NewBigIntFromInt(0);
+      return isolate->factory()->NewBigIntFromInt(0);
     }
-    remainder = x->GetIsolate()->factory()->NewBigIntRaw(1);
+    remainder = isolate->factory()->NewBigIntRaw(1);
     remainder->set_digit(0, remainder_digit);
   } else {
     AbsoluteDivLarge(x, y, nullptr, &remainder);
@@ -1035,11 +1043,6 @@ void BigInt::AbsoluteDivSmall(Handle<BigInt> x, digit_t divisor,
   DCHECK_NE(divisor, 0);
   DCHECK(!x->is_zero());  // Callers check anyway, no need to handle this.
   *remainder = 0;
-  if (divisor == 1) {
-    if (quotient != nullptr) *quotient = x;
-    return;
-  }
-
   int length = x->length();
   if (quotient != nullptr) {
     if ((*quotient).is_null()) {
