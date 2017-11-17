@@ -408,7 +408,7 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
       // Clear the first bit of the found object..
       current_cell_ &= ~(1u << trailing_zeros);
 
-      uint32_t second_bit_index = 1u << (trailing_zeros + 1);
+      uint32_t second_bit_index = 0;
       if (trailing_zeros >= Bitmap::kBitIndexMask) {
         second_bit_index = 0x1;
         // The overlapping case; there has to exist a cell after the current
@@ -423,6 +423,8 @@ void LiveObjectRange<mode>::iterator::AdvanceToNextValidObject() {
         }
         cell_base_ = it_.CurrentCellBase();
         current_cell_ = *it_.CurrentCell();
+      } else {
+        second_bit_index = 1u << (trailing_zeros + 1);
       }
 
       Map* map = nullptr;
