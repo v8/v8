@@ -13,7 +13,7 @@
 #include "src/handles.h"
 #include "src/objects/shared-function-info.h"
 #include "src/parsing/preparse-data.h"
-#include "src/zone/zone-containers.h"
+#include "src/zone/zone-chunk-list.h"
 
 namespace v8 {
 namespace internal {
@@ -77,12 +77,12 @@ class ProducedPreParsedScopeData : public ZoneObject {
     // For overwriting previously written data at position 0.
     void OverwriteFirstUint32(uint32_t data);
 
-    Handle<PodArray<uint8_t>> Serialize(Isolate* isolate) const;
+    Handle<PodArray<uint8_t>> Serialize(Isolate* isolate);
 
     size_t size() const { return backing_store_.size(); }
 
    private:
-    ZoneDeque<uint8_t> backing_store_;
+    ZoneChunkList<uint8_t> backing_store_;
   };
 
   // Create a ProducedPreParsedScopeData object which will collect data as we
@@ -145,7 +145,7 @@ class ProducedPreParsedScopeData : public ZoneObject {
   // If there is data (if the Scope contains skippable inner functions), move
   // the data into the heap and return a Handle to it; otherwise return a null
   // MaybeHandle.
-  MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate) const;
+  MaybeHandle<PreParsedScopeData> Serialize(Isolate* isolate);
 
   static bool ScopeNeedsData(Scope* scope);
   static bool ScopeIsSkippableFunctionScope(Scope* scope);
@@ -163,7 +163,7 @@ class ProducedPreParsedScopeData : public ZoneObject {
   ProducedPreParsedScopeData* parent_;
 
   ByteData* byte_data_;
-  ZoneDeque<ProducedPreParsedScopeData*> data_for_inner_functions_;
+  ZoneChunkList<ProducedPreParsedScopeData*> data_for_inner_functions_;
 
   // Whether we've given up producing the data for this function.
   bool bailed_out_;

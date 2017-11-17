@@ -101,16 +101,16 @@ void ProducedPreParsedScopeData::ByteData::WriteUint32(uint32_t data) {
 }
 
 void ProducedPreParsedScopeData::ByteData::OverwriteFirstUint32(uint32_t data) {
-  size_t position = 0;
+  auto it = backing_store_.begin();
 #ifdef DEBUG
   // Check that that position already holds an item of the expected size.
   DCHECK_GE(backing_store_.size(), kUint32Size);
-  DCHECK_EQ(backing_store_[0], kUint32Size);
-  ++position;
+  DCHECK_EQ(*it, kUint32Size);
+  ++it;
 #endif
   const uint8_t* d = reinterpret_cast<uint8_t*>(&data);
   for (size_t i = 0; i < 4; ++i) {
-    backing_store_[position + i] = *d++;
+    *it++ = *d++;
   }
 }
 
@@ -123,7 +123,7 @@ void ProducedPreParsedScopeData::ByteData::WriteUint8(uint8_t data) {
 }
 
 Handle<PodArray<uint8_t>> ProducedPreParsedScopeData::ByteData::Serialize(
-    Isolate* isolate) const {
+    Isolate* isolate) {
   Handle<PodArray<uint8_t>> array = PodArray<uint8_t>::New(
       isolate, static_cast<int>(backing_store_.size()), TENURED);
 
@@ -251,7 +251,7 @@ void ProducedPreParsedScopeData::SaveScopeAllocationData(
 }
 
 MaybeHandle<PreParsedScopeData> ProducedPreParsedScopeData::Serialize(
-    Isolate* isolate) const {
+    Isolate* isolate) {
   if (!previously_produced_preparsed_scope_data_.is_null()) {
     DCHECK(!bailed_out_);
     DCHECK_EQ(data_for_inner_functions_.size(), 0);
