@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-template-escapes
-
 function check({cooked, raw, exprs}) {
   return function(strs, ...args) {
     assertArrayEquals(cooked, strs);

@@ -546,7 +546,6 @@ Parser::Parser(ParseInfo* info)
   set_allow_harmony_dynamic_import(FLAG_harmony_dynamic_import);
   set_allow_harmony_import_meta(FLAG_harmony_import_meta);
   set_allow_harmony_async_iteration(FLAG_harmony_async_iteration);
-  set_allow_harmony_template_escapes(FLAG_harmony_template_escapes);
   set_allow_harmony_bigint(FLAG_harmony_bigint);
   for (int feature = 0; feature < v8::Isolate::kUseCounterFeatureCount;
        ++feature) {
@@ -3506,7 +3505,6 @@ Parser::TemplateLiteralState Parser::OpenTemplateLiteral(int pos) {
 
 void Parser::AddTemplateSpan(TemplateLiteralState* state, bool should_cook,
                              bool tail) {
-  DCHECK(should_cook || allow_harmony_template_escapes());
   int end = scanner()->location().end_pos - (tail ? 1 : 2);
   const AstRawString* raw = scanner()->CurrentRawSymbol(ast_value_factory());
   if (should_cook) {

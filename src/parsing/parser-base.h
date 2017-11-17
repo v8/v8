@@ -281,8 +281,7 @@ class ParserBase {
         allow_harmony_public_fields_(false),
         allow_harmony_dynamic_import_(false),
         allow_harmony_import_meta_(false),
-        allow_harmony_async_iteration_(false),
-        allow_harmony_template_escapes_(false) {}
+        allow_harmony_async_iteration_(false) {}
 
 #define ALLOW_ACCESSORS(name)                           \
   bool allow_##name() const { return allow_##name##_; } \
@@ -295,7 +294,6 @@ class ParserBase {
   ALLOW_ACCESSORS(harmony_dynamic_import);
   ALLOW_ACCESSORS(harmony_import_meta);
   ALLOW_ACCESSORS(harmony_async_iteration);
-  ALLOW_ACCESSORS(harmony_template_escapes);
 
 #undef ALLOW_ACCESSORS
 
@@ -1539,7 +1537,6 @@ class ParserBase {
   bool allow_harmony_dynamic_import_;
   bool allow_harmony_import_meta_;
   bool allow_harmony_async_iteration_;
-  bool allow_harmony_template_escapes_;
 
   friend class DiscardableZoneScope;
 };
@@ -4617,7 +4614,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
   // TEMPLATE_SPAN, or a TEMPLATE_TAIL.
   DCHECK(peek() == Token::TEMPLATE_SPAN || peek() == Token::TEMPLATE_TAIL);
 
-  bool forbid_illegal_escapes = !allow_harmony_template_escapes() || !tagged;
+  bool forbid_illegal_escapes = !tagged;
 
   // If we reach a TEMPLATE_TAIL first, we are parsing a NoSubstitutionTemplate.
   // In this case we may simply consume the token and build a template with a

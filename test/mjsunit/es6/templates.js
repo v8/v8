@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-harmony-template-escapes
-
 var num = 5;
 var str = "str";
 function fn() { return "result"; }
@@ -481,8 +479,9 @@ var obj = {
   for (var i = 0; i < 10; i++) {
     var code = "`\\0" + i + "`";
     assertThrows(code, SyntaxError);
+    // Not an error if tagged.
     code = "(function(){})" + code;
-    assertThrows(code, SyntaxError);
+    assertDoesNotThrow(code, SyntaxError);
   }
 
   assertEquals('\\0', String.raw`\0`);
@@ -495,8 +494,9 @@ var obj = {
   for (var i = 1; i < 8; i++) {
     var code = "`\\" + i + "`";
     assertThrows(code, SyntaxError);
+    // Not an error if tagged.
     code = "(function(){})" + code;
-    assertThrows(code, SyntaxError);
+    assertDoesNotThrow(code, SyntaxError);
   }
 })();
 

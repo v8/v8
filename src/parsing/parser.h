@@ -295,7 +295,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
       SET_ALLOW(harmony_dynamic_import);
       SET_ALLOW(harmony_import_meta);
       SET_ALLOW(harmony_async_iteration);
-      SET_ALLOW(harmony_template_escapes);
       SET_ALLOW(harmony_bigint);
 #undef SET_ALLOW
     }
@@ -528,9 +527,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // "should_cook" means that the span can be "cooked": in tagged template
   // literals, both the raw and "cooked" representations are available to user
   // code ("cooked" meaning that escape sequences are converted to their
-  // interpreted values). With the --harmony-template-escapes flag, invalid
-  // escape sequences cause the cooked span to be represented by undefined,
-  // instead of being a syntax error.
+  // interpreted values). Invalid escape sequences cause the cooked span
+  // to be represented by undefined, instead of being a syntax error.
   // "tail" indicates that this span is the last in the literal.
   void AddTemplateSpan(TemplateLiteralState* state, bool should_cook,
                        bool tail);

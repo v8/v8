@@ -1317,7 +1317,6 @@ enum ParserFlag {
   kAllowHarmonyPublicFields,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyAsyncIteration,
-  kAllowHarmonyTemplateEscapes,
   kAllowHarmonyImportMeta,
 };
 
@@ -1334,8 +1333,6 @@ void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
   i::FLAG_harmony_async_iteration = flags.Contains(kAllowHarmonyAsyncIteration);
-  i::FLAG_harmony_template_escapes =
-      flags.Contains(kAllowHarmonyTemplateEscapes);
 }
 
 void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
@@ -1350,8 +1347,6 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
       flags.Contains(kAllowHarmonyImportMeta));
   parser->set_allow_harmony_async_iteration(
       flags.Contains(kAllowHarmonyAsyncIteration));
-  parser->set_allow_harmony_template_escapes(
-      flags.Contains(kAllowHarmonyTemplateEscapes));
 }
 
 void TestParserSyncWithFlags(i::Handle<i::String> source,
@@ -6650,13 +6645,7 @@ TEST(TemplateEscapesPositiveTests) {
     nullptr};
   // clang-format on
 
-  // No error with flag
-  static const ParserFlag flags[] = {kAllowHarmonyTemplateEscapes};
-  RunParserSyncTest(context_data, data, kSuccess, nullptr, 0, flags,
-                    arraysize(flags));
-
-  // Still an error without flag
-  RunParserSyncTest(context_data, data, kError);
+  RunParserSyncTest(context_data, data, kSuccess);
 }
 
 TEST(TemplateEscapesNegativeTests) {
@@ -6731,12 +6720,6 @@ TEST(TemplateEscapesNegativeTests) {
     nullptr};
   // clang-format on
 
-  // Error with flag
-  static const ParserFlag flags[] = {kAllowHarmonyTemplateEscapes};
-  RunParserSyncTest(context_data, data, kError, nullptr, 0, flags,
-                    arraysize(flags));
-
-  // Still an error without flag
   RunParserSyncTest(context_data, data, kError);
 }
 
@@ -8128,7 +8111,6 @@ TEST(EscapeSequenceErrors) {
     { "`${'", "'}`" },
     { "`${\"", "\"}`" },
     { "`${`", "`}`" },
-    { "f(tag`", "`);" },
     { nullptr, nullptr }
   };
   const char* error_data[] = {
