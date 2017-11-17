@@ -468,8 +468,6 @@ bool InitClassPrototype(Isolate* isolate,
     map->set_migration_target(false);
     map->set_may_have_interesting_symbols(true);
     //  map->set_construction_counter(Map::kNoSlackTracking);
-    prototype->set_raw_properties_or_hash(
-        *isolate->factory()->empty_property_dictionary());
 
     // We care about name property only for class constructor.
     const bool install_name_accessor = false;
