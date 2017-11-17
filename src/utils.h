@@ -288,7 +288,7 @@ T SaturateAdd(T a, T b) {
 template <typename T>
 T SaturateSub(T a, T b) {
   if (std::is_signed<T>::value) {
-    if (a >= 0 && b < 0) {
+    if (a > 0 && b < 0) {
       if (a > std::numeric_limits<T>::max() + b) {
         return std::numeric_limits<T>::max();
       }
