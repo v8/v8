@@ -740,7 +740,7 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
   Isolate* isolate = GetIsolate();
   CHECK(function_data()->IsUndefined(isolate) || IsApiFunction() ||
         HasBytecodeArray() || HasAsmWasmData() ||
-        HasLazyDeserializationBuiltinId());
+        HasLazyDeserializationBuiltinId() || HasPreParsedScopeData());
 
   CHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId() ||
         HasInferredName());
@@ -753,10 +753,6 @@ void SharedFunctionInfo::SharedFunctionInfoVerify() {
     CHECK(kind() == scope_info()->function_kind());
     CHECK_EQ(kind() == kModule, scope_info()->scope_type() == MODULE_SCOPE);
   }
-
-  CHECK(preparsed_scope_data()->IsNull(isolate) ||
-        preparsed_scope_data()->IsPreParsedScopeData());
-  VerifyObjectField(kPreParsedScopeDataOffset);
 }
 
 

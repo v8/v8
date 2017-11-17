@@ -34,8 +34,6 @@ ACCESSORS(SharedFunctionInfo, script, Object, kScriptOffset)
 ACCESSORS(SharedFunctionInfo, debug_info, Object, kDebugInfoOffset)
 ACCESSORS(SharedFunctionInfo, function_identifier, Object,
           kFunctionIdentifierOffset)
-ACCESSORS(SharedFunctionInfo, preparsed_scope_data, Object,
-          kPreParsedScopeDataOffset)
 
 BIT_FIELD_ACCESSORS(SharedFunctionInfo, start_position_and_type,
                     is_named_expression,
@@ -323,6 +321,26 @@ int SharedFunctionInfo::lazy_deserialization_builtin_id() const {
   return id;
 }
 
+bool SharedFunctionInfo::HasPreParsedScopeData() const {
+  return function_data()->IsPreParsedScopeData();
+}
+
+PreParsedScopeData* SharedFunctionInfo::preparsed_scope_data() const {
+  DCHECK(HasPreParsedScopeData());
+  return PreParsedScopeData::cast(function_data());
+}
+
+void SharedFunctionInfo::set_preparsed_scope_data(
+    PreParsedScopeData* preparsed_scope_data) {
+  DCHECK(function_data()->IsUndefined(GetIsolate()));
+  set_function_data(preparsed_scope_data);
+}
+
+void SharedFunctionInfo::ClearPreParsedScopeData() {
+  DCHECK(function_data()->IsUndefined(GetIsolate()) || HasPreParsedScopeData());
+  set_function_data(GetHeap()->undefined_value());
+}
+
 bool SharedFunctionInfo::HasBuiltinFunctionId() {
   return function_identifier()->IsSmi();
 }
@@ -363,10 +381,6 @@ bool SharedFunctionInfo::IsUserJavaScript() {
 
 bool SharedFunctionInfo::IsSubjectToDebugging() {
   return IsUserJavaScript() && !HasAsmWasmData();
-}
-
-bool SharedFunctionInfo::HasPreParsedScopeData() const {
-  return preparsed_scope_data()->IsPreParsedScopeData();
 }
 
 }  // namespace internal

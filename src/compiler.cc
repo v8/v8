@@ -910,7 +910,7 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
       parse_info.consumed_preparsed_scope_data()->SetData(data);
       // After we've compiled the function, we don't need data about its
       // skippable functions any more.
-      shared_info->set_preparsed_scope_data(isolate->heap()->null_value());
+      shared_info->ClearPreParsedScopeData();
     }
   }
 

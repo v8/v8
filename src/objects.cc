@@ -13472,8 +13472,8 @@ void SharedFunctionInfo::SetScript(Handle<SharedFunctionInfo> shared,
   if (shared->script() == *script_object) return;
   Isolate* isolate = shared->GetIsolate();
 
-  if (reset_preparsed_scope_data) {
-    shared->set_preparsed_scope_data(isolate->heap()->null_value());
+  if (reset_preparsed_scope_data && shared->HasPreParsedScopeData()) {
+    shared->ClearPreParsedScopeData();
   }
 
   // Add shared function info to new script's list. If a collection occurs,

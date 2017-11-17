@@ -145,6 +145,7 @@ class SharedFunctionInfo : public HeapObject {
   //  - a BytecodeArray for the interpreter [HasBytecodeArray()].
   //  - a FixedArray with Asm->Wasm conversion [HasAsmWasmData()].
   //  - a Smi containing the builtin id [HasLazyDeserializationBuiltinId()]
+  //  - a PreParsedScopeData for the parser [HasPreParsedScopeData()]
   DECL_ACCESSORS(function_data, Object)
 
   inline bool IsApiFunction();
@@ -165,6 +166,10 @@ class SharedFunctionInfo : public HeapObject {
   // mainly used during optimization).
   inline bool HasLazyDeserializationBuiltinId() const;
   inline int lazy_deserialization_builtin_id() const;
+  inline bool HasPreParsedScopeData() const;
+  inline PreParsedScopeData* preparsed_scope_data() const;
+  inline void set_preparsed_scope_data(PreParsedScopeData* data);
+  inline void ClearPreParsedScopeData();
 
   // [function identifier]: This field holds an additional identifier for the
   // function.
@@ -209,11 +214,6 @@ class SharedFunctionInfo : public HeapObject {
 
   // [debug info]: Debug information.
   DECL_ACCESSORS(debug_info, Object)
-
-  // PreParsedScopeData or null.
-  DECL_ACCESSORS(preparsed_scope_data, Object)
-
-  inline bool HasPreParsedScopeData() const;
 
   // Bit field containing various information collected for debugging.
   // This field is either stored on the kDebugInfo slot or inside the
@@ -427,7 +427,6 @@ class SharedFunctionInfo : public HeapObject {
   V(kDebugInfoOffset, kPointerSize)           \
   V(kFunctionIdentifierOffset, kPointerSize)  \
   V(kFeedbackMetadataOffset, kPointerSize)    \
-  V(kPreParsedScopeDataOffset, kPointerSize)  \
   V(kEndOfPointerFieldsOffset, 0)             \
   /* Raw data fields. */                      \
   V(kFunctionLiteralIdOffset, kInt32Size)     \
