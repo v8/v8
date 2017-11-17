@@ -1604,24 +1604,8 @@ TEST_F(ValueSerializerTest, DecodeRegExp) {
       });
 }
 
-// Tests that invalid flags are not accepted by the deserializer. In particular,
-// the dotAll flag ('s') is only valid when the corresponding flag is enabled.
+// Tests that invalid flags are not accepted by the deserializer.
 TEST_F(ValueSerializerTest, DecodeRegExpDotAll) {
-  i::FLAG_harmony_regexp_dotall = false;
-  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x1f},
-             [this](Local<Value> value) {
-               ASSERT_TRUE(value->IsRegExp());
-               EXPECT_TRUE(EvaluateScriptForResultBool(
-                   "Object.getPrototypeOf(result) === RegExp.prototype"));
-               EXPECT_TRUE(EvaluateScriptForResultBool(
-                   "result.toString() === '/foo/gimuy'"));
-             });
-  InvalidDecodeTest(
-      {0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x3f});
-  InvalidDecodeTest(
-      {0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x7f});
-
-  i::FLAG_harmony_regexp_dotall = true;
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x52, 0x03, 0x66, 0x6f, 0x6f, 0x1f},
              [this](Local<Value> value) {
                ASSERT_TRUE(value->IsRegExp());

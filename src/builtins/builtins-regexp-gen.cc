@@ -1059,8 +1059,6 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
   TVARIABLE(Smi, var_length, SmiConstant(0));
   TVARIABLE(IntPtrT, var_flags);
 
-  Node* const is_dotall_enabled = IsDotAllEnabled(isolate);
-
   // First, count the number of characters we will need and check which flags
   // are set.
 
@@ -1082,13 +1080,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     CASE_FOR_FLAG(JSRegExp::kGlobal);
     CASE_FOR_FLAG(JSRegExp::kIgnoreCase);
     CASE_FOR_FLAG(JSRegExp::kMultiline);
-    {
-      Label next(this);
-      GotoIfNot(is_dotall_enabled, &next);
-      CASE_FOR_FLAG(JSRegExp::kDotAll);
-      Goto(&next);
-      BIND(&next);
-    }
+    CASE_FOR_FLAG(JSRegExp::kDotAll);
     CASE_FOR_FLAG(JSRegExp::kUnicode);
     CASE_FOR_FLAG(JSRegExp::kSticky);
 #undef CASE_FOR_FLAG
@@ -1115,13 +1107,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     CASE_FOR_FLAG("global", JSRegExp::kGlobal);
     CASE_FOR_FLAG("ignoreCase", JSRegExp::kIgnoreCase);
     CASE_FOR_FLAG("multiline", JSRegExp::kMultiline);
-    {
-      Label next(this);
-      GotoIfNot(is_dotall_enabled, &next);
-      CASE_FOR_FLAG("dotAll", JSRegExp::kDotAll);
-      Goto(&next);
-      BIND(&next);
-    }
+    CASE_FOR_FLAG("dotAll", JSRegExp::kDotAll);
     CASE_FOR_FLAG("unicode", JSRegExp::kUnicode);
     CASE_FOR_FLAG("sticky", JSRegExp::kSticky);
 #undef CASE_FOR_FLAG
@@ -1151,13 +1137,7 @@ Node* RegExpBuiltinsAssembler::FlagsGetter(Node* const context,
     CASE_FOR_FLAG(JSRegExp::kGlobal, 'g');
     CASE_FOR_FLAG(JSRegExp::kIgnoreCase, 'i');
     CASE_FOR_FLAG(JSRegExp::kMultiline, 'm');
-    {
-      Label next(this);
-      GotoIfNot(is_dotall_enabled, &next);
-      CASE_FOR_FLAG(JSRegExp::kDotAll, 's');
-      Goto(&next);
-      BIND(&next);
-    }
+    CASE_FOR_FLAG(JSRegExp::kDotAll, 's');
     CASE_FOR_FLAG(JSRegExp::kUnicode, 'u');
     CASE_FOR_FLAG(JSRegExp::kSticky, 'y');
 #undef CASE_FOR_FLAG
@@ -1634,19 +1614,11 @@ TF_BUILTIN(RegExpPrototypeMultilineGetter, RegExpBuiltinsAssembler) {
              "RegExp.prototype.multiline");
 }
 
-Node* RegExpBuiltinsAssembler::IsDotAllEnabled(Isolate* isolate) {
-  Node* flag_ptr = ExternalConstant(
-      ExternalReference::address_of_regexp_dotall_flag(isolate));
-  Node* const flag_value = Load(MachineType::Int8(), flag_ptr);
-  return Word32NotEqual(flag_value, Int32Constant(0));
-}
-
 // ES #sec-get-regexp.prototype.dotAll
 TF_BUILTIN(RegExpPrototypeDotAllGetter, RegExpBuiltinsAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* receiver = Parameter(Descriptor::kReceiver);
   static const int kNoCounter = -1;
-  CSA_ASSERT(this, IsDotAllEnabled(isolate()));
   FlagGetter(context, receiver, JSRegExp::kDotAll, kNoCounter,
              "RegExp.prototype.dotAll");
 }

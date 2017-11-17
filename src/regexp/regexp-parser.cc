@@ -278,7 +278,6 @@ RegExpTree* RegExpParser::ParseDisjunction() {
 
         if (builder->dotall()) {
           // Everything.
-          DCHECK(FLAG_harmony_regexp_dotall);
           CharacterRange::AddClassEscape('*', ranges, false, zone());
         } else {
           // Everything except \x0a, \x0d, \u2028 and \u2029
@@ -608,8 +607,7 @@ RegExpParser::RegExpParserState* RegExpParser::ParseOpenParenthesis(
       case 'i':
       case 's':
       case 'm': {
-        if (!FLAG_regexp_mode_modifiers ||
-            (Next() == 's' && !FLAG_harmony_regexp_dotall)) {
+        if (!FLAG_regexp_mode_modifiers) {
           ReportError(CStrVector("Invalid group"));
           return nullptr;
         }
@@ -626,11 +624,6 @@ RegExpParser::RegExpParserState* RegExpParser::ParseOpenParenthesis(
               Advance();
               continue;
             case 's':
-              if (!FLAG_harmony_regexp_dotall) {
-                ReportError(CStrVector("Invalid group"));
-                return nullptr;
-              }
-            // Fall through.
             case 'i':
             case 'm': {
               JSRegExp::Flags bit = JSRegExp::kUnicode;
@@ -674,18 +667,16 @@ RegExpParser::RegExpParserState* RegExpParser::ParseOpenParenthesis(
       }
       case '<':
         Advance();
-        if (FLAG_harmony_regexp_lookbehind) {
-          if (Next() == '=') {
-            Advance(2);
-            lookaround_type = RegExpLookaround::LOOKBEHIND;
-            subexpr_type = POSITIVE_LOOKAROUND;
-            break;
-          } else if (Next() == '!') {
-            Advance(2);
-            lookaround_type = RegExpLookaround::LOOKBEHIND;
-            subexpr_type = NEGATIVE_LOOKAROUND;
-            break;
-          }
+        if (Next() == '=') {
+          Advance(2);
+          lookaround_type = RegExpLookaround::LOOKBEHIND;
+          subexpr_type = POSITIVE_LOOKAROUND;
+          break;
+        } else if (Next() == '!') {
+          Advance(2);
+          lookaround_type = RegExpLookaround::LOOKBEHIND;
+          subexpr_type = NEGATIVE_LOOKAROUND;
+          break;
         }
         if (FLAG_harmony_regexp_named_captures) {
           is_named_capture = true;
@@ -779,10 +770,8 @@ void RegExpParser::ScanForCaptures() {
           Advance();
           if (current() != '<') break;
 
-          if (FLAG_harmony_regexp_lookbehind) {
-            Advance();
-            if (current() == '=' || current() == '!') break;
-          }
+          Advance();
+          if (current() == '=' || current() == '!') break;
 
           // Found a possible named capture. It could turn out to be a syntax
           // error (e.g. an unterminated or invalid name), but that distinction

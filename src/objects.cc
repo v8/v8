@@ -15830,11 +15830,7 @@ JSRegExp::Flags RegExpFlagsFromString(Handle<String> flags, bool* success) {
         flag = JSRegExp::kMultiline;
         break;
       case 's':
-        if (FLAG_harmony_regexp_dotall) {
-          flag = JSRegExp::kDotAll;
-        } else {
-          return JSRegExp::Flags(0);
-        }
+        flag = JSRegExp::kDotAll;
         break;
       case 'u':
         flag = JSRegExp::kUnicode;

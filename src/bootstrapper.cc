@@ -2468,6 +2468,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
         native_context()->set_regexp_exec_function(*fun);
       }
 
+      SimpleInstallGetter(prototype, factory->dotAll_string(),
+                          Builtins::kRegExpPrototypeDotAllGetter, true);
       SimpleInstallGetter(prototype, factory->flags_string(),
                           Builtins::kRegExpPrototypeFlagsGetter, true);
       SimpleInstallGetter(prototype, factory->global_string(),
@@ -4260,7 +4262,6 @@ void Bootstrapper::ExportFromRuntime(Isolate* isolate,
   void Genesis::InitializeGlobal_##id() {}
 
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_do_expressions)
-EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_lookbehind)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_named_captures)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_regexp_property)
 EMPTY_INITIALIZE_GLOBAL_FOR_FEATURE(harmony_function_sent)
@@ -4376,22 +4377,6 @@ void Genesis::InitializeGlobal_harmony_promise_finally() {
         0);
     native_context()->set_promise_thrower_finally_shared_fun(*info);
   }
-}
-
-void Genesis::InitializeGlobal_harmony_regexp_dotall() {
-  if (!FLAG_harmony_regexp_dotall) return;
-
-  Handle<JSFunction> constructor(native_context()->regexp_function());
-  Handle<JSObject> prototype(JSObject::cast(constructor->instance_prototype()));
-
-  SimpleInstallGetter(prototype, isolate()->factory()->dotAll_string(),
-                      Builtins::kRegExpPrototypeDotAllGetter, true);
-
-  // The regexp prototype map has changed because we added a property
-  // to it, so we update the saved map.
-  Handle<Map> prototype_map(prototype->map());
-  Map::SetShouldBeFastPrototypeMap(prototype_map, true, isolate());
-  native_context()->set_regexp_prototype_map(*prototype_map);
 }
 
 void Genesis::InitializeGlobal_harmony_bigint() {

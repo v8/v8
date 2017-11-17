@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-regexp-lookbehind
-
 // Simple fixed-length matches.
 assertEquals(["a"], "a".match(/^.(?<=a)/));
 assertNull("b".match(/^.(?<=a)/));

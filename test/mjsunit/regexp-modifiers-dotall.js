@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --regexp-mode-modifiers --harmony-regexp-dotall
+// Flags: --regexp-mode-modifiers
 
 // S flag switches dotall mode on and off.  Combine with i flag changes to test
 // the parser.

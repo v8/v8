@@ -305,9 +305,6 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
   Add(ExternalReference::debug_restart_fp_address(isolate).address(),
       "Debug::restart_fp_address()");
 
-  Add(ExternalReference::address_of_regexp_dotall_flag(isolate).address(),
-      "FLAG_harmony_regexp_dotall");
-
 #ifndef V8_INTERPRETED_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16(isolate).address(),
       "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()");

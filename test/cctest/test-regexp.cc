@@ -169,10 +169,7 @@ static MinMaxPair CheckMinMaxMatch(const char* input) {
     CHECK_EQ(max, min_max.max_match);                                          \
   }
 
-
-void TestRegExpParser(bool lookbehind) {
-  FLAG_harmony_regexp_lookbehind = lookbehind;
-
+TEST(RegExpParser) {
   CHECK_PARSE_ERROR("?");
 
   CheckParseEq("abc", "'abc'");
@@ -204,13 +201,8 @@ void TestRegExpParser(bool lookbehind) {
   CheckParseEq("foo|(bar|baz)|quux", "(| 'foo' (^ (| 'bar' 'baz')) 'quux')");
   CheckParseEq("foo(?=bar)baz", "(: 'foo' (-> + 'bar') 'baz')");
   CheckParseEq("foo(?!bar)baz", "(: 'foo' (-> - 'bar') 'baz')");
-  if (lookbehind) {
-    CheckParseEq("foo(?<=bar)baz", "(: 'foo' (<- + 'bar') 'baz')");
-    CheckParseEq("foo(?<!bar)baz", "(: 'foo' (<- - 'bar') 'baz')");
-  } else {
-    CHECK_PARSE_ERROR("foo(?<=bar)baz");
-    CHECK_PARSE_ERROR("foo(?<!bar)baz");
-  }
+  CheckParseEq("foo(?<=bar)baz", "(: 'foo' (<- + 'bar') 'baz')");
+  CheckParseEq("foo(?<!bar)baz", "(: 'foo' (<- - 'bar') 'baz')");
   CheckParseEq("()", "(^ %)");
   CheckParseEq("(?=)", "(-> + %)");
   CheckParseEq("[]", "^[\\x00-\\u{10ffff}]");  // Doesn't compile on windows
@@ -294,10 +286,8 @@ void TestRegExpParser(bool lookbehind) {
                "(: (-> - (: (<- 1) (^ 'a') (<- 1))) (<- 1))");
   CheckParseEq("\\1\\2(a(?:\\1(b\\1\\2))\\2)\\1",
                "(: (<- 1) (<- 2) (^ (: 'a' (?: (^ 'b')) (<- 2))) (<- 1))");
-  if (lookbehind) {
-    CheckParseEq("\\1\\2(a(?<=\\1(b\\1\\2))\\2)\\1",
-                 "(: (<- 1) (<- 2) (^ (: 'a' (<- + (^ 'b')) (<- 2))) (<- 1))");
-  }
+  CheckParseEq("\\1\\2(a(?<=\\1(b\\1\\2))\\2)\\1",
+               "(: (<- 1) (<- 2) (^ (: 'a' (<- + (^ 'b')) (<- 2))) (<- 1))");
   CheckParseEq("[\\0]", "[\\x00]");
   CheckParseEq("[\\11]", "[\\x09]");
   CheckParseEq("[\\11a]", "[\\x09 a]");
@@ -458,16 +448,6 @@ void TestRegExpParser(bool lookbehind) {
   CheckParseEq("(?<\\u{03C0}>a)", "(^ 'a')", true);
   CheckParseEq("(?<\\u03C0>a)", "(^ 'a')", true);
   FLAG_harmony_regexp_named_captures = false;
-}
-
-
-TEST(ParserWithLookbehind) {
-  TestRegExpParser(true);  // Lookbehind enabled.
-}
-
-
-TEST(ParserWithoutLookbehind) {
-  TestRegExpParser(false);  // Lookbehind disabled.
 }
 
 TEST(ParserRegression) {

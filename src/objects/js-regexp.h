@@ -48,7 +48,7 @@ class JSRegExp : public JSObject {
   };
   typedef base::Flags<Flag> Flags;
 
-  static int FlagCount() { return FLAG_harmony_regexp_dotall ? 6 : 5; }
+  static int FlagCount() { return 6; }
 
   DECL_ACCESSORS(data, Object)
   DECL_ACCESSORS(flags, Object)

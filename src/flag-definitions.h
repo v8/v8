@@ -211,8 +211,6 @@ DEFINE_IMPLICATION(harmony_import_meta, harmony_dynamic_import)
 // Features that are shipping (turned on by default, but internal flag remains).
 #define HARMONY_SHIPPING_BASE(V)                                        \
   V(harmony_sharedarraybuffer, "harmony sharedarraybuffer")             \
-  V(harmony_regexp_dotall, "harmony regexp dotAll flag")                \
-  V(harmony_regexp_lookbehind, "harmony regexp lookbehind")             \
   V(harmony_regexp_named_captures, "harmony regexp named captures")     \
   V(harmony_regexp_property, "harmony Unicode regexp property classes") \
   V(harmony_async_iteration, "harmony async iteration")                 \

@@ -889,9 +889,6 @@ class ExternalReference BASE_EMBEDDED {
   // Static variable RegExpStack::limit_address()
   static ExternalReference address_of_regexp_stack_limit(Isolate* isolate);
 
-  // Direct access to FLAG_harmony_regexp_dotall.
-  static ExternalReference address_of_regexp_dotall_flag(Isolate* isolate);
-
   // Static variables for RegExp.
   static ExternalReference address_of_static_offsets_vector(Isolate* isolate);
   static ExternalReference address_of_regexp_stack_memory_address(

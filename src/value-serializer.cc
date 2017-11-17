@@ -1488,11 +1488,8 @@ MaybeHandle<JSRegExp> ValueDeserializer::ReadJSRegExp() {
     return MaybeHandle<JSRegExp>();
   }
 
-  // Ensure the deserialized flags are valid. The context behind this is that
-  // the JSRegExp::Flags enum statically includes kDotAll, but it is only valid
-  // to set kDotAll if FLAG_harmony_regexp_dotall is enabled. Fuzzers don't
-  // know about this and happily set kDotAll anyways, leading to CHECK failures
-  // later on.
+  // Ensure the deserialized flags are valid.
+  // TODO(adamk): Can we remove this check now that dotAll is always-on?
   uint32_t flags_mask = static_cast<uint32_t>(-1) << JSRegExp::FlagCount();
   if ((raw_flags & flags_mask) ||
       !JSRegExp::New(pattern, static_cast<JSRegExp::Flags>(raw_flags))
