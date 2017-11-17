@@ -3008,9 +3008,16 @@ class InspectionWebFormatter(object):
     marker = ""
     if stack_slot:
       marker = "=>"
-    op_offset = 3 * num_bytes - 1
 
     code = line[1]
+
+    # Some disassemblers insert spaces between each byte,
+    # while some do not.
+    if code[2] == " ":
+        op_offset = 3 * num_bytes - 1
+    else:
+        op_offset = 2 * num_bytes
+
     # Compute the actual call target which the disassembler is too stupid
     # to figure out (it adds the call offset to the disassembly offset rather
     # than the absolute instruction address).
