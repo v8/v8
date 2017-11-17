@@ -68,11 +68,11 @@ static const char* StrNStr(const char* s1, const char* s2, size_t n) {
   return strstr(s1, s2);
 }
 
+// Look for a log line which starts with {prefix} and ends with {suffix}.
 static const char* FindLogLine(const char* start, const char* end,
                                const char* prefix,
                                const char* suffix = nullptr) {
   CHECK_LT(start, end);
-  // Look for a log line which starts with {prefix} and ends with {suffix}.
   CHECK_EQ(end[0], '\0');
   size_t prefixLength = strlen(prefix);
   // Loop through the input until we find /{prefix}[^\n]+{suffix}/.
@@ -784,6 +784,47 @@ TEST(TraceMaps) {
     CHECK(logger.FindLine("map-details", ",0x"));
   }
   i::FLAG_trace_maps = false;
+  isolate->Dispose();
+}
+
+TEST(LogMaps) {
+  // Test that all Map details from Maps in the snapshot are logged properly.
+  SETUP_FLAGS();
+  i::FLAG_trace_maps = true;
+  v8::Isolate::CreateParams create_params;
+  create_params.array_buffer_allocator = CcTest::array_buffer_allocator();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  {
+    ScopedLoggerInitializer logger(saved_log, saved_prof, isolate);
+    logger.StopLogging();
+    i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+    i::HeapIterator iterator(heap);
+    i::DisallowHeapAllocation no_gc;
+    const size_t kBufferSize = 512;
+    char log_line_suffix[kBufferSize] = {0};
+    // Iterate over all maps on the heap.
+    size_t i = 0;
+    for (i::HeapObject* obj = iterator.next(); obj != nullptr;
+         obj = iterator.next()) {
+      if (!obj->IsMap()) continue;
+      // Look for the "map-details" in the log for the given Map's address.
+      v8::base::OS::SNPrintF(log_line_suffix, kBufferSize, ",0x%" V8PRIxPTR ",",
+                             reinterpret_cast<intptr_t>(obj));
+      const char* pos = logger.FindLine("map-details,", log_line_suffix);
+      if (pos == nullptr) {
+        logger.PrintLog(200);
+        i::Map::cast(obj)->Print();
+        V8_Fatal(
+            __FILE__, __LINE__,
+            "Map (%p, #%zu) was not logged during startup with --trace-maps!"
+            "\n# Expected Log Line: map_details, ... %s"
+            "\n# Use logger::PrintLog() for more details.",
+            reinterpret_cast<void*>(obj), i, log_line_suffix);
+      }
+    }
+    i++;
+  }
+  i::FLAG_log_function_events = false;
   isolate->Dispose();
 }
 

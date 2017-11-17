@@ -307,13 +307,18 @@ Handle<Context> Bootstrapper::CreateEnvironment(
     v8::DeserializeEmbedderFieldsCallback embedder_fields_deserializer,
     GlobalContextType context_type) {
   HandleScope scope(isolate_);
-  Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
-                  context_snapshot_index, embedder_fields_deserializer,
-                  context_type);
-  Handle<Context> env = genesis.result();
-  if (env.is_null() || !InstallExtensions(env, extensions)) {
-    return Handle<Context>();
+  Handle<Context> env;
+  {
+    Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template,
+                    context_snapshot_index, embedder_fields_deserializer,
+                    context_type);
+    env = genesis.result();
+    if (env.is_null() || !InstallExtensions(env, extensions)) {
+      return Handle<Context>();
+    }
   }
+  // Log all maps created during bootstrapping.
+  if (FLAG_trace_maps) LOG(isolate_, LogMaps());
   return scope.CloseAndEscape(env);
 }
 
@@ -321,9 +326,14 @@ Handle<JSGlobalProxy> Bootstrapper::NewRemoteContext(
     MaybeHandle<JSGlobalProxy> maybe_global_proxy,
     v8::Local<v8::ObjectTemplate> global_proxy_template) {
   HandleScope scope(isolate_);
-  Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template);
-  Handle<JSGlobalProxy> global_proxy = genesis.global_proxy();
-  if (global_proxy.is_null()) return Handle<JSGlobalProxy>();
+  Handle<JSGlobalProxy> global_proxy;
+  {
+    Genesis genesis(isolate_, maybe_global_proxy, global_proxy_template);
+    global_proxy = genesis.global_proxy();
+    if (global_proxy.is_null()) return Handle<JSGlobalProxy>();
+  }
+  // Log all maps created during bootstrapping.
+  if (FLAG_trace_maps) LOG(isolate_, LogMaps());
   return scope.CloseAndEscape(global_proxy);
 }
 
@@ -5388,15 +5398,6 @@ Genesis::Genesis(
     AddToWeakNativeContextList(*native_context());
     isolate->set_context(*native_context());
     isolate->counters()->contexts_created_by_snapshot()->Increment();
-    if (FLAG_trace_maps) {
-      DisallowHeapAllocation no_gc;
-      Handle<JSFunction> object_fun = isolate->object_function();
-      Map* initial_map = object_fun->initial_map();
-      LOG(isolate, MapDetails(initial_map));
-      LOG(isolate, MapEvent("InitialMap", nullptr, initial_map, "Object",
-                            object_fun->shared()));
-      LOG(isolate, LogAllTransitions(initial_map));
-    }
 
     if (context_snapshot_index == 0) {
       Handle<JSGlobalObject> global_object =

@@ -1381,26 +1381,10 @@ void Logger::ICEvent(const char* type, bool keyed, Map* map, Object* key,
   msg.WriteToLogFile();
 }
 
-void Logger::LogAllTransitions(Map* map) {
-  DisallowHeapAllocation no_gc;
-  if (!log_->IsEnabled() || !FLAG_trace_maps) return;
-  TransitionsAccessor transitions(map, &no_gc);
-  int num_transitions = transitions.NumberOfTransitions();
-  for (int i = 0; i < num_transitions; ++i) {
-    Map* target = transitions.GetTarget(i);
-    Name* key = transitions.GetKey(i);
-    MapDetails(target);
-    MapEvent("Transition", map, target, nullptr, key);
-    LogAllTransitions(target);
-  }
-}
-
 void Logger::MapEvent(const char* type, Map* from, Map* to, const char* reason,
                       HeapObject* name_or_sfi) {
   DisallowHeapAllocation no_gc;
   if (!log_->IsEnabled() || !FLAG_trace_maps) return;
-  // TODO(cbruni): Remove once --trace-maps is fully migrated.
-  if (from) MapDetails(from);
   if (to) MapDetails(to);
   int line = -1;
   int column = -1;
@@ -1430,6 +1414,9 @@ void Logger::MapEvent(const char* type, Map* from, Map* to, const char* reason,
 
 void Logger::MapDetails(Map* map) {
   if (!log_->IsEnabled() || !FLAG_trace_maps) return;
+  // Disable logging Map details during bootstrapping since we use LogMaps() to
+  // log all creating
+  if (isolate_->bootstrapper()->IsActive()) return;
   DisallowHeapAllocation no_gc;
   Log::MessageBuilder msg(log_);
   msg << "map-details" << kNext << timer_.Elapsed().InMicroseconds() << kNext
@@ -1705,6 +1692,16 @@ void Logger::LogAccessorCallbacks() {
   }
 }
 
+void Logger::LogMaps() {
+  Heap* heap = isolate_->heap();
+  HeapIterator iterator(heap);
+  DisallowHeapAllocation no_gc;
+  for (HeapObject* obj = iterator.next(); obj != nullptr;
+       obj = iterator.next()) {
+    if (!obj->IsMap()) continue;
+    MapDetails(Map::cast(obj));
+  }
+}
 
 static void AddIsolateIdIfNeeded(std::ostream& os,  // NOLINT
                                  Isolate* isolate) {
