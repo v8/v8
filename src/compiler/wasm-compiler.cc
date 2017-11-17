@@ -4277,8 +4277,6 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
   return code;
 }
 
-namespace {
-
 void ValidateImportWrapperReferencesImmovables(Handle<Code> wrapper) {
 #if !DEBUG
   return;
@@ -4315,35 +4313,6 @@ void ValidateImportWrapperReferencesImmovables(Handle<Code> wrapper) {
     }
     CHECK(is_immovable || is_allowed_stub);
   }
-}
-
-}  // namespace
-
-void AttachWasmFunctionInfo(Isolate* isolate, Handle<Code> code,
-                            MaybeHandle<WeakCell> weak_instance,
-                            int func_index) {
-  DCHECK(weak_instance.is_null() ||
-         weak_instance.ToHandleChecked()->value()->IsWasmInstanceObject());
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-
-  Handle<FixedArray> deopt_data = isolate->factory()->NewFixedArray(2, TENURED);
-  if (!weak_instance.is_null()) {
-    // TODO(wasm): Introduce constants for the indexes in wasm deopt data.
-    deopt_data->set(0, *weak_instance.ToHandleChecked());
-  }
-  deopt_data->set(1, Smi::FromInt(func_index));
-  code->set_deoptimization_data(*deopt_data);
-}
-
-void AttachWasmFunctionInfo(Isolate* isolate, Handle<Code> code,
-                            MaybeHandle<WasmInstanceObject> instance,
-                            int func_index) {
-  MaybeHandle<WeakCell> weak_instance;
-  if (!instance.is_null()) {
-    weak_instance = isolate->factory()->NewWeakCell(instance.ToHandleChecked());
-  }
-  AttachWasmFunctionInfo(isolate, code, weak_instance, func_index);
 }
 
 Handle<Code> CompileWasmToJSWrapper(

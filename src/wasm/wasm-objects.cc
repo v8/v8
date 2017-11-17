@@ -298,14 +298,11 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     value = function;
     // TODO(titzer): Make JSToWasm wrappers just call the WASM to WASM wrapper,
     // and then we can just reuse the WASM to WASM wrapper.
-    Handle<WasmInstanceObject> instance(exported_function->instance(), isolate);
-    int func_index = exported_function->function_index();
-    Address new_context_address =
-        reinterpret_cast<Address>(instance->wasm_context()->get());
+    Address new_context_address = reinterpret_cast<Address>(
+        exported_function->instance()->wasm_context()->get());
     code = compiler::CompileWasmToWasmWrapper(
         isolate, exported_function->GetWasmCode(), wasm_function->sig,
-        func_index, new_context_address);
-    compiler::AttachWasmFunctionInfo(isolate, code, instance, func_index);
+        exported_function->function_index(), new_context_address);
   }
 
   UpdateDispatchTables(isolate, dispatch_tables, index, wasm_function, code);

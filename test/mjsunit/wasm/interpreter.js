@@ -449,21 +449,3 @@ function checkStack(stack, expected_lines) {
   const instance = builder2.instantiate({imp: {func: exp}});
   assertEquals(23, instance.exports.main());
 })();
-
-(function testTableCall() {
-  print(arguments.callee.name);
-  const builder1 = new WasmModuleBuilder();
-  builder1.addFunction('func', kSig_v_v).addBody([]).exportFunc();
-  const instance1 = builder1.instantiate();
-  const table = new WebAssembly.Table({element: 'anyfunc', initial: 2});
-
-  const builder2 = new WasmModuleBuilder()
-  builder2.addImportedTable('m', 'table');
-  const sig = builder2.addType(kSig_v_v);
-  builder2.addFunction('call_func', kSig_v_v)
-      .addBody([kExprI32Const, 0, kExprCallIndirect, sig, kTableZero])
-      .exportFunc();
-  const instance2 = builder2.instantiate({m: {table: table}});
-  table.set(0, instance1.exports.func);
-  instance2.exports.call_func();
-})();
