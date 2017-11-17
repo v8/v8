@@ -240,16 +240,6 @@
   'built-ins/TypedArrays/internals/DefineOwnProperty/conversion-operation-consistent-nan': [PASS, FAIL],
   'built-ins/TypedArrays/internals/Set/conversion-operation-consistent-nan': [PASS, FAIL],
 
-  # https://bugs.chromium.org/p/v8/issues/detail?id=5070
-  'annexB/built-ins/Object/prototype/__defineGetter__/define-non-configurable': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__defineGetter__/define-non-extensible': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__defineGetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__defineSetter__/define-non-configurable': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__defineSetter__/define-non-extensible': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__defineSetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__lookupGetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
-  'annexB/built-ins/Object/prototype/__lookupSetter__/this-non-obj': ['--harmony-strict-legacy-accessor-builtins'],
-
   # https://bugs.chromium.org/p/v8/issues/detail?id=4451
   # https://github.com/tc39/ecma262/issues/753
   'annexB/language/eval-code/direct/global-block-decl-eval-global-existing-global-init': [FAIL],

@@ -811,8 +811,8 @@
   # error message in debug mode.
   'js1_5/extensions/regress-336410-1': [FAIL_OK, ['mode == debug and arch == x64', NO_VARIANTS]],
 
-  # These tests fail when --harmony-strict-legacy-accessor-builtins
-  # is enabled.
+  # These tests fail due to __defineGetter__ & friends throwing
+  # for undefined receivers.
   'js1_5/extensions/regress-313500': [SKIP],
   'js1_5/extensions/regress-325269': [SKIP],
 

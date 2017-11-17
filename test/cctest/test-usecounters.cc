@@ -17,63 +17,6 @@ void MockUseCounterCallback(v8::Isolate* isolate,
   ++global_use_counts[feature];
 }
 
-TEST(DefineGetterSetterThrowUseCount) {
-  i::FLAG_harmony_strict_legacy_accessor_builtins = false;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  LocalContext env;
-  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
-  global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
-
-  // __defineGetter__ and __defineSetter__ do not increment
-  // kDefineGetterOrSetterWouldThrow on success
-  CompileRun(
-      "var a = {};"
-      "Object.defineProperty(a, 'b', { value: 0, configurable: true });"
-      "a.__defineGetter__('b', ()=>{});");
-  CHECK_EQ(0, use_counts[v8::Isolate::kDefineGetterOrSetterWouldThrow]);
-  CompileRun(
-      "var a = {};"
-      "Object.defineProperty(a, 'b', { value: 0, configurable: true });"
-      "a.__defineSetter__('b', ()=>{});");
-  CHECK_EQ(0, use_counts[v8::Isolate::kDefineGetterOrSetterWouldThrow]);
-
-  // __defineGetter__ and __defineSetter__ do not increment
-  // kDefineGetterOrSetterWouldThrow on other errors
-  v8::Local<v8::Value> resultProxyThrow = CompileRun(
-      "var exception;"
-      "try {"
-      "var a = new Proxy({}, { defineProperty: ()=>{throw new Error;} });"
-      "a.__defineGetter__('b', ()=>{});"
-      "} catch (e) { exception = e; }"
-      "exception");
-  CHECK_EQ(0, use_counts[v8::Isolate::kDefineGetterOrSetterWouldThrow]);
-  CHECK(resultProxyThrow->IsObject());
-  resultProxyThrow = CompileRun(
-      "var exception;"
-      "try {"
-      "var a = new Proxy({}, { defineProperty: ()=>{throw new Error;} });"
-      "a.__defineSetter__('b', ()=>{});"
-      "} catch (e) { exception = e; }"
-      "exception");
-  CHECK_EQ(0, use_counts[v8::Isolate::kDefineGetterOrSetterWouldThrow]);
-  CHECK(resultProxyThrow->IsObject());
-
-  // __defineGetter__ and __defineSetter__ increment
-  // kDefineGetterOrSetterWouldThrow when they would throw per spec (B.2.2.2)
-  CompileRun(
-      "var a = {};"
-      "Object.defineProperty(a, 'b', { value: 0, configurable: false });"
-      "a.__defineGetter__('b', ()=>{});");
-  CHECK_EQ(1, use_counts[v8::Isolate::kDefineGetterOrSetterWouldThrow]);
-  CompileRun(
-      "var a = {};"
-      "Object.defineProperty(a, 'b', { value: 0, configurable: false });"
-      "a.__defineSetter__('b', ()=>{});");
-  CHECK_EQ(2, use_counts[v8::Isolate::kDefineGetterOrSetterWouldThrow]);
-}
-
 TEST(AssigmentExpressionLHSIsCall) {
   v8::Isolate* isolate = CcTest::isolate();
   v8::HandleScope scope(isolate);
@@ -142,55 +85,6 @@ TEST(LabeledExpressionStatement) {
   CHECK_EQ(2, use_counts[v8::Isolate::kLabeledExpressionStatement]);
 }
 
-TEST(IndexAccessorUseCount) {
-  i::FLAG_harmony_strict_legacy_accessor_builtins = false;
-  v8::Isolate* isolate = CcTest::isolate();
-  v8::HandleScope scope(isolate);
-  LocalContext env;
-  int use_counts[v8::Isolate::kUseCounterFeatureCount] = {};
-  global_use_counts = use_counts;
-  CcTest::isolate()->SetUseCounterCallback(MockUseCounterCallback);
-
-  // Adding accessor to named property does not increment kIndexAccessor
-  CompileRun(
-      "var a = {};"
-      "function dummy(){}"
-      "Object.defineProperty(a, 'test', { get: dummy, set: dummy });");
-  CHECK_EQ(0, use_counts[v8::Isolate::kIndexAccessor]);
-
-  // Setting index to value does not increment kIndexAccessor
-  CompileRun(
-      "var a = {};"
-      "Object.defineProperty(a, '0', { value: 0 });");
-  CHECK_EQ(0, use_counts[v8::Isolate::kIndexAccessor]);
-
-  // Non-integer number index not increment kIndexAccessor
-  CompileRun(
-      "var a = {};"
-      "Object.defineProperty(a, '2.5', { value: 0 });");
-  CHECK_EQ(0, use_counts[v8::Isolate::kIndexAccessor]);
-
-  // Setting index accessor increments count
-  CompileRun(
-      "var a = {};"
-      "function dummy(){}"
-      "Object.defineProperty(a, '0', { get : dummy, set : dummy });");
-  CHECK_EQ(1, use_counts[v8::Isolate::kIndexAccessor]);
-
-  // Setting index accessor on array increments count
-  CompileRun(
-      "var a = [];"
-      "function dummy(){}"
-      "Object.defineProperty(a, '0', { get : dummy, set : dummy });");
-  CHECK_EQ(2, use_counts[v8::Isolate::kIndexAccessor]);
-
-  // __defineGetter__ increments count
-  CompileRun(
-      "var a = [];"
-      "function dummy(){}"
-      "a.__defineGetter__('0', dummy);");
-  CHECK_EQ(3, use_counts[v8::Isolate::kIndexAccessor]);
-}
 }  // namespace test_usecounters
 }  // namespace internal
 }  // namespace v8
