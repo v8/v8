@@ -1236,6 +1236,9 @@ namespace {
 
 struct ScriptCompileTimerScope {
  public:
+  // TODO(leszeks): There are too many blink-specific entries in this enum,
+  // figure out a way to push produce/hit-isolate-cache/consume/consume-failed
+  // back up the API and log them in blink instead.
   enum class CacheBehaviour {
     kProduceCodeCache,
     kHitIsolateCacheWhenNoCache,
@@ -1256,6 +1259,7 @@ struct ScriptCompileTimerScope {
     kNoCacheBecauseExtensionModule,
     kNoCacheBecausePacScript,
     kNoCacheBecauseInDocumentWrite,
+    kNoCacheBecauseResourceWithNoCacheHandler,
     kCount
   };
 
@@ -1360,6 +1364,8 @@ struct ScriptCompileTimerScope {
         return CacheBehaviour::kNoCacheBecausePacScript;
       case ScriptCompiler::kNoCacheBecauseInDocumentWrite:
         return CacheBehaviour::kNoCacheBecauseInDocumentWrite;
+      case ScriptCompiler::kNoCacheBecauseResourceWithNoCacheHandler:
+        return CacheBehaviour::kNoCacheBecauseResourceWithNoCacheHandler;
     }
     UNREACHABLE();
   }
@@ -1406,6 +1412,7 @@ struct ScriptCompileTimerScope {
       case CacheBehaviour::kNoCacheBecauseExtensionModule:
       case CacheBehaviour::kNoCacheBecausePacScript:
       case CacheBehaviour::kNoCacheBecauseInDocumentWrite:
+      case CacheBehaviour::kNoCacheBecauseResourceWithNoCacheHandler:
         return isolate_->counters()->compile_script_no_cache_other();
 
       case CacheBehaviour::kCount:

@@ -1066,7 +1066,7 @@ class RuntimeCallTimerScope {
      20)                                                                       \
   HR(wasm_lazy_compilation_throughput, V8.WasmLazyCompilationThroughput, 1,    \
      10000, 50)                                                                \
-  HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 18, 19)
+  HR(compile_script_cache_behaviour, V8.CompileScript.CacheBehaviour, 0, 19, 20)
 
 #define HISTOGRAM_TIMER_LIST(HT)                                               \
   /* Garbage collection timers. */                                             \
