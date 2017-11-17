@@ -288,15 +288,16 @@ Code::Kind Code::kind() const {
   return KindField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
 }
 
-void Code::initialize_flags(Kind kind) {
-  WRITE_UINT32_FIELD(this, kFlagsOffset, KindField::encode(kind));
-}
-
-void Code::set_kind(Kind kind) {
-  STATIC_ASSERT(Code::NUMBER_OF_KINDS <= KindField::kMax + 1);
-  uint32_t previous = READ_UINT32_FIELD(this, kFlagsOffset);
-  uint32_t updated_value = KindField::update(previous, kind);
-  WRITE_UINT32_FIELD(this, kFlagsOffset, updated_value);
+void Code::initialize_flags(Kind kind, bool has_unwinding_info,
+                            bool is_turbofanned, int stack_slots) {
+  CHECK_LE(stack_slots, StackSlotsField::kMax);
+  DCHECK_IMPLIES(stack_slots != 0, is_turbofanned);
+  static_assert(Code::NUMBER_OF_KINDS <= KindField::kMax + 1, "field overflow");
+  uint32_t flags = HasUnwindingInfoField::encode(has_unwinding_info) |
+                   KindField::encode(kind) |
+                   IsTurbofannedField::encode(is_turbofanned) |
+                   StackSlotsField::encode(stack_slots);
+  WRITE_UINT32_FIELD(this, kFlagsOffset, flags);
 }
 
 inline bool Code::is_interpreter_trampoline_builtin() const {
@@ -324,12 +325,6 @@ inline bool Code::has_unwinding_info() const {
   return HasUnwindingInfoField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
 }
 
-inline void Code::set_has_unwinding_info(bool state) {
-  uint32_t previous = READ_UINT32_FIELD(this, kFlagsOffset);
-  uint32_t updated_value = HasUnwindingInfoField::update(previous, state);
-  WRITE_UINT32_FIELD(this, kFlagsOffset, updated_value);
-}
-
 inline bool Code::has_tagged_params() const {
   int flags = READ_UINT32_FIELD(this, kFlagsOffset);
   return HasTaggedStackField::decode(flags);
@@ -343,12 +338,6 @@ inline void Code::set_has_tagged_params(bool value) {
 
 inline bool Code::is_turbofanned() const {
   return IsTurbofannedField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
-}
-
-inline void Code::set_is_turbofanned(bool value) {
-  int previous = READ_UINT32_FIELD(this, kFlagsOffset);
-  int updated = IsTurbofannedField::update(previous, value);
-  WRITE_UINT32_FIELD(this, kFlagsOffset, updated);
 }
 
 inline bool Code::can_have_weak_objects() const {
@@ -425,14 +414,6 @@ bool Code::is_builtin() const { return builtin_index() != -1; }
 unsigned Code::stack_slots() const {
   DCHECK(is_turbofanned());
   return StackSlotsField::decode(READ_UINT32_FIELD(this, kFlagsOffset));
-}
-
-void Code::set_stack_slots(unsigned slots) {
-  CHECK(slots <= StackSlotsField::kMax);
-  DCHECK(is_turbofanned() || slots == 0);  // Allow zero initialization.
-  int previous = READ_UINT32_FIELD(this, kFlagsOffset);
-  int updated = StackSlotsField::update(previous, slots);
-  WRITE_UINT32_FIELD(this, kFlagsOffset, updated);
 }
 
 unsigned Code::safepoint_table_offset() const {

@@ -1798,10 +1798,7 @@ Handle<Code> Factory::NewCode(
   DisallowHeapAllocation no_gc;
   code->set_instruction_size(desc.instr_size);
   code->set_relocation_info(*reloc_info);
-  code->initialize_flags(kind);
-  code->set_has_unwinding_info(has_unwinding_info);
-  code->set_is_turbofanned(is_turbofanned);
-  code->set_stack_slots(stack_slots);
+  code->initialize_flags(kind, has_unwinding_info, is_turbofanned, stack_slots);
   code->set_safepoint_table_offset(safepoint_table_offset);
   code->set_code_data_container(*data_container);
   code->set_has_tagged_params(true);
