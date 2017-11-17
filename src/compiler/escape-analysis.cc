@@ -125,7 +125,18 @@ class VariableTracker {
    public:
     Scope(VariableTracker* tracker, Node* node, Reduction* reduction);
     ~Scope();
-    Node* Get(Variable var) { return current_state_.Get(var); }
+    Maybe<Node*> Get(Variable var) {
+      Node* node = current_state_.Get(var);
+      if (node && node->opcode() == IrOpcode::kDead) {
+        // TODO(tebbi): We use {Dead} as a sentinel for uninitialized memory.
+        // Reading uninitialized memory can only happen in unreachable code. In
+        // this case, we have to mark the object as escaping to avoid dead nodes
+        // in the graph. This is a workaround that should be removed once we can
+        // handle dead nodes everywhere.
+        return Nothing<Node*>();
+      }
+      return Just(node);
+    }
     void Set(Variable var, Node* node) { current_state_.Set(var, node); }
 
    private:
@@ -585,14 +596,12 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       Node* object = current->ValueInput(0);
       const VirtualObject* vobject = current->GetVirtualObject(object);
       Variable var;
+      Node* value;
       if (vobject && !vobject->HasEscaped() &&
-          vobject->FieldAt(OffsetOfFieldAccess(op)).To(&var)) {
-        current->SetReplacement(current->Get(var));
+          vobject->FieldAt(OffsetOfFieldAccess(op)).To(&var) &&
+          current->Get(var).To(&value)) {
+        current->SetReplacement(value);
       } else {
-        // TODO(tebbi): At the moment, we mark objects as escaping if there
-        // is a load from an invalid location to avoid dead nodes. This is a
-        // workaround that should be removed once we can handle dead nodes
-        // everywhere.
         current->SetEscaped(object);
       }
       break;
@@ -603,10 +612,11 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       const VirtualObject* vobject = current->GetVirtualObject(object);
       int offset;
       Variable var;
+      Node* value;
       if (vobject && !vobject->HasEscaped() &&
           OffsetOfElementsAccess(op, index).To(&offset) &&
-          vobject->FieldAt(offset).To(&var)) {
-        current->SetReplacement(current->Get(var));
+          vobject->FieldAt(offset).To(&var) && current->Get(var).To(&value)) {
+        current->SetReplacement(value);
       } else {
         current->SetEscaped(object);
       }
@@ -656,9 +666,11 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       Node* checked = current->ValueInput(0);
       const VirtualObject* vobject = current->GetVirtualObject(checked);
       Variable map_field;
+      Node* map;
       if (vobject && !vobject->HasEscaped() &&
-          vobject->FieldAt(HeapObject::kMapOffset).To(&map_field)) {
-        if (Node* map = current->Get(map_field)) {
+          vobject->FieldAt(HeapObject::kMapOffset).To(&map_field) &&
+          current->Get(map_field).To(&map)) {
+        if (map) {
           Type* const map_type = NodeProperties::GetType(map);
           if (map_type->IsHeapConstant() &&
               params.maps().contains(ZoneHandleSet<Map>(bit_cast<Handle<Map>>(
@@ -679,9 +691,11 @@ void ReduceNode(const Operator* op, EscapeAnalysisTracker::Scope* current,
       Node* object = current->ValueInput(0);
       const VirtualObject* vobject = current->GetVirtualObject(object);
       Variable map_field;
+      Node* object_map;
       if (vobject && !vobject->HasEscaped() &&
-          vobject->FieldAt(HeapObject::kMapOffset).To(&map_field)) {
-        if (Node* object_map = current->Get(map_field)) {
+          vobject->FieldAt(HeapObject::kMapOffset).To(&map_field) &&
+          current->Get(map_field).To(&object_map)) {
+        if (object_map) {
           current->SetReplacement(LowerCompareMapsWithoutLoad(
               object_map, CompareMapsParametersOf(op), jsgraph));
           break;
