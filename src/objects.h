@@ -1977,6 +1977,9 @@ class JSReceiver: public HeapObject {
   // Gets slow properties for non-global objects.
   inline NameDictionary* property_dictionary() const;
 
+  // Sets the properties backing store and makes sure any existing hash is moved
+  // to the new properties store. To clear out the properties store, pass in the
+  // empty_fixed_array(), the hash will be maintained in this case as well.
   void SetProperties(HeapObject* properties);
 
   // There are five possible values for the properties offset.

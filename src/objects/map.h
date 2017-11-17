@@ -406,6 +406,8 @@ class Map : public HeapObject {
 
   int NumberOfFields() const;
 
+  bool HasOutOfObjectProperties() const;
+
   // Returns true if transition to the given map requires special
   // synchronization with the concurrent marker.
   bool TransitionRequiresSynchronizationWithGC(Map* target) const;

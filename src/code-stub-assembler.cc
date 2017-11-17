@@ -2322,6 +2322,7 @@ Node* CodeStubAssembler::AllocateNameDictionary(Node* at_least_space_for) {
 
 Node* CodeStubAssembler::AllocateNameDictionaryWithCapacity(Node* capacity) {
   CSA_ASSERT(this, WordIsPowerOfTwo(capacity));
+  CSA_ASSERT(this, IntPtrGreaterThan(capacity, IntPtrConstant(0)));
   Node* length = EntryToIndex<NameDictionary>(capacity);
   Node* store_size = IntPtrAdd(TimesPointerSize(length),
                                IntPtrConstant(NameDictionary::kHeaderSize));

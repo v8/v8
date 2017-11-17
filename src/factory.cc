@@ -181,6 +181,7 @@ Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
 Handle<PropertyArray> Factory::NewPropertyArray(int size,
                                                 PretenureFlag pretenure) {
   DCHECK_LE(0, size);
+  if (size == 0) return empty_property_array();
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocatePropertyArray(size, pretenure),
                      PropertyArray);
@@ -1331,6 +1332,7 @@ Handle<FixedArray> Factory::CopyFixedArrayAndGrow(Handle<FixedArray> array,
 
 Handle<PropertyArray> Factory::CopyPropertyArrayAndGrow(
     Handle<PropertyArray> array, int grow_by, PretenureFlag pretenure) {
+  DCHECK_LE(0, grow_by);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->CopyArrayAndGrow(*array, grow_by, pretenure),
