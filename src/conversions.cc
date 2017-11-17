@@ -903,15 +903,13 @@ class BigIntParseIntHelper : public StringToIntHelper {
           return MaybeHandle<BigInt>();
         }
       case kZero:
-        return isolate()->factory()->NewBigIntFromInt(0);
+        return BigInt::Zero(isolate());
       case kError:
         DCHECK_EQ(should_throw() == kThrowOnError,
                   isolate()->has_pending_exception());
         return MaybeHandle<BigInt>();
       case kDone:
-        result_->set_sign(negative());
-        result_->RightTrim();
-        return result_;
+        return BigInt::Finalize(result_, negative());
       case kEmpty:
       case kRunning:
         break;
@@ -927,7 +925,7 @@ class BigIntParseIntHelper : public StringToIntHelper {
     // junk before allocating the result?
     int charcount = length() - cursor();
     // TODO(adamk): Pretenure if this is for a literal.
-    MaybeHandle<BigInt> maybe =
+    MaybeHandle<FreshlyAllocatedBigInt> maybe =
         BigInt::AllocateFor(isolate(), radix(), charcount, should_throw());
     if (!maybe.ToHandle(&result_)) {
       set_state(kError);
@@ -935,8 +933,8 @@ class BigIntParseIntHelper : public StringToIntHelper {
   }
 
   virtual void ResultMultiplyAdd(uint32_t multiplier, uint32_t part) {
-    result_->InplaceMultiplyAdd(static_cast<uintptr_t>(multiplier),
-                                static_cast<uintptr_t>(part));
+    BigInt::InplaceMultiplyAdd(result_, static_cast<uintptr_t>(multiplier),
+                               static_cast<uintptr_t>(part));
   }
 
  private:
@@ -944,7 +942,7 @@ class BigIntParseIntHelper : public StringToIntHelper {
     return behavior_ == Behavior::kParseInt ? kThrowOnError : kDontThrow;
   }
 
-  Handle<BigInt> result_;
+  Handle<FreshlyAllocatedBigInt> result_;
   Behavior behavior_;
 };
 

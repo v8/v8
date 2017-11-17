@@ -13,7 +13,7 @@
 #include "src/layout-descriptor.h"
 #include "src/macro-assembler.h"
 #include "src/objects-inl.h"
-#include "src/objects/bigint-inl.h"
+#include "src/objects/bigint.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/module.h"

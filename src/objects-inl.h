@@ -33,7 +33,7 @@
 #include "src/lookup.h"
 #include "src/objects.h"
 #include "src/objects/arguments-inl.h"
-#include "src/objects/bigint-inl.h"
+#include "src/objects/bigint.h"
 #include "src/objects/hash-table-inl.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/js-array-inl.h"
@@ -74,6 +74,7 @@ int PropertyDetails::field_width_in_words() const {
   return representation().IsDouble() ? kDoubleSize / kPointerSize : 1;
 }
 
+TYPE_CHECKER(BigInt, BIGINT_TYPE)
 TYPE_CHECKER(BreakPoint, TUPLE2_TYPE)
 TYPE_CHECKER(BreakPointInfo, TUPLE2_TYPE)
 TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)

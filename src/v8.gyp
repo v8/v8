@@ -1149,7 +1149,6 @@
         'objects.h',
         'objects/arguments-inl.h',
         'objects/arguments.h',
-        'objects/bigint-inl.h',
         'objects/bigint.cc',
         'objects/bigint.h',
         'objects/code-inl.h',

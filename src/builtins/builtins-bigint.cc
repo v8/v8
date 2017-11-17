@@ -44,8 +44,7 @@ BUILTIN(BigIntParseInt) {
   // Convert {string} to a String and flatten it.
   // Fast path: avoid back-and-forth conversion for Smi inputs.
   if (string->IsSmi() && radix->IsUndefined(isolate)) {
-    int num = Smi::ToInt(*string);
-    return *isolate->factory()->NewBigIntFromInt(num);
+    RETURN_RESULT_OR_FAILURE(isolate, BigInt::FromNumber(isolate, string));
   }
   Handle<String> subject;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, subject,

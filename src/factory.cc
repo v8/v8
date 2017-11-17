@@ -14,7 +14,7 @@
 #include "src/conversions.h"
 #include "src/isolate-inl.h"
 #include "src/macro-assembler.h"
-#include "src/objects/bigint-inl.h"
+#include "src/objects/bigint.h"
 #include "src/objects/debug-objects-inl.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/objects/module.h"
@@ -1413,55 +1413,9 @@ Handle<HeapNumber> Factory::NewHeapNumber(MutableMode mode,
                      HeapNumber);
 }
 
-Handle<BigInt> Factory::NewBigInt(int length, PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateBigInt(length, true, pretenure),
-                     BigInt);
-}
-
-Handle<BigInt> Factory::NewBigIntRaw(int length, PretenureFlag pretenure) {
-  CALL_HEAP_FUNCTION(
-      isolate(), isolate()->heap()->AllocateBigInt(length, false, pretenure),
-      BigInt);
-}
-
-Handle<BigInt> Factory::NewBigIntFromSafeInteger(double value,
-                                                 PretenureFlag pretenure) {
-  if (value == 0) return NewBigInt(0);
-
-  uint64_t absolute = std::abs(value);
-
-#if V8_TARGET_ARCH_64_BIT
-  static_assert(sizeof(BigInt::digit_t) == sizeof(uint64_t),
-                "unexpected BigInt digit size");
-  Handle<BigInt> result = NewBigIntRaw(1);
-  result->set_digit(0, absolute);
-#else
-  static_assert(sizeof(BigInt::digit_t) == sizeof(uint32_t),
-                "unexpected BigInt digit size");
-  Handle<BigInt> result = NewBigIntRaw(2);
-  result->set_digit(0, absolute);
-  result->set_digit(1, absolute >> 32);
-#endif
-
-  result->set_sign(value < 0);  // Treats -0 like 0.
-  return result;
-}
-
-Handle<BigInt> Factory::NewBigIntFromInt(int value, PretenureFlag pretenure) {
-  if (value == 0) return NewBigInt(0);
-  Handle<BigInt> result = NewBigIntRaw(1);
-  if (value > 0) {
-    result->set_digit(0, value);
-  } else if (value == kMinInt) {
-    STATIC_ASSERT(kMinInt == -kMaxInt - 1);
-    result->set_digit(0, static_cast<BigInt::digit_t>(kMaxInt) + 1);
-    result->set_sign(true);
-  } else {
-    result->set_digit(0, -value);
-    result->set_sign(true);
-  }
-  return result;
+Handle<FreshlyAllocatedBigInt> Factory::NewBigInt(int length) {
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateBigInt(length),
+                     FreshlyAllocatedBigInt);
 }
 
 Handle<Object> Factory::NewError(Handle<JSFunction> constructor,

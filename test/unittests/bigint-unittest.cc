@@ -8,7 +8,7 @@
 #include "src/factory.h"
 #include "src/isolate.h"
 #include "src/objects-inl.h"
-#include "src/objects/bigint-inl.h"
+#include "src/objects/bigint.h"
 #include "test/unittests/test-utils.h"
 
 #include "testing/gtest/include/gtest/gtest.h"
@@ -22,11 +22,15 @@ void Compare(Handle<BigInt> x, double value, ComparisonResult expected) {
   CHECK_EQ(expected, BigInt::CompareToDouble(x, value));
 }
 
+Handle<BigInt> NewFromInt(Isolate* isolate, int value) {
+  Handle<Smi> smi_value = handle(Smi::FromInt(value), isolate);
+  return BigInt::FromNumber(isolate, smi_value).ToHandleChecked();
+}
+
 TEST_F(BigIntWithIsolate, CompareToDouble) {
-  Factory* factory = isolate()->factory();
-  Handle<BigInt> zero = factory->NewBigIntFromInt(0);
-  Handle<BigInt> one = factory->NewBigIntFromInt(1);
-  Handle<BigInt> minus_one = factory->NewBigIntFromInt(-1);
+  Handle<BigInt> zero = NewFromInt(isolate(), 0);
+  Handle<BigInt> one = NewFromInt(isolate(), 1);
+  Handle<BigInt> minus_one = NewFromInt(isolate(), -1);
 
   // Non-finite doubles.
   Compare(zero, std::nan(""), ComparisonResult::kUndefined);
@@ -53,8 +57,8 @@ TEST_F(BigIntWithIsolate, CompareToDouble) {
   Compare(minus_one, -0.5, ComparisonResult::kLessThan);
 
   // Different bit lengths.
-  Handle<BigInt> four = factory->NewBigIntFromInt(4);
-  Handle<BigInt> minus_five = factory->NewBigIntFromInt(-5);
+  Handle<BigInt> four = NewFromInt(isolate(), 4);
+  Handle<BigInt> minus_five = NewFromInt(isolate(), -5);
   Compare(four, 3.9, ComparisonResult::kGreaterThan);
   Compare(four, 1.5, ComparisonResult::kGreaterThan);
   Compare(four, 8, ComparisonResult::kLessThan);
@@ -90,7 +94,7 @@ TEST_F(BigIntWithIsolate, CompareToDouble) {
   // Same bit length, difference in fractional part.
   Compare(one, 1.5, ComparisonResult::kLessThan);
   Compare(minus_one, -1.25, ComparisonResult::kGreaterThan);
-  big = factory->NewBigIntFromInt(0xF00D00);
+  big = NewFromInt(isolate(), 0xF00D00);
   Compare(big, 15731968.125, ComparisonResult::kLessThan);
   Compare(big, 15731967.875, ComparisonResult::kGreaterThan);
   big = BigIntLiteral(isolate(), "0x123456789ab").ToHandleChecked();

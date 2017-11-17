@@ -22,15 +22,15 @@ namespace internal {
 
 // Forward declarations.
 class AliasedArgumentsEntry;
-class BigInt;
 class BreakPointInfo;
 class BreakPoint;
 class BoilerplateDescription;
 class ConstantElementsPair;
 class CoverageInfo;
 class DebugInfo;
-class NewFunctionArgs;
+class FreshlyAllocatedBigInt;
 class JSModuleNamespace;
+class NewFunctionArgs;
 struct SourceRange;
 class PreParsedScopeData;
 class TemplateObjectDescription;
@@ -485,15 +485,9 @@ class V8_EXPORT_PRIVATE Factory final {
   Handle<HeapNumber> NewHeapNumber(MutableMode mode,
                                    PretenureFlag pretenure = NOT_TENURED);
 
-  // Allocates a new BigInt with {length} digits and zero-initializes them.
-  Handle<BigInt> NewBigInt(int length, PretenureFlag pretenure = NOT_TENURED);
-  // Initializes length and sign fields, but leaves digits uninitialized.
-  Handle<BigInt> NewBigIntRaw(int length,
-                              PretenureFlag pretenure = NOT_TENURED);
-  Handle<BigInt> NewBigIntFromInt(int value,
-                                  PretenureFlag pretenure = NOT_TENURED);
-  Handle<BigInt> NewBigIntFromSafeInteger(
-      double value, PretenureFlag pretenure = NOT_TENURED);
+  // Allocates a new BigInt with {length} digits. Only to be used by
+  // MutableBigInt::New*.
+  Handle<FreshlyAllocatedBigInt> NewBigInt(int length);
 
   Handle<JSObject> NewArgumentsObject(Handle<JSFunction> callee, int length);
 
