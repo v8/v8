@@ -377,8 +377,9 @@ void PerfJitLogger::LogWriteUnwindingInfo(Code* code) {
 }
 
 void PerfJitLogger::CodeMoveEvent(AbstractCode* from, Address to) {
-  // Code relocation not supported.
-  UNREACHABLE();
+  // We may receive a CodeMove event if a BytecodeArray object moves. Otherwise
+  // code relocation is not supported.
+  CHECK(from->IsBytecodeArray());
 }
 
 void PerfJitLogger::LogWriteBytes(const char* bytes, int size) {
