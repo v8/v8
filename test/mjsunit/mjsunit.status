@@ -499,6 +499,7 @@
 
   # Requires too much memory on MIPS.
   'regress/regress-752764': [SKIP],
+  'regress/regress-779407': [SKIP],
 }],  # 'arch == mipsel or arch == mips'
 
 ##############################################################################
@@ -550,6 +551,7 @@
 
   # Requires too much memory on MIPS.
   'regress/regress-752764': [SKIP],
+  'regress/regress-779407': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
