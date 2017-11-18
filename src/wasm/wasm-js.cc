@@ -192,6 +192,10 @@ void WebAssemblyModule(const v8::FunctionCallbackInfo<v8::Value>& args) {
   HandleScope scope(isolate);
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Module()");
 
+  if (!args.IsConstructCall()) {
+    thrower.TypeError("WebAssembly.Module must be invoked with 'new'");
+    return;
+  }
   if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
     thrower.CompileError("Wasm code generation disallowed by embedder");
     return;
@@ -352,6 +356,10 @@ void WebAssemblyInstance(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (i_isolate->wasm_instance_callback()(args)) return;
 
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Instance()");
+  if (!args.IsConstructCall()) {
+    thrower.TypeError("WebAssembly.Instance must be invoked with 'new'");
+    return;
+  }
 
   GetFirstArgumentAsModule(args, &thrower);
   if (thrower.error()) return;
@@ -483,6 +491,10 @@ void WebAssemblyTable(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Module()");
+  if (!args.IsConstructCall()) {
+    thrower.TypeError("WebAssembly.Table must be invoked with 'new'");
+    return;
+  }
   if (!args[0]->IsObject()) {
     thrower.TypeError("Argument 0 must be a table descriptor");
     return;
@@ -536,6 +548,10 @@ void WebAssemblyMemory(const v8::FunctionCallbackInfo<v8::Value>& args) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
   i::wasm::ScheduledErrorThrower thrower(i_isolate, "WebAssembly.Memory()");
+  if (!args.IsConstructCall()) {
+    thrower.TypeError("WebAssembly.Memory must be invoked with 'new'");
+    return;
+  }
   if (!args[0]->IsObject()) {
     thrower.TypeError("Argument 0 must be a memory descriptor");
     return;
@@ -623,8 +639,8 @@ void WebAssemblyInstanceGetExports(
   v8::Isolate* isolate = args.GetIsolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
   HandleScope scope(isolate);
-    i::wasm::ScheduledErrorThrower thrower(i_isolate,
-                                           "WebAssembly.Instance.exports()");
+  i::wasm::ScheduledErrorThrower thrower(i_isolate,
+                                         "WebAssembly.Instance.exports()");
   EXTRACT_THIS(receiver, WasmInstanceObject);
   i::Handle<i::JSObject> exports_object(receiver->exports_object());
   args.GetReturnValue().Set(Utils::ToLocal(exports_object));
