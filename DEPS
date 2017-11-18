@@ -9,15 +9,15 @@ vars = {
 
 deps = {
   'v8/build':
-    Var('chromium_url') + '/chromium/src/build.git' + '@' + '5698e2328ae36ada2784ea67195d8a3731c7a464',
+    Var('chromium_url') + '/chromium/src/build.git' + '@' + '571871636f333d4ecf5583eb6cd205fedf3bfdf7',
   'v8/tools/gyp':
     Var('chromium_url') + '/external/gyp.git' + '@' + 'd61a9397e668fa9843c4aa7da9e79460fe590bfb',
   'v8/third_party/icu':
     Var('chromium_url') + '/chromium/deps/icu.git' + '@' + '5ed26985c0171755d7542e7ad6bce12cde4dccfb',
   'v8/third_party/instrumented_libraries':
-    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'e07d437dc8b65ca96ebd3b7d4aa303cd2ec0ec45',
+    Var('chromium_url') + '/chromium/src/third_party/instrumented_libraries.git' + '@' + 'ebf8d92daa24c7c6fbc1709cfc9b0787c9c8f3aa',
   'v8/buildtools':
-    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '3196d83d5c1faac2d34dc68faf899ea936cc8d4f',
+    Var('chromium_url') + '/chromium/buildtools.git' + '@' + '461b345a815c1c745ac0534a6a4bd52d123abe68',
   'v8/base/trace_event/common':
     Var('chromium_url') + '/chromium/src/base/trace_event/common.git' + '@' + '0e9a47d74970bee1bbfc063c47215406f8918699',
   'v8/third_party/android_tools': {
@@ -25,7 +25,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + 'fd88dfbfa2217a44f0860dbb718d0c04e6576089',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '37921f135dc61021b8ced4c73375339658ac9953',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
@@ -51,7 +51,7 @@ deps = {
   'v8/test/test262/harness':
     Var('chromium_url') + '/external/github.com/test262-utils/test262-harness-py.git' + '@' + '0f2acdd882c84cff43b9d60df7574a1901e2cdcd',
   'v8/tools/clang':
-    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'e70074db10b27867e6c873adc3ac7e5f9ee0ff6e',
+    Var('chromium_url') + '/chromium/src/tools/clang.git' + '@' + 'f2ca3e05e48b1bf8343fb270dc086e39c6e6017c',
   'v8/tools/luci-go':
     Var('chromium_url') + '/chromium/src/tools/luci-go.git' + '@' + '45a8a51fda92e123619a69e7644d9c64a320b0c1',
   'v8/test/wasm-js':
