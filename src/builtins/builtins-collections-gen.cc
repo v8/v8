@@ -620,7 +620,9 @@ Node* CollectionsBuiltinsAssembler::AllocateOrderedHashTable() {
   // Allocate the table and add the proper map.
   const ElementsKind elements_kind = HOLEY_ELEMENTS;
   Node* const length_intptr = IntPtrConstant(kFixedArrayLength);
-  Node* const fixed_array_map = LoadRoot(Heap::kOrderedHashTableMapRootIndex);
+  Heap::RootListIndex map_index =
+      static_cast<Heap::RootListIndex>(CollectionType::GetMapRootIndex());
+  Node* const fixed_array_map = LoadRoot(map_index);
   Node* const table =
       AllocateFixedArray(elements_kind, length_intptr, INTPTR_PARAMETERS,
                          kAllowLargeObjectAllocation, fixed_array_map);
@@ -1680,7 +1682,7 @@ TF_BUILTIN(MapIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   BIND(&return_end);
   {
     StoreObjectFieldRoot(receiver, JSMapIterator::kTableOffset,
-                         Heap::kEmptyOrderedHashTableRootIndex);
+                         Heap::kEmptyOrderedHashMapRootIndex);
     Goto(&return_value);
   }
 }
@@ -1887,7 +1889,7 @@ TF_BUILTIN(SetIteratorPrototypeNext, CollectionsBuiltinsAssembler) {
   BIND(&return_end);
   {
     StoreObjectFieldRoot(receiver, JSSetIterator::kTableOffset,
-                         Heap::kEmptyOrderedHashTableRootIndex);
+                         Heap::kEmptyOrderedHashSetRootIndex);
     Goto(&return_value);
   }
 }

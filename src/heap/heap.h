@@ -104,10 +104,13 @@ using v8::MemoryPressureLevel;
   V(Map, descriptor_array_map, DescriptorArrayMap)                             \
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Map, mutable_heap_number_map, MutableHeapNumberMap)                        \
-  V(Map, ordered_hash_table_map, OrderedHashTableMap)                          \
+  V(Map, ordered_hash_map_map, OrderedHashMapMap)                              \
+  V(Map, ordered_hash_set_map, OrderedHashSetMap)                              \
   V(Map, name_dictionary_map, NameDictionaryMap)                               \
   V(Map, global_dictionary_map, GlobalDictionaryMap)                           \
   V(Map, number_dictionary_map, NumberDictionaryMap)                           \
+  V(Map, string_table_map, StringTableMap)                                     \
+  V(Map, weak_hash_table_map, WeakHashTableMap)                                \
   V(Map, sloppy_arguments_elements_map, SloppyArgumentsElementsMap)            \
   V(Map, small_ordered_hash_map_map, SmallOrderedHashMapMap)                   \
   V(Map, small_ordered_hash_set_map, SmallOrderedHashSetMap)                   \
@@ -190,7 +193,8 @@ using v8::MemoryPressureLevel;
   V(FixedArray, empty_sloppy_arguments_elements, EmptySloppyArgumentsElements) \
   V(NumberDictionary, empty_slow_element_dictionary,                           \
     EmptySlowElementDictionary)                                                \
-  V(FixedArray, empty_ordered_hash_table, EmptyOrderedHashTable)               \
+  V(FixedArray, empty_ordered_hash_map, EmptyOrderedHashMap)                   \
+  V(FixedArray, empty_ordered_hash_set, EmptyOrderedHashSet)                   \
   V(PropertyCell, empty_property_cell, EmptyPropertyCell)                      \
   V(WeakCell, empty_weak_cell, EmptyWeakCell)                                  \
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
@@ -301,6 +305,8 @@ using v8::MemoryPressureLevel;
   V(EmptyFixedUint32Array)              \
   V(EmptyFixedUint8Array)               \
   V(EmptyFixedUint8ClampedArray)        \
+  V(EmptyOrderedHashMap)                \
+  V(EmptyOrderedHashSet)                \
   V(EmptyPropertyCell)                  \
   V(EmptyScopeInfo)                     \
   V(EmptyScript)                        \
@@ -341,14 +347,15 @@ using v8::MemoryPressureLevel;
   V(NoClosuresCellMap)                  \
   V(NullMap)                            \
   V(NullValue)                          \
+  V(NumberDictionaryMap)                \
   V(OneClosureCellMap)                  \
   V(OnePointerFillerMap)                \
   V(OptimizedOut)                       \
-  V(OrderedHashTableMap)                \
+  V(OrderedHashMapMap)                  \
+  V(OrderedHashSetMap)                  \
   V(PropertyArrayMap)                   \
   V(ScopeInfoMap)                       \
   V(ScriptContextMap)                   \
-  V(NumberDictionaryMap)                \
   V(SharedFunctionInfoMap)              \
   V(SloppyArgumentsElementsMap)         \
   V(SmallOrderedHashMapMap)             \
@@ -356,6 +363,7 @@ using v8::MemoryPressureLevel;
   V(SpeciesProtector)                   \
   V(StaleRegister)                      \
   V(StringLengthProtector)              \
+  V(StringTableMap)                     \
   V(SymbolMap)                          \
   V(TerminationException)               \
   V(TheHoleMap)                         \
@@ -369,6 +377,7 @@ using v8::MemoryPressureLevel;
   V(UninitializedMap)                   \
   V(UninitializedValue)                 \
   V(WeakCellMap)                        \
+  V(WeakHashTableMap)                   \
   V(WithContextMap)                     \
   PRIVATE_SYMBOL_LIST(V)
 

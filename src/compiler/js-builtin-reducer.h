@@ -62,7 +62,7 @@ class V8_EXPORT_PRIVATE JSBuiltinReducer final
   Reduction ReduceCollectionSize(Node* node,
                                  InstanceType collection_instance_type);
   Reduction ReduceCollectionIteratorNext(
-      Node* node, int entry_size,
+      Node* node, int entry_size, Handle<HeapObject> empty_collection,
       InstanceType collection_iterator_instance_type_first,
       InstanceType collection_iterator_instance_type_last);
   Reduction ReduceDateNow(Node* node);

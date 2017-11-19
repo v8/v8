@@ -1368,7 +1368,7 @@ Reduction JSBuiltinReducer::ReduceCollectionSize(
 }
 
 Reduction JSBuiltinReducer::ReduceCollectionIteratorNext(
-    Node* node, int entry_size,
+    Node* node, int entry_size, Handle<HeapObject> empty_collection,
     InstanceType collection_iterator_instance_type_first,
     InstanceType collection_iterator_instance_type_last) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
@@ -1524,9 +1524,8 @@ Reduction JSBuiltinReducer::ReduceCollectionIteratorNext(
         efalse0 = graph()->NewNode(
             simplified()->StoreField(
                 AccessBuilder::ForJSCollectionIteratorTable()),
-            receiver,
-            jsgraph()->HeapConstant(factory()->empty_ordered_hash_table()),
-            efalse0, if_false0);
+            receiver, jsgraph()->HeapConstant(empty_collection), efalse0,
+            if_false0);
 
         controls[0] = if_false0;
         effects[0] = efalse0;
@@ -2828,9 +2827,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceCollectionIterator(node, JS_MAP_TYPE,
                                       Context::MAP_VALUE_ITERATOR_MAP_INDEX);
     case kMapIteratorNext:
-      return ReduceCollectionIteratorNext(node, OrderedHashMap::kEntrySize,
-                                          FIRST_MAP_ITERATOR_TYPE,
-                                          LAST_MAP_ITERATOR_TYPE);
+      return ReduceCollectionIteratorNext(
+          node, OrderedHashMap::kEntrySize, factory()->empty_ordered_hash_map(),
+          FIRST_MAP_ITERATOR_TYPE, LAST_MAP_ITERATOR_TYPE);
     case kMathAbs:
       reduction = ReduceMathAbs(node);
       break;
@@ -2957,9 +2956,9 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceCollectionIterator(node, JS_SET_TYPE,
                                       Context::SET_VALUE_ITERATOR_MAP_INDEX);
     case kSetIteratorNext:
-      return ReduceCollectionIteratorNext(node, OrderedHashSet::kEntrySize,
-                                          FIRST_SET_ITERATOR_TYPE,
-                                          LAST_SET_ITERATOR_TYPE);
+      return ReduceCollectionIteratorNext(
+          node, OrderedHashSet::kEntrySize, factory()->empty_ordered_hash_set(),
+          FIRST_SET_ITERATOR_TYPE, LAST_SET_ITERATOR_TYPE);
     case kStringFromCharCode:
       reduction = ReduceStringFromCharCode(node);
       break;

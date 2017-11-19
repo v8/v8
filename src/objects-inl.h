@@ -426,7 +426,9 @@ bool HeapObject::IsJSArrayBufferView() const {
   return IsJSDataView() || IsJSTypedArray();
 }
 
-bool HeapObject::IsWeakHashTable() const { return IsHashTable(); }
+bool HeapObject::IsWeakHashTable() const {
+  return map() == GetHeap()->weak_hash_table_map();
+}
 
 bool HeapObject::IsDictionary() const {
   return IsHashTable() && this != GetHeap()->string_table();
@@ -444,7 +446,9 @@ bool HeapObject::IsNumberDictionary() const {
   return map() == GetHeap()->number_dictionary_map();
 }
 
-bool HeapObject::IsStringTable() const { return IsHashTable(); }
+bool HeapObject::IsStringTable() const {
+  return map() == GetHeap()->string_table_map();
+}
 
 bool HeapObject::IsStringSet() const { return IsHashTable(); }
 
@@ -460,13 +464,13 @@ bool HeapObject::IsMapCache() const { return IsHashTable(); }
 
 bool HeapObject::IsObjectHashTable() const { return IsHashTable(); }
 
-bool HeapObject::IsOrderedHashTable() const {
-  return map() == GetHeap()->ordered_hash_table_map();
+bool HeapObject::IsOrderedHashSet() const {
+  return map() == GetHeap()->ordered_hash_set_map();
 }
 
-bool Object::IsOrderedHashSet() const { return IsOrderedHashTable(); }
-
-bool Object::IsOrderedHashMap() const { return IsOrderedHashTable(); }
+bool HeapObject::IsOrderedHashMap() const {
+  return map() == GetHeap()->ordered_hash_map_map();
+}
 
 bool Object::IsSmallOrderedHashTable() const {
   return IsSmallOrderedHashSet() || IsSmallOrderedHashMap();
@@ -1976,6 +1980,12 @@ bool HeapObject::NeedsRehashing() const {
     case TRANSITION_ARRAY_TYPE:
       return TransitionArray::cast(this)->number_of_entries() > 1;
     case HASH_TABLE_TYPE:
+      if (IsOrderedHashMap()) {
+        return OrderedHashMap::cast(this)->NumberOfElements() > 0;
+      } else if (IsOrderedHashSet()) {
+        return OrderedHashSet::cast(this)->NumberOfElements() > 0;
+      }
+      return true;
     case SMALL_ORDERED_HASH_MAP_TYPE:
     case SMALL_ORDERED_HASH_SET_TYPE:
       return true;
@@ -2507,6 +2517,10 @@ Handle<Object> StringTableShape::AsHandle(Isolate* isolate,
 
 uint32_t StringTableShape::HashForObject(Isolate* isolate, Object* object) {
   return String::cast(object)->Hash();
+}
+
+Map* StringTableShape::GetMap(Isolate* isolate) {
+  return isolate->heap()->string_table_map();
 }
 
 bool NumberDictionary::requires_slow_elements() {
@@ -4950,16 +4964,13 @@ Handle<ObjectHashTable> ObjectHashTable::Shrink(Handle<ObjectHashTable> table) {
   return DerivedHashTable::Shrink(table);
 }
 
-template <int entrysize>
-bool WeakHashTableShape<entrysize>::IsMatch(Handle<Object> key, Object* other) {
+bool WeakHashTableShape::IsMatch(Handle<Object> key, Object* other) {
   if (other->IsWeakCell()) other = WeakCell::cast(other)->value();
   return key->IsWeakCell() ? WeakCell::cast(*key)->value() == other
                            : *key == other;
 }
 
-template <int entrysize>
-uint32_t WeakHashTableShape<entrysize>::Hash(Isolate* isolate,
-                                             Handle<Object> key) {
+uint32_t WeakHashTableShape::Hash(Isolate* isolate, Handle<Object> key) {
   intptr_t hash =
       key->IsWeakCell()
           ? reinterpret_cast<intptr_t>(WeakCell::cast(*key)->value())
@@ -4967,21 +4978,20 @@ uint32_t WeakHashTableShape<entrysize>::Hash(Isolate* isolate,
   return (uint32_t)(hash & 0xFFFFFFFF);
 }
 
-template <int entrysize>
-uint32_t WeakHashTableShape<entrysize>::HashForObject(Isolate* isolate,
-                                                      Object* other) {
+uint32_t WeakHashTableShape::HashForObject(Isolate* isolate, Object* other) {
   if (other->IsWeakCell()) other = WeakCell::cast(other)->value();
   intptr_t hash = reinterpret_cast<intptr_t>(other);
   return (uint32_t)(hash & 0xFFFFFFFF);
 }
 
-
-template <int entrysize>
-Handle<Object> WeakHashTableShape<entrysize>::AsHandle(Isolate* isolate,
-                                                       Handle<Object> key) {
+Handle<Object> WeakHashTableShape::AsHandle(Isolate* isolate,
+                                            Handle<Object> key) {
   return key;
 }
 
+Map* WeakHashTableShape::GetMap(Isolate* isolate) {
+  return isolate->heap()->weak_hash_table_map();
+}
 
 int Map::SlackForArraySize(int old_size, int size_limit) {
   const int max_slack = size_limit - old_size;

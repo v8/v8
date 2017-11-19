@@ -106,8 +106,6 @@ void StartupDeserializer::PrintDisassembledCodeObjects() {
 void StartupDeserializer::RehashHeap() {
   DCHECK(FLAG_rehash_snapshot && can_rehash());
   isolate()->heap()->InitializeHashSeed();
-  isolate()->heap()->string_table()->Rehash();
-  isolate()->heap()->weak_object_to_code_table()->Rehash();
   Rehash();
 }
 

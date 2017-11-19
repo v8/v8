@@ -3640,7 +3640,9 @@ bool HeapObject::CanBeRehashed() const {
   DCHECK(NeedsRehashing());
   switch (map()->instance_type()) {
     case HASH_TABLE_TYPE:
-      return IsNameDictionary() || IsGlobalDictionary() || IsNumberDictionary();
+      // TODO(yangguo): actually support rehashing OrderedHash{Map,Set}.
+      return IsNameDictionary() || IsGlobalDictionary() ||
+             IsNumberDictionary() || IsStringTable() || IsWeakHashTable();
     case FIXED_ARRAY_TYPE:
       return IsDescriptorArrayTemplate();
     case TRANSITION_ARRAY_TYPE:
@@ -3664,12 +3666,11 @@ void HeapObject::RehashBasedOnMap() {
         NumberDictionary::cast(this)->Rehash();
       } else if (IsGlobalDictionary()) {
         GlobalDictionary::cast(this)->Rehash();
+      } else if (IsStringTable()) {
+        StringTable::cast(this)->Rehash();
+      } else if (IsWeakHashTable()) {
+        WeakHashTable::cast(this)->Rehash();
       } else {
-        // TODO(6593): Some hash tables cannot yet be rehashed based on the map,
-        // and are handled explicitly in StartupDeserializer::RehashHeap.
-        if (this == GetHeap()->empty_ordered_hash_table()) break;
-        if (this == GetHeap()->weak_object_to_code_table()) break;
-        if (this == GetHeap()->string_table()) break;
         UNREACHABLE();
       }
       break;
@@ -16322,7 +16323,7 @@ template class HashTable<CompilationCacheTable, CompilationCacheShape>;
 
 template class HashTable<ObjectHashTable, ObjectHashTableShape>;
 
-template class HashTable<WeakHashTable, WeakHashTableShape<2>>;
+template class HashTable<WeakHashTable, WeakHashTableShape>;
 
 template class HashTable<TemplateMap, TemplateMapShape>;
 
@@ -17922,8 +17923,9 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Allocate(
   int num_buckets = capacity / kLoadFactor;
   Handle<FixedArray> backing_store = isolate->factory()->NewFixedArray(
       kHashTableStartIndex + num_buckets + (capacity * kEntrySize), pretenure);
-  backing_store->set_map_no_write_barrier(
-      isolate->heap()->ordered_hash_table_map());
+  Map* map = Map::cast(isolate->heap()->root(
+      static_cast<Heap::RootListIndex>(Derived::GetMapRootIndex())));
+  backing_store->set_map_no_write_barrier(map);
   Handle<Derived> table = Handle<Derived>::cast(backing_store);
   for (int i = 0; i < num_buckets; ++i) {
     table->set(kHashTableStartIndex + i, Smi::FromInt(kNotFound));
@@ -17979,7 +17981,8 @@ Handle<Derived> OrderedHashTable<Derived, entrysize>::Clear(
 template <class Derived, int entrysize>
 bool OrderedHashTable<Derived, entrysize>::HasKey(Isolate* isolate,
                                                   Derived* table, Object* key) {
-  DCHECK(table->IsOrderedHashTable());
+  DCHECK((entrysize == 1 && table->IsOrderedHashSet()) ||
+         (entrysize == 2 && table->IsOrderedHashMap()));
   DisallowHeapAllocation no_gc;
   int entry = table->FindEntry(isolate, key);
   return entry != kNotFound;
@@ -18037,6 +18040,22 @@ Handle<FixedArray> OrderedHashSet::ConvertToKeysArray(
   }
   result->Shrink(length);
   return result;
+}
+
+HeapObject* OrderedHashSet::GetEmpty(Isolate* isolate) {
+  return isolate->heap()->empty_ordered_hash_set();
+}
+
+HeapObject* OrderedHashMap::GetEmpty(Isolate* isolate) {
+  return isolate->heap()->empty_ordered_hash_map();
+}
+
+int OrderedHashSet::GetMapRootIndex() {
+  return Heap::kOrderedHashSetMapRootIndex;
+}
+
+int OrderedHashMap::GetMapRootIndex() {
+  return Heap::kOrderedHashMapMapRootIndex;
 }
 
 template <class Derived, int entrysize>
@@ -18457,7 +18476,7 @@ bool OrderedHashTableIterator<Derived, TableType>::HasMore() {
 
   if (index < used_capacity) return true;
 
-  set_table(isolate->heap()->empty_ordered_hash_table());
+  set_table(TableType::GetEmpty(isolate));
   return false;
 }
 

@@ -296,10 +296,13 @@ bool Heap::CreateInitialMaps() {
     ALLOCATE_VARSIZE_MAP(TRANSITION_ARRAY_TYPE, transition_array)
 
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, hash_table)
-    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, ordered_hash_table)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, ordered_hash_map)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, ordered_hash_set)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, name_dictionary)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, global_dictionary)
     ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, number_dictionary)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, string_table)
+    ALLOCATE_VARSIZE_MAP(HASH_TABLE_TYPE, weak_hash_table)
 
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, function_context)
     ALLOCATE_VARSIZE_MAP(FIXED_ARRAY_TYPE, catch_context)
@@ -572,15 +575,25 @@ void Heap::CreateInitialObjects() {
   set_last_script_id(Smi::FromInt(v8::UnboundScript::kNoScriptId));
   set_next_template_serial_number(Smi::kZero);
 
-  // Allocate the empty OrderedHashTable.
-  Handle<FixedArray> empty_ordered_hash_table =
+  // Allocate the empty OrderedHashMap.
+  Handle<FixedArray> empty_ordered_hash_map =
       factory->NewFixedArray(OrderedHashMap::kHashTableStartIndex, TENURED);
-  empty_ordered_hash_table->set_map_no_write_barrier(
-      *factory->ordered_hash_table_map());
-  for (int i = 0; i < empty_ordered_hash_table->length(); ++i) {
-    empty_ordered_hash_table->set(i, Smi::kZero);
+  empty_ordered_hash_map->set_map_no_write_barrier(
+      *factory->ordered_hash_map_map());
+  for (int i = 0; i < empty_ordered_hash_map->length(); ++i) {
+    empty_ordered_hash_map->set(i, Smi::kZero);
   }
-  set_empty_ordered_hash_table(*empty_ordered_hash_table);
+  set_empty_ordered_hash_map(*empty_ordered_hash_map);
+
+  // Allocate the empty OrderedHashSet.
+  Handle<FixedArray> empty_ordered_hash_set =
+      factory->NewFixedArray(OrderedHashSet::kHashTableStartIndex, TENURED);
+  empty_ordered_hash_set->set_map_no_write_barrier(
+      *factory->ordered_hash_set_map());
+  for (int i = 0; i < empty_ordered_hash_set->length(); ++i) {
+    empty_ordered_hash_set->set(i, Smi::kZero);
+  }
+  set_empty_ordered_hash_set(*empty_ordered_hash_set);
 
   // Allocate the empty script.
   Handle<Script> script = factory->NewScript(factory->empty_string());

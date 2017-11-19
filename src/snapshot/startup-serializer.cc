@@ -166,11 +166,6 @@ void StartupSerializer::CheckRehashability(HeapObject* obj) {
   if (!can_be_rehashed_) return;
   if (!obj->NeedsRehashing()) return;
   if (obj->CanBeRehashed()) return;
-  // We can only correctly rehash if the four hash tables below are the only
-  // ones that we deserialize.
-  if (obj == isolate()->heap()->empty_ordered_hash_table()) return;
-  if (obj == isolate()->heap()->weak_object_to_code_table()) return;
-  if (obj == isolate()->heap()->string_table()) return;
   can_be_rehashed_ = false;
 }
 
