@@ -54,7 +54,7 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
 #ifdef OBJECT_PRINT
   Handle<Name> name;
   if (access.name.ToHandle(&name)) {
-    name->Print(os);
+    name->NamePrint(os);
     os << ", ";
   }
   Handle<Map> map;
