@@ -523,15 +523,15 @@ var FALSE = false;                        // 0050
 `,
 [{"start":0,"end":849,"count":1},
  {"start":101,"end":801,"count":1},
- {"start":167,"end":172,"count":0},
- {"start":217,"end":222,"count":0},
- {"start":260,"end":265,"count":0},
- {"start":310,"end":372,"count":0},
- {"start":467,"end":472,"count":0},
- {"start":559,"end":564,"count":0},
- {"start":617,"end":680,"count":0},
- {"start":710,"end":715,"count":0},
- {"start":775,"end":780,"count":0}]
+ {"start":165,"end":172,"count":0},
+ {"start":215,"end":222,"count":0},
+ {"start":258,"end":265,"count":0},
+ {"start":308,"end":372,"count":0},
+ {"start":465,"end":472,"count":0},
+ {"start":557,"end":564,"count":0},
+ {"start":615,"end":680,"count":0},
+ {"start":708,"end":715,"count":0},
+ {"start":773,"end":780,"count":0}]
 );
 
 TestCoverage(
@@ -546,9 +546,9 @@ it.next(); it.next();                     // 0250
 `,
 [{"start":0,"end":299,"count":1},
  {"start":11,"end":201,"count":3},
- {"start":64,"end":116,"count":1},
- {"start":116,"end":121,"count":0},
- {"start":124,"end":129,"count":1},
+ {"start":64,"end":114,"count":1},
+ {"start":114,"end":121,"count":0},
+ {"start":122,"end":129,"count":1},
  {"start":129,"end":200,"count":0}]
 );
 
@@ -624,9 +624,9 @@ it.next(); it.next(); it.next();          // 0300
 `,
 [{"start":0,"end":349,"count":1},
  {"start":11,"end":201,"count":7},
- {"start":65,"end":117,"count":1},
- {"start":117,"end":122,"count":0},
- {"start":125,"end":130,"count":1},
+ {"start":65,"end":115,"count":1},
+ {"start":115,"end":122,"count":0},
+ {"start":123,"end":130,"count":1},
  {"start":130,"end":200,"count":0}]
 );
 

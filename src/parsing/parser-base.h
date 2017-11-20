@@ -3048,11 +3048,11 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
   impl()->RewriteNonPattern(CHECK_OK);
   BindingPatternUnexpectedToken();
   ArrowFormalParametersUnexpectedToken();
-  Consume(Token::CONDITIONAL);
 
   ExpressionT left;
   {
     SourceRangeScope range_scope(scanner(), &then_range);
+    Consume(Token::CONDITIONAL);
     ExpressionClassifier classifier(this);
     // In parsing the first assignment expression in conditional
     // expressions we always accept the 'in' keyword; see ECMA-262,
@@ -3061,10 +3061,10 @@ ParserBase<Impl>::ParseConditionalExpression(bool accept_IN,
     AccumulateNonBindingPatternErrors();
   }
   impl()->RewriteNonPattern(CHECK_OK);
-  Expect(Token::COLON, CHECK_OK);
   ExpressionT right;
   {
     SourceRangeScope range_scope(scanner(), &else_range);
+    Expect(Token::COLON, CHECK_OK);
     ExpressionClassifier classifier(this);
     right = ParseAssignmentExpression(accept_IN, CHECK_OK);
     AccumulateNonBindingPatternErrors();
