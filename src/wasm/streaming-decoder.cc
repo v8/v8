@@ -104,7 +104,7 @@ class StreamingDecoder::DecodeVarInt32 : public DecodingState {
       StreamingDecoder* streaming) = 0;
 
   size_t value() const { return value_; }
-  size_t bytes_needed() const { return bytes_needed_; }
+  size_t bytes_consumed() const { return bytes_consumed_; }
 
  private:
   uint8_t byte_buffer_[kMaxVarInt32Size];
@@ -113,7 +113,7 @@ class StreamingDecoder::DecodeVarInt32 : public DecodingState {
   size_t max_value_;
   const char* field_name_;
   size_t value_ = 0;
-  size_t bytes_needed_ = 0;
+  size_t bytes_consumed_ = 0;
 };
 
 class StreamingDecoder::DecodeModuleHeader : public DecodingState {
@@ -273,8 +273,8 @@ size_t StreamingDecoder::DecodeVarInt32::ReadBytes(
   value_ = decoder.consume_u32v(field_name_);
   // The number of bytes we actually needed to read.
   DCHECK_GT(decoder.pc(), buffer());
-  bytes_needed_ = static_cast<size_t>(decoder.pc() - buffer());
-  TRACE_STREAMING("  ==> %zu bytes read\n", bytes_needed_);
+  bytes_consumed_ = static_cast<size_t>(decoder.pc() - buffer());
+  TRACE_STREAMING("  ==> %zu bytes consumed\n", bytes_consumed_);
 
   if (decoder.failed()) {
     if (offset() + bytes_read == size()) {
@@ -284,8 +284,8 @@ size_t StreamingDecoder::DecodeVarInt32::ReadBytes(
     set_offset(offset() + bytes_read);
     return bytes_read;
   } else {
-    DCHECK_GT(bytes_needed_, offset());
-    size_t result = bytes_needed_ - offset();
+    DCHECK_GT(bytes_consumed_, offset());
+    size_t result = bytes_consumed_ - offset();
     // We read all the bytes we needed.
     set_offset(size());
     return result;
@@ -330,7 +330,7 @@ StreamingDecoder::DecodeSectionLength::NextWithValue(
   TRACE_STREAMING("DecodeSectionLength(%zu)\n", value());
   SectionBuffer* buf = streaming->CreateNewBuffer(
       module_offset(), section_id(), value(),
-      Vector<const uint8_t>(buffer(), static_cast<int>(bytes_needed())));
+      Vector<const uint8_t>(buffer(), static_cast<int>(bytes_consumed())));
   if (!buf) return nullptr;
   if (value() == 0) {
     if (section_id() == SectionCode::kCodeSectionCode) {
@@ -370,9 +370,9 @@ StreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
     StreamingDecoder* streaming) {
   TRACE_STREAMING("DecodeNumberOfFunctions(%zu)\n", value());
   // Copy the bytes we read into the section buffer.
-  if (section_buffer()->payload_length() >= bytes_needed()) {
+  if (section_buffer()->payload_length() >= bytes_consumed()) {
     memcpy(section_buffer()->bytes() + section_buffer()->payload_offset(),
-           buffer(), bytes_needed());
+           buffer(), bytes_consumed());
   } else {
     return streaming->Error("Invalid code section length");
   }
@@ -382,11 +382,11 @@ StreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
     streaming->StartCodeSection(value());
     if (!streaming->ok()) return nullptr;
     return base::make_unique<DecodeFunctionLength>(
-        section_buffer(), section_buffer()->payload_offset() + bytes_needed(),
+        section_buffer(), section_buffer()->payload_offset() + bytes_consumed(),
         value());
   } else {
-    if (section_buffer()->payload_length() != bytes_needed()) {
-      return streaming->Error("not all code section bytes were used");
+    if (section_buffer()->payload_length() != bytes_consumed()) {
+      return streaming->Error("not all code section bytes were consumed");
     }
     return base::make_unique<DecodeSectionID>(streaming->module_offset());
   }
@@ -396,9 +396,10 @@ std::unique_ptr<StreamingDecoder::DecodingState>
 StreamingDecoder::DecodeFunctionLength::NextWithValue(
     StreamingDecoder* streaming) {
   TRACE_STREAMING("DecodeFunctionLength(%zu)\n", value());
-  // Copy the bytes we read into the section buffer.
-  if (section_buffer_->length() >= buffer_offset_ + bytes_needed()) {
-    memcpy(section_buffer_->bytes() + buffer_offset_, buffer(), bytes_needed());
+  // Copy the bytes we consumed into the section buffer.
+  if (section_buffer_->length() >= buffer_offset_ + bytes_consumed()) {
+    memcpy(section_buffer_->bytes() + buffer_offset_, buffer(),
+           bytes_consumed());
   } else {
     return streaming->Error("Invalid code section length");
   }
@@ -406,14 +407,14 @@ StreamingDecoder::DecodeFunctionLength::NextWithValue(
   // {value} is the length of the function.
   if (value() == 0) {
     return streaming->Error("Invalid function length (0)");
-  } else if (buffer_offset() + bytes_needed() + value() >
+  } else if (buffer_offset() + bytes_consumed() + value() >
              section_buffer()->length()) {
     streaming->Error("not enough code section bytes");
     return nullptr;
   }
 
   return base::make_unique<DecodeFunctionBody>(
-      section_buffer(), buffer_offset() + bytes_needed(), value(),
+      section_buffer(), buffer_offset() + bytes_consumed(), value(),
       num_remaining_functions(), streaming->module_offset());
 }
 
