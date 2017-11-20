@@ -12,7 +12,7 @@ namespace v8 {
 namespace internal {
 namespace interpreter {
 
-class SourcePositionTableTest : public TestWithIsolateAndZone {
+class SourcePositionTableTest : public TestWithIsolate {
  public:
   SourcePositionTableTest() {}
   ~SourcePositionTableTest() override {}
@@ -28,7 +28,7 @@ static int offsets[] = {0,   1,   2,    3,    4,     30,      31,  32,
                         129, 250, 1000, 9999, 12000, 31415926};
 
 TEST_F(SourcePositionTableTest, EncodeStatement) {
-  SourcePositionTableBuilder builder(zone());
+  SourcePositionTableBuilder builder;
   for (size_t i = 0; i < arraysize(offsets); i++) {
     builder.AddPosition(offsets[i], toPos(offsets[i]), true);
   }
@@ -39,7 +39,7 @@ TEST_F(SourcePositionTableTest, EncodeStatement) {
 }
 
 TEST_F(SourcePositionTableTest, EncodeStatementDuplicates) {
-  SourcePositionTableBuilder builder(zone());
+  SourcePositionTableBuilder builder;
   for (size_t i = 0; i < arraysize(offsets); i++) {
     builder.AddPosition(offsets[i], toPos(offsets[i]), true);
     builder.AddPosition(offsets[i], toPos(offsets[i] + 1), true);
@@ -51,7 +51,7 @@ TEST_F(SourcePositionTableTest, EncodeStatementDuplicates) {
 }
 
 TEST_F(SourcePositionTableTest, EncodeExpression) {
-  SourcePositionTableBuilder builder(zone());
+  SourcePositionTableBuilder builder;
   for (size_t i = 0; i < arraysize(offsets); i++) {
     builder.AddPosition(offsets[i], toPos(offsets[i]), false);
   }
@@ -59,7 +59,7 @@ TEST_F(SourcePositionTableTest, EncodeExpression) {
 }
 
 TEST_F(SourcePositionTableTest, EncodeAscending) {
-  SourcePositionTableBuilder builder(zone());
+  SourcePositionTableBuilder builder;
 
   int code_offset = 0;
   int source_position = 0;

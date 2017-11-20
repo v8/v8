@@ -948,8 +948,7 @@ static int TranslatePosition(int original_position,
 void TranslateSourcePositionTable(Handle<BytecodeArray> code,
                                   Handle<JSArray> position_change_array) {
   Isolate* isolate = code->GetIsolate();
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  SourcePositionTableBuilder builder(&zone);
+  SourcePositionTableBuilder builder;
 
   Handle<ByteArray> source_position_table(code->SourcePositionTable());
   for (SourcePositionTableIterator iterator(*source_position_table);

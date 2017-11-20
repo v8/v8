@@ -69,8 +69,7 @@ CodeGenerator::CodeGenerator(
       osr_helper_(osr_helper),
       osr_pc_offset_(-1),
       optimized_out_literal_id_(-1),
-      source_position_table_builder_(zone(),
-                                     info->SourcePositionRecordingMode()),
+      source_position_table_builder_(info->SourcePositionRecordingMode()),
       protected_instructions_(protected_instructions),
       result_(kSuccess) {
   for (int i = 0; i < code->InstructionBlockCount(); ++i) {

@@ -242,7 +242,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
 
   inline Register generator_object() const;
 
-  inline BytecodeArrayBuilder* builder() const { return builder_; }
+  inline BytecodeArrayBuilder* builder() { return &builder_; }
   inline Zone* zone() const { return zone_; }
   inline DeclarationScope* closure_scope() const { return closure_scope_; }
   inline CompilationInfo* info() const { return info_; }
@@ -265,7 +265,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
     execution_result_ = execution_result;
   }
   ExpressionResultScope* execution_result() const { return execution_result_; }
-  BytecodeRegisterAllocator* register_allocator() const {
+  BytecodeRegisterAllocator* register_allocator() {
     return builder()->register_allocator();
   }
 
@@ -290,7 +290,7 @@ class BytecodeGenerator final : public AstVisitor<BytecodeGenerator> {
   }
 
   Zone* zone_;
-  BytecodeArrayBuilder* builder_;
+  BytecodeArrayBuilder builder_;
   CompilationInfo* info_;
   const AstStringConstants* ast_string_constants_;
   DeclarationScope* closure_scope_;

@@ -812,10 +812,9 @@ class BytecodeGenerator::FeedbackSlotCache : public ZoneObject {
 BytecodeGenerator::BytecodeGenerator(
     CompilationInfo* info, const AstStringConstants* ast_string_constants)
     : zone_(info->zone()),
-      builder_(new (zone()) BytecodeArrayBuilder(
-          zone(), info->num_parameters_including_this(),
-          info->scope()->num_stack_slots(), info->feedback_vector_spec(),
-          info->SourcePositionRecordingMode())),
+      builder_(zone(), info->num_parameters_including_this(),
+               info->scope()->num_stack_slots(), info->feedback_vector_spec(),
+               info->SourcePositionRecordingMode()),
       info_(info),
       ast_string_constants_(ast_string_constants),
       closure_scope_(info->scope()),

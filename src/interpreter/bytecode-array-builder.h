@@ -31,8 +31,7 @@ class BytecodeRegisterOptimizer;
 class BytecodeJumpTable;
 class Register;
 
-class V8_EXPORT_PRIVATE BytecodeArrayBuilder final
-    : public NON_EXPORTED_BASE(ZoneObject) {
+class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
  public:
   BytecodeArrayBuilder(
       Zone* zone, int parameter_count, int locals_count,

@@ -47,7 +47,7 @@ void SubtractFromEntry(PositionTableEntry& value,
 
 // Helper: Encode an integer.
 template <typename T>
-void EncodeInt(ZoneVector<byte>& bytes, T value) {
+void EncodeInt(std::vector<byte>& bytes, T value) {
   // Zig-zag encoding.
   static const int kShift = sizeof(T) * kBitsPerByte - 1;
   value = ((value << 1) ^ (value >> kShift));
@@ -64,7 +64,7 @@ void EncodeInt(ZoneVector<byte>& bytes, T value) {
 }
 
 // Encode a PositionTableEntry.
-void EncodeEntry(ZoneVector<byte>& bytes, const PositionTableEntry& entry) {
+void EncodeEntry(std::vector<byte>& bytes, const PositionTableEntry& entry) {
   // We only accept ascending code offsets.
   DCHECK_GE(entry.code_offset, 0);
   // Since code_offset is not negative, we use sign to encode is_statement.
@@ -108,14 +108,8 @@ void DecodeEntry(ByteArray* bytes, int* index, PositionTableEntry* entry) {
 }  // namespace
 
 SourcePositionTableBuilder::SourcePositionTableBuilder(
-    Zone* zone, SourcePositionTableBuilder::RecordingMode mode)
-    : mode_(mode),
-      bytes_(zone),
-#ifdef ENABLE_SLOW_DCHECKS
-      raw_entries_(zone),
-#endif
-      previous_() {
-}
+    SourcePositionTableBuilder::RecordingMode mode)
+    : mode_(mode), previous_() {}
 
 void SourcePositionTableBuilder::AddPosition(size_t code_offset,
                                              SourcePosition source_position,
