@@ -218,6 +218,8 @@ class ModuleCompiler {
   Handle<Code> centry_stub_;
 };
 
+namespace {
+
 class JSToWasmWrapperCache {
  public:
   void SetContextAddress(Address context_address) {
@@ -391,7 +393,7 @@ class InstanceBuilder {
 };
 
 // TODO(titzer): move to wasm-objects.cc
-static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
+void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   DisallowHeapAllocation no_gc;
   JSObject** p = reinterpret_cast<JSObject**>(data.GetParameter());
   WasmInstanceObject* owner = reinterpret_cast<WasmInstanceObject*>(*p);
@@ -464,6 +466,8 @@ static void InstanceFinalizer(const v8::WeakCallbackInfo<void>& data) {
   GlobalHandles::Destroy(reinterpret_cast<Object**>(p));
   TRACE("}\n");
 }
+
+}  // namespace
 
 bool SyncValidate(Isolate* isolate, const ModuleWireBytes& bytes) {
   if (bytes.start() == nullptr || bytes.length() == 0) return false;
@@ -749,15 +753,7 @@ void LazyCompilationOrchestrator::CompileFunction(
   CHECK(!thrower.error());
   Handle<Code> code = maybe_code.ToHandleChecked();
 
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-
-  Handle<FixedArray> deopt_data = isolate->factory()->NewFixedArray(2, TENURED);
-  Handle<WeakCell> weak_instance = isolate->factory()->NewWeakCell(instance);
-  // TODO(wasm): Introduce constants for the indexes in wasm deopt data.
-  deopt_data->set(0, *weak_instance);
-  deopt_data->set(1, Smi::FromInt(func_index));
-  code->set_deoptimization_data(*deopt_data);
+  compiler::AttachWasmFunctionInfo(isolate, code, instance, func_index);
 
   DCHECK_EQ(Builtins::kWasmCompileLazy,
             Code::cast(compiled_module->code_table()->get(func_index))
@@ -1263,21 +1259,11 @@ Handle<Code> EnsureExportedLazyDeoptData(Isolate* isolate,
   //   #1: func_index
   // might be extended later for table exports (see
   // EnsureTableExportLazyDeoptData).
-  Handle<FixedArray> deopt_data(code->deoptimization_data());
-  DCHECK_EQ(0, deopt_data->length() % 2);
-  if (deopt_data->length() == 0) {
+  DCHECK_EQ(0, code->deoptimization_data()->length() % 2);
+  if (code->deoptimization_data()->length() == 0) {
     code = isolate->factory()->CopyCode(code);
     code_table->set(func_index, *code);
-    deopt_data = isolate->factory()->NewFixedArray(2, TENURED);
-    // TODO(6792): No longer needed once WebAssembly code is off heap.
-    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-    code->set_deoptimization_data(*deopt_data);
-    if (!instance.is_null()) {
-      Handle<WeakCell> weak_instance =
-          isolate->factory()->NewWeakCell(instance);
-      deopt_data->set(0, *weak_instance);
-    }
-    deopt_data->set(1, Smi::FromInt(func_index));
+    compiler::AttachWasmFunctionInfo(isolate, code, instance, func_index);
   }
   DCHECK_IMPLIES(!instance.is_null(),
                  WeakCell::cast(code->deoptimization_data()->get(0))->value() ==
@@ -1361,18 +1347,11 @@ Handle<Code> MakeWasmToWasmWrapper(
   Handle<Code> wrapper_code = compiler::CompileWasmToWasmWrapper(
       isolate, wasm_code, *sig, imported_function->function_index(),
       new_wasm_context_address);
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   // Set the deoptimization data for the WasmToWasm wrapper. This is
   // needed by the interpreter to find the imported instance for
   // a cross-instance call.
-  Factory* factory = isolate->factory();
-  Handle<WeakCell> weak_link = factory->NewWeakCell(imported_instance);
-  Handle<FixedArray> deopt_data = factory->NewFixedArray(2, TENURED);
-  deopt_data->set(0, *weak_link);
-  auto function_index = Smi::FromInt(imported_function->function_index());
-  deopt_data->set(1, function_index);
-  wrapper_code->set_deoptimization_data(*deopt_data);
+  compiler::AttachWasmFunctionInfo(isolate, wrapper_code, imported_instance,
+                                   imported_function->function_index());
   return wrapper_code;
 }
 
@@ -1684,15 +1663,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
             // unique copy to attach updated deoptimization data.
             if (orig_code->deoptimization_data()->length() > 0) {
               Handle<Code> code = factory->CopyCode(orig_code);
-              Handle<FixedArray> deopt_data =
-                  factory->NewFixedArray(2, TENURED);
-              deopt_data->set(1, Smi::FromInt(i));
-              // TODO(6792): No longer needed once WebAssembly code is off heap.
-              {
-                CodeSpaceMemoryModificationScope modification_scope(
-                    isolate_->heap());
-                code->set_deoptimization_data(*deopt_data);
-              }
+              compiler::AttachWasmFunctionInfo(isolate_, code,
+                                               Handle<WasmInstanceObject>(), i);
               code_table->set(i, *code);
             }
             break;
@@ -1870,12 +1842,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
        i < num_functions; ++i) {
     Handle<Code> code = handle(Code::cast(code_table->get(i)), isolate_);
     if (code->kind() == Code::WASM_FUNCTION) {
-      Handle<FixedArray> deopt_data = factory->NewFixedArray(2, TENURED);
-      deopt_data->set(0, *weak_link);
-      deopt_data->set(1, Smi::FromInt(i));
-      // TODO(6792): No longer needed once WebAssembly code is off heap.
-      CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
-      code->set_deoptimization_data(*deopt_data);
+      compiler::AttachWasmFunctionInfo(isolate_, code, weak_link, i);
       continue;
     }
     DCHECK_EQ(Builtins::kWasmCompileLazy, code->builtin_index());
