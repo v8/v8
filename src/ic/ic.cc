@@ -1141,7 +1141,7 @@ KeyedAccessLoadMode GetLoadMode(Handle<Object> receiver, uint32_t index) {
 
     // For other {receiver}s we need to check the "no elements" protector.
     Isolate* isolate = Handle<HeapObject>::cast(receiver)->GetIsolate();
-    if (isolate->IsFastArrayConstructorPrototypeChainIntact()) {
+    if (isolate->IsNoElementsProtectorIntact()) {
       if (receiver->IsString()) {
         // ToObject(receiver) will have the initial String.prototype.
         return LOAD_IGNORE_OUT_OF_BOUNDS;

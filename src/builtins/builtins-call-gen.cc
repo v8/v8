@@ -155,7 +155,7 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithArrayLike(
     // protector is intact and our prototype is the Array.prototype actually.
     GotoIfNot(IsPrototypeInitialArrayPrototype(context, arguments_list_map),
               &if_runtime);
-    Branch(IsArrayProtectorCellInvalid(), &if_runtime, &if_done);
+    Branch(IsNoElementsProtectorCellInvalid(), &if_runtime, &if_done);
   }
 
   BIND(&if_arguments);
@@ -310,9 +310,9 @@ void CallOrConstructBuiltinsAssembler::CallOrConstructWithSpread(
          &if_runtime);
   Branch(Word32And(kind, Int32Constant(1)), &if_holey, &if_done);
 
-  // Check the ArrayProtector cell for holey arrays.
+  // Check the NoElementsProtector cell for holey arrays.
   BIND(&if_holey);
-  { Branch(IsArrayProtectorCellInvalid(), &if_runtime, &if_done); }
+  { Branch(IsNoElementsProtectorCellInvalid(), &if_runtime, &if_done); }
 
   BIND(&if_runtime);
   {

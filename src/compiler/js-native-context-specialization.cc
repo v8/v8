@@ -2488,9 +2488,9 @@ Node* JSNativeContextSpecialization::BuildIndexedStringLoad(
     Node* receiver, Node* index, Node* length, Node** effect, Node** control,
     KeyedAccessLoadMode load_mode) {
   if (load_mode == LOAD_IGNORE_OUT_OF_BOUNDS &&
-      isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
+      isolate()->IsNoElementsProtectorIntact()) {
     // Add a code dependency on the "no elements" protector.
-    dependencies()->AssumePropertyCell(factory()->array_protector());
+    dependencies()->AssumePropertyCell(factory()->no_elements_protector());
 
     // Ensure that the {index} is a valid String length.
     index = *effect = graph()->NewNode(simplified()->CheckBounds(), index,
@@ -2618,10 +2618,10 @@ bool JSNativeContextSpecialization::CanTreatHoleAsUndefined(
   }
 
   // Check if the array prototype chain is intact.
-  if (!isolate()->IsFastArrayConstructorPrototypeChainIntact()) return false;
+  if (!isolate()->IsNoElementsProtectorIntact()) return false;
 
   // Install code dependency on the array protector cell.
-  dependencies()->AssumePropertyCell(factory()->array_protector());
+  dependencies()->AssumePropertyCell(factory()->no_elements_protector());
   return true;
 }
 

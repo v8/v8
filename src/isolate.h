@@ -1087,7 +1087,7 @@ class Isolate {
   static const int kProtectorInvalid = 0;
 
   inline bool IsArrayConstructorIntact();
-  bool IsFastArrayConstructorPrototypeChainIntact();
+  bool IsNoElementsProtectorIntact();
   inline bool IsArraySpeciesLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact();
   bool IsIsConcatSpreadableLookupChainIntact(JSReceiver* receiver);
@@ -1104,15 +1104,15 @@ class Isolate {
   // notifications occur if the set is on the elements of the array or
   // object prototype. Also ensure that changes to prototype chain between
   // Array and Object fire notifications.
-  void UpdateArrayProtectorOnSetElement(Handle<JSObject> object);
-  void UpdateArrayProtectorOnSetLength(Handle<JSObject> object) {
-    UpdateArrayProtectorOnSetElement(object);
+  void UpdateNoElementsProtectorOnSetElement(Handle<JSObject> object);
+  void UpdateNoElementsProtectorOnSetLength(Handle<JSObject> object) {
+    UpdateNoElementsProtectorOnSetElement(object);
   }
-  void UpdateArrayProtectorOnSetPrototype(Handle<JSObject> object) {
-    UpdateArrayProtectorOnSetElement(object);
+  void UpdateNoElementsProtectorOnSetPrototype(Handle<JSObject> object) {
+    UpdateNoElementsProtectorOnSetElement(object);
   }
-  void UpdateArrayProtectorOnNormalizeElements(Handle<JSObject> object) {
-    UpdateArrayProtectorOnSetElement(object);
+  void UpdateNoElementsProtectorOnNormalizeElements(Handle<JSObject> object) {
+    UpdateNoElementsProtectorOnSetElement(object);
   }
   void InvalidateArrayConstructorProtector();
   void InvalidateArraySpeciesProtector();

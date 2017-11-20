@@ -1101,7 +1101,7 @@ class FastArraySliceCodeStubAssembler : public CodeStubAssembler {
     // Check prototype chain if receiver does not have packed elements
     GotoIfNot(IsPrototypeInitialArrayPrototype(context, map), slow);
 
-    GotoIf(IsArrayProtectorCellInvalid(), slow);
+    GotoIf(IsNoElementsProtectorCellInvalid(), slow);
 
     GotoIf(IsSpeciesProtectorCellInvalid(), slow);
 
@@ -1562,7 +1562,7 @@ TF_BUILTIN(ExtractFastJSArray, ArrayBuiltinCodeStubAssembler) {
   Node* count = TaggedToParameter(Parameter(Descriptor::kCount), mode);
 
   CSA_ASSERT(this, IsJSArray(array));
-  CSA_ASSERT(this, Word32BinaryNot(IsArrayProtectorCellInvalid()));
+  CSA_ASSERT(this, Word32BinaryNot(IsNoElementsProtectorCellInvalid()));
 
   Return(ExtractFastJSArray(context, array, begin, count, mode));
 }
@@ -1572,7 +1572,7 @@ TF_BUILTIN(CloneFastJSArray, ArrayBuiltinCodeStubAssembler) {
   Node* array = Parameter(Descriptor::kSource);
 
   CSA_ASSERT(this, IsJSArray(array));
-  CSA_ASSERT(this, Word32BinaryNot(IsArrayProtectorCellInvalid()));
+  CSA_ASSERT(this, Word32BinaryNot(IsNoElementsProtectorCellInvalid()));
 
   ParameterMode mode = OptimalParameterMode();
   Return(CloneFastJSArray(context, array, mode));
@@ -2705,8 +2705,9 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
     BIND(&holey_object_values);
     {
-      // Check the array_protector cell, and take the slow path if it's invalid.
-      GotoIf(IsArrayProtectorCellInvalid(), &generic_values);
+      // Check the no_elements_protector cell, and take the slow path if it's
+      // invalid.
+      GotoIf(IsNoElementsProtectorCellInvalid(), &generic_values);
 
       var_value.Bind(UndefinedConstant());
       Node* value = LoadFixedArrayElement(elements, index, 0, SMI_PARAMETERS);
@@ -2717,8 +2718,9 @@ TF_BUILTIN(ArrayIteratorPrototypeNext, CodeStubAssembler) {
 
     BIND(&holey_double_values);
     {
-      // Check the array_protector cell, and take the slow path if it's invalid.
-      GotoIf(IsArrayProtectorCellInvalid(), &generic_values);
+      // Check the no_elements_protector cell, and take the slow path if it's
+      // invalid.
+      GotoIf(IsNoElementsProtectorCellInvalid(), &generic_values);
 
       var_value.Bind(UndefinedConstant());
       Node* value = LoadFixedDoubleArrayElement(

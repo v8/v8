@@ -1029,7 +1029,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* IsAllocationSite(Node* object);
   Node* IsAnyHeapNumber(Node* object);
   Node* IsArrayIteratorInstanceType(Node* instance_type);
-  Node* IsArrayProtectorCellInvalid();
+  Node* IsNoElementsProtectorCellInvalid();
   Node* IsBigIntInstanceType(Node* instance_type);
   Node* IsBigInt(Node* object);
   Node* IsBoolean(Node* object);

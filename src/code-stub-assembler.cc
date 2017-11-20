@@ -885,7 +885,7 @@ void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
   // Check prototype chain if receiver does not have packed elements
   GotoIfNot(IsPrototypeInitialArrayPrototype(context, map), if_false);
 
-  Branch(IsArrayProtectorCellInvalid(), if_false, if_true);
+  Branch(IsNoElementsProtectorCellInvalid(), if_false, if_true);
 }
 
 void CodeStubAssembler::BranchIfFastJSArrayForCopy(Node* object, Node* context,
@@ -4059,9 +4059,9 @@ Node* CodeStubAssembler::IsUndetectableMap(Node* map) {
   return IsSetWord32(LoadMapBitField(map), 1 << Map::kIsUndetectable);
 }
 
-Node* CodeStubAssembler::IsArrayProtectorCellInvalid() {
+Node* CodeStubAssembler::IsNoElementsProtectorCellInvalid() {
   Node* invalid = SmiConstant(Isolate::kProtectorInvalid);
-  Node* cell = LoadRoot(Heap::kArrayProtectorRootIndex);
+  Node* cell = LoadRoot(Heap::kNoElementsProtectorRootIndex);
   Node* cell_value = LoadObjectField(cell, PropertyCell::kValueOffset);
   return WordEqual(cell_value, invalid);
 }
@@ -10245,7 +10245,7 @@ Node* CodeStubAssembler::CreateArrayIterator(Node* array, Node* array_map,
           // its initial state (because the protector cell is only tracked for
           // initial the Array and Object prototypes). Check these conditions
           // here, and take the slow path if any fail.
-          GotoIf(IsArrayProtectorCellInvalid(), &if_isslow);
+          GotoIf(IsNoElementsProtectorCellInvalid(), &if_isslow);
 
           Node* native_context = LoadNativeContext(context);
 

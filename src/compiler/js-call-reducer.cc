@@ -856,7 +856,7 @@ bool CanInlineArrayIteratingBuiltin(Handle<Map> receiver_map) {
   return receiver_map->instance_type() == JS_ARRAY_TYPE &&
          IsFastElementsKind(receiver_map->elements_kind()) &&
          (!receiver_map->is_prototype_map() || receiver_map->is_stable()) &&
-         isolate->IsFastArrayConstructorPrototypeChainIntact() &&
+         isolate->IsNoElementsProtectorIntact() &&
          isolate->IsAnyInitialArrayPrototype(receiver_prototype);
 }
 
@@ -908,7 +908,7 @@ Reduction JSCallReducer::ReduceArrayForEach(Handle<JSFunction> function,
 
   // Install code dependencies on the {receiver} prototype maps and the
   // global array protector cell.
-  dependencies()->AssumePropertyCell(factory()->array_protector());
+  dependencies()->AssumePropertyCell(factory()->no_elements_protector());
 
   Node* k = jsgraph()->ZeroConstant();
 

@@ -911,7 +911,7 @@ class ElementsAccessorBase : public ElementsAccessor {
       // Array optimizations rely on the prototype lookups of Array objects
       // always returning undefined. If there is a store to the initial
       // prototype object, make sure all of these optimizations are invalidated.
-      object->GetIsolate()->UpdateArrayProtectorOnSetLength(object);
+      object->GetIsolate()->UpdateNoElementsProtectorOnSetLength(object);
     }
     Handle<FixedArrayBase> old_elements(object->elements());
     // This method should only be called if there's a reason to update the
@@ -1885,7 +1885,7 @@ class FastElementsAccessor : public ElementsAccessorBase<Subclass, KindTraits> {
     // normalizing.
     if (IsSmiOrObjectElementsKind(kind) ||
         kind == FAST_STRING_WRAPPER_ELEMENTS) {
-      isolate->UpdateArrayProtectorOnNormalizeElements(object);
+      isolate->UpdateNoElementsProtectorOnNormalizeElements(object);
     }
 
     int capacity = object->GetFastElementsUsage();
@@ -3280,7 +3280,7 @@ class TypedElementsAccessor
     if (!isolate->is_initial_array_prototype(JSObject::cast(source_proto))) {
       return true;
     }
-    return !isolate->IsFastArrayConstructorPrototypeChainIntact();
+    return !isolate->IsNoElementsProtectorIntact();
   }
 
   static bool TryCopyElementsHandleFastNumber(Handle<JSArray> source,
@@ -4151,7 +4151,7 @@ class StringWrapperElementsAccessor
       // objects always returning undefined. If there's a store to the
       // initial String.prototype object, make sure all the optimizations
       // are invalidated.
-      object->GetIsolate()->UpdateArrayProtectorOnSetLength(object);
+      object->GetIsolate()->UpdateNoElementsProtectorOnSetLength(object);
     }
     // This method should only be called if there's a reason to update the
     // elements.

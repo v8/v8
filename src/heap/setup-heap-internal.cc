@@ -606,7 +606,7 @@ void Heap::CreateInitialObjects() {
 
   Handle<PropertyCell> cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(Smi::FromInt(Isolate::kProtectorValid));
-  set_array_protector(*cell);
+  set_no_elements_protector(*cell);
 
   cell = factory->NewPropertyCell(factory->empty_string());
   cell->set_value(the_hole_value());

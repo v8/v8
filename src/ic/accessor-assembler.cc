@@ -289,7 +289,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
     {
       Comment("convert hole");
       GotoIfNot(IsSetWord<LoadHandler::ConvertHoleBits>(handler_word), miss);
-      GotoIf(IsArrayProtectorCellInvalid(), miss);
+      GotoIf(IsNoElementsProtectorCellInvalid(), miss);
       exit_point->Return(UndefinedConstant());
     }
 
@@ -309,9 +309,7 @@ void AccessorAssembler::HandleLoadICSmiHandlerCase(
       Node* allow_out_of_bounds =
           IsSetWord<LoadHandler::AllowOutOfBoundsBits>(handler_word);
       GotoIfNot(allow_out_of_bounds, miss);
-      // TODO(bmeurer): This is going to be renamed to NoElementsProtector
-      // in a follow-up CL.
-      GotoIf(IsArrayProtectorCellInvalid(), miss);
+      GotoIf(IsNoElementsProtectorCellInvalid(), miss);
       Return(UndefinedConstant());
     }
 

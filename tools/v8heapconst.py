@@ -315,7 +315,7 @@ KNOWN_OBJECTS = {
   ("OLD_SPACE", 0x028a9): "EmptyOrderedHashSet",
   ("OLD_SPACE", 0x028d1): "EmptyPropertyCell",
   ("OLD_SPACE", 0x028f9): "EmptyWeakCell",
-  ("OLD_SPACE", 0x02969): "ArrayProtector",
+  ("OLD_SPACE", 0x02969): "NoElementsProtector",
   ("OLD_SPACE", 0x02991): "IsConcatSpreadableProtector",
   ("OLD_SPACE", 0x029a1): "SpeciesProtector",
   ("OLD_SPACE", 0x029c9): "StringLengthProtector",

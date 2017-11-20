@@ -200,7 +200,7 @@ using v8::MemoryPressureLevel;
   V(InterceptorInfo, noop_interceptor_info, NoOpInterceptorInfo)               \
   /* Protectors */                                                             \
   V(Cell, array_constructor_protector, ArrayConstructorProtector)              \
-  V(PropertyCell, array_protector, ArrayProtector)                             \
+  V(PropertyCell, no_elements_protector, NoElementsProtector)                  \
   V(Cell, is_concat_spreadable_protector, IsConcatSpreadableProtector)         \
   V(PropertyCell, species_protector, SpeciesProtector)                         \
   V(Cell, string_length_protector, StringLengthProtector)                      \
@@ -283,7 +283,7 @@ using v8::MemoryPressureLevel;
   V(ArgumentsMarkerMap)                 \
   V(ArrayBufferNeuteringProtector)      \
   V(ArrayIteratorProtector)             \
-  V(ArrayProtector)                     \
+  V(NoElementsProtector)                \
   V(BigIntMap)                          \
   V(BlockContextMap)                    \
   V(BooleanMap)                         \

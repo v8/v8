@@ -2636,7 +2636,7 @@ bool Object::IterationHasObservableEffects() {
   // the prototype. This could have different results if the prototype has been
   // changed.
   if (IsHoleyElementsKind(array_kind) &&
-      isolate->IsFastArrayConstructorPrototypeChainIntact()) {
+      isolate->IsNoElementsProtectorIntact()) {
     return false;
   }
   return true;
@@ -15132,7 +15132,7 @@ Maybe<bool> JSObject::SetPrototype(Handle<JSObject> object,
 
   // Set the new prototype of the object.
 
-  isolate->UpdateArrayProtectorOnSetPrototype(real_receiver);
+  isolate->UpdateNoElementsProtectorOnSetPrototype(real_receiver);
 
   Handle<Map> new_map = Map::TransitionToPrototype(map, value);
   DCHECK(new_map->prototype() == *value);

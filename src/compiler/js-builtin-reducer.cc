@@ -149,7 +149,7 @@ bool CanInlineArrayResizeOperation(Handle<Map> receiver_map) {
          IsFastElementsKind(receiver_map->elements_kind()) &&
          !receiver_map->is_dictionary_map() && receiver_map->is_extensible() &&
          (!receiver_map->is_prototype_map() || receiver_map->is_stable()) &&
-         isolate->IsFastArrayConstructorPrototypeChainIntact() &&
+         isolate->IsNoElementsProtectorIntact() &&
          isolate->IsAnyInitialArrayPrototype(receiver_prototype) &&
          !IsReadOnlyLengthDescriptor(receiver_map);
 }
@@ -175,11 +175,12 @@ bool CanInlineJSArrayIteration(Handle<Map> receiver_map) {
     if (!current->map()->is_stable()) return false;
   }
 
-  // For holey Arrays, ensure that the array_protector cell is valid (must be
-  // a CompilationDependency), and the JSArray prototype has not been altered.
+  // For holey Arrays, ensure that the no_elements_protector cell is valid (must
+  // be a CompilationDependency), and the JSArray prototype has not been
+  // altered.
   return receiver_map->instance_type() == JS_ARRAY_TYPE &&
          (!receiver_map->is_dictionary_map() || receiver_map->is_stable()) &&
-         isolate->IsFastArrayConstructorPrototypeChainIntact() &&
+         isolate->IsNoElementsProtectorIntact() &&
          isolate->IsAnyInitialArrayPrototype(receiver_prototype);
 }
 
@@ -330,12 +331,12 @@ Reduction JSBuiltinReducer::ReduceFastArrayIteratorNext(
       iterator_map->instance_type());
 
   if (IsHoleyElementsKind(elements_kind)) {
-    if (!isolate()->IsFastArrayConstructorPrototypeChainIntact()) {
+    if (!isolate()->IsNoElementsProtectorIntact()) {
       return NoChange();
     } else {
       Handle<JSObject> initial_array_prototype(
           native_context()->initial_array_prototype(), isolate());
-      dependencies()->AssumePropertyCell(factory()->array_protector());
+      dependencies()->AssumePropertyCell(factory()->no_elements_protector());
     }
   }
 
@@ -908,7 +909,7 @@ Reduction JSBuiltinReducer::ReduceArrayPop(Node* node) {
       receiver_map->elements_kind() != HOLEY_DOUBLE_ELEMENTS) {
     // Install code dependencies on the {receiver} prototype maps and the
     // global array protector cell.
-    dependencies()->AssumePropertyCell(factory()->array_protector());
+    dependencies()->AssumePropertyCell(factory()->no_elements_protector());
     dependencies()->AssumePrototypeMapsStable(receiver_map);
 
     // Load the "length" property of the {receiver}.
@@ -1012,7 +1013,7 @@ Reduction JSBuiltinReducer::ReduceArrayPush(Node* node) {
 
     // Install code dependencies on the {receiver} prototype maps and the
     // global array protector cell.
-    dependencies()->AssumePropertyCell(factory()->array_protector());
+    dependencies()->AssumePropertyCell(factory()->no_elements_protector());
     dependencies()->AssumePrototypeMapsStable(receiver_map);
 
     // If the {receiver_maps} information is not reliable, we need
@@ -1128,7 +1129,7 @@ Reduction JSBuiltinReducer::ReduceArrayShift(Node* node) {
       receiver_map->elements_kind() != HOLEY_DOUBLE_ELEMENTS) {
     // Install code dependencies on the {receiver} prototype maps and the
     // global array protector cell.
-    dependencies()->AssumePropertyCell(factory()->array_protector());
+    dependencies()->AssumePropertyCell(factory()->no_elements_protector());
     dependencies()->AssumePrototypeMapsStable(receiver_map);
 
     // Load length of the {receiver}.
