@@ -18858,7 +18858,7 @@ void JSArrayBuffer::FreeBackingStore() {
   using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
   const size_t length = allocation_length();
   const AllocationMode mode = allocation_mode();
-  GetIsolate()->array_buffer_allocator()->Free(allocation_base(), length, mode);
+  FreeBackingStore(GetIsolate(), {allocation_base(), length, mode});
 
   // Zero out the backing store and allocation base to avoid dangling
   // pointers.
@@ -18868,6 +18868,12 @@ void JSArrayBuffer::FreeBackingStore() {
   // FreeBackingStore while it is collecting.
   set_allocation_base(nullptr);
   set_allocation_length(0);
+}
+
+// static
+void JSArrayBuffer::FreeBackingStore(Isolate* isolate, Allocation allocation) {
+  isolate->array_buffer_allocator()->Free(allocation.allocation_base,
+                                          allocation.length, allocation.mode);
 }
 
 void JSArrayBuffer::Setup(Handle<JSArrayBuffer> array_buffer, Isolate* isolate,
