@@ -40,6 +40,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   friend class JSBinopReduction;
 
   Reduction ReduceJSAdd(Node* node);
+  Reduction ReduceJSNegate(Node* node);
   Reduction ReduceJSComparison(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);
   Reduction ReduceJSHasInPrototypeChain(Node* node);

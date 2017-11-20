@@ -2088,8 +2088,8 @@ class RepresentationSelector {
       case IrOpcode::kSpeculativeNumberShiftRightLogical: {
         // ToNumber(x) can throw if x is either a Receiver or a Symbol, so we
         // can only eliminate an unused speculative number operation if we know
-        // that the inputs are PlainPrimitive, which excludes everything that's
-        // might have side effects or throws during a ToNumber conversion.
+        // that the inputs are PlainPrimitive, which excludes everything that
+        // might have side effects or throw during a ToNumber conversion.
         if (BothInputsAre(node, Type::PlainPrimitive())) {
           if (truncation.IsUnused()) return VisitUnused(node);
         }
@@ -3045,6 +3045,7 @@ class RepresentationSelector {
         JS_CONTEXT_OP_LIST(OPCODE_CASE)
         JS_OTHER_OP_LIST(OPCODE_CASE)
 #undef OPCODE_CASE
+      case IrOpcode::kJSNegate:
       case IrOpcode::kJSToInteger:
       case IrOpcode::kJSToLength:
       case IrOpcode::kJSToName:

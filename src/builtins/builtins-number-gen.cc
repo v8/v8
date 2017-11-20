@@ -60,6 +60,10 @@ class NumberBuiltinsAssembler : public CodeStubAssembler {
   }
 
   template <typename Descriptor>
+  void UnaryOp(Variable* var_input, Label* do_smi, Label* do_double,
+               Variable* var_input_double, Label* do_bigint);
+
+  template <typename Descriptor>
   void BinaryOp(Label* smis, Variable* var_left, Variable* var_right,
                 Label* doubles, Variable* var_left_double,
                 Variable* var_right_double, Label* bigints);
@@ -593,6 +597,35 @@ TF_BUILTIN(Add, AddStubAssembler) {
 }
 
 template <typename Descriptor>
+void NumberBuiltinsAssembler::UnaryOp(Variable* var_input, Label* do_smi,
+                                      Label* do_double,
+                                      Variable* var_input_double,
+                                      Label* do_bigint) {
+  DCHECK_EQ(var_input->rep(), MachineRepresentation::kTagged);
+  DCHECK_EQ(var_input_double->rep(), MachineRepresentation::kFloat64);
+
+  Node* context = Parameter(Descriptor::kContext);
+  var_input->Bind(Parameter(Descriptor::kValue));
+
+  // We might need to loop for ToNumeric conversion.
+  Label loop(this, {var_input});
+  Goto(&loop);
+  BIND(&loop);
+  Node* input = var_input->value();
+
+  Label not_number(this);
+  GotoIf(TaggedIsSmi(input), do_smi);
+  GotoIfNot(IsHeapNumber(input), &not_number);
+  var_input_double->Bind(LoadHeapNumberValue(input));
+  Goto(do_double);
+
+  BIND(&not_number);
+  GotoIf(IsBigInt(input), do_bigint);
+  var_input->Bind(CallBuiltin(Builtins::kNonNumberToNumeric, context, input));
+  Goto(&loop);
+}
+
+template <typename Descriptor>
 void NumberBuiltinsAssembler::BinaryOp(Label* smis, Variable* var_left,
                                        Variable* var_right, Label* doubles,
                                        Variable* var_left_double,
@@ -600,12 +633,14 @@ void NumberBuiltinsAssembler::BinaryOp(Label* smis, Variable* var_left,
                                        Label* bigints) {
   DCHECK_EQ(var_left->rep(), MachineRepresentation::kTagged);
   DCHECK_EQ(var_right->rep(), MachineRepresentation::kTagged);
+  DCHECK_EQ(var_left_double->rep(), MachineRepresentation::kFloat64);
+  DCHECK_EQ(var_right_double->rep(), MachineRepresentation::kFloat64);
 
   Node* context = Parameter(Descriptor::kContext);
   var_left->Bind(Parameter(Descriptor::kLeft));
   var_right->Bind(Parameter(Descriptor::kRight));
 
-  // We might need to loop for ToNumber conversions.
+  // We might need to loop for ToNumeric conversions.
   Label loop(this, {var_left, var_right});
   Goto(&loop);
   BIND(&loop);
@@ -710,6 +745,31 @@ TF_BUILTIN(Subtract, NumberBuiltinsAssembler) {
     Node* context = Parameter(Descriptor::kContext);
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
                        var_right.value(), SmiConstant(Operation::kSubtract)));
+  }
+}
+
+TF_BUILTIN(Negate, NumberBuiltinsAssembler) {
+  VARIABLE(var_input, MachineRepresentation::kTagged);
+  VARIABLE(var_input_double, MachineRepresentation::kFloat64);
+  Label do_smi(this), do_double(this), do_bigint(this);
+
+  UnaryOp<Descriptor>(&var_input, &do_smi, &do_double, &var_input_double,
+                      &do_bigint);
+
+  BIND(&do_smi);
+  { Return(SmiMul(var_input.value(), SmiConstant(-1))); }
+
+  BIND(&do_double);
+  {
+    Node* value = Float64Mul(var_input_double.value(), Float64Constant(-1));
+    Return(AllocateHeapNumberWithValue(value));
+  }
+
+  BIND(&do_bigint);
+  {
+    Node* context = Parameter(Descriptor::kContext);
+    Return(CallRuntime(Runtime::kBigIntUnaryOp, context, var_input.value(),
+                       SmiConstant(Operation::kNegate)));
   }
 }
 

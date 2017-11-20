@@ -38,6 +38,8 @@ namespace internal {
     "Insufficient type feedback for generic named access")                     \
   V(InsufficientTypeFeedbackForGenericKeyedAccess,                             \
     "Insufficient type feedback for generic keyed access")                     \
+  V(InsufficientTypeFeedbackForUnaryOperation,                                 \
+    "Insufficient type feedback for unary operation")                          \
   V(KeyIsNegative, "key is negative")                                          \
   V(LostPrecision, "lost precision")                                           \
   V(LostPrecisionOrNaN, "lost precision or NaN")                               \

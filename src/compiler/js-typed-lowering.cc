@@ -426,6 +426,20 @@ Reduction JSTypedLowering::ReduceSpeculativeNumberAdd(Node* node) {
   return NoChange();
 }
 
+Reduction JSTypedLowering::ReduceJSNegate(Node* node) {
+  Node* input = NodeProperties::GetValueInput(node, 0);
+  Type* input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::PlainPrimitive())) {
+    // JSNegate(x) => NumberMultiply(ToNumber(x), -1)
+    node->InsertInput(graph()->zone(), 1, jsgraph()->SmiConstant(-1));
+    NodeProperties::ChangeOp(node, javascript()->Multiply());
+    JSBinopReduction r(this, node);
+    r.ConvertInputsToNumber();
+    return r.ChangeToPureOperator(r.NumberOp(), Type::Number());
+  }
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceJSAdd(Node* node) {
   JSBinopReduction r(this, node);
   if (r.BothInputsAre(Type::Number())) {
@@ -2064,6 +2078,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSDivide:
     case IrOpcode::kJSModulus:
       return ReduceNumberBinop(node);
+    case IrOpcode::kJSNegate:
+      return ReduceJSNegate(node);
     case IrOpcode::kJSHasInPrototypeChain:
       return ReduceJSHasInPrototypeChain(node);
     case IrOpcode::kJSOrdinaryHasInstance:

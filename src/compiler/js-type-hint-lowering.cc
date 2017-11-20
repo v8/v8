@@ -212,6 +212,35 @@ JSTypeHintLowering::JSTypeHintLowering(JSGraph* jsgraph,
                                        Flags flags)
     : jsgraph_(jsgraph), flags_(flags), feedback_vector_(feedback_vector) {}
 
+JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceUnaryOperation(
+    const Operator* op, Node* operand, Node* effect, Node* control,
+    FeedbackSlot slot) const {
+  switch (op->opcode()) {
+    case IrOpcode::kJSNegate: {
+      DCHECK(!slot.IsInvalid());
+      BinaryOpICNexus nexus(feedback_vector(), slot);
+      if (Node* node = TryBuildSoftDeopt(
+              nexus, effect, control,
+              DeoptimizeReason::kInsufficientTypeFeedbackForUnaryOperation)) {
+        return LoweringResult::Exit(node);
+      }
+      // Lower to a speculative multiplication with -1 if we have some kind of
+      // Number feedback.
+      JSSpeculativeBinopBuilder b(this, jsgraph()->javascript()->Multiply(),
+                                  operand, jsgraph()->SmiConstant(-1), effect,
+                                  control, slot);
+      if (Node* node = b.TryBuildNumberBinop()) {
+        return LoweringResult::SideEffectFree(node, node, control);
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
+  }
+  return LoweringResult::NoChange();
+}
+
 JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceBinaryOperation(
     const Operator* op, Node* left, Node* right, Node* effect, Node* control,
     FeedbackSlot slot) const {

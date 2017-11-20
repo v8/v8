@@ -2086,24 +2086,20 @@ CallFrequency BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
 void BytecodeGraphBuilder::VisitNegate() {
   PrepareEagerCheckpoint();
 
-  // TODO(adamk): Create a JSNegate operator, as this desugaring is
-  // invalid for BigInts.
-  const Operator* op = javascript()->Multiply();
-  Node* operand = environment()->LookupAccumulator();
-  Node* multiplier = jsgraph()->SmiConstant(-1);
-
   FeedbackSlot slot = feedback_vector()->ToSlot(
       bytecode_iterator().GetIndexOperand(kUnaryOperationHintIndex));
-  JSTypeHintLowering::LoweringResult lowering =
-      TryBuildSimplifiedBinaryOp(op, operand, multiplier, slot);
-  if (lowering.IsExit()) return;
+  const Operator* op = javascript()->Negate();
+  Node* operand = environment()->LookupAccumulator();
 
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedUnaryOp(op, operand, slot);
+  if (lowering.IsExit()) return;
   Node* node = nullptr;
   if (lowering.IsSideEffectFree()) {
     node = lowering.value();
   } else {
     DCHECK(!lowering.Changed());
-    node = NewNode(op, operand, multiplier);
+    node = NewNode(op, operand);
   }
 
   environment()->BindAccumulator(node, Environment::kAttachFrameState);
@@ -2992,6 +2988,19 @@ void BytecodeGraphBuilder::BuildJumpIfJSReceiver() {
   Node* accumulator = environment()->LookupAccumulator();
   Node* condition = NewNode(simplified()->ObjectIsReceiver(), accumulator);
   BuildJumpIf(condition);
+}
+
+JSTypeHintLowering::LoweringResult
+BytecodeGraphBuilder::TryBuildSimplifiedUnaryOp(const Operator* op,
+                                                Node* operand,
+                                                FeedbackSlot slot) {
+  Node* effect = environment()->GetEffectDependency();
+  Node* control = environment()->GetControlDependency();
+  JSTypeHintLowering::LoweringResult result =
+      type_hint_lowering().ReduceUnaryOperation(op, operand, effect, control,
+                                                slot);
+  ApplyEarlyReduction(result);
+  return result;
 }
 
 JSTypeHintLowering::LoweringResult

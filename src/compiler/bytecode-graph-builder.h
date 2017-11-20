@@ -183,6 +183,8 @@ class BytecodeGraphBuilder {
   // Optional early lowering to the simplified operator level.  Note that
   // the result has already been wired into the environment just like
   // any other invocation of {NewNode} would do.
+  JSTypeHintLowering::LoweringResult TryBuildSimplifiedUnaryOp(
+      const Operator* op, Node* operand, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedBinaryOp(
       const Operator* op, Node* left, Node* right, FeedbackSlot slot);
   JSTypeHintLowering::LoweringResult TryBuildSimplifiedForInNext(

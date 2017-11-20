@@ -113,6 +113,7 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSStackCheck:
     case IrOpcode::kJSDebugger:
     case IrOpcode::kJSGetSuperConstructor:
+    case IrOpcode::kJSNegate:
       return true;
 
     default:

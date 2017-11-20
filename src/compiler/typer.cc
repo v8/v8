@@ -264,6 +264,8 @@ class Typer::Visitor : public Reducer {
   static ComparisonOutcome Invert(ComparisonOutcome, Typer*);
   static Type* FalsifyUndefined(ComparisonOutcome, Typer*);
 
+  static Type* Negate(Type*, Typer*);
+
   static Type* ToPrimitive(Type*, Typer*);
   static Type* ToBoolean(Type*, Typer*);
   static Type* ToInteger(Type*, Typer*);
@@ -422,6 +424,14 @@ Type* Typer::Visitor::FalsifyUndefined(ComparisonOutcome outcome, Typer* t) {
   // Type should be non empty, so we know it should be true.
   DCHECK_NE(0, outcome & kComparisonTrue);
   return t->singleton_true_;
+}
+
+Type* Typer::Visitor::Negate(Type* type, Typer* t) {
+  type = ToNumeric(type, t);
+  if (type->Is(Type::Number())) {
+    return NumberMultiply(type, t->cache_.kSingletonMinusOne, t);
+  }
+  return Type::Numeric();
 }
 
 // Type conversion.
@@ -1068,6 +1078,10 @@ Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
 
 
 // JS unary operators.
+
+Type* Typer::Visitor::TypeJSNegate(Node* node) {
+  return TypeUnaryOp(node, Negate);
+}
 
 Type* Typer::Visitor::TypeClassOf(Node* node) {
   return Type::InternalizedStringOrNull();
