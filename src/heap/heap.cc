@@ -23,7 +23,6 @@
 #include "src/deoptimizer.h"
 #include "src/feedback-vector.h"
 #include "src/global-handles.h"
-#include "src/heap/array-buffer-collector.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/barrier.h"
 #include "src/heap/code-stats.h"
@@ -192,7 +191,6 @@ Heap::Heap()
       last_gc_time_(0.0),
       mark_compact_collector_(nullptr),
       minor_mark_compact_collector_(nullptr),
-      array_buffer_collector_(nullptr),
       memory_allocator_(nullptr),
       store_buffer_(nullptr),
       incremental_marking_(nullptr),
@@ -2061,10 +2059,8 @@ void Heap::Scavenge() {
 
   {
     TRACE_GC(tracer(), GCTracer::Scope::SCAVENGER_PROCESS_ARRAY_BUFFERS);
-    ArrayBufferTracker::PrepareToFreeDeadInNewSpace(this);
+    ArrayBufferTracker::FreeDeadInNewSpace(this);
   }
-  array_buffer_collector()->FreeAllocationsOnBackgroundThread();
-
   RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(this, [](MemoryChunk* chunk) {
     if (chunk->SweepingDone()) {
       RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
@@ -5509,7 +5505,6 @@ bool Heap::SetUp() {
 
   tracer_ = new GCTracer(this);
   minor_mark_compact_collector_ = new MinorMarkCompactCollector(this);
-  array_buffer_collector_ = new ArrayBufferCollector(this);
   gc_idle_time_handler_ = new GCIdleTimeHandler();
   memory_reducer_ = new MemoryReducer(this);
   if (V8_UNLIKELY(FLAG_gc_stats)) {
@@ -5656,11 +5651,6 @@ void Heap::TearDown() {
     minor_mark_compact_collector_->TearDown();
     delete minor_mark_compact_collector_;
     minor_mark_compact_collector_ = nullptr;
-  }
-
-  if (array_buffer_collector_ != nullptr) {
-    delete array_buffer_collector_;
-    array_buffer_collector_ = nullptr;
   }
 
   delete incremental_marking_;

@@ -179,19 +179,7 @@ class JSArrayBuffer : public JSObject {
 
   inline ArrayBuffer::Allocator::AllocationMode allocation_mode() const;
 
-  struct Allocation {
-    using AllocationMode = ArrayBuffer::Allocator::AllocationMode;
-
-    Allocation(void* allocation_base, size_t length, AllocationMode mode)
-        : allocation_base(allocation_base), length(length), mode(mode) {}
-
-    void* allocation_base;
-    size_t length;
-    AllocationMode mode;
-  };
-
   void FreeBackingStore();
-  static void FreeBackingStore(Isolate* isolate, Allocation allocation);
 
   V8_EXPORT_PRIVATE static void Setup(
       Handle<JSArrayBuffer> array_buffer, Isolate* isolate, bool is_external,
