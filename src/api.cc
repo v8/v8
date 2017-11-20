@@ -8609,6 +8609,9 @@ Isolate* IsolateNewImpl(internal::Isolate* isolate,
   // TODO(jochen): Once we got rid of Isolate::Current(), we can remove this.
   Isolate::Scope isolate_scope(v8_isolate);
   if (params.entry_hook || !i::Snapshot::Initialize(isolate)) {
+    // If snapshot data was provided and we failed to deserialize it must
+    // have been corrupted.
+    CHECK_NULL(isolate->snapshot_blob());
     base::ElapsedTimer timer;
     if (i::FLAG_profile_deserialization) timer.Start();
     isolate->Init(nullptr);
