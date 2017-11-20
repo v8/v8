@@ -722,16 +722,7 @@ TF_STUB(GrowArrayElementsStub, CodeStubAssembler) {
   Return(new_elements);
 
   BIND(&runtime);
-  // TODO(danno): Make this a tail call when the stub is only used from TurboFan
-  // code. This musn't be a tail call for now, since the caller site in lithium
-  // creates a safepoint. This safepoint musn't have a different number of
-  // arguments on the stack in the case that a GC happens from the slow-case
-  // allocation path (zero, since all the stubs inputs are in registers) and
-  // when the call happens (it would be two in the tail call case due to the
-  // tail call pushing the arguments on the stack for the runtime call). By not
-  // tail-calling, the runtime call case also has zero arguments on the stack
-  // for the stub frame.
-  Return(CallRuntime(Runtime::kGrowArrayElements, context, object, key));
+  TailCallRuntime(Runtime::kGrowArrayElements, context, object, key);
 }
 
 ArrayConstructorStub::ArrayConstructorStub(Isolate* isolate)
