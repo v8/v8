@@ -38,7 +38,7 @@ class Verifier::Visitor {
         check_inputs(check_inputs),
         code_type(code_type) {}
 
-  void Check(Node* node);
+  void Check(Node* node, const AllNodes& all);
 
   Zone* zone;
   Typing typing;
@@ -100,8 +100,7 @@ class Verifier::Visitor {
   }
 };
 
-
-void Verifier::Visitor::Check(Node* node) {
+void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
   int value_count = node->op()->ValueInputCount();
   int context_count = OperatorProperties::GetContextInputCount(node->op());
   int frame_state_count =
@@ -123,7 +122,7 @@ void Verifier::Visitor::Check(Node* node) {
   if (code_type != kWasm && node->op()->EffectOutputCount() > 0) {
     int effect_edges = 0;
     for (Edge edge : node->use_edges()) {
-      if (NodeProperties::IsEffectEdge(edge)) {
+      if (all.IsLive(edge.from()) && NodeProperties::IsEffectEdge(edge)) {
         effect_edges++;
       }
     }
@@ -246,8 +245,8 @@ void Verifier::Visitor::Check(Node* node) {
       // Branch uses are IfTrue and IfFalse.
       int count_true = 0, count_false = 0;
       for (const Node* use : node->uses()) {
-        CHECK(use->opcode() == IrOpcode::kIfTrue ||
-              use->opcode() == IrOpcode::kIfFalse);
+        CHECK(all.IsLive(use) && (use->opcode() == IrOpcode::kIfTrue ||
+                                  use->opcode() == IrOpcode::kIfFalse));
         if (use->opcode() == IrOpcode::kIfTrue) ++count_true;
         if (use->opcode() == IrOpcode::kIfFalse) ++count_false;
       }
@@ -286,6 +285,7 @@ void Verifier::Visitor::Check(Node* node) {
       // Switch uses are Case and Default.
       int count_case = 0, count_default = 0;
       for (const Node* use : node->uses()) {
+        CHECK(all.IsLive(use));
         switch (use->opcode()) {
           case IrOpcode::kIfValue: {
             for (const Node* user : node->uses()) {
@@ -329,7 +329,7 @@ void Verifier::Visitor::Check(Node* node) {
       // stay connected to the graph end.
       bool has_terminate = false;
       for (const Node* use : node->uses()) {
-        if (use->opcode() == IrOpcode::kTerminate) {
+        if (all.IsLive(use) && use->opcode() == IrOpcode::kTerminate) {
           has_terminate = true;
           break;
         }
@@ -357,7 +357,9 @@ void Verifier::Visitor::Check(Node* node) {
     case IrOpcode::kThrow:
       // Deoptimize, Return and Throw uses are End.
       for (const Node* use : node->uses()) {
-        CHECK_EQ(IrOpcode::kEnd, use->opcode());
+        if (all.IsLive(use)) {
+          CHECK_EQ(IrOpcode::kEnd, use->opcode());
+        }
       }
       // Type is empty.
       CheckNotTyped(node);
@@ -371,7 +373,9 @@ void Verifier::Visitor::Check(Node* node) {
                NodeProperties::GetControlInput(node)->opcode());
       // Terminate uses are End.
       for (const Node* use : node->uses()) {
-        CHECK_EQ(IrOpcode::kEnd, use->opcode());
+        if (all.IsLive(use)) {
+          CHECK_EQ(IrOpcode::kEnd, use->opcode());
+        }
       }
       // Type is empty.
       CheckNotTyped(node);
@@ -488,6 +492,18 @@ void Verifier::Visitor::Check(Node* node) {
       Node* control = NodeProperties::GetControlInput(node, 0);
       CHECK_EQ(effect_count, control->op()->ControlInputCount());
       CHECK_EQ(input_count, 1 + effect_count);
+      // If the control input is a Merge, then make sure that at least one
+      // of it's usages is non-phi.
+      if (control->opcode() == IrOpcode::kMerge) {
+        bool non_phi_use_found = false;
+        for (Node* use : control->uses()) {
+          if (all.IsLive(use) && use->opcode() != IrOpcode::kEffectPhi &&
+              use->opcode() != IrOpcode::kPhi) {
+            non_phi_use_found = true;
+          }
+        }
+        CHECK(non_phi_use_found);
+      }
       break;
     }
     case IrOpcode::kLoopExit: {
@@ -1595,7 +1611,7 @@ void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs,
   Zone zone(graph->zone()->allocator(), ZONE_NAME);
   Visitor visitor(&zone, typing, check_inputs, code_type);
   AllNodes all(&zone, graph);
-  for (Node* node : all.reachable) visitor.Check(node);
+  for (Node* node : all.reachable) visitor.Check(node, all);
 
   // Check the uniqueness of projections.
   for (Node* proj : all.reachable) {
