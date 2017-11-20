@@ -381,28 +381,22 @@ class WasmCompiledModule : public FixedArray {
 // for deserialization, and if they are serializable.
 // By default, instance values go to WasmInstanceObject, however, if
 // we embed the generated code with a value, then we track that value here.
-#define CORE_WCM_PROPERTY_TABLE(MACRO)                  \
-  MACRO(WASM_OBJECT, WasmSharedModuleData, shared)      \
-  MACRO(OBJECT, Context, native_context)                \
-  MACRO(CONST_OBJECT, FixedArray, export_wrappers)      \
-  MACRO(OBJECT, FixedArray, weak_exported_functions)    \
-  MACRO(WASM_OBJECT, WasmCompiledModule, next_instance) \
-  MACRO(WASM_OBJECT, WasmCompiledModule, prev_instance) \
-  MACRO(WEAK_LINK, WasmInstanceObject, owning_instance) \
-  MACRO(WEAK_LINK, WasmModuleObject, wasm_module)       \
-  MACRO(OBJECT, FixedArray, handler_table)              \
-  MACRO(OBJECT, FixedArray, source_positions)           \
-  MACRO(OBJECT, Foreign, native_module)                 \
-  MACRO(OBJECT, FixedArray, lazy_compile_data)
-
-#define GC_WCM_PROPERTY_TABLE(MACRO)                          \
+#define CORE_WCM_PROPERTY_TABLE(MACRO)                        \
+  MACRO(WASM_OBJECT, WasmSharedModuleData, shared)            \
+  MACRO(OBJECT, Context, native_context)                      \
   MACRO(SMALL_CONST_NUMBER, uint32_t, num_imported_functions) \
   MACRO(CONST_OBJECT, FixedArray, code_table)                 \
+  MACRO(CONST_OBJECT, FixedArray, export_wrappers)            \
+  MACRO(OBJECT, FixedArray, weak_exported_functions)          \
   MACRO(OBJECT, FixedArray, function_tables)                  \
   MACRO(OBJECT, FixedArray, signature_tables)                 \
   MACRO(CONST_OBJECT, FixedArray, empty_function_tables)      \
   MACRO(CONST_OBJECT, FixedArray, empty_signature_tables)     \
-  MACRO(SMALL_CONST_NUMBER, uint32_t, initial_pages)
+  MACRO(SMALL_CONST_NUMBER, uint32_t, initial_pages)          \
+  MACRO(WASM_OBJECT, WasmCompiledModule, next_instance)       \
+  MACRO(WASM_OBJECT, WasmCompiledModule, prev_instance)       \
+  MACRO(WEAK_LINK, JSObject, owning_instance)                 \
+  MACRO(WEAK_LINK, WasmModuleObject, wasm_module)
 
 #if DEBUG
 #define DEBUG_ONLY_TABLE(MACRO) MACRO(SMALL_CONST_NUMBER, uint32_t, instance_id)
@@ -415,7 +409,6 @@ class WasmCompiledModule : public FixedArray {
 
 #define WCM_PROPERTY_TABLE(MACRO) \
   CORE_WCM_PROPERTY_TABLE(MACRO)  \
-  GC_WCM_PROPERTY_TABLE(MACRO)    \
   DEBUG_ONLY_TABLE(MACRO)
 
  private:

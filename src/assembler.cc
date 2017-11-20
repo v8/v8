@@ -312,18 +312,6 @@ void RelocInfo::set_global_handle(Isolate* isolate, Address address,
   set_embedded_address(isolate, address, icache_flush_mode);
 }
 
-Address RelocInfo::wasm_call_address() const {
-  DCHECK_EQ(rmode_, WASM_CALL);
-  return Assembler::target_address_at(pc_, constant_pool_);
-}
-
-void RelocInfo::set_wasm_call_address(Isolate* isolate, Address address,
-                                      ICacheFlushMode icache_flush_mode) {
-  DCHECK_EQ(rmode_, WASM_CALL);
-  Assembler::set_target_address_at(isolate, pc_, constant_pool_, address,
-                                   icache_flush_mode);
-}
-
 Address RelocInfo::global_handle() const {
   DCHECK_EQ(rmode_, WASM_GLOBAL_HANDLE);
   return embedded_address();
@@ -349,7 +337,7 @@ void RelocInfo::update_wasm_function_table_size_reference(
 void RelocInfo::set_target_address(Isolate* isolate, Address target,
                                    WriteBarrierMode write_barrier_mode,
                                    ICacheFlushMode icache_flush_mode) {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
   Assembler::set_target_address_at(isolate, pc_, host_, target,
                                    icache_flush_mode);
   if (write_barrier_mode == UPDATE_WRITE_BARRIER && host() != nullptr &&
@@ -656,8 +644,6 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "wasm function table size reference";
     case WASM_GLOBAL_HANDLE:
       return "global handle";
-    case WASM_CALL:
-      return "internal wasm call";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -739,7 +725,6 @@ void RelocInfo::Verify(Isolate* isolate) {
     case WASM_CONTEXT_REFERENCE:
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
     case WASM_GLOBAL_HANDLE:
-    case WASM_CALL:
     case NONE32:
     case NONE64:
       break;
