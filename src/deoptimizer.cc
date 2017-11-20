@@ -3457,10 +3457,32 @@ class TranslatedState::CapturedObjectMaterializer {
                              int field_count)
       : state_(state), frame_index_(frame_index), field_count_(field_count) {}
 
+  // Ensure the properties never contain mutable heap numbers. This is necessary
+  // because the deoptimizer generalizes all maps to tagged representation
+  // fields (so mutable heap numbers are not allowed).
+  static void EnsurePropertiesGeneralized(Handle<Object> properties_or_hash) {
+    if (properties_or_hash->IsPropertyArray()) {
+      Handle<PropertyArray> properties =
+          Handle<PropertyArray>::cast(properties_or_hash);
+      int length = properties->length();
+      for (int i = 0; i < length; i++) {
+        if (properties->get(i)->IsMutableHeapNumber()) {
+          Handle<HeapObject> box(HeapObject::cast(properties->get(i)));
+          box->set_map(properties->GetIsolate()->heap()->heap_number_map());
+        }
+      }
+    }
+  }
+
   Handle<Object> FieldAt(int* value_index) {
     CHECK(field_count_ > 0);
     --field_count_;
-    return state_->MaterializeAt(frame_index_, value_index);
+    Handle<Object> object = state_->MaterializeAt(frame_index_, value_index);
+    // This is a big hammer to make sure that the materialized objects do not
+    // have property arrays with mutable heap numbers (mutable heap numbers are
+    // bad because we generalize maps for all materialized objects).
+    EnsurePropertiesGeneralized(object);
+    return object;
   }
 
   ~CapturedObjectMaterializer() { CHECK_EQ(0, field_count_); }
