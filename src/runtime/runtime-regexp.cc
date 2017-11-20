@@ -1332,7 +1332,7 @@ MUST_USE_RESULT MaybeHandle<String> RegExpReplace(Isolate* isolate,
                                  String);
       last_index = PositiveNumberToUint32(*last_index_obj);
 
-      if (static_cast<int>(last_index) > string->length()) last_index = 0;
+      if (last_index > static_cast<uint32_t>(string->length())) last_index = 0;
     }
 
     Handle<Object> match_indices_obj;
@@ -1451,7 +1451,7 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
         isolate, last_index_obj, Object::ToLength(isolate, last_index_obj));
     last_index = PositiveNumberToUint32(*last_index_obj);
 
-    if (static_cast<int>(last_index) > subject->length()) last_index = 0;
+    if (last_index > static_cast<uint32_t>(subject->length())) last_index = 0;
   }
 
   Handle<Object> match_indices_obj;
@@ -1646,7 +1646,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 
   static const int kInitialArraySize = 8;
   Handle<FixedArray> elems = factory->NewFixedArrayWithHoles(kInitialArraySize);
-  int num_elems = 0;
+  uint32_t num_elems = 0;
 
   uint32_t string_index = 0;
   uint32_t prev_string_index = 0;
@@ -1684,7 +1684,7 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
       Handle<String> substr =
           factory->NewSubString(string, prev_string_index, string_index);
       elems = FixedArray::SetAndGrow(elems, num_elems++, substr);
-      if (static_cast<uint32_t>(num_elems) == limit) {
+      if (num_elems == limit) {
         return *NewJSArrayWithElements(isolate, elems, num_elems);
       }
     }
@@ -1698,14 +1698,14 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
 
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, num_captures_obj, Object::ToLength(isolate, num_captures_obj));
-    const int num_captures = PositiveNumberToUint32(*num_captures_obj);
+    const uint32_t num_captures = PositiveNumberToUint32(*num_captures_obj);
 
-    for (int i = 1; i < num_captures; i++) {
+    for (uint32_t i = 1; i < num_captures; i++) {
       Handle<Object> capture;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, capture, Object::GetElement(isolate, result, i));
       elems = FixedArray::SetAndGrow(elems, num_elems++, capture);
-      if (static_cast<uint32_t>(num_elems) == limit) {
+      if (num_elems == limit) {
         return *NewJSArrayWithElements(isolate, elems, num_elems);
       }
     }
