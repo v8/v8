@@ -113,6 +113,11 @@ void ResurrectingFinalizer(
   data.GetParameter()->ClearWeak();
 }
 
+void ResettingFinalizer(
+    const v8::WeakCallbackInfo<v8::Global<v8::Object>>& data) {
+  data.GetParameter()->Reset();
+}
+
 void EmptyWeakCallback(const v8::WeakCallbackInfo<void>& data) {}
 
 void ResurrectingFinalizerSettingProperty(
@@ -360,56 +365,59 @@ TEST(WeakHandleToActiveUnmodifiedJSApiObjectSurvivesMarkCompactWhenInHandle) {
 
 namespace {
 
-template <typename GCFunction>
-void TestFinalizerKeepsPhantomAlive(v8::Isolate* isolate,
-                                    GCFunction gc_function) {
-  v8::Global<v8::Object> g1, g2;
-  {
-    v8::HandleScope scope(isolate);
-    v8::Local<v8::Object> o1 =
-        v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
-    v8::Local<v8::Object> o2 =
-        v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
-    CHECK(reinterpret_cast<Isolate*>(isolate)->heap()->InNewSpace(
-        *v8::Utils::OpenHandle(v8::Object::Cast(*o1))));
-    CHECK(reinterpret_cast<Isolate*>(isolate)->heap()->InNewSpace(
-        *v8::Utils::OpenHandle(v8::Object::Cast(*o2))));
-    o1->Set(isolate->GetCurrentContext(), v8_str("link"), o2).FromJust();
-    g1.Reset(isolate, o1);
-    g2.Reset(isolate, o2);
-    // g1 will be finalized but resurrected.
-    g1.SetWeak(&g1, ResurrectingFinalizer, v8::WeakCallbackType::kFinalizer);
-    // g2 will be a phantom handle that should not be reset as g1 transitively
-    // keeps it alive.
-    g2.SetWeak();
-  }
-
-  gc_function(&g1, &g2);
-  // Both, g1 and g2, should stay alive as the finalizer resurrects the root
-  // object that transitively keeps the other one alive.
-  CHECK(!g1.IsEmpty());
-  CHECK(!g2.IsEmpty());
+void ConstructFinalizerPointingPhantomHandle(
+    v8::Isolate* isolate, v8::Global<v8::Object>* g1,
+    v8::Global<v8::Object>* g2,
+    typename v8::WeakCallbackInfo<v8::Global<v8::Object>>::Callback
+        finalizer_for_g1) {
+  v8::HandleScope scope(isolate);
+  v8::Local<v8::Object> o1 =
+      v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
+  v8::Local<v8::Object> o2 =
+      v8::Local<v8::Object>::New(isolate, v8::Object::New(isolate));
+  o1->Set(isolate->GetCurrentContext(), v8_str("link"), o2).FromJust();
+  g1->Reset(isolate, o1);
+  g2->Reset(isolate, o2);
+  // g1 will be finalized but resurrected.
+  g1->SetWeak(g1, finalizer_for_g1, v8::WeakCallbackType::kFinalizer);
+  // g2 will be a phantom handle that is dependent on the finalizer handle
+  // g1 as it is in its subgraph.
+  g2->SetWeak();
 }
 
 }  // namespace
 
-TEST(FinalizerKeepsPhantomAliveOnMarkCompact) {
+TEST(FinalizerResurrectsAndKeepsPhantomAliveOnMarkCompact) {
   // See crbug.com/772299.
   CcTest::InitializeVM();
-  TestFinalizerKeepsPhantomAlive(
-      CcTest::isolate(),
-      [](v8::Global<v8::Object>* g1, v8::Global<v8::Object>* g2) {
-        CcTest::CollectAllAvailableGarbage();
-      });
+  v8::Global<v8::Object> g1, g2;
+  ConstructFinalizerPointingPhantomHandle(CcTest::isolate(), &g1, &g2,
+                                          ResurrectingFinalizer);
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  // Both, g1 and g2, should stay alive as the finalizer resurrects the root
+  // object that transitively keeps the other one alive.
+  CHECK(!g1.IsEmpty());
+  CHECK(!g2.IsEmpty());
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  // The finalizer handle is now strong, so it should keep the objects alive.
+  CHECK(!g1.IsEmpty());
+  CHECK(!g2.IsEmpty());
 }
 
-TEST(FinalizerKeepsPhantomAliveOnScavenge) {
+TEST(FinalizerDiesAndKeepsPhantomAliveOnMarkCompact) {
   CcTest::InitializeVM();
-  TestFinalizerKeepsPhantomAlive(
-      CcTest::isolate(),
-      [](v8::Global<v8::Object>* g1, v8::Global<v8::Object>* g2) {
-        CcTest::CollectGarbage(i::NEW_SPACE);
-      });
+  v8::Global<v8::Object> g1, g2;
+  ConstructFinalizerPointingPhantomHandle(CcTest::isolate(), &g1, &g2,
+                                          ResettingFinalizer);
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  // Finalizer (g1) dies but the phantom handle (g2) is kept alive for one
+  // more round as the underlying object only dies on the next GC.
+  CHECK(g1.IsEmpty());
+  CHECK(!g2.IsEmpty());
+  CcTest::CollectGarbage(i::OLD_SPACE);
+  // Phantom handle dies after one more round.
+  CHECK(g1.IsEmpty());
+  CHECK(g2.IsEmpty());
 }
 
 namespace {
