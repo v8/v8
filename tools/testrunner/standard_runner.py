@@ -48,7 +48,7 @@ VARIANT_ALIASES = {
   # Additional variants, run on all bots.
   "more": MORE_VARIANTS,
   # Additional variants, run on a subset of bots.
-  "extra": ["future"],
+  "extra": [],
 }
 
 GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",

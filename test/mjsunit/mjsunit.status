@@ -648,6 +648,12 @@
 }],  # 'arch == ppc64 or arch == ppc or arch == s390 or arch == s390x'
 
 ##############################################################################
+['variant == future', {
+  # BUG(v8:7106).
+  'regress/typed-array-lifetime': [SKIP],
+}],  # variant == future
+
+##############################################################################
 ['variant == stress', {
   'es6/array-iterator-turbo': [SKIP],
 
