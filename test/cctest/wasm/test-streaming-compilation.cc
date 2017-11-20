@@ -835,6 +835,42 @@ STREAM_TEST(TestAbortAfterCompilationError2) {
   tester.RunCompilerTasks();
 }
 
+STREAM_TEST(TestOnlyModuleHeader) {
+  StreamTester tester;
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,  // module header
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+
+  CHECK(tester.IsPromiseFulfilled());
+}
+
+STREAM_TEST(TestModuleWithZeroFunctions) {
+  StreamTester tester;
+
+  const uint8_t bytes[] = {
+      WASM_MODULE_HEADER,    // module header
+      kTypeSectionCode,      // section code
+      U32V_1(1),             // section size
+      U32V_1(0),             // type count
+      kFunctionSectionCode,  // section code
+      U32V_1(1),             // section size
+      U32V_1(0),             // functions count
+      kCodeSectionCode,      // section code
+      U32V_1(1),             // section size
+      U32V_1(0),             // functions count
+  };
+
+  tester.OnBytesReceived(bytes, arraysize(bytes));
+  tester.FinishStream();
+  tester.RunCompilerTasks();
+  CHECK(tester.IsPromiseFulfilled());
+}
+
 #undef STREAM_TEST
 
 }  // namespace wasm

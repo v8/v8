@@ -3489,8 +3489,18 @@ void AsyncStreamingProcessor::OnFinishedStream(std::unique_ptr<uint8_t[]> bytes,
   ModuleResult result = decoder_.FinishDecoding(false);
   DCHECK(result.ok());
   job_->module_ = std::move(result.val);
-  if (job_->DecrementAndCheckFinisherCount())
-    job_->DoSync<AsyncCompileJob::FinishCompile>();
+  if (job_->DecrementAndCheckFinisherCount()) {
+    if (!job_->compiler_) {
+      // We are processing a WebAssembly module without code section. We need to
+      // prepare compilation first before we can finish it.
+      // {PrepareAndStartCompile} will call {FinishCompile} by itself if there
+      // is no code section.
+      job_->DoSync<AsyncCompileJob::PrepareAndStartCompile>(job_->module_.get(),
+                                                            true);
+    } else {
+      job_->DoSync<AsyncCompileJob::FinishCompile>();
+    }
+  }
 }
 
 // Report an error detected in the StreamingDecoder.

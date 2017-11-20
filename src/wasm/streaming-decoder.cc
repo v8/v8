@@ -385,8 +385,7 @@ StreamingDecoder::DecodeNumberOfFunctions::NextWithValue(
         section_buffer(), section_buffer()->payload_offset() + bytes_needed(),
         value());
   } else {
-    if (section_buffer()->payload_offset() + size() !=
-        section_buffer()->length()) {
+    if (section_buffer()->payload_length() != bytes_needed()) {
       return streaming->Error("not all code section bytes were used");
     }
     return base::make_unique<DecodeSectionID>(streaming->module_offset());
