@@ -3797,8 +3797,7 @@ TNode<String> CodeStubAssembler::ToThisString(Node* context, Node* value,
   BIND(&if_valueissmi);
   {
     // The {value} is a Smi, convert it to a String.
-    Callable callable = CodeFactory::NumberToString(isolate());
-    var_value.Bind(CallStub(callable, context, value));
+    var_value.Bind(CallBuiltin(Builtins::kNumberToString, context, value));
     Goto(&if_valueisstring);
   }
   BIND(&if_valueisstring);
@@ -5313,8 +5312,7 @@ Node* CodeStubAssembler::ToName(Node* context, Node* value) {
 
   BIND(&is_number);
   {
-    Callable callable = CodeFactory::NumberToString(isolate());
-    var_result.Bind(CallStub(callable, context, value));
+    var_result.Bind(CallBuiltin(Builtins::kNumberToString, context, value));
     Goto(&end);
   }
 

@@ -52,7 +52,6 @@ class V8_EXPORT_PRIVATE CodeFactory final {
       Isolate* isolate, ToPrimitiveHint hint = ToPrimitiveHint::kDefault);
   static Callable OrdinaryToPrimitive(Isolate* isolate,
                                       OrdinaryToPrimitiveHint hint);
-  static Callable NumberToString(Isolate* isolate);
 
   static Callable StringAdd(Isolate* isolate,
                             StringAddFlags flags = STRING_ADD_CHECK_NONE,

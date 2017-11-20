@@ -143,6 +143,15 @@ TF_BUILTIN(ToNumber, CodeStubAssembler) {
   Return(ToNumber(context, input));
 }
 
+// ES section #sec-tostring-applied-to-the-number-type
+TF_BUILTIN(NumberToString, CodeStubAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  Node* input = Parameter(Descriptor::kArgument);
+
+  Return(NumberToString(context, input));
+}
+
+// ES section #sec-tostring
 TF_BUILTIN(ToString, CodeStubAssembler) {
   Node* context = Parameter(Descriptor::kContext);
   Node* input = Parameter(Descriptor::kArgument);

@@ -49,7 +49,6 @@ class Node;
   V(KeyedStoreSloppyArguments)                \
   V(LoadScriptContextField)                   \
   V(StoreScriptContextField)                  \
-  V(NumberToString)                           \
   V(StringAdd)                                \
   V(GetProperty)                              \
   V(StoreFastElement)                         \
@@ -492,14 +491,6 @@ class GetPropertyStub : public TurboFanCodeStub {
 
   DEFINE_CALL_INTERFACE_DESCRIPTOR(GetProperty);
   DEFINE_TURBOFAN_CODE_STUB(GetProperty, TurboFanCodeStub);
-};
-
-class NumberToStringStub final : public TurboFanCodeStub {
- public:
-  explicit NumberToStringStub(Isolate* isolate) : TurboFanCodeStub(isolate) {}
-
-  DEFINE_CALL_INTERFACE_DESCRIPTOR(TypeConversion);
-  DEFINE_TURBOFAN_CODE_STUB(NumberToString, TurboFanCodeStub);
 };
 
 class GrowArrayElementsStub : public TurboFanCodeStub {

@@ -151,12 +151,6 @@ Callable CodeFactory::OrdinaryToPrimitive(Isolate* isolate,
 }
 
 // static
-Callable CodeFactory::NumberToString(Isolate* isolate) {
-  NumberToStringStub stub(isolate);
-  return make_callable(stub);
-}
-
-// static
 Callable CodeFactory::StringAdd(Isolate* isolate, StringAddFlags flags,
                                 PretenureFlag pretenure_flag) {
   StringAddStub stub(isolate, flags, pretenure_flag);

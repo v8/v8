@@ -361,13 +361,6 @@ TF_STUB(TransitionElementsKindStub, CodeStubAssembler) {
   }
 }
 
-// TODO(ishell): move to builtins.
-TF_STUB(NumberToStringStub, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
-  Node* argument = Parameter(Descriptor::kArgument);
-  Return(NumberToString(context, argument));
-}
-
 // TODO(ishell): move to builtins-handler-gen.
 TF_STUB(KeyedLoadSloppyArgumentsStub, CodeStubAssembler) {
   Node* receiver = Parameter(Descriptor::kReceiver);
