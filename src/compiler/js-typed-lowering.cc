@@ -441,6 +441,37 @@ Reduction JSTypedLowering::ReduceJSBitwiseNot(Node* node) {
   return NoChange();
 }
 
+Reduction JSTypedLowering::ReduceJSDecrement(Node* node) {
+  Node* input = NodeProperties::GetValueInput(node, 0);
+  Type* input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::PlainPrimitive())) {
+    // JSDecrement(x) => NumberSubtract(ToNumber(x), 1)
+    node->InsertInput(graph()->zone(), 1, jsgraph()->OneConstant());
+    NodeProperties::ChangeOp(node, javascript()->Subtract());
+    JSBinopReduction r(this, node);
+    r.ConvertInputsToNumber();
+    DCHECK_EQ(simplified()->NumberSubtract(), r.NumberOp());
+    return r.ChangeToPureOperator(r.NumberOp(), Type::Number());
+  }
+  return NoChange();
+}
+
+Reduction JSTypedLowering::ReduceJSIncrement(Node* node) {
+  Node* input = NodeProperties::GetValueInput(node, 0);
+  Type* input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::PlainPrimitive())) {
+    // JSIncrement(x) => NumberAdd(ToNumber(x), 1)
+    node->InsertInput(graph()->zone(), 1, jsgraph()->OneConstant());
+    BinaryOperationHint hint = BinaryOperationHint::kAny;  // Dummy.
+    NodeProperties::ChangeOp(node, javascript()->Add(hint));
+    JSBinopReduction r(this, node);
+    r.ConvertInputsToNumber();
+    DCHECK_EQ(simplified()->NumberAdd(), r.NumberOp());
+    return r.ChangeToPureOperator(r.NumberOp(), Type::Number());
+  }
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceJSNegate(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
   Type* input_type = NodeProperties::GetType(input);
@@ -2095,6 +2126,10 @@ Reduction JSTypedLowering::Reduce(Node* node) {
       return ReduceNumberBinop(node);
     case IrOpcode::kJSBitwiseNot:
       return ReduceJSBitwiseNot(node);
+    case IrOpcode::kJSDecrement:
+      return ReduceJSDecrement(node);
+    case IrOpcode::kJSIncrement:
+      return ReduceJSIncrement(node);
     case IrOpcode::kJSNegate:
       return ReduceJSNegate(node);
     case IrOpcode::kJSHasInPrototypeChain:

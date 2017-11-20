@@ -771,6 +771,45 @@ TF_BUILTIN(BitwiseNot, NumberBuiltinsAssembler) {
   }
 }
 
+TF_BUILTIN(Decrement, NumberBuiltinsAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  VARIABLE(var_input, MachineRepresentation::kTagged);
+  Label do_number(this), do_bigint(this);
+
+  UnaryOp<Descriptor>(&var_input, &do_number, &do_number, nullptr, &do_bigint);
+
+  BIND(&do_number);
+  {
+    TailCallBuiltin(Builtins::kSubtract, context, var_input.value(),
+                    SmiConstant(1));
+  }
+
+  BIND(&do_bigint);
+  {
+    Return(CallRuntime(Runtime::kBigIntUnaryOp, context, var_input.value(),
+                       SmiConstant(Operation::kDecrement)));
+  }
+}
+
+TF_BUILTIN(Increment, NumberBuiltinsAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  VARIABLE(var_input, MachineRepresentation::kTagged);
+  Label do_number(this), do_bigint(this);
+
+  UnaryOp<Descriptor>(&var_input, &do_number, &do_number, nullptr, &do_bigint);
+
+  BIND(&do_number);
+  {
+    TailCallBuiltin(Builtins::kAdd, context, var_input.value(), SmiConstant(1));
+  }
+
+  BIND(&do_bigint);
+  {
+    Return(CallRuntime(Runtime::kBigIntUnaryOp, context, var_input.value(),
+                       SmiConstant(Operation::kIncrement)));
+  }
+}
+
 TF_BUILTIN(Negate, NumberBuiltinsAssembler) {
   VARIABLE(var_input, MachineRepresentation::kTagged);
   VARIABLE(var_input_double, MachineRepresentation::kFloat64);

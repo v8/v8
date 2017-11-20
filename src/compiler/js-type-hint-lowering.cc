@@ -234,6 +234,25 @@ JSTypeHintLowering::LoweringResult JSTypeHintLowering::ReduceUnaryOperation(
       node = b.TryBuildNumberBinop();
       break;
     }
+    case IrOpcode::kJSDecrement: {
+      // Lower to a speculative subtraction of 1 if we have some kind of Number
+      // feedback.
+      JSSpeculativeBinopBuilder b(this, jsgraph()->javascript()->Subtract(),
+                                  operand, jsgraph()->SmiConstant(1), effect,
+                                  control, slot);
+      node = b.TryBuildNumberBinop();
+      break;
+    }
+    case IrOpcode::kJSIncrement: {
+      // Lower to a speculative addition of 1 if we have some kind of Number
+      // feedback.
+      BinaryOperationHint hint = BinaryOperationHint::kAny;  // Dummy.
+      JSSpeculativeBinopBuilder b(this, jsgraph()->javascript()->Add(hint),
+                                  operand, jsgraph()->SmiConstant(1), effect,
+                                  control, slot);
+      node = b.TryBuildNumberBinop();
+      break;
+    }
     case IrOpcode::kJSNegate: {
       // Lower to a speculative multiplication with -1 if we have some kind of
       // Number feedback.

@@ -265,6 +265,8 @@ class Typer::Visitor : public Reducer {
   static Type* FalsifyUndefined(ComparisonOutcome, Typer*);
 
   static Type* BitwiseNot(Type*, Typer*);
+  static Type* Decrement(Type*, Typer*);
+  static Type* Increment(Type*, Typer*);
   static Type* Negate(Type*, Typer*);
 
   static Type* ToPrimitive(Type*, Typer*);
@@ -431,6 +433,22 @@ Type* Typer::Visitor::BitwiseNot(Type* type, Typer* t) {
   type = ToNumeric(type, t);
   if (type->Is(Type::Number())) {
     return NumberBitwiseXor(type, t->cache_.kSingletonMinusOne, t);
+  }
+  return Type::Numeric();
+}
+
+Type* Typer::Visitor::Decrement(Type* type, Typer* t) {
+  type = ToNumeric(type, t);
+  if (type->Is(Type::Number())) {
+    return NumberSubtract(type, t->cache_.kSingletonOne, t);
+  }
+  return Type::Numeric();
+}
+
+Type* Typer::Visitor::Increment(Type* type, Typer* t) {
+  type = ToNumeric(type, t);
+  if (type->Is(Type::Number())) {
+    return NumberAdd(type, t->cache_.kSingletonOne, t);
   }
   return Type::Numeric();
 }
@@ -1090,6 +1108,14 @@ Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
 
 Type* Typer::Visitor::TypeJSBitwiseNot(Node* node) {
   return TypeUnaryOp(node, BitwiseNot);
+}
+
+Type* Typer::Visitor::TypeJSDecrement(Node* node) {
+  return TypeUnaryOp(node, Decrement);
+}
+
+Type* Typer::Visitor::TypeJSIncrement(Node* node) {
+  return TypeUnaryOp(node, Increment);
 }
 
 Type* Typer::Visitor::TypeJSNegate(Node* node) {

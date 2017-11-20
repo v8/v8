@@ -702,6 +702,8 @@ namespace internal {
   TFC(SameValue, Compare, 1)                                                   \
   TFC(StrictEqual, Compare, 1)                                                 \
   TFS(BitwiseNot, kValue)                                                      \
+  TFS(Decrement, kValue)                                                       \
+  TFS(Increment, kValue)                                                       \
   TFS(Negate, kValue)                                                          \
                                                                                \
   /* Object */                                                                 \

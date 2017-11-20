@@ -171,6 +171,7 @@ class BytecodeGraphBuilder {
                  std::initializer_list<Node*> args, int slot_id) {
     BuildCall(receiver_mode, args.begin(), args.size(), slot_id);
   }
+  void BuildUnaryOp(const Operator* op);
   void BuildBinaryOp(const Operator* op);
   void BuildBinaryOpWithImmediate(const Operator* op);
   void BuildCompareOp(const Operator* op);

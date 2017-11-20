@@ -111,6 +111,8 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSDebugger:
     case IrOpcode::kJSGetSuperConstructor:
     case IrOpcode::kJSBitwiseNot:
+    case IrOpcode::kJSDecrement:
+    case IrOpcode::kJSIncrement:
     case IrOpcode::kJSNegate:
       return true;
 

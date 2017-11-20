@@ -613,6 +613,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       break;
 
     case IrOpcode::kJSBitwiseNot:
+    case IrOpcode::kJSDecrement:
+    case IrOpcode::kJSIncrement:
     case IrOpcode::kJSNegate:
       // Type is Numeric.
       CheckTypeIs(node, Type::Numeric());

@@ -41,6 +41,8 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
 
   Reduction ReduceJSAdd(Node* node);
   Reduction ReduceJSBitwiseNot(Node* node);
+  Reduction ReduceJSDecrement(Node* node);
+  Reduction ReduceJSIncrement(Node* node);
   Reduction ReduceJSNegate(Node* node);
   Reduction ReduceJSComparison(Node* node);
   Reduction ReduceJSLoadNamed(Node* node);

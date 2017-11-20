@@ -653,6 +653,8 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Modulus();
 
   const Operator* BitwiseNot();
+  const Operator* Decrement();
+  const Operator* Increment();
   const Operator* Negate();
 
   const Operator* ToInteger();
