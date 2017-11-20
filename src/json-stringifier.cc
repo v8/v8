@@ -353,26 +353,24 @@ JsonStringifier::Result JsonStringifier::Serialize_(Handle<Object> object,
 
 JsonStringifier::Result JsonStringifier::SerializeJSValue(
     Handle<JSValue> object) {
-  String* class_name = object->class_name();
-  if (class_name == isolate_->heap()->String_string()) {
+  Object* raw = object->value();
+  if (raw->IsString()) {
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate_, value, Object::ToString(isolate_, object), EXCEPTION);
     SerializeString(Handle<String>::cast(value));
-  } else if (class_name == isolate_->heap()->Number_string()) {
+  } else if (raw->IsNumber()) {
     Handle<Object> value;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate_, value, Object::ToNumber(object),
                                      EXCEPTION);
     if (value->IsSmi()) return SerializeSmi(Smi::cast(*value));
     SerializeHeapNumber(Handle<HeapNumber>::cast(value));
-  } else if (class_name == isolate_->heap()->BigInt_string()) {
+  } else if (raw->IsBigInt()) {
     isolate_->Throw(
         *factory()->NewTypeError(MessageTemplate::kBigIntSerializeJSON));
     return EXCEPTION;
-  } else if (class_name == isolate_->heap()->Boolean_string()) {
-    Object* value = JSValue::cast(*object)->value();
-    DCHECK(value->IsBoolean());
-    builder_.AppendCString(value->IsTrue(isolate_) ? "true" : "false");
+  } else if (raw->IsBoolean()) {
+    builder_.AppendCString(raw->IsTrue(isolate_) ? "true" : "false");
   } else {
     // ES6 24.3.2.1 step 10.c, serialize as an ordinary JSObject.
     return SerializeJSObject(object);
