@@ -370,15 +370,15 @@ static bool MigrateDeprecated(Handle<Object> object) {
 }
 
 bool IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
+  bool changed = true;
   if (new_state == PREMONOMORPHIC) {
     nexus()->ConfigurePremonomorphic();
   } else if (new_state == MEGAMORPHIC) {
     DCHECK_IMPLIES(!is_keyed(), key->IsName());
-    IcCheckType property_type = key->IsName() ? PROPERTY : ELEMENT;
-    if (!nexus()->ConfigureMegamorphic(property_type)) {
-      vector_set_ = true;
-      return false;
-    }
+    // Even though we don't change the feedback data, we still want to reset the
+    // profiler ticks. Real-world observations suggest that optimizing these
+    // functions doesn't improve performance.
+    changed = nexus()->ConfigureMegamorphic(key->IsName() ? PROPERTY : ELEMENT);
   } else {
     UNREACHABLE();
   }
@@ -387,7 +387,7 @@ bool IC::ConfigureVectorState(IC::State new_state, Handle<Object> key) {
   OnFeedbackChanged(
       isolate(), *vector(), slot(), GetHostFunction(),
       new_state == PREMONOMORPHIC ? "Premonomorphic" : "Megamorphic");
-  return true;
+  return changed;
 }
 
 void IC::ConfigureVectorState(Handle<Name> name, Handle<Map> map,
