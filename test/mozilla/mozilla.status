@@ -938,7 +938,7 @@
 }], # 'arch == mipsel and simulator_run'
 
 ['arch == mips64el and simulator_run', {
-  'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
+  'js1_5/extensions/regress-355497': [FAIL_OK, '--sim-stack-size=512'],
 }], # 'arch == mips64el and simulator_run'
 
 ['arch == mips', {
@@ -987,7 +987,7 @@
   'js1_5/extensions/regress-336410-1': [SKIP],
 
   #BUG(3152): Avoid C stack overflow.
-  'js1_5/extensions/regress-355497': [FAIL_OK, 'Flags: --sim-stack-size=512'],
+  'js1_5/extensions/regress-355497': [FAIL_OK, '--sim-stack-size=512'],
 }],  # 'arch == arm64 and simulator_run'
 
 ['variant == wasm_traps', {

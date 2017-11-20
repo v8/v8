@@ -183,8 +183,8 @@ class TestSuite(object):
         if statusfile.DoSkip(t.outcomes):
           continue  # Don't add skipped tests to |filtered|.
         for outcome in t.outcomes:
-          if outcome.startswith('Flags: '):
-            t.flags += outcome[7:].split()
+          if outcome.startswith('--'):
+            t.flags += outcome.split()
         slow = statusfile.IsSlow(t.outcomes)
         pass_fail = statusfile.IsPassOrFail(t.outcomes)
       skip = False
