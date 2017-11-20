@@ -476,6 +476,11 @@ DEFINE_BOOL(wasm_disable_structured_cloning, false,
             "disable wasm structured cloning")
 DEFINE_INT(wasm_num_compilation_tasks, 10,
            "number of parallel compilation tasks for wasm")
+DEFINE_BOOL(wasm_trace_native_heap, false, "trace wasm native heap events")
+DEFINE_BOOL(wasm_jit_to_native, false,
+            "JIT wasm code to native (not JS GC) memory")
+DEFINE_BOOL(wasm_trace_serialization, false,
+            "trace serialization/deserialization")
 DEFINE_BOOL(wasm_async_compilation, true,
             "enable actual asynchronous compilation for WebAssembly.compile")
 DEFINE_BOOL(wasm_stream_compilation, false,

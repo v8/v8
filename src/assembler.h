@@ -366,6 +366,7 @@ class RelocInfo {
     WASM_CONTEXT_REFERENCE,
     WASM_FUNCTION_TABLE_SIZE_REFERENCE,
     WASM_GLOBAL_HANDLE,
+    WASM_CALL,
 
     RUNTIME_ENTRY,
     COMMENT,
@@ -421,6 +422,7 @@ class RelocInfo {
   static inline bool IsRuntimeEntry(Mode mode) {
     return mode == RUNTIME_ENTRY;
   }
+  static inline bool IsWasmCall(Mode mode) { return mode == WASM_CALL; }
   // Is the relocation mode affected by GC?
   static inline bool IsGCRelocMode(Mode mode) {
     return mode <= LAST_GCED_ENUM;
@@ -498,6 +500,7 @@ class RelocInfo {
   Address wasm_context_reference() const;
   uint32_t wasm_function_table_size_reference() const;
   Address global_handle() const;
+  Address wasm_call_address() const;
 
   void set_wasm_context_reference(
       Isolate* isolate, Address address,
@@ -512,6 +515,9 @@ class RelocInfo {
 
   void set_global_handle(
       Isolate* isolate, Address address,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+  void set_wasm_call_address(
+      Isolate*, Address,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // this relocation applies to;
