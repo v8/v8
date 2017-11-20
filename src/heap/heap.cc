@@ -245,7 +245,6 @@ size_t Heap::Capacity() {
 
 size_t Heap::OldGenerationCapacity() {
   if (!HasBeenSetUp()) return 0;
-
   return old_space_->Capacity() + code_space_->Capacity() +
          map_space_->Capacity() + lo_space_->SizeOfObjects();
 }
@@ -301,6 +300,14 @@ size_t Heap::Available() {
   return total;
 }
 
+bool Heap::CanExpandOldGeneration(size_t size) {
+  if (force_oom_) return false;
+  if (OldGenerationCapacity() + size > MaxOldGenerationSize()) return false;
+  // The OldGenerationCapacity does not account compaction spaces used
+  // during evacuation. Ensure that expanding the old generation does push
+  // the total allocated memory size over the maximum heap size.
+  return memory_allocator()->Size() + size <= MaxReserved();
+}
 
 bool Heap::HasBeenSetUp() {
   return old_space_ != nullptr && code_space_ != nullptr &&
@@ -328,16 +335,8 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
     return MARK_COMPACTOR;
   }
 
-  // Is there enough space left in OLD to guarantee that a scavenge can
-  // succeed?
-  //
-  // Note that MemoryAllocator->MaxAvailable() undercounts the memory available
-  // for object promotion. It counts only the bytes that the memory
-  // allocator has not yet allocated from the OS and assigned to any space,
-  // and does not count available bytes already in the old space or code
-  // space.  Undercounting is safe---we may get an unrequested full GC when
-  // a scavenge would have succeeded.
-  if (memory_allocator()->MaxAvailable() <= new_space_->Size()) {
+  // Over-estimate the new space size using capacity to allow some slack.
+  if (!CanExpandOldGeneration(new_space_->TotalCapacity())) {
     isolate_->counters()
         ->gc_compactor_caused_by_oldspace_exhaustion()
         ->Increment();

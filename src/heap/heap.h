@@ -1978,10 +1978,7 @@ class Heap {
 
   bool always_allocate() { return always_allocate_scope_count_.Value() != 0; }
 
-  bool CanExpandOldGeneration(size_t size) {
-    if (force_oom_) return false;
-    return (OldGenerationCapacity() + size) < MaxOldGenerationSize();
-  }
+  bool CanExpandOldGeneration(size_t size);
 
   bool IsCloseToOutOfMemory(size_t slack) {
     return OldGenerationCapacity() + slack >= MaxOldGenerationSize();
