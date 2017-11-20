@@ -336,7 +336,8 @@ class JsonTestProgressIndicator(ProgressIndicator):
         "flags": test.flags,
         "command": self._EscapeCommand(test).replace(ABS_PATH_PREFIX, ""),
         "duration": test.duration,
-        "marked_slow": statusfile.IsSlow(test.outcomes),
+        "marked_slow": statusfile.IsSlow(
+          test.suite.GetOutcomesForTestCase(test)),
       } for test in timed_tests[:20]
     ]
 
@@ -369,7 +370,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
       "stderr": test.output.stderr,
       "exit_code": test.output.exit_code,
       "result": test.suite.GetOutcome(test),
-      "expected": list(test.outcomes or ["PASS"]),
+      "expected": list(test.suite.GetOutcomesForTestCase(test) or ["PASS"]),
       "duration": test.duration,
 
       # TODO(machenbach): This stores only the global random seed from the
@@ -416,7 +417,7 @@ class FlakinessTestProgressIndicator(ProgressIndicator):
       # First run of this test.
       expected_outcomes = ([
         expected
-        for expected in (test.outcomes or ["PASS"])
+        for expected in (test.suite.GetOutcomesForTestCase(test) or ["PASS"])
         if expected in ["PASS", "FAIL", "CRASH", "TIMEOUT"]
       ] or ["PASS"])
       self.results[key] = {

@@ -34,22 +34,19 @@ class TestSuiteTest(unittest.TestCase):
         'baz/': set(['PASS', 'SLOW']),
       },
     }
-    suite.FilterTestCasesByStatus(warn_unused_rules=False)
+    suite.FilterTestCasesByStatus()
     self.assertEquals(
         [TestCase(suite, 'baz/bar')],
         suite.tests,
     )
-    self.assertEquals(set(['PASS', 'FAIL', 'SLOW']), suite.tests[0].outcomes)
+    outcomes = suite.GetOutcomesForTestCase(suite.tests[0])
+    self.assertEquals(set(['PASS', 'FAIL', 'SLOW']), outcomes)
 
   def test_filter_testcases_by_status_second_pass(self):
     suite = TestSuite('foo', 'bar')
 
     test1 = TestCase(suite, 'foo/bar')
     test2 = TestCase(suite, 'baz/bar')
-
-    # Contrived outcomes from filtering by variant-independent rules.
-    test1.outcomes = set(['PREV'])
-    test2.outcomes = set(['PREV'])
 
     suite.tests = [
       test1.CopyAddingFlags(variant='default', flags=[]),
@@ -59,6 +56,9 @@ class TestSuiteTest(unittest.TestCase):
     ]
 
     suite.rules = {
+      '': {
+        'foo/bar': set(['PREV']),
+      },
       'default': {
         'foo/bar': set(['PASS', 'SKIP']),
         'baz/bar': set(['PASS', 'FAIL']),
@@ -68,6 +68,9 @@ class TestSuiteTest(unittest.TestCase):
       },
     }
     suite.prefix_rules = {
+      '': {
+        'baz/': set(['PREV']),
+      },
       'default': {
         'baz/': set(['PASS', 'SLOW']),
       },
@@ -75,7 +78,7 @@ class TestSuiteTest(unittest.TestCase):
         'foo/': set(['PASS', 'SLOW']),
       },
     }
-    suite.FilterTestCasesByStatus(warn_unused_rules=False, variants=True)
+    suite.FilterTestCasesByStatus()
     self.assertEquals(
         [
           TestCase(suite, 'foo/bar', flags=['-v']),
@@ -85,12 +88,12 @@ class TestSuiteTest(unittest.TestCase):
     )
 
     self.assertEquals(
-        set(['PASS', 'SLOW', 'PREV']),
-        suite.tests[0].outcomes,
+        set(['PREV', 'PASS', 'SLOW']),
+        suite.GetOutcomesForTestCase(suite.tests[0]),
     )
     self.assertEquals(
-        set(['PASS', 'FAIL', 'SLOW', 'PREV']),
-        suite.tests[1].outcomes,
+        set(['PREV', 'PASS', 'FAIL', 'SLOW']),
+        suite.GetOutcomesForTestCase(suite.tests[1]),
     )
 
 

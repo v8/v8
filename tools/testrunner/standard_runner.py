@@ -410,10 +410,11 @@ class StandardTestRunner(base_runner.BaseTestRunner):
           s.FilterTestCasesByArgs(args)
         all_tests += s.tests
 
-        # First filtering by status applying the generic rules (independent of
-        # variants).
-        s.FilterTestCasesByStatus(options.warn_unused, options.slow_tests,
-                                  options.pass_fail_tests)
+        # First filtering by status applying the generic rules (tests without
+        # variants)
+        if options.warn_unused:
+          s.WarnUnusedRules(check_variant_rules=False)
+        s.FilterTestCasesByStatus(options.slow_tests, options.pass_fail_tests)
 
         if options.cat:
           verbose.PrintTestSource(s.tests)
@@ -442,9 +443,13 @@ class StandardTestRunner(base_runner.BaseTestRunner):
         else:
           s.tests = variant_tests
 
-        # Second filtering by status applying the variant-dependent rules.
-        s.FilterTestCasesByStatus(options.warn_unused, options.slow_tests,
-                                  options.pass_fail_tests, variants=True)
+        # Second filtering by status applying also the variant-dependent rules.
+        if options.warn_unused:
+          s.WarnUnusedRules(check_variant_rules=True)
+        s.FilterTestCasesByStatus(options.slow_tests, options.pass_fail_tests)
+
+        for t in s.tests:
+          t.flags += s.GetStatusfileFlags(t)
 
         s.tests = self._shard_tests(s.tests, options)
         num_tests += len(s.tests)

@@ -32,16 +32,13 @@ class TestCase(object):
     self.path = path          # string, e.g. 'div-mod', 'test-api/foo'
     self.flags = flags or []  # list of strings, flags specific to this test
     self.variant = variant    # name of the used testing variant
-    self.outcomes = frozenset([])
     self.output = None
     self.id = None  # int, used to map result back to TestCase instance
     self.duration = None  # assigned during execution
     self.run = 1  # The nth time this test is executed.
 
   def CopyAddingFlags(self, variant, flags):
-    copy = TestCase(self.suite, self.path, variant, self.flags + flags)
-    copy.outcomes = self.outcomes
-    return copy
+    return TestCase(self.suite, self.path, variant, self.flags + flags)
 
   def SetSuiteObject(self, suites):
     self.suite = suites[self.suite]

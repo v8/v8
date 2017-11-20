@@ -305,6 +305,9 @@ class DeoptFuzzer(base_runner.BaseTestRunner):
       if len(args) > 0:
         s.FilterTestCasesByArgs(args)
       s.FilterTestCasesByStatus(False)
+      for t in s.tests:
+        t.flags += s.GetStatusfileFlags(t)
+
       test_backup[s] = s.tests
       analysis_flags = ["--deopt-every-n-times", "%d" % MAX_DEOPT,
                         "--print-deopt-stress"]

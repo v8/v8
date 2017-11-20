@@ -114,11 +114,9 @@ def _GetInstructions(test, context):
     timeout *= 4
   if "--noenable-vfp3" in context.extra_flags:
     timeout *= 2
-  # FIXME(machenbach): Make this more OO. Don't expose default outcomes or
-  # the like.
 
-  if statusfile.IsSlow(test.outcomes or [statusfile.PASS]):
-    timeout *= 2
+  # TODO(majeski): make it slow outcome dependent.
+  timeout *= 2
   return Instructions(command, test.id, timeout, context.verbose, env)
 
 
@@ -184,6 +182,7 @@ class TestJob(Job):
       self.test.SetSuiteObject(process_context.suites)
       instr = _GetInstructions(self.test, process_context.context)
     except Exception, e:
+      # TODO(majeski): Better exception reporting.
       return SetupProblem(e, self.test)
 
     start_time = time.time()
@@ -210,7 +209,7 @@ class Runner(object):
     self.suite_names = [s.name for s in suites]
 
     # Always pre-sort by status file, slowest tests first.
-    slow_key = lambda t: statusfile.IsSlow(t.outcomes)
+    slow_key = lambda t: statusfile.IsSlow(t.suite.GetOutcomesForTestCase(t))
     self.tests.sort(key=slow_key, reverse=True)
 
     # Sort by stored duration of not opted out.

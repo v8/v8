@@ -102,7 +102,8 @@ FAST_VARIANTS = {
 
 class Test262VariantGenerator(testsuite.VariantGenerator):
   def GetFlagSets(self, testcase, variant):
-    if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):
+    outcomes = testcase.suite.GetOutcomesForTestCase(testcase)
+    if outcomes and statusfile.OnlyFastVariants(outcomes):
       variant_flags = FAST_VARIANTS
     else:
       variant_flags = ALL_VARIANTS
@@ -169,7 +170,6 @@ class Test262TestSuite(testsuite.TestSuite):
          if "detachArrayBuffer.js" in
             self.GetTestRecord(testcase).get("includes", [])
          else []) +
-        ([flag for flag in testcase.outcomes if flag.startswith("--")]) +
         ([flag for (feature, flag) in FEATURE_FLAGS.items()
           if feature in self.GetTestRecord(testcase).get("features", [])])
     )
@@ -244,10 +244,11 @@ class Test262TestSuite(testsuite.TestSuite):
 
   def HasUnexpectedOutput(self, testcase):
     outcome = self.GetOutcome(testcase)
-    if (statusfile.FAIL_SLOPPY in testcase.outcomes and
+    outcomes = self.GetOutcomesForTestCase(testcase)
+    if (statusfile.FAIL_SLOPPY in outcomes and
         "--use-strict" not in testcase.flags):
       return outcome != statusfile.FAIL
-    return not outcome in ([outcome for outcome in testcase.outcomes
+    return not outcome in ([outcome for outcome in outcomes
                                     if not outcome.startswith('--')
                                        and outcome != statusfile.FAIL_SLOPPY]
                            or [statusfile.PASS])

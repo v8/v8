@@ -292,6 +292,9 @@ class GCFuzzer(base_runner.BaseTestRunner):
       if len(args) > 0:
         s.FilterTestCasesByArgs(args)
       s.FilterTestCasesByStatus(False)
+      for t in s.tests:
+        t.flags += s.GetStatusfileFlags(t)
+
       num_tests += len(s.tests)
       for t in s.tests:
         t.id = test_id

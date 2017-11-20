@@ -50,15 +50,17 @@ class VariantGenerator(object):
 
   def FilterVariantsByTest(self, testcase):
     result = self.all_variants
-    if testcase.outcomes:
-      if statusfile.OnlyStandardVariant(testcase.outcomes):
+    outcomes = testcase.suite.GetOutcomesForTestCase(testcase)
+    if outcomes:
+      if statusfile.OnlyStandardVariant(outcomes):
         return self.standard_variant
-      if statusfile.OnlyFastVariants(testcase.outcomes):
+      if statusfile.OnlyFastVariants(outcomes):
         result = self.fast_variants
     return result
 
   def GetFlagSets(self, testcase, variant):
-    if testcase.outcomes and statusfile.OnlyFastVariants(testcase.outcomes):
+    outcomes = testcase.suite.GetOutcomesForTestCase(testcase)
+    if outcomes and statusfile.OnlyFastVariants(outcomes):
       return FAST_VARIANT_FLAGS[variant]
     else:
       return ALL_VARIANT_FLAGS[variant]
@@ -89,6 +91,8 @@ class TestSuite(object):
     self.rules = None  # {variant: {test name: [rule]}}
     self.prefix_rules = None  # {variant: {test name prefix: [rule]}}
     self.total_duration = None  # float, assigned on demand
+
+    self._outcomes_cache = dict()
 
   def suffix(self):
     return ".js"
@@ -136,100 +140,96 @@ class TestSuite(object):
   def ReadTestCases(self, context):
     self.tests = self.ListTests(context)
 
-  @staticmethod
-  def _FilterSlow(slow, mode):
-    return (mode == "run" and not slow) or (mode == "skip" and slow)
+  def GetStatusfileFlags(self, test):
+    """Gets runtime flags from a status file.
 
-  @staticmethod
-  def _FilterPassFail(pass_fail, mode):
-    return (mode == "run" and not pass_fail) or (mode == "skip" and pass_fail)
+    Every outcome that starts with "--" is a flag. Status file has to be loaded
+    before using this function.
+    """
+    flags = []
+    for outcome in self.GetOutcomesForTestCase(test):
+      if outcome.startswith('--'):
+        flags.append(outcome)
+    return flags
 
-  def FilterTestCasesByStatus(self, warn_unused_rules,
-                              slow_tests="dontcare",
-                              pass_fail_tests="dontcare",
-                              variants=False):
-    # Load statusfile before.
-    assert(self.rules is not None)
-    assert(self.prefix_rules is not None)
+  def FilterTestCasesByStatus(self,
+                              slow_tests_mode=None,
+                              pass_fail_tests_mode=None):
+    """Filters tests by outcomes from status file.
 
-    # Use only variants-dependent rules and prefix_rules when filtering
-    # respective test cases and generic rules when filtering generic test
-    # cases.
-    if not variants:
-      rules = self.rules[""]
-      prefix_rules = self.prefix_rules[""]
+    Status file has to be loaded before using this function.
+
+    Args:
+      slow_tests_mode: What to do with slow tests.
+      pass_fail_tests_mode: What to do with pass or fail tests.
+
+    Mode options:
+      None (default) - don't skip
+      "skip" - skip if slow/pass_fail
+      "run" - skip if not slow/pass_fail
+    """
+    def _skip_slow(is_slow, mode):
+      return (
+        (mode == 'run' and not is_slow) or
+        (mode == 'skip' and is_slow))
+
+    def _skip_pass_fail(pass_fail, mode):
+      return (
+        (mode == 'run' and not pass_fail) or
+        (mode == 'skip' and pass_fail))
+
+    def _compliant(test):
+      outcomes = self.GetOutcomesForTestCase(test)
+      if statusfile.DoSkip(outcomes):
+        return False
+      if _skip_slow(statusfile.IsSlow(outcomes), slow_tests_mode):
+        return False
+      if _skip_pass_fail(statusfile.IsPassOrFail(outcomes),
+                         pass_fail_tests_mode):
+        return False
+      return True
+
+    self.tests = filter(_compliant, self.tests)
+
+  def WarnUnusedRules(self, check_variant_rules=False):
+    """Finds and prints unused rules in status file.
+
+    Rule X is unused when it doesn't apply to any tests, which can also mean
+    that all matching tests were skipped by another rule before evaluating X.
+
+    Status file has to be loaded before using this function.
+    """
+
+    if check_variant_rules:
+      variants = list(ALL_VARIANTS)
     else:
-      # We set rules and prefix_rules to a variant-specific version for each
-      # test below.
-      rules = {}
-      prefix_rules = {}
-
-    filtered = []
-
-    # Remember used rules as tuples of (rule, variant), where variant is "" for
-    # variant-independent rules.
+      variants = ['']
     used_rules = set()
 
     for t in self.tests:
-      slow = False
-      pass_fail = False
       testname = self.CommonTestName(t)
       variant = t.variant or ""
-      if variants:
-        rules = self.rules[variant]
-        prefix_rules = self.prefix_rules[variant]
-      if testname in rules:
+
+      if testname in self.rules.get(variant, {}):
         used_rules.add((testname, variant))
-        # Even for skipped tests, as the TestCase object stays around and
-        # PrintReport() uses it.
-        t.outcomes = t.outcomes | rules[testname]
-        if statusfile.DoSkip(t.outcomes):
-          continue  # Don't add skipped tests to |filtered|.
-        for outcome in t.outcomes:
-          if outcome.startswith('--'):
-            t.flags += outcome.split()
-        slow = statusfile.IsSlow(t.outcomes)
-        pass_fail = statusfile.IsPassOrFail(t.outcomes)
-      skip = False
-      for prefix in prefix_rules:
+        if statusfile.DoSkip(self.rules[variant][testname]):
+          continue
+
+      for prefix in self.prefix_rules.get(variant, {}):
         if testname.startswith(prefix):
           used_rules.add((prefix, variant))
-          t.outcomes = t.outcomes | prefix_rules[prefix]
-          if statusfile.DoSkip(t.outcomes):
-            skip = True
-            break  # "for rule in prefix_rules"
-          slow = slow or statusfile.IsSlow(t.outcomes)
-          pass_fail = pass_fail or statusfile.IsPassOrFail(t.outcomes)
-      if (skip
-          or self._FilterSlow(slow, slow_tests)
-          or self._FilterPassFail(pass_fail, pass_fail_tests)):
-        continue  # "for t in self.tests"
-      filtered.append(t)
-    self.tests = filtered
+          if statusfile.DoSkip(self.prefix_rules[variant][prefix]):
+            break
 
-    if not warn_unused_rules:
-      return
-
-    if not variants:
-      for rule in self.rules[""]:
-        if (rule, "") not in used_rules:
-          print("Unused rule: %s -> %s (variant independent)" % (
-              rule, self.rules[""][rule]))
-      for rule in self.prefix_rules[""]:
-        if (rule, "") not in used_rules:
-          print("Unused rule: %s -> %s (variant independent)" % (
-              rule, self.prefix_rules[""][rule]))
-    else:
-      for variant in ALL_VARIANTS:
-        for rule in self.rules[variant]:
-          if (rule, variant) not in used_rules:
-            print("Unused rule: %s -> %s (variant: %s)" % (
-                rule, self.rules[variant][rule], variant))
-        for rule in self.prefix_rules[variant]:
-          if (rule, variant) not in used_rules:
-            print("Unused rule: %s -> %s (variant: %s)" % (
-                rule, self.prefix_rules[variant][rule], variant))
-
+    for variant in variants:
+      for rule, value in (list(self.rules.get(variant, {}).iteritems()) +
+                          list(self.prefix_rules.get(variant, {}).iteritems())):
+        if (rule, variant) not in used_rules:
+          if variant == '':
+            variant_desc = 'variant independent'
+          else:
+            variant_desc = 'variant: %s' % variant
+          print('Unused rule: %s -> %s (%s)' % (rule, value, variant_desc))
 
   def FilterTestCasesByArgs(self, args):
     """Filter test cases based on command-line arguments.
@@ -256,7 +256,40 @@ class TestSuite(object):
           break
     self.tests = filtered
 
+  def GetOutcomesForTestCase(self, testcase):
+    """Gets outcomes from status file.
+
+    Merges variant dependent and independent rules. Status file has to be loaded
+    before using this function.
+    """
+    variant = testcase.variant or ''
+    testname = self.CommonTestName(testcase)
+    cache_key = '%s$%s' % (testname, variant)
+
+    if cache_key not in self._outcomes_cache:
+      # Load statusfile to get outcomes for the first time.
+      assert(self.rules is not None)
+      assert(self.prefix_rules is not None)
+
+      outcomes = frozenset()
+
+      for key in set([variant, '']):
+        rules = self.rules.get(key, {})
+        prefix_rules = self.prefix_rules.get(key, {})
+
+        if testname in rules:
+          outcomes |= rules[testname]
+
+        for prefix in prefix_rules:
+          if testname.startswith(prefix):
+            outcomes |= prefix_rules[prefix]
+
+      self._outcomes_cache[cache_key] = outcomes
+
+    return self._outcomes_cache[cache_key]
+
   def GetShellForTestCase(self, testcase):
+    """Returns shell to be executed for this test case."""
     return 'd8'
 
   def GetParametersForTestCase(self, testcase, context):
@@ -291,7 +324,8 @@ class TestSuite(object):
 
   def HasUnexpectedOutput(self, testcase):
     outcome = self.GetOutcome(testcase)
-    return not outcome in (testcase.outcomes or [statusfile.PASS])
+    return not outcome in (self.GetOutcomesForTestCase(testcase)
+                           or [statusfile.PASS])
 
   def StripOutputForTransmit(self, testcase):
     if not self.HasUnexpectedOutput(testcase):
