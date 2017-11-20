@@ -21,6 +21,20 @@ namespace internal {
 
 namespace {
 
+// Returns -1 for failure.
+uint32_t GetArgcForReplaceCallable(uint32_t num_captures,
+                                   bool has_named_captures) {
+  const uint32_t kAdditionalArgsWithoutNamedCaptures = 2;
+  const uint32_t kAdditionalArgsWithNamedCaptures = 3;
+  if (num_captures > Code::kMaxArguments) return -1;
+  uint32_t argc = has_named_captures
+                      ? num_captures + kAdditionalArgsWithNamedCaptures
+                      : num_captures + kAdditionalArgsWithoutNamedCaptures;
+  STATIC_ASSERT(Code::kMaxArguments < std::numeric_limits<uint32_t>::max() -
+                                          kAdditionalArgsWithNamedCaptures);
+  return (argc > Code::kMaxArguments) ? -1 : argc;
+}
+
 // Looks up the capture of the given name. Returns the (1-based) numbered
 // capture index or -1 on failure.
 int LookupNamedCapture(std::function<bool(String*)> name_matches,
@@ -1483,7 +1497,11 @@ RUNTIME_FUNCTION(Runtime_StringReplaceNonGlobalRegExpWithFunction) {
   }
 
   DCHECK_IMPLIES(has_named_captures, FLAG_harmony_regexp_named_captures);
-  const int argc = has_named_captures ? m + 3 : m + 2;
+  const uint32_t argc = GetArgcForReplaceCallable(m, has_named_captures);
+  if (argc == static_cast<uint32_t>(-1)) {
+    THROW_NEW_ERROR_RETURN_FAILURE(
+        isolate, NewRangeError(MessageTemplate::kTooManyArguments));
+  }
   ScopedVector<Handle<Object>> argv(argc);
 
   int cursor = 0;
@@ -1794,7 +1812,8 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, captures_length_obj,
         Object::ToLength(isolate, captures_length_obj));
-    const int captures_length = PositiveNumberToUint32(*captures_length_obj);
+    const uint32_t captures_length =
+        PositiveNumberToUint32(*captures_length_obj);
 
     Handle<Object> match_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, match_obj,
@@ -1819,7 +1838,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
     // Do not reserve capacity since captures_length is user-controlled.
     ZoneVector<Handle<Object>> captures(&zone);
 
-    for (int n = 0; n < captures_length; n++) {
+    for (uint32_t n = 0; n < captures_length; n++) {
       Handle<Object> capture;
       ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
           isolate, capture, Object::GetElement(isolate, result, n));
@@ -1843,12 +1862,17 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
 
     Handle<String> replacement;
     if (functional_replace) {
-      const int argc =
-          has_named_captures ? captures_length + 3 : captures_length + 2;
+      const uint32_t argc =
+          GetArgcForReplaceCallable(captures_length, has_named_captures);
+      if (argc == static_cast<uint32_t>(-1)) {
+        THROW_NEW_ERROR_RETURN_FAILURE(
+            isolate, NewRangeError(MessageTemplate::kTooManyArguments));
+      }
+
       ScopedVector<Handle<Object>> argv(argc);
 
       int cursor = 0;
-      for (int j = 0; j < captures_length; j++) {
+      for (uint32_t j = 0; j < captures_length; j++) {
         argv[cursor++] = captures[j];
       }
 
