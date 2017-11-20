@@ -126,6 +126,7 @@
 
 #define JS_SIMPLE_UNOP_LIST(V) \
   JS_CONVERSION_UNOP_LIST(V)   \
+  V(JSBitwiseNot)              \
   V(JSNegate)
 
 #define JS_OBJECT_OP_LIST(V)      \

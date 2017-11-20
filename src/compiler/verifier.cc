@@ -612,6 +612,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Number());
       break;
 
+    case IrOpcode::kJSBitwiseNot:
     case IrOpcode::kJSNegate:
       // Type is Numeric.
       CheckTypeIs(node, Type::Numeric());

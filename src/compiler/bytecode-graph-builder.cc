@@ -2083,6 +2083,29 @@ CallFrequency BytecodeGraphBuilder::ComputeCallFrequency(int slot_id) const {
                        invocation_frequency_.value());
 }
 
+void BytecodeGraphBuilder::VisitBitwiseNot() {
+  // TODO(neis): Define a BuildUnaryOp helper function.
+  PrepareEagerCheckpoint();
+
+  FeedbackSlot slot = feedback_vector()->ToSlot(
+      bytecode_iterator().GetIndexOperand(kUnaryOperationHintIndex));
+  const Operator* op = javascript()->BitwiseNot();
+  Node* operand = environment()->LookupAccumulator();
+
+  JSTypeHintLowering::LoweringResult lowering =
+      TryBuildSimplifiedUnaryOp(op, operand, slot);
+  if (lowering.IsExit()) return;
+  Node* node = nullptr;
+  if (lowering.IsSideEffectFree()) {
+    node = lowering.value();
+  } else {
+    DCHECK(!lowering.Changed());
+    node = NewNode(op, operand);
+  }
+
+  environment()->BindAccumulator(node, Environment::kAttachFrameState);
+}
+
 void BytecodeGraphBuilder::VisitNegate() {
   PrepareEagerCheckpoint();
 
@@ -2100,32 +2123,6 @@ void BytecodeGraphBuilder::VisitNegate() {
   } else {
     DCHECK(!lowering.Changed());
     node = NewNode(op, operand);
-  }
-
-  environment()->BindAccumulator(node, Environment::kAttachFrameState);
-}
-
-void BytecodeGraphBuilder::VisitBitwiseNot() {
-  PrepareEagerCheckpoint();
-
-  // TODO(adamk): Create a JSBitwiseNot operator, as this desugaring is
-  // invalid for BigInts.
-  const Operator* op = javascript()->BitwiseXor();
-  Node* operand = environment()->LookupAccumulator();
-  Node* xor_value = jsgraph()->SmiConstant(-1);
-
-  FeedbackSlot slot = feedback_vector()->ToSlot(
-      bytecode_iterator().GetIndexOperand(kUnaryOperationHintIndex));
-  JSTypeHintLowering::LoweringResult lowering =
-      TryBuildSimplifiedBinaryOp(op, operand, xor_value, slot);
-  if (lowering.IsExit()) return;
-
-  Node* node = nullptr;
-  if (lowering.IsSideEffectFree()) {
-    node = lowering.value();
-  } else {
-    DCHECK(!lowering.Changed());
-    node = NewNode(op, operand, xor_value);
   }
 
   environment()->BindAccumulator(node, Environment::kAttachFrameState);

@@ -426,6 +426,21 @@ Reduction JSTypedLowering::ReduceSpeculativeNumberAdd(Node* node) {
   return NoChange();
 }
 
+Reduction JSTypedLowering::ReduceJSBitwiseNot(Node* node) {
+  Node* input = NodeProperties::GetValueInput(node, 0);
+  Type* input_type = NodeProperties::GetType(input);
+  if (input_type->Is(Type::PlainPrimitive())) {
+    // JSBitwiseNot(x) => NumberBitwiseXor(ToInt32(x), -1)
+    node->InsertInput(graph()->zone(), 1, jsgraph()->SmiConstant(-1));
+    NodeProperties::ChangeOp(node, javascript()->BitwiseXor());
+    JSBinopReduction r(this, node);
+    r.ConvertInputsToNumber();
+    r.ConvertInputsToUI32(kSigned, kSigned);
+    return r.ChangeToPureOperator(r.NumberOp(), Type::Signed32());
+  }
+  return NoChange();
+}
+
 Reduction JSTypedLowering::ReduceJSNegate(Node* node) {
   Node* input = NodeProperties::GetValueInput(node, 0);
   Type* input_type = NodeProperties::GetType(input);
@@ -2078,6 +2093,8 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSDivide:
     case IrOpcode::kJSModulus:
       return ReduceNumberBinop(node);
+    case IrOpcode::kJSBitwiseNot:
+      return ReduceJSBitwiseNot(node);
     case IrOpcode::kJSNegate:
       return ReduceJSNegate(node);
     case IrOpcode::kJSHasInPrototypeChain:

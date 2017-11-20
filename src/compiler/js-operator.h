@@ -652,6 +652,7 @@ class V8_EXPORT_PRIVATE JSOperatorBuilder final
   const Operator* Divide();
   const Operator* Modulus();
 
+  const Operator* BitwiseNot();
   const Operator* Negate();
 
   const Operator* ToInteger();

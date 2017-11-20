@@ -602,7 +602,8 @@ void NumberBuiltinsAssembler::UnaryOp(Variable* var_input, Label* do_smi,
                                       Variable* var_input_double,
                                       Label* do_bigint) {
   DCHECK_EQ(var_input->rep(), MachineRepresentation::kTagged);
-  DCHECK_EQ(var_input_double->rep(), MachineRepresentation::kFloat64);
+  DCHECK_IMPLIES(var_input_double != nullptr,
+                 var_input_double->rep() == MachineRepresentation::kFloat64);
 
   Node* context = Parameter(Descriptor::kContext);
   var_input->Bind(Parameter(Descriptor::kValue));
@@ -616,7 +617,9 @@ void NumberBuiltinsAssembler::UnaryOp(Variable* var_input, Label* do_smi,
   Label not_number(this);
   GotoIf(TaggedIsSmi(input), do_smi);
   GotoIfNot(IsHeapNumber(input), &not_number);
-  var_input_double->Bind(LoadHeapNumberValue(input));
+  if (var_input_double != nullptr) {
+    var_input_double->Bind(LoadHeapNumberValue(input));
+  }
   Goto(do_double);
 
   BIND(&not_number);
@@ -745,6 +748,26 @@ TF_BUILTIN(Subtract, NumberBuiltinsAssembler) {
     Node* context = Parameter(Descriptor::kContext);
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
                        var_right.value(), SmiConstant(Operation::kSubtract)));
+  }
+}
+
+TF_BUILTIN(BitwiseNot, NumberBuiltinsAssembler) {
+  Node* context = Parameter(Descriptor::kContext);
+  VARIABLE(var_input, MachineRepresentation::kTagged);
+  Label do_number(this), do_bigint(this);
+
+  UnaryOp<Descriptor>(&var_input, &do_number, &do_number, nullptr, &do_bigint);
+
+  BIND(&do_number);
+  {
+    TailCallBuiltin(Builtins::kBitwiseXor, context, var_input.value(),
+                    SmiConstant(-1));
+  }
+
+  BIND(&do_bigint);
+  {
+    Return(CallRuntime(Runtime::kBigIntUnaryOp, context, var_input.value(),
+                       SmiConstant(Operation::kBitwiseNot)));
   }
 }
 

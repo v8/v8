@@ -3045,6 +3045,7 @@ class RepresentationSelector {
         JS_CONTEXT_OP_LIST(OPCODE_CASE)
         JS_OTHER_OP_LIST(OPCODE_CASE)
 #undef OPCODE_CASE
+      case IrOpcode::kJSBitwiseNot:
       case IrOpcode::kJSNegate:
       case IrOpcode::kJSToInteger:
       case IrOpcode::kJSToLength:
