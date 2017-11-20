@@ -768,66 +768,68 @@ action("postmortem-metadata") {
          rebase_path(sources, root_build_dir)
 }
 
-action("run_mksnapshot") {
-  visibility = [ ":*" ]  # Only targets in this file can depend on this.
+if (v8_use_snapshot) {
+  action("run_mksnapshot") {
+    visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
-  deps = [
-    ":mksnapshot($v8_snapshot_toolchain)",
-  ]
-
-  script = "tools/run.py"
-
-  sources = []
-
-  outputs = [
-    "$target_gen_dir/snapshot.cc",
-  ]
-
-  args = [
-    "./" + rebase_path(get_label_info(":mksnapshot($v8_snapshot_toolchain)",
-                                      "root_out_dir") + "/mksnapshot",
-                       root_build_dir),
-    "--turbo_instruction_scheduling",
-    "--startup_src",
-    rebase_path("$target_gen_dir/snapshot.cc", root_build_dir),
-  ]
-
-  if (v8_random_seed != "0") {
-    args += [
-      "--random-seed",
-      v8_random_seed,
+    deps = [
+      ":mksnapshot($v8_snapshot_toolchain)",
     ]
-  }
 
-  if (v8_os_page_size != "0") {
-    args += [
-      "--v8_os_page_size",
-      v8_os_page_size,
+    script = "tools/run.py"
+
+    sources = []
+
+    outputs = [
+      "$target_gen_dir/snapshot.cc",
     ]
-  }
 
-  if (v8_perf_prof_unwinding_info) {
-    args += [ "--perf-prof-unwinding-info" ]
-  }
-
-  if (v8_use_external_startup_data) {
-    outputs += [ "$root_out_dir/snapshot_blob.bin" ]
-    args += [
-      "--startup_blob",
-      rebase_path("$root_out_dir/snapshot_blob.bin", root_build_dir),
+    args = [
+      "./" + rebase_path(get_label_info(":mksnapshot($v8_snapshot_toolchain)",
+                                        "root_out_dir") + "/mksnapshot",
+                         root_build_dir),
+      "--turbo_instruction_scheduling",
+      "--startup_src",
+      rebase_path("$target_gen_dir/snapshot.cc", root_build_dir),
     ]
-  }
 
-  if (v8_embed_script != "") {
-    sources += [ v8_embed_script ]
-    args += [ rebase_path(v8_embed_script, root_build_dir) ]
-  }
+    if (v8_random_seed != "0") {
+      args += [
+        "--random-seed",
+        v8_random_seed,
+      ]
+    }
 
-  if (v8_enable_fast_mksnapshot) {
-    args += [
-      "--no-turbo-rewrite-far-jumps",
-      "--no-turbo-verify-allocation",
-    ]
+    if (v8_os_page_size != "0") {
+      args += [
+        "--v8_os_page_size",
+        v8_os_page_size,
+      ]
+    }
+
+    if (v8_perf_prof_unwinding_info) {
+      args += [ "--perf-prof-unwinding-info" ]
+    }
+
+    if (v8_use_external_startup_data) {
+      outputs += [ "$root_out_dir/snapshot_blob.bin" ]
+      args += [
+        "--startup_blob",
+        rebase_path("$root_out_dir/snapshot_blob.bin", root_build_dir),
+      ]
+    }
+
+    if (v8_embed_script != "") {
+      sources += [ v8_embed_script ]
+      args += [ rebase_path(v8_embed_script, root_build_dir) ]
+    }
+
+    if (v8_enable_fast_mksnapshot) {
+      args += [
+        "--no-turbo-rewrite-far-jumps",
+        "--no-turbo-verify-allocation",
+      ]
+    }
   }
 }
 
@@ -909,44 +911,46 @@ v8_source_set("v8_nosnapshot") {
   configs = [ ":internal_config" ]
 }
 
-v8_source_set("v8_snapshot") {
-  # Only targets in this file and the top-level visibility target can
-  # depend on this.
-  visibility = [
-    ":*",
-    "//:gn_visibility",
-  ]
-
-  deps = [
-    ":js2c",
-    ":js2c_experimental_extras",
-    ":js2c_extras",
-    ":v8_base",
-  ]
-  public_deps = [
-    # This should be public so downstream targets can declare the snapshot
-    # output file as their inputs.
-    ":run_mksnapshot",
-  ]
-
-  sources = [
-    "$target_gen_dir/experimental-extras-libraries.cc",
-    "$target_gen_dir/extras-libraries.cc",
-    "$target_gen_dir/libraries.cc",
-    "$target_gen_dir/snapshot.cc",
-    "src/setup-isolate-deserialize.cc",
-  ]
-
-  if (use_jumbo_build == true) {
-    jumbo_excluded_sources = [
-      # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
-      # Generated source, contains same variable names as libraries.cc
-      "$target_gen_dir/experimental-extras-libraries.cc",
-      "$target_gen_dir/libraries.cc",
+if (v8_use_snapshot) {
+  v8_source_set("v8_snapshot") {
+    # Only targets in this file and the top-level visibility target can
+    # depend on this.
+    visibility = [
+      ":*",
+      "//:gn_visibility",
     ]
-  }
 
-  configs = [ ":internal_config" ]
+    deps = [
+      ":js2c",
+      ":js2c_experimental_extras",
+      ":js2c_extras",
+      ":v8_base",
+    ]
+    public_deps = [
+      # This should be public so downstream targets can declare the snapshot
+      # output file as their inputs.
+      ":run_mksnapshot",
+    ]
+
+    sources = [
+      "$target_gen_dir/experimental-extras-libraries.cc",
+      "$target_gen_dir/extras-libraries.cc",
+      "$target_gen_dir/libraries.cc",
+      "$target_gen_dir/snapshot.cc",
+      "src/setup-isolate-deserialize.cc",
+    ]
+
+    if (use_jumbo_build == true) {
+      jumbo_excluded_sources = [
+        # TODO(mostynb@opera.com): don't exclude these http://crbug.com/752428
+        # Generated source, contains same variable names as libraries.cc
+        "$target_gen_dir/experimental-extras-libraries.cc",
+        "$target_gen_dir/libraries.cc",
+      ]
+    }
+
+    configs = [ ":internal_config" ]
+  }
 }
 
 if (v8_use_external_startup_data) {
@@ -2678,7 +2682,7 @@ v8_source_set("fuzzer_support") {
 # Executables
 #
 
-if (current_toolchain == v8_snapshot_toolchain) {
+if (v8_use_snapshot && current_toolchain == v8_snapshot_toolchain) {
   v8_executable("mksnapshot") {
     visibility = [ ":*" ]  # Only targets in this file can depend on this.
 
