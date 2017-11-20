@@ -388,6 +388,7 @@ using v8::MemoryPressureLevel;
   } while (false)
 
 class AllocationObserver;
+class ArrayBufferCollector;
 class ArrayBufferTracker;
 class ConcurrentMarking;
 class GCIdleTimeAction;
@@ -1007,6 +1008,10 @@ class Heap {
 
   MinorMarkCompactCollector* minor_mark_compact_collector() {
     return minor_mark_compact_collector_;
+  }
+
+  ArrayBufferCollector* array_buffer_collector() {
+    return array_buffer_collector_;
   }
 
   // ===========================================================================
@@ -2406,6 +2411,8 @@ class Heap {
 
   MarkCompactCollector* mark_compact_collector_;
   MinorMarkCompactCollector* minor_mark_compact_collector_;
+
+  ArrayBufferCollector* array_buffer_collector_;
 
   MemoryAllocator* memory_allocator_;
 

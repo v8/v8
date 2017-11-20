@@ -1617,6 +1617,8 @@ v8_source_set("v8_base") {
     "src/handles.cc",
     "src/handles.h",
     "src/heap-symbols.h",
+    "src/heap/array-buffer-collector.cc",
+    "src/heap/array-buffer-collector.h",
     "src/heap/array-buffer-tracker-inl.h",
     "src/heap/array-buffer-tracker.cc",
     "src/heap/array-buffer-tracker.h",

@@ -14,6 +14,7 @@
 #include "src/execution.h"
 #include "src/frames-inl.h"
 #include "src/global-handles.h"
+#include "src/heap/array-buffer-collector.h"
 #include "src/heap/array-buffer-tracker-inl.h"
 #include "src/heap/concurrent-marking.h"
 #include "src/heap/gc-tracer.h"
@@ -4292,6 +4293,7 @@ void MarkCompactCollector::UpdatePointersAfterEvacuation() {
         updating_job.AddTask(new PointersUpdatingTask(isolate()));
       }
       updating_job.Run();
+      heap()->array_buffer_collector()->FreeAllocationsOnBackgroundThread();
     }
   }
 
@@ -4349,6 +4351,7 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
     TRACE_GC(heap()->tracer(),
              GCTracer::Scope::MINOR_MC_EVACUATE_UPDATE_POINTERS_SLOTS);
     updating_job.Run();
+    heap()->array_buffer_collector()->FreeAllocationsOnBackgroundThread();
   }
 
   {
