@@ -189,7 +189,6 @@ void StringBuiltinsAssembler::GenerateStringEqual(Node* context, Node* left,
     // Try to unwrap indirect strings, restart the above attempt on success.
     MaybeDerefIndirectStrings(&var_left, lhs_instance_type, &var_right,
                               rhs_instance_type, &restart);
-    // TODO(bmeurer): Add support for two byte string equality checks.
 
     TailCallRuntime(Runtime::kStringEqual, context, lhs, rhs);
   }
