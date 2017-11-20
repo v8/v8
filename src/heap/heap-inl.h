@@ -600,6 +600,7 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
 CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
     : heap_(heap) {
   if (FLAG_write_protect_code_memory) {
+    heap_->increment_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndWritable();
     LargePage* page = heap_->lo_space()->first_page();
     while (page != nullptr) {
@@ -613,6 +614,7 @@ CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
 
 CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
   if (FLAG_write_protect_code_memory) {
+    heap_->decrement_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndExecutable();
     LargePage* page = heap_->lo_space()->first_page();
     while (page != nullptr) {

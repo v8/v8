@@ -700,9 +700,10 @@ class MemoryChunk {
   // If Value() >= 1 => The Memory is read and writable (and maybe executable).
   // The maximum value can right now only be 3.
   // All executable MemoryChunks are allocated rw based on the assumption that
-  // they will be used immediatelly for an allocation. Hence they are
-  // initialized with 1. The caller that triggers the page allocation is
-  // responsible to make the MemoryChunk rx.
+  // they will be used immediatelly for an allocation. They are initialized
+  // with the number of open CodeSpaceMemoryModificationScopes. The caller
+  // that triggers the page allocation is responsible for decrementing the
+  // counter.
   uintptr_t write_unprotect_counter_;
 
   // Byte allocated on the page, which includes all objects on the page

@@ -165,6 +165,7 @@ Heap::Heap()
       code_space_(nullptr),
       map_space_(nullptr),
       lo_space_(nullptr),
+      code_space_memory_modification_scope_depth_(0),
       gc_state_(NOT_IN_GC),
       gc_post_processing_depth_(0),
       allocations_count_(0),
