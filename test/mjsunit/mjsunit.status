@@ -651,6 +651,7 @@
 ['variant == future', {
   # BUG(v8:7106).
   'regress/typed-array-lifetime': [SKIP],
+  'regress/regress-2249': [SKIP],
 }],  # variant == future
 
 ##############################################################################
