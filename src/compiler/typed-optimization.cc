@@ -465,6 +465,8 @@ Reduction TypedOptimization::ReduceTypeOf(Node* node) {
     return Replace(jsgraph()->Constant(f->number_string()));
   } else if (type->Is(Type::String())) {
     return Replace(jsgraph()->Constant(f->string_string()));
+  } else if (type->Is(Type::BigInt())) {
+    return Replace(jsgraph()->Constant(f->bigint_string()));
   } else if (type->Is(Type::Symbol())) {
     return Replace(jsgraph()->Constant(f->symbol_string()));
   } else if (type->Is(Type::OtherUndetectableOrUndefined())) {
