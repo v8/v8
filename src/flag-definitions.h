@@ -612,7 +612,7 @@ DEFINE_BOOL(write_protect_code_memory, false, "write protect code memory")
 #endif
 DEFINE_BOOL(concurrent_marking, V8_CONCURRENT_MARKING_BOOL,
             "use concurrent marking")
-DEFINE_BOOL(parallel_marking, false, "use parallel marking in atomic pause")
+DEFINE_BOOL(parallel_marking, true, "use parallel marking in atomic pause")
 DEFINE_IMPLICATION(parallel_marking, concurrent_marking)
 DEFINE_BOOL(trace_concurrent_marking, false, "trace concurrent marking")
 DEFINE_BOOL(minor_mc_parallel_marking, true,

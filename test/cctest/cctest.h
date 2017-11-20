@@ -646,21 +646,26 @@ class ManualGCScope {
   ManualGCScope()
       : flag_concurrent_marking_(i::FLAG_concurrent_marking),
         flag_concurrent_sweeping_(i::FLAG_concurrent_sweeping),
-        flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking) {
+        flag_stress_incremental_marking_(i::FLAG_stress_incremental_marking),
+        flag_parallel_marking_(i::FLAG_parallel_marking) {
     i::FLAG_concurrent_marking = false;
     i::FLAG_concurrent_sweeping = false;
     i::FLAG_stress_incremental_marking = false;
+    // Parallel marking has a dependency on concurrent marking.
+    i::FLAG_parallel_marking = false;
   }
   ~ManualGCScope() {
     i::FLAG_concurrent_marking = flag_concurrent_marking_;
     i::FLAG_concurrent_sweeping = flag_concurrent_sweeping_;
     i::FLAG_stress_incremental_marking = flag_stress_incremental_marking_;
+    i::FLAG_parallel_marking = flag_parallel_marking_;
   }
 
  private:
   bool flag_concurrent_marking_;
   bool flag_concurrent_sweeping_;
   bool flag_stress_incremental_marking_;
+  bool flag_parallel_marking_;
 };
 
 // This is an abstract base class that can be overridden to implement a test

@@ -752,9 +752,8 @@ TEST(BytecodeArray) {
   static const int kFrameSize = 32;
   static const int kParameterCount = 2;
 
-  FLAG_concurrent_marking = false;
+  ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
-  FLAG_stress_incremental_marking = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   Heap* heap = isolate->heap();
@@ -2878,16 +2877,16 @@ TEST(ReleaseOverReservedPages) {
   // The optimizer can allocate stuff, messing up the test.
   FLAG_opt = false;
   FLAG_always_opt = false;
-  // Parallel compaction increases fragmentation, depending on how existing
-  // memory is distributed. Since this is non-deterministic because of
-  // concurrent sweeping, we disable it for this test.
-  FLAG_parallel_compaction = false;
-  FLAG_concurrent_marking = false;
-  // Concurrent sweeping adds non determinism, depending on when memory is
-  // available for further reuse.
-  FLAG_concurrent_sweeping = false;
-  // Fast evacuation of pages may result in a different page count in old space.
+  // - Parallel compaction increases fragmentation, depending on how existing
+  //   memory is distributed. Since this is non-deterministic because of
+  //   concurrent sweeping, we disable it for this test.
+  // - Concurrent sweeping adds non determinism, depending on when memory is
+  //   available for further reuse.
+  // - Fast evacuation of pages may result in a different page count in old
+  //   space.
+  ManualGCScope manual_gc_scope;
   FLAG_page_promotion = false;
+  FLAG_parallel_compaction = false;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
   // If there's snapshot available, we don't know whether 20 small arrays will
@@ -4457,7 +4456,7 @@ static void RequestInterrupt(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 HEAP_TEST(Regress538257) {
-  FLAG_concurrent_marking = false;
+  ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
   v8::Isolate::CreateParams create_params;
   // Set heap limits.
@@ -5108,8 +5107,7 @@ TEST(SharedFunctionInfoIterator) {
 }
 
 HEAP_TEST(Regress587004) {
-  FLAG_concurrent_marking = false;
-  FLAG_concurrent_sweeping = false;
+  ManualGCScope manual_gc_scope;
 #ifdef VERIFY_HEAP
   FLAG_verify_heap = false;
 #endif
@@ -5151,8 +5149,7 @@ HEAP_TEST(Regress589413) {
   FLAG_stress_compaction = true;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
-  FLAG_concurrent_marking = false;
-  FLAG_concurrent_sweeping = false;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();
@@ -5428,8 +5425,7 @@ TEST(Regress631969) {
   if (!FLAG_incremental_marking) return;
   FLAG_manual_evacuation_candidates_selection = true;
   FLAG_parallel_compaction = false;
-  FLAG_concurrent_marking = false;
-  FLAG_concurrent_sweeping = false;
+  ManualGCScope manual_gc_scope;
   CcTest::InitializeVM();
   v8::HandleScope scope(CcTest::isolate());
   Heap* heap = CcTest::heap();

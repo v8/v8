@@ -46,9 +46,7 @@ HEAP_TEST(CompactionFullAbortedPage) {
 
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
-  FLAG_concurrent_sweeping = false;
-  FLAG_concurrent_marking = false;
-  FLAG_stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
   CcTest::InitializeVM();
   Isolate* isolate = CcTest::i_isolate();
@@ -91,9 +89,7 @@ HEAP_TEST(CompactionPartiallyAbortedPage) {
 
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
-  FLAG_concurrent_sweeping = false;
-  FLAG_concurrent_marking = false;
-  FLAG_stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
@@ -168,9 +164,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageIntraAbortedPointers) {
 
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
-  FLAG_concurrent_sweeping = false;
-  FLAG_concurrent_marking = false;
-  FLAG_stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
@@ -258,9 +252,7 @@ HEAP_TEST(CompactionPartiallyAbortedPageWithStoreBufferEntries) {
 
   // Disable concurrent sweeping to ensure memory is in an expected state, i.e.,
   // we can reach the state of a half aborted page.
-  FLAG_concurrent_sweeping = false;
-  FLAG_concurrent_marking = false;
-  FLAG_stress_incremental_marking = false;
+  ManualGCScope manual_gc_scope;
   FLAG_manual_evacuation_candidates_selection = true;
 
   const int objects_per_page = 10;
