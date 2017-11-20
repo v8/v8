@@ -2152,6 +2152,8 @@ void Assembler::strd(Register src1, Register src2,
 void Assembler::ldrex(Register dst, Register src, Condition cond) {
   // Instruction details available in ARM DDI 0406C.b, A8.8.75.
   // cond(31-28) | 00011001(27-20) | Rn(19-16) | Rt(15-12) | 111110011111(11-0)
+  DCHECK(dst != pc);
+  DCHECK(src != pc);
   emit(cond | B24 | B23 | B20 | src.code() * B16 | dst.code() * B12 | 0xf9f);
 }
 
@@ -2160,6 +2162,11 @@ void Assembler::strex(Register src1, Register src2, Register dst,
   // Instruction details available in ARM DDI 0406C.b, A8.8.212.
   // cond(31-28) | 00011000(27-20) | Rn(19-16) | Rd(15-12) | 11111001(11-4) |
   // Rt(3-0)
+  DCHECK(dst != pc);
+  DCHECK(src1 != pc);
+  DCHECK(src2 != pc);
+  DCHECK(src1 != dst);
+  DCHECK(src1 != src2);
   emit(cond | B24 | B23 | dst.code() * B16 | src1.code() * B12 | 0xf9 * B4 |
        src2.code());
 }
@@ -2167,6 +2174,8 @@ void Assembler::strex(Register src1, Register src2, Register dst,
 void Assembler::ldrexb(Register dst, Register src, Condition cond) {
   // Instruction details available in ARM DDI 0406C.b, A8.8.76.
   // cond(31-28) | 00011101(27-20) | Rn(19-16) | Rt(15-12) | 111110011111(11-0)
+  DCHECK(dst != pc);
+  DCHECK(src != pc);
   emit(cond | B24 | B23 | B22 | B20 | src.code() * B16 | dst.code() * B12 |
        0xf9f);
 }
@@ -2176,6 +2185,11 @@ void Assembler::strexb(Register src1, Register src2, Register dst,
   // Instruction details available in ARM DDI 0406C.b, A8.8.213.
   // cond(31-28) | 00011100(27-20) | Rn(19-16) | Rd(15-12) | 11111001(11-4) |
   // Rt(3-0)
+  DCHECK(dst != pc);
+  DCHECK(src1 != pc);
+  DCHECK(src2 != pc);
+  DCHECK(src1 != dst);
+  DCHECK(src1 != src2);
   emit(cond | B24 | B23 | B22 | dst.code() * B16 | src1.code() * B12 |
        0xf9 * B4 | src2.code());
 }
@@ -2183,6 +2197,8 @@ void Assembler::strexb(Register src1, Register src2, Register dst,
 void Assembler::ldrexh(Register dst, Register src, Condition cond) {
   // Instruction details available in ARM DDI 0406C.b, A8.8.78.
   // cond(31-28) | 00011111(27-20) | Rn(19-16) | Rt(15-12) | 111110011111(11-0)
+  DCHECK(dst != pc);
+  DCHECK(src != pc);
   emit(cond | B24 | B23 | B22 | B21 | B20 | src.code() * B16 |
        dst.code() * B12 | 0xf9f);
 }
@@ -2192,6 +2208,11 @@ void Assembler::strexh(Register src1, Register src2, Register dst,
   // Instruction details available in ARM DDI 0406C.b, A8.8.215.
   // cond(31-28) | 00011110(27-20) | Rn(19-16) | Rd(15-12) | 11111001(11-4) |
   // Rt(3-0)
+  DCHECK(dst != pc);
+  DCHECK(src1 != pc);
+  DCHECK(src2 != pc);
+  DCHECK(src1 != dst);
+  DCHECK(src1 != src2);
   emit(cond | B24 | B23 | B22 | B21 | dst.code() * B16 | src1.code() * B12 |
        0xf9 * B4 | src2.code());
 }
