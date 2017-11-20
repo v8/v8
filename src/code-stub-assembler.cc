@@ -3022,7 +3022,6 @@ void CodeStubAssembler::FillPropertyArrayWithUndefined(Node* array,
   CSA_SLOW_ASSERT(this, MatchesParameterMode(from_node, mode));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(to_node, mode));
   CSA_SLOW_ASSERT(this, IsPropertyArray(array));
-  STATIC_ASSERT(kHoleNanLower32 == kHoleNanUpper32);
   ElementsKind kind = PACKED_ELEMENTS;
   Node* value = UndefinedConstant();
   BuildFastFixedArrayForEach(array, kind, from_node, to_node,
@@ -3040,38 +3039,22 @@ void CodeStubAssembler::FillFixedArrayWithValue(
   CSA_SLOW_ASSERT(this, MatchesParameterMode(from_node, mode));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(to_node, mode));
   CSA_SLOW_ASSERT(this, IsFixedArrayWithKind(array, kind));
-  bool is_double = IsDoubleElementsKind(kind);
   DCHECK(value_root_index == Heap::kTheHoleValueRootIndex ||
          value_root_index == Heap::kUndefinedValueRootIndex);
-  DCHECK_IMPLIES(is_double, value_root_index == Heap::kTheHoleValueRootIndex);
-  STATIC_ASSERT(kHoleNanLower32 == kHoleNanUpper32);
-  Node* double_hole =
-      Is64() ? ReinterpretCast<UintPtrT>(Int64Constant(kHoleNanInt64))
-             : ReinterpretCast<UintPtrT>(Int32Constant(kHoleNanLower32));
+
+  // Determine the value to initialize the {array} based
+  // on the {value_root_index} and the elements {kind}.
   Node* value = LoadRoot(value_root_index);
+  if (IsDoubleElementsKind(kind)) {
+    value = LoadHeapNumberValue(value);
+  }
 
   BuildFastFixedArrayForEach(
       array, kind, from_node, to_node,
-      [this, value, is_double, double_hole](Node* array, Node* offset) {
-        if (is_double) {
-          // Don't use doubles to store the hole double, since manipulating the
-          // signaling NaN used for the hole in C++, e.g. with bit_cast, will
-          // change its value on ia32 (the x87 stack is used to return values
-          // and stores to the stack silently clear the signalling bit).
-          //
-          // TODO(danno): When we have a Float32/Float64 wrapper class that
-          // preserves double bits during manipulation, remove this code/change
-          // this to an indexed Float64 store.
-          if (Is64()) {
-            StoreNoWriteBarrier(MachineRepresentation::kWord64, array, offset,
-                                double_hole);
-          } else {
-            StoreNoWriteBarrier(MachineRepresentation::kWord32, array, offset,
-                                double_hole);
-            StoreNoWriteBarrier(MachineRepresentation::kWord32, array,
-                                IntPtrAdd(offset, IntPtrConstant(kPointerSize)),
-                                double_hole);
-          }
+      [this, value, kind](Node* array, Node* offset) {
+        if (IsDoubleElementsKind(kind)) {
+          StoreNoWriteBarrier(MachineRepresentation::kFloat64, array, offset,
+                              value);
         } else {
           StoreNoWriteBarrier(MachineRepresentation::kTagged, array, offset,
                               value);
