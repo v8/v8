@@ -86,8 +86,8 @@ class TestSuite(object):
     self.name = name  # string
     self.root = root  # string containing path
     self.tests = None  # list of TestCase objects
-    self.rules = None  # dictionary mapping test path to list of outcomes
-    self.wildcards = None  # dictionary mapping test paths to list of outcomes
+    self.rules = None  # {variant: {test name: [rule]}}
+    self.prefix_rules = None  # {variant: {test name prefix: [rule]}}
     self.total_duration = None  # float, assigned on demand
 
   def suffix(self):
@@ -130,7 +130,7 @@ class TestSuite(object):
 
   def ReadStatusFile(self, variables):
     with open(self.status_file()) as f:
-      self.rules, self.wildcards = (
+      self.rules, self.prefix_rules = (
           statusfile.ReadStatusFile(f.read(), variables))
 
   def ReadTestCases(self, context):
@@ -148,18 +148,21 @@ class TestSuite(object):
                               slow_tests="dontcare",
                               pass_fail_tests="dontcare",
                               variants=False):
+    # Load statusfile before.
+    assert(self.rules is not None)
+    assert(self.prefix_rules is not None)
 
-    # Use only variants-dependent rules and wildcards when filtering
+    # Use only variants-dependent rules and prefix_rules when filtering
     # respective test cases and generic rules when filtering generic test
     # cases.
     if not variants:
       rules = self.rules[""]
-      wildcards = self.wildcards[""]
+      prefix_rules = self.prefix_rules[""]
     else:
-      # We set rules and wildcards to a variant-specific version for each test
-      # below.
+      # We set rules and prefix_rules to a variant-specific version for each
+      # test below.
       rules = {}
-      wildcards = {}
+      prefix_rules = {}
 
     filtered = []
 
@@ -174,7 +177,7 @@ class TestSuite(object):
       variant = t.variant or ""
       if variants:
         rules = self.rules[variant]
-        wildcards = self.wildcards[variant]
+        prefix_rules = self.prefix_rules[variant]
       if testname in rules:
         used_rules.add((testname, variant))
         # Even for skipped tests, as the TestCase object stays around and
@@ -188,14 +191,13 @@ class TestSuite(object):
         slow = statusfile.IsSlow(t.outcomes)
         pass_fail = statusfile.IsPassOrFail(t.outcomes)
       skip = False
-      for rule in wildcards:
-        assert rule[-1] == '*'
-        if testname.startswith(rule[:-1]):
-          used_rules.add((rule, variant))
-          t.outcomes = t.outcomes | wildcards[rule]
+      for prefix in prefix_rules:
+        if testname.startswith(prefix):
+          used_rules.add((prefix, variant))
+          t.outcomes = t.outcomes | prefix_rules[prefix]
           if statusfile.DoSkip(t.outcomes):
             skip = True
-            break  # "for rule in wildcards"
+            break  # "for rule in prefix_rules"
           slow = slow or statusfile.IsSlow(t.outcomes)
           pass_fail = pass_fail or statusfile.IsPassOrFail(t.outcomes)
       if (skip
@@ -213,20 +215,20 @@ class TestSuite(object):
         if (rule, "") not in used_rules:
           print("Unused rule: %s -> %s (variant independent)" % (
               rule, self.rules[""][rule]))
-      for rule in self.wildcards[""]:
+      for rule in self.prefix_rules[""]:
         if (rule, "") not in used_rules:
           print("Unused rule: %s -> %s (variant independent)" % (
-              rule, self.wildcards[""][rule]))
+              rule, self.prefix_rules[""][rule]))
     else:
       for variant in ALL_VARIANTS:
         for rule in self.rules[variant]:
           if (rule, variant) not in used_rules:
             print("Unused rule: %s -> %s (variant: %s)" % (
                 rule, self.rules[variant][rule], variant))
-        for rule in self.wildcards[variant]:
+        for rule in self.prefix_rules[variant]:
           if (rule, variant) not in used_rules:
             print("Unused rule: %s -> %s (variant: %s)" % (
-                rule, self.wildcards[variant][rule], variant))
+                rule, self.prefix_rules[variant][rule], variant))
 
 
   def FilterTestCasesByArgs(self, args):

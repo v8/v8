@@ -129,7 +129,7 @@ def _EvalExpression(exp, variables):
     return VARIANT_EXPRESSION
 
 
-def _EvalVariantExpression(section, rules, wildcards, variant, variables):
+def _EvalVariantExpression(section, rules, prefix_rules, variant, variables):
   variables_with_variant = {}
   variables_with_variant.update(variables)
   variables_with_variant["variant"] = variant
@@ -139,7 +139,7 @@ def _EvalVariantExpression(section, rules, wildcards, variant, variables):
     _ReadSection(
         section[1],
         rules[variant],
-        wildcards[variant],
+        prefix_rules[variant],
         variables_with_variant,
     )
   else:
@@ -191,12 +191,12 @@ def ReadContent(content):
 
 
 def ReadStatusFile(content, variables):
-  # Empty defaults for rules and wildcards. Variant-independent
+  # Empty defaults for rules and prefix_rules. Variant-independent
   # rules are mapped by "", others by the variant name.
   rules = {variant: {} for variant in ALL_VARIANTS}
   rules[""] = {}
-  wildcards = {variant: {} for variant in ALL_VARIANTS}
-  wildcards[""] = {}
+  prefix_rules = {variant: {} for variant in ALL_VARIANTS}
+  prefix_rules[""] = {}
 
   variables.update(VARIABLES)
   for section in ReadContent(content):
@@ -210,25 +210,30 @@ def ReadStatusFile(content, variables):
       # If the expression contains one or more "variant" keywords, we evaluate
       # it for all possible variants and create rules for those that apply.
       for variant in ALL_VARIANTS:
-        _EvalVariantExpression(section, rules, wildcards, variant, variables)
+        _EvalVariantExpression(section, rules, prefix_rules, variant, variables)
     else:
       # The expression is variant-independent and evaluates to True.
       assert exp is True, "Make sure expressions evaluate to boolean values"
       _ReadSection(
           section[1],
           rules[""],
-          wildcards[""],
+          prefix_rules[""],
           variables,
       )
-  return Freeze(rules), Freeze(wildcards)
+  return Freeze(rules), Freeze(prefix_rules)
 
 
-def _ReadSection(section, rules, wildcards, variables):
+def _ReadSection(section, rules, prefix_rules, variables):
   assert type(section) == dict
   for rule in section:
     assert type(rule) == str
+
+    # Wildcards are allowed only as the last character.
+    wildcards_count = rule.count('*')
+    assert wildcards_count == 0 or (wildcards_count == 1 and rule[-1] == '*')
+
     if rule[-1] == '*':
-      _ParseOutcomeList(rule, section[rule], wildcards, variables)
+      _ParseOutcomeList(rule[:-1], section[rule], prefix_rules, variables)
     else:
       _ParseOutcomeList(rule, section[rule], rules, variables)
 

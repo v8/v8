@@ -29,9 +29,9 @@ class TestSuiteTest(unittest.TestCase):
         'baz/bar': set(['PASS', 'FAIL']),
       },
     }
-    suite.wildcards = {
+    suite.prefix_rules = {
       '': {
-        'baz/*': set(['PASS', 'SLOW']),
+        'baz/': set(['PASS', 'SLOW']),
       },
     }
     suite.FilterTestCasesByStatus(warn_unused_rules=False)
@@ -67,12 +67,12 @@ class TestSuiteTest(unittest.TestCase):
         'baz/bar': set(['SKIP']),
       },
     }
-    suite.wildcards = {
+    suite.prefix_rules = {
       'default': {
-        'baz/*': set(['PASS', 'SLOW']),
+        'baz/': set(['PASS', 'SLOW']),
       },
       'stress': {
-        'foo/*': set(['PASS', 'SLOW']),
+        'foo/': set(['PASS', 'SLOW']),
       },
     }
     suite.FilterTestCasesByStatus(warn_unused_rules=False, variants=True)
