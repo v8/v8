@@ -47,9 +47,8 @@ VARIANT_ALIASES = {
   "dev": VARIANTS,
   # Additional variants, run on all bots.
   "more": MORE_VARIANTS,
-  # TODO(machenbach): Deprecate this after the step is removed on infra side.
   # Additional variants, run on a subset of bots.
-  "extra": [],
+  "extra": ["future"],
 }
 
 GC_STRESS_FLAGS = ["--gc-interval=500", "--stress-compaction",
