@@ -142,7 +142,7 @@ Reduction JSCallReducer::ReduceBooleanConstructor(Node* node) {
   DCHECK_LE(2u, p.arity());
   Node* value = (p.arity() == 2) ? jsgraph()->UndefinedConstant()
                                  : NodeProperties::GetValueInput(node, 2);
-  value = graph()->NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), value);
+  value = graph()->NewNode(simplified()->ToBoolean(), value);
   ReplaceWithValue(node, value);
   return Replace(value);
 }
@@ -1447,8 +1447,8 @@ Node* JSCallReducer::DoFilterPostCallbackWork(ElementsKind kind, Node** control,
                                               Node** effect, Node* a, Node* to,
                                               Node* element,
                                               Node* callback_value) {
-  Node* boolean_result = graph()->NewNode(
-      simplified()->ToBoolean(ToBooleanHint::kAny), callback_value);
+  Node* boolean_result =
+      graph()->NewNode(simplified()->ToBoolean(), callback_value);
 
   Node* check_boolean_result =
       graph()->NewNode(simplified()->ReferenceEqual(), boolean_result,

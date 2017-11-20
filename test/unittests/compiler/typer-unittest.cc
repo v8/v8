@@ -492,13 +492,6 @@ TEST_MONOTONICITY(ObjectIsSymbol)
 TEST_MONOTONICITY(ObjectIsUndetectable)
 TEST_MONOTONICITY(TypeOf)
 TEST_MONOTONICITY(ClassOf)
-#undef TEST_MONOTONICITY
-
-// SIMPLIFIED UNOPs with ToBooleanHint
-#define TEST_MONOTONICITY(name)                               \
-  TEST_F(TyperTest, Monotonicity_##name) {                    \
-    TestUnaryMonotonicity(simplified_.name(ToBooleanHint())); \
-  }
 TEST_MONOTONICITY(ToBoolean)
 #undef TEST_MONOTONICITY
 

@@ -2297,8 +2297,8 @@ void BytecodeGraphBuilder::VisitLogicalNot() {
 }
 
 void BytecodeGraphBuilder::VisitToBooleanLogicalNot() {
-  Node* value = NewNode(simplified()->ToBoolean(ToBooleanHint::kAny),
-                        environment()->LookupAccumulator());
+  Node* value =
+      NewNode(simplified()->ToBoolean(), environment()->LookupAccumulator());
   Node* node = NewNode(simplified()->BooleanNot(), value);
   environment()->BindAccumulator(node);
 }
@@ -2955,15 +2955,13 @@ void BytecodeGraphBuilder::BuildJumpIfTrue() {
 
 void BytecodeGraphBuilder::BuildJumpIfToBooleanTrue() {
   Node* accumulator = environment()->LookupAccumulator();
-  Node* condition =
-      NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), accumulator);
+  Node* condition = NewNode(simplified()->ToBoolean(), accumulator);
   BuildJumpIf(condition);
 }
 
 void BytecodeGraphBuilder::BuildJumpIfToBooleanFalse() {
   Node* accumulator = environment()->LookupAccumulator();
-  Node* condition =
-      NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), accumulator);
+  Node* condition = NewNode(simplified()->ToBoolean(), accumulator);
   BuildJumpIfNot(condition);
 }
 

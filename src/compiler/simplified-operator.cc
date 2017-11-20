@@ -102,11 +102,6 @@ std::ostream& operator<<(std::ostream& os, ElementAccess const& access) {
   return os;
 }
 
-ToBooleanHints ToBooleanHintsOf(Operator const* op) {
-  DCHECK_EQ(IrOpcode::kToBoolean, op->opcode());
-  return OpParameter<ToBooleanHints>(op);
-}
-
 const FieldAccess& FieldAccessOf(const Operator* op) {
   DCHECK_NOT_NULL(op);
   DCHECK(op->opcode() == IrOpcode::kLoadField ||
@@ -636,7 +631,8 @@ DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
   V(ReferenceEqual, Operator::kCommutative, 2, 0)                \
   V(StringEqual, Operator::kCommutative, 2, 0)                   \
   V(StringLessThan, Operator::kNoProperties, 2, 0)               \
-  V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)
+  V(StringLessThanOrEqual, Operator::kNoProperties, 2, 0)        \
+  V(ToBoolean, Operator::kNoProperties, 1, 0)
 
 #define SPECULATIVE_NUMBER_BINOP_LIST(V)      \
   SIMPLIFIED_SPECULATIVE_NUMBER_BINOP_LIST(V) \
@@ -1116,15 +1112,6 @@ const Operator* SimplifiedOperatorBuilder::TransitionElementsKind(
       "TransitionElementsKind",                       // name
       1, 1, 1, 0, 1, 0,                               // counts
       transition);                                    // parameter
-}
-
-const Operator* SimplifiedOperatorBuilder::ToBoolean(ToBooleanHints hints) {
-  // TODO(turbofan): Cache most important versions of this operator.
-  return new (zone()) Operator1<ToBooleanHints>(  //--
-      IrOpcode::kToBoolean, Operator::kPure,      // opcode
-      "ToBoolean",                                // name
-      1, 0, 0, 1, 0, 0,                           // inputs/outputs
-      hints);                                     // parameter
 }
 
 namespace {

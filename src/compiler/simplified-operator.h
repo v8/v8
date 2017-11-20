@@ -199,9 +199,6 @@ std::ostream& operator<<(std::ostream&, GrowFastElementsMode);
 
 GrowFastElementsMode GrowFastElementsModeOf(const Operator*) WARN_UNUSED_RESULT;
 
-// The ToBooleanHints are used as parameter by ToBoolean operators.
-ToBooleanHints ToBooleanHintsOf(Operator const* op);
-
 // A descriptor for elements kind transitions.
 class ElementsTransition final {
  public:
@@ -397,7 +394,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* TypeOf();
   const Operator* ClassOf();
 
-  const Operator* ToBoolean(ToBooleanHints hints);
+  const Operator* ToBoolean();
 
   const Operator* StringEqual();
   const Operator* StringLessThan();

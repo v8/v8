@@ -193,8 +193,7 @@ TEST_F(TypedOptimizationTest, ToBooleanWithFalsish) {
               zone()),
           zone()),
       0);
-  Reduction r = Reduce(
-      graph()->NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), input));
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsFalseConstant());
 }
@@ -206,32 +205,28 @@ TEST_F(TypedOptimizationTest, ToBooleanWithTruish) {
           Type::Union(Type::DetectableReceiver(), Type::Symbol(), zone()),
           zone()),
       0);
-  Reduction r = Reduce(
-      graph()->NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), input));
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTrueConstant());
 }
 
 TEST_F(TypedOptimizationTest, ToBooleanWithNonZeroPlainNumber) {
   Node* input = Parameter(Type::Range(1, V8_INFINITY, zone()), 0);
-  Reduction r = Reduce(
-      graph()->NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), input));
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsTrueConstant());
 }
 
 TEST_F(TypedOptimizationTest, ToBooleanWithBoolean) {
   Node* input = Parameter(Type::Boolean(), 0);
-  Reduction r = Reduce(
-      graph()->NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), input));
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_TRUE(r.Changed());
   EXPECT_EQ(input, r.replacement());
 }
 
 TEST_F(TypedOptimizationTest, ToBooleanWithOrderedNumber) {
   Node* input = Parameter(Type::OrderedNumber(), 0);
-  Reduction r = Reduce(
-      graph()->NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), input));
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsBooleanNot(IsNumberEqual(input, IsNumberConstant(0.0))));
@@ -239,16 +234,14 @@ TEST_F(TypedOptimizationTest, ToBooleanWithOrderedNumber) {
 
 TEST_F(TypedOptimizationTest, ToBooleanWithNumber) {
   Node* input = Parameter(Type::Number(), 0);
-  Reduction r = Reduce(
-      graph()->NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), input));
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsNumberToBoolean(input));
 }
 
 TEST_F(TypedOptimizationTest, ToBooleanWithDetectableReceiverOrNull) {
   Node* input = Parameter(Type::DetectableReceiverOrNull(), 0);
-  Reduction r = Reduce(
-      graph()->NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), input));
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsBooleanNot(IsReferenceEqual(input, IsNullConstant())));
@@ -256,16 +249,14 @@ TEST_F(TypedOptimizationTest, ToBooleanWithDetectableReceiverOrNull) {
 
 TEST_F(TypedOptimizationTest, ToBooleanWithReceiverOrNullOrUndefined) {
   Node* input = Parameter(Type::ReceiverOrNullOrUndefined(), 0);
-  Reduction r = Reduce(
-      graph()->NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), input));
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsBooleanNot(IsObjectIsUndetectable(input)));
 }
 
 TEST_F(TypedOptimizationTest, ToBooleanWithString) {
   Node* input = Parameter(Type::String(), 0);
-  Reduction r = Reduce(
-      graph()->NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), input));
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(),
               IsBooleanNot(IsReferenceEqual(
@@ -274,8 +265,7 @@ TEST_F(TypedOptimizationTest, ToBooleanWithString) {
 
 TEST_F(TypedOptimizationTest, ToBooleanWithAny) {
   Node* input = Parameter(Type::Any(), 0);
-  Reduction r = Reduce(
-      graph()->NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), input));
+  Reduction r = Reduce(graph()->NewNode(simplified()->ToBoolean(), input));
   ASSERT_FALSE(r.Changed());
 }
 

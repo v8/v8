@@ -269,8 +269,7 @@ Reduction JSNativeContextSpecialization::ReduceJSInstanceOf(Node* node) {
                                  ConvertReceiverMode::kNotNullOrUndefined));
 
     // Rewire the value uses of {node} to ToBoolean conversion of the result.
-    Node* value =
-        graph()->NewNode(simplified()->ToBoolean(ToBooleanHint::kAny), node);
+    Node* value = graph()->NewNode(simplified()->ToBoolean(), node);
     for (Edge edge : node->use_edges()) {
       if (NodeProperties::IsValueEdge(edge) && edge.from() != value) {
         edge.UpdateTo(value);
