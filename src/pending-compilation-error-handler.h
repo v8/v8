@@ -32,33 +32,16 @@ class PendingCompilationErrorHandler {
   void ReportMessageAt(int start_position, int end_position,
                        MessageTemplate::Template message,
                        const char* arg = nullptr,
-                       ParseErrorType error_type = kSyntaxError) {
-    if (has_pending_error_) return;
-    has_pending_error_ = true;
-
-    error_details_ =
-        MessageDetails(start_position, end_position, message, nullptr, arg);
-    error_type_ = error_type;
-  }
+                       ParseErrorType error_type = kSyntaxError);
 
   void ReportMessageAt(int start_position, int end_position,
                        MessageTemplate::Template message,
                        const AstRawString* arg,
-                       ParseErrorType error_type = kSyntaxError) {
-    if (has_pending_error_) return;
-    has_pending_error_ = true;
-
-    error_details_ =
-        MessageDetails(start_position, end_position, message, arg, nullptr);
-    error_type_ = error_type;
-  }
+                       ParseErrorType error_type = kSyntaxError);
 
   void ReportWarningAt(int start_position, int end_position,
                        MessageTemplate::Template message,
-                       const char* arg = nullptr) {
-    warning_messages_.emplace_front(
-        MessageDetails(start_position, end_position, message, nullptr, arg));
-  }
+                       const char* arg = nullptr);
 
   bool stack_overflow() const { return stack_overflow_; }
 

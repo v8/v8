@@ -1428,10 +1428,10 @@ class PreParser : public ParserBase<PreParser> {
   }
 
   // Reporting errors.
-  V8_INLINE void ReportMessageAt(Scanner::Location source_location,
-                                 MessageTemplate::Template message,
-                                 const char* arg = nullptr,
-                                 ParseErrorType error_type = kSyntaxError) {
+  void ReportMessageAt(Scanner::Location source_location,
+                       MessageTemplate::Template message,
+                       const char* arg = nullptr,
+                       ParseErrorType error_type = kSyntaxError) {
     pending_error_handler()->ReportMessageAt(source_location.beg_pos,
                                              source_location.end_pos, message,
                                              arg, error_type);

@@ -30,6 +30,35 @@ MessageLocation PendingCompilationErrorHandler::MessageDetails::GetLocation(
   return MessageLocation(script, start_position_, end_position_);
 }
 
+void PendingCompilationErrorHandler::ReportMessageAt(
+    int start_position, int end_position, MessageTemplate::Template message,
+    const char* arg, ParseErrorType error_type) {
+  if (has_pending_error_) return;
+  has_pending_error_ = true;
+
+  error_details_ =
+      MessageDetails(start_position, end_position, message, nullptr, arg);
+  error_type_ = error_type;
+}
+
+void PendingCompilationErrorHandler::ReportMessageAt(
+    int start_position, int end_position, MessageTemplate::Template message,
+    const AstRawString* arg, ParseErrorType error_type) {
+  if (has_pending_error_) return;
+  has_pending_error_ = true;
+
+  error_details_ =
+      MessageDetails(start_position, end_position, message, arg, nullptr);
+  error_type_ = error_type;
+}
+
+void PendingCompilationErrorHandler::ReportWarningAt(
+    int start_position, int end_position, MessageTemplate::Template message,
+    const char* arg) {
+  warning_messages_.emplace_front(
+      MessageDetails(start_position, end_position, message, nullptr, arg));
+}
+
 void PendingCompilationErrorHandler::ReportWarnings(Isolate* isolate,
                                                     Handle<Script> script) {
   DCHECK(!has_pending_error());
