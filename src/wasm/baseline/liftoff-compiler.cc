@@ -79,7 +79,7 @@ class LiftoffCompiler {
   void CheckStackSizeLimit(Decoder* decoder) {
     DCHECK_GE(__ cache_state()->stack_height(), __ num_locals());
     int stack_height = __ cache_state()->stack_height() - __ num_locals();
-    if (stack_height > kMaxValueStackHeight) {
+    if (stack_height > LiftoffAssembler::kMaxValueStackHeight) {
       unsupported(decoder, "value stack grows too large");
     }
   }
@@ -98,8 +98,7 @@ class LiftoffCompiler {
       return;
     }
     __ EnterFrame(StackFrame::WASM_COMPILED);
-    __ ReserveStackSpace(kPointerSize *
-                         (__ num_locals() + kMaxValueStackHeight));
+    __ ReserveStackSpace(__ GetTotalFrameSlotCount());
     // Parameter 0 is the wasm context.
     uint32_t num_params =
         static_cast<uint32_t>(call_desc_->ParameterCount()) - 1;
@@ -481,10 +480,6 @@ class LiftoffCompiler {
   compiler::CallDescriptor* call_desc_;
   compiler::ModuleEnv* env_;
   bool ok_ = true;
-
-  // TODO(clemensh): Remove this limitation by allocating more stack space if
-  // needed.
-  static constexpr int kMaxValueStackHeight = 8;
 };
 
 }  // namespace

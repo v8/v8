@@ -48,6 +48,10 @@ constexpr ValueType kWasmPtrSizeInt = kPointerSize == 8 ? kWasmI64 : kWasmI32;
 
 class LiftoffAssembler : public TurboAssembler {
  public:
+  // TODO(clemensh): Remove this limitation by allocating more stack space if
+  // needed.
+  static constexpr int kMaxValueStackHeight = 8;
+
   class PinnedRegisterScope {
    public:
     PinnedRegisterScope() : pinned_regs_(0) {}
@@ -265,6 +269,9 @@ class LiftoffAssembler : public TurboAssembler {
 
   uint32_t num_locals() const { return num_locals_; }
   void set_num_locals(uint32_t num_locals);
+
+  uint32_t GetTotalFrameSlotCount() const;
+  size_t GetSafepointTableOffset() const { return 0; }
 
   ValueType local_type(uint32_t index) {
     DCHECK_GT(num_locals_, index);

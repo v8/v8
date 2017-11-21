@@ -387,6 +387,10 @@ void LiftoffAssembler::set_num_locals(uint32_t num_locals) {
   }
 }
 
+uint32_t LiftoffAssembler::GetTotalFrameSlotCount() const {
+  return kPointerSize * (num_locals() + kMaxValueStackHeight);
+}
+
 #undef __
 #undef TRACE
 
