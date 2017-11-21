@@ -142,6 +142,13 @@ bool OS::Free(void* address, const size_t size) {
 }
 
 // static
+bool OS::Release(void* address, size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
+}
+
+// static
 bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
@@ -150,11 +157,6 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   }
   DWORD protect = GetProtectionFromMemoryPermission(access);
   return VirtualAlloc(address, size, MEM_COMMIT, protect) != nullptr;
-}
-
-// static
-bool OS::ReleasePartialRegion(void* address, size_t size) {
-  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
 }
 
 // static

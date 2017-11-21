@@ -100,6 +100,14 @@ bool OS::Free(void* address, const size_t size) {
 }
 
 // static
+bool OS::Release(void* address, size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+  return zx_vmar_unmap(zx_vmar_root_self(),
+                       reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
+}
+
+// static
 bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
@@ -107,12 +115,6 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   return zx_vmar_protect(zx_vmar_root_self(),
                          reinterpret_cast<uintptr_t>(address), size,
                          prot) == ZX_OK;
-}
-
-// static
-bool OS::ReleasePartialRegion(void* address, size_t size) {
-  return zx_vmar_unmap(zx_vmar_root_self(),
-                       reinterpret_cast<uintptr_t>(address), size) == ZX_OK;
 }
 
 // static

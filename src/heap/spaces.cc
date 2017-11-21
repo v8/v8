@@ -305,7 +305,7 @@ void MemoryAllocator::TearDown() {
   capacity_ = 0;
 
   if (last_chunk_.IsReserved()) {
-    last_chunk_.Release();
+    last_chunk_.Free();
   }
 
   delete code_range_;
@@ -434,7 +434,7 @@ void MemoryAllocator::FreeMemory(VirtualMemory* reservation,
   DCHECK(executable == NOT_EXECUTABLE || !code_range()->valid() ||
          reservation->size() <= Page::kPageSize);
 
-  reservation->Release();
+  reservation->Free();
 }
 
 
@@ -488,9 +488,9 @@ Address MemoryAllocator::AllocateAlignedMemory(
   }
 
   if (base == nullptr) {
-    // Failed to commit the body. Release the mapping and any partially
-    // committed regions inside it.
-    reservation.Release();
+    // Failed to commit the body. Free the mapping and any partially committed
+    // regions inside it.
+    reservation.Free();
     size_.Decrement(reserve_size);
     return nullptr;
   }
@@ -981,7 +981,7 @@ void MemoryAllocator::PartialFreeMemory(MemoryChunk* chunk, Address start_free,
   // On e.g. Windows, a reservation may be larger than a page and releasing
   // partially starting at |start_free| will also release the potentially
   // unused part behind the current page.
-  const size_t released_bytes = reservation->ReleasePartial(start_free);
+  const size_t released_bytes = reservation->Release(start_free);
   DCHECK_GE(size_.Value(), released_bytes);
   size_.Decrement(released_bytes);
   isolate_->counters()->memory_allocated()->Decrement(

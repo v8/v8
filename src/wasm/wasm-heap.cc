@@ -872,7 +872,7 @@ void WasmCodeManager::Free(VirtualMemory* mem) {
   void* start = mem->address();
   void* end = mem->end();
   size_t size = mem->size();
-  mem->Release();
+  mem->Free();
   TRACE_HEAP("VMem Release: %p:%p (%zu)\n", start, end, size);
 }
 

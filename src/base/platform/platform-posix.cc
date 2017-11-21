@@ -276,16 +276,18 @@ bool OS::Free(void* address, const size_t size) {
 }
 
 // static
+bool OS::Release(void* address, size_t size) {
+  DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
+  DCHECK_EQ(0, size % CommitPageSize());
+  return munmap(address, size) == 0;
+}
+
+// static
 bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
   int prot = GetProtectionFromMemoryPermission(access);
   return mprotect(address, size, prot) == 0;
-}
-
-// static
-bool OS::ReleasePartialRegion(void* address, size_t size) {
-  return munmap(address, size) == 0;
 }
 
 // static

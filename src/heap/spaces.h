@@ -1032,7 +1032,7 @@ class CodeRange {
  public:
   explicit CodeRange(Isolate* isolate);
   ~CodeRange() {
-    if (virtual_memory_.IsReserved()) virtual_memory_.Release();
+    if (virtual_memory_.IsReserved()) virtual_memory_.Free();
   }
 
   // Reserves a range of virtual memory, but does not commit any of it.

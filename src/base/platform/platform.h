@@ -187,14 +187,16 @@ class V8_BASE_EXPORT OS {
   // multiples of AllocatePageSize(). Returns true on success, otherwise false.
   V8_WARN_UNUSED_RESULT static bool Free(void* address, const size_t size);
 
+  // Releases memory that is no longer needed. The range specified by address
+  // and size must be part of an allocated memory region, and must be multiples
+  // of CommitPageSize(). Released memory is left in an undefined state, so it
+  // should not be accessed. Returns true on success, otherwise false.
+  V8_WARN_UNUSED_RESULT static bool Release(void* address, size_t size);
+
   // Sets permissions according to the access argument. address and size must be
   // multiples of CommitPageSize(). Returns true on success, otherwise false.
   V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
                                                    MemoryPermission access);
-
-  // Release part of a reserved address range.
-  V8_WARN_UNUSED_RESULT static bool ReleasePartialRegion(void* address,
-                                                         size_t size);
 
   static bool HasLazyCommits();
 

@@ -68,7 +68,7 @@ void StoreBuffer::SetUp() {
 
 
 void StoreBuffer::TearDown() {
-  if (virtual_memory_.IsReserved()) virtual_memory_.Release();
+  if (virtual_memory_.IsReserved()) virtual_memory_.Free();
   top_ = nullptr;
   for (int i = 0; i < kStoreBuffers; i++) {
     start_[i] = nullptr;

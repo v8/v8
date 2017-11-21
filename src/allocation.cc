@@ -129,7 +129,7 @@ VirtualMemory::VirtualMemory(size_t size, void* hint, size_t alignment)
 
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
-    Release();
+    Free();
   }
 }
 
@@ -147,8 +147,10 @@ bool VirtualMemory::SetPermissions(void* address, size_t size,
   return result;
 }
 
-size_t VirtualMemory::ReleasePartial(void* free_start) {
+size_t VirtualMemory::Release(void* free_start) {
   DCHECK(IsReserved());
+  DCHECK(IsAddressAligned(static_cast<Address>(free_start),
+                          base::OS::CommitPageSize()));
   // Notice: Order is important here. The VirtualMemory object might live
   // inside the allocated region.
   const size_t free_size = size_ - (reinterpret_cast<size_t>(free_start) -
@@ -161,14 +163,12 @@ size_t VirtualMemory::ReleasePartial(void* free_start) {
   __lsan_unregister_root_region(address_, size_);
   __lsan_register_root_region(address_, size_ - free_size);
 #endif
-  const bool result = base::OS::ReleasePartialRegion(free_start, free_size);
-  USE(result);
-  DCHECK(result);
+  CHECK(base::OS::Release(free_start, free_size));
   size_ -= free_size;
   return free_size;
 }
 
-void VirtualMemory::Release() {
+void VirtualMemory::Free() {
   DCHECK(IsReserved());
   // Notice: Order is important here. The VirtualMemory object might live
   // inside the allocated region.

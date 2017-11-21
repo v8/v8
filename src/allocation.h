@@ -133,10 +133,11 @@ class V8_EXPORT_PRIVATE VirtualMemory {
   bool SetPermissions(void* address, size_t size,
                       base::OS::MemoryPermission access);
 
-  // Releases the memory after |free_start|. Returns the bytes released.
-  size_t ReleasePartial(void* free_start);
+  // Releases memory after |free_start|. Returns the number of bytes released.
+  size_t Release(void* free_start);
 
-  void Release();
+  // Frees all memory.
+  void Free();
 
   // Assign control of the reserved region to a different VirtualMemory object.
   // The old object is no longer functional (IsReserved() returns false).
