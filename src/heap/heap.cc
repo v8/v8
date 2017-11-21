@@ -3125,6 +3125,85 @@ AllocationResult Heap::AllocateCode(int object_size, Movability movability) {
   return code;
 }
 
+AllocationResult Heap::AllocateCode(
+    const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
+    int32_t builtin_index, ByteArray* reloc_info,
+    CodeDataContainer* data_container, HandlerTable* handler_table,
+    ByteArray* source_position_table, DeoptimizationData* deopt_data,
+    Movability movability, uint32_t stub_key, bool is_turbofanned,
+    int stack_slots, int safepoint_table_offset) {
+  bool has_unwinding_info = desc.unwinding_info != nullptr;
+  DCHECK((has_unwinding_info && desc.unwinding_info_size > 0) ||
+         (!has_unwinding_info && desc.unwinding_info_size == 0));
+
+  // Compute size.
+  int body_size = desc.instr_size;
+  int unwinding_info_size_field_size = kInt64Size;
+  if (has_unwinding_info) {
+    body_size = RoundUp(body_size, kInt64Size) + desc.unwinding_info_size +
+                unwinding_info_size_field_size;
+  }
+  int object_size = Code::SizeFor(RoundUp(body_size, kObjectAlignment));
+
+  Code* code = nullptr;
+  CodeSpaceMemoryModificationScope code_allocation(this);
+  AllocationResult allocation = AllocateCode(object_size, movability);
+  if (!allocation.To(&code)) return allocation;
+
+  // The code object has not been fully initialized yet.  We rely on the
+  // fact that no allocation will happen from this point on.
+  DisallowHeapAllocation no_gc;
+  code->set_instruction_size(desc.instr_size);
+  code->set_relocation_info(reloc_info);
+  code->initialize_flags(kind, has_unwinding_info, is_turbofanned, stack_slots);
+  code->set_safepoint_table_offset(safepoint_table_offset);
+  code->set_code_data_container(data_container);
+  code->set_has_tagged_params(true);
+  code->set_deoptimization_data(deopt_data);
+  code->set_stub_key(stub_key);
+  code->set_handler_table(handler_table);
+  code->set_source_position_table(source_position_table);
+  code->set_protected_instructions(empty_fixed_array(), SKIP_WRITE_BARRIER);
+  code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
+  code->set_builtin_index(builtin_index);
+  code->set_trap_handler_index(Smi::FromInt(-1));
+
+  switch (code->kind()) {
+    case Code::OPTIMIZED_FUNCTION:
+      code->set_marked_for_deoptimization(false);
+      break;
+    case Code::JS_TO_WASM_FUNCTION:
+    case Code::C_WASM_ENTRY:
+    case Code::WASM_FUNCTION:
+      code->set_has_tagged_params(false);
+      break;
+    default:
+      break;
+  }
+
+  // Allow self references to created code object by patching the handle to
+  // point to the newly allocated Code object.
+  if (!self_ref.is_null()) *(self_ref.location()) = code;
+
+  // Migrate generated code.
+  // The generated code can contain Object** values (typically from handles)
+  // that are dereferenced during the copy to point directly to the actual heap
+  // objects. These pointers can include references to the code object itself,
+  // through the self_reference parameter.
+  code->CopyFrom(desc);
+
+  code->clear_padding();
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) code->ObjectVerify();
+#endif
+  DCHECK(IsAligned(bit_cast<intptr_t>(code->address()), kCodeAlignment));
+  DCHECK(!memory_allocator()->code_range()->valid() ||
+         memory_allocator()->code_range()->contains(code->address()) ||
+         object_size <= code_space()->AreaSize());
+  return code;
+}
+
 AllocationResult Heap::CopyCode(Code* code, CodeDataContainer* data_container) {
   CodeSpaceMemoryModificationScope code_modification(this);
   AllocationResult allocation;
@@ -3150,16 +3229,20 @@ AllocationResult Heap::CopyCode(Code* code, CodeDataContainer* data_container) {
   new_code->set_trap_handler_index(Smi::FromInt(trap_handler::kInvalidIndex));
 
   // Relocate the copy.
-  DCHECK(IsAligned(bit_cast<intptr_t>(new_code->address()), kCodeAlignment));
-  DCHECK(!memory_allocator()->code_range()->valid() ||
-         memory_allocator()->code_range()->contains(code->address()) ||
-         obj_size <= code_space()->AreaSize());
   new_code->Relocate(new_addr - old_addr);
   // We have to iterate over the object and process its pointers when black
   // allocation is on.
   incremental_marking()->ProcessBlackAllocatedObject(new_code);
   // Record all references to embedded objects in the new code object.
   RecordWritesIntoCode(new_code);
+
+#ifdef VERIFY_HEAP
+  if (FLAG_verify_heap) new_code->ObjectVerify();
+#endif
+  DCHECK(IsAligned(bit_cast<intptr_t>(new_code->address()), kCodeAlignment));
+  DCHECK(!memory_allocator()->code_range()->valid() ||
+         memory_allocator()->code_range()->contains(new_code->address()) ||
+         obj_size <= code_space()->AreaSize());
   return new_code;
 }
 

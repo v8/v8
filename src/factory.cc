@@ -1746,12 +1746,6 @@ Handle<CodeDataContainer> Factory::NewCodeDataContainer(int flags) {
   return data_container;
 }
 
-Handle<Code> Factory::NewCodeRaw(int object_size, Movability movability) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateCode(object_size, movability),
-                     Code);
-}
-
 Handle<Code> Factory::NewCode(
     const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
     int32_t builtin_index, MaybeHandle<HandlerTable> maybe_handler_table,
@@ -1773,78 +1767,18 @@ Handle<Code> Factory::NewCode(
       maybe_deopt_data.is_null() ? DeoptimizationData::Empty(isolate())
                                  : maybe_deopt_data.ToHandleChecked();
 
-  bool has_unwinding_info = desc.unwinding_info != nullptr;
-  DCHECK((has_unwinding_info && desc.unwinding_info_size > 0) ||
-         (!has_unwinding_info && desc.unwinding_info_size == 0));
-
-  // Compute size.
-  int body_size = desc.instr_size;
-  int unwinding_info_size_field_size = kInt64Size;
-  if (has_unwinding_info) {
-    body_size = RoundUp(body_size, kInt64Size) + desc.unwinding_info_size +
-                unwinding_info_size_field_size;
-  }
-  int obj_size = Code::SizeFor(RoundUp(body_size, kObjectAlignment));
-
-  CodeSpaceMemoryModificationScope code_allocation(isolate()->heap());
-  Handle<Code> code = NewCodeRaw(obj_size, movability);
-  DCHECK(!isolate()->heap()->memory_allocator()->code_range()->valid() ||
-         isolate()->heap()->memory_allocator()->code_range()->contains(
-             code->address()) ||
-         obj_size <= isolate()->heap()->code_space()->AreaSize());
-
-  // The code object has not been fully initialized yet.  We rely on the
-  // fact that no allocation will happen from this point on.
-  DisallowHeapAllocation no_gc;
-  code->set_instruction_size(desc.instr_size);
-  code->set_relocation_info(*reloc_info);
-  code->initialize_flags(kind, has_unwinding_info, is_turbofanned, stack_slots);
-  code->set_safepoint_table_offset(safepoint_table_offset);
-  code->set_code_data_container(*data_container);
-  code->set_has_tagged_params(true);
-  code->set_deoptimization_data(*deopt_data);
-  code->set_stub_key(stub_key);
-  code->set_handler_table(*handler_table);
-  code->set_source_position_table(*source_position_table);
-  code->set_protected_instructions(*empty_fixed_array(), SKIP_WRITE_BARRIER);
-  code->set_constant_pool_offset(desc.instr_size - desc.constant_pool_size);
-  code->set_builtin_index(builtin_index);
-  code->set_trap_handler_index(Smi::FromInt(-1));
-
-  switch (code->kind()) {
-    case Code::OPTIMIZED_FUNCTION:
-      code->set_marked_for_deoptimization(false);
-      break;
-    case Code::JS_TO_WASM_FUNCTION:
-    case Code::C_WASM_ENTRY:
-    case Code::WASM_FUNCTION:
-      code->set_has_tagged_params(false);
-      break;
-    default:
-      break;
-  }
-
-  // Allow self references to created code object by patching the handle to
-  // point to the newly allocated Code object.
-  if (!self_ref.is_null()) *(self_ref.location()) = *code;
-
-  // Migrate generated code.
-  // The generated code can contain Object** values (typically from handles)
-  // that are dereferenced during the copy to point directly to the actual heap
-  // objects. These pointers can include references to the code object itself,
-  // through the self_reference parameter.
-  code->CopyFrom(desc);
-
-  code->clear_padding();
-
-#ifdef VERIFY_HEAP
-  if (FLAG_verify_heap) code->ObjectVerify();
-#endif
-  return code;
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateCode(
+          desc, kind, self_ref, builtin_index, *reloc_info, *data_container,
+          *handler_table, *source_position_table, *deopt_data, movability,
+          stub_key, is_turbofanned, stack_slots, safepoint_table_offset),
+      Code);
 }
 
 Handle<Code> Factory::NewCodeForDeserialization(uint32_t size) {
-  return NewCodeRaw(size, kMovable);
+  CALL_HEAP_FUNCTION(isolate(), isolate()->heap()->AllocateCode(size, kMovable),
+                     Code);
 }
 
 Handle<Code> Factory::CopyCode(Handle<Code> code) {

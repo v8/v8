@@ -20,6 +20,7 @@
 #include "src/globals.h"
 #include "src/heap-symbols.h"
 #include "src/objects.h"
+#include "src/objects/code.h"
 #include "src/objects/hash-table.h"
 #include "src/objects/string-table.h"
 #include "src/visitors.h"
@@ -39,6 +40,8 @@ class TestMemoryAllocatorScope;
 
 class BytecodeArray;
 class CodeDataContainer;
+class DeoptimizationData;
+class HandlerTable;
 class JSArrayBuffer;
 
 using v8::MemoryPressureLevel;
@@ -2251,8 +2254,20 @@ class Heap {
   MUST_USE_RESULT AllocationResult
       AllocateForeign(Address address, PretenureFlag pretenure = NOT_TENURED);
 
+  // Allocates a new code object (mostly uninitialized). Can only be used when
+  // code space is unprotected and requires manual initialization by the caller.
   MUST_USE_RESULT AllocationResult AllocateCode(int object_size,
                                                 Movability movability);
+
+  // Allocates a new code object (fully initialized). All header fields of the
+  // returned object are immutable and the code object is write protected.
+  MUST_USE_RESULT AllocationResult
+  AllocateCode(const CodeDesc& desc, Code::Kind kind, Handle<Object> self_ref,
+               int32_t builtin_index, ByteArray* reloc_info,
+               CodeDataContainer* data_container, HandlerTable* handler_table,
+               ByteArray* source_position_table, DeoptimizationData* deopt_data,
+               Movability movability, uint32_t stub_key, bool is_turbofanned,
+               int stack_slots, int safepoint_table_offset);
 
   void set_force_oom(bool value) { force_oom_ = value; }
 

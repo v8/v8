@@ -847,9 +847,6 @@ class V8_EXPORT_PRIVATE Factory final {
   MaybeHandle<String> NewStringFromTwoByte(const uc16* string, int length,
                                            PretenureFlag pretenure);
 
-  // Creates a code object that is not yet fully initialized yet.
-  Handle<Code> NewCodeRaw(int object_size, Movability movability);
-
   // Attempt to find the number in a small cache.  If we finds it, return
   // the string representation of the number.  Otherwise return undefined.
   Handle<Object> GetNumberStringCache(Handle<Object> number);
