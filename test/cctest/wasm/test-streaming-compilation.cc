@@ -871,6 +871,28 @@ STREAM_TEST(TestModuleWithZeroFunctions) {
   CHECK(tester.IsPromiseFulfilled());
 }
 
+// Test that all bytes arrive before doing any compilation. FinishStream is
+// called immediately.
+STREAM_TEST(TestModuleWithImportedFunction) {
+  StreamTester tester;
+  ZoneBuffer buffer(tester.zone());
+  TestSignatures sigs;
+  WasmModuleBuilder builder(tester.zone());
+  builder.AddImport(ArrayVector("Test"), sigs.i_iii());
+  {
+    WasmFunctionBuilder* f = builder.AddFunction(sigs.i_iii());
+    uint8_t code[] = {kExprGetLocal, 0, kExprEnd};
+    f->EmitCode(code, arraysize(code));
+  }
+  builder.WriteTo(buffer);
+
+  tester.OnBytesReceived(buffer.begin(), buffer.end() - buffer.begin());
+  tester.FinishStream();
+
+  tester.RunCompilerTasks();
+
+  CHECK(tester.IsPromiseFulfilled());
+}
 #undef STREAM_TEST
 
 }  // namespace wasm

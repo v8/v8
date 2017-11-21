@@ -3413,8 +3413,6 @@ bool AsyncStreamingProcessor::ProcessCodeSectionHeader(size_t functions_count,
   // Set outstanding_finishers_ to 2, because both the AsyncCompileJob and the
   // AsyncStreamingProcessor have to finish.
   job_->outstanding_finishers_.SetValue(2);
-  next_function_ = decoder_.module()->num_imported_functions +
-                   FLAG_skip_compiling_wasm_funcs;
   compilation_unit_builder_.reset(
       new ModuleCompiler::CompilationUnitBuilder(job_->compiler_.get()));
   return true;
@@ -3425,11 +3423,12 @@ bool AsyncStreamingProcessor::ProcessFunctionBody(Vector<const uint8_t> bytes,
                                                   uint32_t offset) {
   TRACE_STREAMING("Process function body %d ...\n", next_function_);
 
-  decoder_.DecodeFunctionBody(
-      next_function_, static_cast<uint32_t>(bytes.length()), offset, false);
-  if (next_function_ >= decoder_.module()->num_imported_functions +
-                            FLAG_skip_compiling_wasm_funcs) {
-    const WasmFunction* func = &decoder_.module()->functions[next_function_];
+  if (next_function_ >= FLAG_skip_compiling_wasm_funcs) {
+    decoder_.DecodeFunctionBody(
+        next_function_, static_cast<uint32_t>(bytes.length()), offset, false);
+
+    uint32_t index = next_function_ + decoder_.module()->num_imported_functions;
+    const WasmFunction* func = &decoder_.module()->functions[index];
     WasmName name = {nullptr, 0};
     compilation_unit_builder_->AddUnit(job_->module_env_.get(), func, offset,
                                        bytes, name);
