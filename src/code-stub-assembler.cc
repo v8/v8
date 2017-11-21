@@ -7978,7 +7978,7 @@ Node* CodeStubAssembler::CreateWeakCellInFeedbackVector(Node* feedback_vector,
 
   // Store the WeakCell in the feedback vector.
   StoreFeedbackVectorSlot(feedback_vector, slot, cell, UPDATE_WRITE_BARRIER, 0,
-                          CodeStubAssembler::SMI_PARAMETERS);
+                          CodeStubAssembler::INTPTR_PARAMETERS);
   return cell;
 }
 

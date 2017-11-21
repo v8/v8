@@ -668,7 +668,7 @@ void InterpreterAssembler::CollectCallableFeedback(Node* target, Node* context,
         }
       }
       BIND(&done_loop);
-      CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id), target);
+      CreateWeakCellInFeedbackVector(feedback_vector, slot_id, target);
       ReportFeedbackUpdate(feedback_vector, slot_id, "Call:Initialize");
       Goto(&done);
     }
@@ -875,8 +875,7 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
 
       BIND(&create_weak_cell);
       {
-        CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id),
-                                       new_target);
+        CreateWeakCellInFeedbackVector(feedback_vector, slot_id, new_target);
         ReportFeedbackUpdate(feedback_vector, slot_id,
                              "Construct:CreateWeakCell");
         Goto(&construct);
@@ -994,8 +993,7 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
       GotoIfNot(WordEqual(LoadNativeContext(context), target_native_context),
                 &mark_megamorphic);
 
-      CreateWeakCellInFeedbackVector(feedback_vector, SmiTag(slot_id),
-                                     new_target);
+      CreateWeakCellInFeedbackVector(feedback_vector, slot_id, new_target);
       ReportFeedbackUpdate(feedback_vector, slot_id,
                            "ConstructWithSpread:Initialize");
       Goto(&construct);
