@@ -321,10 +321,6 @@ class WasmSerializationTest {
     WasmSerializationTest::BuildWireBytes(zone(), &buffer);
 
     Isolate* serialization_isolate = CcTest::InitIsolateOnce();
-    // Isolates do not have serialization enabled by default. We must enable it
-    // here or else the assembler will not mark external references so that the
-    // serializer can handle them correctly.
-    serialization_isolate->set_serializer_enabled_for_test(true);
     ErrorThrower thrower(serialization_isolate, "");
     uint8_t* bytes = nullptr;
     size_t bytes_size = 0;
