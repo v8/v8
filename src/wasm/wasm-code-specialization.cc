@@ -5,6 +5,7 @@
 #include "src/wasm/wasm-code-specialization.h"
 
 #include "src/assembler-inl.h"
+#include "src/base/optional.h"
 #include "src/objects-inl.h"
 #include "src/source-position-table.h"
 #include "src/wasm/decoder.h"
@@ -187,7 +188,7 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
   add_mode(reloc_direct_calls, RelocInfo::CODE_TARGET);
   add_mode(reloc_pointers, RelocInfo::WASM_GLOBAL_HANDLE);
 
-  std::unique_ptr<PatchDirectCallsHelper> patch_direct_calls_helper;
+  base::Optional<PatchDirectCallsHelper> patch_direct_calls_helper;
   bool changed = false;
 
   // TODO(6792): No longer needed once WebAssembly code is off heap.
@@ -207,8 +208,8 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
         // bytes to find the new compiled function.
         size_t offset = it.rinfo()->pc() - code->instruction_start();
         if (!patch_direct_calls_helper) {
-          patch_direct_calls_helper.reset(new PatchDirectCallsHelper(
-              *relocate_direct_calls_instance, code));
+          patch_direct_calls_helper.emplace(*relocate_direct_calls_instance,
+                                            code);
         }
         int byte_pos = AdvanceSourcePositionTableIterator(
             patch_direct_calls_helper->source_pos_it, offset);
