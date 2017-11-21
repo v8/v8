@@ -41,8 +41,6 @@ class GlobalHandles::Node {
     STATIC_ASSERT(WEAK == Internals::kNodeStateIsWeakValue);
     STATIC_ASSERT(PENDING == Internals::kNodeStateIsPendingValue);
     STATIC_ASSERT(NEAR_DEATH == Internals::kNodeStateIsNearDeathValue);
-    STATIC_ASSERT(static_cast<int>(IsIndependent::kShift) ==
-                  Internals::kNodeIsIndependentShift);
     STATIC_ASSERT(static_cast<int>(IsActive::kShift) ==
                   Internals::kNodeIsActiveShift);
   }
@@ -54,7 +52,6 @@ class GlobalHandles::Node {
     object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
     index_ = 0;
-    set_independent(false);
     set_active(false);
     set_in_new_space_list(false);
     parameter_or_next_free_.next_free = nullptr;
@@ -76,7 +73,6 @@ class GlobalHandles::Node {
     DCHECK(state() == FREE);
     object_ = object;
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
-    set_independent(false);
     set_active(false);
     set_state(NORMAL);
     parameter_or_next_free_.parameter = nullptr;
@@ -96,7 +92,6 @@ class GlobalHandles::Node {
     // Zap the values for eager trapping.
     object_ = reinterpret_cast<Object*>(kGlobalHandleZapValue);
     class_id_ = v8::HeapProfiler::kPersistentHandleNoClassId;
-    set_independent(false);
     set_active(false);
     weak_callback_ = nullptr;
     DecreaseBlockUses();
@@ -121,13 +116,6 @@ class GlobalHandles::Node {
   }
   void set_state(State state) {
     flags_ = NodeState::update(flags_, state);
-  }
-
-  bool is_independent() {
-    return IsIndependent::decode(flags_);
-  }
-  void set_independent(bool v) {
-    flags_ = IsIndependent::update(flags_, v);
   }
 
   bool is_active() {
@@ -192,12 +180,6 @@ class GlobalHandles::Node {
   void MarkPending() {
     DCHECK(state() == WEAK);
     set_state(PENDING);
-  }
-
-  // Independent flag accessors.
-  void MarkIndependent() {
-    DCHECK(IsInUse());
-    set_independent(true);
   }
 
   // Callback parameter accessors.
@@ -344,7 +326,7 @@ class GlobalHandles::Node {
   // Placed first to avoid offset computation.
   Object* object_;
 
-  // Next word stores class_id, index, state, and independent.
+  // Next word stores class_id, index, and state.
   // Note: the most aligned fields should go first.
 
   // Wrapper class ID.
@@ -353,10 +335,7 @@ class GlobalHandles::Node {
   // Index in the containing handle block.
   uint8_t index_;
 
-  // This stores three flags (independent, partially_dependent and
-  // in_new_space_list) and a State.
   class NodeState : public BitField<State, 0, 3> {};
-  class IsIndependent : public BitField<bool, 3, 1> {};
   // The following two fields are mutually exclusive
   class IsActive : public BitField<bool, 4, 1> {};
   class IsInNewSpaceList : public BitField<bool, 5, 1> {};
@@ -599,16 +578,6 @@ void GlobalHandles::MakeWeak(Object*** location_addr) {
 void* GlobalHandles::ClearWeakness(Object** location) {
   return Node::FromLocation(location)->ClearWeakness();
 }
-
-
-void GlobalHandles::MarkIndependent(Object** location) {
-  Node::FromLocation(location)->MarkIndependent();
-}
-
-bool GlobalHandles::IsIndependent(Object** location) {
-  return Node::FromLocation(location)->is_independent();
-}
-
 
 bool GlobalHandles::IsNearDeath(Object** location) {
   return Node::FromLocation(location)->IsNearDeath();
