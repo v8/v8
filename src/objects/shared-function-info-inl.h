@@ -362,9 +362,9 @@ String* SharedFunctionInfo::inferred_name() {
   if (HasInferredName()) {
     return String::cast(function_identifier());
   }
-  Isolate* isolate = GetIsolate();
-  DCHECK(function_identifier()->IsUndefined(isolate) || HasBuiltinFunctionId());
-  return isolate->heap()->empty_string();
+  DCHECK(function_identifier()->IsUndefined(GetIsolate()) ||
+         HasBuiltinFunctionId());
+  return GetHeap()->empty_string();
 }
 
 void SharedFunctionInfo::set_inferred_name(String* inferred_name) {
