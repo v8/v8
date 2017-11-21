@@ -165,6 +165,7 @@ Heap::Heap()
       code_space_(nullptr),
       map_space_(nullptr),
       lo_space_(nullptr),
+      write_protect_code_memory_(false),
       code_space_memory_modification_scope_depth_(0),
       gc_state_(NOT_IN_GC),
       gc_post_processing_depth_(0),
@@ -5622,6 +5623,8 @@ bool Heap::SetUp() {
   if (FLAG_stress_marking > 0) {
     stress_marking_percentage_ = NextStressMarkingLimit();
   }
+
+  write_protect_code_memory_ = FLAG_write_protect_code_memory;
 
   return true;
 }

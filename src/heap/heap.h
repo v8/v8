@@ -811,6 +811,8 @@ class Heap {
   // Print short heap statistics.
   void PrintShortHeapStatistics();
 
+  bool write_protect_code_memory() const { return write_protect_code_memory_; }
+
   uintptr_t code_space_memory_modification_scope_depth() {
     return code_space_memory_modification_scope_depth_;
   }
@@ -2343,6 +2345,10 @@ class Heap {
   LargeObjectSpace* lo_space_;
   // Map from the space id to the space.
   Space* space_[LAST_SPACE + 1];
+
+  // Determines whether code space is write-protected. This is essentially a
+  // race-free copy of the {FLAG_write_protect_code_memory} flag.
+  bool write_protect_code_memory_;
 
   // Holds the number of open CodeSpaceMemoryModificationScopes.
   uintptr_t code_space_memory_modification_scope_depth_;

@@ -599,7 +599,7 @@ AlwaysAllocateScope::~AlwaysAllocateScope() {
 
 CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
     : heap_(heap) {
-  if (FLAG_write_protect_code_memory) {
+  if (heap_->write_protect_code_memory()) {
     heap_->increment_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndWritable();
     LargePage* page = heap_->lo_space()->first_page();
@@ -613,7 +613,7 @@ CodeSpaceMemoryModificationScope::CodeSpaceMemoryModificationScope(Heap* heap)
 }
 
 CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
-  if (FLAG_write_protect_code_memory) {
+  if (heap_->write_protect_code_memory()) {
     heap_->decrement_code_space_memory_modification_scope_depth();
     heap_->code_space()->SetReadAndExecutable();
     LargePage* page = heap_->lo_space()->first_page();
@@ -629,7 +629,7 @@ CodeSpaceMemoryModificationScope::~CodeSpaceMemoryModificationScope() {
 CodePageMemoryModificationScope::CodePageMemoryModificationScope(
     MemoryChunk* chunk, CodePageModificationMode mode)
     : chunk_(chunk),
-      scope_active_(FLAG_write_protect_code_memory &&
+      scope_active_(chunk_->heap()->write_protect_code_memory() &&
                     chunk_->IsFlagSet(MemoryChunk::IS_EXECUTABLE)) {
   if (scope_active_) {
     DCHECK(chunk_->owner()->identity() == CODE_SPACE ||

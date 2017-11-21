@@ -623,7 +623,7 @@ MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
 
   if (executable == EXECUTABLE) {
     chunk->SetFlag(IS_EXECUTABLE);
-    if (FLAG_write_protect_code_memory) {
+    if (heap->write_protect_code_memory()) {
       chunk->write_unprotect_counter_ =
           heap->code_space_memory_modification_scope_depth();
     } else {
