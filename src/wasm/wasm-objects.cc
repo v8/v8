@@ -11,6 +11,7 @@
 #include "src/debug/debug-interface.h"
 #include "src/objects-inl.h"
 #include "src/objects/debug-objects-inl.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-specialization.h"

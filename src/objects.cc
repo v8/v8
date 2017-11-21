@@ -70,6 +70,7 @@
 #include "src/string-builder.h"
 #include "src/string-search.h"
 #include "src/string-stream.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/unicode-cache-inl.h"
 #include "src/utils-inl.h"
 #include "src/wasm/wasm-objects.h"

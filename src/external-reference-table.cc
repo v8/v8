@@ -8,7 +8,6 @@
 #include "src/assembler.h"
 #include "src/counters.h"
 #include "src/ic/stub-cache.h"
-#include "src/trap-handler/trap-handler.h"
 
 #if defined(DEBUG) && defined(V8_OS_LINUX) && !defined(V8_OS_ANDROID)
 #define SYMBOLIZE_FUNCTION

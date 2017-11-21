@@ -13,6 +13,7 @@
 #include "src/conversions.h"
 #include "src/identity-map.h"
 #include "src/objects-inl.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
 #include "src/wasm/decoder.h"
 #include "src/wasm/function-body-decoder-impl.h"

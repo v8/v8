@@ -14,6 +14,7 @@
 #include "src/eh-frame.h"
 #include "src/frames.h"
 #include "src/macro-assembler-inl.h"
+#include "src/trap-handler/trap-handler.h"
 
 namespace v8 {
 namespace internal {

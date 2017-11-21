@@ -72,11 +72,15 @@
 #include "src/ostreams.h"
 #include "src/parsing/parse-info.h"
 #include "src/register-configuration.h"
-#include "src/trap-handler/trap-handler.h"
 #include "src/utils.h"
 
 namespace v8 {
 namespace internal {
+
+namespace trap_handler {
+struct ProtectedInstructionData;
+}  // namespace trap_handler
+
 namespace compiler {
 
 class PipelineData {

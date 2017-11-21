@@ -14,12 +14,15 @@
 #include "src/macro-assembler.h"
 #include "src/safepoint-table.h"
 #include "src/source-position-table.h"
-#include "src/trap-handler/trap-handler.h"
 
 namespace v8 {
 namespace internal {
 
 class CompilationInfo;
+
+namespace trap_handler {
+struct ProtectedInstructionData;
+}  // namespace trap_handler
 
 namespace compiler {
 

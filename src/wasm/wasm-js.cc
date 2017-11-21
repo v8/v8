@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/wasm/wasm-js.h"
+
 #include "src/api-natives.h"
 #include "src/api.h"
 #include "src/assert-scope.h"
@@ -13,11 +15,10 @@
 #include "src/objects-inl.h"
 #include "src/objects.h"
 #include "src/parsing/parse-info.h"
-
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-api.h"
-#include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-memory.h"
 #include "src/wasm/wasm-module.h"

@@ -13,6 +13,7 @@
 #include "src/objects-inl.h"
 #include "src/snapshot/object-deserializer.h"
 #include "src/snapshot/snapshot.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/version.h"
 #include "src/visitors.h"
 #include "src/wasm/wasm-module.h"

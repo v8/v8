@@ -15,6 +15,7 @@
 #include "src/compiler/wasm-compiler.h"
 #include "src/counters.h"
 #include "src/property-descriptor.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/compilation-manager.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-specialization.h"

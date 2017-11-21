@@ -17,6 +17,7 @@
 #include "src/runtime-profiler.h"
 #include "src/snapshot/code-serializer.h"
 #include "src/snapshot/natives.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/memory-tracing.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"

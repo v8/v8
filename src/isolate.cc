@@ -47,6 +47,7 @@
 #include "src/simulator.h"
 #include "src/snapshot/startup-deserializer.h"
 #include "src/tracing/tracing-category-observer.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/unicode-cache.h"
 #include "src/v8.h"
 #include "src/version.h"
