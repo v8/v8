@@ -75,8 +75,8 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Debugger.stepOver();
     await waitPauseAndDumpLocation();
     Protocol.Debugger.stepInto({breakOnAsyncCall: true});
-    let scheduledAsyncTaskId = await waitPauseAndDumpLocation();
-    Protocol.Debugger.pauseOnAsyncTask({asyncTaskId: scheduledAsyncTaskId});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
     Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
@@ -88,8 +88,8 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Debugger.stepOver();
     await waitPauseAndDumpLocation();
     Protocol.Debugger.stepInto({breakOnAsyncCall: true});
-    let scheduledAsyncTaskId = await waitPauseAndDumpLocation();
-    Protocol.Debugger.pauseOnAsyncTask({asyncTaskId: scheduledAsyncTaskId});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
     Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
@@ -101,8 +101,8 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Debugger.stepInto();
     await waitPauseAndDumpLocation();
     Protocol.Debugger.stepInto({breakOnAsyncCall: true});
-    let scheduledAsyncTaskId = await waitPauseAndDumpLocation();
-    Protocol.Debugger.pauseOnAsyncTask({asyncTaskId: scheduledAsyncTaskId});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
     Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
@@ -116,8 +116,8 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Debugger.stepOver();
     await waitPauseAndDumpLocation();
     Protocol.Debugger.stepInto({breakOnAsyncCall: true});
-    let scheduledAsyncTaskId = await waitPauseAndDumpLocation();
-    Protocol.Debugger.pauseOnAsyncTask({asyncTaskId: scheduledAsyncTaskId});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
     Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
@@ -129,15 +129,15 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Debugger.stepOver();
     await waitPauseAndDumpLocation();
     Protocol.Debugger.stepInto({breakOnAsyncCall: true});
-    let scheduledAsyncTaskId = await waitPauseAndDumpLocation();
-    Protocol.Debugger.pauseOnAsyncTask({asyncTaskId: scheduledAsyncTaskId});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
     Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
     Protocol.Debugger.stepOver();
     await waitPauseAndDumpLocation();
     Protocol.Debugger.stepInto({breakOnAsyncCall: true});
-    scheduledAsyncTaskId = await waitPauseAndDumpLocation();
-    Protocol.Debugger.pauseOnAsyncTask({asyncTaskId: scheduledAsyncTaskId});
+    parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
     Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
@@ -149,8 +149,8 @@ InspectorTest.runAsyncTestSuite([
     Protocol.Debugger.stepOver();
     await waitPauseAndDumpLocation();
     Protocol.Debugger.stepInto({breakOnAsyncCall: true});
-    let scheduledAsyncTaskId = await waitPauseAndDumpLocation();
-    Protocol.Debugger.pauseOnAsyncTask({asyncTaskId: scheduledAsyncTaskId});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
     Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
@@ -163,8 +163,8 @@ InspectorTest.runAsyncTestSuite([
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.setBlackboxPatterns({patterns: ['framework\.js'] });
     Protocol.Debugger.stepInto({breakOnAsyncCall: true});
-    let scheduledAsyncTaskId = await waitPauseAndDumpLocation();
-    Protocol.Debugger.pauseOnAsyncTask({asyncTaskId: scheduledAsyncTaskId});
+    let parentStackTraceId = await waitPauseAndDumpLocation();
+    Protocol.Debugger.pauseOnAsyncCall({parentStackTraceId});
     Protocol.Debugger.resume();
     await waitPauseAndDumpLocation();
     await Protocol.Debugger.resume();
@@ -172,11 +172,12 @@ InspectorTest.runAsyncTestSuite([
 ]);
 
 async function waitPauseAndDumpLocation() {
-  var {params:{callFrames, scheduledAsyncTaskId}} = await Protocol.Debugger.oncePaused();
+  var {params: {callFrames, asyncCallStackTraceId}} =
+      await Protocol.Debugger.oncePaused();
   InspectorTest.log('paused at:');
   await session.logSourceLocation(callFrames[0].location);
-  if (scheduledAsyncTaskId) {
-    InspectorTest.log('scheduledAsyncTaskId is set\n');
+  if (asyncCallStackTraceId) {
+    InspectorTest.log('asyncCallStackTraceId is set\n');
   }
-  return scheduledAsyncTaskId;
+  return asyncCallStackTraceId;
 }

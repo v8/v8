@@ -57,7 +57,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void scheduleStepIntoAsync(
       std::unique_ptr<ScheduleStepIntoAsyncCallback> callback,
       int targetContextGroupId);
-  void pauseOnAsyncTask(int targetContextGroupId, void* task);
+  void pauseOnAsyncCall(int targetContextGroupId, uintptr_t task,
+                        const String16& debuggerId);
 
   Response continueToLocation(int targetContextGroupId,
                               V8DebuggerScript* script,
@@ -209,6 +210,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
   protocol::HashMap<V8DebuggerAgentImpl*, int> m_maxAsyncCallStackDepthMap;
   void* m_taskWithScheduledBreak = nullptr;
+  String16 m_taskWithScheduledBreakDebuggerId;
 
   std::unique_ptr<ScheduleStepIntoAsyncCallback> m_stepIntoAsyncCallback;
   bool m_breakRequested = false;

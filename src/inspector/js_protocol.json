@@ -206,11 +206,6 @@
                 ]
             },
             {
-                "id": "AsyncTaskId",
-                "type": "string",
-                "experimental": true
-            },
-            {
                 "id": "UniqueDebuggerId",
                 "type": "string",
                 "description": "Unique identifier of current debugger.",
@@ -613,9 +608,9 @@
                 "description": "Continues execution until specific location is reached."
             },
             {
-                "name": "pauseOnAsyncTask",
+                "name": "pauseOnAsyncCall",
                 "parameters": [
-                    { "name": "asyncTaskId", "$ref": "Runtime.AsyncTaskId", "description": "Debugger will pause when given async task is started." }
+                    { "name": "parentStackTraceId", "$ref": "Runtime.StackTraceId", "description": "Debugger will pause when async call with given stack trace is started." }
                 ],
                 "experimental": true
             },
@@ -837,7 +832,7 @@
                     { "name": "hitBreakpoints", "type": "array", "optional": true, "items": { "type": "string" }, "description": "Hit breakpoints IDs" },
                     { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any." },
                     { "name": "asyncStackTraceId", "$ref": "Runtime.StackTraceId", "optional": true, "experimental": true, "description": "Async stack trace, if any." },
-                    { "name": "scheduledAsyncTaskId", "$ref": "Runtime.AsyncTaskId", "optional": true, "experimental": true, "description": "Scheduled async task id." }
+                    { "name": "asyncCallStackTraceId", "$ref": "Runtime.StackTraceId", "optional": true, "experimental": true, "description": "Just scheduled async call will have this stack trace as parent stack during async execution. This field is available only after <code>Debugger.stepInto</code> call with <code>breakOnAsynCall</code> flag." }
                 ],
                 "description": "Fired when the virtual machine stopped on breakpoint or exception or any other stop criteria."
             },

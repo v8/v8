@@ -33,7 +33,7 @@ paused at:
   Promise.resolve().#then(v => v * 2);
 }
 
-scheduledAsyncTaskId is set
+asyncCallStackTraceId is set
 
 paused at:
   debugger;
@@ -57,7 +57,7 @@ paused at:
   p.#then(v => v * 2);
   resolveCallback();
 
-scheduledAsyncTaskId is set
+asyncCallStackTraceId is set
 
 paused at:
   debugger;
@@ -81,7 +81,7 @@ paused at:
   Promise.resolve().#then(v => v * 2);
   Promise.resolve().then(v => v * 4);
 
-scheduledAsyncTaskId is set
+asyncCallStackTraceId is set
 
 paused at:
   debugger;
@@ -110,7 +110,7 @@ paused at:
   Promise.resolve().#then(v => v * 4);
 }
 
-scheduledAsyncTaskId is set
+asyncCallStackTraceId is set
 
 paused at:
   Promise.resolve().then(v => v * 2);
@@ -134,7 +134,7 @@ paused at:
   Promise.resolve().#then(v => v * 2);
   debugger;
 
-scheduledAsyncTaskId is set
+asyncCallStackTraceId is set
 
 paused at:
   Promise.resolve().then(v => v * 2);
@@ -151,7 +151,7 @@ paused at:
   Promise.resolve().#then(v => v * 4);
 }
 
-scheduledAsyncTaskId is set
+asyncCallStackTraceId is set
 
 paused at:
   debugger;
@@ -175,7 +175,7 @@ paused at:
   Promise.all([ Promise.resolve(), Promise.resolve() ]).#then(v => v * 2);
 }
 
-scheduledAsyncTaskId is set
+asyncCallStackTraceId is set
 
 paused at:
   debugger;
@@ -199,7 +199,7 @@ paused at:
   createPromise().#then(v => v * 2);
 }
 
-scheduledAsyncTaskId is set
+asyncCallStackTraceId is set
 
 paused at:
   debugger;

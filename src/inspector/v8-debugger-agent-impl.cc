@@ -1003,14 +1003,15 @@ void V8DebuggerAgentImpl::scheduleStepIntoAsync(
                                     m_session->contextGroupId());
 }
 
-Response V8DebuggerAgentImpl::pauseOnAsyncTask(const String16& inAsyncTaskId) {
+Response V8DebuggerAgentImpl::pauseOnAsyncCall(
+    std::unique_ptr<protocol::Runtime::StackTraceId> inParentStackTraceId) {
   bool isOk = false;
-  int64_t task = inAsyncTaskId.toInteger64(&isOk);
+  int64_t stackTraceId = inParentStackTraceId->getId().toInteger64(&isOk);
   if (!isOk) {
-    return Response::Error("Invalid asyncTaskId");
+    return Response::Error("Invalid stack trace id");
   }
-  m_debugger->pauseOnAsyncTask(m_session->contextGroupId(),
-                               reinterpret_cast<void*>(task));
+  m_debugger->pauseOnAsyncCall(m_session->contextGroupId(), stackTraceId,
+                               inParentStackTraceId->getDebuggerId());
   return Response::OK();
 }
 
@@ -1525,18 +1526,22 @@ void V8DebuggerAgentImpl::didPause(
   Response response = currentCallFrames(&protocolCallFrames);
   if (!response.isSuccess()) protocolCallFrames = Array<CallFrame>::create();
 
-  Maybe<String16> scheduledAsyncTaskId;
+  Maybe<protocol::Runtime::StackTraceId> asyncCallStackTrace;
   void* rawScheduledAsyncTask = m_debugger->scheduledAsyncTask();
   if (rawScheduledAsyncTask) {
-    String16Builder builder;
-    builder.appendNumber(reinterpret_cast<size_t>(rawScheduledAsyncTask));
-    scheduledAsyncTaskId = builder.toString();
+    asyncCallStackTrace =
+        protocol::Runtime::StackTraceId::create()
+            .setId(stackTraceIdToString(
+                reinterpret_cast<uintptr_t>(rawScheduledAsyncTask)))
+            .setDebuggerId(debuggerIdToString(
+                m_debugger->debuggerIdFor(m_session->contextGroupId())))
+            .build();
   }
 
   m_frontend.paused(std::move(protocolCallFrames), breakReason,
                     std::move(breakAuxData), std::move(hitBreakpointIds),
                     currentAsyncStackTrace(), currentExternalStackTrace(),
-                    std::move(scheduledAsyncTaskId));
+                    std::move(asyncCallStackTrace));
 }
 
 void V8DebuggerAgentImpl::didContinue() {
