@@ -3161,7 +3161,6 @@ class Evacuator : public Malloced {
   Evacuator(Heap* heap, RecordMigratedSlotVisitor* record_visitor)
       : heap_(heap),
         local_allocator_(heap_),
-        compaction_spaces_(heap_),
         local_pretenuring_feedback_(kInitialLocalPretenuringFeedbackCapacity),
         new_space_visitor_(heap_, &local_allocator_, record_visitor,
                            &local_pretenuring_feedback_),
@@ -3204,7 +3203,6 @@ class Evacuator : public Malloced {
 
   // Locally cached collector data.
   LocalAllocator local_allocator_;
-  CompactionSpaceCollection compaction_spaces_;
   Heap::PretenuringFeedbackMap local_pretenuring_feedback_;
 
   // Visitors for the corresponding spaces.
