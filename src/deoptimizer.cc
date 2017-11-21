@@ -3433,6 +3433,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       // We temporarily allocated a JSFunction for the {Object} function
       // within the current context, to break cycles in the object graph.
       // The correct function and context will be set below once available.
+      STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
       Handle<Object> properties = materializer.FieldAt(value_index);
       Handle<Object> elements = materializer.FieldAt(value_index);
       Handle<Object> shared = materializer.FieldAt(value_index);

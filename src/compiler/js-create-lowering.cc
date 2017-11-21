@@ -913,6 +913,7 @@ Reduction JSCreateLowering::ReduceJSCreateClosure(Node* node) {
     DCHECK(!function_map->is_dictionary_map());
 
     // Emit code to allocate the JSFunction instance.
+    STATIC_ASSERT(JSFunction::kSizeWithoutPrototype == 7 * kPointerSize);
     AllocationBuilder a(jsgraph(), effect, control);
     a.Allocate(function_map->instance_size());
     a.Store(AccessBuilder::ForMap(), function_map);
