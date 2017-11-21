@@ -31,6 +31,7 @@
 #include "src/factory.h"
 #include "src/isolate-inl.h"
 #include "src/log-inl.h"
+#include "src/trap-handler/trap-handler.h"
 #include "src/wasm/function-body-decoder.h"
 #include "src/wasm/wasm-limits.h"
 #include "src/wasm/wasm-module.h"
@@ -3511,7 +3512,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
         graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
   }
   // Wasm semantics throw on OOB. Introduce explicit bounds check.
-  if (!FLAG_wasm_trap_handler || !V8_TRAP_HANDLER_SUPPORTED) {
+  if (!trap_handler::UseTrapHandler()) {
     BoundsCheckMem(memtype, index, offset, position);
   }
 
@@ -3527,7 +3528,7 @@ Node* WasmGraphBuilder::LoadMem(wasm::ValueType type, MachineType memtype,
     }
   } else {
     // TODO(eholk): Support unaligned loads with trap handlers.
-    DCHECK(!FLAG_wasm_trap_handler || !V8_TRAP_HANDLER_SUPPORTED);
+    DCHECK(!trap_handler::UseTrapHandler());
     load = graph()->NewNode(jsgraph()->machine()->UnalignedLoad(memtype),
                             MemBuffer(offset), index, *effect_, *control_);
   }
@@ -3570,7 +3571,7 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
         graph()->NewNode(jsgraph()->machine()->ChangeUint32ToUint64(), index);
   }
   // Wasm semantics throw on OOB. Introduce explicit bounds check.
-  if (!FLAG_wasm_trap_handler || !V8_TRAP_HANDLER_SUPPORTED) {
+  if (!trap_handler::UseTrapHandler()) {
     BoundsCheckMem(memtype, index, offset, position);
   }
 
@@ -3580,7 +3581,7 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
 
   if (memtype.representation() == MachineRepresentation::kWord8 ||
       jsgraph()->machine()->UnalignedStoreSupported(memtype.representation())) {
-    if (FLAG_wasm_trap_handler && V8_TRAP_HANDLER_SUPPORTED) {
+    if (trap_handler::UseTrapHandler()) {
       store = graph()->NewNode(
           jsgraph()->machine()->ProtectedStore(memtype.representation()),
           MemBuffer(offset), index, val, *effect_, *control_);
@@ -3593,7 +3594,7 @@ Node* WasmGraphBuilder::StoreMem(MachineType memtype, Node* index,
     }
   } else {
     // TODO(eholk): Support unaligned stores with trap handlers.
-    DCHECK(!FLAG_wasm_trap_handler || !V8_TRAP_HANDLER_SUPPORTED);
+    DCHECK(!trap_handler::UseTrapHandler());
     UnalignedStoreRepresentation rep(memtype.representation());
     store =
         graph()->NewNode(jsgraph()->machine()->UnalignedStore(rep),
