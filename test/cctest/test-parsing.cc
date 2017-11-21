@@ -8638,6 +8638,11 @@ TEST(AsyncAwaitFormalParameters) {
     "x = class await {}",
     "x = 1 ? class await {} : 0",
     "x = async function await() {}",
+
+    "x = y[await]",
+    "x = `${await}`",
+    "x = y()[await]",
+
     nullptr
   };
   // clang-format on

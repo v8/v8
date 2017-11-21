@@ -1082,8 +1082,8 @@ class ParserBase {
 
   // This method wraps the parsing of the expression inside a new expression
   // classifier and calls RewriteNonPattern if parsing is successful.
-  // It should be used whenever we're parsing an expression that will be
-  // used as a non-pattern (i.e., in most cases).
+  // It should be used whenever we're parsing an expression that is known
+  // to not be a pattern or part of a pattern.
   V8_INLINE ExpressionT ParseExpression(bool accept_IN, bool* ok);
 
   // This method does not wrap the parsing of the expression inside a
