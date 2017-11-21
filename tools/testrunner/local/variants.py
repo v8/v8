@@ -6,6 +6,7 @@
 ALL_VARIANT_FLAGS = {
   "default": [[]],
   "future": [["--future"]],
+  "liftoff": [["--liftoff"]],
   "stress": [["--stress-opt", "--always-opt"]],
   # TODO(6792): Write protected code has been temporary added to the below
   # variant until the feature has been enabled (or staged) by default.
@@ -22,6 +23,7 @@ ALL_VARIANT_FLAGS = {
 FAST_VARIANT_FLAGS = {
   "default": [[]],
   "future": [["--future"]],
+  "liftoff": [["--liftoff"]],
   "stress": [["--stress-opt"]],
   # TODO(6792): Write protected code has been temporary added to the below
   # variant until the feature has been enabled (or staged) by default.
@@ -34,5 +36,6 @@ FAST_VARIANT_FLAGS = {
   "wasm_traps": [["--wasm_trap_handler", "--invoke-weak-callbacks"]],
 }
 
-ALL_VARIANTS = set(["default", "future", "stress", "stress_incremental_marking",
-                    "nooptimization", "stress_background_compile", "wasm_traps"])
+ALL_VARIANTS = set(["default", "future", "liftoff", "stress",
+                    "stress_incremental_marking", "nooptimization",
+                    "stress_background_compile", "wasm_traps"])

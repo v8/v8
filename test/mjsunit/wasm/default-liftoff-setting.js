@@ -6,14 +6,16 @@
 
 // This test makes sure that by default, we do not compile with liftoff.
 
-load("test/mjsunit/wasm/wasm-constants.js");
-load("test/mjsunit/wasm/wasm-module-builder.js");
+load('test/mjsunit/wasm/wasm-constants.js');
+load('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addFunction("i32_add", kSig_i_ii)
+builder.addFunction('i32_add', kSig_i_ii)
     .addBody([kExprGetLocal, 0, kExprGetLocal, 1, kExprI32Add])
     .exportFunc();
 
 const instance = builder.instantiate();
 
-assertFalse(%IsLiftoffFunction(instance.exports.i32_add));
+assertFalse(
+    %IsLiftoffFunction(instance.exports.i32_add),
+    'liftoff compilation should be off by default');
