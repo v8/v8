@@ -253,6 +253,10 @@ class MetaBuildWrapper(object):
 
     self.args = parser.parse_args(argv)
 
+    # TODO(machenbach): This prepares passing swarming targets to isolate on the
+    # infra side.
+    self.args.swarming_targets_file = None
+
   def DumpInputFiles(self):
 
     def DumpContentsOfFilePassedTo(arg_name, path):
@@ -326,7 +330,7 @@ class MetaBuildWrapper(object):
       return 1
 
     if vals['type'] == 'gn':
-      return self.RunGNIsolate(vals)
+      return self.RunGNIsolate()
     else:
       return self.Build('%s_run' % self.args.target[0])
 
@@ -356,7 +360,7 @@ class MetaBuildWrapper(object):
         ret = self.Build(target)
         if ret:
           return ret
-      ret = self.RunGNIsolate(vals)
+      ret = self.RunGNIsolate()
       if ret:
         return ret
     else:
@@ -892,16 +896,13 @@ class MetaBuildWrapper(object):
         raise MBErr('did not generate any of %s' %
                     ', '.join(runtime_deps_targets))
 
-      command, extra_files = self.GetIsolateCommand(target, vals)
-
       runtime_deps = self.ReadFile(runtime_deps_path).splitlines()
 
-      self.WriteIsolateFiles(build_dir, command, target, runtime_deps,
-                             extra_files)
+      self.WriteIsolateFiles(build_dir, target, runtime_deps)
 
     return 0
 
-  def RunGNIsolate(self, vals):
+  def RunGNIsolate(self):
     target = self.args.target[0]
     isolate_map = self.ReadIsolateMap()
     err, labels = self.MapTargetsToLabels(isolate_map, [target])
@@ -910,7 +911,6 @@ class MetaBuildWrapper(object):
     label = labels[0]
 
     build_dir = self.args.path[0]
-    command, extra_files = self.GetIsolateCommand(target, vals)
 
     cmd = self.GNCmd('desc', build_dir, label, 'runtime_deps')
     ret, out, _ = self.Call(cmd)
@@ -921,8 +921,7 @@ class MetaBuildWrapper(object):
 
     runtime_deps = out.splitlines()
 
-    self.WriteIsolateFiles(build_dir, command, target, runtime_deps,
-                           extra_files)
+    self.WriteIsolateFiles(build_dir, target, runtime_deps)
 
     ret, _, _ = self.Run([
         self.executable,
@@ -936,14 +935,12 @@ class MetaBuildWrapper(object):
 
     return ret
 
-  def WriteIsolateFiles(self, build_dir, command, target, runtime_deps,
-                        extra_files):
+  def WriteIsolateFiles(self, build_dir, target, runtime_deps):
     isolate_path = self.ToAbsPath(build_dir, target + '.isolate')
     self.WriteFile(isolate_path,
       pprint.pformat({
         'variables': {
-          'command': command,
-          'files': sorted(runtime_deps + extra_files),
+          'files': sorted(runtime_deps),
         }
       }) + '\n')
 
@@ -1057,97 +1054,6 @@ class MetaBuildWrapper(object):
       self.Print()
 
     return ret
-
-  def GetIsolateCommand(self, target, vals):
-    isolate_map = self.ReadIsolateMap()
-
-    is_android = 'target_os="android"' in vals['gn_args']
-    is_fuchsia = 'target_os="fuchsia"' in vals['gn_args']
-
-    # This should be true if tests with type='windowed_test_launcher' are
-    # expected to run using xvfb. For example, Linux Desktop, X11 CrOS and
-    # Ozone CrOS builds. Note that one Ozone build can be used to run differen
-    # backends. Currently, tests are executed for the headless and X11 backends
-    # and both can run under Xvfb.
-    # TODO(tonikitoo,msisov,fwang): Find a way to run tests for the Wayland
-    # backend.
-    use_xvfb = self.platform == 'linux2' and not is_android and not is_fuchsia
-
-    asan = 'is_asan=true' in vals['gn_args']
-    msan = 'is_msan=true' in vals['gn_args']
-    tsan = 'is_tsan=true' in vals['gn_args']
-    cfi_diag = 'use_cfi_diag=true' in vals['gn_args']
-
-    test_type = isolate_map[target]['type']
-
-    executable = isolate_map[target].get('executable', target)
-    executable_suffix = '.exe' if self.platform == 'win32' else ''
-
-    cmdline = []
-    extra_files = []
-
-    if test_type == 'nontest':
-      self.WriteFailureAndRaise('We should not be isolating %s.' % target,
-                                output_path=None)
-
-    if is_android and test_type != "script":
-      cmdline = [
-          '../../build/android/test_wrapper/logdog_wrapper.py',
-          '--target', target,
-          '--logdog-bin-cmd', '../../bin/logdog_butler',
-          '--store-tombstones']
-    elif is_fuchsia and test_type != 'script':
-      cmdline = [os.path.join('bin', 'run_%s' % target)]
-    elif use_xvfb and test_type == 'windowed_test_launcher':
-      extra_files = [
-          '../../testing/test_env.py',
-          '../../testing/xvfb.py',
-      ]
-      cmdline = [
-        '../../testing/xvfb.py',
-        './' + str(executable) + executable_suffix,
-        '--brave-new-test-launcher',
-        '--test-launcher-bot-mode',
-        '--asan=%d' % asan,
-        '--msan=%d' % msan,
-        '--tsan=%d' % tsan,
-        '--cfi-diag=%d' % cfi_diag,
-      ]
-    elif test_type in ('windowed_test_launcher', 'console_test_launcher'):
-      extra_files = [
-          '../../testing/test_env.py'
-      ]
-      cmdline = [
-          '../../testing/test_env.py',
-          './' + str(executable) + executable_suffix,
-          '--brave-new-test-launcher',
-          '--test-launcher-bot-mode',
-          '--asan=%d' % asan,
-          '--msan=%d' % msan,
-          '--tsan=%d' % tsan,
-          '--cfi-diag=%d' % cfi_diag,
-      ]
-    elif test_type == 'script':
-      extra_files = [
-          '../../testing/test_env.py'
-      ]
-      cmdline = [
-          '../../testing/test_env.py',
-          '../../' + self.ToSrcRelPath(isolate_map[target]['script'])
-      ]
-    elif test_type in ('raw'):
-      extra_files = []
-      cmdline = [
-          './' + str(target) + executable_suffix,
-      ]
-
-    else:
-      self.WriteFailureAndRaise('No command line for %s found (test type %s).'
-                                % (target, test_type), output_path=None)
-
-    cmdline += isolate_map[target].get('args', [])
-
-    return cmdline, extra_files
 
   def ToAbsPath(self, build_path, *comps):
     return self.PathJoin(self.chromium_src_dir,

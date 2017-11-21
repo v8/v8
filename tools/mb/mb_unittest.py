@@ -430,6 +430,8 @@ class UnitTest(unittest.TestCase):
     mbw.Call = lambda cmd, env=None, buffer_output=True: (1, '', '')
     self.check(['gen', '-c', 'gn_debug_goma', '//out/Default'], mbw=mbw, ret=1)
 
+  # TODO(machenbach): Comment back in after swarming file parameter is used.
+  """
   def test_gn_gen_swarming(self):
     files = {
       '/tmp/swarming_targets': 'base_unittests\n',
@@ -480,7 +482,7 @@ class UnitTest(unittest.TestCase):
                   mbw.files)
     self.assertIn('c:\\fake_src\\out\\Default\\cc_perftests.isolated.gen.json',
                   mbw.files)
-
+  """  # pylint: disable=pointless-string-statement
 
   def test_gn_isolate(self):
     files = {
