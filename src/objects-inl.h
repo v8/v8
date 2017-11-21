@@ -3140,33 +3140,33 @@ void Map::set_instance_type(InstanceType value) {
   WRITE_BYTE_FIELD(this, kInstanceTypeOffset, value);
 }
 
-int Map::unused_property_fields() const {
-  return READ_BYTE_FIELD(this, kUnusedPropertyFieldsOffset);
-}
-
 int Map::UnusedPropertyFields() const {
-  VerifyUnusedPropertyFields();
-  return unused_property_fields();
+  int value = used_or_unused_instance_size_in_words();
+  DCHECK_IMPLIES(!IsJSObjectMap(), value == 0);
+  int unused;
+  if (value >= JSObject::kFieldsAdded) {
+    unused = instance_size_in_words() - value;
+  } else {
+    // For out of object properties "used_or_unused_instance_size_in_words"
+    // byte encodes the slack in the property array.
+    unused = value;
+  }
+  return unused;
 }
 
-void Map::set_unused_property_fields(int value) {
-  WRITE_BYTE_FIELD(this, kUnusedPropertyFieldsOffset, Min(value, 255));
+int Map::used_or_unused_instance_size_in_words() const {
+  return READ_BYTE_FIELD(this, kUsedOrUnusedInstanceSizeInWordsOffset);
 }
 
-int Map::used_instance_size_in_words() const {
-  return READ_BYTE_FIELD(this, kUsedInstanceSizeInWordsOffset);
-}
-
-void Map::set_used_instance_size_in_words(int value) {
+void Map::set_used_or_unused_instance_size_in_words(int value) {
   DCHECK_LE(0, value);
   DCHECK_LE(value, 255);
-  WRITE_BYTE_FIELD(this, kUsedInstanceSizeInWordsOffset,
+  WRITE_BYTE_FIELD(this, kUsedOrUnusedInstanceSizeInWordsOffset,
                    static_cast<byte>(value));
-  VerifyUnusedPropertyFields();
 }
 
 int Map::UsedInstanceSize() const {
-  int words = used_instance_size_in_words();
+  int words = used_or_unused_instance_size_in_words();
   if (words < JSObject::kFieldsAdded) {
     // All in-object properties are used and the words is tracking the slack
     // in the property array.
@@ -3179,55 +3179,53 @@ void Map::SetInObjectUnusedPropertyFields(int value) {
   STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kPointerSize);
   if (!IsJSObjectMap()) {
     DCHECK_EQ(0, value);
-    set_unused_property_fields(0);
-    set_used_instance_size_in_words(0);
+    set_used_or_unused_instance_size_in_words(0);
+    DCHECK_EQ(0, UnusedPropertyFields());
     return;
   }
   DCHECK_LE(0, value);
   DCHECK_LE(value, GetInObjectProperties());
-  set_unused_property_fields(value);
   int used_inobject_properties = GetInObjectProperties() - value;
-  set_used_instance_size_in_words(
+  set_used_or_unused_instance_size_in_words(
       GetInObjectPropertyOffset(used_inobject_properties) / kPointerSize);
-  VerifyUnusedPropertyFields();
+  DCHECK_EQ(value, UnusedPropertyFields());
 }
 
 void Map::SetOutOfObjectUnusedPropertyFields(int value) {
   STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kPointerSize);
   DCHECK_LE(0, value);
   DCHECK_LT(value, JSObject::kFieldsAdded);
-  set_unused_property_fields(value);
   // For out of object properties "used_instance_size_in_words" byte encodes
   // the slack in the property array.
-  set_used_instance_size_in_words(value);
-  VerifyUnusedPropertyFields();
+  set_used_or_unused_instance_size_in_words(value);
+  DCHECK_EQ(value, UnusedPropertyFields());
 }
 
 void Map::CopyUnusedPropertyFields(Map* map) {
-  set_unused_property_fields(map->unused_property_fields());
-  set_used_instance_size_in_words(map->used_instance_size_in_words());
-  VerifyUnusedPropertyFields();
+  set_used_or_unused_instance_size_in_words(
+      map->used_or_unused_instance_size_in_words());
+  DCHECK_EQ(UnusedPropertyFields(), map->UnusedPropertyFields());
 }
 
 void Map::AccountAddedPropertyField() {
+  // Update used instance size and unused property fields number.
   STATIC_ASSERT(JSObject::kFieldsAdded == JSObject::kHeaderSize / kPointerSize);
-  // Update unused_property_fields.
-  int new_unused = unused_property_fields() - 1;
+#ifdef DEBUG
+  int new_unused = UnusedPropertyFields() - 1;
   if (new_unused < 0) new_unused += JSObject::kFieldsAdded;
-  set_unused_property_fields(new_unused);
-  // Update used_instance_size_in_words.
-  int value = used_instance_size_in_words();
+#endif
+  int value = used_or_unused_instance_size_in_words();
   if (value >= JSObject::kFieldsAdded) {
     if (value == instance_size_in_words()) {
       AccountAddedOutOfObjectPropertyField(0);
     } else {
       // The property is added in-object, so simply increment the counter.
-      set_used_instance_size_in_words(value + 1);
+      set_used_or_unused_instance_size_in_words(value + 1);
     }
   } else {
     AccountAddedOutOfObjectPropertyField(value);
   }
-  VerifyUnusedPropertyFields();
+  DCHECK_EQ(new_unused, UnusedPropertyFields());
 }
 
 void Map::AccountAddedOutOfObjectPropertyField(int unused_in_property_array) {
@@ -3237,26 +3235,8 @@ void Map::AccountAddedOutOfObjectPropertyField(int unused_in_property_array) {
   }
   DCHECK_GE(unused_in_property_array, 0);
   DCHECK_LT(unused_in_property_array, JSObject::kFieldsAdded);
-  set_used_instance_size_in_words(unused_in_property_array);
-}
-
-void Map::VerifyUnusedPropertyFields() const {
-#ifdef DEBUG
-  if (!IsJSObjectMap()) {
-    DCHECK_EQ(unused_property_fields(), used_instance_size_in_words());
-  } else {
-    int value = used_instance_size_in_words();
-    int unused;
-    if (value >= JSObject::kFieldsAdded) {
-      unused = instance_size_in_words() - value;
-    } else {
-      // For out of object properties "used_instance_size_in_words" byte encodes
-      // the slack in the property array.
-      unused = value;
-    }
-    DCHECK_EQ(unused_property_fields(), unused);
-  }
-#endif
+  set_used_or_unused_instance_size_in_words(unused_in_property_array);
+  DCHECK_EQ(unused_in_property_array, UnusedPropertyFields());
 }
 
 byte Map::bit_field() const { return READ_BYTE_FIELD(this, kBitFieldOffset); }

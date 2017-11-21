@@ -95,10 +95,11 @@ typedef std::vector<Handle<Map>> MapHandles;
 //      |          | If Map for an Object type:                  |
 //      |          |   inobject properties start offset in words |
 //      +----------+---------------------------------------------+
-//      | Byte     | [used_instance_size_in_words]               |
+//      | Byte     | [used_or_unused_instance_size_in_words]     |
 //      |          | For JSObject in fast mode this byte encodes |
 //      |          | the size of the object that includes only   |
-//      |          | the used property fields.                   |
+//      |          | the used property fields or the slack size  |
+//      |          | in properties backing store.                |
 //      +----------+---------------------------------------------+
 //      | Byte     | [visitor_id]                                |
 // +----+----------+---------------------------------------------+
@@ -106,8 +107,8 @@ typedef std::vector<Handle<Map>> MapHandles;
 //  `---+----------+---------------------------------------------+
 //      | Byte     | [instance_type]                             |
 //      +----------+---------------------------------------------+
-//      | Byte     | [unused_property_fields] number of unused   |
-//      |          | property fields in JSObject (for fast-mode) |
+//      | Byte     | Free byte, soon will be used as a second    |
+//      |          | byte of [instance_type].                    |
 //      +----------+---------------------------------------------+
 //      | Byte     | [bit_field]                                 |
 //      |          |   - has_non_instance_prototype (bit 0)      |
@@ -199,24 +200,13 @@ class Map : public HeapObject {
   inline InstanceType instance_type() const;
   inline void set_instance_type(InstanceType value);
 
-  // Tells how many unused property fields are available in the
-  // instance (only used for JSObject in fast mode).
-  inline int unused_property_fields() const;
-  inline void set_unused_property_fields(int value);
-
-  // This byte encodes the instance size without the slack.
-  // Let H be JSObject::kHeaderSize / kPointerSize.
-  // If value >= H then:
-  //     - all field properties are stored in the object.
-  //     - there is no property array.
-  //     - value * kPointerSize is the actual object size without the slack.
-  // Otherwise:
-  //     - there is no slack in the object.
-  //     - the property array has value slack slots.
-  // Note that this encoding requires that H = JSObject::kFieldsAdded.
-  DECL_INT_ACCESSORS(used_instance_size_in_words)
+  // Returns the size of the used in-object area including object header
+  // (only used for JSObject in fast mode, for the other kinds of objects it
+  // is equal to the instance size).
   inline int UsedInstanceSize() const;
 
+  // Tells how many unused property fields (in-object or out-of object) are
+  // available in the instance (only used for JSObject in fast mode).
   inline int UnusedPropertyFields() const;
   // Updates the counters tracking unused fields in the object.
   inline void SetInObjectUnusedPropertyFields(int unused_property_fields);
@@ -226,7 +216,6 @@ class Map : public HeapObject {
   inline void AccountAddedPropertyField();
   inline void AccountAddedOutOfObjectPropertyField(
       int unused_in_property_array);
-  inline void VerifyUnusedPropertyFields() const;
 
   // Bit field.
   inline byte bit_field() const;
@@ -738,12 +727,11 @@ class Map : public HeapObject {
   /* Raw data fields. */                                                    \
   V(kInstanceSizeInWordsOffset, kUInt8Size)                                 \
   V(kInObjectPropertiesStartOrConstructorFunctionIndexOffset, kUInt8Size)   \
-  V(kUsedInstanceSizeInWordsOffset, kUInt8Size)                             \
+  V(kUsedOrUnusedInstanceSizeInWordsOffset, kUInt8Size)                     \
   V(kVisitorIdOffset, kUInt8Size)                                           \
   V(kInstanceTypeOffset, kUInt8Size)                                        \
-  /* TODO(ulan): Free this byte after unused_property_fields are */         \
-  /* computed using the used_instance_size_in_words() byte. */              \
-  V(kUnusedPropertyFieldsOffset, kUInt8Size)                                \
+  /* TODO(ishell): Extend kInstanceTypeOffset field to two bytes. */        \
+  V(kSoonToBeInstanceTypeTooOffset, kUInt8Size)                             \
   V(kBitFieldOffset, kUInt8Size)                                            \
   V(kBitField2Offset, kUInt8Size)                                           \
   V(kBitField3Offset, kUInt32Size)                                          \
@@ -810,6 +798,19 @@ class Map : public HeapObject {
   static VisitorId GetVisitorId(Map* map);
 
  private:
+  // This byte encodes either the instance size without the in-object slack or
+  // the slack size in properties backing store.
+  // Let H be JSObject::kHeaderSize / kPointerSize.
+  // If value >= H then:
+  //     - all field properties are stored in the object.
+  //     - there is no property array.
+  //     - value * kPointerSize is the actual object size without the slack.
+  // Otherwise:
+  //     - there is no slack in the object.
+  //     - the property array has value slack slots.
+  // Note that this encoding requires that H = JSObject::kFieldsAdded.
+  DECL_INT_ACCESSORS(used_or_unused_instance_size_in_words)
+
   // Returns the map that this (root) map transitions to if its elements_kind
   // is changed to |elements_kind|, or |nullptr| if no such map is cached yet.
   Map* LookupElementsTransitionMap(ElementsKind elements_kind);

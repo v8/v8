@@ -102,7 +102,7 @@ bool IsObjectShrinkable(JSObject* obj) {
       CcTest::i_isolate()->factory()->one_pointer_filler_map();
 
   int inobject_properties = obj->map()->GetInObjectProperties();
-  int unused = obj->map()->unused_property_fields();
+  int unused = obj->map()->UnusedPropertyFields();
   if (unused == 0) return false;
 
   for (int i = inobject_properties - unused; i < inobject_properties; i++) {
@@ -227,13 +227,13 @@ TEST(JSObjectComplex) {
   CHECK(!IsObjectShrinkable(*obj5));
 
   CHECK_EQ(5, obj1->map()->GetInObjectProperties());
-  CHECK_EQ(4, obj1->map()->unused_property_fields());
+  CHECK_EQ(4, obj1->map()->UnusedPropertyFields());
 
   CHECK_EQ(5, obj3->map()->GetInObjectProperties());
-  CHECK_EQ(2, obj3->map()->unused_property_fields());
+  CHECK_EQ(2, obj3->map()->UnusedPropertyFields());
 
   CHECK_EQ(5, obj5->map()->GetInObjectProperties());
-  CHECK_EQ(0, obj5->map()->unused_property_fields());
+  CHECK_EQ(0, obj5->map()->UnusedPropertyFields());
 
   // Since slack tracking is complete, the new objects should not be shrinkable.
   obj1 = CompileRunI<JSObject>("new A(1);");

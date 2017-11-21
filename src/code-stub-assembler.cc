@@ -2569,10 +2569,11 @@ void CodeStubAssembler::InitializeJSObjectBodyWithSlackTracking(
                                    MachineRepresentation::kWord32);
     STATIC_ASSERT(Map::kSlackTrackingCounterEnd == 1);
 
-    Node* unused_fields = LoadObjectField(map, Map::kUnusedPropertyFieldsOffset,
-                                          MachineType::Uint8());
-    Node* used_size = IntPtrSub(
-        instance_size, TimesPointerSize(ChangeUint32ToWord(unused_fields)));
+    // The object still has in-object slack therefore the |unsed_or_unused|
+    // field contain the "used" value.
+    Node* used_size = TimesPointerSize(ChangeUint32ToWord(
+        LoadObjectField(map, Map::kUsedOrUnusedInstanceSizeInWordsOffset,
+                        MachineType::Uint8())));
 
     Comment("iInitialize filler fields");
     InitializeFieldsWithRoot(object, used_size, instance_size,
