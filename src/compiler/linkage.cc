@@ -37,6 +37,9 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor::Kind& k) {
     case CallDescriptor::kCallAddress:
       os << "Addr";
       break;
+    case CallDescriptor::kCallWasmFunction:
+      os << "Wasm";
+      break;
   }
   return os;
 }
@@ -117,6 +120,7 @@ int CallDescriptor::CalculateFixedFrameSize() const {
              CommonFrameConstants::kCPSlotCount;
       break;
     case kCallCodeObject:
+    case kCallWasmFunction:
       return TypedFrameConstants::kFixedSlotCount;
   }
   UNREACHABLE();

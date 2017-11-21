@@ -885,6 +885,8 @@ class Assembler : public AssemblerBase {
   // Call near relative 32-bit displacement, relative to next instruction.
   void call(Label* L);
   void call(Address entry, RelocInfo::Mode rmode);
+  void near_call(Address entry, RelocInfo::Mode rmode);
+  void near_jmp(Address entry, RelocInfo::Mode rmode);
   void call(CodeStub* stub);
   void call(Handle<Code> target,
             RelocInfo::Mode rmode = RelocInfo::CODE_TARGET);

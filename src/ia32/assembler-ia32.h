@@ -857,6 +857,7 @@ class Assembler : public AssemblerBase {
   int CallSize(Handle<Code> code, RelocInfo::Mode mode);
   void call(Handle<Code> code, RelocInfo::Mode rmode);
   void call(CodeStub* stub);
+  void wasm_call(Address address, RelocInfo::Mode rmode);
 
   // Jumps
   // unconditional jump to L

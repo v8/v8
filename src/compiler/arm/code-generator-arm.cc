@@ -720,6 +720,28 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
+    case kArchCallWasmFunction: {
+      // We must not share code targets for calls to builtins for wasm code, as
+      // they might need to be patched individually.
+      internal::Assembler::BlockCodeTargetSharingScope scope;
+      RelocInfo::Mode rmode = RelocInfo::JS_TO_WASM_CALL;
+      if (info()->IsWasm()) {
+        scope.Open(tasm());
+        rmode = RelocInfo::WASM_CALL;
+      }
+
+      if (instr->InputAt(0)->IsImmediate()) {
+        Address wasm_code = reinterpret_cast<Address>(
+            i.ToConstant(instr->InputAt(0)).ToInt32());
+        __ Call(wasm_code, rmode);
+      } else {
+        __ Call(i.InputRegister(0));
+      }
+      RecordCallPosition(instr);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      frame_access_state()->ClearSPDelta();
+      break;
+    }
     case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject: {
       // We must not share code targets for calls to builtins for wasm code, as
@@ -738,6 +760,29 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ add(ip, i.InputRegister(0),
                Operand(Code::kHeaderSize - kHeapObjectTag));
         __ Jump(ip);
+      }
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      unwinding_info_writer_.MarkBlockWillExit();
+      frame_access_state()->ClearSPDelta();
+      frame_access_state()->SetFrameAccessToDefault();
+      break;
+    }
+    case kArchTailCallWasm: {
+      // We must not share code targets for calls to builtins for wasm code, as
+      // they might need to be patched individually.
+      internal::Assembler::BlockCodeTargetSharingScope scope;
+      RelocInfo::Mode rmode = RelocInfo::JS_TO_WASM_CALL;
+      if (info()->IsWasm()) {
+        scope.Open(tasm());
+        rmode = RelocInfo::WASM_CALL;
+      }
+
+      if (instr->InputAt(0)->IsImmediate()) {
+        Address wasm_code = reinterpret_cast<Address>(
+            i.ToConstant(instr->InputAt(0)).ToInt32());
+        __ Jump(wasm_code, rmode);
+      } else {
+        __ Jump(i.InputRegister(0));
       }
       DCHECK_EQ(LeaveCC, i.OutputSBit());
       unwinding_info_writer_.MarkBlockWillExit();

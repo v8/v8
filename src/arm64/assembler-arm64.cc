@@ -195,6 +195,17 @@ void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
   // No icache flushing needed, see comment in set_target_address_at.
 }
 
+void RelocInfo::set_js_to_wasm_address(Isolate* isolate, Address address,
+                                       ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  set_embedded_address(isolate, address, icache_flush_mode);
+}
+
+Address RelocInfo::js_to_wasm_address() const {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  return embedded_address();
+}
+
 bool AreAliased(const CPURegister& reg1, const CPURegister& reg2,
                 const CPURegister& reg3, const CPURegister& reg4,
                 const CPURegister& reg5, const CPURegister& reg6,

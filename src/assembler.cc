@@ -658,6 +658,8 @@ const char* RelocInfo::RelocModeName(RelocInfo::Mode rmode) {
       return "global handle";
     case WASM_CALL:
       return "internal wasm call";
+    case JS_TO_WASM_CALL:
+      return "js to wasm call";
     case NUMBER_OF_MODES:
     case PC_JUMP:
       UNREACHABLE();
@@ -740,6 +742,7 @@ void RelocInfo::Verify(Isolate* isolate) {
     case WASM_FUNCTION_TABLE_SIZE_REFERENCE:
     case WASM_GLOBAL_HANDLE:
     case WASM_CALL:
+    case JS_TO_WASM_CALL:
     case NONE32:
     case NONE64:
       break;

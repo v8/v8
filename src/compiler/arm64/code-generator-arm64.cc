@@ -715,6 +715,40 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
+    case kArchCallWasmFunction: {
+      // We must not share code targets for calls to builtins for wasm code, as
+      // they might need to be patched individually.
+      internal::Assembler::BlockCodeTargetSharingScope scope;
+      if (info()->IsWasm()) scope.Open(tasm());
+
+      if (instr->InputAt(0)->IsImmediate()) {
+        Address wasm_code = reinterpret_cast<Address>(
+            i.ToConstant(instr->InputAt(0)).ToInt64());
+        if (info()->IsWasm()) {
+          __ Call(wasm_code, RelocInfo::WASM_CALL);
+        } else {
+          __ Call(wasm_code, RelocInfo::JS_TO_WASM_CALL);
+        }
+      } else {
+        Register target = i.InputRegister(0);
+        __ Call(target);
+      }
+      RecordCallPosition(instr);
+      // TODO(titzer): this is ugly. JSSP should be a caller-save register
+      // in this case, but it is not possible to express in the register
+      // allocator.
+      CallDescriptor::Flags flags(MiscField::decode(opcode));
+      if (flags & CallDescriptor::kRestoreJSSP) {
+        __ Ldr(jssp, MemOperand(csp));
+        __ Mov(csp, jssp);
+      }
+      if (flags & CallDescriptor::kRestoreCSP) {
+        __ Mov(csp, jssp);
+        __ AssertCspAligned();
+      }
+      frame_access_state()->ClearSPDelta();
+      break;
+    }
     case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject: {
       // We must not share code targets for calls to builtins for wasm code, as
@@ -732,6 +766,30 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       } else {
         Register target = i.InputRegister(0);
         __ Add(target, target, Code::kHeaderSize - kHeapObjectTag);
+        __ Jump(target);
+      }
+      unwinding_info_writer_.MarkBlockWillExit();
+      frame_access_state()->ClearSPDelta();
+      frame_access_state()->SetFrameAccessToDefault();
+      break;
+    }
+    case kArchTailCallWasm: {
+      // We must not share code targets for calls to builtins for wasm code, as
+      // they might need to be patched individually.
+      internal::Assembler::BlockCodeTargetSharingScope scope;
+      if (info()->IsWasm()) scope.Open(tasm());
+
+      if (instr->InputAt(0)->IsImmediate()) {
+        Address wasm_code = reinterpret_cast<Address>(
+            i.ToConstant(instr->InputAt(0)).ToInt64());
+        if (info()->IsWasm()) {
+          __ Jump(wasm_code, RelocInfo::WASM_CALL);
+        } else {
+          __ Jump(wasm_code, RelocInfo::JS_TO_WASM_CALL);
+        }
+
+      } else {
+        Register target = i.InputRegister(0);
         __ Jump(target);
       }
       unwinding_info_writer_.MarkBlockWillExit();
@@ -2572,7 +2630,8 @@ void CodeGenerator::AssembleConstructFrame() {
           __ Claim(shrink_slots);
         }
         break;
-      case CallDescriptor::kCallCodeObject: {
+      case CallDescriptor::kCallCodeObject:
+      case CallDescriptor::kCallWasmFunction: {
         UseScratchRegisterScope temps(tasm());
         __ Claim(shrink_slots + 1);  // Claim extra slot for frame type marker.
         Register scratch = temps.AcquireX();

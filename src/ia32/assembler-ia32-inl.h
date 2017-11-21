@@ -56,7 +56,8 @@ static const int kNoCodeAgeSequenceLength = 5;
 
 // The modes possibly affected by apply must be in kApplyMask.
 void RelocInfo::apply(intptr_t delta) {
-  if (IsRuntimeEntry(rmode_) || IsCodeTarget(rmode_)) {
+  if (IsRuntimeEntry(rmode_) || IsCodeTarget(rmode_) ||
+      rmode_ == RelocInfo::JS_TO_WASM_CALL) {
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
     *p -= delta;  // Relocate entry.
   } else if (IsInternalReference(rmode_)) {
@@ -68,14 +69,13 @@ void RelocInfo::apply(intptr_t delta) {
 
 
 Address RelocInfo::target_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_));
+  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_));
   return Assembler::target_address_at(pc_, host_);
 }
 
 Address RelocInfo::target_address_address() {
-  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_)
-                              || rmode_ == EMBEDDED_OBJECT
-                              || rmode_ == EXTERNAL_REFERENCE);
+  DCHECK(IsCodeTarget(rmode_) || IsRuntimeEntry(rmode_) || IsWasmCall(rmode_) ||
+         rmode_ == EMBEDDED_OBJECT || rmode_ == EXTERNAL_REFERENCE);
   return reinterpret_cast<Address>(pc_);
 }
 
@@ -270,7 +270,7 @@ void Assembler::set_target_address_at(Isolate* isolate, Address pc, Code* code,
                                       Address target,
                                       ICacheFlushMode icache_flush_mode) {
   Address constant_pool = code ? code->constant_pool() : nullptr;
-  set_target_address_at(isolate, pc, constant_pool, target);
+  set_target_address_at(isolate, pc, constant_pool, target, icache_flush_mode);
 }
 
 Address Assembler::target_address_from_return_address(Address pc) {

@@ -824,6 +824,25 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       frame_access_state()->ClearSPDelta();
       break;
     }
+    case kArchCallWasmFunction: {
+      if (arch_opcode == kArchTailCallCodeObjectFromJSFunction) {
+        AssemblePopArgumentsAdaptorFrame(kJavaScriptCallArgCountRegister,
+                                         i.TempRegister(0), i.TempRegister(1),
+                                         i.TempRegister(2));
+      }
+      if (instr->InputAt(0)->IsImmediate()) {
+        Address wasm_code = reinterpret_cast<Address>(
+            i.ToConstant(instr->InputAt(0)).ToInt64());
+        __ Jump(wasm_code, info()->IsWasm() ? RelocInfo::WASM_CALL
+                                            : RelocInfo::JS_TO_WASM_CALL);
+      } else {
+        __ daddiu(at, i.InputRegister(0), 0);
+        __ Jump(at);
+      }
+      frame_access_state()->ClearSPDelta();
+      frame_access_state()->SetFrameAccessToDefault();
+      break;
+    }
     case kArchTailCallCodeObjectFromJSFunction:
     case kArchTailCallCodeObject: {
       if (arch_opcode == kArchTailCallCodeObjectFromJSFunction) {
@@ -835,6 +854,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Jump(i.InputCode(0), RelocInfo::CODE_TARGET);
       } else {
         __ daddiu(at, i.InputRegister(0), Code::kHeaderSize - kHeapObjectTag);
+        __ Jump(at);
+      }
+      frame_access_state()->ClearSPDelta();
+      frame_access_state()->SetFrameAccessToDefault();
+      break;
+    }
+    case kArchTailCallWasm: {
+      if (instr->InputAt(0)->IsImmediate()) {
+        Address wasm_code = reinterpret_cast<Address>(
+            i.ToConstant(instr->InputAt(0)).ToInt64());
+        __ Jump(wasm_code, info()->IsWasm() ? RelocInfo::WASM_CALL
+                                            : RelocInfo::JS_TO_WASM_CALL);
+      } else {
+        __ daddiu(at, i.InputRegister(0), 0);
         __ Jump(at);
       }
       frame_access_state()->ClearSPDelta();

@@ -189,6 +189,17 @@ void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
                                    reinterpret_cast<Address>(size), flush_mode);
 }
 
+void RelocInfo::set_js_to_wasm_address(Isolate* isolate, Address address,
+                                       ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  set_embedded_address(isolate, address, icache_flush_mode);
+}
+
+Address RelocInfo::js_to_wasm_address() const {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  return embedded_address();
+}
+
 // -----------------------------------------------------------------------------
 // Implementation of Operand and MemOperand.
 // See assembler-mips-inl.h for inlined constructors.

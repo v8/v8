@@ -759,6 +759,14 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
               ? g.UseImmediate(callee)
               : g.UseRegister(callee));
       break;
+    case CallDescriptor::kCallWasmFunction:
+      buffer->instruction_args.push_back(
+          (call_address_immediate &&
+           (callee->opcode() == IrOpcode::kRelocatableInt64Constant ||
+            callee->opcode() == IrOpcode::kRelocatableInt32Constant))
+              ? g.UseImmediate(callee)
+              : g.UseRegister(callee));
+      break;
     case CallDescriptor::kCallJSFunction:
       buffer->instruction_args.push_back(
           g.UseLocation(callee, buffer->descriptor->GetInputLocation(0)));
@@ -2589,6 +2597,9 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
     case CallDescriptor::kCallJSFunction:
       opcode = kArchCallJSFunction | MiscField::encode(flags);
       break;
+    case CallDescriptor::kCallWasmFunction:
+      opcode = kArchCallWasmFunction | MiscField::encode(flags);
+      break;
   }
 
   // Emit the call instruction.
@@ -2654,6 +2665,9 @@ void InstructionSelector::VisitTailCall(Node* node) {
         break;
       case CallDescriptor::kCallAddress:
         opcode = kArchTailCallAddress;
+        break;
+      case CallDescriptor::kCallWasmFunction:
+        opcode = kArchTailCallWasm;
         break;
       default:
         UNREACHABLE();

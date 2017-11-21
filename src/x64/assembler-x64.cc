@@ -143,6 +143,17 @@ void RelocInfo::set_embedded_size(Isolate* isolate, uint32_t size,
   }
 }
 
+void RelocInfo::set_js_to_wasm_address(Isolate* isolate, Address address,
+                                       ICacheFlushMode icache_flush_mode) {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  set_embedded_address(isolate, address, icache_flush_mode);
+}
+
+Address RelocInfo::js_to_wasm_address() const {
+  DCHECK_EQ(rmode_, JS_TO_WASM_CALL);
+  return embedded_address();
+}
+
 // -----------------------------------------------------------------------------
 // Implementation of Operand
 
@@ -953,6 +964,23 @@ void Assembler::call(Handle<Code> target, RelocInfo::Mode rmode) {
   emit_code_target(target, rmode);
 }
 
+void Assembler::near_call(Address addr, RelocInfo::Mode rmode) {
+  EnsureSpace ensure_space(this);
+  emit(0xE8);
+  intptr_t value = reinterpret_cast<intptr_t>(addr);
+  DCHECK(is_int32(value));
+  RecordRelocInfo(rmode);
+  emitl(static_cast<int32_t>(value));
+}
+
+void Assembler::near_jmp(Address addr, RelocInfo::Mode rmode) {
+  EnsureSpace ensure_space(this);
+  emit(0xE9);
+  intptr_t value = reinterpret_cast<intptr_t>(addr);
+  DCHECK(is_int32(value));
+  RecordRelocInfo(rmode);
+  emitl(static_cast<int32_t>(value));
+}
 
 void Assembler::call(Register adr) {
   EnsureSpace ensure_space(this);
@@ -4856,9 +4884,9 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   reloc_info_writer.Write(&rinfo);
 }
 
-const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
-                                  1 << RelocInfo::RUNTIME_ENTRY |
-                                  1 << RelocInfo::INTERNAL_REFERENCE;
+const int RelocInfo::kApplyMask =
+    RelocInfo::kCodeTargetMask | 1 << RelocInfo::RUNTIME_ENTRY |
+    1 << RelocInfo::INTERNAL_REFERENCE | 1 << RelocInfo::WASM_CALL;
 
 bool RelocInfo::IsCodedSpecially() {
   // The deserializer needs to know whether a pointer is specially coded.  Being
