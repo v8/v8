@@ -39,7 +39,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   void restore();
 
   // Part of the protocol.
-  Response enable() override;
+  Response enable(String16* outDebuggerId) override;
   Response disable() override;
   Response setBreakpointsActive(bool active) override;
   Response setSkipAllPauses(bool skip) override;
@@ -57,6 +57,9 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   Response removeBreakpoint(const String16& breakpointId) override;
   Response continueToLocation(std::unique_ptr<protocol::Debugger::Location>,
                               Maybe<String16> targetCallFrames) override;
+  Response getStackTrace(
+      std::unique_ptr<protocol::Runtime::StackTraceId> inStackTraceId,
+      std::unique_ptr<protocol::Runtime::StackTrace>* outStackTrace) override;
   Response searchInContent(
       const String16& scriptId, const String16& query,
       Maybe<bool> optionalCaseSensitive, Maybe<bool> optionalIsRegex,
@@ -73,12 +76,14 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
       Maybe<protocol::Array<protocol::Debugger::CallFrame>>* optOutCallFrames,
       Maybe<bool>* optOutStackChanged,
       Maybe<protocol::Runtime::StackTrace>* optOutAsyncStackTrace,
+      Maybe<protocol::Runtime::StackTraceId>* optOutAsyncStackTraceId,
       Maybe<protocol::Runtime::ExceptionDetails>* optOutCompileError) override;
   Response restartFrame(
       const String16& callFrameId,
       std::unique_ptr<protocol::Array<protocol::Debugger::CallFrame>>*
           newCallFrames,
-      Maybe<protocol::Runtime::StackTrace>* asyncStackTrace) override;
+      Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
+      Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId) override;
   Response getScriptSource(const String16& scriptId,
                            String16* scriptSource) override;
   Response pause() override;
@@ -149,6 +154,7 @@ class V8DebuggerAgentImpl : public protocol::Debugger::Backend {
   Response currentCallFrames(
       std::unique_ptr<protocol::Array<protocol::Debugger::CallFrame>>*);
   std::unique_ptr<protocol::Runtime::StackTrace> currentAsyncStackTrace();
+  std::unique_ptr<protocol::Runtime::StackTraceId> currentExternalStackTrace();
 
   void setPauseOnExceptionsImpl(int);
 

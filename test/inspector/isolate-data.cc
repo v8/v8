@@ -203,6 +203,21 @@ void IsolateData::AsyncTaskFinished(void* task) {
   inspector_->asyncTaskFinished(task);
 }
 
+v8_inspector::V8StackTraceId IsolateData::StoreCurrentStackTrace(
+    const v8_inspector::StringView& description) {
+  return inspector_->storeCurrentStackTrace(description);
+}
+
+void IsolateData::ExternalAsyncTaskStarted(
+    const v8_inspector::V8StackTraceId& parent) {
+  inspector_->externalAsyncTaskStarted(parent);
+}
+
+void IsolateData::ExternalAsyncTaskFinished(
+    const v8_inspector::V8StackTraceId& parent) {
+  inspector_->externalAsyncTaskFinished(parent);
+}
+
 void IsolateData::AddInspectedObject(int session_id,
                                      v8::Local<v8::Value> object) {
   auto it = sessions_.find(session_id);

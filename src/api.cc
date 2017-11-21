@@ -10147,6 +10147,12 @@ int debug::GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
   return result;
 }
 
+int64_t debug::GetNextRandomInt64(v8::Isolate* v8_isolate) {
+  return reinterpret_cast<i::Isolate*>(v8_isolate)
+      ->random_number_generator()
+      ->NextInt64();
+}
+
 Local<String> CpuProfileNode::GetFunctionName() const {
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   i::Isolate* isolate = node->isolate();
