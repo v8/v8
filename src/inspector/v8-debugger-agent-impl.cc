@@ -722,8 +722,13 @@ Response V8DebuggerAgentImpl::getStackTrace(
     std::unique_ptr<protocol::Runtime::StackTrace>* outStackTrace) {
   bool isOk = false;
   int64_t id = inStackTraceId->getId().toInteger64(&isOk);
-  std::pair<int64_t, int64_t> debuggerId =
-      m_debugger->debuggerIdFor(inStackTraceId->getDebuggerId());
+  std::pair<int64_t, int64_t> debuggerId;
+  if (inStackTraceId->hasDebuggerId()) {
+    debuggerId =
+        m_debugger->debuggerIdFor(inStackTraceId->getDebuggerId(String16()));
+  } else {
+    debuggerId = m_debugger->debuggerIdFor(m_session->contextGroupId());
+  }
   V8StackTraceId v8StackTraceId(id, debuggerId);
   if (!isOk || v8StackTraceId.IsInvalid()) {
     return Response::Error("Invalid stack trace id");
@@ -733,8 +738,8 @@ Response V8DebuggerAgentImpl::getStackTrace(
   if (!stack) {
     return Response::Error("Stack trace with given id is not found");
   }
-  *outStackTrace =
-      stack->buildInspectorObject(m_debugger->maxAsyncCallChainDepth());
+  *outStackTrace = stack->buildInspectorObject(
+      m_debugger, m_debugger->maxAsyncCallChainDepth());
   return Response::OK();
 }
 
@@ -1011,7 +1016,7 @@ Response V8DebuggerAgentImpl::pauseOnAsyncCall(
     return Response::Error("Invalid stack trace id");
   }
   m_debugger->pauseOnAsyncCall(m_session->contextGroupId(), stackTraceId,
-                               inParentStackTraceId->getDebuggerId());
+                               inParentStackTraceId->getDebuggerId(String16()));
   return Response::OK();
 }
 
@@ -1312,7 +1317,7 @@ V8DebuggerAgentImpl::currentAsyncStackTrace() {
       m_debugger->currentAsyncParent();
   if (!asyncParent) return nullptr;
   return asyncParent->buildInspectorObject(
-      m_debugger->maxAsyncCallChainDepth() - 1);
+      m_debugger, m_debugger->maxAsyncCallChainDepth() - 1);
 }
 
 std::unique_ptr<protocol::Runtime::StackTraceId>
@@ -1374,7 +1379,8 @@ void V8DebuggerAgentImpl::didParseSource(
   std::unique_ptr<V8StackTraceImpl> stack =
       V8StackTraceImpl::capture(m_inspector->debugger(), contextGroupId, 1);
   std::unique_ptr<protocol::Runtime::StackTrace> stackTrace =
-      stack && !stack->isEmpty() ? stack->buildInspectorObjectImpl() : nullptr;
+      stack && !stack->isEmpty() ? stack->buildInspectorObjectImpl(m_debugger)
+                                 : nullptr;
   if (success) {
     m_frontend.scriptParsed(
         scriptId, scriptURL, scriptRef->startLine(), scriptRef->startColumn(),

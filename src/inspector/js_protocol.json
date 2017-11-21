@@ -214,10 +214,10 @@
             {
                 "id": "StackTraceId",
                 "type": "object",
-                "description": "External stack trace comes from another debugger and can be resolved there. This allows to track cross-debugger calls. See <code>Runtime.StackTrace</code> and <code>Debugger.paused</code> for usages.",
+                "description": "If <code>debuggerId</code> is set stack trace comes from another debugger and can be resolved there. This allows to track cross-debugger calls. See <code>Runtime.StackTrace</code> and <code>Debugger.paused</code> for usages.",
                 "properties": [
                     { "name": "id", "type": "string" },
-                    { "name": "debuggerId", "$ref": "UniqueDebuggerId" }
+                    { "name": "debuggerId", "$ref": "UniqueDebuggerId", "optional": true }
                 ],
                 "experimental": true
             }

@@ -222,7 +222,8 @@ class InjectedScript::ProtocolPromiseHandler {
             .setException(wrappedValue->clone())
             .build();
     if (stack)
-      exceptionDetails->setStackTrace(stack->buildInspectorObjectImpl());
+      exceptionDetails->setStackTrace(
+          stack->buildInspectorObjectImpl(m_inspector->debugger()));
     if (stack && !stack->isEmpty())
       exceptionDetails->setScriptId(toString16(stack->topScriptId()));
     callback->sendSuccess(std::move(wrappedValue), std::move(exceptionDetails));
@@ -570,10 +571,11 @@ Response InjectedScript::createExceptionDetails(
         static_cast<int>(message->GetScriptOrigin().ScriptID()->Value())));
     v8::Local<v8::StackTrace> stackTrace = message->GetStackTrace();
     if (!stackTrace.IsEmpty() && stackTrace->GetFrameCount() > 0)
-      exceptionDetails->setStackTrace(m_context->inspector()
-                                          ->debugger()
-                                          ->createStackTrace(stackTrace)
-                                          ->buildInspectorObjectImpl());
+      exceptionDetails->setStackTrace(
+          m_context->inspector()
+              ->debugger()
+              ->createStackTrace(stackTrace)
+              ->buildInspectorObjectImpl(m_context->inspector()->debugger()));
   }
   if (!exception.IsEmpty()) {
     std::unique_ptr<protocol::Runtime::RemoteObject> wrapped;

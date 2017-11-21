@@ -761,8 +761,8 @@ V8StackTraceId V8Debugger::storeCurrentStackTrace(
                                V8StackTraceImpl::maxCallStackSizeToCapture);
   if (!asyncStack) return V8StackTraceId();
 
-  uintptr_t id = ++m_lastStackTraceId;
-  m_storedStackTraces[id] = asyncStack;
+  uintptr_t id = AsyncStackTrace::store(this, asyncStack);
+
   m_allAsyncStacks.push_back(std::move(asyncStack));
   ++m_asyncStacksCount;
   collectOldAsyncStacksIfNeeded();
@@ -770,6 +770,13 @@ V8StackTraceId V8Debugger::storeCurrentStackTrace(
   asyncTaskCandidateForStepping(reinterpret_cast<void*>(id));
 
   return V8StackTraceId(id, debuggerIdFor(contextGroupId));
+}
+
+uintptr_t V8Debugger::storeStackTrace(
+    std::shared_ptr<AsyncStackTrace> asyncStack) {
+  uintptr_t id = ++m_lastStackTraceId;
+  m_storedStackTraces[id] = asyncStack;
+  return id;
 }
 
 void V8Debugger::externalAsyncTaskStarted(const V8StackTraceId& parent) {

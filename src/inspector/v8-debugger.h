@@ -105,6 +105,8 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void externalAsyncTaskStarted(const V8StackTraceId& parent);
   void externalAsyncTaskFinished(const V8StackTraceId& parent);
 
+  uintptr_t storeStackTrace(std::shared_ptr<AsyncStackTrace> stack);
+
   void muteScriptParsedEvents();
   void unmuteScriptParsedEvents();
 
