@@ -17,9 +17,15 @@ namespace wasm {
 namespace liftoff {
 
 inline Operand GetStackSlot(uint32_t index) {
-  // rbp-8 holds the stack marker, first stack slot is located at rbp-16.
-  return Operand(rbp, -16 - 8 * index);
+  // rbp-8 holds the stack marker, rbp-16 is the wasm context, first stack slot
+  // is located at rbp-24.
+  constexpr int32_t kStackSlotSize = 8;
+  constexpr int32_t kFirstStackSlotOffset = -24;
+  return Operand(rbp, kFirstStackSlotOffset - index * kStackSlotSize);
 }
+
+// TODO(clemensh): Make this a constexpr variable once Operand is constexpr.
+inline Operand GetContextOperand() { return Operand(rbp, -16); }
 
 }  // namespace liftoff
 
@@ -42,25 +48,64 @@ void LiftoffAssembler::LoadConstant(Register reg, WasmValue value) {
   }
 }
 
-void LiftoffAssembler::Load(Register dst, Address addr,
-                            RelocInfo::Mode reloc_mode) {
-  movp(dst, bit_cast<void*>(addr), reloc_mode);
-  movl(dst, Operand(dst, 0));
+void LiftoffAssembler::LoadFromContext(Register dst, uint32_t offset,
+                                       int size) {
+  DCHECK_LE(offset, kMaxInt);
+  movp(dst, liftoff::GetContextOperand());
+  DCHECK(size == 4 || size == 8);
+  if (size == 4) {
+    movl(dst, Operand(dst, offset));
+  } else {
+    movq(dst, Operand(dst, offset));
+  }
 }
 
-void LiftoffAssembler::Store(Address addr, Register reg,
-                             PinnedRegisterScope pinned_regs,
-                             RelocInfo::Mode reloc_mode) {
-  // TODO(clemensh): Change this to kPointerSizeT or something.
-  Register global_addr_reg = GetUnusedRegister(kWasmI32, pinned_regs);
-  DCHECK_NE(reg, global_addr_reg);
-  movp(global_addr_reg, static_cast<void*>(addr), reloc_mode);
-  movl(Operand(global_addr_reg, 0), reg);
+void LiftoffAssembler::SpillContext(Register context) {
+  movp(liftoff::GetContextOperand(), context);
+}
+
+void LiftoffAssembler::Load(Register dst, Register src_addr,
+                            uint32_t offset_imm, int size,
+                            PinnedRegisterScope pinned) {
+  Operand src_op = Operand(src_addr, offset_imm);
+  if (offset_imm > kMaxInt) {
+    // The immediate can not be encoded in the operand. Load it to a register
+    // first.
+    Register src = GetUnusedRegister(kWasmPtrSizeInt, pinned);
+    movl(src, Immediate(offset_imm));
+    src_op = Operand(src_addr, src, times_1, 0);
+  }
+  DCHECK(size == 4 || size == 8);
+  if (size == 4) {
+    movl(dst, src_op);
+  } else {
+    movq(dst, src_op);
+  }
+}
+
+void LiftoffAssembler::Store(Register dst_addr, uint32_t offset_imm,
+                             Register src, int size,
+                             PinnedRegisterScope pinned) {
+  Operand dst_op = Operand(dst_addr, offset_imm);
+  if (offset_imm > kMaxInt) {
+    // The immediate can not be encoded in the operand. Load it to a register
+    // first.
+    Register dst = GetUnusedRegister(kWasmPtrSizeInt, pinned);
+    movl(dst, Immediate(offset_imm));
+    dst_op = Operand(dst_addr, dst, times_1, 0);
+  }
+  DCHECK(size == 4 || size == 8);
+  if (size == 4) {
+    movl(dst_op, src);
+  } else {
+    movp(dst_op, src);
+  }
 }
 
 void LiftoffAssembler::LoadCallerFrameSlot(Register dst,
                                            uint32_t caller_slot_idx) {
-  movl(dst, Operand(rbp, 8 + 8 * caller_slot_idx));
+  constexpr int32_t kStackSlotSize = 8;
+  movl(dst, Operand(rbp, kStackSlotSize * (caller_slot_idx + 1)));
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,

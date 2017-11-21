@@ -10,6 +10,7 @@
 #include "src/counters.h"
 #include "src/macro-assembler-inl.h"
 #include "src/wasm/function-body-decoder-impl.h"
+#include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
@@ -52,10 +53,7 @@ class LiftoffCompiler {
 
   LiftoffCompiler(LiftoffAssembler* liftoff_asm,
                   compiler::CallDescriptor* call_desc, compiler::ModuleEnv* env)
-      : asm_(liftoff_asm), call_desc_(call_desc), env_(env) {
-    // The ModuleEnv will be used once we implement calls.
-    USE(env_);
-  }
+      : asm_(liftoff_asm), call_desc_(call_desc), env_(env) {}
 
   bool ok() const { return ok_; }
 
@@ -102,10 +100,9 @@ class LiftoffCompiler {
     __ EnterFrame(StackFrame::WASM_COMPILED);
     __ ReserveStackSpace(kPointerSize *
                          (__ num_locals() + kMaxValueStackHeight));
-    // Param #0 is the wasm context.
-    constexpr uint32_t kFirstActualParameterIndex = 1;
-    uint32_t num_params = static_cast<uint32_t>(call_desc_->ParameterCount()) -
-                          kFirstActualParameterIndex;
+    // Parameter 0 is the wasm context.
+    uint32_t num_params =
+        static_cast<uint32_t>(call_desc_->ParameterCount()) - 1;
     for (uint32_t i = 0; i < __ num_locals(); ++i) {
       // We can currently only handle i32 parameters and locals.
       if (__ local_type(i) != kWasmI32) {
@@ -113,12 +110,20 @@ class LiftoffCompiler {
         return;
       }
     }
+    // Input 0 is the call target, the context is at 1.
+    constexpr int kContextParameterIndex = 1;
+    // Store the context parameter to a special stack slot.
+    compiler::LinkageLocation context_loc =
+        call_desc_->GetInputLocation(kContextParameterIndex);
+    DCHECK(context_loc.IsRegister());
+    DCHECK(!context_loc.IsAnyRegister());
+    Register context_reg = Register::from_code(context_loc.AsRegister());
+    __ SpillContext(context_reg);
     uint32_t param_idx = 0;
     for (; param_idx < num_params; ++param_idx) {
-      // First input is the call target.
-      constexpr int kParameterStartInInputs = kFirstActualParameterIndex + 1;
+      constexpr uint32_t kFirstActualParamIndex = kContextParameterIndex + 1;
       compiler::LinkageLocation param_loc =
-          call_desc_->GetInputLocation(param_idx + kParameterStartInInputs);
+          call_desc_->GetInputLocation(param_idx + kFirstActualParamIndex);
       if (param_loc.IsRegister()) {
         DCHECK(!param_loc.IsAnyRegister());
         Register param_reg = Register::from_code(param_loc.AsRegister());
@@ -270,9 +275,10 @@ class LiftoffCompiler {
       __ cache_state()->Steal(func_block->label_state);
     }
     if (!values.is_empty()) {
-      if (values.size() > 1) unsupported(decoder, "multi-return");
+      if (values.size() > 1) return unsupported(decoder, "multi-return");
       // TODO(clemensh): Handle other types.
-      DCHECK_EQ(kWasmI32, values[0].type);
+      if (values[0].type != kWasmI32)
+        return unsupported(decoder, "non-i32 return");
       Register reg = __ PopToRegister(kWasmI32);
       __ MoveToReturnRegister(reg);
     }
@@ -350,30 +356,32 @@ class LiftoffCompiler {
 
   void GetGlobal(Decoder* decoder, Value* result,
                  const GlobalIndexOperand<validate>& operand) {
-    unsupported(decoder, "get_global");
-    /*
-    auto* global = &env_->module->globals[operand.index];
-    Address global_addr =
-        reinterpret_cast<Address>(env_->globals_start + global->offset);
-    if (global->type != kWasmI32) return unsupported(decoder, "non-i32 global");
-    Register dst = __ GetUnusedRegister(global->type);
-    __ Load(dst, global_addr, RelocInfo::WASM_GLOBAL_REFERENCE);
-    __ PushRegister(dst);
-    */
+    const auto* global = &env_->module->globals[operand.index];
+    if (global->type != kWasmI32 && global->type != kWasmI64)
+      return unsupported(decoder, "non-int global");
+    LiftoffAssembler::PinnedRegisterScope pinned;
+    Register addr = pinned.pin(__ GetUnusedRegister(kWasmPtrSizeInt));
+    __ LoadFromContext(addr, offsetof(WasmContext, globals_start),
+                       kPointerSize);
+    Register value = pinned.pin(__ GetUnusedRegister(global->type, pinned));
+    int size = 1 << ElementSizeLog2Of(global->type);
+    if (size > kPointerSize)
+      return unsupported(decoder, "global > kPointerSize");
+    __ Load(value, addr, global->offset, size, pinned);
+    __ PushRegister(value);
   }
 
   void SetGlobal(Decoder* decoder, const Value& value,
                  const GlobalIndexOperand<validate>& operand) {
-    unsupported(decoder, "set_global");
-    /*
     auto* global = &env_->module->globals[operand.index];
-    Address global_addr =
-        reinterpret_cast<Address>(env_->globals_start + global->offset);
     if (global->type != kWasmI32) return unsupported(decoder, "non-i32 global");
-    LiftoffAssembler::PinnedRegisterScope pinned_regs;
-    Register reg = pinned_regs.pin(__ PopToRegister(global->type));
-    __ Store(global_addr, reg, pinned_regs, RelocInfo::WASM_GLOBAL_REFERENCE);
-    */
+    LiftoffAssembler::PinnedRegisterScope pinned;
+    Register addr = pinned.pin(__ GetUnusedRegister(kWasmPtrSizeInt));
+    __ LoadFromContext(addr, offsetof(WasmContext, globals_start),
+                       kPointerSize);
+    Register reg = pinned.pin(__ PopToRegister(global->type, pinned));
+    int size = 1 << ElementSizeLog2Of(global->type);
+    __ Store(addr, global->offset, reg, size, pinned);
   }
 
   void Unreachable(Decoder* decoder) { unsupported(decoder, "unreachable"); }

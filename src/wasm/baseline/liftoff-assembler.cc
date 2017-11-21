@@ -358,7 +358,7 @@ Register LiftoffAssembler::PopToRegister(ValueType type,
 
 Register LiftoffAssembler::SpillRegister(ValueType type,
                                          PinnedRegisterScope pinned_regs) {
-  DCHECK_EQ(kWasmI32, type);
+  DCHECK(type == kWasmI32 || type == kWasmI64);
 
   // Spill one cached value to free a register.
   Register spill_reg = cache_state_.GetNextSpillReg(pinned_regs);
