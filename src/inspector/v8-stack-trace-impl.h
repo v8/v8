@@ -78,8 +78,7 @@ class V8StackTraceImpl : public V8StackTrace {
  private:
   V8StackTraceImpl(std::vector<std::shared_ptr<StackFrame>> frames,
                    int maxAsyncDepth,
-                   std::shared_ptr<AsyncStackTrace> asyncParent,
-                   std::shared_ptr<AsyncStackTrace> asyncCreation);
+                   std::shared_ptr<AsyncStackTrace> asyncParent);
 
   class StackFrameIterator {
    public:
@@ -98,7 +97,6 @@ class V8StackTraceImpl : public V8StackTrace {
   std::vector<std::shared_ptr<StackFrame>> m_frames;
   int m_maxAsyncDepth;
   std::weak_ptr<AsyncStackTrace> m_asyncParent;
-  std::weak_ptr<AsyncStackTrace> m_asyncCreation;
 
   DISALLOW_COPY_AND_ASSIGN(V8StackTraceImpl);
 };
@@ -111,18 +109,13 @@ class AsyncStackTrace {
                                                   int maxStackSize);
 
   std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObject(
-      AsyncStackTrace* asyncCreation, int maxAsyncDepth) const;
+      int maxAsyncDepth) const;
 
   int contextGroupId() const;
   const String16& description() const;
   std::weak_ptr<AsyncStackTrace> parent() const;
-  std::weak_ptr<AsyncStackTrace> creation() const;
   bool isEmpty() const;
 
-  void setDescription(const String16& description) {
-    // TODO(kozyatinskiy): implement it without hack.
-    m_description = description;
-  }
   const std::vector<std::shared_ptr<StackFrame>>& frames() const {
     return m_frames;
   }
@@ -130,15 +123,13 @@ class AsyncStackTrace {
  private:
   AsyncStackTrace(int contextGroupId, const String16& description,
                   std::vector<std::shared_ptr<StackFrame>> frames,
-                  std::shared_ptr<AsyncStackTrace> asyncParent,
-                  std::shared_ptr<AsyncStackTrace> asyncCreation);
+                  std::shared_ptr<AsyncStackTrace> asyncParent);
 
   int m_contextGroupId;
   String16 m_description;
 
   std::vector<std::shared_ptr<StackFrame>> m_frames;
   std::weak_ptr<AsyncStackTrace> m_asyncParent;
-  std::weak_ptr<AsyncStackTrace> m_asyncCreation;
 
   DISALLOW_COPY_AND_ASSIGN(AsyncStackTrace);
 };

@@ -32,31 +32,23 @@ std::vector<std::shared_ptr<StackFrame>> toFramesVector(
 
 void calculateAsyncChain(V8Debugger* debugger, int contextGroupId,
                          std::shared_ptr<AsyncStackTrace>* asyncParent,
-                         std::shared_ptr<AsyncStackTrace>* asyncCreation,
                          int* maxAsyncDepth) {
   *asyncParent = debugger->currentAsyncParent();
-  *asyncCreation = debugger->currentAsyncCreation();
   if (maxAsyncDepth) *maxAsyncDepth = debugger->maxAsyncCallChainDepth();
 
-  DCHECK(!*asyncParent || !*asyncCreation ||
-         (*asyncParent)->contextGroupId() ==
-             (*asyncCreation)->contextGroupId());
   // Do not accidentally append async call chain from another group. This should
   // not happen if we have proper instrumentation, but let's double-check to be
   // safe.
   if (contextGroupId && *asyncParent &&
       (*asyncParent)->contextGroupId() != contextGroupId) {
     asyncParent->reset();
-    asyncCreation->reset();
     if (maxAsyncDepth) *maxAsyncDepth = 0;
     return;
   }
 
-  // Only the top stack in the chain may be empty and doesn't contain creation
-  // stack, so ensure that second stack is non-empty (it's the top of appended
-  // chain).
-  if (*asyncParent && !(*asyncCreation) && !(*asyncParent)->creation().lock() &&
-      (*asyncParent)->isEmpty()) {
+  // Only the top stack in the chain may be empty, so ensure that second stack
+  // is non-empty (it's the top of appended chain).
+  if (*asyncParent && (*asyncParent)->isEmpty()) {
     *asyncParent = (*asyncParent)->parent().lock();
   }
 }
@@ -64,11 +56,10 @@ void calculateAsyncChain(V8Debugger* debugger, int contextGroupId,
 std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
     const std::vector<std::shared_ptr<StackFrame>>& frames,
     const String16& description,
-    const std::shared_ptr<AsyncStackTrace>& asyncParent,
-    const std::shared_ptr<AsyncStackTrace>& asyncCreation, int maxAsyncDepth) {
+    const std::shared_ptr<AsyncStackTrace>& asyncParent, int maxAsyncDepth) {
   if (asyncParent && frames.empty() &&
-      description == asyncParent->description() && !asyncCreation) {
-    return asyncParent->buildInspectorObject(nullptr, maxAsyncDepth);
+      description == asyncParent->description()) {
+    return asyncParent->buildInspectorObject(maxAsyncDepth);
   }
 
   std::unique_ptr<protocol::Array<protocol::Runtime::CallFrame>>
@@ -82,8 +73,7 @@ std::unique_ptr<protocol::Runtime::StackTrace> buildInspectorObjectCommon(
           .build();
   if (!description.isEmpty()) stackTrace->setDescription(description);
   if (asyncParent && maxAsyncDepth > 0) {
-    stackTrace->setParent(asyncParent->buildInspectorObject(asyncCreation.get(),
-                                                            maxAsyncDepth - 1));
+    stackTrace->setParent(asyncParent->buildInspectorObject(maxAsyncDepth - 1));
   }
   return stackTrace;
 }
@@ -155,12 +145,10 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::create(
 
   int maxAsyncDepth = 0;
   std::shared_ptr<AsyncStackTrace> asyncParent;
-  std::shared_ptr<AsyncStackTrace> asyncCreation;
-  calculateAsyncChain(debugger, contextGroupId, &asyncParent, &asyncCreation,
-                      &maxAsyncDepth);
-  if (frames.empty() && !asyncCreation && !asyncParent) return nullptr;
-  return std::unique_ptr<V8StackTraceImpl>(new V8StackTraceImpl(
-      std::move(frames), maxAsyncDepth, asyncParent, asyncCreation));
+  calculateAsyncChain(debugger, contextGroupId, &asyncParent, &maxAsyncDepth);
+  if (frames.empty() && !asyncParent) return nullptr;
+  return std::unique_ptr<V8StackTraceImpl>(
+      new V8StackTraceImpl(std::move(frames), maxAsyncDepth, asyncParent));
 }
 
 // static
@@ -180,19 +168,16 @@ std::unique_ptr<V8StackTraceImpl> V8StackTraceImpl::capture(
 
 V8StackTraceImpl::V8StackTraceImpl(
     std::vector<std::shared_ptr<StackFrame>> frames, int maxAsyncDepth,
-    std::shared_ptr<AsyncStackTrace> asyncParent,
-    std::shared_ptr<AsyncStackTrace> asyncCreation)
+    std::shared_ptr<AsyncStackTrace> asyncParent)
     : m_frames(std::move(frames)),
       m_maxAsyncDepth(maxAsyncDepth),
-      m_asyncParent(asyncParent),
-      m_asyncCreation(asyncCreation) {}
+      m_asyncParent(asyncParent) {}
 
 V8StackTraceImpl::~V8StackTraceImpl() {}
 
 std::unique_ptr<V8StackTrace> V8StackTraceImpl::clone() {
   return std::unique_ptr<V8StackTrace>(
-      new V8StackTraceImpl(m_frames, 0, std::shared_ptr<AsyncStackTrace>(),
-                           std::shared_ptr<AsyncStackTrace>()));
+      new V8StackTraceImpl(m_frames, 0, std::shared_ptr<AsyncStackTrace>()));
 }
 
 bool V8StackTraceImpl::isEmpty() const { return m_frames.empty(); }
@@ -220,7 +205,7 @@ StringView V8StackTraceImpl::topFunctionName() const {
 std::unique_ptr<protocol::Runtime::StackTrace>
 V8StackTraceImpl::buildInspectorObjectImpl() const {
   return buildInspectorObjectCommon(m_frames, String16(), m_asyncParent.lock(),
-                                    m_asyncCreation.lock(), m_maxAsyncDepth);
+                                    m_maxAsyncDepth);
 }
 
 std::unique_ptr<protocol::Runtime::API::StackTrace>
@@ -307,18 +292,15 @@ std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
   }
 
   std::shared_ptr<AsyncStackTrace> asyncParent;
-  std::shared_ptr<AsyncStackTrace> asyncCreation;
-  calculateAsyncChain(debugger, contextGroupId, &asyncParent, &asyncCreation,
-                      nullptr);
+  calculateAsyncChain(debugger, contextGroupId, &asyncParent, nullptr);
 
-  if (frames.empty() && !asyncCreation && !asyncParent) return nullptr;
+  if (frames.empty() && !asyncParent) return nullptr;
 
   // When async call chain is empty but doesn't contain useful schedule stack
-  // and parent async call chain contains creationg stack but doesn't
-  // synchronous we can merge them together.
-  // e.g. Promise ThenableJob.
+  // but doesn't synchronous we can merge them together. e.g. Promise
+  // ThenableJob.
   if (asyncParent && frames.empty() &&
-      asyncParent->m_description == description && !asyncCreation) {
+      asyncParent->m_description == description) {
     return asyncParent;
   }
 
@@ -326,30 +308,25 @@ std::shared_ptr<AsyncStackTrace> AsyncStackTrace::capture(
   if (!contextGroupId && asyncParent) {
     contextGroupId = asyncParent->m_contextGroupId;
   }
-  return std::shared_ptr<AsyncStackTrace>(
-      new AsyncStackTrace(contextGroupId, description, std::move(frames),
-                          asyncParent, asyncCreation));
+  return std::shared_ptr<AsyncStackTrace>(new AsyncStackTrace(
+      contextGroupId, description, std::move(frames), asyncParent));
 }
 
 AsyncStackTrace::AsyncStackTrace(
     int contextGroupId, const String16& description,
     std::vector<std::shared_ptr<StackFrame>> frames,
-    std::shared_ptr<AsyncStackTrace> asyncParent,
-    std::shared_ptr<AsyncStackTrace> asyncCreation)
+    std::shared_ptr<AsyncStackTrace> asyncParent)
     : m_contextGroupId(contextGroupId),
       m_description(description),
       m_frames(std::move(frames)),
-      m_asyncParent(asyncParent),
-      m_asyncCreation(asyncCreation) {
+      m_asyncParent(asyncParent) {
   DCHECK(m_contextGroupId);
 }
 
 std::unique_ptr<protocol::Runtime::StackTrace>
-AsyncStackTrace::buildInspectorObject(AsyncStackTrace* asyncCreation,
-                                      int maxAsyncDepth) const {
+AsyncStackTrace::buildInspectorObject(int maxAsyncDepth) const {
   return buildInspectorObjectCommon(m_frames, m_description,
-                                    m_asyncParent.lock(),
-                                    m_asyncCreation.lock(), maxAsyncDepth);
+                                    m_asyncParent.lock(), maxAsyncDepth);
 }
 
 int AsyncStackTrace::contextGroupId() const { return m_contextGroupId; }
@@ -358,10 +335,6 @@ const String16& AsyncStackTrace::description() const { return m_description; }
 
 std::weak_ptr<AsyncStackTrace> AsyncStackTrace::parent() const {
   return m_asyncParent;
-}
-
-std::weak_ptr<AsyncStackTrace> AsyncStackTrace::creation() const {
-  return m_asyncCreation;
 }
 
 bool AsyncStackTrace::isEmpty() const { return m_frames.empty(); }

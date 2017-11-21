@@ -79,7 +79,6 @@ class V8Debugger : public v8::debug::DebugDelegate {
   void setAsyncCallStackDepth(V8DebuggerAgentImpl*, int);
 
   std::shared_ptr<AsyncStackTrace> currentAsyncParent();
-  std::shared_ptr<AsyncStackTrace> currentAsyncCreation();
 
   std::shared_ptr<StackFrame> symbolize(v8::Local<v8::StackFrame> v8Frame);
 
@@ -135,7 +134,6 @@ class V8Debugger : public v8::debug::DebugDelegate {
   v8::MaybeLocal<v8::Value> generatorScopes(v8::Local<v8::Context>,
                                             v8::Local<v8::Value>);
 
-  void asyncTaskCreatedForStack(void* task, void* parentTask);
   void asyncTaskScheduledForStack(const String16& taskName, void* task,
                                   bool recurring);
   void asyncTaskCanceledForStack(void* task);
@@ -149,7 +147,7 @@ class V8Debugger : public v8::debug::DebugDelegate {
 
   // v8::debug::DebugEventListener implementation.
   void PromiseEventOccurred(v8::debug::PromiseDebugActionType type, int id,
-                            int parentId, bool createdByUser) override;
+                            bool isBlackboxed) override;
   void ScriptCompiled(v8::Local<v8::debug::Script> script, bool is_live_edited,
                       bool has_compile_error) override;
   void BreakProgramRequested(
@@ -181,16 +179,13 @@ class V8Debugger : public v8::debug::DebugDelegate {
   using AsyncTaskToStackTrace =
       protocol::HashMap<void*, std::weak_ptr<AsyncStackTrace>>;
   AsyncTaskToStackTrace m_asyncTaskStacks;
-  AsyncTaskToStackTrace m_asyncTaskCreationStacks;
   protocol::HashSet<void*> m_recurringTasks;
-  protocol::HashMap<void*, void*> m_parentTask;
 
   int m_maxAsyncCallStacks;
   int m_maxAsyncCallStackDepth;
 
   std::vector<void*> m_currentTasks;
   std::vector<std::shared_ptr<AsyncStackTrace>> m_currentAsyncParent;
-  std::vector<std::shared_ptr<AsyncStackTrace>> m_currentAsyncCreation;
 
   void collectOldAsyncStacksIfNeeded();
   int m_asyncStacksCount = 0;

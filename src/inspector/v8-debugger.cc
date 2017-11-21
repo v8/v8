@@ -526,26 +526,26 @@ bool V8Debugger::IsFunctionBlackboxed(v8::Local<v8::debug::Script> script,
 }
 
 void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
-                                      int id, int parentId,
-                                      bool createdByUser) {
+                                      int id, bool isBlackboxed) {
   // Async task events from Promises are given misaligned pointers to prevent
   // from overlapping with other Blink task identifiers.
   void* task = reinterpret_cast<void*>(id * 2 + 1);
-  void* parentTask =
-      parentId ? reinterpret_cast<void*>(parentId * 2 + 1) : nullptr;
   switch (type) {
-    case v8::debug::kDebugPromiseCreated:
-      asyncTaskCreatedForStack(task, parentTask);
-      if (createdByUser && parentTask) asyncTaskCandidateForStepping(task);
-      break;
-    case v8::debug::kDebugEnqueueAsyncFunction:
+    case v8::debug::kDebugAsyncFunctionPromiseCreated:
       asyncTaskScheduledForStack("async function", task, true);
+      if (!isBlackboxed) asyncTaskCandidateForStepping(task);
       break;
-    case v8::debug::kDebugEnqueuePromiseResolve:
-      asyncTaskScheduledForStack("Promise.resolve", task, true);
+    case v8::debug::kDebugPromiseThen:
+      asyncTaskScheduledForStack("Promise.then", task, false);
+      if (!isBlackboxed) asyncTaskCandidateForStepping(task);
       break;
-    case v8::debug::kDebugEnqueuePromiseReject:
-      asyncTaskScheduledForStack("Promise.reject", task, true);
+    case v8::debug::kDebugPromiseCatch:
+      asyncTaskScheduledForStack("Promise.catch", task, false);
+      if (!isBlackboxed) asyncTaskCandidateForStepping(task);
+      break;
+    case v8::debug::kDebugPromiseFinally:
+      asyncTaskScheduledForStack("Promise.finally", task, false);
+      if (!isBlackboxed) asyncTaskCandidateForStepping(task);
       break;
     case v8::debug::kDebugWillHandle:
       asyncTaskStartedForStack(task);
@@ -559,15 +559,7 @@ void V8Debugger::PromiseEventOccurred(v8::debug::PromiseDebugActionType type,
 }
 
 std::shared_ptr<AsyncStackTrace> V8Debugger::currentAsyncParent() {
-  // TODO(kozyatinskiy): implement creation chain as parent without hack.
-  if (!m_currentAsyncCreation.empty() && m_currentAsyncCreation.back()) {
-    return m_currentAsyncCreation.back();
-  }
   return m_currentAsyncParent.empty() ? nullptr : m_currentAsyncParent.back();
-}
-
-std::shared_ptr<AsyncStackTrace> V8Debugger::currentAsyncCreation() {
-  return nullptr;
 }
 
 v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
@@ -734,22 +726,6 @@ void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
   if (!maxAsyncCallStackDepth) allAsyncTasksCanceled();
 }
 
-void V8Debugger::asyncTaskCreatedForStack(void* task, void* parentTask) {
-  if (!m_maxAsyncCallStackDepth) return;
-  if (parentTask) m_parentTask[task] = parentTask;
-  v8::HandleScope scope(m_isolate);
-  std::shared_ptr<AsyncStackTrace> asyncCreation =
-      AsyncStackTrace::capture(this, currentContextGroupId(), String16(),
-                               V8StackTraceImpl::maxCallStackSizeToCapture);
-  // Passing one as maxStackSize forces no async chain for the new stack.
-  if (asyncCreation && !asyncCreation->isEmpty()) {
-    m_asyncTaskCreationStacks[task] = asyncCreation;
-    m_allAsyncStacks.push_back(std::move(asyncCreation));
-    ++m_asyncStacksCount;
-    collectOldAsyncStacksIfNeeded();
-  }
-}
-
 void V8Debugger::asyncTaskScheduled(const StringView& taskName, void* task,
                                     bool recurring) {
   asyncTaskScheduledForStack(toString16(taskName), task, recurring);
@@ -791,8 +767,6 @@ void V8Debugger::asyncTaskCanceledForStack(void* task) {
   if (!m_maxAsyncCallStackDepth) return;
   m_asyncTaskStacks.erase(task);
   m_recurringTasks.erase(task);
-  m_parentTask.erase(task);
-  m_asyncTaskCreationStacks.erase(task);
 }
 
 void V8Debugger::asyncTaskStartedForStack(void* task) {
@@ -805,25 +779,11 @@ void V8Debugger::asyncTaskStartedForStack(void* task) {
   //   <-- async stack requested here -->
   // - asyncTaskFinished
   m_currentTasks.push_back(task);
-  auto parentIt = m_parentTask.find(task);
-  AsyncTaskToStackTrace::iterator stackIt = m_asyncTaskStacks.find(
-      parentIt == m_parentTask.end() ? task : parentIt->second);
+  AsyncTaskToStackTrace::iterator stackIt = m_asyncTaskStacks.find(task);
   if (stackIt != m_asyncTaskStacks.end()) {
     m_currentAsyncParent.push_back(stackIt->second.lock());
   } else {
     m_currentAsyncParent.emplace_back();
-  }
-  auto itCreation = m_asyncTaskCreationStacks.find(task);
-  if (itCreation != m_asyncTaskCreationStacks.end()) {
-    m_currentAsyncCreation.push_back(itCreation->second.lock());
-    // TODO(kozyatinskiy): implement it without hack.
-    if (m_currentAsyncParent.back()) {
-      m_currentAsyncCreation.back()->setDescription(
-          m_currentAsyncParent.back()->description());
-      m_currentAsyncParent.back().reset();
-    }
-  } else {
-    m_currentAsyncCreation.emplace_back();
   }
 }
 
@@ -834,9 +794,7 @@ void V8Debugger::asyncTaskFinishedForStack(void* task) {
   DCHECK(m_currentTasks.back() == task);
   m_currentTasks.pop_back();
 
-  DCHECK(m_currentAsyncParent.size() == m_currentAsyncCreation.size());
   m_currentAsyncParent.pop_back();
-  m_currentAsyncCreation.pop_back();
 
   if (m_recurringTasks.find(task) == m_recurringTasks.end()) {
     asyncTaskCanceledForStack(task);
@@ -883,10 +841,7 @@ void V8Debugger::allAsyncTasksCanceled() {
   m_asyncTaskStacks.clear();
   m_recurringTasks.clear();
   m_currentAsyncParent.clear();
-  m_currentAsyncCreation.clear();
   m_currentTasks.clear();
-  m_parentTask.clear();
-  m_asyncTaskCreationStacks.clear();
 
   m_framesCache.clear();
   m_allAsyncStacks.clear();
@@ -937,19 +892,9 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
     --m_asyncStacksCount;
   }
   cleanupExpiredWeakPointers(m_asyncTaskStacks);
-  cleanupExpiredWeakPointers(m_asyncTaskCreationStacks);
   for (auto it = m_recurringTasks.begin(); it != m_recurringTasks.end();) {
     if (m_asyncTaskStacks.find(*it) == m_asyncTaskStacks.end()) {
       it = m_recurringTasks.erase(it);
-    } else {
-      ++it;
-    }
-  }
-  for (auto it = m_parentTask.begin(); it != m_parentTask.end();) {
-    if (m_asyncTaskCreationStacks.find(it->second) ==
-            m_asyncTaskCreationStacks.end() &&
-        m_asyncTaskStacks.find(it->second) == m_asyncTaskStacks.end()) {
-      it = m_parentTask.erase(it);
     } else {
       ++it;
     }
@@ -985,9 +930,6 @@ void V8Debugger::setMaxAsyncTaskStacksForTest(int limit) {
 void V8Debugger::dumpAsyncTaskStacksStateForTest() {
   fprintf(stdout, "Async stacks count: %d\n", m_asyncStacksCount);
   fprintf(stdout, "Scheduled async tasks: %zu\n", m_asyncTaskStacks.size());
-  fprintf(stdout, "Created async tasks: %zu\n",
-          m_asyncTaskCreationStacks.size());
-  fprintf(stdout, "Async tasks with parent: %zu\n", m_parentTask.size());
   fprintf(stdout, "Recurring async tasks: %zu\n", m_recurringTasks.size());
   fprintf(stdout, "\n");
 }

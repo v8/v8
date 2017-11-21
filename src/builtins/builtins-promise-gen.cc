@@ -821,12 +821,12 @@ void PromiseBuiltinsAssembler::InternalResolvePromise(Node* context,
 void PromiseBuiltinsAssembler::PromiseFulfill(
     Node* context, Node* promise, Node* result,
     v8::Promise::PromiseState status) {
-  Label do_promisereset(this), debug_async_event_enqueue_recurring(this);
+  Label do_promisereset(this);
 
   Node* const deferred_promise =
       LoadObjectField(promise, JSPromise::kDeferredPromiseOffset);
 
-  GotoIf(IsUndefined(deferred_promise), &debug_async_event_enqueue_recurring);
+  GotoIf(IsUndefined(deferred_promise), &do_promisereset);
 
   Node* const tasks =
       status == v8::Promise::kFulfilled
@@ -843,15 +843,7 @@ void PromiseBuiltinsAssembler::PromiseFulfill(
       context);
 
   CallRuntime(Runtime::kEnqueuePromiseReactionJob, context, info);
-  Goto(&debug_async_event_enqueue_recurring);
-
-  BIND(&debug_async_event_enqueue_recurring);
-  {
-    GotoIfNot(IsDebugActive(), &do_promisereset);
-    CallRuntime(Runtime::kDebugAsyncEventEnqueueRecurring, context, promise,
-                SmiConstant(status));
-    Goto(&do_promisereset);
-  }
+  Goto(&do_promisereset);
 
   BIND(&do_promisereset);
   {

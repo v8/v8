@@ -1284,7 +1284,6 @@ V8DebuggerAgentImpl::currentAsyncStackTrace() {
       m_debugger->currentAsyncParent();
   if (!asyncParent) return nullptr;
   return asyncParent->buildInspectorObject(
-      m_debugger->currentAsyncCreation().get(),
       m_debugger->maxAsyncCallChainDepth() - 1);
 }
 

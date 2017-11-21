@@ -1872,7 +1872,6 @@ RUNTIME_FUNCTION(Runtime_DebugAsyncFunctionPromiseCreated) {
                         handle(Smi::FromInt(id), isolate),
                         LanguageMode::kStrict)
       .Assert();
-  isolate->debug()->OnAsyncTaskEvent(debug::kDebugEnqueueAsyncFunction, id, 0);
   return isolate->heap()->undefined_value();
 }
 
@@ -1883,20 +1882,6 @@ RUNTIME_FUNCTION(Runtime_DebugPromiseReject) {
   CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
 
   isolate->debug()->OnPromiseReject(rejected_promise, value);
-  return isolate->heap()->undefined_value();
-}
-
-RUNTIME_FUNCTION(Runtime_DebugAsyncEventEnqueueRecurring) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-  CONVERT_ARG_HANDLE_CHECKED(JSPromise, promise, 0);
-  CONVERT_SMI_ARG_CHECKED(status, 1);
-  if (isolate->debug()->is_active()) {
-    isolate->debug()->OnAsyncTaskEvent(
-        status == v8::Promise::kFulfilled ? debug::kDebugEnqueuePromiseResolve
-                                          : debug::kDebugEnqueuePromiseReject,
-        isolate->debug()->NextAsyncTaskId(promise), 0);
-  }
   return isolate->heap()->undefined_value();
 }
 

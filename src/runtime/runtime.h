@@ -189,7 +189,6 @@ namespace internal {
   F(DebugPushPromise, 1, 1)                     \
   F(DebugPopPromise, 0, 1)                      \
   F(DebugPromiseReject, 2, 1)                   \
-  F(DebugAsyncEventEnqueueRecurring, 2, 1)      \
   F(DebugAsyncFunctionPromiseCreated, 1, 1)     \
   F(DebugIsActive, 0, 1)                        \
   F(DebugBreakInOptimizedCode, 0, 1)            \
