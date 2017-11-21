@@ -192,10 +192,6 @@ class V8_BASE_EXPORT OS {
   V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
                                                    MemoryPermission access);
 
-  V8_WARN_UNUSED_RESULT static bool CommitRegion(void* address, size_t size);
-
-  V8_WARN_UNUSED_RESULT static bool UncommitRegion(void* address, size_t size);
-
   // Release part of a reserved address range.
   V8_WARN_UNUSED_RESULT static bool ReleasePartialRegion(void* address,
                                                          size_t size);

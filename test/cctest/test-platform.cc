@@ -41,11 +41,13 @@ TEST(OSReserveMemory) {
   CHECK_NE(0, page_size);
   CHECK_NOT_NULL(mem_addr);
   size_t commit_size = OS::CommitPageSize();
-  CHECK(OS::CommitRegion(mem_addr, commit_size));
+  CHECK(OS::SetPermissions(mem_addr, commit_size,
+                           OS::MemoryPermission::kReadWrite));
   // Check whether we can write to memory.
   int* addr = static_cast<int*>(mem_addr);
   addr[KB - 1] = 2;
-  CHECK(OS::UncommitRegion(mem_addr, commit_size));
+  CHECK(OS::SetPermissions(mem_addr, commit_size,
+                           OS::MemoryPermission::kNoAccess));
   CHECK(OS::Free(mem_addr, kAllocationSize));
 }
 

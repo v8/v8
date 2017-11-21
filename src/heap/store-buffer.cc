@@ -56,8 +56,9 @@ void StoreBuffer::SetUp() {
     DCHECK_EQ(0, reinterpret_cast<uintptr_t>(limit_[i]) & kStoreBufferMask);
   }
 
-  if (!reservation.Commit(reinterpret_cast<Address>(start_[0]),
-                          kStoreBufferSize * kStoreBuffers)) {
+  if (!reservation.SetPermissions(reinterpret_cast<Address>(start_[0]),
+                                  kStoreBufferSize * kStoreBuffers,
+                                  base::OS::MemoryPermission::kReadWrite)) {
     V8::FatalProcessOutOfMemory("StoreBuffer::SetUp");
   }
   current_ = 0;

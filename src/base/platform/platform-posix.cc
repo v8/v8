@@ -284,37 +284,6 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 }
 
 // static
-bool OS::CommitRegion(void* address, size_t size) {
-#if !V8_OS_AIX
-  if (MAP_FAILED == mmap(address, size, PROT_READ | PROT_WRITE,
-                         MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, kMmapFd,
-                         kMmapFdOffset)) {
-    return false;
-  }
-#else
-  if (mprotect(address, size, PROT_READ | PROT_WRITE) == -1) return false;
-#endif  // !V8_OS_AIX
-  return true;
-}
-
-// static
-bool OS::UncommitRegion(void* address, size_t size) {
-#if !V8_OS_AIX
-  int map_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED;
-#if !V8_OS_FREEBSD && !V8_OS_QNX
-  map_flags |= MAP_NORESERVE;
-#endif  // !V8_OS_FREEBSD && !V8_OS_QNX
-#if V8_OS_QNX
-  map_flags |= MAP_LAZY;
-#endif  // V8_OS_QNX
-  return mmap(address, size, PROT_NONE, map_flags, kMmapFd, kMmapFdOffset) !=
-         MAP_FAILED;
-#else   // V8_OS_AIX
-  return mprotect(address, size, PROT_NONE) != -1;
-#endif  // V8_OS_AIX
-}
-
-// static
 bool OS::ReleasePartialRegion(void* address, size_t size) {
   return munmap(address, size) == 0;
 }

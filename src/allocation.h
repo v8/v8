@@ -128,14 +128,10 @@ class V8_EXPORT_PRIVATE VirtualMemory {
   // than the requested size.
   size_t size() const { return size_; }
 
-  // Commits real memory. Returns whether the operation succeeded.
-  bool Commit(void* address, size_t size);
-
-  // Uncommit real memory.  Returns whether the operation succeeded.
-  bool Uncommit(void* address, size_t size);
-
-  // Creates a single guard page at the given address.
-  bool Guard(void* address);
+  // Sets permissions according to the access argument. address and size must be
+  // multiples of CommitPageSize(). Returns true on success, otherwise false.
+  bool SetPermissions(void* address, size_t size,
+                      base::OS::MemoryPermission access);
 
   // Releases the memory after |free_start|. Returns the bytes released.
   size_t ReleasePartial(void* free_start);

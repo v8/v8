@@ -110,20 +110,6 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 }
 
 // static
-bool OS::CommitRegion(void* address, size_t size) {
-  return zx_vmar_protect(zx_vmar_root_self(),
-                         reinterpret_cast<uintptr_t>(address), size,
-                         ZX_VM_FLAG_PERM_READ | ZX_VM_FLAG_PERM_WRITE) == ZX_OK;
-}
-
-// static
-bool OS::UncommitRegion(void* address, size_t size) {
-  return zx_vmar_protect(zx_vmar_root_self(),
-                         reinterpret_cast<uintptr_t>(address), size,
-                         0 /*no permissions*/) == ZX_OK;
-}
-
-// static
 bool OS::ReleasePartialRegion(void* address, size_t size) {
   return zx_vmar_unmap(zx_vmar_root_self(),
                        reinterpret_cast<uintptr_t>(address), size) == ZX_OK;

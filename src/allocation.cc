@@ -138,21 +138,12 @@ void VirtualMemory::Reset() {
   size_ = 0;
 }
 
-bool VirtualMemory::Commit(void* address, size_t size) {
+bool VirtualMemory::SetPermissions(void* address, size_t size,
+                                   base::OS::MemoryPermission access) {
   CHECK(InVM(address, size));
-  return base::OS::CommitRegion(address, size);
-}
-
-bool VirtualMemory::Uncommit(void* address, size_t size) {
-  CHECK(InVM(address, size));
-  return base::OS::UncommitRegion(address, size);
-}
-
-bool VirtualMemory::Guard(void* address) {
-  size_t page_size = base::OS::CommitPageSize();
-  CHECK(InVM(address, page_size));
-  bool result = base::OS::SetPermissions(address, page_size,
-                                         base::OS::MemoryPermission::kNoAccess);
+  bool result = base::OS::SetPermissions(address, size, access);
+  DCHECK(result);
+  USE(result);
   return result;
 }
 

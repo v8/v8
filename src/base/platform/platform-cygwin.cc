@@ -29,10 +29,6 @@ namespace base {
 namespace {
 
 // The memory allocation implementation is taken from platform-win32.cc.
-// The mmap-based memory allocation implementation as it is used on most posix
-// platforms does not work well because Cygwin does not support MAP_FIXED.
-// This causes OS::CommitRegion to not always commit the memory region
-// specified.
 
 DWORD GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   switch (access) {
@@ -154,16 +150,6 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   }
   DWORD protect = GetProtectionFromMemoryPermission(access);
   return VirtualAlloc(address, size, MEM_COMMIT, protect) != nullptr;
-}
-
-// static
-bool OS::CommitRegion(void* address, size_t size) {
-  return VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE) != nullptr;
-}
-
-// static
-bool OS::UncommitRegion(void* address, size_t size) {
-  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
 }
 
 // static

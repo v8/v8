@@ -664,9 +664,8 @@ bool WasmCodeManager::Commit(Address start, size_t size) {
     return false;
   }
   // TODO(v8:7105) Enable W^X instead of setting W|X permissions below.
-  bool ret = base::OS::CommitRegion(start, size) &&
-             base::OS::SetPermissions(
-                 start, size, base::OS::MemoryPermission::kReadWriteExecute);
+  bool ret = base::OS::SetPermissions(
+      start, size, base::OS::MemoryPermission::kReadWriteExecute);
   if (!ret) {
     // Highly unlikely.
     remaining_uncommitted_.Increment(size);

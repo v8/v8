@@ -835,16 +835,6 @@ bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
 }
 
 // static
-bool OS::CommitRegion(void* address, size_t size) {
-  return VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE) != nullptr;
-}
-
-// static
-bool OS::UncommitRegion(void* address, size_t size) {
-  return VirtualFree(address, size, MEM_DECOMMIT) != 0;
-}
-
-// static
 bool OS::ReleasePartialRegion(void* address, size_t size) {
   return VirtualFree(address, size, MEM_DECOMMIT) != 0;
 }
