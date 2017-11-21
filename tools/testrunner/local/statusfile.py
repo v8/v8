@@ -43,18 +43,16 @@ FAST_VARIANTS = "FAST_VARIANTS"
 NO_VARIANTS = "NO_VARIANTS"
 # These are just for the status files and are mapped below in DEFS:
 FAIL_OK = "FAIL_OK"
-PASS_OR_FAIL = "PASS_OR_FAIL" # TODO(majeski): unused in status files
 FAIL_SLOPPY = "FAIL_SLOPPY"
 
 ALWAYS = "ALWAYS"
 
 KEYWORDS = {}
 for key in [SKIP, FAIL, PASS, OKAY, CRASH, SLOW, FAIL_OK,
-            FAST_VARIANTS, NO_VARIANTS, PASS_OR_FAIL, FAIL_SLOPPY, ALWAYS]:
+            FAST_VARIANTS, NO_VARIANTS, FAIL_SLOPPY, ALWAYS]:
   KEYWORDS[key] = key
 
-DEFS = {FAIL_OK: [FAIL, OKAY],
-        PASS_OR_FAIL: [PASS, FAIL]}
+DEFS = {FAIL_OK: [FAIL, OKAY]}
 
 # Support arches, modes to be written as keywords instead of strings.
 VARIABLES = {ALWAYS: True}
