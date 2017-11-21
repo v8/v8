@@ -339,6 +339,7 @@ class ShellOptions {
   bool disable_in_process_stack_traces;
   int read_from_tcp_port;
   bool enable_os_system = false;
+  bool quiet_load = false;
 };
 
 class Shell : public i::AllStatic {

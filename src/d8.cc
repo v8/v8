@@ -1425,11 +1425,11 @@ void Shell::Load(const v8::FunctionCallbackInfo<v8::Value>& args) {
       Throw(args.GetIsolate(), "Error loading file");
       return;
     }
-    if (!ExecuteString(
-            args.GetIsolate(), source,
-            String::NewFromUtf8(args.GetIsolate(), *file,
-                                NewStringType::kNormal).ToLocalChecked(),
-            false, true)) {
+    if (!ExecuteString(args.GetIsolate(), source,
+                       String::NewFromUtf8(args.GetIsolate(), *file,
+                                           NewStringType::kNormal)
+                           .ToLocalChecked(),
+                       false, !options.quiet_load)) {
       Throw(args.GetIsolate(), "Error executing file");
       return;
     }
@@ -2895,6 +2895,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #endif  // V8_OS_POSIX
     } else if (strcmp(argv[i], "--enable-os-system") == 0) {
       options.enable_os_system = true;
+      argv[i] = nullptr;
+    } else if (strcmp(argv[i], "--quiet-load") == 0) {
+      options.quiet_load = true;
       argv[i] = nullptr;
     }
   }
