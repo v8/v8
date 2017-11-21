@@ -1480,7 +1480,7 @@ RUNTIME_FUNCTION(Runtime_GetDebugContext) {
 RUNTIME_FUNCTION(Runtime_CollectGarbage) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
-  isolate->heap()->CollectAllGarbage(Heap::kNoGCFlags,
+  isolate->heap()->CollectAllGarbage(Heap::kAbortIncrementalMarkingMask,
                                      GarbageCollectionReason::kRuntime);
   return isolate->heap()->undefined_value();
 }
