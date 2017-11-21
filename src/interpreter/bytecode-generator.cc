@@ -4,6 +4,7 @@
 
 #include "src/interpreter/bytecode-generator.h"
 
+#include "src/api.h"
 #include "src/ast/ast-source-ranges.h"
 #include "src/ast/compile-time-value.h"
 #include "src/ast/scopes.h"
@@ -893,10 +894,18 @@ void BytecodeGenerator::AllocateDeferredConstants(Isolate* isolate,
   for (std::pair<NativeFunctionLiteral*, size_t> literal :
        native_function_literals_) {
     NativeFunctionLiteral* expr = literal.first;
+    v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
+
+    // Compute the function template for the native function.
+    v8::Local<v8::FunctionTemplate> info =
+        expr->extension()->GetNativeFunctionTemplate(
+            v8_isolate, Utils::ToLocal(expr->name()));
+    DCHECK(!info.IsEmpty());
+
     Handle<SharedFunctionInfo> shared_info =
-        Compiler::GetSharedFunctionInfoForNative(expr->extension(),
-                                                 expr->name());
-    if (shared_info.is_null()) return SetStackOverflow();
+        FunctionTemplateInfo::GetOrCreateSharedFunctionInfo(
+            isolate, Utils::OpenHandle(*info), expr->name());
+    DCHECK(!shared_info.is_null());
     builder()->SetDeferredConstantPoolEntry(literal.second, shared_info);
   }
 

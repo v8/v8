@@ -140,10 +140,6 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
       CompilationJob* outer_function_job,
       CompilationJobList* inner_function_jobs);
 
-  // Create a shared function info object for a native function literal.
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfoForNative(
-      v8::Extension* extension, Handle<String> name);
-
   // ===========================================================================
   // The following family of methods provides support for OSR. Code generated
   // for entry via OSR might not be suitable for normal entry, hence will be

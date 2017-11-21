@@ -1693,38 +1693,6 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfo(
   return result;
 }
 
-Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForNative(
-    v8::Extension* extension, Handle<String> name) {
-  Isolate* isolate = name->GetIsolate();
-  v8::Isolate* v8_isolate = reinterpret_cast<v8::Isolate*>(isolate);
-
-  // Compute the function template for the native function.
-  v8::Local<v8::FunctionTemplate> fun_template =
-      extension->GetNativeFunctionTemplate(v8_isolate,
-                                           v8::Utils::ToLocal(name));
-  DCHECK(!fun_template.IsEmpty());
-
-  // Instantiate the function and create a shared function info from it.
-  Handle<JSFunction> fun = Handle<JSFunction>::cast(Utils::OpenHandle(
-      *fun_template->GetFunction(v8_isolate->GetCurrentContext())
-           .ToLocalChecked()));
-  Handle<Code> code = Handle<Code>(fun->shared()->code());
-  Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
-  Handle<SharedFunctionInfo> shared = isolate->factory()->NewSharedFunctionInfo(
-      name, FunctionKind::kNormalFunction, code,
-      Handle<ScopeInfo>(fun->shared()->scope_info()));
-  shared->set_outer_scope_info(fun->shared()->outer_scope_info());
-  shared->SetConstructStub(*construct_stub);
-  shared->set_feedback_metadata(fun->shared()->feedback_metadata());
-
-  // Copy the function data to the shared function info.
-  shared->set_function_data(fun->shared()->function_data());
-  int parameters = fun->shared()->internal_formal_parameter_count();
-  shared->set_internal_formal_parameter_count(parameters);
-
-  return shared;
-}
-
 MaybeHandle<Code> Compiler::GetOptimizedCodeForOSR(Handle<JSFunction> function,
                                                    BailoutId osr_offset,
                                                    JavaScriptFrame* osr_frame) {
