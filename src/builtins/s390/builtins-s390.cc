@@ -459,7 +459,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- r2 : the value to pass to the generator
   //  -- r3 : the JSGeneratorObject to resume
-  //  -- r4 : the resume mode (tagged)
   //  -- lr : return address
   // -----------------------------------
   __ AssertGeneratorObject(r3);
@@ -469,9 +468,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
             r0);
   __ RecordWriteField(r3, JSGeneratorObject::kInputOrDebugPosOffset, r2, r5,
                       kLRHasNotBeenSaved, kDontSaveFPRegs);
-
-  // Store resume mode into generator object.
-  __ StoreP(r4, FieldMemOperand(r3, JSGeneratorObject::kResumeModeOffset));
 
   // Load suspended function and context.
   __ LoadP(r6, FieldMemOperand(r3, JSGeneratorObject::kFunctionOffset));
@@ -510,7 +506,6 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
 
   // ----------- S t a t e -------------
   //  -- r3    : the JSGeneratorObject to resume
-  //  -- r4    : the resume mode (tagged)
   //  -- r6    : generator function
   //  -- cp    : generator context
   //  -- lr    : return address
@@ -563,9 +558,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ bind(&prepare_step_in_if_stepping);
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ Push(r3, r4, r6);
+    __ Push(r3, r6);
     __ CallRuntime(Runtime::kDebugOnFunctionCall);
-    __ Pop(r3, r4);
+    __ Pop(r3);
     __ LoadP(r6, FieldMemOperand(r3, JSGeneratorObject::kFunctionOffset));
   }
   __ b(&stepping_prepared);
@@ -573,9 +568,9 @@ void Builtins::Generate_ResumeGeneratorTrampoline(MacroAssembler* masm) {
   __ bind(&prepare_step_in_suspended_generator);
   {
     FrameAndConstantPoolScope scope(masm, StackFrame::INTERNAL);
-    __ Push(r3, r4);
+    __ Push(r3);
     __ CallRuntime(Runtime::kDebugPrepareStepInSuspendedGenerator);
-    __ Pop(r3, r4);
+    __ Pop(r3);
     __ LoadP(r6, FieldMemOperand(r3, JSGeneratorObject::kFunctionOffset));
   }
   __ b(&stepping_prepared);
