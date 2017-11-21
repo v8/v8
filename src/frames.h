@@ -92,6 +92,7 @@ class StackHandler BASE_EMBEDDED {
   V(OPTIMIZED, OptimizedFrame)                                            \
   V(WASM_COMPILED, WasmCompiledFrame)                                     \
   V(WASM_TO_JS, WasmToJsFrame)                                            \
+  V(WASM_TO_WASM, WasmToWasmFrame)                                        \
   V(JS_TO_WASM, JsToWasmFrame)                                            \
   V(WASM_INTERPRETER_ENTRY, WasmInterpreterEntryFrame)                    \
   V(C_WASM_ENTRY, CWasmEntryFrame)                                        \
@@ -1022,6 +1023,17 @@ class JsToWasmFrame : public StubFrame {
 
  protected:
   inline explicit JsToWasmFrame(StackFrameIteratorBase* iterator);
+
+ private:
+  friend class StackFrameIteratorBase;
+};
+
+class WasmToWasmFrame : public StubFrame {
+ public:
+  Type type() const override { return WASM_TO_WASM; }
+
+ protected:
+  inline explicit WasmToWasmFrame(StackFrameIteratorBase* iterator);
 
  private:
   friend class StackFrameIteratorBase;

@@ -686,6 +686,7 @@ Handle<Code> WasmExportedFunction::GetWasmCode() {
   auto IsWasmFunctionCode = [](Code* code) {
     return code->kind() == Code::WASM_FUNCTION ||
            code->kind() == Code::WASM_TO_JS_FUNCTION ||
+           code->kind() == Code::WASM_TO_WASM_FUNCTION ||
            code->kind() == Code::WASM_INTERPRETER_ENTRY ||
            code->builtin_index() == Builtins::kWasmCompileLazy;
   };

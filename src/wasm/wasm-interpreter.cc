@@ -2404,7 +2404,8 @@ class ThreadImpl {
     DCHECK(AllowHandleAllocation::IsAllowed());
     DCHECK(AllowHeapAllocation::IsAllowed());
 
-    if (code->kind() == Code::WASM_FUNCTION) {
+    if (code->kind() == Code::WASM_FUNCTION ||
+        code->kind() == Code::WASM_TO_WASM_FUNCTION) {
       FixedArray* deopt_data = code->deoptimization_data();
       DCHECK_EQ(2, deopt_data->length());
       WasmInstanceObject* target_instance =

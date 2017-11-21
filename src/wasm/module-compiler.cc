@@ -246,6 +246,7 @@ class JSToWasmWrapperCache {
             Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
         if (target->kind() == Code::WASM_FUNCTION ||
             target->kind() == Code::WASM_TO_JS_FUNCTION ||
+            target->kind() == Code::WASM_TO_WASM_FUNCTION ||
             target->builtin_index() == Builtins::kIllegal ||
             target->builtin_index() == Builtins::kWasmCompileLazy) {
           it.rinfo()->set_target_address(isolate,
@@ -1251,6 +1252,7 @@ Handle<Code> EnsureExportedLazyDeoptData(Isolate* isolate,
     // instantiation time).
     DCHECK(code->kind() == Code::WASM_FUNCTION ||
            code->kind() == Code::WASM_TO_JS_FUNCTION ||
+           code->kind() == Code::WASM_TO_WASM_FUNCTION ||
            code->builtin_index() == Builtins::kIllegal);
     return code;
   }
@@ -1656,6 +1658,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
         Handle<Code> orig_code(Code::cast(code_table->get(i)), isolate_);
         switch (orig_code->kind()) {
           case Code::WASM_TO_JS_FUNCTION:
+          case Code::WASM_TO_WASM_FUNCTION:
             // Imports will be overwritten with newly compiled wrappers.
             break;
           case Code::BUILTIN:

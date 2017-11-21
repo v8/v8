@@ -152,6 +152,8 @@ StackFrame::Type CompilationInfo::GetOutputStackFrameType() const {
       return StackFrame::WASM_COMPILED;
     case Code::JS_TO_WASM_FUNCTION:
       return StackFrame::JS_TO_WASM;
+    case Code::WASM_TO_WASM_FUNCTION:
+      return StackFrame::WASM_TO_WASM;
     case Code::WASM_TO_JS_FUNCTION:
       return StackFrame::WASM_TO_JS;
     case Code::WASM_INTERPRETER_ENTRY:

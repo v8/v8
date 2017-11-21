@@ -118,6 +118,7 @@ class Code : public HeapObject {
   V(REGEXP)                 \
   V(WASM_FUNCTION)          \
   V(WASM_TO_JS_FUNCTION)    \
+  V(WASM_TO_WASM_FUNCTION)  \
   V(JS_TO_WASM_FUNCTION)    \
   V(WASM_INTERPRETER_ENTRY) \
   V(C_WASM_ENTRY)

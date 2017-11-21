@@ -281,6 +281,7 @@ void WasmCompiledModuleSerializer::SerializeCodeObject(
     }
     case Code::WASM_INTERPRETER_ENTRY:
     case Code::WASM_TO_JS_FUNCTION:
+    case Code::WASM_TO_WASM_FUNCTION:
       // Serialize the illegal builtin instead. On instantiation of a
       // deserialized module, these will be replaced again.
       SerializeBuiltinReference(*BUILTIN_CODE(isolate(), Illegal), how_to_code,

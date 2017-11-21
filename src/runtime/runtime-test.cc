@@ -513,8 +513,8 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
   Handle<Code> imported_fct;
   CHECK(type->value() == 0 || type->value() == 1);
 
-  Code::Kind target_kind =
-      type->value() == 0 ? Code::WASM_FUNCTION : Code::WASM_TO_JS_FUNCTION;
+  Code::Kind target_kind = type->value() == 0 ? Code::WASM_TO_WASM_FUNCTION
+                                              : Code::WASM_TO_JS_FUNCTION;
   count = 0;
   for (RelocIterator it(*intermediate_fct, mask); !it.done(); it.next()) {
     RelocInfo* rinfo = it.rinfo();

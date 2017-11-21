@@ -1554,6 +1554,10 @@ void Logger::LogCodeObject(Object* object) {
       description = "A JavaScript to Wasm adapter";
       tag = CodeEventListener::STUB_TAG;
       break;
+    case AbstractCode::WASM_TO_WASM_FUNCTION:
+      description = "A cross-instance Wasm adapter";
+      tag = CodeEventListener::STUB_TAG;
+      break;
     case AbstractCode::WASM_TO_JS_FUNCTION:
       description = "A Wasm to JavaScript adapter";
       tag = CodeEventListener::STUB_TAG;

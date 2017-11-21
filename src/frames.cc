@@ -789,6 +789,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
       case CONSTRUCT:
       case JS_TO_WASM:
       case WASM_TO_JS:
+      case WASM_TO_WASM:
       case WASM_COMPILED:
       case WASM_INTERPRETER_ENTRY:
       case C_WASM_ENTRY:

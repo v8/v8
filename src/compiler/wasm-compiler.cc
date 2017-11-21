@@ -4492,7 +4492,7 @@ Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, Handle<Code> target,
     func_name = Vector<const char>::cast(buffer.SubVector(0, chars));
   }
 
-  CompilationInfo info(func_name, &zone, Code::WASM_FUNCTION);
+  CompilationInfo info(func_name, &zone, Code::WASM_TO_WASM_FUNCTION);
   Handle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, isolate, incoming, &graph);
 #ifdef ENABLE_DISASSEMBLER
