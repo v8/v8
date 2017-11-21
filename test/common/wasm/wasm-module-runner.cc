@@ -89,9 +89,18 @@ bool InterpretWasmModuleForTesting(Isolate* isolate,
   WasmInterpreter::HeapObjectsScope heap_objects_scope(interpreter, instance);
   WasmInterpreter::Thread* thread = interpreter->GetThread(0);
   thread->Reset();
+
+  // Start an activation so that we can deal with stack overflows. We do not
+  // finish the activation. An activation is just part of the state of the
+  // interpreter, and we do not reuse the interpreter anyways. In addition,
+  // finishing the activation is not correct in all cases, e.g. when the
+  // execution of the interpreter did not finish after kMaxNumSteps.
+  thread->StartActivation();
   thread->InitFrame(&instance->module()->functions[function_index],
                     arguments.get());
   WasmInterpreter::State interpreter_result = thread->Run(kMaxNumSteps);
+
+  isolate->clear_pending_exception();
 
   return interpreter_result != WasmInterpreter::PAUSED;
 }
@@ -150,20 +159,30 @@ int32_t InterpretWasmModule(Isolate* isolate,
   WasmInterpreter::HeapObjectsScope heap_objects_scope(interpreter, instance);
   WasmInterpreter::Thread* thread = interpreter->GetThread(0);
   thread->Reset();
+
+  // Start an activation so that we can deal with stack overflows. We do not
+  // finish the activation. An activation is just part of the state of the
+  // interpreter, and we do not reuse the interpreter anyways. In addition,
+  // finishing the activation is not correct in all cases, e.g. when the
+  // execution of the interpreter did not finish after kMaxNumSteps.
+  thread->StartActivation();
   thread->InitFrame(&(instance->module()->functions[function_index]), args);
   WasmInterpreter::State interpreter_result = thread->Run(kMaxNumSteps);
 
+  bool stack_overflow = isolate->has_pending_exception();
+  isolate->clear_pending_exception();
+
   *possible_nondeterminism = thread->PossibleNondeterminism();
-  if (interpreter_result == WasmInterpreter::FINISHED) {
-    WasmValue val = thread->GetReturnValue();
-    return val.to<int32_t>();
-  } else if (thread->state() == WasmInterpreter::TRAPPED) {
-    return 0xdeadbeef;
-  } else {
-    thrower->RangeError(
-        "Interpreter did not finish execution within its step bound");
-    return -1;
-  }
+  if (stack_overflow) return 0xdeadbeef;
+
+  if (thread->state() == WasmInterpreter::TRAPPED) return 0xdeadbeef;
+
+  if (interpreter_result == WasmInterpreter::FINISHED)
+    return thread->GetReturnValue().to<int32_t>();
+
+  thrower->RangeError(
+      "Interpreter did not finish execution within its step bound");
+  return -1;
 }
 
 MaybeHandle<WasmExportedFunction> GetExportedFunction(
