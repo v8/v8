@@ -1166,15 +1166,25 @@ class FastArraySliceCodeStubAssembler : public CodeStubAssembler {
     BuildFastLoop(
         var_list, from_mapped, to,
         [this, result_elements, arguments_context, sloppy_elements,
-         &index_out](Node* current) {
+         unmapped_elements, &index_out](Node* current) {
           Node* context_index = LoadFixedArrayElement(
               sloppy_elements, current,
               kPointerSize * SloppyArgumentsElements::kParameterMapStart,
               SMI_PARAMETERS);
-          Node* argument =
+          Label is_the_hole(this), done(this);
+          GotoIf(IsTheHole(context_index), &is_the_hole);
+          Node* mapped_argument =
               LoadContextElement(arguments_context, SmiUntag(context_index));
+          StoreFixedArrayElement(result_elements, index_out.value(),
+                                 mapped_argument, SKIP_WRITE_BARRIER);
+          Goto(&done);
+          BIND(&is_the_hole);
+          Node* argument = LoadFixedArrayElement(unmapped_elements, current, 0,
+                                                 SMI_PARAMETERS);
           StoreFixedArrayElement(result_elements, index_out.value(), argument,
                                  SKIP_WRITE_BARRIER);
+          Goto(&done);
+          BIND(&done);
           index_out.Bind(IntPtrAdd(index_out.value(), IntPtrConstant(1)));
         },
         1, SMI_PARAMETERS, IndexAdvanceMode::kPost);
