@@ -2457,7 +2457,7 @@ MaybeLocal<Function> ScriptCompiler::CompileFunctionInContext(
     Local<Object> context_extensions[]) {
   PREPARE_FOR_EXECUTION(v8_context, ScriptCompiler, CompileFunctionInContext,
                         Function);
-  TRACE_EVENT0("v8", "V8.ScriptCompiler");
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
   i::Handle<i::String> source_string;
   auto factory = isolate->factory();
   if (arguments_count) {
@@ -2582,7 +2582,7 @@ MaybeLocal<Script> ScriptCompiler::Compile(Local<Context> context,
                                            Local<String> full_source_string,
                                            const ScriptOrigin& origin) {
   PREPARE_FOR_EXECUTION(context, ScriptCompiler, Compile, Script);
-  TRACE_EVENT0("v8", "V8.ScriptCompiler");
+  TRACE_EVENT_CALL_STATS_SCOPED(isolate, "v8", "V8.ScriptCompiler");
   i::StreamedSource* source = v8_source->impl();
   i::Handle<i::String> str = Utils::OpenHandle(*(full_source_string));
   i::Handle<i::Script> script = isolate->factory()->NewScript(str);
