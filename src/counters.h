@@ -789,6 +789,9 @@ class RuntimeCallTimer final {
   V(CompileBackgroundEval)                     \
   V(CompileBackgroundIgnition)                 \
   V(CompileBackgroundScript)                   \
+  V(CompileBackgroundRenumber)                 \
+  V(CompileBackgroundRewriteReturnResult)      \
+  V(CompileBackgroundScopeAnalysis)            \
   V(CompileDeserialize)                        \
   V(CompileEval)                               \
   V(CompileAnalyse)                            \
@@ -835,6 +838,7 @@ class RuntimeCallTimer final {
   V(ParseArrowFunctionLiteral)                 \
   V(ParseBackgroundArrowFunctionLiteral)       \
   V(ParseBackgroundFunctionLiteral)            \
+  V(ParseBackgroundProgram)                    \
   V(ParseEval)                                 \
   V(ParseFunction)                             \
   V(ParseFunctionLiteral)                      \

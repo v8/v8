@@ -3486,6 +3486,8 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
 }
 
 void Parser::ParseOnBackground(ParseInfo* info) {
+  RuntimeCallTimerScope runtimeTimer(runtime_call_stats_,
+                                     &RuntimeCallStats::ParseBackgroundProgram);
   parsing_on_main_thread_ = false;
   if (!info->script().is_null()) {
     set_script_id(info->script()->id());

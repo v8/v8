@@ -182,13 +182,12 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::ExecuteJobImpl() {
       parse_info()->on_background_thread()
           ? &RuntimeCallStats::CompileBackgroundIgnition
           : &RuntimeCallStats::CompileIgnition);
+  // TODO(lpy): add support for background compilation RCS trace.
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
   // Print AST if flag is enabled. Note, if compiling on a background thread
   // then ASTs from different functions may be intersperse when printed.
   MaybePrintAst(parse_info(), compilation_info());
-
-  // TODO(lpy): add support for background compilation RCS trace.
-  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileIgnition");
 
   generator()->GenerateBytecode(stack_limit());
 
@@ -203,6 +202,8 @@ InterpreterCompilationJob::Status InterpreterCompilationJob::FinalizeJobImpl(
   RuntimeCallTimerScope runtimeTimerScope(
       parse_info()->runtime_call_stats(),
       &RuntimeCallStats::CompileIgnitionFinalization);
+  TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+               "V8.CompileIgnitionFinalization");
 
   Handle<BytecodeArray> bytecodes =
       generator()->FinalizeBytecode(isolate, parse_info()->script());

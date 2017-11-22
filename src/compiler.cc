@@ -372,8 +372,11 @@ CompilationJob::Status FinalizeUnoptimizedCompilationJob(CompilationJob* job,
 
 bool Renumber(ParseInfo* parse_info,
               Compiler::EagerInnerFunctionLiterals* eager_literals) {
-  RuntimeCallTimerScope runtimeTimer(parse_info->runtime_call_stats(),
-                                     &RuntimeCallStats::CompileRenumber);
+  RuntimeCallTimerScope runtimeTimer(
+      parse_info->runtime_call_stats(),
+      parse_info->on_background_thread()
+          ? &RuntimeCallStats::CompileBackgroundRenumber
+          : &RuntimeCallStats::CompileRenumber);
   return AstNumbering::Renumber(parse_info->stack_limit(), parse_info->zone(),
                                 parse_info->literal(), eager_literals);
 }

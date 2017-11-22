@@ -646,8 +646,11 @@ void DeclarationScope::AttachOuterScopeInfo(ParseInfo* info, Isolate* isolate) {
 }
 
 void DeclarationScope::Analyze(ParseInfo* info) {
-  RuntimeCallTimerScope runtimeTimer(info->runtime_call_stats(),
-                                     &RuntimeCallStats::CompileScopeAnalysis);
+  RuntimeCallTimerScope runtimeTimer(
+      info->runtime_call_stats(),
+      info->on_background_thread()
+          ? &RuntimeCallStats::CompileBackgroundScopeAnalysis
+          : &RuntimeCallStats::CompileScopeAnalysis);
   DCHECK_NOT_NULL(info->literal());
   DeclarationScope* scope = info->literal()->scope();
 
