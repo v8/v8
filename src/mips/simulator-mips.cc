@@ -968,7 +968,10 @@ class Redirection {
                           ExternalReference::Type type) {
     Redirection* current = isolate->simulator_redirection();
     for (; current != nullptr; current = current->next_) {
-      if (current->external_function_ == external_function) return current;
+      if (current->external_function_ == external_function &&
+          current->type_ == type) {
+        return current;
+      }
     }
     return new Redirection(isolate, external_function, type);
   }

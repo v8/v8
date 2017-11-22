@@ -323,6 +323,14 @@ Object* Deserializer<AllocatorT>::ReadDataSingle() {
   return o;
 }
 
+static void NoExternalReferencesCallback() {
+  // The following check will trigger if a function or object template
+  // with references to native functions have been deserialized from
+  // snapshot, but no actual external references were provided when the
+  // isolate was created.
+  CHECK_WITH_MSG(false, "No external references provided via API");
+}
+
 template <class AllocatorT>
 bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
                                         int source_space,
@@ -534,10 +542,16 @@ bool Deserializer<AllocatorT>::ReadData(Object** current, Object** limit,
         current = reinterpret_cast<Object**>(
             reinterpret_cast<Address>(current) + skip);
         uint32_t reference_id = static_cast<uint32_t>(source_.GetInt());
-        DCHECK_WITH_MSG(reference_id < num_api_references_,
-                        "too few external references provided through the API");
-        Address address = reinterpret_cast<Address>(
-            isolate->api_external_references()[reference_id]);
+        Address address;
+        if (isolate->api_external_references()) {
+          DCHECK_WITH_MSG(
+              reference_id < num_api_references_,
+              "too few external references provided through the API");
+          address = reinterpret_cast<Address>(
+              isolate->api_external_references()[reference_id]);
+        } else {
+          address = reinterpret_cast<Address>(NoExternalReferencesCallback);
+        }
         memcpy(current, &address, kPointerSize);
         current++;
         break;

@@ -2364,6 +2364,114 @@ TEST(SnapshotCreatorShortExternalReferences) {
   delete[] blob.data;
 }
 
+v8::StartupData CreateSnapshotWithDefaultAndCustom() {
+  v8::SnapshotCreator creator(original_external_references);
+  v8::Isolate* isolate = creator.GetIsolate();
+  {
+    v8::HandleScope handle_scope(isolate);
+    {
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      CompileRun("function f() { return 41; }");
+      creator.SetDefaultContext(context);
+      ExpectInt32("f()", 41);
+    }
+    {
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      v8::Local<v8::FunctionTemplate> function_template =
+          v8::FunctionTemplate::New(isolate, SerializedCallback);
+      v8::Local<v8::Value> function =
+          function_template->GetFunction(context).ToLocalChecked();
+      CHECK(context->Global()->Set(context, v8_str("f"), function).FromJust());
+      v8::Local<v8::ObjectTemplate> object_template =
+          v8::ObjectTemplate::New(isolate);
+      object_template->SetAccessor(v8_str("x"), AccessorForSerialization);
+      v8::Local<v8::Object> object =
+          object_template->NewInstance(context).ToLocalChecked();
+      CHECK(context->Global()->Set(context, v8_str("o"), object).FromJust());
+      ExpectInt32("f()", 42);
+      ExpectInt32("o.x", 2017);
+      creator.AddContext(context);
+    }
+  }
+  return creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+}
+
+TEST(SnapshotCreatorNoExternalReferencesDefault) {
+  DisableAlwaysOpt();
+  v8::StartupData blob = CreateSnapshotWithDefaultAndCustom();
+
+  // Deserialize with an incomplete list of external references.
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    params.external_references = nullptr;
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("f()", 41);
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+}
+
+TEST(SnapshotCreatorNoExternalReferencesCustomFail1) {
+  DisableAlwaysOpt();
+  v8::StartupData blob = CreateSnapshotWithDefaultAndCustom();
+
+  // Deserialize with an incomplete list of external references.
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    params.external_references = nullptr;
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("f()", 42);
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+}
+
+TEST(SnapshotCreatorNoExternalReferencesCustomFail2) {
+  DisableAlwaysOpt();
+  v8::StartupData blob = CreateSnapshotWithDefaultAndCustom();
+
+  // Deserialize with an incomplete list of external references.
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    params.external_references = nullptr;
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestIsolate::New(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+      v8::Local<v8::Context> context =
+          v8::Context::FromSnapshot(isolate, 0).ToLocalChecked();
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("o.x", 2017);
+    }
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+}
+
 TEST(SnapshotCreatorUnknownExternalReferences) {
   DisableAlwaysOpt();
   v8::SnapshotCreator creator;
