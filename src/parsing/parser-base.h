@@ -4624,7 +4624,7 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseTemplateLiteral(
   //
   // When parsing a TemplateLiteral, we must have scanned either an initial
   // TEMPLATE_SPAN, or a TEMPLATE_TAIL.
-  CHECK(peek() == Token::TEMPLATE_SPAN || peek() == Token::TEMPLATE_TAIL);
+  DCHECK(peek() == Token::TEMPLATE_SPAN || peek() == Token::TEMPLATE_TAIL);
 
   bool forbid_illegal_escapes = !allow_harmony_template_escapes() || !tagged;
 
@@ -5832,7 +5832,7 @@ ParserBase<Impl>::ParseForEachStatementWithoutDeclarations(
     ForInfo* for_info, ZoneList<const AstRawString*>* labels, bool* ok) {
   // Initializer is reference followed by in/of.
   if (!expression->IsArrayLiteral() && !expression->IsObjectLiteral()) {
-    expression = impl()->CheckAndRewriteReferenceExpression(
+    expression = CheckAndRewriteReferenceExpression(
         expression, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
         kSyntaxError, CHECK_OK);
   }
@@ -6033,7 +6033,7 @@ typename ParserBase<Impl>::StatementT ParserBase<Impl>::ParseForAwaitStatement(
       ValidateAssignmentPattern(CHECK_OK);
     } else {
       impl()->RewriteNonPattern(CHECK_OK);
-      each_variable = impl()->CheckAndRewriteReferenceExpression(
+      each_variable = CheckAndRewriteReferenceExpression(
           lhs, lhs_beg_pos, lhs_end_pos, MessageTemplate::kInvalidLhsInFor,
           kSyntaxError, CHECK_OK);
     }

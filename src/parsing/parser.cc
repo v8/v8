@@ -2590,8 +2590,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
 
   const bool is_lazy =
       eager_compile_hint == FunctionLiteral::kShouldLazyCompile;
-  const bool is_top_level =
-      impl()->AllowsLazyParsingWithoutUnresolvedVariables();
+  const bool is_top_level = AllowsLazyParsingWithoutUnresolvedVariables();
   const bool is_lazy_top_level_function = is_lazy && is_top_level;
   const bool is_lazy_inner_function = is_lazy && !is_top_level;
   const bool is_expression =
