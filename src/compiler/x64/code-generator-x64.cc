@@ -3265,7 +3265,6 @@ void CodeGenerator::AssembleMove(InstructionOperand* source,
           if (RelocInfo::IsWasmPtrReference(src.rmode())) {
             __ movq(dst, src.ToInt64(), src.rmode());
           } else {
-            // TODO(dcarney): don't need scratch in this case.
             int32_t value = src.ToInt32();
             if (RelocInfo::IsWasmSizeReference(src.rmode())) {
               __ movl(dst, Immediate(value, src.rmode()));
