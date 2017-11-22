@@ -6,6 +6,7 @@
 
 #include "src/assembler-inl.h"
 #include "src/interpreter/interpreter.h"
+#include "src/objects/code.h"
 #include "src/objects/map.h"
 #include "src/snapshot/builtin-serializer-allocator.h"
 #include "src/snapshot/natives.h"
@@ -826,7 +827,22 @@ void Serializer<AllocatorT>::ObjectSerializer::OutputRawData(Address up_to) {
     // Check that we do not serialize uninitialized memory.
     __msan_check_mem_is_initialized(object_start + base, bytes_to_output);
 #endif  // MEMORY_SANITIZER
-    sink_->PutRaw(object_start + base, bytes_to_output, "Bytes");
+    if (object_->IsBytecodeArray()) {
+      // The code age byte can be changed concurrently by GC.
+      const int bytes_to_age_byte = BytecodeArray::kBytecodeAgeOffset - base;
+      if (0 <= bytes_to_age_byte && bytes_to_age_byte < bytes_to_output) {
+        sink_->PutRaw(object_start + base, bytes_to_age_byte, "Bytes");
+        byte bytecode_age = BytecodeArray::kNoAgeBytecodeAge;
+        sink_->PutRaw(&bytecode_age, 1, "Bytes");
+        const int bytes_written = bytes_to_age_byte + 1;
+        sink_->PutRaw(object_start + base + bytes_written,
+                      bytes_to_output - bytes_written, "Bytes");
+      } else {
+        sink_->PutRaw(object_start + base, bytes_to_output, "Bytes");
+      }
+    } else {
+      sink_->PutRaw(object_start + base, bytes_to_output, "Bytes");
+    }
   }
 }
 
