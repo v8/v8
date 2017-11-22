@@ -99,7 +99,7 @@ bytecodes: [
                 B(TestEqual), R(2), U8(3),
                 B(JumpIfFalse), U8(54),
   /*   17 E> */ B(StackCheck),
-  /*   48 S> */ B(LdaLookupGlobalSlot), U8(2), U8(4), U8(1),
+  /*   48 S> */ B(LdaLookupGlobalSlot), U8(2), U8(4), U8(3),
                 B(Star), R(7),
                 B(LdaConstant), U8(3),
                 B(Star), R(8),

@@ -2370,7 +2370,7 @@ void BytecodeGenerator::BuildVariableLoad(Variable* variable,
         }
         case DYNAMIC_GLOBAL: {
           int depth =
-              closure_scope()->ContextChainLengthUntilOutermostSloppyEval();
+              current_scope()->ContextChainLengthUntilOutermostSloppyEval();
           FeedbackSlot slot = GetCachedLoadGlobalICSlot(typeof_mode, variable);
           builder()->LoadLookupGlobalSlot(variable->raw_name(), typeof_mode,
                                           feedback_index(slot), depth);

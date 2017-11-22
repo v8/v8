@@ -208,7 +208,7 @@ bytecodes: [
                 B(StaCurrentContextSlot), U8(4),
                 B(Ldar), R(4),
                 B(StaCurrentContextSlot), U8(4),
-  /*   41 S> */ B(LdaLookupGlobalSlot), U8(6), U8(12), U8(1),
+  /*   41 S> */ B(LdaLookupGlobalSlot), U8(6), U8(12), U8(3),
                 B(Star), R(15),
                 B(LdaConstant), U8(7),
                 B(Star), R(16),
