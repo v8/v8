@@ -151,6 +151,7 @@ const int kMinUInt32 = 0;
 const int kUInt8Size = sizeof(uint8_t);
 const int kCharSize = sizeof(char);
 const int kShortSize = sizeof(short);  // NOLINT
+const int kUInt16Size = sizeof(uint16_t);
 const int kIntSize = sizeof(int);
 const int kInt32Size = sizeof(int32_t);
 const int kInt64Size = sizeof(int64_t);

@@ -554,12 +554,11 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(MODULE_INFO_ENTRY, ModuleInfoEntry, module_info_entry)                   \
   V(ASYNC_GENERATOR_REQUEST, AsyncGeneratorRequest, async_generator_request)
 
-// We use the full 8 bits of the instance_type field to encode heap object
-// instance types.  The high-order bit (bit 7) is set if the object is not a
-// string, and cleared if it is a string.
-const uint32_t kIsNotStringMask = 0x80;
+// We use the full 16 bits of the instance_type field to encode heap object
+// instance types. All the high-order bits (bit 7-15) are cleared if the object
+// is a string, and contain set bits if it is not a string.
+const uint32_t kIsNotStringMask = 0xff80;
 const uint32_t kStringTag = 0x0;
-const uint32_t kNotStringTag = 0x80;
 
 // Bit 6 indicates that the object is an internalized string (if set) or not.
 // Bit 7 has to be clear as well.
@@ -619,7 +618,7 @@ static inline bool IsShortcutCandidate(int type) {
   return ((type & kShortcutTypeMask) == kShortcutTypeTag);
 }
 
-enum InstanceType : uint8_t {
+enum InstanceType : uint16_t {
   // String types.
   INTERNALIZED_STRING_TYPE = kTwoByteStringTag | kSeqStringTag |
                              kInternalizedTag,  // FIRST_PRIMITIVE_TYPE
@@ -670,7 +669,10 @@ enum InstanceType : uint8_t {
       kOneByteStringTag | kThinStringTag | kNotInternalizedTag,
 
   // Non-string names
-  SYMBOL_TYPE = kNotStringTag,  // FIRST_NONSTRING_TYPE, LAST_NAME_TYPE
+  SYMBOL_TYPE =
+      1 + (kIsNotInternalizedMask | kShortExternalStringMask |
+           kOneByteDataHintMask | kStringEncodingMask |
+           kStringRepresentationMask),  // FIRST_NONSTRING_TYPE, LAST_NAME_TYPE
 
   // Other primitives (cannot contain non-map-word pointers to heap objects).
   HEAP_NUMBER_TYPE,
@@ -839,6 +841,7 @@ enum InstanceType : uint8_t {
   LAST_MAP_ITERATOR_TYPE = JS_MAP_VALUE_ITERATOR_TYPE,
 };
 
+STATIC_ASSERT((FIRST_NONSTRING_TYPE & kIsNotStringMask) != kStringTag);
 STATIC_ASSERT(JS_OBJECT_TYPE == Internals::kJSObjectType);
 STATIC_ASSERT(JS_API_OBJECT_TYPE == Internals::kJSApiObjectType);
 STATIC_ASSERT(JS_SPECIAL_API_OBJECT_TYPE == Internals::kJSSpecialApiObjectType);

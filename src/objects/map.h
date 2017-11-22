@@ -105,10 +105,7 @@ typedef std::vector<Handle<Map>> MapHandles;
 // +----+----------+---------------------------------------------+
 // | Int           | The second int field                        |
 //  `---+----------+---------------------------------------------+
-//      | Byte     | [instance_type]                             |
-//      +----------+---------------------------------------------+
-//      | Byte     | Free byte, soon will be used as a second    |
-//      |          | byte of [instance_type].                    |
+//      | Short    | [instance_type]                             |
 //      +----------+---------------------------------------------+
 //      | Byte     | [bit_field]                                 |
 //      |          |   - has_non_instance_prototype (bit 0)      |
@@ -730,9 +727,7 @@ class Map : public HeapObject {
   V(kInObjectPropertiesStartOrConstructorFunctionIndexOffset, kUInt8Size)   \
   V(kUsedOrUnusedInstanceSizeInWordsOffset, kUInt8Size)                     \
   V(kVisitorIdOffset, kUInt8Size)                                           \
-  V(kInstanceTypeOffset, kUInt8Size)                                        \
-  /* TODO(ishell): Extend kInstanceTypeOffset field to two bytes. */        \
-  V(kSoonToBeInstanceTypeTooOffset, kUInt8Size)                             \
+  V(kInstanceTypeOffset, kUInt16Size)                                       \
   V(kBitFieldOffset, kUInt8Size)                                            \
   V(kBitField2Offset, kUInt8Size)                                           \
   V(kBitField3Offset, kUInt32Size)                                          \

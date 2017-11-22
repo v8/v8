@@ -1962,8 +1962,7 @@ void MacroAssembler::CmpObjectType(Register heap_object,
 
 
 void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
-  cmpb(FieldOperand(map, Map::kInstanceTypeOffset),
-       Immediate(static_cast<int8_t>(type)));
+  cmpw(FieldOperand(map, Map::kInstanceTypeOffset), Immediate(type));
 }
 
 void TurboAssembler::SlowTruncateToIDelayed(Zone* zone, Register result_reg) {

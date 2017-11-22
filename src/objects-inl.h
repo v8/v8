@@ -3132,12 +3132,13 @@ int HeapObject::SizeFromMap(Map* map) const {
 }
 
 InstanceType Map::instance_type() const {
-  return static_cast<InstanceType>(READ_BYTE_FIELD(this, kInstanceTypeOffset));
+  return static_cast<InstanceType>(
+      READ_UINT16_FIELD(this, kInstanceTypeOffset));
 }
 
 
 void Map::set_instance_type(InstanceType value) {
-  WRITE_BYTE_FIELD(this, kInstanceTypeOffset, value);
+  WRITE_UINT16_FIELD(this, kInstanceTypeOffset, value);
 }
 
 int Map::UnusedPropertyFields() const {

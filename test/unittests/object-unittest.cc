@@ -15,6 +15,42 @@
 namespace v8 {
 namespace internal {
 
+namespace {
+
+bool IsInStringInstanceTypeList(InstanceType instance_type) {
+  switch (instance_type) {
+#define TEST_INSTANCE_TYPE(type, ...) \
+  case InstanceType::type:            \
+    STATIC_ASSERT(InstanceType::type < InstanceType::FIRST_NONSTRING_TYPE);
+
+    STRING_TYPE_LIST(TEST_INSTANCE_TYPE)
+#undef TEST_INSTANCE_TYPE
+    return true;
+    default:
+      EXPECT_LE(InstanceType::FIRST_NONSTRING_TYPE, instance_type);
+      return false;
+  }
+}
+
+void CheckOneInstanceType(InstanceType instance_type) {
+  if (IsInStringInstanceTypeList(instance_type)) {
+    EXPECT_TRUE((instance_type & kIsNotStringMask) == kStringTag)
+        << "Failing IsString mask check for " << instance_type;
+  } else {
+    EXPECT_FALSE((instance_type & kIsNotStringMask) == kStringTag)
+        << "Failing !IsString mask check for " << instance_type;
+  }
+}
+
+}  // namespace
+
+TEST(Object, InstanceTypeList) {
+#define TEST_INSTANCE_TYPE(type) CheckOneInstanceType(InstanceType::type);
+
+  INSTANCE_TYPE_LIST(TEST_INSTANCE_TYPE)
+#undef TEST_INSTANCE_TYPE
+}
+
 TEST(Object, InstanceTypeListOrder) {
   int current = 0;
   int last = -1;

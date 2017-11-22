@@ -2398,7 +2398,6 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
   map->set_map_after_allocation(reinterpret_cast<Map*>(root(kMetaMapRootIndex)),
                                 SKIP_WRITE_BARRIER);
   map->set_instance_type(instance_type);
-  WRITE_BYTE_FIELD(map, Map::kSoonToBeInstanceTypeTooOffset, 0);
   map->set_instance_size(instance_size);
   // Initialize to only containing tagged fields.
   if (FLAG_unbox_double_fields) {
@@ -2440,7 +2439,6 @@ AllocationResult Heap::AllocateMap(InstanceType instance_type,
   map->set_prototype(null_value(), SKIP_WRITE_BARRIER);
   map->set_constructor_or_backpointer(null_value(), SKIP_WRITE_BARRIER);
   map->set_instance_size(instance_size);
-  WRITE_BYTE_FIELD(map, Map::kSoonToBeInstanceTypeTooOffset, 0);
   if (map->IsJSObjectMap()) {
     map->SetInObjectPropertiesStartInWords(instance_size / kPointerSize -
                                            inobject_properties);

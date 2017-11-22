@@ -1330,7 +1330,7 @@ TNode<Uint32T> CodeStubAssembler::LoadMapBitField3(SloppyTNode<Map> map) {
 
 TNode<Int32T> CodeStubAssembler::LoadMapInstanceType(SloppyTNode<Map> map) {
   return UncheckedCast<Int32T>(
-      LoadObjectField(map, Map::kInstanceTypeOffset, MachineType::Uint8()));
+      LoadObjectField(map, Map::kInstanceTypeOffset, MachineType::Uint16()));
 }
 
 TNode<Int32T> CodeStubAssembler::LoadMapElementsKind(SloppyTNode<Map> map) {

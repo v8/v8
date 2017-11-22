@@ -550,7 +550,7 @@ FieldAccess AccessBuilder::ForMapDescriptors() {
 FieldAccess AccessBuilder::ForMapInstanceType() {
   FieldAccess access = {
       kTaggedBase,        Map::kInstanceTypeOffset, Handle<Name>(),
-      MaybeHandle<Map>(), TypeCache::Get().kUint8,  MachineType::Uint8(),
+      MaybeHandle<Map>(), TypeCache::Get().kUint16, MachineType::Uint16(),
       kNoWriteBarrier};
   return access;
 }
