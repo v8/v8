@@ -8118,35 +8118,6 @@ class V8_EXPORT V8 {
       void VisitExternalResources(ExternalResourceVisitor* visitor));
 
   /**
-   * Iterates through all the persistent handles in the current isolate's heap
-   * that have class_ids.
-   */
-  V8_INLINE static V8_DEPRECATED(
-      "Use isolate version",
-      void VisitHandlesWithClassIds(PersistentHandleVisitor* visitor));
-
-  /**
-   * Iterates through all the persistent handles in isolate's heap that have
-   * class_ids.
-   */
-  V8_INLINE static V8_DEPRECATED(
-      "Use isolate version",
-      void VisitHandlesWithClassIds(Isolate* isolate,
-                                    PersistentHandleVisitor* visitor));
-
-  /**
-   * Iterates through all the persistent handles in the current isolate's heap
-   * that have class_ids and are candidates to be marked as partially dependent
-   * handles. This will visit handles to young objects created since the last
-   * garbage collection but is free to visit an arbitrary superset of these
-   * objects.
-   */
-  V8_INLINE static V8_DEPRECATED(
-      "Use isolate version",
-      void VisitHandlesForPartialDependence(Isolate* isolate,
-                                            PersistentHandleVisitor* visitor));
-
-  /**
    * Initialize the ICU library bundled with V8. The embedder should only
    * invoke this method when using the bundled ICU. Returns true on success.
    *
@@ -10467,24 +10438,6 @@ void V8::CancelTerminateExecution(Isolate* isolate) {
 void V8::VisitExternalResources(ExternalResourceVisitor* visitor) {
   Isolate* isolate = Isolate::GetCurrent();
   isolate->VisitExternalResources(visitor);
-}
-
-
-void V8::VisitHandlesWithClassIds(PersistentHandleVisitor* visitor) {
-  Isolate* isolate = Isolate::GetCurrent();
-  isolate->VisitHandlesWithClassIds(visitor);
-}
-
-
-void V8::VisitHandlesWithClassIds(Isolate* isolate,
-                                  PersistentHandleVisitor* visitor) {
-  isolate->VisitHandlesWithClassIds(visitor);
-}
-
-
-void V8::VisitHandlesForPartialDependence(Isolate* isolate,
-                                          PersistentHandleVisitor* visitor) {
-  isolate->VisitHandlesForPartialDependence(visitor);
 }
 
 /**
