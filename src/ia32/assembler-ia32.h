@@ -1759,7 +1759,7 @@ class Assembler : public AssemblerBase {
                               LeadingOpcode m, VexW w);
 
   // labels
-  void print(Label* L);
+  void print(const Label* L);
   void bind_to(Label* L, int pos);
 
   // displacements

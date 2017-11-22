@@ -1515,14 +1515,14 @@ void Assembler::ud2() {
 // to be generated; pos() is the position of the 32bit
 // Displacement of the last instruction using the label.
 
-
-void Assembler::print(Label* L) {
+void Assembler::print(const Label* L) {
   if (L->is_unused()) {
     PrintF("unused label\n");
   } else if (L->is_bound()) {
     PrintF("bound label to %d\n", L->pos());
   } else if (L->is_linked()) {
-    Label l = *L;
+    Label l;
+    l.link_to(L->pos());
     PrintF("unbound label");
     while (l.is_linked()) {
       Displacement disp = disp_at(&l);

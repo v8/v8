@@ -1714,7 +1714,7 @@ class Assembler : public AssemblerBase {
   void AddrMode5(Instr instr, CRegister crd, const MemOperand& x);
 
   // Labels
-  void print(Label* L);
+  void print(const Label* L);
   void bind_to(Label* L, int pos);
   void next(Label* L);
 

@@ -2113,7 +2113,7 @@ class Assembler : public AssemblerBase {
   }
 
   // Labels.
-  void print(Label* L);
+  void print(const Label* L);
   void bind_to(Label* L, int pos);
   void next(Label* L, bool is_internal);
 
