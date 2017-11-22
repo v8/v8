@@ -380,6 +380,10 @@
 
   # Stack overflow on windows.
   'es8/regress/regress-624300': [PASS, ['system == windows', SKIP]],
+
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7102
+  # Flaky due to huge string allocation.
+  'regress/regress-748069': [SKIP],
 }],  # 'asan == True'
 
 ##############################################################################
@@ -403,6 +407,9 @@
   'compiler/osr-two': [PASS, SLOW],
   'wasm/grow-memory': [PASS, SLOW],
 
+  # https://bugs.chromium.org/p/v8/issues/detail?id=7102
+  # Flaky due to huge string allocation.
+  'regress/regress-748069': [SKIP],
   # Slow test.
   'regress/regress-779407': [PASS, SLOW],
 }],  # 'msan == True'
