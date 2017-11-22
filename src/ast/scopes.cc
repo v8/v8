@@ -2235,8 +2235,10 @@ void DeclarationScope::AllocateLocals() {
   // allocated in the context, it must be the last slot in the context,
   // because of the current ScopeInfo implementation (see
   // ScopeInfo::ScopeInfo(FunctionScope* scope) constructor).
-  if (function_ != nullptr) {
+  if (function_ != nullptr && MustAllocate(function_)) {
     AllocateNonParameterLocal(function_);
+  } else {
+    function_ = nullptr;
   }
 
   DCHECK(!has_rest_ || !MustAllocate(rest_parameter()) ||

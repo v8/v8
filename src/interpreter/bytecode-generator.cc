@@ -1016,7 +1016,9 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   Variable* rest_parameter = closure_scope()->rest_parameter();
   VisitRestArgumentsArray(rest_parameter);
 
-  // Build assignment to {.this_function} variable if it is used.
+  // Build assignment to the function name or {.this_function}
+  // variables if used.
+  VisitThisFunctionVariable(closure_scope()->function_var());
   VisitThisFunctionVariable(closure_scope()->this_function_var());
 
   // Build assignment to {new.target} variable if it is used.

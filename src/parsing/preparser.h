@@ -1073,27 +1073,24 @@ class PreParser : public ParserBase<PreParser> {
       int pos, FunctionKind kind, PreParserStatementList body, bool* ok) {
     ParseStatementList(body, Token::RBRACE, ok);
   }
-  V8_INLINE void CreateFunctionNameAssignment(
+  V8_INLINE void DeclareFunctionNameVar(
       const AstRawString* function_name,
       FunctionLiteral::FunctionType function_type,
       DeclarationScope* function_scope) {
     if (track_unresolved_variables_ &&
-        function_type == FunctionLiteral::kNamedExpression) {
-      if (function_scope->LookupLocal(function_name) == nullptr) {
-        DCHECK_EQ(function_scope, scope());
-        Variable* fvar = function_scope->DeclareFunctionVar(function_name);
-        fvar->set_is_used();
-      }
+        function_type == FunctionLiteral::kNamedExpression &&
+        function_scope->LookupLocal(function_name) == nullptr) {
+      DCHECK_EQ(function_scope, scope());
+      function_scope->DeclareFunctionVar(function_name);
     }
   }
 
-  V8_INLINE void CreateFunctionNameAssignment(
-      const PreParserIdentifier& function_name, int pos,
+  V8_INLINE void DeclareFunctionNameVar(
+      const PreParserIdentifier& function_name,
       FunctionLiteral::FunctionType function_type,
-      DeclarationScope* function_scope, PreParserStatementList result,
-      int index) {
-    CreateFunctionNameAssignment(function_name.string_, function_type,
-                                 function_scope);
+      DeclarationScope* function_scope) {
+    DeclareFunctionNameVar(function_name.string_, function_type,
+                           function_scope);
   }
 
   V8_INLINE PreParserExpression RewriteDoExpression(PreParserStatement body,

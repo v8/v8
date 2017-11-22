@@ -762,10 +762,7 @@ class V8_EXPORT_PRIVATE DeclarationScope : public Scope {
 
   // The variable holding the function literal for named function
   // literals, or nullptr.  Only valid for function scopes.
-  Variable* function_var() const {
-    DCHECK(is_function_scope());
-    return function_;
-  }
+  Variable* function_var() const { return function_; }
 
   Variable* generator_object_var() const {
     DCHECK(is_function_scope() || is_module_scope());

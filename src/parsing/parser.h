@@ -346,10 +346,9 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   void ParseAndRewriteAsyncGeneratorFunctionBody(int pos, FunctionKind kind,
                                                  ZoneList<Statement*>* body,
                                                  bool* ok);
-  void CreateFunctionNameAssignment(const AstRawString* function_name, int pos,
-                                    FunctionLiteral::FunctionType function_type,
-                                    DeclarationScope* function_scope,
-                                    ZoneList<Statement*>* result, int index);
+  void DeclareFunctionNameVar(const AstRawString* function_name,
+                              FunctionLiteral::FunctionType function_type,
+                              DeclarationScope* function_scope);
 
   Statement* DeclareFunction(const AstRawString* variable_name,
                              FunctionLiteral* function, VariableMode mode,
