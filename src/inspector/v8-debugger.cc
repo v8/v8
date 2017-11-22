@@ -562,6 +562,11 @@ std::shared_ptr<AsyncStackTrace> V8Debugger::currentAsyncParent() {
   return m_currentAsyncParent.empty() ? nullptr : m_currentAsyncParent.back();
 }
 
+V8StackTraceId V8Debugger::currentExternalParent() {
+  return m_currentExternalParent.empty() ? V8StackTraceId()
+                                         : m_currentExternalParent.back();
+}
+
 v8::MaybeLocal<v8::Value> V8Debugger::getTargetScopes(
     v8::Local<v8::Context> context, v8::Local<v8::Value> value,
     ScopeTargetKind kind) {
@@ -726,6 +731,51 @@ void V8Debugger::setAsyncCallStackDepth(V8DebuggerAgentImpl* agent, int depth) {
   if (!maxAsyncCallStackDepth) allAsyncTasksCanceled();
 }
 
+std::shared_ptr<AsyncStackTrace> V8Debugger::stackTraceFor(
+    int contextGroupId, const V8StackTraceId& id) {
+  if (debuggerIdFor(contextGroupId) != id.debugger_id) return nullptr;
+  auto it = m_storedStackTraces.find(id.id);
+  if (it == m_storedStackTraces.end()) return nullptr;
+  return it->second.lock();
+}
+
+V8StackTraceId V8Debugger::storeCurrentStackTrace(
+    const StringView& description) {
+  if (!m_maxAsyncCallStackDepth) return V8StackTraceId();
+
+  v8::HandleScope scope(m_isolate);
+  int contextGroupId = currentContextGroupId();
+  if (!contextGroupId) return V8StackTraceId();
+
+  std::shared_ptr<AsyncStackTrace> asyncStack =
+      AsyncStackTrace::capture(this, contextGroupId, toString16(description),
+                               V8StackTraceImpl::maxCallStackSizeToCapture);
+  if (!asyncStack) return V8StackTraceId();
+
+  uintptr_t id = ++m_lastStackTraceId;
+  m_storedStackTraces[id] = asyncStack;
+  m_allAsyncStacks.push_back(std::move(asyncStack));
+  ++m_asyncStacksCount;
+  collectOldAsyncStacksIfNeeded();
+
+  return V8StackTraceId(id, debuggerIdFor(contextGroupId));
+}
+
+void V8Debugger::externalAsyncTaskStarted(const V8StackTraceId& parent) {
+  if (!m_maxAsyncCallStackDepth || parent.IsInvalid()) return;
+  m_currentExternalParent.push_back(parent);
+  m_currentAsyncParent.emplace_back();
+  m_currentTasks.push_back(reinterpret_cast<void*>(parent.id));
+}
+
+void V8Debugger::externalAsyncTaskFinished(const V8StackTraceId& parent) {
+  if (!m_maxAsyncCallStackDepth || m_currentExternalParent.empty()) return;
+  m_currentExternalParent.pop_back();
+  m_currentAsyncParent.pop_back();
+  DCHECK(m_currentTasks.back() == reinterpret_cast<void*>(parent.id));
+  m_currentTasks.pop_back();
+}
+
 void V8Debugger::asyncTaskScheduled(const StringView& taskName, void* task,
                                     bool recurring) {
   asyncTaskScheduledForStack(toString16(taskName), task, recurring);
@@ -785,6 +835,7 @@ void V8Debugger::asyncTaskStartedForStack(void* task) {
   } else {
     m_currentAsyncParent.emplace_back();
   }
+  m_currentExternalParent.emplace_back();
 }
 
 void V8Debugger::asyncTaskFinishedForStack(void* task) {
@@ -795,6 +846,7 @@ void V8Debugger::asyncTaskFinishedForStack(void* task) {
   m_currentTasks.pop_back();
 
   m_currentAsyncParent.pop_back();
+  m_currentExternalParent.pop_back();
 
   if (m_recurringTasks.find(task) == m_recurringTasks.end()) {
     asyncTaskCanceledForStack(task);
@@ -841,6 +893,7 @@ void V8Debugger::allAsyncTasksCanceled() {
   m_asyncTaskStacks.clear();
   m_recurringTasks.clear();
   m_currentAsyncParent.clear();
+  m_currentExternalParent.clear();
   m_currentTasks.clear();
 
   m_framesCache.clear();
@@ -892,6 +945,7 @@ void V8Debugger::collectOldAsyncStacksIfNeeded() {
     --m_asyncStacksCount;
   }
   cleanupExpiredWeakPointers(m_asyncTaskStacks);
+  cleanupExpiredWeakPointers(m_storedStackTraces);
   for (auto it = m_recurringTasks.begin(); it != m_recurringTasks.end();) {
     if (m_asyncTaskStacks.find(*it) == m_asyncTaskStacks.end()) {
       it = m_recurringTasks.erase(it);
@@ -925,6 +979,26 @@ void V8Debugger::setMaxAsyncTaskStacksForTest(int limit) {
   m_maxAsyncCallStacks = 0;
   collectOldAsyncStacksIfNeeded();
   m_maxAsyncCallStacks = limit;
+}
+
+std::pair<int64_t, int64_t> V8Debugger::debuggerIdFor(int contextGroupId) {
+  auto it = m_contextGroupIdToDebuggerId.find(contextGroupId);
+  if (it != m_contextGroupIdToDebuggerId.end()) return it->second;
+  std::pair<int64_t, int64_t> debuggerId(
+      v8::debug::GetNextRandomInt64(m_isolate),
+      v8::debug::GetNextRandomInt64(m_isolate));
+  m_contextGroupIdToDebuggerId.insert(
+      it, std::make_pair(contextGroupId, debuggerId));
+  m_serializedDebuggerIdToDebuggerId.insert(
+      std::make_pair(debuggerIdToString(debuggerId), debuggerId));
+  return debuggerId;
+}
+
+std::pair<int64_t, int64_t> V8Debugger::debuggerIdFor(
+    const String16& serializedDebuggerId) {
+  auto it = m_serializedDebuggerIdToDebuggerId.find(serializedDebuggerId);
+  if (it != m_serializedDebuggerIdToDebuggerId.end()) return it->second;
+  return std::make_pair(0, 0);
 }
 
 void V8Debugger::dumpAsyncTaskStacksStateForTest() {

@@ -19,6 +19,7 @@ namespace v8_inspector {
 class AsyncStackTrace;
 class V8Debugger;
 class WasmTranslation;
+struct V8StackTraceId;
 
 class StackFrame {
  public:
@@ -78,7 +79,8 @@ class V8StackTraceImpl : public V8StackTrace {
  private:
   V8StackTraceImpl(std::vector<std::shared_ptr<StackFrame>> frames,
                    int maxAsyncDepth,
-                   std::shared_ptr<AsyncStackTrace> asyncParent);
+                   std::shared_ptr<AsyncStackTrace> asyncParent,
+                   const V8StackTraceId& externalParent);
 
   class StackFrameIterator {
    public:
@@ -97,6 +99,7 @@ class V8StackTraceImpl : public V8StackTrace {
   std::vector<std::shared_ptr<StackFrame>> m_frames;
   int m_maxAsyncDepth;
   std::weak_ptr<AsyncStackTrace> m_asyncParent;
+  V8StackTraceId m_externalParent;
 
   DISALLOW_COPY_AND_ASSIGN(V8StackTraceImpl);
 };
@@ -123,13 +126,15 @@ class AsyncStackTrace {
  private:
   AsyncStackTrace(int contextGroupId, const String16& description,
                   std::vector<std::shared_ptr<StackFrame>> frames,
-                  std::shared_ptr<AsyncStackTrace> asyncParent);
+                  std::shared_ptr<AsyncStackTrace> asyncParent,
+                  const V8StackTraceId& externalParent);
 
   int m_contextGroupId;
   String16 m_description;
 
   std::vector<std::shared_ptr<StackFrame>> m_frames;
   std::weak_ptr<AsyncStackTrace> m_asyncParent;
+  V8StackTraceId m_externalParent;
 
   DISALLOW_COPY_AND_ASSIGN(AsyncStackTrace);
 };
