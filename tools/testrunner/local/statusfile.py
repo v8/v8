@@ -35,15 +35,15 @@ from utils import Freeze
 SKIP = "SKIP"
 FAIL = "FAIL"
 PASS = "PASS"
-OKAY = "OKAY"
-TIMEOUT = "TIMEOUT"
-CRASH = "CRASH"
+OKAY = "OKAY" # TODO(majeski): unused in status files
+TIMEOUT = "TIMEOUT" # TODO(majeski): unused in status files
+CRASH = "CRASH" # TODO(majeski): unused in status files
 SLOW = "SLOW"
 FAST_VARIANTS = "FAST_VARIANTS"
 NO_VARIANTS = "NO_VARIANTS"
 # These are just for the status files and are mapped below in DEFS:
 FAIL_OK = "FAIL_OK"
-PASS_OR_FAIL = "PASS_OR_FAIL"
+PASS_OR_FAIL = "PASS_OR_FAIL" # TODO(majeski): unused in status files
 FAIL_SLOPPY = "FAIL_SLOPPY"
 
 ALWAYS = "ALWAYS"
@@ -96,7 +96,6 @@ def IsFailOk(outcomes):
 
 
 def _AddOutcome(result, new):
-  global DEFS
   if new in DEFS:
     mapped = DEFS[new]
     if type(mapped) == list:
@@ -121,6 +120,10 @@ def _JoinsPassAndFail(outcomes1, outcomes2):
 VARIANT_EXPRESSION = object()
 
 def _EvalExpression(exp, variables):
+  """Evaluates expression and returns its result. In case of NameError caused by
+  undefined "variant" identifier returns VARIANT_EXPRESSION marker.
+  """
+
   try:
     return eval(exp, variables)
   except NameError as e:
@@ -129,24 +132,26 @@ def _EvalExpression(exp, variables):
     return VARIANT_EXPRESSION
 
 
-def _EvalVariantExpression(section, rules, prefix_rules, variant, variables):
-  variables_with_variant = {}
-  variables_with_variant.update(variables)
+def _EvalVariantExpression(
+  condition, section, variables, variant, rules, prefix_rules):
+  variables_with_variant = dict(variables)
   variables_with_variant["variant"] = variant
-  result = _EvalExpression(section[0], variables_with_variant)
+  result = _EvalExpression(condition, variables_with_variant)
   assert result != VARIANT_EXPRESSION
   if result is True:
     _ReadSection(
-        section[1],
+        section,
+        variables_with_variant,
         rules[variant],
         prefix_rules[variant],
-        variables_with_variant,
     )
   else:
     assert result is False, "Make sure expressions evaluate to boolean values"
 
 
-def _ParseOutcomeList(rule, outcomes, target_dict, variables):
+def _ParseOutcomeList(rule, outcomes, variables, target_dict):
+  """Outcome list format: [condition, outcome, outcome, ...]"""
+
   result = set([])
   if type(outcomes) == str:
     outcomes = [outcomes]
@@ -154,7 +159,8 @@ def _ParseOutcomeList(rule, outcomes, target_dict, variables):
     if type(item) == str:
       _AddOutcome(result, item)
     elif type(item) == list:
-      exp = _EvalExpression(item[0], variables)
+      condition = item[0]
+      exp = _EvalExpression(condition, variables)
       assert exp != VARIANT_EXPRESSION, (
         "Nested variant expressions are not supported")
       if exp is False:
@@ -169,7 +175,8 @@ def _ParseOutcomeList(rule, outcomes, target_dict, variables):
         _AddOutcome(result, outcome)
     else:
       assert False
-  if len(result) == 0: return
+  if len(result) == 0:
+    return
   if rule in target_dict:
     # A FAIL without PASS in one rule has always precedence over a single
     # PASS (without FAIL) in another. Otherwise the default PASS expectation
@@ -186,11 +193,18 @@ def _ParseOutcomeList(rule, outcomes, target_dict, variables):
 
 
 def ReadContent(content):
-  global KEYWORDS
   return eval(content, KEYWORDS)
 
 
 def ReadStatusFile(content, variables):
+  """Status file format
+  Status file := [section]
+  section = [CONDITION, section_rules]
+  section_rules := {path: outcomes}
+  outcomes := outcome | [outcome, ...]
+  outcome := SINGLE_OUTCOME | [CONDITION, SINGLE_OUTCOME, SINGLE_OUTCOME, ...]
+  """
+
   # Empty defaults for rules and prefix_rules. Variant-independent
   # rules are mapped by "", others by the variant name.
   rules = {variant: {} for variant in ALL_VARIANTS}
@@ -199,33 +213,43 @@ def ReadStatusFile(content, variables):
   prefix_rules[""] = {}
 
   variables.update(VARIABLES)
-  for section in ReadContent(content):
-    assert type(section) == list
-    assert len(section) == 2
-    exp = _EvalExpression(section[0], variables)
+  for conditional_section in ReadContent(content):
+    assert type(conditional_section) == list
+    assert len(conditional_section) == 2
+    condition, section = conditional_section
+    exp = _EvalExpression(condition, variables)
+
+    # The expression is variant-independent and evaluates to False.
     if exp is False:
-      # The expression is variant-independent and evaluates to False.
       continue
-    elif exp == VARIANT_EXPRESSION:
+
+    # The expression is variant-independent and evaluates to True.
+    if exp is True:
+      _ReadSection(
+          section,
+          variables,
+          rules[''],
+          prefix_rules[''],
+      )
+      continue
+
+    # The expression is variant-dependent (contains "variant" keyword)
+    if exp == VARIANT_EXPRESSION:
       # If the expression contains one or more "variant" keywords, we evaluate
       # it for all possible variants and create rules for those that apply.
       for variant in ALL_VARIANTS:
-        _EvalVariantExpression(section, rules, prefix_rules, variant, variables)
-    else:
-      # The expression is variant-independent and evaluates to True.
-      assert exp is True, "Make sure expressions evaluate to boolean values"
-      _ReadSection(
-          section[1],
-          rules[""],
-          prefix_rules[""],
-          variables,
-      )
+        _EvalVariantExpression(
+            condition, section, variables, variant, rules, prefix_rules)
+      continue
+
+    assert False, "Make sure expressions evaluate to boolean values"
+
   return Freeze(rules), Freeze(prefix_rules)
 
 
-def _ReadSection(section, rules, prefix_rules, variables):
+def _ReadSection(section, variables, rules, prefix_rules):
   assert type(section) == dict
-  for rule in section:
+  for rule, outcome_list in section.iteritems():
     assert type(rule) == str
 
     # Wildcards are allowed only as the last character.
@@ -233,9 +257,9 @@ def _ReadSection(section, rules, prefix_rules, variables):
     assert wildcards_count == 0 or (wildcards_count == 1 and rule[-1] == '*')
 
     if rule[-1] == '*':
-      _ParseOutcomeList(rule[:-1], section[rule], prefix_rules, variables)
+      _ParseOutcomeList(rule[:-1], outcome_list, variables, prefix_rules)
     else:
-      _ParseOutcomeList(rule, section[rule], rules, variables)
+      _ParseOutcomeList(rule, outcome_list, variables, rules)
 
 JS_TEST_PATHS = {
   'debugger': [[]],
