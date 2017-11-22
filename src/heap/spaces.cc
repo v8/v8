@@ -1066,8 +1066,7 @@ template <MemoryAllocator::AllocationMode alloc_mode, typename SpaceType>
 Page* MemoryAllocator::AllocatePage(size_t size, SpaceType* owner,
                                     Executability executable) {
   MemoryChunk* chunk = nullptr;
-  // Code space does not support pooled allocation.
-  if (alloc_mode == kPooled && owner->identity() != CODE_SPACE) {
+  if (alloc_mode == kPooled) {
     DCHECK_EQ(size, static_cast<size_t>(MemoryChunk::kAllocatableMemory));
     DCHECK_EQ(executable, NOT_EXECUTABLE);
     chunk = AllocatePagePooled(owner);
@@ -1081,9 +1080,6 @@ Page* MemoryAllocator::AllocatePage(size_t size, SpaceType* owner,
 
 template Page*
 MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, PagedSpace>(
-    size_t size, PagedSpace* owner, Executability executable);
-template Page*
-MemoryAllocator::AllocatePage<MemoryAllocator::kPooled, PagedSpace>(
     size_t size, PagedSpace* owner, Executability executable);
 template Page*
 MemoryAllocator::AllocatePage<MemoryAllocator::kRegular, SemiSpace>(
@@ -1617,8 +1613,7 @@ bool PagedSpace::Expand() {
   if (!heap()->CanExpandOldGeneration(size)) return false;
 
   Page* page =
-      heap()->memory_allocator()->AllocatePage<MemoryAllocator::kPooled>(
-          size, this, executable());
+      heap()->memory_allocator()->AllocatePage(size, this, executable());
   if (page == nullptr) return false;
   // Pages created during bootstrapping may contain immortal immovable objects.
   if (!heap()->deserialization_complete()) page->MarkNeverEvacuate();

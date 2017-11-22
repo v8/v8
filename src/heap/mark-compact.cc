@@ -4549,6 +4549,7 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
   space->ClearStats();
 
   int will_be_swept = 0;
+  bool unused_page_present = false;
 
   // Loop needs to support deletion if live bytes == 0 for a page.
   for (auto it = space->begin(); it != space->end();) {
@@ -4558,7 +4559,10 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
     if (p->IsEvacuationCandidate()) {
       // Will be processed in Evacuate.
       DCHECK(!evacuation_candidates_.empty());
-    } else if (p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
+      continue;
+    }
+
+    if (p->IsFlagSet(Page::NEVER_ALLOCATE_ON_PAGE)) {
       // We need to sweep the page to get it into an iterable state again. Note
       // that this adds unusable memory into the free list that is later on
       // (in the free list) dropped again. Since we only use the flag for
@@ -4569,19 +4573,25 @@ void MarkCompactCollector::StartSweepSpace(PagedSpace* space) {
                              ? FreeSpaceTreatmentMode::ZAP_FREE_SPACE
                              : FreeSpaceTreatmentMode::IGNORE_FREE_SPACE);
       space->IncreaseAllocatedBytes(p->allocated_bytes(), p);
-    } else if (non_atomic_marking_state()->live_bytes(p) == 0) {
-      // Release empty pages
-      if (FLAG_gc_verbose) {
-        PrintIsolate(isolate(), "sweeping: released page: %p",
-                     static_cast<void*>(p));
-      }
-      ArrayBufferTracker::FreeAll(p);
-      space->ReleasePage(p);
-    } else {
-      // Add non-empty pages to the sweeper.
-      sweeper().AddPage(space->identity(), p, Sweeper::REGULAR);
-      will_be_swept++;
+      continue;
     }
+
+    // One unused page is kept, all further are released before sweeping them.
+    if (non_atomic_marking_state()->live_bytes(p) == 0) {
+      if (unused_page_present) {
+        if (FLAG_gc_verbose) {
+          PrintIsolate(isolate(), "sweeping: released page: %p",
+                       static_cast<void*>(p));
+        }
+        ArrayBufferTracker::FreeAll(p);
+        space->ReleasePage(p);
+        continue;
+      }
+      unused_page_present = true;
+    }
+
+    sweeper().AddPage(space->identity(), p, Sweeper::REGULAR);
+    will_be_swept++;
   }
 
   if (FLAG_gc_verbose) {

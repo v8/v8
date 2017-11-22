@@ -1203,17 +1203,19 @@ class V8_EXPORT_PRIVATE MemoryAllocator {
 
     MemoryChunk* TryGetPooledMemoryChunkSafe() {
       // Procedure:
-      // (1) Try to steal any memory chunk of kPageSize that would've been
-      // unmapped.
-      // (2) Try to get a chunk that was declared as pooled and already has
+      // (1) Try to get a chunk that was declared as pooled and already has
       // been uncommitted.
-      MemoryChunk* chunk = GetMemoryChunkSafe<kRegular>();
-      if (chunk != nullptr) {
-        // For stolen chunks we need to manually free any allocated memory.
-        chunk->ReleaseAllocatedMemory();
-        return chunk;
+      // (2) Try to steal any memory chunk of kPageSize that would've been
+      // unmapped.
+      MemoryChunk* chunk = GetMemoryChunkSafe<kPooled>();
+      if (chunk == nullptr) {
+        chunk = GetMemoryChunkSafe<kRegular>();
+        if (chunk != nullptr) {
+          // For stolen chunks we need to manually free any allocated memory.
+          chunk->ReleaseAllocatedMemory();
+        }
       }
-      return GetMemoryChunkSafe<kPooled>();
+      return chunk;
     }
 
     void FreeQueuedChunks();
