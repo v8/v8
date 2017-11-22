@@ -250,10 +250,6 @@ def _ReadSection(section, variables, rules, prefix_rules):
   for rule, outcome_list in section.iteritems():
     assert type(rule) == str
 
-    # Wildcards are allowed only as the last character.
-    wildcards_count = rule.count('*')
-    assert wildcards_count == 0 or (wildcards_count == 1 and rule[-1] == '*')
-
     if rule[-1] == '*':
       _ParseOutcomeList(rule[:-1], outcome_list, variables, prefix_rules)
     else:
@@ -293,6 +289,8 @@ def PresubmitCheck(path):
                 "Suite name prefix must not be used in rule keys")
         _assert(not rule.endswith('.js'),
                 ".js extension must not be used in rule keys.")
+        _assert('*' not in rule or (rule.count('*') == 1 and rule[-1] == '*'),
+                "Only the last character of a rule key can be a wildcard")
         if basename in JS_TEST_PATHS  and '*' not in rule:
           _assert(any(os.path.exists(os.path.join(os.path.dirname(path),
                                                   *(paths + [rule + ".js"])))

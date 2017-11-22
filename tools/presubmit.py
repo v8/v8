@@ -508,11 +508,30 @@ class StatusFilesProcessor(SourceFileProcessor):
     return True
 
   def GetPathsToSearch(self):
-    return ['test']
+    return ['test', 'tools/testrunner']
 
   def ProcessFiles(self, files):
+    success = True
+    for status_file_path in sorted(self._GetStatusFiles(files)):
+      success &= statusfile.PresubmitCheck(status_file_path)
+      success &= _CheckStatusFileForDuplicateKeys(status_file_path)
+    return success
+
+  def _GetStatusFiles(self, files):
     test_path = join(dirname(TOOLS_PATH), 'test')
-    status_files = set([])
+    testrunner_path = join(TOOLS_PATH, 'testrunner')
+    status_files = set()
+
+    for file_path in files:
+      if file_path.startswith(testrunner_path):
+        for suitepath in os.listdir(test_path):
+          suitename = os.path.basename(suitepath)
+          status_file = os.path.join(
+              test_path, suitename, suitename + ".status")
+          if os.path.exists(status_file):
+            status_files.add(status_file)
+        return status_files
+
     for file_path in files:
       if file_path.startswith(test_path):
         # Strip off absolute path prefix pointing to test suites.
@@ -526,12 +545,7 @@ class StatusFilesProcessor(SourceFileProcessor):
           if not os.path.exists(status_file):
             continue
           status_files.add(status_file)
-
-    success = True
-    for status_file_path in sorted(status_files):
-      success &= statusfile.PresubmitCheck(status_file_path)
-      success &= _CheckStatusFileForDuplicateKeys(status_file_path)
-    return success
+    return status_files
 
 
 def CheckDeps(workspace):
