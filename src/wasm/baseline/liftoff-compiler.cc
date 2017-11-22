@@ -30,6 +30,28 @@ namespace {
     if (FLAG_trace_liftoff) PrintF("[liftoff] " __VA_ARGS__); \
   } while (false)
 
+#if V8_TARGET_ARCH_ARM64
+// On ARM64, the Assembler keeps track of pointers to Labels to resolve
+// branches to distant targets. Moving labels would confuse the Assembler,
+// thus store the label on the heap and keep a unique_ptr.
+class MovableLabel {
+ public:
+  Label* get() { return label_.get(); }
+
+ private:
+  std::unique_ptr<Label> label_ = base::make_unique<Label>();
+};
+#else
+// On all other platforms, just store the Label directly.
+class MovableLabel {
+ public:
+  Label* get() { return &label_; }
+
+ private:
+  Label label_;
+};
+#endif
+
 class LiftoffCompiler {
  public:
   MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(LiftoffCompiler);
@@ -44,9 +66,7 @@ class LiftoffCompiler {
     MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(Control);
 
     LiftoffAssembler::CacheState label_state;
-    // TODO(clemensh): Labels cannot be moved on arm64, but everywhere else.
-    // Find a better solution.
-    std::unique_ptr<Label> label = base::make_unique<Label>();
+    MovableLabel label;
   };
 
   using Decoder = WasmFullDecoder<validate, LiftoffCompiler>;
@@ -206,7 +226,7 @@ class LiftoffCompiler {
     if (!c->is_loop() && c->end_merge.reached) {
       __ cache_state()->Steal(c->label_state);
     }
-    if (!c->label->is_bound()) {
+    if (!c->label.get()->is_bound()) {
       __ bind(c->label.get());
     }
   }
