@@ -498,8 +498,6 @@ int GetNativeAccessorDescriptor(v8::Local<v8::Context> context,
                                 v8::Local<v8::Object> object,
                                 v8::Local<v8::Name> name);
 
-int64_t GetNextRandomInt64(v8::Isolate* isolate);
-
 }  // namespace debug
 }  // namespace v8
 

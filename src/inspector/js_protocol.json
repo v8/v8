@@ -201,29 +201,12 @@
                 "properties": [
                     { "name": "description", "type": "string", "optional": true, "description": "String label of this stack trace. For async traces this may be a name of the function that initiated the async call." },
                     { "name": "callFrames", "type": "array", "items": { "$ref": "CallFrame" }, "description": "JavaScript function name." },
-                    { "name": "parent", "$ref": "StackTrace", "optional": true, "description": "Asynchronous JavaScript stack trace that preceded this stack, if available." },
-                    { "name": "parentId", "$ref": "StackTraceId", "optional": true, "experimental": true, "description": "Asynchronous JavaScript stack trace that preceded this stack, if available." }
+                    { "name": "parent", "$ref": "StackTrace", "optional": true, "description": "Asynchronous JavaScript stack trace that preceded this stack, if available." }
                 ]
             },
             {
                 "id": "AsyncTaskId",
                 "type": "string",
-                "experimental": true
-            },
-            {
-                "id": "UniqueDebuggerId",
-                "type": "string",
-                "description": "Unique identifier of current debugger.",
-                "experimental": true
-            },
-            {
-                "id": "StackTraceId",
-                "type": "object",
-                "description": "External stack trace comes from another debugger and can be resolved there. This allows to track cross-debugger calls. See <code>Runtime.StackTrace</code> and <code>Debugger.paused</code> for usages.",
-                "properties": [
-                    { "name": "id", "type": "string" },
-                    { "name": "debuggerId", "$ref": "UniqueDebuggerId" }
-                ],
                 "experimental": true
             }
         ],
@@ -533,9 +516,6 @@
         "commands": [
             {
                 "name": "enable",
-                "returns": [
-                    { "name": "debuggerId", "$ref": "Runtime.UniqueDebuggerId", "experimental": true, "description": "Unique identifier of the debugger." }
-                ],
                 "description": "Enables debugger for the given page. Clients should not assume that the debugging has been enabled until the result for this command is received."
             },
             {
@@ -648,17 +628,6 @@
                 "description": "Resumes JavaScript execution."
             },
             {
-                "name": "getStackTrace",
-                "parameters": [
-                    { "name": "stackTraceId", "$ref": "Runtime.StackTraceId" }
-                ],
-                "returns": [
-                    { "name": "stackTrace", "$ref": "Runtime.StackTrace" }
-                ],
-                "description": "Returns stack trace with given <code>stackTraceId</code>.",
-                "experimental": true
-            },
-            {
                 "name": "searchInContent",
                 "parameters": [
                     { "name": "scriptId", "$ref": "Runtime.ScriptId", "description": "Id of the script to search in." },
@@ -683,7 +652,6 @@
                     { "name": "callFrames", "type": "array", "optional": true, "items": { "$ref": "CallFrame" }, "description": "New stack trace in case editing has happened while VM was stopped." },
                     { "name": "stackChanged", "type": "boolean", "optional": true, "description": "Whether current call stack  was modified after applying the changes." },
                     { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any." },
-                    { "name": "asyncStackTraceId", "$ref": "Runtime.StackTraceId", "optional": true, "experimental": true, "description": "Async stack trace, if any." },
                     { "name": "exceptionDetails", "optional": true, "$ref": "Runtime.ExceptionDetails", "description": "Exception details if any." }
                 ],
                 "description": "Edits JavaScript source live."
@@ -695,8 +663,7 @@
                 ],
                 "returns": [
                     { "name": "callFrames", "type": "array", "items": { "$ref": "CallFrame" }, "description": "New stack trace." },
-                    { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any." },
-                    { "name": "asyncStackTraceId", "$ref": "Runtime.StackTraceId", "optional": true, "experimental": true, "description": "Async stack trace, if any." }
+                    { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any." }
                 ],
                 "description": "Restarts particular call frame from the beginning."
             },
@@ -836,7 +803,6 @@
                     { "name": "data", "type": "object", "optional": true, "description": "Object containing break-specific auxiliary properties." },
                     { "name": "hitBreakpoints", "type": "array", "optional": true, "items": { "type": "string" }, "description": "Hit breakpoints IDs" },
                     { "name": "asyncStackTrace", "$ref": "Runtime.StackTrace", "optional": true, "description": "Async stack trace, if any." },
-                    { "name": "asyncStackTraceId", "$ref": "Runtime.StackTraceId", "optional": true, "experimental": true, "description": "Async stack trace, if any." },
                     { "name": "scheduledAsyncTaskId", "$ref": "Runtime.AsyncTaskId", "optional": true, "experimental": true, "description": "Scheduled async task id." }
                 ],
                 "description": "Fired when the virtual machine stopped on breakpoint or exception or any other stop criteria."

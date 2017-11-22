@@ -22,7 +22,6 @@ Checks createContext().
 {
     id : <messageId>
     result : {
-        debuggerId : <debuggerId>
     }
 }
 #debugger;

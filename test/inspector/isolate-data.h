@@ -58,12 +58,6 @@ class IsolateData : public v8_inspector::V8InspectorClient {
                           bool recurring);
   void AsyncTaskStarted(void* task);
   void AsyncTaskFinished(void* task);
-
-  v8_inspector::V8StackTraceId StoreCurrentStackTrace(
-      const v8_inspector::StringView& description);
-  void ExternalAsyncTaskStarted(const v8_inspector::V8StackTraceId& parent);
-  void ExternalAsyncTaskFinished(const v8_inspector::V8StackTraceId& parent);
-
   void AddInspectedObject(int session_id, v8::Local<v8::Value> object);
 
   // Test utilities.

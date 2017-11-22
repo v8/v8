@@ -370,9 +370,7 @@ void V8DebuggerAgentImpl::enableImpl() {
   }
 }
 
-Response V8DebuggerAgentImpl::enable(String16* outDebuggerId) {
-  *outDebuggerId = debuggerIdToString(
-      m_debugger->debuggerIdFor(m_session->contextGroupId()));
+Response V8DebuggerAgentImpl::enable() {
   if (enabled()) return Response::OK();
 
   if (!m_inspector->client()->canExecuteScripts(m_session->contextGroupId()))
@@ -717,27 +715,6 @@ Response V8DebuggerAgentImpl::continueToLocation(
           protocol::Debugger::ContinueToLocation::TargetCallFramesEnum::Any));
 }
 
-Response V8DebuggerAgentImpl::getStackTrace(
-    std::unique_ptr<protocol::Runtime::StackTraceId> inStackTraceId,
-    std::unique_ptr<protocol::Runtime::StackTrace>* outStackTrace) {
-  bool isOk = false;
-  int64_t id = inStackTraceId->getId().toInteger64(&isOk);
-  std::pair<int64_t, int64_t> debuggerId =
-      m_debugger->debuggerIdFor(inStackTraceId->getDebuggerId());
-  V8StackTraceId v8StackTraceId(id, debuggerId);
-  if (!isOk || v8StackTraceId.IsInvalid()) {
-    return Response::Error("Invalid stack trace id");
-  }
-  auto stack =
-      m_debugger->stackTraceFor(m_session->contextGroupId(), v8StackTraceId);
-  if (!stack) {
-    return Response::Error("Stack trace with given id is not found");
-  }
-  *outStackTrace =
-      stack->buildInspectorObject(m_debugger->maxAsyncCallChainDepth());
-  return Response::OK();
-}
-
 bool V8DebuggerAgentImpl::isFunctionBlackboxed(const String16& scriptId,
                                                const v8::debug::Location& start,
                                                const v8::debug::Location& end) {
@@ -839,7 +816,6 @@ Response V8DebuggerAgentImpl::setScriptSource(
     Maybe<protocol::Array<protocol::Debugger::CallFrame>>* newCallFrames,
     Maybe<bool>* stackChanged,
     Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
-    Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId,
     Maybe<protocol::Runtime::ExceptionDetails>* optOutCompileError) {
   if (!enabled()) return Response::Error(kDebuggerNotEnabled);
 
@@ -882,15 +858,13 @@ Response V8DebuggerAgentImpl::setScriptSource(
   if (!response.isSuccess()) return response;
   *newCallFrames = std::move(callFrames);
   *asyncStackTrace = currentAsyncStackTrace();
-  *asyncStackTraceId = currentExternalStackTrace();
   return Response::OK();
 }
 
 Response V8DebuggerAgentImpl::restartFrame(
     const String16& callFrameId,
     std::unique_ptr<Array<CallFrame>>* newCallFrames,
-    Maybe<protocol::Runtime::StackTrace>* asyncStackTrace,
-    Maybe<protocol::Runtime::StackTraceId>* asyncStackTraceId) {
+    Maybe<protocol::Runtime::StackTrace>* asyncStackTrace) {
   if (!isPaused()) return Response::Error(kDebuggerNotPaused);
   InjectedScript::CallFrameScope scope(m_session, callFrameId);
   Response response = scope.initialize();
@@ -906,7 +880,6 @@ Response V8DebuggerAgentImpl::restartFrame(
   response = currentCallFrames(newCallFrames);
   if (!response.isSuccess()) return response;
   *asyncStackTrace = currentAsyncStackTrace();
-  *asyncStackTraceId = currentExternalStackTrace();
   return Response::OK();
 }
 
@@ -1314,16 +1287,6 @@ V8DebuggerAgentImpl::currentAsyncStackTrace() {
       m_debugger->maxAsyncCallChainDepth() - 1);
 }
 
-std::unique_ptr<protocol::Runtime::StackTraceId>
-V8DebuggerAgentImpl::currentExternalStackTrace() {
-  V8StackTraceId externalParent = m_debugger->currentExternalParent();
-  if (externalParent.IsInvalid()) return nullptr;
-  return protocol::Runtime::StackTraceId::create()
-      .setId(stackTraceIdToString(externalParent.id))
-      .setDebuggerId(debuggerIdToString(externalParent.debugger_id))
-      .build();
-}
-
 bool V8DebuggerAgentImpl::isPaused() const {
   return m_debugger->isPausedInContextGroup(m_session->contextGroupId());
 }
@@ -1535,8 +1498,7 @@ void V8DebuggerAgentImpl::didPause(
 
   m_frontend.paused(std::move(protocolCallFrames), breakReason,
                     std::move(breakAuxData), std::move(hitBreakpointIds),
-                    currentAsyncStackTrace(), currentExternalStackTrace(),
-                    std::move(scheduledAsyncTaskId));
+                    currentAsyncStackTrace(), std::move(scheduledAsyncTaskId));
 }
 
 void V8DebuggerAgentImpl::didContinue() {
