@@ -42,11 +42,20 @@ bool Map::IsInplaceGeneralizableField(PropertyConstness constness,
   return false;
 }
 
+bool Map::CanHaveFastTransitionableElementsKind(InstanceType instance_type) {
+  return instance_type == JS_ARRAY_TYPE || instance_type == JS_VALUE_TYPE ||
+         instance_type == JS_ARGUMENTS_TYPE;
+}
+
+bool Map::CanHaveFastTransitionableElementsKind() const {
+  return CanHaveFastTransitionableElementsKind(instance_type());
+}
+
 // static
-void Map::GeneralizeIfTransitionableFastElementsKind(
-    Isolate* isolate, ElementsKind elements_kind, PropertyConstness* constness,
+void Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
+    Isolate* isolate, InstanceType instance_type, PropertyConstness* constness,
     Representation* representation, Handle<FieldType>* field_type) {
-  if (IsTransitionableFastElementsKind(elements_kind)) {
+  if (CanHaveFastTransitionableElementsKind(instance_type)) {
     // We don't support propagation of field generalization through elements
     // kind transitions because they are inserted into the transition tree
     // before field transitions. In order to avoid complexity of handling

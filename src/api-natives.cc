@@ -558,7 +558,7 @@ MaybeHandle<JSObject> ApiNatives::InstantiateRemoteObject(
   Handle<Map> object_map = isolate->factory()->NewMap(
       JS_SPECIAL_API_OBJECT_TYPE,
       JSObject::kHeaderSize + data->embedder_field_count() * kPointerSize,
-      HOLEY_SMI_ELEMENTS);
+      TERMINAL_FAST_ELEMENTS_KIND);
   object_map->SetConstructor(*constructor);
   object_map->set_is_access_check_needed(true);
   object_map->set_may_have_interesting_symbols(true);

@@ -1717,6 +1717,7 @@ static void TestReconfigureElementsKind_GeneralizeField(
 
   // Create a map, add required properties to it and initialize expectations.
   Handle<Map> initial_map = Map::Create(isolate, 0);
+  initial_map->set_instance_type(JS_ARRAY_TYPE);
   initial_map->set_elements_kind(PACKED_SMI_ELEMENTS);
 
   Handle<Map> map = initial_map;
@@ -1810,6 +1811,7 @@ static void TestReconfigureElementsKind_GeneralizeFieldTrivial(
 
   // Create a map, add required properties to it and initialize expectations.
   Handle<Map> initial_map = Map::Create(isolate, 0);
+  initial_map->set_instance_type(JS_ARRAY_TYPE);
   initial_map->set_elements_kind(PACKED_SMI_ELEMENTS);
 
   Handle<Map> map = initial_map;

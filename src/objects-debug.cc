@@ -426,6 +426,9 @@ void Map::MapVerify() {
   CHECK_IMPLIES(has_named_interceptor(), may_have_interesting_symbols());
   CHECK_IMPLIES(is_dictionary_map(), may_have_interesting_symbols());
   CHECK_IMPLIES(is_access_check_needed(), may_have_interesting_symbols());
+  CHECK_IMPLIES(IsJSObjectMap() && !CanHaveFastTransitionableElementsKind(),
+                IsDictionaryElementsKind(elements_kind()) ||
+                    IsTerminalElementsKind(elements_kind()));
 }
 
 

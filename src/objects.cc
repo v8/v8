@@ -3807,10 +3807,10 @@ MaybeHandle<Map> Map::CopyWithField(Handle<Map> map, Handle<Name> name,
     constness = kMutable;
     representation = Representation::Tagged();
     type = FieldType::Any(isolate);
+  } else {
+    Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
+        isolate, map->instance_type(), &constness, &representation, &type);
   }
-
-  Map::GeneralizeIfTransitionableFastElementsKind(
-      isolate, map->elements_kind(), &constness, &representation, &type);
 
   Handle<Object> wrapped_type(WrapFieldType(type));
 
@@ -9443,6 +9443,13 @@ void Map::InstallDescriptors(Handle<Map> parent, Handle<Map> child,
 
 Handle<Map> Map::CopyAsElementsKind(Handle<Map> map, ElementsKind kind,
                                     TransitionFlag flag) {
+  // Only certain objects are allowed to have non-terminal fast transitional
+  // elements kinds.
+  DCHECK(map->IsJSObjectMap());
+  DCHECK_IMPLIES(
+      !map->CanHaveFastTransitionableElementsKind(),
+      IsDictionaryElementsKind(kind) || IsTerminalElementsKind(kind));
+
   Map* maybe_elements_transition_map = nullptr;
   if (flag == INSERT_TRANSITION) {
     // Ensure we are requested to add elements kind transition "near the root".
@@ -15218,6 +15225,9 @@ bool JSObject::WouldConvertToSlowElements(uint32_t index) {
 
 
 static ElementsKind BestFittingFastElementsKind(JSObject* object) {
+  if (!object->map()->CanHaveFastTransitionableElementsKind()) {
+    return HOLEY_ELEMENTS;
+  }
   if (object->HasSloppyArgumentsElements()) {
     return FAST_SLOPPY_ARGUMENTS_ELEMENTS;
   }

@@ -123,9 +123,9 @@ Handle<Map> MapUpdater::ReconfigureToDataField(int descriptor,
     new_field_type_ = field_type;
   }
 
-  Map::GeneralizeIfTransitionableFastElementsKind(
-      isolate_, new_elements_kind_, &new_constness_, &new_representation_,
-      &new_field_type_);
+  Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
+      isolate_, old_map_->instance_type(), &new_constness_,
+      &new_representation_, &new_field_type_);
 
   if (TryRecofigureToDataFieldInplace() == kEnd) return result_map_;
   if (FindRootMap() == kEnd) return result_map_;
@@ -416,6 +416,7 @@ MapUpdater::State MapUpdater::FindTargetMap() {
 }
 
 Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
+  InstanceType instance_type = old_map_->instance_type();
   int target_nof = target_map_->NumberOfOwnDescriptors();
   Handle<DescriptorArray> target_descriptors(
       target_map_->instance_descriptors(), isolate_);
@@ -497,8 +498,8 @@ Handle<DescriptorArray> MapUpdater::BuildDescriptorArray() {
           old_details.representation(), old_field_type, next_representation,
           target_field_type, isolate_);
 
-      Map::GeneralizeIfTransitionableFastElementsKind(
-          isolate_, new_elements_kind_, &next_constness, &next_representation,
+      Map::GeneralizeIfCanHaveTransitionableFastElementsKind(
+          isolate_, instance_type, &next_constness, &next_representation,
           &next_field_type);
 
       Handle<Object> wrapped_type(Map::WrapFieldType(next_field_type));

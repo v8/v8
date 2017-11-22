@@ -457,14 +457,15 @@ class Map : public HeapObject {
                                                  Representation representation,
                                                  FieldType* field_type);
 
-  // Generalizes constness, representation and field_type if the given elements
-  // kind is a fast and transitionable by stubs / optimized code.
+  // Generalizes constness, representation and field_type if objects with given
+  // instance type can have fast elements that can be transitioned by stubs or
+  // optimized code to more general elements kind.
   // This generalization is necessary in order to ensure that elements kind
   // transitions performed by stubs / optimized code don't silently transition
   // kMutable fields back to kConst state or fields with HeapObject
   // representation and "Any" type back to "Class" type.
-  static inline void GeneralizeIfTransitionableFastElementsKind(
-      Isolate* isolate, ElementsKind elements_kind,
+  static inline void GeneralizeIfCanHaveTransitionableFastElementsKind(
+      Isolate* isolate, InstanceType instance_type,
       PropertyConstness* constness, Representation* representation,
       Handle<FieldType>* field_type);
 
@@ -796,6 +797,16 @@ class Map : public HeapObject {
   inline void NotifyLeafMapLayoutChange();
 
   static VisitorId GetVisitorId(Map* map);
+
+  // Returns true if objects with given instance type are allowed to have
+  // fast transitionable elements kinds. This predicate is used to ensure
+  // that objects that can have transitionable fast elements kind will not
+  // get in-place generalizable fields because the elements kind transition
+  // performed by stubs or optimized code can't properly generalize such
+  // fields.
+  static inline bool CanHaveFastTransitionableElementsKind(
+      InstanceType instance_type);
+  inline bool CanHaveFastTransitionableElementsKind() const;
 
  private:
   // This byte encodes either the instance size without the in-object slack or
