@@ -633,7 +633,6 @@
   'regress/regress-740784': [SKIP],
   'regress/regress-crbug-482998': [PASS, SLOW],
   'regress/regress-91008': [PASS, SLOW],
-  'regress/regress-1257': [PASS, SLOW],
   'harmony/regexp-property-lu-ui': [PASS, SLOW],
   'whitespaces': [PASS, SLOW],
   'wasm/grow-memory': [PASS, SLOW],
