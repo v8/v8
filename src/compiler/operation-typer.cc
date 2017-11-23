@@ -754,10 +754,10 @@ Type* OperationTyper::NumberBitwiseOr(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
-
   lhs = NumberToInt32(lhs);
   rhs = NumberToInt32(rhs);
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   double lmin = lhs->Min();
   double rmin = rhs->Min();
@@ -791,10 +791,10 @@ Type* OperationTyper::NumberBitwiseAnd(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
-
   lhs = NumberToInt32(lhs);
   rhs = NumberToInt32(rhs);
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   double lmin = lhs->Min();
   double rmin = rhs->Min();
@@ -822,10 +822,10 @@ Type* OperationTyper::NumberBitwiseXor(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
-
   lhs = NumberToInt32(lhs);
   rhs = NumberToInt32(rhs);
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   double lmin = lhs->Min();
   double rmin = rhs->Min();
@@ -847,10 +847,10 @@ Type* OperationTyper::NumberShiftLeft(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
-
   lhs = NumberToInt32(lhs);
   rhs = NumberToUint32(rhs);
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   int32_t min_lhs = lhs->Min();
   int32_t max_lhs = lhs->Max();
@@ -882,10 +882,10 @@ Type* OperationTyper::NumberShiftRight(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
-
   lhs = NumberToInt32(lhs);
   rhs = NumberToUint32(rhs);
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   int32_t min_lhs = lhs->Min();
   int32_t max_lhs = lhs->Max();
@@ -907,10 +907,10 @@ Type* OperationTyper::NumberShiftRightLogical(Type* lhs, Type* rhs) {
   DCHECK(lhs->Is(Type::Number()));
   DCHECK(rhs->Is(Type::Number()));
 
-  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
-
   lhs = NumberToUint32(lhs);
   rhs = NumberToUint32(rhs);
+
+  if (lhs->IsNone() || rhs->IsNone()) return Type::None();
 
   uint32_t min_lhs = lhs->Min();
   uint32_t max_lhs = lhs->Max();
