@@ -151,8 +151,6 @@ TEST_F(DisjointAllocationPoolTest, MergingSkipLargerSrcWithGap) {
   CheckLooksLike(a, {{10, 15}, {20, 35}, {36, 40}});
 }
 
-// TODO(chromium:787976): remove conditional compilation when bug is fixed
-#if !LEAK_SANITIZER
 class WasmCodeManagerTest : public TestWithIsolate {
  public:
   using NativeModulePtr = std::unique_ptr<NativeModule>;
@@ -387,7 +385,6 @@ TEST_F(WasmCodeManagerTest, LookupWorksAfterRewrite) {
     CHECK_EQ(code1_1, manager.LookupCode(code1_1->instructions().start()));
   }
 }
-#endif
 
 }  // namespace wasm_heap_unittest
 }  // namespace wasm

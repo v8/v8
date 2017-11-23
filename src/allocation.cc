@@ -176,6 +176,9 @@ void VirtualMemory::Free() {
   size_t size = size_;
   CHECK(InVM(address, size));
   Reset();
+#if defined(LEAK_SANITIZER)
+  __lsan_unregister_root_region(address, size);
+#endif
   CHECK(base::OS::Free(address, size));
 }
 
