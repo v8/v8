@@ -1980,7 +1980,8 @@ ParserBase<Impl>::ParseExpressionCoverGrammar(bool accept_IN, bool* ok) {
       // First time through the loop.
       result = right;
     } else if (impl()->CollapseNaryExpression(&result, right, Token::COMMA,
-                                              comma_pos)) {
+                                              comma_pos,
+                                              SourceRange::Empty())) {
       // Do nothing, "result" is already updated.
     } else {
       result =
@@ -3081,6 +3082,7 @@ template <typename Impl>
 typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
     int prec, bool accept_IN, bool* ok) {
   DCHECK_GE(prec, 4);
+  SourceRange right_range;
   ExpressionT x = ParseUnaryExpression(CHECK_OK);
   for (int prec1 = Precedence(peek(), accept_IN); prec1 >= prec; prec1--) {
     // prec1 >= 4
@@ -3088,12 +3090,15 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
       impl()->RewriteNonPattern(CHECK_OK);
       BindingPatternUnexpectedToken();
       ArrowFormalParametersUnexpectedToken();
+
+      SourceRangeScope right_range_scope(scanner(), &right_range);
       Token::Value op = Next();
       int pos = position();
 
       const bool is_right_associative = op == Token::EXP;
       const int next_prec = is_right_associative ? prec1 : prec1 + 1;
       ExpressionT y = ParseBinaryExpression(next_prec, accept_IN, CHECK_OK);
+      right_range_scope.Finalize();
       impl()->RewriteNonPattern(CHECK_OK);
 
       if (impl()->ShortcutNumericLiteralBinaryExpression(&x, y, op, pos)) {
@@ -3118,11 +3123,14 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
         }
       } else if (op == Token::EXP) {
         x = impl()->RewriteExponentiation(x, y, pos);
-      } else if (impl()->CollapseNaryExpression(&x, y, op, pos)) {
+      } else if (impl()->CollapseNaryExpression(&x, y, op, pos, right_range)) {
         continue;
       } else {
         // We have a "normal" binary operation.
         x = factory()->NewBinaryOperation(op, x, y, pos);
+        if (op == Token::OR || op == Token::AND) {
+          impl()->RecordBinaryOperationSourceRange(x, right_range);
+        }
       }
     }
   }

@@ -496,6 +496,31 @@ class BytecodeGenerator::ControlScopeForTryFinally final
   DeferredCommands* commands_;
 };
 
+// Allocate and fetch the coverage indices tracking NaryLogical Expressions.
+class BytecodeGenerator::NaryCodeCoverageSlots {
+ public:
+  NaryCodeCoverageSlots(BytecodeGenerator* generator, NaryOperation* expr)
+      : generator_(generator) {
+    if (generator_->block_coverage_builder_ == nullptr) return;
+    for (size_t i = 0; i < expr->subsequent_length(); i++) {
+      coverage_slots_.push_back(
+          generator_->AllocateNaryBlockCoverageSlotIfEnabled(expr, i));
+    }
+  }
+
+  int GetSlotFor(size_t subsequent_expr_index) const {
+    if (generator_->block_coverage_builder_ == nullptr) {
+      return BlockCoverageBuilder::kNoCoverageArraySlot;
+    }
+    DCHECK(coverage_slots_.size() > subsequent_expr_index);
+    return coverage_slots_[subsequent_expr_index];
+  }
+
+ private:
+  BytecodeGenerator* generator_;
+  std::vector<int> coverage_slots_;
+};
+
 void BytecodeGenerator::ControlScope::PerformCommand(Command command,
                                                      Statement* statement,
                                                      int source_position) {
@@ -4052,7 +4077,7 @@ void BytecodeGenerator::VisitNaryCommaExpression(NaryOperation* expr) {
 
 void BytecodeGenerator::VisitLogicalTestSubExpression(
     Token::Value token, Expression* expr, BytecodeLabels* then_labels,
-    BytecodeLabels* else_labels) {
+    BytecodeLabels* else_labels, int coverage_slot) {
   DCHECK(token == Token::OR || token == Token::AND);
 
   BytecodeLabels test_next(zone());
@@ -4063,23 +4088,28 @@ void BytecodeGenerator::VisitLogicalTestSubExpression(
     VisitForTest(expr, &test_next, else_labels, TestFallthrough::kThen);
   }
   test_next.Bind(builder());
+
+  BuildIncrementBlockCoverageCounterIfEnabled(coverage_slot);
 }
 
 void BytecodeGenerator::VisitLogicalTest(Token::Value token, Expression* left,
-                                         Expression* right) {
+                                         Expression* right,
+                                         int right_coverage_slot) {
   DCHECK(token == Token::OR || token == Token::AND);
   TestResultScope* test_result = execution_result()->AsTest();
   BytecodeLabels* then_labels = test_result->then_labels();
   BytecodeLabels* else_labels = test_result->else_labels();
   TestFallthrough fallthrough = test_result->fallthrough();
 
-  VisitLogicalTestSubExpression(token, left, then_labels, else_labels);
+  VisitLogicalTestSubExpression(token, left, then_labels, else_labels,
+                                right_coverage_slot);
   // The last test has the same then, else and fallthrough as the parent test.
   VisitForTest(right, then_labels, else_labels, fallthrough);
 }
 
-void BytecodeGenerator::VisitNaryLogicalTest(Token::Value token,
-                                             NaryOperation* expr) {
+void BytecodeGenerator::VisitNaryLogicalTest(
+    Token::Value token, NaryOperation* expr,
+    const NaryCodeCoverageSlots* coverage_slots) {
   DCHECK(token == Token::OR || token == Token::AND);
   DCHECK_GT(expr->subsequent_length(), 0);
 
@@ -4088,18 +4118,21 @@ void BytecodeGenerator::VisitNaryLogicalTest(Token::Value token,
   BytecodeLabels* else_labels = test_result->else_labels();
   TestFallthrough fallthrough = test_result->fallthrough();
 
-  VisitLogicalTestSubExpression(token, expr->first(), then_labels, else_labels);
+  VisitLogicalTestSubExpression(token, expr->first(), then_labels, else_labels,
+                                coverage_slots->GetSlotFor(0));
   for (size_t i = 0; i < expr->subsequent_length() - 1; ++i) {
     VisitLogicalTestSubExpression(token, expr->subsequent(i), then_labels,
-                                  else_labels);
+                                  else_labels,
+                                  coverage_slots->GetSlotFor(i + 1));
   }
   // The last test has the same then, else and fallthrough as the parent test.
   VisitForTest(expr->subsequent(expr->subsequent_length() - 1), then_labels,
                else_labels, fallthrough);
 }
 
-bool BytecodeGenerator::VisitLogicalOrSubExpression(
-    Expression* expr, BytecodeLabels* end_labels) {
+bool BytecodeGenerator::VisitLogicalOrSubExpression(Expression* expr,
+                                                    BytecodeLabels* end_labels,
+                                                    int coverage_slot) {
   if (expr->ToBooleanIsTrue()) {
     VisitForAccumulatorValue(expr);
     end_labels->Bind(builder());
@@ -4109,11 +4142,15 @@ bool BytecodeGenerator::VisitLogicalOrSubExpression(
     builder()->JumpIfTrue(ToBooleanModeFromTypeHint(type_hint),
                           end_labels->New());
   }
+
+  BuildIncrementBlockCoverageCounterIfEnabled(coverage_slot);
+
   return false;
 }
 
-bool BytecodeGenerator::VisitLogicalAndSubExpression(
-    Expression* expr, BytecodeLabels* end_labels) {
+bool BytecodeGenerator::VisitLogicalAndSubExpression(Expression* expr,
+                                                     BytecodeLabels* end_labels,
+                                                     int coverage_slot) {
   if (expr->ToBooleanIsFalse()) {
     VisitForAccumulatorValue(expr);
     end_labels->Bind(builder());
@@ -4123,6 +4160,9 @@ bool BytecodeGenerator::VisitLogicalAndSubExpression(
     builder()->JumpIfFalse(ToBooleanModeFromTypeHint(type_hint),
                            end_labels->New());
   }
+
+  BuildIncrementBlockCoverageCounterIfEnabled(coverage_slot);
+
   return false;
 }
 
@@ -4130,19 +4170,25 @@ void BytecodeGenerator::VisitLogicalOrExpression(BinaryOperation* binop) {
   Expression* left = binop->left();
   Expression* right = binop->right();
 
+  int right_coverage_slot =
+      AllocateBlockCoverageSlotIfEnabled(binop, SourceRangeKind::kRight);
+
   if (execution_result()->IsTest()) {
     TestResultScope* test_result = execution_result()->AsTest();
     if (left->ToBooleanIsTrue()) {
       builder()->Jump(test_result->NewThenLabel());
     } else if (left->ToBooleanIsFalse() && right->ToBooleanIsFalse()) {
+      BuildIncrementBlockCoverageCounterIfEnabled(right_coverage_slot);
       builder()->Jump(test_result->NewElseLabel());
     } else {
-      VisitLogicalTest(Token::OR, left, right);
+      VisitLogicalTest(Token::OR, left, right, right_coverage_slot);
     }
     test_result->SetResultConsumedByTest();
   } else {
     BytecodeLabels end_labels(zone());
-    if (VisitLogicalOrSubExpression(left, &end_labels)) return;
+    if (VisitLogicalOrSubExpression(left, &end_labels, right_coverage_slot)) {
+      return;
+    }
     VisitForAccumulatorValue(right);
     end_labels.Bind(builder());
   }
@@ -4152,19 +4198,25 @@ void BytecodeGenerator::VisitNaryLogicalOrExpression(NaryOperation* expr) {
   Expression* first = expr->first();
   DCHECK_GT(expr->subsequent_length(), 0);
 
+  NaryCodeCoverageSlots coverage_slots(this, expr);
+
   if (execution_result()->IsTest()) {
     TestResultScope* test_result = execution_result()->AsTest();
     if (first->ToBooleanIsTrue()) {
       builder()->Jump(test_result->NewThenLabel());
     } else {
-      VisitNaryLogicalTest(Token::OR, expr);
+      VisitNaryLogicalTest(Token::OR, expr, &coverage_slots);
     }
     test_result->SetResultConsumedByTest();
   } else {
     BytecodeLabels end_labels(zone());
-    if (VisitLogicalOrSubExpression(first, &end_labels)) return;
+    if (VisitLogicalOrSubExpression(first, &end_labels,
+                                    coverage_slots.GetSlotFor(0))) {
+      return;
+    }
     for (size_t i = 0; i < expr->subsequent_length() - 1; ++i) {
-      if (VisitLogicalOrSubExpression(expr->subsequent(i), &end_labels)) {
+      if (VisitLogicalOrSubExpression(expr->subsequent(i), &end_labels,
+                                      coverage_slots.GetSlotFor(i + 1))) {
         return;
       }
     }
@@ -4179,19 +4231,25 @@ void BytecodeGenerator::VisitLogicalAndExpression(BinaryOperation* binop) {
   Expression* left = binop->left();
   Expression* right = binop->right();
 
+  int right_coverage_slot =
+      AllocateBlockCoverageSlotIfEnabled(binop, SourceRangeKind::kRight);
+
   if (execution_result()->IsTest()) {
     TestResultScope* test_result = execution_result()->AsTest();
     if (left->ToBooleanIsFalse()) {
       builder()->Jump(test_result->NewElseLabel());
     } else if (left->ToBooleanIsTrue() && right->ToBooleanIsTrue()) {
+      BuildIncrementBlockCoverageCounterIfEnabled(right_coverage_slot);
       builder()->Jump(test_result->NewThenLabel());
     } else {
-      VisitLogicalTest(Token::AND, left, right);
+      VisitLogicalTest(Token::AND, left, right, right_coverage_slot);
     }
     test_result->SetResultConsumedByTest();
   } else {
     BytecodeLabels end_labels(zone());
-    if (VisitLogicalAndSubExpression(left, &end_labels)) return;
+    if (VisitLogicalAndSubExpression(left, &end_labels, right_coverage_slot)) {
+      return;
+    }
     VisitForAccumulatorValue(right);
     end_labels.Bind(builder());
   }
@@ -4201,19 +4259,25 @@ void BytecodeGenerator::VisitNaryLogicalAndExpression(NaryOperation* expr) {
   Expression* first = expr->first();
   DCHECK_GT(expr->subsequent_length(), 0);
 
+  NaryCodeCoverageSlots coverage_slots(this, expr);
+
   if (execution_result()->IsTest()) {
     TestResultScope* test_result = execution_result()->AsTest();
     if (first->ToBooleanIsFalse()) {
       builder()->Jump(test_result->NewElseLabel());
     } else {
-      VisitNaryLogicalTest(Token::AND, expr);
+      VisitNaryLogicalTest(Token::AND, expr, &coverage_slots);
     }
     test_result->SetResultConsumedByTest();
   } else {
     BytecodeLabels end_labels(zone());
-    if (VisitLogicalAndSubExpression(first, &end_labels)) return;
+    if (VisitLogicalAndSubExpression(first, &end_labels,
+                                     coverage_slots.GetSlotFor(0))) {
+      return;
+    }
     for (size_t i = 0; i < expr->subsequent_length() - 1; ++i) {
-      if (VisitLogicalAndSubExpression(expr->subsequent(i), &end_labels)) {
+      if (VisitLogicalAndSubExpression(expr->subsequent(i), &end_labels,
+                                       coverage_slots.GetSlotFor(i + 1))) {
         return;
       }
     }
@@ -4481,6 +4545,14 @@ int BytecodeGenerator::AllocateBlockCoverageSlotIfEnabled(
   return (block_coverage_builder_ == nullptr)
              ? BlockCoverageBuilder::kNoCoverageArraySlot
              : block_coverage_builder_->AllocateBlockCoverageSlot(node, kind);
+}
+
+int BytecodeGenerator::AllocateNaryBlockCoverageSlotIfEnabled(
+    NaryOperation* node, size_t index) {
+  return (block_coverage_builder_ == nullptr)
+             ? BlockCoverageBuilder::kNoCoverageArraySlot
+             : block_coverage_builder_->AllocateNaryBlockCoverageSlot(node,
+                                                                      index);
 }
 
 void BytecodeGenerator::BuildIncrementBlockCoverageCounterIfEnabled(

@@ -765,7 +765,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // into a single n-ary expression. In that case, *x will be changed to an
   // n-ary expression.
   bool CollapseNaryExpression(Expression** x, Expression* y, Token::Value op,
-                              int pos);
+                              int pos, const SourceRange& range);
 
   // Rewrites the following types of unary expressions:
   // not <literal> -> true / false
@@ -1011,6 +1011,32 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     return parameters_end_pos_ != kNoSourcePosition;
   }
 
+  V8_INLINE void ConvertBinaryToNaryOperationSourceRange(
+      BinaryOperation* binary_op, NaryOperation* nary_op) {
+    if (source_range_map_ == nullptr) return;
+    DCHECK_NULL(source_range_map_->Find(nary_op));
+
+    BinaryOperationSourceRanges* ranges =
+        static_cast<BinaryOperationSourceRanges*>(
+            source_range_map_->Find(binary_op));
+    if (ranges == nullptr) return;
+
+    SourceRange range = ranges->GetRange(SourceRangeKind::kRight);
+    source_range_map_->Insert(
+        nary_op, new (zone()) NaryOperationSourceRanges(zone(), range));
+  }
+
+  V8_INLINE void AppendNaryOperationSourceRange(NaryOperation* node,
+                                                const SourceRange& range) {
+    if (source_range_map_ == nullptr) return;
+    NaryOperationSourceRanges* ranges =
+        static_cast<NaryOperationSourceRanges*>(source_range_map_->Find(node));
+    if (ranges == nullptr) return;
+
+    ranges->AddRange(range);
+    DCHECK_EQ(node->subsequent_length(), ranges->RangeCount());
+  }
+
   V8_INLINE void RecordBlockSourceRange(Block* node,
                                         int32_t continuation_position) {
     if (source_range_map_ == nullptr) return;
@@ -1032,6 +1058,14 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
     source_range_map_->Insert(
         node->AsConditional(),
         new (zone()) ConditionalSourceRanges(then_range, else_range));
+  }
+
+  V8_INLINE void RecordBinaryOperationSourceRange(
+      Expression* node, const SourceRange& right_range) {
+    if (source_range_map_ == nullptr) return;
+    source_range_map_->Insert(node->AsBinaryOperation(),
+                              new (zone())
+                                  BinaryOperationSourceRanges(right_range));
   }
 
   V8_INLINE void RecordJumpStatementSourceRange(Statement* node,
