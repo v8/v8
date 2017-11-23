@@ -1015,6 +1015,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* ThrowIfNotJSReceiver(Node* context, Node* value,
                              MessageTemplate::Template msg_template,
                              const char* method_name = nullptr);
+
+  void ThrowRangeError(Node* context, MessageTemplate::Template message,
+                       Node* arg0 = nullptr, Node* arg1 = nullptr,
+                       Node* arg2 = nullptr);
   void ThrowTypeError(Node* context, MessageTemplate::Template message,
                       char const* arg0 = nullptr, char const* arg1 = nullptr);
   void ThrowTypeError(Node* context, MessageTemplate::Template message,

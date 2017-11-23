@@ -3972,6 +3972,23 @@ Node* CodeStubAssembler::ThrowIfNotJSReceiver(
   return var_value_map.value();
 }
 
+void CodeStubAssembler::ThrowRangeError(Node* context,
+                                        MessageTemplate::Template message,
+                                        Node* arg0, Node* arg1, Node* arg2) {
+  Node* template_index = SmiConstant(message);
+  if (arg0 == nullptr) {
+    CallRuntime(Runtime::kThrowRangeError, context, template_index);
+  } else if (arg1 == nullptr) {
+    CallRuntime(Runtime::kThrowRangeError, context, template_index, arg0);
+  } else if (arg2 == nullptr) {
+    CallRuntime(Runtime::kThrowRangeError, context, template_index, arg0, arg1);
+  } else {
+    CallRuntime(Runtime::kThrowRangeError, context, template_index, arg0, arg1,
+                arg2);
+  }
+  Unreachable();
+}
+
 void CodeStubAssembler::ThrowTypeError(Node* context,
                                        MessageTemplate::Template message,
                                        char const* arg0, char const* arg1) {
