@@ -568,24 +568,6 @@ void MemoryChunk::SetReadAndWritable() {
   }
 }
 
-void MemoryChunk::SetReadWriteAndExecutable() {
-  DCHECK(IsFlagSet(MemoryChunk::IS_EXECUTABLE));
-  DCHECK(owner()->identity() == CODE_SPACE || owner()->identity() == LO_SPACE);
-  // Incrementing the write_unprotect_counter_ and changing the page
-  // protection mode has to be atomic.
-  base::LockGuard<base::Mutex> guard(page_protection_change_mutex_);
-  write_unprotect_counter_++;
-  DCHECK_LE(write_unprotect_counter_, 3);
-  Address unprotect_start =
-      address() + MemoryAllocator::CodePageAreaStartOffset();
-  size_t page_size = MemoryAllocator::GetCommitPageSize();
-  DCHECK(IsAddressAligned(unprotect_start, page_size));
-  size_t unprotect_size = RoundUp(area_size(), page_size);
-  CHECK(
-      base::OS::SetPermissions(unprotect_start, unprotect_size,
-                               base::OS::MemoryPermission::kReadWriteExecute));
-}
-
 MemoryChunk* MemoryChunk::Initialize(Heap* heap, Address base, size_t size,
                                      Address area_start, Address area_end,
                                      Executability executable, Space* owner,

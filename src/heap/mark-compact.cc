@@ -31,6 +31,7 @@
 #include "src/transitions-inl.h"
 #include "src/utils-inl.h"
 #include "src/v8.h"
+#include "src/vm-state-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -678,6 +679,8 @@ class MarkCompactCollector::Sweeper::SweeperTask final : public CancelableTask {
     const int num_spaces = LAST_PAGED_SPACE - FIRST_SPACE + 1;
     for (int i = 0; i < num_spaces; i++) {
       const int space_id = FIRST_SPACE + ((i + offset) % num_spaces);
+      // Do not sweep code space concurrently.
+      if (static_cast<AllocationSpace>(space_id) == CODE_SPACE) continue;
       DCHECK_GE(space_id, FIRST_SPACE);
       DCHECK_LE(space_id, LAST_PAGED_SPACE);
       sweeper_->SweepSpaceFromTask(static_cast<AllocationSpace>(space_id));
@@ -692,6 +695,33 @@ class MarkCompactCollector::Sweeper::SweeperTask final : public CancelableTask {
   AllocationSpace space_to_start_;
 
   DISALLOW_COPY_AND_ASSIGN(SweeperTask);
+};
+
+class MarkCompactCollector::Sweeper::IncrementalSweeperTask final
+    : public CancelableTask {
+ public:
+  IncrementalSweeperTask(Isolate* isolate, Sweeper* sweeper)
+      : CancelableTask(isolate), isolate_(isolate), sweeper_(sweeper) {}
+
+  virtual ~IncrementalSweeperTask() {}
+
+ private:
+  void RunInternal() final {
+    VMState<GC> state(isolate_);
+    TRACE_EVENT_CALL_STATS_SCOPED(isolate_, "v8", "V8.Task");
+
+    sweeper_->incremental_sweeper_pending_ = false;
+
+    if (sweeper_->sweeping_in_progress()) {
+      if (!sweeper_->SweepSpaceIncrementallyFromTask(CODE_SPACE)) {
+        sweeper_->ScheduleIncrementalSweepingTask();
+      }
+    }
+  }
+
+  Isolate* const isolate_;
+  Sweeper* const sweeper_;
+  DISALLOW_COPY_AND_ASSIGN(IncrementalSweeperTask);
 };
 
 void MarkCompactCollector::Sweeper::StartSweeping() {
@@ -724,6 +754,7 @@ void MarkCompactCollector::Sweeper::StartSweeperTasks() {
       V8::GetCurrentPlatform()->CallOnBackgroundThread(
           task, v8::Platform::kShortRunningTask);
     });
+    ScheduleIncrementalSweepingTask();
   }
 }
 
@@ -4440,6 +4471,14 @@ void MarkCompactCollector::Sweeper::SweepSpaceFromTask(
   }
 }
 
+bool MarkCompactCollector::Sweeper::SweepSpaceIncrementallyFromTask(
+    AllocationSpace identity) {
+  if (Page* page = GetSweepingPageSafe(identity)) {
+    ParallelSweepPage(page, identity);
+  }
+  return sweeping_list_[identity].empty();
+}
+
 int MarkCompactCollector::Sweeper::ParallelSweepSpace(AllocationSpace identity,
                                                       int required_freed_bytes,
                                                       int max_pages) {
@@ -4471,10 +4510,8 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
     if (page->SweepingDone()) return 0;
 
     // If the page is a code page, the CodePageMemoryModificationScope changes
-    // the page protection mode from rx -> rwx while sweeping.
-    // TODO(hpayer): Allow only rx -> rw transitions.
-    CodePageMemoryModificationScope code_page_scope(
-        page, CodePageMemoryModificationScope::READ_WRITE_EXECUTABLE);
+    // the page protection mode from rx -> rw while sweeping.
+    CodePageMemoryModificationScope code_page_scope(page);
 
     DCHECK_EQ(Page::kSweepingPending,
               page->concurrent_sweeping_state().Value());
@@ -4504,6 +4541,16 @@ int MarkCompactCollector::Sweeper::ParallelSweepPage(Page* page,
     swept_list_[identity].push_back(page);
   }
   return max_freed;
+}
+
+void MarkCompactCollector::Sweeper::ScheduleIncrementalSweepingTask() {
+  if (!incremental_sweeper_pending_) {
+    incremental_sweeper_pending_ = true;
+    IncrementalSweeperTask* task =
+        new IncrementalSweeperTask(heap_->isolate(), this);
+    v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(heap_->isolate());
+    V8::GetCurrentPlatform()->CallOnForegroundThread(isolate, task);
+  }
 }
 
 void MarkCompactCollector::Sweeper::AddPage(

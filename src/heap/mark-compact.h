@@ -681,6 +681,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
           marking_state_(marking_state),
           num_tasks_(0),
           pending_sweeper_tasks_semaphore_(0),
+          incremental_sweeper_pending_(false),
           sweeping_in_progress_(false),
           num_sweeping_tasks_(0),
           stop_sweeper_tasks_(false) {}
@@ -692,6 +693,8 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     int ParallelSweepSpace(AllocationSpace identity, int required_freed_bytes,
                            int max_pages = 0);
     int ParallelSweepPage(Page* page, AllocationSpace identity);
+
+    void ScheduleIncrementalSweepingTask();
 
     // After calling this function sweeping is considered to be in progress
     // and the main thread can sweep lazily, but the background sweeper tasks
@@ -707,6 +710,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     Page* GetSweptPageSafe(PagedSpace* space);
 
    private:
+    class IncrementalSweeperTask;
     class SweeperTask;
 
     static const int kAllocationSpaces = LAST_PAGED_SPACE + 1;
@@ -729,6 +733,10 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
 
     void SweepSpaceFromTask(AllocationSpace identity);
 
+    // Sweeps incrementally one page from the given space. Returns true if
+    // there are no more pages to sweep in the given space.
+    bool SweepSpaceIncrementallyFromTask(AllocationSpace identity);
+
     void AbortAndWaitForTasks();
 
     Page* GetSweepingPageSafe(AllocationSpace space);
@@ -743,6 +751,7 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
     base::Mutex mutex_;
     SweptList swept_list_[kAllocationSpaces];
     SweepingList sweeping_list_[kAllocationSpaces];
+    bool incremental_sweeper_pending_;
     bool sweeping_in_progress_;
     // Counter is actively maintained by the concurrent tasks to avoid querying
     // the semaphore for maintaining a task counter on the main thread.

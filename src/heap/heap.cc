@@ -872,15 +872,13 @@ void Heap::ProcessPretenuringFeedback() {
 
 void Heap::InvalidateCodeEmbeddedObjects(Code* code) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(code->address());
-  CodePageMemoryModificationScope modification_scope(
-      chunk, CodePageMemoryModificationScope::READ_WRITE);
+  CodePageMemoryModificationScope modification_scope(chunk);
   code->InvalidateEmbeddedObjects();
 }
 
 void Heap::InvalidateCodeDeoptimizationData(Code* code) {
   MemoryChunk* chunk = MemoryChunk::FromAddress(code->address());
-  CodePageMemoryModificationScope modification_scope(
-      chunk, CodePageMemoryModificationScope::READ_WRITE);
+  CodePageMemoryModificationScope modification_scope(chunk);
   code->set_deoptimization_data(empty_fixed_array());
 }
 
