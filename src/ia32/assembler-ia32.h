@@ -392,7 +392,8 @@ class Operand BASE_EMBEDDED {
   }
 
   // Returns true if this Operand is a wrapper for the specified register.
-  bool is_reg(Register reg) const;
+  bool is_reg(Register reg) const { return is_reg(reg.code()); }
+  bool is_reg(XMMRegister reg) const { return is_reg(reg.code()); }
 
   // Returns true if this Operand is a wrapper for one register.
   bool is_reg_only() const;
@@ -418,6 +419,11 @@ class Operand BASE_EMBEDDED {
     *p = disp;
     len_ += sizeof(int32_t);
     rmode_ = rmode;
+  }
+
+  inline bool is_reg(int reg_code) const {
+    return ((buf_[0] & 0xF8) == 0xC0)  // addressing mode is register only.
+           && ((buf_[0] & 0x07) == reg_code);  // register codes match.
   }
 
   byte buf_[6];

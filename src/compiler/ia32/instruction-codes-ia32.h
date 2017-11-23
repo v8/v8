@@ -152,6 +152,7 @@ namespace compiler {
   V(IA32I16x8ExtractLane)          \
   V(SSEI16x8ReplaceLane)           \
   V(AVXI16x8ReplaceLane)           \
+  V(IA32I16x8Neg)                  \
   V(SSEI16x8Shl)                   \
   V(AVXI16x8Shl)                   \
   V(SSEI16x8ShrS)                  \
@@ -174,6 +175,10 @@ namespace compiler {
   V(AVXI16x8Eq)                    \
   V(SSEI16x8Ne)                    \
   V(AVXI16x8Ne)                    \
+  V(SSEI16x8GtS)                   \
+  V(AVXI16x8GtS)                   \
+  V(SSEI16x8GeS)                   \
+  V(AVXI16x8GeS)                   \
   V(SSEI16x8ShrU)                  \
   V(AVXI16x8ShrU)                  \
   V(SSEI16x8AddSaturateU)          \
@@ -184,10 +189,15 @@ namespace compiler {
   V(AVXI16x8MinU)                  \
   V(SSEI16x8MaxU)                  \
   V(AVXI16x8MaxU)                  \
+  V(SSEI16x8GtU)                   \
+  V(AVXI16x8GtU)                   \
+  V(SSEI16x8GeU)                   \
+  V(AVXI16x8GeU)                   \
   V(IA32I8x16Splat)                \
   V(IA32I8x16ExtractLane)          \
   V(SSEI8x16ReplaceLane)           \
-  V(AVXI8x16ReplaceLane)
+  V(AVXI8x16ReplaceLane)           \
+  V(IA32I8x16Neg)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

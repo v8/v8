@@ -237,6 +237,8 @@ class TurboAssembler : public Assembler {
   AVX_OP3_WITH_TYPE(macro_name, name, XMMRegister, const Operand&)
 
   AVX_OP3_XO(Pcmpeqd, pcmpeqd)
+  AVX_OP3_XO(Psubb, psubb)
+  AVX_OP3_XO(Psubw, psubw)
   AVX_OP3_XO(Psubd, psubd)
   AVX_OP3_XO(Pxor, pxor)
 
@@ -246,6 +248,11 @@ class TurboAssembler : public Assembler {
   // Non-SSE2 instructions.
   void Pshufb(XMMRegister dst, XMMRegister src) { Pshufb(dst, Operand(src)); }
   void Pshufb(XMMRegister dst, const Operand& src);
+
+  void Psignb(XMMRegister dst, XMMRegister src) { Psignb(dst, Operand(src)); }
+  void Psignb(XMMRegister dst, const Operand& src);
+  void Psignw(XMMRegister dst, XMMRegister src) { Psignw(dst, Operand(src)); }
+  void Psignw(XMMRegister dst, const Operand& src);
   void Psignd(XMMRegister dst, XMMRegister src) { Psignd(dst, Operand(src)); }
   void Psignd(XMMRegister dst, const Operand& src);
 

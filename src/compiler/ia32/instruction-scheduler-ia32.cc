@@ -138,6 +138,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kIA32I16x8ExtractLane:
     case kSSEI16x8ReplaceLane:
     case kAVXI16x8ReplaceLane:
+    case kIA32I16x8Neg:
     case kSSEI16x8Shl:
     case kAVXI16x8Shl:
     case kSSEI16x8ShrS:
@@ -160,6 +161,10 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI16x8Eq:
     case kSSEI16x8Ne:
     case kAVXI16x8Ne:
+    case kSSEI16x8GtS:
+    case kAVXI16x8GtS:
+    case kSSEI16x8GeS:
+    case kAVXI16x8GeS:
     case kSSEI16x8ShrU:
     case kAVXI16x8ShrU:
     case kSSEI16x8AddSaturateU:
@@ -170,10 +175,15 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kAVXI16x8MinU:
     case kSSEI16x8MaxU:
     case kAVXI16x8MaxU:
+    case kSSEI16x8GtU:
+    case kAVXI16x8GtU:
+    case kSSEI16x8GeU:
+    case kAVXI16x8GeU:
     case kIA32I8x16Splat:
     case kIA32I8x16ExtractLane:
     case kSSEI8x16ReplaceLane:
     case kAVXI8x16ReplaceLane:
+    case kIA32I8x16Neg:
       return (instr->addressing_mode() == kMode_None)
           ? kNoOpcodeFlags
           : kIsLoadOperation | kHasSideEffect;

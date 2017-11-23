@@ -2016,6 +2016,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4ReplaceLane: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       __ pinsrd(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
       break;
@@ -2029,8 +2030,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     case kIA32I32x4Neg: {
       XMMRegister dst = i.OutputSimd128Register();
       Operand src = i.InputOperand(0);
-      Register ireg = Register::from_code(dst.code());
-      if (src.is_reg(ireg)) {
+      if (src.is_reg(dst)) {
         __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
         __ Psignd(dst, kScratchDoubleReg);
       } else {
@@ -2040,6 +2040,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4Shl: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pslld(i.OutputSimd128Register(), i.InputInt8(1));
       break;
     }
@@ -2050,6 +2051,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4ShrS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psrad(i.OutputSimd128Register(), i.InputInt8(1));
       break;
     }
@@ -2060,6 +2062,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4Add: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ paddd(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2070,6 +2073,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4Sub: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psubd(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2080,6 +2084,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4Mul: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       __ pmulld(i.OutputSimd128Register(), i.InputOperand(1));
       break;
@@ -2091,6 +2096,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4MinS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       __ pminsd(i.OutputSimd128Register(), i.InputOperand(1));
       break;
@@ -2102,6 +2108,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4MaxS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       __ pmaxsd(i.OutputSimd128Register(), i.InputOperand(1));
       break;
@@ -2113,6 +2120,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4Eq: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pcmpeqd(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2123,6 +2131,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4Ne: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pcmpeqd(i.OutputSimd128Register(), i.InputOperand(1));
       __ pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
       __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
@@ -2138,6 +2147,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4GtS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pcmpgtd(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2148,6 +2158,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4GeS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       Operand src = i.InputOperand(1);
@@ -2164,6 +2175,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4ShrU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psrld(i.OutputSimd128Register(), i.InputInt8(1));
       break;
     }
@@ -2174,6 +2186,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4MinU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       __ pminud(i.OutputSimd128Register(), i.InputOperand(1));
       break;
@@ -2185,6 +2198,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4MaxU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       __ pmaxud(i.OutputSimd128Register(), i.InputOperand(1));
       break;
@@ -2196,6 +2210,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4GtU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       Operand src = i.InputOperand(1);
@@ -2217,6 +2232,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI32x4GeU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       XMMRegister dst = i.OutputSimd128Register();
       Operand src = i.InputOperand(1);
@@ -2246,6 +2262,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8ReplaceLane: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pinsrw(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
       break;
     }
@@ -2255,7 +2272,20 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                  i.InputOperand(2), i.InputInt8(1));
       break;
     }
+    case kIA32I16x8Neg: {
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src = i.InputOperand(0);
+      if (src.is_reg(dst)) {
+        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+        __ Psignw(dst, kScratchDoubleReg);
+      } else {
+        __ Pxor(dst, dst);
+        __ Psubw(dst, src);
+      }
+      break;
+    }
     case kSSEI16x8Shl: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psllw(i.OutputSimd128Register(), i.InputInt8(1));
       break;
     }
@@ -2266,6 +2296,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8ShrS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psraw(i.OutputSimd128Register(), i.InputInt8(1));
       break;
     }
@@ -2276,6 +2307,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8Add: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ paddw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2286,6 +2318,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8AddSaturateS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ paddsw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2296,6 +2329,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8Sub: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psubw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2306,6 +2340,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8SubSaturateS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psubsw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2316,6 +2351,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8Mul: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pmullw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2326,6 +2362,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8MinS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pminsw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2336,6 +2373,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8MaxS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pmaxsw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2346,6 +2384,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8Eq: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pcmpeqw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2356,6 +2395,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8Ne: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ pcmpeqw(i.OutputSimd128Register(), i.InputOperand(1));
       __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
       __ pxor(i.OutputSimd128Register(), kScratchDoubleReg);
@@ -2370,7 +2410,35 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
                kScratchDoubleReg);
       break;
     }
+    case kSSEI16x8GtS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ pcmpgtw(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXI16x8GtS: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpcmpgtw(i.OutputSimd128Register(), i.InputSimd128Register(0),
+                  i.InputOperand(1));
+      break;
+    }
+    case kSSEI16x8GeS: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src = i.InputOperand(1);
+      __ pminsw(dst, src);
+      __ pcmpeqw(dst, src);
+      break;
+    }
+    case kAVXI16x8GeS: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister src1 = i.InputSimd128Register(0);
+      Operand src2 = i.InputOperand(1);
+      __ vpminsw(kScratchDoubleReg, src1, src2);
+      __ vpcmpeqw(i.OutputSimd128Register(), kScratchDoubleReg, src2);
+      break;
+    }
     case kSSEI16x8ShrU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psrlw(i.OutputSimd128Register(), i.InputInt8(1));
       break;
     }
@@ -2381,6 +2449,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8AddSaturateU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ paddusw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2391,6 +2460,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8SubSaturateU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       __ psubusw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
     }
@@ -2401,6 +2471,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8MinU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       __ pminuw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
@@ -2412,6 +2483,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI16x8MaxU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       __ pmaxuw(i.OutputSimd128Register(), i.InputOperand(1));
       break;
@@ -2420,6 +2492,45 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpmaxuw(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(1));
+      break;
+    }
+    case kSSEI16x8GtU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src = i.InputOperand(1);
+      __ pmaxuw(dst, src);
+      __ pcmpeqw(dst, src);
+      __ pcmpeqw(kScratchDoubleReg, kScratchDoubleReg);
+      __ pxor(dst, kScratchDoubleReg);
+      break;
+    }
+    case kAVXI16x8GtU: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister dst = i.OutputSimd128Register();
+      XMMRegister src1 = i.InputSimd128Register(0);
+      Operand src2 = i.InputOperand(1);
+      __ vpmaxuw(kScratchDoubleReg, src1, src2);
+      __ vpcmpeqw(dst, kScratchDoubleReg, src2);
+      __ vpcmpeqw(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpxor(dst, dst, kScratchDoubleReg);
+      break;
+    }
+    case kSSEI16x8GeU: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      CpuFeatureScope sse_scope(tasm(), SSE4_1);
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src = i.InputOperand(1);
+      __ pminuw(dst, src);
+      __ pcmpeqw(dst, src);
+      break;
+    }
+    case kAVXI16x8GeU: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      XMMRegister src1 = i.InputSimd128Register(0);
+      Operand src2 = i.InputOperand(1);
+      __ vpminuw(kScratchDoubleReg, src1, src2);
+      __ vpcmpeqw(i.OutputSimd128Register(), kScratchDoubleReg, src2);
       break;
     }
     case kIA32I8x16Splat: {
@@ -2436,6 +2547,7 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
     case kSSEI8x16ReplaceLane: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
       CpuFeatureScope sse_scope(tasm(), SSE4_1);
       __ pinsrb(i.OutputSimd128Register(), i.InputOperand(2), i.InputInt8(1));
       break;
@@ -2444,6 +2556,18 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       CpuFeatureScope avx_scope(tasm(), AVX);
       __ vpinsrb(i.OutputSimd128Register(), i.InputSimd128Register(0),
                  i.InputOperand(2), i.InputInt8(1));
+      break;
+    }
+    case kIA32I8x16Neg: {
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src = i.InputOperand(0);
+      if (src.is_reg(dst)) {
+        __ Pcmpeqd(kScratchDoubleReg, kScratchDoubleReg);
+        __ Psignb(dst, kScratchDoubleReg);
+      } else {
+        __ Pxor(dst, dst);
+        __ Psubb(dst, src);
+      }
       break;
     }
     case kCheckedLoadInt8:

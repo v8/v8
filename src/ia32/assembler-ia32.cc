@@ -295,12 +295,6 @@ Operand::Operand(Register index,
 }
 
 
-bool Operand::is_reg(Register reg) const {
-  return ((buf_[0] & 0xF8) == 0xC0)  // addressing mode is register only.
-      && ((buf_[0] & 0x07) == reg.code());  // register codes match.
-}
-
-
 bool Operand::is_reg_only() const {
   return (buf_[0] & 0xF8) == 0xC0;  // Addressing mode is register only.
 }
