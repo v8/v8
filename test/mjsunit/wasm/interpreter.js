@@ -467,3 +467,29 @@ function checkStack(stack, expected_lines) {
   table.set(0, instance1.exports.func);
   instance2.exports.call_func();
 })();
+
+(function testTableCall2() {
+  // See crbug.com/787910.
+  print(arguments.callee.name);
+  const builder1 = new WasmModuleBuilder();
+  builder1.addFunction('exp', kSig_i_i)
+      .addBody([kExprI32Const, 0])
+      .exportFunc();
+  const instance1 = builder1.instantiate();
+  const builder2 = new WasmModuleBuilder();
+  const sig1 = builder2.addType(kSig_i_v);
+  const sig2 = builder2.addType(kSig_i_i);
+  builder2.addFunction('call2', kSig_i_v)
+      .addBody([
+        kExprI32Const, 0, kExprI32Const, 0, kExprCallIndirect, sig2, kTableZero
+      ])
+      .exportAs('call2');
+  builder2.addImportedTable('imp', 'table');
+  const tab = new WebAssembly.Table({
+    element: 'anyfunc',
+    initial: 3,
+  });
+  const instance2 = builder2.instantiate({imp: {table: tab}});
+  tab.set(0, instance1.exports.exp);
+  instance2.exports.call2();
+})();

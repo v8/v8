@@ -2505,8 +2505,7 @@ class ThreadImpl {
     // Call the code object. Use a new HandleScope to avoid leaking /
     // accumulating handles in the outer scope.
     HandleScope handle_scope(isolate);
-    FunctionSig* signature =
-        &codemap()->module()->signatures[table_index][sig_index];
+    FunctionSig* signature = module()->signatures[sig_index];
     return CallCodeObject(isolate, handle(target, isolate), signature);
   }
 
