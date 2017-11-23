@@ -1165,15 +1165,6 @@ const Operator* JSOperatorBuilder::CreateBlockContext(
       scope_info);                                               // parameter
 }
 
-const Operator* JSOperatorBuilder::CreateScriptContext(
-    const Handle<ScopeInfo>& scope_info) {
-  return new (zone()) Operator1<Handle<ScopeInfo>>(               // --
-      IrOpcode::kJSCreateScriptContext, Operator::kNoProperties,  // opcode
-      "JSCreateScriptContext",                                    // name
-      1, 1, 1, 1, 1, 2,                                           // counts
-      scope_info);                                                // parameter
-}
-
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

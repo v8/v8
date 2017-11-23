@@ -85,9 +85,6 @@ bool OperatorProperties::HasFrameStateInput(const Operator* op) {
     case IrOpcode::kJSStoreDataPropertyInLiteral:
     case IrOpcode::kJSDeleteProperty:
 
-    // Context operations
-    case IrOpcode::kJSCreateScriptContext:
-
     // Conversions
     case IrOpcode::kJSToInteger:
     case IrOpcode::kJSToLength:

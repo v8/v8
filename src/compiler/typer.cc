@@ -1380,10 +1380,6 @@ Type* Typer::Visitor::TypeJSCreateBlockContext(Node* node) {
   return Type::OtherInternal();
 }
 
-Type* Typer::Visitor::TypeJSCreateScriptContext(Node* node) {
-  return Type::OtherInternal();
-}
-
 // JS other operators.
 
 Type* Typer::Visitor::TypeJSConstructForwardVarargs(Node* node) {

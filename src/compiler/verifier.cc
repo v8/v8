@@ -766,8 +766,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kJSCreateFunctionContext:
     case IrOpcode::kJSCreateCatchContext:
     case IrOpcode::kJSCreateWithContext:
-    case IrOpcode::kJSCreateBlockContext:
-    case IrOpcode::kJSCreateScriptContext: {
+    case IrOpcode::kJSCreateBlockContext: {
       // Type is Context, and operand is Internal.
       Node* context = NodeProperties::GetContextInput(node);
       // TODO(bmeurer): This should say CheckTypeIs, but we don't have type

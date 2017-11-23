@@ -161,8 +161,7 @@
   V(JSCreateFunctionContext)  \
   V(JSCreateCatchContext)     \
   V(JSCreateWithContext)      \
-  V(JSCreateBlockContext)     \
-  V(JSCreateScriptContext)
+  V(JSCreateBlockContext)
 
 #define JS_OTHER_OP_LIST(V)         \
   V(JSConstructForwardVarargs)      \
@@ -826,7 +825,7 @@ class V8_EXPORT_PRIVATE IrOpcode {
   }
 
   static bool IsContextChainExtendingOpcode(Value value) {
-    return kJSCreateFunctionContext <= value && value <= kJSCreateScriptContext;
+    return kJSCreateFunctionContext <= value && value <= kJSCreateBlockContext;
   }
 };
 
