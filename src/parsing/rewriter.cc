@@ -263,6 +263,9 @@ void Processor::VisitTryFinallyStatement(TryFinallyStatement* node) {
         0, factory()->NewExpressionStatement(save, kNoSourcePosition), zone());
     node->finally_block()->statements()->Add(
         factory()->NewExpressionStatement(restore, kNoSourcePosition), zone());
+    // We can't tell whether the finally-block is guaranteed to set .result, so
+    // reset is_set_ before visiting the try-block.
+    is_set_ = false;
   }
   Visit(node->try_block());
   node->set_try_block(replacement_->AsBlock());
