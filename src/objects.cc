@@ -3144,6 +3144,7 @@ VisitorId Map::GetVisitorId(Map* map) {
 
     case HASH_TABLE_TYPE:
     case FIXED_ARRAY_TYPE:
+    case DESCRIPTOR_ARRAY_TYPE:
       return kVisitFixedArray;
 
     case FIXED_DOUBLE_ARRAY_TYPE:
@@ -3425,6 +3426,10 @@ void HeapObject::HeapObjectShortPrint(std::ostream& os) {  // NOLINT
     case BYTECODE_ARRAY_TYPE:
       os << "<BytecodeArray[" << BytecodeArray::cast(this)->length() << "]>";
       break;
+    case DESCRIPTOR_ARRAY_TYPE:
+      os << "<DescriptorArray[" << DescriptorArray::cast(this)->length()
+         << "]>";
+      break;
     case TRANSITION_ARRAY_TYPE:
       os << "<TransitionArray[" << TransitionArray::cast(this)->length()
          << "]>";
@@ -3644,8 +3649,8 @@ bool HeapObject::CanBeRehashed() const {
       // TODO(yangguo): actually support rehashing OrderedHash{Map,Set}.
       return IsNameDictionary() || IsGlobalDictionary() ||
              IsNumberDictionary() || IsStringTable() || IsWeakHashTable();
-    case FIXED_ARRAY_TYPE:
-      return IsDescriptorArrayTemplate();
+    case DESCRIPTOR_ARRAY_TYPE:
+      return true;
     case TRANSITION_ARRAY_TYPE:
       return true;
     case SMALL_ORDERED_HASH_MAP_TYPE:
@@ -3675,11 +3680,9 @@ void HeapObject::RehashBasedOnMap() {
         UNREACHABLE();
       }
       break;
-    case FIXED_ARRAY_TYPE:
-      if (IsDescriptorArrayTemplate()) {
-        DCHECK_LE(1, DescriptorArray::cast(this)->number_of_descriptors());
-        DescriptorArray::cast(this)->Sort();
-      }
+    case DESCRIPTOR_ARRAY_TYPE:
+      DCHECK_LE(1, DescriptorArray::cast(this)->number_of_descriptors());
+      DescriptorArray::cast(this)->Sort();
       break;
     case TRANSITION_ARRAY_TYPE:
       TransitionArray::cast(this)->Sort();
@@ -10366,8 +10369,7 @@ Handle<DescriptorArray> DescriptorArray::Allocate(Isolate* isolate,
   // Allocate the array of keys.
   Handle<FixedArray> result =
       factory->NewFixedArray(LengthFor(size), pretenure);
-  // TODO(ishell): set map to |descriptor_array_map| once we can use it for all
-  // descriptor arrays.
+  result->set_map_no_write_barrier(*factory->descriptor_array_map());
   result->set(kDescriptorLengthIndex, Smi::FromInt(number_of_descriptors));
   result->set(kEnumCacheIndex, isolate->heap()->empty_enum_cache());
   return Handle<DescriptorArray>::cast(result);

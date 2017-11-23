@@ -43,12 +43,6 @@ template <class AllocatorT>
 void Deserializer<AllocatorT>::Rehash() {
   DCHECK(can_rehash() || deserializing_user_code());
   for (const auto& item : to_rehash_) item->RehashBasedOnMap();
-  for (const auto& address : allocator()->GetAllocatedMaps()) {
-    Map* map = Map::cast(HeapObject::FromAddress(address));
-    if (map->instance_descriptors()->number_of_descriptors() > 1) {
-      map->instance_descriptors()->Sort();
-    }
-  }
 }
 
 template <class AllocatorT>

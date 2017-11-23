@@ -90,12 +90,6 @@ class BuiltinDeserializerAllocator final {
   bool ReservationsAreFullyUsed() const;
 #endif
 
-  // For SortMapDescriptors();
-  const std::vector<Address>& GetAllocatedMaps() const {
-    static std::vector<Address> empty_vector(0);
-    return empty_vector;
-  }
-
  private:
   Isolate* isolate() const;
   BuiltinDeserializer* deserializer() const;

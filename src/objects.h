@@ -372,8 +372,9 @@ const int kStubMinorKeyBits = kSmiValueSize - kStubMajorKeyBits - 1;
   V(ASYNC_GENERATOR_REQUEST_TYPE)                               \
   V(FIXED_ARRAY_TYPE)                                           \
   V(HASH_TABLE_TYPE)                                            \
-  V(FEEDBACK_VECTOR_TYPE)                                       \
+  V(DESCRIPTOR_ARRAY_TYPE)                                      \
   V(TRANSITION_ARRAY_TYPE)                                      \
+  V(FEEDBACK_VECTOR_TYPE)                                       \
   V(PROPERTY_ARRAY_TYPE)                                        \
   V(SHARED_FUNCTION_INFO_TYPE)                                  \
   V(CELL_TYPE)                                                  \
@@ -724,10 +725,11 @@ enum InstanceType : uint16_t {
   MODULE_TYPE,
   MODULE_INFO_ENTRY_TYPE,
   ASYNC_GENERATOR_REQUEST_TYPE,
-  FIXED_ARRAY_TYPE,
+  FIXED_ARRAY_TYPE,  // FIRST_FIXED_ARRAY_TYPE
   HASH_TABLE_TYPE,
+  DESCRIPTOR_ARRAY_TYPE,
+  TRANSITION_ARRAY_TYPE,  // LAST_FIXED_ARRAY_TYPE
   FEEDBACK_VECTOR_TYPE,
-  TRANSITION_ARRAY_TYPE,
   PROPERTY_ARRAY_TYPE,
   SHARED_FUNCTION_INFO_TYPE,
   CELL_TYPE,
@@ -800,6 +802,9 @@ enum InstanceType : uint16_t {
   LAST_PRIMITIVE_TYPE = ODDBALL_TYPE,
   FIRST_FUNCTION_TYPE = JS_BOUND_FUNCTION_TYPE,
   LAST_FUNCTION_TYPE = JS_FUNCTION_TYPE,
+  // Boundaries for testing if given HeapObject is a subclass of FixedArray.
+  FIRST_FIXED_ARRAY_TYPE = FIXED_ARRAY_TYPE,
+  LAST_FIXED_ARRAY_TYPE = TRANSITION_ARRAY_TYPE,
   // Boundaries for testing for a fixed typed array.
   FIRST_FIXED_TYPED_ARRAY_TYPE = FIXED_INT8_ARRAY_TYPE,
   LAST_FIXED_TYPED_ARRAY_TYPE = FIXED_UINT8_CLAMPED_ARRAY_TYPE,
@@ -1002,6 +1007,7 @@ template <class C> inline bool Is(Object* obj);
   V(Filler)                               \
   V(FixedArray)                           \
   V(FixedArrayBase)                       \
+  V(FixedArrayExact)                      \
   V(FixedDoubleArray)                     \
   V(FixedFloat32Array)                    \
   V(FixedFloat64Array)                    \
@@ -1723,8 +1729,6 @@ class HeapObject: public Object {
 #define IS_TYPE_FUNCTION_DECL(Type) INLINE(bool Is##Type() const);
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
-
-  inline bool IsDescriptorArrayTemplate() const;
 
 #define IS_TYPE_FUNCTION_DECL(Type, Value) \
   INLINE(bool Is##Type(Isolate* isolate) const);
@@ -2918,6 +2922,14 @@ class FixedArray: public FixedArrayBase {
   STATIC_ASSERT(kHeaderSize == Internals::kFixedArrayHeaderSize);
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
+};
+
+// FixedArray alias added only because of IsFixedArrayExact() predicate, which
+// checks for the exact instance type FIXED_ARRAY_TYPE instead of a range
+// check: [FIRST_FIXED_ARRAY_TYPE, LAST_FIXED_ARRAY_TYPE].
+class FixedArrayExact final : public FixedArray {
+ public:
+  DECL_CAST(FixedArrayExact)
 };
 
 // FixedDoubleArray describes fixed-sized arrays with element type double.

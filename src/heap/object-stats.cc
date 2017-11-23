@@ -306,12 +306,9 @@ void ObjectStatsCollector::CollectGlobalStatistics() {
 
 static bool CanRecordFixedArray(Heap* heap, FixedArrayBase* array) {
   return array->map()->instance_type() == FIXED_ARRAY_TYPE &&
-         array->map() != heap->fixed_double_array_map() &&
          array != heap->empty_fixed_array() &&
-         array != heap->empty_byte_array() &&
          array != heap->empty_sloppy_arguments_elements() &&
          array != heap->empty_slow_element_dictionary() &&
-         array != heap->empty_descriptor_array() &&
          array != heap->empty_property_dictionary();
 }
 

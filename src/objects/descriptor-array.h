@@ -151,6 +151,8 @@ class DescriptorArray : public FixedArray {
   void Print();
 #endif
 
+  DECL_VERIFIER(DescriptorArray)
+
 #ifdef DEBUG
   // Is the descriptor array sorted and without duplicates?
   bool IsSortedNoDuplicates(int valid_descriptors = -1);

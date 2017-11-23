@@ -98,6 +98,9 @@ void HeapObject::HeapObjectPrint(std::ostream& os) {  // NOLINT
     case BYTECODE_ARRAY_TYPE:
       BytecodeArray::cast(this)->BytecodeArrayPrint(os);
       break;
+    case DESCRIPTOR_ARRAY_TYPE:
+      DescriptorArray::cast(this)->PrintDescriptors(os);
+      break;
     case TRANSITION_ARRAY_TYPE:
       TransitionArray::cast(this)->TransitionArrayPrint(os);
       break;
@@ -1780,6 +1783,7 @@ void TransitionArray::Print() {
   Print(os);
 }
 
+// TODO(ishell): unify with TransitionArrayPrint().
 void TransitionArray::Print(std::ostream& os) {
   int num_transitions = number_of_transitions();
   os << "Transition array #" << num_transitions << ":";

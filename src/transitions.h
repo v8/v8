@@ -243,13 +243,8 @@ class TransitionArray : public FixedArray {
   void Print(std::ostream& os);
 #endif
 
-#ifdef OBJECT_PRINT
-  void TransitionArrayPrint(std::ostream& os);  // NOLINT
-#endif
-
-#ifdef VERIFY_HEAP
-  void TransitionArrayVerify();
-#endif
+  DECL_PRINTER(TransitionArray)
+  DECL_VERIFIER(TransitionArray)
 
  private:
   friend class MarkCompactCollector;

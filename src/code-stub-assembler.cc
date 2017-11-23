@@ -1628,7 +1628,7 @@ Node* CodeStubAssembler::LoadFeedbackVectorSlot(Node* object,
 Node* CodeStubAssembler::LoadAndUntagToWord32FixedArrayElement(
     Node* object, Node* index_node, int additional_offset,
     ParameterMode parameter_mode) {
-  CSA_SLOW_ASSERT(this, Word32Or(IsFixedArray(object), IsHashTable(object)));
+  CSA_SLOW_ASSERT(this, IsFixedArraySubclass(object));
   CSA_SLOW_ASSERT(this, MatchesParameterMode(index_node, parameter_mode));
   int32_t header_size =
       FixedArray::kHeaderSize + additional_offset - kHeapObjectTag;
@@ -4225,6 +4225,14 @@ Node* CodeStubAssembler::IsFixedArray(Node* object) {
   return HasInstanceType(object, FIXED_ARRAY_TYPE);
 }
 
+Node* CodeStubAssembler::IsFixedArraySubclass(Node* object) {
+  Node* instance_type = LoadInstanceType(object);
+  return Word32And(Int32GreaterThanOrEqual(
+                       instance_type, Int32Constant(FIRST_FIXED_ARRAY_TYPE)),
+                   Int32LessThanOrEqual(instance_type,
+                                        Int32Constant(LAST_FIXED_ARRAY_TYPE)));
+}
+
 Node* CodeStubAssembler::IsPropertyArray(Node* object) {
   return HasInstanceType(object, PROPERTY_ARRAY_TYPE);
 }
@@ -4260,7 +4268,7 @@ Node* CodeStubAssembler::IsFixedArrayWithKind(Node* object, ElementsKind kind) {
     return IsFixedDoubleArray(object);
   } else {
     DCHECK(IsSmiOrObjectElementsKind(kind));
-    return Word32Or(IsFixedArray(object), IsHashTable(object));
+    return IsFixedArraySubclass(object);
   }
 }
 

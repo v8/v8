@@ -237,7 +237,7 @@ WeakCell* StoreHandler::GetTransitionCell(Object* handler) {
     return cell;
   }
 
-  DCHECK(handler->IsFixedArray());
+  DCHECK(handler->IsFixedArrayExact());
   WeakCell* cell = WeakCell::cast(FixedArray::cast(handler)->get(kDataIndex));
   DCHECK(!cell->cleared());
   return cell;
@@ -245,7 +245,7 @@ WeakCell* StoreHandler::GetTransitionCell(Object* handler) {
 
 // static
 bool StoreHandler::IsHandler(Object* maybe_handler) {
-  return maybe_handler->IsFixedArray() || maybe_handler->IsTuple3();
+  return maybe_handler->IsFixedArrayExact() || maybe_handler->IsTuple3();
 }
 
 }  // namespace internal

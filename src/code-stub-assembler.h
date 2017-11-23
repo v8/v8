@@ -1047,6 +1047,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
                              SloppyTNode<Context> context);
   Node* IsFeedbackVector(Node* object);
   Node* IsFixedArray(Node* object);
+  Node* IsFixedArraySubclass(Node* object);
   Node* IsFixedArrayWithKind(Node* object, ElementsKind kind);
   Node* IsFixedArrayWithKindOrEmpty(Node* object, ElementsKind kind);
   Node* IsFixedDoubleArray(Node* object);

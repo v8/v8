@@ -82,7 +82,9 @@ TYPE_CHECKER(CallHandlerInfo, TUPLE3_TYPE)
 TYPE_CHECKER(Cell, CELL_TYPE)
 TYPE_CHECKER(ConstantElementsPair, TUPLE2_TYPE)
 TYPE_CHECKER(CoverageInfo, FIXED_ARRAY_TYPE)
+TYPE_CHECKER(DescriptorArray, DESCRIPTOR_ARRAY_TYPE)
 TYPE_CHECKER(FeedbackVector, FEEDBACK_VECTOR_TYPE)
+TYPE_CHECKER(FixedArrayExact, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
 TYPE_CHECKER(Foreign, FOREIGN_TYPE)
 TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
@@ -111,6 +113,7 @@ TYPE_CHECKER(Oddball, ODDBALL_TYPE)
 TYPE_CHECKER(PreParsedScopeData, TUPLE2_TYPE)
 TYPE_CHECKER(PropertyArray, PROPERTY_ARRAY_TYPE)
 TYPE_CHECKER(PropertyCell, PROPERTY_CELL_TYPE)
+TYPE_CHECKER(PropertyDescriptorObject, FIXED_ARRAY_TYPE)
 TYPE_CHECKER(SmallOrderedHashMap, SMALL_ORDERED_HASH_MAP_TYPE)
 TYPE_CHECKER(SmallOrderedHashSet, SMALL_ORDERED_HASH_SET_TYPE)
 TYPE_CHECKER(SourcePositionTableWithFrameCache, TUPLE2_TYPE)
@@ -137,10 +140,13 @@ bool HeapObject::IsFixedArrayBase() const {
 
 bool HeapObject::IsFixedArray() const {
   InstanceType instance_type = map()->instance_type();
-  return instance_type == FIXED_ARRAY_TYPE || instance_type == HASH_TABLE_TYPE;
+  return instance_type >= FIRST_FIXED_ARRAY_TYPE &&
+         instance_type <= LAST_FIXED_ARRAY_TYPE;
 }
 
-bool HeapObject::IsSloppyArgumentsElements() const { return IsFixedArray(); }
+bool HeapObject::IsSloppyArgumentsElements() const {
+  return IsFixedArrayExact();
+}
 
 bool HeapObject::IsJSSloppyArgumentsObject() const {
   return IsJSArgumentsObject();
@@ -151,9 +157,11 @@ bool HeapObject::IsJSGeneratorObject() const {
          IsJSAsyncGeneratorObject();
 }
 
-bool HeapObject::IsBoilerplateDescription() const { return IsFixedArray(); }
+bool HeapObject::IsBoilerplateDescription() const {
+  return IsFixedArrayExact();
+}
 
-bool HeapObject::IsClassBoilerplate() const { return IsFixedArray(); }
+bool HeapObject::IsClassBoilerplate() const { return IsFixedArrayExact(); }
 
 bool HeapObject::IsExternal() const {
   return map()->FindRootMap() == GetHeap()->external_map();
@@ -320,33 +328,21 @@ bool HeapObject::IsJSCollection() const { return IsJSMap() || IsJSSet(); }
 
 bool HeapObject::IsPromiseCapability() const { return IsTuple3(); }
 
-bool HeapObject::IsDescriptorArray() const { return IsFixedArray(); }
-
-// TODO(ishell): remove once we use |descriptor_array_map| for all
-// DescriptorArray objects.
-bool HeapObject::IsDescriptorArrayTemplate() const {
-  // We can't use descriptor_array_map() here because during deserialization
-  // we may call this function before the descriptor_array_map is deserialized.
-  return map() == GetHeap()->root(Heap::kDescriptorArrayMapRootIndex);
-}
-
-bool HeapObject::IsPropertyDescriptorObject() const { return IsFixedArray(); }
-
 bool HeapObject::IsEnumCache() const { return IsTuple2(); }
 
-bool HeapObject::IsFrameArray() const { return IsFixedArray(); }
+bool HeapObject::IsFrameArray() const { return IsFixedArrayExact(); }
 
-bool HeapObject::IsArrayList() const { return IsFixedArray(); }
+bool HeapObject::IsArrayList() const { return IsFixedArrayExact(); }
 
-bool HeapObject::IsRegExpMatchInfo() const { return IsFixedArray(); }
+bool HeapObject::IsRegExpMatchInfo() const { return IsFixedArrayExact(); }
 
 bool Object::IsLayoutDescriptor() const { return IsSmi() || IsByteArray(); }
 
-bool HeapObject::IsFeedbackMetadata() const { return IsFixedArray(); }
+bool HeapObject::IsFeedbackMetadata() const { return IsFixedArrayExact(); }
 
 bool HeapObject::IsDeoptimizationData() const {
   // Must be a fixed array.
-  if (!IsFixedArray()) return false;
+  if (!IsFixedArrayExact()) return false;
 
   // There's no sure way to detect the difference between a fixed array and
   // a deoptimization data array.  Since this is used for asserts we can
@@ -360,14 +356,14 @@ bool HeapObject::IsDeoptimizationData() const {
 }
 
 bool HeapObject::IsHandlerTable() const {
-  if (!IsFixedArray()) return false;
+  if (!IsFixedArrayExact()) return false;
   // There's actually no way to see the difference between a fixed array and
   // a handler table array.
   return true;
 }
 
 bool HeapObject::IsTemplateList() const {
-  if (!IsFixedArray()) return false;
+  if (!IsFixedArrayExact()) return false;
   // There's actually no way to see the difference between a fixed array and
   // a template list.
   if (FixedArray::cast(this)->length() < 1) return false;
@@ -375,7 +371,7 @@ bool HeapObject::IsTemplateList() const {
 }
 
 bool HeapObject::IsDependentCode() const {
-  if (!IsFixedArray()) return false;
+  if (!IsFixedArrayExact()) return false;
   // There's actually no way to see the difference between a fixed array and
   // a dependent codes array.
   return true;
@@ -1743,7 +1739,7 @@ void FixedArray::set(int index, Smi* value) {
 
 void FixedArray::set(int index, Object* value) {
   DCHECK_NE(GetHeap()->fixed_cow_array_map(), map());
-  DCHECK(IsFixedArray() || IsTransitionArray());
+  DCHECK(IsFixedArray());
   DCHECK_GE(index, 0);
   DCHECK_LT(index, this->length());
   int offset = kHeaderSize + index * kPointerSize;
@@ -1972,11 +1968,8 @@ AllocationAlignment HeapObject::RequiredAlignment() const {
 
 bool HeapObject::NeedsRehashing() const {
   switch (map()->instance_type()) {
-    case FIXED_ARRAY_TYPE:
-      if (IsDescriptorArrayTemplate()) {
-        return DescriptorArray::cast(this)->number_of_descriptors() > 1;
-      }
-      return false;
+    case DESCRIPTOR_ARRAY_TYPE:
+      return DescriptorArray::cast(this)->number_of_descriptors() > 1;
     case TRANSITION_ARRAY_TYPE:
       return TransitionArray::cast(this)->number_of_entries() > 1;
     case HASH_TABLE_TYPE:
@@ -3071,8 +3064,8 @@ int HeapObject::SizeFromMap(Map* map) const {
   if (instance_size != kVariableSizeSentinel) return instance_size;
   // Only inline the most frequent cases.
   InstanceType instance_type = map->instance_type();
-  if (instance_type == FIXED_ARRAY_TYPE || instance_type == HASH_TABLE_TYPE ||
-      instance_type == TRANSITION_ARRAY_TYPE) {
+  if (instance_type >= FIRST_FIXED_ARRAY_TYPE &&
+      instance_type <= LAST_FIXED_ARRAY_TYPE) {
     return FixedArray::SizeFor(
         reinterpret_cast<const FixedArray*>(this)->synchronized_length());
   }

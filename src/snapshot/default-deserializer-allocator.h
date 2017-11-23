@@ -58,11 +58,6 @@ class DefaultDeserializerAllocator final {
 
   void RegisterDeserializedObjectsForBlackAllocation();
 
-  // For SortMapDescriptors();
-  const std::vector<Address>& GetAllocatedMaps() const {
-    return allocated_maps_;
-  }
-
  private:
   Isolate* isolate() const;
 

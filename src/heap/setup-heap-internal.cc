@@ -110,7 +110,7 @@ bool Heap::CreateInitialMaps() {
                          fixed_cow_array)
     DCHECK_NE(fixed_array_map(), fixed_cow_array_map());
 
-    ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel,
+    ALLOCATE_PARTIAL_MAP(DESCRIPTOR_ARRAY_TYPE, kVariableSizeSentinel,
                          descriptor_array)
 
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, undefined);
@@ -175,8 +175,7 @@ bool Heap::CreateInitialMaps() {
         AllocateUninitializedFixedArray(DescriptorArray::kFirstIndex, TENURED);
     if (!allocation.To(&obj)) return false;
   }
-  // TODO(ishell): set map to |descriptor_array_map| once we can use it for all
-  // descriptor arrays.
+  obj->set_map_no_write_barrier(descriptor_array_map());
   set_empty_descriptor_array(DescriptorArray::cast(obj));
   DescriptorArray::cast(obj)->set(DescriptorArray::kDescriptorLengthIndex,
                                   Smi::kZero);

@@ -3654,6 +3654,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     case ACCESSOR_PAIR_TYPE:
     case BYTE_ARRAY_TYPE:
     case BYTECODE_ARRAY_TYPE:
+    case DESCRIPTOR_ARRAY_TYPE:
     case TRANSITION_ARRAY_TYPE:
     case FEEDBACK_VECTOR_TYPE:
     case FOREIGN_TYPE:

@@ -325,7 +325,7 @@ Object* StoreHandler::ValidHandlerOrNull(Object* raw_handler, Name* name,
     }
 
   } else {
-    DCHECK(raw_handler->IsFixedArray());
+    DCHECK(raw_handler->IsFixedArrayExact());
     FixedArray* handler = FixedArray::cast(raw_handler);
 
     // Check validity cell.

@@ -456,6 +456,8 @@ ReturnType BodyDescriptorApply(InstanceType type, T1 p1, T2 p2, T3 p3) {
       return ReturnType();
     case PROPERTY_ARRAY_TYPE:
       return Op::template apply<PropertyArray::BodyDescriptor>(p1, p2, p3);
+    case DESCRIPTOR_ARRAY_TYPE:
+      return Op::template apply<DescriptorArray::BodyDescriptor>(p1, p2, p3);
     case TRANSITION_ARRAY_TYPE:
       return Op::template apply<TransitionArray::BodyDescriptor>(p1, p2, p3);
     case FEEDBACK_VECTOR_TYPE:
