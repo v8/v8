@@ -7988,50 +7988,6 @@ class V8_EXPORT V8 {
       void SetFailedAccessCheckCallbackFunction(FailedAccessCheckCallback));
 
   /**
-   * Enables the host application to receive a notification before a
-   * garbage collection.  Allocations are not allowed in the
-   * callback function, you therefore cannot manipulate objects (set
-   * or delete properties for example) since it is possible such
-   * operations will result in the allocation of objects. It is possible
-   * to specify the GCType filter for your callback. But it is not possible to
-   * register the same callback function two times with different
-   * GCType filters.
-   */
-  static V8_DEPRECATED(
-      "Use isolate version",
-      void AddGCPrologueCallback(GCCallback callback,
-                                 GCType gc_type_filter = kGCTypeAll));
-
-  /**
-   * This function removes callback which was installed by
-   * AddGCPrologueCallback function.
-   */
-  static V8_DEPRECATED("Use isolate version",
-                       void RemoveGCPrologueCallback(GCCallback callback));
-
-  /**
-   * Enables the host application to receive a notification after a
-   * garbage collection.  Allocations are not allowed in the
-   * callback function, you therefore cannot manipulate objects (set
-   * or delete properties for example) since it is possible such
-   * operations will result in the allocation of objects. It is possible
-   * to specify the GCType filter for your callback. But it is not possible to
-   * register the same callback function two times with different
-   * GCType filters.
-   */
-  static V8_DEPRECATED(
-      "Use isolate version",
-      void AddGCEpilogueCallback(GCCallback callback,
-                                 GCType gc_type_filter = kGCTypeAll));
-
-  /**
-   * This function removes callback which was installed by
-   * AddGCEpilogueCallback function.
-   */
-  static V8_DEPRECATED("Use isolate version",
-                       void RemoveGCEpilogueCallback(GCCallback callback));
-
-  /**
    * Initializes V8. This function needs to be called before the first Isolate
    * is created. It always returns true.
    */

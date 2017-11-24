@@ -8479,35 +8479,6 @@ void Isolate::RemoveGCEpilogueCallback(GCCallback callback) {
   RemoveGCEpilogueCallback(CallGCCallbackWithoutData, data);
 }
 
-static void CallGCCallbackWithoutIsolate(Isolate* isolate, GCType type,
-                                         GCCallbackFlags flags, void* data) {
-  reinterpret_cast<v8::GCCallback>(data)(type, flags);
-}
-
-void V8::AddGCPrologueCallback(v8::GCCallback callback, GCType gc_type) {
-  void* data = reinterpret_cast<void*>(callback);
-  Isolate::GetCurrent()->AddGCPrologueCallback(CallGCCallbackWithoutIsolate,
-                                               data, gc_type);
-}
-
-void V8::AddGCEpilogueCallback(v8::GCCallback callback, GCType gc_type) {
-  void* data = reinterpret_cast<void*>(callback);
-  Isolate::GetCurrent()->AddGCEpilogueCallback(CallGCCallbackWithoutIsolate,
-                                               data, gc_type);
-}
-
-void V8::RemoveGCPrologueCallback(GCCallback callback) {
-  void* data = reinterpret_cast<void*>(callback);
-  Isolate::GetCurrent()->RemoveGCPrologueCallback(CallGCCallbackWithoutIsolate,
-                                                  data);
-}
-
-void V8::RemoveGCEpilogueCallback(GCCallback callback) {
-  void* data = reinterpret_cast<void*>(callback);
-  Isolate::GetCurrent()->RemoveGCEpilogueCallback(CallGCCallbackWithoutIsolate,
-                                                  data);
-}
-
 void Isolate::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->heap()->SetEmbedderHeapTracer(tracer);
