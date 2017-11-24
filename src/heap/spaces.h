@@ -400,6 +400,10 @@ class MemoryChunk {
 
   static const int kAllocatableMemory = kPageSize - kObjectStartOffset;
 
+  // Maximum number of nested code memory modification scopes.
+  // TODO(6792,mstarzinger): Drop to 3 or lower once WebAssembly is off heap.
+  static const int kMaxWriteUnprotectCounter = 4;
+
   // Only works if the pointer is in the first kPageSize of the MemoryChunk.
   static MemoryChunk* FromAddress(Address a) {
     return reinterpret_cast<MemoryChunk*>(OffsetFrom(a) & ~kAlignmentMask);
@@ -695,7 +699,8 @@ class MemoryChunk {
   // counter is decremented when a component resets to read+executable.
   // If Value() == 0 => The memory is read and executable.
   // If Value() >= 1 => The Memory is read and writable (and maybe executable).
-  // The maximum value can right now only be 3.
+  // The maximum value is limited by {kMaxWriteUnprotectCounter} to prevent
+  // excessive nesting of scopes.
   // All executable MemoryChunks are allocated rw based on the assumption that
   // they will be used immediatelly for an allocation. They are initialized
   // with the number of open CodeSpaceMemoryModificationScopes. The caller
