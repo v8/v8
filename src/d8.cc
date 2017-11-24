@@ -265,14 +265,6 @@ class PredictablePlatform : public Platform {
   DISALLOW_COPY_AND_ASSIGN(PredictablePlatform);
 };
 
-std::unique_ptr<v8::Platform> g_platform;
-
-v8::Platform* GetDefaultPlatform() {
-  return i::FLAG_verify_predictable
-             ? static_cast<PredictablePlatform*>(g_platform.get())->platform()
-             : g_platform.get();
-}
-
 static Local<Value> Throw(Isolate* isolate, const char* message) {
   return isolate->ThrowException(
       String::NewFromUtf8(isolate, message, NewStringType::kNormal)
@@ -511,6 +503,14 @@ Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
 ShellOptions Shell::options;
 base::OnceType Shell::quit_once_ = V8_ONCE_INIT;
+std::ofstream Shell::trace_file_;
+std::unique_ptr<v8::Platform> Shell::platform_;
+
+v8::Platform* Shell::GetDefaultPlatform() {
+  return i::FLAG_verify_predictable
+             ? static_cast<PredictablePlatform*>(platform_.get())->platform()
+             : platform_.get();
+}
 
 bool CounterMap::Match(void* key1, void* key2) {
   const char* name1 = reinterpret_cast<const char*>(key1);
@@ -1110,7 +1110,7 @@ int PerIsolateData::RealmIndexOrThrow(
 // v8::Platform::MonotonicallyIncreasingTime().
 void Shell::PerformanceNow(const v8::FunctionCallbackInfo<v8::Value>& args) {
   if (i::FLAG_verify_predictable) {
-    args.GetReturnValue().Set(g_platform->MonotonicallyIncreasingTime());
+    args.GetReturnValue().Set(platform_->MonotonicallyIncreasingTime());
   } else {
     base::TimeDelta delta =
         base::TimeTicks::HighResolutionNow() - kInitialTicks;
@@ -1190,7 +1190,7 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& args,
   DisposeModuleEmbedderData(data->realms_[index].Get(isolate));
   data->realms_[index].Reset();
   isolate->ContextDisposedNotification();
-  isolate->IdleNotificationDeadline(g_platform->MonotonicallyIncreasingTime());
+  isolate->IdleNotificationDeadline(platform_->MonotonicallyIncreasingTime());
 }
 
 // Realm.create() creates a new realm with a distinct security token
@@ -2980,8 +2980,8 @@ void Shell::CollectGarbage(Isolate* isolate) {
   if (options.send_idle_notification) {
     const double kLongIdlePauseInSeconds = 1.0;
     isolate->ContextDisposedNotification();
-    isolate->IdleNotificationDeadline(
-        g_platform->MonotonicallyIncreasingTime() + kLongIdlePauseInSeconds);
+    isolate->IdleNotificationDeadline(platform_->MonotonicallyIncreasingTime() +
+                                      kLongIdlePauseInSeconds);
   }
   if (options.invoke_weak_callbacks) {
     // By sending a low memory notifications, we will try hard to collect all
@@ -3006,9 +3006,8 @@ void Shell::SetWaitUntilDone(Isolate* isolate, bool value) {
 }
 
 namespace {
-bool ProcessMessages(Isolate* isolate,
+bool ProcessMessages(Isolate* isolate, Platform* platform,
                      std::function<platform::MessageLoopBehavior()> behavior) {
-  Platform* platform = GetDefaultPlatform();
   while (true) {
     while (v8::platform::PumpMessageLoop(platform, isolate, behavior())) {
       isolate->RunMicrotasks();
@@ -3036,7 +3035,7 @@ bool ProcessMessages(Isolate* isolate,
 }  // anonymous namespace
 
 void Shell::CompleteMessageLoop(Isolate* isolate) {
-  ProcessMessages(isolate, [isolate]() {
+  ProcessMessages(isolate, GetDefaultPlatform(), [isolate]() {
     base::LockGuard<base::Mutex> guard(isolate_status_lock_.Pointer());
     DCHECK_GT(isolate_status_.count(isolate), 0);
     return isolate_status_[isolate]
@@ -3046,8 +3045,9 @@ void Shell::CompleteMessageLoop(Isolate* isolate) {
 }
 
 bool Shell::EmptyMessageQueues(Isolate* isolate) {
-  return ProcessMessages(
-      isolate, []() { return platform::MessageLoopBehavior::kDoNotWait; });
+  return ProcessMessages(isolate, GetDefaultPlatform(), []() {
+    return platform::MessageLoopBehavior::kDoNotWait;
+  });
 }
 
 class Serializer : public ValueSerializer::Delegate {
@@ -3279,7 +3279,6 @@ void Shell::CleanupWorkers() {
 }
 
 int Shell::Main(int argc, char* argv[]) {
-  std::ofstream trace_file;
 #if (defined(_WIN32) || defined(_WIN64))
   UINT new_flags =
       SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;
@@ -3306,23 +3305,23 @@ int Shell::Main(int argc, char* argv[]) {
   std::unique_ptr<platform::tracing::TracingController> tracing;
   if (options.trace_enabled && !i::FLAG_verify_predictable) {
     tracing = base::make_unique<platform::tracing::TracingController>();
-    trace_file.open("v8_trace.json");
+    trace_file_.open("v8_trace.json");
     platform::tracing::TraceBuffer* trace_buffer =
         platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
             platform::tracing::TraceBuffer::kRingBufferChunks,
-            platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file));
+            platform::tracing::TraceWriter::CreateJSONTraceWriter(trace_file_));
     tracing->Initialize(trace_buffer);
   }
 
   platform::tracing::TracingController* tracing_controller = tracing.get();
-  g_platform = v8::platform::NewDefaultPlatform(
+  platform_ = v8::platform::NewDefaultPlatform(
       0, v8::platform::IdleTaskSupport::kEnabled, in_process_stack_dumping,
       std::move(tracing));
   if (i::FLAG_verify_predictable) {
-    g_platform.reset(new PredictablePlatform(std::move(g_platform)));
+    platform_.reset(new PredictablePlatform(std::move(platform_)));
   }
 
-  v8::V8::InitializePlatform(g_platform.get());
+  v8::V8::InitializePlatform(platform_.get());
   v8::V8::Initialize();
   if (options.natives_blob || options.snapshot_blob) {
     v8::V8::InitializeExternalStartupData(options.natives_blob,
@@ -3439,6 +3438,16 @@ int Shell::Main(int argc, char* argv[]) {
   V8::ShutdownPlatform();
 
   return result;
+}
+
+void Shell::Exit(int exit_code) {
+  // Destroy the platform so that the tracing data gets flushed.
+  platform_.reset();
+  // Save the tracing file.
+  trace_file_.close();
+  fflush(stdout);
+  fflush(stderr);
+  OSExit(exit_code);
 }
 
 }  // namespace v8

@@ -5,6 +5,7 @@
 #ifndef V8_D8_H_
 #define V8_D8_H_
 
+#include <fstream>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -357,6 +358,7 @@ class Shell : public i::AllStatic {
   static int RunMain(Isolate* isolate, int argc, char* argv[], bool last_run);
   static int Main(int argc, char* argv[]);
   static void Exit(int exit_code);
+  static void OSExit(int exit_code);
   static void OnExit(Isolate* isolate);
   static void CollectGarbage(Isolate* isolate);
   static bool EmptyMessageQueues(Isolate* isolate);
@@ -508,6 +510,10 @@ class Shell : public i::AllStatic {
   // the isolate_status_ needs to be concurrency-safe.
   static base::LazyMutex isolate_status_lock_;
   static std::map<Isolate*, bool> isolate_status_;
+
+  static v8::Platform* GetDefaultPlatform();
+  static std::ofstream trace_file_;
+  static std::unique_ptr<v8::Platform> platform_;
 };
 
 
