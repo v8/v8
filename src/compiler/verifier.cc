@@ -591,34 +591,24 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Boolean());
       break;
 
+    case IrOpcode::kJSAdd:
+      CheckTypeIs(node, Type::NumericOrString());
+      break;
     case IrOpcode::kJSBitwiseOr:
     case IrOpcode::kJSBitwiseXor:
     case IrOpcode::kJSBitwiseAnd:
     case IrOpcode::kJSShiftLeft:
     case IrOpcode::kJSShiftRight:
     case IrOpcode::kJSShiftRightLogical:
-      // Type is 32 bit integral.
-      CheckTypeIs(node, Type::Integral32());
-      break;
-    case IrOpcode::kJSAdd:
-      // Type is Number or String.
-      CheckTypeIs(node, Type::NumberOrString());
-      break;
     case IrOpcode::kJSSubtract:
     case IrOpcode::kJSMultiply:
     case IrOpcode::kJSDivide:
     case IrOpcode::kJSModulus:
     case IrOpcode::kJSExponentiate:
-      // Type is Number.
-      // TODO(neis): Adapt for bigints.
-      CheckTypeIs(node, Type::Number());
-      break;
-
     case IrOpcode::kJSBitwiseNot:
     case IrOpcode::kJSDecrement:
     case IrOpcode::kJSIncrement:
     case IrOpcode::kJSNegate:
-      // Type is Numeric.
       CheckTypeIs(node, Type::Numeric());
       break;
 

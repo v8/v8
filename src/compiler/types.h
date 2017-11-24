@@ -171,6 +171,7 @@ namespace compiler {
   V(NumberOrOddball,              kNumber | kNullOrUndefined | kBoolean | \
                                   kHole) \
   V(NumberOrString,               kNumber | kString) \
+  V(NumericOrString,              kNumeric | kString) \
   V(NumberOrUndefined,            kNumber | kUndefined) \
   V(NumberOrUndefinedOrNullOrBoolean,  \
                                   kNumber | kNullOrUndefined | kBoolean) \

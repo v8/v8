@@ -986,12 +986,22 @@ Typer::Visitor::ComparisonOutcome Typer::Visitor::JSCompareTyper(Type* lhs,
     return ComparisonOutcome(kComparisonTrue) |
            ComparisonOutcome(kComparisonFalse);
   }
-  return NumberCompareTyper(ToNumber(lhs, t), ToNumber(rhs, t), t);
+  lhs = ToNumeric(lhs, t);
+  rhs = ToNumeric(rhs, t);
+  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number())) {
+    return NumberCompareTyper(lhs, rhs, t);
+  }
+  return ComparisonOutcome(kComparisonTrue) |
+         ComparisonOutcome(kComparisonFalse) |
+         ComparisonOutcome(kComparisonUndefined);
 }
 
 Typer::Visitor::ComparisonOutcome Typer::Visitor::NumberCompareTyper(Type* lhs,
                                                                      Type* rhs,
                                                                      Typer* t) {
+  DCHECK(lhs->Is(Type::Number()));
+  DCHECK(rhs->Is(Type::Number()));
+
   // Shortcut for NaNs.
   if (lhs->Is(Type::NaN()) || rhs->Is(Type::NaN())) return kComparisonUndefined;
 
@@ -1042,27 +1052,53 @@ Type* Typer::Visitor::JSGreaterThanOrEqualTyper(
 
 
 Type* Typer::Visitor::JSBitwiseOrTyper(Type* lhs, Type* rhs, Typer* t) {
-  return NumberBitwiseOr(ToNumber(lhs, t), ToNumber(rhs, t), t);
+  lhs = ToNumeric(lhs, t);
+  rhs = ToNumeric(rhs, t);
+  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number())) {
+    return NumberBitwiseOr(lhs, rhs, t);
+  }
+  return Type::Numeric();
 }
 
 
 Type* Typer::Visitor::JSBitwiseAndTyper(Type* lhs, Type* rhs, Typer* t) {
-  return NumberBitwiseAnd(ToNumber(lhs, t), ToNumber(rhs, t), t);
+  lhs = ToNumeric(lhs, t);
+  rhs = ToNumeric(rhs, t);
+  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number())) {
+    return NumberBitwiseAnd(lhs, rhs, t);
+  }
+  return Type::Numeric();
 }
 
 
 Type* Typer::Visitor::JSBitwiseXorTyper(Type* lhs, Type* rhs, Typer* t) {
-  return NumberBitwiseXor(ToNumber(lhs, t), ToNumber(rhs, t), t);
+  lhs = ToNumeric(lhs, t);
+  rhs = ToNumeric(rhs, t);
+  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number())) {
+    return NumberBitwiseXor(lhs, rhs, t);
+  }
+  return Type::Numeric();
 }
 
 
 Type* Typer::Visitor::JSShiftLeftTyper(Type* lhs, Type* rhs, Typer* t) {
   return NumberShiftLeft(ToNumber(lhs, t), ToNumber(rhs, t), t);
+  lhs = ToNumeric(lhs, t);
+  rhs = ToNumeric(rhs, t);
+  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number())) {
+    return NumberShiftLeft(lhs, rhs, t);
+  }
+  return Type::Numeric();
 }
 
 
 Type* Typer::Visitor::JSShiftRightTyper(Type* lhs, Type* rhs, Typer* t) {
-  return NumberShiftRight(ToNumber(lhs, t), ToNumber(rhs, t), t);
+  lhs = ToNumeric(lhs, t);
+  rhs = ToNumeric(rhs, t);
+  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number())) {
+    return NumberShiftRight(lhs, rhs, t);
+  }
+  return Type::Numeric();
 }
 
 
@@ -1080,34 +1116,56 @@ Type* Typer::Visitor::JSAddTyper(Type* lhs, Type* rhs, Typer* t) {
     if (lhs->Is(Type::String()) || rhs->Is(Type::String())) {
       return Type::String();
     } else {
-      return Type::NumberOrString();
+      return Type::NumericOrString();
     }
   }
   // The addition must be numeric.
-  return NumberAdd(ToNumber(lhs, t), ToNumber(rhs, t), t);
+  lhs = ToNumeric(lhs, t);
+  rhs = ToNumeric(rhs, t);
+  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number())) {
+    return NumberAdd(lhs, rhs, t);
+  }
+  return Type::Numeric();
 }
 
 Type* Typer::Visitor::JSSubtractTyper(Type* lhs, Type* rhs, Typer* t) {
-  return NumberSubtract(ToNumber(lhs, t), ToNumber(rhs, t), t);
+  lhs = ToNumeric(lhs, t);
+  rhs = ToNumeric(rhs, t);
+  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number())) {
+    return NumberSubtract(lhs, rhs, t);
+  }
+  return Type::Numeric();
 }
 
 Type* Typer::Visitor::JSMultiplyTyper(Type* lhs, Type* rhs, Typer* t) {
-  return NumberMultiply(ToNumber(lhs, t), ToNumber(rhs, t), t);
+  lhs = ToNumeric(lhs, t);
+  rhs = ToNumeric(rhs, t);
+  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number())) {
+    return NumberMultiply(lhs, rhs, t);
+  }
+  return Type::Numeric();
 }
 
 Type* Typer::Visitor::JSDivideTyper(Type* lhs, Type* rhs, Typer* t) {
-  return NumberDivide(ToNumber(lhs, t), ToNumber(rhs, t), t);
+  lhs = ToNumeric(lhs, t);
+  rhs = ToNumeric(rhs, t);
+  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number())) {
+    return NumberDivide(lhs, rhs, t);
+  }
+  return Type::Numeric();
 }
 
 Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
-  return NumberModulus(ToNumber(lhs, t), ToNumber(rhs, t), t);
+  lhs = ToNumeric(lhs, t);
+  rhs = ToNumeric(rhs, t);
+  if (lhs->Is(Type::Number()) && rhs->Is(Type::Number())) {
+    return NumberModulus(lhs, rhs, t);
+  }
+  return Type::Numeric();
 }
 
-// TODO(neis): Adapt all these for bigints. Why does this even work in the
-// bigint tests?
-
 Type* Typer::Visitor::JSExponentiateTyper(Type* lhs, Type* rhs, Typer* t) {
-  return Type::Number();
+  return Type::Numeric();
 }
 
 // JS unary operators.
