@@ -3860,22 +3860,21 @@ AllocationResult Heap::AllocateRawFixedArray(int length,
   return result;
 }
 
-
-AllocationResult Heap::AllocateFixedArrayWithFiller(int length,
-                                                    PretenureFlag pretenure,
-                                                    Object* filler) {
-  DCHECK_LE(0, length);
-  DCHECK(empty_fixed_array()->IsFixedArray());
-  if (length == 0) return empty_fixed_array();
-
+AllocationResult Heap::AllocateFixedArrayWithFiller(
+    RootListIndex map_root_index, int length, PretenureFlag pretenure,
+    Object* filler) {
+  // Zero-length case must be handled outside, where the knowledge about
+  // the map is.
+  DCHECK_LT(0, length);
   DCHECK(!InNewSpace(filler));
   HeapObject* result = nullptr;
   {
     AllocationResult allocation = AllocateRawFixedArray(length, pretenure);
     if (!allocation.To(&result)) return allocation;
   }
-
-  result->set_map_after_allocation(fixed_array_map(), SKIP_WRITE_BARRIER);
+  DCHECK(RootIsImmortalImmovable(map_root_index));
+  Map* map = Map::cast(root(map_root_index));
+  result->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
   FixedArray* array = FixedArray::cast(result);
   array->set_length(length);
   MemsetPointer(array->data_start(), filler, length);

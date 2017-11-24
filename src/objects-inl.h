@@ -2434,8 +2434,8 @@ void HashTableBase::SetNumberOfDeletedElements(int nod) {
 }
 
 template <typename Key>
-Map* BaseShape<Key>::GetMap(Isolate* isolate) {
-  return isolate->heap()->hash_table_map();
+int BaseShape<Key>::GetMapRootIndex() {
+  return Heap::kHashTableMapRootIndex;
 }
 
 template <typename Derived, typename Shape>
@@ -2512,8 +2512,8 @@ uint32_t StringTableShape::HashForObject(Isolate* isolate, Object* object) {
   return String::cast(object)->Hash();
 }
 
-Map* StringTableShape::GetMap(Isolate* isolate) {
-  return isolate->heap()->string_table_map();
+int StringTableShape::GetMapRootIndex() {
+  return Heap::kStringTableMapRootIndex;
 }
 
 bool NumberDictionary::requires_slow_elements() {
@@ -4802,14 +4802,14 @@ Object* GlobalDictionaryShape::Unwrap(Object* object) {
   return PropertyCell::cast(object)->name();
 }
 
-Map* GlobalDictionaryShape::GetMap(Isolate* isolate) {
-  return isolate->heap()->global_dictionary_map();
+int GlobalDictionaryShape::GetMapRootIndex() {
+  return Heap::kGlobalDictionaryMapRootIndex;
 }
 
 Name* NameDictionary::NameAt(int entry) { return Name::cast(KeyAt(entry)); }
 
-Map* NameDictionaryShape::GetMap(Isolate* isolate) {
-  return isolate->heap()->name_dictionary_map();
+int NameDictionaryShape::GetMapRootIndex() {
+  return Heap::kNameDictionaryMapRootIndex;
 }
 
 PropertyCell* GlobalDictionary::CellAt(int entry) {
@@ -4857,8 +4857,8 @@ uint32_t NumberDictionaryShape::HashForObject(Isolate* isolate, Object* other) {
                             isolate->heap()->HashSeed());
 }
 
-Map* NumberDictionaryShape::GetMap(Isolate* isolate) {
-  return isolate->heap()->number_dictionary_map();
+int NumberDictionaryShape::GetMapRootIndex() {
+  return Heap::kNumberDictionaryMapRootIndex;
 }
 
 Handle<Object> NumberDictionaryShape::AsHandle(Isolate* isolate, uint32_t key) {
@@ -4963,8 +4963,8 @@ Handle<Object> WeakHashTableShape::AsHandle(Isolate* isolate,
   return key;
 }
 
-Map* WeakHashTableShape::GetMap(Isolate* isolate) {
-  return isolate->heap()->weak_hash_table_map();
+int WeakHashTableShape::GetMapRootIndex() {
+  return Heap::kWeakHashTableMapRootIndex;
 }
 
 int Map::SlackForArraySize(int old_size, int size_limit) {

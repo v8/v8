@@ -305,10 +305,6 @@ class ObjectDescriptor {
       } else {
         descriptor_array_template_ =
             DescriptorArray::Allocate(isolate, 0, property_count_ + slack);
-        // TODO(ishell): remove this code once we use |descriptor_array_map|
-        // for all descriptor arrays.
-        descriptor_array_template_->set_map_no_write_barrier(
-            *factory->descriptor_array_map());
       }
     }
     elements_dictionary_template_ =

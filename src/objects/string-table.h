@@ -42,7 +42,7 @@ class StringTableShape : public BaseShape<StringTableKey*> {
 
   static inline Handle<Object> AsHandle(Isolate* isolate, Key key);
 
-  static inline Map* GetMap(Isolate* isolate);
+  static inline int GetMapRootIndex();
 
   static const int kPrefixSize = 0;
   static const int kEntrySize = 1;

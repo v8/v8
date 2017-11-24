@@ -620,9 +620,8 @@ Node* CollectionsBuiltinsAssembler::AllocateOrderedHashTable() {
   // Allocate the table and add the proper map.
   const ElementsKind elements_kind = HOLEY_ELEMENTS;
   Node* const length_intptr = IntPtrConstant(kFixedArrayLength);
-  Heap::RootListIndex map_index =
-      static_cast<Heap::RootListIndex>(CollectionType::GetMapRootIndex());
-  Node* const fixed_array_map = LoadRoot(map_index);
+  Node* const fixed_array_map = LoadRoot(
+      static_cast<Heap::RootListIndex>(CollectionType::GetMapRootIndex()));
   Node* const table =
       AllocateFixedArray(elements_kind, length_intptr, INTPTR_PARAMETERS,
                          kAllowLargeObjectAllocation, fixed_array_map);
@@ -2041,8 +2040,9 @@ TNode<Object> WeakCollectionsBuiltinsAssembler::AllocateTable(
   TNode<Object> table = CAST(AllocateFixedArray(
       HOLEY_ELEMENTS, length, INTPTR_PARAMETERS, kAllowLargeObjectAllocation));
 
-  // See BaseShape::GetMap().
-  StoreMapNoWriteBarrier(table, Heap::kHashTableMapRootIndex);
+  Heap::RootListIndex map_root_index =
+      static_cast<Heap::RootListIndex>(ObjectHashTableShape::GetMapRootIndex());
+  StoreMapNoWriteBarrier(table, map_root_index);
   StoreFixedArrayElement(table, ObjectHashTable::kNumberOfElementsIndex,
                          SmiConstant(0), SKIP_WRITE_BARRIER);
   StoreFixedArrayElement(table, ObjectHashTable::kNumberOfDeletedElementsIndex,

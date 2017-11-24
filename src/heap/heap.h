@@ -2075,6 +2075,12 @@ class Heap {
   MUST_USE_RESULT AllocationResult
   CopyBytecodeArray(BytecodeArray* bytecode_array);
 
+  // Allocates a fixed array-like object with given map and initialized with
+  // undefined values.
+  MUST_USE_RESULT inline AllocationResult AllocateFixedArrayWithMap(
+      RootListIndex map_root_index, int length,
+      PretenureFlag pretenure = NOT_TENURED);
+
   // Allocates a fixed array initialized with undefined values
   MUST_USE_RESULT inline AllocationResult AllocateFixedArray(
       int length, PretenureFlag pretenure = NOT_TENURED);
@@ -2129,8 +2135,8 @@ class Heap {
 
   // Allocate an initialized fixed array with the given filler value.
   MUST_USE_RESULT AllocationResult
-      AllocateFixedArrayWithFiller(int length, PretenureFlag pretenure,
-                                   Object* filler);
+  AllocateFixedArrayWithFiller(RootListIndex map_root_index, int length,
+                               PretenureFlag pretenure, Object* filler);
 
   // Allocate and partially initializes a String.  There are two String
   // encodings: one-byte and two-byte.  These functions allocate a string of

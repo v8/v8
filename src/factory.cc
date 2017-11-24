@@ -169,51 +169,68 @@ Handle<Oddball> Factory::NewOddball(Handle<Map> map, const char* to_string,
   return oddball;
 }
 
-
-Handle<FixedArray> Factory::NewFixedArray(int size, PretenureFlag pretenure) {
-  DCHECK_LE(0, size);
-  CALL_HEAP_FUNCTION(
-      isolate(),
-      isolate()->heap()->AllocateFixedArray(size, pretenure),
-      FixedArray);
-}
-
-Handle<PropertyArray> Factory::NewPropertyArray(int size,
+Handle<PropertyArray> Factory::NewPropertyArray(int length,
                                                 PretenureFlag pretenure) {
-  DCHECK_LE(0, size);
-  if (size == 0) return empty_property_array();
-  CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocatePropertyArray(size, pretenure),
-                     PropertyArray);
+  DCHECK_LE(0, length);
+  if (length == 0) return empty_property_array();
+  CALL_HEAP_FUNCTION(
+      isolate(), isolate()->heap()->AllocatePropertyArray(length, pretenure),
+      PropertyArray);
 }
 
-MaybeHandle<FixedArray> Factory::TryNewFixedArray(int size,
+Handle<FixedArray> Factory::NewFixedArrayWithMap(
+    Heap::RootListIndex map_root_index, int length, PretenureFlag pretenure) {
+  // Zero-length case must be handled outside, where the knowledge about
+  // the map is.
+  DCHECK_LT(0, length);
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateFixedArrayWithMap(
+                         map_root_index, length, pretenure),
+                     FixedArray);
+}
+
+Handle<FixedArray> Factory::NewFixedArray(int length, PretenureFlag pretenure) {
+  DCHECK_LE(0, length);
+  if (length == 0) return empty_fixed_array();
+
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->AllocateFixedArray(length, pretenure),
+                     FixedArray);
+}
+
+MaybeHandle<FixedArray> Factory::TryNewFixedArray(int length,
                                                   PretenureFlag pretenure) {
-  DCHECK_LE(0, size);
+  DCHECK_LE(0, length);
+  if (length == 0) return empty_fixed_array();
+
   AllocationResult allocation =
-      isolate()->heap()->AllocateFixedArray(size, pretenure);
+      isolate()->heap()->AllocateFixedArray(length, pretenure);
   Object* array = nullptr;
   if (!allocation.To(&array)) return MaybeHandle<FixedArray>();
   return Handle<FixedArray>(FixedArray::cast(array), isolate());
 }
 
-Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
+Handle<FixedArray> Factory::NewFixedArrayWithHoles(int length,
                                                    PretenureFlag pretenure) {
-  DCHECK_LE(0, size);
+  DCHECK_LE(0, length);
+  if (length == 0) return empty_fixed_array();
+
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateFixedArrayWithFiller(size,
-                                                      pretenure,
-                                                      *the_hole_value()),
+      isolate()->heap()->AllocateFixedArrayWithFiller(
+          Heap::kFixedArrayMapRootIndex, length, pretenure, *the_hole_value()),
       FixedArray);
 }
 
-Handle<FixedArray> Factory::NewUninitializedFixedArray(int size) {
+Handle<FixedArray> Factory::NewUninitializedFixedArray(int length) {
+  DCHECK_LE(0, length);
+  if (length == 0) return empty_fixed_array();
+
   // TODO(ulan): As an experiment this temporarily returns an initialized fixed
   // array. After getting canary/performance coverage, either remove the
   // function or revert to returning uninitilized array.
   CALL_HEAP_FUNCTION(isolate(),
-                     isolate()->heap()->AllocateFixedArray(size, NOT_TENURED),
+                     isolate()->heap()->AllocateFixedArray(length, NOT_TENURED),
                      FixedArray);
 }
 
