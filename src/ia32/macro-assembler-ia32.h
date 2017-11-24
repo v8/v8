@@ -616,13 +616,6 @@ class MacroAssembler : public TurboAssembler {
                   Label* condition_met,
                   Label::Distance condition_met_distance = Label::kFar);
 
-  // Helper for finding the mark bits for an address.  Afterwards, the
-  // bitmap register points at the word with the mark bits and the mask
-  // the position of the first bit.  Uses ecx as scratch and leaves addr_reg
-  // unchanged.
-  inline void GetMarkBits(Register addr_reg, Register bitmap_reg,
-                          Register mask_reg);
-
   // Compute memory operands for safepoint stack slots.
   static int SafepointRegisterStackIndex(int reg_code);
 
