@@ -8585,6 +8585,18 @@ void V8::AddGCEpilogueCallback(v8::GCCallback callback, GCType gc_type) {
                                                data, gc_type);
 }
 
+void V8::RemoveGCPrologueCallback(GCCallback callback) {
+  void* data = reinterpret_cast<void*>(callback);
+  Isolate::GetCurrent()->RemoveGCPrologueCallback(CallGCCallbackWithoutIsolate,
+                                                  data);
+}
+
+void V8::RemoveGCEpilogueCallback(GCCallback callback) {
+  void* data = reinterpret_cast<void*>(callback);
+  Isolate::GetCurrent()->RemoveGCEpilogueCallback(CallGCCallbackWithoutIsolate,
+                                                  data);
+}
+
 void Isolate::SetEmbedderHeapTracer(EmbedderHeapTracer* tracer) {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   isolate->heap()->SetEmbedderHeapTracer(tracer);

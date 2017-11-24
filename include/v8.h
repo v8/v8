@@ -7976,9 +7976,8 @@ class V8_EXPORT V8 {
    * This function removes callback which was installed by
    * AddGCPrologueCallback function.
    */
-  V8_INLINE static V8_DEPRECATED(
-      "Use isolate version",
-      void RemoveGCPrologueCallback(GCCallback callback));
+  static V8_DEPRECATED("Use isolate version",
+                       void RemoveGCPrologueCallback(GCCallback callback));
 
   /**
    * Enables the host application to receive a notification after a
@@ -7999,9 +7998,8 @@ class V8_EXPORT V8 {
    * This function removes callback which was installed by
    * AddGCEpilogueCallback function.
    */
-  V8_INLINE static V8_DEPRECATED(
-      "Use isolate version",
-      void RemoveGCEpilogueCallback(GCCallback callback));
+  static V8_DEPRECATED("Use isolate version",
+                       void RemoveGCEpilogueCallback(GCCallback callback));
 
   /**
    * Initializes V8. This function needs to be called before the first Isolate
@@ -10383,19 +10381,6 @@ void V8::SetCaptureStackTraceForUncaughtExceptions(
 void V8::SetFatalErrorHandler(FatalErrorCallback callback) {
   Isolate* isolate = Isolate::GetCurrent();
   isolate->SetFatalErrorHandler(callback);
-}
-
-void V8::RemoveGCPrologueCallback(GCCallback callback) {
-  Isolate* isolate = Isolate::GetCurrent();
-  isolate->RemoveGCPrologueCallback(
-      reinterpret_cast<Isolate::GCCallback>(callback));
-}
-
-
-void V8::RemoveGCEpilogueCallback(GCCallback callback) {
-  Isolate* isolate = Isolate::GetCurrent();
-  isolate->RemoveGCEpilogueCallback(
-      reinterpret_cast<Isolate::GCCallback>(callback));
 }
 
 void V8::TerminateExecution(Isolate* isolate) { isolate->TerminateExecution(); }
