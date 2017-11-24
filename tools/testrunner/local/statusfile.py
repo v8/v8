@@ -31,28 +31,28 @@ import re
 from variants import ALL_VARIANTS
 from utils import Freeze
 
-# These outcomes can occur in a TestCase's outcomes list:
-SKIP = "SKIP"
+# Possible outcomes
 FAIL = "FAIL"
 PASS = "PASS"
-OKAY = "OKAY" # TODO(majeski): unused in status files
 TIMEOUT = "TIMEOUT" # TODO(majeski): unused in status files
 CRASH = "CRASH" # TODO(majeski): unused in status files
+
+# Outcomes only for status file, need special handling
+FAIL_OK = "FAIL_OK"
+FAIL_SLOPPY = "FAIL_SLOPPY"
+
+# Modifiers
+SKIP = "SKIP"
 SLOW = "SLOW"
 FAST_VARIANTS = "FAST_VARIANTS"
 NO_VARIANTS = "NO_VARIANTS"
-# These are just for the status files and are mapped below in DEFS:
-FAIL_OK = "FAIL_OK"
-FAIL_SLOPPY = "FAIL_SLOPPY"
 
 ALWAYS = "ALWAYS"
 
 KEYWORDS = {}
-for key in [SKIP, FAIL, PASS, OKAY, CRASH, SLOW, FAIL_OK,
-            FAST_VARIANTS, NO_VARIANTS, FAIL_SLOPPY, ALWAYS]:
+for key in [SKIP, FAIL, PASS, CRASH, SLOW, FAIL_OK, FAST_VARIANTS, NO_VARIANTS,
+            FAIL_SLOPPY, ALWAYS]:
   KEYWORDS[key] = key
-
-DEFS = {FAIL_OK: [FAIL, OKAY]}
 
 # Support arches, modes to be written as keywords instead of strings.
 VARIABLES = {ALWAYS: True}
@@ -85,24 +85,13 @@ def OnlyFastVariants(outcomes):
 
 
 def IsPassOrFail(outcomes):
-  return ((PASS in outcomes) and (FAIL in outcomes) and
-          (not CRASH in outcomes) and (not OKAY in outcomes))
+  return (PASS in outcomes and
+          FAIL in outcomes and
+          CRASH not in outcomes)
 
 
 def IsFailOk(outcomes):
-    return (FAIL in outcomes) and (OKAY in outcomes)
-
-
-def _AddOutcome(result, new):
-  if new in DEFS:
-    mapped = DEFS[new]
-    if type(mapped) == list:
-      for m in mapped:
-        _AddOutcome(result, m)
-    elif type(mapped) == str:
-      _AddOutcome(result, mapped)
-  else:
-    result.add(new)
+  return FAIL_OK in outcomes
 
 
 def _JoinsPassAndFail(outcomes1, outcomes2):
@@ -111,8 +100,8 @@ def _JoinsPassAndFail(outcomes1, outcomes2):
   """
   return (
       PASS in outcomes1 and
-      not FAIL in outcomes1 and
-      FAIL in outcomes2
+      not (FAIL in outcomes1 or FAIL_OK in outcomes1) and
+      (FAIL in outcomes2 or FAIL_OK in outcomes2)
   )
 
 VARIANT_EXPRESSION = object()
@@ -155,7 +144,7 @@ def _ParseOutcomeList(rule, outcomes, variables, target_dict):
     outcomes = [outcomes]
   for item in outcomes:
     if type(item) == str:
-      _AddOutcome(result, item)
+      result.add(item)
     elif type(item) == list:
       condition = item[0]
       exp = _EvalExpression(condition, variables)
@@ -170,7 +159,7 @@ def _ParseOutcomeList(rule, outcomes, variables, target_dict):
 
       for outcome in item[1:]:
         assert type(outcome) == str
-        _AddOutcome(result, outcome)
+        result.add(outcome)
     else:
       assert False
   if len(result) == 0:

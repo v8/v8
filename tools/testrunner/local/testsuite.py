@@ -50,7 +50,7 @@ class VariantGenerator(object):
 
   def FilterVariantsByTest(self, testcase):
     result = self.all_variants
-    outcomes = testcase.suite.GetOutcomesForTestCase(testcase)
+    outcomes = testcase.suite.GetStatusFileOutcomes(testcase)
     if outcomes:
       if statusfile.OnlyStandardVariant(outcomes):
         return self.standard_variant
@@ -59,7 +59,7 @@ class VariantGenerator(object):
     return result
 
   def GetFlagSets(self, testcase, variant):
-    outcomes = testcase.suite.GetOutcomesForTestCase(testcase)
+    outcomes = testcase.suite.GetStatusFileOutcomes(testcase)
     if outcomes and statusfile.OnlyFastVariants(outcomes):
       return FAST_VARIANT_FLAGS[variant]
     else:
@@ -147,7 +147,7 @@ class TestSuite(object):
     before using this function.
     """
     flags = []
-    for outcome in self.GetOutcomesForTestCase(test):
+    for outcome in self.GetStatusFileOutcomes(test):
       if outcome.startswith('--'):
         flags.append(outcome)
     return flags
@@ -179,7 +179,7 @@ class TestSuite(object):
         (mode == 'skip' and pass_fail))
 
     def _compliant(test):
-      outcomes = self.GetOutcomesForTestCase(test)
+      outcomes = self.GetStatusFileOutcomes(test)
       if statusfile.DoSkip(outcomes):
         return False
       if _skip_slow(statusfile.IsSlow(outcomes), slow_tests_mode):
@@ -256,7 +256,29 @@ class TestSuite(object):
           break
     self.tests = filtered
 
-  def GetOutcomesForTestCase(self, testcase):
+  def GetExpectedOutcomes(self, testcase):
+    """Gets expected outcomes from status file.
+
+    It differs from GetStatusFileOutcomes by selecting only outcomes that can
+    be result of test execution.
+    Status file has to be loaded before using this function.
+    """
+    outcomes = self.GetStatusFileOutcomes(testcase)
+
+    expected = []
+    if (statusfile.FAIL in outcomes or
+        statusfile.FAIL_OK in outcomes):
+      expected.append(statusfile.FAIL)
+
+    if statusfile.CRASH in outcomes:
+      expected.append(statusfile.CRASH)
+
+    if statusfile.PASS in outcomes:
+      expected.append(statusfile.PASS)
+
+    return expected or [statusfile.PASS]
+
+  def GetStatusFileOutcomes(self, testcase):
     """Gets outcomes from status file.
 
     Merges variant dependent and independent rules. Status file has to be loaded
@@ -323,9 +345,7 @@ class TestSuite(object):
       return statusfile.PASS
 
   def HasUnexpectedOutput(self, testcase):
-    outcome = self.GetOutcome(testcase)
-    return not outcome in (self.GetOutcomesForTestCase(testcase)
-                           or [statusfile.PASS])
+    return self.GetOutcome(testcase) not in self.GetExpectedOutcomes(testcase)
 
   def StripOutputForTransmit(self, testcase):
     if not self.HasUnexpectedOutput(testcase):

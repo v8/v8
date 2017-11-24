@@ -39,7 +39,7 @@ class TestSuiteTest(unittest.TestCase):
         [TestCase(suite, 'baz/bar')],
         suite.tests,
     )
-    outcomes = suite.GetOutcomesForTestCase(suite.tests[0])
+    outcomes = suite.GetStatusFileOutcomes(suite.tests[0])
     self.assertEquals(set(['PASS', 'FAIL', 'SLOW']), outcomes)
 
   def test_filter_testcases_by_status_second_pass(self):
@@ -89,12 +89,30 @@ class TestSuiteTest(unittest.TestCase):
 
     self.assertEquals(
         set(['PREV', 'PASS', 'SLOW']),
-        suite.GetOutcomesForTestCase(suite.tests[0]),
+        suite.GetStatusFileOutcomes(suite.tests[0]),
     )
     self.assertEquals(
         set(['PREV', 'PASS', 'FAIL', 'SLOW']),
-        suite.GetOutcomesForTestCase(suite.tests[1]),
+        suite.GetStatusFileOutcomes(suite.tests[1]),
     )
+
+  def test_fail_ok_outcome(self):
+    suite = TestSuite('foo', 'bar')
+    suite.tests = [
+      TestCase(suite, 'foo/bar'),
+      TestCase(suite, 'baz/bar'),
+    ]
+    suite.rules = {
+      '': {
+        'foo/bar': set(['FAIL_OK']),
+        'baz/bar': set(['FAIL']),
+      },
+    }
+    suite.prefix_rules = {}
+
+    for t in suite.tests:
+      expected_outcomes = suite.GetExpectedOutcomes(t)
+      self.assertEquals(['FAIL'], expected_outcomes)
 
 
 if __name__ == '__main__':

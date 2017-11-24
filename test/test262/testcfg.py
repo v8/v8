@@ -102,7 +102,7 @@ FAST_VARIANTS = {
 
 class Test262VariantGenerator(testsuite.VariantGenerator):
   def GetFlagSets(self, testcase, variant):
-    outcomes = testcase.suite.GetOutcomesForTestCase(testcase)
+    outcomes = testcase.suite.GetStatusFileOutcomes(testcase)
     if outcomes and statusfile.OnlyFastVariants(outcomes):
       variant_flags = FAST_VARIANTS
     else:
@@ -242,16 +242,12 @@ class Test262TestSuite(testsuite.TestSuite):
         return True
     return "FAILED!" in output.stdout
 
-  def HasUnexpectedOutput(self, testcase):
-    outcome = self.GetOutcome(testcase)
-    outcomes = self.GetOutcomesForTestCase(testcase)
+  def GetExpectedOutcomes(self, testcase):
+    outcomes = self.GetStatusFileOutcomes(testcase)
     if (statusfile.FAIL_SLOPPY in outcomes and
-        "--use-strict" not in testcase.flags):
-      return outcome != statusfile.FAIL
-    return not outcome in ([outcome for outcome in outcomes
-                                    if not outcome.startswith('--')
-                                       and outcome != statusfile.FAIL_SLOPPY]
-                           or [statusfile.PASS])
+        '--use-strict' not in testcase.flags):
+      return [statusfile.FAIL]
+    return super(Test262TestSuite, self).GetExpectedOutcomes(testcase)
 
   def PrepareSources(self):
     # The archive is created only on swarming. Local checkouts have the

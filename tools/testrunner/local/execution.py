@@ -209,7 +209,7 @@ class Runner(object):
     self.suite_names = [s.name for s in suites]
 
     # Always pre-sort by status file, slowest tests first.
-    slow_key = lambda t: statusfile.IsSlow(t.suite.GetOutcomesForTestCase(t))
+    slow_key = lambda t: statusfile.IsSlow(t.suite.GetStatusFileOutcomes(t))
     self.tests.sort(key=slow_key, reverse=True)
 
     # Sort by stored duration of not opted out.

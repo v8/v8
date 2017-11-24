@@ -45,7 +45,7 @@ def PrintReport(tests):
   total = len(tests)
   skipped = nocrash = passes = fail_ok = fail = 0
   for t in tests:
-    outcomes = t.suite.GetOutcomesForTestCase(t)
+    outcomes = t.suite.GetStatusFileOutcomes(t)
     if not outcomes:
       passes += 1
       continue
