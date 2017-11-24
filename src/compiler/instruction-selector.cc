@@ -2348,7 +2348,7 @@ void InstructionSelector::VisitI8x16SConvertI16x8(Node* node) {
         // && !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
-    !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
+    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI8x16Add(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16AddSaturateS(Node* node) {
@@ -2373,7 +2373,8 @@ void InstructionSelector::VisitI8x16GtS(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16GeS(Node* node) { UNIMPLEMENTED(); }
 #endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64
-        // && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
+        // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS &&
+        // !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_MIPS && \
     !V8_TARGET_ARCH_MIPS64
@@ -2392,7 +2393,7 @@ void InstructionSelector::VisitI8x16UConvertI16x8(Node* node) {
         // && !V8_TARGET_ARCH_MIPS64
 
 #if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
-    !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
+    !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitI8x16AddSaturateU(Node* node) {
   UNIMPLEMENTED();
 }
@@ -2408,7 +2409,12 @@ void InstructionSelector::VisitI8x16MaxU(Node* node) { UNIMPLEMENTED(); }
 void InstructionSelector::VisitI8x16GtU(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitI8x16GeU(Node* node) { UNIMPLEMENTED(); }
+#endif  // !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64
+        // && !V8_TARGET_ARCH_IA32 && !V8_TARGET_ARCH_MIPS &&
+        // !V8_TARGET_ARCH_MIPS64
 
+#if !V8_TARGET_ARCH_ARM && !V8_TARGET_ARCH_ARM64 && !V8_TARGET_ARCH_X64 && \
+    !V8_TARGET_ARCH_MIPS && !V8_TARGET_ARCH_MIPS64
 void InstructionSelector::VisitS128And(Node* node) { UNIMPLEMENTED(); }
 
 void InstructionSelector::VisitS128Or(Node* node) { UNIMPLEMENTED(); }

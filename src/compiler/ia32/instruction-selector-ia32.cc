@@ -1932,7 +1932,23 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8MinU)             \
   V(I16x8MaxU)             \
   V(I16x8GtU)              \
-  V(I16x8GeU)
+  V(I16x8GeU)              \
+  V(I8x16Add)              \
+  V(I8x16AddSaturateS)     \
+  V(I8x16Sub)              \
+  V(I8x16SubSaturateS)     \
+  V(I8x16MinS)             \
+  V(I8x16MaxS)             \
+  V(I8x16Eq)               \
+  V(I8x16Ne)               \
+  V(I8x16GtS)              \
+  V(I8x16GeS)              \
+  V(I8x16AddSaturateU)     \
+  V(I8x16SubSaturateU)     \
+  V(I8x16MinU)             \
+  V(I8x16MaxU)             \
+  V(I8x16GtU)              \
+  V(I8x16GeU)
 
 #define SIMD_UNOP_LIST(V) \
   V(I32x4Neg)             \

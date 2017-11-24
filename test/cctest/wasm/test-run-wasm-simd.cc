@@ -1361,8 +1361,6 @@ WASM_SIMD_COMPILED_TEST(I8x16ConvertI16x8) {
 #endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS ||
         // V8_TARGET_ARCH_MIPS64
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 void RunI8x16BinOpTest(WasmExecutionMode execution_mode, WasmOpcode simd_op,
                        Int8BinOp expected_op) {
   WasmRunner<int32_t, int32_t, int32_t, int32_t> r(execution_mode);
@@ -1482,8 +1480,6 @@ WASM_SIMD_TEST(I8x16LtU) {
 WASM_SIMD_TEST(I8x16LeU) {
   RunI8x16CompareOpTest(execution_mode, kExprI8x16LeU, UnsignedLessEqual);
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
-        // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 #if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_MIPS || \
     V8_TARGET_ARCH_MIPS64
