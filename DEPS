@@ -25,7 +25,7 @@ deps = {
     'condition': 'checkout_android',
   },
   'v8/third_party/catapult': {
-    'url': Var('chromium_url') + '/catapult.git' + '@' + '86c17b98f5364a8a3f903df3d946ea7afe4d729b',
+    'url': Var('chromium_url') + '/catapult.git' + '@' + '030b0600bb0cbf31dfc30e5c1e6ffecf0b6124bc',
     'condition': 'checkout_android',
   },
   'v8/third_party/colorama/src': {
