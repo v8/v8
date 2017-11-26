@@ -2128,7 +2128,7 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(int length,
   StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
                                  SmiConstant(length),
                                  MachineRepresentation::kTagged);
-  StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldOffset,
+  StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldSlot,
                                  IntPtrConstant(String::kEmptyHashField),
                                  MachineType::PointerRepresentation());
   return result;
@@ -2175,7 +2175,7 @@ Node* CodeStubAssembler::AllocateSeqOneByteString(Node* context,
     StoreMapNoWriteBarrier(result, Heap::kOneByteStringMapRootIndex);
     StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kLengthOffset,
                                    length, MachineRepresentation::kTagged);
-    StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldOffset,
+    StoreObjectFieldNoWriteBarrier(result, SeqOneByteString::kHashFieldSlot,
                                    IntPtrConstant(String::kEmptyHashField),
                                    MachineType::PointerRepresentation());
     var_result.Bind(result);
@@ -2213,7 +2213,7 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(int length,
   StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
                                  SmiConstant(Smi::FromInt(length)),
                                  MachineRepresentation::kTagged);
-  StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldOffset,
+  StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldSlot,
                                  IntPtrConstant(String::kEmptyHashField),
                                  MachineType::PointerRepresentation());
   return result;
@@ -2246,7 +2246,7 @@ Node* CodeStubAssembler::AllocateSeqTwoByteString(Node* context,
     StoreMapNoWriteBarrier(result, Heap::kStringMapRootIndex);
     StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kLengthOffset,
                                    length, MachineRepresentation::kTagged);
-    StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldOffset,
+    StoreObjectFieldNoWriteBarrier(result, SeqTwoByteString::kHashFieldSlot,
                                    IntPtrConstant(String::kEmptyHashField),
                                    MachineType::PointerRepresentation());
     var_result.Bind(result);
@@ -2282,7 +2282,7 @@ Node* CodeStubAssembler::AllocateSlicedString(
   StoreMapNoWriteBarrier(result, map_root_index);
   StoreObjectFieldNoWriteBarrier(result, SlicedString::kLengthOffset, length,
                                  MachineRepresentation::kTagged);
-  StoreObjectFieldNoWriteBarrier(result, SlicedString::kHashFieldOffset,
+  StoreObjectFieldNoWriteBarrier(result, SlicedString::kHashFieldSlot,
                                  IntPtrConstant(String::kEmptyHashField),
                                  MachineType::PointerRepresentation());
   StoreObjectFieldNoWriteBarrier(result, SlicedString::kParentOffset, parent,
@@ -2317,7 +2317,7 @@ Node* CodeStubAssembler::AllocateConsString(Heap::RootListIndex map_root_index,
   StoreMapNoWriteBarrier(result, map_root_index);
   StoreObjectFieldNoWriteBarrier(result, ConsString::kLengthOffset, length,
                                  MachineRepresentation::kTagged);
-  StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldOffset,
+  StoreObjectFieldNoWriteBarrier(result, ConsString::kHashFieldSlot,
                                  IntPtrConstant(String::kEmptyHashField),
                                  MachineType::PointerRepresentation());
   bool const new_space = !(flags & kPretenured);
