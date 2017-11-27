@@ -43,6 +43,7 @@
 #include "src/heap/scavenge-job.h"
 #include "src/heap/scavenger-inl.h"
 #include "src/heap/store-buffer.h"
+#include "src/heap/sweeper.h"
 #include "src/interpreter/interpreter.h"
 #include "src/objects/object-macros.h"
 #include "src/objects/shared-function-info.h"
@@ -1818,7 +1819,7 @@ void Heap::EvacuateYoungGeneration() {
     DCHECK(CanExpandOldGeneration(new_space()->Size()));
   }
 
-  mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
+  mark_compact_collector()->sweeper()->EnsureNewSpaceCompleted();
 
   SetGCState(SCAVENGE);
   LOG(isolate_, ResourceEvent("scavenge", "begin"));
@@ -1934,14 +1935,14 @@ void Heap::Scavenge() {
   IncrementalMarking::PauseBlackAllocationScope pause_black_allocation(
       incremental_marking());
 
-  if (mark_compact_collector()->sweeper().sweeping_in_progress() &&
+  if (mark_compact_collector()->sweeper()->sweeping_in_progress() &&
       memory_allocator_->unmapper()->NumberOfDelayedChunks() >
           static_cast<int>(new_space_->MaximumCapacity() / Page::kPageSize)) {
     mark_compact_collector()->EnsureSweepingCompleted();
   }
 
   // TODO(mlippautz): Untangle the dependency of the unmapper from the sweeper.
-  mark_compact_collector()->sweeper().EnsureNewSpaceCompleted();
+  mark_compact_collector()->sweeper()->EnsureNewSpaceCompleted();
 
   SetGCState(SCAVENGE);
 
@@ -1969,17 +1970,15 @@ void Heap::Scavenge() {
   }
 
   {
-    MarkCompactCollector::Sweeper* sweeper =
-        &mark_compact_collector()->sweeper();
+    Sweeper* sweeper = mark_compact_collector()->sweeper();
     // Pause the concurrent sweeper.
-    MarkCompactCollector::Sweeper::PauseOrCompleteScope pause_scope(sweeper);
+    Sweeper::PauseOrCompleteScope pause_scope(sweeper);
     // Filter out pages from the sweeper that need to be processed for old to
     // new slots by the Scavenger. After processing, the Scavenger adds back
     // pages that are still unsweeped. This way the Scavenger has exclusive
     // access to the slots of a page and can completely avoid any locks on
     // the page itself.
-    MarkCompactCollector::Sweeper::FilterSweepingPagesScope filter_scope(
-        sweeper, pause_scope);
+    Sweeper::FilterSweepingPagesScope filter_scope(sweeper, pause_scope);
     filter_scope.FilterOldSpaceSweepingPages(
         [](Page* page) { return !page->ContainsSlots<OLD_TO_NEW>(); });
     RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
@@ -6613,7 +6612,7 @@ Code* Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
   // after the inner pointer.
   Page* page = Page::FromAddress(inner_pointer);
   DCHECK_EQ(page->owner(), code_space());
-  mark_compact_collector()->sweeper().SweepOrWaitUntilSweepingCompleted(page);
+  mark_compact_collector()->sweeper()->SweepOrWaitUntilSweepingCompleted(page);
 
   Address addr = page->skip_list()->StartFor(inner_pointer);
   Address top = code_space()->top();

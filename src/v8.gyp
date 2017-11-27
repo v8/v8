@@ -1043,6 +1043,8 @@
         'heap/spaces.h',
         'heap/store-buffer.cc',
         'heap/store-buffer.h',
+        'heap/sweeper.cc',
+        'heap/sweeper.h',
         'heap/worklist.h',
         'intl.cc',
         'intl.h',

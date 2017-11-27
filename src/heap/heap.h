@@ -2583,6 +2583,7 @@ class Heap {
   friend class PagedSpace;
   friend class Scavenger;
   friend class StoreBuffer;
+  friend class Sweeper;
   friend class heap::TestMemoryAllocatorScope;
 
   // The allocator interface.

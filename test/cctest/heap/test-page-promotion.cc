@@ -192,7 +192,7 @@ UNINITIALIZED_HEAP_TEST(Regress658718) {
     heap->new_space()->Shrink();
     heap->memory_allocator()->unmapper()->WaitUntilCompleted();
     heap->delay_sweeper_tasks_for_testing_ = false;
-    heap->mark_compact_collector()->sweeper().StartSweeperTasks();
+    heap->mark_compact_collector()->sweeper()->StartSweeperTasks();
     heap->mark_compact_collector()->EnsureSweepingCompleted();
   }
   isolate->Dispose();

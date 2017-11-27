@@ -15,6 +15,7 @@
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/slot-set.h"
+#include "src/heap/sweeper.h"
 #include "src/msan.h"
 #include "src/objects-inl.h"
 #include "src/snapshot/snapshot.h"
@@ -56,7 +57,7 @@ bool HeapObjectIterator::AdvanceToNextPage() {
   Page* cur_page = *(current_page_++);
   Heap* heap = space_->heap();
 
-  heap->mark_compact_collector()->sweeper().SweepOrWaitUntilSweepingCompleted(
+  heap->mark_compact_collector()->sweeper()->SweepOrWaitUntilSweepingCompleted(
       cur_page);
   if (cur_page->IsFlagSet(Page::SWEEP_TO_ITERATE))
     heap->minor_mark_compact_collector()->MakeIterable(
@@ -412,7 +413,7 @@ bool MemoryAllocator::CanFreeMemoryChunk(MemoryChunk* chunk) {
   // Chunks in old generation are unmapped if they are empty.
   DCHECK(chunk->InNewSpace() || chunk->SweepingDone());
   return !chunk->InNewSpace() || mc == nullptr ||
-         !mc->sweeper().sweeping_in_progress();
+         !mc->sweeper()->sweeping_in_progress();
 }
 
 bool MemoryAllocator::CommitMemory(Address base, size_t size,
@@ -1437,7 +1438,7 @@ void PagedSpace::RefillFreeList() {
   size_t added = 0;
   {
     Page* p = nullptr;
-    while ((p = collector->sweeper().GetSweptPageSafe(this)) != nullptr) {
+    while ((p = collector->sweeper()->GetSweptPageSafe(this)) != nullptr) {
       // Only during compaction pages can actually change ownership. This is
       // safe because there exists no other competing action on the page links
       // during compaction.
@@ -3201,7 +3202,7 @@ bool PagedSpace::SweepAndRetryAllocation(int size_in_bytes) {
 bool CompactionSpace::SweepAndRetryAllocation(int size_in_bytes) {
   MarkCompactCollector* collector = heap()->mark_compact_collector();
   if (FLAG_concurrent_sweeping && collector->sweeping_in_progress()) {
-    collector->sweeper().ParallelSweepSpace(identity(), 0);
+    collector->sweeper()->ParallelSweepSpace(identity(), 0);
     RefillFreeList();
     return free_list_.Allocate(size_in_bytes);
   }
@@ -3228,7 +3229,7 @@ bool PagedSpace::RawSlowAllocateRaw(int size_in_bytes) {
   // Sweeping is still in progress.
   if (collector->sweeping_in_progress()) {
     if (FLAG_concurrent_sweeping && !is_local() &&
-        !collector->sweeper().AreSweeperTasksRunning()) {
+        !collector->sweeper()->AreSweeperTasksRunning()) {
       collector->EnsureSweepingCompleted();
     }
 
@@ -3240,7 +3241,7 @@ bool PagedSpace::RawSlowAllocateRaw(int size_in_bytes) {
     if (free_list_.Allocate(static_cast<size_t>(size_in_bytes))) return true;
 
     // If sweeping is still in progress try to sweep pages.
-    int max_freed = collector->sweeper().ParallelSweepSpace(
+    int max_freed = collector->sweeper()->ParallelSweepSpace(
         identity(), size_in_bytes, kMaxPagesToSweep);
     RefillFreeList();
     if (max_freed >= size_in_bytes) {

@@ -9,6 +9,7 @@
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/objects-visiting-inl.h"
 #include "src/heap/scavenger-inl.h"
+#include "src/heap/sweeper.h"
 #include "src/objects-body-descriptors-inl.h"
 
 namespace v8 {
@@ -89,9 +90,9 @@ void Scavenger::IterateAndScavengePromotedObject(HeapObject* target, int size) {
 void Scavenger::AddPageToSweeperIfNecessary(MemoryChunk* page) {
   AllocationSpace space = page->owner()->identity();
   if ((space == OLD_SPACE) && !page->SweepingDone()) {
-    heap()->mark_compact_collector()->sweeper().AddPage(
+    heap()->mark_compact_collector()->sweeper()->AddPage(
         space, reinterpret_cast<Page*>(page),
-        MarkCompactCollector::Sweeper::READD_TEMPORARY_REMOVED_PAGE);
+        Sweeper::READD_TEMPORARY_REMOVED_PAGE);
   }
 }
 
