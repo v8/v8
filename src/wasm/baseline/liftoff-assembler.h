@@ -76,36 +76,54 @@ class LiftoffAssembler : public TurboAssembler {
 
   Register GetBinaryOpTargetRegister(ValueType, PinnedRegisterScope = {});
 
-  struct VarState {
-    enum Location { kStack, kRegister, kConstant };
-    Location loc;
+  class VarState {
+   public:
+    enum Location : uint8_t { kStack, kRegister, kConstant };
 
-    union {
-      Register reg;
-      uint32_t i32_const;
-    };
-    VarState() : loc(kStack) {}
-    explicit VarState(Register r) : loc(kRegister), reg(r) {}
-    explicit VarState(uint32_t value) : loc(kConstant), i32_const(value) {}
+    VarState() : loc_(kStack) {}
+    explicit VarState(Register r) : loc_(kRegister), reg_(r) {}
+    explicit VarState(uint32_t i32_const)
+        : loc_(kConstant), i32_const_(i32_const) {}
 
     bool operator==(const VarState& other) const {
-      if (loc != other.loc) return false;
-      switch (loc) {
-        case kRegister:
-          return reg == other.reg;
+      if (loc_ != other.loc_) return false;
+      switch (loc_) {
         case kStack:
           return true;
+        case kRegister:
+          return reg_ == other.reg_;
         case kConstant:
-          return i32_const == other.i32_const;
+          return i32_const_ == other.i32_const_;
       }
       UNREACHABLE();
     }
 
-    bool is_stack() const { return loc == kStack; }
-    bool is_reg() const { return loc == kRegister; }
-    bool is_const() const { return loc == kConstant; }
-  };
+    bool is_stack() const { return loc_ == kStack; }
+    bool is_reg() const { return loc_ == kRegister; }
+    bool is_const() const { return loc_ == kConstant; }
 
+    Location loc() const { return loc_; }
+
+    uint32_t i32_const() const {
+      DCHECK_EQ(loc_, kConstant);
+      return i32_const_;
+    }
+
+    Register reg() const {
+      DCHECK_EQ(loc_, kRegister);
+      return reg_;
+    }
+
+    void MakeStack() { loc_ = kStack; }
+
+   private:
+    Location loc_;
+
+    union {
+      Register reg_;        // used if loc_ == kRegister
+      uint32_t i32_const_;  // used if loc_ == kConstant
+    };
+  };
   static_assert(IS_TRIVIALLY_COPYABLE(VarState),
                 "VarState should be trivially copyable");
 
@@ -216,11 +234,11 @@ class LiftoffAssembler : public TurboAssembler {
   void DropStackSlot(VarState* slot) {
     // The only loc we care about is register. Other types don't occupy
     // anything.
-    if (slot->loc != VarState::kRegister) return;
+    if (!slot->is_reg()) return;
     // Free the register, then set the loc to "stack".
     // No need to write back, the value should be dropped.
-    cache_state_.dec_used(slot->reg);
-    slot->loc = VarState::kStack;
+    cache_state_.dec_used(slot->reg());
+    slot->MakeStack();
   }
 
   void MergeFullStackWith(CacheState&);

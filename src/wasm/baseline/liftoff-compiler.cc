@@ -308,12 +308,12 @@ class LiftoffCompiler {
   void GetLocal(Decoder* decoder, Value* result,
                 const LocalIndexOperand<validate>& operand) {
     auto& slot = __ cache_state()->stack_state[operand.index];
-    switch (slot.loc) {
+    switch (slot.loc()) {
       case kRegister:
-        __ PushRegister(slot.reg);
+        __ PushRegister(slot.reg());
         break;
       case kConstant:
-        __ cache_state()->stack_state.emplace_back(slot.i32_const);
+        __ cache_state()->stack_state.emplace_back(slot.i32_const());
         break;
       case kStack: {
         Register reg = __ GetUnusedRegister(__ local_type(operand.index));
@@ -328,24 +328,24 @@ class LiftoffCompiler {
     auto& state = *__ cache_state();
     auto& source_slot = state.stack_state.back();
     auto& target_slot = state.stack_state[local_index];
-    switch (source_slot.loc) {
+    switch (source_slot.loc()) {
       case kRegister:
         __ DropStackSlot(&target_slot);
         target_slot = source_slot;
-        if (is_tee) state.inc_used(target_slot.reg);
+        if (is_tee) state.inc_used(target_slot.reg());
         break;
       case kConstant:
         __ DropStackSlot(&target_slot);
         target_slot = source_slot;
         break;
       case kStack: {
-        switch (target_slot.loc) {
+        switch (target_slot.loc()) {
           case kRegister:
-            if (state.register_use_count[target_slot.reg.code()] == 1) {
-              __ Fill(target_slot.reg, state.stack_height() - 1);
+            if (state.register_use_count[target_slot.reg().code()] == 1) {
+              __ Fill(target_slot.reg(), state.stack_height() - 1);
               break;
             } else {
-              state.dec_used(target_slot.reg);
+              state.dec_used(target_slot.reg());
               // and fall through to use a new register.
             }
           case kConstant:
