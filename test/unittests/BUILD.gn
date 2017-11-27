@@ -176,6 +176,7 @@ v8_source_set("unittests_sources") {
     "test-utils.cc",
     "test-utils.h",
     "unicode-unittest.cc",
+    "utils-unittest.cc",
     "value-serializer-unittest.cc",
     "wasm/control-transfer-unittest.cc",
     "wasm/decoder-unittest.cc",

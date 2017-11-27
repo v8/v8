@@ -149,6 +149,7 @@
       'test-utils.h',
       'test-utils.cc',
       'unicode-unittest.cc',
+      'utils-unittest.cc',
       'value-serializer-unittest.cc',
       'zone/segmentpool-unittest.cc',
       'zone/zone-allocator-unittest.cc',
