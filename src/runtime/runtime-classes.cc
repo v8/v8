@@ -591,7 +591,7 @@ MaybeHandle<Object> DefineClass(Isolate* isolate,
     DCHECK(isolate->has_pending_exception());
     return MaybeHandle<Object>();
   }
-  return constructor;
+  return prototype;
 }
 
 }  // namespace

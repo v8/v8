@@ -505,9 +505,9 @@ handlers: [
 snippet: "
   export default (class {});
 "
-frame size: 6
+frame size: 7
 parameter count: 2
-bytecode array length: 121
+bytecode array length: 128
 bytecodes: [
                 B(Ldar), R(1),
                 B(JumpIfUndefined), U8(18),
@@ -549,12 +549,15 @@ bytecodes: [
                 B(Ldar), R(3),
                 B(StaCurrentContextSlot), U8(5),
                 B(LdaTheHole),
-                B(Star), R(5),
+                B(Star), R(6),
                 B(CreateClosure), U8(5), U8(0), U8(0),
-                B(Star), R(4),
-                B(LdaConstant), U8(4),
                 B(Star), R(3),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
+                B(LdaConstant), U8(4),
+                B(Star), R(4),
+                B(Mov), R(3), R(5),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
+                B(Star), R(4),
+                B(Ldar), R(5),
                 B(StaModuleVariable), I8(1), U8(0),
                 B(LdaCurrentContextSlot), U8(5),
   /*   26 S> */ B(Return),

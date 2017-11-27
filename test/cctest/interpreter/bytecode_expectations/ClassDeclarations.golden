@@ -12,22 +12,24 @@ snippet: "
     speak() { console.log(this.name + ' is speaking.'); }
   }
 "
-frame size: 6
+frame size: 7
 parameter count: 1
-bytecode array length: 31
+bytecode array length: 38
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaTheHole),
-                B(Star), R(4),
-                B(CreateClosure), U8(1), U8(0), U8(2),
-                B(Star), R(3),
-                B(LdaConstant), U8(0),
-                B(Star), R(2),
-                B(CreateClosure), U8(2), U8(1), U8(2),
                 B(Star), R(5),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),
-                B(Star), R(0),
-                B(Star), R(1),
+                B(CreateClosure), U8(1), U8(0), U8(2),
+                B(Star), R(2),
+                B(LdaConstant), U8(0),
+                B(Star), R(3),
+                B(CreateClosure), U8(2), U8(1), U8(2),
+                B(Star), R(6),
+                B(Mov), R(2), R(4),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
+                B(Star), R(3),
+                B(Mov), R(4), R(0),
+                B(Mov), R(0), R(1),
                 B(LdaUndefined),
   /*  149 S> */ B(Return),
 ]
@@ -46,22 +48,24 @@ snippet: "
     speak() { console.log(this.name + ' is speaking.'); }
   }
 "
-frame size: 6
+frame size: 7
 parameter count: 1
-bytecode array length: 31
+bytecode array length: 38
 bytecodes: [
   /*   30 E> */ B(StackCheck),
                 B(LdaTheHole),
-                B(Star), R(4),
-                B(CreateClosure), U8(1), U8(0), U8(2),
-                B(Star), R(3),
-                B(LdaConstant), U8(0),
-                B(Star), R(2),
-                B(CreateClosure), U8(2), U8(1), U8(2),
                 B(Star), R(5),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),
-                B(Star), R(0),
-                B(Star), R(1),
+                B(CreateClosure), U8(1), U8(0), U8(2),
+                B(Star), R(2),
+                B(LdaConstant), U8(0),
+                B(Star), R(3),
+                B(CreateClosure), U8(2), U8(1), U8(2),
+                B(Star), R(6),
+                B(Mov), R(2), R(4),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
+                B(Star), R(3),
+                B(Mov), R(4), R(0),
+                B(Mov), R(0), R(1),
                 B(LdaUndefined),
   /*  149 S> */ B(Return),
 ]
@@ -82,9 +86,9 @@ snippet: "
     static [n1]() { return n1; }
   }
 "
-frame size: 10
+frame size: 11
 parameter count: 1
-bytecode array length: 68
+bytecode array length: 75
 bytecodes: [
                 B(CreateFunctionContext), U8(2),
                 B(PushContext), R(2),
@@ -94,26 +98,28 @@ bytecodes: [
   /*   57 S> */ B(LdaConstant), U8(1),
   /*   57 E> */ B(StaCurrentContextSlot), U8(5),
                 B(LdaTheHole),
-                B(Star), R(5),
+                B(Star), R(6),
                 B(CreateClosure), U8(3), U8(0), U8(2),
-                B(Star), R(4),
-                B(LdaConstant), U8(2),
                 B(Star), R(3),
+                B(LdaConstant), U8(2),
+                B(Star), R(4),
                 B(LdaImmutableCurrentContextSlot), U8(4),
-  /*   75 E> */ B(ToName), R(6),
+  /*   75 E> */ B(ToName), R(7),
                 B(CreateClosure), U8(4), U8(1), U8(2),
-                B(Star), R(7),
+                B(Star), R(8),
                 B(LdaImmutableCurrentContextSlot), U8(5),
-  /*  106 E> */ B(ToName), R(8),
+  /*  106 E> */ B(ToName), R(9),
                 B(LdaConstant), U8(5),
-                B(TestEqualStrictNoFeedback), R(8),
+                B(TestEqualStrictNoFeedback), R(9),
+                B(Mov), R(3), R(5),
                 B(JumpIfFalse), U8(7),
                 B(CallRuntime), U16(Runtime::kThrowStaticPrototypeError), R(0), U8(0),
                 B(CreateClosure), U8(6), U8(2), U8(2),
-                B(Star), R(9),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(7),
-                B(Star), R(0),
-                B(Star), R(1),
+                B(Star), R(10),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(7),
+                B(Star), R(4),
+                B(Mov), R(3), R(0),
+                B(Mov), R(0), R(1),
                 B(LdaUndefined),
   /*  129 S> */ B(Return),
 ]
@@ -135,9 +141,9 @@ snippet: "
   class C { constructor() { count++; }}
   return new C();
 "
-frame size: 6
+frame size: 7
 parameter count: 1
-bytecode array length: 36
+bytecode array length: 45
 bytecodes: [
                 B(CreateFunctionContext), U8(1),
                 B(PushContext), R(2),
@@ -145,15 +151,18 @@ bytecodes: [
   /*   46 S> */ B(LdaZero),
   /*   46 E> */ B(StaCurrentContextSlot), U8(4),
                 B(LdaTheHole),
-                B(Star), R(5),
+                B(Star), R(6),
                 B(CreateClosure), U8(1), U8(0), U8(2),
-                B(Star), R(4),
-                B(LdaConstant), U8(0),
                 B(Star), R(3),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
-                B(Star), R(0),
-                B(Star), R(1),
-  /*   94 S> */ B(Construct), R(1), R(0), U8(0), U8(1),
+                B(LdaConstant), U8(0),
+                B(Star), R(4),
+                B(Mov), R(3), R(5),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(4), U8(3),
+                B(Star), R(4),
+                B(Mov), R(5), R(0),
+                B(Mov), R(0), R(1),
+  /*   87 S> */ B(Ldar), R(1),
+  /*   94 E> */ B(Construct), R(3), R(0), U8(0), U8(1),
   /*  102 S> */ B(Return),
 ]
 constant pool: [
@@ -168,29 +177,33 @@ snippet: "
   (class {})
   class E { static name () {}}
 "
-frame size: 6
+frame size: 7
 parameter count: 1
-bytecode array length: 49
+bytecode array length: 61
 bytecodes: [
   /*   30 E> */ B(StackCheck),
   /*   34 S> */ B(LdaTheHole),
-                B(Star), R(4),
-                B(CreateClosure), U8(1), U8(0), U8(2),
-                B(Star), R(3),
-                B(LdaConstant), U8(0),
-                B(Star), R(2),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(3),
-                B(LdaTheHole),
-                B(Star), R(4),
-                B(CreateClosure), U8(3), U8(1), U8(2),
-                B(Star), R(3),
-                B(LdaConstant), U8(2),
-                B(Star), R(2),
-                B(CreateClosure), U8(4), U8(2), U8(2),
                 B(Star), R(5),
-                B(CallRuntime), U16(Runtime::kDefineClass), R(2), U8(4),
-                B(Star), R(0),
-                B(Star), R(1),
+                B(CreateClosure), U8(1), U8(0), U8(2),
+                B(Star), R(2),
+                B(LdaConstant), U8(0),
+                B(Star), R(3),
+                B(Mov), R(2), R(4),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(3),
+                B(Star), R(3),
+                B(LdaTheHole),
+                B(Star), R(5),
+                B(CreateClosure), U8(3), U8(1), U8(2),
+                B(Star), R(2),
+                B(LdaConstant), U8(2),
+                B(Star), R(3),
+                B(CreateClosure), U8(4), U8(2), U8(2),
+                B(Star), R(6),
+                B(Mov), R(2), R(4),
+                B(CallRuntime), U16(Runtime::kDefineClass), R(3), U8(4),
+                B(Star), R(3),
+                B(Mov), R(4), R(0),
+                B(Mov), R(0), R(1),
                 B(LdaUndefined),
   /*   74 S> */ B(Return),
 ]

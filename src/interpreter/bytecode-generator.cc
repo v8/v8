@@ -1815,13 +1815,15 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
   class_literals_.push_back(std::make_pair(expr, class_boilerplate_entry));
 
   VisitDeclarations(expr->scope()->declarations());
+  Register class_constructor = register_allocator()->NewRegister();
 
   {
     RegisterAllocationScope register_scope(this);
     RegisterList args = register_allocator()->NewGrowableRegisterList();
 
     Register class_boilerplate = register_allocator()->GrowRegisterList(&args);
-    Register class_constructor = register_allocator()->GrowRegisterList(&args);
+    Register class_constructor_in_args =
+        register_allocator()->GrowRegisterList(&args);
     Register super_class = register_allocator()->GrowRegisterList(&args);
     DCHECK_EQ(ClassBoilerplate::kFirstDynamicArgumentIndex,
               args.register_count());
@@ -1832,6 +1834,7 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
     VisitFunctionLiteral(expr->constructor());
     builder()
         ->StoreAccumulatorInRegister(class_constructor)
+        .MoveRegister(class_constructor, class_constructor_in_args)
         .LoadConstantPoolEntry(class_boilerplate_entry)
         .StoreAccumulatorInRegister(class_boilerplate);
 
@@ -1875,13 +1878,14 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
 
     builder()->CallRuntime(Runtime::kDefineClass, args);
   }
-  Register class_constructor = register_allocator()->NewRegister();
-  builder()->StoreAccumulatorInRegister(class_constructor);
+  Register prototype = register_allocator()->NewRegister();
+  builder()->StoreAccumulatorInRegister(prototype);
 
   // Assign to class variable.
   if (expr->class_variable() != nullptr) {
     DCHECK(expr->class_variable()->IsStackLocal() ||
            expr->class_variable()->IsContextSlot());
+    builder()->LoadAccumulatorWithRegister(class_constructor);
     BuildVariableAssignment(expr->class_variable(), Token::INIT,
                             HoleCheckMode::kElided);
   }
@@ -1890,8 +1894,12 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
     Register initializer =
         VisitForRegisterValue(expr->instance_fields_initializer_function());
 
-    // TODO(gsathya): Support super property access in instance field
-    // initializers.
+    if (FunctionLiteral::NeedsHomeObject(
+            expr->instance_fields_initializer_function())) {
+      FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
+      builder()->LoadAccumulatorWithRegister(prototype).StoreHomeObjectProperty(
+          initializer, feedback_index(slot), language_mode());
+    }
 
     FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
     builder()

@@ -601,6 +601,30 @@ x();
 }
 
 {
+  class A {
+    a() { return 1; }
+  }
+
+  class C extends A {
+    b = super.a();
+    c = () => super.a;
+    d = () => super.a();
+    e = super.a;
+    f = super.b;
+  }
+
+  let c = new C;
+  assertEquals(1, c.a());
+  assertEquals(1, c.b);
+  assertEquals(1, c.c()());
+  assertEquals(1, c.d());
+  assertEquals(1, c.e());
+  assertFalse(Object.hasOwnProperty(c, 'a'));
+  assertEquals(c.a, c.e);
+  assertEquals(undefined, c.f);
+}
+
+{
   function t() {
     return class {
       ['x'] = 1;
