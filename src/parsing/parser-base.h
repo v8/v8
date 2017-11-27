@@ -566,7 +566,8 @@ class ParserBase {
           has_instance_class_fields(false),
           is_anonymous(false),
           static_fields_scope(nullptr),
-          instance_fields_scope(nullptr) {}
+          instance_fields_scope(nullptr),
+          computed_field_count(0) {}
     Variable* variable;
     ExpressionT extends;
     typename Types::ClassPropertyList properties;
@@ -583,7 +584,14 @@ class ParserBase {
     bool is_anonymous;
     DeclarationScope* static_fields_scope;
     DeclarationScope* instance_fields_scope;
+    int computed_field_count;
   };
+
+  const AstRawString* ClassFieldVariableName(AstValueFactory* ast_value_factory,
+                                             int index) {
+    std::string name = ".class-field-" + std::to_string(index);
+    return ast_value_factory->GetOneByteString(name.c_str());
+  }
 
   DeclarationScope* NewScriptScope() const {
     return new (zone()) DeclarationScope(zone(), ast_value_factory());
@@ -4507,12 +4515,16 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
         is_computed_name) {
       class_info.has_static_computed_names = true;
     }
+    if (is_computed_name && property_kind == ClassLiteralProperty::FIELD) {
+      class_info.computed_field_count++;
+    }
     is_constructor &= class_info.has_seen_constructor;
     impl()->RewriteNonPattern(CHECK_OK);
     AccumulateFormalParameterContainmentErrors();
 
     impl()->DeclareClassProperty(name, property, property_kind, is_static,
-                                 is_constructor, &class_info, CHECK_OK);
+                                 is_constructor, is_computed_name, &class_info,
+                                 CHECK_OK);
     impl()->InferFunctionName();
   }
 

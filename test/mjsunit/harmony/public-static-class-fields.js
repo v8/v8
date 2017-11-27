@@ -321,3 +321,15 @@ x();
   assertThrows(() => { class X { static [X] } });
   assertEquals(undefined, D[C]);
 }
+
+{
+  function t() {
+    return class {
+      static ['x'] = 2;
+    }
+  }
+
+  let klass = t();
+  let obj = new klass;
+  assertEquals(2, klass.x);
+}

@@ -599,3 +599,29 @@ x();
   let x = new X;
   assertEquals(1, x.c);
 }
+
+{
+  function t() {
+    return class {
+      ['x'] = 1;
+    }
+  }
+
+  let klass = t();
+  let obj = new klass;
+  assertEquals(1, obj.x);
+}
+
+{
+  function t() {
+    return class {
+      ['x'] = 1;
+      static ['x'] = 2;
+    }
+  }
+
+  let klass = t();
+  let obj = new klass;
+  assertEquals(1, obj.x);
+  assertEquals(2, klass.x);
+}

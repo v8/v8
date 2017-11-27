@@ -1153,7 +1153,16 @@ class PreParser : public ParserBase<PreParser> {
                                       const PreParserExpression& property,
                                       ClassLiteralProperty::Kind kind,
                                       bool is_static, bool is_constructor,
-                                      ClassInfo* class_info, bool* ok) {}
+                                      bool is_computed_name,
+                                      ClassInfo* class_info, bool* ok) {
+    if (kind == ClassLiteralProperty::FIELD && is_computed_name) {
+      scope()->DeclareVariableName(
+          ClassFieldVariableName(ast_value_factory(),
+                                 class_info->computed_field_count),
+          CONST);
+    }
+  }
+
   V8_INLINE PreParserExpression
   RewriteClassLiteral(Scope* scope, const PreParserIdentifier& name,
                       ClassInfo* class_info, int pos, int end_pos, bool* ok) {
