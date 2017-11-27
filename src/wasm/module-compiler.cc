@@ -1598,11 +1598,6 @@ InstanceBuilder::InstanceBuilder(
 
 // Build an instance, in all of its glory.
 MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  // Use base::Optional to be able to close the scope before executing the start
-  // function.
-  base::Optional<CodeSpaceMemoryModificationScope> modification_scope(
-      base::in_place_t(), isolate_->heap());
   // Check that an imports argument was provided, if the module requires it.
   // No point in continuing otherwise.
   if (!module_->import_table.empty() && ffi_.is_null()) {
@@ -1614,6 +1609,11 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
   SanitizeImports();
   if (thrower_->error()) return {};
 
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  // Use base::Optional to be able to close the scope before executing the start
+  // function.
+  base::Optional<CodeSpaceMemoryModificationScope> modification_scope(
+      base::in_place_t(), isolate_->heap());
   // From here on, we expect the build pipeline to run without exiting to JS.
   // Exception is when we run the startup function.
   DisallowJavascriptExecution no_js(isolate_);
