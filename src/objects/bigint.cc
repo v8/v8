@@ -49,8 +49,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
     // TODO(jkummerow): Consider caching a canonical zero-BigInt.
     return MakeImmutable(New(isolate, 0)).ToHandleChecked();
   }
-  // Specialized version of Exponentiate(FromNumber(2), n) for n >= 0.
-  static MaybeHandle<MutableBigInt> PowerOfTwo(Isolate* isolate, uint64_t n);
 
   static Handle<MutableBigInt> Cast(Handle<FreshlyAllocatedBigInt> bigint) {
     SLOW_DCHECK(bigint->IsBigInt());
@@ -65,16 +63,14 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
   static MaybeHandle<MutableBigInt> BitwiseOr(Handle<BigInt> x,
                                               Handle<BigInt> y);
 
-  // NOTE: If x is negative, don't rely on the sign of a non-zero result.
-  static Handle<BigInt> AbsoluteAsUintN(uint64_t n, Handle<BigInt> x);
+  static Handle<BigInt> TruncateToNBits(int n, Handle<BigInt> x);
+  static Handle<BigInt> TruncateAndSubFromPowerOfTwo(int n, Handle<BigInt> x,
+                                                     bool result_sign);
 
   static MaybeHandle<BigInt> AbsoluteAdd(Handle<BigInt> x, Handle<BigInt> y,
                                          bool result_sign);
   static Handle<BigInt> AbsoluteSub(Handle<BigInt> x, Handle<BigInt> y,
                                     bool result_sign);
-  static MaybeHandle<BigInt> AbsoluteSubFromPowerOfTwo(uint64_t n,
-                                                       Handle<BigInt> y,
-                                                       bool result_sign);
   static MaybeHandle<MutableBigInt> AbsoluteAddOne(
       Handle<BigIntBase> x, bool sign, MutableBigInt* result_storage = nullptr);
   static Handle<MutableBigInt> AbsoluteSubOne(Handle<BigIntBase> x);
@@ -101,7 +97,6 @@ class MutableBigInt : public FreshlyAllocatedBigInt {
       MutableBigInt* result_storage = nullptr);
 
   static int AbsoluteCompare(Handle<BigIntBase> x, Handle<BigIntBase> y);
-  static int AbsoluteCompareToPowerOfTwo(Handle<BigInt> x, uint64_t n);
 
   static void MultiplyAccumulate(Handle<BigIntBase> multiplicand,
                                  digit_t multiplier,
@@ -1003,26 +998,6 @@ Handle<BigInt> MutableBigInt::AbsoluteSub(Handle<BigInt> x, Handle<BigInt> y,
   return MakeImmutable(result);
 }
 
-// Computes 2^n - abs(y), assuming 2^n >= abs(y).
-MaybeHandle<BigInt> MutableBigInt::AbsoluteSubFromPowerOfTwo(uint64_t n,
-                                                             Handle<BigInt> y,
-                                                             bool result_sign) {
-  Handle<MutableBigInt> x;
-  if (!PowerOfTwo(y->GetIsolate(), n).ToHandle(&x)) {
-    return MaybeHandle<BigInt>();
-  }
-  digit_t borrow = x->InplaceSub(y, 0);
-  for (int i = y->length(); borrow != 0; ++i) {
-    DCHECK_LT(i, x->length());
-    digit_t new_borrow = 0;
-    digit_t new_digit = digit_sub(x->digit(i), borrow, &new_borrow);
-    x->set_digit(i, new_digit);
-    borrow = new_borrow;
-  }
-  x->set_sign(result_sign);
-  return MakeImmutable(x);
-}
-
 // Adds 1 to the absolute value of {x} and sets the result's sign to {sign}.
 // {result_storage} is optional; if present, it will be used to store the
 // result, otherwise a new BigInt will be allocated for the result.
@@ -1199,32 +1174,6 @@ int MutableBigInt::AbsoluteCompare(Handle<BigIntBase> x, Handle<BigIntBase> y) {
   while (i >= 0 && x->digit(i) == y->digit(i)) i--;
   if (i < 0) return 0;
   return x->digit(i) > y->digit(i) ? 1 : -1;
-}
-
-// Like AbsoluteCompare but only for y = 2^n.
-int MutableBigInt::AbsoluteCompareToPowerOfTwo(Handle<BigInt> x, uint64_t n) {
-  DCHECK_LE(n, kMaxSafeInteger);
-
-  int x_length = x->length();
-  uint64_t y_length = (n + kDigitBits) / kDigitBits;
-
-  if (static_cast<uint64_t>(x_length) < y_length) return -1;
-  if (static_cast<uint64_t>(x_length) > y_length) return +1;
-  DCHECK_NE(x_length, 0);
-
-  digit_t x_msd = x->digit(x_length - 1);
-  digit_t y_msd = static_cast<digit_t>(1) << (n % kDigitBits);
-  if (x_msd < y_msd) {
-    return -1;
-  } else if (x_msd > y_msd) {
-    return +1;
-  }
-
-  for (int i = 0; i < x_length - 1; ++i) {
-    if (x->digit(i) != 0) return 1;
-  }
-
-  return 0;
 }
 
 // Multiplies {multiplicand} with {multiplier} and adds the result to
@@ -1912,67 +1861,80 @@ MaybeHandle<String> MutableBigInt::ToStringGeneric(Handle<BigIntBase> x,
 }
 
 Handle<BigInt> BigInt::AsIntN(uint64_t n, Handle<BigInt> x) {
-  DCHECK_LE(n, kMaxSafeInteger);
-
-  Handle<BigInt> result = MutableBigInt::AbsoluteAsUintN(n, x);
-  if (result->is_zero()) return result;
-  DCHECK_NE(n, 0);
-  DCHECK(!x->is_zero());
-
-  int comparison = MutableBigInt::AbsoluteCompareToPowerOfTwo(result, n - 1);
-
-  if (!x->sign()) {
-    // x is positive.  Note that result == x mod 2^n.
-    if (comparison < 0) return result;
-    // Return (x mod 2^n) - 2^n, which is -(2^n - x mod 2^n).
-    // TODO(neis/jkummerow): This can check-fail for n == kMaxLengthBits.
-    return MutableBigInt::AbsoluteSubFromPowerOfTwo(n, result, true)
-        .ToHandleChecked();
-  }
-
-  // x is negative.  Note that abs(result) == -x mod 2^n.
-  // We use the following facts:
-  // a) (x mod 2^n) == 2^n - abs(result)
-  // b) (x mod 2^n) >= 2^(n-1)  iff
-  //    2^n - abs(result) >= 2^(n-1)  iff
-  //    2^(n-1) >= abs(result)  iff
-  //    comparison <= 0
-  if (comparison <= 0) {
-    // Return (x mod 2^n) - 2^n, which is -abs(result).
-    return result->sign() ? result : UnaryMinus(result);
-  }
-  // Return x mod 2^n.
-  // TODO(neis/jkummerow): This can check-fail for n == kMaxLengthBits.
-  return MutableBigInt::AbsoluteSubFromPowerOfTwo(n, result, false)
-      .ToHandleChecked();
-}
-
-Handle<BigInt> BigInt::AsUintN(uint64_t n, Handle<BigInt> x) {
-  DCHECK_LE(n, kMaxSafeInteger);
-  Handle<BigInt> result = MutableBigInt::AbsoluteAsUintN(n, x);
-  if (!x->sign()) return result;
-
-  // x is negative.  Note that abs(result) == -x mod 2^n.
-  // We use the following facts:
-  // a) If result == 0, then (x mod 2^n) == 0.
-  // b) If result != 0, then (x mod 2^n) == 2^n - abs(result).
-  if (result->is_zero()) return result;
-  // TODO(neis/jkummerow): This can check-fail for n == kMaxLengthBits.
-  return MutableBigInt::AbsoluteSubFromPowerOfTwo(n, result, false)
-      .ToHandleChecked();
-}
-
-Handle<BigInt> MutableBigInt::AbsoluteAsUintN(uint64_t n, Handle<BigInt> x) {
-  DCHECK_LE(n, kMaxSafeInteger);
-  Isolate* isolate = x->GetIsolate();
-  if (n == 0) return Zero(isolate);
-
-  uint64_t total_bits = x->length() * kDigitBits;
-  if (total_bits <= n) return x;
+  if (x->is_zero()) return x;
+  if (n == 0) return MutableBigInt::Zero(x->GetIsolate());
+  uint64_t needed_length = (n + kDigitBits - 1) / kDigitBits;
+  // If {x} has less than {n} bits, return it directly.
+  if (static_cast<uint64_t>(x->length()) < needed_length) return x;
+  DCHECK_LE(needed_length, kMaxInt);
+  digit_t top_digit = x->digit(static_cast<int>(needed_length) - 1);
+  digit_t compare_digit = static_cast<digit_t>(1) << ((n - 1) % kDigitBits);
+  if (top_digit < compare_digit) return x;
+  // Otherwise we have to truncate (which is a no-op in the special case
+  // of x == -2^(n-1)), and determine the right sign. We also might have
+  // to subtract from 2^n to simulate having two's complement representation.
+  // In most cases, the result's sign is x->sign() xor "(n-1)th bit present".
+  // The only exception is when x is negative, has the (n-1)th bit, and all
+  // its bits below (n-1) are zero. In that case, the result is the minimum
+  // n-bit integer (example: asIntN(3, -12n) => -4n).
+  bool has_bit = (top_digit & compare_digit) == compare_digit;
   DCHECK_LE(n, kMaxInt);
   int N = static_cast<int>(n);
+  if (!has_bit) {
+    return MutableBigInt::TruncateToNBits(N, x);
+  }
+  if (!x->sign()) {
+    return MutableBigInt::TruncateAndSubFromPowerOfTwo(N, x, true);
+  }
+  // Negative numbers must subtract from 2^n, except for the special case
+  // described above.
+  if ((top_digit & (compare_digit - 1)) == 0) {
+    for (int i = static_cast<int>(needed_length) - 2; i >= 0; i--) {
+      if (x->digit(i) != 0) {
+        return MutableBigInt::TruncateAndSubFromPowerOfTwo(N, x, false);
+      }
+    }
+    return MutableBigInt::TruncateToNBits(N, x);
+  }
+  return MutableBigInt::TruncateAndSubFromPowerOfTwo(N, x, false);
+}
 
-  int needed_digits = (N + (kDigitBits - 1)) / kDigitBits;
+MaybeHandle<BigInt> BigInt::AsUintN(uint64_t n, Handle<BigInt> x) {
+  if (x->is_zero()) return x;
+  if (n == 0) return MutableBigInt::Zero(x->GetIsolate());
+  // If {x} is negative, simulate two's complement representation.
+  if (x->sign()) {
+    if (n > kMaxLengthBits) {
+      THROW_NEW_ERROR(x->GetIsolate(),
+                      NewRangeError(MessageTemplate::kBigIntTooBig), BigInt);
+    }
+    return MutableBigInt::TruncateAndSubFromPowerOfTwo(static_cast<int>(n), x,
+                                                       false);
+  }
+  // If {x} is positive and has up to {n} bits, return it directly.
+  if (n >= kMaxLengthBits) return x;
+  STATIC_ASSERT(kMaxLengthBits < kMaxInt - kDigitBits);
+  int needed_length = static_cast<int>((n + kDigitBits - 1) / kDigitBits);
+  if (x->length() < needed_length) return x;
+  int bits_in_top_digit = n % kDigitBits;
+  if (bits_in_top_digit == 0) {
+    if (x->length() == needed_length) return x;
+  } else {
+    digit_t top_digit = x->digit(needed_length - 1);
+    if ((top_digit >> bits_in_top_digit) == 0) return x;
+  }
+  // Otherwise, truncate.
+  DCHECK_LE(n, kMaxInt);
+  return MutableBigInt::TruncateToNBits(static_cast<int>(n), x);
+}
+
+Handle<BigInt> MutableBigInt::TruncateToNBits(int n, Handle<BigInt> x) {
+  // Only call this when there's something to do.
+  DCHECK_NE(n, 0);
+  DCHECK_GT(x->length(), n / kDigitBits);
+  Isolate* isolate = x->GetIsolate();
+
+  int needed_digits = (n + (kDigitBits - 1)) / kDigitBits;
   DCHECK_LE(needed_digits, x->length());
   Handle<MutableBigInt> result = New(isolate, needed_digits).ToHandleChecked();
 
@@ -1984,30 +1946,69 @@ Handle<BigInt> MutableBigInt::AbsoluteAsUintN(uint64_t n, Handle<BigInt> x) {
 
   // The MSD might contain extra bits that we don't want.
   digit_t msd = x->digit(last);
-  digit_t mask = std::numeric_limits<digit_t>::max();
-  if (N % kDigitBits != 0) mask = mask >> (kDigitBits - (N % kDigitBits));
-  result->set_digit(last, msd & mask);
+  int drop = kDigitBits - (n % kDigitBits);
+  result->set_digit(last, (msd << drop) >> drop);
+  result->set_sign(x->sign());
   return MakeImmutable(result);
 }
 
-MaybeHandle<MutableBigInt> MutableBigInt::PowerOfTwo(Isolate* isolate,
-                                                     uint64_t n) {
-  DCHECK_LE(n, kMaxSafeInteger);
-  STATIC_ASSERT(kMaxLengthBits < kMaxInt);
-  // Truncate n to (1 + kMaxLengthBits), such that it doesn't overflow int but
-  // still causes the allocation to fail if it was too large.
-  int needed_bits =
-      1 + static_cast<int>(std::min(n, static_cast<uint64_t>(kMaxLengthBits)));
-  int needed_digits = (needed_bits + (kDigitBits - 1)) / kDigitBits;
-  Handle<MutableBigInt> result;
-  if (!New(isolate, needed_digits).ToHandle(&result)) {
-    return MaybeHandle<MutableBigInt>();
+// Subtracts the least significant n bits of abs(x) from 2^n.
+Handle<BigInt> MutableBigInt::TruncateAndSubFromPowerOfTwo(int n,
+                                                           Handle<BigInt> x,
+                                                           bool result_sign) {
+  DCHECK_NE(n, 0);
+  DCHECK_LE(n, kMaxLengthBits);
+  Isolate* isolate = x->GetIsolate();
+
+  int needed_digits = (n + (kDigitBits - 1)) / kDigitBits;
+  DCHECK_LE(needed_digits, kMaxLength);  // Follows from n <= kMaxLengthBits.
+  Handle<MutableBigInt> result = New(isolate, needed_digits).ToHandleChecked();
+
+  // Process all digits except the MSD.
+  int i = 0;
+  int last = needed_digits - 1;
+  int x_length = x->length();
+  digit_t borrow = 0;
+  // Take digits from {x} unless its length is exhausted.
+  int limit = Min(last, x_length);
+  for (; i < limit; i++) {
+    digit_t new_borrow = 0;
+    digit_t difference = digit_sub(0, x->digit(i), &new_borrow);
+    difference = digit_sub(difference, borrow, &new_borrow);
+    result->set_digit(i, difference);
+    borrow = new_borrow;
   }
-  result->InitializeDigits(needed_digits);
-  // All bits are zero. Now set the "n-th" bit.
-  digit_t msd = static_cast<digit_t>(1) << (n % kDigitBits);
-  result->set_digit(needed_digits - 1, msd);
-  return result;
+  // Then simulate leading zeroes in {x} as needed.
+  for (; i < last; i++) {
+    digit_t new_borrow = 0;
+    digit_t difference = digit_sub(0, borrow, &new_borrow);
+    result->set_digit(i, difference);
+    borrow = new_borrow;
+  }
+
+  // The MSD might contain extra bits that we don't want.
+  digit_t msd = last < x_length ? x->digit(last) : 0;
+  int msd_bits_consumed = n % kDigitBits;
+  digit_t result_msd;
+  if (msd_bits_consumed == 0) {
+    digit_t new_borrow = 0;
+    result_msd = digit_sub(0, msd, &new_borrow);
+    result_msd = digit_sub(result_msd, borrow, &new_borrow);
+  } else {
+    int drop = kDigitBits - msd_bits_consumed;
+    msd = (msd << drop) >> drop;
+    digit_t minuend_msd = static_cast<digit_t>(1) << (kDigitBits - drop);
+    digit_t new_borrow = 0;
+    result_msd = digit_sub(minuend_msd, msd, &new_borrow);
+    result_msd = digit_sub(result_msd, borrow, &new_borrow);
+    DCHECK_EQ(new_borrow, 0);  // result < 2^n.
+    // If all subtracted bits were zero, we have to get rid of the
+    // materialized minuend_msd again.
+    result_msd &= (minuend_msd - 1);
+  }
+  result->set_digit(last, result_msd);
+  result->set_sign(result_sign);
+  return MakeImmutable(result);
 }
 
 // Digit arithmetic helpers.

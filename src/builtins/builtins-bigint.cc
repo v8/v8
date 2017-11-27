@@ -77,7 +77,7 @@ BUILTIN(BigIntAsUintN) {
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, bigint,
                                      BigInt::FromObject(isolate, bigint_obj));
 
-  return *BigInt::AsUintN(bits->Number(), bigint);
+  RETURN_RESULT_OR_FAILURE(isolate, BigInt::AsUintN(bits->Number(), bigint));
 }
 
 BUILTIN(BigIntAsIntN) {

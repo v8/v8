@@ -138,7 +138,7 @@ class V8_EXPORT_PRIVATE BigInt : public BigIntBase {
   static ComparisonResult CompareToDouble(Handle<BigInt> x, double y);
 
   static Handle<BigInt> AsIntN(uint64_t n, Handle<BigInt> x);
-  static Handle<BigInt> AsUintN(uint64_t n, Handle<BigInt> x);
+  static MaybeHandle<BigInt> AsUintN(uint64_t n, Handle<BigInt> x);
 
   DECL_CAST(BigInt)
   DECL_VERIFIER(BigInt)
