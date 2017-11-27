@@ -53,45 +53,61 @@ TurboAssembler::TurboAssembler(Isolate* isolate, void* buffer, int buffer_size,
 }
 
 int TurboAssembler::RequiredStackSizeForCallerSaved(SaveFPRegsMode fp_mode,
-                                                    Register exclusion1,
-                                                    Register exclusion2,
-                                                    Register exclusion3) const {
+                                                    Register exclusion) const {
   int bytes = 0;
   auto list = kCallerSaved;
-  list.Remove(exclusion1, exclusion2, exclusion3);
+  DCHECK_EQ(list.Count() % 2, 0);
+  // We only allow one exclusion register, so if the list is of even length
+  // before exclusions, it must still be afterwards, to maintain alignment.
+  // Therefore, we can ignore the exclusion register in the computation.
+  // However, we leave it in the argument list to mirror the prototype for
+  // Push/PopCallerSaved().
+  USE(exclusion);
   bytes += list.Count() * kXRegSizeInBits / 8;
 
   if (fp_mode == kSaveFPRegs) {
+    DCHECK_EQ(kCallerSavedV.Count() % 2, 0);
     bytes += kCallerSavedV.Count() * kDRegSizeInBits / 8;
   }
   return bytes;
 }
 
-int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
-                                    Register exclusion2, Register exclusion3) {
+int TurboAssembler::PushCallerSaved(SaveFPRegsMode fp_mode,
+                                    Register exclusion) {
   int bytes = 0;
   auto list = kCallerSaved;
-  list.Remove(exclusion1, exclusion2, exclusion3);
+  DCHECK_EQ(list.Count() % 2, 0);
+  if (!exclusion.Is(no_reg)) {
+    // Replace the excluded register with padding to maintain alignment.
+    list.Remove(exclusion);
+    list.Combine(padreg);
+  }
   PushCPURegList(list);
   bytes += list.Count() * kXRegSizeInBits / 8;
 
   if (fp_mode == kSaveFPRegs) {
+    DCHECK_EQ(kCallerSavedV.Count() % 2, 0);
     PushCPURegList(kCallerSavedV);
     bytes += kCallerSavedV.Count() * kDRegSizeInBits / 8;
   }
   return bytes;
 }
 
-int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion1,
-                                   Register exclusion2, Register exclusion3) {
+int TurboAssembler::PopCallerSaved(SaveFPRegsMode fp_mode, Register exclusion) {
   int bytes = 0;
   if (fp_mode == kSaveFPRegs) {
+    DCHECK_EQ(kCallerSavedV.Count() % 2, 0);
     PopCPURegList(kCallerSavedV);
     bytes += kCallerSavedV.Count() * kDRegSizeInBits / 8;
   }
 
   auto list = kCallerSaved;
-  list.Remove(exclusion1, exclusion2, exclusion3);
+  DCHECK_EQ(list.Count() % 2, 0);
+  if (!exclusion.Is(no_reg)) {
+    // Replace the excluded register with padding to maintain alignment.
+    list.Remove(exclusion);
+    list.Combine(padreg);
+  }
   PopCPURegList(list);
   bytes += list.Count() * kXRegSizeInBits / 8;
 
