@@ -134,6 +134,10 @@ bool RegExpUtils::IsUnmodifiedRegExp(Isolate* isolate, Handle<Object> obj) {
   // TODO(ishell): Update this check once map changes for constant field
   // tracking are landing.
 
+#if defined(DEBUG) || defined(ENABLE_SLOWFAST_SWITCH)
+  if (isolate->force_slow_path()) return false;
+#endif
+
   if (!obj->IsJSReceiver()) return false;
 
   JSReceiver* recv = JSReceiver::cast(*obj);

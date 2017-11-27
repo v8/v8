@@ -1163,6 +1163,10 @@ class Isolate {
 
   void* stress_deopt_count_address() { return &stress_deopt_count_; }
 
+  bool force_slow_path() { return force_slow_path_; }
+
+  bool* force_slow_path_address() { return &force_slow_path_; }
+
   V8_EXPORT_PRIVATE base::RandomNumberGenerator* random_number_generator();
 
   V8_EXPORT_PRIVATE base::RandomNumberGenerator* fuzzer_rng();
@@ -1598,6 +1602,8 @@ class Isolate {
 
   // Counts deopt points if deopt_every_n_times is enabled.
   unsigned int stress_deopt_count_;
+
+  bool force_slow_path_;
 
   int next_optimization_id_;
 

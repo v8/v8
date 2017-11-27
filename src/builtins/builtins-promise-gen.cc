@@ -366,6 +366,8 @@ Node* PromiseBuiltinsAssembler::InternalPromiseThen(Node* context,
   VARIABLE(var_deferred_on_resolve, MachineRepresentation::kTagged);
   VARIABLE(var_deferred_on_reject, MachineRepresentation::kTagged);
 
+  GotoIfForceSlowPath(&promise_capability);
+
   Branch(WordEqual(promise_fun, constructor), &fast_promise_capability,
          &promise_capability);
 
@@ -614,6 +616,8 @@ void PromiseBuiltinsAssembler::BranchIfFastPath(Node* native_context,
              WordEqual(promise_fun,
                        LoadContextElement(native_context,
                                           Context::PROMISE_FUNCTION_INDEX)));
+
+  GotoIfForceSlowPath(if_ismodified);
 
   Node* const map = LoadMap(promise);
   Node* const initial_map =
@@ -1463,6 +1467,9 @@ TF_BUILTIN(PromiseReject, PromiseBuiltinsAssembler) {
 
   Label if_nativepromise(this), if_custompromise(this, Label::kDeferred);
   Node* const native_context = LoadNativeContext(context);
+
+  GotoIfForceSlowPath(&if_custompromise);
+
   Node* const promise_fun =
       LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX);
   Branch(WordEqual(promise_fun, receiver), &if_nativepromise,

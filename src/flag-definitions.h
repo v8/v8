@@ -757,6 +757,7 @@ DEFINE_BOOL(enable_experimental_builtins, true,
 // builtins.cc
 DEFINE_BOOL(allow_unsafe_function_constructor, false,
             "allow invoking the function constructor without security checks")
+DEFINE_BOOL(force_slow_path, false, "always take the slow path for builtins")
 
 // builtins-ia32.cc
 DEFINE_BOOL(inline_new, true, "use fast inline allocation")

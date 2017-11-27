@@ -3274,6 +3274,10 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     DisallowJavascriptExecution no_js(isolate);
 
+#if defined(DEBUG) || defined(ENABLE_SLOWFAST_SWITCH)
+    if (isolate->force_slow_path()) return true;
+#endif
+
     Object* source_proto = source->map()->prototype();
 
     // Null prototypes are OK - we don't need to do prototype chain lookups on

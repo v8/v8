@@ -834,6 +834,11 @@ Node* RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(Node* const context,
   Label out(this);
   VARIABLE(var_result, MachineRepresentation::kWord32);
 
+#if defined(DEBUG) || defined(ENABLE_FASTSLOW_SWITCH)
+  var_result.Bind(Int32Constant(0));
+  GotoIfForceSlowPath(&out);
+#endif
+
   Node* const native_context = LoadNativeContext(context);
   Node* const regexp_fun =
       LoadContextElement(native_context, Context::REGEXP_FUNCTION_INDEX);
@@ -870,6 +875,8 @@ void RegExpBuiltinsAssembler::BranchIfFastRegExp(Node* const context,
                                                  Label* const if_isunmodified,
                                                  Label* const if_ismodified) {
   CSA_ASSERT(this, WordEqual(LoadMap(object), map));
+
+  GotoIfForceSlowPath(if_ismodified);
 
   // TODO(ishell): Update this check once map changes for constant field
   // tracking are landing.

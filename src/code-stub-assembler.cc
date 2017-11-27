@@ -872,6 +872,8 @@ TNode<BoolT> CodeStubAssembler::IsFastJSArray(SloppyTNode<Object> object,
 
 void CodeStubAssembler::BranchIfFastJSArray(Node* object, Node* context,
                                             Label* if_true, Label* if_false) {
+  GotoIfForceSlowPath(if_false);
+
   // Bailout if receiver is a Smi.
   GotoIf(TaggedIsSmi(object), if_false);
 
@@ -893,6 +895,16 @@ void CodeStubAssembler::BranchIfFastJSArrayForCopy(Node* object, Node* context,
                                                    Label* if_false) {
   GotoIf(IsSpeciesProtectorCellInvalid(), if_false);
   BranchIfFastJSArray(object, context, if_true, if_false);
+}
+
+void CodeStubAssembler::GotoIfForceSlowPath(Label* if_true) {
+#if defined(DEBUG) || defined(ENABLE_FASTSLOW_SWITCH)
+  Node* const force_slow_path_addr =
+      ExternalConstant(ExternalReference::force_slow_path(isolate()));
+  Node* const force_slow = Load(MachineType::Uint8(), force_slow_path_addr);
+
+  GotoIf(force_slow, if_true);
+#endif
 }
 
 Node* CodeStubAssembler::AllocateRaw(Node* size_in_bytes, AllocationFlags flags,

@@ -2613,6 +2613,10 @@ bool Object::IterationHasObservableEffects() {
   JSArray* array = JSArray::cast(this);
   Isolate* isolate = array->GetIsolate();
 
+#if defined(DEBUG) || defined(ENABLE_SLOWFAST_SWITCH)
+  if (isolate->force_slow_path()) return true;
+#endif
+
   // Check that we have the original ArrayPrototype.
   if (!array->map()->prototype()->IsJSObject()) return true;
   JSObject* array_proto = JSObject::cast(array->map()->prototype());

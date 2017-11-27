@@ -869,6 +869,10 @@ ExternalReference ExternalReference::stress_deopt_count(Isolate* isolate) {
   return ExternalReference(isolate->stress_deopt_count_address());
 }
 
+ExternalReference ExternalReference::force_slow_path(Isolate* isolate) {
+  return ExternalReference(isolate->force_slow_path_address());
+}
+
 ExternalReference ExternalReference::new_deoptimizer_function(
     Isolate* isolate) {
   return ExternalReference(

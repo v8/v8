@@ -413,6 +413,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   void BranchIfFastJSArrayForCopy(Node* object, Node* context, Label* if_true,
                                   Label* if_false);
 
+  // Branches to {if_true} when --force-slow-path flag has been passed.
+  // It's used for testing to ensure that slow path implementation behave
+  // equivalent to corresponding fast paths (where applicable).
+  //
+  // Works only in DEBUG mode or with ENABLE_FASTSLOW_SWITCH compile time flag.
+  // Nop otherwise.
+  void GotoIfForceSlowPath(Label* if_true);
+
   // Load value from current frame by given offset in bytes.
   Node* LoadFromFrame(int offset, MachineType rep = MachineType::AnyTagged());
   // Load value from current parent frame by given offset in bytes.

@@ -2408,6 +2408,7 @@ Isolate::Isolate(bool enable_serializer)
       deferred_handles_head_(nullptr),
       optimizing_compile_dispatcher_(nullptr),
       stress_deopt_count_(0),
+      force_slow_path_(false),
       next_optimization_id_(0),
 #if V8_SFI_HAS_UNIQUE_ID
       next_unique_sfi_id_(0),
@@ -2746,6 +2747,7 @@ bool Isolate::Init(StartupDeserializer* des) {
   TRACE_ISOLATE(init);
 
   stress_deopt_count_ = FLAG_deopt_every_n_times;
+  force_slow_path_ = FLAG_force_slow_path;
 
   has_fatal_error_ = false;
 
