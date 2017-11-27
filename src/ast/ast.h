@@ -2298,11 +2298,11 @@ class FunctionLiteral final : public Expression {
     function_literal_id_ = function_literal_id;
   }
 
-  void set_instance_class_fields_initializer(VariableProxy* initializer) {
-    instance_class_fields_initializer_ = initializer;
+  void set_requires_instance_fields_initializer(bool value) {
+    bit_field_ = RequiresInstanceFieldsInitializer::update(bit_field_, value);
   }
-  VariableProxy* instance_class_fields_initializer() {
-    return instance_class_fields_initializer_;
+  bool requires_instance_fields_initializer() const {
+    return RequiresInstanceFieldsInitializer::decode(bit_field_);
   }
 
   ProducedPreParsedScopeData* produced_preparsed_scope_data() const {
@@ -2332,13 +2332,13 @@ class FunctionLiteral final : public Expression {
         body_(body),
         raw_inferred_name_(ast_value_factory->empty_cons_string()),
         function_literal_id_(function_literal_id),
-        instance_class_fields_initializer_(nullptr),
         produced_preparsed_scope_data_(produced_preparsed_scope_data) {
     bit_field_ |= FunctionTypeBits::encode(function_type) |
                   Pretenure::encode(false) |
                   HasDuplicateParameters::encode(has_duplicate_parameters ==
                                                  kHasDuplicateParameters) |
-                  DontOptimizeReasonField::encode(kNoReason);
+                  DontOptimizeReasonField::encode(kNoReason) |
+                  RequiresInstanceFieldsInitializer::encode(false);
     if (eager_compile_hint == kShouldEagerCompile) SetShouldEagerCompile();
     DCHECK_EQ(body == nullptr, expected_property_count < 0);
   }
@@ -2349,6 +2349,8 @@ class FunctionLiteral final : public Expression {
   class HasDuplicateParameters : public BitField<bool, Pretenure::kNext, 1> {};
   class DontOptimizeReasonField
       : public BitField<BailoutReason, HasDuplicateParameters::kNext, 8> {};
+  class RequiresInstanceFieldsInitializer
+      : public BitField<bool, DontOptimizeReasonField::kNext, 1> {};
 
   int expected_property_count_;
   int parameter_count_;
@@ -2363,7 +2365,6 @@ class FunctionLiteral final : public Expression {
   const AstConsString* raw_inferred_name_;
   Handle<String> inferred_name_;
   int function_literal_id_;
-  VariableProxy* instance_class_fields_initializer_;
   ProducedPreParsedScopeData* produced_preparsed_scope_data_;
 };
 
@@ -2438,10 +2439,6 @@ class ClassLiteral final : public Expression {
     return instance_fields_initializer_function_;
   }
 
-  VariableProxy* instance_fields_initializer_proxy() const {
-    return instance_fields_initializer_proxy_;
-  }
-
  private:
   friend class AstNodeFactory;
 
@@ -2449,7 +2446,6 @@ class ClassLiteral final : public Expression {
                FunctionLiteral* constructor, ZoneList<Property*>* properties,
                FunctionLiteral* static_fields_initializer,
                FunctionLiteral* instance_fields_initializer_function,
-               VariableProxy* instance_fields_initializer_proxy,
                int start_position, int end_position,
                bool has_name_static_property, bool has_static_computed_names,
                bool is_anonymous)
@@ -2462,8 +2458,7 @@ class ClassLiteral final : public Expression {
         properties_(properties),
         static_fields_initializer_(static_fields_initializer),
         instance_fields_initializer_function_(
-            instance_fields_initializer_function),
-        instance_fields_initializer_proxy_(instance_fields_initializer_proxy) {
+            instance_fields_initializer_function) {
     bit_field_ |= HasNameStaticProperty::encode(has_name_static_property) |
                   HasStaticComputedNames::encode(has_static_computed_names) |
                   IsAnonymousExpression::encode(is_anonymous);
@@ -2477,7 +2472,6 @@ class ClassLiteral final : public Expression {
   ZoneList<Property*>* properties_;
   FunctionLiteral* static_fields_initializer_;
   FunctionLiteral* instance_fields_initializer_function_;
-  VariableProxy* instance_fields_initializer_proxy_;
   class HasNameStaticProperty
       : public BitField<bool, Expression::kNextBitFieldIndex, 1> {};
   class HasStaticComputedNames
@@ -3166,15 +3160,14 @@ class AstNodeFactory final BASE_EMBEDDED {
       FunctionLiteral* constructor,
       ZoneList<ClassLiteral::Property*>* properties,
       FunctionLiteral* static_fields_initializer,
-      FunctionLiteral* instance_fields_initializer_function,
-      VariableProxy* instance_fields_initializer_var, int start_position,
+      FunctionLiteral* instance_fields_initializer_function, int start_position,
       int end_position, bool has_name_static_property,
       bool has_static_computed_names, bool is_anonymous) {
     return new (zone_) ClassLiteral(
         scope, variable, extends, constructor, properties,
         static_fields_initializer, instance_fields_initializer_function,
-        instance_fields_initializer_var, start_position, end_position,
-        has_name_static_property, has_static_computed_names, is_anonymous);
+        start_position, end_position, has_name_static_property,
+        has_static_computed_names, is_anonymous);
   }
 
   NativeFunctionLiteral* NewNativeFunctionLiteral(const AstRawString* name,

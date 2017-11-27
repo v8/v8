@@ -869,6 +869,20 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::StoreHomeObjectProperty(
   return StoreNamedProperty(object, name_index, feedback_slot, language_mode);
 }
 
+BytecodeArrayBuilder& BytecodeArrayBuilder::StoreClassFieldsInitializer(
+    Register constructor, int feedback_slot) {
+  size_t name_index = ClassFieldsSymbolConstantPoolEntry();
+  return StoreNamedProperty(constructor, name_index, feedback_slot,
+                            LanguageMode::kStrict);
+}
+
+BytecodeArrayBuilder& BytecodeArrayBuilder::LoadClassFieldsInitializer(
+    Register constructor, int feedback_slot) {
+  size_t name_index = ClassFieldsSymbolConstantPoolEntry();
+  OutputLdaNamedProperty(constructor, name_index, feedback_slot);
+  return *this;
+}
+
 BytecodeArrayBuilder& BytecodeArrayBuilder::CreateClosure(
     size_t shared_function_info_entry, int slot, int flags) {
   OutputCreateClosure(shared_function_info_entry, slot, flags);

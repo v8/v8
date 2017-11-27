@@ -1051,10 +1051,11 @@ void BytecodeGenerator::GenerateBytecodeBody() {
   // Perform a stack-check before the body.
   builder()->StackCheck(info()->literal()->start_position());
 
+  // The derived constructor case is handled in VisitCallSuper.
   if (IsBaseConstructor(function_kind()) &&
-      info()->literal()->instance_class_fields_initializer() != nullptr) {
-    BuildInstanceFieldInitialization(
-        info()->literal()->instance_class_fields_initializer());
+      info()->literal()->requires_instance_fields_initializer()) {
+    BuildInstanceFieldInitialization(Register::function_closure(),
+                                     builder()->Receiver());
   }
 
   // Visit statements in the function body.
@@ -1890,9 +1891,11 @@ void BytecodeGenerator::BuildClassLiteral(ClassLiteral* expr) {
     // TODO(gsathya): Support super property access in instance field
     // initializers.
 
-    builder()->LoadAccumulatorWithRegister(initializer);
-    BuildVariableAssignment(expr->instance_fields_initializer_proxy()->var(),
-                            Token::INIT, HoleCheckMode::kElided);
+    FeedbackSlot slot = feedback_spec()->AddStoreICSlot(language_mode());
+    builder()
+        ->LoadAccumulatorWithRegister(initializer)
+        .StoreClassFieldsInitializer(class_constructor, feedback_index(slot))
+        .LoadAccumulatorWithRegister(class_constructor);
   }
 
   if (expr->static_fields_initializer() != nullptr) {
@@ -1955,17 +1958,25 @@ void BytecodeGenerator::VisitInitializeClassFieldsStatement(
   }
 }
 
-void BytecodeGenerator::BuildInstanceFieldInitialization(
-    VariableProxy* initializer_proxy) {
+void BytecodeGenerator::BuildInstanceFieldInitialization(Register constructor,
+                                                         Register instance) {
   RegisterList args = register_allocator()->NewRegisterList(1);
   Register initializer = register_allocator()->NewRegister();
-  BuildVariableLoad(initializer_proxy->var(), HoleCheckMode::kElided);
+
+  FeedbackSlot slot = feedback_spec()->AddLoadICSlot();
+  BytecodeLabel done;
 
   builder()
-      ->StoreAccumulatorInRegister(initializer)
-      .MoveRegister(builder()->Receiver(), args[0])
+      ->LoadClassFieldsInitializer(constructor, feedback_index(slot))
+      // TODO(gsathya): This jump can be elided for the base
+      // constructor and derived constructor. This is only required
+      // when called from an arrow function.
+      .JumpIfUndefined(&done)
+      .StoreAccumulatorInRegister(initializer)
+      .MoveRegister(instance, args[0])
       .CallProperty(initializer, args,
-                    feedback_index(feedback_spec()->AddCallICSlot()));
+                    feedback_index(feedback_spec()->AddCallICSlot()))
+      .Bind(&done);
 }
 
 void BytecodeGenerator::VisitNativeFunctionLiteral(
@@ -3500,9 +3511,11 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
   SuperCallReference* super = expr->expression()->AsSuperCallReference();
 
   // Prepare the constructor to the super call.
-  VisitForAccumulatorValue(super->this_function_var());
+  Register this_function = VisitForRegisterValue(super->this_function_var());
   Register constructor = register_allocator()->NewRegister();
-  builder()->GetSuperConstructor(constructor);
+  builder()
+      ->LoadAccumulatorWithRegister(this_function)
+      .GetSuperConstructor(constructor);
 
   ZoneList<Expression*>* args = expr->arguments();
   RegisterList args_regs = register_allocator()->NewGrowableRegisterList();
@@ -3527,6 +3540,24 @@ void BytecodeGenerator::VisitCallSuper(Call* expr) {
     // the job done for now. In the long run we might want to revisit this
     // and come up with a better way.
     builder()->Construct(constructor, args_regs, feedback_slot_index);
+  }
+
+  // The derived constructor has the correct bit set always, so we
+  // don't emit code to load and call the initializer if not
+  // required.
+  //
+  // For the arrow function or eval case, we always emit code to load
+  // and call the initializer.
+  //
+  // TODO(gsathya): In the future, we could tag nested arrow functions
+  // or eval with the correct bit so that we do the load conditionally
+  // if required.
+  if (info()->literal()->requires_instance_fields_initializer() ||
+      !IsDerivedConstructor(info()->literal()->kind())) {
+    Register instance = register_allocator()->NewRegister();
+    builder()->StoreAccumulatorInRegister(instance);
+    BuildInstanceFieldInitialization(this_function, instance);
+    builder()->LoadAccumulatorWithRegister(instance);
   }
 }
 

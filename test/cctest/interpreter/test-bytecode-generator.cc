@@ -2233,6 +2233,45 @@ TEST(ClassAndSuperClass) {
                      LoadGolden("ClassAndSuperClass.golden")));
 }
 
+TEST(ClassFields) {
+  bool old_flag = i::FLAG_harmony_class_fields;
+  i::FLAG_harmony_class_fields = true;
+  InitializedIgnitionHandleScope scope;
+  BytecodeExpectationsPrinter printer(CcTest::isolate());
+
+  const char* snippets[] = {
+      "{\n"
+      "  class A extends class {} {\n"
+      "    a;\n"
+      "    static c;\n"
+      "  }\n"
+      "\n"
+      "  class B extends class {} {\n"
+      "    a = 1;\n"
+      "    static c = 3;\n"
+      "    constructor() {\n"
+      "      super();\n"
+      "    }\n"
+      "  }\n"
+      "\n"
+      "  class C extends class {} {\n"
+      "    a = 1;\n"
+      "    static c = 3;\n"
+      "    constructor() {\n"
+      "      (() => super())();\n"
+      "    }\n"
+      "  }\n"
+      "\n"
+      "  new A;\n"
+      "  new B;\n"
+      "  new C;\n"
+      "}\n"};
+
+  CHECK(CompareTexts(BuildActual(printer, snippets),
+                     LoadGolden("ClassFields.golden")));
+  i::FLAG_harmony_class_fields = old_flag;
+}
+
 TEST(Generators) {
   InitializedIgnitionHandleScope scope;
   BytecodeExpectationsPrinter printer(CcTest::isolate());

@@ -62,7 +62,6 @@
   V(dot_catch_string, ".catch")                                             \
   V(dot_for_string, ".for")                                                 \
   V(dot_generator_object_string, ".generator_object")                       \
-  V(dot_instance_fields_initializer_string, ".instance_fields_initializer") \
   V(dot_iterator_string, ".iterator")                                       \
   V(dot_result_string, ".result")                                           \
   V(dot_switch_tag_string, ".switch_tag")                                   \
@@ -213,6 +212,7 @@
   V(call_site_frame_index_symbol)           \
   V(console_context_id_symbol)              \
   V(console_context_name_symbol)            \
+  V(class_fields_symbol)                    \
   V(class_positions_symbol)                 \
   V(detailed_stack_trace_symbol)            \
   V(elements_transition_symbol)             \

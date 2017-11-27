@@ -166,6 +166,15 @@ class V8_EXPORT_PRIVATE BytecodeArrayBuilder final {
                                                 int feedback_slot,
                                                 LanguageMode language_mode);
 
+  // Store the class fields property. The initializer to be stored should
+  // be in the accumulator.
+  BytecodeArrayBuilder& StoreClassFieldsInitializer(Register constructor,
+                                                    int feedback_slot);
+
+  // Load class fields property.
+  BytecodeArrayBuilder& LoadClassFieldsInitializer(Register constructor,
+                                                   int feedback_slot);
+
   // Lookup the variable with |name|.
   BytecodeArrayBuilder& LoadLookupSlot(const AstRawString* name,
                                        TypeofMode typeof_mode);

@@ -738,9 +738,8 @@ const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
     if (program->raw_inferred_name()) {
       PrintLiteralIndented("INFERRED NAME", program->raw_inferred_name(), true);
     }
-    if (program->instance_class_fields_initializer() != nullptr) {
-      PrintIndentedVisit("INSTANCE FIELDS INITIALIZER",
-                         program->instance_class_fields_initializer());
+    if (program->requires_instance_fields_initializer()) {
+      Print(" REQUIRES INSTANCE FIELDS INITIALIZER\n");
     }
     PrintParameters(program->scope());
     PrintDeclarations(program->scope()->declarations());
@@ -1002,10 +1001,6 @@ void AstPrinter::VisitClassLiteral(ClassLiteral* node) {
   if (node->instance_fields_initializer_function() != nullptr) {
     PrintIndentedVisit("INSTANCE FIELDS INITIALIZER",
                        node->instance_fields_initializer_function());
-  }
-  if (node->instance_fields_initializer_proxy() != nullptr) {
-    PrintIndentedVisit("INSTANCE FIELDS INITIALIZER VAR",
-                       node->instance_fields_initializer_proxy());
   }
   PrintClassProperties(node->properties());
 }

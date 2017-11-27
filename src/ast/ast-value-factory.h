@@ -207,7 +207,6 @@ class AstBigInt {
   F(dot, ".")                                                        \
   F(dot_for, ".for")                                                 \
   F(dot_generator_object, ".generator_object")                       \
-  F(dot_instance_fields_initializer, ".instance_fields_initializer") \
   F(dot_iterator, ".iterator")                                       \
   F(dot_result, ".result")                                           \
   F(dot_switch_tag, ".switch_tag")                                   \

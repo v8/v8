@@ -32,6 +32,20 @@
 }
 
 {
+  function t() {
+    class X {
+      x = 1;
+      constructor() {}
+    }
+
+    var x = new X;
+    return x.x;
+  }
+
+  assertEquals(1, t());
+}
+
+{
   let x = 'a';
   class C {
     a;
@@ -312,4 +326,276 @@ x();
   let d = new D;
   assertThrows(() => { class X { [X] } let x = new X;});
   assertEquals(undefined, d[C]);
+}
+
+{
+  class B {
+    a = 1;
+  }
+
+  class C extends B {
+    b = 2;
+    constructor() {
+      super();
+    }
+  }
+
+  let c = new C;
+  assertEquals(1, c.a);
+  assertEquals(2, c.b);
+}
+
+{
+  var log = [];
+  function addToLog(item) { log.push(item); }
+
+  class B {
+    a = 1;
+    constructor() {
+      addToLog("base constructor");
+    }
+  }
+
+  function initF() {
+    addToLog("init f");
+    return 1;
+  }
+
+  class C extends B {
+    f = initF();
+
+    constructor() {
+      addToLog("derived constructor");
+      var t = () => {
+        addToLog("t");
+        if (1==-1) {
+          super();
+        } else {
+          super();
+        }
+      }
+      (() => {
+        addToLog("anon");
+        t();
+      })();
+    }
+  }
+
+  let c = new  C;
+  assertEquals(1, c.f);
+  assertEquals(1, c.a);
+  assertEquals(["derived constructor","anon","t","base constructor","init f"],
+               log);
+}
+
+{
+  class B {
+    a = 1;
+    returnA = () => this.a;
+  }
+
+  class C extends B {
+    c = this.a;
+    d = 2;
+    returnC = () => this.c;
+    returnD = () => this.d;
+  }
+
+  let c = new C;
+  assertEquals(1, c.a);
+  assertEquals(1, c.returnA());
+  assertEquals(1, c.c);
+  assertEquals(1, c.returnA());
+  assertEquals(1, c.returnC());
+  assertEquals(2, c.d);
+  assertEquals(2, c.returnD());
+
+  let c2 = new C;
+  assertNotEquals(c2.returnA, c.returnA);
+  assertNotEquals(c2.returnC, c.returnC);
+  assertNotEquals(c2.returnD, c.returnD);
+}
+
+{
+  let foo = undefined;
+  class B {
+    set d(x) {
+      foo = x;
+    }
+  }
+
+  class C extends B {
+    d = 2;
+  }
+
+  let c = new C;
+  assertEquals(undefined, foo);
+  assertEquals(2, c.d);
+}
+
+{
+  class B {}
+  class C extends B {
+    constructor() {
+      super();
+    }
+
+    c = 1;
+  }
+
+  let c = new C;
+  assertEquals(1, c.c);
+}
+
+{
+  class B {}
+  class C extends B {
+    constructor() {
+      let t = () => {
+          super();
+      }
+      t();
+    }
+
+    c = 1;
+  }
+
+  let c = new C;
+  assertEquals(1, c.c);
+}
+
+{
+  let log = [];
+
+  class B {}
+
+  class C extends B {
+
+    x = (log.push(1), 1);
+
+    constructor() {
+      let t = () => {
+        class D extends B {
+
+          x = (log.push(2), 2);
+
+          constructor() {
+            let p = () => {
+              super();
+            }
+
+            p();
+          }
+        }
+
+        let d = new D();
+        assertEquals(2, d.x);
+        super();
+      }
+
+      t();
+    }
+  }
+
+
+  let c = new C;
+  assertEquals(1, c.x);
+  assertEquals([2, 1], log);
+}
+
+{
+  let log = [];
+  class C1 extends class {} {
+    x = log.push(1);
+    constructor() {
+      var t = () => super();
+      super();
+      t();
+    }
+  }
+
+  assertThrows(() => new C1, ReferenceError);
+  assertEquals([1,1], log);
+
+  log = [];
+  class C2 extends class {} {
+    x = log.push(1);
+    constructor() {
+      var t = () => super();
+      t();
+      super();
+    }
+  }
+
+  assertThrows(() => new C2, ReferenceError);
+  assertEquals([1,1], log);
+}
+
+{
+  class C1 extends class {} {
+    x = 1
+    constructor() {
+      eval("super()");
+    }
+  }
+
+  let c = new C1;
+  assertEquals(1, c.x);
+
+  class C2 extends class {} {
+    x = 1
+    constructor() {
+      var t = () => {
+        eval("super()");
+      }
+      t();
+    }
+  }
+
+  c = new C2;
+  assertEquals(1, c.x);
+}
+
+{
+  class C {
+    ['x'] = 1;
+    ['y'] = 2;
+  }
+
+  class C1 extends C {
+    ['x'] = 3;
+    ['z'] = 4;
+  }
+
+  let c = new C1;
+  assertEquals(3, c.x);
+  assertEquals(2, c.y);
+  assertEquals(4, c.z);
+}
+
+{
+  class X extends class {} {
+    c = 1;
+
+    constructor() {
+      let t = () => {
+
+        class P extends class {} {
+          constructor() {
+            let t = () => { super(); };
+            t();
+          }
+        }
+
+        let p = new P;
+        assertEquals(undefined, p.c);
+        super();
+      }
+
+      t();
+    }
+  }
+
+  let x = new X;
+  assertEquals(1, x.c);
 }

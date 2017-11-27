@@ -26,7 +26,8 @@ namespace interpreter {
   V(IteratorSymbol, iterator_symbol)            \
   V(AsyncIteratorSymbol, async_iterator_symbol) \
   V(HomeObjectSymbol, home_object_symbol)       \
-  V(EmptyFixedArray, empty_fixed_array)
+  V(EmptyFixedArray, empty_fixed_array)         \
+  V(ClassFieldsSymbol, class_fields_symbol)
 
 // A helper class for constructing constant arrays for the
 // interpreter. Each instance of this class is intended to be used to
