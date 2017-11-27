@@ -1299,14 +1299,16 @@ TEST_F(ValueSerializerTest, DecodeDenseArrayContainingUndefined) {
 }
 
 TEST_F(ValueSerializerTest, RoundTripDate) {
-  RoundTripTest("new Date(1e6)", [](Local<Value> value) {
+  RoundTripTest("new Date(1e6)", [this](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
     EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
-    EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "Object.getPrototypeOf(result) === Date.prototype"));
   });
-  RoundTripTest("new Date(Date.UTC(1867, 6, 1))", [](Local<Value> value) {
+  RoundTripTest("new Date(Date.UTC(1867, 6, 1))", [this](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
-    EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
+    EXPECT_TRUE(EvaluateScriptForResultBool(
+        "result.toISOString() === '1867-07-01T00:00:00.000Z'"));
   });
   RoundTripTest("new Date(NaN)", [](Local<Value> value) {
     ASSERT_TRUE(value->IsDate());
@@ -1324,18 +1326,19 @@ TEST_F(ValueSerializerTest, DecodeDate) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x80, 0x84,
               0x2e, 0x41, 0x00},
-             [](Local<Value> value) {
+             [this](Local<Value> value) {
                ASSERT_TRUE(value->IsDate());
                EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
-               EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Date.prototype"));
              });
-  DecodeTest(
-      {0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x20, 0x45, 0x27, 0x89, 0x87,
-       0xc2, 0x00},
-      [](Local<Value> value) {
-        ASSERT_TRUE(value->IsDate());
-        EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
-      });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x20, 0x45, 0x27, 0x89,
+              0x87, 0xc2, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsDate());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toISOString() === '1867-07-01T00:00:00.000Z'"));
+             });
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
               0xf8, 0x7f, 0x00},
              [](Local<Value> value) {
@@ -1345,18 +1348,19 @@ TEST_F(ValueSerializerTest, DecodeDate) {
 #else
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x41, 0x2e, 0x84, 0x80, 0x00, 0x00,
               0x00, 0x00, 0x00},
-             [](Local<Value> value) {
+             [this](Local<Value> value) {
                ASSERT_TRUE(value->IsDate());
                EXPECT_EQ(1e6, Date::Cast(*value)->ValueOf());
-               EXPECT_TRUE("Object.getPrototypeOf(result) === Date.prototype");
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "Object.getPrototypeOf(result) === Date.prototype"));
              });
-  DecodeTest(
-      {0xff, 0x09, 0x3f, 0x00, 0x44, 0xc2, 0x87, 0x89, 0x27, 0x45, 0x20, 0x00,
-       0x00, 0x00},
-      [](Local<Value> value) {
-        ASSERT_TRUE(value->IsDate());
-        EXPECT_TRUE("result.toISOString() === '1867-07-01T00:00:00.000Z'");
-      });
+  DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0xc2, 0x87, 0x89, 0x27, 0x45, 0x20,
+              0x00, 0x00, 0x00},
+             [this](Local<Value> value) {
+               ASSERT_TRUE(value->IsDate());
+               EXPECT_TRUE(EvaluateScriptForResultBool(
+                   "result.toISOString() === '1867-07-01T00:00:00.000Z'"));
+             });
   DecodeTest({0xff, 0x09, 0x3f, 0x00, 0x44, 0x7f, 0xf8, 0x00, 0x00, 0x00, 0x00,
               0x00, 0x00, 0x00},
              [](Local<Value> value) {
