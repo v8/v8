@@ -9382,9 +9382,13 @@ Handle<Map> Map::AddMissingTransitions(
   // Number of unused properties is temporarily incorrect and the layout
   // descriptor could unnecessarily be in slow mode but we will fix after
   // all the other intermediate maps are created.
+  // Also the last map might have interesting symbols, we temporarily set
+  // the flag and clear it right before the descriptors are installed. This
+  // makes heap verification happy and ensures the flag ends up accurate.
   Handle<Map> last_map = CopyDropDescriptors(split_map);
   last_map->InitializeDescriptors(*descriptors, *full_layout_descriptor);
   last_map->SetInObjectUnusedPropertyFields(0);
+  last_map->set_may_have_interesting_symbols(true);
 
   // During creation of intermediate maps we violate descriptors sharing
   // invariant since the last map is not yet connected to the transition tree
@@ -9398,6 +9402,7 @@ Handle<Map> Map::AddMissingTransitions(
     map = new_map;
   }
   map->NotifyLeafMapLayoutChange();
+  last_map->set_may_have_interesting_symbols(false);
   InstallDescriptors(map, last_map, nof_descriptors - 1, descriptors,
                      full_layout_descriptor);
   return last_map;
