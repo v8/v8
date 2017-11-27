@@ -144,7 +144,7 @@ class JsonParser BASE_EMBEDDED {
   Zone* zone() { return &zone_; }
 
   void CommitStateToJsonObject(Handle<JSObject> json_object, Handle<Map> map,
-                               ZoneVector<Handle<Object>>* properties);
+                               Vector<const Handle<Object>> properties);
 
   Handle<String> source_;
   int source_length_;
@@ -157,6 +157,9 @@ class JsonParser BASE_EMBEDDED {
   Handle<JSFunction> object_constructor_;
   uc32 c0_;
   int position_;
+
+  // Property handles are stored here inside ParseJsonObject.
+  ZoneVector<Handle<Object>> properties_;
 };
 
 }  // namespace internal
