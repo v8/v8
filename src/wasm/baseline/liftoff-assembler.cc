@@ -242,19 +242,13 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
 }
 
 void LiftoffAssembler::CacheState::Steal(CacheState& source) {
-  stack_state.swap(source.stack_state);
-  used_registers = source.used_registers;
-  memcpy(register_use_count, source.register_use_count,
-         sizeof(register_use_count));
-  last_spilled_reg = source.last_spilled_reg;
+  // Just use the move assignment operator.
+  *this = std::move(source);
 }
 
 void LiftoffAssembler::CacheState::Split(const CacheState& source) {
-  stack_state = source.stack_state;
-  used_registers = source.used_registers;
-  memcpy(register_use_count, source.register_use_count,
-         sizeof(register_use_count));
-  last_spilled_reg = source.last_spilled_reg;
+  // Call the private copy assignment operator.
+  *this = source;
 }
 
 LiftoffAssembler::LiftoffAssembler(Isolate* isolate)

@@ -127,9 +127,11 @@ class LiftoffAssembler : public TurboAssembler {
   static_assert(IS_TRIVIALLY_COPYABLE(VarState),
                 "VarState should be trivially copyable");
 
-  // TODO(clemensh): Make this a proper class.
   struct CacheState {
-    MOVE_ONLY_WITH_DEFAULT_CONSTRUCTORS(CacheState);
+    // Allow default construction, move construction, and move assignment.
+    CacheState() = default;
+    CacheState(CacheState&&) = default;
+    CacheState& operator=(CacheState&&) = default;
 
     // TODO(clemensh): Improve memory management here; avoid std::vector.
     std::vector<VarState> stack_state;
@@ -208,6 +210,12 @@ class LiftoffAssembler : public TurboAssembler {
           Register::from_code(base::bits::CountTrailingZeros(remaining_regs));
       return last_spilled_reg;
     }
+
+   private:
+    // Make the copy assignment operator private (to be used from {Split()}).
+    CacheState& operator=(const CacheState&) = default;
+    // Disallow copy construction.
+    CacheState(const CacheState&) = delete;
   };
 
   Register PopToRegister(ValueType, PinnedRegisterScope = {});
