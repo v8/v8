@@ -4401,7 +4401,6 @@ void MarkCompactCollector::ReportAbortedEvacuationCandidate(
     HeapObject* failed_object, Page* page) {
   base::LockGuard<base::Mutex> guard(&mutex_);
 
-  page->SetFlag(Page::COMPACTION_WAS_ABORTED);
   aborted_evacuation_candidates_.push_back(std::make_pair(failed_object, page));
 }
 
@@ -4409,7 +4408,7 @@ void MarkCompactCollector::PostProcessEvacuationCandidates() {
   for (auto object_and_page : aborted_evacuation_candidates_) {
     HeapObject* failed_object = object_and_page.first;
     Page* page = object_and_page.second;
-    DCHECK(page->IsFlagSet(Page::COMPACTION_WAS_ABORTED));
+    page->SetFlag(Page::COMPACTION_WAS_ABORTED);
     // Aborted compaction page. We have to record slots here, since we
     // might not have recorded them in first place.
 
