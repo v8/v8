@@ -530,12 +530,12 @@
 
     # Gyp release configs for mips.
     'gyp_release_mips_no_snap_no_i18n': [
-      'gyp', 'release', 'mips', 'crosscompile', 'static', 'v8_no_i18n',
-      'v8_snapshot_none'],
+      'gyp', 'release', 'mips', 'crosscompile', 'no_sysroot', 'static',
+      'v8_no_i18n', 'v8_snapshot_none'],
 
     # Gyp release configs for x64.
     'gyp_release_x64': [
-      'gyp', 'release_bot', 'x64', 'swarming'],
+      'gyp', 'release_bot', 'x64', 'no_sysroot', 'swarming'],
   },
 
   'mixins': {
@@ -673,6 +673,11 @@
 
     'msvc': {
       'gn_args': 'is_clang=false',
+    },
+
+    'no_sysroot': {
+      'gn_args': 'use_sysroot=false',
+      'gyp_defines': 'use_sysroot=0',
     },
 
     'release': {
