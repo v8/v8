@@ -40,13 +40,13 @@ MORE_VARIANTS = [
   "wasm_traps",
 ]
 
-EXHAUSTIVE_VARIANTS = MORE_VARIANTS + VARIANTS
-
 VARIANT_ALIASES = {
   # The default for developer workstations.
   "dev": VARIANTS,
   # Additional variants, run on all bots.
   "more": MORE_VARIANTS,
+  # Shortcut for the two above ("more" first - it has the longer running tests).
+  "exhaustive": MORE_VARIANTS + VARIANTS,
   # Additional variants, run on a subset of bots.
   "extra": ["future", "liftoff"],
 }
@@ -169,15 +169,16 @@ class StandardTestRunner(base_runner.BaseTestRunner):
                         " run.",
                         default=False, dest="no_sorting", action="store_true")
       parser.add_option("--no-variants", "--novariants",
-                        help="Don't run any testing variants",
+                        help="Deprecated. "
+                             "Equivalent to passing --variants=default",
                         default=False, dest="no_variants", action="store_true")
       parser.add_option("--variants",
                         help="Comma-separated list of testing variants;"
                         " default: \"%s\"" % ",".join(VARIANTS))
       parser.add_option("--exhaustive-variants",
                         default=False, action="store_true",
-                        help="Use exhaustive set of default variants:"
-                        " \"%s\"" % ",".join(EXHAUSTIVE_VARIANTS))
+                        help="Deprecated. "
+                             "Equivalent to passing --variants=exhaustive")
       parser.add_option("-p", "--progress",
                         help=("The style of progress indicator"
                               " (verbose, dots, color, mono)"),
@@ -252,16 +253,38 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if options.novfp3:
         options.extra_flags.append("--noenable-vfp3")
 
+      if options.no_variants:
+        print ("Option --no-variants is deprecated. "
+               "Pass --variants=default instead.")
+        assert not options.variants
+        options.variants = "default"
+
       if options.exhaustive_variants:
+        # TODO(machenbach): Switch infra to --variants=exhaustive after M65.
+        print ("Option --exhaustive-variants is deprecated. "
+               "Pass --variants=exhaustive instead.")
         # This is used on many bots. It includes a larger set of default
         # variants.
         # Other options for manipulating variants still apply afterwards.
-        VARIANTS = EXHAUSTIVE_VARIANTS
+        assert not options.variants
+        options.variants = "exhaustive"
+
+      if options.quickcheck:
+        assert not options.variants
+        options.variants = "stress,default"
+        options.slow_tests = "skip"
+        options.pass_fail_tests = "skip"
+
+      if self.build_config.predictable:
+        options.variants = "default"
+        options.extra_flags.append("--predictable")
+        options.extra_flags.append("--verify_predictable")
+        options.extra_flags.append("--no-inline-new")
 
       # TODO(machenbach): Figure out how to test a bigger subset of variants on
       # msan.
       if self.build_config.msan:
-        VARIANTS = ["default"]
+        options.variants = "default"
 
       if options.j == 0:
         options.j = multiprocessing.cpu_count()
@@ -269,40 +292,21 @@ class StandardTestRunner(base_runner.BaseTestRunner):
       if options.random_seed_stress_count <= 1 and options.random_seed == 0:
         options.random_seed = self._random_seed()
 
-      def excl(*args):
-        """Returns true if zero or one of multiple arguments are true."""
-        return reduce(lambda x, y: x + y, args) <= 1
+      # Use developer defaults if no variant was specified.
+      options.variants = options.variants or "dev"
 
-      if not excl(options.no_variants, bool(options.variants)):
-        print("Use only one of --no-variants or --variants.")
+      # Resolve variant aliases and dedupe.
+      # TODO(machenbach): Don't mutate global variable. Rather pass mutated
+      # version as local variable.
+      VARIANTS = list(set(reduce(
+          list.__add__,
+          (VARIANT_ALIASES.get(v, [v]) for v in options.variants.split(",")),
+          [],
+      )))
+
+      if not set(VARIANTS).issubset(ALL_VARIANTS):
+        print "All variants must be in %s" % str(ALL_VARIANTS)
         raise base_runner.TestRunnerError()
-      if options.quickcheck:
-        VARIANTS = ["default", "stress"]
-        options.slow_tests = "skip"
-        options.pass_fail_tests = "skip"
-      if options.no_variants:
-        VARIANTS = ["default"]
-      if options.variants:
-        VARIANTS = options.variants.split(",")
-
-        # Resolve variant aliases.
-        VARIANTS = reduce(
-            list.__add__,
-            (VARIANT_ALIASES.get(v, [v]) for v in VARIANTS),
-            [],
-        )
-
-        if not set(VARIANTS).issubset(ALL_VARIANTS):
-          print "All variants must be in %s" % str(ALL_VARIANTS)
-          raise base_runner.TestRunnerError()
-      if self.build_config.predictable:
-        VARIANTS = ["default"]
-        options.extra_flags.append("--predictable")
-        options.extra_flags.append("--verify_predictable")
-        options.extra_flags.append("--no-inline-new")
-
-      # Dedupe.
-      VARIANTS = list(set(VARIANTS))
 
       def CheckTestMode(name, option):
         if not option in ["run", "skip", "dontcare"]:
