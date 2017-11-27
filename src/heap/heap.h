@@ -2658,6 +2658,10 @@ class CodePageMemoryModificationScope {
  private:
   MemoryChunk* chunk_;
   bool scope_active_;
+
+  // Disallow any GCs inside this scope, as a relocation of the underlying
+  // object would change the {MemoryChunk} that this scope targets.
+  DisallowHeapAllocation no_heap_allocation_;
 };
 
 // Visitor class to verify interior pointers in spaces that do not contain
