@@ -218,12 +218,8 @@ Reduction DeadCodeElimination::ReducePhi(Node* node) {
 
 Reduction DeadCodeElimination::ReducePureNode(Node* node) {
   DCHECK_EQ(0, node->op()->EffectInputCount());
-  int input_count = node->op()->ValueInputCount();
-  for (int i = 0; i < input_count; ++i) {
-    Node* input = NodeProperties::GetValueInput(node, i);
-    if (NoReturn(input)) {
-      return Replace(dead_value());
-    }
+  if (HasDeadInput(node)) {
+    return Replace(dead_value());
   }
   return NoChange();
 }
