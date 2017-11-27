@@ -3337,7 +3337,7 @@ int Isolate::GenerateIdentityHash(uint32_t mask) {
 }
 
 Code* Isolate::FindCodeObject(Address a) {
-  return inner_pointer_to_code_cache()->GcSafeFindCodeForInnerPointer(a);
+  return heap()->GcSafeFindCodeForInnerPointer(a);
 }
 
 

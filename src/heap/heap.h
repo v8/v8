@@ -1580,6 +1580,18 @@ class Heap {
   void AddRetainingPathTarget(Handle<HeapObject> object,
                               RetainingPathOption option);
 
+  // ===========================================================================
+  // Stack frame support. ======================================================
+  // ===========================================================================
+
+  // Returns the Code object for a given interior pointer. Returns nullptr if
+  // {inner_pointer} is not contained within a Code object.
+  Code* GcSafeFindCodeForInnerPointer(Address inner_pointer);
+
+  // Returns true if {addr} is contained within {code} and false otherwise.
+  // Mostly useful for debugging.
+  bool GcSafeCodeContains(HeapObject* code, Address addr);
+
 // =============================================================================
 #ifdef VERIFY_HEAP
   // Verify the heap is in its normal state before or after a GC.

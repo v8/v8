@@ -6569,5 +6569,70 @@ void Heap::CreateObjectStats() {
   }
 }
 
+namespace {
+
+Map* GcSafeMapOfCodeSpaceObject(HeapObject* object) {
+  MapWord map_word = object->map_word();
+  return map_word.IsForwardingAddress() ? map_word.ToForwardingAddress()->map()
+                                        : map_word.ToMap();
+}
+
+int GcSafeSizeOfCodeSpaceObject(HeapObject* object) {
+  return object->SizeFromMap(GcSafeMapOfCodeSpaceObject(object));
+}
+
+Code* GcSafeCastToCode(Heap* heap, HeapObject* object, Address inner_pointer) {
+  Code* code = reinterpret_cast<Code*>(object);
+  DCHECK_NOT_NULL(code);
+  DCHECK(heap->GcSafeCodeContains(code, inner_pointer));
+  return code;
+}
+
+}  // namespace
+
+bool Heap::GcSafeCodeContains(HeapObject* code, Address addr) {
+  Map* map = GcSafeMapOfCodeSpaceObject(code);
+  DCHECK(map == code->GetHeap()->code_map());
+  Address start = code->address();
+  Address end = code->address() + code->SizeFromMap(map);
+  return start <= addr && addr < end;
+}
+
+Code* Heap::GcSafeFindCodeForInnerPointer(Address inner_pointer) {
+  // Check if the inner pointer points into a large object chunk.
+  LargePage* large_page = lo_space()->FindPage(inner_pointer);
+  if (large_page != nullptr) {
+    return GcSafeCastToCode(this, large_page->GetObject(), inner_pointer);
+  }
+
+  if (!code_space()->Contains(inner_pointer)) {
+    return nullptr;
+  }
+
+  // Iterate through the page until we reach the end or find an object starting
+  // after the inner pointer.
+  Page* page = Page::FromAddress(inner_pointer);
+  DCHECK_EQ(page->owner(), code_space());
+  mark_compact_collector()->sweeper().SweepOrWaitUntilSweepingCompleted(page);
+
+  Address addr = page->skip_list()->StartFor(inner_pointer);
+  Address top = code_space()->top();
+  Address limit = code_space()->limit();
+
+  while (true) {
+    if (addr == top && addr != limit) {
+      addr = limit;
+      continue;
+    }
+
+    HeapObject* obj = HeapObject::FromAddress(addr);
+    int obj_size = GcSafeSizeOfCodeSpaceObject(obj);
+    Address next_addr = addr + obj_size;
+    if (next_addr > inner_pointer)
+      return GcSafeCastToCode(this, obj, inner_pointer);
+    addr = next_addr;
+  }
+}
+
 }  // namespace internal
 }  // namespace v8

@@ -40,9 +40,6 @@ class InnerPointerToCodeCache {
     Flush();
   }
 
-  Code* GcSafeFindCodeForInnerPointer(Address inner_pointer);
-  Code* GcSafeCastToCode(HeapObject* object, Address inner_pointer);
-
   void Flush() {
     memset(&cache_[0], 0, sizeof(cache_));
   }
