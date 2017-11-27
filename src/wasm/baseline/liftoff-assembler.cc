@@ -185,7 +185,7 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
                                              uint32_t arity) {
   DCHECK(stack_state.empty());
   DCHECK_GE(source.stack_height(), stack_base);
-  stack_state.resize(stack_base + arity);
+  stack_state.resize(stack_base + arity, VarState(kWasmStmt));
 
   // |------locals------|--(in between)--|--(discarded)--|----merge----|
   //  <-- num_locals -->                 ^stack_base      <-- arity -->
@@ -206,12 +206,12 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
       } else if (has_unused_register()) {
         reg = unused_register();
       } else {
-        // Keep this a stack slot (which is the initial value).
+        // Make this a stack slot.
         DCHECK(src.is_stack());
-        DCHECK(dst.is_stack());
+        dst = VarState(src.type());
         continue;
       }
-      dst = VarState(reg);
+      dst = VarState(src.type(), reg);
       inc_used(reg);
     }
   }
@@ -223,11 +223,11 @@ void LiftoffAssembler::CacheState::InitMerge(const CacheState& source,
     auto& src = source.stack_state[i];
     if (src.is_reg()) {
       if (is_used(src.reg())) {
-        // Keep this a stack slot (which is the initial value).
-        DCHECK(dst.is_stack());
+        // Make this a stack slot.
+        dst = VarState(src.type());
         continue;
       }
-      dst = VarState(src.reg());
+      dst = VarState(src.type(), src.reg());
       inc_used(src.reg());
     } else if (src.is_const()) {
       dst = src;

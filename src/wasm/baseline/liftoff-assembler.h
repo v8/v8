@@ -80,10 +80,13 @@ class LiftoffAssembler : public TurboAssembler {
    public:
     enum Location : uint8_t { kStack, kRegister, kConstant };
 
-    VarState() : loc_(kStack) {}
-    explicit VarState(Register r) : loc_(kRegister), reg_(r) {}
-    explicit VarState(uint32_t i32_const)
-        : loc_(kConstant), i32_const_(i32_const) {}
+    explicit VarState(ValueType type) : loc_(kStack), type_(type) {}
+    explicit VarState(ValueType type, Register r)
+        : loc_(kRegister), type_(type), reg_(r) {}
+    explicit VarState(ValueType type, uint32_t i32_const)
+        : loc_(kConstant), type_(type), i32_const_(i32_const) {
+      DCHECK(type_ == kWasmI32 || type_ == kWasmI64);
+    }
 
     bool operator==(const VarState& other) const {
       if (loc_ != other.loc_) return false;
@@ -102,6 +105,8 @@ class LiftoffAssembler : public TurboAssembler {
     bool is_reg() const { return loc_ == kRegister; }
     bool is_const() const { return loc_ == kConstant; }
 
+    ValueType type() const { return type_; }
+
     Location loc() const { return loc_; }
 
     uint32_t i32_const() const {
@@ -118,6 +123,9 @@ class LiftoffAssembler : public TurboAssembler {
 
    private:
     Location loc_;
+    // TODO(wasm): This is redundant, the decoder already knows the type of each
+    // stack value. Try to collapse.
+    ValueType type_;
 
     union {
       Register reg_;        // used if loc_ == kRegister
@@ -220,9 +228,9 @@ class LiftoffAssembler : public TurboAssembler {
 
   Register PopToRegister(ValueType, PinnedRegisterScope = {});
 
-  void PushRegister(Register reg) {
+  void PushRegister(ValueType type, Register reg) {
     cache_state_.inc_used(reg);
-    cache_state_.stack_state.emplace_back(reg);
+    cache_state_.stack_state.emplace_back(type, reg);
   }
 
   uint32_t GetNumUses(Register reg) const {

@@ -141,6 +141,7 @@ class LiftoffCompiler {
     uint32_t param_idx = 0;
     for (; param_idx < num_params; ++param_idx) {
       constexpr uint32_t kFirstActualParamIndex = kContextParameterIndex + 1;
+      ValueType type = __ local_type(param_idx);
       compiler::LinkageLocation param_loc =
           call_desc_->GetInputLocation(param_idx + kFirstActualParamIndex);
       if (param_loc.IsRegister()) {
@@ -148,16 +149,16 @@ class LiftoffCompiler {
         Register param_reg = Register::from_code(param_loc.AsRegister());
         if (param_reg.bit() & __ kGpCacheRegs) {
           // This is a cache register, just use it.
-          __ PushRegister(param_reg);
+          __ PushRegister(type, param_reg);
         } else {
           // No cache register. Push to the stack.
           __ Spill(param_idx, param_reg);
-          __ cache_state()->stack_state.emplace_back();
+          __ cache_state()->stack_state.emplace_back(type);
         }
       } else if (param_loc.IsCallerFrameSlot()) {
-        Register tmp_reg = __ GetUnusedRegister(__ local_type(param_idx));
+        Register tmp_reg = __ GetUnusedRegister(type);
         __ LoadCallerFrameSlot(tmp_reg, -param_loc.AsCallerFrameSlot());
-        __ PushRegister(tmp_reg);
+        __ PushRegister(type, tmp_reg);
       } else {
         UNIMPLEMENTED();
       }
@@ -166,7 +167,7 @@ class LiftoffCompiler {
       ValueType type = decoder->GetLocalType(param_idx);
       switch (type) {
         case kWasmI32:
-          __ cache_state()->stack_state.emplace_back(0);
+          __ cache_state()->stack_state.emplace_back(kWasmI32, uint32_t{0});
           break;
         default:
           UNIMPLEMENTED();
@@ -263,11 +264,11 @@ class LiftoffCompiler {
     Register rhs_reg = pinned_regs.pin(__ PopToRegister(kWasmI32, pinned_regs));
     Register lhs_reg = __ PopToRegister(kWasmI32, pinned_regs);
     (asm_->*emit_fn)(target_reg, lhs_reg, rhs_reg);
-    __ PushRegister(target_reg);
+    __ PushRegister(kWasmI32, target_reg);
   }
 
   void I32Const(Decoder* decoder, Value* result, int32_t value) {
-    __ cache_state()->stack_state.emplace_back(value);
+    __ cache_state()->stack_state.emplace_back(kWasmI32, value);
     CheckStackSizeLimit(decoder);
   }
 
@@ -310,15 +311,16 @@ class LiftoffCompiler {
     auto& slot = __ cache_state()->stack_state[operand.index];
     switch (slot.loc()) {
       case kRegister:
-        __ PushRegister(slot.reg());
+        __ PushRegister(operand.type, slot.reg());
         break;
       case kConstant:
-        __ cache_state()->stack_state.emplace_back(slot.i32_const());
+        __ cache_state()->stack_state.emplace_back(operand.type,
+                                                   slot.i32_const());
         break;
       case kStack: {
         Register reg = __ GetUnusedRegister(__ local_type(operand.index));
         __ Fill(reg, operand.index);
-        __ PushRegister(reg);
+        __ PushRegister(operand.type, reg);
       } break;
     }
     CheckStackSizeLimit(decoder);
@@ -350,10 +352,11 @@ class LiftoffCompiler {
             }
           case kConstant:
           case kStack: {
+            ValueType type = __ local_type(local_index);
             Register target_reg =
                 __ GetUnusedRegister(__ local_type(local_index));
             __ Fill(target_reg, state.stack_height() - 1);
-            target_slot = LiftoffAssembler::VarState(target_reg);
+            target_slot = LiftoffAssembler::VarState(type, target_reg);
             state.inc_used(target_reg);
           } break;
         }
@@ -387,7 +390,7 @@ class LiftoffCompiler {
     if (size > kPointerSize)
       return unsupported(decoder, "global > kPointerSize");
     __ Load(value, addr, global->offset, size, pinned);
-    __ PushRegister(value);
+    __ PushRegister(global->type, value);
   }
 
   void SetGlobal(Decoder* decoder, const Value& value,
