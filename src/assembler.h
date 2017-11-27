@@ -988,6 +988,9 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference get_or_create_hash_raw(Isolate* isolate);
   static ExternalReference jsreceiver_create_identity_hash(Isolate* isolate);
 
+  static ExternalReference copy_fast_number_jsarray_elements_to_typed_array(
+      Isolate* isolate);
+
   static ExternalReference page_flags(Page* page);
 
   static ExternalReference ForDeoptEntry(Address entry);

@@ -3127,16 +3127,17 @@ bool Isolate::IsInAnyContext(Object* object, uint32_t index) {
   return false;
 }
 
-bool Isolate::IsNoElementsProtectorIntact() {
+bool Isolate::IsNoElementsProtectorIntact(Context* context) {
   PropertyCell* no_elements_cell = heap()->no_elements_protector();
   bool cell_reports_intact =
       no_elements_cell->value()->IsSmi() &&
       Smi::ToInt(no_elements_cell->value()) == kProtectorValid;
 
 #ifdef DEBUG
+  Context* native_context = context->native_context();
+
   Map* root_array_map =
-      raw_native_context()->GetInitialJSArrayMap(GetInitialFastElementsKind());
-  Context* native_context = context()->native_context();
+      native_context->GetInitialJSArrayMap(GetInitialFastElementsKind());
   JSObject* initial_array_proto = JSObject::cast(
       native_context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX));
   JSObject* initial_object_proto = JSObject::cast(
@@ -3177,13 +3178,16 @@ bool Isolate::IsNoElementsProtectorIntact() {
   PrototypeIterator iter(this, initial_array_proto);
   if (iter.IsAtEnd() || iter.GetCurrent() != initial_object_proto) {
     DCHECK_EQ(false, cell_reports_intact);
+    DCHECK(!has_pending_exception());
     return cell_reports_intact;
   }
   iter.Advance();
   if (!iter.IsAtEnd()) {
     DCHECK_EQ(false, cell_reports_intact);
+    DCHECK(!has_pending_exception());
     return cell_reports_intact;
   }
+  DCHECK(!has_pending_exception());
 
   // Check that the String.prototype hasn't been altered WRT empty elements.
   elements = initial_string_proto->elements();
@@ -3199,10 +3203,13 @@ bool Isolate::IsNoElementsProtectorIntact() {
     DCHECK_EQ(false, cell_reports_intact);
     return cell_reports_intact;
   }
-
 #endif
 
   return cell_reports_intact;
+}
+
+bool Isolate::IsNoElementsProtectorIntact() {
+  return Isolate::IsNoElementsProtectorIntact(context());
 }
 
 bool Isolate::IsIsConcatSpreadableLookupChainIntact() {

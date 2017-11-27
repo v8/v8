@@ -52,6 +52,7 @@
 #include "src/debug/debug.h"
 #include "src/deoptimizer.h"
 #include "src/disassembler.h"
+#include "src/elements.h"
 #include "src/execution.h"
 #include "src/ic/ic.h"
 #include "src/ic/stub-cache.h"
@@ -1425,6 +1426,13 @@ ExternalReference ExternalReference::jsreceiver_create_identity_hash(
   typedef Smi* (*CreateIdentityHash)(Isolate * isolate, JSReceiver * key);
   CreateIdentityHash f = JSReceiver::CreateIdentityHash;
   return ExternalReference(Redirect(isolate, FUNCTION_ADDR(f)));
+}
+
+ExternalReference
+ExternalReference::copy_fast_number_jsarray_elements_to_typed_array(
+    Isolate* isolate) {
+  return ExternalReference(Redirect(
+      isolate, FUNCTION_ADDR(CopyFastNumberJSArrayElementsToTypedArray)));
 }
 
 ExternalReference ExternalReference::try_internalize_string_function(

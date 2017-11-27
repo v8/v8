@@ -636,6 +636,73 @@ function TestTypedArraySet() {
   };
   assertThrows(() => Int8Array.prototype.set.call(1, tmp), TypeError);
   assertThrows(() => Int8Array.prototype.set.call([], tmp), TypeError);
+
+  // Detached array buffer when converting offset.
+  {
+    const xs = new Int8Array(10);
+    let detached = false;
+    const offset = {
+      [Symbol.toPrimitive]() {
+        %ArrayBufferNeuter(xs.buffer);
+        detached = true;
+        return 0;
+      }
+    };
+    assertThrows(() => xs.set(xs, offset), TypeError);
+    assertEquals(true, detached);
+  }
+
+  // Various offset edge cases.
+  {
+    const xs = new Int8Array(10);
+    assertThrows(() => xs.set(xs, -1), RangeError);
+    assertThrows(() => xs.set(xs, -1 * 2**64), RangeError);
+    xs.set(xs, -0.0);
+    xs.set(xs, 0.0);
+    xs.set(xs, 0.5);
+    assertThrows(() => xs.set(xs, 2**64), RangeError);
+  }
+
+  // Exhaustively test elements kind combinations with JSArray source arg.
+  {
+    const kSize = 3;
+    const targets = typedArrayConstructors.map(klass => new klass(kSize));
+    const sources = [ [0,1,2]        // PACKED_SMI
+                    , [0,,2]         // HOLEY_SMI
+                    , [0.1,0.2,0.3]  // PACKED_DOUBLE
+                    , [0.1,,0.3]     // HOLEY_DOUBLE
+                    , [{},{},{}]     // PACKED
+                    , [{},,{}]       // HOLEY
+                    , []             // DICTIONARY (patched later)
+                    ];
+
+    // Migrate to DICTIONARY_ELEMENTS.
+    Object.defineProperty(sources[6], 0, {});
+
+    assertTrue(%HasSmiElements(sources[0]));
+    assertTrue(%HasFastElements(sources[0]) && !%HasHoleyElements(sources[0]));
+    assertTrue(%HasSmiElements(sources[1]));
+    assertTrue(%HasFastElements(sources[1]) && %HasHoleyElements(sources[1]));
+    assertTrue(%HasDoubleElements(sources[2]));
+    assertTrue(%HasFastElements(sources[2]) && !%HasHoleyElements(sources[2]));
+    assertTrue(%HasDoubleElements(sources[3]));
+    assertTrue(%HasFastElements(sources[3]) && %HasHoleyElements(sources[3]));
+    assertTrue(%HasObjectElements(sources[4]));
+    assertTrue(%HasFastElements(sources[4]) && !%HasHoleyElements(sources[4]));
+    assertTrue(%HasObjectElements(sources[4]));
+    assertTrue(%HasFastElements(sources[4]) && !%HasHoleyElements(sources[4]));
+    assertTrue(%HasObjectElements(sources[5]));
+    assertTrue(%HasFastElements(sources[5]) && %HasHoleyElements(sources[5]));
+    assertTrue(%HasDictionaryElements(sources[6]));
+
+    for (const target of targets) {
+      for (const source of sources) {
+        target.set(source);
+        %HeapObjectVerify(target);
+        %HeapObjectVerify(source);
+      }
+    }
+  }
 }
 
 TestTypedArraySet();

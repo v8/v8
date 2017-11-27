@@ -55,9 +55,20 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   // Fast path for setting a TypedArray (source) onto another TypedArray
   // (target) at an element offset. Currently, only handles when the source and
   // target types match.
-  void SetTypedArraySource(TNode<Context> context, TNode<HeapObject> source,
-                           TNode<HeapObject> target, TNode<IntPtrT> offset,
-                           Label* if_not_same_type);
+  void SetTypedArraySource(TNode<Context> context, TNode<JSTypedArray> source,
+                           TNode<JSTypedArray> target, TNode<IntPtrT> offset,
+                           Label* call_runtime, Label* if_source_too_large);
+
+  void SetJSArraySource(TNode<Context> context, TNode<JSArray> source,
+                        TNode<JSTypedArray> target, TNode<IntPtrT> offset,
+                        Label* call_runtime, Label* if_source_too_large);
+
+  void CallCMemmove(TNode<IntPtrT> dest_ptr, TNode<IntPtrT> src_ptr,
+                    TNode<IntPtrT> byte_length);
+
+  void CallCCopyFastNumberJSArrayElementsToTypedArray(
+      TNode<Context> context, TNode<JSArray> source, TNode<JSTypedArray> dest,
+      TNode<IntPtrT> source_length, TNode<IntPtrT> offset);
 };
 
 Node* TypedArrayBuiltinsAssembler::LoadMapForType(Node* array) {
@@ -746,24 +757,19 @@ TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
   return element_size;
 }
 
-void TypedArrayBuiltinsAssembler::SetTypedArraySource(TNode<Context> context,
-                                                      TNode<HeapObject> source,
-                                                      TNode<HeapObject> target,
-                                                      TNode<IntPtrT> offset,
-                                                      Label* if_not_same_type) {
-  CSA_ASSERT(this, IsJSTypedArray(source));
-  CSA_ASSERT(this, IsJSTypedArray(target));
+void TypedArrayBuiltinsAssembler::SetTypedArraySource(
+    TNode<Context> context, TNode<JSTypedArray> source,
+    TNode<JSTypedArray> target, TNode<IntPtrT> offset, Label* call_runtime,
+    Label* if_source_too_large) {
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(offset, IntPtrConstant(0)));
   CSA_ASSERT(this,
              IntPtrLessThanOrEqual(offset, IntPtrConstant(Smi::kMaxValue)));
-
-  Label next(this), if_source_too_large(this, Label::kDeferred);
 
   // TODO(pwong): Widen this fast path. See CopyElementsHandleFromTypedArray for
   // the corresponding check in runtime.
   TNode<Word32T> source_el_kind = LoadElementsKind(source);
   TNode<Word32T> target_el_kind = LoadElementsKind(target);
-  GotoIfNot(Word32Equal(source_el_kind, target_el_kind), if_not_same_type);
+  GotoIfNot(Word32Equal(source_el_kind, target_el_kind), call_runtime);
 
   TNode<IntPtrT> source_byte_length =
       LoadAndUntagObjectField(source, JSTypedArray::kByteLengthOffset);
@@ -773,29 +779,84 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(TNode<Context> context,
   TNode<IntPtrT> required_byte_length =
       IntPtrAdd(IntPtrMul(offset, source_el_size), source_byte_length);
   GotoIf(IntPtrGreaterThan(required_byte_length, target_byte_length),
-         &if_source_too_large);
+         if_source_too_large);
 
   // If source and target are the same TypedArray type.
+  TNode<IntPtrT> target_el_size = GetTypedArrayElementSize(target_el_kind);
+  TNode<IntPtrT> target_data_ptr = UncheckedCast<IntPtrT>(LoadDataPtr(target));
+  TNode<IntPtrT> source_data_ptr = UncheckedCast<IntPtrT>(LoadDataPtr(source));
+  TNode<IntPtrT> target_start =
+      IntPtrAdd(target_data_ptr, IntPtrMul(offset, target_el_size));
+  CallCMemmove(target_start, source_data_ptr, source_byte_length);
+}
+
+void TypedArrayBuiltinsAssembler::SetJSArraySource(
+    TNode<Context> context, TNode<JSArray> source, TNode<JSTypedArray> target,
+    TNode<IntPtrT> offset, Label* call_runtime, Label* if_source_too_large) {
+  CSA_ASSERT(this, IsFastJSArray(source, context));
+  CSA_ASSERT(this, IntPtrGreaterThanOrEqual(offset, IntPtrConstant(0)));
+  CSA_ASSERT(this,
+             IntPtrLessThanOrEqual(offset, IntPtrConstant(Smi::kMaxValue)));
+
+  TNode<IntPtrT> source_length = SmiUntag(LoadFastJSArrayLength(source));
+  TNode<IntPtrT> target_length =
+      LoadAndUntagObjectField(target, JSTypedArray::kLengthOffset);
+
+  // Maybe out of bounds?
+  GotoIf(IntPtrGreaterThan(IntPtrAdd(source_length, offset), target_length),
+         if_source_too_large);
+
+  // Nothing to do if {source} is empty.
+  Label out(this), fast_c_call(this);
+  GotoIf(IntPtrEqual(source_length, IntPtrConstant(0)), &out);
+
+  // Dispatch based on the source elements kind.
   {
-    TNode<ExternalReference> memmove =
-        ExternalConstant(ExternalReference::libc_memmove_function(isolate()));
-    TNode<IntPtrT> target_el_size = GetTypedArrayElementSize(target_el_kind);
-    TNode<IntPtrT> target_data_ptr =
-        UncheckedCast<IntPtrT>(LoadDataPtr(target));
-    TNode<IntPtrT> source_data_ptr =
-        UncheckedCast<IntPtrT>(LoadDataPtr(source));
-    TNode<IntPtrT> target_start =
-        IntPtrAdd(target_data_ptr, IntPtrMul(offset, target_el_size));
-    CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
-                   MachineType::Pointer(), MachineType::UintPtr(), memmove,
-                   target_start, source_data_ptr, source_byte_length);
-    Goto(&next);
+    // These are the supported elements kinds in TryCopyElementsFastNumber.
+    int32_t values[] = {
+        PACKED_SMI_ELEMENTS, HOLEY_SMI_ELEMENTS, PACKED_DOUBLE_ELEMENTS,
+        HOLEY_DOUBLE_ELEMENTS,
+    };
+    Label* labels[] = {
+        &fast_c_call, &fast_c_call, &fast_c_call, &fast_c_call,
+    };
+    STATIC_ASSERT(arraysize(values) == arraysize(labels));
+
+    TNode<Int32T> source_elements_kind = LoadMapElementsKind(LoadMap(source));
+    Switch(source_elements_kind, call_runtime, values, labels,
+           arraysize(values));
   }
 
-  BIND(&if_source_too_large);
-  ThrowRangeError(context, MessageTemplate::kTypedArraySetSourceTooLarge);
+  BIND(&fast_c_call);
+  CallCCopyFastNumberJSArrayElementsToTypedArray(context, source, target,
+                                                 source_length, offset);
+  Goto(&out);
+  BIND(&out);
+}
 
-  BIND(&next);
+void TypedArrayBuiltinsAssembler::CallCMemmove(TNode<IntPtrT> dest_ptr,
+                                               TNode<IntPtrT> src_ptr,
+                                               TNode<IntPtrT> byte_length) {
+  TNode<ExternalReference> memmove =
+      ExternalConstant(ExternalReference::libc_memmove_function(isolate()));
+  CallCFunction3(MachineType::AnyTagged(), MachineType::Pointer(),
+                 MachineType::Pointer(), MachineType::UintPtr(), memmove,
+                 dest_ptr, src_ptr, byte_length);
+}
+
+void TypedArrayBuiltinsAssembler::
+    CallCCopyFastNumberJSArrayElementsToTypedArray(TNode<Context> context,
+                                                   TNode<JSArray> source,
+                                                   TNode<JSTypedArray> dest,
+                                                   TNode<IntPtrT> source_length,
+                                                   TNode<IntPtrT> offset) {
+  TNode<ExternalReference> f = ExternalConstant(
+      ExternalReference::copy_fast_number_jsarray_elements_to_typed_array(
+          isolate()));
+  CallCFunction5(MachineType::AnyTagged(), MachineType::AnyTagged(),
+                 MachineType::AnyTagged(), MachineType::AnyTagged(),
+                 MachineType::UintPtr(), MachineType::UintPtr(), f, context,
+                 source, dest, source_length, offset);
 }
 
 // ES #sec-get-%typedarray%.prototype.set
@@ -804,7 +865,9 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   CodeStubArguments args(
       this, ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount)));
 
-  Label if_offset_is_out_of_bounds(this, Label::kDeferred),
+  Label if_source_is_typed_array(this), if_source_is_fast_jsarray(this),
+      if_offset_is_out_of_bounds(this, Label::kDeferred),
+      if_source_too_large(this, Label::kDeferred),
       if_receiver_is_neutered(this, Label::kDeferred),
       if_receiver_is_not_typedarray(this, Label::kDeferred);
 
@@ -833,22 +896,37 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   Label call_runtime(this);
   TNode<Object> source = args.GetOptionalArgumentValue(0);
   GotoIf(TaggedIsSmi(source), &call_runtime);
-  GotoIfNot(IsJSTypedArray(source), &call_runtime);
+  GotoIf(IsJSTypedArray(source), &if_source_is_typed_array);
+  BranchIfFastJSArray(source, context, &if_source_is_fast_jsarray,
+                      &call_runtime);
 
   // Fast path for a typed array source argument.
+  BIND(&if_source_is_typed_array);
   {
+    CSA_ASSERT(this, IsJSTypedArray(source));
     SetTypedArraySource(context, CAST(source), CAST(receiver),
-                        SmiUntag(offset_smi), &call_runtime);
+                        SmiUntag(offset_smi), &call_runtime,
+                        &if_source_too_large);
     args.PopAndReturn(UndefinedConstant());
   }
 
-  // TODO(pwong): This is an opportunity to add a fast path for fast JS Array.
+  // Fast path for a fast JSArray source argument.
+  BIND(&if_source_is_fast_jsarray);
+  {
+    SetJSArraySource(context, CAST(source), CAST(receiver),
+                     SmiUntag(offset_smi), &call_runtime, &if_source_too_large);
+    args.PopAndReturn(UndefinedConstant());
+  }
+
   BIND(&call_runtime);
   args.PopAndReturn(CallRuntime(Runtime::kTypedArraySet, context, receiver,
                                 source, offset_smi));
 
   BIND(&if_offset_is_out_of_bounds);
   ThrowRangeError(context, MessageTemplate::kTypedArraySetOffsetOutOfBounds);
+
+  BIND(&if_source_too_large);
+  ThrowRangeError(context, MessageTemplate::kTypedArraySetSourceTooLarge);
 
   BIND(&if_receiver_is_neutered);
   ThrowTypeError(context, MessageTemplate::kDetachedOperation,

@@ -270,6 +270,10 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "get_or_create_hash_raw");
   Add(ExternalReference::jsreceiver_create_identity_hash(isolate).address(),
       "jsreceiver_create_identity_hash");
+  Add(ExternalReference::copy_fast_number_jsarray_elements_to_typed_array(
+          isolate)
+          .address(),
+      "copy_fast_number_jsarray_elements_to_typed_array");
   Add(ExternalReference::log_enter_external_function(isolate).address(),
       "Logger::EnterExternal");
   Add(ExternalReference::log_leave_external_function(isolate).address(),

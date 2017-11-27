@@ -900,6 +900,7 @@ RUNTIME_FUNCTION(Runtime_GetWasmRecoveredTrapCount) {
     return isolate->heap()->ToBoolean(obj->Has##Name()); \
   }
 
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(SmiElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ObjectElements)
 ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(SmiOrObjectElements)

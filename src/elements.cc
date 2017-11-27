@@ -3269,23 +3269,27 @@ class TypedElementsAccessor
     }
   }
 
-  static bool HoleyPrototypeLookupRequired(Isolate* isolate,
-                                           Handle<JSArray> source) {
+  static bool HoleyPrototypeLookupRequired(Isolate* isolate, Context* context,
+                                           JSArray* source) {
+    DisallowHeapAllocation no_gc;
+    DisallowJavascriptExecution no_js(isolate);
+
     Object* source_proto = source->map()->prototype();
+
     // Null prototypes are OK - we don't need to do prototype chain lookups on
     // them.
     if (source_proto->IsNull(isolate)) return false;
     if (source_proto->IsJSProxy()) return true;
-    DCHECK(source_proto->IsJSObject());
-    if (!isolate->is_initial_array_prototype(JSObject::cast(source_proto))) {
+    if (!context->is_initial_array_prototype(JSObject::cast(source_proto))) {
       return true;
     }
-    return !isolate->IsNoElementsProtectorIntact();
+
+    return !isolate->IsNoElementsProtectorIntact(context);
   }
 
-  static bool TryCopyElementsHandleFastNumber(Handle<JSArray> source,
-                                              Handle<JSTypedArray> destination,
-                                              size_t length, uint32_t offset) {
+  static bool TryCopyElementsFastNumber(Context* context, JSArray* source,
+                                        JSTypedArray* destination,
+                                        size_t length, uint32_t offset) {
     Isolate* isolate = source->GetIsolate();
     DisallowHeapAllocation no_gc;
     DisallowJavascriptExecution no_js(isolate);
@@ -3298,7 +3302,7 @@ class TypedElementsAccessor
     // When the array has the original array prototype, and that prototype has
     // not been changed in a way that would affect lookups, we can just convert
     // the hole into undefined.
-    if (HoleyPrototypeLookupRequired(isolate, source)) return false;
+    if (HoleyPrototypeLookupRequired(isolate, context, source)) return false;
 
     Object* undefined = isolate->heap()->undefined_value();
 
@@ -3408,8 +3412,8 @@ class TypedElementsAccessor
     // Fast cases for packed numbers kinds where we don't need to allocate.
     if (source->IsJSArray()) {
       Handle<JSArray> source_array = Handle<JSArray>::cast(source);
-      if (TryCopyElementsHandleFastNumber(source_array, destination_ta, length,
-                                          offset)) {
+      if (TryCopyElementsFastNumber(isolate->context(), *source_array,
+                                    *destination_ta, length, offset)) {
         return *isolate->factory()->undefined_value();
       }
     }
@@ -4357,6 +4361,27 @@ MaybeHandle<Object> ArrayConstructInitializeElements(Handle<JSArray> array,
   return array;
 }
 
+void CopyFastNumberJSArrayElementsToTypedArray(Context* context,
+                                               JSArray* source,
+                                               JSTypedArray* destination,
+                                               uintptr_t length,
+                                               uintptr_t offset) {
+  DCHECK(context->IsContext());
+  DCHECK(source->IsJSArray());
+  DCHECK(destination->IsJSTypedArray());
+
+  switch (destination->GetElementsKind()) {
+#define TYPED_ARRAYS_CASE(Type, type, TYPE, ctype, size)                       \
+  case TYPE##_ELEMENTS:                                                        \
+    CHECK(Fixed##Type##ElementsAccessor::TryCopyElementsFastNumber(            \
+        context, source, destination, length, static_cast<uint32_t>(offset))); \
+    break;
+    TYPED_ARRAYS(TYPED_ARRAYS_CASE)
+#undef TYPED_ARRAYS_CASE
+    default:
+      UNREACHABLE();
+  }
+}
 
 void ElementsAccessor::InitializeOncePerProcess() {
   static ElementsAccessor* accessor_array[] = {

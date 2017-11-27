@@ -237,6 +237,14 @@ MUST_USE_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
     Handle<JSArray> array,
     Arguments* args);
 
+// Called directly from CSA.
+class JSTypedArray;
+void CopyFastNumberJSArrayElementsToTypedArray(Context* context,
+                                               JSArray* source,
+                                               JSTypedArray* destination,
+                                               uintptr_t length,
+                                               uintptr_t offset);
+
 }  // namespace internal
 }  // namespace v8
 

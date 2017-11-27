@@ -594,6 +594,7 @@ namespace internal {
   F(TraceExit, 1, 1)                          \
   F(HaveSameMap, 2, 1)                        \
   F(InNewSpace, 1, 1)                         \
+  F(HasFastElements, 1, 1)                    \
   F(HasSmiElements, 1, 1)                     \
   F(HasObjectElements, 1, 1)                  \
   F(HasSmiOrObjectElements, 1, 1)             \
