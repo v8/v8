@@ -429,7 +429,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
       invalid_offset_error(this, Label::kDeferred);
   Label offset_is_smi(this), offset_not_smi(this, Label::kDeferred),
       check_length(this), call_init(this), invalid_length(this),
-      length_undefined(this), length_defined(this);
+      length_undefined(this), length_defined(this), detached_error(this);
 
   GotoIf(IsUndefined(byte_offset), &check_length);
 
@@ -460,11 +460,11 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   }
 
   BIND(&check_length);
-  // TODO(petermarshall): Throw on detached typedArray.
   Branch(IsUndefined(length), &length_undefined, &length_defined);
 
   BIND(&length_undefined);
   {
+    GotoIf(IsDetachedBuffer(buffer), &detached_error);
     Node* buffer_byte_length =
         LoadObjectField(buffer, JSArrayBuffer::kByteLengthOffset);
 
@@ -486,6 +486,7 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
   BIND(&length_defined);
   {
     Node* new_length = ToSmiIndex(length, context, &invalid_length);
+    GotoIf(IsDetachedBuffer(buffer), &detached_error);
     new_byte_length.Bind(SmiMul(new_length, element_size));
     // Reading the byte length must come after the ToIndex operation, which
     // could cause the buffer to become detached.
@@ -545,6 +546,9 @@ TF_BUILTIN(TypedArrayConstructByArrayBuffer, TypedArrayBuiltinsAssembler) {
                 SmiConstant(MessageTemplate::kInvalidTypedArrayLength), length);
     Unreachable();
   }
+
+  BIND(&detached_error);
+  { ThrowTypeError(context, MessageTemplate::kDetachedOperation, "Construct"); }
 }
 
 Node* TypedArrayBuiltinsAssembler::LoadDataPtr(Node* typed_array) {
