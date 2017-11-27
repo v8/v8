@@ -639,28 +639,44 @@ function TestTypedArraySet() {
 
   // Detached array buffer when converting offset.
   {
-    const xs = new Int8Array(10);
-    let detached = false;
-    const offset = {
-      [Symbol.toPrimitive]() {
-        %ArrayBufferNeuter(xs.buffer);
-        detached = true;
-        return 0;
-      }
-    };
-    assertThrows(() => xs.set(xs, offset), TypeError);
-    assertEquals(true, detached);
+    for (const klass of typedArrayConstructors) {
+      const xs = new klass(10);
+      let detached = false;
+      const offset = {
+        [Symbol.toPrimitive]() {
+          %ArrayBufferNeuter(xs.buffer);
+          detached = true;
+          return 0;
+        }
+      };
+      assertThrows(() => xs.set(xs, offset), TypeError);
+      assertEquals(true, detached);
+    }
+  }
+
+  // Detached JSTypedArray source argument.
+  {
+    for (const klass of typedArrayConstructors) {
+      const a = new klass(2);
+      for (let i = 0; i < a.length; i++) a[i] = i;
+      %ArrayBufferNeuter(a.buffer);
+
+      const b = new klass(2);
+      assertThrows(() => b.set(a), TypeError);
+    }
   }
 
   // Various offset edge cases.
   {
-    const xs = new Int8Array(10);
-    assertThrows(() => xs.set(xs, -1), RangeError);
-    assertThrows(() => xs.set(xs, -1 * 2**64), RangeError);
-    xs.set(xs, -0.0);
-    xs.set(xs, 0.0);
-    xs.set(xs, 0.5);
-    assertThrows(() => xs.set(xs, 2**64), RangeError);
+    for (const klass of typedArrayConstructors) {
+      const xs = new klass(10);
+      assertThrows(() => xs.set(xs, -1), RangeError);
+      assertThrows(() => xs.set(xs, -1 * 2**64), RangeError);
+      xs.set(xs, -0.0);
+      xs.set(xs, 0.0);
+      xs.set(xs, 0.5);
+      assertThrows(() => xs.set(xs, 2**64), RangeError);
+    }
   }
 
   // Exhaustively test elements kind combinations with JSArray source arg.

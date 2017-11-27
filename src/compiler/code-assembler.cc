@@ -1184,6 +1184,15 @@ Node* CodeAssembler::CallCFunction3WithCallerSavedRegisters(
       mode);
 }
 
+Node* CodeAssembler::CallCFunction4(
+    MachineType return_type, MachineType arg0_type, MachineType arg1_type,
+    MachineType arg2_type, MachineType arg3_type, Node* function, Node* arg0,
+    Node* arg1, Node* arg2, Node* arg3) {
+  return raw_assembler()->CallCFunction4(return_type, arg0_type, arg1_type,
+                                         arg2_type, arg3_type, function, arg0,
+                                         arg1, arg2, arg3);
+}
+
 Node* CodeAssembler::CallCFunction5(
     MachineType return_type, MachineType arg0_type, MachineType arg1_type,
     MachineType arg2_type, MachineType arg3_type, MachineType arg4_type,

@@ -1439,6 +1439,12 @@ ExternalReference::copy_fast_number_jsarray_elements_to_typed_array(
       isolate, FUNCTION_ADDR(CopyFastNumberJSArrayElementsToTypedArray)));
 }
 
+ExternalReference ExternalReference::copy_typed_array_elements_to_typed_array(
+    Isolate* isolate) {
+  return ExternalReference(
+      Redirect(isolate, FUNCTION_ADDR(CopyTypedArrayElementsToTypedArray)));
+}
+
 ExternalReference ExternalReference::try_internalize_string_function(
     Isolate* isolate) {
   return ExternalReference(Redirect(

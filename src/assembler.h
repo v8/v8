@@ -990,6 +990,8 @@ class ExternalReference BASE_EMBEDDED {
 
   static ExternalReference copy_fast_number_jsarray_elements_to_typed_array(
       Isolate* isolate);
+  static ExternalReference copy_typed_array_elements_to_typed_array(
+      Isolate* isolate);
 
   static ExternalReference page_flags(Page* page);
 

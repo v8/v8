@@ -53,8 +53,7 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   TNode<IntPtrT> GetTypedArrayElementSize(TNode<Word32T> elements_kind);
 
   // Fast path for setting a TypedArray (source) onto another TypedArray
-  // (target) at an element offset. Currently, only handles when the source and
-  // target types match.
+  // (target) at an element offset.
   void SetTypedArraySource(TNode<Context> context, TNode<JSTypedArray> source,
                            TNode<JSTypedArray> target, TNode<IntPtrT> offset,
                            Label* call_runtime, Label* if_source_too_large);
@@ -69,6 +68,11 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   void CallCCopyFastNumberJSArrayElementsToTypedArray(
       TNode<Context> context, TNode<JSArray> source, TNode<JSTypedArray> dest,
       TNode<IntPtrT> source_length, TNode<IntPtrT> offset);
+
+  void CallCCopyTypedArrayElementsToTypedArray(TNode<JSTypedArray> source,
+                                               TNode<JSTypedArray> dest,
+                                               TNode<IntPtrT> source_length,
+                                               TNode<IntPtrT> offset);
 };
 
 Node* TypedArrayBuiltinsAssembler::LoadMapForType(Node* array) {
@@ -765,33 +769,84 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
     TNode<Context> context, TNode<JSTypedArray> source,
     TNode<JSTypedArray> target, TNode<IntPtrT> offset, Label* call_runtime,
     Label* if_source_too_large) {
+  CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(
+                       LoadObjectField(source, JSTypedArray::kBufferOffset))));
+  CSA_ASSERT(this, Word32BinaryNot(IsDetachedBuffer(
+                       LoadObjectField(target, JSTypedArray::kBufferOffset))));
   CSA_ASSERT(this, IntPtrGreaterThanOrEqual(offset, IntPtrConstant(0)));
   CSA_ASSERT(this,
              IntPtrLessThanOrEqual(offset, IntPtrConstant(Smi::kMaxValue)));
 
-  // TODO(pwong): Widen this fast path. See CopyElementsHandleFromTypedArray for
-  // the corresponding check in runtime.
-  TNode<Word32T> source_el_kind = LoadElementsKind(source);
-  TNode<Word32T> target_el_kind = LoadElementsKind(target);
-  GotoIfNot(Word32Equal(source_el_kind, target_el_kind), call_runtime);
+  // Check for possible range errors.
 
-  TNode<IntPtrT> source_byte_length =
-      LoadAndUntagObjectField(source, JSTypedArray::kByteLengthOffset);
-  TNode<IntPtrT> target_byte_length =
-      LoadAndUntagObjectField(target, JSTypedArray::kByteLengthOffset);
-  TNode<IntPtrT> source_el_size = GetTypedArrayElementSize(source_el_kind);
-  TNode<IntPtrT> required_byte_length =
-      IntPtrAdd(IntPtrMul(offset, source_el_size), source_byte_length);
-  GotoIf(IntPtrGreaterThan(required_byte_length, target_byte_length),
+  TNode<IntPtrT> source_length =
+      LoadAndUntagObjectField(source, JSTypedArray::kLengthOffset);
+  TNode<IntPtrT> target_length =
+      LoadAndUntagObjectField(target, JSTypedArray::kLengthOffset);
+  TNode<IntPtrT> required_target_length = IntPtrAdd(source_length, offset);
+
+  GotoIf(IntPtrGreaterThan(required_target_length, target_length),
          if_source_too_large);
 
-  // If source and target are the same TypedArray type.
-  TNode<IntPtrT> target_el_size = GetTypedArrayElementSize(target_el_kind);
+  // Grab pointers and byte lengths we need later on.
+
   TNode<IntPtrT> target_data_ptr = UncheckedCast<IntPtrT>(LoadDataPtr(target));
   TNode<IntPtrT> source_data_ptr = UncheckedCast<IntPtrT>(LoadDataPtr(source));
-  TNode<IntPtrT> target_start =
-      IntPtrAdd(target_data_ptr, IntPtrMul(offset, target_el_size));
-  CallCMemmove(target_start, source_data_ptr, source_byte_length);
+
+  TNode<Word32T> source_el_kind = LoadElementsKind(source);
+  TNode<Word32T> target_el_kind = LoadElementsKind(target);
+
+  TNode<IntPtrT> source_el_size = GetTypedArrayElementSize(source_el_kind);
+  TNode<IntPtrT> target_el_size = GetTypedArrayElementSize(target_el_kind);
+
+  // A note on byte lengths: both source- and target byte lengths must be valid,
+  // i.e. it must be possible to allocate an array of the given length. That
+  // means we're safe from overflows in the following multiplication.
+  TNode<IntPtrT> source_byte_length = IntPtrMul(source_length, source_el_size);
+  CSA_ASSERT(this,
+             IntPtrGreaterThanOrEqual(source_byte_length, IntPtrConstant(0)));
+
+  Label call_memmove(this), fast_c_call(this), out(this);
+  Branch(Word32Equal(source_el_kind, target_el_kind), &call_memmove,
+         &fast_c_call);
+
+  BIND(&call_memmove);
+  {
+    TNode<IntPtrT> target_start =
+        IntPtrAdd(target_data_ptr, IntPtrMul(offset, target_el_size));
+    CallCMemmove(target_start, source_data_ptr, source_byte_length);
+    Goto(&out);
+  }
+
+  BIND(&fast_c_call);
+  {
+    // Overlapping backing stores of different element kinds are handled in
+    // runtime. We're a bit conservative here and bail to runtime if ranges
+    // overlap and element kinds differ.
+
+    TNode<IntPtrT> target_byte_length =
+        IntPtrMul(target_length, target_el_size);
+    CSA_ASSERT(this,
+               IntPtrGreaterThanOrEqual(target_byte_length, IntPtrConstant(0)));
+
+    TNode<IntPtrT> target_data_end_ptr =
+        IntPtrAdd(target_data_ptr, target_byte_length);
+    TNode<IntPtrT> source_data_end_ptr =
+        IntPtrAdd(source_data_ptr, source_byte_length);
+
+    GotoIfNot(
+        Word32Or(IntPtrLessThanOrEqual(target_data_end_ptr, source_data_ptr),
+                 IntPtrLessThanOrEqual(source_data_end_ptr, target_data_ptr)),
+        call_runtime);
+
+    TNode<IntPtrT> source_length =
+        LoadAndUntagObjectField(source, JSTypedArray::kLengthOffset);
+    CallCCopyTypedArrayElementsToTypedArray(source, target, source_length,
+                                            offset);
+    Goto(&out);
+  }
+
+  BIND(&out);
 }
 
 void TypedArrayBuiltinsAssembler::SetJSArraySource(
@@ -863,6 +918,17 @@ void TypedArrayBuiltinsAssembler::
                  source, dest, source_length, offset);
 }
 
+void TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsToTypedArray(
+    TNode<JSTypedArray> source, TNode<JSTypedArray> dest,
+    TNode<IntPtrT> source_length, TNode<IntPtrT> offset) {
+  TNode<ExternalReference> f = ExternalConstant(
+      ExternalReference::copy_typed_array_elements_to_typed_array(isolate()));
+  CallCFunction4(MachineType::AnyTagged(), MachineType::AnyTagged(),
+                 MachineType::AnyTagged(), MachineType::UintPtr(),
+                 MachineType::UintPtr(), f, source, dest, source_length,
+                 offset);
+}
+
 // ES #sec-get-%typedarray%.prototype.set
 TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   TNode<Context> context = CAST(Parameter(BuiltinDescriptor::kContext));
@@ -872,7 +938,7 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   Label if_source_is_typed_array(this), if_source_is_fast_jsarray(this),
       if_offset_is_out_of_bounds(this, Label::kDeferred),
       if_source_too_large(this, Label::kDeferred),
-      if_receiver_is_neutered(this, Label::kDeferred),
+      if_typed_array_is_neutered(this, Label::kDeferred),
       if_receiver_is_not_typedarray(this, Label::kDeferred);
 
   // Check the receiver is a typed array.
@@ -888,13 +954,17 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   // Since ToInteger always returns a Smi if the given value is within Smi
   // range, and the only corner case of -0.0 has already been truncated to 0.0,
   // we can simply throw unless the offset is a non-negative Smi.
+  // TODO(jgruber): It's an observable spec violation to throw here if
+  // {offset_num} is a positive number outside the Smi range. Per spec, we need
+  // to check for detached buffers and call the observable ToObject/ToLength
+  // operations first.
   GotoIfNot(TaggedIsPositiveSmi(offset_num), &if_offset_is_out_of_bounds);
   TNode<Smi> offset_smi = CAST(offset_num);
 
   // Check the receiver is not neutered.
   TNode<Object> receiver_buffer =
       LoadObjectField(CAST(receiver), JSTypedArray::kBufferOffset);
-  GotoIf(IsDetachedBuffer(receiver_buffer), &if_receiver_is_neutered);
+  GotoIf(IsDetachedBuffer(receiver_buffer), &if_typed_array_is_neutered);
 
   // Check the source argument is valid and whether a fast path can be taken.
   Label call_runtime(this);
@@ -907,7 +977,11 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   // Fast path for a typed array source argument.
   BIND(&if_source_is_typed_array);
   {
-    CSA_ASSERT(this, IsJSTypedArray(source));
+    // Check the source argument is not neutered.
+    TNode<Object> source_buffer =
+        LoadObjectField(CAST(source), JSTypedArray::kBufferOffset);
+    GotoIf(IsDetachedBuffer(source_buffer), &if_typed_array_is_neutered);
+
     SetTypedArraySource(context, CAST(source), CAST(receiver),
                         SmiUntag(offset_smi), &call_runtime,
                         &if_source_too_large);
@@ -932,7 +1006,7 @@ TF_BUILTIN(TypedArrayPrototypeSet, TypedArrayBuiltinsAssembler) {
   BIND(&if_source_too_large);
   ThrowRangeError(context, MessageTemplate::kTypedArraySetSourceTooLarge);
 
-  BIND(&if_receiver_is_neutered);
+  BIND(&if_typed_array_is_neutered);
   ThrowTypeError(context, MessageTemplate::kDetachedOperation,
                  "%TypedArray%.prototype.set");
 

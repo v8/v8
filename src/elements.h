@@ -244,6 +244,9 @@ void CopyFastNumberJSArrayElementsToTypedArray(Context* context,
                                                JSTypedArray* destination,
                                                uintptr_t length,
                                                uintptr_t offset);
+void CopyTypedArrayElementsToTypedArray(JSTypedArray* source,
+                                        JSTypedArray* destination,
+                                        uintptr_t length, uintptr_t offset);
 
 }  // namespace internal
 }  // namespace v8
