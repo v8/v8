@@ -63,6 +63,10 @@
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
+#ifndef MADV_FREE
+#define MADV_FREE MADV_DONTNEED
+#endif
+
 namespace v8 {
 namespace base {
 
@@ -104,24 +108,45 @@ int GetProtectionFromMemoryPermission(OS::MemoryPermission access) {
   UNREACHABLE();
 }
 
-void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
-  const size_t actual_size = RoundUp(size, OS::AllocatePageSize());
-  int prot = GetProtectionFromMemoryPermission(access);
+int GetFlagsForMemoryPermission(OS::MemoryPermission access) {
   int flags = MAP_PRIVATE | MAP_ANONYMOUS;
   if (access == OS::MemoryPermission::kNoAccess) {
-// TODO(bbudge) Improve readability by moving platform specific code into
-// helper functions.
 #if !V8_OS_AIX && !V8_OS_FREEBSD && !V8_OS_QNX
     flags |= MAP_NORESERVE;
-#endif
+#endif  // !V8_OS_AIX && !V8_OS_FREEBSD && !V8_OS_QNX
 #if V8_OS_QNX
     flags |= MAP_LAZY;
 #endif  // V8_OS_QNX
   }
+  return flags;
+}
+
+void* Allocate(void* address, size_t size, OS::MemoryPermission access) {
+  const size_t actual_size = RoundUp(size, OS::AllocatePageSize());
+  int prot = GetProtectionFromMemoryPermission(access);
+  int flags = GetFlagsForMemoryPermission(access);
   void* result =
       mmap(address, actual_size, prot, flags, kMmapFd, kMmapFdOffset);
   if (result == MAP_FAILED) return nullptr;
   return result;
+}
+
+int ReclaimInaccessibleMemory(void* address, size_t size) {
+#if defined(OS_MACOSX)
+  // On OSX, MADV_FREE_REUSABLE has comparable behavior to MADV_FREE, but also
+  // marks the pages with the reusable bit, which allows both Activity Monitor
+  // and memory-infra to correctly track the pages.
+  int ret = madvise(address, size, MADV_FREE_REUSABLE);
+#else
+  int ret = madvise(address, size, MADV_FREE);
+#endif
+  if (ret != 0 && errno == EINVAL) {
+    // MADV_FREE only works on Linux 4.5+ . If request failed, retry with older
+    // MADV_DONTNEED . Note that MADV_FREE being defined at compile time doesn't
+    // imply runtime support.
+    ret = madvise(address, size, MADV_DONTNEED);
+  }
+  return ret;
 }
 
 #endif  // !V8_OS_FUCHSIA
@@ -286,8 +311,13 @@ bool OS::Release(void* address, size_t size) {
 bool OS::SetPermissions(void* address, size_t size, MemoryPermission access) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
+
   int prot = GetProtectionFromMemoryPermission(access);
-  return mprotect(address, size, prot) == 0;
+  int ret = mprotect(address, size, prot);
+  if (ret == 0 && access == OS::MemoryPermission::kNoAccess) {
+    ret = ReclaimInaccessibleMemory(address, size);
+  }
+  return ret == 0;
 }
 
 // static
@@ -819,6 +849,7 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 
 #undef LOG_TAG
 #undef MAP_ANONYMOUS
+#undef MADV_FREE
 
 }  // namespace base
 }  // namespace v8
