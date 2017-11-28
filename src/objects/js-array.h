@@ -225,7 +225,7 @@ class JSArrayBuffer : public JSObject {
 #if V8_TARGET_LITTLE_ENDIAN || !V8_HOST_ARCH_64_BIT
   static const int kBitFieldOffset = kBitFieldSlot;
 #else
-  static const int kBitFieldOffset = kBitFieldSlot + kIntSize;
+  static const int kBitFieldOffset = kBitFieldSlot + kInt32Size;
 #endif
   static const int kSize = kBitFieldSlot + kPointerSize;
 

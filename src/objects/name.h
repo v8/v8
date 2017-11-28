@@ -65,7 +65,7 @@ class Name : public HeapObject {
 #if V8_TARGET_LITTLE_ENDIAN || !V8_HOST_ARCH_64_BIT
   static const int kHashFieldOffset = kHashFieldSlot;
 #else
-  static const int kHashFieldOffset = kHashFieldSlot + kIntSize;
+  static const int kHashFieldOffset = kHashFieldSlot + kInt32Size;
 #endif
   static const int kSize = kHashFieldSlot + kPointerSize;
 
