@@ -183,21 +183,6 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
                                          wasm::FunctionSig* sig,
                                          Handle<WasmInstanceObject> instance);
 
-// Attach function information in the form of deoptimization data to the given
-// code object. This information will be used for generating stack traces,
-// calling imported functions in the interpreter, knowing which function to
-// compile in a lazy compile stub, and more. The deopt data will be a newly
-// allocated FixedArray of length 2, where the first element is a WeakCell
-// containing the WasmInstanceObject, and the second element is the function
-// index.
-// If calling this method repeatedly for the same instance, pass a WeakCell
-// directly in order to avoid creating many cells pointing to the same instance.
-void AttachWasmFunctionInfo(Isolate*, Handle<Code>,
-                            MaybeHandle<WeakCell> weak_instance,
-                            int func_index);
-void AttachWasmFunctionInfo(Isolate*, Handle<Code>,
-                            MaybeHandle<WasmInstanceObject>, int func_index);
-
 enum CWasmEntryParameters {
   kCodeObject,
   kArgumentsBuffer,

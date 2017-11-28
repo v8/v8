@@ -2406,17 +2406,13 @@ class ThreadImpl {
 
     if (code->kind() == Code::WASM_FUNCTION ||
         code->kind() == Code::WASM_TO_WASM_FUNCTION) {
-      FixedArray* deopt_data = code->deoptimization_data();
-      DCHECK_EQ(2, deopt_data->length());
-      WasmInstanceObject* target_instance =
-          WasmInstanceObject::cast(WeakCell::cast(deopt_data->get(0))->value());
-      if (target_instance != codemap()->instance()) {
+      auto func_info = GetWasmFunctionInfo(isolate, code);
+      if (*func_info.instance.ToHandleChecked() != codemap()->instance()) {
         return CallExternalWasmFunction(isolate, code, signature);
       }
-      int target_func_idx = Smi::ToInt(deopt_data->get(1));
-      DCHECK_LE(0, target_func_idx);
+      DCHECK_LE(0, func_info.func_index);
       return {ExternalCallResult::INTERNAL,
-              codemap()->GetCode(target_func_idx)};
+              codemap()->GetCode(func_info.func_index)};
     }
 
     return CallExternalJSFunction(isolate, code, signature);

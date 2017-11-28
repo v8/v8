@@ -310,7 +310,7 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
         func_index, new_context_address);
     // TODO(6792): No longer needed once WebAssembly code is off heap.
     CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-    compiler::AttachWasmFunctionInfo(isolate, code, instance, func_index);
+    AttachWasmFunctionInfo(isolate, code, instance, func_index);
   }
 
   UpdateDispatchTables(isolate, dispatch_tables, index, wasm_function, code);
@@ -1606,6 +1606,46 @@ Handle<Code> WasmCompiledModule::CompileLazy(
       Managed<wasm::LazyCompilationOrchestrator>::cast(orch_obj)->get();
   return orch->CompileLazy(isolate, instance, caller, offset, func_index,
                            patch_caller);
+}
+
+void AttachWasmFunctionInfo(Isolate* isolate, Handle<Code> code,
+                            MaybeHandle<WeakCell> weak_instance,
+                            int func_index) {
+  DCHECK(weak_instance.is_null() ||
+         weak_instance.ToHandleChecked()->value()->IsWasmInstanceObject());
+  Handle<FixedArray> deopt_data = isolate->factory()->NewFixedArray(2, TENURED);
+  if (!weak_instance.is_null()) {
+    // TODO(wasm): Introduce constants for the indexes in wasm deopt data.
+    deopt_data->set(0, *weak_instance.ToHandleChecked());
+  }
+  deopt_data->set(1, Smi::FromInt(func_index));
+
+  code->set_deoptimization_data(*deopt_data);
+}
+
+void AttachWasmFunctionInfo(Isolate* isolate, Handle<Code> code,
+                            MaybeHandle<WasmInstanceObject> instance,
+                            int func_index) {
+  MaybeHandle<WeakCell> weak_instance;
+  if (!instance.is_null()) {
+    weak_instance = isolate->factory()->NewWeakCell(instance.ToHandleChecked());
+  }
+  AttachWasmFunctionInfo(isolate, code, weak_instance, func_index);
+}
+
+WasmFunctionInfo GetWasmFunctionInfo(Isolate* isolate, Handle<Code> code) {
+  FixedArray* deopt_data = code->deoptimization_data();
+  DCHECK_LE(2, deopt_data->length());
+  MaybeHandle<WasmInstanceObject> instance;
+  Object* maybe_weak_instance = deopt_data->get(0);
+  if (maybe_weak_instance->IsWeakCell()) {
+    Object* maybe_instance = WeakCell::cast(maybe_weak_instance)->value();
+    if (maybe_instance) {
+      instance = handle(WasmInstanceObject::cast(maybe_instance), isolate);
+    }
+  }
+  int func_index = Smi::ToInt(deopt_data->get(1));
+  return {instance, func_index};
 }
 
 #undef TRACE

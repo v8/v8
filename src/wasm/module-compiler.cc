@@ -632,11 +632,10 @@ Handle<Code> CompileLazy(Isolate* isolate) {
   // instance and function index. Otherwise this must be a wasm->wasm call
   // within one instance, so extract the information from the caller.
   if (lazy_compile_code->deoptimization_data()->length() > 0) {
-    DCHECK_LE(2, lazy_compile_code->deoptimization_data()->length());
     exp_deopt_data = handle(lazy_compile_code->deoptimization_data(), isolate);
-    auto* weak_cell = WeakCell::cast(exp_deopt_data->get(0));
-    instance = handle(WasmInstanceObject::cast(weak_cell->value()), isolate);
-    func_index = Smi::ToInt(exp_deopt_data->get(1));
+    auto func_info = GetWasmFunctionInfo(isolate, lazy_compile_code);
+    instance = func_info.instance.ToHandleChecked();
+    func_index = func_info.func_index;
   }
   it.Advance();
   // Third frame: The calling wasm code or js-to-wasm wrapper.
@@ -766,7 +765,7 @@ void LazyCompilationOrchestrator::CompileFunction(
   CHECK(!thrower.error());
   Handle<Code> code = maybe_code.ToHandleChecked();
 
-  compiler::AttachWasmFunctionInfo(isolate, code, instance, func_index);
+  AttachWasmFunctionInfo(isolate, code, instance, func_index);
 
   DCHECK_EQ(Builtins::kWasmCompileLazy,
             Code::cast(compiled_module->code_table()->get(func_index))
@@ -828,18 +827,15 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
     DisallowHeapAllocation no_gc;
     SourcePositionTableIterator source_pos_iterator(
         caller->SourcePositionTable());
-    DCHECK_EQ(2, caller->deoptimization_data()->length());
-    Handle<WeakCell> weak_caller_instance(
-        WeakCell::cast(caller->deoptimization_data()->get(0)), isolate);
-    Handle<WasmInstanceObject> caller_instance(
-        WasmInstanceObject::cast(weak_caller_instance->value()), isolate);
-    Handle<WasmCompiledModule> caller_module(caller_instance->compiled_module(),
-                                             isolate);
+    auto caller_func_info = GetWasmFunctionInfo(isolate, caller);
+    Handle<WasmCompiledModule> caller_module(
+        caller_func_info.instance.ToHandleChecked()->compiled_module(),
+        isolate);
     SeqOneByteString* module_bytes = caller_module->module_bytes();
-    int caller_func_index = Smi::ToInt(caller->deoptimization_data()->get(1));
     const byte* func_bytes =
-        module_bytes->GetChars() +
-        caller_module->module()->functions[caller_func_index].code.offset();
+        module_bytes->GetChars() + caller_module->module()
+                                       ->functions[caller_func_info.func_index]
+                                       .code.offset();
     for (RelocIterator it(*caller, RelocInfo::kCodeTargetMask); !it.done();
          it.next()) {
       Code* callee =
@@ -1290,12 +1286,14 @@ Handle<Code> EnsureExportedLazyDeoptData(Isolate* isolate,
   if (code->deoptimization_data()->length() == 0) {
     code = isolate->factory()->CopyCode(code);
     code_table->set(func_index, *code);
-    compiler::AttachWasmFunctionInfo(isolate, code, instance, func_index);
+    AttachWasmFunctionInfo(isolate, code, instance, func_index);
   }
+#ifdef DEBUG
+  auto func_info = GetWasmFunctionInfo(isolate, code);
   DCHECK_IMPLIES(!instance.is_null(),
-                 WeakCell::cast(code->deoptimization_data()->get(0))->value() ==
-                     *instance);
-  DCHECK_EQ(func_index, Smi::ToInt(code->deoptimization_data()->get(1)));
+                 *func_info.instance.ToHandleChecked() == *instance);
+  DCHECK_EQ(func_index, func_info.func_index);
+#endif
   return code;
 }
 
@@ -1377,8 +1375,8 @@ Handle<Code> MakeWasmToWasmWrapper(
   // Set the deoptimization data for the WasmToWasm wrapper. This is
   // needed by the interpreter to find the imported instance for
   // a cross-instance call.
-  compiler::AttachWasmFunctionInfo(isolate, wrapper_code, imported_instance,
-                                   imported_function->function_index());
+  AttachWasmFunctionInfo(isolate, wrapper_code, imported_instance,
+                         imported_function->function_index());
   return wrapper_code;
 }
 
@@ -1707,8 +1705,8 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
             // unique copy to attach updated deoptimization data.
             if (orig_code->deoptimization_data()->length() > 0) {
               Handle<Code> code = factory->CopyCode(orig_code);
-              compiler::AttachWasmFunctionInfo(isolate_, code,
-                                               Handle<WasmInstanceObject>(), i);
+              AttachWasmFunctionInfo(isolate_, code,
+                                     Handle<WasmInstanceObject>(), i);
               code_table->set(i, *code);
             }
             break;
@@ -1886,7 +1884,7 @@ MaybeHandle<WasmInstanceObject> InstanceBuilder::Build() {
        i < num_functions; ++i) {
     Handle<Code> code = handle(Code::cast(code_table->get(i)), isolate_);
     if (code->kind() == Code::WASM_FUNCTION) {
-      compiler::AttachWasmFunctionInfo(isolate_, code, weak_link, i);
+      AttachWasmFunctionInfo(isolate_, code, weak_link, i);
       continue;
     }
     DCHECK_EQ(Builtins::kWasmCompileLazy, code->builtin_index());

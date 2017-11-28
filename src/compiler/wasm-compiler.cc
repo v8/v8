@@ -4320,31 +4320,6 @@ void ValidateImportWrapperReferencesImmovables(Handle<Code> wrapper) {
 
 }  // namespace
 
-void AttachWasmFunctionInfo(Isolate* isolate, Handle<Code> code,
-                            MaybeHandle<WeakCell> weak_instance,
-                            int func_index) {
-  DCHECK(weak_instance.is_null() ||
-         weak_instance.ToHandleChecked()->value()->IsWasmInstanceObject());
-  Handle<FixedArray> deopt_data = isolate->factory()->NewFixedArray(2, TENURED);
-  if (!weak_instance.is_null()) {
-    // TODO(wasm): Introduce constants for the indexes in wasm deopt data.
-    deopt_data->set(0, *weak_instance.ToHandleChecked());
-  }
-  deopt_data->set(1, Smi::FromInt(func_index));
-
-  code->set_deoptimization_data(*deopt_data);
-}
-
-void AttachWasmFunctionInfo(Isolate* isolate, Handle<Code> code,
-                            MaybeHandle<WasmInstanceObject> instance,
-                            int func_index) {
-  MaybeHandle<WeakCell> weak_instance;
-  if (!instance.is_null()) {
-    weak_instance = isolate->factory()->NewWeakCell(instance.ToHandleChecked());
-  }
-  AttachWasmFunctionInfo(isolate, code, weak_instance, func_index);
-}
-
 Handle<Code> CompileWasmToJSWrapper(
     Isolate* isolate, Handle<JSReceiver> target, wasm::FunctionSig* sig,
     uint32_t index, wasm::ModuleOrigin origin,
