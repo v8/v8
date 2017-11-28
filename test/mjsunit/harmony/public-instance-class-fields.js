@@ -649,3 +649,28 @@ x();
   assertEquals(1, obj.x);
   assertEquals(2, klass.x);
 }
+
+{
+  new class {
+    t = 1;
+    constructor(t = this.t) {
+      assertEquals(1, t);
+    }
+  }
+
+  new class extends class {} {
+    t = 1;
+    constructor(t = (super(), this.t)) {
+      assertEquals(1, t);
+    }
+  }
+
+  assertThrows(() => {
+    new class extends class {} {
+      t = 1;
+      constructor(t = this.t) {
+        super();
+      }
+    }
+  }, ReferenceError);
+}
