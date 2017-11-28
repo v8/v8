@@ -278,7 +278,7 @@ class ParserBase {
         allow_natives_(false),
         allow_harmony_do_expressions_(false),
         allow_harmony_function_sent_(false),
-        allow_harmony_class_fields_(false),
+        allow_harmony_public_fields_(false),
         allow_harmony_dynamic_import_(false),
         allow_harmony_import_meta_(false),
         allow_harmony_async_iteration_(false),
@@ -291,7 +291,7 @@ class ParserBase {
   ALLOW_ACCESSORS(natives);
   ALLOW_ACCESSORS(harmony_do_expressions);
   ALLOW_ACCESSORS(harmony_function_sent);
-  ALLOW_ACCESSORS(harmony_class_fields);
+  ALLOW_ACCESSORS(harmony_public_fields);
   ALLOW_ACCESSORS(harmony_dynamic_import);
   ALLOW_ACCESSORS(harmony_import_meta);
   ALLOW_ACCESSORS(harmony_async_iteration);
@@ -1534,7 +1534,7 @@ class ParserBase {
   bool allow_natives_;
   bool allow_harmony_do_expressions_;
   bool allow_harmony_function_sent_;
-  bool allow_harmony_class_fields_;
+  bool allow_harmony_public_fields_;
   bool allow_harmony_dynamic_import_;
   bool allow_harmony_import_meta_;
   bool allow_harmony_async_iteration_;
@@ -2314,7 +2314,7 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
                                  // as an uninitialized field.
     case PropertyKind::kShorthandProperty:
     case PropertyKind::kValueProperty:
-      if (allow_harmony_class_fields()) {
+      if (allow_harmony_public_fields()) {
         *property_kind = ClassLiteralProperty::FIELD;
         ExpressionT initializer = ParseClassFieldInitializer(
             class_info, *is_static, CHECK_OK_CUSTOM(NullLiteralProperty));

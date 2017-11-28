@@ -1314,7 +1314,7 @@ enum ParserFlag {
   kAllowLazy,
   kAllowNatives,
   kAllowHarmonyFunctionSent,
-  kAllowHarmonyClassFields,
+  kAllowHarmonyPublicFields,
   kAllowHarmonyDynamicImport,
   kAllowHarmonyAsyncIteration,
   kAllowHarmonyTemplateEscapes,
@@ -1330,7 +1330,7 @@ enum ParserSyncTestResult {
 void SetGlobalFlags(i::EnumSet<ParserFlag> flags) {
   i::FLAG_allow_natives_syntax = flags.Contains(kAllowNatives);
   i::FLAG_harmony_function_sent = flags.Contains(kAllowHarmonyFunctionSent);
-  i::FLAG_harmony_class_fields = flags.Contains(kAllowHarmonyClassFields);
+  i::FLAG_harmony_public_fields = flags.Contains(kAllowHarmonyPublicFields);
   i::FLAG_harmony_dynamic_import = flags.Contains(kAllowHarmonyDynamicImport);
   i::FLAG_harmony_import_meta = flags.Contains(kAllowHarmonyImportMeta);
   i::FLAG_harmony_async_iteration = flags.Contains(kAllowHarmonyAsyncIteration);
@@ -1342,8 +1342,8 @@ void SetParserFlags(i::PreParser* parser, i::EnumSet<ParserFlag> flags) {
   parser->set_allow_natives(flags.Contains(kAllowNatives));
   parser->set_allow_harmony_function_sent(
       flags.Contains(kAllowHarmonyFunctionSent));
-  parser->set_allow_harmony_class_fields(
-      flags.Contains(kAllowHarmonyClassFields));
+  parser->set_allow_harmony_public_fields(
+      flags.Contains(kAllowHarmonyPublicFields));
   parser->set_allow_harmony_dynamic_import(
       flags.Contains(kAllowHarmonyDynamicImport));
   parser->set_allow_harmony_import_meta(
@@ -4809,7 +4809,7 @@ TEST(ClassFieldsNoErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyClassFields};
+  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields};
   RunParserSyncTest(context_data, class_body_data, kSuccess, nullptr, 0,
                     always_flags, arraysize(always_flags));
 }
@@ -4850,7 +4850,7 @@ TEST(ClassFieldsErrors) {
   };
   // clang-format on
 
-  static const ParserFlag always_flags[] = {kAllowHarmonyClassFields};
+  static const ParserFlag always_flags[] = {kAllowHarmonyPublicFields};
   RunParserSyncTest(context_data, class_body_data, kError, nullptr, 0,
                     always_flags, arraysize(always_flags));
 }

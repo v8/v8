@@ -4,7 +4,7 @@
 
 ---
 wrap: yes
-class fields: yes
+public fields: yes
 
 ---
 snippet: "
