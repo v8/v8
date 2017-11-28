@@ -314,4 +314,17 @@ typedef base::CustomMatcherTemplateHashMapImpl<ZoneAllocationPolicy>
 }  // namespace internal
 }  // namespace v8
 
+// The accidential pattern
+//    new (zone) SomeObject()
+// where SomeObject does not inherit from ZoneObject leads to nasty crashes.
+// This triggers a compile-time error instead.
+template <class T, typename = typename std::enable_if<std::is_convertible<
+                       T, const v8::internal::Zone*>::value>::type>
+void* operator new(size_t size, T zone) {
+  static_assert(false && sizeof(T),
+                "Placement new with a zone is only permitted for classes "
+                "inheriting from ZoneObject");
+  UNREACHABLE();
+}
+
 #endif  // V8_ZONE_ZONE_H_
