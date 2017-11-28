@@ -107,11 +107,16 @@ TEST(PreParserScopeAnalysis) {
     Inner(const char* p, const char* s, SkipTests skip, Bailout bailout)
         : params(p), source(s), skip(skip), bailout(bailout) {}
 
+    Inner(const char* s, std::function<void()> p, std::function<void()> e)
+        : source(s), prologue(p), epilogue(e) {}
+
     const char* params = "";
     const char* source;
     SkipTests skip = DONT_SKIP;
     PreciseMaybeAssigned precise_maybe_assigned = PreciseMaybeAssigned::YES;
     Bailout bailout = Bailout::NO;
+    std::function<void()> prologue = nullptr;
+    std::function<void()> epilogue = nullptr;
   } inners[] = {
       // Simple cases
       {"var1;"},
@@ -650,6 +655,16 @@ TEST(PreParserScopeAnalysis) {
       {"class MyClass extends MyBase { static m() { var var1 = 11; } }"},
       {"class MyClass extends MyBase { static m() { var var1; function foo() { "
        "var1 = 11; } } }"},
+
+      {"class X { ['bar'] = 1; }; new X;",
+       [] { i::FLAG_harmony_public_fields = true; },
+       [] { i::FLAG_harmony_public_fields = false; }},
+      {"class X { static ['foo'] = 2; }; new X;",
+       [] { i::FLAG_harmony_public_fields = true; },
+       [] { i::FLAG_harmony_public_fields = false; }},
+      {"class X { ['bar'] = 1; static ['foo'] = 2; }; new X;",
+       [] { i::FLAG_harmony_public_fields = true; },
+       [] { i::FLAG_harmony_public_fields = false; }},
   };
 
   for (unsigned outer_ix = 0; outer_ix < arraysize(outers); ++outer_ix) {
@@ -672,6 +687,10 @@ TEST(PreParserScopeAnalysis) {
       int params_len = Utf8LengthHelper(inners[inner_ix].params);
       int source_len = Utf8LengthHelper(inners[inner_ix].source);
       int len = code_len + params_len + source_len;
+
+      if (inners[inner_ix].prologue != nullptr) {
+        inners[inner_ix].prologue();
+      }
 
       i::ScopedVector<char> program(len + 1);
       i::SNPrintF(program, code, inners[inner_ix].params,
@@ -736,6 +755,10 @@ TEST(PreParserScopeAnalysis) {
       i::ScopeTestHelper::CompareScopes(
           scope_without_skipped_functions, scope_with_skipped_functions,
           inners[inner_ix].precise_maybe_assigned == PreciseMaybeAssigned::YES);
+
+      if (inners[inner_ix].epilogue != nullptr) {
+        inners[inner_ix].epilogue();
+      }
     }
   }
 }
