@@ -1433,6 +1433,7 @@ class ParserBase {
     void CheckClassMethodName(Token::Value property, PropertyKind type,
                               bool is_generator, bool is_async, bool is_static,
                               bool* ok);
+    void CheckClassFieldName(bool is_static, bool* ok);
 
    private:
     bool IsConstructor() {
@@ -2316,6 +2317,10 @@ ParserBase<Impl>::ParseClassPropertyDefinition(
     case PropertyKind::kValueProperty:
       if (allow_harmony_public_fields()) {
         *property_kind = ClassLiteralProperty::FIELD;
+        if (!*is_computed_name) {
+          checker->CheckClassFieldName(*is_static,
+                                       CHECK_OK_CUSTOM(NullLiteralProperty));
+        }
         ExpressionT initializer = ParseClassFieldInitializer(
             class_info, *is_static, CHECK_OK_CUSTOM(NullLiteralProperty));
         ExpectSemicolon(CHECK_OK_CUSTOM(NullLiteralProperty));
@@ -6137,6 +6142,22 @@ void ParserBase<Impl>::ClassLiteralChecker::CheckClassMethodName(
       return;
     }
     has_seen_constructor_ = true;
+    return;
+  }
+}
+
+template <typename Impl>
+void ParserBase<Impl>::ClassLiteralChecker::CheckClassFieldName(bool is_static,
+                                                                bool* ok) {
+  if (is_static && IsPrototype()) {
+    this->parser()->ReportMessage(MessageTemplate::kStaticPrototype);
+    *ok = false;
+    return;
+  }
+
+  if (IsConstructor()) {
+    this->parser()->ReportMessage(MessageTemplate::kConstructorClassField);
+    *ok = false;
     return;
   }
 }

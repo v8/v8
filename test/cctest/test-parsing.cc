@@ -4825,6 +4825,9 @@ TEST(ClassFieldsErrors) {
   const char* class_body_data[] = {
     "a : 0",
     "a =",
+    "static constructor",
+    "static prototype",
+    "constructor",
     "*a = 0",
     "*a",
     "get a",
