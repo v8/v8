@@ -44,6 +44,12 @@
   do {                                                  \
     if (FLAG_trace_wasm_streaming) PrintF(__VA_ARGS__); \
   } while (false)
+
+#define TRACE_LAZY(...)                                        \
+  do {                                                         \
+    if (FLAG_trace_wasm_lazy_compilation) PrintF(__VA_ARGS__); \
+  } while (false)
+
 static const int kInvalidSigIndex = -1;
 
 namespace v8 {
@@ -340,6 +346,8 @@ class InstanceBuilder {
 
   ERROR_THROWER_WITH_MESSAGE(LinkError)
   ERROR_THROWER_WITH_MESSAGE(TypeError)
+
+#undef ERROR_THROWER_WITH_MESSAGE
 
   // Look up an import value in the {ffi_} object.
   MaybeHandle<Object> LookupImport(uint32_t index, Handle<String> module_name,
@@ -658,6 +666,8 @@ Handle<Code> CompileLazy(Isolate* isolate) {
   Handle<Code> compiled_code = WasmCompiledModule::CompileLazy(
       isolate, instance, caller_code, offset, func_index, patch_caller);
   if (!exp_deopt_data.is_null() && exp_deopt_data->length() > 2) {
+    TRACE_LAZY("Patching %d position(s) in function tables.\n",
+               (exp_deopt_data->length() - 2) / 2);
     // See EnsureExportedLazyDeoptData: exp_deopt_data[2...(len-1)] are pairs of
     // <export_table, index> followed by undefined values.
     // Use this information here to patch all export tables.
@@ -807,6 +817,11 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
   Handle<WasmCompiledModule> compiled_module(instance->compiled_module(),
                                              isolate);
 
+  TRACE_LAZY(
+      "Starting lazy compilation (func %d @%d, js-to-wasm: %d, "
+      "patch caller: %d).\n",
+      exported_func_index, call_offset, is_js_to_wasm, patch_caller);
+
   if (is_js_to_wasm) {
     non_compiled_functions.push_back({0, exported_func_index});
   } else if (patch_caller) {
@@ -846,6 +861,8 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
     }
   }
 
+  TRACE_LAZY("Compiling function %d.\n", func_to_return_idx);
+
   // TODO(clemensh): compile all functions in non_compiled_functions in
   // background, wait for func_to_return_idx.
   CompileFunction(isolate, instance, func_to_return_idx);
@@ -856,6 +873,7 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
     CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
     // Now patch the code object with all functions which are now compiled.
     int idx = 0;
+    int patched = 0;
     for (RelocIterator it(*caller, RelocInfo::kCodeTargetMask); !it.done();
          it.next()) {
       Code* callee =
@@ -883,8 +901,13 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazy(
       DCHECK_EQ(Code::WASM_FUNCTION, callee_compiled->kind());
       it.rinfo()->set_target_address(isolate,
                                      callee_compiled->instruction_start());
+      ++patched;
     }
     DCHECK_EQ(non_compiled_functions.size(), idx);
+    TRACE_LAZY("Patched %d location(s) in the caller.\n", patched);
+    // TODO(clemensh, crbug.com/788441): Fix patching issues, enable this check.
+    // DCHECK_LT(0, patched);
+    USE(patched);
   }
 
   Code* ret =
@@ -3540,7 +3563,7 @@ void CompileJsToWasmWrappers(Isolate* isolate,
 }  // namespace v8
 
 #undef TRACE
+#undef TRACE_CHAIN
 #undef TRACE_COMPILE
 #undef TRACE_STREAMING
-#undef TRACE_CHAIN
-#undef ERROR_THROWER_WITH_MESSAGE
+#undef TRACE_LAZY
