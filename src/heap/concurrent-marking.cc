@@ -413,6 +413,7 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
       bailout_(bailout),
       on_hold_(on_hold),
       weak_objects_(weak_objects),
+      total_marked_bytes_(0),
       pending_task_count_(0),
       task_count_(0) {
 // The runtime flag should be set only if the compile time flag was set.
@@ -421,6 +422,7 @@ ConcurrentMarking::ConcurrentMarking(Heap* heap, MarkingWorklist* shared,
 #endif
   for (int i = 0; i <= kMaxTasks; i++) {
     is_pending_[i] = false;
+    task_state_[i].marked_bytes = 0;
   }
 }
 
@@ -579,6 +581,7 @@ void ConcurrentMarking::FlushLiveBytes(
       }
     }
     live_bytes.clear();
+    task_state_[i].marked_bytes = 0;
   }
   total_marked_bytes_.SetValue(0);
 }
