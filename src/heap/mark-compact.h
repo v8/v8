@@ -541,6 +541,14 @@ class MarkCompactCollector final : public MarkCompactCollectorBase {
       return nullptr;
     }
 
+    HeapObject* PopBailout() {
+      HeapObject* result;
+#ifdef V8_CONCURRENT_MARKING
+      if (bailout_.Pop(kMainThread, &result)) return result;
+#endif
+      return nullptr;
+    }
+
     void Clear() {
       bailout_.Clear();
       shared_.Clear();
