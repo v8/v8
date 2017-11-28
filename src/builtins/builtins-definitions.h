@@ -1024,7 +1024,7 @@ namespace internal {
   /* ES6 #sec-%typedarray%.prototype.reverse */                                \
   CPP(TypedArrayPrototypeReverse)                                              \
   /* ES6 %TypedArray%.prototype.set */                                         \
-  CPP(TypedArrayPrototypeSet)                                                  \
+  TFJ(TypedArrayPrototypeSet, SharedFunctionInfo::kDontAdaptArgumentsSentinel) \
   /* ES6 #sec-%typedarray%.prototype.slice */                                  \
   CPP(TypedArrayPrototypeSlice)                                                \
   /* ES6 #sec-get-%typedarray%.prototype-@@tostringtag */                      \

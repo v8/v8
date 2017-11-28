@@ -192,7 +192,8 @@ class ElementsAccessor {
                             Handle<FixedArrayBase> destination, int size) = 0;
 
   virtual Object* CopyElements(Handle<JSReceiver> source,
-                               Handle<JSObject> destination, size_t length) = 0;
+                               Handle<JSObject> destination, size_t length,
+                               uint32_t offset = 0) = 0;
 
   virtual Handle<FixedArray> CreateListFromArrayLike(Isolate* isolate,
                                                      Handle<JSObject> object,
@@ -235,6 +236,17 @@ void CheckArrayAbuse(Handle<JSObject> obj, const char* op, uint32_t index,
 MUST_USE_RESULT MaybeHandle<Object> ArrayConstructInitializeElements(
     Handle<JSArray> array,
     Arguments* args);
+
+// Called directly from CSA.
+class JSTypedArray;
+void CopyFastNumberJSArrayElementsToTypedArray(Context* context,
+                                               JSArray* source,
+                                               JSTypedArray* destination,
+                                               uintptr_t length,
+                                               uintptr_t offset);
+void CopyTypedArrayElementsToTypedArray(JSTypedArray* source,
+                                        JSTypedArray* destination,
+                                        uintptr_t length, uintptr_t offset);
 
 }  // namespace internal
 }  // namespace v8
