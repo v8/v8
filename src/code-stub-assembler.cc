@@ -5265,7 +5265,8 @@ Node* CodeStubAssembler::NumberToString(Node* context, Node* argument) {
   BIND(&runtime);
   {
     // No cache entry, go to the runtime.
-    result.Bind(CallRuntime(Runtime::kNumberToString, context, argument));
+    result.Bind(
+        CallRuntime(Runtime::kNumberToStringSkipCache, context, argument));
   }
   Goto(&done);
 

@@ -465,6 +465,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   const Operator* NumberTrunc();
   const Operator* NumberToBoolean();
   const Operator* NumberToInt32();
+  const Operator* NumberToString();
   const Operator* NumberToUint32();
   const Operator* NumberToUint8Clamped();
 

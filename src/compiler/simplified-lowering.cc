@@ -2270,6 +2270,11 @@ class RepresentationSelector {
         if (lower()) DeferReplacement(node, node->InputAt(0));
         return;
       }
+      case IrOpcode::kNumberToString: {
+        VisitUnop(node, UseInfo::AnyTagged(),
+                  MachineRepresentation::kTaggedPointer);
+        return;
+      }
       case IrOpcode::kNumberToUint32: {
         // Just change representation if necessary.
         VisitUnop(node, UseInfo::TruncatingWord32(),

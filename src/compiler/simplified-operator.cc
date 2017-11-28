@@ -650,6 +650,7 @@ bool operator==(CheckMinusZeroParameters const& lhs,
   V(NumberTrunc, Operator::kNoProperties, 1, 0)                  \
   V(NumberToBoolean, Operator::kNoProperties, 1, 0)              \
   V(NumberToInt32, Operator::kNoProperties, 1, 0)                \
+  V(NumberToString, Operator::kNoProperties, 1, 0)               \
   V(NumberToUint32, Operator::kNoProperties, 1, 0)               \
   V(NumberToUint8Clamped, Operator::kNoProperties, 1, 0)         \
   V(NumberSilenceNaN, Operator::kNoProperties, 1, 0)             \

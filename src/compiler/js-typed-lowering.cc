@@ -1045,7 +1045,9 @@ Reduction JSTypedLowering::ReduceJSToStringInput(Node* input) {
     return Replace(jsgraph()->HeapConstant(
         factory()->NumberToString(factory()->NewNumber(input_type->Min()))));
   }
-  // TODO(turbofan): js-typed-lowering of ToString(x:number)
+  if (input_type->Is(Type::Number())) {
+    return Replace(graph()->NewNode(simplified()->NumberToString(), input));
+  }
   return NoChange();
 }
 

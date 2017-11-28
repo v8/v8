@@ -318,6 +318,7 @@
   V(NumberTrunc)                       \
   V(NumberToBoolean)                   \
   V(NumberToInt32)                     \
+  V(NumberToString)                    \
   V(NumberToUint32)                    \
   V(NumberToUint8Clamped)              \
   V(NumberSilenceNaN)

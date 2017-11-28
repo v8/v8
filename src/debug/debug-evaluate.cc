@@ -278,7 +278,7 @@ bool IntrinsicHasNoSideEffect(Runtime::FunctionId id) {
   V(ToString)                            \
   V(ToLength)                            \
   V(ToNumber)                            \
-  V(NumberToString)                      \
+  V(NumberToStringSkipCache)             \
   /* Type checks */                      \
   V(IsJSReceiver)                        \
   V(IsSmi)                               \

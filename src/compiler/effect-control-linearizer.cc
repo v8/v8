@@ -746,6 +746,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kCheckedTruncateTaggedToWord32:
       result = LowerCheckedTruncateTaggedToWord32(node, frame_state);
       break;
+    case IrOpcode::kNumberToString:
+      result = LowerNumberToString(node);
+      break;
     case IrOpcode::kObjectIsArrayBufferView:
       result = LowerObjectIsArrayBufferView(node);
       break;
@@ -2026,6 +2029,19 @@ Node* EffectControlLinearizer::LowerAllocate(Node* node) {
   PretenureFlag pretenure = PretenureFlagOf(node->op());
   Node* new_node = __ Allocate(pretenure, size);
   return new_node;
+}
+
+Node* EffectControlLinearizer::LowerNumberToString(Node* node) {
+  Node* argument = node->InputAt(0);
+
+  Callable const callable =
+      Builtins::CallableFor(isolate(), Builtins::kNumberToString);
+  Operator::Properties properties = Operator::kEliminatable;
+  CallDescriptor::Flags flags = CallDescriptor::kNoFlags;
+  CallDescriptor* desc = Linkage::GetStubCallDescriptor(
+      isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
+  return __ Call(desc, __ HeapConstant(callable.code()), argument,
+                 __ NoContextConstant());
 }
 
 Node* EffectControlLinearizer::LowerObjectIsArrayBufferView(Node* node) {
