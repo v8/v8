@@ -12,6 +12,7 @@
 #include "src/keys.h"
 #include "src/objects/frame-array-inl.h"
 #include "src/string-builder.h"
+#include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-objects.h"
 
 namespace v8 {
@@ -649,9 +650,18 @@ void WasmStackFrame::FromFrameArray(Isolate* isolate, Handle<FrameArray> array,
   wasm_instance_ = handle(array->WasmInstance(frame_ix), isolate);
   wasm_func_index_ = array->WasmFunctionIndex(frame_ix)->value();
   if (array->IsWasmInterpretedFrame(frame_ix)) {
-    code_ = Handle<AbstractCode>::null();
+    code_ = {};
   } else {
-    code_ = handle(array->Code(frame_ix), isolate);
+    code_ =
+        FLAG_wasm_jit_to_native
+            ? WasmCodeWrapper(
+                  wasm_instance_->compiled_module()->GetNativeModule()->GetCode(
+                      wasm_func_index_))
+            : WasmCodeWrapper(handle(
+                  Code::cast(
+                      wasm_instance_->compiled_module()->code_table()->get(
+                          wasm_func_index_)),
+                  isolate));
   }
   offset_ = array->Offset(frame_ix)->value();
 }
@@ -712,7 +722,13 @@ MaybeHandle<String> WasmStackFrame::ToString() {
 }
 
 int WasmStackFrame::GetPosition() const {
-  return IsInterpreted() ? offset_ : code_->SourcePosition(offset_);
+  return IsInterpreted()
+             ? offset_
+             : (code_.IsCodeObject()
+                    ? Handle<AbstractCode>::cast(code_.GetCode())
+                          ->SourcePosition(offset_)
+                    : FrameSummary::WasmCompiledFrameSummary::
+                          GetWasmSourcePosition(code_.GetWasmCode(), offset_));
 }
 
 Handle<Object> WasmStackFrame::Null() const {
@@ -759,7 +775,11 @@ Handle<Object> AsmJsWasmStackFrame::GetScriptNameOrSourceUrl() {
 
 int AsmJsWasmStackFrame::GetPosition() const {
   DCHECK_LE(0, offset_);
-  int byte_offset = code_->SourcePosition(offset_);
+  int byte_offset =
+      code_.IsCodeObject()
+          ? Handle<AbstractCode>::cast(code_.GetCode())->SourcePosition(offset_)
+          : FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
+                code_.GetWasmCode(), offset_);
   Handle<WasmCompiledModule> compiled_module(wasm_instance_->compiled_module(),
                                              isolate_);
   DCHECK_LE(0, byte_offset);

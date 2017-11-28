@@ -359,8 +359,6 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   intptr_t remaining_uncommitted() const;
 
  private:
-  static const size_t kMaxWasmCodeMemory = 256 * MB;
-
   friend class NativeModule;
 
   WasmCodeManager(const WasmCodeManager&) = delete;

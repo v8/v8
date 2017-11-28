@@ -37,6 +37,8 @@ class SignatureMap;
 // Expose {Node} and {Graph} opaquely as {wasm::TFNode} and {wasm::TFGraph}.
 typedef compiler::Node TFNode;
 typedef compiler::JSGraph TFGraph;
+class NativeModule;
+class WasmCode;
 }  // namespace wasm
 
 namespace compiler {
@@ -60,6 +62,8 @@ struct ModuleEnv {
   // (the same length as module.function_tables)
   //  We use the address to a global handle to the FixedArray.
   const std::vector<Address> signature_tables;
+
+  // TODO(mtrofin): remove these 2 once we don't need FLAG_wasm_jit_to_native
   // Contains the code objects to call for each direct call.
   // (the same length as module.functions)
   const std::vector<Handle<Code>> function_code;
@@ -82,8 +86,9 @@ class WasmCompilationUnit final {
   // typically means to hold a std::shared_ptr<Counters>).
   // If no such pointer is passed, Isolate::counters() will be called. This is
   // only allowed to happen on the foreground thread.
-  WasmCompilationUnit(Isolate*, ModuleEnv*, wasm::FunctionBody, wasm::WasmName,
-                      int index, Handle<Code> centry_stub,
+  WasmCompilationUnit(Isolate*, ModuleEnv*, wasm::NativeModule*,
+                      wasm::FunctionBody, wasm::WasmName, int index,
+                      Handle<Code> centry_stub,
                       CompilationMode = GetDefaultCompilationMode(),
                       Counters* = nullptr,
                       RuntimeExceptionSupport = kRuntimeExceptionSupport,
@@ -94,11 +99,13 @@ class WasmCompilationUnit final {
   int func_index() const { return func_index_; }
 
   void ExecuteCompilation();
-  MaybeHandle<Code> FinishCompilation(wasm::ErrorThrower*);
+  WasmCodeWrapper FinishCompilation(wasm::ErrorThrower* thrower);
 
-  static MaybeHandle<Code> CompileWasmFunction(
-      wasm::ErrorThrower*, Isolate*, const wasm::ModuleWireBytes&, ModuleEnv*,
-      const wasm::WasmFunction*, CompilationMode = GetDefaultCompilationMode());
+  static WasmCodeWrapper CompileWasmFunction(
+      wasm::NativeModule* native_module, wasm::ErrorThrower* thrower,
+      Isolate* isolate, const wasm::ModuleWireBytes& wire_bytes, ModuleEnv* env,
+      const wasm::WasmFunction* function,
+      CompilationMode = GetDefaultCompilationMode());
 
   size_t memory_cost() const { return memory_cost_; }
 
@@ -125,11 +132,11 @@ class WasmCompilationUnit final {
   // Turbofan.
   SourcePositionTable* BuildGraphForWasmFunction(double* decode_ms);
   void ExecuteTurbofanCompilation();
-  MaybeHandle<Code> FinishTurbofanCompilation(wasm::ErrorThrower*);
+  WasmCodeWrapper FinishTurbofanCompilation(wasm::ErrorThrower*);
 
   // Liftoff.
   bool ExecuteLiftoffCompilation();
-  MaybeHandle<Code> FinishLiftoffCompilation(wasm::ErrorThrower*);
+  WasmCodeWrapper FinishLiftoffCompilation(wasm::ErrorThrower*);
 
   Isolate* isolate_;
   ModuleEnv* env_;
@@ -142,8 +149,10 @@ class WasmCompilationUnit final {
   RuntimeExceptionSupport runtime_exception_support_;
   bool ok_ = true;
   size_t memory_cost_ = 0;
+  wasm::NativeModule* native_module_;
   bool lower_simd_;
-  std::vector<trap_handler::ProtectedInstructionData> protected_instructions_;
+  std::shared_ptr<std::vector<trap_handler::ProtectedInstructionData>>
+      protected_instructions_;
   CompilationMode mode_;
   // {liftoff_} is valid if mode_ == kLiftoff, tf_ if mode_ == kTurbofan.
   union {
@@ -166,15 +175,14 @@ Handle<Code> CompileWasmToJSWrapper(Isolate* isolate, Handle<JSReceiver> target,
                                     Handle<FixedArray> global_js_imports_table);
 
 // Wraps a given wasm code object, producing a code object.
-Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
-                                    Handle<Code> wasm_code, uint32_t index,
-                                    Address wasm_context_address);
+V8_EXPORT_PRIVATE Handle<Code> CompileJSToWasmWrapper(
+    Isolate* isolate, wasm::WasmModule* module, WasmCodeWrapper wasm_code,
+    uint32_t index, Address wasm_context_address);
 
 // Wraps a wasm function, producing a code object that can be called from other
 // wasm instances (the WasmContext address must be changed).
-Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, Handle<Code> target,
+Handle<Code> CompileWasmToWasmWrapper(Isolate* isolate, WasmCodeWrapper target,
                                       wasm::FunctionSig* sig,
-                                      uint32_t func_index,
                                       Address new_wasm_context_address);
 
 // Compiles a stub that redirects a call to a wasm function to the wasm
@@ -293,7 +301,7 @@ class WasmGraphBuilder {
   Node* CallIndirect(uint32_t index, Node** args, Node*** rets,
                      wasm::WasmCodePosition position);
 
-  void BuildJSToWasmWrapper(Handle<Code> wasm_code,
+  void BuildJSToWasmWrapper(WasmCodeWrapper wasm_code_start,
                             Address wasm_context_address);
   enum ImportDataType {
     kFunction = 1,
@@ -306,7 +314,7 @@ class WasmGraphBuilder {
   bool BuildWasmToJSWrapper(Handle<JSReceiver> target,
                             Handle<FixedArray> global_js_imports_table,
                             int index);
-  void BuildWasmToWasmWrapper(Handle<Code> target,
+  void BuildWasmToWasmWrapper(WasmCodeWrapper wasm_code_start,
                               Address new_wasm_context_address);
   void BuildWasmInterpreterEntry(uint32_t func_index);
   void BuildCWasmEntry(Address wasm_context_address);

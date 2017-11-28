@@ -975,8 +975,22 @@ size_t PipelineWasmCompilationJob::AllocatedMemory() const {
 
 PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
     Isolate* isolate) {
-  pipeline_.FinalizeCode();
-  ValidateImmovableEmbeddedObjects();
+  if (!FLAG_wasm_jit_to_native) {
+    pipeline_.FinalizeCode();
+    ValidateImmovableEmbeddedObjects();
+  } else {
+    CodeGenerator* code_generator = pipeline_.data_->code_generator();
+    CompilationInfo::WasmCodeDesc* wasm_code_desc =
+        compilation_info()->wasm_code_desc();
+    code_generator->tasm()->GetCode(isolate, &wasm_code_desc->code_desc);
+    wasm_code_desc->safepoint_table_offset =
+        code_generator->GetSafepointTableOffset();
+    wasm_code_desc->frame_slot_count =
+        code_generator->frame()->GetTotalFrameSlotCount();
+    wasm_code_desc->source_positions_table =
+        code_generator->GetSourcePositionTable();
+    wasm_code_desc->handler_table = code_generator->GetHandlerTable();
+  }
   return SUCCEEDED;
 }
 

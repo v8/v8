@@ -16,6 +16,7 @@
 #include "src/trap-handler/trap-handler.h"
 #include "src/v8memory.h"
 #include "src/wasm/module-compiler.h"
+#include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 
@@ -29,12 +30,18 @@ WasmInstanceObject* GetWasmInstanceOnStackTop(Isolate* isolate) {
   const Address entry = Isolate::c_entry_fp(isolate->thread_local_top());
   Address pc =
       Memory::Address_at(entry + StandardFrameConstants::kCallerPCOffset);
-  Code* code = isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
-  WasmInstanceObject* owning_instance =
-      WasmInstanceObject::GetOwningInstance(code);
+  WasmInstanceObject* owning_instance = nullptr;
+  if (FLAG_wasm_jit_to_native) {
+    owning_instance = WasmInstanceObject::GetOwningInstance(
+        isolate->wasm_code_manager()->LookupCode(pc));
+  } else {
+    owning_instance = WasmInstanceObject::GetOwningInstanceGC(
+        isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code);
+  }
   CHECK_NOT_NULL(owning_instance);
   return owning_instance;
 }
+
 Context* GetWasmContextOnStackTop(Isolate* isolate) {
   return GetWasmInstanceOnStackTop(isolate)
       ->compiled_module()
@@ -287,7 +294,15 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   DCHECK_EQ(0, args.length());
   HandleScope scope(isolate);
 
-  return *wasm::CompileLazy(isolate);
+  if (FLAG_wasm_jit_to_native) {
+    Address new_func = wasm::CompileLazy(isolate);
+    // The alternative to this is having 2 lazy compile builtins. The builtins
+    // are part of the snapshot, so the flag has no impact on the codegen there.
+    return reinterpret_cast<Object*>(new_func - Code::kHeaderSize +
+                                     kHeapObjectTag);
+  } else {
+    return *wasm::CompileLazyOnGCHeap(isolate);
+  }
 }
 
 }  // namespace internal

@@ -574,9 +574,11 @@ Handle<FixedArray> GetOrCreateInterpretedFunctions(
   return new_arr;
 }
 
-using CodeRelocationMap = IdentityMap<Handle<Code>, FreeStoreAllocationPolicy>;
+using CodeRelocationMap = std::map<Address, Address>;
+using CodeRelocationMapGC =
+    IdentityMap<Handle<Code>, FreeStoreAllocationPolicy>;
 
-void RedirectCallsitesInCode(Code* code, CodeRelocationMap& map) {
+void RedirectCallsitesInCodeGC(Code* code, CodeRelocationMapGC& map) {
   DisallowHeapAllocation no_gc;
   for (RelocIterator it(code, RelocInfo::kCodeTargetMask); !it.done();
        it.next()) {
@@ -589,13 +591,40 @@ void RedirectCallsitesInCode(Code* code, CodeRelocationMap& map) {
   }
 }
 
-void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
-                                 CodeRelocationMap& map) {
+void RedirectCallsitesInCode(Isolate* isolate, const wasm::WasmCode* code,
+                             CodeRelocationMap* map) {
+  DisallowHeapAllocation no_gc;
+  for (RelocIterator it(code->instructions(), code->reloc_info(),
+                        code->constant_pool(),
+                        RelocInfo::ModeMask(RelocInfo::WASM_CALL));
+       !it.done(); it.next()) {
+    Address target = it.rinfo()->target_address();
+    auto new_target = map->find(target);
+    if (new_target == map->end()) continue;
+    it.rinfo()->set_wasm_call_address(isolate, new_target->second);
+  }
+}
+
+void RedirectCallsitesInJSWrapperCode(Isolate* isolate, Code* code,
+                                      CodeRelocationMap* map) {
+  DisallowHeapAllocation no_gc;
+  for (RelocIterator it(code, RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
+       !it.done(); it.next()) {
+    Address target = it.rinfo()->js_to_wasm_address();
+    auto new_target = map->find(target);
+    if (new_target == map->end()) continue;
+    it.rinfo()->set_js_to_wasm_address(isolate, new_target->second);
+  }
+}
+
+void RedirectCallsitesInInstanceGC(Isolate* isolate,
+                                   WasmInstanceObject* instance,
+                                   CodeRelocationMapGC& map) {
   DisallowHeapAllocation no_gc;
   // Redirect all calls in wasm functions.
   FixedArray* code_table = instance->compiled_module()->ptr_to_code_table();
   for (int i = 0, e = GetNumFunctions(instance); i < e; ++i) {
-    RedirectCallsitesInCode(Code::cast(code_table->get(i)), map);
+    RedirectCallsitesInCodeGC(Code::cast(code_table->get(i)), map);
   }
   // TODO(6668): Find instances that imported our code and also patch those.
 
@@ -606,7 +635,29 @@ void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
     WeakCell* weak_function = WeakCell::cast(weak_exported_functions->get(i));
     if (weak_function->cleared()) continue;
     Code* code = JSFunction::cast(weak_function->value())->code();
-    RedirectCallsitesInCode(code, map);
+    RedirectCallsitesInCodeGC(code, map);
+  }
+}
+
+void RedirectCallsitesInInstance(Isolate* isolate, WasmInstanceObject* instance,
+                                 CodeRelocationMap* map) {
+  DisallowHeapAllocation no_gc;
+  // Redirect all calls in wasm functions.
+  for (uint32_t i = 0, e = GetNumFunctions(instance); i < e; ++i) {
+    wasm::WasmCode* code =
+        instance->compiled_module()->GetNativeModule()->GetCode(i);
+    RedirectCallsitesInCode(isolate, code, map);
+  }
+  // TODO(6668): Find instances that imported our code and also patch those.
+
+  // Redirect all calls in exported functions.
+  FixedArray* weak_exported_functions =
+      instance->compiled_module()->ptr_to_weak_exported_functions();
+  for (int i = 0, e = weak_exported_functions->length(); i != e; ++i) {
+    WeakCell* weak_function = WeakCell::cast(weak_exported_functions->get(i));
+    if (weak_function->cleared()) continue;
+    Code* code = JSFunction::cast(weak_function->value())->code();
+    RedirectCallsitesInJSWrapperCode(isolate, code, map);
   }
 }
 
@@ -670,8 +721,12 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
   Handle<FixedArray> interpreted_functions =
       GetOrCreateInterpretedFunctions(isolate, debug_info);
   Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
+  wasm::NativeModule* native_module =
+      instance->compiled_module()->GetNativeModule();
+  CodeRelocationMap code_to_relocate;
+
   Handle<FixedArray> code_table = instance->compiled_module()->code_table();
-  CodeRelocationMap code_to_relocate(isolate->heap());
+  CodeRelocationMapGC code_to_relocate_gc(isolate->heap());
   // TODO(6792): No longer needed once WebAssembly code is off heap.
   CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   for (int func_index : func_indexes) {
@@ -684,13 +739,30 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
         isolate, func_index,
         instance->compiled_module()->module()->functions[func_index].sig,
         instance);
-
-    Code* old_code = Code::cast(code_table->get(func_index));
-    interpreted_functions->set(func_index, *new_code);
-    DCHECK_NULL(code_to_relocate.Find(old_code));
-    code_to_relocate.Set(old_code, new_code);
+    if (FLAG_wasm_jit_to_native) {
+      const wasm::WasmCode* wasm_new_code =
+          native_module->AddInterpreterWrapper(new_code, func_index);
+      const wasm::WasmCode* old_code =
+          native_module->GetCode(static_cast<uint32_t>(func_index));
+      Handle<Foreign> foreign_holder = isolate->factory()->NewForeign(
+          wasm_new_code->instructions().start(), TENURED);
+      interpreted_functions->set(func_index, *foreign_holder);
+      DCHECK_EQ(0, code_to_relocate.count(old_code->instructions().start()));
+      code_to_relocate.insert(
+          std::make_pair(old_code->instructions().start(),
+                         wasm_new_code->instructions().start()));
+    } else {
+      Code* old_code = Code::cast(code_table->get(func_index));
+      interpreted_functions->set(func_index, *new_code);
+      DCHECK_NULL(code_to_relocate_gc.Find(old_code));
+      code_to_relocate_gc.Set(old_code, new_code);
+    }
   }
-  RedirectCallsitesInInstance(isolate, *instance, code_to_relocate);
+  if (FLAG_wasm_jit_to_native) {
+    RedirectCallsitesInInstance(isolate, *instance, &code_to_relocate);
+  } else {
+    RedirectCallsitesInInstanceGC(isolate, *instance, code_to_relocate_gc);
+  }
 }
 
 void WasmDebugInfo::PrepareStep(StepAction step_action) {

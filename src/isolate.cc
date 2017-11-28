@@ -54,6 +54,7 @@
 #include "src/visitors.h"
 #include "src/vm-state-inl.h"
 #include "src/wasm/compilation-manager.h"
+#include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-objects.h"
 #include "src/zone/accounting-allocator.h"
 
@@ -427,6 +428,10 @@ class FrameArrayBuilder {
         // Handle a WASM compiled frame.
         //====================================================================
         const auto& summary = summ.AsWasmCompiled();
+        if (!summary.code().IsCodeObject() &&
+            summary.code().GetWasmCode()->kind() != wasm::WasmCode::Function) {
+          continue;
+        }
         Handle<WasmInstanceObject> instance = summary.wasm_instance();
         int flags = 0;
         if (instance->compiled_module()->is_asm_js()) {
@@ -439,9 +444,8 @@ class FrameArrayBuilder {
         }
 
         elements_ = FrameArray::AppendWasmFrame(
-            elements_, instance, summary.function_index(),
-            Handle<AbstractCode>::cast(summary.code()), summary.code_offset(),
-            flags);
+            elements_, instance, summary.function_index(), summary.code(),
+            summary.code_offset(), flags);
       } else if (summ.IsWasmInterpreted()) {
         //====================================================================
         // Handle a WASM interpreted frame.
@@ -450,9 +454,9 @@ class FrameArrayBuilder {
         Handle<WasmInstanceObject> instance = summary.wasm_instance();
         int flags = FrameArray::kIsWasmInterpretedFrame;
         DCHECK(!instance->compiled_module()->is_asm_js());
-        elements_ = FrameArray::AppendWasmFrame(
-            elements_, instance, summary.function_index(),
-            Handle<AbstractCode>::null(), summary.byte_offset(), flags);
+        elements_ = FrameArray::AppendWasmFrame(elements_, instance,
+                                                summary.function_index(), {},
+                                                summary.byte_offset(), flags);
       }
     }
   }
@@ -1295,9 +1299,17 @@ Object* Isolate::UnwindAndFindHandler() {
         trap_handler::SetThreadInWasm();
 
         set_wasm_caught_exception(exception);
-        Code* code = frame->LookupCode();
-        return FoundHandler(nullptr, code->instruction_start(), offset,
-                            code->constant_pool(), return_sp, frame->fp());
+        if (FLAG_wasm_jit_to_native) {
+          wasm::WasmCode* wasm_code =
+              wasm_code_manager()->LookupCode(frame->pc());
+          return FoundHandler(nullptr, wasm_code->instructions().start(),
+                              offset, wasm_code->constant_pool(), return_sp,
+                              frame->fp());
+        } else {
+          Code* code = frame->LookupCode();
+          return FoundHandler(nullptr, code->instruction_start(), offset,
+                              code->constant_pool(), return_sp, frame->fp());
+        }
       }
 
       case StackFrame::OPTIMIZED: {
@@ -1673,9 +1685,19 @@ bool Isolate::ComputeLocationFromStackTrace(MessageLocation* target,
       Handle<WasmCompiledModule> compiled_module(
           WasmInstanceObject::cast(elements->WasmInstance(i))
               ->compiled_module());
-      int func_index = elements->WasmFunctionIndex(i)->value();
+      uint32_t func_index =
+          static_cast<uint32_t>(elements->WasmFunctionIndex(i)->value());
       int code_offset = elements->Offset(i)->value();
-      int byte_offset = elements->Code(i)->SourcePosition(code_offset);
+
+      // TODO(titzer): store a reference to the code object in FrameArray;
+      // a second lookup here could lead to inconsistency.
+      int byte_offset =
+          FLAG_wasm_jit_to_native
+              ? FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
+                    compiled_module->GetNativeModule()->GetCode(func_index),
+                    code_offset)
+              : elements->Code(i)->SourcePosition(code_offset);
+
       bool is_at_number_conversion =
           elements->IsAsmJsWasmFrame(i) &&
           elements->Flags(i)->value() & FrameArray::kAsmJsAtNumberConversion;
@@ -2815,6 +2837,17 @@ bool Isolate::Init(StartupDeserializer* des) {
     return false;
   }
 
+  // Setup the wasm code manager. Currently, there's one per Isolate.
+  if (!wasm_code_manager_) {
+    size_t max_code_size = kMaxWasmCodeMemory;
+    if (kRequiresCodeRange) {
+      max_code_size = std::min(max_code_size,
+                               heap_.memory_allocator()->code_range()->size());
+    }
+    wasm_code_manager_.reset(new wasm::WasmCodeManager(
+        reinterpret_cast<v8::Isolate*>(this), max_code_size));
+  }
+
 // Initialize the interface descriptors ahead of time.
 #define INTERFACE_DESCRIPTOR(Name, ...) \
   { Name##Descriptor(this); }
@@ -3852,6 +3885,10 @@ void Isolate::PrintWithTimestamp(const char* format, ...) {
   va_start(arguments, format);
   base::OS::VPrint(format, arguments);
   va_end(arguments);
+}
+
+wasm::WasmCodeManager* Isolate::wasm_code_manager() {
+  return wasm_code_manager_.get();
 }
 
 bool StackLimitCheck::JsHasOverflowed(uintptr_t gap) const {

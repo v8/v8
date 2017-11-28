@@ -16,6 +16,7 @@
 #include "src/string-stream.h"
 #include "src/visitors.h"
 #include "src/vm-state-inl.h"
+#include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/zone/zone-containers.h"
 
@@ -432,45 +433,68 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
       }
     }
   } else {
-    // Look up the code object to figure out the type of the stack frame.
-    Code* code_obj =
-        GetContainingCode(iterator->isolate(), *(state->pc_address));
-    if (code_obj != nullptr) {
-      switch (code_obj->kind()) {
-        case Code::BUILTIN:
-          if (StackFrame::IsTypeMarker(marker)) break;
-          if (code_obj->is_interpreter_trampoline_builtin()) {
-            return INTERPRETED;
-          }
-          if (code_obj->is_turbofanned()) {
-            // TODO(bmeurer): We treat frames for BUILTIN Code objects as
-            // OptimizedFrame for now (all the builtins with JavaScript
-            // linkage are actually generated with TurboFan currently, so
-            // this is sound).
-            return OPTIMIZED;
-          }
-          return BUILTIN;
-        case Code::OPTIMIZED_FUNCTION:
-          return OPTIMIZED;
-        case Code::WASM_FUNCTION:
-          return WASM_COMPILED;
-        case Code::WASM_TO_JS_FUNCTION:
-          return WASM_TO_JS;
-        case Code::JS_TO_WASM_FUNCTION:
-          return JS_TO_WASM;
-        case Code::WASM_INTERPRETER_ENTRY:
+    Address pc = *(state->pc_address);
+    // If FLAG_wasm_jit_to_native is disabled, we still have an empty
+    // wasm_code_manager, and this test will be false. This is easier to read
+    // than checking the flag, then getting the code, and then, if both are true
+    // (non-null, respectivelly), going down the wasm_code path.
+    wasm::WasmCode* wasm_code =
+        iterator->isolate()->wasm_code_manager()->LookupCode(pc);
+    if (wasm_code != nullptr) {
+      switch (wasm_code->kind()) {
+        case wasm::WasmCode::InterpreterStub:
           return WASM_INTERPRETER_ENTRY;
-        case Code::C_WASM_ENTRY:
-          return C_WASM_ENTRY;
+        case wasm::WasmCode::Function:
+        case wasm::WasmCode::CopiedStub:
+          return WASM_COMPILED;
+        case wasm::WasmCode::LazyStub:
+          if (StackFrame::IsTypeMarker(marker)) break;
+          return BUILTIN;
+        case wasm::WasmCode::WasmToJsWrapper:
+        case wasm::WasmCode::WasmToWasmWrapper:
+          return WASM_TO_JS;
         default:
-          // All other types should have an explicit marker
-          break;
+          UNREACHABLE();
       }
     } else {
-      return NONE;
+      // Look up the code object to figure out the type of the stack frame.
+      Code* code_obj = GetContainingCode(iterator->isolate(), pc);
+      if (code_obj != nullptr) {
+        switch (code_obj->kind()) {
+          case Code::BUILTIN:
+            if (StackFrame::IsTypeMarker(marker)) break;
+            if (code_obj->is_interpreter_trampoline_builtin()) {
+              return INTERPRETED;
+            }
+            if (code_obj->is_turbofanned()) {
+              // TODO(bmeurer): We treat frames for BUILTIN Code objects as
+              // OptimizedFrame for now (all the builtins with JavaScript
+              // linkage are actually generated with TurboFan currently, so
+              // this is sound).
+              return OPTIMIZED;
+            }
+            return BUILTIN;
+          case Code::OPTIMIZED_FUNCTION:
+            return OPTIMIZED;
+          case Code::WASM_FUNCTION:
+            return WASM_COMPILED;
+          case Code::WASM_TO_JS_FUNCTION:
+            return WASM_TO_JS;
+          case Code::JS_TO_WASM_FUNCTION:
+            return JS_TO_WASM;
+          case Code::WASM_INTERPRETER_ENTRY:
+            return WASM_INTERPRETER_ENTRY;
+          case Code::C_WASM_ENTRY:
+            return C_WASM_ENTRY;
+          default:
+            // All other types should have an explicit marker
+            break;
+        }
+      } else {
+        return NONE;
+      }
     }
   }
-
   DCHECK(StackFrame::IsTypeMarker(marker));
   StackFrame::Type candidate = StackFrame::MarkerToType(marker);
   switch (candidate) {
@@ -751,20 +775,38 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
 
   // Find the code and compute the safepoint information.
   Address inner_pointer = pc();
-  InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
-      isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
-  if (!entry->safepoint_entry.is_valid()) {
-    entry->safepoint_entry = entry->code->GetSafepointEntry(inner_pointer);
-    DCHECK(entry->safepoint_entry.is_valid());
+  const wasm::WasmCode* wasm_code =
+      FLAG_wasm_jit_to_native
+          ? isolate()->wasm_code_manager()->LookupCode(inner_pointer)
+          : nullptr;
+  SafepointEntry safepoint_entry;
+  uint32_t stack_slots;
+  Code* code = nullptr;
+  bool has_tagged_params = false;
+  if (wasm_code != nullptr) {
+    SafepointTable table(wasm_code->instructions().start(),
+                         wasm_code->safepoint_table_offset(),
+                         wasm_code->stack_slots());
+    safepoint_entry = table.FindEntry(inner_pointer);
+    stack_slots = wasm_code->stack_slots();
+    has_tagged_params = wasm_code->kind() != wasm::WasmCode::Function;
   } else {
-    DCHECK(entry->safepoint_entry.Equals(
-        entry->code->GetSafepointEntry(inner_pointer)));
-  }
+    InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
+        isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
+    if (!entry->safepoint_entry.is_valid()) {
+      entry->safepoint_entry = entry->code->GetSafepointEntry(inner_pointer);
+      DCHECK(entry->safepoint_entry.is_valid());
+    } else {
+      DCHECK(entry->safepoint_entry.Equals(
+          entry->code->GetSafepointEntry(inner_pointer)));
+    }
 
-  Code* code = entry->code;
-  SafepointEntry safepoint_entry = entry->safepoint_entry;
-  unsigned stack_slots = code->stack_slots();
-  unsigned slot_space = stack_slots * kPointerSize;
+    code = entry->code;
+    safepoint_entry = entry->safepoint_entry;
+    stack_slots = code->stack_slots();
+    has_tagged_params = code->has_tagged_params();
+  }
+  uint32_t slot_space = stack_slots * kPointerSize;
 
   // Determine the fixed header and spill slot area size.
   int frame_header_size = StandardFrameConstants::kFixedFrameSizeFromFp;
@@ -847,7 +889,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
   safepoint_bits += kNumSafepointRegisters >> kBitsPerByteLog2;
 
   // Visit the rest of the parameters if they are tagged.
-  if (code->has_tagged_params()) {
+  if (has_tagged_params) {
     v->VisitRootPointers(Root::kTop, parameters_base, parameters_limit);
   }
 
@@ -860,8 +902,11 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
     }
   }
 
-  // Visit the return address in the callee and incoming arguments.
-  IteratePc(v, pc_address(), constant_pool_address(), code);
+  // For wasm-to-js cases, we can skip this.
+  if (code != nullptr) {
+    // Visit the return address in the callee and incoming arguments.
+    IteratePc(v, pc_address(), constant_pool_address(), code);
+  }
 
   if (!is_wasm() && !is_wasm_to_js()) {
     // If this frame has JavaScript ABI, visit the context (in stub and JS
@@ -1215,7 +1260,7 @@ Handle<Context> FrameSummary::WasmFrameSummary::native_context() const {
 }
 
 FrameSummary::WasmCompiledFrameSummary::WasmCompiledFrameSummary(
-    Isolate* isolate, Handle<WasmInstanceObject> instance, Handle<Code> code,
+    Isolate* isolate, Handle<WasmInstanceObject> instance, WasmCodeWrapper code,
     int code_offset, bool at_to_number_conversion)
     : WasmFrameSummary(isolate, WASM_COMPILED, instance,
                        at_to_number_conversion),
@@ -1223,16 +1268,38 @@ FrameSummary::WasmCompiledFrameSummary::WasmCompiledFrameSummary(
       code_offset_(code_offset) {}
 
 uint32_t FrameSummary::WasmCompiledFrameSummary::function_index() const {
-  FixedArray* deopt_data = code()->deoptimization_data();
-  DCHECK_EQ(2, deopt_data->length());
-  DCHECK(deopt_data->get(1)->IsSmi());
-  int val = Smi::ToInt(deopt_data->get(1));
-  DCHECK_LE(0, val);
-  return static_cast<uint32_t>(val);
+  if (code().IsCodeObject()) {
+    FixedArray* deopt_data = code().GetCode()->deoptimization_data();
+    DCHECK_EQ(2, deopt_data->length());
+    DCHECK(deopt_data->get(1)->IsSmi());
+    int val = Smi::ToInt(deopt_data->get(1));
+    DCHECK_LE(0, val);
+    return static_cast<uint32_t>(val);
+  }
+  return code().GetWasmCode()->index();
+}
+
+int FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(
+    const wasm::WasmCode* code, int offset) {
+  int position = 0;
+  // Subtract one because the current PC is one instruction after the call site.
+  offset--;
+  Handle<ByteArray> source_position_table(
+      ByteArray::cast(code->owner()->compiled_module()->source_positions()->get(
+          code->index())));
+  for (SourcePositionTableIterator iterator(source_position_table);
+       !iterator.done() && iterator.code_offset() <= offset;
+       iterator.Advance()) {
+    position = iterator.source_position().ScriptOffset();
+  }
+  return position;
 }
 
 int FrameSummary::WasmCompiledFrameSummary::byte_offset() const {
-  return AbstractCode::cast(*code())->SourcePosition(code_offset());
+  if (code().IsCodeObject()) {
+    return AbstractCode::cast(*code().GetCode())->SourcePosition(code_offset());
+  }
+  return GetWasmSourcePosition(code_.GetWasmCode(), code_offset());
 }
 
 FrameSummary::WasmInterpretedFrameSummary::WasmInterpretedFrameSummary(
@@ -1658,7 +1725,11 @@ Address WasmCompiledFrame::GetCallerStackPointer() const {
 }
 
 WasmInstanceObject* WasmCompiledFrame::wasm_instance() const {
-  WasmInstanceObject* obj = WasmInstanceObject::GetOwningInstance(LookupCode());
+  WasmInstanceObject* obj =
+      FLAG_wasm_jit_to_native
+          ? WasmInstanceObject::GetOwningInstance(
+                isolate()->wasm_code_manager()->LookupCode(pc()))
+          : WasmInstanceObject::GetOwningInstanceGC(LookupCode());
   // This is a live stack frame; it must have a live instance.
   DCHECK_NOT_NULL(obj);
   return obj;
@@ -1678,9 +1749,25 @@ int WasmCompiledFrame::position() const {
 
 void WasmCompiledFrame::Summarize(std::vector<FrameSummary>* functions) const {
   DCHECK(functions->empty());
-  Handle<Code> code(LookupCode(), isolate());
-  int offset = static_cast<int>(pc() - code->instruction_start());
-  Handle<WasmInstanceObject> instance(wasm_instance(), isolate());
+  WasmCodeWrapper code;
+  Handle<WasmInstanceObject> instance;
+  int offset = -1;
+  if (FLAG_wasm_jit_to_native) {
+    code = WasmCodeWrapper(isolate()->wasm_code_manager()->LookupCode(pc()));
+    offset =
+        static_cast<int>(pc() - code.GetWasmCode()->instructions().start());
+    instance = Handle<WasmInstanceObject>(
+        WasmInstanceObject::cast(code.GetWasmCode()
+                                     ->owner()
+                                     ->compiled_module()
+                                     ->weak_owning_instance()
+                                     ->value()),
+        isolate());
+  } else {
+    code = WasmCodeWrapper(Handle<Code>(LookupCode(), isolate()));
+    offset = static_cast<int>(pc() - code.GetCode()->instruction_start());
+    instance = Handle<WasmInstanceObject>(wasm_instance(), isolate());
+  }
   FrameSummary::WasmCompiledFrameSummary summary(
       isolate(), instance, code, offset, at_to_number_conversion());
   functions->push_back(summary);
@@ -1690,10 +1777,21 @@ bool WasmCompiledFrame::at_to_number_conversion() const {
   // Check whether our callee is a WASM_TO_JS frame, and this frame is at the
   // ToNumber conversion call.
   Address callee_pc = reinterpret_cast<Address>(this->callee_pc());
-  Code* code = callee_pc ? isolate()->FindCodeObject(callee_pc) : nullptr;
-  if (!code || code->kind() != Code::WASM_TO_JS_FUNCTION) return false;
-  int offset = static_cast<int>(callee_pc - code->instruction_start());
-  int pos = AbstractCode::cast(code)->SourcePosition(offset);
+  int pos = -1;
+  if (FLAG_wasm_jit_to_native) {
+    wasm::WasmCode* code =
+        callee_pc ? isolate()->wasm_code_manager()->LookupCode(callee_pc)
+                  : nullptr;
+    if (!code || code->kind() != wasm::WasmCode::WasmToJsWrapper) return false;
+    int offset = static_cast<int>(callee_pc - code->instructions().start());
+    pos = FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(code,
+                                                                        offset);
+  } else {
+    Code* code = callee_pc ? isolate()->FindCodeObject(callee_pc) : nullptr;
+    if (!code || code->kind() != Code::WASM_TO_JS_FUNCTION) return false;
+    int offset = static_cast<int>(callee_pc - code->instruction_start());
+    pos = AbstractCode::cast(code)->SourcePosition(offset);
+  }
   DCHECK(pos == 0 || pos == 1);
   // The imported call has position 0, ToNumber has position 1.
   return !!pos;
@@ -1701,11 +1799,26 @@ bool WasmCompiledFrame::at_to_number_conversion() const {
 
 int WasmCompiledFrame::LookupExceptionHandlerInTable(int* stack_slots) {
   DCHECK_NOT_NULL(stack_slots);
-  Code* code = LookupCode();
-  HandlerTable* table = HandlerTable::cast(code->handler_table());
-  int pc_offset = static_cast<int>(pc() - code->entry());
-  *stack_slots = code->stack_slots();
-  return table->LookupReturn(pc_offset);
+  if (!FLAG_wasm_jit_to_native) {
+    Code* code = LookupCode();
+    HandlerTable* table = HandlerTable::cast(code->handler_table());
+    int pc_offset = static_cast<int>(pc() - code->entry());
+    *stack_slots = code->stack_slots();
+    return table->LookupReturn(pc_offset);
+  }
+  wasm::WasmCode* code = isolate()->wasm_code_manager()->LookupCode(pc());
+  if (!code->IsAnonymous()) {
+    Object* table_entry =
+        code->owner()->compiled_module()->ptr_to_handler_table()->get(
+            code->index());
+    if (table_entry->IsHandlerTable()) {
+      HandlerTable* table = HandlerTable::cast(table_entry);
+      int pc_offset = static_cast<int>(pc() - code->instructions().start());
+      *stack_slots = static_cast<int>(code->stack_slots());
+      return table->LookupReturn(pc_offset);
+    }
+  }
+  return -1;
 }
 
 void WasmInterpreterEntryFrame::Iterate(RootVisitor* v) const {
@@ -1736,11 +1849,19 @@ void WasmInterpreterEntryFrame::Summarize(
 }
 
 Code* WasmInterpreterEntryFrame::unchecked_code() const {
-  return isolate()->FindCodeObject(pc());
+  if (FLAG_wasm_jit_to_native) {
+    UNIMPLEMENTED();
+  } else {
+    return isolate()->FindCodeObject(pc());
+  }
 }
 
 WasmInstanceObject* WasmInterpreterEntryFrame::wasm_instance() const {
-  WasmInstanceObject* ret = WasmInstanceObject::GetOwningInstance(LookupCode());
+  WasmInstanceObject* ret =
+      FLAG_wasm_jit_to_native
+          ? WasmInstanceObject::GetOwningInstance(
+                isolate()->wasm_code_manager()->LookupCode(pc()))
+          : WasmInstanceObject::GetOwningInstanceGC(LookupCode());
   // This is a live stack frame, there must be a live wasm instance available.
   DCHECK_NOT_NULL(ret);
   return ret;
@@ -1965,15 +2086,22 @@ void JavaScriptFrame::Iterate(RootVisitor* v) const {
 }
 
 void InternalFrame::Iterate(RootVisitor* v) const {
-  Code* code = LookupCode();
-  IteratePc(v, pc_address(), constant_pool_address(), code);
-  // Internal frames typically do not receive any arguments, hence their stack
-  // only contains tagged pointers.
-  // We are misusing the has_tagged_params flag here to tell us whether
-  // the full stack frame contains only tagged pointers or only raw values.
-  // This is used for the WasmCompileLazy builtin, where we actually pass
-  // untagged arguments and also store untagged values on the stack.
-  if (code->has_tagged_params()) IterateExpressions(v);
+  wasm::WasmCode* wasm_code =
+      FLAG_wasm_jit_to_native ? isolate()->wasm_code_manager()->LookupCode(pc())
+                              : nullptr;
+  if (wasm_code != nullptr) {
+    DCHECK(wasm_code->kind() == wasm::WasmCode::LazyStub);
+  } else {
+    Code* code = LookupCode();
+    IteratePc(v, pc_address(), constant_pool_address(), code);
+    // Internal frames typically do not receive any arguments, hence their stack
+    // only contains tagged pointers.
+    // We are misusing the has_tagged_params flag here to tell us whether
+    // the full stack frame contains only tagged pointers or only raw values.
+    // This is used for the WasmCompileLazy builtin, where we actually pass
+    // untagged arguments and also store untagged values on the stack.
+    if (code->has_tagged_params()) IterateExpressions(v);
+  }
 }
 
 // -------------------------------------------------------------------------

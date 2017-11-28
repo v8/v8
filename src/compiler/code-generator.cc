@@ -290,6 +290,25 @@ void CodeGenerator::AssembleCode() {
   result_ = kSuccess;
 }
 
+Handle<ByteArray> CodeGenerator::GetSourcePositionTable() {
+  return source_position_table_builder_.ToSourcePositionTable(isolate());
+}
+
+MaybeHandle<HandlerTable> CodeGenerator::GetHandlerTable() const {
+  if (!handlers_.empty()) {
+    Handle<HandlerTable> table =
+        Handle<HandlerTable>::cast(isolate()->factory()->NewFixedArray(
+            HandlerTable::LengthForReturn(static_cast<int>(handlers_.size())),
+            TENURED));
+    for (size_t i = 0; i < handlers_.size(); ++i) {
+      table->SetReturnOffset(static_cast<int>(i), handlers_[i].pc_offset);
+      table->SetReturnHandler(static_cast<int>(i), handlers_[i].handler->pos());
+    }
+    return table;
+  }
+  return {};
+}
+
 Handle<Code> CodeGenerator::FinalizeCode() {
   if (result_ != kSuccess) return Handle<Code>();
 
