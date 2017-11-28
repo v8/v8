@@ -1935,7 +1935,7 @@ void BytecodeGraphBuilder::VisitInvokeIntrinsic() {
 }
 
 void BytecodeGraphBuilder::VisitThrow() {
-  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetOutLivenessFor(
+  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetInLivenessFor(
       bytecode_iterator().current_offset()));
   Node* value = environment()->LookupAccumulator();
   Node* call = NewNode(javascript()->CallRuntime(Runtime::kThrow), value);
@@ -1945,7 +1945,7 @@ void BytecodeGraphBuilder::VisitThrow() {
 }
 
 void BytecodeGraphBuilder::VisitAbort() {
-  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetOutLivenessFor(
+  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetInLivenessFor(
       bytecode_iterator().current_offset()));
   BailoutReason reason =
       static_cast<BailoutReason>(bytecode_iterator().GetIndexOperand(0));
@@ -1955,7 +1955,7 @@ void BytecodeGraphBuilder::VisitAbort() {
 }
 
 void BytecodeGraphBuilder::VisitReThrow() {
-  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetOutLivenessFor(
+  BuildLoopExitsForFunctionExit(bytecode_analysis()->GetInLivenessFor(
       bytecode_iterator().current_offset()));
   Node* value = environment()->LookupAccumulator();
   NewNode(javascript()->CallRuntime(Runtime::kReThrow), value);
