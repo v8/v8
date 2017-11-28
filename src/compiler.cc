@@ -1176,15 +1176,6 @@ MaybeHandle<JSFunction> Compiler::GetFunctionFromEval(
 
 namespace {
 
-bool ContainsAsmModule(Handle<Script> script) {
-  DisallowHeapAllocation no_gc;
-  SharedFunctionInfo::ScriptIterator iter(script);
-  while (SharedFunctionInfo* info = iter.Next()) {
-    if (info->HasAsmWasmData()) return true;
-  }
-  return false;
-}
-
 bool ShouldProduceCodeCache(ScriptCompiler::CompileOptions options) {
   return options == ScriptCompiler::kProduceCodeCache ||
          options == ScriptCompiler::kProduceFullCodeCache;
@@ -1572,7 +1563,7 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       compilation_cache->PutScript(source, context, language_mode, result,
                                    vector);
       if (ShouldProduceCodeCache(compile_options) &&
-          !ContainsAsmModule(script)) {
+          !script->ContainsAsmModule()) {
         compile_timer.set_producing_code_cache();
 
         HistogramTimerScope histogram_timer(

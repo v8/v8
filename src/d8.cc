@@ -506,6 +506,8 @@ std::vector<Worker*> Shell::workers_;
 std::vector<ExternalizedContents> Shell::externalized_contents_;
 base::LazyMutex Shell::isolate_status_lock_;
 std::map<v8::Isolate*, bool> Shell::isolate_status_;
+std::map<std::string, std::unique_ptr<ScriptCompiler::CachedData>>
+    Shell::cached_code_map_;
 
 Global<Context> Shell::evaluation_context_;
 ArrayBuffer::Allocator* Shell::array_buffer_allocator;
@@ -566,94 +568,36 @@ class BackgroundCompileThread : public base::Thread {
   std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> task_;
 };
 
-ScriptCompiler::CachedData* CompileForCachedData(
-    Local<String> source, Local<Value> name,
-    ScriptCompiler::CompileOptions compile_options) {
-  int source_length = source->Length();
-  uint16_t* source_buffer = new uint16_t[source_length];
-  source->Write(source_buffer, 0, source_length);
-  int name_length = 0;
-  uint16_t* name_buffer = nullptr;
-  if (name->IsString()) {
-    Local<String> name_string = Local<String>::Cast(name);
-    name_length = name_string->Length();
-    name_buffer = new uint16_t[name_length];
-    name_string->Write(name_buffer, 0, name_length);
+ScriptCompiler::CachedData* Shell::LookupCodeCache(Isolate* isolate,
+                                                   Local<Value> name) {
+  CHECK(name->IsString());
+  v8::String::Utf8Value key(isolate, name);
+  DCHECK(*key);
+  auto entry = cached_code_map_.find(*key);
+  if (entry != cached_code_map_.end() && entry->second) {
+    int length = entry->second->length;
+    uint8_t* cache = new uint8_t[length];
+    memcpy(cache, entry->second->data, length);
+    ScriptCompiler::CachedData* cached_data = new ScriptCompiler::CachedData(
+        cache, length, ScriptCompiler::CachedData::BufferOwned);
+    return cached_data;
   }
-  Isolate::CreateParams create_params;
-  create_params.array_buffer_allocator = Shell::array_buffer_allocator;
-  i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
-  Isolate* temp_isolate = Isolate::New(create_params);
-  i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
-  temp_isolate->SetHostImportModuleDynamicallyCallback(
-      Shell::HostImportModuleDynamically);
-  temp_isolate->SetHostInitializeImportMetaObjectCallback(
-      Shell::HostInitializeImportMetaObject);
-  ScriptCompiler::CachedData* result = nullptr;
-  {
-    Isolate::Scope isolate_scope(temp_isolate);
-    HandleScope handle_scope(temp_isolate);
-    Context::Scope context_scope(Context::New(temp_isolate));
-    Local<String> source_copy =
-        v8::String::NewFromTwoByte(temp_isolate, source_buffer,
-                                   v8::NewStringType::kNormal, source_length)
-            .ToLocalChecked();
-    Local<Value> name_copy;
-    if (name_buffer) {
-      name_copy =
-          v8::String::NewFromTwoByte(temp_isolate, name_buffer,
-                                     v8::NewStringType::kNormal, name_length)
-              .ToLocalChecked();
-    } else {
-      name_copy = v8::Undefined(temp_isolate);
-    }
-    ScriptCompiler::Source script_source(source_copy, ScriptOrigin(name_copy));
-    if (!ScriptCompiler::CompileUnboundScript(temp_isolate, &script_source,
-                                              compile_options)
-             .IsEmpty() &&
-        script_source.GetCachedData()) {
-      int length = script_source.GetCachedData()->length;
-      uint8_t* cache = new uint8_t[length];
-      memcpy(cache, script_source.GetCachedData()->data, length);
-      result = new ScriptCompiler::CachedData(
-          cache, length, ScriptCompiler::CachedData::BufferOwned);
-    }
-  }
-  temp_isolate->Dispose();
-  delete[] source_buffer;
-  delete[] name_buffer;
-  return result;
+  return nullptr;
 }
 
-
-// Compile a string within the current v8 context.
-MaybeLocal<Script> Shell::CompileString(
-    Isolate* isolate, Local<String> source, Local<Value> name,
-    ScriptCompiler::CompileOptions compile_options) {
-  Local<Context> context(isolate->GetCurrentContext());
-  ScriptOrigin origin(name);
-  if (compile_options == ScriptCompiler::kNoCompileOptions) {
-    ScriptCompiler::Source script_source(source, origin);
-    return ScriptCompiler::Compile(context, &script_source, compile_options);
-  }
-
-  ScriptCompiler::CachedData* data =
-      CompileForCachedData(source, name, compile_options);
-  ScriptCompiler::Source cached_source(source, origin, data);
-  if (compile_options == ScriptCompiler::kProduceCodeCache) {
-    compile_options = ScriptCompiler::kConsumeCodeCache;
-  } else if (compile_options == ScriptCompiler::kProduceParserCache) {
-    compile_options = ScriptCompiler::kConsumeParserCache;
-  } else {
-    DCHECK(false);  // A new compile option?
-  }
-  if (data == nullptr) compile_options = ScriptCompiler::kNoCompileOptions;
-  MaybeLocal<Script> result =
-      ScriptCompiler::Compile(context, &cached_source, compile_options);
-  CHECK(data == nullptr || !data->rejected);
-  return result;
+void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> name,
+                             const ScriptCompiler::CachedData* cache_data) {
+  CHECK(name->IsString());
+  if (cache_data == nullptr) return;
+  v8::String::Utf8Value key(isolate, name);
+  DCHECK(*key);
+  int length = cache_data->length;
+  uint8_t* cache = new uint8_t[length];
+  memcpy(cache, cache_data->data, length);
+  cached_code_map_[*key] = std::unique_ptr<ScriptCompiler::CachedData>(
+      new ScriptCompiler::CachedData(cache, length,
+                                     ScriptCompiler::CachedData::BufferOwned));
 }
-
 
 // Executes a string within the current v8 context.
 bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
@@ -671,7 +615,22 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
         Local<Context>::New(isolate, data->realms_[data->realm_current_]);
     Context::Scope context_scope(realm);
     MaybeLocal<Script> maybe_script;
-    if (options.stress_background_compile) {
+    Local<Context> context(isolate->GetCurrentContext());
+    ScriptOrigin origin(name);
+
+    if (options.compile_options == ScriptCompiler::kConsumeCodeCache) {
+      ScriptCompiler::CachedData* cached_code = LookupCodeCache(isolate, name);
+      if (cached_code != nullptr) {
+        ScriptCompiler::Source script_source(source, origin, cached_code);
+        maybe_script = ScriptCompiler::Compile(context, &script_source,
+                                               options.compile_options);
+        CHECK(!cached_code->rejected);
+      } else {
+        ScriptCompiler::Source script_source(source, origin);
+        maybe_script = ScriptCompiler::Compile(
+            context, &script_source, ScriptCompiler::kNoCompileOptions);
+      }
+    } else if (options.stress_background_compile) {
       // Start a background thread compiling the script.
       BackgroundCompileThread background_compile_thread(isolate, source);
       background_compile_thread.Start();
@@ -679,18 +638,26 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
       // In parallel, compile on the main thread to flush out any data races.
       {
         TryCatch ignore_try_catch(isolate);
-        Shell::CompileString(isolate, source, name, options.compile_options);
+        ScriptCompiler::Source script_source(source, origin);
+        USE(ScriptCompiler::Compile(context, &script_source,
+                                    ScriptCompiler::kNoCompileOptions));
       }
 
       // Join with background thread and finalize compilation.
       background_compile_thread.Join();
-      ScriptOrigin origin(name);
       maybe_script = v8::ScriptCompiler::Compile(
-          isolate->GetCurrentContext(),
-          background_compile_thread.streamed_source(), source, origin);
+          context, background_compile_thread.streamed_source(), source, origin);
     } else {
+      ScriptCompiler::Source script_source(source, origin);
+      ScriptCompiler::CompileOptions compile_options =
+          options.cache_code_after_execute ? ScriptCompiler::kNoCompileOptions
+                                           : options.compile_options;
       maybe_script =
-          Shell::CompileString(isolate, source, name, options.compile_options);
+          ScriptCompiler::Compile(context, &script_source, compile_options);
+      if (compile_options == ScriptCompiler::kProduceCodeCache ||
+          compile_options == ScriptCompiler::kProduceParserCache) {
+        StoreInCodeCache(isolate, name, script_source.GetCachedData());
+      }
     }
 
     Local<Script> script;
@@ -701,6 +668,14 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
     }
 
     maybe_result = script->Run(realm);
+    if (options.compile_options == ScriptCompiler::kProduceCodeCache &&
+        options.cache_code_after_execute) {
+      // Serialize and store it in memory for the next execution.
+      ScriptCompiler::CachedData* cached_data =
+          ScriptCompiler::CreateCodeCache(script->GetUnboundScript(), source);
+      StoreInCodeCache(isolate, name, cached_data);
+      delete cached_data;
+    }
     if (!EmptyMessageQueues(isolate)) success = false;
     data->realm_current_ = data->realm_switch_;
   }
@@ -2868,6 +2843,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
         options.compile_options = v8::ScriptCompiler::kProduceParserCache;
       } else if (strncmp(value, "=none", 6) == 0) {
         options.compile_options = v8::ScriptCompiler::kNoCompileOptions;
+      } else if (strncmp(value, "=after-execute", 10) == 0) {
+        options.compile_options = v8::ScriptCompiler::kProduceCodeCache;
+        options.cache_code_after_execute = true;
       } else {
         printf("Unknown option to --cache.\n");
         return false;
@@ -3413,6 +3391,47 @@ int Shell::Main(int argc, char* argv[]) {
         bool last_run = i == options.stress_runs - 1;
         result = RunMain(isolate, argc, argv, last_run);
       }
+    } else if (options.compile_options ==
+                   v8::ScriptCompiler::kProduceCodeCache ||
+               options.compile_options ==
+                   v8::ScriptCompiler::kProduceParserCache) {
+      printf("============ Run: Produce code cache ============\n");
+      // First run to produce the cache
+      result = RunMain(isolate, argc, argv, false);
+
+      // Change the options to consume cache
+      if (options.compile_options == v8::ScriptCompiler::kProduceCodeCache) {
+        options.compile_options = v8::ScriptCompiler::kConsumeCodeCache;
+      } else if (options.compile_options ==
+                 v8::ScriptCompiler::kProduceParserCache) {
+        options.compile_options = v8::ScriptCompiler::kConsumeParserCache;
+      } else {
+        // We only expect ProduceCodeCache or ProduceParserCache here.
+        // compile_options cannot be NoCompileOptions.
+        UNREACHABLE();
+      }
+
+      printf("============ Run: Consume code cache ============\n");
+      // Second run to consume the cache in new isolate
+      Isolate::CreateParams create_params;
+      create_params.array_buffer_allocator = Shell::array_buffer_allocator;
+      i::FLAG_hash_seed ^= 1337;  // Use a different hash seed.
+      Isolate* isolate2 = Isolate::New(create_params);
+      i::FLAG_hash_seed ^= 1337;  // Restore old hash seed.
+      isolate2->SetHostImportModuleDynamicallyCallback(
+          Shell::HostImportModuleDynamically);
+      isolate2->SetHostInitializeImportMetaObjectCallback(
+          Shell::HostInitializeImportMetaObject);
+      {
+        D8Console console(isolate2);
+        debug::SetConsoleDelegate(isolate2, &console);
+        PerIsolateData data(isolate2);
+        Isolate::Scope isolate_scope(isolate2);
+
+        result = RunMain(isolate2, argc, argv, false);
+      }
+      cached_code_map_.clear();
+      isolate2->Dispose();
     } else {
       bool last_run = true;
       result = RunMain(isolate, argc, argv, last_run);

@@ -234,6 +234,13 @@ HeapObject* Deserializer<AllocatorT>::PostProcessNewObject(HeapObject* obj,
       void* backing_store = off_heap_backing_stores_[store_index->value()];
       fta->set_external_pointer(backing_store);
     }
+  } else if (obj->IsBytecodeArray()) {
+    // TODO(mythria): Remove these once we store the default values for these
+    // fields in the serializer.
+    BytecodeArray* bytecode_array = BytecodeArray::cast(obj);
+    bytecode_array->set_interrupt_budget(
+        interpreter::Interpreter::kInterruptBudget);
+    bytecode_array->set_osr_loop_nesting_level(0);
   }
   // Check alignment.
   DCHECK_EQ(0, Heap::GetFillToAlign(obj->address(), obj->RequiredAlignment()));

@@ -118,6 +118,9 @@ class Script : public Struct {
   // Retrieve source position from where eval was called.
   int GetEvalPosition();
 
+  // Check if the script contains any Asm modules.
+  bool ContainsAsmModule();
+
   // Init line_ends array with source code positions of line ends.
   static void InitLineEnds(Handle<Script> script);
 
