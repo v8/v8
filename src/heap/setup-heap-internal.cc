@@ -103,10 +103,8 @@ bool Heap::CreateInitialMaps() {
     }
 
     ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel, fixed_array);
-    fixed_array_map()->set_elements_kind(HOLEY_ELEMENTS);
     ALLOCATE_PARTIAL_MAP(FIXED_ARRAY_TYPE, kVariableSizeSentinel,
                          fixed_cow_array)
-    fixed_cow_array_map()->set_elements_kind(HOLEY_ELEMENTS);
     DCHECK_NE(fixed_array_map(), fixed_cow_array_map());
 
     ALLOCATE_PARTIAL_MAP(ODDBALL_TYPE, Oddball::kSize, undefined);

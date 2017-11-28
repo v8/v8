@@ -1034,8 +1034,8 @@ void Genesis::CreateJSProxyMaps() {
   // Allocate maps for all Proxy types.
   // Next to the default proxy, we need maps indicating callable and
   // constructable proxies.
-  Handle<Map> proxy_map =
-      factory()->NewMap(JS_PROXY_TYPE, JSProxy::kSize, PACKED_ELEMENTS);
+  Handle<Map> proxy_map = factory()->NewMap(JS_PROXY_TYPE, JSProxy::kSize,
+                                            TERMINAL_FAST_ELEMENTS_KIND);
   proxy_map->set_dictionary_map(true);
   proxy_map->set_may_have_interesting_symbols(true);
   native_context()->set_proxy_map(*proxy_map);
@@ -1624,9 +1624,11 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     array_function->shared()->SetConstructStub(*code);
 
     // Set up %ArrayPrototype%.
+    // The %ArrayPrototype% has TERMINAL_FAST_ELEMENTS_KIND in order to ensure
+    // that constant functions stay constant after turning prototype to setup
+    // mode and back when constant field tracking is enabled.
     Handle<JSArray> proto =
-        Handle<JSArray>::cast(factory->NewJSObject(array_function, TENURED));
-    JSArray::Initialize(proto, 0);
+        factory->NewJSArray(0, TERMINAL_FAST_ELEMENTS_KIND, TENURED);
     JSFunction::SetPrototype(array_function, proto);
     native_context()->set_initial_array_prototype(*proto);
 
@@ -5482,7 +5484,7 @@ Genesis::Genesis(Isolate* isolate,
   DCHECK_EQ(global_proxy_data->embedder_field_count(),
             global_proxy_template->InternalFieldCount());
   Handle<Map> global_proxy_map = isolate->factory()->NewMap(
-      JS_GLOBAL_PROXY_TYPE, proxy_size, HOLEY_SMI_ELEMENTS);
+      JS_GLOBAL_PROXY_TYPE, proxy_size, TERMINAL_FAST_ELEMENTS_KIND);
   global_proxy_map->set_is_access_check_needed(true);
   global_proxy_map->set_has_hidden_prototype(true);
   global_proxy_map->set_may_have_interesting_symbols(true);

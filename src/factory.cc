@@ -1623,7 +1623,7 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name, Handle<Code> code,
       NewFunction(name, code, prototype, language_mode, prototype_mutability);
 
   ElementsKind elements_kind =
-      type == JS_ARRAY_TYPE ? PACKED_SMI_ELEMENTS : HOLEY_SMI_ELEMENTS;
+      type == JS_ARRAY_TYPE ? PACKED_SMI_ELEMENTS : TERMINAL_FAST_ELEMENTS_KIND;
   Handle<Map> initial_map = NewMap(type, instance_size, elements_kind);
   // TODO(littledan): Why do we have this is_generator test when
   // NewFunctionPrototype already handles finding an appropriately

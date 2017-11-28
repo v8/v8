@@ -2381,6 +2381,7 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
                    Map::ConstructionCounter::encode(Map::kNoSlackTracking);
   map->set_bit_field3(bit_field3);
   map->set_weak_cell_cache(Smi::kZero);
+  map->set_elements_kind(TERMINAL_FAST_ELEMENTS_KIND);
   return map;
 }
 
@@ -2388,6 +2389,11 @@ AllocationResult Heap::AllocatePartialMap(InstanceType instance_type,
 AllocationResult Heap::AllocateMap(InstanceType instance_type,
                                    int instance_size,
                                    ElementsKind elements_kind) {
+  STATIC_ASSERT(LAST_JS_OBJECT_TYPE == LAST_TYPE);
+  DCHECK_IMPLIES(instance_type >= FIRST_JS_OBJECT_TYPE &&
+                     !Map::CanHaveFastTransitionableElementsKind(instance_type),
+                 IsDictionaryElementsKind(elements_kind) ||
+                     IsTerminalElementsKind(elements_kind));
   HeapObject* result = nullptr;
   AllocationResult allocation = AllocateRaw(Map::kSize, MAP_SPACE);
   if (!allocation.To(&result)) return allocation;
