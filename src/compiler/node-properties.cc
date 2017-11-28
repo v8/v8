@@ -501,6 +501,69 @@ bool NodeProperties::NoObservableSideEffectBetween(Node* effect,
 }
 
 // static
+bool NodeProperties::CanBePrimitive(Node* receiver, Node* effect) {
+  switch (receiver->opcode()) {
+#define CASE(Opcode) case IrOpcode::k##Opcode:
+    JS_CONSTRUCT_OP_LIST(CASE)
+    JS_CREATE_OP_LIST(CASE)
+#undef CASE
+    case IrOpcode::kCheckReceiver:
+    case IrOpcode::kConvertReceiver:
+    case IrOpcode::kJSGetSuperConstructor:
+    case IrOpcode::kJSToObject:
+      return false;
+    case IrOpcode::kHeapConstant: {
+      Handle<HeapObject> value = HeapObjectMatcher(receiver).Value();
+      return value->IsPrimitive();
+    }
+    default: {
+      // We don't really care about the exact maps here,
+      // just the instance types, which don't change
+      // across potential side-effecting operations.
+      ZoneHandleSet<Map> maps;
+      if (InferReceiverMaps(receiver, effect, &maps) != kNoReceiverMaps) {
+        // Check if all {maps} are actually JSReceiver maps.
+        for (size_t i = 0; i < maps.size(); ++i) {
+          if (!maps[i]->IsJSReceiverMap()) return true;
+        }
+        return false;
+      }
+      return true;
+    }
+  }
+}
+
+// static
+bool NodeProperties::CanBeNullOrUndefined(Node* receiver, Node* effect) {
+  if (CanBePrimitive(receiver, effect)) {
+    switch (receiver->opcode()) {
+      case IrOpcode::kCheckSmi:
+      case IrOpcode::kCheckNumber:
+      case IrOpcode::kCheckSymbol:
+      case IrOpcode::kCheckString:
+      case IrOpcode::kCheckSeqString:
+      case IrOpcode::kCheckInternalizedString:
+      case IrOpcode::kToBoolean:
+      case IrOpcode::kJSToInteger:
+      case IrOpcode::kJSToLength:
+      case IrOpcode::kJSToName:
+      case IrOpcode::kJSToNumber:
+      case IrOpcode::kJSToNumeric:
+      case IrOpcode::kJSToString:
+        return false;
+      case IrOpcode::kHeapConstant: {
+        Handle<HeapObject> value = HeapObjectMatcher(receiver).Value();
+        Isolate* const isolate = value->GetIsolate();
+        return value->IsNullOrUndefined(isolate);
+      }
+      default:
+        return true;
+    }
+  }
+  return false;
+}
+
+// static
 Node* NodeProperties::GetOuterContext(Node* node, size_t* depth) {
   Node* context = NodeProperties::GetContextInput(node);
   while (*depth > 0 &&

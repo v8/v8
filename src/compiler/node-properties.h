@@ -158,6 +158,15 @@ class V8_EXPORT_PRIVATE NodeProperties final {
   // in the effect chain.
   static bool NoObservableSideEffectBetween(Node* effect, Node* dominator);
 
+  // Returns true if the {receiver} can be a primitive value (i.e. is not
+  // definitely a JavaScript object); might walk up the {effect} chain to
+  // find map checks on {receiver}.
+  static bool CanBePrimitive(Node* receiver, Node* effect);
+
+  // Returns true if the {receiver} can be null or undefined. Might walk
+  // up the {effect} chain to find map checks for {receiver}.
+  static bool CanBeNullOrUndefined(Node* receiver, Node* effect);
+
   // ---------------------------------------------------------------------------
   // Context.
 

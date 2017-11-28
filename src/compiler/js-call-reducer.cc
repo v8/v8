@@ -22,64 +22,6 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-namespace {
-
-bool CanBePrimitive(Node* node) {
-  switch (node->opcode()) {
-    case IrOpcode::kConvertReceiver:
-    case IrOpcode::kJSCreate:
-    case IrOpcode::kJSCreateArguments:
-    case IrOpcode::kJSCreateArray:
-    case IrOpcode::kJSCreateBoundFunction:
-    case IrOpcode::kJSCreateClosure:
-    case IrOpcode::kJSCreateEmptyLiteralArray:
-    case IrOpcode::kJSCreateEmptyLiteralObject:
-    case IrOpcode::kJSCreateIterResultObject:
-    case IrOpcode::kJSCreateKeyValueArray:
-    case IrOpcode::kJSCreateLiteralArray:
-    case IrOpcode::kJSCreateLiteralObject:
-    case IrOpcode::kJSCreateLiteralRegExp:
-    case IrOpcode::kJSConstructForwardVarargs:
-    case IrOpcode::kJSConstruct:
-    case IrOpcode::kJSConstructWithArrayLike:
-    case IrOpcode::kJSConstructWithSpread:
-    case IrOpcode::kJSGetSuperConstructor:
-    case IrOpcode::kJSToObject:
-      return false;
-    case IrOpcode::kHeapConstant: {
-      Handle<HeapObject> value = HeapObjectMatcher(node).Value();
-      return value->IsPrimitive();
-    }
-    default:
-      return true;
-  }
-}
-
-bool CanBeNullOrUndefined(Node* node) {
-  if (CanBePrimitive(node)) {
-    switch (node->opcode()) {
-      case IrOpcode::kToBoolean:
-      case IrOpcode::kJSToInteger:
-      case IrOpcode::kJSToLength:
-      case IrOpcode::kJSToName:
-      case IrOpcode::kJSToNumber:
-      case IrOpcode::kJSToNumeric:
-      case IrOpcode::kJSToString:
-        return false;
-      case IrOpcode::kHeapConstant: {
-        Handle<HeapObject> value = HeapObjectMatcher(node).Value();
-        Isolate* const isolate = value->GetIsolate();
-        return value->IsNullOrUndefined(isolate);
-      }
-      default:
-        return true;
-    }
-  }
-  return false;
-}
-
-}  // namespace
-
 Reduction JSCallReducer::Reduce(Node* node) {
   switch (node->opcode()) {
     case IrOpcode::kJSConstruct:
@@ -169,10 +111,11 @@ Reduction JSCallReducer::ReduceObjectConstructor(Node* node) {
   if (p.arity() < 3) return NoChange();
   Node* value = (p.arity() >= 3) ? NodeProperties::GetValueInput(node, 2)
                                  : jsgraph()->UndefinedConstant();
+  Node* effect = NodeProperties::GetEffectInput(node);
 
   // We can fold away the Object(x) call if |x| is definitely not a primitive.
-  if (CanBePrimitive(value)) {
-    if (!CanBeNullOrUndefined(value)) {
+  if (NodeProperties::CanBePrimitive(value, effect)) {
+    if (!NodeProperties::CanBeNullOrUndefined(value, effect)) {
       // Turn the {node} into a {JSToObject} call if we know that
       // the {value} cannot be null or undefined.
       NodeProperties::ReplaceValueInputs(node, value);
@@ -213,7 +156,7 @@ Reduction JSCallReducer::ReduceFunctionPrototypeApply(Node* node) {
 
     // If {arguments_list} cannot be null or undefined, we don't need
     // to expand this {node} to control-flow.
-    if (!CanBeNullOrUndefined(arguments_list)) {
+    if (!NodeProperties::CanBeNullOrUndefined(arguments_list, effect)) {
       // Massage the value inputs appropriately.
       node->ReplaceInput(0, target);
       node->ReplaceInput(1, this_argument);
@@ -2063,7 +2006,7 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
 
     // Update the JSCall operator on {node}.
     ConvertReceiverMode const convert_mode =
-        CanBeNullOrUndefined(bound_this)
+        NodeProperties::CanBeNullOrUndefined(bound_this, effect)
             ? ConvertReceiverMode::kAny
             : ConvertReceiverMode::kNotNullOrUndefined;
     NodeProperties::ChangeOp(
