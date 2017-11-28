@@ -1230,8 +1230,8 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
       BIND(&if_bigint);
       {
         var_result.Bind(BigIntOp(value));
-        var_feedback.Bind(SmiOr(var_feedback.value(),
-                                SmiConstant(BinaryOperationFeedback::kBigInt)));
+        CombineFeedback(&var_feedback,
+                        SmiConstant(BinaryOperationFeedback::kBigInt));
         Goto(&end);
       }
 
@@ -1264,8 +1264,8 @@ class UnaryNumericOpAssembler : public InterpreterAssembler {
 
     BIND(&do_float_op);
     {
-      var_feedback.Bind(SmiOr(var_feedback.value(),
-                              SmiConstant(BinaryOperationFeedback::kNumber)));
+      CombineFeedback(&var_feedback,
+                      SmiConstant(BinaryOperationFeedback::kNumber));
       var_result.Bind(
           AllocateHeapNumberWithValue(FloatOp(var_float_value.value())));
       Goto(&end);
@@ -1295,12 +1295,14 @@ class NegateAssemblerImpl : public UnaryNumericOpAssembler {
     GotoIf(SmiEqual(smi_value, SmiConstant(Smi::kMinValue)), &if_min_smi);
 
     // Else simply subtract operand from 0.
-    var_feedback->Bind(SmiConstant(BinaryOperationFeedback::kSignedSmall));
+    CombineFeedback(var_feedback,
+                    SmiConstant(BinaryOperationFeedback::kSignedSmall));
     var_result.Bind(SmiSub(SmiConstant(0), smi_value));
     Goto(&end);
 
     BIND(&if_zero);
-    var_feedback->Bind(SmiConstant(BinaryOperationFeedback::kNumber));
+    CombineFeedback(var_feedback,
+                    SmiConstant(BinaryOperationFeedback::kNumber));
     var_result.Bind(MinusZeroConstant());
     Goto(&end);
 
@@ -1395,9 +1397,8 @@ class IncDecAssembler : public UnaryNumericOpAssembler {
     }
 
     BIND(&if_notoverflow);
-    var_feedback->Bind(
-        SmiOr(var_feedback->value(),
-              SmiConstant(BinaryOperationFeedback::kSignedSmall)));
+    CombineFeedback(var_feedback,
+                    SmiConstant(BinaryOperationFeedback::kSignedSmall));
     return BitcastWordToTaggedSigned(Projection(0, pair));
   }
 
