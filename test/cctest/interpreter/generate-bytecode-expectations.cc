@@ -278,8 +278,8 @@ void ProgramOptions::UpdateFromHeader(std::istream& stream) {
       do_expressions_ = ParseBoolean(line.c_str() + 16);
     } else if (line.compare(0, 17, "async iteration: ") == 0) {
       async_iteration_ = ParseBoolean(line.c_str() + 17);
-    } else if (line.compare(0, 14, "public fields: ") == 0) {
-      public_fields_ = ParseBoolean(line.c_str() + 14);
+    } else if (line.compare(0, 15, "public fields: ") == 0) {
+      public_fields_ = ParseBoolean(line.c_str() + 15);
     } else if (line == "---") {
       break;
     } else if (line.empty()) {
