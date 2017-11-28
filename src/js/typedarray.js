@@ -453,18 +453,6 @@ function TypedArrayConstructor() {
 
 macro SETUP_TYPED_ARRAY(NAME, ELEMENT_SIZE)
   %SetCode(GlobalNAME, NAMEConstructor);
-  %FunctionSetPrototype(GlobalNAME, new GlobalObject());
-  %InternalSetPrototype(GlobalNAME, GlobalTypedArray);
-  %InternalSetPrototype(GlobalNAME.prototype, GlobalTypedArray.prototype);
-
-  %AddNamedProperty(GlobalNAME, "BYTES_PER_ELEMENT", ELEMENT_SIZE,
-                    READ_ONLY | DONT_ENUM | DONT_DELETE);
-
-  %AddNamedProperty(GlobalNAME.prototype,
-                    "constructor", global.NAME, DONT_ENUM);
-  %AddNamedProperty(GlobalNAME.prototype,
-                    "BYTES_PER_ELEMENT", ELEMENT_SIZE,
-                    READ_ONLY | DONT_ENUM | DONT_DELETE);
 endmacro
 
 TYPED_ARRAYS(SETUP_TYPED_ARRAY)

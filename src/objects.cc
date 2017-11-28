@@ -12401,9 +12401,10 @@ void JSObject::MakePrototypesFast(Handle<Object> receiver,
 }
 
 // static
-void JSObject::OptimizeAsPrototype(Handle<JSObject> object) {
+void JSObject::OptimizeAsPrototype(Handle<JSObject> object,
+                                   bool enable_setup_mode) {
   if (object->IsJSGlobalObject()) return;
-  if (PrototypeBenefitsFromNormalization(object)) {
+  if (enable_setup_mode && PrototypeBenefitsFromNormalization(object)) {
     // First normalize to ensure all JSFunctions are DATA_CONSTANT.
     JSObject::NormalizeProperties(object, KEEP_INOBJECT_PROPERTIES, 0,
                                   "NormalizeAsPrototype");
@@ -12657,13 +12658,14 @@ Handle<WeakCell> Map::GetOrCreatePrototypeWeakCell(Handle<JSReceiver> prototype,
 }
 
 // static
-void Map::SetPrototype(Handle<Map> map, Handle<Object> prototype) {
+void Map::SetPrototype(Handle<Map> map, Handle<Object> prototype,
+                       bool enable_prototype_setup_mode) {
   RuntimeCallTimerScope stats_scope(*map, &RuntimeCallStats::Map_SetPrototype);
 
   bool is_hidden = false;
   if (prototype->IsJSObject()) {
     Handle<JSObject> prototype_jsobj = Handle<JSObject>::cast(prototype);
-    JSObject::OptimizeAsPrototype(prototype_jsobj);
+    JSObject::OptimizeAsPrototype(prototype_jsobj, enable_prototype_setup_mode);
 
     Object* maybe_constructor = prototype_jsobj->map()->GetConstructor();
     if (maybe_constructor->IsJSFunction()) {

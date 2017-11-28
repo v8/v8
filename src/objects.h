@@ -2380,7 +2380,8 @@ class JSObject: public JSReceiver {
                                             Handle<Object> value,
                                             PropertyAttributes attributes);
 
-  static void OptimizeAsPrototype(Handle<JSObject> object);
+  static void OptimizeAsPrototype(Handle<JSObject> object,
+                                  bool enable_setup_mode = true);
   static void ReoptimizeIfPrototype(Handle<JSObject> object);
   static void MakePrototypesFast(Handle<Object> receiver,
                                  WhereToStart where_to_start, Isolate* isolate);

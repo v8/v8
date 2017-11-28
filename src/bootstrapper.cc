@@ -223,8 +223,8 @@ class Genesis BASE_EMBEDDED {
                                           ElementsKind elements_kind);
   bool InstallNatives(GlobalContextType context_type);
 
-  void InstallTypedArray(const char* name, ElementsKind elements_kind,
-                         Handle<JSFunction>* fun);
+  Handle<JSFunction> InstallTypedArray(const char* name,
+                                       ElementsKind elements_kind);
   bool InstallExtraNatives();
   bool InstallExperimentalExtraNatives();
   bool InstallDebuggerNatives();
@@ -403,12 +403,17 @@ V8_NOINLINE Handle<JSFunction> CreateFunction(
         builtin_id, IMMUTABLE);
 
     result = isolate->factory()->NewFunction(args);
+    // Make the JSFunction's prototype object fast.
+    JSObject::MakePrototypesFast(handle(result->prototype(), isolate),
+                                 kStartAtReceiver, isolate);
   } else {
     NewFunctionArgs args = NewFunctionArgs::ForBuiltinWithoutPrototype(
         name, code, builtin_id, LanguageMode::kStrict);
     result = isolate->factory()->NewFunction(args);
   }
 
+  // Make the resulting JSFunction object fast.
+  JSObject::MakePrototypesFast(result, kStartAtReceiver, isolate);
   result->shared()->set_native(true);
   return result;
 }
@@ -3043,8 +3048,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   {  // -- T y p e d A r r a y s
 #define INSTALL_TYPED_ARRAY(Type, type, TYPE, ctype, size)             \
   {                                                                    \
-    Handle<JSFunction> fun;                                            \
-    InstallTypedArray(#Type "Array", TYPE##_ELEMENTS, &fun);           \
+    Handle<JSFunction> fun =                                           \
+        InstallTypedArray(#Type "Array", TYPE##_ELEMENTS);             \
     InstallWithIntrinsicDefaultProto(isolate, fun,                     \
                                      Context::TYPE##_ARRAY_FUN_INDEX); \
   }
@@ -3598,8 +3603,8 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
   }
 }  // NOLINT(readability/fn_size)
 
-void Genesis::InstallTypedArray(const char* name, ElementsKind elements_kind,
-                                Handle<JSFunction>* fun) {
+Handle<JSFunction> Genesis::InstallTypedArray(const char* name,
+                                              ElementsKind elements_kind) {
   Handle<JSObject> global = Handle<JSObject>(native_context()->global_object());
 
   Handle<JSObject> typed_array_prototype =
@@ -3607,20 +3612,29 @@ void Genesis::InstallTypedArray(const char* name, ElementsKind elements_kind,
   Handle<JSFunction> typed_array_function =
       Handle<JSFunction>(isolate()->typed_array_function());
 
-  Handle<JSObject> prototype =
-      factory()->NewJSObject(isolate()->object_function(), TENURED);
   Handle<JSFunction> result = InstallFunction(
       global, name, JS_TYPED_ARRAY_TYPE, JSTypedArray::kSizeWithEmbedderFields,
-      0, prototype, Builtins::kIllegal);
+      0, factory()->the_hole_value(), Builtins::kIllegal);
   result->initial_map()->set_elements_kind(elements_kind);
 
   CHECK(JSObject::SetPrototype(result, typed_array_function, false, kDontThrow)
             .FromJust());
 
+  Handle<Smi> bytes_per_element(
+      Smi::FromInt(1 << ElementsKindToShiftSize(elements_kind)), isolate());
+
+  InstallConstant(isolate(), result, "BYTES_PER_ELEMENT", bytes_per_element);
+
+  // Setup prototype object.
+  DCHECK(result->prototype()->IsJSObject());
+  Handle<JSObject> prototype(JSObject::cast(result->prototype()), isolate());
+
   CHECK(JSObject::SetPrototype(prototype, typed_array_prototype, false,
                                kDontThrow)
             .FromJust());
-  *fun = result;
+
+  InstallConstant(isolate(), prototype, "BYTES_PER_ELEMENT", bytes_per_element);
+  return result;
 }
 
 

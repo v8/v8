@@ -232,7 +232,6 @@ namespace internal {
   F(FunctionGetScriptSourcePosition, 1, 1) \
   F(FunctionGetContextData, 1, 1)          \
   F(FunctionSetLength, 2, 1)               \
-  F(FunctionSetPrototype, 2, 1)            \
   F(FunctionIsAPIFunction, 1, 1)           \
   F(SetCode, 2, 1)                         \
   F(SetNativeFlag, 1, 1)                   \

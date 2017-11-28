@@ -498,7 +498,8 @@ class Map : public HeapObject {
   // [prototype]: implicit prototype object.
   DECL_ACCESSORS(prototype, Object)
   // TODO(jkummerow): make set_prototype private.
-  static void SetPrototype(Handle<Map> map, Handle<Object> prototype);
+  static void SetPrototype(Handle<Map> map, Handle<Object> prototype,
+                           bool enable_prototype_setup_mode = true);
 
   // [constructor]: points back to the function or FunctionTemplateInfo
   // responsible for this map.

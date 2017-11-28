@@ -97,18 +97,6 @@ RUNTIME_FUNCTION(Runtime_FunctionSetLength) {
 }
 
 
-RUNTIME_FUNCTION(Runtime_FunctionSetPrototype) {
-  HandleScope scope(isolate);
-  DCHECK_EQ(2, args.length());
-
-  CONVERT_ARG_HANDLE_CHECKED(JSFunction, fun, 0);
-  CONVERT_ARG_HANDLE_CHECKED(Object, value, 1);
-  CHECK(fun->IsConstructor());
-  JSFunction::SetPrototype(fun, value);
-  return args[0];  // return TOS
-}
-
-
 RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());

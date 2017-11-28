@@ -450,7 +450,6 @@ bool InitClassPrototype(Isolate* isolate,
   Map::SetPrototype(map, prototype_parent);
   constructor->set_prototype_or_initial_map(*prototype);
   map->SetConstructor(*constructor);
-  Map::SetShouldBeFastPrototypeMap(map, true, isolate);
 
   Handle<FixedArray> computed_properties(
       class_boilerplate->instance_computed_properties(), isolate);
@@ -467,7 +466,7 @@ bool InitClassPrototype(Isolate* isolate,
     map->set_dictionary_map(true);
     map->set_migration_target(false);
     map->set_may_have_interesting_symbols(true);
-    //  map->set_construction_counter(Map::kNoSlackTracking);
+    map->set_construction_counter(Map::kNoSlackTracking);
 
     // We care about name property only for class constructor.
     const bool install_name_accessor = false;
@@ -496,13 +495,11 @@ bool InitClassConstructor(Isolate* isolate,
   Handle<Map> map(constructor->map(), isolate);
   map = Map::CopyDropDescriptors(map);
   DCHECK(map->is_prototype_map());
-  Map::SetShouldBeFastPrototypeMap(map, true, isolate);
 
   if (!constructor_parent.is_null()) {
-    // Set map's prototype without triggering JSObject::OptimizeAsPrototype()
-    // for parent class.
-    // map->set_prototype(*constructor_parent);
-    Map::SetPrototype(map, constructor_parent);
+    // Set map's prototype without enabling prototype setup mode for superclass
+    // because it does not make sense.
+    Map::SetPrototype(map, constructor_parent, false);
   }
 
   Handle<NumberDictionary> elements_dictionary_template(
