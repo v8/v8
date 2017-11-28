@@ -419,6 +419,8 @@
 
   # BUG(v8:6924). The test uses a lot of memory.
   'regress/wasm/regress-694433': [SKIP],
+  'es6/typedarray': [PASS, NO_VARIANTS],
+  'regress/regress-752764': [PASS, NO_VARIANTS],
 }],  # 'tsan == True'
 
 ##############################################################################
