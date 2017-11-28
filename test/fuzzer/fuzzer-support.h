@@ -13,12 +13,17 @@ namespace v8_fuzzer {
 class FuzzerSupport {
  public:
   FuzzerSupport(int* argc, char*** argv);
+
   ~FuzzerSupport();
+
+  static void InitializeFuzzerSupport(int* argc, char*** argv);
 
   static FuzzerSupport* Get();
 
-  v8::Isolate* GetIsolate() const;
+  v8::Isolate* GetIsolate() const { return isolate_; }
+
   v8::Local<v8::Context> GetContext();
+
   bool PumpMessageLoop(v8::platform::MessageLoopBehavior =
                            v8::platform::MessageLoopBehavior::kDoNotWait);
 
@@ -27,6 +32,7 @@ class FuzzerSupport {
   FuzzerSupport(const FuzzerSupport&);
   FuzzerSupport& operator=(const FuzzerSupport&);
 
+  static std::unique_ptr<FuzzerSupport> fuzzer_support_;
   std::unique_ptr<v8::Platform> platform_;
   v8::ArrayBuffer::Allocator* allocator_;
   v8::Isolate* isolate_;

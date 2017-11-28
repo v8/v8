@@ -14,19 +14,6 @@
 
 namespace v8_fuzzer {
 
-namespace {
-
-FuzzerSupport* g_fuzzer_support = nullptr;
-
-void DeleteFuzzerSupport() {
-  if (g_fuzzer_support) {
-    delete g_fuzzer_support;
-    g_fuzzer_support = nullptr;
-  }
-}
-
-}  // namespace
-
 FuzzerSupport::FuzzerSupport(int* argc, char*** argv) {
   v8::internal::FLAG_expose_gc = true;
   v8::V8::SetFlagsFromCommandLine(argc, *argv, true);
@@ -72,10 +59,20 @@ FuzzerSupport::~FuzzerSupport() {
   v8::V8::ShutdownPlatform();
 }
 
-// static
-FuzzerSupport* FuzzerSupport::Get() { return g_fuzzer_support; }
+std::unique_ptr<FuzzerSupport> FuzzerSupport::fuzzer_support_;
 
-v8::Isolate* FuzzerSupport::GetIsolate() const { return isolate_; }
+// static
+void FuzzerSupport::InitializeFuzzerSupport(int* argc, char*** argv) {
+  DCHECK_NULL(FuzzerSupport::fuzzer_support_);
+  FuzzerSupport::fuzzer_support_ =
+      v8::base::make_unique<v8_fuzzer::FuzzerSupport>(argc, argv);
+}
+
+// static
+FuzzerSupport* FuzzerSupport::Get() {
+  DCHECK_NOT_NULL(FuzzerSupport::fuzzer_support_);
+  return FuzzerSupport::fuzzer_support_.get();
+}
 
 v8::Local<v8::Context> FuzzerSupport::GetContext() {
   v8::Isolate::Scope isolate_scope(isolate_);
@@ -93,7 +90,6 @@ bool FuzzerSupport::PumpMessageLoop(
 }  // namespace v8_fuzzer
 
 extern "C" int LLVMFuzzerInitialize(int* argc, char*** argv) {
-  v8_fuzzer::g_fuzzer_support = new v8_fuzzer::FuzzerSupport(argc, argv);
-  atexit(&v8_fuzzer::DeleteFuzzerSupport);
+  v8_fuzzer::FuzzerSupport::InitializeFuzzerSupport(argc, argv);
   return 0;
 }
