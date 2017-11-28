@@ -2296,27 +2296,20 @@ class VerboseAccountingAllocator : public AccountingAllocator {
   }
 
   void ZoneCreation(const Zone* zone) override {
-    double time = heap_->isolate()->time_millis_since_init();
-    PrintF(
-        "{"
-        "\"type\": \"zonecreation\", "
-        "\"isolate\": \"%p\", "
-        "\"time\": %f, "
-        "\"ptr\": \"%p\", "
-        "\"name\": \"%s\","
-        "\"nesting\": %" PRIuS "}\n",
-        reinterpret_cast<void*>(heap_->isolate()), time,
-        reinterpret_cast<const void*>(zone), zone->name(),
-        nesting_deepth_.Value());
+    PrintZoneModificationSample(zone, "zonecreation");
     nesting_deepth_.Increment(1);
   }
 
   void ZoneDestruction(const Zone* zone) override {
     nesting_deepth_.Decrement(1);
-    double time = heap_->isolate()->time_millis_since_init();
+    PrintZoneModificationSample(zone, "zonedestruction");
+  }
+
+ private:
+  void PrintZoneModificationSample(const Zone* zone, const char* type) {
     PrintF(
         "{"
-        "\"type\": \"zonedestruction\", "
+        "\"type\": \"%s\", "
         "\"isolate\": \"%p\", "
         "\"time\": %f, "
         "\"ptr\": \"%p\", "
@@ -2324,12 +2317,12 @@ class VerboseAccountingAllocator : public AccountingAllocator {
         "\"size\": %" PRIuS
         ","
         "\"nesting\": %" PRIuS "}\n",
-        reinterpret_cast<void*>(heap_->isolate()), time,
+        type, reinterpret_cast<void*>(heap_->isolate()),
+        heap_->isolate()->time_millis_since_init(),
         reinterpret_cast<const void*>(zone), zone->name(),
         zone->allocation_size(), nesting_deepth_.Value());
   }
 
- private:
   void PrintMemoryJSON(size_t malloced, size_t pooled) {
     // Note: Neither isolate, nor heap is locked, so be careful with accesses
     // as the allocator is potentially used on a concurrent thread.
@@ -2746,6 +2739,8 @@ void PrintBuiltinSizes(Isolate* isolate) {
 bool Isolate::Init(StartupDeserializer* des) {
   TRACE_ISOLATE(init);
 
+  time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
+
   stress_deopt_count_ = FLAG_deopt_every_n_times;
   force_slow_path_ = FLAG_force_slow_path;
 
@@ -2908,8 +2903,6 @@ bool Isolate::Init(StartupDeserializer* des) {
   CHECK_EQ(static_cast<int>(
                OFFSET_OF(Isolate, heap_.external_memory_at_last_mark_compact_)),
            Internals::kExternalMemoryAtLastMarkCompactOffset);
-
-  time_millis_at_init_ = heap_.MonotonicallyIncreasingTimeInMs();
 
   {
     HandleScope scope(this);
