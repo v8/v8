@@ -404,7 +404,13 @@ class AggregatableHistogramTimer : public Histogram {
  public:
   // Start/stop the "outer" scope.
   void Start() { time_ = base::TimeDelta(); }
-  void Stop() { AddSample(static_cast<int>(time_.InMicroseconds())); }
+  void Stop() {
+    if (time_ != base::TimeDelta()) {
+      // Only add non-zero samples, since zero samples represent situations
+      // where there were no aggregated samples added.
+      AddSample(static_cast<int>(time_.InMicroseconds()));
+    }
+  }
 
   // Add a time value ("inner" scope).
   void Add(base::TimeDelta other) { time_ += other; }
