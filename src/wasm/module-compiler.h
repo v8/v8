@@ -21,7 +21,6 @@ namespace internal {
 namespace wasm {
 
 class ModuleCompiler;
-class WasmCode;
 
 V8_EXPORT_PRIVATE bool SyncValidate(Isolate* isolate,
                                     const ModuleWireBytes& bytes);
@@ -54,9 +53,6 @@ V8_EXPORT_PRIVATE void CompileJsToWasmWrappers(
     Isolate* isolate, Handle<WasmCompiledModule> compiled_module,
     Counters* counters);
 
-V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
-    Isolate* isolate, const ModuleWireBytes& wire_bytes);
-
 // Triggered by the WasmCompileLazy builtin.
 // Walks the stack (top three frames) to determine the wasm instance involved
 // and which function to compile.
@@ -66,8 +62,7 @@ V8_EXPORT_PRIVATE Handle<Script> CreateWasmScript(
 // an error occurred. In the latter case, a pending exception has been set,
 // which will be triggered when returning from the runtime function, i.e. the
 // Illegal builtin will never be called.
-Address CompileLazy(Isolate* isolate);
-Handle<Code> CompileLazyOnGCHeap(Isolate* isolate);
+Handle<Code> CompileLazy(Isolate* isolate);
 
 // This class orchestrates the lazy compilation of wasm functions. It is
 // triggered by the WasmCompileLazy builtin.
@@ -77,24 +72,12 @@ Handle<Code> CompileLazyOnGCHeap(Isolate* isolate);
 // logic to actually orchestrate parallel execution of wasm compilation jobs.
 // TODO(clemensh): Implement concurrent lazy compilation.
 class LazyCompilationOrchestrator {
-  const WasmCode* CompileFunction(Isolate*, Handle<WasmInstanceObject>,
-                                  int func_index);
+  void CompileFunction(Isolate*, Handle<WasmInstanceObject>, int func_index);
 
  public:
-  Handle<Code> CompileLazyOnGCHeap(Isolate*, Handle<WasmInstanceObject>,
-                                   Handle<Code> caller, int call_offset,
-                                   int exported_func_index, bool patch_caller);
-  const wasm::WasmCode* CompileFromJsToWasm(Isolate*,
-                                            Handle<WasmInstanceObject>,
-                                            Handle<Code> caller,
-                                            uint32_t exported_func_index);
-  const wasm::WasmCode* CompileDirectCall(Isolate*, Handle<WasmInstanceObject>,
-                                          Maybe<uint32_t>,
-                                          const WasmCode* caller,
-                                          int call_offset);
-  const wasm::WasmCode* CompileIndirectCall(Isolate*,
-                                            Handle<WasmInstanceObject>,
-                                            uint32_t func_index);
+  Handle<Code> CompileLazy(Isolate*, Handle<WasmInstanceObject>,
+                           Handle<Code> caller, int call_offset,
+                           int exported_func_index, bool patch_caller);
 };
 
 // Encapsulates all the state and steps of an asynchronous compilation.

@@ -62,12 +62,7 @@ class CWasmEntryArgTester {
     Handle<Object> buffer_obj(reinterpret_cast<Object*>(arg_buffer.data()),
                               isolate_);
     CHECK(!buffer_obj->IsHeapObject());
-    Handle<Object> call_args[]{
-        (FLAG_wasm_jit_to_native
-             ? Handle<Object>::cast(isolate_->factory()->NewForeign(
-                   wasm_code_.GetWasmCode()->instructions().start(), TENURED))
-             : Handle<Object>::cast(wasm_code_.GetCode())),
-        buffer_obj};
+    Handle<Object> call_args[]{wasm_code_, buffer_obj};
     static_assert(
         arraysize(call_args) == compiler::CWasmEntryParameters::kNumParameters,
         "adapt this test");
@@ -93,7 +88,7 @@ class CWasmEntryArgTester {
   std::function<ReturnType(Args...)> expected_fn_;
   FunctionSig* sig_;
   Handle<JSFunction> c_wasm_entry_fn_;
-  WasmCodeWrapper wasm_code_;
+  Handle<Code> wasm_code_;
 };
 
 }  // namespace

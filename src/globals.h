@@ -177,7 +177,6 @@ const int kElidedFrameSlots = 0;
 #endif
 
 const int kDoubleSizeLog2 = 3;
-const size_t kMaxWasmCodeMemory = 256 * MB;
 
 #if V8_HOST_ARCH_64_BIT
 const int kPointerSizeLog2 = 3;

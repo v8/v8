@@ -77,7 +77,7 @@ using compiler::Node;
     r.Build(code, code + arraysize(code)); \
   } while (false)
 
-// A  Wasm module builder. Globals are pre-set, however, memory and code may be
+// A buildable ModuleEnv. Globals are pre-set, however, memory and code may be
 // progressively added by a test. In turn, we piecemeal update the runtime
 // objects, i.e. {WasmInstanceObject}, {WasmCompiledModule} and, if necessary,
 // the interpreter.
@@ -90,13 +90,7 @@ class TestingModuleBuilder {
 
   byte* AddMemory(uint32_t size);
 
-  size_t CodeTableLength() const {
-    if (FLAG_wasm_jit_to_native) {
-      return native_module_->FunctionCount();
-    } else {
-      return function_code_.size();
-    }
-  }
+  size_t CodeTableLength() const { return function_code_.size(); }
 
   template <typename T>
   T* AddMemoryElems(uint32_t count) {
@@ -179,7 +173,7 @@ class TestingModuleBuilder {
 
   void SetHasSharedMemory() { test_module_.has_shared_memory = true; }
 
-  uint32_t AddFunction(FunctionSig* sig, const char* name);
+  uint32_t AddFunction(FunctionSig* sig, Handle<Code> code, const char* name);
 
   uint32_t AddJsFunction(FunctionSig* sig, const char* source,
                          Handle<FixedArray> js_imports_table);
@@ -206,24 +200,11 @@ class TestingModuleBuilder {
   bool lower_simd() { return lower_simd_; }
   Isolate* isolate() { return isolate_; }
   Handle<WasmInstanceObject> instance_object() { return instance_object_; }
-  WasmCodeWrapper GetFunctionCode(uint32_t index) {
-    if (FLAG_wasm_jit_to_native) {
-      return WasmCodeWrapper(native_module_->GetCode(index));
-    } else {
-      return WasmCodeWrapper(function_code_[index]);
-    }
-  }
+  Handle<Code> GetFunctionCode(int index) { return function_code_[index]; }
   void SetFunctionCode(int index, Handle<Code> code) {
     function_code_[index] = code;
   }
   Address globals_start() { return reinterpret_cast<Address>(globals_data_); }
-  void Link() {
-    if (!FLAG_wasm_jit_to_native) return;
-    if (!linked_) {
-      native_module_->LinkAll();
-      linked_ = true;
-    }
-  }
 
   compiler::ModuleEnv CreateModuleEnv();
 
@@ -247,8 +228,6 @@ class TestingModuleBuilder {
   WasmInterpreter* interpreter_;
   WasmExecutionMode execution_mode_;
   Handle<WasmInstanceObject> instance_object_;
-  NativeModule* native_module_;
-  bool linked_ = false;
   compiler::RuntimeExceptionSupport runtime_exception_support_;
   bool lower_simd_;
 
@@ -279,21 +258,9 @@ class WasmFunctionWrapper : private compiler::GraphAndBuilders {
     Init(descriptor, MachineTypeForC<ReturnType>(), param_vec);
   }
 
-  void SetInnerCode(WasmCodeWrapper code) {
-    if (FLAG_wasm_jit_to_native) {
-      intptr_t address = reinterpret_cast<intptr_t>(
-          code.GetWasmCode()->instructions().start());
-      compiler::NodeProperties::ChangeOp(
-          inner_code_node_,
-          kPointerSize == 8
-              ? common()->RelocatableInt64Constant(address,
-                                                   RelocInfo::WASM_CALL)
-              : common()->RelocatableInt32Constant(static_cast<int>(address),
-                                                   RelocInfo::WASM_CALL));
-    } else {
-      compiler::NodeProperties::ChangeOp(
-          inner_code_node_, common()->HeapConstant(code.GetCode()));
-    }
+  void SetInnerCode(Handle<Code> code_handle) {
+    compiler::NodeProperties::ChangeOp(inner_code_node_,
+                                       common()->HeapConstant(code_handle));
   }
 
   const compiler::Operator* IntPtrConstant(intptr_t value) {
@@ -477,7 +444,6 @@ class WasmRunner : public WasmRunnerBase {
     WasmContext* wasm_context =
         builder().instance_object()->wasm_context()->get();
     wrapper_.SetContextAddress(reinterpret_cast<uintptr_t>(wasm_context));
-    builder().Link();
     Handle<Code> wrapper_code = wrapper_.GetWrapperCode();
     compiler::CodeRunner<int32_t> runner(CcTest::InitIsolateOnce(),
                                          wrapper_code, wrapper_.signature());

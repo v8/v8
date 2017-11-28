@@ -627,29 +627,17 @@ const char* OpcodeName(uint32_t val) {
 // Unwrap a wasm to js wrapper, return the callable heap object.
 // If the wrapper would throw a TypeError, return a null handle.
 Handle<HeapObject> UnwrapWasmToJSWrapper(Isolate* isolate,
-                                         WasmCodeWrapper wrapper) {
-  Handle<FixedArray> js_imports_table;
+                                         Handle<Code> js_wrapper) {
+  DCHECK_EQ(Code::WASM_TO_JS_FUNCTION, js_wrapper->kind());
+  Handle<FixedArray> deopt_data(js_wrapper->deoptimization_data(), isolate);
+  DCHECK_EQ(2, deopt_data->length());
+  intptr_t js_imports_table_loc = static_cast<intptr_t>(
+      HeapNumber::cast(deopt_data->get(0))->value_as_bits());
+  Handle<FixedArray> js_imports_table(
+      reinterpret_cast<FixedArray**>(js_imports_table_loc));
   int index = 0;
-  if (wrapper.IsCodeObject()) {
-    Handle<Code> js_wrapper = wrapper.GetCode();
-    DCHECK(Code::WASM_TO_JS_FUNCTION == js_wrapper->kind());
-    Handle<FixedArray> deopt_data(js_wrapper->deoptimization_data(), isolate);
-    DCHECK_EQ(2, deopt_data->length());
-    intptr_t js_imports_table_loc = static_cast<intptr_t>(
-        HeapNumber::cast(deopt_data->get(0))->value_as_bits());
-    js_imports_table = Handle<FixedArray>(
-        reinterpret_cast<FixedArray**>(js_imports_table_loc));
-    CHECK(deopt_data->get(1)->ToInt32(&index));
-    DCHECK_GT(js_imports_table->length(), index);
-  } else {
-    const wasm::WasmCode* wasm_code = wrapper.GetWasmCode();
-    DCHECK_EQ(wasm::WasmCode::WasmToJsWrapper, wasm_code->kind());
-    js_imports_table = Handle<FixedArray>(wasm_code->owner()
-                                              ->compiled_module()
-                                              ->owning_instance()
-                                              ->js_imports_table());
-    index = 1 + 3 * static_cast<int>(wasm_code->index());
-  }
+  CHECK(deopt_data->get(1)->ToInt32(&index));
+  DCHECK_GT(js_imports_table->length(), index);
   Handle<Object> obj(js_imports_table->get(index), isolate);
   if (obj->IsCallable()) {
     return Handle<HeapObject>::cast(obj);
@@ -994,15 +982,7 @@ class CodeMap {
                           : MaybeHandle<WasmInstanceObject>();
   }
 
-  const wasm::WasmCode* GetImportedFunction(uint32_t function_index) {
-    DCHECK(has_instance());
-    DCHECK_GT(module_->num_imported_functions, function_index);
-    const wasm::NativeModule* native_module =
-        instance()->compiled_module()->GetNativeModule();
-    return native_module->GetCode(function_index);
-  }
-
-  Code* GetImportedFunctionGC(uint32_t function_index) {
+  Code* GetImportedFunction(uint32_t function_index) {
     DCHECK(has_instance());
     DCHECK_GT(module_->num_imported_functions, function_index);
     FixedArray* code_table = instance()->compiled_module()->ptr_to_code_table();
@@ -2258,8 +2238,9 @@ class ThreadImpl {
     return {ExternalCallResult::EXTERNAL_RETURNED};
   }
 
-  ExternalCallResult CallExternalJSFunction(Isolate* isolate,
-                                            WasmCodeWrapper code,
+  // TODO(clemensh): Remove this, call JS via existing wasm-to-js wrapper, using
+  //                 CallExternalWasmFunction.
+  ExternalCallResult CallExternalJSFunction(Isolate* isolate, Handle<Code> code,
                                             FunctionSig* signature) {
     Handle<HeapObject> target = UnwrapWasmToJSWrapper(isolate, code);
 
@@ -2314,7 +2295,7 @@ class ThreadImpl {
   }
 
   ExternalCallResult CallExternalWasmFunction(Isolate* isolate,
-                                              WasmCodeWrapper code,
+                                              Handle<Code> code,
                                               FunctionSig* sig) {
     Handle<WasmDebugInfo> debug_info(codemap()->instance()->debug_info(),
                                      isolate);
@@ -2375,11 +2356,7 @@ class ThreadImpl {
     DCHECK(!arg_buffer_obj->IsHeapObject());
 
     Handle<Object> args[compiler::CWasmEntryParameters::kNumParameters];
-    args[compiler::CWasmEntryParameters::kCodeObject] =
-        code.IsCodeObject()
-            ? Handle<Object>::cast(code.GetCode())
-            : Handle<Object>::cast(isolate->factory()->NewForeign(
-                  code.GetWasmCode()->instructions().start(), TENURED));
+    args[compiler::CWasmEntryParameters::kCodeObject] = code;
     args[compiler::CWasmEntryParameters::kArgumentsBuffer] = arg_buffer_obj;
 
     Handle<Object> receiver = isolate->factory()->undefined_value();
@@ -2431,34 +2408,14 @@ class ThreadImpl {
         code->kind() == Code::WASM_TO_WASM_FUNCTION) {
       auto func_info = GetWasmFunctionInfo(isolate, code);
       if (*func_info.instance.ToHandleChecked() != codemap()->instance()) {
-        return CallExternalWasmFunction(isolate, WasmCodeWrapper(code),
-                                        signature);
+        return CallExternalWasmFunction(isolate, code, signature);
       }
       DCHECK_LE(0, func_info.func_index);
       return {ExternalCallResult::INTERNAL,
               codemap()->GetCode(func_info.func_index)};
     }
 
-    return CallExternalJSFunction(isolate, WasmCodeWrapper(code), signature);
-  }
-
-  ExternalCallResult CallWasmCode(Isolate* isolate, const wasm::WasmCode* code,
-                                  FunctionSig* signature) {
-    DCHECK(AllowHandleAllocation::IsAllowed());
-    DCHECK(AllowHeapAllocation::IsAllowed());
-
-    if (code->kind() == wasm::WasmCode::Function) {
-      DCHECK_EQ(*code->owner()->compiled_module()->owning_instance(),
-                codemap()->instance());
-      return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
-    }
-    if (code->kind() == wasm::WasmCode::WasmToJsWrapper) {
-      return CallExternalJSFunction(isolate, WasmCodeWrapper(code), signature);
-    } else if (code->kind() == wasm::WasmCode::WasmToWasmWrapper) {
-      return CallExternalWasmFunction(isolate, WasmCodeWrapper(code),
-                                      signature);
-    }
-    return {ExternalCallResult::INVALID_FUNC};
+    return CallExternalJSFunction(isolate, code, signature);
   }
 
   ExternalCallResult CallImportedFunction(uint32_t function_index) {
@@ -2467,36 +2424,17 @@ class ThreadImpl {
     Isolate* isolate = codemap()->instance()->GetIsolate();
     HandleScope handle_scope(isolate);
 
-    if (FLAG_wasm_jit_to_native) {
-      const wasm::WasmCode* target =
-          codemap()->GetImportedFunction(function_index);
-      return CallWasmCode(isolate, target,
+    Handle<Code> target(codemap()->GetImportedFunction(function_index),
+                        isolate);
+    return CallCodeObject(isolate, target,
                           codemap()->module()->functions[function_index].sig);
-    } else {
-      Handle<Code> target(codemap()->GetImportedFunctionGC(function_index),
-                          isolate);
-      return CallCodeObject(isolate, target,
-                            codemap()->module()->functions[function_index].sig);
-    }
   }
 
   ExternalCallResult CallIndirectFunction(uint32_t table_index,
                                           uint32_t entry_index,
                                           uint32_t sig_index) {
-    bool no_func_tables = !codemap()->has_instance();
-    if (FLAG_wasm_jit_to_native) {
-      no_func_tables = no_func_tables || codemap()
-                                             ->instance()
-                                             ->compiled_module()
-                                             ->GetNativeModule()
-                                             ->function_tables()
-                                             .empty();
-    } else {
-      no_func_tables =
-          no_func_tables ||
-          !codemap()->instance()->compiled_module()->has_function_tables();
-    }
-    if (no_func_tables) {
+    if (!codemap()->has_instance() ||
+        !codemap()->instance()->compiled_module()->has_function_tables()) {
       // No instance. Rely on the information stored in the WasmModule.
       // TODO(wasm): This is only needed for testing. Refactor testing to use
       // the same paths as production.
@@ -2521,8 +2459,7 @@ class ThreadImpl {
         codemap()->instance()->compiled_module();
     Isolate* isolate = compiled_module->GetIsolate();
 
-    const wasm::WasmCode* target = nullptr;
-    Code* target_gc = nullptr;
+    Code* target;
     {
       DisallowHeapAllocation no_gc;
       // Get function to be called directly from the live instance to see latest
@@ -2533,80 +2470,39 @@ class ThreadImpl {
       DCHECK_EQ(canonical_sig_index,
                 module()->signature_map.Find(module()->signatures[sig_index]));
 
-      if (!FLAG_wasm_jit_to_native) {
-        // Check signature.
-        FixedArray* sig_tables = compiled_module->ptr_to_signature_tables();
-        if (table_index >= static_cast<uint32_t>(sig_tables->length())) {
-          return {ExternalCallResult::INVALID_FUNC};
-        }
-        // Reconstitute the global handle to sig_table, and, further below,
-        // to the function table, from the address stored in the
-        // respective table of tables.
-        int table_index_as_int = static_cast<int>(table_index);
-        Handle<FixedArray> sig_table(reinterpret_cast<FixedArray**>(
-            WasmCompiledModule::GetTableValue(sig_tables, table_index_as_int)));
-        if (entry_index >= static_cast<uint32_t>(sig_table->length())) {
-          return {ExternalCallResult::INVALID_FUNC};
-        }
-        int found_sig =
-            Smi::ToInt(sig_table->get(static_cast<int>(entry_index)));
-        if (static_cast<uint32_t>(found_sig) != canonical_sig_index) {
-          return {ExternalCallResult::SIGNATURE_MISMATCH};
-        }
-
-        // Get code object.
-        FixedArray* fun_tables = compiled_module->ptr_to_function_tables();
-        DCHECK_EQ(sig_tables->length(), fun_tables->length());
-        Handle<FixedArray> fun_table(reinterpret_cast<FixedArray**>(
-            WasmCompiledModule::GetTableValue(fun_tables, table_index_as_int)));
-        DCHECK_EQ(sig_table->length(), fun_table->length());
-        target_gc = Code::cast(fun_table->get(static_cast<int>(entry_index)));
-      } else {
-        // Check signature.
-        std::vector<GlobalHandleAddress>& sig_tables =
-            compiled_module->GetNativeModule()->signature_tables();
-        if (table_index >= sig_tables.size()) {
-          return {ExternalCallResult::INVALID_FUNC};
-        }
-        // Reconstitute the global handle to sig_table, and, further below,
-        // to the function table, from the address stored in the
-        // respective table of tables.
-        int table_index_as_int = static_cast<int>(table_index);
-        Handle<FixedArray> sig_table(
-            reinterpret_cast<FixedArray**>(sig_tables[table_index_as_int]));
-        if (entry_index >= static_cast<uint32_t>(sig_table->length())) {
-          return {ExternalCallResult::INVALID_FUNC};
-        }
-        int found_sig =
-            Smi::ToInt(sig_table->get(static_cast<int>(entry_index)));
-        if (static_cast<uint32_t>(found_sig) != canonical_sig_index) {
-          return {ExternalCallResult::SIGNATURE_MISMATCH};
-        }
-
-        // Get code object.
-        std::vector<GlobalHandleAddress>& fun_tables =
-            compiled_module->GetNativeModule()->function_tables();
-        DCHECK_EQ(sig_tables.size(), fun_tables.size());
-        Handle<FixedArray> fun_table(
-            reinterpret_cast<FixedArray**>(fun_tables[table_index_as_int]));
-        DCHECK_EQ(sig_table->length(), fun_table->length());
-        Address first_instr =
-            Foreign::cast(fun_table->get(static_cast<int>(entry_index)))
-                ->foreign_address();
-        target =
-            isolate->wasm_code_manager()->GetCodeFromStartAddress(first_instr);
+      // Check signature.
+      FixedArray* sig_tables = compiled_module->ptr_to_signature_tables();
+      if (table_index >= static_cast<uint32_t>(sig_tables->length())) {
+        return {ExternalCallResult::INVALID_FUNC};
       }
+      // Reconstitute the global handle to sig_table, and, further below,
+      // to the function table, from the address stored in the
+      // respective table of tables.
+      int table_index_as_int = static_cast<int>(table_index);
+      Handle<FixedArray> sig_table(reinterpret_cast<FixedArray**>(
+          WasmCompiledModule::GetTableValue(sig_tables, table_index_as_int)));
+      if (entry_index >= static_cast<uint32_t>(sig_table->length())) {
+        return {ExternalCallResult::INVALID_FUNC};
+      }
+      int found_sig = Smi::ToInt(sig_table->get(static_cast<int>(entry_index)));
+      if (static_cast<uint32_t>(found_sig) != canonical_sig_index) {
+        return {ExternalCallResult::SIGNATURE_MISMATCH};
+      }
+
+      // Get code object.
+      FixedArray* fun_tables = compiled_module->ptr_to_function_tables();
+      DCHECK_EQ(sig_tables->length(), fun_tables->length());
+      Handle<FixedArray> fun_table(reinterpret_cast<FixedArray**>(
+          WasmCompiledModule::GetTableValue(fun_tables, table_index_as_int)));
+      DCHECK_EQ(sig_table->length(), fun_table->length());
+      target = Code::cast(fun_table->get(static_cast<int>(entry_index)));
     }
 
     // Call the code object. Use a new HandleScope to avoid leaking /
     // accumulating handles in the outer scope.
     HandleScope handle_scope(isolate);
     FunctionSig* signature = module()->signatures[sig_index];
-    if (FLAG_wasm_jit_to_native) {
-      return CallWasmCode(isolate, target, signature);
-    } else {
-      return CallCodeObject(isolate, handle(target_gc, isolate), signature);
-    }
+    return CallCodeObject(isolate, handle(target, isolate), signature);
   }
 
   inline Activation current_activation() {

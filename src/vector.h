@@ -123,7 +123,7 @@ class Vector {
   }
 
   inline Vector<T> operator+(size_t offset) {
-    DCHECK_LE(offset, length_);
+    DCHECK_LT(offset, length_);
     return Vector<T>(start_ + offset, length_ - offset);
   }
 

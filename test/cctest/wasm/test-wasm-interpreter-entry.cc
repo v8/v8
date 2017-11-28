@@ -47,7 +47,6 @@ class ArgPassingHelper {
     runner.Build(outer_code.data(), outer_code.data() + outer_code.size());
 
     int funcs_to_redict[] = {static_cast<int>(inner_compiler.function_index())};
-    runner.builder().Link();
     WasmDebugInfo::RedirectToInterpreter(debug_info_,
                                          ArrayVector(funcs_to_redict));
     main_fun_wrapper_ = runner.builder().WrapCode(runner.function_index());

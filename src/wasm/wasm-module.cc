@@ -21,7 +21,6 @@
 #include "src/wasm/module-compiler.h"
 #include "src/wasm/module-decoder.h"
 #include "src/wasm/wasm-code-specialization.h"
-#include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-js.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
@@ -55,8 +54,8 @@ constexpr const char* WasmException::kRuntimeIdStr;
 // static
 constexpr const char* WasmException::kRuntimeValuesStr;
 
-void UnpackAndRegisterProtectedInstructionsGC(Isolate* isolate,
-                                              Handle<FixedArray> code_table) {
+void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
+                                            Handle<FixedArray> code_table) {
   DisallowHeapAllocation no_gc;
   std::vector<trap_handler::ProtectedInstructionData> unpacked;
 
@@ -109,37 +108,6 @@ void UnpackAndRegisterProtectedInstructionsGC(Isolate* isolate,
   }
 }
 
-void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
-                                            wasm::NativeModule* native_module) {
-  DisallowHeapAllocation no_gc;
-
-  for (uint32_t i = native_module->num_imported_functions(),
-                e = native_module->FunctionCount();
-       i < e; ++i) {
-    wasm::WasmCode* code = native_module->GetCode(i);
-
-    if (code == nullptr || code->kind() != wasm::WasmCode::Function) {
-      continue;
-    }
-
-    if (code->HasTrapHandlerIndex()) continue;
-
-    Address base = code->instructions().start();
-
-    size_t size = code->instructions().size();
-    const int index =
-        RegisterHandlerData(base, size, code->protected_instructions().size(),
-                            code->protected_instructions().data());
-
-    // TODO(6792): No longer needed once WebAssembly code is off heap.
-    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-
-    // TODO(eholk): if index is negative, fail.
-    CHECK_LE(0, index);
-    code->set_trap_handler_index(static_cast<size_t>(index));
-  }
-}
-
 std::ostream& operator<<(std::ostream& os, const WasmFunctionName& name) {
   os << "#" << name.function_->func_index;
   if (name.function_->name.is_set()) {
@@ -172,7 +140,7 @@ WasmFunction* GetWasmFunctionForExport(Isolate* isolate,
 
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
                           int index, WasmFunction* function,
-                          Handle<Object> code_or_foreign) {
+                          Handle<Code> code) {
   DCHECK_EQ(0, dispatch_tables->length() % 4);
   for (int i = 0; i < dispatch_tables->length(); i += 4) {
     Handle<FixedArray> function_table(
@@ -186,7 +154,7 @@ void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
       // not found; it will simply never match any check.
       auto sig_index = instance->module()->signature_map.Find(function->sig);
       signature_table->set(index, Smi::FromInt(sig_index));
-      function_table->set(index, *code_or_foreign);
+      function_table->set(index, *code);
     } else {
       signature_table->set(index, Smi::FromInt(-1));
       function_table->set(index, Smi::kZero);
