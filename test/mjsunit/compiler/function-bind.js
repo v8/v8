@@ -111,3 +111,74 @@
   %OptimizeFunctionOnNextCall(foo);
   assertEquals(2, foo(inc));
 })();
+
+(function() {
+  const A = class A {};
+  const B = A.bind();
+
+  function foo() { return new B; }
+
+  assertInstanceof(foo(), A);
+  assertInstanceof(foo(), B);
+  %OptimizeFunctionOnNextCall(foo);
+  assertInstanceof(foo(), A);
+  assertInstanceof(foo(), B);
+})();
+
+(function() {
+  const A = class A {
+    constructor(x, y, z) {
+      this.x = x;
+      this.y = y;
+      this.z = z;
+    }
+  };
+  const B = A.bind(null, 1, 2);
+
+  function foo(z) { return new B(z); }
+
+  assertEquals(1, foo(3).x);
+  assertEquals(2, foo(3).y);
+  assertEquals(3, foo(3).z);
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(1, foo(3).x);
+  assertEquals(2, foo(3).y);
+  assertEquals(3, foo(3).z);
+})();
+
+(function() {
+  const A = class A {};
+
+  function foo() {
+    const B = A.bind();
+    return new B;
+  }
+
+  assertInstanceof(foo(), A);
+  assertInstanceof(foo(), A);
+  %OptimizeFunctionOnNextCall(foo);
+  assertInstanceof(foo(), A);
+})();
+
+(function() {
+  const A = class A {
+    constructor(x, y, z) {
+      this.x = x;
+      this.y = y;
+      this.z = z;
+    }
+  };
+
+  function foo(z) {
+    const B = A.bind(null, 1, 2);
+    return new B(z);
+  }
+
+  assertEquals(1, foo(3).x);
+  assertEquals(2, foo(3).y);
+  assertEquals(3, foo(3).z);
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(1, foo(3).x);
+  assertEquals(2, foo(3).y);
+  assertEquals(3, foo(3).z);
+})();

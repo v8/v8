@@ -2139,7 +2139,7 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   DCHECK_EQ(IrOpcode::kJSConstruct, node->opcode());
   ConstructParameters const& p = ConstructParametersOf(node->op());
   DCHECK_LE(2u, p.arity());
-  int const arity = static_cast<int>(p.arity() - 2);
+  int arity = static_cast<int>(p.arity() - 2);
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = NodeProperties::GetValueInput(node, arity + 1);
   Node* effect = NodeProperties::GetEffectInput(node);
@@ -2217,17 +2217,17 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
   // Try to specialize JSConstruct {node}s with constant {target}s.
   HeapObjectMatcher m(target);
   if (m.HasValue()) {
+    // Raise a TypeError if the {target} is not a constructor.
+    if (!m.Value()->IsConstructor()) {
+      NodeProperties::ReplaceValueInputs(node, target);
+      NodeProperties::ChangeOp(node,
+                               javascript()->CallRuntime(
+                                   Runtime::kThrowConstructedNonConstructable));
+      return Changed(node);
+    }
+
     if (m.Value()->IsJSFunction()) {
       Handle<JSFunction> function = Handle<JSFunction>::cast(m.Value());
-
-      // Raise a TypeError if the {target} is not a constructor.
-      if (!function->IsConstructor()) {
-        NodeProperties::ReplaceValueInputs(node, target);
-        NodeProperties::ChangeOp(
-            node, javascript()->CallRuntime(
-                      Runtime::kThrowConstructedNonConstructable));
-        return Changed(node);
-      }
 
       // Don't inline cross native context.
       if (function->native_context() != *native_context()) return NoChange();
@@ -2266,9 +2266,86 @@ Reduction JSCallReducer::ReduceJSConstruct(Node* node) {
           return Changed(node);
         }
       }
+    } else if (m.Value()->IsJSBoundFunction()) {
+      Handle<JSBoundFunction> function =
+          Handle<JSBoundFunction>::cast(m.Value());
+      Handle<JSReceiver> bound_target_function(
+          function->bound_target_function(), isolate());
+      Handle<FixedArray> bound_arguments(function->bound_arguments(),
+                                         isolate());
+
+      // Patch {node} to use [[BoundTargetFunction]].
+      NodeProperties::ReplaceValueInput(
+          node, jsgraph()->Constant(bound_target_function), 0);
+
+      // Patch {node} to use [[BoundTargetFunction]]
+      // as new.target if {new_target} equals {target}.
+      NodeProperties::ReplaceValueInput(
+          node,
+          graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
+                           graph()->NewNode(simplified()->ReferenceEqual(),
+                                            target, new_target),
+                           jsgraph()->Constant(bound_target_function),
+                           new_target),
+          arity + 1);
+
+      // Insert the [[BoundArguments]] for {node}.
+      for (int i = 0; i < bound_arguments->length(); ++i) {
+        node->InsertInput(
+            graph()->zone(), i + 1,
+            jsgraph()->Constant(handle(bound_arguments->get(i), isolate())));
+        arity++;
+      }
+
+      // Update the JSConstruct operator on {node}.
+      NodeProperties::ChangeOp(
+          node,
+          javascript()->Construct(arity + 2, p.frequency(), VectorSlotPair()));
+
+      // Try to further reduce the JSConstruct {node}.
+      Reduction const reduction = ReduceJSConstruct(node);
+      return reduction.Changed() ? reduction : Changed(node);
     }
 
-    // TODO(bmeurer): Also support optimizing bound functions and proxies here.
+    // TODO(bmeurer): Also support optimizing proxies here.
+  }
+
+  // If {target} is the result of a JSCreateBoundFunction operation,
+  // we can just fold the construction and construct the bound target
+  // function directly instead.
+  if (target->opcode() == IrOpcode::kJSCreateBoundFunction) {
+    Node* bound_target_function = NodeProperties::GetValueInput(target, 0);
+    int const bound_arguments_length =
+        static_cast<int>(CreateBoundFunctionParametersOf(target->op()).arity());
+
+    // Patch the {node} to use [[BoundTargetFunction]].
+    NodeProperties::ReplaceValueInput(node, bound_target_function, 0);
+
+    // Patch {node} to use [[BoundTargetFunction]]
+    // as new.target if {new_target} equals {target}.
+    NodeProperties::ReplaceValueInput(
+        node,
+        graph()->NewNode(common()->Select(MachineRepresentation::kTagged),
+                         graph()->NewNode(simplified()->ReferenceEqual(),
+                                          target, new_target),
+                         bound_target_function, new_target),
+        arity + 1);
+
+    // Insert the [[BoundArguments]] for {node}.
+    for (int i = 0; i < bound_arguments_length; ++i) {
+      Node* value = NodeProperties::GetValueInput(target, 2 + i);
+      node->InsertInput(graph()->zone(), 1 + i, value);
+      arity++;
+    }
+
+    // Update the JSConstruct operator on {node}.
+    NodeProperties::ChangeOp(
+        node,
+        javascript()->Construct(arity + 2, p.frequency(), VectorSlotPair()));
+
+    // Try to further reduce the JSConstruct {node}.
+    Reduction const reduction = ReduceJSConstruct(node);
+    return reduction.Changed() ? reduction : Changed(node);
   }
 
   return NoChange();
