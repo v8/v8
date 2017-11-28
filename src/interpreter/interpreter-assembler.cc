@@ -842,24 +842,50 @@ Node* InterpreterAssembler::Construct(Node* target, Node* context,
 
     BIND(&initialize);
     {
-      // Check if {new_target} is a JSFunction in the current native context.
-      Label create_allocation_site(this), create_weak_cell(this);
       Comment("check if function in same native context");
       GotoIf(TaggedIsSmi(new_target), &mark_megamorphic);
-      // TODO(bmeurer): Add support for arbitrary constructors here, and
-      // check via GetFunctionRealm (see src/objects.cc).
-      GotoIfNot(IsJSFunction(new_target), &mark_megamorphic);
-      Node* new_target_context =
-          LoadObjectField(new_target, JSFunction::kContextOffset);
-      Node* new_target_native_context = LoadNativeContext(new_target_context);
-      GotoIfNot(
-          WordEqual(LoadNativeContext(context), new_target_native_context),
-          &mark_megamorphic);
+      // Check if the {new_target} is a JSFunction or JSBoundFunction
+      // in the current native context.
+      VARIABLE(var_current, MachineRepresentation::kTagged, new_target);
+      Label loop(this, &var_current), done_loop(this);
+      Goto(&loop);
+      BIND(&loop);
+      {
+        Label if_boundfunction(this), if_function(this);
+        Node* current = var_current.value();
+        CSA_ASSERT(this, TaggedIsNotSmi(current));
+        Node* current_instance_type = LoadInstanceType(current);
+        GotoIf(InstanceTypeEqual(current_instance_type, JS_BOUND_FUNCTION_TYPE),
+               &if_boundfunction);
+        Branch(InstanceTypeEqual(current_instance_type, JS_FUNCTION_TYPE),
+               &if_function, &mark_megamorphic);
+
+        BIND(&if_function);
+        {
+          // Check that the JSFunction {current} is in the current native
+          // context.
+          Node* current_context =
+              LoadObjectField(current, JSFunction::kContextOffset);
+          Node* current_native_context = LoadNativeContext(current_context);
+          Branch(WordEqual(LoadNativeContext(context), current_native_context),
+                 &done_loop, &mark_megamorphic);
+        }
+
+        BIND(&if_boundfunction);
+        {
+          // Continue with the [[BoundTargetFunction]] of {current}.
+          var_current.Bind(LoadObjectField(
+              current, JSBoundFunction::kBoundTargetFunctionOffset));
+          Goto(&loop);
+        }
+      }
+      BIND(&done_loop);
 
       // Create an AllocationSite if {target} and {new_target} refer
       // to the current native context's Array constructor.
+      Label create_allocation_site(this), create_weak_cell(this);
       GotoIfNot(WordEqual(target, new_target), &create_weak_cell);
-      Node* array_function = LoadContextElement(new_target_native_context,
+      Node* array_function = LoadContextElement(LoadNativeContext(context),
                                                 Context::ARRAY_FUNCTION_INDEX);
       Branch(WordEqual(target, array_function), &create_allocation_site,
              &create_weak_cell);
@@ -980,19 +1006,44 @@ Node* InterpreterAssembler::ConstructWithSpread(Node* target, Node* context,
 
     BIND(&initialize);
     {
-      // Check if {new_target} is a JSFunction in the current native
-      // context.
       Comment("check if function in same native context");
       GotoIf(TaggedIsSmi(new_target), &mark_megamorphic);
-      // TODO(bmeurer): Add support for arbitrary constructors here, and
-      // check via GetFunctionRealm (see src/objects.cc).
-      GotoIfNot(IsJSFunction(new_target), &mark_megamorphic);
-      Node* target_context =
-          LoadObjectField(new_target, JSFunction::kContextOffset);
-      Node* target_native_context = LoadNativeContext(target_context);
-      GotoIfNot(WordEqual(LoadNativeContext(context), target_native_context),
-                &mark_megamorphic);
+      // Check if the {new_target} is a JSFunction or JSBoundFunction
+      // in the current native context.
+      VARIABLE(var_current, MachineRepresentation::kTagged, new_target);
+      Label loop(this, &var_current), done_loop(this);
+      Goto(&loop);
+      BIND(&loop);
+      {
+        Label if_boundfunction(this), if_function(this);
+        Node* current = var_current.value();
+        CSA_ASSERT(this, TaggedIsNotSmi(current));
+        Node* current_instance_type = LoadInstanceType(current);
+        GotoIf(InstanceTypeEqual(current_instance_type, JS_BOUND_FUNCTION_TYPE),
+               &if_boundfunction);
+        Branch(InstanceTypeEqual(current_instance_type, JS_FUNCTION_TYPE),
+               &if_function, &mark_megamorphic);
 
+        BIND(&if_function);
+        {
+          // Check that the JSFunction {current} is in the current native
+          // context.
+          Node* current_context =
+              LoadObjectField(current, JSFunction::kContextOffset);
+          Node* current_native_context = LoadNativeContext(current_context);
+          Branch(WordEqual(LoadNativeContext(context), current_native_context),
+                 &done_loop, &mark_megamorphic);
+        }
+
+        BIND(&if_boundfunction);
+        {
+          // Continue with the [[BoundTargetFunction]] of {current}.
+          var_current.Bind(LoadObjectField(
+              current, JSBoundFunction::kBoundTargetFunctionOffset));
+          Goto(&loop);
+        }
+      }
+      BIND(&done_loop);
       CreateWeakCellInFeedbackVector(feedback_vector, slot_id, new_target);
       ReportFeedbackUpdate(feedback_vector, slot_id,
                            "ConstructWithSpread:Initialize");

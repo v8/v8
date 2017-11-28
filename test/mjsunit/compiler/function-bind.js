@@ -182,3 +182,105 @@
   assertEquals(2, foo(3).y);
   assertEquals(3, foo(3).z);
 })();
+
+(function() {
+  const A = class A {};
+  const B = A.bind();
+
+  function foo(B) {
+    return new B;
+  }
+
+  assertInstanceof(foo(B), A);
+  assertInstanceof(foo(B), A);
+  %OptimizeFunctionOnNextCall(foo);
+  assertInstanceof(foo(B), A);
+})();
+
+(function() {
+  const A = class A {
+    constructor(x, y, z) {
+      this.x = x;
+      this.y = y;
+      this.z = z;
+    }
+  };
+  const B = A.bind(null, 1, 2);
+
+  function foo(B, z) {
+    return new B(z);
+  }
+
+  assertEquals(1, foo(B, 3).x);
+  assertEquals(2, foo(B, 3).y);
+  assertEquals(3, foo(B, 3).z);
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(1, foo(B, 3).x);
+  assertEquals(2, foo(B, 3).y);
+  assertEquals(3, foo(B, 3).z);
+})();
+
+(function() {
+  const A = class A {
+    constructor(value) {
+      this.value = value;
+    }
+  };
+  const C = class C extends A {
+    constructor() { super(1); }
+  };
+  const B = C.__proto__ = A.bind(null, 1);
+
+  assertInstanceof(new C(), A);
+  assertInstanceof(new C(), B);
+  assertInstanceof(new C(), C);
+  assertEquals(1, new C().value);
+  %OptimizeFunctionOnNextCall(C);
+  assertInstanceof(new C(), A);
+  assertInstanceof(new C(), B);
+  assertInstanceof(new C(), C);
+  assertEquals(1, new C().value);
+})();
+
+(function() {
+  const A = class A {};
+  const B = A.bind();
+
+  function bar(B, ...args) {
+    return new B(...args);
+  }
+  function foo(B) {
+    return bar(B)
+  }
+
+  assertInstanceof(foo(B), A);
+  assertInstanceof(foo(B), A);
+  %OptimizeFunctionOnNextCall(foo);
+  assertInstanceof(foo(B), A);
+})();
+
+(function() {
+  const A = class A {
+    constructor(x, y, z) {
+      this.x = x;
+      this.y = y;
+      this.z = z;
+    }
+  };
+  const B = A.bind(null, 1, 2);
+
+  function bar(B, ...args) {
+    return new B(...args);
+  }
+  function foo(B, z) {
+    return bar(B, z);
+  }
+
+  assertEquals(1, foo(B, 3).x);
+  assertEquals(2, foo(B, 3).y);
+  assertEquals(3, foo(B, 3).z);
+  %OptimizeFunctionOnNextCall(foo);
+  assertEquals(1, foo(B, 3).x);
+  assertEquals(2, foo(B, 3).y);
+  assertEquals(3, foo(B, 3).z);
+})();
