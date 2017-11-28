@@ -20,7 +20,6 @@ class Object;
 class PagedSpace;
 
 enum class StepOrigin { kV8, kTask };
-enum class WorklistToProcess { kAll, kBailout };
 
 class V8_EXPORT_PRIVATE IncrementalMarking {
  public:
@@ -188,8 +187,7 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void FinalizeSweeping();
 
   size_t Step(size_t bytes_to_process, CompletionAction action,
-              StepOrigin step_origin,
-              WorklistToProcess worklist_to_process = WorklistToProcess::kAll);
+              StepOrigin step_origin);
 
   inline void RestartIfNotMarking();
 
@@ -297,7 +295,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   void DeactivateIncrementalWriteBarrierForSpace(NewSpace* space);
   void DeactivateIncrementalWriteBarrier();
 
-  template <WorklistToProcess worklist_to_process = WorklistToProcess::kAll>
   V8_INLINE intptr_t ProcessMarkingWorklist(
       intptr_t bytes_to_process,
       ForceCompletionAction completion = DO_NOT_FORCE_COMPLETION);
@@ -329,10 +326,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking {
   size_t old_generation_allocation_counter_;
   size_t bytes_allocated_;
   size_t bytes_marked_ahead_of_schedule_;
-  // A sample of concurrent_marking()->TotalMarkedBytes() at the last
-  // incremental marking step. It is used for updating
-  // bytes_marked_ahead_of_schedule_ with contribution of concurrent marking.
-  size_t bytes_marked_concurrently_;
   size_t unscanned_bytes_of_large_object_;
 
   // Must use SetState() above to update state_
