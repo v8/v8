@@ -121,9 +121,6 @@ bool CodeSpecialization::ApplyToWholeInstance(
     changed |= ApplyToWasmCode(wasm_function, icache_flush_mode);
   }
 
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(instance->GetHeap());
-
   // Patch all exported functions (JS_TO_WASM_FUNCTION).
   int reloc_mode = 0;
   // We need to patch WASM_CONTEXT_REFERENCE to put the correct address.
@@ -191,9 +188,6 @@ bool CodeSpecialization::ApplyToWasmCode(Code* code,
 
   base::Optional<PatchDirectCallsHelper> patch_direct_calls_helper;
   bool changed = false;
-
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(code->GetHeap());
 
   for (RelocIterator it(code, reloc_mode); !it.done(); it.next()) {
     RelocInfo::Mode mode = it.rinfo()->rmode();

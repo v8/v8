@@ -238,8 +238,6 @@ class JSToWasmWrapperCache {
     int cached_idx = sig_map_.Find(func->sig);
     if (cached_idx >= 0) {
       Handle<Code> code = isolate->factory()->CopyCode(code_cache_[cached_idx]);
-      // TODO(6792): No longer needed once WebAssembly code is off heap.
-      CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
       // Now patch the call to wasm code.
       for (RelocIterator it(*code, RelocInfo::kCodeTargetMask);; it.next()) {
         DCHECK(!it.done());
@@ -746,6 +744,8 @@ void LazyCompilationOrchestrator::CompileFunction(
                                      CStrVector(func_name.c_str()), func_index,
                                      CEntryStub(isolate, 1).GetCode());
   unit.ExecuteCompilation();
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   MaybeHandle<Code> maybe_code = unit.FinishCompilation(&thrower);
 
   // If there is a pending error, something really went wrong. The module was
@@ -1449,7 +1449,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   // base::Optional to be able to close the scope before notifying the debugger.
   base::Optional<CodeSpaceMemoryModificationScope> modification_scope(
       base::in_place_t(), isolate_->heap());
-  // The {module> parameter is passed in to transfer ownership of the WasmModule
+  // The {module} parameter is passed in to transfer ownership of the WasmModule
   // to this function. The WasmModule itself existed already as an instance
   // variable of the ModuleCompiler. We check here that the parameter and the
   // instance variable actually point to the same object.
@@ -1565,6 +1565,12 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
   Handle<WasmCompiledModule> compiled_module = NewCompiledModule(
       isolate_, shared, code_table, export_wrappers, env.get());
 
+  // Compile JS->wasm wrappers for exported functions.
+  CompileJsToWasmWrappers(isolate_, compiled_module, counters());
+
+  Handle<WasmModuleObject> result =
+      WasmModuleObject::New(isolate_, compiled_module);
+
   // If we created a wasm script, finish it now and make it public to the
   // debugger.
   if (asm_js_script.is_null()) {
@@ -1575,9 +1581,7 @@ MaybeHandle<WasmModuleObject> ModuleCompiler::CompileToModuleObjectInternal(
     isolate_->debug()->OnAfterCompile(script);
   }
 
-  // Compile JS->wasm wrappers for exported functions.
-  CompileJsToWasmWrappers(isolate_, compiled_module, counters());
-  return WasmModuleObject::New(isolate_, compiled_module);
+  return result;
 }
 
 InstanceBuilder::InstanceBuilder(
@@ -3325,6 +3329,8 @@ class AsyncCompileJob::CompileWrappers : public CompileStep {
   // and the wrappers for the function table elements.
   void RunInForeground() override {
     TRACE_COMPILE("(6) Compile wrappers...\n");
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(job_->isolate_->heap());
     // Compile JS->wasm wrappers for exported functions.
     CompileJsToWasmWrappers(job_->isolate_, job_->compiled_module_,
                             job_->counters());

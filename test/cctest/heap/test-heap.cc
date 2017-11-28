@@ -200,7 +200,11 @@ HEAP_TEST(TestNewSpaceRefsInCopiedCode) {
   Handle<Code> code =
       isolate->factory()->NewCode(desc, Code::STUB, Handle<Code>());
 
-  Handle<Code> copy = factory->CopyCode(code);
+  Handle<Code> copy;
+  {
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
+    copy = factory->CopyCode(code);
+  }
 
   CheckEmbeddedObjectsAreEqual(code, copy);
   CcTest::CollectAllAvailableGarbage();

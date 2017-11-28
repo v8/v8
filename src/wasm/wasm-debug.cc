@@ -672,6 +672,8 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
   Handle<WasmInstanceObject> instance(debug_info->wasm_instance(), isolate);
   Handle<FixedArray> code_table = instance->compiled_module()->code_table();
   CodeRelocationMap code_to_relocate(isolate->heap());
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   for (int func_index : func_indexes) {
     DCHECK_LE(0, func_index);
     DCHECK_GT(debug_info->wasm_instance()->module()->functions.size(),
@@ -688,8 +690,6 @@ void WasmDebugInfo::RedirectToInterpreter(Handle<WasmDebugInfo> debug_info,
     DCHECK_NULL(code_to_relocate.Find(old_code));
     code_to_relocate.Set(old_code, new_code);
   }
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   RedirectCallsitesInInstance(isolate, *instance, code_to_relocate);
 }
 

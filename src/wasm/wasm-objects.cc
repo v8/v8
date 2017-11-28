@@ -226,6 +226,8 @@ Handle<FixedArray> WasmTableObject::AddDispatchTable(
 }
 
 void WasmTableObject::Grow(Isolate* isolate, uint32_t count) {
+  // TODO(6792): No longer needed once WebAssembly code is off heap.
+  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
   Handle<FixedArray> dispatch_tables(this->dispatch_tables());
   DCHECK_EQ(0, dispatch_tables->length() % 4);
   uint32_t old_size = functions()->length();
@@ -306,6 +308,8 @@ void WasmTableObject::Set(Isolate* isolate, Handle<WasmTableObject> table,
     code = compiler::CompileWasmToWasmWrapper(
         isolate, exported_function->GetWasmCode(), wasm_function->sig,
         func_index, new_context_address);
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
     compiler::AttachWasmFunctionInfo(isolate, code, instance, func_index);
   }
 
@@ -1063,6 +1067,8 @@ void WasmCompiledModule::Reset(Isolate* isolate,
       }
     }
 
+    // TODO(6792): No longer needed once WebAssembly code is off heap.
+    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
     FixedArray* functions = FixedArray::cast(fct_obj);
     for (int i = compiled_module->num_imported_functions(),
              end = functions->length();

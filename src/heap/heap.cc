@@ -3211,7 +3211,6 @@ AllocationResult Heap::AllocateCode(
 }
 
 AllocationResult Heap::CopyCode(Code* code, CodeDataContainer* data_container) {
-  CodeSpaceMemoryModificationScope code_modification(this);
   AllocationResult allocation;
 
   HeapObject* result = nullptr;

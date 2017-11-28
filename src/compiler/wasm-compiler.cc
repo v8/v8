@@ -4332,9 +4332,6 @@ void AttachWasmFunctionInfo(Isolate* isolate, Handle<Code> code,
   }
   deopt_data->set(1, Smi::FromInt(func_index));
 
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
-
   code->set_deoptimization_data(*deopt_data);
 }
 
@@ -4423,8 +4420,6 @@ Handle<Code> CompileWasmToJSWrapper(
     Handle<Object> index_handle = isolate->factory()->NewNumberFromInt(
         OffsetForImportData(index, WasmGraphBuilder::kFunction));
     deopt_data->set(1, *index_handle);
-    // TODO(6792): No longer needed once WebAssembly code is off heap.
-    CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
     code->set_deoptimization_data(*deopt_data);
 #ifdef ENABLE_DISASSEMBLER
     if (FLAG_print_opt_code && !code.is_null()) {
@@ -4572,9 +4567,6 @@ Handle<Code> CompileWasmInterpreterEntry(Isolate* isolate, uint32_t func_index,
                                 "%.*s", func_name.length(), func_name.start());
     }
   }
-
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
 
   Handle<FixedArray> deopt_data = isolate->factory()->NewFixedArray(1, TENURED);
   Handle<WeakCell> weak_instance = isolate->factory()->NewWeakCell(instance);
@@ -4933,8 +4925,6 @@ void WasmCompilationUnit::PackProtectedInstructions(Handle<Code> code) const {
     fn_protected->set(Code::kTrapDataSize * i + Code::kTrapLandingOffset,
                       Smi::FromInt(instruction.landing_offset));
   }
-  // TODO(6792): No longer needed once WebAssembly code is off heap.
-  CodeSpaceMemoryModificationScope modification_scope(isolate_->heap());
   code->set_protected_instructions(*fn_protected);
 }
 
