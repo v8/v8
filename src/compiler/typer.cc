@@ -1103,6 +1103,12 @@ Type* Typer::Visitor::JSModulusTyper(Type* lhs, Type* rhs, Typer* t) {
   return NumberModulus(ToNumber(lhs, t), ToNumber(rhs, t), t);
 }
 
+// TODO(neis): Adapt all these for bigints. Why does this even work in the
+// bigint tests?
+
+Type* Typer::Visitor::JSExponentiateTyper(Type* lhs, Type* rhs, Typer* t) {
+  return Type::Number();
+}
 
 // JS unary operators.
 

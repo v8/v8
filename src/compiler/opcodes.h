@@ -105,7 +105,8 @@
   V(JSSubtract)                \
   V(JSMultiply)                \
   V(JSDivide)                  \
-  V(JSModulus)
+  V(JSModulus)                 \
+  V(JSExponentiate)
 
 #define JS_SIMPLE_BINOP_LIST(V) \
   JS_COMPARE_BINOP_LIST(V)      \

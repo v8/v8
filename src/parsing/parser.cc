@@ -3845,58 +3845,6 @@ void Parser::RewriteDestructuringAssignments() {
   }
 }
 
-Expression* Parser::RewriteExponentiation(Expression* left, Expression* right,
-                                          int pos) {
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
-  args->Add(left, zone());
-  args->Add(right, zone());
-  return factory()->NewCallRuntime(Context::MATH_POW_INDEX, args, pos);
-}
-
-Expression* Parser::RewriteAssignExponentiation(Expression* left,
-                                                Expression* right, int pos) {
-  ZoneList<Expression*>* args = new (zone()) ZoneList<Expression*>(2, zone());
-  if (left->IsVariableProxy()) {
-    VariableProxy* lhs = left->AsVariableProxy();
-
-    Expression* result;
-    DCHECK_NOT_NULL(lhs->raw_name());
-    result = ExpressionFromIdentifier(lhs->raw_name(), lhs->position());
-    args->Add(left, zone());
-    args->Add(right, zone());
-    Expression* call =
-        factory()->NewCallRuntime(Context::MATH_POW_INDEX, args, pos);
-    return factory()->NewAssignment(Token::ASSIGN, result, call, pos);
-  } else if (left->IsProperty()) {
-    Property* prop = left->AsProperty();
-    auto temp_obj = NewTemporary(ast_value_factory()->empty_string());
-    auto temp_key = NewTemporary(ast_value_factory()->empty_string());
-    Expression* assign_obj = factory()->NewAssignment(
-        Token::ASSIGN, factory()->NewVariableProxy(temp_obj), prop->obj(),
-        kNoSourcePosition);
-    Expression* assign_key = factory()->NewAssignment(
-        Token::ASSIGN, factory()->NewVariableProxy(temp_key), prop->key(),
-        kNoSourcePosition);
-    args->Add(factory()->NewProperty(factory()->NewVariableProxy(temp_obj),
-                                     factory()->NewVariableProxy(temp_key),
-                                     left->position()),
-              zone());
-    args->Add(right, zone());
-    Expression* call =
-        factory()->NewCallRuntime(Context::MATH_POW_INDEX, args, pos);
-    Expression* target = factory()->NewProperty(
-        factory()->NewVariableProxy(temp_obj),
-        factory()->NewVariableProxy(temp_key), kNoSourcePosition);
-    Expression* assign =
-        factory()->NewAssignment(Token::ASSIGN, target, call, pos);
-    return factory()->NewBinaryOperation(
-        Token::COMMA, assign_obj,
-        factory()->NewBinaryOperation(Token::COMMA, assign_key, assign, pos),
-        pos);
-  }
-  UNREACHABLE();
-}
-
 Expression* Parser::RewriteSpreads(ArrayLiteral* lit) {
   // Array literals containing spreads are rewritten using do expressions, e.g.
   //    [1, 2, 3, ...x, 4, ...y, 5]

@@ -362,6 +362,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperation(Token::Value op,
     case Token::Value::MOD:
       OutputMod(reg, feedback_slot);
       break;
+    case Token::Value::EXP:
+      OutputExp(reg, feedback_slot);
+      break;
     case Token::Value::BIT_OR:
       OutputBitwiseOr(reg, feedback_slot);
       break;
@@ -403,6 +406,9 @@ BytecodeArrayBuilder& BytecodeArrayBuilder::BinaryOperationSmiLiteral(
       break;
     case Token::Value::MOD:
       OutputModSmi(literal->value(), feedback_slot);
+      break;
+    case Token::Value::EXP:
+      OutputExpSmi(literal->value(), feedback_slot);
       break;
     case Token::Value::BIT_OR:
       OutputBitwiseOrSmi(literal->value(), feedback_slot);

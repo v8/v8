@@ -107,6 +107,9 @@ RUNTIME_FUNCTION(Runtime_BigIntBinaryOp) {
     case Operation::kModulus:
       result = BigInt::Remainder(left, right);
       break;
+    case Operation::kExponentiate:
+      UNIMPLEMENTED();
+      break;
     case Operation::kBitwiseAnd:
       result = BigInt::BitwiseAnd(left, right);
       break;

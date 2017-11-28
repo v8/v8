@@ -279,6 +279,8 @@ class JSBinopReduction final {
         return simplified()->NumberDivide();
       case IrOpcode::kJSModulus:
         return simplified()->NumberModulus();
+      case IrOpcode::kJSExponentiate:
+        return simplified()->NumberPow();
       case IrOpcode::kJSBitwiseAnd:
         return simplified()->NumberBitwiseAnd();
       case IrOpcode::kJSBitwiseOr:
@@ -2123,6 +2125,7 @@ Reduction JSTypedLowering::Reduce(Node* node) {
     case IrOpcode::kJSMultiply:
     case IrOpcode::kJSDivide:
     case IrOpcode::kJSModulus:
+    case IrOpcode::kJSExponentiate:
       return ReduceNumberBinop(node);
     case IrOpcode::kJSBitwiseNot:
       return ReduceJSBitwiseNot(node);

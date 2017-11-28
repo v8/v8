@@ -2973,15 +2973,11 @@ ParserBase<Impl>::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     impl()->SetFunctionNameFromIdentifierRef(right, expression);
   }
 
-  if (op == Token::ASSIGN_EXP) {
-    DCHECK(!is_destructuring_assignment);
-    return impl()->RewriteAssignExponentiation(expression, right, pos);
-  }
-
   DCHECK_NE(op, Token::INIT);
   ExpressionT result = factory()->NewAssignment(op, expression, right, pos);
 
   if (is_destructuring_assignment) {
+    DCHECK_NE(op, Token::ASSIGN_EXP);
     auto rewritable = factory()->NewRewritableExpression(result, scope());
     impl()->QueueDestructuringAssignmentForRewriting(rewritable);
     result = rewritable;
@@ -3131,8 +3127,6 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseBinaryExpression(
           // The comparison was negated - add a NOT.
           x = factory()->NewUnaryOperation(Token::NOT, x, pos);
         }
-      } else if (op == Token::EXP) {
-        x = impl()->RewriteExponentiation(x, y, pos);
       } else if (impl()->CollapseNaryExpression(&x, y, op, pos, right_range)) {
         continue;
       } else {

@@ -688,6 +688,7 @@ namespace internal {
   TFC(Multiply, BinaryOp, 1)                                                   \
   TFC(Divide, BinaryOp, 1)                                                     \
   TFC(Modulus, BinaryOp, 1)                                                    \
+  TFC(Exponentiate, BinaryOp, 1)                                               \
   TFC(BitwiseAnd, BinaryOp, 1)                                                 \
   TFC(BitwiseOr, BinaryOp, 1)                                                  \
   TFC(BitwiseXor, BinaryOp, 1)                                                 \

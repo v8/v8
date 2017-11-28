@@ -284,6 +284,8 @@ class Token {
         return Token::DIV;
       case Token::ASSIGN_MOD:
         return Token::MOD;
+      case Token::ASSIGN_EXP:
+        return Token::EXP;
       default:
         UNREACHABLE();
     }

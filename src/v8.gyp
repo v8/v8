@@ -200,6 +200,7 @@
         'builtins/builtins-iterator-gen.h',
         'builtins/builtins-iterator-gen.cc',
         'builtins/builtins-math-gen.cc',
+        'builtins/builtins-math-gen.h',
         'builtins/builtins-number-gen.cc',
         'builtins/builtins-object-gen.cc',
         'builtins/builtins-promise-gen.cc',

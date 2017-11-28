@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/builtins/builtins-math-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
@@ -636,8 +637,11 @@ void NumberBuiltinsAssembler::BinaryOp(Label* smis, Variable* var_left,
                                        Label* bigints) {
   DCHECK_EQ(var_left->rep(), MachineRepresentation::kTagged);
   DCHECK_EQ(var_right->rep(), MachineRepresentation::kTagged);
-  DCHECK_EQ(var_left_double->rep(), MachineRepresentation::kFloat64);
-  DCHECK_EQ(var_right_double->rep(), MachineRepresentation::kFloat64);
+  DCHECK_IMPLIES(var_left_double != nullptr,
+                 var_left_double->rep() == MachineRepresentation::kFloat64);
+  DCHECK_IMPLIES(var_right_double != nullptr,
+                 var_right_double->rep() == MachineRepresentation::kFloat64);
+  DCHECK_EQ(var_left_double == nullptr, var_right_double == nullptr);
 
   Node* context = Parameter(Descriptor::kContext);
   var_left->Bind(Parameter(Descriptor::kLeft));
@@ -655,8 +659,10 @@ void NumberBuiltinsAssembler::BinaryOp(Label* smis, Variable* var_left,
 
   // At this point, var_left is a Smi but var_right is not.
   GotoIfNot(IsHeapNumber(var_right->value()), &right_not_number);
-  var_left_double->Bind(SmiToFloat64(var_left->value()));
-  var_right_double->Bind(LoadHeapNumberValue(var_right->value()));
+  if (var_left_double != nullptr) {
+    var_left_double->Bind(SmiToFloat64(var_left->value()));
+    var_right_double->Bind(LoadHeapNumberValue(var_right->value()));
+  }
   Goto(doubles);
 
   BIND(&left_not_smi);
@@ -665,16 +671,20 @@ void NumberBuiltinsAssembler::BinaryOp(Label* smis, Variable* var_left,
     GotoIfNot(TaggedIsSmi(var_right->value()), &right_not_smi);
 
     // At this point, var_left is a HeapNumber and var_right is a Smi.
-    var_left_double->Bind(LoadHeapNumberValue(var_left->value()));
-    var_right_double->Bind(SmiToFloat64(var_right->value()));
+    if (var_left_double != nullptr) {
+      var_left_double->Bind(LoadHeapNumberValue(var_left->value()));
+      var_right_double->Bind(SmiToFloat64(var_right->value()));
+    }
     Goto(doubles);
   }
 
   BIND(&right_not_smi);
   {
     GotoIfNot(IsHeapNumber(var_right->value()), &right_not_number);
-    var_left_double->Bind(LoadHeapNumberValue(var_left->value()));
-    var_right_double->Bind(LoadHeapNumberValue(var_right->value()));
+    if (var_left_double != nullptr) {
+      var_left_double->Bind(LoadHeapNumberValue(var_left->value()));
+      var_right_double->Bind(LoadHeapNumberValue(var_right->value()));
+    }
     Goto(doubles);
   }
 
@@ -968,6 +978,26 @@ TF_BUILTIN(Modulus, NumberBuiltinsAssembler) {
     Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
                        var_right.value(), SmiConstant(Operation::kModulus)));
   }
+}
+
+TF_BUILTIN(Exponentiate, NumberBuiltinsAssembler) {
+  VARIABLE(var_left, MachineRepresentation::kTagged);
+  VARIABLE(var_right, MachineRepresentation::kTagged);
+  Label do_number_exp(this), do_bigint_exp(this);
+  Node* context = Parameter(Descriptor::kContext);
+
+  BinaryOp<Descriptor>(&do_number_exp, &var_left, &var_right, &do_number_exp,
+                       nullptr, nullptr, &do_bigint_exp);
+
+  BIND(&do_number_exp);
+  {
+    MathBuiltinsAssembler math_asm(state());
+    Return(math_asm.MathPow(context, var_left.value(), var_right.value()));
+  }
+
+  BIND(&do_bigint_exp);
+  Return(CallRuntime(Runtime::kBigIntBinaryOp, context, var_left.value(),
+                     var_right.value(), SmiConstant(Operation::kExponentiate)));
 }
 
 TF_BUILTIN(ShiftLeft, NumberBuiltinsAssembler) {

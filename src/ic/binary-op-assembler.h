@@ -42,6 +42,11 @@ class BinaryOpAssembler : public CodeStubAssembler {
                                      Node* divisor, Node* slot_id,
                                      Node* feedback_vector, bool rhs_is_smi);
 
+  Node* Generate_ExponentiateWithFeedback(Node* context, Node* dividend,
+                                          Node* divisor, Node* slot_id,
+                                          Node* feedback_vector,
+                                          bool rhs_is_smi);
+
  private:
   typedef std::function<Node*(Node*, Node*, Variable*)> SmiOperation;
   typedef std::function<Node*(Node*, Node*)> FloatOperation;

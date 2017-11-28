@@ -529,5 +529,14 @@ Node* BinaryOpAssembler::Generate_ModulusWithFeedback(
       floatFunction, Operation::kModulus, rhs_is_smi);
 }
 
+Node* BinaryOpAssembler::Generate_ExponentiateWithFeedback(
+    Node* context, Node* base, Node* exponent, Node* slot_id,
+    Node* feedback_vector, bool rhs_is_smi) {
+  // We currently don't optimize exponentiation based on feedback.
+  Node* dummy_feedback = SmiConstant(BinaryOperationFeedback::kAny);
+  UpdateFeedback(dummy_feedback, feedback_vector, slot_id);
+  return CallBuiltin(Builtins::kExponentiate, context, base, exponent);
+}
+
 }  // namespace internal
 }  // namespace v8

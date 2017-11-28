@@ -910,6 +910,13 @@ IGNITION_HANDLER(Mod, InterpreterBinaryOpAssembler) {
   BinaryOpWithFeedback(&BinaryOpAssembler::Generate_ModulusWithFeedback);
 }
 
+// Exp <src>
+//
+// Exponentiate register <src> (base) with accumulator (exponent).
+IGNITION_HANDLER(Exp, InterpreterBinaryOpAssembler) {
+  BinaryOpWithFeedback(&BinaryOpAssembler::Generate_ExponentiateWithFeedback);
+}
+
 // AddSmi <imm>
 //
 // Adds an immediate value <imm> to the value in the accumulator.
@@ -943,6 +950,14 @@ IGNITION_HANDLER(DivSmi, InterpreterBinaryOpAssembler) {
 // Modulo accumulator by immediate value <imm>.
 IGNITION_HANDLER(ModSmi, InterpreterBinaryOpAssembler) {
   BinaryOpSmiWithFeedback(&BinaryOpAssembler::Generate_ModulusWithFeedback);
+}
+
+// ExpSmi <imm>
+//
+// Exponentiate accumulator (base) with immediate value <imm> (exponent).
+IGNITION_HANDLER(ExpSmi, InterpreterBinaryOpAssembler) {
+  BinaryOpSmiWithFeedback(
+      &BinaryOpAssembler::Generate_ExponentiateWithFeedback);
 }
 
 class InterpreterBitwiseBinaryOpAssembler : public InterpreterAssembler {

@@ -382,6 +382,8 @@ bool BytecodeHasNoSideEffect(interpreter::Bytecode bytecode) {
     case Bytecode::kDivSmi:
     case Bytecode::kMod:
     case Bytecode::kModSmi:
+    case Bytecode::kExp:
+    case Bytecode::kExpSmi:
     case Bytecode::kNegate:
     case Bytecode::kBitwiseAnd:
     case Bytecode::kBitwiseAndSmi:

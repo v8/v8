@@ -608,7 +608,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kJSMultiply:
     case IrOpcode::kJSDivide:
     case IrOpcode::kJSModulus:
+    case IrOpcode::kJSExponentiate:
       // Type is Number.
+      // TODO(neis): Adapt for bigints.
       CheckTypeIs(node, Type::Number());
       break;
 

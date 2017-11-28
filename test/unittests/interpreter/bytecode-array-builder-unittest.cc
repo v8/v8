@@ -199,7 +199,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::Value::SUB, reg, 2)
       .BinaryOperation(Token::Value::MUL, reg, 3)
       .BinaryOperation(Token::Value::DIV, reg, 4)
-      .BinaryOperation(Token::Value::MOD, reg, 5);
+      .BinaryOperation(Token::Value::MOD, reg, 5)
+      .BinaryOperation(Token::Value::EXP, reg, 6);
 
   // Emit bitwise operator invocations
   builder.BinaryOperation(Token::Value::BIT_OR, reg, 6)
@@ -217,6 +218,7 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperationSmiLiteral(Token::Value::MUL, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::DIV, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::MOD, Smi::FromInt(42), 2)
+      .BinaryOperationSmiLiteral(Token::Value::EXP, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::BIT_OR, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::BIT_XOR, Smi::FromInt(42), 2)
       .BinaryOperationSmiLiteral(Token::Value::BIT_AND, Smi::FromInt(42), 2)

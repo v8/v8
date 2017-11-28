@@ -110,6 +110,7 @@ namespace interpreter {
   V(Mul, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kIdx)     \
   V(Div, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kIdx)     \
   V(Mod, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kIdx)     \
+  V(Exp, AccumulatorUse::kReadWrite, OperandType::kReg, OperandType::kIdx)     \
   V(BitwiseOr, AccumulatorUse::kReadWrite, OperandType::kReg,                  \
     OperandType::kIdx)                                                         \
   V(BitwiseXor, AccumulatorUse::kReadWrite, OperandType::kReg,                 \
@@ -129,6 +130,7 @@ namespace interpreter {
   V(MulSmi, AccumulatorUse::kReadWrite, OperandType::kImm, OperandType::kIdx)  \
   V(DivSmi, AccumulatorUse::kReadWrite, OperandType::kImm, OperandType::kIdx)  \
   V(ModSmi, AccumulatorUse::kReadWrite, OperandType::kImm, OperandType::kIdx)  \
+  V(ExpSmi, AccumulatorUse::kReadWrite, OperandType::kImm, OperandType::kIdx)  \
   V(BitwiseOrSmi, AccumulatorUse::kReadWrite, OperandType::kImm,               \
     OperandType::kIdx)                                                         \
   V(BitwiseXorSmi, AccumulatorUse::kReadWrite, OperandType::kImm,              \

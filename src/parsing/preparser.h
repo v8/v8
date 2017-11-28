@@ -995,17 +995,6 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void RewriteDestructuringAssignments() {}
 
-  V8_INLINE PreParserExpression
-  RewriteExponentiation(const PreParserExpression& left,
-                        const PreParserExpression& right, int pos) {
-    return left;
-  }
-  V8_INLINE PreParserExpression
-  RewriteAssignExponentiation(const PreParserExpression& left,
-                              const PreParserExpression& right, int pos) {
-    return left;
-  }
-
   V8_INLINE void PrepareGeneratorVariables() {}
   V8_INLINE void RewriteAsyncFunctionBody(
       PreParserStatementList body, PreParserStatement block,

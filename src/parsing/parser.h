@@ -551,11 +551,6 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   // Rewrite all DestructuringAssignments in the current FunctionState.
   V8_INLINE void RewriteDestructuringAssignments();
 
-  V8_INLINE Expression* RewriteExponentiation(Expression* left,
-                                              Expression* right, int pos);
-  V8_INLINE Expression* RewriteAssignExponentiation(Expression* left,
-                                                    Expression* right, int pos);
-
   Expression* RewriteSpreads(ArrayLiteral* lit);
 
   // Rewrite expressions that are not used as patterns
