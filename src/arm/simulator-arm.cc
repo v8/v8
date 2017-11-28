@@ -2176,6 +2176,8 @@ void Simulator::DecodeType01(Instruction* instr) {
             int rd = instr->RdValue();
             int rt = instr->RmValue();
             int rn = instr->RnValue();
+            DCHECK_NE(rd, rn);
+            DCHECK_NE(rd, rt);
             int32_t addr = get_register(rn);
             switch (instr->Bits(22, 21)) {
               case 0: {
