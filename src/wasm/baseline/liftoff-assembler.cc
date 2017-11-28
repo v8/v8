@@ -122,8 +122,7 @@ class StackTransferRecipe {
         switch (src.loc()) {
           case VarState::kStack:
             if (src_index == dst_index) break;
-            // TODO(clemensh): Implement other types than i32.
-            asm_->MoveStackValue(dst_index, src_index, wasm::kWasmI32);
+            asm_->MoveStackValue(dst_index, src_index);
             break;
           case VarState::kRegister:
             asm_->Spill(dst_index, src.reg());
@@ -261,7 +260,7 @@ LiftoffAssembler::~LiftoffAssembler() {
 }
 
 Register LiftoffAssembler::GetBinaryOpTargetRegister(
-    ValueType type, PinnedRegisterScope pinned_regs) {
+    RegClass rc, PinnedRegisterScope pinned) {
   auto& slot_lhs = *(cache_state_.stack_state.end() - 2);
   if (slot_lhs.is_reg() && GetNumUses(slot_lhs.reg()) == 1) {
     return slot_lhs.reg();
@@ -270,7 +269,30 @@ Register LiftoffAssembler::GetBinaryOpTargetRegister(
   if (slot_rhs.is_reg() && GetNumUses(slot_rhs.reg()) == 1) {
     return slot_rhs.reg();
   }
-  return GetUnusedRegister(type, pinned_regs);
+  return GetUnusedRegister(rc, pinned);
+}
+
+Register LiftoffAssembler::PopToRegister(RegClass rc,
+                                         PinnedRegisterScope pinned) {
+  DCHECK(!cache_state_.stack_state.empty());
+  VarState slot = cache_state_.stack_state.back();
+  cache_state_.stack_state.pop_back();
+  switch (slot.loc()) {
+    case VarState::kStack: {
+      Register reg = GetUnusedRegister(rc, pinned);
+      Fill(reg, cache_state_.stack_height());
+      return reg;
+    }
+    case VarState::kRegister:
+      cache_state_.dec_used(slot.reg());
+      return slot.reg();
+    case VarState::kConstant: {
+      Register reg = GetUnusedRegister(rc, pinned);
+      LoadConstant(reg, WasmValue(slot.i32_const()));
+      return reg;
+    }
+  }
+  UNREACHABLE();
 }
 
 void LiftoffAssembler::MergeFullStackWith(CacheState& target) {
@@ -324,32 +346,9 @@ void LiftoffAssembler::SpillLocals() {
   }
 }
 
-Register LiftoffAssembler::PopToRegister(ValueType type,
-                                         PinnedRegisterScope pinned_regs) {
-  DCHECK(!cache_state_.stack_state.empty());
-  VarState slot = cache_state_.stack_state.back();
-  cache_state_.stack_state.pop_back();
-  switch (slot.loc()) {
-    case VarState::kStack: {
-      Register reg = GetUnusedRegister(type, pinned_regs);
-      Fill(reg, cache_state_.stack_height());
-      return reg;
-    }
-    case VarState::kRegister:
-      cache_state_.dec_used(slot.reg());
-      return slot.reg();
-    case VarState::kConstant: {
-      Register reg = GetUnusedRegister(type, pinned_regs);
-      LoadConstant(reg, WasmValue(slot.i32_const()));
-      return reg;
-    }
-  }
-  UNREACHABLE();
-}
-
-Register LiftoffAssembler::SpillRegister(ValueType type,
-                                         PinnedRegisterScope pinned_regs) {
-  DCHECK(type == kWasmI32 || type == kWasmI64);
+Register LiftoffAssembler::SpillOneRegister(RegClass rc,
+                                            PinnedRegisterScope pinned_regs) {
+  DCHECK_EQ(kGpReg, rc);
 
   // Spill one cached value to free a register.
   Register spill_reg = cache_state_.GetNextSpillReg(pinned_regs);

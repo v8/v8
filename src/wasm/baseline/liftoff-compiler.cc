@@ -156,7 +156,7 @@ class LiftoffCompiler {
           __ cache_state()->stack_state.emplace_back(type);
         }
       } else if (param_loc.IsCallerFrameSlot()) {
-        Register tmp_reg = __ GetUnusedRegister(type);
+        Register tmp_reg = __ GetUnusedRegister(reg_class_for(type));
         __ LoadCallerFrameSlot(tmp_reg, -param_loc.AsCallerFrameSlot());
         __ PushRegister(type, tmp_reg);
       } else {
@@ -259,10 +259,9 @@ class LiftoffCompiler {
 #undef CASE_EMIT_FN
 
     LiftoffAssembler::PinnedRegisterScope pinned_regs;
-    Register target_reg =
-        pinned_regs.pin(__ GetBinaryOpTargetRegister(kWasmI32));
-    Register rhs_reg = pinned_regs.pin(__ PopToRegister(kWasmI32, pinned_regs));
-    Register lhs_reg = __ PopToRegister(kWasmI32, pinned_regs);
+    Register target_reg = pinned_regs.pin(__ GetBinaryOpTargetRegister(kGpReg));
+    Register rhs_reg = pinned_regs.pin(__ PopToRegister(kGpReg, pinned_regs));
+    Register lhs_reg = __ PopToRegister(kGpReg, pinned_regs);
     (asm_->*emit_fn)(target_reg, lhs_reg, rhs_reg);
     __ PushRegister(kWasmI32, target_reg);
   }
@@ -299,7 +298,7 @@ class LiftoffCompiler {
       // TODO(clemensh): Handle other types.
       if (values[0].type != kWasmI32)
         return unsupported(decoder, "non-i32 return");
-      Register reg = __ PopToRegister(kWasmI32);
+      Register reg = __ PopToRegister(kGpReg);
       __ MoveToReturnRegister(reg);
     }
     __ LeaveFrame(StackFrame::WASM_COMPILED);
@@ -318,7 +317,8 @@ class LiftoffCompiler {
                                                    slot.i32_const());
         break;
       case kStack: {
-        Register reg = __ GetUnusedRegister(__ local_type(operand.index));
+        auto rc = reg_class_for(operand.type);
+        Register reg = __ GetUnusedRegister(rc);
         __ Fill(reg, operand.index);
         __ PushRegister(operand.type, reg);
       } break;
@@ -353,8 +353,7 @@ class LiftoffCompiler {
           case kConstant:
           case kStack: {
             ValueType type = __ local_type(local_index);
-            Register target_reg =
-                __ GetUnusedRegister(__ local_type(local_index));
+            Register target_reg = __ GetUnusedRegister(reg_class_for(type));
             __ Fill(target_reg, state.stack_height() - 1);
             target_slot = LiftoffAssembler::VarState(type, target_reg);
             state.inc_used(target_reg);
@@ -382,10 +381,11 @@ class LiftoffCompiler {
     if (global->type != kWasmI32 && global->type != kWasmI64)
       return unsupported(decoder, "non-int global");
     LiftoffAssembler::PinnedRegisterScope pinned;
-    Register addr = pinned.pin(__ GetUnusedRegister(kWasmPtrSizeInt));
+    Register addr = pinned.pin(__ GetUnusedRegister(kGpReg));
     __ LoadFromContext(addr, offsetof(WasmContext, globals_start),
                        kPointerSize);
-    Register value = pinned.pin(__ GetUnusedRegister(global->type, pinned));
+    Register value =
+        pinned.pin(__ GetUnusedRegister(reg_class_for(global->type), pinned));
     int size = 1 << ElementSizeLog2Of(global->type);
     if (size > kPointerSize)
       return unsupported(decoder, "global > kPointerSize");
@@ -398,10 +398,11 @@ class LiftoffCompiler {
     auto* global = &env_->module->globals[operand.index];
     if (global->type != kWasmI32) return unsupported(decoder, "non-i32 global");
     LiftoffAssembler::PinnedRegisterScope pinned;
-    Register addr = pinned.pin(__ GetUnusedRegister(kWasmPtrSizeInt));
+    Register addr = pinned.pin(__ GetUnusedRegister(kGpReg));
     __ LoadFromContext(addr, offsetof(WasmContext, globals_start),
                        kPointerSize);
-    Register reg = pinned.pin(__ PopToRegister(global->type, pinned));
+    Register reg =
+        pinned.pin(__ PopToRegister(reg_class_for(global->type), pinned));
     int size = 1 << ElementSizeLog2Of(global->type);
     __ Store(addr, global->offset, reg, size, pinned);
   }
@@ -424,7 +425,7 @@ class LiftoffCompiler {
 
   void BrIf(Decoder* decoder, const Value& cond, Control* target) {
     Label cont_false;
-    Register value = __ PopToRegister(kWasmI32);
+    Register value = __ PopToRegister(kGpReg);
     __ JumpIfZero(value, &cont_false);
 
     Br(decoder, target);

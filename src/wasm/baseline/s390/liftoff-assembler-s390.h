@@ -31,8 +31,7 @@ void LiftoffAssembler::Store(Register dst_addr, uint32_t offset_imm,
 void LiftoffAssembler::LoadCallerFrameSlot(Register dst,
                                            uint32_t caller_slot_idx) {}
 
-void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
-                                      wasm::ValueType type) {}
+void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index) {}
 
 void LiftoffAssembler::MoveToReturnRegister(Register reg) {}
 

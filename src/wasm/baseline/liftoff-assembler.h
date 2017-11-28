@@ -44,7 +44,16 @@ namespace wasm {
 // Forward declarations.
 struct ModuleEnv;
 
-constexpr ValueType kWasmPtrSizeInt = kPointerSize == 8 ? kWasmI64 : kWasmI32;
+enum RegClass { kNoReg, kGpReg, kFpReg };
+
+// TODO(clemensh): Switch to a switch once we require C++14 support.
+static constexpr RegClass reg_class_for(ValueType type) {
+  return type == kWasmI32 || type == kWasmI64  // int types
+             ? kGpReg
+             : type == kWasmF32 || type == kWasmF64  // float types
+                   ? kFpReg
+                   : kNoReg;  // other (unsupported) types
+}
 
 class LiftoffAssembler : public TurboAssembler {
  public:
@@ -70,11 +79,6 @@ class LiftoffAssembler : public TurboAssembler {
   };
   static_assert(IS_TRIVIALLY_COPYABLE(PinnedRegisterScope),
                 "PinnedRegisterScope can be passed by value");
-
-  explicit LiftoffAssembler(Isolate* isolate);
-  ~LiftoffAssembler();
-
-  Register GetBinaryOpTargetRegister(ValueType, PinnedRegisterScope = {});
 
   class VarState {
    public:
@@ -226,7 +230,12 @@ class LiftoffAssembler : public TurboAssembler {
     CacheState(const CacheState&) = delete;
   };
 
-  Register PopToRegister(ValueType, PinnedRegisterScope = {});
+  explicit LiftoffAssembler(Isolate* isolate);
+  ~LiftoffAssembler();
+
+  Register GetBinaryOpTargetRegister(RegClass, PinnedRegisterScope = {});
+
+  Register PopToRegister(RegClass, PinnedRegisterScope = {});
 
   void PushRegister(ValueType type, Register reg) {
     cache_state_.inc_used(reg);
@@ -238,13 +247,13 @@ class LiftoffAssembler : public TurboAssembler {
     return cache_state_.register_use_count[reg.code()];
   }
 
-  Register GetUnusedRegister(ValueType type,
+  Register GetUnusedRegister(RegClass rc,
                              PinnedRegisterScope pinned_regs = {}) {
-    DCHECK(type == kWasmI32 || type == kWasmI64);
+    DCHECK_EQ(kGpReg, rc);
     if (cache_state_.has_unused_register(pinned_regs)) {
       return cache_state_.unused_register(pinned_regs);
     }
-    return SpillRegister(type, pinned_regs);
+    return SpillOneRegister(rc, pinned_regs);
   }
 
   void DropStackSlot(VarState* slot) {
@@ -277,7 +286,7 @@ class LiftoffAssembler : public TurboAssembler {
   inline void Store(Register dst_addr, uint32_t offset_imm, Register src,
                     int size, PinnedRegisterScope = {});
   inline void LoadCallerFrameSlot(Register, uint32_t caller_slot_idx);
-  inline void MoveStackValue(uint32_t dst_index, uint32_t src_index, ValueType);
+  inline void MoveStackValue(uint32_t dst_index, uint32_t src_index);
 
   inline void MoveToReturnRegister(Register);
 
@@ -338,7 +347,7 @@ class LiftoffAssembler : public TurboAssembler {
                 "Reconsider this inlining if ValueType gets bigger");
   CacheState cache_state_;
 
-  Register SpillRegister(ValueType, PinnedRegisterScope = {});
+  Register SpillOneRegister(RegClass, PinnedRegisterScope = {});
 };
 
 }  // namespace wasm

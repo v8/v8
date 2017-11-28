@@ -71,7 +71,7 @@ void LiftoffAssembler::Load(Register dst, Register src_addr,
   if (offset_imm > kMaxInt) {
     // The immediate can not be encoded in the operand. Load it to a register
     // first.
-    Register src = GetUnusedRegister(kWasmPtrSizeInt, pinned);
+    Register src = GetUnusedRegister(kGpReg, pinned);
     movl(src, Immediate(offset_imm));
     src_op = Operand(src_addr, src, times_1, 0);
   }
@@ -90,7 +90,7 @@ void LiftoffAssembler::Store(Register dst_addr, uint32_t offset_imm,
   if (offset_imm > kMaxInt) {
     // The immediate can not be encoded in the operand. Load it to a register
     // first.
-    Register dst = GetUnusedRegister(kWasmPtrSizeInt, pinned);
+    Register dst = GetUnusedRegister(kGpReg, pinned);
     movl(dst, Immediate(offset_imm));
     dst_op = Operand(dst_addr, dst, times_1, 0);
   }
@@ -108,12 +108,10 @@ void LiftoffAssembler::LoadCallerFrameSlot(Register dst,
   movl(dst, Operand(rbp, kStackSlotSize * (caller_slot_idx + 1)));
 }
 
-void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index,
-                                      wasm::ValueType type) {
+void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index) {
   DCHECK_NE(dst_index, src_index);
-  DCHECK_EQ(kWasmI32, type);
   if (cache_state_.has_unused_register()) {
-    Register reg = GetUnusedRegister(type);
+    Register reg = GetUnusedRegister(kGpReg);
     Fill(reg, src_index);
     Spill(dst_index, reg);
   } else {
