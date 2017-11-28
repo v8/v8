@@ -202,7 +202,6 @@ class Logger : public CodeEventListener {
                char old_state, char new_state, const char* modifier,
                const char* slow_stub_reason);
 
-  void LogAllTransitions(Map* map);
   void MapEvent(const char* type, Map* from, Map* to,
                 const char* reason = nullptr,
                 HeapObject* name_or_sfi = nullptr);
@@ -259,6 +258,8 @@ class Logger : public CodeEventListener {
   void LogCodeObjects();
   // Used for logging bytecode handlers found in the snapshot.
   void LogBytecodeHandlers();
+  // Logs all Mpas foind in the heap.
+  void LogMaps();
 
   // Converts tag to a corresponding NATIVE_... if the script is native.
   INLINE(static CodeEventListener::LogEventsAndTags ToNativeByScript(

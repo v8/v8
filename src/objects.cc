@@ -9301,6 +9301,11 @@ void Map::ConnectTransition(Handle<Map> parent, Handle<Map> child,
   // Do not track transitions during bootstrap except for element transitions.
   if (isolate->bootstrapper()->IsActive() &&
       !name.is_identical_to(isolate->factory()->elements_transition_symbol())) {
+    if (FLAG_trace_maps) {
+      LOG(isolate,
+          MapEvent("Transition", *parent, *child,
+                   child->is_prototype_map() ? "prototype" : "", *name));
+    }
     return;
   }
   if (!parent->GetBackPointer()->IsUndefined(isolate)) {
