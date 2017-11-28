@@ -5,8 +5,10 @@
 #include "src/heap/object-stats.h"
 
 #include "src/assembler-inl.h"
+#include "src/base/bits.h"
 #include "src/compilation-cache.h"
 #include "src/counters.h"
+#include "src/globals.h"
 #include "src/heap/heap-inl.h"
 #include "src/isolate.h"
 #include "src/objects/compilation-cache-inl.h"
@@ -209,6 +211,59 @@ void ObjectStats::CheckpointObjectStats() {
   ClearObjectStats();
 }
 
+namespace {
+
+int Log2ForSize(size_t size) {
+  DCHECK_GT(size, 0);
+  return kSizetSize * 8 - 1 - base::bits::CountLeadingZeros(size);
+}
+
+}  // namespace
+
+int ObjectStats::HistogramIndexFromSize(size_t size) {
+  if (size == 0) return 0;
+  return Min(Max(Log2ForSize(size) + 1 - kFirstBucketShift, 0),
+             kLastValueBucketIndex);
+}
+
+void ObjectStats::RecordObjectStats(InstanceType type, size_t size) {
+  DCHECK_LE(type, LAST_TYPE);
+  object_counts_[type]++;
+  object_sizes_[type] += size;
+  size_histogram_[type][HistogramIndexFromSize(size)]++;
+}
+
+void ObjectStats::RecordCodeSubTypeStats(int code_sub_type, size_t size) {
+  int code_sub_type_index = FIRST_CODE_KIND_SUB_TYPE + code_sub_type;
+  DCHECK_GE(code_sub_type_index, FIRST_CODE_KIND_SUB_TYPE);
+  DCHECK_LT(code_sub_type_index, FIRST_FIXED_ARRAY_SUB_TYPE);
+  object_counts_[code_sub_type_index]++;
+  object_sizes_[code_sub_type_index] += size;
+  size_histogram_[code_sub_type_index][HistogramIndexFromSize(size)]++;
+}
+
+bool ObjectStats::RecordFixedArraySubTypeStats(FixedArrayBase* array,
+                                               int array_sub_type, size_t size,
+                                               size_t over_allocated) {
+  auto it = visited_fixed_array_sub_types_.insert(array);
+  if (!it.second) return false;
+  DCHECK_LE(array_sub_type, LAST_FIXED_ARRAY_SUB_TYPE);
+  object_counts_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]++;
+  object_sizes_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] += size;
+  size_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
+                 [HistogramIndexFromSize(size)]++;
+  if (over_allocated > 0) {
+    InstanceType type =
+        array->IsHashTable() ? HASH_TABLE_TYPE : FIXED_ARRAY_TYPE;
+    over_allocated_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type] +=
+        over_allocated;
+    over_allocated_histogram_[FIRST_FIXED_ARRAY_SUB_TYPE + array_sub_type]
+                             [HistogramIndexFromSize(over_allocated)]++;
+    over_allocated_[type] += over_allocated;
+    over_allocated_histogram_[type][HistogramIndexFromSize(over_allocated)]++;
+  }
+  return true;
+}
 
 Isolate* ObjectStats::isolate() { return heap()->isolate(); }
 
