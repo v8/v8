@@ -46,6 +46,9 @@ class TypedArrayBuiltinsAssembler : public CodeStubAssembler {
   Node* LoadDataPtr(Node* typed_array);
   Node* ByteLengthIsValid(Node* byte_length);
 
+  // Returns true if kind is either UINT8_ELEMENTS or UINT8_CLAMPED_ELEMENTS.
+  TNode<Word32T> IsUint8ElementsKind(TNode<Word32T> kind);
+
   // Loads the element kind of TypedArray instance.
   TNode<Word32T> LoadElementsKind(TNode<Object> typed_array);
 
@@ -710,11 +713,16 @@ TF_BUILTIN(TypedArrayPrototypeLength, TypedArrayBuiltinsAssembler) {
                                     JSTypedArray::kLengthOffset);
 }
 
+TNode<Word32T> TypedArrayBuiltinsAssembler::IsUint8ElementsKind(
+    TNode<Word32T> kind) {
+  return Word32Or(Word32Equal(kind, Int32Constant(UINT8_ELEMENTS)),
+                  Word32Equal(kind, Int32Constant(UINT8_CLAMPED_ELEMENTS)));
+}
+
 TNode<Word32T> TypedArrayBuiltinsAssembler::LoadElementsKind(
     TNode<Object> typed_array) {
   CSA_ASSERT(this, IsJSTypedArray(typed_array));
-  return Int32Sub(LoadMapElementsKind(LoadMap(CAST(typed_array))),
-                  Int32Constant(FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND));
+  return LoadMapElementsKind(LoadMap(CAST(typed_array)));
 }
 
 TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
@@ -727,8 +735,7 @@ TNode<IntPtrT> TypedArrayBuiltinsAssembler::GetTypedArrayElementSize(
                                          1;
 
   int32_t elements_kinds[kTypedElementsKindCount] = {
-#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) \
-  TYPE##_ELEMENTS - FIRST_FIXED_TYPED_ARRAY_ELEMENTS_KIND,
+#define TYPED_ARRAY_CASE(Type, type, TYPE, ctype, size) TYPE##_ELEMENTS,
       TYPED_ARRAYS(TYPED_ARRAY_CASE)
 #undef TYPED_ARRAY_CASE
   };
@@ -807,8 +814,12 @@ void TypedArrayBuiltinsAssembler::SetTypedArraySource(
              IntPtrGreaterThanOrEqual(source_byte_length, IntPtrConstant(0)));
 
   Label call_memmove(this), fast_c_call(this), out(this);
-  Branch(Word32Equal(source_el_kind, target_el_kind), &call_memmove,
-         &fast_c_call);
+
+  // A fast memmove call can be used when the source and target types are are
+  // the same or either Uint8 or Uint8Clamped.
+  GotoIf(Word32Equal(source_el_kind, target_el_kind), &call_memmove);
+  GotoIfNot(IsUint8ElementsKind(source_el_kind), &fast_c_call);
+  Branch(IsUint8ElementsKind(target_el_kind), &call_memmove, &fast_c_call);
 
   BIND(&call_memmove);
   {
