@@ -15,6 +15,7 @@
 
 #include "src/wasm/decoder.h"
 #include "src/wasm/signature-map.h"
+#include "src/wasm/wasm-heap.h"
 #include "src/wasm/wasm-opcodes.h"
 
 namespace v8 {
@@ -284,10 +285,14 @@ Handle<FixedArray> DecodeLocalNames(Isolate*, Handle<WasmCompiledModule>);
 WasmFunction* GetWasmFunctionForExport(Isolate* isolate, Handle<Object> target);
 
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
-                          int index, WasmFunction* function, Handle<Code> code);
+                          int index, WasmFunction* function,
+                          Handle<Object> code_or_foreign);
+
+void UnpackAndRegisterProtectedInstructionsGC(Isolate* isolate,
+                                              Handle<FixedArray> code_table);
 
 void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
-                                            Handle<FixedArray> code_table);
+                                            wasm::NativeModule* native_module);
 
 const char* ExternalKindName(WasmExternalKind);
 

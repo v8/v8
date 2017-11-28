@@ -86,6 +86,7 @@
 #include "src/wasm/streaming-decoder.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-result.h"
+#include "src/wasm/wasm-serialization.h"
 
 namespace v8 {
 
@@ -7781,26 +7782,40 @@ WasmCompiledModule::SerializedModule WasmCompiledModule::Serialize() {
       i::Handle<i::WasmModuleObject>::cast(Utils::OpenHandle(this));
   i::Handle<i::WasmCompiledModule> compiled_part =
       i::handle(i::WasmCompiledModule::cast(obj->compiled_module()));
+  if (i::FLAG_wasm_jit_to_native) {
+    i::Isolate* isolate = obj->GetIsolate();
 
-  std::unique_ptr<i::ScriptData> script_data =
-      i::WasmCompiledModuleSerializer::SerializeWasmModule(obj->GetIsolate(),
-                                                           compiled_part);
-  script_data->ReleaseDataOwnership();
+    return i::wasm::NativeModuleSerializer::SerializeWholeModule(isolate,
+                                                                 compiled_part);
+  } else {
+    std::unique_ptr<i::ScriptData> script_data =
+        i::WasmCompiledModuleSerializer::SerializeWasmModule(obj->GetIsolate(),
+                                                             compiled_part);
+    script_data->ReleaseDataOwnership();
 
-  size_t size = static_cast<size_t>(script_data->length());
-  return {std::unique_ptr<const uint8_t[]>(script_data->data()), size};
+    size_t size = static_cast<size_t>(script_data->length());
+    return {std::unique_ptr<const uint8_t[]>(script_data->data()), size};
+  }
 }
 
 MaybeLocal<WasmCompiledModule> WasmCompiledModule::Deserialize(
     Isolate* isolate,
     const WasmCompiledModule::CallerOwnedBuffer& serialized_module,
     const WasmCompiledModule::CallerOwnedBuffer& wire_bytes) {
-  int size = static_cast<int>(serialized_module.second);
-  i::ScriptData sc(serialized_module.first, size);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
-  i::MaybeHandle<i::FixedArray> maybe_compiled_part =
-      i::WasmCompiledModuleSerializer::DeserializeWasmModule(
-          i_isolate, &sc, {wire_bytes.first, wire_bytes.second});
+  i::MaybeHandle<i::FixedArray> maybe_compiled_part;
+  if (i::FLAG_wasm_jit_to_native) {
+    maybe_compiled_part =
+        i::wasm::NativeModuleDeserializer::DeserializeFullBuffer(
+            i_isolate, {serialized_module.first, serialized_module.second},
+            {wire_bytes.first, wire_bytes.second});
+  } else {
+    int size = static_cast<int>(serialized_module.second);
+    i::ScriptData sc(serialized_module.first, size);
+    maybe_compiled_part =
+        i::WasmCompiledModuleSerializer::DeserializeWasmModule(
+            i_isolate, &sc, {wire_bytes.first, wire_bytes.second});
+  }
   i::Handle<i::FixedArray> compiled_part;
   if (!maybe_compiled_part.ToHandle(&compiled_part)) {
     return MaybeLocal<WasmCompiledModule>();

@@ -13,9 +13,13 @@
 #include <memory>
 
 #include "src/handles.h"
+#include "src/wasm/wasm-code-wrapper.h"
 
 namespace v8 {
 namespace internal {
+namespace wasm {
+class WasmCode;
+}
 
 // Forward declarations.
 class AbstractCode;
@@ -161,7 +165,7 @@ class WasmStackFrame : public StackFrameBase {
 
   Handle<WasmInstanceObject> wasm_instance_;
   uint32_t wasm_func_index_;
-  Handle<AbstractCode> code_;  // null handle for interpreted frames.
+  WasmCodeWrapper code_;  // null for interpreted frames.
   int offset_;
 
  private:

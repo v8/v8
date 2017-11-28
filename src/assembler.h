@@ -54,6 +54,9 @@ namespace v8 {
 class ApiFunction;
 
 namespace internal {
+namespace wasm {
+class WasmCode;
+}
 
 // Forward declarations.
 class Isolate;
@@ -622,6 +625,9 @@ class RelocInfo {
   byte* pc_;
   Mode rmode_;
   intptr_t data_;
+  // TODO(mtrofin): try remove host_, if all we need is the constant_pool_ or
+  // other few attributes, like start address, etc. This is so that we can reuse
+  // RelocInfo for WasmCode without having a modal design.
   Code* host_;
   Address constant_pool_ = nullptr;
   friend class RelocIterator;

@@ -110,6 +110,7 @@ class Interpreter;
 
 namespace wasm {
 class CompilationManager;
+class WasmCodeManager;
 }
 
 #define RETURN_FAILURE_IF_SCHEDULED_EXCEPTION(isolate) \
@@ -905,6 +906,7 @@ class Isolate {
   }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
+  V8_EXPORT_PRIVATE wasm::WasmCodeManager* wasm_code_manager();
   StubCache* load_stub_cache() { return load_stub_cache_; }
   StubCache* store_stub_cache() { return store_stub_cache_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
@@ -1651,6 +1653,8 @@ class Isolate {
   size_t total_regexp_code_generated_;
 
   size_t elements_deletion_counter_ = 0;
+
+  std::unique_ptr<wasm::WasmCodeManager> wasm_code_manager_;
 
   // The top entry of the v8::Context::BackupIncumbentScope stack.
   const v8::Context::BackupIncumbentScope* top_backup_incumbent_scope_ =

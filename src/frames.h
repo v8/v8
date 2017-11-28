@@ -14,6 +14,9 @@
 
 namespace v8 {
 namespace internal {
+namespace wasm {
+class WasmCode;
+}
 
 class AbstractCode;
 class Debug;
@@ -526,15 +529,17 @@ class FrameSummary BASE_EMBEDDED {
 
   class WasmCompiledFrameSummary : public WasmFrameSummary {
    public:
-    WasmCompiledFrameSummary(Isolate*, Handle<WasmInstanceObject>, Handle<Code>,
-                             int code_offset, bool at_to_number_conversion);
+    WasmCompiledFrameSummary(Isolate*, Handle<WasmInstanceObject>,
+                             WasmCodeWrapper, int code_offset,
+                             bool at_to_number_conversion);
     uint32_t function_index() const;
-    Handle<Code> code() const { return code_; }
+    WasmCodeWrapper code() const { return code_; }
     int code_offset() const { return code_offset_; }
     int byte_offset() const;
+    static int GetWasmSourcePosition(const wasm::WasmCode* code, int offset);
 
    private:
-    Handle<Code> code_;
+    WasmCodeWrapper const code_;
     int code_offset_;
   };
 

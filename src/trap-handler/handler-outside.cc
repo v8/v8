@@ -115,7 +115,7 @@ void ValidateCodeObjects() {
 
 CodeProtectionInfo* CreateHandlerData(
     void* base, size_t size, size_t num_protected_instructions,
-    ProtectedInstructionData* protected_instructions) {
+    const ProtectedInstructionData* protected_instructions) {
   const size_t alloc_size = HandlerDataSize(num_protected_instructions);
   CodeProtectionInfo* data =
       reinterpret_cast<CodeProtectionInfo*>(malloc(alloc_size));
@@ -143,9 +143,9 @@ void UpdateHandlerDataCodePointer(int index, void* base) {
   data->base = base;
 }
 
-int RegisterHandlerData(void* base, size_t size,
-                        size_t num_protected_instructions,
-                        ProtectedInstructionData* protected_instructions) {
+int RegisterHandlerData(
+    void* base, size_t size, size_t num_protected_instructions,
+    const ProtectedInstructionData* protected_instructions) {
   // TODO(eholk): in debug builds, make sure this data isn't already registered.
 
   CodeProtectionInfo* data = CreateHandlerData(

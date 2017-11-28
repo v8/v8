@@ -94,6 +94,9 @@ class CodeGenerator final : public GapResolver::Assembler {
   void AssembleCode();  // Does not need to run on main thread.
   Handle<Code> FinalizeCode();
 
+  Handle<ByteArray> GetSourcePositionTable();
+  MaybeHandle<HandlerTable> GetHandlerTable() const;
+
   InstructionSequence* code() const { return code_; }
   FrameAccessState* frame_access_state() const { return frame_access_state_; }
   const Frame* frame() const { return frame_access_state_->frame(); }
@@ -117,9 +120,10 @@ class CodeGenerator final : public GapResolver::Assembler {
                        int arguments, Safepoint::DeoptMode deopt_mode);
 
   Zone* zone() const { return zone_; }
+  TurboAssembler* tasm() { return &tasm_; }
+  size_t GetSafepointTableOffset() const { return safepoints_.GetCodeOffset(); }
 
  private:
-  TurboAssembler* tasm() { return &tasm_; }
   GapResolver* resolver() { return &resolver_; }
   SafepointTableBuilder* safepoints() { return &safepoints_; }
   CompilationInfo* info() const { return info_; }
