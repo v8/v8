@@ -528,40 +528,40 @@ Condition FlagsConditionToCondition(FlagsCondition condition) {
 #define ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(load_instr, store_instr)      \
   do {                                                                 \
     Label exchange;                                                    \
-    __ bind(&exchange);                                                \
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
+    __ Bind(&exchange);                                                \
     __ load_instr(i.OutputRegister32(), i.TempRegister(0));            \
-    __ store_instr(i.TempRegister32(0), i.InputRegister32(2),          \
+    __ store_instr(i.TempRegister32(1), i.InputRegister32(2),          \
                    i.TempRegister(0));                                 \
-    __ cbnz(i.TempRegister32(0), &exchange);                           \
+    __ Cbnz(i.TempRegister32(1), &exchange);                           \
   } while (0)
 
-#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_instr, store_instr) \
-  do {                                                                    \
-    Label compareExchange;                                                \
-    Label exit;                                                           \
-    __ bind(&compareExchange);                                            \
-    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));    \
-    __ load_instr(i.OutputRegister32(), i.TempRegister(0));               \
-    __ cmp(i.TempRegister32(1), i.OutputRegister32());                    \
-    __ B(ne, &exit);                                                      \
-    __ store_instr(i.TempRegister32(0), i.InputRegister32(3),             \
-                   i.TempRegister(0));                                    \
-    __ cbnz(i.TempRegister32(0), &compareExchange);                       \
-    __ bind(&exit);                                                       \
+#define ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(load_instr, store_instr, ext) \
+  do {                                                                         \
+    Label compareExchange;                                                     \
+    Label exit;                                                                \
+    __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1));         \
+    __ Bind(&compareExchange);                                                 \
+    __ load_instr(i.OutputRegister32(), i.TempRegister(0));                    \
+    __ Cmp(i.OutputRegister32(), Operand(i.InputRegister32(2), ext));          \
+    __ B(ne, &exit);                                                           \
+    __ store_instr(i.TempRegister32(1), i.InputRegister32(3),                  \
+                   i.TempRegister(0));                                         \
+    __ Cbnz(i.TempRegister32(1), &compareExchange);                            \
+    __ Bind(&exit);                                                            \
   } while (0)
 
 #define ASSEMBLE_ATOMIC_BINOP(load_instr, store_instr, bin_instr)      \
   do {                                                                 \
     Label binop;                                                       \
     __ Add(i.TempRegister(0), i.InputRegister(0), i.InputRegister(1)); \
-    __ bind(&binop);                                                   \
+    __ Bind(&binop);                                                   \
     __ load_instr(i.OutputRegister32(), i.TempRegister(0));            \
     __ bin_instr(i.TempRegister32(1), i.OutputRegister32(),            \
                  Operand(i.InputRegister32(2)));                       \
-    __ store_instr(i.TempRegister32(1), i.TempRegister32(1),           \
+    __ store_instr(i.TempRegister32(2), i.TempRegister32(1),           \
                    i.TempRegister(0));                                 \
-    __ cbnz(i.TempRegister32(1), &binop);                              \
+    __ Cbnz(i.TempRegister32(2), &binop);                              \
   } while (0)
 
 #define ASSEMBLE_IEEE754_BINOP(name)                                       \
@@ -1820,26 +1820,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ASSEMBLE_ATOMIC_EXCHANGE_INTEGER(ldaxr, stlxr);
       break;
     case kAtomicCompareExchangeInt8:
-      __ Uxtb(i.TempRegister(1), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb, UXTB);
       __ Sxtb(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kAtomicCompareExchangeUint8:
-      __ Uxtb(i.TempRegister(1), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrb, stlxrb, UXTB);
       break;
     case kAtomicCompareExchangeInt16:
-      __ Uxth(i.TempRegister(1), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh, UXTH);
       __ Sxth(i.OutputRegister(0), i.OutputRegister(0));
       break;
     case kAtomicCompareExchangeUint16:
-      __ Uxth(i.TempRegister(1), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxrh, stlxrh, UXTH);
       break;
     case kAtomicCompareExchangeWord32:
-      __ mov(i.TempRegister(1), i.InputRegister(2));
-      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxr, stlxr);
+      ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER(ldaxr, stlxr, UXTW);
       break;
 #define ATOMIC_BINOP_CASE(op, inst)                    \
   case kAtomic##op##Int8:                              \
@@ -1865,6 +1860,21 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       ATOMIC_BINOP_CASE(Or, Orr)
       ATOMIC_BINOP_CASE(Xor, Eor)
 #undef ATOMIC_BINOP_CASE
+#undef ASSEMBLE_BOUNDS_CHECK
+#undef ASSEMBLE_CHECKED_LOAD_FLOAT
+#undef ASSEMBLE_CHECKED_LOAD_INTEGER
+#undef ASSEMBLE_CHECKED_LOAD_INTEGER_64
+#undef ASSEMBLE_CHECKED_STORE_FLOAT
+#undef ASSEMBLE_CHECKED_STORE_INTEGER
+#undef ASSEMBLE_CHECKED_STORE_INTEGER_64
+#undef ASSEMBLE_SHIFT
+#undef ASSEMBLE_ATOMIC_LOAD_INTEGER
+#undef ASSEMBLE_ATOMIC_STORE_INTEGER
+#undef ASSEMBLE_ATOMIC_EXCHANGE_INTEGER
+#undef ASSEMBLE_ATOMIC_BINOP
+#undef ASSEMBLE_IEEE754_BINOP
+#undef ASSEMBLE_IEEE754_UNOP
+#undef ASSEMBLE_ATOMIC_COMPARE_EXCHANGE_INTEGER
 
 #define SIMD_UNOP_CASE(Op, Instr, FORMAT)            \
   case Op:                                           \

@@ -1758,6 +1758,7 @@ void Assembler::stlxr(const Register& rs, const Register& rt,
                       const Register& rn) {
   DCHECK(rs.Is32Bits());
   DCHECK(rn.Is64Bits());
+  DCHECK(!rs.Is(rt) && !rs.Is(rn));
   LoadStoreAcquireReleaseOp op = rt.Is32Bits() ? STLXR_w : STLXR_x;
   Emit(op | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
@@ -1785,6 +1786,7 @@ void Assembler::stlxrb(const Register& rs, const Register& rt,
   DCHECK(rs.Is32Bits());
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
+  DCHECK(!rs.Is(rt) && !rs.Is(rn));
   Emit(STLXR_b | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 
@@ -1811,6 +1813,7 @@ void Assembler::stlxrh(const Register& rs, const Register& rt,
   DCHECK(rs.Is32Bits());
   DCHECK(rt.Is32Bits());
   DCHECK(rn.Is64Bits());
+  DCHECK(!rs.Is(rt) && !rs.Is(rn));
   Emit(STLXR_h | Rs(rs) | Rt2(x31) | RnSP(rn) | Rt(rt));
 }
 

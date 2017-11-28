@@ -1490,9 +1490,9 @@ TEST_(load_store_acquire_release) {
   COMPARE(ldaxrb(wzr, csp), "ldaxrb wzr, [csp]");
   COMPARE(ldaxrh(wzr, csp), "ldaxrh wzr, [csp]");
   COMPARE(ldaxr(wzr, csp), "ldaxr wzr, [csp]");
-  COMPARE(stlxrb(wzr, wzr, csp), "stlxrb wzr, wzr, [csp]");
-  COMPARE(stlxrh(wzr, wzr, csp), "stlxrh wzr, wzr, [csp]");
-  COMPARE(stlxr(wzr, wzr, csp), "stlxr wzr, wzr, [csp]");
+  COMPARE(stlxrb(w0, wzr, csp), "stlxrb w0, wzr, [csp]");
+  COMPARE(stlxrh(wzr, w1, csp), "stlxrh wzr, w1, [csp]");
+  COMPARE(stlxr(w2, wzr, csp), "stlxr w2, wzr, [csp]");
 
   CLEANUP();
 }

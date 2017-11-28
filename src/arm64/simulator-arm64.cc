@@ -2282,6 +2282,8 @@ void Simulator::VisitLoadStoreAcquireRelease(Instruction* instr) {
   } else {
     if (is_exclusive) {
       unsigned rs = instr->Rs();
+      DCHECK_NE(rs, rt);
+      DCHECK_NE(rs, rn);
       if (local_monitor_.NotifyStoreExcl(address,
                                          get_transaction_size(access_size)) &&
           global_monitor_.Pointer()->NotifyStoreExcl_Locked(

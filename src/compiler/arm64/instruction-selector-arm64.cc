@@ -2755,12 +2755,12 @@ void InstructionSelector::VisitAtomicExchange(Node* node) {
   AddressingMode addressing_mode = kMode_MRR;
   InstructionOperand inputs[3];
   size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseRegister(base);
+  inputs[input_count++] = g.UseRegister(index);
   inputs[input_count++] = g.UseUniqueRegister(value);
   InstructionOperand outputs[1];
-  outputs[0] = g.UseUniqueRegister(node);
-  InstructionOperand temps[] = {g.TempRegister()};
+  outputs[0] = g.DefineAsRegister(node);
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
   Emit(code, 1, outputs, input_count, inputs, arraysize(temps), temps);
 }
@@ -2791,17 +2791,15 @@ void InstructionSelector::VisitAtomicCompareExchange(Node* node) {
   AddressingMode addressing_mode = kMode_MRR;
   InstructionOperand inputs[4];
   size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseRegister(base);
+  inputs[input_count++] = g.UseRegister(index);
   inputs[input_count++] = g.UseUniqueRegister(old_value);
   inputs[input_count++] = g.UseUniqueRegister(new_value);
   InstructionOperand outputs[1];
-  outputs[0] = g.UseUniqueRegister(node);
-  InstructionOperand temp[2];
-  temp[0] = g.TempRegister();
-  temp[1] = g.TempRegister();
+  outputs[0] = g.DefineAsRegister(node);
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister()};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  Emit(code, 1, outputs, input_count, inputs, 2, temp);
+  Emit(code, 1, outputs, input_count, inputs, arraysize(temps), temps);
 }
 
 void InstructionSelector::VisitAtomicBinaryOperation(
@@ -2831,16 +2829,15 @@ void InstructionSelector::VisitAtomicBinaryOperation(
   AddressingMode addressing_mode = kMode_MRR;
   InstructionOperand inputs[3];
   size_t input_count = 0;
-  inputs[input_count++] = g.UseUniqueRegister(base);
-  inputs[input_count++] = g.UseUniqueRegister(index);
+  inputs[input_count++] = g.UseRegister(base);
+  inputs[input_count++] = g.UseRegister(index);
   inputs[input_count++] = g.UseUniqueRegister(value);
   InstructionOperand outputs[1];
-  outputs[0] = g.UseUniqueRegister(node);
-  InstructionOperand temps[2];
-  temps[0] = g.TempRegister();
-  temps[1] = g.TempRegister();
+  outputs[0] = g.DefineAsRegister(node);
+  InstructionOperand temps[] = {g.TempRegister(), g.TempRegister(),
+                                g.TempRegister()};
   InstructionCode code = opcode | AddressingModeField::encode(addressing_mode);
-  Emit(code, 1, outputs, input_count, inputs, 2, temps);
+  Emit(code, 1, outputs, input_count, inputs, arraysize(temps), temps);
 }
 
 #define VISIT_ATOMIC_BINOP(op)                                              \
