@@ -1046,6 +1046,9 @@ namespace internal {
   CPP(TypedArrayPrototypeCopyWithin)                                           \
   /* ES6 #sec-%typedarray%.prototype.fill */                                   \
   CPP(TypedArrayPrototypeFill)                                                 \
+  /* ES6 %TypedArray%.prototype.find */                                        \
+  TFJ(TypedArrayPrototypeFind,                                                 \
+      SharedFunctionInfo::kDontAdaptArgumentsSentinel)                         \
   /* ES7 #sec-%typedarray%.prototype.includes */                               \
   CPP(TypedArrayPrototypeIncludes)                                             \
   /* ES6 #sec-%typedarray%.prototype.indexof */                                \

@@ -31,6 +31,19 @@ class ArrayBuiltinCodeStubAssembler : public CodeStubAssembler {
   typedef std::function<void(ArrayBuiltinCodeStubAssembler* masm)>
       PostLoopAction;
 
+  void FindResultGenerator() { a_.Bind(UndefinedConstant()); }
+
+  Node* FindProcessor(Node* k_value, Node* k) {
+    Node* value = CallJS(CodeFactory::Call(isolate()), context(), callbackfn(),
+                         this_arg(), k_value, k, o());
+    Label false_continue(this), return_true(this);
+    BranchIfToBooleanIsTrue(value, &return_true, &false_continue);
+    BIND(&return_true);
+    ReturnFromBuiltin(k_value);
+    BIND(&false_continue);
+    return a();
+  }
+
   void ForEachResultGenerator() { a_.Bind(UndefinedConstant()); }
 
   Node* ForEachProcessor(Node* k_value, Node* k) {
@@ -1591,6 +1604,27 @@ TF_BUILTIN(CloneFastJSArray, ArrayBuiltinCodeStubAssembler) {
 
   ParameterMode mode = OptimalParameterMode();
   Return(CloneFastJSArray(context, array, mode));
+}
+
+// ES #sec-get-%typedarray%.prototype.find
+TF_BUILTIN(TypedArrayPrototypeFind, ArrayBuiltinCodeStubAssembler) {
+  Node* argc =
+      ChangeInt32ToIntPtr(Parameter(BuiltinDescriptor::kArgumentsCount));
+  CodeStubArguments args(this, argc);
+  Node* context = Parameter(BuiltinDescriptor::kContext);
+  Node* new_target = Parameter(BuiltinDescriptor::kNewTarget);
+  Node* receiver = args.GetReceiver();
+  Node* callbackfn = args.GetOptionalArgumentValue(0);
+  Node* this_arg = args.GetOptionalArgumentValue(1);
+
+  InitIteratingArrayBuiltinBody(context, receiver, callbackfn, this_arg,
+                                new_target, argc);
+
+  GenerateIteratingTypedArrayBuiltinBody(
+      "%TypedArray%.prototype.find",
+      &ArrayBuiltinCodeStubAssembler::FindResultGenerator,
+      &ArrayBuiltinCodeStubAssembler::FindProcessor,
+      &ArrayBuiltinCodeStubAssembler::NullPostLoopAction);
 }
 
 TF_BUILTIN(ArrayForEachLoopContinuation, ArrayBuiltinCodeStubAssembler) {

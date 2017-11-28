@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --stack-size=100 --harmony
+// Flags: --allow-natives-syntax --stack-size=100 --harmony
 
 function test(f, expected, type) {
   try {
@@ -14,6 +14,18 @@ function test(f, expected, type) {
   }
   assertUnreachable("Exception expected");
 }
+
+const typedArrayConstructors = [
+  Uint8Array,
+  Int8Array,
+  Uint16Array,
+  Int16Array,
+  Uint32Array,
+  Int32Array,
+  Float32Array,
+  Float64Array,
+  Uint8ClampedArray
+];
 
 // === Error ===
 
@@ -155,6 +167,15 @@ test(function() {
   Object.preventExtensions(o);
   Object.defineProperty(o, "x", { value: 1 });
 }, "Cannot define property x, object is not extensible", TypeError);
+
+// kDetachedOperation
+for (constructor of typedArrayConstructors) {
+  test(() => {
+    const ta = new constructor([1]);
+    %ArrayBufferNeuter(ta.buffer);
+    ta.find(() => {});
+  }, "Cannot perform %TypedArray%.prototype.find on a detached ArrayBuffer", TypeError);
+}
 
 // kFirstArgumentNotRegExp
 test(function() {
