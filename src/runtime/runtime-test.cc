@@ -500,7 +500,7 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
     if (FLAG_wasm_jit_to_native) {
       wasm::WasmCode* target =
           isolate->wasm_code_manager()->LookupCode(target_address);
-      if (target->kind() == wasm::WasmCode::Function) {
+      if (target->kind() == wasm::WasmCode::kFunction) {
         ++count;
         export_fct = target;
       }
@@ -524,7 +524,7 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
       Address target_address = rinfo->target_address();
       wasm::WasmCode* target =
           isolate->wasm_code_manager()->LookupCode(target_address);
-      if (target->kind() == wasm::WasmCode::Function) {
+      if (target->kind() == wasm::WasmCode::kFunction) {
         ++count;
         intermediate_fct = target;
       }
@@ -549,8 +549,8 @@ RUNTIME_FUNCTION(Runtime_CheckWasmWrapperElision) {
   count = 0;
   if (FLAG_wasm_jit_to_native) {
     wasm::WasmCode::Kind target_kind = type->value() == 0
-                                           ? wasm::WasmCode::WasmToWasmWrapper
-                                           : wasm::WasmCode::WasmToJsWrapper;
+                                           ? wasm::WasmCode::kWasmToWasmWrapper
+                                           : wasm::WasmCode::kWasmToJsWrapper;
     for (RelocIterator it(intermediate_fct->instructions(),
                           intermediate_fct->reloc_info(),
                           intermediate_fct->constant_pool(),

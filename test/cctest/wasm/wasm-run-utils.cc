@@ -101,7 +101,7 @@ uint32_t TestingModuleBuilder::AddJsFunction(
     native_module_->ResizeCodeTableForTest(index);
     Handle<Code> wrapper = compiler::CompileWasmToJSWrapper(
         isolate_, jsfunc, sig, index, test_module_.origin(), js_imports_table);
-    native_module_->AddCodeCopy(wrapper, wasm::WasmCode::WasmToJsWrapper,
+    native_module_->AddCodeCopy(wrapper, wasm::WasmCode::kWasmToJsWrapper,
                                 index);
   } else {
     // TODO(6792): No longer needed once WebAssembly code is off heap.

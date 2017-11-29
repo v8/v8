@@ -643,7 +643,7 @@ Handle<HeapObject> UnwrapWasmToJSWrapper(Isolate* isolate,
     DCHECK_GT(js_imports_table->length(), index);
   } else {
     const wasm::WasmCode* wasm_code = wrapper.GetWasmCode();
-    DCHECK_EQ(wasm::WasmCode::WasmToJsWrapper, wasm_code->kind());
+    DCHECK_EQ(wasm::WasmCode::kWasmToJsWrapper, wasm_code->kind());
     js_imports_table = Handle<FixedArray>(wasm_code->owner()
                                               ->compiled_module()
                                               ->owning_instance()
@@ -2423,14 +2423,14 @@ class ThreadImpl {
     DCHECK(AllowHandleAllocation::IsAllowed());
     DCHECK(AllowHeapAllocation::IsAllowed());
 
-    if (code->kind() == wasm::WasmCode::Function) {
+    if (code->kind() == wasm::WasmCode::kFunction) {
       DCHECK_EQ(*code->owner()->compiled_module()->owning_instance(),
                 codemap()->instance());
       return {ExternalCallResult::INTERNAL, codemap()->GetCode(code->index())};
     }
-    if (code->kind() == wasm::WasmCode::WasmToJsWrapper) {
+    if (code->kind() == wasm::WasmCode::kWasmToJsWrapper) {
       return CallExternalJSFunction(isolate, WasmCodeWrapper(code), signature);
-    } else if (code->kind() == wasm::WasmCode::WasmToWasmWrapper) {
+    } else if (code->kind() == wasm::WasmCode::kWasmToWasmWrapper) {
       return CallExternalWasmFunction(isolate, WasmCodeWrapper(code),
                                       signature);
     }

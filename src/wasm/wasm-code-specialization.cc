@@ -131,7 +131,7 @@ bool CodeSpecialization::ApplyToWholeInstance(
     WasmCodeWrapper wrapper;
     if (FLAG_wasm_jit_to_native) {
       const WasmCode* wasm_function = native_module->GetCode(func_index);
-      if (wasm_function->kind() != WasmCode::Function) {
+      if (wasm_function->kind() != WasmCode::kFunction) {
         continue;
       }
       wrapper = WasmCodeWrapper(wasm_function);
@@ -206,7 +206,7 @@ bool CodeSpecialization::ApplyToWasmCode(WasmCodeWrapper code,
   if (code.IsCodeObject()) {
     DCHECK_EQ(Code::WASM_FUNCTION, code.GetCode()->kind());
   } else {
-    DCHECK_EQ(wasm::WasmCode::Function, code.GetWasmCode()->kind());
+    DCHECK_EQ(wasm::WasmCode::kFunction, code.GetWasmCode()->kind());
   }
 
   bool patch_table_size = old_function_table_size || new_function_table_size;

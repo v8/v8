@@ -88,13 +88,13 @@ using ProtectedInstructions =
 class V8_EXPORT_PRIVATE WasmCode final {
  public:
   enum Kind {
-    Function,
-    WasmToWasmWrapper,
-    WasmToJsWrapper,
-    LazyStub,
-    InterpreterStub,
-    CopiedStub,
-    Trampoline
+    kFunction,
+    kWasmToWasmWrapper,
+    kWasmToJsWrapper,
+    kLazyStub,
+    kInterpreterStub,
+    kCopiedStub,
+    kTrampoline
   };
 
   Vector<byte> instructions() const { return instructions_; }

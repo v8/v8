@@ -738,7 +738,7 @@ Address CompileLazy(Isolate* isolate) {
   Handle<Object> exp_deopt_data_entry;
   const wasm::WasmCode* lazy_stub_or_copy =
       isolate->wasm_code_manager()->LookupCode(it.frame()->pc());
-  DCHECK_EQ(wasm::WasmCode::LazyStub, lazy_stub_or_copy->kind());
+  DCHECK_EQ(wasm::WasmCode::kLazyStub, lazy_stub_or_copy->kind());
   if (!lazy_stub_or_copy->IsAnonymous()) {
     // Then it's an indirect call or via JS->wasm wrapper.
     instance = lazy_stub_or_copy->owner()->compiled_module()->owning_instance();
@@ -882,7 +882,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
     wasm::WasmCode* existing_code = compiled_module->GetNativeModule()->GetCode(
         static_cast<uint32_t>(func_index));
     if (existing_code != nullptr &&
-        existing_code->kind() == wasm::WasmCode::Function) {
+        existing_code->kind() == wasm::WasmCode::kFunction) {
       TRACE_LAZY("Function %d already compiled.\n", func_index);
       return existing_code;
     }
@@ -1199,7 +1199,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFromJsToWasm(
   wasm::WasmCode* ret =
       compiled_module->GetNativeModule()->GetCode(exported_func_index);
   DCHECK_NOT_NULL(ret);
-  DCHECK_EQ(wasm::WasmCode::Function, ret->kind());
+  DCHECK_EQ(wasm::WasmCode::kFunction, ret->kind());
   return ret;
 }
 
@@ -1243,7 +1243,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
          !it.done(); it.next()) {
       const WasmCode* callee = isolate->wasm_code_manager()->LookupCode(
           it.rinfo()->target_address());
-      if (callee->kind() != WasmCode::LazyStub) {
+      if (callee->kind() != WasmCode::kLazyStub) {
         non_compiled_functions.push_back(Nothing<WasmDirectCallData>());
         continue;
       }
@@ -1302,7 +1302,7 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileDirectCall(
       uint32_t lookup = info.ToChecked().func_index;
       const WasmCode* callee_compiled =
           compiled_module->GetNativeModule()->GetCode(lookup);
-      if (callee_compiled->kind() != WasmCode::Function) continue;
+      if (callee_compiled->kind() != WasmCode::kFunction) continue;
       it.rinfo()->set_wasm_call_address(
           isolate, callee_compiled->instructions().start());
       ++patched;
@@ -1721,7 +1721,7 @@ WasmCodeWrapper EnsureExportedLazyDeoptData(Isolate* isolate,
   } else {
     wasm::WasmCode* code = native_module->GetCode(func_index);
     // {code} will be nullptr when exporting imports.
-    if (code == nullptr || code->kind() != wasm::WasmCode::LazyStub ||
+    if (code == nullptr || code->kind() != wasm::WasmCode::kLazyStub ||
         !code->IsAnonymous()) {
       return WasmCodeWrapper(code);
     }
@@ -1787,7 +1787,7 @@ WasmCodeWrapper EnsureTableExportLazyDeoptData(
         EnsureExportedLazyDeoptData(isolate, instance, code_table,
                                     native_module, func_index)
             .GetWasmCode();
-    if (code == nullptr || code->kind() != wasm::WasmCode::LazyStub)
+    if (code == nullptr || code->kind() != wasm::WasmCode::kLazyStub)
       return WasmCodeWrapper(code);
 
     // deopt_data:
@@ -1866,7 +1866,7 @@ WasmCodeWrapper MakeWasmToWasmWrapper(
         new_wasm_context_address);
     return WasmCodeWrapper(
         instance->compiled_module()->GetNativeModule()->AddCodeCopy(
-            code, wasm::WasmCode::WasmToWasmWrapper, index));
+            code, wasm::WasmCode::kWasmToWasmWrapper, index));
   }
 }
 
@@ -1888,7 +1888,7 @@ WasmCodeWrapper UnwrapExportOrCompileImportWrapper(
         isolate, target, sig, import_index, origin, js_imports_table);
     return WasmCodeWrapper(
         instance->compiled_module()->GetNativeModule()->AddCodeCopy(
-            temp_code, wasm::WasmCode::WasmToJsWrapper, import_index));
+            temp_code, wasm::WasmCode::kWasmToJsWrapper, import_index));
   } else {
     return WasmCodeWrapper(compiler::CompileWasmToJSWrapper(
         isolate, target, sig, import_index, origin, js_imports_table));
@@ -3405,8 +3405,8 @@ void InstanceBuilder::LoadTableSegments(Handle<FixedArray> code_table,
             const wasm::WasmCode* code = native_module->GetCode(func_index);
             // Only increase the counter for lazy compile builtins (it's not
             // needed otherwise).
-            if (code->kind() == wasm::WasmCode::Function) continue;
-            DCHECK_EQ(wasm::WasmCode::LazyStub, code->kind());
+            if (code->kind() == wasm::WasmCode::kFunction) continue;
+            DCHECK_EQ(wasm::WasmCode::kLazyStub, code->kind());
           }
           ++num_table_exports[func_index];
         }

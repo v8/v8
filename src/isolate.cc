@@ -429,7 +429,7 @@ class FrameArrayBuilder {
         //====================================================================
         const auto& summary = summ.AsWasmCompiled();
         if (!summary.code().IsCodeObject() &&
-            summary.code().GetWasmCode()->kind() != wasm::WasmCode::Function) {
+            summary.code().GetWasmCode()->kind() != wasm::WasmCode::kFunction) {
           continue;
         }
         Handle<WasmInstanceObject> instance = summary.wasm_instance();

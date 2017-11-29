@@ -442,16 +442,16 @@ StackFrame::Type StackFrame::ComputeType(const StackFrameIteratorBase* iterator,
         iterator->isolate()->wasm_code_manager()->LookupCode(pc);
     if (wasm_code != nullptr) {
       switch (wasm_code->kind()) {
-        case wasm::WasmCode::InterpreterStub:
+        case wasm::WasmCode::kInterpreterStub:
           return WASM_INTERPRETER_ENTRY;
-        case wasm::WasmCode::Function:
-        case wasm::WasmCode::CopiedStub:
+        case wasm::WasmCode::kFunction:
+        case wasm::WasmCode::kCopiedStub:
           return WASM_COMPILED;
-        case wasm::WasmCode::LazyStub:
+        case wasm::WasmCode::kLazyStub:
           if (StackFrame::IsTypeMarker(marker)) break;
           return BUILTIN;
-        case wasm::WasmCode::WasmToJsWrapper:
-        case wasm::WasmCode::WasmToWasmWrapper:
+        case wasm::WasmCode::kWasmToJsWrapper:
+        case wasm::WasmCode::kWasmToWasmWrapper:
           return WASM_TO_JS;
         default:
           UNREACHABLE();
@@ -789,7 +789,7 @@ void StandardFrame::IterateCompiledFrame(RootVisitor* v) const {
                          wasm_code->stack_slots());
     safepoint_entry = table.FindEntry(inner_pointer);
     stack_slots = wasm_code->stack_slots();
-    has_tagged_params = wasm_code->kind() != wasm::WasmCode::Function;
+    has_tagged_params = wasm_code->kind() != wasm::WasmCode::kFunction;
   } else {
     InnerPointerToCodeCache::InnerPointerToCodeCacheEntry* entry =
         isolate()->inner_pointer_to_code_cache()->GetCacheEntry(inner_pointer);
@@ -1767,7 +1767,7 @@ bool WasmCompiledFrame::at_to_number_conversion() const {
     wasm::WasmCode* code =
         callee_pc ? isolate()->wasm_code_manager()->LookupCode(callee_pc)
                   : nullptr;
-    if (!code || code->kind() != wasm::WasmCode::WasmToJsWrapper) return false;
+    if (!code || code->kind() != wasm::WasmCode::kWasmToJsWrapper) return false;
     int offset = static_cast<int>(callee_pc - code->instructions().start());
     pos = FrameSummary::WasmCompiledFrameSummary::GetWasmSourcePosition(code,
                                                                         offset);
@@ -2075,7 +2075,7 @@ void InternalFrame::Iterate(RootVisitor* v) const {
       FLAG_wasm_jit_to_native ? isolate()->wasm_code_manager()->LookupCode(pc())
                               : nullptr;
   if (wasm_code != nullptr) {
-    DCHECK(wasm_code->kind() == wasm::WasmCode::LazyStub);
+    DCHECK(wasm_code->kind() == wasm::WasmCode::kLazyStub);
   } else {
     Code* code = LookupCode();
     IteratePc(v, pc_address(), constant_pool_address(), code);

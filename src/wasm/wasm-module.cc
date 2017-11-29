@@ -118,7 +118,7 @@ void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
        i < e; ++i) {
     wasm::WasmCode* code = native_module->GetCode(i);
 
-    if (code == nullptr || code->kind() != wasm::WasmCode::Function) {
+    if (code == nullptr || code->kind() != wasm::WasmCode::kFunction) {
       continue;
     }
 

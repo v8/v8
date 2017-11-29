@@ -279,7 +279,7 @@ void NativeModuleSerializer::BufferCopiedStubs() {
 
 FixedArray* NativeModuleSerializer::GetHandlerTable(
     const WasmCode* code) const {
-  if (code->kind() != WasmCode::Function) return nullptr;
+  if (code->kind() != WasmCode::kFunction) return nullptr;
   uint32_t index = code->index();
   // We write the address, the size, and then copy the code as-is, followed
   // by reloc info, followed by handler table and source positions.
@@ -294,7 +294,7 @@ FixedArray* NativeModuleSerializer::GetHandlerTable(
 
 ByteArray* NativeModuleSerializer::GetSourcePositions(
     const WasmCode* code) const {
-  if (code->kind() != WasmCode::Function) return nullptr;
+  if (code->kind() != WasmCode::kFunction) return nullptr;
   uint32_t index = code->index();
   Object* source_positions_entry =
       native_module_->compiled_module()->source_positions()->get(
@@ -558,7 +558,7 @@ bool NativeModuleDeserializer::ReadCode() {
   }
   WasmCode* ret = native_module_->AddOwnedCode(
       code_buffer, std::move(reloc_info), reloc_size, Just(index_),
-      WasmCode::Function, constant_pool_offset, stack_slot_count,
+      WasmCode::kFunction, constant_pool_offset, stack_slot_count,
       safepoint_table_offset, protected_instructions, is_liftoff);
   if (ret == nullptr) return false;
   native_module_->SetCodeTable(index_, ret);

@@ -614,8 +614,8 @@ WasmInstanceObject* WasmInstanceObject::GetOwningInstance(
     const wasm::WasmCode* code) {
   DisallowHeapAllocation no_gc;
   Object* weak_link = nullptr;
-  DCHECK(code->kind() == wasm::WasmCode::Function ||
-         code->kind() == wasm::WasmCode::InterpreterStub);
+  DCHECK(code->kind() == wasm::WasmCode::kFunction ||
+         code->kind() == wasm::WasmCode::kInterpreterStub);
   weak_link = code->owner()->compiled_module()->ptr_to_weak_owning_instance();
   DCHECK(weak_link->IsWeakCell());
   WeakCell* cell = WeakCell::cast(weak_link);
@@ -1307,7 +1307,7 @@ void WasmCompiledModule::Reset(Isolate* isolate,
        i < end; ++i) {
     wasm::WasmCode* code = native_module->GetCode(i);
     // Skip lazy compile stubs.
-    if (code == nullptr || code->kind() != wasm::WasmCode::Function) continue;
+    if (code == nullptr || code->kind() != wasm::WasmCode::kFunction) continue;
     bool changed = code_specialization.ApplyToWasmCode(WasmCodeWrapper(code),
                                                        SKIP_ICACHE_FLUSH);
     // TODO(wasm): Check if this is faster than passing FLUSH_ICACHE_IF_NEEDED

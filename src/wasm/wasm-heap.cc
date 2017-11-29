@@ -192,19 +192,19 @@ void WasmCode::Print(Isolate* isolate) const {
 
 const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
   switch (kind) {
-    case WasmCode::Function:
+    case WasmCode::kFunction:
       return "wasm function";
-    case WasmCode::WasmToWasmWrapper:
+    case WasmCode::kWasmToWasmWrapper:
       return "wasm-to-wasm";
-    case WasmCode::WasmToJsWrapper:
+    case WasmCode::kWasmToJsWrapper:
       return "wasm-to-js";
-    case WasmCode::LazyStub:
+    case WasmCode::kLazyStub:
       return "lazy-compile";
-    case WasmCode::InterpreterStub:
+    case WasmCode::kInterpreterStub:
       return "interpreter-entry";
-    case WasmCode::CopiedStub:
+    case WasmCode::kCopiedStub:
       return "copied stub";
-    case WasmCode::Trampoline:
+    case WasmCode::kTrampoline:
       return "trampoline";
   }
   return "unknown kind";
@@ -307,14 +307,14 @@ WasmCode* NativeModule::AddCodeCopy(Handle<Code> code, WasmCode::Kind kind,
 
 WasmCode* NativeModule::AddInterpreterWrapper(Handle<Code> code,
                                               uint32_t index) {
-  WasmCode* ret = AddAnonymousCode(code, WasmCode::InterpreterStub);
+  WasmCode* ret = AddAnonymousCode(code, WasmCode::kInterpreterStub);
   ret->index_ = Just(index);
   return ret;
 }
 
 WasmCode* NativeModule::SetLazyBuiltin(Handle<Code> code) {
   DCHECK_NULL(lazy_builtin_);
-  lazy_builtin_ = AddAnonymousCode(code, WasmCode::LazyStub);
+  lazy_builtin_ = AddAnonymousCode(code, WasmCode::kLazyStub);
 
   for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
     SetCodeTable(i, lazy_builtin_);
@@ -388,7 +388,7 @@ WasmCode* NativeModule::AddCode(
   WasmCode* ret = AddOwnedCode(
       {desc.buffer, static_cast<size_t>(desc.instr_size)},
       std::move(reloc_info), static_cast<size_t>(desc.reloc_size), Just(index),
-      WasmCode::Function, desc.instr_size - desc.constant_pool_size,
+      WasmCode::kFunction, desc.instr_size - desc.constant_pool_size,
       frame_slots, safepoint_table_offset, protected_instructions, is_liftoff);
   if (ret == nullptr) return nullptr;
 
@@ -437,7 +437,7 @@ Address NativeModule::CreateTrampolineTo(Handle<Code> code) {
   masm.GetCode(nullptr, &code_desc);
   WasmCode* wasm_code = AddOwnedCode(
       {code_desc.buffer, static_cast<size_t>(code_desc.instr_size)}, nullptr, 0,
-      Nothing<uint32_t>(), WasmCode::Trampoline, 0, 0, 0, {});
+      Nothing<uint32_t>(), WasmCode::kTrampoline, 0, 0, 0, {});
   if (wasm_code == nullptr) return nullptr;
   Address ret = wasm_code->instructions().start();
   trampolines_.emplace(std::make_pair(dest, ret));
@@ -458,7 +458,7 @@ Address NativeModule::GetLocalAddressFor(Handle<Code> code) {
     uint32_t key = code->stub_key();
     auto copy = stubs_.find(key);
     if (copy == stubs_.end()) {
-      WasmCode* ret = AddAnonymousCode(code, WasmCode::CopiedStub);
+      WasmCode* ret = AddAnonymousCode(code, WasmCode::kCopiedStub);
       copy = stubs_.emplace(std::make_pair(key, ret)).first;
     }
     return copy->second->instructions().start();
@@ -482,7 +482,7 @@ WasmCode* NativeModule::GetExportedWrapper(uint32_t index) {
 }
 
 WasmCode* NativeModule::AddExportedWrapper(Handle<Code> code, uint32_t index) {
-  WasmCode* ret = AddAnonymousCode(code, WasmCode::WasmToWasmWrapper);
+  WasmCode* ret = AddAnonymousCode(code, WasmCode::kWasmToWasmWrapper);
   ret->index_ = Just(index);
   exported_wasm_to_wasm_wrappers_.insert(std::make_pair(index, ret));
   return ret;
@@ -822,14 +822,14 @@ std::unique_ptr<NativeModule> NativeModule::Clone() {
   for (uint32_t i = num_imported_functions(), e = FunctionCount(); i < e; ++i) {
     const WasmCode* original_code = GetCode(i);
     switch (original_code->kind()) {
-      case WasmCode::LazyStub: {
+      case WasmCode::kLazyStub: {
         if (original_code->IsAnonymous()) {
           ret->SetCodeTable(i, ret->lazy_builtin());
         } else {
           if (!ret->CloneLazyBuiltinInto(i)) return nullptr;
         }
       } break;
-      case WasmCode::Function: {
+      case WasmCode::kFunction: {
         WasmCode* new_code = ret->CloneCode(original_code);
         if (new_code == nullptr) return nullptr;
         PatchTrampolineAndStubCalls(original_code, new_code, reverse_lookup);
