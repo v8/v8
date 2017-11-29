@@ -19,6 +19,7 @@ namespace internal {
 
 class Parser;
 class ScriptData;
+class TimedHistogram;
 
 // Internal representation of v8::ScriptCompiler::StreamedSource. Contains all
 // data which needs to be transmitted between threads for background parsing,
@@ -64,6 +65,7 @@ class BackgroundParsingTask : public ScriptCompiler::ScriptStreamingTask {
   int stack_size_;
   ScriptData* script_data_;
   AccountingAllocator* allocator_;
+  TimedHistogram* timer_;
 };
 
 }  // namespace internal

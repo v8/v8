@@ -1631,6 +1631,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForBackgroundCompile(
     CompilationJob* outer_function_job,
     CompilationJobList* inner_function_jobs) {
   Isolate* isolate = script->GetIsolate();
+  ScriptCompileTimerScope compile_timer(
+      isolate, ScriptCompiler::kNoCacheBecauseStreamingSource);
   PostponeInterruptsScope postpone(isolate);
 
   // TODO(titzer): increment the counters in caller.
@@ -1655,6 +1657,8 @@ Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForBackgroundCompile(
 Handle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForStreamedScript(
     Handle<Script> script, ParseInfo* parse_info, int source_length) {
   Isolate* isolate = script->GetIsolate();
+  ScriptCompileTimerScope compile_timer(
+      isolate, ScriptCompiler::kNoCacheBecauseStreamingSource);
   // TODO(titzer): increment the counters in caller.
   isolate->counters()->total_load_size()->Increment(source_length);
   isolate->counters()->total_compile_size()->Increment(source_length);

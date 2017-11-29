@@ -4,6 +4,7 @@
 
 #include "src/parsing/background-parsing-task.h"
 
+#include "src/counters.h"
 #include "src/objects-inl.h"
 #include "src/parsing/parser.h"
 #include "src/parsing/scanner-character-streams.h"
@@ -20,7 +21,10 @@ void StreamedSource::Release() {
 BackgroundParsingTask::BackgroundParsingTask(
     StreamedSource* source, ScriptCompiler::CompileOptions options,
     int stack_size, Isolate* isolate)
-    : source_(source), stack_size_(stack_size), script_data_(nullptr) {
+    : source_(source),
+      stack_size_(stack_size),
+      script_data_(nullptr),
+      timer_(isolate->counters()->compile_script_on_background()) {
   // We don't set the context to the CompilationInfo yet, because the background
   // thread cannot do anything with it anyway. We set it just before compilation
   // on the foreground thread.
@@ -67,6 +71,7 @@ BackgroundParsingTask::BackgroundParsingTask(
 }
 
 void BackgroundParsingTask::Run() {
+  TimedHistogramScope timer(timer_);
   DisallowHeapAllocation no_allocation;
   DisallowHandleAllocation no_handles;
   DisallowHandleDereference no_deref;

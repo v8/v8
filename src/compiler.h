@@ -128,17 +128,18 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForStreamedScript(
       Handle<Script> script, ParseInfo* info, int source_length);
 
-  // Create a shared function info object (the code may be lazily compiled).
-  static Handle<SharedFunctionInfo> GetSharedFunctionInfo(FunctionLiteral* node,
-                                                          Handle<Script> script,
-                                                          Isolate* isolate);
-
   // Create a shared function info object for a Script that has already been
   // compiled on a background thread.
   static Handle<SharedFunctionInfo> GetSharedFunctionInfoForBackgroundCompile(
       Handle<Script> script, ParseInfo* parse_info, int source_length,
       CompilationJob* outer_function_job,
       CompilationJobList* inner_function_jobs);
+
+  // Create a shared function info object for the given function literal
+  // node (the code may be lazily compiled).
+  static Handle<SharedFunctionInfo> GetSharedFunctionInfo(FunctionLiteral* node,
+                                                          Handle<Script> script,
+                                                          Isolate* isolate);
 
   // ===========================================================================
   // The following family of methods provides support for OSR. Code generated

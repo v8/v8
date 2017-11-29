@@ -1152,7 +1152,9 @@ class RuntimeCallTimerScope {
      V8.CompileScriptMicroSeconds.NoCache.ScriptTooSmall, 1000000,             \
      MICROSECOND)                                                              \
   HT(compile_script_no_cache_because_cache_too_cold,                           \
-     V8.CompileScriptMicroSeconds.NoCache.CacheTooCold, 1000000, MICROSECOND)
+     V8.CompileScriptMicroSeconds.NoCache.CacheTooCold, 1000000, MICROSECOND)  \
+  HT(compile_script_on_background,                                             \
+     V8.CompileScriptMicroSeconds.BackgroundThread, 1000000, MICROSECOND)
 
 #define AGGREGATABLE_HISTOGRAM_TIMER_LIST(AHT) \
   AHT(compile_lazy, V8.CompileLazyMicroSeconds)
