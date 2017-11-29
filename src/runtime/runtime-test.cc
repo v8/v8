@@ -19,6 +19,7 @@
 #include "src/snapshot/natives.h"
 #include "src/trap-handler/trap-handler.h"
 #include "src/wasm/memory-tracing.h"
+#include "src/wasm/module-compiler.h"
 #include "src/wasm/wasm-module.h"
 #include "src/wasm/wasm-objects-inl.h"
 #include "src/wasm/wasm-serialization.h"
@@ -1177,6 +1178,20 @@ RUNTIME_FUNCTION(Runtime_CompleteInobjectSlackTracking) {
   CONVERT_ARG_HANDLE_CHECKED(JSObject, object, 0);
   object->map()->CompleteInobjectSlackTracking();
 
+  return isolate->heap()->undefined_value();
+}
+
+RUNTIME_FUNCTION(Runtime_FreezeWasmLazyCompilation) {
+  DCHECK_EQ(1, args.length());
+  DisallowHeapAllocation no_gc;
+  CONVERT_ARG_CHECKED(WasmInstanceObject, instance, 0);
+
+  WasmSharedModuleData* shared = instance->compiled_module()->ptr_to_shared();
+  CHECK(shared->has_lazy_compilation_orchestrator());
+  auto* orchestrator = Managed<wasm::LazyCompilationOrchestrator>::cast(
+                           shared->lazy_compilation_orchestrator())
+                           ->get();
+  orchestrator->FreezeLazyCompilationForTesting();
   return isolate->heap()->undefined_value();
 }
 

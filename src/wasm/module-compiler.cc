@@ -692,6 +692,8 @@ Handle<Code> CompileLazyOnGCHeap(Isolate* isolate) {
               ->shared()
               ->lazy_compilation_orchestrator())
           ->get();
+  DCHECK(!orchestrator->IsFrozenForTesting());
+
   Handle<Code> compiled_code = orchestrator->CompileLazyOnGCHeap(
       isolate, instance, caller_code, offset, func_index, patch_caller);
   if (!exp_deopt_data.is_null() && exp_deopt_data->length() > 2) {
@@ -779,6 +781,8 @@ Address CompileLazy(Isolate* isolate) {
       Managed<wasm::LazyCompilationOrchestrator>::cast(
           compiled_module->shared()->lazy_compilation_orchestrator())
           ->get();
+  DCHECK(!orchestrator->IsFrozenForTesting());
+
   const wasm::WasmCode* result = nullptr;
   // The caller may be js to wasm calling a function
   // also available for indirect calls.

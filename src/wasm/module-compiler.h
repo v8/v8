@@ -95,6 +95,20 @@ class LazyCompilationOrchestrator {
   const wasm::WasmCode* CompileIndirectCall(Isolate*,
                                             Handle<WasmInstanceObject>,
                                             uint32_t func_index);
+
+#ifdef DEBUG
+  // Call this method in tests to disallow any further lazy compilation; then
+  // call into the wasm instance again to verify that no lazy compilation is
+  // triggered.
+  void FreezeLazyCompilationForTesting() { frozen_ = true; }
+  bool IsFrozenForTesting() const { return frozen_; }
+
+ private:
+  bool frozen_;
+#else
+  void FreezeLazyCompilationForTesting() {}
+  bool IsFrozenForTesting() { return false; }
+#endif
 };
 
 // Encapsulates all the state and steps of an asynchronous compilation.

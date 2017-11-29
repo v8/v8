@@ -706,6 +706,10 @@
   'math-*': [SKIP],
   'unicode-test': [SKIP],
   'whitespaces': [SKIP],
+
+  # Lazy compilation is currently broken for --wasm-jit-to-native
+  # (crbug.com/v8/7140).
+  'wasm/lazy-compilation': [SKIP],
 }],  # variant == wasm_traps
 
 ['variant == wasm_traps and gc_stress == True', {
