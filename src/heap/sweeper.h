@@ -108,7 +108,6 @@ class Sweeper {
   bool AreSweeperTasksRunning();
   void SweepOrWaitUntilSweepingCompleted(Page* page);
 
-  void AddSweptPageSafe(PagedSpace* space, Page* page);
   Page* GetSweptPageSafe(PagedSpace* space);
 
  private:

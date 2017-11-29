@@ -371,11 +371,6 @@ int Sweeper::RawSweep(Page* p, FreeListRebuildingMode free_list_mode,
   return static_cast<int>(FreeList::GuaranteedAllocatable(max_freed_bytes));
 }
 
-void Sweeper::AddSweptPageSafe(PagedSpace* space, Page* page) {
-  base::LockGuard<base::Mutex> guard(&mutex_);
-  swept_list_[space->identity()].push_back(page);
-}
-
 void Sweeper::SweepSpaceFromTask(AllocationSpace identity) {
   Page* page = nullptr;
   while (!stop_sweeper_tasks_.Value() &&
