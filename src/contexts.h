@@ -566,6 +566,9 @@ class Context: public FixedArray {
   static const int FIRST_FUNCTION_MAP_INDEX = SLOPPY_FUNCTION_MAP_INDEX;
   static const int LAST_FUNCTION_MAP_INDEX = CLASS_FUNCTION_MAP_INDEX;
 
+  static const int kNoContext = 0;
+  static const int kInvalidContext = 1;
+
   void ResetErrorsThrown();
   void IncrementErrorsThrown();
   int GetErrorsThrown();

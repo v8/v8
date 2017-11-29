@@ -415,7 +415,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Peek(argc, 2 * kPointerSize);
   __ Peek(target, 3 * kPointerSize);
 
-  __ LeaveExitFrame(save_doubles(), x10);
+  __ LeaveExitFrame(save_doubles(), x10, x9);
   DCHECK(jssp.Is(__ StackPointer()));
   if (!argv_in_register()) {
     // Drop the remaining stack slots and return from the stub.
@@ -1218,7 +1218,7 @@ static void CallApiFunctionAndReturn(MacroAssembler* masm,
   __ Peek(x21, (spill_offset + 2) * kXRegSize);
   __ Peek(x22, (spill_offset + 3) * kXRegSize);
 
-  __ LeaveExitFrame(false, x1);
+  __ LeaveExitFrame(false, x1, x5);
 
   // Check if the function scheduled an exception.
   __ Mov(x5, ExternalReference::scheduled_exception_address(isolate));

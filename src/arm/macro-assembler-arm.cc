@@ -1218,7 +1218,6 @@ int TurboAssembler::ActivationFrameAlignment() {
 #endif  // V8_HOST_ARCH_ARM
 }
 
-
 void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
                                     bool argument_count_is_length) {
   ConstantPoolUnavailableScope constant_pool_unavailable(this);
@@ -1244,6 +1243,7 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles, Register argument_count,
       Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   ldr(cp, MemOperand(scratch));
 #ifdef DEBUG
+  mov(r3, Operand(Context::kInvalidContext));
   mov(scratch,
       Operand(ExternalReference(IsolateAddressId::kContextAddress, isolate())));
   str(r3, MemOperand(scratch));

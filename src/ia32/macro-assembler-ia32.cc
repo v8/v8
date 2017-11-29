@@ -738,7 +738,8 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
                                     isolate());
   mov(esi, Operand::StaticVariable(context_address));
 #ifdef DEBUG
-  mov(Operand::StaticVariable(context_address), Immediate(0));
+  mov(Operand::StaticVariable(context_address),
+      Immediate(Context::kInvalidContext));
 #endif
 
   // Clear the top frame.

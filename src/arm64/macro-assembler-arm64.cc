@@ -2638,7 +2638,8 @@ void MacroAssembler::EnterExitFrame(bool save_doubles, const Register& scratch,
 
 // Leave the current exit frame.
 void MacroAssembler::LeaveExitFrame(bool restore_doubles,
-                                    const Register& scratch) {
+                                    const Register& scratch,
+                                    const Register& scratch2) {
   DCHECK(csp.Is(StackPointer()));
 
   if (restore_doubles) {
@@ -2652,9 +2653,10 @@ void MacroAssembler::LeaveExitFrame(bool restore_doubles,
 
   if (emit_debug_code()) {
     // Also emit debug code to clear the cp in the top frame.
+    Mov(scratch2, Operand(Context::kInvalidContext));
     Mov(scratch, Operand(ExternalReference(IsolateAddressId::kContextAddress,
                                            isolate())));
-    Str(xzr, MemOperand(scratch));
+    Str(scratch2, MemOperand(scratch));
   }
   // Clear the frame pointer from the top frame.
   Mov(scratch, Operand(ExternalReference(IsolateAddressId::kCEntryFPAddress,

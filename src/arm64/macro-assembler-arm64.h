@@ -1992,7 +1992,8 @@ class MacroAssembler : public TurboAssembler {
   //  * The stack pointer is reset to jssp.
   //
   // The stack pointer must be csp on entry.
-  void LeaveExitFrame(bool save_doubles, const Register& scratch);
+  void LeaveExitFrame(bool save_doubles, const Register& scratch,
+                      const Register& scratch2);
 
   // Load the global proxy from the current context.
   void LoadGlobalProxy(Register dst) {

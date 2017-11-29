@@ -175,7 +175,9 @@ Node* CodeStubAssembler::SelectSmiConstant(Node* condition, Smi* true_value,
                         MachineRepresentation::kTaggedSigned);
 }
 
-Node* CodeStubAssembler::NoContextConstant() { return SmiConstant(0); }
+Node* CodeStubAssembler::NoContextConstant() {
+  return SmiConstant(Context::kNoContext);
+}
 
 #define HEAP_CONSTANT_ACCESSOR(rootIndexName, rootAccessorName, name) \
   compiler::TNode<std::remove_reference<decltype(                     \

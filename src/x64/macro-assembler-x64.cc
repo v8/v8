@@ -2548,7 +2548,7 @@ void MacroAssembler::LeaveExitFrameEpilogue() {
   Operand context_operand = ExternalOperand(context_address);
   movp(rsi, context_operand);
 #ifdef DEBUG
-  movp(context_operand, Immediate(0));
+  movp(context_operand, Immediate(Context::kInvalidContext));
 #endif
 
   // Clear the top frame.
