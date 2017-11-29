@@ -709,7 +709,6 @@ class JavaScriptFrame : public StandardFrame {
   // actual passed arguments are available in an arguments adaptor
   // frame below it on the stack.
   inline bool has_adapted_arguments() const;
-  int GetArgumentsLength() const;
 
   // Garbage collection support.
   void Iterate(RootVisitor* v) const override;
@@ -898,8 +897,6 @@ class ArgumentsAdaptorFrame: public JavaScriptFrame {
   // Printing support.
   void Print(StringStream* accumulator, PrintMode mode,
              int index) const override;
-
-  static int GetLength(Address fp);
 
  protected:
   inline explicit ArgumentsAdaptorFrame(StackFrameIteratorBase* iterator);

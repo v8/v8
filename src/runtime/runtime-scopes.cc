@@ -595,11 +595,14 @@ RUNTIME_FUNCTION(Runtime_NewSloppyArguments) {
   iterator.Advance();
   JavaScriptFrame* function_frame = JavaScriptFrame::cast(iterator.frame());
   DCHECK(function_frame->is_java_script());
-  int argc = function_frame->GetArgumentsLength();
+  int argc = function_frame->ComputeParametersCount();
   Address fp = function_frame->fp();
   if (function_frame->has_adapted_arguments()) {
     iterator.Advance();
-    fp = iterator.frame()->fp();
+    ArgumentsAdaptorFrame* adaptor_frame =
+        ArgumentsAdaptorFrame::cast(iterator.frame());
+    argc = adaptor_frame->ComputeParametersCount();
+    fp = adaptor_frame->fp();
   }
 
   Object** parameters = reinterpret_cast<Object**>(

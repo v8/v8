@@ -965,16 +965,6 @@ bool JavaScriptFrame::HasInlinedFrames() const {
 }
 
 
-int JavaScriptFrame::GetArgumentsLength() const {
-  // If there is an arguments adaptor frame get the arguments length from it.
-  if (has_adapted_arguments()) {
-    return ArgumentsAdaptorFrame::GetLength(caller_fp());
-  } else {
-    return GetNumberOfIncomingArguments();
-  }
-}
-
-
 Code* JavaScriptFrame::unchecked_code() const {
   return function()->code();
 }
@@ -1657,11 +1647,6 @@ void InterpretedFrame::Summarize(std::vector<FrameSummary>* functions) const {
 
 int ArgumentsAdaptorFrame::GetNumberOfIncomingArguments() const {
   return Smi::ToInt(GetExpression(0));
-}
-
-int ArgumentsAdaptorFrame::GetLength(Address fp) {
-  const int offset = ArgumentsAdaptorFrameConstants::kLengthOffset;
-  return Smi::ToInt(Memory::Object_at(fp + offset));
 }
 
 Code* ArgumentsAdaptorFrame::unchecked_code() const {
