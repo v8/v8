@@ -194,7 +194,8 @@ class V8_BASE_EXPORT OS {
   V8_WARN_UNUSED_RESULT static bool Release(void* address, size_t size);
 
   // Sets permissions according to the access argument. address and size must be
-  // multiples of CommitPageSize(). Returns true on success, otherwise false.
+  // multiples of CommitPageSize(). Setting permission to kNoAccess may cause
+  // the memory contents to be lost. Returns true on success, otherwise false.
   V8_WARN_UNUSED_RESULT static bool SetPermissions(void* address, size_t size,
                                                    MemoryPermission access);
 
