@@ -922,39 +922,37 @@ class RuntimeCallTimer final {
   V(StoreIC_StoreScriptContextFieldStub)          \
   V(StoreIC_StoreTransitionDH)
 
-class RuntimeCallStats final : public ZoneObject {
- public:
-  typedef RuntimeCallCounter RuntimeCallStats::*CounterId;
-  V8_EXPORT_PRIVATE RuntimeCallStats();
-
-#define CALL_RUNTIME_COUNTER(name) RuntimeCallCounter GC_##name;
+enum RuntimeCallCounterId {
+#define CALL_RUNTIME_COUNTER(name) kGC_##name,
   FOR_EACH_GC_COUNTER(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
-#define CALL_RUNTIME_COUNTER(name) RuntimeCallCounter name;
-  FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
+#define CALL_RUNTIME_COUNTER(name) k##name,
+      FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
-#define CALL_RUNTIME_COUNTER(name, nargs, ressize) \
-  RuntimeCallCounter Runtime_##name;
-  FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize) kRuntime_##name,
+          FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
-#define CALL_BUILTIN_COUNTER(name) RuntimeCallCounter Builtin_##name;
-  BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
+#define CALL_BUILTIN_COUNTER(name) kBuiltin_##name,
+              BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) RuntimeCallCounter API_##name;
-  FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)
+#define CALL_BUILTIN_COUNTER(name) kAPI_##name,
+                  FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
-#define CALL_BUILTIN_COUNTER(name) RuntimeCallCounter Handler_##name;
-  FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
+#define CALL_BUILTIN_COUNTER(name) kHandler_##name,
+                      FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
+                          kNumberOfCounters
+};
 
-  static const CounterId counters[];
-  static const int counters_count;
+class RuntimeCallStats final : public ZoneObject {
+ public:
+  V8_EXPORT_PRIVATE RuntimeCallStats();
 
   // Starting measuring the time for a function. This will establish the
   // connection to the parent counter for properly calculating the own times.
   V8_EXPORT_PRIVATE static void Enter(RuntimeCallStats* stats,
                                       RuntimeCallTimer* timer,
-                                      CounterId counter_id);
+                                      RuntimeCallCounterId counter_id);
 
   // Leave a scope for a measured runtime function. This will properly add
   // the time delta to the current_counter and subtract the delta from its
@@ -964,8 +962,8 @@ class RuntimeCallStats final : public ZoneObject {
 
   // Set counter id for the innermost measurement. It can be used to refine
   // event kind when a runtime entry counter is too generic.
-  V8_EXPORT_PRIVATE static void CorrectCurrentCounterId(RuntimeCallStats* stats,
-                                                        CounterId counter_id);
+  V8_EXPORT_PRIVATE static void CorrectCurrentCounterId(
+      RuntimeCallStats* stats, RuntimeCallCounterId counter_id);
 
   V8_EXPORT_PRIVATE void Reset();
   // Add all entries from another stats object.
@@ -980,6 +978,15 @@ class RuntimeCallStats final : public ZoneObject {
   bool InUse() { return in_use_; }
   bool IsCalledOnTheSameThread();
 
+  static const int kNumberOfCounters =
+      static_cast<int>(RuntimeCallCounterId::kNumberOfCounters);
+  RuntimeCallCounter* GetCounter(RuntimeCallCounterId counter_id) {
+    return &counters_[static_cast<int>(counter_id)];
+  }
+  RuntimeCallCounter* GetCounter(int counter_id) {
+    return &counters_[counter_id];
+  }
+
  private:
   // Top of a stack of active timers.
   base::AtomicValue<RuntimeCallTimer*> current_timer_;
@@ -988,32 +995,34 @@ class RuntimeCallStats final : public ZoneObject {
   // Used to track nested tracing scopes.
   bool in_use_;
   ThreadId thread_id_;
+  RuntimeCallCounter counters_[kNumberOfCounters];
 };
 
-#define CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats, counter_name) \
-  do {                                                                   \
-    if (V8_UNLIKELY(FLAG_runtime_stats)) {                               \
-      RuntimeCallStats::CorrectCurrentCounterId(                         \
-          runtime_call_stats, &RuntimeCallStats::counter_name);          \
-    }                                                                    \
+#define CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats, counter_id) \
+  do {                                                                 \
+    if (V8_UNLIKELY(FLAG_runtime_stats)) {                             \
+      RuntimeCallStats::CorrectCurrentCounterId(runtime_call_stats,    \
+                                                counter_id);           \
+    }                                                                  \
   } while (false)
 
-#define TRACE_HANDLER_STATS(isolate, counter_name)                          \
-  CHANGE_CURRENT_RUNTIME_COUNTER(isolate->counters()->runtime_call_stats(), \
-                                 Handler_##counter_name)
+#define TRACE_HANDLER_STATS(isolate, counter_name) \
+  CHANGE_CURRENT_RUNTIME_COUNTER(                  \
+      isolate->counters()->runtime_call_stats(),   \
+      RuntimeCallCounterId::kHandler_##counter_name)
 
 // A RuntimeCallTimerScopes wraps around a RuntimeCallTimer to measure the
 // the time of C++ scope.
 class RuntimeCallTimerScope {
  public:
   inline RuntimeCallTimerScope(Isolate* isolate,
-                               RuntimeCallStats::CounterId counter_id);
+                               RuntimeCallCounterId counter_id);
   // This constructor is here just to avoid calling GetIsolate() when the
   // stats are disabled and the isolate is not directly available.
   inline RuntimeCallTimerScope(HeapObject* heap_object,
-                               RuntimeCallStats::CounterId counter_id);
+                               RuntimeCallCounterId counter_id);
   inline RuntimeCallTimerScope(RuntimeCallStats* stats,
-                               RuntimeCallStats::CounterId counter_id) {
+                               RuntimeCallCounterId counter_id) {
     if (V8_LIKELY(!FLAG_runtime_stats || stats == nullptr)) return;
     stats_ = stats;
     RuntimeCallStats::Enter(stats_, &timer_, counter_id);
@@ -1541,8 +1550,8 @@ void HistogramTimer::Stop() {
   TimedHistogram::Stop(&timer_, counters()->isolate());
 }
 
-RuntimeCallTimerScope::RuntimeCallTimerScope(
-    Isolate* isolate, RuntimeCallStats::CounterId counter_id) {
+RuntimeCallTimerScope::RuntimeCallTimerScope(Isolate* isolate,
+                                             RuntimeCallCounterId counter_id) {
   if (V8_LIKELY(!FLAG_runtime_stats)) return;
   stats_ = isolate->counters()->runtime_call_stats();
   RuntimeCallStats::Enter(stats_, &timer_, counter_id);

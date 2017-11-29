@@ -31,7 +31,7 @@ namespace internal {
                                                          Handle<Name> name) { \
     Isolate* isolate = this->isolate();                                       \
     SIDE_EFFECT_CHECK(isolate, f, InternalReturn);                            \
-    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Function);        \
+    RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::k##Function);  \
     VMState<EXTERNAL> state(isolate);                                         \
     ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));              \
     PropertyCallbackInfo<ApiReturn> info(begin());                            \
@@ -51,19 +51,19 @@ FOR_EACH_CALLBACK_TABLE_MAPPING_1_NAME(WRITE_CALL_1_NAME)
   F(IndexedPropertyQueryCallback, "has", v8::Integer, Object) \
   F(IndexedPropertyDeleterCallback, "delete", v8::Boolean, Object)
 
-#define WRITE_CALL_1_INDEX(Function, type, ApiReturn, InternalReturn)      \
-  Handle<InternalReturn> PropertyCallbackArguments::Call(Function f,       \
-                                                         uint32_t index) { \
-    Isolate* isolate = this->isolate();                                    \
-    SIDE_EFFECT_CHECK(isolate, f, InternalReturn);                         \
-    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::Function);     \
-    VMState<EXTERNAL> state(isolate);                                      \
-    ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));           \
-    PropertyCallbackInfo<ApiReturn> info(begin());                         \
-    LOG(isolate, ApiIndexedPropertyAccess("interceptor-indexed-" type,     \
-                                          holder(), index));               \
-    f(index, info);                                                        \
-    return GetReturnValue<InternalReturn>(isolate);                        \
+#define WRITE_CALL_1_INDEX(Function, type, ApiReturn, InternalReturn)        \
+  Handle<InternalReturn> PropertyCallbackArguments::Call(Function f,         \
+                                                         uint32_t index) {   \
+    Isolate* isolate = this->isolate();                                      \
+    SIDE_EFFECT_CHECK(isolate, f, InternalReturn);                           \
+    RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::k##Function); \
+    VMState<EXTERNAL> state(isolate);                                        \
+    ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));             \
+    PropertyCallbackInfo<ApiReturn> info(begin());                           \
+    LOG(isolate, ApiIndexedPropertyAccess("interceptor-indexed-" type,       \
+                                          holder(), index));                 \
+    f(index, info);                                                          \
+    return GetReturnValue<InternalReturn>(isolate);                          \
   }
 
 FOR_EACH_CALLBACK_TABLE_MAPPING_1_INDEX(WRITE_CALL_1_INDEX)
@@ -77,7 +77,7 @@ Handle<Object> PropertyCallbackArguments::Call(
   Isolate* isolate = this->isolate();
   SIDE_EFFECT_CHECK(isolate, f, Object);
   RuntimeCallTimerScope timer(
-      isolate, &RuntimeCallStats::GenericNamedPropertySetterCallback);
+      isolate, RuntimeCallCounterId::kGenericNamedPropertySetterCallback);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
   PropertyCallbackInfo<v8::Value> info(begin());
@@ -93,7 +93,7 @@ Handle<Object> PropertyCallbackArguments::Call(
   Isolate* isolate = this->isolate();
   SIDE_EFFECT_CHECK(isolate, f, Object);
   RuntimeCallTimerScope timer(
-      isolate, &RuntimeCallStats::GenericNamedPropertyDefinerCallback);
+      isolate, RuntimeCallCounterId::kGenericNamedPropertyDefinerCallback);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
   PropertyCallbackInfo<v8::Value> info(begin());
@@ -108,8 +108,8 @@ Handle<Object> PropertyCallbackArguments::Call(IndexedPropertySetterCallback f,
                                                Handle<Object> value) {
   Isolate* isolate = this->isolate();
   SIDE_EFFECT_CHECK(isolate, f, Object);
-  RuntimeCallTimerScope timer(isolate,
-                              &RuntimeCallStats::IndexedPropertySetterCallback);
+  RuntimeCallTimerScope timer(
+      isolate, RuntimeCallCounterId::kIndexedPropertySetterCallback);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
   PropertyCallbackInfo<v8::Value> info(begin());
@@ -125,7 +125,7 @@ Handle<Object> PropertyCallbackArguments::Call(
   Isolate* isolate = this->isolate();
   SIDE_EFFECT_CHECK(isolate, f, Object);
   RuntimeCallTimerScope timer(
-      isolate, &RuntimeCallStats::IndexedPropertyDefinerCallback);
+      isolate, RuntimeCallCounterId::kIndexedPropertyDefinerCallback);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
   PropertyCallbackInfo<v8::Value> info(begin());
@@ -142,8 +142,8 @@ void PropertyCallbackArguments::Call(AccessorNameSetterCallback f,
       !PerformSideEffectCheck(isolate, FUNCTION_ADDR(f))) {
     return;
   }
-  RuntimeCallTimerScope timer(isolate,
-                              &RuntimeCallStats::AccessorNameSetterCallback);
+  RuntimeCallTimerScope timer(
+      isolate, RuntimeCallCounterId::kAccessorNameSetterCallback);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
   PropertyCallbackInfo<void> info(begin());

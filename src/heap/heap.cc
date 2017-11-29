@@ -1129,7 +1129,7 @@ void Heap::CollectAllAvailableGarbage(GarbageCollectionReason gc_reason) {
     InvokeOutOfMemoryCallback();
   }
   RuntimeCallTimerScope runtime_timer(
-      isolate(), &RuntimeCallStats::GC_Custom_AllAvailableGarbage);
+      isolate(), RuntimeCallCounterId::kGC_Custom_AllAvailableGarbage);
   if (isolate()->concurrent_recompilation_enabled()) {
     // The optimizing compiler may be unnecessarily holding on to memory.
     DisallowHeapAllocation no_recursive_gc;
@@ -1673,8 +1673,8 @@ bool Heap::PerformGarbageCollection(
 
 
 void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
-  RuntimeCallTimerScope runtime_timer(isolate(),
-                                      &RuntimeCallStats::GCPrologueCallback);
+  RuntimeCallTimerScope runtime_timer(
+      isolate(), RuntimeCallCounterId::kGCPrologueCallback);
   for (const GCCallbackTuple& info : gc_prologue_callbacks_) {
     if (gc_type & info.gc_type) {
       v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());
@@ -1684,8 +1684,8 @@ void Heap::CallGCPrologueCallbacks(GCType gc_type, GCCallbackFlags flags) {
 }
 
 void Heap::CallGCEpilogueCallbacks(GCType gc_type, GCCallbackFlags flags) {
-  RuntimeCallTimerScope runtime_timer(isolate(),
-                                      &RuntimeCallStats::GCEpilogueCallback);
+  RuntimeCallTimerScope runtime_timer(
+      isolate(), RuntimeCallCounterId::kGCEpilogueCallback);
   for (const GCCallbackTuple& info : gc_epilogue_callbacks_) {
     if (gc_type & info.gc_type) {
       v8::Isolate* isolate = reinterpret_cast<v8::Isolate*>(this->isolate());

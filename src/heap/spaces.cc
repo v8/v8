@@ -3212,7 +3212,7 @@ bool CompactionSpace::SweepAndRetryAllocation(int size_in_bytes) {
 bool PagedSpace::SlowAllocateRaw(int size_in_bytes) {
   VMState<GC> state(heap()->isolate());
   RuntimeCallTimerScope runtime_timer(
-      heap()->isolate(), &RuntimeCallStats::GC_Custom_SlowAllocateRaw);
+      heap()->isolate(), RuntimeCallCounterId::kGC_Custom_SlowAllocateRaw);
   return RawSlowAllocateRaw(size_in_bytes);
 }
 

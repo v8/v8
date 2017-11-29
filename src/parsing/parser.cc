@@ -592,8 +592,9 @@ FunctionLiteral* Parser::ParseProgram(Isolate* isolate, ParseInfo* info) {
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
   RuntimeCallTimerScope runtime_timer(
-      runtime_call_stats_, info->is_eval() ? &RuntimeCallStats::ParseEval
-                                           : &RuntimeCallStats::ParseProgram);
+      runtime_call_stats_, info->is_eval()
+                               ? RuntimeCallCounterId::kParseEval
+                               : RuntimeCallCounterId::kParseProgram);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseProgram");
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
@@ -757,7 +758,7 @@ FunctionLiteral* Parser::ParseFunction(Isolate* isolate, ParseInfo* info,
   // called in the main thread.
   DCHECK(parsing_on_main_thread_);
   RuntimeCallTimerScope runtime_timer(runtime_call_stats_,
-                                      &RuntimeCallStats::ParseFunction);
+                                      RuntimeCallCounterId::kParseFunction);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.ParseFunction");
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
@@ -2587,8 +2588,8 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
   RuntimeCallTimerScope runtime_timer(
       runtime_call_stats_,
       parsing_on_main_thread_
-          ? &RuntimeCallStats::ParseFunctionLiteral
-          : &RuntimeCallStats::ParseBackgroundFunctionLiteral);
+          ? RuntimeCallCounterId::kParseFunctionLiteral
+          : RuntimeCallCounterId::kParseBackgroundFunctionLiteral);
   base::ElapsedTimer timer;
   if (V8_UNLIKELY(FLAG_log_function_events)) timer.Start();
 
@@ -2705,15 +2706,16 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
     }
     if (V8_UNLIKELY(FLAG_runtime_stats)) {
       if (should_preparse) {
-        RuntimeCallStats::CounterId counter_id =
+        RuntimeCallCounterId counter_id =
             parsing_on_main_thread_
-                ? &RuntimeCallStats::PreParseWithVariableResolution
-                : &RuntimeCallStats::PreParseBackgroundWithVariableResolution;
+                ? RuntimeCallCounterId::kPreParseWithVariableResolution
+                : RuntimeCallCounterId::
+                      kPreParseBackgroundWithVariableResolution;
         if (is_top_level) {
-          counter_id =
-              parsing_on_main_thread_
-                  ? &RuntimeCallStats::PreParseNoVariableResolution
-                  : &RuntimeCallStats::PreParseBackgroundNoVariableResolution;
+          counter_id = parsing_on_main_thread_
+                           ? RuntimeCallCounterId::kPreParseNoVariableResolution
+                           : RuntimeCallCounterId::
+                                 kPreParseBackgroundNoVariableResolution;
         }
         RuntimeCallStats::CorrectCurrentCounterId(runtime_call_stats_,
                                                   counter_id);
@@ -3450,8 +3452,8 @@ void Parser::UpdateStatistics(Isolate* isolate, Handle<Script> script) {
 }
 
 void Parser::ParseOnBackground(ParseInfo* info) {
-  RuntimeCallTimerScope runtimeTimer(runtime_call_stats_,
-                                     &RuntimeCallStats::ParseBackgroundProgram);
+  RuntimeCallTimerScope runtimeTimer(
+      runtime_call_stats_, RuntimeCallCounterId::kParseBackgroundProgram);
   parsing_on_main_thread_ = false;
   if (!info->script().is_null()) {
     set_script_id(info->script()->id());

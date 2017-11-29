@@ -18,7 +18,7 @@ Handle<Object> FunctionCallbackArguments::Call(FunctionCallback f) {
       !isolate->debug()->PerformSideEffectCheckForCallback(FUNCTION_ADDR(f))) {
     return Handle<Object>();
   }
-  RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::FunctionCallback);
+  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kFunctionCallback);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
   FunctionCallbackInfo<v8::Value> info(begin(), argv_, argc_);
@@ -33,7 +33,7 @@ Handle<JSObject> PropertyCallbackArguments::Call(
       !isolate->debug()->PerformSideEffectCheckForCallback(FUNCTION_ADDR(f))) {
     return Handle<JSObject>();
   }
-  RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::PropertyCallback);
+  RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kPropertyCallback);
   VMState<EXTERNAL> state(isolate);
   ExternalCallbackScope call_scope(isolate, FUNCTION_ADDR(f));
   PropertyCallbackInfo<v8::Array> info(begin());

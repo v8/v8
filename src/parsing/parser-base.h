@@ -4298,11 +4298,11 @@ typename ParserBase<Impl>::ExpressionT
 ParserBase<Impl>::ParseArrowFunctionLiteral(
     bool accept_IN, const FormalParametersT& formal_parameters,
     int rewritable_length, bool* ok) {
-  const RuntimeCallStats::CounterId counters[2][2] = {
-      {&RuntimeCallStats::ParseBackgroundArrowFunctionLiteral,
-       &RuntimeCallStats::ParseArrowFunctionLiteral},
-      {&RuntimeCallStats::PreParseBackgroundArrowFunctionLiteral,
-       &RuntimeCallStats::PreParseArrowFunctionLiteral}};
+  const RuntimeCallCounterId counters[2][2] = {
+      {RuntimeCallCounterId::kParseBackgroundArrowFunctionLiteral,
+       RuntimeCallCounterId::kParseArrowFunctionLiteral},
+      {RuntimeCallCounterId::kPreParseBackgroundArrowFunctionLiteral,
+       RuntimeCallCounterId::kPreParseArrowFunctionLiteral}};
   RuntimeCallTimerScope runtime_timer(
       runtime_call_stats_,
       counters[Impl::IsPreParser()][parsing_on_main_thread_]);

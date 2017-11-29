@@ -269,11 +269,11 @@ PreParser::Expression PreParser::ParseFunctionLiteral(
     LanguageMode language_mode, bool* ok) {
   // Function ::
   //   '(' FormalParameterList? ')' '{' FunctionBody '}'
-  const RuntimeCallStats::CounterId counters[2][2] = {
-      {&RuntimeCallStats::PreParseBackgroundNoVariableResolution,
-       &RuntimeCallStats::PreParseNoVariableResolution},
-      {&RuntimeCallStats::PreParseBackgroundWithVariableResolution,
-       &RuntimeCallStats::PreParseWithVariableResolution}};
+  const RuntimeCallCounterId counters[2][2] = {
+      {RuntimeCallCounterId::kPreParseBackgroundNoVariableResolution,
+       RuntimeCallCounterId::kPreParseNoVariableResolution},
+      {RuntimeCallCounterId::kPreParseBackgroundWithVariableResolution,
+       RuntimeCallCounterId::kPreParseWithVariableResolution}};
   RuntimeCallTimerScope runtime_timer(
       runtime_call_stats_,
       counters[track_unresolved_variables_][parsing_on_main_thread_]);

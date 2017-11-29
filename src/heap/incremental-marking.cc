@@ -34,7 +34,8 @@ void IncrementalMarking::Observer::Step(int bytes_allocated, Address addr,
   Heap* heap = incremental_marking_.heap();
   VMState<GC> state(heap->isolate());
   RuntimeCallTimerScope runtime_timer(
-      heap->isolate(), &RuntimeCallStats::GC_Custom_IncrementalMarkingObserver);
+      heap->isolate(),
+      RuntimeCallCounterId::kGC_Custom_IncrementalMarkingObserver);
   incremental_marking_.AdvanceIncrementalMarkingOnAllocation();
   if (incremental_marking_.black_allocation() && addr != nullptr) {
     // AdvanceIncrementalMarkingOnAllocation can start black allocation.

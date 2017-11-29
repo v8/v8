@@ -9689,8 +9689,8 @@ Handle<Map> Map::TransitionToDataProperty(Handle<Map> map, Handle<Name> name,
                                           bool* created_new_map) {
   RuntimeCallTimerScope stats_scope(
       *map, map->is_prototype_map()
-                ? &RuntimeCallStats::PrototypeMap_TransitionToDataProperty
-                : &RuntimeCallStats::Map_TransitionToDataProperty);
+                ? RuntimeCallCounterId::kPrototypeMap_TransitionToDataProperty
+                : RuntimeCallCounterId::kMap_TransitionToDataProperty);
 
   DCHECK(name->IsUniqueName());
   DCHECK(!map->is_dictionary_map());
@@ -9805,8 +9805,8 @@ Handle<Map> Map::TransitionToAccessorProperty(Isolate* isolate, Handle<Map> map,
   RuntimeCallTimerScope stats_scope(
       isolate,
       map->is_prototype_map()
-          ? &RuntimeCallStats::PrototypeMap_TransitionToAccessorProperty
-          : &RuntimeCallStats::Map_TransitionToAccessorProperty);
+          ? RuntimeCallCounterId::kPrototypeMap_TransitionToAccessorProperty
+          : RuntimeCallCounterId::kMap_TransitionToAccessorProperty);
 
   // At least one of the accessors needs to be a new value.
   DCHECK(!getter->IsNull(isolate) || !setter->IsNull(isolate));
@@ -12654,7 +12654,8 @@ Handle<WeakCell> Map::GetOrCreatePrototypeWeakCell(Handle<JSReceiver> prototype,
 // static
 void Map::SetPrototype(Handle<Map> map, Handle<Object> prototype,
                        bool enable_prototype_setup_mode) {
-  RuntimeCallTimerScope stats_scope(*map, &RuntimeCallStats::Map_SetPrototype);
+  RuntimeCallTimerScope stats_scope(*map,
+                                    RuntimeCallCounterId::kMap_SetPrototype);
 
   bool is_hidden = false;
   if (prototype->IsJSObject()) {

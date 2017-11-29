@@ -110,9 +110,9 @@ namespace v8 {
  * TODO(jochen): Remove calls form API methods to DO_NOT_USE macros.
  */
 
-#define LOG_API(isolate, class_name, function_name)                       \
-  i::RuntimeCallTimerScope _runtime_timer(                                \
-      isolate, &i::RuntimeCallStats::API_##class_name##_##function_name); \
+#define LOG_API(isolate, class_name, function_name)                           \
+  i::RuntimeCallTimerScope _runtime_timer(                                    \
+      isolate, i::RuntimeCallCounterId::kAPI_##class_name##_##function_name); \
   LOG(isolate, ApiEntryCall("v8::" #class_name "::" #function_name))
 
 #define ENTER_V8_DO_NOT_USE(isolate) i::VMState<v8::OTHER> __state__((isolate))
@@ -10913,7 +10913,7 @@ void InvokeAccessorGetterCallback(
   // Leaving JavaScript.
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RuntimeCallTimerScope timer(isolate,
-                              &RuntimeCallStats::AccessorGetterCallback);
+                              RuntimeCallCounterId::kAccessorGetterCallback);
   Address getter_address = reinterpret_cast<Address>(reinterpret_cast<intptr_t>(
       getter));
   VMState<EXTERNAL> state(isolate);
@@ -10926,7 +10926,7 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
                             v8::FunctionCallback callback) {
   Isolate* isolate = reinterpret_cast<Isolate*>(info.GetIsolate());
   RuntimeCallTimerScope timer(isolate,
-                              &RuntimeCallStats::InvokeFunctionCallback);
+                              RuntimeCallCounterId::kInvokeFunctionCallback);
   Address callback_address =
       reinterpret_cast<Address>(reinterpret_cast<intptr_t>(callback));
   VMState<EXTERNAL> state(isolate);
@@ -10934,6 +10934,25 @@ void InvokeFunctionCallback(const v8::FunctionCallbackInfo<v8::Value>& info,
   callback(info);
 }
 
+// Undefine macros for jumbo build.
+#undef LOG_API
+#undef ENTER_V8_DO_NOT_USE
+#undef ENTER_V8_HELPER_DO_NOT_USE
+#undef PREPARE_FOR_DEBUG_INTERFACE_EXECUTION_WITH_ISOLATE
+#undef PREPARE_FOR_EXECUTION_WITH_CONTEXT
+#undef PREPARE_FOR_EXECUTION
+#undef ENTER_V8
+#undef ENTER_V8_NO_SCRIPT
+#undef ENTER_V8_NO_SCRIPT_NO_EXCEPTION
+#undef ENTER_V8_FOR_NEW_CONTEXT
+#undef EXCEPTION_BAILOUT_CHECK_SCOPED_DO_NOT_USE
+#undef RETURN_ON_FAILED_EXECUTION
+#undef RETURN_ON_FAILED_EXECUTION_PRIMITIVE
+#undef RETURN_TO_LOCAL_UNCHECKED
+#undef RETURN_ESCAPED
+#undef SET_FIELD_WRAPPED
+#undef NEW_STRING
+#undef CALLBACK_SETTER
 
 }  // namespace internal
 }  // namespace v8

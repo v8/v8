@@ -24,9 +24,11 @@ static size_t CountTotalHolesSize(Heap* heap) {
   return holes_size;
 }
 
-RuntimeCallStats::CounterId GCTracer::RCSCounterFromScope(Scope::ScopeId id) {
-  return RuntimeCallStats::counters[kFirstGCIndexInRuntimeCallStats +
-                                    static_cast<int>(id)];
+RuntimeCallCounterId GCTracer::RCSCounterFromScope(Scope::ScopeId id) {
+  STATIC_ASSERT(Scope::FIRST_SCOPE == Scope::MC_INCREMENTAL);
+  return static_cast<RuntimeCallCounterId>(
+      static_cast<int>(RuntimeCallCounterId::kGC_MC_INCREMENTAL) +
+      static_cast<int>(id));
 }
 
 GCTracer::Scope::Scope(GCTracer* tracer, ScopeId scope)
@@ -120,8 +122,6 @@ GCTracer::GCTracer(Heap* heap)
   // We assume that MC_INCREMENTAL is the first scope so that we can properly
   // map it to RuntimeCallStats.
   STATIC_ASSERT(0 == Scope::MC_INCREMENTAL);
-  CHECK(&RuntimeCallStats::GC_MC_INCREMENTAL ==
-        RuntimeCallStats::counters[GCTracer::kFirstGCIndexInRuntimeCallStats]);
   current_.end_time = heap_->MonotonicallyIncreasingTimeInMs();
 }
 

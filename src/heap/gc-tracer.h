@@ -159,9 +159,8 @@ class V8_EXPORT_PRIVATE GCTracer {
   };
 
   static const int kThroughputTimeFrameMs = 5000;
-  static const int kFirstGCIndexInRuntimeCallStats = 0;
 
-  static RuntimeCallStats::CounterId RCSCounterFromScope(Scope::ScopeId id);
+  static RuntimeCallCounterId RCSCounterFromScope(Scope::ScopeId id);
 
   explicit GCTracer(Heap* heap);
 

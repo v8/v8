@@ -138,7 +138,7 @@ MUST_USE_RESULT MaybeHandle<Object> Invoke(
     if (FLAG_profile_deserialization && target->IsJSFunction()) {
       PrintDeserializedCodeInfo(Handle<JSFunction>::cast(target));
     }
-    RuntimeCallTimerScope timer(isolate, &RuntimeCallStats::JS_Execution);
+    RuntimeCallTimerScope timer(isolate, RuntimeCallCounterId::kJS_Execution);
     value = CALL_GENERATED_CODE(isolate, stub_entry, orig_func, func, recv,
                                 argc, argv);
   }

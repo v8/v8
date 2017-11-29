@@ -375,8 +375,8 @@ bool Renumber(ParseInfo* parse_info,
   RuntimeCallTimerScope runtimeTimer(
       parse_info->runtime_call_stats(),
       parse_info->on_background_thread()
-          ? &RuntimeCallStats::CompileBackgroundRenumber
-          : &RuntimeCallStats::CompileRenumber);
+          ? RuntimeCallCounterId::kCompileBackgroundRenumber
+          : RuntimeCallCounterId::kCompileRenumber);
   return AstNumbering::Renumber(parse_info->stack_limit(), parse_info->zone(),
                                 parse_info->literal(), eager_literals);
 }
@@ -487,7 +487,7 @@ MUST_USE_RESULT MaybeHandle<Code> GetCodeFromOptimizedCodeCache(
     Handle<JSFunction> function, BailoutId osr_offset) {
   RuntimeCallTimerScope runtimeTimer(
       function->GetIsolate(),
-      &RuntimeCallStats::CompileGetFromOptimizedCodeMap);
+      RuntimeCallCounterId::kCompileGetFromOptimizedCodeMap);
   Handle<SharedFunctionInfo> shared(function->shared());
   DisallowHeapAllocation no_gc;
   if (osr_offset.IsNone()) {
@@ -543,8 +543,8 @@ void InsertCodeIntoOptimizedCodeCache(CompilationInfo* compilation_info) {
 
 bool GetOptimizedCodeNow(CompilationJob* job, Isolate* isolate) {
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     &RuntimeCallStats::RecompileSynchronous);
+  RuntimeCallTimerScope runtimeTimer(
+      isolate, RuntimeCallCounterId::kRecompileSynchronous);
   CompilationInfo* compilation_info = job->compilation_info();
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.RecompileSynchronous");
@@ -590,8 +590,8 @@ bool GetOptimizedCodeLater(CompilationJob* job, Isolate* isolate) {
   }
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     &RuntimeCallStats::RecompileSynchronous);
+  RuntimeCallTimerScope runtimeTimer(
+      isolate, RuntimeCallCounterId::kRecompileSynchronous);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.RecompileSynchronous");
 
@@ -672,7 +672,8 @@ MaybeHandle<Code> GetOptimizedCode(Handle<JSFunction> function,
   }
 
   TimerEventScope<TimerEventOptimizeCode> optimize_code_timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(isolate, &RuntimeCallStats::OptimizeCode);
+  RuntimeCallTimerScope runtimeTimer(isolate,
+                                     RuntimeCallCounterId::kOptimizeCode);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeCode");
 
   // In case of concurrent recompilation, all handles below this point will be
@@ -716,8 +717,8 @@ CompilationJob::Status FinalizeOptimizedCompilationJob(CompilationJob* job,
   CompilationInfo* compilation_info = job->compilation_info();
 
   TimerEventScope<TimerEventRecompileSynchronous> timer(isolate);
-  RuntimeCallTimerScope runtimeTimer(isolate,
-                                     &RuntimeCallStats::RecompileSynchronous);
+  RuntimeCallTimerScope runtimeTimer(
+      isolate, RuntimeCallCounterId::kRecompileSynchronous);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                "V8.RecompileSynchronous");
 
@@ -809,8 +810,8 @@ MaybeHandle<SharedFunctionInfo> CompileToplevel(ParseInfo* parse_info,
   PostponeInterruptsScope postpone(isolate);
   DCHECK(!isolate->native_context().is_null());
   RuntimeCallTimerScope runtimeTimer(
-      isolate, parse_info->is_eval() ? &RuntimeCallStats::CompileEval
-                                     : &RuntimeCallStats::CompileScript);
+      isolate, parse_info->is_eval() ? RuntimeCallCounterId::kCompileEval
+                                     : RuntimeCallCounterId::kCompileScript);
   VMState<BYTECODE_COMPILER> state(isolate);
   if (parse_info->literal() == nullptr &&
       !parsing::ParseProgram(parse_info, isolate)) {
@@ -860,8 +861,8 @@ bool Compiler::Analyze(ParseInfo* parse_info,
   RuntimeCallTimerScope runtimeTimer(
       parse_info->runtime_call_stats(),
       parse_info->on_background_thread()
-          ? &RuntimeCallStats::CompileBackgroundAnalyse
-          : &RuntimeCallStats::CompileAnalyse);
+          ? RuntimeCallCounterId::kCompileBackgroundAnalyse
+          : RuntimeCallCounterId::kCompileAnalyse);
   if (!Rewriter::Rewrite(parse_info)) return false;
   DeclarationScope::Analyze(parse_info);
   if (!Renumber(parse_info, eager_literals)) return false;
@@ -890,7 +891,7 @@ bool Compiler::Compile(Handle<SharedFunctionInfo> shared_info,
   PostponeInterruptsScope postpone(isolate);
   TimerEventScope<TimerEventCompileCode> compile_timer(isolate);
   RuntimeCallTimerScope runtimeTimer(isolate,
-                                     &RuntimeCallStats::CompileFunction);
+                                     RuntimeCallCounterId::kCompileFunction);
   TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.CompileCode");
   AggregatedHistogramTimerScope timer(isolate->counters()->compile_lazy());
 
@@ -1477,8 +1478,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
       compile_timer.set_consuming_code_cache();
       // Then check cached code provided by embedder.
       HistogramTimerScope timer(isolate->counters()->compile_deserialize());
-      RuntimeCallTimerScope runtimeTimer(isolate,
-                                         &RuntimeCallStats::CompileDeserialize);
+      RuntimeCallTimerScope runtimeTimer(
+          isolate, RuntimeCallCounterId::kCompileDeserialize);
       TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                    "V8.CompileDeserialize");
       Handle<SharedFunctionInfo> inner_result;
@@ -1577,8 +1578,8 @@ MaybeHandle<SharedFunctionInfo> Compiler::GetSharedFunctionInfoForScript(
 
         HistogramTimerScope histogram_timer(
             isolate->counters()->compile_serialize());
-        RuntimeCallTimerScope runtimeTimer(isolate,
-                                           &RuntimeCallStats::CompileSerialize);
+        RuntimeCallTimerScope runtimeTimer(
+            isolate, RuntimeCallCounterId::kCompileSerialize);
         TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
                      "V8.CompileSerialize");
         *cached_data = CodeSerializer::Serialize(isolate, result, source);
@@ -1610,8 +1611,8 @@ std::unique_ptr<CompilationJob> Compiler::CompileTopLevelOnBackgroundThread(
                "V8.CompileCodeBackground");
   RuntimeCallTimerScope runtimeTimer(
       parse_info->runtime_call_stats(),
-      parse_info->is_eval() ? &RuntimeCallStats::CompileBackgroundEval
-                            : &RuntimeCallStats::CompileBackgroundScript);
+      parse_info->is_eval() ? RuntimeCallCounterId::kCompileBackgroundEval
+                            : RuntimeCallCounterId::kCompileBackgroundScript);
 
   LanguageMode language_mode = construct_language_mode(FLAG_use_strict);
   parse_info->set_language_mode(
