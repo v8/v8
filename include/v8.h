@@ -1576,14 +1576,6 @@ class V8_EXPORT ScriptCompiler {
       Local<String> arguments[], size_t context_extension_count,
       Local<Object> context_extensions[]);
 
-  /**
-   * Creates and returns code cache for the specified unbound_script.
-   * This will return nullptr if the script cannot be serialized. The
-   * CachedData returned by this function should be owned by the caller.
-   */
-  static CachedData* CreateCodeCache(Local<UnboundScript> unbound_script,
-                                     Local<String> source);
-
  private:
   static V8_WARN_UNUSED_RESULT MaybeLocal<UnboundScript> CompileUnboundInternal(
       Isolate* isolate, Source* source, CompileOptions options,

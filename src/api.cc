@@ -2660,26 +2660,6 @@ uint32_t ScriptCompiler::CachedDataVersionTag() {
       static_cast<uint32_t>(internal::CpuFeatures::SupportedFeatures())));
 }
 
-ScriptCompiler::CachedData* ScriptCompiler::CreateCodeCache(
-    Local<UnboundScript> unbound_script, Local<String> source) {
-  i::Handle<i::SharedFunctionInfo> shared =
-      i::Handle<i::SharedFunctionInfo>::cast(
-          Utils::OpenHandle(*unbound_script));
-  DCHECK(shared->is_toplevel());
-  i::Handle<i::Script> script(i::Script::cast(shared->script()));
-  i::Isolate* isolate = shared->GetIsolate();
-  // TODO(7110): Enable serialization of Asm modules once the AsmWasmData is
-  // context independent.
-  if (script->ContainsAsmModule()) return nullptr;
-  if (isolate->debug()->is_loaded()) return nullptr;
-  i::ScriptData* script_data =
-      i::CodeSerializer::Serialize(isolate, shared, Utils::OpenHandle(*source));
-  CachedData* result = new CachedData(
-      script_data->data(), script_data->length(), CachedData::BufferOwned);
-  script_data->ReleaseDataOwnership();
-  delete script_data;
-  return result;
-}
 
 MaybeLocal<Script> Script::Compile(Local<Context> context, Local<String> source,
                                    ScriptOrigin* origin) {

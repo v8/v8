@@ -635,14 +635,6 @@ ByteArray* BytecodeArray::SourcePositionTable() {
       ->source_position_table();
 }
 
-void BytecodeArray::ClearFrameCacheFromSourcePositionTable() {
-  Object* maybe_table = source_position_table();
-  if (maybe_table->IsByteArray()) return;
-  DCHECK(maybe_table->IsSourcePositionTableWithFrameCache());
-  set_source_position_table(SourcePositionTableWithFrameCache::cast(maybe_table)
-                                ->source_position_table());
-}
-
 int BytecodeArray::BytecodeArraySize() { return SizeFor(this->length()); }
 
 int BytecodeArray::SizeIncludingMetadata() {

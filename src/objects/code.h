@@ -790,7 +790,6 @@ class BytecodeArray : public FixedArrayBase {
   DECL_ACCESSORS(source_position_table, Object)
 
   inline ByteArray* SourcePositionTable();
-  inline void ClearFrameCacheFromSourcePositionTable();
 
   DECL_CAST(BytecodeArray)
 

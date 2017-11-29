@@ -106,48 +106,18 @@ void CodeSerializer::SerializeObject(HeapObject* obj, HowToCode how_to_code,
   }
 
   if (obj->IsScript()) {
-    Script* script_obj = Script::cast(obj);
-    DCHECK_NE(script_obj->compilation_type(), Script::COMPILATION_TYPE_EVAL);
     // Wrapper object is a context-dependent JSValue. Reset it here.
-    script_obj->set_wrapper(isolate()->heap()->undefined_value());
-    // We want to differentiate between undefined and uninitialized_symbol for
-    // context_data for now. It is hack to allow debugging for scripts that are
-    // included as a part of custom snapshot. (see debug::Script::IsEmbedded())
-    Object* context_data = script_obj->context_data();
-    if (context_data != isolate()->heap()->undefined_value() &&
-        context_data != isolate()->heap()->uninitialized_symbol()) {
-      script_obj->set_context_data(isolate()->heap()->undefined_value());
-    }
-    // We don't want to serialize host options to avoid serializing unnecessary
-    // object graph.
-    FixedArray* host_options = script_obj->host_defined_options();
-    script_obj->set_host_defined_options(
-        isolate()->heap()->empty_fixed_array());
-    SerializeGeneric(obj, how_to_code, where_to_point);
-    script_obj->set_host_defined_options(host_options);
-    script_obj->set_context_data(context_data);
-    return;
+    Script::cast(obj)->set_wrapper(isolate()->heap()->undefined_value());
   }
 
   if (obj->IsSharedFunctionInfo()) {
     SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
-    // TODO(7110): Enable serializing of Asm modules once the AsmWasmData
-    // is context independent.
-    DCHECK(!sfi->IsApiFunction() && !sfi->HasAsmWasmData());
-    // Do not serialize when a debugger is active.
-    DCHECK(sfi->debug_info()->IsSmi());
-
     // Mark SFI to indicate whether the code is cached.
     bool was_deserialized = sfi->deserialized();
     sfi->set_deserialized(sfi->is_compiled());
     SerializeGeneric(obj, how_to_code, where_to_point);
     sfi->set_deserialized(was_deserialized);
     return;
-  }
-
-  if (obj->IsBytecodeArray()) {
-    // Clear the stack frame cache if present
-    BytecodeArray::cast(obj)->ClearFrameCacheFromSourcePositionTable();
   }
 
   // Past this point we should not see any (context-specific) maps anymore.
