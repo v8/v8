@@ -36,12 +36,10 @@ class TestCase(object):
     self.id = None  # int, used to map result back to TestCase instance
     self.duration = None  # assigned during execution
     self.run = 1  # The nth time this test is executed.
+    self.cmd = None
 
   def CopyAddingFlags(self, variant, flags):
     return TestCase(self.suite, self.path, variant, self.flags + flags)
-
-  def SetSuiteObject(self, suites):
-    self.suite = suites[self.suite]
 
   def suitename(self):
     return self.suite.name
