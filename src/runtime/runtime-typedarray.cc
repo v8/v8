@@ -230,8 +230,8 @@ Object* TypedArraySetFromOverlapping(Isolate* isolate,
   size_t source_byte_length = NumberToSize(source->byte_length());
   size_t target_byte_length = NumberToSize(target->byte_length());
 
-  CHECK_LE(offset + source->length(), target->length());
-  CHECK_GE(target->length(), source->length());
+  CHECK_LE(offset, target->length_value());
+  CHECK_LE(source->length_value(), target->length_value() - offset);
   CHECK(source->length()->IsSmi());
 
   CHECK(!target->WasNeutered());

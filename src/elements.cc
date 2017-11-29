@@ -3210,8 +3210,7 @@ class TypedElementsAccessor
                                          JSTypedArray* destination,
                                          size_t length, uint32_t offset) {
     // The source is a typed array, so we know we don't need to do ToNumber
-    // side-effects, as the source elements will always be a number or
-    // undefined.
+    // side-effects, as the source elements will always be a number.
     DisallowHeapAllocation no_gc;
 
     FixedTypedArrayBase* source_elements =
@@ -3219,10 +3218,10 @@ class TypedElementsAccessor
     BackingStore* destination_elements =
         BackingStore::cast(destination->elements());
 
-    DCHECK_LE(offset + source->length(), destination->length());
-    DCHECK_GE(destination->length(), source->length());
+    DCHECK_LE(offset, destination->length_value());
+    DCHECK_LE(source->length_value(), destination->length_value() - offset);
     DCHECK(source->length()->IsSmi());
-    DCHECK_EQ(Smi::FromInt(static_cast<int>(length)), source->length());
+    DCHECK_EQ(length, source->length_value());
 
     InstanceType source_type = source_elements->map()->instance_type();
     InstanceType destination_type =
