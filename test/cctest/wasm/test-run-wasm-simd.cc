@@ -935,9 +935,11 @@ WASM_SIMD_TEST(I32x4Neg) {
   RunI32x4UnOpTest(execution_mode, kExprI32x4Neg, Negate);
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
+    V8_TARGET_ARCH_IA32
 WASM_SIMD_TEST(S128Not) { RunI32x4UnOpTest(execution_mode, kExprS128Not, Not); }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64
+#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
+        // V8_TARGET_ARCH_IA32
 
 void RunI32x4BinOpTest(WasmExecutionMode execution_mode, WasmOpcode simd_op,
                        Int32BinOp expected_op) {
@@ -986,8 +988,6 @@ WASM_SIMD_TEST(I32x4MaxU) {
   RunI32x4BinOpTest(execution_mode, kExprI32x4MaxU, UnsignedMaximum);
 }
 
-#if V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 || \
-    V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 WASM_SIMD_TEST(S128And) {
   RunI32x4BinOpTest(execution_mode, kExprS128And, And);
 }
@@ -997,8 +997,6 @@ WASM_SIMD_TEST(S128Or) { RunI32x4BinOpTest(execution_mode, kExprS128Or, Or); }
 WASM_SIMD_TEST(S128Xor) {
   RunI32x4BinOpTest(execution_mode, kExprS128Xor, Xor);
 }
-#endif  // V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_X64 ||
-        // V8_TARGET_ARCH_MIPS || V8_TARGET_ARCH_MIPS64
 
 void RunI32x4CompareOpTest(WasmExecutionMode execution_mode, WasmOpcode simd_op,
                            Int32CompareOp expected_op) {

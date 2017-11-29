@@ -229,7 +229,16 @@ namespace compiler {
   V(SSEI8x16GtU)                   \
   V(AVXI8x16GtU)                   \
   V(SSEI8x16GeU)                   \
-  V(AVXI8x16GeU)
+  V(AVXI8x16GeU)                   \
+  V(IA32S128Zero)                  \
+  V(SSES128Not)                    \
+  V(AVXS128Not)                    \
+  V(SSES128And)                    \
+  V(AVXS128And)                    \
+  V(SSES128Or)                     \
+  V(AVXS128Or)                     \
+  V(SSES128Xor)                    \
+  V(AVXS128Xor)
 
 // Addressing modes represent the "shape" of inputs to an instruction.
 // Many instructions support multiple addressing modes. Addressing modes

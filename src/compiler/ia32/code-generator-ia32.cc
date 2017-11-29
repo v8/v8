@@ -2774,6 +2774,63 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ vpcmpeqb(i.OutputSimd128Register(), kScratchDoubleReg, src2);
       break;
     }
+    case kIA32S128Zero: {
+      XMMRegister dst = i.OutputSimd128Register();
+      __ Pxor(dst, dst);
+      break;
+    }
+    case kSSES128Not: {
+      XMMRegister dst = i.OutputSimd128Register();
+      Operand src = i.InputOperand(0);
+      if (src.is_reg(dst)) {
+        __ movaps(kScratchDoubleReg, dst);
+        __ pcmpeqd(dst, dst);
+        __ pxor(dst, kScratchDoubleReg);
+      } else {
+        __ pcmpeqd(dst, dst);
+        __ pxor(dst, src);
+      }
+      break;
+    }
+    case kAVXS128Not: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpcmpeqd(kScratchDoubleReg, kScratchDoubleReg, kScratchDoubleReg);
+      __ vpxor(i.OutputSimd128Register(), kScratchDoubleReg, i.InputOperand(0));
+      break;
+    }
+    case kSSES128And: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ pand(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXS128And: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpand(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputOperand(1));
+      break;
+    }
+    case kSSES128Or: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ por(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXS128Or: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpor(i.OutputSimd128Register(), i.InputSimd128Register(0),
+              i.InputOperand(1));
+      break;
+    }
+    case kSSES128Xor: {
+      DCHECK_EQ(i.OutputSimd128Register(), i.InputSimd128Register(0));
+      __ pxor(i.OutputSimd128Register(), i.InputOperand(1));
+      break;
+    }
+    case kAVXS128Xor: {
+      CpuFeatureScope avx_scope(tasm(), AVX);
+      __ vpxor(i.OutputSimd128Register(), i.InputSimd128Register(0),
+               i.InputOperand(1));
+      break;
+    }
     case kCheckedLoadInt8:
       ASSEMBLE_CHECKED_LOAD_INTEGER(movsx_b);
       break;

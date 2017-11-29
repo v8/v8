@@ -1948,7 +1948,10 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I8x16MinU)             \
   V(I8x16MaxU)             \
   V(I8x16GtU)              \
-  V(I8x16GeU)
+  V(I8x16GeU)              \
+  V(S128And)               \
+  V(S128Or)                \
+  V(S128Xor)
 
 #define SIMD_UNOP_LIST(V) \
   V(I32x4Neg)             \
@@ -1962,6 +1965,17 @@ VISIT_ATOMIC_BINOP(Xor)
   V(I16x8Shl)                 \
   V(I16x8ShrS)                \
   V(I16x8ShrU)
+
+void InstructionSelector::VisitS128Zero(Node* node) {
+  IA32OperandGenerator g(this);
+  Emit(kIA32S128Zero, g.DefineAsRegister(node));
+}
+
+void InstructionSelector::VisitS128Not(Node* node) {
+  IA32OperandGenerator g(this);
+  InstructionCode opcode = IsSupported(AVX) ? kAVXS128Not : kSSES128Not;
+  Emit(opcode, g.DefineAsRegister(node), g.Use(node->InputAt(0)));
+}
 
 #define VISIT_SIMD_SPLAT(Type)                               \
   void InstructionSelector::Visit##Type##Splat(Node* node) { \
