@@ -1804,6 +1804,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplace) {
   uint32_t next_source_position = 0;
 
   for (const auto& result : results) {
+    HandleScope handle_scope(isolate);
     Handle<Object> captures_length_obj;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, captures_length_obj,
