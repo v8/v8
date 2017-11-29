@@ -615,11 +615,6 @@ bool UnionType::Wellformed() {
 // -----------------------------------------------------------------------------
 // Union and intersection
 
-static bool AddIsSafe(int x, int y) {
-  return x >= 0 ? y <= std::numeric_limits<int>::max() - x
-                : y >= std::numeric_limits<int>::min() - x;
-}
-
 Type* Type::Intersect(Type* type1, Type* type2, Zone* zone) {
   // Fast case: bit sets.
   if (type1->IsBitset() && type2->IsBitset()) {
@@ -647,10 +642,9 @@ Type* Type::Intersect(Type* type1, Type* type2, Zone* zone) {
   bitset bits = type1->BitsetGlb() & type2->BitsetGlb();
   int size1 = type1->IsUnion() ? type1->AsUnion()->Length() : 1;
   int size2 = type2->IsUnion() ? type2->AsUnion()->Length() : 1;
-  if (!AddIsSafe(size1, size2)) return Any();
-  int size = size1 + size2;
-  if (!AddIsSafe(size, 2)) return Any();
-  size += 2;
+  int size;
+  if (base::bits::SignedAddOverflow32(size1, size2, &size)) return Any();
+  if (base::bits::SignedAddOverflow32(size, 2, &size)) return Any();
   Type* result_type = UnionType::New(size, zone);
   UnionType* result = result_type->AsUnion();
   size = 0;
@@ -849,10 +843,9 @@ Type* Type::Union(Type* type1, Type* type2, Zone* zone) {
   // Slow case: create union.
   int size1 = type1->IsUnion() ? type1->AsUnion()->Length() : 1;
   int size2 = type2->IsUnion() ? type2->AsUnion()->Length() : 1;
-  if (!AddIsSafe(size1, size2)) return Any();
-  int size = size1 + size2;
-  if (!AddIsSafe(size, 2)) return Any();
-  size += 2;
+  int size;
+  if (base::bits::SignedAddOverflow32(size1, size2, &size)) return Any();
+  if (base::bits::SignedAddOverflow32(size, 2, &size)) return Any();
   Type* result_type = UnionType::New(size, zone);
   UnionType* result = result_type->AsUnion();
   size = 0;
