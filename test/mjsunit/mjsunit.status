@@ -736,7 +736,7 @@
 
 ##############################################################################
 # BUG(v8:7138).
-['arch == arm and mode == release and not simulator_run and variant == wasm_traps', {
+['arch == arm and not simulator_run and variant == wasm_traps', {
   '*': [SKIP],
 }], # arch == arm and not simulator_run and variant == wasm_traps
 

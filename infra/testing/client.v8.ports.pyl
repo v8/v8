@@ -1,9 +1,0 @@
-# Copyright 2017 The V8 project authors. All rights reserved.
-# Use of this source code is governed by a BSD-style license that can be
-# found in the LICENSE file.
-
-{
-  'V8 Arm - debug': [
-    {'name': 'mjsunit', 'variant': 'wasm_traps', 'shards': 1},
-  ],
-}
