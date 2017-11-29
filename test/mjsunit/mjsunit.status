@@ -114,6 +114,12 @@
   'tools/dumpcpp': [PASS, NO_VARIANTS, ['arch == android_arm or arch == android_arm64 or arch == android_ia32', SKIP]],
 
   ##############################################################################
+  # This test generates a file in the test directory, so we cannot run several
+  # variants of the test simultaneously. Additionally the test should not be
+  # affected by variants.
+  'd8/enable-tracing': [PASS, NO_VARIANTS],
+
+  ##############################################################################
   # Long running test that reproduces memory leak and should be run manually.
   'regress/regress-2073': [SKIP],
 

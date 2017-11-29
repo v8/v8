@@ -2876,6 +2876,9 @@ bool Shell::SetOptions(int argc, char* argv[]) {
     } else if (strcmp(argv[i], "--enable-tracing") == 0) {
       options.trace_enabled = true;
       argv[i] = nullptr;
+    } else if (strncmp(argv[i], "--trace-path=", 13) == 0) {
+      options.trace_path = argv[i] + 13;
+      argv[i] = nullptr;
     } else if (strncmp(argv[i], "--trace-config=", 15) == 0) {
       options.trace_config = argv[i] + 15;
       argv[i] = nullptr;
@@ -3306,7 +3309,8 @@ int Shell::Main(int argc, char* argv[]) {
   std::unique_ptr<platform::tracing::TracingController> tracing;
   if (options.trace_enabled && !i::FLAG_verify_predictable) {
     tracing = base::make_unique<platform::tracing::TracingController>();
-    trace_file.open("v8_trace.json");
+
+    trace_file.open(options.trace_path ? options.trace_path : "v8_trace.json");
     platform::tracing::TraceBuffer* trace_buffer =
         platform::tracing::TraceBuffer::CreateTraceBufferRingBuffer(
             platform::tracing::TraceBuffer::kRingBufferChunks,
@@ -3438,6 +3442,9 @@ int Shell::Main(int argc, char* argv[]) {
   V8::Dispose();
   V8::ShutdownPlatform();
 
+  // Delete the platform explicitly here to write the tracing output to the
+  // tracing file.
+  g_platform.reset();
   return result;
 }
 

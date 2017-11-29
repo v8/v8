@@ -301,6 +301,7 @@ class ShellOptions {
         natives_blob(nullptr),
         snapshot_blob(nullptr),
         trace_enabled(false),
+        trace_path(nullptr),
         trace_config(nullptr),
         lcov_file(nullptr),
         disable_in_process_stack_traces(false),
@@ -334,6 +335,7 @@ class ShellOptions {
   const char* natives_blob;
   const char* snapshot_blob;
   bool trace_enabled;
+  const char* trace_path;
   const char* trace_config;
   const char* lcov_file;
   bool disable_in_process_stack_traces;
