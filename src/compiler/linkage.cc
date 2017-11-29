@@ -49,7 +49,7 @@ std::ostream& operator<<(std::ostream& os, const CallDescriptor& d) {
   // TODO(svenpanne) Output properties etc. and be less cryptic.
   return os << d.kind() << ":" << d.debug_name() << ":r" << d.ReturnCount()
             << "s" << d.StackParameterCount() << "i" << d.InputCount() << "f"
-            << d.FrameStateCount() << "t" << d.SupportsTailCalls();
+            << d.FrameStateCount();
 }
 
 MachineSignature* CallDescriptor::GetMachineSignature(Zone* zone) const {
@@ -453,17 +453,16 @@ CallDescriptor* Linkage::GetBytecodeDispatchCallDescriptor(
   // The target for interpreter dispatches is a code entry address.
   MachineType target_type = MachineType::Pointer();
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
-  return new (zone) CallDescriptor(            // --
-      CallDescriptor::kCallAddress,            // kind
-      target_type,                             // target MachineType
-      target_loc,                              // target location
-      locations.Build(),                       // location_sig
-      stack_parameter_count,                   // stack_parameter_count
-      Operator::kNoProperties,                 // properties
-      kNoCalleeSaved,                          // callee-saved registers
-      kNoCalleeSaved,                          // callee-saved fp
-      CallDescriptor::kCanUseRoots |           // flags
-          CallDescriptor::kSupportsTailCalls,  // flags
+  return new (zone) CallDescriptor(  // --
+      CallDescriptor::kCallAddress,  // kind
+      target_type,                   // target MachineType
+      target_loc,                    // target location
+      locations.Build(),             // location_sig
+      stack_parameter_count,         // stack_parameter_count
+      Operator::kNoProperties,       // properties
+      kNoCalleeSaved,                // callee-saved registers
+      kNoCalleeSaved,                // callee-saved fp
+      CallDescriptor::kCanUseRoots,  // flags
       descriptor.DebugName(isolate));
 }
 

@@ -1006,7 +1006,7 @@ TNode<Object> CodeAssembler::TailCallRuntimeImpl(Runtime::FunctionId function,
   int argc = static_cast<int>(sizeof...(args));
   CallDescriptor* desc = Linkage::GetRuntimeCallDescriptor(
       zone(), function, argc, Operator::kNoProperties,
-      CallDescriptor::kSupportsTailCalls);
+      CallDescriptor::kNoFlags);
   int return_count = static_cast<int>(desc->ReturnCount());
 
   Node* centry =
@@ -1076,7 +1076,7 @@ Node* CodeAssembler::TailCallStubImpl(const CallInterfaceDescriptor& descriptor,
   size_t result_size = 1;
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), zone(), descriptor, descriptor.GetStackParameterCount(),
-      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
       MachineType::AnyTagged(), result_size);
 
   Node* nodes[] = {target, args..., context};
@@ -1102,7 +1102,7 @@ Node* CodeAssembler::TailCallStubThenBytecodeDispatch(
   DCHECK_LE(descriptor.GetStackParameterCount(), stack_parameter_count);
   CallDescriptor* desc = Linkage::GetStubCallDescriptor(
       isolate(), zone(), descriptor, stack_parameter_count,
-      CallDescriptor::kSupportsTailCalls, Operator::kNoProperties,
+      CallDescriptor::kNoFlags, Operator::kNoProperties,
       MachineType::AnyTagged(), 0);
 
   Node* nodes[] = {target, args..., context};

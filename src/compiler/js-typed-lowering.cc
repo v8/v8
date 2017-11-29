@@ -1455,7 +1455,6 @@ void ReduceBuiltin(Isolate* isolate, JSGraph* jsgraph, Node* node,
   const bool is_construct = (node->opcode() == IrOpcode::kJSConstruct);
 
   DCHECK(Builtins::HasCppImplementation(builtin_index));
-  DCHECK_EQ(0, flags & CallDescriptor::kSupportsTailCalls);
 
   Node* target = NodeProperties::GetValueInput(node, 0);
   Node* new_target = is_construct

@@ -221,8 +221,7 @@ static constexpr Allocator parameter_registers(kGPParamRegisters,
 }  // namespace
 
 // General code uses the above configuration data.
-CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig,
-                                      bool supports_tail_calls) {
+CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig) {
   // The '+ 1' here is to accomodate the wasm_context as first parameter.
   LocationSignature::Builder locations(zone, fsig->return_count(),
                                        fsig->parameter_count() + 1);
@@ -257,7 +256,6 @@ CallDescriptor* GetWasmCallDescriptor(Zone* zone, wasm::FunctionSig* fsig,
   LinkageLocation target_loc = LinkageLocation::ForAnyRegister(target_type);
 
   CallDescriptor::Flags flags = CallDescriptor::kUseNativeStack;
-  if (supports_tail_calls) flags |= CallDescriptor::kSupportsTailCalls;
   CallDescriptor::Kind kind = FLAG_wasm_jit_to_native
                                   ? CallDescriptor::kCallWasmFunction
                                   : CallDescriptor::kCallCodeObject;

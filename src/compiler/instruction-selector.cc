@@ -690,6 +690,7 @@ struct CallBuffer {
 // InstructionSelector::VisitCall platform independent instead.
 void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
                                                CallBufferFlags flags,
+                                               bool is_tail_call,
                                                int stack_param_delta) {
   OperandGenerator g(this);
   DCHECK_LE(call->op()->ValueOutputCount(),
@@ -787,7 +788,7 @@ void InstructionSelector::InitializeCallBuffer(Node* call, CallBuffer* buffer,
     // If it was a syntactic tail call we need to drop the current frame and
     // all the frames on top of it that are either an arguments adaptor frame
     // or a tail caller frame.
-    if (buffer->descriptor->SupportsTailCalls()) {
+    if (is_tail_call) {
       frame_state = NodeProperties::GetFrameStateInput(frame_state);
       buffer->frame_state_descriptor =
           buffer->frame_state_descriptor->outer_state();
@@ -2565,7 +2566,7 @@ void InstructionSelector::VisitCall(Node* node, BasicBlock* handler) {
   // Improve constant pool and the heuristics in the register allocator
   // for where to emit constants.
   CallBufferFlags call_buffer_flags(kCallCodeImmediate | kCallAddressImmediate);
-  InitializeCallBuffer(node, &buffer, call_buffer_flags);
+  InitializeCallBuffer(node, &buffer, call_buffer_flags, false);
 
   EmitPrepareArguments(&(buffer.pushed_nodes), descriptor, node);
 
@@ -2630,7 +2631,6 @@ void InstructionSelector::VisitCallWithCallerSavedRegisters(
 void InstructionSelector::VisitTailCall(Node* node) {
   OperandGenerator g(this);
   CallDescriptor const* descriptor = CallDescriptorOf(node->op());
-  DCHECK_NE(0, descriptor->flags() & CallDescriptor::kSupportsTailCalls);
 
   CallDescriptor* caller = linkage()->GetIncomingDescriptor();
   DCHECK(caller->CanTailCall(node));
@@ -2643,7 +2643,7 @@ void InstructionSelector::VisitTailCall(Node* node) {
   if (IsTailCallAddressImmediate()) {
     flags |= kCallAddressImmediate;
   }
-  InitializeCallBuffer(node, &buffer, flags, stack_param_delta);
+  InitializeCallBuffer(node, &buffer, flags, true, stack_param_delta);
 
   // Select the appropriate opcode based on the call type.
   InstructionCode opcode;

@@ -572,7 +572,7 @@ class WasmGraphBuilder {
 constexpr int kWasmContextParameterIndex = 0;
 
 V8_EXPORT_PRIVATE CallDescriptor* GetWasmCallDescriptor(
-    Zone* zone, wasm::FunctionSig* sig, bool supports_tails_calls = false);
+    Zone* zone, wasm::FunctionSig* signature);
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptor(
     Zone* zone, CallDescriptor* descriptor);
 V8_EXPORT_PRIVATE CallDescriptor* GetI32WasmCallDescriptorForSimd(

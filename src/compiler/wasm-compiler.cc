@@ -3076,7 +3076,7 @@ void WasmGraphBuilder::BuildWasmToWasmWrapper(WasmCodeWrapper wasm_code,
   args[pos++] = *control_;
 
   // Tail-call the wasm code.
-  CallDescriptor* desc = GetWasmCallDescriptor(jsgraph()->zone(), sig_, true);
+  CallDescriptor* desc = GetWasmCallDescriptor(jsgraph()->zone(), sig_);
   Node* tail_call =
       graph()->NewNode(jsgraph()->common()->TailCall(desc), count, args);
   MergeControlToEnd(jsgraph(), tail_call);
