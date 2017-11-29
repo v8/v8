@@ -4636,8 +4636,8 @@ Node* CodeStubAssembler::StringFromCharCode(Node* code) {
 // |from_string| must be a sequential string.
 // 0 <= |from_index| <= |from_index| + |character_count| < from_string.length.
 Node* CodeStubAssembler::AllocAndCopyStringCharacters(
-    Node* from, Node* from_instance_type, TNode<IntPtrT> from_index,
-    TNode<Smi> character_count) {
+    Node* context, Node* from, Node* from_instance_type,
+    TNode<IntPtrT> from_index, TNode<Smi> character_count) {
   Label end(this), one_byte_sequential(this), two_byte_sequential(this);
   Variable var_result(this, MachineRepresentation::kTagged);
 
@@ -4647,8 +4647,7 @@ Node* CodeStubAssembler::AllocAndCopyStringCharacters(
   // The subject string is a sequential one-byte string.
   BIND(&one_byte_sequential);
   {
-    Node* result =
-        AllocateSeqOneByteString(NoContextConstant(), character_count);
+    Node* result = AllocateSeqOneByteString(context, character_count);
     CopyStringCharacters(from, result, from_index, IntPtrConstant(0),
                          SmiUntag(character_count), String::ONE_BYTE_ENCODING,
                          String::ONE_BYTE_ENCODING);
@@ -4660,8 +4659,7 @@ Node* CodeStubAssembler::AllocAndCopyStringCharacters(
   // The subject string is a sequential two-byte string.
   BIND(&two_byte_sequential);
   {
-    Node* result =
-        AllocateSeqTwoByteString(NoContextConstant(), character_count);
+    Node* result = AllocateSeqTwoByteString(context, character_count);
     CopyStringCharacters(from, result, from_index, IntPtrConstant(0),
                          SmiUntag(character_count), String::TWO_BYTE_ENCODING,
                          String::TWO_BYTE_ENCODING);
@@ -4674,7 +4672,11 @@ Node* CodeStubAssembler::AllocAndCopyStringCharacters(
   return var_result.value();
 }
 
-Node* CodeStubAssembler::SubString(Node* string, Node* from, Node* to) {
+
+Node* CodeStubAssembler::SubString(Node* context, Node* string, Node* from,
+                                   Node* to, SubStringFlags flags) {
+  DCHECK(flags == SubStringFlags::NONE ||
+         flags == SubStringFlags::FROM_TO_ARE_BOUNDED);
   VARIABLE(var_result, MachineRepresentation::kTagged);
   ToDirectStringAssembler to_direct(state(), string);
   Label end(this), runtime(this);
@@ -4684,8 +4686,14 @@ Node* CodeStubAssembler::SubString(Node* string, Node* from, Node* to) {
   CSA_ASSERT(this, IsString(string));
 
   // Make sure that both from and to are non-negative smis.
-  CSA_ASSERT(this, TaggedIsPositiveSmi(from));
-  CSA_ASSERT(this, TaggedIsPositiveSmi(to));
+
+  if (flags == SubStringFlags::NONE) {
+    GotoIfNot(TaggedIsPositiveSmi(from), &runtime);
+    GotoIfNot(TaggedIsPositiveSmi(to), &runtime);
+  } else {
+    CSA_ASSERT(this, TaggedIsPositiveSmi(from));
+    CSA_ASSERT(this, TaggedIsPositiveSmi(to));
+  }
 
   TNode<Smi> const substr_length = SmiSub(to, from);
   TNode<Smi> const string_length = LoadStringLengthAsSmi(string);
@@ -4751,8 +4759,9 @@ Node* CodeStubAssembler::SubString(Node* string, Node* from, Node* to) {
     // encoding at this point.
     GotoIf(to_direct.is_external(), &external_string);
 
-    var_result.Bind(AllocAndCopyStringCharacters(
-        direct_string, instance_type, SmiUntag(offset), substr_length));
+    var_result.Bind(
+        AllocAndCopyStringCharacters(context, direct_string, instance_type,
+                                     SmiUntag(offset), substr_length));
 
     Counters* counters = isolate()->counters();
     IncrementCounter(counters->sub_string_native(), 1);
@@ -4765,9 +4774,9 @@ Node* CodeStubAssembler::SubString(Node* string, Node* from, Node* to) {
   {
     Node* const fake_sequential_string = to_direct.PointerToString(&runtime);
 
-    var_result.Bind(
-        AllocAndCopyStringCharacters(fake_sequential_string, instance_type,
-                                     SmiUntag(offset), substr_length));
+    var_result.Bind(AllocAndCopyStringCharacters(
+        context, fake_sequential_string, instance_type, SmiUntag(offset),
+        substr_length));
 
     Counters* counters = isolate()->counters();
     IncrementCounter(counters->sub_string_native(), 1);
@@ -4785,7 +4794,14 @@ Node* CodeStubAssembler::SubString(Node* string, Node* from, Node* to) {
 
   BIND(&original_string_or_invalid_length);
   {
-    CSA_ASSERT(this, SmiEqual(substr_length, string_length));
+    if (flags == SubStringFlags::NONE) {
+      // Longer than original string's length or negative: unsafe arguments.
+      GotoIf(SmiAbove(substr_length, string_length), &runtime);
+    } else {
+      // with flag SubStringFlags::FROM_TO_ARE_BOUNDED, the only way we can
+      // get here is if substr_length is equal to string_length.
+      CSA_ASSERT(this, SmiEqual(substr_length, string_length));
+    }
 
     // Equal length - check if {from, to} == {0, str.length}.
     GotoIf(SmiAbove(from, SmiConstant(0)), &runtime);
@@ -4802,8 +4818,8 @@ Node* CodeStubAssembler::SubString(Node* string, Node* from, Node* to) {
   // Fall back to a runtime call.
   BIND(&runtime);
   {
-    var_result.Bind(CallRuntime(Runtime::kSubString, NoContextConstant(),
-                                string, from, to));
+    var_result.Bind(
+        CallRuntime(Runtime::kSubString, context, string, from, to));
     Goto(&end);
   }
 
