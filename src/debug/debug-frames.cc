@@ -138,33 +138,6 @@ void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
   }
 }
 
-void FrameInspector::MaterializeStackLocals(Handle<JSObject> target,
-                                            Handle<JSFunction> function,
-                                            bool materialize_arguments_object) {
-  // Do not materialize the arguments object for eval or top-level code.
-  if (function->shared()->is_toplevel()) materialize_arguments_object = false;
-
-  Handle<SharedFunctionInfo> shared(function->shared());
-  Handle<ScopeInfo> scope_info(shared->scope_info());
-  MaterializeStackLocals(target, scope_info, materialize_arguments_object);
-
-  // Third materialize the arguments object.
-  if (materialize_arguments_object) {
-    // Skip if "arguments" is already taken and wasn't optimized out (which
-    // causes {MaterializeStackLocals} above to skip the local variable).
-    Handle<String> arguments_str = isolate_->factory()->arguments_string();
-    Maybe<bool> maybe = JSReceiver::HasOwnProperty(target, arguments_str);
-    DCHECK(maybe.IsJust());
-    if (maybe.FromJust()) return;
-
-    // FunctionGetArguments can't throw an exception.
-    Handle<JSObject> arguments = Accessors::FunctionGetArguments(function);
-    JSObject::SetOwnPropertyIgnoreAttributes(target, arguments_str, arguments,
-                                             NONE)
-        .Check();
-  }
-}
-
 
 void FrameInspector::UpdateStackLocalsFromMaterializedObject(
     Handle<JSObject> target, Handle<ScopeInfo> scope_info) {

@@ -725,12 +725,11 @@ Handle<AccessorInfo> Accessors::MakeFunctionNameInfo(Isolate* isolate) {
 // Accessors::FunctionArguments
 //
 
+namespace {
 
-static Handle<Object> ArgumentsForInlinedFunction(
-    JavaScriptFrame* frame,
-    Handle<JSFunction> inlined_function,
-    int inlined_frame_index) {
-  Isolate* isolate = inlined_function->GetIsolate();
+Handle<JSObject> ArgumentsForInlinedFunction(JavaScriptFrame* frame,
+                                             int inlined_frame_index) {
+  Isolate* isolate = frame->isolate();
   Factory* factory = isolate->factory();
 
   TranslatedState translated_values(frame);
@@ -742,7 +741,9 @@ static Handle<Object> ArgumentsForInlinedFunction(
                                                          &argument_count);
   TranslatedFrame::iterator iter = translated_frame->begin();
 
-  // Skip the function.
+  // Materialize the function.
+  bool should_deoptimize = iter->IsMaterializedObject();
+  Handle<JSFunction> function = Handle<JSFunction>::cast(iter->GetValue());
   iter++;
 
   // Skip the receiver.
@@ -750,9 +751,8 @@ static Handle<Object> ArgumentsForInlinedFunction(
   argument_count--;
 
   Handle<JSObject> arguments =
-      factory->NewArgumentsObject(inlined_function, argument_count);
+      factory->NewArgumentsObject(function, argument_count);
   Handle<FixedArray> array = factory->NewFixedArray(argument_count);
-  bool should_deoptimize = false;
   for (int i = 0; i < argument_count; ++i) {
     // If we materialize any object, we should deoptimize the frame because we
     // might alias an object that was eliminated by escape analysis.
@@ -771,9 +771,7 @@ static Handle<Object> ArgumentsForInlinedFunction(
   return arguments;
 }
 
-
-static int FindFunctionInFrame(JavaScriptFrame* frame,
-                               Handle<JSFunction> function) {
+int FindFunctionInFrame(JavaScriptFrame* frame, Handle<JSFunction> function) {
   std::vector<FrameSummary> frames;
   frame->Summarize(&frames);
   for (size_t i = frames.size(); i != 0; i--) {
@@ -784,69 +782,66 @@ static int FindFunctionInFrame(JavaScriptFrame* frame,
   return -1;
 }
 
+Handle<JSObject> GetFrameArguments(Isolate* isolate,
+                                   JavaScriptFrameIterator* it,
+                                   int function_index) {
+  JavaScriptFrame* frame = it->frame();
 
-namespace {
-
-Handle<Object> GetFunctionArguments(Isolate* isolate,
-                                    Handle<JSFunction> function) {
-  // Find the top invocation of the function by traversing frames.
-  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    int function_index = FindFunctionInFrame(frame, function);
-    if (function_index < 0) continue;
-
-    if (function_index > 0) {
-      // The function in question was inlined.  Inlined functions have the
-      // correct number of arguments and no allocated arguments object, so
-      // we can construct a fresh one by interpreting the function's
-      // deoptimization input data.
-      return ArgumentsForInlinedFunction(frame, function, function_index);
-    }
-
-    // Find the frame that holds the actual arguments passed to the function.
-    if (it.frame()->has_adapted_arguments()) {
-      it.AdvanceOneFrame();
-      DCHECK(it.frame()->is_arguments_adaptor());
-    }
-    frame = it.frame();
-
-    // Get the number of arguments and construct an arguments object
-    // mirror for the right frame.
-    const int length = frame->ComputeParametersCount();
-    Handle<JSObject> arguments = isolate->factory()->NewArgumentsObject(
-        function, length);
-    Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
-
-    // Copy the parameters to the arguments object.
-    DCHECK(array->length() == length);
-    for (int i = 0; i < length; i++) {
-      Object* value = frame->GetParameter(i);
-      if (value->IsTheHole(isolate)) {
-        // Generators currently use holes as dummy arguments when resuming.  We
-        // must not leak those.
-        DCHECK(IsResumableFunction(function->shared()->kind()));
-        value = isolate->heap()->undefined_value();
-      }
-      array->set(i, value);
-    }
-    arguments->set_elements(*array);
-
-    // Return the freshly allocated arguments object.
-    return arguments;
+  if (function_index > 0) {
+    // The function in question was inlined.  Inlined functions have the
+    // correct number of arguments and no allocated arguments object, so
+    // we can construct a fresh one by interpreting the function's
+    // deoptimization input data.
+    return ArgumentsForInlinedFunction(frame, function_index);
   }
 
-  // No frame corresponding to the given function found. Return null.
-  return isolate->factory()->null_value();
+  // Find the frame that holds the actual arguments passed to the function.
+  if (it->frame()->has_adapted_arguments()) {
+    it->AdvanceOneFrame();
+    DCHECK(it->frame()->is_arguments_adaptor());
+  }
+  frame = it->frame();
+
+  // Get the number of arguments and construct an arguments object
+  // mirror for the right frame and the underlying function.
+  const int length = frame->ComputeParametersCount();
+  Handle<JSFunction> function(frame->function(), isolate);
+  Handle<JSObject> arguments =
+      isolate->factory()->NewArgumentsObject(function, length);
+  Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
+
+  // Copy the parameters to the arguments object.
+  DCHECK(array->length() == length);
+  for (int i = 0; i < length; i++) {
+    Object* value = frame->GetParameter(i);
+    if (value->IsTheHole(isolate)) {
+      // Generators currently use holes as dummy arguments when resuming.  We
+      // must not leak those.
+      DCHECK(IsResumableFunction(function->shared()->kind()));
+      value = isolate->heap()->undefined_value();
+    }
+    array->set(i, value);
+  }
+  arguments->set_elements(*array);
+
+  // Return the freshly allocated arguments object.
+  return arguments;
 }
 
 }  // namespace
 
-
-Handle<JSObject> Accessors::FunctionGetArguments(Handle<JSFunction> function) {
-  Handle<Object> arguments =
-      GetFunctionArguments(function->GetIsolate(), function);
-  CHECK(arguments->IsJSObject());
-  return Handle<JSObject>::cast(arguments);
+Handle<JSObject> Accessors::FunctionGetArguments(JavaScriptFrame* frame,
+                                                 int inlined_jsframe_index) {
+  Isolate* isolate = frame->isolate();
+  Address requested_frame_fp = frame->fp();
+  // Forward a frame iterator to the requested frame. This is needed because we
+  // potentially need for advance it to the arguments adaptor frame later.
+  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
+    if (it.frame()->fp() != requested_frame_fp) continue;
+    return GetFrameArguments(isolate, &it, inlined_jsframe_index);
+  }
+  UNREACHABLE();  // Requested frame not found.
+  return Handle<JSObject>();
 }
 
 
@@ -857,10 +852,18 @@ void Accessors::FunctionArgumentsGetter(
   HandleScope scope(isolate);
   Handle<JSFunction> function =
       Handle<JSFunction>::cast(Utils::OpenHandle(*info.Holder()));
-  Handle<Object> result =
-      function->shared()->native()
-          ? Handle<Object>::cast(isolate->factory()->null_value())
-          : GetFunctionArguments(isolate, function);
+  Handle<Object> result = isolate->factory()->null_value();
+  if (!function->shared()->native()) {
+    // Find the top invocation of the function by traversing frames.
+    for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
+      JavaScriptFrame* frame = it.frame();
+      int function_index = FindFunctionInFrame(frame, function);
+      if (function_index >= 0) {
+        result = GetFrameArguments(isolate, &it, function_index);
+        break;
+      }
+    }
+  }
   info.GetReturnValue().Set(Utils::ToLocal(result));
 }
 

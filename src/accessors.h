@@ -18,6 +18,7 @@ class AccessorInfo;
 template <typename T>
 class Handle;
 class FieldIndex;
+class JavaScriptFrame;
 
 // The list of accessor descriptors. This is a second-order macro
 // taking a macro to be applied to all accessor descriptor names.
@@ -78,8 +79,11 @@ class Accessors : public AllStatic {
   static Handle<AccessorInfo> MakeModuleNamespaceEntryInfo(Isolate* isolate,
                                                            Handle<String> name);
 
-  // Accessor functions called directly from the runtime system.
-  static Handle<JSObject> FunctionGetArguments(Handle<JSFunction> object);
+  // Accessor function called directly from the runtime system. Returns the
+  // newly materialized arguments object for the given {frame}. Note that for
+  // optimized frames it is possible to specify an {inlined_jsframe_index}.
+  static Handle<JSObject> FunctionGetArguments(JavaScriptFrame* frame,
+                                               int inlined_jsframe_index);
 
   // Returns true for properties that are accessors to object fields.
   // If true, the matching FieldIndex is returned through |field_index|.

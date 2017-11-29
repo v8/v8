@@ -159,8 +159,7 @@ DebugEvaluate::ContextBuilder::ContextBuilder(Isolate* isolate,
       Handle<StringSet> non_locals = it.GetNonLocals();
       MaterializeReceiver(materialized, local_context, local_function,
                           non_locals);
-      frame_inspector.MaterializeStackLocals(materialized, local_function,
-                                             true);
+      MaterializeStackLocals(materialized, local_function, &frame_inspector);
       ContextChainElement context_chain_element;
       context_chain_element.scope_info = it.CurrentScopeInfo();
       context_chain_element.materialized_object = materialized;
@@ -240,6 +239,38 @@ void DebugEvaluate::ContextBuilder::MaterializeReceiver(
     recv = handle(frame_->receiver(), isolate_);
   }
   JSObject::SetOwnPropertyIgnoreAttributes(target, name, recv, NONE).Check();
+}
+
+void DebugEvaluate::ContextBuilder::MaterializeStackLocals(
+    Handle<JSObject> target, Handle<JSFunction> function,
+    FrameInspector* frame_inspector) {
+  bool materialize_arguments_object = true;
+
+  // Do not materialize the arguments object for eval or top-level code.
+  if (function->shared()->is_toplevel()) materialize_arguments_object = false;
+
+  // First materialize stack locals (modulo arguments object).
+  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<ScopeInfo> scope_info(shared->scope_info());
+  frame_inspector->MaterializeStackLocals(target, scope_info,
+                                          materialize_arguments_object);
+
+  // Then materialize the arguments object.
+  if (materialize_arguments_object) {
+    // Skip if "arguments" is already taken and wasn't optimized out (which
+    // causes {MaterializeStackLocals} above to skip the local variable).
+    Handle<String> arguments_str = isolate_->factory()->arguments_string();
+    Maybe<bool> maybe = JSReceiver::HasOwnProperty(target, arguments_str);
+    DCHECK(maybe.IsJust());
+    if (maybe.FromJust()) return;
+
+    // FunctionGetArguments can't throw an exception.
+    Handle<JSObject> arguments =
+        Accessors::FunctionGetArguments(frame_, inlined_jsframe_index_);
+    JSObject::SetOwnPropertyIgnoreAttributes(target, arguments_str, arguments,
+                                             NONE)
+        .Check();
+  }
 }
 
 namespace {
