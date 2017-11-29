@@ -47,3 +47,17 @@ load('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(3, mem1[0]);
   assertEquals(0, mem2[0]);
 })();
+
+(function exportImportedFunction() {
+  print(arguments.callee.name);
+  const builder1 = new WasmModuleBuilder();
+  builder1.addFunction('foo', kSig_v_v).addBody([]).exportAs('foo');
+  const instance1 = builder1.instantiate();
+
+  const builder2 = new WasmModuleBuilder();
+  const imp_idx = builder2.addImport('A', 'foo', kSig_v_v);
+  builder2.addExport('foo', imp_idx);
+  const instance2 = builder2.instantiate({A: instance1.exports});
+
+  instance2.exports.foo();
+})();

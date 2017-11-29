@@ -1041,9 +1041,9 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazyOnGCHeap(
   // remember that code object.
   Handle<Code> wasm_to_wasm_callee;
 
-  if (is_js_to_wasm) {
-    non_compiled_functions.push_back({0, exported_func_index});
-  } else if (patch_caller) {
+  // For js-to-wasm wrappers, don't iterate the reloc info. There is just one
+  // call site in there anyway.
+  if (patch_caller && !is_js_to_wasm) {
     DisallowHeapAllocation no_gc;
     SourcePositionTableIterator source_pos_iterator(
         caller->SourcePositionTable());
@@ -1111,7 +1111,7 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazyOnGCHeap(
       isolate);
   DCHECK_EQ(Code::WASM_FUNCTION, compiled_function->kind());
 
-  if (is_js_to_wasm || patch_caller) {
+  if (patch_caller || is_js_to_wasm) {
     DisallowHeapAllocation no_gc;
     // TODO(6792): No longer needed once WebAssembly code is off heap.
     CodeSpaceMemoryModificationScope modification_scope(isolate->heap());
@@ -1124,27 +1124,30 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazyOnGCHeap(
           Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
       if (callee->builtin_index() != Builtins::kWasmCompileLazy) {
         // If the callee is the wasm-to-wasm wrapper triggering this lazy
-        // compilation, patch it.
-        if (!wasm_to_wasm_callee.is_null() && callee == *wasm_to_wasm_callee) {
+        // compilation, patch it. If is_js_to_wasm is set, we did not set the
+        // wasm_to_wasm_callee, so just check the code kind (this is the only
+        // call in that wrapper anyway).
+        if ((is_js_to_wasm && callee->kind() == Code::WASM_TO_WASM_FUNCTION) ||
+            (!wasm_to_wasm_callee.is_null() &&
+             callee == *wasm_to_wasm_callee)) {
           TRACE_LAZY("Patching wasm-to-wasm wrapper.\n");
           PatchWasmToWasmWrapper(isolate, callee, *compiled_function);
           ++patched;
         }
         continue;
       }
-      DCHECK_GT(non_compiled_functions.size(), idx);
-      int called_func_index = non_compiled_functions[idx].func_index;
+      int called_func_index = func_to_return_idx;
+      if (!is_js_to_wasm) {
+        DCHECK_GT(non_compiled_functions.size(), idx);
+        called_func_index = non_compiled_functions[idx].func_index;
+        DCHECK_EQ(non_compiled_functions[idx].offset,
+                  it.rinfo()->pc() - caller->instruction_start());
+        ++idx;
+      }
       // Check that the callee agrees with our assumed called_func_index.
       DCHECK_IMPLIES(callee->deoptimization_data()->length() > 0,
                      Smi::ToInt(callee->deoptimization_data()->get(1)) ==
                          called_func_index);
-      if (is_js_to_wasm) {
-        DCHECK_EQ(func_to_return_idx, called_func_index);
-      } else {
-        DCHECK_EQ(non_compiled_functions[idx].offset,
-                  it.rinfo()->pc() - caller->instruction_start());
-      }
-      ++idx;
       Handle<Code> callee_compiled(
           Code::cast(compiled_module->code_table()->get(called_func_index)));
       if (callee_compiled->builtin_index() == Builtins::kWasmCompileLazy) {
