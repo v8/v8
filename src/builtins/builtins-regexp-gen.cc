@@ -152,7 +152,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
 
   // Calculate the substring of the first match before creating the result array
   // to avoid an unnecessary write barrier storing the first result.
-  Node* const first = SubString(context, string, start, end);
+  Node* const first = SubString(string, start, end);
 
   Node* const result =
       AllocateRegExpResult(context, num_results, start, string);
@@ -188,7 +188,7 @@ Node* RegExpBuiltinsAssembler::ConstructNewResultFromMatchInfo(
     Node* const from_cursor_plus1 = IntPtrAdd(from_cursor, IntPtrConstant(1));
     Node* const end = LoadFixedArrayElement(match_info, from_cursor_plus1);
 
-    Node* const capture = SubString(context, string, start, end);
+    Node* const capture = SubString(string, start, end);
     StoreFixedArrayElement(result_elements, to_cursor, capture);
     Goto(&next_iter);
 
@@ -2008,7 +2008,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeMatchBody(Node* const context,
         Node* const match_to = LoadFixedArrayElement(
             match_indices, RegExpMatchInfo::kFirstCaptureIndex + 1);
 
-        Node* match = SubString(context, string, match_from, match_to);
+        Node* match = SubString(string, match_from, match_to);
         var_match.Bind(match);
 
         Goto(&if_didmatch);
@@ -2430,7 +2430,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
       Node* const from = last_matched_until;
       Node* const to = match_from;
 
-      Node* const substr = SubString(context, string, from, to);
+      Node* const substr = SubString(string, from, to);
       array.Push(substr);
 
       GotoIf(WordEqual(array.length(), int_limit), &out);
@@ -2469,7 +2469,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
 
         BIND(&select_capture);
         {
-          Node* const substr = SubString(context, string, from, to);
+          Node* const substr = SubString(string, from, to);
           var_value.Bind(substr);
           Goto(&store_value);
         }
@@ -2507,7 +2507,7 @@ void RegExpBuiltinsAssembler::RegExpPrototypeSplitBody(Node* const context,
     Node* const from = var_last_matched_until.value();
     Node* const to = string_length;
 
-    Node* const substr = SubString(context, string, from, to);
+    Node* const substr = SubString(string, from, to);
     array.Push(substr);
 
     Goto(&out);
@@ -2893,7 +2893,7 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
         // TODO(jgruber): We could skip many of the checks that using SubString
         // here entails.
         Node* const first_part =
-            SubString(context, string, var_last_match_end.value(), match_start);
+            SubString(string, var_last_match_end.value(), match_start);
 
         Node* const result = StringAdd(context, var_result.value(), first_part);
         var_result.Bind(result);
@@ -2903,7 +2903,7 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
       BIND(&if_replaceisnotempty);
       {
         Node* const first_part =
-            SubString(context, string, var_last_match_end.value(), match_start);
+            SubString(string, var_last_match_end.value(), match_start);
 
         Node* result = StringAdd(context, var_result.value(), first_part);
         result = StringAdd(context, result, replace_string);
@@ -2932,7 +2932,7 @@ Node* RegExpBuiltinsAssembler::ReplaceSimpleStringFastPath(
   {
     TNode<Smi> const string_length = LoadStringLengthAsSmi(string);
     Node* const last_part =
-        SubString(context, string, var_last_match_end.value(), string_length);
+        SubString(string, var_last_match_end.value(), string_length);
     Node* const result = StringAdd(context, var_result.value(), last_part);
     var_result.Bind(result);
     Goto(&out);

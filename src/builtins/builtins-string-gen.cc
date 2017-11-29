@@ -1773,8 +1773,7 @@ TF_BUILTIN(StringPrototypeSlice, StringBuiltinsAssembler) {
     GotoIf(SmiLessThanOrEqual(var_end.value(), var_start.value()),
            &return_emptystring);
     Node* const result =
-        SubString(context, subject_string, var_start.value(), var_end.value(),
-                  SubStringFlags::FROM_TO_ARE_BOUNDED);
+        SubString(subject_string, var_start.value(), var_end.value());
     args.PopAndReturn(result);
   }
 
@@ -1972,7 +1971,7 @@ TF_BUILTIN(StringPrototypeSubstr, StringBuiltinsAssembler) {
   BIND(&out);
   {
     TNode<Smi> const end = SmiAdd(var_start, var_result_length);
-    Node* const result = SubString(context, string, var_start, end);
+    Node* const result = SubString(string, var_start, end);
     args.PopAndReturn(result);
   }
 }
@@ -2027,12 +2026,11 @@ TNode<Smi> StringBuiltinsAssembler::ToSmiBetweenZeroAnd(
 }
 
 TF_BUILTIN(SubString, CodeStubAssembler) {
-  Node* context = Parameter(Descriptor::kContext);
   Node* string = Parameter(Descriptor::kString);
   Node* from = Parameter(Descriptor::kFrom);
   Node* to = Parameter(Descriptor::kTo);
 
-  Return(SubString(context, string, from, to));
+  Return(SubString(string, from, to));
 }
 
 // ES6 #sec-string.prototype.substring
@@ -2085,8 +2083,7 @@ TF_BUILTIN(StringPrototypeSubstring, StringBuiltinsAssembler) {
 
   BIND(&out);
   {
-    Node* result =
-        SubString(context, string, var_start.value(), var_end.value());
+    Node* result = SubString(string, var_start.value(), var_end.value());
     args.PopAndReturn(result);
   }
 }
@@ -2140,9 +2137,8 @@ void StringTrimAssembler::Generate(String::TrimMode mode,
         IntPtrConstant(-1), -1, &return_emptystring);
   }
 
-  arguments.PopAndReturn(SubString(context, string, SmiTag(var_start),
-                                   SmiAdd(SmiTag(var_end), SmiConstant(1)),
-                                   SubStringFlags::FROM_TO_ARE_BOUNDED));
+  arguments.PopAndReturn(SubString(string, SmiTag(var_start),
+                                   SmiAdd(SmiTag(var_end), SmiConstant(1))));
 
   BIND(&if_runtime);
   arguments.PopAndReturn(

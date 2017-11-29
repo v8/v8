@@ -1150,14 +1150,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // Return the single character string with only {code}.
   Node* StringFromCharCode(Node* code);
 
-  enum class SubStringFlags { NONE, FROM_TO_ARE_BOUNDED };
-
   // Return a new string object which holds a substring containing the range
   // [from,to[ of string.  |from| and |to| are expected to be tagged.
-  // If flags has the value FROM_TO_ARE_BOUNDED then from and to are in
-  // the range [0, string-length)
-  Node* SubString(Node* context, Node* string, Node* from, Node* to,
-                  SubStringFlags flags = SubStringFlags::NONE);
+  Node* SubString(Node* string, Node* from, Node* to);
 
   // Return a new string object produced by concatenating |first| with |second|.
   Node* StringAdd(Node* context, Node* first, Node* second,
@@ -1920,8 +1915,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   Node* CollectFeedbackForString(Node* instance_type);
   void GenerateEqual_Same(Node* value, Label* if_equal, Label* if_notequal,
                           Variable* var_type_feedback = nullptr);
-  Node* AllocAndCopyStringCharacters(Node* context, Node* from,
-                                     Node* from_instance_type,
+  Node* AllocAndCopyStringCharacters(Node* from, Node* from_instance_type,
                                      TNode<IntPtrT> from_index,
                                      TNode<Smi> character_count);
 
