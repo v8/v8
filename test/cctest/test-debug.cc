@@ -3951,6 +3951,36 @@ TEST(DebugBreak) {
   CheckDebuggerUnloaded();
 }
 
+TEST(DebugBreakWithoutJS) {
+  i::FLAG_stress_compaction = false;
+#ifdef VERIFY_HEAP
+  i::FLAG_verify_heap = true;
+#endif
+  DebugLocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  v8::Local<v8::Context> context = env.context();
+  v8::HandleScope scope(isolate);
+
+  // Register a debug event listener which sets the break flag and counts.
+  SetDebugEventListener(isolate, DebugEventBreak);
+
+  // Set the debug break flag.
+  v8::debug::DebugBreak(env->GetIsolate());
+
+  v8::Local<v8::String> json = v8_str("[1]");
+  v8::Local<v8::Value> parsed = v8::JSON::Parse(context, json).ToLocalChecked();
+  CHECK(v8::JSON::Stringify(context, parsed)
+            .ToLocalChecked()
+            ->Equals(context, json)
+            .FromJust());
+  CHECK_EQ(0, break_point_hit_count);
+  CompileRun("");
+  CHECK_EQ(1, break_point_hit_count);
+
+  // Get rid of the debug event listener.
+  SetDebugEventListener(isolate, nullptr);
+  CheckDebuggerUnloaded();
+}
 
 // Test to ensure that JavaScript code keeps running while the debug break
 // through the stack limit flag is set but breaks are disabled.

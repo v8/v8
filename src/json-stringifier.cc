@@ -94,6 +94,7 @@ MaybeHandle<Object> JsonStringifier::Stringify(Handle<Object> object,
   if (!gap->IsUndefined(isolate_) && !InitializeGap(gap)) {
     return MaybeHandle<Object>();
   }
+  PostponeInterruptsScope no_debug_breaks(isolate_, StackGuard::DEBUGBREAK);
   Result result = SerializeObject(object);
   if (result == UNCHANGED) return factory()->undefined_value();
   if (result == SUCCESS) return builder_.Finish();
