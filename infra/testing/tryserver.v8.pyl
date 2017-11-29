@@ -3,7 +3,8 @@
 # found in the LICENSE file.
 
 {
-  'v8_linux64_rel_ng_triggered': [
-    {'name': 'benchmarks', 'variant': 'default', 'shards': 1},
-  ],
+  ### Example configuration for trybots (please keep as reference).
+  # 'v8_linux64_rel_ng_triggered': [
+  #   {'name': 'benchmarks', 'variant': 'default', 'shards': 1},
+  # ],
 }

@@ -34,3 +34,17 @@ Example:
   ],
 }
 ```
+
+## Guidelines
+
+Please keep trybots and continuous bots in sync. E.g. add the same configuration
+for the release and debug CI bots and the corresponding trybot (where
+applicable). E.g.
+
+```
+tryserver.v8:
+  v8_linux64_rel_ng_triggered
+client.v8:
+  V8 Linux64
+  V8 Linux64 - debug
+```

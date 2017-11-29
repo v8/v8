@@ -3,10 +3,11 @@
 # found in the LICENSE file.
 
 {
-  'V8 Linux64': [
-    {'name': 'benchmarks', 'variant': 'default', 'shards': 1},
-  ],
-  'V8 Linux64 - debug': [
-    {'name': 'benchmarks', 'variant': 'default', 'shards': 1},
-  ],
+  ### Example configuration for CI bots (please keep as reference).
+  # 'V8 Linux64': [
+  #   {'name': 'benchmarks', 'variant': 'default', 'shards': 1},
+  # ],
+  # 'V8 Linux64 - debug': [
+  #   {'name': 'benchmarks', 'variant': 'default', 'shards': 1},
+  # ],
 }
