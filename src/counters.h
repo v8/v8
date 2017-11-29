@@ -950,20 +950,18 @@ class RuntimeCallStats final : public ZoneObject {
 
   // Starting measuring the time for a function. This will establish the
   // connection to the parent counter for properly calculating the own times.
-  V8_EXPORT_PRIVATE static void Enter(RuntimeCallStats* stats,
-                                      RuntimeCallTimer* timer,
-                                      RuntimeCallCounterId counter_id);
+  V8_EXPORT_PRIVATE void Enter(RuntimeCallTimer* timer,
+                               RuntimeCallCounterId counter_id);
 
   // Leave a scope for a measured runtime function. This will properly add
   // the time delta to the current_counter and subtract the delta from its
   // parent.
-  V8_EXPORT_PRIVATE static void Leave(RuntimeCallStats* stats,
-                                      RuntimeCallTimer* timer);
+  V8_EXPORT_PRIVATE void Leave(RuntimeCallTimer* timer);
 
   // Set counter id for the innermost measurement. It can be used to refine
   // event kind when a runtime entry counter is too generic.
-  V8_EXPORT_PRIVATE static void CorrectCurrentCounterId(
-      RuntimeCallStats* stats, RuntimeCallCounterId counter_id);
+  V8_EXPORT_PRIVATE void CorrectCurrentCounterId(
+      RuntimeCallCounterId counter_id);
 
   V8_EXPORT_PRIVATE void Reset();
   // Add all entries from another stats object.
@@ -1000,9 +998,8 @@ class RuntimeCallStats final : public ZoneObject {
 
 #define CHANGE_CURRENT_RUNTIME_COUNTER(runtime_call_stats, counter_id) \
   do {                                                                 \
-    if (V8_UNLIKELY(FLAG_runtime_stats)) {                             \
-      RuntimeCallStats::CorrectCurrentCounterId(runtime_call_stats,    \
-                                                counter_id);           \
+    if (V8_UNLIKELY(FLAG_runtime_stats) && runtime_call_stats) {       \
+      runtime_call_stats->CorrectCurrentCounterId(counter_id);         \
     }                                                                  \
   } while (false)
 
@@ -1025,12 +1022,12 @@ class RuntimeCallTimerScope {
                                RuntimeCallCounterId counter_id) {
     if (V8_LIKELY(!FLAG_runtime_stats || stats == nullptr)) return;
     stats_ = stats;
-    RuntimeCallStats::Enter(stats_, &timer_, counter_id);
+    stats_->Enter(&timer_, counter_id);
   }
 
   inline ~RuntimeCallTimerScope() {
     if (V8_UNLIKELY(stats_ != nullptr)) {
-      RuntimeCallStats::Leave(stats_, &timer_);
+      stats_->Leave(&timer_);
     }
   }
 
@@ -1554,7 +1551,7 @@ RuntimeCallTimerScope::RuntimeCallTimerScope(Isolate* isolate,
                                              RuntimeCallCounterId counter_id) {
   if (V8_LIKELY(!FLAG_runtime_stats)) return;
   stats_ = isolate->counters()->runtime_call_stats();
-  RuntimeCallStats::Enter(stats_, &timer_, counter_id);
+  stats_->Enter(&timer_, counter_id);
 }
 
 }  // namespace internal

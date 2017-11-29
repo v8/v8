@@ -2717,8 +2717,9 @@ FunctionLiteral* Parser::ParseFunctionLiteral(
                            : RuntimeCallCounterId::
                                  kPreParseBackgroundNoVariableResolution;
         }
-        RuntimeCallStats::CorrectCurrentCounterId(runtime_call_stats_,
-                                                  counter_id);
+        if (runtime_call_stats_) {
+          runtime_call_stats_->CorrectCurrentCounterId(counter_id);
+        }
       }
     }
 

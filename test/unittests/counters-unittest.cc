@@ -302,7 +302,7 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimer) {
   RuntimeCallTimer timer;
 
   Sleep(50);
-  RuntimeCallStats::Enter(stats(), &timer, counter_id());
+  stats()->Enter(&timer, counter_id());
   EXPECT_EQ(counter(), timer.counter());
   EXPECT_EQ(nullptr, timer.parent());
   EXPECT_TRUE(timer.IsStarted());
@@ -310,7 +310,7 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimer) {
 
   Sleep(100);
 
-  RuntimeCallStats::Leave(stats(), &timer);
+  stats()->Leave(&timer);
   Sleep(50);
   EXPECT_FALSE(timer.IsStarted());
   EXPECT_EQ(1, counter()->count());
@@ -321,7 +321,7 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerSubTimer) {
   RuntimeCallTimer timer;
   RuntimeCallTimer timer2;
 
-  RuntimeCallStats::Enter(stats(), &timer, counter_id());
+  stats()->Enter(&timer, counter_id());
   EXPECT_TRUE(timer.IsStarted());
   EXPECT_FALSE(timer2.IsStarted());
   EXPECT_EQ(counter(), timer.counter());
@@ -330,7 +330,7 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerSubTimer) {
 
   Sleep(50);
 
-  RuntimeCallStats::Enter(stats(), &timer2, counter_id2());
+  stats()->Enter(&timer2, counter_id2());
   // timer 1 is paused, while timer 2 is active.
   EXPECT_TRUE(timer2.IsStarted());
   EXPECT_EQ(counter(), timer.counter());
@@ -340,7 +340,7 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerSubTimer) {
   EXPECT_EQ(&timer2, stats()->current_timer());
 
   Sleep(100);
-  RuntimeCallStats::Leave(stats(), &timer2);
+  stats()->Leave(&timer2);
 
   // The subtimer subtracts its time from the parent timer.
   EXPECT_TRUE(timer.IsStarted());
@@ -353,7 +353,7 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerSubTimer) {
 
   Sleep(100);
 
-  RuntimeCallStats::Leave(stats(), &timer);
+  stats()->Leave(&timer);
   EXPECT_FALSE(timer.IsStarted());
   EXPECT_EQ(1, counter()->count());
   EXPECT_EQ(1, counter2()->count());
@@ -366,13 +366,13 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerRecursive) {
   RuntimeCallTimer timer;
   RuntimeCallTimer timer2;
 
-  RuntimeCallStats::Enter(stats(), &timer, counter_id());
+  stats()->Enter(&timer, counter_id());
   EXPECT_EQ(counter(), timer.counter());
   EXPECT_EQ(nullptr, timer.parent());
   EXPECT_TRUE(timer.IsStarted());
   EXPECT_EQ(&timer, stats()->current_timer());
 
-  RuntimeCallStats::Enter(stats(), &timer2, counter_id());
+  stats()->Enter(&timer2, counter_id());
   EXPECT_EQ(counter(), timer2.counter());
   EXPECT_EQ(nullptr, timer.parent());
   EXPECT_EQ(&timer, timer2.parent());
@@ -381,7 +381,7 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerRecursive) {
 
   Sleep(50);
 
-  RuntimeCallStats::Leave(stats(), &timer2);
+  stats()->Leave(&timer2);
   EXPECT_EQ(nullptr, timer.parent());
   EXPECT_FALSE(timer2.IsStarted());
   EXPECT_TRUE(timer.IsStarted());
@@ -390,7 +390,7 @@ TEST_F(RuntimeCallStatsTest, RuntimeCallTimerRecursive) {
 
   Sleep(100);
 
-  RuntimeCallStats::Leave(stats(), &timer);
+  stats()->Leave(&timer);
   EXPECT_FALSE(timer.IsStarted());
   EXPECT_EQ(2, counter()->count());
   EXPECT_EQ(150, counter()->time().InMicroseconds());
