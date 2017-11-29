@@ -2705,6 +2705,60 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
   return NoChange();
 }
 
+// ES section #sec-string.prototype.slice
+Reduction JSBuiltinReducer::ReduceStringSlice(Node* node) {
+  if (Node* receiver = GetStringWitness(node)) {
+    Node* start = node->op()->ValueInputCount() >= 3
+                      ? NodeProperties::GetValueInput(node, 2)
+                      : jsgraph()->UndefinedConstant();
+    Type* start_type = NodeProperties::GetType(start);
+    Node* end = node->op()->ValueInputCount() >= 4
+                    ? NodeProperties::GetValueInput(node, 3)
+                    : jsgraph()->UndefinedConstant();
+    Type* end_type = NodeProperties::GetType(end);
+    Node* effect = NodeProperties::GetEffectInput(node);
+    Node* control = NodeProperties::GetControlInput(node);
+
+    if (start_type->Is(type_cache_.kSingletonMinusOne) &&
+        end_type->Is(Type::Undefined())) {
+      Node* receiver_length = effect = graph()->NewNode(
+          simplified()->LoadField(AccessBuilder::ForStringLength()), receiver,
+          effect, control);
+
+      Node* check =
+          graph()->NewNode(simplified()->NumberEqual(), receiver_length,
+                           jsgraph()->ZeroConstant());
+      Node* branch = graph()->NewNode(common()->Branch(BranchHint::kFalse),
+                                      check, control);
+
+      Node* if_true = graph()->NewNode(common()->IfTrue(), branch);
+      Node* vtrue = jsgraph()->EmptyStringConstant();
+
+      Node* if_false = graph()->NewNode(common()->IfFalse(), branch);
+      Node* vfalse;
+      {
+        // We need to convince TurboFan that {receiver_length}-1 is a valid
+        // Unsigned32 value, so we just apply NumberToUint32 to the result
+        // of the subtraction, which is a no-op and merely acts as a marker.
+        Node* index =
+            graph()->NewNode(simplified()->NumberSubtract(), receiver_length,
+                             jsgraph()->OneConstant());
+        index = graph()->NewNode(simplified()->NumberToUint32(), index);
+        vfalse = graph()->NewNode(simplified()->StringCharAt(), receiver, index,
+                                  if_false);
+      }
+
+      control = graph()->NewNode(common()->Merge(2), if_true, if_false);
+      Node* value =
+          graph()->NewNode(common()->Phi(MachineRepresentation::kTagged, 2),
+                           vtrue, vfalse, control);
+      ReplaceWithValue(node, value, effect, control);
+      return Replace(value);
+    }
+  }
+  return NoChange();
+}
+
 Reduction JSBuiltinReducer::ReduceStringToLowerCaseIntl(Node* node) {
   if (Node* receiver = GetStringWitness(node)) {
     RelaxEffectsAndControls(node);
@@ -2975,6 +3029,8 @@ Reduction JSBuiltinReducer::Reduce(Node* node) {
       return ReduceStringIterator(node);
     case kStringIteratorNext:
       return ReduceStringIteratorNext(node);
+    case kStringSlice:
+      return ReduceStringSlice(node);
     case kStringToLowerCaseIntl:
       return ReduceStringToLowerCaseIntl(node);
     case kStringToUpperCaseIntl:
