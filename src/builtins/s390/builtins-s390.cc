@@ -1854,7 +1854,8 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   //                 Old FP                     <--- New FP
   //                 Argument Adapter SMI
   //                 Function
-  //                 ArgC as SMI                <--- New SP
+  //                 ArgC as SMI
+  //                 Padding                    <--- New SP
   __ lay(sp, MemOperand(sp, -5 * kPointerSize));
 
   // Cleanse the top nibble of 31-bit pointers.
@@ -1864,8 +1865,9 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ StoreP(r6, MemOperand(sp, 2 * kPointerSize));
   __ StoreP(r3, MemOperand(sp, 1 * kPointerSize));
   __ StoreP(r2, MemOperand(sp, 0 * kPointerSize));
-  __ la(fp, MemOperand(sp, StandardFrameConstants::kFixedFrameSizeFromFp +
-                               kPointerSize));
+  __ Push(Smi::kZero);  // Padding.
+  __ la(fp,
+        MemOperand(sp, ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp));
 }
 
 static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
@@ -1874,8 +1876,7 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   // -----------------------------------
   // Get the number of arguments passed (as a smi), tear down the frame and
   // then tear down the parameters.
-  __ LoadP(r3, MemOperand(fp, -(StandardFrameConstants::kFixedFrameSizeFromFp +
-                                kPointerSize)));
+  __ LoadP(r3, MemOperand(fp, ArgumentsAdaptorFrameConstants::kLengthOffset));
   int stack_adjustment = kPointerSize;  // adjust for receiver
   __ LeaveFrame(StackFrame::ARGUMENTS_ADAPTOR, stack_adjustment);
   __ SmiToPtrArrayOffset(r3, r3);
@@ -2522,8 +2523,9 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
     __ ShiftLeftP(r6, r4, Operand(kPointerSizeLog2));
     __ SubP(r6, fp, r6);
     // Adjust for frame.
-    __ SubP(r6, r6, Operand(StandardFrameConstants::kFixedFrameSizeFromFp +
-                            2 * kPointerSize));
+    __ SubP(r6, r6,
+            Operand(ArgumentsAdaptorFrameConstants::kFixedFrameSizeFromFp +
+                    kPointerSize));
 
     Label fill;
     __ bind(&fill);

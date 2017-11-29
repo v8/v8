@@ -217,7 +217,8 @@ class ArgumentsAdaptorFrameConstants : public TypedFrameConstants {
   // FP-relative.
   static const int kFunctionOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(0);
   static const int kLengthOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(1);
-  DEFINE_TYPED_FRAME_SIZES(2);
+  static const int kPaddingOffset = TYPED_FRAME_PUSHED_VALUE_OFFSET(2);
+  DEFINE_TYPED_FRAME_SIZES(3);
 };
 
 class BuiltinFrameConstants : public TypedFrameConstants {

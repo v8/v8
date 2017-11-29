@@ -1875,6 +1875,8 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   STATIC_ASSERT(kSmiTagSize == 1);
   __ lea(edi, Operand(eax, eax, times_1, kSmiTag));
   __ push(edi);
+
+  __ Push(Immediate(0));  // Padding.
 }
 
 static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
