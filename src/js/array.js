@@ -1354,7 +1354,6 @@ utils.Export(function(to) {
   to.ArrayPush = ArrayPush;
   to.ArrayToString = ArrayToString;
   to.ArrayValues = ArrayValues;
-  to.InnerArrayFindIndex = InnerArrayFindIndex;
   to.InnerArrayJoin = InnerArrayJoin;
   to.InnerArraySort = InnerArraySort;
   to.InnerArrayToLocaleString = InnerArrayToLocaleString;

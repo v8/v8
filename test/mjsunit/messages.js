@@ -175,6 +175,12 @@ for (constructor of typedArrayConstructors) {
     %ArrayBufferNeuter(ta.buffer);
     ta.find(() => {});
   }, "Cannot perform %TypedArray%.prototype.find on a detached ArrayBuffer", TypeError);
+
+  test(() => {
+    const ta = new constructor([1]);
+    %ArrayBufferNeuter(ta.buffer);
+    ta.findIndex(() => {});
+  }, "Cannot perform %TypedArray%.prototype.findIndex on a detached ArrayBuffer", TypeError);
 }
 
 // kFirstArgumentNotRegExp

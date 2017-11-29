@@ -19,7 +19,6 @@ var GlobalArray = global.Array;
 var GlobalArrayBuffer = global.ArrayBuffer;
 var GlobalArrayBufferPrototype = GlobalArrayBuffer.prototype;
 var GlobalObject = global.Object;
-var InnerArrayFindIndex;
 var InnerArrayJoin;
 var InnerArraySort;
 var InnerArrayToLocaleString;
@@ -65,7 +64,6 @@ var GlobalTypedArray = %object_get_prototype_of(GlobalUint8Array);
 utils.Import(function(from) {
   GetIterator = from.GetIterator;
   GetMethod = from.GetMethod;
-  InnerArrayFindIndex = from.InnerArrayFindIndex;
   InnerArrayJoin = from.InnerArrayJoin;
   InnerArraySort = from.InnerArraySort;
   InnerArrayToLocaleString = from.InnerArrayToLocaleString;
@@ -294,20 +292,6 @@ DEFINE_METHOD_LEN(
   },
   1  /* Set function length. */
 );
-
-// ES6 draft 07-15-13, section 22.2.3.11
-DEFINE_METHOD_LEN(
-  GlobalTypedArray.prototype,
-  findIndex(predicate, thisArg) {
-    ValidateTypedArray(this, "%TypedArray%.prototype.findIndex");
-
-    var length = %_TypedArrayGetLength(this);
-
-    return InnerArrayFindIndex(predicate, thisArg, this, length);
-  },
-  1  /* Set function length. */
-);
-
 
 // ES6 draft 05-18-15, section 22.2.3.25
 DEFINE_METHOD(
