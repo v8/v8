@@ -8029,8 +8029,8 @@ Node* CodeStubAssembler::BuildFastLoop(
                                         ? MachineType::PointerRepresentation()
                                         : MachineRepresentation::kTaggedSigned;
   VARIABLE(var, index_rep, start_index);
-  VariableList vars_copy(vars, zone());
-  vars_copy.Add(&var, zone());
+  VariableList vars_copy(vars.begin(), vars.end(), zone());
+  vars_copy.push_back(&var);
   Label loop(this, vars_copy);
   Label after_loop(this);
   // Introduce an explicit second check of the termination condition before the
@@ -8291,7 +8291,7 @@ Node* CodeStubAssembler::RelationalComparison(Operation op, Node* lhs,
     // Initialize the type feedback to None. The current feedback is combined
     // with the previous feedback.
     var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kNone));
-    loop_variable_list.Add(var_type_feedback, zone());
+    loop_variable_list.push_back(var_type_feedback);
   }
   Label loop(this, loop_variable_list);
   Goto(&loop);
@@ -8850,7 +8850,7 @@ Node* CodeStubAssembler::Equal(Node* left, Node* right, Node* context,
     // Initialize the type feedback to None. The current feedback is combined
     // with the previous feedback.
     var_type_feedback->Bind(SmiConstant(CompareOperationFeedback::kNone));
-    loop_variable_list.Add(var_type_feedback, zone());
+    loop_variable_list.push_back(var_type_feedback);
   }
   Label loop(this, loop_variable_list);
   Goto(&loop);

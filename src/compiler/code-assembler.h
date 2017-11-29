@@ -252,7 +252,7 @@ class Node;
 class RawMachineAssembler;
 class RawMachineLabel;
 
-typedef ZoneList<CodeAssemblerVariable*> CodeAssemblerVariableList;
+typedef ZoneVector<CodeAssemblerVariable*> CodeAssemblerVariableList;
 
 typedef std::function<void()> CodeAssemblerCallback;
 
@@ -1157,7 +1157,7 @@ class CodeAssemblerLabel {
       CodeAssembler* assembler,
       const CodeAssemblerVariableList& merged_variables,
       CodeAssemblerLabel::Type type = CodeAssemblerLabel::kNonDeferred)
-      : CodeAssemblerLabel(assembler, merged_variables.length(),
+      : CodeAssemblerLabel(assembler, merged_variables.size(),
                            &(merged_variables[0]), type) {}
   CodeAssemblerLabel(
       CodeAssembler* assembler, size_t count,
