@@ -90,20 +90,6 @@ Reduction JSCallReducer::ReduceBooleanConstructor(Node* node) {
   return Replace(value);
 }
 
-// ES6 section 20.1.1 The Number Constructor
-Reduction JSCallReducer::ReduceNumberConstructor(Node* node) {
-  DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
-  CallParameters const& p = CallParametersOf(node->op());
-
-  // Turn the {node} into a {JSToNumber} call.
-  DCHECK_LE(2u, p.arity());
-  Node* value = (p.arity() == 2) ? jsgraph()->ZeroConstant()
-                                 : NodeProperties::GetValueInput(node, 2);
-  NodeProperties::ReplaceValueInputs(node, value);
-  NodeProperties::ChangeOp(node, javascript()->ToNumber());
-  return Changed(node);
-}
-
 // ES section #sec-object-constructor
 Reduction JSCallReducer::ReduceObjectConstructor(Node* node) {
   DCHECK_EQ(IrOpcode::kJSCall, node->opcode());
@@ -1908,8 +1894,6 @@ Reduction JSCallReducer::ReduceJSCall(Node* node) {
           return ReduceFunctionPrototypeCall(node);
         case Builtins::kFunctionPrototypeHasInstance:
           return ReduceFunctionPrototypeHasInstance(node);
-        case Builtins::kNumberConstructor:
-          return ReduceNumberConstructor(node);
         case Builtins::kObjectConstructor:
           return ReduceObjectConstructor(node);
         case Builtins::kObjectGetPrototypeOf:
