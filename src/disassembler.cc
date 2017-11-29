@@ -17,6 +17,7 @@
 #include "src/objects-inl.h"
 #include "src/snapshot/serializer-common.h"
 #include "src/string-stream.h"
+#include "src/wasm/wasm-heap.h"
 
 namespace v8 {
 namespace internal {
@@ -37,19 +38,26 @@ class V8NameConverter: public disasm::NameConverter {
 
 
 const char* V8NameConverter::NameOfAddress(byte* pc) const {
-  const char* name =
-      code_ == nullptr ? nullptr : code_->GetIsolate()->builtins()->Lookup(pc);
-
-  if (name != nullptr) {
-    SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc), name);
-    return v8_buffer_.start();
-  }
-
   if (code_ != nullptr) {
+    Isolate* isolate = code_->GetIsolate();
+    const char* name = isolate->builtins()->Lookup(pc);
+
+    if (name != nullptr) {
+      SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc), name);
+      return v8_buffer_.start();
+    }
+
     int offs = static_cast<int>(pc - code_->instruction_start());
     // print as code offset, if it seems reasonable
     if (0 <= offs && offs < code_->instruction_size()) {
       SNPrintF(v8_buffer_, "%p  <+0x%x>", static_cast<void*>(pc), offs);
+      return v8_buffer_.start();
+    }
+
+    wasm::WasmCode* wasm_code = isolate->wasm_code_manager()->LookupCode(pc);
+    if (wasm_code != nullptr) {
+      SNPrintF(v8_buffer_, "%p  (%s)", static_cast<void*>(pc),
+               GetWasmCodeKindAsString(wasm_code->kind()));
       return v8_buffer_.start();
     }
   }

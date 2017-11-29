@@ -174,6 +174,9 @@ class V8_EXPORT_PRIVATE WasmCode final {
   bool is_liftoff_;
 };
 
+// Return a textual description of the kind.
+const char* GetWasmCodeKindAsString(WasmCode::Kind);
+
 class WasmCodeManager;
 
 // Note that we currently need to add code on the main thread, because we may

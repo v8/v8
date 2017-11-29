@@ -190,6 +190,26 @@ void WasmCode::Print(Isolate* isolate) const {
   Disassemble(isolate, "", os);
 }
 
+const char* GetWasmCodeKindAsString(WasmCode::Kind kind) {
+  switch (kind) {
+    case WasmCode::Function:
+      return "wasm function";
+    case WasmCode::WasmToWasmWrapper:
+      return "wasm-to-wasm";
+    case WasmCode::WasmToJsWrapper:
+      return "wasm-to-js";
+    case WasmCode::LazyStub:
+      return "lazy-compile";
+    case WasmCode::InterpreterStub:
+      return "interpreter-entry";
+    case WasmCode::CopiedStub:
+      return "copied stub";
+    case WasmCode::Trampoline:
+      return "trampoline";
+  }
+  return "unknown kind";
+}
+
 WasmCode::~WasmCode() {
   // Depending on finalizer order, the WasmCompiledModule finalizer may be
   // called first, case in which we release here. If the InstanceFinalizer is
@@ -847,7 +867,11 @@ void WasmCodeManager::FreeNativeModuleMemories(NativeModule* native_module) {
 // easily identify those places where we know we have the first
 // instruction PC.
 WasmCode* WasmCodeManager::GetCodeFromStartAddress(Address pc) const {
-  return LookupCode(pc);
+  WasmCode* code = LookupCode(pc);
+  // This method can only be called for valid instruction start addresses.
+  DCHECK_NOT_NULL(code);
+  DCHECK_EQ(pc, code->instructions().start());
+  return code;
 }
 
 WasmCode* WasmCodeManager::LookupCode(Address pc) const {
