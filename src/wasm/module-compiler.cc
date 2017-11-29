@@ -883,11 +883,13 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
         static_cast<uint32_t>(func_index));
     if (existing_code != nullptr &&
         existing_code->kind() == wasm::WasmCode::Function) {
+      TRACE_LAZY("Function %d already compiled.\n", func_index);
       return existing_code;
     }
   } else {
     if (Code::cast(compiled_module->code_table()->get(func_index))->kind() ==
         Code::WASM_FUNCTION) {
+      TRACE_LAZY("Function %d already compiled.\n", func_index);
       return nullptr;
     }
   }
@@ -972,6 +974,8 @@ const wasm::WasmCode* LazyCompilationOrchestrator::CompileFunction(
   return !code_wrapper.IsCodeObject() ? code_wrapper.GetWasmCode() : nullptr;
 }
 
+namespace {
+
 int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
                                        int offset) {
   DCHECK(!iterator.done());
@@ -982,6 +986,37 @@ int AdvanceSourcePositionTableIterator(SourcePositionTableIterator& iterator,
   } while (!iterator.done() && iterator.code_offset() <= offset);
   return byte_pos;
 }
+
+Code* ExtractWasmToWasmCallee(Code* wasm_to_wasm) {
+  DCHECK_EQ(Code::WASM_TO_WASM_FUNCTION, wasm_to_wasm->kind());
+  // Find the one code target in this wrapper.
+  RelocIterator it(wasm_to_wasm, RelocInfo::kCodeTargetMask);
+  DCHECK(!it.done());
+  Code* callee = Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
+#ifdef DEBUG
+  it.next();
+  DCHECK(it.done());
+#endif
+  return callee;
+}
+
+void PatchWasmToWasmWrapper(Isolate* isolate, Code* wasm_to_wasm,
+                            Code* new_target) {
+  DCHECK_EQ(Code::WASM_TO_WASM_FUNCTION, wasm_to_wasm->kind());
+  // Find the one code target in this wrapper.
+  RelocIterator it(wasm_to_wasm, RelocInfo::kCodeTargetMask);
+  DCHECK(!it.done());
+  DCHECK_EQ(Builtins::kWasmCompileLazy,
+            Code::GetCodeFromTargetAddress(it.rinfo()->target_address())
+                ->builtin_index());
+  it.rinfo()->set_target_address(isolate, new_target->instruction_start());
+#ifdef DEBUG
+  it.next();
+  DCHECK(it.done());
+#endif
+}
+
+}  // namespace
 
 Handle<Code> LazyCompilationOrchestrator::CompileLazyOnGCHeap(
     Isolate* isolate, Handle<WasmInstanceObject> instance, Handle<Code> caller,
@@ -1002,6 +1037,10 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazyOnGCHeap(
       "patch caller: %d).\n",
       exported_func_index, call_offset, is_js_to_wasm, patch_caller);
 
+  // If this lazy compile stub is being called through a wasm-to-wasm wrapper,
+  // remember that code object.
+  Handle<Code> wasm_to_wasm_callee;
+
   if (is_js_to_wasm) {
     non_compiled_functions.push_back({0, exported_func_index});
   } else if (patch_caller) {
@@ -1017,25 +1056,48 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazyOnGCHeap(
         module_bytes->GetChars() + caller_module->module()
                                        ->functions[caller_func_info.func_index]
                                        .code.offset();
+    Code* lazy_callee = nullptr;
     for (RelocIterator it(*caller, RelocInfo::kCodeTargetMask); !it.done();
          it.next()) {
       Code* callee =
           Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-      if (callee->builtin_index() != Builtins::kWasmCompileLazy) continue;
       // TODO(clemensh): Introduce safe_cast<T, bool> which (D)CHECKS
       // (depending on the bool) against limits of T and then static_casts.
       size_t offset_l = it.rinfo()->pc() - caller->instruction_start();
       DCHECK_GE(kMaxInt, offset_l);
       int offset = static_cast<int>(offset_l);
+      // Call offset points to the instruction after the call. Remember the last
+      // called code object before that offset.
+      if (offset < call_offset) lazy_callee = callee;
+      if (callee->builtin_index() != Builtins::kWasmCompileLazy) continue;
       int byte_pos =
           AdvanceSourcePositionTableIterator(source_pos_iterator, offset);
       int called_func_index =
           ExtractDirectCallIndex(decoder, func_bytes + byte_pos);
       non_compiled_functions.push_back({offset, called_func_index});
-      // Call offset one instruction after the call. Remember the last called
-      // function before that offset.
       if (offset < call_offset) func_to_return_idx = called_func_index;
     }
+    TRACE_LAZY("Found %zu non-compiled functions in caller.\n",
+               non_compiled_functions.size());
+    DCHECK_NOT_NULL(lazy_callee);
+    if (lazy_callee->kind() == Code::WASM_TO_WASM_FUNCTION) {
+      TRACE_LAZY("Callee is a wasm-to-wasm.\n");
+      wasm_to_wasm_callee = handle(lazy_callee, isolate);
+      // If we call a wasm-to-wasm wrapper, then this wrapper actually
+      // tail-called the lazy compile stub. Find it in the wrapper.
+      lazy_callee = ExtractWasmToWasmCallee(lazy_callee);
+      // This lazy compile stub belongs to the instance that was passed.
+      DCHECK_EQ(*instance,
+                *GetWasmFunctionInfo(isolate, handle(lazy_callee, isolate))
+                     .instance.ToHandleChecked());
+      DCHECK_LE(2, lazy_callee->deoptimization_data()->length());
+      func_to_return_idx =
+          Smi::ToInt(lazy_callee->deoptimization_data()->get(1));
+    }
+    DCHECK_EQ(Builtins::kWasmCompileLazy, lazy_callee->builtin_index());
+    // There must be at least one call to patch (the one that lead to calling
+    // the lazy compile stub).
+    DCHECK(!non_compiled_functions.empty() || !wasm_to_wasm_callee.is_null());
   }
 
   TRACE_LAZY("Compiling function %d.\n", func_to_return_idx);
@@ -1043,6 +1105,11 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazyOnGCHeap(
   // TODO(clemensh): compile all functions in non_compiled_functions in
   // background, wait for func_to_return_idx.
   CompileFunction(isolate, instance, func_to_return_idx);
+
+  Handle<Code> compiled_function(
+      Code::cast(compiled_module->code_table()->get(func_to_return_idx)),
+      isolate);
+  DCHECK_EQ(Code::WASM_FUNCTION, compiled_function->kind());
 
   if (is_js_to_wasm || patch_caller) {
     DisallowHeapAllocation no_gc;
@@ -1055,7 +1122,16 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazyOnGCHeap(
          it.next()) {
       Code* callee =
           Code::GetCodeFromTargetAddress(it.rinfo()->target_address());
-      if (callee->builtin_index() != Builtins::kWasmCompileLazy) continue;
+      if (callee->builtin_index() != Builtins::kWasmCompileLazy) {
+        // If the callee is the wasm-to-wasm wrapper triggering this lazy
+        // compilation, patch it.
+        if (!wasm_to_wasm_callee.is_null() && callee == *wasm_to_wasm_callee) {
+          TRACE_LAZY("Patching wasm-to-wasm wrapper.\n");
+          PatchWasmToWasmWrapper(isolate, callee, *compiled_function);
+          ++patched;
+        }
+        continue;
+      }
       DCHECK_GT(non_compiled_functions.size(), idx);
       int called_func_index = non_compiled_functions[idx].func_index;
       // Check that the callee agrees with our assumed called_func_index.
@@ -1082,15 +1158,11 @@ Handle<Code> LazyCompilationOrchestrator::CompileLazyOnGCHeap(
     }
     DCHECK_EQ(non_compiled_functions.size(), idx);
     TRACE_LAZY("Patched %d location(s) in the caller.\n", patched);
-    // TODO(clemensh, crbug.com/788441): Fix patching issues, enable this check.
-    // DCHECK_LT(0, patched);
+    DCHECK_LT(0, patched);
     USE(patched);
   }
 
-  Code* ret =
-      Code::cast(compiled_module->code_table()->get(func_to_return_idx));
-  DCHECK_EQ(Code::WASM_FUNCTION, ret->kind());
-  return handle(ret, isolate);
+  return compiled_function;
 }
 
 const wasm::WasmCode* LazyCompilationOrchestrator::CompileFromJsToWasm(
