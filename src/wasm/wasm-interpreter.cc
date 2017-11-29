@@ -1560,11 +1560,6 @@ class ThreadImpl {
                        InterpreterCode* code, pc_t pc, int& len) {
     WasmValue result;
     switch (opcode) {
-// TODO(gdeepti): Remove work-around when the bots are upgraded to a more
-// recent gcc version. The gcc bots (Android ARM, linux) currently use
-// gcc 4.8, in which atomics are insufficiently supported, also Bug#58016
-// (https://gcc.gnu.org/bugzilla/show_bug.cgi?id=58016)
-#if __GNUG__ && __GNUC__ < 5
 #define ATOMIC_BINOP_CASE(name, type, operation)                              \
   case kExpr##name: {                                                         \
     type val;                                                                 \
@@ -1572,26 +1567,13 @@ class ThreadImpl {
     if (!ExtractAtomicBinOpParams<type>(decoder, code, addr, pc, val, len)) { \
       return false;                                                           \
     }                                                                         \
+    static_assert(sizeof(std::atomic<type>) == sizeof(type),                  \
+                  "Size mismatch for types std::atomic<" #type                \
+                  ">, and " #type);                                           \
     result = WasmValue(                                                       \
-        __##operation(reinterpret_cast<type*>(addr), val, __ATOMIC_SEQ_CST)); \
+        std::operation(reinterpret_cast<std::atomic<type>*>(addr), val));     \
     break;                                                                    \
   }
-#else
-#define ATOMIC_BINOP_CASE(name, type, operation)                               \
-  case kExpr##name: {                                                          \
-    type val;                                                                  \
-    Address addr;                                                              \
-    if (!ExtractAtomicBinOpParams<type>(decoder, code, addr, pc, val, len)) {  \
-      return false;                                                            \
-    }                                                                          \
-    static_assert(sizeof(std::atomic<std::type>) == sizeof(type),              \
-                  "Size mismatch for types std::atomic<std::" #type            \
-                  ">, and " #type);                                            \
-    result = WasmValue(                                                        \
-        std::operation(reinterpret_cast<std::atomic<std::type>*>(addr), val)); \
-    break;                                                                     \
-  }
-#endif
       ATOMIC_BINOP_CASE(I32AtomicAdd, uint32_t, atomic_fetch_add);
       ATOMIC_BINOP_CASE(I32AtomicAdd8U, uint8_t, atomic_fetch_add);
       ATOMIC_BINOP_CASE(I32AtomicAdd16U, uint16_t, atomic_fetch_add);
@@ -1607,15 +1589,9 @@ class ThreadImpl {
       ATOMIC_BINOP_CASE(I32AtomicXor, uint32_t, atomic_fetch_xor);
       ATOMIC_BINOP_CASE(I32AtomicXor8U, uint8_t, atomic_fetch_xor);
       ATOMIC_BINOP_CASE(I32AtomicXor16U, uint16_t, atomic_fetch_xor);
-#if __GNUG__ && __GNUC__ < 5
-      ATOMIC_BINOP_CASE(I32AtomicExchange, uint32_t, atomic_exchange_n);
-      ATOMIC_BINOP_CASE(I32AtomicExchange8U, uint8_t, atomic_exchange_n);
-      ATOMIC_BINOP_CASE(I32AtomicExchange16U, uint16_t, atomic_exchange_n);
-#else
       ATOMIC_BINOP_CASE(I32AtomicExchange, uint32_t, atomic_exchange);
       ATOMIC_BINOP_CASE(I32AtomicExchange8U, uint8_t, atomic_exchange);
       ATOMIC_BINOP_CASE(I32AtomicExchange16U, uint16_t, atomic_exchange);
-#endif
 #undef ATOMIC_BINOP_CASE
       default:
         return false;
