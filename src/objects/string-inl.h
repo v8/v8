@@ -525,6 +525,10 @@ void ConsString::set_second(String* value, WriteBarrierMode mode) {
 
 ACCESSORS(ThinString, actual, String, kActualOffset);
 
+HeapObject* ThinString::unchecked_actual() const {
+  return reinterpret_cast<HeapObject*>(READ_FIELD(this, kActualOffset));
+}
+
 bool ExternalString::is_short() {
   InstanceType type = map()->instance_type();
   return (type & kShortExternalStringMask) == kShortExternalStringTag;

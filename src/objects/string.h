@@ -631,6 +631,7 @@ class ThinString : public String {
  public:
   // Actual string that this ThinString refers to.
   inline String* actual() const;
+  inline HeapObject* unchecked_actual() const;
   inline void set_actual(String* s,
                          WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
