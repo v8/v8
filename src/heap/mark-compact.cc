@@ -2186,6 +2186,15 @@ void MinorMarkCompactCollector::CollectGarbage() {
     }
   }
 
+  RememberedSet<OLD_TO_NEW>::IterateMemoryChunks(
+      heap(), [](MemoryChunk* chunk) {
+        if (chunk->SweepingDone()) {
+          RememberedSet<OLD_TO_NEW>::FreeEmptyBuckets(chunk);
+        } else {
+          RememberedSet<OLD_TO_NEW>::PreFreeEmptyBuckets(chunk);
+        }
+      });
+
   heap()->account_external_memory_concurrently_freed();
 }
 
