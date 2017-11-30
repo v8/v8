@@ -462,6 +462,12 @@ AllocationResult NewSpace::AllocateRawUnaligned(int size_in_bytes) {
 
 AllocationResult NewSpace::AllocateRaw(int size_in_bytes,
                                        AllocationAlignment alignment) {
+  if (top() < top_on_previous_step_) {
+    // Generated code decreased the top() pointer to do folded allocations
+    DCHECK_EQ(Page::FromAddress(top()),
+              Page::FromAddress(top_on_previous_step_));
+    top_on_previous_step_ = top();
+  }
 #ifdef V8_HOST_ARCH_32_BIT
   return alignment == kDoubleAligned
              ? AllocateRawAligned(size_in_bytes, kDoubleAligned)
