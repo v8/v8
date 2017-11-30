@@ -109,6 +109,8 @@ void ThreadLocalTop::InitializeInternal() {
   rethrowing_message_ = false;
   pending_message_obj_ = nullptr;
   scheduled_exception_ = nullptr;
+  microtask_queue_bailout_index_ = -1;
+  microtask_queue_bailout_count_ = 0;
 }
 
 
@@ -1810,20 +1812,8 @@ bool Isolate::IsExternalHandlerOnTop(Object* exception) {
   return (entry_handler > external_handler);
 }
 
-
-void Isolate::ReportPendingMessages() {
-  DCHECK(AllowExceptions::IsAllowed(this));
-
-  // The embedder might run script in response to an exception.
-  AllowJavascriptExecutionDebugOnly allow_script(this);
-
+void Isolate::ReportPendingMessagesImpl(bool report_externally) {
   Object* exception = pending_exception();
-
-  // Try to propagate the exception to an external v8::TryCatch handler. If
-  // propagation was unsuccessful, then we will get another chance at reporting
-  // the pending message if the exception is re-thrown.
-  bool has_been_propagated = PropagatePendingExceptionToExternalTryCatch();
-  if (!has_been_propagated) return;
 
   // Clear the pending message object early to avoid endless recursion.
   Object* message_obj = thread_local_top_.pending_message_obj_;
@@ -1837,7 +1827,7 @@ void Isolate::ReportPendingMessages() {
   // depending on whether and external v8::TryCatch or an internal JavaScript
   // handler is on top.
   bool should_report_exception;
-  if (IsExternalHandlerOnTop(exception)) {
+  if (report_externally) {
     // Only report the exception if the external handler is verbose.
     should_report_exception = try_catch_handler()->is_verbose_;
   } else {
@@ -1858,6 +1848,85 @@ void Isolate::ReportPendingMessages() {
   }
 }
 
+void Isolate::ReportPendingMessages() {
+  DCHECK(AllowExceptions::IsAllowed(this));
+
+  // The embedder might run script in response to an exception.
+  AllowJavascriptExecutionDebugOnly allow_script(this);
+
+  Object* exception = pending_exception();
+
+  // Try to propagate the exception to an external v8::TryCatch handler. If
+  // propagation was unsuccessful, then we will get another chance at reporting
+  // the pending message if the exception is re-thrown.
+  bool has_been_propagated = PropagatePendingExceptionToExternalTryCatch();
+  if (!has_been_propagated) return;
+
+  ReportPendingMessagesImpl(IsExternalHandlerOnTop(exception));
+}
+
+void Isolate::ReportPendingMessagesFromJavaScript() {
+  DCHECK(AllowExceptions::IsAllowed(this));
+
+  auto IsHandledByJavaScript = [=]() {
+    // In this situation, the exception is always a non-terminating exception.
+
+    // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
+    Address entry_handler = Isolate::handler(thread_local_top());
+    DCHECK_NOT_NULL(entry_handler);
+    entry_handler =
+        reinterpret_cast<StackHandler*>(entry_handler)->next()->address();
+
+    // Get the address of the external handler so we can compare the address to
+    // determine which one is closer to the top of the stack.
+    Address external_handler = thread_local_top()->try_catch_handler_address();
+    if (external_handler == nullptr) return true;
+
+    return (entry_handler < external_handler);
+  };
+
+  auto IsHandledExternally = [=]() {
+    Address external_handler = thread_local_top()->try_catch_handler_address();
+    if (external_handler == nullptr) return false;
+
+    // Get the top-most JS_ENTRY handler, cannot be on top if it doesn't exist.
+    Address entry_handler = Isolate::handler(thread_local_top());
+    DCHECK_NOT_NULL(entry_handler);
+    entry_handler =
+        reinterpret_cast<StackHandler*>(entry_handler)->next()->address();
+    return (entry_handler > external_handler);
+  };
+
+  auto PropagateToExternalHandler = [=]() {
+    if (IsHandledByJavaScript()) {
+      thread_local_top_.external_caught_exception_ = false;
+      return false;
+    }
+
+    if (!IsHandledExternally()) {
+      thread_local_top_.external_caught_exception_ = false;
+      return true;
+    }
+
+    thread_local_top_.external_caught_exception_ = true;
+    v8::TryCatch* handler = try_catch_handler();
+    DCHECK(thread_local_top_.pending_message_obj_->IsJSMessageObject() ||
+           thread_local_top_.pending_message_obj_->IsTheHole(this));
+    handler->can_continue_ = true;
+    handler->has_terminated_ = false;
+    handler->exception_ = pending_exception();
+    // Propagate to the external try-catch only if we got an actual message.
+    if (thread_local_top_.pending_message_obj_->IsTheHole(this)) return true;
+
+    handler->message_obj_ = thread_local_top_.pending_message_obj_;
+    return true;
+  };
+
+  // Try to propagate to an external v8::TryCatch handler.
+  if (!PropagateToExternalHandler()) return;
+
+  ReportPendingMessagesImpl(true);
+}
 
 MessageLocation Isolate::GetMessageLocation() {
   DCHECK(has_pending_exception());
@@ -2041,8 +2110,23 @@ Handle<Object> Isolate::GetPromiseOnStackOnThrow() {
   }
   Handle<Object> retval = undefined;
   PromiseOnStack* promise_on_stack = tltop->promise_on_stack_;
-  for (JavaScriptFrameIterator it(this); !it.done(); it.Advance()) {
-    switch (PredictException(it.frame())) {
+  for (StackFrameIterator it(this); !it.done(); it.Advance()) {
+    StackFrame* frame = it.frame();
+    HandlerTable::CatchPrediction catch_prediction;
+    if (frame->is_java_script()) {
+      catch_prediction = PredictException(JavaScriptFrame::cast(frame));
+    } else if (frame->type() == StackFrame::STUB) {
+      Code* code = frame->LookupCode();
+      if (!code->IsCode() || code->kind() != Code::BUILTIN ||
+          !code->handler_table()->length() || !code->is_turbofanned()) {
+        continue;
+      }
+      catch_prediction = code->GetBuiltinCatchPrediction();
+    } else {
+      continue;
+    }
+
+    switch (catch_prediction) {
       case HandlerTable::UNCAUGHT:
         continue;
       case HandlerTable::CAUGHT:
@@ -3691,72 +3775,89 @@ void Isolate::RunMicrotasksInternal() {
   if (!pending_microtask_count()) return;
   TRACE_EVENT0("v8.execute", "RunMicrotasks");
   TRACE_EVENT_CALL_STATS_SCOPED(this, "v8", "V8.RunMicrotasks");
-  while (pending_microtask_count() > 0) {
-    HandleScope scope(this);
-    int num_tasks = pending_microtask_count();
-    // Do not use factory()->microtask_queue() here; we need a fresh handle!
-    Handle<FixedArray> queue(heap()->microtask_queue(), this);
-    DCHECK(num_tasks <= queue->length());
-    set_pending_microtask_count(0);
-    heap()->set_microtask_queue(heap()->empty_fixed_array());
+
+  do {
+    HandleScope handle_scope(this);
+    set_microtask_queue_bailout_index(-1);
+    set_microtask_queue_bailout_count(-1);
+    MaybeHandle<Object> maybe_exception;
+    MaybeHandle<Object> maybe_result = Execution::RunMicrotasks(
+        this, Execution::MessageHandling::kReport, &maybe_exception);
+    if (maybe_result.is_null() && maybe_exception.is_null()) {
+      heap()->set_microtask_queue(heap()->empty_fixed_array());
+      set_pending_microtask_count(0);
+      return;
+    }
+
+    Handle<Object> result = maybe_result.ToHandleChecked();
+    if (result->IsUndefined(this)) return;
+
+    Handle<FixedArray> queue = Handle<FixedArray>::cast(result);
+    int num_tasks = microtask_queue_bailout_count();
+    DCHECK_GE(microtask_queue_bailout_index(), 0);
 
     Isolate* isolate = this;
-    FOR_WITH_HANDLE_SCOPE(isolate, int, i = 0, i, i < num_tasks, i++, {
-      Handle<Object> microtask(queue->get(i), this);
+    FOR_WITH_HANDLE_SCOPE(
+        isolate, int, i = microtask_queue_bailout_index(), i, i < num_tasks,
+        i++, {
+          Handle<Object> microtask(queue->get(i), this);
 
-      if (microtask->IsCallHandlerInfo()) {
-        Handle<CallHandlerInfo> callback_info =
-            Handle<CallHandlerInfo>::cast(microtask);
-        v8::MicrotaskCallback callback =
-            v8::ToCData<v8::MicrotaskCallback>(callback_info->callback());
-        void* data = v8::ToCData<void*>(callback_info->data());
-        callback(data);
-      } else {
-        SaveContext save(this);
-        Context* context;
-        if (microtask->IsJSFunction()) {
-          context = Handle<JSFunction>::cast(microtask)->context();
-        } else if (microtask->IsPromiseResolveThenableJobInfo()) {
-          context =
-              Handle<PromiseResolveThenableJobInfo>::cast(microtask)->context();
-        } else {
-          context = Handle<PromiseReactionJobInfo>::cast(microtask)->context();
-        }
+          if (microtask->IsCallHandlerInfo()) {
+            Handle<CallHandlerInfo> callback_info =
+                Handle<CallHandlerInfo>::cast(microtask);
+            v8::MicrotaskCallback callback =
+                v8::ToCData<v8::MicrotaskCallback>(callback_info->callback());
+            void* data = v8::ToCData<void*>(callback_info->data());
+            callback(data);
+          } else {
+            SaveContext save(this);
+            Context* context;
+            if (microtask->IsJSFunction()) {
+              context = Handle<JSFunction>::cast(microtask)->context();
+            } else if (microtask->IsPromiseResolveThenableJobInfo()) {
+              context = Handle<PromiseResolveThenableJobInfo>::cast(microtask)
+                            ->context();
+            } else {
+              context =
+                  Handle<PromiseReactionJobInfo>::cast(microtask)->context();
+            }
 
-        set_context(context->native_context());
-        handle_scope_implementer_->EnterMicrotaskContext(
-            Handle<Context>(context, this));
+            set_context(context->native_context());
+            handle_scope_implementer_->EnterMicrotaskContext(
+                Handle<Context>(context, this));
 
-        MaybeHandle<Object> result;
-        MaybeHandle<Object> maybe_exception;
+            MaybeHandle<Object> result;
+            MaybeHandle<Object> maybe_exception;
 
-        if (microtask->IsJSFunction()) {
-          Handle<JSFunction> microtask_function =
-              Handle<JSFunction>::cast(microtask);
-          result = Execution::TryCall(
-              this, microtask_function, factory()->undefined_value(), 0,
-              nullptr, Execution::MessageHandling::kReport, &maybe_exception);
-        } else if (microtask->IsPromiseResolveThenableJobInfo()) {
-          PromiseResolveThenableJob(
-              Handle<PromiseResolveThenableJobInfo>::cast(microtask), &result,
-              &maybe_exception);
-        } else {
-          PromiseReactionJob(Handle<PromiseReactionJobInfo>::cast(microtask),
-                             &result, &maybe_exception);
-        }
+            if (microtask->IsJSFunction()) {
+              Handle<JSFunction> microtask_function =
+                  Handle<JSFunction>::cast(microtask);
+              result = Execution::TryCall(
+                  this, microtask_function, factory()->undefined_value(), 0,
+                  nullptr, Execution::MessageHandling::kReport,
+                  &maybe_exception);
+            } else if (microtask->IsPromiseResolveThenableJobInfo()) {
+              PromiseResolveThenableJob(
+                  Handle<PromiseResolveThenableJobInfo>::cast(microtask),
+                  &result, &maybe_exception);
+            } else {
+              PromiseReactionJob(
+                  Handle<PromiseReactionJobInfo>::cast(microtask), &result,
+                  &maybe_exception);
+            }
 
-        handle_scope_implementer_->LeaveMicrotaskContext();
+            handle_scope_implementer_->LeaveMicrotaskContext();
 
-        // If execution is terminating, just bail out.
-        if (result.is_null() && maybe_exception.is_null()) {
-          // Clear out any remaining callbacks in the queue.
-          heap()->set_microtask_queue(heap()->empty_fixed_array());
-          set_pending_microtask_count(0);
-          return;
-        }
-      }
-    });
-  }
+            // If execution is terminating, just bail out.
+            if (result.is_null() && maybe_exception.is_null()) {
+              // Clear out any remaining callbacks in the queue.
+              heap()->set_microtask_queue(heap()->empty_fixed_array());
+              set_pending_microtask_count(0);
+              return;
+            }
+          }
+        });
+  } while (pending_microtask_count() > 0);
 }
 
 void Isolate::SetUseCounterCallback(v8::Isolate::UseCounterCallback callback) {

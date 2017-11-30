@@ -78,6 +78,7 @@ class PlatformInterfaceDescriptor;
   V(ResumeGenerator)                  \
   V(FrameDropperTrampoline)           \
   V(WasmRuntimeCall)                  \
+  V(RunMicrotasks)                    \
   BUILTIN_LIST_TFS(V)
 
 class V8_EXPORT_PRIVATE CallInterfaceDescriptorData {
@@ -843,6 +844,13 @@ class WasmRuntimeCallDescriptor final : public CallInterfaceDescriptor {
  public:
   DEFINE_EMPTY_PARAMETERS()
   DECLARE_DEFAULT_DESCRIPTOR(WasmRuntimeCallDescriptor, CallInterfaceDescriptor,
+                             0)
+};
+
+class RunMicrotasksDescriptor final : public CallInterfaceDescriptor {
+ public:
+  DEFINE_EMPTY_PARAMETERS()
+  DECLARE_DEFAULT_DESCRIPTOR(RunMicrotasksDescriptor, CallInterfaceDescriptor,
                              0)
 };
 

@@ -2410,8 +2410,9 @@ void Genesis::InitializeGlobal(Handle<JSGlobalObject> global_object,
     }
 
     {  // Internal: PromiseHandle
-      Handle<JSFunction> function = SimpleCreateFunction(
-          isolate, factory->empty_string(), Builtins::kPromiseHandle, 5, false);
+      Handle<JSFunction> function =
+          SimpleCreateFunction(isolate, factory->empty_string(),
+                               Builtins::kPromiseHandleJS, 5, false);
       native_context()->set_promise_handle(*function);
     }
 

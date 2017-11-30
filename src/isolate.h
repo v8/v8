@@ -373,6 +373,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_;
 
+  int microtask_queue_bailout_index_;
+  int microtask_queue_bailout_count_;
+
  private:
   void InitializeInternal();
 
@@ -675,6 +678,18 @@ class Isolate {
     return &thread_local_top_.js_entry_sp_;
   }
 
+  THREAD_LOCAL_TOP_ACCESSOR(int, microtask_queue_bailout_index)
+  Address microtask_queue_bailout_index_address() {
+    return reinterpret_cast<Address>(
+        &thread_local_top_.microtask_queue_bailout_index_);
+  }
+
+  THREAD_LOCAL_TOP_ACCESSOR(int, microtask_queue_bailout_count)
+  Address microtask_queue_bailout_count_address() {
+    return reinterpret_cast<Address>(
+        &thread_local_top_.microtask_queue_bailout_count_);
+  }
+
   // Returns the global object of the current context. It could be
   // a builtin object, or a JS global object.
   inline Handle<JSGlobalObject> global_object();
@@ -808,6 +823,11 @@ class Isolate {
   // Un-schedule an exception that was caught by a TryCatch handler.
   void CancelScheduledExceptionFromTryCatch(v8::TryCatch* handler);
   void ReportPendingMessages();
+  void ReportPendingMessagesFromJavaScript();
+
+  // Implements code shared between the two above methods
+  void ReportPendingMessagesImpl(bool report_externally);
+
   // Return pending location if any or unfilled structure.
   MessageLocation GetMessageLocation();
 
@@ -1210,6 +1230,7 @@ class Isolate {
   void PromiseResolveThenableJob(Handle<PromiseResolveThenableJobInfo> info,
                                  MaybeHandle<Object>* result,
                                  MaybeHandle<Object>* maybe_exception);
+
   void EnqueueMicrotask(Handle<Object> microtask);
   void RunMicrotasks();
   bool IsRunningMicrotasks() const { return is_running_microtasks_; }
@@ -1231,6 +1252,14 @@ class Isolate {
 
   Address promise_hook_or_debug_is_active_address() {
     return reinterpret_cast<Address>(&promise_hook_or_debug_is_active_);
+  }
+
+  Address pending_microtask_count_address() {
+    return reinterpret_cast<Address>(&pending_microtask_count_);
+  }
+
+  Address handle_scope_implementer_address() {
+    return reinterpret_cast<Address>(&handle_scope_implementer_);
   }
 
   void DebugStateUpdated();

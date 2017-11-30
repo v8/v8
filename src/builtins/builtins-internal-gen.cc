@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "src/api.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
 #include "src/code-stub-assembler.h"
@@ -12,6 +13,9 @@
 
 namespace v8 {
 namespace internal {
+
+template <typename T>
+using TNode = compiler::TNode<T>;
 
 // -----------------------------------------------------------------------------
 // Interrupt and stack checks.
@@ -605,6 +609,377 @@ TF_BUILTIN(SameValue, CodeStubAssembler) {
 
   BIND(&if_false);
   Return(FalseConstant());
+}
+
+class InternalBuiltinsAssembler : public CodeStubAssembler {
+ public:
+  explicit InternalBuiltinsAssembler(compiler::CodeAssemblerState* state)
+      : CodeStubAssembler(state) {}
+
+  TNode<IntPtrT> GetPendingMicrotaskCount();
+  void SetPendingMicrotaskCount(TNode<IntPtrT> count);
+
+  TNode<FixedArray> GetMicrotaskQueue();
+  void SetMicrotaskQueue(TNode<FixedArray> queue);
+
+  TNode<Context> GetCurrentContext();
+  void SetCurrentContext(TNode<Context> context);
+
+  void EnterMicrotaskContext(TNode<Context> context);
+  void LeaveMicrotaskContext();
+
+  TNode<Object> GetPendingException() {
+    auto ref = ExternalReference(kPendingExceptionAddress, isolate());
+    return TNode<Object>::UncheckedCast(
+        Load(MachineType::AnyTagged(), ExternalConstant(ref)));
+  }
+  void ClearPendingException() {
+    auto ref = ExternalReference(kPendingExceptionAddress, isolate());
+    StoreNoWriteBarrier(MachineRepresentation::kTagged, ExternalConstant(ref),
+                        TheHoleConstant());
+  }
+
+  TNode<Object> GetScheduledException() {
+    auto ref = ExternalReference::scheduled_exception_address(isolate());
+    return TNode<Object>::UncheckedCast(
+        Load(MachineType::AnyTagged(), ExternalConstant(ref)));
+  }
+  void ClearScheduledException() {
+    auto ref = ExternalReference::scheduled_exception_address(isolate());
+    StoreNoWriteBarrier(MachineRepresentation::kTagged, ExternalConstant(ref),
+                        TheHoleConstant());
+  }
+};
+
+TNode<IntPtrT> InternalBuiltinsAssembler::GetPendingMicrotaskCount() {
+  auto ref = ExternalReference::pending_microtask_count_address(isolate());
+  if (kIntSize == 8) {
+    return TNode<IntPtrT>::UncheckedCast(
+        Load(MachineType::Int64(), ExternalConstant(ref)));
+  } else {
+    Node* const value = Load(MachineType::Int32(), ExternalConstant(ref));
+    return ChangeInt32ToIntPtr(value);
+  }
+}
+
+void InternalBuiltinsAssembler::SetPendingMicrotaskCount(TNode<IntPtrT> count) {
+  auto ref = ExternalReference::pending_microtask_count_address(isolate());
+  auto rep = kIntSize == 8 ? MachineRepresentation::kWord64
+                           : MachineRepresentation::kWord32;
+  if (kIntSize == 4 && kPointerSize == 8) {
+    Node* const truncated_count =
+        TruncateInt64ToInt32(TNode<Int64T>::UncheckedCast(count));
+    StoreNoWriteBarrier(rep, ExternalConstant(ref), truncated_count);
+  } else {
+    StoreNoWriteBarrier(rep, ExternalConstant(ref), count);
+  }
+}
+
+TNode<FixedArray> InternalBuiltinsAssembler::GetMicrotaskQueue() {
+  return TNode<FixedArray>::UncheckedCast(
+      LoadRoot(Heap::kMicrotaskQueueRootIndex));
+}
+
+void InternalBuiltinsAssembler::SetMicrotaskQueue(TNode<FixedArray> queue) {
+  StoreRoot(Heap::kMicrotaskQueueRootIndex, queue);
+}
+
+TNode<Context> InternalBuiltinsAssembler::GetCurrentContext() {
+  auto ref = ExternalReference(kContextAddress, isolate());
+  return TNode<Context>::UncheckedCast(
+      Load(MachineType::AnyTagged(), ExternalConstant(ref)));
+}
+
+void InternalBuiltinsAssembler::SetCurrentContext(TNode<Context> context) {
+  auto ref = ExternalReference(kContextAddress, isolate());
+  StoreNoWriteBarrier(MachineRepresentation::kTagged, ExternalConstant(ref),
+                      context);
+}
+
+void InternalBuiltinsAssembler::EnterMicrotaskContext(
+    TNode<Context> microtask_context) {
+  auto ref = ExternalReference::handle_scope_implementer_address(isolate());
+  Node* const hsi = Load(MachineType::Pointer(), ExternalConstant(ref));
+  StoreNoWriteBarrier(
+      MachineType::PointerRepresentation(), hsi,
+      IntPtrConstant(HandleScopeImplementerOffsets::kMicrotaskContext),
+      BitcastTaggedToWord(microtask_context));
+
+  // Load mirrored std::vector length from
+  // HandleScopeImplementer::entered_contexts_count_
+  auto type = kSizetSize == 8 ? MachineType::Uint64() : MachineType::Uint32();
+  Node* entered_contexts_length = Load(
+      type, hsi,
+      IntPtrConstant(HandleScopeImplementerOffsets::kEnteredContextsCount));
+
+  auto rep = kSizetSize == 8 ? MachineRepresentation::kWord64
+                             : MachineRepresentation::kWord32;
+
+  StoreNoWriteBarrier(
+      rep, hsi,
+      IntPtrConstant(
+          HandleScopeImplementerOffsets::kEnteredContextCountDuringMicrotasks),
+      entered_contexts_length);
+}
+
+void InternalBuiltinsAssembler::LeaveMicrotaskContext() {
+  auto ref = ExternalReference::handle_scope_implementer_address(isolate());
+
+  Node* const hsi = Load(MachineType::Pointer(), ExternalConstant(ref));
+  StoreNoWriteBarrier(
+      MachineType::PointerRepresentation(), hsi,
+      IntPtrConstant(HandleScopeImplementerOffsets::kMicrotaskContext),
+      IntPtrConstant(0));
+  if (kSizetSize == 4) {
+    StoreNoWriteBarrier(
+        MachineRepresentation::kWord32, hsi,
+        IntPtrConstant(HandleScopeImplementerOffsets::
+                           kEnteredContextCountDuringMicrotasks),
+        Int32Constant(0));
+  } else {
+    StoreNoWriteBarrier(
+        MachineRepresentation::kWord64, hsi,
+        IntPtrConstant(HandleScopeImplementerOffsets::
+                           kEnteredContextCountDuringMicrotasks),
+        Int64Constant(0));
+  }
+}
+
+TF_BUILTIN(RunMicrotasks, InternalBuiltinsAssembler) {
+  Label init_queue_loop(this);
+
+  Goto(&init_queue_loop);
+  BIND(&init_queue_loop);
+  {
+    TVARIABLE(IntPtrT, index, IntPtrConstant(0));
+    Label loop(this, &index);
+
+    TNode<IntPtrT> num_tasks = GetPendingMicrotaskCount();
+    ReturnIf(IntPtrEqual(num_tasks, IntPtrConstant(0)), UndefinedConstant());
+
+    TNode<FixedArray> queue = GetMicrotaskQueue();
+
+    CSA_ASSERT(this, IntPtrGreaterThanOrEqual(
+                         LoadAndUntagFixedArrayBaseLength(queue), num_tasks));
+    CSA_ASSERT(this, IntPtrGreaterThan(num_tasks, IntPtrConstant(0)));
+
+    SetPendingMicrotaskCount(IntPtrConstant(0));
+    SetMicrotaskQueue(
+        TNode<FixedArray>::UncheckedCast(EmptyFixedArrayConstant()));
+
+    Goto(&loop);
+    BIND(&loop);
+    {
+      TNode<HeapObject> microtask =
+          TNode<HeapObject>::UncheckedCast(LoadFixedArrayElement(queue, index));
+      index = IntPtrAdd(index, IntPtrConstant(1));
+
+      CSA_ASSERT(this, TaggedIsNotSmi(microtask));
+
+      TNode<Map> microtask_map = LoadMap(microtask);
+      TNode<Int32T> microtask_type = LoadMapInstanceType(microtask_map);
+
+      Label is_call_handler_info(this);
+      Label is_function(this);
+      Label is_promise_resolve_thenable_job(this);
+      Label is_promise_reaction_job(this);
+      Label is_unreachable(this);
+
+      int32_t case_values[] = {TUPLE3_TYPE,  // CallHandlerInfo
+                               JS_FUNCTION_TYPE,
+                               PROMISE_RESOLVE_THENABLE_JOB_INFO_TYPE,
+                               PROMISE_REACTION_JOB_INFO_TYPE};
+
+      Label* case_labels[] = {&is_call_handler_info, &is_function,
+                              &is_promise_resolve_thenable_job,
+                              &is_promise_reaction_job};
+
+      static_assert(arraysize(case_values) == arraysize(case_labels), "");
+      Switch(microtask_type, &is_unreachable, case_values, case_labels,
+             arraysize(case_labels));
+
+      BIND(&is_call_handler_info);
+      {
+        // Bailout to C++ slow path for the remainder of the loop.
+        auto index_ref =
+            ExternalReference(kMicrotaskQueueBailoutIndexAddress, isolate());
+        auto count_ref =
+            ExternalReference(kMicrotaskQueueBailoutCountAddress, isolate());
+        auto rep = kIntSize == 4 ? MachineRepresentation::kWord32
+                                 : MachineRepresentation::kWord64;
+
+        // index was pre-incremented, decrement for bailout to C++.
+        Node* value = IntPtrSub(index, IntPtrConstant(1));
+
+        if (kPointerSize == 4) {
+          DCHECK_EQ(kIntSize, 4);
+          StoreNoWriteBarrier(rep, ExternalConstant(index_ref), value);
+          StoreNoWriteBarrier(rep, ExternalConstant(count_ref), num_tasks);
+        } else {
+          Node* count = num_tasks;
+          if (kIntSize == 4) {
+            value = TruncateInt64ToInt32(value);
+            count = TruncateInt64ToInt32(count);
+          }
+          StoreNoWriteBarrier(rep, ExternalConstant(index_ref), value);
+          StoreNoWriteBarrier(rep, ExternalConstant(count_ref), count);
+        }
+
+        Return(queue);
+      }
+
+      BIND(&is_function);
+      {
+        Label cont(this);
+        VARIABLE(exception, MachineRepresentation::kTagged, TheHoleConstant());
+        TNode<Context> old_context = GetCurrentContext();
+        TNode<Context> fn_context = TNode<Context>::UncheckedCast(
+            LoadObjectField(microtask, JSFunction::kContextOffset));
+        TNode<Context> native_context =
+            TNode<Context>::UncheckedCast(LoadNativeContext(fn_context));
+        SetCurrentContext(native_context);
+        EnterMicrotaskContext(fn_context);
+        Node* const call = CallJS(CodeFactory::Call(isolate()), native_context,
+                                  microtask, UndefinedConstant());
+        GotoIfException(call, &cont);
+        Goto(&cont);
+        BIND(&cont);
+        LeaveMicrotaskContext();
+        SetCurrentContext(old_context);
+        Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
+      }
+
+      BIND(&is_promise_resolve_thenable_job);
+      {
+        VARIABLE(exception, MachineRepresentation::kTagged, TheHoleConstant());
+        TNode<Context> old_context = GetCurrentContext();
+        TNode<Context> microtask_context =
+            TNode<Context>::UncheckedCast(LoadObjectField(
+                microtask, PromiseResolveThenableJobInfo::kContextOffset));
+        TNode<Context> native_context =
+            TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
+        SetCurrentContext(native_context);
+        EnterMicrotaskContext(microtask_context);
+
+        Label if_unhandled_exception(this), done(this);
+        Node* const ret = CallBuiltin(Builtins::kPromiseResolveThenableJob,
+                                      native_context, microtask);
+        GotoIfException(ret, &if_unhandled_exception, &exception);
+        Goto(&done);
+
+        BIND(&if_unhandled_exception);
+        CallRuntime(Runtime::kReportMessage, native_context, exception.value());
+        Goto(&done);
+
+        BIND(&done);
+        LeaveMicrotaskContext();
+        SetCurrentContext(old_context);
+
+        Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
+      }
+
+      BIND(&is_promise_reaction_job);
+      {
+        Label if_multiple(this);
+        Label if_single(this);
+
+        Node* const value =
+            LoadObjectField(microtask, PromiseReactionJobInfo::kValueOffset);
+        Node* const tasks =
+            LoadObjectField(microtask, PromiseReactionJobInfo::kTasksOffset);
+        Node* const deferred_promises = LoadObjectField(
+            microtask, PromiseReactionJobInfo::kDeferredPromiseOffset);
+        Node* const deferred_on_resolves = LoadObjectField(
+            microtask, PromiseReactionJobInfo::kDeferredOnResolveOffset);
+        Node* const deferred_on_rejects = LoadObjectField(
+            microtask, PromiseReactionJobInfo::kDeferredOnRejectOffset);
+
+        TNode<Context> old_context = GetCurrentContext();
+        TNode<Context> microtask_context = TNode<Context>::UncheckedCast(
+            LoadObjectField(microtask, PromiseReactionJobInfo::kContextOffset));
+        TNode<Context> native_context =
+            TNode<Context>::UncheckedCast(LoadNativeContext(microtask_context));
+        SetCurrentContext(native_context);
+        EnterMicrotaskContext(microtask_context);
+
+        Branch(IsFixedArray(deferred_promises), &if_multiple, &if_single);
+
+        BIND(&if_single);
+        {
+          CallBuiltin(Builtins::kPromiseHandle, native_context, value, tasks,
+                      deferred_promises, deferred_on_resolves,
+                      deferred_on_rejects);
+          LeaveMicrotaskContext();
+          SetCurrentContext(old_context);
+          Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
+        }
+
+        BIND(&if_multiple);
+        {
+          TVARIABLE(IntPtrT, inner_index, IntPtrConstant(0));
+          TNode<IntPtrT> inner_length =
+              LoadAndUntagFixedArrayBaseLength(deferred_promises);
+          Label inner_loop(this, &inner_index), done(this);
+
+          CSA_ASSERT(this, IntPtrGreaterThan(inner_length, IntPtrConstant(0)));
+          Goto(&inner_loop);
+          BIND(&inner_loop);
+          {
+            Node* const task = LoadFixedArrayElement(tasks, inner_index);
+            Node* const deferred_promise =
+                LoadFixedArrayElement(deferred_promises, inner_index);
+            Node* const deferred_on_resolve =
+                LoadFixedArrayElement(deferred_on_resolves, inner_index);
+            Node* const deferred_on_reject =
+                LoadFixedArrayElement(deferred_on_rejects, inner_index);
+            CallBuiltin(Builtins::kPromiseHandle, native_context, value, task,
+                        deferred_promise, deferred_on_resolve,
+                        deferred_on_reject);
+            inner_index = IntPtrAdd(inner_index, IntPtrConstant(1));
+            Branch(IntPtrLessThan(inner_index, inner_length), &inner_loop,
+                   &done);
+          }
+          BIND(&done);
+
+          LeaveMicrotaskContext();
+          SetCurrentContext(old_context);
+
+          Branch(IntPtrLessThan(index, num_tasks), &loop, &init_queue_loop);
+        }
+      }
+
+      BIND(&is_unreachable);
+      Unreachable();
+    }
+  }
+}
+
+TF_BUILTIN(PromiseResolveThenableJob, InternalBuiltinsAssembler) {
+  VARIABLE(exception, MachineRepresentation::kTagged, TheHoleConstant());
+  Callable call = CodeFactory::Call(isolate());
+  Label reject_promise(this, Label::kDeferred);
+  TNode<PromiseResolveThenableJobInfo> microtask =
+      TNode<PromiseResolveThenableJobInfo>::UncheckedCast(
+          Parameter(Descriptor::kMicrotask));
+  TNode<Context> context =
+      TNode<Context>::UncheckedCast(Parameter(Descriptor::kContext));
+
+  TNode<JSReceiver> thenable = TNode<JSReceiver>::UncheckedCast(LoadObjectField(
+      microtask, PromiseResolveThenableJobInfo::kThenableOffset));
+  TNode<JSReceiver> then = TNode<JSReceiver>::UncheckedCast(
+      LoadObjectField(microtask, PromiseResolveThenableJobInfo::kThenOffset));
+  TNode<JSFunction> resolve = TNode<JSFunction>::UncheckedCast(LoadObjectField(
+      microtask, PromiseResolveThenableJobInfo::kResolveOffset));
+  TNode<JSFunction> reject = TNode<JSFunction>::UncheckedCast(
+      LoadObjectField(microtask, PromiseResolveThenableJobInfo::kRejectOffset));
+
+  Node* const result = CallJS(call, context, then, thenable, resolve, reject);
+  GotoIfException(result, &reject_promise, &exception);
+  Return(UndefinedConstant());
+
+  BIND(&reject_promise);
+  CallJS(call, context, reject, UndefinedConstant(), exception.value());
+  Return(UndefinedConstant());
 }
 
 }  // namespace internal

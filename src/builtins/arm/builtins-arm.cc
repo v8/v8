@@ -629,8 +629,6 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     __ mov(cp, Operand(context_address));
     __ ldr(cp, MemOperand(cp));
 
-    __ InitializeRootRegister();
-
     // Push the function and the receiver onto the stack.
     __ Push(r1, r2);
 

@@ -824,6 +824,9 @@ class ExternalReference BASE_EMBEDDED {
   // The builtins table as an external reference, used by lazy deserialization.
   static ExternalReference builtins_address(Isolate* isolate);
 
+  static ExternalReference handle_scope_implementer_address(Isolate* isolate);
+  static ExternalReference pending_microtask_count_address(Isolate* isolate);
+
   // One-of-a-kind references. These references are not part of a general
   // pattern. This means that they have to be added to the
   // ExternalReferenceTable in serialize.cc manually.

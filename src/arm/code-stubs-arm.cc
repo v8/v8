@@ -414,6 +414,8 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Set up the reserved register for 0.0.
   __ vmov(kDoubleRegZero, Double(0.0));
 
+  __ InitializeRootRegister();
+
   // Get address of argv, see stm above.
   // r0: code entry
   // r1: function
@@ -509,12 +511,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // r2: receiver
   // r3: argc
   // r4: argv
-  if (type() == StackFrame::CONSTRUCT_ENTRY) {
-    __ Call(BUILTIN_CODE(isolate(), JSConstructEntryTrampoline),
-            RelocInfo::CODE_TARGET);
-  } else {
-    __ Call(BUILTIN_CODE(isolate(), JSEntryTrampoline), RelocInfo::CODE_TARGET);
-  }
+  __ Call(EntryTrampoline(), RelocInfo::CODE_TARGET);
 
   // Unlink this frame from the handler chain.
   __ PopStackHandler();

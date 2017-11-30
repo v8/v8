@@ -20,6 +20,7 @@ class Execution final : public AllStatic {
  public:
   // Whether to report pending messages, or keep them pending on the isolate.
   enum class MessageHandling { kReport, kKeepPending };
+  enum class Target { kCallable, kRunMicrotasks };
 
   // Call a function, the caller supplies a receiver and an array
   // of arguments.
@@ -54,7 +55,12 @@ class Execution final : public AllStatic {
                                      Handle<Object> receiver, int argc,
                                      Handle<Object> argv[],
                                      MessageHandling message_handling,
-                                     MaybeHandle<Object>* exception_out);
+                                     MaybeHandle<Object>* exception_out,
+                                     Target target = Target::kCallable);
+  // Convenience method for performing RunMicrotasks
+  static MaybeHandle<Object> RunMicrotasks(Isolate* isolate,
+                                           MessageHandling message_handling,
+                                           MaybeHandle<Object>* exception_out);
 };
 
 

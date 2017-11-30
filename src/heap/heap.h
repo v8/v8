@@ -256,7 +256,8 @@ using v8::MemoryPressureLevel;
     DeserializeLazyHandlerExtraWide)                                           \
   /* JS Entries */                                                             \
   V(Code, js_entry_code, JsEntryCode)                                          \
-  V(Code, js_construct_entry_code, JsConstructEntryCode)
+  V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
+  V(Code, js_run_microtasks_entry_code, JsRunMicrotasksEntryCode)
 
 // Entries in this list are limited to Smis and are not visited during GC.
 #define SMI_ROOT_LIST(V)                                                       \
@@ -1830,6 +1831,7 @@ class Heap {
   // because of a gcc-4.4 bug that assigns wrong vtable entries.
   NO_INLINE(void CreateJSEntryStub());
   NO_INLINE(void CreateJSConstructEntryStub());
+  NO_INLINE(void CreateJSRunMicrotasksEntryStub());
 
   void CreateFixedStubs();
 

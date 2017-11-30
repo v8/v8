@@ -697,10 +697,18 @@ class CEntryStub : public PlatformCodeStub {
 
 class JSEntryStub : public PlatformCodeStub {
  public:
+  enum class SpecialTarget { kNone, kRunMicrotasks };
   JSEntryStub(Isolate* isolate, StackFrame::Type type)
       : PlatformCodeStub(isolate) {
     DCHECK(type == StackFrame::ENTRY || type == StackFrame::CONSTRUCT_ENTRY);
-    minor_key_ = StackFrameTypeBits::encode(type);
+    minor_key_ = StackFrameTypeBits::encode(type) |
+                 SpecialTargetBits::encode(SpecialTarget::kNone);
+  }
+
+  JSEntryStub(Isolate* isolate, SpecialTarget target)
+      : PlatformCodeStub(isolate) {
+    minor_key_ = StackFrameTypeBits::encode(StackFrame::ENTRY) |
+                 SpecialTargetBits::encode(target);
   }
 
  private:
@@ -715,7 +723,26 @@ class JSEntryStub : public PlatformCodeStub {
     return StackFrameTypeBits::decode(minor_key_);
   }
 
+  SpecialTarget special_target() const {
+    return SpecialTargetBits::decode(minor_key_);
+  }
+
+  Handle<Code> EntryTrampoline() {
+    switch (special_target()) {
+      case SpecialTarget::kNone:
+        return (type() == StackFrame::CONSTRUCT_ENTRY)
+                   ? BUILTIN_CODE(isolate(), JSConstructEntryTrampoline)
+                   : BUILTIN_CODE(isolate(), JSEntryTrampoline);
+      case SpecialTarget::kRunMicrotasks:
+        return BUILTIN_CODE(isolate(), RunMicrotasks);
+    }
+    UNREACHABLE();
+    return Handle<Code>();
+  }
+
   class StackFrameTypeBits : public BitField<StackFrame::Type, 0, 5> {};
+  class SpecialTargetBits
+      : public BitField<SpecialTarget, StackFrameTypeBits::kNext, 1> {};
 
   int handler_offset_;
 

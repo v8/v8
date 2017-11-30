@@ -523,12 +523,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // external reference instead of inlining the call target address directly
   // in the code, because the builtin stubs may not have been generated yet
   // at the time this code is generated.
-  if (type() == StackFrame::CONSTRUCT_ENTRY) {
-    __ Call(BUILTIN_CODE(isolate(), JSConstructEntryTrampoline),
-            RelocInfo::CODE_TARGET);
-  } else {
-    __ Call(BUILTIN_CODE(isolate(), JSEntryTrampoline), RelocInfo::CODE_TARGET);
-  }
+  __ Call(EntryTrampoline(), RelocInfo::CODE_TARGET);
 
   // Unlink this frame from the handler chain.
   __ PopStackHandler();

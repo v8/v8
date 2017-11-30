@@ -226,6 +226,8 @@ namespace internal {
   TFS(RejectNativePromise, kPromise, kValue, kDebugEvent)                      \
   TFS(PerformNativePromiseThen, kPromise, kResolveReaction, kRejectReaction,   \
       kResultPromise)                                                          \
+  TFC(RunMicrotasks, RunMicrotasks, 1)                                         \
+  TFS(PromiseResolveThenableJob, kMicrotask)                                   \
                                                                                \
   /* Object property helpers */                                                \
   TFS(HasProperty, kKey, kObject)                                              \
@@ -777,7 +779,9 @@ namespace internal {
   /* ES #sec-fulfillpromise */                                                 \
   TFJ(ResolvePromise, 2, kPromise, kValue)                                     \
   TFS(PromiseHandleReject, kPromise, kOnReject, kException)                    \
-  TFJ(PromiseHandle, 5, kValue, kHandler, kDeferredPromise,                    \
+  TFS(PromiseHandle, kValue, kHandler, kDeferredPromise, kDeferredOnResolve,   \
+      kDeferredOnReject)                                                       \
+  TFJ(PromiseHandleJS, 5, kValue, kHandler, kDeferredPromise,                  \
       kDeferredOnResolve, kDeferredOnReject)                                   \
   /* ES #sec-promise.resolve */                                                \
   TFJ(PromiseResolveWrapper, 1, kValue)                                        \

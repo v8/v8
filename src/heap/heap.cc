@@ -2629,6 +2629,10 @@ void Heap::CreateJSConstructEntryStub() {
   set_js_construct_entry_code(*stub.GetCode());
 }
 
+void Heap::CreateJSRunMicrotasksEntryStub() {
+  JSEntryStub stub(isolate(), JSEntryStub::SpecialTarget::kRunMicrotasks);
+  set_js_run_microtasks_entry_code(*stub.GetCode());
+}
 
 void Heap::CreateFixedStubs() {
   // Here we create roots for fixed stubs. They are needed at GC
@@ -2660,6 +2664,7 @@ void Heap::CreateFixedStubs() {
   // To workaround the problem, make separate functions without inlining.
   Heap::CreateJSEntryStub();
   Heap::CreateJSConstructEntryStub();
+  Heap::CreateJSRunMicrotasksEntryStub();
 }
 
 bool Heap::RootCanBeWrittenAfterInitialization(Heap::RootListIndex root_index) {

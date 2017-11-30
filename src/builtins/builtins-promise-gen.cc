@@ -1183,7 +1183,14 @@ TF_BUILTIN(PromiseHandleReject, PromiseBuiltinsAssembler) {
 
   BIND(&if_customhandler);
   {
-    CallJS(call_callable, context, on_reject, UndefinedConstant(), exception);
+    VARIABLE(var_exception, MachineRepresentation::kTagged, TheHoleConstant());
+    Label if_exception(this);
+    Node* const ret = CallJS(call_callable, context, on_reject,
+                             UndefinedConstant(), exception);
+    GotoIfException(ret, &if_exception, &var_exception);
+    Return(UndefinedConstant());
+    BIND(&if_exception);
+    CallRuntime(Runtime::kReportMessage, context, var_exception.value());
     Return(UndefinedConstant());
   }
 }
@@ -1295,6 +1302,20 @@ TF_BUILTIN(PromiseHandle, PromiseBuiltinsAssembler) {
     BIND(&out);
     Return(UndefinedConstant());
   }
+}
+
+TF_BUILTIN(PromiseHandleJS, PromiseBuiltinsAssembler) {
+  Node* const value = Parameter(Descriptor::kValue);
+  Node* const handler = Parameter(Descriptor::kHandler);
+  Node* const deferred_promise = Parameter(Descriptor::kDeferredPromise);
+  Node* const deferred_on_resolve = Parameter(Descriptor::kDeferredOnResolve);
+  Node* const deferred_on_reject = Parameter(Descriptor::kDeferredOnReject);
+  Node* const context = Parameter(Descriptor::kContext);
+
+  Node* const result =
+      CallBuiltin(Builtins::kPromiseHandle, context, value, handler,
+                  deferred_promise, deferred_on_resolve, deferred_on_reject);
+  Return(result);
 }
 
 // ES#sec-promise.prototype.catch

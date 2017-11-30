@@ -92,6 +92,10 @@ void ExternalReferenceTable::AddReferences(Isolate* isolate) {
       "LDoubleConstant::one_half");
   Add(ExternalReference::isolate_address(isolate).address(), "isolate");
   Add(ExternalReference::builtins_address(isolate).address(), "builtins");
+  Add(ExternalReference::handle_scope_implementer_address(isolate).address(),
+      "Isolate::handle_scope_implementer_address");
+  Add(ExternalReference::pending_microtask_count_address(isolate).address(),
+      "Isolate::pending_microtask_count_address()");
   Add(ExternalReference::interpreter_dispatch_table_address(isolate).address(),
       "Interpreter::dispatch_table_address");
   Add(ExternalReference::bytecode_size_table_address(isolate).address(),

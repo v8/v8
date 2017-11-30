@@ -517,6 +517,9 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // Set up the reserved register for 0.0.
   __ Fmov(fp_zero, 0.0);
 
+  // Initialize the root array register
+  __ InitializeRootRegister();
+
   // Build an entry frame (see layout below).
   StackFrame::Type marker = type();
   int64_t bad_frame_pointer = -1L;  // Bad frame pointer to fail if it is used.
@@ -612,13 +615,7 @@ void JSEntryStub::Generate(MacroAssembler* masm) {
   // x2: receiver.
   // x3: argc.
   // x4: argv.
-
-  if (type() == StackFrame::CONSTRUCT_ENTRY) {
-    __ Call(BUILTIN_CODE(isolate(), JSConstructEntryTrampoline),
-            RelocInfo::CODE_TARGET);
-  } else {
-    __ Call(BUILTIN_CODE(isolate(), JSEntryTrampoline), RelocInfo::CODE_TARGET);
-  }
+  __ Call(EntryTrampoline(), RelocInfo::CODE_TARGET);
 
   // Pop the stack handler and unlink this frame from the handler chain.
   static_assert(StackHandlerConstants::kNextOffset == 0 * kPointerSize,
