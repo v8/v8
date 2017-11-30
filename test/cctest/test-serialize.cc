@@ -1669,18 +1669,18 @@ TEST(CodeSerializerExternalString) {
   v8::HandleScope scope(CcTest::isolate());
 
   // Obtain external internalized one-byte string.
-  SerializerOneByteResource one_byte_resource("one_byte_string", 15);
+  SerializerOneByteResource one_byte_resource("one_byte", 8);
   Handle<String> one_byte_string =
-      isolate->factory()->NewStringFromAsciiChecked("one_byte_string");
+      isolate->factory()->NewStringFromAsciiChecked("one_byte");
   one_byte_string = isolate->factory()->InternalizeString(one_byte_string);
   one_byte_string->MakeExternal(&one_byte_resource);
   CHECK(one_byte_string->IsExternalOneByteString());
   CHECK(one_byte_string->IsInternalizedString());
 
   // Obtain external internalized two-byte string.
-  SerializerTwoByteResource two_byte_resource("two_byte_string", 15);
+  SerializerTwoByteResource two_byte_resource("two_byte", 8);
   Handle<String> two_byte_string =
-      isolate->factory()->NewStringFromAsciiChecked("two_byte_string");
+      isolate->factory()->NewStringFromAsciiChecked("two_byte");
   two_byte_string = isolate->factory()->InternalizeString(two_byte_string);
   two_byte_string->MakeExternal(&two_byte_resource);
   CHECK(two_byte_string->IsExternalTwoByteString());
@@ -1688,9 +1688,9 @@ TEST(CodeSerializerExternalString) {
 
   const char* source =
       "var o = {}               \n"
-      "o.one_byte_string = 7;          \n"
-      "o.two_byte_string = 8;          \n"
-      "o.one_byte_string + o.two_byte_string; \n";
+      "o.one_byte = 7;          \n"
+      "o.two_byte = 8;          \n"
+      "o.one_byte + o.two_byte; \n";
   Handle<String> source_string = isolate->factory()
                                      ->NewStringFromUtf8(CStrVector(source))
                                      .ToHandleChecked();

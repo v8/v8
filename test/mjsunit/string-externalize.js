@@ -29,7 +29,7 @@
 
 var size = 1024;
 
-function dont_inline() { return "AAAAAAA"; }
+function dont_inline() { return "A"; }
 %NeverOptimizeFunction(dont_inline);
 
 function dont_inline2() { return "\u1234"; }

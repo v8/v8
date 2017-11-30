@@ -2739,7 +2739,7 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
 #endif  // DEBUG
   int size = this->Size();  // Byte size of the original string.
   // Abort if size does not allow in-place conversion.
-  if (size < ExternalString::kSize) return false;
+  if (size < ExternalString::kShortSize) return false;
   Heap* heap = GetHeap();
   bool is_one_byte = this->IsOneByteRepresentation();
   bool is_internalized = this->IsInternalizedString();
@@ -2753,16 +2753,25 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // Instead, we resort to a short external string instead, omitting
   // the field caching the address of the backing store.  When we encounter
   // short external strings in generated code, we need to bailout to runtime.
-  Map* new_map =
-      is_internalized
-          ? (is_one_byte
-                 ? heap->external_internalized_string_with_one_byte_data_map()
-                 : heap->external_internalized_string_map())
-          : (is_one_byte ? heap->external_string_with_one_byte_data_map()
-                         : heap->external_string_map());
+  Map* new_map;
+  if (size < ExternalString::kSize) {
+    new_map = is_internalized
+        ? (is_one_byte
+           ? heap->short_external_internalized_string_with_one_byte_data_map()
+           : heap->short_external_internalized_string_map())
+        : (is_one_byte ? heap->short_external_string_with_one_byte_data_map()
+                       : heap->short_external_string_map());
+  } else {
+    new_map = is_internalized
+        ? (is_one_byte
+           ? heap->external_internalized_string_with_one_byte_data_map()
+           : heap->external_internalized_string_map())
+        : (is_one_byte ? heap->external_string_with_one_byte_data_map()
+                       : heap->external_string_map());
+  }
 
   // Byte size of the external String object.
-  int new_size = ExternalString::kSize;
+  int new_size = this->SizeFromMap(new_map);
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size,
                              ClearRecordedSlots::kNo);
   if (has_pointers) {
@@ -2803,7 +2812,7 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
 #endif  // DEBUG
   int size = this->Size();  // Byte size of the original string.
   // Abort if size does not allow in-place conversion.
-  if (size < ExternalString::kSize) return false;
+  if (size < ExternalString::kShortSize) return false;
   Heap* heap = GetHeap();
   bool is_internalized = this->IsInternalizedString();
   bool has_pointers = StringShape(this).IsIndirect();
@@ -2818,12 +2827,19 @@ bool String::MakeExternal(v8::String::ExternalOneByteStringResource* resource) {
   // Instead, we resort to a short external string instead, omitting
   // the field caching the address of the backing store.  When we encounter
   // short external strings in generated code, we need to bailout to runtime.
-  Map* new_map = is_internalized
-                     ? heap->external_one_byte_internalized_string_map()
-                     : heap->external_one_byte_string_map();
+  Map* new_map;
+  if (size < ExternalString::kSize) {
+    new_map = is_internalized
+                  ? heap->short_external_one_byte_internalized_string_map()
+                  : heap->short_external_one_byte_string_map();
+  } else {
+    new_map = is_internalized
+                  ? heap->external_one_byte_internalized_string_map()
+                  : heap->external_one_byte_string_map();
+  }
 
   // Byte size of the external String object.
-  int new_size = ExternalString::kSize;
+  int new_size = this->SizeFromMap(new_map);
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size,
                              ClearRecordedSlots::kNo);
   if (has_pointers) {
