@@ -364,16 +364,8 @@ void IncrementalMarking::Start(GarbageCollectionReason gc_reason) {
     SetState(SWEEPING);
   }
 
-  SpaceIterator it(heap_);
-  while (it.has_next()) {
-    Space* space = it.next();
-    if (space == heap_->new_space()) {
-      space->AddAllocationObserver(&new_generation_observer_);
-    } else {
-      space->AddAllocationObserver(&old_generation_observer_);
-    }
-  }
-
+  heap_->AddAllocationObserversToAllSpaces(&old_generation_observer_,
+                                           &new_generation_observer_);
   incremental_marking_job()->Start(heap_);
 }
 

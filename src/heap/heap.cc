@@ -712,6 +712,34 @@ void Heap::MergeAllocationSitePretenuringFeedback(
   }
 }
 
+void Heap::AddAllocationObserversToAllSpaces(
+    AllocationObserver* observer, AllocationObserver* new_space_observer) {
+  DCHECK(observer && new_space_observer);
+
+  for (SpaceIterator it(this); it.has_next();) {
+    Space* space = it.next();
+    if (space == new_space()) {
+      space->AddAllocationObserver(new_space_observer);
+    } else {
+      space->AddAllocationObserver(observer);
+    }
+  }
+}
+
+void Heap::RemoveAllocationObserversFromAllSpaces(
+    AllocationObserver* observer, AllocationObserver* new_space_observer) {
+  DCHECK(observer && new_space_observer);
+
+  for (SpaceIterator it(this); it.has_next();) {
+    Space* space = it.next();
+    if (space == new_space()) {
+      space->RemoveAllocationObserver(new_space_observer);
+    } else {
+      space->RemoveAllocationObserver(observer);
+    }
+  }
+}
+
 class Heap::SkipStoreBufferScope {
  public:
   explicit SkipStoreBufferScope(StoreBuffer* store_buffer)

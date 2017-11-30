@@ -1572,6 +1572,19 @@ class Heap {
       const PretenuringFeedbackMap& local_pretenuring_feedback);
 
   // ===========================================================================
+  // Allocation tracking. ======================================================
+  // ===========================================================================
+
+  // Adds {new_space_observer} to new space and {observer} to any other space.
+  void AddAllocationObserversToAllSpaces(
+      AllocationObserver* observer, AllocationObserver* new_space_observer);
+
+  // Removes {new_space_observer} from new space and {observer} from any other
+  // space.
+  void RemoveAllocationObserversFromAllSpaces(
+      AllocationObserver* observer, AllocationObserver* new_space_observer);
+
+  // ===========================================================================
   // Retaining path tracking. ==================================================
   // ===========================================================================
 
