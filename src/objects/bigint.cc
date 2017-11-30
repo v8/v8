@@ -304,7 +304,71 @@ MaybeHandle<BigInt> BigInt::BitwiseNot(Handle<BigInt> x) {
 
 MaybeHandle<BigInt> BigInt::Exponentiate(Handle<BigInt> base,
                                          Handle<BigInt> exponent) {
-  UNIMPLEMENTED();  // TODO(jkummerow): Implement.
+  Isolate* isolate = base->GetIsolate();
+  // 1. If exponent is < 0, throw a RangeError exception.
+  if (exponent->sign()) {
+    THROW_NEW_ERROR(isolate,
+                    NewRangeError(MessageTemplate::kBigIntNegativeExponent),
+                    BigInt);
+  }
+  // 2. If base is 0n and exponent is 0n, return 1n.
+  if (exponent->is_zero()) {
+    return MutableBigInt::NewFromInt(isolate, 1);
+  }
+  // 3. Return a BigInt representing the mathematical value of base raised
+  //    to the power exponent.
+  if (base->is_zero()) return base;
+  if (base->length() == 1 && base->digit(0) == 1) return base;
+  // For all bases >= 2, very large exponents would lead to unrepresentable
+  // results.
+  STATIC_ASSERT(kMaxLengthBits < std::numeric_limits<digit_t>::max());
+  if (exponent->length() > 1) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
+                    BigInt);
+  }
+  digit_t exp_value = exponent->digit(0);
+  if (exp_value == 1) return base;
+  if (exp_value >= kMaxLengthBits) {
+    THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
+                    BigInt);
+  }
+  STATIC_ASSERT(kMaxLengthBits <= kMaxInt);
+  int n = static_cast<int>(exp_value);
+  if (base->length() == 1 && base->digit(0) == 2) {
+    // Fast path for 2^n.
+    int needed_digits = 1 + (n / kDigitBits);
+    Handle<MutableBigInt> result =
+        MutableBigInt::New(isolate, needed_digits).ToHandleChecked();
+    result->InitializeDigits(needed_digits);
+    // All bits are zero. Now set the n-th bit.
+    digit_t msd = static_cast<digit_t>(1) << (n % kDigitBits);
+    result->set_digit(needed_digits - 1, msd);
+    // Result is negative for odd powers of -2n.
+    if (base->sign()) result->set_sign((n & 1) != 0);
+    return MutableBigInt::MakeImmutable(result);
+  }
+  Handle<BigInt> result;
+  Handle<BigInt> running_square = base;
+  // This implicitly sets the result's sign correctly.
+  if (n & 1) result = base;
+  n >>= 1;
+  for (; n != 0; n >>= 1) {
+    if (!Multiply(running_square, running_square).ToHandle(&running_square)) {
+      THROW_NEW_ERROR(isolate, NewRangeError(MessageTemplate::kBigIntTooBig),
+                      BigInt);
+    }
+    if (n & 1) {
+      if (result.is_null()) {
+        result = running_square;
+      } else {
+        if (!Multiply(result, running_square).ToHandle(&result)) {
+          THROW_NEW_ERROR(
+              isolate, NewRangeError(MessageTemplate::kBigIntTooBig), BigInt);
+        }
+      }
+    }
+  }
+  return result;
 }
 
 MaybeHandle<BigInt> BigInt::Multiply(Handle<BigInt> x, Handle<BigInt> y) {
@@ -1617,8 +1681,8 @@ Handle<BigInt> MutableBigInt::RightShiftByMaximum(Isolate* isolate, bool sign) {
 Maybe<BigInt::digit_t> MutableBigInt::ToShiftAmount(Handle<BigIntBase> x) {
   if (x->length() > 1) return Nothing<digit_t>();
   digit_t value = x->digit(0);
-  STATIC_ASSERT(kMaxLength * kDigitBits < std::numeric_limits<digit_t>::max());
-  if (value > kMaxLength * kDigitBits) return Nothing<digit_t>();
+  STATIC_ASSERT(kMaxLengthBits < std::numeric_limits<digit_t>::max());
+  if (value > kMaxLengthBits) return Nothing<digit_t>();
   return Just(value);
 }
 

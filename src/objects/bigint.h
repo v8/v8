@@ -24,7 +24,7 @@ class BigIntBase : public HeapObject {
     return LengthBits::decode(static_cast<uint32_t>(bitfield));
   }
 
-  // The maximum length that the current implementation supports would be
+  // The maximum kMaxLength that the current implementation supports would be
   // kMaxInt / kDigitBits. However, we use a lower limit for now, because
   // raising it later is easier than lowering it.
   // Support up to 1 million bits.
