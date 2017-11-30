@@ -514,6 +514,7 @@
           "resources": [ "arithmetic.js" ],
           "test_flags": [ "arithmetic" ],
           "results_regexp": "^%s\\-BytecodeHandler\\(Score\\): (.+)$",
+          "timeout": 240,
           "tests": [
             {"name": "Smi-Add"},
             {"name": "Number-Add"},
