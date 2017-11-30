@@ -3149,14 +3149,14 @@ int Map::UnusedPropertyFields() const {
 }
 
 int Map::used_or_unused_instance_size_in_words() const {
-  return READ_BYTE_FIELD(this, kUsedOrUnusedInstanceSizeInWordsOffset);
+  return RELAXED_READ_BYTE_FIELD(this, kUsedOrUnusedInstanceSizeInWordsOffset);
 }
 
 void Map::set_used_or_unused_instance_size_in_words(int value) {
   DCHECK_LE(0, value);
   DCHECK_LE(value, 255);
-  WRITE_BYTE_FIELD(this, kUsedOrUnusedInstanceSizeInWordsOffset,
-                   static_cast<byte>(value));
+  RELAXED_WRITE_BYTE_FIELD(this, kUsedOrUnusedInstanceSizeInWordsOffset,
+                           static_cast<byte>(value));
 }
 
 int Map::UsedInstanceSize() const {
