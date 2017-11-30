@@ -990,10 +990,14 @@ size_t IncrementalMarking::Step(size_t bytes_to_process,
       marking_worklist()->shared()->MergeGlobalPool(
           marking_worklist()->on_hold());
     }
+
+// Only print marking worklist in debug mode to save ~40KB of code size.
+#ifdef DEBUG
     if (FLAG_trace_incremental_marking && FLAG_trace_concurrent_marking &&
         FLAG_trace_gc_verbose) {
       marking_worklist()->Print();
     }
+#endif
 
     if (worklist_to_process == WorklistToProcess::kBailout) {
       bytes_processed =
