@@ -1082,7 +1082,6 @@ Type* Typer::Visitor::JSBitwiseXorTyper(Type* lhs, Type* rhs, Typer* t) {
 
 
 Type* Typer::Visitor::JSShiftLeftTyper(Type* lhs, Type* rhs, Typer* t) {
-  return NumberShiftLeft(ToNumber(lhs, t), ToNumber(rhs, t), t);
   lhs = ToNumeric(lhs, t);
   rhs = ToNumeric(rhs, t);
   if (lhs->Is(Type::Number()) && rhs->Is(Type::Number())) {
