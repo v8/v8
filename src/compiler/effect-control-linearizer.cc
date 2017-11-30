@@ -842,6 +842,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kNewArgumentsElements:
       result = LowerNewArgumentsElements(node);
       break;
+    case IrOpcode::kNewConsString:
+      result = LowerNewConsString(node);
+      break;
     case IrOpcode::kArrayBufferWasNeutered:
       result = LowerArrayBufferWasNeutered(node);
       break;
@@ -2491,6 +2494,28 @@ Node* EffectControlLinearizer::LowerNewArgumentsElements(Node* node) {
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
   return __ Call(desc, __ HeapConstant(callable.code()), frame, length,
                  __ SmiConstant(mapped_count), __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
+  Node* length = node->InputAt(0);
+  Node* first = node->InputAt(1);
+  Node* second = node->InputAt(2);
+
+  // TODO(turbofan): We currently just use the cons_string_map here for
+  // the sake of simplicity; we could also try to be smarter here and
+  // use the one_byte_cons_string_map instead when the resulting ConsString
+  // contains only one byte characters.
+  Node* result_map = jsgraph()->HeapConstant(factory()->cons_string_map());
+
+  // Allocate the resulting ConsString.
+  Node* result = __ Allocate(NOT_TENURED, __ Int32Constant(ConsString::kSize));
+  __ StoreField(AccessBuilder::ForMap(), result, result_map);
+  __ StoreField(AccessBuilder::ForNameHashField(), result,
+                jsgraph()->Int32Constant(Name::kEmptyHashField));
+  __ StoreField(AccessBuilder::ForStringLength(), result, length);
+  __ StoreField(AccessBuilder::ForConsStringFirst(), result, first);
+  __ StoreField(AccessBuilder::ForConsStringSecond(), result, second);
+  return result;
 }
 
 Node* EffectControlLinearizer::LowerArrayBufferWasNeutered(Node* node) {

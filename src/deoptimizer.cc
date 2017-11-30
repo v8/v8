@@ -3502,24 +3502,6 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
       }
       return object;
     }
-    case CONS_STRING_TYPE: {
-      Handle<ConsString> object = Handle<ConsString>::cast(
-          isolate_->factory()
-              ->NewConsString(isolate_->factory()->undefined_string(),
-                              isolate_->factory()->undefined_string())
-              .ToHandleChecked());
-      slot->value_ = object;
-      Handle<Object> hash = materializer.FieldAt(value_index);
-      Handle<Object> string_length = materializer.FieldAt(value_index);
-      Handle<Object> first = materializer.FieldAt(value_index);
-      Handle<Object> second = materializer.FieldAt(value_index);
-      object->set_map(*map);
-      object->set_length(Smi::ToInt(*string_length));
-      object->set_first(String::cast(*first));
-      object->set_second(String::cast(*second));
-      CHECK(hash->IsNumber());  // The {Name::kEmptyHashField} value.
-      return object;
-    }
     case CONTEXT_EXTENSION_TYPE: {
       Handle<ContextExtension> object =
           isolate_->factory()->NewContextExtension(
@@ -3607,6 +3589,7 @@ Handle<Object> TranslatedState::MaterializeCapturedObjectAt(
     }
     case STRING_TYPE:
     case ONE_BYTE_STRING_TYPE:
+    case CONS_STRING_TYPE:
     case CONS_ONE_BYTE_STRING_TYPE:
     case SLICED_STRING_TYPE:
     case SLICED_ONE_BYTE_STRING_TYPE:

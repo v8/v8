@@ -1122,6 +1122,12 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
                                              Code::kMaxArguments, zone));
       CheckTypeIs(node, Type::OtherInternal());
       break;
+    case IrOpcode::kNewConsString:
+      CheckValueInputIs(node, 0, TypeCache::Get().kStringLengthType);
+      CheckValueInputIs(node, 1, Type::String());
+      CheckValueInputIs(node, 2, Type::String());
+      CheckTypeIs(node, Type::OtherString());
+      break;
     case IrOpcode::kAllocate:
       CheckValueInputIs(node, 0, Type::PlainNumber());
       break;

@@ -105,6 +105,7 @@ class V8_EXPORT_PRIVATE EffectControlLinearizer {
   Node* LowerNewDoubleElements(Node* node);
   Node* LowerNewSmiOrObjectElements(Node* node);
   Node* LowerNewArgumentsElements(Node* node);
+  Node* LowerNewConsString(Node* node);
   Node* LowerArrayBufferWasNeutered(Node* node);
   Node* LowerSameValue(Node* node);
   Node* LowerStringToNumber(Node* node);

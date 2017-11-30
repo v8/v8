@@ -2201,6 +2201,10 @@ Type* Typer::Visitor::TypeNewArgumentsElements(Node* node) {
   return Type::OtherInternal();
 }
 
+Type* Typer::Visitor::TypeNewConsString(Node* node) {
+  return Type::OtherNonSeqString();
+}
+
 Type* Typer::Visitor::TypeArrayBufferWasNeutered(Node* node) {
   return Type::Boolean();
 }

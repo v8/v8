@@ -502,6 +502,9 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorBuilder final
   // new-arguments-elements arguments-frame, arguments-length
   const Operator* NewArgumentsElements(int mapped_count);
 
+  // new-cons-string length, first, second
+  const Operator* NewConsString();
+
   // array-buffer-was-neutered buffer
   const Operator* ArrayBufferWasNeutered();
 

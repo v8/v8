@@ -698,29 +698,14 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
       Revisit(graph()->end());
     }
     control = graph()->NewNode(common()->IfTrue(), branch);
+    length = graph()->NewNode(
+        common()->TypeGuard(type_cache_.kStringLengthType), length, control);
   }
 
-  // Figure out the map for the resulting ConsString.
-  // TODO(turbofan): We currently just use the cons_string_map here for
-  // the sake of simplicity; we could also try to be smarter here and
-  // use the one_byte_cons_string_map instead when the resulting ConsString
-  // contains only one byte characters.
-  Node* value_map = jsgraph()->HeapConstant(factory()->cons_string_map());
-
-  // Allocate the resulting ConsString.
-  AllocationBuilder a(jsgraph(), effect, control);
-  a.Allocate(ConsString::kSize, NOT_TENURED, Type::OtherString());
-  a.Store(AccessBuilder::ForMap(), value_map);
-  a.Store(AccessBuilder::ForNameHashField(),
-          jsgraph()->Constant(Name::kEmptyHashField));
-  a.Store(AccessBuilder::ForStringLength(), length);
-  a.Store(AccessBuilder::ForConsStringFirst(), first);
-  a.Store(AccessBuilder::ForConsStringSecond(), second);
-
-  // Morph the {node} into a {FinishRegion}.
-  ReplaceWithValue(node, node, node, control);
-  a.FinishAndChange(node);
-  return Changed(node);
+  Node* value =
+      graph()->NewNode(simplified()->NewConsString(), length, first, second);
+  ReplaceWithValue(node, value, effect, control);
+  return Replace(value);
 }
 
 Node* JSTypedLowering::BuildGetStringLength(Node* value, Node** effect,
