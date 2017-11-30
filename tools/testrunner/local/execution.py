@@ -34,9 +34,10 @@ import sys
 import time
 
 from pool import Pool
-from . import command
+from . import commands
 from . import perfdata
 from . import statusfile
+from . import testsuite
 from . import utils
 from ..objects import output
 
@@ -47,18 +48,76 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
 TEST_DIR = os.path.join(BASE_DIR, "test")
 
 
+class Instructions(object):
+  def __init__(self, command, test_id, timeout, verbose, env):
+    self.command = command
+    self.id = test_id
+    self.timeout = timeout
+    self.verbose = verbose
+    self.env = env
+
+
 # Structure that keeps global information per worker process.
 ProcessContext = collections.namedtuple(
-    'process_context', ['sancov_dir'])
+    "process_context", ["suites", "context"])
 
 
-def MakeProcessContext(sancov_dir):
-  return ProcessContext(sancov_dir)
+def MakeProcessContext(context, suite_names):
+  """Generate a process-local context.
 
-# Global function for multiprocessing, because pickling a static method doesn't
-# work on Windows.
-def run_job(job, process_context):
-  return job.run(process_context)
+  This reloads all suites per process and stores the global context.
+
+  Args:
+    context: The global context from the test runner.
+    suite_names (list of str): Suite names as loaded by the parent process.
+        Load the same suites in each subprocess.
+  """
+  suites = {}
+  for root in suite_names:
+    # Don't reinitialize global state as this is concurrently called from
+    # different processes.
+    suite = testsuite.TestSuite.LoadTestSuite(
+        os.path.join(TEST_DIR, root), global_init=False)
+    if suite:
+      suites[suite.name] = suite
+  return ProcessContext(suites, context)
+
+
+def GetCommand(test, context):
+  d8testflag = []
+  shell = test.suite.GetShellForTestCase(test)
+  if shell == "d8":
+    d8testflag = ["--test"]
+  if utils.IsWindows():
+    shell += ".exe"
+  if context.random_seed:
+    d8testflag += ["--random-seed=%s" % context.random_seed]
+  files, flags, env = test.suite.GetParametersForTestCase(test, context)
+  cmd = (
+      context.command_prefix +
+      [os.path.abspath(os.path.join(context.shell_dir, shell))] +
+      d8testflag +
+      files +
+      context.extra_flags +
+      # Flags from test cases can overwrite extra cmd-line flags.
+      flags
+  )
+  return cmd, env
+
+
+def _GetInstructions(test, context):
+  command, env = GetCommand(test, context)
+  timeout = context.timeout
+  if ("--stress-opt" in test.flags or
+      "--stress-opt" in context.mode_flags or
+      "--stress-opt" in context.extra_flags):
+    timeout *= 4
+  if "--noenable-vfp3" in context.extra_flags:
+    timeout *= 2
+
+  # TODO(majeski): make it slow outcome dependent.
+  timeout *= 2
+  return Instructions(command, test.id, timeout, context.verbose, env)
 
 
 class Job(object):
@@ -67,17 +126,31 @@ class Job(object):
   All contained fields will be pickled/unpickled.
   """
 
-  def run(self, process_context):
+  def Run(self, process_context):
+    """Executes the job.
+
+    Args:
+      process_context: Process-local information that is initialized by the
+                       executing worker.
+    """
     raise NotImplementedError()
 
 
-class TestJob(Job):
-  def __init__(self, test_id, cmd, run_num):
-    self.test_id = test_id
-    self.cmd = cmd
-    self.run_num = run_num
+def SetupProblem(exception, test):
+  stderr = ">>> EXCEPTION: %s\n" % exception
+  match = re.match(r"^.*No such file or directory: '(.*)'$", str(exception))
+  if match:
+    # Extra debuging information when files are claimed missing.
+    f = match.group(1)
+    stderr += ">>> File %s exists? -> %s\n" % (f, os.path.exists(f))
+  return test.id, output.Output(1, False, "", stderr, None), 0
 
-  def _rename_coverage_data(self, out, sancov_dir):
+
+class TestJob(Job):
+  def __init__(self, test):
+    self.test = test
+
+  def _rename_coverage_data(self, output, context):
     """Rename coverage data.
 
     Rename files with PIDs to files with unique test IDs, because the number
@@ -86,27 +159,41 @@ class TestJob(Job):
     42 is the test ID and 1 is the attempt (the same test might be rerun on
     failures).
     """
-    if sancov_dir and out.pid is not None:
-      # Doesn't work on windows so basename is sufficient to get the shell name.
-      shell = os.path.basename(self.cmd.shell)
-      sancov_file = os.path.join(sancov_dir, "%s.%d.sancov" % (shell, out.pid))
+    if context.sancov_dir and output.pid is not None:
+      shell = self.test.suite.GetShellForTestCase(self.test)
+      sancov_file = os.path.join(
+          context.sancov_dir, "%s.%d.sancov" % (shell, output.pid))
 
       # Some tests are expected to fail and don't produce coverage data.
       if os.path.exists(sancov_file):
         parts = sancov_file.split(".")
         new_sancov_file = ".".join(
             parts[:-2] +
-            ["test", str(self.test_id), str(self.run_num)] +
+            ["test", str(self.test.id), str(self.test.run)] +
             parts[-1:]
         )
         assert not os.path.exists(new_sancov_file)
         os.rename(sancov_file, new_sancov_file)
 
-  def run(self, context):
+  def Run(self, process_context):
+    try:
+      # Retrieve a new suite object on the worker-process side. The original
+      # suite object isn't pickled.
+      self.test.SetSuiteObject(process_context.suites)
+      instr = _GetInstructions(self.test, process_context.context)
+    except Exception, e:
+      # TODO(majeski): Better exception reporting.
+      return SetupProblem(e, self.test)
+
     start_time = time.time()
-    out = self.cmd.execute()
-    self._rename_coverage_data(out, context.sancov_dir)
-    return (self.test_id, out, time.time() - start_time)
+    output = commands.Execute(instr.command, instr.verbose, instr.timeout,
+                              instr.env)
+    self._rename_coverage_data(output, process_context.context)
+    return (instr.id, output, time.time() - start_time)
+
+
+def RunTest(job, process_context):
+  return job.Run(process_context)
 
 
 class Runner(object):
@@ -175,7 +262,7 @@ class Runner(object):
       test.duration = None
       test.output = None
       test.run += 1
-      pool.add([TestJob(test.id, test.cmd, test.run)])
+      pool.add([TestJob(test)])
       self.remaining += 1
       self.total += 1
 
@@ -240,7 +327,7 @@ class Runner(object):
       # remember the output for comparison.
       test.run += 1
       test.output = result[1]
-      pool.add([TestJob(test.id, test.cmd, test.run)])
+      pool.add([TestJob(test)])
     # Always update the perf database.
     return True
 
@@ -263,7 +350,7 @@ class Runner(object):
         assert test.id >= 0
         test_map[test.id] = test
         try:
-          yield [TestJob(test.id, test.cmd, test.run)]
+          yield [TestJob(test)]
         except Exception, e:
           # If this failed, save the exception and re-raise it later (after
           # all other tests have had a chance to run).
@@ -271,10 +358,10 @@ class Runner(object):
           continue
     try:
       it = pool.imap_unordered(
-          fn=run_job,
+          fn=RunTest,
           gen=gen_tests(),
           process_context_fn=MakeProcessContext,
-          process_context_args=[self.context.sancov_dir],
+          process_context_args=[self.context, self.suite_names],
       )
       for result in it:
         if result.heartbeat:
@@ -291,7 +378,7 @@ class Runner(object):
       self._VerbosePrint("Closing process pool.")
       pool.terminate()
       self._VerbosePrint("Closing database connection.")
-      self._RunPerfSafe(self.perf_data_manager.close)
+      self._RunPerfSafe(lambda: self.perf_data_manager.close())
       if self.perf_failures:
         # Nuke perf data in case of failures. This might not work on windows as
         # some files might still be open.
@@ -316,8 +403,6 @@ class Runner(object):
 
 class BreakNowException(Exception):
   def __init__(self, value):
-    super(BreakNowException, self).__init__()
     self.value = value
-
   def __str__(self):
     return repr(self.value)

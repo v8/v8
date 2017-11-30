@@ -30,7 +30,7 @@ import fnmatch
 import imp
 import os
 
-from . import command
+from . import commands
 from . import statusfile
 from . import utils
 from ..objects import testcase
@@ -310,44 +310,6 @@ class TestSuite(object):
 
     return self._outcomes_cache[cache_key]
 
-  def GetCommand(self, test, context):
-    shell = self.GetShellForTestCase(test)
-    shell_flags = []
-    if shell == 'd8':
-      shell_flags.append('--test')
-    if utils.IsWindows():
-      shell += '.exe'
-    if context.random_seed:
-      shell_flags.append('--random-seed=%s' % context.random_seed)
-    files, flags, env = self.GetParametersForTestCase(test, context)
-
-    return command.Command(
-      cmd_prefix=context.command_prefix,
-      shell=os.path.abspath(os.path.join(context.shell_dir, shell)),
-      args=(
-          shell_flags +
-          files +
-          context.extra_flags +
-          flags
-      ),
-      env=env,
-      timeout=self.GetTimeout(test, context),
-      verbose=context.verbose
-    )
-
-  def GetTimeout(self, testcase, context):
-    timeout = context.timeout
-    if ("--stress-opt" in testcase.flags or
-        "--stress-opt" in context.mode_flags or
-        "--stress-opt" in context.extra_flags):
-      timeout *= 4
-    if "--noenable-vfp3" in context.extra_flags:
-      timeout *= 2
-
-    # TODO(majeski): make it slow outcome dependent.
-    timeout *= 2
-    return timeout
-
   def GetShellForTestCase(self, testcase):
     """Returns shell to be executed for this test case."""
     return 'd8'
@@ -414,15 +376,16 @@ class GoogleTestSuite(TestSuite):
 
     output = None
     for i in xrange(3): # Try 3 times in case of errors.
-      cmd = command.Command(
-        cmd_prefix=context.command_prefix,
-        shell=shell,
-        args=['--gtest_list_tests'] + context.extra_flags)
-      output = cmd.execute()
+      cmd = (
+          context.command_prefix +
+          [shell, "--gtest_list_tests"] +
+          context.extra_flags
+      )
+      output = commands.Execute(cmd)
       if output.exit_code == 0:
         break
       print "Test executable failed to list the tests (try %d).\n\nCmd:" % i
-      print cmd
+      print ' '.join(cmd)
       print "\nStdout:"
       print output.stdout
       print "\nStderr:"

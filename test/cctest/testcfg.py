@@ -28,7 +28,7 @@
 import os
 import shutil
 
-from testrunner.local import command
+from testrunner.local import commands
 from testrunner.local import testsuite
 from testrunner.local import utils
 from testrunner.objects import testcase
@@ -37,17 +37,21 @@ from testrunner.objects import testcase
 class CcTestSuite(testsuite.TestSuite):
   SHELL = 'cctest'
 
+  def __init__(self, name, root):
+    super(CcTestSuite, self).__init__(name, root)
+    if utils.IsWindows():
+      build_dir = "build"
+    else:
+      build_dir = "out"
+
   def ListTests(self, context):
     shell = os.path.abspath(os.path.join(context.shell_dir, self.SHELL))
     if utils.IsWindows():
       shell += ".exe"
-    cmd = command.Command(
-        cmd_prefix=context.command_prefix,
-        shell=shell,
-        args=["--list"] + context.extra_flags)
-    output = cmd.execute()
+    cmd = context.command_prefix + [shell, "--list"] + context.extra_flags
+    output = commands.Execute(cmd)
     if output.exit_code != 0:
-      print cmd
+      print ' '.join(cmd)
       print output.stdout
       print output.stderr
       return []

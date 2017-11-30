@@ -94,8 +94,8 @@ class PerfTest(unittest.TestCase):
         include=([os.path.join(cls.base, "run_perf.py")]))
     cls._cov.start()
     import run_perf
-    from testrunner.local import command
-    global command
+    from testrunner.local import commands
+    global commands
     global run_perf
 
   @classmethod
@@ -125,14 +125,9 @@ class PerfTest(unittest.TestCase):
                            stderr=None,
                            timed_out=kwargs.get("timed_out", False))
                     for arg in args[1]]
-    def create_cmd(*args, **kwargs):
-      cmd = MagicMock()
-      def execute(*args, **kwargs):
-        return test_outputs.pop()
-      cmd.execute = MagicMock(side_effect=execute)
-      return cmd
-
-    command.Command = MagicMock(side_effect=create_cmd)
+    def execute(*args, **kwargs):
+      return test_outputs.pop()
+    commands.Execute = MagicMock(side_effect=execute)
 
     # Check that d8 is called from the correct cwd for each test run.
     dirs = [path.join(TEST_WORKSPACE, arg) for arg in args[0]]
@@ -169,23 +164,18 @@ class PerfTest(unittest.TestCase):
     self.assertEquals(errors, self._LoadResults()["errors"])
 
   def _VerifyMock(self, binary, *args, **kwargs):
-    shell = path.join(path.dirname(self.base), binary)
-    command.Command.assert_called_with(
-        cmd_prefix=[],
-        shell=shell,
-        args=list(args),
-        timeout=kwargs.get('timeout', 60))
+    arg = [path.join(path.dirname(self.base), binary)]
+    arg += args
+    commands.Execute.assert_called_with(
+        arg, timeout=kwargs.get("timeout", 60))
 
   def _VerifyMockMultiple(self, *args, **kwargs):
-    self.assertEquals(len(args), len(command.Command.call_args_list))
-    for arg, actual in zip(args, command.Command.call_args_list):
-      expected = {
-        'cmd_prefix': [],
-        'shell': path.join(path.dirname(self.base), arg[0]),
-        'args': list(arg[1:]),
-        'timeout': kwargs.get('timeout', 60)
-      }
-      self.assertEquals((expected, ), actual)
+    expected = []
+    for arg in args:
+      a = [path.join(path.dirname(self.base), arg[0])]
+      a += arg[1:]
+      expected.append(((a,), {"timeout": kwargs.get("timeout", 60)}))
+    self.assertEquals(expected, commands.Execute.call_args_list)
 
   def testOneRun(self):
     self._WriteTestInput(V8_JSON)
