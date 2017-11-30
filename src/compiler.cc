@@ -513,7 +513,7 @@ void ClearOptimizedCodeCache(CompilationInfo* compilation_info) {
   if (compilation_info->osr_offset().IsNone()) {
     Handle<FeedbackVector> vector =
         handle(function->feedback_vector(), function->GetIsolate());
-    vector->ClearOptimizedCode();
+    vector->ClearOptimizationMarker();
   }
 }
 

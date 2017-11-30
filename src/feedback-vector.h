@@ -174,6 +174,9 @@ class FeedbackVector : public HeapObject {
                                Handle<Code> code);
   void SetOptimizationMarker(OptimizationMarker marker);
 
+  // Clears the optimization marker in the feedback vector.
+  void ClearOptimizationMarker();
+
   // Conversion from a slot to an integer index to the underlying array.
   static int GetIndex(FeedbackSlot slot) { return slot.ToInt(); }
 

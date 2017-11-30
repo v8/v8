@@ -3977,7 +3977,9 @@ AllocationResult Heap::AllocateFeedbackVector(SharedFunctionInfo* shared,
   result->set_map_after_allocation(feedback_vector_map(), SKIP_WRITE_BARRIER);
   FeedbackVector* vector = FeedbackVector::cast(result);
   vector->set_shared_function_info(shared);
-  vector->set_optimized_code_cell(Smi::FromEnum(OptimizationMarker::kNone));
+  vector->set_optimized_code_cell(Smi::FromEnum(
+      FLAG_log_function_events ? OptimizationMarker::kLogFirstExecution
+                               : OptimizationMarker::kNone));
   vector->set_length(length);
   vector->set_invocation_count(0);
   vector->set_profiler_ticks(0);

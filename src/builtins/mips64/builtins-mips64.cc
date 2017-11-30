@@ -752,6 +752,9 @@ static void MaybeTailCallOptimizedCodeSlot(MacroAssembler* masm,
               Operand(Smi::FromEnum(OptimizationMarker::kNone)));
 
     TailCallRuntimeIfMarkerEquals(masm, optimized_code_entry,
+                                  OptimizationMarker::kLogFirstExecution,
+                                  Runtime::kFunctionFirstExecution);
+    TailCallRuntimeIfMarkerEquals(masm, optimized_code_entry,
                                   OptimizationMarker::kCompileOptimized,
                                   Runtime::kCompileOptimized_NotConcurrent);
     TailCallRuntimeIfMarkerEquals(

@@ -57,6 +57,24 @@ RUNTIME_FUNCTION(Runtime_CompileOptimized_Concurrent) {
   return function->code();
 }
 
+RUNTIME_FUNCTION(Runtime_FunctionFirstExecution) {
+  HandleScope scope(isolate);
+  StackLimitCheck check(isolate);
+  DCHECK_EQ(1, args.length());
+
+  CONVERT_ARG_HANDLE_CHECKED(JSFunction, function, 0);
+  DCHECK_EQ(function->feedback_vector()->optimization_marker(),
+            OptimizationMarker::kLogFirstExecution);
+  DCHECK(FLAG_log_function_events);
+  Handle<SharedFunctionInfo> sfi(function->shared());
+  LOG(isolate, FunctionEvent("first-execution", Script::cast(sfi->script()), -1,
+                             0, sfi->start_position(), sfi->end_position(),
+                             sfi->DebugName()));
+  function->feedback_vector()->ClearOptimizationMarker();
+  // Return the code to continue execution, we don't care at this point whether
+  // this is for lazy compilation or has been eagerly complied.
+  return function->code();
+}
 
 RUNTIME_FUNCTION(Runtime_CompileOptimized_NotConcurrent) {
   HandleScope scope(isolate);

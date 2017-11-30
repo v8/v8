@@ -885,6 +885,9 @@ TEST(ConsoleTimeEvents) {
 }
 
 TEST(LogFunctionEvents) {
+  // Always opt and stress opt will break the fine-grained log order.
+  if (i::FLAG_always_opt) return;
+
   SETUP_FLAGS();
   i::FLAG_log_function_events = true;
   v8::Isolate::CreateParams create_params;
@@ -936,14 +939,21 @@ TEST(LogFunctionEvents) {
         //         - execute eager functions.
         {"function,parse-function,", ",lazyFunction"},
         {"function,compile-lazy,", ",lazyFunction"},
+        {"function,first-execution,", ",lazyFunction"},
 
         {"function,parse-function,", ",lazyInnerFunction"},
         {"function,compile-lazy,", ",lazyInnerFunction"},
+        {"function,first-execution,", ",lazyInnerFunction"},
+
+        {"function,first-execution,", ",eagerFunction"},
 
         {"function,parse-function,", ",Foo"},
         {"function,compile-lazy,", ",Foo"},
+        {"function,first-execution,", ",Foo"},
+
         {"function,parse-function,", ",Foo.foo"},
         {"function,compile-lazy,", ",Foo.foo"},
+        {"function,first-execution,", ",Foo.foo"},
     };
     logger.FindLogLines(pairs, arraysize(pairs), start);
   }
