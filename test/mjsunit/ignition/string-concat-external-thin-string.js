@@ -5,7 +5,7 @@
 // Flags: --allow-natives-syntax --expose-externalize-string
 
 // Calculate string so that it isn't internalized.
-var string = ((a,b) => { return a + b; })('foo', 'bar');
+var string = ((a,b) => { return a + b; })('foo', 'barbaz');
 
 // Now externalize it.
 externalizeString(string, false);
@@ -16,4 +16,4 @@ var obj = {};
 obj[string];
 
 // Perform a string concatination.
-assertEquals('"' + string + '"', '"foobar"');
+assertEquals('"' + string + '"', '"foobarbaz"');
