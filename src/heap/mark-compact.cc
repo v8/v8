@@ -3996,8 +3996,10 @@ void MinorMarkCompactCollector::UpdatePointersAfterEvacuation() {
   remembered_set_pages += CollectRememberedSetUpdatingItems(
       &updating_job, heap()->lo_space(),
       RememberedSetUpdatingMode::OLD_TO_NEW_ONLY);
-  const int remembered_set_tasks = NumberOfParallelPointerUpdateTasks(
-      remembered_set_pages, old_to_new_slots_);
+  const int remembered_set_tasks =
+      remembered_set_pages == 0 ? 0
+                                : NumberOfParallelPointerUpdateTasks(
+                                      remembered_set_pages, old_to_new_slots_);
   const int num_tasks = Max(to_space_tasks, remembered_set_tasks);
   for (int i = 0; i < num_tasks; i++) {
     updating_job.AddTask(new PointersUpdatingTask(isolate()));
