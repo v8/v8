@@ -2613,7 +2613,7 @@ bool Object::IterationHasObservableEffects() {
   JSArray* array = JSArray::cast(this);
   Isolate* isolate = array->GetIsolate();
 
-#if defined(V8_ENABLE_SLOWFAST_SWITCH)
+#ifdef V8_ENABLE_FORCE_SLOW_PATH
   if (isolate->force_slow_path()) return true;
 #endif
 

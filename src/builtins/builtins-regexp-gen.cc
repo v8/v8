@@ -834,7 +834,7 @@ Node* RegExpBuiltinsAssembler::IsFastRegExpNoPrototype(Node* const context,
   Label out(this);
   VARIABLE(var_result, MachineRepresentation::kWord32);
 
-#if defined(DEBUG) || defined(ENABLE_FASTSLOW_SWITCH)
+#ifdef V8_ENABLE_FORCE_SLOW_PATH
   var_result.Bind(Int32Constant(0));
   GotoIfForceSlowPath(&out);
 #endif

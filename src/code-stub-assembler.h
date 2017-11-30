@@ -417,8 +417,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler : public compiler::CodeAssembler {
   // It's used for testing to ensure that slow path implementation behave
   // equivalent to corresponding fast paths (where applicable).
   //
-  // Works only in DEBUG mode or with ENABLE_FASTSLOW_SWITCH compile time flag.
-  // Nop otherwise.
+  // Works only with V8_ENABLE_FORCE_SLOW_PATH compile time flag. Nop otherwise.
   void GotoIfForceSlowPath(Label* if_true);
 
   // Load value from current frame by given offset in bytes.
