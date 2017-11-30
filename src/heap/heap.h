@@ -2700,19 +2700,6 @@ class VerifySmisVisitor : public RootVisitor {
 };
 
 
-// Space iterator for iterating over all spaces of the heap.  Returns each space
-// in turn, and null when it is done.
-class AllSpaces BASE_EMBEDDED {
- public:
-  explicit AllSpaces(Heap* heap) : heap_(heap), counter_(FIRST_SPACE) {}
-  Space* next();
-
- private:
-  Heap* heap_;
-  int counter_;
-};
-
-
 // Space iterator for iterating over all old spaces of the heap: Old space
 // and code space.  Returns each space in turn, and null when it is done.
 class V8_EXPORT_PRIVATE OldSpaces BASE_EMBEDDED {

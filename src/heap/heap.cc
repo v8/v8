@@ -296,9 +296,9 @@ size_t Heap::Available() {
   if (!HasBeenSetUp()) return 0;
 
   size_t total = 0;
-  AllSpaces spaces(this);
-  for (Space* space = spaces.next(); space != nullptr; space = spaces.next()) {
-    total += space->Available();
+
+  for (SpaceIterator it(this); it.has_next();) {
+    total += it.next()->Available();
   }
   return total;
 }
@@ -650,9 +650,9 @@ void Heap::GarbageCollectionPrologue() {
 
 size_t Heap::SizeOfObjects() {
   size_t total = 0;
-  AllSpaces spaces(this);
-  for (Space* space = spaces.next(); space != nullptr; space = spaces.next()) {
-    total += space->SizeOfObjects();
+
+  for (SpaceIterator it(this); it.has_next();) {
+    total += it.next()->SizeOfObjects();
   }
   return total;
 }
@@ -4569,9 +4569,9 @@ void Heap::CollectCodeStatistics() {
 void Heap::Print() {
   if (!HasBeenSetUp()) return;
   isolate()->PrintStack(stdout);
-  AllSpaces spaces(this);
-  for (Space* space = spaces.next(); space != nullptr; space = spaces.next()) {
-    space->Print();
+
+  for (SpaceIterator it(this); it.has_next();) {
+    it.next()->Print();
   }
 }
 
@@ -6109,22 +6109,6 @@ void Heap::RecordWritesIntoCode(Code* code) {
   }
 }
 
-Space* AllSpaces::next() {
-  switch (counter_++) {
-    case NEW_SPACE:
-      return heap_->new_space();
-    case OLD_SPACE:
-      return heap_->old_space();
-    case CODE_SPACE:
-      return heap_->code_space();
-    case MAP_SPACE:
-      return heap_->map_space();
-    case LO_SPACE:
-      return heap_->lo_space();
-    default:
-      return nullptr;
-  }
-}
 
 PagedSpace* PagedSpaces::next() {
   switch (counter_++) {
