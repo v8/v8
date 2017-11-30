@@ -456,8 +456,6 @@ DEFINE_BOOL(turbo_stress_instruction_scheduling, false,
 DEFINE_BOOL(turbo_store_elimination, true,
             "enable store-store elimination in TurboFan")
 DEFINE_BOOL(trace_store_elimination, false, "trace store elimination")
-DEFINE_BOOL(turbo_experimental, false,
-            "enable crashing features, for testing purposes only")
 DEFINE_BOOL(turbo_rewrite_far_jumps, true,
             "rewrite far to near jumps (ia32,x64)")
 
@@ -765,8 +763,6 @@ DEFINE_BOOL(force_slow_path, false, "always take the slow path for builtins")
 DEFINE_BOOL(inline_new, true, "use fast inline allocation")
 
 // codegen-ia32.cc / codegen-arm.cc
-DEFINE_BOOL(trace_codegen, false,
-            "print name of functions for which code is generated")
 DEFINE_BOOL(trace, false, "trace function calls")
 
 // codegen.cc
@@ -1227,9 +1223,6 @@ DEFINE_IMPLICATION(print_all_code, print_code_verbose)
 DEFINE_IMPLICATION(print_all_code, print_builtin_code)
 DEFINE_IMPLICATION(print_all_code, print_code_stubs)
 DEFINE_IMPLICATION(print_all_code, code_comments)
-#ifdef DEBUG
-DEFINE_IMPLICATION(print_all_code, trace_codegen)
-#endif
 #endif
 
 #undef FLAG
