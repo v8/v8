@@ -1452,9 +1452,11 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
         buffer_(LocalAllocationBuffer::InvalidBuffer()),
         promoted_size_(0),
         semispace_copied_size_(0),
-        local_pretenuring_feedback_(local_pretenuring_feedback) {}
+        local_pretenuring_feedback_(local_pretenuring_feedback),
+        is_incremental_marking_(heap->incremental_marking()->IsMarking()) {}
 
   inline bool Visit(HeapObject* object, int size) override {
+    if (TryEvacuateWithoutCopy(object)) return true;
     HeapObject* target_object = nullptr;
     if (heap_->ShouldBePromoted(object->address()) &&
         TryEvacuateObject(OLD_SPACE, object, size, &target_object)) {
@@ -1474,6 +1476,21 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   intptr_t semispace_copied_size() { return semispace_copied_size_; }
 
  private:
+  inline bool TryEvacuateWithoutCopy(HeapObject* object) {
+    if (is_incremental_marking_) return false;
+    // Some objects can be evacuated without creating a copy.
+    if (object->IsThinString()) {
+      HeapObject* actual = ThinString::cast(object)->actual();
+      base::Relaxed_Store(
+          reinterpret_cast<base::AtomicWord*>(object->address()),
+          reinterpret_cast<base::AtomicWord>(
+              MapWord::FromForwardingAddress(actual).ToMap()));
+      return true;
+    }
+    // TODO(mlippautz): Handle ConsString.
+    return false;
+  }
+
   inline AllocationSpace AllocateTargetObject(HeapObject* old_object, int size,
                                               HeapObject** target_object) {
     AllocationAlignment alignment = old_object->RequiredAlignment();
@@ -1505,6 +1522,7 @@ class EvacuateNewSpaceVisitor final : public EvacuateVisitorBase {
   intptr_t promoted_size_;
   intptr_t semispace_copied_size_;
   Heap::PretenuringFeedbackMap* local_pretenuring_feedback_;
+  bool is_incremental_marking_;
 };
 
 template <PageEvacuationMode mode>
