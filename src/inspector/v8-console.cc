@@ -354,10 +354,16 @@ static void timeFunction(const v8::debug::ConsoleCallArguments& info,
   ConsoleHelper helper(info, consoleContext, inspector);
   String16 protocolTitle = helper.firstArgToString("default", false);
   if (timelinePrefix) protocolTitle = "Timeline '" + protocolTitle + "'";
+  const String16& timerId =
+      protocolTitle + "@" + consoleContextToString(consoleContext);
+  if (helper.consoleMessageStorage()->hasTimer(helper.contextId(), timerId)) {
+    helper.reportCallWithArgument(
+        ConsoleAPIType::kWarning,
+        "Timer '" + protocolTitle + "' already exists");
+    return;
+  }
   inspector->client()->consoleTime(toStringView(protocolTitle));
-  helper.consoleMessageStorage()->time(
-      helper.contextId(),
-      protocolTitle + "@" + consoleContextToString(consoleContext));
+  helper.consoleMessageStorage()->time(helper.contextId(), timerId);
 }
 
 static void timeEndFunction(const v8::debug::ConsoleCallArguments& info,
@@ -366,6 +372,14 @@ static void timeEndFunction(const v8::debug::ConsoleCallArguments& info,
   ConsoleHelper helper(info, consoleContext, inspector);
   String16 protocolTitle = helper.firstArgToString("default", false);
   if (timelinePrefix) protocolTitle = "Timeline '" + protocolTitle + "'";
+  const String16& timerId =
+      protocolTitle + "@" + consoleContextToString(consoleContext);
+  if (!helper.consoleMessageStorage()->hasTimer(helper.contextId(), timerId)) {
+    helper.reportCallWithArgument(
+        ConsoleAPIType::kWarning,
+        "Timer '" + protocolTitle + "' does not exist");
+    return;
+  }
   inspector->client()->consoleTimeEnd(toStringView(protocolTitle));
   double elapsed = helper.consoleMessageStorage()->timeEnd(
       helper.contextId(),
