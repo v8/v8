@@ -89,6 +89,9 @@ declare_args() {
   # Sets -dV8_CONCURRENT_MARKING
   v8_enable_concurrent_marking = true
 
+  # Sets -dV8_ENABLE_SLOWFAST_SWITCH
+  v8_enable_slow_fast_switch = ""
+
   # Build the snapshot with unwinding information for perf.
   # Sets -dV8_USE_SNAPSHOT_WITH_UNWINDING_INFO.
   v8_perf_prof_unwinding_info = false
@@ -148,6 +151,9 @@ if (v8_enable_disassembler == "") {
 }
 if (v8_enable_trace_maps == "") {
   v8_enable_trace_maps = is_debug
+}
+if (v8_enable_slow_fast_switch == "") {
+  v8_enable_slow_fast_switch = is_debug
 }
 if (v8_enable_v8_checks == "") {
   v8_enable_v8_checks = is_debug
@@ -274,6 +280,9 @@ config("features") {
   }
   if (v8_enable_trace_feedback_updates) {
     defines += [ "V8_TRACE_FEEDBACK_UPDATES" ]
+  }
+  if (v8_enable_slow_fast_switch) {
+    defines += [ "V8_ENABLE_SLOWFAST_SWITCH" ]
   }
   if (v8_enable_v8_checks) {
     defines += [ "V8_ENABLE_CHECKS" ]

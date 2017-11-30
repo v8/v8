@@ -3273,7 +3273,7 @@ class TypedElementsAccessor
     DisallowHeapAllocation no_gc;
     DisallowJavascriptExecution no_js(isolate);
 
-#if defined(DEBUG) || defined(ENABLE_SLOWFAST_SWITCH)
+#if defined(V8_ENABLE_SLOWFAST_SWITCH)
     if (isolate->force_slow_path()) return true;
 #endif
 
