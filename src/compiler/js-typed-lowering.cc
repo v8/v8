@@ -648,8 +648,8 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   }
 
   // Determine the {first} length.
-  Node* first_length = BuildGetStringLength(first, &effect, control);
-  Node* second_length = BuildGetStringLength(second, &effect, control);
+  Node* first_length = BuildGetStringLength(first);
+  Node* second_length = BuildGetStringLength(second);
 
   // Compute the resulting length.
   Node* length =
@@ -708,15 +708,14 @@ Reduction JSTypedLowering::ReduceCreateConsString(Node* node) {
   return Replace(value);
 }
 
-Node* JSTypedLowering::BuildGetStringLength(Node* value, Node** effect,
-                                            Node* control) {
+Node* JSTypedLowering::BuildGetStringLength(Node* value) {
+  // TODO(bmeurer): Get rid of this hack and instead have a way to
+  // express the string length in the types.
   HeapObjectMatcher m(value);
   Node* length =
       (m.HasValue() && m.Value()->IsString())
           ? jsgraph()->Constant(Handle<String>::cast(m.Value())->length())
-          : (*effect) = graph()->NewNode(
-                simplified()->LoadField(AccessBuilder::ForStringLength()),
-                value, *effect, control);
+          : graph()->NewNode(simplified()->StringLength(), value);
   return length;
 }
 
@@ -1118,16 +1117,12 @@ Reduction JSTypedLowering::ReduceJSLoadNamed(Node* node) {
   DCHECK_EQ(IrOpcode::kJSLoadNamed, node->opcode());
   Node* receiver = NodeProperties::GetValueInput(node, 0);
   Type* receiver_type = NodeProperties::GetType(receiver);
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
   Handle<Name> name = NamedAccessOf(node->op()).name();
   // Optimize "length" property of strings.
   if (name.is_identical_to(factory()->length_string()) &&
       receiver_type->Is(Type::String())) {
-    Node* value = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForStringLength()), receiver,
-        effect, control);
-    ReplaceWithValue(node, value, effect);
+    Node* value = graph()->NewNode(simplified()->StringLength(), receiver);
+    ReplaceWithValue(node, value);
     return Replace(value);
   }
   return NoChange();

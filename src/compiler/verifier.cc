@@ -1058,6 +1058,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 2, Type::SignedSmall());
       CheckTypeIs(node, Type::SignedSmall());
       break;
+    case IrOpcode::kStringLength:
+      CheckValueInputIs(node, 0, Type::String());
+      CheckTypeIs(node, TypeCache::Get().kStringLengthType);
+      break;
     case IrOpcode::kStringToLowerCaseIntl:
     case IrOpcode::kStringToUpperCaseIntl:
       CheckValueInputIs(node, 0, Type::String());

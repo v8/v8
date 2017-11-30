@@ -2391,9 +2391,8 @@ Reduction JSBuiltinReducer::ReduceStringCharAt(Node* node) {
         }
 
         // Determine the {receiver} length.
-        Node* receiver_length = effect = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForStringLength()), receiver,
-            effect, control);
+        Node* receiver_length =
+            graph()->NewNode(simplified()->StringLength(), receiver);
 
         // Check if {index} is less than {receiver} length.
         Node* check = graph()->NewNode(simplified()->NumberLessThan(), index,
@@ -2445,9 +2444,8 @@ Reduction JSBuiltinReducer::ReduceStringCharCodeAt(Node* node) {
         }
 
         // Determine the {receiver} length.
-        Node* receiver_length = effect = graph()->NewNode(
-            simplified()->LoadField(AccessBuilder::ForStringLength()), receiver,
-            effect, control);
+        Node* receiver_length =
+            graph()->NewNode(simplified()->StringLength(), receiver);
 
         // Check if {index} is less than {receiver} length.
         Node* check = graph()->NewNode(simplified()->NumberLessThan(), index,
@@ -2577,9 +2575,7 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
     Node* index = effect = graph()->NewNode(
         simplified()->LoadField(AccessBuilder::ForJSStringIteratorIndex()),
         receiver, effect, control);
-    Node* length = effect = graph()->NewNode(
-        simplified()->LoadField(AccessBuilder::ForStringLength()), string,
-        effect, control);
+    Node* length = graph()->NewNode(simplified()->StringLength(), string);
 
     // branch0: if (index < length)
     Node* check0 =
@@ -2670,9 +2666,8 @@ Reduction JSBuiltinReducer::ReduceStringIteratorNext(Node* node) {
           simplified()->StringFromCodePoint(UnicodeEncoding::UTF16), vtrue0);
 
       // Update iterator.[[NextIndex]]
-      Node* char_length = etrue0 = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForStringLength()), vtrue0,
-          etrue0, if_true0);
+      Node* char_length =
+          graph()->NewNode(simplified()->StringLength(), vtrue0);
       index = graph()->NewNode(simplified()->NumberAdd(), index, char_length);
       etrue0 = graph()->NewNode(
           simplified()->StoreField(AccessBuilder::ForJSStringIteratorIndex()),
@@ -2721,9 +2716,8 @@ Reduction JSBuiltinReducer::ReduceStringSlice(Node* node) {
 
     if (start_type->Is(type_cache_.kSingletonMinusOne) &&
         end_type->Is(Type::Undefined())) {
-      Node* receiver_length = effect = graph()->NewNode(
-          simplified()->LoadField(AccessBuilder::ForStringLength()), receiver,
-          effect, control);
+      Node* receiver_length =
+          graph()->NewNode(simplified()->StringLength(), receiver);
 
       Node* check =
           graph()->NewNode(simplified()->NumberEqual(), receiver_length,

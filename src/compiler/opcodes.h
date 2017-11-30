@@ -335,6 +335,7 @@
   V(StringFromCharCode)                 \
   V(StringFromCodePoint)                \
   V(StringIndexOf)                      \
+  V(StringLength)                       \
   V(StringToLowerCaseIntl)              \
   V(StringToUpperCaseIntl)              \
   V(CheckBounds)                        \

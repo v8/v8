@@ -1978,6 +1978,10 @@ Type* Typer::Visitor::TypeStringFromCodePoint(Node* node) {
 
 Type* Typer::Visitor::TypeStringIndexOf(Node* node) { UNREACHABLE(); }
 
+Type* Typer::Visitor::TypeStringLength(Node* node) {
+  return typer_->cache_.kStringLengthType;
+}
+
 Type* Typer::Visitor::TypeCheckBounds(Node* node) {
   Type* index = Operand(node, 0);
   Type* length = Operand(node, 1);

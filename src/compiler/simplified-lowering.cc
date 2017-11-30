@@ -2415,6 +2415,14 @@ class RepresentationSelector {
         SetOutput(node, MachineRepresentation::kTaggedSigned);
         return;
       }
+      case IrOpcode::kStringLength: {
+        // TODO(bmeurer): The input representation should be TaggedPointer.
+        // Fix this once we have a dedicated StringConcat/JSStringAdd
+        // operator, which marks it's output as TaggedPointer properly.
+        VisitUnop(node, UseInfo::AnyTagged(),
+                  MachineRepresentation::kTaggedSigned);
+        return;
+      }
       case IrOpcode::kStringToLowerCaseIntl:
       case IrOpcode::kStringToUpperCaseIntl: {
         VisitUnop(node, UseInfo::AnyTagged(),

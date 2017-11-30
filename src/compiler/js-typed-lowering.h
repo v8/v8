@@ -85,8 +85,8 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   // Helper for ReduceJSLoadModule and ReduceJSStoreModule.
   Node* BuildGetModuleCell(Node* node);
 
-  // Helpers for ReduceJSCreateConsString and ReduceJSStringConcat.
-  Node* BuildGetStringLength(Node* value, Node** effect, Node* control);
+  // Helpers for ReduceJSCreateConsString.
+  Node* BuildGetStringLength(Node* value);
 
   Factory* factory() const;
   Graph* graph() const;

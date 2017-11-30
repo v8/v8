@@ -590,6 +590,7 @@ DeoptimizeReason DeoptimizeReasonOf(const Operator* op) {
   V(SeqStringCharCodeAt, Operator::kNoProperties, 2, 1)          \
   V(StringFromCharCode, Operator::kNoProperties, 1, 0)           \
   V(StringIndexOf, Operator::kNoProperties, 3, 0)                \
+  V(StringLength, Operator::kNoProperties, 1, 0)                 \
   V(StringToLowerCaseIntl, Operator::kNoProperties, 1, 0)        \
   V(StringToUpperCaseIntl, Operator::kNoProperties, 1, 0)        \
   V(TypeOf, Operator::kNoProperties, 1, 1)                       \

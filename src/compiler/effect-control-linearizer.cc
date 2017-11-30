@@ -860,6 +860,9 @@ bool EffectControlLinearizer::TryWireInStateEffect(Node* node,
     case IrOpcode::kStringIndexOf:
       result = LowerStringIndexOf(node);
       break;
+    case IrOpcode::kStringLength:
+      result = LowerStringLength(node);
+      break;
     case IrOpcode::kStringToNumber:
       result = LowerStringToNumber(node);
       break;
@@ -2841,6 +2844,12 @@ Node* EffectControlLinearizer::LowerStringIndexOf(Node* node) {
       isolate(), graph()->zone(), callable.descriptor(), 0, flags, properties);
   return __ Call(desc, __ HeapConstant(callable.code()), subject, search_string,
                  position, __ NoContextConstant());
+}
+
+Node* EffectControlLinearizer::LowerStringLength(Node* node) {
+  Node* subject = node->InputAt(0);
+
+  return __ LoadField(AccessBuilder::ForStringLength(), subject);
 }
 
 Node* EffectControlLinearizer::LowerStringComparison(Callable const& callable,
