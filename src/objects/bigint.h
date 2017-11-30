@@ -31,6 +31,15 @@ class BigIntBase : public HeapObject {
   static const int kMaxLengthBits = 1024 * 1024;
   static const int kMaxLength = kMaxLengthBits / (kPointerSize * kBitsPerByte);
 
+  static const int kLengthFieldBits = 20;
+  STATIC_ASSERT(kMaxLength <= ((1 << kLengthFieldBits) - 1));
+  class LengthBits : public BitField<int, 0, kLengthFieldBits> {};
+  class SignBits : public BitField<bool, LengthBits::kNext, 1> {};
+
+  static const int kBitfieldOffset = HeapObject::kHeaderSize;
+  static const int kDigitsOffset = kBitfieldOffset + kPointerSize;
+  static const int kHeaderSize = kDigitsOffset;
+
  private:
   friend class BigInt;
   friend class MutableBigInt;
@@ -43,15 +52,6 @@ class BigIntBase : public HeapObject {
   static const int kDigitBits = kDigitSize * kBitsPerByte;
   static const int kHalfDigitBits = kDigitBits / 2;
   static const digit_t kHalfDigitMask = (1ull << kHalfDigitBits) - 1;
-
-  static const int kBitfieldOffset = HeapObject::kHeaderSize;
-  static const int kDigitsOffset = kBitfieldOffset + kPointerSize;
-  static const int kHeaderSize = kDigitsOffset;
-
-  static const int kLengthFieldBits = 20;
-  STATIC_ASSERT(kMaxLength <= ((1 << kLengthFieldBits) - 1));
-  class LengthBits : public BitField<int, 0, kLengthFieldBits> {};
-  class SignBits : public BitField<bool, LengthBits::kNext, 1> {};
 
   // sign() == true means negative.
   inline bool sign() const {

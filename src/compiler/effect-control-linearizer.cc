@@ -1137,6 +1137,7 @@ void EffectControlLinearizer::TruncateTaggedPointerToBit(
   Node* value = node->InputAt(0);
 
   auto if_heapnumber = __ MakeDeferredLabel();
+  auto if_bigint = __ MakeDeferredLabel();
 
   Node* zero = __ Int32Constant(0);
   Node* fzero = __ Float64Constant(0.0);
@@ -1164,6 +1165,12 @@ void EffectControlLinearizer::TruncateTaggedPointerToBit(
   __ GotoIf(__ WordEqual(value_map, __ HeapNumberMapConstant()),
             &if_heapnumber);
 
+  // Check if {value} is a BigInt.
+  Node* value_instance_type =
+      __ LoadField(AccessBuilder::ForMapInstanceType(), value_map);
+  __ GotoIf(__ Word32Equal(value_instance_type, __ Int32Constant(BIGINT_TYPE)),
+            &if_bigint);
+
   // All other values that reach here are true.
   __ Goto(done, __ Int32Constant(1));
 
@@ -1174,6 +1181,15 @@ void EffectControlLinearizer::TruncateTaggedPointerToBit(
     Node* value_value =
         __ LoadField(AccessBuilder::ForHeapNumberValue(), value);
     __ Goto(done, __ Float64LessThan(fzero, __ Float64Abs(value_value)));
+  }
+
+  __ Bind(&if_bigint);
+  {
+    Node* bitfield = __ LoadField(AccessBuilder::ForBigIntBitfield(), value);
+    Node* length_is_zero = __ Word32Equal(
+        __ Word32And(bitfield, __ Int32Constant(BigInt::LengthBits::kMask)),
+        zero);
+    __ Goto(done, __ Word32Equal(length_is_zero, zero));
   }
 }
 
