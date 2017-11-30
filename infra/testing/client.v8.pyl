@@ -10,4 +10,11 @@
   # 'V8 Linux64 - debug': [
   #   {'name': 'benchmarks', 'variant': 'default', 'shards': 1},
   # ],
+
+  'V8 Linux64': [
+    {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
+  ],
+  'V8 Linux64 - debug': [
+    {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
+  ],
 }

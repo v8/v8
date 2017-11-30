@@ -7,4 +7,8 @@
   # 'v8_linux64_rel_ng_triggered': [
   #   {'name': 'benchmarks', 'variant': 'default', 'shards': 1},
   # ],
+
+  'v8_linux64_rel_ng_triggered': [
+    {'name': 'v8testing', 'variant': 'minor_mc', 'shards': 1},
+  ],
 }
