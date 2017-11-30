@@ -2504,11 +2504,35 @@ Node* EffectControlLinearizer::LowerNewConsString(Node* node) {
   Node* first = node->InputAt(1);
   Node* second = node->InputAt(2);
 
-  // TODO(turbofan): We currently just use the cons_string_map here for
-  // the sake of simplicity; we could also try to be smarter here and
-  // use the one_byte_cons_string_map instead when the resulting ConsString
-  // contains only one byte characters.
-  Node* result_map = jsgraph()->HeapConstant(factory()->cons_string_map());
+  // Determine the instance types of {first} and {second}.
+  Node* first_map = __ LoadField(AccessBuilder::ForMap(), first);
+  Node* first_instance_type =
+      __ LoadField(AccessBuilder::ForMapInstanceType(), first_map);
+  Node* second_map = __ LoadField(AccessBuilder::ForMap(), second);
+  Node* second_instance_type =
+      __ LoadField(AccessBuilder::ForMapInstanceType(), second_map);
+
+  // Determine the proper map for the resulting ConsString.
+  // If both {first} and {second} are one-byte strings, we
+  // create a new ConsOneByteString, otherwise we create a
+  // new ConsString instead.
+  auto if_onebyte = __ MakeLabel();
+  auto if_twobyte = __ MakeLabel();
+  auto done = __ MakeLabel(MachineRepresentation::kTaggedPointer);
+  STATIC_ASSERT(kOneByteStringTag != 0);
+  STATIC_ASSERT(kTwoByteStringTag == 0);
+  Node* instance_type = __ Word32And(first_instance_type, second_instance_type);
+  Node* encoding =
+      __ Word32And(instance_type, __ Int32Constant(kStringEncodingMask));
+  __ Branch(__ Word32Equal(encoding, __ Int32Constant(kTwoByteStringTag)),
+            &if_twobyte, &if_onebyte);
+  __ Bind(&if_onebyte);
+  __ Goto(&done,
+          jsgraph()->HeapConstant(factory()->cons_one_byte_string_map()));
+  __ Bind(&if_twobyte);
+  __ Goto(&done, jsgraph()->HeapConstant(factory()->cons_string_map()));
+  __ Bind(&done);
+  Node* result_map = done.PhiAt(0);
 
   // Allocate the resulting ConsString.
   Node* result = __ Allocate(NOT_TENURED, __ Int32Constant(ConsString::kSize));
