@@ -13417,8 +13417,8 @@ Handle<JSObject> Script::GetWrapper(Handle<Script> script) {
 
 MaybeHandle<SharedFunctionInfo> Script::FindSharedFunctionInfo(
     Isolate* isolate, const FunctionLiteral* fun) {
-  DCHECK_NE(fun->function_literal_id(), FunctionLiteral::kIdTypeInvalid);
-  DCHECK_LT(fun->function_literal_id(), shared_function_infos()->length());
+  CHECK_NE(fun->function_literal_id(), FunctionLiteral::kIdTypeInvalid);
+  CHECK_LT(fun->function_literal_id(), shared_function_infos()->length());
   Object* shared = shared_function_infos()->get(fun->function_literal_id());
   if (shared->IsUndefined(isolate) || WeakCell::cast(shared)->cleared()) {
     return MaybeHandle<SharedFunctionInfo>();
