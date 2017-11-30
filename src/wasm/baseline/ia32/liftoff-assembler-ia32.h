@@ -34,17 +34,17 @@ void LiftoffAssembler::ReserveStackSpace(uint32_t space) {
   sub(esp, Immediate(space));
 }
 
-void LiftoffAssembler::LoadConstant(Register reg, WasmValue value) {
+void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {
   switch (value.type()) {
     case kWasmI32:
       if (value.to_i32() == 0) {
-        xor_(reg, reg);
+        xor_(reg.gp(), reg.gp());
       } else {
-        mov(reg, Immediate(value.to_i32()));
+        mov(reg.gp(), Immediate(value.to_i32()));
       }
       break;
     default:
-      UNIMPLEMENTED();
+      UNREACHABLE();
   }
 }
 
@@ -60,46 +60,46 @@ void LiftoffAssembler::SpillContext(Register context) {
   mov(liftoff::GetContextOperand(), context);
 }
 
-void LiftoffAssembler::Load(Register dst, Register src_addr,
+void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             uint32_t offset_imm, int size,
-                            PinnedRegisterScope pinned) {
+                            LiftoffRegList pinned) {
   Operand src_op = Operand(src_addr, offset_imm);
   if (offset_imm > kMaxInt) {
     // The immediate can not be encoded in the operand. Load it to a register
     // first.
-    Register src = GetUnusedRegister(kGpReg, pinned);
+    Register src = GetUnusedRegister(kGpReg, pinned).gp();
     mov(src, Immediate(offset_imm));
     src_op = Operand(src_addr, src, times_1, 0);
   }
   DCHECK_EQ(4, size);
-  mov(dst, src_op);
+  mov(dst.gp(), src_op);
 }
 
 void LiftoffAssembler::Store(Register dst_addr, uint32_t offset_imm,
-                             Register src, int size,
-                             PinnedRegisterScope pinned) {
+                             LiftoffRegister src, int size,
+                             LiftoffRegList pinned) {
   Operand dst_op = Operand(dst_addr, offset_imm);
   if (offset_imm > kMaxInt) {
     // The immediate can not be encoded in the operand. Load it to a register
     // first.
-    Register dst = GetUnusedRegister(kGpReg, pinned);
+    Register dst = GetUnusedRegister(kGpReg, pinned).gp();
     mov(dst, Immediate(offset_imm));
     dst_op = Operand(dst_addr, dst, times_1, 0);
   }
   DCHECK_EQ(4, size);
-  mov(dst_op, src);
+  mov(dst_op, src.gp());
 }
 
-void LiftoffAssembler::LoadCallerFrameSlot(Register dst,
+void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx) {
   constexpr int32_t kCallerStackSlotSize = 4;
-  mov(dst, Operand(ebp, kCallerStackSlotSize * (caller_slot_idx + 1)));
+  mov(dst.gp(), Operand(ebp, kCallerStackSlotSize * (caller_slot_idx + 1)));
 }
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index) {
   DCHECK_NE(dst_index, src_index);
-  if (cache_state_.has_unused_register()) {
-    Register reg = GetUnusedRegister(kGpReg);
+  if (cache_state_.has_unused_register(kGpReg)) {
+    LiftoffRegister reg = GetUnusedRegister(kGpReg);
     Fill(reg, src_index);
     Spill(dst_index, reg);
   } else {
@@ -108,13 +108,26 @@ void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index) {
   }
 }
 
-void LiftoffAssembler::MoveToReturnRegister(Register reg) {
-  if (reg != eax) mov(eax, reg);
+void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg) {
+  if (reg.gp() != eax) mov(eax, reg.gp());
 }
 
-void LiftoffAssembler::Spill(uint32_t index, Register reg) {
-  // TODO(clemensh): Handle different types here.
-  mov(liftoff::GetStackSlot(index), reg);
+void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src) {
+  // The caller should check that the registers are not equal. For most
+  // occurences, this is already guaranteed, so no need to check within this
+  // method.
+  DCHECK_NE(dst, src);
+  DCHECK_EQ(dst.reg_class(), src.reg_class());
+  // TODO(clemensh): Handle different sizes here.
+  if (dst.is_gp()) {
+    mov(dst.gp(), src.gp());
+  } else {
+    movsd(dst.fp(), src.fp());
+  }
+}
+
+void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg) {
+  mov(liftoff::GetStackSlot(index), reg.gp());
 }
 
 void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
@@ -122,9 +135,8 @@ void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {
   mov(liftoff::GetStackSlot(index), Immediate(value.to_i32()));
 }
 
-void LiftoffAssembler::Fill(Register reg, uint32_t index) {
-  // TODO(clemensh): Handle different types here.
-  mov(reg, liftoff::GetStackSlot(index));
+void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index) {
+  mov(reg.gp(), liftoff::GetStackSlot(index));
 }
 
 void LiftoffAssembler::emit_i32_add(Register dst, Register lhs, Register rhs) {

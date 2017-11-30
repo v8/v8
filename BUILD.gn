@@ -2075,9 +2075,11 @@ v8_source_set("v8_base") {
     "src/visitors.h",
     "src/vm-state-inl.h",
     "src/vm-state.h",
+    "src/wasm/baseline/liftoff-assembler-defs.h",
     "src/wasm/baseline/liftoff-assembler.cc",
     "src/wasm/baseline/liftoff-assembler.h",
     "src/wasm/baseline/liftoff-compiler.cc",
+    "src/wasm/baseline/liftoff-register.h",
     "src/wasm/compilation-manager.cc",
     "src/wasm/compilation-manager.h",
     "src/wasm/decoder.h",
@@ -2186,7 +2188,6 @@ v8_source_set("v8_base") {
       "src/ia32/sse-instr.h",
       "src/regexp/ia32/regexp-macro-assembler-ia32.cc",
       "src/regexp/ia32/regexp-macro-assembler-ia32.h",
-      "src/wasm/baseline/ia32/liftoff-assembler-ia32-defs.h",
       "src/wasm/baseline/ia32/liftoff-assembler-ia32.h",
     ]
   } else if (v8_current_cpu == "x64") {
@@ -2201,7 +2202,6 @@ v8_source_set("v8_base") {
       "src/regexp/x64/regexp-macro-assembler-x64.cc",
       "src/regexp/x64/regexp-macro-assembler-x64.h",
       "src/third_party/valgrind/valgrind.h",
-      "src/wasm/baseline/x64/liftoff-assembler-x64-defs.h",
       "src/wasm/baseline/x64/liftoff-assembler-x64.h",
       "src/x64/assembler-x64-inl.h",
       "src/x64/assembler-x64.cc",
@@ -2255,7 +2255,6 @@ v8_source_set("v8_base") {
       "src/debug/arm/debug-arm.cc",
       "src/regexp/arm/regexp-macro-assembler-arm.cc",
       "src/regexp/arm/regexp-macro-assembler-arm.h",
-      "src/wasm/baseline/arm/liftoff-assembler-arm-defs.h",
       "src/wasm/baseline/arm/liftoff-assembler-arm.h",
     ]
   } else if (v8_current_cpu == "arm64") {
@@ -2301,7 +2300,6 @@ v8_source_set("v8_base") {
       "src/debug/arm64/debug-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.cc",
       "src/regexp/arm64/regexp-macro-assembler-arm64.h",
-      "src/wasm/baseline/arm64/liftoff-assembler-arm64-defs.h",
       "src/wasm/baseline/arm64/liftoff-assembler-arm64.h",
     ]
     if (use_jumbo_build) {
@@ -2338,7 +2336,6 @@ v8_source_set("v8_base") {
       "src/mips/simulator-mips.h",
       "src/regexp/mips/regexp-macro-assembler-mips.cc",
       "src/regexp/mips/regexp-macro-assembler-mips.h",
-      "src/wasm/baseline/mips/liftoff-assembler-mips-defs.h",
       "src/wasm/baseline/mips/liftoff-assembler-mips.h",
     ]
   } else if (v8_current_cpu == "mips64" || v8_current_cpu == "mips64el") {
@@ -2368,7 +2365,6 @@ v8_source_set("v8_base") {
       "src/mips64/simulator-mips64.h",
       "src/regexp/mips64/regexp-macro-assembler-mips64.cc",
       "src/regexp/mips64/regexp-macro-assembler-mips64.h",
-      "src/wasm/baseline/mips64/liftoff-assembler-mips64-defs.h",
       "src/wasm/baseline/mips64/liftoff-assembler-mips64.h",
     ]
   } else if (v8_current_cpu == "ppc" || v8_current_cpu == "ppc64") {
@@ -2398,7 +2394,6 @@ v8_source_set("v8_base") {
       "src/ppc/simulator-ppc.h",
       "src/regexp/ppc/regexp-macro-assembler-ppc.cc",
       "src/regexp/ppc/regexp-macro-assembler-ppc.h",
-      "src/wasm/baseline/ppc/liftoff-assembler-ppc-defs.h",
       "src/wasm/baseline/ppc/liftoff-assembler-ppc.h",
     ]
   } else if (v8_current_cpu == "s390" || v8_current_cpu == "s390x") {
@@ -2428,7 +2423,6 @@ v8_source_set("v8_base") {
       "src/s390/macro-assembler-s390.h",
       "src/s390/simulator-s390.cc",
       "src/s390/simulator-s390.h",
-      "src/wasm/baseline/s390/liftoff-assembler-s390-defs.h",
       "src/wasm/baseline/s390/liftoff-assembler-s390.h",
     ]
   }

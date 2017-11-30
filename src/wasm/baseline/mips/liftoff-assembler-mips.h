@@ -13,33 +13,35 @@ namespace wasm {
 
 void LiftoffAssembler::ReserveStackSpace(uint32_t space) { USE(stack_space_); }
 
-void LiftoffAssembler::LoadConstant(Register reg, WasmValue value) {}
+void LiftoffAssembler::LoadConstant(LiftoffRegister reg, WasmValue value) {}
 
 void LiftoffAssembler::LoadFromContext(Register dst, uint32_t offset,
                                        int size) {}
 
 void LiftoffAssembler::SpillContext(Register context) {}
 
-void LiftoffAssembler::Load(Register dst, Register src_addr,
+void LiftoffAssembler::Load(LiftoffRegister dst, Register src_addr,
                             uint32_t offset_imm, int size,
-                            PinnedRegisterScope pinned) {}
+                            LiftoffRegList pinned) {}
 
 void LiftoffAssembler::Store(Register dst_addr, uint32_t offset_imm,
-                             Register src, int size,
-                             PinnedRegisterScope pinned) {}
+                             LiftoffRegister src, int size,
+                             LiftoffRegList pinned) {}
 
-void LiftoffAssembler::LoadCallerFrameSlot(Register dst,
+void LiftoffAssembler::LoadCallerFrameSlot(LiftoffRegister dst,
                                            uint32_t caller_slot_idx) {}
 
 void LiftoffAssembler::MoveStackValue(uint32_t dst_index, uint32_t src_index) {}
 
-void LiftoffAssembler::MoveToReturnRegister(Register reg) {}
+void LiftoffAssembler::MoveToReturnRegister(LiftoffRegister reg) {}
 
-void LiftoffAssembler::Spill(uint32_t index, Register reg) {}
+void LiftoffAssembler::Move(LiftoffRegister dst, LiftoffRegister src) {}
+
+void LiftoffAssembler::Spill(uint32_t index, LiftoffRegister reg) {}
 
 void LiftoffAssembler::Spill(uint32_t index, WasmValue value) {}
 
-void LiftoffAssembler::Fill(Register reg, uint32_t index) {}
+void LiftoffAssembler::Fill(LiftoffRegister reg, uint32_t index) {}
 
 #define DEFAULT_I32_BINOP(name, internal_name)                       \
   void LiftoffAssembler::emit_i32_##name(Register dst, Register lhs, \
