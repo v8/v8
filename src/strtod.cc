@@ -163,8 +163,10 @@ static bool DoubleStrtod(Vector<const char> trimmed,
   // therefore accurate.
   // Note that the ARM and MIPS simulators are compiled for 32bits. They
   // therefore exhibit the same problem.
+  USE(kMaxExactDoubleIntegerDecimalDigits);
+  USE(kExactPowersOfTenSize);
   return false;
-#endif
+#else
   if (trimmed.length() <= kMaxExactDoubleIntegerDecimalDigits) {
     int read_digits;
     // The trimmed input fits into a double.
@@ -202,6 +204,7 @@ static bool DoubleStrtod(Vector<const char> trimmed,
     }
   }
   return false;
+#endif
 }
 
 

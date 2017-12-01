@@ -474,7 +474,6 @@ void NeonMemOperand::SetAlignment(int align) {
       break;
     default:
       UNREACHABLE();
-      align_ = 0;
       break;
   }
 }

@@ -85,15 +85,14 @@ class LiftoffCompiler {
   }
 
   void BindUnboundLabels(Decoder* decoder) {
-#ifndef DEBUG
-    return;
-#endif
+#ifdef DEBUG
     // Bind all labels now, otherwise their destructor will fire a DCHECK error
     // if they where referenced before.
     for (uint32_t i = 0, e = decoder->control_depth(); i < e; ++i) {
       Label* label = decoder->control_at(i)->label.get();
       if (!label->is_bound()) __ bind(label);
     }
+#endif
   }
 
   void CheckStackSizeLimit(Decoder* decoder) {

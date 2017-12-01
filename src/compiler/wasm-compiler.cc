@@ -4325,9 +4325,7 @@ Handle<Code> CompileJSToWasmWrapper(Isolate* isolate, wasm::WasmModule* module,
 namespace {
 
 void ValidateImportWrapperReferencesImmovables(Handle<Code> wrapper) {
-#if !DEBUG
-  return;
-#endif
+#ifdef DEBUG
   // We expect the only embedded objects to be those originating from
   // a snapshot, which are immovable.
   DisallowHeapAllocation no_gc;
@@ -4360,6 +4358,7 @@ void ValidateImportWrapperReferencesImmovables(Handle<Code> wrapper) {
     }
     CHECK(is_immovable || is_allowed_stub);
   }
+#endif
 }
 
 }  // namespace
@@ -4712,9 +4711,7 @@ Vector<const char> GetDebugName(Zone* zone, wasm::WasmName name, int index) {
   if (!name.is_empty()) {
     return name;
   }
-#ifndef DEBUG
-  return {};
-#endif
+#ifdef DEBUG
   constexpr int kBufferLength = 15;
 
   EmbeddedVector<char, kBufferLength> name_vector;
@@ -4724,6 +4721,9 @@ Vector<const char> GetDebugName(Zone* zone, wasm::WasmName name, int index) {
   char* index_name = zone->NewArray<char>(name_len);
   memcpy(index_name, name_vector.start(), name_len);
   return Vector<const char>(index_name, name_len);
+#else
+  return {};
+#endif
 }
 
 }  // namespace

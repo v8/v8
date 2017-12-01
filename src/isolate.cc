@@ -1133,7 +1133,7 @@ Object* Isolate::Throw(Object* exception, MessageLocation* location) {
 #ifdef DEBUG
       if (AllowHeapAllocation::IsAllowed()) {
 #else
-      if (false) {
+      if ((false)) {
 #endif
         printf(", %d:%d - %d:%d\n",
                Script::GetLineNumber(script, location->start_pos()) + 1,

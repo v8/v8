@@ -1309,7 +1309,6 @@ void InterpreterAssembler::DispatchWide(OperandScale operand_scale) {
       break;
     default:
       UNREACHABLE();
-      base_index = nullptr;
   }
   Node* target_index = IntPtrAdd(base_index, next_bytecode);
   Node* target_code_entry =

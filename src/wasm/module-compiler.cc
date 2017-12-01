@@ -263,16 +263,13 @@ class JSToWasmWrapperCache {
           }
         }
       } else {
-        for (RelocIterator it(*code,
-                              RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
-             ; it.next()) {
-          DCHECK(!it.done());
-          it.rinfo()->set_js_to_wasm_address(
-              isolate, wasm_code.is_null()
-                           ? nullptr
-                           : wasm_code.GetWasmCode()->instructions().start());
-          break;
-        }
+        RelocIterator it(*code,
+                         RelocInfo::ModeMask(RelocInfo::JS_TO_WASM_CALL));
+        DCHECK(!it.done());
+        it.rinfo()->set_js_to_wasm_address(
+            isolate, wasm_code.is_null()
+                         ? nullptr
+                         : wasm_code.GetWasmCode()->instructions().start());
       }
       return code;
     }

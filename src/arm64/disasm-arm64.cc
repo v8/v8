@@ -3544,8 +3544,6 @@ int DisassemblingDecoder::SubstituteRegisterField(Instruction* instr,
       return field_len;
     default:
       UNREACHABLE();
-      reg_type = CPURegister::kRegister;
-      reg_size = kXRegSizeInBits;
   }
 
   if ((reg_type == CPURegister::kRegister) && (reg_num == kZeroRegCode) &&

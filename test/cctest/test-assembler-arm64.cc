@@ -11653,10 +11653,8 @@ static void TestUScvtf32Helper(uint64_t in,
     CHECK_EQUAL_FP32(expected_ucvtf, results_ucvtf_x[fbits]);
     if (cvtf_s32) CHECK_EQUAL_FP32(expected_scvtf, results_scvtf_w[fbits]);
     if (cvtf_u32) CHECK_EQUAL_FP32(expected_ucvtf, results_ucvtf_w[fbits]);
-    break;
   }
   for (int fbits = 33; fbits <= 64; fbits++) {
-    break;
     float expected_scvtf = expected_scvtf_base / powf(2, fbits);
     float expected_ucvtf = expected_ucvtf_base / powf(2, fbits);
     CHECK_EQUAL_FP32(expected_scvtf, results_scvtf_x[fbits]);

@@ -198,7 +198,7 @@ void* OS::GetRandomMmapAddr() {
     defined(THREAD_SANITIZER)
   // Dynamic tools do not support custom mmap addresses.
   return nullptr;
-#endif
+#else
   uintptr_t raw_addr;
   platform_random_number_generator.Pointer()->NextBytes(&raw_addr,
                                                         sizeof(raw_addr));
@@ -256,6 +256,7 @@ void* OS::GetRandomMmapAddr() {
 #endif
 #endif
   return reinterpret_cast<void*>(raw_addr);
+#endif
 }
 
 // TODO(bbudge) Move Cygwin and Fuschia stuff into platform-specific files.

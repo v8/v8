@@ -995,9 +995,7 @@ PipelineWasmCompilationJob::Status PipelineWasmCompilationJob::FinalizeJobImpl(
 }
 
 void PipelineWasmCompilationJob::ValidateImmovableEmbeddedObjects() const {
-#if !DEBUG
-  return;
-#endif
+#if DEBUG
   // We expect the only embedded objects to be those originating from
   // a snapshot, which are immovable.
   DisallowHeapAllocation no_gc;
@@ -1038,6 +1036,7 @@ void PipelineWasmCompilationJob::ValidateImmovableEmbeddedObjects() const {
     }
     CHECK(is_immovable || is_wasm || is_allowed_stub);
   }
+#endif
 }
 
 template <typename Phase>

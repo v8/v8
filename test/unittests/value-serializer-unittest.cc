@@ -3014,7 +3014,7 @@ const unsigned char kSerializedIncrementerWasm[] = {
     0x2F, 0x2F};
 
 TEST_F(ValueSerializerTestWithWasm, DecodeWasmModule) {
-  if (true) return;  // TODO(mtrofin): fix this test
+  if ((true)) return;  // TODO(mtrofin): fix this test
   std::vector<uint8_t> raw(
       kSerializedIncrementerWasm,
       kSerializedIncrementerWasm + sizeof(kSerializedIncrementerWasm));
@@ -3035,7 +3035,7 @@ const unsigned char kSerializedIncrementerWasmWithInvalidCompiledData[] = {
     0x01, 0x06, 0x00, 0x20, 0x00, 0x41, 0x01, 0x6A, 0x00};
 
 TEST_F(ValueSerializerTestWithWasm, DecodeWasmModuleWithInvalidCompiledData) {
-  if (true) return;  // TODO(titzer): regenerate this test
+  if ((true)) return;  // TODO(titzer): regenerate this test
   std::vector<uint8_t> raw(
       kSerializedIncrementerWasmWithInvalidCompiledData,
       kSerializedIncrementerWasmWithInvalidCompiledData +

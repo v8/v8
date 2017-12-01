@@ -319,7 +319,6 @@ void Int32BinopInputShapeTester::TestAllInputShapes() {
 
       gen->gen(&m, n0, n1);
 
-      if (false) printf("Int32BinopInputShapeTester i=%d, j=%d\n", i, j);
       if (i >= 0) {
         input_a = inputs[i];
         RunRight(&m);
@@ -340,7 +339,6 @@ void Int32BinopInputShapeTester::Run(RawMachineAssemblerTester<int32_t>* m) {
       input_a = *pl;
       input_b = *pr;
       int32_t expect = gen->expected(input_a, input_b);
-      if (false) printf("  cmp(a=%d, b=%d) ?== %d\n", input_a, input_b, expect);
       CHECK_EQ(expect, m->Call(input_a, input_b));
     }
   }
@@ -352,7 +350,6 @@ void Int32BinopInputShapeTester::RunLeft(
   FOR_UINT32_INPUTS(i) {
     input_a = *i;
     int32_t expect = gen->expected(input_a, input_b);
-    if (false) printf("  cmp(a=%d, b=%d) ?== %d\n", input_a, input_b, expect);
     CHECK_EQ(expect, m->Call(input_a, input_b));
   }
 }
@@ -363,7 +360,6 @@ void Int32BinopInputShapeTester::RunRight(
   FOR_UINT32_INPUTS(i) {
     input_b = *i;
     int32_t expect = gen->expected(input_a, input_b);
-    if (false) printf("  cmp(a=%d, b=%d) ?== %d\n", input_a, input_b, expect);
     CHECK_EQ(expect, m->Call(input_a, input_b));
   }
 }

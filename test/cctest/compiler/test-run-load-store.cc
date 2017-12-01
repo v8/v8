@@ -479,7 +479,7 @@ TEST(RunUnalignedLoadStoreZeroExtend32) {
 
 namespace {
 void RunLoadStoreSignExtend64(TestAlignment t) {
-  if (true) return;  // TODO(titzer): sign extension of loads to 64-bit.
+  if ((true)) return;  // TODO(titzer): sign extension of loads to 64-bit.
   int64_t buffer[5];
   RawMachineAssemblerTester<int64_t> m;
   Node* load8 = m.LoadFromPointer(LSB(&buffer[0], 1), MachineType::Int8());

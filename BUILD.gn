@@ -513,6 +513,12 @@ config("toolchain") {
       # TODO(hans): Remove once http://crbug.com/428099 is resolved.
       "-Winconsistent-missing-override",
     ]
+
+    if (v8_current_cpu != "mips" && v8_current_cpu != "mipsel") {
+      # We exclude MIPS because the IsMipsArchVariant macro causes trouble.
+      cflags += [ "-Wunreachable-code" ]
+    }
+
     if (v8_current_cpu == "x64" || v8_current_cpu == "arm64" ||
         v8_current_cpu == "mips64el") {
       cflags += [ "-Wshorten-64-to-32" ]

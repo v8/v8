@@ -616,8 +616,6 @@ int DisassemblerX64::PrintImmediate(byte* data, OperandSize size) {
       break;
     default:
       UNREACHABLE();
-      value = 0;  // Initialize variables on all paths to satisfy the compiler.
-      count = 0;
   }
   AppendToBuffer("%" PRIx64, value);
   return count;

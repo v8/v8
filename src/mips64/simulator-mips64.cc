@@ -1686,7 +1686,7 @@ int64_t Simulator::get_pc() const {
 
 // TODO(plind): refactor this messy debug code when we do unaligned access.
 void Simulator::DieOrDebug() {
-  if (1) {  // Flag for this was removed.
+  if ((1)) {  // Flag for this was removed.
     MipsDebugger dbg(this);
     dbg.Debug();
   } else {
