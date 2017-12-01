@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --harmony-bigint --no-opt
+// Flags: --harmony-bigint
 
 const MAX_BIGINT_BITS = 1024 * 1024;  // Matches BigInt::kMaxLengthBits
 const MAX_BIGINT_CHARS = MAX_BIGINT_BITS / 4;
