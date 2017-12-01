@@ -26,7 +26,7 @@
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
   V8_EXPORT_PRIVATE extern ctype FLAG_##nam;
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
-  static ctype const FLAG_##nam = def;
+  static constexpr ctype FLAG_##nam = def;
 
 // We want to supply the actual storage and value for the flag variable in the
 // .cc file.  We only do this for writable flags.
@@ -44,7 +44,7 @@
 // for MODE_META, so there is no impact on the flags interface.
 #elif defined(FLAG_MODE_DEFINE_DEFAULTS)
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
-  static ctype const FLAGDEFAULT_##nam = def;
+  static constexpr ctype FLAGDEFAULT_##nam = def;
 
 // We want to write entries into our meta data table, for internal parsing and
 // printing / etc in the flag parser code.  We only do this for writable flags.
@@ -171,6 +171,12 @@ struct MaybeBoolFlag {
 #define DEFINE_ALIAS_STRING(alias, nam) \
   FLAG_ALIAS(STRING, const char*, alias, nam)
 #define DEFINE_ALIAS_ARGS(alias, nam) FLAG_ALIAS(ARGS, JSArguments, alias, nam)
+
+#ifdef DEBUG
+#define DEFINE_DEBUG_BOOL DEFINE_BOOL
+#else
+#define DEFINE_DEBUG_BOOL DEFINE_BOOL_READONLY
+#endif
 
 //
 // Flags in all modes.
@@ -473,7 +479,8 @@ DEFINE_BOOL(wasm_disable_structured_cloning, false,
             "disable wasm structured cloning")
 DEFINE_INT(wasm_num_compilation_tasks, 10,
            "number of parallel compilation tasks for wasm")
-DEFINE_BOOL(wasm_trace_native_heap, false, "trace wasm native heap events")
+DEFINE_DEBUG_BOOL(wasm_trace_native_heap, false,
+                  "trace wasm native heap events")
 DEFINE_BOOL(wasm_jit_to_native, false,
             "JIT wasm code to native (not JS GC) memory")
 DEFINE_BOOL(wasm_trace_serialization, false,
@@ -492,21 +499,24 @@ DEFINE_UINT(wasm_max_mem_pages, v8::internal::wasm::kV8MaxWasmMemoryPages,
             "maximum memory size of a wasm instance")
 DEFINE_UINT(wasm_max_table_size, v8::internal::wasm::kV8MaxWasmTableSize,
             "maximum table size of a wasm instance")
-DEFINE_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
-DEFINE_BOOL(trace_wasm_decode_time, false, "trace decoding time of wasm code")
-DEFINE_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
-DEFINE_BOOL(trace_wasm_interpreter, false, "trace interpretation of wasm code")
-DEFINE_BOOL(trace_wasm_streaming, false,
-            "trace streaming compilation of wasm code")
+DEFINE_DEBUG_BOOL(trace_wasm_decoder, false, "trace decoding of wasm code")
+DEFINE_DEBUG_BOOL(trace_wasm_decode_time, false,
+                  "trace decoding time of wasm code")
+DEFINE_DEBUG_BOOL(trace_wasm_compiler, false, "trace compiling of wasm code")
+DEFINE_DEBUG_BOOL(trace_wasm_interpreter, false,
+                  "trace interpretation of wasm code")
+DEFINE_DEBUG_BOOL(trace_wasm_streaming, false,
+                  "trace streaming compilation of wasm code")
 DEFINE_INT(trace_wasm_ast_start, 0,
            "start function for wasm AST trace (inclusive)")
 DEFINE_INT(trace_wasm_ast_end, 0, "end function for wasm AST trace (exclusive)")
 DEFINE_BOOL(liftoff, false,
             "enable liftoff, the experimental wasm baseline compiler")
-DEFINE_BOOL(trace_liftoff, false, "trace liftoff, the wasm baseline compiler")
+DEFINE_DEBUG_BOOL(trace_liftoff, false,
+                  "trace liftoff, the wasm baseline compiler")
 DEFINE_UINT(skip_compiling_wasm_funcs, 0, "start compiling at function N")
-DEFINE_BOOL(wasm_break_on_decoder_error, false,
-            "debug break when wasm decoder encounters an error")
+DEFINE_DEBUG_BOOL(wasm_break_on_decoder_error, false,
+                  "debug break when wasm decoder encounters an error")
 DEFINE_BOOL(wasm_trace_memory, false,
             "print all memory updates performed in wasm code")
 
@@ -519,7 +529,7 @@ DEFINE_BOOL(trace_asm_scanner, false,
 DEFINE_BOOL(trace_asm_parser, false, "verbose logging of asm.js parse failures")
 DEFINE_BOOL(stress_validate_asm, false, "try to validate everything as asm.js")
 
-DEFINE_BOOL(dump_wasm_module, false, "dump wasm module bytes")
+DEFINE_DEBUG_BOOL(dump_wasm_module, false, "dump wasm module bytes")
 DEFINE_STRING(dump_wasm_module_path, nullptr,
               "directory to dump wasm modules to")
 
@@ -551,8 +561,8 @@ DEFINE_BOOL(asm_wasm_lazy_compilation, false,
 DEFINE_IMPLICATION(validate_asm, asm_wasm_lazy_compilation)
 DEFINE_BOOL(wasm_lazy_compilation, false,
             "enable lazy compilation for all wasm modules")
-DEFINE_BOOL(trace_wasm_lazy_compilation, false,
-            "trace lazy compilation of wasm functions")
+DEFINE_DEBUG_BOOL(trace_wasm_lazy_compilation, false,
+                  "trace lazy compilation of wasm functions")
 // wasm-interpret-all resets {asm-,}wasm-lazy-compilation.
 DEFINE_NEG_IMPLICATION(wasm_interpret_all, asm_wasm_lazy_compilation)
 DEFINE_NEG_IMPLICATION(wasm_interpret_all, wasm_lazy_compilation)
@@ -1081,8 +1091,8 @@ DEFINE_BOOL(trace_regexp_parser, false, "trace regexp parsing")
 DEFINE_BOOL(print_break_location, false, "print source location on debug break")
 
 // wasm instance management
-DEFINE_BOOL(trace_wasm_instances, false,
-            "trace creation and collection of wasm instances")
+DEFINE_DEBUG_BOOL(trace_wasm_instances, false,
+                  "trace creation and collection of wasm instances")
 
 //
 // Logging and profiling flags
@@ -1285,6 +1295,7 @@ DEFINE_IMPLICATION(unbox_double_fields, track_double_fields)
 
 #undef DEFINE_BOOL
 #undef DEFINE_MAYBE_BOOL
+#undef DEFINE_DEBUG_BOOL
 #undef DEFINE_INT
 #undef DEFINE_STRING
 #undef DEFINE_FLOAT

@@ -32,14 +32,10 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#if DEBUG
 #define TRACE(...)                                        \
   do {                                                    \
     if (FLAG_trace_wasm_interpreter) PrintF(__VA_ARGS__); \
   } while (false)
-#else
-#define TRACE(...)
-#endif
 
 #define FOREACH_INTERNAL_OPCODE(V) V(Breakpoint, 0xFF)
 

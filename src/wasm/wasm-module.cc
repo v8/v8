@@ -31,21 +31,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#define TRACE(...)                                      \
-  do {                                                  \
-    if (FLAG_trace_wasm_instances) PrintF(__VA_ARGS__); \
-  } while (false)
-
-#define TRACE_CHAIN(instance)        \
-  do {                               \
-    instance->PrintInstancesChain(); \
-  } while (false)
-
-#define TRACE_COMPILE(...)                             \
-  do {                                                 \
-    if (FLAG_trace_wasm_compiler) PrintF(__VA_ARGS__); \
-  } while (false)
-
 // static
 const WasmExceptionSig WasmException::empty_sig_(0, 0, nullptr);
 
@@ -448,10 +433,6 @@ const char* ExternalKindName(WasmExternalKind kind) {
   }
   return "unknown";
 }
-
-#undef TRACE
-#undef TRACE_CHAIN
-#undef TRACE_COMPILE
 
 }  // namespace wasm
 }  // namespace internal

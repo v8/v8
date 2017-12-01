@@ -274,11 +274,13 @@ void TestBuildingGraph(
   DecodeResult result =
       BuildTFGraph(zone->allocator(), &builder, sig, start, end);
   if (result.failed()) {
+#ifdef DEBUG
     if (!FLAG_trace_wasm_decoder) {
       // Retry the compilation with the tracing flag on, to help in debugging.
       FLAG_trace_wasm_decoder = true;
       result = BuildTFGraph(zone->allocator(), &builder, sig, start, end);
     }
+#endif
 
     uint32_t pc = result.error_offset();
     std::ostringstream str;

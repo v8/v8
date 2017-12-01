@@ -19,7 +19,6 @@ namespace v8 {
 namespace internal {
 namespace wasm {
 
-#if DEBUG
 #define TRACE(...)                                    \
   do {                                                \
     if (FLAG_trace_wasm_decoder) PrintF(__VA_ARGS__); \
@@ -28,10 +27,6 @@ namespace wasm {
   do {                                                          \
     if (FLAG_trace_wasm_decoder && (cond)) PrintF(__VA_ARGS__); \
   } while (false)
-#else
-#define TRACE(...)
-#define TRACE_IF(...)
-#endif
 
 // A {DecodeResult} only stores the failure / success status, but no data. Thus
 // we use {nullptr_t} as data value, such that the only valid data stored in
