@@ -340,11 +340,12 @@ enum WasmOpcodeSig : byte {
   FOREACH_SIGNATURE(DECLARE_SIG_ENUM)
 };
 #undef DECLARE_SIG_ENUM
-
-#define DECLARE_SIG(name, ...)                         \
-  constexpr ValueType kTypes_##name[] = {__VA_ARGS__}; \
-  constexpr FunctionSig kSig_##name(                   \
-      1, static_cast<int>(arraysize(kTypes_##name)) - 1, kTypes_##name);
+#define DECLARE_SIG(name, ...)                                                \
+  constexpr ValueType kTypes_##name[] = {__VA_ARGS__};                        \
+  constexpr int kReturnsCount_##name = kTypes_##name[0] == kWasmStmt ? 0 : 1; \
+  constexpr FunctionSig kSig_##name(                                          \
+      kReturnsCount_##name, static_cast<int>(arraysize(kTypes_##name)) - 1,   \
+      kTypes_##name + (1 - kReturnsCount_##name));
 FOREACH_SIGNATURE(DECLARE_SIG)
 #undef DECLARE_SIG
 

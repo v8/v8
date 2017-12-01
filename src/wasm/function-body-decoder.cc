@@ -223,8 +223,8 @@ class WasmGraphBuildingInterface {
 
   void BinOp(Decoder* decoder, WasmOpcode opcode, FunctionSig* sig,
              const Value& lhs, const Value& rhs, Value* result) {
-    result->node =
-        BUILD(Binop, opcode, lhs.node, rhs.node, decoder->position());
+    auto node = BUILD(Binop, opcode, lhs.node, rhs.node, decoder->position());
+    if (result) result->node = node;
   }
 
   void I32Const(Decoder* decoder, Value* result, int32_t value) {

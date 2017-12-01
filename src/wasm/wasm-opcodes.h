@@ -102,15 +102,15 @@ constexpr WasmCodePosition kNoCodePosition = -1;
 
 // Store memory expressions.
 #define FOREACH_STORE_MEM_OPCODE(V) \
-  V(I32StoreMem, 0x36, i_ii)        \
-  V(I64StoreMem, 0x37, l_il)        \
-  V(F32StoreMem, 0x38, f_if)        \
-  V(F64StoreMem, 0x39, d_id)        \
-  V(I32StoreMem8, 0x3a, i_ii)       \
-  V(I32StoreMem16, 0x3b, i_ii)      \
-  V(I64StoreMem8, 0x3c, l_il)       \
-  V(I64StoreMem16, 0x3d, l_il)      \
-  V(I64StoreMem32, 0x3e, l_il)
+  V(I32StoreMem, 0x36, v_ii)        \
+  V(I64StoreMem, 0x37, v_il)        \
+  V(F32StoreMem, 0x38, v_if)        \
+  V(F64StoreMem, 0x39, v_id)        \
+  V(I32StoreMem8, 0x3a, v_ii)       \
+  V(I32StoreMem16, 0x3b, v_ii)      \
+  V(I64StoreMem8, 0x3c, v_il)       \
+  V(I64StoreMem16, 0x3d, v_il)      \
+  V(I64StoreMem32, 0x3e, v_il)
 
 // Miscellaneous memory expressions
 #define FOREACH_MISC_MEM_OPCODE(V) \
@@ -413,15 +413,15 @@ constexpr WasmCodePosition kNoCodePosition = -1;
 
 #define FOREACH_SIMD_MEM_OPCODE(V) \
   V(S128LoadMem, 0xfd80, s_i)      \
-  V(S128StoreMem, 0xfd81, s_is)
+  V(S128StoreMem, 0xfd81, v_is)
 
 #define FOREACH_ATOMIC_OPCODE(V)               \
   V(I32AtomicLoad, 0xfe10, i_i)                \
   V(I32AtomicLoad8U, 0xfe12, i_i)              \
   V(I32AtomicLoad16U, 0xfe13, i_i)             \
-  V(I32AtomicStore, 0xfe17, i_ii)              \
-  V(I32AtomicStore8U, 0xfe19, i_ii)            \
-  V(I32AtomicStore16U, 0xfe1a, i_ii)           \
+  V(I32AtomicStore, 0xfe17, v_ii)              \
+  V(I32AtomicStore8U, 0xfe19, v_ii)            \
+  V(I32AtomicStore16U, 0xfe1a, v_ii)           \
   V(I32AtomicAdd, 0xfe1e, i_ii)                \
   V(I32AtomicAdd8U, 0xfe20, i_ii)              \
   V(I32AtomicAdd16U, 0xfe21, i_ii)             \
@@ -460,35 +460,38 @@ constexpr WasmCodePosition kNoCodePosition = -1;
   FOREACH_ATOMIC_OPCODE(V)
 
 // All signatures.
-#define FOREACH_SIGNATURE(V)            \
-  FOREACH_SIMD_SIGNATURE(V)             \
-  V(i_ii, kWasmI32, kWasmI32, kWasmI32) \
-  V(i_i, kWasmI32, kWasmI32)            \
-  V(i_v, kWasmI32)                      \
-  V(i_ff, kWasmI32, kWasmF32, kWasmF32) \
-  V(i_f, kWasmI32, kWasmF32)            \
-  V(i_dd, kWasmI32, kWasmF64, kWasmF64) \
-  V(i_d, kWasmI32, kWasmF64)            \
-  V(i_l, kWasmI32, kWasmI64)            \
-  V(l_ll, kWasmI64, kWasmI64, kWasmI64) \
-  V(i_ll, kWasmI32, kWasmI64, kWasmI64) \
-  V(l_l, kWasmI64, kWasmI64)            \
-  V(l_i, kWasmI64, kWasmI32)            \
-  V(l_f, kWasmI64, kWasmF32)            \
-  V(l_d, kWasmI64, kWasmF64)            \
-  V(f_ff, kWasmF32, kWasmF32, kWasmF32) \
-  V(f_f, kWasmF32, kWasmF32)            \
-  V(f_d, kWasmF32, kWasmF64)            \
-  V(f_i, kWasmF32, kWasmI32)            \
-  V(f_l, kWasmF32, kWasmI64)            \
-  V(d_dd, kWasmF64, kWasmF64, kWasmF64) \
-  V(d_d, kWasmF64, kWasmF64)            \
-  V(d_f, kWasmF64, kWasmF32)            \
-  V(d_i, kWasmF64, kWasmI32)            \
-  V(d_l, kWasmF64, kWasmI64)            \
-  V(d_id, kWasmF64, kWasmI32, kWasmF64) \
-  V(f_if, kWasmF32, kWasmI32, kWasmF32) \
-  V(l_il, kWasmI64, kWasmI32, kWasmI64) \
+#define FOREACH_SIGNATURE(V)             \
+  FOREACH_SIMD_SIGNATURE(V)              \
+  V(i_ii, kWasmI32, kWasmI32, kWasmI32)  \
+  V(i_i, kWasmI32, kWasmI32)             \
+  V(i_v, kWasmI32)                       \
+  V(i_ff, kWasmI32, kWasmF32, kWasmF32)  \
+  V(i_f, kWasmI32, kWasmF32)             \
+  V(i_dd, kWasmI32, kWasmF64, kWasmF64)  \
+  V(i_d, kWasmI32, kWasmF64)             \
+  V(i_l, kWasmI32, kWasmI64)             \
+  V(l_ll, kWasmI64, kWasmI64, kWasmI64)  \
+  V(i_ll, kWasmI32, kWasmI64, kWasmI64)  \
+  V(l_l, kWasmI64, kWasmI64)             \
+  V(l_i, kWasmI64, kWasmI32)             \
+  V(l_f, kWasmI64, kWasmF32)             \
+  V(l_d, kWasmI64, kWasmF64)             \
+  V(f_ff, kWasmF32, kWasmF32, kWasmF32)  \
+  V(f_f, kWasmF32, kWasmF32)             \
+  V(f_d, kWasmF32, kWasmF64)             \
+  V(f_i, kWasmF32, kWasmI32)             \
+  V(f_l, kWasmF32, kWasmI64)             \
+  V(d_dd, kWasmF64, kWasmF64, kWasmF64)  \
+  V(d_d, kWasmF64, kWasmF64)             \
+  V(d_f, kWasmF64, kWasmF32)             \
+  V(d_i, kWasmF64, kWasmI32)             \
+  V(d_l, kWasmF64, kWasmI64)             \
+  V(v_ii, kWasmStmt, kWasmI32, kWasmI32) \
+  V(v_id, kWasmStmt, kWasmI32, kWasmF64) \
+  V(d_id, kWasmF64, kWasmI32, kWasmF64)  \
+  V(v_if, kWasmStmt, kWasmI32, kWasmF32) \
+  V(f_if, kWasmF32, kWasmI32, kWasmF32)  \
+  V(v_il, kWasmI64, kWasmI32, kWasmI64)  \
   V(i_iii, kWasmI32, kWasmI32, kWasmI32, kWasmI32)
 
 #define FOREACH_SIMD_SIGNATURE(V)          \
