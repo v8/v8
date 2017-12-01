@@ -432,11 +432,13 @@ ScriptData* SerializedCodeData::GetScriptData() {
   return result;
 }
 
-Vector<const SerializedData::Reservation> SerializedCodeData::Reservations()
+std::vector<SerializedData::Reservation> SerializedCodeData::Reservations()
     const {
-  return Vector<const Reservation>(
-      reinterpret_cast<const Reservation*>(data_ + kHeaderSize),
-      GetHeaderValue(kNumReservationsOffset));
+  uint32_t size = GetHeaderValue(kNumReservationsOffset);
+  std::vector<Reservation> reservations(size);
+  memcpy(reservations.data(), data_ + kHeaderSize,
+         size * sizeof(SerializedData::Reservation));
+  return reservations;
 }
 
 Vector<const byte> SerializedCodeData::Payload() const {

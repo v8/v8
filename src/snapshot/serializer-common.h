@@ -255,6 +255,7 @@ class SerializedData {
  public:
   class Reservation {
    public:
+    Reservation() : reservation_(0) {}
     explicit Reservation(uint32_t size)
         : reservation_(ChunkSizeBits::encode(size)) {}
 
