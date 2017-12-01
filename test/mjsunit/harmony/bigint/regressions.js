@@ -16,3 +16,5 @@ assertEquals(0n, 5n % 1n);
 assertEquals(0n, -5n % 1n);
 assertEquals(0n, 5n % -1n);
 assertEquals(0n, -5n % -1n);
+
+assertTrue(0n === 0n);

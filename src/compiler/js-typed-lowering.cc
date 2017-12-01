@@ -850,9 +850,9 @@ Reduction JSTypedLowering::ReduceJSStrictEqual(Node* node) {
     ReplaceWithValue(node, replacement);
     return Replace(replacement);
   }
-  if (r.OneInputCannotBe(Type::NumberOrString())) {
-    // For values with canonical representation (i.e. neither String, nor
-    // Number) an empty type intersection means the values cannot be strictly
+  if (r.OneInputCannotBe(Type::NumericOrString())) {
+    // For values with canonical representation (i.e. neither String nor
+    // Numeric) an empty type intersection means the values cannot be strictly
     // equal.
     if (!r.left_type()->Maybe(r.right_type())) {
       Node* replacement = jsgraph()->FalseConstant();
