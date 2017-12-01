@@ -295,7 +295,7 @@ class V8_EXPORT_PRIVATE NativeModule final {
   // code is obtained (CodeDesc vs, as a point in time, Code*), the kind,
   // whether it has an index or is anonymous, etc.
   WasmCode* AddOwnedCode(Vector<const byte> orig_instructions,
-                         std::unique_ptr<const byte[]>&& reloc_info,
+                         std::unique_ptr<const byte[]> reloc_info,
                          size_t reloc_size, Maybe<uint32_t> index,
                          WasmCode::Kind kind, size_t constant_pool_offset,
                          uint32_t stack_slots, size_t safepoint_table_offset,

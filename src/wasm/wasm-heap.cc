@@ -266,7 +266,7 @@ uint32_t NativeModule::FunctionCount() const {
 
 WasmCode* NativeModule::AddOwnedCode(
     Vector<const byte> orig_instructions,
-    std::unique_ptr<const byte[]>&& reloc_info, size_t reloc_size,
+    std::unique_ptr<const byte[]> reloc_info, size_t reloc_size,
     Maybe<uint32_t> index, WasmCode::Kind kind, size_t constant_pool_offset,
     uint32_t stack_slots, size_t safepoint_table_offset,
     std::shared_ptr<ProtectedInstructions> protected_instructions,
@@ -281,7 +281,7 @@ WasmCode* NativeModule::AddOwnedCode(
   std::unique_ptr<WasmCode> code(new WasmCode(
       {executable_buffer, orig_instructions.size()}, std::move(reloc_info),
       reloc_size, this, index, kind, constant_pool_offset, stack_slots,
-      safepoint_table_offset, protected_instructions, is_liftoff));
+      safepoint_table_offset, std::move(protected_instructions), is_liftoff));
   WasmCode* ret = code.get();
 
   // TODO(mtrofin): We allocate in increasing address order, and
@@ -392,7 +392,8 @@ WasmCode* NativeModule::AddCode(
       {desc.buffer, static_cast<size_t>(desc.instr_size)},
       std::move(reloc_info), static_cast<size_t>(desc.reloc_size), Just(index),
       WasmCode::kFunction, desc.instr_size - desc.constant_pool_size,
-      frame_slots, safepoint_table_offset, protected_instructions, is_liftoff);
+      frame_slots, safepoint_table_offset, std::move(protected_instructions),
+      is_liftoff);
   if (ret == nullptr) return nullptr;
 
   SetCodeTable(index, ret);
