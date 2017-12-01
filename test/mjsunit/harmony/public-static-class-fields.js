@@ -262,7 +262,7 @@
 
   assertEquals(1, C.a);
   assertEquals(undefined, C.b);
-  assertEquals(undefined, C.c);
+  assertEquals(undefined, C[c]);
 }
 
 {
@@ -310,7 +310,7 @@ function x() {
     assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], log);
   }
 }
-x();
+x()();
 
 {
   class C {}

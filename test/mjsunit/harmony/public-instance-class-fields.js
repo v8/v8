@@ -270,7 +270,7 @@
   let c = new C;
   assertEquals(1, c.a);
   assertEquals(undefined, c.b);
-  assertEquals(undefined, c.c1);
+  assertEquals(undefined, c[c1]);
 }
 
 {
@@ -315,7 +315,7 @@ function x() {
     assertEquals([1, 2, 3, 4, 5, 6, 7, 8, 9], log);
   }
 }
-x();
+x()();
 
 {
   class C {}
