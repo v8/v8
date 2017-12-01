@@ -1026,9 +1026,6 @@ class WasmDecoder : public Decoder {
 
   std::pair<uint32_t, uint32_t> StackEffect(const byte* pc) {
     WasmOpcode opcode = static_cast<WasmOpcode>(*pc);
-    if (WasmOpcodes::IsPrefixOpcode(opcode)) {
-      opcode = static_cast<WasmOpcode>(opcode << 8 | *(pc + 1));
-    }
     // Handle "simple" opcodes with a fixed signature first.
     FunctionSig* sig = WasmOpcodes::Signature(opcode);
     if (!sig) sig = WasmOpcodes::AsmjsSignature(opcode);
@@ -1039,10 +1036,8 @@ class WasmDecoder : public Decoder {
     switch (opcode) {
       case kExprSelect:
         return {3, 1};
-      case kExprS128StoreMem:
       FOREACH_STORE_MEM_OPCODE(DECLARE_OPCODE_CASE)
         return {2, 0};
-      case kExprS128LoadMem:
       FOREACH_LOAD_MEM_OPCODE(DECLARE_OPCODE_CASE)
       case kExprTeeLocal:
       case kExprGrowMemory:
@@ -1083,6 +1078,23 @@ class WasmDecoder : public Decoder {
       case kExprReturn:
       case kExprUnreachable:
         return {0, 0};
+      case kAtomicPrefix:
+      case kSimdPrefix: {
+        opcode = static_cast<WasmOpcode>(opcode << 8 | *(pc + 1));
+        switch (opcode) {
+          case kExprI32AtomicStore:
+          case kExprI32AtomicStore8U:
+          case kExprI32AtomicStore16U:
+          case kExprS128StoreMem:
+            return {2, 0};
+          default: {
+            sig = WasmOpcodes::Signature(opcode);
+            if (sig) {
+              return {sig->parameter_count(), sig->return_count()};
+            }
+          }
+        }
+      }
       default:
         V8_Fatal(__FILE__, __LINE__, "unimplemented opcode: %x (%s)", opcode,
                  WasmOpcodes::OpcodeName(opcode));

@@ -1540,12 +1540,12 @@ class ThreadImpl {
   }
 
   template <typename type>
-  bool ExtractAtomicBinOpParams(Decoder* decoder, InterpreterCode* code,
-                                Address& address, pc_t pc, type& val,
-                                int& len) {
+  bool ExtractAtomicOpParams(Decoder* decoder, InterpreterCode* code,
+                             Address& address, pc_t pc, int& len,
+                             type* val = nullptr) {
     MemoryAccessOperand<Decoder::kNoValidate> operand(decoder, code->at(pc + 1),
                                                       sizeof(type));
-    val = Pop().to<uint32_t>();
+    if (val) *val = Pop().to<uint32_t>();
     uint32_t index = Pop().to<uint32_t>();
     if (!BoundsCheck<type>(wasm_context_->mem_size, operand.offset, index)) {
       DoTrap(kTrapMemOutOfBounds, pc);
@@ -1560,19 +1560,20 @@ class ThreadImpl {
                        InterpreterCode* code, pc_t pc, int& len) {
     WasmValue result;
     switch (opcode) {
-#define ATOMIC_BINOP_CASE(name, type, operation)                              \
-  case kExpr##name: {                                                         \
-    type val;                                                                 \
-    Address addr;                                                             \
-    if (!ExtractAtomicBinOpParams<type>(decoder, code, addr, pc, val, len)) { \
-      return false;                                                           \
-    }                                                                         \
-    static_assert(sizeof(std::atomic<type>) == sizeof(type),                  \
-                  "Size mismatch for types std::atomic<" #type                \
-                  ">, and " #type);                                           \
-    result = WasmValue(                                                       \
-        std::operation(reinterpret_cast<std::atomic<type>*>(addr), val));     \
-    break;                                                                    \
+#define ATOMIC_BINOP_CASE(name, type, operation)                            \
+  case kExpr##name: {                                                       \
+    type val;                                                               \
+    Address addr;                                                           \
+    if (!ExtractAtomicOpParams<type>(decoder, code, addr, pc, len, &val)) { \
+      return false;                                                         \
+    }                                                                       \
+    static_assert(sizeof(std::atomic<type>) == sizeof(type),                \
+                  "Size mismatch for types std::atomic<" #type              \
+                  ">, and " #type);                                         \
+    result = WasmValue(                                                     \
+        std::operation(reinterpret_cast<std::atomic<type>*>(addr), val));   \
+    Push(result);                                                           \
+    break;                                                                  \
   }
       ATOMIC_BINOP_CASE(I32AtomicAdd, uint32_t, atomic_fetch_add);
       ATOMIC_BINOP_CASE(I32AtomicAdd8U, uint8_t, atomic_fetch_add);
@@ -1593,10 +1594,44 @@ class ThreadImpl {
       ATOMIC_BINOP_CASE(I32AtomicExchange8U, uint8_t, atomic_exchange);
       ATOMIC_BINOP_CASE(I32AtomicExchange16U, uint16_t, atomic_exchange);
 #undef ATOMIC_BINOP_CASE
+#define ATOMIC_LOAD_CASE(name, type, operation)                                \
+  case kExpr##name: {                                                          \
+    Address addr;                                                              \
+    if (!ExtractAtomicOpParams<type>(decoder, code, addr, pc, len)) {          \
+      return false;                                                            \
+    }                                                                          \
+    static_assert(sizeof(std::atomic<type>) == sizeof(type),                   \
+                  "Size mismatch for types std::atomic<" #type                 \
+                  ">, and " #type);                                            \
+    result =                                                                   \
+        WasmValue(std::operation(reinterpret_cast<std::atomic<type>*>(addr))); \
+    Push(result);                                                              \
+    break;                                                                     \
+  }
+      ATOMIC_LOAD_CASE(I32AtomicLoad, uint32_t, atomic_load);
+      ATOMIC_LOAD_CASE(I32AtomicLoad8U, uint8_t, atomic_load);
+      ATOMIC_LOAD_CASE(I32AtomicLoad16U, uint16_t, atomic_load);
+#undef ATOMIC_LOAD_CASE
+#define ATOMIC_STORE_CASE(name, type, operation)                            \
+  case kExpr##name: {                                                       \
+    type val;                                                               \
+    Address addr;                                                           \
+    if (!ExtractAtomicOpParams<type>(decoder, code, addr, pc, len, &val)) { \
+      return false;                                                         \
+    }                                                                       \
+    static_assert(sizeof(std::atomic<type>) == sizeof(type),                \
+                  "Size mismatch for types std::atomic<" #type              \
+                  ">, and " #type);                                         \
+    std::operation(reinterpret_cast<std::atomic<type>*>(addr), val);        \
+    break;                                                                  \
+  }
+      ATOMIC_STORE_CASE(I32AtomicStore, uint32_t, atomic_store);
+      ATOMIC_STORE_CASE(I32AtomicStore8U, uint8_t, atomic_store);
+      ATOMIC_STORE_CASE(I32AtomicStore16U, uint16_t, atomic_store);
+#undef ATOMIC_STORE_CASE
       default:
         return false;
     }
-    Push(result);
     return true;
   }
 
