@@ -5468,7 +5468,8 @@ typedef bool (*AccessCheckCallback)(Local<Context> accessing_context,
  *    v8::Local<v8::ObjectTemplate> instance_t = t->InstanceTemplate();
  *    instance_t->SetAccessor(String::NewFromUtf8(isolate, "instance_accessor"),
  *                            InstanceAccessorCallback);
- *    instance_t->SetNamedPropertyHandler(PropertyHandlerCallback);
+ *    instance_t->SetHandler(
+ *        NamedPropertyHandlerConfiguration(PropertyHandlerCallback));
  *    instance_t->Set(String::NewFromUtf8(isolate, "instance_property"),
  *                    Number::New(isolate, 3));
  *
@@ -5866,13 +5867,16 @@ class V8_EXPORT ObjectTemplate : public Template {
    * \param data A piece of data that will be passed to the callbacks
    *   whenever they are invoked.
    */
-  // TODO(dcarney): deprecate
-  void SetNamedPropertyHandler(NamedPropertyGetterCallback getter,
-                               NamedPropertySetterCallback setter = 0,
-                               NamedPropertyQueryCallback query = 0,
-                               NamedPropertyDeleterCallback deleter = 0,
-                               NamedPropertyEnumeratorCallback enumerator = 0,
-                               Local<Value> data = Local<Value>());
+  V8_DEPRECATE_SOON(
+      "Use SetHandler(const NamedPropertyHandlerConfiguration) "
+      "with the kOnlyInterceptStrings flag set.",
+      void SetNamedPropertyHandler(
+          NamedPropertyGetterCallback getter,
+          NamedPropertySetterCallback setter = 0,
+          NamedPropertyQueryCallback query = 0,
+          NamedPropertyDeleterCallback deleter = 0,
+          NamedPropertyEnumeratorCallback enumerator = 0,
+          Local<Value> data = Local<Value>()));
 
   /**
    * Sets a named property handler on the object template.

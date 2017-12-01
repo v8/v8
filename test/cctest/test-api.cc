@@ -22317,15 +22317,12 @@ THREADED_TEST(InstanceCheckOnInstanceAccessor) {
   CheckInstanceCheckedAccessors(false);
 }
 
-
 static void EmptyInterceptorGetter(
-    Local<String> name, const v8::PropertyCallbackInfo<v8::Value>& info) {}
-
+    Local<Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {}
 
 static void EmptyInterceptorSetter(
-    Local<String> name, Local<Value> value,
+    Local<Name> name, Local<Value> value,
     const v8::PropertyCallbackInfo<v8::Value>& info) {}
-
 
 THREADED_TEST(InstanceCheckOnInstanceAccessorWithInterceptor) {
   v8::internal::FLAG_allow_natives_syntax = true;
@@ -22334,8 +22331,8 @@ THREADED_TEST(InstanceCheckOnInstanceAccessorWithInterceptor) {
 
   Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
   Local<ObjectTemplate> inst = templ->InstanceTemplate();
-  templ->InstanceTemplate()->SetNamedPropertyHandler(EmptyInterceptorGetter,
-                                                     EmptyInterceptorSetter);
+  templ->InstanceTemplate()->SetHandler(v8::NamedPropertyHandlerConfiguration(
+      EmptyInterceptorGetter, EmptyInterceptorSetter));
   inst->SetAccessor(v8_str("foo"), InstanceCheckedGetter, InstanceCheckedSetter,
                     Local<Value>(), v8::DEFAULT, v8::None,
                     v8::AccessorSignature::New(context->GetIsolate(), templ));
