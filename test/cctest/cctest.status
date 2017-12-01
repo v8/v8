@@ -385,10 +385,4 @@
   'test-dtoa/*': [SKIP],
 }],  # variant == wasm_traps
 
-##############################################################################
-# BUG(v8:7138).
-['arch == arm and not simulator_run and variant == wasm_traps', {
-  '*': [SKIP],
-}], # arch == arm and not simulator_run and variant == wasm_traps
-
 ]

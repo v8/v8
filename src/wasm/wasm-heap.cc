@@ -290,6 +290,9 @@ WasmCode* NativeModule::AddOwnedCode(
   auto insert_before = std::upper_bound(owned_code_.begin(), owned_code_.end(),
                                         code, owned_code_comparer_);
   owned_code_.insert(insert_before, std::move(code));
+  wasm_code_manager_->FlushICache(ret->instructions().start(),
+                                  ret->instructions().size());
+
   return ret;
 }
 
@@ -902,6 +905,11 @@ void WasmCodeManager::Free(VirtualMemory* mem) {
 
 intptr_t WasmCodeManager::remaining_uncommitted() const {
   return remaining_uncommitted_.Value();
+}
+
+void WasmCodeManager::FlushICache(Address start, size_t size) {
+  Assembler::FlushICache(reinterpret_cast<internal::Isolate*>(isolate_), start,
+                         size);
 }
 
 }  // namespace wasm

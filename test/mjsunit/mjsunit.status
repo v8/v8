@@ -745,12 +745,6 @@
 }], # arch != x64 and arch != ia32
 
 ##############################################################################
-# BUG(v8:7138).
-['arch == arm and not simulator_run and variant == wasm_traps', {
-  '*': [SKIP],
-}], # arch == arm and not simulator_run and variant == wasm_traps
-
-##############################################################################
 ['variant == liftoff', {
   # In the liftoff variant, liftoff compilation happens even though the test
   # does not explicitly enable it.

@@ -361,6 +361,10 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   WasmCode* GetCodeFromStartAddress(Address pc) const;
   intptr_t remaining_uncommitted() const;
 
+  // TODO(mtrofin): replace this API with an alternative that is Isolate-
+  // independent.
+  void FlushICache(Address start, size_t size);
+
  private:
   friend class NativeModule;
 
@@ -383,6 +387,8 @@ class V8_EXPORT_PRIVATE WasmCodeManager final {
   // worth requesting a GC on memory pressure.
   size_t active_ = 0;
   base::AtomicNumber<intptr_t> remaining_uncommitted_;
+
+  // TODO(mtrofin): remove the dependency on isolate.
   v8::Isolate* isolate_;
 };
 
