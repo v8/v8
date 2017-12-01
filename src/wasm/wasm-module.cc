@@ -109,8 +109,8 @@ void UnpackAndRegisterProtectedInstructionsGC(Isolate* isolate,
   }
 }
 
-void UnpackAndRegisterProtectedInstructions(Isolate* isolate,
-                                            wasm::NativeModule* native_module) {
+void UnpackAndRegisterProtectedInstructions(
+    Isolate* isolate, const wasm::NativeModule* native_module) {
   DisallowHeapAllocation no_gc;
 
   for (uint32_t i = native_module->num_imported_functions(),
@@ -171,7 +171,7 @@ WasmFunction* GetWasmFunctionForExport(Isolate* isolate,
 }
 
 void UpdateDispatchTables(Isolate* isolate, Handle<FixedArray> dispatch_tables,
-                          int index, WasmFunction* function,
+                          int index, const WasmFunction* function,
                           Handle<Object> code_or_foreign) {
   DCHECK_EQ(0, dispatch_tables->length() % 4);
   for (int i = 0; i < dispatch_tables->length(); i += 4) {
