@@ -120,8 +120,8 @@ class Pool():
                                          self.done,
                                          process_context_fn,
                                          process_context_args))
-        p.start()
         self.processes.append(p)
+        p.start()
 
       self.advance(gen)
       while self.count > 0:
@@ -145,11 +145,6 @@ class Pool():
         else:
           yield MaybeResult.create_result(result.result)
         self.advance(gen)
-    except KeyboardInterrupt:
-      raise
-    except Exception as e:
-      traceback.print_exc()
-      print(">>> EXCEPTION: %s" % e)
     finally:
       self.terminate()
     if internal_error:

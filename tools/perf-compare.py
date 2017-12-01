@@ -12,6 +12,7 @@ Examples:
 '''
 
 from collections import OrderedDict
+import commands
 import json
 import math
 from argparse import ArgumentParser

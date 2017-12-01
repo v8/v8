@@ -32,8 +32,12 @@ import os
 import sys
 import time
 
+from . import execution
 from . import junit_output
 from . import statusfile
+
+
+ABS_PATH_PREFIX = os.getcwd() + os.sep
 
 
 class ProgressIndicator(object):
@@ -65,6 +69,18 @@ class ProgressIndicator(object):
       'label': test.GetLabel(),
       'negative': negative_marker
     }
+
+  def _EscapeCommand(self, test):
+    command, _ = execution.GetCommand(test, self.runner.context)
+    parts = []
+    for part in command:
+      if ' ' in part:
+        # Escape spaces.  We may need to escape more characters for this
+        # to work properly.
+        parts.append('"%s"' % part)
+      else:
+        parts.append(part)
+    return " ".join(parts)
 
 
 class IndicatorNotifier(object):
@@ -107,7 +123,7 @@ class SimpleProgressIndicator(ProgressIndicator):
       if failed.output.stdout:
         print "--- stdout ---"
         print failed.output.stdout.strip()
-      print "Command: %s" % failed.cmd.to_string()
+      print "Command: %s" % self._EscapeCommand(failed)
       if failed.output.HasCrashed():
         print "exit code: %d" % failed.output.exit_code
         print "--- CRASHED ---"
@@ -189,7 +205,7 @@ class CompactProgressIndicator(ProgressIndicator):
       stderr = test.output.stderr.strip()
       if len(stderr):
         print self.templates['stderr'] % stderr
-      print "Command: %s" % test.cmd.to_string()
+      print "Command: %s" % self._EscapeCommand(test)
       if test.output.HasCrashed():
         print "exit code: %d" % test.output.exit_code
         print "--- CRASHED ---"
@@ -257,7 +273,6 @@ class MonochromeProgressIndicator(CompactProgressIndicator):
 class JUnitTestProgressIndicator(ProgressIndicator):
 
   def __init__(self, junitout, junittestsuite):
-    super(JUnitTestProgressIndicator, self).__init__()
     self.outputter = junit_output.JUnitTestOutput(junittestsuite)
     if junitout:
       self.outfile = open(junitout, "w")
@@ -278,7 +293,7 @@ class JUnitTestProgressIndicator(ProgressIndicator):
       stderr = test.output.stderr.strip()
       if len(stderr):
         fail_text += "stderr:\n%s\n" % stderr
-      fail_text += "Command: %s" % self.test.cmd.to_string()
+      fail_text += "Command: %s" % self._EscapeCommand(test)
       if test.output.HasCrashed():
         fail_text += "exit code: %d\n--- CRASHED ---" % test.output.exit_code
       if test.output.HasTimedOut():
@@ -292,7 +307,6 @@ class JUnitTestProgressIndicator(ProgressIndicator):
 class JsonTestProgressIndicator(ProgressIndicator):
 
   def __init__(self, json_test_results, arch, mode, random_seed):
-    super(JsonTestProgressIndicator, self).__init__()
     self.json_test_results = json_test_results
     self.arch = arch
     self.mode = mode
@@ -320,7 +334,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
       {
         "name": test.GetLabel(),
         "flags": test.flags,
-        "command": test.cmd.to_string(relative=True),
+        "command": self._EscapeCommand(test).replace(ABS_PATH_PREFIX, ""),
         "duration": test.duration,
         "marked_slow": statusfile.IsSlow(
           test.suite.GetStatusFileOutcomes(test)),
@@ -350,7 +364,7 @@ class JsonTestProgressIndicator(ProgressIndicator):
     self.results.append({
       "name": test.GetLabel(),
       "flags": test.flags,
-      "command": test.cmd.to_string(relative=True),
+      "command": self._EscapeCommand(test).replace(ABS_PATH_PREFIX, ""),
       "run": test.run,
       "stdout": test.output.stdout,
       "stderr": test.output.stderr,
@@ -370,7 +384,6 @@ class JsonTestProgressIndicator(ProgressIndicator):
 class FlakinessTestProgressIndicator(ProgressIndicator):
 
   def __init__(self, json_test_results):
-    super(FlakinessTestProgressIndicator, self).__init__()
     self.json_test_results = json_test_results
     self.results = {}
     self.summary = {

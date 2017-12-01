@@ -454,7 +454,6 @@ class StandardTestRunner(base_runner.BaseTestRunner):
 
         for t in s.tests:
           t.flags += s.GetStatusfileFlags(t)
-          t.cmd = s.GetCommand(t, ctx)
 
         s.tests = self._shard_tests(s.tests, options)
         num_tests += len(s.tests)
